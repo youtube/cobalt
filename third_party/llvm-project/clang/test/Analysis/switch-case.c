@@ -1,4 +1,4 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -verify -analyzer-config eagerly-assume=false %s
 
 void clang_analyzer_eval(int);
 void clang_analyzer_warnIfReached();
@@ -211,6 +211,17 @@ void testDifferentTypes3(int arg) {
 void testConstant() {
   switch (3) {
   case 1 ... 5:
+    clang_analyzer_warnIfReached(); // expected-warning{{REACHABLE}}
+    break;
+  default:
+    clang_analyzer_warnIfReached(); // no-warning
+    break;
+  }
+}
+
+void testExhaustiveSwitch(unsigned int a) {
+  switch (a & 5) {
+  case 0 ... 5:
     clang_analyzer_warnIfReached(); // expected-warning{{REACHABLE}}
     break;
   default:

@@ -1,22 +1,11 @@
 // RUN: %clang_builtins %s %librt -o %t && %run %t
-//===-- floatuntisf.c - Test __floatuntisf --------------------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file tests __floatuntisf for the compiler_rt library.
-//
-//===----------------------------------------------------------------------===//
+// REQUIRES: librt_has_floatuntisf
 
 #include "int_lib.h"
 #include <float.h>
 #include <stdio.h>
 
-#ifdef CRT_HAS_128BIT
+#if defined(CRT_HAS_128BIT) && HAS_80_BIT_LONG_DOUBLE
 
 // Returns: convert a to a float, rounding toward even.
 
@@ -40,15 +29,15 @@ int test__floatuntisf(tu_int a, float expected)
     return x != expected;
 }
 
-char assumption_1[sizeof(tu_int) == 2*sizeof(du_int)] = {0};
-char assumption_2[sizeof(tu_int)*CHAR_BIT == 128] = {0};
-char assumption_3[sizeof(float)*CHAR_BIT == 32] = {0};
+COMPILE_TIME_ASSERT(sizeof(tu_int) == 2*sizeof(du_int));
+COMPILE_TIME_ASSERT(sizeof(tu_int)*CHAR_BIT == 128);
+COMPILE_TIME_ASSERT(sizeof(float)*CHAR_BIT == 32);
 
 #endif
 
 int main()
 {
-#ifdef CRT_HAS_128BIT
+#if defined(CRT_HAS_128BIT) && HAS_80_BIT_LONG_DOUBLE
     if (test__floatuntisf(0, 0.0F))
         return 1;
 

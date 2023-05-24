@@ -1,9 +1,8 @@
 //===- CodeGeneration.cpp - Code generate the Scops using ISL. ---------======//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -28,34 +27,22 @@
 #include "polly/DependenceInfo.h"
 #include "polly/LinkAllPasses.h"
 #include "polly/Options.h"
-#include "polly/ScopDetectionDiagnostic.h"
 #include "polly/ScopInfo.h"
 #include "polly/Support/ScopHelper.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/BasicAliasAnalysis.h"
-#include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/RegionInfo.h"
-#include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/CommandLine.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "isl/ast.h"
 #include <cassert>
-#include <utility>
 
 using namespace llvm;
 using namespace polly;
@@ -179,8 +166,9 @@ static void removeLifetimeMarkers(Region *R) {
   }
 }
 
-static bool CodeGen(Scop &S, IslAstInfo &AI, LoopInfo &LI, DominatorTree &DT,
-                    ScalarEvolution &SE, RegionInfo &RI) {
+static bool generateCode(Scop &S, IslAstInfo &AI, LoopInfo &LI,
+                         DominatorTree &DT, ScalarEvolution &SE,
+                         RegionInfo &RI) {
   // Check whether IslAstInfo uses the same isl_ctx. Since -polly-codegen
   // reports itself to preserve DependenceInfo and IslAstInfo, we might get
   // those analysis that were computed by a different ScopInfo for a different
@@ -201,8 +189,8 @@ static bool CodeGen(Scop &S, IslAstInfo &AI, LoopInfo &LI, DominatorTree &DT,
   }
 
   // Check if we created an isl_ast root node, otherwise exit.
-  isl_ast_node *AstRoot = Ast.getAst();
-  if (!AstRoot)
+  isl::ast_node AstRoot = Ast.getAst();
+  if (AstRoot.is_null())
     return false;
 
   // Collect statistics. Do it before we modify the IR to avoid having it any
@@ -220,7 +208,9 @@ static bool CodeGen(Scop &S, IslAstInfo &AI, LoopInfo &LI, DominatorTree &DT,
   assert(R->isSimple());
   BasicBlock *EnteringBB = S.getEnteringBlock();
   assert(EnteringBB);
-  PollyIRBuilder Builder = createPollyIRBuilder(EnteringBB, Annotator);
+  PollyIRBuilder Builder(EnteringBB->getContext(), ConstantFolder(),
+                         IRInserter(Annotator));
+  Builder.SetInsertPoint(EnteringBB->getTerminator());
 
   // Only build the run-time condition and parameters _after_ having
   // introduced the conditional branch. This is important as the conditional
@@ -277,11 +267,9 @@ static bool CodeGen(Scop &S, IslAstInfo &AI, LoopInfo &LI, DominatorTree &DT,
     assert(ExitingBB);
     DT.changeImmediateDominator(MergeBlock, ExitingBB);
     DT.eraseNode(ExitingBlock);
-
-    isl_ast_node_free(AstRoot);
   } else {
     NodeBuilder.addParameters(S.getContext().release());
-    Value *RTC = NodeBuilder.createRTC(AI.getRunCondition());
+    Value *RTC = NodeBuilder.createRTC(AI.getRunCondition().release());
 
     Builder.GetInsertBlock()->getTerminator()->setOperand(0, RTC);
 
@@ -293,7 +281,7 @@ static bool CodeGen(Scop &S, IslAstInfo &AI, LoopInfo &LI, DominatorTree &DT,
     // between polly.start and polly.exiting (at this point).
     Builder.SetInsertPoint(StartBlock->getTerminator());
 
-    NodeBuilder.create(AstRoot);
+    NodeBuilder.create(AstRoot.release());
     NodeBuilder.finalize();
     fixRegionInfo(*EnteringBB->getParent(), *R->getParent(), RI);
 
@@ -346,7 +334,7 @@ public:
     SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
     DL = &S.getFunction().getParent()->getDataLayout();
     RI = &getAnalysis<RegionInfoPass>().getRegionInfo();
-    return CodeGen(S, *AI, *LI, *DT, *SE, *RI);
+    return generateCode(S, *AI, *LI, *DT, *SE, *RI);
   }
 
   /// Register all analyses and transformation required.
@@ -374,7 +362,7 @@ PreservedAnalyses CodeGenerationPass::run(Scop &S, ScopAnalysisManager &SAM,
                                           ScopStandardAnalysisResults &AR,
                                           SPMUpdater &U) {
   auto &AI = SAM.getResult<IslAstAnalysis>(S, AR);
-  if (CodeGen(S, AI, AR.LI, AR.DT, AR.SE, AR.RI)) {
+  if (generateCode(S, AI, AR.LI, AR.DT, AR.SE, AR.RI)) {
     U.invalidateScop(S);
     return PreservedAnalyses::none();
   }

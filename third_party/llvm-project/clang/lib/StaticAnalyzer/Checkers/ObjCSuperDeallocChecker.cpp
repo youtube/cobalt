@@ -1,9 +1,8 @@
 //===- ObjCSuperDeallocChecker.cpp - Check correct use of [super dealloc] -===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
@@ -68,13 +67,11 @@ class SuperDeallocBRVisitor final : public BugReporterVisitor {
 
 public:
   SuperDeallocBRVisitor(SymbolRef ReceiverSymbol)
-      : ReceiverSymbol(ReceiverSymbol),
-        Satisfied(false) {}
+      : ReceiverSymbol(ReceiverSymbol), Satisfied(false) {}
 
-  std::shared_ptr<PathDiagnosticPiece> VisitNode(const ExplodedNode *Succ,
-                                                 const ExplodedNode *Pred,
-                                                 BugReporterContext &BRC,
-                                                 BugReport &BR) override;
+  PathDiagnosticPieceRef VisitNode(const ExplodedNode *Succ,
+                                   BugReporterContext &BRC,
+                                   PathSensitiveBugReport &BR) override;
 
   void Profile(llvm::FoldingSetNodeID &ID) const override {
     ID.Add(ReceiverSymbol);
@@ -119,13 +116,14 @@ void ObjCSuperDeallocChecker::checkPostObjCMessage(const ObjCMethodCall &M,
     return;
 
   ProgramStateRef State = C.getState();
-  SymbolRef ReceiverSymbol = M.getSelfSVal().getAsSymbol();
-  assert(ReceiverSymbol && "No receiver symbol at call to [super dealloc]?");
+  const LocationContext *LC = C.getLocationContext();
+  SymbolRef SelfSymbol = State->getSelfSVal(LC).getAsSymbol();
+  assert(SelfSymbol && "No receiver symbol at call to [super dealloc]?");
 
   // We add this transition in checkPostObjCMessage to avoid warning when
   // we inline a call to [super dealloc] where the inlined call itself
   // calls [super dealloc].
-  State = State->add<CalledSuperDealloc>(ReceiverSymbol);
+  State = State->add<CalledSuperDealloc>(SelfSymbol);
   C.addTransition(State);
 }
 
@@ -190,10 +188,10 @@ void ObjCSuperDeallocChecker::reportUseAfterDealloc(SymbolRef Sym,
     Desc = "Use of 'self' after it has been deallocated";
 
   // Generate the report.
-  std::unique_ptr<BugReport> BR(
-      new BugReport(*DoubleSuperDeallocBugType, Desc, ErrNode));
+  auto BR = std::make_unique<PathSensitiveBugReport>(*DoubleSuperDeallocBugType,
+                                                     Desc, ErrNode);
   BR->addRange(S->getSourceRange());
-  BR->addVisitor(llvm::make_unique<SuperDeallocBRVisitor>(Sym));
+  BR->addVisitor(std::make_unique<SuperDeallocBRVisitor>(Sym));
   C.emitReport(std::move(BR));
 }
 
@@ -245,10 +243,10 @@ ObjCSuperDeallocChecker::isSuperDeallocMessage(const ObjCMethodCall &M) const {
   return M.getSelector() == SELdealloc;
 }
 
-std::shared_ptr<PathDiagnosticPiece>
+PathDiagnosticPieceRef
 SuperDeallocBRVisitor::VisitNode(const ExplodedNode *Succ,
-                                 const ExplodedNode *Pred,
-                                 BugReporterContext &BRC, BugReport &BR) {
+                                 BugReporterContext &BRC,
+                                 PathSensitiveBugReport &) {
   if (Satisfied)
     return nullptr;
 
@@ -257,7 +255,8 @@ SuperDeallocBRVisitor::VisitNode(const ExplodedNode *Succ,
   bool CalledNow =
       Succ->getState()->contains<CalledSuperDealloc>(ReceiverSymbol);
   bool CalledBefore =
-      Pred->getState()->contains<CalledSuperDealloc>(ReceiverSymbol);
+      Succ->getFirstPred()->getState()->contains<CalledSuperDealloc>(
+          ReceiverSymbol);
 
   // Is Succ the node on which the analyzer noted that [super dealloc] was
   // called on ReceiverSymbol?
@@ -283,8 +282,9 @@ SuperDeallocBRVisitor::VisitNode(const ExplodedNode *Succ,
 //===----------------------------------------------------------------------===//
 
 void ento::registerObjCSuperDeallocChecker(CheckerManager &Mgr) {
-  const LangOptions &LangOpts = Mgr.getLangOpts();
-  if (LangOpts.getGC() == LangOptions::GCOnly || LangOpts.ObjCAutoRefCount)
-    return;
   Mgr.registerChecker<ObjCSuperDeallocChecker>();
+}
+
+bool ento::shouldRegisterObjCSuperDeallocChecker(const CheckerManager &mgr) {
+  return true;
 }

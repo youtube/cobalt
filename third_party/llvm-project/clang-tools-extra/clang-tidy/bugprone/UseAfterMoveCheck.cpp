@@ -1,14 +1,17 @@
 //===--- UseAfterMoveCheck.cpp - clang-tidy -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "UseAfterMoveCheck.h"
 
+#include "clang/AST/Expr.h"
+#include "clang/AST/ExprCXX.h"
+#include "clang/AST/ExprConcepts.h"
+#include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Lex/Lexer.h"
 
@@ -23,6 +26,23 @@ namespace tidy {
 namespace bugprone {
 
 namespace {
+
+AST_MATCHER(Expr, hasUnevaluatedContext) {
+  if (isa<CXXNoexceptExpr>(Node) || isa<RequiresExpr>(Node))
+    return true;
+  if (const auto *UnaryExpr = dyn_cast<UnaryExprOrTypeTraitExpr>(&Node)) {
+    switch (UnaryExpr->getKind()) {
+    case UETT_SizeOf:
+    case UETT_AlignOf:
+      return true;
+    default:
+      return false;
+    }
+  }
+  if (const auto *TypeIDExpr = dyn_cast<CXXTypeidExpr>(&Node))
+    return !TypeIDExpr->isPotentiallyEvaluated();
+  return false;
+}
 
 /// Contains information about a use-after-move.
 struct UseAfterMove {
@@ -78,7 +98,8 @@ private:
 static StatementMatcher inDecltypeOrTemplateArg() {
   return anyOf(hasAncestor(typeLoc()),
                hasAncestor(declRefExpr(
-                   to(functionDecl(ast_matchers::isTemplateInstantiation())))));
+                   to(functionDecl(ast_matchers::isTemplateInstantiation())))),
+               hasAncestor(expr(hasUnevaluatedContext())));
 }
 
 UseAfterMoveFinder::UseAfterMoveFinder(ASTContext *TheContext)
@@ -89,7 +110,7 @@ bool UseAfterMoveFinder::find(Stmt *FunctionBody, const Expr *MovingCall,
                               UseAfterMove *TheUseAfterMove) {
   // Generate the CFG manually instead of through an AnalysisDeclContext because
   // it seems the latter can't be used to generate a CFG for the body of a
-  // labmda.
+  // lambda.
   //
   // We include implicit and temporary destructors in the CFG so that
   // destructors marked [[noreturn]] are handled correctly in the control flow
@@ -102,13 +123,18 @@ bool UseAfterMoveFinder::find(Stmt *FunctionBody, const Expr *MovingCall,
   if (!TheCFG)
     return false;
 
-  Sequence.reset(new ExprSequence(TheCFG.get(), Context));
-  BlockMap.reset(new StmtToBlockMap(TheCFG.get(), Context));
+  Sequence =
+      std::make_unique<ExprSequence>(TheCFG.get(), FunctionBody, Context);
+  BlockMap = std::make_unique<StmtToBlockMap>(TheCFG.get(), Context);
   Visited.clear();
 
   const CFGBlock *Block = BlockMap->blockContainingStmt(MovingCall);
-  if (!Block)
-    return false;
+  if (!Block) {
+    // This can happen if MovingCall is in a constructor initializer, which is
+    // not included in the CFG because the CFG is built only from the function
+    // body.
+    Block = &TheCFG->getEntry();
+  }
 
   return findInternal(Block, MovingCall, MovedVariable, TheUseAfterMove);
 }
@@ -206,7 +232,7 @@ void UseAfterMoveFinder::getUsesAndReinits(
 }
 
 bool isStandardSmartPointer(const ValueDecl *VD) {
-  const Type *TheType = VD->getType().getTypePtrOrNull();
+  const Type *TheType = VD->getType().getNonReferenceType().getTypePtrOrNull();
   if (!TheType)
     return false;
 
@@ -234,7 +260,7 @@ void UseAfterMoveFinder::getDeclRefs(
     if (!S)
       continue;
 
-    auto addDeclRefs = [this, Block,
+    auto AddDeclRefs = [this, Block,
                         DeclRefs](const ArrayRef<BoundNodes> Matches) {
       for (const auto &Match : Matches) {
         const auto *DeclRef = Match.getNodeAs<DeclRefExpr>("declref");
@@ -253,14 +279,13 @@ void UseAfterMoveFinder::getDeclRefs(
                                       unless(inDecltypeOrTemplateArg()))
                               .bind("declref");
 
-    addDeclRefs(match(findAll(DeclRefMatcher), *S->getStmt(), *Context));
-    addDeclRefs(match(
-        findAll(cxxOperatorCallExpr(anyOf(hasOverloadedOperatorName("*"),
-                                          hasOverloadedOperatorName("->"),
-                                          hasOverloadedOperatorName("[]")),
-                                    hasArgument(0, DeclRefMatcher))
-                    .bind("operator")),
-        *S->getStmt(), *Context));
+    AddDeclRefs(match(traverse(TK_AsIs, findAll(DeclRefMatcher)), *S->getStmt(),
+                      *Context));
+    AddDeclRefs(match(findAll(cxxOperatorCallExpr(
+                                  hasAnyOverloadedOperatorName("*", "->", "[]"),
+                                  hasArgument(0, DeclRefMatcher))
+                                  .bind("operator")),
+                      *S->getStmt(), *Context));
   }
 }
 
@@ -289,15 +314,13 @@ void UseAfterMoveFinder::getReinits(
                // Assignment. In addition to the overloaded assignment operator,
                // test for built-in assignment as well, since template functions
                // may be instantiated to use std::move() on built-in types.
-               binaryOperator(hasOperatorName("="), hasLHS(DeclRefMatcher)),
-               cxxOperatorCallExpr(hasOverloadedOperatorName("="),
-                                   hasArgument(0, DeclRefMatcher)),
+               binaryOperation(hasOperatorName("="), hasLHS(DeclRefMatcher)),
                // Declaration. We treat this as a type of reinitialization too,
                // so we don't need to treat it separately.
                declStmt(hasDescendant(equalsNode(MovedVariable))),
                // clear() and assign() on standard containers.
                cxxMemberCallExpr(
-                   on(allOf(DeclRefMatcher, StandardContainerTypeMatcher)),
+                   on(expr(DeclRefMatcher, StandardContainerTypeMatcher)),
                    // To keep the matcher simple, we check for assign() calls
                    // on all standard containers, even though only vector,
                    // deque, forward_list and list have assign(). If assign()
@@ -306,8 +329,12 @@ void UseAfterMoveFinder::getReinits(
                    callee(cxxMethodDecl(hasAnyName("clear", "assign")))),
                // reset() on standard smart pointers.
                cxxMemberCallExpr(
-                   on(allOf(DeclRefMatcher, StandardSmartPointerTypeMatcher)),
+                   on(expr(DeclRefMatcher, StandardSmartPointerTypeMatcher)),
                    callee(cxxMethodDecl(hasName("reset")))),
+               // Methods that have the [[clang::reinitializes]] attribute.
+               cxxMemberCallExpr(
+                   on(DeclRefMatcher),
+                   callee(cxxMethodDecl(hasAttr(clang::attr::Reinitializes)))),
                // Passing variable to a function as a non-const pointer.
                callExpr(forEachArgumentWithParam(
                    unaryOperator(hasOperatorName("&"),
@@ -316,7 +343,7 @@ void UseAfterMoveFinder::getReinits(
                // Passing variable to a function as a non-const lvalue reference
                // (unless that function is std::move()).
                callExpr(forEachArgumentWithParam(
-                            DeclRefMatcher,
+                            traverse(TK_AsIs, DeclRefMatcher),
                             unless(parmVarDecl(hasType(
                                 references(qualType(isConstQualified())))))),
                         unless(callee(functionDecl(hasName("::std::move")))))))
@@ -370,31 +397,37 @@ static void emitDiagnostic(const Expr *MovingCall, const DeclRefExpr *MoveArg,
 }
 
 void UseAfterMoveCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus11)
-    return;
-
   auto CallMoveMatcher =
       callExpr(callee(functionDecl(hasName("::std::move"))), argumentCountIs(1),
                hasArgument(0, declRefExpr().bind("arg")),
                anyOf(hasAncestor(lambdaExpr().bind("containing-lambda")),
                      hasAncestor(functionDecl().bind("containing-func"))),
-               unless(inDecltypeOrTemplateArg()))
+               unless(inDecltypeOrTemplateArg()),
+               // try_emplace is a common maybe-moving function that returns a
+               // bool to tell callers whether it moved. Ignore std::move inside
+               // try_emplace to avoid false positives as we don't track uses of
+               // the bool.
+               unless(hasParent(cxxMemberCallExpr(
+                   callee(cxxMethodDecl(hasName("try_emplace")))))))
           .bind("call-move");
 
   Finder->addMatcher(
-      // To find the Stmt that we assume performs the actual move, we look for
-      // the direct ancestor of the std::move() that isn't one of the node
-      // types ignored by ignoringParenImpCasts().
-      stmt(forEach(expr(ignoringParenImpCasts(CallMoveMatcher))),
-           // Don't allow an InitListExpr to be the moving call. An InitListExpr
-           // has both a syntactic and a semantic form, and the parent-child
-           // relationships are different between the two. This could cause an
-           // InitListExpr to be analyzed as the moving call in addition to the
-           // Expr that we actually want, resulting in two diagnostics with
-           // different code locations for the same move.
-           unless(initListExpr()),
-           unless(expr(ignoringParenImpCasts(equalsBoundNode("call-move")))))
-          .bind("moving-call"),
+      traverse(
+          TK_AsIs,
+          // To find the Stmt that we assume performs the actual move, we look
+          // for the direct ancestor of the std::move() that isn't one of the
+          // node types ignored by ignoringParenImpCasts().
+          stmt(
+              forEach(expr(ignoringParenImpCasts(CallMoveMatcher))),
+              // Don't allow an InitListExpr to be the moving call. An
+              // InitListExpr has both a syntactic and a semantic form, and the
+              // parent-child relationships are different between the two. This
+              // could cause an InitListExpr to be analyzed as the moving call
+              // in addition to the Expr that we actually want, resulting in two
+              // diagnostics with different code locations for the same move.
+              unless(initListExpr()),
+              unless(expr(ignoringParenImpCasts(equalsBoundNode("call-move")))))
+              .bind("moving-call")),
       this);
 }
 
@@ -423,9 +456,9 @@ void UseAfterMoveCheck::check(const MatchFinder::MatchResult &Result) {
   if (!Arg->getDecl()->getDeclContext()->isFunctionOrMethod())
     return;
 
-  UseAfterMoveFinder finder(Result.Context);
+  UseAfterMoveFinder Finder(Result.Context);
   UseAfterMove Use;
-  if (finder.find(FunctionBody, MovingCall, Arg->getDecl(), &Use))
+  if (Finder.find(FunctionBody, MovingCall, Arg->getDecl(), &Use))
     emitDiagnostic(MovingCall, Arg, Use, this, Result.Context);
 }
 

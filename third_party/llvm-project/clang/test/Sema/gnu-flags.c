@@ -97,7 +97,7 @@ void statementexp()
 
 
 #if ALL || COMPOUNDLITERALINITIALIZER
-// expected-warning@+4 {{initialization of an array of type 'int [5]' from a compound literal of type 'int [5]' is a GNU extension}}
+// expected-warning@+4 {{initialization of an array of type 'int[5]' from a compound literal of type 'int[5]' is a GNU extension}}
 #endif
 
 typedef int int5[5];
@@ -124,7 +124,9 @@ enum {
 	fic = (int)(0.75 * 1000 * 1000)
 };
 static const int size = 100;
-void foo(void) { int data[size]; }
+int data[size];
+
+void foo(void) { int data[size]; } // OK, always a VLA
 
 #if ALL || REDECLAREDENUM
 // expected-note@+4 {{previous definition is here}}

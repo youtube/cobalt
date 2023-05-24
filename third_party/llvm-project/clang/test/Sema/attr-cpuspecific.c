@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-linux-gnu  -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple x86_64-linux-gnu  -fsyntax-only -verify %s -Wnonnull
 
 void __attribute__((cpu_specific(ivybridge))) no_default(void);
 void __attribute__((cpu_specific(sandybridge)))  no_default(void);
@@ -37,10 +37,16 @@ int __attribute__((cpu_dispatch(atom))) redecl2(void) { }
 // expected-note@-2 {{previous definition is here}}
 int __attribute__((cpu_dispatch(atom))) redecl2(void) { }
 
-int redecl3(void);
-// expected-error@-1 {{function declaration is missing 'cpu_specific' or 'cpu_dispatch' attribute in a multiversioned function}}
-// expected-note@+1 {{function multiversioning caused by this declaration}}
-int __attribute__((cpu_dispatch(atom))) redecl3(void) {}
+int allow_fwd_decl(void);
+int __attribute__((cpu_dispatch(atom))) allow_fwd_decl(void) {}
+
+int allow_fwd_decl2(void);
+void use_fwd_decl(void) {
+  allow_fwd_decl2();
+}
+// expected-error@+1 {{function declaration cannot become a multiversioned function after first usage}}
+int __attribute__((cpu_dispatch(atom))) allow_fwd_decl2(void) {}
+
 
 int __attribute__((cpu_specific(atom))) redecl4(void);
 // expected-error@+1 {{function declaration is missing 'cpu_specific' or 'cpu_dispatch' attribute in a multiversioned function}}
@@ -74,7 +80,7 @@ int __attribute((cpu_dispatch())) no_dispatch(void) {}
 // expected-error@+1 {{'cpu_specific' attribute takes at least 1 argument}}
 int __attribute((cpu_specific())) no_specific(void) {}
 
-//expected-error@+1 {{attribute 'cpu_specific' multiversioning cannot be combined}}
+//expected-error@+1 {{attribute 'cpu_specific' multiversioning cannot be combined with attribute 'used'}}
 void __attribute__((used,cpu_specific(sandybridge)))  addtl_attrs(void);
 
 void __attribute__((target("default"))) addtl_attrs2(void);
@@ -82,7 +88,8 @@ void __attribute__((target("default"))) addtl_attrs2(void);
 // expected-note@-2 {{previous declaration is here}}
 void __attribute__((cpu_specific(sandybridge))) addtl_attrs2(void);
 
-// expected-error@+2 {{multiversioning attributes cannot be combined}}
+// expected-error@+2 {{'cpu_dispatch' and 'cpu_specific' attributes are not compatible}}
+// expected-note@+1 {{conflicting attribute is here}}
 void __attribute((cpu_specific(sandybridge), cpu_dispatch(atom, sandybridge)))
 combine_attrs(void);
 
@@ -94,3 +101,20 @@ __vectorcall int __attribute__((cpu_specific(sandybridge))) diff_cc(void);
 int __attribute__((cpu_dispatch(atom))) disp_with_body(void) {
   return 5;
 }
+
+// expected-error@+1 {{invalid option 'INVALID'}}
+int __attribute__((cpu_specific(INVALID))) called_invalid_value(void){ return 1;}
+// expected-warning@+3 {{attribute declaration must precede definition}}
+// expected-note@-2 2 {{previous definition is here}}
+// expected-error@+1 {{redefinition of}}
+int __attribute__((cpu_specific(pentium_iii))) called_invalid_value(void){ return 2;}
+int __attribute__((cpu_specific(pentium_4))) called_invalid_value(void){ return 3;}
+
+int use3(void) {
+  return called_invalid_value();
+}
+
+// expected-warning@+1 {{CPU list contains duplicate entries; attribute ignored}}
+int __attribute__((cpu_dispatch(pentium_iii, pentium_iii_no_xmm_regs))) dupe_p3(void);
+
+void __attribute__((cpu_specific(atom), nothrow, nonnull(1))) addtl_attrs(int*);

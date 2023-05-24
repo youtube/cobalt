@@ -1,4 +1,4 @@
-; RUN: llc -O2 -mtriple amdgcn--amdhsa -mcpu=fiji -amdgpu-scalarize-global-loads=true -verify-machineinstrs  < %s | FileCheck %s
+; RUN: llc -mtriple amdgcn--amdhsa -mcpu=fiji -amdgpu-scalarize-global-loads=true -verify-machineinstrs < %s | FileCheck %s
 
 ; uniform loads
 ; CHECK-LABEL: @uniform_load
@@ -20,6 +20,24 @@ bb:
   %tmp12 = fadd float %tmp9, %tmp11
   %tmp13 = getelementptr inbounds float, float addrspace(1)* %arg1
   store float %tmp12, float addrspace(1)* %tmp13, align 4, !tbaa !8
+  ret void
+}
+
+; uniform loads before and after an aliasing store
+; FIXME: The second load should not be converted to an SMEM load!
+; CHECK-LABEL: @uniform_load_store_load
+; CHECK: s_load_dwordx4
+; CHECK: s_load_dword
+; CHECK: flat_store_dword
+; CHECK: s_load_dword
+; CHECK: flat_store_dword
+
+define amdgpu_kernel void @uniform_load_store_load(float addrspace(1)* %arg0, float addrspace(1)* %arg1) {
+bb:
+  %tmp2 = load float, float addrspace(1)* %arg0, !tbaa !8
+  store float %tmp2, float addrspace(1)* %arg1, !tbaa !8
+  %tmp3 = load float, float addrspace(1)* %arg0, !tbaa !8
+  store float %tmp3, float addrspace(1)* %arg1, !tbaa !8
   ret void
 }
 
@@ -54,8 +72,8 @@ bb:
 
 ; uniform load dominated by no-alias store - scalarize
 ; CHECK-LABEL: @no_memdep_alias_arg
-; CHECK: flat_store_dword
-; CHECK: s_load_dword [[SVAL:s[0-9]+]]
+; CHECK: s_load_dwordx2 s{{\[}}[[IN_LO:[0-9]+]]:[[IN_HI:[0-9]+]]], s[4:5], 0x0
+; CHECK: s_load_dword [[SVAL:s[0-9]+]], s{{\[}}[[IN_LO]]:[[IN_HI]]], 0x0
 ; CHECK: v_mov_b32_e32 [[VVAL:v[0-9]+]], [[SVAL]]
 ; CHECK: flat_store_dword v[{{[0-9]+:[0-9]+}}], [[VVAL]]
 
@@ -81,10 +99,10 @@ define amdgpu_kernel void @memdep(i32 addrspace(1)* %in, [8 x i32], i32 addrspac
 ; uniform load from global array
 ; CHECK-LABEL:  @global_array
 ; CHECK: s_getpc_b64 [[GET_PC:s\[[0-9]+:[0-9]+\]]]
-; CHECK: s_load_dwordx2 [[OUT:s\[[0-9]+:[0-9]+\]]], s[4:5], 0x0
-; CHECK: s_load_dwordx2 [[A_ADDR:s\[[0-9]+:[0-9]+\]]], [[GET_PC]], 0x0
-; CHECK: s_load_dwordx2 [[A_ADDR1:s\[[0-9]+:[0-9]+\]]], [[A_ADDR]], 0x0
-; CHECK: s_load_dword [[SVAL:s[0-9]+]], [[A_ADDR1]], 0x0
+; CHECK-DAG: s_load_dwordx2 [[A_ADDR:s\[[0-9]+:[0-9]+\]]], [[GET_PC]], 0x0
+; CHECK-DAG: s_load_dwordx2 [[A_ADDR1:s\[[0-9]+:[0-9]+\]]], [[A_ADDR]], 0x0
+; CHECK-DAG: s_load_dwordx2 [[OUT:s\[[0-9]+:[0-9]+\]]], s[4:5], 0x0
+; CHECK-DAG: s_load_dword [[SVAL:s[0-9]+]], [[A_ADDR1]], 0x0
 ; CHECK: v_mov_b32_e32 [[VVAL:v[0-9]+]], [[SVAL]]
 ; CHECK: flat_store_dword v[{{[0-9]+:[0-9]+}}], [[VVAL]]
 @A = common local_unnamed_addr addrspace(1) global i32 addrspace(1)* null, align 4

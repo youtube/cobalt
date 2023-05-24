@@ -1,9 +1,8 @@
 //== SValExplainer.h - Symbolic value explainer -----------------*- C++ -*--==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,8 +15,10 @@
 #ifndef LLVM_CLANG_STATICANALYZER_CHECKERS_SVALEXPLAINER_H
 #define LLVM_CLANG_STATICANALYZER_CHECKERS_SVALEXPLAINER_H
 
+#include "clang/AST/Attr.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SValVisitor.h"
+#include "llvm/ADT/StringExtras.h"
 
 namespace clang {
 
@@ -31,7 +32,7 @@ private:
     std::string Str;
     llvm::raw_string_ostream OS(Str);
     S->printPretty(OS, nullptr, PrintingPolicy(ACtx.getLangOpts()));
-    return OS.str();
+    return Str;
   }
 
   bool isThisObject(const SymbolicRegion *R) {
@@ -64,11 +65,11 @@ public:
   }
 
   std::string VisitLocConcreteInt(loc::ConcreteInt V) {
-    llvm::APSInt I = V.getValue();
+    const llvm::APSInt &I = V.getValue();
     std::string Str;
     llvm::raw_string_ostream OS(Str);
     OS << "concrete memory address '" << I << "'";
-    return OS.str();
+    return Str;
   }
 
   std::string VisitNonLocSymbolVal(nonloc::SymbolVal V) {
@@ -76,12 +77,12 @@ public:
   }
 
   std::string VisitNonLocConcreteInt(nonloc::ConcreteInt V) {
-    llvm::APSInt I = V.getValue();
+    const llvm::APSInt &I = V.getValue();
     std::string Str;
     llvm::raw_string_ostream OS(Str);
     OS << (I.isSigned() ? "signed " : "unsigned ") << I.getBitWidth()
        << "-bit integer '" << I << "'";
-    return OS.str();
+    return Str;
   }
 
   std::string VisitNonLocLazyCompoundVal(nonloc::LazyCompoundVal V) {
@@ -122,7 +123,7 @@ public:
     OS << "(" << Visit(S->getLHS()) << ") "
        << std::string(BinaryOperator::getOpcodeStr(S->getOpcode())) << " "
        << S->getRHS();
-    return OS.str();
+    return Str;
   }
 
   // TODO: IntSymExpr doesn't appear in practice.
@@ -176,10 +177,10 @@ public:
     else
       OS << "'" << Visit(R->getIndex()) << "'";
     OS << " of " + Visit(R->getSuperRegion());
-    return OS.str();
+    return Str;
   }
 
-  std::string VisitVarRegion(const VarRegion *R) {
+  std::string VisitNonParamVarRegion(const NonParamVarRegion *R) {
     const VarDecl *VD = R->getDecl();
     std::string Name = VD->getQualifiedNameAsString();
     if (isa<ParmVarDecl>(VD))
@@ -214,6 +215,39 @@ public:
   std::string VisitCXXBaseObjectRegion(const CXXBaseObjectRegion *R) {
     return "base object '" + R->getDecl()->getQualifiedNameAsString() +
            "' inside " + Visit(R->getSuperRegion());
+  }
+
+  std::string VisitParamVarRegion(const ParamVarRegion *R) {
+    std::string Str;
+    llvm::raw_string_ostream OS(Str);
+
+    const ParmVarDecl *PVD = R->getDecl();
+    std::string Name = PVD->getQualifiedNameAsString();
+    if (!Name.empty()) {
+      OS << "parameter '" << Name << "'";
+      return std::string(OS.str());
+    }
+
+    unsigned Index = R->getIndex() + 1;
+    OS << Index << llvm::getOrdinalSuffix(Index) << " parameter of ";
+    const Decl *Parent = R->getStackFrame()->getDecl();
+    if (const auto *FD = dyn_cast<FunctionDecl>(Parent))
+      OS << "function '" << FD->getQualifiedNameAsString() << "()'";
+    else if (const auto *CD = dyn_cast<CXXConstructorDecl>(Parent))
+      OS << "C++ constructor '" << CD->getQualifiedNameAsString() << "()'";
+    else if (const auto *MD = dyn_cast<ObjCMethodDecl>(Parent)) {
+      if (MD->isClassMethod())
+        OS << "Objective-C method '+" << MD->getQualifiedNameAsString() << "'";
+      else
+        OS << "Objective-C method '-" << MD->getQualifiedNameAsString() << "'";
+    } else if (isa<BlockDecl>(Parent)) {
+      if (cast<BlockDecl>(Parent)->isConversionFromLambda())
+        OS << "lambda";
+      else
+        OS << "block";
+    }
+
+    return std::string(OS.str());
   }
 
   std::string VisitSVal(SVal V) {

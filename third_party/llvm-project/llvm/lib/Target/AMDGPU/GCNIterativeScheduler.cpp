@@ -1,36 +1,19 @@
 //===- GCNIterativeScheduler.cpp ------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
-//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file implements the class GCNIterativeScheduler.
+///
 //===----------------------------------------------------------------------===//
 
 #include "GCNIterativeScheduler.h"
-#include "AMDGPUSubtarget.h"
-#include "GCNRegPressure.h"
 #include "GCNSchedStrategy.h"
 #include "SIMachineFunctionInfo.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/CodeGen/LiveIntervals.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/RegisterPressure.h"
-#include "llvm/CodeGen/ScheduleDAG.h"
-#include "llvm/Config/llvm-config.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
-#include <algorithm>
-#include <cassert>
-#include <iterator>
-#include <limits>
-#include <memory>
-#include <type_traits>
-#include <vector>
 
 using namespace llvm;
 
@@ -205,7 +188,7 @@ public:
                printRegion(dbgs(), Rgn.Begin, Rgn.End, Sch.LIS, 2));
     Sch.BaseClass::schedule();
 
-    // Unfortunatelly placeDebugValues incorrectly modifies RegionEnd, restore
+    // Unfortunately placeDebugValues incorrectly modifies RegionEnd, restore
     Sch.RegionEnd = Rgn.End;
     //assert(Rgn.End == Sch.RegionEnd);
     Rgn.Begin = Sch.RegionBegin;
@@ -238,7 +221,7 @@ public:
 
 GCNIterativeScheduler::GCNIterativeScheduler(MachineSchedContext *C,
                                              StrategyKind S)
-  : BaseClass(C, llvm::make_unique<SchedStrategyStub>())
+  : BaseClass(C, std::make_unique<SchedStrategyStub>())
   , Context(C)
   , Strategy(S)
   , UPTracker(*LIS) {
@@ -297,7 +280,7 @@ GCNIterativeScheduler::getSchedulePressure(const Region &R,
   return RPTracker.moveMaxPressure();
 }
 
-void GCNIterativeScheduler::enterRegion(MachineBasicBlock *BB, // overriden
+void GCNIterativeScheduler::enterRegion(MachineBasicBlock *BB, // overridden
                                         MachineBasicBlock::iterator Begin,
                                         MachineBasicBlock::iterator End,
                                         unsigned NumRegionInstrs) {
@@ -310,7 +293,7 @@ void GCNIterativeScheduler::enterRegion(MachineBasicBlock *BB, // overriden
   }
 }
 
-void GCNIterativeScheduler::schedule() { // overriden
+void GCNIterativeScheduler::schedule() { // overridden
   // do nothing
   LLVM_DEBUG(printLivenessInfo(dbgs(), RegionBegin, RegionEnd, LIS);
              if (!Regions.empty() && Regions.back()->Begin == RegionBegin) {
@@ -321,7 +304,7 @@ void GCNIterativeScheduler::schedule() { // overriden
              << '\n';);
 }
 
-void GCNIterativeScheduler::finalizeSchedule() { // overriden
+void GCNIterativeScheduler::finalizeSchedule() { // overridden
   if (Regions.empty())
     return;
   switch (Strategy) {
@@ -408,8 +391,8 @@ void GCNIterativeScheduler::scheduleRegion(Region &R, Range &&Schedule,
   // and already interleaved with debug values
   if (!std::is_same<decltype(*Schedule.begin()), MachineInstr*>::value) {
     placeDebugValues();
-    // Unfortunatelly placeDebugValues incorrectly modifies RegionEnd, restore
-    //assert(R.End == RegionEnd);
+    // Unfortunately placeDebugValues incorrectly modifies RegionEnd, restore
+    // assert(R.End == RegionEnd);
     RegionEnd = R.End;
   }
 
@@ -434,8 +417,7 @@ void GCNIterativeScheduler::scheduleRegion(Region &R, Range &&Schedule,
 // Sort recorded regions by pressure - highest at the front
 void GCNIterativeScheduler::sortRegionsByPressure(unsigned TargetOcc) {
   const auto &ST = MF.getSubtarget<GCNSubtarget>();
-  llvm::sort(Regions.begin(), Regions.end(),
-    [&ST, TargetOcc](const Region *R1, const Region *R2) {
+  llvm::sort(Regions, [&ST, TargetOcc](const Region *R1, const Region *R2) {
     return R2->MaxPressure.less(ST, R1->MaxPressure, TargetOcc);
   });
 }

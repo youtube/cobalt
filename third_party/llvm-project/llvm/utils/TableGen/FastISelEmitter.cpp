@@ -1,9 +1,8 @@
 ///===- FastISelEmitter.cpp - Generate an instruction selector -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -39,11 +38,12 @@ struct InstructionMemo {
   std::vector<std::string> PhysRegs;
   std::string PredicateCheck;
 
-  InstructionMemo(std::string Name, const CodeGenRegisterClass *RC,
+  InstructionMemo(StringRef Name, const CodeGenRegisterClass *RC,
                   std::string SubRegNo, std::vector<std::string> PhysRegs,
                   std::string PredicateCheck)
-    : Name(Name), RC(RC), SubRegNo(SubRegNo), PhysRegs(PhysRegs),
-      PredicateCheck(PredicateCheck) {}
+      : Name(Name), RC(RC), SubRegNo(std::move(SubRegNo)),
+        PhysRegs(std::move(PhysRegs)),
+        PredicateCheck(std::move(PredicateCheck)) {}
 
   // Make sure we do not copy InstructionMemo.
   InstructionMemo(const InstructionMemo &Other) = delete;
@@ -209,13 +209,13 @@ struct OperandsSignature {
       // Handle imm operands specially.
       if (!Op->isLeaf() && Op->getOperator()->getName() == "imm") {
         unsigned PredNo = 0;
-        if (!Op->getPredicateFns().empty()) {
-          TreePredicateFn PredFn = Op->getPredicateFns()[0];
+        if (!Op->getPredicateCalls().empty()) {
+          TreePredicateFn PredFn = Op->getPredicateCalls()[0].Fn;
           // If there is more than one predicate weighing in on this operand
           // then we don't handle it.  This doesn't typically happen for
           // immediates anyway.
-          if (Op->getPredicateFns().size() > 1 ||
-              !PredFn.isImmediatePattern())
+          if (Op->getPredicateCalls().size() > 1 ||
+              !PredFn.isImmediatePattern() || PredFn.usesOperands())
             return false;
           // Ignore any instruction with 'FastIselShouldIgnore', these are
           // not needed and just bloat the fast instruction selector.  For
@@ -235,7 +235,7 @@ struct OperandsSignature {
 
       // For now, filter out any operand with a predicate.
       // For now, filter out any operand with multiple values.
-      if (!Op->getPredicateFns().empty() || Op->getNumTypes() != 1)
+      if (!Op->getPredicateCalls().empty() || Op->getNumTypes() != 1)
         return false;
 
       if (!Op->isLeaf()) {
@@ -290,9 +290,11 @@ struct OperandsSignature {
   }
 
   void PrintParameters(raw_ostream &OS) const {
+    ListSeparator LS;
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
+      OS << LS;
       if (Operands[i].isReg()) {
-        OS << "unsigned Op" << i << ", bool Op" << i << "IsKill";
+        OS << "unsigned Op" << i;
       } else if (Operands[i].isImm()) {
         OS << "uint64_t imm" << i;
       } else if (Operands[i].isFP()) {
@@ -300,31 +302,25 @@ struct OperandsSignature {
       } else {
         llvm_unreachable("Unknown operand kind!");
       }
-      if (i + 1 != e)
-        OS << ", ";
     }
   }
 
   void PrintArguments(raw_ostream &OS,
                       const std::vector<std::string> &PR) const {
     assert(PR.size() == Operands.size());
-    bool PrintedArg = false;
+    ListSeparator LS;
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
       if (PR[i] != "")
         // Implicit physical register operand.
         continue;
 
-      if (PrintedArg)
-        OS << ", ";
+      OS << LS;
       if (Operands[i].isReg()) {
-        OS << "Op" << i << ", Op" << i << "IsKill";
-        PrintedArg = true;
+        OS << "Op" << i;
       } else if (Operands[i].isImm()) {
         OS << "imm" << i;
-        PrintedArg = true;
       } else if (Operands[i].isFP()) {
         OS << "f" << i;
-        PrintedArg = true;
       } else {
         llvm_unreachable("Unknown operand kind!");
       }
@@ -332,9 +328,11 @@ struct OperandsSignature {
   }
 
   void PrintArguments(raw_ostream &OS) const {
+    ListSeparator LS;
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
+      OS << LS;
       if (Operands[i].isReg()) {
-        OS << "Op" << i << ", Op" << i << "IsKill";
+        OS << "Op" << i;
       } else if (Operands[i].isImm()) {
         OS << "imm" << i;
       } else if (Operands[i].isFP()) {
@@ -342,8 +340,6 @@ struct OperandsSignature {
       } else {
         llvm_unreachable("Unknown operand kind!");
       }
-      if (i + 1 != e)
-        OS << ", ";
     }
   }
 
@@ -414,7 +410,7 @@ private:
 } // End anonymous namespace
 
 static std::string getOpcodeName(Record *Op, CodeGenDAGPatterns &CGP) {
-  return CGP.getSDNodeInfo(Op).getEnumName();
+  return std::string(CGP.getSDNodeInfo(Op).getEnumName());
 }
 
 static std::string getLegalCName(std::string OpName) {
@@ -528,7 +524,7 @@ void FastISelMap::collectPatterns(CodeGenDAGPatterns &CGP) {
     }
 
     // For now, filter out any instructions with predicates.
-    if (!InstPatNode->getPredicateFns().empty())
+    if (!InstPatNode->getPredicateCalls().empty())
       continue;
 
     // Check all the operands.
@@ -572,7 +568,6 @@ void FastISelMap::collectPatterns(CodeGenDAGPatterns &CGP) {
     std::string ManglingSuffix;
     raw_string_ostream SuffixOS(ManglingSuffix);
     Operands.PrintManglingSuffix(SuffixOS, ImmediatePredicates, true);
-    SuffixOS.flush();
     if (!StringSwitch<bool>(ManglingSuffix)
         .Cases("", "r", "rr", "ri", "i", "f", true)
         .Default(false))
@@ -620,10 +615,10 @@ void FastISelMap::printImmediatePredicates(raw_ostream &OS) {
     return;
 
   OS << "\n// FastEmit Immediate Predicate functions.\n";
-  for (ImmPredicateSet::iterator I = ImmediatePredicates.begin(),
-       E = ImmediatePredicates.end(); I != E; ++I) {
-    OS << "static bool " << I->getFnName() << "(int64_t Imm) {\n";
-    OS << I->getImmediatePredicateCode() << "\n}\n";
+  for (auto ImmediatePredicate : ImmediatePredicates) {
+    OS << "static bool " << ImmediatePredicate.getFnName()
+       << "(int64_t Imm) {\n";
+    OS << ImmediatePredicate.getImmediatePredicateCode() << "\n}\n";
   }
 
   OS << "\n\n";
@@ -677,7 +672,7 @@ void FastISelMap::emitInstructionCode(raw_ostream &OS,
       OS << ");\n";
     } else {
       OS << "extractsubreg(" << RetVTName
-         << ", Op0, Op0IsKill, " << Memo.SubRegNo << ");\n";
+         << ", Op0, " << Memo.SubRegNo << ");\n";
     }
 
     if (!PredicateCheck.empty()) {
@@ -695,58 +690,52 @@ void FastISelMap::emitInstructionCode(raw_ostream &OS,
 
 void FastISelMap::printFunctionDefinitions(raw_ostream &OS) {
   // Now emit code for all the patterns that we collected.
-  for (OperandsOpcodeTypeRetPredMap::const_iterator OI = SimplePatterns.begin(),
-       OE = SimplePatterns.end(); OI != OE; ++OI) {
-    const OperandsSignature &Operands = OI->first;
-    const OpcodeTypeRetPredMap &OTM = OI->second;
+  for (const auto &SimplePattern : SimplePatterns) {
+    const OperandsSignature &Operands = SimplePattern.first;
+    const OpcodeTypeRetPredMap &OTM = SimplePattern.second;
 
-    for (OpcodeTypeRetPredMap::const_iterator I = OTM.begin(), E = OTM.end();
-         I != E; ++I) {
-      const std::string &Opcode = I->first;
-      const TypeRetPredMap &TM = I->second;
+    for (const auto &I : OTM) {
+      const std::string &Opcode = I.first;
+      const TypeRetPredMap &TM = I.second;
 
       OS << "// FastEmit functions for " << Opcode << ".\n";
       OS << "\n";
 
       // Emit one function for each opcode,type pair.
-      for (TypeRetPredMap::const_iterator TI = TM.begin(), TE = TM.end();
-           TI != TE; ++TI) {
-        MVT::SimpleValueType VT = TI->first;
-        const RetPredMap &RM = TI->second;
+      for (const auto &TI : TM) {
+        MVT::SimpleValueType VT = TI.first;
+        const RetPredMap &RM = TI.second;
         if (RM.size() != 1) {
-          for (RetPredMap::const_iterator RI = RM.begin(), RE = RM.end();
-               RI != RE; ++RI) {
-            MVT::SimpleValueType RetVT = RI->first;
-            const PredMap &PM = RI->second;
+          for (const auto &RI : RM) {
+            MVT::SimpleValueType RetVT = RI.first;
+            const PredMap &PM = RI.second;
 
-            OS << "unsigned fastEmit_"
-               << getLegalCName(Opcode)
-               << "_" << getLegalCName(getName(VT))
-               << "_" << getLegalCName(getName(RetVT)) << "_";
+            OS << "unsigned fastEmit_" << getLegalCName(Opcode) << "_"
+               << getLegalCName(std::string(getName(VT))) << "_"
+               << getLegalCName(std::string(getName(RetVT))) << "_";
             Operands.PrintManglingSuffix(OS, ImmediatePredicates);
             OS << "(";
             Operands.PrintParameters(OS);
             OS << ") {\n";
 
-            emitInstructionCode(OS, Operands, PM, getName(RetVT));
+            emitInstructionCode(OS, Operands, PM, std::string(getName(RetVT)));
           }
 
           // Emit one function for the type that demultiplexes on return type.
-          OS << "unsigned fastEmit_"
-             << getLegalCName(Opcode) << "_"
-             << getLegalCName(getName(VT)) << "_";
+          OS << "unsigned fastEmit_" << getLegalCName(Opcode) << "_"
+             << getLegalCName(std::string(getName(VT))) << "_";
           Operands.PrintManglingSuffix(OS, ImmediatePredicates);
           OS << "(MVT RetVT";
           if (!Operands.empty())
             OS << ", ";
           Operands.PrintParameters(OS);
           OS << ") {\nswitch (RetVT.SimpleTy) {\n";
-          for (RetPredMap::const_iterator RI = RM.begin(), RE = RM.end();
-               RI != RE; ++RI) {
-            MVT::SimpleValueType RetVT = RI->first;
+          for (const auto &RI : RM) {
+            MVT::SimpleValueType RetVT = RI.first;
             OS << "  case " << getName(RetVT) << ": return fastEmit_"
-               << getLegalCName(Opcode) << "_" << getLegalCName(getName(VT))
-               << "_" << getLegalCName(getName(RetVT)) << "_";
+               << getLegalCName(Opcode) << "_"
+               << getLegalCName(std::string(getName(VT))) << "_"
+               << getLegalCName(std::string(getName(RetVT))) << "_";
             Operands.PrintManglingSuffix(OS, ImmediatePredicates);
             OS << "(";
             Operands.PrintArguments(OS);
@@ -756,9 +745,8 @@ void FastISelMap::printFunctionDefinitions(raw_ostream &OS) {
 
         } else {
           // Non-variadic return type.
-          OS << "unsigned fastEmit_"
-             << getLegalCName(Opcode) << "_"
-             << getLegalCName(getName(VT)) << "_";
+          OS << "unsigned fastEmit_" << getLegalCName(Opcode) << "_"
+             << getLegalCName(std::string(getName(VT))) << "_";
           Operands.PrintManglingSuffix(OS, ImmediatePredicates);
           OS << "(MVT RetVT";
           if (!Operands.empty())
@@ -785,10 +773,9 @@ void FastISelMap::printFunctionDefinitions(raw_ostream &OS) {
       Operands.PrintParameters(OS);
       OS << ") {\n";
       OS << "  switch (VT.SimpleTy) {\n";
-      for (TypeRetPredMap::const_iterator TI = TM.begin(), TE = TM.end();
-           TI != TE; ++TI) {
-        MVT::SimpleValueType VT = TI->first;
-        std::string TypeName = getName(VT);
+      for (const auto &TI : TM) {
+        MVT::SimpleValueType VT = TI.first;
+        std::string TypeName = std::string(getName(VT));
         OS << "  case " << TypeName << ": return fastEmit_"
            << getLegalCName(Opcode) << "_" << getLegalCName(TypeName) << "_";
         Operands.PrintManglingSuffix(OS, ImmediatePredicates);
@@ -828,7 +815,7 @@ void FastISelMap::printFunctionDefinitions(raw_ostream &OS) {
       = SignaturesWithConstantForms.find(Operands);
     if (MI != SignaturesWithConstantForms.end()) {
       // Unique any duplicates out of the list.
-      llvm::sort(MI->second.begin(), MI->second.end());
+      llvm::sort(MI->second);
       MI->second.erase(std::unique(MI->second.begin(), MI->second.end()),
                        MI->second.end());
 
@@ -852,9 +839,8 @@ void FastISelMap::printFunctionDefinitions(raw_ostream &OS) {
     }
 
     OS << "  switch (Opcode) {\n";
-    for (OpcodeTypeRetPredMap::const_iterator I = OTM.begin(), E = OTM.end();
-         I != E; ++I) {
-      const std::string &Opcode = I->first;
+    for (const auto &I : OTM) {
+      const std::string &Opcode = I.first;
 
       OS << "  case " << Opcode << ": return fastEmit_"
          << getLegalCName(Opcode) << "_";

@@ -1,22 +1,23 @@
 // REQUIRES: aarch64
 // RUN: llvm-mc -filetype=obj -triple=aarch64-none-linux %s -o %t.o
-// RUN: ld.lld --fix-cortex-a53-843419 %t.o -o %t2
-// RUN: llvm-objdump -triple=aarch64-linux-gnu -d %t2 -start-address=131072 -stop-address=131084 | FileCheck --check-prefix=CHECK1 %s
-// RUN: llvm-objdump -triple=aarch64-linux-gnu -d %t2 -start-address=135168 -stop-address=135172 | FileCheck --check-prefix=CHECK2 %s
-// RUN: llvm-objdump -triple=aarch64-linux-gnu -d %t2 -start-address=139256 -stop-address=139272 | FileCheck --check-prefix=CHECK3 %s
-// RUN: llvm-objdump -triple=aarch64-linux-gnu -d %t2 -start-address=67256312 -stop-address=67256328 | FileCheck --check-prefix=CHECK4 %s
-// RUN: llvm-objdump -triple=aarch64-linux-gnu -d %t2 -start-address=100810760 -stop-address=100810776 | FileCheck --check-prefix=CHECK5 %s
-// RUN: llvm-objdump -triple=aarch64-linux-gnu -d %t2 -start-address=134352908 -stop-address=134352912 | FileCheck --check-prefix=CHECK6 %s
-// RUN: llvm-objdump -triple=aarch64-linux-gnu -d %t2 -start-address=134356988 -stop-address=134357012 | FileCheck --check-prefix=CHECK7 %s
+// RUN: ld.lld --fix-cortex-a53-843419 -z separate-code %t.o -o %t2
+// RUN: llvm-objdump --triple=aarch64-linux-gnu -d %t2 --start-address=0x210000   --stop-address=0x21000c   | FileCheck --check-prefix=CHECK1 %s
+// RUN: llvm-objdump --triple=aarch64-linux-gnu -d %t2 --start-address=0x211000   --stop-address=0x211004   | FileCheck --check-prefix=CHECK2 %s
+// RUN: llvm-objdump --triple=aarch64-linux-gnu -d %t2 --start-address=0x211ff8   --stop-address=0x212008   | FileCheck --check-prefix=CHECK3 %s
+// RUN: llvm-objdump --triple=aarch64-linux-gnu -d %t2 --start-address=0x4213ff8  --stop-address=0x4214008  | FileCheck --check-prefix=CHECK4 %s
+// RUN: llvm-objdump --triple=aarch64-linux-gnu -d %t2 --start-address=0x6214008 --stop-address=0x6214018 | FileCheck --check-prefix=CHECK5 %s
+// RUN: llvm-objdump --triple=aarch64-linux-gnu -d %t2 --start-address=0x821100c --stop-address=0x8211010 | FileCheck --check-prefix=CHECK6 %s
+// RUN: llvm-objdump --triple=aarch64-linux-gnu -d %t2 --start-address=0x8211ffc --stop-address=0x8212014 | FileCheck --check-prefix=CHECK7 %s
+// RUN: rm %t.o %t2
 // Test case for Cortex-A53 Erratum 843419 in an OutputSection exceeding
 // the maximum branch range. Both range extension thunks and patches are
-// required.
-
-// CHECK1:  __AArch64AbsLongThunk_need_thunk_after_patch:
-// CHECK1-NEXT:    20000:       50 00 00 58     ldr     x16, #8
-// CHECK1-NEXT:    20004:       00 02 1f d6     br      x16
-// CHECK1: $d:
-// CHECK1-NEXT:    20008:       0c 10 02 08     .word   0x0802100c
+// required.					      
+						      
+// CHECK1:  <__AArch64AbsLongThunk_need_thunk_after_patch>:
+// CHECK1-NEXT:    210000:       50 00 00 58     ldr     x16, 0x210008
+// CHECK1-NEXT:    210004:       00 02 1f d6     br      x16
+// CHECK1: <$d>:
+// CHECK1-NEXT:    210008:       0c 10 21 08     .word   0x0821100c
 
         .section .text.01, "ax", %progbits
         .balign 4096
@@ -28,8 +29,8 @@ _start:
         .section .text.02, "ax", %progbits
         .space 4096 - 12
 
-// CHECK2: _start:
-// CHECK2-NEXT:    21000:       00 fc ff 97     bl      #-4096
+// CHECK2: <_start>:
+// CHECK2-NEXT:    211000:       00 fc ff 97     bl      0x210000
 
         // Expect patch on pass 1
         .section .text.03, "ax", %progbits
@@ -41,11 +42,11 @@ t3_ff8_ldr:
         ldr x0, [x0, :got_lo12:dat]
         ret
 
-// CHECK3: t3_ff8_ldr:
-// CHECK3-NEXT:    21ff8:       60 00 04 f0     adrp    x0, #134279168
-// CHECK3-NEXT:    21ffc:       21 00 40 f9     ldr     x1, [x1]
-// CHECK3-NEXT:    22000:       02 08 80 15     b       #100671496
-// CHECK3-NEXT:    22004:       c0 03 5f d6     ret
+// CHECK3: <t3_ff8_ldr>:
+// CHECK3-NEXT:    211ff8:       e0 00 04 f0     adrp    x0, 0x8230000
+// CHECK3-NEXT:    211ffc:       21 00 40 f9     ldr     x1, [x1]
+// CHECK3-NEXT:    212000:       02 08 80 15     b       0x6214008
+// CHECK3-NEXT:    212004:       c0 03 5f d6     ret
 
         .section .text.04, "ax", %progbits
         .space 64 * 1024 * 1024
@@ -62,21 +63,21 @@ t3_ff8_str:
         str x0, [x0, :got_lo12:dat]
         ret
 
-// CHECK4: t3_ff8_str:
-// CHECK4-NEXT:  4023ff8:       60 00 02 b0     adrp    x0, #67162112
-// CHECK4-NEXT:  4023ffc:       21 00 40 f9     ldr     x1, [x1]
-// CHECK4-NEXT:  4024000:       04 00 80 14     b       #33554448
-// CHECK4-NEXT:  4024004:       c0 03 5f d6     ret
+// CHECK4: <t3_ff8_str>:
+// CHECK4-NEXT:  4213ff8:       e0 00 02 b0     adrp    x0, 0x8230000
+// CHECK4-NEXT:  4213ffc:       21 00 40 f9     ldr     x1, [x1]
+// CHECK4-NEXT:  4214000:       04 00 80 14     b       0x6214010
+// CHECK4-NEXT:  4214004:       c0 03 5f d6     ret
 
         .section .text.06, "ax", %progbits
         .space 32 * 1024 * 1024
 
-// CHECK5: __CortexA53843419_21000:
-// CHECK5-NEXT:  6024008:       00 00 40 f9     ldr     x0, [x0]
-// CHECK5-NEXT:  602400c:       fe f7 7f 16     b       #-100671496
-// CHECK5: __CortexA53843419_4023000:
-// CHECK5-NEXT:  6024010:       00 00 00 f9     str     x0, [x0]
-// CHECK5-NEXT:  6024014:       fc ff 7f 17     b       #-33554448
+// CHECK5: <__CortexA53843419_211000>:
+// CHECK5-NEXT:  6214008:       00 00 40 f9     ldr     x0, [x0]
+// CHECK5-NEXT:  621400c:       fe f7 7f 16     b       0x212004
+// CHECK5: <__CortexA53843419_4213000>:
+// CHECK5-NEXT:  6214010:       00 00 00 f9     str     x0, [x0]
+// CHECK5-NEXT:  6214014:       fc ff 7f 17     b       0x4214004
 
         .section .text.07, "ax", %progbits
         .space (32 * 1024 * 1024) - 12300
@@ -87,8 +88,8 @@ t3_ff8_str:
 need_thunk_after_patch:
         ret
 
-// CHECK6: need_thunk_after_patch:
-// CHECK6-NEXT:  802100c:       c0 03 5f d6     ret
+// CHECK6: <need_thunk_after_patch>:
+// CHECK6-NEXT:  821100c:       c0 03 5f d6     ret
 
         // Will need a patch on pass 2
         .section .text.09, "ax", %progbits
@@ -101,14 +102,14 @@ t3_ffc_ldr:
         ldr x0, [x0, :got_lo12:dat]
         ret
 
-// CHECK7: t3_ffc_ldr:
-// CHECK7-NEXT:  8021ffc:       60 00 00 f0     adrp    x0, #61440
-// CHECK7-NEXT:  8022000:       21 00 40 f9     ldr     x1, [x1]
-// CHECK7-NEXT:  8022004:       02 00 00 14     b       #8
-// CHECK7-NEXT:  8022008:       c0 03 5f d6     ret
-// CHECK7: __CortexA53843419_8022004:
-// CHECK7-NEXT:  802200c:       00 00 40 f9     ldr     x0, [x0]
-// CHECK7-NEXT:  8022010:       fe ff ff 17     b       #-8
+// CHECK7: <t3_ffc_ldr>:
+// CHECK7-NEXT:  8211ffc:       e0 00 00 f0     adrp    x0, 0x8230000
+// CHECK7-NEXT:  8212000:       21 00 40 f9     ldr     x1, [x1]
+// CHECK7-NEXT:  8212004:       02 00 00 14     b       0x821200c
+// CHECK7-NEXT:  8212008:       c0 03 5f d6     ret
+// CHECK7: <__CortexA53843419_8212004>:
+// CHECK7-NEXT:  821200c:       00 00 40 f9     ldr     x0, [x0]
+// CHECK7-NEXT:  8212010:       fe ff ff 17     b       0x8212008
 
         .section .data
         .globl dat

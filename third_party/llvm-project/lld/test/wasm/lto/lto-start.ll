@@ -6,11 +6,9 @@
 ; CHECK-NEXT:     Name:            name
 ; CHECK-NEXT:     FunctionNames:   
 ; CHECK-NEXT:       - Index:           0
-; CHECK-NEXT:         Name:            __wasm_call_ctors
-; CHECK-NEXT:       - Index:           1
 ; CHECK-NEXT:         Name:            _start
 
-target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
+target datalayout = "e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown-wasm"
 
 define void @_start() {

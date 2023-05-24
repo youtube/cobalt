@@ -24,7 +24,7 @@ containing the stack map.
 LLVM emits stack map data into the object code within a designated
 :ref:`stackmap-section`. This stack map data contains a record for
 each stack map. The record stores the stack map's instruction address
-and contains a entry for each mapped value. Each entry encodes a
+and contains an entry for each mapped value. Each entry encodes a
 value's location as a register, stack offset, or constant.
 
 A patch point is an instruction address at which space is reserved for
@@ -427,8 +427,11 @@ this section, it invokes the callback and passes the section name. The
 JIT can record the in-memory address of the section at this time and
 later parse it to recover the stack map data.
 
-On Darwin, the stack map section name is "__llvm_stackmaps". The
-segment name is "__LLVM_STACKMAPS".
+For MachO (e.g. on Darwin), the stack map section name is
+"__llvm_stackmaps". The segment name is "__LLVM_STACKMAPS".
+
+For ELF (e.g. on Linux), the stack map section name is
+".llvm_stackmaps".  The segment name is "__LLVM_STACKMAPS".
 
 Stack Map Usage
 ===============
@@ -508,7 +511,7 @@ stack map's location is a Direct location type.
 Supported Architectures
 =======================
 
-Support for StackMap generation and the related intrinsics requires 
-some code for each backend.  Today, only a subset of LLVM's backends 
-are supported.  The currently supported architectures are X86_64, 
-PowerPC, and Aarch64.
+Support for StackMap generation and the related intrinsics requires
+some code for each backend.  Today, only a subset of LLVM's backends
+are supported.  The currently supported architectures are X86_64,
+PowerPC, Aarch64 and SystemZ.

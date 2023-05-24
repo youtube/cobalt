@@ -18,7 +18,7 @@ function(get_ext_project_build_command out_var target)
     set(${out_var} "$(MAKE)" "${target}" PARENT_SCOPE)
   else()
     set(${out_var} ${CMAKE_COMMAND} --build . --target ${target}
-                                    --config $<CONFIGURATION> PARENT_SCOPE)
+                                    --config $<CONFIG> PARENT_SCOPE)
   endif()
 endfunction()
 
@@ -28,7 +28,7 @@ set(COMPILER_RT_SRC_ROOT ${LLVM_MAIN_SRC_DIR}/projects/compiler-rt)
 # variable) as in add_llvm_external_project
 if(NOT EXISTS ${COMPILER_RT_SRC_ROOT})
   # We don't want to set it if LLVM_EXTERNAL_COMPILER_RT_SOURCE_DIR is ""
-  if(${LLVM_EXTERNAL_COMPILER_RT_SOURCE_DIR})
+  if(LLVM_EXTERNAL_COMPILER_RT_SOURCE_DIR)
     set(COMPILER_RT_SRC_ROOT ${LLVM_EXTERNAL_COMPILER_RT_SOURCE_DIR})
   endif()
 endif()
@@ -58,12 +58,16 @@ if(LLVM_BUILD_EXTERNAL_COMPILER_RT AND EXISTS ${COMPILER_RT_SRC_ROOT}/)
     endif()
   endforeach()
 
+  set(compiler_rt_configure_deps)
   if(TARGET cxx-headers)
-    set(COMPILER_RT_LIBCXX_DEPENDENCY "cxx-headers")
+    list(APPEND compiler_rt_configure_deps "cxx-headers")
+  endif()
+  if(LLVM_INCLUDE_TESTS)
+    list(APPEND compiler_rt_configure_deps LLVMTestingSupport)
   endif()
 
   ExternalProject_Add(compiler-rt
-    DEPENDS llvm-config clang ${COMPILER_RT_LIBCXX_DEPENDENCY}
+    DEPENDS llvm-config clang ${compiler_rt_configure_deps}
     PREFIX ${COMPILER_RT_PREFIX}
     SOURCE_DIR ${COMPILER_RT_SRC_ROOT}
     STAMP_DIR ${STAMP_DIR}
@@ -71,13 +75,16 @@ if(LLVM_BUILD_EXTERNAL_COMPILER_RT AND EXISTS ${COMPILER_RT_SRC_ROOT}/)
     CMAKE_ARGS ${CLANG_COMPILER_RT_CMAKE_ARGS}
                -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
                -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
+               -DCMAKE_ASM_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
                -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+               -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+               -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
                -DLLVM_CONFIG_PATH=${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-config
                -DLLVM_LIT_ARGS=${LLVM_LIT_ARGS}
                -DCOMPILER_RT_OUTPUT_DIR=${LLVM_LIBRARY_OUTPUT_INTDIR}/clang/${CLANG_VERSION}
                -DCOMPILER_RT_EXEC_OUTPUT_DIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
-               -DCOMPILER_RT_INSTALL_PATH:STRING=lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}
+               -DCOMPILER_RT_INSTALL_PATH:PATH=lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}
                -DCOMPILER_RT_INCLUDE_TESTS=${LLVM_INCLUDE_TESTS}
                -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
                -DLLVM_LIBDIR_SUFFIX=${LLVM_LIBDIR_SUFFIX}
@@ -90,6 +97,8 @@ if(LLVM_BUILD_EXTERNAL_COMPILER_RT AND EXISTS ${COMPILER_RT_SRC_ROOT}/)
     USES_TERMINAL_CONFIGURE 1
     USES_TERMINAL_BUILD 1
     USES_TERMINAL_INSTALL 1
+    # Always run the build command so that incremental builds are correct.
+    BUILD_ALWAYS 1
     )
 
   get_ext_project_build_command(run_clean_compiler_rt clean)
@@ -123,12 +132,12 @@ if(LLVM_BUILD_EXTERNAL_COMPILER_RT AND EXISTS ${COMPILER_RT_SRC_ROOT}/)
   if(LLVM_INCLUDE_TESTS)
     # Add binaries that compiler-rt tests depend on.
     set(COMPILER_RT_TEST_DEPENDENCIES
-      FileCheck count not llvm-nm llvm-objdump llvm-symbolizer)
+      FileCheck count not llvm-nm llvm-objdump llvm-symbolizer llvm-jitlink)
 
     # Add top-level targets for various compiler-rt test suites.
-    set(COMPILER_RT_TEST_SUITES check-fuzzer check-asan check-asan-dynamic check-dfsan
+    set(COMPILER_RT_TEST_SUITES check-fuzzer check-asan check-hwasan check-asan-dynamic check-dfsan
       check-lsan check-msan check-sanitizer check-tsan check-ubsan check-ubsan-minimal
-      check-profile check-cfi check-cfi-and-supported check-safestack)
+      check-profile check-cfi check-cfi-and-supported check-safestack check-gwp_asan)
     foreach(test_suite ${COMPILER_RT_TEST_SUITES})
       get_ext_project_build_command(run_test_suite ${test_suite})
       add_custom_target(${test_suite}

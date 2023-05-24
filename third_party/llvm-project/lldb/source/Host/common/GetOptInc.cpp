@@ -1,9 +1,8 @@
-//===-- GetOptInc.cpp -------------------------------------------*- C++ -*-===//
+//===-- GetOptInc.cpp -----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,9 +12,9 @@
     defined(REPLACE_GETOPT_LONG_ONLY)
 
 // getopt.cpp
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
 
 #if defined(REPLACE_GETOPT)
 int opterr = 1;   /* if error message should be printed */
@@ -98,9 +97,9 @@ static void permute_args(int panonopt_start, int panonopt_end, int opt_end,
         pos += nopts;
       swap = nargv[pos];
       /* LINTED const cast */
-      ((char **)nargv)[pos] = nargv[cstart];
+      const_cast<char **>(nargv)[pos] = nargv[cstart];
       /* LINTED const cast */
-      ((char **)nargv)[cstart] = swap;
+      const_cast<char **>(nargv)[cstart] = swap;
     }
   }
 }

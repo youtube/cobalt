@@ -1,5 +1,5 @@
-; RUN: llc -verify-machineinstrs -mcpu=pwr7 -O0 -code-model=medium < %s | FileCheck %s
-; RUN: llc -verify-machineinstrs -mcpu=pwr7 -O0 -code-model=large < %s | FileCheck %s
+; RUN: llc -relocation-model=pic -verify-machineinstrs -mcpu=pwr7 -O0 -code-model=medium < %s | FileCheck %s
+; RUN: llc -relocation-model=pic -verify-machineinstrs -mcpu=pwr7 -O0 -code-model=large < %s | FileCheck %s
 
 ; Test correct code generation for medium and large code model
 ; for loading and storing a tentatively defined variable.
@@ -21,8 +21,10 @@ entry:
 ; CHECK: addis [[REG1:[0-9]+]], 2, .LC[[TOCNUM:[0-9]+]]@toc@ha
 ; CHECK: ld [[REG2:[0-9]+]], .LC[[TOCNUM]]@toc@l([[REG1]])
 ; CHECK: lwz {{[0-9]+}}, 0([[REG2]])
-; CHECK: stw {{[0-9]+}}, 0([[REG2]])
-; CHECK: .section .toc
-; CHECK: .LC[[TOCNUM]]:
-; CHECK: .tc [[VAR:[a-z0-9A-Z_.]+]][TC],{{[a-z0-9A-Z_.]+}}
-; CHECK: .comm [[VAR]],4,4
+; CHECK: addis [[REG3:[0-9]+]], 2, .LC[[TOCNUM]]@toc@ha
+; CHECK: ld [[REG4:[0-9]+]], .LC[[TOCNUM]]@toc@l([[REG3]])
+; CHECK: stw {{[0-9]+}}, 0([[REG4]])
+; CHECK: .comm ti,4,4
+; CHECK:      .section .toc,"aw",@progbits
+; CHECK-NEXT: .LC[[TOCNUM]]:
+; CHECK-NEXT: .tc ti[TC],ti

@@ -1,9 +1,8 @@
 //===-- R600ISelLowering.h - R600 DAG Lowering Interface -*- C++ -*--------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,10 +15,10 @@
 #define LLVM_LIB_TARGET_AMDGPU_R600ISELLOWERING_H
 
 #include "AMDGPUISelLowering.h"
+#include "llvm/CodeGen/MachineFunction.h"
 
 namespace llvm {
 
-class R600InstrInfo;
 class R600Subtarget;
 
 class R600TargetLowering final : public AMDGPUTargetLowering {
@@ -48,11 +47,21 @@ public:
                          EVT VT) const override;
 
   bool canMergeStoresTo(unsigned AS, EVT MemVT,
-                        const SelectionDAG &DAG) const override;
+                        const MachineFunction &MF) const override;
 
-  bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AS,
-                                      unsigned Align,
-                                      bool *IsFast) const override;
+  bool allowsMisalignedMemoryAccesses(
+      EVT VT, unsigned AS, Align Alignment,
+      MachineMemOperand::Flags Flags = MachineMemOperand::MONone,
+      bool *IsFast = nullptr) const override;
+
+  virtual bool canCombineTruncStore(EVT ValVT, EVT MemVT,
+                                    bool LegalOperations) const override {
+    // R600 has "custom" lowering for truncating stores despite not supporting
+    // those instructions. If we allow that custom lowering in the DAG combiner
+    // then all truncates are merged into truncating stores, giving worse code
+    // generation. This hook prevents the DAG combiner performing that combine.
+    return isTruncStoreLegal(ValVT, MemVT);
+  }
 
 private:
   unsigned Gen;
@@ -85,8 +94,7 @@ private:
   SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerTrig(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerSHLParts(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerSRXParts(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerShiftParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerUADDSUBO(SDValue Op, SelectionDAG &DAG,
                         unsigned mainop, unsigned ovf) const;
 

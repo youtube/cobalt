@@ -8,10 +8,10 @@
 define i32 @main() nounwind {
 ; CHECK-LABEL: main:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    movl $255, %eax
-; CHECK-NEXT:    andl g_407, %eax
+; CHECK-NEXT:    movl g_407, %eax
+; CHECK-NEXT:    movzbl %al, %eax
 ; CHECK-NEXT:    pushl %eax
-; CHECK-NEXT:    calll func_45
+; CHECK-NEXT:    calll func_45@PLT
 ; CHECK-NEXT:    addl $4, %esp
 ; CHECK-NEXT:    xorl %eax, %eax
 ; CHECK-NEXT:    retl

@@ -1,27 +1,22 @@
 //===-- MappedHash.h --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_MappedHash_h_
-#define liblldb_MappedHash_h_
+#ifndef LLDB_CORE_MAPPEDHASH_H
+#define LLDB_CORE_MAPPEDHASH_H
 
-// C Includes
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
+#include <cstdint>
 
-// C++ Includes
 #include <algorithm>
 #include <functional>
 #include <map>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Stream.h"
 #include "llvm/Support/DJB.h"
@@ -52,19 +47,17 @@ public:
 
     uint32_t
         magic; // HASH_MAGIC or HASH_CIGAM magic value to allow endian detection
-    uint16_t version;         // Version number
-    uint16_t hash_function;   // The hash function enumeration that was used
-    uint32_t bucket_count;    // The number of buckets in this hash table
-    uint32_t hashes_count;    // The total number of unique hash values and hash
-                              // data offsets in this table
+    uint16_t version = 1; // Version number
+    uint16_t hash_function =
+        eHashFunctionDJB;      // The hash function enumeration that was used
+    uint32_t bucket_count = 0; // The number of buckets in this hash table
+    uint32_t hashes_count = 0; // The total number of unique hash values and
+                               // hash data offsets in this table
     uint32_t header_data_len; // The size in bytes of the "header_data" template
                               // member below
     HeaderData header_data;   //
 
-    Header()
-        : magic(HASH_MAGIC), version(1), hash_function(eHashFunctionDJB),
-          bucket_count(0), hashes_count(0), header_data_len(sizeof(T)),
-          header_data() {}
+    Header() : magic(HASH_MAGIC), header_data_len(sizeof(T)), header_data() {}
 
     virtual ~Header() = default;
 
@@ -312,4 +305,4 @@ public:
   };
 };
 
-#endif // liblldb_MappedHash_h_
+#endif // LLDB_CORE_MAPPEDHASH_H

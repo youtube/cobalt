@@ -1,4 +1,4 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -verify %s -analyzer-config eagerly-assume=false
 
 // Tests for c11 atomics. Many of these tests currently yield unknown
 // because we don't fully model the atomics and instead imprecisely
@@ -92,4 +92,12 @@ void test_atomic_compare_exchange_weak(struct RefCountedStruct *s) {
   // call. In the future we should model more precisely.
   clang_analyzer_eval(s->refCount == 3); // expected-warning {{UNKNOWN}}
   clang_analyzer_eval(expected == 2); // expected-warning {{UNKNOWN}}
+}
+
+// PR49422
+void test_atomic_compare(int input) {
+  _Atomic(int) x = input;
+  if (x > 0) {
+    // no crash
+  }
 }

@@ -1,4 +1,4 @@
-; RUN: opt < %s -S -globalopt | FileCheck %s
+; RUN: opt < %s -S -passes=globalopt | FileCheck %s
 
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128"
 
@@ -94,10 +94,10 @@ define internal void @test6() {
 }
 
 @llvm.global_ctors = appending constant
-  [6 x { i32, void ()* }]
-  [{ i32, void ()* } { i32 65535, void ()* @test1 },
-   { i32, void ()* } { i32 65535, void ()* @test2 },
-   { i32, void ()* } { i32 65535, void ()* @test3 },
-   { i32, void ()* } { i32 65535, void ()* @test4 },
-   { i32, void ()* } { i32 65535, void ()* @test5 },
-   { i32, void ()* } { i32 65535, void ()* @test6 }]
+  [6 x { i32, void ()*, i8* }]
+  [{ i32, void ()*, i8* } { i32 65535, void ()* @test1, i8* null },
+   { i32, void ()*, i8* } { i32 65535, void ()* @test2, i8* null },
+   { i32, void ()*, i8* } { i32 65535, void ()* @test3, i8* null },
+   { i32, void ()*, i8* } { i32 65535, void ()* @test4, i8* null },
+   { i32, void ()*, i8* } { i32 65535, void ()* @test5, i8* null },
+   { i32, void ()*, i8* } { i32 65535, void ()* @test6, i8* null }]

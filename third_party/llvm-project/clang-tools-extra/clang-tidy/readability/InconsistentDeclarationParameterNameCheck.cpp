@@ -1,9 +1,8 @@
 //===--- InconsistentDeclarationParameterNameCheck.cpp - clang-tidy-------===//
 //
-//           The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,7 +12,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <sstream>
 
 using namespace clang::ast_matchers;
 
@@ -74,7 +72,7 @@ bool checkIfFixItHintIsApplicable(
   if (!ParameterSourceDeclaration->isThisDeclarationADefinition())
     return false;
 
-  // Assumption: if parameter is not referenced in function defintion body, it
+  // Assumption: if parameter is not referenced in function definition body, it
   // may indicate that it's outdated, so don't touch it.
   if (!SourceParam->isReferenced())
     return false;
@@ -95,8 +93,8 @@ bool nameMatch(StringRef L, StringRef R, bool Strict) {
     return L.empty() || R.empty() || L == R;
   // We allow two names if one is a prefix/suffix of the other, ignoring case.
   // Important special case: this is true if either parameter has no name!
-  return L.startswith_lower(R) || R.startswith_lower(L) ||
-         L.endswith_lower(R) || R.endswith_lower(L);
+  return L.startswith_insensitive(R) || R.startswith_insensitive(L) ||
+         L.endswith_insensitive(R) || R.endswith_insensitive(L);
 }
 
 DifferingParamsContainer
@@ -106,8 +104,8 @@ findDifferingParamsInDeclaration(const FunctionDecl *ParameterSourceDeclaration,
                                  bool Strict) {
   DifferingParamsContainer DifferingParams;
 
-  auto SourceParamIt = ParameterSourceDeclaration->param_begin();
-  auto OtherParamIt = OtherDeclaration->param_begin();
+  const auto *SourceParamIt = ParameterSourceDeclaration->param_begin();
+  const auto *OtherParamIt = OtherDeclaration->param_begin();
 
   while (SourceParamIt != ParameterSourceDeclaration->param_end() &&
          OtherParamIt != OtherDeclaration->param_end()) {
@@ -197,18 +195,16 @@ getParameterSourceDeclaration(const FunctionDecl *OriginalDeclaration) {
 std::string joinParameterNames(
     const DifferingParamsContainer &DifferingParams,
     llvm::function_ref<StringRef(const DifferingParamInfo &)> ChooseParamName) {
-  llvm::SmallVector<char, 40> Buffer;
-  llvm::raw_svector_ostream Str(Buffer);
+  llvm::SmallString<40> Str;
   bool First = true;
   for (const DifferingParamInfo &ParamInfo : DifferingParams) {
     if (First)
       First = false;
     else
-      Str << ", ";
-
-    Str << "'" << ChooseParamName(ParamInfo).str() << "'";
+      Str += ", ";
+    Str.append({"'", ChooseParamName(ParamInfo), "'"});
   }
-  return Str.str().str();
+  return std::string(Str);
 }
 
 void formatDifferingParamsDiagnostic(
@@ -298,8 +294,7 @@ void InconsistentDeclarationParameterNameCheck::storeOptions(
 
 void InconsistentDeclarationParameterNameCheck::registerMatchers(
     MatchFinder *Finder) {
-  Finder->addMatcher(functionDecl(unless(isImplicit()), hasOtherDeclarations())
-                         .bind("functionDecl"),
+  Finder->addMatcher(functionDecl(hasOtherDeclarations()).bind("functionDecl"),
                      this);
 }
 
@@ -308,7 +303,7 @@ void InconsistentDeclarationParameterNameCheck::check(
   const auto *OriginalDeclaration =
       Result.Nodes.getNodeAs<FunctionDecl>("functionDecl");
 
-  if (VisitedDeclarations.count(OriginalDeclaration) > 0)
+  if (VisitedDeclarations.contains(OriginalDeclaration))
     return; // Avoid multiple warnings.
 
   const FunctionDecl *ParameterSourceDeclaration =
@@ -324,7 +319,7 @@ void InconsistentDeclarationParameterNameCheck::check(
     return;
   }
 
-  SourceLocation StartLoc = OriginalDeclaration->getLocStart();
+  SourceLocation StartLoc = OriginalDeclaration->getBeginLoc();
   if (StartLoc.isMacroID() && IgnoreMacros) {
     markRedeclarationsAsVisited(OriginalDeclaration);
     return;

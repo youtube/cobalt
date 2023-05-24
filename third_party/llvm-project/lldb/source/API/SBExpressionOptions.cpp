@@ -1,168 +1,258 @@
-//===-- SBExpressionOptions.cpp ---------------------------------------------*-
-//C++ -*-===//
+//===-- SBExpressionOptions.cpp -------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBExpressionOptions.h"
+#include "Utils.h"
 #include "lldb/API/SBStream.h"
-
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/Instrumentation.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
 SBExpressionOptions::SBExpressionOptions()
-    : m_opaque_ap(new EvaluateExpressionOptions()) {}
+    : m_opaque_up(new EvaluateExpressionOptions()) {
+  LLDB_INSTRUMENT_VA(this);
+}
 
 SBExpressionOptions::SBExpressionOptions(const SBExpressionOptions &rhs) {
-  m_opaque_ap.reset(new EvaluateExpressionOptions());
-  *(m_opaque_ap.get()) = rhs.ref();
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  m_opaque_up = clone(rhs.m_opaque_up);
 }
 
 const SBExpressionOptions &SBExpressionOptions::
 operator=(const SBExpressionOptions &rhs) {
-  if (this != &rhs) {
-    this->ref() = rhs.ref();
-  }
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (this != &rhs)
+    m_opaque_up = clone(rhs.m_opaque_up);
   return *this;
 }
 
-SBExpressionOptions::~SBExpressionOptions() {}
+SBExpressionOptions::~SBExpressionOptions() = default;
 
 bool SBExpressionOptions::GetCoerceResultToId() const {
-  return m_opaque_ap->DoesCoerceToId();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->DoesCoerceToId();
 }
 
 void SBExpressionOptions::SetCoerceResultToId(bool coerce) {
-  m_opaque_ap->SetCoerceToId(coerce);
+  LLDB_INSTRUMENT_VA(this, coerce);
+
+  m_opaque_up->SetCoerceToId(coerce);
 }
 
 bool SBExpressionOptions::GetUnwindOnError() const {
-  return m_opaque_ap->DoesUnwindOnError();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->DoesUnwindOnError();
 }
 
 void SBExpressionOptions::SetUnwindOnError(bool unwind) {
-  m_opaque_ap->SetUnwindOnError(unwind);
+  LLDB_INSTRUMENT_VA(this, unwind);
+
+  m_opaque_up->SetUnwindOnError(unwind);
 }
 
 bool SBExpressionOptions::GetIgnoreBreakpoints() const {
-  return m_opaque_ap->DoesIgnoreBreakpoints();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->DoesIgnoreBreakpoints();
 }
 
 void SBExpressionOptions::SetIgnoreBreakpoints(bool ignore) {
-  m_opaque_ap->SetIgnoreBreakpoints(ignore);
+  LLDB_INSTRUMENT_VA(this, ignore);
+
+  m_opaque_up->SetIgnoreBreakpoints(ignore);
 }
 
 lldb::DynamicValueType SBExpressionOptions::GetFetchDynamicValue() const {
-  return m_opaque_ap->GetUseDynamic();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetUseDynamic();
 }
 
 void SBExpressionOptions::SetFetchDynamicValue(lldb::DynamicValueType dynamic) {
-  m_opaque_ap->SetUseDynamic(dynamic);
+  LLDB_INSTRUMENT_VA(this, dynamic);
+
+  m_opaque_up->SetUseDynamic(dynamic);
 }
 
 uint32_t SBExpressionOptions::GetTimeoutInMicroSeconds() const {
-  return m_opaque_ap->GetTimeout() ? m_opaque_ap->GetTimeout()->count() : 0;
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetTimeout() ? m_opaque_up->GetTimeout()->count() : 0;
 }
 
 void SBExpressionOptions::SetTimeoutInMicroSeconds(uint32_t timeout) {
-  m_opaque_ap->SetTimeout(timeout == 0 ? Timeout<std::micro>(llvm::None)
+  LLDB_INSTRUMENT_VA(this, timeout);
+
+  m_opaque_up->SetTimeout(timeout == 0 ? Timeout<std::micro>(llvm::None)
                                        : std::chrono::microseconds(timeout));
 }
 
 uint32_t SBExpressionOptions::GetOneThreadTimeoutInMicroSeconds() const {
-  return m_opaque_ap->GetOneThreadTimeout() ? m_opaque_ap->GetOneThreadTimeout()->count() : 0;
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetOneThreadTimeout()
+             ? m_opaque_up->GetOneThreadTimeout()->count()
+             : 0;
 }
 
 void SBExpressionOptions::SetOneThreadTimeoutInMicroSeconds(uint32_t timeout) {
-  m_opaque_ap->SetOneThreadTimeout(timeout == 0
+  LLDB_INSTRUMENT_VA(this, timeout);
+
+  m_opaque_up->SetOneThreadTimeout(timeout == 0
                                        ? Timeout<std::micro>(llvm::None)
                                        : std::chrono::microseconds(timeout));
 }
 
 bool SBExpressionOptions::GetTryAllThreads() const {
-  return m_opaque_ap->GetTryAllThreads();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetTryAllThreads();
 }
 
 void SBExpressionOptions::SetTryAllThreads(bool run_others) {
-  m_opaque_ap->SetTryAllThreads(run_others);
+  LLDB_INSTRUMENT_VA(this, run_others);
+
+  m_opaque_up->SetTryAllThreads(run_others);
 }
 
 bool SBExpressionOptions::GetStopOthers() const {
-  return m_opaque_ap->GetStopOthers();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetStopOthers();
 }
 
 void SBExpressionOptions::SetStopOthers(bool run_others) {
-  m_opaque_ap->SetStopOthers(run_others);
+  LLDB_INSTRUMENT_VA(this, run_others);
+
+  m_opaque_up->SetStopOthers(run_others);
 }
 
 bool SBExpressionOptions::GetTrapExceptions() const {
-  return m_opaque_ap->GetTrapExceptions();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetTrapExceptions();
 }
 
 void SBExpressionOptions::SetTrapExceptions(bool trap_exceptions) {
-  m_opaque_ap->SetTrapExceptions(trap_exceptions);
+  LLDB_INSTRUMENT_VA(this, trap_exceptions);
+
+  m_opaque_up->SetTrapExceptions(trap_exceptions);
 }
 
 void SBExpressionOptions::SetLanguage(lldb::LanguageType language) {
-  m_opaque_ap->SetLanguage(language);
+  LLDB_INSTRUMENT_VA(this, language);
+
+  m_opaque_up->SetLanguage(language);
 }
 
 void SBExpressionOptions::SetCancelCallback(
     lldb::ExpressionCancelCallback callback, void *baton) {
-  m_opaque_ap->SetCancelCallback(callback, baton);
+  LLDB_INSTRUMENT_VA(this, callback, baton);
+
+  m_opaque_up->SetCancelCallback(callback, baton);
 }
 
 bool SBExpressionOptions::GetGenerateDebugInfo() {
-  return m_opaque_ap->GetGenerateDebugInfo();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetGenerateDebugInfo();
 }
 
 void SBExpressionOptions::SetGenerateDebugInfo(bool b) {
-  return m_opaque_ap->SetGenerateDebugInfo(b);
+  LLDB_INSTRUMENT_VA(this, b);
+
+  return m_opaque_up->SetGenerateDebugInfo(b);
 }
 
 bool SBExpressionOptions::GetSuppressPersistentResult() {
-  return m_opaque_ap->GetResultIsInternal();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetResultIsInternal();
 }
 
 void SBExpressionOptions::SetSuppressPersistentResult(bool b) {
-  return m_opaque_ap->SetResultIsInternal(b);
+  LLDB_INSTRUMENT_VA(this, b);
+
+  return m_opaque_up->SetResultIsInternal(b);
 }
 
 const char *SBExpressionOptions::GetPrefix() const {
-  return m_opaque_ap->GetPrefix();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetPrefix();
 }
 
 void SBExpressionOptions::SetPrefix(const char *prefix) {
-  return m_opaque_ap->SetPrefix(prefix);
+  LLDB_INSTRUMENT_VA(this, prefix);
+
+  return m_opaque_up->SetPrefix(prefix);
 }
 
 bool SBExpressionOptions::GetAutoApplyFixIts() {
-  return m_opaque_ap->GetAutoApplyFixIts();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetAutoApplyFixIts();
 }
 
 void SBExpressionOptions::SetAutoApplyFixIts(bool b) {
-  return m_opaque_ap->SetAutoApplyFixIts(b);
+  LLDB_INSTRUMENT_VA(this, b);
+
+  return m_opaque_up->SetAutoApplyFixIts(b);
+}
+
+uint64_t SBExpressionOptions::GetRetriesWithFixIts() {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetRetriesWithFixIts();
+}
+
+void SBExpressionOptions::SetRetriesWithFixIts(uint64_t retries) {
+  LLDB_INSTRUMENT_VA(this, retries);
+
+  return m_opaque_up->SetRetriesWithFixIts(retries);
 }
 
 bool SBExpressionOptions::GetTopLevel() {
-  return m_opaque_ap->GetExecutionPolicy() == eExecutionPolicyTopLevel;
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetExecutionPolicy() == eExecutionPolicyTopLevel;
 }
 
 void SBExpressionOptions::SetTopLevel(bool b) {
-  m_opaque_ap->SetExecutionPolicy(b ? eExecutionPolicyTopLevel
-                                    : m_opaque_ap->default_execution_policy);
+  LLDB_INSTRUMENT_VA(this, b);
+
+  m_opaque_up->SetExecutionPolicy(b ? eExecutionPolicyTopLevel
+                                    : m_opaque_up->default_execution_policy);
+}
+
+bool SBExpressionOptions::GetAllowJIT() {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetExecutionPolicy() != eExecutionPolicyNever;
+}
+
+void SBExpressionOptions::SetAllowJIT(bool allow) {
+  LLDB_INSTRUMENT_VA(this, allow);
+
+  m_opaque_up->SetExecutionPolicy(allow ? m_opaque_up->default_execution_policy
+                                        : eExecutionPolicyNever);
 }
 
 EvaluateExpressionOptions *SBExpressionOptions::get() const {
-  return m_opaque_ap.get();
+  return m_opaque_up.get();
 }
 
 EvaluateExpressionOptions &SBExpressionOptions::ref() const {
-  return *(m_opaque_ap.get());
+  return *(m_opaque_up.get());
 }

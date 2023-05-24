@@ -5,7 +5,7 @@
 
 # RUN: lld-link -lldmingw -entry:main %t1.obj %t2.obj -out:%t.exe -verbose 2>&1 \
 # RUN:   | FileCheck -check-prefix VERBOSE %s
-# RUN: llvm-readobj -s %t.exe | FileCheck -check-prefix SECTIONS %s
+# RUN: llvm-readobj -S %t.exe | FileCheck -check-prefix SECTIONS %s
 
 # VERBOSE: -aligncomm:"foo",2
 
@@ -14,7 +14,7 @@
 
 # SECTIONS:         Name: .data (2E 64 61 74 61 00 00 00)
 # SECTIONS-NEXT:    VirtualSize: 0x8
-# SECTIONS-NEXT:    VirtualAddress: 0x2000
+# SECTIONS-NEXT:    VirtualAddress: 0x3000
 # SECTIONS-NEXT:    RawDataSize: 512
 
 

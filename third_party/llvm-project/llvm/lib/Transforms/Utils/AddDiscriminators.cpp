@@ -1,9 +1,8 @@
 //===- AddDiscriminators.cpp - Insert DWARF path discriminators -----------===//
 //
-//                      The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -64,15 +63,18 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils.h"
+#include "llvm/Transforms/Utils/SampleProfileLoaderBaseUtil.h"
 #include <utility>
 
 using namespace llvm;
+using namespace sampleprofutil;
 
 #define DEBUG_TYPE "add-discriminators"
 
@@ -172,6 +174,10 @@ static bool addDiscriminators(Function &F) {
   if (NoDiscriminators || !F.getSubprogram())
     return false;
 
+  // Create FSDiscriminatorVariable if flow sensitive discriminators are used.
+  if (EnableFSDiscriminator)
+    createFSDiscriminatorVariable(F.getParent());
+
   bool Changed = false;
 
   using Location = std::pair<StringRef, unsigned>;
@@ -209,10 +215,18 @@ static bool addDiscriminators(Function &F) {
       // Only the lowest 7 bits are used to represent a discriminator to fit
       // it in 1 byte ULEB128 representation.
       unsigned Discriminator = R.second ? ++LDM[L] : LDM[L];
-      I.setDebugLoc(DIL->setBaseDiscriminator(Discriminator));
-      LLVM_DEBUG(dbgs() << DIL->getFilename() << ":" << DIL->getLine() << ":"
-                        << DIL->getColumn() << ":" << Discriminator << " " << I
-                        << "\n");
+      auto NewDIL = DIL->cloneWithBaseDiscriminator(Discriminator);
+      if (!NewDIL) {
+        LLVM_DEBUG(dbgs() << "Could not encode discriminator: "
+                          << DIL->getFilename() << ":" << DIL->getLine() << ":"
+                          << DIL->getColumn() << ":" << Discriminator << " "
+                          << I << "\n");
+      } else {
+        I.setDebugLoc(NewDIL.getValue());
+        LLVM_DEBUG(dbgs() << DIL->getFilename() << ":" << DIL->getLine() << ":"
+                   << DIL->getColumn() << ":" << Discriminator << " " << I
+                   << "\n");
+      }
       Changed = true;
     }
   }
@@ -224,23 +238,31 @@ static bool addDiscriminators(Function &F) {
   for (BasicBlock &B : F) {
     LocationSet CallLocations;
     for (auto &I : B.getInstList()) {
-      CallInst *Current = dyn_cast<CallInst>(&I);
       // We bypass intrinsic calls for the following two reasons:
-      //  1) We want to avoid a non-deterministic assigment of
+      //  1) We want to avoid a non-deterministic assignment of
       //     discriminators.
       //  2) We want to minimize the number of base discriminators used.
-      if (!Current || isa<IntrinsicInst>(&I))
+      if (!isa<InvokeInst>(I) && (!isa<CallInst>(I) || isa<IntrinsicInst>(I)))  
         continue;
 
-      DILocation *CurrentDIL = Current->getDebugLoc();
+      DILocation *CurrentDIL = I.getDebugLoc();
       if (!CurrentDIL)
         continue;
       Location L =
           std::make_pair(CurrentDIL->getFilename(), CurrentDIL->getLine());
       if (!CallLocations.insert(L).second) {
         unsigned Discriminator = ++LDM[L];
-        Current->setDebugLoc(CurrentDIL->setBaseDiscriminator(Discriminator));
-        Changed = true;
+        auto NewDIL = CurrentDIL->cloneWithBaseDiscriminator(Discriminator);
+        if (!NewDIL) {
+          LLVM_DEBUG(dbgs()
+                     << "Could not encode discriminator: "
+                     << CurrentDIL->getFilename() << ":"
+                     << CurrentDIL->getLine() << ":" << CurrentDIL->getColumn()
+                     << ":" << Discriminator << " " << I << "\n");
+        } else {
+          I.setDebugLoc(NewDIL.getValue());
+          Changed = true;
+        }
       }
     }
   }

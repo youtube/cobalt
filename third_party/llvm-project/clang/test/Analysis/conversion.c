@@ -1,4 +1,7 @@
-// RUN: %clang_analyze_cc1 -Wno-conversion -Wno-tautological-constant-compare -analyzer-checker=core,alpha.core.Conversion -verify %s
+// RUN: %clang_analyze_cc1 %s \
+// RUN:   -Wno-conversion -Wno-tautological-constant-compare \
+// RUN:   -analyzer-checker=core,apiModeling,alpha.core.Conversion \
+// RUN:   -verify
 
 unsigned char U8;
 signed char S8;
@@ -102,6 +105,23 @@ void division(unsigned U, signed S) {
     S = U / S; // expected-warning {{Loss of sign}}
 }
 
+void f(unsigned x) {}
+void g(unsigned x) {}
+
+void functioncall1() {
+  long x = -1;
+  int y = 0;
+  f(x); // expected-warning {{Loss of sign in implicit conversion}}
+  f(y);
+}
+
+void functioncall2(int x, int y) {
+  if (x < 0)
+    f(x); // expected-warning {{Loss of sign in implicit conversion}}
+  f(y);
+  f(x); // expected-warning {{Loss of sign in implicit conversion}}
+}
+
 void dontwarn1(unsigned U, signed S) {
   U8 = S; // It might be known that S is always 0x00-0xff.
   S8 = U; // It might be known that U is always 0x00-0xff.
@@ -129,24 +149,52 @@ void dontwarn4() {
   DOSTUFF;
 }
 
-// don't warn for calculations
-// seen some fp. For instance:  c2 = (c2 >= 'A' && c2 <= 'Z') ? c2 - 'A' + 'a' : c2;
-// there is a todo in the checker to handle calculations
 void dontwarn5() {
-  signed S = -32;
-  U8 = S + 10;
+  unsigned char c1 = 'A';
+  c1 = (c1 >= 'A' && c1 <= 'Z') ? c1 - 'A' + 'a' : c1;
+  unsigned char c2 = 0;
+  c2 = (c2 >= 'A' && c2 <= 'Z') ? c2 - 'A' + 'a' : c2;
+  unsigned char c3 = 'Z';
+  c3 = (c3 >= 'A' && c3 <= 'Z') ? c3 - 'A' + 'a' : c3;
+  unsigned char c4 = 'a';
+  c4 = (c4 >= 'A' && c4 <= 'Z') ? c4 - 'A' + 'a' : c4;
+  unsigned char c5 = '@';
+  c5 = (c5 >= 'A' && c5 <= 'Z') ? c5 - 'A' + 'a' : c5;
+}
+
+void dontwarn6() {
+  int x = ~0;
+  unsigned y = ~0;
+}
+
+void dontwarn7(unsigned x) {
+  if (x == (unsigned)-1) {
+  }
+}
+
+void dontwarn8() {
+  unsigned x = (unsigned)-1;
+}
+
+unsigned dontwarn9() {
+  return ~0;
+}
+
+char dontwarn10(long long x) {
+  long long y = 42;
+  y += x;
+  return y == 42;
 }
 
 
-// false positives..
+// C library functions, handled via apiModeling.StdCLibraryFunctions
 
 int isascii(int c);
-void falsePositive1() {
+void libraryFunction1() {
   char kb2[5];
   int X = 1000;
   if (isascii(X)) {
-    // FIXME: should not warn here:
-    kb2[0] = X; // expected-warning {{Loss of precision}}
+    kb2[0] = X; // no-warning
   }
 }
 
@@ -155,8 +203,8 @@ typedef struct FILE {} FILE; int getc(FILE *stream);
 # define EOF (-1)
 char reply_string[8192];
 FILE *cin;
-extern int dostuff (void);
-int falsePositive2() {
+extern int dostuff(void);
+int libraryFunction2() {
   int c, n;
   int dig;
   char *cp = reply_string;
@@ -175,9 +223,31 @@ int falsePositive2() {
       if (c == EOF)
         return(4);
       if (cp < &reply_string[sizeof(reply_string) - 1])
-        // FIXME: should not warn here:
-        *cp++ = c; // expected-warning {{Loss of precision}}
+        *cp++ = c; // no-warning
     }
   }
 }
 
+double floating_point(long long a, int b) {
+  if (a > 1LL << 55) {
+    double r = a; // expected-warning {{Loss of precision}}
+    return r;
+  } else if (b > 1 << 25) {
+    float f = b; // expected-warning {{Loss of precision}}
+    return f;
+  }
+  return 137;
+}
+
+double floating_point2() {
+  int a = 1 << 24;
+  long long b = 1LL << 53;
+  float f = a; // no-warning
+  double d = b; // no-warning
+  return d - f;
+}
+
+int floating_point_3(unsigned long long a) {
+  double b = a; // no-warning
+  return 42;
+}

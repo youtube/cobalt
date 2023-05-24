@@ -1,13 +1,13 @@
 //===--- DeleteNullPointerCheck.cpp - clang-tidy---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "DeleteNullPointerCheck.h"
+#include "../utils/LexerUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Lex/Lexer.h"
@@ -20,27 +20,24 @@ namespace readability {
 
 void DeleteNullPointerCheck::registerMatchers(MatchFinder *Finder) {
   const auto DeleteExpr =
-      cxxDeleteExpr(has(castExpr(has(declRefExpr(
-                        to(decl(equalsBoundNode("deletedPointer"))))))))
+      cxxDeleteExpr(
+          has(declRefExpr(to(decl(equalsBoundNode("deletedPointer"))))))
           .bind("deleteExpr");
 
   const auto DeleteMemberExpr =
-      cxxDeleteExpr(has(castExpr(has(memberExpr(hasDeclaration(
-                        fieldDecl(equalsBoundNode("deletedMemberPointer"))))))))
+      cxxDeleteExpr(has(memberExpr(hasDeclaration(
+                        fieldDecl(equalsBoundNode("deletedMemberPointer"))))))
           .bind("deleteMemberExpr");
 
-  const auto PointerExpr = ignoringImpCasts(anyOf(
+  const auto PointerExpr = anyOf(
       declRefExpr(to(decl().bind("deletedPointer"))),
-      memberExpr(hasDeclaration(fieldDecl().bind("deletedMemberPointer")))));
+      memberExpr(hasDeclaration(fieldDecl().bind("deletedMemberPointer"))));
 
-  const auto PointerCondition = castExpr(hasCastKind(CK_PointerToBoolean),
-                                         hasSourceExpression(PointerExpr));
-  const auto BinaryPointerCheckCondition =
-      binaryOperator(hasEitherOperand(castExpr(hasCastKind(CK_NullToPointer))),
-                     hasEitherOperand(PointerExpr));
+  const auto BinaryPointerCheckCondition = binaryOperator(hasOperands(
+      anyOf(cxxNullPtrLiteralExpr(), integerLiteral(equals(0))), PointerExpr));
 
   Finder->addMatcher(
-      ifStmt(hasCondition(anyOf(PointerCondition, BinaryPointerCheckCondition)),
+      ifStmt(hasCondition(anyOf(PointerExpr, BinaryPointerCheckCondition)),
              hasThen(anyOf(
                  DeleteExpr, DeleteMemberExpr,
                  compoundStmt(anyOf(has(DeleteExpr), has(DeleteMemberExpr)),
@@ -55,17 +52,19 @@ void DeleteNullPointerCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *Compound = Result.Nodes.getNodeAs<CompoundStmt>("compound");
 
   auto Diag = diag(
-      IfWithDelete->getLocStart(),
+      IfWithDelete->getBeginLoc(),
       "'if' statement is unnecessary; deleting null pointer has no effect");
   if (IfWithDelete->getElse())
     return;
   // FIXME: generate fixit for this case.
 
   Diag << FixItHint::CreateRemoval(CharSourceRange::getTokenRange(
-      IfWithDelete->getLocStart(),
-      Lexer::getLocForEndOfToken(IfWithDelete->getCond()->getLocEnd(), 0,
-                                 *Result.SourceManager,
-                                 Result.Context->getLangOpts())));
+      IfWithDelete->getBeginLoc(),
+      utils::lexer::getPreviousToken(IfWithDelete->getThen()->getBeginLoc(),
+                                     *Result.SourceManager,
+                                     Result.Context->getLangOpts())
+          .getLocation()));
+
   if (Compound) {
     Diag << FixItHint::CreateRemoval(
         CharSourceRange::getTokenRange(Compound->getLBracLoc()));

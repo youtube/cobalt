@@ -1,4 +1,4 @@
-; RUN: opt -S -indvars -loop-unswitch < %s | FileCheck %s
+; RUN: opt -S -indvars -loop-unswitch -enable-new-pm=0 -verify-memoryssa < %s | FileCheck %s
 
 target triple = "x86_64-unknown-linux-gnu"
 

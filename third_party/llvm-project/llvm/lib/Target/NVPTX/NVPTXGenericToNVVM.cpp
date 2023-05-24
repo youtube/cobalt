@@ -1,9 +1,8 @@
 //===-- GenericToNVVM.cpp - Convert generic module to NVVM module - C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -75,19 +74,16 @@ bool GenericToNVVM::runOnModule(Module &M) {
   // of original global variable and its clone is placed in the GVMap for later
   // use.
 
-  for (Module::global_iterator I = M.global_begin(), E = M.global_end();
-       I != E;) {
-    GlobalVariable *GV = &*I++;
-    if (GV->getType()->getAddressSpace() == llvm::ADDRESS_SPACE_GENERIC &&
-        !llvm::isTexture(*GV) && !llvm::isSurface(*GV) &&
-        !llvm::isSampler(*GV) && !GV->getName().startswith("llvm.")) {
+  for (GlobalVariable &GV : llvm::make_early_inc_range(M.globals())) {
+    if (GV.getType()->getAddressSpace() == llvm::ADDRESS_SPACE_GENERIC &&
+        !llvm::isTexture(GV) && !llvm::isSurface(GV) && !llvm::isSampler(GV) &&
+        !GV.getName().startswith("llvm.")) {
       GlobalVariable *NewGV = new GlobalVariable(
-          M, GV->getValueType(), GV->isConstant(),
-          GV->getLinkage(),
-          GV->hasInitializer() ? GV->getInitializer() : nullptr,
-          "", GV, GV->getThreadLocalMode(), llvm::ADDRESS_SPACE_GLOBAL);
-      NewGV->copyAttributesFrom(GV);
-      GVMap[GV] = NewGV;
+          M, GV.getValueType(), GV.isConstant(), GV.getLinkage(),
+          GV.hasInitializer() ? GV.getInitializer() : nullptr, "", &GV,
+          GV.getThreadLocalMode(), llvm::ADDRESS_SPACE_GLOBAL);
+      NewGV->copyAttributesFrom(&GV);
+      GVMap[&GV] = NewGV;
     }
   }
 
@@ -100,20 +96,18 @@ bool GenericToNVVM::runOnModule(Module &M) {
   // Walk through the instructions in function defitinions, and replace any use
   // of original global variables in GVMap with a use of the corresponding
   // copies in GVMap.  If necessary, promote constants to instructions.
-  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-    if (I->isDeclaration()) {
+  for (Function &F : M) {
+    if (F.isDeclaration()) {
       continue;
     }
-    IRBuilder<> Builder(I->getEntryBlock().getFirstNonPHIOrDbg());
-    for (Function::iterator BBI = I->begin(), BBE = I->end(); BBI != BBE;
-         ++BBI) {
-      for (BasicBlock::iterator II = BBI->begin(), IE = BBI->end(); II != IE;
-           ++II) {
-        for (unsigned i = 0, e = II->getNumOperands(); i < e; ++i) {
-          Value *Operand = II->getOperand(i);
+    IRBuilder<> Builder(F.getEntryBlock().getFirstNonPHIOrDbg());
+    for (BasicBlock &BB : F) {
+      for (Instruction &II : BB) {
+        for (unsigned i = 0, e = II.getNumOperands(); i < e; ++i) {
+          Value *Operand = II.getOperand(i);
           if (isa<Constant>(Operand)) {
-            II->setOperand(
-                i, remapConstant(&M, &*I, cast<Constant>(Operand), Builder));
+            II.setOperand(
+                i, remapConstant(&M, &F, cast<Constant>(Operand), Builder));
           }
         }
       }
@@ -145,7 +139,7 @@ bool GenericToNVVM::runOnModule(Module &M) {
     // variable initializers, as other uses have been already been removed
     // while walking through the instructions in function definitions.
     GV->replaceAllUsesWith(BitCastNewGV);
-    std::string Name = GV->getName();
+    std::string Name = std::string(GV->getName());
     GV->eraseFromParent();
     NewGV->setName(Name);
   }
@@ -216,7 +210,7 @@ Value *GenericToNVVM::remapConstantVectorOrConstantAggregate(
   // If any of the elements has been  modified, construct the equivalent
   // vector or aggregate value with a set instructions and the converted
   // elements.
-  Value *NewValue = UndefValue::get(C->getType());
+  Value *NewValue = PoisonValue::get(C->getType());
   if (isa<ConstantVector>(C)) {
     for (unsigned i = 0; i < NumOperands; ++i) {
       Value *Idx = ConstantInt::get(Type::getInt32Ty(M->getContext()), i);

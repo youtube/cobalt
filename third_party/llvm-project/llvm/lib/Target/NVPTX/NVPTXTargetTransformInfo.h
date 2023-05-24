@@ -1,9 +1,8 @@
 //===-- NVPTXTargetTransformInfo.h - NVPTX specific TTI ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -17,8 +16,8 @@
 #ifndef LLVM_LIB_TARGET_NVPTX_NVPTXTARGETTRANSFORMINFO_H
 #define LLVM_LIB_TARGET_NVPTX_NVPTXTARGETTRANSFORMINFO_H
 
-#include "NVPTX.h"
 #include "NVPTXTargetMachine.h"
+#include "MCTargetDesc/NVPTXBaseInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/CodeGen/TargetLowering.h"
@@ -49,6 +48,25 @@ public:
     return AddressSpace::ADDRESS_SPACE_GENERIC;
   }
 
+  bool canHaveNonUndefGlobalInitializerInAddressSpace(unsigned AS) const {
+    return AS != AddressSpace::ADDRESS_SPACE_SHARED &&
+           AS != AddressSpace::ADDRESS_SPACE_LOCAL && AS != ADDRESS_SPACE_PARAM;
+  }
+
+  Optional<Instruction *> instCombineIntrinsic(InstCombiner &IC,
+                                               IntrinsicInst &II) const;
+
+  // Loads and stores can be vectorized if the alignment is at least as big as
+  // the load/store we want to vectorize.
+  bool isLegalToVectorizeLoadChain(unsigned ChainSizeInBytes, Align Alignment,
+                                   unsigned AddrSpace) const {
+    return Alignment >= ChainSizeInBytes;
+  }
+  bool isLegalToVectorizeStoreChain(unsigned ChainSizeInBytes, Align Alignment,
+                                    unsigned AddrSpace) const {
+    return isLegalToVectorizeLoadChain(ChainSizeInBytes, Alignment, AddrSpace);
+  }
+
   // NVPTX has infinite registers of all kinds, but the actual machine doesn't.
   // We conservatively return 1 here which is just enough to enable the
   // vectorizers but disables heuristics based on the number of registers.
@@ -58,7 +76,9 @@ public:
 
   // Only <2 x half> should be vectorized, so always return 32 for the vector
   // register size.
-  unsigned getRegisterBitWidth(bool Vector) const { return 32; }
+  TypeSize getRegisterBitWidth(TargetTransformInfo::RegisterKind K) const {
+    return TypeSize::getFixed(32);
+  }
   unsigned getMinVectorRegisterBitWidth() const { return 32; }
 
   // We don't want to prevent inlining because of target-cpu and -features
@@ -73,16 +93,22 @@ public:
   // calls are particularly expensive in NVPTX.
   unsigned getInliningThresholdMultiplier() { return 5; }
 
-  int getArithmeticInstrCost(
-      unsigned Opcode, Type *Ty,
+  InstructionCost getArithmeticInstrCost(
+      unsigned Opcode, Type *Ty, TTI::TargetCostKind CostKind,
       TTI::OperandValueKind Opd1Info = TTI::OK_AnyValue,
       TTI::OperandValueKind Opd2Info = TTI::OK_AnyValue,
       TTI::OperandValueProperties Opd1PropInfo = TTI::OP_None,
       TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None,
-      ArrayRef<const Value *> Args = ArrayRef<const Value *>());
+      ArrayRef<const Value *> Args = ArrayRef<const Value *>(),
+      const Instruction *CxtI = nullptr);
 
   void getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
-                               TTI::UnrollingPreferences &UP);
+                               TTI::UnrollingPreferences &UP,
+                               OptimizationRemarkEmitter *ORE);
+
+  void getPeelingPreferences(Loop *L, ScalarEvolution &SE,
+                             TTI::PeelingPreferences &PP);
+
   bool hasVolatileVariant(Instruction *I, unsigned AddrSpace) {
     // Volatile loads/stores are only supported for shared and global address
     // spaces, or for generic AS that maps to them.

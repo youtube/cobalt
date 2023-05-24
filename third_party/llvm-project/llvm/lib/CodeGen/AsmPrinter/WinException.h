@@ -1,9 +1,8 @@
 //===-- WinException.h - Windows Exception Handling ----------*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,14 +14,13 @@
 #define LLVM_LIB_CODEGEN_ASMPRINTER_WIN64EXCEPTION_H
 
 #include "EHStreamer.h"
+#include <vector>
 
 namespace llvm {
-class Function;
 class GlobalValue;
 class MachineFunction;
 class MCExpr;
 class MCSection;
-class Value;
 struct WinEHFuncInfo;
 
 class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
@@ -38,11 +36,20 @@ class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
   /// True if this is a 64-bit target and we should use image relative offsets.
   bool useImageRel32 = false;
 
+  /// True if we are generating exception handling on Windows for ARM64.
+  bool isAArch64 = false;
+
+  /// True if we are generating exception handling on Windows for ARM (Thumb).
+  bool isThumb = false;
+
   /// Pointer to the current funclet entry BB.
   const MachineBasicBlock *CurrentFuncletEntry = nullptr;
 
   /// The section of the last funclet start.
   MCSection *CurrentFuncletTextSection = nullptr;
+
+  /// The list of symbols to add to the ehcont section
+  std::vector<const MCSymbol *> EHContTargets;
 
   void emitCSpecificHandlerTable(const MachineFunction *MF);
 
@@ -65,13 +72,14 @@ class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
       const MachineFunction *MF, const WinEHFuncInfo &FuncInfo,
       SmallVectorImpl<std::pair<const MCExpr *, int>> &IPToStateTable);
 
-  /// Emits the label used with llvm.x86.seh.recoverfp, which is used by
+  /// Emits the label used with llvm.eh.recoverfp, which is used by
   /// outlined funclets.
   void emitEHRegistrationOffsetLabel(const WinEHFuncInfo &FuncInfo,
                                      StringRef FLinkageName);
 
   const MCExpr *create32bitRef(const MCSymbol *Value);
   const MCExpr *create32bitRef(const GlobalValue *GV);
+  const MCExpr *getLabel(const MCSymbol *Label);
   const MCExpr *getLabelPlusOne(const MCSymbol *Label);
   const MCExpr *getOffset(const MCSymbol *OffsetOf, const MCSymbol *OffsetFrom);
   const MCExpr *getOffsetPlusOne(const MCSymbol *OffsetOf,
@@ -83,6 +91,7 @@ class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
   /// only), it is relative to the frame pointer.
   int getFrameIndexOffset(int FrameIndex, const WinEHFuncInfo &FuncInfo);
 
+  void endFuncletImpl();
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
@@ -96,6 +105,8 @@ public:
   /// Gather pre-function exception information.  Assumes being emitted
   /// immediately after the function entry point.
   void beginFunction(const MachineFunction *MF) override;
+
+  void markFunctionEnd() override;
 
   /// Gather and emit post-function exception information.
   void endFunction(const MachineFunction *) override;

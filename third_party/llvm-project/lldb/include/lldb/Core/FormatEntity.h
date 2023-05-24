@@ -1,45 +1,35 @@
 //===-- FormatEntity.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_FormatEntity_h_
-#define liblldb_FormatEntity_h_
+#ifndef LLDB_CORE_FORMATENTITY_H
+#define LLDB_CORE_FORMATENTITY_H
 
-#include "lldb/Utility/CompletionRequest.h"
-#include "lldb/Utility/FileSpec.h" // for FileSpec
-#include "lldb/Utility/Status.h"
-#include "lldb/lldb-enumerations.h" // for Format::eFormatDefault, Format
-#include "lldb/lldb-types.h"        // for addr_t
-#include <algorithm>                // for min
-#include <stddef.h>                 // for size_t
-#include <stdint.h>                 // for uint32_t, uint64_t
+#include "lldb/lldb-enumerations.h"
+#include "lldb/lldb-types.h"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 
 #include <string>
 #include <vector>
 
 namespace lldb_private {
 class Address;
-}
-namespace lldb_private {
+class CompletionRequest;
 class ExecutionContext;
-}
-namespace lldb_private {
+class FileSpec;
+class Status;
 class Stream;
-}
-namespace lldb_private {
 class StringList;
-}
-namespace lldb_private {
 class SymbolContext;
-}
-namespace lldb_private {
 class ValueObject;
 }
+
 namespace llvm {
 class StringRef;
 }
@@ -52,7 +42,7 @@ public:
       Invalid,
       ParentNumber,
       ParentString,
-      InsertString,
+      EscapeCode,
       Root,
       String,
       Scope,
@@ -72,6 +62,7 @@ public:
       ThreadName,
       ThreadQueue,
       ThreadStopReason,
+      ThreadStopReasonRaw,
       ThreadReturnValue,
       ThreadCompletedExpression,
       ScriptThread,
@@ -88,6 +79,7 @@ public:
       FrameRegisterFP,
       FrameRegisterFlags,
       FrameRegisterByName,
+      FrameIsArtificial,
       ScriptFrame,
       FunctionID,
       FunctionDidChange,
@@ -95,6 +87,7 @@ public:
       FunctionName,
       FunctionNameWithArgs,
       FunctionNameNoArgs,
+      FunctionMangledName,
       FunctionAddrOffset,
       FunctionAddrOffsetConcrete,
       FunctionLineOffset,
@@ -104,30 +97,58 @@ public:
       FunctionIsOptimized,
       LineEntryFile,
       LineEntryLineNumber,
+      LineEntryColumn,
       LineEntryStartAddress,
       LineEntryEndAddress,
       CurrentPCArrow
     };
 
-    enum FormatType { None, UInt32, UInt64, CString };
-
     struct Definition {
+      /// The name/string placeholder that corresponds to this definition.
       const char *name;
-      const char *string; // Insert this exact string into the output
-      Entry::Type type;
-      FormatType format_type; // uint32_t, uint64_t, cstr, or anything that can
-                              // be formatted by printf or lldb::Format
-      uint64_t data;
-      uint32_t num_children;
-      Definition *children; // An array of "num_children" Definition entries,
-      bool keep_separator;
+      /// Insert this exact string into the output
+      const char *string = nullptr;
+      /// Entry::Type corresponding to this definition.
+      const Entry::Type type;
+      /// Data that is returned as the value of the format string.
+      const uint64_t data = 0;
+      /// The number of children of this node in the tree of format strings.
+      const uint32_t num_children = 0;
+      /// An array of "num_children" Definition entries.
+      const Definition *children = nullptr;
+      /// Whether the separator is kept during parsing or not.  It's used
+      /// for entries with parameters.
+      const bool keep_separator = false;
+
+      constexpr Definition(const char *name, const FormatEntity::Entry::Type t)
+          : name(name), type(t) {}
+
+      constexpr Definition(const char *name, const char *string)
+          : name(name), string(string), type(Entry::Type::EscapeCode) {}
+
+      constexpr Definition(const char *name, const FormatEntity::Entry::Type t,
+                           const uint64_t data)
+          : name(name), type(t), data(data) {}
+
+      constexpr Definition(const char *name, const FormatEntity::Entry::Type t,
+                           const uint64_t num_children,
+                           const Definition *children,
+                           const bool keep_separator = false)
+          : name(name), type(t), num_children(num_children), children(children),
+            keep_separator(keep_separator) {}
     };
+
+    template <size_t N>
+    static constexpr Definition
+    DefinitionWithChildren(const char *name, const FormatEntity::Entry::Type t,
+                           const Definition (&children)[N],
+                           bool keep_separator = false) {
+      return Definition(name, t, N, children, keep_separator);
+    }
 
     Entry(Type t = Type::Invalid, const char *s = nullptr,
           const char *f = nullptr)
-        : string(s ? s : ""), printf_format(f ? f : ""), children(),
-          definition(nullptr), type(t), fmt(lldb::eFormatDefault), number(0),
-          deref(false) {}
+        : string(s ? s : ""), printf_format(f ? f : ""), type(t) {}
 
     Entry(llvm::StringRef s);
     Entry(char ch);
@@ -144,7 +165,6 @@ public:
       string.clear();
       printf_format.clear();
       children.clear();
-      definition = nullptr;
       type = Type::Invalid;
       fmt = lldb::eFormatDefault;
       number = 0;
@@ -168,8 +188,6 @@ public:
       }
       if (children != rhs.children)
         return false;
-      if (definition != rhs.definition)
-        return false;
       if (type != rhs.type)
         return false;
       if (fmt != rhs.fmt)
@@ -182,11 +200,10 @@ public:
     std::string string;
     std::string printf_format;
     std::vector<Entry> children;
-    Definition *definition;
     Type type;
-    lldb::Format fmt;
-    lldb::addr_t number;
-    bool deref;
+    lldb::Format fmt = lldb::eFormatDefault;
+    lldb::addr_t number = 0;
+    bool deref = false;
   };
 
   static bool Format(const Entry &entry, Stream &s, const SymbolContext *sc,
@@ -212,16 +229,14 @@ public:
                                     llvm::StringRef &variable_name,
                                     llvm::StringRef &variable_format);
 
-  static size_t AutoComplete(lldb_private::CompletionRequest &request);
+  static void AutoComplete(lldb_private::CompletionRequest &request);
 
-  //----------------------------------------------------------------------
   // Format the current elements into the stream \a s.
   //
   // The root element will be stripped off and the format str passed in will be
   // either an empty string (print a description of this object), or contain a
   // `.`-separated series like a domain name that identifies further
   //  sub-elements to display.
-  //----------------------------------------------------------------------
   static bool FormatFileSpec(const FileSpec &file, Stream &s,
                              llvm::StringRef elements,
                              llvm::StringRef element_format);
@@ -232,4 +247,4 @@ protected:
 };
 } // namespace lldb_private
 
-#endif // liblldb_FormatEntity_h_
+#endif // LLDB_CORE_FORMATENTITY_H

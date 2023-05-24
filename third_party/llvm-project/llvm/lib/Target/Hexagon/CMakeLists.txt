@@ -1,3 +1,5 @@
+add_llvm_component_group(Hexagon)
+
 set(LLVM_TARGET_DEFINITIONS Hexagon.td)
 
 tablegen(LLVM HexagonGenAsmMatcher.inc -gen-asm-matcher)
@@ -29,7 +31,6 @@ add_llvm_target(HexagonCodeGen
   HexagonExpandCondsets.cpp
   HexagonFixupHwLoops.cpp
   HexagonFrameLowering.cpp
-  HexagonGatherPacketize.cpp
   HexagonGenExtract.cpp
   HexagonGenInsert.cpp
   HexagonGenMux.cpp
@@ -59,19 +60,35 @@ add_llvm_target(HexagonCodeGen
   HexagonTargetMachine.cpp
   HexagonTargetObjectFile.cpp
   HexagonTargetTransformInfo.cpp
+  HexagonVectorCombine.cpp
   HexagonVectorLoopCarriedReuse.cpp
   HexagonVectorPrint.cpp
   HexagonVExtract.cpp
   HexagonVLIWPacketizer.cpp
   RDFCopy.cpp
   RDFDeadCode.cpp
-  RDFGraph.cpp
-  RDFLiveness.cpp
-  RDFRegisters.cpp
+
+  LINK_COMPONENTS
+  Analysis
+  AsmPrinter
+  CodeGen
+  Core
+  HexagonAsmParser
+  HexagonDesc
+  HexagonInfo
+  IPO
+  MC
+  Scalar
+  SelectionDAG
+  Support
+  Target
+  TransformUtils
+
+  ADD_TO_COMPONENT
+  Hexagon
 )
 
 add_subdirectory(AsmParser)
 add_subdirectory(Disassembler)
 add_subdirectory(MCTargetDesc)
 add_subdirectory(TargetInfo)
-

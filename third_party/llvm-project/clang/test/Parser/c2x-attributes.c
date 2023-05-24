@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -fdouble-square-bracket-attributes -verify %s
+// RUN: %clang_cc1 -fsyntax-only -std=gnu2x -verify %s
 
 enum [[]] E {
   One [[]],
@@ -15,6 +16,14 @@ enum { [[]] Six }; // expected-error {{expected identifier}}
 // FIXME: this diagnostic can be improved.
 enum E3 [[]] { Seven }; // expected-error {{expected identifier or '('}}
 
+[[deprecated([""])]] int WrongArgs; // expected-error {{expected expression}}
+[[,,,,,]] int Commas1; // ok
+[[,, maybe_unused]] int Commas2; // ok
+[[maybe_unused,,,]] int Commas3; // ok
+[[,,maybe_unused,]] int Commas4; // ok
+[[foo bar]] int NoComma; // expected-error {{expected ','}} \
+                         // expected-warning {{unknown attribute 'foo' ignored}}
+
 struct [[]] S1 {
   int i [[]];
   int [[]] j;
@@ -22,6 +31,9 @@ struct [[]] S1 {
   int l[[]][10];
   [[]] int m, n;
   int o [[]] : 12;
+  int [[]] : 0; // OK, attribute applies to the type.
+  int p, [[]] : 0; // expected-error {{an attribute list cannot appear here}}
+  int q, [[]] r; // expected-error {{an attribute list cannot appear here}}
 };
 
 [[]] struct S2 { int a; }; // expected-error {{misplaced attributes}}
@@ -113,8 +125,7 @@ void test_asm(void) {
 }
 
 // Do not allow 'using' to introduce vendor attribute namespaces.
-[[using vendor: attr1, attr2]] void f14(void); // expected-error {{expected ']'}} \
-                                               // expected-warning {{unknown attribute 'vendor' ignored}} \
+[[using vendor: attr1, attr2]] void f14(void); // expected-error {{expected ','}} \
                                                // expected-warning {{unknown attribute 'using' ignored}}
 
 struct [[]] S4 *s; // expected-error {{an attribute list cannot appear here}}

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=gnu++11 -fsyntax-only -fms-compatibility -verify %s
+// RUN: %clang_cc1 -std=gnu++17 -fsyntax-only -fms-compatibility -verify %s
 
 void f() {
   // GNU-style attributes are prohibited in this position.
@@ -11,6 +11,13 @@ void f() {
 }
 
 void g(int a[static [[]] 5]); // expected-error {{static array size is a C99 feature, not permitted in C++}}
+
+template<typename T> struct A {
+  int x[sizeof(T)] __attribute((vector_size(8))); // expected-error {{invalid vector element type 'int[sizeof(T)]'}}
+};
+
+typedef int myvect[4] __attribute__((vector_size(16))); // expected-error {{invalid vector element type 'int[4]'}}
+void foo(myvect *in, myvect *out) { (*out)[0] = (*in)[0]; }
 
 namespace {
 class B {
@@ -43,3 +50,10 @@ void tu() {
   tuTest1(x); // expected-error {{no matching function for call to 'tuTest1'}}
   tuTest2(x); // expected-error {{no matching function for call to 'tuTest2'}}
 }
+
+[[gnu::__const__]] int f2() { return 12; }
+[[__gnu__::__const__]] int f3() { return 12; }
+[[using __gnu__ : __const__]] int f4() { return 12; }
+
+static_assert(__has_cpp_attribute(gnu::__const__));
+static_assert(__has_cpp_attribute(__gnu__::__const__));

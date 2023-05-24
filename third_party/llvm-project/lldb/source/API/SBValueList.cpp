@@ -1,9 +1,8 @@
-//===-- SBValueList.cpp -----------------------------------------*- C++ -*-===//
+//===-- SBValueList.cpp ---------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,7 +10,7 @@
 #include "lldb/API/SBStream.h"
 #include "lldb/API/SBValue.h"
 #include "lldb/Core/ValueObjectList.h"
-#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include <vector>
 
@@ -20,7 +19,7 @@ using namespace lldb_private;
 
 class ValueListImpl {
 public:
-  ValueListImpl() : m_values() {}
+  ValueListImpl() {}
 
   ValueListImpl(const ValueListImpl &rhs) : m_values(rhs.m_values) {}
 
@@ -68,142 +67,129 @@ private:
   std::vector<lldb::SBValue> m_values;
 };
 
-SBValueList::SBValueList() : m_opaque_ap() {}
+SBValueList::SBValueList() { LLDB_INSTRUMENT_VA(this); }
 
-SBValueList::SBValueList(const SBValueList &rhs) : m_opaque_ap() {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+SBValueList::SBValueList(const SBValueList &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
 
   if (rhs.IsValid())
-    m_opaque_ap.reset(new ValueListImpl(*rhs));
-
-  if (log) {
-    log->Printf(
-        "SBValueList::SBValueList (rhs.ap=%p) => this.ap = %p",
-        static_cast<void *>(rhs.IsValid() ? rhs.m_opaque_ap.get() : NULL),
-        static_cast<void *>(m_opaque_ap.get()));
-  }
+    m_opaque_up = std::make_unique<ValueListImpl>(*rhs);
 }
 
-SBValueList::SBValueList(const ValueListImpl *lldb_object_ptr) : m_opaque_ap() {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-
+SBValueList::SBValueList(const ValueListImpl *lldb_object_ptr) {
   if (lldb_object_ptr)
-    m_opaque_ap.reset(new ValueListImpl(*lldb_object_ptr));
-
-  if (log) {
-    log->Printf("SBValueList::SBValueList (lldb_object_ptr=%p) => this.ap = %p",
-                static_cast<const void *>(lldb_object_ptr),
-                static_cast<void *>(m_opaque_ap.get()));
-  }
+    m_opaque_up = std::make_unique<ValueListImpl>(*lldb_object_ptr);
 }
 
-SBValueList::~SBValueList() {}
+SBValueList::~SBValueList() = default;
 
-bool SBValueList::IsValid() const { return (m_opaque_ap.get() != NULL); }
+bool SBValueList::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBValueList::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
 
-void SBValueList::Clear() { m_opaque_ap.reset(); }
+  return (m_opaque_up != nullptr);
+}
+
+void SBValueList::Clear() {
+  LLDB_INSTRUMENT_VA(this);
+
+  m_opaque_up.reset();
+}
 
 const SBValueList &SBValueList::operator=(const SBValueList &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs) {
     if (rhs.IsValid())
-      m_opaque_ap.reset(new ValueListImpl(*rhs));
+      m_opaque_up = std::make_unique<ValueListImpl>(*rhs);
     else
-      m_opaque_ap.reset();
+      m_opaque_up.reset();
   }
   return *this;
 }
 
-ValueListImpl *SBValueList::operator->() { return m_opaque_ap.get(); }
+ValueListImpl *SBValueList::operator->() { return m_opaque_up.get(); }
 
-ValueListImpl &SBValueList::operator*() { return *m_opaque_ap; }
+ValueListImpl &SBValueList::operator*() { return *m_opaque_up; }
 
 const ValueListImpl *SBValueList::operator->() const {
-  return m_opaque_ap.get();
+  return m_opaque_up.get();
 }
 
-const ValueListImpl &SBValueList::operator*() const { return *m_opaque_ap; }
+const ValueListImpl &SBValueList::operator*() const { return *m_opaque_up; }
 
 void SBValueList::Append(const SBValue &val_obj) {
+  LLDB_INSTRUMENT_VA(this, val_obj);
+
   CreateIfNeeded();
-  m_opaque_ap->Append(val_obj);
+  m_opaque_up->Append(val_obj);
 }
 
 void SBValueList::Append(lldb::ValueObjectSP &val_obj_sp) {
   if (val_obj_sp) {
     CreateIfNeeded();
-    m_opaque_ap->Append(SBValue(val_obj_sp));
+    m_opaque_up->Append(SBValue(val_obj_sp));
   }
 }
 
 void SBValueList::Append(const lldb::SBValueList &value_list) {
+  LLDB_INSTRUMENT_VA(this, value_list);
+
   if (value_list.IsValid()) {
     CreateIfNeeded();
-    m_opaque_ap->Append(*value_list);
+    m_opaque_up->Append(*value_list);
   }
 }
 
 SBValue SBValueList::GetValueAtIndex(uint32_t idx) const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-
-  // if (log)
-  //    log->Printf ("SBValueList::GetValueAtIndex (uint32_t idx) idx = %d",
-  //    idx);
+  LLDB_INSTRUMENT_VA(this, idx);
 
   SBValue sb_value;
-  if (m_opaque_ap.get())
-    sb_value = m_opaque_ap->GetValueAtIndex(idx);
-
-  if (log) {
-    SBStream sstr;
-    sb_value.GetDescription(sstr);
-    log->Printf("SBValueList::GetValueAtIndex (this.ap=%p, idx=%d) => SBValue "
-                "(this.sp = %p, '%s')",
-                static_cast<void *>(m_opaque_ap.get()), idx,
-                static_cast<void *>(sb_value.GetSP().get()), sstr.GetData());
-  }
+  if (m_opaque_up)
+    sb_value = m_opaque_up->GetValueAtIndex(idx);
 
   return sb_value;
 }
 
 uint32_t SBValueList::GetSize() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-
-  // if (log)
-  //    log->Printf ("SBValueList::GetSize ()");
+  LLDB_INSTRUMENT_VA(this);
 
   uint32_t size = 0;
-  if (m_opaque_ap.get())
-    size = m_opaque_ap->GetSize();
-
-  if (log)
-    log->Printf("SBValueList::GetSize (this.ap=%p) => %d",
-                static_cast<void *>(m_opaque_ap.get()), size);
+  if (m_opaque_up)
+    size = m_opaque_up->GetSize();
 
   return size;
 }
 
 void SBValueList::CreateIfNeeded() {
-  if (m_opaque_ap.get() == NULL)
-    m_opaque_ap.reset(new ValueListImpl());
+  if (m_opaque_up == nullptr)
+    m_opaque_up = std::make_unique<ValueListImpl>();
 }
 
 SBValue SBValueList::FindValueObjectByUID(lldb::user_id_t uid) {
+  LLDB_INSTRUMENT_VA(this, uid);
+
   SBValue sb_value;
-  if (m_opaque_ap.get())
-    sb_value = m_opaque_ap->FindValueByUID(uid);
+  if (m_opaque_up)
+    sb_value = m_opaque_up->FindValueByUID(uid);
   return sb_value;
 }
 
 SBValue SBValueList::GetFirstValueByName(const char *name) const {
+  LLDB_INSTRUMENT_VA(this, name);
+
   SBValue sb_value;
-  if (m_opaque_ap.get())
-    sb_value = m_opaque_ap->GetFirstValueByName(name);
+  if (m_opaque_up)
+    sb_value = m_opaque_up->GetFirstValueByName(name);
   return sb_value;
 }
 
-void *SBValueList::opaque_ptr() { return m_opaque_ap.get(); }
+void *SBValueList::opaque_ptr() { return m_opaque_up.get(); }
 
 ValueListImpl &SBValueList::ref() {
   CreateIfNeeded();
-  return *m_opaque_ap.get();
+  return *m_opaque_up;
 }

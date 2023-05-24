@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,6 +14,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#define __KMP_IMP
 #include "omp.h" // omp_* declarations, must be included before "kmp.h"
 #include "kmp.h" // KMP_DEFAULT_STKSIZE
 #include "kmp_stub.h"
@@ -34,6 +34,10 @@
 #define omp_set_num_threads ompc_set_num_threads
 #define omp_set_dynamic ompc_set_dynamic
 #define omp_set_nested ompc_set_nested
+#define omp_set_affinity_format ompc_set_affinity_format
+#define omp_get_affinity_format ompc_get_affinity_format
+#define omp_display_affinity ompc_display_affinity
+#define omp_capture_affinity ompc_capture_affinity
 #define kmp_set_stacksize kmpc_set_stacksize
 #define kmp_set_stacksize_s kmpc_set_stacksize_s
 #define kmp_set_blocktime kmpc_set_blocktime
@@ -46,7 +50,9 @@
 #define kmp_realloc kmpc_realloc
 #define kmp_free kmpc_free
 
+#if KMP_OS_WINDOWS
 static double frequency = 0.0;
+#endif
 
 // Helper functions.
 static size_t __kmps_init() {
@@ -119,7 +125,7 @@ int kmpc_get_affinity_mask_proc(int proc, void **mask) {
 /* kmp API functions */
 void kmp_set_stacksize(omp_int_t arg) {
   i;
-  __kmps_set_stacksize(arg);
+  __kmps_set_stacksize((size_t)arg);
 }
 void kmp_set_stacksize_s(size_t arg) {
   i;
@@ -141,7 +147,7 @@ void *kmp_malloc(size_t size) {
   i;
   void *res;
 #if KMP_OS_WINDOWS
-  // If succesfull returns a pointer to the memory block, otherwise returns
+  // If successful returns a pointer to the memory block, otherwise returns
   // NULL.
   // Sets errno to ENOMEM or EINVAL if memory allocation failed or parameter
   // validation failed.
@@ -158,7 +164,7 @@ void *kmp_aligned_malloc(size_t sz, size_t a) {
 #if KMP_OS_WINDOWS
   res = _aligned_malloc(sz, a);
 #else
-  if (err = posix_memalign(&res, a, sz)) {
+  if ((err = posix_memalign(&res, a, sz))) {
     errno = err; // can be EINVAL or ENOMEM
     res = NULL;
   }
@@ -244,12 +250,12 @@ int __kmps_get_nested(void) {
 
 static size_t __kmps_stacksize = KMP_DEFAULT_STKSIZE;
 
-void __kmps_set_stacksize(int arg) {
+void __kmps_set_stacksize(size_t arg) {
   i;
   __kmps_stacksize = arg;
 } // __kmps_set_stacksize
 
-int __kmps_get_stacksize(void) {
+size_t __kmps_get_stacksize(void) {
   i;
   return __kmps_stacksize;
 } // __kmps_get_stacksize
@@ -269,21 +275,10 @@ void __kmps_get_schedule(kmp_sched_t *kind, int *modifier) {
   *modifier = __kmps_sched_modifier;
 } // __kmps_get_schedule
 
-#if OMP_40_ENABLED
-
-static kmp_proc_bind_t __kmps_proc_bind = proc_bind_false;
-
-void __kmps_set_proc_bind(kmp_proc_bind_t arg) {
-  i;
-  __kmps_proc_bind = arg;
-} // __kmps_set_proc_bind
-
 kmp_proc_bind_t __kmps_get_proc_bind(void) {
   i;
-  return __kmps_proc_bind;
+  return proc_bind_false;
 } // __kmps_get_proc_bind
-
-#endif /* OMP_40_ENABLED */
 
 double __kmps_get_wtime(void) {
   // Elapsed wall clock time (in second) from "sometime in the past".
@@ -335,5 +330,141 @@ double __kmps_get_wtick(void) {
 #endif
   return wtick;
 } // __kmps_get_wtick
+
+/* OpenMP 5.0 Memory Management */
+#if KMP_OS_WINDOWS
+omp_allocator_handle_t const omp_null_allocator = 0;
+omp_allocator_handle_t const omp_default_mem_alloc =
+    (omp_allocator_handle_t const)1;
+omp_allocator_handle_t const omp_large_cap_mem_alloc =
+    (omp_allocator_handle_t const)2;
+omp_allocator_handle_t const omp_const_mem_alloc =
+    (omp_allocator_handle_t const)3;
+omp_allocator_handle_t const omp_high_bw_mem_alloc =
+    (omp_allocator_handle_t const)4;
+omp_allocator_handle_t const omp_low_lat_mem_alloc =
+    (omp_allocator_handle_t const)5;
+omp_allocator_handle_t const omp_cgroup_mem_alloc =
+    (omp_allocator_handle_t const)6;
+omp_allocator_handle_t const omp_pteam_mem_alloc =
+    (omp_allocator_handle_t const)7;
+omp_allocator_handle_t const omp_thread_mem_alloc =
+    (omp_allocator_handle_t const)8;
+// Preview of target memory support
+omp_allocator_handle_t const llvm_omp_target_host_mem_alloc =
+    (omp_allocator_handle_t const)100;
+omp_allocator_handle_t const llvm_omp_target_shared_mem_alloc =
+    (omp_allocator_handle_t const)101;
+omp_allocator_handle_t const llvm_omp_target_device_mem_alloc =
+    (omp_allocator_handle_t const)102;
+
+omp_memspace_handle_t const omp_default_mem_space =
+    (omp_memspace_handle_t const)0;
+omp_memspace_handle_t const omp_large_cap_mem_space =
+    (omp_memspace_handle_t const)1;
+omp_memspace_handle_t const omp_const_mem_space =
+    (omp_memspace_handle_t const)2;
+omp_memspace_handle_t const omp_high_bw_mem_space =
+    (omp_memspace_handle_t const)3;
+omp_memspace_handle_t const omp_low_lat_mem_space =
+    (omp_memspace_handle_t const)4;
+// Preview of target memory support
+omp_memspace_handle_t const llvm_omp_target_host_mem_space =
+    (omp_memspace_handle_t const)100;
+omp_memspace_handle_t const llvm_omp_target_shared_mem_space =
+    (omp_memspace_handle_t const)101;
+omp_memspace_handle_t const llvm_omp_target_device_mem_space =
+    (omp_memspace_handle_t const)102;
+#endif /* KMP_OS_WINDOWS */
+
+void *omp_alloc(size_t size, omp_allocator_handle_t allocator) {
+  i;
+  void *res;
+#if KMP_OS_WINDOWS
+  // Returns a pointer to the memory block, or NULL if failed.
+  // Sets errno to ENOMEM or EINVAL if memory allocation failed or parameter
+  // validation failed.
+  res = _aligned_malloc(size, 1);
+#else
+  res = malloc(size);
+#endif
+  return res;
+}
+
+void *omp_aligned_alloc(size_t a, size_t size, omp_allocator_handle_t al) {
+  i;
+  int err;
+  void *res;
+#if KMP_OS_WINDOWS
+  res = _aligned_malloc(size, a);
+#else
+  if (err = posix_memalign(&res, a, size)) {
+    errno = err; // can be EINVAL or ENOMEM
+    res = NULL;
+  }
+#endif
+  return res;
+}
+
+void *omp_calloc(size_t nmemb, size_t size, omp_allocator_handle_t al) {
+  i;
+  void *res;
+#if KMP_OS_WINDOWS
+  res = _aligned_recalloc(NULL, nmemb, size, 1);
+#else
+  res = calloc(nmemb, size);
+#endif
+  return res;
+}
+
+void *omp_aligned_calloc(size_t a, size_t nmemb, size_t size,
+                         omp_allocator_handle_t al) {
+  i;
+  int err;
+  void *res;
+#if KMP_OS_WINDOWS
+  res = _aligned_recalloc(NULL, nmemb, size, a);
+#else
+  if (err = posix_memalign(&res, a, nmemb * size)) {
+    errno = err; // can be EINVAL or ENOMEM
+    res = NULL;
+  }
+  memset(res, 0x00, size);
+#endif
+  return res;
+}
+
+void *omp_realloc(void *ptr, size_t size, omp_allocator_handle_t al,
+                  omp_allocator_handle_t free_al) {
+  i;
+  void *res;
+#if KMP_OS_WINDOWS
+  res = _aligned_realloc(ptr, size, 1);
+#else
+  res = realloc(ptr, size);
+#endif
+  return res;
+}
+
+void omp_free(void *ptr, omp_allocator_handle_t allocator) {
+  i;
+#if KMP_OS_WINDOWS
+  _aligned_free(ptr);
+#else
+  free(ptr);
+#endif
+}
+
+/* OpenMP 5.0 Affinity Format */
+void omp_set_affinity_format(char const *format) { i; }
+size_t omp_get_affinity_format(char *buffer, size_t size) {
+  i;
+  return 0;
+}
+void omp_display_affinity(char const *format) { i; }
+size_t omp_capture_affinity(char *buffer, size_t buf_size, char const *format) {
+  i;
+  return 0;
+}
 
 // end of file //

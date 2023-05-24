@@ -18,9 +18,9 @@ target triple = "thumbv7-apple-ios5.0.0"
 @_unnamed_cfstring = external constant %struct.NSConstantString, section "__DATA,__cfstring"
 @_unnamed_cfstring_2 = external constant %struct.NSConstantString, section "__DATA,__cfstring"
 
-declare i8* @objc_retain(i8*) nonlazybind
-declare i8* @objc_retainAutoreleasedReturnValue(i8*) nonlazybind
-declare void @objc_release(i8*) nonlazybind
+declare i8* @llvm.objc.retain(i8*) nonlazybind
+declare i8* @llvm.objc.retainAutoreleasedReturnValue(i8*) nonlazybind
+declare void @llvm.objc.release(i8*) nonlazybind
 declare i8* @returner()
 declare i8* @objc_msgSend(i8*, i8*, ...) nonlazybind
 declare void @NSLog(i8*, ...)
@@ -41,7 +41,7 @@ msgSend.nullinit:                                 ; preds = %entry
 
 msgSend.cont:                                     ; preds = %msgSend.nullinit, %msgSend.call
   %0 = bitcast %struct.NSConstantString* @_unnamed_cfstring to i8*
-  %1 = call i8* @objc_retain(i8* %0) nounwind
+  %1 = call i8* @llvm.objc.retain(i8* %0) nounwind
   br i1 undef, label %msgSend.nullinit33, label %msgSend.call32
 
 msgSend.call32:                                   ; preds = %if.end10
@@ -336,7 +336,7 @@ msgSend.nullinit506:                              ; preds = %msgSend.cont501
   br label %msgSend.cont507
 
 msgSend.cont507:                                  ; preds = %msgSend.nullinit506, %msgSend.call505
-  call void @objc_release(i8* %0) nounwind, !clang.imprecise_release !0
+  call void @llvm.objc.release(i8* %0) nounwind, !clang.imprecise_release !0
   ret void
 }
 
@@ -779,9 +779,9 @@ bb184:                                            ; preds = %bb182
   br i1 undef, label %bb186, label %bb195
 
 bb186:                                            ; preds = %bb184
-  %tmp188 = call i8* @objc_retainAutoreleasedReturnValue(i8* %tmp185)
-  %tmp189 = call i8* @objc_retain(i8* %tmp188)
-  call void @objc_release(i8* %tmp189), !clang.imprecise_release !0
+  %tmp188 = call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* %tmp185)
+  %tmp189 = call i8* @llvm.objc.retain(i8* %tmp188)
+  call void @llvm.objc.release(i8* %tmp189), !clang.imprecise_release !0
   br i1 undef, label %bb197, label %bb190
 
 bb190:                                            ; preds = %bb186
@@ -1567,7 +1567,7 @@ invoke.cont512:                                   ; preds = %invoke.cont509
   br i1 undef, label %msgSend.null-receiver, label %msgSend.call
 
 msgSend.call:                                     ; preds = %invoke.cont512
-  invoke void bitcast (void (i8*, i8*, ...)* @objc_msgSend_stret to void (%struct.CGPoint*, i8*, i8*)*)(%struct.CGPoint* sret undef, i8* undef, i8* undef)
+  invoke void bitcast (void (i8*, i8*, ...)* @objc_msgSend_stret to void (%struct.CGPoint*, i8*, i8*)*)(%struct.CGPoint* sret(%struct.CGPoint) undef, i8* undef, i8* undef)
           to label %msgSend.cont unwind label %lpad514
 
 msgSend.null-receiver:                            ; preds = %invoke.cont512
@@ -1632,19 +1632,19 @@ invoke.cont548:                                   ; preds = %invoke.cont546
           to label %invoke.cont554 unwind label %lpad553
 
 invoke.cont554:                                   ; preds = %invoke.cont548
-  %tmp499 = call i8* @objc_retain(i8* bitcast (%struct.NSConstantString* @_unnamed_cfstring to i8*)) #3
+  %tmp499 = call i8* @llvm.objc.retain(i8* bitcast (%struct.NSConstantString* @_unnamed_cfstring to i8*)) #3
   invoke void (i8*, ...) @NSLog(i8* bitcast (%struct.NSConstantString* @_unnamed_cfstring to i8*), i8* %tmp499, i8* bitcast (%struct.NSConstantString* @_unnamed_cfstring to i8*))
           to label %invoke.cont.i2148 unwind label %lpad.i2150
 
 invoke.cont.i2148:                                ; preds = %invoke.cont554
-  call void @objc_release(i8* %tmp499) #3, !clang.imprecise_release !0
+  call void @llvm.objc.release(i8* %tmp499) #3, !clang.imprecise_release !0
   invoke void bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to void (i8*, i8*, i8*, i8*)*)(i8* undef, i8* undef, i8* undef, i8* bitcast (%struct.NSConstantString* @_unnamed_cfstring to i8*))
           to label %invoke.cont566 unwind label %lpad565
 
 lpad.i2150:                                       ; preds = %invoke.cont554
   %tmp500 = landingpad { i8*, i32 }
           cleanup
-  call void @objc_release(i8* %tmp499) #3, !clang.imprecise_release !0
+  call void @llvm.objc.release(i8* %tmp499) #3, !clang.imprecise_release !0
   unreachable
 
 invoke.cont566:                                   ; preds = %invoke.cont.i2148
@@ -2169,7 +2169,7 @@ eh.cont:                                          ; preds = %if.end399
   br i1 undef, label %if.then430, label %if.end439.critedge
 
 if.then430:                                       ; preds = %eh.cont
-  %1 = call i8* @objc_retain(i8* %0)
+  %1 = call i8* @llvm.objc.retain(i8* %0)
   br label %if.end439
 
 lpad:                                             ; preds = %if.end399
@@ -2178,11 +2178,11 @@ lpad:                                             ; preds = %if.end399
   unreachable
 
 if.end439.critedge:                               ; preds = %eh.cont
-  %3 = call i8* @objc_retain(i8* %0)
+  %3 = call i8* @llvm.objc.retain(i8* %0)
   br label %if.end439
 
 if.end439:                                        ; preds = %if.end439.critedge, %if.then430
-  call void @objc_release(i8* %0), !clang.imprecise_release !0
+  call void @llvm.objc.release(i8* %0), !clang.imprecise_release !0
   unreachable
 
 return:                                           ; No predecessors!

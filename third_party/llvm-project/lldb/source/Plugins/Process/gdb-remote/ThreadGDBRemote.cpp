@@ -1,16 +1,14 @@
-//===-- ThreadGDBRemote.cpp -------------------------------------*- C++ -*-===//
+//===-- ThreadGDBRemote.cpp -----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "ThreadGDBRemote.h"
 
 #include "lldb/Breakpoint/Watchpoint.h"
-#include "lldb/Core/State.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
@@ -20,19 +18,20 @@
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Target/Unwind.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/StreamString.h"
+#include "lldb/Utility/StringExtractorGDBRemote.h"
 
 #include "ProcessGDBRemote.h"
 #include "ProcessGDBRemoteLog.h"
-#include "lldb/Utility/StringExtractorGDBRemote.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::process_gdb_remote;
 
-//----------------------------------------------------------------------
 // Thread Registers
-//----------------------------------------------------------------------
 
 ThreadGDBRemote::ThreadGDBRemote(Process &process, lldb::tid_t tid)
     : Thread(process, tid), m_thread_name(), m_dispatch_queue_name(),
@@ -40,14 +39,22 @@ ThreadGDBRemote::ThreadGDBRemote(Process &process, lldb::tid_t tid)
       m_dispatch_queue_t(LLDB_INVALID_ADDRESS), m_queue_kind(eQueueKindUnknown),
       m_queue_serial_number(LLDB_INVALID_QUEUE_ID),
       m_associated_with_libdispatch_queue(eLazyBoolCalculate) {
-  Log *log(GetLogIfAnyCategoriesSet(GDBR_LOG_THREAD));
+  Log *log = GetLog(GDBRLog::Thread);
   LLDB_LOG(log, "this = {0}, pid = {1}, tid = {2}", this, process.GetID(),
            GetID());
+  // At this point we can clone reg_info for architectures supporting
+  // run-time update to register sizes and offsets..
+  auto &gdb_process = static_cast<ProcessGDBRemote &>(process);
+  if (!gdb_process.m_register_info_sp->IsReconfigurable())
+    m_reg_info_sp = gdb_process.m_register_info_sp;
+  else
+    m_reg_info_sp = std::make_shared<GDBRemoteDynamicRegisterInfo>(
+        *gdb_process.m_register_info_sp);
 }
 
 ThreadGDBRemote::~ThreadGDBRemote() {
   ProcessSP process_sp(GetProcess());
-  Log *log(GetLogIfAnyCategoriesSet(GDBR_LOG_THREAD));
+  Log *log = GetLog(GDBRLog::Thread);
   LLDB_LOG(log, "this = {0}, pid = {1}, tid = {2}", this,
            process_sp ? process_sp->GetID() : LLDB_INVALID_PROCESS_ID, GetID());
   DestroyThread();
@@ -197,13 +204,10 @@ void ThreadGDBRemote::SetQueueLibdispatchQueueAddress(
 }
 
 bool ThreadGDBRemote::ThreadHasQueueInformation() const {
-  if (m_thread_dispatch_qaddr != 0 &&
-      m_thread_dispatch_qaddr != LLDB_INVALID_ADDRESS &&
-      m_dispatch_queue_t != LLDB_INVALID_ADDRESS &&
-      m_queue_kind != eQueueKindUnknown && m_queue_serial_number != 0) {
-    return true;
-  }
-  return false;
+  return m_thread_dispatch_qaddr != 0 &&
+         m_thread_dispatch_qaddr != LLDB_INVALID_ADDRESS &&
+         m_dispatch_queue_t != LLDB_INVALID_ADDRESS &&
+         m_queue_kind != eQueueKindUnknown && m_queue_serial_number != 0;
 }
 
 LazyBool ThreadGDBRemote::GetAssociatedWithLibdispatchQueue() {
@@ -218,9 +222,8 @@ void ThreadGDBRemote::SetAssociatedWithLibdispatchQueue(
 StructuredData::ObjectSP ThreadGDBRemote::FetchThreadExtendedInfo() {
   StructuredData::ObjectSP object_sp;
   const lldb::user_id_t tid = GetProtocolID();
-  Log *log(GetLogIfAnyCategoriesSet(GDBR_LOG_THREAD));
-  if (log)
-    log->Printf("Fetching extended information for thread %4.4" PRIx64, tid);
+  Log *log = GetLog(GDBRLog::Thread);
+  LLDB_LOGF(log, "Fetching extended information for thread %4.4" PRIx64, tid);
   ProcessSP process_sp(GetProcess());
   if (process_sp) {
     ProcessGDBRemote *gdb_process =
@@ -233,10 +236,9 @@ StructuredData::ObjectSP ThreadGDBRemote::FetchThreadExtendedInfo() {
 void ThreadGDBRemote::WillResume(StateType resume_state) {
   int signo = GetResumeSignal();
   const lldb::user_id_t tid = GetProtocolID();
-  Log *log(GetLogIfAnyCategoriesSet(GDBR_LOG_THREAD));
-  if (log)
-    log->Printf("Resuming thread: %4.4" PRIx64 " with state: %s.", tid,
-                StateAsCString(resume_state));
+  Log *log = GetLog(GDBRLog::Thread);
+  LLDB_LOGF(log, "Resuming thread: %4.4" PRIx64 " with state: %s.", tid,
+            StateAsCString(resume_state));
 
   ProcessSP process_sp(GetProcess());
   if (process_sp) {
@@ -307,18 +309,17 @@ ThreadGDBRemote::CreateRegisterContextForFrame(StackFrame *frame) {
     if (process_sp) {
       ProcessGDBRemote *gdb_process =
           static_cast<ProcessGDBRemote *>(process_sp.get());
-      // read_all_registers_at_once will be true if 'p' packet is not
-      // supported.
+      bool pSupported =
+          gdb_process->GetGDBRemote().GetpPacketSupported(GetID());
       bool read_all_registers_at_once =
-          !gdb_process->GetGDBRemote().GetpPacketSupported(GetID());
-      reg_ctx_sp.reset(new GDBRemoteRegisterContext(
-          *this, concrete_frame_idx, gdb_process->m_register_info,
-          read_all_registers_at_once));
+          !pSupported || gdb_process->m_use_g_packet_for_reading;
+      bool write_all_registers_at_once = !pSupported;
+      reg_ctx_sp = std::make_shared<GDBRemoteRegisterContext>(
+          *this, concrete_frame_idx, m_reg_info_sp, read_all_registers_at_once,
+          write_all_registers_at_once);
     }
   } else {
-    Unwind *unwinder = GetUnwinder();
-    if (unwinder != nullptr)
-      reg_ctx_sp = unwinder->CreateRegisterContextForFrame(frame);
+    reg_ctx_sp = GetUnwinder().CreateRegisterContextForFrame(frame);
   }
   return reg_ctx_sp;
 }
@@ -344,4 +345,24 @@ bool ThreadGDBRemote::CalculateStopInfo() {
     return static_cast<ProcessGDBRemote *>(process_sp.get())
         ->CalculateThreadStopInfo(this);
   return false;
+}
+
+llvm::Expected<std::unique_ptr<llvm::MemoryBuffer>>
+ThreadGDBRemote::GetSiginfo(size_t max_size) const {
+  ProcessSP process_sp(GetProcess());
+  if (!process_sp)
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "no process");
+  ProcessGDBRemote *gdb_process =
+      static_cast<ProcessGDBRemote *>(process_sp.get());
+  if (!gdb_process->m_gdb_comm.GetQXferSigInfoReadSupported())
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "qXfer:siginfo:read not supported");
+
+  llvm::Expected<std::string> response =
+      gdb_process->m_gdb_comm.ReadExtFeature("siginfo", "");
+  if (!response)
+    return response.takeError();
+
+  return llvm::MemoryBuffer::getMemBufferCopy(response.get());
 }

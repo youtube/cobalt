@@ -1,9 +1,8 @@
 //===-- Ptrace.h ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -50,6 +49,12 @@ typedef int __ptrace_request;
 #define ARCH_SET_FS 0x1002
 #define ARCH_GET_FS 0x1003
 #define ARCH_GET_GS 0x1004
+#endif
+#ifndef PTRACE_PEEKMTETAGS
+#define PTRACE_PEEKMTETAGS 33
+#endif
+#ifndef PTRACE_POKEMTETAGS
+#define PTRACE_POKEMTETAGS 34
 #endif
 
 #define LLDB_PTRACE_NT_ARM_TLS 0x401 // ARM TLS register

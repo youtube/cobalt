@@ -1,9 +1,8 @@
-//===-- DynamicLoaderMacOS.cpp -----------------------------*- C++ -*-===//
+//===-- DynamicLoaderMacOS.cpp --------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,8 +11,6 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Section.h"
-#include "lldb/Core/State.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Target/ABI.h"
@@ -21,18 +18,19 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 
 #include "DynamicLoaderDarwin.h"
 #include "DynamicLoaderMacOS.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
+
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // Create an instance of this class. This function is filled into the plugin
 // info class that gets handed out by the plugin factory and allows the lldb to
 // instantiate an instance of this class.
-//----------------------------------------------------------------------
 DynamicLoader *DynamicLoaderMacOS::CreateInstance(Process *process,
                                                   bool force) {
   bool create = force;
@@ -55,6 +53,7 @@ DynamicLoader *DynamicLoaderMacOS::CreateInstance(Process *process,
       case llvm::Triple::IOS:
       case llvm::Triple::TvOS:
       case llvm::Triple::WatchOS:
+      // NEED_BRIDGEOS_TRIPLE case llvm::Triple::BridgeOS:
         create = triple_ref.getVendor() == llvm::Triple::Apple;
         break;
       default:
@@ -64,25 +63,22 @@ DynamicLoader *DynamicLoaderMacOS::CreateInstance(Process *process,
     }
   }
 
-  if (UseDYLDSPI(process) == false) {
+  if (!UseDYLDSPI(process)) {
     create = false;
   }
 
   if (create)
     return new DynamicLoaderMacOS(process);
-  return NULL;
+  return nullptr;
 }
 
-//----------------------------------------------------------------------
 // Constructor
-//----------------------------------------------------------------------
 DynamicLoaderMacOS::DynamicLoaderMacOS(Process *process)
     : DynamicLoaderDarwin(process), m_image_infos_stop_id(UINT32_MAX),
-      m_break_id(LLDB_INVALID_BREAK_ID), m_mutex() {}
+      m_break_id(LLDB_INVALID_BREAK_ID), m_mutex(),
+      m_maybe_image_infos_address(LLDB_INVALID_ADDRESS) {}
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 DynamicLoaderMacOS::~DynamicLoaderMacOS() {
   if (LLDB_BREAK_ID_IS_VALID(m_break_id))
     m_process->GetTarget().RemoveBreakpointByID(m_break_id);
@@ -94,16 +90,31 @@ bool DynamicLoaderMacOS::ProcessDidExec() {
   if (m_process) {
     // If we are stopped after an exec, we will have only one thread...
     if (m_process->GetThreadList().GetSize() == 1) {
-      // See if we are stopped at '_dyld_start'
-      ThreadSP thread_sp(m_process->GetThreadList().GetThreadAtIndex(0));
-      if (thread_sp) {
-        lldb::StackFrameSP frame_sp(thread_sp->GetStackFrameAtIndex(0));
-        if (frame_sp) {
-          const Symbol *symbol =
-              frame_sp->GetSymbolContext(eSymbolContextSymbol).symbol;
-          if (symbol) {
-            if (symbol->GetName() == ConstString("_dyld_start"))
-              did_exec = true;
+      // Maybe we still have an image infos address around?  If so see
+      // if that has changed, and if so we have exec'ed.
+      if (m_maybe_image_infos_address != LLDB_INVALID_ADDRESS) {
+        lldb::addr_t image_infos_address = m_process->GetImageInfoAddress();
+        if (image_infos_address != m_maybe_image_infos_address) {
+          // We don't really have to reset this here, since we are going to
+          // call DoInitialImageFetch right away to handle the exec.  But in
+          // case anybody looks at it in the meantime, it can't hurt.
+          m_maybe_image_infos_address = image_infos_address;
+          did_exec = true;
+        }
+      }
+
+      if (!did_exec) {
+        // See if we are stopped at '_dyld_start'
+        ThreadSP thread_sp(m_process->GetThreadList().GetThreadAtIndex(0));
+        if (thread_sp) {
+          lldb::StackFrameSP frame_sp(thread_sp->GetStackFrameAtIndex(0));
+          if (frame_sp) {
+            const Symbol *symbol =
+                frame_sp->GetSymbolContext(eSymbolContextSymbol).symbol;
+            if (symbol) {
+              if (symbol->GetName() == "_dyld_start")
+                did_exec = true;
+            }
           }
         }
       }
@@ -117,9 +128,7 @@ bool DynamicLoaderMacOS::ProcessDidExec() {
   return did_exec;
 }
 
-//----------------------------------------------------------------------
 // Clear out the state of this class.
-//----------------------------------------------------------------------
 void DynamicLoaderMacOS::DoClear() {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
 
@@ -129,9 +138,7 @@ void DynamicLoaderMacOS::DoClear() {
   m_break_id = LLDB_INVALID_BREAK_ID;
 }
 
-//----------------------------------------------------------------------
 // Check if we have found DYLD yet
-//----------------------------------------------------------------------
 bool DynamicLoaderMacOS::DidSetNotificationBreakpoint() {
   return LLDB_BREAK_ID_IS_VALID(m_break_id);
 }
@@ -143,12 +150,10 @@ void DynamicLoaderMacOS::ClearNotificationBreakpoint() {
   }
 }
 
-//----------------------------------------------------------------------
 // Try and figure out where dyld is by first asking the Process if it knows
 // (which currently calls down in the lldb::Process to get the DYLD info
 // (available on SnowLeopard only). If that fails, then check in the default
 // addresses.
-//----------------------------------------------------------------------
 void DynamicLoaderMacOS::DoInitialImageFetch() {
   Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
 
@@ -169,9 +174,8 @@ void DynamicLoaderMacOS::DoInitialImageFetch() {
           ->GetAsArray()) {
     if (JSONImageInformationIntoImageInfo(all_image_info_json_sp,
                                           image_infos)) {
-      if (log)
-        log->Printf("Initial module fetch:  Adding %" PRId64 " modules.\n",
-                    (uint64_t)image_infos.size());
+      LLDB_LOGF(log, "Initial module fetch:  Adding %" PRId64 " modules.\n",
+                (uint64_t)image_infos.size());
 
       UpdateSpecialBinariesFromNewImageInfos(image_infos);
       AddModulesUsingImageInfos(image_infos);
@@ -179,16 +183,15 @@ void DynamicLoaderMacOS::DoInitialImageFetch() {
   }
 
   m_dyld_image_infos_stop_id = m_process->GetStopID();
+  m_maybe_image_infos_address = m_process->GetImageInfoAddress();
 }
 
 bool DynamicLoaderMacOS::NeedToDoInitialImageFetch() { return true; }
 
-//----------------------------------------------------------------------
 // Static callback function that gets called when our DYLD notification
 // breakpoint gets hit. We update all of our image infos and then let our super
 // class DynamicLoader class decide if we should stop or not (based on global
 // preference).
-//----------------------------------------------------------------------
 bool DynamicLoaderMacOS::NotifyBreakpointHit(void *baton,
                                              StoppointCallbackContext *context,
                                              lldb::user_id_t break_id,
@@ -220,8 +223,11 @@ bool DynamicLoaderMacOS::NotifyBreakpointHit(void *baton,
     // Build up the value array to store the three arguments given above, then
     // get the values from the ABI:
 
-    ClangASTContext *clang_ast_context =
-        process->GetTarget().GetScratchClangASTContext();
+    TypeSystemClang *clang_ast_context =
+        ScratchTypeSystemClang::GetForTarget(process->GetTarget());
+    if (!clang_ast_context)
+      return false;
+
     ValueList argument_values;
 
     Value mode_value;    // enum dyld_notify_mode { dyld_notify_adding=0,
@@ -238,18 +244,18 @@ bool DynamicLoaderMacOS::NotifyBreakpointHit(void *baton,
         clang_ast_context->GetBuiltinTypeForEncodingAndBitSize(
             lldb::eEncodingUint, 32);
 
-    mode_value.SetValueType(Value::eValueTypeScalar);
+    mode_value.SetValueType(Value::ValueType::Scalar);
     mode_value.SetCompilerType(clang_uint32_type);
 
     if (process->GetTarget().GetArchitecture().GetAddressByteSize() == 4) {
-      count_value.SetValueType(Value::eValueTypeScalar);
+      count_value.SetValueType(Value::ValueType::Scalar);
       count_value.SetCompilerType(clang_uint32_type);
     } else {
-      count_value.SetValueType(Value::eValueTypeScalar);
+      count_value.SetValueType(Value::ValueType::Scalar);
       count_value.SetCompilerType(clang_uint64_type);
     }
 
-    headers_value.SetValueType(Value::eValueTypeScalar);
+    headers_value.SetValueType(Value::ValueType::Scalar);
     headers_value.SetCompilerType(clang_void_ptr_type);
 
     argument_values.PushValue(mode_value);
@@ -307,8 +313,8 @@ void DynamicLoaderMacOS::AddBinaries(
   Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
   ImageInfo::collection image_infos;
 
-  if (log)
-    log->Printf("Adding %" PRId64 " modules.", (uint64_t)load_addresses.size());
+  LLDB_LOGF(log, "Adding %" PRId64 " modules.",
+            (uint64_t)load_addresses.size());
   StructuredData::ObjectSP binaries_info_sp =
       m_process->GetLoadedDynamicLibrariesInfos(load_addresses);
   if (binaries_info_sp.get() && binaries_info_sp->GetAsDictionary() &&
@@ -330,37 +336,33 @@ void DynamicLoaderMacOS::AddBinaries(
 
 // Dump the _dyld_all_image_infos members and all current image infos that we
 // have parsed to the file handle provided.
-//----------------------------------------------------------------------
 void DynamicLoaderMacOS::PutToLog(Log *log) const {
-  if (log == NULL)
+  if (log == nullptr)
     return;
 }
 
 bool DynamicLoaderMacOS::SetNotificationBreakpoint() {
   if (m_break_id == LLDB_INVALID_BREAK_ID) {
-    ConstString g_symbol_name("_dyld_debugger_notification");
-    const Symbol *symbol = nullptr;
     ModuleSP dyld_sp(GetDYLDModule());
     if (dyld_sp) {
-      symbol = dyld_sp->FindFirstSymbolWithNameAndType(g_symbol_name,
-                                                       eSymbolTypeCode);
-    }
-    if (symbol &&
-        (symbol->ValueIsAddress() || symbol->GetAddressRef().IsValid())) {
-      addr_t symbol_address =
-          symbol->GetAddressRef().GetOpcodeLoadAddress(&m_process->GetTarget());
-      if (symbol_address != LLDB_INVALID_ADDRESS) {
-        bool internal = true;
-        bool hardware = false;
-        Breakpoint *breakpoint =
-            m_process->GetTarget()
-                .CreateBreakpoint(symbol_address, internal, hardware)
-                .get();
-        breakpoint->SetCallback(DynamicLoaderMacOS::NotifyBreakpointHit, this,
-                                true);
-        breakpoint->SetBreakpointKind("shared-library-event");
-        m_break_id = breakpoint->GetID();
-      }
+      bool internal = true;
+      bool hardware = false;
+      LazyBool skip_prologue = eLazyBoolNo;
+      FileSpecList *source_files = nullptr;
+      FileSpecList dyld_filelist;
+      dyld_filelist.Append(dyld_sp->GetFileSpec());
+
+      Breakpoint *breakpoint =
+          m_process->GetTarget()
+              .CreateBreakpoint(&dyld_filelist, source_files,
+                                "_dyld_debugger_notification",
+                                eFunctionNameTypeFull, eLanguageTypeC, 0,
+                                skip_prologue, internal, hardware)
+              .get();
+      breakpoint->SetCallback(DynamicLoaderMacOS::NotifyBreakpointHit, this,
+                              true);
+      breakpoint->SetBreakpointKind("shared-library-event");
+      m_break_id = breakpoint->GetID();
     }
   }
   return m_break_id != LLDB_INVALID_BREAK_ID;
@@ -369,22 +371,18 @@ bool DynamicLoaderMacOS::SetNotificationBreakpoint() {
 addr_t
 DynamicLoaderMacOS::GetDyldLockVariableAddressFromModule(Module *module) {
   SymbolContext sc;
-  SymbolVendor *sym_vendor = module->GetSymbolVendor();
   Target &target = m_process->GetTarget();
-  if (sym_vendor) {
-    Symtab *symtab = sym_vendor->GetSymtab();
-    if (symtab) {
-      std::vector<uint32_t> match_indexes;
-      ConstString g_symbol_name("_dyld_global_lock_held");
-      uint32_t num_matches = 0;
-      num_matches =
-          symtab->AppendSymbolIndexesWithName(g_symbol_name, match_indexes);
-      if (num_matches == 1) {
-        Symbol *symbol = symtab->SymbolAtIndex(match_indexes[0]);
-        if (symbol &&
-            (symbol->ValueIsAddress() || symbol->GetAddressRef().IsValid())) {
-          return symbol->GetAddressRef().GetOpcodeLoadAddress(&target);
-        }
+  if (Symtab *symtab = module->GetSymtab()) {
+    std::vector<uint32_t> match_indexes;
+    ConstString g_symbol_name("_dyld_global_lock_held");
+    uint32_t num_matches = 0;
+    num_matches =
+        symtab->AppendSymbolIndexesWithName(g_symbol_name, match_indexes);
+    if (num_matches == 1) {
+      Symbol *symbol = symtab->SymbolAtIndex(match_indexes[0]);
+      if (symbol &&
+          (symbol->ValueIsAddress() || symbol->GetAddressRef().IsValid())) {
+        return symbol->GetAddressRef().GetOpcodeLoadAddress(&target);
       }
     }
   }
@@ -400,18 +398,16 @@ DynamicLoaderMacOS::GetDyldLockVariableAddressFromModule(Module *module) {
 Status DynamicLoaderMacOS::CanLoadImage() {
   Status error;
   addr_t symbol_address = LLDB_INVALID_ADDRESS;
+  ConstString g_libdyld_name("libdyld.dylib");
   Target &target = m_process->GetTarget();
   const ModuleList &target_modules = target.GetImages();
   std::lock_guard<std::recursive_mutex> guard(target_modules.GetMutex());
-  const size_t num_modules = target_modules.GetSize();
-  ConstString g_libdyld_name("libdyld.dylib");
 
   // Find any modules named "libdyld.dylib" and look for the symbol there first
-  for (size_t i = 0; i < num_modules; i++) {
-    Module *module_pointer = target_modules.GetModulePointerAtIndexUnlocked(i);
-    if (module_pointer) {
-      if (module_pointer->GetFileSpec().GetFilename() == g_libdyld_name) {
-        symbol_address = GetDyldLockVariableAddressFromModule(module_pointer);
+  for (ModuleSP module_sp : target.GetImages().ModulesNoLocking()) {
+    if (module_sp) {
+      if (module_sp->GetFileSpec().GetFilename() == g_libdyld_name) {
+        symbol_address = GetDyldLockVariableAddressFromModule(module_sp.get());
         if (symbol_address != LLDB_INVALID_ADDRESS)
           break;
       }
@@ -420,12 +416,10 @@ Status DynamicLoaderMacOS::CanLoadImage() {
 
   // Search through all modules looking for the symbol in them
   if (symbol_address == LLDB_INVALID_ADDRESS) {
-    for (size_t i = 0; i < num_modules; i++) {
-      Module *module_pointer =
-          target_modules.GetModulePointerAtIndexUnlocked(i);
-      if (module_pointer) {
+    for (ModuleSP module_sp : target.GetImages().Modules()) {
+      if (module_sp) {
         addr_t symbol_address =
-            GetDyldLockVariableAddressFromModule(module_pointer);
+            GetDyldLockVariableAddressFromModule(module_sp.get());
         if (symbol_address != LLDB_INVALID_ADDRESS)
           break;
       }
@@ -450,9 +444,9 @@ Status DynamicLoaderMacOS::CanLoadImage() {
     // _dyld_start) - so we should not allow dlopen calls. But if we found more
     // than one module then we are clearly past _dyld_start so in that case
     // we'll default to "it's safe".
-    if (num_modules <= 1)
-        error.SetErrorString("could not find the dyld library or "
-                                       "the dyld lock symbol");
+    if (target.GetImages().GetSize() <= 1)
+      error.SetErrorString("could not find the dyld library or "
+                           "the dyld lock symbol");
   }
   return error;
 }
@@ -481,12 +475,11 @@ bool DynamicLoaderMacOS::GetSharedCacheInformation(
         info_dict->HasKey("shared_cache_base_address")) {
       base_address = info_dict->GetValueForKey("shared_cache_base_address")
                          ->GetIntegerValue(LLDB_INVALID_ADDRESS);
-      std::string uuid_str =
-          info_dict->GetValueForKey("shared_cache_uuid")->GetStringValue();
+      std::string uuid_str = std::string(
+          info_dict->GetValueForKey("shared_cache_uuid")->GetStringValue());
       if (!uuid_str.empty())
         uuid.SetFromStringRef(uuid_str);
-      if (info_dict->GetValueForKey("no_shared_cache")->GetBooleanValue() ==
-          false)
+      if (!info_dict->GetValueForKey("no_shared_cache")->GetBooleanValue())
         using_shared_cache = eLazyBoolYes;
       else
         using_shared_cache = eLazyBoolNo;
@@ -511,21 +504,7 @@ void DynamicLoaderMacOS::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
 
-lldb_private::ConstString DynamicLoaderMacOS::GetPluginNameStatic() {
-  static ConstString g_name("macos-dyld");
-  return g_name;
-}
-
-const char *DynamicLoaderMacOS::GetPluginDescriptionStatic() {
+llvm::StringRef DynamicLoaderMacOS::GetPluginDescriptionStatic() {
   return "Dynamic loader plug-in that watches for shared library loads/unloads "
          "in MacOSX user processes.";
 }
-
-//------------------------------------------------------------------
-// PluginInterface protocol
-//------------------------------------------------------------------
-lldb_private::ConstString DynamicLoaderMacOS::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t DynamicLoaderMacOS::GetPluginVersion() { return 1; }

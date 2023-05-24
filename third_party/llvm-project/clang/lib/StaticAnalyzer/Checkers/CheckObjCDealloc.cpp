@@ -1,9 +1,8 @@
 //==- CheckObjCDealloc.cpp - Check ObjC -dealloc implementation --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -28,7 +27,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
+#include "clang/Analysis/PathDiagnostic.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
@@ -37,7 +37,6 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
@@ -178,20 +177,12 @@ private:
 };
 } // End anonymous namespace.
 
-typedef llvm::ImmutableSet<SymbolRef> SymbolSet;
 
 /// Maps from the symbol for a class instance to the set of
 /// symbols remaining that must be released in -dealloc.
+REGISTER_SET_FACTORY_WITH_PROGRAMSTATE(SymbolSet, SymbolRef)
 REGISTER_MAP_WITH_PROGRAMSTATE(UnreleasedIvarMap, SymbolRef, SymbolSet)
 
-namespace clang {
-namespace ento {
-template<> struct ProgramStateTrait<SymbolSet>
-:  public ProgramStatePartialTrait<SymbolSet> {
-  static void *GDMIndex() { static int index = 0; return &index; }
-};
-}
-}
 
 /// An AST check that diagnose when the class requires a -dealloc method and
 /// is missing one.
@@ -415,7 +406,7 @@ ProgramStateRef ObjCDeallocChecker::evalAssume(ProgramStateRef State, SVal Cond,
   if (State->get<UnreleasedIvarMap>().isEmpty())
     return State;
 
-  auto *CondBSE = dyn_cast_or_null<BinarySymExpr>(Cond.getAsSymExpr());
+  auto *CondBSE = dyn_cast_or_null<BinarySymExpr>(Cond.getAsSymbol());
   if (!CondBSE)
     return State;
 
@@ -585,9 +576,8 @@ void ObjCDeallocChecker::diagnoseMissingReleases(CheckerContext &C) const {
     OS << " by a synthesized property but not released"
           " before '[super dealloc]'";
 
-    std::unique_ptr<BugReport> BR(
-        new BugReport(*MissingReleaseBugType, OS.str(), ErrNode));
-
+    auto BR = std::make_unique<PathSensitiveBugReport>(*MissingReleaseBugType,
+                                                       OS.str(), ErrNode);
     C.emitReport(std::move(BR));
   }
 
@@ -708,8 +698,8 @@ bool ObjCDeallocChecker::diagnoseExtraRelease(SymbolRef ReleasedValue,
     OS <<  " property but was released in 'dealloc'";
   }
 
-  std::unique_ptr<BugReport> BR(
-      new BugReport(*ExtraReleaseBugType, OS.str(), ErrNode));
+  auto BR = std::make_unique<PathSensitiveBugReport>(*ExtraReleaseBugType,
+                                                     OS.str(), ErrNode);
   BR->addRange(M.getOriginExpr()->getSourceRange());
 
   C.emitReport(std::move(BR));
@@ -723,6 +713,10 @@ bool ObjCDeallocChecker::diagnoseExtraRelease(SymbolRef ReleasedValue,
 bool ObjCDeallocChecker::diagnoseMistakenDealloc(SymbolRef DeallocedValue,
                                                  const ObjCMethodCall &M,
                                                  CheckerContext &C) const {
+  // TODO: Apart from unknown/undefined receivers, this may happen when
+  // dealloc is called as a class method. Should we warn?
+  if (!DeallocedValue)
+    return false;
 
   // Find the property backing the instance variable that M
   // is dealloc'ing.
@@ -746,8 +740,8 @@ bool ObjCDeallocChecker::diagnoseMistakenDealloc(SymbolRef DeallocedValue,
   OS << "'" << *PropImpl->getPropertyIvarDecl()
      << "' should be released rather than deallocated";
 
-  std::unique_ptr<BugReport> BR(
-      new BugReport(*MistakenDeallocBugType, OS.str(), ErrNode));
+  auto BR = std::make_unique<PathSensitiveBugReport>(*MistakenDeallocBugType,
+                                                     OS.str(), ErrNode);
   BR->addRange(M.getOriginExpr()->getSourceRange());
 
   C.emitReport(std::move(BR));
@@ -761,15 +755,15 @@ ObjCDeallocChecker::ObjCDeallocChecker()
 
   MissingReleaseBugType.reset(
       new BugType(this, "Missing ivar release (leak)",
-                  categories::MemoryCoreFoundationObjectiveC));
+                  categories::MemoryRefCount));
 
   ExtraReleaseBugType.reset(
       new BugType(this, "Extra ivar release",
-                  categories::MemoryCoreFoundationObjectiveC));
+                  categories::MemoryRefCount));
 
   MistakenDeallocBugType.reset(
       new BugType(this, "Mistaken dealloc",
-                  categories::MemoryCoreFoundationObjectiveC));
+                  categories::MemoryRefCount));
 }
 
 void ObjCDeallocChecker::initIdentifierInfoAndSelectors(
@@ -1091,10 +1085,11 @@ bool ObjCDeallocChecker::isNibLoadedIvarWithoutRetain(
 }
 
 void ento::registerObjCDeallocChecker(CheckerManager &Mgr) {
-  const LangOptions &LangOpts = Mgr.getLangOpts();
-  // These checker only makes sense under MRR.
-  if (LangOpts.getGC() == LangOptions::GCOnly || LangOpts.ObjCAutoRefCount)
-    return;
-
   Mgr.registerChecker<ObjCDeallocChecker>();
+}
+
+bool ento::shouldRegisterObjCDeallocChecker(const CheckerManager &mgr) {
+  // These checker only makes sense under MRR.
+  const LangOptions &LO = mgr.getLangOpts();
+  return LO.getGC() != LangOptions::GCOnly && !LO.ObjCAutoRefCount;
 }

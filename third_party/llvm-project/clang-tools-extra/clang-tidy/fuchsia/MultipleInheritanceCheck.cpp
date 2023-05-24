@@ -1,9 +1,8 @@
 //===--- MultipleInheritanceCheck.cpp - clang-tidy-------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,23 +28,23 @@ AST_MATCHER(CXXRecordDecl, hasBases) {
 // Adds a node (by name) to the interface map, if it was not present in the map
 // previously.
 void MultipleInheritanceCheck::addNodeToInterfaceMap(const CXXRecordDecl *Node,
-                                                     bool isInterface) {
+                                                     bool IsInterface) {
   assert(Node->getIdentifier());
   StringRef Name = Node->getIdentifier()->getName();
-  InterfaceMap.insert(std::make_pair(Name, isInterface));
+  InterfaceMap.insert(std::make_pair(Name, IsInterface));
 }
 
 // Returns "true" if the boolean "isInterface" has been set to the
 // interface status of the current Node. Return "false" if the
 // interface status for the current node is not yet known.
 bool MultipleInheritanceCheck::getInterfaceStatus(const CXXRecordDecl *Node,
-                                                  bool &isInterface) const {
+                                                  bool &IsInterface) const {
   assert(Node->getIdentifier());
   StringRef Name = Node->getIdentifier()->getName();
   llvm::StringMapConstIterator<bool> Pair = InterfaceMap.find(Name);
   if (Pair == InterfaceMap.end())
     return false;
-  isInterface = Pair->second;
+  IsInterface = Pair->second;
   return true;
 }
 
@@ -89,12 +88,9 @@ bool MultipleInheritanceCheck::isInterface(const CXXRecordDecl *Node) {
 }
 
 void MultipleInheritanceCheck::registerMatchers(MatchFinder *Finder) {
-  // Requires C++.
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   // Match declarations which have bases.
-  Finder->addMatcher(cxxRecordDecl(hasBases()).bind("decl"), this);
+  Finder->addMatcher(
+      cxxRecordDecl(allOf(hasBases(), isDefinition())).bind("decl"), this);
 }
 
 void MultipleInheritanceCheck::check(const MatchFinder::MatchResult &Result) {
@@ -120,9 +116,8 @@ void MultipleInheritanceCheck::check(const MatchFinder::MatchResult &Result) {
     }
 
     if (NumConcrete > 1) {
-      diag(D->getLocStart(),
-           "inheriting mulitple classes that aren't "
-           "pure virtual is discouraged");
+      diag(D->getBeginLoc(), "inheriting multiple classes that aren't "
+                             "pure virtual is discouraged");
     }
   }
 }

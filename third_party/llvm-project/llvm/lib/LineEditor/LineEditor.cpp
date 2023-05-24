@@ -1,9 +1,8 @@
 //===-- LineEditor.cpp - line editor --------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -25,7 +24,7 @@ std::string LineEditor::getDefaultHistoryPath(StringRef ProgName) {
   SmallString<32> Path;
   if (sys::path::home_directory(Path)) {
     sys::path::append(Path, "." + ProgName + "-history");
-    return Path.str();
+    return std::string(Path.str());
   }
   return std::string();
 }
@@ -70,9 +69,8 @@ LineEditor::ListCompleterConcept::complete(StringRef Buffer, size_t Pos) const {
   // common prefix will then be empty.
   if (CommonPrefix.empty()) {
     Action.Kind = CompletionAction::AK_ShowCompletions;
-    for (std::vector<Completion>::iterator I = Comps.begin(), E = Comps.end();
-         I != E; ++I)
-      Action.Completions.push_back(I->DisplayText);
+    for (const Completion &Comp : Comps)
+      Action.Completions.push_back(Comp.DisplayText);
   } else {
     Action.Kind = CompletionAction::AK_Insert;
     Action.Text = CommonPrefix;
@@ -198,7 +196,7 @@ unsigned char ElCompletionFn(EditLine *EL, int ch) {
 
 LineEditor::LineEditor(StringRef ProgName, StringRef HistoryPath, FILE *In,
                        FILE *Out, FILE *Err)
-    : Prompt((ProgName + "> ").str()), HistoryPath(HistoryPath),
+    : Prompt((ProgName + "> ").str()), HistoryPath(std::string(HistoryPath)),
       Data(new InternalData) {
   if (HistoryPath.empty())
     this->HistoryPath = getDefaultHistoryPath(ProgName);

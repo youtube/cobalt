@@ -1,4 +1,6 @@
-; RUN: llc < %s | FileCheck %s
+; RUN: llc < %s | FileCheck %s --check-prefixes=CHECK,CHECK-NOF16
+; RUN: llc < %s -mcpu=sm_80 | FileCheck %s --check-prefixes=CHECK,CHECK-F16
+; RUN: llc < %s -mcpu=sm_80 --nvptx-no-f16-math | FileCheck %s --check-prefixes=CHECK,CHECK-NOF16
 target triple = "nvptx64-nvidia-cuda"
 
 ; Checks that llvm intrinsics for math functions are correctly lowered to PTX.
@@ -17,10 +19,14 @@ declare float @llvm.trunc.f32(float) #0
 declare double @llvm.trunc.f64(double) #0
 declare float @llvm.fabs.f32(float) #0
 declare double @llvm.fabs.f64(double) #0
+declare half @llvm.minnum.f16(half, half) #0
 declare float @llvm.minnum.f32(float, float) #0
 declare double @llvm.minnum.f64(double, double) #0
+declare <2 x half> @llvm.minnum.v2f16(<2 x half>, <2 x half>) #0
+declare half @llvm.maxnum.f16(half, half) #0
 declare float @llvm.maxnum.f32(float, float) #0
 declare double @llvm.maxnum.f64(double, double) #0
+declare <2 x half> @llvm.maxnum.v2f16(<2 x half>, <2 x half>) #0
 declare float @llvm.fma.f32(float, float, float) #0
 declare double @llvm.fma.f64(double, double, double) #0
 
@@ -74,21 +80,27 @@ define double @floor_double(double %a) {
 
 ; CHECK-LABEL: round_float
 define float @round_float(float %a) {
-  ; CHECK: cvt.rni.f32.f32
+; check the use of sign mask and 0.5 to implement round
+; CHECK: and.b32 [[R1:%r[0-9]+]], {{.*}}, -2147483648;
+; CHECK: or.b32 {{.*}}, [[R1]], 1056964608;
   %b = call float @llvm.round.f32(float %a)
   ret float %b
 }
 
 ; CHECK-LABEL: round_float_ftz
 define float @round_float_ftz(float %a) #1 {
-  ; CHECK: cvt.rni.ftz.f32.f32
+; check the use of sign mask and 0.5 to implement round
+; CHECK: and.b32 [[R1:%r[0-9]+]], {{.*}}, -2147483648;
+; CHECK: or.b32 {{.*}}, [[R1]], 1056964608;
   %b = call float @llvm.round.f32(float %a)
   ret float %b
 }
 
 ; CHECK-LABEL: round_double
 define double @round_double(double %a) {
-  ; CHECK: cvt.rni.f64.f64
+; check the use of 0.5 to implement round
+; CHECK: setp.lt.f64 {{.*}}, [[R:%fd[0-9]+]], 0d3FE0000000000000;
+; CHECK: add.rn.f64 {{.*}}, [[R]], 0d3FE0000000000000;
   %b = call double @llvm.round.f64(double %a)
   ret double %b
 }
@@ -187,6 +199,14 @@ define double @abs_double(double %a) {
 
 ; ---- min ----
 
+; CHECK-LABEL: min_half
+define half @min_half(half %a, half %b) {
+  ; CHECK-NOF16: min.f32
+  ; CHECK-F16: min.f16
+  %x = call half @llvm.minnum.f16(half %a, half %b)
+  ret half %x
+}
+
 ; CHECK-LABEL: min_float
 define float @min_float(float %a, float %b) {
   ; CHECK: min.f32
@@ -222,7 +242,24 @@ define double @min_double(double %a, double %b) {
   ret double %x
 }
 
+; CHECK-LABEL: min_v2half
+define <2 x half> @min_v2half(<2 x half> %a, <2 x half> %b) {
+  ; CHECK-NOF16: min.f32
+  ; CHECK-NOF16: min.f32
+  ; CHECK-F16: min.f16x2
+  %x = call <2 x half> @llvm.minnum.v2f16(<2 x half> %a, <2 x half> %b)
+  ret <2 x half> %x
+}
+
 ; ---- max ----
+
+; CHECK-LABEL: max_half
+define half @max_half(half %a, half %b) {
+  ; CHECK-NOF16: max.f32
+  ; CHECK-F16: max.f16
+  %x = call half @llvm.maxnum.f16(half %a, half %b)
+  ret half %x
+}
 
 ; CHECK-LABEL: max_imm1
 define float @max_imm1(float %a) {
@@ -259,6 +296,15 @@ define double @max_double(double %a, double %b) {
   ret double %x
 }
 
+; CHECK-LABEL: max_v2half
+define <2 x half> @max_v2half(<2 x half> %a, <2 x half> %b) {
+  ; CHECK-NOF16: max.f32
+  ; CHECK-NOF16: max.f32
+  ; CHECK-F16: max.f16x2
+  %x = call <2 x half> @llvm.maxnum.v2f16(<2 x half> %a, <2 x half> %b)
+  ret <2 x half> %x
+}
+
 ; ---- fma ----
 
 ; CHECK-LABEL: @fma_float
@@ -283,4 +329,4 @@ define double @fma_double(double %a, double %b, double %c) {
 }
 
 attributes #0 = { nounwind readnone }
-attributes #1 = { "nvptx-f32ftz" = "true" }
+attributes #1 = { "denormal-fp-math-f32" = "preserve-sign" }

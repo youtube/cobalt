@@ -1,5 +1,6 @@
 ; RUN: llc -mtriple=aarch64-apple-darwin                             -verify-machineinstrs < %s | FileCheck %s
 ; RUN: llc -mtriple=aarch64-apple-darwin -fast-isel -fast-isel-abort=1 -verify-machineinstrs < %s | FileCheck %s
+; RUN: llc -mtriple=aarch64-apple-darwin -global-isel -verify-machineinstrs < %s | FileCheck %s --check-prefix=GISEL
 
 ; First test the different supported value types for select.
 define zeroext i1 @select_i1(i1 zeroext %c, i1 zeroext %a, i1 zeroext %b) {
@@ -46,6 +47,9 @@ define float @select_f32(i1 zeroext %c, float %a, float %b) {
 ; CHECK-LABEL: select_f32
 ; CHECK:       {{cmp w0, #0|tst w0, #0x1}}
 ; CHECK-NEXT:  fcsel {{s[0-9]+}}, s0, s1, ne
+; GISEL-LABEL: select_f32
+; GISEL:       {{cmp w0, #0|tst w0, #0x1}}
+; GISEL-NEXT:  fcsel {{s[0-9]+}}, s0, s1, ne
   %1 = select i1 %c, float %a, float %b
   ret float %1
 }
@@ -54,6 +58,9 @@ define double @select_f64(i1 zeroext %c, double %a, double %b) {
 ; CHECK-LABEL: select_f64
 ; CHECK:       {{cmp w0, #0|tst w0, #0x1}}
 ; CHECK-NEXT:  fcsel {{d[0-9]+}}, d0, d1, ne
+; GISEL-LABEL: select_f64
+; GISEL:       {{cmp w0, #0|tst w0, #0x1}}
+; GISEL-NEXT:  fcsel {{d[0-9]+}}, d0, d1, ne
   %1 = select i1 %c, double %a, double %b
   ret double %1
 }
@@ -61,7 +68,7 @@ define double @select_f64(i1 zeroext %c, double %a, double %b) {
 ; Now test the folding of all compares.
 define float @select_fcmp_false(float %x, float %a, float %b) {
 ; CHECK-LABEL: select_fcmp_false
-; CHECK:       mov.16b {{v[0-9]+}}, v2
+; CHECK:       fmov {{s[0-9]+}}, s2
   %1 = fcmp ogt float %x, %x
   %2 = select i1 %1, float %a, float %b
   ret float %2
@@ -189,7 +196,7 @@ define float @select_fcmp_une(float %x, float %y, float %a, float %b) {
 
 define float @select_fcmp_true(float %x, float %a, float %b) {
 ; CHECK-LABEL: select_fcmp_true
-; CHECK:       mov.16b {{v[0-9]+}}, v1
+; CHECK:       fmov {{s[0-9]+}}, s1
   %1 = fcmp ueq float %x, %x
   %2 = select i1 %1, float %a, float %b
   ret float %2

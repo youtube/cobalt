@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,11 +14,14 @@
 // get_time(iter_type s, iter_type end, ios_base& str,
 //          ios_base::iostate& err, tm* t) const;
 
+// XFAIL: libcpp-has-no-wide-characters
+
 #include <locale>
 #include <cassert>
+#include "test_macros.h"
 #include "test_iterators.h"
 
-typedef input_iterator<const wchar_t*> I;
+typedef cpp17_input_iterator<const wchar_t*> I;
 
 typedef std::time_get<wchar_t, I> F;
 
@@ -31,7 +33,7 @@ public:
         : F(refs) {}
 };
 
-int main()
+int main(int, char**)
 {
     const my_facet f(1);
     std::ios ios(0);
@@ -114,4 +116,6 @@ int main()
 //         assert(t.tm_sec == 0);
         assert(err == std::ios_base::failbit);
     }
+
+  return 0;
 }

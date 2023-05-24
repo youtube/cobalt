@@ -1,19 +1,19 @@
 //===- llvm/ADT/ScopeExit.h - Execute code at scope exit --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// This file defines the make_scope_exit function, which executes user-defined
-// cleanup logic at scope exit.
-//
+///
+/// \file
+/// This file defines the make_scope_exit function, which executes user-defined
+/// cleanup logic at scope exit.
+///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ADT_SCOPE_EXIT_H
-#define LLVM_ADT_SCOPE_EXIT_H
+#ifndef LLVM_ADT_SCOPEEXIT_H
+#define LLVM_ADT_SCOPEEXIT_H
 
 #include "llvm/Support/Compiler.h"
 

@@ -63,14 +63,14 @@ void function();
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = hasType(functionType)) // OK
 
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable( )) // expected-error {{expected ')'}}
-#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable( ) )) // expected-error {{expected an identifier that corresponds to an attribute subject matcher sub-rule; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_parameter', 'unless(is_parameter)'}}
-#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable(is ) )) // expected-error {{unknown attribute subject matcher sub-rule 'is'; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_parameter', 'unless(is_parameter)'}}
+#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any(variable()))  // expected-error {{expected an identifier that corresponds to an attribute subject matcher sub-rule; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_local', 'is_parameter', 'unless(is_parameter)'}}
+#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any(variable(is)))                  // expected-error {{unknown attribute subject matcher sub-rule 'is'; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_local', 'is_parameter', 'unless(is_parameter)'}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable(is_parameter, not) )) // expected-error {{expected ')'}} expected-note {{to match this '('}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable is_parameter )) // expected-error {{expected ')'}} expected-note {{to match this '('}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable ( ) // expected-error {{expected ')'}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = variable (  // expected-error {{expected ')'}}
-#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( function, variable (is ()) )) // expected-error {{unknown attribute subject matcher sub-rule 'is'; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_parameter', 'unless(is_parameter)'}}
-#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( function, variable (42) )) // expected-error {{expected an identifier that corresponds to an attribute subject matcher sub-rule; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_parameter', 'unless(is_parameter)'}}
+#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any(function, variable(is())))      // expected-error {{unknown attribute subject matcher sub-rule 'is'; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_local', 'is_parameter', 'unless(is_parameter)'}}
+#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any(function, variable(42)))        // expected-error {{expected an identifier that corresponds to an attribute subject matcher sub-rule; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_local', 'is_parameter', 'unless(is_parameter)'}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( function, namespace("test") )) // expected-error {{expected an identifier that corresponds to an attribute subject matcher sub-rule; 'namespace' matcher does not support sub-rules}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( function, variable ("test" )) // expected-error {{expected ')'}}
 
@@ -79,15 +79,15 @@ void function();
 
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any (function, variable (unless) )) // expected-error {{expected '('}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any (function, variable (unless() )) // expected-error {{expected ')'}}
-#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any ( function, variable (unless(is)) )) // expected-error {{unknown attribute subject matcher sub-rule 'unless(is)'; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_parameter', 'unless(is_parameter)'}}
+#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any(function, variable(unless(is)))) // expected-error {{unknown attribute subject matcher sub-rule 'unless(is)'; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_local', 'is_parameter', 'unless(is_parameter)'}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable(unless(is_parameter, not)) )) // expected-error {{expected ')'}} expected-note {{to match this '('}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable(unless(is_parameter), not) ) // expected-error {{expected ')'}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable unless is_parameter )) // expected-error {{expected ')'}} expected-note {{to match this '('}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable(unless is_parameter) )) // expected-error {{expected '('}}
-#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( function, variable (unless(42)) )) // expected-error {{expected an identifier that corresponds to an attribute subject matcher sub-rule; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_parameter', 'unless(is_parameter)'}}
+#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any(function, variable(unless(42))))  // expected-error {{expected an identifier that corresponds to an attribute subject matcher sub-rule; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_local', 'is_parameter', 'unless(is_parameter)'}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( function, enum(unless("test")) )) // expected-error {{expected an identifier that corresponds to an attribute subject matcher sub-rule; 'enum' matcher does not support sub-rules}}
 
-#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( function, variable (unless(is_global)) )) // expected-error {{unknown attribute subject matcher sub-rule 'unless(is_global)'; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_parameter', 'unless(is_parameter)'}}
+#pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any(function, variable(unless(is_global)))) // expected-error {{unknown attribute subject matcher sub-rule 'unless(is_global)'; 'variable' matcher supports the following sub-rules: 'is_thread_local', 'is_global', 'is_local', 'is_parameter', 'unless(is_parameter)'}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( enum(unless(is_parameter)) )) // expected-error {{invalid use of attribute subject matcher sub-rule 'unless(is_parameter)'; 'enum' matcher does not support sub-rules}}
 
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( function, function )) // expected-error {{duplicate attribute subject matcher 'function'}}
@@ -100,11 +100,12 @@ void function();
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable(unless(is_parameter)), variable(unless(is_parameter)) )) // expected-error {{duplicate attribute subject matcher 'variable(unless(is_parameter))'}}
 #pragma clang attribute push(__attribute__((annotate("test"))), apply_to = any( variable(unless(is_parameter)), variable(unless(is_parameter)), enum, variable(unless(is_parameter)) )) // expected-error 2 {{duplicate attribute subject matcher 'variable(unless(is_parameter))'}}
 
-#pragma clang attribute // expected-error {{expected 'push' or 'pop' after '#pragma clang attribute'}}
-#pragma clang attribute 42 // expected-error {{expected 'push' or 'pop' after '#pragma clang attribute'}}
-#pragma clang attribute pushpop // expected-error {{unexpected argument 'pushpop' to '#pragma clang attribute'; expected 'push' or 'pop'}}
+#pragma clang attribute // expected-error {{expected 'push', 'pop', or '(' after '#pragma clang attribute'}}
+#pragma clang attribute 42 // expected-error {{expected 'push', 'pop', or '(' after '#pragma clang attribute'}}
+#pragma clang attribute pushpop // expected-error {{expected '.' after pragma attribute namespace 'pushpop'}}
 
-#pragma clang attribute push // expected-error {{expected '('}}
+#pragma clang attribute push
+#pragma clang attribute pop
 #pragma clang attribute push ( // expected-error {{expected an attribute after '('}}
 #pragma clang attribute push (__attribute__((annotate)) // expected-error {{expected ')'}}
 #pragma clang attribute push () // expected-error {{expected an attribute after '('}}
@@ -123,7 +124,9 @@ void function();
 #pragma clang attribute push (__attribute__((annotate)), apply_to=function foo) // expected-error {{extra tokens after attribute in a '#pragma clang attribute push'}}
 
 #pragma clang attribute push (__attribute__((objc_bridge_related)), apply_to=function)
-// expected-error@-1 {{attribute 'objc_bridge_related' is not supported by '#pragma clang attribute'}}
+// expected-error@-1 {{attribute 'objc_bridge_related' can't be applied to 'function'}}
+#pragma clang attribute pop
+
 #pragma clang attribute push (__attribute__((objc_bridge_related(1))), apply_to=function) // expected-error {{expected a related ObjectiveC class name, e.g., 'NSColor'}}
 
 #pragma clang attribute push (__attribute__((used)), apply_to=function) // expected-error {{attribute 'used' is not supported by '#pragma clang attribute'}}
@@ -162,9 +165,9 @@ _Pragma("clang attribute pop");
 
 #pragma clang attribute push ([[]], apply_to = function) // A noop
 
-#pragma clang attribute push ([[noreturn ""]], apply_to=function) // expected-error {{expected ']'}}
+#pragma clang attribute push ([[noreturn ""]], apply_to=function) // expected-error {{expected ','}}
 #pragma clang attribute pop
-#pragma clang attribute push ([[noreturn 42]]) // expected-error {{expected ']'}} expected-error {{expected ','}}
+#pragma clang attribute push ([[noreturn 42]]) // expected-error 2 {{expected ','}}
 
 #pragma clang attribute push(__attribute__, apply_to=function) // expected-error {{expected '(' after 'attribute'}}
 #pragma clang attribute push(__attribute__(), apply_to=function) // expected-error {{expected '(' after '('}}
@@ -179,3 +182,31 @@ _Pragma("clang attribute pop");
 // expected-note@-1 {{use the GNU '__attribute__' syntax}}
 #pragma clang attribute push (annotate("test")) // expected-error {{expected an attribute that is specified using the GNU, C++11 or '__declspec' syntax}}
 // expected-note@-1 {{use the GNU '__attribute__' syntax}}
+
+#pragma clang attribute push([[clang::uninitialized]], apply_to = variable(is_local))
+#pragma clang attribute pop
+#pragma clang attribute push([[clang::uninitialized]], apply_to = function) // expected-error {{attribute 'uninitialized' can't be applied to 'function'}}
+#pragma clang attribute pop
+#pragma clang attribute push([[clang::uninitialized]], apply_to = variable) // expected-error {{attribute 'uninitialized' can't be applied to 'variable'}}
+#pragma clang attribute pop
+#pragma clang attribute push([[clang::uninitialized]], apply_to = variable(is_thread_local)) // expected-error {{attribute 'uninitialized' can't be applied to 'variable(is_thread_local)'}}
+#pragma clang attribute pop
+#pragma clang attribute push([[clang::uninitialized]], apply_to = variable(is_global)) // expected-error {{attribute 'uninitialized' can't be applied to 'variable(is_global)'}}
+#pragma clang attribute pop
+#pragma clang attribute push([[clang::uninitialized]], apply_to = any(variable(is_parameter), variable(unless(is_parameter)))) // expected-error {{attribute 'uninitialized' can't be applied to 'variable(is_parameter)', and 'variable(unless(is_parameter))'}}
+#pragma clang attribute pop
+// We're allowed to apply attributes to subsets of allowed subjects.
+#pragma clang attribute push([[clang::no_destroy]], apply_to = variable)
+#pragma clang attribute pop
+#pragma clang attribute push([[clang::no_destroy]], apply_to = variable(is_thread_local))
+#pragma clang attribute pop
+#pragma clang attribute push([[clang::no_destroy]], apply_to = variable(is_global))
+#pragma clang attribute pop
+#pragma clang attribute push([[clang::no_destroy]], apply_to = any(variable(is_parameter), variable(unless(is_parameter))))
+#pragma clang attribute pop
+
+// We explicitly do not wish to allow users to blast an attribute to everything
+// using an unconstrained "any", so "any" must have a valid argument list.
+#pragma clang attribute push([[clang::uninitialized]], apply_to=any) // expected-error {{expected '('}}
+#pragma clang attribute push([[clang::uninitialized]], apply_to = any()) // expected-error {{expected an identifier that corresponds to an attribute subject rule}}
+// NB: neither of these need to be popped; they were never successfully pushed.

@@ -1,9 +1,8 @@
 //===--- clang/Basic/CharInfo.h - Classifying ASCII Characters --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -44,10 +43,15 @@ LLVM_READNONE inline bool isASCII(char c) {
   return static_cast<unsigned char>(c) <= 127;
 }
 
+LLVM_READNONE inline bool isASCII(unsigned char c) { return c <= 127; }
+
+/// Returns true if this is an ASCII character.
+LLVM_READNONE inline bool isASCII(uint32_t c) { return c <= 127; }
+
 /// Returns true if this is a valid first character of a C identifier,
 /// which is [a-zA-Z_].
-LLVM_READONLY inline bool isIdentifierHead(unsigned char c,
-                                           bool AllowDollar = false) {
+LLVM_READONLY inline bool isAsciiIdentifierStart(unsigned char c,
+                                                 bool AllowDollar = false) {
   using namespace charinfo;
   if (InfoTable[c] & (CHAR_UPPER|CHAR_LOWER|CHAR_UNDER))
     return true;
@@ -56,8 +60,8 @@ LLVM_READONLY inline bool isIdentifierHead(unsigned char c,
 
 /// Returns true if this is a body character of a C identifier,
 /// which is [a-zA-Z0-9_].
-LLVM_READONLY inline bool isIdentifierBody(unsigned char c,
-                                           bool AllowDollar = false) {
+LLVM_READONLY inline bool isAsciiIdentifierContinue(unsigned char c,
+                                                    bool AllowDollar = false) {
   using namespace charinfo;
   if (InfoTable[c] & (CHAR_UPPER|CHAR_LOWER|CHAR_DIGIT|CHAR_UNDER))
     return true;
@@ -182,13 +186,13 @@ LLVM_READONLY inline char toUppercase(char c) {
 ///
 /// Note that this is a very simple check; it does not accept UCNs as valid
 /// identifier characters.
-LLVM_READONLY inline bool isValidIdentifier(StringRef S,
-                                            bool AllowDollar = false) {
-  if (S.empty() || !isIdentifierHead(S[0], AllowDollar))
+LLVM_READONLY inline bool isValidAsciiIdentifier(StringRef S,
+                                                 bool AllowDollar = false) {
+  if (S.empty() || !isAsciiIdentifierStart(S[0], AllowDollar))
     return false;
 
   for (StringRef::iterator I = S.begin(), E = S.end(); I != E; ++I)
-    if (!isIdentifierBody(*I, AllowDollar))
+    if (!isAsciiIdentifierContinue(*I, AllowDollar))
       return false;
 
   return true;

@@ -1,9 +1,8 @@
 //===-- LanaiMCTargetDesc.cpp - Lanai Target Descriptions -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,8 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "LanaiMCTargetDesc.h"
-#include "InstPrinter/LanaiInstPrinter.h"
+#include "LanaiInstPrinter.h"
 #include "LanaiMCAsmInfo.h"
+#include "TargetInfo/LanaiTargetInfo.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCInst.h"
@@ -22,8 +22,8 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/TargetRegistry.h"
 #include <cstdint>
 #include <string>
 
@@ -52,11 +52,11 @@ static MCRegisterInfo *createLanaiMCRegisterInfo(const Triple & /*TT*/) {
 
 static MCSubtargetInfo *
 createLanaiMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  std::string CPUName = CPU;
+  std::string CPUName = std::string(CPU);
   if (CPUName.empty())
     CPUName = "generic";
 
-  return createLanaiMCSubtargetInfoImpl(TT, CPUName, FS);
+  return createLanaiMCSubtargetInfoImpl(TT, CPUName, /*TuneCPU*/ CPUName, FS);
 }
 
 static MCStreamer *createMCStreamer(const Triple &T, MCContext &Context,
@@ -97,6 +97,9 @@ public:
                       uint64_t &Target) const override {
     if (Inst.getNumOperands() == 0)
       return false;
+    if (!isConditionalBranch(Inst) && !isUnconditionalBranch(Inst) &&
+        !isCall(Inst))
+      return false;
 
     if (Info->get(Inst.getOpcode()).OpInfo[0].OperandType ==
         MCOI::OPERAND_PCREL) {
@@ -123,7 +126,7 @@ static MCInstrAnalysis *createLanaiInstrAnalysis(const MCInstrInfo *Info) {
   return new LanaiMCInstrAnalysis(Info);
 }
 
-extern "C" void LLVMInitializeLanaiTargetMC() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeLanaiTargetMC() {
   // Register the MC asm info.
   RegisterMCAsmInfo<LanaiMCAsmInfo> X(getTheLanaiTarget());
 

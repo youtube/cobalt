@@ -1,9 +1,8 @@
-//===--- CrossWindowsToolChain.cpp - Cross Windows Tool Chain -------------===//
+//===-- CrossWindows.cpp - Cross Windows Tool Chain -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,6 +19,7 @@ using namespace clang::driver;
 using namespace clang::driver::toolchains;
 
 using llvm::opt::ArgList;
+using llvm::opt::ArgStringList;
 
 void tools::CrossWindows::Assembler::ConstructJob(
     Compilation &C, const JobAction &JA, const InputInfo &Output,
@@ -57,7 +57,8 @@ void tools::CrossWindows::Assembler::ConstructJob(
   const std::string Assembler = TC.GetProgramPath("as");
   Exec = Args.MakeArgString(Assembler);
 
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(),
+                                         Exec, CmdArgs, Inputs, Output));
 }
 
 void tools::CrossWindows::Linker::ConstructJob(
@@ -184,7 +185,7 @@ void tools::CrossWindows::Linker::ConstructJob(
     }
   }
 
-  if (TC.getSanitizerArgs().needsAsanRt()) {
+  if (TC.getSanitizerArgs(Args).needsAsanRt()) {
     // TODO handle /MT[d] /MD[d]
     if (Args.hasArg(options::OPT_shared)) {
       CmdArgs.push_back(TC.getCompilerRTArgString(Args, "asan_dll_thunk"));
@@ -202,7 +203,9 @@ void tools::CrossWindows::Linker::ConstructJob(
 
   Exec = Args.MakeArgString(TC.GetLinkerPath());
 
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this,
+                                         ResponseFileSupport::AtFileUTF8(),
+                                         Exec, CmdArgs, Inputs, Output));
 }
 
 CrossWindowsToolChain::CrossWindowsToolChain(const Driver &D,
@@ -220,7 +223,7 @@ bool CrossWindowsToolChain::isPICDefault() const {
   return getArch() == llvm::Triple::x86_64;
 }
 
-bool CrossWindowsToolChain::isPIEDefault() const {
+bool CrossWindowsToolChain::isPIEDefault(const llvm::opt::ArgList &Args) const {
   return getArch() == llvm::Triple::x86_64;
 }
 
@@ -268,15 +271,17 @@ AddClangCXXStdlibIncludeArgs(const llvm::opt::ArgList &DriverArgs,
 }
 
 void CrossWindowsToolChain::
-AddCXXStdlibLibArgs(const llvm::opt::ArgList &DriverArgs,
-                    llvm::opt::ArgStringList &CC1Args) const {
-  if (GetCXXStdlibType(DriverArgs) == ToolChain::CST_Libcxx)
-    CC1Args.push_back("-lc++");
+AddCXXStdlibLibArgs(const llvm::opt::ArgList &Args,
+                    llvm::opt::ArgStringList &CmdArgs) const {
+  if (GetCXXStdlibType(Args) == ToolChain::CST_Libcxx)
+    CmdArgs.push_back("-lc++");
 }
 
 clang::SanitizerMask CrossWindowsToolChain::getSupportedSanitizers() const {
   SanitizerMask Res = ToolChain::getSupportedSanitizers();
   Res |= SanitizerKind::Address;
+  Res |= SanitizerKind::PointerCompare;
+  Res |= SanitizerKind::PointerSubtract;
   return Res;
 }
 

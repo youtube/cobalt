@@ -1,9 +1,8 @@
 //===- HexagonInstrInfo.h - Hexagon Instruction Information -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -69,16 +68,16 @@ public:
   /// Check if the instruction or the bundle of instructions has
   /// load from stack slots. Return the frameindex and machine memory operand
   /// if true.
-  bool hasLoadFromStackSlot(const MachineInstr &MI,
-                           const MachineMemOperand *&MMO,
-                           int &FrameIndex) const override;
+  bool hasLoadFromStackSlot(
+      const MachineInstr &MI,
+      SmallVectorImpl<const MachineMemOperand *> &Accesses) const override;
 
   /// Check if the instruction or the bundle of instructions has
   /// store to stack slots. Return the frameindex and machine memory operand
   /// if true.
-  bool hasStoreToStackSlot(const MachineInstr &MI,
-                           const MachineMemOperand *&MMO,
-                           int &FrameIndex) const override;
+  bool hasStoreToStackSlot(
+      const MachineInstr &MI,
+      SmallVectorImpl<const MachineMemOperand *> &Accesses) const override;
 
   /// Analyze the branching code at the end of MBB, returning
   /// true if it cannot be understood (e.g. it's a switch dispatch or isn't
@@ -110,19 +109,19 @@ public:
                      bool AllowModify) const override;
 
   /// Remove the branching code at the end of the specific MBB.
-  /// This is only invoked in cases where AnalyzeBranch returns success. It
+  /// This is only invoked in cases where analyzeBranch returns success. It
   /// returns the number of instructions that were removed.
   unsigned removeBranch(MachineBasicBlock &MBB,
                         int *BytesRemoved = nullptr) const override;
 
   /// Insert branch code into the end of the specified MachineBasicBlock.
   /// The operands to this method are the same as those
-  /// returned by AnalyzeBranch.  This is only invoked in cases where
-  /// AnalyzeBranch returns success. It returns the number of instructions
+  /// returned by analyzeBranch.  This is only invoked in cases where
+  /// analyzeBranch returns success. It returns the number of instructions
   /// inserted.
   ///
   /// It is also invoked by tail merging to add unconditional branches in
-  /// cases where AnalyzeBranch doesn't apply because there was no original
+  /// cases where analyzeBranch doesn't apply because there was no original
   /// branch to analyze.  At least this much must be implemented, else tail
   /// merging needs to be disabled.
   unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
@@ -130,21 +129,10 @@ public:
                         const DebugLoc &DL,
                         int *BytesAdded = nullptr) const override;
 
-  /// Analyze the loop code, return true if it cannot be understood. Upon
-  /// success, this function returns false and returns information about the
-  /// induction variable and compare instruction used at the end.
-  bool analyzeLoop(MachineLoop &L, MachineInstr *&IndVarInst,
-                   MachineInstr *&CmpInst) const override;
-
-  /// Generate code to reduce the loop iteration by one and check if the loop
-  /// is finished.  Return the value/register of the new loop count.  We need
-  /// this function when peeling off one or more iterations of a loop. This
-  /// function assumes the nth iteration is peeled first.
-  unsigned reduceLoopCount(MachineBasicBlock &MBB,
-                           MachineInstr *IndVar, MachineInstr &Cmp,
-                           SmallVectorImpl<MachineOperand> &Cond,
-                           SmallVectorImpl<MachineInstr *> &PrevInsts,
-                           unsigned Iter, unsigned MaxIter) const override;
+  /// Analyze loop L, which must be a single-basic-block loop, and if the
+  /// conditions can be understood enough produce a PipelinerLoopInfo object.
+  std::unique_ptr<PipelinerLoopInfo>
+  analyzeLoopForPipelining(MachineBasicBlock *LoopBB) const override;
 
   /// Return true if it's profitable to predicate
   /// instructions with accumulated instruction latency of "NumCycles"
@@ -185,7 +173,7 @@ public:
   /// careful implementation when multiple copy instructions are required for
   /// large registers. See for example the ARM target.
   void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
-                   const DebugLoc &DL, unsigned DestReg, unsigned SrcReg,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
                    bool KillSrc) const override;
 
   /// Store the specified register of the given register class to the specified
@@ -194,7 +182,7 @@ public:
   /// is true, the register operand is the last use and must be marked kill.
   void storeRegToStackSlot(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MBBI,
-                           unsigned SrcReg, bool isKill, int FrameIndex,
+                           Register SrcReg, bool isKill, int FrameIndex,
                            const TargetRegisterClass *RC,
                            const TargetRegisterInfo *TRI) const override;
 
@@ -203,7 +191,7 @@ public:
   /// machine basic block before the specified machine instruction.
   void loadRegFromStackSlot(MachineBasicBlock &MBB,
                             MachineBasicBlock::iterator MBBI,
-                            unsigned DestReg, int FrameIndex,
+                            Register DestReg, int FrameIndex,
                             const TargetRegisterClass *RC,
                             const TargetRegisterInfo *TRI) const override;
 
@@ -216,9 +204,11 @@ public:
   bool expandPostRAPseudo(MachineInstr &MI) const override;
 
   /// Get the base register and byte offset of a load/store instr.
-  bool getMemOpBaseRegImmOfs(MachineInstr &LdSt, unsigned &BaseReg,
-                             int64_t &Offset,
-                             const TargetRegisterInfo *TRI) const override;
+  bool getMemOperandsWithOffsetWidth(
+      const MachineInstr &LdSt,
+      SmallVectorImpl<const MachineOperand *> &BaseOps, int64_t &Offset,
+      bool &OffsetIsScalable, unsigned &Width,
+      const TargetRegisterInfo *TRI) const override;
 
   /// Reverses the branch condition of the specified condition list,
   /// returning false on success and true if it cannot be reversed.
@@ -248,8 +238,8 @@ public:
   /// If the specified instruction defines any predicate
   /// or condition code register(s) used for predication, returns true as well
   /// as the definition predicate(s) by reference.
-  bool DefinesPredicate(MachineInstr &MI,
-                        std::vector<MachineOperand> &Pred) const override;
+  bool ClobbersPredicate(MachineInstr &MI, std::vector<MachineOperand> &Pred,
+                         bool SkipDead) const override;
 
   /// Return true if the specified instruction can be predicated.
   /// By default, this returns true for every instruction with a
@@ -264,8 +254,10 @@ public:
 
   /// Measure the specified inline asm to determine an approximation of its
   /// length.
-  unsigned getInlineAsmLength(const char *Str,
-                              const MCAsmInfo &MAI) const override;
+  unsigned getInlineAsmLength(
+    const char *Str,
+    const MCAsmInfo &MAI,
+    const TargetSubtargetInfo *STI = nullptr) const override;
 
   /// Allocate and return a hazard recognizer to use for this target when
   /// scheduling the machine instructions after register allocation.
@@ -277,8 +269,9 @@ public:
   /// in SrcReg and SrcReg2 if having two register operands, and the value it
   /// compares against in CmpValue. Return true if the comparison instruction
   /// can be analyzed.
-  bool analyzeCompare(const MachineInstr &MI, unsigned &SrcReg,
-                      unsigned &SrcReg2, int &Mask, int &Value) const override;
+  bool analyzeCompare(const MachineInstr &MI, Register &SrcReg,
+                      Register &SrcReg2, int64_t &Mask,
+                      int64_t &Value) const override;
 
   /// Compute the instruction latency of a given instruction.
   /// If the instruction has higher cost when predicated, it's returned via
@@ -296,8 +289,8 @@ public:
   // memory addresses. This function returns true if two MIs access different
   // memory addresses and false otherwise.
   bool
-  areMemAccessesTriviallyDisjoint(MachineInstr &MIa, MachineInstr &MIb,
-                                  AliasAnalysis *AA = nullptr) const override;
+  areMemAccessesTriviallyDisjoint(const MachineInstr &MIa,
+                                  const MachineInstr &MIb) const override;
 
   /// For instructions with a base and offset, return the position of the
   /// base register and offset operands.
@@ -342,6 +335,13 @@ public:
   getSerializableBitmaskMachineOperandTargetFlags() const override;
 
   bool isTailCall(const MachineInstr &MI) const override;
+  bool isAsCheapAsAMove(const MachineInstr &MI) const override;
+
+  // Return true if the instruction should be sunk by MachineSink.
+  // MachineSink determines on its own whether the instruction is safe to sink;
+  // this gives the target a hook to override the default behavior with regards
+  // to which instructions should be sunk.
+  bool shouldSink(const MachineInstr &MI) const override;
 
   /// HexagonInstrInfo specifics.
 
@@ -350,10 +350,10 @@ public:
                               MachineBasicBlock *TargetBB,
                               SmallPtrSet<MachineBasicBlock *, 8> &Visited) const;
 
-  bool isBaseImmOffset(const MachineInstr &MI) const;
   bool isAbsoluteSet(const MachineInstr &MI) const;
   bool isAccumulator(const MachineInstr &MI) const;
   bool isAddrModeWithOffset(const MachineInstr &MI) const;
+  bool isBaseImmOffset(const MachineInstr &MI) const;
   bool isComplex(const MachineInstr &MI) const;
   bool isCompoundBranchInstr(const MachineInstr &MI) const;
   bool isConstExtended(const MachineInstr &MI) const;
@@ -396,6 +396,8 @@ public:
   bool isPredicated(unsigned Opcode) const;
   bool isPredicateLate(unsigned Opcode) const;
   bool isPredictedTaken(unsigned Opcode) const;
+  bool isPureSlot0(const MachineInstr &MI) const;
+  bool isRestrictNoSlot1Store(const MachineInstr &MI) const;
   bool isSaveCalleeSavedRegsCall(const MachineInstr &MI) const;
   bool isSignExtendingLoad(const MachineInstr &MI) const;
   bool isSolo(const MachineInstr &MI) const;
@@ -436,14 +438,15 @@ public:
   bool predOpcodeHasNot(ArrayRef<MachineOperand> Cond) const;
 
   unsigned getAddrMode(const MachineInstr &MI) const;
-  unsigned getBaseAndOffset(const MachineInstr &MI, int &Offset,
-                            unsigned &AccessSize) const;
+  MachineOperand *getBaseAndOffset(const MachineInstr &MI, int64_t &Offset,
+                                   unsigned &AccessSize) const;
   SmallVector<MachineInstr*,2> getBranchingInstrs(MachineBasicBlock& MBB) const;
   unsigned getCExtOpNum(const MachineInstr &MI) const;
   HexagonII::CompoundGroup
   getCompoundCandidateGroup(const MachineInstr &MI) const;
   unsigned getCompoundOpcode(const MachineInstr &GA,
                              const MachineInstr &GB) const;
+  int getDuplexOpcode(const MachineInstr &MI, bool ForBigCore = true) const;
   int getCondOpcode(int Opc, bool sense) const;
   int getDotCurOp(const MachineInstr &MI) const;
   int getNonDotCurOp(const MachineInstr &MI) const;
@@ -470,7 +473,9 @@ public:
   short getRegForm(const MachineInstr &MI) const;
   unsigned getSize(const MachineInstr &MI) const;
   uint64_t getType(const MachineInstr &MI) const;
-  unsigned getUnits(const MachineInstr &MI) const;
+  InstrStage::FuncUnits getUnits(const MachineInstr &MI) const;
+
+  MachineBasicBlock::instr_iterator expandVGatherPseudo(MachineInstr &MI) const;
 
   /// getInstrTimingClassLatency - Compute the instruction latency of a given
   /// instruction using Timing Class information, if available.
@@ -487,6 +492,17 @@ public:
 
   void setBundleNoShuf(MachineBasicBlock::instr_iterator MIB) const;
   bool getBundleNoShuf(const MachineInstr &MIB) const;
+
+  // When TinyCore with Duplexes is enabled, this function is used to translate
+  // tiny-instructions to big-instructions and vice versa to get the slot
+  // consumption.
+  void changeDuplexOpcode(MachineBasicBlock::instr_iterator MII,
+                          bool ToBigInstrs) const;
+  void translateInstrsForDup(MachineFunction &MF,
+                             bool ToBigInstrs = true) const;
+  void translateInstrsForDup(MachineBasicBlock::instr_iterator MII,
+                             bool ToBigInstrs) const;
+
   // Addressing mode relations.
   short changeAddrMode_abs_io(short Opc) const;
   short changeAddrMode_io_abs(short Opc) const;
@@ -515,6 +531,8 @@ public:
   short changeAddrMode_ur_rr(const MachineInstr &MI) const {
     return changeAddrMode_ur_rr(MI.getOpcode());
   }
+
+  MCInst getNop() const override;
 };
 
 } // end namespace llvm

@@ -246,7 +246,7 @@ void t29(void) {
                :
                : "m"(t29_var));
   // CHECK: @t29
-  // CHECK: call void asm sideeffect "movl %eax, $0", "*m,~{dirflag},~{fpsr},~{flags}"([1 x i32]* @t29_var)
+  // CHECK: call void asm sideeffect "movl %eax, $0", "*m,~{dirflag},~{fpsr},~{flags}"([1 x i32]* elementtype([1 x i32]) @t29_var)
 }
 
 void t30(int len) {
@@ -261,4 +261,16 @@ void t31(int len) {
                    : "+%%rm"(len), "+rm"(len));
   // CHECK: @t31
   // CHECK: call void asm sideeffect "", "=*%rm,=*rm,0,1,~{dirflag},~{fpsr},~{flags}"
+}
+
+// CHECK: @t32
+int t32(int cond)
+{
+  asm goto("testl %0, %0; jne %l1;" :: "r"(cond)::label_true, loop);
+  // CHECK: callbr void asm sideeffect "testl $0, $0; jne ${1:l};", "r,i,i,~{dirflag},~{fpsr},~{flags}"(i32 %0, i8* blockaddress(@t32, %label_true), i8* blockaddress(@t32, %loop)) #1
+  return 0;
+loop:
+  return 0;
+label_true:
+  return 1;
 }

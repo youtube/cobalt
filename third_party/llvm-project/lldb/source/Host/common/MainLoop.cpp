@@ -1,13 +1,13 @@
-//===-- MainLoop.cpp --------------------------------------------*- C++ -*-===//
+//===-- MainLoop.cpp ------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Config/llvm-config.h"
+#include "lldb/Host/Config.h"
 
 #include "lldb/Host/MainLoop.h"
 #include "lldb/Host/PosixApi.h"
@@ -16,7 +16,7 @@
 #include <cassert>
 #include <cerrno>
 #include <csignal>
-#include <time.h>
+#include <ctime>
 #include <vector>
 
 // Multiplexing is implemented using kqueue on systems that support it (BSD
@@ -62,10 +62,12 @@ using namespace lldb_private;
 
 static sig_atomic_t g_signal_flags[NSIG];
 
+#ifndef SIGNAL_POLLING_UNSUPPORTED
 static void SignalHandler(int signo, siginfo_t *info, void *) {
   assert(signo < NSIG);
   g_signal_flags[signo] = 1;
 }
+#endif
 
 class MainLoop::RunImpl {
 public:
@@ -108,8 +110,14 @@ Status MainLoop::RunImpl::Poll() {
   num_events = kevent(loop.m_kqueue, in_events.data(), in_events.size(),
                       out_events, llvm::array_lengthof(out_events), nullptr);
 
-  if (num_events < 0)
-    return Status("kevent() failed with error %d\n", num_events);
+  if (num_events < 0) {
+    if (errno == EINTR) {
+      // in case of EINTR, let the main loop run one iteration
+      // we need to zero num_events to avoid assertions failing
+      num_events = 0;
+    } else
+      return Status(errno, eErrorTypePOSIX);
+  }
   return Status();
 }
 
@@ -138,18 +146,20 @@ MainLoop::RunImpl::RunImpl(MainLoop &loop) : loop(loop) {
 }
 
 sigset_t MainLoop::RunImpl::get_sigmask() {
-#if SIGNAL_POLLING_UNSUPPORTED
-  return 0;
-#else
   sigset_t sigmask;
+#if defined(_WIN32)
+  sigmask = 0;
+#elif SIGNAL_POLLING_UNSUPPORTED
+  sigemptyset(&sigmask);
+#else
   int ret = pthread_sigmask(SIG_SETMASK, nullptr, &sigmask);
   assert(ret == 0);
   (void) ret;
 
   for (const auto &sig : loop.m_signals)
     sigdelset(&sigmask, sig.first);
-  return sigmask;
 #endif
+  return sigmask;
 }
 
 #ifdef __ANDROID__
@@ -292,13 +302,15 @@ MainLoop::RegisterSignal(int signo, const Callback &callback, Status &error) {
   error.SetErrorString("Signal polling is not supported on this platform.");
   return nullptr;
 #else
-  if (m_signals.find(signo) != m_signals.end()) {
-    error.SetErrorStringWithFormat("Signal %d already monitored.", signo);
-    return nullptr;
+  auto signal_it = m_signals.find(signo);
+  if (signal_it != m_signals.end()) {
+    auto callback_it = signal_it->second.callbacks.insert(
+        signal_it->second.callbacks.end(), callback);
+    return SignalHandleUP(new SignalHandle(*this, signo, callback_it));
   }
 
   SignalInfo info;
-  info.callback = callback;
+  info.callbacks.push_back(callback);
   struct sigaction new_action;
   new_action.sa_sigaction = &SignalHandler;
   new_action.sa_flags = SA_SIGINFO;
@@ -309,8 +321,9 @@ MainLoop::RegisterSignal(int signo, const Callback &callback, Status &error) {
   g_signal_flags[signo] = 0;
 
   // Even if using kqueue, the signal handler will still be invoked, so it's
-  // important to replace it with our "bening" handler.
+  // important to replace it with our "benign" handler.
   int ret = sigaction(signo, &new_action, &info.old_action);
+  (void)ret;
   assert(ret == 0 && "sigaction failed");
 
 #if HAVE_SYS_EVENT_H
@@ -321,15 +334,16 @@ MainLoop::RegisterSignal(int signo, const Callback &callback, Status &error) {
 #endif
 
   // If we're using kqueue, the signal needs to be unblocked in order to
-  // recieve it. If using pselect/ppoll, we need to block it, and later unblock
+  // receive it. If using pselect/ppoll, we need to block it, and later unblock
   // it as a part of the system call.
   ret = pthread_sigmask(HAVE_SYS_EVENT_H ? SIG_UNBLOCK : SIG_BLOCK,
                         &new_action.sa_mask, &old_set);
   assert(ret == 0 && "pthread_sigmask failed");
   info.was_blocked = sigismember(&old_set, signo);
-  m_signals.insert({signo, info});
+  auto insert_ret = m_signals.insert({signo, info});
 
-  return SignalHandleUP(new SignalHandle(*this, signo));
+  return SignalHandleUP(new SignalHandle(
+      *this, signo, insert_ret.first->second.callbacks.begin()));
 #endif
 }
 
@@ -339,12 +353,18 @@ void MainLoop::UnregisterReadObject(IOObject::WaitableHandle handle) {
   assert(erased);
 }
 
-void MainLoop::UnregisterSignal(int signo) {
+void MainLoop::UnregisterSignal(int signo,
+                                std::list<Callback>::iterator callback_it) {
 #if SIGNAL_POLLING_UNSUPPORTED
   Status("Signal polling is not supported on this platform.");
 #else
   auto it = m_signals.find(signo);
   assert(it != m_signals.end());
+
+  it->second.callbacks.erase(callback_it);
+  // Do not remove the signal handler unless all callbacks have been erased.
+  if (!it->second.callbacks.empty())
+    return;
 
   sigaction(signo, &it->second.old_action, nullptr);
 
@@ -381,17 +401,20 @@ Status MainLoop::Run() {
       return error;
 
     impl.ProcessEvents();
-
-    if (m_terminate_request)
-      return Status();
   }
   return Status();
 }
 
 void MainLoop::ProcessSignal(int signo) {
   auto it = m_signals.find(signo);
-  if (it != m_signals.end())
-    it->second.callback(*this); // Do the work
+  if (it != m_signals.end()) {
+    // The callback may actually register/unregister signal handlers,
+    // so we need to create a copy first.
+    llvm::SmallVector<Callback, 4> callbacks_to_run{
+        it->second.callbacks.begin(), it->second.callbacks.end()};
+    for (auto &x : callbacks_to_run)
+      x(*this); // Do the work
+  }
 }
 
 void MainLoop::ProcessReadObject(IOObject::WaitableHandle handle) {

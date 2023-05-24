@@ -1,9 +1,8 @@
 //===-- truncdfsf2vfp.S - Implement truncdfsf2vfp -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,9 +11,9 @@
 //
 // extern float __truncdfsf2vfp(double a);
 //
-// Converts double precision float to signle precision result.
-// Uses Darwin calling convention where a double precision parameter is 
-// passed in a R0/R1 pair and a signle precision result is returned in R0.
+// Converts double precision float to single precision result.
+// Uses Darwin calling convention where a double precision parameter is
+// passed in a R0/R1 pair and a single precision result is returned in R0.
 //
 	.syntax unified
 	.p2align 2

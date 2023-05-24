@@ -1,22 +1,24 @@
-// -*- C++ -*-
-//===------------------------------ span ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===---------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17 
+//===----------------------------------------------------------------------===//
+// UNSUPPORTED: c++03, c++11, c++14, c++17
+// UNSUPPORTED: libcpp-has-no-incomplete-ranges
+
+// AppleClang 12.0.0 doesn't fully support ranges/concepts
+// XFAIL: apple-clang-12.0.0
 
 // <span>
 
-// template<ptrdiff_t Count>
+// template<size_t Count>
 //  constexpr span<element_type, Count> last() const;
 //
-// constexpr span<element_type, dynamic_extent> last(index_type count) const;
+// constexpr span<element_type, dynamic_extent> last(size_type count) const;
 //
-//  Requires: 0 <= Count && Count <= size().
+//  Requires: Count <= size().
 
 
 #include <span>
@@ -26,7 +28,7 @@
 
 #include "test_macros.h"
 
-template <typename Span, ptrdiff_t Count>
+template <typename Span, size_t Count>
 constexpr bool testConstexprSpan(Span sp)
 {
     LIBCPP_ASSERT((noexcept(sp.template last<Count>())));
@@ -46,7 +48,7 @@ constexpr bool testConstexprSpan(Span sp)
 }
 
 
-template <typename Span, ptrdiff_t Count>
+template <typename Span, size_t Count>
 void testRuntimeSpan(Span sp)
 {
     LIBCPP_ASSERT((noexcept(sp.template last<Count>())));
@@ -69,7 +71,7 @@ constexpr int carr1[] = {1,2,3,4};
           int   arr[] = {5,6,7};
 std::string   sarr [] = { "ABC", "DEF", "GHI", "JKL", "MNO"};
 
-int main ()
+int main(int, char**)
 {
     {
     using Sp = std::span<const int>;
@@ -114,7 +116,7 @@ int main ()
     {
     using Sp = std::span<std::string>;
     testConstexprSpan<Sp, 0>(Sp{});
-    
+
     testRuntimeSpan<Sp, 0>(Sp{sarr});
     testRuntimeSpan<Sp, 1>(Sp{sarr});
     testRuntimeSpan<Sp, 2>(Sp{sarr});
@@ -125,7 +127,7 @@ int main ()
 
     {
     using Sp = std::span<std::string, 5>;
-    
+
     testRuntimeSpan<Sp, 0>(Sp{sarr});
     testRuntimeSpan<Sp, 1>(Sp{sarr});
     testRuntimeSpan<Sp, 2>(Sp{sarr});
@@ -133,4 +135,6 @@ int main ()
     testRuntimeSpan<Sp, 4>(Sp{sarr});
     testRuntimeSpan<Sp, 5>(Sp{sarr});
     }
+
+  return 0;
 }

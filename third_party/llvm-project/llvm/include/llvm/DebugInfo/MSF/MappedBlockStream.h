@@ -1,9 +1,8 @@
 //==- MappedBlockStream.h - Discontiguous stream data in an MSF --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,8 +23,6 @@
 
 namespace llvm {
 namespace msf {
-
-struct MSFLayout;
 
 /// MappedBlockStream represents data stored in an MSF file into chunks of a
 /// particular size (called the Block Size), and whose chunks may not be
@@ -61,12 +58,12 @@ public:
     return support::little;
   }
 
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override;
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override;
 
-  uint32_t getLength() override;
+  uint64_t getLength() override;
 
   BumpPtrAllocator &getAllocator() { return Allocator; }
 
@@ -82,10 +79,10 @@ protected:
 
 private:
   const MSFStreamLayout &getStreamLayout() const { return StreamLayout; }
-  void fixCacheAfterWrite(uint32_t Offset, ArrayRef<uint8_t> Data) const;
+  void fixCacheAfterWrite(uint64_t Offset, ArrayRef<uint8_t> Data) const;
 
-  Error readBytes(uint32_t Offset, MutableArrayRef<uint8_t> Buffer);
-  bool tryReadContiguously(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, MutableArrayRef<uint8_t> Buffer);
+  bool tryReadContiguously(uint64_t Offset, uint64_t Size,
                            ArrayRef<uint8_t> &Buffer);
 
   const uint32_t BlockSize;
@@ -128,13 +125,13 @@ public:
     return support::little;
   }
 
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override;
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override;
-  uint32_t getLength() override;
+  uint64_t getLength() override;
 
-  Error writeBytes(uint32_t Offset, ArrayRef<uint8_t> Buffer) override;
+  Error writeBytes(uint64_t Offset, ArrayRef<uint8_t> Buffer) override;
 
   Error commit() override;
 
@@ -157,7 +154,7 @@ private:
   WritableBinaryStreamRef WriteInterface;
 };
 
-} // end namespace pdb
+} // namespace msf
 } // end namespace llvm
 
 #endif // LLVM_DEBUGINFO_MSF_MAPPEDBLOCKSTREAM_H

@@ -1,9 +1,8 @@
 //===-- DelaySlotFiller.cpp - SPARC delay slot filler ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -38,7 +37,7 @@ static cl::opt<bool> DisableDelaySlotFiller(
 
 namespace {
   struct Filler : public MachineFunctionPass {
-    const SparcSubtarget *Subtarget;
+    const SparcSubtarget *Subtarget = nullptr;
 
     static char ID;
     Filler() : MachineFunctionPass(ID) {}
@@ -54,9 +53,8 @@ namespace {
       // instructions to fill delay slot.
       F.getRegInfo().invalidateLiveness();
 
-      for (MachineFunction::iterator FI = F.begin(), FE = F.end();
-           FI != FE; ++FI)
-        Changed |= runOnMachineBasicBlock(*FI);
+      for (MachineBasicBlock &MBB : F)
+        Changed |= runOnMachineBasicBlock(MBB);
       return Changed;
     }
 
@@ -254,7 +252,7 @@ bool Filler::delayHasHazard(MachineBasicBlock::iterator candidate,
     if (!MO.isReg())
       continue; // skip
 
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
 
     if (MO.isDef()) {
       // check whether Reg is defined or used before delay slot.
@@ -320,12 +318,11 @@ void Filler::insertDefsUses(MachineBasicBlock::iterator MI,
                             SmallSet<unsigned, 32>& RegDefs,
                             SmallSet<unsigned, 32>& RegUses)
 {
-  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
+  for (const MachineOperand &MO : MI->operands()) {
     if (!MO.isReg())
       continue;
 
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (Reg == 0)
       continue;
     if (MO.isDef())
@@ -381,7 +378,7 @@ static bool combineRestoreADD(MachineBasicBlock::iterator RestoreMI,
   //
   // After :  restore <op0>, <op1>, %o[0-7]
 
-  unsigned reg = AddMI->getOperand(0).getReg();
+  Register reg = AddMI->getOperand(0).getReg();
   if (reg < SP::I0 || reg > SP::I7)
     return false;
 
@@ -409,7 +406,7 @@ static bool combineRestoreOR(MachineBasicBlock::iterator RestoreMI,
   //
   // After :  restore <op0>, <op1>, %o[0-7]
 
-  unsigned reg = OrMI->getOperand(0).getReg();
+  Register reg = OrMI->getOperand(0).getReg();
   if (reg < SP::I0 || reg > SP::I7)
     return false;
 
@@ -447,7 +444,7 @@ static bool combineRestoreSETHIi(MachineBasicBlock::iterator RestoreMI,
   //
   // After :  restore %g0, (imm3<<10), %o[0-7]
 
-  unsigned reg = SetHiMI->getOperand(0).getReg();
+  Register reg = SetHiMI->getOperand(0).getReg();
   if (reg < SP::I0 || reg > SP::I7)
     return false;
 

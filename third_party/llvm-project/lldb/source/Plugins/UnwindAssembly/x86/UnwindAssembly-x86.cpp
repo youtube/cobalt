@@ -1,9 +1,8 @@
-//===-- UnwindAssembly-x86.cpp ----------------------------------*- C++ -*-===//
+//===-- UnwindAssembly-x86.cpp --------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,9 +30,9 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//-----------------------------------------------------------------------------------------------
+LLDB_PLUGIN_DEFINE_ADV(UnwindAssembly_x86, UnwindAssemblyX86)
+
 //  UnwindAssemblyParser_x86 method definitions
-//-----------------------------------------------------------------------------------------------
 
 UnwindAssembly_x86::UnwindAssembly_x86(const ArchSpec &arch)
     : lldb_private::UnwindAssembly(arch),
@@ -52,12 +51,11 @@ bool UnwindAssembly_x86::GetNonCallSiteUnwindPlanFromAssembly(
   ProcessSP process_sp(thread.GetProcess());
   if (process_sp.get() == nullptr)
     return false;
-  const bool prefer_file_cache = true;
   std::vector<uint8_t> function_text(func.GetByteSize());
   Status error;
   if (process_sp->GetTarget().ReadMemory(
-          func.GetBaseAddress(), prefer_file_cache, function_text.data(),
-          func.GetByteSize(), error) == func.GetByteSize()) {
+          func.GetBaseAddress(), function_text.data(), func.GetByteSize(),
+          error) == func.GetByteSize()) {
     RegisterContextSP reg_ctx(thread.GetRegisterContext());
     m_assembly_inspection_engine->Initialize(reg_ctx);
     return m_assembly_inspection_engine->GetNonCallSiteUnwindPlanFromAssembly(
@@ -92,7 +90,7 @@ bool UnwindAssembly_x86::AugmentUnwindPlanFromCallSite(
   // assembly parsing instead.
 
   if (first_row->GetCFAValue().GetValueType() !=
-          UnwindPlan::Row::CFAValue::isRegisterPlusOffset ||
+          UnwindPlan::Row::FAValue::isRegisterPlusOffset ||
       RegisterNumber(thread, unwind_plan.GetRegisterKind(),
                      first_row->GetCFAValue().GetRegisterNumber()) !=
           sp_regnum ||
@@ -100,10 +98,10 @@ bool UnwindAssembly_x86::AugmentUnwindPlanFromCallSite(
     return false;
   }
   UnwindPlan::Row::RegisterLocation first_row_pc_loc;
-  if (first_row->GetRegisterInfo(
+  if (!first_row->GetRegisterInfo(
           pc_regnum.GetAsKind(unwind_plan.GetRegisterKind()),
-          first_row_pc_loc) == false ||
-      first_row_pc_loc.IsAtCFAPlusOffset() == false ||
+          first_row_pc_loc) ||
+      !first_row_pc_loc.IsAtCFAPlusOffset() ||
       first_row_pc_loc.GetOffset() != -wordsize) {
     return false;
   }
@@ -142,7 +140,7 @@ bool UnwindAssembly_x86::AugmentUnwindPlanFromCallSite(
           // and we don't need to modify it at all.
 
           if (first_row_pc_loc.GetOffset() == -wordsize) {
-            do_augment_unwindplan = false;
+            return true;
           }
         }
       }
@@ -154,12 +152,11 @@ bool UnwindAssembly_x86::AugmentUnwindPlanFromCallSite(
       return false;
     if (m_assembly_inspection_engine == nullptr)
       return false;
-    const bool prefer_file_cache = true;
     std::vector<uint8_t> function_text(func.GetByteSize());
     Status error;
     if (process_sp->GetTarget().ReadMemory(
-            func.GetBaseAddress(), prefer_file_cache, function_text.data(),
-            func.GetByteSize(), error) == func.GetByteSize()) {
+            func.GetBaseAddress(), function_text.data(), func.GetByteSize(),
+            error) == func.GetByteSize()) {
       RegisterContextSP reg_ctx(thread.GetRegisterContext());
       m_assembly_inspection_engine->Initialize(reg_ctx);
       return m_assembly_inspection_engine->AugmentUnwindPlanFromCallSite(
@@ -186,10 +183,9 @@ bool UnwindAssembly_x86::GetFastUnwindPlan(AddressRange &func, Thread &thread,
   ProcessSP process_sp = thread.GetProcess();
   if (process_sp) {
     Target &target(process_sp->GetTarget());
-    const bool prefer_file_cache = true;
     Status error;
-    if (target.ReadMemory(func.GetBaseAddress(), prefer_file_cache,
-                          opcode_data.data(), 4, error) == 4) {
+    if (target.ReadMemory(func.GetBaseAddress(), opcode_data.data(), 4,
+                          error) == 4) {
       uint8_t i386_push_mov[] = {0x55, 0x89, 0xe5};
       uint8_t x86_64_push_mov[] = {0x55, 0x48, 0x89, 0xe5};
 
@@ -221,12 +217,10 @@ bool UnwindAssembly_x86::FirstNonPrologueInsn(
   if (m_assembly_inspection_engine == nullptr)
     return false;
 
-  const bool prefer_file_cache = true;
   std::vector<uint8_t> function_text(func.GetByteSize());
   Status error;
-  if (target->ReadMemory(func.GetBaseAddress(), prefer_file_cache,
-                         function_text.data(), func.GetByteSize(),
-                         error) == func.GetByteSize()) {
+  if (target->ReadMemory(func.GetBaseAddress(), function_text.data(),
+                         func.GetByteSize(), error) == func.GetByteSize()) {
     size_t offset;
     if (m_assembly_inspection_engine->FindFirstNonPrologueInstruction(
             function_text.data(), func.GetByteSize(), offset)) {
@@ -242,18 +236,8 @@ UnwindAssembly *UnwindAssembly_x86::CreateInstance(const ArchSpec &arch) {
   const llvm::Triple::ArchType cpu = arch.GetMachine();
   if (cpu == llvm::Triple::x86 || cpu == llvm::Triple::x86_64)
     return new UnwindAssembly_x86(arch);
-  return NULL;
+  return nullptr;
 }
-
-//------------------------------------------------------------------
-// PluginInterface protocol in UnwindAssemblyParser_x86
-//------------------------------------------------------------------
-
-ConstString UnwindAssembly_x86::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t UnwindAssembly_x86::GetPluginVersion() { return 1; }
 
 void UnwindAssembly_x86::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -264,11 +248,6 @@ void UnwindAssembly_x86::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
 
-lldb_private::ConstString UnwindAssembly_x86::GetPluginNameStatic() {
-  static ConstString g_name("x86");
-  return g_name;
-}
-
-const char *UnwindAssembly_x86::GetPluginDescriptionStatic() {
+llvm::StringRef UnwindAssembly_x86::GetPluginDescriptionStatic() {
   return "i386 and x86_64 assembly language profiler plugin.";
 }

@@ -1,21 +1,23 @@
-// -*- C++ -*-
-//===------------------------------ span ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===---------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17 
+//===----------------------------------------------------------------------===//
+// UNSUPPORTED: c++03, c++11, c++14, c++17
+// UNSUPPORTED: libcpp-has-no-incomplete-ranges
+
+// AppleClang 12.0.0 doesn't fully support ranges/concepts
+// XFAIL: apple-clang-12.0.0
 
 // <span>
 
-// template<ptrdiff_t Offset, ptrdiff_t Count = dynamic_extent>
+// template<size_t Offset, size_t Count = dynamic_extent>
 //   constexpr span<element_type, see below> subspan() const;
 //
 // constexpr span<element_type, dynamic_extent> subspan(
-//   index_type offset, index_type count = dynamic_extent) const;
+//   size_type offset, size_type count = dynamic_extent) const;
 //
 //  Requires: (0 <= Offset && Offset <= size())
 //      && (Count == dynamic_extent || Count >= 0 && Offset + Count <= size())
@@ -27,7 +29,7 @@
 
 #include "test_macros.h"
 
-template <typename Span, ptrdiff_t Offset, ptrdiff_t Count>
+template <typename Span, size_t Offset, size_t Count>
 constexpr bool testConstexprSpan(Span sp)
 {
     LIBCPP_ASSERT((noexcept(sp.template subspan<Offset, Count>())));
@@ -38,7 +40,7 @@ constexpr bool testConstexprSpan(Span sp)
     using S2 = decltype(s2);
     ASSERT_SAME_TYPE(typename Span::value_type, typename S1::value_type);
     ASSERT_SAME_TYPE(typename Span::value_type, typename S2::value_type);
-    static_assert(S1::extent == (Span::extent == std::dynamic_extent ? std::dynamic_extent : Count), "");
+    static_assert(S1::extent == Count);
     static_assert(S2::extent == std::dynamic_extent, "");
     return
         s1.data() == s2.data()
@@ -46,7 +48,7 @@ constexpr bool testConstexprSpan(Span sp)
      && std::equal(s1.begin(), s1.end(), sp.begin() + Offset);
 }
 
-template <typename Span, ptrdiff_t Offset>
+template <typename Span, size_t Offset>
 constexpr bool testConstexprSpan(Span sp)
 {
     LIBCPP_ASSERT((noexcept(sp.template subspan<Offset>())));
@@ -66,7 +68,7 @@ constexpr bool testConstexprSpan(Span sp)
 }
 
 
-template <typename Span, ptrdiff_t Offset, ptrdiff_t Count>
+template <typename Span, size_t Offset, size_t Count>
 void testRuntimeSpan(Span sp)
 {
     LIBCPP_ASSERT((noexcept(sp.template subspan<Offset, Count>())));
@@ -77,7 +79,7 @@ void testRuntimeSpan(Span sp)
     using S2 = decltype(s2);
     ASSERT_SAME_TYPE(typename Span::value_type, typename S1::value_type);
     ASSERT_SAME_TYPE(typename Span::value_type, typename S2::value_type);
-    static_assert(S1::extent == (Span::extent == std::dynamic_extent ? std::dynamic_extent : Count), "");
+    static_assert(S1::extent == Count);
     static_assert(S2::extent == std::dynamic_extent, "");
     assert(s1.data() == s2.data());
     assert(s1.size() == s2.size());
@@ -85,7 +87,7 @@ void testRuntimeSpan(Span sp)
 }
 
 
-template <typename Span, ptrdiff_t Offset>
+template <typename Span, size_t Offset>
 void testRuntimeSpan(Span sp)
 {
     LIBCPP_ASSERT((noexcept(sp.template subspan<Offset>())));
@@ -107,7 +109,7 @@ void testRuntimeSpan(Span sp)
 constexpr int carr1[] = {1,2,3,4};
           int  arr1[] = {5,6,7};
 
-int main ()
+int main(int, char**)
 {
     {
     using Sp = std::span<const int>;
@@ -207,4 +209,6 @@ int main ()
     testRuntimeSpan<Sp, 2>(Sp{arr1});
     testRuntimeSpan<Sp, 3>(Sp{arr1});
     }
+
+  return 0;
 }

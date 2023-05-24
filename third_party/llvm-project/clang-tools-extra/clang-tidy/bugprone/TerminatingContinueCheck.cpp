@@ -1,9 +1,8 @@
 //===--- TerminatingContinueCheck.cpp - clang-tidy-------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,17 +19,18 @@ namespace tidy {
 namespace bugprone {
 
 void TerminatingContinueCheck::registerMatchers(MatchFinder *Finder) {
-  const auto doWithFalse =
+  const auto DoWithFalse =
       doStmt(hasCondition(ignoringImpCasts(
                  anyOf(cxxBoolLiteral(equals(false)), integerLiteral(equals(0)),
                        cxxNullPtrLiteralExpr(), gnuNullExpr()))),
              equalsBoundNode("closestLoop"));
 
   Finder->addMatcher(
-      continueStmt(hasAncestor(stmt(anyOf(forStmt(), whileStmt(),
-                                          cxxForRangeStmt(), doStmt()))
-                                   .bind("closestLoop")),
-                   hasAncestor(doWithFalse))
+      continueStmt(
+          hasAncestor(stmt(anyOf(forStmt(), whileStmt(), cxxForRangeStmt(),
+                                 doStmt(), switchStmt()))
+                          .bind("closestLoop")),
+          hasAncestor(DoWithFalse))
           .bind("continue"),
       this);
 }
@@ -39,7 +39,7 @@ void TerminatingContinueCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *ContStmt = Result.Nodes.getNodeAs<ContinueStmt>("continue");
 
   auto Diag =
-      diag(ContStmt->getLocStart(),
+      diag(ContStmt->getBeginLoc(),
            "'continue' in loop with false condition is equivalent to 'break'")
       << tooling::fixit::createReplacement(*ContStmt, "break");
 }

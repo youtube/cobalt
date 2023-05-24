@@ -1,9 +1,8 @@
 //===-- AVRRegisterInfo.cpp - AVR Register Information --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,11 +16,13 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/IR/Function.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
+#include "llvm/IR/Function.h"
 
 #include "AVR.h"
 #include "AVRInstrInfo.h"
+#include "AVRMachineFunctionInfo.h"
 #include "AVRTargetMachine.h"
 #include "MCTargetDesc/AVRMCTargetDesc.h"
 
@@ -34,19 +35,16 @@ AVRRegisterInfo::AVRRegisterInfo() : AVRGenRegisterInfo(0) {}
 
 const uint16_t *
 AVRRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  CallingConv::ID CC = MF->getFunction().getCallingConv();
+  const AVRMachineFunctionInfo *AFI = MF->getInfo<AVRMachineFunctionInfo>();
 
-  return ((CC == CallingConv::AVR_INTR || CC == CallingConv::AVR_SIGNAL)
-              ? CSR_Interrupts_SaveList
-              : CSR_Normal_SaveList);
+  return AFI->isInterruptOrSignalHandler() ? CSR_Interrupts_SaveList
+                                           : CSR_Normal_SaveList;
 }
 
 const uint32_t *
 AVRRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
                                       CallingConv::ID CC) const {
-  return ((CC == CallingConv::AVR_INTR || CC == CallingConv::AVR_SIGNAL)
-              ? CSR_Interrupts_RegMask
-              : CSR_Normal_RegMask);
+  return CSR_Normal_RegMask;
 }
 
 BitVector AVRRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
@@ -95,7 +93,8 @@ AVRRegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
 }
 
 /// Fold a frame offset shared between two add instructions into a single one.
-static void foldFrameOffset(MachineBasicBlock::iterator &II, int &Offset, unsigned DstReg) {
+static void foldFrameOffset(MachineBasicBlock::iterator &II, int &Offset,
+                            Register DstReg) {
   MachineInstr &MI = *II;
   int Opcode = MI.getOpcode();
 
@@ -152,12 +151,13 @@ void AVRRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   if (MI.getOpcode() == AVR::FRMIDX) {
     MI.setDesc(TII.get(AVR::MOVWRdRr));
     MI.getOperand(FIOperandNum).ChangeToRegister(AVR::R29R28, false);
+    MI.RemoveOperand(2);
 
     assert(Offset > 0 && "Invalid offset");
 
     // We need to materialize the offset via an add instruction.
     unsigned Opcode;
-    unsigned DstReg = MI.getOperand(0).getReg();
+    Register DstReg = MI.getOperand(0).getReg();
     assert(DstReg != AVR::R29R28 && "Dest reg cannot be the frame pointer");
 
     II++; // Skip over the FRMIDX (and now MOVW) instruction.
@@ -202,7 +202,8 @@ void AVRRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   // If the offset is too big we have to adjust and restore the frame pointer
   // to materialize a valid load/store with displacement.
-  //:TODO: consider using only one adiw/sbiw chain for more than one frame index
+  //: TODO: consider using only one adiw/sbiw chain for more than one frame
+  //: index
   if (Offset > 62) {
     unsigned AddOpc = AVR::ADIWRdK, SubOpc = AVR::SBIWRdK;
     int AddOffset = Offset - 63 + 1;
@@ -232,9 +233,9 @@ void AVRRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
     // No need to set SREG as dead here otherwise if the next instruction is a
     // cond branch it will be using a dead register.
-    New = BuildMI(MBB, std::next(II), dl, TII.get(SubOpc), AVR::R29R28)
-              .addReg(AVR::R29R28, RegState::Kill)
-              .addImm(Offset - 63 + 1);
+    BuildMI(MBB, std::next(II), dl, TII.get(SubOpc), AVR::R29R28)
+        .addReg(AVR::R29R28, RegState::Kill)
+        .addImm(Offset - 63 + 1);
 
     Offset = 62;
   }
@@ -244,7 +245,7 @@ void AVRRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
 }
 
-unsigned AVRRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+Register AVRRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   if (TFI->hasFP(MF)) {
     // The Y pointer register
@@ -263,13 +264,24 @@ AVRRegisterInfo::getPointerRegClass(const MachineFunction &MF,
   return &AVR::PTRDISPREGSRegClass;
 }
 
-void AVRRegisterInfo::splitReg(unsigned Reg,
-                               unsigned &LoReg,
-                               unsigned &HiReg) const {
-    assert(AVR::DREGSRegClass.contains(Reg) && "can only split 16-bit registers");
+void AVRRegisterInfo::splitReg(Register Reg, Register &LoReg,
+                               Register &HiReg) const {
+  assert(AVR::DREGSRegClass.contains(Reg) && "can only split 16-bit registers");
 
-    LoReg = getSubReg(Reg, AVR::sub_lo);
-    HiReg = getSubReg(Reg, AVR::sub_hi);
+  LoReg = getSubReg(Reg, AVR::sub_lo);
+  HiReg = getSubReg(Reg, AVR::sub_hi);
+}
+
+bool AVRRegisterInfo::shouldCoalesce(
+    MachineInstr *MI, const TargetRegisterClass *SrcRC, unsigned SubReg,
+    const TargetRegisterClass *DstRC, unsigned DstSubReg,
+    const TargetRegisterClass *NewRC, LiveIntervals &LIS) const {
+  if (this->getRegClass(AVR::PTRDISPREGSRegClassID)->hasSubClassEq(NewRC)) {
+    return false;
+  }
+
+  return TargetRegisterInfo::shouldCoalesce(MI, SrcRC, SubReg, DstRC, DstSubReg,
+                                            NewRC, LIS);
 }
 
 } // end of namespace llvm

@@ -1,9 +1,8 @@
 //===--- InfoByHwMode.cpp -------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // Classes that implement data parameterized by HW modes for instruction
@@ -19,7 +18,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <set>
 #include <string>
 
 using namespace llvm;
@@ -37,6 +35,11 @@ ValueTypeByHwMode::ValueTypeByHwMode(Record *R, const CodeGenHwModes &CGH) {
     assert(I.second && "Duplicate entry?");
     (void)I;
   }
+}
+
+ValueTypeByHwMode::ValueTypeByHwMode(Record *R, MVT T) : ValueTypeByHwMode(T) {
+  if (R->isSubClassOf("PtrValueType"))
+    PtrAddrSpace = R->getValueAsInt("AddrSpace");
 }
 
 bool ValueTypeByHwMode::operator== (const ValueTypeByHwMode &T) const {
@@ -84,16 +87,13 @@ void ValueTypeByHwMode::writeToStream(raw_ostream &OS) const {
   std::vector<const PairType*> Pairs;
   for (const auto &P : Map)
     Pairs.push_back(&P);
-  llvm::sort(Pairs.begin(), Pairs.end(), deref<std::less<PairType>>());
+  llvm::sort(Pairs, deref<std::less<PairType>>());
 
   OS << '{';
-  for (unsigned i = 0, e = Pairs.size(); i != e; ++i) {
-    const PairType *P = Pairs[i];
-    OS << '(' << getModeName(P->first)
-       << ':' << getMVTName(P->second).str() << ')';
-    if (i != e-1)
-      OS << ',';
-  }
+  ListSeparator LS(",");
+  for (const PairType *P : Pairs)
+    OS << LS << '(' << getModeName(P->first) << ':'
+       << getMVTName(P->second).str() << ')';
   OS << '}';
 }
 
@@ -112,7 +112,7 @@ ValueTypeByHwMode llvm::getValueTypeByHwMode(Record *Rec,
          "Record must be derived from ValueType");
   if (Rec->isSubClassOf("HwModeSelect"))
     return ValueTypeByHwMode(Rec, CGH);
-  return ValueTypeByHwMode(llvm::getValueType(Rec));
+  return ValueTypeByHwMode(Rec, llvm::getValueType(Rec));
 }
 
 RegSizeInfo::RegSizeInfo(Record *R, const CodeGenHwModes &CGH) {
@@ -176,16 +176,24 @@ void RegSizeInfoByHwMode::writeToStream(raw_ostream &OS) const {
   std::vector<const PairType*> Pairs;
   for (const auto &P : Map)
     Pairs.push_back(&P);
-  llvm::sort(Pairs.begin(), Pairs.end(), deref<std::less<PairType>>());
+  llvm::sort(Pairs, deref<std::less<PairType>>());
 
   OS << '{';
-  for (unsigned i = 0, e = Pairs.size(); i != e; ++i) {
-    const PairType *P = Pairs[i];
-    OS << '(' << getModeName(P->first) << ':' << P->second << ')';
-    if (i != e-1)
-      OS << ',';
-  }
+  ListSeparator LS(",");
+  for (const PairType *P : Pairs)
+    OS << LS << '(' << getModeName(P->first) << ':' << P->second << ')';
   OS << '}';
+}
+
+EncodingInfoByHwMode::EncodingInfoByHwMode(Record *R, const CodeGenHwModes &CGH) {
+  const HwModeSelect &MS = CGH.getHwModeSelect(R);
+  for (const HwModeSelect::PairType &P : MS.Items) {
+    assert(P.second && P.second->isSubClassOf("InstructionEncoding") &&
+           "Encoding must subclass InstructionEncoding");
+    auto I = Map.insert({P.first, P.second});
+    assert(I.second && "Duplicate entry?");
+    (void)I;
+  }
 }
 
 namespace llvm {

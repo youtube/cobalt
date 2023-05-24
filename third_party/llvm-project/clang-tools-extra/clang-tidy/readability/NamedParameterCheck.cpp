@@ -1,9 +1,8 @@
 //===--- NamedParameterCheck.cpp - clang-tidy -------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,17 +18,13 @@ namespace tidy {
 namespace readability {
 
 void NamedParameterCheck::registerMatchers(ast_matchers::MatchFinder *Finder) {
-  Finder->addMatcher(functionDecl(unless(isInstantiated())).bind("decl"), this);
+  Finder->addMatcher(functionDecl().bind("decl"), this);
 }
 
 void NamedParameterCheck::check(const MatchFinder::MatchResult &Result) {
   const SourceManager &SM = *Result.SourceManager;
   const auto *Function = Result.Nodes.getNodeAs<FunctionDecl>("decl");
   SmallVector<std::pair<const FunctionDecl *, unsigned>, 4> UnnamedParams;
-
-  // Ignore implicitly generated members.
-  if (Function->isImplicit())
-    return;
 
   // Ignore declarations without a definition if we're not dealing with an
   // overriden method.
@@ -59,11 +54,11 @@ void NamedParameterCheck::check(const MatchFinder::MatchResult &Result) {
 
     // Sanity check the source locations.
     if (!Parm->getLocation().isValid() || Parm->getLocation().isMacroID() ||
-        !SM.isWrittenInSameFile(Parm->getLocStart(), Parm->getLocation()))
+        !SM.isWrittenInSameFile(Parm->getBeginLoc(), Parm->getLocation()))
       continue;
 
     // Skip gmock testing::Unused parameters.
-    if (auto Typedef = Parm->getType()->getAs<clang::TypedefType>())
+    if (const auto *Typedef = Parm->getType()->getAs<clang::TypedefType>())
       if (Typedef->getDecl()->getQualifiedNameAsString() == "testing::Unused")
         continue;
 
@@ -73,10 +68,10 @@ void NamedParameterCheck::check(const MatchFinder::MatchResult &Result) {
 
     // Look for comments. We explicitly want to allow idioms like
     // void foo(int /*unused*/)
-    const char *Begin = SM.getCharacterData(Parm->getLocStart());
+    const char *Begin = SM.getCharacterData(Parm->getBeginLoc());
     const char *End = SM.getCharacterData(Parm->getLocation());
     StringRef Data(Begin, End - Begin);
-    if (Data.find("/*") != StringRef::npos)
+    if (Data.contains("/*"))
       continue;
 
     UnnamedParams.push_back(std::make_pair(Function, I));

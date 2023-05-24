@@ -1,9 +1,8 @@
 //===-- ARMSubtarget.h - Define Subtarget for the ARM ----------*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,8 +18,10 @@
 #include "ARMConstantPoolValue.h"
 #include "ARMFrameLowering.h"
 #include "ARMISelLowering.h"
+#include "ARMMachineFunctionInfo.h"
 #include "ARMSelectionDAGInfo.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/GlobalISel/CallLowering.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
@@ -29,6 +30,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/MC/MCSchedule.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <memory>
 #include <string>
@@ -60,17 +62,28 @@ protected:
     CortexA72,
     CortexA73,
     CortexA75,
+    CortexA76,
+    CortexA77,
+    CortexA78,
+    CortexA78C,
+    CortexA710,
     CortexA8,
     CortexA9,
     CortexM3,
+    CortexM7,
     CortexR4,
     CortexR4F,
     CortexR5,
     CortexR52,
     CortexR7,
-    ExynosM1,
+    CortexX1,
+    CortexX1C,
+    Exynos,
     Krait,
     Kryo,
+    NeoverseN1,
+    NeoverseN2,
+    NeoverseV1,
     Swift
   };
   enum ARMProcClassEnum {
@@ -106,10 +119,19 @@ protected:
     ARMv82a,
     ARMv83a,
     ARMv84a,
+    ARMv85a,
+    ARMv86a,
+    ARMv87a,
+    ARMv88a,
     ARMv8a,
     ARMv8mBaseline,
     ARMv8mMainline,
-    ARMv8r
+    ARMv8r,
+    ARMv81mMainline,
+    ARMv9a,
+    ARMv91a,
+    ARMv92a,
+    ARMv93a,
   };
 
 public:
@@ -153,8 +175,20 @@ protected:
   bool HasV8_2aOps = false;
   bool HasV8_3aOps = false;
   bool HasV8_4aOps = false;
+  bool HasV8_5aOps = false;
+  bool HasV8_6aOps = false;
+  bool HasV8_8aOps = false;
+  bool HasV8_7aOps = false;
+  bool HasV9_0aOps = false;
+  bool HasV9_1aOps = false;
+  bool HasV9_2aOps = false;
+  bool HasV9_3aOps = false;
   bool HasV8MBaselineOps = false;
   bool HasV8MMainlineOps = false;
+  bool HasV8_1MMainlineOps = false;
+  bool HasMVEIntegerOps = false;
+  bool HasMVEFloatOps = false;
+  bool HasCDEOps = false;
 
   /// HasVFPv2, HasVFPv3, HasVFPv4, HasFPARMv8, HasNEON - Specify what
   /// floating point ISAs are supported.
@@ -163,6 +197,22 @@ protected:
   bool HasVFPv4 = false;
   bool HasFPARMv8 = false;
   bool HasNEON = false;
+  bool HasFPRegs = false;
+  bool HasFPRegs16 = false;
+  bool HasFPRegs64 = false;
+
+  /// Versions of the VFP flags restricted to single precision, or to
+  /// 16 d-registers, or both.
+  bool HasVFPv2SP = false;
+  bool HasVFPv3SP = false;
+  bool HasVFPv4SP = false;
+  bool HasFPARMv8SP = false;
+  bool HasVFPv3D16 = false;
+  bool HasVFPv4D16 = false;
+  bool HasFPARMv8D16 = false;
+  bool HasVFPv3D16SP = false;
+  bool HasVFPv4D16SP = false;
+  bool HasFPARMv8D16SP = false;
 
   /// HasDotProd - True if the ARMv8.2A dot product instructions are supported.
   bool HasDotProd = false;
@@ -179,6 +229,10 @@ protected:
   /// SlowFPVMLx - If the VFP2 / NEON instructions are available, indicates
   /// whether the FP VML[AS] instructions are slow (if so, don't use them).
   bool SlowFPVMLx = false;
+
+  /// SlowFPVFMx - If the VFP4 / NEON instructions are available, indicates
+  /// whether the FP VFM[AS] instructions are slow (if so, don't use them).
+  bool SlowFPVFMx = false;
 
   /// HasVMLxForwarding - If true, NEON has special multiplier accumulator
   /// forwarding to allow mul + mla being issued back to back.
@@ -199,9 +253,6 @@ protected:
   /// DisablePostRAScheduler - False if scheduling should happen again after
   /// register allocation.
   bool DisablePostRAScheduler = false;
-
-  /// UseAA - True if using AA during codegen (DAGCombine, MISched, etc)
-  bool UseAA = false;
 
   /// HasThumb2 - True if Thumb2 instructions are supported.
   bool HasThumb2 = false;
@@ -227,9 +278,18 @@ protected:
   /// HasFullFP16 - True if subtarget supports half-precision FP operations
   bool HasFullFP16 = false;
 
-  /// HasD16 - True if subtarget is limited to 16 double precision
+  /// HasFP16FML - True if subtarget supports half-precision FP fml operations
+  bool HasFP16FML = false;
+
+  /// HasBF16 - True if subtarget supports BFloat16 floating point operations
+  bool HasBF16 = false;
+
+  /// HasMatMulInt8 - True if subtarget supports 8-bit integer matrix multiply
+  bool HasMatMulInt8 = false;
+
+  /// HasD32 - True if subtarget has the full 32 double precision
   /// FP registers for VFPv3.
-  bool HasD16 = false;
+  bool HasD32 = false;
 
   /// HasHardwareDivide - True if subtarget supports [su]div in Thumb mode
   bool HasHardwareDivideInThumb = false;
@@ -286,9 +346,9 @@ protected:
   /// extension.
   bool HasVirtualization = false;
 
-  /// FPOnlySP - If true, the floating point unit only supports single
+  /// HasFP64 - If true, the floating point unit supports double
   /// precision.
-  bool FPOnlySP = false;
+  bool HasFP64 = false;
 
   /// If true, the processor supports the Performance Monitor Extensions. These
   /// include a generic cycle-counter as well as more fine-grained (often
@@ -315,6 +375,11 @@ protected:
 
   /// HasRAS - if true, the processor supports RAS extensions
   bool HasRAS = false;
+
+  /// HasLOB - if true, the processor supports the Low Overhead Branch extension
+  bool HasLOB = false;
+
+  bool HasPACBTI = false;
 
   /// If true, the instructions "vmov.i32 d0, #0" and "vmov.i32 q0, #0" are
   /// particularly effective at zeroing a VFP register.
@@ -352,6 +417,9 @@ protected:
 
   /// If true, loading into a D subregister will be penalized.
   bool SlowLoadDSubregister = false;
+
+  /// If true, use a wider stride when allocating VFP registers.
+  bool UseWideStrideVFP = false;
 
   /// If true, the AGU and NEON/FPU units are multiplexed.
   bool HasMuxedUnits = false;
@@ -408,13 +476,29 @@ protected:
   /// UseSjLjEH - If true, the target uses SjLj exception handling (e.g. iOS).
   bool UseSjLjEH = false;
 
+  /// Has speculation barrier
+  bool HasSB = false;
+
   /// Implicitly convert an instruction to a different one if its immediates
   /// cannot be encoded. For example, ADD r0, r1, #FFFFFFFF -> SUB r0, r1, #1.
   bool NegativeImmediates = true;
 
+  /// Mitigate against the cve-2021-35465 security vulnurability.
+  bool FixCMSE_CVE_2021_35465 = false;
+
+  /// Harden against Straight Line Speculation for Returns and Indirect
+  /// Branches.
+  bool HardenSlsRetBr = false;
+
+  /// Harden against Straight Line Speculation for indirect calls.
+  bool HardenSlsBlr = false;
+
+  /// Generate thunk code for SLS mitigation in the normal text section.
+  bool HardenSlsNoComdat = false;
+
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
-  unsigned stackAlignment = 4;
+  Align stackAlignment = Align(4);
 
   /// CPUString - String name of used CPU.
   std::string CPUString;
@@ -432,6 +516,18 @@ protected:
   /// operand cycle returned by the itinerary data for pre-ISel operands.
   int PreISelOperandLatencyAdjustment = 2;
 
+  /// What alignment is preferred for loop bodies, in log2(bytes).
+  unsigned PrefLoopLogAlignment = 0;
+
+  /// The cost factor for MVE instructions, representing the multiple beats an
+  // instruction can take. The default is 2, (set in initSubtargetFeatures so
+  // that we can use subtarget features less than 2).
+  unsigned MVEVectorCostFactor = 0;
+
+  /// OptMinSize - True if we're optimising for minimum code size, equal to
+  /// the function attribute.
+  bool OptMinSize = false;
+
   /// IsLittle - The target is Little Endian
   bool IsLittle;
 
@@ -444,6 +540,10 @@ protected:
   /// Selected instruction itineraries (one entry per itinerary class.)
   InstrItineraryData InstrItins;
 
+  /// NoBTIAtReturnTwice - Don't place a BTI instruction after
+  /// return-twice constructs (setjmp)
+  bool NoBTIAtReturnTwice = false;
+
   /// Options passed via command line that could influence the target
   const TargetOptions &Options;
 
@@ -454,7 +554,8 @@ public:
   /// of the specified triple.
   ///
   ARMSubtarget(const Triple &TT, const std::string &CPU, const std::string &FS,
-               const ARMBaseTargetMachine &TM, bool IsLittle);
+               const ARMBaseTargetMachine &TM, bool IsLittle,
+               bool MinSize = false);
 
   /// getMaxInlineSizeThreshold - Returns the maximum memset / memcpy size
   /// that still makes it profitable to inline the call.
@@ -462,9 +563,15 @@ public:
     return 64;
   }
 
+  /// getMaxMemcpyTPInlineSizeThreshold - Returns the maximum size
+  /// that still makes it profitable to inline a llvm.memcpy as a Tail
+  /// Predicated loop.
+  /// This threshold should only be used for constant size inputs.
+  unsigned getMaxMemcpyTPInlineSizeThreshold() const { return 128; }
+
   /// ParseSubtargetFeatures - Parses features string setting specified
   /// subtarget options.  Definition of function is auto generated by tblgen.
-  void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
+  void ParseSubtargetFeatures(StringRef CPU, StringRef TuneCPU, StringRef FS);
 
   /// initializeSubtargetDependencies - Initializes using a CPU and feature string
   /// so that we can use initializer lists for subtarget initialization.
@@ -491,7 +598,7 @@ public:
   }
 
   const CallLowering *getCallLowering() const override;
-  const InstructionSelector *getInstructionSelector() const override;
+  InstructionSelector *getInstructionSelector() const override;
   const LegalizerInfo *getLegalizerInfo() const override;
   const RegisterBankInfo *getRegBankInfo() const override;
 
@@ -513,6 +620,7 @@ private:
   void initSubtargetFeatures(StringRef CPU, StringRef FS);
   ARMFrameLowering *initializeFrameLowering(StringRef CPU, StringRef FS);
 
+  std::bitset<8> CoprocCDE = {};
 public:
   void computeIssueWidth();
 
@@ -529,8 +637,23 @@ public:
   bool hasV8_2aOps() const { return HasV8_2aOps; }
   bool hasV8_3aOps() const { return HasV8_3aOps; }
   bool hasV8_4aOps() const { return HasV8_4aOps; }
+  bool hasV8_5aOps() const { return HasV8_5aOps; }
+  bool hasV8_6aOps() const { return HasV8_6aOps; }
+  bool hasV8_7aOps() const { return HasV8_7aOps; }
+  bool hasV8_8aOps() const { return HasV8_8aOps; }
+  bool hasV9_0aOps() const { return HasV9_0aOps; }
+  bool hasV9_1aOps() const { return HasV9_1aOps; }
+  bool hasV9_2aOps() const { return HasV9_2aOps; }
+  bool hasV9_3aOps() const { return HasV9_3aOps; }
   bool hasV8MBaselineOps() const { return HasV8MBaselineOps; }
   bool hasV8MMainlineOps() const { return HasV8MMainlineOps; }
+  bool hasV8_1MMainlineOps() const { return HasV8_1MMainlineOps; }
+  bool hasMVEIntegerOps() const { return HasMVEIntegerOps; }
+  bool hasMVEFloatOps() const { return HasMVEFloatOps; }
+  bool hasCDEOps() const { return HasCDEOps; }
+  bool hasFPRegs() const { return HasFPRegs; }
+  bool hasFPRegs16() const { return HasFPRegs16; }
+  bool hasFPRegs64() const { return HasFPRegs64; }
 
   /// @{
   /// These functions are obsolete, please consider adding subtarget features
@@ -542,6 +665,7 @@ public:
   bool isCortexA15() const { return ARMProcFamily == CortexA15; }
   bool isSwift()    const { return ARMProcFamily == Swift; }
   bool isCortexM3() const { return ARMProcFamily == CortexM3; }
+  bool isCortexM7() const { return ARMProcFamily == CortexM7; }
   bool isLikeA9() const { return isCortexA9() || isCortexA15() || isKrait(); }
   bool isCortexR5() const { return ARMProcFamily == CortexR5; }
   bool isKrait() const { return ARMProcFamily == Krait; }
@@ -549,10 +673,10 @@ public:
 
   bool hasARMOps() const { return !NoARM; }
 
-  bool hasVFP2() const { return HasVFPv2; }
-  bool hasVFP3() const { return HasVFPv3; }
-  bool hasVFP4() const { return HasVFPv4; }
-  bool hasFPARMv8() const { return HasFPARMv8; }
+  bool hasVFP2Base() const { return HasVFPv2SP; }
+  bool hasVFP3Base() const { return HasVFPv3D16SP; }
+  bool hasVFP4Base() const { return HasVFPv4D16SP; }
+  bool hasFPARMv8Base() const { return HasFPARMv8D16SP; }
   bool hasNEON() const { return HasNEON;  }
   bool hasSHA2() const { return HasSHA2; }
   bool hasAES() const { return HasAES; }
@@ -560,6 +684,8 @@ public:
   bool hasDotProd() const { return HasDotProd; }
   bool hasCRC() const { return HasCRC; }
   bool hasRAS() const { return HasRAS; }
+  bool hasLOB() const { return HasLOB; }
+  bool hasPACBTI() const { return HasPACBTI; }
   bool hasVirtualization() const { return HasVirtualization; }
 
   bool useNEONForSinglePrecisionFP() const {
@@ -579,9 +705,14 @@ public:
 
   bool useMulOps() const { return UseMulOps; }
   bool useFPVMLx() const { return !SlowFPVMLx; }
+  bool useFPVFMx() const {
+    return !isTargetDarwin() && hasVFP4Base() && !SlowFPVFMx;
+  }
+  bool useFPVFMx16() const { return useFPVFMx() && hasFullFP16(); }
+  bool useFPVFMx64() const { return useFPVFMx() && hasFP64(); }
   bool hasVMLxForwarding() const { return HasVMLxForwarding; }
   bool isFPBrccSlow() const { return SlowFPBrcc; }
-  bool isFPOnlySP() const { return FPOnlySP; }
+  bool hasFP64() const { return HasFP64; }
   bool hasPerfMon() const { return HasPerfMon; }
   bool hasTrustZone() const { return HasTrustZone; }
   bool has8MSecExt() const { return Has8MSecExt; }
@@ -596,6 +727,7 @@ public:
   bool hasVMLxHazards() const { return HasVMLxHazards; }
   bool hasSlowOddRegister() const { return SlowOddRegister; }
   bool hasSlowLoadDSubregister() const { return SlowLoadDSubregister; }
+  bool useWideStrideVFP() const { return UseWideStrideVFP; }
   bool hasMuxedUnits() const { return HasMuxedUnits; }
   bool dontWidenVMOVS() const { return DontWidenVMOVS; }
   bool useSplatVFPToNeon() const { return SplatVFPToNeon; }
@@ -612,17 +744,28 @@ public:
   bool hasDSP() const { return HasDSP; }
   bool useNaClTrap() const { return UseNaClTrap; }
   bool useSjLjEH() const { return UseSjLjEH; }
+  bool hasSB() const { return HasSB; }
   bool genLongCalls() const { return GenLongCalls; }
   bool genExecuteOnly() const { return GenExecuteOnly; }
+  bool hasBaseDSP() const {
+    if (isThumb())
+      return hasDSP();
+    else
+      return hasV5TEOps();
+  }
 
   bool hasFP16() const { return HasFP16; }
-  bool hasD16() const { return HasD16; }
+  bool hasD32() const { return HasD32; }
   bool hasFullFP16() const { return HasFullFP16; }
+  bool hasFP16FML() const { return HasFP16FML; }
+  bool hasBF16() const { return HasBF16; }
 
   bool hasFuseAES() const { return HasFuseAES; }
   bool hasFuseLiterals() const { return HasFuseLiterals; }
   /// Return true if the CPU supports any kind of instruction fusion.
   bool hasFusion() const { return hasFuseAES() || hasFuseLiterals(); }
+
+  bool hasMatMulInt8() const { return HasMatMulInt8; }
 
   const Triple &getTargetTriple() const { return TargetTriple; }
 
@@ -665,14 +808,7 @@ public:
   // ARM Targets that support EHABI exception handling standard
   // Darwin uses SjLj. Other targets might need more checks.
   bool isTargetEHABICompatible() const {
-    return (TargetTriple.getEnvironment() == Triple::EABI ||
-            TargetTriple.getEnvironment() == Triple::GNUEABI ||
-            TargetTriple.getEnvironment() == Triple::MuslEABI ||
-            TargetTriple.getEnvironment() == Triple::EABIHF ||
-            TargetTriple.getEnvironment() == Triple::GNUEABIHF ||
-            TargetTriple.getEnvironment() == Triple::MuslEABIHF ||
-            isTargetAndroid()) &&
-           !isTargetDarwin() && !isTargetWindows();
+    return TargetTriple.isTargetEHABICompatible();
   }
 
   bool isTargetHardFloat() const;
@@ -692,6 +828,7 @@ public:
   bool disablePostRAScheduler() const { return DisablePostRAScheduler; }
   bool useSoftFloat() const { return UseSoftFloat; }
   bool isThumb() const { return InThumbMode; }
+  bool hasMinSize() const { return OptMinSize; }
   bool isThumb1Only() const { return InThumbMode && !HasThumb2; }
   bool isThumb2() const { return InThumbMode && HasThumb2; }
   bool hasThumb2() const { return HasThumb2; }
@@ -704,8 +841,10 @@ public:
     return isTargetMachO() ? (ReserveR9 || !HasV6Ops) : ReserveR9;
   }
 
-  bool useR7AsFramePointer() const {
-    return isTargetDarwin() || (!isTargetWindows() && isThumb());
+  MCPhysReg getFramePointerReg() const {
+    if (isTargetDarwin() || (!isTargetWindows() && isThumb()))
+      return ARM::R7;
+    return ARM::R11;
   }
 
   /// Returns true if the frame setup is split into two separate pushes (first
@@ -713,14 +852,16 @@ public:
   /// to lr. This is always required on Thumb1-only targets, as the push and
   /// pop instructions can't access the high registers.
   bool splitFramePushPop(const MachineFunction &MF) const {
-    return (useR7AsFramePointer() &&
+    if (MF.getInfo<ARMFunctionInfo>()->shouldSignReturnAddress())
+      return true;
+    return (getFramePointerReg() == ARM::R7 &&
             MF.getTarget().Options.DisableFramePointerElim(MF)) ||
            isThumb1Only();
   }
 
-  bool useStride4VFPs(const MachineFunction &MF) const;
+  bool useStride4VFPs() const;
 
-  bool useMovt(const MachineFunction &MF) const;
+  bool useMovt() const;
 
   bool supportsTailCall() const { return SupportsTailCall; }
 
@@ -740,9 +881,15 @@ public:
   /// True for some subtargets at > -O0.
   bool enablePostRAScheduler() const override;
 
+  /// True for some subtargets at > -O0.
+  bool enablePostRAMachineScheduler() const override;
+
+  /// Check whether this subtarget wants to use subregister liveness.
+  bool enableSubRegLiveness() const override;
+
   /// Enable use of alias analysis during code generation (during MI
   /// scheduling, DAGCombine, etc.).
-  bool useAA() const override { return UseAA; }
+  bool useAA() const override { return true; }
 
   // enableAtomicExpand- True if we need to expand our atomics.
   bool enableAtomicExpand() const override;
@@ -756,7 +903,7 @@ public:
   /// getStackAlignment - Returns the minimum alignment known to hold of the
   /// stack frame on entry to the function and which must be maintained by every
   /// function for this subtarget.
-  unsigned getStackAlignment() const { return stackAlignment; }
+  Align getStackAlignment() const { return stackAlignment; }
 
   unsigned getMaxInterleaveFactor() const { return MaxInterleaveFactor; }
 
@@ -796,6 +943,27 @@ public:
   bool allowPositionIndependentMovt() const {
     return isROPI() || !isTargetELF();
   }
+
+  unsigned getPrefLoopLogAlignment() const { return PrefLoopLogAlignment; }
+
+  unsigned
+  getMVEVectorCostFactor(TargetTransformInfo::TargetCostKind CostKind) const {
+    if (CostKind == TargetTransformInfo::TCK_CodeSize)
+      return 1;
+    return MVEVectorCostFactor;
+  }
+
+  bool ignoreCSRForAllocationOrder(const MachineFunction &MF,
+                                   unsigned PhysReg) const override;
+  unsigned getGPRAllocationOrder(const MachineFunction &MF) const;
+
+  bool fixCMSE_CVE_2021_35465() const { return FixCMSE_CVE_2021_35465; }
+
+  bool hardenSlsRetBr() const { return HardenSlsRetBr; }
+  bool hardenSlsBlr() const { return HardenSlsBlr; }
+  bool hardenSlsNoComdat() const { return HardenSlsNoComdat; }
+
+  bool getNoBTIAtReturnTwice() const { return NoBTIAtReturnTwice; }
 };
 
 } // end namespace llvm

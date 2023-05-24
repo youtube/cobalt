@@ -1,9 +1,8 @@
 //===- BinaryStreamRef.cpp - ----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,15 +21,15 @@ public:
   llvm::support::endianness getEndian() const override {
     return BBS.getEndian();
   }
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
     return BBS.readBytes(Offset, Size, Buffer);
   }
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override {
     return BBS.readLongestContiguousChunk(Offset, Buffer);
   }
-  uint32_t getLength() override { return BBS.getLength(); }
+  uint64_t getLength() override { return BBS.getLength(); }
 
 private:
   BinaryByteStream BBS;
@@ -45,17 +44,17 @@ public:
   llvm::support::endianness getEndian() const override {
     return BBS.getEndian();
   }
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
     return BBS.readBytes(Offset, Size, Buffer);
   }
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override {
     return BBS.readLongestContiguousChunk(Offset, Buffer);
   }
-  uint32_t getLength() override { return BBS.getLength(); }
+  uint64_t getLength() override { return BBS.getLength(); }
 
-  Error writeBytes(uint32_t Offset, ArrayRef<uint8_t> Data) override {
+  Error writeBytes(uint64_t Offset, ArrayRef<uint8_t> Data) override {
     return BBS.writeBytes(Offset, Data);
   }
   Error commit() override { return BBS.commit(); }
@@ -63,12 +62,12 @@ public:
 private:
   MutableBinaryByteStream BBS;
 };
-}
+} // namespace
 
 BinaryStreamRef::BinaryStreamRef(BinaryStream &Stream)
     : BinaryStreamRefBase(Stream) {}
-BinaryStreamRef::BinaryStreamRef(BinaryStream &Stream, uint32_t Offset,
-                                 Optional<uint32_t> Length)
+BinaryStreamRef::BinaryStreamRef(BinaryStream &Stream, uint64_t Offset,
+                                 Optional<uint64_t> Length)
     : BinaryStreamRefBase(Stream, Offset, Length) {}
 BinaryStreamRef::BinaryStreamRef(ArrayRef<uint8_t> Data, endianness Endian)
     : BinaryStreamRefBase(std::make_shared<ArrayRefImpl>(Data, Endian), 0,
@@ -77,7 +76,7 @@ BinaryStreamRef::BinaryStreamRef(StringRef Data, endianness Endian)
     : BinaryStreamRef(makeArrayRef(Data.bytes_begin(), Data.bytes_end()),
                       Endian) {}
 
-Error BinaryStreamRef::readBytes(uint32_t Offset, uint32_t Size,
+Error BinaryStreamRef::readBytes(uint64_t Offset, uint64_t Size,
                                  ArrayRef<uint8_t> &Buffer) const {
   if (auto EC = checkOffsetForRead(Offset, Size))
     return EC;
@@ -85,7 +84,7 @@ Error BinaryStreamRef::readBytes(uint32_t Offset, uint32_t Size,
 }
 
 Error BinaryStreamRef::readLongestContiguousChunk(
-    uint32_t Offset, ArrayRef<uint8_t> &Buffer) const {
+    uint64_t Offset, ArrayRef<uint8_t> &Buffer) const {
   if (auto EC = checkOffsetForRead(Offset, 1))
     return EC;
 
@@ -95,7 +94,7 @@ Error BinaryStreamRef::readLongestContiguousChunk(
   // This StreamRef might refer to a smaller window over a larger stream.  In
   // that case we will have read out more bytes than we should return, because
   // we should not read past the end of the current view.
-  uint32_t MaxLength = getLength() - Offset;
+  uint64_t MaxLength = getLength() - Offset;
   if (Buffer.size() > MaxLength)
     Buffer = Buffer.slice(0, MaxLength);
   return Error::success();
@@ -105,8 +104,8 @@ WritableBinaryStreamRef::WritableBinaryStreamRef(WritableBinaryStream &Stream)
     : BinaryStreamRefBase(Stream) {}
 
 WritableBinaryStreamRef::WritableBinaryStreamRef(WritableBinaryStream &Stream,
-                                                 uint32_t Offset,
-                                                 Optional<uint32_t> Length)
+                                                 uint64_t Offset,
+                                                 Optional<uint64_t> Length)
     : BinaryStreamRefBase(Stream, Offset, Length) {}
 
 WritableBinaryStreamRef::WritableBinaryStreamRef(MutableArrayRef<uint8_t> Data,
@@ -114,8 +113,7 @@ WritableBinaryStreamRef::WritableBinaryStreamRef(MutableArrayRef<uint8_t> Data,
     : BinaryStreamRefBase(std::make_shared<MutableArrayRefImpl>(Data, Endian),
                           0, Data.size()) {}
 
-
-Error WritableBinaryStreamRef::writeBytes(uint32_t Offset,
+Error WritableBinaryStreamRef::writeBytes(uint64_t Offset,
                                           ArrayRef<uint8_t> Data) const {
   if (auto EC = checkOffsetForWrite(Offset, Data.size()))
     return EC;

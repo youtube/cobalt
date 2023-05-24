@@ -1,34 +1,28 @@
 //===-- OptionValuePathMappings.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValuePathMappings_h_
-#define liblldb_OptionValuePathMappings_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEPATHMAPPINGS_H
+#define LLDB_INTERPRETER_OPTIONVALUEPATHMAPPINGS_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Interpreter/OptionValue.h"
 #include "lldb/Target/PathMappingList.h"
 
 namespace lldb_private {
 
-class OptionValuePathMappings : public OptionValue {
+class OptionValuePathMappings
+    : public Cloneable<OptionValuePathMappings, OptionValue> {
 public:
   OptionValuePathMappings(bool notify_changes)
-      : OptionValue(), m_path_mappings(), m_notify_changes(notify_changes) {}
+      : m_notify_changes(notify_changes) {}
 
-  ~OptionValuePathMappings() override {}
+  ~OptionValuePathMappings() override = default;
 
-  //---------------------------------------------------------------------
   // Virtual subclass pure virtual overrides
-  //---------------------------------------------------------------------
 
   OptionValue::Type GetType() const override { return eTypePathMap; }
 
@@ -38,23 +32,15 @@ public:
   Status
   SetValueFromString(llvm::StringRef value,
                      VarSetOperationType op = eVarSetOperationAssign) override;
-  Status
-  SetValueFromString(const char *,
-                     VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_path_mappings.Clear(m_notify_changes);
     m_value_was_set = false;
-    return true;
   }
-
-  lldb::OptionValueSP DeepCopy() const override;
 
   bool IsAggregateValue() const override { return true; }
 
-  //---------------------------------------------------------------------
   // Subclass specific functions
-  //---------------------------------------------------------------------
 
   PathMappingList &GetCurrentValue() { return m_path_mappings; }
 
@@ -67,4 +53,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValuePathMappings_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEPATHMAPPINGS_H

@@ -1,29 +1,30 @@
 // REQUIRES: aarch64
 // RUN: llvm-mc -filetype=obj -triple=aarch64-none-linux-gnu %s -o %t.o
 // RUN: ld.lld -static %t.o -o %tout
-// RUN: llvm-objdump -d %tout | FileCheck %s --check-prefix=DISASM
-// RUN: llvm-readobj -r -symbols -sections %tout | FileCheck %s
+// RUN: llvm-objdump -d --no-show-raw-insn %tout | FileCheck %s --check-prefix=DISASM
+// RUN: llvm-readobj -r --symbols --sections %tout | FileCheck %s
 
 // CHECK:      Sections [
 // CHECK:       Section {
 // CHECK:       Index: 1
-// CHECK-NEXT:  Name: .rela.plt
+// CHECK-NEXT:  Name: .rela.dyn
 // CHECK-NEXT:  Type: SHT_RELA
 // CHECK-NEXT:  Flags [
 // CHECK-NEXT:    SHF_ALLOC
+// CHECK-NEXT:    SHF_INFO_LINK
 // CHECK-NEXT:  ]
 // CHECK-NEXT:  Address: [[RELA:.*]]
 // CHECK-NEXT:  Offset: 0x158
 // CHECK-NEXT:  Size: 48
 // CHECK-NEXT:  Link: 0
-// CHECK-NEXT:  Info: 0
+// CHECK-NEXT:  Info: 4
 // CHECK-NEXT:  AddressAlignment: 8
 // CHECK-NEXT:  EntrySize: 24
 // CHECK-NEXT: }
 // CHECK:      Relocations [
-// CHECK-NEXT:   Section ({{.*}}) .rela.plt {
-// CHECK-NEXT:     0x30000 R_AARCH64_IRELATIVE
-// CHECK-NEXT:     0x30008 R_AARCH64_IRELATIVE
+// CHECK-NEXT:   Section ({{.*}}) .rela.dyn {
+// CHECK-NEXT:     0x2201C0 R_AARCH64_IRELATIVE
+// CHECK-NEXT:     0x2201C8 R_AARCH64_IRELATIVE
 // CHECK-NEXT:   }
 // CHECK-NEXT: ]
 // CHECK:      Symbols [
@@ -38,7 +39,7 @@
 // CHECK-NEXT:  }
 // CHECK-NEXT:  Symbol {
 // CHECK-NEXT:    Name: $x.0
-// CHECK-NEXT:    Value: 0x20000
+// CHECK-NEXT:    Value: 0x210188
 // CHECK-NEXT:    Size: 0
 // CHECK-NEXT:    Binding: Local
 // CHECK-NEXT:    Type: None
@@ -46,39 +47,39 @@
 // CHECK-NEXT:    Section: .text
 // CHECK-NEXT:  }
 // CHECK-NEXT:  Symbol {
-// CHECK-NEXT:    Name: __rela_iplt_end
-// CHECK-NEXT:    Value: 0x10188
-// CHECK-NEXT:    Size: 0
-// CHECK-NEXT:    Binding: Local
-// CHECK-NEXT:    Type: None
-// CHECK-NEXT:    Other [
-// CHECK-NEXT:      STV_HIDDEN
-// CHECK-NEXT:    ]
-// CHECK-NEXT:    Section: .rela.plt
-// CHECK-NEXT:  }
-// CHECK-NEXT:  Symbol {
 // CHECK-NEXT:    Name: __rela_iplt_start
-// CHECK-NEXT:    Value: 0x10158
+// CHECK-NEXT:    Value: 0x200158
 // CHECK-NEXT:    Size: 0
 // CHECK-NEXT:    Binding: Local
 // CHECK-NEXT:    Type: None
 // CHECK-NEXT:    Other [
 // CHECK-NEXT:      STV_HIDDEN
 // CHECK-NEXT:    ]
-// CHECK-NEXT:    Section: .rela.plt
+// CHECK-NEXT:    Section: .rela.dyn
 // CHECK-NEXT:  }
 // CHECK-NEXT:  Symbol {
-// CHECK-NEXT:    Name: _start
-// CHECK-NEXT:    Value: 0x20008
+// CHECK-NEXT:    Name: __rela_iplt_end
+// CHECK-NEXT:    Value: 0x200188
+// CHECK-NEXT:    Size: 0
+// CHECK-NEXT:    Binding: Local
+// CHECK-NEXT:    Type: None
+// CHECK-NEXT:    Other [
+// CHECK-NEXT:      STV_HIDDEN
+// CHECK-NEXT:    ]
+// CHECK-NEXT:    Section: .rela.dyn
+// CHECK-NEXT:  }
+// CHECK-NEXT:  Symbol {
+// CHECK-NEXT:    Name: foo
+// CHECK-NEXT:    Value: 0x210188
 // CHECK-NEXT:    Size: 0
 // CHECK-NEXT:    Binding: Global
-// CHECK-NEXT:    Type: None
+// CHECK-NEXT:    Type: GNU_IFunc
 // CHECK-NEXT:    Other: 0
 // CHECK-NEXT:    Section: .text
 // CHECK-NEXT:  }
 // CHECK-NEXT:  Symbol {
 // CHECK-NEXT:    Name: bar
-// CHECK-NEXT:    Value: 0x20004
+// CHECK-NEXT:    Value: 0x21018C
 // CHECK-NEXT:    Size: 0
 // CHECK-NEXT:    Binding: Global
 // CHECK-NEXT:    Type: GNU_IFunc
@@ -86,11 +87,11 @@
 // CHECK-NEXT:    Section: .text
 // CHECK-NEXT:  }
 // CHECK-NEXT:  Symbol {
-// CHECK-NEXT:    Name: foo
-// CHECK-NEXT:    Value: 0x20000
+// CHECK-NEXT:    Name: _start
+// CHECK-NEXT:    Value: 0x210190
 // CHECK-NEXT:    Size: 0
 // CHECK-NEXT:    Binding: Global
-// CHECK-NEXT:    Type: GNU_IFunc
+// CHECK-NEXT:    Type: None
 // CHECK-NEXT:    Other: 0
 // CHECK-NEXT:    Section: .text
 // CHECK-NEXT:  }
@@ -100,25 +101,28 @@
 // 392 = 0x188
 
 // DISASM: Disassembly of section .text:
-// DISASM-NEXT: foo:
-// DISASM-NEXT:  20000: c0 03 5f d6 ret
-// DISASM: bar:
-// DISASM-NEXT:  20004: c0 03 5f d6 ret
-// DISASM:      _start:
-// DISASM-NEXT:  20008: 06 00 00 94 bl #24
-// DISASM-NEXT:  2000c: 09 00 00 94     bl      #36
-// DISASM-NEXT:  20010: 42 60 05 91     add     x2, x2, #344
-// DISASM-NEXT:  20014: 42 20 06 91     add     x2, x2, #392
-// DISASM-NEXT: Disassembly of section .plt:
-// DISASM-NEXT: .plt:
-// DISASM-NEXT:  20020: 90 00 00 90 adrp x16, #65536
-// DISASM-NEXT:  20024: 11 02 40 f9 ldr x17, [x16]
-// DISASM-NEXT:  20028: 10 02 00 91 add x16, x16, #0
-// DISASM-NEXT:  2002c: 20 02 1f d6 br x17
-// DISASM-NEXT:  20030: 90 00 00 90 adrp x16, #65536
-// DISASM-NEXT:  20034: 11 06 40 f9 ldr x17, [x16, #8]
-// DISASM-NEXT:  20038: 10 22 00 91 add x16, x16, #8
-// DISASM-NEXT:  2003c: 20 02 1f d6 br x17
+// DISASM-EMPTY:
+// DISASM-NEXT: <foo>:
+// DISASM-NEXT:  210188: ret
+// DISASM: <bar>:
+// DISASM-NEXT:  21018c: ret
+// DISASM:      <_start>:
+// DISASM-NEXT:  210190: bl  0x2101a0
+// DISASM-NEXT:  210194: bl  0x2101b0
+// DISASM-NEXT:  210198: add x2, x2, #344
+// DISASM-NEXT:  21019c: add x2, x2, #392
+// DISASM-EMPTY:
+// DISASM-NEXT: Disassembly of section .iplt:
+// DISASM-EMPTY:
+// DISASM-NEXT: <.iplt>:
+// DISASM-NEXT:  2101a0: adrp x16, 0x220000
+// DISASM-NEXT:  2101a4: ldr x17, [x16, #448]
+// DISASM-NEXT:  2101a8: add x16, x16, #448
+// DISASM-NEXT:  2101ac: br x17
+// DISASM-NEXT:  2101b0: adrp x16, 0x220000
+// DISASM-NEXT:  2101b4: ldr x17, [x16, #456]
+// DISASM-NEXT:  2101b8: add x16, x16, #456
+// DISASM-NEXT:  2101bc: br x17
 
 .text
 .type foo STT_GNU_IFUNC

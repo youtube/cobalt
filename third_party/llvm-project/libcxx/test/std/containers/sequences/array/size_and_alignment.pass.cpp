@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,12 +34,6 @@ void test() {
   static_assert(sizeof(ArrayT) == sizeof(CArrayT), "");
   static_assert(sizeof(ArrayT) == sizeof(MyArrayT), "");
   static_assert(TEST_ALIGNOF(ArrayT) == TEST_ALIGNOF(MyArrayT), "");
-#if defined(_LIBCPP_VERSION)
-  ArrayT a;
-  ((void)a);
-  static_assert(sizeof(ArrayT) == sizeof(a.__elems_), "");
-  static_assert(TEST_ALIGNOF(ArrayT) == __alignof__(a.__elems_), "");
-#endif
 }
 
 template <class T>
@@ -50,22 +43,32 @@ void test_type() {
   test<T, 0>();
 }
 
-struct TEST_ALIGNAS(TEST_ALIGNOF(std::max_align_t) * 2) TestType1 {
+#if TEST_STD_VER >= 11
+struct alignas(alignof(std::max_align_t) * 2) TestType1 {
 
 };
 
-struct TEST_ALIGNAS(TEST_ALIGNOF(std::max_align_t) * 2) TestType2 {
+struct alignas(alignof(std::max_align_t) * 2) TestType2 {
   char data[1000];
 };
 
-//static_assert(sizeof(void*) == 4, "");
+struct alignas(alignof(std::max_align_t)) TestType3 {
+  char data[1000];
+};
+#endif
 
-int main() {
+int main(int, char**) {
   test_type<char>();
   test_type<int>();
   test_type<double>();
   test_type<long double>();
+
+#if TEST_STD_VER >= 11
   test_type<std::max_align_t>();
   test_type<TestType1>();
   test_type<TestType2>();
+  test_type<TestType3>();
+#endif
+
+  return 0;
 }

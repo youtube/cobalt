@@ -1,9 +1,8 @@
 //===-- Utils.cpp - TransformUtils Infrastructure -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,6 +16,7 @@
 #include "llvm-c/Transforms/Utils.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/Pass.h"
 #include "llvm/PassRegistry.h"
 
 using namespace llvm;
@@ -25,20 +25,27 @@ using namespace llvm;
 /// library.
 void llvm::initializeTransformUtils(PassRegistry &Registry) {
   initializeAddDiscriminatorsLegacyPassPass(Registry);
+  initializeAssumeSimplifyPassLegacyPassPass(Registry);
+  initializeAssumeBuilderPassLegacyPassPass(Registry);
   initializeBreakCriticalEdgesPass(Registry);
+  initializeCanonicalizeAliasesLegacyPassPass(Registry);
+  initializeCanonicalizeFreezeInLoopsPass(Registry);
   initializeInstNamerPass(Registry);
   initializeLCSSAWrapperPassPass(Registry);
   initializeLibCallsShrinkWrapLegacyPassPass(Registry);
   initializeLoopSimplifyPass(Registry);
   initializeLowerInvokeLegacyPassPass(Registry);
-  initializeLowerSwitchPass(Registry);
+  initializeLowerSwitchLegacyPassPass(Registry);
   initializeNameAnonGlobalLegacyPassPass(Registry);
   initializePromoteLegacyPassPass(Registry);
-  initializeStripNonLineTableDebugInfoPass(Registry);
-  initializeUnifyFunctionExitNodesPass(Registry);
+  initializeStripNonLineTableDebugLegacyPassPass(Registry);
+  initializeUnifyFunctionExitNodesLegacyPassPass(Registry);
   initializeMetaRenamerPass(Registry);
-  initializeStripGCRelocatesPass(Registry);
+  initializeStripGCRelocatesLegacyPass(Registry);
   initializePredicateInfoPrinterLegacyPassPass(Registry);
+  initializeInjectTLIMappingsLegacyPass(Registry);
+  initializeFixIrreduciblePass(Registry);
+  initializeUnifyLoopExitsLegacyPassPass(Registry);
 }
 
 /// LLVMInitializeTransformUtils - C binding for initializeTransformUtilsPasses.
@@ -54,3 +61,6 @@ void LLVMAddPromoteMemoryToRegisterPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createPromoteMemoryToRegisterPass());
 }
 
+void LLVMAddAddDiscriminatorsPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createAddDiscriminatorsPass());
+}

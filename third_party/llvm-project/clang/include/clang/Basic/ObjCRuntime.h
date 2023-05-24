@@ -1,9 +1,8 @@
 //===- ObjCRuntime.h - Objective-C Runtime Configuration --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/HashBuilder.h"
 #include "llvm/Support/VersionTuple.h"
 #include <string>
 
@@ -171,6 +171,96 @@ public:
     case ObjFW: return true;
     }
     llvm_unreachable("bad kind");
+  }
+
+  /// Does this runtime provide ARC entrypoints that are likely to be faster
+  /// than an ordinary message send of the appropriate selector?
+  ///
+  /// The ARC entrypoints are guaranteed to be equivalent to just sending the
+  /// corresponding message.  If the entrypoint is implemented naively as just a
+  /// message send, using it is a trade-off: it sacrifices a few cycles of
+  /// overhead to save a small amount of code.  However, it's possible for
+  /// runtimes to detect and special-case classes that use "standard"
+  /// retain/release behavior; if that's dynamically a large proportion of all
+  /// retained objects, using the entrypoint will also be faster than using a
+  /// message send.
+  ///
+  /// When this method returns true, Clang will turn non-super message sends of
+  /// certain selectors into calls to the correspond entrypoint:
+  ///   retain => objc_retain
+  ///   release => objc_release
+  ///   autorelease => objc_autorelease
+  bool shouldUseARCFunctionsForRetainRelease() const {
+    switch (getKind()) {
+    case FragileMacOSX:
+      return false;
+    case MacOSX:
+      return getVersion() >= VersionTuple(10, 10);
+    case iOS:
+      return getVersion() >= VersionTuple(8);
+    case WatchOS:
+      return true;
+    case GCC:
+      return false;
+    case GNUstep:
+      return false;
+    case ObjFW:
+      return false;
+    }
+    llvm_unreachable("bad kind");
+  }
+
+  /// Does this runtime provide entrypoints that are likely to be faster
+  /// than an ordinary message send of the "alloc" selector?
+  ///
+  /// The "alloc" entrypoint is guaranteed to be equivalent to just sending the
+  /// corresponding message.  If the entrypoint is implemented naively as just a
+  /// message send, using it is a trade-off: it sacrifices a few cycles of
+  /// overhead to save a small amount of code.  However, it's possible for
+  /// runtimes to detect and special-case classes that use "standard"
+  /// alloc behavior; if that's dynamically a large proportion of all
+  /// objects, using the entrypoint will also be faster than using a message
+  /// send.
+  ///
+  /// When this method returns true, Clang will turn non-super message sends of
+  /// certain selectors into calls to the corresponding entrypoint:
+  ///   alloc => objc_alloc
+  ///   allocWithZone:nil => objc_allocWithZone
+  bool shouldUseRuntimeFunctionsForAlloc() const {
+    switch (getKind()) {
+    case FragileMacOSX:
+      return false;
+    case MacOSX:
+      return getVersion() >= VersionTuple(10, 10);
+    case iOS:
+      return getVersion() >= VersionTuple(8);
+    case WatchOS:
+      return true;
+
+    case GCC:
+      return false;
+    case GNUstep:
+      return false;
+    case ObjFW:
+      return false;
+    }
+    llvm_unreachable("bad kind");
+  }
+
+  /// Does this runtime provide the objc_alloc_init entrypoint? This can apply
+  /// the same optimization as objc_alloc, but also sends an -init message,
+  /// reducing code size on the caller.
+  bool shouldUseRuntimeFunctionForCombinedAllocInit() const {
+    switch (getKind()) {
+    case MacOSX:
+      return getVersion() >= VersionTuple(10, 14, 4);
+    case iOS:
+      return getVersion() >= VersionTuple(12, 2);
+    case WatchOS:
+      return getVersion() >= VersionTuple(5, 2);
+    default:
+      return false;
+    }
   }
 
   /// Does this runtime supports optimized setter entrypoints?
@@ -340,6 +430,37 @@ public:
     }
   }
 
+  /// Returns true if this Objective-C runtime supports Objective-C class
+  /// stubs.
+  bool allowsClassStubs() const {
+    switch (getKind()) {
+    case FragileMacOSX:
+    case GCC:
+    case GNUstep:
+    case ObjFW:
+      return false;
+    case MacOSX:
+    case iOS:
+    case WatchOS:
+      return true;
+    }
+    llvm_unreachable("bad kind");
+  }
+
+  /// Does this runtime supports direct dispatch
+  bool allowsDirectDispatch() const {
+    switch (getKind()) {
+    case FragileMacOSX: return false;
+    case MacOSX: return true;
+    case iOS: return true;
+    case WatchOS: return true;
+    case GCC: return false;
+    case GNUstep: return false;
+    case ObjFW: return false;
+    }
+    llvm_unreachable("bad kind");
+  }
+
   /// Try to parse an Objective-C runtime specification from the given
   /// string.
   ///
@@ -355,6 +476,16 @@ public:
 
   friend bool operator!=(const ObjCRuntime &left, const ObjCRuntime &right) {
     return !(left == right);
+  }
+
+  friend llvm::hash_code hash_value(const ObjCRuntime &OCR) {
+    return llvm::hash_combine(OCR.getKind(), OCR.getVersion());
+  }
+
+  template <typename HasherT, llvm::support::endianness Endianness>
+  friend void addHash(llvm::HashBuilderImpl<HasherT, Endianness> &HBuilder,
+                      const ObjCRuntime &OCR) {
+    HBuilder.add(OCR.getKind(), OCR.getVersion());
   }
 };
 

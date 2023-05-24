@@ -1,9 +1,8 @@
 //===- ScoreboardHazardRecognizer.cpp - Scheduler Support -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,8 +30,7 @@ using namespace llvm;
 ScoreboardHazardRecognizer::ScoreboardHazardRecognizer(
     const InstrItineraryData *II, const ScheduleDAG *SchedDAG,
     const char *ParentDebugType)
-    : ScheduleHazardRecognizer(), DebugType(ParentDebugType), ItinData(II),
-      DAG(SchedDAG) {
+    : DebugType(ParentDebugType), ItinData(II), DAG(SchedDAG) {
   (void)DebugType;
   // Determine the maximum depth of any itinerary. This determines the depth of
   // the scoreboard. We always make the scoreboard at least 1 cycle deep to
@@ -93,10 +91,11 @@ LLVM_DUMP_METHOD void ScoreboardHazardRecognizer::Scoreboard::dump() const {
     last--;
 
   for (unsigned i = 0; i <= last; i++) {
-    unsigned FUs = (*this)[i];
+    InstrStage::FuncUnits FUs = (*this)[i];
     dbgs() << "\t";
-    for (int j = 31; j >= 0; j--)
-      dbgs() << ((FUs & (1 << j)) ? '1' : '0');
+    for (int j = std::numeric_limits<InstrStage::FuncUnits>::digits - 1;
+         j >= 0; j--)
+      dbgs() << ((FUs & (1ULL << j)) ? '1' : '0');
     dbgs() << '\n';
   }
 }
@@ -143,7 +142,7 @@ ScoreboardHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
         break;
       }
 
-      unsigned freeUnits = IS->getUnits();
+      InstrStage::FuncUnits freeUnits = IS->getUnits();
       switch (IS->getReservationKind()) {
       case InstrStage::Required:
         // Required FUs conflict with both reserved and required ones
@@ -157,8 +156,7 @@ ScoreboardHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
 
       if (!freeUnits) {
         LLVM_DEBUG(dbgs() << "*** Hazard in cycle +" << StageCycle << ", ");
-        LLVM_DEBUG(dbgs() << "SU(" << SU->NodeNum << "): ");
-        LLVM_DEBUG(DAG->dumpNode(SU));
+        LLVM_DEBUG(DAG->dumpNode(*SU));
         return Hazard;
       }
     }
@@ -195,7 +193,7 @@ void ScoreboardHazardRecognizer::EmitInstruction(SUnit *SU) {
       assert(((cycle + i) < RequiredScoreboard.getDepth()) &&
              "Scoreboard depth exceeded!");
 
-      unsigned freeUnits = IS->getUnits();
+      InstrStage::FuncUnits freeUnits = IS->getUnits();
       switch (IS->getReservationKind()) {
       case InstrStage::Required:
         // Required FUs conflict with both reserved and required ones
@@ -208,7 +206,7 @@ void ScoreboardHazardRecognizer::EmitInstruction(SUnit *SU) {
       }
 
       // reduce to a single unit
-      unsigned freeUnit = 0;
+      InstrStage::FuncUnits freeUnit = 0;
       do {
         freeUnit = freeUnits;
         freeUnits = freeUnit & (freeUnit - 1);

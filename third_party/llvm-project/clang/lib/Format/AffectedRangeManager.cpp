@@ -1,9 +1,8 @@
 //===--- AffectedRangeManager.cpp - Format C++ code -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -28,6 +27,7 @@ bool AffectedRangeManager::computeAffectedLines(
   const AnnotatedLine *PreviousLine = nullptr;
   while (I != E) {
     AnnotatedLine *Line = *I;
+    assert(Line->First);
     Line->LeadingEmptyLinesAffected = affectsLeadingEmptyLines(*Line->First);
 
     // If a line is part of a preprocessor directive, it needs to be formatted
@@ -60,13 +60,10 @@ bool AffectedRangeManager::computeAffectedLines(
 
 bool AffectedRangeManager::affectsCharSourceRange(
     const CharSourceRange &Range) {
-  for (SmallVectorImpl<CharSourceRange>::const_iterator I = Ranges.begin(),
-                                                        E = Ranges.end();
-       I != E; ++I) {
-    if (!SourceMgr.isBeforeInTranslationUnit(Range.getEnd(), I->getBegin()) &&
-        !SourceMgr.isBeforeInTranslationUnit(I->getEnd(), Range.getBegin()))
+  for (const CharSourceRange &R : Ranges)
+    if (!SourceMgr.isBeforeInTranslationUnit(Range.getEnd(), R.getBegin()) &&
+        !SourceMgr.isBeforeInTranslationUnit(R.getEnd(), Range.getBegin()))
       return true;
-  }
   return false;
 }
 
@@ -117,6 +114,7 @@ bool AffectedRangeManager::nonPPLineAffected(
   // affected.
   bool SomeFirstChildAffected = false;
 
+  assert(Line->First);
   for (FormatToken *Tok = Line->First; Tok; Tok = Tok->Next) {
     // Determine whether 'Tok' was affected.
     if (affectsTokenRange(*Tok, *Tok, IncludeLeadingNewlines))

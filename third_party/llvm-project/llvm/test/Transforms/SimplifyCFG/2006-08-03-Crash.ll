@@ -1,8 +1,8 @@
-; RUN: opt < %s -gvn -simplifycfg -disable-output
+; RUN: opt < %s -gvn -simplifycfg -simplifycfg-require-and-preserve-domtree=1 -disable-output
 ; PR867
 
 target datalayout = "E-p:32:32"
-target triple = "powerpc-apple-darwin8"
+target triple = "powerpc-unknown-linux-gnu"
 	%struct.CUMULATIVE_ARGS = type { i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32 }
 	%struct.eh_status = type opaque
 	%struct.emit_status = type { i32, i32, %struct.rtx_def*, %struct.rtx_def*, %struct.sequence_stack*, i32, %struct.location_t, i32, i8*, %struct.rtx_def** }

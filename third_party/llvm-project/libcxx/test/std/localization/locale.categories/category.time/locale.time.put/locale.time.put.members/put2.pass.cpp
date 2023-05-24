@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,7 @@
 
 #include <locale>
 #include <cassert>
+#include "test_macros.h"
 #include "test_iterators.h"
 
 typedef std::time_put<char, output_iterator<char*> > F;
@@ -28,7 +28,7 @@ public:
         : F(refs) {}
 };
 
-int main()
+int main(int, char**)
 {
     const my_facet f(1);
     char str[200];
@@ -319,14 +319,20 @@ int main()
         std::string ex(str, iter.base());
 //        assert(ex == "-0400");  depends on time zone
     }
+#ifndef _WIN32
+    // The Windows strftime() doesn't support the "%+" format. Depending on CRT
+    // configuration of the invalid parameter handler, this can abort the process.
     {
         iter = f.put(output_iterator<char*>(str), ios, '*', &t, '+');
         std::string ex(str, iter.base());
 //        assert(ex == "Sat May  2 13:03:06 EDT 2009");  depends on time zone
     }
+#endif
     {
         iter = f.put(output_iterator<char*>(str), ios, '*', &t, '%');
         std::string ex(str, iter.base());
         assert(ex == "%");
     }
+
+  return 0;
 }

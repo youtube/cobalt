@@ -1,9 +1,8 @@
 //===------ Simplify.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,6 +13,7 @@
 #ifndef POLLY_TRANSFORM_SIMPLIFY_H
 #define POLLY_TRANSFORM_SIMPLIFY_H
 
+#include "polly/ScopPass.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
@@ -22,7 +22,6 @@ class Pass;
 } // namespace llvm
 
 namespace polly {
-
 class MemoryAccess;
 class ScopStmt;
 
@@ -50,11 +49,33 @@ llvm::SmallVector<MemoryAccess *, 32> getAccessesInOrder(ScopStmt &Stmt);
 ///               simplification itself.
 ///
 /// @return The Simplify pass.
-llvm::Pass *createSimplifyPass(int CallNo = 0);
+llvm::Pass *createSimplifyWrapperPass(int CallNo = 0);
+
+struct SimplifyPass : public PassInfoMixin<SimplifyPass> {
+  SimplifyPass(int CallNo = 0) : CallNo(CallNo) {}
+
+  llvm::PreservedAnalyses run(Scop &S, ScopAnalysisManager &SAM,
+                              ScopStandardAnalysisResults &AR, SPMUpdater &U);
+
+private:
+  int CallNo;
+};
+
+struct SimplifyPrinterPass : public PassInfoMixin<SimplifyPrinterPass> {
+  SimplifyPrinterPass(raw_ostream &OS, int CallNo = 0)
+      : OS(OS), CallNo(CallNo) {}
+
+  PreservedAnalyses run(Scop &S, ScopAnalysisManager &,
+                        ScopStandardAnalysisResults &, SPMUpdater &);
+
+private:
+  raw_ostream &OS;
+  int CallNo;
+};
 } // namespace polly
 
 namespace llvm {
-void initializeSimplifyPass(llvm::PassRegistry &);
+void initializeSimplifyWrapperPassPass(llvm::PassRegistry &);
 } // namespace llvm
 
 #endif /* POLLY_TRANSFORM_SIMPLIFY_H */

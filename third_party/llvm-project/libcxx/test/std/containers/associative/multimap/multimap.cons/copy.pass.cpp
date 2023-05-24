@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +20,7 @@
 #include "test_allocator.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::pair<const int, double> V;
@@ -37,7 +36,7 @@ int main()
             V(3, 1.5),
             V(3, 2),
         };
-        typedef test_compare<std::less<int> > C;
+        typedef test_less<int> C;
         typedef test_allocator<V> A;
         std::multimap<int, double, C, A> mo(ar, ar+sizeof(ar)/sizeof(ar[0]), C(5), A(7));
         std::multimap<int, double, C, A> m = mo;
@@ -63,7 +62,7 @@ int main()
             V(3, 1.5),
             V(3, 2),
         };
-        typedef test_compare<std::less<int> > C;
+        typedef test_less<int> C;
         typedef other_allocator<V> A;
         std::multimap<int, double, C, A> mo(ar, ar+sizeof(ar)/sizeof(ar[0]), C(5), A(7));
         std::multimap<int, double, C, A> m = mo;
@@ -88,7 +87,7 @@ int main()
             V(3, 1.5),
             V(3, 2),
         };
-        typedef test_compare<std::less<int> > C;
+        typedef test_less<int> C;
         typedef min_allocator<V> A;
         std::multimap<int, double, C, A> mo(ar, ar+sizeof(ar)/sizeof(ar[0]), C(5), A());
         std::multimap<int, double, C, A> m = mo;
@@ -100,4 +99,6 @@ int main()
         assert(mo.key_comp() == C(5));
     }
 #endif
+
+  return 0;
 }

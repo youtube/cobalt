@@ -1,12 +1,13 @@
 # RUN: llvm-mc -triple=riscv32 -mattr=+c -riscv-no-aliases < %s \
 # RUN:     | FileCheck -check-prefixes=CHECK-EXPAND,CHECK-INST %s
 # RUN: llvm-mc -filetype=obj -triple riscv32 -mattr=+c < %s \
-# RUN:     | llvm-objdump -d -riscv-no-aliases - \
+# RUN:     | llvm-objdump -d -M no-aliases - \
 # RUN:     | FileCheck -check-prefixes=CHECK-EXPAND,CHECK-INST %s
 
 # The following check prefixes are used in this test:
 # CHECK-INST.....Match the canonical instr (tests alias to instr. mapping)
 # CHECK-EXPAND...Match canonical instr. unconditionally (tests alias expansion)
+# CHECK-INST: {{^}}
 
 # CHECK-EXPAND: c.li a0, 0
 li x10, 0
@@ -60,3 +61,6 @@ li x12, -0x80000000
 li x12, 0x80000000
 # CHECK-EXPAND: c.li a2, -1
 li x12, 0xFFFFFFFF
+
+# CHECK-EXPAND: c.mv sp, sp
+addi x2, x2, 0

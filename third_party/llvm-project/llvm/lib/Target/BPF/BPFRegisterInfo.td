@@ -1,9 +1,8 @@
 //===-- BPFRegisterInfo.td - BPF Register defs -------------*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -37,7 +36,7 @@ foreach I = 0-11 in {
 }
 
 // Register classes.
-def GPR32 : RegisterClass<"BPF", [i32], 32, (add
+def GPR32 : RegisterClass<"BPF", [i32], 64, (add
   (sequence "W%u", 1, 9),
   W0, // Return value
   W11, // Stack Ptr

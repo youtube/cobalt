@@ -1,9 +1,8 @@
 //===-- RNBContext.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,14 +25,10 @@
 #include "DNBLog.h"
 #include "RNBRemote.h"
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 RNBContext::~RNBContext() { SetProcessID(INVALID_NUB_PROCESS); }
 
-//----------------------------------------------------------------------
 // RNBContext constructor
-//----------------------------------------------------------------------
 
 const char *RNBContext::EnvironmentAtIndex(size_t index) {
   if (index < m_env_vec.size())
@@ -135,10 +130,8 @@ void RNBContext::StopProcessStatusThread() {
   }
 }
 
-//----------------------------------------------------------------------
 // This thread's sole purpose is to watch for any status changes in the
 // child process.
-//----------------------------------------------------------------------
 void *RNBContext::ThreadFunctionProcessStatus(void *arg) {
   RNBRemoteSP remoteSP(g_remoteSP);
   RNBRemote *remote = remoteSP.get();
@@ -265,8 +258,6 @@ const char *RNBContext::EventsAsString(nub_event_t events, std::string &s) {
     s += "proc_stdio_available ";
   if (events & event_proc_profile_data)
     s += "proc_profile_data ";
-  if (events & event_darwin_log_data_available)
-    s += "darwin_log_data_available ";
   if (events & event_read_packet_available)
     s += "read_packet_available ";
   if (events & event_read_thread_running)

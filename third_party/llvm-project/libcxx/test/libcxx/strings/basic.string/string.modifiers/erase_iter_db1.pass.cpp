@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,40 +10,20 @@
 
 // Call erase(const_iterator position) with end()
 
-#if _LIBCPP_DEBUG >= 1
+// UNSUPPORTED: libcxx-no-debug-mode
 
-#define _LIBCPP_ASSERT(x, m) ((x) ? (void)0 : std::exit(0))
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DEBUG=1
 
 #include <string>
-#include <cassert>
-#include <cstdlib>
-#include <exception>
 
-#include "min_allocator.h"
+#include "test_macros.h"
+#include "debug_macros.h"
 
-int main()
+int main(int, char**)
 {
-    {
     std::string l1("123");
     std::string::const_iterator i = l1.end();
-    l1.erase(i);
-    assert(false);
-    }
-#if __cplusplus >= 201103L
-    {
-    typedef std::basic_string<char, std::char_traits<char>, min_allocator<char>> S;
-    S l1("123");
-    S::const_iterator i = l1.end();
-    l1.erase(i);
-    assert(false);
-    }
-#endif
+    TEST_LIBCPP_ASSERT_FAILURE(l1.erase(i), "string::erase(iterator) called with a non-dereferenceable iterator");
+
+    return 0;
 }
-
-#else
-
-int main()
-{
-}
-
-#endif

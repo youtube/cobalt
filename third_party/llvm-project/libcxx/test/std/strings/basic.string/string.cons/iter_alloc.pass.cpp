@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +20,7 @@
 
 #include "test_macros.h"
 #include "test_allocator.h"
-#include "../input_iterator.h"
+#include "../cpp17_input_iterator.h"
 #include "min_allocator.h"
 
 template <class It>
@@ -57,7 +56,7 @@ test(It first, It last, const A& a)
     assert(s2.capacity() >= s2.size());
 }
 
-int main()
+int main(int, char**)
 {
     {
     typedef test_allocator<char> A;
@@ -75,17 +74,17 @@ int main()
     test(s, s+50);
     test(s, s+50, A(2));
 
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s));
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s), A(2));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s), A(2));
 
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+1));
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+1), A(2));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+1));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+1), A(2));
 
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+10));
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+10), A(2));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+10));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+10), A(2));
 
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+50));
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+50), A(2));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+50));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+50), A(2));
     }
 #if TEST_STD_VER >= 11
     {
@@ -104,17 +103,28 @@ int main()
     test(s, s+50);
     test(s, s+50, A());
 
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s));
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s), A());
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s), A());
 
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+1));
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+1), A());
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+1));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+1), A());
 
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+10));
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+10), A());
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+10));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+10), A());
 
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+50));
-    test(input_iterator<const char*>(s), input_iterator<const char*>(s+50), A());
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+50));
+    test(cpp17_input_iterator<const char*>(s), cpp17_input_iterator<const char*>(s+50), A());
     }
 #endif
+    {
+      static_assert((!std::is_constructible<std::string, std::string,
+                                            std::string>::value),
+                    "");
+      static_assert(
+          (!std::is_constructible<std::string, std::string, std::string,
+                                  std::allocator<char> >::value),
+          "");
+    }
+
+  return 0;
 }

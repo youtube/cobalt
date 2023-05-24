@@ -5,6 +5,8 @@
 ; RUN: llc < %s -mtriple=x86_64-pc-linux -mcpu=btver2 -mattr=-fast-lzcnt | FileCheck --check-prefix=ALL --check-prefix=NOFASTLZCNT %s
 ; RUN: llc < %s -mtriple=x86_64-pc-linux -mcpu=znver1 | FileCheck --check-prefix=ALL --check-prefix=FASTLZCNT %s
 ; RUN: llc < %s -mtriple=x86_64-pc-linux -mcpu=znver1 -mattr=-fast-lzcnt | FileCheck --check-prefix=ALL --check-prefix=NOFASTLZCNT %s
+; RUN: llc < %s -mtriple=x86_64-pc-linux -mcpu=znver2 | FileCheck --check-prefix=ALL --check-prefix=FASTLZCNT %s
+; RUN: llc < %s -mtriple=x86_64-pc-linux -mcpu=znver2 -mattr=-fast-lzcnt | FileCheck --check-prefix=ALL --check-prefix=NOFASTLZCNT %s
 
 ; Test one 32-bit input, output is 32-bit, no transformations expected.
 define i32 @test_zext_cmp0(i32 %a) {
@@ -319,13 +321,12 @@ define i32 @test_zext_cmp11(double %a, double %b) "no-nans-fp-math"="true" {
 ;
 ; ALL-LABEL: test_zext_cmp11:
 ; ALL:       # %bb.0: # %entry
-; ALL-NEXT:    vxorps %xmm2, %xmm2, %xmm2
-; ALL-NEXT:    vucomisd %xmm2, %xmm0
-; ALL-NEXT:    sete %al
-; ALL-NEXT:    vucomisd %xmm2, %xmm1
-; ALL-NEXT:    sete %cl
-; ALL-NEXT:    orb %al, %cl
-; ALL-NEXT:    movzbl %cl, %eax
+; ALL-NEXT:    vxorpd %xmm2, %xmm2, %xmm2
+; ALL-NEXT:    vcmpeqpd %xmm2, %xmm1, %xmm1
+; ALL-NEXT:    vcmpeqpd %xmm2, %xmm0, %xmm0
+; ALL-NEXT:    vorpd %xmm1, %xmm0, %xmm0
+; ALL-NEXT:    vmovd %xmm0, %eax
+; ALL-NEXT:    andl $1, %eax
 ; ALL-NEXT:    retq
 entry:
   %cmp = fcmp fast oeq double %a, 0.000000e+00

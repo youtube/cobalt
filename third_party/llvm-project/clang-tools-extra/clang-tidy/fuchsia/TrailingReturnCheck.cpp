@@ -1,9 +1,8 @@
 //===--- TrailingReturnCheck.cpp - clang-tidy------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,33 +17,23 @@ namespace clang {
 namespace tidy {
 namespace fuchsia {
 
-namespace {
-AST_MATCHER(FunctionDecl, hasTrailingReturn) {
-  return Node.getType()->castAs<FunctionProtoType>()->hasTrailingReturn();
-}
-} // namespace
-
 void TrailingReturnCheck::registerMatchers(MatchFinder *Finder) {
-
-  // Requires C++11 or later.
-  if (!getLangOpts().CPlusPlus11)
-    return;
-
   // Functions that have trailing returns are disallowed, except for those
   // using decltype specifiers and lambda with otherwise unutterable
   // return types.
   Finder->addMatcher(
-      functionDecl(allOf(hasTrailingReturn(),
-                         unless(anyOf(returns(decltypeType()),
-                                      hasParent(cxxRecordDecl(isLambda()))))))
+      functionDecl(hasTrailingReturn(),
+                   unless(anyOf(returns(decltypeType()),
+                                hasParent(cxxRecordDecl(isLambda())),
+                                cxxDeductionGuideDecl())))
           .bind("decl"),
       this);
 }
 
 void TrailingReturnCheck::check(const MatchFinder::MatchResult &Result) {
-  if (const auto *D = Result.Nodes.getNodeAs<Decl>("decl"))
-    diag(D->getLocStart(),
-         "a trailing return type is disallowed for this type of declaration");
+  if (const auto *D = Result.Nodes.getNodeAs<FunctionDecl>("decl"))
+    diag(D->getBeginLoc(),
+         "a trailing return type is disallowed for this function declaration");
 }
 
 } // namespace fuchsia

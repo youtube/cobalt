@@ -1,22 +1,16 @@
-//===-- StoppointCallbackContext.cpp ----------------------------*- C++ -*-===//
+//===-- StoppointCallbackContext.cpp --------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
 
 using namespace lldb_private;
 
-StoppointCallbackContext::StoppointCallbackContext()
-    : event(nullptr), exe_ctx_ref(), is_synchronous(false) {}
+StoppointCallbackContext::StoppointCallbackContext() : exe_ctx_ref() {}
 
 StoppointCallbackContext::StoppointCallbackContext(
     Event *e, const ExecutionContext &exe_ctx, bool synchronously)

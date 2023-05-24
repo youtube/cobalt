@@ -1,4 +1,4 @@
-; RUN: opt < %s -basicaa -aa-eval -print-all-alias-modref-info -disable-output 2>&1 | FileCheck %s
+; RUN: opt < %s -basic-aa -aa-eval -print-all-alias-modref-info -disable-output 2>&1 | FileCheck %s
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -23,6 +23,19 @@ define void @test_with_lshr(i64 %i) {
   %2 = getelementptr inbounds i8, i8* %1, i64 16
   %3 = lshr i64 %i, 2
   %b = getelementptr inbounds i8, i8* %2, i64 %3
+  ret void
+}
+
+; CHECK-LABEL: test_with_lshr_different_sizes
+; CHECK:  NoAlias: i16* %m2.idx, i8* %m1
+
+define void @test_with_lshr_different_sizes(i64 %i) {
+  %m0 = tail call i8* @malloc(i64 120)
+  %m1 = getelementptr inbounds i8, i8* %m0, i64 1
+  %m2 = getelementptr inbounds i8, i8* %m0, i64 2
+  %idx = lshr i64 %i, 2
+  %m2.i16 = bitcast i8* %m2 to i16*
+  %m2.idx = getelementptr inbounds i16, i16* %m2.i16, i64 %idx
   ret void
 }
 
@@ -225,6 +238,52 @@ entry:
   %x4 = load float, float* %arrayidx4.84, align 8
 
   ret float %x4
+}
+
+; CHECK-LABEL: Function: test_shl_nuw_zext
+; CHECK: MustAlias: i8* %p.1, i8* %p.2
+define void @test_shl_nuw_zext(i8* %p, i32 %x) {
+  %shl = shl nuw i32 %x, 1
+  %shl.ext = zext i32 %shl to i64
+  %ext = zext i32 %x to i64
+  %ext.shl = shl nuw i64 %ext, 1
+  %p.1 = getelementptr i8, i8* %p, i64 %shl.ext
+  %p.2 = getelementptr i8, i8* %p, i64 %ext.shl
+  ret void
+}
+
+; CHECK-LABEL: Function: test_shl_nsw_sext
+; CHECK: MustAlias: i8* %p.1, i8* %p.2
+define void @test_shl_nsw_sext(i8* %p, i32 %x) {
+  %shl = shl nsw i32 %x, 1
+  %shl.ext = sext i32 %shl to i64
+  %ext = sext i32 %x to i64
+  %ext.shl = shl nsw i64 %ext, 1
+  %p.1 = getelementptr i8, i8* %p, i64 %shl.ext
+  %p.2 = getelementptr i8, i8* %p, i64 %ext.shl
+  ret void
+}
+
+; CHECK-LABEL: Function: test_implicit_sext
+; CHECK: MayAlias: i8* %p.1, i8* %p.2
+define void @test_implicit_sext(i8* %p, i32 %x) {
+  %add = add i32 %x, 1
+  %ext = sext i32 %x to i64
+  %ext.add = add i64 %ext, 1
+  %p.1 = getelementptr i8, i8* %p, i32 %add
+  %p.2 = getelementptr i8, i8* %p, i64 %ext.add
+  ret void
+}
+
+; CHECK-LABEL: Function: test_partial_decomposition
+; CHECK: MustAlias: i8* %p.1, i8* %p.2
+define void @test_partial_decomposition(i8* %p, i32 %x) {
+  %add = add i32 %x, 1
+  %add.1 = add nsw i32 %add, 1
+  %add.2 = add nsw i32 %add, 1
+  %p.1 = getelementptr i8, i8* %p, i32 %add.1
+  %p.2 = getelementptr i8, i8* %p, i32 %add.2
+  ret void
 }
 
 ; Function Attrs: nounwind

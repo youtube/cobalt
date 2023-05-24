@@ -1,9 +1,8 @@
 //===--- ProTypeCstyleCastCheck.cpp - clang-tidy---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,9 +30,6 @@ static bool needsConstCast(QualType SourceType, QualType DestType) {
 }
 
 void ProTypeCstyleCastCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   Finder->addMatcher(
       cStyleCastExpr(unless(isInTemplateInstantiation())).bind("cast"), this);
 }
@@ -46,7 +42,7 @@ void ProTypeCstyleCastCheck::check(const MatchFinder::MatchResult &Result) {
       MatchedCast->getCastKind() == CK_IntegralToPointer ||
       MatchedCast->getCastKind() == CK_PointerToIntegral ||
       MatchedCast->getCastKind() == CK_ReinterpretMemberPointer) {
-    diag(MatchedCast->getLocStart(),
+    diag(MatchedCast->getBeginLoc(),
          "do not use C-style cast to convert between unrelated types");
     return;
   }
@@ -70,8 +66,8 @@ void ProTypeCstyleCastCheck::check(const MatchFinder::MatchResult &Result) {
               MatchedCast->getRParenLoc().getLocWithOffset(-1)),
           *Result.SourceManager, getLangOpts());
 
-      auto diag_builder = diag(
-          MatchedCast->getLocStart(),
+      auto DiagBuilder = diag(
+          MatchedCast->getBeginLoc(),
           "do not use C-style cast to downcast from a base to a derived class; "
           "use dynamic_cast instead");
 
@@ -80,17 +76,17 @@ void ProTypeCstyleCastCheck::check(const MatchFinder::MatchResult &Result) {
       std::string CastText = ("dynamic_cast<" + DestTypeString + ">").str();
       if (!isa<ParenExpr>(SubExpr)) {
         CastText.push_back('(');
-        diag_builder << FixItHint::CreateInsertion(
-            Lexer::getLocForEndOfToken(SubExpr->getLocEnd(), 0,
+        DiagBuilder << FixItHint::CreateInsertion(
+            Lexer::getLocForEndOfToken(SubExpr->getEndLoc(), 0,
                                        *Result.SourceManager, getLangOpts()),
             ")");
       }
       auto ParenRange = CharSourceRange::getTokenRange(
           MatchedCast->getLParenLoc(), MatchedCast->getRParenLoc());
-      diag_builder << FixItHint::CreateReplacement(ParenRange, CastText);
+      DiagBuilder << FixItHint::CreateReplacement(ParenRange, CastText);
     } else {
       diag(
-          MatchedCast->getLocStart(),
+          MatchedCast->getBeginLoc(),
           "do not use C-style cast to downcast from a base to a derived class");
     }
     return;
@@ -98,7 +94,7 @@ void ProTypeCstyleCastCheck::check(const MatchFinder::MatchResult &Result) {
 
   if (MatchedCast->getCastKind() == CK_NoOp &&
       needsConstCast(SourceType, MatchedCast->getType())) {
-    diag(MatchedCast->getLocStart(),
+    diag(MatchedCast->getBeginLoc(),
          "do not use C-style cast to cast away constness");
   }
 }

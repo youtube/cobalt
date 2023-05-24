@@ -3,7 +3,7 @@
 start:
   .space 8
 end:
-  // CHECK-LABEL: end:
+  // CHECK-LABEL: <end>:
 
   adds w0, w1, #(end - start)
   adds x0, x1, #(end - start)
@@ -13,6 +13,7 @@ end:
   cmp x0, #(end - start)
   sub w0, w1, #(end - start)
   sub x0, x1, #(end - start)
+  // FIXME: adr x1, #(end - start) // This could be supported, but currently doesn't work
   // CHECK: adds w0, w1, #8
   // CHECK: adds x0, x1, #8
   // CHECK: add w0, w1, #8
@@ -21,6 +22,7 @@ end:
   // CHECK: cmp x0, #8
   // CHECK: sub w0, w1, #8
   // CHECK: sub x0, x1, #8
+  // FIXME: adr x1, #8
 
   add w0, w1, #(end - start), lsl #12
   cmp w0, #(end - start), lsl #12
@@ -70,7 +72,7 @@ notprivate:
 
   .type foo, @function
 foo:
-  // CHECK-LABEL: foo:
+  // CHECK-LABEL: <foo>:
 
   add w0, w1, #(foo - .Lprivate2)
   cmp w0, #(foo - .Lprivate2)
@@ -81,7 +83,7 @@ foo:
 
   .type goo, @function
 goo:
-  // CHECK-LABEL: goo:
+  // CHECK-LABEL: <goo>:
 
   add w0, w1, #(goo - foo)
   cmp w0, #(goo - foo)

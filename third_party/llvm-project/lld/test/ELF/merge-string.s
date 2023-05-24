@@ -1,22 +1,22 @@
 // REQUIRES: x86
 // RUN: llvm-mc -filetype=obj -triple=x86_64-pc-linux %s -o %t.o
 // RUN: ld.lld -O 2 %t.o -o %t.so -shared
-// RUN: llvm-readobj -s -section-data -t %t.so | FileCheck %s
+// RUN: llvm-readobj -S --section-data --symbols %t.so | FileCheck %s
 // RUN: ld.lld -O 1 %t.o -o %t.so -shared
-// RUN: llvm-readobj -s -section-data -t %t.so | FileCheck --check-prefix=NOTAIL %s
+// RUN: llvm-readobj -S --section-data --symbols %t.so | FileCheck --check-prefix=NOTAIL %s
 // RUN: ld.lld -O 0 %t.o -o %t.so -shared
-// RUN: llvm-readobj -s -section-data -t %t.so | FileCheck --check-prefix=NOMERGE %s
+// RUN: llvm-readobj -S --section-data --symbols %t.so | FileCheck --check-prefix=NOMERGE %s
 
-        .section	.rodata1,"aMS",@progbits,1
-	.asciz	"abc"
+        .section        .rodata1,"aMS",@progbits,1
+        .asciz  "abc"
 foo:
-	.ascii	"a"
+        .ascii  "a"
 bar:
         .asciz  "bc"
         .asciz  "bc"
 
         .section        .rodata2,"aMS",@progbits,2
-        .align  2
+        .p2align  1
 zed:
         .short  20
         .short  0
@@ -94,11 +94,11 @@ zed:
 // CHECK-NEXT: )
 
 
-// CHECK:      Name:    bar
-// CHECK-NEXT: Value: 0x20E
-
 // CHECK:      Name:    foo
 // CHECK-NEXT: Value: 0x20D
+
+// CHECK:      Name:    bar
+// CHECK-NEXT: Value: 0x20E
 
 // CHECK:      Name: zed
 // CHECK-NEXT: Value: 0x212

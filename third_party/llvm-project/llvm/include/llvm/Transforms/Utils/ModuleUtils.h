@@ -1,9 +1,8 @@
 //===-- ModuleUtils.h - Functions to manipulate Modules ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,7 +13,9 @@
 #ifndef LLVM_TRANSFORMS_UTILS_MODULEUTILS_H
 #define LLVM_TRANSFORMS_UTILS_MODULEUTILS_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include <utility> // for std::pair
 
 namespace llvm {
@@ -22,10 +23,9 @@ namespace llvm {
 template <typename T> class ArrayRef;
 class Module;
 class Function;
+class FunctionCallee;
 class GlobalValue;
-class GlobalVariable;
 class Constant;
-class StringRef;
 class Value;
 class Type;
 
@@ -40,22 +40,33 @@ void appendToGlobalCtors(Module &M, Function *F, int Priority,
 void appendToGlobalDtors(Module &M, Function *F, int Priority,
                          Constant *Data = nullptr);
 
-// Validate the result of Module::getOrInsertFunction called for an interface
-// function of given sanitizer. If the instrumented module defines a function
-// with the same name, their prototypes must match, otherwise
-// getOrInsertFunction returns a bitcast.
-Function *checkSanitizerInterfaceFunction(Constant *FuncOrBitcast);
+FunctionCallee declareSanitizerInitFunction(Module &M, StringRef InitName,
+                                            ArrayRef<Type *> InitArgTypes);
 
-Function *declareSanitizerInitFunction(Module &M, StringRef InitName,
-                                       ArrayRef<Type *> InitArgTypes);
+/// Creates sanitizer constructor function.
+/// \return Returns pointer to constructor.
+Function *createSanitizerCtor(Module &M, StringRef CtorName);
 
 /// Creates sanitizer constructor function, and calls sanitizer's init
 /// function from it.
 /// \return Returns pair of pointers to constructor, and init functions
 /// respectively.
-std::pair<Function *, Function *> createSanitizerCtorAndInitFunctions(
+std::pair<Function *, FunctionCallee> createSanitizerCtorAndInitFunctions(
     Module &M, StringRef CtorName, StringRef InitName,
     ArrayRef<Type *> InitArgTypes, ArrayRef<Value *> InitArgs,
+    StringRef VersionCheckName = StringRef());
+
+/// Creates sanitizer constructor function lazily. If a constructor and init
+/// function already exist, this function returns it. Otherwise it calls \c
+/// createSanitizerCtorAndInitFunctions. The FunctionsCreatedCallback is invoked
+/// in that case, passing the new Ctor and Init function.
+///
+/// \return Returns pair of pointers to constructor, and init functions
+/// respectively.
+std::pair<Function *, FunctionCallee> getOrCreateSanitizerCtorAndInitFunctions(
+    Module &M, StringRef CtorName, StringRef InitName,
+    ArrayRef<Type *> InitArgTypes, ArrayRef<Value *> InitArgs,
+    function_ref<void(Function *, FunctionCallee)> FunctionsCreatedCallback,
     StringRef VersionCheckName = StringRef());
 
 /// Rename all the anon globals in the module using a hash computed from
@@ -82,7 +93,7 @@ void appendToCompilerUsed(Module &M, ArrayRef<GlobalValue *> Values);
 /// DeadComdatFunctions are those where every member of the comdat is listed
 /// and thus removing them is safe (provided *all* are removed).
 void filterDeadComdatFunctions(
-    Module &M, SmallVectorImpl<Function *> &DeadComdatFunctions);
+    SmallVectorImpl<Function *> &DeadComdatFunctions);
 
 /// Produce a unique identifier for this module by taking the MD5 sum of
 /// the names of the module's strong external symbols that are not comdat
@@ -96,6 +107,17 @@ void filterDeadComdatFunctions(
 /// unique identifier for this module, so we return the empty string.
 std::string getUniqueModuleId(Module *M);
 
+/// Embed the memory buffer \p Buf into the module \p M as a global using the
+/// specified section name.
+void embedBufferInModule(Module &M, MemoryBufferRef Buf, StringRef SectionName);
+
+class CallInst;
+namespace VFABI {
+/// Overwrite the Vector Function ABI variants attribute with the names provide
+/// in \p VariantMappings.
+void setVectorVariantNames(CallInst *CI,
+                           const SmallVector<std::string, 8> &VariantMappings);
+} // End VFABI namespace
 } // End llvm namespace
 
-#endif //  LLVM_TRANSFORMS_UTILS_MODULEUTILS_H
+#endif // LLVM_TRANSFORMS_UTILS_MODULEUTILS_H

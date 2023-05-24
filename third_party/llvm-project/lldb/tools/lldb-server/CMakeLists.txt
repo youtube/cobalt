@@ -1,33 +1,16 @@
-if ( CMAKE_SYSTEM_NAME MATCHES "Linux" )
-include_directories(
-  ../../../../llvm/include
-  ../../source/Plugins/Process/Linux
-  ../../source/Plugins/Process/POSIX
-  )
-endif ()
-
-if ( CMAKE_SYSTEM_NAME MATCHES "FreeBSD" )
-include_directories(
-  ../../../../llvm/include
-  ../../source/Plugins/Process/FreeBSD
-  ../../source/Plugins/Process/POSIX
-  )
-endif ()
-
-if ( CMAKE_SYSTEM_NAME MATCHES "NetBSD" )
-include_directories(
-  ../../../../llvm/include
-  ../../source/Plugins/Process/NetBSD
-  ../../source/Plugins/Process/POSIX
-  )
-endif ()
-
-include_directories(../../source)
+set(LLVM_TARGET_DEFINITIONS LLGSOptions.td)
+tablegen(LLVM LLGSOptions.inc -gen-opt-parser-defs)
+add_public_tablegen_target(LLGSOptionsTableGen)
+set_target_properties(LLGSOptionsTableGen PROPERTIES FOLDER "lldb misc")
 
 set(LLDB_PLUGINS)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
   list(APPEND LLDB_PLUGINS lldbPluginProcessLinux)
+endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  list(APPEND LLDB_PLUGINS lldbPluginProcessFreeBSD)
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "NetBSD")
@@ -42,7 +25,19 @@ else()
   list(APPEND LLDB_PLUGINS lldbPluginObjectFileELF)
 endif()
 
-add_lldb_tool(lldb-server INCLUDE_IN_SUITE
+if(APPLE_EMBEDDED)
+  if(LLDB_CODESIGN_IDENTITY)
+    # Use explicit LLDB identity
+    set(LLVM_CODESIGNING_IDENTITY ${LLDB_CODESIGN_IDENTITY})
+  else()
+    # Use explicit LLVM identity or default to lldb_codesign if empty
+    if(NOT LLVM_CODESIGNING_IDENTITY)
+      set(LLVM_CODESIGNING_IDENTITY lldb_codesign)
+    endif()
+  endif()
+endif()
+
+add_lldb_tool(lldb-server
     Acceptor.cpp
     lldb-gdbserver.cpp
     lldb-platform.cpp
@@ -51,16 +46,23 @@ add_lldb_tool(lldb-server INCLUDE_IN_SUITE
     SystemInitializerLLGS.cpp
 
     LINK_LIBS
-      lldbBase
-      lldbCore
       lldbHost
       lldbInitialization
-      lldbInterpreter
+      lldbVersion
       ${LLDB_PLUGINS}
+      lldbPluginInstructionARM
+      lldbPluginInstructionMIPS
+      lldbPluginInstructionMIPS64
       ${LLDB_SYSTEM_LIBS}
 
     LINK_COMPONENTS
+      Option
       Support
 )
 
+add_dependencies(lldb-server
+  LLGSOptionsTableGen
+  ${tablegen_deps}
+)
+target_include_directories(lldb-server PRIVATE "${LLDB_SOURCE_DIR}/source")
 target_link_libraries(lldb-server PRIVATE ${LLDB_SYSTEM_LIBS})

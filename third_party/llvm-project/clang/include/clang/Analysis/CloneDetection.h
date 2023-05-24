@@ -1,9 +1,8 @@
 //===--- CloneDetection.h - Finds code clones in an AST ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -12,8 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_CLONEDETECTION_H
-#define LLVM_CLANG_AST_CLONEDETECTION_H
+#ifndef LLVM_CLANG_ANALYSIS_CLONEDETECTION_H
+#define LLVM_CLANG_ANALYSIS_CLONEDETECTION_H
 
 #include "clang/AST/StmtVisitor.h"
 #include "llvm/Support/Regex.h"
@@ -122,7 +121,6 @@ public:
   /// Returns the start sourcelocation of the first statement in this sequence.
   ///
   /// This method should only be called on a non-empty StmtSequence object.
-  SourceLocation getStartLoc() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const;
 
   /// Returns the end sourcelocation of the last statement in this sequence.
@@ -237,9 +235,7 @@ public:
   static void filterGroups(
       std::vector<CloneDetector::CloneGroup> &CloneGroups,
       llvm::function_ref<bool(const CloneDetector::CloneGroup &)> Filter) {
-    CloneGroups.erase(
-        std::remove_if(CloneGroups.begin(), CloneGroups.end(), Filter),
-        CloneGroups.end());
+    llvm::erase_if(CloneGroups, Filter);
   }
 
   /// Splits the given CloneGroups until the given Compare function returns true
@@ -445,4 +441,4 @@ struct MatchingVariablePatternConstraint {
 
 } // end namespace clang
 
-#endif // LLVM_CLANG_AST_CLONEDETECTION_H
+#endif // LLVM_CLANG_ANALYSIS_CLONEDETECTION_H

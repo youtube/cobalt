@@ -1,53 +1,41 @@
 //===-- OptionValueString.h -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueString_h_
-#define liblldb_OptionValueString_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUESTRING_H
+#define LLDB_INTERPRETER_OPTIONVALUESTRING_H
 
-// C Includes
-// C++ Includes
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/Flags.h"
 
 #include "lldb/Interpreter/OptionValue.h"
 
 namespace lldb_private {
 
-class OptionValueString : public OptionValue {
+class OptionValueString : public Cloneable<OptionValueString, OptionValue> {
 public:
   typedef Status (*ValidatorCallback)(const char *string, void *baton);
 
   enum Options { eOptionEncodeCharacterEscapeSequences = (1u << 0) };
 
-  OptionValueString()
-      : OptionValue(), m_current_value(), m_default_value(), m_options(),
-        m_validator(), m_validator_baton() {}
+  OptionValueString() = default;
 
   OptionValueString(ValidatorCallback validator, void *baton = nullptr)
-      : OptionValue(), m_current_value(), m_default_value(), m_options(),
-        m_validator(validator), m_validator_baton(baton) {}
+      : m_validator(validator), m_validator_baton(baton) {}
 
-  OptionValueString(const char *value)
-      : OptionValue(), m_current_value(), m_default_value(), m_options(),
-        m_validator(), m_validator_baton() {
+  OptionValueString(const char *value) {
     if (value && value[0]) {
       m_current_value.assign(value);
       m_default_value.assign(value);
     }
   }
 
-  OptionValueString(const char *current_value, const char *default_value)
-      : OptionValue(), m_current_value(), m_default_value(), m_options(),
-        m_validator(), m_validator_baton() {
+  OptionValueString(const char *current_value, const char *default_value) {
     if (current_value && current_value[0])
       m_current_value.assign(current_value);
     if (default_value && default_value[0])
@@ -56,8 +44,7 @@ public:
 
   OptionValueString(const char *value, ValidatorCallback validator,
                     void *baton = nullptr)
-      : OptionValue(), m_current_value(), m_default_value(), m_options(),
-        m_validator(validator), m_validator_baton(baton) {
+      : m_validator(validator), m_validator_baton(baton) {
     if (value && value[0]) {
       m_current_value.assign(value);
       m_default_value.assign(value);
@@ -66,8 +53,7 @@ public:
 
   OptionValueString(const char *current_value, const char *default_value,
                     ValidatorCallback validator, void *baton = nullptr)
-      : OptionValue(), m_current_value(), m_default_value(), m_options(),
-        m_validator(validator), m_validator_baton(baton) {
+      : m_validator(validator), m_validator_baton(baton) {
     if (current_value && current_value[0])
       m_current_value.assign(current_value);
     if (default_value && default_value[0])
@@ -76,9 +62,7 @@ public:
 
   ~OptionValueString() override = default;
 
-  //---------------------------------------------------------------------
   // Virtual subclass pure virtual overrides
-  //---------------------------------------------------------------------
 
   OptionValue::Type GetType() const override { return eTypeString; }
 
@@ -88,28 +72,20 @@ public:
   Status
   SetValueFromString(llvm::StringRef value,
                      VarSetOperationType op = eVarSetOperationAssign) override;
-  Status
-  SetValueFromString(const char *,
-                     VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_current_value = m_default_value;
     m_value_was_set = false;
-    return true;
   }
 
-  lldb::OptionValueSP DeepCopy() const override;
-
-  //---------------------------------------------------------------------
   // Subclass specific functions
-  //---------------------------------------------------------------------
 
   Flags &GetOptions() { return m_options; }
 
   const Flags &GetOptions() const { return m_options; }
 
   const char *operator=(const char *value) {
-    SetCurrentValue(llvm::StringRef::withNullAsEmpty(value));
+    SetCurrentValue(value);
     return m_current_value.c_str();
   }
 
@@ -119,7 +95,6 @@ public:
   const char *GetDefaultValue() const { return m_default_value.c_str(); }
   llvm::StringRef GetDefaultValueAsRef() const { return m_default_value; }
 
-  Status SetCurrentValue(const char *) = delete;
   Status SetCurrentValue(llvm::StringRef value);
 
   Status AppendToCurrentValue(const char *value);
@@ -139,10 +114,10 @@ protected:
   std::string m_current_value;
   std::string m_default_value;
   Flags m_options;
-  ValidatorCallback m_validator;
-  void *m_validator_baton;
+  ValidatorCallback m_validator = nullptr;
+  void *m_validator_baton = nullptr;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueString_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUESTRING_H

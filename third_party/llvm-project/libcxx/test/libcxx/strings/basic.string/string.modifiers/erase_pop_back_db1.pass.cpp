@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,22 +10,19 @@
 
 // void pop_back();
 
-#if _LIBCPP_DEBUG >= 1
-#define _LIBCPP_ASSERT(x, m) ((x) ? (void)0 : std::exit(0))
-#endif
+// UNSUPPORTED: libcxx-no-debug-mode
+
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DEBUG=1
 
 #include <string>
-#include <cassert>
 
 #include "test_macros.h"
+#include "debug_macros.h"
 
-int main()
+int main(int, char**)
 {
-#if _LIBCPP_DEBUG >= 1
-    {
-        std::string s;
-        s.pop_back();
-        assert(false);
-    }
-#endif
+    std::string s;
+    TEST_LIBCPP_ASSERT_FAILURE(s.pop_back(), "string::pop_back(): string is already empty");
+
+    return 0;
 }

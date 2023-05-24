@@ -2,33 +2,41 @@
 set(LLVM_LINK_COMPONENTS
   Core
   ExecutionEngine
+  IRReader
+  JITLink
   Object
   OrcJIT
+  OrcShared
+  OrcTargetProcess
+  Passes
   RuntimeDyld
   Support
   native
   )
 
 add_llvm_unittest(OrcJITTests
-  CompileOnDemandLayerTest.cpp
   CoreAPIsTest.cpp
+  ExecutorAddressTest.cpp
+  ExecutionSessionWrapperFunctionCallsTest.cpp
+  EPCGenericJITLinkMemoryManagerTest.cpp
+  EPCGenericMemoryAccessTest.cpp
   IndirectionUtilsTest.cpp
-  GlobalMappingLayerTest.cpp
-  LazyEmittingLayerTest.cpp
-  LegacyAPIInteropTest.cpp
-  ObjectTransformLayerTest.cpp
+  JITTargetMachineBuilderTest.cpp
+  LazyCallThroughAndReexportsTest.cpp
+  LookupAndRecordAddrsTest.cpp
+  ObjectLinkingLayerTest.cpp
   OrcCAPITest.cpp
   OrcTestCommon.cpp
-  QueueChannel.cpp
-  RemoteObjectLayerTest.cpp
-  RPCUtilsTest.cpp
+  ResourceTrackerTest.cpp
   RTDyldObjectLinkingLayerTest.cpp
+  SimpleExecutorMemoryManagerTest.cpp
+  SimplePackedSerializationTest.cpp
   SymbolStringPoolTest.cpp
+  TaskDispatchTest.cpp
+  ThreadSafeModuleTest.cpp
+  WrapperFunctionUtilsTest.cpp
   )
 
-set(ORC_JIT_TEST_LIBS ${LLVM_PTHREAD_LIB})
-if(NOT HAVE_CXX_ATOMICS64_WITHOUT_LIB)
-  list(APPEND ORC_JIT_TEST_LIBS atomic)
-endif()
-
-target_link_libraries(OrcJITTests PRIVATE ${ORC_JIT_TEST_LIBS})
+target_link_libraries(OrcJITTests PRIVATE
+                        LLVMTestingSupport
+                        ${ORC_JIT_TEST_LIBS})

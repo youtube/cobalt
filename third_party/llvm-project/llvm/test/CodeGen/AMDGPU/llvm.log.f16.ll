@@ -1,6 +1,6 @@
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=tahiti -verify-machineinstrs < %s | FileCheck -check-prefix=SI -check-prefix=SIVI -check-prefix=FUNC %s
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=fiji -verify-machineinstrs < %s | FileCheck -check-prefix=VI -check-prefix=SIVI -check-prefix=VIGFX9 -check-prefix=FUNC %s
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=gfx900 -verify-machineinstrs < %s | FileCheck -check-prefix=GFX9 -check-prefix=VIGFX9 -check-prefix=FUNC %s
+; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=tahiti -verify-machineinstrs < %s | FileCheck --check-prefixes=SI,FUNC %s
+; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=fiji -verify-machineinstrs < %s | FileCheck --check-prefixes=VI,VIGFX9,FUNC %s
+; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=gfx900 -verify-machineinstrs < %s | FileCheck --check-prefixes=GFX9,VIGFX9,FUNC %s
 
 declare half @llvm.log.f16(half %a)
 declare <2 x half> @llvm.log.v2f16(<2 x half> %a)
@@ -9,7 +9,6 @@ declare <2 x half> @llvm.log.v2f16(<2 x half> %a)
 ; SI:     buffer_load_ushort v[[A_F16_0:[0-9]+]]
 ; VI:     flat_load_ushort v[[A_F16_0:[0-9]+]]
 ; GFX9:   global_load_ushort v[[A_F16_0:[0-9]+]]
-; SI:     v_mov_b32_e32 v[[A_F32_1:[0-9]+]]
 ; SI:     v_cvt_f32_f16_e32 v[[A_F32_0:[0-9]+]], v[[A_F16_0]]
 ; SI:     v_log_f32_e32 v[[R_F32_0:[0-9]+]], v[[A_F32_0]]
 ; SI:     v_mul_f32_e32 v[[R_F32_1:[0-9]+]], 0x3f317218, v[[R_F32_0]]
@@ -33,30 +32,30 @@ entry:
 ; SI:     buffer_load_dword v[[A_F16_0:[0-9]+]]
 ; VI:     flat_load_dword v[[A_F16_0:[0-9]+]]
 ; GFX9:   global_load_dword v[[A_F16_0:[0-9]+]]
-; SI:     v_mov_b32_e32 v[[A_F32_2:[0-9]+]], 0x3f317218
-; VIGFX9: v_mov_b32_e32 v[[A_F32_2:[0-9]+]], 0x398c
-; SI:     v_cvt_f32_f16_e32 v[[A_F32_1:[0-9]+]], v[[A_F16_0]]
+; SI:     s_mov_b32 [[A_F32_2:s[0-9]+]], 0x3f317218
+; VIGFX9: s_movk_i32 [[A_F32_2:s[0-9]+]], 0x398c
+; VI:     v_mov_b32_e32 [[A_F32_2_V:v[0-9]+]], [[A_F32_2]]
 ; SI:     v_lshrrev_b32_e32 v[[A_F16_1:[0-9]+]], 16, v[[A_F16_0]]
-; SI:     v_cvt_f32_f16_e32 v[[A_F32_0:[0-9]+]], v[[A_F16_0]]
-; SI:     v_log_f32_e32 v[[R_F32_1:[0-9]+]], v[[A_F32_1]]
+; SI:     v_cvt_f32_f16_e32 v[[A_F32_0:[0-9]+]], v[[A_F16_1]]
+; SI:     v_cvt_f32_f16_e32 v[[A_F32_1:[0-9]+]], v[[A_F16_0]]
 ; SI:     v_log_f32_e32 v[[R_F32_0:[0-9]+]], v[[A_F32_0]]
-; SI:     v_mul_f32_e32 v[[R_F32_6:[0-9]+]], v[[R_F32_1]], v[[A_F32_2]]
-; SI:     v_cvt_f16_f32_e32 v[[R_F16_1:[0-9]+]], v[[R_F32_6]]
-; SI:     v_mul_f32_e32 v[[R_F32_5:[0-9]+]], v[[R_F32_0]], v[[A_F32_2]]
+; SI:     v_log_f32_e32 v[[R_F32_1:[0-9]+]], v[[A_F32_1]]
+; SI:     v_mul_f32_e32 v[[R_F32_5:[0-9]+]], [[A_F32_2]], v[[R_F32_0]]
 ; SI:     v_cvt_f16_f32_e32 v[[R_F16_0:[0-9]+]], v[[R_F32_5]]
+; SI:     v_mul_f32_e32 v[[R_F32_6:[0-9]+]], [[A_F32_2]], v[[R_F32_1]]
+; SI:     v_cvt_f16_f32_e32 v[[R_F16_1:[0-9]+]], v[[R_F32_6]]
 ; GFX9:   v_log_f16_e32 v[[R_F16_2:[0-9]+]], v[[A_F16_0]]
 ; VIGFX9: v_log_f16_sdwa v[[R_F16_1:[0-9]+]], v[[A_F16_0]] dst_sel:DWORD dst_unused:UNUSED_PAD src0_sel:WORD_1
 ; VI:     v_log_f16_e32 v[[R_F16_0:[0-9]+]], v[[A_F16_0]]
-; VI:     v_mul_f16_sdwa v[[R_F16_2:[0-9]+]], v[[R_F16_1]], v[[A_F32_2]] dst_sel:WORD_1 dst_unused:UNUSED_PAD src0_sel:DWORD src1_sel:DWORD
-; GFX9:   v_mul_f16_e32 v[[R_F32_3:[0-9]+]], v[[R_F16_2]], v[[A_F32_2]]
-; VIGFX9: v_mul_f16_e32 v[[R_F32_2:[0-9]+]], v[[R_F16_0]], v[[A_F32_2]]
+; VI:     v_mul_f16_sdwa v[[R_F16_2:[0-9]+]], v[[R_F16_1]], [[A_F32_2_V]] dst_sel:WORD_1 dst_unused:UNUSED_PAD src0_sel:DWORD src1_sel:DWORD
+; GFX9:   v_mul_f16_e32 v[[R_F32_3:[0-9]+]], [[A_F32_2]], v[[R_F16_2]]
+; VIGFX9: v_mul_f16_e32 v[[R_F32_2:[0-9]+]], [[A_F32_2]], v[[R_F16_0]]
 ; SI:     v_lshlrev_b32_e32 v[[R_F16_HI:[0-9]+]], 16, v[[R_F16_0]]
 ; SI-NOT: v_and_b32_e32
 ; SI:     v_or_b32_e32 v[[R_F32_5:[0-9]+]], v[[R_F16_1]], v[[R_F16_0]]
 ; VI-NOT: v_and_b32_e32
 ; VI:     v_or_b32_e32 v[[R_F32_5:[0-9]+]], v[[R_F16_0]], v[[R_F16_2]]
-; GFX9:   v_and_b32_e32 v[[R_F32_4:[0-9]+]], 0xffff, v[[R_F32_3]]
-; GFX9:   v_lshl_or_b32 v[[R_F32_5:[0-9]+]], v[[R_F32_2]], 16, v[[R_F32_4]]
+; GFX9:   v_pack_b32_f16 v[[R_F32_5:[0-9]+]], v[[R_F32_3]], v[[R_F32_2]]
 ; SI:     buffer_store_dword v[[R_F32_5]]
 ; VI:     flat_store_dword v{{\[[0-9]+:[0-9]+\]}}, v[[R_F32_5]]
 ; GFX9:   global_store_dword v{{\[[0-9]+:[0-9]+\]}}, v[[R_F32_5]]

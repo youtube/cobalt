@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,17 +18,25 @@
 #include <cassert>
 #include <cstddef>
 
-int main()
+#include "test_macros.h"
+
+int main(int, char**)
 {
     {
         typedef int T;
         T a2[] = {1,  2,  3,  4,  0};
         bool a3[] = {false,  true,  true,  true,  false};
-        const unsigned N = sizeof(a2)/sizeof(a2[0]);
+        const unsigned N = 5;
         std::valarray<T> v2(a2, N);
         std::valarray<bool> v3 = 2 <= v2;
-        assert(v2.size() == v3.size());
-        for (std::size_t i = 0; i < v3.size(); ++i)
+        std::valarray<bool> v3a = +(2 <= v2);
+        assert(v3.size() == N);
+        assert(v3a.size() == N);
+        for (std::size_t i = 0; i < N; ++i) {
             assert(v3[i] == a3[i]);
+            assert(v3a[i] == a3[i]);
+        }
     }
+
+  return 0;
 }

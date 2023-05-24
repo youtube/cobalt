@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,10 +15,11 @@
 #include <cassert>
 #include <iterator>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef int T;
@@ -27,7 +27,7 @@ int main()
         const T t0[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         const T t1[] = {10, 11, 12, 13};
         C c(std::begin(t1), std::end(t1));
-        typedef input_iterator<const T*> I;
+        typedef cpp17_input_iterator<const T*> I;
         c.assign(I(std::begin(t0)), I(std::end(t0)));
         int n = 0;
         for (C::const_iterator i = c.cbegin(); i != c.cend(); ++i, ++n)
@@ -40,7 +40,7 @@ int main()
         const T t0[] = {10, 11, 12, 13};
         const T t1[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         C c(std::begin(t1), std::end(t1));
-        typedef input_iterator<const T*> I;
+        typedef cpp17_input_iterator<const T*> I;
         c.assign(I(std::begin(t0)), I(std::end(t0)));
         int n = 0;
         for (C::const_iterator i = c.cbegin(); i != c.cend(); ++i, ++n)
@@ -54,7 +54,7 @@ int main()
         const T t0[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         const T t1[] = {10, 11, 12, 13};
         C c(std::begin(t1), std::end(t1));
-        typedef input_iterator<const T*> I;
+        typedef cpp17_input_iterator<const T*> I;
         c.assign(I(std::begin(t0)), I(std::end(t0)));
         int n = 0;
         for (C::const_iterator i = c.cbegin(); i != c.cend(); ++i, ++n)
@@ -67,7 +67,7 @@ int main()
         const T t0[] = {10, 11, 12, 13};
         const T t1[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         C c(std::begin(t1), std::end(t1));
-        typedef input_iterator<const T*> I;
+        typedef cpp17_input_iterator<const T*> I;
         c.assign(I(std::begin(t0)), I(std::end(t0)));
         int n = 0;
         for (C::const_iterator i = c.cbegin(); i != c.cend(); ++i, (void) ++n)
@@ -75,4 +75,6 @@ int main()
         assert(n == 4);
     }
 #endif
+
+  return 0;
 }

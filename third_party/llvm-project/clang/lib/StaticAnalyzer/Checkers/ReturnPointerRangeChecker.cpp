@@ -1,9 +1,8 @@
 //== ReturnPointerRangeChecker.cpp ------------------------------*- C++ -*--==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,11 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugReporterVisitors.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/DynamicExtent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 
 using namespace clang;
@@ -52,15 +53,19 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
   // pointer casts.
   if (Idx.isZeroConstant())
     return;
+
   // FIXME: All of this out-of-bounds checking should eventually be refactored
   // into a common place.
+  DefinedOrUnknownSVal ElementCount = getDynamicElementCount(
+      state, ER->getSuperRegion(), C.getSValBuilder(), ER->getValueType());
 
-  DefinedOrUnknownSVal NumElements
-    = C.getStoreManager().getSizeInElements(state, ER->getSuperRegion(),
-                                           ER->getValueType());
+  // We assume that the location after the last element in the array is used as
+  // end() iterator. Reporting on these would return too many false positives.
+  if (Idx == ElementCount)
+    return;
 
-  ProgramStateRef StInBound = state->assumeInBound(Idx, NumElements, true);
-  ProgramStateRef StOutBound = state->assumeInBound(Idx, NumElements, false);
+  ProgramStateRef StInBound = state->assumeInBound(Idx, ElementCount, true);
+  ProgramStateRef StOutBound = state->assumeInBound(Idx, ElementCount, false);
   if (StOutBound && !StInBound) {
     ExplodedNode *N = C.generateErrorNode(StOutBound);
 
@@ -71,22 +76,55 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
     // types explicitly reference such exploit categories (when applicable).
     if (!BT)
       BT.reset(new BuiltinBug(
-          this, "Return of pointer value outside of expected range",
+          this, "Buffer overflow",
           "Returned pointer value points outside the original object "
           "(potential buffer overflow)"));
 
-    // FIXME: It would be nice to eventually make this diagnostic more clear,
-    // e.g., by referencing the original declaration or by saying *why* this
-    // reference is outside the range.
-
     // Generate a report for this bug.
-    auto report = llvm::make_unique<BugReport>(*BT, BT->getDescription(), N);
+    auto Report =
+        std::make_unique<PathSensitiveBugReport>(*BT, BT->getDescription(), N);
+    Report->addRange(RetE->getSourceRange());
 
-    report->addRange(RetE->getSourceRange());
-    C.emitReport(std::move(report));
+    const auto ConcreteElementCount = ElementCount.getAs<nonloc::ConcreteInt>();
+    const auto ConcreteIdx = Idx.getAs<nonloc::ConcreteInt>();
+
+    const auto *DeclR = ER->getSuperRegion()->getAs<DeclRegion>();
+
+    if (DeclR)
+      Report->addNote("Original object declared here",
+                      {DeclR->getDecl(), C.getSourceManager()});
+
+    if (ConcreteElementCount) {
+      SmallString<128> SBuf;
+      llvm::raw_svector_ostream OS(SBuf);
+      OS << "Original object ";
+      if (DeclR) {
+        OS << "'";
+        DeclR->getDecl()->printName(OS);
+        OS << "' ";
+      }
+      OS << "is an array of " << ConcreteElementCount->getValue() << " '";
+      ER->getValueType().print(OS,
+                               PrintingPolicy(C.getASTContext().getLangOpts()));
+      OS << "' objects";
+      if (ConcreteIdx) {
+        OS << ", returned pointer points at index " << ConcreteIdx->getValue();
+      }
+
+      Report->addNote(SBuf,
+                      {RetE, C.getSourceManager(), C.getLocationContext()});
+    }
+
+    bugreporter::trackExpressionValue(N, RetE, *Report);
+
+    C.emitReport(std::move(Report));
   }
 }
 
 void ento::registerReturnPointerRangeChecker(CheckerManager &mgr) {
   mgr.registerChecker<ReturnPointerRangeChecker>();
+}
+
+bool ento::shouldRegisterReturnPointerRangeChecker(const CheckerManager &mgr) {
+  return true;
 }

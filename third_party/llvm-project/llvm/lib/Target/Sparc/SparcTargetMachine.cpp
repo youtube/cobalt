@@ -1,9 +1,8 @@
 //===-- SparcTargetMachine.cpp - Define TargetMachine for Sparc -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,13 +13,14 @@
 #include "LeonPasses.h"
 #include "Sparc.h"
 #include "SparcTargetObjectFile.h"
+#include "TargetInfo/SparcTargetInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 using namespace llvm;
 
-extern "C" void LLVMInitializeSparcTarget() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeSparcTarget() {
   // Register the target.
   RegisterTargetMachine<SparcV8TargetMachine> X(getTheSparcTarget());
   RegisterTargetMachine<SparcV9TargetMachine> Y(getTheSparcV9Target());
@@ -55,9 +55,7 @@ static std::string computeDataLayout(const Triple &T, bool is64Bit) {
 }
 
 static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
-  if (!RM.hasValue())
-    return Reloc::Static;
-  return *RM;
+  return RM.getValueOr(Reloc::Static);
 }
 
 // Code models. Some only make sense for 64-bit code.
@@ -70,11 +68,16 @@ static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
 // pic32  PIC_    Medium     GOT < 2^32 bytes
 //
 // All code models require that the text segment is smaller than 2GB.
-static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM,
-                                              Reloc::Model RM, bool Is64Bit,
-                                              bool JIT) {
-  if (CM)
+static CodeModel::Model
+getEffectiveSparcCodeModel(Optional<CodeModel::Model> CM, Reloc::Model RM,
+                           bool Is64Bit, bool JIT) {
+  if (CM) {
+    if (*CM == CodeModel::Tiny)
+      report_fatal_error("Target does not support the tiny CodeModel", false);
+    if (*CM == CodeModel::Kernel)
+      report_fatal_error("Target does not support the kernel CodeModel", false);
     return *CM;
+  }
   if (Is64Bit) {
     if (JIT)
       return CodeModel::Large;
@@ -88,13 +91,14 @@ SparcTargetMachine::SparcTargetMachine(
     const Target &T, const Triple &TT, StringRef CPU, StringRef FS,
     const TargetOptions &Options, Optional<Reloc::Model> RM,
     Optional<CodeModel::Model> CM, CodeGenOpt::Level OL, bool JIT, bool is64bit)
-    : LLVMTargetMachine(
-          T, computeDataLayout(TT, is64bit), TT, CPU, FS, Options,
-          getEffectiveRelocModel(RM),
-          getEffectiveCodeModel(CM, getEffectiveRelocModel(RM), is64bit, JIT),
-          OL),
-      TLOF(make_unique<SparcELFTargetObjectFile>()),
-      Subtarget(TT, CPU, FS, *this, is64bit), is64Bit(is64bit) {
+    : LLVMTargetMachine(T, computeDataLayout(TT, is64bit), TT, CPU, FS, Options,
+                        getEffectiveRelocModel(RM),
+                        getEffectiveSparcCodeModel(
+                            CM, getEffectiveRelocModel(RM), is64bit, JIT),
+                        OL),
+      TLOF(std::make_unique<SparcELFTargetObjectFile>()),
+      Subtarget(TT, std::string(CPU), std::string(FS), *this, is64bit),
+      is64Bit(is64bit) {
   initAsmInfo();
 }
 
@@ -105,19 +109,15 @@ SparcTargetMachine::getSubtargetImpl(const Function &F) const {
   Attribute CPUAttr = F.getFnAttribute("target-cpu");
   Attribute FSAttr = F.getFnAttribute("target-features");
 
-  std::string CPU = !CPUAttr.hasAttribute(Attribute::None)
-                        ? CPUAttr.getValueAsString().str()
-                        : TargetCPU;
-  std::string FS = !FSAttr.hasAttribute(Attribute::None)
-                       ? FSAttr.getValueAsString().str()
-                       : TargetFS;
+  std::string CPU =
+      CPUAttr.isValid() ? CPUAttr.getValueAsString().str() : TargetCPU;
+  std::string FS =
+      FSAttr.isValid() ? FSAttr.getValueAsString().str() : TargetFS;
 
   // FIXME: This is related to the code below to reset the target options,
   // we need to know whether or not the soft float flag is set on the
   // function, so we can enable it as a subtarget feature.
-  bool softFloat =
-      F.hasFnAttribute("use-soft-float") &&
-      F.getFnAttribute("use-soft-float").getValueAsString() == "true";
+  bool softFloat = F.getFnAttribute("use-soft-float").getValueAsBool();
 
   if (softFloat)
     FS += FS.empty() ? "+soft-float" : ",+soft-float";
@@ -128,7 +128,7 @@ SparcTargetMachine::getSubtargetImpl(const Function &F) const {
     // creation will depend on the TM and the code generation flags on the
     // function that reside in TargetOptions.
     resetTargetOptions(F);
-    I = llvm::make_unique<SparcSubtarget>(TargetTriple, CPU, FS, *this,
+    I = std::make_unique<SparcSubtarget>(TargetTriple, CPU, FS, *this,
                                           this->is64Bit);
   }
   return I.get();

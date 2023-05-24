@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -55,8 +54,8 @@ void basic_tests() {
     int a[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 1, 0};
     int* an = a + sizeof(a) / sizeof(a[0]);
     std::allocator<int> alloc;
-    test<std::vector<int> >(input_iterator<const int*>(a),
-                            input_iterator<const int*>(an), alloc);
+    test<std::vector<int> >(cpp17_input_iterator<const int*>(a),
+                            cpp17_input_iterator<const int*>(an), alloc);
     test<std::vector<int> >(forward_iterator<const int*>(a),
                             forward_iterator<const int*>(an), alloc);
     test<std::vector<int> >(bidirectional_iterator<const int*>(a),
@@ -71,7 +70,7 @@ void basic_tests() {
     int* an = a + sizeof(a) / sizeof(a[0]);
     min_allocator<int> alloc;
     test<std::vector<int, min_allocator<int> > >(
-        input_iterator<const int*>(a), input_iterator<const int*>(an), alloc);
+        cpp17_input_iterator<const int*>(a), cpp17_input_iterator<const int*>(an), alloc);
     test<std::vector<int, min_allocator<int> > >(
         forward_iterator<const int*>(a), forward_iterator<const int*>(an),
         alloc);
@@ -109,7 +108,7 @@ void emplaceable_concept_tests() {
   }
   {
     using T = EmplaceConstructibleAndMoveInsertable<int>;
-    using It = input_iterator<int*>;
+    using It = cpp17_input_iterator<int*>;
     using Alloc = std::allocator<T>;
     Alloc a;
     {
@@ -134,7 +133,6 @@ void test_ctor_under_alloc() {
   int arr2[] = {1, 101, 42};
   {
     using C = TCT::vector<>;
-    using T = typename C::value_type;
     using It = forward_iterator<int*>;
     using Alloc = typename C::allocator_type;
     Alloc a;
@@ -149,8 +147,7 @@ void test_ctor_under_alloc() {
   }
   {
     using C = TCT::vector<>;
-    using T = typename C::value_type;
-    using It = input_iterator<int*>;
+    using It = cpp17_input_iterator<int*>;
     using Alloc = typename C::allocator_type;
     Alloc a;
     {
@@ -165,8 +162,10 @@ void test_ctor_under_alloc() {
 #endif
 }
 
-int main() {
+int main(int, char**) {
   basic_tests();
   emplaceable_concept_tests(); // See PR34898
   test_ctor_under_alloc();
+
+  return 0;
 }

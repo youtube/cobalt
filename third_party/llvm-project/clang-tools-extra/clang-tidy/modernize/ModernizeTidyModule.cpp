@@ -1,9 +1,8 @@
 //===--- ModernizeTidyModule.cpp - clang-tidy -----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,7 +10,10 @@
 #include "../ClangTidyModule.h"
 #include "../ClangTidyModuleRegistry.h"
 #include "AvoidBindCheck.h"
+#include "AvoidCArraysCheck.h"
+#include "ConcatNestedNamespacesCheck.h"
 #include "DeprecatedHeadersCheck.h"
+#include "DeprecatedIosBaseAliasesCheck.h"
 #include "LoopConvertCheck.h"
 #include "MakeSharedCheck.h"
 #include "MakeUniqueCheck.h"
@@ -19,6 +21,7 @@
 #include "RawStringLiteralCheck.h"
 #include "RedundantVoidArgCheck.h"
 #include "ReplaceAutoPtrCheck.h"
+#include "ReplaceDisallowCopyAndAssignMacroCheck.h"
 #include "ReplaceRandomShuffleCheck.h"
 #include "ReturnBracedInitListCheck.h"
 #include "ShrinkToFitCheck.h"
@@ -29,9 +32,11 @@
 #include "UseEmplaceCheck.h"
 #include "UseEqualsDefaultCheck.h"
 #include "UseEqualsDeleteCheck.h"
+#include "UseNodiscardCheck.h"
 #include "UseNoexceptCheck.h"
 #include "UseNullptrCheck.h"
 #include "UseOverrideCheck.h"
+#include "UseTrailingReturnTypeCheck.h"
 #include "UseTransparentFunctorsCheck.h"
 #include "UseUncaughtExceptionsCheck.h"
 #include "UseUsingCheck.h"
@@ -46,8 +51,13 @@ class ModernizeModule : public ClangTidyModule {
 public:
   void addCheckFactories(ClangTidyCheckFactories &CheckFactories) override {
     CheckFactories.registerCheck<AvoidBindCheck>("modernize-avoid-bind");
+    CheckFactories.registerCheck<AvoidCArraysCheck>("modernize-avoid-c-arrays");
+    CheckFactories.registerCheck<ConcatNestedNamespacesCheck>(
+        "modernize-concat-nested-namespaces");
     CheckFactories.registerCheck<DeprecatedHeadersCheck>(
         "modernize-deprecated-headers");
+    CheckFactories.registerCheck<DeprecatedIosBaseAliasesCheck>(
+        "modernize-deprecated-ios-base-aliases");
     CheckFactories.registerCheck<LoopConvertCheck>("modernize-loop-convert");
     CheckFactories.registerCheck<MakeSharedCheck>("modernize-make-shared");
     CheckFactories.registerCheck<MakeUniqueCheck>("modernize-make-unique");
@@ -58,6 +68,8 @@ public:
         "modernize-redundant-void-arg");
     CheckFactories.registerCheck<ReplaceAutoPtrCheck>(
         "modernize-replace-auto-ptr");
+    CheckFactories.registerCheck<ReplaceDisallowCopyAndAssignMacroCheck>(
+        "modernize-replace-disallow-copy-and-assign-macro");
     CheckFactories.registerCheck<ReplaceRandomShuffleCheck>(
         "modernize-replace-random-shuffle");
     CheckFactories.registerCheck<ReturnBracedInitListCheck>(
@@ -74,9 +86,13 @@ public:
     CheckFactories.registerCheck<UseEqualsDefaultCheck>("modernize-use-equals-default");
     CheckFactories.registerCheck<UseEqualsDeleteCheck>(
         "modernize-use-equals-delete");
+    CheckFactories.registerCheck<UseNodiscardCheck>(
+        "modernize-use-nodiscard");
     CheckFactories.registerCheck<UseNoexceptCheck>("modernize-use-noexcept");
     CheckFactories.registerCheck<UseNullptrCheck>("modernize-use-nullptr");
     CheckFactories.registerCheck<UseOverrideCheck>("modernize-use-override");
+    CheckFactories.registerCheck<UseTrailingReturnTypeCheck>(
+        "modernize-use-trailing-return-type");
     CheckFactories.registerCheck<UseTransparentFunctorsCheck>(
         "modernize-use-transparent-functors");
     CheckFactories.registerCheck<UseUncaughtExceptionsCheck>(

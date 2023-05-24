@@ -1,9 +1,8 @@
 //===-- HostThreadMacOSX.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,16 +16,14 @@
 
 using namespace lldb_private;
 
+
+static pthread_once_t g_thread_create_once = PTHREAD_ONCE_INIT;
+static pthread_key_t g_thread_create_key = 0;
+
 namespace {
-
-pthread_once_t g_thread_create_once = PTHREAD_ONCE_INIT;
-pthread_key_t g_thread_create_key = 0;
-
 class MacOSXDarwinThread {
 public:
-  MacOSXDarwinThread() : m_pool(nil) {
-    m_pool = [[NSAutoreleasePool alloc] init];
-  }
+  MacOSXDarwinThread() { m_pool = [[NSAutoreleasePool alloc] init]; }
 
   ~MacOSXDarwinThread() {
     if (m_pool) {
@@ -42,17 +39,18 @@ public:
   }
 
 protected:
-  NSAutoreleasePool *m_pool;
+  NSAutoreleasePool *m_pool = nil;
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(MacOSXDarwinThread);
+  MacOSXDarwinThread(const MacOSXDarwinThread &) = delete;
+  const MacOSXDarwinThread &operator=(const MacOSXDarwinThread &) = delete;
 };
+} // namespace
 
-void InitThreadCreated() {
+static void InitThreadCreated() {
   ::pthread_key_create(&g_thread_create_key,
                        MacOSXDarwinThread::PThreadDestructor);
 }
-} // namespace
 
 HostThreadMacOSX::HostThreadMacOSX() : HostThreadPosix() {}
 

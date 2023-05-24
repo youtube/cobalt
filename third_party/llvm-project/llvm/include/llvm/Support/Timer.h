@@ -1,9 +1,8 @@
 //===-- llvm/Support/Timer.h - Interval Timing Support ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,23 +13,25 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
+#include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace llvm {
 
-class Timer;
 class TimerGroup;
 class raw_ostream;
 
 class TimeRecord {
-  double WallTime;       ///< Wall clock time elapsed in seconds.
-  double UserTime;       ///< User time elapsed.
-  double SystemTime;     ///< System time elapsed.
-  ssize_t MemUsed;       ///< Memory allocated (in bytes).
+  double WallTime;               ///< Wall clock time elapsed in seconds.
+  double UserTime;               ///< User time elapsed.
+  double SystemTime;             ///< System time elapsed.
+  ssize_t MemUsed;               ///< Memory allocated (in bytes).
+  uint64_t InstructionsExecuted; ///< Number of instructions executed
 public:
-  TimeRecord() : WallTime(0), UserTime(0), SystemTime(0), MemUsed(0) {}
+  TimeRecord()
+      : WallTime(0), UserTime(0), SystemTime(0), MemUsed(0),
+        InstructionsExecuted(0) {}
 
   /// Get the current time and memory usage.  If Start is true we get the memory
   /// usage before the time, otherwise we get time before memory usage.  This
@@ -43,6 +44,7 @@ public:
   double getSystemTime() const { return SystemTime; }
   double getWallTime() const { return WallTime; }
   ssize_t getMemUsed() const { return MemUsed; }
+  uint64_t getInstructionsExecuted() const { return InstructionsExecuted; }
 
   bool operator<(const TimeRecord &T) const {
     // Sort by Wall Time elapsed, as it is the only thing really accurate
@@ -50,16 +52,18 @@ public:
   }
 
   void operator+=(const TimeRecord &RHS) {
-    WallTime   += RHS.WallTime;
-    UserTime   += RHS.UserTime;
+    WallTime += RHS.WallTime;
+    UserTime += RHS.UserTime;
     SystemTime += RHS.SystemTime;
-    MemUsed    += RHS.MemUsed;
+    MemUsed += RHS.MemUsed;
+    InstructionsExecuted += RHS.InstructionsExecuted;
   }
   void operator-=(const TimeRecord &RHS) {
-    WallTime   -= RHS.WallTime;
-    UserTime   -= RHS.UserTime;
+    WallTime -= RHS.WallTime;
+    UserTime -= RHS.UserTime;
     SystemTime -= RHS.SystemTime;
-    MemUsed    -= RHS.MemUsed;
+    MemUsed -= RHS.MemUsed;
+    InstructionsExecuted -= RHS.InstructionsExecuted;
   }
 
   /// Print the current time record to \p OS, with a breakdown showing
@@ -79,18 +83,18 @@ class Timer {
   TimeRecord StartTime;     ///< The time startTimer() was last called.
   std::string Name;         ///< The name of this time variable.
   std::string Description;  ///< Description of this time variable.
-  bool Running;             ///< Is the timer currently running?
-  bool Triggered;           ///< Has the timer ever been triggered?
+  bool Running = false;     ///< Is the timer currently running?
+  bool Triggered = false;   ///< Has the timer ever been triggered?
   TimerGroup *TG = nullptr; ///< The TimerGroup this Timer is in.
 
-  Timer **Prev;             ///< Pointer to \p Next of previous timer in group.
-  Timer *Next;              ///< Next timer in the group.
+  Timer **Prev = nullptr;   ///< Pointer to \p Next of previous timer in group.
+  Timer *Next = nullptr;    ///< Next timer in the group.
 public:
-  explicit Timer(StringRef Name, StringRef Description) {
-    init(Name, Description);
+  explicit Timer(StringRef TimerName, StringRef TimerDescription) {
+    init(TimerName, TimerDescription);
   }
-  Timer(StringRef Name, StringRef Description, TimerGroup &tg) {
-    init(Name, Description, tg);
+  Timer(StringRef TimerName, StringRef TimerDescription, TimerGroup &tg) {
+    init(TimerName, TimerDescription, tg);
   }
   Timer(const Timer &RHS) {
     assert(!RHS.TG && "Can only copy uninitialized timers");
@@ -102,9 +106,9 @@ public:
   ~Timer();
 
   /// Create an uninitialized timer, client must use 'init'.
-  explicit Timer() {}
-  void init(StringRef Name, StringRef Description);
-  void init(StringRef Name, StringRef Description, TimerGroup &tg);
+  explicit Timer() = default;
+  void init(StringRef TimerName, StringRef TimerDescription);
+  void init(StringRef TimerName, StringRef TimerDescription, TimerGroup &tg);
 
   const std::string &getName() const { return Name; }
   const std::string &getDescription() const { return Description; }
@@ -175,6 +179,7 @@ class TimerGroup {
     std::string Description;
 
     PrintRecord(const PrintRecord &Other) = default;
+    PrintRecord &operator=(const PrintRecord &Other) = default;
     PrintRecord(const TimeRecord &Time, const std::string &Name,
                 const std::string &Description)
       : Time(Time), Name(Name), Description(Description) {}
@@ -206,27 +211,41 @@ public:
     Description.assign(NewDescription.begin(), NewDescription.end());
   }
 
-  /// Print any started timers in this group and zero them.
-  void print(raw_ostream &OS);
+  /// Print any started timers in this group, optionally resetting timers after
+  /// printing them.
+  void print(raw_ostream &OS, bool ResetAfterPrint = false);
 
-  /// This static method prints all timers and clears them all out.
+  /// Clear all timers in this group.
+  void clear();
+
+  /// This static method prints all timers.
   static void printAll(raw_ostream &OS);
+
+  /// Clear out all timers. This is mostly used to disable automatic
+  /// printing on shutdown, when timers have already been printed explicitly
+  /// using \c printAll or \c printJSONValues.
+  static void clearAll();
 
   const char *printJSONValues(raw_ostream &OS, const char *delim);
 
-  /// Prints all timers as JSON key/value pairs, and clears them all out.
+  /// Prints all timers as JSON key/value pairs.
   static const char *printAllJSONValues(raw_ostream &OS, const char *delim);
 
   /// Ensure global timer group lists are initialized. This function is mostly
   /// used by the Statistic code to influence the construction and destruction
   /// order of the global timer lists.
   static void ConstructTimerLists();
+
+  /// This makes the default group unmanaged, and lets the user manage the
+  /// group's lifetime.
+  static std::unique_ptr<TimerGroup> aquireDefaultGroup();
+
 private:
   friend class Timer;
   friend void PrintStatisticsJSON(raw_ostream &OS);
   void addTimer(Timer &T);
   void removeTimer(Timer &T);
-  void prepareToPrintList();
+  void prepareToPrintList(bool reset_time = false);
   void PrintQueuedTimers(raw_ostream &OS);
   void printJSONValue(raw_ostream &OS, const PrintRecord &R,
                       const char *suffix, double Value);

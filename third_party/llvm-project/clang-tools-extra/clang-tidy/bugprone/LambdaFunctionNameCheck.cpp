@@ -1,9 +1,8 @@
 //===--- LambdaFunctionNameCheck.cpp - clang-tidy--------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -36,19 +35,19 @@ public:
   void MacroExpands(const Token &MacroNameTok,
                     const MacroDefinition &MD, SourceRange Range,
                     const MacroArgs *Args) override {
-    bool has_file = false;
-    bool has_line = false;
+    bool HasFile = false;
+    bool HasLine = false;
     for (const auto& T : MD.getMacroInfo()->tokens()) {
       if (T.is(tok::identifier)) {
         StringRef IdentName = T.getIdentifierInfo()->getName();
         if (IdentName == "__FILE__") {
-          has_file = true;
+          HasFile = true;
         } else if (IdentName == "__LINE__") {
-          has_line = true;
+          HasLine = true;
         }
       }
     }
-    if (has_file && has_line) {
+    if (HasFile && HasLine) {
       SuppressMacroExpansions->insert(Range);
     }
   }
@@ -65,16 +64,16 @@ void LambdaFunctionNameCheck::registerMatchers(MatchFinder *Finder) {
                      this);
 }
 
-void LambdaFunctionNameCheck::registerPPCallbacks(CompilerInstance &Compiler) {
-  Compiler.getPreprocessor().addPPCallbacks(
-      llvm::make_unique<MacroExpansionsWithFileAndLine>(
-          &SuppressMacroExpansions));
+void LambdaFunctionNameCheck::registerPPCallbacks(
+    const SourceManager &SM, Preprocessor *PP, Preprocessor *ModuleExpanderPP) {
+  PP->addPPCallbacks(std::make_unique<MacroExpansionsWithFileAndLine>(
+      &SuppressMacroExpansions));
 }
 
 void LambdaFunctionNameCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *E = Result.Nodes.getNodeAs<PredefinedExpr>("E");
-  if (E->getIdentType() != PredefinedExpr::Func &&
-      E->getIdentType() != PredefinedExpr::Function) {
+  if (E->getIdentKind() != PredefinedExpr::Func &&
+      E->getIdentKind() != PredefinedExpr::Function) {
     // We don't care about other PredefinedExprs.
     return;
   }
@@ -91,7 +90,7 @@ void LambdaFunctionNameCheck::check(const MatchFinder::MatchResult &Result) {
        "inside a lambda, '%0' expands to the name of the function call "
        "operator; consider capturing the name of the enclosing function "
        "explicitly")
-      << PredefinedExpr::getIdentTypeName(E->getIdentType());
+      << PredefinedExpr::getIdentKindName(E->getIdentKind());
 }
 
 } // namespace bugprone

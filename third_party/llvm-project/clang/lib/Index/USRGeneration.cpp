@@ -1,16 +1,17 @@
 //===- USRGeneration.cpp - Routines for USR generation --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "clang/Index/USRGeneration.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclVisitor.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Lex/PreprocessingRecord.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -97,6 +98,7 @@ public:
   void VisitTypedefDecl(const TypedefDecl *D);
   void VisitTemplateTypeParmDecl(const TemplateTypeParmDecl *D);
   void VisitVarDecl(const VarDecl *D);
+  void VisitBindingDecl(const BindingDecl *D);
   void VisitNonTypeTemplateParmDecl(const NonTypeTemplateParmDecl *D);
   void VisitTemplateTemplateParmDecl(const TemplateTemplateParmDecl *D);
   void VisitUnresolvedUsingValueDecl(const UnresolvedUsingValueDecl *D);
@@ -111,7 +113,12 @@ public:
   }
 
   void VisitUsingDecl(const UsingDecl *D) {
-    IgnoreResults = true;
+    VisitDeclContext(D->getDeclContext());
+    Out << "@UD@";
+
+    bool EmittedDeclName = !EmitDeclName(D);
+    assert(EmittedDeclName && "EmitDeclName can not fail for UsingDecls");
+    (void)EmittedDeclName;
   }
 
   bool ShouldGenerateLocation(const NamedDecl *D);
@@ -269,7 +276,8 @@ void USRGenerator::VisitFunctionDecl(const FunctionDecl *D) {
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
     if (MD->isStatic())
       Out << 'S';
-    if (unsigned quals = MD->getTypeQualifiers())
+    // FIXME: OpenCL: Need to consider address spaces
+    if (unsigned quals = MD->getMethodQualifiers().getCVRUQualifiers())
       Out << (char)('0' + quals);
     switch (MD->getRefQualifier()) {
     case RQ_None: break;
@@ -334,6 +342,12 @@ void USRGenerator::VisitVarDecl(const VarDecl *D) {
   }
 }
 
+void USRGenerator::VisitBindingDecl(const BindingDecl *D) {
+  if (isLocal(D) && GenLoc(D, /*IncludeOffset=*/true))
+    return;
+  VisitNamedDecl(D);
+}
+
 void USRGenerator::VisitNonTypeTemplateParmDecl(
                                         const NonTypeTemplateParmDecl *D) {
   GenLoc(D, /*IncludeOffset=*/true);
@@ -369,6 +383,14 @@ void USRGenerator::VisitNamespaceAliasDecl(const NamespaceAliasDecl *D) {
     Out << "@NA@" << D->getName();
 }
 
+static const ObjCCategoryDecl *getCategoryContext(const NamedDecl *D) {
+  if (auto *CD = dyn_cast<ObjCCategoryDecl>(D->getDeclContext()))
+    return CD;
+  if (auto *ICD = dyn_cast<ObjCCategoryImplDecl>(D->getDeclContext()))
+    return ICD->getCategoryDecl();
+  return nullptr;
+}
+
 void USRGenerator::VisitObjCMethodDecl(const ObjCMethodDecl *D) {
   const DeclContext *container = D->getDeclContext();
   if (const ObjCProtocolDecl *pd = dyn_cast<ObjCProtocolDecl>(container)) {
@@ -382,14 +404,6 @@ void USRGenerator::VisitObjCMethodDecl(const ObjCMethodDecl *D) {
       IgnoreResults = true;
       return;
     }
-    auto getCategoryContext = [](const ObjCMethodDecl *D) ->
-                                    const ObjCCategoryDecl * {
-      if (auto *CD = dyn_cast<ObjCCategoryDecl>(D->getDeclContext()))
-        return CD;
-      if (auto *ICD = dyn_cast<ObjCCategoryImplDecl>(D->getDeclContext()))
-        return ICD->getCategoryDecl();
-      return nullptr;
-    };
     auto *CD = getCategoryContext(D);
     VisitObjCContainerDecl(ID, CD);
   }
@@ -462,7 +476,7 @@ void USRGenerator::VisitObjCPropertyDecl(const ObjCPropertyDecl *D) {
   // The USR for a property declared in a class extension or category is based
   // on the ObjCInterfaceDecl, not the ObjCCategoryDecl.
   if (const ObjCInterfaceDecl *ID = Context->getObjContainingInterface(D))
-    Visit(ID);
+    VisitObjCContainerDecl(ID, getCategoryContext(D));
   else
     Visit(cast<Decl>(D->getDeclContext()));
   GenObjCProperty(D->getName(), D->isClassProperty());
@@ -599,7 +613,7 @@ bool USRGenerator::GenLoc(const Decl *D, bool IncludeOffset) {
   D = D->getCanonicalDecl();
 
   IgnoreResults =
-      IgnoreResults || printLoc(Out, D->getLocStart(),
+      IgnoreResults || printLoc(Out, D->getBeginLoc(),
                                 Context->getSourceManager(), IncludeOffset);
 
   return IgnoreResults;
@@ -691,6 +705,7 @@ void USRGenerator::VisitType(QualType T) {
           c = 'f'; break;
         case BuiltinType::Double:
           c = 'd'; break;
+        case BuiltinType::Ibm128: // FIXME: Need separate tag
         case BuiltinType::LongDouble:
           c = 'D'; break;
         case BuiltinType::Float128:
@@ -704,11 +719,22 @@ void USRGenerator::VisitType(QualType T) {
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
         case BuiltinType::Id:
 #include "clang/Basic/OpenCLImageTypes.def"
+#define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
+        case BuiltinType::Id:
+#include "clang/Basic/OpenCLExtensionTypes.def"
         case BuiltinType::OCLEvent:
         case BuiltinType::OCLClkEvent:
         case BuiltinType::OCLQueue:
         case BuiltinType::OCLReserveID:
         case BuiltinType::OCLSampler:
+#define SVE_TYPE(Name, Id, SingletonId) \
+        case BuiltinType::Id:
+#include "clang/Basic/AArch64SVEACLETypes.def"
+#define PPC_VECTOR_TYPE(Name, Id, Size) \
+        case BuiltinType::Id:
+#include "clang/Basic/PPCTypes.def"
+#define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/RISCVVTypes.def"
         case BuiltinType::ShortAccum:
         case BuiltinType::Accum:
         case BuiltinType::LongAccum:
@@ -733,6 +759,7 @@ void USRGenerator::VisitType(QualType T) {
         case BuiltinType::SatUShortFract:
         case BuiltinType::SatUFract:
         case BuiltinType::SatULongFract:
+        case BuiltinType::BFloat16:
           IgnoreResults = true;
           return;
         case BuiltinType::ObjCId:
@@ -935,7 +962,7 @@ void USRGenerator::VisitTemplateArgument(const TemplateArgument &Arg) {
 
   case TemplateArgument::TemplateExpansion:
     Out << 'P'; // pack expansion of...
-    // Fall through
+    LLVM_FALLTHROUGH;
   case TemplateArgument::Template:
     VisitTemplateName(Arg.getAsTemplateOrTemplatePattern());
     break;
@@ -1077,20 +1104,56 @@ bool clang::index::generateUSRForMacro(const MacroDefinitionRecord *MD,
 bool clang::index::generateUSRForMacro(StringRef MacroName, SourceLocation Loc,
                                        const SourceManager &SM,
                                        SmallVectorImpl<char> &Buf) {
-  // Don't generate USRs for things with invalid locations.
-  if (MacroName.empty() || Loc.isInvalid())
+  if (MacroName.empty())
     return true;
 
   llvm::raw_svector_ostream Out(Buf);
 
   // Assume that system headers are sane.  Don't put source location
   // information into the USR if the macro comes from a system header.
-  bool ShouldGenerateLocation = !SM.isInSystemHeader(Loc);
+  bool ShouldGenerateLocation = Loc.isValid() && !SM.isInSystemHeader(Loc);
 
   Out << getUSRSpacePrefix();
   if (ShouldGenerateLocation)
     printLoc(Out, Loc, SM, /*IncludeOffset=*/true);
   Out << "@macro@";
   Out << MacroName;
+  return false;
+}
+
+bool clang::index::generateUSRForType(QualType T, ASTContext &Ctx,
+                                      SmallVectorImpl<char> &Buf) {
+  if (T.isNull())
+    return true;
+  T = T.getCanonicalType();
+
+  USRGenerator UG(&Ctx, Buf);
+  UG.VisitType(T);
+  return UG.ignoreResults();
+}
+
+bool clang::index::generateFullUSRForModule(const Module *Mod,
+                                            raw_ostream &OS) {
+  if (!Mod->Parent)
+    return generateFullUSRForTopLevelModuleName(Mod->Name, OS);
+  if (generateFullUSRForModule(Mod->Parent, OS))
+    return true;
+  return generateUSRFragmentForModule(Mod, OS);
+}
+
+bool clang::index::generateFullUSRForTopLevelModuleName(StringRef ModName,
+                                                        raw_ostream &OS) {
+  OS << getUSRSpacePrefix();
+  return generateUSRFragmentForModuleName(ModName, OS);
+}
+
+bool clang::index::generateUSRFragmentForModule(const Module *Mod,
+                                                raw_ostream &OS) {
+  return generateUSRFragmentForModuleName(Mod->Name, OS);
+}
+
+bool clang::index::generateUSRFragmentForModuleName(StringRef ModName,
+                                                    raw_ostream &OS) {
+  OS << "@M@" << ModName;
   return false;
 }

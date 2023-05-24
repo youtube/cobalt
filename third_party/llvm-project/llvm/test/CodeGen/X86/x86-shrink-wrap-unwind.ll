@@ -1,17 +1,14 @@
-; RUN: llc %s -o - | FileCheck %s
+; RUN: llc -mtriple=x86_64-apple-darwin10.6 < %s | FileCheck %s
+; RUN: llc -mtriple=x86_64-linux < %s | FileCheck %s --check-prefix=NOCOMPACTUNWIND
 ;
 ; Note: This test cannot be merged with the shrink-wrapping tests
 ; because the booleans set on the command line take precedence on
 ; the target logic that disable shrink-wrapping.
-target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
-target triple = "x86_64-apple-macosx"
 
-
-; This test checks that we do not use shrink-wrapping when
-; the function does not have any frame pointer and may unwind.
-; This is a workaround for a limitation in the emission of
-; the CFI directives, that are not correct in such case.
-; PR25614
+; The current compact unwind scheme does not work when the prologue is not at
+; the start (the instructions before the prologue cannot be described).
+; Currently we choose to not perform shrink-wrapping for functions without FP
+; not marked as nounwind. PR25614
 ;
 ; No shrink-wrapping should occur here, until the CFI information are fixed.
 ; CHECK-LABEL: framelessUnwind:
@@ -41,6 +38,12 @@ target triple = "x86_64-apple-macosx"
 ; CHECK-NEXT: popq
 ;
 ; CHECK-NEXT: retq
+
+; On a platform which does not support compact unwind, shrink wrapping is enabled.
+; NOCOMPACTUNWIND-LABEL: framelessUnwind:
+; NOCOMPACTUNWIND-NOT:     pushq
+; NOCOMPACTUNWIND:       # %bb.1:
+; NOCOMPACTUNWIND-NEXT:    pushq %rax
 define i32 @framelessUnwind(i32 %a, i32 %b) #0 {
   %tmp = alloca i32, align 4
   %tmp2 = icmp slt i32 %a, %b
@@ -58,7 +61,7 @@ false:
 
 declare i32 @doSomething(i32, i32*)
 
-attributes #0 = { "no-frame-pointer-elim"="false" }
+attributes #0 = { "frame-pointer"="none" }
 
 ; Shrink-wrapping should occur here. We have a frame pointer.
 ; CHECK-LABEL: frameUnwind:
@@ -104,7 +107,7 @@ false:
   ret i32 %tmp.0
 }
 
-attributes #1 = { "no-frame-pointer-elim"="true" }
+attributes #1 = { "frame-pointer"="all" }
 
 ; Shrink-wrapping should occur here. We do not have to unwind.
 ; CHECK-LABEL: framelessnoUnwind:
@@ -150,7 +153,7 @@ false:
   ret i32 %tmp.0
 }
 
-attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
+attributes #2 = { "frame-pointer"="none" nounwind }
 
 
 ; Check that we generate correct code for segmented stack.
@@ -160,14 +163,7 @@ attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
 ;
 ; CHECK-LABEL: segmentedStack:
 ; CHECK: cmpq
-; CHECK-NEXT: ja [[ENTRY_LABEL:LBB[0-9_]+]]
-;
-; CHECK: callq ___morestack
-; CHECK-NEXT: retq
-;
-; CHECK: [[ENTRY_LABEL]]:
-; Prologue
-; CHECK: push
+; CHECK-NEXT: jbe [[ENTRY_LABEL:LBB[0-9_]+]]
 ;
 ; In PR26107, we use to drop these two basic blocks, because
 ; the segmentedStack entry block was jumping directly to
@@ -186,6 +182,12 @@ attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
 ;
 ; CHECK: [[STRINGS_EQUAL]]
 ; CHECK: popq
+;
+; CHECK: [[ENTRY_LABEL]]:
+; CHECK: callq ___morestack
+; CHECK-NEXT: retq
+;
+
 define zeroext i1 @segmentedStack(i8* readonly %vk1, i8* readonly %vk2, i64 %key_size) #5 {
 entry:
   %cmp.i = icmp eq i8* %vk1, null

@@ -1,5 +1,11 @@
+; RUN: opt < %s -msan-check-access-address=0 -S -passes=msan 2>&1 | FileCheck  \
+; RUN: %s
 ; RUN: opt < %s -msan -msan-check-access-address=0 -S | FileCheck %s
+; RUN: opt < %s -msan-check-access-address=0 -msan-track-origins=1 -S          \
+; RUN: -passes=msan 2>&1 | FileCheck %s "--check-prefixes=CHECK,CHECK-ORIGIN"
 ; RUN: opt < %s -msan -msan-check-access-address=0 -msan-track-origins=1 -S | FileCheck %s --check-prefixes=CHECK,CHECK-ORIGIN
+; RUN: opt < %s -msan-check-access-address=1 -S -passes=msan 2>&1 | FileCheck  \
+; RUN: %s --check-prefix=ADDR
 ; RUN: opt < %s -msan -msan-check-access-address=1 -S | FileCheck %s --check-prefix=ADDR
 
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
@@ -43,17 +49,17 @@ entry:
 ; CHECK: ret void
 
 ; ADDR-LABEL: @Store(
-; ADDR: %[[MASKSHADOW:.*]] = load <4 x i1>, {{.*}}@__msan_param_tls to i64), i64 40)
 ; ADDR: %[[ADDRSHADOW:.*]] = load i64, {{.*}}[100 x i64]* @__msan_param_tls, i32 0, i32 0)
+; ADDR: %[[MASKSHADOW:.*]] = load <4 x i1>, {{.*}}@__msan_param_tls to i64), i64 40)
 
 ; ADDR: %[[ADDRBAD:.*]] = icmp ne i64 %[[ADDRSHADOW]], 0
 ; ADDR: br i1 %[[ADDRBAD]], label {{.*}}, label {{.*}}
-; ADDR: call void @__msan_warning_noreturn()
+; ADDR: call void @__msan_warning_with_origin_noreturn(i32 0)
 
 ; ADDR: %[[MASKSHADOWFLAT:.*]] = bitcast <4 x i1> %[[MASKSHADOW]] to i4
 ; ADDR: %[[MASKBAD:.*]] = icmp ne i4 %[[MASKSHADOWFLAT]], 0
 ; ADDR: br i1 %[[MASKBAD]], label {{.*}}, label {{.*}}
-; ADDR: call void @__msan_warning_noreturn()
+; ADDR: call void @__msan_warning_with_origin_noreturn(i32 0)
 
 ; ADDR: tail call void @llvm.masked.store.v4i64.p0v4i64(<4 x i64> %v, <4 x i64>* %p, i32 1, <4 x i1> %mask)
 ; ADDR: ret void
@@ -83,17 +89,17 @@ entry:
 ; CHECK: ret <4 x double> %[[X]]
 
 ; ADDR-LABEL: @Load(
-; ADDR: %[[MASKSHADOW:.*]] = load <4 x i1>, {{.*}}@__msan_param_tls to i64), i64 40)
 ; ADDR: %[[ADDRSHADOW:.*]] = load i64, {{.*}}[100 x i64]* @__msan_param_tls, i32 0, i32 0)
+; ADDR: %[[MASKSHADOW:.*]] = load <4 x i1>, {{.*}}@__msan_param_tls to i64), i64 40)
 
 ; ADDR: %[[ADDRBAD:.*]] = icmp ne i64 %[[ADDRSHADOW]], 0
 ; ADDR: br i1 %[[ADDRBAD]], label {{.*}}, label {{.*}}
-; ADDR: call void @__msan_warning_noreturn()
+; ADDR: call void @__msan_warning_with_origin_noreturn(i32 0)
 
 ; ADDR: %[[MASKSHADOWFLAT:.*]] = bitcast <4 x i1> %[[MASKSHADOW]] to i4
 ; ADDR: %[[MASKBAD:.*]] = icmp ne i4 %[[MASKSHADOWFLAT]], 0
 ; ADDR: br i1 %[[MASKBAD]], label {{.*}}, label {{.*}}
-; ADDR: call void @__msan_warning_noreturn()
+; ADDR: call void @__msan_warning_with_origin_noreturn(i32 0)
 
 ; ADDR: = call <4 x double> @llvm.masked.load.v4f64.p0v4f64(<4 x double>* %p, i32 1, <4 x i1> %mask, <4 x double> %v)
 ; ADDR: ret <4 x double>

@@ -1,9 +1,8 @@
 //===----- CGOpenCLRuntime.cpp - Interface to OpenCL Runtimes -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -62,6 +61,11 @@ llvm::Type *CGOpenCLRuntime::convertOpenCLSpecificType(const Type *T) {
   case BuiltinType::OCLReserveID:
     return llvm::PointerType::get(
         llvm::StructType::create(Ctx, "opencl.reserve_id_t"), AddrSpc);
+#define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
+  case BuiltinType::Id: \
+    return llvm::PointerType::get( \
+        llvm::StructType::create(Ctx, "opencl." #ExtType), AddrSpc);
+#include "clang/Basic/OpenCLExtensionTypes.def"
   }
 }
 
@@ -92,7 +96,7 @@ llvm::PointerType *CGOpenCLRuntime::getSamplerType(const Type *T) {
 }
 
 llvm::Value *CGOpenCLRuntime::getPipeElemSize(const Expr *PipeArg) {
-  const PipeType *PipeTy = PipeArg->getType()->getAs<PipeType>();
+  const PipeType *PipeTy = PipeArg->getType()->castAs<PipeType>();
   // The type of the last (implicit) argument to be passed.
   llvm::Type *Int32Ty = llvm::IntegerType::getInt32Ty(CGM.getLLVMContext());
   unsigned TypeSize = CGM.getContext()
@@ -102,7 +106,7 @@ llvm::Value *CGOpenCLRuntime::getPipeElemSize(const Expr *PipeArg) {
 }
 
 llvm::Value *CGOpenCLRuntime::getPipeElemAlign(const Expr *PipeArg) {
-  const PipeType *PipeTy = PipeArg->getType()->getAs<PipeType>();
+  const PipeType *PipeTy = PipeArg->getType()->castAs<PipeType>();
   // The type of the last (implicit) argument to be passed.
   llvm::Type *Int32Ty = llvm::IntegerType::getInt32Ty(CGM.getLLVMContext());
   unsigned TypeSize = CGM.getContext()
@@ -124,15 +128,13 @@ llvm::PointerType *CGOpenCLRuntime::getGenericVoidPointerType() {
 // all block variables must be initialized at declaration time and may not be
 // reassigned.
 static const BlockExpr *getBlockExpr(const Expr *E) {
-  if (auto Cast = dyn_cast<CastExpr>(E)) {
-    E = Cast->getSubExpr();
-  }
-  if (auto DR = dyn_cast<DeclRefExpr>(E)) {
-    E = cast<VarDecl>(DR->getDecl())->getInit();
-  }
-  E = E->IgnoreImplicit();
-  if (auto Cast = dyn_cast<CastExpr>(E)) {
-    E = Cast->getSubExpr();
+  const Expr *Prev = nullptr; // to make sure we do not stuck in infinite loop.
+  while(!isa<BlockExpr>(E) && E != Prev) {
+    Prev = E;
+    E = E->IgnoreCasts();
+    if (auto DR = dyn_cast<DeclRefExpr>(E)) {
+      E = cast<VarDecl>(DR->getDecl())->getInit();
+    }
   }
   return cast<BlockExpr>(E);
 }
@@ -159,7 +161,10 @@ CGOpenCLRuntime::EnqueuedBlockInfo
 CGOpenCLRuntime::emitOpenCLEnqueuedBlock(CodeGenFunction &CGF, const Expr *E) {
   CGF.EmitScalarExpr(E);
 
+  // The block literal may be assigned to a const variable. Chasing down
+  // to get the block literal.
   const BlockExpr *Block = getBlockExpr(E);
+
   assert(EnqueuedBlockMap.find(Block) != EnqueuedBlockMap.end() &&
          "Block expression not emitted");
 

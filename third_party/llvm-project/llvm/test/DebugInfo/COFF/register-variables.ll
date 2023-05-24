@@ -1,5 +1,5 @@
-; RUN: llc < %s | FileCheck %s --check-prefix=ASM
-; RUN: llc < %s -filetype=obj | llvm-readobj -codeview - | FileCheck %s --check-prefix=OBJ
+; RUN: llc < %s -experimental-debug-variable-locations=true | FileCheck %s --check-prefix=ASM
+; RUN: llc < %s -filetype=obj -experimental-debug-variable-locations=true | llvm-readobj --codeview - | FileCheck %s --check-prefix=OBJ
 
 ; Generated from:
 ; volatile int x;
@@ -24,17 +24,13 @@
 ; ASM: f:                                      # @f
 ; ASM: .Lfunc_begin0:
 ; ASM: # %bb.0:                                 # %entry
+; ASM:         #DEBUG_VALUE: f:p <- $ecx
 ; ASM:         pushq   %rsi
 ; ASM:         subq    $32, %rsp
-; ASM:         #DEBUG_VALUE: f:p <- $ecx
 ; ASM:         movl    %ecx, %esi
 ; ASM: [[p_ecx_esi:\.Ltmp.*]]:
-; ASM:         #DEBUG_VALUE: f:p <- $esi
 ; ASM:         callq   getint
 ; ASM: [[after_getint:\.Ltmp.*]]:
-; ASM:         #DEBUG_VALUE: a <- $eax
-; ASM:         #DEBUG_VALUE: inlineinc:a <- $eax
-; ASM:         #DEBUG_VALUE: c <- $eax
 ; ASM:         testl   %esi, %esi
 ; ASM:         je      .LBB0_2
 ; ASM: [[after_je:\.Ltmp.*]]:
@@ -45,38 +41,41 @@
 ; ASM:         addl    $1, %eax
 ; ASM: [[after_inc_eax:\.Ltmp.*]]:
 ; ASM:         #DEBUG_VALUE: inlineinc:b <- $eax
-; ASM:         #DEBUG_VALUE: b <- $eax
 ; ASM:         addl    $1, x(%rip)
 ; ASM: [[after_if:\.Ltmp.*]]:
 ; ASM: .LBB0_2:                                # %if.else
 ; ASM:         #DEBUG_VALUE: f:p <- $esi
+;; FIXME: tail-merging causes the location of "c" to be dropped in instruction
+;; referencing mode.
+; ASM:         #DEBUG_VALUE: c <- undef
 ; ASM:         movl    %eax, %ecx
 ; ASM:         addq    $32, %rsp
 ; ASM:         popq    %rsi
 ; ASM: [[func_end:\.Ltmp.*]]:
 ; ASM:         jmp     putint                  # TAILCALL
+; ASM: [[func_finished:\.Ltmp.*]]:
 
 ; ASM:         .short  4414                    # Record kind: S_LOCAL
 ; ASM:         .asciz  "p"
-; ASM:         .cv_def_range    .Lfunc_begin0 [[p_ecx_esi]], "A\021\022\000\000\000"
-; ASM:         .cv_def_range    [[p_ecx_esi]] [[func_end]], "A\021\027\000\000\000"
+; ASM:         .cv_def_range    .Lfunc_begin0 [[after_getint]], reg, 18
+; ASM:         .cv_def_range    [[after_getint]] [[func_end]], reg, 23
 ; ASM:         .short  4414                    # Record kind: S_LOCAL
 ; ASM:         .asciz  "c"
-; ASM:         .cv_def_range    [[after_getint]] [[after_je]], "A\021\021\000\000\000"
 ; ASM:         .short  4414                    # Record kind: S_LOCAL
 ; ASM:         .asciz  "a"
-; ASM:         .cv_def_range    [[after_getint]] [[after_inc_eax]], "A\021\021\000\000\000"
+; ASM:         .cv_def_range    [[after_je]] [[after_inc_eax]], reg, 17
 ; ASM:         .short  4414                    # Record kind: S_LOCAL
 ; ASM:         .asciz  "b"
-; ASM:         .cv_def_range    [[after_inc_eax]] [[after_if]], "A\021\021\000\000\000"
+
+; Note: "b" is a victim of tail de-duplication / branch folding.
 
 ; ASM:         .short  4429                    # Record kind: S_INLINESITE
 ; ASM:         .short  4414                    # Record kind: S_LOCAL
 ; ASM:         .asciz  "a"
-; ASM:         .cv_def_range    [[after_getint]] [[after_inc_eax]], "A\021\021\000\000\000"
+; ASM:         .cv_def_range    [[after_je]] [[after_inc_eax]], reg, 17
 ; ASM:         .short  4414                    # Record kind: S_LOCAL
 ; ASM:         .asciz  "b"
-; ASM:         .cv_def_range    [[after_inc_eax]] [[after_if]], "A\021\021\000\000\000"
+; ASM:         .cv_def_range    [[after_inc_eax]] [[after_if]], reg, 17
 ; ASM:         .short  4430                    # Record kind: S_INLINESITE_END
 
 ; OBJ: Subsection [
@@ -92,34 +91,27 @@
 ; OBJ:     VarName: p
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: CVRegECX (0x12)
+; OBJ:     Register: ECX (0x12)
 ; OBJ:     LocalVariableAddrRange {
 ; OBJ:       OffsetStart: .text+0x0
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x7
+; OBJ:       Range: 0xC
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: CVRegESI (0x17)
+; OBJ:     Register: ESI (0x17)
 ; OBJ:     LocalVariableAddrRange {
-; OBJ:       OffsetStart: .text+0x7
+; OBJ:       OffsetStart: .text+0xC
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x1A
+; OBJ:       Range: 0x15
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   LocalSym {
 ; OBJ:     Type: int (0x74)
-; OBJ:     Flags [ (0x0)
+; OBJ:     Flags [ (0x100)
+; OBJ:       IsOptimizedOut (0x100)
 ; OBJ:     ]
 ; OBJ:     VarName: c
-; OBJ:   }
-; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: CVRegEAX (0x11)
-; OBJ:     LocalVariableAddrRange {
-; OBJ:       OffsetStart: .text+0xC
-; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x4
-; OBJ:     }
 ; OBJ:   }
 ; OBJ:   LocalSym {
 ; OBJ:     Type: int (0x74)
@@ -128,25 +120,11 @@
 ; OBJ:     VarName: a
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: CVRegEAX (0x11)
+; OBJ:     Register: EAX (0x11)
 ; OBJ:     LocalVariableAddrRange {
-; OBJ:       OffsetStart: .text+0xC
+; OBJ:       OffsetStart: .text+0x10
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x7
-; OBJ:     }
-; OBJ:   }
-; OBJ:   LocalSym {
-; OBJ:     Type: int (0x74)
-; OBJ:     Flags [ (0x0)
-; OBJ:     ]
-; OBJ:     VarName: b
-; OBJ:   }
-; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: CVRegEAX (0x11)
-; OBJ:     MayHaveNoName: 0
-; OBJ:       OffsetStart: .text+0x13
-; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x7
+; OBJ:       Range: 0x3
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   InlineSiteSym {
@@ -162,11 +140,11 @@
 ; OBJ:     VarName: a
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: CVRegEAX (0x11)
+; OBJ:     Register: EAX (0x11)
 ; OBJ:     LocalVariableAddrRange {
-; OBJ:       OffsetStart: .text+0xC
+; OBJ:       OffsetStart: .text+0x10
 ; OBJ:       ISectStart: 0x0
-; OBJ:       Range: 0x7
+; OBJ:       Range: 0x3
 ; OBJ:     }
 ; OBJ:   }
 ; OBJ:   LocalSym {
@@ -176,7 +154,7 @@
 ; OBJ:     VarName: b
 ; OBJ:   }
 ; OBJ:   DefRangeRegisterSym {
-; OBJ:     Register: CVRegEAX (0x11)
+; OBJ:     Register: EAX (0x11)
 ; OBJ:     LocalVariableAddrRange {
 ; OBJ:       OffsetStart: .text+0x13
 ; OBJ:       ISectStart: 0x0
@@ -231,8 +209,8 @@ declare void @putint(i32) #1
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, metadata, metadata) #2
 
-attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { nounwind readnone }
 attributes #3 = { nounwind }
 

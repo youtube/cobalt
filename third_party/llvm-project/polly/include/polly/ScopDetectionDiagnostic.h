@@ -1,9 +1,8 @@
 //===- ScopDetectionDiagnostic.h - Diagnostic for ScopDetection -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,30 +20,31 @@
 #ifndef POLLY_SCOPDETECTIONDIAGNOSTIC_H
 #define POLLY_SCOPDETECTIONDIAGNOSTIC_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Instruction.h"
 #include <cstddef>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-
-using namespace llvm;
 
 namespace llvm {
-
 class AliasSet;
 class BasicBlock;
 class OptimizationRemarkEmitter;
-class raw_ostream;
 class Region;
 class SCEV;
-class Value;
 } // namespace llvm
 
 namespace polly {
+using llvm::AliasSet;
+using llvm::BasicBlock;
+using llvm::DebugLoc;
+using llvm::Instruction;
+using llvm::Loop;
+using llvm::OptimizationRemarkEmitter;
+using llvm::raw_ostream;
+using llvm::Region;
+using llvm::SCEV;
+using llvm::SmallVector;
+using llvm::Value;
 
 /// Type to hold region delimiters (entry & exit block).
 using BBPair = std::pair<BasicBlock *, BasicBlock *>;
@@ -73,6 +73,7 @@ enum class RejectReasonKind {
   InvalidTerminator,
   IrreducibleRegion,
   UnreachableInExit,
+  IndirectPredecessor,
   LastCFG,
 
   // Non-Affinity
@@ -259,6 +260,32 @@ public:
   ReportUnreachableInExit(BasicBlock *BB, DebugLoc DbgLoc)
       : ReportCFG(RejectReasonKind::UnreachableInExit), BB(BB), DbgLoc(DbgLoc) {
   }
+
+  /// @name LLVM-RTTI interface
+  //@{
+  static bool classof(const RejectReason *RR);
+  //@}
+
+  /// @name RejectReason interface
+  //@{
+  std::string getRemarkName() const override;
+  const Value *getRemarkBB() const override;
+  std::string getMessage() const override;
+  std::string getEndUserMessage() const override;
+  const DebugLoc &getDebugLoc() const override;
+  //@}
+};
+
+//===----------------------------------------------------------------------===//
+/// Captures regions with an IndirectBr predecessor.
+class ReportIndirectPredecessor : public ReportCFG {
+  Instruction *Inst;
+  DebugLoc DbgLoc;
+
+public:
+  ReportIndirectPredecessor(Instruction *Inst, DebugLoc DbgLoc)
+      : ReportCFG(RejectReasonKind::IndirectPredecessor), Inst(Inst),
+        DbgLoc(DbgLoc) {}
 
   /// @name LLVM-RTTI interface
   //@{

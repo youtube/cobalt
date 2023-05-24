@@ -1,9 +1,8 @@
 //===- AMDGPUAliasAnalysis ------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -12,117 +11,131 @@
 
 #include "AMDGPUAliasAnalysis.h"
 #include "AMDGPU.h"
-#include "llvm/ADT/Triple.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/IR/Argument.h"
-#include "llvm/IR/Attributes.h"
-#include "llvm/IR/CallingConv.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Value.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/ErrorHandling.h"
-#include <cassert>
+#include "llvm/IR/Instructions.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "amdgpu-aa"
 
+AnalysisKey AMDGPUAA::Key;
+
 // Register this pass...
 char AMDGPUAAWrapperPass::ID = 0;
+char AMDGPUExternalAAWrapper::ID = 0;
 
 INITIALIZE_PASS(AMDGPUAAWrapperPass, "amdgpu-aa",
                 "AMDGPU Address space based Alias Analysis", false, true)
 
+INITIALIZE_PASS(AMDGPUExternalAAWrapper, "amdgpu-aa-wrapper",
+                "AMDGPU Address space based Alias Analysis Wrapper", false, true)
+
 ImmutablePass *llvm::createAMDGPUAAWrapperPass() {
   return new AMDGPUAAWrapperPass();
+}
+
+ImmutablePass *llvm::createAMDGPUExternalAAWrapperPass() {
+  return new AMDGPUExternalAAWrapper();
+}
+
+AMDGPUAAWrapperPass::AMDGPUAAWrapperPass() : ImmutablePass(ID) {
+  initializeAMDGPUAAWrapperPassPass(*PassRegistry::getPassRegistry());
 }
 
 void AMDGPUAAWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
 }
 
-// Must match the table in getAliasResult.
-AMDGPUAAResult::ASAliasRulesTy::ASAliasRulesTy(AMDGPUAS AS_, Triple::ArchType Arch_)
-  : Arch(Arch_), AS(AS_) {
-  // These arrarys are indexed by address space value
-  // enum elements 0 ... to 6
-  static const AliasResult ASAliasRulesPrivIsZero[7][7] = {
-  /*                    Private    Global    Constant  Group     Flat      Region    Constant 32-bit */
-  /* Private  */        {MayAlias, NoAlias , NoAlias , NoAlias , MayAlias, NoAlias , NoAlias},
-  /* Global   */        {NoAlias , MayAlias, MayAlias, NoAlias , MayAlias, NoAlias , MayAlias},
-  /* Constant */        {NoAlias , MayAlias, MayAlias, NoAlias , MayAlias, NoAlias , MayAlias},
-  /* Group    */        {NoAlias , NoAlias , NoAlias , MayAlias, MayAlias, NoAlias , NoAlias},
-  /* Flat     */        {MayAlias, MayAlias, MayAlias, MayAlias, MayAlias, MayAlias, MayAlias},
-  /* Region   */        {NoAlias , NoAlias , NoAlias , NoAlias , MayAlias, MayAlias, NoAlias},
-  /* Constant 32-bit */ {NoAlias , MayAlias, MayAlias, NoAlias , MayAlias, NoAlias , MayAlias}
-  };
-  static const AliasResult ASAliasRulesGenIsZero[7][7] = {
-  /*                    Flat       Global    Region    Group     Constant  Private   Constant 32-bit */
-  /* Flat     */        {MayAlias, MayAlias, MayAlias, MayAlias, MayAlias, MayAlias, MayAlias},
-  /* Global   */        {MayAlias, MayAlias, NoAlias , NoAlias , MayAlias, NoAlias , MayAlias},
-  /* Region   */        {MayAlias, NoAlias , NoAlias , NoAlias,  MayAlias, NoAlias , MayAlias},
-  /* Group    */        {MayAlias, NoAlias , NoAlias , MayAlias, NoAlias , NoAlias , NoAlias},
-  /* Constant */        {MayAlias, MayAlias, MayAlias, NoAlias , NoAlias,  NoAlias , MayAlias},
-  /* Private  */        {MayAlias, NoAlias , NoAlias , NoAlias , NoAlias , MayAlias, NoAlias},
-  /* Constant 32-bit */ {MayAlias, MayAlias, MayAlias, NoAlias , MayAlias, NoAlias , NoAlias}
-  };
-  static_assert(AMDGPUAS::MAX_AMDGPU_ADDRESS <= 6, "Addr space out of range");
-  if (AS.FLAT_ADDRESS == 0) {
-    assert(AS.GLOBAL_ADDRESS         == 1 &&
-           AS.REGION_ADDRESS         == 2 &&
-           AS.LOCAL_ADDRESS          == 3 &&
-           AS.CONSTANT_ADDRESS       == 4 &&
-           AS.PRIVATE_ADDRESS        == 5 &&
-           AS.CONSTANT_ADDRESS_32BIT == 6);
-    ASAliasRules = &ASAliasRulesGenIsZero;
-  } else {
-    assert(AS.PRIVATE_ADDRESS        == 0 &&
-           AS.GLOBAL_ADDRESS         == 1 &&
-           AS.CONSTANT_ADDRESS       == 2 &&
-           AS.LOCAL_ADDRESS          == 3 &&
-           AS.FLAT_ADDRESS           == 4 &&
-           AS.REGION_ADDRESS         == 5 &&
-           AS.CONSTANT_ADDRESS_32BIT == 6);
-    ASAliasRules = &ASAliasRulesPrivIsZero;
-  }
-}
+static AliasResult getAliasResult(unsigned AS1, unsigned AS2) {
+  static_assert(AMDGPUAS::MAX_AMDGPU_ADDRESS <= 7, "Addr space out of range");
 
-AliasResult AMDGPUAAResult::ASAliasRulesTy::getAliasResult(unsigned AS1,
-    unsigned AS2) const {
-  if (AS1 > AS.MAX_AMDGPU_ADDRESS || AS2 > AS.MAX_AMDGPU_ADDRESS) {
-    if (Arch == Triple::amdgcn)
-      report_fatal_error("Pointer address space out of range");
-    return AS1 == AS2 ? MayAlias : NoAlias;
-  }
+  if (AS1 > AMDGPUAS::MAX_AMDGPU_ADDRESS || AS2 > AMDGPUAS::MAX_AMDGPU_ADDRESS)
+    return AliasResult::MayAlias;
 
-  return (*ASAliasRules)[AS1][AS2];
+#define ASMay AliasResult::MayAlias
+#define ASNo AliasResult::NoAlias
+  // This array is indexed by address space value enum elements 0 ... to 7
+  static const AliasResult ASAliasRules[8][8] = {
+    /*                    Flat    Global Region Group  Constant Private Const32 Buf Fat Ptr */
+    /* Flat     */        {ASMay, ASMay, ASNo,  ASMay, ASMay,   ASMay,  ASMay,  ASMay},
+    /* Global   */        {ASMay, ASMay, ASNo,  ASNo,  ASMay,   ASNo,   ASMay,  ASMay},
+    /* Region   */        {ASNo,  ASNo,  ASMay, ASNo,  ASNo,    ASNo,   ASNo,   ASNo},
+    /* Group    */        {ASMay, ASNo,  ASNo,  ASMay, ASNo,    ASNo,   ASNo,   ASNo},
+    /* Constant */        {ASMay, ASMay, ASNo,  ASNo,  ASNo,    ASNo,   ASMay,  ASMay},
+    /* Private  */        {ASMay, ASNo,  ASNo,  ASNo,  ASNo,    ASMay,  ASNo,   ASNo},
+    /* Constant 32-bit */ {ASMay, ASMay, ASNo,  ASNo,  ASMay,   ASNo,   ASNo,   ASMay},
+    /* Buffer Fat Ptr  */ {ASMay, ASMay, ASNo,  ASNo,  ASMay,   ASNo,   ASMay,  ASMay}
+  };
+#undef ASMay
+#undef ASNo
+
+  return ASAliasRules[AS1][AS2];
 }
 
 AliasResult AMDGPUAAResult::alias(const MemoryLocation &LocA,
-                                  const MemoryLocation &LocB) {
+                                  const MemoryLocation &LocB,
+                                  AAQueryInfo &AAQI) {
   unsigned asA = LocA.Ptr->getType()->getPointerAddressSpace();
   unsigned asB = LocB.Ptr->getType()->getPointerAddressSpace();
 
-  AliasResult Result = ASAliasRules.getAliasResult(asA, asB);
-  if (Result == NoAlias) return Result;
+  AliasResult Result = getAliasResult(asA, asB);
+  if (Result == AliasResult::NoAlias)
+    return Result;
+
+  // In general, FLAT (generic) pointers could be aliased to LOCAL or PRIVATE
+  // pointers. However, as LOCAL or PRIVATE pointers point to local objects, in
+  // certain cases, it's still viable to check whether a FLAT pointer won't
+  // alias to a LOCAL or PRIVATE pointer.
+  MemoryLocation A = LocA;
+  MemoryLocation B = LocB;
+  // Canonicalize the location order to simplify the following alias check.
+  if (asA != AMDGPUAS::FLAT_ADDRESS) {
+    std::swap(asA, asB);
+    std::swap(A, B);
+  }
+  if (asA == AMDGPUAS::FLAT_ADDRESS &&
+      (asB == AMDGPUAS::LOCAL_ADDRESS || asB == AMDGPUAS::PRIVATE_ADDRESS)) {
+    const auto *ObjA =
+        getUnderlyingObject(A.Ptr->stripPointerCastsForAliasAnalysis());
+    if (const LoadInst *LI = dyn_cast<LoadInst>(ObjA)) {
+      // If a generic pointer is loaded from the constant address space, it
+      // could only be a GLOBAL or CONSTANT one as that address space is solely
+      // prepared on the host side, where only GLOBAL or CONSTANT variables are
+      // visible. Note that this even holds for regular functions.
+      if (LI->getPointerAddressSpace() == AMDGPUAS::CONSTANT_ADDRESS)
+        return AliasResult::NoAlias;
+    } else if (const Argument *Arg = dyn_cast<Argument>(ObjA)) {
+      const Function *F = Arg->getParent();
+      switch (F->getCallingConv()) {
+      case CallingConv::AMDGPU_KERNEL:
+        // In the kernel function, kernel arguments won't alias to (local)
+        // variables in shared or private address space.
+        return AliasResult::NoAlias;
+      default:
+        // TODO: In the regular function, if that local variable in the
+        // location B is not captured, that argument pointer won't alias to it
+        // as well.
+        break;
+      }
+    }
+  }
 
   // Forward the query to the next alias analysis.
-  return AAResultBase::alias(LocA, LocB);
+  return AAResultBase::alias(LocA, LocB, AAQI);
 }
 
 bool AMDGPUAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
-                                            bool OrLocal) {
-  const Value *Base = GetUnderlyingObject(Loc.Ptr, DL);
-
-  if (Base->getType()->getPointerAddressSpace() == AS.CONSTANT_ADDRESS ||
-      Base->getType()->getPointerAddressSpace() == AS.CONSTANT_ADDRESS_32BIT) {
+                                            AAQueryInfo &AAQI, bool OrLocal) {
+  unsigned AS = Loc.Ptr->getType()->getPointerAddressSpace();
+  if (AS == AMDGPUAS::CONSTANT_ADDRESS ||
+      AS == AMDGPUAS::CONSTANT_ADDRESS_32BIT)
     return true;
-  }
+
+  const Value *Base = getUnderlyingObject(Loc.Ptr);
+  AS = Base->getType()->getPointerAddressSpace();
+  if (AS == AMDGPUAS::CONSTANT_ADDRESS ||
+      AS == AMDGPUAS::CONSTANT_ADDRESS_32BIT)
+    return true;
 
   if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(Base)) {
     if (GV->isConstant())
@@ -133,7 +146,7 @@ bool AMDGPUAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
     // Only assume constant memory for arguments on kernels.
     switch (F->getCallingConv()) {
     default:
-      return AAResultBase::pointsToConstantMemory(Loc, OrLocal);
+      return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
     case CallingConv::AMDGPU_LS:
     case CallingConv::AMDGPU_HS:
     case CallingConv::AMDGPU_ES:
@@ -160,5 +173,5 @@ bool AMDGPUAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
       return true;
     }
   }
-  return AAResultBase::pointsToConstantMemory(Loc, OrLocal);
+  return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
 }

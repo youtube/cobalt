@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,8 @@
 
 #include <ostream>
 #include <cassert>
+
+#include "test_macros.h"
 
 template <class CharT>
 class testbuf
@@ -49,8 +50,23 @@ protected:
         }
 };
 
-int main()
+int main(int, char**)
 {
+    {
+        std::ostream os((std::streambuf*)0);
+        char c = 'a';
+        os.put(c);
+        assert(os.bad());
+    }
+    {
+        testbuf<char> sb;
+        std::ostream os(&sb);
+        char c = 'a';
+        os.put(c);
+        assert(sb.str() == "a");
+        assert(os.good());
+    }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         std::wostream os((std::wstreambuf*)0);
         wchar_t c = L'a';
@@ -65,12 +81,7 @@ int main()
         assert(sb.str() == L"a");
         assert(os.good());
     }
-    {
-        testbuf<char> sb;
-        std::ostream os(&sb);
-        char c = 'a';
-        os.put(c);
-        assert(sb.str() == "a");
-        assert(os.good());
-    }
+#endif
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //==- HexagonInstrFormats.td - Hexagon Instruction Formats --*- tablegen -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -38,6 +37,8 @@ def HVXVectorAccess  : MemAccessSize<5>;
 //                         Instruction Class Declaration +
 //===----------------------------------------------------------------------===//
 
+// "Parse" bits are explicitly NOT defined in the opcode space to prevent
+//  TableGen from using them for generation of the decoder tables.
 class OpcodeHexagon {
   field bits<32> Inst = ?; // Default to an invalid insn.
   bits<4> IClass = 0; // ICLASS
@@ -69,101 +70,101 @@ class InstHexagon<dag outs, dag ins, string asmstr, list<dag> pattern,
 
   // Instruction type according to the ISA.
   IType Type = type;
-  let TSFlags{5-0} = Type.Value;
+  let TSFlags{6-0} = Type.Value;
 
   // Solo instructions, i.e., those that cannot be in a packet with others.
   bits<1> isSolo = 0;
-  let TSFlags{6} = isSolo;
+  let TSFlags{7} = isSolo;
   // Packed only with A or X-type instructions.
   bits<1> isSoloAX = 0;
-  let TSFlags{7} = isSoloAX;
+  let TSFlags{8} = isSoloAX;
   // Restricts slot 1 to ALU-only instructions.
   bits<1> isRestrictSlot1AOK = 0;
-  let TSFlags{8} = isRestrictSlot1AOK;
+  let TSFlags{9} = isRestrictSlot1AOK;
 
   // Predicated instructions.
   bits<1> isPredicated = 0;
-  let TSFlags{9} = isPredicated;
+  let TSFlags{10} = isPredicated;
   bits<1> isPredicatedFalse = 0;
-  let TSFlags{10} = isPredicatedFalse;
+  let TSFlags{11} = isPredicatedFalse;
   bits<1> isPredicatedNew = 0;
-  let TSFlags{11} = isPredicatedNew;
+  let TSFlags{12} = isPredicatedNew;
   bits<1> isPredicateLate = 0;
-  let TSFlags{12} = isPredicateLate; // Late predicate producer insn.
+  let TSFlags{13} = isPredicateLate; // Late predicate producer insn.
 
   // New-value insn helper fields.
   bits<1> isNewValue = 0;
-  let TSFlags{13} = isNewValue; // New-value consumer insn.
+  let TSFlags{14} = isNewValue; // New-value consumer insn.
   bits<1> hasNewValue = 0;
-  let TSFlags{14} = hasNewValue; // New-value producer insn.
+  let TSFlags{15} = hasNewValue; // New-value producer insn.
   bits<3> opNewValue = 0;
-  let TSFlags{17-15} = opNewValue; // New-value produced operand.
+  let TSFlags{18-16} = opNewValue; // New-value produced operand.
   bits<1> isNVStorable = 0;
-  let TSFlags{18} = isNVStorable; // Store that can become new-value store.
+  let TSFlags{19} = isNVStorable; // Store that can become new-value store.
   bits<1> isNVStore = 0;
-  let TSFlags{19} = isNVStore; // New-value store insn.
+  let TSFlags{20} = isNVStore; // New-value store insn.
   bits<1> isCVLoadable = 0;
-  let TSFlags{20} = isCVLoadable; // Load that can become cur-value load.
+  let TSFlags{21} = isCVLoadable; // Load that can become cur-value load.
   bits<1> isCVLoad = 0;
-  let TSFlags{21} = isCVLoad; // Cur-value load insn.
+  let TSFlags{22} = isCVLoad; // Cur-value load insn.
 
   // Immediate extender helper fields.
   bits<1> isExtendable = 0;
-  let TSFlags{22} = isExtendable; // Insn may be extended.
+  let TSFlags{23} = isExtendable; // Insn may be extended.
   bits<1> isExtended = 0;
-  let TSFlags{23} = isExtended; // Insn must be extended.
+  let TSFlags{24} = isExtended; // Insn must be extended.
   bits<3> opExtendable = 0;
-  let TSFlags{26-24} = opExtendable; // Which operand may be extended.
+  let TSFlags{27-25} = opExtendable; // Which operand may be extended.
   bits<1> isExtentSigned = 0;
-  let TSFlags{27} = isExtentSigned; // Signed or unsigned range.
+  let TSFlags{28} = isExtentSigned; // Signed or unsigned range.
   bits<5> opExtentBits = 0;
-  let TSFlags{32-28} = opExtentBits; //Number of bits of range before extending.
+  let TSFlags{33-29} = opExtentBits; //Number of bits of range before extending.
   bits<2> opExtentAlign = 0;
-  let TSFlags{34-33} = opExtentAlign; // Alignment exponent before extending.
+  let TSFlags{35-34} = opExtentAlign; // Alignment exponent before extending.
 
   bit cofMax1 = 0;
-  let TSFlags{35} = cofMax1;
+  let TSFlags{36} = cofMax1;
   bit cofRelax1 = 0;
-  let TSFlags{36} = cofRelax1;
+  let TSFlags{37} = cofRelax1;
   bit cofRelax2 = 0;
-  let TSFlags{37} = cofRelax2;
+  let TSFlags{38} = cofRelax2;
 
   bit isRestrictNoSlot1Store = 0;
-  let TSFlags{38} = isRestrictNoSlot1Store;
+  let TSFlags{39} = isRestrictNoSlot1Store;
 
   // Addressing mode for load/store instructions.
   AddrModeType addrMode = NoAddrMode;
-  let TSFlags{43-41} = addrMode.Value;
+  let TSFlags{44-42} = addrMode.Value;
 
   // Memory access size for mem access instructions (load/store)
   MemAccessSize accessSize = NoMemAccess;
-  let TSFlags{47-44} = accessSize.Value;
+  let TSFlags{48-45} = accessSize.Value;
 
   bits<1> isTaken = 0;
-  let TSFlags {48} = isTaken; // Branch prediction.
+  let TSFlags {49} = isTaken; // Branch prediction.
 
   bits<1> isFP = 0;
-  let TSFlags {49} = isFP; // Floating-point.
-
-  bits<1> isSomeOK = 0;
-  let TSFlags {50} = isSomeOK; // Relax some grouping constraints.
+  let TSFlags {50} = isFP; // Floating-point.
 
   bits<1> hasNewValue2 = 0;
-  let TSFlags{51} = hasNewValue2; // Second New-value producer insn.
+  let TSFlags{52} = hasNewValue2; // Second New-value producer insn.
   bits<3> opNewValue2 = 0;
-  let TSFlags{54-52} = opNewValue2; // Second New-value produced operand.
+  let TSFlags{55-53} = opNewValue2; // Second New-value produced operand.
 
   bits<1> isAccumulator = 0;
-  let TSFlags{55} = isAccumulator;
+  let TSFlags{56} = isAccumulator;
 
   bits<1> prefersSlot3 = 0;
-  let TSFlags{56} = prefersSlot3; // Complex XU
+  let TSFlags{57} = prefersSlot3; // Complex XU
 
-  bits<1> hasTmpDst = 0;
-  let TSFlags{59} = hasTmpDst;  // v65 : 'fake" register VTMP is set
+  bits<1> hasHvxTmp = 0;
+  let TSFlags{60} = hasHvxTmp;  // vector register vX.tmp false-write
 
   bit CVINew = 0;
-  let TSFlags{61} = CVINew;
+  let TSFlags{62} = CVINew;
+
+  bit isCVI = 0;
+  let TSFlags{63} = isCVI;
 
   // Fields used for relation models.
   bit isNonTemporal = 0;
@@ -194,8 +195,6 @@ class HInst<dag outs, dag ins, string asmstr, InstrItinClass itin, IType type> :
 //                         Instruction Classes Definitions +
 //===----------------------------------------------------------------------===//
 
-// LD Instruction Class in V2/V3/V4.
-// Definition of the instruction class NOT CHANGED.
 let mayLoad = 1 in
 class LDInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
              string cstr = "", InstrItinClass itin = LD_tc_ld_SLOT01>
@@ -205,9 +204,6 @@ class CONSTLDInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
              string cstr = "", InstrItinClass itin = LD_tc_ld_SLOT01>
   : InstHexagon<outs, ins, asmstr, pattern, cstr, itin, TypeLD>, OpcodeHexagon;
 
-// ST Instruction Class in V2/V3 can take SLOT0 only.
-// ST Instruction Class in V4    can take SLOT0 & SLOT1.
-// Definition of the instruction class CHANGED from V2/V3 to V4.
 let mayStore = 1 in
 class STInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
              string cstr = "", InstrItinClass itin = ST_tc_st_SLOT01>
@@ -232,17 +228,103 @@ class PseudoM<dag outs, dag ins, string asmstr, list<dag> pattern = [],
     OpcodeHexagon;
 
 //===----------------------------------------------------------------------===//
+//                         Special Instructions -
+//===----------------------------------------------------------------------===//
+
+// The 'invalid_decode' instruction is used by the disassembler to
+// show an instruction that didn't decode correctly.  This feature
+// is only leveraged in a special disassembler mode that's activated
+// by a command line flag.
+def tc_invalid : InstrItinClass;
+class Enc_invalid : OpcodeHexagon {
+}
+def invalid_decode : HInst<
+(outs ),
+(ins ),
+"<invalid>",
+tc_invalid, TypeALU32_2op>, Enc_invalid {
+let Inst{13-0} = 0b00000000000000;
+let Inst{31-16} = 0b0000000000000000;
+let isCodeGenOnly = 1;
+}
+
+//===----------------------------------------------------------------------===//
+//                      Duplex Instruction Class Declaration
+//===----------------------------------------------------------------------===//
+
+class OpcodeDuplex {
+  field bits<32> Inst = ?; // Default to an invalid insn.
+  bits<4> IClass = 0; // ICLASS
+  bits<13> ISubHi = 0; // Low sub-insn
+  bits<13> ISubLo = 0; // High sub-insn
+
+  let Inst{31-29} = IClass{3-1};
+  let Inst{13}    = IClass{0};
+  let Inst{15-14} = 0;
+  let Inst{28-16} = ISubHi;
+  let Inst{12-0}  = ISubLo;
+}
+
+class InstDuplex<bits<4> iClass, string cstr = "">
+  : Instruction, OpcodeDuplex {
+  let Namespace = "Hexagon";
+  IType Type = TypeDUPLEX;  // uses slot 0,1
+  let isCodeGenOnly = 1;
+  let hasSideEffects = 0;
+  dag OutOperandList = (outs);
+  dag InOperandList = (ins);
+  let IClass = iClass;
+  let Constraints = cstr;
+  let Itinerary = DUPLEX;
+  let Size = 4;
+
+  // SoftFail is a field the disassembler can use to provide a way for
+  // instructions to not match without killing the whole decode process. It is
+  // mainly used for ARM, but Tablegen expects this field to exist or it fails
+  // to build the decode table.
+  field bits<32> SoftFail = 0;
+
+  // *** Must match MCTargetDesc/HexagonBaseInfo.h ***
+
+  let TSFlags{6-0} = Type.Value;
+
+  // Predicated instructions.
+  bits<1> isPredicated = 0;
+  let TSFlags{7} = isPredicated;
+  bits<1> isPredicatedFalse = 0;
+  let TSFlags{8} = isPredicatedFalse;
+  bits<1> isPredicatedNew = 0;
+  let TSFlags{9} = isPredicatedNew;
+
+  // New-value insn helper fields.
+  bits<1> isNewValue = 0;
+  let TSFlags{10} = isNewValue; // New-value consumer insn.
+  bits<1> hasNewValue = 0;
+  let TSFlags{11} = hasNewValue; // New-value producer insn.
+  bits<3> opNewValue = 0;
+  let TSFlags{14-12} = opNewValue; // New-value produced operand.
+  bits<1> isNVStorable = 0;
+  let TSFlags{15} = isNVStorable; // Store that can become new-value store.
+  bits<1> isNVStore = 0;
+  let TSFlags{16} = isNVStore; // New-value store insn.
+
+  // Immediate extender helper fields.
+  bits<1> isExtendable = 0;
+  let TSFlags{17} = isExtendable; // Insn may be extended.
+  bits<1> isExtended = 0;
+  let TSFlags{18} = isExtended; // Insn must be extended.
+  bits<3> opExtendable = 0;
+  let TSFlags{21-19} = opExtendable; // Which operand may be extended.
+  bits<1> isExtentSigned = 0;
+  let TSFlags{22} = isExtentSigned; // Signed or unsigned range.
+  bits<5> opExtentBits = 0;
+  let TSFlags{27-23} = opExtentBits; //Number of bits of range before extending.
+  bits<2> opExtentAlign = 0;
+  let TSFlags{29-28} = opExtentAlign; // Alignment exponent before extending.
+}
+
+//===----------------------------------------------------------------------===//
 //                         Instruction Classes Definitions -
-//===----------------------------------------------------------------------===//
-
-//===----------------------------------------------------------------------===//
-// V4 Instruction Format Definitions +
-//===----------------------------------------------------------------------===//
-
-include "HexagonInstrFormatsV4.td"
-
-//===----------------------------------------------------------------------===//
-// V60+ Instruction Format Definitions +
 //===----------------------------------------------------------------------===//
 
 include "HexagonInstrFormatsV60.td"

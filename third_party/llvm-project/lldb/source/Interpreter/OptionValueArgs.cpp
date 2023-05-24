@@ -1,26 +1,21 @@
-//===-- OptionValueArgs.cpp -------------------------------------*- C++ -*-===//
+//===-- OptionValueArgs.cpp -----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/OptionValueArgs.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/Args.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-size_t OptionValueArgs::GetArgs(Args &args) {
+size_t OptionValueArgs::GetArgs(Args &args) const {
   args.Clear();
-  for (auto value : m_values) {
+  for (const auto &value : m_values) {
     llvm::StringRef string_value = value->GetStringValue();
     if (!string_value.empty())
       args.AppendArgument(string_value);

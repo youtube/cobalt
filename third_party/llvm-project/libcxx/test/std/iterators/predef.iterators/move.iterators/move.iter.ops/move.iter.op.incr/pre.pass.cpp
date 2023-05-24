@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,10 +30,10 @@ test(It i, It x)
     assert(&rr == &r);
 }
 
-int main()
+int main(int, char**)
 {
     char s[] = "123";
-    test(input_iterator<char*>(s), input_iterator<char*>(s+1));
+    test(cpp17_input_iterator<char*>(s), cpp17_input_iterator<char*>(s+1));
     test(forward_iterator<char*>(s), forward_iterator<char*>(s+1));
     test(bidirectional_iterator<char*>(s), bidirectional_iterator<char*>(s+1));
     test(random_access_iterator<char*>(s), random_access_iterator<char*>(s+1));
@@ -52,4 +51,6 @@ int main()
     static_assert(it2 == it3, "");
     }
 #endif
+
+  return 0;
 }

@@ -1,26 +1,22 @@
 //===-- CommandObjectExpression.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_CommandObjectExpression_h_
-#define liblldb_CommandObjectExpression_h_
+#ifndef LLDB_SOURCE_COMMANDS_COMMANDOBJECTEXPRESSION_H
+#define LLDB_SOURCE_COMMANDS_COMMANDOBJECTEXPRESSION_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Interpreter/OptionGroupBoolean.h"
 #include "lldb/Interpreter/OptionGroupFormat.h"
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
-#include "lldb/Target/ExecutionContext.h"
+#include "lldb/Target/Target.h"
 #include "lldb/lldb-private-enumerations.h"
+
 namespace lldb_private {
 
 class CommandObjectExpression : public CommandObjectRaw,
@@ -39,9 +35,6 @@ public:
 
     void OptionParsingStarting(ExecutionContext *execution_context) override;
 
-    // Options table: Required for subclasses of Options.
-
-    static OptionDefinition g_option_table[];
     bool top_level;
     bool unwind_on_error;
     bool ignore_breakpoints;
@@ -62,10 +55,10 @@ public:
 
   Options *GetOptions() override;
 
+  void HandleCompletion(CompletionRequest &request) override;
+
 protected:
-  //------------------------------------------------------------------
   // IOHandler::Delegate functions
-  //------------------------------------------------------------------
   void IOHandlerInputComplete(IOHandler &io_handler,
                               std::string &line) override;
 
@@ -74,9 +67,22 @@ protected:
 
   bool DoExecute(llvm::StringRef command, CommandReturnObject &result) override;
 
-  bool EvaluateExpression(llvm::StringRef expr, Stream *output_stream,
-                          Stream *error_stream,
-                          CommandReturnObject *result = NULL);
+  /// Return the appropriate expression options used for evaluating the
+  /// expression in the given target.
+  EvaluateExpressionOptions GetEvalOptions(const Target &target);
+
+  /// Evaluates the given expression.
+  /// \param output_stream The stream to which the evaluation result will be
+  ///                      printed.
+  /// \param error_stream Contains error messages that should be displayed to
+  ///                     the user in case the evaluation fails.
+  /// \param result A CommandReturnObject which status will be set to the
+  ///               appropriate value depending on evaluation success and
+  ///               whether the expression produced any result.
+  /// \return Returns true iff the expression was successfully evaluated,
+  ///         executed and the result could be printed to the output stream.
+  bool EvaluateExpression(llvm::StringRef expr, Stream &output_stream,
+                          Stream &error_stream, CommandReturnObject &result);
 
   void GetMultilineExpression();
 
@@ -92,4 +98,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_CommandObjectExpression_h_
+#endif // LLDB_SOURCE_COMMANDS_COMMANDOBJECTEXPRESSION_H

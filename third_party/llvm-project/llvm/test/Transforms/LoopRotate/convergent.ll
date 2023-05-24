@@ -1,4 +1,4 @@
-; RUN: opt -S -loop-rotate < %s | FileCheck %s
+; RUN: opt -S -loop-rotate -verify-memoryssa < %s | FileCheck %s
 
 @e = global i32 10
 

@@ -17,7 +17,7 @@
 ; more than 16 calls in them.
 ;
 ; This test is extracted from the following C++ program compiled with Clang.
-; The IR is simplified with SROA, instcombine, and simplify-cfg. Then C++
+; The IR is simplified with SROA, instcombine, and simplifycfg. Then C++
 ; linkage stuff, attributes, target specific things, metadata and comments were
 ; removed. The order of the fuctions is also made more predictable than Clang's
 ; output order.
@@ -39,8 +39,9 @@
 ;
 ;   void test(bool *B, bool *E) { f<false, 0>(B, E); }
 ;
-; RUN: opt -S < %s -inline -inline-threshold=150 | FileCheck %s --check-prefixes=CHECK,OLD
+; RUN: opt -S < %s -inline -inline-threshold=150 -enable-new-pm=0 | FileCheck %s --check-prefixes=CHECK,OLD
 ; RUN: opt -S < %s -passes=inline -inline-threshold=150 | FileCheck %s --check-prefixes=CHECK,NEW
+; RUN: opt -S < %s -passes=inliner-wrapper -inline-threshold=150 | FileCheck %s --check-prefixes=CHECK,NEW
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
@@ -154,11 +155,7 @@ if.end3:
 ; NEW-NOT: call
 ; NEW: call void @_Z1fILb1ELi2EEvPbS0_(
 ; NEW-NOT: call
-; NEW: call void @_Z1gi(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb1ELi0EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi0EEvPbS0_(
+; NEW: call void @_Z1fILb1ELi3EEvPbS0_(
 ; NEW-NOT: call
 ; NEW: call void @_Z1fILb0ELi3EEvPbS0_(
 ; NEW-NOT: call
@@ -198,19 +195,11 @@ if.end3:
 ; NEW-NOT: call
 ; NEW: call void @_Z1gi(
 ; NEW-NOT: call
-; NEW: call void @_Z1gi(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb1ELi0EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi0EEvPbS0_(
+; NEW: call void @_Z1fILb1ELi3EEvPbS0_(
 ; NEW-NOT: call
 ; NEW: call void @_Z1fILb0ELi3EEvPbS0_(
 ; NEW-NOT: call
-; NEW: call void @_Z1gi(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb1ELi0EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi0EEvPbS0_(
+; NEW: call void @_Z1fILb1ELi3EEvPbS0_(
 ; NEW-NOT: call
 ; NEW: call void @_Z1fILb0ELi3EEvPbS0_(
 ; NEW-NOT: call
@@ -260,7 +249,7 @@ if.end3:
 ; NEW-NOT: call
 ; NEW: call void @_Z1fILb1ELi4EEvPbS0_(
 ; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi0EEvPbS0_(
+; NEW: call void @_Z1fILb0ELi4EEvPbS0_(
 ; NEW-NOT: call
 define void @_Z1fILb0ELi2EEvPbS0_(i8* %B, i8* %E) {
 entry:
@@ -304,21 +293,13 @@ if.end3:
 ; NEW-NOT: call
 ; NEW: call void @_Z1gi(
 ; NEW-NOT: call
-; NEW: call void @_Z1gi(
+; NEW: call void @_Z1fILb1ELi4EEvPbS0_(
 ; NEW-NOT: call
-; NEW: call void @_Z1fILb1ELi1EEvPbS0_(
+; NEW: call void @_Z1fILb0ELi4EEvPbS0_(
 ; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi1EEvPbS0_(
+; NEW: call void @_Z1fILb1ELi4EEvPbS0_(
 ; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi0EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1gi(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb1ELi1EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi1EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi0EEvPbS0_(
+; NEW: call void @_Z1fILb0ELi4EEvPbS0_(
 ; NEW-NOT: call
 define void @_Z1fILb1ELi2EEvPbS0_(i8* %B, i8* %E) {
 entry:
@@ -433,15 +414,7 @@ entry:
 ; NEW-NOT: call
 ; NEW: call void @_Z1fILb1ELi1EEvPbS0_(
 ; NEW-NOT: call
-; NEW: call void @_Z1fILb1ELi2EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1gi(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb1ELi0EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi0EEvPbS0_(
-; NEW-NOT: call
-; NEW: call void @_Z1fILb0ELi3EEvPbS0_(
+; NEW: call void @_Z1fILb0ELi1EEvPbS0_(
 ; NEW-NOT: call
 define void @_Z1fILb1ELi4EEvPbS0_(i8* %B, i8* %E) {
 entry:

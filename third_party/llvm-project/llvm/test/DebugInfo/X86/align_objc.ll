@@ -1,5 +1,4 @@
-; RUN: %llc_dwarf -filetype=obj < %s | llvm-dwarfdump -debug-info - | FileCheck %s
-; REQUIRES: object-emission
+; RUN: llc -filetype=obj < %s | llvm-dwarfdump -debug-info - | FileCheck %s --implicit-check-not=DW_TAG
 
 ; typedef struct __attribute__((aligned (128))) {
 ;   char c;
@@ -16,27 +15,29 @@
 ;   __attribute__((aligned (32))) int i;
 ; }
 
-; CHECK: DW_TAG_typedef
-; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_name{{.*}}"S0"
-; CHECK: DW_TAG_structure_type
-; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_alignment{{.*}}128
+; CHECK: DW_TAG_compile_unit
+; CHECK:   DW_TAG_variable
+; CHECK:   DW_TAG_typedef
+; CHECK:     DW_AT_name{{.*}}"S0"
 
-; CHECK: DW_TAG_variable
-; CHECK: DW_AT_name{{.*}}"i"
-; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_alignment{{.*}}32
+; CHECK:   DW_TAG_structure_type
+; CHECK:     DW_AT_alignment{{.*}}128
+; CHECK:     DW_TAG_member
+; CHECK:   DW_TAG_base_type
 
-; CHECK: DW_TAG_typedef
-; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_name{{.*}}"S1"
-; CHECK: DW_TAG_structure_type
-; CHECK: DW_TAG_member
-; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_name{{.*}}"c"
-; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_alignment{{.*}}64
+; CHECK:   DW_TAG_subprogram
+; CHECK:     DW_TAG_variable
+; CHECK:     DW_TAG_variable
+; CHECK:       DW_AT_name{{.*}}"i"
+; CHECK:       DW_AT_alignment{{.*}}32
+
+; CHECK:   DW_TAG_typedef
+; CHECK:     DW_AT_name{{.*}}"S1"
+; CHECK:   DW_TAG_structure_type
+; CHECK:     DW_TAG_member
+; CHECK:       DW_AT_name{{.*}}"c"
+; CHECK:       DW_AT_alignment{{.*}}64
+; CHECK:   DW_TAG_base_type
 
 ; ModuleID = 'test.m'
 source_filename = "test.m"
@@ -70,7 +71,7 @@ attributes #1 = { nounwind readnone }
 
 !0 = distinct !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
 !1 = !DIGlobalVariable(name: "s0", scope: !2, file: !3, line: 10, type: !6, isLocal: false, isDefinition: true)
-!2 = distinct !DICompileUnit(language: DW_LANG_ObjC, file: !3, producer: "clang version 4.0.0 (http://llvm.org/git/clang.git 9ce5220b821054019059c2ac4a9b132c7723832d) (http://llvm.org/git/llvm.git 9a6298be89ce0359b151c0a37af2776a12c69e85)", isOptimized: false, runtimeVersion: 1, emissionKind: FullDebug, enums: !4, globals: !5)
+!2 = distinct !DICompileUnit(language: DW_LANG_ObjC, file: !3, producer: "clang version 4.0.0", isOptimized: false, runtimeVersion: 1, emissionKind: FullDebug, enums: !4, globals: !5)
 !3 = !DIFile(filename: "test.m", directory: "/tmp")
 !4 = !{}
 !5 = !{!0}
@@ -81,7 +82,7 @@ attributes #1 = { nounwind readnone }
 !10 = !DIBasicType(name: "char", size: 8, encoding: DW_ATE_signed_char)
 !11 = !{i32 2, !"Dwarf Version", i32 4}
 !12 = !{i32 2, !"Debug Info Version", i32 3}
-!13 = !{!"clang version 4.0.0 (http://llvm.org/git/clang.git 9ce5220b821054019059c2ac4a9b132c7723832d) (http://llvm.org/git/llvm.git 9a6298be89ce0359b151c0a37af2776a12c69e85)"}
+!13 = !{!"clang version 4.0.0"}
 !14 = distinct !DISubprogram(name: "f", scope: !3, file: !3, line: 12, type: !15, isLocal: false, isDefinition: true, scopeLine: 12, isOptimized: false, unit: !2, retainedNodes: !4)
 !15 = !DISubroutineType(types: !16)
 !16 = !{null}

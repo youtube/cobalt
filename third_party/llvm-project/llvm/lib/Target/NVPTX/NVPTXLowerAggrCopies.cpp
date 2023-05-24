@@ -1,9 +1,8 @@
 //===- NVPTXLowerAggrCopies.cpp - ------------------------------*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -67,10 +66,9 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
       getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
 
   // Collect all aggregate loads and mem* calls.
-  for (Function::iterator BI = F.begin(), BE = F.end(); BI != BE; ++BI) {
-    for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE;
-         ++II) {
-      if (LoadInst *LI = dyn_cast<LoadInst>(II)) {
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      if (LoadInst *LI = dyn_cast<LoadInst>(&I)) {
         if (!LI->hasOneUse())
           continue;
 
@@ -82,7 +80,7 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
             continue;
           AggrLoads.push_back(LI);
         }
-      } else if (MemIntrinsic *IntrCall = dyn_cast<MemIntrinsic>(II)) {
+      } else if (MemIntrinsic *IntrCall = dyn_cast<MemIntrinsic>(&I)) {
         // Convert intrinsic calls with variable size or with constant size
         // larger than the MaxAggrCopySize threshold.
         if (ConstantInt *LenCI = dyn_cast<ConstantInt>(IntrCall->getLength())) {
@@ -104,7 +102,7 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
   // Do the transformation of an aggr load/copy/set to a loop
   //
   for (LoadInst *LI : AggrLoads) {
-    StoreInst *SI = dyn_cast<StoreInst>(*LI->user_begin());
+    auto *SI = cast<StoreInst>(*LI->user_begin());
     Value *SrcAddr = LI->getOperand(0);
     Value *DstAddr = SI->getOperand(1);
     unsigned NumLoads = DL.getTypeStoreSize(LI->getType());
@@ -114,8 +112,8 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
     createMemCpyLoopKnownSize(/* ConvertedInst */ SI,
                               /* SrcAddr */ SrcAddr, /* DstAddr */ DstAddr,
                               /* CopyLen */ CopyLen,
-                              /* SrcAlign */ LI->getAlignment(),
-                              /* DestAlign */ SI->getAlignment(),
+                              /* SrcAlign */ LI->getAlign(),
+                              /* DestAlign */ SI->getAlign(),
                               /* SrcIsVolatile */ LI->isVolatile(),
                               /* DstIsVolatile */ SI->isVolatile(), TTI);
 

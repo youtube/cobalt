@@ -1,4 +1,4 @@
-; RUN: llc -march=hexagon < %s | FileCheck %s
+; RUN: llc -march=hexagon -hexagon-instsimplify=0 < %s | FileCheck %s
 
 ; This used to crash in SimplifyDemandedBits due to a type mismatch
 ; caused by a missing bitcast in vectorizing mul.
@@ -22,7 +22,7 @@ b5:                                               ; preds = %b1
   ret void
 
 b11:                                              ; preds = %b1
-  unreachable
+  ret void
 }
 
 attributes #0 = { norecurse nounwind "target-cpu"="hexagonv60" "target-features"="+hvx-length64b,+hvxv60" }

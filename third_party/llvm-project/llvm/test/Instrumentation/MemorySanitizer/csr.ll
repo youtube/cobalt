@@ -1,4 +1,8 @@
+; RUN: opt < %s -msan-check-access-address=0 -S -passes=msan 2>&1 | FileCheck  \
+; RUN: %s
 ; RUN: opt < %s -msan -msan-check-access-address=0 -S | FileCheck %s
+; RUN: opt < %s -msan-check-access-address=1 -S -passes=msan 2>&1 | FileCheck  \
+; RUN: %s --check-prefix=ADDR
 ; RUN: opt < %s -msan -msan-check-access-address=1 -S | FileCheck %s --check-prefix=ADDR
 ; REQUIRES: x86-registered-target
 
@@ -24,7 +28,7 @@ entry:
 ; ADDR: %[[A:.*]] = load i64, i64* getelementptr inbounds {{.*}} @__msan_param_tls, i32 0, i32 0), align 8
 ; ADDR: %[[B:.*]] = icmp ne i64 %[[A]], 0
 ; ADDR: br i1 %[[B]], label {{.*}}, label
-; ADDR: call void @__msan_warning_noreturn()
+; ADDR: call void @__msan_warning_with_origin_noreturn(i32 0)
 ; ADDR: call void @llvm.x86.sse.stmxcsr(
 ; ADDR: ret void
 
@@ -40,7 +44,7 @@ entry:
 ; CHECK: %[[A:.*]] = load i32, i32* %{{.*}}, align 1
 ; CHECK: %[[B:.*]] = icmp ne i32 %[[A]], 0
 ; CHECK: br i1 %[[B]], label {{.*}}, label
-; CHECK: call void @__msan_warning_noreturn()
+; CHECK: call void @__msan_warning_with_origin_noreturn(i32 0)
 ; CHECK: call void @llvm.x86.sse.ldmxcsr(
 ; CHECK: ret void
 
@@ -48,6 +52,6 @@ entry:
 ; ADDR: %[[A:.*]] = load i64, i64* getelementptr inbounds {{.*}} @__msan_param_tls, i32 0, i32 0), align 8
 ; ADDR: %[[B:.*]] = icmp ne i64 %[[A]], 0
 ; ADDR: br i1 %[[B]], label {{.*}}, label
-; ADDR: call void @__msan_warning_noreturn()
+; ADDR: call void @__msan_warning_with_origin_noreturn(i32 0)
 ; ADDR: call void @llvm.x86.sse.ldmxcsr(
 ; ADDR: ret void

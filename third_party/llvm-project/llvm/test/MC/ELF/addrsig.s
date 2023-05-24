@@ -1,7 +1,7 @@
 // RUN: llvm-mc -filetype=asm -triple x86_64-pc-linux-gnu %s -o - | FileCheck --check-prefix=ASM %s
-// RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -o - | llvm-readobj -s -t -sd -elf-addrsig | FileCheck %s
-// RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -split-dwarf-file %t.dwo -o - | llvm-readobj -s -t -sd -elf-addrsig | FileCheck %s
-// RUN: llvm-readobj -s %t.dwo | FileCheck --check-prefix=DWO %s
+// RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -o - | llvm-readobj -S --symbols --sd --addrsig - | FileCheck %s
+// RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -split-dwarf-file %t.dwo -o - | llvm-readobj -S --symbols --sd --addrsig - | FileCheck %s
+// RUN: llvm-readobj -S %t.dwo | FileCheck --check-prefix=DWO %s
 
 // CHECK:        Name: .llvm_addrsig
 // CHECK-NEXT:   Type: SHT_LLVM_ADDRSIG (0x6FFF4C03)
@@ -23,13 +23,15 @@
 // CHECK-NEXT:   Index: 4
 // CHECK-NEXT:   Name: .symtab
 
-// CHECK:        Name: .Llocal
+// CHECK:      Symbol {
+// CHECK:      Symbol {
+// CHECK-NEXT:   Name:
 // CHECK-NEXT:   Value:
 // CHECK-NEXT:   Size:
 // CHECK-NEXT:   Binding:
 // CHECK-NEXT:   Type:
 // CHECK-NEXT:   Other:
-// CHECK-NEXT:   Section:
+// CHECK-NEXT:   Section: [[SEC:.*]]
 // CHECK-NEXT: }
 // CHECK-NEXT: Symbol {
 // CHECK-NEXT:   Name: local
@@ -38,7 +40,7 @@
 // CHECK-NEXT:   Binding:
 // CHECK-NEXT:   Type:
 // CHECK-NEXT:   Other:
-// CHECK-NEXT:   Section:
+// CHECK-NEXT:   Section: [[SEC]]
 // CHECK-NEXT: }
 // CHECK-NEXT: Symbol {
 // CHECK-NEXT:   Name: g1
@@ -65,19 +67,19 @@
 // CHECK-NEXT:   Sym: g1 (3)
 // CHECK-NEXT:   Sym: g3 (5)
 // CHECK-NEXT:   Sym: local (2)
-// CHECK-NEXT:   Sym: .Llocal (1)
+// CHECK-NEXT:   Sym:  (1)
 // CHECK-NEXT: ]
 
-// ASM: .addrsig
+// ASM:      .addrsig
+// ASM-NEXT: .addrsig_sym g1
 .addrsig
-// ASM: .addrsig_sym g1
 .addrsig_sym g1
 .globl g2
-// ASM: .addrsig_sym g3
+// ASM:      .addrsig_sym g3
+// ASM-NEXT: .addrsig_sym local
+// ASM-NEXT: .addrsig_sym .Llocal
 .addrsig_sym g3
-// ASM: .addrsig_sym local
 .addrsig_sym local
-// ASM: .addrsig_sym .Llocal
 .addrsig_sym .Llocal
 
 local:

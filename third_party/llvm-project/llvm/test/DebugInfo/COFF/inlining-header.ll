@@ -1,5 +1,5 @@
 ; RUN: llc -mcpu=core2 -mtriple=i686-pc-win32 < %s | FileCheck %s --check-prefix=ASM
-; RUN: llc -mcpu=core2 -mtriple=i686-pc-win32 < %s -filetype=obj | llvm-readobj -codeview | FileCheck %s --check-prefix=OBJ
+; RUN: llc -mcpu=core2 -mtriple=i686-pc-win32 < %s -filetype=obj | llvm-readobj --codeview - | FileCheck %s --check-prefix=OBJ
 
 ; This C++ source should run and you should be able to step through the volatile
 ; modifications to x in windbg.
@@ -28,7 +28,7 @@
 ; ASM:         .cv_func_id 0
 ; ASM: # %bb.0:                                 # %entry
 ; ASM:         .cv_file        1 "D:\\src\\llvm\\build\\t.cpp"
-; ASM:         .cv_loc 0 1 9 5 is_stmt 0       # t.cpp:9:5
+; ASM:         .cv_loc 0 1 9 5       # t.cpp:9:5
 ; ASM:         incl    "?x@@3HC"
 ; ASM:         .cv_inline_site_id 1 within 0 inlined_at 1 10 3
 ; ASM:         .cv_loc 1 1 4 5                 # t.cpp:4:5
@@ -129,7 +129,7 @@ entry:
   ret i32 %5, !dbg !32
 }
 
-attributes #0 = { norecurse nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { norecurse nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "stack-protector-buffer-size"="8" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!8, !9, !10}

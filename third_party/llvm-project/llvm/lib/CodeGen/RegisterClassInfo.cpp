@@ -1,9 +1,8 @@
 //===- RegisterClassInfo.cpp - Dynamic Register Class Info ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -60,7 +59,7 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
   if (Update || CSR != CalleeSavedRegs) {
     // Build a CSRAlias map. Every CSR alias saves the last
     // overlapping CSR.
-    CalleeSavedAliases.resize(TRI->getNumRegs(), 0);
+    CalleeSavedAliases.assign(TRI->getNumRegs(), 0);
     for (const MCPhysReg *I = CSR; *I; ++I)
       for (MCRegAliasIterator AI(*I, TRI, true); AI.isValid(); ++AI)
         CalleeSavedAliases[*AI] = *I;
@@ -68,6 +67,8 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
     Update = true;
   }
   CalleeSavedRegs = CSR;
+
+  RegCosts = TRI->getRegisterCosts(*MF);
 
   // Different reserved registers?
   const BitVector &RR = MF->getRegInfo().getReservedRegs();
@@ -91,6 +92,7 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
 void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
   assert(RC && "no register class given");
   RCInfo &RCI = RegClass[RC->getID()];
+  auto &STI = MF->getSubtarget();
 
   // Raw register count, including all reserved regs.
   unsigned NumRegs = RC->getNumRegs();
@@ -100,22 +102,22 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
 
   unsigned N = 0;
   SmallVector<MCPhysReg, 16> CSRAlias;
-  unsigned MinCost = 0xff;
-  unsigned LastCost = ~0u;
+  uint8_t MinCost = uint8_t(~0u);
+  uint8_t LastCost = uint8_t(~0u);
   unsigned LastCostChange = 0;
 
   // FIXME: Once targets reserve registers instead of removing them from the
   // allocation order, we can simply use begin/end here.
   ArrayRef<MCPhysReg> RawOrder = RC->getRawAllocationOrder(*MF);
-  for (unsigned i = 0; i != RawOrder.size(); ++i) {
-    unsigned PhysReg = RawOrder[i];
+  for (unsigned PhysReg : RawOrder) {
     // Remove reserved registers from the allocation order.
     if (Reserved.test(PhysReg))
       continue;
-    unsigned Cost = TRI->getCostPerUse(PhysReg);
+    uint8_t Cost = RegCosts[PhysReg];
     MinCost = std::min(MinCost, Cost);
 
-    if (CalleeSavedAliases[PhysReg])
+    if (CalleeSavedAliases[PhysReg] &&
+        !STI.ignoreCSRForAllocationOrder(*MF, PhysReg))
       // PhysReg aliases a CSR, save it for later.
       CSRAlias.push_back(PhysReg);
     else {
@@ -131,7 +133,7 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
   // CSR aliases go after the volatile registers, preserve the target's order.
   for (unsigned i = 0, e = CSRAlias.size(); i != e; ++i) {
     unsigned PhysReg = CSRAlias[i];
-    unsigned Cost = TRI->getCostPerUse(PhysReg);
+    uint8_t Cost = RegCosts[PhysReg];
     if (Cost != LastCost)
       LastCostChange = N;
     RCI.Order[N++] = PhysReg;
@@ -148,7 +150,7 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
     if (Super != RC && getNumAllocatableRegs(Super) > RCI.NumRegs)
       RCI.ProperSubClass = true;
 
-  RCI.MinCost = uint8_t(MinCost);
+  RCI.MinCost = MinCost;
   RCI.LastCostChange = LastCostChange;
 
   LLVM_DEBUG({
@@ -185,8 +187,16 @@ unsigned RegisterClassInfo::computePSetLimit(unsigned Idx) const {
       NumRCUnits = NUnits;
     }
   }
+  assert(RC && "Failed to find register class");
   compute(RC);
-  unsigned NReserved = RC->getNumRegs() - getNumAllocatableRegs(RC);
-  return TRI->getRegPressureSetLimit(*MF, Idx) -
-         TRI->getRegClassWeight(RC).RegWeight * NReserved;
+  unsigned NAllocatableRegs = getNumAllocatableRegs(RC);
+  unsigned RegPressureSetLimit = TRI->getRegPressureSetLimit(*MF, Idx);
+  // If all the regs are reserved, return raw RegPressureSetLimit.
+  // One example is VRSAVERC in PowerPC.
+  // Avoid returning zero, getRegPressureSetLimit(Idx) assumes computePSetLimit
+  // return non-zero value.
+  if (NAllocatableRegs == 0)
+    return RegPressureSetLimit;
+  unsigned NReserved = RC->getNumRegs() - NAllocatableRegs;
+  return RegPressureSetLimit - TRI->getRegClassWeight(RC).RegWeight * NReserved;
 }

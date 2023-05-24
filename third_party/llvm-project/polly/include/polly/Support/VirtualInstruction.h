@@ -1,9 +1,8 @@
 //===------ VirtualInstruction.cpp ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,6 +17,7 @@
 #include "polly/ScopInfo.h"
 
 namespace polly {
+using llvm::User;
 
 /// Determine the nature of a value's use within a statement.
 ///
@@ -167,12 +167,10 @@ public:
 };
 
 /// An iterator for virtual operands.
-class VirtualOperandIterator
-    : public std::iterator<std::forward_iterator_tag, VirtualUse> {
+class VirtualOperandIterator {
   friend class VirtualInstruction;
   friend class VirtualUse;
 
-  using super = std::iterator<std::forward_iterator_tag, VirtualUse>;
   using Self = VirtualOperandIterator;
 
   ScopStmt *User;
@@ -182,8 +180,11 @@ class VirtualOperandIterator
       : User(User), U(U) {}
 
 public:
-  using pointer = typename super::pointer;
-  using reference = typename super::reference;
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = VirtualUse;
+  using difference_type = std::ptrdiff_t;
+  using pointer = value_type *;
+  using reference = value_type &;
 
   inline bool operator==(const Self &that) const {
     assert(this->User == that.User);

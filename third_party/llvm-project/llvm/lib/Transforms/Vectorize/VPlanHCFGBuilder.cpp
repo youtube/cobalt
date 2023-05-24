@@ -1,9 +1,8 @@
 //===-- VPlanHCFGBuilder.cpp ----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -64,7 +63,9 @@ private:
   void setVPBBPredsFromBB(VPBasicBlock *VPBB, BasicBlock *BB);
   void fixPhiNodes();
   VPBasicBlock *getOrCreateVPBB(BasicBlock *BB);
+#ifndef NDEBUG
   bool isExternalDef(Value *Val);
+#endif
   VPValue *getOrCreateVPOperand(Value *IRVal);
   void createVPInstructionsForVPBB(VPBasicBlock *VPBB, BasicBlock *BB);
 
@@ -93,13 +94,15 @@ void PlainCFGBuilder::fixPhiNodes() {
   for (auto *Phi : PhisToFix) {
     assert(IRDef2VPValue.count(Phi) && "Missing VPInstruction for PHINode.");
     VPValue *VPVal = IRDef2VPValue[Phi];
-    assert(isa<VPInstruction>(VPVal) && "Expected VPInstruction for phi node.");
-    auto *VPPhi = cast<VPInstruction>(VPVal);
+    assert(isa<VPWidenPHIRecipe>(VPVal) &&
+           "Expected WidenPHIRecipe for phi node.");
+    auto *VPPhi = cast<VPWidenPHIRecipe>(VPVal);
     assert(VPPhi->getNumOperands() == 0 &&
            "Expected VPInstruction with no operands.");
 
-    for (Value *Op : Phi->operands())
-      VPPhi->addOperand(getOrCreateVPOperand(Op));
+    for (unsigned I = 0; I != Phi->getNumOperands(); ++I)
+      VPPhi->addIncoming(getOrCreateVPOperand(Phi->getIncomingValue(I)),
+                         BB2VPBB[Phi->getIncomingBlock(I)]);
   }
 }
 
@@ -119,6 +122,7 @@ VPBasicBlock *PlainCFGBuilder::getOrCreateVPBB(BasicBlock *BB) {
   return VPBB;
 }
 
+#ifndef NDEBUG
 // Return true if \p Val is considered an external definition. An external
 // definition is either:
 // 1. A Value that is not an Instruction. This will be refined in the future.
@@ -154,6 +158,7 @@ bool PlainCFGBuilder::isExternalDef(Value *Val) {
   // Check whether Instruction definition is in loop body.
   return !TheLoop->contains(Inst);
 }
+#endif
 
 // Create a new VPValue or retrieve an existing one for the Instruction's
 // operand \p IRVal. This function must only be used to create/retrieve VPValues
@@ -207,13 +212,13 @@ void PlainCFGBuilder::createVPInstructionsForVPBB(VPBasicBlock *VPBB,
       continue;
     }
 
-    VPInstruction *NewVPInst;
+    VPValue *NewVPV;
     if (auto *Phi = dyn_cast<PHINode>(Inst)) {
       // Phi node's operands may have not been visited at this point. We create
       // an empty VPInstruction that we will fix once the whole plain CFG has
       // been built.
-      NewVPInst = cast<VPInstruction>(VPIRBuilder.createNaryOp(
-          Inst->getOpcode(), {} /*No operands*/, Inst));
+      NewVPV = new VPWidenPHIRecipe(Phi);
+      VPBB->appendRecipe(cast<VPWidenPHIRecipe>(NewVPV));
       PhisToFix.push_back(Phi);
     } else {
       // Translate LLVM-IR operands into VPValue operands and set them in the
@@ -224,11 +229,11 @@ void PlainCFGBuilder::createVPInstructionsForVPBB(VPBasicBlock *VPBB,
 
       // Build VPInstruction for any arbitraty Instruction without specific
       // representation in VPlan.
-      NewVPInst = cast<VPInstruction>(
+      NewVPV = cast<VPInstruction>(
           VPIRBuilder.createNaryOp(Inst->getOpcode(), VPOperands, Inst));
     }
 
-    IRDef2VPValue[Inst] = NewVPInst;
+    IRDef2VPValue[Inst] = NewVPV;
   }
 }
 
@@ -250,7 +255,13 @@ VPRegionBlock *PlainCFGBuilder::buildPlainCFG() {
   assert((PreheaderBB->getTerminator()->getNumSuccessors() == 1) &&
          "Unexpected loop preheader");
   VPBasicBlock *PreheaderVPBB = getOrCreateVPBB(PreheaderBB);
-  createVPInstructionsForVPBB(PreheaderVPBB, PreheaderBB);
+  for (auto &I : *PreheaderBB) {
+    if (I.getType()->isVoidTy())
+      continue;
+    VPValue *VPV = new VPValue(&I);
+    Plan.addExternalDef(VPV);
+    IRDef2VPValue[&I] = VPV;
+  }
   // Create empty VPBB for Loop H so that we can link PH->H.
   VPBlockBase *HeaderVPBB = getOrCreateVPBB(TheLoop->getHeader());
   // Preheader's predecessors will be set during the loop RPO traversal below.
@@ -268,7 +279,7 @@ VPRegionBlock *PlainCFGBuilder::buildPlainCFG() {
     // Set VPBB successors. We create empty VPBBs for successors if they don't
     // exist already. Recipes will be created when the successor is visited
     // during the RPO traversal.
-    TerminatorInst *TI = BB->getTerminator();
+    Instruction *TI = BB->getTerminator();
     assert(TI && "Terminator expected.");
     unsigned NumSuccs = TI->getNumSuccessors();
 

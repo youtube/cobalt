@@ -1,9 +1,8 @@
 //===--- AMDGPU.h - Declare AMDGPU target feature support -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,11 +13,13 @@
 #ifndef LLVM_CLANG_LIB_BASIC_TARGETS_AMDGPU_H
 #define LLVM_CLANG_LIB_BASIC_TARGETS_AMDGPU_H
 
+#include "clang/Basic/TargetID.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/TargetOptions.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/TargetParser.h"
 
 namespace clang {
 namespace targets {
@@ -38,145 +39,53 @@ class LLVM_LIBRARY_VISIBILITY AMDGPUTargetInfo final : public TargetInfo {
   static const LangASMap AMDGPUDefIsGenMap;
   static const LangASMap AMDGPUDefIsPrivMap;
 
-  /// GPU kinds supported by the AMDGPU target.
-  enum GPUKind : uint32_t {
-    // Not specified processor.
-    GK_NONE = 0,
+  llvm::AMDGPU::GPUKind GPUKind;
+  unsigned GPUFeatures;
+  unsigned WavefrontSize;
 
-    // R600-based processors.
-    GK_R600,
-    GK_R630,
-    GK_RS880,
-    GK_RV670,
-    GK_RV710,
-    GK_RV730,
-    GK_RV770,
-    GK_CEDAR,
-    GK_CYPRESS,
-    GK_JUNIPER,
-    GK_REDWOOD,
-    GK_SUMO,
-    GK_BARTS,
-    GK_CAICOS,
-    GK_CAYMAN,
-    GK_TURKS,
+  /// Target ID is device name followed by optional feature name postfixed
+  /// by plus or minus sign delimitted by colon, e.g. gfx908:xnack+:sramecc-.
+  /// If the target ID contains feature+, map it to true.
+  /// If the target ID contains feature-, map it to false.
+  /// If the target ID does not contain a feature (default), do not map it.
+  llvm::StringMap<bool> OffloadArchFeatures;
+  std::string TargetID;
 
-    GK_R600_FIRST = GK_R600,
-    GK_R600_LAST = GK_TURKS,
+  bool hasFP64() const {
+    return getTriple().getArch() == llvm::Triple::amdgcn ||
+           !!(GPUFeatures & llvm::AMDGPU::FEATURE_FP64);
+  }
 
-    // AMDGCN-based processors.
-    GK_GFX600,
-    GK_GFX601,
-    GK_GFX700,
-    GK_GFX701,
-    GK_GFX702,
-    GK_GFX703,
-    GK_GFX704,
-    GK_GFX801,
-    GK_GFX802,
-    GK_GFX803,
-    GK_GFX810,
-    GK_GFX900,
-    GK_GFX902,
-    GK_GFX904,
-    GK_GFX906,
+  /// Has fast fma f32
+  bool hasFastFMAF() const {
+    return !!(GPUFeatures & llvm::AMDGPU::FEATURE_FAST_FMA_F32);
+  }
 
-    GK_AMDGCN_FIRST = GK_GFX600,
-    GK_AMDGCN_LAST = GK_GFX906,
-  };
+  /// Has fast fma f64
+  bool hasFastFMA() const {
+    return getTriple().getArch() == llvm::Triple::amdgcn;
+  }
 
-  struct GPUInfo {
-    llvm::StringLiteral Name;
-    llvm::StringLiteral CanonicalName;
-    AMDGPUTargetInfo::GPUKind Kind;
-    bool HasFMAF;
-    bool HasFastFMAF;
-    bool HasLDEXPF;
-    bool HasFP64;
-    bool HasFastFMA;
-  };
+  bool hasFMAF() const {
+    return getTriple().getArch() == llvm::Triple::amdgcn ||
+           !!(GPUFeatures & llvm::AMDGPU::FEATURE_FMA);
+  }
 
-  static constexpr GPUInfo InvalidGPU =
-    {{""}, {""}, GK_NONE, false, false, false, false, false};
-  static constexpr GPUInfo R600GPUs[26] = {
-  // Name         Canonical    Kind        Has    Has    Has    Has    Has
-  //              Name                     FMAF   Fast   LDEXPF FP64   Fast
-  //                                              FMAF                 FMA
-    {{"r600"},    {"r600"},    GK_R600,    false, false, false, false, false},
-    {{"rv630"},   {"r600"},    GK_R600,    false, false, false, false, false},
-    {{"rv635"},   {"r600"},    GK_R600,    false, false, false, false, false},
-    {{"r630"},    {"r630"},    GK_R630,    false, false, false, false, false},
-    {{"rs780"},   {"rs880"},   GK_RS880,   false, false, false, false, false},
-    {{"rs880"},   {"rs880"},   GK_RS880,   false, false, false, false, false},
-    {{"rv610"},   {"rs880"},   GK_RS880,   false, false, false, false, false},
-    {{"rv620"},   {"rs880"},   GK_RS880,   false, false, false, false, false},
-    {{"rv670"},   {"rv670"},   GK_RV670,   false, false, false, false, false},
-    {{"rv710"},   {"rv710"},   GK_RV710,   false, false, false, false, false},
-    {{"rv730"},   {"rv730"},   GK_RV730,   false, false, false, false, false},
-    {{"rv740"},   {"rv770"},   GK_RV770,   false, false, false, false, false},
-    {{"rv770"},   {"rv770"},   GK_RV770,   false, false, false, false, false},
-    {{"cedar"},   {"cedar"},   GK_CEDAR,   false, false, false, false, false},
-    {{"palm"},    {"cedar"},   GK_CEDAR,   false, false, false, false, false},
-    {{"cypress"}, {"cypress"}, GK_CYPRESS, true,  false, false, false, false},
-    {{"hemlock"}, {"cypress"}, GK_CYPRESS, true,  false, false, false, false},
-    {{"juniper"}, {"juniper"}, GK_JUNIPER, false, false, false, false, false},
-    {{"redwood"}, {"redwood"}, GK_REDWOOD, false, false, false, false, false},
-    {{"sumo"},    {"sumo"},    GK_SUMO,    false, false, false, false, false},
-    {{"sumo2"},   {"sumo"},    GK_SUMO,    false, false, false, false, false},
-    {{"barts"},   {"barts"},   GK_BARTS,   false, false, false, false, false},
-    {{"caicos"},  {"caicos"},  GK_BARTS,   false, false, false, false, false},
-    {{"aruba"},   {"cayman"},  GK_CAYMAN,  true,  false, false, false, false},
-    {{"cayman"},  {"cayman"},  GK_CAYMAN,  true,  false, false, false, false},
-    {{"turks"},   {"turks"},   GK_TURKS,   false, false, false, false, false},
-  };
-  static constexpr GPUInfo AMDGCNGPUs[32] = {
-  // Name           Canonical    Kind        Has   Has    Has    Has   Has
-  //                Name                     FMAF  Fast   LDEXPF FP64  Fast
-  //                                               FMAF                FMA
-    {{"gfx600"},    {"gfx600"},  GK_GFX600,  true, true,  true,  true, true},
-    {{"tahiti"},    {"gfx600"},  GK_GFX600,  true, true,  true,  true, true},
-    {{"gfx601"},    {"gfx601"},  GK_GFX601,  true, false, true,  true, true},
-    {{"hainan"},    {"gfx601"},  GK_GFX601,  true, false, true,  true, true},
-    {{"oland"},     {"gfx601"},  GK_GFX601,  true, false, true,  true, true},
-    {{"pitcairn"},  {"gfx601"},  GK_GFX601,  true, false, true,  true, true},
-    {{"verde"},     {"gfx601"},  GK_GFX601,  true, false, true,  true, true},
-    {{"gfx700"},    {"gfx700"},  GK_GFX700,  true, false, true,  true, true},
-    {{"kaveri"},    {"gfx700"},  GK_GFX700,  true, false, true,  true, true},
-    {{"gfx701"},    {"gfx701"},  GK_GFX701,  true, true,  true,  true, true},
-    {{"hawaii"},    {"gfx701"},  GK_GFX701,  true, true,  true,  true, true},
-    {{"gfx702"},    {"gfx702"},  GK_GFX702,  true, true,  true,  true, true},
-    {{"gfx703"},    {"gfx703"},  GK_GFX703,  true, false, true,  true, true},
-    {{"kabini"},    {"gfx703"},  GK_GFX703,  true, false, true,  true, true},
-    {{"mullins"},   {"gfx703"},  GK_GFX703,  true, false, true,  true, true},
-    {{"gfx704"},    {"gfx704"},  GK_GFX704,  true, false, true,  true, true},
-    {{"bonaire"},   {"gfx704"},  GK_GFX704,  true, false, true,  true, true},
-    {{"gfx801"},    {"gfx801"},  GK_GFX801,  true, true,  true,  true, true},
-    {{"carrizo"},   {"gfx801"},  GK_GFX801,  true, true,  true,  true, true},
-    {{"gfx802"},    {"gfx802"},  GK_GFX802,  true, false, true,  true, true},
-    {{"iceland"},   {"gfx802"},  GK_GFX802,  true, false, true,  true, true},
-    {{"tonga"},     {"gfx802"},  GK_GFX802,  true, false, true,  true, true},
-    {{"gfx803"},    {"gfx803"},  GK_GFX803,  true, false, true,  true, true},
-    {{"fiji"},      {"gfx803"},  GK_GFX803,  true, false, true,  true, true},
-    {{"polaris10"}, {"gfx803"},  GK_GFX803,  true, false, true,  true, true},
-    {{"polaris11"}, {"gfx803"},  GK_GFX803,  true, false, true,  true, true},
-    {{"gfx810"},    {"gfx810"},  GK_GFX810,  true, false, true,  true, true},
-    {{"stoney"},    {"gfx810"},  GK_GFX810,  true, false, true,  true, true},
-    {{"gfx900"},    {"gfx900"},  GK_GFX900,  true, true,  true,  true, true},
-    {{"gfx902"},    {"gfx902"},  GK_GFX900,  true, true,  true,  true, true},
-    {{"gfx904"},    {"gfx904"},  GK_GFX904,  true, true,  true,  true, true},
-    {{"gfx906"},    {"gfx906"},  GK_GFX906,  true, true,  true,  true, true},
-  };
+  bool hasFullRateDenormalsF32() const {
+    return !!(GPUFeatures & llvm::AMDGPU::FEATURE_FAST_DENORMAL_F32);
+  }
 
-  static GPUInfo parseR600Name(StringRef Name);
-
-  static GPUInfo parseAMDGCNName(StringRef Name);
-
-  GPUInfo parseGPUName(StringRef Name) const;
-
-  GPUInfo GPU;
+  bool hasLDEXPF() const {
+    return getTriple().getArch() == llvm::Triple::amdgcn ||
+           !!(GPUFeatures & llvm::AMDGPU::FEATURE_LDEXP);
+  }
 
   static bool isAMDGCN(const llvm::Triple &TT) {
     return TT.getArch() == llvm::Triple::amdgcn;
+  }
+
+  static bool isR600(const llvm::Triple &TT) {
+    return TT.getArch() == llvm::Triple::r600;
   }
 
 public:
@@ -184,13 +93,15 @@ public:
 
   void setAddressSpaceMap(bool DefaultIsPrivate);
 
-  void adjust(LangOptions &Opts) override;
+  void adjust(DiagnosticsEngine &Diags, LangOptions &Opts) override;
 
   uint64_t getPointerWidthV(unsigned AddrSpace) const override {
-    if (GPU.Kind <= GK_R600_LAST)
+    if (isR600(getTriple()))
       return 32;
+
     if (AddrSpace == Private || AddrSpace == Local)
       return 32;
+
     return 64;
   }
 
@@ -213,11 +124,14 @@ public:
   /// Accepted register names: (n, m is unsigned integer, n < m)
   /// v
   /// s
+  /// a
   /// {vn}, {v[n]}
   /// {sn}, {s[n]}
+  /// {an}, {a[n]}
   /// {S} , where S is a special register name
   ////{v[n:m]}
   /// {s[n:m]}
+  /// {a[n:m]}
   bool validateAsmConstraint(const char *&Name,
                              TargetInfo::ConstraintInfo &Info) const override {
     static const ::llvm::StringSet<> SpecialRegs({
@@ -226,7 +140,30 @@ public:
         "exec_hi", "tma_lo", "tma_hi", "tba_lo", "tba_hi",
     });
 
+    switch (*Name) {
+    case 'I':
+      Info.setRequiresImmediate(-16, 64);
+      return true;
+    case 'J':
+      Info.setRequiresImmediate(-32768, 32767);
+      return true;
+    case 'A':
+    case 'B':
+    case 'C':
+      Info.setRequiresImmediate();
+      return true;
+    default:
+      break;
+    }
+
     StringRef S(Name);
+
+    if (S == "DA" || S == "DB") {
+      Name++;
+      Info.setRequiresImmediate();
+      return true;
+    }
+
     bool HasLeftParen = false;
     if (S.front() == '{') {
       HasLeftParen = true;
@@ -234,7 +171,7 @@ public:
     }
     if (S.empty())
       return false;
-    if (S.front() != 'v' && S.front() != 's') {
+    if (S.front() != 'v' && S.front() != 's' && S.front() != 'a') {
       if (!HasLeftParen)
         return false;
       auto E = S.find('}');
@@ -252,7 +189,7 @@ public:
     if (!HasLeftParen) {
       if (!S.empty())
         return false;
-      // Found s or v.
+      // Found s, v or a.
       Info.setAllowsRegister();
       Name = S.data() - 1;
       return true;
@@ -283,7 +220,8 @@ public:
     S = S.drop_front();
     if (!S.empty())
       return false;
-    // Found {vn}, {sn}, {v[n]}, {s[n]}, {v[n:m]}, or {s[n:m]}.
+    // Found {vn}, {sn}, {an}, {v[n]}, {s[n]}, {a[n]}, {v[n:m]}, {s[n:m]}
+    // or {a[n:m]}.
     Info.setAllowsRegister();
     Name = S.data() - 1;
     return true;
@@ -293,6 +231,12 @@ public:
   // the constraint.  In practice, it won't be changed unless the
   // constraint is longer than one character.
   std::string convertConstraint(const char *&Constraint) const override {
+
+    StringRef S(Constraint);
+    if (S == "DA" || S == "DB") {
+      return std::string("^") + std::string(Constraint++, 2);
+    }
+
     const char *Begin = Constraint;
     TargetInfo::ConstraintInfo Info("", "");
     if (validateAsmConstraint(Constraint, Info))
@@ -307,10 +251,9 @@ public:
                  StringRef CPU,
                  const std::vector<std::string> &FeatureVec) const override;
 
-  void adjustTargetOptions(const CodeGenOptions &CGOpts,
-                           TargetOptions &TargetOpts) const override;
-
   ArrayRef<Builtin::Info> getTargetBuiltins() const override;
+
+  bool useFP16ConversionIntrinsics() const override { return false; }
 
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
@@ -321,45 +264,58 @@ public:
 
   bool isValidCPUName(StringRef Name) const override {
     if (getTriple().getArch() == llvm::Triple::amdgcn)
-      return GK_NONE != parseAMDGCNName(Name).Kind;
-    else
-      return GK_NONE != parseR600Name(Name).Kind;
+      return llvm::AMDGPU::parseArchAMDGCN(Name) != llvm::AMDGPU::GK_NONE;
+    return llvm::AMDGPU::parseArchR600(Name) != llvm::AMDGPU::GK_NONE;
   }
 
   void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const override;
 
   bool setCPU(const std::string &Name) override {
-    if (getTriple().getArch() == llvm::Triple::amdgcn)
-      GPU = parseAMDGCNName(Name);
-    else
-      GPU = parseR600Name(Name);
+    if (getTriple().getArch() == llvm::Triple::amdgcn) {
+      GPUKind = llvm::AMDGPU::parseArchAMDGCN(Name);
+      GPUFeatures = llvm::AMDGPU::getArchAttrAMDGCN(GPUKind);
+    } else {
+      GPUKind = llvm::AMDGPU::parseArchR600(Name);
+      GPUFeatures = llvm::AMDGPU::getArchAttrR600(GPUKind);
+    }
 
-    return GK_NONE != GPU.Kind;
+    return GPUKind != llvm::AMDGPU::GK_NONE;
   }
 
   void setSupportedOpenCLOpts() override {
     auto &Opts = getSupportedOpenCLOpts();
-    Opts.support("cl_clang_storage_class_specifiers");
-    Opts.support("cl_khr_icd");
+    Opts["cl_clang_storage_class_specifiers"] = true;
+    Opts["__cl_clang_variadic_functions"] = true;
+    Opts["__cl_clang_function_pointers"] = true;
+    Opts["__cl_clang_non_portable_kernel_param_types"] = true;
+    Opts["__cl_clang_bitfields"] = true;
 
-    if (GPU.HasFP64)
-      Opts.support("cl_khr_fp64");
-    if (GPU.Kind >= GK_CEDAR) {
-      Opts.support("cl_khr_byte_addressable_store");
-      Opts.support("cl_khr_global_int32_base_atomics");
-      Opts.support("cl_khr_global_int32_extended_atomics");
-      Opts.support("cl_khr_local_int32_base_atomics");
-      Opts.support("cl_khr_local_int32_extended_atomics");
+    bool IsAMDGCN = isAMDGCN(getTriple());
+
+    Opts["cl_khr_fp64"] = hasFP64();
+    Opts["__opencl_c_fp64"] = hasFP64();
+
+    if (IsAMDGCN || GPUKind >= llvm::AMDGPU::GK_CEDAR) {
+      Opts["cl_khr_byte_addressable_store"] = true;
+      Opts["cl_khr_global_int32_base_atomics"] = true;
+      Opts["cl_khr_global_int32_extended_atomics"] = true;
+      Opts["cl_khr_local_int32_base_atomics"] = true;
+      Opts["cl_khr_local_int32_extended_atomics"] = true;
     }
-    if (GPU.Kind >= GK_AMDGCN_FIRST) {
-      Opts.support("cl_khr_fp16");
-      Opts.support("cl_khr_int64_base_atomics");
-      Opts.support("cl_khr_int64_extended_atomics");
-      Opts.support("cl_khr_mipmap_image");
-      Opts.support("cl_khr_subgroups");
-      Opts.support("cl_khr_3d_image_writes");
-      Opts.support("cl_amd_media_ops");
-      Opts.support("cl_amd_media_ops2");
+
+    if (IsAMDGCN) {
+      Opts["cl_khr_fp16"] = true;
+      Opts["cl_khr_int64_base_atomics"] = true;
+      Opts["cl_khr_int64_extended_atomics"] = true;
+      Opts["cl_khr_mipmap_image"] = true;
+      Opts["cl_khr_mipmap_image_writes"] = true;
+      Opts["cl_khr_subgroups"] = true;
+      Opts["cl_amd_media_ops"] = true;
+      Opts["cl_amd_media_ops2"] = true;
+
+      Opts["__opencl_c_images"] = true;
+      Opts["__opencl_c_3d_image_writes"] = true;
+      Opts["cl_khr_3d_image_writes"] = true;
     }
   }
 
@@ -378,8 +334,51 @@ public:
     }
   }
 
+  LangAS getOpenCLBuiltinAddressSpace(unsigned AS) const override {
+    switch (AS) {
+    case 0:
+      return LangAS::opencl_generic;
+    case 1:
+      return LangAS::opencl_global;
+    case 3:
+      return LangAS::opencl_local;
+    case 4:
+      return LangAS::opencl_constant;
+    case 5:
+      return LangAS::opencl_private;
+    default:
+      return getLangASFromTargetAS(AS);
+    }
+  }
+
+  LangAS getCUDABuiltinAddressSpace(unsigned AS) const override {
+    switch (AS) {
+    case 0:
+      return LangAS::Default;
+    case 1:
+      return LangAS::cuda_device;
+    case 3:
+      return LangAS::cuda_shared;
+    case 4:
+      return LangAS::cuda_constant;
+    default:
+      return getLangASFromTargetAS(AS);
+    }
+  }
+
   llvm::Optional<LangAS> getConstantAddressSpace() const override {
     return getLangASFromTargetAS(Constant);
+  }
+
+  const llvm::omp::GV &getGridValue() const override {
+    switch (WavefrontSize) {
+    case 32:
+      return llvm::omp::getAMDGPUGridValues<32>();
+    case 64:
+      return llvm::omp::getAMDGPUGridValues<64>();
+    default:
+      llvm_unreachable("getGridValue not implemented for this wavesize");
+    }
   }
 
   /// \returns Target specific vtbl ptr address space.
@@ -420,7 +419,44 @@ public:
   // address space has value 0 but in private and local address space has
   // value ~0.
   uint64_t getNullPointerValue(LangAS AS) const override {
-    return AS == LangAS::opencl_local ? ~0 : 0;
+    // FIXME: Also should handle region.
+    return (AS == LangAS::opencl_local || AS == LangAS::opencl_private)
+      ? ~0 : 0;
+  }
+
+  void setAuxTarget(const TargetInfo *Aux) override;
+
+  bool hasBitIntType() const override { return true; }
+
+  // Record offload arch features since they are needed for defining the
+  // pre-defined macros.
+  bool handleTargetFeatures(std::vector<std::string> &Features,
+                            DiagnosticsEngine &Diags) override {
+    auto TargetIDFeatures =
+        getAllPossibleTargetIDFeatures(getTriple(), getArchNameAMDGCN(GPUKind));
+    llvm::for_each(Features, [&](const auto &F) {
+      assert(F.front() == '+' || F.front() == '-');
+      if (F == "+wavefrontsize64")
+        WavefrontSize = 64;
+      bool IsOn = F.front() == '+';
+      StringRef Name = StringRef(F).drop_front();
+      if (!llvm::is_contained(TargetIDFeatures, Name))
+        return;
+      assert(OffloadArchFeatures.find(Name) == OffloadArchFeatures.end());
+      OffloadArchFeatures[Name] = IsOn;
+    });
+    return true;
+  }
+
+  Optional<std::string> getTargetID() const override {
+    if (!isAMDGCN(getTriple()))
+      return llvm::None;
+    // When -target-cpu is not set, we assume generic code that it is valid
+    // for all GPU and use an empty string as target ID to represent that.
+    if (GPUKind == llvm::AMDGPU::GK_NONE)
+      return std::string("");
+    return getCanonicalTargetID(getArchNameAMDGCN(GPUKind),
+                                OffloadArchFeatures);
   }
 };
 

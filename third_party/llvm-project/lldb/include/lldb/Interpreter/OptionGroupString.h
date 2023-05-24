@@ -1,26 +1,19 @@
 //===-- OptionGroupString.h -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionGroupString_h_
-#define liblldb_OptionGroupString_h_
+#ifndef LLDB_INTERPRETER_OPTIONGROUPSTRING_H
+#define LLDB_INTERPRETER_OPTIONGROUPSTRING_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Interpreter/OptionValueString.h"
 #include "lldb/Interpreter/Options.h"
 
 namespace lldb_private {
-//-------------------------------------------------------------------------
 // OptionGroupString
-//-------------------------------------------------------------------------
 
 class OptionGroupString : public OptionGroup {
 public:
@@ -29,7 +22,7 @@ public:
                     lldb::CommandArgumentType argument_type,
                     const char *usage_text, const char *default_value);
 
-  ~OptionGroupString() override;
+  ~OptionGroupString() override = default;
 
   llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
     return llvm::ArrayRef<OptionDefinition>(&m_option_definition, 1);
@@ -37,7 +30,6 @@ public:
 
   Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
                         ExecutionContext *execution_context) override;
-  Status SetOptionValue(uint32_t, const char *, ExecutionContext *) = delete;
 
   void OptionParsingStarting(ExecutionContext *execution_context) override;
 
@@ -52,4 +44,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionGroupString_h_
+#endif // LLDB_INTERPRETER_OPTIONGROUPSTRING_H

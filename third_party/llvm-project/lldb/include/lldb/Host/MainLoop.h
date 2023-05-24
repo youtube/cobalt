@@ -1,19 +1,19 @@
 //===-- MainLoop.h ----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_Host_MainLoop_h_
-#define lldb_Host_MainLoop_h_
+#ifndef LLDB_HOST_MAINLOOP_H
+#define LLDB_HOST_MAINLOOP_H
 
 #include "lldb/Host/Config.h"
 #include "lldb/Host/MainLoopBase.h"
 #include "llvm/ADT/DenseMap.h"
 #include <csignal>
+#include <list>
 
 #if !HAVE_PPOLL && !HAVE_SYS_EVENT_H && !defined(__ANDROID__)
 #define SIGNAL_POLLING_UNSUPPORTED 1
@@ -69,7 +69,7 @@ public:
 protected:
   void UnregisterReadObject(IOObject::WaitableHandle handle) override;
 
-  void UnregisterSignal(int signo);
+  void UnregisterSignal(int signo, std::list<Callback>::iterator callback_it);
 
 private:
   void ProcessReadObject(IOObject::WaitableHandle handle);
@@ -77,22 +77,25 @@ private:
 
   class SignalHandle {
   public:
-    ~SignalHandle() { m_mainloop.UnregisterSignal(m_signo); }
+    ~SignalHandle() { m_mainloop.UnregisterSignal(m_signo, m_callback_it); }
 
   private:
-    SignalHandle(MainLoop &mainloop, int signo)
-        : m_mainloop(mainloop), m_signo(signo) {}
+    SignalHandle(MainLoop &mainloop, int signo,
+                 std::list<Callback>::iterator callback_it)
+        : m_mainloop(mainloop), m_signo(signo), m_callback_it(callback_it) {}
 
     MainLoop &m_mainloop;
     int m_signo;
+    std::list<Callback>::iterator m_callback_it;
 
     friend class MainLoop;
-    DISALLOW_COPY_AND_ASSIGN(SignalHandle);
+    SignalHandle(const SignalHandle &) = delete;
+    const SignalHandle &operator=(const SignalHandle &) = delete;
   };
 
   struct SignalInfo {
-    Callback callback;
-#if HAVE_SIGACTION
+    std::list<Callback> callbacks;
+#ifndef SIGNAL_POLLING_UNSUPPORTED
     struct sigaction old_action;
 #endif
     bool was_blocked : 1;
@@ -109,4 +112,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // lldb_Host_MainLoop_h_
+#endif // LLDB_HOST_MAINLOOP_H

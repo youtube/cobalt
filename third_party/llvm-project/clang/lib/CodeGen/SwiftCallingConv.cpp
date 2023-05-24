@@ -1,9 +1,8 @@
 //===--- SwiftCallingConv.cpp - Lowering for the Swift calling convention -===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -94,11 +93,24 @@ void SwiftAggLowering::addTypedData(QualType type, CharUnits begin) {
     // Just add it all as opaque.
     addOpaqueData(begin, begin + CGM.getContext().getTypeSizeInChars(type));
 
-  // Everything else is scalar and should not convert as an LLVM aggregate.
+    // Atomic types.
+  } else if (const auto *atomicType = type->getAs<AtomicType>()) {
+    auto valueType = atomicType->getValueType();
+    auto atomicSize = CGM.getContext().getTypeSizeInChars(atomicType);
+    auto valueSize = CGM.getContext().getTypeSizeInChars(valueType);
+
+    addTypedData(atomicType->getValueType(), begin);
+
+    // Add atomic padding.
+    auto atomicPadding = atomicSize - valueSize;
+    if (atomicPadding > CharUnits::Zero())
+      addOpaqueData(begin + valueSize, begin + atomicSize);
+
+    // Everything else is scalar and should not convert as an LLVM aggregate.
   } else {
     // We intentionally convert as !ForMem because we want to preserve
     // that a type was an i1.
-    auto llvmType = CGM.getTypes().ConvertType(type);
+    auto *llvmType = CGM.getTypes().ConvertType(type);
     addTypedData(llvmType, begin);
   }
 }
@@ -321,9 +333,12 @@ restartAfterSplit:
   // If we have a vector type, split it.
   if (auto vecTy = dyn_cast_or_null<llvm::VectorType>(type)) {
     auto eltTy = vecTy->getElementType();
-    CharUnits eltSize = (end - begin) / vecTy->getNumElements();
+    CharUnits eltSize =
+        (end - begin) / cast<llvm::FixedVectorType>(vecTy)->getNumElements();
     assert(eltSize == getTypeStoreSize(CGM, eltTy));
-    for (unsigned i = 0, e = vecTy->getNumElements(); i != e; ++i) {
+    for (unsigned i = 0,
+                  e = cast<llvm::FixedVectorType>(vecTy)->getNumElements();
+         i != e; ++i) {
       addEntry(eltTy, begin, begin + eltSize);
       begin += eltSize;
     }
@@ -415,6 +430,40 @@ static bool areBytesInSameUnit(CharUnits first, CharUnits second,
       == getOffsetAtStartOfUnit(second, chunkSize);
 }
 
+static bool isMergeableEntryType(llvm::Type *type) {
+  // Opaquely-typed memory is always mergeable.
+  if (type == nullptr) return true;
+
+  // Pointers and integers are always mergeable.  In theory we should not
+  // merge pointers, but (1) it doesn't currently matter in practice because
+  // the chunk size is never greater than the size of a pointer and (2)
+  // Swift IRGen uses integer types for a lot of things that are "really"
+  // just storing pointers (like Optional<SomePointer>).  If we ever have a
+  // target that would otherwise combine pointers, we should put some effort
+  // into fixing those cases in Swift IRGen and then call out pointer types
+  // here.
+
+  // Floating-point and vector types should never be merged.
+  // Most such types are too large and highly-aligned to ever trigger merging
+  // in practice, but it's important for the rule to cover at least 'half'
+  // and 'float', as well as things like small vectors of 'i1' or 'i8'.
+  return (!type->isFloatingPointTy() && !type->isVectorTy());
+}
+
+bool SwiftAggLowering::shouldMergeEntries(const StorageEntry &first,
+                                          const StorageEntry &second,
+                                          CharUnits chunkSize) {
+  // Only merge entries that overlap the same chunk.  We test this first
+  // despite being a bit more expensive because this is the condition that
+  // tends to prevent merging.
+  if (!areBytesInSameUnit(first.End - CharUnits::One(), second.Begin,
+                          chunkSize))
+    return false;
+
+  return (isMergeableEntryType(first.Type) &&
+          isMergeableEntryType(second.Type));
+}
+
 void SwiftAggLowering::finish() {
   if (Entries.empty()) {
     Finished = true;
@@ -425,12 +474,12 @@ void SwiftAggLowering::finish() {
   // which is generally the size of a pointer.
   const CharUnits chunkSize = getMaximumVoluntaryIntegerSize(CGM);
 
-  // First pass: if two entries share a chunk, make them both opaque
+  // First pass: if two entries should be merged, make them both opaque
   // and stretch one to meet the next.
+  // Also, remember if there are any opaque entries.
   bool hasOpaqueEntries = (Entries[0].Type == nullptr);
   for (size_t i = 1, e = Entries.size(); i != e; ++i) {
-    if (areBytesInSameUnit(Entries[i - 1].End - CharUnits::One(),
-                           Entries[i].Begin, chunkSize)) {
+    if (shouldMergeEntries(Entries[i - 1], Entries[i], chunkSize)) {
       Entries[i - 1].Type = nullptr;
       Entries[i].Type = nullptr;
       Entries[i - 1].End = Entries[i].Begin;
@@ -641,8 +690,9 @@ bool swiftcall::isLegalIntegerType(CodeGenModule &CGM,
 
 bool swiftcall::isLegalVectorType(CodeGenModule &CGM, CharUnits vectorSize,
                                   llvm::VectorType *vectorTy) {
-  return isLegalVectorType(CGM, vectorSize, vectorTy->getElementType(),
-                           vectorTy->getNumElements());
+  return isLegalVectorType(
+      CGM, vectorSize, vectorTy->getElementType(),
+      cast<llvm::FixedVectorType>(vectorTy)->getNumElements());
 }
 
 bool swiftcall::isLegalVectorType(CodeGenModule &CGM, CharUnits vectorSize,
@@ -655,13 +705,13 @@ bool swiftcall::isLegalVectorType(CodeGenModule &CGM, CharUnits vectorSize,
 std::pair<llvm::Type*, unsigned>
 swiftcall::splitLegalVectorType(CodeGenModule &CGM, CharUnits vectorSize,
                                 llvm::VectorType *vectorTy) {
-  auto numElts = vectorTy->getNumElements();
+  auto numElts = cast<llvm::FixedVectorType>(vectorTy)->getNumElements();
   auto eltTy = vectorTy->getElementType();
 
   // Try to split the vector type in half.
   if (numElts >= 4 && isPowerOf2(numElts)) {
     if (isLegalVectorType(CGM, vectorSize / 2, eltTy, numElts / 2))
-      return {llvm::VectorType::get(eltTy, numElts / 2), 2};
+      return {llvm::FixedVectorType::get(eltTy, numElts / 2), 2};
   }
 
   return {eltTy, numElts};
@@ -677,7 +727,7 @@ void swiftcall::legalizeVectorType(CodeGenModule &CGM, CharUnits origVectorSize,
   }
 
   // Try to split the vector into legal subvectors.
-  auto numElts = origVectorTy->getNumElements();
+  auto numElts = cast<llvm::FixedVectorType>(origVectorTy)->getNumElements();
   auto eltTy = origVectorTy->getElementType();
   assert(numElts != 1);
 
@@ -714,7 +764,8 @@ void swiftcall::legalizeVectorType(CodeGenModule &CGM, CharUnits origVectorSize,
 
     // Add the right number of vectors of this size.
     auto numVecs = numElts >> logCandidateNumElts;
-    components.append(numVecs, llvm::VectorType::get(eltTy, candidateNumElts));
+    components.append(numVecs,
+                      llvm::FixedVectorType::get(eltTy, candidateNumElts));
     numElts -= (numVecs << logCandidateNumElts);
 
     if (numElts == 0) return;
@@ -724,7 +775,7 @@ void swiftcall::legalizeVectorType(CodeGenModule &CGM, CharUnits origVectorSize,
     // This only needs to be separately checked if it's not a power of 2.
     if (numElts > 2 && !isPowerOf2(numElts) &&
         isLegalVectorType(CGM, eltSize * numElts, eltTy, numElts)) {
-      components.push_back(llvm::VectorType::get(eltTy, numElts));
+      components.push_back(llvm::FixedVectorType::get(eltTy, numElts));
       return;
     }
 

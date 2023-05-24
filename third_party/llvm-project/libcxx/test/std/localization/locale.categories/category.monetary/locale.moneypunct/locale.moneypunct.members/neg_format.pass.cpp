@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,8 @@
 #include <locale>
 #include <limits>
 #include <cassert>
+
+#include "test_macros.h"
 
 typedef std::moneypunct<char> F;
 
@@ -35,6 +36,7 @@ public:
         : std::moneypunct<char, true>(refs) {}
 };
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
 class Fwf
     : public std::moneypunct<wchar_t, false>
 {
@@ -50,8 +52,9 @@ public:
     explicit Fwt(std::size_t refs = 0)
         : std::moneypunct<wchar_t, true>(refs) {}
 };
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
 
-int main()
+int main(int, char**)
 {
     {
         Fnf f(1);
@@ -69,6 +72,7 @@ int main()
         assert(p.field[2] == std::money_base::none);
         assert(p.field[3] == std::money_base::value);
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         Fwf f(1);
         std::money_base::pattern p = f.neg_format();
@@ -85,4 +89,7 @@ int main()
         assert(p.field[2] == std::money_base::none);
         assert(p.field[3] == std::money_base::value);
     }
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
+
+  return 0;
 }

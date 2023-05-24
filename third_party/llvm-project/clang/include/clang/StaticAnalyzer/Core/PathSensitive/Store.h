@@ -1,9 +1,8 @@
 //===- Store.h - Interface for maps from Locations to Values ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -130,6 +129,8 @@ public:
   ///  used to query and manipulate MemRegion objects.
   MemRegionManager& getRegionManager() { return MRMgr; }
 
+  SValBuilder& getSValBuilder() { return svalBuilder; }
+
   virtual Loc getLValueVar(const VarDecl *VD, const LocationContext *LC) {
     return svalBuilder.makeLoc(MRMgr.getVarRegion(VD, LC));
   }
@@ -146,14 +147,6 @@ public:
   }
 
   virtual SVal getLValueElement(QualType elementType, NonLoc offset, SVal Base);
-
-  // FIXME: This should soon be eliminated altogether; clients should deal with
-  // region extents directly.
-  virtual DefinedOrUnknownSVal getSizeInElements(ProgramStateRef state,
-                                                 const MemRegion *region,
-                                                 QualType EleTy) {
-    return UnknownVal();
-  }
 
   /// ArrayToPointer - Used by ExprEngine::VistCast to handle implicit
   ///  conversions between arrays and pointers.
@@ -179,16 +172,17 @@ public:
   ///    dynamic_cast.
   ///  - We don't know (base is a symbolic region and we don't have
   ///    enough info to determine if the cast will succeed at run time).
-  /// The function returns an SVal representing the derived class; it's
-  /// valid only if Failed flag is set to false.
-  SVal attemptDownCast(SVal Base, QualType DerivedPtrType, bool &Failed);
+  /// The function returns an optional with SVal representing the derived class
+  /// in case of a successful cast and `None` otherwise.
+  Optional<SVal> evalBaseToDerived(SVal Base, QualType DerivedPtrType);
 
   const ElementRegion *GetElementZeroRegion(const SubRegion *R, QualType T);
 
   /// castRegion - Used by ExprEngine::VisitCast to handle casts from
   ///  a MemRegion* to a specific location type.  'R' is the region being
   ///  casted and 'CastToTy' the result type of the cast.
-  const MemRegion *castRegion(const MemRegion *region, QualType CastToTy);
+  Optional<const MemRegion *> castRegion(const MemRegion *region,
+                                         QualType CastToTy);
 
   virtual StoreRef removeDeadBindings(Store store, const StackFrameContext *LCtx,
                                       SymbolReaper &SymReaper) = 0;
@@ -252,19 +246,19 @@ public:
   virtual bool scanReachableSymbols(Store S, const MemRegion *R,
                                     ScanReachableSymbols &Visitor) = 0;
 
-  virtual void print(Store store, raw_ostream &Out,
-                     const char* nl, const char *sep) = 0;
+  virtual void printJson(raw_ostream &Out, Store S, const char *NL,
+                         unsigned int Space, bool IsDot) const = 0;
 
   class BindingsHandler {
   public:
     virtual ~BindingsHandler();
 
+    /// \return whether the iteration should continue.
     virtual bool HandleBinding(StoreManager& SMgr, Store store,
                                const MemRegion *region, SVal val) = 0;
   };
 
-  class FindUniqueBinding :
-  public BindingsHandler {
+  class FindUniqueBinding : public BindingsHandler {
     SymbolRef Sym;
     const MemRegion* Binding = nullptr;
     bool First = true;
@@ -286,12 +280,6 @@ protected:
   const ElementRegion *MakeElementRegion(const SubRegion *baseRegion,
                                          QualType pointeeTy,
                                          uint64_t index = 0);
-
-  /// CastRetrievedVal - Used by subclasses of StoreManager to implement
-  ///  implicit casts that arise from loads from regions that are reinterpreted
-  ///  as another region.
-  SVal CastRetrievedVal(SVal val, const TypedValueRegion *region,
-                        QualType castTy);
 
 private:
   SVal getLValueFieldOrIvar(const Decl *decl, SVal base);

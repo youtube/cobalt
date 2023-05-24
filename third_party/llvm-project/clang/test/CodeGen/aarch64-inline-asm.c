@@ -17,7 +17,7 @@ void test_generic_constraints(int var32, long var64) {
 
     asm("ldr %0, %1" : "=r"(var32) : "m"(var));
     asm("ldr %0, [%1]" : "=r"(var64) : "r"(&var));
-// CHECK: call i32 asm "ldr $0, $1", "=r,*m"(i64* @var)
+// CHECK: call i32 asm "ldr $0, $1", "=r,*m"(i64* elementtype(i64) @var)
 // CHECK: call i64 asm "ldr $0, [$1]", "=r,r"(i64* @var)
 }
 
@@ -52,7 +52,7 @@ void test_constraint_S(void) {
 void test_constraint_Q(void) {
     int val;
     asm("ldxr %0, %1" : "=r"(val) : "Q"(var));
-// CHECK: call i32 asm "ldxr $0, $1", "=r,*Q"(i64* @var)
+// CHECK: call i32 asm "ldxr $0, $1", "=r,*Q"(i64* elementtype(i64) @var)
 }
 
 void test_gcc_registers(void) {
@@ -73,4 +73,10 @@ void test_gcc_registers(void) {
     // should not be remapped.
     asm volatile("mov r0, r1\n");
     // CHECK: call void asm sideeffect "mov r0, r1\0A", ""()
+}
+
+void test_tied_earlyclobber(void) {
+  register int a asm("x1");
+  asm("" : "+&r"(a));
+  // CHECK: call i32 asm "", "=&{x1},0"(i32 %0)
 }

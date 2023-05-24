@@ -1,9 +1,8 @@
 //===- ASTWriter.h - AST File Writer ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,26 +16,23 @@
 
 #include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/Decl.h"
-#include "clang/AST/DeclarationName.h"
-#include "clang/AST/NestedNameSpecifier.h"
-#include "clang/AST/TemplateBase.h"
-#include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
-#include "clang/AST/TypeLoc.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Frontend/PCHContainerOperations.h"
+#include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaConsumer.h"
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
+#include "clang/Serialization/PCHContainerOperations.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Bitcode/BitstreamWriter.h"
+#include "llvm/Bitstream/BitstreamWriter.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -47,26 +43,14 @@
 #include <utility>
 #include <vector>
 
-namespace llvm {
-
-class APFloat;
-class APInt;
-class APSInt;
-
-} // namespace llvm
-
 namespace clang {
 
 class ASTContext;
 class ASTReader;
-class ASTUnresolvedSet;
 class Attr;
-class CXXBaseSpecifier;
-class CXXCtorInitializer;
 class CXXRecordDecl;
-class CXXTemporary;
 class FileEntry;
-class FPOptions;
+class FPOptionsOverride;
 class FunctionDecl;
 class HeaderSearch;
 class HeaderSearchOptions;
@@ -74,25 +58,21 @@ class IdentifierResolver;
 class LangOptions;
 class MacroDefinitionRecord;
 class MacroInfo;
-class MemoryBufferCache;
 class Module;
+class InMemoryModuleCache;
 class ModuleFileExtension;
 class ModuleFileExtensionWriter;
 class NamedDecl;
-class NestedNameSpecifier;
 class ObjCInterfaceDecl;
 class PreprocessingRecord;
 class Preprocessor;
-struct QualifierInfo;
 class RecordDecl;
 class Sema;
 class SourceManager;
 class Stmt;
-struct StoredDeclsList;
+class StoredDeclsList;
 class SwitchCase;
-class TemplateParameterList;
 class Token;
-class TypeSourceInfo;
 
 /// Writes an AST file containing the contents of a translation unit.
 ///
@@ -105,8 +85,6 @@ class ASTWriter : public ASTDeserializationListener,
 public:
   friend class ASTDeclWriter;
   friend class ASTRecordWriter;
-  friend class ASTStmtWriter;
-  friend class ASTTypeWriter;
 
   using RecordData = SmallVector<uint64_t, 64>;
   using RecordDataImpl = SmallVectorImpl<uint64_t>;
@@ -132,7 +110,7 @@ private:
   const SmallVectorImpl<char> &Buffer;
 
   /// The PCM manager which manages memory buffers for pcm files.
-  MemoryBufferCache &PCMCache;
+  InMemoryModuleCache &ModuleCache;
 
   /// The ASTContext we're writing.
   ASTContext *Context = nullptr;
@@ -145,6 +123,12 @@ private:
 
   /// The module we're currently writing, if any.
   Module *WritingModule = nullptr;
+
+  /// The offset of the first bit inside the AST_BLOCK.
+  uint64_t ASTBlockStartOffset = 0;
+
+  /// The range representing all the AST_BLOCK.
+  std::pair<uint64_t, uint64_t> ASTBlockRange;
 
   /// The base directory for any relative paths we emit.
   std::string BaseDirectory;
@@ -215,6 +199,10 @@ private:
   /// the declaration's ID.
   std::vector<serialization::DeclOffset> DeclOffsets;
 
+  /// The offset of the DECLTYPES_BLOCK. The offsets in DeclOffsets
+  /// are relative to this value.
+  uint64_t DeclTypesBlockStartOffset = 0;
+
   /// Sorted (by file offset) vector of pairs of file offset/DeclID.
   using LocDeclIDsTy =
       SmallVector<std::pair<unsigned, serialization::DeclID>, 64>;
@@ -225,7 +213,8 @@ private:
     /// indicates the index that this particular vector has in the global one.
     unsigned FirstDeclIndex;
   };
-  using FileDeclIDsTy = llvm::DenseMap<FileID, DeclIDInFileInfo *>;
+  using FileDeclIDsTy =
+      llvm::DenseMap<FileID, std::unique_ptr<DeclIDInFileInfo>>;
 
   /// Map from file SLocEntries to info about the file-level declarations
   /// that it contains.
@@ -252,7 +241,7 @@ private:
 
   /// Offset of each type in the bitstream, indexed by
   /// the type's ID.
-  std::vector<uint32_t> TypeOffsets;
+  std::vector<serialization::UnderalignedInt64> TypeOffsets;
 
   /// The first ID number we can use for our own identifiers.
   serialization::IdentID FirstIdentID = serialization::NUM_PREDEF_IDENT_IDS;
@@ -286,7 +275,8 @@ private:
   /// The macro infos to emit.
   std::vector<MacroInfoToEmitData> MacroInfosToEmit;
 
-  llvm::DenseMap<const IdentifierInfo *, uint64_t> IdentMacroDirectivesOffsetMap;
+  llvm::DenseMap<const IdentifierInfo *, uint32_t>
+      IdentMacroDirectivesOffsetMap;
 
   /// @name FlushStmt Caches
   /// @{
@@ -341,7 +331,7 @@ private:
     union {
       const Decl *Dcl;
       void *Type;
-      unsigned Loc;
+      SourceLocation::UIntTy Loc;
       unsigned Val;
       Module *Mod;
       const Attr *Attribute;
@@ -396,8 +386,8 @@ private:
   /// headers. The declarations themselves are stored as declaration
   /// IDs, since they will be written out to an EAGERLY_DESERIALIZED_DECLS
   /// record.
-  SmallVector<uint64_t, 16> EagerlyDeserializedDecls;
-  SmallVector<uint64_t, 16> ModularCodegenDecls;
+  SmallVector<serialization::DeclID, 16> EagerlyDeserializedDecls;
+  SmallVector<serialization::DeclID, 16> ModularCodegenDecls;
 
   /// DeclContexts that have received extensions since their serialized
   /// form.
@@ -444,11 +434,14 @@ private:
 
   /// A mapping from each known submodule to its ID number, which will
   /// be a positive integer.
-  llvm::DenseMap<Module *, unsigned> SubmoduleIDs;
+  llvm::DenseMap<const Module *, unsigned> SubmoduleIDs;
 
   /// A list of the module file extension writers.
   std::vector<std::unique_ptr<ModuleFileExtensionWriter>>
-    ModuleFileExtensionWriters;
+      ModuleFileExtensionWriters;
+
+  /// User ModuleMaps skipped when writing control block.
+  std::set<const FileEntry *> SkippedModuleMaps;
 
   /// Retrieve or create a submodule ID for this module.
   unsigned getSubmoduleID(Module *Mod);
@@ -465,15 +458,18 @@ private:
                                              ASTContext &Context);
 
   /// Calculate hash of the pcm content.
-  static ASTFileSignature createSignature(StringRef Bytes);
+  static std::pair<ASTFileSignature, ASTFileSignature>
+  createSignature(StringRef AllBytes, StringRef ASTBlockBytes);
 
   void WriteInputFiles(SourceManager &SourceMgr, HeaderSearchOptions &HSOpts,
-                       bool Modules);
+                       std::set<const FileEntry *> &AffectingModuleMaps);
   void WriteSourceManagerBlock(SourceManager &SourceMgr,
                                const Preprocessor &PP);
+  void writeIncludedFiles(raw_ostream &Out, const Preprocessor &PP);
   void WritePreprocessor(const Preprocessor &PP, bool IsModule);
   void WriteHeaderSearch(const HeaderSearch &HS);
-  void WritePreprocessorDetail(PreprocessingRecord &PPRec);
+  void WritePreprocessorDetail(PreprocessingRecord &PPRec,
+                               uint64_t MacroOffsetsBase);
   void WriteSubmodules(Module *WritingModule);
 
   void WritePragmaDiagnosticMappings(const DiagnosticsEngine &Diag,
@@ -500,10 +496,8 @@ private:
                             bool IsModule);
   void WriteDeclUpdatesBlocks(RecordDataImpl &OffsetsRecord);
   void WriteDeclContextVisibleUpdate(const DeclContext *DC);
-  void WriteFPPragmaOptions(const FPOptions &Opts);
+  void WriteFPPragmaOptions(const FPOptionsOverride &Opts);
   void WriteOpenCLExtensions(Sema &SemaRef);
-  void WriteOpenCLExtensionTypes(Sema &SemaRef);
-  void WriteOpenCLExtensionDecls(Sema &SemaRef);
   void WriteCUDAPragmas(Sema &SemaRef);
   void WriteObjCCategories();
   void WriteLateParsedTemplates(Sema &SemaRef);
@@ -511,6 +505,7 @@ private:
   void WriteMSStructPragmaOptions(Sema &SemaRef);
   void WriteMSPointersToMembersPragmaOptions(Sema &SemaRef);
   void WritePackPragmaOptions(Sema &SemaRef);
+  void WriteFloatControlPragmaOptions(Sema &SemaRef);
   void WriteModuleFileExtension(Sema &SemaRef,
                                 ModuleFileExtensionWriter &Writer);
 
@@ -542,10 +537,15 @@ public:
   /// Create a new precompiled header writer that outputs to
   /// the given bitstream.
   ASTWriter(llvm::BitstreamWriter &Stream, SmallVectorImpl<char> &Buffer,
-            MemoryBufferCache &PCMCache,
+            InMemoryModuleCache &ModuleCache,
             ArrayRef<std::shared_ptr<ModuleFileExtension>> Extensions,
             bool IncludeTimestamps = true);
   ~ASTWriter() override;
+
+  ASTContext &getASTContext() const {
+    assert(Context && "requested AST context when not writing AST");
+    return *Context;
+  }
 
   const LangOptions &getLangOpts() const;
 
@@ -570,10 +570,15 @@ public:
   /// the module but currently is merely a random 32-bit number.
   ASTFileSignature WriteAST(Sema &SemaRef, const std::string &OutputFile,
                             Module *WritingModule, StringRef isysroot,
-                            bool hasErrors = false);
+                            bool hasErrors = false,
+                            bool ShouldCacheASTInMemory = false);
 
   /// Emit a token.
   void AddToken(const Token &Tok, RecordDataImpl &Record);
+
+  /// Emit a AlignPackInfo.
+  void AddAlignPackInfo(const Sema::AlignPackInfo &Info,
+                        RecordDataImpl &Record);
 
   /// Emit a source location.
   void AddSourceLocation(SourceLocation Loc, RecordDataImpl &Record);
@@ -596,7 +601,7 @@ public:
   /// Determine the ID of an already-emitted macro.
   serialization::MacroID getMacroID(MacroInfo *MI);
 
-  uint64_t getMacroDirectivesOffset(const IdentifierInfo *Name);
+  uint32_t getMacroDirectivesOffset(const IdentifierInfo *Name);
 
   /// Emit a reference to a type.
   void AddTypeRef(QualType T, RecordDataImpl &Record);
@@ -654,7 +659,7 @@ public:
   /// Retrieve or create a submodule ID for this module, or return 0 if
   /// the submodule is neither local (a submodle of the currently-written module)
   /// nor from an imported module.
-  unsigned getLocalOrImportedSubmoduleID(Module *Mod);
+  unsigned getLocalOrImportedSubmoduleID(const Module *Mod);
 
   /// Note that the identifier II occurs at the given offset
   /// within the identifier table.
@@ -737,226 +742,10 @@ private:
   void DeclarationMarkedOpenMPThreadPrivate(const Decl *D) override;
   void DeclarationMarkedOpenMPDeclareTarget(const Decl *D,
                                             const Attr *Attr) override;
+  void DeclarationMarkedOpenMPAllocate(const Decl *D, const Attr *A) override;
   void RedefinedHiddenDefinition(const NamedDecl *D, Module *M) override;
   void AddedAttributeToRecord(const Attr *Attr,
                               const RecordDecl *Record) override;
-};
-
-/// An object for streaming information to a record.
-class ASTRecordWriter {
-  ASTWriter *Writer;
-  ASTWriter::RecordDataImpl *Record;
-
-  /// Statements that we've encountered while serializing a
-  /// declaration or type.
-  SmallVector<Stmt *, 16> StmtsToEmit;
-
-  /// Indices of record elements that describe offsets within the
-  /// bitcode. These will be converted to offsets relative to the current
-  /// record when emitted.
-  SmallVector<unsigned, 8> OffsetIndices;
-
-  /// Flush all of the statements and expressions that have
-  /// been added to the queue via AddStmt().
-  void FlushStmts();
-  void FlushSubStmts();
-
-  void PrepareToEmit(uint64_t MyOffset) {
-    // Convert offsets into relative form.
-    for (unsigned I : OffsetIndices) {
-      auto &StoredOffset = (*Record)[I];
-      assert(StoredOffset < MyOffset && "invalid offset");
-      if (StoredOffset)
-        StoredOffset = MyOffset - StoredOffset;
-    }
-    OffsetIndices.clear();
-  }
-
-public:
-  /// Construct a ASTRecordWriter that uses the default encoding scheme.
-  ASTRecordWriter(ASTWriter &Writer, ASTWriter::RecordDataImpl &Record)
-      : Writer(&Writer), Record(&Record) {}
-
-  /// Construct a ASTRecordWriter that uses the same encoding scheme as another
-  /// ASTRecordWriter.
-  ASTRecordWriter(ASTRecordWriter &Parent, ASTWriter::RecordDataImpl &Record)
-      : Writer(Parent.Writer), Record(&Record) {}
-
-  /// Copying an ASTRecordWriter is almost certainly a bug.
-  ASTRecordWriter(const ASTRecordWriter &) = delete;
-  ASTRecordWriter &operator=(const ASTRecordWriter &) = delete;
-
-  /// Extract the underlying record storage.
-  ASTWriter::RecordDataImpl &getRecordData() const { return *Record; }
-
-  /// Minimal vector-like interface.
-  /// @{
-  void push_back(uint64_t N) { Record->push_back(N); }
-  template<typename InputIterator>
-  void append(InputIterator begin, InputIterator end) {
-    Record->append(begin, end);
-  }
-  bool empty() const { return Record->empty(); }
-  size_t size() const { return Record->size(); }
-  uint64_t &operator[](size_t N) { return (*Record)[N]; }
-  /// @}
-
-  /// Emit the record to the stream, followed by its substatements, and
-  /// return its offset.
-  // FIXME: Allow record producers to suggest Abbrevs.
-  uint64_t Emit(unsigned Code, unsigned Abbrev = 0) {
-    uint64_t Offset = Writer->Stream.GetCurrentBitNo();
-    PrepareToEmit(Offset);
-    Writer->Stream.EmitRecord(Code, *Record, Abbrev);
-    FlushStmts();
-    return Offset;
-  }
-
-  /// Emit the record to the stream, preceded by its substatements.
-  uint64_t EmitStmt(unsigned Code, unsigned Abbrev = 0) {
-    FlushSubStmts();
-    PrepareToEmit(Writer->Stream.GetCurrentBitNo());
-    Writer->Stream.EmitRecord(Code, *Record, Abbrev);
-    return Writer->Stream.GetCurrentBitNo();
-  }
-
-  /// Add a bit offset into the record. This will be converted into an
-  /// offset relative to the current record when emitted.
-  void AddOffset(uint64_t BitOffset) {
-    OffsetIndices.push_back(Record->size());
-    Record->push_back(BitOffset);
-  }
-
-  /// Add the given statement or expression to the queue of
-  /// statements to emit.
-  ///
-  /// This routine should be used when emitting types and declarations
-  /// that have expressions as part of their formulation. Once the
-  /// type or declaration has been written, Emit() will write
-  /// the corresponding statements just after the record.
-  void AddStmt(Stmt *S) {
-    StmtsToEmit.push_back(S);
-  }
-
-  /// Add a definition for the given function to the queue of statements
-  /// to emit.
-  void AddFunctionDefinition(const FunctionDecl *FD);
-
-  /// Emit a source location.
-  void AddSourceLocation(SourceLocation Loc) {
-    return Writer->AddSourceLocation(Loc, *Record);
-  }
-
-  /// Emit a source range.
-  void AddSourceRange(SourceRange Range) {
-    return Writer->AddSourceRange(Range, *Record);
-  }
-
-  /// Emit an integral value.
-  void AddAPInt(const llvm::APInt &Value);
-
-  /// Emit a signed integral value.
-  void AddAPSInt(const llvm::APSInt &Value);
-
-  /// Emit a floating-point value.
-  void AddAPFloat(const llvm::APFloat &Value);
-
-  /// Emit a reference to an identifier.
-  void AddIdentifierRef(const IdentifierInfo *II) {
-    return Writer->AddIdentifierRef(II, *Record);
-  }
-
-  /// Emit a Selector (which is a smart pointer reference).
-  void AddSelectorRef(Selector S);
-
-  /// Emit a CXXTemporary.
-  void AddCXXTemporary(const CXXTemporary *Temp);
-
-  /// Emit a C++ base specifier.
-  void AddCXXBaseSpecifier(const CXXBaseSpecifier &Base);
-
-  /// Emit a set of C++ base specifiers.
-  void AddCXXBaseSpecifiers(ArrayRef<CXXBaseSpecifier> Bases);
-
-  /// Emit a reference to a type.
-  void AddTypeRef(QualType T) {
-    return Writer->AddTypeRef(T, *Record);
-  }
-
-  /// Emits a reference to a declarator info.
-  void AddTypeSourceInfo(TypeSourceInfo *TInfo);
-
-  /// Emits source location information for a type. Does not emit the type.
-  void AddTypeLoc(TypeLoc TL);
-
-  /// Emits a template argument location info.
-  void AddTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
-                                  const TemplateArgumentLocInfo &Arg);
-
-  /// Emits a template argument location.
-  void AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg);
-
-  /// Emits an AST template argument list info.
-  void AddASTTemplateArgumentListInfo(
-      const ASTTemplateArgumentListInfo *ASTTemplArgList);
-
-  /// Emit a reference to a declaration.
-  void AddDeclRef(const Decl *D) {
-    return Writer->AddDeclRef(D, *Record);
-  }
-
-  /// Emit a declaration name.
-  void AddDeclarationName(DeclarationName Name);
-
-  void AddDeclarationNameLoc(const DeclarationNameLoc &DNLoc,
-                             DeclarationName Name);
-  void AddDeclarationNameInfo(const DeclarationNameInfo &NameInfo);
-
-  void AddQualifierInfo(const QualifierInfo &Info);
-
-  /// Emit a nested name specifier.
-  void AddNestedNameSpecifier(NestedNameSpecifier *NNS);
-
-  /// Emit a nested name specifier with source-location information.
-  void AddNestedNameSpecifierLoc(NestedNameSpecifierLoc NNS);
-
-  /// Emit a template name.
-  void AddTemplateName(TemplateName Name);
-
-  /// Emit a template argument.
-  void AddTemplateArgument(const TemplateArgument &Arg);
-
-  /// Emit a template parameter list.
-  void AddTemplateParameterList(const TemplateParameterList *TemplateParams);
-
-  /// Emit a template argument list.
-  void AddTemplateArgumentList(const TemplateArgumentList *TemplateArgs);
-
-  /// Emit a UnresolvedSet structure.
-  void AddUnresolvedSet(const ASTUnresolvedSet &Set);
-
-  /// Emit a CXXCtorInitializer array.
-  void AddCXXCtorInitializers(ArrayRef<CXXCtorInitializer *> CtorInits);
-
-  void AddCXXDefinitionData(const CXXRecordDecl *D);
-
-  /// Emit a string.
-  void AddString(StringRef Str) {
-    return Writer->AddString(Str, *Record);
-  }
-
-  /// Emit a path.
-  void AddPath(StringRef Path) {
-    return Writer->AddPath(Path, *Record);
-  }
-
-  /// Emit a version tuple.
-  void AddVersionTuple(const VersionTuple &Version) {
-    return Writer->AddVersionTuple(Version, *Record);
-  }
-
-  /// Emit a list of attributes.
-  void AddAttributes(ArrayRef<const Attr*> Attrs);
 };
 
 /// AST and semantic-analysis consumer that generates a
@@ -970,6 +759,7 @@ class PCHGenerator : public SemaConsumer {
   llvm::BitstreamWriter Stream;
   ASTWriter Writer;
   bool AllowASTWithErrors;
+  bool ShouldCacheASTInMemory;
 
 protected:
   ASTWriter &getWriter() { return Writer; }
@@ -977,10 +767,12 @@ protected:
   SmallVectorImpl<char> &getPCH() const { return Buffer->Data; }
 
 public:
-  PCHGenerator(const Preprocessor &PP, StringRef OutputFile, StringRef isysroot,
+  PCHGenerator(const Preprocessor &PP, InMemoryModuleCache &ModuleCache,
+               StringRef OutputFile, StringRef isysroot,
                std::shared_ptr<PCHBuffer> Buffer,
                ArrayRef<std::shared_ptr<ModuleFileExtension>> Extensions,
-               bool AllowASTWithErrors = false, bool IncludeTimestamps = true);
+               bool AllowASTWithErrors = false, bool IncludeTimestamps = true,
+               bool ShouldCacheASTInMemory = false);
   ~PCHGenerator() override;
 
   void InitializeSema(Sema &S) override { SemaPtr = &S; }

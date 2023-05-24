@@ -5,12 +5,15 @@
 #include "llvm/Support/Path.h"
 
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
+#include "Plugins/SymbolFile/Symtab/SymbolFileSymtab.h"
+#include "TestingSupport/SubsystemRAII.h"
+#include "TestingSupport/TestUtilities.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Target/ModuleCache.h"
-#include "TestingSupport/TestUtilities.h"
 
 using namespace lldb_private;
 using namespace lldb;
@@ -18,33 +21,30 @@ using namespace lldb;
 namespace {
 
 class ModuleCacheTest : public testing::Test {
-public:
-  static void SetUpTestCase();
+  SubsystemRAII<FileSystem, HostInfo, ObjectFileELF, SymbolFileSymtab>
+      subsystems;
 
-  static void TearDownTestCase();
+public:
+  void SetUp() override;
 
 protected:
-  static FileSpec s_cache_dir;
-  static std::string s_test_executable;
+  FileSpec s_cache_dir;
+  std::string s_test_executable;
 
   void TryGetAndPut(const FileSpec &cache_dir, const char *hostname,
                     bool expect_download);
 };
 }
 
-FileSpec ModuleCacheTest::s_cache_dir;
-std::string ModuleCacheTest::s_test_executable;
-
 static const char dummy_hostname[] = "dummy_hostname";
 static const char dummy_remote_dir[] = "bin";
 static const char module_name[] = "TestModule.so";
 static const char module_uuid[] =
     "F4E7E991-9B61-6AD4-0073-561AC3D9FA10-C043A476";
-static const uint32_t uuid_bytes = 20;
 static const size_t module_size = 5602;
 
 static FileSpec GetDummyRemotePath() {
-  FileSpec fs("/", false, FileSpec::Style::posix);
+  FileSpec fs("/", FileSpec::Style::posix);
   fs.AppendPathComponent(dummy_remote_dir);
   fs.AppendPathComponent(module_name);
   return fs;
@@ -64,28 +64,21 @@ static FileSpec GetSysrootView(FileSpec spec, const char *hostname) {
   return spec;
 }
 
-void ModuleCacheTest::SetUpTestCase() {
-  HostInfo::Initialize();
-  ObjectFileELF::Initialize();
-
+void ModuleCacheTest::SetUp() {
   s_cache_dir = HostInfo::GetProcessTempDir();
   s_test_executable = GetInputFilePath(module_name);
 }
 
-void ModuleCacheTest::TearDownTestCase() {
-  ObjectFileELF::Terminate();
-  HostInfo::Terminate();
-}
-
 static void VerifyDiskState(const FileSpec &cache_dir, const char *hostname) {
   FileSpec uuid_view = GetUuidView(cache_dir);
-  EXPECT_TRUE(uuid_view.Exists()) << "uuid_view is: " << uuid_view.GetCString();
-  EXPECT_EQ(module_size, uuid_view.GetByteSize());
+  EXPECT_TRUE(FileSystem::Instance().Exists(uuid_view))
+      << "uuid_view is: " << uuid_view.GetCString();
+  EXPECT_EQ(module_size, FileSystem::Instance().GetByteSize(uuid_view));
 
   FileSpec sysroot_view = GetSysrootView(cache_dir, hostname);
-  EXPECT_TRUE(sysroot_view.Exists()) << "sysroot_view is: "
-                                     << sysroot_view.GetCString();
-  EXPECT_EQ(module_size, sysroot_view.GetByteSize());
+  EXPECT_TRUE(FileSystem::Instance().Exists(sysroot_view))
+      << "sysroot_view is: " << sysroot_view.GetCString();
+  EXPECT_EQ(module_size, FileSystem::Instance().GetByteSize(sysroot_view));
 }
 
 void ModuleCacheTest::TryGetAndPut(const FileSpec &cache_dir,
@@ -93,7 +86,7 @@ void ModuleCacheTest::TryGetAndPut(const FileSpec &cache_dir,
   ModuleCache mc;
   ModuleSpec module_spec;
   module_spec.GetFileSpec() = GetDummyRemotePath();
-  module_spec.GetUUID().SetFromStringRef(module_uuid, uuid_bytes);
+  module_spec.GetUUID().SetFromStringRef(module_uuid);
   module_spec.SetObjectSize(module_size);
   ModuleSP module_sp;
   bool did_create;
@@ -101,8 +94,8 @@ void ModuleCacheTest::TryGetAndPut(const FileSpec &cache_dir,
 
   Status error = mc.GetAndPut(
       cache_dir, hostname, module_spec,
-      [&download_called](const ModuleSpec &module_spec,
-                         const FileSpec &tmp_download_file_spec) {
+      [&download_called, this](const ModuleSpec &module_spec,
+                               const FileSpec &tmp_download_file_spec) {
         download_called = true;
         EXPECT_STREQ(GetDummyRemotePath().GetCString(),
                      module_spec.GetFileSpec().GetCString());
@@ -122,8 +115,9 @@ void ModuleCacheTest::TryGetAndPut(const FileSpec &cache_dir,
   ASSERT_TRUE(bool(module_sp));
 
   SymbolContextList sc_list;
-  EXPECT_EQ(1u, module_sp->FindFunctionSymbols(ConstString("boom"),
-                                               eFunctionNameTypeFull, sc_list));
+  module_sp->FindFunctionSymbols(ConstString("boom"), eFunctionNameTypeFull,
+                                 sc_list);
+  EXPECT_EQ(1u, sc_list.GetSize());
   EXPECT_STREQ(GetDummyRemotePath().GetCString(),
                module_sp->GetPlatformFileSpec().GetCString());
   EXPECT_STREQ(module_uuid, module_sp->GetUUID().GetAsString().c_str());

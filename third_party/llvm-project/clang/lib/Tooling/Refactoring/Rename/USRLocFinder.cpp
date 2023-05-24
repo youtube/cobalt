@@ -1,9 +1,8 @@
 //===--- USRLocFinder.cpp - Clang refactoring library ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,12 +15,13 @@
 
 #include "clang/Tooling/Refactoring/Rename/USRLocFinder.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ParentMapContext.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
-#include "clang/Tooling/Core/Lookup.h"
+#include "clang/Tooling/Refactoring/Lookup.h"
 #include "clang/Tooling/Refactoring/RecursiveSymbolVisitor.h"
 #include "clang/Tooling/Refactoring/Rename/SymbolName.h"
 #include "clang/Tooling/Refactoring/Rename/USRFinder.h"
@@ -117,7 +117,7 @@ SourceLocation StartLocationForType(TypeLoc TL) {
       return NestedNameSpecifier.getBeginLoc();
     TL = TL.getNextTypeLoc();
   }
-  return TL.getLocStart();
+  return TL.getBeginLoc();
 }
 
 SourceLocation EndLocationForType(TypeLoc TL) {
@@ -226,6 +226,24 @@ public:
     return true;
   }
 
+  bool VisitDesignatedInitExpr(const DesignatedInitExpr *E) {
+    for (const DesignatedInitExpr::Designator &D : E->designators()) {
+      if (D.isFieldDesignator() && D.getField()) {
+        const FieldDecl *Decl = D.getField();
+        if (isInUSRSet(Decl)) {
+          auto StartLoc = D.getFieldLoc();
+          auto EndLoc = D.getFieldLoc();
+          RenameInfos.push_back({StartLoc, EndLoc,
+                                 /*FromDecl=*/nullptr,
+                                 /*Context=*/nullptr,
+                                 /*Specifier=*/nullptr,
+                                 /*IgnorePrefixQualifiers=*/true});
+        }
+      }
+    }
+    return true;
+  }
+
   bool VisitCXXConstructorDecl(const CXXConstructorDecl *CD) {
     // Fix the constructor initializer when renaming class members.
     for (const auto *Initializer : CD->inits()) {
@@ -255,12 +273,12 @@ public:
       Decl = UsingShadow->getTargetDecl();
     }
 
-    auto StartLoc = Expr->getLocStart();
+    auto StartLoc = Expr->getBeginLoc();
     // For template function call expressions like `foo<int>()`, we want to
     // restrict the end of location to just before the `<` character.
     SourceLocation EndLoc = Expr->hasExplicitTemplateArgs()
                                 ? Expr->getLAngleLoc().getLocWithOffset(-1)
-                                : Expr->getLocEnd();
+                                : Expr->getEndLoc();
 
     if (const auto *MD = llvm::dyn_cast<CXXMethodDecl>(Decl)) {
       if (isInUSRSet(MD)) {
@@ -427,8 +445,7 @@ public:
               StartLoc,
               EndLoc,
               TemplateSpecType->getTemplateName().getAsTemplateDecl(),
-              getClosestAncestorDecl(
-                  ast_type_traits::DynTypedNode::create(TargetLoc)),
+              getClosestAncestorDecl(DynTypedNode::create(TargetLoc)),
               GetNestedNameForType(TargetLoc),
               /*IgnorePrefixQualifers=*/false};
           RenameInfos.push_back(Info);
@@ -467,8 +484,7 @@ private:
     // FIXME: figure out how to handle it when there are multiple parents.
     if (Parents.size() != 1)
       return nullptr;
-    if (ast_type_traits::ASTNodeKind::getFromNodeKind<Decl>().isBaseOf(
-            Parents[0].getNodeKind()))
+    if (ASTNodeKind::getFromNodeKind<Decl>().isBaseOf(Parents[0].getNodeKind()))
       return Parents[0].template get<Decl>();
     return getClosestAncestorDecl(Parents[0]);
   }
@@ -537,14 +553,14 @@ createRenameAtomicChanges(llvm::ArrayRef<std::string> USRs,
       // Get the name without prefix qualifiers from NewName.
       size_t LastColonPos = NewName.find_last_of(':');
       if (LastColonPos != std::string::npos)
-        ReplacedName = NewName.substr(LastColonPos + 1);
+        ReplacedName = std::string(NewName.substr(LastColonPos + 1));
     } else {
       if (RenameInfo.FromDecl && RenameInfo.Context) {
         if (!llvm::isa<clang::TranslationUnitDecl>(
                 RenameInfo.Context->getDeclContext())) {
           ReplacedName = tooling::replaceNestedName(
-              RenameInfo.Specifier, RenameInfo.Context->getDeclContext(),
-              RenameInfo.FromDecl,
+              RenameInfo.Specifier, RenameInfo.Begin,
+              RenameInfo.Context->getDeclContext(), RenameInfo.FromDecl,
               NewName.startswith("::") ? NewName.str()
                                        : ("::" + NewName).str());
         } else {
@@ -576,7 +592,7 @@ createRenameAtomicChanges(llvm::ArrayRef<std::string> USRs,
   // Hanlde using declarations explicitly as "using a::Foo" don't trigger
   // typeLoc for "a::Foo".
   for (const auto *Using : Finder.getUsingDecls())
-    Replace(Using->getLocStart(), Using->getLocEnd(), "using " + NewName.str());
+    Replace(Using->getBeginLoc(), Using->getEndLoc(), "using " + NewName.str());
 
   return AtomicChanges;
 }

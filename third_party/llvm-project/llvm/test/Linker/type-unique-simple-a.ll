@@ -7,10 +7,10 @@
 
 ; Make sure the backend generates a single DIE and uses ref_addr.
 ; CHECK: 0x[[BASE:.*]]: DW_TAG_structure_type
-; CHECK-NEXT: DW_AT_name {{.*}} = "Base"
+; CHECK-NEXT: DW_AT_name {{.*}}"Base"
 ; CHECK-NOT: DW_TAG_structure_type
 ; CHECK: 0x[[INT:.*]]: DW_TAG_base_type
-; CHECK-NEXT: DW_AT_name {{.*}} = "int"
+; CHECK-NEXT: DW_AT_name {{.*}}"int"
 ; CHECK-NOT: DW_TAG_base_type
 
 ; CHECK: DW_TAG_compile_unit
@@ -62,13 +62,13 @@ entry:
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-attributes #0 = { nounwind ssp uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind ssp uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!14, !20}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4 (http://llvm.org/git/clang.git c23b1db6268c8e7ce64026d57d1510c1aac200a0) (http://llvm.org/git/llvm.git 09b98fe3978eddefc2145adc1056cf21580ce945)", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "foo.cpp", directory: "/Users/mren/c_testing/type_unique_air/simple")
 !2 = !{}
 !3 = !{!4}
@@ -81,7 +81,7 @@ attributes #1 = { nounwind readnone }
 !11 = !DIFile(filename: "foo.cpp", directory: "/Users/mren/c_testing/type_unique_air/simple")
 !12 = !DISubroutineType(types: !13)
 !13 = !{null, !8}
-!14 = !{i32 2, !"Dwarf Version", i32 2}
+!14 = !{i32 2, !"Dwarf Version", i32 3}
 !15 = !DILocalVariable(name: "a", line: 3, arg: 1, scope: !10, file: !11, type: !8)
 !16 = !DILocation(line: 3, scope: !10)
 !17 = !DILocalVariable(name: "t", line: 4, scope: !10, file: !11, type: !4)

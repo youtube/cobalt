@@ -5,19 +5,19 @@
 
 ; This load should be before the call, not after.
 
-; SSE: movaps    compl+128(%rip), %xmm0
+; SSE: movsd     compl+128(%rip), %xmm0
 ; SSE: movaps  %xmm0, (%rsp)
 ; SSE: callq   killcommon
 
-; AVX: vmovaps    compl+128(%rip), %xmm0
+; AVX: vmovsd     compl+128(%rip), %xmm0
 ; AVX: vmovaps  %xmm0, (%rsp)
 ; AVX: callq   killcommon
 
-@compl = linkonce global [20 x i64] zeroinitializer, align 64 ; <[20 x i64]*> [#uses=1]
+@compl = linkonce dso_local global [20 x i64] zeroinitializer, align 64 ; <[20 x i64]*> [#uses=1]
 
 declare void @killcommon(i32* noalias)
 
-define void @reset(<2 x float>* noalias %garbage1) {
+define dso_local void @reset(<2 x float>* noalias %garbage1) {
 "file complex.c, line 27, bb1":
   %changed = alloca i32, align 4                  ; <i32*> [#uses=3]
   br label %"file complex.c, line 27, bb13"

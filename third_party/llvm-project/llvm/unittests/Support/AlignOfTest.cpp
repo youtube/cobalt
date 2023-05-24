@@ -1,9 +1,8 @@
 //=== - llvm/unittest/Support/AlignOfTest.cpp - Alignment utility tests ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -39,10 +38,10 @@ namespace {
 #endif
 
 // Define some fixed alignment types to use in these tests.
-struct LLVM_ALIGNAS(1) A1 {};
-struct LLVM_ALIGNAS(2) A2 {};
-struct LLVM_ALIGNAS(4) A4 {};
-struct LLVM_ALIGNAS(8) A8 {};
+struct alignas(1) A1 {};
+struct alignas(2) A2 {};
+struct alignas(4) A4 {};
+struct alignas(8) A8 {};
 
 struct S1 {};
 struct S2 { char a; };
@@ -132,9 +131,17 @@ TEST(AlignOfTest, BasicAlignedArray) {
   EXPECT_EQ(alignof(T<long>), alignof(AlignedCharArrayUnion<long>));
   EXPECT_EQ(alignof(T<long long>), alignof(AlignedCharArrayUnion<long long>));
   EXPECT_EQ(alignof(T<float>), alignof(AlignedCharArrayUnion<float>));
+#ifdef _AIX
+  EXPECT_LE(alignof(T<double>), alignof(AlignedCharArrayUnion<double>));
+  EXPECT_LE(alignof(T<long double>),
+            alignof(AlignedCharArrayUnion<long double>));
+  EXPECT_LE(alignof(S4), alignof(AlignedCharArrayUnion<S4>));
+#else
   EXPECT_EQ(alignof(T<double>), alignof(AlignedCharArrayUnion<double>));
   EXPECT_EQ(alignof(T<long double>),
             alignof(AlignedCharArrayUnion<long double>));
+  EXPECT_EQ(alignof(S4), alignof(AlignedCharArrayUnion<S4>));
+#endif
   EXPECT_EQ(alignof(T<void *>), alignof(AlignedCharArrayUnion<void *>));
   EXPECT_EQ(alignof(T<int *>), alignof(AlignedCharArrayUnion<int *>));
   EXPECT_EQ(alignof(T<double (*)(double)>),
@@ -144,7 +151,6 @@ TEST(AlignOfTest, BasicAlignedArray) {
   EXPECT_EQ(alignof(S1), alignof(AlignedCharArrayUnion<S1>));
   EXPECT_EQ(alignof(S2), alignof(AlignedCharArrayUnion<S2>));
   EXPECT_EQ(alignof(S3), alignof(AlignedCharArrayUnion<S3>));
-  EXPECT_EQ(alignof(S4), alignof(AlignedCharArrayUnion<S4>));
   EXPECT_EQ(alignof(S5), alignof(AlignedCharArrayUnion<S5>));
   EXPECT_EQ(alignof(S6), alignof(AlignedCharArrayUnion<S6>));
   EXPECT_EQ(alignof(D1), alignof(AlignedCharArrayUnion<D1>));
@@ -234,16 +240,5 @@ TEST(AlignOfTest, BasicAlignedArray) {
 #ifndef _MSC_VER
   EXPECT_EQ(sizeof(V8), sizeof(AlignedCharArrayUnion<V8>));
 #endif
-
-  EXPECT_EQ(1u, (alignof(AlignedCharArray<1, 1>)));
-  EXPECT_EQ(2u, (alignof(AlignedCharArray<2, 1>)));
-  EXPECT_EQ(4u, (alignof(AlignedCharArray<4, 1>)));
-  EXPECT_EQ(8u, (alignof(AlignedCharArray<8, 1>)));
-  EXPECT_EQ(16u, (alignof(AlignedCharArray<16, 1>)));
-
-  EXPECT_EQ(1u, sizeof(AlignedCharArray<1, 1>));
-  EXPECT_EQ(7u, sizeof(AlignedCharArray<1, 7>));
-  EXPECT_EQ(2u, sizeof(AlignedCharArray<2, 2>));
-  EXPECT_EQ(16u, sizeof(AlignedCharArray<2, 16>));
 }
 } // end anonymous namespace

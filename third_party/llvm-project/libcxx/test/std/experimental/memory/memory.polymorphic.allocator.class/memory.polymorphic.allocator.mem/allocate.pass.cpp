@@ -1,14 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// REQUIRES: c++experimental
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <experimental/memory_resource>
 
@@ -24,7 +22,7 @@
 #include <cassert>
 
 #include "test_macros.h"
-#include "test_memory_resource.hpp"
+#include "test_memory_resource.h"
 
 namespace ex = std::experimental::pmr;
 
@@ -63,11 +61,11 @@ void testAllocForSizeThrows() {
     size_t sizeTypeMax = std::numeric_limits<std::size_t>::max();
     if (maxSize != sizeTypeMax)
     {
-        // Test that allocating size_t(~0) throws bad alloc.
+        // Test that allocating size_t(~0) throws bad_array_new_length.
         try {
             a.allocate(sizeTypeMax);
             assert(false);
-        } catch (std::exception const&) {
+        } catch (std::bad_array_new_length const&) {
         }
 
         // Test that allocating even one more than the max size does throw.
@@ -75,13 +73,13 @@ void testAllocForSizeThrows() {
         try {
             a.allocate(overSize);
             assert(false);
-        } catch (std::exception const&) {
+        } catch (std::bad_array_new_length const&) {
         }
     }
 }
 #endif // TEST_HAS_NO_EXCEPTIONS
 
-int main()
+int main(int, char**)
 {
     {
         ex::polymorphic_allocator<int> a;
@@ -109,4 +107,6 @@ int main()
         testAllocForSizeThrows<13>();
     }
 #endif
+
+  return 0;
 }

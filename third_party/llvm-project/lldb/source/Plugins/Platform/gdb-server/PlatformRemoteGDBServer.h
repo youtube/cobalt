@@ -1,30 +1,25 @@
 //===-- PlatformRemoteGDBServer.h ----------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformRemoteGDBServer_h_
-#define liblldb_PlatformRemoteGDBServer_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_GDB_SERVER_PLATFORMREMOTEGDBSERVER_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_GDB_SERVER_PLATFORMREMOTEGDBSERVER_H
 
-// C Includes
-// C++ Includes
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
-#include "Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.h"
 #include "Plugins/Process/Utility/GDBRemoteSignals.h"
+#include "Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.h"
 #include "lldb/Target/Platform.h"
 
 namespace lldb_private {
 namespace platform_gdb_server {
 
-class PlatformRemoteGDBServer : public Platform {
+class PlatformRemoteGDBServer : public Platform, private UserIDResolver {
 public:
   static void Initialize();
 
@@ -32,32 +27,22 @@ public:
 
   static lldb::PlatformSP CreateInstance(bool force, const ArchSpec *arch);
 
-  static ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "remote-gdb-server"; }
 
-  static const char *GetDescriptionStatic();
+  static llvm::StringRef GetDescriptionStatic();
 
   PlatformRemoteGDBServer();
 
-  virtual ~PlatformRemoteGDBServer();
+  ~PlatformRemoteGDBServer() override;
 
-  //------------------------------------------------------------
   // lldb_private::PluginInterface functions
-  //------------------------------------------------------------
-  ConstString GetPluginName() override { return GetPluginNameStatic(); }
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
-  uint32_t GetPluginVersion() override { return 1; }
-
-  //------------------------------------------------------------
   // lldb_private::Platform functions
-  //------------------------------------------------------------
-  Status
-  ResolveExecutable(const ModuleSpec &module_spec, lldb::ModuleSP &module_sp,
-                    const FileSpecList *module_search_paths_ptr) override;
-
   bool GetModuleSpec(const FileSpec &module_file_spec, const ArchSpec &arch,
                      ModuleSpec &module_spec) override;
 
-  const char *GetDescription() override;
+  llvm::StringRef GetDescription() override;
 
   Status GetFileWithUUID(const FileSpec &platform_file, const UUID *uuid_ptr,
                          FileSpec &local_file) override;
@@ -72,10 +57,7 @@ public:
   Status KillProcess(const lldb::pid_t pid) override;
 
   lldb::ProcessSP DebugProcess(ProcessLaunchInfo &launch_info,
-                               Debugger &debugger,
-                               Target *target, // Can be NULL, if NULL create a
-                                               // new target, else use existing
-                                               // one
+                               Debugger &debugger, Target &target,
                                Status &error) override;
 
   lldb::ProcessSP Attach(ProcessAttachInfo &attach_info, Debugger &debugger,
@@ -83,16 +65,18 @@ public:
                                          // target, else use existing one
                          Status &error) override;
 
-  bool GetSupportedArchitectureAtIndex(uint32_t idx, ArchSpec &arch) override;
+  std::vector<ArchSpec> GetSupportedArchitectures() override {
+    return m_supported_architectures;
+  }
 
   size_t GetSoftwareBreakpointTrapOpcode(Target &target,
                                          BreakpointSite *bp_site) override;
 
   bool GetRemoteOSVersion() override;
 
-  bool GetRemoteOSBuildString(std::string &s) override;
+  llvm::Optional<std::string> GetRemoteOSBuildString() override;
 
-  bool GetRemoteOSKernelDescription(std::string &s) override;
+  llvm::Optional<std::string> GetRemoteOSKernelDescription() override;
 
   // Remote Platform subclasses need to override this function
   ArchSpec GetRemoteSystemArchitecture() override;
@@ -105,9 +89,7 @@ public:
   // name if connected.
   const char *GetHostname() override;
 
-  const char *GetUserName(uint32_t uid) override;
-
-  const char *GetGroupName(uint32_t gid) override;
+  UserIDResolver &GetUserIDResolver() override { return *this; }
 
   bool IsConnected() const override;
 
@@ -124,7 +106,7 @@ public:
   Status SetFilePermissions(const FileSpec &file_spec,
                             uint32_t file_permissions) override;
 
-  lldb::user_id_t OpenFile(const FileSpec &file_spec, uint32_t flags,
+  lldb::user_id_t OpenFile(const FileSpec &file_spec, File::OpenOptions flags,
                            uint32_t mode, Status &error) override;
 
   bool CloseFile(lldb::user_id_t fd, Status &error) override;
@@ -137,6 +119,9 @@ public:
 
   lldb::user_id_t GetFileSize(const FileSpec &file_spec) override;
 
+  void AutoCompleteDiskFileOrDirectory(CompletionRequest &request,
+                                       bool only_dir) override;
+
   Status PutFile(const FileSpec &source, const FileSpec &destination,
                  uint32_t uid = UINT32_MAX, uint32_t gid = UINT32_MAX) override;
 
@@ -147,7 +132,7 @@ public:
   Status Unlink(const FileSpec &path) override;
 
   Status RunShellCommand(
-      const char *command,         // Shouldn't be NULL
+      llvm::StringRef shell, llvm::StringRef command,
       const FileSpec &working_dir, // Pass empty FileSpec to use the current
                                    // working directory
       int *status_ptr, // Pass NULL if you don't want the process exit status
@@ -161,12 +146,6 @@ public:
 
   const lldb::UnixSignalsSP &GetRemoteUnixSignals() override;
 
-  lldb::ProcessSP ConnectProcess(llvm::StringRef connect_url,
-                                 llvm::StringRef plugin_name,
-                                 lldb_private::Debugger &debugger,
-                                 lldb_private::Target *target,
-                                 lldb_private::Status &error) override;
-
   size_t ConnectToWaitingProcesses(lldb_private::Debugger &debugger,
                                    lldb_private::Status &error) override;
 
@@ -174,7 +153,8 @@ public:
   GetPendingGdbServerList(std::vector<std::string> &connection_urls);
 
 protected:
-  process_gdb_remote::GDBRemoteCommunicationClient m_gdb_client;
+  std::unique_ptr<process_gdb_remote::GDBRemoteCommunicationClient>
+      m_gdb_client_up;
   std::string m_platform_description; // After we connect we can get a more
                                       // complete description of what we are
                                       // connected to
@@ -200,10 +180,17 @@ private:
                                const std::string &platform_hostname,
                                uint16_t port, const char *socket_name);
 
-  DISALLOW_COPY_AND_ASSIGN(PlatformRemoteGDBServer);
+  llvm::Optional<std::string> DoGetUserName(UserIDResolver::id_t uid) override;
+  llvm::Optional<std::string> DoGetGroupName(UserIDResolver::id_t uid) override;
+
+  std::vector<ArchSpec> m_supported_architectures;
+
+  PlatformRemoteGDBServer(const PlatformRemoteGDBServer &) = delete;
+  const PlatformRemoteGDBServer &
+  operator=(const PlatformRemoteGDBServer &) = delete;
 };
 
 } // namespace platform_gdb_server
 } // namespace lldb_private
 
-#endif // liblldb_PlatformRemoteGDBServer_h_
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_GDB_SERVER_PLATFORMREMOTEGDBSERVER_H

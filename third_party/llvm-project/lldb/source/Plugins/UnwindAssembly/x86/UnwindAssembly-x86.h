@@ -1,21 +1,16 @@
 //===-- UnwindAssembly-x86.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_UnwindAssembly_x86_h_
-#define liblldb_UnwindAssembly_x86_h_
+#ifndef LLDB_SOURCE_PLUGINS_UNWINDASSEMBLY_X86_UNWINDASSEMBLY_X86_H
+#define LLDB_SOURCE_PLUGINS_UNWINDASSEMBLY_X86_UNWINDASSEMBLY_X86_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "x86AssemblyInspectionEngine.h"
 
-// Project includes
 #include "lldb/Target/UnwindAssembly.h"
 #include "lldb/lldb-private.h"
 
@@ -46,20 +41,16 @@ public:
   static lldb_private::UnwindAssembly *
   CreateInstance(const lldb_private::ArchSpec &arch);
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
   static void Initialize();
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "x86"; }
 
-  static const char *GetPluginDescriptionStatic();
+  static llvm::StringRef GetPluginDescriptionStatic();
 
-  lldb_private::ConstString GetPluginName() override;
-
-  uint32_t GetPluginVersion() override;
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
 private:
   UnwindAssembly_x86(const lldb_private::ArchSpec &arch);
@@ -69,4 +60,4 @@ private:
   lldb_private::x86AssemblyInspectionEngine *m_assembly_inspection_engine;
 };
 
-#endif // liblldb_UnwindAssembly_x86_h_
+#endif // LLDB_SOURCE_PLUGINS_UNWINDASSEMBLY_X86_UNWINDASSEMBLY_X86_H

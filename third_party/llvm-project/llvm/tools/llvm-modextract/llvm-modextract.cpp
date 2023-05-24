@@ -1,9 +1,8 @@
 //===-- llvm-modextract.cpp - LLVM module extractor utility ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,24 +18,33 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/WithColor.h"
 
 using namespace llvm;
 
+static cl::OptionCategory ModextractCategory("Modextract Options");
+
 static cl::opt<bool>
-    BinaryExtract("b", cl::desc("Whether to perform binary extraction"));
+    BinaryExtract("b", cl::desc("Whether to perform binary extraction"),
+                  cl::cat(ModextractCategory));
 
 static cl::opt<std::string> OutputFilename("o", cl::Required,
                                            cl::desc("Output filename"),
-                                           cl::value_desc("filename"));
+                                           cl::value_desc("filename"),
+                                           cl::cat(ModextractCategory));
 
-static cl::opt<std::string>
-    InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
+static cl::opt<std::string> InputFilename(cl::Positional,
+                                          cl::desc("<input bitcode>"),
+                                          cl::init("-"),
+                                          cl::cat(ModextractCategory));
 
 static cl::opt<unsigned> ModuleIndex("n", cl::Required,
                                      cl::desc("Index of module to extract"),
-                                     cl::value_desc("index"));
+                                     cl::value_desc("index"),
+                                     cl::cat(ModextractCategory));
 
 int main(int argc, char **argv) {
+  cl::HideUnrelatedOptions({&ModextractCategory, &getColorCategory()});
   cl::ParseCommandLineOptions(argc, argv, "Module extractor");
 
   ExitOnError ExitOnErr("llvm-modextract: error: ");
@@ -55,7 +63,7 @@ int main(int argc, char **argv) {
 
   std::error_code EC;
   std::unique_ptr<ToolOutputFile> Out(
-      new ToolOutputFile(OutputFilename, EC, sys::fs::F_None));
+      new ToolOutputFile(OutputFilename, EC, sys::fs::OF_None));
   ExitOnErr(errorCodeToError(EC));
 
   if (BinaryExtract) {

@@ -1,4 +1,4 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,alpha.core,debug.ExprInspection,unix.Malloc,unix.cstring,alpha.unix.cstring,unix.API,osx.API,osx.cocoa.RetainCount -Wno-null-dereference -Wno-tautological-compare -analyzer-store=region -fblocks -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,alpha.core,debug.ExprInspection,unix.Malloc,unix.cstring,alpha.unix.cstring,unix.API,osx.API,osx.cocoa.RetainCount -Wno-null-dereference -Wno-tautological-compare -analyzer-store=region -fblocks -verify -analyzer-config eagerly-assume=false %s
 #define NULL 0
 void clang_analyzer_eval(int);
 void myFunc();
@@ -71,7 +71,9 @@ void f3(void (*f)(void), void (*g)(void)) {
 void free(void *) __attribute__((weak_import));
 
 void t10 () {
-  free((void*)&t10); // expected-warning {{Argument to free() is the address of the function 't10', which is not memory allocated by malloc()}}
+  free((void*)&t10);
+  // expected-warning@-1{{Argument to free() is the address of the function 't10', which is not memory allocated by malloc()}}
+  // expected-warning@-2{{attempt to call free on non-heap object 't10'}}
 }
 
 //===----------------------------------------------------------------------===

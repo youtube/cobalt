@@ -1,9 +1,8 @@
 //===- unittests/AST/DeclTest.cpp --- Declaration tests -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,9 +10,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTVector.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Basic/Builtins.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
 #include "gtest/gtest.h"
 
 using namespace clang;
@@ -28,7 +29,7 @@ protected:
       : FileMgr(FileMgrOpts), DiagID(new DiagnosticIDs()),
         Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
         SourceMgr(Diags, FileMgr), Idents(LangOpts, nullptr),
-        Ctxt(LangOpts, SourceMgr, Idents, Sels, Builtins) {}
+        Ctxt(LangOpts, SourceMgr, Idents, Sels, Builtins, TU_Complete) {}
 
   FileSystemOptions FileMgrOpts;
   FileManager FileMgr;

@@ -1,9 +1,8 @@
 //===- CodeCompleteConsumer.h - Code Completion Interface -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,6 +16,7 @@
 #include "clang-c/Index.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Lex/MacroInfo.h"
 #include "clang/Sema/CodeCompleteOptions.h"
 #include "clang/Sema/DeclSpec.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -271,11 +271,15 @@ public:
     CCC_Type,
 
     /// Code completion occurred where a new name is expected.
-    CCC_Name,
+    CCC_NewName,
 
-    /// Code completion occurred where a new name is expected and a
-    /// qualified name is permissible.
-    CCC_PotentiallyQualifiedName,
+    /// Code completion occurred where both a new name and an existing symbol is
+    /// permissible.
+    CCC_SymbolOrNewName,
+
+    /// Code completion occurred where an existing name(such as type, function
+    /// or variable) is expected.
+    CCC_Symbol,
 
     /// Code completion occurred where an macro is being defined.
     CCC_MacroName,
@@ -322,6 +326,12 @@ public:
     /// Code completion where an Objective-C category name is expected.
     CCC_ObjCCategoryName,
 
+    /// Code completion inside the filename part of a #include directive.
+    CCC_IncludedFile,
+
+    /// Code completion of an attribute name.
+    CCC_Attribute,
+
     /// An unknown context, in which we are recovering from a parsing
     /// error and don't know which completions we should give.
     CCC_Recovery
@@ -331,6 +341,11 @@ public:
 
 private:
   Kind CCKind;
+
+  /// Indicates whether we are completing a name of a using declaration, e.g.
+  ///     using ^;
+  ///     using a::^;
+  bool IsUsingDeclaration;
 
   /// The type that would prefer to see at this point (e.g., the type
   /// of an initializer or function parameter).
@@ -352,12 +367,13 @@ private:
 
 public:
   /// Construct a new code-completion context of the given kind.
-  CodeCompletionContext(Kind CCKind) : CCKind(CCKind), SelIdents(None) {}
+  CodeCompletionContext(Kind CCKind)
+      : CCKind(CCKind), IsUsingDeclaration(false), SelIdents(None) {}
 
   /// Construct a new code-completion context of the given kind.
   CodeCompletionContext(Kind CCKind, QualType T,
                         ArrayRef<IdentifierInfo *> SelIdents = None)
-      : CCKind(CCKind), SelIdents(SelIdents) {
+      : CCKind(CCKind), IsUsingDeclaration(false), SelIdents(SelIdents) {
     if (CCKind == CCC_DotMemberAccess || CCKind == CCC_ArrowMemberAccess ||
         CCKind == CCC_ObjCPropertyAccess || CCKind == CCC_ObjCClassMessage ||
         CCKind == CCC_ObjCInstanceMessage)
@@ -366,6 +382,9 @@ public:
       PreferredType = T;
   }
 
+  bool isUsingDeclaration() const { return IsUsingDeclaration; }
+  void setIsUsingDeclaration(bool V) { IsUsingDeclaration = V; }
+
   /// Retrieve the kind of code-completion context.
   Kind getKind() const { return CCKind; }
 
@@ -373,6 +392,7 @@ public:
   /// if the expression is a variable initializer or a function argument, the
   /// type of the corresponding variable or function parameter.
   QualType getPreferredType() const { return PreferredType; }
+  void setPreferredType(QualType T) { PreferredType = T; }
 
   /// Retrieve the type of the base object in a member-access
   /// expression.
@@ -648,14 +668,6 @@ public:
 
 } // namespace clang
 
-namespace llvm {
-
-template <> struct isPodLike<clang::CodeCompletionString::Chunk> {
-  static const bool value = true;
-};
-
-} // namespace llvm
-
 namespace clang {
 
 /// A builder class used to construct new code-completion strings.
@@ -817,6 +829,9 @@ public:
   /// Whether this result is hidden by another name.
   bool Hidden : 1;
 
+  /// Whether this is a class member from base class.
+  bool InBaseClass : 1;
+
   /// Whether this result was found via lookup into a base class.
   bool QualifierIsInformative : 1;
 
@@ -843,6 +858,11 @@ public:
   /// corresponding `using decl::qualified::name;` nearby.
   const UsingShadowDecl *ShadowDecl = nullptr;
 
+  /// If the result is RK_Macro, this can store the information about the macro
+  /// definition. This should be set in most cases but can be missing when
+  /// the macro has been undefined.
+  const MacroInfo *MacroDefInfo = nullptr;
+
   /// Build a result that refers to a declaration.
   CodeCompletionResult(const NamedDecl *Declaration, unsigned Priority,
                        NestedNameSpecifier *Qualifier = nullptr,
@@ -850,7 +870,7 @@ public:
                        bool Accessible = true,
                        std::vector<FixItHint> FixIts = std::vector<FixItHint>())
       : Declaration(Declaration), Priority(Priority), Kind(RK_Declaration),
-        FixIts(std::move(FixIts)), Hidden(false),
+        FixIts(std::move(FixIts)), Hidden(false), InBaseClass(false),
         QualifierIsInformative(QualifierIsInformative),
         StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
         DeclaringEntity(false), Qualifier(Qualifier) {
@@ -861,35 +881,38 @@ public:
   /// Build a result that refers to a keyword or symbol.
   CodeCompletionResult(const char *Keyword, unsigned Priority = CCP_Keyword)
       : Keyword(Keyword), Priority(Priority), Kind(RK_Keyword),
-        CursorKind(CXCursor_NotImplemented), Hidden(false),
+        CursorKind(CXCursor_NotImplemented), Hidden(false), InBaseClass(false),
         QualifierIsInformative(false), StartsNestedNameSpecifier(false),
         AllParametersAreInformative(false), DeclaringEntity(false) {}
 
   /// Build a result that refers to a macro.
   CodeCompletionResult(const IdentifierInfo *Macro,
+                       const MacroInfo *MI = nullptr,
                        unsigned Priority = CCP_Macro)
       : Macro(Macro), Priority(Priority), Kind(RK_Macro),
-        CursorKind(CXCursor_MacroDefinition), Hidden(false),
+        CursorKind(CXCursor_MacroDefinition), Hidden(false), InBaseClass(false),
         QualifierIsInformative(false), StartsNestedNameSpecifier(false),
-        AllParametersAreInformative(false), DeclaringEntity(false) {}
+        AllParametersAreInformative(false), DeclaringEntity(false),
+        MacroDefInfo(MI) {}
 
   /// Build a result that refers to a pattern.
-  CodeCompletionResult(CodeCompletionString *Pattern,
-                       unsigned Priority = CCP_CodePattern,
-                       CXCursorKind CursorKind = CXCursor_NotImplemented,
-                   CXAvailabilityKind Availability = CXAvailability_Available,
-                       const NamedDecl *D = nullptr)
+  CodeCompletionResult(
+      CodeCompletionString *Pattern, unsigned Priority = CCP_CodePattern,
+      CXCursorKind CursorKind = CXCursor_NotImplemented,
+      CXAvailabilityKind Availability = CXAvailability_Available,
+      const NamedDecl *D = nullptr)
       : Declaration(D), Pattern(Pattern), Priority(Priority), Kind(RK_Pattern),
         CursorKind(CursorKind), Availability(Availability), Hidden(false),
-        QualifierIsInformative(false), StartsNestedNameSpecifier(false),
-        AllParametersAreInformative(false), DeclaringEntity(false) {}
+        InBaseClass(false), QualifierIsInformative(false),
+        StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
+        DeclaringEntity(false) {}
 
   /// Build a result that refers to a pattern with an associated
   /// declaration.
   CodeCompletionResult(CodeCompletionString *Pattern, const NamedDecl *D,
                        unsigned Priority)
       : Declaration(D), Pattern(Pattern), Priority(Priority), Kind(RK_Pattern),
-        Hidden(false), QualifierIsInformative(false),
+        Hidden(false), InBaseClass(false), QualifierIsInformative(false),
         StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
         DeclaringEntity(false) {
     computeCursorKindAndAvailability();
@@ -935,6 +958,16 @@ public:
                                      CodeCompletionAllocator &Allocator,
                                      CodeCompletionTUInfo &CCTUInfo);
 
+  CodeCompletionString *createCodeCompletionStringForDecl(
+      Preprocessor &PP, ASTContext &Ctx, CodeCompletionBuilder &Result,
+      bool IncludeBriefComments, const CodeCompletionContext &CCContext,
+      PrintingPolicy &Policy);
+
+  CodeCompletionString *createCodeCompletionStringForOverride(
+      Preprocessor &PP, ASTContext &Ctx, CodeCompletionBuilder &Result,
+      bool IncludeBriefComments, const CodeCompletionContext &CCContext,
+      PrintingPolicy &Policy);
+
   /// Retrieve the name that should be used to order a result.
   ///
   /// If the name needs to be constructed as a string, that string will be
@@ -962,18 +995,11 @@ inline bool operator>=(const CodeCompletionResult &X,
   return !(X < Y);
 }
 
-raw_ostream &operator<<(raw_ostream &OS,
-                              const CodeCompletionString &CCS);
-
 /// Abstract interface for a consumer of code-completion
 /// information.
 class CodeCompleteConsumer {
 protected:
   const CodeCompleteOptions CodeCompleteOpts;
-
-  /// Whether the output format for the code-completion consumer is
-  /// binary.
-  bool OutputIsBinary;
 
 public:
   class OverloadCandidate {
@@ -983,12 +1009,18 @@ public:
       /// The candidate is a function declaration.
       CK_Function,
 
-      /// The candidate is a function template.
+      /// The candidate is a function template, arguments are being completed.
       CK_FunctionTemplate,
 
       /// The "candidate" is actually a variable, expression, or block
       /// for which we only have a function prototype.
-      CK_FunctionType
+      CK_FunctionType,
+
+      /// The candidate is a template, template arguments are being completed.
+      CK_Template,
+
+      /// The candidate is aggregate initialization of a record type.
+      CK_Aggregate,
     };
 
   private:
@@ -1007,17 +1039,39 @@ public:
       /// The function type that describes the entity being called,
       /// when Kind == CK_FunctionType.
       const FunctionType *Type;
+
+      /// The template overload candidate, available when
+      /// Kind == CK_Template.
+      const TemplateDecl *Template;
+
+      /// The class being aggregate-initialized,
+      /// when Kind == CK_Aggregate
+      const RecordDecl *AggregateType;
     };
 
   public:
     OverloadCandidate(FunctionDecl *Function)
-        : Kind(CK_Function), Function(Function) {}
+        : Kind(CK_Function), Function(Function) {
+      assert(Function != nullptr);
+    }
 
     OverloadCandidate(FunctionTemplateDecl *FunctionTemplateDecl)
-        : Kind(CK_FunctionTemplate), FunctionTemplate(FunctionTemplateDecl) {}
+        : Kind(CK_FunctionTemplate), FunctionTemplate(FunctionTemplateDecl) {
+      assert(FunctionTemplateDecl != nullptr);
+    }
 
     OverloadCandidate(const FunctionType *Type)
-        : Kind(CK_FunctionType), Type(Type) {}
+        : Kind(CK_FunctionType), Type(Type) {
+      assert(Type != nullptr);
+    }
+
+    OverloadCandidate(const RecordDecl *Aggregate)
+        : Kind(CK_Aggregate), AggregateType(Aggregate) {
+      assert(Aggregate != nullptr);
+    }
+
+    OverloadCandidate(const TemplateDecl *Template)
+        : Kind(CK_Template), Template(Template) {}
 
     /// Determine the kind of overload candidate.
     CandidateKind getKind() const { return Kind; }
@@ -1036,18 +1090,39 @@ public:
     /// function is stored.
     const FunctionType *getFunctionType() const;
 
+    const TemplateDecl *getTemplate() const {
+      assert(getKind() == CK_Template && "Not a template");
+      return Template;
+    }
+
+    /// Retrieve the aggregate type being initialized.
+    const RecordDecl *getAggregate() const {
+      assert(getKind() == CK_Aggregate);
+      return AggregateType;
+    }
+
+    /// Get the number of parameters in this signature.
+    unsigned getNumParams() const;
+
+    /// Get the type of the Nth parameter.
+    /// Returns null if the type is unknown or N is out of range.
+    QualType getParamType(unsigned N) const;
+
+    /// Get the declaration of the Nth parameter.
+    /// Returns null if the decl is unknown or N is out of range.
+    const NamedDecl *getParamDecl(unsigned N) const;
+
     /// Create a new code-completion string that describes the function
     /// signature of this overload candidate.
-    CodeCompletionString *CreateSignatureString(unsigned CurrentArg,
-                                                Sema &S,
-                                      CodeCompletionAllocator &Allocator,
-                                      CodeCompletionTUInfo &CCTUInfo,
-                                      bool IncludeBriefComments) const;
+    CodeCompletionString *
+    CreateSignatureString(unsigned CurrentArg, Sema &S,
+                          CodeCompletionAllocator &Allocator,
+                          CodeCompletionTUInfo &CCTUInfo,
+                          bool IncludeBriefComments, bool Braced) const;
   };
 
-  CodeCompleteConsumer(const CodeCompleteOptions &CodeCompleteOpts,
-                       bool OutputIsBinary)
-      : CodeCompleteOpts(CodeCompleteOpts), OutputIsBinary(OutputIsBinary) {}
+  CodeCompleteConsumer(const CodeCompleteOptions &CodeCompleteOpts)
+      : CodeCompleteOpts(CodeCompleteOpts) {}
 
   /// Whether the code-completion consumer wants to see macros.
   bool includeMacros() const {
@@ -1085,9 +1160,6 @@ public:
     return CodeCompleteOpts.LoadExternal;
   }
 
-  /// Determine whether the output of this consumer is binary.
-  bool isOutputBinary() const { return OutputIsBinary; }
-
   /// Deregisters and destroys this code-completion consumer.
   virtual ~CodeCompleteConsumer();
 
@@ -1114,9 +1186,14 @@ public:
   /// \param Candidates an array of overload candidates.
   ///
   /// \param NumCandidates the number of overload candidates
+  ///
+  /// \param OpenParLoc location of the opening parenthesis of the argument
+  ///        list.
   virtual void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
                                          OverloadCandidate *Candidates,
-                                         unsigned NumCandidates) {}
+                                         unsigned NumCandidates,
+                                         SourceLocation OpenParLoc,
+                                         bool Braced) {}
   //@}
 
   /// Retrieve the allocator that will be used to allocate
@@ -1156,7 +1233,7 @@ public:
   /// results to the given raw output stream.
   PrintingCodeCompleteConsumer(const CodeCompleteOptions &CodeCompleteOpts,
                                raw_ostream &OS)
-      : CodeCompleteConsumer(CodeCompleteOpts, false), OS(OS),
+      : CodeCompleteConsumer(CodeCompleteOpts), OS(OS),
         CCTUInfo(std::make_shared<GlobalCodeCompletionAllocator>()) {}
 
   /// Prints the finalized code-completion results.
@@ -1166,7 +1243,9 @@ public:
 
   void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
                                  OverloadCandidate *Candidates,
-                                 unsigned NumCandidates) override;
+                                 unsigned NumCandidates,
+                                 SourceLocation OpenParLoc,
+                                 bool Braced) override;
 
   bool isResultFilteredOut(StringRef Filter, CodeCompletionResult Results) override;
 

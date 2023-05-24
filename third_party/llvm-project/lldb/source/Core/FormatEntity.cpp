@@ -1,38 +1,36 @@
-//===-- FormatEntity.cpp ----------------------------------------*- C++ -*-===//
+//===-- FormatEntity.cpp --------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Core/FormatEntity.h"
 
 #include "lldb/Core/Address.h"
-#include "lldb/Core/AddressRange.h" // for AddressRange
+#include "lldb/Core/AddressRange.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/DumpRegisterValue.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/RegisterValue.h" // for RegisterValue
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/DataVisualization.h"
-#include "lldb/DataFormatters/FormatClasses.h" // for TypeNameSpecifier...
+#include "lldb/DataFormatters/FormatClasses.h"
 #include "lldb/DataFormatters/FormatManager.h"
-#include "lldb/DataFormatters/TypeSummary.h" // for TypeSummaryImpl::...
+#include "lldb/DataFormatters/TypeSummary.h"
 #include "lldb/Expression/ExpressionVariable.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Symbol/Block.h"
 #include "lldb/Symbol/CompileUnit.h"
-#include "lldb/Symbol/CompilerType.h" // for CompilerType
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/LineEntry.h"
 #include "lldb/Symbol/Symbol.h"
-#include "lldb/Symbol/SymbolContext.h" // for SymbolContext
+#include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ExecutionContext.h"
-#include "lldb/Target/ExecutionContextScope.h" // for ExecutionContextS...
+#include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
@@ -42,31 +40,33 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/AnsiTerminal.h"
-#include "lldb/Utility/ArchSpec.h"    // for ArchSpec
-#include "lldb/Utility/ConstString.h" // for ConstString, oper...
+#include "lldb/Utility/ArchSpec.h"
+#include "lldb/Utility/CompletionRequest.h"
+#include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/FileSpec.h"
-#include "lldb/Utility/Log.h"        // for Log
-#include "lldb/Utility/Logging.h"    // for GetLogIfAllCatego...
-#include "lldb/Utility/SharingPtr.h" // for SharingPtr
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Logging.h"
+#include "lldb/Utility/RegisterValue.h"
+#include "lldb/Utility/Status.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StreamString.h"
-#include "lldb/Utility/StringList.h"     // for StringList
-#include "lldb/Utility/StructuredData.h" // for StructuredData::O...
-#include "lldb/lldb-defines.h"           // for LLDB_INVALID_ADDRESS
-#include "lldb/lldb-forward.h"           // for ValueObjectSP
+#include "lldb/Utility/StringList.h"
+#include "lldb/Utility/StructuredData.h"
+#include "lldb/lldb-defines.h"
+#include "lldb/lldb-forward.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"       // for Triple, Triple::O...
-#include "llvm/Support/Compiler.h" // for LLVM_FALLTHROUGH
+#include "llvm/ADT/Triple.h"
+#include "llvm/Support/Compiler.h"
 
-#include <ctype.h>     // for isxdigit
-#include <inttypes.h>  // for PRIu64, PRIx64
-#include <memory>      // for shared_ptr, opera...
-#include <stdio.h>     // for sprintf
-#include <stdlib.h>    // for strtoul
-#include <string.h>    // for size_t, strchr
-#include <type_traits> // for move
-#include <utility>     // for pair
+#include <cctype>
+#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <type_traits>
+#include <utility>
 
 namespace lldb_private {
 class ScriptInterpreter;
@@ -78,213 +78,196 @@ struct RegisterInfo;
 using namespace lldb;
 using namespace lldb_private;
 
+using Definition = lldb_private::FormatEntity::Entry::Definition;
+using Entry = FormatEntity::Entry;
+using EntryType = FormatEntity::Entry::Type;
+
 enum FileKind { FileError = 0, Basename, Dirname, Fullpath };
 
-#define ENTRY(n, t, f)                                                         \
-  {                                                                            \
-    n, nullptr, FormatEntity::Entry::Type::t,                                  \
-        FormatEntity::Entry::FormatType::f, 0, 0, nullptr, false               \
-  }
-#define ENTRY_VALUE(n, t, f, v)                                                \
-  {                                                                            \
-    n, nullptr, FormatEntity::Entry::Type::t,                                  \
-        FormatEntity::Entry::FormatType::f, v, 0, nullptr, false               \
-  }
-#define ENTRY_CHILDREN(n, t, f, c)                                             \
-  {                                                                            \
-    n, nullptr, FormatEntity::Entry::Type::t,                                  \
-        FormatEntity::Entry::FormatType::f, 0,                                 \
-        static_cast<uint32_t>(llvm::array_lengthof(c)), c, false               \
-  }
-#define ENTRY_CHILDREN_KEEP_SEP(n, t, f, c)                                    \
-  {                                                                            \
-    n, nullptr, FormatEntity::Entry::Type::t,                                  \
-        FormatEntity::Entry::FormatType::f, 0,                                 \
-        static_cast<uint32_t>(llvm::array_lengthof(c)), c, true                \
-  }
-#define ENTRY_STRING(n, s)                                                     \
-  {                                                                            \
-    n, s, FormatEntity::Entry::Type::InsertString,                             \
-        FormatEntity::Entry::FormatType::None, 0, 0, nullptr, false            \
-  }
-static FormatEntity::Entry::Definition g_string_entry[] = {
-    ENTRY("*", ParentString, None)};
+constexpr Definition g_string_entry[] = {
+    Definition("*", EntryType::ParentString)};
 
-static FormatEntity::Entry::Definition g_addr_entries[] = {
-    ENTRY("load", AddressLoad, UInt64), ENTRY("file", AddressFile, UInt64),
-    ENTRY("load", AddressLoadOrFile, UInt64),
+constexpr Definition g_addr_entries[] = {
+    Definition("load", EntryType::AddressLoad),
+    Definition("file", EntryType::AddressFile)};
+
+constexpr Definition g_file_child_entries[] = {
+    Definition("basename", EntryType::ParentNumber, FileKind::Basename),
+    Definition("dirname", EntryType::ParentNumber, FileKind::Dirname),
+    Definition("fullpath", EntryType::ParentNumber, FileKind::Fullpath)};
+
+constexpr Definition g_frame_child_entries[] = {
+    Definition("index", EntryType::FrameIndex),
+    Definition("pc", EntryType::FrameRegisterPC),
+    Definition("fp", EntryType::FrameRegisterFP),
+    Definition("sp", EntryType::FrameRegisterSP),
+    Definition("flags", EntryType::FrameRegisterFlags),
+    Definition("no-debug", EntryType::FrameNoDebug),
+    Entry::DefinitionWithChildren("reg", EntryType::FrameRegisterByName,
+                                  g_string_entry),
+    Definition("is-artificial", EntryType::FrameIsArtificial),
 };
 
-static FormatEntity::Entry::Definition g_file_child_entries[] = {
-    ENTRY_VALUE("basename", ParentNumber, CString, FileKind::Basename),
-    ENTRY_VALUE("dirname", ParentNumber, CString, FileKind::Dirname),
-    ENTRY_VALUE("fullpath", ParentNumber, CString, FileKind::Fullpath)};
+constexpr Definition g_function_child_entries[] = {
+    Definition("id", EntryType::FunctionID),
+    Definition("name", EntryType::FunctionName),
+    Definition("name-without-args", EntryType::FunctionNameNoArgs),
+    Definition("name-with-args", EntryType::FunctionNameWithArgs),
+    Definition("mangled-name", EntryType::FunctionMangledName),
+    Definition("addr-offset", EntryType::FunctionAddrOffset),
+    Definition("concrete-only-addr-offset-no-padding",
+               EntryType::FunctionAddrOffsetConcrete),
+    Definition("line-offset", EntryType::FunctionLineOffset),
+    Definition("pc-offset", EntryType::FunctionPCOffset),
+    Definition("initial-function", EntryType::FunctionInitial),
+    Definition("changed", EntryType::FunctionChanged),
+    Definition("is-optimized", EntryType::FunctionIsOptimized)};
 
-static FormatEntity::Entry::Definition g_frame_child_entries[] = {
-    ENTRY("index", FrameIndex, UInt32),
-    ENTRY("pc", FrameRegisterPC, UInt64),
-    ENTRY("fp", FrameRegisterFP, UInt64),
-    ENTRY("sp", FrameRegisterSP, UInt64),
-    ENTRY("flags", FrameRegisterFlags, UInt64),
-    ENTRY("no-debug", FrameNoDebug, None),
-    ENTRY_CHILDREN("reg", FrameRegisterByName, UInt64, g_string_entry),
+constexpr Definition g_line_child_entries[] = {
+    Entry::DefinitionWithChildren("file", EntryType::LineEntryFile,
+                                  g_file_child_entries),
+    Definition("number", EntryType::LineEntryLineNumber),
+    Definition("column", EntryType::LineEntryColumn),
+    Definition("start-addr", EntryType::LineEntryStartAddress),
+    Definition("end-addr", EntryType::LineEntryEndAddress),
 };
 
-static FormatEntity::Entry::Definition g_function_child_entries[] = {
-    ENTRY("id", FunctionID, UInt64), ENTRY("name", FunctionName, CString),
-    ENTRY("name-without-args", FunctionNameNoArgs, CString),
-    ENTRY("name-with-args", FunctionNameWithArgs, CString),
-    ENTRY("addr-offset", FunctionAddrOffset, UInt64),
-    ENTRY("concrete-only-addr-offset-no-padding", FunctionAddrOffsetConcrete,
-          UInt64),
-    ENTRY("line-offset", FunctionLineOffset, UInt64),
-    ENTRY("pc-offset", FunctionPCOffset, UInt64),
-    ENTRY("initial-function", FunctionInitial, None),
-    ENTRY("changed", FunctionChanged, None),
-    ENTRY("is-optimized", FunctionIsOptimized, None)};
+constexpr Definition g_module_child_entries[] = {Entry::DefinitionWithChildren(
+    "file", EntryType::ModuleFile, g_file_child_entries)};
 
-static FormatEntity::Entry::Definition g_line_child_entries[] = {
-    ENTRY_CHILDREN("file", LineEntryFile, None, g_file_child_entries),
-    ENTRY("number", LineEntryLineNumber, UInt32),
-    ENTRY("start-addr", LineEntryStartAddress, UInt64),
-    ENTRY("end-addr", LineEntryEndAddress, UInt64),
-};
+constexpr Definition g_process_child_entries[] = {
+    Definition("id", EntryType::ProcessID),
+    Definition("name", EntryType::ProcessFile, FileKind::Basename),
+    Entry::DefinitionWithChildren("file", EntryType::ProcessFile,
+                                  g_file_child_entries)};
 
-static FormatEntity::Entry::Definition g_module_child_entries[] = {
-    ENTRY_CHILDREN("file", ModuleFile, None, g_file_child_entries),
-};
+constexpr Definition g_svar_child_entries[] = {
+    Definition("*", EntryType::ParentString)};
 
-static FormatEntity::Entry::Definition g_process_child_entries[] = {
-    ENTRY("id", ProcessID, UInt64),
-    ENTRY_VALUE("name", ProcessFile, CString, FileKind::Basename),
-    ENTRY_CHILDREN("file", ProcessFile, None, g_file_child_entries),
-};
+constexpr Definition g_var_child_entries[] = {
+    Definition("*", EntryType::ParentString)};
 
-static FormatEntity::Entry::Definition g_svar_child_entries[] = {
-    ENTRY("*", ParentString, None)};
+constexpr Definition g_thread_child_entries[] = {
+    Definition("id", EntryType::ThreadID),
+    Definition("protocol_id", EntryType::ThreadProtocolID),
+    Definition("index", EntryType::ThreadIndexID),
+    Entry::DefinitionWithChildren("info", EntryType::ThreadInfo,
+                                  g_string_entry),
+    Definition("queue", EntryType::ThreadQueue),
+    Definition("name", EntryType::ThreadName),
+    Definition("stop-reason", EntryType::ThreadStopReason),
+    Definition("stop-reason-raw", EntryType::ThreadStopReasonRaw),
+    Definition("return-value", EntryType::ThreadReturnValue),
+    Definition("completed-expression", EntryType::ThreadCompletedExpression)};
 
-static FormatEntity::Entry::Definition g_var_child_entries[] = {
-    ENTRY("*", ParentString, None)};
-
-static FormatEntity::Entry::Definition g_thread_child_entries[] = {
-    ENTRY("id", ThreadID, UInt64),
-    ENTRY("protocol_id", ThreadProtocolID, UInt64),
-    ENTRY("index", ThreadIndexID, UInt32),
-    ENTRY_CHILDREN("info", ThreadInfo, None, g_string_entry),
-    ENTRY("queue", ThreadQueue, CString),
-    ENTRY("name", ThreadName, CString),
-    ENTRY("stop-reason", ThreadStopReason, CString),
-    ENTRY("return-value", ThreadReturnValue, CString),
-    ENTRY("completed-expression", ThreadCompletedExpression, CString),
-};
-
-static FormatEntity::Entry::Definition g_target_child_entries[] = {
-    ENTRY("arch", TargetArch, CString),
-};
+constexpr Definition g_target_child_entries[] = {
+    Definition("arch", EntryType::TargetArch)};
 
 #define _TO_STR2(_val) #_val
 #define _TO_STR(_val) _TO_STR2(_val)
 
-static FormatEntity::Entry::Definition g_ansi_fg_entries[] = {
-    ENTRY_STRING("black",
-                 ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_BLACK) ANSI_ESC_END),
-    ENTRY_STRING("red", ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_RED) ANSI_ESC_END),
-    ENTRY_STRING("green",
-                 ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_GREEN) ANSI_ESC_END),
-    ENTRY_STRING("yellow",
-                 ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_YELLOW) ANSI_ESC_END),
-    ENTRY_STRING("blue",
-                 ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_BLUE) ANSI_ESC_END),
-    ENTRY_STRING("purple",
-                 ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_PURPLE) ANSI_ESC_END),
-    ENTRY_STRING("cyan",
-                 ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_CYAN) ANSI_ESC_END),
-    ENTRY_STRING("white",
-                 ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_WHITE) ANSI_ESC_END),
+constexpr Definition g_ansi_fg_entries[] = {
+    Definition("black",
+               ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_BLACK) ANSI_ESC_END),
+    Definition("red", ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_RED) ANSI_ESC_END),
+    Definition("green",
+               ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_GREEN) ANSI_ESC_END),
+    Definition("yellow",
+               ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_YELLOW) ANSI_ESC_END),
+    Definition("blue", ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_BLUE) ANSI_ESC_END),
+    Definition("purple",
+               ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_PURPLE) ANSI_ESC_END),
+    Definition("cyan", ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_CYAN) ANSI_ESC_END),
+    Definition("white",
+               ANSI_ESC_START _TO_STR(ANSI_FG_COLOR_WHITE) ANSI_ESC_END),
 };
 
-static FormatEntity::Entry::Definition g_ansi_bg_entries[] = {
-    ENTRY_STRING("black",
-                 ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_BLACK) ANSI_ESC_END),
-    ENTRY_STRING("red", ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_RED) ANSI_ESC_END),
-    ENTRY_STRING("green",
-                 ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_GREEN) ANSI_ESC_END),
-    ENTRY_STRING("yellow",
-                 ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_YELLOW) ANSI_ESC_END),
-    ENTRY_STRING("blue",
-                 ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_BLUE) ANSI_ESC_END),
-    ENTRY_STRING("purple",
-                 ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_PURPLE) ANSI_ESC_END),
-    ENTRY_STRING("cyan",
-                 ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_CYAN) ANSI_ESC_END),
-    ENTRY_STRING("white",
-                 ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_WHITE) ANSI_ESC_END),
+constexpr Definition g_ansi_bg_entries[] = {
+    Definition("black",
+               ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_BLACK) ANSI_ESC_END),
+    Definition("red", ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_RED) ANSI_ESC_END),
+    Definition("green",
+               ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_GREEN) ANSI_ESC_END),
+    Definition("yellow",
+               ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_YELLOW) ANSI_ESC_END),
+    Definition("blue", ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_BLUE) ANSI_ESC_END),
+    Definition("purple",
+               ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_PURPLE) ANSI_ESC_END),
+    Definition("cyan", ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_CYAN) ANSI_ESC_END),
+    Definition("white",
+               ANSI_ESC_START _TO_STR(ANSI_BG_COLOR_WHITE) ANSI_ESC_END),
 };
 
-static FormatEntity::Entry::Definition g_ansi_entries[] = {
-    ENTRY_CHILDREN("fg", Invalid, None, g_ansi_fg_entries),
-    ENTRY_CHILDREN("bg", Invalid, None, g_ansi_bg_entries),
-    ENTRY_STRING("normal",
-                 ANSI_ESC_START _TO_STR(ANSI_CTRL_NORMAL) ANSI_ESC_END),
-    ENTRY_STRING("bold", ANSI_ESC_START _TO_STR(ANSI_CTRL_BOLD) ANSI_ESC_END),
-    ENTRY_STRING("faint", ANSI_ESC_START _TO_STR(ANSI_CTRL_FAINT) ANSI_ESC_END),
-    ENTRY_STRING("italic",
-                 ANSI_ESC_START _TO_STR(ANSI_CTRL_ITALIC) ANSI_ESC_END),
-    ENTRY_STRING("underline",
-                 ANSI_ESC_START _TO_STR(ANSI_CTRL_UNDERLINE) ANSI_ESC_END),
-    ENTRY_STRING("slow-blink",
-                 ANSI_ESC_START _TO_STR(ANSI_CTRL_SLOW_BLINK) ANSI_ESC_END),
-    ENTRY_STRING("fast-blink",
-                 ANSI_ESC_START _TO_STR(ANSI_CTRL_FAST_BLINK) ANSI_ESC_END),
-    ENTRY_STRING("negative",
-                 ANSI_ESC_START _TO_STR(ANSI_CTRL_IMAGE_NEGATIVE) ANSI_ESC_END),
-    ENTRY_STRING("conceal",
-                 ANSI_ESC_START _TO_STR(ANSI_CTRL_CONCEAL) ANSI_ESC_END),
-    ENTRY_STRING("crossed-out",
-                 ANSI_ESC_START _TO_STR(ANSI_CTRL_CROSSED_OUT) ANSI_ESC_END),
+constexpr Definition g_ansi_entries[] = {
+    Entry::DefinitionWithChildren("fg", EntryType::Invalid, g_ansi_fg_entries),
+    Entry::DefinitionWithChildren("bg", EntryType::Invalid, g_ansi_bg_entries),
+    Definition("normal", ANSI_ESC_START _TO_STR(ANSI_CTRL_NORMAL) ANSI_ESC_END),
+    Definition("bold", ANSI_ESC_START _TO_STR(ANSI_CTRL_BOLD) ANSI_ESC_END),
+    Definition("faint", ANSI_ESC_START _TO_STR(ANSI_CTRL_FAINT) ANSI_ESC_END),
+    Definition("italic", ANSI_ESC_START _TO_STR(ANSI_CTRL_ITALIC) ANSI_ESC_END),
+    Definition("underline",
+               ANSI_ESC_START _TO_STR(ANSI_CTRL_UNDERLINE) ANSI_ESC_END),
+    Definition("slow-blink",
+               ANSI_ESC_START _TO_STR(ANSI_CTRL_SLOW_BLINK) ANSI_ESC_END),
+    Definition("fast-blink",
+               ANSI_ESC_START _TO_STR(ANSI_CTRL_FAST_BLINK) ANSI_ESC_END),
+    Definition("negative",
+               ANSI_ESC_START _TO_STR(ANSI_CTRL_IMAGE_NEGATIVE) ANSI_ESC_END),
+    Definition("conceal",
+               ANSI_ESC_START _TO_STR(ANSI_CTRL_CONCEAL) ANSI_ESC_END),
+    Definition("crossed-out",
+               ANSI_ESC_START _TO_STR(ANSI_CTRL_CROSSED_OUT) ANSI_ESC_END),
 };
 
-static FormatEntity::Entry::Definition g_script_child_entries[] = {
-    ENTRY("frame", ScriptFrame, None),
-    ENTRY("process", ScriptProcess, None),
-    ENTRY("target", ScriptTarget, None),
-    ENTRY("thread", ScriptThread, None),
-    ENTRY("var", ScriptVariable, None),
-    ENTRY("svar", ScriptVariableSynthetic, None),
-    ENTRY("thread", ScriptThread, None),
-};
+constexpr Definition g_script_child_entries[] = {
+    Definition("frame", EntryType::ScriptFrame),
+    Definition("process", EntryType::ScriptProcess),
+    Definition("target", EntryType::ScriptTarget),
+    Definition("thread", EntryType::ScriptThread),
+    Definition("var", EntryType::ScriptVariable),
+    Definition("svar", EntryType::ScriptVariableSynthetic),
+    Definition("thread", EntryType::ScriptThread)};
 
-static FormatEntity::Entry::Definition g_top_level_entries[] = {
-    ENTRY_CHILDREN("addr", AddressLoadOrFile, UInt64, g_addr_entries),
-    ENTRY("addr-file-or-load", AddressLoadOrFile, UInt64),
-    ENTRY_CHILDREN("ansi", Invalid, None, g_ansi_entries),
-    ENTRY("current-pc-arrow", CurrentPCArrow, CString),
-    ENTRY_CHILDREN("file", File, CString, g_file_child_entries),
-    ENTRY("language", Lang, CString),
-    ENTRY_CHILDREN("frame", Invalid, None, g_frame_child_entries),
-    ENTRY_CHILDREN("function", Invalid, None, g_function_child_entries),
-    ENTRY_CHILDREN("line", Invalid, None, g_line_child_entries),
-    ENTRY_CHILDREN("module", Invalid, None, g_module_child_entries),
-    ENTRY_CHILDREN("process", Invalid, None, g_process_child_entries),
-    ENTRY_CHILDREN("script", Invalid, None, g_script_child_entries),
-    ENTRY_CHILDREN_KEEP_SEP("svar", VariableSynthetic, None,
-                            g_svar_child_entries),
-    ENTRY_CHILDREN("thread", Invalid, None, g_thread_child_entries),
-    ENTRY_CHILDREN("target", Invalid, None, g_target_child_entries),
-    ENTRY_CHILDREN_KEEP_SEP("var", Variable, None, g_var_child_entries),
-};
+constexpr Definition g_top_level_entries[] = {
+    Entry::DefinitionWithChildren("addr", EntryType::AddressLoadOrFile,
+                                  g_addr_entries),
+    Definition("addr-file-or-load", EntryType::AddressLoadOrFile),
+    Entry::DefinitionWithChildren("ansi", EntryType::Invalid, g_ansi_entries),
+    Definition("current-pc-arrow", EntryType::CurrentPCArrow),
+    Entry::DefinitionWithChildren("file", EntryType::File,
+                                  g_file_child_entries),
+    Definition("language", EntryType::Lang),
+    Entry::DefinitionWithChildren("frame", EntryType::Invalid,
+                                  g_frame_child_entries),
+    Entry::DefinitionWithChildren("function", EntryType::Invalid,
+                                  g_function_child_entries),
+    Entry::DefinitionWithChildren("line", EntryType::Invalid,
+                                  g_line_child_entries),
+    Entry::DefinitionWithChildren("module", EntryType::Invalid,
+                                  g_module_child_entries),
+    Entry::DefinitionWithChildren("process", EntryType::Invalid,
+                                  g_process_child_entries),
+    Entry::DefinitionWithChildren("script", EntryType::Invalid,
+                                  g_script_child_entries),
+    Entry::DefinitionWithChildren("svar", EntryType::VariableSynthetic,
+                                  g_svar_child_entries, true),
+    Entry::DefinitionWithChildren("thread", EntryType::Invalid,
+                                  g_thread_child_entries),
+    Entry::DefinitionWithChildren("target", EntryType::Invalid,
+                                  g_target_child_entries),
+    Entry::DefinitionWithChildren("var", EntryType::Variable,
+                                  g_var_child_entries, true)};
 
-static FormatEntity::Entry::Definition g_root =
-    ENTRY_CHILDREN("<root>", Root, None, g_top_level_entries);
+constexpr Definition g_root = Entry::DefinitionWithChildren(
+    "<root>", EntryType::Root, g_top_level_entries);
 
 FormatEntity::Entry::Entry(llvm::StringRef s)
     : string(s.data(), s.size()), printf_format(), children(),
-      definition(nullptr), type(Type::String), fmt(lldb::eFormatDefault),
-      number(0), deref(false) {}
+      type(Type::String), fmt(lldb::eFormatDefault), number(0), deref(false) {}
 
 FormatEntity::Entry::Entry(char ch)
-    : string(1, ch), printf_format(), children(), definition(nullptr),
-      type(Type::String), fmt(lldb::eFormatDefault), number(0), deref(false) {}
+    : string(1, ch), printf_format(), children(), type(Type::String),
+      fmt(lldb::eFormatDefault), number(0), deref(false) {}
 
 void FormatEntity::Entry::AppendChar(char ch) {
   if (children.empty() || children.back().type != Entry::Type::String)
@@ -320,7 +303,7 @@ const char *FormatEntity::Entry::TypeToCString(Type t) {
     ENUM_TO_CSTR(Invalid);
     ENUM_TO_CSTR(ParentNumber);
     ENUM_TO_CSTR(ParentString);
-    ENUM_TO_CSTR(InsertString);
+    ENUM_TO_CSTR(EscapeCode);
     ENUM_TO_CSTR(Root);
     ENUM_TO_CSTR(String);
     ENUM_TO_CSTR(Scope);
@@ -340,6 +323,7 @@ const char *FormatEntity::Entry::TypeToCString(Type t) {
     ENUM_TO_CSTR(ThreadName);
     ENUM_TO_CSTR(ThreadQueue);
     ENUM_TO_CSTR(ThreadStopReason);
+    ENUM_TO_CSTR(ThreadStopReasonRaw);
     ENUM_TO_CSTR(ThreadReturnValue);
     ENUM_TO_CSTR(ThreadCompletedExpression);
     ENUM_TO_CSTR(ScriptThread);
@@ -356,6 +340,7 @@ const char *FormatEntity::Entry::TypeToCString(Type t) {
     ENUM_TO_CSTR(FrameRegisterFP);
     ENUM_TO_CSTR(FrameRegisterFlags);
     ENUM_TO_CSTR(FrameRegisterByName);
+    ENUM_TO_CSTR(FrameIsArtificial);
     ENUM_TO_CSTR(ScriptFrame);
     ENUM_TO_CSTR(FunctionID);
     ENUM_TO_CSTR(FunctionDidChange);
@@ -363,6 +348,7 @@ const char *FormatEntity::Entry::TypeToCString(Type t) {
     ENUM_TO_CSTR(FunctionName);
     ENUM_TO_CSTR(FunctionNameWithArgs);
     ENUM_TO_CSTR(FunctionNameNoArgs);
+    ENUM_TO_CSTR(FunctionMangledName);
     ENUM_TO_CSTR(FunctionAddrOffset);
     ENUM_TO_CSTR(FunctionAddrOffsetConcrete);
     ENUM_TO_CSTR(FunctionLineOffset);
@@ -372,6 +358,7 @@ const char *FormatEntity::Entry::TypeToCString(Type t) {
     ENUM_TO_CSTR(FunctionIsOptimized);
     ENUM_TO_CSTR(LineEntryFile);
     ENUM_TO_CSTR(LineEntryLineNumber);
+    ENUM_TO_CSTR(LineEntryColumn);
     ENUM_TO_CSTR(LineEntryStartAddress);
     ENUM_TO_CSTR(LineEntryEndAddress);
     ENUM_TO_CSTR(CurrentPCArrow);
@@ -407,7 +394,7 @@ static bool RunScriptFormatKeyword(Stream &s, const SymbolContext *sc,
 
   if (target) {
     ScriptInterpreter *script_interpreter =
-        target->GetDebugger().GetCommandInterpreter().GetScriptInterpreter();
+        target->GetDebugger().GetScriptInterpreter();
     if (script_interpreter) {
       Status error;
       std::string script_output;
@@ -425,9 +412,10 @@ static bool RunScriptFormatKeyword(Stream &s, const SymbolContext *sc,
   return false;
 }
 
-static bool DumpAddress(Stream &s, const SymbolContext *sc,
-                        const ExecutionContext *exe_ctx, const Address &addr,
-                        bool print_file_addr_or_load_addr) {
+static bool DumpAddressAndContent(Stream &s, const SymbolContext *sc,
+                                  const ExecutionContext *exe_ctx,
+                                  const Address &addr,
+                                  bool print_file_addr_or_load_addr) {
   Target *target = Target::GetTargetFromContexts(exe_ctx, sc);
   addr_t vaddr = LLDB_INVALID_ADDRESS;
   if (exe_ctx && !target->GetSectionLoadList().IsEmpty())
@@ -473,9 +461,8 @@ static bool DumpAddressOffsetFromFunction(Stream &s, const SymbolContext *sc,
           // can be discontiguous.
           Block *inline_block = sc->block->GetContainingInlinedBlock();
           AddressRange inline_range;
-          if (inline_block &&
-              inline_block->GetRangeContainingAddress(format_addr,
-                                                      inline_range))
+          if (inline_block && inline_block->GetRangeContainingAddress(
+                                  format_addr, inline_range))
             func_addr = inline_range.GetBaseAddress();
         }
       } else if (sc->symbol && sc->symbol->ValueIsAddress())
@@ -526,24 +513,24 @@ static bool ScanBracketedRange(llvm::StringRef subpath,
   close_bracket_index = llvm::StringRef::npos;
   const size_t open_bracket_index = subpath.find('[');
   if (open_bracket_index == llvm::StringRef::npos) {
-    if (log)
-      log->Printf("[ScanBracketedRange] no bracketed range, skipping entirely");
+    LLDB_LOGF(log,
+              "[ScanBracketedRange] no bracketed range, skipping entirely");
     return false;
   }
 
   close_bracket_index = subpath.find(']', open_bracket_index + 1);
 
   if (close_bracket_index == llvm::StringRef::npos) {
-    if (log)
-      log->Printf("[ScanBracketedRange] no bracketed range, skipping entirely");
+    LLDB_LOGF(log,
+              "[ScanBracketedRange] no bracketed range, skipping entirely");
     return false;
   } else {
     var_name_final_if_array_range = subpath.data() + open_bracket_index;
 
     if (close_bracket_index - open_bracket_index == 1) {
-      if (log)
-        log->Printf(
-            "[ScanBracketedRange] '[]' detected.. going from 0 to end of data");
+      LLDB_LOGF(
+          log,
+          "[ScanBracketedRange] '[]' detected.. going from 0 to end of data");
       index_lower = 0;
     } else {
       const size_t separator_index = subpath.find('-', open_bracket_index + 1);
@@ -552,22 +539,21 @@ static bool ScanBracketedRange(llvm::StringRef subpath,
         const char *index_lower_cstr = subpath.data() + open_bracket_index + 1;
         index_lower = ::strtoul(index_lower_cstr, nullptr, 0);
         index_higher = index_lower;
-        if (log)
-          log->Printf("[ScanBracketedRange] [%" PRId64
-                      "] detected, high index is same",
-                      index_lower);
+        LLDB_LOGF(log,
+                  "[ScanBracketedRange] [%" PRId64
+                  "] detected, high index is same",
+                  index_lower);
       } else {
         const char *index_lower_cstr = subpath.data() + open_bracket_index + 1;
         const char *index_higher_cstr = subpath.data() + separator_index + 1;
         index_lower = ::strtoul(index_lower_cstr, nullptr, 0);
         index_higher = ::strtoul(index_higher_cstr, nullptr, 0);
-        if (log)
-          log->Printf("[ScanBracketedRange] [%" PRId64 "-%" PRId64 "] detected",
-                      index_lower, index_higher);
+        LLDB_LOGF(log,
+                  "[ScanBracketedRange] [%" PRId64 "-%" PRId64 "] detected",
+                  index_lower, index_higher);
       }
       if (index_lower > index_higher && index_higher > 0) {
-        if (log)
-          log->Printf("[ScanBracketedRange] swapping indices");
+        LLDB_LOGF(log, "[ScanBracketedRange] swapping indices");
         const int64_t temp = index_lower;
         index_lower = index_higher;
         index_higher = temp;
@@ -607,9 +593,7 @@ static bool DumpFile(Stream &s, const FileSpec &file, FileKind file_kind) {
 }
 
 static bool DumpRegister(Stream &s, StackFrame *frame, RegisterKind reg_kind,
-                         uint32_t reg_num, Format format)
-
-{
+                         uint32_t reg_num, Format format) {
   if (frame) {
     RegisterContext *reg_ctx = frame->GetRegisterContext().get();
 
@@ -633,15 +617,13 @@ static bool DumpRegister(Stream &s, StackFrame *frame, RegisterKind reg_kind,
 }
 
 static ValueObjectSP ExpandIndexedExpression(ValueObject *valobj, size_t index,
-                                             StackFrame *frame,
                                              bool deref_pointer) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_DATAFORMATTERS));
   const char *ptr_deref_format = "[%d]";
   std::string ptr_deref_buffer(10, 0);
   ::sprintf(&ptr_deref_buffer[0], ptr_deref_format, index);
-  if (log)
-    log->Printf("[ExpandIndexedExpression] name to deref: %s",
-                ptr_deref_buffer.c_str());
+  LLDB_LOGF(log, "[ExpandIndexedExpression] name to deref: %s",
+            ptr_deref_buffer.c_str());
   ValueObject::GetValueForExpressionPathOptions options;
   ValueObject::ExpressionPathEndResultType final_value_type;
   ValueObject::ExpressionPathScanEndReason reason_to_stop;
@@ -652,15 +634,15 @@ static ValueObjectSP ExpandIndexedExpression(ValueObject *valobj, size_t index,
       ptr_deref_buffer.c_str(), &reason_to_stop, &final_value_type, options,
       &what_next);
   if (!item) {
-    if (log)
-      log->Printf("[ExpandIndexedExpression] ERROR: why stopping = %d,"
-                  " final_value_type %d",
-                  reason_to_stop, final_value_type);
+    LLDB_LOGF(log,
+              "[ExpandIndexedExpression] ERROR: why stopping = %d,"
+              " final_value_type %d",
+              reason_to_stop, final_value_type);
   } else {
-    if (log)
-      log->Printf("[ExpandIndexedExpression] ALL RIGHT: why stopping = %d,"
-                  " final_value_type %d",
-                  reason_to_stop, final_value_type);
+    LLDB_LOGF(log,
+              "[ExpandIndexedExpression] ALL RIGHT: why stopping = %d,"
+              " final_value_type %d",
+              reason_to_stop, final_value_type);
   }
   return item;
 }
@@ -782,9 +764,8 @@ static bool DumpValue(Stream &s, const SymbolContext *sc,
 
     const std::string &expr_path = entry.string;
 
-    if (log)
-      log->Printf("[Debugger::FormatPrompt] symbol to expand: %s",
-                  expr_path.c_str());
+    LLDB_LOGF(log, "[Debugger::FormatPrompt] symbol to expand: %s",
+              expr_path.c_str());
 
     target =
         valobj
@@ -793,16 +774,16 @@ static bool DumpValue(Stream &s, const SymbolContext *sc,
             .get();
 
     if (!target) {
-      if (log)
-        log->Printf("[Debugger::FormatPrompt] ERROR: why stopping = %d,"
-                    " final_value_type %d",
-                    reason_to_stop, final_value_type);
+      LLDB_LOGF(log,
+                "[Debugger::FormatPrompt] ERROR: why stopping = %d,"
+                " final_value_type %d",
+                reason_to_stop, final_value_type);
       return false;
     } else {
-      if (log)
-        log->Printf("[Debugger::FormatPrompt] ALL RIGHT: why stopping = %d,"
-                    " final_value_type %d",
-                    reason_to_stop, final_value_type);
+      LLDB_LOGF(log,
+                "[Debugger::FormatPrompt] ALL RIGHT: why stopping = %d,"
+                " final_value_type %d",
+                reason_to_stop, final_value_type);
       target = target
                    ->GetQualifiedRepresentationIfAvailable(
                        target->GetDynamicValueType(), true)
@@ -826,18 +807,16 @@ static bool DumpValue(Stream &s, const SymbolContext *sc,
     Status error;
     target = target->Dereference(error).get();
     if (error.Fail()) {
-      if (log)
-        log->Printf("[Debugger::FormatPrompt] ERROR: %s\n",
-                    error.AsCString("unknown"));
+      LLDB_LOGF(log, "[Debugger::FormatPrompt] ERROR: %s\n",
+                error.AsCString("unknown"));
       return false;
     }
     do_deref_pointer = false;
   }
 
   if (!target) {
-    if (log)
-      log->Printf("[Debugger::FormatPrompt] could not calculate target for "
-                  "prompt expression");
+    LLDB_LOGF(log, "[Debugger::FormatPrompt] could not calculate target for "
+                   "prompt expression");
     return false;
   }
 
@@ -872,18 +851,16 @@ static bool DumpValue(Stream &s, const SymbolContext *sc,
                                                              // exceptions
   {
     StreamString str_temp;
-    if (log)
-      log->Printf(
-          "[Debugger::FormatPrompt] I am into array || pointer && !range");
+    LLDB_LOGF(log,
+              "[Debugger::FormatPrompt] I am into array || pointer && !range");
 
     if (target->HasSpecialPrintableRepresentation(val_obj_display,
                                                   custom_format)) {
       // try to use the special cases
       bool success = target->DumpPrintableRepresentation(
           str_temp, val_obj_display, custom_format);
-      if (log)
-        log->Printf("[Debugger::FormatPrompt] special cases did%s match",
-                    success ? "" : "n't");
+      LLDB_LOGF(log, "[Debugger::FormatPrompt] special cases did%s match",
+                success ? "" : "n't");
 
       // should not happen
       if (success)
@@ -921,17 +898,16 @@ static bool DumpValue(Stream &s, const SymbolContext *sc,
   }
 
   if (!is_array_range) {
-    if (log)
-      log->Printf("[Debugger::FormatPrompt] dumping ordinary printable output");
+    LLDB_LOGF(log,
+              "[Debugger::FormatPrompt] dumping ordinary printable output");
     return target->DumpPrintableRepresentation(s, val_obj_display,
                                                custom_format);
   } else {
-    if (log)
-      log->Printf("[Debugger::FormatPrompt] checking if I can handle as array");
+    LLDB_LOGF(log,
+              "[Debugger::FormatPrompt] checking if I can handle as array");
     if (!is_array && !is_pointer)
       return false;
-    if (log)
-      log->Printf("[Debugger::FormatPrompt] handle as array");
+    LLDB_LOGF(log, "[Debugger::FormatPrompt] handle as array");
     StreamString special_directions_stream;
     llvm::StringRef special_directions;
     if (close_bracket_index != llvm::StringRef::npos &&
@@ -972,20 +948,18 @@ static bool DumpValue(Stream &s, const SymbolContext *sc,
 
     bool success = true;
     for (int64_t index = index_lower; index <= index_higher; ++index) {
-      ValueObject *item =
-          ExpandIndexedExpression(target, index, exe_ctx->GetFramePtr(), false)
-              .get();
+      ValueObject *item = ExpandIndexedExpression(target, index, false).get();
 
       if (!item) {
-        if (log)
-          log->Printf("[Debugger::FormatPrompt] ERROR in getting child item at "
-                      "index %" PRId64,
-                      index);
+        LLDB_LOGF(log,
+                  "[Debugger::FormatPrompt] ERROR in getting child item at "
+                  "index %" PRId64,
+                  index);
       } else {
-        if (log)
-          log->Printf(
-              "[Debugger::FormatPrompt] special_directions for child item: %s",
-              special_directions.data() ? special_directions.data() : "");
+        LLDB_LOGF(
+            log,
+            "[Debugger::FormatPrompt] special_directions for child item: %s",
+            special_directions.data() ? special_directions.data() : "");
       }
 
       if (special_directions.empty()) {
@@ -1114,9 +1088,18 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
                                   // FormatEntity::Entry::Definition encoding
   case Entry::Type::ParentString: // Only used for
                                   // FormatEntity::Entry::Definition encoding
-  case Entry::Type::InsertString: // Only used for
-                                  // FormatEntity::Entry::Definition encoding
     return false;
+  case Entry::Type::EscapeCode:
+    if (exe_ctx) {
+      if (Target *target = exe_ctx->GetTargetPtr()) {
+        Debugger &debugger = target->GetDebugger();
+        if (debugger.GetUseColor()) {
+          s.PutCString(entry.string);
+        }
+      }
+    }
+    // Always return true, so colors being disabled is transparent.
+    return true;
 
   case Entry::Type::Root:
     for (const auto &child : entry.children) {
@@ -1156,9 +1139,10 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
   case Entry::Type::AddressFile:
   case Entry::Type::AddressLoad:
   case Entry::Type::AddressLoadOrFile:
-    return (addr != nullptr && addr->IsValid() &&
-            DumpAddress(s, sc, exe_ctx, *addr,
-                        entry.type == Entry::Type::AddressLoadOrFile));
+    return (
+        addr != nullptr && addr->IsValid() &&
+        DumpAddressAndContent(s, sc, exe_ctx, *addr,
+                              entry.type == Entry::Type::AddressLoadOrFile));
 
   case Entry::Type::ProcessID:
     if (exe_ctx) {
@@ -1280,15 +1264,23 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
 
   case Entry::Type::ThreadStopReason:
     if (exe_ctx) {
-      Thread *thread = exe_ctx->GetThreadPtr();
-      if (thread) {
-        StopInfoSP stop_info_sp = thread->GetStopInfo();
-        if (stop_info_sp && stop_info_sp->IsValid()) {
-          const char *cstr = stop_info_sp->GetDescription();
-          if (cstr && cstr[0]) {
-            s.PutCString(cstr);
-            return true;
-          }
+      if (Thread *thread = exe_ctx->GetThreadPtr()) {
+        std::string stop_description = thread->GetStopDescription();
+        if (!stop_description.empty()) {
+          s.PutCString(stop_description);
+          return true;
+        }
+      }
+    }
+    return false;
+
+  case Entry::Type::ThreadStopReasonRaw:
+    if (exe_ctx) {
+      if (Thread *thread = exe_ctx->GetThreadPtr()) {
+        std::string stop_description = thread->GetStopDescriptionRaw();
+        if (!stop_description.empty()) {
+          s.PutCString(stop_description);
+          return true;
         }
       }
     }
@@ -1387,8 +1379,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
     if (sc) {
       CompileUnit *cu = sc->comp_unit;
       if (cu) {
-        // CompileUnit is a FileSpec
-        if (DumpFile(s, *cu, (FileKind)entry.number))
+        if (DumpFile(s, cu->GetPrimaryFile(), (FileKind)entry.number))
           return true;
       }
     }
@@ -1427,7 +1418,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
       if (frame) {
         const Address &pc_addr = frame->GetFrameCodeAddress();
         if (pc_addr.IsValid()) {
-          if (DumpAddress(s, sc, exe_ctx, pc_addr, false))
+          if (DumpAddressAndContent(s, sc, exe_ctx, pc_addr, false))
             return true;
         }
       }
@@ -1487,6 +1478,13 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
     }
     return false;
 
+  case Entry::Type::FrameIsArtificial: {
+    if (exe_ctx)
+      if (StackFrame *frame = exe_ctx->GetFramePtr())
+        return frame->IsArtificial();
+    return false;
+  }
+
   case Entry::Type::ScriptFrame:
     if (exe_ctx) {
       StackFrame *frame = exe_ctx->GetFramePtr();
@@ -1515,17 +1513,22 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
     return initial_function;
 
   case Entry::Type::FunctionName: {
+    if (!sc)
+      return false;
+
     Language *language_plugin = nullptr;
     bool language_plugin_handled = false;
     StreamString ss;
+
     if (sc->function)
       language_plugin = Language::FindPlugin(sc->function->GetLanguage());
     else if (sc->symbol)
       language_plugin = Language::FindPlugin(sc->symbol->GetLanguage());
-    if (language_plugin) {
+
+    if (language_plugin)
       language_plugin_handled = language_plugin->GetFunctionDisplayName(
           sc, exe_ctx, Language::FunctionNameRepresentation::eName, ss);
-    }
+
     if (language_plugin_handled) {
       s << ss.GetString();
       return true;
@@ -1535,6 +1538,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
         name = sc->function->GetName().AsCString(nullptr);
       else if (sc->symbol)
         name = sc->symbol->GetName().AsCString(nullptr);
+
       if (name) {
         s.PutCString(name);
 
@@ -1545,7 +1549,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
                 sc->block->GetInlinedFunctionInfo();
             if (inline_info) {
               s.PutCString(" [inlined] ");
-              inline_info->GetName(sc->function->GetLanguage()).Dump(&s);
+              inline_info->GetName().Dump(&s);
             }
           }
         }
@@ -1556,6 +1560,9 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
     return false;
 
   case Entry::Type::FunctionNameNoArgs: {
+    if (!sc)
+      return false;
+
     Language *language_plugin = nullptr;
     bool language_plugin_handled = false;
     StreamString ss;
@@ -1563,11 +1570,12 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
       language_plugin = Language::FindPlugin(sc->function->GetLanguage());
     else if (sc->symbol)
       language_plugin = Language::FindPlugin(sc->symbol->GetLanguage());
-    if (language_plugin) {
+
+    if (language_plugin)
       language_plugin_handled = language_plugin->GetFunctionDisplayName(
           sc, exe_ctx, Language::FunctionNameRepresentation::eNameWithNoArgs,
           ss);
-    }
+
     if (language_plugin_handled) {
       s << ss.GetString();
       return true;
@@ -1586,6 +1594,9 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
     return false;
 
   case Entry::Type::FunctionNameWithArgs: {
+    if (!sc)
+      return false;
+
     Language *language_plugin = nullptr;
     bool language_plugin_handled = false;
     StreamString ss;
@@ -1593,10 +1604,11 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
       language_plugin = Language::FindPlugin(sc->function->GetLanguage());
     else if (sc->symbol)
       language_plugin = Language::FindPlugin(sc->symbol->GetLanguage());
-    if (language_plugin) {
+
+    if (language_plugin)
       language_plugin_handled = language_plugin->GetFunctionDisplayName(
           sc, exe_ctx, Language::FunctionNameRepresentation::eNameWithArgs, ss);
-    }
+
     if (language_plugin_handled) {
       s << ss.GetString();
       return true;
@@ -1629,8 +1641,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
           if (inline_info) {
             s.PutCString(cstr);
             s.PutCString(" [inlined] ");
-            cstr =
-                inline_info->GetName(sc->function->GetLanguage()).GetCString();
+            cstr = inline_info->GetName().GetCString();
           }
 
           VariableList args;
@@ -1704,8 +1715,9 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
                   var_representation = buffer;
                 } else
                   var_value_sp->DumpPrintableRepresentation(
-                      ss, ValueObject::ValueObjectRepresentationStyle::
-                              eValueObjectRepresentationStyleSummary,
+                      ss,
+                      ValueObject::ValueObjectRepresentationStyle::
+                          eValueObjectRepresentationStyleSummary,
                       eFormatDefault,
                       ValueObject::PrintableRepresentationSpecialCases::eAllow,
                       false);
@@ -1747,6 +1759,32 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
   }
     return false;
 
+  case Entry::Type::FunctionMangledName: {
+    if (!sc)
+      return false;
+
+    const char *name = nullptr;
+    if (sc->symbol)
+      name =
+          sc->symbol->GetMangled().GetName(Mangled::ePreferMangled).AsCString();
+    else if (sc->function)
+      name = sc->function->GetMangled()
+                 .GetName(Mangled::ePreferMangled)
+                 .AsCString();
+
+    if (!name)
+      return false;
+    s.PutCString(name);
+
+    if (sc->block && sc->block->GetContainingInlinedBlock()) {
+      if (const InlineFunctionInfo *inline_info =
+              sc->block->GetInlinedFunctionInfo()) {
+        s.PutCString(" [inlined] ");
+        inline_info->GetName().Dump(&s);
+      }
+    }
+    return true;
+  }
   case Entry::Type::FunctionAddrOffset:
     if (addr) {
       if (DumpAddressOffsetFromFunction(s, sc, exe_ctx, *addr, false, false,
@@ -1764,9 +1802,11 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
     return false;
 
   case Entry::Type::FunctionLineOffset:
-    return (DumpAddressOffsetFromFunction(s, sc, exe_ctx,
-                                          sc->line_entry.range.GetBaseAddress(),
-                                          false, false, false));
+    if (sc)
+      return (DumpAddressOffsetFromFunction(
+          s, sc, exe_ctx, sc->line_entry.range.GetBaseAddress(), false, false,
+          false));
+    return false;
 
   case Entry::Type::FunctionPCOffset:
     if (exe_ctx) {
@@ -1785,7 +1825,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
 
   case Entry::Type::FunctionIsOptimized: {
     bool is_optimized = false;
-    if (sc->function && sc->function->GetIsOptimized()) {
+    if (sc && sc->function && sc->function->GetIsOptimized()) {
       is_optimized = true;
     }
     return is_optimized;
@@ -1814,6 +1854,16 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
     }
     return false;
 
+  case Entry::Type::LineEntryColumn:
+    if (sc && sc->line_entry.IsValid() && sc->line_entry.column) {
+      const char *format = "%" PRIu32;
+      if (!entry.printf_format.empty())
+        format = entry.printf_format.c_str();
+      s.Printf(format, sc->line_entry.column);
+      return true;
+    }
+    return false;
+
   case Entry::Type::LineEntryStartAddress:
   case Entry::Type::LineEntryEndAddress:
     if (sc && sc->line_entry.range.GetBaseAddress().IsValid()) {
@@ -1821,7 +1871,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
 
       if (entry.type == Entry::Type::LineEntryEndAddress)
         addr.Slide(sc->line_entry.range.GetByteSize());
-      if (DumpAddress(s, sc, exe_ctx, addr, false))
+      if (DumpAddressAndContent(s, sc, exe_ctx, addr, false))
         return true;
     }
     return false;
@@ -1849,8 +1899,8 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
   return false;
 }
 
-static bool DumpCommaSeparatedChildEntryNames(
-    Stream &s, const FormatEntity::Entry::Definition *parent) {
+static bool DumpCommaSeparatedChildEntryNames(Stream &s,
+                                              const Definition *parent) {
   if (parent->children) {
     const size_t n = parent->num_children;
     for (size_t i = 0; i < n; ++i) {
@@ -1864,8 +1914,7 @@ static bool DumpCommaSeparatedChildEntryNames(
 }
 
 static Status ParseEntry(const llvm::StringRef &format_str,
-                         const FormatEntity::Entry::Definition *parent,
-                         FormatEntity::Entry &entry) {
+                         const Definition *parent, FormatEntity::Entry &entry) {
   Status error;
 
   const size_t sep_pos = format_str.find_first_of(".[:");
@@ -1875,7 +1924,7 @@ static Status ParseEntry(const llvm::StringRef &format_str,
 
   const size_t n = parent->num_children;
   for (size_t i = 0; i < n; ++i) {
-    const FormatEntity::Entry::Definition *entry_def = parent->children + i;
+    const Definition *entry_def = parent->children + i;
     if (key.equals(entry_def->name) || entry_def->name[0] == '*') {
       llvm::StringRef value;
       if (sep_char)
@@ -1890,7 +1939,7 @@ static Status ParseEntry(const llvm::StringRef &format_str,
         entry.number = entry_def->data;
         return error; // Success
 
-      case FormatEntity::Entry::Type::InsertString:
+      case FormatEntity::Entry::Type::EscapeCode:
         entry.type = entry_def->type;
         entry.string = entry_def->string;
         return error; // Success
@@ -1948,16 +1997,15 @@ static Status ParseEntry(const llvm::StringRef &format_str,
   return error;
 }
 
-static const FormatEntity::Entry::Definition *
-FindEntry(const llvm::StringRef &format_str,
-          const FormatEntity::Entry::Definition *parent,
-          llvm::StringRef &remainder) {
+static const Definition *FindEntry(const llvm::StringRef &format_str,
+                                   const Definition *parent,
+                                   llvm::StringRef &remainder) {
   Status error;
 
   std::pair<llvm::StringRef, llvm::StringRef> p = format_str.split('.');
   const size_t n = parent->num_children;
   for (size_t i = 0; i < n; ++i) {
-    const FormatEntity::Entry::Definition *entry_def = parent->children + i;
+    const Definition *entry_def = parent->children + i;
     if (p.first.equals(entry_def->name) || entry_def->name[0] == '*') {
       if (p.second.empty()) {
         if (format_str.back() == '.')
@@ -2259,13 +2307,7 @@ Status FormatEntity::ParseInternal(llvm::StringRef &format, Entry &parent_entry,
               return error;
             }
           }
-          // Check if this entry just wants to insert a constant string value
-          // into the parent_entry, if so, insert the string with AppendText,
-          // else append the entry to the parent_entry.
-          if (entry.type == Entry::Type::InsertString)
-            parent_entry.AppendText(entry.string.c_str());
-          else
-            parent_entry.AppendEntry(std::move(entry));
+          parent_entry.AppendEntry(std::move(entry));
         }
       }
       break;
@@ -2308,13 +2350,13 @@ bool FormatEntity::FormatFileSpec(const FileSpec &file_spec, Stream &s,
                                   llvm::StringRef variable_name,
                                   llvm::StringRef variable_format) {
   if (variable_name.empty() || variable_name.equals(".fullpath")) {
-    file_spec.Dump(&s);
+    file_spec.Dump(s.AsRawOstream());
     return true;
   } else if (variable_name.equals(".basename")) {
-    s.PutCString(file_spec.GetFilename().AsCString(""));
+    s.PutCString(file_spec.GetFilename().GetStringRef());
     return true;
   } else if (variable_name.equals(".dirname")) {
-    s.PutCString(file_spec.GetFilename().AsCString(""));
+    s.PutCString(file_spec.GetFilename().GetStringRef());
     return true;
   }
   return false;
@@ -2327,8 +2369,7 @@ static std::string MakeMatch(const llvm::StringRef &prefix,
   return match;
 }
 
-static void AddMatches(const FormatEntity::Entry::Definition *def,
-                       const llvm::StringRef &prefix,
+static void AddMatches(const Definition *def, const llvm::StringRef &prefix,
                        const llvm::StringRef &match_prefix,
                        StringList &matches) {
   const size_t n = def->num_children;
@@ -2345,50 +2386,46 @@ static void AddMatches(const FormatEntity::Entry::Definition *def,
   }
 }
 
-size_t FormatEntity::AutoComplete(CompletionRequest &request) {
-  llvm::StringRef str = request.GetCursorArgumentPrefix().str();
-
-  request.SetWordComplete(false);
-  str = str.drop_front(request.GetMatchStartPoint());
+void FormatEntity::AutoComplete(CompletionRequest &request) {
+  llvm::StringRef str = request.GetCursorArgumentPrefix();
 
   const size_t dollar_pos = str.rfind('$');
   if (dollar_pos == llvm::StringRef::npos)
-    return 0;
+    return;
 
   // Hitting TAB after $ at the end of the string add a "{"
   if (dollar_pos == str.size() - 1) {
     std::string match = str.str();
     match.append("{");
     request.AddCompletion(match);
-    return 1;
+    return;
   }
 
   if (str[dollar_pos + 1] != '{')
-    return 0;
+    return;
 
   const size_t close_pos = str.find('}', dollar_pos + 2);
   if (close_pos != llvm::StringRef::npos)
-    return 0;
+    return;
 
   const size_t format_pos = str.find('%', dollar_pos + 2);
   if (format_pos != llvm::StringRef::npos)
-    return 0;
+    return;
 
   llvm::StringRef partial_variable(str.substr(dollar_pos + 2));
   if (partial_variable.empty()) {
-    // Suggest all top level entites as we are just past "${"
+    // Suggest all top level entities as we are just past "${"
     StringList new_matches;
     AddMatches(&g_root, str, llvm::StringRef(), new_matches);
     request.AddCompletions(new_matches);
-    return request.GetNumberOfMatches();
+    return;
   }
 
   // We have a partially specified variable, find it
   llvm::StringRef remainder;
-  const FormatEntity::Entry::Definition *entry_def =
-      FindEntry(partial_variable, &g_root, remainder);
+  const Definition *entry_def = FindEntry(partial_variable, &g_root, remainder);
   if (!entry_def)
-    return 0;
+    return;
 
   const size_t n = entry_def->num_children;
 
@@ -2400,7 +2437,6 @@ size_t FormatEntity::AutoComplete(CompletionRequest &request) {
     } else {
       // "${thread.id" <TAB>
       request.AddCompletion(MakeMatch(str, "}"));
-      request.SetWordComplete(true);
     }
   } else if (remainder.equals(".")) {
     // "${thread." <TAB>
@@ -2414,5 +2450,4 @@ size_t FormatEntity::AutoComplete(CompletionRequest &request) {
     AddMatches(entry_def, str, remainder, new_matches);
     request.AddCompletions(new_matches);
   }
-  return request.GetNumberOfMatches();
 }

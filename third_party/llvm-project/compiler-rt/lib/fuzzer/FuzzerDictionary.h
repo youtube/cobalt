@@ -1,9 +1,8 @@
 //===- FuzzerDictionary.h - Internal header for the Fuzzer ------*- C++ -* ===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // fuzzer::Dictionary
@@ -24,12 +23,14 @@ template <size_t kMaxSizeT> class FixedWord {
 public:
   static const size_t kMaxSize = kMaxSizeT;
   FixedWord() {}
-  FixedWord(const uint8_t *B, uint8_t S) { Set(B, S); }
+  FixedWord(const uint8_t *B, size_t S) { Set(B, S); }
 
-  void Set(const uint8_t *B, uint8_t S) {
+  void Set(const uint8_t *B, size_t S) {
+    static_assert(kMaxSizeT <= std::numeric_limits<uint8_t>::max(),
+                  "FixedWord::kMaxSizeT cannot fit in a uint8_t.");
     assert(S <= kMaxSize);
     memcpy(Data, B, S);
-    Size = S;
+    Size = static_cast<uint8_t>(S);
   }
 
   bool operator==(const FixedWord<kMaxSize> &w) const {
@@ -51,10 +52,13 @@ class DictionaryEntry {
  public:
   DictionaryEntry() {}
   DictionaryEntry(Word W) : W(W) {}
-  DictionaryEntry(Word W, size_t PositionHint) : W(W), PositionHint(PositionHint) {}
+  DictionaryEntry(Word W, size_t PositionHint)
+      : W(W), PositionHint(PositionHint) {}
   const Word &GetW() const { return W; }
 
-  bool HasPositionHint() const { return PositionHint != std::numeric_limits<size_t>::max(); }
+  bool HasPositionHint() const {
+    return PositionHint != std::numeric_limits<size_t>::max();
+  }
   size_t GetPositionHint() const {
     assert(HasPositionHint());
     return PositionHint;
@@ -107,12 +111,12 @@ private:
 };
 
 // Parses one dictionary entry.
-// If successful, write the enty to Unit and returns true,
+// If successful, writes the entry to Unit and returns true,
 // otherwise returns false.
 bool ParseOneDictionaryEntry(const std::string &Str, Unit *U);
 // Parses the dictionary file, fills Units, returns true iff all lines
 // were parsed successfully.
-bool ParseDictionaryFile(const std::string &Text, Vector<Unit> *Units);
+bool ParseDictionaryFile(const std::string &Text, std::vector<Unit> *Units);
 
 }  // namespace fuzzer
 

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,6 +26,8 @@
 #include <limits>
 #include <complex>
 
+#include "test_macros.h"
+
 template <class T>
 void test()
 {
@@ -40,15 +41,18 @@ void test()
                  "std::numeric_limits<const volatile T>::is_specialized");
 }
 
-int main()
+int main(int, char**)
 {
     test<bool>();
     test<char>();
     test<wchar_t>();
+#if TEST_STD_VER > 17 && defined(__cpp_char8_t)
+    test<char8_t>();
+#endif
 #ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
     test<char16_t>();
     test<char32_t>();
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
+#endif
     test<signed char>();
     test<unsigned char>();
     test<signed short>();
@@ -59,7 +63,7 @@ int main()
     test<unsigned long>();
     test<signed long long>();
     test<unsigned long long>();
-#ifndef _LIBCPP_HAS_NO_INT128
+#ifndef TEST_HAS_NO_INT128
     test<__int128_t>();
     test<__uint128_t>();
 #endif
@@ -68,4 +72,6 @@ int main()
     test<long double>();
     static_assert(!std::numeric_limits<std::complex<double> >::is_specialized,
                  "!std::numeric_limits<std::complex<double> >::is_specialized");
+
+  return 0;
 }

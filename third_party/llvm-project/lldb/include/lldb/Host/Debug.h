@@ -1,28 +1,21 @@
 //===-- Debug.h -------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Debug_h_
-#define liblldb_Debug_h_
+#ifndef LLDB_HOST_DEBUG_H
+#define LLDB_HOST_DEBUG_H
 
-// C Includes
-// C++ Includes
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/lldb-private.h"
 
 namespace lldb_private {
 
-//------------------------------------------------------------------
 // Tells a thread what it needs to do when the process is resumed.
-//------------------------------------------------------------------
 struct ResumeAction {
   lldb::tid_t tid;       // The thread ID that this action applies to,
                          // LLDB_INVALID_THREAD_ID for the default thread
@@ -33,23 +26,19 @@ struct ResumeAction {
               // value is > 0
 };
 
-//------------------------------------------------------------------
 // A class that contains instructions for all threads for
 // NativeProcessProtocol::Resume(). Each thread can either run, stay suspended,
 // or step when the process is resumed. We optionally have the ability to also
 // send a signal to the thread when the action is run or step.
-//------------------------------------------------------------------
 class ResumeActionList {
 public:
-  ResumeActionList() : m_actions(), m_signal_handled() {}
+  ResumeActionList() {}
 
-  ResumeActionList(lldb::StateType default_action, int signal)
-      : m_actions(), m_signal_handled() {
+  ResumeActionList(lldb::StateType default_action, int signal) {
     SetDefaultThreadActionIfNeeded(default_action, signal);
   }
 
-  ResumeActionList(const ResumeAction *actions, size_t num_actions)
-      : m_actions(), m_signal_handled() {
+  ResumeActionList(const ResumeAction *actions, size_t num_actions) {
     if (actions && num_actions) {
       m_actions.assign(actions, actions + num_actions);
       m_signal_handled.assign(num_actions, false);
@@ -153,8 +142,14 @@ struct ThreadStopInfo {
       uint32_t data_count;
       lldb::addr_t data[8];
     } exception;
+
+    // eStopReasonFork / eStopReasonVFork
+    struct {
+      lldb::pid_t child_pid;
+      lldb::tid_t child_tid;
+    } fork;
   } details;
 };
 }
 
-#endif // liblldb_Debug_h_
+#endif // LLDB_HOST_DEBUG_H

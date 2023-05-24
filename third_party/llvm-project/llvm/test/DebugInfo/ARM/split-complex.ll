@@ -1,6 +1,5 @@
 ; RUN: %llc_dwarf -O0 -filetype=obj -o %t.o %s
 ; RUN: llvm-dwarfdump -v -debug-info %t.o | FileCheck %s
-; REQUIRES: object-emission
 target datalayout = "e-m:o-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
 target triple = "thumbv7-apple-unknown-macho"
 
@@ -14,7 +13,7 @@ entry:
   ; The target has no native double type.
   ; SROA split the complex value into two i64 values.
   ; CHECK: DW_TAG_formal_parameter
-  ; CHECK-NEXT:  DW_AT_location [DW_FORM_block1]	(DW_OP_constu 0x0, DW_OP_piece 0x8)
+  ; CHECK-NEXT:  DW_AT_location [DW_FORM_block1]	(DW_OP_lit0, DW_OP_piece 0x8)
   ; CHECK-NEXT:  DW_AT_name {{.*}} "c"
   tail call void @llvm.dbg.value(metadata i64 0, metadata !14, metadata !17), !dbg !16
   ; Manually removed to disable location list emission:

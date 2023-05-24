@@ -1,5 +1,5 @@
-; RUN: llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -verify-machineinstrs < %s | FileCheck -enable-var-scope -strict-whitespace -check-prefixes=GCN,SI %s
-; XUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -enable-var-scope -strict-whitespace -check-prefixes=GCN,VI %s
+; RUN: llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,SI %s
+; XUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,VI %s
 
 ; FIXME: Enable for VI.
 
@@ -16,8 +16,7 @@ declare double @llvm.amdgcn.div.fmas.f64(double, double, double, i1) nounwind re
 ; VI-DAG: s_load_dword [[SB:s[0-9]+]], s{{\[[0-9]+:[0-9]+\]}}, 0x70
 ; VI-DAG: s_load_dword [[SC:s[0-9]+]], s{{\[[0-9]+:[0-9]+\]}}, 0x94
 
-; GCN-DAG: s_and_b32 [[AND_I1:s[0-9]+]], 1, s{{[0-9]+}}
-; GCN: v_cmp_eq_u32_e64 vcc, [[AND_I1]], 1
+; GCN-DAG: s_bitcmp1_b32 s{{[0-9]+}}, 0
 
 ; GCN-DAG: v_mov_b32_e32 [[VC:v[0-9]+]], [[SC]]
 ; GCN-DAG: v_mov_b32_e32 [[VB:v[0-9]+]], [[SB]]
@@ -86,7 +85,7 @@ define amdgpu_kernel void @test_div_fmas_f64(double addrspace(1)* %out, double %
 }
 
 ; GCN-LABEL: {{^}}test_div_fmas_f32_cond_to_vcc:
-; GCN: v_cmp_eq_u32_e64 vcc, s{{[0-9]+}}, 0{{$}}
+; GCN: s_cmp_eq_u32 s{{[0-9]+}}, 0{{$}}
 ; GCN: v_div_fmas_f32 {{v[0-9]+}}, {{v[0-9]+}}, {{v[0-9]+}}, {{v[0-9]+}}
 define amdgpu_kernel void @test_div_fmas_f32_cond_to_vcc(float addrspace(1)* %out, float %a, float %b, float %c, i32 %i) nounwind {
   %cmp = icmp eq i32 %i, 0
@@ -114,12 +113,13 @@ define amdgpu_kernel void @test_div_fmas_f32_imm_true_cond_to_vcc(float addrspac
 }
 
 ; GCN-LABEL: {{^}}test_div_fmas_f32_logical_cond_to_vcc:
-; SI-DAG: buffer_load_dword [[A:v[0-9]+]], {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, 0 addr64{{$}}
-; SI-DAG: buffer_load_dword [[B:v[0-9]+]], {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, 0 addr64 offset:4{{$}}
-; SI-DAG: buffer_load_dword [[C:v[0-9]+]], {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, 0 addr64 offset:8{{$}}
+; SI-DAG: buffer_load_dword [[A:v[0-9]+]], {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, 0 addr64 glc{{$}}
+; SI-DAG: buffer_load_dword [[B:v[0-9]+]], {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, 0 addr64 offset:4 glc{{$}}
+; SI-DAG: buffer_load_dword [[C:v[0-9]+]], {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, 0 addr64 offset:8 glc{{$}}
 
 ; SI-DAG: v_cmp_eq_u32_e32 [[CMP0:vcc]], 0, v{{[0-9]+}}
-; SI-DAG: v_cmp_ne_u32_e64 [[CMP1:s\[[0-9]+:[0-9]+\]]], s{{[0-9]+}}, 0{{$}}
+; SI-DAG: s_cmp_lg_u32 s{{[0-9]+}}, 0{{$}}
+; SI-DAG: s_cselect_b64 [[CMP1:s\[[0-9]+:[0-9]+\]]], -1, 0
 ; SI: s_and_b64 vcc, [[CMP0]], [[CMP1]]
 ; SI: v_div_fmas_f32 {{v[0-9]+}}, [[A]], [[B]], [[C]]
 ; SI: s_endpgm
@@ -144,20 +144,24 @@ define amdgpu_kernel void @test_div_fmas_f32_logical_cond_to_vcc(float addrspace
 }
 
 ; GCN-LABEL: {{^}}test_div_fmas_f32_i1_phi_vcc:
-; SI: v_cmp_eq_u32_e32 vcc, 0, v{{[0-9]+}}
-; SI: s_and_saveexec_b64 [[SAVE:s\[[0-9]+:[0-9]+\]]], vcc
 
-; SI: buffer_load_dword [[LOAD:v[0-9]+]]
-; SI: v_cmp_ne_u32_e32 vcc, 0, [[LOAD]]
-; SI: v_cndmask_b32_e64 {{v[0-9]+}}, 0, -1, vcc
+; SI: ; %entry
+; SI:     v_cmp_eq_u32_e64   [[CMP:s\[[0-9]+:[0-9]+\]]], 0, {{v[0-9]+}}
+; SI:     s_mov_b64          vcc, 0
+; SI:     s_and_saveexec_b64 [[SAVE:s\[[0-9]+:[0-9]+\]]], [[CMP]]
 
+; SI: ; %bb
+; SI:     buffer_load_dword  [[LOAD:v[0-9]+]],
+; SI:     v_cmp_ne_u32_e32   vcc, 0, [[LOAD]]
+; SI:     s_and_b64          vcc, vcc, exec
 
-; SI: BB9_2:
-; SI: s_or_b64 exec, exec, [[SAVE]]
-; SI: v_cmp_ne_u32_e32 vcc, 0, v{{[0-9]+}}
-; SI: v_div_fmas_f32 {{v[0-9]+}}, {{v[0-9]+}}, {{v[0-9]+}}, {{v[0-9]+}}
-; SI: buffer_store_dword
-; SI: s_endpgm
+; SI: ; %exit
+; SI:     s_or_b64           exec, exec, [[SAVE]]
+; SI-NOT: vcc
+; SI:     v_div_fmas_f32 {{v[0-9]+}}, {{v[0-9]+}}, {{v[0-9]+}}, {{v[0-9]+}}
+; SI:     buffer_store_dword
+; SI:     s_endpgm
+
 define amdgpu_kernel void @test_div_fmas_f32_i1_phi_vcc(float addrspace(1)* %out, float addrspace(1)* %in, i32 addrspace(1)* %dummy) nounwind {
 entry:
   %tid = call i32 @llvm.amdgcn.workitem.id.x() nounwind readnone

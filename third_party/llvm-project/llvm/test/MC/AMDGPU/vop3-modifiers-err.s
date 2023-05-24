@@ -1,4 +1,4 @@
-// RUN: not llvm-mc -arch=amdgcn -mcpu=tonga -show-encoding %s 2>&1 | FileCheck %s
+// RUN: not llvm-mc -arch=amdgcn -mcpu=tonga %s 2>&1 | FileCheck --implicit-check-not=error: %s
 
 //---------------------------------------------------------------------------//
 // VOP3 Modifiers
@@ -12,4 +12,7 @@ v_ceil_f32 v0, --1
 // CHECK: error: invalid syntax, expected 'neg' modifier
 
 v_ceil_f16 v0, abs(neg(1))
-// CHECK: error: not a valid operand
+// CHECK: error: failed parsing operand
+
+v_cvt_f16_u16_e64 v5, s1 noXXXclamp
+// CHECK: error: invalid operand for instruction

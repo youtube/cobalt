@@ -1,9 +1,8 @@
 //===-- Mips16ISelDAGToDAG.cpp - A Dag to Dag Inst Selector for Mips16 ----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -73,7 +72,7 @@ void Mips16DAGToDAGISel::initGlobalBaseReg(MachineFunction &MF) {
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   const TargetInstrInfo &TII = *Subtarget->getInstrInfo();
   DebugLoc DL;
-  unsigned V0, V1, V2, GlobalBaseReg = MipsFI->getGlobalBaseReg();
+  Register V0, V1, V2, GlobalBaseReg = MipsFI->getGlobalBaseReg(MF);
   const TargetRegisterClass *RC = &Mips::CPU16RegsRegClass;
 
   V0 = RegInfo.createVirtualRegister(RC);
@@ -122,7 +121,7 @@ bool Mips16DAGToDAGISel::selectAddr(bool SPAllowed, SDValue Addr, SDValue &Base,
   }
   // Addresses of the form FI+const or FI|const
   if (CurDAG->isBaseWithConstantOffset(Addr)) {
-    ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1));
+    auto *CN = cast<ConstantSDNode>(Addr.getOperand(1));
     if (isInt<16>(CN->getSExtValue())) {
       // If the first operand is a FI, get the TargetFI Node
       if (SPAllowed) {

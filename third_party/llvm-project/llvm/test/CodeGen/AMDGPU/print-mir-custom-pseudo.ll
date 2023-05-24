@@ -1,9 +1,9 @@
-; RUN: llc -mtriple=amdgcn--amdpal -mcpu=fiji -print-after=isel -verify-machineinstrs < %s 2>&1 | FileCheck -check-prefix=SI %s
+; RUN: llc -mtriple=amdgcn--amdpal -mcpu=fiji -print-after=amdgpu-isel -verify-machineinstrs < %s 2>&1 | FileCheck -check-prefix=SI %s
 
 ; This checks that the -print-after of MIR containing a target custom pseudo
 ; value works correctly.
 
-; SI: TargetCustom
+; SI: ImageResource
 
 target datalayout = "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-A5"
 target triple = "amdgcn--amdpal"

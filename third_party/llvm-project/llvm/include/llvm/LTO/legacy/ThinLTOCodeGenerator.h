@@ -1,9 +1,8 @@
 //===-ThinLTOCodeGenerator.h - LLVM Link Time Optimizer -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,13 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LTO_THINLTOCODEGENERATOR_H
-#define LLVM_LTO_THINLTOCODEGENERATOR_H
+#ifndef LLVM_LTO_LEGACY_THINLTOCODEGENERATOR_H
+#define LLVM_LTO_LEGACY_THINLTOCODEGENERATOR_H
 
 #include "llvm-c/lto.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
+#include "llvm/LTO/LTO.h"
 #include "llvm/Support/CachePruning.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -29,25 +29,7 @@
 
 namespace llvm {
 class StringRef;
-class LLVMContext;
 class TargetMachine;
-
-/// Wrapper around MemoryBufferRef, owning the identifier
-class ThinLTOBuffer {
-  std::string OwnedIdentifier;
-  StringRef Buffer;
-
-public:
-  ThinLTOBuffer(StringRef Buffer, StringRef Identifier)
-      : OwnedIdentifier(Identifier), Buffer(Buffer) {}
-
-  MemoryBufferRef getMemBuffer() const {
-    return MemoryBufferRef(Buffer,
-                           {OwnedIdentifier.c_str(), OwnedIdentifier.size()});
-  }
-  StringRef getBuffer() const { return Buffer; }
-  StringRef getBufferIdentifier() const { return OwnedIdentifier; }
-};
 
 /// Helper to gather options relevant to the target machine creation
 struct TargetMachineBuilder {
@@ -187,7 +169,7 @@ public:
   /// Cache policy: the maximum size for the cache directory in bytes. A value
   /// over the amount of available space on the disk will be reduced to the
   /// amount of available space. A value of 0 will be ignored.
-  void setCacheMaxSizeBytes(unsigned MaxSizeBytes) {
+  void setCacheMaxSizeBytes(uint64_t MaxSizeBytes) {
     if (MaxSizeBytes)
       CacheOptions.Policy.MaxSizeBytes = MaxSizeBytes;
   }
@@ -243,6 +225,12 @@ public:
     OptLevel = (NewOptLevel > 3) ? 3 : NewOptLevel;
   }
 
+  /// Enable or disable the new pass manager.
+  void setUseNewPM(unsigned Enabled) { UseNewPM = Enabled; }
+
+  /// Enable or disable debug output for the new pass manager.
+  void setDebugPassManager(unsigned Enabled) { DebugPassManager = Enabled; }
+
   /// Disable CodeGen, only run the stages till codegen and stop. The output
   /// will be bitcode.
   void disableCodeGen(bool Disable) { DisableCodeGen = Disable; }
@@ -268,31 +256,36 @@ public:
    * and additionally resolve weak and linkonce symbols.
    * Index is updated to reflect linkage changes from weak resolution.
    */
-  void promote(Module &Module, ModuleSummaryIndex &Index);
+  void promote(Module &Module, ModuleSummaryIndex &Index,
+               const lto::InputFile &File);
 
   /**
    * Compute and emit the imported files for module at \p ModulePath.
    */
-  static void emitImports(StringRef ModulePath, StringRef OutputName,
-                          ModuleSummaryIndex &Index);
+  void emitImports(Module &Module, StringRef OutputName,
+                   ModuleSummaryIndex &Index,
+                   const lto::InputFile &File);
 
   /**
    * Perform cross-module importing for the module identified by
    * ModuleIdentifier.
    */
-  void crossModuleImport(Module &Module, ModuleSummaryIndex &Index);
+  void crossModuleImport(Module &Module, ModuleSummaryIndex &Index,
+                         const lto::InputFile &File);
 
   /**
    * Compute the list of summaries needed for importing into module.
    */
-  static void gatherImportedSummariesForModule(
-      StringRef ModulePath, ModuleSummaryIndex &Index,
-      std::map<std::string, GVSummaryMapTy> &ModuleToSummariesForIndex);
+  void gatherImportedSummariesForModule(
+      Module &Module, ModuleSummaryIndex &Index,
+      std::map<std::string, GVSummaryMapTy> &ModuleToSummariesForIndex,
+      const lto::InputFile &File);
 
   /**
    * Perform internalization. Index is updated to reflect linkage changes.
    */
-  void internalize(Module &Module, ModuleSummaryIndex &Index);
+  void internalize(Module &Module, ModuleSummaryIndex &Index,
+                   const lto::InputFile &File);
 
   /**
    * Perform post-importing ThinLTO optimizations.
@@ -300,10 +293,12 @@ public:
   void optimize(Module &Module);
 
   /**
-   * Perform ThinLTO CodeGen.
+   * Write temporary object file to SavedObjectDirectoryPath, write symlink
+   * to Cache directory if needed. Returns the path to the generated file in
+   * SavedObjectsDirectoryPath.
    */
-  std::unique_ptr<MemoryBuffer> codegen(Module &Module);
-
+  std::string writeGeneratedObject(int count, StringRef CacheEntryPath,
+                                   const MemoryBuffer &OutputBuffer);
   /**@}*/
 
 private:
@@ -319,7 +314,7 @@ private:
 
   /// Vector holding the input buffers containing the bitcode modules to
   /// process.
-  std::vector<ThinLTOBuffer> Modules;
+  std::vector<std::unique_ptr<lto::InputFile>> Modules;
 
   /// Set of symbols that need to be preserved outside of the set of bitcode
   /// files.
@@ -351,6 +346,14 @@ private:
 
   /// IR Optimization Level [0-3].
   unsigned OptLevel = 3;
+
+  /// Flag to indicate whether the new pass manager should be used for IR
+  /// optimizations.
+  bool UseNewPM = LLVM_ENABLE_NEW_PASS_MANAGER;
+
+  /// Flag to indicate whether debug output should be enabled for the new pass
+  /// manager.
+  bool DebugPassManager = false;
 };
 }
 #endif

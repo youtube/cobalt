@@ -1,9 +1,8 @@
 //===-- MSP430InstrInfo.cpp - MSP430 Instruction Information --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,8 +18,8 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/Function.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 
@@ -36,7 +35,7 @@ MSP430InstrInfo::MSP430InstrInfo(MSP430Subtarget &STI)
 
 void MSP430InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                           MachineBasicBlock::iterator MI,
-                                    unsigned SrcReg, bool isKill, int FrameIdx,
+                                    Register SrcReg, bool isKill, int FrameIdx,
                                           const TargetRegisterClass *RC,
                                           const TargetRegisterInfo *TRI) const {
   DebugLoc DL;
@@ -47,7 +46,7 @@ void MSP430InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   MachineMemOperand *MMO = MF.getMachineMemOperand(
       MachinePointerInfo::getFixedStack(MF, FrameIdx),
       MachineMemOperand::MOStore, MFI.getObjectSize(FrameIdx),
-      MFI.getObjectAlignment(FrameIdx));
+      MFI.getObjectAlign(FrameIdx));
 
   if (RC == &MSP430::GR16RegClass)
     BuildMI(MBB, MI, DL, get(MSP430::MOV16mr))
@@ -63,7 +62,7 @@ void MSP430InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 
 void MSP430InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                            MachineBasicBlock::iterator MI,
-                                           unsigned DestReg, int FrameIdx,
+                                           Register DestReg, int FrameIdx,
                                            const TargetRegisterClass *RC,
                                            const TargetRegisterInfo *TRI) const{
   DebugLoc DL;
@@ -74,7 +73,7 @@ void MSP430InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   MachineMemOperand *MMO = MF.getMachineMemOperand(
       MachinePointerInfo::getFixedStack(MF, FrameIdx),
       MachineMemOperand::MOLoad, MFI.getObjectSize(FrameIdx),
-      MFI.getObjectAlignment(FrameIdx));
+      MFI.getObjectAlign(FrameIdx));
 
   if (RC == &MSP430::GR16RegClass)
     BuildMI(MBB, MI, DL, get(MSP430::MOV16rm))
@@ -90,8 +89,8 @@ void MSP430InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
 void MSP430InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                   MachineBasicBlock::iterator I,
-                                  const DebugLoc &DL, unsigned DestReg,
-                                  unsigned SrcReg, bool KillSrc) const {
+                                  const DebugLoc &DL, MCRegister DestReg,
+                                  MCRegister SrcReg, bool KillSrc) const {
   unsigned Opc;
   if (MSP430::GR16RegClass.contains(DestReg, SrcReg))
     Opc = MSP430::MOV16rr;
@@ -117,6 +116,7 @@ unsigned MSP430InstrInfo::removeBranch(MachineBasicBlock &MBB,
       continue;
     if (I->getOpcode() != MSP430::JMP &&
         I->getOpcode() != MSP430::JCC &&
+        I->getOpcode() != MSP430::Bi &&
         I->getOpcode() != MSP430::Br &&
         I->getOpcode() != MSP430::Bm)
       break;
@@ -161,18 +161,6 @@ reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
   return false;
 }
 
-bool MSP430InstrInfo::isUnpredicatedTerminator(const MachineInstr &MI) const {
-  if (!MI.isTerminator())
-    return false;
-
-  // Conditional branch is a special case.
-  if (MI.isBranch() && !MI.isBarrier())
-    return true;
-  if (!MI.isPredicable())
-    return true;
-  return !isPredicated(MI);
-}
-
 bool MSP430InstrInfo::analyzeBranch(MachineBasicBlock &MBB,
                                     MachineBasicBlock *&TBB,
                                     MachineBasicBlock *&FBB,
@@ -202,7 +190,7 @@ bool MSP430InstrInfo::analyzeBranch(MachineBasicBlock &MBB,
       return true;
 
     // Handle unconditional branches.
-    if (I->getOpcode() == MSP430::JMP) {
+    if (I->getOpcode() == MSP430::JMP || I->getOpcode() == MSP430::Bi) {
       if (!AllowModify) {
         TBB = I->getOperand(0).getMBB();
         continue;
@@ -301,35 +289,21 @@ unsigned MSP430InstrInfo::insertBranch(MachineBasicBlock &MBB,
 unsigned MSP430InstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
   const MCInstrDesc &Desc = MI.getDesc();
 
-  switch (Desc.TSFlags & MSP430II::SizeMask) {
-  default:
-    switch (Desc.getOpcode()) {
-    default: llvm_unreachable("Unknown instruction size!");
-    case TargetOpcode::CFI_INSTRUCTION:
-    case TargetOpcode::EH_LABEL:
-    case TargetOpcode::IMPLICIT_DEF:
-    case TargetOpcode::KILL:
-    case TargetOpcode::DBG_VALUE:
-      return 0;
-    case TargetOpcode::INLINEASM: {
-      const MachineFunction *MF = MI.getParent()->getParent();
-      const TargetInstrInfo &TII = *MF->getSubtarget().getInstrInfo();
-      return TII.getInlineAsmLength(MI.getOperand(0).getSymbolName(),
-                                    *MF->getTarget().getMCAsmInfo());
-    }
-    }
-  case MSP430II::SizeSpecial:
-    switch (MI.getOpcode()) {
-    default: llvm_unreachable("Unknown instruction size!");
-    case MSP430::SAR8r1c:
-    case MSP430::SAR16r1c:
-      return 4;
-    }
-  case MSP430II::Size2Bytes:
-    return 2;
-  case MSP430II::Size4Bytes:
-    return 4;
-  case MSP430II::Size6Bytes:
-    return 6;
+  switch (Desc.getOpcode()) {
+  case TargetOpcode::CFI_INSTRUCTION:
+  case TargetOpcode::EH_LABEL:
+  case TargetOpcode::IMPLICIT_DEF:
+  case TargetOpcode::KILL:
+  case TargetOpcode::DBG_VALUE:
+    return 0;
+  case TargetOpcode::INLINEASM:
+  case TargetOpcode::INLINEASM_BR: {
+    const MachineFunction *MF = MI.getParent()->getParent();
+    const TargetInstrInfo &TII = *MF->getSubtarget().getInstrInfo();
+    return TII.getInlineAsmLength(MI.getOperand(0).getSymbolName(),
+                                  *MF->getTarget().getMCAsmInfo());
   }
+  }
+
+  return Desc.getSize();
 }

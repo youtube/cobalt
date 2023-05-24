@@ -12,7 +12,6 @@ define void @foo(){
 
 ;ALL: define void @tester()
 ;ALL: define void @foo()
-;ALL: ModuleID =
 
 ;FOO: IR Dump After
 ;FOO-NEXT: define void @foo()

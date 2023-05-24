@@ -1,9 +1,8 @@
 //===- InstrProfWriter.h - Instrumented profiling writer --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -34,18 +33,20 @@ class raw_fd_ostream;
 class InstrProfWriter {
 public:
   using ProfilingData = SmallDenseMap<uint64_t, InstrProfRecord>;
-  enum ProfKind { PF_Unknown = 0, PF_FE, PF_IRLevel };
 
 private:
   bool Sparse;
   StringMap<ProfilingData> FunctionData;
-  ProfKind ProfileKind = PF_Unknown;
+  // An enum describing the attributes of the profile.
+  InstrProfKind ProfileKind = InstrProfKind::Unknown;
   // Use raw pointer here for the incomplete type object.
   InstrProfRecordWriterTrait *InfoObj;
 
 public:
   InstrProfWriter(bool Sparse = false);
   ~InstrProfWriter();
+
+  StringMap<ProfilingData> &getProfileData() { return FunctionData; }
 
   /// Add function counts for the given function. If there are already counts
   /// for this function and the hash and number of counts match, each counter is
@@ -61,10 +62,12 @@ public:
                               function_ref<void(Error)> Warn);
 
   /// Write the profile to \c OS
-  void write(raw_fd_ostream &OS);
+  Error write(raw_fd_ostream &OS);
 
   /// Write the profile in text format to \c OS
   Error writeText(raw_fd_ostream &OS);
+
+  Error validateRecord(const InstrProfRecord &Func);
 
   /// Write \c Record in text format to \c OS
   static void writeRecordInText(StringRef Name, uint64_t Hash,
@@ -74,27 +77,56 @@ public:
   /// Write the profile, returning the raw data. For testing.
   std::unique_ptr<MemoryBuffer> writeBuffer();
 
-  /// Set the ProfileKind. Report error if mixing FE and IR level profiles.
-  Error setIsIRLevelProfile(bool IsIRLevel) {
-    if (ProfileKind == PF_Unknown) {
-      ProfileKind = IsIRLevel ? PF_IRLevel: PF_FE;
+  /// Update the attributes of the current profile from the attributes
+  /// specified. An error is returned if IR and FE profiles are mixed.
+  Error mergeProfileKind(const InstrProfKind Other) {
+    // If the kind is unset, this is the first profile we are merging so just
+    // set it to the given type.
+    if (ProfileKind == InstrProfKind::Unknown) {
+      ProfileKind = Other;
       return Error::success();
     }
-    return (IsIRLevel == (ProfileKind == PF_IRLevel))
-               ? Error::success()
-               : make_error<InstrProfError>(
-                     instrprof_error::unsupported_version);
+
+    // Returns true if merging is should fail assuming A and B are incompatible.
+    auto testIncompatible = [&](InstrProfKind A, InstrProfKind B) {
+      return (static_cast<bool>(ProfileKind & A) &&
+              static_cast<bool>(Other & B)) ||
+             (static_cast<bool>(ProfileKind & B) &&
+              static_cast<bool>(Other & A));
+    };
+
+    // Check if the profiles are in-compatible. Clang frontend profiles can't be
+    // merged with other profile types.
+    if (static_cast<bool>((ProfileKind & InstrProfKind::FE) ^
+                          (Other & InstrProfKind::FE))) {
+      return make_error<InstrProfError>(instrprof_error::unsupported_version);
+    }
+    if (testIncompatible(InstrProfKind::FunctionEntryOnly, InstrProfKind::BB)) {
+      return make_error<InstrProfError>(
+          instrprof_error::unsupported_version,
+          "cannot merge FunctionEntryOnly profiles and BB profiles together");
+    }
+
+    // Now we update the profile type with the bits that are set.
+    ProfileKind |= Other;
+    return Error::success();
   }
 
   // Internal interface for testing purpose only.
   void setValueProfDataEndianness(support::endianness Endianness);
   void setOutputSparse(bool Sparse);
+  // Compute the overlap b/w this object and Other. Program level result is
+  // stored in Overlap and function level result is stored in FuncLevelOverlap.
+  void overlapRecord(NamedInstrProfRecord &&Other, OverlapStats &Overlap,
+                     OverlapStats &FuncLevelOverlap,
+                     const OverlapFuncFilters &FuncFilter);
 
 private:
   void addRecord(StringRef Name, uint64_t Hash, InstrProfRecord &&I,
                  uint64_t Weight, function_ref<void(Error)> Warn);
   bool shouldEncodeData(const ProfilingData &PD);
-  void writeImpl(ProfOStream &OS);
+
+  Error writeImpl(ProfOStream &OS);
 };
 
 } // end namespace llvm

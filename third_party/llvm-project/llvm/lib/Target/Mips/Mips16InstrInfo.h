@@ -1,9 +1,8 @@
 //===- Mips16InstrInfo.h - Mips16 Instruction Information -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -50,22 +49,19 @@ public:
                               int &FrameIndex) const override;
 
   void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-                   const DebugLoc &DL, unsigned DestReg, unsigned SrcReg,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
                    bool KillSrc) const override;
-
-  bool isCopyInstr(const MachineInstr &MI, const MachineOperand *&Src,
-                   const MachineOperand *&Dest) const override;
 
   void storeRegToStack(MachineBasicBlock &MBB,
                        MachineBasicBlock::iterator MBBI,
-                       unsigned SrcReg, bool isKill, int FrameIndex,
+                       Register SrcReg, bool isKill, int FrameIndex,
                        const TargetRegisterClass *RC,
                        const TargetRegisterInfo *TRI,
                        int64_t Offset) const override;
 
   void loadRegFromStack(MachineBasicBlock &MBB,
                         MachineBasicBlock::iterator MBBI,
-                        unsigned DestReg, int FrameIndex,
+                        Register DestReg, int FrameIndex,
                         const TargetRegisterClass *RC,
                         const TargetRegisterInfo *TRI,
                         int64_t Offset) const override;
@@ -105,6 +101,13 @@ public:
 
   void BuildAddiuSpImm
     (MachineBasicBlock &MBB, MachineBasicBlock::iterator I, int64_t Imm) const;
+
+protected:
+  /// If the specific machine instruction is a instruction that moves/copies
+  /// value from one register to another register return destination and source
+  /// registers as machine operands.
+  Optional<DestSourcePair> isCopyInstrImpl(const MachineInstr &MI) const override;
+
 private:
   unsigned getAnalyzableBrOpc(unsigned Opc) const override;
 

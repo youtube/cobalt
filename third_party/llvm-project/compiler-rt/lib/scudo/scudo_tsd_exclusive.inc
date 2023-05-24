@@ -1,9 +1,8 @@
 //===-- scudo_tsd_exclusive.inc ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -12,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #ifndef SCUDO_TSD_H_
-# error "This file must be included inside scudo_tsd.h."
-#endif  // SCUDO_TSD_H_
+#error "This file must be included inside scudo_tsd.h."
+#endif // SCUDO_TSD_H_
 
 #if SCUDO_TSD_EXCLUSIVE
 
@@ -22,10 +21,9 @@ enum ThreadState : u8 {
   ThreadInitialized,
   ThreadTornDown,
 };
-__attribute__((tls_model("initial-exec")))
-extern THREADLOCAL ThreadState ScudoThreadState;
-__attribute__((tls_model("initial-exec")))
-extern THREADLOCAL ScudoTSD TSD;
+__attribute__((
+    tls_model("initial-exec"))) extern THREADLOCAL ThreadState ScudoThreadState;
+__attribute__((tls_model("initial-exec"))) extern THREADLOCAL ScudoTSD TSD;
 
 extern ScudoTSD FallbackTSD;
 
@@ -35,7 +33,8 @@ ALWAYS_INLINE void initThreadMaybe(bool MinimalInit = false) {
   initThread(MinimalInit);
 }
 
-ALWAYS_INLINE ScudoTSD *getTSDAndLock(bool *UnlockRequired) {
+ALWAYS_INLINE ScudoTSD *
+getTSDAndLock(bool *UnlockRequired) SANITIZER_NO_THREAD_SAFETY_ANALYSIS {
   if (UNLIKELY(ScudoThreadState != ThreadInitialized)) {
     FallbackTSD.lock();
     *UnlockRequired = true;
@@ -45,4 +44,4 @@ ALWAYS_INLINE ScudoTSD *getTSDAndLock(bool *UnlockRequired) {
   return &TSD;
 }
 
-#endif  // SCUDO_TSD_EXCLUSIVE
+#endif // SCUDO_TSD_EXCLUSIVE

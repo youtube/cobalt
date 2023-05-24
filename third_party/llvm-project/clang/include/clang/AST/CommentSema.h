@@ -1,9 +1,8 @@
 //===--- CommentSema.h - Doxygen comment semantic analysis ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -182,6 +181,7 @@ public:
 
   FullComment *actOnFullComment(ArrayRef<BlockContentComment *> Blocks);
 
+private:
   void checkBlockCommandEmptyParagraph(BlockCommandComment *Command);
 
   void checkReturnsCommand(const BlockCommandComment *Command);
@@ -202,22 +202,25 @@ public:
   /// Emit diagnostics about unknown parametrs.
   void resolveParamCommandIndexes(const FullComment *FC);
 
+  /// \returns \c true if the declaration that this comment is attached to
+  /// is a pointer to function/method/block type or has such a type.
+  bool involvesFunctionType();
+
   bool isFunctionDecl();
   bool isAnyFunctionDecl();
 
   /// \returns \c true if declaration that this comment is attached to declares
   /// a function pointer.
   bool isFunctionPointerVarDecl();
-  /// \returns \c true if the declaration that this comment is attached to
-  /// declares a variable or a field whose type is a function or a block
-  /// pointer.
-  bool isFunctionOrBlockPointerVarLikeDecl();
   bool isFunctionOrMethodVariadic();
   bool isObjCMethodDecl();
   bool isObjCPropertyDecl();
   bool isTemplateOrSpecialization();
   bool isRecordLikeDecl();
   bool isClassOrStructDecl();
+  /// \return \c true if the declaration that this comment is attached to
+  /// declares either struct, class or tag typedef.
+  bool isClassOrStructOrTagTypedefDecl();
   bool isUnionDecl();
   bool isObjCInterfaceDecl();
   bool isObjCProtocolDecl();

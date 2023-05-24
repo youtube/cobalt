@@ -1,9 +1,9 @@
 set(LLVM_LINK_COMPONENTS
+  FrontendOpenMP
   Support
   )
 
 add_clang_library(clangStaticAnalyzerCheckers
-  AllocationDiagnostics.cpp
   AnalysisOrderChecker.cpp
   AnalyzerStatsChecker.cpp
   ArrayBoundChecker.cpp
@@ -17,32 +17,42 @@ add_clang_library(clangStaticAnalyzerCheckers
   CallAndMessageChecker.cpp
   CastSizeChecker.cpp
   CastToStructChecker.cpp
+  CastValueChecker.cpp
   CheckObjCDealloc.cpp
   CheckObjCInstMethSignature.cpp
+  CheckPlacementNew.cpp
   CheckSecuritySyntaxOnly.cpp
   CheckSizeofPointer.cpp
   CheckerDocumentation.cpp
   ChrootChecker.cpp
-  ClangCheckers.cpp
   CloneChecker.cpp
+  ContainerModeling.cpp
   ConversionChecker.cpp
   CXXSelfAssignmentChecker.cpp
   DeadStoresChecker.cpp
   DebugCheckers.cpp
+  DebugContainerModeling.cpp
+  DebugIteratorModeling.cpp
   DeleteWithNonVirtualDtorChecker.cpp
   DereferenceChecker.cpp
   DirectIvarAssignment.cpp
   DivZeroChecker.cpp
   DynamicTypePropagation.cpp
   DynamicTypeChecker.cpp
+  EnumCastOutOfRangeChecker.cpp
   ExprInspectionChecker.cpp
   FixedAddressChecker.cpp
+  FuchsiaHandleChecker.cpp
   GCDAntipatternChecker.cpp
   GenericTaintChecker.cpp
   GTestChecker.cpp
   IdenticalExprChecker.cpp
   InnerPointerChecker.cpp
-  IteratorChecker.cpp
+  InvalidatedIteratorChecker.cpp
+  cert/InvalidPtrChecker.cpp
+  Iterator.cpp
+  IteratorModeling.cpp
+  IteratorRangeChecker.cpp
   IvarInvalidationChecker.cpp
   LLVMConventionsChecker.cpp
   LocalizationChecker.cpp
@@ -51,8 +61,10 @@ add_clang_library(clangStaticAnalyzerCheckers
   MallocChecker.cpp
   MallocOverflowSecurityChecker.cpp
   MallocSizeofChecker.cpp
+  MismatchedIteratorChecker.cpp
   MmapWriteExecChecker.cpp
-  MisusedMovedObjectChecker.cpp
+  MIGChecker.cpp
+  MoveChecker.cpp
   MPI-Checker/MPIBugReporter.cpp
   MPI-Checker/MPIChecker.cpp
   MPI-Checker/MPIFunctionClassifier.cpp
@@ -72,18 +84,29 @@ add_clang_library(clangStaticAnalyzerCheckers
   ObjCSelfInitChecker.cpp
   ObjCSuperDeallocChecker.cpp
   ObjCUnusedIVarsChecker.cpp
+  OSObjectCStyleCast.cpp
   PaddingChecker.cpp
   PointerArithChecker.cpp
+  PointerIterationChecker.cpp
+  PointerSortingChecker.cpp
   PointerSubChecker.cpp
   PthreadLockChecker.cpp
-  RetainCountChecker.cpp
+  cert/PutenvWithAutoChecker.cpp
+  RetainCountChecker/RetainCountChecker.cpp
+  RetainCountChecker/RetainCountDiagnostics.cpp
   ReturnPointerRangeChecker.cpp
   ReturnUndefChecker.cpp
+  ReturnValueChecker.cpp
   RunLoopAutoreleaseLeakChecker.cpp
   SimpleStreamChecker.cpp
+  SmartPtrChecker.cpp
+  SmartPtrModeling.cpp
   StackAddrEscapeChecker.cpp
   StdLibraryFunctionsChecker.cpp
+  STLAlgorithmModeling.cpp
   StreamChecker.cpp
+  StringChecker.cpp
+  Taint.cpp
   TaintTesterChecker.cpp
   TestAfterDivZeroChecker.cpp
   TraversalChecker.cpp
@@ -93,16 +116,21 @@ add_clang_library(clangStaticAnalyzerCheckers
   UndefResultChecker.cpp
   UndefinedArraySubscriptChecker.cpp
   UndefinedAssignmentChecker.cpp
-  UninitializedObjectChecker.cpp
+  UninitializedObject/UninitializedObjectChecker.cpp
+  UninitializedObject/UninitializedPointee.cpp
   UnixAPIChecker.cpp
   UnreachableCodeChecker.cpp
   VforkChecker.cpp
   VLASizeChecker.cpp
   ValistChecker.cpp
   VirtualCallChecker.cpp
-
-  DEPENDS
-  ClangSACheckers
+  WebKit/NoUncountedMembersChecker.cpp
+  WebKit/ASTUtils.cpp
+  WebKit/PtrTypesSemantics.cpp
+  WebKit/RefCntblBaseVirtualDtorChecker.cpp
+  WebKit/UncountedCallArgsChecker.cpp
+  WebKit/UncountedLambdaCapturesChecker.cpp
+  WebKit/UncountedLocalVarsChecker.cpp
 
   LINK_LIBS
   clangAST
@@ -111,4 +139,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   clangBasic
   clangLex
   clangStaticAnalyzerCore
+
+  DEPENDS
+  omp_gen
   )

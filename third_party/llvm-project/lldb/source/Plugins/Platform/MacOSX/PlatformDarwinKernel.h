@@ -1,35 +1,28 @@
 //===-- PlatformDarwinKernel.h ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformDarwinKernel_h_
-#define liblldb_PlatformDarwinKernel_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMDARWINKERNEL_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMDARWINKERNEL_H
 
 #include "lldb/Utility/ConstString.h"
 
 #if defined(__APPLE__) // This Plugin uses the Mac-specific
                        // source/Host/macosx/cfcpp utilities
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "lldb/Utility/FileSpec.h"
 
 #include "llvm/Support/FileSystem.h"
 
-// Project includes
 #include "PlatformDarwin.h"
 
 class PlatformDarwinKernel : public PlatformDarwin {
 public:
-  //------------------------------------------------------------
   // Class Functions
-  //------------------------------------------------------------
   static lldb::PlatformSP CreateInstance(bool force,
                                          const lldb_private::ArchSpec *arch);
 
@@ -39,30 +32,20 @@ public:
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "darwin-kernel"; }
 
-  static const char *GetDescriptionStatic();
+  static llvm::StringRef GetDescriptionStatic();
 
-  //------------------------------------------------------------
   // Class Methods
-  //------------------------------------------------------------
   PlatformDarwinKernel(lldb_private::LazyBool is_ios_debug_session);
 
   virtual ~PlatformDarwinKernel();
 
-  //------------------------------------------------------------
   // lldb_private::PluginInterface functions
-  //------------------------------------------------------------
-  lldb_private::ConstString GetPluginName() override {
-    return GetPluginNameStatic();
-  }
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
-  uint32_t GetPluginVersion() override { return 1; }
-
-  //------------------------------------------------------------
   // lldb_private::Platform functions
-  //------------------------------------------------------------
-  const char *GetDescription() override { return GetDescriptionStatic(); }
+  llvm::StringRef GetDescription() override { return GetDescriptionStatic(); }
 
   void GetStatus(lldb_private::Stream &strm) override;
 
@@ -70,11 +53,10 @@ public:
   GetSharedModule(const lldb_private::ModuleSpec &module_spec,
                   lldb_private::Process *process, lldb::ModuleSP &module_sp,
                   const lldb_private::FileSpecList *module_search_paths_ptr,
-                  lldb::ModuleSP *old_module_sp_ptr,
+                  llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules,
                   bool *did_create_ptr) override;
 
-  bool GetSupportedArchitectureAtIndex(uint32_t idx,
-                                       lldb_private::ArchSpec &arch) override;
+  std::vector<lldb_private::ArchSpec> GetSupportedArchitectures() override;
 
   bool SupportsModules() override { return false; }
 
@@ -106,26 +88,25 @@ protected:
 
   void AddSDKSubdirsToSearchPaths(const std::string &dir);
 
-  static lldb_private::FileSpec::EnumerateDirectoryResult
+  static lldb_private::FileSystem::EnumerateDirectoryResult
   FindKDKandSDKDirectoriesInDirectory(void *baton, llvm::sys::fs::file_type ft,
-                                      const lldb_private::FileSpec &file_spec);
+                                      llvm::StringRef path);
 
   void SearchForKextsAndKernelsRecursively();
 
-  static lldb_private::FileSpec::EnumerateDirectoryResult
-  GetKernelsAndKextsInDirectoryWithRecursion(
-      void *baton, llvm::sys::fs::file_type ft,
-      const lldb_private::FileSpec &file_spec);
+  static lldb_private::FileSystem::EnumerateDirectoryResult
+  GetKernelsAndKextsInDirectoryWithRecursion(void *baton,
+                                             llvm::sys::fs::file_type ft,
+                                             llvm::StringRef path);
 
-  static lldb_private::FileSpec::EnumerateDirectoryResult
-  GetKernelsAndKextsInDirectoryNoRecursion(
-      void *baton, llvm::sys::fs::file_type ft,
-      const lldb_private::FileSpec &file_spec);
+  static lldb_private::FileSystem::EnumerateDirectoryResult
+  GetKernelsAndKextsInDirectoryNoRecursion(void *baton,
+                                           llvm::sys::fs::file_type ft,
+                                           llvm::StringRef path);
 
-  static lldb_private::FileSpec::EnumerateDirectoryResult
+  static lldb_private::FileSystem::EnumerateDirectoryResult
   GetKernelsAndKextsInDirectoryHelper(void *baton, llvm::sys::fs::file_type ft,
-                                      const lldb_private::FileSpec &file_spec,
-                                      bool recurse);
+                                      llvm::StringRef path, bool recurse);
 
   static std::vector<lldb_private::FileSpec>
   SearchForExecutablesRecursively(const std::string &dir);
@@ -140,7 +121,31 @@ protected:
 
   // Returns true if there is a .dSYM bundle next to the kernel
   static bool
-  KernelHasdSYMSibling(const lldb_private::FileSpec &kext_bundle_filepath);
+  KernelHasdSYMSibling(const lldb_private::FileSpec &kernel_filepath);
+
+  // Returns true if there is a .dSYM bundle with NO kernel binary next to it
+  static bool KerneldSYMHasNoSiblingBinary(
+      const lldb_private::FileSpec &kernel_dsym_filepath);
+
+  // Given a dsym_bundle argument ('.../foo.dSYM'), return a FileSpec
+  // with the binary inside it ('.../foo.dSYM/Contents/Resources/DWARF/foo').
+  // A dSYM bundle may have multiple DWARF binaries in them, so a vector
+  // of matches is returned.
+  static std::vector<lldb_private::FileSpec>
+  GetDWARFBinaryInDSYMBundle(lldb_private::FileSpec dsym_bundle);
+
+  lldb_private::Status
+  GetSharedModuleKext(const lldb_private::ModuleSpec &module_spec,
+                      lldb_private::Process *process, lldb::ModuleSP &module_sp,
+                      const lldb_private::FileSpecList *module_search_paths_ptr,
+                      llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules,
+                      bool *did_create_ptr);
+
+  lldb_private::Status GetSharedModuleKernel(
+      const lldb_private::ModuleSpec &module_spec,
+      lldb_private::Process *process, lldb::ModuleSP &module_sp,
+      const lldb_private::FileSpecList *module_search_paths_ptr,
+      llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules, bool *did_create_ptr);
 
   lldb_private::Status
   ExamineKextForMatchingUUID(const lldb_private::FileSpec &kext_bundle_path,
@@ -148,7 +153,7 @@ protected:
                              const lldb_private::ArchSpec &arch,
                              lldb::ModuleSP &exe_module_sp);
 
-  // Most of the ivars are assembled under FileSpec::EnumerateDirectory calls
+  // Most of the ivars are assembled under FileSystem::EnumerateDirectory calls
   // where the
   // function being called for each file/directory must be static.  We'll pass a
   // this pointer
@@ -184,9 +189,17 @@ public:
                                                           // on local
                                                           // filesystem, with
                                                           // dSYMs next to them
+  KernelBinaryCollection m_kernel_dsyms_no_binaries;      // list of kernel
+                                                          // dsyms with no
+                                                          // binaries next to
+                                                          // them
+  KernelBinaryCollection m_kernel_dsyms_yaas;             // list of kernel
+                                                          // .dSYM.yaa files
+
   lldb_private::LazyBool m_ios_debug_session;
 
-  DISALLOW_COPY_AND_ASSIGN(PlatformDarwinKernel);
+  PlatformDarwinKernel(const PlatformDarwinKernel &) = delete;
+  const PlatformDarwinKernel &operator=(const PlatformDarwinKernel &) = delete;
 };
 
 #else // __APPLE__
@@ -205,9 +218,9 @@ public:
 
 class PlatformDarwinKernel {
 public:
-  static lldb_private::ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "darwin-kernel"; }
 };
 
 #endif // __APPLE__
 
-#endif // liblldb_PlatformDarwinKernel_h_
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMDARWINKERNEL_H

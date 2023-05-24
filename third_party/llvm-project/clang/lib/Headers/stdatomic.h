@@ -1,22 +1,8 @@
 /*===---- stdatomic.h - Standard header for atomic types and operations -----===
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *
  *===-----------------------------------------------------------------------===
  */
@@ -26,8 +12,12 @@
 
 /* If we're hosted, fall back to the system's stdatomic.h. FreeBSD, for
  * example, already has a Clang-compatible stdatomic.h header.
+ *
+ * Exclude the MSVC path as well as the MSVC header as of the 14.31.30818
+ * explicitly disallows `stdatomic.h` in the C mode via an `#error`.  Fallback
+ * to the clang resource header until that is fully supported.
  */
-#if __STDC_HOSTED__ && __has_include_next(<stdatomic.h>)
+#if __STDC_HOSTED__ && __has_include_next(<stdatomic.h>) && !defined(_MSC_VER)
 # include_next <stdatomic.h>
 #else
 
@@ -54,6 +44,11 @@ extern "C" {
 /* 7.17.2 Initialization */
 
 #define ATOMIC_VAR_INIT(value) (value)
+#if (__STDC_VERSION__ >= 201710L || __cplusplus >= 202002L) &&                 \
+    !defined(_CLANG_DISABLE_CRT_DEPRECATION_WARNINGS)
+/* ATOMIC_VAR_INIT was deprecated in C17 and C++20. */
+#pragma clang deprecated(ATOMIC_VAR_INIT)
+#endif
 #define atomic_init __c11_atomic_init
 
 /* 7.17.3 Order and consistency */
@@ -163,6 +158,10 @@ typedef _Atomic(uintmax_t)          atomic_uintmax_t;
 typedef struct atomic_flag { atomic_bool _Value; } atomic_flag;
 
 #define ATOMIC_FLAG_INIT { 0 }
+#if __cplusplus >= 202002L && !defined(_CLANG_DISABLE_CRT_DEPRECATION_WARNINGS)
+/* ATOMIC_FLAG_INIT was deprecated in C++20 but is not deprecated in C. */
+#pragma clang deprecated(ATOMIC_FLAG_INIT)
+#endif
 
 /* These should be provided by the libc implementation. */
 #ifdef __cplusplus

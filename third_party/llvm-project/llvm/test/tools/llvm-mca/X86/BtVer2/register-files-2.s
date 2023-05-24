@@ -7,19 +7,23 @@ vmulps %xmm0, %xmm0, %xmm0
 # CHECK:      Iterations:        5
 # CHECK-NEXT: Instructions:      10
 # CHECK-NEXT: Total Cycles:      28
-# CHECK-NEXT: Dispatch Width:    2
+# CHECK-NEXT: Total uOps:        10
+
+# CHECK:      Dispatch Width:    2
+# CHECK-NEXT: uOps Per Cycle:    0.36
 # CHECK-NEXT: IPC:               0.36
 # CHECK-NEXT: Block RThroughput: 1.0
 
 # CHECK:      Dynamic Dispatch Stall Cycles:
-# CHECK-NEXT: RAT     - Register unavailable:                      13
+# CHECK-NEXT: RAT     - Register unavailable:                      13  (46.4%)
 # CHECK-NEXT: RCU     - Retire tokens unavailable:                 0
 # CHECK-NEXT: SCHEDQ  - Scheduler full:                            0
 # CHECK-NEXT: LQ      - Load queue full:                           0
 # CHECK-NEXT: SQ      - Store queue full:                          0
 # CHECK-NEXT: GROUP   - Static restrictions on the dispatch group: 0
+# CHECK-NEXT: USH     - Uncategorised Structural Hazard:           0
 
-# CHECK:      Dispatch Logic - number of cycles where we saw N instructions dispatched:
+# CHECK:      Dispatch Logic - number of cycles where we saw N micro opcodes dispatched:
 # CHECK-NEXT: [# dispatched], [# cycles]
 # CHECK-NEXT:  0,              20  (71.4%)
 # CHECK-NEXT:  1,              6  (21.4%)
@@ -88,3 +92,4 @@ vmulps %xmm0, %xmm0, %xmm0
 # CHECK:            [0]    [1]    [2]    [3]
 # CHECK-NEXT: 0.     5     6.6    0.2    0.0       vaddps	%xmm0, %xmm0, %xmm0
 # CHECK-NEXT: 1.     5     7.8    0.0    0.0       vmulps	%xmm0, %xmm0, %xmm0
+# CHECK-NEXT:        5     7.2    0.1    0.0       <total>

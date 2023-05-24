@@ -1,33 +1,24 @@
-=======================
-LLD 7.0.0 Release Notes
-=======================
+===========================
+lld |release| Release Notes
+===========================
 
 .. contents::
     :local:
 
+.. only:: PreRelease
+
+  .. warning::
+     These are in-progress notes for the upcoming LLVM |release| release.
+     Release notes for previous releases can be found on
+     `the Download Page <https://releases.llvm.org/download.html>`_.
+
 Introduction
 ============
 
-lld is a high-performance linker that supports ELF (Unix), COFF (Windows),
-Mach-O (macOS), MinGW and WebAssembly. lld is command-line-compatible with GNU
-linkers and Microsoft link.exe, and is significantly faster than the system
-default linkers.
-
-lld 7 for ELF, COFF and MinGW are production-ready.
-
-* lld/ELF can build the entire FreeBSD/{AMD64,ARMv7} and will be the default
-  linker of the next version of the operating system.
-
-* lld/COFF is being used to create official builds of large popular programs
-  such as Chrome and Firefox.
-
-* lld/MinGW is being used by Firefox for their MinGW builds. lld/MinGW still
-  needs a sysroot specifically built for lld, with llvm-dlltool, though.
-
-* lld/WebAssembly is used as the default (only) linker in Emscripten when using
-  the upstream LLVM compiler.
-
-* lld/Mach-O is still experimental.
+This document contains the release notes for the lld linker, release |release|.
+Here we describe the status of lld, including major improvements
+from the previous release. All lld releases may be downloaded
+from the `LLVM releases web site <https://llvm.org/releases/>`_.
 
 Non-comprehensive list of changes in this release
 =================================================
@@ -35,80 +26,50 @@ Non-comprehensive list of changes in this release
 ELF Improvements
 ----------------
 
-* Fixed a lot of long-tail compatibility issues with GNU linkers.
+* ``--export-dynamic-symbol-list`` has been added.
+  (`D107317 <https://reviews.llvm.org/D107317>`_)
+* ``--why-extract`` has been added to query why archive members/lazy object files are extracted.
+  (`D109572 <https://reviews.llvm.org/D109572>`_)
+* ``e_entry`` no longer falls back to the address of ``.text`` if the entry symbol does not exist.
+  Instead, a value of 0 will be written.
+  (`D110014 <https://reviews.llvm.org/D110014>`_)
+* If ``-Map`` is specified, ``--cref`` will be printed to the specified file.
+  (`D114663 <https://reviews.llvm.org/D114663>`_)
+* No longer deduplicate local symbol names at the default optimization level of ``-O1``.
+  This results in a larger ``.strtab`` (usually less than 1%) but a faster link
+  time. Use optimization level ``-O2`` to restore the deduplication.
 
-* Added ``-z retpolineplt`` to emit a PLT entry that doesn't contain an indirect
-  jump instruction to mitigate Spectre v2 vulnerability.
+Architecture specific changes:
 
-* Added experimental support for `SHT_RELR sections
-  <https://groups.google.com/forum/#!topic/generic-abi/bX460iggiKg>`_ to create a
-  compact dynamic relocation table.
+* The x86-32 port now supports TLSDESC (``-mtls-dialect=gnu2``).
+  (`D112582 <https://reviews.llvm.org/D112582>`_)
+* The x86-64 port now handles non-RAX/non-adjacent ``R_X86_64_GOTPC32_TLSDESC``
+  and ``R_X86_64_TLSDESC_CALL`` (``-mtls-dialect=gnu2``).
+  (`D114416 <https://reviews.llvm.org/D114416>`_)
+* For x86-64, ``--no-relax`` now suppresses ``R_X86_64_GOTPCRELX`` and
+  ``R_X86_64_REX_GOTPCRELX`` GOT optimization
+  (`D113615 <https://reviews.llvm.org/D113615>`_)
 
-* Added support for `split stacks <https://gcc.gnu.org/wiki/SplitStacks>`_.
+Breaking changes
+----------------
 
-* Added support for address significance table (section with type
-  SHT_LLVM_ADDRSIG) to improve Identical Code Folding (ICF). Combined with the
-  ``-faddrsig`` compiler option added to Clang 7, lld's ``--icf=all`` can now
-  safely merge functions and data to generate smaller outputs than before.
-
-* Improved ``--gdb-index`` so that it is faster (`r336790
-  <https://reviews.llvm.org/rL336790>`_) and uses less memory (`r336672
-  <https://reviews.llvm.org/rL336672>`_).
-
-* Reduced memory usage of ``--compress-debug-sections`` (`r338913
-  <https://reviews.llvm.org/rL338913>`_).
-
-* Added linker script OVERLAY support (`r335714 <https://reviews.llvm.org/rL335714>`_).
-
-* Added ``--warn-backref`` to make it easy to identify command line option order
-  that doesn't work with GNU linkers (`r329636 <https://reviews.llvm.org/rL329636>`_)
-
-* Added ld.lld.1 man page (`r324512 <https://reviews.llvm.org/rL324512>`_).
-
-* Added support for multi-GOT.
-
-* Added support for MIPS position-independent executable (PIE).
-
-* Fixed MIPS TLS GOT entries for local symbols in shared libraries.
-
-* Fixed calculation of MIPS GP relative relocations in case of relocatable
-  output.
-
-* Added support for PPCv2 ABI.
-
-* Removed an incomplete support of PPCv1 ABI.
-
-* Added support for Qualcomm Hexagon ISA.
-
-* Added the following flags: ``--apply-dynamic-relocs``, ``--check-sections``,
-  ``--cref``, ``--just-symbols``, ``--keep-unique``,
-  ``--no-allow-multiple-definition``, ``--no-apply-dynamic-relocs``,
-  ``--no-check-sections``, ``--no-gnu-unique, ``--no-pic-executable``,
-  ``--no-undefined-version``, ``--no-warn-common``, ``--pack-dyn-relocs=relr``,
-  ``--pop-state``, ``--print-icf-sections``, ``--push-state``,
-  ``--thinlto-index-only``, ``--thinlto-object-suffix-replace``,
-  ``--thinlto-prefix-replace``, ``--warn-backref``, ``-z combreloc``, ``-z
-  copyreloc``, ``-z initfirst``, ``-z keep-text-section-prefix``, ``-z lazy``,
-  ``-z noexecstack``, ``-z relro``, ``-z retpolineplt``, ``-z text``
+* ...
 
 COFF Improvements
 -----------------
 
-* Improved correctness of exporting mangled stdcall symbols.
+* ...
 
-* Completed support for ARM64 relocations.
+MinGW Improvements
+------------------
 
-* Added support for outputting PDB debug info for MinGW targets.
+* ...
 
-* Improved compatibility of output binaries with GNU binutils objcopy/strip.
+MachO Improvements
+------------------
 
-* Sped up PDB file creation.
+* Item 1.
 
-* Changed section layout to improve compatibility with link.exe.
+WebAssembly Improvements
+------------------------
 
-* `/subsystem` inference is improved to cover more corner cases.
-
-* Added the following flags: ``--color-diagnostics={always,never,auto}``,
-  ``--no-color-diagnostics``, ``/brepro``, ``/debug:full``, ``/debug:ghash``,
-  ``/guard:cf``, ``/guard:longjmp``, ``/guard:nolongjmp``, ``/integritycheck``,
-  ``/order``, ``/pdbsourcepath``, ``/timestamp``

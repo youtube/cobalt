@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -47,6 +46,9 @@ volatile int __kmp_init_gtid = FALSE;
 volatile int __kmp_init_common = FALSE;
 volatile int __kmp_init_middle = FALSE;
 volatile int __kmp_init_parallel = FALSE;
+volatile int __kmp_init_hidden_helper = FALSE;
+volatile int __kmp_init_hidden_helper_threads = FALSE;
+volatile int __kmp_hidden_helper_team_done = FALSE;
 #if KMP_USE_MONITOR
 volatile int __kmp_init_monitor =
     0; /* 1 - launched, 2 - actually started (Windows* OS only) */
@@ -60,13 +62,8 @@ int __kmp_init_counter = 0;
 int __kmp_root_counter = 0;
 int __kmp_version = 0;
 
-std::atomic<kmp_uint32> __kmp_team_counter = ATOMIC_VAR_INIT(0);
-std::atomic<kmp_uint32> __kmp_task_counter = ATOMIC_VAR_INIT(0);
-
-unsigned int __kmp_init_wait =
-    KMP_DEFAULT_INIT_WAIT; /* initial number of spin-tests   */
-unsigned int __kmp_next_wait =
-    KMP_DEFAULT_NEXT_WAIT; /* susequent number of spin-tests */
+std::atomic<kmp_int32> __kmp_team_counter = ATOMIC_VAR_INIT(0);
+std::atomic<kmp_int32> __kmp_task_counter = ATOMIC_VAR_INIT(0);
 
 size_t __kmp_stksize = KMP_DEFAULT_STKSIZE;
 #if KMP_USE_MONITOR
@@ -113,8 +110,8 @@ char const *__kmp_barrier_type_name[bs_last_barrier] = {"plain", "forkjoin"
                                                         "reduction"
 #endif // KMP_FAST_REDUCTION_BARRIER
 };
-char const *__kmp_barrier_pattern_name[bp_last_bar] = {"linear", "tree",
-                                                       "hyper", "hierarchical"};
+char const *__kmp_barrier_pattern_name[bp_last_bar] = {
+    "linear", "tree", "hyper", "hierarchical", "dist"};
 
 int __kmp_allThreadsSpecified = 0;
 size_t __kmp_align_alloc = CACHE_LINE;
@@ -133,10 +130,9 @@ int __kmp_dflt_team_nth = 0;
 int __kmp_dflt_team_nth_ub = 0;
 int __kmp_tp_capacity = 0;
 int __kmp_tp_cached = 0;
-int __kmp_dflt_nested = FALSE;
 int __kmp_dispatch_num_buffers = KMP_DFLT_DISP_NUM_BUFF;
-int __kmp_dflt_max_active_levels =
-    KMP_MAX_ACTIVE_LEVELS_LIMIT; /* max_active_levels limit */
+int __kmp_dflt_max_active_levels = 1; // Nesting off by default
+bool __kmp_dflt_max_active_levels_set = false; // Don't override set value
 #if KMP_NESTED_HOT_TEAMS
 int __kmp_hot_teams_mode = 0; /* 0 - free extra threads when reduced */
 /* 1 - keep extra threads when reduced */
@@ -170,6 +166,7 @@ int __kmp_zero_bt = FALSE;
 int __kmp_ncores = 0;
 #endif
 int __kmp_chunk = 0;
+int __kmp_force_monotonic = 0;
 int __kmp_abort_delay = 0;
 #if KMP_OS_LINUX && defined(KMP_TDATA_GTID)
 int __kmp_gtid_mode = 3; /* use __declspec(thread) TLS to store gtid */
@@ -209,10 +206,24 @@ const char *__kmp_speculative_statsfile = "-";
 
 #endif // KMP_USE_ADAPTIVE_LOCKS
 
-#if OMP_40_ENABLED
 int __kmp_display_env = FALSE;
 int __kmp_display_env_verbose = FALSE;
 int __kmp_omp_cancellation = FALSE;
+int __kmp_nteams = 0;
+int __kmp_teams_thread_limit = 0;
+
+#if KMP_HAVE_MWAIT || KMP_HAVE_UMWAIT
+int __kmp_user_level_mwait = FALSE;
+int __kmp_umwait_enabled = FALSE;
+int __kmp_mwait_enabled = FALSE;
+int __kmp_mwait_hints = 0;
+#endif
+
+#if KMP_HAVE_UMWAIT
+int __kmp_waitpkg_enabled = 0;
+int __kmp_tpause_state = 0;
+int __kmp_tpause_hint = 1;
+int __kmp_tpause_enabled = 0;
 #endif
 
 /* map OMP 3.0 schedule types with our internal schedule types */
@@ -243,8 +254,6 @@ KMPAffinity *__kmp_affinity_dispatch = NULL;
 #if KMP_USE_HWLOC
 int __kmp_hwloc_error = FALSE;
 hwloc_topology_t __kmp_hwloc_topology = NULL;
-int __kmp_numa_detected = FALSE;
-int __kmp_tile_depth = 0;
 #endif
 
 #if KMP_OS_WINDOWS
@@ -259,7 +268,7 @@ kmp_SetThreadGroupAffinity_t __kmp_SetThreadGroupAffinity = NULL;
 
 size_t __kmp_affin_mask_size = 0;
 enum affinity_type __kmp_affinity_type = affinity_default;
-enum affinity_gran __kmp_affinity_gran = affinity_gran_default;
+kmp_hw_t __kmp_affinity_gran = KMP_HW_UNKNOWN;
 int __kmp_affinity_gran_levels = -1;
 int __kmp_affinity_dups = TRUE;
 enum affinity_top_method __kmp_affinity_top_method =
@@ -277,28 +286,64 @@ char *__kmp_cpuinfo_file = NULL;
 
 #endif /* KMP_AFFINITY_SUPPORTED */
 
-#if OMP_40_ENABLED
 kmp_nested_proc_bind_t __kmp_nested_proc_bind = {NULL, 0, 0};
+kmp_proc_bind_t __kmp_teams_proc_bind = proc_bind_spread;
 int __kmp_affinity_num_places = 0;
-#endif
+int __kmp_display_affinity = FALSE;
+char *__kmp_affinity_format = NULL;
 
-kmp_hws_item_t __kmp_hws_socket = {0, 0};
-kmp_hws_item_t __kmp_hws_node = {0, 0};
-kmp_hws_item_t __kmp_hws_tile = {0, 0};
-kmp_hws_item_t __kmp_hws_core = {0, 0};
-kmp_hws_item_t __kmp_hws_proc = {0, 0};
-int __kmp_hws_requested = 0;
-int __kmp_hws_abs_flag = 0; // absolute or per-item number requested
-
-#if OMP_40_ENABLED
 kmp_int32 __kmp_default_device = 0;
-#endif
 
 kmp_tasking_mode_t __kmp_tasking_mode = tskm_task_teams;
-#if OMP_45_ENABLED
 kmp_int32 __kmp_max_task_priority = 0;
 kmp_uint64 __kmp_taskloop_min_tasks = 0;
-#endif
+
+int __kmp_memkind_available = 0;
+omp_allocator_handle_t const omp_null_allocator = NULL;
+omp_allocator_handle_t const omp_default_mem_alloc =
+    (omp_allocator_handle_t const)1;
+omp_allocator_handle_t const omp_large_cap_mem_alloc =
+    (omp_allocator_handle_t const)2;
+omp_allocator_handle_t const omp_const_mem_alloc =
+    (omp_allocator_handle_t const)3;
+omp_allocator_handle_t const omp_high_bw_mem_alloc =
+    (omp_allocator_handle_t const)4;
+omp_allocator_handle_t const omp_low_lat_mem_alloc =
+    (omp_allocator_handle_t const)5;
+omp_allocator_handle_t const omp_cgroup_mem_alloc =
+    (omp_allocator_handle_t const)6;
+omp_allocator_handle_t const omp_pteam_mem_alloc =
+    (omp_allocator_handle_t const)7;
+omp_allocator_handle_t const omp_thread_mem_alloc =
+    (omp_allocator_handle_t const)8;
+// Preview of target memory support
+omp_allocator_handle_t const llvm_omp_target_host_mem_alloc =
+    (omp_allocator_handle_t const)100;
+omp_allocator_handle_t const llvm_omp_target_shared_mem_alloc =
+    (omp_allocator_handle_t const)101;
+omp_allocator_handle_t const llvm_omp_target_device_mem_alloc =
+    (omp_allocator_handle_t const)102;
+omp_allocator_handle_t const kmp_max_mem_alloc =
+    (omp_allocator_handle_t const)1024;
+omp_allocator_handle_t __kmp_def_allocator = omp_default_mem_alloc;
+
+omp_memspace_handle_t const omp_default_mem_space =
+    (omp_memspace_handle_t const)0;
+omp_memspace_handle_t const omp_large_cap_mem_space =
+    (omp_memspace_handle_t const)1;
+omp_memspace_handle_t const omp_const_mem_space =
+    (omp_memspace_handle_t const)2;
+omp_memspace_handle_t const omp_high_bw_mem_space =
+    (omp_memspace_handle_t const)3;
+omp_memspace_handle_t const omp_low_lat_mem_space =
+    (omp_memspace_handle_t const)4;
+// Preview of target memory support
+omp_memspace_handle_t const llvm_omp_target_host_mem_space =
+    (omp_memspace_handle_t const)100;
+omp_memspace_handle_t const llvm_omp_target_shared_mem_space =
+    (omp_memspace_handle_t const)101;
+omp_memspace_handle_t const llvm_omp_target_device_mem_space =
+    (omp_memspace_handle_t const)102;
 
 /* This check ensures that the compiler is passing the correct data type for the
    flags formal parameter of the function kmpc_omp_task_alloc(). If the type is
@@ -308,6 +353,7 @@ kmp_uint64 __kmp_taskloop_min_tasks = 0;
 KMP_BUILD_ASSERT(sizeof(kmp_tasking_flags_t) == 4);
 
 int __kmp_task_stealing_constraint = 1; /* Constrain task stealing by default */
+int __kmp_enable_task_throttling = 1;
 
 #ifdef DEBUG_SUSPEND
 int __kmp_suspend_count = 0;
@@ -376,25 +422,21 @@ int __kmp_env_blocktime = FALSE; /* KMP_BLOCKTIME specified? */
 int __kmp_env_checks = FALSE; /* KMP_CHECKS specified?    */
 int __kmp_env_consistency_check = FALSE; /* KMP_CONSISTENCY_CHECK specified? */
 
+// From KMP_USE_YIELD:
+// 0 = never yield;
+// 1 = always yield (default);
+// 2 = yield only if oversubscribed
+kmp_int32 __kmp_use_yield = 1;
+// This will be 1 if KMP_USE_YIELD environment variable was set explicitly
+kmp_int32 __kmp_use_yield_exp_set = 0;
+
 kmp_uint32 __kmp_yield_init = KMP_INIT_WAIT;
 kmp_uint32 __kmp_yield_next = KMP_NEXT_WAIT;
-
-#if KMP_USE_MONITOR
-kmp_uint32 __kmp_yielding_on = 1;
-#endif
-#if KMP_OS_CNK
-kmp_uint32 __kmp_yield_cycle = 0;
-#else
-kmp_uint32 __kmp_yield_cycle = 1; /* Yield-cycle is on by default */
-#endif
-kmp_int32 __kmp_yield_on_count =
-    10; /* By default, yielding is on for 10 monitor periods. */
-kmp_int32 __kmp_yield_off_count =
-    1; /* By default, yielding is off for 1 monitor periods. */
+kmp_uint64 __kmp_pause_init = 1; // for tpause
 
 /* ------------------------------------------------------ */
 /* STATE mostly syncronized with global lock */
-/* data written to rarely by masters, read often by workers */
+/* data written to rarely by primary threads, read often by workers */
 /* TODO: None of this global padding stuff works consistently because the order
    of declaration is not necessarily correlated to storage order. To fix this,
    all the important globals must be put in a big structure instead. */
@@ -402,11 +444,10 @@ KMP_ALIGN_CACHE
 kmp_info_t **__kmp_threads = NULL;
 kmp_root_t **__kmp_root = NULL;
 
-/* data read/written to often by masters */
+/* data read/written to often by primary threads */
 KMP_ALIGN_CACHE
 volatile int __kmp_nth = 0;
 volatile int __kmp_all_nth = 0;
-int __kmp_thread_pool_nth = 0;
 volatile kmp_info_t *__kmp_thread_pool = NULL;
 volatile kmp_team_t *__kmp_team_pool = NULL;
 
@@ -416,7 +457,7 @@ std::atomic<int> __kmp_thread_pool_active_nth = ATOMIC_VAR_INIT(0);
 /* -------------------------------------------------
  * GLOBAL/ROOT STATE */
 KMP_ALIGN_CACHE
-kmp_global_t __kmp_global = {{0}};
+kmp_global_t __kmp_global;
 
 /* ----------------------------------------------- */
 /* GLOBAL SYNCHRONIZATION LOCKS */
@@ -511,7 +552,14 @@ int _You_must_link_with_Intel_OpenMP_library = 1;
 int _You_must_link_with_Microsoft_OpenMP_library = 1;
 #endif
 
-#if OMP_50_ENABLED
 kmp_target_offload_kind_t __kmp_target_offload = tgt_default;
-#endif
+
+// OMP Pause Resources
+kmp_pause_status_t __kmp_pause_status = kmp_not_paused;
+
+// Nesting mode
+int __kmp_nesting_mode = 0;
+int __kmp_nesting_mode_nlevels = 1;
+int *__kmp_nesting_nth_level;
+
 // end of file //

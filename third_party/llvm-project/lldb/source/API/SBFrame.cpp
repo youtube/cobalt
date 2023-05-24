@@ -1,29 +1,25 @@
-//===-- SBFrame.cpp ---------------------------------------------*- C++ -*-===//
+//===-- SBFrame.cpp -------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
 #include <algorithm>
 #include <set>
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/API/SBFrame.h"
 
 #include "lldb/lldb-types.h"
 
-#include "Plugins/ExpressionParser/Clang/ClangPersistentVariables.h"
+#include "Utils.h"
 #include "lldb/Core/Address.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/ValueObjectRegister.h"
 #include "lldb/Core/ValueObjectVariable.h"
+#include "lldb/Expression/ExpressionVariable.h"
 #include "lldb/Expression/UserExpression.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Symbol/Block.h"
@@ -36,11 +32,12 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/StackFrame.h"
+#include "lldb/Target/StackFrameRecognizer.h"
 #include "lldb/Target/StackID.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/ConstString.h"
-#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Instrumentation.h"
 #include "lldb/Utility/Stream.h"
 
 #include "lldb/API/SBAddress.h"
@@ -57,29 +54,28 @@
 using namespace lldb;
 using namespace lldb_private;
 
-SBFrame::SBFrame() : m_opaque_sp(new ExecutionContextRef()) {}
+SBFrame::SBFrame() : m_opaque_sp(new ExecutionContextRef()) {
+  LLDB_INSTRUMENT_VA(this);
+}
 
 SBFrame::SBFrame(const StackFrameSP &lldb_object_sp)
     : m_opaque_sp(new ExecutionContextRef(lldb_object_sp)) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-
-  if (log) {
-    SBStream sstr;
-    GetDescription(sstr);
-    log->Printf("SBFrame::SBFrame (sp=%p) => SBFrame(%p): %s",
-                static_cast<void *>(lldb_object_sp.get()),
-                static_cast<void *>(lldb_object_sp.get()), sstr.GetData());
-  }
+  LLDB_INSTRUMENT_VA(this, lldb_object_sp);
 }
 
-SBFrame::SBFrame(const SBFrame &rhs)
-    : m_opaque_sp(new ExecutionContextRef(*rhs.m_opaque_sp)) {}
+SBFrame::SBFrame(const SBFrame &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  m_opaque_sp = clone(rhs.m_opaque_sp);
+}
 
 SBFrame::~SBFrame() = default;
 
 const SBFrame &SBFrame::operator=(const SBFrame &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs)
-    *m_opaque_sp = *rhs.m_opaque_sp;
+    m_opaque_sp = clone(rhs.m_opaque_sp);
   return *this;
 }
 
@@ -92,6 +88,12 @@ void SBFrame::SetFrameSP(const StackFrameSP &lldb_object_sp) {
 }
 
 bool SBFrame::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBFrame::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
@@ -108,43 +110,28 @@ bool SBFrame::IsValid() const {
 }
 
 SBSymbolContext SBFrame::GetSymbolContext(uint32_t resolve_scope) const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, resolve_scope);
+
   SBSymbolContext sb_sym_ctx;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
-
-  StackFrame *frame = nullptr;
+  SymbolContextItem scope = static_cast<SymbolContextItem>(resolve_scope);
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
   if (target && process) {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
-      frame = exe_ctx.GetFramePtr();
-      if (frame) {
-        sb_sym_ctx.SetSymbolContext(&frame->GetSymbolContext(resolve_scope));
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetVariables () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
-      }
-    } else {
-      if (log)
-        log->Printf(
-            "SBFrame::GetSymbolContext () => error: process is running");
+      if (StackFrame *frame = exe_ctx.GetFramePtr())
+        sb_sym_ctx = frame->GetSymbolContext(scope);
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::GetSymbolContext (resolve_scope=0x%8.8x) => "
-                "SBSymbolContext(%p)",
-                static_cast<void *>(frame), resolve_scope,
-                static_cast<void *>(sb_sym_ctx.get()));
 
   return sb_sym_ctx;
 }
 
 SBModule SBFrame::GetModule() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   SBModule sb_module;
   ModuleSP module_sp;
   std::unique_lock<std::recursive_mutex> lock;
@@ -160,27 +147,16 @@ SBModule SBFrame::GetModule() const {
       if (frame) {
         module_sp = frame->GetSymbolContext(eSymbolContextModule).module_sp;
         sb_module.SetSP(module_sp);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetModule () => error: could not reconstruct "
-                      "frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetModule () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::GetModule () => SBModule(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(module_sp.get()));
 
   return sb_module;
 }
 
 SBCompileUnit SBFrame::GetCompileUnit() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   SBCompileUnit sb_comp_unit;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -195,26 +171,16 @@ SBCompileUnit SBFrame::GetCompileUnit() const {
       if (frame) {
         sb_comp_unit.reset(
             frame->GetSymbolContext(eSymbolContextCompUnit).comp_unit);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetCompileUnit () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetCompileUnit () => error: process is running");
     }
   }
-  if (log)
-    log->Printf("SBFrame(%p)::GetCompileUnit () => SBCompileUnit(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(sb_comp_unit.get()));
 
   return sb_comp_unit;
 }
 
 SBFunction SBFrame::GetFunction() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   SBFunction sb_function;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -229,26 +195,16 @@ SBFunction SBFrame::GetFunction() const {
       if (frame) {
         sb_function.reset(
             frame->GetSymbolContext(eSymbolContextFunction).function);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetFunction () => error: could not reconstruct "
-                      "frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetFunction () => error: process is running");
     }
   }
-  if (log)
-    log->Printf("SBFrame(%p)::GetFunction () => SBFunction(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(sb_function.get()));
 
   return sb_function;
 }
 
 SBSymbol SBFrame::GetSymbol() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   SBSymbol sb_symbol;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -262,25 +218,16 @@ SBSymbol SBFrame::GetSymbol() const {
       frame = exe_ctx.GetFramePtr();
       if (frame) {
         sb_symbol.reset(frame->GetSymbolContext(eSymbolContextSymbol).symbol);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetSymbol () => error: could not reconstruct "
-                      "frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetSymbol () => error: process is running");
     }
   }
-  if (log)
-    log->Printf("SBFrame(%p)::GetSymbol () => SBSymbol(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(sb_symbol.get()));
+
   return sb_symbol;
 }
 
 SBBlock SBFrame::GetBlock() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   SBBlock sb_block;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -292,60 +239,37 @@ SBBlock SBFrame::GetBlock() const {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
       frame = exe_ctx.GetFramePtr();
-      if (frame) {
+      if (frame)
         sb_block.SetPtr(frame->GetSymbolContext(eSymbolContextBlock).block);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetBlock () => error: could not reconstruct "
-                      "frame object for this SBFrame.");
-      }
-    } else {
-      if (log)
-        log->Printf("SBFrame(%p)::GetBlock () => error: process is running",
-                    static_cast<void *>(frame));
     }
   }
-  if (log)
-    log->Printf("SBFrame(%p)::GetBlock () => SBBlock(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(sb_block.GetPtr()));
   return sb_block;
 }
 
 SBBlock SBFrame::GetFrameBlock() const {
+  LLDB_INSTRUMENT_VA(this);
+
   SBBlock sb_block;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
   StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
   Process *process = exe_ctx.GetProcessPtr();
   if (target && process) {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
       frame = exe_ctx.GetFramePtr();
-      if (frame) {
+      if (frame)
         sb_block.SetPtr(frame->GetFrameBlock());
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetFrameBlock () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
-      }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetFrameBlock () => error: process is running");
     }
   }
-  if (log)
-    log->Printf("SBFrame(%p)::GetFrameBlock () => SBBlock(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(sb_block.GetPtr()));
   return sb_block;
 }
 
 SBLineEntry SBFrame::GetLineEntry() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   SBLineEntry sb_line_entry;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -360,24 +284,15 @@ SBLineEntry SBFrame::GetLineEntry() const {
       if (frame) {
         sb_line_entry.SetLineEntry(
             frame->GetSymbolContext(eSymbolContextLineEntry).line_entry);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetLineEntry () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetLineEntry () => error: process is running");
     }
   }
-  if (log)
-    log->Printf("SBFrame(%p)::GetLineEntry () => SBLineEntry(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(sb_line_entry.get()));
   return sb_line_entry;
 }
 
 uint32_t SBFrame::GetFrameID() const {
+  LLDB_INSTRUMENT_VA(this);
+
   uint32_t frame_idx = UINT32_MAX;
 
   std::unique_lock<std::recursive_mutex> lock;
@@ -387,14 +302,12 @@ uint32_t SBFrame::GetFrameID() const {
   if (frame)
     frame_idx = frame->GetFrameIndex();
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBFrame(%p)::GetFrameID () => %u", static_cast<void *>(frame),
-                frame_idx);
   return frame_idx;
 }
 
 lldb::addr_t SBFrame::GetCFA() const {
+  LLDB_INSTRUMENT_VA(this);
+
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
@@ -405,7 +318,8 @@ lldb::addr_t SBFrame::GetCFA() const {
 }
 
 addr_t SBFrame::GetPC() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   addr_t addr = LLDB_INVALID_ADDRESS;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -420,123 +334,85 @@ addr_t SBFrame::GetPC() const {
       if (frame) {
         addr = frame->GetFrameCodeAddress().GetOpcodeLoadAddress(
             target, AddressClass::eCode);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetPC () => error: could not reconstruct frame "
-                      "object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetPC () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::GetPC () => 0x%" PRIx64,
-                static_cast<void *>(frame), addr);
 
   return addr;
 }
 
 bool SBFrame::SetPC(addr_t new_pc) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, new_pc);
+
   bool ret_val = false;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
-  StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
   if (target && process) {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
-      frame = exe_ctx.GetFramePtr();
-      if (frame) {
-        ret_val = frame->GetRegisterContext()->SetPC(new_pc);
-      } else {
-        if (log)
-          log->Printf("SBFrame::SetPC () => error: could not reconstruct frame "
-                      "object for this SBFrame.");
+      if (StackFrame *frame = exe_ctx.GetFramePtr()) {
+        if (RegisterContextSP reg_ctx_sp = frame->GetRegisterContext()) {
+          ret_val = reg_ctx_sp->SetPC(new_pc);
+        }
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::SetPC () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::SetPC (new_pc=0x%" PRIx64 ") => %i",
-                static_cast<void *>(frame), new_pc, ret_val);
 
   return ret_val;
 }
 
 addr_t SBFrame::GetSP() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   addr_t addr = LLDB_INVALID_ADDRESS;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
-  StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
   if (target && process) {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
-      frame = exe_ctx.GetFramePtr();
-      if (frame) {
-        addr = frame->GetRegisterContext()->GetSP();
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetSP () => error: could not reconstruct frame "
-                      "object for this SBFrame.");
+      if (StackFrame *frame = exe_ctx.GetFramePtr()) {
+        if (RegisterContextSP reg_ctx_sp = frame->GetRegisterContext()) {
+          addr = reg_ctx_sp->GetSP();
+        }
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetSP () => error: process is running");
     }
   }
-  if (log)
-    log->Printf("SBFrame(%p)::GetSP () => 0x%" PRIx64,
-                static_cast<void *>(frame), addr);
 
   return addr;
 }
 
 addr_t SBFrame::GetFP() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   addr_t addr = LLDB_INVALID_ADDRESS;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
-  StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
   if (target && process) {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
-      frame = exe_ctx.GetFramePtr();
-      if (frame) {
-        addr = frame->GetRegisterContext()->GetFP();
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetFP () => error: could not reconstruct frame "
-                      "object for this SBFrame.");
+      if (StackFrame *frame = exe_ctx.GetFramePtr()) {
+        if (RegisterContextSP reg_ctx_sp = frame->GetRegisterContext()) {
+          addr = reg_ctx_sp->GetFP();
+        }
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetFP () => error: process is running");
     }
   }
 
-  if (log)
-    log->Printf("SBFrame(%p)::GetFP () => 0x%" PRIx64,
-                static_cast<void *>(frame), addr);
   return addr;
 }
 
 SBAddress SBFrame::GetPCAddress() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   SBAddress sb_addr;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -548,27 +424,22 @@ SBAddress SBFrame::GetPCAddress() const {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
       frame = exe_ctx.GetFramePtr();
-      if (frame) {
-        sb_addr.SetAddress(&frame->GetFrameCodeAddress());
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetPCAddress () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
-      }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetPCAddress () => error: process is running");
+      if (frame)
+        sb_addr.SetAddress(frame->GetFrameCodeAddress());
     }
   }
-  if (log)
-    log->Printf("SBFrame(%p)::GetPCAddress () => SBAddress(%p)",
-                static_cast<void *>(frame), static_cast<void *>(sb_addr.get()));
   return sb_addr;
 }
 
-void SBFrame::Clear() { m_opaque_sp->Clear(); }
+void SBFrame::Clear() {
+  LLDB_INSTRUMENT_VA(this);
+
+  m_opaque_sp->Clear();
+}
 
 lldb::SBValue SBFrame::GetValueForVariablePath(const char *var_path) {
+  LLDB_INSTRUMENT_VA(this, var_path);
+
   SBValue sb_value;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -585,12 +456,10 @@ lldb::SBValue SBFrame::GetValueForVariablePath(const char *var_path) {
 
 lldb::SBValue SBFrame::GetValueForVariablePath(const char *var_path,
                                                DynamicValueType use_dynamic) {
+  LLDB_INSTRUMENT_VA(this, var_path, use_dynamic);
+
   SBValue sb_value;
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
   if (var_path == nullptr || var_path[0] == '\0') {
-    if (log)
-      log->Printf(
-          "SBFrame::GetValueForVariablePath called with empty variable path.");
     return sb_value;
   }
 
@@ -613,21 +482,15 @@ lldb::SBValue SBFrame::GetValueForVariablePath(const char *var_path,
                 StackFrame::eExpressionPathOptionsAllowDirectIVarAccess,
             var_sp, error));
         sb_value.SetSP(value_sp, use_dynamic);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetValueForVariablePath () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf(
-            "SBFrame::GetValueForVariablePath () => error: process is running");
     }
   }
   return sb_value;
 }
 
 SBValue SBFrame::FindVariable(const char *name) {
+  LLDB_INSTRUMENT_VA(this, name);
+
   SBValue value;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -644,13 +507,12 @@ SBValue SBFrame::FindVariable(const char *name) {
 
 SBValue SBFrame::FindVariable(const char *name,
                               lldb::DynamicValueType use_dynamic) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, name, use_dynamic);
+
   VariableSP var_sp;
   SBValue sb_value;
 
   if (name == nullptr || name[0] == '\0') {
-    if (log)
-      log->Printf("SBFrame::FindVariable called with empty name");
     return sb_value;
   }
 
@@ -666,48 +528,20 @@ SBValue SBFrame::FindVariable(const char *name,
     if (stop_locker.TryLock(&process->GetRunLock())) {
       frame = exe_ctx.GetFramePtr();
       if (frame) {
-        VariableList variable_list;
-        SymbolContext sc(frame->GetSymbolContext(eSymbolContextBlock));
+        value_sp = frame->FindVariable(ConstString(name));
 
-        if (sc.block) {
-          const bool can_create = true;
-          const bool get_parent_variables = true;
-          const bool stop_if_block_is_inlined_function = true;
-
-          if (sc.block->AppendVariables(
-                  can_create, get_parent_variables,
-                  stop_if_block_is_inlined_function,
-                  [frame](Variable *v) { return v->IsInScope(frame); },
-                  &variable_list)) {
-            var_sp = variable_list.FindVariable(ConstString(name));
-          }
-        }
-
-        if (var_sp) {
-          value_sp =
-              frame->GetValueObjectForFrameVariable(var_sp, eNoDynamicValues);
+        if (value_sp)
           sb_value.SetSP(value_sp, use_dynamic);
-        }
-      } else {
-        if (log)
-          log->Printf("SBFrame::FindVariable () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::FindVariable () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::FindVariable (name=\"%s\") => SBValue(%p)",
-                static_cast<void *>(frame), name,
-                static_cast<void *>(value_sp.get()));
 
   return sb_value;
 }
 
 SBValue SBFrame::FindValue(const char *name, ValueType value_type) {
+  LLDB_INSTRUMENT_VA(this, name, value_type);
+
   SBValue value;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -724,12 +558,11 @@ SBValue SBFrame::FindValue(const char *name, ValueType value_type) {
 
 SBValue SBFrame::FindValue(const char *name, ValueType value_type,
                            lldb::DynamicValueType use_dynamic) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, name, value_type, use_dynamic);
+
   SBValue sb_value;
 
   if (name == nullptr || name[0] == '\0') {
-    if (log)
-      log->Printf("SBFrame::FindValue called with empty name.");
     return sb_value;
   }
 
@@ -786,18 +619,10 @@ SBValue SBFrame::FindValue(const char *name, ValueType value_type,
         {
           RegisterContextSP reg_ctx(frame->GetRegisterContext());
           if (reg_ctx) {
-            const uint32_t num_regs = reg_ctx->GetRegisterCount();
-            for (uint32_t reg_idx = 0; reg_idx < num_regs; ++reg_idx) {
-              const RegisterInfo *reg_info =
-                  reg_ctx->GetRegisterInfoAtIndex(reg_idx);
-              if (reg_info &&
-                  ((reg_info->name && strcasecmp(reg_info->name, name) == 0) ||
-                   (reg_info->alt_name &&
-                    strcasecmp(reg_info->alt_name, name) == 0))) {
-                value_sp = ValueObjectRegister::Create(frame, reg_ctx, reg_idx);
-                sb_value.SetSP(value_sp);
-                break;
-              }
+            if (const RegisterInfo *reg_info =
+                    reg_ctx->GetRegisterInfoByName(name)) {
+              value_sp = ValueObjectRegister::Create(frame, reg_ctx, reg_info);
+              sb_value.SetSP(value_sp);
             }
           }
         } break;
@@ -837,38 +662,35 @@ SBValue SBFrame::FindValue(const char *name, ValueType value_type,
         default:
           break;
         }
-      } else {
-        if (log)
-          log->Printf("SBFrame::FindValue () => error: could not reconstruct "
-                      "frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::FindValue () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::FindVariableInScope (name=\"%s\", value_type=%i) "
-                "=> SBValue(%p)",
-                static_cast<void *>(frame), name, value_type,
-                static_cast<void *>(value_sp.get()));
 
   return sb_value;
 }
 
 bool SBFrame::IsEqual(const SBFrame &that) const {
+  LLDB_INSTRUMENT_VA(this, that);
+
   lldb::StackFrameSP this_sp = GetFrameSP();
   lldb::StackFrameSP that_sp = that.GetFrameSP();
   return (this_sp && that_sp && this_sp->GetStackID() == that_sp->GetStackID());
 }
 
-bool SBFrame::operator==(const SBFrame &rhs) const { return IsEqual(rhs); }
+bool SBFrame::operator==(const SBFrame &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
 
-bool SBFrame::operator!=(const SBFrame &rhs) const { return !IsEqual(rhs); }
+  return IsEqual(rhs);
+}
+
+bool SBFrame::operator!=(const SBFrame &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  return !IsEqual(rhs);
+}
 
 SBThread SBFrame::GetThread() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
 
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -876,19 +698,12 @@ SBThread SBFrame::GetThread() const {
   ThreadSP thread_sp(exe_ctx.GetThreadSP());
   SBThread sb_thread(thread_sp);
 
-  if (log) {
-    SBStream sstr;
-    sb_thread.GetDescription(sstr);
-    log->Printf("SBFrame(%p)::GetThread () => SBThread(%p): %s",
-                static_cast<void *>(exe_ctx.GetFramePtr()),
-                static_cast<void *>(thread_sp.get()), sstr.GetData());
-  }
-
   return sb_thread;
 }
 
 const char *SBFrame::Disassemble() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   const char *disassembly = nullptr;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -902,26 +717,17 @@ const char *SBFrame::Disassemble() const {
       frame = exe_ctx.GetFramePtr();
       if (frame) {
         disassembly = frame->Disassemble();
-      } else {
-        if (log)
-          log->Printf("SBFrame::Disassemble () => error: could not reconstruct "
-                      "frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::Disassemble () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::Disassemble () => %s", static_cast<void *>(frame),
-                disassembly);
 
   return disassembly;
 }
 
 SBValueList SBFrame::GetVariables(bool arguments, bool locals, bool statics,
                                   bool in_scope_only) {
+  LLDB_INSTRUMENT_VA(this, arguments, locals, statics, in_scope_only);
+
   SBValueList value_list;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -950,6 +756,9 @@ SBValueList SBFrame::GetVariables(bool arguments, bool locals, bool statics,
 lldb::SBValueList SBFrame::GetVariables(bool arguments, bool locals,
                                         bool statics, bool in_scope_only,
                                         lldb::DynamicValueType use_dynamic) {
+  LLDB_INSTRUMENT_VA(this, arguments, locals, statics, in_scope_only,
+                     use_dynamic);
+
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
@@ -967,7 +776,7 @@ lldb::SBValueList SBFrame::GetVariables(bool arguments, bool locals,
 }
 
 SBValueList SBFrame::GetVariables(const lldb::SBVariablesOptions &options) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, options);
 
   SBValueList value_list;
   std::unique_lock<std::recursive_mutex> lock;
@@ -978,17 +787,14 @@ SBValueList SBFrame::GetVariables(const lldb::SBVariablesOptions &options) {
 
   const bool statics = options.GetIncludeStatics();
   const bool arguments = options.GetIncludeArguments();
+  const bool recognized_arguments =
+        options.GetIncludeRecognizedArguments(SBTarget(exe_ctx.GetTargetSP()));
   const bool locals = options.GetIncludeLocals();
   const bool in_scope_only = options.GetInScopeOnly();
   const bool include_runtime_support_values =
       options.GetIncludeRuntimeSupportValues();
   const lldb::DynamicValueType use_dynamic = options.GetUseDynamic();
 
-  if (log)
-    log->Printf("SBFrame::GetVariables (arguments=%i, locals=%i, statics=%i, "
-                "in_scope_only=%i runtime=%i dynamic=%i)",
-                arguments, locals, statics, in_scope_only,
-                include_runtime_support_values, use_dynamic);
 
   std::set<VariableSP> variable_set;
   Process *process = exe_ctx.GetProcessPtr();
@@ -997,14 +803,12 @@ SBValueList SBFrame::GetVariables(const lldb::SBVariablesOptions &options) {
     if (stop_locker.TryLock(&process->GetRunLock())) {
       frame = exe_ctx.GetFramePtr();
       if (frame) {
-        size_t i;
         VariableList *variable_list = nullptr;
         variable_list = frame->GetVariableList(true);
         if (variable_list) {
           const size_t num_variables = variable_list->GetSize();
           if (num_variables) {
-            for (i = 0; i < num_variables; ++i) {
-              VariableSP variable_sp(variable_list->GetVariableAtIndex(i));
+            for (const VariableSP &variable_sp : *variable_list) {
               if (variable_sp) {
                 bool add_variable = false;
                 switch (variable_sp->GetScope()) {
@@ -1050,27 +854,29 @@ SBValueList SBFrame::GetVariables(const lldb::SBVariablesOptions &options) {
             }
           }
         }
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetVariables () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
+        if (recognized_arguments) {
+          auto recognized_frame = frame->GetRecognizedFrame();
+          if (recognized_frame) {
+            ValueObjectListSP recognized_arg_list =
+                recognized_frame->GetRecognizedArguments();
+            if (recognized_arg_list) {
+              for (auto &rec_value_sp : recognized_arg_list->GetObjects()) {
+                SBValue value_sb;
+                value_sb.SetSP(rec_value_sp, use_dynamic);
+                value_list.Append(value_sb);
+              }
+            }
+          }
+        }
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetVariables () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::GetVariables (...) => SBValueList(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(value_list.opaque_ptr()));
 
   return value_list;
 }
 
 SBValueList SBFrame::GetRegisters() {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
 
   SBValueList value_list;
   std::unique_lock<std::recursive_mutex> lock;
@@ -1092,27 +898,15 @@ SBValueList SBFrame::GetRegisters() {
                 ValueObjectRegisterSet::Create(frame, reg_ctx, set_idx));
           }
         }
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetRegisters () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetRegisters () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::GetRegisters () => SBValueList(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(value_list.opaque_ptr()));
 
   return value_list;
 }
 
 SBValue SBFrame::FindRegister(const char *name) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, name);
 
   SBValue result;
   ValueObjectSP value_sp;
@@ -1129,41 +923,22 @@ SBValue SBFrame::FindRegister(const char *name) {
       if (frame) {
         RegisterContextSP reg_ctx(frame->GetRegisterContext());
         if (reg_ctx) {
-          const uint32_t num_regs = reg_ctx->GetRegisterCount();
-          for (uint32_t reg_idx = 0; reg_idx < num_regs; ++reg_idx) {
-            const RegisterInfo *reg_info =
-                reg_ctx->GetRegisterInfoAtIndex(reg_idx);
-            if (reg_info &&
-                ((reg_info->name && strcasecmp(reg_info->name, name) == 0) ||
-                 (reg_info->alt_name &&
-                  strcasecmp(reg_info->alt_name, name) == 0))) {
-              value_sp = ValueObjectRegister::Create(frame, reg_ctx, reg_idx);
-              result.SetSP(value_sp);
-              break;
-            }
+          if (const RegisterInfo *reg_info =
+                  reg_ctx->GetRegisterInfoByName(name)) {
+            value_sp = ValueObjectRegister::Create(frame, reg_ctx, reg_info);
+            result.SetSP(value_sp);
           }
         }
-      } else {
-        if (log)
-          log->Printf("SBFrame::FindRegister () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::FindRegister () => error: process is running");
     }
   }
-
-  if (log)
-    log->Printf("SBFrame(%p)::FindRegister () => SBValue(%p)",
-                static_cast<void *>(frame),
-                static_cast<void *>(value_sp.get()));
 
   return result;
 }
 
 bool SBFrame::GetDescription(SBStream &description) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, description);
+
   Stream &strm = description.ref();
 
   std::unique_lock<std::recursive_mutex> lock;
@@ -1178,14 +953,7 @@ bool SBFrame::GetDescription(SBStream &description) {
       frame = exe_ctx.GetFramePtr();
       if (frame) {
         frame->DumpUsingSettingsFormat(&strm);
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetDescription () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetDescription () => error: process is running");
     }
 
   } else
@@ -1195,6 +963,8 @@ bool SBFrame::GetDescription(SBStream &description) {
 }
 
 SBValue SBFrame::EvaluateExpression(const char *expr) {
+  LLDB_INSTRUMENT_VA(this, expr);
+
   SBValue result;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -1220,6 +990,8 @@ SBValue SBFrame::EvaluateExpression(const char *expr) {
 SBValue
 SBFrame::EvaluateExpression(const char *expr,
                             lldb::DynamicValueType fetch_dynamic_value) {
+  LLDB_INSTRUMENT_VA(this, expr, fetch_dynamic_value);
+
   SBExpressionOptions options;
   options.SetFetchDynamicValue(fetch_dynamic_value);
   options.SetUnwindOnError(true);
@@ -1239,6 +1011,8 @@ SBFrame::EvaluateExpression(const char *expr,
 SBValue SBFrame::EvaluateExpression(const char *expr,
                                     lldb::DynamicValueType fetch_dynamic_value,
                                     bool unwind_on_error) {
+  LLDB_INSTRUMENT_VA(this, expr, fetch_dynamic_value, unwind_on_error);
+
   SBExpressionOptions options;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -1257,19 +1031,13 @@ SBValue SBFrame::EvaluateExpression(const char *expr,
 
 lldb::SBValue SBFrame::EvaluateExpression(const char *expr,
                                           const SBExpressionOptions &options) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, expr, options);
 
-#ifndef LLDB_DISABLE_PYTHON
   Log *expr_log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
-#endif
 
-  ExpressionResults exe_results = eExpressionSetupError;
   SBValue expr_result;
 
   if (expr == nullptr || expr[0] == '\0') {
-    if (log)
-      log->Printf(
-          "SBFrame::EvaluateExpression called with an empty expression");
     return expr_result;
   }
 
@@ -1278,8 +1046,6 @@ lldb::SBValue SBFrame::EvaluateExpression(const char *expr,
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
-  if (log)
-    log->Printf("SBFrame()::EvaluateExpression (expr=\"%s\")...", expr);
 
   StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
@@ -1294,50 +1060,36 @@ lldb::SBValue SBFrame::EvaluateExpression(const char *expr,
         if (target->GetDisplayExpressionsInCrashlogs()) {
           StreamString frame_description;
           frame->DumpUsingSettingsFormat(&frame_description);
-          stack_trace = llvm::make_unique<llvm::PrettyStackTraceFormat>(
+          stack_trace = std::make_unique<llvm::PrettyStackTraceFormat>(
               "SBFrame::EvaluateExpression (expr = \"%s\", fetch_dynamic_value "
               "= %u) %s",
               expr, options.GetFetchDynamicValue(),
               frame_description.GetData());
         }
 
-        exe_results = target->EvaluateExpression(expr, frame, expr_value_sp,
-                                                 options.ref());
+        target->EvaluateExpression(expr, frame, expr_value_sp, options.ref());
         expr_result.SetSP(expr_value_sp, options.GetFetchDynamicValue());
-      } else {
-        if (log)
-          log->Printf("SBFrame::EvaluateExpression () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf(
-            "SBFrame::EvaluateExpression () => error: process is running");
     }
   }
 
-#ifndef LLDB_DISABLE_PYTHON
-  if (expr_log)
-    expr_log->Printf("** [SBFrame::EvaluateExpression] Expression result is "
-                     "%s, summary %s **",
-                     expr_result.GetValue(), expr_result.GetSummary());
-
-  if (log)
-    log->Printf("SBFrame(%p)::EvaluateExpression (expr=\"%s\") => SBValue(%p) "
-                "(execution result=%d)",
-                static_cast<void *>(frame), expr,
-                static_cast<void *>(expr_value_sp.get()), exe_results);
-#endif
+  LLDB_LOGF(expr_log,
+            "** [SBFrame::EvaluateExpression] Expression result is "
+            "%s, summary %s **",
+            expr_result.GetValue(), expr_result.GetSummary());
 
   return expr_result;
 }
 
 bool SBFrame::IsInlined() {
+  LLDB_INSTRUMENT_VA(this);
+
   return static_cast<const SBFrame *>(this)->IsInlined();
 }
 
 bool SBFrame::IsInlined() const {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
@@ -1353,27 +1105,43 @@ bool SBFrame::IsInlined() const {
         Block *block = frame->GetSymbolContext(eSymbolContextBlock).block;
         if (block)
           return block->GetContainingInlinedBlock() != nullptr;
-      } else {
-        if (log)
-          log->Printf("SBFrame::IsInlined () => error: could not reconstruct "
-                      "frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::IsInlined () => error: process is running");
     }
   }
   return false;
 }
 
+bool SBFrame::IsArtificial() {
+  LLDB_INSTRUMENT_VA(this);
+
+  return static_cast<const SBFrame *>(this)->IsArtificial();
+}
+
+bool SBFrame::IsArtificial() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  std::unique_lock<std::recursive_mutex> lock;
+  ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
+
+  StackFrame *frame = exe_ctx.GetFramePtr();
+  if (frame)
+    return frame->IsArtificial();
+
+  return false;
+}
+
 const char *SBFrame::GetFunctionName() {
+  LLDB_INSTRUMENT_VA(this);
+
   return static_cast<const SBFrame *>(this)->GetFunctionName();
 }
 
 lldb::LanguageType SBFrame::GuessLanguage() const {
+  LLDB_INSTRUMENT_VA(this);
+
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
-  
+
   StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
@@ -1390,7 +1158,8 @@ lldb::LanguageType SBFrame::GuessLanguage() const {
 }
 
 const char *SBFrame::GetFunctionName() const {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   const char *name = nullptr;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
@@ -1411,8 +1180,7 @@ const char *SBFrame::GetFunctionName() const {
           if (inlined_block) {
             const InlineFunctionInfo *inlined_info =
                 inlined_block->GetInlinedFunctionInfo();
-            name =
-                inlined_info->GetName(sc.function->GetLanguage()).AsCString();
+            name = inlined_info->GetName().AsCString();
           }
         }
 
@@ -1425,21 +1193,15 @@ const char *SBFrame::GetFunctionName() const {
           if (sc.symbol)
             name = sc.symbol->GetName().GetCString();
         }
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetFunctionName () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf("SBFrame::GetFunctionName() => error: process is running");
     }
   }
   return name;
 }
 
 const char *SBFrame::GetDisplayFunctionName() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
+
   const char *name = nullptr;
 
   std::unique_lock<std::recursive_mutex> lock;
@@ -1461,8 +1223,7 @@ const char *SBFrame::GetDisplayFunctionName() {
           if (inlined_block) {
             const InlineFunctionInfo *inlined_info =
                 inlined_block->GetInlinedFunctionInfo();
-            name = inlined_info->GetDisplayName(sc.function->GetLanguage())
-                       .AsCString();
+            name = inlined_info->GetDisplayName().AsCString();
           }
         }
 
@@ -1475,15 +1236,7 @@ const char *SBFrame::GetDisplayFunctionName() {
           if (sc.symbol)
             name = sc.symbol->GetDisplayName().GetCString();
         }
-      } else {
-        if (log)
-          log->Printf("SBFrame::GetDisplayFunctionName () => error: could not "
-                      "reconstruct frame object for this SBFrame.");
       }
-    } else {
-      if (log)
-        log->Printf(
-            "SBFrame::GetDisplayFunctionName() => error: process is running");
     }
   }
   return name;

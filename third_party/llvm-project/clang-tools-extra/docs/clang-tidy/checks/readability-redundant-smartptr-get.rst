@@ -14,3 +14,8 @@ Examples:
   *ptr->get()  ==>  **ptr
   if (ptr.get() == nullptr) ... => if (ptr == nullptr) ...
 
+
+.. option:: IgnoreMacros
+
+   If this option is set to `true` (default is `true`), the check will not warn
+   about calls inside macros.

@@ -1,4 +1,4 @@
-; RUN: opt < %s -simple-loop-unswitch -disable-output
+; RUN: opt < %s -simple-loop-unswitch -verify-memoryssa -disable-output
 ; PR1559
 
 target triple = "i686-pc-linux-gnu"

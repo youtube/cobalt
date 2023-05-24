@@ -1,45 +1,46 @@
 //===-- GDBRemoteCommunication.h --------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_GDBRemoteCommunication_h_
-#define liblldb_GDBRemoteCommunication_h_
+#ifndef LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATION_H
+#define LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATION_H
 
-// C Includes
-// C++ Includes
+#include "GDBRemoteCommunicationHistory.h"
+
 #include <condition_variable>
+#include <future>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Communication.h"
-#include "lldb/Core/Listener.h"
+#include "lldb/Host/Config.h"
 #include "lldb/Host/HostThread.h"
-#include "lldb/Host/Predicate.h"
 #include "lldb/Utility/Args.h"
+#include "lldb/Utility/Listener.h"
+#include "lldb/Utility/Predicate.h"
+#include "lldb/Utility/StringExtractorGDBRemote.h"
 #include "lldb/lldb-public.h"
 
-#include "lldb/Utility/StringExtractorGDBRemote.h"
-
 namespace lldb_private {
+namespace repro {
+class PacketRecorder;
+}
 namespace process_gdb_remote {
 
-typedef enum {
+enum GDBStoppointType {
   eStoppointInvalid = -1,
   eBreakpointSoftware = 0,
   eBreakpointHardware,
   eWatchpointWrite,
   eWatchpointRead,
   eWatchpointReadWrite
-} GDBStoppointType;
+};
 
 enum class CompressionType {
   None = 0,    // no compression
@@ -51,14 +52,38 @@ enum class CompressionType {
   LZMA, // Lempel–Ziv–Markov chain algorithm
 };
 
+// Data included in the vFile:fstat packet.
+// https://sourceware.org/gdb/onlinedocs/gdb/struct-stat.html#struct-stat
+struct GDBRemoteFStatData {
+  llvm::support::ubig32_t gdb_st_dev;
+  llvm::support::ubig32_t gdb_st_ino;
+  llvm::support::ubig32_t gdb_st_mode;
+  llvm::support::ubig32_t gdb_st_nlink;
+  llvm::support::ubig32_t gdb_st_uid;
+  llvm::support::ubig32_t gdb_st_gid;
+  llvm::support::ubig32_t gdb_st_rdev;
+  llvm::support::ubig64_t gdb_st_size;
+  llvm::support::ubig64_t gdb_st_blksize;
+  llvm::support::ubig64_t gdb_st_blocks;
+  llvm::support::ubig32_t gdb_st_atime;
+  llvm::support::ubig32_t gdb_st_mtime;
+  llvm::support::ubig32_t gdb_st_ctime;
+};
+static_assert(sizeof(GDBRemoteFStatData) == 64,
+              "size of GDBRemoteFStatData is not 64");
+
+enum GDBErrno {
+#define HANDLE_ERRNO(name, value) GDB_##name = value,
+#include "Plugins/Process/gdb-remote/GDBRemoteErrno.def"
+  GDB_EUNKNOWN = 9999
+};
+
 class ProcessGDBRemote;
 
 class GDBRemoteCommunication : public Communication {
 public:
   enum {
     eBroadcastBitRunPacketSent = kLoUserBroadcastBit,
-    eBroadcastBitGdbReadThreadGotNotify =
-        kLoUserBroadcastBit << 1 // Sent when we received a notify packet.
   };
 
   enum class PacketType { Invalid = 0, Standard, Notify };
@@ -112,13 +137,11 @@ public:
 
   bool GetSendAcks() { return m_send_acks; }
 
-  //------------------------------------------------------------------
   // Set the global packet timeout.
   //
   // For clients, this is the timeout that gets used when sending
   // packets and waiting for responses. For servers, this is used when waiting
   // for ACKs.
-  //------------------------------------------------------------------
   std::chrono::seconds SetPacketTimeout(std::chrono::seconds packet_timeout) {
     const auto old_packet_timeout = m_packet_timeout;
     m_packet_timeout = packet_timeout;
@@ -127,10 +150,8 @@ public:
 
   std::chrono::seconds GetPacketTimeout() const { return m_packet_timeout; }
 
-  //------------------------------------------------------------------
   // Start a debugserver instance on the current host using the
   // supplied connection URL.
-  //------------------------------------------------------------------
   Status StartDebugserverProcess(
       const char *url,
       Platform *platform, // If non nullptr, then check with the platform for
@@ -141,85 +162,19 @@ public:
 
   void DumpHistory(Stream &strm);
 
+  void SetPacketRecorder(repro::PacketRecorder *recorder);
+
+  static llvm::Error ConnectLocally(GDBRemoteCommunication &client,
+                                    GDBRemoteCommunication &server);
+
+  /// Expand GDB run-length encoding.
+  static std::string ExpandRLE(std::string);
+
 protected:
-  class History {
-  public:
-    enum PacketType {
-      ePacketTypeInvalid = 0,
-      ePacketTypeSend,
-      ePacketTypeRecv
-    };
-
-    struct Entry {
-      Entry()
-          : packet(), type(ePacketTypeInvalid), bytes_transmitted(0),
-            packet_idx(0), tid(LLDB_INVALID_THREAD_ID) {}
-
-      void Clear() {
-        packet.clear();
-        type = ePacketTypeInvalid;
-        bytes_transmitted = 0;
-        packet_idx = 0;
-        tid = LLDB_INVALID_THREAD_ID;
-      }
-      std::string packet;
-      PacketType type;
-      uint32_t bytes_transmitted;
-      uint32_t packet_idx;
-      lldb::tid_t tid;
-    };
-
-    History(uint32_t size);
-
-    ~History();
-
-    // For single char packets for ack, nack and /x03
-    void AddPacket(char packet_char, PacketType type,
-                   uint32_t bytes_transmitted);
-
-    void AddPacket(const std::string &src, uint32_t src_len, PacketType type,
-                   uint32_t bytes_transmitted);
-
-    void Dump(Stream &strm) const;
-
-    void Dump(Log *log) const;
-
-    bool DidDumpToLog() const { return m_dumped_to_log; }
-
-  protected:
-    uint32_t GetFirstSavedPacketIndex() const {
-      if (m_total_packet_count < m_packets.size())
-        return 0;
-      else
-        return m_curr_idx + 1;
-    }
-
-    uint32_t GetNumPacketsInHistory() const {
-      if (m_total_packet_count < m_packets.size())
-        return m_total_packet_count;
-      else
-        return (uint32_t)m_packets.size();
-    }
-
-    uint32_t GetNextIndex() {
-      ++m_total_packet_count;
-      const uint32_t idx = m_curr_idx;
-      m_curr_idx = NormalizeIndex(idx + 1);
-      return idx;
-    }
-
-    uint32_t NormalizeIndex(uint32_t i) const { return i % m_packets.size(); }
-
-    std::vector<Entry> m_packets;
-    uint32_t m_curr_idx;
-    uint32_t m_total_packet_count;
-    mutable bool m_dumped_to_log;
-  };
-
   std::chrono::seconds m_packet_timeout;
   uint32_t m_echo_number;
   LazyBool m_supports_qEcho;
-  History m_history;
+  GDBRemoteCommunicationHistory m_history;
   bool m_send_acks;
   bool m_is_platform; // Set to true if this class represents a platform,
                       // false if this class represents a debug session for
@@ -228,6 +183,8 @@ protected:
   CompressionType m_compression_type;
 
   PacketResult SendPacketNoLock(llvm::StringRef payload);
+  PacketResult SendRawPacketNoLock(llvm::StringRef payload,
+                                   bool skip_ack = false);
 
   PacketResult ReadPacket(StringExtractorGDBRemote &response,
                           Timeout<std::micro> timeout, bool sync_on_timeout);
@@ -236,10 +193,6 @@ protected:
       StringExtractorGDBRemote &response, Timeout<std::micro> timeout,
       bool sync_on_timeout,
       llvm::function_ref<void(llvm::StringRef)> output_callback);
-
-  // Pop a packet from the queue in a thread safe manner
-  PacketResult PopPacketFromQueue(StringExtractorGDBRemote &response,
-                                  Timeout<std::micro> timeout);
 
   PacketResult WaitForPacketNoLock(StringExtractorGDBRemote &response,
                                    Timeout<std::micro> timeout,
@@ -267,29 +220,21 @@ protected:
 
   static lldb::thread_result_t ListenThread(lldb::thread_arg_t arg);
 
-  // GDB-Remote read thread
-  //  . this thread constantly tries to read from the communication
-  //    class and stores all packets received in a queue.  The usual
-  //    threads read requests simply pop packets off the queue in the
-  //    usual order.
-  //    This setup allows us to intercept and handle async packets, such
-  //    as the notify packet.
-
-  // This method is defined as part of communication.h
-  // when the read thread gets any bytes it will pass them on to this function
-  void AppendBytesToCache(const uint8_t *bytes, size_t len, bool broadcast,
-                          lldb::ConnectionStatus status) override;
-
 private:
-  std::queue<StringExtractorGDBRemote> m_packet_queue; // The packet queue
-  std::mutex m_packet_queue_mutex; // Mutex for accessing queue
-  std::condition_variable
-      m_condition_queue_not_empty; // Condition variable to wait for packets
+  // Promise used to grab the port number from listening thread
+  std::promise<uint16_t> m_port_promise;
 
   HostThread m_listen_thread;
   std::string m_listen_url;
 
-  DISALLOW_COPY_AND_ASSIGN(GDBRemoteCommunication);
+#if defined(HAVE_LIBCOMPRESSION)
+  CompressionType m_decompression_scratch_type = CompressionType::None;
+  void *m_decompression_scratch = nullptr;
+#endif
+
+  GDBRemoteCommunication(const GDBRemoteCommunication &) = delete;
+  const GDBRemoteCommunication &
+  operator=(const GDBRemoteCommunication &) = delete;
 };
 
 } // namespace process_gdb_remote
@@ -305,4 +250,4 @@ struct format_provider<
 };
 } // namespace llvm
 
-#endif // liblldb_GDBRemoteCommunication_h_
+#endif // LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATION_H

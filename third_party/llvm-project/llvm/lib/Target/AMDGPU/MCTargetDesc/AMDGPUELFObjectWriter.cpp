@@ -1,21 +1,16 @@
 //===- AMDGPUELFObjectWriter.cpp - AMDGPU ELF Writer ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+#include "AMDGPUFixupKinds.h"
 #include "AMDGPUMCTargetDesc.h"
-#include "llvm/BinaryFormat/ELF.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCELFObjectWriter.h"
-#include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCFixup.h"
-#include "llvm/MC/MCObjectWriter.h"
-#include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
@@ -23,7 +18,8 @@ namespace {
 
 class AMDGPUELFObjectWriter : public MCELFObjectTargetWriter {
 public:
-  AMDGPUELFObjectWriter(bool Is64Bit, uint8_t OSABI, bool HasRelocationAddend);
+  AMDGPUELFObjectWriter(bool Is64Bit, uint8_t OSABI, bool HasRelocationAddend,
+                        uint8_t ABIVersion);
 
 protected:
   unsigned getRelocType(MCContext &Ctx, const MCValue &Target,
@@ -35,9 +31,10 @@ protected:
 
 AMDGPUELFObjectWriter::AMDGPUELFObjectWriter(bool Is64Bit,
                                              uint8_t OSABI,
-                                             bool HasRelocationAddend)
+                                             bool HasRelocationAddend,
+                                             uint8_t ABIVersion)
   : MCELFObjectTargetWriter(Is64Bit, OSABI, ELF::EM_AMDGPU,
-                            HasRelocationAddend) {}
+                            HasRelocationAddend, ABIVersion) {}
 
 unsigned AMDGPUELFObjectWriter::getRelocType(MCContext &Ctx,
                                              const MCValue &Target,
@@ -46,11 +43,9 @@ unsigned AMDGPUELFObjectWriter::getRelocType(MCContext &Ctx,
   if (const auto *SymA = Target.getSymA()) {
     // SCRATCH_RSRC_DWORD[01] is a special global variable that represents
     // the scratch buffer.
-    if (SymA->getSymbol().getName() == "SCRATCH_RSRC_DWORD0")
+    if (SymA->getSymbol().getName() == "SCRATCH_RSRC_DWORD0" ||
+        SymA->getSymbol().getName() == "SCRATCH_RSRC_DWORD1")
       return ELF::R_AMDGPU_ABS32_LO;
-
-    if (SymA->getSymbol().getName() == "SCRATCH_RSRC_DWORD1")
-      return ELF::R_AMDGPU_ABS32_HI;
   }
 
   switch (Target.getAccessVariant()) {
@@ -81,12 +76,26 @@ unsigned AMDGPUELFObjectWriter::getRelocType(MCContext &Ctx,
     return ELF::R_AMDGPU_ABS64;
   }
 
+  if (Fixup.getTargetKind() == AMDGPU::fixup_si_sopp_br) {
+    const auto *SymA = Target.getSymA();
+    assert(SymA);
+
+    if (SymA->getSymbol().isUndefined()) {
+      Ctx.reportError(Fixup.getLoc(), Twine("undefined label '") +
+                                          SymA->getSymbol().getName() + "'");
+      return ELF::R_AMDGPU_NONE;
+    }
+    return ELF::R_AMDGPU_REL16;
+  }
+
   llvm_unreachable("unhandled relocation type");
 }
 
 std::unique_ptr<MCObjectTargetWriter>
 llvm::createAMDGPUELFObjectWriter(bool Is64Bit, uint8_t OSABI,
-                                  bool HasRelocationAddend) {
-  return llvm::make_unique<AMDGPUELFObjectWriter>(Is64Bit, OSABI,
-                                                  HasRelocationAddend);
+                                  bool HasRelocationAddend,
+                                  uint8_t ABIVersion) {
+  return std::make_unique<AMDGPUELFObjectWriter>(Is64Bit, OSABI,
+                                                  HasRelocationAddend,
+                                                  ABIVersion);
 }

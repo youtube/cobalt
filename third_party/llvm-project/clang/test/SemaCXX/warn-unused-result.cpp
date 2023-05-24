@@ -33,6 +33,36 @@ void test() {
   const S &s4 = g1();
 }
 
+void testSubstmts(int i) {
+  switch (i) {
+  case 0:
+    f(); // expected-warning {{ignoring return value}}
+  default:
+    f(); // expected-warning {{ignoring return value}}
+  }
+
+  if (i)
+    f(); // expected-warning {{ignoring return value}}
+  else
+    f(); // expected-warning {{ignoring return value}}
+
+  while (i)
+    f(); // expected-warning {{ignoring return value}}
+
+  do
+    f(); // expected-warning {{ignoring return value}}
+  while (i);
+
+  for (f(); // expected-warning {{ignoring return value}}
+       ;
+       f() // expected-warning {{ignoring return value}}
+      )
+    f(); // expected-warning {{ignoring return value}}
+
+  f(),  // expected-warning {{ignoring return value}}
+  (void)f();
+}
+
 struct X {
  int foo() __attribute__((warn_unused_result));
 };
@@ -206,3 +236,21 @@ void f() {
   (void)++p;
 }
 } // namespace
+
+namespace PR39837 {
+[[clang::warn_unused_result]] int f(int);
+
+void g() {
+  int a[2];
+  for (int b : a)
+    f(b); // expected-warning {{ignoring return value}}
+}
+} // namespace PR39837
+
+namespace PR45520 {
+[[nodiscard]] bool (*f)(); // expected-warning {{'nodiscard' attribute only applies to functions, classes, or enumerations}}
+[[clang::warn_unused_result]] bool (*g)();
+__attribute__((warn_unused_result)) bool (*h)();
+
+void i([[nodiscard]] bool (*fp)()); // expected-warning {{'nodiscard' attribute only applies to functions, classes, or enumerations}}
+}

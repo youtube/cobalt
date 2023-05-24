@@ -1,9 +1,8 @@
 //===-- FuzzerCLI.h - Common logic for CLIs of fuzzers ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,14 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_FUZZMUTATE_FUZZER_CLI_H
-#define LLVM_FUZZMUTATE_FUZZER_CLI_H
+#ifndef LLVM_FUZZMUTATE_FUZZERCLI_H
+#define LLVM_FUZZMUTATE_FUZZERCLI_H
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
+
+class StringRef;
 
 /// Parse cl::opts from a fuzz target commandline.
 ///
@@ -76,4 +76,4 @@ std::unique_ptr<Module> parseAndVerify(const uint8_t *Data, size_t Size,
 
 } // end llvm namespace
 
-#endif // LLVM_FUZZMUTATE_FUZZER_CLI_H
+#endif // LLVM_FUZZMUTATE_FUZZERCLI_H

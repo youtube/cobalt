@@ -1,14 +1,13 @@
 //===- DbiModuleDescriptor.h - PDB module information -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DEBUGINFO_PDB_RAW_DBIMODULEDESCRIPTOR_H
-#define LLVM_DEBUGINFO_PDB_RAW_DBIMODULEDESCRIPTOR_H
+#ifndef LLVM_DEBUGINFO_PDB_NATIVE_DBIMODULEDESCRIPTOR_H
+#define LLVM_DEBUGINFO_PDB_NATIVE_DBIMODULEDESCRIPTOR_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/DebugInfo/PDB/Native/RawTypes.h"
@@ -16,7 +15,6 @@
 #include "llvm/Support/BinaryStreamRef.h"
 #include "llvm/Support/Error.h"
 #include <cstdint>
-#include <vector>
 
 namespace llvm {
 
@@ -26,9 +24,9 @@ class DbiModuleDescriptor {
   friend class DbiStreamBuilder;
 
 public:
-  DbiModuleDescriptor();
-  DbiModuleDescriptor(const DbiModuleDescriptor &Info);
-  ~DbiModuleDescriptor();
+  DbiModuleDescriptor() = default;
+  DbiModuleDescriptor(const DbiModuleDescriptor &Info) = default;
+  DbiModuleDescriptor &operator=(const DbiModuleDescriptor &Info) = default;
 
   static Error initialize(BinaryStreamRef Stream, DbiModuleDescriptor &Info);
 
@@ -69,4 +67,4 @@ template <> struct VarStreamArrayExtractor<pdb::DbiModuleDescriptor> {
 
 } // end namespace llvm
 
-#endif // LLVM_DEBUGINFO_PDB_RAW_DBIMODULEDESCRIPTOR_H
+#endif // LLVM_DEBUGINFO_PDB_NATIVE_DBIMODULEDESCRIPTOR_H

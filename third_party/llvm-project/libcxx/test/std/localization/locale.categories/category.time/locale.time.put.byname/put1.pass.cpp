@@ -1,11 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+//
+// NetBSD does not support LC_TIME at the moment
+// XFAIL: netbsd
+
+// XFAIL: LIBCXX-AIX-FIXME
 
 // REQUIRES: locale.en_US.UTF-8
 // REQUIRES: locale.fr_FR.UTF-8
@@ -24,11 +28,9 @@
 //     ~time_put_byname();
 // };
 
-// TODO: investigation needed
-// XFAIL: linux-gnu
-
 #include <locale>
 #include <cassert>
+#include "test_macros.h"
 #include "test_iterators.h"
 
 #include "platform_support.h" // locale name macros
@@ -43,7 +45,7 @@ public:
         : F(nm, refs) {}
 };
 
-int main()
+int main(int, char**)
 {
     char str[200];
     output_iterator<char*> iter;
@@ -68,11 +70,14 @@ int main()
     }
     {
         const my_facet f(LOCALE_fr_FR_UTF_8, 1);
-        std::string pat("Today is %A which is abbreviated %a.");
+        std::string pat("Today is %A which is abbreviated '%a'.");
         iter = f.put(output_iterator<char*>(str), ios, '*', &t,
                      pat.data(), pat.data() + pat.size());
         std::string ex(str, iter.base());
-        assert((ex == "Today is Samedi which is abbreviated Sam.")||
-               (ex == "Today is samedi which is abbreviated sam." ));
+        assert((ex == "Today is Samedi which is abbreviated 'Sam'.")||
+               (ex == "Today is samedi which is abbreviated 'sam'." )||
+               (ex == "Today is samedi which is abbreviated 'sam.'."));
     }
+
+  return 0;
 }

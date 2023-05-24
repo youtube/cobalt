@@ -1,9 +1,8 @@
 //===- FileAnalysis.cpp -----------------------------------------*- C++ -*-===//
 //
-//                      The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,6 +22,8 @@
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/ELFObjectFile.h"
@@ -31,10 +32,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
-
 
 using Instr = llvm::cfi_verify::FileAnalysis::Instr;
 using LLVMSymbolizer = llvm::symbolize::LLVMSymbolizer;
@@ -105,6 +104,9 @@ Expected<FileAnalysis> FileAnalysis::Create(StringRef Filename) {
   if (auto SectionParseResponse = Analysis.parseCodeSections())
     return std::move(SectionParseResponse);
 
+  if (auto SymbolTableParseResponse = Analysis.parseSymbolTable())
+    return std::move(SymbolTableParseResponse);
+
   return std::move(Analysis);
 }
 
@@ -165,7 +167,18 @@ const Instr &FileAnalysis::getInstructionOrDie(uint64_t Address) const {
 
 bool FileAnalysis::isCFITrap(const Instr &InstrMeta) const {
   const auto &InstrDesc = MII->get(InstrMeta.Instruction.getOpcode());
-  return InstrDesc.isTrap();
+  return InstrDesc.isTrap() || willTrapOnCFIViolation(InstrMeta);
+}
+
+bool FileAnalysis::willTrapOnCFIViolation(const Instr &InstrMeta) const {
+  const auto &InstrDesc = MII->get(InstrMeta.Instruction.getOpcode());
+  if (!InstrDesc.isCall())
+    return false;
+  uint64_t Target;
+  if (!MIA->evaluateBranch(InstrMeta.Instruction, InstrMeta.VMAddress,
+                           InstrMeta.InstructionSize, Target))
+    return false;
+  return TrapOnFailFunctionAddresses.contains(Target);
 }
 
 bool FileAnalysis::canFallThrough(const Instr &InstrMeta) const {
@@ -241,7 +254,8 @@ FileAnalysis::getDirectControlFlowXRefs(const Instr &InstrMeta) const {
   return CFCrossReferences;
 }
 
-const std::set<uint64_t> &FileAnalysis::getIndirectInstructions() const {
+const std::set<object::SectionedAddress> &
+FileAnalysis::getIndirectInstructions() const {
   return IndirectInstructions;
 }
 
@@ -255,9 +269,12 @@ const MCInstrAnalysis *FileAnalysis::getMCInstrAnalysis() const {
   return MIA.get();
 }
 
-Expected<DIInliningInfo> FileAnalysis::symbolizeInlinedCode(uint64_t Address) {
+Expected<DIInliningInfo>
+FileAnalysis::symbolizeInlinedCode(object::SectionedAddress Address) {
   assert(Symbolizer != nullptr && "Symbolizer is invalid.");
-  return Symbolizer->symbolizeInlinedCode(Object->getFileName(), Address);
+
+  return Symbolizer->symbolizeInlinedCode(std::string(Object->getFileName()),
+                                          Address);
 }
 
 CFIProtectionStatus
@@ -332,7 +349,7 @@ uint64_t FileAnalysis::indirectCFOperandClobber(const GraphResult &Graph) const 
           // Add the registers this load reads to those we check for clobbers.
           for (unsigned i = InstrDesc.getNumDefs(),
                         e = InstrDesc.getNumOperands(); i != e; i++) {
-            const auto Operand = NodeInstr.Instruction.getOperand(i);
+            const auto &Operand = NodeInstr.Instruction.getOperand(i);
             if (Operand.isReg())
               CurRegisterNumbers.insert(Operand.getReg());
           }
@@ -347,7 +364,7 @@ uint64_t FileAnalysis::indirectCFOperandClobber(const GraphResult &Graph) const 
 
 void FileAnalysis::printInstruction(const Instr &InstrMeta,
                                     raw_ostream &OS) const {
-  Printer->printInst(&InstrMeta.Instruction, OS, "", *SubtargetInfo.get());
+  Printer->printInst(&InstrMeta.Instruction, 0, "", *SubtargetInfo.get(), OS);
 }
 
 Error FileAnalysis::initialiseDisassemblyMembers() {
@@ -356,7 +373,9 @@ Error FileAnalysis::initialiseDisassemblyMembers() {
   MCPU = "";
   std::string ErrorString;
 
-  Symbolizer.reset(new LLVMSymbolizer());
+  LLVMSymbolizer::Options Opt;
+  Opt.UseSymbolTable = false;
+  Symbolizer.reset(new LLVMSymbolizer(Opt));
 
   ObjectTarget =
       TargetRegistry::lookupTarget(ArchName, ObjectTriple, ErrorString);
@@ -371,7 +390,9 @@ Error FileAnalysis::initialiseDisassemblyMembers() {
     return make_error<UnsupportedDisassembly>(
         "Failed to initialise RegisterInfo.");
 
-  AsmInfo.reset(ObjectTarget->createMCAsmInfo(*RegisterInfo, TripleName));
+  MCTargetOptions MCOptions;
+  AsmInfo.reset(
+      ObjectTarget->createMCAsmInfo(*RegisterInfo, TripleName, MCOptions));
   if (!AsmInfo)
     return make_error<UnsupportedDisassembly>("Failed to initialise AsmInfo.");
 
@@ -385,7 +406,8 @@ Error FileAnalysis::initialiseDisassemblyMembers() {
   if (!MII)
     return make_error<UnsupportedDisassembly>("Failed to initialise MII.");
 
-  Context.reset(new MCContext(AsmInfo.get(), RegisterInfo.get(), &MOFI));
+  Context.reset(new MCContext(Triple(TripleName), AsmInfo.get(),
+                              RegisterInfo.get(), SubtargetInfo.get()));
 
   Disassembler.reset(
       ObjectTarget->createMCDisassembler(*SubtargetInfo, *Context));
@@ -431,20 +453,26 @@ Error FileAnalysis::parseCodeSections() {
     if (!(object::ELFSectionRef(Section).getFlags() & ELF::SHF_EXECINSTR))
       continue;
 
-    StringRef SectionContents;
-    if (Section.getContents(SectionContents))
-      return make_error<StringError>("Failed to retrieve section contents",
-                                     inconvertibleErrorCode());
+    // Avoid checking the PLT since it produces spurious failures on AArch64
+    // when ignoring DWARF data.
+    Expected<StringRef> NameOrErr = Section.getName();
+    if (NameOrErr && *NameOrErr == ".plt")
+      continue;
+    consumeError(NameOrErr.takeError());
 
-    ArrayRef<uint8_t> SectionBytes((const uint8_t *)SectionContents.data(),
-                                   Section.getSize());
-    parseSectionContents(SectionBytes, Section.getAddress());
+    Expected<StringRef> Contents = Section.getContents();
+    if (!Contents)
+      return Contents.takeError();
+    ArrayRef<uint8_t> SectionBytes = arrayRefFromStringRef(*Contents);
+
+    parseSectionContents(SectionBytes,
+                         {Section.getAddress(), Section.getIndex()});
   }
   return Error::success();
 }
 
 void FileAnalysis::parseSectionContents(ArrayRef<uint8_t> SectionBytes,
-                                        uint64_t SectionAddress) {
+                                        object::SectionedAddress Address) {
   assert(Symbolizer && "Symbolizer is uninitialised.");
   MCInst Instruction;
   Instr InstrMeta;
@@ -453,12 +481,12 @@ void FileAnalysis::parseSectionContents(ArrayRef<uint8_t> SectionBytes,
   for (uint64_t Byte = 0; Byte < SectionBytes.size();) {
     bool ValidInstruction =
         Disassembler->getInstruction(Instruction, InstructionSize,
-                                     SectionBytes.drop_front(Byte), 0, nulls(),
+                                     SectionBytes.drop_front(Byte), 0,
                                      outs()) == MCDisassembler::Success;
 
     Byte += InstructionSize;
 
-    uint64_t VMAddress = SectionAddress + Byte - InstructionSize;
+    uint64_t VMAddress = Address.Address + Byte - InstructionSize;
     InstrMeta.Instruction = Instruction;
     InstrMeta.VMAddress = VMAddress;
     InstrMeta.InstructionSize = InstructionSize;
@@ -491,7 +519,8 @@ void FileAnalysis::parseSectionContents(ArrayRef<uint8_t> SectionBytes,
     // Check if this instruction exists in the range of the DWARF metadata.
     if (!IgnoreDWARFFlag) {
       auto LineInfo =
-          Symbolizer->symbolizeCode(Object->getFileName(), VMAddress);
+          Symbolizer->symbolizeCode(std::string(Object->getFileName()),
+                                    {VMAddress, Address.SectionIndex});
       if (!LineInfo) {
         handleAllErrors(LineInfo.takeError(), [](const ErrorInfoBase &E) {
           errs() << "Symbolizer failed to get line: " << E.message() << "\n";
@@ -499,11 +528,11 @@ void FileAnalysis::parseSectionContents(ArrayRef<uint8_t> SectionBytes,
         continue;
       }
 
-      if (LineInfo->FileName == "<invalid>")
+      if (LineInfo->FileName == DILineInfo::BadString)
         continue;
     }
 
-    IndirectInstructions.insert(VMAddress);
+    IndirectInstructions.insert({VMAddress, Address.SectionIndex});
   }
 }
 
@@ -518,7 +547,44 @@ void FileAnalysis::addInstruction(const Instr &Instruction) {
   }
 }
 
-UnsupportedDisassembly::UnsupportedDisassembly(StringRef Text) : Text(Text) {}
+Error FileAnalysis::parseSymbolTable() {
+  // Functions that will trap on CFI violations.
+  SmallSet<StringRef, 4> TrapOnFailFunctions;
+  TrapOnFailFunctions.insert("__cfi_slowpath");
+  TrapOnFailFunctions.insert("__cfi_slowpath_diag");
+  TrapOnFailFunctions.insert("abort");
+
+  // Look through the list of symbols for functions that will trap on CFI
+  // violations.
+  for (auto &Sym : Object->symbols()) {
+    auto SymNameOrErr = Sym.getName();
+    if (!SymNameOrErr)
+      consumeError(SymNameOrErr.takeError());
+    else if (TrapOnFailFunctions.contains(*SymNameOrErr)) {
+      auto AddrOrErr = Sym.getAddress();
+      if (!AddrOrErr)
+        consumeError(AddrOrErr.takeError());
+      else
+        TrapOnFailFunctionAddresses.insert(*AddrOrErr);
+    }
+  }
+  if (auto *ElfObject = dyn_cast<object::ELFObjectFileBase>(Object)) {
+    for (const auto &Addr : ElfObject->getPltAddresses()) {
+      if (!Addr.first)
+        continue;
+      object::SymbolRef Sym(*Addr.first, Object);
+      auto SymNameOrErr = Sym.getName();
+      if (!SymNameOrErr)
+        consumeError(SymNameOrErr.takeError());
+      else if (TrapOnFailFunctions.contains(*SymNameOrErr))
+        TrapOnFailFunctionAddresses.insert(Addr.second);
+    }
+  }
+  return Error::success();
+}
+
+UnsupportedDisassembly::UnsupportedDisassembly(StringRef Text)
+    : Text(std::string(Text)) {}
 
 char UnsupportedDisassembly::ID;
 void UnsupportedDisassembly::log(raw_ostream &OS) const {

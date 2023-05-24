@@ -1,9 +1,8 @@
 //===-- MCAsmParser.cpp - Abstract Asm Parser Interface -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,6 +13,7 @@
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/raw_ostream.h"
@@ -21,7 +21,11 @@
 
 using namespace llvm;
 
-MCAsmParser::MCAsmParser() : ShowParsedOperands(0) {}
+cl::opt<unsigned> AsmMacroMaxNestingDepth(
+    "asm-macro-max-nesting-depth", cl::init(20), cl::Hidden,
+    cl::desc("The maximum nesting depth allowed for assembly macros."));
+
+MCAsmParser::MCAsmParser() {}
 
 MCAsmParser::~MCAsmParser() = default;
 
@@ -37,6 +41,13 @@ const AsmToken &MCAsmParser::getTok() const {
 
 bool MCAsmParser::parseTokenLoc(SMLoc &Loc) {
   Loc = getTok().getLoc();
+  return false;
+}
+
+bool MCAsmParser::parseEOL() {
+  if (getTok().getKind() != AsmToken::EndOfStatement)
+    return Error(getTok().getLoc(), "expected newline");
+  Lex();
   return false;
 }
 
@@ -127,6 +138,25 @@ bool MCAsmParser::parseMany(function_ref<bool()> parseOne, bool hasComma) {
 bool MCAsmParser::parseExpression(const MCExpr *&Res) {
   SMLoc L;
   return parseExpression(Res, L);
+}
+
+bool MCAsmParser::parseGNUAttribute(SMLoc L, int64_t &Tag,
+                                    int64_t &IntegerValue) {
+  // Parse a .gnu_attribute with numerical tag and value.
+  StringRef S(L.getPointer());
+  SMLoc TagLoc;
+  TagLoc = getTok().getLoc();
+  const AsmToken &Tok = getTok();
+  if (Tok.isNot(AsmToken::Integer))
+    return false;
+  Tag = Tok.getIntVal();
+  Lex(); // Eat the Tag
+  Lex(); // Eat the comma
+  if (Tok.isNot(AsmToken::Integer))
+    return false;
+  IntegerValue = Tok.getIntVal();
+  Lex(); // Eat the IntegerValue
+  return true;
 }
 
 void MCParsedAsmOperand::dump() const {

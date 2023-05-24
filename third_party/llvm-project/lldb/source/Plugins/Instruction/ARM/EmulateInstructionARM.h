@@ -1,14 +1,13 @@
-//===-- lldb_EmulateInstructionARM.h ----------------------------*- C++ -*-===//
+//===-- EmulateInstructionARM.h ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_EmulateInstructionARM_h_
-#define lldb_EmulateInstructionARM_h_
+#ifndef LLDB_SOURCE_PLUGINS_INSTRUCTION_ARM_EMULATEINSTRUCTIONARM_H
+#define LLDB_SOURCE_PLUGINS_INSTRUCTION_ARM_EMULATEINSTRUCTIONARM_H
 
 #include "Plugins/Process/Utility/ARMDefines.h"
 #include "lldb/Core/EmulateInstruction.h"
@@ -20,8 +19,8 @@ namespace lldb_private {
 // ITSession - Keep track of the IT Block progression.
 class ITSession {
 public:
-  ITSession() : ITCounter(0), ITState(0) {}
-  ~ITSession() {}
+  ITSession() = default;
+  ~ITSession() = default;
 
   // InitIT - Initializes ITCounter/ITState.
   bool InitIT(uint32_t bits7_0);
@@ -40,13 +39,13 @@ public:
   uint32_t GetCond();
 
 private:
-  uint32_t ITCounter; // Possible values: 0, 1, 2, 3, 4.
-  uint32_t ITState;   // A2.5.2 Consists of IT[7:5] and IT[4:0] initially.
+  uint32_t ITCounter = 0; // Possible values: 0, 1, 2, 3, 4.
+  uint32_t ITState = 0;   // A2.5.2 Consists of IT[7:5] and IT[4:0] initially.
 };
 
 class EmulateInstructionARM : public EmulateInstruction {
 public:
-  typedef enum {
+  enum ARMEncoding {
     eEncodingA1,
     eEncodingA2,
     eEncodingA3,
@@ -57,15 +56,15 @@ public:
     eEncodingT3,
     eEncodingT4,
     eEncodingT5
-  } ARMEncoding;
+  };
 
   static void Initialize();
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "arm"; }
 
-  static const char *GetPluginDescriptionStatic();
+  static llvm::StringRef GetPluginDescriptionStatic();
 
   static lldb_private::EmulateInstruction *
   CreateInstance(const lldb_private::ArchSpec &arch, InstructionType inst_type);
@@ -84,11 +83,7 @@ public:
     return false;
   }
 
-  lldb_private::ConstString GetPluginName() override {
-    return GetPluginNameStatic();
-  }
-
-  uint32_t GetPluginVersion() override { return 1; }
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
   bool SetTargetTriple(const ArchSpec &arch) override;
 
@@ -292,7 +287,7 @@ public:
 protected:
   // Typedef for the callback function used during the emulation.
   // Pass along (ARMEncoding)encoding as the callback data.
-  typedef enum { eSize16, eSize32 } ARMInstrSize;
+  enum ARMInstrSize { eSize16, eSize32 };
 
   typedef struct {
     uint32_t mask;
@@ -784,4 +779,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // lldb_EmulateInstructionARM_h_
+#endif // LLDB_SOURCE_PLUGINS_INSTRUCTION_ARM_EMULATEINSTRUCTIONARM_H

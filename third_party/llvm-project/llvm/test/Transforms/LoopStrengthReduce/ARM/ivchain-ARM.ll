@@ -198,20 +198,12 @@ for.end:                                          ; preds = %for.body
 
 ; @testNeon is an important example of the nead for ivchains.
 ;
-; Currently we have two extra add.w's that keep the store address
-; live past the next increment because ISEL is unfortunately undoing
-; the store chain. ISEL also fails to convert all but one of the stores to
-; post-increment addressing. However, the loads should use
-; post-increment addressing, no add's or add.w's beyond the three
-; mentioned. Most importantly, there should be no spills or reloads!
+; Loads and stores should use post-increment addressing, no add's or add.w's.
+; Most importantly, there should be no spills or reloads!
 ;
 ; A9: testNeon:
 ; A9: %.lr.ph
-; A9: add.w r
 ; A9-NOT: lsl.w
-; A9-NOT: {{ldr|str|adds|add r}}
-; A9: vst1.8 {{.*}} [r{{[0-9]+}}], r{{[0-9]+}}
-; A9: add.w r
 ; A9-NOT: {{ldr|str|adds|add r}}
 ; A9-NOT: add.w r
 ; A9: bne
@@ -302,7 +294,6 @@ declare <1 x i64> @llvm.arm.neon.vld1.v1i64.p0i8(i8*, i32) nounwind readonly
 ; A9: vld1.8 {d{{[0-9]+}}}, [[BASE]], [[INC]]
 ; A9: vld1.8 {d{{[0-9]+}}}, [[BASE]], [[INC]]
 ; A9: vld1.8 {d{{[0-9]+}}}, [[BASE]], [[INC]]
-; A9: vld1.8 {d{{[0-9]+}}}, [[BASE]], {{r[0-9]}}
 ; A9: vst1.8 {d{{[0-9]+}}}, [[BASE]], [[INC]]
 ; A9: vst1.8 {d{{[0-9]+}}}, [[BASE]], [[INC]]
 ; A9: vst1.8 {d{{[0-9]+}}}, [[BASE]], [[INC]]

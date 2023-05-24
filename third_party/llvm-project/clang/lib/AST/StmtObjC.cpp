@@ -1,9 +1,8 @@
 //===--- StmtObjC.cpp - Classes for representing ObjC statements ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -47,9 +46,8 @@ ObjCAtTryStmt *ObjCAtTryStmt::Create(const ASTContext &Context,
                                      SourceLocation atTryLoc, Stmt *atTryStmt,
                                      Stmt **CatchStmts, unsigned NumCatchStmts,
                                      Stmt *atFinallyStmt) {
-  unsigned Size =
-      sizeof(ObjCAtTryStmt) +
-      (1 + NumCatchStmts + (atFinallyStmt != nullptr)) * sizeof(Stmt *);
+  size_t Size =
+      totalSizeToAlloc<Stmt *>(1 + NumCatchStmts + (atFinallyStmt != nullptr));
   void *Mem = Context.Allocate(Size, alignof(ObjCAtTryStmt));
   return new (Mem) ObjCAtTryStmt(atTryLoc, atTryStmt, CatchStmts, NumCatchStmts,
                                  atFinallyStmt);
@@ -58,16 +56,15 @@ ObjCAtTryStmt *ObjCAtTryStmt::Create(const ASTContext &Context,
 ObjCAtTryStmt *ObjCAtTryStmt::CreateEmpty(const ASTContext &Context,
                                           unsigned NumCatchStmts,
                                           bool HasFinally) {
-  unsigned Size =
-      sizeof(ObjCAtTryStmt) + (1 + NumCatchStmts + HasFinally) * sizeof(Stmt *);
+  size_t Size = totalSizeToAlloc<Stmt *>(1 + NumCatchStmts + HasFinally);
   void *Mem = Context.Allocate(Size, alignof(ObjCAtTryStmt));
   return new (Mem) ObjCAtTryStmt(EmptyShell(), NumCatchStmts, HasFinally);
 }
 
 SourceLocation ObjCAtTryStmt::getEndLoc() const {
   if (HasFinally)
-    return getFinallyStmt()->getLocEnd();
+    return getFinallyStmt()->getEndLoc();
   if (NumCatchStmts)
-    return getCatchStmt(NumCatchStmts - 1)->getLocEnd();
-  return getTryBody()->getLocEnd();
+    return getCatchStmt(NumCatchStmts - 1)->getEndLoc();
+  return getTryBody()->getEndLoc();
 }

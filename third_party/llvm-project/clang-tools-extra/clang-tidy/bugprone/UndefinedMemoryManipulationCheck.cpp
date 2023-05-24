@@ -1,9 +1,8 @@
 //===--- UndefinedMemoryManipulationCheck.cpp - clang-tidy-----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -52,7 +51,7 @@ void UndefinedMemoryManipulationCheck::check(
     QualType DestType = Call->getArg(0)->IgnoreImplicit()->getType();
     if (!DestType->getPointeeType().isNull())
       DestType = DestType->getPointeeType();
-    diag(Call->getLocStart(), "undefined behavior, destination object type %0 "
+    diag(Call->getBeginLoc(), "undefined behavior, destination object type %0 "
                               "is not TriviallyCopyable")
         << DestType;
   }
@@ -60,7 +59,7 @@ void UndefinedMemoryManipulationCheck::check(
     QualType SourceType = Call->getArg(1)->IgnoreImplicit()->getType();
     if (!SourceType->getPointeeType().isNull())
       SourceType = SourceType->getPointeeType();
-    diag(Call->getLocStart(),
+    diag(Call->getBeginLoc(),
          "undefined behavior, source object type %0 is not TriviallyCopyable")
         << SourceType;
   }

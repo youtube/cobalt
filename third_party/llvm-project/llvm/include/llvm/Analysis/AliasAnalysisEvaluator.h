@@ -1,9 +1,8 @@
 //===- AliasAnalysisEvaluator.h - Alias Analysis Accuracy Evaluator -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -27,22 +26,21 @@
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
 
 namespace llvm {
 class AAResults;
 
 class AAEvaluator : public PassInfoMixin<AAEvaluator> {
-  int64_t FunctionCount;
-  int64_t NoAliasCount, MayAliasCount, PartialAliasCount, MustAliasCount;
-  int64_t NoModRefCount, ModCount, RefCount, ModRefCount;
-  int64_t MustCount, MustRefCount, MustModCount, MustModRefCount;
+  int64_t FunctionCount = 0;
+  int64_t NoAliasCount = 0, MayAliasCount = 0, PartialAliasCount = 0;
+  int64_t MustAliasCount = 0;
+  int64_t NoModRefCount = 0, ModCount = 0, RefCount = 0, ModRefCount = 0;
+  int64_t MustCount = 0, MustRefCount = 0, MustModCount = 0;
+  int64_t MustModRefCount = 0;
 
 public:
-  AAEvaluator()
-      : FunctionCount(), NoAliasCount(), MayAliasCount(), PartialAliasCount(),
-        MustAliasCount(), NoModRefCount(), ModCount(), RefCount(),
-        ModRefCount(), MustCount(), MustRefCount(), MustModCount(),
-        MustModRefCount() {}
+  AAEvaluator() = default;
   AAEvaluator(AAEvaluator &&Arg)
       : FunctionCount(Arg.FunctionCount), NoAliasCount(Arg.NoAliasCount),
         MayAliasCount(Arg.MayAliasCount),

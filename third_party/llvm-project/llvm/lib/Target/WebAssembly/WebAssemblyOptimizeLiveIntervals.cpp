@@ -1,9 +1,8 @@
 //===--- WebAssemblyOptimizeLiveIntervals.cpp - LiveInterval processing ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -21,6 +20,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "WebAssembly.h"
+#include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblySubtarget.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
@@ -65,28 +65,40 @@ FunctionPass *llvm::createWebAssemblyOptimizeLiveIntervals() {
   return new WebAssemblyOptimizeLiveIntervals();
 }
 
-bool WebAssemblyOptimizeLiveIntervals::runOnMachineFunction(MachineFunction &MF) {
+bool WebAssemblyOptimizeLiveIntervals::runOnMachineFunction(
+    MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "********** Optimize LiveIntervals **********\n"
                        "********** Function: "
                     << MF.getName() << '\n');
 
   MachineRegisterInfo &MRI = MF.getRegInfo();
-  LiveIntervals &LIS = getAnalysis<LiveIntervals>();
+  auto &LIS = getAnalysis<LiveIntervals>();
 
   // We don't preserve SSA form.
   MRI.leaveSSA();
 
-  assert(MRI.tracksLiveness() &&
-         "OptimizeLiveIntervals expects liveness");
+  assert(MRI.tracksLiveness() && "OptimizeLiveIntervals expects liveness");
 
   // Split multiple-VN LiveIntervals into multiple LiveIntervals.
-  SmallVector<LiveInterval*, 4> SplitLIs;
-  for (unsigned i = 0, e = MRI.getNumVirtRegs(); i < e; ++i) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+  SmallVector<LiveInterval *, 4> SplitLIs;
+  for (unsigned I = 0, E = MRI.getNumVirtRegs(); I < E; ++I) {
+    Register Reg = Register::index2VirtReg(I);
+    auto &TRI = *MF.getSubtarget<WebAssemblySubtarget>().getRegisterInfo();
+
     if (MRI.reg_nodbg_empty(Reg))
       continue;
 
     LIS.splitSeparateComponents(LIS.getInterval(Reg), SplitLIs);
+    if (Reg == TRI.getFrameRegister(MF) && SplitLIs.size() > 0) {
+      // The live interval for the frame register was split, resulting in a new
+      // VReg. For now we only support debug info output for a single frame base
+      // value for the function, so just use the last one. It will certainly be
+      // wrong for some part of the function, but until we are able to track
+      // values through live-range splitting and stackification, it will have to
+      // do.
+      MF.getInfo<WebAssemblyFunctionInfo>()->setFrameBaseVreg(
+          SplitLIs.back()->reg());
+    }
     SplitLIs.clear();
   }
 
@@ -94,15 +106,14 @@ bool WebAssemblyOptimizeLiveIntervals::runOnMachineFunction(MachineFunction &MF)
   // instructions to satisfy LiveIntervals' requirement that all uses be
   // dominated by defs. Now that LiveIntervals has computed which of these
   // defs are actually needed and which are dead, remove the dead ones.
-  for (auto MII = MF.begin()->begin(), MIE = MF.begin()->end(); MII != MIE; ) {
-    MachineInstr *MI = &*MII++;
-    if (MI->isImplicitDef() && MI->getOperand(0).isDead()) {
-      LiveInterval &LI = LIS.getInterval(MI->getOperand(0).getReg());
-      LIS.removeVRegDefAt(LI, LIS.getInstructionIndex(*MI).getRegSlot());
-      LIS.RemoveMachineInstrFromMaps(*MI);
-      MI->eraseFromParent();
+  for (MachineInstr &MI : llvm::make_early_inc_range(MF.front())) {
+    if (MI.isImplicitDef() && MI.getOperand(0).isDead()) {
+      LiveInterval &LI = LIS.getInterval(MI.getOperand(0).getReg());
+      LIS.removeVRegDefAt(LI, LIS.getInstructionIndex(MI).getRegSlot());
+      LIS.RemoveMachineInstrFromMaps(MI);
+      MI.eraseFromParent();
     }
   }
 
-  return false;
+  return true;
 }

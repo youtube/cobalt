@@ -2,7 +2,7 @@
 
 ; Test CFI through the thin link and backend.
 
-; RUN: opt -thinlto-bc -o %t.o %s
+; RUN: opt -thinlto-bc -thinlto-split-lto-unit -o %t.o %s
 
 ; Legacy PM
 ; RUN: llvm-lto2 run -save-temps %t.o \
@@ -22,7 +22,7 @@
 ; RUN:   -r=%t.o,_ZTV1B,px
 ; RUN: llvm-dis %t3.1.4.opt.bc -o - | FileCheck %s --check-prefix=CHECK-IR
 
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-grtev4-linux-gnu"
 
 %struct.B = type { %struct.A }

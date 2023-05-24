@@ -1,9 +1,8 @@
 //===- DIASupport.h - Common header includes for DIA ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // Common defines and header includes for all LLVMDebugInfoPDBDIA.  The
@@ -28,7 +27,14 @@
 
 // DIA headers must come after windows headers.
 #include <cvconst.h>
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnon-virtual-dtor"
+#endif
 #include <dia2.h>
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #include <diacreate.h>
 
 #endif // LLVM_DEBUGINFO_PDB_DIA_DIASUPPORT_H

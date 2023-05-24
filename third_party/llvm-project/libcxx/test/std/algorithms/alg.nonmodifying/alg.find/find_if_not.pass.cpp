@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -38,20 +37,22 @@ TEST_CONSTEXPR bool test_constexpr() {
     }
 #endif
 
-int main()
+int main(int, char**)
 {
     int ia[] = {0, 1, 2, 3, 4, 5};
     const unsigned s = sizeof(ia)/sizeof(ia[0]);
-    input_iterator<const int*> r = std::find_if_not(input_iterator<const int*>(ia),
-                                                    input_iterator<const int*>(ia+s),
+    cpp17_input_iterator<const int*> r = std::find_if_not(cpp17_input_iterator<const int*>(ia),
+                                                    cpp17_input_iterator<const int*>(ia+s),
                                                     ne(3));
     assert(*r == 3);
-    r = std::find_if_not(input_iterator<const int*>(ia),
-                         input_iterator<const int*>(ia+s),
+    r = std::find_if_not(cpp17_input_iterator<const int*>(ia),
+                         cpp17_input_iterator<const int*>(ia+s),
                          ne(10));
-    assert(r == input_iterator<const int*>(ia+s));
+    assert(r == cpp17_input_iterator<const int*>(ia+s));
 
 #if TEST_STD_VER > 17
     static_assert(test_constexpr());
 #endif
+
+  return 0;
 }

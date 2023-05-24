@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -70,6 +69,14 @@ void test_pointer() {
     assert(s.get_deleter().state() == 0);
   }
   assert(A::count == 0);
+  {
+    A* p = newValue<ValueT>(expect_alive);
+    assert(A::count == expect_alive);
+    std::unique_ptr<ValueT, DefaultCtorDeleter<ValueT> > s(p);
+    assert(s.get() == p);
+    assert(s.get_deleter().state() == 0);
+  }
+  assert(A::count == 0);
 }
 
 void test_derived() {
@@ -108,7 +115,7 @@ struct GenericDeleter {
 template <class T>
 void test_sfinae() {
 #if TEST_STD_VER >= 11
-  { // the constructor does not participate in overload resultion when
+  { // the constructor does not participate in overload resolution when
     // the deleter is a pointer type
     using U = std::unique_ptr<T, void (*)(void*)>;
     static_assert(!std::is_constructible<U, T*>::value, "");
@@ -157,7 +164,7 @@ DEFINE_AND_RUN_IS_INCOMPLETE_TEST({
   checkNumIncompleteTypeAlive(0);
 })
 
-int main() {
+int main(int, char**) {
   {
     test_pointer</*IsArray*/ false>();
     test_derived();
@@ -168,4 +175,6 @@ int main() {
     test_sfinae<int[]>();
     test_sfinae_runtime();
   }
+
+  return 0;
 }

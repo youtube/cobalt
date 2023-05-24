@@ -1,9 +1,8 @@
-//===-- SBSourceManager.cpp -------------------------------------*- C++ -*-===//
+//===-- SBSourceManager.cpp -----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 #include "lldb/API/SBDebugger.h"
 #include "lldb/API/SBStream.h"
 #include "lldb/API/SBTarget.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include "lldb/API/SBFileSpec.h"
 #include "lldb/Core/Debugger.h"
@@ -24,10 +24,9 @@ namespace lldb_private {
 class SourceManagerImpl {
 public:
   SourceManagerImpl(const lldb::DebuggerSP &debugger_sp)
-      : m_debugger_wp(debugger_sp), m_target_wp() {}
+      : m_debugger_wp(debugger_sp) {}
 
-  SourceManagerImpl(const lldb::TargetSP &target_sp)
-      : m_debugger_wp(), m_target_wp(target_sp) {}
+  SourceManagerImpl(const lldb::TargetSP &target_sp) : m_target_wp(target_sp) {}
 
   SourceManagerImpl(const SourceManagerImpl &rhs) {
     if (&rhs == this)
@@ -72,31 +71,42 @@ using namespace lldb;
 using namespace lldb_private;
 
 SBSourceManager::SBSourceManager(const SBDebugger &debugger) {
-  m_opaque_ap.reset(new SourceManagerImpl(debugger.get_sp()));
+  LLDB_INSTRUMENT_VA(this, debugger);
+
+  m_opaque_up = std::make_unique<SourceManagerImpl>(debugger.get_sp());
 }
 
 SBSourceManager::SBSourceManager(const SBTarget &target) {
-  m_opaque_ap.reset(new SourceManagerImpl(target.GetSP()));
+  LLDB_INSTRUMENT_VA(this, target);
+
+  m_opaque_up = std::make_unique<SourceManagerImpl>(target.GetSP());
 }
 
 SBSourceManager::SBSourceManager(const SBSourceManager &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (&rhs == this)
     return;
 
-  m_opaque_ap.reset(new SourceManagerImpl(*(rhs.m_opaque_ap.get())));
+  m_opaque_up = std::make_unique<SourceManagerImpl>(*(rhs.m_opaque_up.get()));
 }
 
 const lldb::SBSourceManager &SBSourceManager::
 operator=(const lldb::SBSourceManager &rhs) {
-  m_opaque_ap.reset(new SourceManagerImpl(*(rhs.m_opaque_ap.get())));
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  m_opaque_up = std::make_unique<SourceManagerImpl>(*(rhs.m_opaque_up.get()));
   return *this;
 }
 
-SBSourceManager::~SBSourceManager() {}
+SBSourceManager::~SBSourceManager() = default;
 
 size_t SBSourceManager::DisplaySourceLinesWithLineNumbers(
     const SBFileSpec &file, uint32_t line, uint32_t context_before,
     uint32_t context_after, const char *current_line_cstr, SBStream &s) {
+  LLDB_INSTRUMENT_VA(this, file, line, context_before, context_after,
+                     current_line_cstr, s);
+
   const uint32_t column = 0;
   return DisplaySourceLinesWithLineNumbersAndColumn(
       file.ref(), line, column, context_before, context_after,
@@ -107,10 +117,13 @@ size_t SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn(
     const SBFileSpec &file, uint32_t line, uint32_t column,
     uint32_t context_before, uint32_t context_after,
     const char *current_line_cstr, SBStream &s) {
-  if (m_opaque_ap.get() == NULL)
+  LLDB_INSTRUMENT_VA(this, file, line, column, context_before, context_after,
+                     current_line_cstr, s);
+
+  if (m_opaque_up == nullptr)
     return 0;
 
-  return m_opaque_ap->DisplaySourceLinesWithLineNumbers(
+  return m_opaque_up->DisplaySourceLinesWithLineNumbers(
       file.ref(), line, column, context_before, context_after,
       current_line_cstr, s.get());
 }

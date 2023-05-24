@@ -1,10 +1,8 @@
-//===-- Language.cpp -------------------------------------------------*- C++
-//-*-===//
+//===-- Language.cpp ------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -77,11 +75,54 @@ Language *Language::FindPlugin(lldb::LanguageType language) {
   return nullptr;
 }
 
+Language *Language::FindPlugin(llvm::StringRef file_path) {
+  Language *result = nullptr;
+  ForEach([&result, file_path](Language *language) {
+    if (language->IsSourceFile(file_path)) {
+      result = language;
+      return false;
+    }
+    return true;
+  });
+  return result;
+}
+
+Language *Language::FindPlugin(LanguageType language,
+                               llvm::StringRef file_path) {
+  Language *result = FindPlugin(language);
+  // Finding a language by file path is slower, we so we use this as the
+  // fallback.
+  if (!result)
+    result = FindPlugin(file_path);
+  return result;
+}
+
 void Language::ForEach(std::function<bool(Language *)> callback) {
-  std::lock_guard<std::mutex> guard(GetLanguagesMutex());
-  LanguagesMap &map(GetLanguagesMap());
-  for (const auto &entry : map) {
-    if (!callback(entry.second.get()))
+  // If we want to iterate over all languages, we first have to complete the
+  // LanguagesMap.
+  static llvm::once_flag g_initialize;
+  llvm::call_once(g_initialize, [] {
+    for (unsigned lang = eLanguageTypeUnknown; lang < eNumLanguageTypes;
+         ++lang) {
+      FindPlugin(static_cast<lldb::LanguageType>(lang));
+    }
+  });
+
+  // callback may call a method in Language that attempts to acquire the same
+  // lock (such as Language::ForEach or Language::FindPlugin). To avoid a
+  // deadlock, we do not use callback while holding the lock.
+  std::vector<Language *> loaded_plugins;
+  {
+    std::lock_guard<std::mutex> guard(GetLanguagesMutex());
+    LanguagesMap &map(GetLanguagesMap());
+    for (const auto &entry : map) {
+      if (entry.second)
+        loaded_plugins.push_back(entry.second.get());
+    }
+  }
+
+  for (auto *lang : loaded_plugins) {
+    if (!callback(lang))
       break;
   }
 }
@@ -103,22 +144,10 @@ Language::GetHardcodedSynthetics() {
   return {};
 }
 
-HardcodedFormatters::HardcodedValidatorFinder
-Language::GetHardcodedValidators() {
-  return {};
-}
-
 std::vector<ConstString>
 Language::GetPossibleFormattersMatches(ValueObject &valobj,
                                        lldb::DynamicValueType use_dynamic) {
   return {};
-}
-
-lldb_private::formatters::StringPrinter::EscapingHelper
-Language::GetStringPrinterEscapingHelper(
-    lldb_private::formatters::StringPrinter::GetPrintableElementType
-        elem_type) {
-  return StringPrinter::GetDefaultEscapingHelper(elem_type);
 }
 
 struct language_name_pair {
@@ -166,7 +195,7 @@ struct language_name_pair language_names[] = {
     {"fortran03", eLanguageTypeFortran03},
     {"fortran08", eLanguageTypeFortran08},
     // Vendor Extensions
-    {"mipsassem", eLanguageTypeMipsAssembler},
+    {"assembler", eLanguageTypeMipsAssembler},
     {"renderscript", eLanguageTypeExtRenderScript},
     // Now synonyms, in arbitrary order
     {"objc", eLanguageTypeObjC},
@@ -178,7 +207,7 @@ static uint32_t num_languages =
 
 LanguageType Language::GetLanguageTypeFromString(llvm::StringRef string) {
   for (const auto &L : language_names) {
-    if (string.equals_lower(L.name))
+    if (string.equals_insensitive(L.name))
       return static_cast<LanguageType>(L.type);
   }
 
@@ -242,6 +271,24 @@ bool Language::LanguageIsC(LanguageType language) {
   }
 }
 
+bool Language::LanguageIsCFamily(LanguageType language) {
+  switch (language) {
+  case eLanguageTypeC:
+  case eLanguageTypeC89:
+  case eLanguageTypeC99:
+  case eLanguageTypeC11:
+  case eLanguageTypeC_plus_plus:
+  case eLanguageTypeC_plus_plus_03:
+  case eLanguageTypeC_plus_plus_11:
+  case eLanguageTypeC_plus_plus_14:
+  case eLanguageTypeObjC_plus_plus:
+  case eLanguageTypeObjC:
+    return true;
+  default:
+    return false;
+  }
+}
+
 bool Language::LanguageIsPascal(LanguageType language) {
   switch (language) {
   case eLanguageTypePascal83:
@@ -299,26 +346,25 @@ LanguageType Language::GetPrimaryLanguage(LanguageType language) {
   }
 }
 
-void Language::GetLanguagesSupportingTypeSystems(
-    std::set<lldb::LanguageType> &languages,
-    std::set<lldb::LanguageType> &languages_for_expressions) {
-  uint32_t idx = 0;
-
-  while (TypeSystemEnumerateSupportedLanguages enumerate = PluginManager::
-             GetTypeSystemEnumerateSupportedLanguagesCallbackAtIndex(idx++)) {
-    (*enumerate)(languages, languages_for_expressions);
-  }
+std::set<lldb::LanguageType> Language::GetSupportedLanguages() {
+  std::set<lldb::LanguageType> supported_languages;
+  ForEach([&](Language *lang) {
+    supported_languages.emplace(lang->GetLanguageType());
+    return true;
+  });
+  return supported_languages;
 }
 
-void Language::GetLanguagesSupportingREPLs(
-    std::set<lldb::LanguageType> &languages) {
-  uint32_t idx = 0;
+LanguageSet Language::GetLanguagesSupportingTypeSystems() {
+  return PluginManager::GetAllTypeSystemSupportedLanguagesForTypes();
+}
 
-  while (REPLEnumerateSupportedLanguages enumerate =
-             PluginManager::GetREPLEnumerateSupportedLanguagesCallbackAtIndex(
-                 idx++)) {
-    (*enumerate)(languages);
-  }
+LanguageSet Language::GetLanguagesSupportingTypeSystemsForExpressions() {
+  return PluginManager::GetAllTypeSystemSupportedLanguagesForExpressions();
+}
+
+LanguageSet Language::GetLanguagesSupportingREPLs() {
+  return PluginManager::GetREPLAllTypeSystemSupportedLanguages();
 }
 
 std::unique_ptr<Language::TypeScavenger> Language::GetTypeScavenger() {
@@ -353,14 +399,13 @@ bool Language::ImageListTypeScavenger::Find_Impl(
   Target *target = exe_scope->CalculateTarget().get();
   if (target) {
     const auto &images(target->GetImages());
-    SymbolContext null_sc;
     ConstString cs_key(key);
     llvm::DenseSet<SymbolFile *> searched_sym_files;
     TypeList matches;
-    images.FindTypes(null_sc, cs_key, false, UINT32_MAX, searched_sym_files,
+    images.FindTypes(nullptr, cs_key, false, UINT32_MAX, searched_sym_files,
                      matches);
     for (const auto &match : matches.Types()) {
-      if (match.get()) {
+      if (match) {
         CompilerType compiler_type(match->GetFullCompilerType());
         compiler_type = AdjustForInclusion(compiler_type);
         if (!compiler_type)
@@ -413,12 +458,8 @@ void Language::GetDefaultExceptionResolverDescription(bool catch_on,
   s.Printf("Exception breakpoint (catch: %s throw: %s)",
            catch_on ? "on" : "off", throw_on ? "on" : "off");
 }
-//----------------------------------------------------------------------
 // Constructor
-//----------------------------------------------------------------------
-Language::Language() {}
+Language::Language() = default;
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
-Language::~Language() {}
+Language::~Language() = default;

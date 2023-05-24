@@ -6,12 +6,14 @@
 @common_global_program = common addrspace(1) global i32 0
 @external_global_program = addrspace(1) global i32 0
 
-@internal_readonly = internal unnamed_addr addrspace(2) constant i32 0
-@external_readonly = unnamed_addr addrspace(2) constant i32 0
+@internal_readonly = internal unnamed_addr addrspace(4) constant i32 0
+@external_readonly = unnamed_addr addrspace(4) constant i32 0
 
 define amdgpu_kernel void @test() {
   ret void
 }
+
+@weak_global = extern_weak addrspace(1) global i32
 
 ; ASM: .type linkonce_odr_global_program,@object
 ; ASM: .section .bss,#alloc,#write
@@ -48,3 +50,5 @@ define amdgpu_kernel void @test() {
 ; ASM: external_readonly:
 ; ASM: .long 0
 ; ASM: .size external_readonly, 4
+
+; ASM: .weak weak_global

@@ -1,9 +1,8 @@
 //===-- SystemZCallingConv.cpp - Calling conventions for SystemZ ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,10 +11,24 @@
 
 using namespace llvm;
 
-const MCPhysReg SystemZ::ArgGPRs[SystemZ::NumArgGPRs] = {
+const MCPhysReg SystemZ::ELFArgGPRs[SystemZ::ELFNumArgGPRs] = {
   SystemZ::R2D, SystemZ::R3D, SystemZ::R4D, SystemZ::R5D, SystemZ::R6D
 };
 
-const MCPhysReg SystemZ::ArgFPRs[SystemZ::NumArgFPRs] = {
+const MCPhysReg SystemZ::ELFArgFPRs[SystemZ::ELFNumArgFPRs] = {
   SystemZ::F0D, SystemZ::F2D, SystemZ::F4D, SystemZ::F6D
 };
+
+// The XPLINK64 ABI-defined param passing general purpose registers
+const MCPhysReg SystemZ::XPLINK64ArgGPRs[SystemZ::XPLINK64NumArgGPRs] = {
+    SystemZ::R1D, SystemZ::R2D, SystemZ::R3D
+};
+
+// The XPLINK64 ABI-defined param passing floating point registers
+const MCPhysReg SystemZ::XPLINK64ArgFPRs[SystemZ::XPLINK64NumArgFPRs] = {
+    SystemZ::F0D, SystemZ::F2D, SystemZ::F4D, SystemZ::F6D
+};
+
+const MCPhysReg SystemZ::XPLINK64ArgVRs[SystemZ::XPLINK64NumArgVRs] = {
+    SystemZ::V24, SystemZ::V25, SystemZ::V26, SystemZ::V27,
+    SystemZ::V28, SystemZ::V29, SystemZ::V30, SystemZ::V31};

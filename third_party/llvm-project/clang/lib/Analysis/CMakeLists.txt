@@ -1,10 +1,12 @@
 set(LLVM_LINK_COMPONENTS
+  FrontendOpenMP
   Support
   )
 
 add_clang_library(clangAnalysis
   AnalysisDeclContext.cpp
   BodyFarm.cpp
+  CalledOnceCheck.cpp
   CFG.cpp
   CFGReachabilityAnalysis.cpp
   CFGStmtMap.cpp
@@ -15,16 +17,16 @@ add_clang_library(clangAnalysis
   Consumed.cpp
   CodeInjector.cpp
   Dominators.cpp
-  FormatString.cpp
+  ExprMutationAnalyzer.cpp
+  IssueHash.cpp
   LiveVariables.cpp
-  OSLog.cpp
+  MacroExpansionContext.cpp
   ObjCNoReturn.cpp
+  PathDiagnostic.cpp
   PostOrderCFGView.cpp
-  PrintfFormatString.cpp
   ProgramPoint.cpp
-  PseudoConstantAnalysis.cpp
   ReachableCode.cpp
-  ScanfFormatString.cpp
+  RetainSummaryManager.cpp
   ThreadSafety.cpp
   ThreadSafetyCommon.cpp
   ThreadSafetyLogical.cpp
@@ -33,6 +35,13 @@ add_clang_library(clangAnalysis
 
   LINK_LIBS
   clangAST
+  clangASTMatchers
   clangBasic
   clangLex
+
+  DEPENDS
+  omp_gen
   )
+
+add_subdirectory(plugins)
+add_subdirectory(FlowSensitive)

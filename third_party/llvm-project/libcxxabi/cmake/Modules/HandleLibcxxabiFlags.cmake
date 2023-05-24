@@ -44,6 +44,29 @@ macro(check_flag_supported flag)
     check_cxx_compiler_flag("${flag}" "LIBCXXABI_SUPPORTS_${flagname}_FLAG")
 endmacro()
 
+macro(append_flags DEST)
+  foreach(value ${ARGN})
+    list(APPEND ${DEST} ${value})
+    list(APPEND ${DEST} ${value})
+  endforeach()
+endmacro()
+
+# If the specified 'condition' is true then append the specified list of flags to DEST
+macro(append_flags_if condition DEST)
+  if (${condition})
+    list(APPEND ${DEST} ${ARGN})
+  endif()
+endmacro()
+
+# Add each flag in the list specified by DEST if that flag is supported by the current compiler.
+macro(append_flags_if_supported DEST)
+  foreach(flag ${ARGN})
+    mangle_name("${flag}" flagname)
+    check_cxx_compiler_flag("${flag}" "LIBCXXABI_SUPPORTS_${flagname}_FLAG")
+    append_flags_if(LIBCXXABI_SUPPORTS_${flagname}_FLAG ${DEST} ${flag})
+  endforeach()
+endmacro()
+
 # Add a macro definition if condition is true.
 macro(define_if condition def)
   if (${condition})
@@ -98,6 +121,17 @@ macro(add_target_flags_if condition)
   if (${condition})
     add_target_flags(${ARGN})
   endif()
+endmacro()
+
+# Add all the flags supported by the compiler to all of
+# 'CMAKE_CXX_FLAGS', 'CMAKE_C_FLAGS', 'LIBCXXABI_COMPILE_FLAGS'
+# and 'LIBCXXABI_LINK_FLAGS'.
+macro(add_target_flags_if_supported)
+  foreach(flag ${ARGN})
+    mangle_name("${flag}" flagname)
+    check_cxx_compiler_flag("${flag}" "LIBCXXABI_SUPPORTS_${flagname}_FLAG")
+    add_target_flags_if(LIBCXXABI_SUPPORTS_${flagname}_FLAG ${flag})
+  endforeach()
 endmacro()
 
 # Add a specified list of flags to both 'LIBCXXABI_COMPILE_FLAGS' and

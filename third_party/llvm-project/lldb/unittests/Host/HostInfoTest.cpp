@@ -1,27 +1,27 @@
-//===-- HostInfoTest.cpp ----------------------------------------*- C++ -*-===//
+//===-- HostInfoTest.cpp --------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/HostInfo.h"
-#include "lldb/lldb-defines.h"
+#include "TestingSupport/SubsystemRAII.h"
 #include "TestingSupport/TestUtilities.h"
+#include "lldb/Host/FileSystem.h"
+#include "lldb/lldb-defines.h"
+#include "llvm/Support/Host.h"
 #include "gtest/gtest.h"
 
 using namespace lldb_private;
 using namespace llvm;
 
 namespace {
-class HostInfoTest: public ::testing::Test {
-  public:
-    void SetUp() override { HostInfo::Initialize(); }
-    void TearDown() override { HostInfo::Terminate(); }
+class HostInfoTest : public ::testing::Test {
+  SubsystemRAII<FileSystem, HostInfo> subsystems;
 };
-}
+} // namespace
 
 TEST_F(HostInfoTest, GetAugmentedArchSpec) {
   // Fully specified triple should not be changed.
@@ -43,4 +43,33 @@ TEST_F(HostInfoTest, GetAugmentedArchSpec) {
   // Test LLDB_ARCH_DEFAULT
   EXPECT_EQ(HostInfo::GetAugmentedArchSpec(LLDB_ARCH_DEFAULT).GetTriple(),
             HostInfo::GetArchitecture(HostInfo::eArchKindDefault).GetTriple());
+}
+
+TEST_F(HostInfoTest, GetHostname) {
+  // Check non-empty string input works correctly.
+  std::string s("abc");
+  EXPECT_TRUE(HostInfo::GetHostname(s));
+}
+
+#if defined(__APPLE__)
+TEST_F(HostInfoTest, GetXcodeSDK) {
+  EXPECT_FALSE(HostInfo::GetXcodeSDKPath(XcodeSDK("MacOSX.sdk")).empty());
+  // These are expected to fall back to an available version.
+  EXPECT_FALSE(HostInfo::GetXcodeSDKPath(XcodeSDK("MacOSX9999.sdk")).empty());
+  // This is expected to fail.
+  EXPECT_TRUE(HostInfo::GetXcodeSDKPath(XcodeSDK("CeciNestPasUnOS.sdk")).empty());
+}
+#endif
+
+TEST(HostInfoTestInitialization, InitTwice) {
+  llvm::VersionTuple Version;
+  {
+    SubsystemRAII<FileSystem, HostInfo> subsystems;
+    Version = HostInfo::GetOSVersion();
+  }
+
+  {
+    SubsystemRAII<FileSystem, HostInfo> subsystems;
+    EXPECT_EQ(Version, HostInfo::GetOSVersion());
+  }
 }

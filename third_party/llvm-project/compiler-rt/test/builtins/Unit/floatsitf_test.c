@@ -1,16 +1,5 @@
 // RUN: %clang_builtins %s %librt -o %t && %run %t
-//===--------------- floatsitf_test.c - Test __floatsitf ------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file tests __floatsitf for the compiler_rt library.
-//
-//===----------------------------------------------------------------------===//
+// REQUIRES: librt_has_floatsitf
 
 #include "int_lib.h"
 #include <stdio.h>
@@ -19,9 +8,9 @@
 
 #include "fp_test.h"
 
-long COMPILER_RT_ABI double __floatsitf(int a);
+COMPILER_RT_ABI long double __floatsitf(si_int a);
 
-int test__floatsitf(int a, uint64_t expectedHi, uint64_t expectedLo)
+int test__floatsitf(si_int a, uint64_t expectedHi, uint64_t expectedLo)
 {
     long double x = __floatsitf(a);
     int ret = compareResultLD(x, expectedHi, expectedLo);

@@ -1,9 +1,8 @@
 //===--- InterfacesGlobalInitCheck.cpp - clang-tidy------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,20 +17,21 @@ namespace tidy {
 namespace cppcoreguidelines {
 
 void InterfacesGlobalInitCheck::registerMatchers(MatchFinder *Finder) {
-  const auto IsGlobal =
-      allOf(hasGlobalStorage(),
-            hasDeclContext(anyOf(translationUnitDecl(), // Global scope.
-                                 namespaceDecl(),       // Namespace scope.
-                                 recordDecl())),        // Class scope.
-            unless(isConstexpr()));
+  const auto GlobalVarDecl =
+      varDecl(hasGlobalStorage(),
+              hasDeclContext(anyOf(translationUnitDecl(), // Global scope.
+                                   namespaceDecl(),       // Namespace scope.
+                                   recordDecl())),        // Class scope.
+              unless(isConstexpr()));
 
   const auto ReferencesUndefinedGlobalVar = declRefExpr(hasDeclaration(
-      varDecl(IsGlobal, unless(isDefinition())).bind("referencee")));
+      varDecl(GlobalVarDecl, unless(isDefinition())).bind("referencee")));
 
   Finder->addMatcher(
-      varDecl(IsGlobal, isDefinition(),
-              hasInitializer(expr(hasDescendant(ReferencesUndefinedGlobalVar))))
-          .bind("var"),
+      traverse(TK_AsIs, varDecl(GlobalVarDecl, isDefinition(),
+                                hasInitializer(expr(hasDescendant(
+                                    ReferencesUndefinedGlobalVar))))
+                            .bind("var")),
       this);
 }
 

@@ -1,15 +1,14 @@
-//===-- EmulateInstructionPPC64.cpp ------------------------------*- C++-*-===//
+//===-- EmulateInstructionPPC64.cpp ---------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "EmulateInstructionPPC64.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Symbol/UnwindPlan.h"
@@ -26,6 +25,8 @@
 using namespace lldb;
 using namespace lldb_private;
 
+LLDB_PLUGIN_DEFINE_ADV(EmulateInstructionPPC64, InstructionPPC64)
+
 EmulateInstructionPPC64::EmulateInstructionPPC64(const ArchSpec &arch)
     : EmulateInstruction(arch) {}
 
@@ -38,17 +39,7 @@ void EmulateInstructionPPC64::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
 
-ConstString EmulateInstructionPPC64::GetPluginNameStatic() {
-  ConstString g_plugin_name("lldb.emulate-instruction.ppc64");
-  return g_plugin_name;
-}
-
-ConstString EmulateInstructionPPC64::GetPluginName() {
-  static ConstString g_plugin_name("EmulateInstructionPPC64");
-  return g_plugin_name;
-}
-
-const char *EmulateInstructionPPC64::GetPluginDescriptionStatic() {
+llvm::StringRef EmulateInstructionPPC64::GetPluginDescriptionStatic() {
   return "Emulate instructions for the PPC64 architecture.";
 }
 
@@ -56,23 +47,15 @@ EmulateInstruction *
 EmulateInstructionPPC64::CreateInstance(const ArchSpec &arch,
                                         InstructionType inst_type) {
   if (EmulateInstructionPPC64::SupportsEmulatingInstructionsOfTypeStatic(
-          inst_type)) {
-    if (arch.GetTriple().getArch() == llvm::Triple::ppc64 ||
-        arch.GetTriple().getArch() == llvm::Triple::ppc64le) {
+          inst_type))
+    if (arch.GetTriple().isPPC64())
       return new EmulateInstructionPPC64(arch);
-    }
-  }
 
   return nullptr;
 }
 
 bool EmulateInstructionPPC64::SetTargetTriple(const ArchSpec &arch) {
-  if (arch.GetTriple().getArch() == llvm::Triple::ppc64)
-    return true;
-  else if (arch.GetTriple().getArch() == llvm::Triple::ppc64le)
-    return true;
-
-  return false;
+  return arch.GetTriple().isPPC64();
 }
 
 static bool LLDBTableGetRegisterInfo(uint32_t reg_num, RegisterInfo &reg_info) {
@@ -144,6 +127,7 @@ bool EmulateInstructionPPC64::CreateFunctionEntryUnwind(
   unwind_plan.SetSourceName("EmulateInstructionPPC64");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolYes);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   unwind_plan.SetReturnAddressRegister(gpr_lr_ppc64le);
   return true;
 }
@@ -204,7 +188,7 @@ bool EmulateInstructionPPC64::EvaluateInstruction(uint32_t evaluate_options) {
     if (!success)
       return false;
 
-    if (auto_advance_pc && (new_pc_value == orig_pc_value)) {
+    if (new_pc_value == orig_pc_value) {
       EmulateInstruction::Context context;
       context.type = eContextAdvancePC;
       context.SetNoArgs();

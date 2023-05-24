@@ -1,9 +1,9 @@
 // RUN: %clang_cc1 -triple x86_64-none-linux-gnu -emit-llvm -debug-info-kind=limited %s -o - | FileCheck %s --check-prefix=CHECK --check-prefix=BOTH
 // RUN: %clang_cc1 -triple i686-pc-windows-msvc -emit-llvm -debug-info-kind=limited %s -o - | FileCheck %s --check-prefix=MSVC --check-prefix=BOTH
 
-// CHECK: @_ZN6pr96081xE = global [3 x i8]* null, align 8, !dbg [[X:![0-9]+]]
+// CHECK: @_ZN6pr96081xE ={{.*}} global [3 x i8]* null, align 8, !dbg [[X:![0-9]+]]
 
-// CHECK: define void @_ZN7pr147634funcENS_3fooE
+// CHECK: define{{.*}} void @_ZN7pr147634funcENS_3fooE
 // CHECK: call void @llvm.dbg.declare({{.*}}, metadata ![[F:[0-9]+]], metadata !DIExpression())
 
 // !llvm.dbg.cu pulls in globals and their types first.
@@ -103,7 +103,7 @@ Cls obj;
 
 // CHECK: [[FUNC:[0-9]+]] = distinct !DISubprogram(name: "func", linkageName: "_ZN7pr147634funcENS_3fooE"
 // CHECK-SAME:                                      type: {{![0-9]+}}
-// CHECK-SAME:                                      isDefinition: true
+// CHECK-SAME:                                      DISPFlagDefinition
 
 // CHECK: [[PR14763:![0-9]+]] = !DINamespace(name: "pr14763"
 namespace pr14763 {

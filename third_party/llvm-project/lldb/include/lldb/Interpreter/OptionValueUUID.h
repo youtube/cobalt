@@ -1,35 +1,28 @@
 //===-- OptionValueUUID.h --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueUUID_h_
-#define liblldb_OptionValueUUID_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEUUID_H
+#define LLDB_INTERPRETER_OPTIONVALUEUUID_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/UUID.h"
 #include "lldb/Interpreter/OptionValue.h"
 
 namespace lldb_private {
 
-class OptionValueUUID : public OptionValue {
+class OptionValueUUID : public Cloneable<OptionValueUUID, OptionValue> {
 public:
-  OptionValueUUID() : OptionValue(), m_uuid() {}
+  OptionValueUUID() = default;
 
-  OptionValueUUID(const UUID &uuid) : OptionValue(), m_uuid(uuid) {}
+  OptionValueUUID(const UUID &uuid) : m_uuid(uuid) {}
 
-  ~OptionValueUUID() override {}
+  ~OptionValueUUID() override = default;
 
-  //---------------------------------------------------------------------
   // Virtual subclass pure virtual overrides
-  //---------------------------------------------------------------------
 
   OptionValue::Type GetType() const override { return eTypeUUID; }
 
@@ -39,21 +32,13 @@ public:
   Status
   SetValueFromString(llvm::StringRef value,
                      VarSetOperationType op = eVarSetOperationAssign) override;
-  Status
-  SetValueFromString(const char *,
-                     VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_uuid.Clear();
     m_value_was_set = false;
-    return true;
   }
 
-  lldb::OptionValueSP DeepCopy() const override;
-
-  //---------------------------------------------------------------------
   // Subclass specific functions
-  //---------------------------------------------------------------------
 
   UUID &GetCurrentValue() { return m_uuid; }
 
@@ -61,8 +46,8 @@ public:
 
   void SetCurrentValue(const UUID &value) { m_uuid = value; }
 
-  size_t AutoComplete(CommandInterpreter &interpreter,
-                      CompletionRequest &request) override;
+  void AutoComplete(CommandInterpreter &interpreter,
+                    CompletionRequest &request) override;
 
 protected:
   UUID m_uuid;
@@ -70,4 +55,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueUUID_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEUUID_H

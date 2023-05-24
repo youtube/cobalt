@@ -1,4 +1,3 @@
-; REQUIRES: object-emission
 
 ; RUN: llc < %s -filetype=obj -mtriple=x86_64-apple-darwin | llvm-dwarfdump -v - | FileCheck %s
 
@@ -24,7 +23,7 @@
 ; Expect no line table entry since there are no functions and file references in this compile unit
 ; CHECK: .debug_line contents:
 ; CHECK: Line table prologue:
-; CHECK: total_length: 0x00000019
+; CHECK: total_length: 0x0000001a
 ; CHECK-NOT: file_names[
 
 @i = external global i32
@@ -36,7 +35,7 @@ entry:
   ret void
 }
 
-attributes #0 = { uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!8, !9}

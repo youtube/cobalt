@@ -1,9 +1,8 @@
 //===-- MPIChecker.cpp - Checker Entry Point Class --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,7 +15,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "MPIChecker.h"
-#include "../ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/DynamicExtent.h"
 
 namespace clang {
 namespace ento {
@@ -100,9 +100,6 @@ void MPIChecker::checkUnmatchedWaits(const CallEvent &PreCallEvent,
 
 void MPIChecker::checkMissingWaits(SymbolReaper &SymReaper,
                                    CheckerContext &Ctx) const {
-  if (!SymReaper.hasDeadSymbols())
-    return;
-
   ProgramStateRef State = Ctx.getState();
   const auto &Requests = State->get<RequestMap>();
   if (Requests.isEmpty())
@@ -150,7 +147,7 @@ void MPIChecker::allRegionsUsedByWait(
     llvm::SmallVector<const MemRegion *, 2> &ReqRegions,
     const MemRegion *const MR, const CallEvent &CE, CheckerContext &Ctx) const {
 
-  MemRegionManager *const RegionManager = MR->getMemRegionManager();
+  MemRegionManager &RegionManager = MR->getMemRegionManager();
 
   if (FuncClassifier->isMPI_Waitall(CE.getCalleeIdentifier())) {
     const SubRegion *SuperRegion{nullptr};
@@ -164,15 +161,16 @@ void MPIChecker::allRegionsUsedByWait(
       return;
     }
 
-    const auto &Size = Ctx.getStoreManager().getSizeInElements(
-        Ctx.getState(), SuperRegion,
+    DefinedOrUnknownSVal ElementCount = getDynamicElementCount(
+        Ctx.getState(), SuperRegion, Ctx.getSValBuilder(),
         CE.getArgExpr(1)->getType()->getPointeeType());
-    const llvm::APSInt &ArrSize = Size.getAs<nonloc::ConcreteInt>()->getValue();
+    const llvm::APSInt &ArrSize =
+        ElementCount.getAs<nonloc::ConcreteInt>()->getValue();
 
     for (size_t i = 0; i < ArrSize; ++i) {
       const NonLoc Idx = Ctx.getSValBuilder().makeArrayIndex(i);
 
-      const ElementRegion *const ER = RegionManager->getElementRegion(
+      const ElementRegion *const ER = RegionManager.getElementRegion(
           CE.getArgExpr(1)->getType()->getPointeeType(), Idx, SuperRegion,
           Ctx.getASTContext());
 
@@ -190,4 +188,8 @@ void MPIChecker::allRegionsUsedByWait(
 // Registers the checker for static analysis.
 void clang::ento::registerMPIChecker(CheckerManager &MGR) {
   MGR.registerChecker<clang::ento::mpi::MPIChecker>();
+}
+
+bool clang::ento::shouldRegisterMPIChecker(const CheckerManager &mgr) {
+  return true;
 }

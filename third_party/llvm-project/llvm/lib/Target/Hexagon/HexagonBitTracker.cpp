@@ -1,9 +1,8 @@
 //===- HexagonBitTracker.cpp ----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -87,17 +86,18 @@ HexagonEvaluator::HexagonEvaluator(const HexagonRegisterInfo &tri,
   }
 }
 
-BT::BitMask HexagonEvaluator::mask(unsigned Reg, unsigned Sub) const {
+BT::BitMask HexagonEvaluator::mask(Register Reg, unsigned Sub) const {
   if (Sub == 0)
     return MachineEvaluator::mask(Reg, 0);
   const TargetRegisterClass &RC = *MRI.getRegClass(Reg);
   unsigned ID = RC.getID();
   uint16_t RW = getRegBitWidth(RegisterRef(Reg, Sub));
-  auto &HRI = static_cast<const HexagonRegisterInfo&>(TRI);
+  const auto &HRI = static_cast<const HexagonRegisterInfo&>(TRI);
   bool IsSubLo = (Sub == HRI.getHexagonSubRegIndex(RC, Hexagon::ps_sub_lo));
   switch (ID) {
     case Hexagon::DoubleRegsRegClassID:
     case Hexagon::HvxWRRegClassID:
+    case Hexagon::HvxVQRRegClassID:
       return IsSubLo ? BT::BitMask(0, RW-1)
                      : BT::BitMask(RW, 2*RW-1);
     default:
@@ -110,13 +110,15 @@ BT::BitMask HexagonEvaluator::mask(unsigned Reg, unsigned Sub) const {
   llvm_unreachable("Unexpected register/subregister");
 }
 
-uint16_t HexagonEvaluator::getPhysRegBitWidth(unsigned Reg) const {
-  assert(TargetRegisterInfo::isPhysicalRegister(Reg));
-
+uint16_t HexagonEvaluator::getPhysRegBitWidth(MCRegister Reg) const {
   using namespace Hexagon;
-  for (auto &RC : {HvxVRRegClass, HvxWRRegClass, HvxQRRegClass})
-    if (RC.contains(Reg))
-      return TRI.getRegSizeInBits(RC);
+  const auto &HST = MF.getSubtarget<HexagonSubtarget>();
+  if (HST.useHVXOps()) {
+    for (auto &RC : {HvxVRRegClass, HvxWRRegClass, HvxQRRegClass,
+                     HvxVQRRegClass})
+      if (RC.contains(Reg))
+        return TRI.getRegSizeInBits(RC);
+  }
   // Default treatment for other physical registers.
   if (const TargetRegisterClass *RC = TRI.getMinimalPhysRegClass(Reg))
     return TRI.getRegSizeInBits(*RC);
@@ -142,6 +144,8 @@ const TargetRegisterClass &HexagonEvaluator::composeWithSubRegIndex(
       return Hexagon::IntRegsRegClass;
     case Hexagon::HvxWRRegClassID:
       return Hexagon::HvxVRRegClass;
+    case Hexagon::HvxVQRRegClassID:
+      return Hexagon::HvxWRRegClass;
     default:
       break;
   }
@@ -185,7 +189,7 @@ bool HexagonEvaluator::evaluate(const MachineInstr &MI,
 
   unsigned NumDefs = 0;
 
-  // Sanity verification: there should not be any defs with subregisters.
+  // Basic correctness check: there should not be any defs with subregisters.
   for (const MachineOperand &MO : MI.operands()) {
     if (!MO.isReg() || !MO.isDef())
       continue;
@@ -324,7 +328,7 @@ bool HexagonEvaluator::evaluate(const MachineInstr &MI,
     case PS_fi: {
       int FI = op(1).getIndex();
       int Off = op(2).getImm();
-      unsigned A = MFI.getObjectAlignment(FI) + std::abs(Off);
+      unsigned A = MFI.getObjectAlign(FI).value() + std::abs(Off);
       unsigned L = countTrailingZeros(A);
       RegisterCell RC = RegisterCell::self(Reg[0].Reg, W0);
       RC.fill(0, L, BT::BitValue::Zero);
@@ -487,6 +491,11 @@ bool HexagonEvaluator::evaluate(const MachineInstr &MI,
     case M2_maci: {
       RegisterCell M = eMLS(rc(2), rc(3));
       RegisterCell RC = eADD(rc(1), lo(M, W0));
+      return rr0(RC, Outputs);
+    }
+    case M2_mnaci: {
+      RegisterCell M = eMLS(rc(2), rc(3));
+      RegisterCell RC = eSUB(rc(1), lo(M, W0));
       return rr0(RC, Outputs);
     }
     case M2_mpysmi: {
@@ -1036,8 +1045,8 @@ unsigned HexagonEvaluator::getUniqueDefVReg(const MachineInstr &MI) const {
   for (const MachineOperand &Op : MI.operands()) {
     if (!Op.isReg() || !Op.isDef())
       continue;
-    unsigned R = Op.getReg();
-    if (!TargetRegisterInfo::isVirtualRegister(R))
+    Register R = Op.getReg();
+    if (!R.isVirtual())
       continue;
     if (DefReg != 0)
       return 0;
@@ -1214,7 +1223,7 @@ bool HexagonEvaluator::evaluateFormalCopy(const MachineInstr &MI,
   RegisterRef RD = MI.getOperand(0);
   RegisterRef RS = MI.getOperand(1);
   assert(RD.Sub == 0);
-  if (!TargetRegisterInfo::isPhysicalRegister(RS.Reg))
+  if (!Register::isPhysicalRegister(RS.Reg))
     return false;
   RegExtMap::const_iterator F = VRX.find(RD.Reg);
   if (F == VRX.end())

@@ -1,9 +1,8 @@
 //-- SystemZMachineScheduler.cpp - SystemZ Scheduler Interface -*- C++ -*---==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "SystemZMachineScheduler.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
 
 using namespace llvm;
 
@@ -46,9 +46,9 @@ static MachineBasicBlock *getSingleSchedPred(MachineBasicBlock *MBB,
   // The loop header has two predecessors, return the latch, but not for a
   // single block loop.
   if (MBB->pred_size() == 2 && Loop != nullptr && Loop->getHeader() == MBB) {
-    for (auto I = MBB->pred_begin(); I != MBB->pred_end(); ++I)
-      if (Loop->contains(*I))
-        PredMBB = (*I == MBB ? nullptr : *I);
+    for (MachineBasicBlock *Pred : MBB->predecessors())
+      if (Loop->contains(Pred))
+        PredMBB = (Pred == MBB ? nullptr : Pred);
   }
 
   assert ((PredMBB == nullptr || !Loop || Loop->contains(PredMBB))
@@ -72,6 +72,7 @@ advanceTo(MachineBasicBlock::iterator NextBegin) {
 }
 
 void SystemZPostRASchedStrategy::initialize(ScheduleDAGMI *dag) {
+  Available.clear();  // -misched-cutoff.
   LLVM_DEBUG(HazardRec->dumpState(););
 }
 
@@ -105,13 +106,12 @@ void SystemZPostRASchedStrategy::enterMBB(MachineBasicBlock *NextMBB) {
 
   // Emit incoming terminator(s). Be optimistic and assume that branch
   // prediction will generally do "the right thing".
-  for (MachineBasicBlock::iterator I = SinglePredMBB->getFirstTerminator();
-       I != SinglePredMBB->end(); I++) {
-    LLVM_DEBUG(dbgs() << "** Emitting incoming branch: "; I->dump(););
-    bool TakenBranch = (I->isBranch() &&
-      (TII->getBranchInfo(*I).Target->isReg() || // Relative branch
-       TII->getBranchInfo(*I).Target->getMBB() == MBB));
-    HazardRec->emitInstruction(&*I, TakenBranch);
+  for (MachineInstr &MI : SinglePredMBB->terminators()) {
+    LLVM_DEBUG(dbgs() << "** Emitting incoming branch: "; MI.dump(););
+    bool TakenBranch = (MI.isBranch() &&
+                        (TII->getBranchInfo(MI).isIndirect() ||
+                         TII->getBranchInfo(MI).getMBBTarget() == MBB));
+    HazardRec->emitInstruction(&MI, TakenBranch);
     if (TakenBranch)
       break;
   }

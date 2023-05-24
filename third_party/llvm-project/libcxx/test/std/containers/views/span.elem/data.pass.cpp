@@ -1,13 +1,15 @@
-// -*- C++ -*-
-//===------------------------------ span ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===---------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17 
+//===----------------------------------------------------------------------===//
+// UNSUPPORTED: c++03, c++11, c++14, c++17
+// UNSUPPORTED: libcpp-has-no-incomplete-ranges
+
+// AppleClang 12.0.0 doesn't fully support ranges/concepts
+// XFAIL: apple-clang-12.0.0
 
 // <span>
 
@@ -41,7 +43,7 @@ struct A{};
 constexpr int iArr1[] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9};
           int iArr2[] = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 
-int main ()
+int main(int, char**)
 {
 
 //  dynamic size
@@ -118,4 +120,6 @@ int main ()
     testRuntimeSpan(std::span<std::string>(&s, 1), &s);
     testRuntimeSpan(std::span<std::string, 1>(&s, 1), &s);
 
+
+  return 0;
 }

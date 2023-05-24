@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=amdgcn-amd-amdhsa-amdgizcl -verify-machineinstrs < %s | FileCheck %s
+; RUN: llc -mtriple=amdgcn-amd-amdhsa -verify-machineinstrs < %s | FileCheck %s
 
 %struct.ShapeData = type { <4 x float>, <4 x float>, <4 x float>, <4 x float>, <4 x float>, i32, i32, i64, <4 x float>, i32, i8, i8, i16, i32, i32 }
 
@@ -10,9 +10,13 @@ declare %struct.ShapeData addrspace(1)* @Scene_getSubShapeData(i32, i8 addrspace
 
 define <4 x float> @Scene_transformT(i32 %subshapeIdx, <4 x float> %v, float %time, i8 addrspace(1)* %gScene, i32 addrspace(1)* %gSceneOffsets) local_unnamed_addr !dbg !110 {
 entry:
-; CHECK: ;DEBUG_VALUE: Scene_transformT:gScene <- [DW_OP_constu 1, DW_OP_swap, DW_OP_xderef] $vgpr6_vgpr7
+  ; CHECK: v_mov_b32_e32 v[[COPIED_ARG_PIECE:[0-9]+]], v9
+
+  ; CHECK: ;DEBUG_VALUE: Scene_transformT:gScene <- [DW_OP_constu 1, DW_OP_swap, DW_OP_xderef, DW_OP_LLVM_fragment 0 32] $vgpr6
+  ; CHECK: ;DEBUG_VALUE: Scene_transformT:gScene <- [DW_OP_constu 1, DW_OP_swap, DW_OP_xderef, DW_OP_LLVM_fragment 32 32] $vgpr7
   call void @llvm.dbg.value(metadata i8 addrspace(1)* %gScene, metadata !120, metadata !DIExpression(DW_OP_constu, 1, DW_OP_swap, DW_OP_xderef)), !dbg !154
-; CHECK: ;DEBUG_VALUE: Scene_transformT:gSceneOffsets <- [DW_OP_constu 1, DW_OP_swap, DW_OP_xderef] $vgpr8_vgpr9
+  ; CHECK: ;DEBUG_VALUE: Scene_transformT:gSceneOffsets <- [DW_OP_constu 1, DW_OP_swap, DW_OP_xderef, DW_OP_LLVM_fragment 0 32] $vgpr8
+  ; CHECK: ;DEBUG_VALUE: Scene_transformT:gSceneOffsets <- [DW_OP_constu 1, DW_OP_swap, DW_OP_xderef, DW_OP_LLVM_fragment 32 32] $vgpr[[COPIED_ARG_PIECE]]
   call void @llvm.dbg.value(metadata i32 addrspace(1)* %gSceneOffsets, metadata !121, metadata !DIExpression(DW_OP_constu, 1, DW_OP_swap, DW_OP_xderef)), !dbg !155
   %call = tail call %struct.ShapeData addrspace(1)* @Scene_getSubShapeData(i32 %subshapeIdx, i8 addrspace(1)* %gScene, i32 addrspace(1)* %gSceneOffsets)
   %m_linearMotion = getelementptr inbounds %struct.ShapeData, %struct.ShapeData addrspace(1)* %call, i64 0, i32 2
@@ -278,7 +282,7 @@ declare void @llvm.dbg.value(metadata, metadata, metadata)
 !opencl.ocl.version = !{!107}
 !llvm.ident = !{!108, !109}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 7.0.0 (https://github.com/llvm-mirror/clang.git 3edc9a6d1f98fec61a944167cb5c36c40104918a) (https://github.com/llvm-mirror/llvm.git 90eddc791688f226397e600c287c043d9b0e35fa)", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !2, retainedTypes: !74)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 7.0.0", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !2, retainedTypes: !74)
 !1 = !DIFile(filename: "tmp.cl", directory: "/home/yaxunl/h/git/llvm/assert")
 !2 = !{!3, !27, !37, !42, !46, !51, !55, !68}
 !3 = !DICompositeType(tag: DW_TAG_enumeration_type, name: "BrdfType", file: !4, line: 1334, size: 32, elements: !5)
@@ -386,7 +390,7 @@ declare void @llvm.dbg.value(metadata, metadata, metadata)
 !105 = !{i32 2, !"Debug Info Version", i32 3}
 !106 = !{i32 1, !"wchar_size", i32 4}
 !107 = !{i32 2, i32 0}
-!108 = !{!"clang version 7.0.0 (https://github.com/llvm-mirror/clang.git 3edc9a6d1f98fec61a944167cb5c36c40104918a) (https://github.com/llvm-mirror/llvm.git 90eddc791688f226397e600c287c043d9b0e35fa)"}
+!108 = !{!"clang version 7.0.0"}
 !109 = !{!"clang version 4.0 "}
 !110 = distinct !DISubprogram(name: "Scene_transformT", scope: !4, file: !4, line: 2182, type: !111, isLocal: false, isDefinition: true, scopeLine: 2183, flags: DIFlagPrototyped, isOptimized: true, unit: !0, retainedNodes: !116)
 !111 = !DISubroutineType(types: !112)

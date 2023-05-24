@@ -1,15 +1,15 @@
-//===-- SBQueue.cpp ---------------------------------------------*- C++ -*-===//
+//===-- SBQueue.cpp -------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "lldb/API/SBQueue.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include "lldb/API/SBProcess.h"
 #include "lldb/API/SBQueueItem.h"
@@ -19,7 +19,6 @@
 #include "lldb/Target/Queue.h"
 #include "lldb/Target/QueueItem.h"
 #include "lldb/Target/Thread.h"
-#include "lldb/Utility/Log.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -28,13 +27,10 @@ namespace lldb_private {
 
 class QueueImpl {
 public:
-  QueueImpl()
-      : m_queue_wp(), m_threads(), m_thread_list_fetched(false),
-        m_pending_items(), m_pending_items_fetched(false) {}
+  QueueImpl() {}
 
   QueueImpl(const lldb::QueueSP &queue_sp)
-      : m_queue_wp(), m_threads(), m_thread_list_fetched(false),
-        m_pending_items(), m_pending_items_fetched(false) {
+      : m_thread_list_fetched(false), m_pending_items_fetched(false) {
     m_queue_wp = queue_sp;
   }
 
@@ -48,9 +44,9 @@ public:
     m_pending_items_fetched = rhs.m_pending_items_fetched;
   }
 
-  ~QueueImpl() {}
+  ~QueueImpl() = default;
 
-  bool IsValid() { return m_queue_wp.lock() != NULL; }
+  bool IsValid() { return m_queue_wp.lock() != nullptr; }
 
   void Clear() {
     m_queue_wp.reset();
@@ -71,10 +67,6 @@ public:
     if (queue_sp) {
       result = queue_sp->GetID();
     }
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-    if (log)
-      log->Printf("SBQueue(%p)::GetQueueID () => 0x%" PRIx64,
-                  static_cast<const void *>(this), result);
     return result;
   }
 
@@ -84,30 +76,20 @@ public:
     if (queue_sp) {
       result = queue_sp->GetIndexID();
     }
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-    if (log)
-      log->Printf("SBQueueImpl(%p)::GetIndexID () => %d",
-                  static_cast<const void *>(this), result);
     return result;
   }
 
   const char *GetName() const {
-    const char *name = NULL;
+    const char *name = nullptr;
     lldb::QueueSP queue_sp = m_queue_wp.lock();
     if (queue_sp.get()) {
       name = queue_sp->GetName();
     }
-
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-    if (log)
-      log->Printf("SBQueueImpl(%p)::GetName () => %s",
-                  static_cast<const void *>(this), name ? name : "NULL");
-
     return name;
   }
 
   void FetchThreads() {
-    if (m_thread_list_fetched == false) {
+    if (!m_thread_list_fetched) {
       lldb::QueueSP queue_sp = m_queue_wp.lock();
       if (queue_sp) {
         Process::StopLocker stop_locker;
@@ -127,7 +109,7 @@ public:
   }
 
   void FetchItems() {
-    if (m_pending_items_fetched == false) {
+    if (!m_pending_items_fetched) {
       QueueSP queue_sp = m_queue_wp.lock();
       if (queue_sp) {
         Process::StopLocker stop_locker;
@@ -178,7 +160,7 @@ public:
     uint32_t result = 0;
 
     QueueSP queue_sp = m_queue_wp.lock();
-    if (m_pending_items_fetched == false && queue_sp) {
+    if (!m_pending_items_fetched && queue_sp) {
       result = queue_sp->GetNumPendingWorkItems();
     } else {
       result = m_pending_items.size();
@@ -225,19 +207,24 @@ private:
   lldb::QueueWP m_queue_wp;
   std::vector<lldb::ThreadWP>
       m_threads; // threads currently executing this queue's items
-  bool
-      m_thread_list_fetched; // have we tried to fetch the threads list already?
+  bool m_thread_list_fetched =
+      false; // have we tried to fetch the threads list already?
   std::vector<lldb::QueueItemSP> m_pending_items; // items currently enqueued
-  bool m_pending_items_fetched; // have we tried to fetch the item list already?
+  bool m_pending_items_fetched =
+      false; // have we tried to fetch the item list already?
 };
 }
 
-SBQueue::SBQueue() : m_opaque_sp(new QueueImpl()) {}
+SBQueue::SBQueue() : m_opaque_sp(new QueueImpl()) { LLDB_INSTRUMENT_VA(this); }
 
 SBQueue::SBQueue(const QueueSP &queue_sp)
-    : m_opaque_sp(new QueueImpl(queue_sp)) {}
+    : m_opaque_sp(new QueueImpl(queue_sp)) {
+  LLDB_INSTRUMENT_VA(this, queue_sp);
+}
 
 SBQueue::SBQueue(const SBQueue &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (&rhs == this)
     return;
 
@@ -245,25 +232,27 @@ SBQueue::SBQueue(const SBQueue &rhs) {
 }
 
 const lldb::SBQueue &SBQueue::operator=(const lldb::SBQueue &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   m_opaque_sp = rhs.m_opaque_sp;
   return *this;
 }
 
-SBQueue::~SBQueue() {}
+SBQueue::~SBQueue() = default;
 
 bool SBQueue::IsValid() const {
-  bool is_valid = m_opaque_sp->IsValid();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::IsValid() == %s",
-                m_opaque_sp->GetQueueID(), is_valid ? "true" : "false");
-  return is_valid;
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBQueue::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp->IsValid();
 }
 
 void SBQueue::Clear() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::Clear()", m_opaque_sp->GetQueueID());
+  LLDB_INSTRUMENT_VA(this);
+
   m_opaque_sp->Clear();
 }
 
@@ -272,76 +261,63 @@ void SBQueue::SetQueue(const QueueSP &queue_sp) {
 }
 
 lldb::queue_id_t SBQueue::GetQueueID() const {
-  lldb::queue_id_t qid = m_opaque_sp->GetQueueID();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::GetQueueID() == 0x%" PRIx64,
-                m_opaque_sp->GetQueueID(), (uint64_t)qid);
-  return qid;
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp->GetQueueID();
 }
 
 uint32_t SBQueue::GetIndexID() const {
+  LLDB_INSTRUMENT_VA(this);
+
   uint32_t index_id = m_opaque_sp->GetIndexID();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::GetIndexID() == 0x%" PRIx32,
-                m_opaque_sp->GetQueueID(), index_id);
   return index_id;
 }
 
 const char *SBQueue::GetName() const {
-  const char *name = m_opaque_sp->GetName();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::GetName() == %s",
-                m_opaque_sp->GetQueueID(), name ? name : "");
-  return name;
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp->GetName();
 }
 
 uint32_t SBQueue::GetNumThreads() {
-  uint32_t numthreads = m_opaque_sp->GetNumThreads();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::GetNumThreads() == %d",
-                m_opaque_sp->GetQueueID(), numthreads);
-  return numthreads;
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp->GetNumThreads();
 }
 
 SBThread SBQueue::GetThreadAtIndex(uint32_t idx) {
+  LLDB_INSTRUMENT_VA(this, idx);
+
   SBThread th = m_opaque_sp->GetThreadAtIndex(idx);
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::GetThreadAtIndex(%d)",
-                m_opaque_sp->GetQueueID(), idx);
   return th;
 }
 
 uint32_t SBQueue::GetNumPendingItems() {
-  uint32_t pending_items = m_opaque_sp->GetNumPendingItems();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::GetNumPendingItems() == %d",
-                m_opaque_sp->GetQueueID(), pending_items);
-  return pending_items;
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp->GetNumPendingItems();
 }
 
 SBQueueItem SBQueue::GetPendingItemAtIndex(uint32_t idx) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::GetPendingItemAtIndex(%d)",
-                m_opaque_sp->GetQueueID(), idx);
+  LLDB_INSTRUMENT_VA(this, idx);
+
   return m_opaque_sp->GetPendingItemAtIndex(idx);
 }
 
 uint32_t SBQueue::GetNumRunningItems() {
-  uint32_t running_items = m_opaque_sp->GetNumRunningItems();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBQueue(0x%" PRIx64 ")::GetNumRunningItems() == %d",
-                m_opaque_sp->GetQueueID(), running_items);
-  return running_items;
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp->GetNumRunningItems();
 }
 
-SBProcess SBQueue::GetProcess() { return m_opaque_sp->GetProcess(); }
+SBProcess SBQueue::GetProcess() {
+  LLDB_INSTRUMENT_VA(this);
 
-lldb::QueueKind SBQueue::GetKind() { return m_opaque_sp->GetKind(); }
+  return m_opaque_sp->GetProcess();
+}
+
+lldb::QueueKind SBQueue::GetKind() {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp->GetKind();
+}

@@ -1,9 +1,8 @@
 //===- CodeMetrics.cpp - Code cost measurements ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,15 +11,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/CodeMetrics.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/IR/CallSite.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/InstructionCost.h"
 
 #define DEBUG_TYPE "code-metrics"
 
@@ -36,8 +34,9 @@ appendSpeculatableOperands(const Value *V,
 
   for (const Value *Operand : U->operands())
     if (Visited.insert(Operand).second)
-      if (isSafeToSpeculativelyExecute(Operand))
-        Worklist.push_back(Operand);
+      if (const auto *I = dyn_cast<Instruction>(Operand))
+        if (!I->mayHaveSideEffects() && !I->isTerminator())
+          Worklist.push_back(I);
 }
 
 static void completeEphemeralValues(SmallPtrSetImpl<const Value *> &Visited,
@@ -115,26 +114,36 @@ void CodeMetrics::collectEphemeralValues(
 
 /// Fill in the current structure with information gleaned from the specified
 /// block.
-void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB,
-                                    const TargetTransformInfo &TTI,
-                                    const SmallPtrSetImpl<const Value*> &EphValues) {
+void CodeMetrics::analyzeBasicBlock(
+    const BasicBlock *BB, const TargetTransformInfo &TTI,
+    const SmallPtrSetImpl<const Value *> &EphValues, bool PrepareForLTO) {
   ++NumBlocks;
-  unsigned NumInstsBeforeThisBB = NumInsts;
+  // Use a proxy variable for NumInsts of type InstructionCost, so that it can
+  // use InstructionCost's arithmetic properties such as saturation when this
+  // feature is added to InstructionCost.
+  // When storing the value back to NumInsts, we can assume all costs are Valid
+  // because the IR should not contain any nodes that cannot be costed. If that
+  // happens the cost-model is broken.
+  InstructionCost NumInstsProxy = NumInsts;
+  InstructionCost NumInstsBeforeThisBB = NumInsts;
   for (const Instruction &I : *BB) {
     // Skip ephemeral values.
     if (EphValues.count(&I))
       continue;
 
     // Special handling for calls.
-    if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
-      ImmutableCallSite CS(&I);
-
-      if (const Function *F = CS.getCalledFunction()) {
+    if (const auto *Call = dyn_cast<CallBase>(&I)) {
+      if (const Function *F = Call->getCalledFunction()) {
+        bool IsLoweredToCall = TTI.isLoweredToCall(F);
         // If a function is both internal and has a single use, then it is
         // extremely likely to get inlined in the future (it was probably
         // exposed by an interleaved devirtualization pass).
-        if (!CS.isNoInline() && F->hasInternalLinkage() && F->hasOneUse())
+        // When preparing for LTO, liberally consider calls as inline
+        // candidates.
+        if (!Call->isNoInline() && IsLoweredToCall &&
+            ((F->hasInternalLinkage() && F->hasOneUse()) || PrepareForLTO)) {
           ++NumInlineCandidates;
+        }
 
         // If this call is to function itself, then the function is recursive.
         // Inlining it into other functions is a bad idea, because this is
@@ -143,12 +152,12 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB,
         if (F == BB->getParent())
           isRecursive = true;
 
-        if (TTI.isLoweredToCall(F))
+        if (IsLoweredToCall)
           ++NumCalls;
       } else {
         // We don't want inline asm to count as a call - that would prevent loop
         // unrolling. The argument setup cost is still real, though.
-        if (!isa<InlineAsm>(CS.getCalledValue()))
+        if (!Call->isInlineAsm())
           ++NumCalls;
       }
     }
@@ -175,7 +184,8 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB,
       if (InvI->cannotDuplicate())
         notDuplicatable = true;
 
-    NumInsts += TTI.getUserCost(&I);
+    NumInstsProxy += TTI.getUserCost(&I, TargetTransformInfo::TCK_CodeSize);
+    NumInsts = *NumInstsProxy.getValue();
   }
 
   if (isa<ReturnInst>(BB->getTerminator()))
@@ -195,5 +205,6 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB,
   notDuplicatable |= isa<IndirectBrInst>(BB->getTerminator());
 
   // Remember NumInsts for this BB.
-  NumBBInsts[BB] = NumInsts - NumInstsBeforeThisBB;
+  InstructionCost NumInstsThisBB = NumInstsProxy - NumInstsBeforeThisBB;
+  NumBBInsts[BB] = *NumInstsThisBB.getValue();
 }

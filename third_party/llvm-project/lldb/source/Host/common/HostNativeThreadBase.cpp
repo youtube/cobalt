@@ -1,9 +1,8 @@
-//===-- HostNativeThreadBase.cpp --------------------------------*- C++ -*-===//
+//===-- HostNativeThreadBase.cpp ------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,11 +17,8 @@
 using namespace lldb;
 using namespace lldb_private;
 
-HostNativeThreadBase::HostNativeThreadBase()
-    : m_thread(LLDB_INVALID_HOST_THREAD), m_result(0) {}
-
 HostNativeThreadBase::HostNativeThreadBase(thread_t thread)
-    : m_thread(thread), m_result(0) {}
+    : m_thread(thread), m_result(0) {} // NOLINT(modernize-use-nullptr)
 
 lldb::thread_t HostNativeThreadBase::GetSystemHandle() const {
   return m_thread;
@@ -38,13 +34,17 @@ bool HostNativeThreadBase::IsJoinable() const {
 
 void HostNativeThreadBase::Reset() {
   m_thread = LLDB_INVALID_HOST_THREAD;
-  m_result = 0;
+  m_result = 0; // NOLINT(modernize-use-nullptr)
+}
+
+bool HostNativeThreadBase::EqualsThread(lldb::thread_t thread) const {
+  return m_thread == thread;
 }
 
 lldb::thread_t HostNativeThreadBase::Release() {
   lldb::thread_t result = m_thread;
   m_thread = LLDB_INVALID_HOST_THREAD;
-  m_result = 0;
+  m_result = 0; // NOLINT(modernize-use-nullptr)
 
   return result;
 }
@@ -59,8 +59,7 @@ HostNativeThreadBase::ThreadCreateTrampoline(lldb::thread_arg_t arg) {
   thread_arg_t thread_arg = info->thread_arg;
 
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_THREAD));
-  if (log)
-    log->Printf("thread created");
+  LLDB_LOGF(log, "thread created");
 
   delete info;
   return thread_fptr(thread_arg);

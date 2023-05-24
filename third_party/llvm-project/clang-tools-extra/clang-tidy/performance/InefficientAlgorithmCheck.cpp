@@ -1,9 +1,8 @@
 //===--- InefficientAlgorithmCheck.cpp - clang-tidy------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,11 +27,6 @@ static bool areTypesCompatible(QualType Left, QualType Right) {
 }
 
 void InefficientAlgorithmCheck::registerMatchers(MatchFinder *Finder) {
-  // Only register the matchers for C++; the functionality currently does not
-  // provide any benefit to other languages, despite being benign.
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   const auto Algorithms =
       hasAnyName("::std::find", "::std::count", "::std::equal_range",
                  "::std::lower_bound", "::std::upper_bound");
@@ -45,21 +39,19 @@ void InefficientAlgorithmCheck::registerMatchers(MatchFinder *Finder) {
       callExpr(
           callee(functionDecl(Algorithms)),
           hasArgument(
-              0, cxxConstructExpr(has(ignoringParenImpCasts(cxxMemberCallExpr(
+              0, cxxMemberCallExpr(
                      callee(cxxMethodDecl(hasName("begin"))),
                      on(declRefExpr(
                             hasDeclaration(decl().bind("IneffContObj")),
                             anyOf(hasType(ContainerMatcher.bind("IneffCont")),
                                   hasType(pointsTo(
                                       ContainerMatcher.bind("IneffContPtr")))))
-                            .bind("IneffContExpr"))))))),
+                            .bind("IneffContExpr")))),
           hasArgument(
-              1, cxxConstructExpr(has(ignoringParenImpCasts(cxxMemberCallExpr(
-                     callee(cxxMethodDecl(hasName("end"))),
-                     on(declRefExpr(
-                         hasDeclaration(equalsBoundNode("IneffContObj"))))))))),
-          hasArgument(2, expr().bind("AlgParam")),
-          unless(isInTemplateInstantiation()))
+              1, cxxMemberCallExpr(callee(cxxMethodDecl(hasName("end"))),
+                                   on(declRefExpr(hasDeclaration(
+                                       equalsBoundNode("IneffContObj")))))),
+          hasArgument(2, expr().bind("AlgParam")))
           .bind("IneffAlg");
 
   Finder->addMatcher(Matcher, this);
@@ -99,7 +91,7 @@ void InefficientAlgorithmCheck::check(const MatchFinder::MatchResult &Result) {
                                       .getUnqualifiedType()
                                       .getCanonicalType();
     if (AlgCmp != ContainerCmp) {
-      diag(Arg->getLocStart(),
+      diag(Arg->getBeginLoc(),
            "different comparers used in the algorithm and the container");
       return;
     }
@@ -153,7 +145,7 @@ void InefficientAlgorithmCheck::check(const MatchFinder::MatchResult &Result) {
     Hint = FixItHint::CreateReplacement(CallRange, ReplacementText);
   }
 
-  diag(AlgCall->getLocStart(),
+  diag(AlgCall->getBeginLoc(),
        "this STL algorithm call should be replaced with a container method")
       << Hint;
 }

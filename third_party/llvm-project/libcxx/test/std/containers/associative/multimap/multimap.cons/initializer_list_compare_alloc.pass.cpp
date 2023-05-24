@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <map>
 
@@ -17,14 +16,15 @@
 
 #include <map>
 #include <cassert>
+#include "test_macros.h"
 #include "../../../test_compare.h"
 #include "test_allocator.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
-    typedef test_compare<std::less<int> > Cmp;
+    typedef test_less<int> Cmp;
     typedef test_allocator<std::pair<const int, double> > A;
     typedef std::multimap<int, double, Cmp, A> C;
     typedef C::value_type V;
@@ -58,7 +58,7 @@ int main()
     assert(m.get_allocator() == A(5));
     }
     {
-    typedef test_compare<std::less<int> > Cmp;
+    typedef test_less<int> Cmp;
     typedef min_allocator<std::pair<const int, double> > A;
     typedef std::multimap<int, double, Cmp, A> C;
     typedef C::value_type V;
@@ -92,7 +92,7 @@ int main()
     assert(m.get_allocator() == A());
     }
     {
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     typedef std::pair<const int, double> V;
     typedef min_allocator<V> A;
     typedef std::multimap<int, double, C, A> M;
@@ -123,7 +123,7 @@ int main()
     assert(m.get_allocator() == a);
     }
     {
-    typedef test_compare<std::less<int> > Cmp;
+    typedef test_less<int> Cmp;
     typedef explicit_allocator<std::pair<const int, double> > A;
     typedef std::multimap<int, double, Cmp, A> C;
     typedef C::value_type V;
@@ -156,4 +156,6 @@ int main()
     assert(m.key_comp() == Cmp(4));
     assert(m.get_allocator() == A{});
     }
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,7 +26,7 @@
 #include "../../../test_compare.h"
 #include "test_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
     typedef int V;
@@ -43,10 +42,10 @@ int main()
         3,
         3
     };
-    typedef test_compare<std::less<V> > C;
+    typedef test_less<V> C;
     typedef test_allocator<V> A;
-    std::set<V, C, A> m(input_iterator<const V*>(ar),
-                        input_iterator<const V*>(ar+sizeof(ar)/sizeof(ar[0])),
+    std::set<V, C, A> m(cpp17_input_iterator<const V*>(ar),
+                        cpp17_input_iterator<const V*>(ar+sizeof(ar)/sizeof(ar[0])),
                         C(5), A(7));
     assert(m.value_comp() == C(5));
     assert(m.get_allocator() == A(7));
@@ -72,7 +71,7 @@ int main()
         3
     };
     typedef test_allocator<V> A;
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     A a(7);
     std::set<V, C, A> m(ar, ar+sizeof(ar)/sizeof(ar[0]), a);
 
@@ -84,4 +83,6 @@ int main()
     assert(m.get_allocator() == a);
     }
 #endif
+
+  return 0;
 }

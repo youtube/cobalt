@@ -1,32 +1,35 @@
 //===- Writer.cpp ---------------------------------------------------------===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "Writer.h"
 #include "Config.h"
 #include "InputChunks.h"
-#include "InputGlobal.h"
+#include "InputElement.h"
+#include "MapFile.h"
 #include "OutputSections.h"
 #include "OutputSegment.h"
+#include "Relocations.h"
 #include "SymbolTable.h"
+#include "SyntheticSections.h"
 #include "WriterUtils.h"
-#include "lld/Common/ErrorHandler.h"
-#include "lld/Common/Memory.h"
+#include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/Strings.h"
-#include "lld/Common/Threads.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/BinaryFormat/Wasm.h"
-#include "llvm/Object/WasmTraits.h"
+#include "llvm/BinaryFormat/WasmTraits.h"
 #include "llvm/Support/FileOutputBuffer.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/LEB128.h"
+#include "llvm/Support/Parallel.h"
 
 #include <cstdarg>
 #include <map>
@@ -35,21 +38,13 @@
 
 using namespace llvm;
 using namespace llvm::wasm;
-using namespace lld;
-using namespace lld::wasm;
 
-static constexpr int kStackAlignment = 16;
-static constexpr int kInitialTableOffset = 1;
-static constexpr const char *kFunctionTableName = "__indirect_function_table";
+namespace lld {
+namespace wasm {
+static constexpr int stackAlignment = 16;
+static constexpr int heapAlignment = 16;
 
 namespace {
-
-// An init entry to be written to either the synthetic init func or the
-// linking metadata.
-struct WasmInitEntry {
-  const FunctionSymbol *Sym;
-  uint32_t Priority;
-};
 
 // The writer writes a SymbolTable result to a file.
 class Writer {
@@ -59,296 +54,118 @@ public:
 private:
   void openFile();
 
-  uint32_t lookupType(const WasmSignature &Sig);
-  uint32_t registerType(const WasmSignature &Sig);
+  bool needsPassiveInitialization(const OutputSegment *segment);
+  bool hasPassiveInitializedSegments();
 
-  void createCtorFunction();
-  void calculateInitFunctions();
+  void createSyntheticInitFunctions();
+  void createInitMemoryFunction();
+  void createStartFunction();
+  void createApplyDataRelocationsFunction();
+  void createApplyGlobalRelocationsFunction();
+  void createApplyGlobalTLSRelocationsFunction();
+  void createCallCtorsFunction();
+  void createInitTLSFunction();
+  void createCommandExportWrappers();
+  void createCommandExportWrapper(uint32_t functionIndex, DefinedFunction *f);
+
   void assignIndexes();
+  void populateSymtab();
+  void populateProducers();
+  void populateTargetFeatures();
+  // populateTargetFeatures happens early on so some checks are delayed
+  // until imports and exports are finalized.  There are run unstead
+  // in checkImportExportTargetFeatures
+  void checkImportExportTargetFeatures();
+  void calculateInitFunctions();
   void calculateImports();
   void calculateExports();
   void calculateCustomSections();
-  void assignSymtab();
   void calculateTypes();
   void createOutputSegments();
+  OutputSegment *createOutputSegment(StringRef name);
+  void combineOutputSegments();
   void layoutMemory();
   void createHeader();
-  void createSections();
-  SyntheticSection *createSyntheticSection(uint32_t Type, StringRef Name = "");
 
-  // Builtin sections
-  void createTypeSection();
-  void createFunctionSection();
-  void createTableSection();
-  void createGlobalSection();
-  void createExportSection();
-  void createImportSection();
-  void createMemorySection();
-  void createElemSection();
-  void createCodeSection();
-  void createDataSection();
+  void addSection(OutputSection *sec);
+
+  void addSections();
+
   void createCustomSections();
+  void createSyntheticSections();
+  void createSyntheticSectionsPostLayout();
+  void finalizeSections();
 
   // Custom sections
   void createRelocSections();
-  void createLinkingSection();
-  void createNameSection();
 
   void writeHeader();
   void writeSections();
 
-  uint64_t FileSize = 0;
-  uint32_t NumMemoryPages = 0;
-  uint32_t MaxMemoryPages = 0;
+  uint64_t fileSize = 0;
 
-  std::vector<const WasmSignature *> Types;
-  DenseMap<WasmSignature, int32_t> TypeIndices;
-  std::vector<const Symbol *> ImportedSymbols;
-  unsigned NumImportedFunctions = 0;
-  unsigned NumImportedGlobals = 0;
-  std::vector<WasmExport> Exports;
-  std::vector<const DefinedData *> DefinedFakeGlobals;
-  std::vector<InputGlobal *> InputGlobals;
-  std::vector<InputFunction *> InputFunctions;
-  std::vector<const FunctionSymbol *> IndirectFunctions;
-  std::vector<const Symbol *> SymtabEntries;
-  std::vector<WasmInitEntry> InitFunctions;
+  std::vector<WasmInitEntry> initFunctions;
+  llvm::StringMap<std::vector<InputChunk *>> customSectionMapping;
 
-  llvm::StringMap<std::vector<InputSection *>> CustomSectionMapping;
-  llvm::StringMap<SectionSymbol *> CustomSectionSymbols;
+  // Stable storage for command export wrapper function name strings.
+  std::list<std::string> commandExportWrapperNames;
 
   // Elements that are used to construct the final output
-  std::string Header;
-  std::vector<OutputSection *> OutputSections;
+  std::string header;
+  std::vector<OutputSection *> outputSections;
 
-  std::unique_ptr<FileOutputBuffer> Buffer;
+  std::unique_ptr<FileOutputBuffer> buffer;
 
-  std::vector<OutputSegment *> Segments;
-  llvm::SmallDenseMap<StringRef, OutputSegment *> SegmentMap;
+  std::vector<OutputSegment *> segments;
+  llvm::SmallDenseMap<StringRef, OutputSegment *> segmentMap;
 };
 
 } // anonymous namespace
 
-void Writer::createImportSection() {
-  uint32_t NumImports = ImportedSymbols.size();
-  if (Config->ImportMemory)
-    ++NumImports;
-  if (Config->ImportTable)
-    ++NumImports;
-
-  if (NumImports == 0)
-    return;
-
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_IMPORT);
-  raw_ostream &OS = Section->getStream();
-
-  writeUleb128(OS, NumImports, "import count");
-
-  if (Config->ImportMemory) {
-    WasmImport Import;
-    Import.Module = "env";
-    Import.Field = "memory";
-    Import.Kind = WASM_EXTERNAL_MEMORY;
-    Import.Memory.Flags = 0;
-    Import.Memory.Initial = NumMemoryPages;
-    if (MaxMemoryPages != 0) {
-      Import.Memory.Flags |= WASM_LIMITS_FLAG_HAS_MAX;
-      Import.Memory.Maximum = MaxMemoryPages;
-    }
-    writeImport(OS, Import);
-  }
-
-  if (Config->ImportTable) {
-    uint32_t TableSize = kInitialTableOffset + IndirectFunctions.size();
-    WasmImport Import;
-    Import.Module = "env";
-    Import.Field = kFunctionTableName;
-    Import.Kind = WASM_EXTERNAL_TABLE;
-    Import.Table.ElemType = WASM_TYPE_ANYFUNC;
-    Import.Table.Limits = {WASM_LIMITS_FLAG_HAS_MAX, TableSize, TableSize};
-    writeImport(OS, Import);
-  }
-
-  for (const Symbol *Sym : ImportedSymbols) {
-    WasmImport Import;
-    Import.Module = "env";
-    Import.Field = Sym->getName();
-    if (auto *FunctionSym = dyn_cast<FunctionSymbol>(Sym)) {
-      Import.Kind = WASM_EXTERNAL_FUNCTION;
-      Import.SigIndex = lookupType(*FunctionSym->FunctionType);
-    } else {
-      auto *GlobalSym = cast<GlobalSymbol>(Sym);
-      Import.Kind = WASM_EXTERNAL_GLOBAL;
-      Import.Global = *GlobalSym->getGlobalType();
-    }
-    writeImport(OS, Import);
-  }
-}
-
-void Writer::createTypeSection() {
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_TYPE);
-  raw_ostream &OS = Section->getStream();
-  writeUleb128(OS, Types.size(), "type count");
-  for (const WasmSignature *Sig : Types)
-    writeSig(OS, *Sig);
-}
-
-void Writer::createFunctionSection() {
-  if (InputFunctions.empty())
-    return;
-
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_FUNCTION);
-  raw_ostream &OS = Section->getStream();
-
-  writeUleb128(OS, InputFunctions.size(), "function count");
-  for (const InputFunction *Func : InputFunctions)
-    writeUleb128(OS, lookupType(Func->Signature), "sig index");
-}
-
-void Writer::createMemorySection() {
-  if (Config->ImportMemory)
-    return;
-
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_MEMORY);
-  raw_ostream &OS = Section->getStream();
-
-  bool HasMax = MaxMemoryPages != 0;
-  writeUleb128(OS, 1, "memory count");
-  writeUleb128(OS, HasMax ? static_cast<unsigned>(WASM_LIMITS_FLAG_HAS_MAX) : 0,
-               "memory limits flags");
-  writeUleb128(OS, NumMemoryPages, "initial pages");
-  if (HasMax)
-    writeUleb128(OS, MaxMemoryPages, "max pages");
-}
-
-void Writer::createGlobalSection() {
-  unsigned NumGlobals = InputGlobals.size() + DefinedFakeGlobals.size();
-  if (NumGlobals == 0)
-    return;
-
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_GLOBAL);
-  raw_ostream &OS = Section->getStream();
-
-  writeUleb128(OS, NumGlobals, "global count");
-  for (const InputGlobal *G : InputGlobals)
-    writeGlobal(OS, G->Global);
-  for (const DefinedData *Sym : DefinedFakeGlobals) {
-    WasmGlobal Global;
-    Global.Type = {WASM_TYPE_I32, false};
-    Global.InitExpr.Opcode = WASM_OPCODE_I32_CONST;
-    Global.InitExpr.Value.Int32 = Sym->getVirtualAddress();
-    writeGlobal(OS, Global);
-  }
-}
-
-void Writer::createTableSection() {
-  if (Config->ImportTable)
-    return;
-
-  // Always output a table section (or table import), even if there are no
-  // indirect calls.  There are two reasons for this:
-  //  1. For executables it is useful to have an empty table slot at 0
-  //     which can be filled with a null function call handler.
-  //  2. If we don't do this, any program that contains a call_indirect but
-  //     no address-taken function will fail at validation time since it is
-  //     a validation error to include a call_indirect instruction if there
-  //     is not table.
-  uint32_t TableSize = kInitialTableOffset + IndirectFunctions.size();
-
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_TABLE);
-  raw_ostream &OS = Section->getStream();
-
-  writeUleb128(OS, 1, "table count");
-  WasmLimits Limits = {WASM_LIMITS_FLAG_HAS_MAX, TableSize, TableSize};
-  writeTableType(OS, WasmTable{WASM_TYPE_ANYFUNC, Limits});
-}
-
-void Writer::createExportSection() {
-  if (!Exports.size())
-    return;
-
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_EXPORT);
-  raw_ostream &OS = Section->getStream();
-
-  writeUleb128(OS, Exports.size(), "export count");
-  for (const WasmExport &Export : Exports)
-    writeExport(OS, Export);
-}
-
 void Writer::calculateCustomSections() {
   log("calculateCustomSections");
-  bool StripDebug = Config->StripDebug || Config->StripAll;
-  for (ObjFile *File : Symtab->ObjectFiles) {
-    for (InputSection *Section : File->CustomSections) {
-      StringRef Name = Section->getName();
+  bool stripDebug = config->stripDebug || config->stripAll;
+  for (ObjFile *file : symtab->objectFiles) {
+    for (InputChunk *section : file->customSections) {
+      // Exclude COMDAT sections that are not selected for inclusion
+      if (section->discarded)
+        continue;
+      StringRef name = section->getName();
       // These custom sections are known the linker and synthesized rather than
-      // blindly copied
-      if (Name == "linking" || Name == "name" || Name.startswith("reloc."))
+      // blindly copied.
+      if (name == "linking" || name == "name" || name == "producers" ||
+          name == "target_features" || name.startswith("reloc."))
         continue;
-      // .. or it is a debug section
-      if (StripDebug && Name.startswith(".debug_"))
+      // These custom sections are generated by `clang -fembed-bitcode`.
+      // These are used by the rust toolchain to ship LTO data along with
+      // compiled object code, but they don't want this included in the linker
+      // output.
+      if (name == ".llvmbc" || name == ".llvmcmd")
         continue;
-      CustomSectionMapping[Name].push_back(Section);
+      // Strip debug section in that option was specified.
+      if (stripDebug && name.startswith(".debug_"))
+        continue;
+      // Otherwise include custom sections by default and concatenate their
+      // contents.
+      customSectionMapping[name].push_back(section);
     }
   }
 }
 
 void Writer::createCustomSections() {
   log("createCustomSections");
-  for (auto &Pair : CustomSectionMapping) {
-    StringRef Name = Pair.first();
+  for (auto &pair : customSectionMapping) {
+    StringRef name = pair.first();
+    LLVM_DEBUG(dbgs() << "createCustomSection: " << name << "\n");
 
-    auto P = CustomSectionSymbols.find(Name);
-    if (P != CustomSectionSymbols.end()) {
-      uint32_t SectionIndex = OutputSections.size();
-      P->second->setOutputSectionIndex(SectionIndex);
+    OutputSection *sec = make<CustomSection>(std::string(name), pair.second);
+    if (config->relocatable || config->emitRelocs) {
+      auto *sym = make<OutputSectionSymbol>(sec);
+      out.linkingSec->addToSymtab(sym);
+      sec->sectionSym = sym;
     }
-
-    LLVM_DEBUG(dbgs() << "createCustomSection: " << Name << "\n");
-    OutputSections.push_back(make<CustomSection>(Name, Pair.second));
+    addSection(sec);
   }
-}
-
-void Writer::createElemSection() {
-  if (IndirectFunctions.empty())
-    return;
-
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_ELEM);
-  raw_ostream &OS = Section->getStream();
-
-  writeUleb128(OS, 1, "segment count");
-  writeUleb128(OS, 0, "table index");
-  WasmInitExpr InitExpr;
-  InitExpr.Opcode = WASM_OPCODE_I32_CONST;
-  InitExpr.Value.Int32 = kInitialTableOffset;
-  writeInitExpr(OS, InitExpr);
-  writeUleb128(OS, IndirectFunctions.size(), "elem count");
-
-  uint32_t TableIndex = kInitialTableOffset;
-  for (const FunctionSymbol *Sym : IndirectFunctions) {
-    assert(Sym->getTableIndex() == TableIndex);
-    writeUleb128(OS, Sym->getFunctionIndex(), "function index");
-    ++TableIndex;
-  }
-}
-
-void Writer::createCodeSection() {
-  if (InputFunctions.empty())
-    return;
-
-  log("createCodeSection");
-
-  auto Section = make<CodeSection>(InputFunctions);
-  OutputSections.push_back(Section);
-}
-
-void Writer::createDataSection() {
-  if (!Segments.size())
-    return;
-
-  log("createDataSection");
-  auto Section = make<DataSection>(Segments);
-  OutputSections.push_back(Section);
 }
 
 // Create relocations sections in the final output.
@@ -356,479 +173,521 @@ void Writer::createDataSection() {
 void Writer::createRelocSections() {
   log("createRelocSections");
   // Don't use iterator here since we are adding to OutputSection
-  size_t OrigSize = OutputSections.size();
-  for (size_t I = 0; I < OrigSize; I++) {
-    OutputSection *OSec = OutputSections[I];
-    uint32_t Count = OSec->numRelocations();
-    if (!Count)
+  size_t origSize = outputSections.size();
+  for (size_t i = 0; i < origSize; i++) {
+    LLVM_DEBUG(dbgs() << "check section " << i << "\n");
+    OutputSection *sec = outputSections[i];
+
+    // Count the number of needed sections.
+    uint32_t count = sec->getNumRelocations();
+    if (!count)
       continue;
 
-    StringRef Name;
-    if (OSec->Type == WASM_SEC_DATA)
-      Name = "reloc.DATA";
-    else if (OSec->Type == WASM_SEC_CODE)
-      Name = "reloc.CODE";
-    else if (OSec->Type == WASM_SEC_CUSTOM)
-      Name = Saver.save("reloc." + OSec->Name);
+    StringRef name;
+    if (sec->type == WASM_SEC_DATA)
+      name = "reloc.DATA";
+    else if (sec->type == WASM_SEC_CODE)
+      name = "reloc.CODE";
+    else if (sec->type == WASM_SEC_CUSTOM)
+      name = saver().save("reloc." + sec->name);
     else
       llvm_unreachable(
           "relocations only supported for code, data, or custom sections");
 
-    SyntheticSection *Section = createSyntheticSection(WASM_SEC_CUSTOM, Name);
-    raw_ostream &OS = Section->getStream();
-    writeUleb128(OS, I, "reloc section");
-    writeUleb128(OS, Count, "reloc count");
-    OSec->writeRelocations(OS);
+    addSection(make<RelocSection>(name, sec));
   }
 }
 
-static uint32_t getWasmFlags(const Symbol *Sym) {
-  uint32_t Flags = 0;
-  if (Sym->isLocal())
-    Flags |= WASM_SYMBOL_BINDING_LOCAL;
-  if (Sym->isWeak())
-    Flags |= WASM_SYMBOL_BINDING_WEAK;
-  if (Sym->isHidden())
-    Flags |= WASM_SYMBOL_VISIBILITY_HIDDEN;
-  if (Sym->isUndefined())
-    Flags |= WASM_SYMBOL_UNDEFINED;
-  return Flags;
-}
-
-// Some synthetic sections (e.g. "name" and "linking") have subsections.
-// Just like the synthetic sections themselves these need to be created before
-// they can be written out (since they are preceded by their length). This
-// class is used to create subsections and then write them into the stream
-// of the parent section.
-class SubSection {
-public:
-  explicit SubSection(uint32_t Type) : Type(Type) {}
-
-  void writeTo(raw_ostream &To) {
-    OS.flush();
-    writeUleb128(To, Type, "subsection type");
-    writeUleb128(To, Body.size(), "subsection size");
-    To.write(Body.data(), Body.size());
+void Writer::populateProducers() {
+  for (ObjFile *file : symtab->objectFiles) {
+    const WasmProducerInfo &info = file->getWasmObj()->getProducerInfo();
+    out.producersSec->addInfo(info);
   }
-
-private:
-  uint32_t Type;
-  std::string Body;
-
-public:
-  raw_string_ostream OS{Body};
-};
-
-// Create the custom "linking" section containing linker metadata.
-// This is only created when relocatable output is requested.
-void Writer::createLinkingSection() {
-  SyntheticSection *Section =
-      createSyntheticSection(WASM_SEC_CUSTOM, "linking");
-  raw_ostream &OS = Section->getStream();
-
-  writeUleb128(OS, WasmMetadataVersion, "Version");
-
-  if (!SymtabEntries.empty()) {
-    SubSection Sub(WASM_SYMBOL_TABLE);
-    writeUleb128(Sub.OS, SymtabEntries.size(), "num symbols");
-
-    for (const Symbol *Sym : SymtabEntries) {
-      assert(Sym->isDefined() || Sym->isUndefined());
-      WasmSymbolType Kind = Sym->getWasmType();
-      uint32_t Flags = getWasmFlags(Sym);
-
-      writeU8(Sub.OS, Kind, "sym kind");
-      writeUleb128(Sub.OS, Flags, "sym flags");
-
-      if (auto *F = dyn_cast<FunctionSymbol>(Sym)) {
-        writeUleb128(Sub.OS, F->getFunctionIndex(), "index");
-        if (Sym->isDefined())
-          writeStr(Sub.OS, Sym->getName(), "sym name");
-      } else if (auto *G = dyn_cast<GlobalSymbol>(Sym)) {
-        writeUleb128(Sub.OS, G->getGlobalIndex(), "index");
-        if (Sym->isDefined())
-          writeStr(Sub.OS, Sym->getName(), "sym name");
-      } else if (isa<DataSymbol>(Sym)) {
-        writeStr(Sub.OS, Sym->getName(), "sym name");
-        if (auto *DataSym = dyn_cast<DefinedData>(Sym)) {
-          writeUleb128(Sub.OS, DataSym->getOutputSegmentIndex(), "index");
-          writeUleb128(Sub.OS, DataSym->getOutputSegmentOffset(),
-                       "data offset");
-          writeUleb128(Sub.OS, DataSym->getSize(), "data size");
-        }
-      } else {
-        auto *S = cast<SectionSymbol>(Sym);
-        writeUleb128(Sub.OS, S->getOutputSectionIndex(), "sym section index");
-      }
-    }
-
-    Sub.writeTo(OS);
-  }
-
-  if (Segments.size()) {
-    SubSection Sub(WASM_SEGMENT_INFO);
-    writeUleb128(Sub.OS, Segments.size(), "num data segments");
-    for (const OutputSegment *S : Segments) {
-      writeStr(Sub.OS, S->Name, "segment name");
-      writeUleb128(Sub.OS, S->Alignment, "alignment");
-      writeUleb128(Sub.OS, 0, "flags");
-    }
-    Sub.writeTo(OS);
-  }
-
-  if (!InitFunctions.empty()) {
-    SubSection Sub(WASM_INIT_FUNCS);
-    writeUleb128(Sub.OS, InitFunctions.size(), "num init functions");
-    for (const WasmInitEntry &F : InitFunctions) {
-      writeUleb128(Sub.OS, F.Priority, "priority");
-      writeUleb128(Sub.OS, F.Sym->getOutputSymbolIndex(), "function index");
-    }
-    Sub.writeTo(OS);
-  }
-
-  struct ComdatEntry {
-    unsigned Kind;
-    uint32_t Index;
-  };
-  std::map<StringRef, std::vector<ComdatEntry>> Comdats;
-
-  for (const InputFunction *F : InputFunctions) {
-    StringRef Comdat = F->getComdatName();
-    if (!Comdat.empty())
-      Comdats[Comdat].emplace_back(
-          ComdatEntry{WASM_COMDAT_FUNCTION, F->getFunctionIndex()});
-  }
-  for (uint32_t I = 0; I < Segments.size(); ++I) {
-    const auto &InputSegments = Segments[I]->InputSegments;
-    if (InputSegments.empty())
-      continue;
-    StringRef Comdat = InputSegments[0]->getComdatName();
-#ifndef NDEBUG
-    for (const InputSegment *IS : InputSegments)
-      assert(IS->getComdatName() == Comdat);
-#endif
-    if (!Comdat.empty())
-      Comdats[Comdat].emplace_back(ComdatEntry{WASM_COMDAT_DATA, I});
-  }
-
-  if (!Comdats.empty()) {
-    SubSection Sub(WASM_COMDAT_INFO);
-    writeUleb128(Sub.OS, Comdats.size(), "num comdats");
-    for (const auto &C : Comdats) {
-      writeStr(Sub.OS, C.first, "comdat name");
-      writeUleb128(Sub.OS, 0, "comdat flags"); // flags for future use
-      writeUleb128(Sub.OS, C.second.size(), "num entries");
-      for (const ComdatEntry &Entry : C.second) {
-        writeU8(Sub.OS, Entry.Kind, "entry kind");
-        writeUleb128(Sub.OS, Entry.Index, "entry index");
-      }
-    }
-    Sub.writeTo(OS);
-  }
-}
-
-// Create the custom "name" section containing debug symbol names.
-void Writer::createNameSection() {
-  unsigned NumNames = NumImportedFunctions;
-  for (const InputFunction *F : InputFunctions)
-    if (!F->getName().empty() || !F->getDebugName().empty())
-      ++NumNames;
-
-  if (NumNames == 0)
-    return;
-
-  SyntheticSection *Section = createSyntheticSection(WASM_SEC_CUSTOM, "name");
-
-  SubSection Sub(WASM_NAMES_FUNCTION);
-  writeUleb128(Sub.OS, NumNames, "name count");
-
-  // Names must appear in function index order.  As it happens ImportedSymbols
-  // and InputFunctions are numbered in order with imported functions coming
-  // first.
-  for (const Symbol *S : ImportedSymbols) {
-    if (auto *F = dyn_cast<FunctionSymbol>(S)) {
-      writeUleb128(Sub.OS, F->getFunctionIndex(), "func index");
-      Optional<std::string> Name = demangleItanium(F->getName());
-      writeStr(Sub.OS, Name ? StringRef(*Name) : F->getName(), "symbol name");
-    }
-  }
-  for (const InputFunction *F : InputFunctions) {
-    if (!F->getName().empty()) {
-      writeUleb128(Sub.OS, F->getFunctionIndex(), "func index");
-      if (!F->getDebugName().empty()) {
-        writeStr(Sub.OS, F->getDebugName(), "symbol name");
-      } else {
-        Optional<std::string> Name = demangleItanium(F->getName());
-        writeStr(Sub.OS, Name ? StringRef(*Name) : F->getName(), "symbol name");
-      }
-    }
-  }
-
-  Sub.writeTo(Section->getStream());
 }
 
 void Writer::writeHeader() {
-  memcpy(Buffer->getBufferStart(), Header.data(), Header.size());
+  memcpy(buffer->getBufferStart(), header.data(), header.size());
 }
 
 void Writer::writeSections() {
-  uint8_t *Buf = Buffer->getBufferStart();
-  parallelForEach(OutputSections, [Buf](OutputSection *S) { S->writeTo(Buf); });
+  uint8_t *buf = buffer->getBufferStart();
+  parallelForEach(outputSections, [buf](OutputSection *s) {
+    assert(s->isNeeded());
+    s->writeTo(buf);
+  });
+}
+
+static void setGlobalPtr(DefinedGlobal *g, uint64_t memoryPtr) {
+  g->global->setPointerValue(memoryPtr);
 }
 
 // Fix the memory layout of the output binary.  This assigns memory offsets
 // to each of the input data sections as well as the explicit stack region.
 // The default memory layout is as follows, from low to high.
 //
-//  - initialized data (starting at Config->GlobalBase)
+//  - initialized data (starting at Config->globalBase)
 //  - BSS data (not currently implemented in llvm)
 //  - explicit stack (Config->ZStackSize)
 //  - heap start / unallocated
 //
 // The --stack-first option means that stack is placed before any static data.
-// This can be useful since it means that stack overflow traps immediately rather
-// than overwriting global data, but also increases code size since all static
-// data loads and stores requires larger offsets.
+// This can be useful since it means that stack overflow traps immediately
+// rather than overwriting global data, but also increases code size since all
+// static data loads and stores requires larger offsets.
 void Writer::layoutMemory() {
-  createOutputSegments();
+  uint64_t memoryPtr = 0;
 
-  uint32_t MemoryPtr = 0;
-
-  auto PlaceStack = [&]() {
-    if (Config->Relocatable)
+  auto placeStack = [&]() {
+    if (config->relocatable || config->isPic)
       return;
-    MemoryPtr = alignTo(MemoryPtr, kStackAlignment);
-    if (Config->ZStackSize != alignTo(Config->ZStackSize, kStackAlignment))
-      error("stack size must be " + Twine(kStackAlignment) + "-byte aligned");
-    log("mem: stack size  = " + Twine(Config->ZStackSize));
-    log("mem: stack base  = " + Twine(MemoryPtr));
-    MemoryPtr += Config->ZStackSize;
-    WasmSym::StackPointer->Global->Global.InitExpr.Value.Int32 = MemoryPtr;
-    log("mem: stack top   = " + Twine(MemoryPtr));
+    memoryPtr = alignTo(memoryPtr, stackAlignment);
+    if (config->zStackSize != alignTo(config->zStackSize, stackAlignment))
+      error("stack size must be " + Twine(stackAlignment) + "-byte aligned");
+    log("mem: stack size  = " + Twine(config->zStackSize));
+    log("mem: stack base  = " + Twine(memoryPtr));
+    memoryPtr += config->zStackSize;
+    setGlobalPtr(cast<DefinedGlobal>(WasmSym::stackPointer), memoryPtr);
+    log("mem: stack top   = " + Twine(memoryPtr));
   };
 
-  if (Config->StackFirst) {
-    PlaceStack();
+  if (config->stackFirst) {
+    placeStack();
   } else {
-    MemoryPtr = Config->GlobalBase;
-    log("mem: global base = " + Twine(Config->GlobalBase));
+    memoryPtr = config->globalBase;
+    log("mem: global base = " + Twine(config->globalBase));
   }
 
-  uint32_t DataStart = MemoryPtr;
+  if (WasmSym::globalBase)
+    WasmSym::globalBase->setVA(memoryPtr);
+
+  uint64_t dataStart = memoryPtr;
 
   // Arbitrarily set __dso_handle handle to point to the start of the data
   // segments.
-  if (WasmSym::DsoHandle)
-    WasmSym::DsoHandle->setVirtualAddress(DataStart);
+  if (WasmSym::dsoHandle)
+    WasmSym::dsoHandle->setVA(dataStart);
 
-  for (OutputSegment *Seg : Segments) {
-    MemoryPtr = alignTo(MemoryPtr, Seg->Alignment);
-    Seg->StartVA = MemoryPtr;
-    log(formatv("mem: {0,-15} offset={1,-8} size={2,-8} align={3}", Seg->Name,
-                MemoryPtr, Seg->Size, Seg->Alignment));
-    MemoryPtr += Seg->Size;
+  out.dylinkSec->memAlign = 0;
+  for (OutputSegment *seg : segments) {
+    out.dylinkSec->memAlign = std::max(out.dylinkSec->memAlign, seg->alignment);
+    memoryPtr = alignTo(memoryPtr, 1ULL << seg->alignment);
+    seg->startVA = memoryPtr;
+    log(formatv("mem: {0,-15} offset={1,-8} size={2,-8} align={3}", seg->name,
+                memoryPtr, seg->size, seg->alignment));
+
+    if (!config->relocatable && seg->isTLS()) {
+      if (config->sharedMemory) {
+        auto *tlsSize = cast<DefinedGlobal>(WasmSym::tlsSize);
+        setGlobalPtr(tlsSize, seg->size);
+
+        auto *tlsAlign = cast<DefinedGlobal>(WasmSym::tlsAlign);
+        setGlobalPtr(tlsAlign, int64_t{1} << seg->alignment);
+      } else if (WasmSym::tlsBase) {
+        auto *tlsBase = cast<DefinedGlobal>(WasmSym::tlsBase);
+        setGlobalPtr(tlsBase, memoryPtr);
+      }
+    }
+
+    memoryPtr += seg->size;
   }
 
-  // TODO: Add .bss space here.
-  if (WasmSym::DataEnd)
-    WasmSym::DataEnd->setVirtualAddress(MemoryPtr);
-
-  log("mem: static data = " + Twine(MemoryPtr - DataStart));
-
-  if (!Config->StackFirst)
-    PlaceStack();
-
-  // Set `__heap_base` to directly follow the end of the stack or global data.
-  // The fact that this comes last means that a malloc/brk implementation
-  // can grow the heap at runtime.
-  if (!Config->Relocatable) {
-    WasmSym::HeapBase->setVirtualAddress(MemoryPtr);
-    log("mem: heap base   = " + Twine(MemoryPtr));
+  // Make space for the memory initialization flag
+  if (config->sharedMemory && hasPassiveInitializedSegments()) {
+    memoryPtr = alignTo(memoryPtr, 4);
+    WasmSym::initMemoryFlag = symtab->addSyntheticDataSymbol(
+        "__wasm_init_memory_flag", WASM_SYMBOL_VISIBILITY_HIDDEN);
+    WasmSym::initMemoryFlag->markLive();
+    WasmSym::initMemoryFlag->setVA(memoryPtr);
+    log(formatv("mem: {0,-15} offset={1,-8} size={2,-8} align={3}",
+                "__wasm_init_memory_flag", memoryPtr, 4, 4));
+    memoryPtr += 4;
   }
 
-  if (Config->InitialMemory != 0) {
-    if (Config->InitialMemory != alignTo(Config->InitialMemory, WasmPageSize))
+  if (WasmSym::dataEnd)
+    WasmSym::dataEnd->setVA(memoryPtr);
+
+  uint64_t staticDataSize = memoryPtr - dataStart;
+  log("mem: static data = " + Twine(staticDataSize));
+  if (config->isPic)
+    out.dylinkSec->memSize = staticDataSize;
+
+  if (!config->stackFirst)
+    placeStack();
+
+  if (WasmSym::heapBase) {
+    // Set `__heap_base` to follow the end of the stack or global data. The
+    // fact that this comes last means that a malloc/brk implementation can
+    // grow the heap at runtime.
+    // We'll align the heap base here because memory allocators might expect
+    // __heap_base to be aligned already.
+    memoryPtr = alignTo(memoryPtr, heapAlignment);
+    log("mem: heap base   = " + Twine(memoryPtr));
+    WasmSym::heapBase->setVA(memoryPtr);
+  }
+
+  uint64_t maxMemorySetting = 1ULL
+                              << (config->is64.getValueOr(false) ? 48 : 32);
+
+  if (config->initialMemory != 0) {
+    if (config->initialMemory != alignTo(config->initialMemory, WasmPageSize))
       error("initial memory must be " + Twine(WasmPageSize) + "-byte aligned");
-    if (MemoryPtr > Config->InitialMemory)
-      error("initial memory too small, " + Twine(MemoryPtr) + " bytes needed");
-    else
-      MemoryPtr = Config->InitialMemory;
+    if (memoryPtr > config->initialMemory)
+      error("initial memory too small, " + Twine(memoryPtr) + " bytes needed");
+    if (config->initialMemory > maxMemorySetting)
+      error("initial memory too large, cannot be greater than " +
+            Twine(maxMemorySetting));
+    memoryPtr = config->initialMemory;
   }
-  uint32_t MemSize = alignTo(MemoryPtr, WasmPageSize);
-  NumMemoryPages = MemSize / WasmPageSize;
-  log("mem: total pages = " + Twine(NumMemoryPages));
+  out.memorySec->numMemoryPages =
+      alignTo(memoryPtr, WasmPageSize) / WasmPageSize;
+  log("mem: total pages = " + Twine(out.memorySec->numMemoryPages));
 
-  if (Config->MaxMemory != 0) {
-    if (Config->MaxMemory != alignTo(Config->MaxMemory, WasmPageSize))
+  if (config->maxMemory != 0) {
+    if (config->maxMemory != alignTo(config->maxMemory, WasmPageSize))
       error("maximum memory must be " + Twine(WasmPageSize) + "-byte aligned");
-    if (MemoryPtr > Config->MaxMemory)
-      error("maximum memory too small, " + Twine(MemoryPtr) + " bytes needed");
-    MaxMemoryPages = Config->MaxMemory / WasmPageSize;
-    log("mem: max pages   = " + Twine(MaxMemoryPages));
+    if (memoryPtr > config->maxMemory)
+      error("maximum memory too small, " + Twine(memoryPtr) + " bytes needed");
+    if (config->maxMemory > maxMemorySetting)
+      error("maximum memory too large, cannot be greater than " +
+            Twine(maxMemorySetting));
+  }
+
+  // Check max if explicitly supplied or required by shared memory
+  if (config->maxMemory != 0 || config->sharedMemory) {
+    uint64_t max = config->maxMemory;
+    if (max == 0) {
+      // If no maxMemory config was supplied but we are building with
+      // shared memory, we need to pick a sensible upper limit.
+      if (config->isPic)
+        max = maxMemorySetting;
+      else
+        max = alignTo(memoryPtr, WasmPageSize);
+    }
+    out.memorySec->maxMemoryPages = max / WasmPageSize;
+    log("mem: max pages   = " + Twine(out.memorySec->maxMemoryPages));
   }
 }
 
-SyntheticSection *Writer::createSyntheticSection(uint32_t Type,
-                                                 StringRef Name) {
-  auto Sec = make<SyntheticSection>(Type, Name);
-  log("createSection: " + toString(*Sec));
-  OutputSections.push_back(Sec);
-  return Sec;
+void Writer::addSection(OutputSection *sec) {
+  if (!sec->isNeeded())
+    return;
+  log("addSection: " + toString(*sec));
+  sec->sectionIndex = outputSections.size();
+  outputSections.push_back(sec);
 }
 
-void Writer::createSections() {
-  // Known sections
-  createTypeSection();
-  createImportSection();
-  createFunctionSection();
-  createTableSection();
-  createMemorySection();
-  createGlobalSection();
-  createExportSection();
-  createElemSection();
-  createCodeSection();
-  createDataSection();
+// If a section name is valid as a C identifier (which is rare because of
+// the leading '.'), linkers are expected to define __start_<secname> and
+// __stop_<secname> symbols. They are at beginning and end of the section,
+// respectively. This is not requested by the ELF standard, but GNU ld and
+// gold provide the feature, and used by many programs.
+static void addStartStopSymbols(const OutputSegment *seg) {
+  StringRef name = seg->name;
+  if (!isValidCIdentifier(name))
+    return;
+  LLVM_DEBUG(dbgs() << "addStartStopSymbols: " << name << "\n");
+  uint64_t start = seg->startVA;
+  uint64_t stop = start + seg->size;
+  symtab->addOptionalDataSymbol(saver().save("__start_" + name), start);
+  symtab->addOptionalDataSymbol(saver().save("__stop_" + name), stop);
+}
+
+void Writer::addSections() {
+  addSection(out.dylinkSec);
+  addSection(out.typeSec);
+  addSection(out.importSec);
+  addSection(out.functionSec);
+  addSection(out.tableSec);
+  addSection(out.memorySec);
+  addSection(out.tagSec);
+  addSection(out.globalSec);
+  addSection(out.exportSec);
+  addSection(out.startSec);
+  addSection(out.elemSec);
+  addSection(out.dataCountSec);
+
+  addSection(make<CodeSection>(out.functionSec->inputFunctions));
+  addSection(make<DataSection>(segments));
+
   createCustomSections();
 
-  // Custom sections
-  if (Config->Relocatable) {
-    createLinkingSection();
+  addSection(out.linkingSec);
+  if (config->emitRelocs || config->relocatable) {
     createRelocSections();
   }
-  if (!Config->StripDebug && !Config->StripAll)
-    createNameSection();
 
-  for (OutputSection *S : OutputSections) {
-    S->setOffset(FileSize);
-    S->finalizeContents();
-    FileSize += S->getSize();
+  addSection(out.nameSec);
+  addSection(out.producersSec);
+  addSection(out.targetFeaturesSec);
+}
+
+void Writer::finalizeSections() {
+  for (OutputSection *s : outputSections) {
+    s->setOffset(fileSize);
+    s->finalizeContents();
+    fileSize += s->getSize();
   }
+}
+
+void Writer::populateTargetFeatures() {
+  StringMap<std::string> used;
+  StringMap<std::string> required;
+  StringMap<std::string> disallowed;
+  SmallSet<std::string, 8> &allowed = out.targetFeaturesSec->features;
+  bool tlsUsed = false;
+
+  if (config->isPic) {
+    // This should not be necessary because all PIC objects should
+    // contain the mutable-globals feature.
+    // TODO(https://bugs.llvm.org/show_bug.cgi?id=52339)
+    allowed.insert("mutable-globals");
+  }
+
+  // Only infer used features if user did not specify features
+  bool inferFeatures = !config->features.hasValue();
+
+  if (!inferFeatures) {
+    auto &explicitFeatures = config->features.getValue();
+    allowed.insert(explicitFeatures.begin(), explicitFeatures.end());
+    if (!config->checkFeatures)
+      return;
+  }
+
+  // Find the sets of used, required, and disallowed features
+  for (ObjFile *file : symtab->objectFiles) {
+    StringRef fileName(file->getName());
+    for (auto &feature : file->getWasmObj()->getTargetFeatures()) {
+      switch (feature.Prefix) {
+      case WASM_FEATURE_PREFIX_USED:
+        used.insert({feature.Name, std::string(fileName)});
+        break;
+      case WASM_FEATURE_PREFIX_REQUIRED:
+        used.insert({feature.Name, std::string(fileName)});
+        required.insert({feature.Name, std::string(fileName)});
+        break;
+      case WASM_FEATURE_PREFIX_DISALLOWED:
+        disallowed.insert({feature.Name, std::string(fileName)});
+        break;
+      default:
+        error("Unrecognized feature policy prefix " +
+              std::to_string(feature.Prefix));
+      }
+    }
+
+    // Find TLS data segments
+    auto isTLS = [](InputChunk *segment) {
+      return segment->live && segment->isTLS();
+    };
+    tlsUsed = tlsUsed || llvm::any_of(file->segments, isTLS);
+  }
+
+  if (inferFeatures)
+    for (const auto &key : used.keys())
+      allowed.insert(std::string(key));
+
+  if (!config->checkFeatures)
+    return;
+
+  if (config->sharedMemory) {
+    if (disallowed.count("shared-mem"))
+      error("--shared-memory is disallowed by " + disallowed["shared-mem"] +
+            " because it was not compiled with 'atomics' or 'bulk-memory' "
+            "features.");
+
+    for (auto feature : {"atomics", "bulk-memory"})
+      if (!allowed.count(feature))
+        error(StringRef("'") + feature +
+              "' feature must be used in order to use shared memory");
+  }
+
+  if (tlsUsed) {
+    for (auto feature : {"atomics", "bulk-memory"})
+      if (!allowed.count(feature))
+        error(StringRef("'") + feature +
+              "' feature must be used in order to use thread-local storage");
+  }
+
+  // Validate that used features are allowed in output
+  if (!inferFeatures) {
+    for (const auto &feature : used.keys()) {
+      if (!allowed.count(std::string(feature)))
+        error(Twine("Target feature '") + feature + "' used by " +
+              used[feature] + " is not allowed.");
+    }
+  }
+
+  // Validate the required and disallowed constraints for each file
+  for (ObjFile *file : symtab->objectFiles) {
+    StringRef fileName(file->getName());
+    SmallSet<std::string, 8> objectFeatures;
+    for (const auto &feature : file->getWasmObj()->getTargetFeatures()) {
+      if (feature.Prefix == WASM_FEATURE_PREFIX_DISALLOWED)
+        continue;
+      objectFeatures.insert(feature.Name);
+      if (disallowed.count(feature.Name))
+        error(Twine("Target feature '") + feature.Name + "' used in " +
+              fileName + " is disallowed by " + disallowed[feature.Name] +
+              ". Use --no-check-features to suppress.");
+    }
+    for (const auto &feature : required.keys()) {
+      if (!objectFeatures.count(std::string(feature)))
+        error(Twine("Missing target feature '") + feature + "' in " + fileName +
+              ", required by " + required[feature] +
+              ". Use --no-check-features to suppress.");
+    }
+  }
+
+  // Normally we don't include bss segments in the binary.  In particular if
+  // memory is not being imported then we can assume its zero initialized.
+  // In the case the memory is imported, we and we can use the memory.fill
+  // instrction than we can also avoid inluding the segments.
+  if (config->importMemory && !allowed.count("bulk-memory"))
+    config->emitBssSegments = true;
+}
+
+void Writer::checkImportExportTargetFeatures() {
+  if (config->relocatable || !config->checkFeatures)
+    return;
+
+  if (out.targetFeaturesSec->features.count("mutable-globals") == 0) {
+    for (const Symbol *sym : out.importSec->importedSymbols) {
+      if (auto *global = dyn_cast<GlobalSymbol>(sym)) {
+        if (global->getGlobalType()->Mutable) {
+          error(Twine("mutable global imported but 'mutable-globals' feature "
+                      "not present in inputs: `") +
+                toString(*sym) + "`. Use --no-check-features to suppress.");
+        }
+      }
+    }
+    for (const Symbol *sym : out.exportSec->exportedSymbols) {
+      if (isa<GlobalSymbol>(sym)) {
+        error(Twine("mutable global exported but 'mutable-globals' feature "
+                    "not present in inputs: `") +
+              toString(*sym) + "`. Use --no-check-features to suppress.");
+      }
+    }
+  }
+}
+
+static bool shouldImport(Symbol *sym) {
+  // We don't generate imports for data symbols. They however can be imported
+  // as GOT entries.
+  if (isa<DataSymbol>(sym))
+    return false;
+  if (!sym->isLive())
+    return false;
+  if (!sym->isUsedInRegularObj)
+    return false;
+
+  // When a symbol is weakly defined in a shared library we need to allow
+  // it to be overridden by another module so need to both import
+  // and export the symbol.
+  if (config->shared && sym->isDefined() && sym->isWeak())
+    return true;
+  if (!sym->isUndefined())
+    return false;
+  if (sym->isWeak() && !config->relocatable && !config->isPic)
+    return false;
+
+  // In PIC mode we only need to import functions when they are called directly.
+  // Indirect usage all goes via GOT imports.
+  if (config->isPic) {
+    if (auto *f = dyn_cast<UndefinedFunction>(sym))
+      if (!f->isCalledDirectly)
+        return false;
+  }
+
+  if (config->isPic || config->relocatable || config->importUndefined)
+    return true;
+  if (config->allowUndefinedSymbols.count(sym->getName()) != 0)
+    return true;
+
+  return sym->importName.hasValue();
 }
 
 void Writer::calculateImports() {
-  for (Symbol *Sym : Symtab->getSymbols()) {
-    if (!Sym->isUndefined())
-      continue;
-    if (isa<DataSymbol>(Sym))
-      continue;
-    if (Sym->isWeak() && !Config->Relocatable)
-      continue;
-    if (!Sym->isLive())
-      continue;
-    if (!Sym->IsUsedInRegularObj)
-      continue;
+  // Some inputs require that the indirect function table be assigned to table
+  // number 0, so if it is present and is an import, allocate it before any
+  // other tables.
+  if (WasmSym::indirectFunctionTable &&
+      shouldImport(WasmSym::indirectFunctionTable))
+    out.importSec->addImport(WasmSym::indirectFunctionTable);
 
-    LLVM_DEBUG(dbgs() << "import: " << Sym->getName() << "\n");
-    ImportedSymbols.emplace_back(Sym);
-    if (auto *F = dyn_cast<FunctionSymbol>(Sym))
-      F->setFunctionIndex(NumImportedFunctions++);
-    else
-      cast<GlobalSymbol>(Sym)->setGlobalIndex(NumImportedGlobals++);
+  for (Symbol *sym : symtab->getSymbols()) {
+    if (!shouldImport(sym))
+      continue;
+    if (sym == WasmSym::indirectFunctionTable)
+      continue;
+    LLVM_DEBUG(dbgs() << "import: " << sym->getName() << "\n");
+    out.importSec->addImport(sym);
   }
 }
 
 void Writer::calculateExports() {
-  if (Config->Relocatable)
+  if (config->relocatable)
     return;
 
-  if (!Config->Relocatable && !Config->ImportMemory)
-    Exports.push_back(WasmExport{"memory", WASM_EXTERNAL_MEMORY, 0});
+  if (!config->relocatable && !config->importMemory)
+    out.exportSec->exports.push_back(
+        WasmExport{"memory", WASM_EXTERNAL_MEMORY, 0});
 
-  if (!Config->Relocatable && Config->ExportTable)
-    Exports.push_back(WasmExport{kFunctionTableName, WASM_EXTERNAL_TABLE, 0});
+  unsigned globalIndex =
+      out.importSec->getNumImportedGlobals() + out.globalSec->numGlobals();
 
-  unsigned FakeGlobalIndex = NumImportedGlobals + InputGlobals.size();
-
-  for (Symbol *Sym : Symtab->getSymbols()) {
-    if (!Sym->isExported())
+  for (Symbol *sym : symtab->getSymbols()) {
+    if (!sym->isExported())
       continue;
-    if (!Sym->isLive())
+    if (!sym->isLive())
       continue;
 
-    StringRef Name = Sym->getName();
-    WasmExport Export;
-    if (auto *F = dyn_cast<DefinedFunction>(Sym)) {
-      Export = {Name, WASM_EXTERNAL_FUNCTION, F->getFunctionIndex()};
-    } else if (auto *G = dyn_cast<DefinedGlobal>(Sym)) {
-      // TODO(sbc): Remove this check once to mutable global proposal is
-      // implement in all major browsers.
-      // See: https://github.com/WebAssembly/mutable-global
-      if (G->getGlobalType()->Mutable) {
-        // Only the __stack_pointer should ever be create as mutable.
-        assert(G == WasmSym::StackPointer);
+    StringRef name = sym->getName();
+    WasmExport export_;
+    if (auto *f = dyn_cast<DefinedFunction>(sym)) {
+      if (Optional<StringRef> exportName = f->function->getExportName()) {
+        name = *exportName;
+      }
+      export_ = {name, WASM_EXTERNAL_FUNCTION, f->getExportedFunctionIndex()};
+    } else if (auto *g = dyn_cast<DefinedGlobal>(sym)) {
+      if (g->getGlobalType()->Mutable && !g->getFile() && !g->forceExport) {
+        // Avoid exporting mutable globals are linker synthesized (e.g.
+        // __stack_pointer or __tls_base) unless they are explicitly exported
+        // from the command line.
+        // Without this check `--export-all` would cause any program using the
+        // stack pointer to export a mutable global even if none of the input
+        // files were built with the `mutable-globals` feature.
         continue;
       }
-      Export = {Name, WASM_EXTERNAL_GLOBAL, G->getGlobalIndex()};
+      export_ = {name, WASM_EXTERNAL_GLOBAL, g->getGlobalIndex()};
+    } else if (auto *t = dyn_cast<DefinedTag>(sym)) {
+      export_ = {name, WASM_EXTERNAL_TAG, t->getTagIndex()};
+    } else if (auto *d = dyn_cast<DefinedData>(sym)) {
+      out.globalSec->dataAddressGlobals.push_back(d);
+      export_ = {name, WASM_EXTERNAL_GLOBAL, globalIndex++};
     } else {
-      auto *D = cast<DefinedData>(Sym);
-      DefinedFakeGlobals.emplace_back(D);
-      Export = {Name, WASM_EXTERNAL_GLOBAL, FakeGlobalIndex++};
+      auto *t = cast<DefinedTable>(sym);
+      export_ = {name, WASM_EXTERNAL_TABLE, t->getTableNumber()};
     }
 
-    LLVM_DEBUG(dbgs() << "Export: " << Name << "\n");
-    Exports.push_back(Export);
+    LLVM_DEBUG(dbgs() << "Export: " << name << "\n");
+    out.exportSec->exports.push_back(export_);
+    out.exportSec->exportedSymbols.push_back(sym);
   }
 }
 
-void Writer::assignSymtab() {
-  if (!Config->Relocatable)
+void Writer::populateSymtab() {
+  if (!config->relocatable && !config->emitRelocs)
     return;
 
-  StringMap<uint32_t> SectionSymbolIndices;
+  for (Symbol *sym : symtab->getSymbols())
+    if (sym->isUsedInRegularObj && sym->isLive())
+      out.linkingSec->addToSymtab(sym);
 
-  unsigned SymbolIndex = SymtabEntries.size();
-  for (ObjFile *File : Symtab->ObjectFiles) {
-    LLVM_DEBUG(dbgs() << "Symtab entries: " << File->getName() << "\n");
-    for (Symbol *Sym : File->getSymbols()) {
-      if (Sym->getFile() != File)
-        continue;
-
-      if (auto *S = dyn_cast<SectionSymbol>(Sym)) {
-        StringRef Name = S->getName();
-        if (CustomSectionMapping.count(Name) == 0)
-          continue;
-
-        auto SSI = SectionSymbolIndices.find(Name);
-        if (SSI != SectionSymbolIndices.end()) {
-          Sym->setOutputSymbolIndex(SSI->second);
-          continue;
-        }
-
-        SectionSymbolIndices[Name] = SymbolIndex;
-        CustomSectionSymbols[Name] = cast<SectionSymbol>(Sym);
-
-        Sym->markLive();
-      }
-
-      // (Since this is relocatable output, GC is not performed so symbols must
-      // be live.)
-      assert(Sym->isLive());
-      Sym->setOutputSymbolIndex(SymbolIndex++);
-      SymtabEntries.emplace_back(Sym);
-    }
+  for (ObjFile *file : symtab->objectFiles) {
+    LLVM_DEBUG(dbgs() << "Local symtab entries: " << file->getName() << "\n");
+    for (Symbol *sym : file->getSymbols())
+      if (sym->isLocal() && !isa<SectionSymbol>(sym) && sym->isLive())
+        out.linkingSec->addToSymtab(sym);
   }
-
-  // For the moment, relocatable output doesn't contain any synthetic functions,
-  // so no need to look through the Symtab for symbols not referenced by
-  // Symtab->ObjectFiles.
-}
-
-uint32_t Writer::lookupType(const WasmSignature &Sig) {
-  auto It = TypeIndices.find(Sig);
-  if (It == TypeIndices.end()) {
-    error("type not found: " + toString(Sig));
-    return 0;
-  }
-  return It->second;
-}
-
-uint32_t Writer::registerType(const WasmSignature &Sig) {
-  auto Pair = TypeIndices.insert(std::make_pair(Sig, Types.size()));
-  if (Pair.second) {
-    LLVM_DEBUG(dbgs() << "type " << toString(Sig) << "\n");
-    Types.push_back(&Sig);
-  }
-  return Pair.first->second;
 }
 
 void Writer::calculateTypes() {
@@ -836,208 +695,954 @@ void Writer::calculateTypes() {
   // 1. Any signature used in the TYPE relocation
   // 2. The signatures of all imported functions
   // 3. The signatures of all defined functions
+  // 4. The signatures of all imported tags
+  // 5. The signatures of all defined tags
 
-  for (ObjFile *File : Symtab->ObjectFiles) {
-    ArrayRef<WasmSignature> Types = File->getWasmObj()->types();
-    for (uint32_t I = 0; I < Types.size(); I++)
-      if (File->TypeIsUsed[I])
-        File->TypeMap[I] = registerType(Types[I]);
+  for (ObjFile *file : symtab->objectFiles) {
+    ArrayRef<WasmSignature> types = file->getWasmObj()->types();
+    for (uint32_t i = 0; i < types.size(); i++)
+      if (file->typeIsUsed[i])
+        file->typeMap[i] = out.typeSec->registerType(types[i]);
   }
 
-  for (const Symbol *Sym : ImportedSymbols)
-    if (auto *F = dyn_cast<FunctionSymbol>(Sym))
-      registerType(*F->FunctionType);
+  for (const Symbol *sym : out.importSec->importedSymbols) {
+    if (auto *f = dyn_cast<FunctionSymbol>(sym))
+      out.typeSec->registerType(*f->signature);
+    else if (auto *t = dyn_cast<TagSymbol>(sym))
+      out.typeSec->registerType(*t->signature);
+  }
 
-  for (const InputFunction *F : InputFunctions)
-    registerType(F->Signature);
+  for (const InputFunction *f : out.functionSec->inputFunctions)
+    out.typeSec->registerType(f->signature);
+
+  for (const InputTag *t : out.tagSec->inputTags)
+    out.typeSec->registerType(t->signature);
+}
+
+// In a command-style link, create a wrapper for each exported symbol
+// which calls the constructors and destructors.
+void Writer::createCommandExportWrappers() {
+  // This logic doesn't currently support Emscripten-style PIC mode.
+  assert(!config->isPic);
+
+  // If there are no ctors and there's no libc `__wasm_call_dtors` to
+  // call, don't wrap the exports.
+  if (initFunctions.empty() && WasmSym::callDtors == nullptr)
+    return;
+
+  std::vector<DefinedFunction *> toWrap;
+
+  for (Symbol *sym : symtab->getSymbols())
+    if (sym->isExported())
+      if (auto *f = dyn_cast<DefinedFunction>(sym))
+        toWrap.push_back(f);
+
+  for (auto *f : toWrap) {
+    auto funcNameStr = (f->getName() + ".command_export").str();
+    commandExportWrapperNames.push_back(funcNameStr);
+    const std::string &funcName = commandExportWrapperNames.back();
+
+    auto func = make<SyntheticFunction>(*f->getSignature(), funcName);
+    if (f->function->getExportName().hasValue())
+      func->setExportName(f->function->getExportName()->str());
+    else
+      func->setExportName(f->getName().str());
+
+    DefinedFunction *def =
+        symtab->addSyntheticFunction(funcName, f->flags, func);
+    def->markLive();
+
+    def->flags |= WASM_SYMBOL_EXPORTED;
+    def->flags &= ~WASM_SYMBOL_VISIBILITY_HIDDEN;
+    def->forceExport = f->forceExport;
+
+    f->flags |= WASM_SYMBOL_VISIBILITY_HIDDEN;
+    f->flags &= ~WASM_SYMBOL_EXPORTED;
+    f->forceExport = false;
+
+    out.functionSec->addFunction(func);
+
+    createCommandExportWrapper(f->getFunctionIndex(), def);
+  }
+}
+
+static void finalizeIndirectFunctionTable() {
+  if (!WasmSym::indirectFunctionTable)
+    return;
+
+  if (shouldImport(WasmSym::indirectFunctionTable) &&
+      !WasmSym::indirectFunctionTable->hasTableNumber()) {
+    // Processing -Bsymbolic relocations resulted in a late requirement that the
+    // indirect function table be present, and we are running in --import-table
+    // mode.  Add the table now to the imports section.  Otherwise it will be
+    // added to the tables section later in assignIndexes.
+    out.importSec->addImport(WasmSym::indirectFunctionTable);
+  }
+
+  uint32_t tableSize = config->tableBase + out.elemSec->numEntries();
+  WasmLimits limits = {0, tableSize, 0};
+  if (WasmSym::indirectFunctionTable->isDefined() && !config->growableTable) {
+    limits.Flags |= WASM_LIMITS_FLAG_HAS_MAX;
+    limits.Maximum = limits.Minimum;
+  }
+  WasmSym::indirectFunctionTable->setLimits(limits);
+}
+
+static void scanRelocations() {
+  for (ObjFile *file : symtab->objectFiles) {
+    LLVM_DEBUG(dbgs() << "scanRelocations: " << file->getName() << "\n");
+    for (InputChunk *chunk : file->functions)
+      scanRelocations(chunk);
+    for (InputChunk *chunk : file->segments)
+      scanRelocations(chunk);
+    for (auto &p : file->customSections)
+      scanRelocations(p);
+  }
 }
 
 void Writer::assignIndexes() {
-  uint32_t FunctionIndex = NumImportedFunctions + InputFunctions.size();
-  auto AddDefinedFunction = [&](InputFunction *Func) {
-    if (!Func->Live)
-      return;
-    InputFunctions.emplace_back(Func);
-    Func->setFunctionIndex(FunctionIndex++);
-  };
+  // Seal the import section, since other index spaces such as function and
+  // global are effected by the number of imports.
+  out.importSec->seal();
 
-  for (InputFunction *Func : Symtab->SyntheticFunctions)
-    AddDefinedFunction(Func);
+  for (InputFunction *func : symtab->syntheticFunctions)
+    out.functionSec->addFunction(func);
 
-  for (ObjFile *File : Symtab->ObjectFiles) {
-    LLVM_DEBUG(dbgs() << "Functions: " << File->getName() << "\n");
-    for (InputFunction *Func : File->Functions)
-      AddDefinedFunction(Func);
+  for (ObjFile *file : symtab->objectFiles) {
+    LLVM_DEBUG(dbgs() << "Functions: " << file->getName() << "\n");
+    for (InputFunction *func : file->functions)
+      out.functionSec->addFunction(func);
   }
 
-  uint32_t TableIndex = kInitialTableOffset;
-  auto HandleRelocs = [&](InputChunk *Chunk) {
-    if (!Chunk->Live)
-      return;
-    ObjFile *File = Chunk->File;
-    ArrayRef<WasmSignature> Types = File->getWasmObj()->types();
-    for (const WasmRelocation &Reloc : Chunk->getRelocations()) {
-      if (Reloc.Type == R_WEBASSEMBLY_TABLE_INDEX_I32 ||
-          Reloc.Type == R_WEBASSEMBLY_TABLE_INDEX_SLEB) {
-        FunctionSymbol *Sym = File->getFunctionSymbol(Reloc.Index);
-        if (Sym->hasTableIndex() || !Sym->hasFunctionIndex())
-          continue;
-        Sym->setTableIndex(TableIndex++);
-        IndirectFunctions.emplace_back(Sym);
-      } else if (Reloc.Type == R_WEBASSEMBLY_TYPE_INDEX_LEB) {
-        // Mark target type as live
-        File->TypeMap[Reloc.Index] = registerType(Types[Reloc.Index]);
-        File->TypeIsUsed[Reloc.Index] = true;
-      }
-    }
-  };
+  for (InputGlobal *global : symtab->syntheticGlobals)
+    out.globalSec->addGlobal(global);
 
-  for (ObjFile *File : Symtab->ObjectFiles) {
-    LLVM_DEBUG(dbgs() << "Handle relocs: " << File->getName() << "\n");
-    for (InputChunk *Chunk : File->Functions)
-      HandleRelocs(Chunk);
-    for (InputChunk *Chunk : File->Segments)
-      HandleRelocs(Chunk);
-    for (auto &P : File->CustomSections)
-      HandleRelocs(P);
+  for (ObjFile *file : symtab->objectFiles) {
+    LLVM_DEBUG(dbgs() << "Globals: " << file->getName() << "\n");
+    for (InputGlobal *global : file->globals)
+      out.globalSec->addGlobal(global);
   }
 
-  uint32_t GlobalIndex = NumImportedGlobals + InputGlobals.size();
-  auto AddDefinedGlobal = [&](InputGlobal *Global) {
-    if (Global->Live) {
-      LLVM_DEBUG(dbgs() << "AddDefinedGlobal: " << GlobalIndex << "\n");
-      Global->setGlobalIndex(GlobalIndex++);
-      InputGlobals.push_back(Global);
-    }
-  };
-
-  for (InputGlobal *Global : Symtab->SyntheticGlobals)
-    AddDefinedGlobal(Global);
-
-  for (ObjFile *File : Symtab->ObjectFiles) {
-    LLVM_DEBUG(dbgs() << "Globals: " << File->getName() << "\n");
-    for (InputGlobal *Global : File->Globals)
-      AddDefinedGlobal(Global);
+  for (ObjFile *file : symtab->objectFiles) {
+    LLVM_DEBUG(dbgs() << "Tags: " << file->getName() << "\n");
+    for (InputTag *tag : file->tags)
+      out.tagSec->addTag(tag);
   }
+
+  for (ObjFile *file : symtab->objectFiles) {
+    LLVM_DEBUG(dbgs() << "Tables: " << file->getName() << "\n");
+    for (InputTable *table : file->tables)
+      out.tableSec->addTable(table);
+  }
+
+  for (InputTable *table : symtab->syntheticTables)
+    out.tableSec->addTable(table);
+
+  out.globalSec->assignIndexes();
+  out.tableSec->assignIndexes();
 }
 
-static StringRef getOutputDataSegmentName(StringRef Name) {
-  if (!Config->MergeDataSegments)
-    return Name;
-  if (Name.startswith(".text."))
+static StringRef getOutputDataSegmentName(const InputChunk &seg) {
+  // We always merge .tbss and .tdata into a single TLS segment so all TLS
+  // symbols are be relative to single __tls_base.
+  if (seg.isTLS())
+    return ".tdata";
+  StringRef name = seg.getName();
+  if (!config->mergeDataSegments)
+    return name;
+  if (name.startswith(".text."))
     return ".text";
-  if (Name.startswith(".data."))
+  if (name.startswith(".data."))
     return ".data";
-  if (Name.startswith(".bss."))
+  if (name.startswith(".bss."))
     return ".bss";
-  return Name;
+  if (name.startswith(".rodata."))
+    return ".rodata";
+  return name;
+}
+
+OutputSegment *Writer::createOutputSegment(StringRef name) {
+  LLVM_DEBUG(dbgs() << "new segment: " << name << "\n");
+  OutputSegment *s = make<OutputSegment>(name);
+  if (config->sharedMemory)
+    s->initFlags = WASM_DATA_SEGMENT_IS_PASSIVE;
+  if (!config->relocatable && name.startswith(".bss"))
+    s->isBss = true;
+  segments.push_back(s);
+  return s;
 }
 
 void Writer::createOutputSegments() {
-  for (ObjFile *File : Symtab->ObjectFiles) {
-    for (InputSegment *Segment : File->Segments) {
-      if (!Segment->Live)
+  for (ObjFile *file : symtab->objectFiles) {
+    for (InputChunk *segment : file->segments) {
+      if (!segment->live)
         continue;
-      StringRef Name = getOutputDataSegmentName(Segment->getName());
-      OutputSegment *&S = SegmentMap[Name];
-      if (S == nullptr) {
-        LLVM_DEBUG(dbgs() << "new segment: " << Name << "\n");
-        S = make<OutputSegment>(Name, Segments.size());
-        Segments.push_back(S);
+      StringRef name = getOutputDataSegmentName(*segment);
+      OutputSegment *s = nullptr;
+      // When running in relocatable mode we can't merge segments that are part
+      // of comdat groups since the ultimate linker needs to be able exclude or
+      // include them individually.
+      if (config->relocatable && !segment->getComdatName().empty()) {
+        s = createOutputSegment(name);
+      } else {
+        if (segmentMap.count(name) == 0)
+          segmentMap[name] = createOutputSegment(name);
+        s = segmentMap[name];
       }
-      S->addInputSegment(Segment);
-      LLVM_DEBUG(dbgs() << "added data: " << Name << ": " << S->Size << "\n");
+      s->addInputSegment(segment);
     }
+  }
+
+  // Sort segments by type, placing .bss last
+  std::stable_sort(segments.begin(), segments.end(),
+                   [](const OutputSegment *a, const OutputSegment *b) {
+                     auto order = [](StringRef name) {
+                       return StringSwitch<int>(name)
+                           .StartsWith(".tdata", 0)
+                           .StartsWith(".rodata", 1)
+                           .StartsWith(".data", 2)
+                           .StartsWith(".bss", 4)
+                           .Default(3);
+                     };
+                     return order(a->name) < order(b->name);
+                   });
+
+  for (size_t i = 0; i < segments.size(); ++i)
+    segments[i]->index = i;
+
+  // Merge MergeInputSections into a single MergeSyntheticSection.
+  LLVM_DEBUG(dbgs() << "-- finalize input semgments\n");
+  for (OutputSegment *seg : segments)
+    seg->finalizeInputSegments();
+}
+
+void Writer::combineOutputSegments() {
+  // With PIC code we currently only support a single active data segment since
+  // we only have a single __memory_base to use as our base address.  This pass
+  // combines all data segments into a single .data segment.
+  // This restructions can be relaxed once we have extended constant
+  // expressions available:
+  // https://github.com/WebAssembly/extended-const
+  assert(config->isPic && !config->sharedMemory);
+  if (segments.size() <= 1)
+    return;
+  OutputSegment *combined = make<OutputSegment>(".data");
+  combined->startVA = segments[0]->startVA;
+  for (OutputSegment *s : segments) {
+    bool first = true;
+    for (InputChunk *inSeg : s->inputSegments) {
+      if (first)
+        inSeg->alignment = std::max(inSeg->alignment, s->alignment);
+      first = false;
+#ifndef NDEBUG
+      uint64_t oldVA = inSeg->getVA();
+#endif
+      combined->addInputSegment(inSeg);
+#ifndef NDEBUG
+      uint64_t newVA = inSeg->getVA();
+      LLVM_DEBUG(dbgs() << "added input segment. name=" << inSeg->getName()
+                        << " oldVA=" << oldVA << " newVA=" << newVA << "\n");
+      assert(oldVA == newVA);
+#endif
+    }
+  }
+
+  segments = {combined};
+}
+
+static void createFunction(DefinedFunction *func, StringRef bodyContent) {
+  std::string functionBody;
+  {
+    raw_string_ostream os(functionBody);
+    writeUleb128(os, bodyContent.size(), "function size");
+    os << bodyContent;
+  }
+  ArrayRef<uint8_t> body = arrayRefFromStringRef(saver().save(functionBody));
+  cast<SyntheticFunction>(func->function)->setBody(body);
+}
+
+bool Writer::needsPassiveInitialization(const OutputSegment *segment) {
+  // TLS segments are initialized separately
+  if (segment->isTLS())
+    return false;
+  // If bulk memory features is supported then we can perform bss initialization
+  // (via memory.fill) during `__wasm_init_memory`.
+  if (config->importMemory && !segment->requiredInBinary())
+    return true;
+  return segment->initFlags & WASM_DATA_SEGMENT_IS_PASSIVE;
+}
+
+bool Writer::hasPassiveInitializedSegments() {
+  return llvm::any_of(segments, [this](const OutputSegment *s) {
+    return this->needsPassiveInitialization(s);
+  });
+}
+
+void Writer::createSyntheticInitFunctions() {
+  if (config->relocatable)
+    return;
+
+  static WasmSignature nullSignature = {{}, {}};
+
+  // Passive segments are used to avoid memory being reinitialized on each
+  // thread's instantiation. These passive segments are initialized and
+  // dropped in __wasm_init_memory, which is registered as the start function
+  // We also initialize bss segments (using memory.fill) as part of this
+  // function.
+  if (hasPassiveInitializedSegments()) {
+    WasmSym::initMemory = symtab->addSyntheticFunction(
+        "__wasm_init_memory", WASM_SYMBOL_VISIBILITY_HIDDEN,
+        make<SyntheticFunction>(nullSignature, "__wasm_init_memory"));
+    WasmSym::initMemory->markLive();
+  }
+
+  if (config->sharedMemory && out.globalSec->needsTLSRelocations()) {
+    WasmSym::applyGlobalTLSRelocs = symtab->addSyntheticFunction(
+        "__wasm_apply_global_tls_relocs", WASM_SYMBOL_VISIBILITY_HIDDEN,
+        make<SyntheticFunction>(nullSignature,
+                                "__wasm_apply_global_tls_relocs"));
+    WasmSym::applyGlobalTLSRelocs->markLive();
+  }
+
+  if (config->isPic) {
+    // For PIC code we create synthetic functions that apply relocations.
+    // These get called from __wasm_call_ctors before the user-level
+    // constructors.
+    WasmSym::applyDataRelocs = symtab->addSyntheticFunction(
+        "__wasm_apply_data_relocs", WASM_SYMBOL_VISIBILITY_HIDDEN,
+        make<SyntheticFunction>(nullSignature, "__wasm_apply_data_relocs"));
+    WasmSym::applyDataRelocs->markLive();
+
+    if (out.globalSec->needsRelocations()) {
+      WasmSym::applyGlobalRelocs = symtab->addSyntheticFunction(
+          "__wasm_apply_global_relocs", WASM_SYMBOL_VISIBILITY_HIDDEN,
+          make<SyntheticFunction>(nullSignature, "__wasm_apply_global_relocs"));
+      WasmSym::applyGlobalRelocs->markLive();
+    }
+  }
+
+  int startCount = 0;
+  if (WasmSym::applyGlobalRelocs)
+    startCount++;
+  if (WasmSym::WasmSym::initMemory || WasmSym::applyDataRelocs)
+    startCount++;
+
+  // If there is only one start function we can just use that function
+  // itself as the Wasm start function, otherwise we need to synthesize
+  // a new function to call them in sequence.
+  if (startCount > 1) {
+    WasmSym::startFunction = symtab->addSyntheticFunction(
+        "__wasm_start", WASM_SYMBOL_VISIBILITY_HIDDEN,
+        make<SyntheticFunction>(nullSignature, "__wasm_start"));
+    WasmSym::startFunction->markLive();
   }
 }
 
-static const int OPCODE_CALL = 0x10;
-static const int OPCODE_END = 0xb;
+void Writer::createInitMemoryFunction() {
+  LLVM_DEBUG(dbgs() << "createInitMemoryFunction\n");
+  assert(WasmSym::initMemory);
+  assert(hasPassiveInitializedSegments());
+  uint64_t flagAddress;
+  if (config->sharedMemory) {
+    assert(WasmSym::initMemoryFlag);
+    flagAddress = WasmSym::initMemoryFlag->getVA();
+  }
+  bool is64 = config->is64.getValueOr(false);
+  std::string bodyContent;
+  {
+    raw_string_ostream os(bodyContent);
+    // Initialize memory in a thread-safe manner. The thread that successfully
+    // increments the flag from 0 to 1 is is responsible for performing the
+    // memory initialization. Other threads go sleep on the flag until the
+    // first thread finishing initializing memory, increments the flag to 2,
+    // and wakes all the other threads. Once the flag has been set to 2,
+    // subsequently started threads will skip the sleep. All threads
+    // unconditionally drop their passive data segments once memory has been
+    // initialized. The generated code is as follows:
+    //
+    // (func $__wasm_init_memory
+    //  (block $drop
+    //   (block $wait
+    //    (block $init
+    //     (br_table $init $wait $drop
+    //      (i32.atomic.rmw.cmpxchg align=2 offset=0
+    //       (i32.const $__init_memory_flag)
+    //       (i32.const 0)
+    //       (i32.const 1)
+    //      )
+    //     )
+    //    ) ;; $init
+    //    ( ... initialize data segments ... )
+    //    (i32.atomic.store align=2 offset=0
+    //     (i32.const $__init_memory_flag)
+    //     (i32.const 2)
+    //    )
+    //    (drop
+    //     (i32.atomic.notify align=2 offset=0
+    //      (i32.const $__init_memory_flag)
+    //      (i32.const -1u)
+    //     )
+    //    )
+    //    (br $drop)
+    //   ) ;; $wait
+    //   (drop
+    //    (i32.atomic.wait align=2 offset=0
+    //     (i32.const $__init_memory_flag)
+    //     (i32.const 1)
+    //     (i32.const -1)
+    //    )
+    //   )
+    //  ) ;; $drop
+    //  ( ... drop data segments ... )
+    // )
+    //
+    // When we are building with PIC, calculate the flag location using:
+    //
+    //    (global.get $__memory_base)
+    //    (i32.const $__init_memory_flag)
+    //    (i32.const 1)
+
+    auto writeGetFlagAddress = [&]() {
+      if (config->isPic) {
+        writeU8(os, WASM_OPCODE_LOCAL_GET, "local.get");
+        writeUleb128(os, 0, "local 0");
+      } else {
+        writePtrConst(os, flagAddress, is64, "flag address");
+      }
+    };
+
+    if (config->sharedMemory) {
+      // With PIC code we cache the flag address in local 0
+      if (config->isPic) {
+        writeUleb128(os, 1, "num local decls");
+        writeUleb128(os, 1, "local count");
+        writeU8(os, is64 ? WASM_TYPE_I64 : WASM_TYPE_I32, "address type");
+        writeU8(os, WASM_OPCODE_GLOBAL_GET, "GLOBAL_GET");
+        writeUleb128(os, WasmSym::memoryBase->getGlobalIndex(), "memory_base");
+        writePtrConst(os, flagAddress, is64, "flag address");
+        writeU8(os, is64 ? WASM_OPCODE_I64_ADD : WASM_OPCODE_I32_ADD, "add");
+        writeU8(os, WASM_OPCODE_LOCAL_SET, "local.set");
+        writeUleb128(os, 0, "local 0");
+      } else {
+        writeUleb128(os, 0, "num locals");
+      }
+
+      // Set up destination blocks
+      writeU8(os, WASM_OPCODE_BLOCK, "block $drop");
+      writeU8(os, WASM_TYPE_NORESULT, "block type");
+      writeU8(os, WASM_OPCODE_BLOCK, "block $wait");
+      writeU8(os, WASM_TYPE_NORESULT, "block type");
+      writeU8(os, WASM_OPCODE_BLOCK, "block $init");
+      writeU8(os, WASM_TYPE_NORESULT, "block type");
+
+      // Atomically check whether we win the race.
+      writeGetFlagAddress();
+      writeI32Const(os, 0, "expected flag value");
+      writeI32Const(os, 1, "new flag value");
+      writeU8(os, WASM_OPCODE_ATOMICS_PREFIX, "atomics prefix");
+      writeUleb128(os, WASM_OPCODE_I32_RMW_CMPXCHG, "i32.atomic.rmw.cmpxchg");
+      writeMemArg(os, 2, 0);
+
+      // Based on the value, decide what to do next.
+      writeU8(os, WASM_OPCODE_BR_TABLE, "br_table");
+      writeUleb128(os, 2, "label vector length");
+      writeUleb128(os, 0, "label $init");
+      writeUleb128(os, 1, "label $wait");
+      writeUleb128(os, 2, "default label $drop");
+
+      // Initialize passive data segments
+      writeU8(os, WASM_OPCODE_END, "end $init");
+    } else {
+      writeUleb128(os, 0, "num local decls");
+    }
+
+    for (const OutputSegment *s : segments) {
+      if (needsPassiveInitialization(s)) {
+        // For passive BSS segments we can simple issue a memory.fill(0).
+        // For non-BSS segments we do a memory.init.  Both these
+        // instructions take as thier first argument the destination
+        // address.
+        writePtrConst(os, s->startVA, is64, "destination address");
+        if (config->isPic) {
+          writeU8(os, WASM_OPCODE_GLOBAL_GET, "GLOBAL_GET");
+          writeUleb128(os, WasmSym::memoryBase->getGlobalIndex(),
+                       "memory_base");
+          writeU8(os, is64 ? WASM_OPCODE_I64_ADD : WASM_OPCODE_I32_ADD,
+                  "i32.add");
+        }
+        if (s->isBss) {
+          writeI32Const(os, 0, "fill value");
+          writeI32Const(os, s->size, "memory region size");
+          writeU8(os, WASM_OPCODE_MISC_PREFIX, "bulk-memory prefix");
+          writeUleb128(os, WASM_OPCODE_MEMORY_FILL, "memory.fill");
+          writeU8(os, 0, "memory index immediate");
+        } else {
+          writeI32Const(os, 0, "source segment offset");
+          writeI32Const(os, s->size, "memory region size");
+          writeU8(os, WASM_OPCODE_MISC_PREFIX, "bulk-memory prefix");
+          writeUleb128(os, WASM_OPCODE_MEMORY_INIT, "memory.init");
+          writeUleb128(os, s->index, "segment index immediate");
+          writeU8(os, 0, "memory index immediate");
+        }
+      }
+    }
+
+    // Memory init is now complete.  Apply data relocation if there
+    // are any.
+    if (WasmSym::applyDataRelocs) {
+      writeU8(os, WASM_OPCODE_CALL, "CALL");
+      writeUleb128(os, WasmSym::applyDataRelocs->getFunctionIndex(),
+                   "function index");
+    }
+
+    if (config->sharedMemory) {
+      // Set flag to 2 to mark end of initialization
+      writeGetFlagAddress();
+      writeI32Const(os, 2, "flag value");
+      writeU8(os, WASM_OPCODE_ATOMICS_PREFIX, "atomics prefix");
+      writeUleb128(os, WASM_OPCODE_I32_ATOMIC_STORE, "i32.atomic.store");
+      writeMemArg(os, 2, 0);
+
+      // Notify any waiters that memory initialization is complete
+      writeGetFlagAddress();
+      writeI32Const(os, -1, "number of waiters");
+      writeU8(os, WASM_OPCODE_ATOMICS_PREFIX, "atomics prefix");
+      writeUleb128(os, WASM_OPCODE_ATOMIC_NOTIFY, "atomic.notify");
+      writeMemArg(os, 2, 0);
+      writeU8(os, WASM_OPCODE_DROP, "drop");
+
+      // Branch to drop the segments
+      writeU8(os, WASM_OPCODE_BR, "br");
+      writeUleb128(os, 1, "label $drop");
+
+      // Wait for the winning thread to initialize memory
+      writeU8(os, WASM_OPCODE_END, "end $wait");
+      writeGetFlagAddress();
+      writeI32Const(os, 1, "expected flag value");
+      writeI64Const(os, -1, "timeout");
+
+      writeU8(os, WASM_OPCODE_ATOMICS_PREFIX, "atomics prefix");
+      writeUleb128(os, WASM_OPCODE_I32_ATOMIC_WAIT, "i32.atomic.wait");
+      writeMemArg(os, 2, 0);
+      writeU8(os, WASM_OPCODE_DROP, "drop");
+
+      // Unconditionally drop passive data segments
+      writeU8(os, WASM_OPCODE_END, "end $drop");
+    }
+
+    for (const OutputSegment *s : segments) {
+      if (needsPassiveInitialization(s) && !s->isBss) {
+        // data.drop instruction
+        writeU8(os, WASM_OPCODE_MISC_PREFIX, "bulk-memory prefix");
+        writeUleb128(os, WASM_OPCODE_DATA_DROP, "data.drop");
+        writeUleb128(os, s->index, "segment index immediate");
+      }
+    }
+
+    // End the function
+    writeU8(os, WASM_OPCODE_END, "END");
+  }
+
+  createFunction(WasmSym::initMemory, bodyContent);
+}
+
+void Writer::createStartFunction() {
+  // If the start function exists when we have more than one function to call.
+  if (WasmSym::startFunction) {
+    std::string bodyContent;
+    {
+      raw_string_ostream os(bodyContent);
+      writeUleb128(os, 0, "num locals");
+      if (WasmSym::initMemory) {
+        writeU8(os, WASM_OPCODE_CALL, "CALL");
+        writeUleb128(os, WasmSym::initMemory->getFunctionIndex(),
+                     "function index");
+      } else if (WasmSym::applyDataRelocs) {
+        // When initMemory is present it calls applyDataRelocs.  If not,
+        // we must call it directly.
+        writeU8(os, WASM_OPCODE_CALL, "CALL");
+        writeUleb128(os, WasmSym::applyDataRelocs->getFunctionIndex(),
+                     "function index");
+      }
+      if (WasmSym::applyGlobalRelocs) {
+        writeU8(os, WASM_OPCODE_CALL, "CALL");
+        writeUleb128(os, WasmSym::applyGlobalRelocs->getFunctionIndex(),
+                     "function index");
+      }
+      writeU8(os, WASM_OPCODE_END, "END");
+    }
+    createFunction(WasmSym::startFunction, bodyContent);
+  } else if (WasmSym::initMemory) {
+    WasmSym::startFunction = WasmSym::initMemory;
+  } else if (WasmSym::applyGlobalRelocs) {
+    WasmSym::startFunction = WasmSym::applyGlobalRelocs;
+  } else if (WasmSym::applyDataRelocs) {
+    WasmSym::startFunction = WasmSym::applyDataRelocs;
+  }
+}
+
+// For -shared (PIC) output, we create create a synthetic function which will
+// apply any relocations to the data segments on startup.  This function is
+// called `__wasm_apply_data_relocs` and is added at the beginning of
+// `__wasm_call_ctors` before any of the constructors run.
+void Writer::createApplyDataRelocationsFunction() {
+  LLVM_DEBUG(dbgs() << "createApplyDataRelocationsFunction\n");
+  // First write the body's contents to a string.
+  std::string bodyContent;
+  {
+    raw_string_ostream os(bodyContent);
+    writeUleb128(os, 0, "num locals");
+    for (const OutputSegment *seg : segments)
+      for (const InputChunk *inSeg : seg->inputSegments)
+        inSeg->generateRelocationCode(os);
+
+    writeU8(os, WASM_OPCODE_END, "END");
+  }
+
+  createFunction(WasmSym::applyDataRelocs, bodyContent);
+}
+
+// Similar to createApplyDataRelocationsFunction but generates relocation code
+// for WebAssembly globals. Because these globals are not shared between threads
+// these relocation need to run on every thread.
+void Writer::createApplyGlobalRelocationsFunction() {
+  // First write the body's contents to a string.
+  std::string bodyContent;
+  {
+    raw_string_ostream os(bodyContent);
+    writeUleb128(os, 0, "num locals");
+    out.globalSec->generateRelocationCode(os, false);
+    writeU8(os, WASM_OPCODE_END, "END");
+  }
+
+  createFunction(WasmSym::applyGlobalRelocs, bodyContent);
+}
+
+// Similar to createApplyGlobalRelocationsFunction but for
+// TLS symbols.  This cannot be run during the start function
+// but must be delayed until __wasm_init_tls is called.
+void Writer::createApplyGlobalTLSRelocationsFunction() {
+  // First write the body's contents to a string.
+  std::string bodyContent;
+  {
+    raw_string_ostream os(bodyContent);
+    writeUleb128(os, 0, "num locals");
+    out.globalSec->generateRelocationCode(os, true);
+    writeU8(os, WASM_OPCODE_END, "END");
+  }
+
+  createFunction(WasmSym::applyGlobalTLSRelocs, bodyContent);
+}
 
 // Create synthetic "__wasm_call_ctors" function based on ctor functions
 // in input object.
-void Writer::createCtorFunction() {
+void Writer::createCallCtorsFunction() {
+  // If __wasm_call_ctors isn't referenced, there aren't any ctors, and we
+  // aren't calling `__wasm_apply_data_relocs` for Emscripten-style PIC, don't
+  // define the `__wasm_call_ctors` function.
+  if (!WasmSym::callCtors->isLive() && initFunctions.empty())
+    return;
+
   // First write the body's contents to a string.
-  std::string BodyContent;
+  std::string bodyContent;
   {
-    raw_string_ostream OS(BodyContent);
-    writeUleb128(OS, 0, "num locals");
-    for (const WasmInitEntry &F : InitFunctions) {
-      writeU8(OS, OPCODE_CALL, "CALL");
-      writeUleb128(OS, F.Sym->getFunctionIndex(), "function index");
+    raw_string_ostream os(bodyContent);
+    writeUleb128(os, 0, "num locals");
+
+    if (WasmSym::applyDataRelocs && !WasmSym::initMemory) {
+      writeU8(os, WASM_OPCODE_CALL, "CALL");
+      writeUleb128(os, WasmSym::applyDataRelocs->getFunctionIndex(),
+                   "function index");
     }
-    writeU8(OS, OPCODE_END, "END");
+
+    // Call constructors
+    for (const WasmInitEntry &f : initFunctions) {
+      writeU8(os, WASM_OPCODE_CALL, "CALL");
+      writeUleb128(os, f.sym->getFunctionIndex(), "function index");
+      for (size_t i = 0; i < f.sym->signature->Returns.size(); i++) {
+        writeU8(os, WASM_OPCODE_DROP, "DROP");
+      }
+    }
+
+    writeU8(os, WASM_OPCODE_END, "END");
   }
 
-  // Once we know the size of the body we can create the final function body
-  std::string FunctionBody;
+  createFunction(WasmSym::callCtors, bodyContent);
+}
+
+// Create a wrapper around a function export which calls the
+// static constructors and destructors.
+void Writer::createCommandExportWrapper(uint32_t functionIndex,
+                                        DefinedFunction *f) {
+  // First write the body's contents to a string.
+  std::string bodyContent;
   {
-    raw_string_ostream OS(FunctionBody);
-    writeUleb128(OS, BodyContent.size(), "function size");
-    OS << BodyContent;
+    raw_string_ostream os(bodyContent);
+    writeUleb128(os, 0, "num locals");
+
+    // Call `__wasm_call_ctors` which call static constructors (and
+    // applies any runtime relocations in Emscripten-style PIC mode)
+    if (WasmSym::callCtors->isLive()) {
+      writeU8(os, WASM_OPCODE_CALL, "CALL");
+      writeUleb128(os, WasmSym::callCtors->getFunctionIndex(),
+                   "function index");
+    }
+
+    // Call the user's code, leaving any return values on the operand stack.
+    for (size_t i = 0; i < f->signature->Params.size(); ++i) {
+      writeU8(os, WASM_OPCODE_LOCAL_GET, "local.get");
+      writeUleb128(os, i, "local index");
+    }
+    writeU8(os, WASM_OPCODE_CALL, "CALL");
+    writeUleb128(os, functionIndex, "function index");
+
+    // Call the function that calls the destructors.
+    if (DefinedFunction *callDtors = WasmSym::callDtors) {
+      writeU8(os, WASM_OPCODE_CALL, "CALL");
+      writeUleb128(os, callDtors->getFunctionIndex(), "function index");
+    }
+
+    // End the function, returning the return values from the user's code.
+    writeU8(os, WASM_OPCODE_END, "END");
   }
 
-  ArrayRef<uint8_t> Body = toArrayRef(Saver.save(FunctionBody));
-  cast<SyntheticFunction>(WasmSym::CallCtors->Function)->setBody(Body);
+  createFunction(f, bodyContent);
+}
+
+void Writer::createInitTLSFunction() {
+  std::string bodyContent;
+  {
+    raw_string_ostream os(bodyContent);
+
+    OutputSegment *tlsSeg = nullptr;
+    for (auto *seg : segments) {
+      if (seg->name == ".tdata") {
+        tlsSeg = seg;
+        break;
+      }
+    }
+
+    writeUleb128(os, 0, "num locals");
+    if (tlsSeg) {
+      writeU8(os, WASM_OPCODE_LOCAL_GET, "local.get");
+      writeUleb128(os, 0, "local index");
+
+      writeU8(os, WASM_OPCODE_GLOBAL_SET, "global.set");
+      writeUleb128(os, WasmSym::tlsBase->getGlobalIndex(), "global index");
+
+      // FIXME(wvo): this local needs to be I64 in wasm64, or we need an extend op.
+      writeU8(os, WASM_OPCODE_LOCAL_GET, "local.get");
+      writeUleb128(os, 0, "local index");
+
+      writeI32Const(os, 0, "segment offset");
+
+      writeI32Const(os, tlsSeg->size, "memory region size");
+
+      writeU8(os, WASM_OPCODE_MISC_PREFIX, "bulk-memory prefix");
+      writeUleb128(os, WASM_OPCODE_MEMORY_INIT, "MEMORY.INIT");
+      writeUleb128(os, tlsSeg->index, "segment index immediate");
+      writeU8(os, 0, "memory index immediate");
+    }
+
+    if (WasmSym::applyGlobalTLSRelocs) {
+      writeU8(os, WASM_OPCODE_CALL, "CALL");
+      writeUleb128(os, WasmSym::applyGlobalTLSRelocs->getFunctionIndex(),
+                   "function index");
+    }
+    writeU8(os, WASM_OPCODE_END, "end function");
+  }
+
+  createFunction(WasmSym::initTLS, bodyContent);
 }
 
 // Populate InitFunctions vector with init functions from all input objects.
 // This is then used either when creating the output linking section or to
 // synthesize the "__wasm_call_ctors" function.
 void Writer::calculateInitFunctions() {
-  for (ObjFile *File : Symtab->ObjectFiles) {
-    const WasmLinkingData &L = File->getWasmObj()->linkingData();
-    for (const WasmInitFunc &F : L.InitFunctions) {
-      FunctionSymbol *Sym = File->getFunctionSymbol(F.Symbol);
-      if (*Sym->FunctionType != WasmSignature{{}, WASM_TYPE_NORESULT})
-        error("invalid signature for init func: " + toString(*Sym));
-      InitFunctions.emplace_back(WasmInitEntry{Sym, F.Priority});
+  if (!config->relocatable && !WasmSym::callCtors->isLive())
+    return;
+
+  for (ObjFile *file : symtab->objectFiles) {
+    const WasmLinkingData &l = file->getWasmObj()->linkingData();
+    for (const WasmInitFunc &f : l.InitFunctions) {
+      FunctionSymbol *sym = file->getFunctionSymbol(f.Symbol);
+      // comdat exclusions can cause init functions be discarded.
+      if (sym->isDiscarded() || !sym->isLive())
+        continue;
+      if (sym->signature->Params.size() != 0)
+        error("constructor functions cannot take arguments: " + toString(*sym));
+      LLVM_DEBUG(dbgs() << "initFunctions: " << toString(*sym) << "\n");
+      initFunctions.emplace_back(WasmInitEntry{sym, f.Priority});
     }
   }
 
   // Sort in order of priority (lowest first) so that they are called
   // in the correct order.
-  std::stable_sort(InitFunctions.begin(), InitFunctions.end(),
-                   [](const WasmInitEntry &L, const WasmInitEntry &R) {
-                     return L.Priority < R.Priority;
-                   });
+  llvm::stable_sort(initFunctions,
+                    [](const WasmInitEntry &l, const WasmInitEntry &r) {
+                      return l.priority < r.priority;
+                    });
+}
+
+void Writer::createSyntheticSections() {
+  out.dylinkSec = make<DylinkSection>();
+  out.typeSec = make<TypeSection>();
+  out.importSec = make<ImportSection>();
+  out.functionSec = make<FunctionSection>();
+  out.tableSec = make<TableSection>();
+  out.memorySec = make<MemorySection>();
+  out.tagSec = make<TagSection>();
+  out.globalSec = make<GlobalSection>();
+  out.exportSec = make<ExportSection>();
+  out.startSec = make<StartSection>();
+  out.elemSec = make<ElemSection>();
+  out.producersSec = make<ProducersSection>();
+  out.targetFeaturesSec = make<TargetFeaturesSection>();
+}
+
+void Writer::createSyntheticSectionsPostLayout() {
+  out.dataCountSec = make<DataCountSection>(segments);
+  out.linkingSec = make<LinkingSection>(initFunctions, segments);
+  out.nameSec = make<NameSection>(segments);
 }
 
 void Writer::run() {
-  if (Config->Relocatable)
-    Config->GlobalBase = 0;
+  if (config->relocatable || config->isPic)
+    config->globalBase = 0;
 
+  // For PIC code the table base is assigned dynamically by the loader.
+  // For non-PIC, we start at 1 so that accessing table index 0 always traps.
+  if (!config->isPic) {
+    config->tableBase = 1;
+    if (WasmSym::definedTableBase)
+      WasmSym::definedTableBase->setVA(config->tableBase);
+    if (WasmSym::definedTableBase32)
+      WasmSym::definedTableBase32->setVA(config->tableBase);
+  }
+
+  log("-- createOutputSegments");
+  createOutputSegments();
+  log("-- createSyntheticSections");
+  createSyntheticSections();
+  log("-- layoutMemory");
+  layoutMemory();
+
+  if (!config->relocatable) {
+    // Create linker synthesized __start_SECNAME/__stop_SECNAME symbols
+    // This has to be done after memory layout is performed.
+    for (const OutputSegment *seg : segments) {
+      addStartStopSymbols(seg);
+    }
+  }
+
+  for (auto &pair : config->exportedSymbols) {
+    Symbol *sym = symtab->find(pair.first());
+    if (sym && sym->isDefined())
+      sym->forceExport = true;
+  }
+
+  // Delay reporting error about explicit exports until after
+  // addStartStopSymbols which can create optional symbols.
+  for (auto &name : config->requiredExports) {
+    Symbol *sym = symtab->find(name);
+    if (!sym || !sym->isDefined()) {
+      if (config->unresolvedSymbols == UnresolvedPolicy::ReportError)
+        error(Twine("symbol exported via --export not found: ") + name);
+      if (config->unresolvedSymbols == UnresolvedPolicy::Warn)
+        warn(Twine("symbol exported via --export not found: ") + name);
+    }
+  }
+
+  if (config->isPic && !config->sharedMemory) {
+    // In shared memory mode all data segments are passive and initialized
+    // via __wasm_init_memory.
+    log("-- combineOutputSegments");
+    combineOutputSegments();
+  }
+
+  log("-- createSyntheticSectionsPostLayout");
+  createSyntheticSectionsPostLayout();
+  log("-- populateProducers");
+  populateProducers();
   log("-- calculateImports");
   calculateImports();
+  log("-- scanRelocations");
+  scanRelocations();
+  log("-- finalizeIndirectFunctionTable");
+  finalizeIndirectFunctionTable();
+  log("-- populateTargetFeatures");
+  populateTargetFeatures();
+  log("-- createSyntheticInitFunctions");
+  createSyntheticInitFunctions();
   log("-- assignIndexes");
   assignIndexes();
   log("-- calculateInitFunctions");
   calculateInitFunctions();
-  if (!Config->Relocatable)
-    createCtorFunction();
+
+  if (!config->relocatable) {
+    // Create linker synthesized functions
+    if (WasmSym::applyDataRelocs)
+      createApplyDataRelocationsFunction();
+    if (WasmSym::applyGlobalRelocs)
+      createApplyGlobalRelocationsFunction();
+    if (WasmSym::applyGlobalTLSRelocs)
+      createApplyGlobalTLSRelocationsFunction();
+    if (WasmSym::initMemory)
+      createInitMemoryFunction();
+    createStartFunction();
+
+    createCallCtorsFunction();
+
+    // Create export wrappers for commands if needed.
+    //
+    // If the input contains a call to `__wasm_call_ctors`, either in one of
+    // the input objects or an explicit export from the command-line, we
+    // assume ctors and dtors are taken care of already.
+    if (!config->relocatable && !config->isPic &&
+        !WasmSym::callCtors->isUsedInRegularObj &&
+        !WasmSym::callCtors->isExported()) {
+      log("-- createCommandExportWrappers");
+      createCommandExportWrappers();
+    }
+  }
+
+  if (WasmSym::initTLS && WasmSym::initTLS->isLive())
+    createInitTLSFunction();
+
+  if (errorCount())
+    return;
+
   log("-- calculateTypes");
   calculateTypes();
-  log("-- layoutMemory");
-  layoutMemory();
   log("-- calculateExports");
   calculateExports();
   log("-- calculateCustomSections");
   calculateCustomSections();
-  log("-- assignSymtab");
-  assignSymtab();
+  log("-- populateSymtab");
+  populateSymtab();
+  log("-- checkImportExportTargetFeatures");
+  checkImportExportTargetFeatures();
+  log("-- addSections");
+  addSections();
 
-  if (errorHandler().Verbose) {
-    log("Defined Functions: " + Twine(InputFunctions.size()));
-    log("Defined Globals  : " + Twine(InputGlobals.size()));
-    log("Function Imports : " + Twine(NumImportedFunctions));
-    log("Global Imports   : " + Twine(NumImportedGlobals));
-    for (ObjFile *File : Symtab->ObjectFiles)
-      File->dumpInfo();
+  if (errorHandler().verbose) {
+    log("Defined Functions: " + Twine(out.functionSec->inputFunctions.size()));
+    log("Defined Globals  : " + Twine(out.globalSec->numGlobals()));
+    log("Defined Tags     : " + Twine(out.tagSec->inputTags.size()));
+    log("Defined Tables   : " + Twine(out.tableSec->inputTables.size()));
+    log("Function Imports : " +
+        Twine(out.importSec->getNumImportedFunctions()));
+    log("Global Imports   : " + Twine(out.importSec->getNumImportedGlobals()));
+    log("Tag Imports      : " + Twine(out.importSec->getNumImportedTags()));
+    log("Table Imports    : " + Twine(out.importSec->getNumImportedTables()));
   }
 
   createHeader();
-  log("-- createSections");
-  createSections();
+  log("-- finalizeSections");
+  finalizeSections();
+
+  log("-- writeMapFile");
+  writeMapFile(outputSections);
 
   log("-- openFile");
   openFile();
@@ -1051,31 +1656,34 @@ void Writer::run() {
   if (errorCount())
     return;
 
-  if (Error E = Buffer->commit())
-    fatal("failed to write the output file: " + toString(std::move(E)));
+  if (Error e = buffer->commit())
+    fatal("failed to write the output file: " + toString(std::move(e)));
 }
 
 // Open a result file.
 void Writer::openFile() {
-  log("writing: " + Config->OutputFile);
+  log("writing: " + config->outputFile);
 
-  Expected<std::unique_ptr<FileOutputBuffer>> BufferOrErr =
-      FileOutputBuffer::create(Config->OutputFile, FileSize,
+  Expected<std::unique_ptr<FileOutputBuffer>> bufferOrErr =
+      FileOutputBuffer::create(config->outputFile, fileSize,
                                FileOutputBuffer::F_executable);
 
-  if (!BufferOrErr)
-    error("failed to open " + Config->OutputFile + ": " +
-          toString(BufferOrErr.takeError()));
+  if (!bufferOrErr)
+    error("failed to open " + config->outputFile + ": " +
+          toString(bufferOrErr.takeError()));
   else
-    Buffer = std::move(*BufferOrErr);
+    buffer = std::move(*bufferOrErr);
 }
 
 void Writer::createHeader() {
-  raw_string_ostream OS(Header);
-  writeBytes(OS, WasmMagic, sizeof(WasmMagic), "wasm magic");
-  writeU32(OS, WasmVersion, "wasm version");
-  OS.flush();
-  FileSize += Header.size();
+  raw_string_ostream os(header);
+  writeBytes(os, WasmMagic, sizeof(WasmMagic), "wasm magic");
+  writeU32(os, WasmVersion, "wasm version");
+  os.flush();
+  fileSize += header.size();
 }
 
-void lld::wasm::writeResult() { Writer().run(); }
+void writeResult() { Writer().run(); }
+
+} // namespace wasm
+} // namespace lld

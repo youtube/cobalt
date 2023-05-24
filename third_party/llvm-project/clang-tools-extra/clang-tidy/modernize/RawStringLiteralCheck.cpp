@@ -1,9 +1,8 @@
 //===--- RawStringLiteralCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,7 +25,7 @@ bool containsEscapes(StringRef HayStack, StringRef Escapes) {
     return false;
 
   while (BackSlash != StringRef::npos) {
-    if (Escapes.find(HayStack[BackSlash + 1]) == StringRef::npos)
+    if (!Escapes.contains(HayStack[BackSlash + 1]))
       return false;
     BackSlash = HayStack.find('\\', BackSlash + 2);
   }
@@ -57,7 +56,7 @@ bool containsEscapedCharacters(const MatchFinder::MatchResult &Result,
       *Result.SourceManager, Result.Context->getLangOpts());
   StringRef Text = Lexer::getSourceText(CharRange, *Result.SourceManager,
                                         Result.Context->getLangOpts());
-  if (isRawStringLiteral(Text))
+  if (Text.empty() || isRawStringLiteral(Text))
     return false;
 
   return containsEscapes(Text, R"('\"?x01)");
@@ -112,31 +111,26 @@ RawStringLiteralCheck::RawStringLiteralCheck(StringRef Name,
     DisallowedChars.set(static_cast<unsigned char>(C));
 }
 
-void RawStringLiteralCheck::storeOptions(ClangTidyOptions::OptionMap &Options) {
-  ClangTidyCheck::storeOptions(Options);
-  this->Options.store(Options, "ReplaceShorterLiterals",
-                      ReplaceShorterLiterals);
+void RawStringLiteralCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
+  Options.store(Opts, "DelimiterStem", DelimiterStem);
+  Options.store(Opts, "ReplaceShorterLiterals", ReplaceShorterLiterals);
 }
 
 void RawStringLiteralCheck::registerMatchers(MatchFinder *Finder) {
-  // Raw string literals require C++11 or later.
-  if (!getLangOpts().CPlusPlus11)
-    return;
-
   Finder->addMatcher(
       stringLiteral(unless(hasParent(predefinedExpr()))).bind("lit"), this);
 }
 
 void RawStringLiteralCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *Literal = Result.Nodes.getNodeAs<StringLiteral>("lit");
-  if (Literal->getLocStart().isMacroID())
+  if (Literal->getBeginLoc().isMacroID())
     return;
 
   if (containsEscapedCharacters(Result, Literal, DisallowedChars)) {
     std::string Replacement = asRawStringLiteral(Literal, DelimiterStem);
     if (ReplaceShorterLiterals ||
         Replacement.length() <=
-            Lexer::MeasureTokenLength(Literal->getLocStart(),
+            Lexer::MeasureTokenLength(Literal->getBeginLoc(),
                                       *Result.SourceManager, getLangOpts()))
       replaceWithRawStringLiteral(Result, Literal, Replacement);
   }
@@ -148,7 +142,7 @@ void RawStringLiteralCheck::replaceWithRawStringLiteral(
   CharSourceRange CharRange = Lexer::makeFileCharRange(
       CharSourceRange::getTokenRange(Literal->getSourceRange()),
       *Result.SourceManager, getLangOpts());
-  diag(Literal->getLocStart(),
+  diag(Literal->getBeginLoc(),
        "escaped string literal can be written as a raw string literal")
       << FixItHint::CreateReplacement(CharRange, Replacement);
 }

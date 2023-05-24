@@ -1,19 +1,13 @@
 //===-- SBDefines.h ---------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_SBDefines_h_
-#define LLDB_SBDefines_h_
-
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
+#ifndef LLDB_API_SBDEFINES_H
+#define LLDB_API_SBDEFINES_H
 
 #include "lldb/lldb-defines.h"
 #include "lldb/lldb-enumerations.h"
@@ -21,8 +15,16 @@
 #include "lldb/lldb-types.h"
 #include "lldb/lldb-versioning.h"
 
-#ifdef SWIG
+#ifndef LLDB_API
+#if defined(_WIN32)
+#if defined(LLDB_IN_LIBLLDB)
+#define LLDB_API __declspec(dllexport)
+#else
+#define LLDB_API __declspec(dllimport)
+#endif
+#else // defined (_WIN32)
 #define LLDB_API
+#endif
 #endif
 
 // Forward Declarations
@@ -38,6 +40,7 @@ class LLDB_API SBBroadcaster;
 class LLDB_API SBCommand;
 class LLDB_API SBCommandInterpreter;
 class LLDB_API SBCommandInterpreterRunOptions;
+class LLDB_API SBCommandInterpreterRunResult;
 class LLDB_API SBCommandPluginInterface;
 class LLDB_API SBCommandReturnObject;
 class LLDB_API SBCommunication;
@@ -45,11 +48,13 @@ class LLDB_API SBCompileUnit;
 class LLDB_API SBData;
 class LLDB_API SBDebugger;
 class LLDB_API SBDeclaration;
+class LLDB_API SBEnvironment;
 class LLDB_API SBError;
 class LLDB_API SBEvent;
 class LLDB_API SBEventList;
 class LLDB_API SBExecutionContext;
 class LLDB_API SBExpressionOptions;
+class LLDB_API SBFile;
 class LLDB_API SBFileSpec;
 class LLDB_API SBFileSpecList;
 class LLDB_API SBFrame;
@@ -83,7 +88,6 @@ class LLDB_API SBThread;
 class LLDB_API SBThreadCollection;
 class LLDB_API SBThreadPlan;
 class LLDB_API SBTrace;
-class LLDB_API SBTraceOptions;
 class LLDB_API SBType;
 class LLDB_API SBTypeCategory;
 class LLDB_API SBTypeEnumMember;
@@ -107,4 +111,4 @@ typedef bool (*SBBreakpointHitCallback)(void *baton, SBProcess &process,
                                         lldb::SBBreakpointLocation &location);
 }
 
-#endif // LLDB_SBDefines_h_
+#endif // LLDB_API_SBDEFINES_H

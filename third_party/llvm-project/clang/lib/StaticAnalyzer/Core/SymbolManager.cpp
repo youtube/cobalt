@@ -1,9 +1,8 @@
 //===- SymbolManager.h - Management of Symbolic Values --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,6 +14,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/StmtObjC.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Basic/LLVM.h"
@@ -35,45 +35,33 @@ using namespace ento;
 
 void SymExpr::anchor() {}
 
-LLVM_DUMP_METHOD void SymExpr::dump() const {
-  dumpToStream(llvm::errs());
+StringRef SymbolConjured::getKindStr() const { return "conj_$"; }
+StringRef SymbolDerived::getKindStr() const { return "derived_$"; }
+StringRef SymbolExtent::getKindStr() const { return "extent_$"; }
+StringRef SymbolMetadata::getKindStr() const { return "meta_$"; }
+StringRef SymbolRegionValue::getKindStr() const { return "reg_$"; }
+
+LLVM_DUMP_METHOD void SymExpr::dump() const { dumpToStream(llvm::errs()); }
+
+void BinarySymExpr::dumpToStreamImpl(raw_ostream &OS, const SymExpr *Sym) {
+  OS << '(';
+  Sym->dumpToStream(OS);
+  OS << ')';
 }
 
-void SymIntExpr::dumpToStream(raw_ostream &os) const {
-  os << '(';
-  getLHS()->dumpToStream(os);
-  os << ") "
-     << BinaryOperator::getOpcodeStr(getOpcode()) << ' ';
-  if (getRHS().isUnsigned())
-    os << getRHS().getZExtValue();
+void BinarySymExpr::dumpToStreamImpl(raw_ostream &OS,
+                                     const llvm::APSInt &Value) {
+  if (Value.isUnsigned())
+    OS << Value.getZExtValue();
   else
-    os << getRHS().getSExtValue();
-  if (getRHS().isUnsigned())
-    os << 'U';
+    OS << Value.getSExtValue();
+  if (Value.isUnsigned())
+    OS << 'U';
 }
 
-void IntSymExpr::dumpToStream(raw_ostream &os) const {
-  if (getLHS().isUnsigned())
-    os << getLHS().getZExtValue();
-  else
-    os << getLHS().getSExtValue();
-  if (getLHS().isUnsigned())
-    os << 'U';
-  os << ' '
-     << BinaryOperator::getOpcodeStr(getOpcode())
-     << " (";
-  getRHS()->dumpToStream(os);
-  os << ')';
-}
-
-void SymSymExpr::dumpToStream(raw_ostream &os) const {
-  os << '(';
-  getLHS()->dumpToStream(os);
-  os << ") "
-     << BinaryOperator::getOpcodeStr(getOpcode())
-     << " (";
-  getRHS()->dumpToStream(os);
-  os << ')';
+void BinarySymExpr::dumpToStreamImpl(raw_ostream &OS,
+                                     BinaryOperator::Opcode Op) {
+  OS << ' ' << BinaryOperator::getOpcodeStr(Op) << ' ';
 }
 
 void SymbolCast::dumpToStream(raw_ostream &os) const {
@@ -83,28 +71,34 @@ void SymbolCast::dumpToStream(raw_ostream &os) const {
 }
 
 void SymbolConjured::dumpToStream(raw_ostream &os) const {
-  os << "conj_$" << getSymbolID() << '{' << T.getAsString() << '}';
+  os << getKindStr() << getSymbolID() << '{' << T.getAsString() << ", LC"
+     << LCtx->getID();
+  if (S)
+    os << ", S" << S->getID(LCtx->getDecl()->getASTContext());
+  else
+    os << ", no stmt";
+  os << ", #" << Count << '}';
 }
 
 void SymbolDerived::dumpToStream(raw_ostream &os) const {
-  os << "derived_$" << getSymbolID() << '{'
-     << getParentSymbol() << ',' << getRegion() << '}';
+  os << getKindStr() << getSymbolID() << '{' << getParentSymbol() << ','
+     << getRegion() << '}';
 }
 
 void SymbolExtent::dumpToStream(raw_ostream &os) const {
-  os << "extent_$" << getSymbolID() << '{' << getRegion() << '}';
+  os << getKindStr() << getSymbolID() << '{' << getRegion() << '}';
 }
 
 void SymbolMetadata::dumpToStream(raw_ostream &os) const {
-  os << "meta_$" << getSymbolID() << '{'
-     << getRegion() << ',' << T.getAsString() << '}';
+  os << getKindStr() << getSymbolID() << '{' << getRegion() << ','
+     << T.getAsString() << '}';
 }
 
 void SymbolData::anchor() {}
 
 void SymbolRegionValue::dumpToStream(raw_ostream &os) const {
-  os << "reg_$" << getSymbolID()
-     << '<' << getType().getAsString() << ' ' << R << '>';
+  os << getKindStr() << getSymbolID() << '<' << getType().getAsString() << ' '
+     << R << '>';
 }
 
 bool SymExpr::symbol_iterator::operator==(const symbol_iterator &X) const {
@@ -324,7 +318,7 @@ QualType SymbolDerived::getType() const {
 }
 
 QualType SymbolExtent::getType() const {
-  ASTContext &Ctx = R->getMemRegionManager()->getContext();
+  ASTContext &Ctx = R->getMemRegionManager().getContext();
   return Ctx.getSizeType();
 }
 
@@ -334,10 +328,6 @@ QualType SymbolMetadata::getType() const {
 
 QualType SymbolRegionValue::getType() const {
   return R->getValueType();
-}
-
-SymbolManager::~SymbolManager() {
-  llvm::DeleteContainerSeconds(SymbolDependencies);
 }
 
 bool SymbolManager::canSymbolicate(QualType T) {
@@ -357,13 +347,9 @@ bool SymbolManager::canSymbolicate(QualType T) {
 
 void SymbolManager::addSymbolDependency(const SymbolRef Primary,
                                         const SymbolRef Dependent) {
-  SymbolDependTy::iterator I = SymbolDependencies.find(Primary);
-  SymbolRefSmallVectorTy *dependencies = nullptr;
-  if (I == SymbolDependencies.end()) {
-    dependencies = new SymbolRefSmallVectorTy();
-    SymbolDependencies[Primary] = dependencies;
-  } else {
-    dependencies = I->second;
+  auto &dependencies = SymbolDependencies[Primary];
+  if (!dependencies) {
+    dependencies = std::make_unique<SymbolRefSmallVectorTy>();
   }
   dependencies->push_back(Dependent);
 }
@@ -373,7 +359,7 @@ const SymbolRefSmallVectorTy *SymbolManager::getDependentSymbols(
   SymbolDependTy::const_iterator I = SymbolDependencies.find(Primary);
   if (I == SymbolDependencies.end())
     return nullptr;
-  return I->second;
+  return I->second.get();
 }
 
 void SymbolReaper::markDependentsLive(SymbolRef sym) {
@@ -395,12 +381,11 @@ void SymbolReaper::markDependentsLive(SymbolRef sym) {
 
 void SymbolReaper::markLive(SymbolRef sym) {
   TheLiving[sym] = NotProcessed;
-  TheDead.erase(sym);
   markDependentsLive(sym);
 }
 
 void SymbolReaper::markLive(const MemRegion *region) {
-  RegionRoots.insert(region);
+  RegionRoots.insert(region->getBaseRegion());
   markElementIndicesLive(region);
 }
 
@@ -420,19 +405,15 @@ void SymbolReaper::markInUse(SymbolRef sym) {
     MetadataInUse.insert(sym);
 }
 
-bool SymbolReaper::maybeDead(SymbolRef sym) {
-  if (isLive(sym))
-    return false;
-
-  TheDead.insert(sym);
-  return true;
-}
-
 bool SymbolReaper::isLiveRegion(const MemRegion *MR) {
+  // TODO: For now, liveness of a memory region is equivalent to liveness of its
+  // base region. In fact we can do a bit better: say, if a particular FieldDecl
+  // is not used later in the path, we can diagnose a leak of a value within
+  // that field earlier than, say, the variable that contains the field dies.
+  MR = MR->getBaseRegion();
+
   if (RegionRoots.count(MR))
     return true;
-
-  MR = MR->getBaseRegion();
 
   if (const auto *SR = dyn_cast<SymbolicRegion>(MR))
     return isLive(SR->getSymbol());
@@ -444,19 +425,7 @@ bool SymbolReaper::isLiveRegion(const MemRegion *MR) {
   // tell if anything still refers to this region. Unlike SymbolicRegions,
   // AllocaRegions don't have associated symbols, though, so we don't actually
   // have a way to track their liveness.
-  if (isa<AllocaRegion>(MR))
-    return true;
-
-  if (isa<CXXThisRegion>(MR))
-    return true;
-
-  if (isa<MemSpaceRegion>(MR))
-    return true;
-
-  if (isa<CodeTextRegion>(MR))
-    return true;
-
-  return false;
+  return isa<AllocaRegion, CXXThisRegion, MemSpaceRegion, CodeTextRegion>(MR);
 }
 
 bool SymbolReaper::isLive(SymbolRef sym) {
@@ -508,7 +477,7 @@ bool SymbolReaper::isLive(SymbolRef sym) {
 }
 
 bool
-SymbolReaper::isLive(const Stmt *ExprVal, const LocationContext *ELCtx) const {
+SymbolReaper::isLive(const Expr *ExprVal, const LocationContext *ELCtx) const {
   if (LCtx == nullptr)
     return false;
 
@@ -520,7 +489,8 @@ SymbolReaper::isLive(const Stmt *ExprVal, const LocationContext *ELCtx) const {
     return true;
   }
 
-  // If no statement is provided, everything is this and parent contexts is live.
+  // If no statement is provided, everything in this and parent contexts is
+  // live.
   if (!Loc)
     return true;
 
@@ -540,6 +510,11 @@ bool SymbolReaper::isLive(const VarRegion *VR, bool includeStoreBindings) const{
   if (VarContext == CurrentContext) {
     // If no statement is provided, everything is live.
     if (!Loc)
+      return true;
+
+    // Anonymous parameters of an inheriting constructor are live for the entire
+    // duration of the constructor.
+    if (isa<CXXInheritedCtorInitExpr>(Loc))
       return true;
 
     if (LCtx->getAnalysis<RelaxedLiveVariables>()->isLive(Loc, VR->getDecl()))

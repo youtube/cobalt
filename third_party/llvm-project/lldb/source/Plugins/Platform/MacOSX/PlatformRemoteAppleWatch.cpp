@@ -1,19 +1,14 @@
-//===-- PlatformRemoteAppleWatch.cpp ----------------------------*- C++ -*-===//
+//===-- PlatformRemoteAppleWatch.cpp --------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
 #include <string>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "PlatformRemoteAppleWatch.h"
 
 #include "lldb/Breakpoint/BreakpointLocation.h"
@@ -33,14 +28,10 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//------------------------------------------------------------------
 // Static Variables
-//------------------------------------------------------------------
 static uint32_t g_initialize_count = 0;
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 void PlatformRemoteAppleWatch::Initialize() {
   PlatformDarwin::Initialize();
 
@@ -75,8 +66,8 @@ PlatformSP PlatformRemoteAppleWatch::CreateInstance(bool force,
     const char *triple_cstr =
         arch ? arch->GetTriple().getTriple().c_str() : "<null>";
 
-    log->Printf("PlatformRemoteAppleWatch::%s(force=%s, arch={%s,%s})",
-                __FUNCTION__, force ? "true" : "false", arch_name, triple_cstr);
+    LLDB_LOGF(log, "PlatformRemoteAppleWatch::%s(force=%s, arch={%s,%s})",
+              __FUNCTION__, force ? "true" : "false", arch_name, triple_cstr);
   }
 
   bool create = force;
@@ -84,6 +75,7 @@ PlatformSP PlatformRemoteAppleWatch::CreateInstance(bool force,
     switch (arch->GetMachine()) {
     case llvm::Triple::arm:
     case llvm::Triple::aarch64:
+    case llvm::Triple::aarch64_32:
     case llvm::Triple::thumb: {
       const llvm::Triple &triple = arch->GetTriple();
       llvm::Triple::VendorType vendor = triple.getVendor();
@@ -96,7 +88,7 @@ PlatformSP PlatformRemoteAppleWatch::CreateInstance(bool force,
       // Only accept "unknown" for the vendor if the host is Apple and
       // "unknown" wasn't specified (it was just returned because it was NOT
       // specified)
-      case llvm::Triple::UnknownArch:
+      case llvm::Triple::UnknownVendor:
         create = !arch->TripleVendorWasSpecified();
         break;
 
@@ -131,177 +123,65 @@ PlatformSP PlatformRemoteAppleWatch::CreateInstance(bool force,
 #endif
 
   if (create) {
-    if (log)
-      log->Printf("PlatformRemoteAppleWatch::%s() creating platform",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "PlatformRemoteAppleWatch::%s() creating platform",
+              __FUNCTION__);
 
     return lldb::PlatformSP(new PlatformRemoteAppleWatch());
   }
 
-  if (log)
-    log->Printf("PlatformRemoteAppleWatch::%s() aborting creation of platform",
-                __FUNCTION__);
+  LLDB_LOGF(log, "PlatformRemoteAppleWatch::%s() aborting creation of platform",
+            __FUNCTION__);
 
   return lldb::PlatformSP();
 }
 
-lldb_private::ConstString PlatformRemoteAppleWatch::GetPluginNameStatic() {
-  static ConstString g_name("remote-watchos");
-  return g_name;
-}
-
-const char *PlatformRemoteAppleWatch::GetDescriptionStatic() {
+llvm::StringRef PlatformRemoteAppleWatch::GetDescriptionStatic() {
   return "Remote Apple Watch platform plug-in.";
 }
 
-//------------------------------------------------------------------
 /// Default Constructor
-//------------------------------------------------------------------
 PlatformRemoteAppleWatch::PlatformRemoteAppleWatch()
     : PlatformRemoteDarwinDevice() {}
 
-bool PlatformRemoteAppleWatch::GetSupportedArchitectureAtIndex(uint32_t idx,
-                                                               ArchSpec &arch) {
+std::vector<ArchSpec> PlatformRemoteAppleWatch::GetSupportedArchitectures() {
   ArchSpec system_arch(GetSystemArchitecture());
 
   const ArchSpec::Core system_core = system_arch.GetCore();
   switch (system_core) {
   default:
-    switch (idx) {
-    case 0:
-      arch.SetTriple("arm64-apple-watchos");
-      return true;
-    case 1:
-      arch.SetTriple("armv7k-apple-watchos");
-      return true;
-    case 2:
-      arch.SetTriple("armv7s-apple-watchos");
-      return true;
-    case 3:
-      arch.SetTriple("armv7-apple-watchos");
-      return true;
-    case 4:
-      arch.SetTriple("thumbv7k-apple-watchos");
-      return true;
-    case 5:
-      arch.SetTriple("thumbv7-apple-watchos");
-      return true;
-    case 6:
-      arch.SetTriple("thumbv7s-apple-watchos");
-      return true;
-    default:
-      break;
-    }
-    break;
-
   case ArchSpec::eCore_arm_arm64:
-    switch (idx) {
-    case 0:
-      arch.SetTriple("arm64-apple-watchos");
-      return true;
-    case 1:
-      arch.SetTriple("armv7k-apple-watchos");
-      return true;
-    case 2:
-      arch.SetTriple("armv7s-apple-watchos");
-      return true;
-    case 3:
-      arch.SetTriple("armv7-apple-watchos");
-      return true;
-    case 4:
-      arch.SetTriple("thumbv7k-apple-watchos");
-      return true;
-    case 5:
-      arch.SetTriple("thumbv7-apple-watchos");
-      return true;
-    case 6:
-      arch.SetTriple("thumbv7s-apple-watchos");
-      return true;
-    default:
-      break;
-    }
-    break;
+    return {
+        ArchSpec("arm64-apple-watchos"),    ArchSpec("armv7k-apple-watchos"),
+        ArchSpec("armv7s-apple-watchos"),   ArchSpec("armv7-apple-watchos"),
+        ArchSpec("thumbv7k-apple-watchos"), ArchSpec("thumbv7-apple-watchos"),
+        ArchSpec("thumbv7s-apple-watchos"), ArchSpec("arm64_32-apple-watchos")};
 
   case ArchSpec::eCore_arm_armv7k:
-    switch (idx) {
-    case 0:
-      arch.SetTriple("armv7k-apple-watchos");
-      return true;
-    case 1:
-      arch.SetTriple("armv7s-apple-watchos");
-      return true;
-    case 2:
-      arch.SetTriple("armv7-apple-watchos");
-      return true;
-    case 3:
-      arch.SetTriple("thumbv7k-apple-watchos");
-      return true;
-    case 4:
-      arch.SetTriple("thumbv7-apple-watchos");
-      return true;
-    case 5:
-      arch.SetTriple("thumbv7s-apple-watchos");
-      return true;
-    default:
-      break;
-    }
-    break;
+    return {
+        ArchSpec("armv7k-apple-watchos"),  ArchSpec("armv7s-apple-watchos"),
+        ArchSpec("armv7-apple-watchos"),   ArchSpec("thumbv7k-apple-watchos"),
+        ArchSpec("thumbv7-apple-watchos"), ArchSpec("thumbv7s-apple-watchos"),
+        ArchSpec("arm64_32-apple-watchos")};
 
   case ArchSpec::eCore_arm_armv7s:
-    switch (idx) {
-    case 0:
-      arch.SetTriple("armv7s-apple-watchos");
-      return true;
-    case 1:
-      arch.SetTriple("armv7k-apple-watchos");
-      return true;
-    case 2:
-      arch.SetTriple("armv7-apple-watchos");
-      return true;
-    case 3:
-      arch.SetTriple("thumbv7k-apple-watchos");
-      return true;
-    case 4:
-      arch.SetTriple("thumbv7-apple-watchos");
-      return true;
-    case 5:
-      arch.SetTriple("thumbv7s-apple-watchos");
-      return true;
-    default:
-      break;
-    }
-    break;
+    return {
+        ArchSpec("armv7s-apple-watchos"),  ArchSpec("armv7k-apple-watchos"),
+        ArchSpec("armv7-apple-watchos"),   ArchSpec("thumbv7k-apple-watchos"),
+        ArchSpec("thumbv7-apple-watchos"), ArchSpec("thumbv7s-apple-watchos"),
+        ArchSpec("arm64_32-apple-watchos")};
 
   case ArchSpec::eCore_arm_armv7:
-    switch (idx) {
-    case 0:
-      arch.SetTriple("armv7-apple-watchos");
-      return true;
-    case 1:
-      arch.SetTriple("armv7k-apple-watchos");
-      return true;
-    case 2:
-      arch.SetTriple("thumbv7k-apple-watchos");
-      return true;
-    case 3:
-      arch.SetTriple("thumbv7-apple-watchos");
-      return true;
-    default:
-      break;
-    }
-    break;
+    return {ArchSpec("armv7-apple-watchos"), ArchSpec("armv7k-apple-watchos"),
+            ArchSpec("thumbv7k-apple-watchos"),
+            ArchSpec("thumbv7-apple-watchos"),
+            ArchSpec("arm64_32-apple-watchos")};
   }
-  arch.Clear();
-  return false;
 }
 
-void PlatformRemoteAppleWatch::GetDeviceSupportDirectoryNames (std::vector<std::string> &dirnames) 
-{
-    dirnames.clear();
-    dirnames.push_back("watchOS DeviceSupport");
+llvm::StringRef PlatformRemoteAppleWatch::GetDeviceSupportDirectoryName() {
+  return "watchOS DeviceSupport";
 }
 
-std::string PlatformRemoteAppleWatch::GetPlatformName ()
-{
-    return "WatchOS.platform";
+llvm::StringRef PlatformRemoteAppleWatch::GetPlatformName() {
+  return "WatchOS.platform";
 }

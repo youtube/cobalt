@@ -1,9 +1,8 @@
-//===-- SBListener.cpp ------------------------------------------*- C++ -*-===//
+//===-- SBListener.cpp ----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,30 +11,30 @@
 #include "lldb/API/SBDebugger.h"
 #include "lldb/API/SBEvent.h"
 #include "lldb/API/SBStream.h"
-#include "lldb/Core/Broadcaster.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/Listener.h"
-#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Broadcaster.h"
+#include "lldb/Utility/Instrumentation.h"
+#include "lldb/Utility/Listener.h"
 #include "lldb/Utility/StreamString.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-SBListener::SBListener() : m_opaque_sp(), m_unused_ptr(NULL) {}
+SBListener::SBListener() { LLDB_INSTRUMENT_VA(this); }
 
 SBListener::SBListener(const char *name)
     : m_opaque_sp(Listener::MakeListener(name)), m_unused_ptr(nullptr) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-
-  if (log)
-    log->Printf("SBListener::SBListener (name=\"%s\") => SBListener(%p)", name,
-                static_cast<void *>(m_opaque_sp.get()));
+  LLDB_INSTRUMENT_VA(this, name);
 }
 
 SBListener::SBListener(const SBListener &rhs)
-    : m_opaque_sp(rhs.m_opaque_sp), m_unused_ptr(nullptr) {}
+    : m_opaque_sp(rhs.m_opaque_sp), m_unused_ptr(nullptr) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
 const lldb::SBListener &SBListener::operator=(const lldb::SBListener &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs) {
     m_opaque_sp = rhs.m_opaque_sp;
     m_unused_ptr = nullptr;
@@ -46,17 +45,29 @@ const lldb::SBListener &SBListener::operator=(const lldb::SBListener &rhs) {
 SBListener::SBListener(const lldb::ListenerSP &listener_sp)
     : m_opaque_sp(listener_sp), m_unused_ptr(nullptr) {}
 
-SBListener::~SBListener() {}
+SBListener::~SBListener() = default;
 
-bool SBListener::IsValid() const { return m_opaque_sp != nullptr; }
+bool SBListener::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBListener::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp != nullptr;
+}
 
 void SBListener::AddEvent(const SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, event);
+
   EventSP &event_sp = event.GetSP();
   if (event_sp)
     m_opaque_sp->AddEvent(event_sp);
 }
 
 void SBListener::Clear() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_sp)
     m_opaque_sp->Clear();
 }
@@ -64,6 +75,8 @@ void SBListener::Clear() {
 uint32_t SBListener::StartListeningForEventClass(SBDebugger &debugger,
                                                  const char *broadcaster_class,
                                                  uint32_t event_mask) {
+  LLDB_INSTRUMENT_VA(this, debugger, broadcaster_class, event_mask);
+
   if (m_opaque_sp) {
     Debugger *lldb_debugger = debugger.get();
     if (!lldb_debugger)
@@ -78,6 +91,8 @@ uint32_t SBListener::StartListeningForEventClass(SBDebugger &debugger,
 bool SBListener::StopListeningForEventClass(SBDebugger &debugger,
                                             const char *broadcaster_class,
                                             uint32_t event_mask) {
+  LLDB_INSTRUMENT_VA(this, debugger, broadcaster_class, event_mask);
+
   if (m_opaque_sp) {
     Debugger *lldb_debugger = debugger.get();
     if (!lldb_debugger)
@@ -91,40 +106,12 @@ bool SBListener::StopListeningForEventClass(SBDebugger &debugger,
 
 uint32_t SBListener::StartListeningForEvents(const SBBroadcaster &broadcaster,
                                              uint32_t event_mask) {
+  LLDB_INSTRUMENT_VA(this, broadcaster, event_mask);
+
   uint32_t acquired_event_mask = 0;
   if (m_opaque_sp && broadcaster.IsValid()) {
     acquired_event_mask =
         m_opaque_sp->StartListeningForEvents(broadcaster.get(), event_mask);
-  }
-
-  Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API);
-  if (log) {
-    StreamString sstr_requested;
-    StreamString sstr_acquired;
-
-    Broadcaster *lldb_broadcaster = broadcaster.get();
-    if (lldb_broadcaster) {
-      const bool got_requested_names =
-          lldb_broadcaster->GetEventNames(sstr_requested, event_mask, false);
-      const bool got_acquired_names = lldb_broadcaster->GetEventNames(
-          sstr_acquired, acquired_event_mask, false);
-      log->Printf("SBListener(%p)::StartListeneingForEvents "
-                  "(SBBroadcaster(%p): %s, event_mask=0x%8.8x%s%s%s) => "
-                  "0x%8.8x%s%s%s",
-                  static_cast<void *>(m_opaque_sp.get()),
-                  static_cast<void *>(lldb_broadcaster),
-                  lldb_broadcaster->GetBroadcasterName().GetCString(),
-                  event_mask, got_requested_names ? " (" : "",
-                  sstr_requested.GetData(), got_requested_names ? ")" : "",
-                  acquired_event_mask, got_acquired_names ? " (" : "",
-                  sstr_acquired.GetData(), got_acquired_names ? ")" : "");
-    } else {
-      log->Printf("SBListener(%p)::StartListeneingForEvents "
-                  "(SBBroadcaster(%p), event_mask=0x%8.8x) => 0x%8.8x",
-                  static_cast<void *>(m_opaque_sp.get()),
-                  static_cast<void *>(lldb_broadcaster), event_mask,
-                  acquired_event_mask);
-    }
   }
 
   return acquired_event_mask;
@@ -132,6 +119,8 @@ uint32_t SBListener::StartListeningForEvents(const SBBroadcaster &broadcaster,
 
 bool SBListener::StopListeningForEvents(const SBBroadcaster &broadcaster,
                                         uint32_t event_mask) {
+  LLDB_INSTRUMENT_VA(this, broadcaster, event_mask);
+
   if (m_opaque_sp && broadcaster.IsValid()) {
     return m_opaque_sp->StopListeningForEvents(broadcaster.get(), event_mask);
   }
@@ -139,20 +128,8 @@ bool SBListener::StopListeningForEvents(const SBBroadcaster &broadcaster,
 }
 
 bool SBListener::WaitForEvent(uint32_t timeout_secs, SBEvent &event) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log) {
-    if (timeout_secs == UINT32_MAX) {
-      log->Printf("SBListener(%p)::WaitForEvent (timeout_secs=INFINITE, "
-                  "SBEvent(%p))...",
-                  static_cast<void *>(m_opaque_sp.get()),
-                  static_cast<void *>(event.get()));
-    } else {
-      log->Printf(
-          "SBListener(%p)::WaitForEvent (timeout_secs=%d, SBEvent(%p))...",
-          static_cast<void *>(m_opaque_sp.get()), timeout_secs,
-          static_cast<void *>(event.get()));
-    }
-  }
+  LLDB_INSTRUMENT_VA(this, timeout_secs, event);
+
   bool success = false;
 
   if (m_opaque_sp) {
@@ -169,27 +146,16 @@ bool SBListener::WaitForEvent(uint32_t timeout_secs, SBEvent &event) {
     }
   }
 
-  if (log) {
-    if (timeout_secs == UINT32_MAX) {
-      log->Printf("SBListener(%p)::WaitForEvent (timeout_secs=INFINITE, "
-                  "SBEvent(%p)) => %i",
-                  static_cast<void *>(m_opaque_sp.get()),
-                  static_cast<void *>(event.get()), success);
-    } else {
-      log->Printf(
-          "SBListener(%p)::WaitForEvent (timeout_secs=%d, SBEvent(%p)) => %i",
-          static_cast<void *>(m_opaque_sp.get()), timeout_secs,
-          static_cast<void *>(event.get()), success);
-    }
-  }
   if (!success)
-    event.reset(NULL);
+    event.reset(nullptr);
   return success;
 }
 
 bool SBListener::WaitForEventForBroadcaster(uint32_t num_seconds,
                                             const SBBroadcaster &broadcaster,
                                             SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, num_seconds, broadcaster, event);
+
   if (m_opaque_sp && broadcaster.IsValid()) {
     Timeout<std::micro> timeout(llvm::None);
     if (num_seconds != UINT32_MAX)
@@ -201,13 +167,15 @@ bool SBListener::WaitForEventForBroadcaster(uint32_t num_seconds,
       return true;
     }
   }
-  event.reset(NULL);
+  event.reset(nullptr);
   return false;
 }
 
 bool SBListener::WaitForEventForBroadcasterWithType(
     uint32_t num_seconds, const SBBroadcaster &broadcaster,
     uint32_t event_type_mask, SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, num_seconds, broadcaster, event_type_mask, event);
+
   if (m_opaque_sp && broadcaster.IsValid()) {
     Timeout<std::micro> timeout(llvm::None);
     if (num_seconds != UINT32_MAX)
@@ -219,42 +187,50 @@ bool SBListener::WaitForEventForBroadcasterWithType(
       return true;
     }
   }
-  event.reset(NULL);
+  event.reset(nullptr);
   return false;
 }
 
 bool SBListener::PeekAtNextEvent(SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, event);
+
   if (m_opaque_sp) {
     event.reset(m_opaque_sp->PeekAtNextEvent());
     return event.IsValid();
   }
-  event.reset(NULL);
+  event.reset(nullptr);
   return false;
 }
 
 bool SBListener::PeekAtNextEventForBroadcaster(const SBBroadcaster &broadcaster,
                                                SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, broadcaster, event);
+
   if (m_opaque_sp && broadcaster.IsValid()) {
     event.reset(m_opaque_sp->PeekAtNextEventForBroadcaster(broadcaster.get()));
     return event.IsValid();
   }
-  event.reset(NULL);
+  event.reset(nullptr);
   return false;
 }
 
 bool SBListener::PeekAtNextEventForBroadcasterWithType(
     const SBBroadcaster &broadcaster, uint32_t event_type_mask,
     SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, broadcaster, event_type_mask, event);
+
   if (m_opaque_sp && broadcaster.IsValid()) {
     event.reset(m_opaque_sp->PeekAtNextEventForBroadcasterWithType(
         broadcaster.get(), event_type_mask));
     return event.IsValid();
   }
-  event.reset(NULL);
+  event.reset(nullptr);
   return false;
 }
 
 bool SBListener::GetNextEvent(SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, event);
+
   if (m_opaque_sp) {
     EventSP event_sp;
     if (m_opaque_sp->GetEvent(event_sp, std::chrono::seconds(0))) {
@@ -262,12 +238,14 @@ bool SBListener::GetNextEvent(SBEvent &event) {
       return true;
     }
   }
-  event.reset(NULL);
+  event.reset(nullptr);
   return false;
 }
 
 bool SBListener::GetNextEventForBroadcaster(const SBBroadcaster &broadcaster,
                                             SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, broadcaster, event);
+
   if (m_opaque_sp && broadcaster.IsValid()) {
     EventSP event_sp;
     if (m_opaque_sp->GetEventForBroadcaster(broadcaster.get(), event_sp,
@@ -276,13 +254,15 @@ bool SBListener::GetNextEventForBroadcaster(const SBBroadcaster &broadcaster,
       return true;
     }
   }
-  event.reset(NULL);
+  event.reset(nullptr);
   return false;
 }
 
 bool SBListener::GetNextEventForBroadcasterWithType(
     const SBBroadcaster &broadcaster, uint32_t event_type_mask,
     SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, broadcaster, event_type_mask, event);
+
   if (m_opaque_sp && broadcaster.IsValid()) {
     EventSP event_sp;
     if (m_opaque_sp->GetEventForBroadcasterWithType(broadcaster.get(),
@@ -292,11 +272,13 @@ bool SBListener::GetNextEventForBroadcasterWithType(
       return true;
     }
   }
-  event.reset(NULL);
+  event.reset(nullptr);
   return false;
 }
 
 bool SBListener::HandleBroadcastEvent(const SBEvent &event) {
+  LLDB_INSTRUMENT_VA(this, event);
+
   if (m_opaque_sp)
     return m_opaque_sp->HandleBroadcastEvent(event.GetSP());
   return false;

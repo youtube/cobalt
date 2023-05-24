@@ -1,6 +1,6 @@
 
 #include "polly/Support/SCEVValidator.h"
-#include "polly/ScopInfo.h"
+#include "polly/ScopDetection.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
@@ -117,17 +117,6 @@ raw_ostream &operator<<(raw_ostream &OS, class ValidatorResult &VR) {
   return OS;
 }
 
-bool polly::isConstCall(llvm::CallInst *Call) {
-  if (Call->mayReadOrWriteMemory())
-    return false;
-
-  for (auto &Operand : Call->arg_operands())
-    if (!isa<ConstantInt>(&Operand))
-      return false;
-
-  return true;
-}
-
 /// Check if a SCEV is valid in a SCoP.
 struct SCEVValidator
     : public SCEVVisitor<SCEVValidator, class ValidatorResult> {
@@ -159,6 +148,10 @@ public:
     if (Type == SCEVType::IV)
       return ValidatorResult(SCEVType::INVALID);
     return ValidatorResult(SCEVType::PARAM, Expr);
+  }
+
+  class ValidatorResult visitPtrToIntExpr(const SCEVPtrToIntExpr *Expr) {
+    return visit(Expr->getOperand());
   }
 
   class ValidatorResult visitTruncateExpr(const SCEVTruncateExpr *Expr) {
@@ -294,6 +287,21 @@ public:
     return Return;
   }
 
+  class ValidatorResult visitSMinExpr(const SCEVSMinExpr *Expr) {
+    ValidatorResult Return(SCEVType::INT);
+
+    for (int i = 0, e = Expr->getNumOperands(); i < e; ++i) {
+      ValidatorResult Op = visit(Expr->getOperand(i));
+
+      if (!Op.isValid())
+        return Op;
+
+      Return.merge(Op);
+    }
+
+    return Return;
+  }
+
   class ValidatorResult visitUMaxExpr(const SCEVUMaxExpr *Expr) {
     // We do not support unsigned max operations. If 'Expr' is constant during
     // Scop execution we treat this as a parameter, otherwise we bail out.
@@ -309,6 +317,39 @@ public:
     return ValidatorResult(SCEVType::PARAM, Expr);
   }
 
+  class ValidatorResult visitUMinExpr(const SCEVUMinExpr *Expr) {
+    // We do not support unsigned min operations. If 'Expr' is constant during
+    // Scop execution we treat this as a parameter, otherwise we bail out.
+    for (int i = 0, e = Expr->getNumOperands(); i < e; ++i) {
+      ValidatorResult Op = visit(Expr->getOperand(i));
+
+      if (!Op.isConstant()) {
+        LLVM_DEBUG(dbgs() << "INVALID: UMinExpr has a non-constant operand");
+        return ValidatorResult(SCEVType::INVALID);
+      }
+    }
+
+    return ValidatorResult(SCEVType::PARAM, Expr);
+  }
+
+  class ValidatorResult
+  visitSequentialUMinExpr(const SCEVSequentialUMinExpr *Expr) {
+    // We do not support unsigned min operations. If 'Expr' is constant during
+    // Scop execution we treat this as a parameter, otherwise we bail out.
+    for (int i = 0, e = Expr->getNumOperands(); i < e; ++i) {
+      ValidatorResult Op = visit(Expr->getOperand(i));
+
+      if (!Op.isConstant()) {
+        LLVM_DEBUG(
+            dbgs()
+            << "INVALID: SCEVSequentialUMinExpr has a non-constant operand");
+        return ValidatorResult(SCEVType::INVALID);
+      }
+    }
+
+    return ValidatorResult(SCEVType::PARAM, Expr);
+  }
+
   ValidatorResult visitGenericInst(Instruction *I, const SCEV *S) {
     if (R->contains(I)) {
       LLVM_DEBUG(dbgs() << "INVALID: UnknownExpr references an instruction "
@@ -316,18 +357,6 @@ public:
       return ValidatorResult(SCEVType::INVALID);
     }
 
-    return ValidatorResult(SCEVType::PARAM, S);
-  }
-
-  ValidatorResult visitCallInstruction(Instruction *I, const SCEV *S) {
-    assert(I->getOpcode() == Instruction::Call && "Call instruction expected");
-
-    if (R->contains(I)) {
-      auto Call = cast<CallInst>(I);
-
-      if (!isConstCall(Call))
-        return ValidatorResult(SCEVType::INVALID, S);
-    }
     return ValidatorResult(SCEVType::PARAM, S);
   }
 
@@ -414,51 +443,24 @@ public:
       switch (I->getOpcode()) {
       case Instruction::IntToPtr:
         return visit(SE.getSCEVAtScope(I->getOperand(0), Scope));
-      case Instruction::PtrToInt:
-        return visit(SE.getSCEVAtScope(I->getOperand(0), Scope));
       case Instruction::Load:
         return visitLoadInstruction(I, Expr);
       case Instruction::SDiv:
         return visitSDivInstruction(I, Expr);
       case Instruction::SRem:
         return visitSRemInstruction(I, Expr);
-      case Instruction::Call:
-        return visitCallInstruction(I, Expr);
       default:
         return visitGenericInst(I, Expr);
       }
     }
 
-    return ValidatorResult(SCEVType::PARAM, Expr);
-  }
-};
-
-class SCEVHasIVParams {
-  bool HasIVParams = false;
-
-public:
-  SCEVHasIVParams() {}
-
-  bool follow(const SCEV *S) {
-    const SCEVUnknown *Unknown = dyn_cast<SCEVUnknown>(S);
-    if (!Unknown)
-      return true;
-
-    CallInst *Call = dyn_cast<CallInst>(Unknown->getValue());
-
-    if (!Call)
-      return true;
-
-    if (isConstCall(Call)) {
-      HasIVParams = true;
-      return false;
+    if (Expr->getType()->isPointerTy()) {
+      if (isa<ConstantPointerNull>(V))
+        return ValidatorResult(SCEVType::INT); // "int"
     }
 
-    return true;
+    return ValidatorResult(SCEVType::PARAM, Expr);
   }
-
-  bool isDone() { return HasIVParams; }
-  bool hasIVParams() { return HasIVParams; }
 };
 
 /// Check whether a SCEV refers to an SSA name defined inside a region.
@@ -478,11 +480,6 @@ public:
     if (auto Unknown = dyn_cast<SCEVUnknown>(S)) {
       Instruction *Inst = dyn_cast<Instruction>(Unknown->getValue());
 
-      CallInst *Call = dyn_cast<CallInst>(Unknown->getValue());
-
-      if (Call && isConstCall(Call))
-        return false;
-
       if (Inst) {
         // When we invariant load hoist a load, we first make sure that there
         // can be no dependences created by it in the Scop region. So, we should
@@ -493,7 +490,7 @@ public:
         // are strictly not necessary by tracking the invariant load as a
         // scalar.
         LoadInst *LI = dyn_cast<LoadInst>(Inst);
-        if (LI && ILS.count(LI) > 0)
+        if (LI && ILS.contains(LI))
           return false;
       }
 
@@ -584,13 +581,6 @@ void findValues(const SCEV *Expr, ScalarEvolution &SE,
   SCEVFindValues FindValues(SE, Values);
   SCEVTraversal<SCEVFindValues> ST(FindValues);
   ST.visitAll(Expr);
-}
-
-bool hasIVParams(const SCEV *Expr) {
-  SCEVHasIVParams HasIVParams;
-  SCEVTraversal<SCEVHasIVParams> ST(HasIVParams);
-  ST.visitAll(Expr);
-  return HasIVParams.hasIVParams();
 }
 
 bool hasScalarDepsInsideRegion(const SCEV *Expr, const Region *R,
@@ -740,8 +730,7 @@ extractConstantFactor(const SCEV *S, ScalarEvolution &SE) {
 }
 
 const SCEV *tryForwardThroughPHI(const SCEV *Expr, Region &R,
-                                 ScalarEvolution &SE, LoopInfo &LI,
-                                 const DominatorTree &DT) {
+                                 ScalarEvolution &SE, ScopDetection *SD) {
   if (auto *Unknown = dyn_cast<SCEVUnknown>(Expr)) {
     Value *V = Unknown->getValue();
     auto *PHI = dyn_cast<PHINode>(V);
@@ -752,7 +741,7 @@ const SCEV *tryForwardThroughPHI(const SCEV *Expr, Region &R,
 
     for (unsigned i = 0; i < PHI->getNumIncomingValues(); i++) {
       BasicBlock *Incoming = PHI->getIncomingBlock(i);
-      if (isErrorBlock(*Incoming, R, LI, DT) && R.contains(Incoming))
+      if (SD->isErrorBlock(*Incoming, R) && R.contains(Incoming))
         continue;
       if (Final)
         return Expr;
@@ -765,12 +754,11 @@ const SCEV *tryForwardThroughPHI(const SCEV *Expr, Region &R,
   return Expr;
 }
 
-Value *getUniqueNonErrorValue(PHINode *PHI, Region *R, LoopInfo &LI,
-                              const DominatorTree &DT) {
+Value *getUniqueNonErrorValue(PHINode *PHI, Region *R, ScopDetection *SD) {
   Value *V = nullptr;
   for (unsigned i = 0; i < PHI->getNumIncomingValues(); i++) {
     BasicBlock *BB = PHI->getIncomingBlock(i);
-    if (!isErrorBlock(*BB, *R, LI, DT)) {
+    if (!SD->isErrorBlock(*BB, *R)) {
       if (V)
         return nullptr;
       V = PHI->getIncomingValue(i);

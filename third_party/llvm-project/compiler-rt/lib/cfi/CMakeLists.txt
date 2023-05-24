@@ -1,13 +1,18 @@
 add_compiler_rt_component(cfi)
 
-if(OS_NAME MATCHES "Linux")
-  set(CFI_SOURCES cfi.cc)
+if(OS_NAME MATCHES "Linux" OR OS_NAME MATCHES "FreeBSD" OR OS_NAME MATCHES "NetBSD")
+  set(CFI_SOURCES
+    cfi.cpp
+    )
 
   include_directories(..)
 
   set(CFI_CFLAGS
     ${SANITIZER_COMMON_CFLAGS}
   )
+
+  # Too many existing bugs, needs cleanup.
+  append_list_if(COMPILER_RT_HAS_WNO_FORMAT -Wno-format CFI_CFLAGS)
 
   set(CFI_DIAG_CFLAGS
     -DCFI_ENABLE_DIAG=1
@@ -38,4 +43,4 @@ if(OS_NAME MATCHES "Linux")
   endforeach()
 endif()
 
-add_compiler_rt_resource_file(cfi_blacklist cfi_blacklist.txt cfi)
+add_compiler_rt_resource_file(cfi_ignorelist cfi_ignorelist.txt cfi)

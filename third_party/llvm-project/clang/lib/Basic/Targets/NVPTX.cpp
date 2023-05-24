@@ -1,9 +1,8 @@
 //===--- NVPTX.cpp - Implement NVPTX target feature support ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -45,6 +44,15 @@ NVPTXTargetInfo::NVPTXTargetInfo(const llvm::Triple &Triple,
     if (!Feature.startswith("+ptx"))
       continue;
     PTXVersion = llvm::StringSwitch<unsigned>(Feature)
+                     .Case("+ptx75", 75)
+                     .Case("+ptx74", 74)
+                     .Case("+ptx73", 73)
+                     .Case("+ptx72", 72)
+                     .Case("+ptx71", 71)
+                     .Case("+ptx70", 70)
+                     .Case("+ptx65", 65)
+                     .Case("+ptx64", 64)
+                     .Case("+ptx63", 63)
                      .Case("+ptx61", 61)
                      .Case("+ptx60", 60)
                      .Case("+ptx50", 50)
@@ -118,7 +126,7 @@ NVPTXTargetInfo::NVPTXTargetInfo(const llvm::Triple &Triple,
   LongAlign = HostTarget->getLongAlign();
   LongLongWidth = HostTarget->getLongLongWidth();
   LongLongAlign = HostTarget->getLongLongAlign();
-  MinGlobalAlign = HostTarget->getMinGlobalAlign();
+  MinGlobalAlign = HostTarget->getMinGlobalAlign(/* TypeSize = */ 0);
   NewAlign = HostTarget->getNewAlign();
   DefaultAlignForAttributeAligned =
       HostTarget->getDefaultAlignForAttributeAligned();
@@ -177,19 +185,40 @@ void NVPTXTargetInfo::getTargetDefines(const LangOptions &Opts,
       switch (GPU) {
       case CudaArch::GFX600:
       case CudaArch::GFX601:
+      case CudaArch::GFX602:
       case CudaArch::GFX700:
       case CudaArch::GFX701:
       case CudaArch::GFX702:
       case CudaArch::GFX703:
       case CudaArch::GFX704:
+      case CudaArch::GFX705:
       case CudaArch::GFX801:
       case CudaArch::GFX802:
       case CudaArch::GFX803:
+      case CudaArch::GFX805:
       case CudaArch::GFX810:
       case CudaArch::GFX900:
       case CudaArch::GFX902:
+      case CudaArch::GFX904:
+      case CudaArch::GFX906:
+      case CudaArch::GFX908:
+      case CudaArch::GFX909:
+      case CudaArch::GFX90a:
+      case CudaArch::GFX90c:
+      case CudaArch::GFX1010:
+      case CudaArch::GFX1011:
+      case CudaArch::GFX1012:
+      case CudaArch::GFX1013:
+      case CudaArch::GFX1030:
+      case CudaArch::GFX1031:
+      case CudaArch::GFX1032:
+      case CudaArch::GFX1033:
+      case CudaArch::GFX1034:
+      case CudaArch::GFX1035:
+      case CudaArch::Generic:
       case CudaArch::LAST:
         break;
+      case CudaArch::UNUSED:
       case CudaArch::UNKNOWN:
         assert(false && "No GPU arch when compiling CUDA device code.");
         return "";
@@ -221,6 +250,12 @@ void NVPTXTargetInfo::getTargetDefines(const LangOptions &Opts,
         return "700";
       case CudaArch::SM_72:
         return "720";
+      case CudaArch::SM_75:
+        return "750";
+      case CudaArch::SM_80:
+        return "800";
+      case CudaArch::SM_86:
+        return "860";
       }
       llvm_unreachable("unhandled CudaArch");
     }();

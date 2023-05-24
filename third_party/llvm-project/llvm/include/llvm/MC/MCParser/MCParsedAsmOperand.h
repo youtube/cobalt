@@ -1,9 +1,8 @@
 //===- llvm/MC/MCParsedAsmOperand.h - Asm Parser Operand --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 #define LLVM_MC_MCPARSER_MCPARSEDASMOPERAND_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Support/SMLoc.h"
 #include <string>
 
@@ -72,10 +72,14 @@ public:
   /// variable/label?   Only valid when parsing MS-style inline assembly.
   virtual bool needAddressOf() const { return false; }
 
-  /// isOffsetOf - Do we need to emit code to get the offset of the variable,
-  /// rather then the value of the variable?   Only valid when parsing MS-style
-  /// inline assembly.
-  virtual bool isOffsetOf() const { return false; }
+  /// isOffsetOfLocal - Do we need to emit code to get the offset of the local
+  /// variable, rather than its value?   Only valid when parsing MS-style inline
+  /// assembly.
+  virtual bool isOffsetOfLocal() const { return false; }
+
+  /// isMemPlaceholder - Do we need to ignore the constraint, rather than emit
+  /// code? Only valid when parsing MS-style inline assembly.
+  virtual bool isMemPlaceholder(const MCInstrDesc &Desc) const { return false; }
 
   /// getOffsetOfLoc - Get the location of the offset operator.
   virtual SMLoc getOffsetOfLoc() const { return SMLoc(); }

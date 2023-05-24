@@ -1,9 +1,8 @@
 //===- Diagnostic.cpp - C Language Family Diagnostic Handling -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -41,8 +40,8 @@
 
 using namespace clang;
 
-const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
-                                           DiagNullabilityKind nullability) {
+const StreamingDiagnostic &clang::operator<<(const StreamingDiagnostic &DB,
+                                             DiagNullabilityKind nullability) {
   StringRef string;
   switch (nullability.first) {
   case NullabilityKind::NonNull:
@@ -56,9 +55,21 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
   case NullabilityKind::Unspecified:
     string = nullability.second ? "'null_unspecified'" : "'_Null_unspecified'";
     break;
+
+  case NullabilityKind::NullableResult:
+    assert(!nullability.second &&
+           "_Nullable_result isn't supported as context-sensitive keyword");
+    string = "_Nullable_result";
+    break;
   }
 
   DB.AddString(string);
+  return DB;
+}
+
+const StreamingDiagnostic &clang::operator<<(const StreamingDiagnostic &DB,
+                                             llvm::Error &&E) {
+  DB.AddString(toString(std::move(E)));
   return DB;
 }
 
@@ -87,6 +98,14 @@ DiagnosticsEngine::~DiagnosticsEngine() {
   // If we own the diagnostic client, destroy it first so that it can access the
   // engine from its destructor.
   setClient(nullptr);
+}
+
+void DiagnosticsEngine::dump() const {
+  DiagStatesByLoc.dump(*SourceMgr);
+}
+
+void DiagnosticsEngine::dump(StringRef DiagName) const {
+  DiagStatesByLoc.dump(*SourceMgr, DiagName);
 }
 
 void DiagnosticsEngine::setClient(DiagnosticConsumer *client,
@@ -138,19 +157,20 @@ void DiagnosticsEngine::Reset() {
 }
 
 void DiagnosticsEngine::SetDelayedDiagnostic(unsigned DiagID, StringRef Arg1,
-                                             StringRef Arg2) {
+                                             StringRef Arg2, StringRef Arg3) {
   if (DelayedDiagID)
     return;
 
   DelayedDiagID = DiagID;
   DelayedDiagArg1 = Arg1.str();
   DelayedDiagArg2 = Arg2.str();
+  DelayedDiagArg3 = Arg3.str();
 }
 
 void DiagnosticsEngine::ReportDelayed() {
   unsigned ID = DelayedDiagID;
   DelayedDiagID = 0;
-  Report(ID) << DelayedDiagArg1 << DelayedDiagArg2;
+  Report(ID) << DelayedDiagArg1 << DelayedDiagArg2 << DelayedDiagArg3;
 }
 
 void DiagnosticsEngine::DiagStateMap::appendFirst(DiagState *State) {
@@ -198,10 +218,9 @@ DiagnosticsEngine::DiagStateMap::lookup(SourceManager &SrcMgr,
 
 DiagnosticsEngine::DiagState *
 DiagnosticsEngine::DiagStateMap::File::lookup(unsigned Offset) const {
-  auto OnePastIt = std::upper_bound(
-      StateTransitions.begin(), StateTransitions.end(), Offset,
-      [](unsigned Offset, const DiagStatePoint &P) {
-        return Offset < P.Offset;
+  auto OnePastIt =
+      llvm::partition_point(StateTransitions, [=](const DiagStatePoint &P) {
+        return P.Offset <= Offset;
       });
   assert(OnePastIt != StateTransitions.begin() && "missing initial state");
   return OnePastIt[-1].State;
@@ -239,7 +258,7 @@ DiagnosticsEngine::DiagStateMap::getFile(SourceManager &SrcMgr,
 void DiagnosticsEngine::DiagStateMap::dump(SourceManager &SrcMgr,
                                            StringRef DiagName) const {
   llvm::errs() << "diagnostic state at ";
-  CurDiagStateLoc.dump(SrcMgr);
+  CurDiagStateLoc.print(llvm::errs(), SrcMgr);
   llvm::errs() << ": " << CurDiagState << "\n";
 
   for (auto &F : Files) {
@@ -252,7 +271,8 @@ void DiagnosticsEngine::DiagStateMap::dump(SourceManager &SrcMgr,
       PrintedOuterHeading = true;
 
       llvm::errs() << "File " << &File << " <FileID " << ID.getHashValue()
-                   << ">: " << SrcMgr.getBuffer(ID)->getBufferIdentifier();
+                   << ">: " << SrcMgr.getBufferOrFake(ID).getBufferIdentifier();
+
       if (F.second.Parent) {
         std::pair<FileID, unsigned> Decomp =
             SrcMgr.getDecomposedIncludedLoc(ID);
@@ -261,7 +281,7 @@ void DiagnosticsEngine::DiagStateMap::dump(SourceManager &SrcMgr,
                      << Decomp.first.getHashValue() << "> ";
         SrcMgr.getLocForStartOfFile(Decomp.first)
               .getLocWithOffset(Decomp.second)
-              .dump(SrcMgr);
+              .print(llvm::errs(), SrcMgr);
       }
       if (File.HasLocalTransitions)
         llvm::errs() << " has_local_transitions";
@@ -281,7 +301,7 @@ void DiagnosticsEngine::DiagStateMap::dump(SourceManager &SrcMgr,
         llvm::errs() << "  ";
         SrcMgr.getLocForStartOfFile(ID)
               .getLocWithOffset(Transition.Offset)
-              .dump(SrcMgr);
+              .print(llvm::errs(), SrcMgr);
         llvm::errs() << ": state " << Transition.State << ":\n";
       };
 
@@ -354,6 +374,12 @@ void DiagnosticsEngine::setSeverity(diag::kind Diag, diag::Severity Map,
   DiagnosticMapping Mapping = makeUserMapping(Map, L);
   Mapping.setUpgradedFromWarning(WasUpgradedFromWarning);
 
+  // Make sure we propagate the NoWarningAsError flag from an existing
+  // mapping (which may be the default mapping).
+  DiagnosticMapping &Info = GetCurDiagState()->getOrAddMapping(Diag);
+  Mapping.setNoWarningAsError(Info.hasNoWarningAsError() ||
+                              Mapping.hasNoWarningAsError());
+
   // Common case; setting all the diagnostics of a group in one place.
   if ((L.isInvalid() || L == DiagStatesByLoc.getCurDiagStateLoc()) &&
       DiagStatesByLoc.getCurDiagState()) {
@@ -386,6 +412,14 @@ bool DiagnosticsEngine::setSeverityForGroup(diag::Flavor Flavor,
     setSeverity(Diag, Map, Loc);
 
   return false;
+}
+
+bool DiagnosticsEngine::setSeverityForGroup(diag::Flavor Flavor,
+                                            diag::Group Group,
+                                            diag::Severity Map,
+                                            SourceLocation Loc) {
+  return setSeverityForGroup(Flavor, Diags->getWarningOptionForGroup(Group),
+                             Map, Loc);
 }
 
 bool DiagnosticsEngine::setDiagnosticGroupWarningAsError(StringRef Group,
@@ -468,13 +502,15 @@ void DiagnosticsEngine::Report(const StoredDiagnostic &storedDiag) {
 
   CurDiagLoc = storedDiag.getLocation();
   CurDiagID = storedDiag.getID();
-  NumDiagArgs = 0;
+  DiagStorage.NumDiagArgs = 0;
 
-  DiagRanges.clear();
-  DiagRanges.append(storedDiag.range_begin(), storedDiag.range_end());
+  DiagStorage.DiagRanges.clear();
+  DiagStorage.DiagRanges.append(storedDiag.range_begin(),
+                                storedDiag.range_end());
 
-  DiagFixItHints.clear();
-  DiagFixItHints.append(storedDiag.fixit_begin(), storedDiag.fixit_end());
+  DiagStorage.FixItHints.clear();
+  DiagStorage.FixItHints.append(storedDiag.fixit_begin(),
+                                storedDiag.fixit_end());
 
   assert(Client && "DiagnosticConsumer not set!");
   Level DiagLevel = storedDiag.getLevel();
@@ -792,7 +828,7 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
   /// QualTypeVals - Pass a vector of arrays so that QualType names can be
   /// compared to see if more information is needed to be printed.
   SmallVector<intptr_t, 2> QualTypeVals;
-  SmallVector<char, 64> Tree;
+  SmallString<64> Tree;
 
   for (unsigned i = 0, e = getNumArgs(); i < e; ++i)
     if (getArgKind(i) == DiagnosticsEngine::ak_qualtype)
@@ -902,7 +938,7 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
     }
     // ---- INTEGERS ----
     case DiagnosticsEngine::ak_sint: {
-      int Val = getArgSInt(ArgNo);
+      int64_t Val = getArgSInt(ArgNo);
 
       if (ModifierIs(Modifier, ModifierLen, "select")) {
         HandleSelectModifier(*this, (unsigned)Val, Argument, ArgumentLen,
@@ -921,7 +957,7 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
       break;
     }
     case DiagnosticsEngine::ak_uint: {
-      unsigned Val = getArgUInt(ArgNo);
+      uint64_t Val = getArgUInt(ArgNo);
 
       if (ModifierIs(Modifier, ModifierLen, "select")) {
         HandleSelectModifier(*this, Val, Argument, ArgumentLen, OutStr);
@@ -975,6 +1011,8 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
       llvm::raw_svector_ostream(OutStr) << '\'' << II->getName() << '\'';
       break;
     }
+    case DiagnosticsEngine::ak_addrspace:
+    case DiagnosticsEngine::ak_qual:
     case DiagnosticsEngine::ak_qualtype:
     case DiagnosticsEngine::ak_declarationname:
     case DiagnosticsEngine::ak_nameddecl:
@@ -1125,13 +1163,13 @@ bool ForwardingDiagnosticConsumer::IncludeInDiagnosticCounts() const {
   return Target.IncludeInDiagnosticCounts();
 }
 
-PartialDiagnostic::StorageAllocator::StorageAllocator() {
+PartialDiagnostic::DiagStorageAllocator::DiagStorageAllocator() {
   for (unsigned I = 0; I != NumCached; ++I)
     FreeList[I] = Cached + I;
   NumFreeListEntries = NumCached;
 }
 
-PartialDiagnostic::StorageAllocator::~StorageAllocator() {
+PartialDiagnostic::DiagStorageAllocator::~DiagStorageAllocator() {
   // Don't assert if we are in a CrashRecovery context, as this invariant may
   // be invalidated during a crash.
   assert((NumFreeListEntries == NumCached ||

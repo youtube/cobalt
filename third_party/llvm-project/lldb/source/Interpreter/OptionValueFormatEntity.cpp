@@ -1,18 +1,13 @@
-//===-- OptionValueFormatEntity.cpp -----------------------------*- C++ -*-===//
+//===-- OptionValueFormatEntity.cpp ---------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/OptionValueFormatEntity.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Module.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Utility/Stream.h"
@@ -20,9 +15,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-OptionValueFormatEntity::OptionValueFormatEntity(const char *default_format)
-    : OptionValue(), m_current_format(), m_default_format(), m_current_entry(),
-      m_default_entry() {
+OptionValueFormatEntity::OptionValueFormatEntity(const char *default_format) {
   if (default_format && default_format[0]) {
     llvm::StringRef default_format_str(default_format);
     Status error = FormatEntity::Parse(default_format_str, m_default_entry);
@@ -34,11 +27,24 @@ OptionValueFormatEntity::OptionValueFormatEntity(const char *default_format)
   }
 }
 
-bool OptionValueFormatEntity::Clear() {
+void OptionValueFormatEntity::Clear() {
   m_current_entry = m_default_entry;
   m_current_format = m_default_format;
   m_value_was_set = false;
-  return true;
+}
+
+static void EscapeBackticks(llvm::StringRef str, std::string &dst) {
+  dst.clear();
+  dst.reserve(str.size());
+
+  for (size_t i = 0, e = str.size(); i != e; ++i) {
+    char c = str[i];
+    if (c == '`') {
+      if (i == 0 || str[i - 1] != '\\')
+        dst += '\\';
+    }
+    dst += c;
+  }
 }
 
 void OptionValueFormatEntity::DumpValue(const ExecutionContext *exe_ctx,
@@ -47,8 +53,10 @@ void OptionValueFormatEntity::DumpValue(const ExecutionContext *exe_ctx,
     strm.Printf("(%s)", GetTypeAsCString());
   if (dump_mask & eDumpOptionValue) {
     if (dump_mask & eDumpOptionType)
-      strm.PutCString(" = \"");
-    strm << m_current_format.c_str() << '"';
+      strm.PutCString(" = ");
+    std::string escaped;
+    EscapeBackticks(m_current_format, escaped);
+    strm << '"' << escaped << '"';
   }
 }
 
@@ -74,7 +82,7 @@ Status OptionValueFormatEntity::SetValueFromString(llvm::StringRef value_str,
       if (first_char == '"' || first_char == '\'') {
         const size_t trimmed_len = trimmed_value_str.size();
         if (trimmed_len == 1 || value_str[trimmed_len - 1] != first_char) {
-          error.SetErrorStringWithFormat("mismatched quotes");
+          error.SetErrorString("mismatched quotes");
           return error;
         }
         value_str = trimmed_value_str.substr(1, trimmed_len - 2);
@@ -84,7 +92,7 @@ Status OptionValueFormatEntity::SetValueFromString(llvm::StringRef value_str,
     error = FormatEntity::Parse(value_str, entry);
     if (error.Success()) {
       m_current_entry = std::move(entry);
-      m_current_format = value_str;
+      m_current_format = std::string(value_str);
       m_value_was_set = true;
       NotifyValueChanged();
     }
@@ -101,11 +109,7 @@ Status OptionValueFormatEntity::SetValueFromString(llvm::StringRef value_str,
   return error;
 }
 
-lldb::OptionValueSP OptionValueFormatEntity::DeepCopy() const {
-  return OptionValueSP(new OptionValueFormatEntity(*this));
-}
-
-size_t OptionValueFormatEntity::AutoComplete(CommandInterpreter &interpreter,
-                                             CompletionRequest &request) {
-  return FormatEntity::AutoComplete(request);
+void OptionValueFormatEntity::AutoComplete(CommandInterpreter &interpreter,
+                                           CompletionRequest &request) {
+  FormatEntity::AutoComplete(request);
 }

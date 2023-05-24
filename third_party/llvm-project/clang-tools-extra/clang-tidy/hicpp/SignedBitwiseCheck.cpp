@@ -1,9 +1,8 @@
 //===--- SignedBitwiseCheck.cpp - clang-tidy-------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,50 +17,60 @@ namespace clang {
 namespace tidy {
 namespace hicpp {
 
+SignedBitwiseCheck::SignedBitwiseCheck(StringRef Name,
+                                       ClangTidyContext *Context)
+    : ClangTidyCheck(Name, Context),
+      IgnorePositiveIntegerLiterals(
+          Options.get("IgnorePositiveIntegerLiterals", false)) {}
+
+void SignedBitwiseCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
+  Options.store(Opts, "IgnorePositiveIntegerLiterals",
+                IgnorePositiveIntegerLiterals);
+}
+
 void SignedBitwiseCheck::registerMatchers(MatchFinder *Finder) {
   const auto SignedIntegerOperand =
-      expr(ignoringImpCasts(hasType(isSignedInteger()))).bind("signed-operand");
+      (IgnorePositiveIntegerLiterals
+           ? expr(ignoringImpCasts(hasType(isSignedInteger())),
+                  unless(integerLiteral()))
+           : expr(ignoringImpCasts(hasType(isSignedInteger()))))
+          .bind("signed-operand");
 
   // The standard [bitmask.types] allows some integral types to be implemented
   // as signed types. Exclude these types from diagnosing for bitwise or(|) and
   // bitwise and(&). Shifting and complementing such values is still not
   // allowed.
-  const auto BitmaskType = namedDecl(anyOf(
-      hasName("::std::locale::category"), hasName("::std::ctype_base::mask"),
-      hasName("::std::ios_base::fmtflags"), hasName("::std::ios_base::iostate"),
-      hasName("::std::ios_base::openmode")));
+  const auto BitmaskType = namedDecl(
+      hasAnyName("::std::locale::category", "::std::ctype_base::mask",
+                 "::std::ios_base::fmtflags", "::std::ios_base::iostate",
+                 "::std::ios_base::openmode"));
   const auto IsStdBitmask = ignoringImpCasts(declRefExpr(hasType(BitmaskType)));
 
   // Match binary bitwise operations on signed integer arguments.
   Finder->addMatcher(
-      binaryOperator(
-          allOf(anyOf(hasOperatorName("^"), hasOperatorName("|"),
-                      hasOperatorName("&"), hasOperatorName("^="),
-                      hasOperatorName("|="), hasOperatorName("&=")),
+      binaryOperator(hasAnyOperatorName("^", "|", "&", "^=", "|=", "&="),
 
-                unless(allOf(hasLHS(IsStdBitmask), hasRHS(IsStdBitmask))),
+                     unless(allOf(hasLHS(IsStdBitmask), hasRHS(IsStdBitmask))),
 
-                hasEitherOperand(SignedIntegerOperand),
-                hasLHS(hasType(isInteger())), hasRHS(hasType(isInteger()))))
+                     hasEitherOperand(SignedIntegerOperand),
+                     hasLHS(hasType(isInteger())), hasRHS(hasType(isInteger())))
           .bind("binary-no-sign-interference"),
       this);
 
   // Shifting and complement is not allowed for any signed integer type because
   // the sign bit may corrupt the result.
   Finder->addMatcher(
-      binaryOperator(
-          allOf(anyOf(hasOperatorName("<<"), hasOperatorName(">>"),
-                      hasOperatorName("<<="), hasOperatorName(">>=")),
-                hasEitherOperand(SignedIntegerOperand),
-                hasLHS(hasType(isInteger())), hasRHS(hasType(isInteger()))))
+      binaryOperator(hasAnyOperatorName("<<", ">>", "<<=", ">>="),
+                     hasEitherOperand(SignedIntegerOperand),
+                     hasLHS(hasType(isInteger())), hasRHS(hasType(isInteger())))
           .bind("binary-sign-interference"),
       this);
 
   // Match unary operations on signed integer types.
-  Finder->addMatcher(unaryOperator(allOf(hasOperatorName("~"),
-                                         hasUnaryOperand(SignedIntegerOperand)))
-                         .bind("unary-signed"),
-                     this);
+  Finder->addMatcher(
+      unaryOperator(hasOperatorName("~"), hasUnaryOperand(SignedIntegerOperand))
+          .bind("unary-signed"),
+      this);
 }
 
 void SignedBitwiseCheck::check(const MatchFinder::MatchResult &Result) {
@@ -75,14 +84,14 @@ void SignedBitwiseCheck::check(const MatchFinder::MatchResult &Result) {
 
   if (const auto *UnaryOp = N.getNodeAs<UnaryOperator>("unary-signed")) {
     IsUnary = true;
-    Location = UnaryOp->getLocStart();
+    Location = UnaryOp->getBeginLoc();
   } else {
     if (const auto *BinaryOp =
             N.getNodeAs<BinaryOperator>("binary-no-sign-interference"))
-      Location = BinaryOp->getLocStart();
+      Location = BinaryOp->getBeginLoc();
     else if (const auto *BinaryOp =
                  N.getNodeAs<BinaryOperator>("binary-sign-interference"))
-      Location = BinaryOp->getLocStart();
+      Location = BinaryOp->getBeginLoc();
     else
       llvm_unreachable("unexpected matcher result");
   }

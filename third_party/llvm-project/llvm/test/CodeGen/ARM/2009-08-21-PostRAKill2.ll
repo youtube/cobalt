@@ -1,4 +1,4 @@
-; RUN: llc < %s -asm-verbose=false -O3 -relocation-model=pic -disable-fp-elim -mtriple=thumbv7-apple-darwin -mcpu=cortex-a8 -post-RA-scheduler
+; RUN: llc < %s -asm-verbose=false -O3 -relocation-model=pic -frame-pointer=all -mtriple=thumbv7-apple-darwin -mcpu=cortex-a8 -post-RA-scheduler
 
 ; ModuleID = '<stdin>'
 target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:32-f32:32:32-f64:32:32-v64:64:64-v128:128:128-a0:0:64"
@@ -11,7 +11,7 @@ target triple = "armv7-apple-darwin9"
 
 declare double @floor(double) nounwind readnone
 
-define void @intcoord(%struct.icstruct* noalias nocapture sret %agg.result, i1 %a, double %b) {
+define void @intcoord(%struct.icstruct* noalias nocapture sret(%struct.icstruct) %agg.result, i1 %a, double %b) {
 entry:
   br i1 %a, label %bb3, label %bb1
 

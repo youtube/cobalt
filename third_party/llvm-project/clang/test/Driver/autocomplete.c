@@ -25,6 +25,7 @@
 // STDLIBALL-NEXT: platform
 // RUN: %clang --autocomplete=-meabi,d | FileCheck %s -check-prefix=MEABI
 // MEABI: default
+// RUN: %clang --autocomplete=-meabi, | FileCheck %s -check-prefix=MEABIALL
 // RUN: %clang --autocomplete=-meabi | FileCheck %s -check-prefix=MEABIALL
 // MEABIALL: 4
 // MEABIALL-NEXT: 5
@@ -33,15 +34,25 @@
 // RUN: %clang --autocomplete=-cl-std=,CL2 | FileCheck %s -check-prefix=CLSTD
 // CLSTD: CL2.0
 // RUN: %clang --autocomplete=-cl-std= | FileCheck %s -check-prefix=CLSTDALL
-// CLSTDALL: c++
-// CLSTDALL-NEXT: cl
+
+// CLSTDALL: cl
 // CLSTDALL-NEXT: CL
+// CLSTDALL-NEXT: cl1.0
+// CLSTDALL-NEXT: CL1.0
 // CLSTDALL-NEXT: cl1.1
 // CLSTDALL-NEXT: CL1.1
 // CLSTDALL-NEXT: cl1.2
 // CLSTDALL-NEXT: CL1.2
 // CLSTDALL-NEXT: cl2.0
 // CLSTDALL-NEXT: CL2.0
+// CLSTDALL-NEXT: cl3.0
+// CLSTDALL-NEXT: CL3.0
+// CLSTDALL-NEXT: clc++
+// CLSTDALL-NEXT: CLC++
+// CLSTDALL-NEXT: clc++1.0
+// CLSTDALL-NEXT: CLC++1.0
+// CLSTDALL-NEXT: clc++2021
+// CLSTDALL-NEXT: CLC++2021
 // RUN: %clang --autocomplete=-fno-sanitize-coverage=,f | FileCheck %s -check-prefix=FNOSANICOVER
 // FNOSANICOVER: func
 // RUN: %clang --autocomplete=-fno-sanitize-coverage= | FileCheck %s -check-prefix=FNOSANICOVERALL
@@ -51,6 +62,7 @@
 // FNOSANICOVERALL-NEXT: func
 // FNOSANICOVERALL-NEXT: indirect-calls
 // FNOSANICOVERALL-NEXT: inline-8bit-counters
+// FNOSANICOVERALL-NEXT: inline-bool-flag
 // FNOSANICOVERALL-NEXT: no-prune
 // FNOSANICOVERALL-NEXT: trace-bb
 // FNOSANICOVERALL-NEXT: trace-cmp
@@ -60,6 +72,7 @@
 // FNOSANICOVERALL-NEXT: trace-pc-guard
 // RUN: %clang --autocomplete=-ffp-contract= | FileCheck %s -check-prefix=FFPALL
 // FFPALL: fast
+// FFPALL-NEXT: fast-honor-pragmas 
 // FFPALL-NEXT: off
 // FFPALL-NEXT: on
 // RUN: %clang --autocomplete=-flto= | FileCheck %s -check-prefix=FLTOALL
@@ -67,6 +80,9 @@
 // FLTOALL-NEXT: thin
 // RUN: %clang --autocomplete=-fveclib= | FileCheck %s -check-prefix=FVECLIBALL
 // FVECLIBALL: Accelerate
+// FVECLIBALL-NEXT: Darwin_libsystem_m
+// FVECLIBALL-NEXT: libmvec
+// FVECLIBALL-NEXT: MASSV
 // FVECLIBALL-NEXT: none
 // FVECLIBALL-NEXT: SVML
 // RUN: %clang --autocomplete=-fshow-overloads= | FileCheck %s -check-prefix=FSOVERALL
@@ -95,6 +111,7 @@
 // WARNING-NEXT: -Wmain-return-type
 // WARNING-NEXT: -Wmalformed-warning-check
 // WARNING-NEXT: -Wmany-braces-around-scalar-init
+// WARNING-NEXT: -Wmax-tokens
 // WARNING-NEXT: -Wmax-unsigned-zero
 // RUN: %clang --autocomplete=-Wno-invalid-pp- | FileCheck %s -check-prefix=NOWARNING
 // NOWARNING: -Wno-invalid-pp-token
@@ -115,3 +132,14 @@
 // Check if they can autocomplete values with coron
 // RUN: %clang --autocomplete=foo,bar,,,-fno-sanitize-coverage=,f | FileCheck %s -check-prefix=FNOSANICOVER-CORON
 // FNOSANICOVER-CORON: func
+
+// Clang should return empty string when no value completion was found, which will fall back to file autocompletion
+// RUN: %clang --autocomplete=-fmodule-file= | FileCheck %s -check-prefix=MODULE_FILE_EQUAL
+// MODULE_FILE_EQUAL-NOT: -fmodule-file=
+// RUN: %clang --autocomplete=-fmodule-file | FileCheck %s -check-prefix=MODULE_FILE
+// MODULE_FILE: -fmodule-file=
+
+// RUN: %clang --autocomplete=-Qunused-arguments, | FileCheck %s -check-prefix=QUNUSED_COMMA
+// QUNUSED_COMMA-NOT: -Qunused-arguments
+// RUN: %clang --autocomplete=-Qunused-arguments | FileCheck %s -check-prefix=QUNUSED
+// QUNUSED: -Qunused-arguments

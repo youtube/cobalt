@@ -7,15 +7,15 @@
 ; RUN: obj2yaml %t2a | FileCheck --check-prefix=CHECK-O2 %s
 
 ; Reject invalid optimization levels.
-; RUN: not ld.lld -o %t3 -e main --lto-O6 %t.o 2>&1 | \
+; RUN: not wasm-ld -o %t3 -e main --lto-O6 %t.o 2>&1 | \
 ; RUN:   FileCheck --check-prefix=INVALID %s
 ; INVALID: invalid optimization level for LTO: 6
 
-; RUN: not ld.lld -o %t3 -m elf_x86_64 -e main --lto-O-1 %t.o 2>&1 | \
+; RUN: not wasm-ld -o %t3 -e main --lto-O-1 %t.o 2>&1 | \
 ; RUN:   FileCheck --check-prefix=INVALIDNEGATIVE %s
 ; INVALIDNEGATIVE: invalid optimization level for LTO: 4294967295
 
-target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
+target datalayout = "e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown-wasm"
 
 ; CHECK-O0: Name: foo

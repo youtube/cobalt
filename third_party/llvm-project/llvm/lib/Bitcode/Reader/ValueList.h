@@ -1,9 +1,8 @@
 //===-- Bitcode/Reader/ValueList.h - Number values --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -40,8 +39,15 @@ class BitcodeReaderValueList {
   ResolveConstantsTy ResolveConstants;
   LLVMContext &Context;
 
+  /// Maximum number of valid references. Forward references exceeding the
+  /// maximum must be invalid.
+  unsigned RefsUpperBound;
+
 public:
-  BitcodeReaderValueList(LLVMContext &C) : Context(C) {}
+  BitcodeReaderValueList(LLVMContext &C, size_t RefsUpperBound)
+      : Context(C),
+        RefsUpperBound(std::min((size_t)std::numeric_limits<unsigned>::max(),
+                                RefsUpperBound)) {}
 
   ~BitcodeReaderValueList() {
     assert(ResolveConstants.empty() && "Constants not resolved?");
@@ -49,7 +55,9 @@ public:
 
   // vector compatibility methods
   unsigned size() const { return ValuePtrs.size(); }
-  void resize(unsigned N) { ValuePtrs.resize(N); }
+  void resize(unsigned N) {
+    ValuePtrs.resize(N);
+  }
   void push_back(Value *V) { ValuePtrs.emplace_back(V); }
 
   void clear() {
@@ -63,7 +71,9 @@ public:
   }
 
   Value *back() const { return ValuePtrs.back(); }
-  void pop_back() { ValuePtrs.pop_back(); }
+  void pop_back() {
+    ValuePtrs.pop_back();
+  }
   bool empty() const { return ValuePtrs.empty(); }
 
   void shrinkTo(unsigned N) {

@@ -44,11 +44,10 @@ entry:
 define void @t2(i8* nocapture %C) nounwind {
 entry:
 ; CHECK-LABEL: t2:
-; CHECK: vld1.8 {d{{[0-9]+}}, d{{[0-9]+}}}, [r2]!
-; CHECK: vld1.64 {d{{[0-9]+}}, d{{[0-9]+}}}, [r2]
-; CHECK: vst1.8 {d{{[0-9]+}}, d{{[0-9]+}}}, [r1]
-; CHECK: movs [[INC:r[0-9]+]], #32
-; CHECK: vst1.8 {d{{[0-9]+}}, d{{[0-9]+}}}, [r0], [[INC]]
+; CHECK: vld1.8 {d{{[0-9]+}}, d{{[0-9]+}}}, [r1]!
+; CHECK: vst1.8 {d{{[0-9]+}}, d{{[0-9]+}}}, [r0]!
+; CHECK: vld1.64 {d{{[0-9]+}}, d{{[0-9]+}}}, [r1]
+; CHECK: vst1.8 {d{{[0-9]+}}, d{{[0-9]+}}}, [r0]!
 ; CHECK: movw [[REG2:r[0-9]+]], #16716
 ; CHECK: movt [[REG2:r[0-9]+]], #72
 ; CHECK: str [[REG2]], [r0]
@@ -86,10 +85,9 @@ entry:
 define void @t5(i8* nocapture %C) nounwind {
 entry:
 ; CHECK-LABEL: t5:
-; CHECK: movs [[REG5:r[0-9]+]], #0
-; CHECK: strb [[REG5]], [r0, #6]
-; CHECK: movw [[REG6:r[0-9]+]], #21587
-; CHECK: strh [[REG6]], [r0, #4]
+; CHECK: movw [[REG5:r[0-9]+]], #21337
+; CHECK: movt [[REG5]], #84
+; CHECK: str.w [[REG5]], [r0, #3]
 ; CHECK: movw [[REG7:r[0-9]+]], #18500
 ; CHECK: movt [[REG7:r[0-9]+]], #22866
 ; CHECK: str [[REG7]]

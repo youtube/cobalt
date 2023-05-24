@@ -1,9 +1,8 @@
 //===- InstrProf.h - Instrumented profiling format support ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,6 +16,7 @@
 #define LLVM_PROFILEDATA_INSTRPROF_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/BitmaskEnum.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
@@ -24,6 +24,7 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/ProfileSummary.h"
 #include "llvm/ProfileData/InstrProfData.inc"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
@@ -74,9 +75,10 @@ inline StringRef getInstrProfValueProfFuncName() {
   return INSTR_PROF_VALUE_PROF_FUNC_STR;
 }
 
-/// Return the name profile runtime entry point to do value range profiling.
-inline StringRef getInstrProfValueRangeProfFuncName() {
-  return INSTR_PROF_VALUE_RANGE_PROF_FUNC_STR;
+/// Return the name profile runtime entry point to do memop size value
+/// profiling.
+inline StringRef getInstrProfValueProfMemOpFuncName() {
+  return INSTR_PROF_VALUE_PROF_MEMOP_FUNC_STR;
 }
 
 /// Return the name prefix of variables containing instrumented function names.
@@ -93,10 +95,6 @@ inline StringRef getInstrProfValuesVarPrefix() { return "__profvp_"; }
 
 /// Return the name of value profile node array variables:
 inline StringRef getInstrProfVNodesVarName() { return "__llvm_prf_vnodes"; }
-
-/// Return the name prefix of the COMDAT group for instrumentation variables
-/// associated with a COMDAT function.
-inline StringRef getInstrProfComdatPrefix() { return "__profv_"; }
 
 /// Return the name of the variable holding the strings (possibly compressed)
 /// of all function's PGO names.
@@ -158,6 +156,10 @@ inline StringRef getInstrProfRuntimeHookVarUseFuncName() {
   return "__llvm_profile_runtime_user";
 }
 
+inline StringRef getInstrProfCounterBiasVarName() {
+  return INSTR_PROF_QUOTE(INSTR_PROF_PROFILE_COUNTER_BIAS_VAR);
+}
+
 /// Return the marker used to separate PGO names during serialization.
 inline StringRef getInstrProfNameSeparator() { return "\01"; }
 
@@ -204,9 +206,9 @@ StringRef getFuncNameWithoutPrefix(StringRef PGOFuncName,
                                    StringRef FileName = "<unknown>");
 
 /// Given a vector of strings (function PGO names) \c NameStrs, the
-/// method generates a combined string \c Result thatis ready to be
+/// method generates a combined string \c Result that is ready to be
 /// serialized.  The \c Result string is comprised of three fields:
-/// The first field is the legnth of the uncompressed strings, and the
+/// The first field is the length of the uncompressed strings, and the
 /// the second field is the length of the zlib-compressed string.
 /// Both fields are encoded in ULEB128.  If \c doCompress is false, the
 ///  third field is the uncompressed strings; otherwise it is the
@@ -235,7 +237,7 @@ bool isIRPGOFlagSet(const Module *M);
 bool canRenameComdatFunc(const Function &F, bool CheckAddressTaken = false);
 
 enum InstrProfValueKind : uint32_t {
-#define VALUE_PROF_KIND(Enumerator, Value) Enumerator = Value,
+#define VALUE_PROF_KIND(Enumerator, Value, Descr) Enumerator = Value,
 #include "llvm/ProfileData/InstrProfData.inc"
 };
 
@@ -259,7 +261,8 @@ bool getValueProfDataFromInst(const Instruction &Inst,
                               InstrProfValueKind ValueKind,
                               uint32_t MaxNumValueData,
                               InstrProfValueData ValueData[],
-                              uint32_t &ActualNumValueData, uint64_t &TotalC);
+                              uint32_t &ActualNumValueData, uint64_t &TotalC,
+                              bool GetNoICPValue = false);
 
 inline StringRef getPGOFuncNameMetadataName() { return "PGOFuncName"; }
 
@@ -275,6 +278,18 @@ void createPGOFuncNameMetadata(Function &F, StringRef PGOFuncName);
 /// the duplicated profile variables for Comdat functions.
 bool needsComdatForCounter(const Function &F, const Module &M);
 
+/// An enum describing the attributes of an instrumented profile.
+enum class InstrProfKind {
+  Unknown = 0x0,
+  FE = 0x1, // A frontend clang profile, incompatible with other attrs.
+  IR = 0x2, // An IR-level profile (default when -fprofile-generate is used).
+  BB = 0x4, // A profile with entry basic block instrumentation.
+  CS = 0x8, // A context sensitive IR-level profile.
+  SingleByteCoverage = 0x10, // Use single byte probes for coverage.
+  FunctionEntryOnly = 0x20,  // Only instrument the function entry basic block.
+  LLVM_MARK_AS_BITMASK_ENUM(/*LargestValue=*/FunctionEntryOnly)
+};
+
 const std::error_category &instrprof_category();
 
 enum class instrprof_error {
@@ -288,7 +303,11 @@ enum class instrprof_error {
   too_large,
   truncated,
   malformed,
+  missing_debug_info_for_correlation,
+  unexpected_debug_info_for_correlation,
+  unable_to_correlate_profile,
   unknown_function,
+  invalid_prof,
   hash_mismatch,
   count_mismatch,
   counter_overflow,
@@ -305,7 +324,8 @@ inline std::error_code make_error_code(instrprof_error E) {
 
 class InstrProfError : public ErrorInfo<InstrProfError> {
 public:
-  InstrProfError(instrprof_error Err) : Err(Err) {
+  InstrProfError(instrprof_error Err, const Twine &ErrStr = Twine())
+      : Err(Err), Msg(ErrStr.str()) {
     assert(Err != instrprof_error::success && "Not an error");
   }
 
@@ -318,6 +338,7 @@ public:
   }
 
   instrprof_error get() const { return Err; }
+  const std::string &getMessage() const { return Msg; }
 
   /// Consume an Error and return the raw enum value contained within it. The
   /// Error must either be a success value, or contain a single InstrProfError.
@@ -334,6 +355,7 @@ public:
 
 private:
   instrprof_error Err;
+  std::string Msg;
 };
 
 class SoftInstrProfErrors {
@@ -471,7 +493,8 @@ public:
   /// is used by the raw and text profile readers.
   Error addFuncName(StringRef FuncName) {
     if (FuncName.empty())
-      return make_error<InstrProfError>(instrprof_error::malformed);
+      return make_error<InstrProfError>(instrprof_error::malformed,
+                                        "function name is empty");
     auto Ins = NameTab.insert(FuncName);
     if (Ins.second) {
       MD5NameMap.push_back(std::make_pair(
@@ -519,6 +542,12 @@ public:
 
   /// Return the name section data.
   inline StringRef getNameData() const { return Data; }
+
+  /// Dump the symbols in this table.
+  void dumpNames(raw_ostream &OS) const {
+    for (StringRef S : NameTab.keys())
+      OS << S << "\n";
+  }
 };
 
 Error InstrProfSymtab::create(StringRef D, uint64_t BaseAddr) {
@@ -544,9 +573,9 @@ Error InstrProfSymtab::create(const NameIterRange &IterRange) {
 void InstrProfSymtab::finalizeSymtab() {
   if (Sorted)
     return;
-  llvm::sort(MD5NameMap.begin(), MD5NameMap.end(), less_first());
-  llvm::sort(MD5FuncMap.begin(), MD5FuncMap.end(), less_first());
-  llvm::sort(AddrToMD5Map.begin(), AddrToMD5Map.end(), less_first());
+  llvm::sort(MD5NameMap, less_first());
+  llvm::sort(MD5FuncMap, less_first());
+  llvm::sort(AddrToMD5Map, less_first());
   AddrToMD5Map.erase(std::unique(AddrToMD5Map.begin(), AddrToMD5Map.end()),
                      AddrToMD5Map.end());
   Sorted = true;
@@ -561,10 +590,9 @@ StringRef InstrProfSymtab::getFuncNameOrExternalSymbol(uint64_t FuncMD5Hash) {
 
 StringRef InstrProfSymtab::getFuncName(uint64_t FuncMD5Hash) {
   finalizeSymtab();
-  auto Result =
-      std::lower_bound(MD5NameMap.begin(), MD5NameMap.end(), FuncMD5Hash,
-                       [](const std::pair<uint64_t, std::string> &LHS,
-                          uint64_t RHS) { return LHS.first < RHS; });
+  auto Result = llvm::lower_bound(MD5NameMap, FuncMD5Hash,
+                                  [](const std::pair<uint64_t, StringRef> &LHS,
+                                     uint64_t RHS) { return LHS.first < RHS; });
   if (Result != MD5NameMap.end() && Result->first == FuncMD5Hash)
     return Result->second;
   return StringRef();
@@ -572,10 +600,9 @@ StringRef InstrProfSymtab::getFuncName(uint64_t FuncMD5Hash) {
 
 Function* InstrProfSymtab::getFunction(uint64_t FuncMD5Hash) {
   finalizeSymtab();
-  auto Result =
-      std::lower_bound(MD5FuncMap.begin(), MD5FuncMap.end(), FuncMD5Hash,
-                       [](const std::pair<uint64_t, Function*> &LHS,
-                          uint64_t RHS) { return LHS.first < RHS; });
+  auto Result = llvm::lower_bound(MD5FuncMap, FuncMD5Hash,
+                                  [](const std::pair<uint64_t, Function *> &LHS,
+                                     uint64_t RHS) { return LHS.first < RHS; });
   if (Result != MD5FuncMap.end() && Result->first == FuncMD5Hash)
     return Result->second;
   return nullptr;
@@ -590,6 +617,70 @@ StringRef InstrProfSymtab::getOrigFuncName(uint64_t FuncMD5Hash) {
     return PGOName;
   return PGOName.drop_front(S + 1);
 }
+
+// To store the sums of profile count values, or the percentage of
+// the sums of the total count values.
+struct CountSumOrPercent {
+  uint64_t NumEntries;
+  double CountSum;
+  double ValueCounts[IPVK_Last - IPVK_First + 1];
+  CountSumOrPercent() : NumEntries(0), CountSum(0.0f), ValueCounts() {}
+  void reset() {
+    NumEntries = 0;
+    CountSum = 0.0f;
+    for (unsigned I = 0; I < IPVK_Last - IPVK_First + 1; I++)
+      ValueCounts[I] = 0.0f;
+  }
+};
+
+// Function level or program level overlap information.
+struct OverlapStats {
+  enum OverlapStatsLevel { ProgramLevel, FunctionLevel };
+  // Sum of the total count values for the base profile.
+  CountSumOrPercent Base;
+  // Sum of the total count values for the test profile.
+  CountSumOrPercent Test;
+  // Overlap lap score. Should be in range of [0.0f to 1.0f].
+  CountSumOrPercent Overlap;
+  CountSumOrPercent Mismatch;
+  CountSumOrPercent Unique;
+  OverlapStatsLevel Level;
+  const std::string *BaseFilename;
+  const std::string *TestFilename;
+  StringRef FuncName;
+  uint64_t FuncHash;
+  bool Valid;
+
+  OverlapStats(OverlapStatsLevel L = ProgramLevel)
+      : Level(L), BaseFilename(nullptr), TestFilename(nullptr), FuncHash(0),
+        Valid(false) {}
+
+  void dump(raw_fd_ostream &OS) const;
+
+  void setFuncInfo(StringRef Name, uint64_t Hash) {
+    FuncName = Name;
+    FuncHash = Hash;
+  }
+
+  Error accumulateCounts(const std::string &BaseFilename,
+                         const std::string &TestFilename, bool IsCS);
+  void addOneMismatch(const CountSumOrPercent &MismatchFunc);
+  void addOneUnique(const CountSumOrPercent &UniqueFunc);
+
+  static inline double score(uint64_t Val1, uint64_t Val2, double Sum1,
+                             double Sum2) {
+    if (Sum1 < 1.0f || Sum2 < 1.0f)
+      return 0.0f;
+    return std::min(Val1 / Sum1, Val2 / Sum2);
+  }
+};
+
+// This is used to filter the functions whose overlap information
+// to be output.
+struct OverlapFuncFilters {
+  uint64_t ValueCutoff;
+  const std::string NameFilter;
+};
 
 struct InstrProfValueSiteRecord {
   /// Value profiling data pairs at a given value site.
@@ -614,8 +705,12 @@ struct InstrProfValueSiteRecord {
   /// Optionally scale merged counts by \p Weight.
   void merge(InstrProfValueSiteRecord &Input, uint64_t Weight,
              function_ref<void(instrprof_error)> Warn);
-  /// Scale up value profile data counts.
-  void scale(uint64_t Weight, function_ref<void(instrprof_error)> Warn);
+  /// Scale up value profile data counts by N (Numerator) / D (Denominator).
+  void scale(uint64_t N, uint64_t D, function_ref<void(instrprof_error)> Warn);
+
+  /// Compute the overlap b/w this record and Input record.
+  void overlap(InstrProfValueSiteRecord &Input, uint32_t ValueKind,
+               OverlapStats &Overlap, OverlapStats &FuncLevelOverlap);
 };
 
 /// Profiling information for a single function.
@@ -628,7 +723,7 @@ struct InstrProfRecord {
   InstrProfRecord(const InstrProfRecord &RHS)
       : Counts(RHS.Counts),
         ValueData(RHS.ValueData
-                      ? llvm::make_unique<ValueProfData>(*RHS.ValueData)
+                      ? std::make_unique<ValueProfData>(*RHS.ValueData)
                       : nullptr) {}
   InstrProfRecord &operator=(InstrProfRecord &&) = default;
   InstrProfRecord &operator=(const InstrProfRecord &RHS) {
@@ -638,7 +733,7 @@ struct InstrProfRecord {
       return *this;
     }
     if (!ValueData)
-      ValueData = llvm::make_unique<ValueProfData>(*RHS.ValueData);
+      ValueData = std::make_unique<ValueProfData>(*RHS.ValueData);
     else
       *ValueData = *RHS.ValueData;
     return *this;
@@ -685,8 +780,8 @@ struct InstrProfRecord {
              function_ref<void(instrprof_error)> Warn);
 
   /// Scale up profile counts (including value profile data) by
-  /// \p Weight.
-  void scale(uint64_t Weight, function_ref<void(instrprof_error)> Warn);
+  /// a factor of (N / D).
+  void scale(uint64_t N, uint64_t D, function_ref<void(instrprof_error)> Warn);
 
   /// Sort value profile data (per site) by count.
   void sortValueData() {
@@ -703,6 +798,18 @@ struct InstrProfRecord {
 
   /// Clear value data entries
   void clearValueData() { ValueData = nullptr; }
+
+  /// Compute the sums of all counts and store in Sum.
+  void accumulateCounts(CountSumOrPercent &Sum) const;
+
+  /// Compute the overlap b/w this IntrprofRecord and Other.
+  void overlap(InstrProfRecord &Other, OverlapStats &Overlap,
+               OverlapStats &FuncLevelOverlap, uint64_t ValueCutoff);
+
+  /// Compute the overlap of value profile counts.
+  void overlapValueProfData(uint32_t ValueKind, InstrProfRecord &Src,
+                            OverlapStats &Overlap,
+                            OverlapStats &FuncLevelOverlap);
 
 private:
   struct ValueProfData {
@@ -738,7 +845,7 @@ private:
   std::vector<InstrProfValueSiteRecord> &
   getOrCreateValueSitesForKind(uint32_t ValueKind) {
     if (!ValueData)
-      ValueData = llvm::make_unique<ValueProfData>();
+      ValueData = std::make_unique<ValueProfData>();
     switch (ValueKind) {
     case IPVK_IndirectCallTarget:
       return ValueData->IndirectCallSites;
@@ -759,8 +866,8 @@ private:
                           uint64_t Weight,
                           function_ref<void(instrprof_error)> Warn);
 
-  // Scale up value profile data count.
-  void scaleValueProfData(uint32_t ValueKind, uint64_t Weight,
+  // Scale up value profile data count by N (Numerator) / D (Denominator).
+  void scaleValueProfData(uint32_t ValueKind, uint64_t N, uint64_t D,
                           function_ref<void(instrprof_error)> Warn);
 };
 
@@ -768,10 +875,20 @@ struct NamedInstrProfRecord : InstrProfRecord {
   StringRef Name;
   uint64_t Hash;
 
+  // We reserve this bit as the flag for context sensitive profile record.
+  static const int CS_FLAG_IN_FUNC_HASH = 60;
+
   NamedInstrProfRecord() = default;
   NamedInstrProfRecord(StringRef Name, uint64_t Hash,
                        std::vector<uint64_t> Counts)
       : InstrProfRecord(std::move(Counts)), Name(Name), Hash(Hash) {}
+
+  static bool hasCSFlagInHash(uint64_t FuncHash) {
+    return ((FuncHash >> CS_FLAG_IN_FUNC_HASH) & 1);
+  }
+  static void setCSFlagInHash(uint64_t &FuncHash) {
+    FuncHash |= ((uint64_t)1 << CS_FLAG_IN_FUNC_HASH);
+  }
 };
 
 uint32_t InstrProfRecord::getNumValueKinds() const {
@@ -800,7 +917,7 @@ uint32_t InstrProfRecord::getNumValueDataForSite(uint32_t ValueKind,
 std::unique_ptr<InstrProfValueData[]>
 InstrProfRecord::getValueForSite(uint32_t ValueKind, uint32_t Site,
                                  uint64_t *TotalC) const {
-  uint64_t Dummy;
+  uint64_t Dummy = 0;
   uint64_t &TotalCount = (TotalC == nullptr ? Dummy : *TotalC);
   uint32_t N = getNumValueDataForSite(ValueKind, Site);
   if (N == 0) {
@@ -808,7 +925,7 @@ InstrProfRecord::getValueForSite(uint32_t ValueKind, uint32_t Site,
     return std::unique_ptr<InstrProfValueData[]>(nullptr);
   }
 
-  auto VD = llvm::make_unique<InstrProfValueData[]>(N);
+  auto VD = std::make_unique<InstrProfValueData[]>(N);
   TotalCount = getValueForSite(VD.get(), ValueKind, Site);
 
   return VD;
@@ -889,7 +1006,12 @@ enum ProfVersion {
   Version4 = 4,
   // In this version, the frontend PGO stable hash algorithm defaults to V2.
   Version5 = 5,
-  // The current version is 5.
+  // In this version, the frontend PGO stable hash algorithm got fixed and
+  // may produce hashes different from Version5.
+  Version6 = 6,
+  // An additional counter is added around logical operators.
+  Version7 = 7,
+  // The current version is 7.
   CurrentVersion = INSTR_PROF_INDEX_VERSION
 };
 const uint64_t Version = ProfVersion::CurrentVersion;
@@ -1005,6 +1127,11 @@ namespace RawInstrProf {
 // from control data struct is changed from raw pointer to Name's MD5 value.
 // Version 4: ValueDataBegin and ValueDataSizes fields are removed from the
 // raw header.
+// Version 5: Bit 60 of FuncHash is reserved for the flag for the context
+// sensitive records.
+// Version 6: Added binary id.
+// Version 7: Reorder binary id and include version in signature.
+// Version 8: Use relative counter pointer.
 const uint64_t Version = INSTR_PROF_RAW_VERSION;
 
 template <class IntPtrT> inline uint64_t getMagic();
@@ -1041,6 +1168,12 @@ struct Header {
 void getMemOPSizeRangeFromOption(StringRef Str, int64_t &RangeStart,
                                  int64_t &RangeLast);
 
-} // end namespace llvm
+// Create the variable for the profile file name.
+void createProfileFileNameVar(Module &M, StringRef InstrProfileOutput);
 
+// Whether to compress function names in profile records, and filenames in
+// code coverage mappings. Used by the Instrumentation library and unit tests.
+extern cl::opt<bool> DoInstrProfNameCompression;
+
+} // end namespace llvm
 #endif // LLVM_PROFILEDATA_INSTRPROF_H

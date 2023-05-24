@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify %s -std=c++11
+// RUN: %clang_cc1 -verify %s -std=c++11 -Wno-defaulted-function-deleted
 
 struct Trivial {};
 
@@ -78,7 +78,7 @@ struct B1 {
   const int a; // expected-note 2{{field 'a' is of const-qualified type}}
 };
 struct B2 {
-  const void *const a[3][9][2]; // expected-note 2{{field 'a' is of const-qualified type 'const void *const [3][9][2]'}}
+  const void *const a[3][9][2]; // expected-note 2{{field 'a' is of const-qualified type 'const void *const[3][9][2]'}}
 };
 struct B3 {
   const void *a[3];

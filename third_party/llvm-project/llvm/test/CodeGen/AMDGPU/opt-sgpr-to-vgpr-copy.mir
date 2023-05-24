@@ -57,7 +57,7 @@
 ...
 ---
 name:            const_to_sgpr
-alignment:       0
+alignment:       1
 exposesReturnsTwice: false
 legalized:       false
 regBankSelected: false
@@ -141,12 +141,12 @@ body:             |
 
   bb.2.bb2:
     SI_END_CF %1, implicit-def dead $exec, implicit-def dead $scc, implicit $exec
-    S_ENDPGM
+    S_ENDPGM 0
 
 ...
 ---
 name:            const_to_sgpr_multiple_use
-alignment:       0
+alignment:       1
 exposesReturnsTwice: false
 legalized:       false
 regBankSelected: false
@@ -247,12 +247,12 @@ body:             |
 
   bb.2.bb2:
     SI_END_CF %1, implicit-def dead $exec, implicit-def dead $scc, implicit $exec
-    S_ENDPGM
+    S_ENDPGM 0
 
 ...
 ---
 name:            const_to_sgpr_subreg
-alignment:       0
+alignment:       1
 exposesReturnsTwice: false
 legalized:       false
 regBankSelected: false
@@ -336,6 +336,6 @@ body:             |
 
   bb.2.bb2:
     SI_END_CF %1, implicit-def dead $exec, implicit-def dead $scc, implicit $exec
-    S_ENDPGM
+    S_ENDPGM 0
 
 ...

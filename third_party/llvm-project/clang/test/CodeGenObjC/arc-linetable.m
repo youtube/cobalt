@@ -1,10 +1,10 @@
-// RUN: %clang_cc1 -emit-llvm -fblocks -fobjc-arc -debug-info-kind=standalone -dwarf-version=4 -disable-llvm-passes -triple x86_64-apple-darwin10 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -fblocks -fobjc-arc -debug-info-kind=standalone -dwarf-version=4 -gno-column-info -disable-llvm-passes -triple x86_64-apple-darwin10 %s -o - | FileCheck %s
 
 // Legend: EXP = Return expression, RET = ret instruction
 
 // CHECK: define {{.*}}testNoSideEffect
-// CHECK: call void @objc_storeStrong{{.*}}
-// CHECK: call void @objc_storeStrong{{.*}} !dbg ![[RET1:[0-9]+]]
+// CHECK: call void @llvm.objc.storeStrong{{.*}}
+// CHECK: call void @llvm.objc.storeStrong{{.*}} !dbg ![[RET1:[0-9]+]]
 // CHECK: ret {{.*}} !dbg ![[RET1]]
 
 // CHECK: define {{.*}}testNoCleanup
@@ -20,8 +20,8 @@
 // CHECK: ret {{.*}} !dbg ![[RET4:[0-9]+]]
 
 // CHECK: define {{.*}}testVoid
-// CHECK: call void @objc_storeStrong{{.*}}
-// CHECK: call void @objc_storeStrong{{.*}} !dbg ![[RET5:[0-9]+]]
+// CHECK: call void @llvm.objc.storeStrong{{.*}}
+// CHECK: call void @llvm.objc.storeStrong{{.*}} !dbg ![[RET5:[0-9]+]]
 // CHECK: ret {{.*}} !dbg ![[RET5]]
 
 // CHECK: define {{.*}}testVoidNoReturn
@@ -35,7 +35,7 @@
 // CHECK: define {{.*}}testCleanupVoid
 // CHECK: icmp ne {{.*}}!dbg ![[SKIP1:[0-9]+]]
 // CHECK: store i32 0, i32* {{.*}}, !dbg ![[RET8:[0-9]+]]
-// CHECK: @objc_storeStrong{{.*}}, !dbg ![[RET8]]
+// CHECK: @llvm.objc.storeStrong{{.*}}, !dbg ![[RET8]]
 // CHECK: ret {{.*}} !dbg ![[RET8]]
 
 typedef signed char BOOL;
@@ -56,7 +56,7 @@ typedef signed char BOOL;
 
 // CHECK: ![[TESTNOSIDEEFFECT:.*]] = distinct !DISubprogram(name: "-[AppDelegate testNoSideEffect:]"
 // CHECK-SAME:                                              line: [[@LINE+2]]
-// CHECK-SAME:                                              isLocal: true, isDefinition: true
+// CHECK-SAME:                                              DISPFlagLocalToUnit | DISPFlagDefinition
 - (int)testNoSideEffect:(NSString *)foo {
   int x = 1;
   return 1; // Return expression

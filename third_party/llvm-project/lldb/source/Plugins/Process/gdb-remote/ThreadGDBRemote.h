@@ -1,28 +1,26 @@
 //===-- ThreadGDBRemote.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ThreadGDBRemote_h_
-#define liblldb_ThreadGDBRemote_h_
+#ifndef LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_THREADGDBREMOTE_H
+#define LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_THREADGDBREMOTE_H
 
-// C Includes
-// C++ Includes
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/StructuredData.h"
+
+#include "GDBRemoteRegisterContext.h"
 
 class StringExtractor;
 
 namespace lldb_private {
+class Process;
+
 namespace process_gdb_remote {
 
 class ProcessGDBRemote;
@@ -105,6 +103,8 @@ protected:
       m_queue_serial_number; // Queue info from stop reply/stop info for thread
   lldb_private::LazyBool m_associated_with_libdispatch_queue;
 
+  GDBRemoteDynamicRegisterInfoSP m_reg_info_sp;
+
   bool PrivateSetRegisterValue(uint32_t reg, llvm::ArrayRef<uint8_t> data);
 
   bool PrivateSetRegisterValue(uint32_t reg, uint64_t regval);
@@ -115,9 +115,12 @@ protected:
   void SetStopInfoFromPacket(StringExtractor &stop_packet, uint32_t stop_id);
 
   bool CalculateStopInfo() override;
+
+  llvm::Expected<std::unique_ptr<llvm::MemoryBuffer>>
+  GetSiginfo(size_t max_size) const override;
 };
 
 } // namespace process_gdb_remote
 } // namespace lldb_private
 
-#endif // liblldb_ThreadGDBRemote_h_
+#endif // LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_THREADGDBREMOTE_H

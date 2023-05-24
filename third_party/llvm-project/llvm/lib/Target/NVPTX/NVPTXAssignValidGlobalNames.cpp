@@ -1,9 +1,8 @@
 //===-- NVPTXAssignValidGlobalNames.cpp - Assign valid names to globals ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -73,8 +72,7 @@ bool NVPTXAssignValidGlobalNames::runOnModule(Module &M) {
 std::string NVPTXAssignValidGlobalNames::cleanUpName(StringRef Name) {
   std::string ValidName;
   raw_string_ostream ValidNameStream(ValidName);
-  for (unsigned I = 0, E = Name.size(); I != E; ++I) {
-    char C = Name[I];
+  for (char C : Name) {
     if (C == '.' || C == '@') {
       ValidNameStream << "_$_";
     } else {

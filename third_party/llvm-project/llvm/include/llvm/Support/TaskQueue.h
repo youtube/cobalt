@@ -1,9 +1,8 @@
 //===-- llvm/Support/TaskQueue.h - A TaskQueue implementation ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_TASK_QUEUE_H
-#define LLVM_SUPPORT_TASK_QUEUE_H
+#ifndef LLVM_SUPPORT_TASKQUEUE_H
+#define LLVM_SUPPORT_TASKQUEUE_H
 
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/ThreadPool.h"
@@ -39,7 +38,7 @@ class TaskQueue {
   // type-specialized domain (before type erasure) and then erase this into a
   // std::function.
   template <typename Callable> struct Task {
-    using ResultTy = typename std::result_of<Callable()>::type;
+    using ResultTy = std::result_of_t<Callable()>;
     explicit Task(Callable C, TaskQueue &Parent)
         : C(std::move(C)), P(std::make_shared<std::promise<ResultTy>>()),
           Parent(&Parent) {}
@@ -79,13 +78,13 @@ public:
   /// used to wait for the task (and all previous tasks that have not yet
   /// completed) to finish.
   template <typename Callable>
-  std::future<typename std::result_of<Callable()>::type> async(Callable &&C) {
+  std::future<std::result_of_t<Callable()>> async(Callable &&C) {
 #if !LLVM_ENABLE_THREADS
     static_assert(false,
                   "TaskQueue requires building with LLVM_ENABLE_THREADS!");
 #endif
     Task<Callable> T{std::move(C), *this};
-    using ResultTy = typename std::result_of<Callable()>::type;
+    using ResultTy = std::result_of_t<Callable()>;
     std::future<ResultTy> F = T.P->get_future();
     {
       std::lock_guard<std::mutex> Lock(QueueLock);
@@ -99,7 +98,7 @@ public:
         IsTaskInFlight = true;
       }
     }
-    return std::move(F);
+    return F;
   }
 
 private:
@@ -136,4 +135,4 @@ private:
 };
 } // namespace llvm
 
-#endif // LLVM_SUPPORT_TASK_QUEUE_H
+#endif // LLVM_SUPPORT_TASKQUEUE_H

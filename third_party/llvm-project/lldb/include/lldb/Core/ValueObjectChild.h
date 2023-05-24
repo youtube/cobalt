@@ -1,39 +1,36 @@
 //===-- ValueObjectChild.h --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ValueObjectChild_h_
-#define liblldb_ValueObjectChild_h_
+#ifndef LLDB_CORE_VALUEOBJECTCHILD_H
+#define LLDB_CORE_VALUEOBJECTCHILD_H
 
 #include "lldb/Core/ValueObject.h"
 
-#include "lldb/Symbol/CompilerType.h"       // for CompilerType
-#include "lldb/Utility/ConstString.h"       // for ConstString
-#include "lldb/lldb-defines.h"              // for DISALLOW_COPY_AND_ASSIGN
-#include "lldb/lldb-enumerations.h"         // for ValueType
-#include "lldb/lldb-private-enumerations.h" // for LazyBool, AddressType
-#include "lldb/lldb-types.h"                // for offset_t
+#include "lldb/Symbol/CompilerType.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/lldb-defines.h"
+#include "lldb/lldb-enumerations.h"
+#include "lldb/lldb-private-enumerations.h"
+#include "lldb/lldb-types.h"
 
 #include "llvm/ADT/Optional.h"
 
-#include <stddef.h> // for size_t
-#include <stdint.h> // for uint32_t, uint64_t, int32_t
+#include <cstddef>
+#include <cstdint>
 
 namespace lldb_private {
 
-//----------------------------------------------------------------------
-// A child of another ValueObject.
-//----------------------------------------------------------------------
+/// A child of another ValueObject.
 class ValueObjectChild : public ValueObject {
 public:
   ~ValueObjectChild() override;
 
-  uint64_t GetByteSize() override { return m_byte_size; }
+  llvm::Optional<uint64_t> GetByteSize() override { return m_byte_size; }
 
   lldb::offset_t GetByteOffset() override { return m_byte_offset; }
 
@@ -74,26 +71,22 @@ protected:
   bool m_is_deref_of_parent;
   llvm::Optional<LazyBool> m_can_update_with_invalid_exe_ctx;
 
-  //
-  //  void
-  //  ReadValueFromMemory (ValueObject* parent, lldb::addr_t address);
-
-protected:
   friend class ValueObject;
   friend class ValueObjectConstResult;
   friend class ValueObjectConstResultImpl;
 
   ValueObjectChild(ValueObject &parent, const CompilerType &compiler_type,
-                   const ConstString &name, uint64_t byte_size,
+                   ConstString name, uint64_t byte_size,
                    int32_t byte_offset, uint32_t bitfield_bit_size,
                    uint32_t bitfield_bit_offset, bool is_base_class,
                    bool is_deref_of_parent,
                    AddressType child_ptr_or_ref_addr_type,
                    uint64_t language_flags);
 
-  DISALLOW_COPY_AND_ASSIGN(ValueObjectChild);
+  ValueObjectChild(const ValueObjectChild &) = delete;
+  const ValueObjectChild &operator=(const ValueObjectChild &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_ValueObjectChild_h_
+#endif // LLDB_CORE_VALUEOBJECTCHILD_H

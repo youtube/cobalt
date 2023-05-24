@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <forward_list>
 
@@ -35,6 +35,7 @@ struct some_alloc
 
     some_alloc() {}
     some_alloc(const some_alloc&);
+    void allocate(size_t);
     void deallocate(void*, unsigned) {}
 
     typedef std::true_type propagate_on_container_swap;
@@ -47,13 +48,14 @@ struct some_alloc2
 
     some_alloc2() {}
     some_alloc2(const some_alloc2&);
+    void allocate(size_t);
     void deallocate(void*, unsigned) {}
 
     typedef std::false_type propagate_on_container_swap;
     typedef std::true_type is_always_equal;
 };
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::forward_list<MoveOnly> C;
@@ -85,4 +87,6 @@ int main()
         static_assert( noexcept(swap(std::declval<C&>(), std::declval<C&>())), "");
     }
 #endif
+
+  return 0;
 }

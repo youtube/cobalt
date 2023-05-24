@@ -16,8 +16,8 @@ define amdgpu_kernel void @volatile_load_flat_from_global(i32 addrspace(1)* noca
 ; CHECK-LABEL: @volatile_load_flat_from_constant(
 ; CHECK: load volatile i32, i32*
 ; CHECK: store i32 %val, i32 addrspace(1)*
-define amdgpu_kernel void @volatile_load_flat_from_constant(i32 addrspace(2)* nocapture %input, i32 addrspace(1)* nocapture %output) #0 {
-  %tmp0 = addrspacecast i32 addrspace(2)* %input to i32*
+define amdgpu_kernel void @volatile_load_flat_from_constant(i32 addrspace(4)* nocapture %input, i32 addrspace(1)* nocapture %output) #0 {
+  %tmp0 = addrspacecast i32 addrspace(4)* %input to i32*
   %tmp1 = addrspacecast i32 addrspace(1)* %output to i32*
   %val = load volatile i32, i32* %tmp0, align 4
   store i32 %val, i32* %tmp1, align 4
@@ -115,10 +115,9 @@ define { i32, i1 } @volatile_cmpxchg_group_to_flat(i32 addrspace(3)* %group.ptr,
   ret { i32, i1 } %ret
 }
 
-; FIXME: Shouldn't be losing names
 ; CHECK-LABEL: @volatile_memset_group_to_flat(
-; CHECK: addrspacecast i8 addrspace(3)* %group.ptr to i8*
-; CHECK: call void @llvm.memset.p0i8.i64(i8* align 4 %1, i8 4, i64 32, i1 true)
+; CHECK: %cast = addrspacecast i8 addrspace(3)* %group.ptr to i8*
+; CHECK: call void @llvm.memset.p0i8.i64(i8* align 4 %cast, i8 4, i64 32, i1 true)
 define amdgpu_kernel void @volatile_memset_group_to_flat(i8 addrspace(3)* %group.ptr, i32 %y) #0 {
   %cast = addrspacecast i8 addrspace(3)* %group.ptr to i8*
   call void @llvm.memset.p0i8.i64(i8* align 4 %cast, i8 4, i64 32, i1 true)
@@ -126,8 +125,8 @@ define amdgpu_kernel void @volatile_memset_group_to_flat(i8 addrspace(3)* %group
 }
 
 ; CHECK-LABEL: @volatile_memset_global_to_flat(
-; CHECK: addrspacecast i8 addrspace(1)* %global.ptr to i8*
-; CHECK: call void @llvm.memset.p0i8.i64(i8* align 4 %1, i8 4, i64 32, i1 true)
+; CHECK: %cast = addrspacecast i8 addrspace(1)* %global.ptr to i8*
+; CHECK: call void @llvm.memset.p0i8.i64(i8* align 4 %cast, i8 4, i64 32, i1 true)
 define amdgpu_kernel void @volatile_memset_global_to_flat(i8 addrspace(1)* %global.ptr, i32 %y) #0 {
   %cast = addrspacecast i8 addrspace(1)* %global.ptr to i8*
   call void @llvm.memset.p0i8.i64(i8* align 4 %cast, i8 4, i64 32, i1 true)

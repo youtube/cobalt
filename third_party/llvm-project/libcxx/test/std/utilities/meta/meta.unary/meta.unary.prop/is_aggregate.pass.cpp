@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
 // <type_traits>
 
@@ -20,7 +19,6 @@
 template <class T>
 void test_true()
 {
-#if !defined(_LIBCPP_HAS_NO_IS_AGGREGATE)
     static_assert( std::is_aggregate<T>::value, "");
     static_assert( std::is_aggregate<const T>::value, "");
     static_assert( std::is_aggregate<volatile T>::value, "");
@@ -29,13 +27,11 @@ void test_true()
     static_assert( std::is_aggregate_v<const T>, "");
     static_assert( std::is_aggregate_v<volatile T>, "");
     static_assert( std::is_aggregate_v<const volatile T>, "");
-#endif
 }
 
 template <class T>
 void test_false()
 {
-#if !defined(_LIBCPP_HAS_NO_IS_AGGREGATE)
     static_assert(!std::is_aggregate<T>::value, "");
     static_assert(!std::is_aggregate<const T>::value, "");
     static_assert(!std::is_aggregate<volatile T>::value, "");
@@ -44,7 +40,6 @@ void test_false()
     static_assert(!std::is_aggregate_v<const T>, "");
     static_assert(!std::is_aggregate_v<volatile T>, "");
     static_assert(!std::is_aggregate_v<const volatile T>, "");
-#endif
 }
 
 struct Aggregate {};
@@ -57,7 +52,7 @@ private:
 struct Union { int x; void* y; };
 
 
-int main ()
+int main(int, char**)
 {
   {
     test_false<void>();
@@ -76,4 +71,6 @@ int main ()
     test_true<Aggregate[42][101]>();
     test_true<Union>();
   }
+
+  return 0;
 }

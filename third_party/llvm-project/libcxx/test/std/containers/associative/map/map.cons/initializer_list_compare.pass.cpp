@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <map>
 
@@ -17,14 +16,15 @@
 
 #include <map>
 #include <cassert>
+#include "test_macros.h"
 #include "../../../test_compare.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::pair<const int, double> V;
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     std::map<int, double, C> m({
                                 {1, 1},
                                 {1, 1.5},
@@ -45,7 +45,7 @@ int main()
     }
     {
     typedef std::pair<const int, double> V;
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     std::map<int, double, C, min_allocator<std::pair<const int, double>>> m({
                                 {1, 1},
                                 {1, 1.5},
@@ -64,4 +64,6 @@ int main()
     assert(*next(m.begin(), 2) == V(3, 1));
     assert(m.key_comp() == C(3));
     }
+
+  return 0;
 }

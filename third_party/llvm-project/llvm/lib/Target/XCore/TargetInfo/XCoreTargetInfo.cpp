@@ -1,15 +1,13 @@
 //===-- XCoreTargetInfo.cpp - XCore Target Implementation -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "XCore.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "TargetInfo/XCoreTargetInfo.h"
+#include "llvm/MC/TargetRegistry.h"
 using namespace llvm;
 
 Target &llvm::getTheXCoreTarget() {
@@ -17,7 +15,7 @@ Target &llvm::getTheXCoreTarget() {
   return TheXCoreTarget;
 }
 
-extern "C" void LLVMInitializeXCoreTargetInfo() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeXCoreTargetInfo() {
   RegisterTarget<Triple::xcore> X(getTheXCoreTarget(), "xcore", "XCore",
                                   "XCore");
 }

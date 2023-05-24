@@ -1,9 +1,8 @@
 //===- PreprocessorLexer.h - C Language Family Lexer ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,11 +14,13 @@
 #ifndef LLVM_CLANG_LEX_PREPROCESSORLEXER_H
 #define LLVM_CLANG_LEX_PREPROCESSORLEXER_H
 
+#include "clang/Basic/SourceLocation.h"
+#include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/MultipleIncludeOpt.h"
 #include "clang/Lex/Token.h"
-#include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
 #include <cassert>
 
 namespace clang {
@@ -49,8 +50,7 @@ protected:
   /// True when parsing \#XXX; turns '\\n' into a tok::eod token.
   bool ParsingPreprocessorDirective = false;
 
-  /// True after \#include; turns \<xx> into a tok::angle_string_literal
-  /// token.
+  /// True after \#include; turns \<xx> or "xxx" into a tok::header_name token.
   bool ParsingFilename = false;
 
   /// True if in raw mode.
@@ -75,6 +75,13 @@ protected:
   /// Information about the set of \#if/\#ifdef/\#ifndef blocks
   /// we are currently in.
   SmallVector<PPConditionalInfo, 4> ConditionalStack;
+
+  struct IncludeInfo {
+    const FileEntry *File;
+    SourceLocation Location;
+  };
+  // A complete history of all the files included by the current file.
+  llvm::StringMap<IncludeInfo> IncludeHistory;
 
   PreprocessorLexer() : FID() {}
   PreprocessorLexer(Preprocessor *pp, FileID fid);
@@ -130,12 +137,8 @@ public:
   //===--------------------------------------------------------------------===//
   // Misc. lexing methods.
 
-  /// After the preprocessor has parsed a \#include, lex and
-  /// (potentially) macro expand the filename.
-  ///
-  /// If the sequence parsed is not lexically legal, emit a diagnostic and
-  /// return a result EOD token.
-  void LexIncludeFilename(Token &Result);
+  /// Lex a token, producing a header-name token if possible.
+  void LexIncludeFilename(Token &FilenameTok);
 
   /// Inform the lexer whether or not we are currently lexing a
   /// preprocessor directive.
@@ -180,6 +183,15 @@ public:
   void setConditionalLevels(ArrayRef<PPConditionalInfo> CL) {
     ConditionalStack.clear();
     ConditionalStack.append(CL.begin(), CL.end());
+  }
+
+  void addInclude(StringRef Filename, const FileEntry &File,
+                  SourceLocation Location) {
+    IncludeHistory.insert({Filename, {&File, Location}});
+  }
+
+  const llvm::StringMap<IncludeInfo> &getIncludeHistory() const {
+    return IncludeHistory;
   }
 };
 

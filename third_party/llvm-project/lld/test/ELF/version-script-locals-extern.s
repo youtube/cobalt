@@ -4,14 +4,14 @@
 # RUN: echo "FOO { local: extern \"C++\" { \"abb(int)\"; }; };" > %t.script
 # RUN: ld.lld --version-script %t.script -shared %t.o -o %t.so
 # RUN: llvm-readobj -V %t.so | FileCheck %s --check-prefix=ABB
-# ABB:      Symbols [
+# ABB:      VersionSymbols [
 # ABB-NEXT:   Symbol {
 # ABB-NEXT:     Version: 0
-# ABB-NEXT:     Name: @
+# ABB-NEXT:     Name:
 # ABB-NEXT:   }
 # ABB-NEXT:   Symbol {
 # ABB-NEXT:     Version: 1
-# ABB-NEXT:     Name: _Z3abci@
+# ABB-NEXT:     Name: _Z3abci
 # ABB-NEXT:   }
 # ABB-NEXT: ]
 
@@ -23,14 +23,14 @@
 # RUN: echo "FOO { local: extern \"C++\" { abc*; }; };" > %t.script
 # RUN: ld.lld --version-script %t.script -shared %t.o -o %t.so
 # RUN: llvm-readobj -V %t.so | FileCheck %s --check-prefix=ABC
-# ABC:      Symbols [
+# ABC:      VersionSymbols [
 # ABC-NEXT:   Symbol {
 # ABC-NEXT:     Version: 0
-# ABC-NEXT:     Name: @
+# ABC-NEXT:     Name:
 # ABC-NEXT:   }
 # ABC-NEXT:   Symbol {
 # ABC-NEXT:     Version: 1
-# ABC-NEXT:     Name: _Z3abbi@
+# ABC-NEXT:     Name: _Z3abbi
 # ABC-NEXT:   }
 # ABC-NEXT: ]
 

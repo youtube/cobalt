@@ -5,7 +5,7 @@ bugprone-use-after-move
 
 Warns if an object is used after it has been moved, for example:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     std::string str = "Hello, world!\n";
     std::vector<std::string> messages;
@@ -18,17 +18,20 @@ moved.
 The check does not trigger a warning if the object is reinitialized after the
 move and before the use. For example, no warning will be output for this code:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     messages.emplace_back(std::move(str));
     str = "Greetings, stranger!\n";
     std::cout << str;
 
+Subsections below explain more precisely what exactly the check considers to be
+a move, use, and reinitialization.
+
 The check takes control flow into account. A warning is only emitted if the use
 can be reached from the move. This means that the following code does not
 produce a warning:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     if (condition) {
       messages.emplace_back(std::move(str));
@@ -38,7 +41,7 @@ produce a warning:
 
 On the other hand, the following code does produce a warning:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     for (int i = 0; i < 10; ++i) {
       std::cout << str;
@@ -50,7 +53,7 @@ On the other hand, the following code does produce a warning:
 In some cases, the check may not be able to detect that two branches are
 mutually exclusive. For example (assuming that ``i`` is an int):
 
-  .. code-block:: c++
+.. code-block:: c++
 
     if (i == 1) {
       messages.emplace_back(std::move(str));
@@ -60,12 +63,17 @@ mutually exclusive. For example (assuming that ``i`` is an int):
     }
 
 In this case, the check will erroneously produce a warning, even though it is
-not possible for both the move and the use to be executed.
+not possible for both the move and the use to be executed. More formally, the
+analysis is `flow-sensitive but not path-sensitive
+<https://en.wikipedia.org/wiki/Data-flow_analysis#Sensitivities>`_.
+
+Silencing erroneous warnings
+----------------------------
 
 An erroneous warning can be silenced by reinitializing the object after the
 move:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     if (i == 1) {
       messages.emplace_back(std::move(str));
@@ -75,8 +83,30 @@ move:
       std::cout << str;
     }
 
-Subsections below explain more precisely what exactly the check considers to be
-a move, use, and reinitialization.
+If you want to avoid the overhead of actually reinitializing the object, you can
+create a dummy function that causes the check to assume the object was
+reinitialized:
+
+.. code-block:: c++
+
+    template <class T>
+    void IS_INITIALIZED(T&) {}
+
+You can use this as follows:
+
+.. code-block:: c++
+
+    if (i == 1) {
+      messages.emplace_back(std::move(str));
+    }
+    if (i == 2) {
+      IS_INITIALIZED(str);
+      std::cout << str;
+    }
+
+The check will not output a warning in this case because passing the object to a
+function as a non-const pointer or reference counts as a reinitialization (see section
+`Reinitialization`_ below).
 
 Unsequenced moves, uses, and reinitializations
 ----------------------------------------------
@@ -86,7 +116,7 @@ sub-expressions of a statement are evaluated. This means that in code like the
 following, it is not guaranteed whether the use will happen before or after the
 move:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     void f(int i, std::vector<int> v);
     std::vector<int> v = { 1, 2, 3 };
@@ -124,7 +154,7 @@ that consumes this parameter does not move from it, or if it does so only
 conditionally. For example, in the following situation, the check will assume
 that a move always takes place:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     std::vector<std::string> messages;
     void f(std::string &&str) {
@@ -138,6 +168,10 @@ that a move always takes place:
 
 The check will assume that the last line causes a move, even though, in this
 particular case, it does not. Again, this is intentional.
+
+There is one special case: A call to ``std::move`` inside a ``try_emplace`` call
+is conservatively assumed not to move. This is to avoid spurious warnings, as
+the check has no way to reason about the ``bool`` returned by ``try_emplace``.
 
 When analyzing the order in which moves, uses and reinitializations happen (see
 section `Unsequenced moves, uses, and reinitializations`_), the move is assumed
@@ -178,12 +212,15 @@ The check considers a variable to be reinitialized in the following cases:
   - ``reset()`` is called on the variable and the variable is of type
     ``std::unique_ptr``, ``std::shared_ptr`` or ``std::weak_ptr``.
 
+  - A member function marked with the ``[[clang::reinitializes]]`` attribute is
+    called on the variable.
+
 If the variable in question is a struct and an individual member variable of
 that struct is written to, the check does not consider this to be a
 reinitialization -- even if, eventually, all member variables of the struct are
 written to. For example:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     struct S {
       std::string str;

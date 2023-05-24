@@ -1,9 +1,8 @@
 //===-- cli-wrapper.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // CLI Wrapper for hardware features of Intel(R) architecture based processors
 // to enable them to be used through LLDB's CLI. For details, please refer to
@@ -19,10 +18,6 @@
 #include "intel-mpx/cli-wrapper-mpxtable.h"
 #endif
 
-#ifdef BUILD_INTEL_PT
-#include "intel-pt/cli-wrapper-pt.h"
-#endif
-
 #include "lldb/API/SBDebugger.h"
 
 namespace lldb {
@@ -30,10 +25,6 @@ bool PluginInitialize(lldb::SBDebugger debugger);
 }
 
 bool lldb::PluginInitialize(lldb::SBDebugger debugger) {
-
-#ifdef BUILD_INTEL_PT
-  PTPluginInitialize(debugger);
-#endif
 
 #ifdef BUILD_INTEL_MPX
   MPXPluginInitialize(debugger);

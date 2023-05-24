@@ -1,9 +1,8 @@
 //===- Tooling.h - Framework for standalone Clang tools ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -33,7 +32,6 @@
 #include "clang/AST/ASTConsumer.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LLVM.h"
-#include "clang/Basic/VirtualFileSystem.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Frontend/PCHContainerOperations.h"
 #include "clang/Tooling/ArgumentsAdjusters.h"
@@ -44,6 +42,7 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Option/Option.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include <memory>
 #include <string>
 #include <utility>
@@ -55,7 +54,6 @@ class CompilerInstance;
 class CompilerInvocation;
 class DiagnosticConsumer;
 class DiagnosticsEngine;
-class SourceManager;
 
 namespace driver {
 
@@ -66,6 +64,14 @@ class Compilation;
 namespace tooling {
 
 class CompilationDatabase;
+
+/// Retrieves the flags of the `-cc1` job in `Compilation` that has only source
+/// files as its inputs.
+/// Returns nullptr if there are no such jobs or multiple of them. Note that
+/// offloading jobs are ignored.
+const llvm::opt::ArgStringList *
+getCC1Arguments(DiagnosticsEngine *Diagnostics,
+                driver::Compilation *Compilation);
 
 /// Interface to process a clang::CompilerInvocation.
 ///
@@ -100,9 +106,7 @@ public:
                      DiagnosticConsumer *DiagConsumer) override;
 
   /// Returns a new clang::FrontendAction.
-  ///
-  /// The caller takes ownership of the returned action.
-  virtual FrontendAction *create() = 0;
+  virtual std::unique_ptr<FrontendAction> create() = 0;
 };
 
 /// Returns a new FrontendActionFactory for a given type.
@@ -110,7 +114,7 @@ public:
 /// T must derive from clang::FrontendAction.
 ///
 /// Example:
-/// FrontendActionFactory *Factory =
+/// std::unique_ptr<FrontendActionFactory> Factory =
 ///   newFrontendActionFactory<clang::SyntaxOnlyAction>();
 template <typename T>
 std::unique_ptr<FrontendActionFactory> newFrontendActionFactory();
@@ -140,7 +144,7 @@ public:
 ///
 /// Example:
 /// struct ProvidesASTConsumers {
-///   clang::ASTConsumer *newASTConsumer();
+///   std::unique_ptr<clang::ASTConsumer> newASTConsumer();
 /// } Factory;
 /// std::unique_ptr<FrontendActionFactory> FactoryAdapter(
 ///   newFrontendActionFactory(&Factory));
@@ -157,7 +161,7 @@ inline std::unique_ptr<FrontendActionFactory> newFrontendActionFactory(
 ///                         clang modules.
 ///
 /// \return - True if 'ToolAction' was successfully executed.
-bool runToolOnCode(FrontendAction *ToolAction, const Twine &Code,
+bool runToolOnCode(std::unique_ptr<FrontendAction> ToolAction, const Twine &Code,
                    const Twine &FileName = "input.cc",
                    std::shared_ptr<PCHContainerOperations> PCHContainerOps =
                        std::make_shared<PCHContainerOperations>());
@@ -180,7 +184,7 @@ using FileContentMappings = std::vector<std::pair<std::string, std::string>>;
 ///
 /// \return - True if 'ToolAction' was successfully executed.
 bool runToolOnCodeWithArgs(
-    FrontendAction *ToolAction, const Twine &Code,
+    std::unique_ptr<FrontendAction> ToolAction, const Twine &Code,
     const std::vector<std::string> &Args, const Twine &FileName = "input.cc",
     const Twine &ToolName = "clang-tool",
     std::shared_ptr<PCHContainerOperations> PCHContainerOps =
@@ -189,8 +193,8 @@ bool runToolOnCodeWithArgs(
 
 // Similar to the overload except this takes a VFS.
 bool runToolOnCodeWithArgs(
-    FrontendAction *ToolAction, const Twine &Code,
-    llvm::IntrusiveRefCntPtr<vfs::FileSystem> VFS,
+    std::unique_ptr<FrontendAction> ToolAction, const Twine &Code,
+    llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS,
     const std::vector<std::string> &Args, const Twine &FileName = "input.cc",
     const Twine &ToolName = "clang-tool",
     std::shared_ptr<PCHContainerOperations> PCHContainerOps =
@@ -205,7 +209,7 @@ bool runToolOnCodeWithArgs(
 ///
 /// \return The resulting AST or null if an error occurred.
 std::unique_ptr<ASTUnit>
-buildASTFromCode(const Twine &Code, const Twine &FileName = "input.cc",
+buildASTFromCode(StringRef Code, StringRef FileName = "input.cc",
                  std::shared_ptr<PCHContainerOperations> PCHContainerOps =
                      std::make_shared<PCHContainerOperations>());
 
@@ -223,11 +227,13 @@ buildASTFromCode(const Twine &Code, const Twine &FileName = "input.cc",
 ///
 /// \return The resulting AST or null if an error occurred.
 std::unique_ptr<ASTUnit> buildASTFromCodeWithArgs(
-    const Twine &Code, const std::vector<std::string> &Args,
-    const Twine &FileName = "input.cc", const Twine &ToolName = "clang-tool",
+    StringRef Code, const std::vector<std::string> &Args,
+    StringRef FileName = "input.cc", StringRef ToolName = "clang-tool",
     std::shared_ptr<PCHContainerOperations> PCHContainerOps =
-      std::make_shared<PCHContainerOperations>(),
-    ArgumentsAdjuster Adjuster = getClangStripDependencyFileAdjuster());
+        std::make_shared<PCHContainerOperations>(),
+    ArgumentsAdjuster Adjuster = getClangStripDependencyFileAdjuster(),
+    const FileContentMappings &VirtualMappedFiles = FileContentMappings(),
+    DiagnosticConsumer *DiagConsumer = nullptr);
 
 /// Utility to run a FrontendAction in a single clang invocation.
 class ToolInvocation {
@@ -238,13 +244,13 @@ public:
   /// uses its binary name (CommandLine[0]) to locate its builtin headers.
   /// Callers have to ensure that they are installed in a compatible location
   /// (see clang driver implementation) or mapped in via mapVirtualFile.
-  /// \param FAction The action to be executed. Class takes ownership.
+  /// \param FAction The action to be executed.
   /// \param Files The FileManager used for the execution. Class does not take
   /// ownership.
   /// \param PCHContainerOps The PCHContainerOperations for loading and creating
   /// clang modules.
-  ToolInvocation(std::vector<std::string> CommandLine, FrontendAction *FAction,
-                 FileManager *Files,
+  ToolInvocation(std::vector<std::string> CommandLine,
+                 std::unique_ptr<FrontendAction> FAction, FileManager *Files,
                  std::shared_ptr<PCHContainerOperations> PCHContainerOps =
                      std::make_shared<PCHContainerOperations>());
 
@@ -261,17 +267,16 @@ public:
 
   ~ToolInvocation();
 
-  /// Set a \c DiagnosticConsumer to use during parsing.
+  /// Set a \c DiagnosticConsumer to use during driver command-line parsing and
+  /// the action invocation itself.
   void setDiagnosticConsumer(DiagnosticConsumer *DiagConsumer) {
     this->DiagConsumer = DiagConsumer;
   }
 
-  /// Map a virtual file to be used while running the tool.
-  ///
-  /// \param FilePath The path at which the content will be mapped.
-  /// \param Content A null terminated buffer of the file's content.
-  // FIXME: remove this when all users have migrated!
-  void mapVirtualFile(StringRef FilePath, StringRef Content);
+  /// Set a \c DiagnosticOptions to use during driver command-line parsing.
+  void setDiagnosticOptions(DiagnosticOptions *DiagOpts) {
+    this->DiagOpts = DiagOpts;
+  }
 
   /// Run the clang invocation.
   ///
@@ -279,8 +284,6 @@ public:
   bool run();
 
  private:
-  void addFileMappingsTo(SourceManager &SourceManager);
-
   bool runInvocation(const char *BinaryName,
                      driver::Compilation *Compilation,
                      std::shared_ptr<CompilerInvocation> Invocation,
@@ -291,9 +294,8 @@ public:
   bool OwnsAction;
   FileManager *Files;
   std::shared_ptr<PCHContainerOperations> PCHContainerOps;
-  // Maps <file name> -> <file content>.
-  llvm::StringMap<StringRef> MappedFileContents;
   DiagnosticConsumer *DiagConsumer = nullptr;
+  DiagnosticOptions *DiagOpts = nullptr;
 };
 
 /// Utility to run a FrontendAction over a set of files.
@@ -315,12 +317,15 @@ public:
   /// clang modules.
   /// \param BaseFS VFS used for all underlying file accesses when running the
   /// tool.
+  /// \param Files The file manager to use for underlying file operations when
+  /// running the tool.
   ClangTool(const CompilationDatabase &Compilations,
             ArrayRef<std::string> SourcePaths,
             std::shared_ptr<PCHContainerOperations> PCHContainerOps =
                 std::make_shared<PCHContainerOperations>(),
-            IntrusiveRefCntPtr<vfs::FileSystem> BaseFS =
-                vfs::getRealFileSystem());
+            IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS =
+                llvm::vfs::getRealFileSystem(),
+            IntrusiveRefCntPtr<FileManager> Files = nullptr);
 
   ~ClangTool();
 
@@ -356,6 +361,15 @@ public:
   /// append them to ASTs.
   int buildASTs(std::vector<std::unique_ptr<ASTUnit>> &ASTs);
 
+  /// Sets whether working directory should be restored after calling run(). By
+  /// default, working directory is restored. However, it could be useful to
+  /// turn this off when running on multiple threads to avoid the raciness.
+  void setRestoreWorkingDir(bool RestoreCWD);
+
+  /// Sets whether an error message should be printed out if an action fails. By
+  /// default, if an action fails, a message is printed out to stderr.
+  void setPrintErrorMessage(bool PrintErrorMessage);
+
   /// Returns the file manager used in the tool.
   ///
   /// The file manager is shared between all translation units.
@@ -368,8 +382,8 @@ private:
   std::vector<std::string> SourcePaths;
   std::shared_ptr<PCHContainerOperations> PCHContainerOps;
 
-  llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> OverlayFileSystem;
-  llvm::IntrusiveRefCntPtr<vfs::InMemoryFileSystem> InMemoryFileSystem;
+  llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> OverlayFileSystem;
+  llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> InMemoryFileSystem;
   llvm::IntrusiveRefCntPtr<FileManager> Files;
 
   // Contains a list of pairs (<file name>, <file content>).
@@ -380,13 +394,18 @@ private:
   ArgumentsAdjuster ArgsAdjuster;
 
   DiagnosticConsumer *DiagConsumer = nullptr;
+
+  bool RestoreCWD = true;
+  bool PrintErrorMessage = true;
 };
 
 template <typename T>
 std::unique_ptr<FrontendActionFactory> newFrontendActionFactory() {
   class SimpleFrontendActionFactory : public FrontendActionFactory {
   public:
-    FrontendAction *create() override { return new T; }
+    std::unique_ptr<FrontendAction> create() override {
+      return std::make_unique<T>();
+    }
   };
 
   return std::unique_ptr<FrontendActionFactory>(
@@ -402,8 +421,9 @@ inline std::unique_ptr<FrontendActionFactory> newFrontendActionFactory(
                                           SourceFileCallbacks *Callbacks)
         : ConsumerFactory(ConsumerFactory), Callbacks(Callbacks) {}
 
-    FrontendAction *create() override {
-      return new ConsumerFactoryAdaptor(ConsumerFactory, Callbacks);
+    std::unique_ptr<FrontendAction> create() override {
+      return std::make_unique<ConsumerFactoryAdaptor>(ConsumerFactory,
+                                                      Callbacks);
     }
 
   private:
@@ -459,6 +479,10 @@ inline std::unique_ptr<FrontendActionFactory> newFrontendActionFactory(
 /// \param File Either an absolute or relative path.
 std::string getAbsolutePath(StringRef File);
 
+/// An overload of getAbsolutePath that works over the provided \p FS.
+llvm::Expected<std::string> getAbsolutePath(llvm::vfs::FileSystem &FS,
+                                            StringRef File);
+
 /// Changes CommandLine to contain implicit flags that would have been
 /// defined had the compiler driver been invoked through the path InvokedAs.
 ///
@@ -484,7 +508,8 @@ void addTargetAndModeForProgramName(std::vector<std::string> &CommandLine,
 
 /// Creates a \c CompilerInvocation.
 CompilerInvocation *newInvocation(DiagnosticsEngine *Diagnostics,
-                                  const llvm::opt::ArgStringList &CC1Args);
+                                  const llvm::opt::ArgStringList &CC1Args,
+                                  const char *const BinaryName);
 
 } // namespace tooling
 

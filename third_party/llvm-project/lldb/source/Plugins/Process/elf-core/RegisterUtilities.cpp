@@ -1,9 +1,8 @@
-//===-- RegisterUtilities.cpp -----------------------------------*- C++ -*-===//
+//===-- RegisterUtilities.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,5 +34,5 @@ DataExtractor lldb_private::getRegset(llvm::ArrayRef<CoreNote> Notes,
   uint32_t Type = *TypeOr;
   auto Iter = llvm::find_if(
       Notes, [Type](const CoreNote &Note) { return Note.info.n_type == Type; });
-  return Iter == Notes.end() ? DataExtractor() : Iter->data;
+  return Iter == Notes.end() ? DataExtractor() : DataExtractor(Iter->data);
 }

@@ -1,9 +1,8 @@
 //===-- AVRTargetMachine.cpp - Define TargetMachine for AVR ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,15 +16,17 @@
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 
 #include "AVR.h"
 #include "AVRTargetObjectFile.h"
 #include "MCTargetDesc/AVRMCTargetDesc.h"
+#include "TargetInfo/AVRTargetInfo.h"
 
 namespace llvm {
 
-static const char *AVRDataLayout = "e-P1-p:16:8-i8:8-i16:8-i32:8-i64:8-f32:8-f64:8-n8-a:8";
+static const char *AVRDataLayout =
+    "e-P1-p:16:8-i8:8-i16:8-i32:8-i64:8-f32:8-f64:8-n8-a:8";
 
 /// Processes a CPU name.
 static StringRef getCPU(StringRef CPU) {
@@ -37,13 +38,7 @@ static StringRef getCPU(StringRef CPU) {
 }
 
 static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
-  return RM.hasValue() ? *RM : Reloc::Static;
-}
-
-static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM) {
-  if (CM)
-    return *CM;
-  return CodeModel::Small;
+  return RM.getValueOr(Reloc::Static);
 }
 
 AVRTargetMachine::AVRTargetMachine(const Target &T, const Triple &TT,
@@ -53,10 +48,10 @@ AVRTargetMachine::AVRTargetMachine(const Target &T, const Triple &TT,
                                    Optional<CodeModel::Model> CM,
                                    CodeGenOpt::Level OL, bool JIT)
     : LLVMTargetMachine(T, AVRDataLayout, TT, getCPU(CPU), FS, Options,
-                        getEffectiveRelocModel(RM), getEffectiveCodeModel(CM),
-                        OL),
-      SubTarget(TT, getCPU(CPU), FS, *this) {
-  this->TLOF = make_unique<AVRTargetObjectFile>();
+                        getEffectiveRelocModel(RM),
+                        getEffectiveCodeModel(CM, CodeModel::Small), OL),
+      SubTarget(TT, std::string(getCPU(CPU)), std::string(FS), *this) {
+  this->TLOF = std::make_unique<AVRTargetObjectFile>();
   initAsmInfo();
 }
 
@@ -71,10 +66,10 @@ public:
     return getTM<AVRTargetMachine>();
   }
 
+  void addIRPasses() override;
   bool addInstSelector() override;
   void addPreSched2() override;
   void addPreEmitPass() override;
-  void addPreRegAlloc() override;
 };
 } // namespace
 
@@ -82,13 +77,23 @@ TargetPassConfig *AVRTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new AVRPassConfig(*this, PM);
 }
 
-extern "C" void LLVMInitializeAVRTarget() {
+void AVRPassConfig::addIRPasses() {
+  // Expand instructions like
+  //   %result = shl i32 %n, %amount
+  // to a loop so that library calls are avoided.
+  addPass(createAVRShiftExpandPass());
+
+  TargetPassConfig::addIRPasses();
+}
+
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAVRTarget() {
   // Register the target.
   RegisterTargetMachine<AVRTargetMachine> X(getTheAVRTarget());
 
   auto &PR = *PassRegistry::getPassRegistry();
   initializeAVRExpandPseudoPass(PR);
   initializeAVRRelaxMemPass(PR);
+  initializeAVRShiftExpandPass(PR);
 }
 
 const AVRSubtarget *AVRTargetMachine::getSubtargetImpl() const {
@@ -110,11 +115,6 @@ bool AVRPassConfig::addInstSelector() {
   addPass(createAVRFrameAnalyzerPass());
 
   return false;
-}
-
-void AVRPassConfig::addPreRegAlloc() {
-  // Create the dynalloc SP save/restore pass to handle variable sized allocas.
-  addPass(createAVRDynAllocaSRPass());
 }
 
 void AVRPassConfig::addPreSched2() {

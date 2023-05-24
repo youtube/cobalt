@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,7 +15,7 @@
 //                  const basic_regex<charT, traits>& e,
 //                  regex_constants::match_flag_type flags = regex_constants::match_default);
 
-// https://bugs.llvm.org/show_bug.cgi?id=16135
+// https://llvm.org/PR16135
 
 #include <string>
 #include <regex>
@@ -63,11 +62,12 @@ test4()
     assert((std::regex_match(target, smatch, regex)));
 }
 
-int
-main()
+int main(int, char**)
 {
     test1();
     test2();
     test3();
     test4();
+
+  return 0;
 }

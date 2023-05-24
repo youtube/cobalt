@@ -1,9 +1,8 @@
 //===--- ThrowKeywordMissingCheck.cpp - clang-tidy-------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,31 +17,29 @@ namespace tidy {
 namespace bugprone {
 
 void ThrowKeywordMissingCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   auto CtorInitializerList =
       cxxConstructorDecl(hasAnyConstructorInitializer(anything()));
 
   Finder->addMatcher(
-      expr(anyOf(cxxFunctionalCastExpr(), cxxBindTemporaryExpr(),
-                 cxxTemporaryObjectExpr()),
-           hasType(cxxRecordDecl(
-               isSameOrDerivedFrom(matchesName("[Ee]xception|EXCEPTION")))),
-           unless(anyOf(hasAncestor(stmt(
-                            anyOf(cxxThrowExpr(), callExpr(), returnStmt()))),
-                        hasAncestor(varDecl()),
-                        allOf(hasAncestor(CtorInitializerList),
-                              unless(hasAncestor(cxxCatchStmt()))))))
+      cxxConstructExpr(
+          hasType(cxxRecordDecl(
+              isSameOrDerivedFrom(matchesName("[Ee]xception|EXCEPTION")))),
+          unless(anyOf(
+              hasAncestor(
+                  stmt(anyOf(cxxThrowExpr(), callExpr(), returnStmt()))),
+              hasAncestor(decl(anyOf(varDecl(), fieldDecl()))),
+              hasAncestor(expr(cxxNewExpr(hasAnyPlacementArg(anything())))),
+              allOf(hasAncestor(CtorInitializerList),
+                    unless(hasAncestor(cxxCatchStmt()))))))
           .bind("temporary-exception-not-thrown"),
-      this); 
+      this);
 }
 
 void ThrowKeywordMissingCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *TemporaryExpr =
       Result.Nodes.getNodeAs<Expr>("temporary-exception-not-thrown");
 
-  diag(TemporaryExpr->getLocStart(), "suspicious exception object created but "
+  diag(TemporaryExpr->getBeginLoc(), "suspicious exception object created but "
                                      "not thrown; did you mean 'throw %0'?")
       << TemporaryExpr->getType().getBaseTypeIdentifier()->getName();
 }

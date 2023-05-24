@@ -9,13 +9,15 @@ if( NOT MSVC ) # MSVC mangles symbols differently, and
   endif()
 endif()
 
-add_llvm_loadable_module(PrintFunctionNames PrintFunctionNames.cpp PLUGIN_TOOL clang)
+add_llvm_library(PrintFunctionNames MODULE PrintFunctionNames.cpp PLUGIN_TOOL clang)
 
 if(LLVM_ENABLE_PLUGINS AND (WIN32 OR CYGWIN))
-  target_link_libraries(PrintFunctionNames PRIVATE
+  set(LLVM_LINK_COMPONENTS
+    Support
+  )
+  clang_target_link_libraries(PrintFunctionNames PRIVATE
     clangAST
     clangBasic
     clangFrontend
-    LLVMSupport
     )
 endif()

@@ -1,9 +1,8 @@
 //===- ScalarEvolutionAliasAnalysis.cpp - SCEV-based Alias Analysis -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,15 +19,26 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/InitializePasses.h"
 using namespace llvm;
 
+static bool canComputePointerDiff(ScalarEvolution &SE,
+                                  const SCEV *A, const SCEV *B) {
+  if (SE.getEffectiveSCEVType(A->getType()) !=
+      SE.getEffectiveSCEVType(B->getType()))
+    return false;
+
+  return SE.instructionCouldExistWitthOperands(A, B);
+}
+
 AliasResult SCEVAAResult::alias(const MemoryLocation &LocA,
-                                const MemoryLocation &LocB) {
+                                const MemoryLocation &LocB, AAQueryInfo &AAQI) {
   // If either of the memory references is empty, it doesn't matter what the
   // pointer values are. This allows the code below to ignore this special
   // case.
-  if (LocA.Size == 0 || LocB.Size == 0)
-    return NoAlias;
+  if (LocA.Size.isZero() || LocB.Size.isZero())
+    return AliasResult::NoAlias;
 
   // This is SCEVAAResult. Get the SCEVs!
   const SCEV *AS = SE.getSCEV(const_cast<Value *>(LocA.Ptr));
@@ -36,15 +46,18 @@ AliasResult SCEVAAResult::alias(const MemoryLocation &LocA,
 
   // If they evaluate to the same expression, it's a MustAlias.
   if (AS == BS)
-    return MustAlias;
+    return AliasResult::MustAlias;
 
   // If something is known about the difference between the two addresses,
   // see if it's enough to prove a NoAlias.
-  if (SE.getEffectiveSCEVType(AS->getType()) ==
-      SE.getEffectiveSCEVType(BS->getType())) {
+  if (canComputePointerDiff(SE, AS, BS)) {
     unsigned BitWidth = SE.getTypeSizeInBits(AS->getType());
-    APInt ASizeInt(BitWidth, LocA.Size);
-    APInt BSizeInt(BitWidth, LocB.Size);
+    APInt ASizeInt(BitWidth, LocA.Size.hasValue()
+                                 ? LocA.Size.getValue()
+                                 : MemoryLocation::UnknownSize);
+    APInt BSizeInt(BitWidth, LocB.Size.hasValue()
+                                 ? LocB.Size.getValue()
+                                 : MemoryLocation::UnknownSize);
 
     // Compute the difference between the two pointers.
     const SCEV *BA = SE.getMinusSCEV(BS, AS);
@@ -52,9 +65,10 @@ AliasResult SCEVAAResult::alias(const MemoryLocation &LocA,
     // Test whether the difference is known to be great enough that memory of
     // the given sizes don't overlap. This assumes that ASizeInt and BSizeInt
     // are non-zero, which is special-cased above.
-    if (ASizeInt.ule(SE.getUnsignedRange(BA).getUnsignedMin()) &&
+    if (!isa<SCEVCouldNotCompute>(BA) &&
+        ASizeInt.ule(SE.getUnsignedRange(BA).getUnsignedMin()) &&
         (-BSizeInt).uge(SE.getUnsignedRange(BA).getUnsignedMax()))
-      return NoAlias;
+      return AliasResult::NoAlias;
 
     // Folding the subtraction while preserving range information can be tricky
     // (because of INT_MIN, etc.); if the prior test failed, swap AS and BS
@@ -66,9 +80,10 @@ AliasResult SCEVAAResult::alias(const MemoryLocation &LocA,
     // Test whether the difference is known to be great enough that memory of
     // the given sizes don't overlap. This assumes that ASizeInt and BSizeInt
     // are non-zero, which is special-cased above.
-    if (BSizeInt.ule(SE.getUnsignedRange(AB).getUnsignedMin()) &&
+    if (!isa<SCEVCouldNotCompute>(AB) &&
+        BSizeInt.ule(SE.getUnsignedRange(AB).getUnsignedMin()) &&
         (-ASizeInt).uge(SE.getUnsignedRange(AB).getUnsignedMax()))
-      return NoAlias;
+      return AliasResult::NoAlias;
   }
 
   // If ScalarEvolution can find an underlying object, form a new query.
@@ -78,15 +93,18 @@ AliasResult SCEVAAResult::alias(const MemoryLocation &LocA,
   Value *BO = GetBaseValue(BS);
   if ((AO && AO != LocA.Ptr) || (BO && BO != LocB.Ptr))
     if (alias(MemoryLocation(AO ? AO : LocA.Ptr,
-                             AO ? +MemoryLocation::UnknownSize : LocA.Size,
+                             AO ? LocationSize::beforeOrAfterPointer()
+                                : LocA.Size,
                              AO ? AAMDNodes() : LocA.AATags),
               MemoryLocation(BO ? BO : LocB.Ptr,
-                             BO ? +MemoryLocation::UnknownSize : LocB.Size,
-                             BO ? AAMDNodes() : LocB.AATags)) == NoAlias)
-      return NoAlias;
+                             BO ? LocationSize::beforeOrAfterPointer()
+                                : LocB.Size,
+                             BO ? AAMDNodes() : LocB.AATags),
+              AAQI) == AliasResult::NoAlias)
+      return AliasResult::NoAlias;
 
   // Forward the query to the next analysis.
-  return AAResultBase::alias(LocA, LocB);
+  return AAResultBase::alias(LocA, LocB, AAQI);
 }
 
 /// Given an expression, try to find a base value.
@@ -108,6 +126,13 @@ Value *SCEVAAResult::GetBaseValue(const SCEV *S) {
   }
   // No Identified object found.
   return nullptr;
+}
+
+bool SCEVAAResult::invalidate(Function &Fn, const PreservedAnalyses &PA,
+                              FunctionAnalysisManager::Invalidator &Inv) {
+  // We don't care if this analysis itself is preserved, it has no state. But
+  // we need to check that the analyses it depends on have been.
+  return Inv.invalidate<ScalarEvolutionAnalysis>(Fn, PA);
 }
 
 AnalysisKey SCEVAA::Key;

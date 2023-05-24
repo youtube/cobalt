@@ -8,17 +8,17 @@ define i64 @Test_get_quotient(i64 %a, i64 %b) nounwind {
 ; CHECK-LABEL: Test_get_quotient:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movq %rdi, %rax
-; CHECK-NEXT:    orq %rsi, %rax
-; CHECK-NEXT:    shrq $32, %rax
+; CHECK-NEXT:    movq %rdi, %rcx
+; CHECK-NEXT:    orq %rsi, %rcx
+; CHECK-NEXT:    shrq $32, %rcx
 ; CHECK-NEXT:    je .LBB0_1
 ; CHECK-NEXT:  # %bb.2:
-; CHECK-NEXT:    movq %rdi, %rax
 ; CHECK-NEXT:    cqto
 ; CHECK-NEXT:    idivq %rsi
 ; CHECK-NEXT:    retq
 ; CHECK-NEXT:  .LBB0_1:
+; CHECK-NEXT:    # kill: def $eax killed $eax killed $rax
 ; CHECK-NEXT:    xorl %edx, %edx
-; CHECK-NEXT:    movl %edi, %eax
 ; CHECK-NEXT:    divl %esi
 ; CHECK-NEXT:    # kill: def $eax killed $eax def $rax
 ; CHECK-NEXT:    retq
@@ -30,21 +30,20 @@ define i64 @Test_get_remainder(i64 %a, i64 %b) nounwind {
 ; CHECK-LABEL: Test_get_remainder:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movq %rdi, %rax
-; CHECK-NEXT:    orq %rsi, %rax
-; CHECK-NEXT:    shrq $32, %rax
+; CHECK-NEXT:    movq %rdi, %rcx
+; CHECK-NEXT:    orq %rsi, %rcx
+; CHECK-NEXT:    shrq $32, %rcx
 ; CHECK-NEXT:    je .LBB1_1
 ; CHECK-NEXT:  # %bb.2:
-; CHECK-NEXT:    movq %rdi, %rax
 ; CHECK-NEXT:    cqto
 ; CHECK-NEXT:    idivq %rsi
 ; CHECK-NEXT:    movq %rdx, %rax
 ; CHECK-NEXT:    retq
 ; CHECK-NEXT:  .LBB1_1:
+; CHECK-NEXT:    # kill: def $eax killed $eax killed $rax
 ; CHECK-NEXT:    xorl %edx, %edx
-; CHECK-NEXT:    movl %edi, %eax
 ; CHECK-NEXT:    divl %esi
-; CHECK-NEXT:    # kill: def $edx killed $edx def $rdx
-; CHECK-NEXT:    movq %rdx, %rax
+; CHECK-NEXT:    movl %edx, %eax
 ; CHECK-NEXT:    retq
   %result = srem i64 %a, %b
   ret i64 %result
@@ -54,18 +53,18 @@ define i64 @Test_get_quotient_and_remainder(i64 %a, i64 %b) nounwind {
 ; CHECK-LABEL: Test_get_quotient_and_remainder:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movq %rdi, %rax
-; CHECK-NEXT:    orq %rsi, %rax
-; CHECK-NEXT:    shrq $32, %rax
+; CHECK-NEXT:    movq %rdi, %rcx
+; CHECK-NEXT:    orq %rsi, %rcx
+; CHECK-NEXT:    shrq $32, %rcx
 ; CHECK-NEXT:    je .LBB2_1
 ; CHECK-NEXT:  # %bb.2:
-; CHECK-NEXT:    movq %rdi, %rax
 ; CHECK-NEXT:    cqto
 ; CHECK-NEXT:    idivq %rsi
 ; CHECK-NEXT:    addq %rdx, %rax
 ; CHECK-NEXT:    retq
 ; CHECK-NEXT:  .LBB2_1:
+; CHECK-NEXT:    # kill: def $eax killed $eax killed $rax
 ; CHECK-NEXT:    xorl %edx, %edx
-; CHECK-NEXT:    movl %edi, %eax
 ; CHECK-NEXT:    divl %esi
 ; CHECK-NEXT:    # kill: def $edx killed $edx def $rdx
 ; CHECK-NEXT:    # kill: def $eax killed $eax def $rax
@@ -75,4 +74,14 @@ define i64 @Test_get_quotient_and_remainder(i64 %a, i64 %b) nounwind {
   %resultrem = srem i64 %a, %b
   %result = add i64 %resultdiv, %resultrem
   ret i64 %result
+}
+
+define void @PR43514(i32 %x, i32 %y) {
+; CHECK-LABEL: PR43514:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    retq
+  %z1 = zext i32 %x to i64
+  %z2 = zext i32 %y to i64
+  %s = srem i64 %z1, %z2
+  ret void
 }

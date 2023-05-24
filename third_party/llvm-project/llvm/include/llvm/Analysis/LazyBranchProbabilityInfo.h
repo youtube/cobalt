@@ -1,9 +1,8 @@
 //===- LazyBranchProbabilityInfo.h - Lazy Branch Probability ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -58,13 +57,13 @@ class LazyBranchProbabilityInfoPass : public FunctionPass {
   public:
     LazyBranchProbabilityInfo(const Function *F, const LoopInfo *LI,
                               const TargetLibraryInfo *TLI)
-        : Calculated(false), F(F), LI(LI), TLI(TLI) {}
+        : F(F), LI(LI), TLI(TLI) {}
 
     /// Retrieve the BPI with the branch probabilities computed.
     BranchProbabilityInfo &getCalculated() {
       if (!Calculated) {
         assert(F && LI && "call setAnalysis");
-        BPI.calculate(*F, *LI, TLI);
+        BPI.calculate(*F, *LI, TLI, nullptr, nullptr);
         Calculated = true;
       }
       return BPI;
@@ -76,7 +75,7 @@ class LazyBranchProbabilityInfoPass : public FunctionPass {
 
   private:
     BranchProbabilityInfo BPI;
-    bool Calculated;
+    bool Calculated = false;
     const Function *F;
     const LoopInfo *LI;
     const TargetLibraryInfo *TLI;

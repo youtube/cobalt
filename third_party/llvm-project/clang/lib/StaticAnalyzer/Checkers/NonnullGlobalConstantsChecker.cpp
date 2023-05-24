@@ -1,9 +1,8 @@
 //==- NonnullGlobalConstantsChecker.cpp ---------------------------*- C++ -*--//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,7 +20,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
@@ -37,6 +36,7 @@ class NonnullGlobalConstantsChecker : public Checker<check::Location> {
   mutable IdentifierInfo *NSStringII = nullptr;
   mutable IdentifierInfo *CFStringRefII = nullptr;
   mutable IdentifierInfo *CFBooleanRefII = nullptr;
+  mutable IdentifierInfo *CFNullRefII = nullptr;
 
 public:
   NonnullGlobalConstantsChecker() {}
@@ -62,6 +62,7 @@ void NonnullGlobalConstantsChecker::initIdentifierInfo(ASTContext &Ctx) const {
   NSStringII = &Ctx.Idents.get("NSString");
   CFStringRefII = &Ctx.Idents.get("CFStringRef");
   CFBooleanRefII = &Ctx.Idents.get("CFBooleanRef");
+  CFNullRefII = &Ctx.Idents.get("CFNullRef");
 }
 
 /// Add an assumption that const string-like globals are non-null.
@@ -88,7 +89,7 @@ void NonnullGlobalConstantsChecker::checkLocation(SVal location, bool isLoad,
 }
 
 /// \param V loaded lvalue.
-/// \return whether {@code val} is a string-like const global.
+/// \return whether @c val is a string-like const global.
 bool NonnullGlobalConstantsChecker::isGlobalConstString(SVal V) const {
   Optional<loc::MemRegionVal> RegionVal = V.getAs<loc::MemRegionVal>();
   if (!RegionVal)
@@ -107,19 +108,26 @@ bool NonnullGlobalConstantsChecker::isGlobalConstString(SVal V) const {
     return true;
 
   // Look through the typedefs.
-  while (auto *T = dyn_cast<TypedefType>(Ty)) {
-    Ty = T->getDecl()->getUnderlyingType();
-
-    // It is sufficient for any intermediate typedef
-    // to be classified const.
-    HasConst = HasConst || Ty.isConstQualified();
-    if (isNonnullType(Ty) && HasConst)
-      return true;
+  while (const Type *T = Ty.getTypePtr()) {
+    if (const auto *TT = dyn_cast<TypedefType>(T)) {
+      Ty = TT->getDecl()->getUnderlyingType();
+      // It is sufficient for any intermediate typedef
+      // to be classified const.
+      HasConst = HasConst || Ty.isConstQualified();
+      if (isNonnullType(Ty) && HasConst)
+        return true;
+    } else if (const auto *AT = dyn_cast<AttributedType>(T)) {
+      if (AT->getAttrKind() == attr::TypeNonNull)
+        return true;
+      Ty = AT->getModifiedType();
+    } else {
+      return false;
+    }
   }
   return false;
 }
 
-/// \return whether {@code type} is extremely unlikely to be null
+/// \return whether @c type is extremely unlikely to be null
 bool NonnullGlobalConstantsChecker::isNonnullType(QualType Ty) const {
 
   if (Ty->isPointerType() && Ty->getPointeeType()->isCharType())
@@ -130,11 +138,15 @@ bool NonnullGlobalConstantsChecker::isNonnullType(QualType Ty) const {
       T->getInterfaceDecl()->getIdentifier() == NSStringII;
   } else if (auto *T = dyn_cast<TypedefType>(Ty)) {
     IdentifierInfo* II = T->getDecl()->getIdentifier();
-    return II == CFStringRefII || II == CFBooleanRefII;
+    return II == CFStringRefII || II == CFBooleanRefII || II == CFNullRefII;
   }
   return false;
 }
 
 void ento::registerNonnullGlobalConstantsChecker(CheckerManager &Mgr) {
   Mgr.registerChecker<NonnullGlobalConstantsChecker>();
+}
+
+bool ento::shouldRegisterNonnullGlobalConstantsChecker(const CheckerManager &mgr) {
+  return true;
 }

@@ -1,44 +1,37 @@
 //===-- ProcessPOSIXLog.h -----------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_ProcessPOSIXLog_h_
 #define liblldb_ProcessPOSIXLog_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 
-// Project includes
 #include "lldb/Utility/Log.h"
 
-#define POSIX_LOG_PROCESS (1u << 1)
-#define POSIX_LOG_THREAD (1u << 2)
-#define POSIX_LOG_MEMORY (1u << 4) // Log memory reads/writes calls
-#define POSIX_LOG_PTRACE (1u << 5)
-#define POSIX_LOG_REGISTERS (1u << 6)
-#define POSIX_LOG_BREAKPOINTS (1u << 7)
-#define POSIX_LOG_WATCHPOINTS (1u << 8)
-#define POSIX_LOG_ALL (UINT32_MAX)
-#define POSIX_LOG_DEFAULT POSIX_LOG_PROCESS
-
 namespace lldb_private {
-class ProcessPOSIXLog {
-  static Log::Channel g_channel;
 
+enum class POSIXLog : Log::MaskType {
+  Breakpoints = Log::ChannelFlag<0>,
+  Memory = Log::ChannelFlag<1>,
+  Process = Log::ChannelFlag<2>,
+  Ptrace = Log::ChannelFlag<3>,
+  Registers = Log::ChannelFlag<4>,
+  Thread = Log::ChannelFlag<5>,
+  Watchpoints = Log::ChannelFlag<6>,
+  LLVM_MARK_AS_BITMASK_ENUM(Watchpoints)
+};
+
+class ProcessPOSIXLog {
 public:
   static void Initialize();
-
-  static Log *GetLogIfAllCategoriesSet(uint32_t mask) {
-    return g_channel.GetLogIfAll(mask);
-  }
 };
-}
+
+template <> Log::Channel &LogChannelFor<POSIXLog>();
+} // namespace lldb_private
 
 #endif // liblldb_ProcessPOSIXLog_h_

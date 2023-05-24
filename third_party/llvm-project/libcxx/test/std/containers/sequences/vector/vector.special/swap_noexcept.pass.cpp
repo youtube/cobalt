@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <vector>
 
@@ -36,6 +35,7 @@ struct some_alloc
 
     some_alloc() {}
     some_alloc(const some_alloc&);
+    void allocate(size_t);
     void deallocate(void*, unsigned) {}
 
     typedef std::true_type propagate_on_container_swap;
@@ -48,13 +48,14 @@ struct some_alloc2
 
     some_alloc2() {}
     some_alloc2(const some_alloc2&);
+    void allocate(size_t);
     void deallocate(void*, unsigned) {}
 
     typedef std::false_type propagate_on_container_swap;
     typedef std::true_type is_always_equal;
 };
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::vector<MoveOnly> C;
@@ -86,4 +87,6 @@ int main()
         static_assert( noexcept(swap(std::declval<C&>(), std::declval<C&>())), "");
     }
 #endif
+
+  return 0;
 }

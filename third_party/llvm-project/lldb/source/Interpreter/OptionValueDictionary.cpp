@@ -1,23 +1,18 @@
-//===-- OptionValueDictionary.cpp -------------------------------*- C++ -*-===//
+//===-- OptionValueDictionary.cpp -----------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/OptionValueDictionary.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "llvm/ADT/StringRef.h"
-// Project includes
-#include "lldb/Core/State.h"
 #include "lldb/DataFormatters/FormatManager.h"
 #include "lldb/Interpreter/OptionValueString.h"
 #include "lldb/Utility/Args.h"
+#include "lldb/Utility/State.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -33,17 +28,24 @@ void OptionValueDictionary::DumpValue(const ExecutionContext *exe_ctx,
       strm.Printf("(%s)", GetTypeAsCString());
   }
   if (dump_mask & eDumpOptionValue) {
+    const bool one_line = dump_mask & eDumpOptionCommand;
     if (dump_mask & eDumpOptionType)
       strm.PutCString(" =");
 
     collection::iterator pos, end = m_values.end();
 
-    strm.IndentMore();
+    if (!one_line)
+      strm.IndentMore();
 
     for (pos = m_values.begin(); pos != end; ++pos) {
       OptionValue *option_value = pos->second.get();
-      strm.EOL();
-      strm.Indent(pos->first.GetCString());
+
+      if (one_line)
+        strm << ' ';
+      else
+        strm.EOL();
+
+      strm.Indent(pos->first.GetStringRef());
 
       const uint32_t extra_dump_options = m_raw_value_dump ? eDumpOptionRaw : 0;
       switch (dict_type) {
@@ -60,6 +62,7 @@ void OptionValueDictionary::DumpValue(const ExecutionContext *exe_ctx,
       case eTypeBoolean:
       case eTypeChar:
       case eTypeEnum:
+      case eTypeFileLineColumn:
       case eTypeFileSpec:
       case eTypeFormat:
       case eTypeSInt64:
@@ -74,7 +77,8 @@ void OptionValueDictionary::DumpValue(const ExecutionContext *exe_ctx,
         break;
       }
     }
-    strm.IndentLess();
+    if (!one_line)
+      strm.IndentLess();
   }
 }
 
@@ -108,18 +112,18 @@ Status OptionValueDictionary::SetArgs(const Args &args,
       return error;
     }
     for (const auto &entry : args) {
-      if (entry.ref.empty()) {
+      if (entry.ref().empty()) {
         error.SetErrorString("empty argument");
         return error;
       }
-      if (!entry.ref.contains('=')) {
+      if (!entry.ref().contains('=')) {
         error.SetErrorString(
             "assign operation takes one or more key=value arguments");
         return error;
       }
 
       llvm::StringRef key, value;
-      std::tie(key, value) = entry.ref.split('=');
+      std::tie(key, value) = entry.ref().split('=');
       bool key_valid = false;
       if (key.empty()) {
         error.SetErrorString("empty dictionary key");
@@ -273,7 +277,7 @@ Status OptionValueDictionary::SetSubValue(const ExecutionContext *exe_ctx,
 }
 
 lldb::OptionValueSP
-OptionValueDictionary::GetValueForKey(const ConstString &key) const {
+OptionValueDictionary::GetValueForKey(ConstString key) const {
   lldb::OptionValueSP value_sp;
   collection::const_iterator pos = m_values.find(key);
   if (pos != m_values.end())
@@ -281,7 +285,7 @@ OptionValueDictionary::GetValueForKey(const ConstString &key) const {
   return value_sp;
 }
 
-bool OptionValueDictionary::SetValueForKey(const ConstString &key,
+bool OptionValueDictionary::SetValueForKey(ConstString key,
                                            const lldb::OptionValueSP &value_sp,
                                            bool can_replace) {
   // Make sure the value_sp object is allowed to contain values of the type
@@ -298,7 +302,7 @@ bool OptionValueDictionary::SetValueForKey(const ConstString &key,
   return false;
 }
 
-bool OptionValueDictionary::DeleteValueForKey(const ConstString &key) {
+bool OptionValueDictionary::DeleteValueForKey(ConstString key) {
   collection::iterator pos = m_values.find(key);
   if (pos != m_values.end()) {
     m_values.erase(pos);
@@ -307,15 +311,16 @@ bool OptionValueDictionary::DeleteValueForKey(const ConstString &key) {
   return false;
 }
 
-lldb::OptionValueSP OptionValueDictionary::DeepCopy() const {
-  OptionValueDictionary *copied_dict =
-      new OptionValueDictionary(m_type_mask, m_raw_value_dump);
-  lldb::OptionValueSP copied_value_sp(copied_dict);
-  collection::const_iterator pos, end = m_values.end();
-  for (pos = m_values.begin(); pos != end; ++pos) {
-    StreamString strm;
-    strm.Printf("%s=", pos->first.GetCString());
-    copied_dict->SetValueForKey(pos->first, pos->second->DeepCopy(), true);
-  }
-  return copied_value_sp;
+OptionValueSP
+OptionValueDictionary::DeepCopy(const OptionValueSP &new_parent) const {
+  auto copy_sp = OptionValue::DeepCopy(new_parent);
+  // copy_sp->GetAsDictionary cannot be used here as it doesn't work for derived
+  // types that override GetType returning a different value.
+  auto *dict_value_ptr = static_cast<OptionValueDictionary *>(copy_sp.get());
+  lldbassert(dict_value_ptr);
+
+  for (auto &value : dict_value_ptr->m_values)
+    value.second = value.second->DeepCopy(copy_sp);
+
+  return copy_sp;
 }

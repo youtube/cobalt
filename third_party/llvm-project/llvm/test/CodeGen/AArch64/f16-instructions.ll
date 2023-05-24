@@ -1,5 +1,16 @@
-; RUN: llc < %s -mtriple aarch64-unknown-unknown -aarch64-neon-syntax=apple -asm-verbose=false -disable-post-ra -disable-fp-elim | FileCheck %s --check-prefix=CHECK-CVT --check-prefix=CHECK-COMMON
-; RUN: llc < %s -mtriple aarch64-unknown-unknown -mattr=+fullfp16 -aarch64-neon-syntax=apple -asm-verbose=false -disable-post-ra -disable-fp-elim | FileCheck %s --check-prefix=CHECK-COMMON --check-prefix=CHECK-FP16
+; RUN: llc < %s -mtriple aarch64-unknown-unknown -aarch64-neon-syntax=apple -asm-verbose=false -disable-post-ra -frame-pointer=non-leaf | FileCheck %s --check-prefix=CHECK-CVT --check-prefix=CHECK-COMMON
+; RUN: llc < %s -mtriple aarch64-unknown-unknown -mattr=+fullfp16 -aarch64-neon-syntax=apple -asm-verbose=false -disable-post-ra -frame-pointer=non-leaf | FileCheck %s --check-prefix=CHECK-COMMON --check-prefix=CHECK-FP16
+
+; RUN: llc < %s -mtriple aarch64-unknown-unknown -aarch64-neon-syntax=apple \
+; RUN: -asm-verbose=false -disable-post-ra -frame-pointer=non-leaf -global-isel \
+; RUN: -global-isel-abort=2 -pass-remarks-missed=gisel-* 2>&1 | FileCheck %s \
+; RUN: --check-prefixes=FALLBACK,GISEL-CVT,GISEL
+
+; RUN: llc < %s -mtriple aarch64-unknown-unknown -mattr=+fullfp16 \
+; RUN: -aarch64-neon-syntax=apple -asm-verbose=false -disable-post-ra \
+; RUN: -frame-pointer=non-leaf -global-isel -global-isel-abort=2 \
+; RUN: -pass-remarks-missed=gisel-* 2>&1 | FileCheck %s \
+; RUN: --check-prefixes=FALLBACK-FP16,GISEL-FP16,GISEL
 
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
@@ -51,6 +62,26 @@ define half @test_fmul(half %a, half %b) #0 {
   ret half %r
 }
 
+; CHECK-CVT-LABEL: test_fmadd:
+; CHECK-CVT-NEXT: fcvt s1, h1
+; CHECK-CVT-NEXT: fcvt s0, h0
+; CHECK-CVT-NEXT: fmul s0, s0, s1
+; CHECK-CVT-NEXT: fcvt h0, s0
+; CHECK-CVT-NEXT: fcvt s0, h0
+; CHECK-CVT-NEXT: fcvt s1, h2
+; CHECK-CVT-NEXT: fadd s0, s0, s1
+; CHECK-CVT-NEXT: fcvt h0, s0
+; CHECK-CVT-NEXT: ret
+
+; CHECK-FP16-LABEL: test_fmadd:
+; CHECK-FP16-NEXT: fmadd h0, h0, h1, h2
+; CHECK-FP16-NEXT: ret
+
+define half @test_fmadd(half %a, half %b, half %c) #0 {
+  %mul = fmul fast half %a, %b
+  %r = fadd fast half %mul, %c
+  ret half %r
+}
 ; CHECK-CVT-LABEL: test_fdiv:
 ; CHECK-CVT-NEXT: fcvt s1, h1
 ; CHECK-CVT-NEXT: fcvt s0, h0
@@ -113,9 +144,9 @@ define half @test_call(half %a, half %b) #0 {
 ; CHECK-COMMON-LABEL: test_call_flipped:
 ; CHECK-COMMON-NEXT: stp x29, x30, [sp, #-16]!
 ; CHECK-COMMON-NEXT: mov  x29, sp
-; CHECK-COMMON-NEXT: mov.16b  v2, v0
-; CHECK-COMMON-NEXT: mov.16b  v0, v1
-; CHECK-COMMON-NEXT: mov.16b  v1, v2
+; CHECK-COMMON-NEXT: fmov  s2, s0
+; CHECK-COMMON-NEXT: fmov  s0, s1
+; CHECK-COMMON-NEXT: fmov  s1, s2
 ; CHECK-COMMON-NEXT: bl {{_?}}test_callee
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
@@ -125,9 +156,9 @@ define half @test_call_flipped(half %a, half %b) #0 {
 }
 
 ; CHECK-COMMON-LABEL: test_tailcall_flipped:
-; CHECK-COMMON-NEXT: mov.16b  v2, v0
-; CHECK-COMMON-NEXT: mov.16b  v0, v1
-; CHECK-COMMON-NEXT: mov.16b  v1, v2
+; CHECK-COMMON-NEXT: fmov  s2, s0
+; CHECK-COMMON-NEXT: fmov  s0, s1
+; CHECK-COMMON-NEXT: fmov  s1, s2
 ; CHECK-COMMON-NEXT: b {{_?}}test_callee
 define half @test_tailcall_flipped(half %a, half %b) #0 {
   %r = tail call half @test_callee(half %b, half %a)
@@ -158,8 +189,6 @@ define half @test_select(half %a, half %b, i1 zeroext %c) #0 {
 ; CHECK-CVT-DAG: fcvt s1, h1
 ; CHECK-CVT-DAG: fcvt s0, h0
 ; CHECK-CVT-DAG: fcmp s2, s3
-; CHECK-CVT-DAG: cset [[CC:w[0-9]+]], ne
-; CHECK-CVT-DAG: cmp [[CC]], #0
 ; CHECK-CVT-NEXT: fcsel s0, s0, s1, ne
 ; CHECK-CVT-NEXT: fcvt h0, s0
 ; CHECK-CVT-NEXT: ret
@@ -197,8 +226,6 @@ define float @test_select_cc_f32_f16(float %a, float %b, half %c, half %d) #0 {
 ; CHECK-CVT-DAG:  fcvt s0, h0
 ; CHECK-CVT-DAG:  fcvt s1, h1
 ; CHECK-CVT-DAG:  fcmp s2, s3
-; CHECK-CVT-DAG:  cset w8, ne
-; CHECK-CVT-NEXT: cmp w8, #0
 ; CHECK-CVT-NEXT: fcsel s0, s0, s1, ne
 ; CHECK-CVT-NEXT: fcvt h0, s0
 ; CHECK-CVT-NEXT: ret
@@ -459,13 +486,13 @@ define i1 @test_fcmp_ord(half %a, half %b) #0 {
 ; CHECK-COMMON-LABEL: test_fccmp:
 ; CHECK-CVT:      fcvt  s0, h0
 ; CHECK-CVT-NEXT: fmov  s1, #8.00000000
-; CHECK-CVT-NEXT: fmov  s2, #5.00000000
 ; CHECK-CVT-NEXT: fcmp  s0, s1
+; CHECK-CVT-NEXT: fmov  s1, #5.00000000
 ; CHECK-CVT-NEXT: cset  w8, gt
-; CHECK-CVT-NEXT: fcmp  s0, s2
+; CHECK-CVT-NEXT: fcmp  s0, s1
 ; CHECK-CVT-NEXT: cset  w9, mi
 ; CHECK-CVT-NEXT: tst   w8, w9
-; CHECK-CVT-NEXT: fcsel s0, s0, s2, ne
+; CHECK-CVT-NEXT: fcsel s0, s0, s1, ne
 ; CHECK-CVT-NEXT: fcvt  h0, s0
 ; CHECK-CVT-NEXT: str   h0, [x0]
 ; CHECK-CVT-NEXT: ret
@@ -490,20 +517,14 @@ define void @test_fccmp(half %in, half* %out) {
 ; CHECK-CVT-NEXT: fcvt s1, h1
 ; CHECK-CVT-NEXT: fcvt s0, h0
 ; CHECK-CVT-NEXT: fcmp s0, s1
-; CHECK-CVT-NEXT: b.mi [[BRCC_ELSE:.?LBB[0-9_]+]]
-; CHECK-CVT-NEXT: str  wzr, [x0]
-; CHECK-CVT-NEXT: ret
-; CHECK-CVT-NEXT: [[BRCC_ELSE]]:
-; CHECK-CVT-NEXT: str  wzr, [x1]
+; CHECK-CVT-NEXT: csel x8, x0, x1, pl
+; CHECK-CVT-NEXT: str wzr, [x8]
 ; CHECK-CVT-NEXT: ret
 
 ; CHECK-FP16-LABEL: test_br_cc:
 ; CHECK-FP16-NEXT: fcmp h0, h1
-; CHECK-FP16-NEXT: b.mi [[BRCC_ELSE:.?LBB[0-9_]+]]
-; CHECK-FP16-NEXT: str  wzr, [x0]
-; CHECK-FP16-NEXT: ret
-; CHECK-FP16-NEXT: [[BRCC_ELSE]]:
-; CHECK-FP16-NEXT: str  wzr, [x1]
+; CHECK-FP16-NEXT: csel x8, x0, x1, pl
+; CHECK-FP16-NEXT: str wzr, [x8]
 ; CHECK-FP16-NEXT: ret
 
 define void @test_br_cc(half %a, half %b, i32* %p1, i32* %p2) #0 {
@@ -521,11 +542,11 @@ else:
 ; CHECK-COMMON: mov  x[[PTR:[0-9]+]], x0
 ; CHECK-COMMON: ldr  h[[AB:[0-9]+]], [x0]
 ; CHECK-COMMON: [[LOOP:LBB[0-9_]+]]:
-; CHECK-COMMON: mov.16b  v[[R:[0-9]+]], v[[AB]]
+; CHECK-COMMON: fmov  s[[R:[0-9]+]], s[[AB]]
 ; CHECK-COMMON: ldr  h[[AB]], [x[[PTR]]]
 ; CHECK-COMMON: mov  x0, x[[PTR]]
 ; CHECK-COMMON: bl {{_?}}test_dummy
-; CHECK-COMMON: mov.16b  v0, v[[R]]
+; CHECK-COMMON: fmov  s0, s[[R]]
 ; CHECK-COMMON: ret
 define half @test_phi(half* %p1) #0 {
 entry:
@@ -745,7 +766,7 @@ define half @test_bitcast_i16tohalf(i16 %a) #0 {
 
 
 declare half @llvm.sqrt.f16(half %a) #0
-declare half @llvm.powi.f16(half %a, i32 %b) #0
+declare half @llvm.powi.f16.i32(half %a, i32 %b) #0
 declare half @llvm.sin.f16(half %a) #0
 declare half @llvm.cos.f16(half %a) #0
 declare half @llvm.pow.f16(half %a, half %b) #0
@@ -765,10 +786,14 @@ declare half @llvm.trunc.f16(half %a) #0
 declare half @llvm.rint.f16(half %a) #0
 declare half @llvm.nearbyint.f16(half %a) #0
 declare half @llvm.round.f16(half %a) #0
+declare half @llvm.roundeven.f16(half %a) #0
 declare half @llvm.fmuladd.f16(half %a, half %b, half %c) #0
 declare half @llvm.aarch64.neon.frecpe.f16(half %a) #0
 declare half @llvm.aarch64.neon.frecpx.f16(half %a) #0
 declare half @llvm.aarch64.neon.frsqrte.f16(half %a) #0
+
+; FALLBACK-NOT: remark:{{.*}}test_sqrt
+; FALLBACK-FP16-NOT: remark:{{.*}}test_sqrt
 
 ; CHECK-CVT-LABEL: test_sqrt:
 ; CHECK-CVT-NEXT: fcvt s0, h0
@@ -779,6 +804,16 @@ declare half @llvm.aarch64.neon.frsqrte.f16(half %a) #0
 ; CHECK-FP16-LABEL: test_sqrt:
 ; CHECK-FP16-NEXT: fsqrt h0, h0
 ; CHECK-FP16-NEXT: ret
+
+; GISEL-CVT-LABEL: test_sqrt:
+; GISEL-CVT-NEXT: fcvt s0, h0
+; GISEL-CVT-NEXT: fsqrt s0, s0
+; GISEL-CVT-NEXT: fcvt h0, s0
+; GISEL-CVT-NEXT: ret
+
+; GISEL-FP16-LABEL: test_sqrt:
+; GISEL-FP16-NEXT: fsqrt h0, h0
+; GISEL-FP16-NEXT: ret
 
 define half @test_sqrt(half %a) #0 {
   %r = call half @llvm.sqrt.f16(half %a)
@@ -794,9 +829,12 @@ define half @test_sqrt(half %a) #0 {
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
 define half @test_powi(half %a, i32 %b) #0 {
-  %r = call half @llvm.powi.f16(half %a, i32 %b)
+  %r = call half @llvm.powi.f16.i32(half %a, i32 %b)
   ret half %r
 }
+
+; FALLBACK-NOT: remark:{{.*}}test_sin
+; FALLBACK-FP16-NOT: remark:{{.*}}test_sin
 
 ; CHECK-COMMON-LABEL: test_sin:
 ; CHECK-COMMON-NEXT: stp x29, x30, [sp, #-16]!
@@ -806,10 +844,22 @@ define half @test_powi(half %a, i32 %b) #0 {
 ; CHECK-COMMON-NEXT: fcvt h0, s0
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
+
+; GISEL-LABEL: test_sin:
+; GISEL-NEXT: stp x29, x30, [sp, #-16]!
+; GISEL-NEXT: mov  x29, sp
+; GISEL-NEXT: fcvt s0, h0
+; GISEL-NEXT: bl {{_?}}sinf
+; GISEL-NEXT: fcvt h0, s0
+; GISEL-NEXT: ldp x29, x30, [sp], #16
+; GISEL-NEXT: ret
 define half @test_sin(half %a) #0 {
   %r = call half @llvm.sin.f16(half %a)
   ret half %r
 }
+
+; FALLBACK-NOT: remark:{{.*}}test_cos
+; FALLBACK-FP16-NOT: remark:{{.*}}test_cos
 
 ; CHECK-COMMON-LABEL: test_cos:
 ; CHECK-COMMON-NEXT: stp x29, x30, [sp, #-16]!
@@ -819,6 +869,15 @@ define half @test_sin(half %a) #0 {
 ; CHECK-COMMON-NEXT: fcvt h0, s0
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
+
+; GISEL-LABEL: test_cos:
+; GISEL-NEXT: stp x29, x30, [sp, #-16]!
+; GISEL-NEXT: mov  x29, sp
+; GISEL-NEXT: fcvt s0, h0
+; GISEL-NEXT: bl {{_?}}cosf
+; GISEL-NEXT: fcvt h0, s0
+; GISEL-NEXT: ldp x29, x30, [sp], #16
+; GISEL-NEXT: ret
 define half @test_cos(half %a) #0 {
   %r = call half @llvm.cos.f16(half %a)
   ret half %r
@@ -838,6 +897,9 @@ define half @test_pow(half %a, half %b) #0 {
   ret half %r
 }
 
+; FALLBACK-NOT: remark:{{.*}}test_exp
+; FALLBACK-FP16-NOT: remark:{{.*}}test_exp
+
 ; CHECK-COMMON-LABEL: test_exp:
 ; CHECK-COMMON-NEXT: stp x29, x30, [sp, #-16]!
 ; CHECK-COMMON-NEXT: mov  x29, sp
@@ -846,6 +908,15 @@ define half @test_pow(half %a, half %b) #0 {
 ; CHECK-COMMON-NEXT: fcvt h0, s0
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
+
+; GISEL-LABEL: test_exp:
+; GISEL-NEXT: stp x29, x30, [sp, #-16]!
+; GISEL-NEXT: mov  x29, sp
+; GISEL-NEXT: fcvt s0, h0
+; GISEL-NEXT: bl {{_?}}expf
+; GISEL-NEXT: fcvt h0, s0
+; GISEL-NEXT: ldp x29, x30, [sp], #16
+; GISEL-NEXT: ret
 define half @test_exp(half %a) #0 {
   %r = call half @llvm.exp.f16(half %a)
   ret half %r
@@ -859,10 +930,22 @@ define half @test_exp(half %a) #0 {
 ; CHECK-COMMON-NEXT: fcvt h0, s0
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
+
+; GISEL-LABEL: test_exp2:
+; GISEL-NEXT: stp x29, x30, [sp, #-16]!
+; GISEL-NEXT: mov  x29, sp
+; GISEL-NEXT: fcvt s0, h0
+; GISEL-NEXT: bl {{_?}}exp2f
+; GISEL-NEXT: fcvt h0, s0
+; GISEL-NEXT: ldp x29, x30, [sp], #16
+; GISEL-NEXT: ret
 define half @test_exp2(half %a) #0 {
   %r = call half @llvm.exp2.f16(half %a)
   ret half %r
 }
+
+; FALLBACK-NOT: remark:{{.*}}test_log
+; FALLBACK-FP16-NOT: remark:{{.*}}test_log
 
 ; CHECK-COMMON-LABEL: test_log:
 ; CHECK-COMMON-NEXT: stp x29, x30, [sp, #-16]!
@@ -872,10 +955,23 @@ define half @test_exp2(half %a) #0 {
 ; CHECK-COMMON-NEXT: fcvt h0, s0
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
+
+; GISEL-LABEL: test_log:
+; GISEL: stp x29, x30, [sp, #-16]!
+; GISEL-NEXT: mov  x29, sp
+; GISEL-NEXT: fcvt s0, h0
+; GISEL-NEXT: bl {{_?}}logf
+; GISEL-NEXT: fcvt h0, s0
+; GISEL-NEXT: ldp x29, x30, [sp], #16
+; GISEL-NEXT: ret
+
 define half @test_log(half %a) #0 {
   %r = call half @llvm.log.f16(half %a)
   ret half %r
 }
+
+; FALLBACK-NOT: remark:{{.*}}test_log10
+; FALLBACK-FP16-NOT: remark:{{.*}}test_log10
 
 ; CHECK-COMMON-LABEL: test_log10:
 ; CHECK-COMMON-NEXT: stp x29, x30, [sp, #-16]!
@@ -885,10 +981,23 @@ define half @test_log(half %a) #0 {
 ; CHECK-COMMON-NEXT: fcvt h0, s0
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
+
+; GISEL-LABEL: test_log10:
+; GISEL-NEXT: stp x29, x30, [sp, #-16]!
+; GISEL-NEXT: mov  x29, sp
+; GISEL-NEXT: fcvt s0, h0
+; GISEL-NEXT: bl {{_?}}log10f
+; GISEL-NEXT: fcvt h0, s0
+; GISEL-NEXT: ldp x29, x30, [sp], #16
+; GISEL-NEXT: ret
+
 define half @test_log10(half %a) #0 {
   %r = call half @llvm.log10.f16(half %a)
   ret half %r
 }
+
+; FALLBACK-NOT: remark:{{.*}}test_log2
+; FALLBACK-FP16-NOT: remark:{{.*}}test_log2
 
 ; CHECK-COMMON-LABEL: test_log2:
 ; CHECK-COMMON-NEXT: stp x29, x30, [sp, #-16]!
@@ -898,6 +1007,16 @@ define half @test_log10(half %a) #0 {
 ; CHECK-COMMON-NEXT: fcvt h0, s0
 ; CHECK-COMMON-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-COMMON-NEXT: ret
+
+; GISEL-LABEL: test_log2:
+; GISEL-NEXT: stp x29, x30, [sp, #-16]!
+; GISEL-NEXT: mov  x29, sp
+; GISEL-NEXT: fcvt s0, h0
+; GISEL-NEXT: bl {{_?}}log2f
+; GISEL-NEXT: fcvt h0, s0
+; GISEL-NEXT: ldp x29, x30, [sp], #16
+; GISEL-NEXT: ret
+
 define half @test_log2(half %a) #0 {
   %r = call half @llvm.log2.f16(half %a)
   ret half %r
@@ -929,6 +1048,19 @@ define half @test_fma(half %a, half %b, half %c) #0 {
 ; CHECK-FP16-LABEL: test_fabs:
 ; CHECK-FP16-NEXT: fabs h0, h0
 ; CHECK-FP16-NEXT: ret
+
+; FALLBACK-NOT: remark:{{.*}}test_fabs
+; FALLBACK-FP16-NOT: remark:{{.*}}test_fabs
+
+; GISEL-CVT-LABEL: test_fabs:
+; GISEL-CVT-NEXT: fcvt s0, h0
+; GISEL-CVT-NEXT: fabs s0, s0
+; GISEL-CVT-NEXT: fcvt h0, s0
+; GISEL-CVT-NEXT: ret
+
+; GISEL-FP16-LABEL: test_fabs:
+; GISEL-FP16-NEXT: fabs h0, h0
+; GISEL-FP16-NEXT: ret
 
 define half @test_fabs(half %a) #0 {
   %r = call half @llvm.fabs.f16(half %a)
@@ -968,9 +1100,9 @@ define half @test_maxnum(half %a, half %b) #0 {
 }
 
 ; CHECK-CVT-LABEL: test_copysign:
+; CHECK-CVT-NEXT: movi.4s v2, #128, lsl #24
 ; CHECK-CVT-NEXT: fcvt s1, h1
 ; CHECK-CVT-NEXT: fcvt s0, h0
-; CHECK-CVT-NEXT: movi.4s v2, #128, lsl #24
 ; CHECK-CVT-NEXT: bit.16b v0, v1, v2
 ; CHECK-CVT-NEXT: fcvt h0, s0
 ; CHECK-CVT-NEXT: ret
@@ -986,15 +1118,15 @@ define half @test_copysign(half %a, half %b) #0 {
 }
 
 ; CHECK-CVT-LABEL: test_copysign_f32:
-; CHECK-CVT-NEXT: fcvt s0, h0
 ; CHECK-CVT-NEXT: movi.4s v2, #128, lsl #24
+; CHECK-CVT-NEXT: fcvt s0, h0
 ; CHECK-CVT-NEXT: bit.16b v0, v1, v2
 ; CHECK-CVT-NEXT: fcvt h0, s0
 ; CHECK-CVT-NEXT: ret
 
 ; CHECK-FP16-LABEL: test_copysign_f32:
-; CHECK-FP16-NEXT: fcvt h1, s1
 ; CHECK-FP16-NEXT: movi.8h	v2, #128, lsl #8
+; CHECK-FP16-NEXT: fcvt h1, s1
 ; CHECK-FP16-NEXT: bit.16b v0, v1, v2
 ; CHECK-FP16-NEXT: ret
 
@@ -1005,16 +1137,16 @@ define half @test_copysign_f32(half %a, float %b) #0 {
 }
 
 ; CHECK-CVT-LABEL: test_copysign_f64:
+; CHECK-CVT-NEXT: movi.4s v2, #128, lsl #24
 ; CHECK-CVT-NEXT: fcvt s1, d1
 ; CHECK-CVT-NEXT: fcvt s0, h0
-; CHECK-CVT-NEXT: movi.4s v2, #128, lsl #24
 ; CHECK-CVT-NEXT: bit.16b v0, v1, v2
 ; CHECK-CVT-NEXT: fcvt h0, s0
 ; CHECK-CVT-NEXT: ret
 
 ; CHECK-FP16-LABEL: test_copysign_f64:
-; CHECK-FP16-NEXT: fcvt h1, d1
 ; CHECK-FP16-NEXT: movi.8h v2, #128, lsl #8
+; CHECK-FP16-NEXT: fcvt h1, d1
 ; CHECK-FP16-NEXT: bit.16b v0, v1, v2
 ; CHECK-FP16-NEXT: ret
 
@@ -1028,9 +1160,9 @@ define half @test_copysign_f64(half %a, double %b) #0 {
 ; away the (fpext (fp_round <result>)) here.
 
 ; CHECK-CVT-LABEL: test_copysign_extended:
+; CHECK-CVT-NEXT: movi.4s v2, #128, lsl #24
 ; CHECK-CVT-NEXT: fcvt s1, h1
 ; CHECK-CVT-NEXT: fcvt s0, h0
-; CHECK-CVT-NEXT: movi.4s v2, #128, lsl #24
 ; CHECK-CVT-NEXT: bit.16b v0, v1, v2
 ; CHECK-CVT-NEXT: ret
 
@@ -1056,6 +1188,19 @@ define float @test_copysign_extended(half %a, half %b) #0 {
 ; CHECK-FP16-NEXT: frintm h0, h0
 ; CHECK-FP16-NEXT: ret
 
+; FALLBACK-NOT: remark:{{.*}}test_floor
+; FALLBACK-FP16-NOT: remark:{{.*}}test_floor
+
+; GISEL-CVT-LABEL: test_floor:
+; GISEL-CVT-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; GISEL-CVT-NEXT: frintm [[INT32:s[0-9]+]], [[FLOAT32]]
+; GISEL-CVT-NEXT: fcvt h0, [[INT32]]
+; GISEL-CVT-NEXT: ret
+
+; GISEL-FP16-LABEL: test_floor:
+; GISEL-FP16-NEXT: frintm h0, h0
+; GISEL-FP16-NEXT: ret
+
 define half @test_floor(half %a) #0 {
   %r = call half @llvm.floor.f16(half %a)
   ret half %r
@@ -1071,6 +1216,18 @@ define half @test_floor(half %a) #0 {
 ; CHECK-FP16-NEXT: frintp h0, h0
 ; CHECK-FP16-NEXT: ret
 
+; FALLBACK-NOT: remark:{{.*}}test_ceil
+; FALLBACK-FP16-NOT: remark:{{.*}}test_ceil
+
+; GISEL-CVT-LABEL: test_ceil:
+; GISEL-CVT-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; GISEL-CVT-NEXT: frintp [[INT32:s[0-9]+]], [[FLOAT32]]
+; GISEL-CVT-NEXT: fcvt h0, [[INT32]]
+; GISEL-CVT-NEXT: ret
+
+; GISEL-FP16-LABEL: test_ceil:
+; GISEL-FP16-NEXT: frintp h0, h0
+; GISEL-FP16-NEXT: ret
 define half @test_ceil(half %a) #0 {
   %r = call half @llvm.ceil.f16(half %a)
   ret half %r
@@ -1127,12 +1284,49 @@ define half @test_nearbyint(half %a) #0 {
 ; CHECK-CVT-NEXT: fcvt h0, [[INT32]]
 ; CHECK-CVT-NEXT: ret
 
+; GISEL-CVT-LABEL: test_round:
+; GISEL-CVT-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; GISEL-CVT-NEXT: frinta [[INT32:s[0-9]+]], [[FLOAT32]]
+; GISEL-CVT-NEXT: fcvt h0, [[INT32]]
+; GISEL-CVT-NEXT: ret
+
+
 ; CHECK-FP16-LABEL: test_round:
 ; CHECK-FP16-NEXT: frinta h0, h0
 ; CHECK-FP16-NEXT: ret
 
+; GISEL-FP16-LABEL: test_round:
+; GISEL-FP16-NEXT: frinta h0, h0
+; GISEL-FP16-NEXT: ret
+
 define half @test_round(half %a) #0 {
   %r = call half @llvm.round.f16(half %a)
+  ret half %r
+}
+
+; CHECK-CVT-LABEL: test_roundeven:
+; CHECK-CVT-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; CHECK-CVT-NEXT: frintn [[INT32:s[0-9]+]], [[FLOAT32]]
+; CHECK-CVT-NEXT: fcvt h0, [[INT32]]
+; CHECK-CVT-NEXT: ret
+
+; GISEL-CVT-LABEL: test_roundeven:
+; GISEL-CVT-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; GISEL-CVT-NEXT: frintn [[INT32:s[0-9]+]], [[FLOAT32]]
+; GISEL-CVT-NEXT: fcvt h0, [[INT32]]
+; GISEL-CVT-NEXT: ret
+
+
+; CHECK-FP16-LABEL: test_roundeven:
+; CHECK-FP16-NEXT: frintn h0, h0
+; CHECK-FP16-NEXT: ret
+
+; GISEL-FP16-LABEL: test_roundeven:
+; GISEL-FP16-NEXT: frintn h0, h0
+; GISEL-FP16-NEXT: ret
+
+define half @test_roundeven(half %a) #0 {
+  %r = call half @llvm.roundeven.f16(half %a)
   ret half %r
 }
 
@@ -1148,8 +1342,7 @@ define half @test_round(half %a) #0 {
 ; CHECK-CVT-NEXT: ret
 
 ; CHECK-FP16-LABEL: test_fmuladd:
-; CHECK-FP16-NEXT: fmul h0, h0, h1
-; CHECK-FP16-NEXT: fadd h0, h0, h2
+; CHECK-FP16-NEXT: fmadd h0, h0, h1, h2
 ; CHECK-FP16-NEXT: ret
 
 define half @test_fmuladd(half %a, half %b, half %c) #0 {

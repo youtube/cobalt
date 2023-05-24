@@ -100,7 +100,8 @@ int CheckPR4515[PR4515b==0?1:-1];
 // PR7911
 extern enum PR7911T PR7911V; // expected-warning{{ISO C forbids forward references to 'enum' types}}
 void PR7911F() {
-  switch (PR7911V); // expected-error {{statement requires expression of integer type}}
+  switch (PR7911V) // expected-error {{statement requires expression of integer type}}
+    ;
 }
 
 char test5[__has_feature(enumerator_attributes) ? 1 : -1];
@@ -134,4 +135,27 @@ struct PR28903 {
     })0
   };
   int makeStructNonEmpty;
+};
+
+static int EnumRedecl; // expected-note 2 {{previous definition is here}}
+struct S {
+  enum {
+    EnumRedecl = 4 // expected-error {{redefinition of 'EnumRedecl'}}
+  } e;
+};
+
+union U {
+  enum {
+    EnumRedecl = 5 // expected-error {{redefinition of 'EnumRedecl'}}
+  } e;
+};
+
+enum PR15071 {
+  PR15071_One // expected-note {{previous definition is here}}
+};
+
+struct EnumRedeclStruct {
+  enum {
+    PR15071_One // expected-error {{redefinition of enumerator 'PR15071_One'}}
+  } e;
 };

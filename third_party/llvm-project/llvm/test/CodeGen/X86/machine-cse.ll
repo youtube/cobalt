@@ -18,9 +18,9 @@ define fastcc i8* @t(i32 %base) nounwind {
 ; CHECK-NEXT:    testb %al, %al
 ; CHECK-NEXT:    jne .LBB0_2
 ; CHECK-NEXT:  # %bb.1: # %bb1
-; CHECK-NEXT:    callq bar
+; CHECK-NEXT:    callq bar@PLT
 ; CHECK-NEXT:  .LBB0_2: # %bb2
-; CHECK-NEXT:    callq foo
+; CHECK-NEXT:    callq foo@PLT
 entry:
   %0 = zext i32 %base to i64
   %1 = getelementptr inbounds %struct.s2, %struct.s2* null, i64 %0
@@ -63,9 +63,9 @@ define void @commute(i32 %test_case, i32 %scale) nounwind ssp {
 ; CHECK-NEXT:    pushq %rax
 ; CHECK-NEXT:    imull %edi, %esi
 ; CHECK-NEXT:    leal (%rsi,%rsi,2), %esi
-; CHECK-NEXT:    xorl %eax, %eax
 ; CHECK-NEXT:    # kill: def $edi killed $edi killed $rdi
-; CHECK-NEXT:    callq printf
+; CHECK-NEXT:    xorl %eax, %eax
+; CHECK-NEXT:    callq printf@PLT
 ; CHECK-NEXT:    addq $8, %rsp
 ; CHECK-NEXT:    .p2align 4, 0x90
 ; CHECK-NEXT:  .LBB1_3: # %for.body53.us
@@ -136,21 +136,21 @@ define i8* @bsd_memchr(i8* %s, i32 %a, i32 %c, i64 %n) nounwind ssp {
 ; CHECK-NEXT:    testq %rcx, %rcx
 ; CHECK-NEXT:    je .LBB3_4
 ; CHECK-NEXT:  # %bb.1: # %preheader
-; CHECK-NEXT:    movzbl %dl, %eax
+; CHECK-NEXT:    movq %rdi, %rax
+; CHECK-NEXT:    movzbl %dl, %edx
 ; CHECK-NEXT:    .p2align 4, 0x90
 ; CHECK-NEXT:  .LBB3_2: # %do.body
 ; CHECK-NEXT:    # =>This Inner Loop Header: Depth=1
-; CHECK-NEXT:    cmpl %eax, %esi
+; CHECK-NEXT:    cmpl %edx, %esi
 ; CHECK-NEXT:    je .LBB3_5
 ; CHECK-NEXT:  # %bb.3: # %do.cond
 ; CHECK-NEXT:    # in Loop: Header=BB3_2 Depth=1
-; CHECK-NEXT:    incq %rdi
+; CHECK-NEXT:    incq %rax
 ; CHECK-NEXT:    decq %rcx
 ; CHECK-NEXT:    jne .LBB3_2
 ; CHECK-NEXT:  .LBB3_4:
-; CHECK-NEXT:    xorl %edi, %edi
+; CHECK-NEXT:    xorl %eax, %eax
 ; CHECK-NEXT:  .LBB3_5: # %return
-; CHECK-NEXT:    movq %rdi, %rax
 ; CHECK-NEXT:    retq
 entry:
   %cmp = icmp eq i64 %n, 0
@@ -178,7 +178,7 @@ return:
 }
 
 ; PR13578
-@t2_global = external global i32
+@t2_global = external dso_local global i32
 
 declare i1 @t2_func()
 
@@ -186,12 +186,12 @@ define i32 @t2() nounwind {
 ; CHECK-LABEL: t2:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    pushq %rax
-; CHECK-NEXT:    movl $42, {{.*}}(%rip)
-; CHECK-NEXT:    callq t2_func
+; CHECK-NEXT:    movl $42, t2_global(%rip)
+; CHECK-NEXT:    callq t2_func@PLT
 ; CHECK-NEXT:    testb $1, %al
 ; CHECK-NEXT:    je .LBB4_2
 ; CHECK-NEXT:  # %bb.1: # %a
-; CHECK-NEXT:    movl {{.*}}(%rip), %eax
+; CHECK-NEXT:    movl t2_global(%rip), %eax
 ; CHECK-NEXT:    popq %rcx
 ; CHECK-NEXT:    retq
 ; CHECK-NEXT:  .LBB4_2: # %b

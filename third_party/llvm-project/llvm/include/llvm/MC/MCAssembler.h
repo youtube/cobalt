@@ -1,9 +1,8 @@
 //===- MCAssembler.h - Object File Generation -------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,6 +22,7 @@
 #include "llvm/MC/MCFragment.h"
 #include "llvm/MC/MCLinkerOptimizationHint.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Support/VersionTuple.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -94,6 +94,8 @@ public:
     unsigned Major;
     unsigned Minor;
     unsigned Update;
+    /// An optional version of the SDK that was used to build the source.
+    VersionTuple SDKVersion;
   };
 
 private:
@@ -117,7 +119,7 @@ private:
   std::vector<std::vector<std::string>> LinkerOptions;
 
   /// List of declared file names
-  std::vector<std::string> FileNames;
+  std::vector<std::pair<std::string, size_t>> FileNames;
 
   MCDwarfLineTableParams LTParams;
 
@@ -151,6 +153,7 @@ private:
   MCLOHContainer LOHContainer;
 
   VersionInfoType VersionInfo;
+  VersionInfoType DarwinTargetVariantVersionInfo;
 
   /// Evaluate a fixup to a relocatable expression and the value which should be
   /// placed into the fixup.
@@ -188,18 +191,19 @@ private:
   /// if any offsets were adjusted.
   bool layoutSectionOnce(MCAsmLayout &Layout, MCSection &Sec);
 
+  /// Perform relaxation on a single fragment - returns true if the fragment
+  /// changes as a result of relaxation.
+  bool relaxFragment(MCAsmLayout &Layout, MCFragment &F);
   bool relaxInstruction(MCAsmLayout &Layout, MCRelaxableFragment &IF);
-
-  bool relaxPaddingFragment(MCAsmLayout &Layout, MCPaddingFragment &PF);
-
   bool relaxLEB(MCAsmLayout &Layout, MCLEBFragment &IF);
-
+  bool relaxBoundaryAlign(MCAsmLayout &Layout, MCBoundaryAlignFragment &BF);
   bool relaxDwarfLineAddr(MCAsmLayout &Layout, MCDwarfLineAddrFragment &DF);
   bool relaxDwarfCallFrameFragment(MCAsmLayout &Layout,
                                    MCDwarfCallFrameFragment &DF);
   bool relaxCVInlineLineTable(MCAsmLayout &Layout,
                               MCCVInlineLineTableFragment &DF);
   bool relaxCVDefRange(MCAsmLayout &Layout, MCCVDefRangeFragment &DF);
+  bool relaxPseudoProbeAddr(MCAsmLayout &Layout, MCPseudoProbeAddrFragment &DF);
 
   /// finishLayout - Finalize a layout, including fragment lowering.
   void finishLayout(MCAsmLayout &Layout);
@@ -208,7 +212,14 @@ private:
   handleFixup(const MCAsmLayout &Layout, MCFragment &F, const MCFixup &Fixup);
 
 public:
-  std::vector<std::pair<StringRef, const MCSymbol *>> Symvers;
+  struct Symver {
+    SMLoc Loc;
+    const MCSymbol *Sym;
+    StringRef Name;
+    // True if .symver *, *@@@* or .symver *, *, remove.
+    bool KeepOriginalSym;
+  };
+  std::vector<Symver> Symvers;
 
   /// Construct a new assembler instance.
   //
@@ -255,20 +266,39 @@ public:
   /// MachO deployment target version information.
   const VersionInfoType &getVersionInfo() const { return VersionInfo; }
   void setVersionMin(MCVersionMinType Type, unsigned Major, unsigned Minor,
-                     unsigned Update) {
+                     unsigned Update,
+                     VersionTuple SDKVersion = VersionTuple()) {
     VersionInfo.EmitBuildVersion = false;
     VersionInfo.TypeOrPlatform.Type = Type;
     VersionInfo.Major = Major;
     VersionInfo.Minor = Minor;
     VersionInfo.Update = Update;
+    VersionInfo.SDKVersion = SDKVersion;
   }
   void setBuildVersion(MachO::PlatformType Platform, unsigned Major,
-                       unsigned Minor, unsigned Update) {
+                       unsigned Minor, unsigned Update,
+                       VersionTuple SDKVersion = VersionTuple()) {
     VersionInfo.EmitBuildVersion = true;
     VersionInfo.TypeOrPlatform.Platform = Platform;
     VersionInfo.Major = Major;
     VersionInfo.Minor = Minor;
     VersionInfo.Update = Update;
+    VersionInfo.SDKVersion = SDKVersion;
+  }
+
+  const VersionInfoType &getDarwinTargetVariantVersionInfo() const {
+    return DarwinTargetVariantVersionInfo;
+  }
+  void setDarwinTargetVariantBuildVersion(MachO::PlatformType Platform,
+                                          unsigned Major, unsigned Minor,
+                                          unsigned Update,
+                                          VersionTuple SDKVersion) {
+    DarwinTargetVariantVersionInfo.EmitBuildVersion = true;
+    DarwinTargetVariantVersionInfo.TypeOrPlatform.Platform = Platform;
+    DarwinTargetVariantVersionInfo.Major = Major;
+    DarwinTargetVariantVersionInfo.Minor = Minor;
+    DarwinTargetVariantVersionInfo.Update = Update;
+    DarwinTargetVariantVersionInfo.SDKVersion = SDKVersion;
   }
 
   /// Reuse an assembler instance
@@ -433,11 +463,12 @@ public:
 
   void registerSymbol(const MCSymbol &Symbol, bool *Created = nullptr);
 
-  ArrayRef<std::string> getFileNames() { return FileNames; }
+  MutableArrayRef<std::pair<std::string, size_t>> getFileNames() {
+    return FileNames;
+  }
 
   void addFileName(StringRef FileName) {
-    if (!is_contained(FileNames, FileName))
-      FileNames.push_back(FileName);
+    FileNames.emplace_back(std::string(FileName), Symbols.size());
   }
 
   /// Write the necessary bundle padding to \p OS.

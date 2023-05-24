@@ -74,7 +74,7 @@ body: |
 
     $eax = MOV32rr $edi, implicit-def $rax
     CMP32ri8 $edi, 3, implicit-def $eflags
-    JA_1 %bb.2, implicit $eflags
+    JCC_1 %bb.2, 7, implicit $eflags
 
   bb.1.entry:
     successors: %bb.3, %bb.4, %bb.5, %bb.6
@@ -86,23 +86,23 @@ body: |
 
   bb.2.def:
     $eax = MOV32r0 implicit-def $eflags
-    RETQ $eax
+    RET64 $eax
 
   bb.3.lbl1:
     $eax = MOV32ri 1
-    RETQ $eax
+    RET64 $eax
 
   bb.4.lbl2:
     $eax = MOV32ri 2
-    RETQ $eax
+    RET64 $eax
 
   bb.5.lbl3:
     $eax = MOV32ri 4
-    RETQ $eax
+    RET64 $eax
 
   bb.6.lbl4:
     $eax = MOV32ri 8
-    RETQ $eax
+    RET64 $eax
 ...
 ---
 name:            test_jumptable2
@@ -117,7 +117,7 @@ body: |
 
     $eax = MOV32rr $edi, implicit-def $rax
     CMP32ri8 $edi, 3, implicit-def $eflags
-    JA_1 %bb.2, implicit $eflags
+    JCC_1 %bb.2, 7, implicit $eflags
 
   bb.1.entry:
     successors: %bb.3, %bb.4, %bb.5, %bb.6
@@ -130,21 +130,21 @@ body: |
 
   bb.2.def:
     $eax = MOV32r0 implicit-def $eflags
-    RETQ $eax
+    RET64 $eax
 
   bb.3.lbl1:
     $eax = MOV32ri 1
-    RETQ $eax
+    RET64 $eax
 
   bb.4.lbl2:
     $eax = MOV32ri 2
-    RETQ $eax
+    RET64 $eax
 
   bb.5.lbl3:
     $eax = MOV32ri 4
-    RETQ $eax
+    RET64 $eax
 
   bb.6.lbl4:
     $eax = MOV32ri 8
-    RETQ $eax
+    RET64 $eax
 ...

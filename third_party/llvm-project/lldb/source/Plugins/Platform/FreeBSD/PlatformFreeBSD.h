@@ -1,16 +1,16 @@
 //===-- PlatformFreeBSD.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformFreeBSD_h_
-#define liblldb_PlatformFreeBSD_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_FREEBSD_PLATFORMFREEBSD_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_FREEBSD_PLATFORMFREEBSD_H
 
 #include "Plugins/Platform/POSIX/PlatformPOSIX.h"
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 
 namespace lldb_private {
 namespace platform_freebsd {
@@ -19,45 +19,33 @@ class PlatformFreeBSD : public PlatformPOSIX {
 public:
   PlatformFreeBSD(bool is_host);
 
-  ~PlatformFreeBSD() override;
-
   static void Initialize();
 
   static void Terminate();
 
-  //------------------------------------------------------------
   // lldb_private::PluginInterface functions
-  //------------------------------------------------------------
   static lldb::PlatformSP CreateInstance(bool force, const ArchSpec *arch);
 
-  static ConstString GetPluginNameStatic(bool is_host);
+  static llvm::StringRef GetPluginNameStatic(bool is_host) {
+    return is_host ? Platform::GetHostPlatformName() : "remote-freebsd";
+  }
 
-  static const char *GetPluginDescriptionStatic(bool is_host);
+  static llvm::StringRef GetPluginDescriptionStatic(bool is_host);
 
-  ConstString GetPluginName() override;
+  llvm::StringRef GetPluginName() override {
+    return GetPluginNameStatic(IsHost());
+  }
 
-  uint32_t GetPluginVersion() override { return 1; }
-
-  //------------------------------------------------------------
   // lldb_private::Platform functions
-  //------------------------------------------------------------
-  const char *GetDescription() override {
+  llvm::StringRef GetDescription() override {
     return GetPluginDescriptionStatic(IsHost());
   }
 
   void GetStatus(Stream &strm) override;
 
-  bool GetSupportedArchitectureAtIndex(uint32_t idx, ArchSpec &arch) override;
+  std::vector<ArchSpec> GetSupportedArchitectures() override;
 
   bool CanDebugProcess() override;
-
-  size_t GetSoftwareBreakpointTrapOpcode(Target &target,
-                                         BreakpointSite *bp_site) override;
-
-  Status LaunchProcess(ProcessLaunchInfo &launch_info) override;
-
-  lldb::ProcessSP Attach(ProcessAttachInfo &attach_info, Debugger &debugger,
-                         Target *target, Status &error) override;
 
   void CalculateTrapHandlerSymbolNames() override;
 
@@ -66,11 +54,15 @@ public:
                                   unsigned flags, lldb::addr_t fd,
                                   lldb::addr_t offset) override;
 
+  CompilerType GetSiginfoType(const llvm::Triple &triple) override;
+
+  std::vector<ArchSpec> m_supported_architectures;
+
 private:
-  DISALLOW_COPY_AND_ASSIGN(PlatformFreeBSD);
+  std::unique_ptr<TypeSystemClang> m_type_system_up;
 };
 
 } // namespace platform_freebsd
 } // namespace lldb_private
 
-#endif // liblldb_PlatformFreeBSD_h_
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_FREEBSD_PLATFORMFREEBSD_H

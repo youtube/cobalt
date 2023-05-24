@@ -1,15 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <string>
-// UNSUPPORTED: c++98, c++03, c++11, c++14
-// XFAIL: libcpp-no-deduction-guides
+// UNSUPPORTED: c++03, c++11, c++14
 
 // template<class InputIterator>
 //   basic_string(InputIterator begin, InputIterator end,
@@ -26,7 +24,6 @@
 //  is a type that does not qualify as an input iterator, or if Allocator is a type
 //  that does not qualify as an allocator.
 
-
 #include <string>
 #include <iterator>
 #include <cassert>
@@ -34,10 +31,10 @@
 
 #include "test_macros.h"
 #include "test_allocator.h"
-#include "../input_iterator.h"
+#include "../cpp17_input_iterator.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
     const char* s = "12345678901234";
@@ -90,4 +87,6 @@ int main()
     assert(s1.size() == 10);
     assert(s1.compare(0, s1.size(), s, s1.size()) == 0);
     }
+
+  return 0;
 }

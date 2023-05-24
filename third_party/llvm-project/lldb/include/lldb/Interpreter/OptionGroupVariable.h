@@ -1,44 +1,38 @@
 //===-- OptionGroupVariable.h -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionGroupVariable_h_
-#define liblldb_OptionGroupVariable_h_
+#ifndef LLDB_INTERPRETER_OPTIONGROUPVARIABLE_H
+#define LLDB_INTERPRETER_OPTIONGROUPVARIABLE_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Interpreter/OptionValueString.h"
 #include "lldb/Interpreter/Options.h"
 
 namespace lldb_private {
 
-//-------------------------------------------------------------------------
 // OptionGroupVariable
-//-------------------------------------------------------------------------
 
 class OptionGroupVariable : public OptionGroup {
 public:
   OptionGroupVariable(bool show_frame_options);
 
-  ~OptionGroupVariable() override;
+  ~OptionGroupVariable() override = default;
 
   llvm::ArrayRef<OptionDefinition> GetDefinitions() override;
 
   Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
                         ExecutionContext *execution_context) override;
-  Status SetOptionValue(uint32_t, const char *, ExecutionContext *) = delete;
 
   void OptionParsingStarting(ExecutionContext *execution_context) override;
 
   bool include_frame_options : 1,
       show_args : 1,    // Frame option only (include_frame_options == true)
+      show_recognized_args : 1,  // Frame option only (include_frame_options ==
+                                 // true)
       show_locals : 1,  // Frame option only (include_frame_options == true)
       show_globals : 1, // Frame option only (include_frame_options == true)
       use_regex : 1, show_scope : 1, show_decl : 1;
@@ -46,9 +40,10 @@ public:
   OptionValueString summary_string; // a summary string
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(OptionGroupVariable);
+  OptionGroupVariable(const OptionGroupVariable &) = delete;
+  const OptionGroupVariable &operator=(const OptionGroupVariable &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionGroupVariable_h_
+#endif // LLDB_INTERPRETER_OPTIONGROUPVARIABLE_H

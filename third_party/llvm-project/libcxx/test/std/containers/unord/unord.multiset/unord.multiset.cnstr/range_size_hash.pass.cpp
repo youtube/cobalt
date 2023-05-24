@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,12 +29,12 @@
 #include "test_allocator.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::unordered_multiset<int,
-                                   test_hash<std::hash<int> >,
-                                   test_compare<std::equal_to<int> >,
+                                   test_hash<int>,
+                                   test_equal_to<int>,
                                    test_allocator<int>
                                    > C;
         typedef int P;
@@ -48,9 +47,9 @@ int main()
             P(1),
             P(2)
         };
-        C c(input_iterator<P*>(a), input_iterator<P*>(a + sizeof(a)/sizeof(a[0])),
+        C c(cpp17_input_iterator<P*>(a), cpp17_input_iterator<P*>(a + sizeof(a)/sizeof(a[0])),
             7,
-            test_hash<std::hash<int> >(8)
+            test_hash<int>(8)
            );
         LIBCPP_ASSERT(c.bucket_count() == 7);
         assert(c.size() == 6);
@@ -58,8 +57,8 @@ int main()
         assert(c.count(2) == 2);
         assert(c.count(3) == 1);
         assert(c.count(4) == 1);
-        assert(c.hash_function() == test_hash<std::hash<int> >(8));
-        assert(c.key_eq() == test_compare<std::equal_to<int> >());
+        assert(c.hash_function() == test_hash<int>(8));
+        assert(c.key_eq() == test_equal_to<int>());
         assert(c.get_allocator() == test_allocator<int>());
         assert(!c.empty());
         assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
@@ -70,8 +69,8 @@ int main()
 #if TEST_STD_VER >= 11
     {
         typedef std::unordered_multiset<int,
-                                   test_hash<std::hash<int> >,
-                                   test_compare<std::equal_to<int> >,
+                                   test_hash<int>,
+                                   test_equal_to<int>,
                                    min_allocator<int>
                                    > C;
         typedef int P;
@@ -84,9 +83,9 @@ int main()
             P(1),
             P(2)
         };
-        C c(input_iterator<P*>(a), input_iterator<P*>(a + sizeof(a)/sizeof(a[0])),
+        C c(cpp17_input_iterator<P*>(a), cpp17_input_iterator<P*>(a + sizeof(a)/sizeof(a[0])),
             7,
-            test_hash<std::hash<int> >(8)
+            test_hash<int>(8)
            );
         LIBCPP_ASSERT(c.bucket_count() == 7);
         assert(c.size() == 6);
@@ -94,8 +93,8 @@ int main()
         assert(c.count(2) == 2);
         assert(c.count(3) == 1);
         assert(c.count(4) == 1);
-        assert(c.hash_function() == test_hash<std::hash<int> >(8));
-        assert(c.key_eq() == test_compare<std::equal_to<int> >());
+        assert(c.hash_function() == test_hash<int>(8));
+        assert(c.key_eq() == test_equal_to<int>());
         assert(c.get_allocator() == min_allocator<int>());
         assert(!c.empty());
         assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
@@ -104,4 +103,6 @@ int main()
         assert(c.max_load_factor() == 1);
     }
 #endif
+
+  return 0;
 }

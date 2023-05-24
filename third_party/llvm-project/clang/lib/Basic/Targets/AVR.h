@@ -1,9 +1,8 @@
 //===--- AVR.h - Declare AVR target feature support -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -53,8 +52,10 @@ public:
     IntPtrType = SignedInt;
     Char16Type = UnsignedInt;
     WIntType = SignedInt;
+    Int16Type = SignedInt;
     Char32Type = UnsignedLong;
     SigAtomicType = SignedChar;
+    ProgramAddrSpace = 1;
     resetDataLayout("e-P1-p:16:8-i8:8-i16:8-i32:8-i64:8-f32:8-f64:8-n8-a:8");
   }
 

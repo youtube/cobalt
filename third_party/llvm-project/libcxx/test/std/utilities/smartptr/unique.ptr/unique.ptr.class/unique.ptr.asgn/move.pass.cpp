@@ -1,13 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+
+// Self assignement post-conditions are tested.
+// ADDITIONAL_COMPILE_FLAGS: -Wno-self-move
 
 // <memory>
 
@@ -22,6 +24,7 @@
 #include <utility>
 #include <cassert>
 
+#include "test_macros.h"
 #include "deleter_types.h"
 #include "unique_ptr_test_helper.h"
 
@@ -72,6 +75,14 @@ void test_basic() {
     assert(d2.state() == 5);
   }
   assert(A::count == 0);
+  {
+    std::unique_ptr<VT> s(newValue<VT>(expect_alive));
+    A* p = s.get();
+    s = std::move(s);
+    assert(A::count == expect_alive);
+    assert(s.get() == p);
+  }
+  assert(A::count == 0);
 }
 
 template <bool IsArray>
@@ -108,7 +119,7 @@ void test_sfinae() {
 }
 
 
-int main() {
+int main(int, char**) {
   {
     test_basic</*IsArray*/ false>();
     test_sfinae<false>();
@@ -117,4 +128,6 @@ int main() {
     test_basic</*IsArray*/ true>();
     test_sfinae<true>();
   }
+
+  return 0;
 }

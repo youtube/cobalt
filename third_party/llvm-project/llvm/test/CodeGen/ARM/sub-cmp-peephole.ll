@@ -75,7 +75,7 @@ if.else:
 ; CHECK: cmp
 define i32 @bc_raise(i1 %cond) nounwind ssp {
 entry:
-  %val.2.i = select i1 %cond, i32 0, i32 undef
+  %val.2.i = select i1 %cond, i32 0, i32 1
   %sub.i = sub nsw i32 0, %val.2.i
   %retval.0.i = select i1 %cond, i32 %val.2.i, i32 %sub.i
   %cmp1 = icmp eq i32 %retval.0.i, 0
@@ -168,7 +168,7 @@ entry:
 ; CHECK-LABEL: cmp_slt0
 ; CHECK: sub
 ; CHECK: cmn
-; CHECK: bgt
+; CHECK: ble
   %load = load i32, i32* @t, align 4
   %sub = sub i32 %load, 17
   %cmp = icmp slt i32 %sub, 0

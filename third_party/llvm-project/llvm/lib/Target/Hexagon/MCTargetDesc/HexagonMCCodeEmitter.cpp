@@ -1,14 +1,12 @@
 //===- HexagonMCCodeEmitter.cpp - Hexagon Target Descriptions -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/HexagonMCCodeEmitter.h"
-#include "Hexagon.h"
 #include "MCTargetDesc/HexagonBaseInfo.h"
 #include "MCTargetDesc/HexagonFixupKinds.h"
 #include "MCTargetDesc/HexagonMCExpr.h"
@@ -149,7 +147,7 @@ static const std::map<unsigned, std::vector<unsigned>> ExtFixups = {
       _,                _,              _,                      _,
       _,                _,              _,                      _,
       _                 }},
-  { MCSymbolRefExpr::VK_Hexagon_PCREL,
+  { MCSymbolRefExpr::VK_PCREL,
     { _,                _,              _,                      _,
       _,                _,              P(_6_PCREL_X),          _,
       _,                P(_9_X),        _,                      _,
@@ -313,7 +311,7 @@ static const std::map<unsigned, std::vector<unsigned>> StdFixups = {
       _,                _,              _,                      _,
       _,                _,              _,                      _,
       _                 }},
-  { MCSymbolRefExpr::VK_Hexagon_PCREL,
+  { MCSymbolRefExpr::VK_PCREL,
     { _,                _,              _,                      _,
       _,                _,              _,                      _,
       _,                _,              _,                      _,
@@ -378,7 +376,7 @@ void HexagonMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
   State.Bundle = &MI;
   State.Index = 0;
   size_t Last = HexagonMCInstrInfo::bundleSize(HMB) - 1;
-  uint64_t Features = computeAvailableFeatures(STI.getFeatureBits());
+  FeatureBitset Features = computeAvailableFeatures(STI.getFeatureBits());
 
   for (auto &I : HexagonMCInstrInfo::bundleInstructions(HMB)) {
     MCInst &HMI = const_cast<MCInst &>(*I.getInst());
@@ -393,15 +391,9 @@ void HexagonMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
 
 static bool RegisterMatches(unsigned Consumer, unsigned Producer,
                             unsigned Producer2) {
-  if (Consumer == Producer)
-    return true;
-  if (Consumer == Producer2)
-    return true;
-  // Calculate if we're a single vector consumer referencing a double producer
-  if (Producer >= Hexagon::W0 && Producer <= Hexagon::W15)
-    if (Consumer >= Hexagon::V0 && Consumer <= Hexagon::V31)
-      return ((Consumer - Hexagon::V0) >> 1) == (Producer - Hexagon::W0);
-  return false;
+  return (Consumer == Producer) || (Consumer == Producer2) ||
+         HexagonMCInstrInfo::IsSingleConsumerRefPairProducer(Producer,
+                                                             Consumer);
 }
 
 /// EncodeSingleInstruction - Emit a single
@@ -456,13 +448,12 @@ void HexagonMCCodeEmitter::EncodeSingleInstruction(const MCInst &MI,
   ++MCNumEmitted;
 }
 
-LLVM_ATTRIBUTE_NORETURN
-static void raise_relocation_error(unsigned Width, unsigned Kind) {
+[[noreturn]] static void raise_relocation_error(unsigned Width, unsigned Kind) {
   std::string Text;
   raw_string_ostream Stream(Text);
   Stream << "Unrecognized relocation combination: width=" << Width
          << " kind=" << Kind;
-  report_fatal_error(Stream.str());
+  report_fatal_error(Twine(Stream.str()));
 }
 
 /// Some insns are not extended and thus have no bits. These cases require
@@ -499,7 +490,7 @@ Hexagon::Fixups HexagonMCCodeEmitter::getFixupNoBits(
       { MCSymbolRefExpr::VK_Hexagon_LD_GOT, fixup_Hexagon_LD_GOT_32_6_X },
       { MCSymbolRefExpr::VK_Hexagon_IE,     fixup_Hexagon_IE_32_6_X },
       { MCSymbolRefExpr::VK_Hexagon_IE_GOT, fixup_Hexagon_IE_GOT_32_6_X },
-      { MCSymbolRefExpr::VK_Hexagon_PCREL,  fixup_Hexagon_B32_PCREL_X },
+      { MCSymbolRefExpr::VK_PCREL,          fixup_Hexagon_B32_PCREL_X },
       { MCSymbolRefExpr::VK_Hexagon_GD_PLT, fixup_Hexagon_GD_PLT_B32_PCREL_X },
       { MCSymbolRefExpr::VK_Hexagon_LD_PLT, fixup_Hexagon_LD_PLT_B32_PCREL_X },
     };
@@ -721,7 +712,6 @@ unsigned
 HexagonMCCodeEmitter::getMachineOpValue(MCInst const &MI, MCOperand const &MO,
                                         SmallVectorImpl<MCFixup> &Fixups,
                                         MCSubtargetInfo const &STI) const {
-#ifndef NDEBUG
   size_t OperandNumber = ~0U;
   for (unsigned i = 0, n = MI.getNumOperands(); i < n; ++i)
     if (&MI.getOperand(i) == &MO) {
@@ -729,7 +719,6 @@ HexagonMCCodeEmitter::getMachineOpValue(MCInst const &MI, MCOperand const &MO,
       break;
     }
   assert((OperandNumber != ~0U) && "Operand not found");
-#endif
 
   if (HexagonMCInstrInfo::isNewValue(MCII, MI) &&
       &MO == &HexagonMCInstrInfo::getNewValueOperand(MCII, MI)) {
@@ -737,7 +726,8 @@ HexagonMCCodeEmitter::getMachineOpValue(MCInst const &MI, MCOperand const &MO,
     unsigned SOffset = 0;
     unsigned VOffset = 0;
     unsigned UseReg = MO.getReg();
-    unsigned DefReg1, DefReg2;
+    unsigned DefReg1 = Hexagon::NoRegister;
+    unsigned DefReg2 = Hexagon::NoRegister;
 
     auto Instrs = HexagonMCInstrInfo::bundleInstructions(*State.Bundle);
     const MCOperand *I = Instrs.begin() + State.Index - 1;
@@ -748,7 +738,8 @@ HexagonMCCodeEmitter::getMachineOpValue(MCInst const &MI, MCOperand const &MO,
       if (HexagonMCInstrInfo::isImmext(Inst))
         continue;
 
-      DefReg1 = DefReg2 = 0;
+      DefReg1 = Hexagon::NoRegister;
+      DefReg2 = Hexagon::NoRegister;
       ++SOffset;
       if (HexagonMCInstrInfo::isVector(MCII, Inst)) {
         // Vector instructions don't count scalars.
@@ -784,9 +775,13 @@ HexagonMCCodeEmitter::getMachineOpValue(MCInst const &MI, MCOperand const &MO,
   assert(!MO.isImm());
   if (MO.isReg()) {
     unsigned Reg = MO.getReg();
-    if (HexagonMCInstrInfo::isSubInstruction(MI) ||
-        HexagonMCInstrInfo::getType(MCII, MI) == HexagonII::TypeCJ)
+    switch (HexagonMCInstrInfo::getDesc(MCII, MI).OpInfo[OperandNumber].RegClass) {
+    case GeneralSubRegsRegClassID:
+    case GeneralDoubleLow8RegsRegClassID:
       return HexagonMCInstrInfo::getDuplexRegisterNumbering(Reg);
+    default:
+      break;
+    }
     return MCT.getRegisterInfo()->getEncodingValue(Reg);
   }
 

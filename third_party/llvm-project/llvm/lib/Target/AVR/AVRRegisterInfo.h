@@ -1,9 +1,8 @@
 //===-- AVRRegisterInfo.h - AVR Register Information Impl -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -28,7 +27,7 @@ public:
 
 public:
   const uint16_t *
-  getCalleeSavedRegs(const MachineFunction *MF = 0) const override;
+  getCalleeSavedRegs(const MachineFunction *MF = nullptr) const override;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID CC) const override;
   BitVector getReservedRegs(const MachineFunction &MF) const override;
@@ -40,9 +39,9 @@ public:
   /// Stack Frame Processing Methods
   void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
                            unsigned FIOperandNum,
-                           RegScavenger *RS = NULL) const override;
+                           RegScavenger *RS = nullptr) const override;
 
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
+  Register getFrameRegister(const MachineFunction &MF) const override;
 
   const TargetRegisterClass *
   getPointerRegClass(const MachineFunction &MF,
@@ -50,12 +49,12 @@ public:
 
   /// Splits a 16-bit `DREGS` register into the lo/hi register pair.
   /// \param Reg A 16-bit register to split.
-  void splitReg(unsigned Reg, unsigned &LoReg, unsigned &HiReg) const;
+  void splitReg(Register Reg, Register &LoReg, Register &HiReg) const;
 
-  bool trackLivenessAfterRegAlloc(const MachineFunction &) const override {
-    return true;
-  }
-
+  bool shouldCoalesce(MachineInstr *MI, const TargetRegisterClass *SrcRC,
+                      unsigned SubReg, const TargetRegisterClass *DstRC,
+                      unsigned DstSubReg, const TargetRegisterClass *NewRC,
+                      LiveIntervals &LIS) const override;
 };
 
 } // end namespace llvm

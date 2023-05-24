@@ -1,4 +1,4 @@
-; RUN: opt < %s -loop-unswitch
+; RUN: opt < %s -loop-unswitch -enable-new-pm=0 -verify-memoryssa
 ; PR8622
 @g_38 = external global i32, align 4
 

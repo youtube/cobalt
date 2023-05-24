@@ -1,4 +1,5 @@
 ; RUN: opt < %s -loop-reroll -S | FileCheck %s
+; RUN: opt < %s -passes=loop-reroll -S | FileCheck %s
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -745,7 +746,7 @@ define void @pointer_bitcast_baseinst(i16* %arg, i8* %arg1, i64 %arg2) {
 ; CHECK-LABEL: @pointer_bitcast_baseinst(
 ; CHECK:       bb3:
 ; CHECK-NEXT:    %indvar = phi i64 [ %indvar.next, %bb3 ], [ 0, %bb ]
-; CHECK-NEXT:    %4 = shl i64 %indvar, 3
+; CHECK-NEXT:    %4 = shl nuw i64 %indvar, 3
 ; CHECK-NEXT:    %5 = add i64 %4, 1
 ; CHECK-NEXT:    %tmp5 = shl nuw i64 %5, 1
 ; CHECK-NEXT:    %tmp6 = getelementptr i8, i8* %arg1, i64 %tmp5
@@ -785,6 +786,51 @@ bb19:                                             ; preds = %bb3
   ret void
 }
 
+define void @bad_step(i32* nocapture readnone %x) #0 {
+entry:
+  br label %for.body
+
+for.body:                                         ; preds = %for.body, %entry
+  %i.08 = phi i32 [ 0, %entry ], [ %add3, %for.body ]
+  %call = tail call i32 @foo(i32 %i.08) #1
+  %add = add nsw i32 %i.08, 2
+  %call1 = tail call i32 @foo(i32 %add) #1
+  %add2 = add nsw i32 %i.08, 3
+  %call3 = tail call i32 @foo(i32 %add2) #1
+  %add3 = add nsw i32 %i.08, 6
+  %exitcond = icmp sge i32 %add3, 500
+  br i1 %exitcond, label %for.end, label %for.body
+
+; CHECK-LABEL: @bad_step
+; CHECK: %add = add nsw i32 %i.08, 2
+; CHECK: %add2 = add nsw i32 %i.08, 3
+; CHECK: %add3 = add nsw i32 %i.08, 6
+
+for.end:                                          ; preds = %for.body
+  ret void
+}
+
+@a = external global [2 x [512 x i64]], align 16
+@b = external global [512 x [4 x i64]], align 16
+
+define void @ptr_step_crash() {
+; CHECK-LABEL: @ptr_step_crash(
+entry:
+  br label %for.body42.3
+
+for.body42.3:                                     ; preds = %for.body42.3, %entry
+  %k.2207.3 = phi i32 [ -512, %entry ], [ %inc63.3, %for.body42.3 ]
+  %sub46.3 = add nsw i32 %k.2207.3, 512
+  %idxprom47.3 = zext i32 %sub46.3 to i64
+  %arrayidx48.3 = getelementptr inbounds [2 x [512 x i64]], [2 x [512 x i64]]* @a, i64 0, i64 0, i64 %idxprom47.3
+  %arrayidx55.3 = getelementptr inbounds [512 x [4 x i64]], [512 x [4 x i64]]* @b, i64 0, i64 %idxprom47.3, i64 3
+  %0 = load i64, i64* %arrayidx55.3, align 8
+  %inc63.3 = add nsw i32 %k.2207.3, 1
+  br i1 undef, label %for.inc65.3, label %for.body42.3
+
+for.inc65.3:                                      ; preds = %for.body42.3
+  ret void
+}
+
 attributes #0 = { nounwind uwtable }
 attributes #1 = { nounwind }
-

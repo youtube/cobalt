@@ -1,9 +1,8 @@
 //===- llvm/CodeGen/MachineLoopInfo.h - Natural Loop Calculator -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -38,6 +37,7 @@
 
 namespace llvm {
 
+class MachineDominatorTree;
 // Implementation in LoopInfoImpl.h
 class MachineLoop;
 extern template class LoopBase<MachineBasicBlock, MachineLoop>;
@@ -67,6 +67,12 @@ public:
   /// it returns an unknown location.
   DebugLoc getStartLoc() const;
 
+  /// Returns true if the instruction is loop invariant.
+  /// I.e., all virtual register operands are defined outside of the loop,
+  /// physical registers aren't accessed explicitly, and there are no side
+  /// effects that aren't captured by the operands or other flags.
+  bool isLoopInvariant(MachineInstr &I) const;
+
   void dump() const;
 
 private:
@@ -89,8 +95,10 @@ class MachineLoopInfo : public MachineFunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid
 
-  MachineLoopInfo() : MachineFunctionPass(ID) {
-    initializeMachineLoopInfoPass(*PassRegistry::getPassRegistry());
+  MachineLoopInfo();
+  explicit MachineLoopInfo(MachineDominatorTree &MDT)
+      : MachineFunctionPass(ID) {
+    calculate(MDT);
   }
   MachineLoopInfo(const MachineLoopInfo &) = delete;
   MachineLoopInfo &operator=(const MachineLoopInfo &) = delete;
@@ -102,8 +110,11 @@ public:
   /// loop setup code. Code that cannot be speculated should not be placed
   /// here. SpeculativePreheader is controlling whether it also tries to
   /// find the speculative preheader if the regular preheader is not present.
-  MachineBasicBlock *findLoopPreheader(MachineLoop *L,
-                                       bool SpeculativePreheader = false) const;
+  /// With FindMultiLoopPreheader = false, nullptr will be returned if the found
+  /// preheader is the preheader of multiple loops.
+  MachineBasicBlock *
+  findLoopPreheader(MachineLoop *L, bool SpeculativePreheader = false,
+                    bool FindMultiLoopPreheader = false) const;
 
   /// The iterator interface to the top-level loops in the current function.
   using iterator = LoopInfoBase<MachineBasicBlock, MachineLoop>::iterator;
@@ -134,6 +145,7 @@ public:
 
   /// Calculate the natural loop information.
   bool runOnMachineFunction(MachineFunction &F) override;
+  void calculate(MachineDominatorTree &MDT);
 
   void releaseMemory() override { LI.releaseMemory(); }
 

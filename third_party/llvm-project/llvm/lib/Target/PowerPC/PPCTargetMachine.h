@@ -1,9 +1,8 @@
 //===-- PPCTargetMachine.h - Define TargetMachine for PowerPC ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,9 +25,12 @@ namespace llvm {
 class PPCTargetMachine final : public LLVMTargetMachine {
 public:
   enum PPCABI { PPC_ABI_UNKNOWN, PPC_ABI_ELFv1, PPC_ABI_ELFv2 };
+  enum Endian { NOT_DETECTED, LITTLE, BIG };
+
 private:
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
   PPCABI TargetABI;
+  Endian Endianness = Endian::NOT_DETECTED;
 
   mutable StringMap<std::unique_ptr<PPCSubtarget>> SubtargetMap;
 
@@ -60,9 +62,14 @@ public:
     return (TT.getArch() == Triple::ppc64 || TT.getArch() == Triple::ppc64le);
   };
 
-  bool isMachineVerifierClean() const override {
-    return false;
+  bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override {
+    // Addrspacecasts are always noops.
+    return true;
   }
+
+  bool isLittleEndian() const;
+
+  int unqualifiedInlineAsmVariant() const override { return 1; }
 };
 } // end namespace llvm
 

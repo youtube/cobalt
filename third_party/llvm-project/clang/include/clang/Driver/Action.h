@@ -1,9 +1,8 @@
 //===- Action.h - Abstract compilation steps --------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -59,21 +58,26 @@ public:
     OffloadClass,
     PreprocessJobClass,
     PrecompileJobClass,
+    HeaderModulePrecompileJobClass,
     AnalyzeJobClass,
     MigrateJobClass,
     CompileJobClass,
     BackendJobClass,
     AssembleJobClass,
     LinkJobClass,
+    IfsMergeJobClass,
     LipoJobClass,
     DsymutilJobClass,
     VerifyDebugInfoJobClass,
     VerifyPCHJobClass,
     OffloadBundlingJobClass,
     OffloadUnbundlingJobClass,
+    OffloadWrapperJobClass,
+    LinkerWrapperJobClass,
+    StaticLibJobClass,
 
     JobClassFirst = PreprocessJobClass,
-    JobClassLast = OffloadUnbundlingJobClass
+    JobClassLast = StaticLibJobClass
   };
 
   // The offloading kind determines if this action is binded to a particular
@@ -211,13 +215,17 @@ public:
 
 class InputAction : public Action {
   const llvm::opt::Arg &Input;
-
+  std::string Id;
   virtual void anchor();
 
 public:
-  InputAction(const llvm::opt::Arg &Input, types::ID Type);
+  InputAction(const llvm::opt::Arg &Input, types::ID Type,
+              StringRef Id = StringRef());
 
   const llvm::opt::Arg &getInputArg() const { return Input; }
+
+  void setId(StringRef _Id) { Id = _Id.str(); }
+  StringRef getId() const { return Id; }
 
   static bool classof(const Action *A) {
     return A->getKind() == InputClass;
@@ -398,12 +406,36 @@ public:
 class PrecompileJobAction : public JobAction {
   void anchor() override;
 
+protected:
+  PrecompileJobAction(ActionClass Kind, Action *Input, types::ID OutputType);
+
 public:
   PrecompileJobAction(Action *Input, types::ID OutputType);
 
   static bool classof(const Action *A) {
-    return A->getKind() == PrecompileJobClass;
+    return A->getKind() == PrecompileJobClass ||
+           A->getKind() == HeaderModulePrecompileJobClass;
   }
+};
+
+class HeaderModulePrecompileJobAction : public PrecompileJobAction {
+  void anchor() override;
+
+  const char *ModuleName;
+
+public:
+  HeaderModulePrecompileJobAction(Action *Input, types::ID OutputType,
+                                  const char *ModuleName);
+
+  static bool classof(const Action *A) {
+    return A->getKind() == HeaderModulePrecompileJobClass;
+  }
+
+  void addModuleHeaderInput(Action *Input) {
+    getInputs().push_back(Input);
+  }
+
+  const char *getModuleName() const { return ModuleName; }
 };
 
 class AnalyzeJobAction : public JobAction {
@@ -458,6 +490,17 @@ public:
 
   static bool classof(const Action *A) {
     return A->getKind() == AssembleJobClass;
+  }
+};
+
+class IfsMergeJobAction : public JobAction {
+  void anchor() override;
+
+public:
+  IfsMergeJobAction(ActionList &Inputs, types::ID Type);
+
+  static bool classof(const Action *A) {
+    return A->getKind() == IfsMergeJobClass;
   }
 };
 
@@ -586,6 +629,39 @@ public:
 
   static bool classof(const Action *A) {
     return A->getKind() == OffloadUnbundlingJobClass;
+  }
+};
+
+class OffloadWrapperJobAction : public JobAction {
+  void anchor() override;
+
+public:
+  OffloadWrapperJobAction(ActionList &Inputs, types::ID Type);
+
+  static bool classof(const Action *A) {
+    return A->getKind() == OffloadWrapperJobClass;
+  }
+};
+
+class LinkerWrapperJobAction : public JobAction {
+  void anchor() override;
+
+public:
+  LinkerWrapperJobAction(ActionList &Inputs, types::ID Type);
+
+  static bool classof(const Action *A) {
+    return A->getKind() == LinkerWrapperJobClass;
+  }
+};
+
+class StaticLibJobAction : public JobAction {
+  void anchor() override;
+
+public:
+  StaticLibJobAction(ActionList &Inputs, types::ID Type);
+
+  static bool classof(const Action *A) {
+    return A->getKind() == StaticLibJobClass;
   }
 };
 

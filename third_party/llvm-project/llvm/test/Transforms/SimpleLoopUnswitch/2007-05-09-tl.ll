@@ -1,4 +1,4 @@
-; RUN: opt < %s -simple-loop-unswitch -disable-output
+; RUN: opt < %s -simple-loop-unswitch -verify-memoryssa -disable-output
 ; PR1333
 
 define void @pp_cxx_expression() {

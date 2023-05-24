@@ -1,9 +1,8 @@
 //===-- msan.h --------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -122,7 +121,7 @@ const MappingDesc kMemoryLayout[] = {
     // The mappings below are used only for 48-bits VMA.
     // TODO(unknown): 48-bit mapping ony covers the usual PIE, non-PIE
     // segments and some more segments totalizing 262144GB of VMA (which cover
-    // only 0.32% of all 48-bit VMA). Memory avaliability can be increase by
+    // only 0.32% of all 48-bit VMA). Memory availability can be increase by
     // adding multiple application segments like 39 and 42 mapping.
     {0x0040000000000ULL, 0x0041000000000ULL, MappingDesc::INVALID, "invalid"},
     {0x0041000000000ULL, 0x0042000000000ULL, MappingDesc::APP, "app-10"},
@@ -182,6 +181,20 @@ const MappingDesc kMemoryLayout[] = {
 #define MEM_TO_SHADOW(mem) (LINEARIZE_MEM((mem)) + 0x080000000000ULL)
 #define SHADOW_TO_ORIGIN(shadow) (((uptr)(shadow)) + 0x140000000000ULL)
 
+#elif SANITIZER_LINUX && SANITIZER_S390_64
+const MappingDesc kMemoryLayout[] = {
+    {0x000000000000ULL, 0x040000000000ULL, MappingDesc::APP, "low memory"},
+    {0x040000000000ULL, 0x080000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x080000000000ULL, 0x180000000000ULL, MappingDesc::SHADOW, "shadow"},
+    {0x180000000000ULL, 0x1C0000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x1C0000000000ULL, 0x2C0000000000ULL, MappingDesc::ORIGIN, "origin"},
+    {0x2C0000000000ULL, 0x440000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x440000000000ULL, 0x500000000000ULL, MappingDesc::APP, "high memory"}};
+
+#define MEM_TO_SHADOW(mem) \
+  ((((uptr)(mem)) & ~0xC00000000000ULL) + 0x080000000000ULL)
+#define SHADOW_TO_ORIGIN(shadow) (((uptr)(shadow)) + 0x140000000000ULL)
+
 #elif SANITIZER_FREEBSD && SANITIZER_WORDSIZE == 64
 
 // Low memory: main binary, MAP_32BIT mappings and modules
@@ -206,7 +219,7 @@ const MappingDesc kMemoryLayout[] = {
 #elif SANITIZER_NETBSD || (SANITIZER_LINUX && SANITIZER_WORDSIZE == 64)
 
 #ifdef MSAN_LINUX_X86_64_OLD_MAPPING
-// Requries PIE binary and ASLR enabled.
+// Requires PIE binary and ASLR enabled.
 // Main thread stack and DSOs at 0x7f0000000000 (sometimes 0x7e0000000000).
 // Heap at 0x600000000000.
 const MappingDesc kMemoryLayout[] = {
@@ -268,7 +281,7 @@ inline bool addr_is_type(uptr addr, MappingDesc::Type mapping_type) {
 #define MEM_IS_SHADOW(mem) addr_is_type((uptr)(mem), MappingDesc::SHADOW)
 #define MEM_IS_ORIGIN(mem) addr_is_type((uptr)(mem), MappingDesc::ORIGIN)
 
-// These constants must be kept in sync with the ones in MemorySanitizer.cc.
+// These constants must be kept in sync with the ones in MemorySanitizer.cpp.
 const int kMsanParamTlsSize = 800;
 const int kMsanRetvalTlsSize = 800;
 
@@ -283,12 +296,12 @@ char *GetProcSelfMaps();
 void InitializeInterceptors();
 
 void MsanAllocatorInit();
-void MsanAllocatorThreadFinish();
 void MsanDeallocate(StackTrace *stack, void *ptr);
 
 void *msan_malloc(uptr size, StackTrace *stack);
 void *msan_calloc(uptr nmemb, uptr size, StackTrace *stack);
 void *msan_realloc(void *ptr, uptr size, StackTrace *stack);
+void *msan_reallocarray(void *ptr, uptr nmemb, uptr size, StackTrace *stack);
 void *msan_valloc(uptr size, StackTrace *stack);
 void *msan_pvalloc(uptr size, StackTrace *stack);
 void *msan_aligned_alloc(uptr alignment, uptr size, StackTrace *stack);
@@ -313,9 +326,6 @@ struct SymbolizerScope {
 void PrintWarning(uptr pc, uptr bp);
 void PrintWarningWithOrigin(uptr pc, uptr bp, u32 origin);
 
-void GetStackTrace(BufferedStackTrace *stack, uptr max_s, uptr pc, uptr bp,
-                   void *context, bool request_fast_unwind);
-
 // Unpoison first n function arguments.
 void UnpoisonParam(uptr n);
 void UnpoisonThreadLocalState();
@@ -329,41 +339,30 @@ const int STACK_TRACE_TAG_POISON = StackTrace::TAG_CUSTOM + 1;
 #define GET_MALLOC_STACK_TRACE                                            \
   BufferedStackTrace stack;                                               \
   if (__msan_get_track_origins() && msan_inited)                          \
-  GetStackTrace(&stack, common_flags()->malloc_context_size,              \
-                StackTrace::GetCurrentPc(), GET_CURRENT_FRAME(), nullptr, \
-                common_flags()->fast_unwind_on_malloc)
+    stack.Unwind(StackTrace::GetCurrentPc(), GET_CURRENT_FRAME(),         \
+                 nullptr, common_flags()->fast_unwind_on_malloc,          \
+                 common_flags()->malloc_context_size)
 
 // For platforms which support slow unwinder only, we restrict the store context
 // size to 1, basically only storing the current pc. We do this because the slow
 // unwinder which is based on libunwind is not async signal safe and causes
 // random freezes in forking applications as well as in signal handlers.
-#define GET_STORE_STACK_TRACE_PC_BP(pc, bp)                               \
-  BufferedStackTrace stack;                                               \
-  if (__msan_get_track_origins() > 1 && msan_inited) {                    \
-    if (!SANITIZER_CAN_FAST_UNWIND)                                       \
-      GetStackTrace(&stack, Min(1, flags()->store_context_size), pc, bp,  \
-                    nullptr, false);                                      \
-    else                                                                  \
-      GetStackTrace(&stack, flags()->store_context_size, pc, bp, nullptr, \
-                    common_flags()->fast_unwind_on_malloc);               \
+#define GET_STORE_STACK_TRACE_PC_BP(pc, bp)                                    \
+  BufferedStackTrace stack;                                                    \
+  if (__msan_get_track_origins() > 1 && msan_inited) {                         \
+    int size = flags()->store_context_size;                                    \
+    if (!SANITIZER_CAN_FAST_UNWIND)                                            \
+      size = Min(size, 1);                                                     \
+    stack.Unwind(pc, bp, nullptr, common_flags()->fast_unwind_on_malloc, size);\
   }
 
 #define GET_STORE_STACK_TRACE \
   GET_STORE_STACK_TRACE_PC_BP(StackTrace::GetCurrentPc(), GET_CURRENT_FRAME())
 
-#define GET_FATAL_STACK_TRACE_PC_BP(pc, bp)              \
-  BufferedStackTrace stack;                              \
-  if (msan_inited)                                       \
-  GetStackTrace(&stack, kStackTraceMax, pc, bp, nullptr, \
-                common_flags()->fast_unwind_on_fatal)
-
-#define GET_FATAL_STACK_TRACE_HERE \
-  GET_FATAL_STACK_TRACE_PC_BP(StackTrace::GetCurrentPc(), GET_CURRENT_FRAME())
-
-#define PRINT_CURRENT_STACK_CHECK() \
-  {                                 \
-    GET_FATAL_STACK_TRACE_HERE;     \
-    stack.Print();                  \
+#define GET_FATAL_STACK_TRACE_PC_BP(pc, bp)                              \
+  BufferedStackTrace stack;                                              \
+  if (msan_inited) {                                                     \
+    stack.Unwind(pc, bp, nullptr, common_flags()->fast_unwind_on_fatal); \
   }
 
 class ScopedThreadLocalStateBackup {

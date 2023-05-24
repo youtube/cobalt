@@ -1,9 +1,8 @@
 //===- InputFile.h -------------------------------------------- *- C++ --*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,7 +26,6 @@ class LazyRandomTypeCollection;
 }
 namespace object {
 class COFFObjectFile;
-class SectionRef;
 } // namespace object
 
 namespace pdb {
@@ -44,7 +42,7 @@ class InputFile {
   std::unique_ptr<NativeSession> PdbSession;
   object::OwningBinary<object::Binary> CoffObject;
   std::unique_ptr<MemoryBuffer> UnknownFile;
-  PointerUnion3<PDBFile *, object::COFFObjectFile *, MemoryBuffer *> PdbOrObj;
+  PointerUnion<PDBFile *, object::COFFObjectFile *, MemoryBuffer *> PdbOrObj;
 
   using TypeCollectionPtr = std::unique_ptr<codeview::LazyRandomTypeCollection>;
 
@@ -109,6 +107,8 @@ public:
 
   const InputFile &getFile() const { return *File; }
   InputFile &getFile() { return *File; }
+
+  bool hasDebugStream() const { return DebugStream != nullptr; }
 
 private:
   void initializeForPdb(uint32_t Modi);

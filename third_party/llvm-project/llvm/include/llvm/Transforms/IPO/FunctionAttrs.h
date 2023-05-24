@@ -1,9 +1,8 @@
 //===- FunctionAttrs.h - Compute function attributes ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,6 +17,7 @@
 
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/LazyCallGraph.h"
+#include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
@@ -32,11 +32,19 @@ class Pass;
 enum MemoryAccessKind {
   MAK_ReadNone = 0,
   MAK_ReadOnly = 1,
-  MAK_MayWrite = 2
+  MAK_MayWrite = 2,
+  MAK_WriteOnly = 3
 };
 
 /// Returns the memory access properties of this copy of the function.
 MemoryAccessKind computeFunctionBodyMemoryAccess(Function &F, AAResults &AAR);
+
+/// Propagate function attributes for function summaries along the index's
+/// callgraph during thinlink
+bool thinLTOPropagateFunctionAttrs(
+    ModuleSummaryIndex &Index,
+    function_ref<bool(GlobalValue::GUID, const GlobalValueSummary *)>
+        isPrevailing);
 
 /// Computes function attributes in post-order over the call graph.
 ///

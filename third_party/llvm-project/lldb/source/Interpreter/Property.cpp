@@ -1,31 +1,27 @@
-//===-- Property.cpp --------------------------------------------*- C++ -*-===//
+//===-- Property.cpp ------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/Property.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/UserSettingsController.h"
-#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionValues.h"
 #include "lldb/Target/Language.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
 
 Property::Property(const PropertyDefinition &definition)
     : m_name(definition.name), m_description(definition.description),
-      m_value_sp(), m_is_global(definition.global) {
+      m_is_global(definition.global) {
   switch (definition.type) {
   case OptionValue::eTypeInvalid:
   case OptionValue::eTypeProperties:
@@ -34,18 +30,20 @@ Property::Property(const PropertyDefinition &definition)
     // "definition.default_uint_value" is not used
     // "definition.default_cstr_value" as a string value that represents the
     // default string value for the architecture/triple
-    m_value_sp.reset(new OptionValueArch(definition.default_cstr_value));
+    m_value_sp =
+        std::make_shared<OptionValueArch>(definition.default_cstr_value);
     break;
 
   case OptionValue::eTypeArgs:
     // "definition.default_uint_value" is always a OptionValue::Type
-    m_value_sp.reset(new OptionValueArgs());
+    m_value_sp = std::make_shared<OptionValueArgs>();
     break;
 
   case OptionValue::eTypeArray:
     // "definition.default_uint_value" is always a OptionValue::Type
-    m_value_sp.reset(new OptionValueArray(OptionValue::ConvertTypeToMask(
-        (OptionValue::Type)definition.default_uint_value)));
+    m_value_sp =
+        std::make_shared<OptionValueArray>(OptionValue::ConvertTypeToMask(
+            (OptionValue::Type)definition.default_uint_value));
     break;
 
   case OptionValue::eTypeBoolean:
@@ -54,11 +52,12 @@ Property::Property(const PropertyDefinition &definition)
     // "definition.default_cstr_value" as a string value that represents the
     // default value.
     if (definition.default_cstr_value)
-      m_value_sp.reset(new OptionValueBoolean(OptionArgParser::ToBoolean(
-          llvm::StringRef(definition.default_cstr_value), false, nullptr)));
+      m_value_sp =
+          std::make_shared<OptionValueBoolean>(OptionArgParser::ToBoolean(
+              llvm::StringRef(definition.default_cstr_value), false, nullptr));
     else
-      m_value_sp.reset(
-          new OptionValueBoolean(definition.default_uint_value != 0));
+      m_value_sp = std::make_shared<OptionValueBoolean>(
+          definition.default_uint_value != 0);
     break;
 
   case OptionValue::eTypeChar: {
@@ -69,8 +68,9 @@ Property::Property(const PropertyDefinition &definition)
   }
   case OptionValue::eTypeDictionary:
     // "definition.default_uint_value" is always a OptionValue::Type
-    m_value_sp.reset(new OptionValueDictionary(OptionValue::ConvertTypeToMask(
-        (OptionValue::Type)definition.default_uint_value)));
+    m_value_sp =
+        std::make_shared<OptionValueDictionary>(OptionValue::ConvertTypeToMask(
+            (OptionValue::Type)definition.default_uint_value));
     break;
 
   case OptionValue::eTypeEnum:
@@ -98,19 +98,27 @@ Property::Property(const PropertyDefinition &definition)
     }
     break;
 
+  case OptionValue::eTypeFileLineColumn:
+    // "definition.default_uint_value" is not used for a
+    // OptionValue::eTypeFileSpecList
+    m_value_sp = std::make_shared<OptionValueFileColonLine>();
+    break;
+
   case OptionValue::eTypeFileSpec: {
     // "definition.default_uint_value" represents if the
     // "definition.default_cstr_value" should be resolved or not
     const bool resolve = definition.default_uint_value != 0;
-    m_value_sp.reset(new OptionValueFileSpec(
-        FileSpec(definition.default_cstr_value, resolve), resolve));
+    FileSpec file_spec = FileSpec(definition.default_cstr_value);
+    if (resolve)
+      FileSystem::Instance().Resolve(file_spec);
+    m_value_sp = std::make_shared<OptionValueFileSpec>(file_spec, resolve);
     break;
   }
 
   case OptionValue::eTypeFileSpecList:
     // "definition.default_uint_value" is not used for a
     // OptionValue::eTypeFileSpecList
-    m_value_sp.reset(new OptionValueFileSpecList());
+    m_value_sp = std::make_shared<OptionValueFileSpecList>();
     break;
 
   case OptionValue::eTypeFormat:
@@ -125,7 +133,7 @@ Property::Property(const PropertyDefinition &definition)
                                   nullptr);
       else
         new_format = (Format)definition.default_uint_value;
-      m_value_sp.reset(new OptionValueFormat(new_format));
+      m_value_sp = std::make_shared<OptionValueFormat>(new_format);
     }
     break;
 
@@ -141,53 +149,58 @@ Property::Property(const PropertyDefinition &definition)
             llvm::StringRef(definition.default_cstr_value));
       else
         new_lang = (LanguageType)definition.default_uint_value;
-      m_value_sp.reset(new OptionValueLanguage(new_lang));
+      m_value_sp = std::make_shared<OptionValueLanguage>(new_lang);
     }
     break;
 
   case OptionValue::eTypeFormatEntity:
     // "definition.default_cstr_value" as a string value that represents the
     // default
-    m_value_sp.reset(
-        new OptionValueFormatEntity(definition.default_cstr_value));
+    m_value_sp = std::make_shared<OptionValueFormatEntity>(
+        definition.default_cstr_value);
     break;
 
   case OptionValue::eTypePathMap:
     // "definition.default_uint_value" tells us if notifications should occur
     // for path mappings
-    m_value_sp.reset(
-        new OptionValuePathMappings(definition.default_uint_value != 0));
+    m_value_sp = std::make_shared<OptionValuePathMappings>(
+        definition.default_uint_value != 0);
     break;
 
   case OptionValue::eTypeRegex:
     // "definition.default_uint_value" is used to the regular expression flags
     // "definition.default_cstr_value" the default regular expression value
     // value.
-    m_value_sp.reset(new OptionValueRegex(definition.default_cstr_value));
+    m_value_sp =
+        std::make_shared<OptionValueRegex>(definition.default_cstr_value);
     break;
 
-  case OptionValue::eTypeSInt64:
+  case OptionValue::eTypeSInt64: {
     // "definition.default_uint_value" is the default integer value if
     // "definition.default_cstr_value" is NULL, otherwise interpret
     // "definition.default_cstr_value" as a string value that represents the
     // default value.
-    m_value_sp.reset(new OptionValueSInt64(
-        definition.default_cstr_value
-            ? StringConvert::ToSInt64(definition.default_cstr_value)
-            : definition.default_uint_value));
+    int64_t value = 0;
+    // FIXME: improve error handling for llvm::to_integer()
+    if (definition.default_cstr_value)
+      llvm::to_integer(definition.default_cstr_value, value);
+    m_value_sp = std::make_shared<OptionValueSInt64>(
+        definition.default_cstr_value ? value : definition.default_uint_value);
     break;
-
-  case OptionValue::eTypeUInt64:
+  }
+  case OptionValue::eTypeUInt64: {
+    uint64_t value = 0;
+    // FIXME: improve error handling for llvm::to_integer()
+    if (definition.default_cstr_value)
+      llvm::to_integer(definition.default_cstr_value, value);
     // "definition.default_uint_value" is the default unsigned integer value if
     // "definition.default_cstr_value" is NULL, otherwise interpret
     // "definition.default_cstr_value" as a string value that represents the
     // default value.
-    m_value_sp.reset(new OptionValueUInt64(
-        definition.default_cstr_value
-            ? StringConvert::ToUInt64(definition.default_cstr_value)
-            : definition.default_uint_value));
+    m_value_sp = std::make_shared<OptionValueUInt64>(
+        definition.default_cstr_value ? value : definition.default_uint_value);
     break;
-
+  }
   case OptionValue::eTypeUUID:
     // "definition.default_uint_value" is not used for a OptionValue::eTypeUUID
     // "definition.default_cstr_value" can contain a default UUID value
@@ -195,7 +208,7 @@ Property::Property(const PropertyDefinition &definition)
       UUID uuid;
       if (definition.default_cstr_value)
         uuid.SetFromStringRef(definition.default_cstr_value);
-      m_value_sp.reset(new OptionValueUUID(uuid));
+      m_value_sp = std::make_shared<OptionValueUUID>(uuid);
     }
     break;
 
@@ -214,13 +227,13 @@ Property::Property(const PropertyDefinition &definition)
   }
 }
 
-Property::Property(const ConstString &name, const ConstString &desc,
-                   bool is_global, const lldb::OptionValueSP &value_sp)
+Property::Property(llvm::StringRef name, llvm::StringRef desc, bool is_global,
+                   const lldb::OptionValueSP &value_sp)
     : m_name(name), m_description(desc), m_value_sp(value_sp),
       m_is_global(is_global) {}
 
 bool Property::DumpQualifiedName(Stream &strm) const {
-  if (m_name) {
+  if (!m_name.empty()) {
     if (m_value_sp->DumpQualifiedName(strm))
       strm.PutChar('.');
     strm << m_name;
@@ -233,9 +246,12 @@ void Property::Dump(const ExecutionContext *exe_ctx, Stream &strm,
                     uint32_t dump_mask) const {
   if (m_value_sp) {
     const bool dump_desc = dump_mask & OptionValue::eDumpOptionDescription;
+    const bool dump_cmd = dump_mask & OptionValue::eDumpOptionCommand;
     const bool transparent = m_value_sp->ValueIsTransparent();
+    if (dump_cmd && !transparent)
+      strm << "settings set -f ";
     if (dump_desc || !transparent) {
-      if ((dump_mask & OptionValue::eDumpOptionName) && m_name) {
+      if ((dump_mask & OptionValue::eDumpOptionName) && !m_name.empty()) {
         DumpQualifiedName(strm);
         if (dump_mask & ~OptionValue::eDumpOptionName)
           strm.PutChar(' ');
@@ -279,14 +295,13 @@ void Property::DumpDescription(CommandInterpreter &interpreter, Stream &strm,
       interpreter.OutputFormattedHelpText(strm, qualified_name.GetString(),
                                           "--", desc, output_width);
     } else {
-      interpreter.OutputFormattedHelpText(strm, m_name.GetStringRef(), "--",
-                                          desc, output_width);
+      interpreter.OutputFormattedHelpText(strm, m_name, "--", desc,
+                                          output_width);
     }
   }
 }
 
-void Property::SetValueChangedCallback(OptionValueChangedCallback callback,
-                                       void *baton) {
+void Property::SetValueChangedCallback(std::function<void()> callback) {
   if (m_value_sp)
-    m_value_sp->SetValueChangedCallback(callback, baton);
+    m_value_sp->SetValueChangedCallback(std::move(callback));
 }

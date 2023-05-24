@@ -1,9 +1,8 @@
 //===--- HexagonHazardRecognizer.h - Hexagon Post RA Hazard Recognizer ----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // This file defines the hazard recognizer for scheduling on Hexagon.
@@ -40,6 +39,10 @@ class HexagonHazardRecognizer : public ScheduleHazardRecognizer {
   SUnit *PrefVectorStoreNew = nullptr;
   // The set of registers defined by instructions in the current packet.
   SmallSet<unsigned, 8> RegDefs;
+
+  // Return true if the instruction is a store that is converted to a new value
+  // store because its value is defined in the same packet.
+  bool isNewStore(MachineInstr &MI);
 
 public:
   HexagonHazardRecognizer(const InstrItineraryData *II,

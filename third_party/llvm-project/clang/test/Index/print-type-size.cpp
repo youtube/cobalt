@@ -368,7 +368,7 @@ struct BaseStruct
 namespace NotConstantSize {
 
 void f(int i) {
-// CHECK32: VarDecl=v2:[[@LINE+1]]:8 (Definition) [type=int [i]] [typekind=VariableArray] [sizeof=-4] [alignof=4]
+// CHECK32: VarDecl=v2:[[@LINE+1]]:8 (Definition) [type=int[i]] [typekind=VariableArray] [sizeof=-4] [alignof=4]
    int v2[i];
    {
    struct CS1 {
@@ -398,6 +398,12 @@ plopplop;
 // CHECK64: StructDecl=lastValid:[[@LINE+2]]:8 (Definition) [type=CrashTest::lastValid] [typekind=Record] [sizeof=1] [alignof=1]
 // CHECK32: StructDecl=lastValid:[[@LINE+1]]:8 (Definition) [type=CrashTest::lastValid] [typekind=Record] [sizeof=1] [alignof=1]
 struct lastValid {
+};
+
+// CHECK64: CXXMethod=Tie:[[@LINE+3]]:8 (const) [type=auto (void *) const] [typekind=FunctionProto] [sizeof=1] [alignof=4] [resulttype=auto] [resulttypekind=Auto] [resultsizeof=-6] [resultalignof=-6]
+// CHECK32: CXXMethod=Tie:[[@LINE+2]]:8 (const) [type=auto (void *) const] [typekind=FunctionProto] [sizeof=1] [alignof=4] [resulttype=auto] [resulttypekind=Auto] [resultsizeof=-6] [resultalignof=-6]
+class BrowsingContext {
+  auto Tie(void*) const;
 };
 
 }

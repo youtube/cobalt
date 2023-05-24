@@ -1,14 +1,13 @@
-//===-- SBBroadcaster.cpp ---------------------------------------*- C++ -*-===//
+//===-- SBBroadcaster.cpp -------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Core/Broadcaster.h"
-#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Broadcaster.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBEvent.h"
@@ -17,26 +16,26 @@
 using namespace lldb;
 using namespace lldb_private;
 
-SBBroadcaster::SBBroadcaster() : m_opaque_sp(), m_opaque_ptr(NULL) {}
+SBBroadcaster::SBBroadcaster() { LLDB_INSTRUMENT_VA(this); }
 
 SBBroadcaster::SBBroadcaster(const char *name)
-    : m_opaque_sp(new Broadcaster(NULL, name)), m_opaque_ptr(NULL) {
+    : m_opaque_sp(new Broadcaster(nullptr, name)), m_opaque_ptr(nullptr) {
+  LLDB_INSTRUMENT_VA(this, name);
+
   m_opaque_ptr = m_opaque_sp.get();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  LLDB_LOGV(log, "(name=\"{0}\") => SBBroadcaster({1})", name, m_opaque_ptr);
 }
 
 SBBroadcaster::SBBroadcaster(lldb_private::Broadcaster *broadcaster, bool owns)
-    : m_opaque_sp(owns ? broadcaster : NULL), m_opaque_ptr(broadcaster) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  LLDB_LOGV(log, "(broadcaster={0}, owns={1}) => SBBroadcaster({2})",
-            broadcaster, owns, m_opaque_ptr);
-}
+    : m_opaque_sp(owns ? broadcaster : nullptr), m_opaque_ptr(broadcaster) {}
 
 SBBroadcaster::SBBroadcaster(const SBBroadcaster &rhs)
-    : m_opaque_sp(rhs.m_opaque_sp), m_opaque_ptr(rhs.m_opaque_ptr) {}
+    : m_opaque_sp(rhs.m_opaque_sp), m_opaque_ptr(rhs.m_opaque_ptr) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
 const SBBroadcaster &SBBroadcaster::operator=(const SBBroadcaster &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs) {
     m_opaque_sp = rhs.m_opaque_sp;
     m_opaque_ptr = rhs.m_opaque_ptr;
@@ -44,17 +43,12 @@ const SBBroadcaster &SBBroadcaster::operator=(const SBBroadcaster &rhs) {
   return *this;
 }
 
-SBBroadcaster::~SBBroadcaster() { reset(NULL, false); }
+SBBroadcaster::~SBBroadcaster() { reset(nullptr, false); }
 
 void SBBroadcaster::BroadcastEventByType(uint32_t event_type, bool unique) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, event_type, unique);
 
-  if (log)
-    log->Printf("SBBroadcaster(%p)::BroadcastEventByType (event_type=0x%8.8x, "
-                "unique=%i)",
-                static_cast<void *>(m_opaque_ptr), event_type, unique);
-
-  if (m_opaque_ptr == NULL)
+  if (m_opaque_ptr == nullptr)
     return;
 
   if (unique)
@@ -64,15 +58,9 @@ void SBBroadcaster::BroadcastEventByType(uint32_t event_type, bool unique) {
 }
 
 void SBBroadcaster::BroadcastEvent(const SBEvent &event, bool unique) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, event, unique);
 
-  if (log)
-    log->Printf(
-        "SBBroadcaster(%p)::BroadcastEventByType (SBEvent(%p), unique=%i)",
-        static_cast<void *>(m_opaque_ptr), static_cast<void *>(event.get()),
-        unique);
-
-  if (m_opaque_ptr == NULL)
+  if (m_opaque_ptr == nullptr)
     return;
 
   EventSP event_sp = event.GetSP();
@@ -84,12 +72,8 @@ void SBBroadcaster::BroadcastEvent(const SBEvent &event, bool unique) {
 
 void SBBroadcaster::AddInitialEventsToListener(const SBListener &listener,
                                                uint32_t requested_events) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBBroadcaster(%p)::AddInitialEventsToListener "
-                "(SBListener(%p), event_mask=0x%8.8x)",
-                static_cast<void *>(m_opaque_ptr),
-                static_cast<void *>(listener.get()), requested_events);
+  LLDB_INSTRUMENT_VA(this, listener, requested_events);
+
   if (m_opaque_ptr)
     m_opaque_ptr->AddInitialEventsToListener(listener.m_opaque_sp,
                                              requested_events);
@@ -97,18 +81,24 @@ void SBBroadcaster::AddInitialEventsToListener(const SBListener &listener,
 
 uint32_t SBBroadcaster::AddListener(const SBListener &listener,
                                     uint32_t event_mask) {
+  LLDB_INSTRUMENT_VA(this, listener, event_mask);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->AddListener(listener.m_opaque_sp, event_mask);
   return 0;
 }
 
 const char *SBBroadcaster::GetName() const {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->GetBroadcasterName().GetCString();
-  return NULL;
+  return nullptr;
 }
 
 bool SBBroadcaster::EventTypeHasListeners(uint32_t event_type) {
+  LLDB_INSTRUMENT_VA(this, event_type);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->EventTypeHasListeners(event_type);
   return false;
@@ -116,6 +106,8 @@ bool SBBroadcaster::EventTypeHasListeners(uint32_t event_type) {
 
 bool SBBroadcaster::RemoveListener(const SBListener &listener,
                                    uint32_t event_mask) {
+  LLDB_INSTRUMENT_VA(this, listener, event_mask);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->RemoveListener(listener.m_opaque_sp, event_mask);
   return false;
@@ -131,21 +123,37 @@ void SBBroadcaster::reset(Broadcaster *broadcaster, bool owns) {
   m_opaque_ptr = broadcaster;
 }
 
-bool SBBroadcaster::IsValid() const { return m_opaque_ptr != NULL; }
+bool SBBroadcaster::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBBroadcaster::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_ptr != nullptr;
+}
 
 void SBBroadcaster::Clear() {
+  LLDB_INSTRUMENT_VA(this);
+
   m_opaque_sp.reset();
-  m_opaque_ptr = NULL;
+  m_opaque_ptr = nullptr;
 }
 
 bool SBBroadcaster::operator==(const SBBroadcaster &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   return m_opaque_ptr == rhs.m_opaque_ptr;
 }
 
 bool SBBroadcaster::operator!=(const SBBroadcaster &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   return m_opaque_ptr != rhs.m_opaque_ptr;
 }
 
 bool SBBroadcaster::operator<(const SBBroadcaster &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   return m_opaque_ptr < rhs.m_opaque_ptr;
 }

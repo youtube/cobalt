@@ -252,7 +252,7 @@ entry:
 define i16 @test_stack_args_mixed(i32 %p0, i16 %p1, i8 %p2, i1 %p3, i8 %p4, i16 %p5) {
 ; CHECK-LABEL: test_stack_args_mixed:
 ; CHECK: add [[P5ADDR:r[0-9]+]], sp, #4
-; CHECK: ldrh [[P5:r[0-9]+]], {{.*}}[[P5ADDR]]
+; CHECK: ldr [[P5:r[0-9]+]], {{.*}}[[P5ADDR]]
 ; CHECK: add r0, r1, [[P5]]
 ; CHECK: bx lr
 entry:
@@ -285,7 +285,7 @@ entry:
 define i8 @test_stack_args_noext(i32 %p0, i16 %p1, i8 %p2, i1 %p3, i8 %p4) {
 ; CHECK-LABEL: test_stack_args_noext:
 ; CHECK: mov [[P4ADDR:r[0-9]+]], sp
-; CHECK: ldrb [[P4:r[0-9]+]], {{.*}}[[P4ADDR]]
+; CHECK: ldr [[P4:r[0-9]+]], {{.*}}[[P4ADDR]]
 ; CHECK: add r0, r2, [[P4]]
 ; CHECK: bx lr
 entry:
@@ -405,7 +405,7 @@ entry:
 
 define arm_aapcscc i32 @test_select_i32(i32 %a, i32 %b, i1 %cond) {
 ; CHECK-LABEL: test_select_i32
-; CHECK: cmp r2, #0
+; CHECK: tst r2, #1
 ; CHECK: moveq r0, r1
 ; CHECK: bx lr
 entry:
@@ -415,7 +415,7 @@ entry:
 
 define arm_aapcscc i32* @test_select_ptr(i32* %a, i32* %b, i1 %cond) {
 ; CHECK-LABEL: test_select_ptr
-; CHECK: cmp r2, #0
+; CHECK: tst r2, #1
 ; CHECK: moveq r0, r1
 ; CHECK: bx lr
 entry:

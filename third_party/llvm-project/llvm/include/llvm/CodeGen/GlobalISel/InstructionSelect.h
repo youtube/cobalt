@@ -1,9 +1,8 @@
 //== llvm/CodeGen/GlobalISel/InstructionSelect.h -----------------*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file This file describes the interface of the MachineFunctionPass
@@ -18,6 +17,10 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 
 namespace llvm {
+
+class BlockFrequencyInfo;
+class ProfileSummaryInfo;
+
 /// This pass is responsible for selecting generic machine instructions to
 /// target-specific instructions.  It relies on the InstructionSelector provided
 /// by the target.
@@ -44,9 +47,16 @@ public:
         MachineFunctionProperties::Property::Selected);
   }
 
+  InstructionSelect(CodeGenOpt::Level OL);
   InstructionSelect();
 
   bool runOnMachineFunction(MachineFunction &MF) override;
+
+protected:
+  BlockFrequencyInfo *BFI = nullptr;
+  ProfileSummaryInfo *PSI = nullptr;
+
+  CodeGenOpt::Level OptLevel = CodeGenOpt::None;
 };
 } // End namespace llvm.
 

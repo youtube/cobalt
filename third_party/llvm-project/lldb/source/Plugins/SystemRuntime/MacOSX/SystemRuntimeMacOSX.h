@@ -1,23 +1,19 @@
 //===-- SystemRuntimeMacOSX.h -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_SystemRuntimeMacOSX_h_
-#define liblldb_SystemRuntimeMacOSX_h_
+#ifndef LLDB_SOURCE_PLUGINS_SYSTEMRUNTIME_MACOSX_SYSTEMRUNTIMEMACOSX_H
+#define LLDB_SOURCE_PLUGINS_SYSTEMRUNTIME_MACOSX_SYSTEMRUNTIMEMACOSX_H
 
-// C Includes
-// C++ Includes
 #include <mutex>
 #include <string>
 #include <vector>
 
 // Other libraries and framework include
-// Project includes
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/QueueItem.h"
@@ -38,23 +34,19 @@ public:
 
   ~SystemRuntimeMacOSX() override;
 
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
   static void Initialize();
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic();
-
-  static const char *GetPluginDescriptionStatic();
+  static llvm::StringRef GetPluginNameStatic() {
+    return "systemruntime-macosx";
+  }
 
   static lldb_private::SystemRuntime *
   CreateInstance(lldb_private::Process *process);
 
-  //------------------------------------------------------------------
   // instance methods
-  //------------------------------------------------------------------
 
   void Clear(bool clear_process);
 
@@ -105,12 +97,8 @@ public:
 
   bool SafeToCallFunctionsOnThisThread(lldb::ThreadSP thread_sp) override;
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
-  lldb_private::ConstString GetPluginName() override;
-
-  uint32_t GetPluginVersion() override;
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
 protected:
   lldb::user_id_t m_break_id;
@@ -118,14 +106,12 @@ protected:
 
 private:
   struct libBacktraceRecording_info {
-    uint16_t queue_info_version;
-    uint16_t queue_info_data_offset;
-    uint16_t item_info_version;
-    uint16_t item_info_data_offset;
+    uint16_t queue_info_version = 0;
+    uint16_t queue_info_data_offset = 0;
+    uint16_t item_info_version = 0;
+    uint16_t item_info_data_offset = 0;
 
-    libBacktraceRecording_info()
-        : queue_info_version(0), queue_info_data_offset(0),
-          item_info_version(0), item_info_data_offset(0) {}
+    libBacktraceRecording_info() = default;
   };
 
   // A structure which reflects the data recorded in the
@@ -196,44 +182,35 @@ private:
   };
 
   struct LibdispatchVoucherOffsets {
-    uint16_t vo_version;
-    uint16_t vo_activity_ids_count;
-    uint16_t vo_activity_ids_count_size;
-    uint16_t vo_activity_ids_array;
-    uint16_t vo_activity_ids_array_entry_size;
+    uint16_t vo_version = UINT16_MAX;
+    uint16_t vo_activity_ids_count = UINT16_MAX;
+    uint16_t vo_activity_ids_count_size = UINT16_MAX;
+    uint16_t vo_activity_ids_array = UINT16_MAX;
+    uint16_t vo_activity_ids_array_entry_size = UINT16_MAX;
 
-    LibdispatchVoucherOffsets()
-        : vo_version(UINT16_MAX), vo_activity_ids_count(UINT16_MAX),
-          vo_activity_ids_count_size(UINT16_MAX),
-          vo_activity_ids_array(UINT16_MAX),
-          vo_activity_ids_array_entry_size(UINT16_MAX) {}
+    LibdispatchVoucherOffsets() = default;
 
     bool IsValid() { return vo_version != UINT16_MAX; }
   };
 
   struct LibdispatchTSDIndexes {
-    uint16_t dti_version;
-    uint64_t dti_queue_index;
-    uint64_t dti_voucher_index;
-    uint64_t dti_qos_class_index;
+    uint16_t dti_version = UINT16_MAX;
+    uint64_t dti_queue_index = UINT64_MAX;
+    uint64_t dti_voucher_index = UINT64_MAX;
+    uint64_t dti_qos_class_index = UINT64_MAX;
 
-    LibdispatchTSDIndexes()
-        : dti_version(UINT16_MAX), dti_queue_index(UINT64_MAX),
-          dti_voucher_index(UINT64_MAX), dti_qos_class_index(UINT64_MAX) {}
+    LibdispatchTSDIndexes() = default;
 
     bool IsValid() { return dti_version != UINT16_MAX; }
   };
 
   struct LibpthreadOffsets {
-    uint16_t plo_version;
-    uint16_t plo_pthread_tsd_base_offset;
-    uint16_t plo_pthread_tsd_base_address_offset;
-    uint16_t plo_pthread_tsd_entry_size;
+    uint16_t plo_version = UINT16_MAX;
+    uint16_t plo_pthread_tsd_base_offset = UINT16_MAX;
+    uint16_t plo_pthread_tsd_base_address_offset = UINT16_MAX;
+    uint16_t plo_pthread_tsd_entry_size = UINT16_MAX;
 
-    LibpthreadOffsets()
-        : plo_version(UINT16_MAX), plo_pthread_tsd_base_offset(UINT16_MAX),
-          plo_pthread_tsd_base_address_offset(UINT16_MAX),
-          plo_pthread_tsd_entry_size(UINT16_MAX) {}
+    LibpthreadOffsets() = default;
 
     bool IsValid() { return plo_version != UINT16_MAX; }
   };
@@ -296,7 +273,8 @@ private:
   lldb::addr_t m_dispatch_voucher_offsets_addr;
   struct LibdispatchVoucherOffsets m_libdispatch_voucher_offsets;
 
-  DISALLOW_COPY_AND_ASSIGN(SystemRuntimeMacOSX);
+  SystemRuntimeMacOSX(const SystemRuntimeMacOSX &) = delete;
+  const SystemRuntimeMacOSX &operator=(const SystemRuntimeMacOSX &) = delete;
 };
 
-#endif // liblldb_SystemRuntimeMacOSX_h_
+#endif // LLDB_SOURCE_PLUGINS_SYSTEMRUNTIME_MACOSX_SYSTEMRUNTIMEMACOSX_H

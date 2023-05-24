@@ -1,6 +1,8 @@
 opt - LLVM optimizer
 ====================
 
+.. program:: opt
+
 SYNOPSIS
 --------
 
@@ -62,15 +64,6 @@ OPTIONS
  available.  The order in which the options occur on the command line are the
  order in which they are executed (within pass constraints).
 
-.. option:: -disable-inlining
-
- This option simply removes the inlining pass from the standard list.
-
-.. option:: -disable-opt
-
- This option is only meaningful when `-std-link-opts` is given.  It
- disables most passes.
-
 .. option:: -strip-debug
 
  This option causes opt to strip debug information from the module before
@@ -111,13 +104,12 @@ OPTIONS
 
      opt -load=plugin.so -help
 
-.. option:: -p
+.. option:: -print-passes
 
- Print module after each transformation.
+ Print all available passes and exit.
 
 EXIT STATUS
 -----------
 
 If :program:`opt` succeeds, it will exit with 0.  Otherwise, if an error
 occurs, it will exit with a non-zero value.
-

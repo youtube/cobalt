@@ -1,21 +1,16 @@
 //===-- PlatformRemoteDarwinDevice.h -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformRemoteDarwinDevice_h_
-#define liblldb_PlatformRemoteDarwinDevice_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEDARWINDEVICE_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEDARWINDEVICE_H
 
-// C Includes
-// C++ Includes
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
 #include "PlatformDarwin.h"
 #include "lldb/Utility/FileSpec.h"
 
@@ -27,9 +22,7 @@ public:
 
   ~PlatformRemoteDarwinDevice() override;
 
-  //------------------------------------------------------------
   // lldb_private::Platform functions
-  //------------------------------------------------------------
   lldb_private::Status ResolveExecutable(
       const lldb_private::ModuleSpec &module_spec, lldb::ModuleSP &module_sp,
       const lldb_private::FileSpecList *module_search_paths_ptr) override;
@@ -45,14 +38,14 @@ public:
   GetSharedModule(const lldb_private::ModuleSpec &module_spec,
                   lldb_private::Process *process, lldb::ModuleSP &module_sp,
                   const lldb_private::FileSpecList *module_search_paths_ptr,
-                  lldb::ModuleSP *old_module_sp_ptr,
+                  llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules,
                   bool *did_create_ptr) override;
 
   void
   AddClangModuleCompilationOptions(lldb_private::Target *target,
                                    std::vector<std::string> &options) override {
     return PlatformDarwin::AddClangModuleCompilationOptionsForSDKType(
-        target, options, PlatformDarwin::SDKType::iPhoneOS);
+        target, options, lldb_private::XcodeSDK::Type::iPhoneOS);
   }
 
 protected:
@@ -71,8 +64,8 @@ protected:
   std::string m_device_support_directory;
   std::string m_device_support_directory_for_os_version;
   std::string m_build_update;
-  uint32_t m_last_module_sdk_idx;
-  uint32_t m_connected_module_sdk_idx;
+  uint32_t m_last_module_sdk_idx = UINT32_MAX;
+  uint32_t m_connected_module_sdk_idx = UINT32_MAX;
 
   bool UpdateSDKDirectoryInfosIfNeeded();
 
@@ -84,10 +77,10 @@ protected:
 
   const SDKDirectoryInfo *GetSDKDirectoryForCurrentOSVersion();
 
-  static lldb_private::FileSpec::EnumerateDirectoryResult
-  GetContainedFilesIntoVectorOfStringsCallback(
-      void *baton, llvm::sys::fs::file_type ft,
-      const lldb_private::FileSpec &file_spec);
+  static lldb_private::FileSystem::EnumerateDirectoryResult
+  GetContainedFilesIntoVectorOfStringsCallback(void *baton,
+                                               llvm::sys::fs::file_type ft,
+                                               llvm::StringRef path);
 
   uint32_t FindFileInAllSDKs(const char *platform_file_path,
                              lldb_private::FileSpecList &file_list);
@@ -104,13 +97,13 @@ protected:
   // UINT32_MAX if that SDK not found.
   uint32_t GetSDKIndexBySDKDirectoryInfo(const SDKDirectoryInfo *sdk_info);
 
-
-  virtual void GetDeviceSupportDirectoryNames (std::vector<std::string> &dirnames) = 0;
-
-  virtual std::string GetPlatformName () = 0;
+  virtual llvm::StringRef GetDeviceSupportDirectoryName() = 0;
+  virtual llvm::StringRef GetPlatformName() = 0;
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(PlatformRemoteDarwinDevice);
+  PlatformRemoteDarwinDevice(const PlatformRemoteDarwinDevice &) = delete;
+  const PlatformRemoteDarwinDevice &
+  operator=(const PlatformRemoteDarwinDevice &) = delete;
 };
 
-#endif // liblldb_PlatformRemoteDarwinDevice_h_
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEDARWINDEVICE_H

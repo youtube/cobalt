@@ -1,4 +1,5 @@
 ; RUN: opt < %s -loop-rotate -S | FileCheck %s
+; RUN: opt < %s -loop-rotate -verify-memoryssa -S | FileCheck %s
 
 ; Test alloca in -loop-rotate.
 

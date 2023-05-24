@@ -1,9 +1,8 @@
-//===-- SBMemoryRegionInfoList.cpp ------------------------------*- C++ -*-===//
+//===-- SBMemoryRegionInfoList.cpp ----------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,7 +10,7 @@
 #include "lldb/API/SBMemoryRegionInfo.h"
 #include "lldb/API/SBStream.h"
 #include "lldb/Target/MemoryRegionInfo.h"
-#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include <vector>
 
@@ -32,86 +31,122 @@ public:
     return *this;
   }
 
-  uint32_t GetSize() { return m_regions.size(); }
+  size_t GetSize() const { return m_regions.size(); }
 
-  void Append(const lldb::SBMemoryRegionInfo &sb_region) {
+  void Reserve(size_t capacity) { return m_regions.reserve(capacity); }
+
+  void Append(const MemoryRegionInfo &sb_region) {
     m_regions.push_back(sb_region);
   }
 
   void Append(const MemoryRegionInfoListImpl &list) {
-    for (auto val : list.m_regions)
+    Reserve(GetSize() + list.GetSize());
+
+    for (const auto &val : list.m_regions)
       Append(val);
   }
 
   void Clear() { m_regions.clear(); }
 
-  bool GetMemoryRegionInfoAtIndex(uint32_t index,
-                                  SBMemoryRegionInfo &region_info) {
+  bool GetMemoryRegionContainingAddress(lldb::addr_t addr,
+                                        MemoryRegionInfo &region_info) {
+    for (auto &region : m_regions) {
+      if (region.GetRange().Contains(addr)) {
+        region_info = region;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool GetMemoryRegionInfoAtIndex(size_t index,
+                                  MemoryRegionInfo &region_info) {
     if (index >= GetSize())
       return false;
     region_info = m_regions[index];
     return true;
   }
 
+  MemoryRegionInfos &Ref() { return m_regions; }
+
+  const MemoryRegionInfos &Ref() const { return m_regions; }
+
 private:
-  std::vector<lldb::SBMemoryRegionInfo> m_regions;
+  MemoryRegionInfos m_regions;
 };
 
+MemoryRegionInfos &SBMemoryRegionInfoList::ref() { return m_opaque_up->Ref(); }
+
+const MemoryRegionInfos &SBMemoryRegionInfoList::ref() const {
+  return m_opaque_up->Ref();
+}
+
 SBMemoryRegionInfoList::SBMemoryRegionInfoList()
-    : m_opaque_ap(new MemoryRegionInfoListImpl()) {}
+    : m_opaque_up(new MemoryRegionInfoListImpl()) {
+  LLDB_INSTRUMENT_VA(this);
+}
 
 SBMemoryRegionInfoList::SBMemoryRegionInfoList(
     const SBMemoryRegionInfoList &rhs)
-    : m_opaque_ap(new MemoryRegionInfoListImpl(*rhs.m_opaque_ap)) {}
+    : m_opaque_up(new MemoryRegionInfoListImpl(*rhs.m_opaque_up)) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
-SBMemoryRegionInfoList::~SBMemoryRegionInfoList() {}
+SBMemoryRegionInfoList::~SBMemoryRegionInfoList() = default;
 
 const SBMemoryRegionInfoList &SBMemoryRegionInfoList::
 operator=(const SBMemoryRegionInfoList &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs) {
-    *m_opaque_ap = *rhs.m_opaque_ap;
+    *m_opaque_up = *rhs.m_opaque_up;
   }
   return *this;
 }
 
 uint32_t SBMemoryRegionInfoList::GetSize() const {
-  return m_opaque_ap->GetSize();
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up->GetSize();
+}
+
+bool SBMemoryRegionInfoList::GetMemoryRegionContainingAddress(
+    lldb::addr_t addr, SBMemoryRegionInfo &region_info) {
+  LLDB_INSTRUMENT_VA(this, addr, region_info);
+
+  return m_opaque_up->GetMemoryRegionContainingAddress(addr, region_info.ref());
 }
 
 bool SBMemoryRegionInfoList::GetMemoryRegionAtIndex(
     uint32_t idx, SBMemoryRegionInfo &region_info) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this, idx, region_info);
 
-  bool result = m_opaque_ap->GetMemoryRegionInfoAtIndex(idx, region_info);
-
-  if (log) {
-    SBStream sstr;
-    region_info.GetDescription(sstr);
-    log->Printf("SBMemoryRegionInfoList::GetMemoryRegionAtIndex (this.ap=%p, "
-                "idx=%d) => SBMemoryRegionInfo (this.ap=%p, '%s')",
-                static_cast<void *>(m_opaque_ap.get()), idx,
-                static_cast<void *>(region_info.m_opaque_ap.get()),
-                sstr.GetData());
-  }
-
-  return result;
+  return m_opaque_up->GetMemoryRegionInfoAtIndex(idx, region_info.ref());
 }
 
-void SBMemoryRegionInfoList::Clear() { m_opaque_ap->Clear(); }
+void SBMemoryRegionInfoList::Clear() {
+  LLDB_INSTRUMENT_VA(this);
+
+  m_opaque_up->Clear();
+}
 
 void SBMemoryRegionInfoList::Append(SBMemoryRegionInfo &sb_region) {
-  m_opaque_ap->Append(sb_region);
+  LLDB_INSTRUMENT_VA(this, sb_region);
+
+  m_opaque_up->Append(sb_region.ref());
 }
 
 void SBMemoryRegionInfoList::Append(SBMemoryRegionInfoList &sb_region_list) {
-  m_opaque_ap->Append(*sb_region_list);
+  LLDB_INSTRUMENT_VA(this, sb_region_list);
+
+  m_opaque_up->Append(*sb_region_list);
 }
 
 const MemoryRegionInfoListImpl *SBMemoryRegionInfoList::operator->() const {
-  return m_opaque_ap.get();
+  return m_opaque_up.get();
 }
 
 const MemoryRegionInfoListImpl &SBMemoryRegionInfoList::operator*() const {
-  assert(m_opaque_ap.get());
-  return *m_opaque_ap.get();
+  assert(m_opaque_up.get());
+  return *m_opaque_up;
 }

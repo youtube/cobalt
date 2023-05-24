@@ -1,5 +1,5 @@
-; RUN: llc -disable-fp-elim -O0 %s -mtriple armv7-apple-darwin -o - | FileCheck %s
-; RUN: llc -disable-fp-elim -O0 %s -mtriple thumbv7-apple-darwin -o - | FileCheck %s
+; RUN: llc -frame-pointer=all -O0 %s -mtriple armv7-apple-darwin -o - | FileCheck %s
+; RUN: llc -frame-pointer=all -O0 %s -mtriple thumbv7-apple-darwin -o - | FileCheck %s
 
 ; int func(void);
 ; void prologue_end_test() {
@@ -11,7 +11,6 @@ define void @prologue_end_test() nounwind uwtable !dbg !4 {
   ; CHECK: prologue_end_test:
   ; CHECK: push {r7, lr}
   ; CHECK: {{mov r7, sp|add r7, sp}}
-  ; CHECK: sub sp
   ; CHECK: .loc 1 3 3 prologue_end
   ; CHECK: bl {{_func|Ltmp}}
   ; CHECK: bl {{_func|Ltmp}}

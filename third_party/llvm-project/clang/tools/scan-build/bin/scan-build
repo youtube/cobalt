@@ -1,9 +1,8 @@
 #!/usr/bin/env perl
 #
-#                     The LLVM Compiler Infrastructure
-#
-# This file is distributed under the University of Illinois Open Source
-# License. See LICENSE.TXT for details.
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
 ##===----------------------------------------------------------------------===##
 #
@@ -15,7 +14,6 @@
 use strict;
 use warnings;
 use FindBin qw($RealBin);
-use Digest::MD5;
 use File::Basename;
 use File::Find;
 use File::Copy qw(copy);
@@ -58,6 +56,8 @@ my %Options = (
   KeepEmpty => 0,            # Don't remove output directory even with 0 results.
   EnableCheckers => {},
   DisableCheckers => {},
+  SilenceCheckers => {},
+  Excludes => [],
   UseCC => undef,            # C compiler to use for compilation.
   UseCXX => undef,           # C++ compiler to use for compilation.
   AnalyzerTarget => undef,
@@ -71,8 +71,9 @@ my %Options = (
   MaxLoop => 0,
   PluginsToLoad => [],
   AnalyzerDiscoveryMethod => undef,
-  OverrideCompiler => 0,      # The flag corresponding to the --override-compiler command line option.
-  ForceAnalyzeDebugCode => 0
+  OverrideCompiler => 0,     # The flag corresponding to the --override-compiler command line option.
+  ForceAnalyzeDebugCode => 0,
+  GenerateIndex => 0         # Skip the analysis, only generate index.html.
 );
 lock_keys(%Options);
 
@@ -267,27 +268,6 @@ sub SetHtmlEnv {
 }
 
 ##----------------------------------------------------------------------------##
-# ComputeDigest - Compute a digest of the specified file.
-##----------------------------------------------------------------------------##
-
-sub ComputeDigest {
-  my $FName = shift;
-  DieDiag("Cannot read $FName to compute Digest.\n") if (! -r $FName);
-
-  # Use Digest::MD5.  We don't have to be cryptographically secure.  We're
-  # just looking for duplicate files that come from a non-malicious source.
-  # We use Digest::MD5 because it is a standard Perl module that should
-  # come bundled on most systems.
-  open(FILE, $FName) or DieDiag("Cannot open $FName when computing Digest.\n");
-  binmode FILE;
-  my $Result = Digest::MD5->new->addfile(*FILE)->hexdigest;
-  close(FILE);
-
-  # Return the digest.
-  return $Result;
-}
-
-##----------------------------------------------------------------------------##
 #  UpdatePrefix - Compute the common prefix of files.
 ##----------------------------------------------------------------------------##
 
@@ -372,27 +352,12 @@ sub AddStatLine {
 # Sometimes a source file is scanned more than once, and thus produces
 # multiple error reports.  We use a cache to solve this problem.
 
-my %AlreadyScanned;
-
 sub ScanFile {
 
   my $Index = shift;
   my $Dir = shift;
   my $FName = shift;
   my $Stats = shift;
-
-  # Compute a digest for the report file.  Determine if we have already
-  # scanned a file that looks just like it.
-
-  my $digest = ComputeDigest("$Dir/$FName");
-
-  if (defined $AlreadyScanned{$digest}) {
-    # Redundant file.  Remove it.
-    unlink("$Dir/$FName");
-    return;
-  }
-
-  $AlreadyScanned{$digest} = 1;
 
   # At this point the report file is not world readable.  Make it happen.
   chmod(0644, "$Dir/$FName");
@@ -420,6 +385,20 @@ sub ScanFile {
          # The file no longer exists: use the original path.
          $BugFile = $1;
       }
+
+      # Get just the path
+      my $p = dirname($BugFile);
+      # Check if the path is found in the list of exclude
+      if (grep { $p =~ m/$_/ } @{$Options{Excludes}}) {
+         if ($Options{Verbose}) {
+             Diag("File '$BugFile' deleted: part of an ignored directory.\n");
+         }
+
+       # File in an ignored directory. Remove it
+       unlink("$Dir/$FName");
+       return;
+      }
+
       UpdatePrefix($BugFile);
     }
     elsif (/<!-- BUGPATHLENGTH (.*) -->$/) {
@@ -581,9 +560,11 @@ sub Postprocess {
     return 0;
   }
 
-  # Scan each report file and build an index.
+  # Scan each report file, in alphabetical order, and build an index.
   my @Index;
   my @Stats;
+
+  @filesFound = sort @filesFound;
   foreach my $file (@filesFound) { ScanFile(\@Index, $Dir, $file, \@Stats); }
 
   # Scan the failures directory and use the information in the .info files
@@ -931,6 +912,42 @@ ENDTEXT
   return $Num;
 }
 
+sub Finalize {
+  my $BaseDir = shift;
+  my $ExitStatus = shift;
+
+  Diag "Analysis run complete.\n";
+  if (defined $Options{OutputFormat}) {
+    if ($Options{OutputFormat} =~ /plist/ ||
+        $Options{OutputFormat} =~ /sarif/) {
+      Diag "Analysis results (" .
+        ($Options{OutputFormat} =~ /plist/ ? "plist" : "sarif") .
+        " files) deposited in '$Options{OutputDir}'\n";
+    }
+    if ($Options{OutputFormat} =~ /html/) {
+      # Postprocess the HTML directory.
+      my $NumBugs = Postprocess($Options{OutputDir}, $BaseDir,
+                                $Options{AnalyzerStats}, $Options{KeepEmpty});
+
+      if ($Options{ViewResults} and -r "$Options{OutputDir}/index.html") {
+        Diag "Viewing analysis results in '$Options{OutputDir}' using scan-view.\n";
+        my $ScanView = Cwd::realpath("$RealBin/scan-view");
+        if (! -x $ScanView) { $ScanView = "scan-view"; }
+        if (! -x $ScanView) { $ScanView = Cwd::realpath("$RealBin/../../scan-view/bin/scan-view"); }
+        if (! -x $ScanView) { $ScanView = `which scan-view`; chomp $ScanView; }
+        exec $ScanView, "$Options{OutputDir}";
+      }
+
+      if ($Options{ExitStatusFoundBugs}) {
+        exit 1 if ($NumBugs > 0);
+        exit $ExitStatus;
+      }
+    }
+  }
+
+  exit $ExitStatus;
+}
+
 ##----------------------------------------------------------------------------##
 # RunBuildCommand - Run the build command.
 ##----------------------------------------------------------------------------##
@@ -1079,7 +1096,7 @@ sub RunBuildCommand {
   if ($Cmd =~ /(.*\/?gcc[^\/]*$)/ or
       $Cmd =~ /(.*\/?cc[^\/]*$)/ or
       $Cmd =~ /(.*\/?llvm-gcc[^\/]*$)/ or
-      $Cmd =~ /(.*\/?clang$)/ or
+      $Cmd =~ /(.*\/?clang[^\/]*$)/ or
       $Cmd =~ /(.*\/?ccc-analyzer[^\/]*$)/) {
 
     if (!($Cmd =~ /ccc-analyzer/) and !defined $ENV{"CCC_CC"}) {
@@ -1178,6 +1195,11 @@ OPTIONS:
 
    Display the description of defects in the list
 
+ -sarif
+
+  By default the output of scan-build is a set of HTML files. This option
+  outputs the results in SARIF format.
+ 
  -plist
 
    By default the output of scan-build is a set of HTML files. This option
@@ -1193,6 +1215,12 @@ OPTIONS:
    By default, the exit status of scan-build is the same as the executed build
    command. Specifying this option causes the exit status of scan-build to be 1
    if it found potential bugs and the exit status of the build itself otherwise.
+
+ --exclude <path>
+
+   Do not run static analyzer against files found in this
+   directory (You can specify this option multiple times).
+   Could be useful when project contains 3rd party libraries.
 
  --use-cc [compiler path]
  --use-cc=[compiler path]
@@ -1232,6 +1260,12 @@ OPTIONS:
  --view
 
    View analysis results in a web browser when the build completes.
+
+ --generate-index-only <output location>
+
+   Do not perform the analysis, but only regenerate the index.html file
+   from existing report.html files. Useful for making a custom Static Analyzer
+   integration into a build system that isn't otherwise supported by scan-build.
 
 ADVANCED OPTIONS:
 
@@ -1435,6 +1469,16 @@ sub ShellEscape {
 }
 
 ##----------------------------------------------------------------------------##
+# FindXcrun - searches for the 'xcrun' executable. Returns "" if not found.
+##----------------------------------------------------------------------------##
+
+sub FindXcrun {
+  my $xcrun = `which xcrun`;
+  chomp $xcrun;
+  return $xcrun;
+}
+
+##----------------------------------------------------------------------------##
 # FindClang - searches for 'clang' executable.
 ##----------------------------------------------------------------------------##
 
@@ -1443,6 +1487,16 @@ sub FindClang {
     $Clang = Cwd::realpath("$RealBin/bin/clang") if (-f "$RealBin/bin/clang");
     if (!defined $Clang || ! -x $Clang) {
       $Clang = Cwd::realpath("$RealBin/clang") if (-f "$RealBin/clang");
+      if (!defined $Clang || ! -x $Clang) {
+        # When an Xcode toolchain is present, look for a clang in the sibling bin
+        # of the parent of the bin directory. So if scan-build is at
+        # $TOOLCHAIN/usr/local/bin/scan-build look for clang at
+        # $TOOLCHAIN/usr/bin/clang.
+        my $has_xcode_toolchain = FindXcrun() ne "";
+        if ($has_xcode_toolchain && -f "$RealBin/../../bin/clang") {
+          $Clang = Cwd::realpath("$RealBin/../../bin/clang");
+        }
+      }
     }
     if (!defined $Clang || ! -x $Clang) {
       return "error: Cannot find an executable 'clang' relative to" .
@@ -1452,8 +1506,7 @@ sub FindClang {
   }
   else {
     if ($Options{AnalyzerDiscoveryMethod} =~ /^[Xx]code$/) {
-      my $xcrun = `which xcrun`;
-      chomp $xcrun;
+      my $xcrun = FindXcrun();
       if ($xcrun eq "") {
         return "Cannot find 'xcrun' to find 'clang' for analysis.\n";
       }
@@ -1505,6 +1558,10 @@ sub ProcessArgs {
     }
 
     if ($arg eq "-o") {
+      if (defined($Options{OutputDir})) {
+        DieDiag("Only one of '-o' or '--generate-index-only' can be specified.\n");
+      }
+
       shift @$Args;
 
       if (!@$Args) {
@@ -1516,6 +1573,27 @@ sub ProcessArgs {
       my $OutDir = shift @$Args;
       mkpath($OutDir) unless (-e $OutDir);  # abs_path wants existing dir
       $Options{OutputDir} = abs_path($OutDir);
+
+      next;
+    }
+
+    if ($arg eq "--generate-index-only") {
+      if (defined($Options{OutputDir})) {
+        DieDiag("Only one of '-o' or '--generate-index-only' can be specified.\n");
+      }
+
+      shift @$Args;
+
+      if (!@$Args) {
+        DieDiag("'--generate-index-only' option requires a target directory name.\n");
+      }
+
+      # Construct an absolute path.  Uses the current working directory
+      # as a base if the original path was not absolute.
+      my $OutDir = shift @$Args;
+      mkpath($OutDir) unless (-e $OutDir);  # abs_path wants existing dir
+      $Options{OutputDir} = abs_path($OutDir);
+      $Options{GenerateIndex} = 1;
 
       next;
     }
@@ -1644,6 +1722,12 @@ sub ProcessArgs {
       next;
     }
 
+    if ($arg eq "-sarif") {
+      shift @$Args;
+      $Options{OutputFormat} = "sarif";
+      next;
+    }
+
     if ($arg eq "-plist") {
       shift @$Args;
       $Options{OutputFormat} = "plist";
@@ -1692,9 +1776,24 @@ sub ProcessArgs {
     if ($arg eq "-disable-checker") {
       shift @$Args;
       my $Checker = shift @$Args;
-      # Store $NumArgs to preserve the order the checkers were disabled.
-      $Options{DisableCheckers}{$Checker} = $NumArgs;
-      delete $Options{EnableCheckers}{$Checker};
+      # Store $NumArgs to preserve the order the checkers are disabled/silenced.
+      # See whether it is a core checker to disable. That means we do not want
+      # to emit a report from that checker so we have to silence it.
+      if (index($Checker, "core") == 0) {
+        $Options{SilenceCheckers}{$Checker} = $NumArgs;
+      } else {
+        $Options{DisableCheckers}{$Checker} = $NumArgs;
+        delete $Options{EnableCheckers}{$Checker};
+      }
+      next;
+    }
+
+    if ($arg eq "--exclude") {
+      shift @$Args;
+      my $arg = shift @$Args;
+      # Remove the trailing slash if any
+      $arg =~ s|/$||;
+      push @{$Options{Excludes}}, $arg;
       next;
     }
 
@@ -1749,17 +1848,31 @@ if (!@ARGV) {
 ProcessArgs(\@ARGV);
 # All arguments are now shifted from @ARGV. The rest is a build command, if any.
 
-if (!@ARGV and !$RequestDisplayHelp) {
-  ErrorDiag("No build command specified.\n\n");
-  $ForceDisplayHelp = 1;
-}
-
 my $ClangNotFoundErrMsg = FindClang();
 
 if ($ForceDisplayHelp || $RequestDisplayHelp) {
   DisplayHelp($ClangNotFoundErrMsg);
   exit $ForceDisplayHelp;
 }
+
+$CmdArgs = HtmlEscape(join(' ', map(ShellEscape($_), @ARGV)));
+
+if ($Options{GenerateIndex}) {
+  $ClangVersion = "unknown";
+  Finalize($Options{OutputDir}, 0);
+}
+
+# Make sure to use "" to handle paths with spaces.
+$ClangVersion = HtmlEscape(`"$Clang" --version`);
+
+if (!@ARGV and !$RequestDisplayHelp) {
+  ErrorDiag("No build command specified.\n\n");
+  $ForceDisplayHelp = 1;
+}
+
+# Determine the output directory for the HTML reports.
+my $BaseDir = $Options{OutputDir};
+$Options{OutputDir} = GetHTMLRunDir($Options{OutputDir});
 
 DieDiag($ClangNotFoundErrMsg) if (defined $ClangNotFoundErrMsg);
 
@@ -1775,20 +1888,10 @@ if ($Clang !~ /\+\+(\.exe)?$/) {
     $ClangCXX =~ s/.exe$/++.exe/;
   }
   else {
-    $ClangCXX =~ s/\-\d+\.\d+$//;
+    $ClangCXX =~ s/\-\d+(\.\d+)?$//;
     $ClangCXX .= "++";
   }
 }
-
-# Make sure to use "" to handle paths with spaces.
-$ClangVersion = HtmlEscape(`"$Clang" --version`);
-
-# Determine where results go.
-$CmdArgs = HtmlEscape(join(' ', map(ShellEscape($_), @ARGV)));
-
-# Determine the output directory for the HTML reports.
-my $BaseDir = $Options{OutputDir};
-$Options{OutputDir} = GetHTMLRunDir($Options{OutputDir});
 
 # Determine the location of ccc-analyzer.
 my $AbsRealBin = Cwd::realpath($RealBin);
@@ -1813,13 +1916,13 @@ Diag("Using '$Clang' for static analysis\n");
 SetHtmlEnv(\@ARGV, $Options{OutputDir});
 
 my @AnalysesToRun;
-foreach (sort { $Options{EnableCheckers}{$a} <=> $Options{EnableCheckers}{$b} } 
-         keys %{$Options{EnableCheckers}}) { 
+foreach (sort { $Options{EnableCheckers}{$a} <=> $Options{EnableCheckers}{$b} }
+         keys %{$Options{EnableCheckers}}) {
   # Push checkers in order they were enabled.
   push @AnalysesToRun, "-analyzer-checker", $_;
 }
-foreach (sort { $Options{DisableCheckers}{$a} <=> $Options{DisableCheckers}{$b} } 
-         keys %{$Options{DisableCheckers}}) { 
+foreach (sort { $Options{DisableCheckers}{$a} <=> $Options{DisableCheckers}{$b} }
+         keys %{$Options{DisableCheckers}}) {
   # Push checkers in order they were disabled.
   push @AnalysesToRun, "-analyzer-disable-checker", $_;
 }
@@ -1832,6 +1935,16 @@ if ($Options{MaxLoop} > 0) { push @AnalysesToRun, "-analyzer-max-loop $Options{M
 my $CCC_ANALYZER_ANALYSIS = join ' ', @AnalysesToRun;
 my $CCC_ANALYZER_PLUGINS = join ' ', map { "-load ".$_ } @{$Options{PluginsToLoad}};
 my $CCC_ANALYZER_CONFIG = join ' ', map { "-analyzer-config ".$_ } @{$Options{ConfigOptions}};
+
+if (%{$Options{SilenceCheckers}}) {
+  $CCC_ANALYZER_CONFIG =
+      $CCC_ANALYZER_CONFIG." -analyzer-config silence-checkers="
+                          .join(';', sort {
+                                            $Options{SilenceCheckers}{$a} <=>
+                                            $Options{SilenceCheckers}{$b}
+                                          } keys %{$Options{SilenceCheckers}});
+}
+
 my %EnvVars = (
   'CC' => $Cmd,
   'CXX' => $CmdCXX,
@@ -1857,30 +1970,4 @@ my %EnvVars = (
 my $ExitStatus = RunBuildCommand(\@ARGV, $Options{IgnoreErrors}, $Options{KeepCC},
 	                        $Cmd, $CmdCXX, \%EnvVars);
 
-if (defined $Options{OutputFormat}) {
-  if ($Options{OutputFormat} =~ /plist/) {
-    Diag "Analysis run complete.\n";
-    Diag "Analysis results (plist files) deposited in '$Options{OutputDir}'\n";
-  }
-  if ($Options{OutputFormat} =~ /html/) {
-    # Postprocess the HTML directory.
-    my $NumBugs = Postprocess($Options{OutputDir}, $BaseDir,
-                              $Options{AnalyzerStats}, $Options{KeepEmpty});
-
-    if ($Options{ViewResults} and -r "$Options{OutputDir}/index.html") {
-      Diag "Analysis run complete.\n";
-      Diag "Viewing analysis results in '$Options{OutputDir}' using scan-view.\n";
-      my $ScanView = Cwd::realpath("$RealBin/scan-view");
-      if (! -x $ScanView) { $ScanView = "scan-view"; }
-      if (! -x $ScanView) { $ScanView = Cwd::realpath("$RealBin/../../scan-view/bin/scan-view"); }
-      exec $ScanView, "$Options{OutputDir}";
-    }
-
-    if ($Options{ExitStatusFoundBugs}) {
-      exit 1 if ($NumBugs > 0);
-      exit $ExitStatus;
-    }
-  }
-}
-
-exit $ExitStatus;
+Finalize($BaseDir, $ExitStatus);

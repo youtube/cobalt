@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,10 +18,11 @@
 #include <unordered_set>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::unordered_multiset<int> C;
@@ -37,7 +37,7 @@ int main()
             P(2)
         };
         C c;
-        c.insert(input_iterator<P*>(a), input_iterator<P*>(a + sizeof(a)/sizeof(a[0])));
+        c.insert(cpp17_input_iterator<P*>(a), cpp17_input_iterator<P*>(a + sizeof(a)/sizeof(a[0])));
         assert(c.size() == 6);
         assert(c.count(1) == 2);
         assert(c.count(2) == 2);
@@ -59,7 +59,7 @@ int main()
             P(2)
         };
         C c;
-        c.insert(input_iterator<P*>(a), input_iterator<P*>(a + sizeof(a)/sizeof(a[0])));
+        c.insert(cpp17_input_iterator<P*>(a), cpp17_input_iterator<P*>(a + sizeof(a)/sizeof(a[0])));
         assert(c.size() == 6);
         assert(c.count(1) == 2);
         assert(c.count(2) == 2);
@@ -67,4 +67,6 @@ int main()
         assert(c.count(4) == 1);
     }
 #endif
+
+  return 0;
 }

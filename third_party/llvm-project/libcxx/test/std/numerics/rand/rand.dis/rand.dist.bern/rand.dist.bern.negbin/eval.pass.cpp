@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -193,10 +192,14 @@ test4()
     kurtosis -= 3;
     double x_mean = d.k() * (1 - d.p()) / d.p();
     double x_var = x_mean / d.p();
-//    double x_skew = (2 - d.p()) / std::sqrt(d.k() * (1 - d.p()));
-//    double x_kurtosis = 6. / d.k() + sqr(d.p()) / (d.k() * (1 - d.p()));
+    double x_skew = (2 - d.p()) / std::sqrt(d.k() * (1 - d.p()));
+    double x_kurtosis = 6. / d.k() + sqr(d.p()) / (d.k() * (1 - d.p()));
     assert(mean == x_mean);
     assert(var == x_var);
+    // assert(skew == x_skew);
+    (void)skew; (void)x_skew;
+    // assert(kurtosis == x_kurtosis);
+    (void)kurtosis; (void)x_kurtosis;
 }
 
 void
@@ -285,7 +288,7 @@ test6()
     assert(std::abs((kurtosis - x_kurtosis) / x_kurtosis) < 0.03);
 }
 
-int main()
+int main(int, char**)
 {
     test1();
     test2();
@@ -293,4 +296,6 @@ int main()
     test4();
     test5();
     test6();
+
+  return 0;
 }

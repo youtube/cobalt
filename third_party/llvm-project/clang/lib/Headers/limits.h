@@ -1,24 +1,8 @@
 /*===---- limits.h - Standard header for integer sizes --------------------===*\
  *
- * Copyright (c) 2009 Chris Lattner
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *
 \*===----------------------------------------------------------------------===*/
 
@@ -77,6 +61,26 @@
 #endif
 
 #define CHAR_BIT  __CHAR_BIT__
+
+/* C2x 5.2.4.2.1 */
+/* FIXME: This is using the placeholder dates Clang produces for these macros
+   in C2x mode; switch to the correct values once they've been published. */
+#if __STDC_VERSION__ >= 202000L
+#define BOOL_WIDTH   __BOOL_WIDTH__
+#define CHAR_WIDTH   CHAR_BIT
+#define SCHAR_WIDTH  CHAR_BIT
+#define UCHAR_WIDTH  CHAR_BIT
+#define USHRT_WIDTH  __SHRT_WIDTH__
+#define SHRT_WIDTH   __SHRT_WIDTH__
+#define UINT_WIDTH   __INT_WIDTH__
+#define INT_WIDTH    __INT_WIDTH__
+#define ULONG_WIDTH  __LONG_WIDTH__
+#define LONG_WIDTH   __LONG_WIDTH__
+#define ULLONG_WIDTH __LLONG_WIDTH__
+#define LLONG_WIDTH  __LLONG_WIDTH__
+
+#define BITINT_MAXWIDTH __BITINT_MAXWIDTH__
+#endif
 
 #ifdef __CHAR_UNSIGNED__  /* -funsigned-char */
 #define CHAR_MIN 0

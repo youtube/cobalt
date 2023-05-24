@@ -1,18 +1,12 @@
-//===-- CommandObjectPlugin.cpp ---------------------------------*- C++ -*-===//
+//===-- CommandObjectPlugin.cpp -------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "CommandObjectPlugin.h"
-#include "lldb/Host/Host.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 
@@ -42,13 +36,12 @@ public:
 
   ~CommandObjectPluginLoad() override = default;
 
-  int HandleArgumentCompletion(
-      CompletionRequest &request,
-      OptionElementVector &opt_element_vector) override {
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
     CommandCompletions::InvokeCommonCompletionCallbacks(
         GetCommandInterpreter(), CommandCompletions::eDiskFileCompletion,
         request, nullptr);
-    return request.GetNumberOfMatches();
   }
 
 protected:
@@ -57,19 +50,18 @@ protected:
 
     if (argc != 1) {
       result.AppendError("'plugin load' requires one argument");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
     Status error;
 
-    FileSpec dylib_fspec(command[0].ref, true);
+    FileSpec dylib_fspec(command[0].ref());
+    FileSystem::Instance().Resolve(dylib_fspec);
 
-    if (m_interpreter.GetDebugger().LoadPlugin(dylib_fspec, error))
+    if (GetDebugger().LoadPlugin(dylib_fspec, error))
       result.SetStatus(eReturnStatusSuccessFinishResult);
     else {
       result.AppendError(error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
     }
 
     return result.Succeeded();

@@ -1,9 +1,8 @@
-//===-- HostProcessPosix.cpp ------------------------------------*- C++ -*-===//
+//===-- HostProcessPosix.cpp ----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,15 +12,13 @@
 
 #include "llvm/ADT/STLExtras.h"
 
+#include <climits>
 #include <csignal>
-#include <limits.h>
 #include <unistd.h>
 
 using namespace lldb_private;
 
-namespace {
-const int kInvalidPosixProcess = 0;
-}
+static const int kInvalidPosixProcess = 0;
 
 HostProcessPosix::HostProcessPosix()
     : HostNativeProcessBase(kInvalidPosixProcess) {}
@@ -29,7 +26,7 @@ HostProcessPosix::HostProcessPosix()
 HostProcessPosix::HostProcessPosix(lldb::process_t process)
     : HostNativeProcessBase(process) {}
 
-HostProcessPosix::~HostProcessPosix() {}
+HostProcessPosix::~HostProcessPosix() = default;
 
 Status HostProcessPosix::Signal(int signo) const {
   if (m_process == kInvalidPosixProcess) {
@@ -62,7 +59,7 @@ Status HostProcessPosix::GetMainModule(FileSpec &file_spec) const {
     return error;
   }
 
-  error = FileSystem::Readlink(FileSpec{link_path, false}, file_spec);
+  error = FileSystem::Instance().Readlink(FileSpec(link_path), file_spec);
   if (!error.Success())
     return error;
 
@@ -88,7 +85,7 @@ bool HostProcessPosix::IsRunning() const {
   return error.Success();
 }
 
-HostThread HostProcessPosix::StartMonitoring(
+llvm::Expected<HostThread> HostProcessPosix::StartMonitoring(
     const Host::MonitorChildProcessCallback &callback, bool monitor_signals) {
   return Host::StartMonitoringChildProcess(callback, m_process,
                                            monitor_signals);

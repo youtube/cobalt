@@ -1,9 +1,8 @@
 //===--- IncorrectRoundingsCheck.cpp - clang-tidy ------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,11 +21,11 @@ namespace bugprone {
 
 namespace {
 AST_MATCHER(FloatingLiteral, floatHalf) {
-  const auto &literal = Node.getValue();
+  const auto &Literal = Node.getValue();
   if ((&Node.getSemantics()) == &llvm::APFloat::IEEEsingle())
-    return literal.convertToFloat() == 0.5f;
+    return Literal.convertToFloat() == 0.5f;
   if ((&Node.getSemantics()) == &llvm::APFloat::IEEEdouble())
-    return literal.convertToDouble() == 0.5;
+    return Literal.convertToDouble() == 0.5;
   return false;
 }
 } // namespace
@@ -52,16 +51,17 @@ void IncorrectRoundingsCheck::registerMatchers(MatchFinder *MatchFinder) {
   // Find expressions of cast to int of the sum of a floating point expression
   // and 0.5.
   MatchFinder->addMatcher(
-      implicitCastExpr(
-          hasImplicitDestinationType(isInteger()),
-          ignoringParenCasts(binaryOperator(hasOperatorName("+"), OneSideHalf)))
-          .bind("CastExpr"),
+      traverse(TK_AsIs,
+               implicitCastExpr(hasImplicitDestinationType(isInteger()),
+                                ignoringParenCasts(binaryOperator(
+                                    hasOperatorName("+"), OneSideHalf)))
+                   .bind("CastExpr")),
       this);
 }
 
 void IncorrectRoundingsCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *CastExpr = Result.Nodes.getNodeAs<ImplicitCastExpr>("CastExpr");
-  diag(CastExpr->getLocStart(),
+  diag(CastExpr->getBeginLoc(),
        "casting (double + 0.5) to integer leads to incorrect rounding; "
        "consider using lround (#include <cmath>) instead");
 }

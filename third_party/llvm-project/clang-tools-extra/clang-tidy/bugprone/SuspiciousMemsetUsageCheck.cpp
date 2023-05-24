@@ -1,9 +1,8 @@
 //===--- SuspiciousMemsetUsageCheck.cpp - clang-tidy-----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,34 +20,39 @@ namespace tidy {
 namespace bugprone {
 
 void SuspiciousMemsetUsageCheck::registerMatchers(MatchFinder *Finder) {
-  // Note: void *memset(void *buffer, int fill_char, size_t byte_count);
+  // Match the standard memset:
+  // void *memset(void *buffer, int fill_char, size_t byte_count);
+  auto MemsetDecl =
+      functionDecl(hasName("::memset"),
+                   parameterCountIs(3),
+                   hasParameter(0, hasType(pointerType(pointee(voidType())))),
+                   hasParameter(1, hasType(isInteger())),
+                   hasParameter(2, hasType(isInteger())));
+
   // Look for memset(x, '0', z). Probably memset(x, 0, z) was intended.
   Finder->addMatcher(
       callExpr(
-          callee(functionDecl(hasName("::memset"))),
+          callee(MemsetDecl), argumentCountIs(3),
           hasArgument(1, characterLiteral(equals(static_cast<unsigned>('0')))
                              .bind("char-zero-fill")),
-          unless(
-              eachOf(hasArgument(0, anyOf(hasType(pointsTo(isAnyCharacter())),
-                                          hasType(arrayType(hasElementType(
-                                              isAnyCharacter()))))),
-                     isInTemplateInstantiation()))),
+          unless(hasArgument(
+              0, anyOf(hasType(pointsTo(isAnyCharacter())),
+                       hasType(arrayType(hasElementType(isAnyCharacter()))))))),
       this);
 
   // Look for memset with an integer literal in its fill_char argument.
   // Will check if it gets truncated.
-  Finder->addMatcher(callExpr(callee(functionDecl(hasName("::memset"))),
-                              hasArgument(1, integerLiteral().bind("num-fill")),
-                              unless(isInTemplateInstantiation())),
-                     this);
+  Finder->addMatcher(
+      callExpr(callee(MemsetDecl), argumentCountIs(3),
+               hasArgument(1, integerLiteral().bind("num-fill"))),
+      this);
 
   // Look for memset(x, y, 0) as that is most likely an argument swap.
   Finder->addMatcher(
-      callExpr(callee(functionDecl(hasName("::memset"))),
+      callExpr(callee(MemsetDecl), argumentCountIs(3),
                unless(hasArgument(1, anyOf(characterLiteral(equals(
                                                static_cast<unsigned>('0'))),
-                                           integerLiteral()))),
-               unless(isInTemplateInstantiation()))
+                                           integerLiteral()))))
           .bind("call"),
       this);
 }
@@ -61,7 +65,7 @@ void SuspiciousMemsetUsageCheck::check(const MatchFinder::MatchResult &Result) {
 
     SourceRange CharRange = CharZeroFill->getSourceRange();
     auto Diag =
-        diag(CharZeroFill->getLocStart(), "memset fill value is char '0', "
+        diag(CharZeroFill->getBeginLoc(), "memset fill value is char '0', "
                                           "potentially mistaken for int 0");
 
     // Only suggest a fix if no macros are involved.
@@ -76,13 +80,16 @@ void SuspiciousMemsetUsageCheck::check(const MatchFinder::MatchResult &Result) {
     // Case 2: fill_char of memset() is larger in size than an unsigned char
     // so it gets truncated during conversion.
 
-    llvm::APSInt NumValue;
     const auto UCharMax = (1 << Result.Context->getCharWidth()) - 1;
-    if (!NumFill->EvaluateAsInt(NumValue, *Result.Context) ||
-        (NumValue >= 0 && NumValue <= UCharMax))
+    Expr::EvalResult EVResult;
+    if (!NumFill->EvaluateAsInt(EVResult, *Result.Context))
       return;
 
-    diag(NumFill->getLocStart(), "memset fill value is out of unsigned "
+    llvm::APSInt NumValue = EVResult.Val.getInt();
+    if (NumValue >= 0 && NumValue <= UCharMax)
+      return;
+
+    diag(NumFill->getBeginLoc(), "memset fill value is out of unsigned "
                                  "character range, gets truncated");
   }
 
@@ -94,23 +101,27 @@ void SuspiciousMemsetUsageCheck::check(const MatchFinder::MatchResult &Result) {
     const Expr *ByteCount = Call->getArg(2);
 
     // Return if `byte_count` is not zero at compile time.
-    llvm::APSInt Value1, Value2;
+    Expr::EvalResult Value2;
     if (ByteCount->isValueDependent() ||
-        !ByteCount->EvaluateAsInt(Value2, *Result.Context) || Value2 != 0)
+        !ByteCount->EvaluateAsInt(Value2, *Result.Context) ||
+        Value2.Val.getInt() != 0)
       return;
 
     // Return if `fill_char` is known to be zero or negative at compile
     // time. In these cases, swapping the args would be a nop, or
     // introduce a definite bug. The code is likely correct.
+    Expr::EvalResult EVResult;
     if (!FillChar->isValueDependent() &&
-        FillChar->EvaluateAsInt(Value1, *Result.Context) &&
-        (Value1 == 0 || Value1.isNegative()))
-      return;
+        FillChar->EvaluateAsInt(EVResult, *Result.Context)) {
+      llvm::APSInt Value1 = EVResult.Val.getInt();
+      if (Value1 == 0 || Value1.isNegative())
+        return;
+    }
 
     // `byte_count` is known to be zero at compile time, and `fill_char` is
     // either not known or known to be a positive integer. Emit a warning
     // and fix-its to swap the arguments.
-    auto D = diag(Call->getLocStart(),
+    auto D = diag(Call->getBeginLoc(),
                   "memset of size zero, potentially swapped arguments");
     StringRef RHSString = tooling::fixit::getText(*ByteCount, *Result.Context);
     StringRef LHSString = tooling::fixit::getText(*FillChar, *Result.Context);

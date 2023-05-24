@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,6 +16,7 @@
 #include <iterator>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 #include "test_iterators.h"
 
@@ -36,20 +36,30 @@ test(S s, typename S::size_type pos1, typename S::size_type n1, It f, It l, S ex
 }
 
 #ifndef TEST_HAS_NO_EXCEPTIONS
+struct Widget { operator char() const { throw 42; } };
+
 template <class S, class It>
 void
 test_exceptions(S s, typename S::size_type pos1, typename S::size_type n1, It f, It l)
 {
     typename S::const_iterator first = s.begin() + pos1;
     typename S::const_iterator last = s.begin() + pos1 + n1;
-    S aCopy = s;
+
+    S original = s;
+    typename S::iterator begin = s.begin();
+    typename S::iterator end = s.end();
+
     try {
         s.replace(first, last, f, l);
         assert(false);
-        }
-    catch (...) {}
+    } catch (...) {}
+
+    // Part of "no effects" is that iterators and pointers
+    // into the string must not have been invalidated.
     LIBCPP_ASSERT(s.__invariants());
-    assert(s == aCopy);
+    assert(s == original);
+    assert(s.begin() == begin);
+    assert(s.end() == end);
 }
 #endif
 
@@ -964,7 +974,7 @@ void test8()
     test(S("abcdefghijklmnopqrst"), 20, 0, str, str+20, S("abcdefghijklmnopqrst12345678901234567890"));
 }
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::string S;
@@ -996,15 +1006,18 @@ int main()
     { // test iterator operations that throw
     typedef std::string S;
     typedef ThrowingIterator<char> TIter;
-    typedef input_iterator<TIter> IIter;
+    typedef cpp17_input_iterator<TIter> IIter;
     const char* s = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, IIter(TIter(s, s+10, 4, TIter::TAIncrement)), IIter());
-    test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, IIter(TIter(s, s+10, 5, TIter::TADereference)), IIter());
-    test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, IIter(TIter(s, s+10, 6, TIter::TAComparison)), IIter());
+    test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, IIter(TIter(s, s+10, 4, TIter::TAIncrement)), IIter(TIter()));
+    test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, IIter(TIter(s, s+10, 5, TIter::TADereference)), IIter(TIter()));
+    test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, IIter(TIter(s, s+10, 6, TIter::TAComparison)), IIter(TIter()));
 
     test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, TIter(s, s+10, 4, TIter::TAIncrement), TIter());
     test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, TIter(s, s+10, 5, TIter::TADereference), TIter());
     test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, TIter(s, s+10, 6, TIter::TAComparison), TIter());
+
+    Widget w[100];
+    test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, w, w+100);
     }
 #endif
 
@@ -1037,4 +1050,6 @@ int main()
     s.replace(s.begin(), s.end(), p, p + 4);
     assert(s == "EFGH");
     }
+
+  return 0;
 }

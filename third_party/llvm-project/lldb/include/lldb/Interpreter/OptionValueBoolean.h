@@ -1,36 +1,28 @@
 //===-- OptionValueBoolean.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueBoolean_h_
-#define liblldb_OptionValueBoolean_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEBOOLEAN_H
+#define LLDB_INTERPRETER_OPTIONVALUEBOOLEAN_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Interpreter/OptionValue.h"
 
 namespace lldb_private {
 
-class OptionValueBoolean : public OptionValue {
+class OptionValueBoolean : public Cloneable<OptionValueBoolean, OptionValue> {
 public:
   OptionValueBoolean(bool value)
-      : OptionValue(), m_current_value(value), m_default_value(value) {}
+      : m_current_value(value), m_default_value(value) {}
   OptionValueBoolean(bool current_value, bool default_value)
-      : OptionValue(), m_current_value(current_value),
-        m_default_value(default_value) {}
+      : m_current_value(current_value), m_default_value(default_value) {}
 
-  ~OptionValueBoolean() override {}
+  ~OptionValueBoolean() override = default;
 
-  //---------------------------------------------------------------------
   // Virtual subclass pure virtual overrides
-  //---------------------------------------------------------------------
 
   OptionValue::Type GetType() const override { return eTypeBoolean; }
 
@@ -40,38 +32,30 @@ public:
   Status
   SetValueFromString(llvm::StringRef value,
                      VarSetOperationType op = eVarSetOperationAssign) override;
-  Status
-  SetValueFromString(const char *,
-                     VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_current_value = m_default_value;
     m_value_was_set = false;
-    return true;
   }
 
-  size_t AutoComplete(CommandInterpreter &interpreter,
-                      CompletionRequest &request) override;
+  void AutoComplete(CommandInterpreter &interpreter,
+                    CompletionRequest &request) override;
 
-  //---------------------------------------------------------------------
   // Subclass specific functions
-  //---------------------------------------------------------------------
 
-  //------------------------------------------------------------------
   /// Convert to bool operator.
   ///
   /// This allows code to check a OptionValueBoolean in conditions.
   ///
-  /// @code
+  /// \code
   /// OptionValueBoolean bool_value(...);
   /// if (bool_value)
   /// { ...
-  /// @endcode
+  /// \endcode
   ///
-  /// @return
+  /// \return
   ///     /b True this object contains a valid namespace decl, \b
   ///     false otherwise.
-  //------------------------------------------------------------------
   explicit operator bool() const { return m_current_value; }
 
   const bool &operator=(bool b) {
@@ -87,8 +71,6 @@ public:
 
   void SetDefaultValue(bool value) { m_default_value = value; }
 
-  lldb::OptionValueSP DeepCopy() const override;
-
 protected:
   bool m_current_value;
   bool m_default_value;
@@ -96,4 +78,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueBoolean_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEBOOLEAN_H

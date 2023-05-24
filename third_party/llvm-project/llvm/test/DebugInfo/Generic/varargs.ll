@@ -1,6 +1,5 @@
 ; RUN: %llc_dwarf -O0 -filetype=obj -o %t.o %s
-; RUN: llvm-dwarfdump -v -debug-info %t.o | FileCheck %s
-; REQUIRES: object-emission
+; RUN: llvm-dwarfdump -debug-info %t.o | FileCheck %s
 ;
 ; Test debug info for variadic function arguments.
 ; Created from tools/clang/tests/CodeGenCXX/debug-info-varargs.cpp
@@ -13,7 +12,7 @@
 ;
 ; CHECK: DW_TAG_subprogram
 ; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_name {{.*}} "a"
+; CHECK: DW_AT_name ("a")
 ; CHECK-NOT: DW_TAG
 ; CHECK: DW_TAG_formal_parameter
 ; CHECK-NOT: DW_TAG
@@ -23,7 +22,7 @@
 ;
 ; CHECK: DW_TAG_subprogram
 ; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_name {{.*}} "b"
+; CHECK: DW_AT_name ("b")
 ; CHECK-NOT: DW_TAG
 ; CHECK: DW_TAG_formal_parameter
 ; CHECK-NOT: DW_TAG
@@ -87,7 +86,7 @@ attributes #1 = { nounwind readnone }
 !15 = !DIFile(filename: "llvm/tools/clang/test/CodeGenCXX/debug-info-varargs.cpp", directory: "radar/13690847")
 !16 = !DISubroutineType(types: !17)
 !17 = !{null, !10, null}
-!18 = !{i32 2, !"Dwarf Version", i32 2}
+!18 = !{i32 2, !"Dwarf Version", i32 3}
 !19 = !{i32 1, !"Debug Info Version", i32 3}
 !20 = !{!"clang version 3.5 "}
 !21 = !DILocalVariable(name: "c", line: 13, arg: 1, scope: !14, file: !15, type: !10)
@@ -95,7 +94,7 @@ attributes #1 = { nounwind readnone }
 !23 = !DILocalVariable(name: "a", line: 16, scope: !14, file: !15, type: !4)
 !24 = !DILocation(line: 16, scope: !14)
 ; Manually modifed to avoid dependence on pointer size
-!25 = !DILocalVariable(name: "fptr", line: 18, scope: !14, file: !15, type: !16)
+!25 = !DILocalVariable(name: "fptr", line: 18, scope: !14, file: !15, type: !26)
 !26 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !16)
 !27 = !DILocation(line: 18, scope: !14)
 !28 = !DILocation(line: 22, scope: !14)

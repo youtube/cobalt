@@ -30,10 +30,8 @@ define void @i24_and_or(i24* %a) {
 ; LE-LABEL: i24_and_or:
 ; LE:       @ %bb.0:
 ; LE-NEXT:    ldrh r1, [r0]
-; LE-NEXT:    mov r2, #16256
-; LE-NEXT:    orr r2, r2, #49152
 ; LE-NEXT:    orr r1, r1, #384
-; LE-NEXT:    and r1, r1, r2
+; LE-NEXT:    bic r1, r1, #127
 ; LE-NEXT:    strh r1, [r0]
 ; LE-NEXT:    mov pc, lr
 ;
@@ -124,11 +122,12 @@ define void @i56_and_or(i56* %a) {
 ; BE-LABEL: i56_and_or:
 ; BE:       @ %bb.0:
 ; BE-NEXT:    mov r1, r0
+; BE-NEXT:    mov r2, #128
+; BE-NEXT:    ldrh r12, [r1, #4]!
+; BE-NEXT:    ldrb r3, [r1, #2]
+; BE-NEXT:    strb r2, [r1, #2]
+; BE-NEXT:    orr r2, r3, r12, lsl #8
 ; BE-NEXT:    ldr r12, [r0]
-; BE-NEXT:    ldrh r2, [r1, #4]!
-; BE-NEXT:    mov r3, #128
-; BE-NEXT:    strb r3, [r1, #2]
-; BE-NEXT:    lsl r2, r2, #8
 ; BE-NEXT:    orr r2, r2, r12, lsl #24
 ; BE-NEXT:    orr r2, r2, #384
 ; BE-NEXT:    lsr r3, r2, #8

@@ -1,9 +1,8 @@
 //==- CGObjCRuntime.cpp - Interface to Shared Objective-C Runtime Features ==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,15 +13,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGObjCRuntime.h"
-#include "CGCleanup.h"
 #include "CGCXXABI.h"
+#include "CGCleanup.h"
 #include "CGRecordLayout.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
-#include "llvm/IR/CallSite.h"
+#include "clang/CodeGen/CodeGenABITypes.h"
 #include "llvm/Support/SaveAndRestore.h"
 
 using namespace clang;
@@ -65,7 +64,7 @@ LValue CGObjCRuntime::EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
       Ivar->getUsageType(ObjectPtrTy).withCVRQualifiers(CVRQualifiers);
   llvm::Type *LTy = CGF.CGM.getTypes().ConvertTypeForMem(IvarTy);
   llvm::Value *V = CGF.Builder.CreateBitCast(BaseValue, CGF.Int8PtrTy);
-  V = CGF.Builder.CreateInBoundsGEP(V, Offset, "add.ptr");
+  V = CGF.Builder.CreateInBoundsGEP(CGF.Int8Ty, V, Offset, "add.ptr");
 
   if (!Ivar->isBitField()) {
     V = CGF.Builder.CreateBitCast(V, llvm::PointerType::getUnqual(LTy));
@@ -127,10 +126,10 @@ namespace {
   };
 
   struct CallObjCEndCatch final : EHScopeStack::Cleanup {
-    CallObjCEndCatch(bool MightThrow, llvm::Value *Fn)
+    CallObjCEndCatch(bool MightThrow, llvm::FunctionCallee Fn)
         : MightThrow(MightThrow), Fn(Fn) {}
     bool MightThrow;
-    llvm::Value *Fn;
+    llvm::FunctionCallee Fn;
 
     void Emit(CodeGenFunction &CGF, Flags flags) override {
       if (MightThrow)
@@ -141,12 +140,11 @@ namespace {
   };
 }
 
-
 void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
                                      const ObjCAtTryStmt &S,
-                                     llvm::Constant *beginCatchFn,
-                                     llvm::Constant *endCatchFn,
-                                     llvm::Constant *exceptionRethrowFn) {
+                                     llvm::FunctionCallee beginCatchFn,
+                                     llvm::FunctionCallee endCatchFn,
+                                     llvm::FunctionCallee exceptionRethrowFn) {
   // Jump destination for falling out of catch bodies.
   CodeGenFunction::JumpDest Cont;
   if (S.getNumCatchStmts())
@@ -165,8 +163,7 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
 
   // Enter the catch, if there is one.
   if (S.getNumCatchStmts()) {
-    for (unsigned I = 0, N = S.getNumCatchStmts(); I != N; ++I) {
-      const ObjCAtCatchStmt *CatchStmt = S.getCatchStmt(I);
+    for (const ObjCAtCatchStmt *CatchStmt : S.catch_stmts()) {
       const VarDecl *CatchDecl = CatchStmt->getCatchParamDecl();
 
       Handlers.push_back(CatchHandler());
@@ -205,7 +202,7 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
         // Emit the original filter expression, convert to i32, and return.
         HelperCGF.EmitStmt(FinallyBlock);
 
-        HelperCGF.FinishFunction(FinallyBlock->getLocEnd());
+        HelperCGF.FinishFunction(FinallyBlock->getEndLoc());
 
         llvm::Function *FinallyFunc = HelperCGF.CurFn;
 
@@ -214,7 +211,7 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
         CGF.pushSEHCleanup(NormalAndEHCleanup, FinallyFunc);
     }
 
-  
+
   // Emit the try body.
   CGF.EmitStmt(S.getTryBody());
 
@@ -274,7 +271,7 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
     cleanups.ForceCleanup();
 
     CGF.EmitBranchThroughCleanup(Cont);
-  }  
+  }
 
   // Go back to the try-statement fallthrough.
   CGF.Builder.restoreIP(SavedIP);
@@ -296,7 +293,7 @@ void CGObjCRuntime::EmitInitOfCatchParam(CodeGenFunction &CGF,
   switch (paramDecl->getType().getQualifiers().getObjCLifetime()) {
   case Qualifiers::OCL_Strong:
     exn = CGF.EmitARCRetainNonBlock(exn);
-    // fallthrough
+    LLVM_FALLTHROUGH;
 
   case Qualifiers::OCL_None:
   case Qualifiers::OCL_ExplicitNone:
@@ -313,10 +310,10 @@ void CGObjCRuntime::EmitInitOfCatchParam(CodeGenFunction &CGF,
 
 namespace {
   struct CallSyncExit final : EHScopeStack::Cleanup {
-    llvm::Value *SyncExitFn;
+    llvm::FunctionCallee SyncExitFn;
     llvm::Value *SyncArg;
-    CallSyncExit(llvm::Value *SyncExitFn, llvm::Value *SyncArg)
-      : SyncExitFn(SyncExitFn), SyncArg(SyncArg) {}
+    CallSyncExit(llvm::FunctionCallee SyncExitFn, llvm::Value *SyncArg)
+        : SyncExitFn(SyncExitFn), SyncArg(SyncArg) {}
 
     void Emit(CodeGenFunction &CGF, Flags flags) override {
       CGF.EmitNounwindRuntimeCall(SyncExitFn, SyncArg);
@@ -326,8 +323,8 @@ namespace {
 
 void CGObjCRuntime::EmitAtSynchronizedStmt(CodeGenFunction &CGF,
                                            const ObjCAtSynchronizedStmt &S,
-                                           llvm::Function *syncEnterFn,
-                                           llvm::Function *syncExitFn) {
+                                           llvm::FunctionCallee syncEnterFn,
+                                           llvm::FunctionCallee syncExitFn) {
   CodeGenFunction::RunCleanupsScope cleanups(CGF);
 
   // Evaluate the lock operand.  This is guaranteed to dominate the
@@ -385,4 +382,97 @@ CGObjCRuntime::getMessageSendInfo(const ObjCMethodDecl *method,
   llvm::PointerType *signatureType =
     CGM.getTypes().GetFunctionType(argsInfo)->getPointerTo();
   return MessageSendInfo(argsInfo, signatureType);
+}
+
+bool CGObjCRuntime::canMessageReceiverBeNull(CodeGenFunction &CGF,
+                                             const ObjCMethodDecl *method,
+                                             bool isSuper,
+                                       const ObjCInterfaceDecl *classReceiver,
+                                             llvm::Value *receiver) {
+  // Super dispatch assumes that self is non-null; even the messenger
+  // doesn't have a null check internally.
+  if (isSuper)
+    return false;
+
+  // If this is a direct dispatch of a class method, check whether the class,
+  // or anything in its hierarchy, was weak-linked.
+  if (classReceiver && method && method->isClassMethod())
+    return isWeakLinkedClass(classReceiver);
+
+  // If we're emitting a method, and self is const (meaning just ARC, for now),
+  // and the receiver is a load of self, then self is a valid object.
+  if (auto curMethod =
+               dyn_cast_or_null<ObjCMethodDecl>(CGF.CurCodeDecl)) {
+    auto self = curMethod->getSelfDecl();
+    if (self->getType().isConstQualified()) {
+      if (auto LI = dyn_cast<llvm::LoadInst>(receiver->stripPointerCasts())) {
+        llvm::Value *selfAddr = CGF.GetAddrOfLocalVar(self).getPointer();
+        if (selfAddr == LI->getPointerOperand()) {
+          return false;
+        }
+      }
+    }
+  }
+
+  // Otherwise, assume it can be null.
+  return true;
+}
+
+bool CGObjCRuntime::isWeakLinkedClass(const ObjCInterfaceDecl *ID) {
+  do {
+    if (ID->isWeakImported())
+      return true;
+  } while ((ID = ID->getSuperClass()));
+
+  return false;
+}
+
+void CGObjCRuntime::destroyCalleeDestroyedArguments(CodeGenFunction &CGF,
+                                              const ObjCMethodDecl *method,
+                                              const CallArgList &callArgs) {
+  CallArgList::const_iterator I = callArgs.begin();
+  for (auto i = method->param_begin(), e = method->param_end();
+         i != e; ++i, ++I) {
+    const ParmVarDecl *param = (*i);
+    if (param->hasAttr<NSConsumedAttr>()) {
+      RValue RV = I->getRValue(CGF);
+      assert(RV.isScalar() &&
+             "NullReturnState::complete - arg not on object");
+      CGF.EmitARCRelease(RV.getScalarVal(), ARCImpreciseLifetime);
+    } else {
+      QualType QT = param->getType();
+      auto *RT = QT->getAs<RecordType>();
+      if (RT && RT->getDecl()->isParamDestroyedInCallee()) {
+        RValue RV = I->getRValue(CGF);
+        QualType::DestructionKind DtorKind = QT.isDestructedType();
+        switch (DtorKind) {
+        case QualType::DK_cxx_destructor:
+          CGF.destroyCXXObject(CGF, RV.getAggregateAddress(), QT);
+          break;
+        case QualType::DK_nontrivial_c_struct:
+          CGF.destroyNonTrivialCStruct(CGF, RV.getAggregateAddress(), QT);
+          break;
+        default:
+          llvm_unreachable("unexpected dtor kind");
+          break;
+        }
+      }
+    }
+  }
+}
+
+llvm::Constant *
+clang::CodeGen::emitObjCProtocolObject(CodeGenModule &CGM,
+                                       const ObjCProtocolDecl *protocol) {
+  return CGM.getObjCRuntime().GetOrEmitProtocol(protocol);
+}
+
+std::string CGObjCRuntime::getSymbolNameForMethod(const ObjCMethodDecl *OMD,
+                                                  bool includeCategoryName) {
+  std::string buffer;
+  llvm::raw_string_ostream out(buffer);
+  CGM.getCXXABI().getMangleContext().mangleObjCMethodName(OMD, out,
+                                       /*includePrefixByte=*/true,
+                                       includeCategoryName);
+  return buffer;
 }

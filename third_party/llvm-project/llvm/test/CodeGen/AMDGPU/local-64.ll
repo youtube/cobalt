@@ -1,7 +1,7 @@
 ; RUN: llc -march=amdgcn -verify-machineinstrs< %s | FileCheck -enable-var-scope -check-prefixes=GCN,SI,SICIVI %s
-; RUN: llc -march=amdgcn -mcpu=bonaire -verify-machineinstrs< %s | FileCheck -enable-var-scope -check-prefixes=GCN,CI,SICIVI %s
-; RUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs< %s | FileCheck -enable-var-scope -check-prefixes=GCN,VI,SICIVI %s
-; RUN: llc -march=amdgcn -mcpu=gfx900 -mattr=-flat-for-global -verify-machineinstrs< %s | FileCheck -enable-var-scope -check-prefixes=GCN,GFX9 %s
+; RUN: llc -march=amdgcn -mcpu=bonaire -verify-machineinstrs< %s | FileCheck -enable-var-scope -check-prefixes=GCN,CI,SICIVI,CIPLUS %s
+; RUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs< %s | FileCheck -enable-var-scope -check-prefixes=GCN,VI,SICIVI,CIPLUS %s
+; RUN: llc -march=amdgcn -mcpu=gfx900 -mattr=-flat-for-global -verify-machineinstrs< %s | FileCheck -enable-var-scope -check-prefixes=GCN,GFX9,CIPLUS %s
 
 ; GCN-LABEL: {{^}}local_i32_load
 ; SICIVI: s_mov_b32 m0
@@ -48,7 +48,7 @@ define amdgpu_kernel void @local_i8_load_i16_max_offset(i8 addrspace(1)* %out, i
 
 ; The LDS offset will be 65536 bytes, which is larger than the size of LDS on
 ; SI, which is why it is being OR'd with the base pointer.
-; SI-DAG: s_or_b32 [[ADDR:s[0-9]+]], s{{[0-9]+}}, 0x10000
+; SI-DAG: s_bitset1_b32 [[ADDR:s[0-9]+]], 16
 ; CI-DAG: s_add_i32 [[ADDR:s[0-9]+]], s{{[0-9]+}}, 0x10000
 ; VI-DAG: s_add_i32 [[ADDR:s[0-9]+]], s{{[0-9]+}}, 0x10000
 ; GFX9-DAG: s_add_i32 [[ADDR:s[0-9]+]], s{{[0-9]+}}, 0x10000
@@ -165,7 +165,8 @@ define amdgpu_kernel void @local_f64_store_0_offset(double addrspace(3)* %out) n
 ; GFX9-NOT: m0
 
 ; GCN-NOT: add
-; GCN: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset0:14 offset1:15
+; SI: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset0:14 offset1:15
+; CIPLUS: ds_write_b128 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}} offset:112
 ; GCN: s_endpgm
 define amdgpu_kernel void @local_v2i64_store(<2 x i64> addrspace(3)* %out) nounwind {
   %gep = getelementptr <2 x i64>, <2 x i64> addrspace(3)* %out, i32 7
@@ -178,7 +179,10 @@ define amdgpu_kernel void @local_v2i64_store(<2 x i64> addrspace(3)* %out) nounw
 ; GFX9-NOT: m0
 
 ; GCN-NOT: add
-; GCN: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset1:1
+
+; SI: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset1:1{{$}}
+; CIPLUS: ds_write_b128 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]$}}
+
 ; GCN: s_endpgm
 define amdgpu_kernel void @local_v2i64_store_0_offset(<2 x i64> addrspace(3)* %out) nounwind {
   store <2 x i64> <i64 1234, i64 1234>, <2 x i64> addrspace(3)* %out, align 16
@@ -190,8 +194,12 @@ define amdgpu_kernel void @local_v2i64_store_0_offset(<2 x i64> addrspace(3)* %o
 ; GFX9-NOT: m0
 
 ; GCN-NOT: add
-; GCN-DAG: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset0:30 offset1:31
-; GCN-DAG: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset0:28 offset1:29
+; SI-DAG: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset0:30 offset1:31
+; SI-DAG: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset0:28 offset1:29
+
+; CIPLUS-DAG: ds_write_b128 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}} offset:224{{$}}
+; CIPLUS-DAG: ds_write_b128 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}} offset:240{{$}}
+
 ; GCN: s_endpgm
 define amdgpu_kernel void @local_v4i64_store(<4 x i64> addrspace(3)* %out) nounwind {
   %gep = getelementptr <4 x i64>, <4 x i64> addrspace(3)* %out, i32 7
@@ -204,8 +212,12 @@ define amdgpu_kernel void @local_v4i64_store(<4 x i64> addrspace(3)* %out) nounw
 ; GFX9-NOT: m0
 
 ; GCN-NOT: add
-; GCN-DAG: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset0:2 offset1:3
-; GCN-DAG: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset1:1
+; SI-DAG: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset0:2 offset1:3
+; SI-DAG: ds_write2_b64 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, {{v\[[0-9]+:[0-9]+\]}} offset1:1
+
+; CIPLUS-DAG: ds_write_b128 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]$}}
+; CIPLUS-DAG: ds_write_b128 v{{[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}} offset:16{{$}}
+
 ; GCN: s_endpgm
 define amdgpu_kernel void @local_v4i64_store_0_offset(<4 x i64> addrspace(3)* %out) nounwind {
   store <4 x i64> <i64 1234, i64 1234, i64 1234, i64 1234>, <4 x i64> addrspace(3)* %out, align 16

@@ -1,11 +1,11 @@
 ; Test VectorType handling by SCCP.
 ; SCCP ignores VectorTypes until PR 1034 is fixed
 ;
-; RUN: opt < %s -sccp
+; RUN: opt < %s -passes=sccp
 ; END.
 
 target datalayout = "E-p:32:32"
-target triple = "powerpc-apple-darwin8"
+target triple = "powerpc-unknown-linux-gnu"
 	%struct.GLDAlphaTest = type { float, i16, i8, i8 }
 	%struct.GLDArrayRange = type { i8, i8, i8, i8 }
 	%struct.GLDBlendMode = type { i16, i16, i16, i16, %struct.GLTColor4, i16, i16, i8, i8, i8, i8 }

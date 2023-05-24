@@ -1,18 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// XFAIL: with_system_cxx_lib=macosx10.12
-// XFAIL: with_system_cxx_lib=macosx10.11
-// XFAIL: with_system_cxx_lib=macosx10.10
-// XFAIL: with_system_cxx_lib=macosx10.9
-// XFAIL: with_system_cxx_lib=macosx10.7
-// XFAIL: with_system_cxx_lib=macosx10.8
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11}}
 
 // <istream>
 
@@ -20,6 +14,8 @@
 
 #include <istream>
 #include <cassert>
+
+#include "test_macros.h"
 
 int seekoff_called = 0;
 
@@ -56,7 +52,7 @@ protected:
     }
 };
 
-int main()
+int main(int, char**)
 {
     {
         testbuf<char> sb(" 123456789");
@@ -68,6 +64,7 @@ int main()
         assert(is.fail());
         assert(seekoff_called == 2);
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         testbuf<wchar_t> sb(L" 123456789");
         std::wistream is(&sb);
@@ -78,6 +75,7 @@ int main()
         assert(is.fail());
         assert(seekoff_called == 4);
     }
+#endif
     {
         testbuf<char> sb(" 123456789");
         std::istream is(&sb);
@@ -87,4 +85,6 @@ int main()
         assert(is.good());
         assert(!is.eof());
     }
+
+  return 0;
 }

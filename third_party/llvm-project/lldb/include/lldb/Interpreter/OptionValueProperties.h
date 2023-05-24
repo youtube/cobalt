@@ -1,21 +1,16 @@
 //===-- OptionValueProperties.h ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueProperties_h_
-#define liblldb_OptionValueProperties_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEPROPERTIES_H
+#define LLDB_INTERPRETER_OPTIONVALUEPROPERTIES_H
 
-// C Includes
-// C++ Includes
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/UniqueCStringMap.h"
 #include "lldb/Interpreter/OptionValue.h"
@@ -23,25 +18,27 @@
 #include "lldb/Utility/ConstString.h"
 
 namespace lldb_private {
+class Properties;
 
 class OptionValueProperties
-    : public OptionValue,
+    : public Cloneable<OptionValueProperties, OptionValue>,
       public std::enable_shared_from_this<OptionValueProperties> {
 public:
-  OptionValueProperties()
-      : OptionValue(), m_name(), m_properties(), m_name_to_index() {}
+  OptionValueProperties() = default;
 
-  OptionValueProperties(const ConstString &name);
-
-  OptionValueProperties(const OptionValueProperties &global_properties);
+  OptionValueProperties(ConstString name);
 
   ~OptionValueProperties() override = default;
 
   Type GetType() const override { return eTypeProperties; }
 
-  bool Clear() override;
+  void Clear() override;
 
-  lldb::OptionValueSP DeepCopy() const override;
+  static lldb::OptionValuePropertiesSP
+  CreateLocalCopy(const Properties &global_properties);
+
+  lldb::OptionValueSP
+  DeepCopy(const lldb::OptionValueSP &new_parent) const override;
 
   Status
   SetValueFromString(llvm::StringRef value,
@@ -62,41 +59,33 @@ public:
   void Apropos(llvm::StringRef keyword,
                std::vector<const Property *> &matching_properties) const;
 
-  void Initialize(const PropertyDefinition *setting_definitions);
+  void Initialize(const PropertyDefinitions &setting_definitions);
 
   //    bool
   //    GetQualifiedName (Stream &strm);
 
-  //---------------------------------------------------------------------
   // Subclass specific functions
-  //---------------------------------------------------------------------
 
   virtual size_t GetNumProperties() const;
 
-  //---------------------------------------------------------------------
   // Get the index of a property given its exact name in this property
   // collection, "name" can't be a path to a property path that refers to a
   // property within a property
-  //---------------------------------------------------------------------
-  virtual uint32_t GetPropertyIndex(const ConstString &name) const;
+  virtual uint32_t GetPropertyIndex(ConstString name) const;
 
-  //---------------------------------------------------------------------
   // Get a property by exact name exists in this property collection, name can
   // not be a path to a property path that refers to a property within a
   // property
-  //---------------------------------------------------------------------
   virtual const Property *GetProperty(const ExecutionContext *exe_ctx,
                                       bool will_modify,
-                                      const ConstString &name) const;
+                                      ConstString name) const;
 
   virtual const Property *GetPropertyAtIndex(const ExecutionContext *exe_ctx,
                                              bool will_modify,
                                              uint32_t idx) const;
 
-  //---------------------------------------------------------------------
   // Property can be be a property path like
   // "target.process.extra-startup-command"
-  //---------------------------------------------------------------------
   virtual const Property *GetPropertyAtPath(const ExecutionContext *exe_ctx,
                                             bool will_modify,
     llvm::StringRef property_path) const;
@@ -106,7 +95,7 @@ public:
                           uint32_t idx) const;
 
   virtual lldb::OptionValueSP GetValueForKey(const ExecutionContext *exe_ctx,
-                                             const ConstString &key,
+                                             ConstString key,
                                              bool value_will_be_modified) const;
 
   lldb::OptionValueSP GetSubValue(const ExecutionContext *exe_ctx,
@@ -117,11 +106,6 @@ public:
   Status SetSubValue(const ExecutionContext *exe_ctx, VarSetOperationType op,
                      llvm::StringRef path, llvm::StringRef value) override;
 
-  virtual bool PredicateMatches(const ExecutionContext *exe_ctx,
-    llvm::StringRef predicate) const {
-    return false;
-  }
-
   OptionValueArch *
   GetPropertyAtIndexAsOptionValueArch(const ExecutionContext *exe_ctx,
                                       uint32_t idx) const;
@@ -129,6 +113,9 @@ public:
   OptionValueLanguage *
   GetPropertyAtIndexAsOptionValueLanguage(const ExecutionContext *exe_ctx,
                                           uint32_t idx) const;
+
+  bool SetPropertyAtIndexAsLanguage(const ExecutionContext *exe_ctx,
+                                    uint32_t idx, lldb::LanguageType lang);
 
   bool GetPropertyAtIndexAsArgs(const ExecutionContext *exe_ctx, uint32_t idx,
                                 Args &args) const;
@@ -204,15 +191,14 @@ public:
   OptionValueFileSpecList *GetPropertyAtIndexAsOptionValueFileSpecList(
       const ExecutionContext *exe_ctx, bool will_modify, uint32_t idx) const;
 
-  void AppendProperty(const ConstString &name, const ConstString &desc,
+  void AppendProperty(ConstString name, ConstString desc,
                       bool is_global, const lldb::OptionValueSP &value_sp);
 
   lldb::OptionValuePropertiesSP GetSubProperty(const ExecutionContext *exe_ctx,
-                                               const ConstString &name);
+                                               ConstString name);
 
   void SetValueChangedCallback(uint32_t property_idx,
-                               OptionValueChangedCallback callback,
-                               void *baton);
+                               std::function<void()> callback);
 
 protected:
   Property *ProtectedGetPropertyAtIndex(uint32_t idx) {
@@ -232,4 +218,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueProperties_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEPROPERTIES_H

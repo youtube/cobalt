@@ -1,9 +1,8 @@
 //===- AtomicExpandUtils.h - Utilities for expanding atomic instructions --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,8 +22,8 @@ class Value;
 /// (the builder, %addr, %loaded, %new_val, ordering,
 ///  /* OUT */ %success, /* OUT */ %new_loaded)
 using CreateCmpXchgInstFun =
-    function_ref<void(IRBuilder<> &, Value *, Value *, Value *, AtomicOrdering,
-                      Value *&, Value *&)>;
+    function_ref<void(IRBuilder<> &, Value *, Value *, Value *, Align,
+                      AtomicOrdering, SyncScope::ID, Value *&, Value *&)>;
 
 /// Expand an atomic RMW instruction into a loop utilizing
 /// cmpxchg. You'll want to make sure your target machine likes cmpxchg

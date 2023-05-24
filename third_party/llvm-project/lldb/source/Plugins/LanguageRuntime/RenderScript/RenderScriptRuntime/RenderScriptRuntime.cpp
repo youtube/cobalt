@@ -1,18 +1,11 @@
-//===-- RenderScriptRuntime.cpp ---------------------------------*- C++ -*-===//
+//===-- RenderScriptRuntime.cpp -------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-#include "llvm/ADT/StringSwitch.h"
-
-// Project includes
 #include "RenderScriptRuntime.h"
 #include "RenderScriptScriptGroup.h"
 
@@ -20,12 +13,10 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/DumpDataExtractor.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/DumpValueObjectOptions.h"
 #include "lldb/Expression/UserExpression.h"
 #include "lldb/Host/OptionParser.h"
-#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandObjectMultiword.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -41,16 +32,24 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/Args.h"
 #include "lldb/Utility/ConstString.h"
-#include "lldb/Utility/DataBufferLLVM.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/RegularExpression.h"
 #include "lldb/Utility/Status.h"
+
+#include "llvm/ADT/StringSwitch.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_renderscript;
 
+LLDB_PLUGIN_DEFINE(RenderScriptRuntime)
+
 #define FMT_COORD "(%" PRIu32 ", %" PRIu32 ", %" PRIu32 ")"
+
+char RenderScriptRuntime::ID = 0;
 
 namespace {
 
@@ -61,7 +60,7 @@ namespace {
 template <typename type_t> class empirical_type {
 public:
   // Ctor. Contents is invalid when constructed.
-  empirical_type() : valid(false) {}
+  empirical_type() = default;
 
   // Return true and copy contents to out if valid, else return false.
   bool get(type_t &out) const {
@@ -99,7 +98,7 @@ public:
   }
 
 protected:
-  bool valid;
+  bool valid = false;
   type_t data;
 };
 
@@ -140,9 +139,8 @@ bool GetArgsX86(const GetArgsCtx &ctx, ArgItem *arg_list, size_t num_args) {
     size_t read =
         ctx.process->ReadMemory(sp, &arg.value, sizeof(uint32_t), err);
     if (read != arg_size || !err.Success()) {
-      if (log)
-        log->Printf("%s - error reading argument: %" PRIu64 " '%s'",
-                    __FUNCTION__, uint64_t(i), err.AsCString());
+      LLDB_LOGF(log, "%s - error reading argument: %" PRIu64 " '%s'",
+                __FUNCTION__, uint64_t(i), err.AsCString());
       return false;
     }
   }
@@ -175,8 +173,7 @@ bool GetArgsX86_64(GetArgsCtx &ctx, ArgItem *arg_list, size_t num_args) {
 
   // check the stack alignment was correct (16 byte aligned)
   if ((sp & 0xf) != 0x0) {
-    if (log)
-      log->Printf("%s - stack misaligned", __FUNCTION__);
+    LLDB_LOGF(log, "%s - stack misaligned", __FUNCTION__);
     return false;
   }
 
@@ -215,9 +212,8 @@ bool GetArgsX86_64(GetArgsCtx &ctx, ArgItem *arg_list, size_t num_args) {
     }
     // fail if we couldn't read this argument
     if (!success) {
-      if (log)
-        log->Printf("%s - error reading argument: %" PRIu64 ", reason: %s",
-                    __FUNCTION__, uint64_t(i), err.AsCString("n/a"));
+      LLDB_LOGF(log, "%s - error reading argument: %" PRIu64 ", reason: %s",
+                __FUNCTION__, uint64_t(i), err.AsCString("n/a"));
       return false;
     }
   }
@@ -260,9 +256,8 @@ bool GetArgsArm(GetArgsCtx &ctx, ArgItem *arg_list, size_t num_args) {
     }
     // fail if we couldn't read this argument
     if (!success) {
-      if (log)
-        log->Printf("%s - error reading argument: %" PRIu64 ", reason: %s",
-                    __FUNCTION__, uint64_t(i), err.AsCString("n/a"));
+      LLDB_LOGF(log, "%s - error reading argument: %" PRIu64 ", reason: %s",
+                __FUNCTION__, uint64_t(i), err.AsCString("n/a"));
       return false;
     }
   }
@@ -287,15 +282,13 @@ bool GetArgsAarch64(GetArgsCtx &ctx, ArgItem *arg_list, size_t num_args) {
     }
     // arguments passed on the stack
     else {
-      if (log)
-        log->Printf("%s - reading arguments spilled to stack not implemented",
-                    __FUNCTION__);
+      LLDB_LOGF(log, "%s - reading arguments spilled to stack not implemented",
+                __FUNCTION__);
     }
     // fail if we couldn't read this argument
     if (!success) {
-      if (log)
-        log->Printf("%s - error reading argument: %" PRIu64, __FUNCTION__,
-                    uint64_t(i));
+      LLDB_LOGF(log, "%s - error reading argument: %" PRIu64, __FUNCTION__,
+                uint64_t(i));
       return false;
     }
   }
@@ -339,9 +332,8 @@ bool GetArgsMipsel(GetArgsCtx &ctx, ArgItem *arg_list, size_t num_args) {
     }
     // fail if we couldn't read this argument
     if (!success) {
-      if (log)
-        log->Printf("%s - error reading argument: %" PRIu64 ", reason: %s",
-                    __FUNCTION__, uint64_t(i), err.AsCString("n/a"));
+      LLDB_LOGF(log, "%s - error reading argument: %" PRIu64 ", reason: %s",
+                __FUNCTION__, uint64_t(i), err.AsCString("n/a"));
       return false;
     }
   }
@@ -387,9 +379,8 @@ bool GetArgsMips64el(GetArgsCtx &ctx, ArgItem *arg_list, size_t num_args) {
     }
     // fail if we couldn't read this argument
     if (!success) {
-      if (log)
-        log->Printf("%s - error reading argument: %" PRIu64 ", reason: %s",
-                    __FUNCTION__, uint64_t(i), err.AsCString("n/a"));
+      LLDB_LOGF(log, "%s - error reading argument: %" PRIu64 ", reason: %s",
+                __FUNCTION__, uint64_t(i), err.AsCString("n/a"));
       return false;
     }
   }
@@ -401,8 +392,7 @@ bool GetArgs(ExecutionContext &exe_ctx, ArgItem *arg_list, size_t num_args) {
 
   // verify that we have a target
   if (!exe_ctx.GetTargetPtr()) {
-    if (log)
-      log->Printf("%s - invalid target", __FUNCTION__);
+    LLDB_LOGF(log, "%s - invalid target", __FUNCTION__);
     return false;
   }
 
@@ -432,9 +422,8 @@ bool GetArgs(ExecutionContext &exe_ctx, ArgItem *arg_list, size_t num_args) {
   default:
     // unsupported architecture
     if (log) {
-      log->Printf(
-          "%s - architecture not supported: '%s'", __FUNCTION__,
-          exe_ctx.GetTargetRef().GetArchitecture().GetArchitectureName());
+      LLDB_LOGF(log, "%s - architecture not supported: '%s'", __FUNCTION__,
+                exe_ctx.GetTargetRef().GetArchitecture().GetArchitectureName());
     }
     return false;
   }
@@ -454,28 +443,20 @@ bool ParseCoordinate(llvm::StringRef coord_s, RSCoordinate &coord) {
   // elements fails the contents of &coord are undefined and `false` is
   // returned, `true` otherwise
 
-  RegularExpression regex;
-  RegularExpression::Match regex_match(3);
+  llvm::SmallVector<llvm::StringRef, 4> matches;
 
-  bool matched = false;
-  if (regex.Compile(llvm::StringRef("^([0-9]+),([0-9]+),([0-9]+)$")) &&
-      regex.Execute(coord_s, &regex_match))
-    matched = true;
-  else if (regex.Compile(llvm::StringRef("^([0-9]+),([0-9]+)$")) &&
-           regex.Execute(coord_s, &regex_match))
-    matched = true;
-  else if (regex.Compile(llvm::StringRef("^([0-9]+)$")) &&
-           regex.Execute(coord_s, &regex_match))
-    matched = true;
-
-  if (!matched)
+  if (!RegularExpression("^([0-9]+),([0-9]+),([0-9]+)$")
+           .Execute(coord_s, &matches) &&
+      !RegularExpression("^([0-9]+),([0-9]+)$").Execute(coord_s, &matches) &&
+      !RegularExpression("^([0-9]+)$").Execute(coord_s, &matches))
     return false;
 
-  auto get_index = [&](int idx, uint32_t &i) -> bool {
+  auto get_index = [&](size_t idx, uint32_t &i) -> bool {
     std::string group;
     errno = 0;
-    if (regex_match.GetMatchAtIndex(coord_s.str().c_str(), idx + 1, group))
-      return !llvm::StringRef(group).getAsInteger<uint32_t>(10, i);
+    if (idx + 1 < matches.size()) {
+      return !llvm::StringRef(matches[idx + 1]).getAsInteger<uint32_t>(10, i);
+    }
     return true;
   };
 
@@ -494,9 +475,8 @@ bool SkipPrologue(lldb::ModuleSP &module, Address &addr) {
       ConstString name = sc.GetFunctionName();
       if (offset)
         addr.Slide(offset);
-      if (log)
-        log->Printf("%s: Prologue offset for %s is %" PRIu32, __FUNCTION__,
-                    name.AsCString(), offset);
+      LLDB_LOGF(log, "%s: Prologue offset for %s is %" PRIu32, __FUNCTION__,
+                name.AsCString(), offset);
     }
     return true;
   } else
@@ -596,7 +576,7 @@ struct RenderScriptRuntime::Element {
       array_size;        // Number of items in array, only needed for structs
   ConstString type_name; // Name of type, only needed for structs
 
-  static const ConstString &
+  static ConstString 
   GetFallbackStructName(); // Print this as the type name of a struct Element
                            // If we can't resolve the actual struct name
 
@@ -696,7 +676,7 @@ struct RenderScriptRuntime::AllocationDetails {
   }
 };
 
-const ConstString &RenderScriptRuntime::Element::GetFallbackStructName() {
+ConstString RenderScriptRuntime::Element::GetFallbackStructName() {
   static const ConstString FallbackStructName("struct");
   return FallbackStructName;
 }
@@ -794,9 +774,7 @@ const uint32_t RenderScriptRuntime::AllocationDetails::RSTypeToFormat[][3] = {
     // RS_TYPE_MATRIX_2X2
     {eFormatVectorOfFloat32, eFormatVectorOfFloat32, sizeof(float) * 4}};
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 LanguageRuntime *
 RenderScriptRuntime::CreateInstance(Process *process,
                                     lldb::LanguageType language) {
@@ -813,7 +791,10 @@ RenderScriptRuntime::CreateInstance(Process *process,
 // symbol.
 Searcher::CallbackReturn
 RSBreakpointResolver::SearchCallback(SearchFilter &filter,
-                                     SymbolContext &context, Address *, bool) {
+                                     SymbolContext &context, Address *) {
+  BreakpointSP breakpoint_sp = GetBreakpoint();
+  assert(breakpoint_sp);
+
   ModuleSP module = context.module_sp;
 
   if (!module || !IsRenderScriptScriptModule(module))
@@ -834,7 +815,7 @@ RSBreakpointResolver::SearchCallback(SearchFilter &filter,
   if (kernel_sym) {
     Address bp_addr = kernel_sym->GetAddress();
     if (filter.AddressPasses(bp_addr))
-      m_breakpoint->AddLocation(bp_addr);
+      breakpoint_sp->AddLocation(bp_addr);
   }
 
   return Searcher::eCallbackReturnContinue;
@@ -843,7 +824,10 @@ RSBreakpointResolver::SearchCallback(SearchFilter &filter,
 Searcher::CallbackReturn
 RSReduceBreakpointResolver::SearchCallback(lldb_private::SearchFilter &filter,
                                            lldb_private::SymbolContext &context,
-                                           Address *, bool) {
+                                           Address *) {
+  BreakpointSP breakpoint_sp = GetBreakpoint();
+  assert(breakpoint_sp);
+
   // We need to have access to the list of reductions currently parsed, as
   // reduce names don't actually exist as symbols in a module. They are only
   // identifiable by parsing the .rs.info packet, or finding the expand symbol.
@@ -888,14 +872,13 @@ RSReduceBreakpointResolver::SearchCallback(lldb_private::SearchFilter &filter,
         if (filter.AddressPasses(address)) {
           bool new_bp;
           if (!SkipPrologue(module, address)) {
-            if (log)
-              log->Printf("%s: Error trying to skip prologue", __FUNCTION__);
+            LLDB_LOGF(log, "%s: Error trying to skip prologue", __FUNCTION__);
           }
-          m_breakpoint->AddLocation(address, &new_bp);
-          if (log)
-            log->Printf("%s: %s reduction breakpoint on %s in %s", __FUNCTION__,
-                        new_bp ? "new" : "existing", kernel_name.GetCString(),
-                        address.GetModule()->GetFileSpec().GetCString());
+          breakpoint_sp->AddLocation(address, &new_bp);
+          LLDB_LOGF(log, "%s: %s reduction breakpoint on %s in %s",
+                    __FUNCTION__, new_bp ? "new" : "existing",
+                    kernel_name.GetCString(),
+                    address.GetModule()->GetFileSpec().GetCString());
         }
       }
     }
@@ -904,10 +887,10 @@ RSReduceBreakpointResolver::SearchCallback(lldb_private::SearchFilter &filter,
 }
 
 Searcher::CallbackReturn RSScriptGroupBreakpointResolver::SearchCallback(
-    SearchFilter &filter, SymbolContext &context, Address *addr,
-    bool containing) {
+    SearchFilter &filter, SymbolContext &context, Address *addr) {
 
-  if (!m_breakpoint)
+  BreakpointSP breakpoint_sp = GetBreakpoint();
+  if (!breakpoint_sp)
     return eCallbackReturnContinue;
 
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
@@ -917,55 +900,51 @@ Searcher::CallbackReturn RSScriptGroupBreakpointResolver::SearchCallback(
     return Searcher::eCallbackReturnContinue;
 
   std::vector<std::string> names;
-  m_breakpoint->GetNames(names);
+  Breakpoint& breakpoint = *breakpoint_sp;
+  breakpoint.GetNames(names);
   if (names.empty())
     return eCallbackReturnContinue;
 
   for (auto &name : names) {
     const RSScriptGroupDescriptorSP sg = FindScriptGroup(ConstString(name));
     if (!sg) {
-      if (log)
-        log->Printf("%s: could not find script group for %s", __FUNCTION__,
-                    name.c_str());
+      LLDB_LOGF(log, "%s: could not find script group for %s", __FUNCTION__,
+                name.c_str());
       continue;
     }
 
-    if (log)
-      log->Printf("%s: Found ScriptGroup for %s", __FUNCTION__, name.c_str());
+    LLDB_LOGF(log, "%s: Found ScriptGroup for %s", __FUNCTION__, name.c_str());
 
     for (const RSScriptGroupDescriptor::Kernel &k : sg->m_kernels) {
       if (log) {
-        log->Printf("%s: Adding breakpoint for %s", __FUNCTION__,
-                    k.m_name.AsCString());
-        log->Printf("%s: Kernel address 0x%" PRIx64, __FUNCTION__, k.m_addr);
+        LLDB_LOGF(log, "%s: Adding breakpoint for %s", __FUNCTION__,
+                  k.m_name.AsCString());
+        LLDB_LOGF(log, "%s: Kernel address 0x%" PRIx64, __FUNCTION__, k.m_addr);
       }
 
       const lldb_private::Symbol *sym =
           module->FindFirstSymbolWithNameAndType(k.m_name, eSymbolTypeCode);
       if (!sym) {
-        if (log)
-          log->Printf("%s: Unable to find symbol for %s", __FUNCTION__,
-                      k.m_name.AsCString());
+        LLDB_LOGF(log, "%s: Unable to find symbol for %s", __FUNCTION__,
+                  k.m_name.AsCString());
         continue;
       }
 
       if (log) {
-        log->Printf("%s: Found symbol name is %s", __FUNCTION__,
-                    sym->GetName().AsCString());
+        LLDB_LOGF(log, "%s: Found symbol name is %s", __FUNCTION__,
+                  sym->GetName().AsCString());
       }
 
       auto address = sym->GetAddress();
       if (!SkipPrologue(module, address)) {
-        if (log)
-          log->Printf("%s: Error trying to skip prologue", __FUNCTION__);
+        LLDB_LOGF(log, "%s: Error trying to skip prologue", __FUNCTION__);
       }
 
       bool new_bp;
-      m_breakpoint->AddLocation(address, &new_bp);
+      breakpoint.AddLocation(address, &new_bp);
 
-      if (log)
-        log->Printf("%s: Placed %sbreakpoint on %s", __FUNCTION__,
-                    new_bp ? "new " : "", k.m_name.AsCString());
+      LLDB_LOGF(log, "%s: Placed %sbreakpoint on %s", __FUNCTION__,
+                new_bp ? "new " : "", k.m_name.AsCString());
 
       // exit after placing the first breakpoint if we do not intend to stop on
       // all kernels making up this script group
@@ -985,11 +964,6 @@ void RenderScriptRuntime::Initialize() {
 
 void RenderScriptRuntime::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
-}
-
-lldb_private::ConstString RenderScriptRuntime::GetPluginNameStatic() {
-  static ConstString plugin_name("renderscript");
-  return plugin_name;
 }
 
 RenderScriptRuntime::ModuleKind
@@ -1034,17 +1008,6 @@ void RenderScriptRuntime::ModulesDidLoad(const ModuleList &module_list) {
   }
 }
 
-//------------------------------------------------------------------
-// PluginInterface protocol
-//------------------------------------------------------------------
-lldb_private::ConstString RenderScriptRuntime::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t RenderScriptRuntime::GetPluginVersion() { return 1; }
-
-bool RenderScriptRuntime::IsVTableName(const char *name) { return false; }
-
 bool RenderScriptRuntime::GetDynamicTypeAndAddress(
     ValueObject &in_value, lldb::DynamicValueType use_dynamic,
     TypeAndOrName &class_type_or_name, Address &address,
@@ -1063,8 +1026,8 @@ bool RenderScriptRuntime::CouldHaveDynamicValue(ValueObject &in_value) {
 }
 
 lldb::BreakpointResolverSP
-RenderScriptRuntime::CreateExceptionResolver(Breakpoint *bp, bool catch_bp,
-                                             bool throw_bp) {
+RenderScriptRuntime::CreateExceptionResolver(const lldb::BreakpointSP &bp,
+                                             bool catch_bp, bool throw_bp) {
   BreakpointResolverSP resolver_sp;
   return resolver_sp;
 }
@@ -1131,9 +1094,9 @@ bool RenderScriptRuntime::HookCallback(void *baton,
   RuntimeHook *hook = (RuntimeHook *)baton;
   ExecutionContext exe_ctx(ctx->exe_ctx_ref);
 
-  RenderScriptRuntime *lang_rt =
-      (RenderScriptRuntime *)exe_ctx.GetProcessPtr()->GetLanguageRuntime(
-          eLanguageTypeExtRenderScript);
+  RenderScriptRuntime *lang_rt = llvm::cast<RenderScriptRuntime>(
+      exe_ctx.GetProcessPtr()->GetLanguageRuntime(
+          eLanguageTypeExtRenderScript));
 
   lang_rt->HookCallback(hook, exe_ctx);
 
@@ -1144,8 +1107,7 @@ void RenderScriptRuntime::HookCallback(RuntimeHook *hook,
                                        ExecutionContext &exe_ctx) {
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE));
 
-  if (log)
-    log->Printf("%s - '%s'", __FUNCTION__, hook->defn->name);
+  LLDB_LOGF(log, "%s - '%s'", __FUNCTION__, hook->defn->name);
 
   if (hook->defn->grabber) {
     (this->*(hook->defn->grabber))(hook, exe_ctx);
@@ -1171,19 +1133,18 @@ void RenderScriptRuntime::CaptureDebugHintScriptGroup2(
   }};
 
   if (!GetArgs(context, args.data(), args.size())) {
-    if (log)
-      log->Printf("%s - Error while reading the function parameters",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - Error while reading the function parameters",
+              __FUNCTION__);
     return;
   } else if (log) {
-    log->Printf("%s - groupName    : 0x%" PRIx64, __FUNCTION__,
-                addr_t(args[eGroupName]));
-    log->Printf("%s - groupNameSize: %" PRIu64, __FUNCTION__,
-                uint64_t(args[eGroupNameSize]));
-    log->Printf("%s - kernel       : 0x%" PRIx64, __FUNCTION__,
-                addr_t(args[eKernel]));
-    log->Printf("%s - kernelCount  : %" PRIu64, __FUNCTION__,
-                uint64_t(args[eKernelCount]));
+    LLDB_LOGF(log, "%s - groupName    : 0x%" PRIx64, __FUNCTION__,
+              addr_t(args[eGroupName]));
+    LLDB_LOGF(log, "%s - groupNameSize: %" PRIu64, __FUNCTION__,
+              uint64_t(args[eGroupNameSize]));
+    LLDB_LOGF(log, "%s - kernel       : 0x%" PRIx64, __FUNCTION__,
+              addr_t(args[eKernel]));
+    LLDB_LOGF(log, "%s - kernelCount  : %" PRIu64, __FUNCTION__,
+              uint64_t(args[eKernelCount]));
   }
 
   // parse script group name
@@ -1195,12 +1156,10 @@ void RenderScriptRuntime::CaptureDebugHintScriptGroup2(
     m_process->ReadMemory(addr_t(args[eGroupName]), buffer.get(), len, err);
     buffer.get()[len] = '\0';
     if (!err.Success()) {
-      if (log)
-        log->Printf("Error reading scriptgroup name from target");
+      LLDB_LOGF(log, "Error reading scriptgroup name from target");
       return;
     } else {
-      if (log)
-        log->Printf("Extracted scriptgroup name %s", buffer.get());
+      LLDB_LOGF(log, "Extracted scriptgroup name %s", buffer.get());
     }
     // write back the script group name
     group_name.SetCString(buffer.get());
@@ -1217,14 +1176,13 @@ void RenderScriptRuntime::CaptureDebugHintScriptGroup2(
       }
     }
     if (!group) {
-      group.reset(new RSScriptGroupDescriptor);
+      group = std::make_shared<RSScriptGroupDescriptor>();
       group->m_name = group_name;
       m_scriptGroups.push_back(group);
     } else {
       // already have this script group
-      if (log)
-        log->Printf("Attempt to add duplicate script group %s",
-                    group_name.AsCString());
+      LLDB_LOGF(log, "Attempt to add duplicate script group %s",
+                group_name.AsCString());
       return;
     }
   }
@@ -1242,21 +1200,18 @@ void RenderScriptRuntime::CaptureDebugHintScriptGroup2(
     size_t read =
         m_process->ReadMemory(ptr_addr, &kernel_addr, target_ptr_size, err);
     if (!err.Success() || read != target_ptr_size) {
-      if (log)
-        log->Printf("Error parsing kernel address %" PRIu64 " in script group",
-                    i);
+      LLDB_LOGF(log, "Error parsing kernel address %" PRIu64 " in script group",
+                i);
       return;
     }
-    if (log)
-      log->Printf("Extracted scriptgroup kernel address - 0x%" PRIx64,
-                  kernel_addr);
+    LLDB_LOGF(log, "Extracted scriptgroup kernel address - 0x%" PRIx64,
+              kernel_addr);
     kernel.m_addr = kernel_addr;
 
     // try to resolve the associated kernel name
     if (!ResolveKernelName(kernel.m_addr, kernel.m_name)) {
-      if (log)
-        log->Printf("Parsed scriptgroup kernel %" PRIu64 " - 0x%" PRIx64, i,
-                    kernel_addr);
+      LLDB_LOGF(log, "Parsed scriptgroup kernel %" PRIu64 " - 0x%" PRIx64, i,
+                kernel_addr);
       return;
     }
 
@@ -1269,9 +1224,8 @@ void RenderScriptRuntime::CaptureDebugHintScriptGroup2(
         // verify this function is a valid kernel
         if (IsKnownKernel(base_kernel)) {
           kernel.m_name = base_kernel;
-          if (log)
-            log->Printf("%s - found non expand version '%s'", __FUNCTION__,
-                        base_kernel.GetCString());
+          LLDB_LOGF(log, "%s - found non expand version '%s'", __FUNCTION__,
+                    base_kernel.GetCString());
         }
       }
     }
@@ -1284,15 +1238,13 @@ void RenderScriptRuntime::CaptureDebugHintScriptGroup2(
     Target &target = m_process->GetTarget();
     const BreakpointList &list = target.GetBreakpointList();
     const size_t num_breakpoints = list.GetSize();
-    if (log)
-      log->Printf("Resolving %zu breakpoints", num_breakpoints);
+    LLDB_LOGF(log, "Resolving %zu breakpoints", num_breakpoints);
     for (size_t i = 0; i < num_breakpoints; ++i) {
       const BreakpointSP bp = list.GetBreakpointAtIndex(i);
       if (bp) {
         if (bp->MatchesName(group_name.AsCString())) {
-          if (log)
-            log->Printf("Found breakpoint with name %s",
-                        group_name.AsCString());
+          LLDB_LOGF(log, "Found breakpoint with name %s",
+                    group_name.AsCString());
           bp->ResolveBreakpoint();
         }
       }
@@ -1330,9 +1282,8 @@ void RenderScriptRuntime::CaptureScriptInvokeForEachMulti(
 
   bool success = GetArgs(exe_ctx, &args[0], args.size());
   if (!success) {
-    if (log)
-      log->Printf("%s - Error while reading the function parameters",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - Error while reading the function parameters",
+              __FUNCTION__);
     return;
   }
 
@@ -1350,10 +1301,9 @@ void RenderScriptRuntime::CaptureScriptInvokeForEachMulti(
     uint64_t result = 0;
     size_t read = m_process->ReadMemory(addr, &result, target_ptr_size, err);
     if (read != target_ptr_size || !err.Success()) {
-      if (log)
-        log->Printf(
-            "%s - Error while reading allocation list argument %" PRIu64,
-            __FUNCTION__, i);
+      LLDB_LOGF(log,
+                "%s - Error while reading allocation list argument %" PRIu64,
+                __FUNCTION__, i);
     } else {
       allocs.push_back(result);
     }
@@ -1383,8 +1333,8 @@ void RenderScriptRuntime::CaptureScriptInvokeForEachMulti(
       if (log) {
         if (alloc->context.isValid() &&
             *alloc->context.get() != addr_t(args[eRsContext]))
-          log->Printf("%s - Allocation used by multiple contexts",
-                      __FUNCTION__);
+          LLDB_LOGF(log, "%s - Allocation used by multiple contexts",
+                    __FUNCTION__);
       }
       alloc->context = addr_t(args[eRsContext]);
     }
@@ -1396,7 +1346,7 @@ void RenderScriptRuntime::CaptureScriptInvokeForEachMulti(
     if (log) {
       if (script->context.isValid() &&
           *script->context.get() != addr_t(args[eRsContext]))
-        log->Printf("%s - Script used by multiple contexts", __FUNCTION__);
+        LLDB_LOGF(log, "%s - Script used by multiple contexts", __FUNCTION__);
     }
     script->context = addr_t(args[eRsContext]);
   }
@@ -1424,26 +1374,26 @@ void RenderScriptRuntime::CaptureSetGlobalVar(RuntimeHook *hook,
 
   bool success = GetArgs(context, &args[0], args.size());
   if (!success) {
-    if (log)
-      log->Printf("%s - error reading the function parameters.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - error reading the function parameters.", __FUNCTION__);
     return;
   }
 
   if (log) {
-    log->Printf("%s - 0x%" PRIx64 ",0x%" PRIx64 " slot %" PRIu64 " = 0x%" PRIx64
-                ":%" PRIu64 "bytes.",
-                __FUNCTION__, uint64_t(args[eRsContext]),
-                uint64_t(args[eRsScript]), uint64_t(args[eRsId]),
-                uint64_t(args[eRsData]), uint64_t(args[eRsLength]));
+    LLDB_LOGF(log,
+              "%s - 0x%" PRIx64 ",0x%" PRIx64 " slot %" PRIu64 " = 0x%" PRIx64
+              ":%" PRIu64 "bytes.",
+              __FUNCTION__, uint64_t(args[eRsContext]),
+              uint64_t(args[eRsScript]), uint64_t(args[eRsId]),
+              uint64_t(args[eRsData]), uint64_t(args[eRsLength]));
 
     addr_t script_addr = addr_t(args[eRsScript]);
     if (m_scriptMappings.find(script_addr) != m_scriptMappings.end()) {
       auto rsm = m_scriptMappings[script_addr];
       if (uint64_t(args[eRsId]) < rsm->m_globals.size()) {
         auto rsg = rsm->m_globals[uint64_t(args[eRsId])];
-        log->Printf("%s - Setting of '%s' within '%s' inferred", __FUNCTION__,
-                    rsg.m_name.AsCString(),
-                    rsm->m_module->GetFileSpec().GetFilename().AsCString());
+        LLDB_LOGF(log, "%s - Setting of '%s' within '%s' inferred",
+                  __FUNCTION__, rsg.m_name.AsCString(),
+                  rsm->m_module->GetFileSpec().GetFilename().AsCString());
       }
     }
   }
@@ -1463,16 +1413,14 @@ void RenderScriptRuntime::CaptureAllocationInit(RuntimeHook *hook,
 
   bool success = GetArgs(exe_ctx, &args[0], args.size());
   if (!success) {
-    if (log)
-      log->Printf("%s - error while reading the function parameters",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - error while reading the function parameters",
+              __FUNCTION__);
     return;
   }
 
-  if (log)
-    log->Printf("%s - 0x%" PRIx64 ",0x%" PRIx64 ",0x%" PRIx64 " .",
-                __FUNCTION__, uint64_t(args[eRsContext]),
-                uint64_t(args[eRsAlloc]), uint64_t(args[eRsForceZero]));
+  LLDB_LOGF(log, "%s - 0x%" PRIx64 ",0x%" PRIx64 ",0x%" PRIx64 " .",
+            __FUNCTION__, uint64_t(args[eRsContext]), uint64_t(args[eRsAlloc]),
+            uint64_t(args[eRsForceZero]));
 
   AllocationDetails *alloc = CreateAllocation(uint64_t(args[eRsAlloc]));
   if (alloc)
@@ -1495,29 +1443,25 @@ void RenderScriptRuntime::CaptureAllocationDestroy(RuntimeHook *hook,
 
   bool success = GetArgs(exe_ctx, &args[0], args.size());
   if (!success) {
-    if (log)
-      log->Printf("%s - error while reading the function parameters.",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - error while reading the function parameters.",
+              __FUNCTION__);
     return;
   }
 
-  if (log)
-    log->Printf("%s - 0x%" PRIx64 ", 0x%" PRIx64 ".", __FUNCTION__,
-                uint64_t(args[eRsContext]), uint64_t(args[eRsAlloc]));
+  LLDB_LOGF(log, "%s - 0x%" PRIx64 ", 0x%" PRIx64 ".", __FUNCTION__,
+            uint64_t(args[eRsContext]), uint64_t(args[eRsAlloc]));
 
   for (auto iter = m_allocations.begin(); iter != m_allocations.end(); ++iter) {
-    auto &allocation_ap = *iter; // get the unique pointer
-    if (allocation_ap->address.isValid() &&
-        *allocation_ap->address.get() == addr_t(args[eRsAlloc])) {
+    auto &allocation_up = *iter; // get the unique pointer
+    if (allocation_up->address.isValid() &&
+        *allocation_up->address.get() == addr_t(args[eRsAlloc])) {
       m_allocations.erase(iter);
-      if (log)
-        log->Printf("%s - deleted allocation entry.", __FUNCTION__);
+      LLDB_LOGF(log, "%s - deleted allocation entry.", __FUNCTION__);
       return;
     }
   }
 
-  if (log)
-    log->Printf("%s - couldn't find destroyed allocation.", __FUNCTION__);
+  LLDB_LOGF(log, "%s - couldn't find destroyed allocation.", __FUNCTION__);
 }
 
 void RenderScriptRuntime::CaptureScriptInit(RuntimeHook *hook,
@@ -1534,32 +1478,28 @@ void RenderScriptRuntime::CaptureScriptInit(RuntimeHook *hook,
        ArgItem{ArgItem::ePointer, 0}, ArgItem{ArgItem::ePointer, 0}}};
   bool success = GetArgs(exe_ctx, &args[0], args.size());
   if (!success) {
-    if (log)
-      log->Printf("%s - error while reading the function parameters.",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - error while reading the function parameters.",
+              __FUNCTION__);
     return;
   }
 
   std::string res_name;
   process->ReadCStringFromMemory(addr_t(args[eRsResNamePtr]), res_name, err);
   if (err.Fail()) {
-    if (log)
-      log->Printf("%s - error reading res_name: %s.", __FUNCTION__,
-                  err.AsCString());
+    LLDB_LOGF(log, "%s - error reading res_name: %s.", __FUNCTION__,
+              err.AsCString());
   }
 
   std::string cache_dir;
   process->ReadCStringFromMemory(addr_t(args[eRsCachedDirPtr]), cache_dir, err);
   if (err.Fail()) {
-    if (log)
-      log->Printf("%s - error reading cache_dir: %s.", __FUNCTION__,
-                  err.AsCString());
+    LLDB_LOGF(log, "%s - error reading cache_dir: %s.", __FUNCTION__,
+              err.AsCString());
   }
 
-  if (log)
-    log->Printf("%s - 0x%" PRIx64 ",0x%" PRIx64 " => '%s' at '%s' .",
-                __FUNCTION__, uint64_t(args[eRsContext]),
-                uint64_t(args[eRsScript]), res_name.c_str(), cache_dir.c_str());
+  LLDB_LOGF(log, "%s - 0x%" PRIx64 ",0x%" PRIx64 " => '%s' at '%s' .",
+            __FUNCTION__, uint64_t(args[eRsContext]), uint64_t(args[eRsScript]),
+            res_name.c_str(), cache_dir.c_str());
 
   if (res_name.size() > 0) {
     StreamString strm;
@@ -1570,17 +1510,18 @@ void RenderScriptRuntime::CaptureScriptInit(RuntimeHook *hook,
       script->type = ScriptDetails::eScriptC;
       script->cache_dir = cache_dir;
       script->res_name = res_name;
-      script->shared_lib = strm.GetString();
+      script->shared_lib = std::string(strm.GetString());
       script->context = addr_t(args[eRsContext]);
     }
 
-    if (log)
-      log->Printf("%s - '%s' tagged with context 0x%" PRIx64
-                  " and script 0x%" PRIx64 ".",
-                  __FUNCTION__, strm.GetData(), uint64_t(args[eRsContext]),
-                  uint64_t(args[eRsScript]));
+    LLDB_LOGF(log,
+              "%s - '%s' tagged with context 0x%" PRIx64
+              " and script 0x%" PRIx64 ".",
+              __FUNCTION__, strm.GetData(), uint64_t(args[eRsContext]),
+              uint64_t(args[eRsScript]));
   } else if (log) {
-    log->Printf("%s - resource name invalid, Script not tagged.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - resource name invalid, Script not tagged.",
+              __FUNCTION__);
   }
 }
 
@@ -1601,8 +1542,7 @@ void RenderScriptRuntime::LoadRuntimeHooks(lldb::ModuleSP module,
       machine != llvm::Triple::ArchType::mipsel &&
       machine != llvm::Triple::ArchType::mips64el &&
       machine != llvm::Triple::ArchType::x86_64) {
-    if (log)
-      log->Printf("%s - unable to hook runtime functions.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - unable to hook runtime functions.", __FUNCTION__);
     return;
   }
 
@@ -1626,23 +1566,22 @@ void RenderScriptRuntime::LoadRuntimeHooks(lldb::ModuleSP module,
         ConstString(symbol_name), eSymbolTypeCode);
     if (!sym) {
       if (log) {
-        log->Printf("%s - symbol '%s' related to the function %s not found",
-                    __FUNCTION__, symbol_name, hook_defn->name);
+        LLDB_LOGF(log, "%s - symbol '%s' related to the function %s not found",
+                  __FUNCTION__, symbol_name, hook_defn->name);
       }
       continue;
     }
 
     addr_t addr = sym->GetLoadAddress(&target);
     if (addr == LLDB_INVALID_ADDRESS) {
-      if (log)
-        log->Printf("%s - unable to resolve the address of hook function '%s' "
-                    "with symbol '%s'.",
-                    __FUNCTION__, hook_defn->name, symbol_name);
+      LLDB_LOGF(log,
+                "%s - unable to resolve the address of hook function '%s' "
+                "with symbol '%s'.",
+                __FUNCTION__, hook_defn->name, symbol_name);
       continue;
     } else {
-      if (log)
-        log->Printf("%s - function %s, address resolved at 0x%" PRIx64,
-                    __FUNCTION__, hook_defn->name, addr);
+      LLDB_LOGF(log, "%s - function %s, address resolved at 0x%" PRIx64,
+                __FUNCTION__, hook_defn->name, addr);
     }
 
     RuntimeHookSP hook(new RuntimeHook());
@@ -1652,11 +1591,12 @@ void RenderScriptRuntime::LoadRuntimeHooks(lldb::ModuleSP module,
     hook->bp_sp->SetCallback(HookCallback, hook.get(), true);
     m_runtimeHooks[addr] = hook;
     if (log) {
-      log->Printf("%s - successfully hooked '%s' in '%s' version %" PRIu64
-                  " at 0x%" PRIx64 ".",
-                  __FUNCTION__, hook_defn->name,
-                  module->GetFileSpec().GetFilename().AsCString(),
-                  (uint64_t)hook_defn->version, (uint64_t)addr);
+      LLDB_LOGF(log,
+                "%s - successfully hooked '%s' in '%s' version %" PRIu64
+                " at 0x%" PRIx64 ".",
+                __FUNCTION__, hook_defn->name,
+                module->GetFileSpec().GetFilename().AsCString(),
+                (uint64_t)hook_defn->version, (uint64_t)addr);
     }
     hook_placed[idx] = true;
   }
@@ -1669,8 +1609,8 @@ void RenderScriptRuntime::LoadRuntimeHooks(lldb::ModuleSP module,
       const HookDefn &hook_defn = s_runtimeHookDefns[i];
       if (hook_defn.kind != kind)
         continue;
-      log->Printf("%s - function %s was not hooked", __FUNCTION__,
-                  hook_defn.name);
+      LLDB_LOGF(log, "%s - function %s was not hooked", __FUNCTION__,
+                hook_defn.name);
     }
   }
 }
@@ -1705,11 +1645,11 @@ void RenderScriptRuntime::FixupScriptDetails(RSModuleDescriptorSP rsmodule_sp) {
     if (m_scriptMappings.find(script) != m_scriptMappings.end()) {
       // if the module we have stored is different to the one we just received.
       if (m_scriptMappings[script] != rsmodule_sp) {
-        if (log)
-          log->Printf(
-              "%s - script %" PRIx64 " wants reassigned to new rsmodule '%s'.",
-              __FUNCTION__, (uint64_t)script,
-              rsmodule_sp->m_module->GetFileSpec().GetFilename().AsCString());
+        LLDB_LOGF(
+            log,
+            "%s - script %" PRIx64 " wants reassigned to new rsmodule '%s'.",
+            __FUNCTION__, (uint64_t)script,
+            rsmodule_sp->m_module->GetFileSpec().GetFilename().AsCString());
       }
     }
     // We don't have a script mapping for the current script.
@@ -1721,11 +1661,9 @@ void RenderScriptRuntime::FixupScriptDetails(RSModuleDescriptorSP rsmodule_sp) {
         rsmodule_sp->m_resname = res_name;
       // Add Script/Module pair to map.
       m_scriptMappings[script] = rsmodule_sp;
-      if (log)
-        log->Printf(
-            "%s - script %" PRIx64 " associated with rsmodule '%s'.",
-            __FUNCTION__, (uint64_t)script,
-            rsmodule_sp->m_module->GetFileSpec().GetFilename().AsCString());
+      LLDB_LOGF(log, "%s - script %" PRIx64 " associated with rsmodule '%s'.",
+                __FUNCTION__, (uint64_t)script,
+                rsmodule_sp->m_module->GetFileSpec().GetFilename().AsCString());
     }
   }
 }
@@ -1738,8 +1676,7 @@ bool RenderScriptRuntime::EvalRSExpression(const char *expr,
                                            StackFrame *frame_ptr,
                                            uint64_t *result) {
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE));
-  if (log)
-    log->Printf("%s(%s)", __FUNCTION__, expr);
+  LLDB_LOGF(log, "%s(%s)", __FUNCTION__, expr);
 
   ValueObjectSP expr_result;
   EvaluateExpressionOptions options;
@@ -1749,8 +1686,7 @@ bool RenderScriptRuntime::EvalRSExpression(const char *expr,
   target.EvaluateExpression(expr, frame_ptr, expr_result, options);
 
   if (!expr_result) {
-    if (log)
-      log->Printf("%s: couldn't evaluate expression.", __FUNCTION__);
+    LLDB_LOGF(log, "%s: couldn't evaluate expression.", __FUNCTION__);
     return false;
   }
 
@@ -1759,16 +1695,14 @@ bool RenderScriptRuntime::EvalRSExpression(const char *expr,
     Status err = expr_result->GetError();
     // Expression returned is void, so this is actually a success
     if (err.GetError() == UserExpression::kNoResult) {
-      if (log)
-        log->Printf("%s - expression returned void.", __FUNCTION__);
+      LLDB_LOGF(log, "%s - expression returned void.", __FUNCTION__);
 
       result = nullptr;
       return true;
     }
 
-    if (log)
-      log->Printf("%s - error evaluating expression result: %s", __FUNCTION__,
-                  err.AsCString());
+    LLDB_LOGF(log, "%s - error evaluating expression result: %s", __FUNCTION__,
+              err.AsCString());
     return false;
   }
 
@@ -1777,9 +1711,8 @@ bool RenderScriptRuntime::EvalRSExpression(const char *expr,
   *result = expr_result->GetValueAsUnsigned(0, &success);
 
   if (!success) {
-    if (log)
-      log->Printf("%s - couldn't convert expression result to uint32_t",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - couldn't convert expression result to uint32_t",
+              __FUNCTION__);
     return false;
   }
 
@@ -1892,8 +1825,7 @@ bool RenderScriptRuntime::JITDataPointer(AllocationDetails *alloc,
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE));
 
   if (!alloc->address.isValid()) {
-    if (log)
-      log->Printf("%s - failed to find allocation details.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - failed to find allocation details.", __FUNCTION__);
     return false;
   }
 
@@ -1903,12 +1835,10 @@ bool RenderScriptRuntime::JITDataPointer(AllocationDetails *alloc,
   int written = snprintf(expr_buf, jit_max_expr_size, fmt_str,
                          *alloc->address.get(), x, y, z);
   if (written < 0) {
-    if (log)
-      log->Printf("%s - encoding error in snprintf().", __FUNCTION__);
+    LLDB_LOGF(log, "%s - encoding error in snprintf().", __FUNCTION__);
     return false;
   } else if (written >= jit_max_expr_size) {
-    if (log)
-      log->Printf("%s - expression too long.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - expression too long.", __FUNCTION__);
     return false;
   }
 
@@ -1930,8 +1860,7 @@ bool RenderScriptRuntime::JITTypePointer(AllocationDetails *alloc,
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE));
 
   if (!alloc->address.isValid() || !alloc->context.isValid()) {
-    if (log)
-      log->Printf("%s - failed to find allocation details.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - failed to find allocation details.", __FUNCTION__);
     return false;
   }
 
@@ -1941,12 +1870,10 @@ bool RenderScriptRuntime::JITTypePointer(AllocationDetails *alloc,
   int written = snprintf(expr_buf, jit_max_expr_size, fmt_str,
                          *alloc->context.get(), *alloc->address.get());
   if (written < 0) {
-    if (log)
-      log->Printf("%s - encoding error in snprintf().", __FUNCTION__);
+    LLDB_LOGF(log, "%s - encoding error in snprintf().", __FUNCTION__);
     return false;
   } else if (written >= jit_max_expr_size) {
-    if (log)
-      log->Printf("%s - expression too long.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - expression too long.", __FUNCTION__);
     return false;
   }
 
@@ -1968,8 +1895,7 @@ bool RenderScriptRuntime::JITTypePacked(AllocationDetails *alloc,
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE));
 
   if (!alloc->type_ptr.isValid() || !alloc->context.isValid()) {
-    if (log)
-      log->Printf("%s - Failed to find allocation details.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - Failed to find allocation details.", __FUNCTION__);
     return false;
   }
 
@@ -1980,8 +1906,8 @@ bool RenderScriptRuntime::JITTypePacked(AllocationDetails *alloc,
 
   // We want 4 elements from packed data
   const uint32_t num_exprs = 4;
-  assert(num_exprs == (eExprTypeElemPtr - eExprTypeDimX + 1) &&
-         "Invalid number of expressions");
+  static_assert(num_exprs == (eExprTypeElemPtr - eExprTypeDimX + 1),
+                "Invalid number of expressions");
 
   char expr_bufs[num_exprs][jit_max_expr_size];
   uint64_t results[num_exprs];
@@ -1991,12 +1917,10 @@ bool RenderScriptRuntime::JITTypePacked(AllocationDetails *alloc,
     int written = snprintf(expr_bufs[i], jit_max_expr_size, fmt_str,
                            *alloc->context.get(), bits, *alloc->type_ptr.get());
     if (written < 0) {
-      if (log)
-        log->Printf("%s - encoding error in snprintf().", __FUNCTION__);
+      LLDB_LOGF(log, "%s - encoding error in snprintf().", __FUNCTION__);
       return false;
     } else if (written >= jit_max_expr_size) {
-      if (log)
-        log->Printf("%s - expression too long.", __FUNCTION__);
+      LLDB_LOGF(log, "%s - expression too long.", __FUNCTION__);
       return false;
     }
 
@@ -2015,10 +1939,10 @@ bool RenderScriptRuntime::JITTypePacked(AllocationDetails *alloc,
   addr_t element_ptr = static_cast<lldb::addr_t>(results[3]);
   alloc->element.element_ptr = element_ptr;
 
-  if (log)
-    log->Printf("%s - dims (%" PRIu32 ", %" PRIu32 ", %" PRIu32
-                ") Element*: 0x%" PRIx64 ".",
-                __FUNCTION__, dims.dim_1, dims.dim_2, dims.dim_3, element_ptr);
+  LLDB_LOGF(log,
+            "%s - dims (%" PRIu32 ", %" PRIu32 ", %" PRIu32
+            ") Element*: 0x%" PRIx64 ".",
+            __FUNCTION__, dims.dim_1, dims.dim_2, dims.dim_3, element_ptr);
 
   return true;
 }
@@ -2032,15 +1956,14 @@ bool RenderScriptRuntime::JITElementPacked(Element &elem,
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE));
 
   if (!elem.element_ptr.isValid()) {
-    if (log)
-      log->Printf("%s - failed to find allocation details.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - failed to find allocation details.", __FUNCTION__);
     return false;
   }
 
   // We want 4 elements from packed data
   const uint32_t num_exprs = 4;
-  assert(num_exprs == (eExprElementFieldCount - eExprElementType + 1) &&
-         "Invalid number of expressions");
+  static_assert(num_exprs == (eExprElementFieldCount - eExprElementType + 1),
+                "Invalid number of expressions");
 
   char expr_bufs[num_exprs][jit_max_expr_size];
   uint64_t results[num_exprs];
@@ -2050,12 +1973,10 @@ bool RenderScriptRuntime::JITElementPacked(Element &elem,
     int written = snprintf(expr_bufs[i], jit_max_expr_size, fmt_str, context,
                            *elem.element_ptr.get());
     if (written < 0) {
-      if (log)
-        log->Printf("%s - encoding error in snprintf().", __FUNCTION__);
+      LLDB_LOGF(log, "%s - encoding error in snprintf().", __FUNCTION__);
       return false;
     } else if (written >= jit_max_expr_size) {
-      if (log)
-        log->Printf("%s - expression too long.", __FUNCTION__);
+      LLDB_LOGF(log, "%s - expression too long.", __FUNCTION__);
       return false;
     }
 
@@ -2071,18 +1992,16 @@ bool RenderScriptRuntime::JITElementPacked(Element &elem,
   elem.type_vec_size = static_cast<uint32_t>(results[2]);
   elem.field_count = static_cast<uint32_t>(results[3]);
 
-  if (log)
-    log->Printf("%s - data type %" PRIu32 ", pixel type %" PRIu32
-                ", vector size %" PRIu32 ", field count %" PRIu32,
-                __FUNCTION__, *elem.type.get(), *elem.type_kind.get(),
-                *elem.type_vec_size.get(), *elem.field_count.get());
+  LLDB_LOGF(log,
+            "%s - data type %" PRIu32 ", pixel type %" PRIu32
+            ", vector size %" PRIu32 ", field count %" PRIu32,
+            __FUNCTION__, *elem.type.get(), *elem.type_kind.get(),
+            *elem.type_vec_size.get(), *elem.field_count.get());
 
   // If this Element has subelements then JIT rsaElementGetSubElements() for
   // details about its fields
-  if (*elem.field_count.get() > 0 && !JITSubelements(elem, context, frame_ptr))
-    return false;
-
-  return true;
+  return !(*elem.field_count.get() > 0 &&
+           !JITSubelements(elem, context, frame_ptr));
 }
 
 // JITs the RS runtime for information about the subelements/fields of a struct
@@ -2094,14 +2013,13 @@ bool RenderScriptRuntime::JITSubelements(Element &elem,
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE));
 
   if (!elem.element_ptr.isValid() || !elem.field_count.isValid()) {
-    if (log)
-      log->Printf("%s - failed to find allocation details.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - failed to find allocation details.", __FUNCTION__);
     return false;
   }
 
   const short num_exprs = 3;
-  assert(num_exprs == (eExprSubelementsArrSize - eExprSubelementsId + 1) &&
-         "Invalid number of expressions");
+  static_assert(num_exprs == (eExprSubelementsArrSize - eExprSubelementsId + 1),
+                "Invalid number of expressions");
 
   char expr_buffer[jit_max_expr_size];
   uint64_t results;
@@ -2117,12 +2035,10 @@ bool RenderScriptRuntime::JITSubelements(Element &elem,
                              context, field_count, field_count, field_count,
                              *elem.element_ptr.get(), field_count, field_index);
       if (written < 0) {
-        if (log)
-          log->Printf("%s - encoding error in snprintf().", __FUNCTION__);
+        LLDB_LOGF(log, "%s - encoding error in snprintf().", __FUNCTION__);
         return false;
       } else if (written >= jit_max_expr_size) {
-        if (log)
-          log->Printf("%s - expression too long.", __FUNCTION__);
+        LLDB_LOGF(log, "%s - expression too long.", __FUNCTION__);
         return false;
       }
 
@@ -2130,8 +2046,7 @@ bool RenderScriptRuntime::JITSubelements(Element &elem,
       if (!EvalRSExpression(expr_buffer, frame_ptr, &results))
         return false;
 
-      if (log)
-        log->Printf("%s - expr result 0x%" PRIx64 ".", __FUNCTION__, results);
+      LLDB_LOGF(log, "%s - expr result 0x%" PRIx64 ".", __FUNCTION__, results);
 
       switch (expr_index) {
       case 0: // Element* of child
@@ -2146,9 +2061,8 @@ bool RenderScriptRuntime::JITSubelements(Element &elem,
         if (!err.Fail())
           child.type_name = ConstString(name);
         else {
-          if (log)
-            log->Printf("%s - warning: Couldn't read field name.",
-                        __FUNCTION__);
+          LLDB_LOGF(log, "%s - warning: Couldn't read field name.",
+                    __FUNCTION__);
         }
         break;
       }
@@ -2183,8 +2097,7 @@ bool RenderScriptRuntime::JITAllocationSize(AllocationDetails *alloc,
 
   if (!alloc->address.isValid() || !alloc->dimension.isValid() ||
       !alloc->data_ptr.isValid() || !alloc->element.datum_size.isValid()) {
-    if (log)
-      log->Printf("%s - failed to find allocation details.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - failed to find allocation details.", __FUNCTION__);
     return false;
   }
 
@@ -2206,9 +2119,8 @@ bool RenderScriptRuntime::JITAllocationSize(AllocationDetails *alloc,
 
     alloc->size = dim_x * dim_y * dim_z * *alloc->element.datum_size.get();
 
-    if (log)
-      log->Printf("%s - inferred size of struct allocation %" PRIu32 ".",
-                  __FUNCTION__, *alloc->size.get());
+    LLDB_LOGF(log, "%s - inferred size of struct allocation %" PRIu32 ".",
+              __FUNCTION__, *alloc->size.get());
     return true;
   }
 
@@ -2223,12 +2135,10 @@ bool RenderScriptRuntime::JITAllocationSize(AllocationDetails *alloc,
   int written = snprintf(expr_buf, jit_max_expr_size, fmt_str,
                          *alloc->address.get(), dim_x, dim_y, dim_z);
   if (written < 0) {
-    if (log)
-      log->Printf("%s - encoding error in snprintf().", __FUNCTION__);
+    LLDB_LOGF(log, "%s - encoding error in snprintf().", __FUNCTION__);
     return false;
   } else if (written >= jit_max_expr_size) {
-    if (log)
-      log->Printf("%s - expression too long.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - expression too long.", __FUNCTION__);
     return false;
   }
 
@@ -2252,8 +2162,7 @@ bool RenderScriptRuntime::JITAllocationStride(AllocationDetails *alloc,
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE));
 
   if (!alloc->address.isValid() || !alloc->data_ptr.isValid()) {
-    if (log)
-      log->Printf("%s - failed to find allocation details.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - failed to find allocation details.", __FUNCTION__);
     return false;
   }
 
@@ -2263,12 +2172,10 @@ bool RenderScriptRuntime::JITAllocationStride(AllocationDetails *alloc,
   int written = snprintf(expr_buf, jit_max_expr_size, fmt_str,
                          *alloc->address.get(), 0, 1, 0);
   if (written < 0) {
-    if (log)
-      log->Printf("%s - encoding error in snprintf().", __FUNCTION__);
+    LLDB_LOGF(log, "%s - encoding error in snprintf().", __FUNCTION__);
     return false;
   } else if (written >= jit_max_expr_size) {
-    if (log)
-      log->Printf("%s - expression too long.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - expression too long.", __FUNCTION__);
     return false;
   }
 
@@ -2305,13 +2212,10 @@ bool RenderScriptRuntime::RefreshAllocation(AllocationDetails *alloc,
   SetElementSize(alloc->element);
 
   // Use GetOffsetPointer() to infer size of the allocation
-  if (!JITAllocationSize(alloc, frame_ptr))
-    return false;
-
-  return true;
+  return JITAllocationSize(alloc, frame_ptr);
 }
 
-// Function attempts to set the type_name member of the paramaterised Element
+// Function attempts to set the type_name member of the parameterised Element
 // object. This string should be the name of the struct type the Element
 // represents. We need this string for pretty printing the Element to users.
 void RenderScriptRuntime::FindStructTypeName(Element &elem,
@@ -2333,8 +2237,7 @@ void RenderScriptRuntime::FindStructTypeName(Element &elem,
   // Iterate over all the global variables looking for one with a matching type
   // to the Element. We make the assumption a match exists since there needs to
   // be a global variable to reflect the struct type back into java host code.
-  for (uint32_t i = 0; i < var_list.GetSize(); ++i) {
-    const VariableSP var_sp(var_list.GetVariableAtIndex(i));
+  for (const VariableSP &var_sp : var_list) {
     if (!var_sp)
       continue;
 
@@ -2367,12 +2270,11 @@ void RenderScriptRuntime::FindStructTypeName(Element &elem,
     // '#rs_padding_[0-9]+'
     if (found && num_children < elem.children.size()) {
       const uint32_t size_diff = elem.children.size() - num_children;
-      if (log)
-        log->Printf("%s - %" PRIu32 " padding struct entries", __FUNCTION__,
-                    size_diff);
+      LLDB_LOGF(log, "%s - %" PRIu32 " padding struct entries", __FUNCTION__,
+                size_diff);
 
       for (uint32_t i = 0; i < size_diff; ++i) {
-        const ConstString &name = elem.children[num_children + i].type_name;
+        ConstString name = elem.children[num_children + i].type_name;
         if (strcmp(name.AsCString(), "#rs_padding") < 0)
           found = false;
       }
@@ -2390,9 +2292,8 @@ void RenderScriptRuntime::FindStructTypeName(Element &elem,
 
       // Save name of variable in Element.
       elem.type_name = valobj_sp->GetTypeName();
-      if (log)
-        log->Printf("%s - element name set to %s", __FUNCTION__,
-                    elem.type_name.AsCString());
+      LLDB_LOGF(log, "%s - element name set to %s", __FUNCTION__,
+                elem.type_name.AsCString());
 
       return;
     }
@@ -2437,9 +2338,8 @@ void RenderScriptRuntime::SetElementSize(Element &elem) {
 
   elem.padding = padding;
   elem.datum_size = data_size + padding;
-  if (log)
-    log->Printf("%s - element size set to %" PRIu32, __FUNCTION__,
-                data_size + padding);
+  LLDB_LOGF(log, "%s - element size set to %" PRIu32, __FUNCTION__,
+            data_size + padding);
 }
 
 // Given an allocation, this function copies the allocation contents from
@@ -2452,13 +2352,11 @@ RenderScriptRuntime::GetAllocationData(AllocationDetails *alloc,
 
   // JIT all the allocation details
   if (alloc->ShouldRefresh()) {
-    if (log)
-      log->Printf("%s - allocation details not calculated yet, jitting info",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - allocation details not calculated yet, jitting info",
+              __FUNCTION__);
 
     if (!RefreshAllocation(alloc, frame_ptr)) {
-      if (log)
-        log->Printf("%s - couldn't JIT allocation details", __FUNCTION__);
+      LLDB_LOGF(log, "%s - couldn't JIT allocation details", __FUNCTION__);
       return nullptr;
     }
   }
@@ -2471,9 +2369,8 @@ RenderScriptRuntime::GetAllocationData(AllocationDetails *alloc,
   const uint32_t size = *alloc->size.get();
   std::shared_ptr<uint8_t> buffer(new uint8_t[size]);
   if (!buffer) {
-    if (log)
-      log->Printf("%s - couldn't allocate a %" PRIu32 " byte buffer",
-                  __FUNCTION__, size);
+    LLDB_LOGF(log, "%s - couldn't allocate a %" PRIu32 " byte buffer",
+              __FUNCTION__, size);
     return nullptr;
   }
 
@@ -2482,10 +2379,10 @@ RenderScriptRuntime::GetAllocationData(AllocationDetails *alloc,
   lldb::addr_t data_ptr = *alloc->data_ptr.get();
   GetProcess()->ReadMemory(data_ptr, buffer.get(), size, err);
   if (err.Fail()) {
-    if (log)
-      log->Printf("%s - '%s' Couldn't read %" PRIu32
-                  " bytes of allocation data from 0x%" PRIx64,
-                  __FUNCTION__, err.AsCString(), size, data_ptr);
+    LLDB_LOGF(log,
+              "%s - '%s' Couldn't read %" PRIu32
+              " bytes of allocation data from 0x%" PRIx64,
+              __FUNCTION__, err.AsCString(), size, data_ptr);
     return nullptr;
   }
 
@@ -2506,19 +2403,16 @@ bool RenderScriptRuntime::LoadAllocation(Stream &strm, const uint32_t alloc_id,
   if (!alloc)
     return false;
 
-  if (log)
-    log->Printf("%s - found allocation 0x%" PRIx64, __FUNCTION__,
-                *alloc->address.get());
+  LLDB_LOGF(log, "%s - found allocation 0x%" PRIx64, __FUNCTION__,
+            *alloc->address.get());
 
   // JIT all the allocation details
   if (alloc->ShouldRefresh()) {
-    if (log)
-      log->Printf("%s - allocation details not calculated yet, jitting info.",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - allocation details not calculated yet, jitting info.",
+              __FUNCTION__);
 
     if (!RefreshAllocation(alloc, frame_ptr)) {
-      if (log)
-        log->Printf("%s - couldn't JIT allocation details", __FUNCTION__);
+      LLDB_LOGF(log, "%s - couldn't JIT allocation details", __FUNCTION__);
       return false;
     }
   }
@@ -2529,21 +2423,22 @@ bool RenderScriptRuntime::LoadAllocation(Stream &strm, const uint32_t alloc_id,
          "Allocation information not available");
 
   // Check we can read from file
-  FileSpec file(path, true);
-  if (!file.Exists()) {
+  FileSpec file(path);
+  FileSystem::Instance().Resolve(file);
+  if (!FileSystem::Instance().Exists(file)) {
     strm.Printf("Error: File %s does not exist", path);
     strm.EOL();
     return false;
   }
 
-  if (!file.Readable()) {
+  if (!FileSystem::Instance().Readable(file)) {
     strm.Printf("Error: File %s does not have readable permissions", path);
     strm.EOL();
     return false;
   }
 
   // Read file into data buffer
-  auto data_sp = DataBufferLLVM::CreateFromPath(file.GetPath());
+  auto data_sp = FileSystem::Instance().CreateDataBuffer(file.GetPath());
 
   // Cast start of buffer to FileHeader and use pointer to read metadata
   void *file_buf = data_sp->GetBytes();
@@ -2571,9 +2466,8 @@ bool RenderScriptRuntime::LoadAllocation(Stream &strm, const uint32_t alloc_id,
                            sizeof(AllocationDetails::FileHeader),
          sizeof(AllocationDetails::ElementHeader));
 
-  if (log)
-    log->Printf("%s - header type %" PRIu32 ", element size %" PRIu32,
-                __FUNCTION__, root_el_hdr.type, root_el_hdr.element_size);
+  LLDB_LOGF(log, "%s - header type %" PRIu32 ", element size %" PRIu32,
+            __FUNCTION__, root_el_hdr.type, root_el_hdr.element_size);
 
   // Check if the target allocation and file both have the same number of bytes
   // for an Element
@@ -2729,19 +2623,16 @@ bool RenderScriptRuntime::SaveAllocation(Stream &strm, const uint32_t alloc_id,
   if (!alloc)
     return false;
 
-  if (log)
-    log->Printf("%s - found allocation 0x%" PRIx64 ".", __FUNCTION__,
-                *alloc->address.get());
+  LLDB_LOGF(log, "%s - found allocation 0x%" PRIx64 ".", __FUNCTION__,
+            *alloc->address.get());
 
   // JIT all the allocation details
   if (alloc->ShouldRefresh()) {
-    if (log)
-      log->Printf("%s - allocation details not calculated yet, jitting info.",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - allocation details not calculated yet, jitting info.",
+              __FUNCTION__);
 
     if (!RefreshAllocation(alloc, frame_ptr)) {
-      if (log)
-        log->Printf("%s - couldn't JIT allocation details.", __FUNCTION__);
+      LLDB_LOGF(log, "%s - couldn't JIT allocation details.", __FUNCTION__);
       return false;
     }
   }
@@ -2753,11 +2644,16 @@ bool RenderScriptRuntime::SaveAllocation(Stream &strm, const uint32_t alloc_id,
          "Allocation information not available");
 
   // Check we can create writable file
-  FileSpec file_spec(path, true);
-  File file(file_spec, File::eOpenOptionWrite | File::eOpenOptionCanCreate |
-                           File::eOpenOptionTruncate);
+  FileSpec file_spec(path);
+  FileSystem::Instance().Resolve(file_spec);
+  auto file = FileSystem::Instance().Open(
+      file_spec, File::eOpenOptionWriteOnly | File::eOpenOptionCanCreate |
+                     File::eOpenOptionTruncate);
+
   if (!file) {
-    strm.Printf("Error: Failed to open '%s' for writing", path);
+    std::string error = llvm::toString(file.takeError());
+    strm.Printf("Error: Failed to open '%s' for writing: %s", path,
+                error.c_str());
     strm.EOL();
     return false;
   }
@@ -2786,11 +2682,10 @@ bool RenderScriptRuntime::SaveAllocation(Stream &strm, const uint32_t alloc_id,
 
   // Write the file header
   size_t num_bytes = sizeof(AllocationDetails::FileHeader);
-  if (log)
-    log->Printf("%s - writing File Header, 0x%" PRIx64 " bytes", __FUNCTION__,
-                (uint64_t)num_bytes);
+  LLDB_LOGF(log, "%s - writing File Header, 0x%" PRIx64 " bytes", __FUNCTION__,
+            (uint64_t)num_bytes);
 
-  Status err = file.Write(&head, num_bytes);
+  Status err = file.get()->Write(&head, num_bytes);
   if (!err.Success()) {
     strm.Printf("Error: '%s' when writing to file '%s'", err.AsCString(), path);
     strm.EOL();
@@ -2812,11 +2707,10 @@ bool RenderScriptRuntime::SaveAllocation(Stream &strm, const uint32_t alloc_id,
 
   // Write headers for allocation element type to file
   num_bytes = element_header_size;
-  if (log)
-    log->Printf("%s - writing element headers, 0x%" PRIx64 " bytes.",
-                __FUNCTION__, (uint64_t)num_bytes);
+  LLDB_LOGF(log, "%s - writing element headers, 0x%" PRIx64 " bytes.",
+            __FUNCTION__, (uint64_t)num_bytes);
 
-  err = file.Write(element_header_buffer.get(), num_bytes);
+  err = file.get()->Write(element_header_buffer.get(), num_bytes);
   if (!err.Success()) {
     strm.Printf("Error: '%s' when writing to file '%s'", err.AsCString(), path);
     strm.EOL();
@@ -2825,11 +2719,10 @@ bool RenderScriptRuntime::SaveAllocation(Stream &strm, const uint32_t alloc_id,
 
   // Write allocation data to file
   num_bytes = static_cast<size_t>(*alloc->size.get());
-  if (log)
-    log->Printf("%s - writing 0x%" PRIx64 " bytes", __FUNCTION__,
-                (uint64_t)num_bytes);
+  LLDB_LOGF(log, "%s - writing 0x%" PRIx64 " bytes", __FUNCTION__,
+            (uint64_t)num_bytes);
 
-  err = file.Write(buffer.get(), num_bytes);
+  err = file.get()->Write(buffer.get(), num_bytes);
   if (!err.Success()) {
     strm.Printf("Error: '%s' when writing to file '%s'", err.AsCString(), path);
     strm.EOL();
@@ -2859,7 +2752,7 @@ bool RenderScriptRuntime::LoadModule(const lldb::ModuleSP &module_sp) {
     switch (GetModuleKind(module_sp)) {
     case eModuleKindKernelObj: {
       RSModuleDescriptorSP module_desc;
-      module_desc.reset(new RSModuleDescriptor(module_sp));
+      module_desc = std::make_shared<RSModuleDescriptor>(module_sp);
       if (module_desc->ParseRSInfo()) {
         m_rsmodules.push_back(module_desc);
         module_desc->WarnIfVersionMismatch(GetProcess()
@@ -2901,17 +2794,17 @@ bool RenderScriptRuntime::LoadModule(const lldb::ModuleSP &module_sp) {
           addr_t addr = debug_present->GetLoadAddress(&target);
           GetProcess()->WriteMemory(addr, &flag, sizeof(flag), err);
           if (err.Success()) {
-            if (log)
-              log->Printf("%s - debugger present flag set on debugee.",
-                          __FUNCTION__);
+            LLDB_LOGF(log, "%s - debugger present flag set on debugee.",
+                      __FUNCTION__);
 
             m_debuggerPresentFlagged = true;
           } else if (log) {
-            log->Printf("%s - error writing debugger present flags '%s' ",
-                        __FUNCTION__, err.AsCString());
+            LLDB_LOGF(log, "%s - error writing debugger present flags '%s' ",
+                      __FUNCTION__, err.AsCString());
           }
         } else if (log) {
-          log->Printf(
+          LLDB_LOGF(
+              log,
               "%s - error writing debugger present flags - symbol not found",
               __FUNCTION__);
         }
@@ -3011,8 +2904,7 @@ bool RSModuleDescriptor::ParseExportReduceCount(llvm::StringRef *lines,
       return false;
     }
 
-    if (log)
-      log->Printf("Found RenderScript reduction '%s'", spec[2].str().c_str());
+    LLDB_LOGF(log, "Found RenderScript reduction '%s'", spec[2].str().c_str());
 
     m_reductions.push_back(RSReductionDescriptor(this, sig, accum_data_size,
                                                  spec[2], spec[3], spec[4],
@@ -3079,7 +2971,8 @@ bool RSModuleDescriptor::ParseRSInfo() {
   const addr_t size = info_sym->GetByteSize();
   const FileSpec fs = m_module->GetFileSpec();
 
-  auto buffer = DataBufferLLVM::CreateSliceFromPath(fs.GetPath(), size, addr);
+  auto buffer =
+      FileSystem::Instance().CreateDataBuffer(fs.GetPath(), size, addr);
   if (!buffer)
     return false;
 
@@ -3088,10 +2981,8 @@ bool RSModuleDescriptor::ParseRSInfo() {
   {
     const llvm::StringRef raw_rs_info((const char *)buffer->GetBytes());
     raw_rs_info.split(info_lines, '\n');
-    if (log)
-      log->Printf("'.rs.info symbol for '%s':\n%s",
-                  m_module->GetFileSpec().GetCString(),
-                  raw_rs_info.str().c_str());
+    LLDB_LOGF(log, "'.rs.info symbol for '%s':\n%s",
+              m_module->GetFileSpec().GetCString(), raw_rs_info.str().c_str());
   }
 
   enum {
@@ -3159,9 +3050,8 @@ bool RSModuleDescriptor::ParseRSInfo() {
       success = ParseVersionInfo(line, n_lines);
       break;
     default: {
-      if (log)
-        log->Printf("%s - skipping .rs.info field '%s'", __FUNCTION__,
-                    line->str().c_str());
+      LLDB_LOGF(log, "%s - skipping .rs.info field '%s'", __FUNCTION__,
+                line->str().c_str());
       continue;
     }
     }
@@ -3236,7 +3126,7 @@ void RenderScriptRuntime::DumpKernels(Stream &strm) const {
     strm.Printf("Resource '%s':", module->m_resname.c_str());
     strm.EOL();
     for (const auto &kernel : module->m_kernels) {
-      strm.Indent(kernel.m_name.AsCString());
+      strm.Indent(kernel.m_name.GetStringRef());
       strm.EOL();
     }
   }
@@ -3282,15 +3172,13 @@ bool RenderScriptRuntime::DumpAllocation(Stream &strm, StackFrame *frame_ptr,
   if (!alloc)
     return false; // FindAllocByID() will print error message for us here
 
-  if (log)
-    log->Printf("%s - found allocation 0x%" PRIx64, __FUNCTION__,
-                *alloc->address.get());
+  LLDB_LOGF(log, "%s - found allocation 0x%" PRIx64, __FUNCTION__,
+            *alloc->address.get());
 
   // Check we have information about the allocation, if not calculate it
   if (alloc->ShouldRefresh()) {
-    if (log)
-      log->Printf("%s - allocation details not calculated yet, jitting info.",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - allocation details not calculated yet, jitting info.",
+              __FUNCTION__);
 
     // JIT all the allocation information
     if (!RefreshAllocation(alloc, frame_ptr)) {
@@ -3319,9 +3207,8 @@ bool RenderScriptRuntime::DumpAllocation(Stream &strm, StackFrame *frame_ptr,
 
   const uint32_t data_size = *alloc->element.datum_size.get();
 
-  if (log)
-    log->Printf("%s - element size %" PRIu32 " bytes, including padding",
-                __FUNCTION__, data_size);
+  LLDB_LOGF(log, "%s - element size %" PRIu32 " bytes, including padding",
+            __FUNCTION__, data_size);
 
   // Allocate a buffer to copy data into
   std::shared_ptr<uint8_t> buffer = GetAllocationData(alloc, frame_ptr);
@@ -3346,10 +3233,10 @@ bool RenderScriptRuntime::DumpAllocation(Stream &strm, StackFrame *frame_ptr,
   const uint32_t size = *alloc->size.get(); // Size of whole allocation
   const uint32_t padding =
       alloc->element.padding.isValid() ? *alloc->element.padding.get() : 0;
-  if (log)
-    log->Printf("%s - stride %" PRIu32 " bytes, size %" PRIu32
-                " bytes, padding %" PRIu32,
-                __FUNCTION__, stride, size, padding);
+  LLDB_LOGF(log,
+            "%s - stride %" PRIu32 " bytes, size %" PRIu32
+            " bytes, padding %" PRIu32,
+            __FUNCTION__, stride, size, padding);
 
   // Find dimensions used to index loops, so need to be non-zero
   uint32_t dim_x = alloc->dimension.get()->dim_1;
@@ -3401,8 +3288,7 @@ bool RenderScriptRuntime::DumpAllocation(Stream &strm, StackFrame *frame_ptr,
                        *alloc->data_ptr.get() + offset);
 
           if (written < 0 || written >= jit_max_expr_size) {
-            if (log)
-              log->Printf("%s - error in snprintf().", __FUNCTION__);
+            LLDB_LOGF(log, "%s - error in snprintf().", __FUNCTION__);
             continue;
           }
 
@@ -3579,30 +3465,29 @@ void RenderScriptRuntime::SetBreakAllKernels(bool do_break, TargetSP target) {
     for (const auto &module : m_rsmodules)
       BreakOnModuleKernels(module);
 
-    if (log)
-      log->Printf("%s(True) - breakpoints set on all currently loaded kernels.",
-                  __FUNCTION__);
+    LLDB_LOGF(log,
+              "%s(True) - breakpoints set on all currently loaded kernels.",
+              __FUNCTION__);
   } else if (!do_break &&
              m_breakAllKernels) // Breakpoints won't be set on any new kernels.
   {
     m_breakAllKernels = false;
 
-    if (log)
-      log->Printf("%s(False) - breakpoints no longer automatically set.",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s(False) - breakpoints no longer automatically set.",
+              __FUNCTION__);
   }
 }
 
 // Given the name of a kernel this function creates a breakpoint using our own
 // breakpoint resolver, and returns the Breakpoint shared pointer.
 BreakpointSP
-RenderScriptRuntime::CreateKernelBreakpoint(const ConstString &name) {
+RenderScriptRuntime::CreateKernelBreakpoint(ConstString name) {
   Log *log(
       GetLogIfAnyCategoriesSet(LIBLLDB_LOG_LANGUAGE | LIBLLDB_LOG_BREAKPOINTS));
 
   if (!m_filtersp) {
-    if (log)
-      log->Printf("%s - error, no breakpoint search filter set.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - error, no breakpoint search filter set.",
+              __FUNCTION__);
     return nullptr;
   }
 
@@ -3616,22 +3501,21 @@ RenderScriptRuntime::CreateKernelBreakpoint(const ConstString &name) {
   Status err;
   target.AddNameToBreakpoint(bp, "RenderScriptKernel", err);
   if (err.Fail() && log)
-    if (log)
-      log->Printf("%s - error setting break name, '%s'.", __FUNCTION__,
-                  err.AsCString());
+    LLDB_LOGF(log, "%s - error setting break name, '%s'.", __FUNCTION__,
+              err.AsCString());
 
   return bp;
 }
 
 BreakpointSP
-RenderScriptRuntime::CreateReductionBreakpoint(const ConstString &name,
+RenderScriptRuntime::CreateReductionBreakpoint(ConstString name,
                                                int kernel_types) {
   Log *log(
       GetLogIfAnyCategoriesSet(LIBLLDB_LOG_LANGUAGE | LIBLLDB_LOG_BREAKPOINTS));
 
   if (!m_filtersp) {
-    if (log)
-      log->Printf("%s - error, no breakpoint search filter set.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - error, no breakpoint search filter set.",
+              __FUNCTION__);
     return nullptr;
   }
 
@@ -3646,8 +3530,8 @@ RenderScriptRuntime::CreateReductionBreakpoint(const ConstString &name,
   Status err;
   target.AddNameToBreakpoint(bp, "RenderScriptReduction", err);
   if (err.Fail() && log)
-      log->Printf("%s - error setting break name, '%s'.", __FUNCTION__,
-                  err.AsCString());
+    LLDB_LOGF(log, "%s - error setting break name, '%s'.", __FUNCTION__,
+              err.AsCString());
 
   return bp;
 }
@@ -3669,9 +3553,8 @@ bool RenderScriptRuntime::GetFrameVarAsUnsigned(const StackFrameSP frame_sp,
           StackFrame::eExpressionPathOptionsAllowDirectIVarAccess,
       var_sp, err));
   if (!err.Success()) {
-    if (log)
-      log->Printf("%s - error, couldn't find '%s' in frame", __FUNCTION__,
-                  var_name);
+    LLDB_LOGF(log, "%s - error, couldn't find '%s' in frame", __FUNCTION__,
+              var_name);
     return false;
   }
 
@@ -3679,9 +3562,8 @@ bool RenderScriptRuntime::GetFrameVarAsUnsigned(const StackFrameSP frame_sp,
   bool success = false;
   val = value_sp->GetValueAsUnsigned(0, &success);
   if (!success) {
-    if (log)
-      log->Printf("%s - error, couldn't parse '%s' as an uint32_t.",
-                  __FUNCTION__, var_name);
+    LLDB_LOGF(log, "%s - error, couldn't parse '%s' as an uint32_t.",
+              __FUNCTION__, var_name);
     return false;
   }
 
@@ -3701,8 +3583,7 @@ bool RenderScriptRuntime::GetKernelCoordinate(RSCoordinate &coord,
   Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_LANGUAGE));
 
   if (!thread_ptr) {
-    if (log)
-      log->Printf("%s - Error, No thread pointer", __FUNCTION__);
+    LLDB_LOGF(log, "%s - Error, No thread pointer", __FUNCTION__);
 
     return false;
   }
@@ -3718,22 +3599,21 @@ bool RenderScriptRuntime::GetKernelCoordinate(RSCoordinate &coord,
       continue;
 
     // Find the function name
-    const SymbolContext sym_ctx = frame_sp->GetSymbolContext(false);
+    const SymbolContext sym_ctx =
+        frame_sp->GetSymbolContext(eSymbolContextFunction);
     const ConstString func_name = sym_ctx.GetFunctionName();
     if (!func_name)
       continue;
 
-    if (log)
-      log->Printf("%s - Inspecting function '%s'", __FUNCTION__,
-                  func_name.GetCString());
+    LLDB_LOGF(log, "%s - Inspecting function '%s'", __FUNCTION__,
+              func_name.GetCString());
 
     // Check if function name has .expand suffix
     if (!func_name.GetStringRef().endswith(".expand"))
       continue;
 
-    if (log)
-      log->Printf("%s - Found .expand function '%s'", __FUNCTION__,
-                  func_name.GetCString());
+    LLDB_LOGF(log, "%s - Found .expand function '%s'", __FUNCTION__,
+              func_name.GetCString());
 
     // Get values for variables in .expand frame that tell us the current
     // kernel invocation
@@ -3775,9 +3655,8 @@ bool RenderScriptRuntime::KernelBreakpointHit(void *baton,
   // Coordinate we want to stop on
   RSCoordinate target_coord = *static_cast<RSCoordinate *>(baton);
 
-  if (log)
-    log->Printf("%s - Break ID %" PRIu64 ", " FMT_COORD, __FUNCTION__, break_id,
-                target_coord.x, target_coord.y, target_coord.z);
+  LLDB_LOGF(log, "%s - Break ID %" PRIu64 ", " FMT_COORD, __FUNCTION__,
+            break_id, target_coord.x, target_coord.y, target_coord.z);
 
   // Select current thread
   ExecutionContext context(ctx->exe_ctx_ref);
@@ -3787,22 +3666,19 @@ bool RenderScriptRuntime::KernelBreakpointHit(void *baton,
   // Find current kernel invocation from .expand frame variables
   RSCoordinate current_coord{};
   if (!GetKernelCoordinate(current_coord, thread_ptr)) {
-    if (log)
-      log->Printf("%s - Error, couldn't select .expand stack frame",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "%s - Error, couldn't select .expand stack frame",
+              __FUNCTION__);
     return false;
   }
 
-  if (log)
-    log->Printf("%s - " FMT_COORD, __FUNCTION__, current_coord.x,
-                current_coord.y, current_coord.z);
+  LLDB_LOGF(log, "%s - " FMT_COORD, __FUNCTION__, current_coord.x,
+            current_coord.y, current_coord.z);
 
   // Check if the current kernel invocation coordinate matches our target
   // coordinate
   if (target_coord == current_coord) {
-    if (log)
-      log->Printf("%s, BREAKING " FMT_COORD, __FUNCTION__, current_coord.x,
-                  current_coord.y, current_coord.z);
+    LLDB_LOGF(log, "%s, BREAKING " FMT_COORD, __FUNCTION__, current_coord.x,
+              current_coord.y, current_coord.z);
 
     BreakpointSP breakpoint_sp =
         context.GetTargetPtr()->GetBreakpointByID(break_id);
@@ -3864,14 +3740,14 @@ bool RenderScriptRuntime::PlaceBreakpointOnKernel(TargetSP target,
 }
 
 BreakpointSP
-RenderScriptRuntime::CreateScriptGroupBreakpoint(const ConstString &name,
+RenderScriptRuntime::CreateScriptGroupBreakpoint(ConstString name,
                                                  bool stop_on_all) {
   Log *log(
       GetLogIfAnyCategoriesSet(LIBLLDB_LOG_LANGUAGE | LIBLLDB_LOG_BREAKPOINTS));
 
   if (!m_filtersp) {
-    if (log)
-      log->Printf("%s - error, no breakpoint search filter set.", __FUNCTION__);
+    LLDB_LOGF(log, "%s - error, no breakpoint search filter set.",
+              __FUNCTION__);
     return nullptr;
   }
 
@@ -3885,8 +3761,8 @@ RenderScriptRuntime::CreateScriptGroupBreakpoint(const ConstString &name,
   Status err;
   target.AddNameToBreakpoint(bp, name.GetCString(), err);
   if (err.Fail() && log)
-    log->Printf("%s - error setting break name, '%s'.", __FUNCTION__,
-                err.AsCString());
+    LLDB_LOGF(log, "%s - error setting break name, '%s'.", __FUNCTION__,
+              err.AsCString());
   // ask the breakpoint to resolve itself
   bp->ResolveBreakpoint();
   return bp;
@@ -3894,7 +3770,7 @@ RenderScriptRuntime::CreateScriptGroupBreakpoint(const ConstString &name,
 
 bool RenderScriptRuntime::PlaceBreakpointOnScriptGroup(TargetSP target,
                                                        Stream &strm,
-                                                       const ConstString &name,
+                                                       ConstString name,
                                                        bool multi) {
   InitSearchFilter(target);
   BreakpointSP bp = CreateScriptGroupBreakpoint(name, multi);
@@ -3969,9 +3845,8 @@ RenderScriptRuntime::CreateAllocation(addr_t address) {
   auto it = m_allocations.begin();
   while (it != m_allocations.end()) {
     if (*((*it)->address) == address) {
-      if (log)
-        log->Printf("%s - Removing allocation id: %d, address: 0x%" PRIx64,
-                    __FUNCTION__, (*it)->id, address);
+      LLDB_LOGF(log, "%s - Removing allocation id: %d, address: 0x%" PRIx64,
+                __FUNCTION__, (*it)->id, address);
 
       it = m_allocations.erase(it);
     } else {
@@ -3993,9 +3868,8 @@ bool RenderScriptRuntime::ResolveKernelName(lldb::addr_t kernel_addr,
   Address resolved;
   // RenderScript module
   if (!target.GetSectionLoadList().ResolveLoadAddress(kernel_addr, resolved)) {
-    if (log)
-      log->Printf("%s: unable to resolve 0x%" PRIx64 " to a loaded symbol",
-                  __FUNCTION__, kernel_addr);
+    LLDB_LOGF(log, "%s: unable to resolve 0x%" PRIx64 " to a loaded symbol",
+              __FUNCTION__, kernel_addr);
     return false;
   }
 
@@ -4005,9 +3879,8 @@ bool RenderScriptRuntime::ResolveKernelName(lldb::addr_t kernel_addr,
 
   name = sym->GetName();
   assert(IsRenderScriptModule(resolved.CalculateSymbolContextModule()));
-  if (log)
-    log->Printf("%s: 0x%" PRIx64 " resolved to the symbol '%s'", __FUNCTION__,
-                kernel_addr, name.GetCString());
+  LLDB_LOGF(log, "%s: 0x%" PRIx64 " resolved to the symbol '%s'", __FUNCTION__,
+            kernel_addr, name.GetCString());
   return true;
 }
 
@@ -4015,7 +3888,7 @@ void RSModuleDescriptor::Dump(Stream &strm) const {
   int indent = strm.GetIndentLevel();
 
   strm.Indent();
-  m_module->GetFileSpec().Dump(&strm);
+  m_module->GetFileSpec().Dump(strm.AsRawOstream());
   strm.Indent(m_module->GetNumCompileUnits() ? "Debug info loaded."
                                              : "Debug info does not exist.");
   strm.EOL();
@@ -4063,9 +3936,10 @@ void RSModuleDescriptor::Dump(Stream &strm) const {
 }
 
 void RSGlobalDescriptor::Dump(Stream &strm) const {
-  strm.Indent(m_name.AsCString());
+  strm.Indent(m_name.GetStringRef());
   VariableList var_list;
-  m_module->m_module->FindGlobalVariables(m_name, nullptr, 1U, var_list);
+  m_module->m_module->FindGlobalVariables(m_name, CompilerDeclContext(), 1U,
+                                          var_list);
   if (var_list.GetSize() == 1) {
     auto var = var_list.GetVariableAtIndex(0);
     auto type = var->GetType();
@@ -4088,12 +3962,12 @@ void RSGlobalDescriptor::Dump(Stream &strm) const {
 }
 
 void RSKernelDescriptor::Dump(Stream &strm) const {
-  strm.Indent(m_name.AsCString());
+  strm.Indent(m_name.GetStringRef());
   strm.EOL();
 }
 
 void RSReductionDescriptor::Dump(lldb_private::Stream &stream) const {
-  stream.Indent(m_reduce_name.AsCString());
+  stream.Indent(m_reduce_name.GetStringRef());
   stream.IndentMore();
   stream.EOL();
   stream.Indent();
@@ -4127,9 +4001,9 @@ public:
   ~CommandObjectRenderScriptRuntimeModuleDump() override = default;
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    RenderScriptRuntime *runtime =
-        (RenderScriptRuntime *)m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
-            eLanguageTypeExtRenderScript);
+    RenderScriptRuntime *runtime = llvm::cast<RenderScriptRuntime>(
+        m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
+            eLanguageTypeExtRenderScript));
     runtime->DumpModules(result.GetOutputStream());
     result.SetStatus(eReturnStatusSuccessFinishResult);
     return true;
@@ -4162,22 +4036,22 @@ public:
   ~CommandObjectRenderScriptRuntimeKernelList() override = default;
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    RenderScriptRuntime *runtime =
-        (RenderScriptRuntime *)m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
-            eLanguageTypeExtRenderScript);
+    RenderScriptRuntime *runtime = llvm::cast<RenderScriptRuntime>(
+        m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
+            eLanguageTypeExtRenderScript));
     runtime->DumpKernels(result.GetOutputStream());
     result.SetStatus(eReturnStatusSuccessFinishResult);
     return true;
   }
 };
 
-static OptionDefinition g_renderscript_reduction_bp_set_options[] = {
+static constexpr OptionDefinition g_renderscript_reduction_bp_set_options[] = {
     {LLDB_OPT_SET_1, false, "function-role", 't',
-     OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeOneLiner,
+     OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeOneLiner,
      "Break on a comma separated set of reduction kernel types "
      "(accumulator,outcoverter,combiner,initializer"},
     {LLDB_OPT_SET_1, false, "coordinate", 'c', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeValue,
+     nullptr, {}, 0, eArgTypeValue,
      "Set a breakpoint on a single invocation of the kernel with specified "
      "coordinate.\n"
      "Coordinate takes the form 'x[,y][,z] where x,y,z are positive "
@@ -4200,9 +4074,7 @@ public:
 
   class CommandOptions : public Options {
   public:
-    CommandOptions()
-        : Options(),
-          m_kernel_types(RSReduceBreakpointResolver::eKernelTypeAll) {}
+    CommandOptions() : Options() {}
 
     ~CommandOptions() override = default;
 
@@ -4261,13 +4133,12 @@ public:
       // Matching a comma separated list of known words is fairly
       // straightforward with PCRE, but we're using ERE, so we end up with a
       // little ugliness...
-      RegularExpression::Match match(/* max_matches */ 5);
       RegularExpression match_type_list(
           llvm::StringRef("^([[:alpha:]]+)(,[[:alpha:]]+){0,4}$"));
 
       assert(match_type_list.IsValid());
 
-      if (!match_type_list.Execute(option_val, &match)) {
+      if (!match_type_list.Execute(option_val)) {
         err_str.PutCString(
             "a comma-separated list of kernel types is required");
         return false;
@@ -4289,7 +4160,7 @@ public:
       return true;
     }
 
-    int m_kernel_types;
+    int m_kernel_types = RSReduceBreakpointResolver::eKernelTypeAll;
     llvm::StringRef m_reduce_name;
     RSCoordinate m_coord;
     bool m_have_coord;
@@ -4303,7 +4174,6 @@ public:
       result.AppendErrorWithFormat("'%s' takes 1 argument of reduction name, "
                                    "and an optional kernel type list",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -4317,7 +4187,6 @@ public:
     auto coord = m_options.m_have_coord ? &m_options.m_coord : nullptr;
     if (!runtime->PlaceBreakpointOnReduction(target, outstream, name, coord,
                                              m_options.m_kernel_types)) {
-      result.SetStatus(eReturnStatusFailed);
       result.AppendError("Error: unable to place breakpoint on reduction");
       return false;
     }
@@ -4330,9 +4199,9 @@ private:
   CommandOptions m_options;
 };
 
-static OptionDefinition g_renderscript_kernel_bp_set_options[] = {
+static constexpr OptionDefinition g_renderscript_kernel_bp_set_options[] = {
     {LLDB_OPT_SET_1, false, "coordinate", 'c', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeValue,
+     nullptr, {}, 0, eArgTypeValue,
      "Set a breakpoint on a single invocation of the kernel with specified "
      "coordinate.\n"
      "Coordinate takes the form 'x[,y][,z] where x,y,z are positive "
@@ -4405,20 +4274,18 @@ public:
       result.AppendErrorWithFormat(
           "'%s' takes 1 argument of kernel name, and an optional coordinate.",
           m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
-    RenderScriptRuntime *runtime =
-        (RenderScriptRuntime *)m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
-            eLanguageTypeExtRenderScript);
+    RenderScriptRuntime *runtime = llvm::cast<RenderScriptRuntime>(
+        m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
+            eLanguageTypeExtRenderScript));
 
     auto &outstream = result.GetOutputStream();
     auto &target = m_exe_ctx.GetTargetSP();
     auto name = command.GetArgumentAtIndex(0);
     auto coord = m_options.m_have_coord ? &m_options.m_coord : nullptr;
     if (!runtime->PlaceBreakpointOnKernel(target, outstream, name, coord)) {
-      result.SetStatus(eReturnStatusFailed);
       result.AppendErrorWithFormat(
           "Error: unable to set breakpoint on kernel '%s'", name);
       return false;
@@ -4456,7 +4323,6 @@ public:
     if (argc != 1) {
       result.AppendErrorWithFormat(
           "'%s' takes 1 argument of 'enable' or 'disable'", m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -4475,7 +4341,6 @@ public:
     } else {
       result.AppendErrorWithFormat(
           "Argument must be either 'enable' or 'disable'");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -4593,18 +4458,18 @@ public:
   ~CommandObjectRenderScriptRuntimeContextDump() override = default;
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    RenderScriptRuntime *runtime =
-        (RenderScriptRuntime *)m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
-            eLanguageTypeExtRenderScript);
+    RenderScriptRuntime *runtime = llvm::cast<RenderScriptRuntime>(
+        m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
+            eLanguageTypeExtRenderScript));
     runtime->DumpContexts(result.GetOutputStream());
     result.SetStatus(eReturnStatusSuccessFinishResult);
     return true;
   }
 };
 
-static OptionDefinition g_renderscript_runtime_alloc_dump_options[] = {
+static constexpr OptionDefinition g_renderscript_runtime_alloc_dump_options[] = {
     {LLDB_OPT_SET_1, false, "file", 'f', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeFilename,
+     nullptr, {}, 0, eArgTypeFilename,
      "Print results to specified file instead of command line."}};
 
 class CommandObjectRenderScriptRuntimeContext : public CommandObjectMultiword {
@@ -4650,8 +4515,9 @@ public:
 
       switch (short_option) {
       case 'f':
-        m_outfile.SetFile(option_arg, true, FileSpec::Style::native);
-        if (m_outfile.Exists()) {
+        m_outfile.SetFile(option_arg, FileSpec::Style::native);
+        FileSystem::Instance().Resolve(m_outfile);
+        if (FileSystem::Instance().Exists(m_outfile)) {
           m_outfile.Clear();
           err.SetErrorStringWithFormat("file already exists: '%s'",
                                        option_arg.str().c_str());
@@ -4681,7 +4547,6 @@ public:
       result.AppendErrorWithFormat("'%s' takes 1 argument, an allocation ID. "
                                    "As well as an optional -f argument",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -4690,41 +4555,43 @@ public:
             eLanguageTypeExtRenderScript));
 
     const char *id_cstr = command.GetArgumentAtIndex(0);
-    bool success = false;
-    const uint32_t id =
-        StringConvert::ToUInt32(id_cstr, UINT32_MAX, 0, &success);
-    if (!success) {
+    uint32_t id;
+    if (!llvm::to_integer(id_cstr, id)) {
       result.AppendErrorWithFormat("invalid allocation id argument '%s'",
                                    id_cstr);
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
-    Stream *output_strm = nullptr;
-    StreamFile outfile_stream;
+    Stream *output_stream_p = nullptr;
+    std::unique_ptr<Stream> output_stream_storage;
+
     const FileSpec &outfile_spec =
         m_options.m_outfile; // Dump allocation to file instead
     if (outfile_spec) {
       // Open output file
-      char path[256];
-      outfile_spec.GetPath(path, sizeof(path));
-      if (outfile_stream.GetFile()
-              .Open(path, File::eOpenOptionWrite | File::eOpenOptionCanCreate)
-              .Success()) {
-        output_strm = &outfile_stream;
-        result.GetOutputStream().Printf("Results written to '%s'", path);
+      std::string path = outfile_spec.GetPath();
+      auto file = FileSystem::Instance().Open(outfile_spec,
+                                              File::eOpenOptionWriteOnly |
+                                                  File::eOpenOptionCanCreate);
+      if (file) {
+        output_stream_storage =
+            std::make_unique<StreamFile>(std::move(file.get()));
+        output_stream_p = output_stream_storage.get();
+        result.GetOutputStream().Printf("Results written to '%s'",
+                                        path.c_str());
         result.GetOutputStream().EOL();
       } else {
-        result.AppendErrorWithFormat("Couldn't open file '%s'", path);
-        result.SetStatus(eReturnStatusFailed);
+        std::string error = llvm::toString(file.takeError());
+        result.AppendErrorWithFormat("Couldn't open file '%s': %s",
+                                     path.c_str(), error.c_str());
         return false;
       }
     } else
-      output_strm = &result.GetOutputStream();
+      output_stream_p = &result.GetOutputStream();
 
-    assert(output_strm != nullptr);
+    assert(output_stream_p != nullptr);
     bool dumped =
-        runtime->DumpAllocation(*output_strm, m_exe_ctx.GetFramePtr(), id);
+        runtime->DumpAllocation(*output_stream_p, m_exe_ctx.GetFramePtr(), id);
 
     if (dumped)
       result.SetStatus(eReturnStatusSuccessFinishResult);
@@ -4738,9 +4605,9 @@ private:
   CommandOptions m_options;
 };
 
-static OptionDefinition g_renderscript_runtime_alloc_list_options[] = {
+static constexpr OptionDefinition g_renderscript_runtime_alloc_list_options[] = {
     {LLDB_OPT_SET_1, false, "id", 'i', OptionParser::eRequiredArgument, nullptr,
-     nullptr, 0, eArgTypeIndex,
+     {}, 0, eArgTypeIndex,
      "Only show details of a single allocation with specified id."}};
 
 class CommandObjectRenderScriptRuntimeAllocationList
@@ -4761,7 +4628,7 @@ public:
 
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options(), m_id(0) {}
+    CommandOptions() : Options() {}
 
     ~CommandOptions() override = default;
 
@@ -4789,7 +4656,7 @@ public:
       return llvm::makeArrayRef(g_renderscript_runtime_alloc_list_options);
     }
 
-    uint32_t m_id;
+    uint32_t m_id = 0;
   };
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -4825,7 +4692,6 @@ public:
       result.AppendErrorWithFormat(
           "'%s' takes 2 arguments, an allocation ID and filename to read from.",
           m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -4834,13 +4700,10 @@ public:
             eLanguageTypeExtRenderScript));
 
     const char *id_cstr = command.GetArgumentAtIndex(0);
-    bool success = false;
-    const uint32_t id =
-        StringConvert::ToUInt32(id_cstr, UINT32_MAX, 0, &success);
-    if (!success) {
+    uint32_t id;
+    if (!llvm::to_integer(id_cstr, id)) {
       result.AppendErrorWithFormat("invalid allocation id argument '%s'",
                                    id_cstr);
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -4876,7 +4739,6 @@ public:
       result.AppendErrorWithFormat(
           "'%s' takes 2 arguments, an allocation ID and filename to read from.",
           m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -4885,13 +4747,10 @@ public:
             eLanguageTypeExtRenderScript));
 
     const char *id_cstr = command.GetArgumentAtIndex(0);
-    bool success = false;
-    const uint32_t id =
-        StringConvert::ToUInt32(id_cstr, UINT32_MAX, 0, &success);
-    if (!success) {
+    uint32_t id;
+    if (!llvm::to_integer(id_cstr, id)) {
       result.AppendErrorWithFormat("invalid allocation id argument '%s'",
                                    id_cstr);
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -4983,9 +4842,9 @@ public:
   ~CommandObjectRenderScriptRuntimeStatus() override = default;
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    RenderScriptRuntime *runtime =
-        (RenderScriptRuntime *)m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
-            eLanguageTypeExtRenderScript);
+    RenderScriptRuntime *runtime = llvm::cast<RenderScriptRuntime>(
+        m_exe_ctx.GetProcessPtr()->GetLanguageRuntime(
+            eLanguageTypeExtRenderScript));
     runtime->DumpStatus(result.GetOutputStream());
     result.SetStatus(eReturnStatusSuccessFinishResult);
     return true;

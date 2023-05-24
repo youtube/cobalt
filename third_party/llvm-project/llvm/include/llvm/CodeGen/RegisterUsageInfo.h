@@ -1,9 +1,8 @@
 //==- RegisterUsageInfo.h - Register Usage Informartion Storage --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -16,12 +15,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_PHYSICALREGISTERUSAGEINFO_H
-#define LLVM_CODEGEN_PHYSICALREGISTERUSAGEINFO_H
+#ifndef LLVM_CODEGEN_REGISTERUSAGEINFO_H
+#define LLVM_CODEGEN_REGISTERUSAGEINFO_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include <cstdint>
 #include <vector>
@@ -29,7 +29,7 @@
 namespace llvm {
 
 class Function;
-class TargetMachine;
+class LLVMTargetMachine;
 
 class PhysicalRegisterUsageInfo : public ImmutablePass {
 public:
@@ -41,7 +41,7 @@ public:
   }
 
   /// Set TargetMachine which is used to print analysis.
-  void setTargetMachine(const TargetMachine &TM);
+  void setTargetMachine(const LLVMTargetMachine &TM);
 
   bool doInitialization(Module &M) override;
 
@@ -63,9 +63,9 @@ private:
   /// and 1 means content of register will be preserved around function call.
   DenseMap<const Function *, std::vector<uint32_t>> RegMasks;
 
-  const TargetMachine *TM;
+  const LLVMTargetMachine *TM;
 };
 
 } // end namespace llvm
 
-#endif // LLVM_CODEGEN_PHYSICALREGISTERUSAGEINFO_H
+#endif // LLVM_CODEGEN_REGISTERUSAGEINFO_H

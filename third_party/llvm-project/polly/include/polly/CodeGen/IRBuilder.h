@@ -1,9 +1,8 @@
 //===- Codegen/IRBuilder.h - The IR builder used by Polly -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,17 +15,17 @@
 #define POLLY_CODEGEN_IRBUILDER_H
 
 #include "llvm/ADT/MapVector.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/ValueMap.h"
 
 namespace llvm {
+class Loop;
+class SCEV;
 class ScalarEvolution;
 } // namespace llvm
 
 namespace polly {
 class Scop;
+struct BandAttr;
 
 /// Helper class to annotate newly generated SCoPs with metadata.
 ///
@@ -45,6 +44,7 @@ class Scop;
 class ScopAnnotator {
 public:
   ScopAnnotator();
+  ~ScopAnnotator();
 
   /// Build all alias scopes for the given SCoP.
   void buildAliasScopes(Scop &S);
@@ -82,27 +82,21 @@ public:
   /// Delete the set of alternative alias bases
   void resetAlternativeAliasBases() { AlternativeAliasBases.clear(); }
 
-  /// Add inter iteration alias-free base pointer @p BasePtr.
-  void addInterIterationAliasFreeBasePtr(llvm::Value *BasePtr);
+  /// Stack for surrounding BandAttr annotations.
+  llvm::SmallVector<BandAttr *, 8> LoopAttrEnv;
+  BandAttr *&getStagingAttrEnv() { return LoopAttrEnv.back(); }
+  BandAttr *getActiveAttrEnv() const {
+    return LoopAttrEnv[LoopAttrEnv.size() - 2];
+  }
 
 private:
-  /// Annotate with the second level alias metadata
-  ///
-  /// Annotate the instruction @p I with the second level alias metadata
-  /// to distinguish the individual non-aliasing accesses that have inter
-  /// iteration alias-free base pointers.
-  ///
-  /// @param I The instruction to be annotated.
-  /// @param BasePtr The base pointer of @p I.
-  void annotateSecondLevel(llvm::Instruction *I, llvm::Value *BasePtr);
-
   /// The ScalarEvolution analysis we use to find base pointers.
   llvm::ScalarEvolution *SE;
 
   /// All loops currently under construction.
   llvm::SmallVector<llvm::Loop *, 8> ActiveLoops;
 
-  /// Metadata pointing to parallel loops currently under construction.
+  /// Access groups for the parallel loops currently under construction.
   llvm::SmallVector<llvm::MDNode *, 8> ParallelLoops;
 
   /// The alias scope domain for the current SCoP.
@@ -115,16 +109,6 @@ private:
   llvm::DenseMap<llvm::AssertingVH<llvm::Value>, llvm::MDNode *>
       OtherAliasScopeListMap;
 
-  /// A map from pointers to second level alias scopes.
-  llvm::DenseMap<const llvm::SCEV *, llvm::MDNode *> SecondLevelAliasScopeMap;
-
-  /// A map from pointers to second level alias scope list of other pointers.
-  llvm::DenseMap<const llvm::SCEV *, llvm::MDNode *>
-      SecondLevelOtherAliasScopeListMap;
-
-  /// Inter iteration alias-free base pointers.
-  llvm::SmallPtrSet<llvm::Value *, 4> InterIterationAliasFreeBasePtrs;
-
   llvm::DenseMap<llvm::AssertingVH<llvm::Value>, llvm::AssertingVH<llvm::Value>>
       AlternativeAliasBases;
 };
@@ -133,15 +117,14 @@ private:
 ///
 /// This is used to add additional items such as e.g. the llvm.loop.parallel
 /// metadata.
-class IRInserter : protected llvm::IRBuilderDefaultInserter {
+class IRInserter final : public llvm::IRBuilderDefaultInserter {
 public:
   IRInserter() = default;
   IRInserter(class ScopAnnotator &A) : Annotator(&A) {}
 
-protected:
   void InsertHelper(llvm::Instruction *I, const llvm::Twine &Name,
                     llvm::BasicBlock *BB,
-                    llvm::BasicBlock::iterator InsertPt) const {
+                    llvm::BasicBlock::iterator InsertPt) const override {
     llvm::IRBuilderDefaultInserter::InsertHelper(I, Name, BB, InsertPt);
     if (Annotator)
       Annotator->annotate(I);
@@ -157,13 +140,5 @@ private:
 // matches for certain names.
 typedef llvm::IRBuilder<llvm::ConstantFolder, IRInserter> PollyIRBuilder;
 
-/// Return an IR builder pointed before the @p BB terminator.
-static inline PollyIRBuilder createPollyIRBuilder(llvm::BasicBlock *BB,
-                                                  ScopAnnotator &LA) {
-  PollyIRBuilder Builder(BB->getContext(), llvm::ConstantFolder(),
-                         polly::IRInserter(LA));
-  Builder.SetInsertPoint(BB->getTerminator());
-  return Builder;
-}
 } // namespace polly
 #endif

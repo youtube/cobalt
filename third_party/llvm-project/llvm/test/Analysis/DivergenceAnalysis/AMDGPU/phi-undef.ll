@@ -1,4 +1,4 @@
-; RUN: opt -mtriple=amdgcn-- -analyze -divergence %s | FileCheck %s
+; RUN: opt -mtriple amdgcn-- -passes='print<divergence>' -disable-output %s 2>&1 | FileCheck %s
 
 ; CHECK-LABEL: 'test1':
 ; CHECK-NEXT: DIVERGENT: i32 %bound

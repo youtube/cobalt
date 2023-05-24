@@ -1,18 +1,13 @@
 //===- PDBFileBuilder.cpp - PDB File Creation -------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/PDB/Native/PDBFileBuilder.h"
-
-#include "llvm/ADT/BitVector.h"
-
 #include "llvm/DebugInfo/MSF/MSFBuilder.h"
-#include "llvm/DebugInfo/PDB/GenericError.h"
 #include "llvm/DebugInfo/PDB/Native/DbiStream.h"
 #include "llvm/DebugInfo/PDB/Native/DbiStreamBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/GSIStreamBuilder.h"
@@ -24,8 +19,10 @@
 #include "llvm/DebugInfo/PDB/Native/TpiStreamBuilder.h"
 #include "llvm/Support/BinaryStream.h"
 #include "llvm/Support/BinaryStreamWriter.h"
-#include "llvm/Support/JamCRC.h"
+#include "llvm/Support/CRC.h"
+#include "llvm/Support/Chrono.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/xxhash.h"
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -35,7 +32,7 @@ using namespace llvm::support;
 
 PDBFileBuilder::PDBFileBuilder(BumpPtrAllocator &Allocator)
     : Allocator(Allocator), InjectedSourceHashTraits(Strings),
-      InjectedSourceTable(2, InjectedSourceHashTraits) {}
+      InjectedSourceTable(2) {}
 
 PDBFileBuilder::~PDBFileBuilder() {}
 
@@ -43,7 +40,7 @@ Error PDBFileBuilder::initialize(uint32_t BlockSize) {
   auto ExpectedMsf = MSFBuilder::create(Allocator, BlockSize);
   if (!ExpectedMsf)
     return ExpectedMsf.takeError();
-  Msf = llvm::make_unique<MSFBuilder>(std::move(*ExpectedMsf));
+  Msf = std::make_unique<MSFBuilder>(std::move(*ExpectedMsf));
   return Error::success();
 }
 
@@ -51,25 +48,25 @@ MSFBuilder &PDBFileBuilder::getMsfBuilder() { return *Msf; }
 
 InfoStreamBuilder &PDBFileBuilder::getInfoBuilder() {
   if (!Info)
-    Info = llvm::make_unique<InfoStreamBuilder>(*Msf, NamedStreams);
+    Info = std::make_unique<InfoStreamBuilder>(*Msf, NamedStreams);
   return *Info;
 }
 
 DbiStreamBuilder &PDBFileBuilder::getDbiBuilder() {
   if (!Dbi)
-    Dbi = llvm::make_unique<DbiStreamBuilder>(*Msf);
+    Dbi = std::make_unique<DbiStreamBuilder>(*Msf);
   return *Dbi;
 }
 
 TpiStreamBuilder &PDBFileBuilder::getTpiBuilder() {
   if (!Tpi)
-    Tpi = llvm::make_unique<TpiStreamBuilder>(*Msf, StreamTPI);
+    Tpi = std::make_unique<TpiStreamBuilder>(*Msf, StreamTPI);
   return *Tpi;
 }
 
 TpiStreamBuilder &PDBFileBuilder::getIpiBuilder() {
   if (!Ipi)
-    Ipi = llvm::make_unique<TpiStreamBuilder>(*Msf, StreamIPI);
+    Ipi = std::make_unique<TpiStreamBuilder>(*Msf, StreamIPI);
   return *Ipi;
 }
 
@@ -79,7 +76,7 @@ PDBStringTableBuilder &PDBFileBuilder::getStringTableBuilder() {
 
 GSIStreamBuilder &PDBFileBuilder::getGsiBuilder() {
   if (!Gsi)
-    Gsi = llvm::make_unique<GSIStreamBuilder>(*Msf);
+    Gsi = std::make_unique<GSIStreamBuilder>(*Msf);
   return *Gsi;
 }
 
@@ -96,7 +93,7 @@ Error PDBFileBuilder::addNamedStream(StringRef Name, StringRef Data) {
   if (!ExpectedIndex)
     return ExpectedIndex.takeError();
   assert(NamedStreamData.count(*ExpectedIndex) == 0);
-  NamedStreamData[*ExpectedIndex] = Data;
+  NamedStreamData[*ExpectedIndex] = std::string(Data);
   return Error::success();
 }
 
@@ -106,7 +103,7 @@ void PDBFileBuilder::addInjectedSource(StringRef Name,
   // table and the hash value is dependent on the exact contents of the string.
   // link.exe lowercases a path and converts / to \, so we must do the same.
   SmallString<64> VName;
-  sys::path::native(Name.lower(), VName);
+  sys::path::native(Name.lower(), VName, sys::path::Style::windows_backslash);
 
   uint32_t NI = getStringTableBuilder().insert(Name);
   uint32_t VNI = getStringTableBuilder().insert(VName);
@@ -145,7 +142,7 @@ Error PDBFileBuilder::finalizeMsfLayout() {
     if (Dbi) {
       Dbi->setPublicsStreamIndex(Gsi->getPublicsStreamIndex());
       Dbi->setGlobalsStreamIndex(Gsi->getGlobalsStreamIndex());
-      Dbi->setSymbolRecordStreamIndex(Gsi->getRecordStreamIdx());
+      Dbi->setSymbolRecordStreamIndex(Gsi->getRecordStreamIndex());
     }
   }
   if (Tpi) {
@@ -175,8 +172,7 @@ Error PDBFileBuilder::finalizeMsfLayout() {
   if (!InjectedSources.empty()) {
     for (const auto &IS : InjectedSources) {
       JamCRC CRC(0);
-      CRC.update(makeArrayRef(IS.Content->getBufferStart(),
-                              IS.Content->getBufferSize()));
+      CRC.update(arrayRefFromStringRef(IS.Content->getBuffer()));
 
       SrcHeaderBlockEntry Entry;
       ::memset(&Entry, 0, sizeof(SrcHeaderBlockEntry));
@@ -190,7 +186,8 @@ Error PDBFileBuilder::finalizeMsfLayout() {
           static_cast<uint32_t>(PdbRaw_SrcHeaderBlockVer::SrcVerOne);
       Entry.CRC = CRC.getCRC();
       StringRef VName = getStringTableBuilder().getStringForId(IS.VNameIndex);
-      InjectedSourceTable.set_as(VName, std::move(Entry));
+      InjectedSourceTable.set_as(VName, std::move(Entry),
+                                 InjectedSourceHashTraits);
     }
 
     uint32_t SrcHeaderBlockSize =
@@ -262,13 +259,14 @@ void PDBFileBuilder::commitInjectedSources(WritableBinaryStream &MsfBuffer,
   }
 }
 
-Error PDBFileBuilder::commit(StringRef Filename) {
+Error PDBFileBuilder::commit(StringRef Filename, codeview::GUID *Guid) {
   assert(!Filename.empty());
   if (auto EC = finalizeMsfLayout())
     return EC;
 
   MSFLayout Layout;
-  auto ExpectedMsfBuffer = Msf->commit(Filename, Layout);
+  Expected<FileBufferByteStream> ExpectedMsfBuffer =
+      Msf->commit(Filename, Layout);
   if (!ExpectedMsfBuffer)
     return ExpectedMsfBuffer.takeError();
   FileBufferByteStream Buffer = std::move(*ExpectedMsfBuffer);
@@ -330,11 +328,28 @@ Error PDBFileBuilder::commit(StringRef Filename) {
 
   // Set the build id at the very end, after every other byte of the PDB
   // has been written.
-  // FIXME: Use a hash of the PDB rather than time(nullptr) for the signature.
-  H->Age = Info->getAge();
-  H->Guid = Info->getGuid();
-  Optional<uint32_t> Sig = Info->getSignature();
-  H->Signature = Sig.hasValue() ? *Sig : time(nullptr);
+  if (Info->hashPDBContentsToGUID()) {
+    // Compute a hash of all sections of the output file.
+    uint64_t Digest =
+        xxHash64({Buffer.getBufferStart(), Buffer.getBufferEnd()});
+
+    H->Age = 1;
+
+    memcpy(H->Guid.Guid, &Digest, 8);
+    // xxhash only gives us 8 bytes, so put some fixed data in the other half.
+    memcpy(H->Guid.Guid + 8, "LLD PDB.", 8);
+
+    // Put the hash in the Signature field too.
+    H->Signature = static_cast<uint32_t>(Digest);
+
+    // Return GUID to caller.
+    memcpy(Guid, H->Guid.Guid, 16);
+  } else {
+    H->Age = Info->getAge();
+    H->Guid = Info->getGuid();
+    Optional<uint32_t> Sig = Info->getSignature();
+    H->Signature = Sig.hasValue() ? *Sig : time(nullptr);
+  }
 
   return Buffer.commit();
 }

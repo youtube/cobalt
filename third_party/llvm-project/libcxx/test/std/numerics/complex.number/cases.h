@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -38,6 +37,24 @@ const std::complex<double> testcases[] =
     std::complex<double>(-1.e+6,  1.e+6),
     std::complex<double>(-1.e+6, -1.e+6),
     std::complex<double>( 1.e+6, -1.e+6),
+
+    std::complex<double>(-0, -1.e-6),
+    std::complex<double>(-0,  1.e-6),
+    std::complex<double>(-0,  1.e+6),
+    std::complex<double>(-0, -1.e+6),
+    std::complex<double>( 0, -1.e-6),
+    std::complex<double>( 0,  1.e-6),
+    std::complex<double>( 0,  1.e+6),
+    std::complex<double>( 0, -1.e+6),
+
+    std::complex<double>(-1.e-6, -0),
+    std::complex<double>( 1.e-6, -0),
+    std::complex<double>( 1.e+6, -0),
+    std::complex<double>(-1.e+6, -0),
+    std::complex<double>(-1.e-6,  0),
+    std::complex<double>( 1.e-6,  0),
+    std::complex<double>( 1.e+6,  0),
+    std::complex<double>(-1.e+6,  0),
 
     std::complex<double>(NAN, NAN),
     std::complex<double>(-INFINITY, NAN),
@@ -227,4 +244,4 @@ void is_about(long double x, long double y)
     assert(std::abs((x-y)/(x+y)) < 1.e-14);
 }
 
-#endif  // CASES_H
+#endif // CASES_H

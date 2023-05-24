@@ -1,49 +1,34 @@
 //===-- OptionValueSInt64.h --------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueSInt64_h_
-#define liblldb_OptionValueSInt64_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUESINT64_H
+#define LLDB_INTERPRETER_OPTIONVALUESINT64_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Interpreter/OptionValue.h"
 
 namespace lldb_private {
 
-class OptionValueSInt64 : public OptionValue {
+class OptionValueSInt64 : public Cloneable<OptionValueSInt64, OptionValue> {
 public:
-  OptionValueSInt64()
-      : OptionValue(), m_current_value(0), m_default_value(0),
-        m_min_value(INT64_MIN), m_max_value(INT64_MAX) {}
+  OptionValueSInt64() = default;
 
   OptionValueSInt64(int64_t value)
-      : OptionValue(), m_current_value(value), m_default_value(value),
-        m_min_value(INT64_MIN), m_max_value(INT64_MAX) {}
+      : m_current_value(value), m_default_value(value) {}
 
   OptionValueSInt64(int64_t current_value, int64_t default_value)
-      : OptionValue(), m_current_value(current_value),
-        m_default_value(default_value), m_min_value(INT64_MIN),
-        m_max_value(INT64_MAX) {}
+      : m_current_value(current_value), m_default_value(default_value) {}
 
-  OptionValueSInt64(const OptionValueSInt64 &rhs)
-      : OptionValue(rhs), m_current_value(rhs.m_current_value),
-        m_default_value(rhs.m_default_value), m_min_value(rhs.m_min_value),
-        m_max_value(rhs.m_max_value) {}
+  OptionValueSInt64(const OptionValueSInt64 &rhs) = default;
 
-  ~OptionValueSInt64() override {}
+  ~OptionValueSInt64() override = default;
 
-  //---------------------------------------------------------------------
   // Virtual subclass pure virtual overrides
-  //---------------------------------------------------------------------
 
   OptionValue::Type GetType() const override { return eTypeSInt64; }
 
@@ -53,21 +38,13 @@ public:
   Status
   SetValueFromString(llvm::StringRef value,
                      VarSetOperationType op = eVarSetOperationAssign) override;
-  Status
-  SetValueFromString(const char *,
-                     VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_current_value = m_default_value;
     m_value_was_set = false;
-    return true;
   }
 
-  lldb::OptionValueSP DeepCopy() const override;
-
-  //---------------------------------------------------------------------
   // Subclass specific functions
-  //---------------------------------------------------------------------
 
   const int64_t &operator=(int64_t value) {
     m_current_value = value;
@@ -103,12 +80,12 @@ public:
   int64_t GetMaximumValue() const { return m_max_value; }
 
 protected:
-  int64_t m_current_value;
-  int64_t m_default_value;
-  int64_t m_min_value;
-  int64_t m_max_value;
+  int64_t m_current_value = 0;
+  int64_t m_default_value = 0;
+  int64_t m_min_value = INT64_MIN;
+  int64_t m_max_value = INT64_MAX;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueSInt64_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUESINT64_H

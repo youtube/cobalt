@@ -1,9 +1,8 @@
 //===-- cc1gen_reproducer_main.cpp - Clang reproducer generator  ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,13 +13,14 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
-#include "clang/Basic/VirtualFileSystem.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/YAMLTraits.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -162,7 +162,7 @@ int cc1gen_reproducer_main(ArrayRef<const char *> Argv, const char *Argv0,
   // Parse the invocation descriptor.
   StringRef Input = Argv[0];
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> Buffer =
-      llvm::MemoryBuffer::getFile(Input);
+      llvm::MemoryBuffer::getFile(Input, /*IsText=*/true);
   if (!Buffer) {
     llvm::errs() << "error: failed to read " << Input << ": "
                  << Buffer.getError().message() << "\n";

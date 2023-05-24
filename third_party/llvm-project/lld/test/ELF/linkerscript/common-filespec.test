@@ -4,7 +4,7 @@
 # RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %p/Inputs/common-filespec1.s -o %tfile1.o
 # RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %p/Inputs/common-filespec2.s -o %tfile2.o
 # RUN: ld.lld -o %t1 --script %s %tfile0.o %tfile1.o %tfile2.o
-# RUN: llvm-readobj -s -t %t1 | FileCheck %s
+# RUN: llvm-readobj -S --symbols %t1 | FileCheck %s
 
 SECTIONS {
   .common_0 : { *file0.o(COMMON) }
@@ -67,15 +67,6 @@ SECTIONS {
 # For a common with multiple definitions, the largest one wins and it must be
 # assigned to the section from the file which provided the winning def
 # CHECK:       Symbol {
-# CHECK:         Name: common_multiple
-# CHECK-NEXT:    Value: 0x10
-# CHECK-NEXT:    Size: 32
-# CHECK-NEXT:    Binding: Global
-# CHECK-NEXT:    Type: Object
-# CHECK-NEXT:    Other: 0
-# CHECK-NEXT:    Section: .common_2
-# CHECK-NEXT:  }
-# CHECK:       Symbol {
 # CHECK:         Name: common_uniq_0
 # CHECK-NEXT:    Value: 0x4
 # CHECK-NEXT:    Size: 4
@@ -83,6 +74,15 @@ SECTIONS {
 # CHECK-NEXT:    Type: Object
 # CHECK-NEXT:    Other: 0
 # CHECK-NEXT:    Section: .common_0
+# CHECK-NEXT:  }
+# CHECK:       Symbol {
+# CHECK:         Name: common_multiple
+# CHECK-NEXT:    Value: 0x10
+# CHECK-NEXT:    Size: 32
+# CHECK-NEXT:    Binding: Global
+# CHECK-NEXT:    Type: Object
+# CHECK-NEXT:    Other: 0
+# CHECK-NEXT:    Section: .common_2
 # CHECK-NEXT:  }
 # CHECK:       Symbol {
 # CHECK:         Name: common_uniq_1

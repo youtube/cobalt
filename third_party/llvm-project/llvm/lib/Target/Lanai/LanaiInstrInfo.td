@@ -1,9 +1,8 @@
 //===-- LanaiInstrInfo.td - Target Description for Lanai Target -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -270,7 +269,7 @@ def splsIdempotent : InstrMapping {
 // -------------------------------------------------- //
 // ALU instructions
 // -------------------------------------------------- //
-multiclass ALUbase<bits<3> subOp, string AsmStr, SDNode OpNode,
+multiclass ALUbase<bits<3> subOp, string AsmStr,
                    PatLeaf LoExt, PatLeaf HiExt,
                    list<dag> loPattern, list<dag> hiPattern> {
   // Register Immediate
@@ -287,7 +286,7 @@ multiclass ALUbase<bits<3> subOp, string AsmStr, SDNode OpNode,
 
 multiclass ALUarith<bits<3> subOp, string AsmStr, SDNode OpNode,
                     PatLeaf LoExt, PatLeaf HiExt> {
-  defm I_ : ALUbase<subOp, AsmStr, OpNode, LoExt, HiExt, [], []>;
+  defm I_ : ALUbase<subOp, AsmStr, LoExt, HiExt, [], []>;
 
   // Register Register
   let JJJJJ = 0 in
@@ -298,7 +297,7 @@ multiclass ALUarith<bits<3> subOp, string AsmStr, SDNode OpNode,
 
 multiclass ALUlogic<bits<3> subOp, string AsmStr, SDNode OpNode,
                     PatLeaf LoExt, PatLeaf HiExt> {
-  defm I_ : ALUbase<subOp, AsmStr, OpNode, LoExt, HiExt,
+  defm I_ : ALUbase<subOp, AsmStr, LoExt, HiExt,
                     [(set GPR:$Rd, (OpNode GPR:$Rs1, LoExt:$imm16))],
                     [(set GPR:$Rd, (OpNode GPR:$Rs1, HiExt:$imm16))]>;
 

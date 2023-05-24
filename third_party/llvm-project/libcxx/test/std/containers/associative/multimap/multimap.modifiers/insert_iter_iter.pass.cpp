@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,10 +16,11 @@
 #include <map>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::multimap<int, double> M;
@@ -38,7 +38,7 @@ int main()
             P(3, 2),
         };
         M m;
-        m.insert(input_iterator<P*>(ar), input_iterator<P*>(ar + sizeof(ar)/sizeof(ar[0])));
+        m.insert(cpp17_input_iterator<P*>(ar), cpp17_input_iterator<P*>(ar + sizeof(ar)/sizeof(ar[0])));
         assert(m.size() == 9);
         assert(m.begin()->first == 1);
         assert(m.begin()->second == 1);
@@ -76,7 +76,7 @@ int main()
             P(3, 2),
         };
         M m;
-        m.insert(input_iterator<P*>(ar), input_iterator<P*>(ar + sizeof(ar)/sizeof(ar[0])));
+        m.insert(cpp17_input_iterator<P*>(ar), cpp17_input_iterator<P*>(ar + sizeof(ar)/sizeof(ar[0])));
         assert(m.size() == 9);
         assert(m.begin()->first == 1);
         assert(m.begin()->second == 1);
@@ -98,4 +98,6 @@ int main()
         assert(next(m.begin(), 8)->second == 2);
     }
 #endif
+
+  return 0;
 }

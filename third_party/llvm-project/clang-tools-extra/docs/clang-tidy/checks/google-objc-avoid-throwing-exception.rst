@@ -5,7 +5,7 @@ google-objc-avoid-throwing-exception
 
 Finds uses of throwing exceptions usages in Objective-C files.
 
-For the same reason as the Google C++ style guide, we prefer not throwing 
+For the same reason as the Google C++ style guide, we prefer not throwing
 exceptions from Objective-C code.
 
 The corresponding C++ style guide rule:
@@ -36,4 +36,4 @@ Instead, returning an error via ``NSError **`` is preferred:
   }
 
 The corresponding style guide rule:
-http://google.github.io/styleguide/objcguide.html#avoid-throwing-exceptions
+https://google.github.io/styleguide/objcguide.html#avoid-throwing-exceptions

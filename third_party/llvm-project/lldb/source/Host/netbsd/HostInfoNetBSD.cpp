@@ -1,19 +1,18 @@
-//===-- HostInfoNetBSD.cpp -------------------------------------*- C++ -*-===//
+//===-- HostInfoNetBSD.cpp ------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/netbsd/HostInfoNetBSD.h"
 
-#include <inttypes.h>
-#include <limits.h>
+#include <cinttypes>
+#include <climits>
+#include <cstdio>
+#include <cstring>
 #include <pthread.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -43,34 +42,16 @@ llvm::VersionTuple HostInfoNetBSD::GetOSVersion() {
   return llvm::VersionTuple();
 }
 
-bool HostInfoNetBSD::GetOSBuildString(std::string &s) {
+llvm::Optional<std::string> HostInfoNetBSD::GetOSBuildString() {
   int mib[2] = {CTL_KERN, KERN_OSREV};
   char osrev_str[12];
   int osrev = 0;
   size_t osrev_len = sizeof(osrev);
 
-  if (::sysctl(mib, 2, &osrev, &osrev_len, NULL, 0) == 0) {
-    ::snprintf(osrev_str, sizeof(osrev_str), "%-10.10d", osrev);
-    s.assign(osrev_str);
-    return true;
-  }
+  if (::sysctl(mib, 2, &osrev, &osrev_len, NULL, 0) == 0)
+    return llvm::formatv("{0,10:10}", osrev).str();
 
-  s.clear();
-  return false;
-}
-
-bool HostInfoNetBSD::GetOSKernelDescription(std::string &s) {
-  struct utsname un;
-
-  ::memset(&un, 0, sizeof(un));
-  s.clear();
-
-  if (::uname(&un) < 0)
-    return false;
-
-  s.assign(un.version);
-
-  return true;
+  return llvm::None;
 }
 
 FileSpec HostInfoNetBSD::GetProgramFileSpec() {
@@ -85,7 +66,7 @@ FileSpec HostInfoNetBSD::GetProgramFileSpec() {
 
     len = sizeof(path);
     if (sysctl(name, __arraycount(name), path, &len, NULL, 0) != -1) {
-      g_program_filespec.SetFile(path, false, FileSpec::Style::native);
+      g_program_filespec.SetFile(path, FileSpec::Style::native);
     }
   }
   return g_program_filespec;

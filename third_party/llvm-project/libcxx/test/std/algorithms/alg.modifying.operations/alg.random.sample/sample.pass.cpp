@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
 // <algorithm>
 
@@ -137,24 +136,26 @@ void test_small_population() {
   }
 }
 
-int main() {
-  test<input_iterator, int, random_access_iterator, int>();
+int main(int, char**) {
+  test<cpp17_input_iterator, int, random_access_iterator, int>();
   test<forward_iterator, int, output_iterator, int>();
   test<forward_iterator, int, random_access_iterator, int>();
 
-  test<input_iterator, int, random_access_iterator, double>();
+  test<cpp17_input_iterator, int, random_access_iterator, double>();
   test<forward_iterator, int, output_iterator, double>();
   test<forward_iterator, int, random_access_iterator, double>();
 
-  test_empty_population<input_iterator, int, random_access_iterator, int>();
+  test_empty_population<cpp17_input_iterator, int, random_access_iterator, int>();
   test_empty_population<forward_iterator, int, output_iterator, int>();
   test_empty_population<forward_iterator, int, random_access_iterator, int>();
 
-  test_empty_sample<input_iterator, int, random_access_iterator, int>();
+  test_empty_sample<cpp17_input_iterator, int, random_access_iterator, int>();
   test_empty_sample<forward_iterator, int, output_iterator, int>();
   test_empty_sample<forward_iterator, int, random_access_iterator, int>();
 
-  test_small_population<input_iterator, int, random_access_iterator, int>();
+  test_small_population<cpp17_input_iterator, int, random_access_iterator, int>();
   test_small_population<forward_iterator, int, output_iterator, int>();
   test_small_population<forward_iterator, int, random_access_iterator, int>();
+
+  return 0;
 }

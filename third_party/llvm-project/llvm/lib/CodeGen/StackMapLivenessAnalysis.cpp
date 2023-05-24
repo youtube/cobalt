@@ -1,9 +1,8 @@
 //===-- StackMapLivenessAnalysis.cpp - StackMap live Out Analysis ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,6 +19,7 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -131,15 +131,15 @@ bool StackMapLiveness::calculateLiveness(MachineFunction &MF) {
     bool HasStackMap = false;
     // Reverse iterate over all instructions and add the current live register
     // set to an instruction if we encounter a patchpoint instruction.
-    for (auto I = MBB.rbegin(), E = MBB.rend(); I != E; ++I) {
-      if (I->getOpcode() == TargetOpcode::PATCHPOINT) {
-        addLiveOutSetToMI(MF, *I);
+    for (MachineInstr &MI : llvm::reverse(MBB)) {
+      if (MI.getOpcode() == TargetOpcode::PATCHPOINT) {
+        addLiveOutSetToMI(MF, MI);
         HasChanged = true;
         HasStackMap = true;
         ++NumStackMaps;
       }
-      LLVM_DEBUG(dbgs() << "   " << LiveRegs << "   " << *I);
-      LiveRegs.stepBackward(*I);
+      LLVM_DEBUG(dbgs() << "   " << LiveRegs << "   " << MI);
+      LiveRegs.stepBackward(MI);
     }
     ++NumBBsVisited;
     if (!HasStackMap)

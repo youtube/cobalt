@@ -1,14 +1,13 @@
-//===-- SBTypeCategory.cpp ----------------------------------------*- C++
-//-*-===//
+//===-- SBTypeCategory.cpp ------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBTypeCategory.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include "lldb/API/SBStream.h"
 #include "lldb/API/SBTypeFilter.h"
@@ -27,26 +26,40 @@ using namespace lldb_private;
 
 typedef std::pair<lldb::TypeCategoryImplSP, user_id_t> ImplType;
 
-SBTypeCategory::SBTypeCategory() : m_opaque_sp() {}
+SBTypeCategory::SBTypeCategory() { LLDB_INSTRUMENT_VA(this); }
 
-SBTypeCategory::SBTypeCategory(const char *name) : m_opaque_sp() {
+SBTypeCategory::SBTypeCategory(const char *name) {
   DataVisualization::Categories::GetCategory(ConstString(name), m_opaque_sp);
 }
 
 SBTypeCategory::SBTypeCategory(const lldb::SBTypeCategory &rhs)
-    : m_opaque_sp(rhs.m_opaque_sp) {}
+    : m_opaque_sp(rhs.m_opaque_sp) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
-SBTypeCategory::~SBTypeCategory() {}
+SBTypeCategory::~SBTypeCategory() = default;
 
-bool SBTypeCategory::IsValid() const { return (m_opaque_sp.get() != NULL); }
+bool SBTypeCategory::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBTypeCategory::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return (m_opaque_sp.get() != nullptr);
+}
 
 bool SBTypeCategory::GetEnabled() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return false;
   return m_opaque_sp->IsEnabled();
 }
 
 void SBTypeCategory::SetEnabled(bool enabled) {
+  LLDB_INSTRUMENT_VA(this, enabled);
+
   if (!IsValid())
     return;
   if (enabled)
@@ -56,29 +69,39 @@ void SBTypeCategory::SetEnabled(bool enabled) {
 }
 
 const char *SBTypeCategory::GetName() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
-    return NULL;
+    return nullptr;
   return m_opaque_sp->GetName();
 }
 
 lldb::LanguageType SBTypeCategory::GetLanguageAtIndex(uint32_t idx) {
+  LLDB_INSTRUMENT_VA(this, idx);
+
   if (IsValid())
     return m_opaque_sp->GetLanguageAtIndex(idx);
   return lldb::eLanguageTypeUnknown;
 }
 
 uint32_t SBTypeCategory::GetNumLanguages() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (IsValid())
     return m_opaque_sp->GetNumLanguages();
   return 0;
 }
 
 void SBTypeCategory::AddLanguage(lldb::LanguageType language) {
+  LLDB_INSTRUMENT_VA(this, language);
+
   if (IsValid())
     m_opaque_sp->AddLanguage(language);
 }
 
 uint32_t SBTypeCategory::GetNumFormats() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return 0;
 
@@ -87,6 +110,8 @@ uint32_t SBTypeCategory::GetNumFormats() {
 }
 
 uint32_t SBTypeCategory::GetNumSummaries() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return 0;
   return m_opaque_sp->GetTypeSummariesContainer()->GetCount() +
@@ -94,23 +119,27 @@ uint32_t SBTypeCategory::GetNumSummaries() {
 }
 
 uint32_t SBTypeCategory::GetNumFilters() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return 0;
   return m_opaque_sp->GetTypeFiltersContainer()->GetCount() +
          m_opaque_sp->GetRegexTypeFiltersContainer()->GetCount();
 }
 
-#ifndef LLDB_DISABLE_PYTHON
 uint32_t SBTypeCategory::GetNumSynthetics() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return 0;
   return m_opaque_sp->GetTypeSyntheticsContainer()->GetCount() +
          m_opaque_sp->GetRegexTypeSyntheticsContainer()->GetCount();
 }
-#endif
 
 lldb::SBTypeNameSpecifier
 SBTypeCategory::GetTypeNameSpecifierForFilterAtIndex(uint32_t index) {
+  LLDB_INSTRUMENT_VA(this, index);
+
   if (!IsValid())
     return SBTypeNameSpecifier();
   return SBTypeNameSpecifier(
@@ -119,6 +148,8 @@ SBTypeCategory::GetTypeNameSpecifierForFilterAtIndex(uint32_t index) {
 
 lldb::SBTypeNameSpecifier
 SBTypeCategory::GetTypeNameSpecifierForFormatAtIndex(uint32_t index) {
+  LLDB_INSTRUMENT_VA(this, index);
+
   if (!IsValid())
     return SBTypeNameSpecifier();
   return SBTypeNameSpecifier(
@@ -127,23 +158,27 @@ SBTypeCategory::GetTypeNameSpecifierForFormatAtIndex(uint32_t index) {
 
 lldb::SBTypeNameSpecifier
 SBTypeCategory::GetTypeNameSpecifierForSummaryAtIndex(uint32_t index) {
+  LLDB_INSTRUMENT_VA(this, index);
+
   if (!IsValid())
     return SBTypeNameSpecifier();
   return SBTypeNameSpecifier(
       m_opaque_sp->GetTypeNameSpecifierForSummaryAtIndex(index));
 }
 
-#ifndef LLDB_DISABLE_PYTHON
 lldb::SBTypeNameSpecifier
 SBTypeCategory::GetTypeNameSpecifierForSyntheticAtIndex(uint32_t index) {
+  LLDB_INSTRUMENT_VA(this, index);
+
   if (!IsValid())
     return SBTypeNameSpecifier();
   return SBTypeNameSpecifier(
       m_opaque_sp->GetTypeNameSpecifierForSyntheticAtIndex(index));
 }
-#endif
 
 SBTypeFilter SBTypeCategory::GetFilterForType(SBTypeNameSpecifier spec) {
+  LLDB_INSTRUMENT_VA(this, spec);
+
   if (!IsValid())
     return SBTypeFilter();
 
@@ -168,6 +203,8 @@ SBTypeFilter SBTypeCategory::GetFilterForType(SBTypeNameSpecifier spec) {
   return lldb::SBTypeFilter(filter_sp);
 }
 SBTypeFormat SBTypeCategory::GetFormatForType(SBTypeNameSpecifier spec) {
+  LLDB_INSTRUMENT_VA(this, spec);
+
   if (!IsValid())
     return SBTypeFormat();
 
@@ -189,8 +226,9 @@ SBTypeFormat SBTypeCategory::GetFormatForType(SBTypeNameSpecifier spec) {
   return lldb::SBTypeFormat(format_sp);
 }
 
-#ifndef LLDB_DISABLE_PYTHON
 SBTypeSummary SBTypeCategory::GetSummaryForType(SBTypeNameSpecifier spec) {
+  LLDB_INSTRUMENT_VA(this, spec);
+
   if (!IsValid())
     return SBTypeSummary();
 
@@ -211,10 +249,10 @@ SBTypeSummary SBTypeCategory::GetSummaryForType(SBTypeNameSpecifier spec) {
 
   return lldb::SBTypeSummary(summary_sp);
 }
-#endif // LLDB_DISABLE_PYTHON
 
-#ifndef LLDB_DISABLE_PYTHON
 SBTypeSynthetic SBTypeCategory::GetSyntheticForType(SBTypeNameSpecifier spec) {
+  LLDB_INSTRUMENT_VA(this, spec);
+
   if (!IsValid())
     return SBTypeSynthetic();
 
@@ -238,10 +276,10 @@ SBTypeSynthetic SBTypeCategory::GetSyntheticForType(SBTypeNameSpecifier spec) {
 
   return lldb::SBTypeSynthetic(synth_sp);
 }
-#endif
 
-#ifndef LLDB_DISABLE_PYTHON
 SBTypeFilter SBTypeCategory::GetFilterAtIndex(uint32_t index) {
+  LLDB_INSTRUMENT_VA(this, index);
+
   if (!IsValid())
     return SBTypeFilter();
   lldb::SyntheticChildrenSP children_sp =
@@ -255,24 +293,26 @@ SBTypeFilter SBTypeCategory::GetFilterAtIndex(uint32_t index) {
 
   return lldb::SBTypeFilter(filter_sp);
 }
-#endif
 
 SBTypeFormat SBTypeCategory::GetFormatAtIndex(uint32_t index) {
+  LLDB_INSTRUMENT_VA(this, index);
+
   if (!IsValid())
     return SBTypeFormat();
   return SBTypeFormat(m_opaque_sp->GetFormatAtIndex((index)));
 }
 
-#ifndef LLDB_DISABLE_PYTHON
 SBTypeSummary SBTypeCategory::GetSummaryAtIndex(uint32_t index) {
+  LLDB_INSTRUMENT_VA(this, index);
+
   if (!IsValid())
     return SBTypeSummary();
   return SBTypeSummary(m_opaque_sp->GetSummaryAtIndex((index)));
 }
-#endif
 
-#ifndef LLDB_DISABLE_PYTHON
 SBTypeSynthetic SBTypeCategory::GetSyntheticAtIndex(uint32_t index) {
+  LLDB_INSTRUMENT_VA(this, index);
+
   if (!IsValid())
     return SBTypeSynthetic();
   lldb::SyntheticChildrenSP children_sp =
@@ -286,10 +326,11 @@ SBTypeSynthetic SBTypeCategory::GetSyntheticAtIndex(uint32_t index) {
 
   return lldb::SBTypeSynthetic(synth_sp);
 }
-#endif
 
 bool SBTypeCategory::AddTypeFormat(SBTypeNameSpecifier type_name,
                                    SBTypeFormat format) {
+  LLDB_INSTRUMENT_VA(this, type_name, format);
+
   if (!IsValid())
     return false;
 
@@ -301,9 +342,7 @@ bool SBTypeCategory::AddTypeFormat(SBTypeNameSpecifier type_name,
 
   if (type_name.IsRegex())
     m_opaque_sp->GetRegexTypeFormatsContainer()->Add(
-        lldb::RegularExpressionSP(new RegularExpression(
-            llvm::StringRef::withNullAsEmpty(type_name.GetName()))),
-        format.GetSP());
+        RegularExpression(type_name.GetName()), format.GetSP());
   else
     m_opaque_sp->GetTypeFormatsContainer()->Add(
         ConstString(type_name.GetName()), format.GetSP());
@@ -312,6 +351,8 @@ bool SBTypeCategory::AddTypeFormat(SBTypeNameSpecifier type_name,
 }
 
 bool SBTypeCategory::DeleteTypeFormat(SBTypeNameSpecifier type_name) {
+  LLDB_INSTRUMENT_VA(this, type_name);
+
   if (!IsValid())
     return false;
 
@@ -326,9 +367,10 @@ bool SBTypeCategory::DeleteTypeFormat(SBTypeNameSpecifier type_name) {
         ConstString(type_name.GetName()));
 }
 
-#ifndef LLDB_DISABLE_PYTHON
 bool SBTypeCategory::AddTypeSummary(SBTypeNameSpecifier type_name,
                                     SBTypeSummary summary) {
+  LLDB_INSTRUMENT_VA(this, type_name, summary);
+
   if (!IsValid())
     return false;
 
@@ -356,7 +398,7 @@ bool SBTypeCategory::AddTypeSummary(SBTypeNameSpecifier type_name,
       DebuggerSP debugger_sp = lldb_private::Debugger::GetDebuggerAtIndex(j);
       if (debugger_sp) {
         ScriptInterpreter *interpreter_ptr =
-            debugger_sp->GetCommandInterpreter().GetScriptInterpreter();
+            debugger_sp->GetScriptInterpreter();
         if (interpreter_ptr) {
           std::string output;
           if (interpreter_ptr->GenerateTypeScriptFunction(input, output,
@@ -374,18 +416,17 @@ bool SBTypeCategory::AddTypeSummary(SBTypeNameSpecifier type_name,
 
   if (type_name.IsRegex())
     m_opaque_sp->GetRegexTypeSummariesContainer()->Add(
-        lldb::RegularExpressionSP(new RegularExpression(
-            llvm::StringRef::withNullAsEmpty(type_name.GetName()))),
-        summary.GetSP());
+        RegularExpression(type_name.GetName()), summary.GetSP());
   else
     m_opaque_sp->GetTypeSummariesContainer()->Add(
         ConstString(type_name.GetName()), summary.GetSP());
 
   return true;
 }
-#endif
 
 bool SBTypeCategory::DeleteTypeSummary(SBTypeNameSpecifier type_name) {
+  LLDB_INSTRUMENT_VA(this, type_name);
+
   if (!IsValid())
     return false;
 
@@ -402,6 +443,8 @@ bool SBTypeCategory::DeleteTypeSummary(SBTypeNameSpecifier type_name) {
 
 bool SBTypeCategory::AddTypeFilter(SBTypeNameSpecifier type_name,
                                    SBTypeFilter filter) {
+  LLDB_INSTRUMENT_VA(this, type_name, filter);
+
   if (!IsValid())
     return false;
 
@@ -413,9 +456,7 @@ bool SBTypeCategory::AddTypeFilter(SBTypeNameSpecifier type_name,
 
   if (type_name.IsRegex())
     m_opaque_sp->GetRegexTypeFiltersContainer()->Add(
-        lldb::RegularExpressionSP(new RegularExpression(
-            llvm::StringRef::withNullAsEmpty(type_name.GetName()))),
-        filter.GetSP());
+        RegularExpression(type_name.GetName()), filter.GetSP());
   else
     m_opaque_sp->GetTypeFiltersContainer()->Add(
         ConstString(type_name.GetName()), filter.GetSP());
@@ -424,6 +465,8 @@ bool SBTypeCategory::AddTypeFilter(SBTypeNameSpecifier type_name,
 }
 
 bool SBTypeCategory::DeleteTypeFilter(SBTypeNameSpecifier type_name) {
+  LLDB_INSTRUMENT_VA(this, type_name);
+
   if (!IsValid())
     return false;
 
@@ -438,9 +481,10 @@ bool SBTypeCategory::DeleteTypeFilter(SBTypeNameSpecifier type_name) {
         ConstString(type_name.GetName()));
 }
 
-#ifndef LLDB_DISABLE_PYTHON
 bool SBTypeCategory::AddTypeSynthetic(SBTypeNameSpecifier type_name,
                                       SBTypeSynthetic synth) {
+  LLDB_INSTRUMENT_VA(this, type_name, synth);
+
   if (!IsValid())
     return false;
 
@@ -468,7 +512,7 @@ bool SBTypeCategory::AddTypeSynthetic(SBTypeNameSpecifier type_name,
       DebuggerSP debugger_sp = lldb_private::Debugger::GetDebuggerAtIndex(j);
       if (debugger_sp) {
         ScriptInterpreter *interpreter_ptr =
-            debugger_sp->GetCommandInterpreter().GetScriptInterpreter();
+            debugger_sp->GetScriptInterpreter();
         if (interpreter_ptr) {
           std::string output;
           if (interpreter_ptr->GenerateTypeSynthClass(input, output,
@@ -486,9 +530,7 @@ bool SBTypeCategory::AddTypeSynthetic(SBTypeNameSpecifier type_name,
 
   if (type_name.IsRegex())
     m_opaque_sp->GetRegexTypeSyntheticsContainer()->Add(
-        lldb::RegularExpressionSP(new RegularExpression(
-            llvm::StringRef::withNullAsEmpty(type_name.GetName()))),
-        synth.GetSP());
+        RegularExpression(type_name.GetName()), synth.GetSP());
   else
     m_opaque_sp->GetTypeSyntheticsContainer()->Add(
         ConstString(type_name.GetName()), synth.GetSP());
@@ -497,6 +539,8 @@ bool SBTypeCategory::AddTypeSynthetic(SBTypeNameSpecifier type_name,
 }
 
 bool SBTypeCategory::DeleteTypeSynthetic(SBTypeNameSpecifier type_name) {
+  LLDB_INSTRUMENT_VA(this, type_name);
+
   if (!IsValid())
     return false;
 
@@ -510,10 +554,11 @@ bool SBTypeCategory::DeleteTypeSynthetic(SBTypeNameSpecifier type_name) {
     return m_opaque_sp->GetTypeSyntheticsContainer()->Delete(
         ConstString(type_name.GetName()));
 }
-#endif // LLDB_DISABLE_PYTHON
 
 bool SBTypeCategory::GetDescription(lldb::SBStream &description,
                                     lldb::DescriptionLevel description_level) {
+  LLDB_INSTRUMENT_VA(this, description, description_level);
+
   if (!IsValid())
     return false;
   description.Printf("Category name: %s\n", GetName());
@@ -522,6 +567,8 @@ bool SBTypeCategory::GetDescription(lldb::SBStream &description,
 
 lldb::SBTypeCategory &SBTypeCategory::
 operator=(const lldb::SBTypeCategory &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs) {
     m_opaque_sp = rhs.m_opaque_sp;
   }
@@ -529,14 +576,18 @@ operator=(const lldb::SBTypeCategory &rhs) {
 }
 
 bool SBTypeCategory::operator==(lldb::SBTypeCategory &rhs) {
-  if (IsValid() == false)
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (!IsValid())
     return !rhs.IsValid();
 
   return m_opaque_sp.get() == rhs.m_opaque_sp.get();
 }
 
 bool SBTypeCategory::operator!=(lldb::SBTypeCategory &rhs) {
-  if (IsValid() == false)
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (!IsValid())
     return rhs.IsValid();
 
   return m_opaque_sp.get() != rhs.m_opaque_sp.get();

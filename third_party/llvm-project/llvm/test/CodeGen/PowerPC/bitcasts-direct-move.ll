@@ -10,15 +10,15 @@ entry:
 ; CHECK-P7: stfs 1,
 ; CHECK-P7: lwa 3,
 ; CHECK: xscvdpspn [[CONVREG:[0-9]+]], 1
-; CHECK: xxsldwi [[SHIFTREG:[0-9]+]], [[CONVREG]], [[CONVREG]], 3
-; CHECK: mfvsrwz 3, [[SHIFTREG]]
+; CHECK-NOT: xxsldwi
+; CHECK: mffprwz 3, [[CONVREG]]
 }
 
 define i64 @f64toi64(double %a) {
 entry:
   %0 = bitcast double %a to i64
   ret i64 %0
-; CHECK-P7: stfdx 1,
+; CHECK-P7: stfd 1,
 ; CHECK-P7: ld 3,
 ; CHECK: mffprd 3, 1
 }
@@ -29,7 +29,7 @@ entry:
   ret float %0
 ; CHECK-P7: stw 3,
 ; CHECK-P7: lfs 1,
-; CHECK: mtvsrd [[MOVEREG:[0-9]+]], 3
+; CHECK: mtfprd [[MOVEREG:[0-9]+]], 3
 ; CHECK: xxsldwi [[SHIFTREG:[0-9]+]], [[MOVEREG]], [[MOVEREG]], 1
 ; CHECK: xscvspdpn 1, [[SHIFTREG]]
 }
@@ -39,8 +39,8 @@ entry:
   %0 = bitcast i64 %a to double
   ret double %0
 ; CHECK-P7: std 3,
-; CHECK-P7: lfdx 1,
-; CHECK: mtvsrd 1, 3
+; CHECK-P7: lfd 1,
+; CHECK: mtfprd 1, 3
 }
 
 define zeroext i32 @f32toi32u(float %a) {
@@ -50,15 +50,15 @@ entry:
 ; CHECK-P7: stfs 1,
 ; CHECK-P7: lwz 3,
 ; CHECK: xscvdpspn [[CONVREG:[0-9]+]], 1
-; CHECK: xxsldwi [[SHIFTREG:[0-9]+]], [[CONVREG]], [[CONVREG]], 3
-; CHECK: mfvsrwz 3, [[SHIFTREG]]
+; CHECK-NOT: xxsldwi
+; CHECK: mffprwz 3, [[CONVREG]]
 }
 
 define i64 @f64toi64u(double %a) {
 entry:
   %0 = bitcast double %a to i64
   ret i64 %0
-; CHECK-P7: stfdx 1,
+; CHECK-P7: stfd 1,
 ; CHECK-P7: ld 3,
 ; CHECK: mffprd 3, 1
 }
@@ -69,7 +69,7 @@ entry:
   ret float %0
 ; CHECK-P7: stw 3,
 ; CHECK-P7: lfs 1,
-; CHECK: mtvsrd [[MOVEREG:[0-9]+]], 3
+; CHECK: mtfprd [[MOVEREG:[0-9]+]], 3
 ; CHECK: xxsldwi [[SHIFTREG:[0-9]+]], [[MOVEREG]], [[MOVEREG]], 1
 ; CHECK: xscvspdpn 1, [[SHIFTREG]]
 }
@@ -79,6 +79,6 @@ entry:
   %0 = bitcast i64 %a to double
   ret double %0
 ; CHECK-P7: std 3,
-; CHECK-P7: lfdx 1,
-; CHECK: mtvsrd 1, 3
+; CHECK-P7: lfd 1,
+; CHECK: mtfprd 1, 3
 }

@@ -1,9 +1,8 @@
 //===-- XCoreLowerThreadLocal - Lower thread local variables --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,6 +18,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsXCore.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/NoFolder.h"
 #include "llvm/IR/ValueHandle.h"
@@ -74,62 +74,11 @@ createLoweredInitializer(ArrayType *NewType, Constant *OriginalInitializer) {
   return ConstantArray::get(NewType, Elements);
 }
 
-static Instruction *
-createReplacementInstr(ConstantExpr *CE, Instruction *Instr) {
-  IRBuilder<NoFolder> Builder(Instr);
-  unsigned OpCode = CE->getOpcode();
-  switch (OpCode) {
-    case Instruction::GetElementPtr: {
-      SmallVector<Value *,4> CEOpVec(CE->op_begin(), CE->op_end());
-      ArrayRef<Value *> CEOps(CEOpVec);
-      return dyn_cast<Instruction>(Builder.CreateInBoundsGEP(
-          cast<GEPOperator>(CE)->getSourceElementType(), CEOps[0],
-          CEOps.slice(1)));
-    }
-    case Instruction::Add:
-    case Instruction::Sub:
-    case Instruction::Mul:
-    case Instruction::UDiv:
-    case Instruction::SDiv:
-    case Instruction::FDiv:
-    case Instruction::URem:
-    case Instruction::SRem:
-    case Instruction::FRem:
-    case Instruction::Shl:
-    case Instruction::LShr:
-    case Instruction::AShr:
-    case Instruction::And:
-    case Instruction::Or:
-    case Instruction::Xor:
-      return dyn_cast<Instruction>(
-                  Builder.CreateBinOp((Instruction::BinaryOps)OpCode,
-                                      CE->getOperand(0), CE->getOperand(1),
-                                      CE->getName()));
-    case Instruction::Trunc:
-    case Instruction::ZExt:
-    case Instruction::SExt:
-    case Instruction::FPToUI:
-    case Instruction::FPToSI:
-    case Instruction::UIToFP:
-    case Instruction::SIToFP:
-    case Instruction::FPTrunc:
-    case Instruction::FPExt:
-    case Instruction::PtrToInt:
-    case Instruction::IntToPtr:
-    case Instruction::BitCast:
-      return dyn_cast<Instruction>(
-                  Builder.CreateCast((Instruction::CastOps)OpCode,
-                                     CE->getOperand(0), CE->getType(),
-                                     CE->getName()));
-    default:
-      llvm_unreachable("Unhandled constant expression!\n");
-  }
-}
 
 static bool replaceConstantExprOp(ConstantExpr *CE, Pass *P) {
   do {
-    SmallVector<WeakTrackingVH, 8> WUsers(CE->user_begin(), CE->user_end());
-    llvm::sort(WUsers.begin(), WUsers.end());
+    SmallVector<WeakTrackingVH, 8> WUsers(CE->users());
+    llvm::sort(WUsers);
     WUsers.erase(std::unique(WUsers.begin(), WUsers.end()), WUsers.end());
     while (!WUsers.empty())
       if (WeakTrackingVH WU = WUsers.pop_back_val()) {
@@ -140,11 +89,11 @@ static bool replaceConstantExprOp(ConstantExpr *CE, Pass *P) {
               if (PredBB->getTerminator()->getNumSuccessors() > 1)
                 PredBB = SplitEdge(PredBB, PN->getParent());
               Instruction *InsertPos = PredBB->getTerminator();
-              Instruction *NewInst = createReplacementInstr(CE, InsertPos);
+              Instruction *NewInst = CE->getAsInstruction(InsertPos);
               PN->setOperand(I, NewInst);
             }
         } else if (Instruction *Instr = dyn_cast<Instruction>(WU)) {
-          Instruction *NewInst = createReplacementInstr(CE, Instr);
+          Instruction *NewInst = CE->getAsInstruction(Instr);
           Instr->replaceUsesOfWith(CE, NewInst);
         } else {
           ConstantExpr *CExpr = dyn_cast<ConstantExpr>(WU);
@@ -153,7 +102,7 @@ static bool replaceConstantExprOp(ConstantExpr *CE, Pass *P) {
         }
       }
   } while (CE->hasNUsesOrMore(1)); // We need to check because a recursive
-  // sibling may have used 'CE' when createReplacementInstr was called.
+  // sibling may have used 'CE' when getAsInstruction was called.
   CE->destroyConstant();
   return true;
 }
@@ -201,7 +150,7 @@ bool XCoreLowerThreadLocal::lowerGlobal(GlobalVariable *GV) {
                        GV->isExternallyInitialized());
 
   // Update uses.
-  SmallVector<User *, 16> Users(GV->user_begin(), GV->user_end());
+  SmallVector<User *, 16> Users(GV->users());
   for (unsigned I = 0, E = Users.size(); I != E; ++I) {
     User *U = Users[I];
     Instruction *Inst = cast<Instruction>(U);

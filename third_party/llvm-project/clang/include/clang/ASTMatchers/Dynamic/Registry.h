@@ -1,9 +1,8 @@
 //===- Registry.h - Matcher registry ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -33,6 +32,23 @@ namespace dynamic {
 namespace internal {
 
 class MatcherDescriptor;
+
+/// A smart (owning) pointer for MatcherDescriptor. We can't use unique_ptr
+/// because MatcherDescriptor is forward declared
+class MatcherDescriptorPtr {
+public:
+  explicit MatcherDescriptorPtr(MatcherDescriptor *);
+  ~MatcherDescriptorPtr();
+  MatcherDescriptorPtr(MatcherDescriptorPtr &&) = default;
+  MatcherDescriptorPtr &operator=(MatcherDescriptorPtr &&) = default;
+  MatcherDescriptorPtr(const MatcherDescriptorPtr &) = delete;
+  MatcherDescriptorPtr &operator=(const MatcherDescriptorPtr &) = delete;
+
+  MatcherDescriptor *get() { return Ptr; }
+
+private:
+  MatcherDescriptor *Ptr;
+};
 
 } // namespace internal
 
@@ -66,6 +82,14 @@ struct MatcherCompletion {
 class Registry {
 public:
   Registry() = delete;
+
+  static ASTNodeKind nodeMatcherType(MatcherCtor);
+
+  static bool isBuilderMatcher(MatcherCtor Ctor);
+
+  static internal::MatcherDescriptorPtr
+  buildMatcherCtor(MatcherCtor, SourceRange NameRange,
+                   ArrayRef<ParserValue> Args, Diagnostics *Error);
 
   /// Look up a matcher in the registry by name,
   ///
@@ -133,4 +157,4 @@ public:
 } // namespace ast_matchers
 } // namespace clang
 
-#endif // LLVM_CLANG_AST_MATCHERS_DYNAMIC_REGISTRY_H
+#endif // LLVM_CLANG_ASTMATCHERS_DYNAMIC_REGISTRY_H

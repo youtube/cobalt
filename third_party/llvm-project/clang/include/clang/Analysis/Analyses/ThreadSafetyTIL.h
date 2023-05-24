@@ -1,9 +1,8 @@
 //===- ThreadSafetyTIL.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT in the llvm repository for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -635,7 +634,9 @@ typename V::R_SExpr Literal::traverse(V &Vs, typename V::R_Ctx Ctx) {
 /// At compile time, pointer literals are represented by symbolic names.
 class LiteralPtr : public SExpr {
 public:
-  LiteralPtr(const ValueDecl *D) : SExpr(COP_LiteralPtr), Cvdecl(D) {}
+  LiteralPtr(const ValueDecl *D) : SExpr(COP_LiteralPtr), Cvdecl(D) {
+    assert(D && "ValueDecl must not be null");
+  }
   LiteralPtr(const LiteralPtr &) = default;
 
   static bool classof(const SExpr *E) { return E->opcode() == COP_LiteralPtr; }
@@ -1605,7 +1606,7 @@ public:
 
   /// Return the index of BB, or Predecessors.size if BB is not a predecessor.
   unsigned findPredecessorIndex(const BasicBlock *BB) const {
-    auto I = std::find(Predecessors.cbegin(), Predecessors.cend(), BB);
+    auto I = llvm::find(Predecessors, BB);
     return std::distance(Predecessors.cbegin(), I);
   }
 
@@ -1643,10 +1644,10 @@ private:
   friend class SCFG;
 
   // assign unique ids to all instructions
-  int renumberInstrs(int id);
+  unsigned renumberInstrs(unsigned id);
 
-  int topologicalSort(SimpleArray<BasicBlock *> &Blocks, int ID);
-  int topologicalFinalSort(SimpleArray<BasicBlock *> &Blocks, int ID);
+  unsigned topologicalSort(SimpleArray<BasicBlock *> &Blocks, unsigned ID);
+  unsigned topologicalFinalSort(SimpleArray<BasicBlock *> &Blocks, unsigned ID);
   void computeDominator();
   void computePostDominator();
 
@@ -1657,7 +1658,7 @@ private:
   SCFG *CFGPtr = nullptr;
 
   // Unique ID for this BB in the containing CFG. IDs are in topological order.
-  int BlockID : 31;
+  unsigned BlockID : 31;
 
   // Bit to determine if a block has been visited during a traversal.
   bool Visited : 1;

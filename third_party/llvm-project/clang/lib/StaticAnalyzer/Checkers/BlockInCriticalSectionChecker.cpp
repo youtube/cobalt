@@ -1,9 +1,8 @@
 //===-- BlockInCriticalSectionChecker.cpp -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,9 +14,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallDescription.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 
@@ -97,14 +97,7 @@ void BlockInCriticalSectionChecker::initIdentifierInfo(ASTContext &Ctx) const {
 }
 
 bool BlockInCriticalSectionChecker::isBlockingFunction(const CallEvent &Call) const {
-  if (Call.isCalled(SleepFn)
-      || Call.isCalled(GetcFn)
-      || Call.isCalled(FgetsFn)
-      || Call.isCalled(ReadFn)
-      || Call.isCalled(RecvFn)) {
-    return true;
-  }
-  return false;
+  return matchesAny(Call, SleepFn, GetcFn, FgetsFn, ReadFn, RecvFn);
 }
 
 bool BlockInCriticalSectionChecker::isLockFunction(const CallEvent &Call) const {
@@ -114,31 +107,19 @@ bool BlockInCriticalSectionChecker::isLockFunction(const CallEvent &Call) const 
       return true;
   }
 
-  if (Call.isCalled(LockFn)
-      || Call.isCalled(PthreadLockFn)
-      || Call.isCalled(PthreadTryLockFn)
-      || Call.isCalled(MtxLock)
-      || Call.isCalled(MtxTimedLock)
-      || Call.isCalled(MtxTryLock)) {
-    return true;
-  }
-  return false;
+  return matchesAny(Call, LockFn, PthreadLockFn, PthreadTryLockFn, MtxLock,
+                    MtxTimedLock, MtxTryLock);
 }
 
 bool BlockInCriticalSectionChecker::isUnlockFunction(const CallEvent &Call) const {
   if (const auto *Dtor = dyn_cast<CXXDestructorCall>(&Call)) {
-    const auto *DRecordDecl = dyn_cast<CXXRecordDecl>(Dtor->getDecl()->getParent());
+    const auto *DRecordDecl = cast<CXXRecordDecl>(Dtor->getDecl()->getParent());
     auto IdentifierInfo = DRecordDecl->getIdentifier();
     if (IdentifierInfo == IILockGuard || IdentifierInfo == IIUniqueLock)
       return true;
   }
 
-  if (Call.isCalled(UnlockFn)
-       || Call.isCalled(PthreadUnlockFn)
-       || Call.isCalled(MtxUnlock)) {
-    return true;
-  }
-  return false;
+  return matchesAny(Call, UnlockFn, PthreadUnlockFn, MtxUnlock);
 }
 
 void BlockInCriticalSectionChecker::checkPostCall(const CallEvent &Call,
@@ -174,7 +155,8 @@ void BlockInCriticalSectionChecker::reportBlockInCritSection(
   llvm::raw_string_ostream os(msg);
   os << "Call to blocking function '" << Call.getCalleeIdentifier()->getName()
      << "' inside of critical section";
-  auto R = llvm::make_unique<BugReport>(*BlockInCritSectionBugType, os.str(), ErrNode);
+  auto R = std::make_unique<PathSensitiveBugReport>(*BlockInCritSectionBugType,
+                                                    os.str(), ErrNode);
   R->addRange(Call.getSourceRange());
   R->markInteresting(BlockDescSym);
   C.emitReport(std::move(R));
@@ -182,4 +164,8 @@ void BlockInCriticalSectionChecker::reportBlockInCritSection(
 
 void ento::registerBlockInCriticalSectionChecker(CheckerManager &mgr) {
   mgr.registerChecker<BlockInCriticalSectionChecker>();
+}
+
+bool ento::shouldRegisterBlockInCriticalSectionChecker(const CheckerManager &mgr) {
+  return true;
 }

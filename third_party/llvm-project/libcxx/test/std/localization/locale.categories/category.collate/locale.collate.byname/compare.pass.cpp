@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,9 +20,12 @@
 //     up the OS's collation files.
 
 // TODO investigation needed.
-// Glibc seems to collate files differently from the way Apple's C library does
-// it.
-// XFAIL: linux-gnu
+// Glibc seems to collate files differently from the way Apple's C library does it.
+// XFAIL: target={{.*}}-linux-gnu{{.*}}
+
+// XFAIL: LIBCXX-WINDOWS-FIXME
+
+// XFAIL: LIBCXX-AIX-FIXME
 
 #include <locale>
 #include <string>
@@ -31,9 +33,10 @@
 
 #include <stdio.h>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
-int main()
+int main(int, char**)
 {
     {
         std::locale l(LOCALE_en_US_UTF_8);
@@ -44,6 +47,7 @@ int main()
             assert(f.compare(s2.data(), s2.data() + s2.size(),
                              s3.data(), s3.data() + s3.size()) == 1);
         }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
         {
             const std::collate<wchar_t>& f = std::use_facet<std::collate<wchar_t> >(l);
             std::wstring s2(L"aaaaaaA");
@@ -51,6 +55,7 @@ int main()
             assert(f.compare(s2.data(), s2.data() + s2.size(),
                              s3.data(), s3.data() + s3.size()) == 1);
         }
+#endif
     }
     {
         std::locale l("C");
@@ -61,6 +66,7 @@ int main()
             assert(f.compare(s2.data(), s2.data() + s2.size(),
                              s3.data(), s3.data() + s3.size()) == 1);
         }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
         {
             const std::collate<wchar_t>& f = std::use_facet<std::collate<wchar_t> >(l);
             std::wstring s2(L"aaaaaaA");
@@ -68,5 +74,8 @@ int main()
             assert(f.compare(s2.data(), s2.data() + s2.size(),
                              s3.data(), s3.data() + s3.size()) == 1);
         }
+#endif
     }
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //===-- ExtractGV.cpp - Global Value extraction pass ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -55,6 +54,7 @@ namespace {
   class GVExtractorPass : public ModulePass {
     SetVector<GlobalValue *> Named;
     bool deleteStuff;
+    bool keepConstInit;
   public:
     static char ID; // Pass identification, replacement for typeid
 
@@ -62,8 +62,9 @@ namespace {
     /// Otherwise, it deletes as much of the module as possible, except for the
     /// global values specified.
     explicit GVExtractorPass(std::vector<GlobalValue*> &GVs,
-                             bool deleteS = true)
-      : ModulePass(ID), Named(GVs.begin(), GVs.end()), deleteStuff(deleteS) {}
+                             bool deleteS = true, bool keepConstInit = false)
+      : ModulePass(ID), Named(GVs.begin(), GVs.end()), deleteStuff(deleteS),
+        keepConstInit(keepConstInit) {}
 
     bool runOnModule(Module &M) override {
       if (skipModule(M))
@@ -81,23 +82,23 @@ namespace {
       // be conservative and simple.
 
       // Visit the GlobalVariables.
-      for (Module::global_iterator I = M.global_begin(), E = M.global_end();
-           I != E; ++I) {
-        bool Delete =
-            deleteStuff == (bool)Named.count(&*I) && !I->isDeclaration();
+      for (GlobalVariable &GV : M.globals()) {
+        bool Delete = deleteStuff == (bool)Named.count(&GV) &&
+                      !GV.isDeclaration() &&
+                      (!GV.isConstant() || !keepConstInit);
         if (!Delete) {
-          if (I->hasAvailableExternallyLinkage())
+          if (GV.hasAvailableExternallyLinkage())
             continue;
-          if (I->getName() == "llvm.global_ctors")
+          if (GV.getName() == "llvm.global_ctors")
             continue;
         }
 
-        makeVisible(*I, Delete);
+        makeVisible(GV, Delete);
 
         if (Delete) {
           // Make this a declaration and drop it's comdat.
-          I->setInitializer(nullptr);
-          I->setComdat(nullptr);
+          GV.setInitializer(nullptr);
+          GV.setComdat(nullptr);
         }
       }
 
@@ -120,31 +121,27 @@ namespace {
       }
 
       // Visit the Aliases.
-      for (Module::alias_iterator I = M.alias_begin(), E = M.alias_end();
-           I != E;) {
-        Module::alias_iterator CurI = I;
-        ++I;
-
-        bool Delete = deleteStuff == (bool)Named.count(&*CurI);
-        makeVisible(*CurI, Delete);
+      for (GlobalAlias &GA : llvm::make_early_inc_range(M.aliases())) {
+        bool Delete = deleteStuff == (bool)Named.count(&GA);
+        makeVisible(GA, Delete);
 
         if (Delete) {
-          Type *Ty =  CurI->getValueType();
+          Type *Ty = GA.getValueType();
 
-          CurI->removeFromParent();
+          GA.removeFromParent();
           llvm::Value *Declaration;
           if (FunctionType *FTy = dyn_cast<FunctionType>(Ty)) {
-            Declaration = Function::Create(FTy, GlobalValue::ExternalLinkage,
-                                           CurI->getName(), &M);
+            Declaration =
+                Function::Create(FTy, GlobalValue::ExternalLinkage,
+                                 GA.getAddressSpace(), GA.getName(), &M);
 
           } else {
             Declaration =
-              new GlobalVariable(M, Ty, false, GlobalValue::ExternalLinkage,
-                                 nullptr, CurI->getName());
-
+                new GlobalVariable(M, Ty, false, GlobalValue::ExternalLinkage,
+                                   nullptr, GA.getName());
           }
-          CurI->replaceAllUsesWith(Declaration);
-          delete &*CurI;
+          GA.replaceAllUsesWith(Declaration);
+          delete &GA;
         }
       }
 
@@ -156,6 +153,6 @@ namespace {
 }
 
 ModulePass *llvm::createGVExtractionPass(std::vector<GlobalValue *> &GVs,
-                                         bool deleteFn) {
-  return new GVExtractorPass(GVs, deleteFn);
+                                         bool deleteFn, bool keepConstInit) {
+  return new GVExtractorPass(GVs, deleteFn, keepConstInit);
 }

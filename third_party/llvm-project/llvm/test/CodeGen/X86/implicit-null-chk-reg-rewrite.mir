@@ -22,7 +22,7 @@
 # that clobber the register used in TEST.
 name:            reg-rewrite
 
-alignment:       4
+alignment:       16
 tracksRegLiveness: true
 liveins:
   - { reg: '$rdi' }
@@ -35,15 +35,15 @@ body:             |
     ; CHECK-LABEL: bb.0.entry
     ; CHECK-NOT: FAULTING_OP
     renamable $rdi = MOV64ri 5000
-    JE_1 %bb.2, implicit $eflags
+    JCC_1 %bb.2, 4, implicit $eflags
 
   bb.1.not_null:
     liveins: $rdi, $rsi
     
     $rax = MOV64rm renamable $rdi, 1, $noreg, 4, $noreg
-    RETQ $eax
+    RET64 $eax
 
   bb.2.is_null:
     $eax = MOV32ri 200
-    RETQ $eax
+    RET64 $eax
 ...

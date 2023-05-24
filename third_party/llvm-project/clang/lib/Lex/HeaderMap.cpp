@@ -1,9 +1,8 @@
 //===--- HeaderMap.cpp - A file that acts like dir of symlinks ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -48,7 +47,8 @@ static inline unsigned HashHMapKey(StringRef Str) {
 /// map.  If it doesn't look like a HeaderMap, it gives up and returns null.
 /// If it looks like a HeaderMap but is obviously corrupted, it puts a reason
 /// into the string error argument and returns null.
-const HeaderMap *HeaderMap::Create(const FileEntry *FE, FileManager &FM) {
+std::unique_ptr<HeaderMap> HeaderMap::Create(const FileEntry *FE,
+                                             FileManager &FM) {
   // If the file is too small to be a header map, ignore it.
   unsigned FileSize = FE->getSize();
   if (FileSize <= sizeof(HMapHeader)) return nullptr;
@@ -59,7 +59,7 @@ const HeaderMap *HeaderMap::Create(const FileEntry *FE, FileManager &FM) {
   bool NeedsByteSwap;
   if (!checkHeader(**FileBuffer, NeedsByteSwap))
     return nullptr;
-  return new HeaderMap(std::move(*FileBuffer), NeedsByteSwap);
+  return std::unique_ptr<HeaderMap>(new HeaderMap(std::move(*FileBuffer), NeedsByteSwap));
 }
 
 bool HeaderMapImpl::checkHeader(const llvm::MemoryBuffer &File,
@@ -194,19 +194,6 @@ LLVM_DUMP_METHOD void HeaderMapImpl::dump() const {
   }
 }
 
-/// LookupFile - Check to see if the specified relative filename is located in
-/// this HeaderMap.  If so, open it and return its FileEntry.
-const FileEntry *HeaderMap::LookupFile(
-    StringRef Filename, FileManager &FM) const {
-
-  SmallString<1024> Path;
-  StringRef Dest = HeaderMapImpl::lookupFilename(Filename, Path);
-  if (Dest.empty())
-    return nullptr;
-
-  return FM.getFile(Dest);
-}
-
 StringRef HeaderMapImpl::lookupFilename(StringRef Filename,
                                         SmallVectorImpl<char> &DestPath) const {
   const HMapHeader &Hdr = getHeader();
@@ -224,7 +211,7 @@ StringRef HeaderMapImpl::lookupFilename(StringRef Filename,
     Optional<StringRef> Key = getString(B.Key);
     if (LLVM_UNLIKELY(!Key))
       continue;
-    if (!Filename.equals_lower(*Key))
+    if (!Filename.equals_insensitive(*Key))
       continue;
 
     // If so, we have a match in the hash table.  Construct the destination
@@ -239,4 +226,33 @@ StringRef HeaderMapImpl::lookupFilename(StringRef Filename,
     }
     return StringRef(DestPath.begin(), DestPath.size());
   }
+}
+
+StringRef HeaderMapImpl::reverseLookupFilename(StringRef DestPath) const {
+  if (!ReverseMap.empty())
+    return ReverseMap.lookup(DestPath);
+
+  const HMapHeader &Hdr = getHeader();
+  unsigned NumBuckets = getEndianAdjustedWord(Hdr.NumBuckets);
+  StringRef RetKey;
+  for (unsigned i = 0; i != NumBuckets; ++i) {
+    HMapBucket B = getBucket(i);
+    if (B.Key == HMAP_EmptyBucketKey)
+      continue;
+
+    Optional<StringRef> Key = getString(B.Key);
+    Optional<StringRef> Prefix = getString(B.Prefix);
+    Optional<StringRef> Suffix = getString(B.Suffix);
+    if (LLVM_LIKELY(Key && Prefix && Suffix)) {
+      SmallVector<char, 1024> Buf;
+      Buf.append(Prefix->begin(), Prefix->end());
+      Buf.append(Suffix->begin(), Suffix->end());
+      StringRef Value(Buf.begin(), Buf.size());
+      ReverseMap[Value] = *Key;
+
+      if (DestPath == Value)
+        RetKey = *Key;
+    }
+  }
+  return RetKey;
 }

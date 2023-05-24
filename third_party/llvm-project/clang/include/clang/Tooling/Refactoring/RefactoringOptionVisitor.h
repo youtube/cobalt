@@ -1,14 +1,13 @@
 //===--- RefactoringOptionVisitor.h - Clang refactoring library -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTION_VISITOR_H
-#define LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTION_VISITOR_H
+#ifndef LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONVISITOR_H
+#define LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONVISITOR_H
 
 #include "clang/Basic/LLVM.h"
 #include <type_traits>
@@ -59,4 +58,4 @@ struct IsValidOptionType : internal::HasHandle<T>::Type {};
 } // end namespace tooling
 } // end namespace clang
 
-#endif // LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTION_VISITOR_H
+#endif // LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONVISITOR_H

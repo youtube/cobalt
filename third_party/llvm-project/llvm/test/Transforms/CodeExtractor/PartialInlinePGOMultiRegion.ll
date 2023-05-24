@@ -101,6 +101,12 @@ for.inc2:                                          ; preds = %if.end2
   br label %for.cond2
 
 for.end:                                          ; preds = %for.cond2
+  callbr void asm sideeffect "1: nop\0A\09.quad b, ${0:l}, $$5\0A\09", "X,~{dirflag},~{fpsr},~{flags}"(i8* blockaddress(@bar, %l_yes))
+          to label %asm.fallthrough [label %l_yes]
+asm.fallthrough:                                  ; preds = %for.end
+  br label %l_yes
+
+l_yes:
   %20 = load i32, i32* %sum, align 4
   ret i32 %20
 }
@@ -109,9 +115,9 @@ define signext i32 @foo(i32 signext %value, i32 signext %ub) #0 !prof !30 {
 ; CHECK-LABEL: @foo
 ; CHECK-NOT: call signext i32 @bar
 ; CHECK: codeRepl1.i:
-; CHECK: call void @bar.1_if.then
+; CHECK: call void @bar.1.if.then
 ; CHECK: codeRepl.i:
-; CHECK: call void @bar.1_if.then2
+; CHECK: call void @bar.1.if.then2
 entry:
   %value.addr = alloca i32, align 4
   %ub.addr = alloca i32, align 4
@@ -123,11 +129,11 @@ entry:
   ret i32 %call
 }
 
-; CHECK-LABEL: define internal void @bar.1_if.then2
+; CHECK-LABEL: define internal void @bar.1.if.then2
 ; CHECK: .exitStub:
 ; CHECK: ret void
 
-; CHECK-LABEL: define internal void @bar.1_if.then
+; CHECK-LABEL: define internal void @bar.1.if.then
 ; CHECK: .exitStub:
 ; CHECK: ret void
 

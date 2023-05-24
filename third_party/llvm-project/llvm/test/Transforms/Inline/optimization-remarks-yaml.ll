@@ -34,6 +34,25 @@
 ; RUN: opt < %s -S -passes=inline \
 ; RUN:     -pass-remarks-with-hotness -pass-remarks-hotness-threshold 100 \
 ; RUN:     -pass-remarks-output=%t.threshold
+
+; Inliner - Module Wrapper
+; RUN: opt < %s -S -passes=inliner-wrapper -pass-remarks-missed=inline \
+; RUN:     -pass-remarks-with-hotness -pass-remarks-hotness-threshold 15 \
+; RUN:     -pass-remarks-output=%t 2>&1 | FileCheck %s
+; RUN: cat %t | FileCheck -check-prefix=YAML %s
+; RUN: opt < %s -S -passes=inliner-wrapper -pass-remarks-with-hotness -pass-remarks-output=%t
+; RUN: cat %t | FileCheck -check-prefix=YAML %s
+;
+; Verify that remarks that don't meet the hotness threshold are not output.
+; RUN: opt < %s -S -passes=inliner-wrapper -pass-remarks-missed=inline \
+; RUN:     -pass-remarks-with-hotness -pass-remarks-hotness-threshold 100 \
+; RUN:     -pass-remarks-output=%t.threshold 2>&1 | \
+; RUN:     FileCheck -check-prefix=THRESHOLD %s
+; RUN: test ! -s %t.threshold
+; RUN: opt < %s -S -passes=inliner-wrapper \
+; RUN:     -pass-remarks-with-hotness -pass-remarks-hotness-threshold 100 \
+; RUN:     -pass-remarks-output=%t.threshold
+
 ; The remarks output file should be empty.
 ; RUN: test ! -s %t.threshold
 
@@ -52,27 +71,27 @@
 ; YAML:      --- !Missed
 ; YAML-NEXT: Pass:            inline
 ; YAML-NEXT: Name:            NoDefinition
-; YAML-NEXT: DebugLoc:        { File: /tmp/s.c, Line: 5, Column: 10 }
+; YAML-NEXT: DebugLoc:        { File: '/tmp/s.c', Line: 5, Column: 10 }
 ; YAML-NEXT: Function:        baz
 ; YAML-NEXT: Hotness:         30
 ; YAML-NEXT: Args:
 ; YAML-NEXT:   - Callee: foo
 ; YAML-NEXT:   - String: ' will not be inlined into '
 ; YAML-NEXT:   - Caller: baz
-; YAML-NEXT:     DebugLoc:        { File: /tmp/s.c, Line: 4, Column: 0 }
+; YAML-NEXT:     DebugLoc:        { File: '/tmp/s.c', Line: 4, Column: 0 }
 ; YAML-NEXT:   - String: ' because its definition is unavailable'
 ; YAML-NEXT: ...
 ; YAML-NEXT: --- !Missed
 ; YAML-NEXT: Pass:            inline
 ; YAML-NEXT: Name:            NoDefinition
-; YAML-NEXT: DebugLoc:        { File: /tmp/s.c, Line: 5, Column: 18 }
+; YAML-NEXT: DebugLoc:        { File: '/tmp/s.c', Line: 5, Column: 18 }
 ; YAML-NEXT: Function:        baz
 ; YAML-NEXT: Hotness:         30
 ; YAML-NEXT: Args:
 ; YAML-NEXT:   - Callee: bar
 ; YAML-NEXT:   - String: ' will not be inlined into '
 ; YAML-NEXT:   - Caller: baz
-; YAML-NEXT:     DebugLoc:        { File: /tmp/s.c, Line: 4, Column: 0 }
+; YAML-NEXT:     DebugLoc:        { File: '/tmp/s.c', Line: 4, Column: 0 }
 ; YAML-NEXT:   - String: ' because its definition is unavailable'
 ; YAML-NEXT: ...
 

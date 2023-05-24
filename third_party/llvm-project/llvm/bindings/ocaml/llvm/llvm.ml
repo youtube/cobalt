@@ -1,15 +1,15 @@
 (*===-- llvm/llvm.ml - LLVM OCaml Interface -------------------------------===*
  *
- *                     The LLVM Compiler Infrastructure
- *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *
  *===----------------------------------------------------------------------===*)
 
 
 type llcontext
 type llmodule
+type llmetadata
 type lltype
 type llvalue
 type lluse
@@ -42,6 +42,10 @@ module TypeKind = struct
   | Vector
   | Metadata
   | X86_mmx
+  | Token
+  | ScalableVector
+  | BFloat
+  | X86_amx
 end
 
 module Linkage = struct
@@ -238,6 +242,15 @@ module Opcode  = struct
   | AtomicRMW
   | Resume
   | LandingPad
+  | AddrSpaceCast
+  | CleanupRet
+  | CatchRet
+  | CatchPad
+  | CleanupPad
+  | CatchSwitch
+  | FNeg
+  | CallBr
+  | Freeze
 end
 
 module LandingPadClauseTy = struct
@@ -280,6 +293,8 @@ module AtomicRMWBinOp = struct
   | Min
   | UMax
   | UMin
+  | FAdd
+  | FSub
 end
 
 module ValueKind = struct
@@ -303,8 +318,10 @@ module ValueKind = struct
   | ConstantVector
   | Function
   | GlobalAlias
+  | GlobalIFunc
   | GlobalVariable
   | UndefValue
+  | PoisonValue
   | Instruction of Opcode.t
 end
 
@@ -314,6 +331,16 @@ module DiagnosticSeverity = struct
   | Warning
   | Remark
   | Note
+end
+
+module ModuleFlagBehavior = struct
+  type t =
+  | Error
+  | Warning
+  | Require
+  | Override
+  | Append
+  | AppendUnique
 end
 
 exception IoError of string
@@ -416,6 +443,17 @@ external set_module_inline_asm : llmodule -> string -> unit
                                = "llvm_set_module_inline_asm"
 external module_context : llmodule -> llcontext = "LLVMGetModuleContext"
 
+external get_module_identifier : llmodule -> string
+                               = "llvm_get_module_identifier"
+
+external set_module_identifer : llmodule -> string -> unit
+                              = "llvm_set_module_identifier"
+
+external get_module_flag : llmodule -> string -> llmetadata option
+                         = "llvm_get_module_flag"
+external add_module_flag : llmodule -> ModuleFlagBehavior.t ->
+            string -> llmetadata -> unit = "llvm_add_module_flag"
+
 (*===-- Types -------------------------------------------------------------===*)
 external classify_type : lltype -> TypeKind.t = "llvm_classify_type"
 external type_context : lltype -> llcontext = "llvm_type_context"
@@ -461,6 +499,7 @@ external struct_element_types : lltype -> lltype array
                               = "llvm_struct_element_types"
 external is_packed : lltype -> bool = "llvm_is_packed"
 external is_opaque : lltype -> bool = "llvm_is_opaque"
+external is_literal : lltype -> bool = "llvm_is_literal"
 
 (*--... Operations on pointer, vector, and array types .....................--*)
 
@@ -529,6 +568,7 @@ external operand : llvalue -> int -> llvalue = "llvm_operand"
 external operand_use : llvalue -> int -> lluse = "llvm_operand_use"
 external set_operand : llvalue -> int -> llvalue -> unit = "llvm_set_operand"
 external num_operands : llvalue -> int = "llvm_num_operands"
+external indices : llvalue -> int array = "llvm_indices"
 
 (*--... Operations on constants of (mostly) any type .......................--*)
 external is_constant : llvalue -> bool = "llvm_is_constant"
@@ -536,8 +576,10 @@ external const_null : lltype -> llvalue = "LLVMConstNull"
 external const_all_ones : (*int|vec*)lltype -> llvalue = "LLVMConstAllOnes"
 external const_pointer_null : lltype -> llvalue = "LLVMConstPointerNull"
 external undef : lltype -> llvalue = "LLVMGetUndef"
+external poison : lltype -> llvalue = "LLVMGetPoison"
 external is_null : llvalue -> bool = "llvm_is_null"
 external is_undef : llvalue -> bool = "llvm_is_undef"
+external is_poison : llvalue -> bool = "llvm_is_poison"
 external constexpr_opcode : llvalue -> Opcode.t = "llvm_constexpr_get_opcode"
 
 (*--... Operations on instructions .........................................--*)
@@ -557,6 +599,9 @@ external get_named_metadata : llmodule -> string -> llvalue array
                             = "llvm_get_namedmd"
 external add_named_metadata_operand : llmodule -> string -> llvalue -> unit
                                     = "llvm_append_namedmd"
+external value_as_metadata : llvalue -> llmetadata = "llvm_value_as_metadata"
+external metadata_as_value : llcontext -> llmetadata -> llvalue
+                        = "llvm_metadata_as_value"
 
 (*--... Operations on scalar constants .....................................--*)
 external const_int : lltype -> int -> llvalue = "llvm_const_int"
@@ -681,6 +726,8 @@ external dll_storage_class : llvalue -> DLLStorageClass.t = "llvm_dll_storage_cl
 external set_dll_storage_class : DLLStorageClass.t -> llvalue -> unit = "llvm_set_dll_storage_class"
 external alignment : llvalue -> int = "llvm_alignment"
 external set_alignment : int -> llvalue -> unit = "llvm_set_alignment"
+external global_copy_all_metadata : llvalue -> (llmdkind * llmetadata) array
+                                  = "llvm_global_copy_all_metadata"
 external is_global_constant : llvalue -> bool = "llvm_is_global_constant"
 external set_global_constant : bool -> llvalue -> unit
                              = "llvm_set_global_constant"
@@ -699,7 +746,7 @@ external define_qualified_global : string -> llvalue -> int -> llmodule ->
 external lookup_global : string -> llmodule -> llvalue option
                        = "llvm_lookup_global"
 external delete_global : llvalue -> unit = "llvm_delete_global"
-external global_initializer : llvalue -> llvalue = "LLVMGetInitializer"
+external global_initializer : llvalue -> llvalue option = "llvm_global_initializer"
 external set_initializer : llvalue -> llvalue -> unit = "llvm_set_initializer"
 external remove_initializer : llvalue -> unit = "llvm_remove_initializer"
 external is_thread_local : llvalue -> bool = "llvm_is_thread_local"
@@ -1044,9 +1091,12 @@ let remove_enum_call_site_attr f k i =
 let remove_string_call_site_attr f k i =
   llvm_remove_string_call_site_attr f k (AttrIndex.to_int i)
 
-(*--... Operations on call instructions (only) .............................--*)
+(*--... Operations on call and invoke instructions (only) ..................--*)
+external num_arg_operands : llvalue -> int = "llvm_num_arg_operands"
 external is_tail_call : llvalue -> bool = "llvm_is_tail_call"
 external set_tail_call : bool -> llvalue -> unit = "llvm_set_tail_call"
+external get_normal_dest : llvalue -> llbasicblock = "LLVMGetNormalDest"
+external get_unwind_dest : llvalue -> llbasicblock = "LLVMGetUnwindDest"
 
 (*--... Operations on load/store instructions (only) .......................--*)
 external is_volatile : llvalue -> bool = "llvm_is_volatile"
@@ -1175,6 +1225,7 @@ external build_invoke : llvalue -> llvalue array -> llbasicblock ->
                       = "llvm_build_invoke_bc" "llvm_build_invoke_nat"
 external build_landingpad : lltype -> llvalue -> int -> string -> llbuilder ->
                             llvalue = "llvm_build_landingpad"
+external is_cleanup : llvalue -> bool = "llvm_is_cleanup"
 external set_cleanup : llvalue -> bool -> unit = "llvm_set_cleanup"
 external add_clause : llvalue -> llvalue -> unit = "llvm_add_clause"
 external build_resume : llvalue -> llbuilder -> llvalue = "llvm_build_resume"
@@ -1340,6 +1391,8 @@ external build_is_not_null : llvalue -> string -> llbuilder -> llvalue
                            = "llvm_build_is_not_null"
 external build_ptrdiff : llvalue -> llvalue -> string -> llbuilder -> llvalue
                        = "llvm_build_ptrdiff"
+external build_freeze : llvalue -> string -> llbuilder -> llvalue
+                      = "llvm_build_freeze"
 
 
 (*===-- Memory buffers ----------------------------------------------------===*)

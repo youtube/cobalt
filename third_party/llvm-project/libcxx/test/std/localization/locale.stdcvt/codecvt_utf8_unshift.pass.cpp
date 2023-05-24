@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,8 +23,11 @@
 #include <codecvt>
 #include <cassert>
 
-int main()
+#include "test_macros.h"
+
+int main(int, char**)
 {
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         typedef std::codecvt_utf8<wchar_t> C;
         C c;
@@ -35,6 +37,7 @@ int main()
         std::codecvt_base::result r = c.unshift(m, n, n+4, np);
         assert(r == std::codecvt_base::noconv);
     }
+#endif
     {
         typedef std::codecvt_utf8<char16_t> C;
         C c;
@@ -53,4 +56,6 @@ int main()
         std::codecvt_base::result r = c.unshift(m, n, n+4, np);
         assert(r == std::codecvt_base::noconv);
     }
+
+  return 0;
 }

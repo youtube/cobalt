@@ -1,9 +1,8 @@
 //===------ MappedIteratorTest.cpp - Unit tests for mapped_iterator -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -43,6 +42,69 @@ TEST(MappedIteratorTest, FunctionPreservesReferences) {
   std::map<int, int> M({ {1, 1} });
 
   auto I = map_iterator(V.begin(), [&](int X) -> int& { return M[X]; });
+  *I = 42;
+
+  EXPECT_EQ(M[1], 42) << "assignment should have modified M";
+}
+
+TEST(MappedIteratorTest, CustomIteratorApplyFunctionOnDereference) {
+  struct CustomMapIterator
+      : public llvm::mapped_iterator_base<CustomMapIterator,
+                                          std::vector<int>::iterator, int> {
+    using BaseT::BaseT;
+
+    /// Map the element to the iterator result type.
+    int mapElement(int X) const { return X + 1; }
+  };
+
+  std::vector<int> V({0});
+
+  CustomMapIterator I(V.begin());
+
+  EXPECT_EQ(*I, 1) << "should have applied function in dereference";
+}
+
+TEST(MappedIteratorTest, CustomIteratorApplyFunctionOnArrow) {
+  struct S {
+    int Z = 0;
+  };
+  struct CustomMapIterator
+      : public llvm::mapped_iterator_base<CustomMapIterator,
+                                          std::vector<int>::iterator, S &> {
+    CustomMapIterator(std::vector<int>::iterator it, S *P) : BaseT(it), P(P) {}
+
+    /// Map the element to the iterator result type.
+    S &mapElement(int X) const { return *(P + X); }
+
+    S *P;
+  };
+
+  std::vector<int> V({0});
+  S Y;
+
+  CustomMapIterator I(V.begin(), &Y);
+
+  I->Z = 42;
+
+  EXPECT_EQ(Y.Z, 42) << "should have applied function during arrow";
+}
+
+TEST(MappedIteratorTest, CustomIteratorFunctionPreservesReferences) {
+  struct CustomMapIterator
+      : public llvm::mapped_iterator_base<CustomMapIterator,
+                                          std::vector<int>::iterator, int &> {
+    CustomMapIterator(std::vector<int>::iterator it, std::map<int, int> &M)
+        : BaseT(it), M(M) {}
+
+    /// Map the element to the iterator result type.
+    int &mapElement(int X) const { return M[X]; }
+
+    std::map<int, int> &M;
+  };
+  std::vector<int> V({1});
+  std::map<int, int> M({{1, 1}});
+
+  auto I = CustomMapIterator(V.begin(), M);
   *I = 42;
 
   EXPECT_EQ(M[1], 42) << "assignment should have modified M";

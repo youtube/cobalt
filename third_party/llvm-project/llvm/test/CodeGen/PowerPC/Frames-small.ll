@@ -1,29 +1,95 @@
-; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc-apple-darwin8 -o %t1
-; RUN: not grep "stw r31, -4(r1)" %t1
-; RUN: grep "stwu r1, -16416(r1)" %t1
-; RUN: grep "addi r1, r1, 16416" %t1
-; RUN: llc -verify-machineinstrs < %s -mtriple=ppc32-- | \
-; RUN: not grep "lwz r31, -4(r1)"
-; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc-apple-darwin8 -disable-fp-elim \
-; RUN:   -o %t2
-; RUN: grep "stw r31, -4(r1)" %t2
-; RUN: grep "stwu r1, -16416(r1)" %t2
-; RUN: grep "addi r1, r1, 16416" %t2
-; RUN: grep "lwz r31, -4(r1)" %t2
-; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc64-apple-darwin8 -o %t3
-; RUN: not grep "std r31, -8(r1)" %t3
-; RUN: grep "stdu r1, -16432(r1)" %t3
-; RUN: grep "addi r1, r1, 16432" %t3
-; RUN: not grep "ld r31, -8(r1)" %t3
-; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc64-apple-darwin8 -disable-fp-elim \
-; RUN:   -o %t4
-; RUN: grep "std r31, -8(r1)" %t4
-; RUN: grep "stdu r1, -16448(r1)" %t4
-; RUN: grep "addi r1, r1, 16448" %t4
-; RUN: grep "ld r31, -8(r1)" %t4
+; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc-unknown-linux-gnu | \
+; RUN: FileCheck %s -check-prefix=PPC32-LINUX-NOFP
 
-define i32* @f1() {
-        %tmp = alloca i32, i32 4095             ; <i32*> [#uses=1]
+; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc-unknown-linux-gnu \
+; RUN: -frame-pointer=all | FileCheck %s -check-prefix=PPC32-LINUX-FP
+
+; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc64-unknown-linux-gnu | \
+; RUN: FileCheck %s -check-prefix=PPC64-LINUX-NOFP
+
+; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc64-unknown-linux-gnu \
+; RUN: -frame-pointer=all | FileCheck %s -check-prefix=PPC64-LINUX-FP
+
+; RUN: llc -verify-machineinstrs < %s -mcpu=pwr4 -mattr=-altivec \
+; RUN: -mtriple=powerpc-ibm-aix-xcoff | FileCheck %s \
+; RUN: -check-prefix=PPC32-AIX-NOFP
+
+; RUN: llc -verify-machineinstrs < %s -mcpu=pwr4 -mattr=-altivec \
+; RUN: -mtriple=powerpc-ibm-aix-xcoff -frame-pointer=all | FileCheck %s \
+; RUN: -check-prefix=PPC32-AIX-FP
+
+; RUN: llc -verify-machineinstrs < %s -mcpu=pwr4 -mattr=-altivec \
+; RUN: -mtriple=powerpc64-ibm-aix-xcoff | FileCheck %s \
+; RUN: -check-prefix=PPC64-AIX-NOFP
+
+; RUN: llc -verify-machineinstrs < %s -mcpu=pwr4 -mattr=-altivec \
+; RUN: -mtriple=powerpc64-ibm-aix-xcoff -frame-pointer=all | FileCheck %s \
+; RUN: -check-prefix=PPC64-AIX-FP
+
+define i32* @frame_small() {
+        %tmp = alloca i32, i32 95
         ret i32* %tmp
 }
 
+; The linkage area, if there is one, is still on the top of the stack after
+; `alloca` space.
+
+; PPC32-LINUX-NOFP-LABEL: frame_small
+; PPC32-LINUX-NOFP: stwu 1, -400(1)
+; PPC32-LINUX-NOFP: addi 3, 1, 20
+; PPC32-LINUX-NOFP: addi 1, 1, 400
+; PPC32-LINUX-NOFP: blr
+
+; PPC32-LINUX-FP-LABEL: frame_small
+; PPC32-LINUX-FP: stwu 1, -400(1)
+; PPC32-LINUX-FP: stw 31, 396(1)
+; PPC32-LINUX-FP: mr 31, 1
+; PPC32-LINUX-FP: addi 3, 31, 16
+; PPC32-LINUX-FP: lwz 31, 396(1)
+; PPC32-LINUX-FP: addi 1, 1, 400
+; PPC32-LINUX-FP: blr
+
+; PPC64-LINUX-NOFP-LABEL: frame_small
+; PPC64-LINUX-NOFP: stdu 1, -432(1)
+; PPC64-LINUX-NOFP: addi 3, 1, 52
+; PPC64-LINUX-NOFP: addi 1, 1, 432
+; PPC64-LINUX-NOFP: blr
+
+; PPC64-LINUX-FP-LABEL: frame_small
+; PPC64-LINUX-FP: std 31, -8(1)
+; PPC64-LINUX-FP: stdu 1, -448(1)
+; PPC64-LINUX-FP: mr 31, 1
+; PPC64-LINUX-FP: addi 3, 31, 60
+; PPC64-LINUX-FP: addi 1, 1, 448
+; PPC64-LINUX-FP: ld 31, -8(1)
+; PPC64-LINUX-FP: blr
+
+; PPC32-AIX-NOFP-LABEL: frame_small
+; PPC32-AIX-NOFP:      stwu 1, -416(1)
+; PPC32-AIX-NOFP-NEXT: addi 3, 1, 36
+; PPC32-AIX-NOFP-NEXT: addi 1, 1, 416
+; PPC32-AIX-NOFP-NEXT: blr
+
+; PPC32-AIX-FP-LABEL: frame_small
+; PPC32-AIX-FP:      stw 31, -4(1)
+; PPC32-AIX-FP-NEXT: stwu 1, -416(1)
+; PPC32-AIX-FP-NEXT: mr 31, 1
+; PPC32-AIX-FP-NEXT: addi 3, 31, 32
+; PPC32-AIX-FP-NEXT: addi 1, 1, 416
+; PPC32-AIX-FP-NEXT: lwz 31, -4(1)
+; PPC32-AIX-FP-NEXT: blr
+
+; PPC64-AIX-NOFP-LABEL: frame_small
+; PPC64-AIX-NOFP:      stdu 1, -432(1)
+; PPC64-AIX-NOFP-NEXT: addi 3, 1, 52
+; PPC64-AIX-NOFP-NEXT: addi 1, 1, 432
+; PPC64-AIX-NOFP-NEXT: blr
+
+; PPC64-AIX-FP-LABEL: frame_small
+; PPC64-AIX-FP:      std 31, -8(1)
+; PPC64-AIX-FP-NEXT: stdu 1, -448(1)
+; PPC64-AIX-FP-NEXT: mr 31, 1
+; PPC64-AIX-FP-NEXT: addi 3, 31, 60
+; PPC64-AIX-FP-NEXT: addi 1, 1, 448
+; PPC64-AIX-FP-NEXT: ld 31, -8(1)
+; PPC64-AIX-FP-NEXT: blr

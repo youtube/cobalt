@@ -1,9 +1,8 @@
 //===------ DumpModulePass.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,8 +13,10 @@
 #ifndef POLLY_SUPPORT_DUMPMODULEPASS_H
 #define POLLY_SUPPORT_DUMPMODULEPASS_H
 
+#include "llvm/IR/PassManager.h"
+#include <string>
+
 namespace llvm {
-class StringRef;
 class ModulePass;
 } // namespace llvm
 
@@ -29,12 +30,25 @@ namespace polly {
 /// The intent of IsSuffix is to avoid the file being overwritten when
 /// processing multiple modules and/or with multiple dump passes in the
 /// pipeline.
-llvm::ModulePass *createDumpModulePass(llvm::StringRef Filename, bool IsSuffix);
+llvm::ModulePass *createDumpModuleWrapperPass(std::string Filename,
+                                              bool IsSuffix);
+
+/// A pass that prints the module into a file.
+struct DumpModulePass : llvm::PassInfoMixin<DumpModulePass> {
+  std::string Filename;
+  bool IsSuffix;
+
+  DumpModulePass(std::string Filename, bool IsSuffix)
+      : Filename(std::move(Filename)), IsSuffix(IsSuffix) {}
+
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+};
+
 } // namespace polly
 
 namespace llvm {
 class PassRegistry;
-void initializeDumpModulePass(llvm::PassRegistry &);
+void initializeDumpModuleWrapperPassPass(llvm::PassRegistry &);
 } // namespace llvm
 
 #endif /* POLLY_SUPPORT_DUMPMODULEPASS_H */

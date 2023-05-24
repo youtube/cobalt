@@ -1,4 +1,4 @@
-; RUN: opt < %s -analyze -basicaa -da
+; RUN: opt < %s -disable-output "-passes=print<da>" -aa-pipeline=basic-aa 2>&1
 ;
 ; CHECK: da analyze - consistent input [S S]!
 ; CHECK: da analyze - confused!

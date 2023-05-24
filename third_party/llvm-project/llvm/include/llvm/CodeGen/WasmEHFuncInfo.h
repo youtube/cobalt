@@ -1,9 +1,8 @@
 //===--- llvm/CodeGen/WasmEHFuncInfo.h --------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,61 +13,78 @@
 #ifndef LLVM_CODEGEN_WASMEHFUNCINFO_H
 #define LLVM_CODEGEN_WASMEHFUNCINFO_H
 
-#include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/IR/BasicBlock.h"
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/SmallPtrSet.h"
 
 namespace llvm {
+
+class BasicBlock;
+class Function;
+class MachineBasicBlock;
+
+namespace WebAssembly {
+enum Tag { CPP_EXCEPTION = 0, C_LONGJMP = 1 };
+}
 
 using BBOrMBB = PointerUnion<const BasicBlock *, MachineBasicBlock *>;
 
 struct WasmEHFuncInfo {
   // When there is an entry <A, B>, if an exception is not caught by A, it
   // should next unwind to the EH pad B.
-  DenseMap<BBOrMBB, BBOrMBB> EHPadUnwindMap;
-  // For entry <A, B>, A is a BB with an instruction that may throw
-  // (invoke/cleanupret in LLVM IR, call/rethrow in the backend) and B is an EH
-  // pad that A unwinds to.
-  DenseMap<BBOrMBB, BBOrMBB> ThrowUnwindMap;
+  DenseMap<BBOrMBB, BBOrMBB> SrcToUnwindDest;
+  DenseMap<BBOrMBB, SmallPtrSet<BBOrMBB, 4>> UnwindDestToSrcs; // reverse map
 
   // Helper functions
-  const BasicBlock *getEHPadUnwindDest(const BasicBlock *BB) const {
-    return EHPadUnwindMap.lookup(BB).get<const BasicBlock *>();
+  const BasicBlock *getUnwindDest(const BasicBlock *BB) const {
+    assert(hasUnwindDest(BB));
+    return SrcToUnwindDest.lookup(BB).get<const BasicBlock *>();
   }
-  void setEHPadUnwindDest(const BasicBlock *BB, const BasicBlock *Dest) {
-    EHPadUnwindMap[BB] = Dest;
+  SmallPtrSet<const BasicBlock *, 4> getUnwindSrcs(const BasicBlock *BB) const {
+    assert(hasUnwindSrcs(BB));
+    const auto &Set = UnwindDestToSrcs.lookup(BB);
+    SmallPtrSet<const BasicBlock *, 4> Ret;
+    for (const auto P : Set)
+      Ret.insert(P.get<const BasicBlock *>());
+    return Ret;
   }
-  const BasicBlock *getThrowUnwindDest(BasicBlock *BB) const {
-    return ThrowUnwindMap.lookup(BB).get<const BasicBlock *>();
+  void setUnwindDest(const BasicBlock *BB, const BasicBlock *Dest) {
+    SrcToUnwindDest[BB] = Dest;
+    if (!UnwindDestToSrcs.count(Dest))
+      UnwindDestToSrcs[Dest] = SmallPtrSet<BBOrMBB, 4>();
+    UnwindDestToSrcs[Dest].insert(BB);
   }
-  void setThrowUnwindDest(const BasicBlock *BB, const BasicBlock *Dest) {
-    ThrowUnwindMap[BB] = Dest;
+  bool hasUnwindDest(const BasicBlock *BB) const {
+    return SrcToUnwindDest.count(BB);
   }
-  bool hasEHPadUnwindDest(const BasicBlock *BB) const {
-    return EHPadUnwindMap.count(BB);
-  }
-  bool hasThrowUnwindDest(const BasicBlock *BB) const {
-    return ThrowUnwindMap.count(BB);
+  bool hasUnwindSrcs(const BasicBlock *BB) const {
+    return UnwindDestToSrcs.count(BB);
   }
 
-  MachineBasicBlock *getEHPadUnwindDest(MachineBasicBlock *MBB) const {
-    return EHPadUnwindMap.lookup(MBB).get<MachineBasicBlock *>();
+  MachineBasicBlock *getUnwindDest(MachineBasicBlock *MBB) const {
+    assert(hasUnwindDest(MBB));
+    return SrcToUnwindDest.lookup(MBB).get<MachineBasicBlock *>();
   }
-  void setEHPadUnwindDest(MachineBasicBlock *MBB, MachineBasicBlock *Dest) {
-    EHPadUnwindMap[MBB] = Dest;
+  SmallPtrSet<MachineBasicBlock *, 4>
+  getUnwindSrcs(MachineBasicBlock *MBB) const {
+    assert(hasUnwindSrcs(MBB));
+    const auto &Set = UnwindDestToSrcs.lookup(MBB);
+    SmallPtrSet<MachineBasicBlock *, 4> Ret;
+    for (const auto P : Set)
+      Ret.insert(P.get<MachineBasicBlock *>());
+    return Ret;
   }
-  MachineBasicBlock *getThrowUnwindDest(MachineBasicBlock *MBB) const {
-    return ThrowUnwindMap.lookup(MBB).get<MachineBasicBlock *>();
+  void setUnwindDest(MachineBasicBlock *MBB, MachineBasicBlock *Dest) {
+    SrcToUnwindDest[MBB] = Dest;
+    if (!UnwindDestToSrcs.count(Dest))
+      UnwindDestToSrcs[Dest] = SmallPtrSet<BBOrMBB, 4>();
+    UnwindDestToSrcs[Dest].insert(MBB);
   }
-  void setThrowUnwindDest(MachineBasicBlock *MBB, MachineBasicBlock *Dest) {
-    ThrowUnwindMap[MBB] = Dest;
+  bool hasUnwindDest(MachineBasicBlock *MBB) const {
+    return SrcToUnwindDest.count(MBB);
   }
-  bool hasEHPadUnwindDest(MachineBasicBlock *MBB) const {
-    return EHPadUnwindMap.count(MBB);
-  }
-  bool hasThrowUnwindDest(MachineBasicBlock *MBB) const {
-    return ThrowUnwindMap.count(MBB);
+  bool hasUnwindSrcs(MachineBasicBlock *MBB) const {
+    return UnwindDestToSrcs.count(MBB);
   }
 };
 

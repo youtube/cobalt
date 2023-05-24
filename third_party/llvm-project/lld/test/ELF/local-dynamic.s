@@ -2,7 +2,7 @@
 // Check that local symbols are not inserted into dynamic table.
 // RUN: llvm-mc -filetype=obj -triple=x86_64-pc-linux %s -o %t
 // RUN: ld.lld %t -shared -o %t1.so
-// RUN: llvm-readobj -t -dyn-symbols %t1.so | FileCheck %s
+// RUN: llvm-readobj --symbols --dyn-syms %t1.so | FileCheck %s
 
 // CHECK: Symbols [
 // CHECK-NEXT:   Symbol {
@@ -65,7 +65,7 @@
 
 // CHECK: DynamicSymbols [
 // CHECK-NEXT:   Symbol {
-// CHECK-NEXT:     Name: @
+// CHECK-NEXT:     Name:
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Local
@@ -74,7 +74,7 @@
 // CHECK-NEXT:     Section: Undefined
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
-// CHECK-NEXT:     Name: _start@
+// CHECK-NEXT:     Name: _start
 // CHECK-NEXT:     Value:
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global

@@ -1,21 +1,23 @@
 ; RUN: llc < %s -mtriple=i386-linux-gnu | FileCheck -check-prefix=X86_LINUX %s
 ; RUN: llc < %s -mtriple=x86_64-linux-gnu | FileCheck -check-prefix=X64_LINUX %s
+; RUN: llc < %s -mtriple=i386-linux-gnu -fast-isel | FileCheck -check-prefix=X86_ISEL_LINUX %s
+; RUN: llc < %s -mtriple=x86_64-linux-gnu -fast-isel | FileCheck -check-prefix=X64_ISEL_LINUX %s
 ; RUN: llc < %s -mtriple=i686-pc-win32 | FileCheck -check-prefix=X86_WIN %s
 ; RUN: llc < %s -mtriple=x86_64-pc-win32 | FileCheck -check-prefix=X64_WIN %s
 ; RUN: llc < %s -mtriple=i686-pc-windows-gnu | FileCheck -check-prefix=MINGW32 %s
 ; RUN: llc < %s -mtriple=x86_64-pc-windows-gnu | FileCheck -check-prefix=X64_WIN %s
 
-@i1 = thread_local global i32 15
+@i1 = dso_local thread_local global i32 15
 @i2 = external thread_local global i32
 @i3 = internal thread_local global i32 15
 @i4 = hidden thread_local global i32 15
 @i5 = external hidden thread_local global i32
 @i6 = external protected thread_local global i32
-@s1 = thread_local global i16 15
-@b1 = thread_local global i8 0
-@b2 = thread_local(localexec) global i8 0
+@s1 = dso_local thread_local global i16 15
+@b1 = dso_local thread_local global i8 0
+@b2 = dso_local thread_local(localexec) global i8 0
 
-define i32 @f1() {
+define dso_local i32 @f1() {
 ; X86_LINUX-LABEL: f1:
 ; X86_LINUX:      movl %gs:i1@NTPOFF, %eax
 ; X86_LINUX-NEXT: ret
@@ -46,7 +48,7 @@ entry:
 	ret i32 %tmp1
 }
 
-define i32* @f2() {
+define dso_local i32* @f2() {
 ; X86_LINUX-LABEL: f2:
 ; X86_LINUX:      movl %gs:0, %eax
 ; X86_LINUX-NEXT: leal i1@NTPOFF(%eax), %eax
@@ -78,7 +80,7 @@ entry:
 	ret i32* @i1
 }
 
-define i32 @f3() nounwind {
+define dso_local i32 @f3() nounwind {
 ; X86_LINUX-LABEL: f3:
 ; X86_LINUX:      movl i2@INDNTPOFF, %eax
 ; X86_LINUX-NEXT: movl %gs:(%eax), %eax
@@ -111,7 +113,7 @@ entry:
 	ret i32 %tmp1
 }
 
-define i32* @f4() {
+define dso_local i32* @f4() {
 ; X86_LINUX-LABEL: f4:
 ; X86_LINUX:      movl %gs:0, %eax
 ; X86_LINUX-NEXT: addl i2@INDNTPOFF, %eax
@@ -143,7 +145,7 @@ entry:
 	ret i32* @i2
 }
 
-define i32 @f5() nounwind {
+define dso_local i32 @f5() nounwind {
 ; X86_LINUX-LABEL: f5:
 ; X86_LINUX:      movl %gs:i3@NTPOFF, %eax
 ; X86_LINUX-NEXT: ret
@@ -174,7 +176,7 @@ entry:
 	ret i32 %tmp1
 }
 
-define i32* @f6() {
+define dso_local i32* @f6() {
 ; X86_LINUX-LABEL: f6:
 ; X86_LINUX:      movl %gs:0, %eax
 ; X86_LINUX-NEXT: leal i3@NTPOFF(%eax), %eax
@@ -206,7 +208,7 @@ entry:
 	ret i32* @i3
 }
 
-define i32 @f7() {
+define dso_local i32 @f7() {
 ; X86_LINUX-LABEL: f7:
 ; X86_LINUX:      movl %gs:i4@NTPOFF, %eax
 ; X86_LINUX-NEXT: ret
@@ -225,7 +227,7 @@ entry:
 	ret i32 %tmp1
 }
 
-define i32* @f8() {
+define dso_local i32* @f8() {
 ; X86_LINUX-LABEL: f8:
 ; X86_LINUX:      movl %gs:0, %eax
 ; X86_LINUX-NEXT: leal i4@NTPOFF(%eax), %eax
@@ -245,7 +247,7 @@ entry:
 	ret i32* @i4
 }
 
-define i32 @f9() {
+define dso_local i32 @f9() {
 ; X86_LINUX-LABEL: f9:
 ; X86_LINUX:      movl %gs:i5@NTPOFF, %eax
 ; X86_LINUX-NEXT: ret
@@ -264,7 +266,7 @@ entry:
 	ret i32 %tmp1
 }
 
-define i32* @f10() {
+define dso_local i32* @f10() {
 ; X86_LINUX-LABEL: f10:
 ; X86_LINUX:      movl %gs:0, %eax
 ; X86_LINUX-NEXT: leal i5@NTPOFF(%eax), %eax
@@ -315,7 +317,7 @@ entry:
 	ret i16 %tmp1
 }
 
-define i32 @f12() {
+define dso_local i32 @f12() {
 ; X86_LINUX-LABEL: f12:
 ; X86_LINUX:      movswl %gs:s1@NTPOFF, %eax
 ; X86_LINUX-NEXT: ret
@@ -348,7 +350,7 @@ entry:
 	ret i32 %tmp2
 }
 
-define i8 @f13() {
+define dso_local i8 @f13() {
 ; X86_LINUX-LABEL: f13:
 ; X86_LINUX:      movb %gs:b1@NTPOFF, %al
 ; X86_LINUX-NEXT: ret
@@ -379,7 +381,7 @@ entry:
 	ret i8 %tmp1
 }
 
-define i32 @f14() {
+define dso_local i32 @f14() {
 ; X86_LINUX-LABEL: f14:
 ; X86_LINUX:      movsbl %gs:b1@NTPOFF, %eax
 ; X86_LINUX-NEXT: ret
@@ -411,7 +413,7 @@ entry:
 	ret i32 %tmp2
 }
 
-define i8* @f15() {
+define dso_local i8* @f15() {
 ; X86_LINUX-LABEL: f15:
 ; X86_LINUX:      movl %gs:0, %eax
 ; X86_LINUX-NEXT: leal b2@NTPOFF(%eax), %eax
@@ -440,7 +442,7 @@ entry:
 }
 
 
-define i32* @f16() {
+define dso_local i32* @f16() {
 ; X86_LINUX-LABEL: f16:
 ; X86_LINUX:       movl %gs:0, %eax
 ; X86_LINUX-NEXT:  leal i6@NTPOFF(%eax), %eax
@@ -453,3 +455,59 @@ define i32* @f16() {
 
   ret i32* @i6
 }
+
+; NOTE: Similar to f1() but with direct TLS segment access disabled
+define dso_local i32 @f17() #0 {
+; X86_LINUX-LABEL: f17:
+; X86_LINUX:      movl %gs:0, %eax
+; X86_LINUX-NEXT: movl i1@NTPOFF(%eax), %eax
+; X86_LINUX-NEXT: ret
+; X64_LINUX-LABEL: f17:
+; X64_LINUX:      movq %fs:0, %rax
+; X64_LINUX-NEXT: movl i1@TPOFF(%rax), %eax
+; X64_LINUX-NEXT: ret
+; X86_ISEL_LINUX-LABEL: f17:
+; X86_ISEL_LINUX:      movl %gs:0, %eax
+; X86_ISEL_LINUX-NEXT: movl i1@NTPOFF(%eax), %eax
+; X86_ISEL_LINUX-NEXT: ret
+; X64_ISEL_LINUX-LABEL: f17:
+; X64_ISEL_LINUX:      movq %fs:0, %rax
+; X64_ISEL_LINUX-NEXT: movl i1@TPOFF(%rax), %eax
+; X64_ISEL_LINUX-NEXT: ret
+
+entry:
+	%tmp1 = load i32, i32* @i1
+	ret i32 %tmp1
+}
+
+; NOTE: Similar to f3() but with direct TLS segment access disabled
+define dso_local i32 @f18() #1 {
+; X86_LINUX-LABEL: f18:
+; X86_LINUX:      movl i2@INDNTPOFF, %eax
+; X86_LINUX-NEXT: movl %gs:0, %ecx
+; X86_LINUX-NEXT: movl (%ecx,%eax), %eax
+; X86_LINUX-NEXT: ret
+; X64_LINUX-LABEL: f18:
+; X64_LINUX:      movq i2@GOTTPOFF(%rip), %rax
+; X64_LINUX-NEXT: movq %fs:0, %rcx
+; X64_LINUX-NEXT: movl (%rcx,%rax), %eax
+; X64_LINUX-NEXT: ret
+; X86_ISEL_LINUX-LABEL: f18:
+; X86_ISEL_LINUX:      movl i2@INDNTPOFF, %eax
+; X86_ISEL_LINUX-NEXT: movl %gs:0, %ecx
+; X86_ISEL_LINUX-NEXT: movl (%ecx,%eax), %eax
+; X86_ISEL_LINUX-NEXT: ret
+; X64_ISEL_LINUX-LABEL: f18:
+; X64_ISEL_LINUX:      movq i2@GOTTPOFF(%rip), %rax
+; X64_ISEL_LINUX-NEXT: movq %fs:0, %rcx
+; X64_ISEL_LINUX-NEXT: movl (%rcx,%rax), %eax
+; X64_ISEL_LINUX-NEXT: ret
+
+
+entry:
+	%tmp1 = load i32, i32* @i2
+	ret i32 %tmp1
+}
+
+attributes #0 = { "indirect-tls-seg-refs" }
+attributes #1 = { nounwind "indirect-tls-seg-refs" }

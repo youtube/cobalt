@@ -25,6 +25,43 @@ private:
   void priv_default();
 };
 
+class C {
+public:
+  // CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "D",{{.*}} flags: DIFlagPublic | DIFlagTypePassByValue,
+  struct D {
+  };
+protected:
+  // CHECK: !DICompositeType(tag: DW_TAG_union_type, name: "E",{{.*}} flags: DIFlagProtected | DIFlagTypePassByValue,
+  union E {
+  };
+private:
+  // CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "J",{{.*}} flags: DIFlagTypePassByValue,
+  struct J {
+  };
+public:
+  D d;
+  E e;
+  J j;
+};
+
+struct F {
+private:
+  // CHECK: !DICompositeType(tag: DW_TAG_union_type, name: "G",{{.*}} flags: DIFlagPrivate | DIFlagTypePassByValue,
+  union G {
+  };
+public:
+  G g;
+};
+
+union H {
+private:
+  // CHECK: !DICompositeType(tag: DW_TAG_class_type, name: "I",{{.*}} flags: DIFlagPrivate | DIFlagTypePassByValue,
+  class I {
+  };
+public:
+  I i;
+};
+
 union U {
   // CHECK-DAG: !DISubprogram(name: "union_pub_default",{{.*}} line: [[@LINE+1]],{{.*}} flags: DIFlagPrototyped,
   void union_pub_default();
@@ -33,12 +70,14 @@ private:
   int union_priv;
 };
 
-
 // CHECK: !DISubprogram(name: "free",
-// CHECK-SAME:          isDefinition: true
 // CHECK-SAME:          flags: DIFlagPrototyped,
+// CHECK-SAME:          spFlags: DISPFlagDefinition
 void free() {}
 
 U u;
 A a;
 B b;
+C c;
+F f;
+H h;

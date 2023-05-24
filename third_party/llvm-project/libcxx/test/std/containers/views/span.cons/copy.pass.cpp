@@ -1,13 +1,15 @@
-// -*- C++ -*-
-//===------------------------------ span ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===---------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17 
+//===----------------------------------------------------------------------===//
+// UNSUPPORTED: c++03, c++11, c++14, c++17
+// UNSUPPORTED: libcpp-has-no-incomplete-ranges
+
+// AppleClang 12.0.0 doesn't fully support ranges/concepts
+// XFAIL: apple-clang-12.0.0
 
 // <span>
 
@@ -43,10 +45,10 @@ void testCV ()
 }
 
 
-int main ()
+int main(int, char**)
 {
     constexpr int carr[] = {1,2,3};
-    
+
     static_assert(doCopy(std::span<      int>  ()),            "");
     static_assert(doCopy(std::span<      int,0>()),            "");
     static_assert(doCopy(std::span<const int>  (&carr[0], 1)), "");
@@ -68,4 +70,6 @@ int main ()
     testCV<const          int>();
     testCV<      volatile int>();
     testCV<const volatile int>();
+
+  return 0;
 }

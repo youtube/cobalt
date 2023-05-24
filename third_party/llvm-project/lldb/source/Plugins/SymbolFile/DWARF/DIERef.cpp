@@ -1,67 +1,55 @@
-//===-- DIERef.cpp ----------------------------------------------*- C++ -*-===//
+//===-- DIERef.cpp --------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "DIERef.h"
-#include "DWARFUnit.h"
-#include "DWARFDebugInfo.h"
-#include "DWARFFormValue.h"
-#include "SymbolFileDWARF.h"
-#include "SymbolFileDWARFDebugMap.h"
+#include "lldb/Utility/DataEncoder.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "llvm/Support/Format.h"
 
-DIERef::DIERef(lldb::user_id_t uid, SymbolFileDWARF *dwarf)
-    : cu_offset(DW_INVALID_OFFSET), die_offset(uid & 0xffffffff) {
-  SymbolFileDWARFDebugMap *debug_map = dwarf->GetDebugMapSymfile();
-  if (debug_map) {
-    const uint32_t oso_idx = debug_map->GetOSOIndexFromUserID(uid);
-    SymbolFileDWARF *actual_dwarf = debug_map->GetSymbolFileByOSOIndex(oso_idx);
-    if (actual_dwarf) {
-      DWARFDebugInfo *debug_info = actual_dwarf->DebugInfo();
-      if (debug_info) {
-        DWARFUnit *dwarf_cu =
-            debug_info->GetCompileUnitContainingDIEOffset(die_offset);
-        if (dwarf_cu) {
-          cu_offset = dwarf_cu->GetOffset();
-          return;
-        }
-      }
-    }
-    die_offset = DW_INVALID_OFFSET;
-  } else {
-    cu_offset = uid >> 32;
-  }
+using namespace lldb;
+using namespace lldb_private;
+
+void llvm::format_provider<DIERef>::format(const DIERef &ref, raw_ostream &OS,
+                                           StringRef Style) {
+  if (ref.dwo_num())
+    OS << format_hex_no_prefix(*ref.dwo_num(), 8) << "/";
+  OS << (ref.section() == DIERef::DebugInfo ? "INFO" : "TYPE");
+  OS << "/" << format_hex_no_prefix(ref.die_offset(), 8);
 }
 
-DIERef::DIERef(const DWARFFormValue &form_value)
-    : cu_offset(DW_INVALID_OFFSET), die_offset(DW_INVALID_OFFSET) {
-  if (form_value.IsValid()) {
-    const DWARFUnit *dwarf_cu = form_value.GetCompileUnit();
-    if (dwarf_cu) {
-      if (dwarf_cu->GetBaseObjOffset() != DW_INVALID_OFFSET)
-        cu_offset = dwarf_cu->GetBaseObjOffset();
-      else
-        cu_offset = dwarf_cu->GetOffset();
-    }
-    die_offset = form_value.Reference();
-  }
-}
+constexpr uint32_t k_dwo_num_mask = 0x3FFFFFFF;
+constexpr uint32_t k_dwo_num_valid_bitmask = (1u << 30);
+constexpr uint32_t k_section_bitmask = (1u << 31);
 
-lldb::user_id_t DIERef::GetUID(SymbolFileDWARF *dwarf) const {
-  //----------------------------------------------------------------------
-  // Each SymbolFileDWARF will set its ID to what is expected.
-  //
-  // SymbolFileDWARF, when used for DWARF with .o files on MacOSX, has the
-  // ID set to the compile unit index.
-  //
-  // SymbolFileDWARFDwo sets the ID to the compile unit offset.
-  //----------------------------------------------------------------------
-  if (dwarf && die_offset != DW_INVALID_OFFSET)
-    return dwarf->GetID() | die_offset;
+llvm::Optional<DIERef> DIERef::Decode(const DataExtractor &data,
+                                      lldb::offset_t *offset_ptr) {
+  const uint32_t bitfield_storage = data.GetU32(offset_ptr);
+  uint32_t dwo_num = bitfield_storage & k_dwo_num_mask;
+  bool dwo_num_valid = (bitfield_storage & (k_dwo_num_valid_bitmask)) != 0;
+  Section section = (Section)((bitfield_storage & (k_section_bitmask)) != 0);
+  // DIE offsets can't be zero and if we fail to decode something from data,
+  // it will return 0
+  dw_offset_t die_offset = data.GetU32(offset_ptr);
+  if (die_offset == 0)
+    return llvm::None;
+  if (dwo_num_valid)
+    return DIERef(dwo_num, section, die_offset);
   else
-    return LLDB_INVALID_UID;
+    return DIERef(llvm::None, section, die_offset);
+}
+
+void DIERef::Encode(DataEncoder &encoder) const {
+  uint32_t bitfield_storage = m_dwo_num;
+  if (m_dwo_num_valid)
+    bitfield_storage |= k_dwo_num_valid_bitmask;
+  if (m_section)
+    bitfield_storage |= k_section_bitmask;
+  encoder.AppendU32(bitfield_storage);
+  static_assert(sizeof(m_die_offset) == 4, "m_die_offset must be 4 bytes");
+  encoder.AppendU32(m_die_offset);
 }

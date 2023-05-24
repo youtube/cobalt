@@ -1,18 +1,17 @@
 //===- llvm/unittests/IR/DominatorTreeBatchUpdatesTest.cpp ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include <random>
 #include "CFGBuilder.h"
-#include "gtest/gtest.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/Support/GenericDomTreeConstruction.h"
+#include "gtest/gtest.h"
+#include <random>
 
 #define DEBUG_TYPE "batch-update-tests"
 
@@ -21,7 +20,6 @@ using namespace llvm;
 namespace {
 const auto CFGInsert = CFGBuilder::ActionKind::Insert;
 const auto CFGDelete = CFGBuilder::ActionKind::Delete;
-
 
 using DomUpdate = DominatorTree::UpdateType;
 static_assert(
@@ -58,14 +56,14 @@ TEST(DominatorTreeBatchUpdates, LegalizeDomUpdates) {
       {Insert, B, C}, {Insert, C, D}, {Delete, B, C}, {Insert, B, C},
       {Insert, B, D}, {Delete, C, D}, {Delete, A, B}};
   SmallVector<DomUpdate, 4> Legalized;
-  DomSNCA::LegalizeUpdates(Updates, Legalized);
+  cfg::LegalizeUpdates<BasicBlock *>(Updates, Legalized, false);
   LLVM_DEBUG(dbgs() << "Legalized updates:\t");
-  LLVM_DEBUG(for (auto &U : Legalized) dbgs() << U << ", ");
+  LLVM_DEBUG(for (auto &U : Legalized) { U.dump(); dbgs() << ", "; });
   LLVM_DEBUG(dbgs() << "\n");
   EXPECT_EQ(Legalized.size(), 3UL);
-  EXPECT_NE(llvm::find(Legalized, DomUpdate{Insert, B, C}), Legalized.end());
-  EXPECT_NE(llvm::find(Legalized, DomUpdate{Insert, B, D}), Legalized.end());
-  EXPECT_NE(llvm::find(Legalized, DomUpdate{Delete, A, B}), Legalized.end());
+  EXPECT_TRUE(llvm::is_contained(Legalized, DomUpdate{Insert, B, C}));
+  EXPECT_TRUE(llvm::is_contained(Legalized, DomUpdate{Insert, B, D}));
+  EXPECT_TRUE(llvm::is_contained(Legalized, DomUpdate{Delete, A, B}));
 }
 
 TEST(DominatorTreeBatchUpdates, LegalizePostDomUpdates) {
@@ -81,14 +79,14 @@ TEST(DominatorTreeBatchUpdates, LegalizePostDomUpdates) {
       {Insert, B, C}, {Insert, C, D}, {Delete, B, C}, {Insert, B, C},
       {Insert, B, D}, {Delete, C, D}, {Delete, A, B}};
   SmallVector<DomUpdate, 4> Legalized;
-  PostDomSNCA::LegalizeUpdates(Updates, Legalized);
+  cfg::LegalizeUpdates<BasicBlock *>(Updates, Legalized, true);
   LLVM_DEBUG(dbgs() << "Legalized postdom updates:\t");
-  LLVM_DEBUG(for (auto &U : Legalized) dbgs() << U << ", ");
+  LLVM_DEBUG(for (auto &U : Legalized) { U.dump(); dbgs() << ", "; });
   LLVM_DEBUG(dbgs() << "\n");
   EXPECT_EQ(Legalized.size(), 3UL);
-  EXPECT_NE(llvm::find(Legalized, DomUpdate{Insert, C, B}), Legalized.end());
-  EXPECT_NE(llvm::find(Legalized, DomUpdate{Insert, D, B}), Legalized.end());
-  EXPECT_NE(llvm::find(Legalized, DomUpdate{Delete, B, A}), Legalized.end());
+  EXPECT_TRUE(llvm::is_contained(Legalized, DomUpdate{Insert, C, B}));
+  EXPECT_TRUE(llvm::is_contained(Legalized, DomUpdate{Insert, D, B}));
+  EXPECT_TRUE(llvm::is_contained(Legalized, DomUpdate{Delete, B, A}));
 }
 
 TEST(DominatorTreeBatchUpdates, SingleInsertion) {

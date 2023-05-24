@@ -1,9 +1,8 @@
 //== GenericTaintChecker.cpp ----------------------------------- -*- C++ -*--=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,321 +13,675 @@
 // aggressively, even if the involved symbols are under constrained.
 //
 //===----------------------------------------------------------------------===//
-#include "ClangSACheckers.h"
+
+#include "Taint.h"
+#include "Yaml.h"
 #include "clang/AST/Attr.h"
 #include "clang/Basic/Builtins.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallDescription.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include <climits>
+#include "llvm/Support/YAMLTraits.h"
+
+#include <limits>
+#include <memory>
+#include <utility>
 
 using namespace clang;
 using namespace ento;
+using namespace taint;
 
 namespace {
-class GenericTaintChecker : public Checker< check::PostStmt<CallExpr>,
-                                            check::PreStmt<CallExpr> > {
+
+class GenericTaintChecker;
+
+/// Check for CWE-134: Uncontrolled Format String.
+constexpr llvm::StringLiteral MsgUncontrolledFormatString =
+    "Untrusted data is used as a format string "
+    "(CWE-134: Uncontrolled Format String)";
+
+/// Check for:
+/// CERT/STR02-C. "Sanitize data passed to complex subsystems"
+/// CWE-78, "Failure to Sanitize Data into an OS Command"
+constexpr llvm::StringLiteral MsgSanitizeSystemArgs =
+    "Untrusted data is passed to a system call "
+    "(CERT/STR02-C. Sanitize data passed to complex subsystems)";
+
+/// Check if tainted data is used as a buffer size in strn.. functions,
+/// and allocators.
+constexpr llvm::StringLiteral MsgTaintedBufferSize =
+    "Untrusted data is used to specify the buffer size "
+    "(CERT/STR31-C. Guarantee that storage for strings has sufficient space "
+    "for character data and the null terminator)";
+
+/// Check if tainted data is used as a custom sink's parameter.
+constexpr llvm::StringLiteral MsgCustomSink =
+    "Untrusted data is passed to a user-defined sink";
+
+using ArgIdxTy = int;
+using ArgVecTy = llvm::SmallVector<ArgIdxTy, 2>;
+
+/// Denotes the return value.
+constexpr ArgIdxTy ReturnValueIndex{-1};
+
+static ArgIdxTy fromArgumentCount(unsigned Count) {
+  assert(Count <=
+             static_cast<std::size_t>(std::numeric_limits<ArgIdxTy>::max()) &&
+         "ArgIdxTy is not large enough to represent the number of arguments.");
+  return Count;
+}
+
+/// Check if the region the expression evaluates to is the standard input,
+/// and thus, is tainted.
+/// FIXME: Move this to Taint.cpp.
+bool isStdin(SVal Val, const ASTContext &ACtx) {
+  // FIXME: What if Val is NonParamVarRegion?
+
+  // The region should be symbolic, we do not know it's value.
+  const auto *SymReg = dyn_cast_or_null<SymbolicRegion>(Val.getAsRegion());
+  if (!SymReg)
+    return false;
+
+  // Get it's symbol and find the declaration region it's pointing to.
+  const auto *Sm = dyn_cast<SymbolRegionValue>(SymReg->getSymbol());
+  if (!Sm)
+    return false;
+  const auto *DeclReg = dyn_cast<DeclRegion>(Sm->getRegion());
+  if (!DeclReg)
+    return false;
+
+  // This region corresponds to a declaration, find out if it's a global/extern
+  // variable named stdin with the proper type.
+  if (const auto *D = dyn_cast_or_null<VarDecl>(DeclReg->getDecl())) {
+    D = D->getCanonicalDecl();
+    // FIXME: This should look for an exact match.
+    if (D->getName().contains("stdin") && D->isExternC()) {
+      const QualType FILETy = ACtx.getFILEType().getCanonicalType();
+      const QualType Ty = D->getType().getCanonicalType();
+
+      if (Ty->isPointerType())
+        return Ty->getPointeeType() == FILETy;
+    }
+  }
+  return false;
+}
+
+SVal getPointeeOf(const CheckerContext &C, Loc LValue) {
+  const QualType ArgTy = LValue.getType(C.getASTContext());
+  if (!ArgTy->isPointerType() || !ArgTy->getPointeeType()->isVoidType())
+    return C.getState()->getSVal(LValue);
+
+  // Do not dereference void pointers. Treat them as byte pointers instead.
+  // FIXME: we might want to consider more than just the first byte.
+  return C.getState()->getSVal(LValue, C.getASTContext().CharTy);
+}
+
+/// Given a pointer/reference argument, return the value it refers to.
+Optional<SVal> getPointeeOf(const CheckerContext &C, SVal Arg) {
+  if (auto LValue = Arg.getAs<Loc>())
+    return getPointeeOf(C, *LValue);
+  return None;
+}
+
+/// Given a pointer, return the SVal of its pointee or if it is tainted,
+/// otherwise return the pointer's SVal if tainted.
+/// Also considers stdin as a taint source.
+Optional<SVal> getTaintedPointeeOrPointer(const CheckerContext &C, SVal Arg) {
+  const ProgramStateRef State = C.getState();
+
+  if (auto Pointee = getPointeeOf(C, Arg))
+    if (isTainted(State, *Pointee)) // FIXME: isTainted(...) ? Pointee : None;
+      return Pointee;
+
+  if (isTainted(State, Arg))
+    return Arg;
+
+  // FIXME: This should be done by the isTainted() API.
+  if (isStdin(Arg, C.getASTContext()))
+    return Arg;
+
+  return None;
+}
+
+bool isTaintedOrPointsToTainted(const Expr *E, const ProgramStateRef &State,
+                                CheckerContext &C) {
+  return getTaintedPointeeOrPointer(C, C.getSVal(E)).hasValue();
+}
+
+/// ArgSet is used to describe arguments relevant for taint detection or
+/// taint application. A discrete set of argument indexes and a variadic
+/// argument list signified by a starting index are supported.
+class ArgSet {
 public:
-  static void *getTag() { static int Tag; return &Tag; }
+  ArgSet() = default;
+  ArgSet(ArgVecTy &&DiscreteArgs, Optional<ArgIdxTy> VariadicIndex = None)
+      : DiscreteArgs(std::move(DiscreteArgs)),
+        VariadicIndex(std::move(VariadicIndex)) {}
 
-  void checkPostStmt(const CallExpr *CE, CheckerContext &C) const;
+  bool contains(ArgIdxTy ArgIdx) const {
+    if (llvm::is_contained(DiscreteArgs, ArgIdx))
+      return true;
 
-  void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
+    return VariadicIndex && ArgIdx >= *VariadicIndex;
+  }
+
+  bool isEmpty() const { return DiscreteArgs.empty() && !VariadicIndex; }
+
+  ArgVecTy ArgsUpTo(ArgIdxTy LastArgIdx) const {
+    ArgVecTy Args;
+    for (ArgIdxTy I = ReturnValueIndex; I <= LastArgIdx; ++I) {
+      if (contains(I))
+        Args.push_back(I);
+    }
+    return Args;
+  }
 
 private:
-  static const unsigned InvalidArgIndex = UINT_MAX;
-  /// Denotes the return vale.
-  static const unsigned ReturnValueIndex = UINT_MAX - 1;
-
-  mutable std::unique_ptr<BugType> BT;
-  inline void initBugType() const {
-    if (!BT)
-      BT.reset(new BugType(this, "Use of Untrusted Data", "Untrusted Data"));
-  }
-
-  /// Catch taint related bugs. Check if tainted data is passed to a
-  /// system call etc.
-  bool checkPre(const CallExpr *CE, CheckerContext &C) const;
-
-  /// Add taint sources on a pre-visit.
-  void addSourcesPre(const CallExpr *CE, CheckerContext &C) const;
-
-  /// Propagate taint generated at pre-visit.
-  bool propagateFromPre(const CallExpr *CE, CheckerContext &C) const;
-
-  /// Add taint sources on a post visit.
-  void addSourcesPost(const CallExpr *CE, CheckerContext &C) const;
-
-  /// Check if the region the expression evaluates to is the standard input,
-  /// and thus, is tainted.
-  static bool isStdin(const Expr *E, CheckerContext &C);
-
-  /// Given a pointer argument, return the value it points to.
-  static Optional<SVal> getPointedToSVal(CheckerContext &C, const Expr *Arg);
-
-  /// Functions defining the attack surface.
-  typedef ProgramStateRef (GenericTaintChecker::*FnCheck)(const CallExpr *,
-                                                       CheckerContext &C) const;
-  ProgramStateRef postScanf(const CallExpr *CE, CheckerContext &C) const;
-  ProgramStateRef postSocket(const CallExpr *CE, CheckerContext &C) const;
-  ProgramStateRef postRetTaint(const CallExpr *CE, CheckerContext &C) const;
-
-  /// Taint the scanned input if the file is tainted.
-  ProgramStateRef preFscanf(const CallExpr *CE, CheckerContext &C) const;
-
-  /// Check for CWE-134: Uncontrolled Format String.
-  static const char MsgUncontrolledFormatString[];
-  bool checkUncontrolledFormatString(const CallExpr *CE,
-                                     CheckerContext &C) const;
-
-  /// Check for:
-  /// CERT/STR02-C. "Sanitize data passed to complex subsystems"
-  /// CWE-78, "Failure to Sanitize Data into an OS Command"
-  static const char MsgSanitizeSystemArgs[];
-  bool checkSystemCall(const CallExpr *CE, StringRef Name,
-                       CheckerContext &C) const;
-
-  /// Check if tainted data is used as a buffer size ins strn.. functions,
-  /// and allocators.
-  static const char MsgTaintedBufferSize[];
-  bool checkTaintedBufferSize(const CallExpr *CE, const FunctionDecl *FDecl,
-                              CheckerContext &C) const;
-
-  /// Generate a report if the expression is tainted or points to tainted data.
-  bool generateReportIfTainted(const Expr *E, const char Msg[],
-                               CheckerContext &C) const;
-
-  typedef SmallVector<unsigned, 2> ArgVector;
-
-  /// A struct used to specify taint propagation rules for a function.
-  ///
-  /// If any of the possible taint source arguments is tainted, all of the
-  /// destination arguments should also be tainted. Use InvalidArgIndex in the
-  /// src list to specify that all of the arguments can introduce taint. Use
-  /// InvalidArgIndex in the dst arguments to signify that all the non-const
-  /// pointer and reference arguments might be tainted on return. If
-  /// ReturnValueIndex is added to the dst list, the return value will be
-  /// tainted.
-  struct TaintPropagationRule {
-    /// List of arguments which can be taint sources and should be checked.
-    ArgVector SrcArgs;
-    /// List of arguments which should be tainted on function return.
-    ArgVector DstArgs;
-    // TODO: Check if using other data structures would be more optimal.
-
-    TaintPropagationRule() {}
-
-    TaintPropagationRule(unsigned SArg,
-                         unsigned DArg, bool TaintRet = false) {
-      SrcArgs.push_back(SArg);
-      DstArgs.push_back(DArg);
-      if (TaintRet)
-        DstArgs.push_back(ReturnValueIndex);
-    }
-
-    TaintPropagationRule(unsigned SArg1, unsigned SArg2,
-                         unsigned DArg, bool TaintRet = false) {
-      SrcArgs.push_back(SArg1);
-      SrcArgs.push_back(SArg2);
-      DstArgs.push_back(DArg);
-      if (TaintRet)
-        DstArgs.push_back(ReturnValueIndex);
-    }
-
-    /// Get the propagation rule for a given function.
-    static TaintPropagationRule
-      getTaintPropagationRule(const FunctionDecl *FDecl,
-                              StringRef Name,
-                              CheckerContext &C);
-
-    inline void addSrcArg(unsigned A) { SrcArgs.push_back(A); }
-    inline void addDstArg(unsigned A)  { DstArgs.push_back(A); }
-
-    inline bool isNull() const { return SrcArgs.empty(); }
-
-    inline bool isDestinationArgument(unsigned ArgNum) const {
-      return (std::find(DstArgs.begin(),
-                        DstArgs.end(), ArgNum) != DstArgs.end());
-    }
-
-    static inline bool isTaintedOrPointsToTainted(const Expr *E,
-                                                  ProgramStateRef State,
-                                                  CheckerContext &C) {
-      if (State->isTainted(E, C.getLocationContext()) || isStdin(E, C))
-        return true;
-
-      if (!E->getType().getTypePtr()->isPointerType())
-        return false;
-
-      Optional<SVal> V = getPointedToSVal(C, E);
-      return (V && State->isTainted(*V));
-    }
-
-    /// Pre-process a function which propagates taint according to the
-    /// taint rule.
-    ProgramStateRef process(const CallExpr *CE, CheckerContext &C) const;
-
-  };
+  ArgVecTy DiscreteArgs;
+  Optional<ArgIdxTy> VariadicIndex;
 };
 
-const unsigned GenericTaintChecker::ReturnValueIndex;
-const unsigned GenericTaintChecker::InvalidArgIndex;
+/// A struct used to specify taint propagation rules for a function.
+///
+/// If any of the possible taint source arguments is tainted, all of the
+/// destination arguments should also be tainted. If ReturnValueIndex is added
+/// to the dst list, the return value will be tainted.
+class GenericTaintRule {
+  /// Arguments which are taints sinks and should be checked, and a report
+  /// should be emitted if taint reaches these.
+  ArgSet SinkArgs;
+  /// Arguments which should be sanitized on function return.
+  ArgSet FilterArgs;
+  /// Arguments which can participate in taint propagationa. If any of the
+  /// arguments in PropSrcArgs is tainted, all arguments in  PropDstArgs should
+  /// be tainted.
+  ArgSet PropSrcArgs;
+  ArgSet PropDstArgs;
 
-const char GenericTaintChecker::MsgUncontrolledFormatString[] =
-  "Untrusted data is used as a format string "
-  "(CWE-134: Uncontrolled Format String)";
+  /// A message that explains why the call is sensitive to taint.
+  Optional<StringRef> SinkMsg;
 
-const char GenericTaintChecker::MsgSanitizeSystemArgs[] =
-  "Untrusted data is passed to a system call "
-  "(CERT/STR02-C. Sanitize data passed to complex subsystems)";
+  GenericTaintRule() = default;
 
-const char GenericTaintChecker::MsgTaintedBufferSize[] =
-  "Untrusted data is used to specify the buffer size "
-  "(CERT/STR31-C. Guarantee that storage for strings has sufficient space for "
-  "character data and the null terminator)";
+  GenericTaintRule(ArgSet &&Sink, ArgSet &&Filter, ArgSet &&Src, ArgSet &&Dst,
+                   Optional<StringRef> SinkMsg = None)
+      : SinkArgs(std::move(Sink)), FilterArgs(std::move(Filter)),
+        PropSrcArgs(std::move(Src)), PropDstArgs(std::move(Dst)),
+        SinkMsg(SinkMsg) {}
 
+public:
+  /// Make a rule that reports a warning if taint reaches any of \p FilterArgs
+  /// arguments.
+  static GenericTaintRule Sink(ArgSet &&SinkArgs,
+                               Optional<StringRef> Msg = None) {
+    return {std::move(SinkArgs), {}, {}, {}, Msg};
+  }
+
+  /// Make a rule that sanitizes all FilterArgs arguments.
+  static GenericTaintRule Filter(ArgSet &&FilterArgs) {
+    return {{}, std::move(FilterArgs), {}, {}};
+  }
+
+  /// Make a rule that unconditionally taints all Args.
+  /// If Func is provided, it must also return true for taint to propagate.
+  static GenericTaintRule Source(ArgSet &&SourceArgs) {
+    return {{}, {}, {}, std::move(SourceArgs)};
+  }
+
+  /// Make a rule that taints all PropDstArgs if any of PropSrcArgs is tainted.
+  static GenericTaintRule Prop(ArgSet &&SrcArgs, ArgSet &&DstArgs) {
+    return {{}, {}, std::move(SrcArgs), std::move(DstArgs)};
+  }
+
+  /// Make a rule that taints all PropDstArgs if any of PropSrcArgs is tainted.
+  static GenericTaintRule SinkProp(ArgSet &&SinkArgs, ArgSet &&SrcArgs,
+                                   ArgSet &&DstArgs,
+                                   Optional<StringRef> Msg = None) {
+    return {
+        std::move(SinkArgs), {}, std::move(SrcArgs), std::move(DstArgs), Msg};
+  }
+
+  /// Process a function which could either be a taint source, a taint sink, a
+  /// taint filter or a taint propagator.
+  void process(const GenericTaintChecker &Checker, const CallEvent &Call,
+               CheckerContext &C) const;
+
+  /// Handles the resolution of indexes of type ArgIdxTy to Expr*-s.
+  static const Expr *GetArgExpr(ArgIdxTy ArgIdx, const CallEvent &Call) {
+    return ArgIdx == ReturnValueIndex ? Call.getOriginExpr()
+                                      : Call.getArgExpr(ArgIdx);
+  };
+
+  /// Functions for custom taintedness propagation.
+  static bool UntrustedEnv(CheckerContext &C);
+};
+
+using RuleLookupTy = CallDescriptionMap<GenericTaintRule>;
+
+/// Used to parse the configuration file.
+struct TaintConfiguration {
+  using NameScopeArgs = std::tuple<std::string, std::string, ArgVecTy>;
+  enum class VariadicType { None, Src, Dst };
+
+  struct Common {
+    std::string Name;
+    std::string Scope;
+  };
+
+  struct Sink : Common {
+    ArgVecTy SinkArgs;
+  };
+
+  struct Filter : Common {
+    ArgVecTy FilterArgs;
+  };
+
+  struct Propagation : Common {
+    ArgVecTy SrcArgs;
+    ArgVecTy DstArgs;
+    VariadicType VarType;
+    ArgIdxTy VarIndex;
+  };
+
+  std::vector<Propagation> Propagations;
+  std::vector<Filter> Filters;
+  std::vector<Sink> Sinks;
+
+  TaintConfiguration() = default;
+  TaintConfiguration(const TaintConfiguration &) = default;
+  TaintConfiguration(TaintConfiguration &&) = default;
+  TaintConfiguration &operator=(const TaintConfiguration &) = default;
+  TaintConfiguration &operator=(TaintConfiguration &&) = default;
+};
+
+struct GenericTaintRuleParser {
+  GenericTaintRuleParser(CheckerManager &Mgr) : Mgr(Mgr) {}
+  /// Container type used to gather call identification objects grouped into
+  /// pairs with their corresponding taint rules. It is temporary as it is used
+  /// to finally initialize RuleLookupTy, which is considered to be immutable.
+  using RulesContTy = std::vector<std::pair<CallDescription, GenericTaintRule>>;
+  RulesContTy parseConfiguration(const std::string &Option,
+                                 TaintConfiguration &&Config) const;
+
+private:
+  using NamePartsTy = llvm::SmallVector<SmallString<32>, 2>;
+
+  /// Validate part of the configuration, which contains a list of argument
+  /// indexes.
+  void validateArgVector(const std::string &Option, const ArgVecTy &Args) const;
+
+  template <typename Config> static NamePartsTy parseNameParts(const Config &C);
+
+  // Takes the config and creates a CallDescription for it and associates a Rule
+  // with that.
+  template <typename Config>
+  static void consumeRulesFromConfig(const Config &C, GenericTaintRule &&Rule,
+                                     RulesContTy &Rules);
+
+  void parseConfig(const std::string &Option, TaintConfiguration::Sink &&P,
+                   RulesContTy &Rules) const;
+  void parseConfig(const std::string &Option, TaintConfiguration::Filter &&P,
+                   RulesContTy &Rules) const;
+  void parseConfig(const std::string &Option,
+                   TaintConfiguration::Propagation &&P,
+                   RulesContTy &Rules) const;
+
+  CheckerManager &Mgr;
+};
+
+class GenericTaintChecker : public Checker<check::PreCall, check::PostCall> {
+public:
+  static void *getTag() {
+    static int Tag;
+    return &Tag;
+  }
+
+  void checkPreCall(const CallEvent &Call, CheckerContext &C) const;
+  void checkPostCall(const CallEvent &Call, CheckerContext &C) const;
+
+  void printState(raw_ostream &Out, ProgramStateRef State, const char *NL,
+                  const char *Sep) const override;
+
+  /// Generate a report if the expression is tainted or points to tainted data.
+  bool generateReportIfTainted(const Expr *E, StringRef Msg,
+                               CheckerContext &C) const;
+
+private:
+  const BugType BT{this, "Use of Untrusted Data", "Untrusted Data"};
+
+  bool checkUncontrolledFormatString(const CallEvent &Call,
+                                     CheckerContext &C) const;
+
+  void taintUnsafeSocketProtocol(const CallEvent &Call,
+                                 CheckerContext &C) const;
+
+  /// Default taint rules are initilized with the help of a CheckerContext to
+  /// access the names of built-in functions like memcpy.
+  void initTaintRules(CheckerContext &C) const;
+
+  /// CallDescription currently cannot restrict matches to the global namespace
+  /// only, which is why multiple CallDescriptionMaps are used, as we want to
+  /// disambiguate global C functions from functions inside user-defined
+  /// namespaces.
+  // TODO: Remove separation to simplify matching logic once CallDescriptions
+  // are more expressive.
+
+  mutable Optional<RuleLookupTy> StaticTaintRules;
+  mutable Optional<RuleLookupTy> DynamicTaintRules;
+};
 } // end of anonymous namespace
 
+/// YAML serialization mapping.
+LLVM_YAML_IS_SEQUENCE_VECTOR(TaintConfiguration::Sink)
+LLVM_YAML_IS_SEQUENCE_VECTOR(TaintConfiguration::Filter)
+LLVM_YAML_IS_SEQUENCE_VECTOR(TaintConfiguration::Propagation)
+
+namespace llvm {
+namespace yaml {
+template <> struct MappingTraits<TaintConfiguration> {
+  static void mapping(IO &IO, TaintConfiguration &Config) {
+    IO.mapOptional("Propagations", Config.Propagations);
+    IO.mapOptional("Filters", Config.Filters);
+    IO.mapOptional("Sinks", Config.Sinks);
+  }
+};
+
+template <> struct MappingTraits<TaintConfiguration::Sink> {
+  static void mapping(IO &IO, TaintConfiguration::Sink &Sink) {
+    IO.mapRequired("Name", Sink.Name);
+    IO.mapOptional("Scope", Sink.Scope);
+    IO.mapRequired("Args", Sink.SinkArgs);
+  }
+};
+
+template <> struct MappingTraits<TaintConfiguration::Filter> {
+  static void mapping(IO &IO, TaintConfiguration::Filter &Filter) {
+    IO.mapRequired("Name", Filter.Name);
+    IO.mapOptional("Scope", Filter.Scope);
+    IO.mapRequired("Args", Filter.FilterArgs);
+  }
+};
+
+template <> struct MappingTraits<TaintConfiguration::Propagation> {
+  static void mapping(IO &IO, TaintConfiguration::Propagation &Propagation) {
+    IO.mapRequired("Name", Propagation.Name);
+    IO.mapOptional("Scope", Propagation.Scope);
+    IO.mapOptional("SrcArgs", Propagation.SrcArgs);
+    IO.mapOptional("DstArgs", Propagation.DstArgs);
+    IO.mapOptional("VariadicType", Propagation.VarType);
+    IO.mapOptional("VariadicIndex", Propagation.VarIndex);
+  }
+};
+
+template <> struct ScalarEnumerationTraits<TaintConfiguration::VariadicType> {
+  static void enumeration(IO &IO, TaintConfiguration::VariadicType &Value) {
+    IO.enumCase(Value, "None", TaintConfiguration::VariadicType::None);
+    IO.enumCase(Value, "Src", TaintConfiguration::VariadicType::Src);
+    IO.enumCase(Value, "Dst", TaintConfiguration::VariadicType::Dst);
+  }
+};
+} // namespace yaml
+} // namespace llvm
+
 /// A set which is used to pass information from call pre-visit instruction
-/// to the call post-visit. The values are unsigned integers, which are either
+/// to the call post-visit. The values are signed integers, which are either
 /// ReturnValueIndex, or indexes of the pointer/reference argument, which
 /// points to data, which should be tainted on return.
-REGISTER_SET_WITH_PROGRAMSTATE(TaintArgsOnPostVisit, unsigned)
+REGISTER_SET_WITH_PROGRAMSTATE(TaintArgsOnPostVisit, ArgIdxTy)
 
-GenericTaintChecker::TaintPropagationRule
-GenericTaintChecker::TaintPropagationRule::getTaintPropagationRule(
-                                                     const FunctionDecl *FDecl,
-                                                     StringRef Name,
-                                                     CheckerContext &C) {
-  // TODO: Currently, we might lose precision here: we always mark a return
-  // value as tainted even if it's just a pointer, pointing to tainted data.
+void GenericTaintRuleParser::validateArgVector(const std::string &Option,
+                                               const ArgVecTy &Args) const {
+  for (ArgIdxTy Arg : Args) {
+    if (Arg < ReturnValueIndex) {
+      Mgr.reportInvalidCheckerOptionValue(
+          Mgr.getChecker<GenericTaintChecker>(), Option,
+          "an argument number for propagation rules greater or equal to -1");
+    }
+  }
+}
 
+template <typename Config>
+GenericTaintRuleParser::NamePartsTy
+GenericTaintRuleParser::parseNameParts(const Config &C) {
+  NamePartsTy NameParts;
+  if (!C.Scope.empty()) {
+    // If the Scope argument contains multiple "::" parts, those are considered
+    // namespace identifiers.
+    llvm::SmallVector<StringRef, 2> NSParts;
+    StringRef{C.Scope}.split(NSParts, "::", /*MaxSplit*/ -1,
+                             /*KeepEmpty*/ false);
+    NameParts.append(NSParts.begin(), NSParts.end());
+  }
+  NameParts.emplace_back(C.Name);
+  return NameParts;
+}
+
+template <typename Config>
+void GenericTaintRuleParser::consumeRulesFromConfig(const Config &C,
+                                                    GenericTaintRule &&Rule,
+                                                    RulesContTy &Rules) {
+  NamePartsTy NameParts = parseNameParts(C);
+  llvm::SmallVector<const char *, 2> CallDescParts{NameParts.size()};
+  llvm::transform(NameParts, CallDescParts.begin(),
+                  [](SmallString<32> &S) { return S.c_str(); });
+  Rules.emplace_back(CallDescription(CallDescParts), std::move(Rule));
+}
+
+void GenericTaintRuleParser::parseConfig(const std::string &Option,
+                                         TaintConfiguration::Sink &&S,
+                                         RulesContTy &Rules) const {
+  validateArgVector(Option, S.SinkArgs);
+  consumeRulesFromConfig(S, GenericTaintRule::Sink(std::move(S.SinkArgs)),
+                         Rules);
+}
+
+void GenericTaintRuleParser::parseConfig(const std::string &Option,
+                                         TaintConfiguration::Filter &&S,
+                                         RulesContTy &Rules) const {
+  validateArgVector(Option, S.FilterArgs);
+  consumeRulesFromConfig(S, GenericTaintRule::Filter(std::move(S.FilterArgs)),
+                         Rules);
+}
+
+void GenericTaintRuleParser::parseConfig(const std::string &Option,
+                                         TaintConfiguration::Propagation &&P,
+                                         RulesContTy &Rules) const {
+  validateArgVector(Option, P.SrcArgs);
+  validateArgVector(Option, P.DstArgs);
+  bool IsSrcVariadic = P.VarType == TaintConfiguration::VariadicType::Src;
+  bool IsDstVariadic = P.VarType == TaintConfiguration::VariadicType::Dst;
+  Optional<ArgIdxTy> JustVarIndex = P.VarIndex;
+
+  ArgSet SrcDesc(std::move(P.SrcArgs), IsSrcVariadic ? JustVarIndex : None);
+  ArgSet DstDesc(std::move(P.DstArgs), IsDstVariadic ? JustVarIndex : None);
+
+  consumeRulesFromConfig(
+      P, GenericTaintRule::Prop(std::move(SrcDesc), std::move(DstDesc)), Rules);
+}
+
+GenericTaintRuleParser::RulesContTy
+GenericTaintRuleParser::parseConfiguration(const std::string &Option,
+                                           TaintConfiguration &&Config) const {
+
+  RulesContTy Rules;
+
+  for (auto &F : Config.Filters)
+    parseConfig(Option, std::move(F), Rules);
+
+  for (auto &S : Config.Sinks)
+    parseConfig(Option, std::move(S), Rules);
+
+  for (auto &P : Config.Propagations)
+    parseConfig(Option, std::move(P), Rules);
+
+  return Rules;
+}
+
+void GenericTaintChecker::initTaintRules(CheckerContext &C) const {
   // Check for exact name match for functions without builtin substitutes.
-  TaintPropagationRule Rule = llvm::StringSwitch<TaintPropagationRule>(Name)
-    .Case("atoi", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("atol", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("atoll", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("getc", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("fgetc", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("getc_unlocked", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("getw", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("toupper", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("tolower", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("strchr", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("strrchr", TaintPropagationRule(0, ReturnValueIndex))
-    .Case("read", TaintPropagationRule(0, 2, 1, true))
-    .Case("pread", TaintPropagationRule(InvalidArgIndex, 1, true))
-    .Case("gets", TaintPropagationRule(InvalidArgIndex, 0, true))
-    .Case("fgets", TaintPropagationRule(2, 0, true))
-    .Case("getline", TaintPropagationRule(2, 0))
-    .Case("getdelim", TaintPropagationRule(3, 0))
-    .Case("fgetln", TaintPropagationRule(0, ReturnValueIndex))
-    .Default(TaintPropagationRule());
+  // Use qualified name, because these are C functions without namespace.
 
-  if (!Rule.isNull())
-    return Rule;
+  if (StaticTaintRules || DynamicTaintRules)
+    return;
 
-  // Check if it's one of the memory setting/copying functions.
-  // This check is specialized but faster then calling isCLibraryFunction.
-  unsigned BId = 0;
-  if ( (BId = FDecl->getMemoryFunctionKind()) )
-    switch(BId) {
-    case Builtin::BImemcpy:
-    case Builtin::BImemmove:
-    case Builtin::BIstrncpy:
-    case Builtin::BIstrncat:
-      return TaintPropagationRule(1, 2, 0, true);
-    case Builtin::BIstrlcpy:
-    case Builtin::BIstrlcat:
-      return TaintPropagationRule(1, 2, 0, false);
-    case Builtin::BIstrndup:
-      return TaintPropagationRule(0, 1, ReturnValueIndex);
+  using RulesConstructionTy =
+      std::vector<std::pair<CallDescription, GenericTaintRule>>;
+  using TR = GenericTaintRule;
 
-    default:
-      break;
-    };
+  const Builtin::Context &BI = C.getASTContext().BuiltinInfo;
 
-  // Process all other functions which could be defined as builtins.
-  if (Rule.isNull()) {
-    if (C.isCLibraryFunction(FDecl, "snprintf") ||
-        C.isCLibraryFunction(FDecl, "sprintf"))
-      return TaintPropagationRule(InvalidArgIndex, 0, true);
-    else if (C.isCLibraryFunction(FDecl, "strcpy") ||
-             C.isCLibraryFunction(FDecl, "stpcpy") ||
-             C.isCLibraryFunction(FDecl, "strcat"))
-      return TaintPropagationRule(1, 0, true);
-    else if (C.isCLibraryFunction(FDecl, "bcopy"))
-      return TaintPropagationRule(0, 2, 1, false);
-    else if (C.isCLibraryFunction(FDecl, "strdup") ||
-             C.isCLibraryFunction(FDecl, "strdupa"))
-      return TaintPropagationRule(0, ReturnValueIndex);
-    else if (C.isCLibraryFunction(FDecl, "wcsdup"))
-      return TaintPropagationRule(0, ReturnValueIndex);
+  RulesConstructionTy GlobalCRules{
+      // Sources
+      {{"fdopen"}, TR::Source({{ReturnValueIndex}})},
+      {{"fopen"}, TR::Source({{ReturnValueIndex}})},
+      {{"freopen"}, TR::Source({{ReturnValueIndex}})},
+      {{"getch"}, TR::Source({{ReturnValueIndex}})},
+      {{"getchar"}, TR::Source({{ReturnValueIndex}})},
+      {{"getchar_unlocked"}, TR::Source({{ReturnValueIndex}})},
+      {{"gets"}, TR::Source({{0}, ReturnValueIndex})},
+      {{"scanf"}, TR::Source({{}, 1})},
+      {{"wgetch"}, TR::Source({{}, ReturnValueIndex})},
+
+      // Props
+      {{"atoi"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"atol"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"atoll"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"fgetc"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"fgetln"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"fgets"}, TR::Prop({{2}}, {{0}, ReturnValueIndex})},
+      {{"fscanf"}, TR::Prop({{0}}, {{}, 2})},
+      {{"sscanf"}, TR::Prop({{0}}, {{}, 2})},
+      {{"getc"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"getc_unlocked"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"getdelim"}, TR::Prop({{3}}, {{0}})},
+      {{"getline"}, TR::Prop({{2}}, {{0}})},
+      {{"getw"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"pread"}, TR::Prop({{0, 1, 2, 3}}, {{1, ReturnValueIndex}})},
+      {{"read"}, TR::Prop({{0, 2}}, {{1, ReturnValueIndex}})},
+      {{"strchr"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"strrchr"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"tolower"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{"toupper"}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {BI.getName(Builtin::BIstrncat)}},
+       TR::Prop({{1, 2}}, {{0, ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {BI.getName(Builtin::BIstrlcpy)}},
+       TR::Prop({{1, 2}}, {{0}})},
+      {{CDF_MaybeBuiltin, {BI.getName(Builtin::BIstrlcat)}},
+       TR::Prop({{1, 2}}, {{0}})},
+      {{CDF_MaybeBuiltin, {"snprintf"}},
+       TR::Prop({{1}, 3}, {{0, ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {"sprintf"}},
+       TR::Prop({{1}, 2}, {{0, ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {"strcpy"}},
+       TR::Prop({{1}}, {{0, ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {"stpcpy"}},
+       TR::Prop({{1}}, {{0, ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {"strcat"}},
+       TR::Prop({{1}}, {{0, ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {"strdup"}}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {"strdupa"}}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+      {{CDF_MaybeBuiltin, {"wcsdup"}}, TR::Prop({{0}}, {{ReturnValueIndex}})},
+
+      // Sinks
+      {{"system"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{"popen"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{"execl"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{"execle"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{"execlp"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{"execvp"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{"execvP"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{"execve"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{"dlopen"}, TR::Sink({{0}}, MsgSanitizeSystemArgs)},
+      {{CDF_MaybeBuiltin, {"malloc"}}, TR::Sink({{0}}, MsgTaintedBufferSize)},
+      {{CDF_MaybeBuiltin, {"calloc"}}, TR::Sink({{0}}, MsgTaintedBufferSize)},
+      {{CDF_MaybeBuiltin, {"alloca"}}, TR::Sink({{0}}, MsgTaintedBufferSize)},
+      {{CDF_MaybeBuiltin, {"memccpy"}}, TR::Sink({{3}}, MsgTaintedBufferSize)},
+      {{CDF_MaybeBuiltin, {"realloc"}}, TR::Sink({{1}}, MsgTaintedBufferSize)},
+      {{{"setproctitle"}}, TR::Sink({{0}, 1}, MsgUncontrolledFormatString)},
+      {{{"setproctitle_fast"}},
+       TR::Sink({{0}, 1}, MsgUncontrolledFormatString)},
+
+      // SinkProps
+      {{CDF_MaybeBuiltin, BI.getName(Builtin::BImemcpy)},
+       TR::SinkProp({{2}}, {{1, 2}}, {{0, ReturnValueIndex}},
+                    MsgTaintedBufferSize)},
+      {{CDF_MaybeBuiltin, {BI.getName(Builtin::BImemmove)}},
+       TR::SinkProp({{2}}, {{1, 2}}, {{0, ReturnValueIndex}},
+                    MsgTaintedBufferSize)},
+      {{CDF_MaybeBuiltin, {BI.getName(Builtin::BIstrncpy)}},
+       TR::SinkProp({{2}}, {{1, 2}}, {{0, ReturnValueIndex}},
+                    MsgTaintedBufferSize)},
+      {{CDF_MaybeBuiltin, {BI.getName(Builtin::BIstrndup)}},
+       TR::SinkProp({{1}}, {{0, 1}}, {{ReturnValueIndex}},
+                    MsgTaintedBufferSize)},
+      {{CDF_MaybeBuiltin, {"bcopy"}},
+       TR::SinkProp({{2}}, {{0, 2}}, {{1}}, MsgTaintedBufferSize)}};
+
+  // `getenv` returns taint only in untrusted environments.
+  if (TR::UntrustedEnv(C)) {
+    // void setproctitle_init(int argc, char *argv[], char *envp[])
+    GlobalCRules.push_back(
+        {{{"setproctitle_init"}}, TR::Sink({{2}}, MsgCustomSink)});
+    GlobalCRules.push_back({{"getenv"}, TR::Source({{ReturnValueIndex}})});
   }
 
-  // Skipping the following functions, since they might be used for cleansing
-  // or smart memory copy:
-  // - memccpy - copying until hitting a special character.
+  StaticTaintRules.emplace(std::make_move_iterator(GlobalCRules.begin()),
+                           std::make_move_iterator(GlobalCRules.end()));
 
-  return TaintPropagationRule();
+  // User-provided taint configuration.
+  CheckerManager *Mgr = C.getAnalysisManager().getCheckerManager();
+  assert(Mgr);
+  GenericTaintRuleParser ConfigParser{*Mgr};
+  std::string Option{"Config"};
+  StringRef ConfigFile =
+      Mgr->getAnalyzerOptions().getCheckerStringOption(this, Option);
+  llvm::Optional<TaintConfiguration> Config =
+      getConfiguration<TaintConfiguration>(*Mgr, this, Option, ConfigFile);
+  if (!Config) {
+    // We don't have external taint config, no parsing required.
+    DynamicTaintRules = RuleLookupTy{};
+    return;
+  }
+
+  GenericTaintRuleParser::RulesContTy Rules{
+      ConfigParser.parseConfiguration(Option, std::move(Config.getValue()))};
+
+  DynamicTaintRules.emplace(std::make_move_iterator(Rules.begin()),
+                            std::make_move_iterator(Rules.end()));
 }
 
-void GenericTaintChecker::checkPreStmt(const CallExpr *CE,
+void GenericTaintChecker::checkPreCall(const CallEvent &Call,
                                        CheckerContext &C) const {
-  // Check for errors first.
-  if (checkPre(CE, C))
-    return;
+  initTaintRules(C);
 
-  // Add taint second.
-  addSourcesPre(CE, C);
+  // FIXME: this should be much simpler.
+  if (const auto *Rule =
+          Call.isGlobalCFunction() ? StaticTaintRules->lookup(Call) : nullptr)
+    Rule->process(*this, Call, C);
+  else if (const auto *Rule = DynamicTaintRules->lookup(Call))
+    Rule->process(*this, Call, C);
+
+  // FIXME: These edge cases are to be eliminated from here eventually.
+  //
+  // Additional check that is not supported by CallDescription.
+  // TODO: Make CallDescription be able to match attributes such as printf-like
+  // arguments.
+  checkUncontrolledFormatString(Call, C);
+
+  // TODO: Modeling sockets should be done in a specific checker.
+  // Socket is a source, which taints the return value.
+  taintUnsafeSocketProtocol(Call, C);
 }
 
-void GenericTaintChecker::checkPostStmt(const CallExpr *CE,
+void GenericTaintChecker::checkPostCall(const CallEvent &Call,
                                         CheckerContext &C) const {
-  if (propagateFromPre(CE, C))
-    return;
-  addSourcesPost(CE, C);
-}
-
-void GenericTaintChecker::addSourcesPre(const CallExpr *CE,
-                                        CheckerContext &C) const {
-  ProgramStateRef State = nullptr;
-  const FunctionDecl *FDecl = C.getCalleeDecl(CE);
-  if (!FDecl || FDecl->getKind() != Decl::Function)
-    return;
-
-  StringRef Name = C.getCalleeName(FDecl);
-  if (Name.empty())
-    return;
-
-  // First, try generating a propagation rule for this function.
-  TaintPropagationRule Rule =
-    TaintPropagationRule::getTaintPropagationRule(FDecl, Name, C);
-  if (!Rule.isNull()) {
-    State = Rule.process(CE, C);
-    if (!State)
-      return;
-    C.addTransition(State);
-    return;
-  }
-
-  // Otherwise, check if we have custom pre-processing implemented.
-  FnCheck evalFunction = llvm::StringSwitch<FnCheck>(Name)
-    .Case("fscanf", &GenericTaintChecker::preFscanf)
-    .Default(nullptr);
-  // Check and evaluate the call.
-  if (evalFunction)
-    State = (this->*evalFunction)(CE, C);
-  if (!State)
-    return;
-  C.addTransition(State);
-
-}
-
-bool GenericTaintChecker::propagateFromPre(const CallExpr *CE,
-                                           CheckerContext &C) const {
+  // Set the marked values as tainted. The return value only accessible from
+  // checkPostStmt.
   ProgramStateRef State = C.getState();
 
   // Depending on what was tainted at pre-visit, we determined a set of
@@ -336,413 +689,195 @@ bool GenericTaintChecker::propagateFromPre(const CallExpr *CE,
   // stored in the state as TaintArgsOnPostVisit set.
   TaintArgsOnPostVisitTy TaintArgs = State->get<TaintArgsOnPostVisit>();
   if (TaintArgs.isEmpty())
-    return false;
+    return;
 
-  for (llvm::ImmutableSet<unsigned>::iterator
-         I = TaintArgs.begin(), E = TaintArgs.end(); I != E; ++I) {
-    unsigned ArgNum  = *I;
-
+  for (ArgIdxTy ArgNum : TaintArgs) {
     // Special handling for the tainted return value.
     if (ArgNum == ReturnValueIndex) {
-      State = State->addTaint(CE, C.getLocationContext());
+      State = addTaint(State, Call.getReturnValue());
       continue;
     }
 
     // The arguments are pointer arguments. The data they are pointing at is
     // tainted after the call.
-    if (CE->getNumArgs() < (ArgNum + 1))
-      return false;
-    const Expr* Arg = CE->getArg(ArgNum);
-    Optional<SVal> V = getPointedToSVal(C, Arg);
-    if (V)
-      State = State->addTaint(*V);
+    if (auto V = getPointeeOf(C, Call.getArgSVal(ArgNum)))
+      State = addTaint(State, *V);
   }
 
   // Clear up the taint info from the state.
   State = State->remove<TaintArgsOnPostVisit>();
-
-  if (State != C.getState()) {
-    C.addTransition(State);
-    return true;
-  }
-  return false;
+  C.addTransition(State);
 }
 
-void GenericTaintChecker::addSourcesPost(const CallExpr *CE,
-                                         CheckerContext &C) const {
-  // Define the attack surface.
-  // Set the evaluation function by switching on the callee name.
-  const FunctionDecl *FDecl = C.getCalleeDecl(CE);
-  if (!FDecl || FDecl->getKind() != Decl::Function)
+void GenericTaintChecker::printState(raw_ostream &Out, ProgramStateRef State,
+                                     const char *NL, const char *Sep) const {
+  printTaint(State, Out, NL, Sep);
+}
+
+void GenericTaintRule::process(const GenericTaintChecker &Checker,
+                               const CallEvent &Call, CheckerContext &C) const {
+  ProgramStateRef State = C.getState();
+  const ArgIdxTy CallNumArgs = fromArgumentCount(Call.getNumArgs());
+
+  /// Iterate every call argument, and get their corresponding Expr and SVal.
+  const auto ForEachCallArg = [&C, &Call, CallNumArgs](auto &&Fun) {
+    for (ArgIdxTy I = ReturnValueIndex; I < CallNumArgs; ++I) {
+      const Expr *E = GetArgExpr(I, Call);
+      Fun(I, E, C.getSVal(E));
+    }
+  };
+
+  /// Check for taint sinks.
+  ForEachCallArg([this, &Checker, &C, &State](ArgIdxTy I, const Expr *E, SVal) {
+    if (SinkArgs.contains(I) && isTaintedOrPointsToTainted(E, State, C))
+      Checker.generateReportIfTainted(E, SinkMsg.getValueOr(MsgCustomSink), C);
+  });
+
+  /// Check for taint filters.
+  ForEachCallArg([this, &C, &State](ArgIdxTy I, const Expr *E, SVal S) {
+    if (FilterArgs.contains(I)) {
+      State = removeTaint(State, S);
+      if (auto P = getPointeeOf(C, S))
+        State = removeTaint(State, *P);
+    }
+  });
+
+  /// Check for taint propagation sources.
+  /// A rule is relevant if PropSrcArgs is empty, or if any of its signified
+  /// args are tainted in context of the current CallEvent.
+  bool IsMatching = PropSrcArgs.isEmpty();
+  ForEachCallArg(
+      [this, &C, &IsMatching, &State](ArgIdxTy I, const Expr *E, SVal) {
+        IsMatching = IsMatching || (PropSrcArgs.contains(I) &&
+                                    isTaintedOrPointsToTainted(E, State, C));
+      });
+
+  if (!IsMatching)
     return;
 
-  StringRef Name = C.getCalleeName(FDecl);
-  if (Name.empty())
-    return;
-  FnCheck evalFunction = llvm::StringSwitch<FnCheck>(Name)
-    .Case("scanf", &GenericTaintChecker::postScanf)
-    // TODO: Add support for vfscanf & family.
-    .Case("getchar", &GenericTaintChecker::postRetTaint)
-    .Case("getchar_unlocked", &GenericTaintChecker::postRetTaint)
-    .Case("getenv", &GenericTaintChecker::postRetTaint)
-    .Case("fopen", &GenericTaintChecker::postRetTaint)
-    .Case("fdopen", &GenericTaintChecker::postRetTaint)
-    .Case("freopen", &GenericTaintChecker::postRetTaint)
-    .Case("getch", &GenericTaintChecker::postRetTaint)
-    .Case("wgetch", &GenericTaintChecker::postRetTaint)
-    .Case("socket", &GenericTaintChecker::postSocket)
-    .Default(nullptr);
+  const auto WouldEscape = [](SVal V, QualType Ty) -> bool {
+    if (!V.getAs<Loc>())
+      return false;
 
-  // If the callee isn't defined, it is not of security concern.
-  // Check and evaluate the call.
-  ProgramStateRef State = nullptr;
-  if (evalFunction)
-    State = (this->*evalFunction)(CE, C);
-  if (!State)
-    return;
+    const bool IsNonConstRef = Ty->isReferenceType() && !Ty.isConstQualified();
+    const bool IsNonConstPtr =
+        Ty->isPointerType() && !Ty->getPointeeType().isConstQualified();
+
+    return IsNonConstRef || IsNonConstPtr;
+  };
+
+  /// Propagate taint where it is necessary.
+  ForEachCallArg(
+      [this, &State, WouldEscape](ArgIdxTy I, const Expr *E, SVal V) {
+        if (PropDstArgs.contains(I))
+          State = State->add<TaintArgsOnPostVisit>(I);
+
+        // TODO: We should traverse all reachable memory regions via the
+        // escaping parameter. Instead of doing that we simply mark only the
+        // referred memory region as tainted.
+        if (WouldEscape(V, E->getType()))
+          State = State->add<TaintArgsOnPostVisit>(I);
+      });
 
   C.addTransition(State);
 }
 
-bool GenericTaintChecker::checkPre(const CallExpr *CE, CheckerContext &C) const{
-
-  if (checkUncontrolledFormatString(CE, C))
-    return true;
-
-  const FunctionDecl *FDecl = C.getCalleeDecl(CE);
-  if (!FDecl || FDecl->getKind() != Decl::Function)
-    return false;
-
-  StringRef Name = C.getCalleeName(FDecl);
-  if (Name.empty())
-    return false;
-
-  if (checkSystemCall(CE, Name, C))
-    return true;
-
-  if (checkTaintedBufferSize(CE, FDecl, C))
-    return true;
-
-  return false;
+bool GenericTaintRule::UntrustedEnv(CheckerContext &C) {
+  return !C.getAnalysisManager()
+              .getAnalyzerOptions()
+              .ShouldAssumeControlledEnvironment;
 }
 
-Optional<SVal> GenericTaintChecker::getPointedToSVal(CheckerContext &C,
-                                                     const Expr *Arg) {
-  ProgramStateRef State = C.getState();
-  SVal AddrVal = C.getSVal(Arg->IgnoreParens());
-  if (AddrVal.isUnknownOrUndef())
-    return None;
-
-  Optional<Loc> AddrLoc = AddrVal.getAs<Loc>();
-  if (!AddrLoc)
-    return None;
-
-  QualType ArgTy = Arg->getType().getCanonicalType();
-  if (!ArgTy->isPointerType())
-    return None;
-
-  QualType ValTy = ArgTy->getPointeeType();
-
-  // Do not dereference void pointers. Treat them as byte pointers instead.
-  // FIXME: we might want to consider more than just the first byte.
-  if (ValTy->isVoidType())
-    ValTy = C.getASTContext().CharTy;
-
-  return State->getSVal(*AddrLoc, ValTy);
-}
-
-ProgramStateRef
-GenericTaintChecker::TaintPropagationRule::process(const CallExpr *CE,
-                                                   CheckerContext &C) const {
-  ProgramStateRef State = C.getState();
-
-  // Check for taint in arguments.
-  bool IsTainted = false;
-  for (ArgVector::const_iterator I = SrcArgs.begin(),
-                                 E = SrcArgs.end(); I != E; ++I) {
-    unsigned ArgNum = *I;
-
-    if (ArgNum == InvalidArgIndex) {
-      // Check if any of the arguments is tainted, but skip the
-      // destination arguments.
-      for (unsigned int i = 0; i < CE->getNumArgs(); ++i) {
-        if (isDestinationArgument(i))
-          continue;
-        if ((IsTainted = isTaintedOrPointsToTainted(CE->getArg(i), State, C)))
-          break;
-      }
-      break;
-    }
-
-    if (CE->getNumArgs() < (ArgNum + 1))
-      return State;
-    if ((IsTainted = isTaintedOrPointsToTainted(CE->getArg(ArgNum), State, C)))
-      break;
-  }
-  if (!IsTainted)
-    return State;
-
-  // Mark the arguments which should be tainted after the function returns.
-  for (ArgVector::const_iterator I = DstArgs.begin(),
-                                 E = DstArgs.end(); I != E; ++I) {
-    unsigned ArgNum = *I;
-
-    // Should we mark all arguments as tainted?
-    if (ArgNum == InvalidArgIndex) {
-      // For all pointer and references that were passed in:
-      //   If they are not pointing to const data, mark data as tainted.
-      //   TODO: So far we are just going one level down; ideally we'd need to
-      //         recurse here.
-      for (unsigned int i = 0; i < CE->getNumArgs(); ++i) {
-        const Expr *Arg = CE->getArg(i);
-        // Process pointer argument.
-        const Type *ArgTy = Arg->getType().getTypePtr();
-        QualType PType = ArgTy->getPointeeType();
-        if ((!PType.isNull() && !PType.isConstQualified())
-            || (ArgTy->isReferenceType() && !Arg->getType().isConstQualified()))
-          State = State->add<TaintArgsOnPostVisit>(i);
-      }
-      continue;
-    }
-
-    // Should mark the return value?
-    if (ArgNum == ReturnValueIndex) {
-      State = State->add<TaintArgsOnPostVisit>(ReturnValueIndex);
-      continue;
-    }
-
-    // Mark the given argument.
-    assert(ArgNum < CE->getNumArgs());
-    State = State->add<TaintArgsOnPostVisit>(ArgNum);
-  }
-
-  return State;
-}
-
-
-// If argument 0 (file descriptor) is tainted, all arguments except for arg 0
-// and arg 1 should get taint.
-ProgramStateRef GenericTaintChecker::preFscanf(const CallExpr *CE,
-                                                   CheckerContext &C) const {
-  assert(CE->getNumArgs() >= 2);
-  ProgramStateRef State = C.getState();
-
-  // Check is the file descriptor is tainted.
-  if (State->isTainted(CE->getArg(0), C.getLocationContext()) ||
-      isStdin(CE->getArg(0), C)) {
-    // All arguments except for the first two should get taint.
-    for (unsigned int i = 2; i < CE->getNumArgs(); ++i)
-        State = State->add<TaintArgsOnPostVisit>(i);
-    return State;
-  }
-
-  return nullptr;
-}
-
-
-// If argument 0(protocol domain) is network, the return value should get taint.
-ProgramStateRef GenericTaintChecker::postSocket(const CallExpr *CE,
-                                                CheckerContext &C) const {
-  ProgramStateRef State = C.getState();
-  if (CE->getNumArgs() < 3)
-    return State;
-
-  SourceLocation DomLoc = CE->getArg(0)->getExprLoc();
-  StringRef DomName = C.getMacroNameOrSpelling(DomLoc);
-  // White list the internal communication protocols.
-  if (DomName.equals("AF_SYSTEM") || DomName.equals("AF_LOCAL") ||
-      DomName.equals("AF_UNIX") || DomName.equals("AF_RESERVED_36"))
-    return State;
-  State = State->addTaint(CE, C.getLocationContext());
-  return State;
-}
-
-ProgramStateRef GenericTaintChecker::postScanf(const CallExpr *CE,
-                                                   CheckerContext &C) const {
-  ProgramStateRef State = C.getState();
-  if (CE->getNumArgs() < 2)
-    return State;
-
-  // All arguments except for the very first one should get taint.
-  for (unsigned int i = 1; i < CE->getNumArgs(); ++i) {
-    // The arguments are pointer arguments. The data they are pointing at is
-    // tainted after the call.
-    const Expr* Arg = CE->getArg(i);
-    Optional<SVal> V = getPointedToSVal(C, Arg);
-    if (V)
-      State = State->addTaint(*V);
-  }
-  return State;
-}
-
-ProgramStateRef GenericTaintChecker::postRetTaint(const CallExpr *CE,
-                                                  CheckerContext &C) const {
-  return C.getState()->addTaint(CE, C.getLocationContext());
-}
-
-bool GenericTaintChecker::isStdin(const Expr *E, CheckerContext &C) {
-  ProgramStateRef State = C.getState();
-  SVal Val = C.getSVal(E);
-
-  // stdin is a pointer, so it would be a region.
-  const MemRegion *MemReg = Val.getAsRegion();
-
-  // The region should be symbolic, we do not know it's value.
-  const SymbolicRegion *SymReg = dyn_cast_or_null<SymbolicRegion>(MemReg);
-  if (!SymReg)
-    return false;
-
-  // Get it's symbol and find the declaration region it's pointing to.
-  const SymbolRegionValue *Sm =dyn_cast<SymbolRegionValue>(SymReg->getSymbol());
-  if (!Sm)
-    return false;
-  const DeclRegion *DeclReg = dyn_cast_or_null<DeclRegion>(Sm->getRegion());
-  if (!DeclReg)
-    return false;
-
-  // This region corresponds to a declaration, find out if it's a global/extern
-  // variable named stdin with the proper type.
-  if (const VarDecl *D = dyn_cast_or_null<VarDecl>(DeclReg->getDecl())) {
-    D = D->getCanonicalDecl();
-    if ((D->getName().find("stdin") != StringRef::npos) && D->isExternC())
-        if (const PointerType * PtrTy =
-              dyn_cast<PointerType>(D->getType().getTypePtr()))
-          if (PtrTy->getPointeeType().getCanonicalType() ==
-              C.getASTContext().getFILEType().getCanonicalType())
-            return true;
-  }
-  return false;
-}
-
-static bool getPrintfFormatArgumentNum(const CallExpr *CE,
-                                       const CheckerContext &C,
-                                       unsigned int &ArgNum) {
-  // Find if the function contains a format string argument.
-  // Handles: fprintf, printf, sprintf, snprintf, vfprintf, vprintf, vsprintf,
-  // vsnprintf, syslog, custom annotated functions.
-  const FunctionDecl *FDecl = C.getCalleeDecl(CE);
-  if (!FDecl)
-    return false;
-  for (const auto *Format : FDecl->specific_attrs<FormatAttr>()) {
-    ArgNum = Format->getFormatIdx() - 1;
-    if ((Format->getType()->getName() == "printf") &&
-         CE->getNumArgs() > ArgNum)
-      return true;
-  }
-
-  // Or if a function is named setproctitle (this is a heuristic).
-  if (C.getCalleeName(CE).find("setproctitle") != StringRef::npos) {
-    ArgNum = 0;
-    return true;
-  }
-
-  return false;
-}
-
-bool GenericTaintChecker::generateReportIfTainted(const Expr *E,
-                                                  const char Msg[],
+bool GenericTaintChecker::generateReportIfTainted(const Expr *E, StringRef Msg,
                                                   CheckerContext &C) const {
   assert(E);
+  Optional<SVal> TaintedSVal{getTaintedPointeeOrPointer(C, C.getSVal(E))};
 
-  // Check for taint.
-  ProgramStateRef State = C.getState();
-  Optional<SVal> PointedToSVal = getPointedToSVal(C, E);
-  SVal TaintedSVal;
-  if (PointedToSVal && State->isTainted(*PointedToSVal))
-    TaintedSVal = *PointedToSVal;
-  else if (State->isTainted(E, C.getLocationContext()))
-    TaintedSVal = C.getSVal(E);
-  else
+  if (!TaintedSVal)
     return false;
 
   // Generate diagnostic.
   if (ExplodedNode *N = C.generateNonFatalErrorNode()) {
-    initBugType();
-    auto report = llvm::make_unique<BugReport>(*BT, Msg, N);
+    auto report = std::make_unique<PathSensitiveBugReport>(BT, Msg, N);
     report->addRange(E->getSourceRange());
-    report->addVisitor(llvm::make_unique<TaintBugVisitor>(TaintedSVal));
+    report->addVisitor(std::make_unique<TaintBugVisitor>(*TaintedSVal));
     C.emitReport(std::move(report));
     return true;
   }
   return false;
 }
 
-bool GenericTaintChecker::checkUncontrolledFormatString(const CallExpr *CE,
-                                                        CheckerContext &C) const{
-  // Check if the function contains a format string argument.
-  unsigned int ArgNum = 0;
-  if (!getPrintfFormatArgumentNum(CE, C, ArgNum))
+/// TODO: remove checking for printf format attributes and socket whitelisting
+/// from GenericTaintChecker, and that means the following functions:
+/// getPrintfFormatArgumentNum,
+/// GenericTaintChecker::checkUncontrolledFormatString,
+/// GenericTaintChecker::taintUnsafeSocketProtocol
+
+static bool getPrintfFormatArgumentNum(const CallEvent &Call,
+                                       const CheckerContext &C,
+                                       ArgIdxTy &ArgNum) {
+  // Find if the function contains a format string argument.
+  // Handles: fprintf, printf, sprintf, snprintf, vfprintf, vprintf, vsprintf,
+  // vsnprintf, syslog, custom annotated functions.
+  const Decl *CallDecl = Call.getDecl();
+  if (!CallDecl)
+    return false;
+  const FunctionDecl *FDecl = CallDecl->getAsFunction();
+  if (!FDecl)
     return false;
 
-  // If either the format string content or the pointer itself are tainted, warn.
-  return generateReportIfTainted(CE->getArg(ArgNum),
+  const ArgIdxTy CallNumArgs = fromArgumentCount(Call.getNumArgs());
+
+  for (const auto *Format : FDecl->specific_attrs<FormatAttr>()) {
+    ArgNum = Format->getFormatIdx() - 1;
+    if ((Format->getType()->getName() == "printf") && CallNumArgs > ArgNum)
+      return true;
+  }
+
+  return false;
+}
+
+bool GenericTaintChecker::checkUncontrolledFormatString(
+    const CallEvent &Call, CheckerContext &C) const {
+  // Check if the function contains a format string argument.
+  ArgIdxTy ArgNum = 0;
+  if (!getPrintfFormatArgumentNum(Call, C, ArgNum))
+    return false;
+
+  // If either the format string content or the pointer itself are tainted,
+  // warn.
+  return generateReportIfTainted(Call.getArgExpr(ArgNum),
                                  MsgUncontrolledFormatString, C);
 }
 
-bool GenericTaintChecker::checkSystemCall(const CallExpr *CE,
-                                          StringRef Name,
-                                          CheckerContext &C) const {
-  // TODO: It might make sense to run this check on demand. In some cases,
-  // we should check if the environment has been cleansed here. We also might
-  // need to know if the user was reset before these calls(seteuid).
-  unsigned ArgNum = llvm::StringSwitch<unsigned>(Name)
-    .Case("system", 0)
-    .Case("popen", 0)
-    .Case("execl", 0)
-    .Case("execle", 0)
-    .Case("execlp", 0)
-    .Case("execv", 0)
-    .Case("execvp", 0)
-    .Case("execvP", 0)
-    .Case("execve", 0)
-    .Case("dlopen", 0)
-    .Default(UINT_MAX);
+void GenericTaintChecker::taintUnsafeSocketProtocol(const CallEvent &Call,
+                                                    CheckerContext &C) const {
+  if (Call.getNumArgs() < 1)
+    return;
+  const IdentifierInfo *ID = Call.getCalleeIdentifier();
+  if (!ID)
+    return;
+  if (!ID->getName().equals("socket"))
+    return;
 
-  if (ArgNum == UINT_MAX || CE->getNumArgs() < (ArgNum + 1))
-    return false;
+  SourceLocation DomLoc = Call.getArgExpr(0)->getExprLoc();
+  StringRef DomName = C.getMacroNameOrSpelling(DomLoc);
+  // Allow internal communication protocols.
+  bool SafeProtocol = DomName.equals("AF_SYSTEM") ||
+                      DomName.equals("AF_LOCAL") || DomName.equals("AF_UNIX") ||
+                      DomName.equals("AF_RESERVED_36");
+  if (SafeProtocol)
+    return;
 
-  return generateReportIfTainted(CE->getArg(ArgNum), MsgSanitizeSystemArgs, C);
+  C.addTransition(C.getState()->add<TaintArgsOnPostVisit>(ReturnValueIndex));
 }
 
-// TODO: Should this check be a part of the CString checker?
-// If yes, should taint be a global setting?
-bool GenericTaintChecker::checkTaintedBufferSize(const CallExpr *CE,
-                                                 const FunctionDecl *FDecl,
-                                                 CheckerContext &C) const {
-  // If the function has a buffer size argument, set ArgNum.
-  unsigned ArgNum = InvalidArgIndex;
-  unsigned BId = 0;
-  if ( (BId = FDecl->getMemoryFunctionKind()) )
-    switch(BId) {
-    case Builtin::BImemcpy:
-    case Builtin::BImemmove:
-    case Builtin::BIstrncpy:
-      ArgNum = 2;
-      break;
-    case Builtin::BIstrndup:
-      ArgNum = 1;
-      break;
-    default:
-      break;
-    };
+/// Checker registration
 
-  if (ArgNum == InvalidArgIndex) {
-    if (C.isCLibraryFunction(FDecl, "malloc") ||
-        C.isCLibraryFunction(FDecl, "calloc") ||
-        C.isCLibraryFunction(FDecl, "alloca"))
-      ArgNum = 0;
-    else if (C.isCLibraryFunction(FDecl, "memccpy"))
-      ArgNum = 3;
-    else if (C.isCLibraryFunction(FDecl, "realloc"))
-      ArgNum = 1;
-    else if (C.isCLibraryFunction(FDecl, "bcopy"))
-      ArgNum = 2;
-  }
-
-  return ArgNum != InvalidArgIndex && CE->getNumArgs() > ArgNum &&
-         generateReportIfTainted(CE->getArg(ArgNum), MsgTaintedBufferSize, C);
+void ento::registerGenericTaintChecker(CheckerManager &Mgr) {
+  Mgr.registerChecker<GenericTaintChecker>();
 }
 
-void ento::registerGenericTaintChecker(CheckerManager &mgr) {
-  mgr.registerChecker<GenericTaintChecker>();
+bool ento::shouldRegisterGenericTaintChecker(const CheckerManager &mgr) {
+  return true;
 }

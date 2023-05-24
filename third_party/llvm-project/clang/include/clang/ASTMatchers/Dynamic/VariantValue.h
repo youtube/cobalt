@@ -1,8 +1,8 @@
-//===--- VariantValue.h - Polymorphic value type -*- C++ -*-===/
-//                     The LLVM Compiler Infrastructure
+//===--- VariantValue.h - Polymorphic value type ----------------*- C++ -*-===//
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -35,6 +35,7 @@ class ArgKind {
  public:
   enum Kind {
     AK_Matcher,
+    AK_Node,
     AK_Boolean,
     AK_Double,
     AK_Unsigned,
@@ -44,13 +45,22 @@ class ArgKind {
   ArgKind(Kind K) : K(K) { assert(K != AK_Matcher); }
 
   /// Constructor for matcher types.
-  ArgKind(ast_type_traits::ASTNodeKind MatcherKind)
-      : K(AK_Matcher), MatcherKind(MatcherKind) {}
+  static ArgKind MakeMatcherArg(ASTNodeKind MatcherKind) {
+    return ArgKind{AK_Matcher, MatcherKind};
+  }
+
+  static ArgKind MakeNodeArg(ASTNodeKind MatcherKind) {
+    return ArgKind{AK_Node, MatcherKind};
+  }
 
   Kind getArgKind() const { return K; }
-  ast_type_traits::ASTNodeKind getMatcherKind() const {
+  ASTNodeKind getMatcherKind() const {
     assert(K == AK_Matcher);
-    return MatcherKind;
+    return NodeKind;
+  }
+  ASTNodeKind getNodeKind() const {
+    assert(K == AK_Node);
+    return NodeKind;
   }
 
   /// Determines if this type can be converted to \p To.
@@ -62,8 +72,9 @@ class ArgKind {
   bool isConvertibleTo(ArgKind To, unsigned *Specificity) const;
 
   bool operator<(const ArgKind &Other) const {
-    if (K == AK_Matcher && Other.K == AK_Matcher)
-      return MatcherKind < Other.MatcherKind;
+    if ((K == AK_Matcher && Other.K == AK_Matcher) ||
+        (K == AK_Node && Other.K == AK_Node))
+      return NodeKind < Other.NodeKind;
     return K < Other.K;
   }
 
@@ -71,8 +82,9 @@ class ArgKind {
   std::string asString() const;
 
 private:
+  ArgKind(Kind K, ASTNodeKind NK) : K(K), NodeKind(NK) {}
   Kind K;
-  ast_type_traits::ASTNodeKind MatcherKind;
+  ASTNodeKind NodeKind;
 };
 
 using ast_matchers::internal::DynTypedMatcher;
@@ -94,15 +106,14 @@ class VariantMatcher {
   /// Methods that depend on T from hasTypedMatcher/getTypedMatcher.
   class MatcherOps {
   public:
-    MatcherOps(ast_type_traits::ASTNodeKind NodeKind) : NodeKind(NodeKind) {}
+    MatcherOps(ASTNodeKind NodeKind) : NodeKind(NodeKind) {}
 
     bool canConstructFrom(const DynTypedMatcher &Matcher,
                           bool &IsExactMatch) const;
 
     /// Convert \p Matcher the destination type and return it as a new
     /// DynTypedMatcher.
-    virtual DynTypedMatcher
-    convertMatcher(const DynTypedMatcher &Matcher) const = 0;
+    DynTypedMatcher convertMatcher(const DynTypedMatcher &Matcher) const;
 
     /// Constructs a variadic typed matcher from \p InnerMatchers.
     /// Will try to convert each inner matcher to the destination type and
@@ -111,11 +122,8 @@ class VariantMatcher {
     constructVariadicOperator(DynTypedMatcher::VariadicOperator Op,
                               ArrayRef<VariantMatcher> InnerMatchers) const;
 
-  protected:
-    ~MatcherOps() = default;
-
   private:
-    ast_type_traits::ASTNodeKind NodeKind;
+    ASTNodeKind NodeKind;
   };
 
   /// Payload interface to be specialized by each matcher type.
@@ -128,7 +136,7 @@ class VariantMatcher {
     virtual std::string getTypeAsString() const = 0;
     virtual llvm::Optional<DynTypedMatcher>
     getTypedMatcher(const MatcherOps &Ops) const = 0;
-    virtual bool isConvertibleTo(ast_type_traits::ASTNodeKind Kind,
+    virtual bool isConvertibleTo(ASTNodeKind Kind,
                                  unsigned *Specificity) const = 0;
   };
 
@@ -175,8 +183,12 @@ public:
   /// that can, the result would be ambiguous and false is returned.
   template <class T>
   bool hasTypedMatcher() const {
+    return hasTypedMatcher(ASTNodeKind::getFromNodeKind<T>());
+  }
+
+  bool hasTypedMatcher(ASTNodeKind NK) const {
     if (!Value) return false;
-    return Value->getTypedMatcher(TypedMatcherOps<T>()).hasValue();
+    return Value->getTypedMatcher(MatcherOps(NK)).hasValue();
   }
 
   /// Determines if the contained matcher can be converted to \p Kind.
@@ -185,8 +197,7 @@ public:
   ///
   /// \param Specificity value corresponding to the "specificity" of the
   ///   conversion.
-  bool isConvertibleTo(ast_type_traits::ASTNodeKind Kind,
-                       unsigned *Specificity) const {
+  bool isConvertibleTo(ASTNodeKind Kind, unsigned *Specificity) const {
     if (Value)
       return Value->isConvertibleTo(Kind, Specificity);
     return false;
@@ -199,8 +210,13 @@ public:
   template <class T>
   ast_matchers::internal::Matcher<T> getTypedMatcher() const {
     assert(hasTypedMatcher<T>() && "hasTypedMatcher<T>() == false");
-    return Value->getTypedMatcher(TypedMatcherOps<T>())
+    return Value->getTypedMatcher(MatcherOps(ASTNodeKind::getFromNodeKind<T>()))
         ->template convertTo<T>();
+  }
+
+  DynTypedMatcher getTypedMatcher(ASTNodeKind NK) const {
+    assert(hasTypedMatcher(NK) && "hasTypedMatcher(NK) == false");
+    return *Value->getTypedMatcher(MatcherOps(NK));
   }
 
   /// String representation of the type of the value.
@@ -213,25 +229,12 @@ private:
   explicit VariantMatcher(std::shared_ptr<Payload> Value)
       : Value(std::move(Value)) {}
 
-  template <typename T> struct TypedMatcherOps;
 
   class SinglePayload;
   class PolymorphicPayload;
   class VariadicOpPayload;
 
   std::shared_ptr<const Payload> Value;
-};
-
-template <typename T>
-struct VariantMatcher::TypedMatcherOps final : VariantMatcher::MatcherOps {
-  TypedMatcherOps()
-      : MatcherOps(ast_type_traits::ASTNodeKind::getFromNodeKind<T>()) {}
-  typedef ast_matchers::internal::Matcher<T> MatcherT;
-
-  DynTypedMatcher
-  convertMatcher(const DynTypedMatcher &Matcher) const override {
-    return DynTypedMatcher(Matcher.convertTo<T>());
-  }
 };
 
 /// Variant value class.
@@ -261,6 +264,7 @@ public:
   VariantValue(double Double);
   VariantValue(unsigned Unsigned);
   VariantValue(StringRef String);
+  VariantValue(ASTNodeKind NodeKind);
   VariantValue(const VariantMatcher &Matchers);
 
   /// Constructs an \c unsigned value (disambiguation from bool).
@@ -289,6 +293,10 @@ public:
   bool isString() const;
   const std::string &getString() const;
   void setString(StringRef String);
+
+  bool isNodeKind() const;
+  const ASTNodeKind &getNodeKind() const;
+  void setNodeKind(ASTNodeKind NodeKind);
 
   /// Matcher value functions.
   bool isMatcher() const;
@@ -326,7 +334,8 @@ private:
     VT_Double,
     VT_Unsigned,
     VT_String,
-    VT_Matcher
+    VT_Matcher,
+    VT_NodeKind
   };
 
   /// All supported value types.
@@ -336,6 +345,7 @@ private:
     bool Boolean;
     std::string *String;
     VariantMatcher *Matcher;
+    ASTNodeKind *NodeKind;
   };
 
   ValueType Type;
@@ -346,4 +356,4 @@ private:
 } // end namespace ast_matchers
 } // end namespace clang
 
-#endif  // LLVM_CLANG_AST_MATCHERS_DYNAMIC_VARIANT_VALUE_H
+#endif // LLVM_CLANG_ASTMATCHERS_DYNAMIC_VARIANTVALUE_H

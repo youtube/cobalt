@@ -1,4 +1,5 @@
-; RUN: opt < %s -analyze -basicaa -tbaa -da | FileCheck %s
+; RUN: opt < %s -disable-output "-passes=print<da>"                            \
+; RUN: "-aa-pipeline=basic-aa,tbaa" 2>&1 | FileCheck %s
 
 ; CHECK-LABEL: 'Dependence Analysis' for function 'test_no_noalias'
 ; CHECK: da analyze - none!

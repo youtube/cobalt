@@ -1,12 +1,11 @@
 //===--- LoopUnrolling.h - Unroll loops -------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-///
+/// \file
 /// This header contains the declarations of functions which are used to decide
 /// which loops should be completely unrolled and mark their corresponding
 /// CFGBlocks. It is done by tracking a stack of loops in the ProgramState. This
@@ -19,7 +18,6 @@
 ///   has to be initialized by a literal in the corresponding initStmt.
 /// - Does not contain goto, switch and returnStmt.
 ///
-///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_LOOPUNROLLING_H
@@ -30,7 +28,6 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
 namespace clang {
 namespace ento {
-class AnalysisManager;
 
 /// Returns if the given State indicates that is inside a completely unrolled
 /// loop.

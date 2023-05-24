@@ -1,12 +1,16 @@
-; RUN: opt < %s -asan -asan-module -asan-use-after-return -asan-stack-dynamic-alloca -S | FileCheck %s
-; RUN: opt < %s -asan -asan-module -asan-use-after-return=0 -asan-stack-dynamic-alloca=0 -S | FileCheck %s
+; RUN: opt < %s -passes='asan-pipeline' -asan-use-after-return=never -asan-stack-dynamic-alloca -S | FileCheck %s
+; RUN: opt < %s -passes='asan-pipeline' -asan-use-after-return=runtime -asan-stack-dynamic-alloca -S | FileCheck %s
+; RUN: opt < %s -passes='asan-pipeline' -asan-use-after-return=always -asan-stack-dynamic-alloca -S | FileCheck %s
+; RUN: opt < %s -passes='asan-pipeline' -asan-use-after-return=never -asan-stack-dynamic-alloca=0 -S | FileCheck %s
+; RUN: opt < %s -passes='asan-pipeline' -asan-use-after-return=runtime -asan-stack-dynamic-alloca=0 -S | FileCheck %s
+; RUN: opt < %s -passes='asan-pipeline' -asan-use-after-return=always -asan-stack-dynamic-alloca=0 -S | FileCheck %s
 
 target datalayout = "e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32"
 target triple = "i686-pc-windows-msvc18.0.0"
 
 declare i32 @llvm.eh.typeid.for(i8*) #2
 declare i8* @llvm.frameaddress(i32)
-declare i8* @llvm.x86.seh.recoverfp(i8*, i8*)
+declare i8* @llvm.eh.recoverfp(i8*, i8*)
 declare i8* @llvm.localrecover(i8*, i8*, i32)
 declare void @llvm.localescape(...) #1
 
@@ -56,7 +60,7 @@ eh.resume:                                        ; preds = %lpad
 define internal i32 @"\01?filt$0@0@main@@"() #1 {
 entry:
   %0 = tail call i8* @llvm.frameaddress(i32 1)
-  %1 = tail call i8* @llvm.x86.seh.recoverfp(i8* bitcast (i32 ()* @main to i8*), i8* %0)
+  %1 = tail call i8* @llvm.eh.recoverfp(i8* bitcast (i32 ()* @main to i8*), i8* %0)
   %2 = tail call i8* @llvm.localrecover(i8* bitcast (i32 ()* @main to i8*), i8* %1, i32 0)
   %__exception_code = bitcast i8* %2 to i32*
   %3 = getelementptr inbounds i8, i8* %0, i32 -20
@@ -76,7 +80,7 @@ define void @ScaleFilterCols_SSSE3(i8* %dst_ptr, i8* %src_ptr, i32 %dst_width, i
 entry:
   %dst_width.addr = alloca i32, align 4
   store i32 %dst_width, i32* %dst_width.addr, align 4
-  %0 = call { i8*, i8*, i32, i32, i32 } asm sideeffect "", "=r,=r,={ax},=r,=r,=*rm,rm,rm,0,1,2,3,4,5,~{memory},~{cc},~{xmm0},~{xmm1},~{xmm2},~{xmm3},~{xmm4},~{xmm5},~{xmm6},~{dirflag},~{fpsr},~{flags}"(i32* nonnull %dst_width.addr, i32 %x, i32 %dx, i8* %dst_ptr, i8* %src_ptr, i32 0, i32 0, i32 0, i32 %dst_width)
+  %0 = call { i8*, i8*, i32, i32, i32 } asm sideeffect "", "=r,=r,={ax},=r,=r,=*rm,rm,rm,0,1,2,3,4,5,~{memory},~{cc},~{xmm0},~{xmm1},~{xmm2},~{xmm3},~{xmm4},~{xmm5},~{xmm6},~{dirflag},~{fpsr},~{flags}"(i32* elementtype(i32) nonnull %dst_width.addr, i32 %x, i32 %dx, i8* %dst_ptr, i8* %src_ptr, i32 0, i32 0, i32 0, i32 %dst_width)
   ret void
 }
 

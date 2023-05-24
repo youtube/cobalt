@@ -25,8 +25,8 @@ config.name = 'Clang'
 config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
 
 # suffixes: A list of file extensions to treat as test files.
-config.suffixes = ['.c', '.cpp', '.cppm', '.m', '.mm', '.cu',
-                   '.ll', '.cl', '.s', '.S', '.modulemap', '.test', '.rs']
+config.suffixes = ['.c', '.cpp', '.i', '.cppm', '.m', '.mm', '.cu', '.hip',
+                   '.ll', '.cl', '.clcpp', '.s', '.S', '.modulemap', '.test', '.rs', '.ifs', '.rc']
 
 # excludes: A list of directories to exclude from the testsuite. The 'Inputs'
 # subdirectories contain auxiliary inputs for various tests in their parent
@@ -43,6 +43,12 @@ llvm_config.use_default_substitutions()
 
 llvm_config.use_clang()
 
+config.substitutions.append(
+    ('%src_include_dir', config.clang_src_dir + '/include'))
+
+config.substitutions.append(
+    ('%target_triple', config.target_triple))
+
 # Propagate path to symbolizer for ASan/MSan.
 llvm_config.with_system_environment(
     ['ASAN_SYMBOLIZER_PATH', 'MSAN_SYMBOLIZER_PATH'])
@@ -57,15 +63,49 @@ config.substitutions.append(('%PATH%', config.environment['PATH']))
 tool_dirs = [config.clang_tools_dir, config.llvm_tools_dir]
 
 tools = [
-    'c-index-test', 'clang-check', 'clang-diff', 'clang-format', 'clang-tblgen',
-    'opt',
-    ToolSubst('%clang_func_map', command=FindTool(
-        'clang-func-mapping'), unresolved='ignore'),
+    'apinotes-test', 'c-index-test', 'clang-diff', 'clang-format', 'clang-repl',
+    'clang-tblgen', 'clang-scan-deps', 'opt', 'llvm-ifs', 'yaml2obj',
+    ToolSubst('%clang_extdef_map', command=FindTool(
+        'clang-extdef-mapping'), unresolved='ignore'),
 ]
 
 if config.clang_examples:
     config.available_features.add('examples')
-    tools.append('clang-interpreter')
+
+def have_host_jit_support():
+    clang_repl_exe = lit.util.which('clang-repl', config.clang_tools_dir)
+
+    if not clang_repl_exe:
+        print('clang-repl not found')
+        return False
+
+    try:
+        clang_repl_cmd = subprocess.Popen(
+            [clang_repl_exe, '--host-supports-jit'], stdout=subprocess.PIPE)
+    except OSError:
+        print('could not exec clang-repl')
+        return False
+
+    clang_repl_out = clang_repl_cmd.stdout.read().decode('ascii')
+    clang_repl_cmd.wait()
+
+    return 'true' in clang_repl_out
+
+if have_host_jit_support():
+    config.available_features.add('host-supports-jit')
+
+if config.clang_staticanalyzer:
+    config.available_features.add('staticanalyzer')
+    tools.append('clang-check')
+
+    if config.clang_staticanalyzer_z3:
+        config.available_features.add('z3')
+
+    check_analyzer_fixit_path = os.path.join(
+        config.test_source_root, "Analysis", "check-analyzer-fixit.py")
+    config.substitutions.append(
+        ('%check_analyzer_fixit',
+         '"%s" %s' % (config.python_executable, check_analyzer_fixit_path)))
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
@@ -73,31 +113,29 @@ config.substitutions.append(
     ('%hmaptool', "'%s' %s" % (config.python_executable,
                              os.path.join(config.clang_tools_dir, 'hmaptool'))))
 
-# Plugins (loadable modules)
-# TODO: This should be supplied by Makefile or autoconf.
-if sys.platform in ['win32', 'cygwin']:
-    has_plugins = config.enable_shared
-else:
-    has_plugins = True
+config.substitutions.append(('%host_cc', config.host_cc))
+config.substitutions.append(('%host_cxx', config.host_cxx))
 
-if has_plugins and config.llvm_plugin_ext:
+
+# Plugins (loadable modules)
+if config.has_plugins and config.llvm_plugin_ext:
     config.available_features.add('plugins')
+
+if config.clang_default_pie_on_linux:
+    config.available_features.add('default-pie-on-linux')
 
 # Set available features we allow tests to conditionalize on.
 #
 if config.clang_default_cxx_stdlib != '':
     config.available_features.add('default-cxx-stdlib-set')
 
-# Enabled/disabled features
-if config.clang_staticanalyzer:
-    config.available_features.add('staticanalyzer')
-
-    if config.clang_staticanalyzer_z3 == '1':
-        config.available_features.add('z3')
-
 # As of 2011.08, crash-recovery tests still do not pass on FreeBSD.
 if platform.system() not in ['FreeBSD']:
     config.available_features.add('crash-recovery')
+
+# Support for new pass manager.
+if config.enable_experimental_new_pass_manager:
+    config.available_features.add('experimental-new-pass-manager')
 
 # ANSI escape sequences in non-dumb terminal
 if platform.system() not in ['Windows']:
@@ -136,26 +174,32 @@ if is_filesystem_case_insensitive():
 if os.path.exists('/dev/fd/0') and sys.platform not in ['cygwin']:
     config.available_features.add('dev-fd-fs')
 
-# Not set on native MS environment.
-if not re.match(r'.*-win32$', config.target_triple):
-    config.available_features.add('non-ms-sdk')
-
-# Not set on native PS4 environment.
-if not re.match(r'.*-scei-ps4', config.target_triple):
-    config.available_features.add('non-ps4-sdk')
+# Set on native MS environment.
+if re.match(r'.*-(windows-msvc)$', config.target_triple):
+    config.available_features.add('ms-sdk')
 
 # [PR8833] LLP64-incompatible tests
-if not re.match(r'^x86_64.*-(win32|mingw32|windows-gnu)$', config.target_triple):
+if not re.match(r'^x86_64.*-(windows-msvc|windows-gnu)$', config.target_triple):
     config.available_features.add('LP64')
 
 # [PR12920] "clang-driver" -- set if gcc driver is not used.
 if not re.match(r'.*-(cygwin)$', config.target_triple):
     config.available_features.add('clang-driver')
 
+# Tests that are specific to the Apple Silicon macOS.
+if re.match(r'^arm64(e)?-apple-(macos|darwin)', config.target_triple):
+    config.available_features.add('apple-silicon-mac')
+
 # [PR18856] Depends to remove opened file. On win32, a file could be removed
 # only if all handles were closed.
 if platform.system() not in ['Windows']:
     config.available_features.add('can-remove-opened-file')
+
+# Features
+known_arches = ["x86_64", "mips64", "ppc64", "aarch64"]
+if (any(config.target_triple.startswith(x) for x in known_arches)):
+  config.available_features.add("clang-target-64-bits")
+
 
 
 def calculate_arch_features(arch_string):
@@ -168,7 +212,7 @@ def calculate_arch_features(arch_string):
 llvm_config.feature_config(
     [('--assertion-mode', {'ON': 'asserts'}),
      ('--cxxflags', {r'-D_GLIBCXX_DEBUG\b': 'libstdcxx-safe-mode'}),
-        ('--targets-built', calculate_arch_features)
+     ('--targets-built', calculate_arch_features),
      ])
 
 if lit.util.which('xmllint'):
@@ -176,6 +220,9 @@ if lit.util.which('xmllint'):
 
 if config.enable_backtrace:
     config.available_features.add('backtrace')
+
+if config.enable_threads:
+    config.available_features.add('thread_support')
 
 # Check if we should allow outputs to console.
 run_console_tests = int(lit_config.params.get('enable_console', '0'))
@@ -185,4 +232,35 @@ if run_console_tests != 0:
 lit.util.usePlatformSdkOnDarwin(config, lit_config)
 macOSSDKVersion = lit.util.findPlatformSdkVersionOnMacOS(config, lit_config)
 if macOSSDKVersion is not None:
-    config.available_features.add('macos-sdk-' + macOSSDKVersion)
+    config.available_features.add('macos-sdk-' + str(macOSSDKVersion))
+
+if os.path.exists('/etc/gentoo-release'):
+    config.available_features.add('gentoo')
+
+if config.enable_shared:
+    config.available_features.add("enable_shared")
+
+# Add a vendor-specific feature.
+if config.clang_vendor_uti:
+    config.available_features.add('clang-vendor=' + config.clang_vendor_uti)
+
+def exclude_unsupported_files_for_aix(dirname):
+    for filename in os.listdir(dirname):
+        source_path = os.path.join( dirname, filename)
+        if os.path.isdir(source_path):
+            continue
+        f = open(source_path, 'r', encoding='ISO-8859-1')
+        try:
+           data = f.read()
+           # 64-bit object files are not supported on AIX, so exclude the tests.
+           if (any(option in data for option in ('-emit-obj', '-fmodule-format=obj', '-fintegrated-as')) and
+              '64' in config.target_triple):
+               config.excludes += [ filename ]
+        finally:
+           f.close()
+
+if 'aix' in config.target_triple:
+    for directory in ('/CodeGenCXX', '/Misc', '/Modules', '/PCH', '/Driver',
+                      '/ASTMerge/anonymous-fields', '/ASTMerge/injected-class-name-decl'):
+        exclude_unsupported_files_for_aix(config.test_source_root + directory)
+

@@ -1,23 +1,22 @@
-//===-- ValueObjectConstResult.cpp ------------------------------*- C++ -*-===//
+//===-- ValueObjectConstResult.cpp ----------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Core/ValueObjectConstResult.h"
 
-#include "lldb/Core/Scalar.h" // for Scalar
 #include "lldb/Core/ValueObjectDynamicValue.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Target/ExecutionContext.h"
-#include "lldb/Target/ExecutionContextScope.h" // for ExecutionContextScope
+#include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/Process.h"
-#include "lldb/Utility/DataBuffer.h"     // for DataBuffer
-#include "lldb/Utility/DataBufferHeap.h" // for DataBufferHeap
+#include "lldb/Utility/DataBuffer.h"
+#include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Scalar.h"
 
 namespace lldb_private {
 class Module;
@@ -30,17 +29,18 @@ ValueObjectSP ValueObjectConstResult::Create(ExecutionContextScope *exe_scope,
                                              ByteOrder byte_order,
                                              uint32_t addr_byte_size,
                                              lldb::addr_t address) {
-  return (new ValueObjectConstResult(exe_scope, byte_order, addr_byte_size,
-                                     address))
+  auto manager_sp = ValueObjectManager::Create();
+  return (new ValueObjectConstResult(exe_scope, *manager_sp, byte_order,
+                                     addr_byte_size, address))
       ->GetSP();
 }
 
 ValueObjectConstResult::ValueObjectConstResult(ExecutionContextScope *exe_scope,
+                                               ValueObjectManager &manager,
                                                ByteOrder byte_order,
                                                uint32_t addr_byte_size,
                                                lldb::addr_t address)
-    : ValueObject(exe_scope), m_type_name(), m_byte_size(0),
-      m_impl(this, address) {
+    : ValueObject(exe_scope, manager), m_impl(this, address) {
   SetIsConstant();
   SetValueIsValid(true);
   m_data.SetByteOrder(byte_order);
@@ -50,19 +50,20 @@ ValueObjectConstResult::ValueObjectConstResult(ExecutionContextScope *exe_scope,
 
 ValueObjectSP ValueObjectConstResult::Create(ExecutionContextScope *exe_scope,
                                              const CompilerType &compiler_type,
-                                             const ConstString &name,
+                                             ConstString name,
                                              const DataExtractor &data,
                                              lldb::addr_t address) {
-  return (new ValueObjectConstResult(exe_scope, compiler_type, name, data,
-                                     address))
+  auto manager_sp = ValueObjectManager::Create();
+  return (new ValueObjectConstResult(exe_scope, *manager_sp, compiler_type,
+                                     name, data, address))
       ->GetSP();
 }
 
 ValueObjectConstResult::ValueObjectConstResult(
-    ExecutionContextScope *exe_scope, const CompilerType &compiler_type,
-    const ConstString &name, const DataExtractor &data, lldb::addr_t address)
-    : ValueObject(exe_scope), m_type_name(), m_byte_size(0),
-      m_impl(this, address) {
+    ExecutionContextScope *exe_scope, ValueObjectManager &manager,
+    const CompilerType &compiler_type, ConstString name,
+    const DataExtractor &data, lldb::addr_t address)
+    : ValueObject(exe_scope, manager), m_impl(this, address) {
   m_data = data;
 
   if (!m_data.GetSharedDataBuffer()) {
@@ -72,7 +73,7 @@ ValueObjectConstResult::ValueObjectConstResult(
   }
 
   m_value.GetScalar() = (uintptr_t)m_data.GetDataStart();
-  m_value.SetValueType(Value::eValueTypeHostAddress);
+  m_value.SetValueType(Value::ValueType::HostAddress);
   m_value.SetCompilerType(compiler_type);
   m_name = name;
   SetIsConstant();
@@ -82,36 +83,39 @@ ValueObjectConstResult::ValueObjectConstResult(
 
 ValueObjectSP ValueObjectConstResult::Create(ExecutionContextScope *exe_scope,
                                              const CompilerType &compiler_type,
-                                             const ConstString &name,
+                                             ConstString name,
                                              const lldb::DataBufferSP &data_sp,
                                              lldb::ByteOrder data_byte_order,
                                              uint32_t data_addr_size,
                                              lldb::addr_t address) {
-  return (new ValueObjectConstResult(exe_scope, compiler_type, name, data_sp,
-                                     data_byte_order, data_addr_size, address))
+  auto manager_sp = ValueObjectManager::Create();
+  return (new ValueObjectConstResult(exe_scope, *manager_sp, compiler_type,
+                                     name, data_sp, data_byte_order,
+                                     data_addr_size, address))
       ->GetSP();
 }
 
 ValueObjectSP ValueObjectConstResult::Create(ExecutionContextScope *exe_scope,
                                              Value &value,
-                                             const ConstString &name,
+                                             ConstString name,
                                              Module *module) {
-  return (new ValueObjectConstResult(exe_scope, value, name, module))->GetSP();
+  auto manager_sp = ValueObjectManager::Create();
+  return (new ValueObjectConstResult(exe_scope, *manager_sp, value, name,
+                                     module))
+      ->GetSP();
 }
 
 ValueObjectConstResult::ValueObjectConstResult(
-    ExecutionContextScope *exe_scope, const CompilerType &compiler_type,
-    const ConstString &name, const lldb::DataBufferSP &data_sp,
-    lldb::ByteOrder data_byte_order, uint32_t data_addr_size,
-    lldb::addr_t address)
-    : ValueObject(exe_scope), m_type_name(), m_byte_size(0),
-      m_impl(this, address) {
+    ExecutionContextScope *exe_scope, ValueObjectManager &manager,
+    const CompilerType &compiler_type, ConstString name,
+    const lldb::DataBufferSP &data_sp, lldb::ByteOrder data_byte_order,
+    uint32_t data_addr_size, lldb::addr_t address)
+    : ValueObject(exe_scope, manager), m_impl(this, address) {
   m_data.SetByteOrder(data_byte_order);
   m_data.SetAddressByteSize(data_addr_size);
   m_data.SetData(data_sp);
   m_value.GetScalar() = (uintptr_t)data_sp->GetBytes();
-  m_value.SetValueType(Value::eValueTypeHostAddress);
-  // m_value.SetContext(Value::eContextTypeClangType, compiler_type);
+  m_value.SetValueType(Value::ValueType::HostAddress);
   m_value.SetCompilerType(compiler_type);
   m_name = name;
   SetIsConstant();
@@ -121,40 +125,41 @@ ValueObjectConstResult::ValueObjectConstResult(
 
 ValueObjectSP ValueObjectConstResult::Create(ExecutionContextScope *exe_scope,
                                              const CompilerType &compiler_type,
-                                             const ConstString &name,
+                                             ConstString name,
                                              lldb::addr_t address,
                                              AddressType address_type,
                                              uint32_t addr_byte_size) {
-  return (new ValueObjectConstResult(exe_scope, compiler_type, name, address,
-                                     address_type, addr_byte_size))
+  auto manager_sp = ValueObjectManager::Create();
+  return (new ValueObjectConstResult(exe_scope, *manager_sp, compiler_type,
+                                     name, address, address_type,
+                                     addr_byte_size))
       ->GetSP();
 }
 
 ValueObjectConstResult::ValueObjectConstResult(
-    ExecutionContextScope *exe_scope, const CompilerType &compiler_type,
-    const ConstString &name, lldb::addr_t address, AddressType address_type,
-    uint32_t addr_byte_size)
-    : ValueObject(exe_scope), m_type_name(), m_byte_size(0),
+    ExecutionContextScope *exe_scope, ValueObjectManager &manager,
+    const CompilerType &compiler_type, ConstString name, lldb::addr_t address,
+    AddressType address_type, uint32_t addr_byte_size)
+    : ValueObject(exe_scope, manager), m_type_name(),
       m_impl(this, address) {
   m_value.GetScalar() = address;
   m_data.SetAddressByteSize(addr_byte_size);
   m_value.GetScalar().GetData(m_data, addr_byte_size);
-  // m_value.SetValueType(Value::eValueTypeHostAddress);
+  // m_value.SetValueType(Value::ValueType::HostAddress);
   switch (address_type) {
   case eAddressTypeInvalid:
-    m_value.SetValueType(Value::eValueTypeScalar);
+    m_value.SetValueType(Value::ValueType::Scalar);
     break;
   case eAddressTypeFile:
-    m_value.SetValueType(Value::eValueTypeFileAddress);
+    m_value.SetValueType(Value::ValueType::FileAddress);
     break;
   case eAddressTypeLoad:
-    m_value.SetValueType(Value::eValueTypeLoadAddress);
+    m_value.SetValueType(Value::ValueType::LoadAddress);
     break;
   case eAddressTypeHost:
-    m_value.SetValueType(Value::eValueTypeHostAddress);
+    m_value.SetValueType(Value::ValueType::HostAddress);
     break;
   }
-  //    m_value.SetContext(Value::eContextTypeClangType, compiler_type);
   m_value.SetCompilerType(compiler_type);
   m_name = name;
   SetIsConstant();
@@ -164,29 +169,31 @@ ValueObjectConstResult::ValueObjectConstResult(
 
 ValueObjectSP ValueObjectConstResult::Create(ExecutionContextScope *exe_scope,
                                              const Status &error) {
-  return (new ValueObjectConstResult(exe_scope, error))->GetSP();
+  auto manager_sp = ValueObjectManager::Create();
+  return (new ValueObjectConstResult(exe_scope, *manager_sp, error))->GetSP();
 }
 
 ValueObjectConstResult::ValueObjectConstResult(ExecutionContextScope *exe_scope,
+                                               ValueObjectManager &manager,
                                                const Status &error)
-    : ValueObject(exe_scope), m_type_name(), m_byte_size(0), m_impl(this) {
+    : ValueObject(exe_scope, manager), m_impl(this) {
   m_error = error;
   SetIsConstant();
 }
 
 ValueObjectConstResult::ValueObjectConstResult(ExecutionContextScope *exe_scope,
+                                               ValueObjectManager &manager,
                                                const Value &value,
-                                               const ConstString &name,
-                                               Module *module)
-    : ValueObject(exe_scope), m_type_name(), m_byte_size(0), m_impl(this) {
+                                               ConstString name, Module *module)
+    : ValueObject(exe_scope, manager), m_impl(this) {
   m_value = value;
   m_name = name;
   ExecutionContext exe_ctx;
   exe_scope->CalculateExecutionContext(exe_ctx);
-  m_error = m_value.GetValueAsData(&exe_ctx, m_data, 0, module);
+  m_error = m_value.GetValueAsData(&exe_ctx, m_data, module);
 }
 
-ValueObjectConstResult::~ValueObjectConstResult() {}
+ValueObjectConstResult::~ValueObjectConstResult() = default;
 
 CompilerType ValueObjectConstResult::GetCompilerTypeImpl() {
   return m_value.GetCompilerType();
@@ -196,25 +203,27 @@ lldb::ValueType ValueObjectConstResult::GetValueType() const {
   return eValueTypeConstResult;
 }
 
-uint64_t ValueObjectConstResult::GetByteSize() {
+llvm::Optional<uint64_t> ValueObjectConstResult::GetByteSize() {
   ExecutionContext exe_ctx(GetExecutionContextRef());
-
-  if (m_byte_size == 0)
-    SetByteSize(
-        GetCompilerType().GetByteSize(exe_ctx.GetBestExecutionContextScope()));
+  if (!m_byte_size) {
+    if (auto size =
+        GetCompilerType().GetByteSize(exe_ctx.GetBestExecutionContextScope()))
+      SetByteSize(*size);
+  }
   return m_byte_size;
 }
 
 void ValueObjectConstResult::SetByteSize(size_t size) { m_byte_size = size; }
 
 size_t ValueObjectConstResult::CalculateNumChildren(uint32_t max) {
-  auto children_count = GetCompilerType().GetNumChildren(true);
+  ExecutionContext exe_ctx(GetExecutionContextRef());
+  auto children_count = GetCompilerType().GetNumChildren(true, &exe_ctx);
   return children_count <= max ? children_count : max;
 }
 
 ConstString ValueObjectConstResult::GetTypeName() {
   if (m_type_name.IsEmpty())
-    m_type_name = GetCompilerType().GetConstTypeName();
+    m_type_name = GetCompilerType().GetTypeName();
   return m_type_name;
 }
 

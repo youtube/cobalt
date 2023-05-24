@@ -1,9 +1,8 @@
 //===- SSAUpdaterBulk.cpp - Unstructured SSA Update Tool ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -64,12 +63,6 @@ void SSAUpdaterBulk::AddUse(unsigned Var, Use *U) {
   LLVM_DEBUG(dbgs() << "SSAUpdater: Var=" << Var << ": added a use" << *U->get()
                     << " in " << getUserBB(U)->getName() << "\n");
   Rewrites[Var].Uses.push_back(U);
-}
-
-/// Return true if the SSAUpdater already has a value for the specified variable
-/// in the specified block.
-bool SSAUpdaterBulk::HasValueForBlock(unsigned Var, BasicBlock *BB) {
-  return (Var < Rewrites.size()) ? Rewrites[Var].Defines.count(BB) : false;
 }
 
 // Compute value at the given block BB. We either should already know it, or we

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,6 +17,8 @@
 
 #include <memory>
 #include <cassert>
+
+#include "test_macros.h"
 
 template <class T>
 struct A
@@ -35,14 +36,17 @@ public:
         {return A(&et);}
 };
 
-int main()
+int main(int, char**)
 {
     {
         int i = 0;
+        static_assert((std::is_same<A<int>, decltype(std::pointer_traits<A<int> >::pointer_to(i))>::value), "");
         A<int> a = std::pointer_traits<A<int> >::pointer_to(i);
         assert(a.t_ == &i);
     }
     {
         (std::pointer_traits<A<void> >::element_type)0;
     }
+
+  return 0;
 }

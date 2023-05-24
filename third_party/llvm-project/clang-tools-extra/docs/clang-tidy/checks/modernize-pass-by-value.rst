@@ -13,7 +13,7 @@ The transformation is usually beneficial when the calling code passes an
 *rvalue* and assumes the move construction is a cheap operation. This short
 example illustrates how the construction of the value happens:
 
-  .. code-block:: c++
+.. code-block:: c++
 
     void foo(std::string s);
     std::string get_str();
@@ -39,7 +39,7 @@ Since ``std::move()`` is a library function declared in `<utility>` it may be
 necessary to add this include. The check will add the include directive when
 necessary.
 
-  .. code-block:: c++
+.. code-block:: c++
 
      #include <string>
 
@@ -124,7 +124,7 @@ When delayed template parsing is enabled, constructors part of templated
 contexts; templated constructors, constructors in class templates, constructors
 of inner classes of template classes, etc., are not transformed. Delayed
 template parsing is enabled by default on Windows as a Microsoft extension:
-`Clang Compiler User’s Manual - Microsoft extensions`_.
+`Clang Compiler User's Manual - Microsoft extensions`_.
 
 Delayed template parsing can be enabled using the `-fdelayed-template-parsing`
 flag and disabled using `-fno-delayed-template-parsing`.
@@ -144,7 +144,7 @@ Example:
  +  C(std::string S) : S(std::move(S)) {}
    };
 
-.. _Clang Compiler User’s Manual - Microsoft extensions: http://clang.llvm.org/docs/UsersManual.html#microsoft-extensions
+.. _Clang Compiler User's Manual - Microsoft extensions: https://clang.llvm.org/docs/UsersManual.html#microsoft-extensions
 
 .. seealso::
 
@@ -162,5 +162,5 @@ Options
 
 .. option:: ValuesOnly
 
-   When non-zero, the check only warns about copied parameters that are already
-   passed by value. Default is `0`.
+   When `true`, the check only warns about copied parameters that are already
+   passed by value. Default is `false`.

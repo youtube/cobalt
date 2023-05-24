@@ -1,9 +1,8 @@
 //===- TwineTest.cpp - Twine unit tests -----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,6 +32,9 @@ TEST(TwineTest, Construction) {
   EXPECT_EQ("hi", Twine(StringRef("hithere", 2)).str());
   EXPECT_EQ("hi", Twine(SmallString<4>("hi")).str());
   EXPECT_EQ("hi", Twine(formatv("{0}", "hi")).str());
+#if __cplusplus > 201402L
+  EXPECT_EQ("hi", Twine(std::string_view("hi")).str());
+#endif
 }
 
 TEST(TwineTest, Numbers) {
@@ -66,14 +68,18 @@ TEST(TwineTest, Concat) {
             repr(Twine("hi").concat(Twine())));
   EXPECT_EQ("(Twine cstring:\"hi\" empty)", 
             repr(Twine().concat(Twine("hi"))));
-  EXPECT_EQ("(Twine smallstring:\"hi\" empty)", 
+  EXPECT_EQ("(Twine ptrAndLength:\"hi\" empty)",
             repr(Twine().concat(Twine(SmallString<5>("hi")))));
   EXPECT_EQ("(Twine formatv:\"howdy\" empty)",
             repr(Twine(formatv("howdy")).concat(Twine())));
   EXPECT_EQ("(Twine formatv:\"howdy\" empty)",
             repr(Twine().concat(Twine(formatv("howdy")))));
-  EXPECT_EQ("(Twine smallstring:\"hey\" cstring:\"there\")", 
+  EXPECT_EQ("(Twine ptrAndLength:\"hey\" cstring:\"there\")",
             repr(Twine(SmallString<7>("hey")).concat(Twine("there"))));
+#if __cplusplus > 201402L
+  EXPECT_EQ("(Twine ptrAndLength:\"hey\" cstring:\"there\")",
+            repr(Twine(std::string_view("hey")).concat(Twine("there"))));
+#endif
 
   // Concatenation of unary ropes.
   EXPECT_EQ("(Twine cstring:\"a\" cstring:\"b\")", 
@@ -84,8 +90,9 @@ TEST(TwineTest, Concat) {
             repr(Twine("a").concat(Twine("b")).concat(Twine("c"))));
   EXPECT_EQ("(Twine cstring:\"a\" rope:(Twine cstring:\"b\" cstring:\"c\"))",
             repr(Twine("a").concat(Twine("b").concat(Twine("c")))));
-  EXPECT_EQ("(Twine cstring:\"a\" rope:(Twine smallstring:\"b\" cstring:\"c\"))",
-            repr(Twine("a").concat(Twine(SmallString<3>("b")).concat(Twine("c")))));
+  EXPECT_EQ(
+      "(Twine cstring:\"a\" rope:(Twine ptrAndLength:\"b\" cstring:\"c\"))",
+      repr(Twine("a").concat(Twine(SmallString<3>("b")).concat(Twine("c")))));
 }
 
 TEST(TwineTest, toNullTerminatedStringRef) {
@@ -106,7 +113,7 @@ TEST(TwineTest, LazyEvaluation) {
     explicit formatter(int &Count) : FormatAdapter(0), Count(Count) {}
     int &Count;
 
-    void format(raw_ostream &OS, StringRef Style) { ++Count; }
+    void format(raw_ostream &OS, StringRef Style) override { ++Count; }
   };
 
   int Count = 0;

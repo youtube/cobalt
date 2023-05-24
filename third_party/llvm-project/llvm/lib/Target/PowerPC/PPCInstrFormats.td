@@ -1,9 +1,8 @@
 //===- PowerPCInstrFormats.td - PowerPC Instruction Formats --*- tablegen -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -38,17 +37,13 @@ class I<bits<6> opcode, dag OOL, dag IOL, string asmstr, InstrItinClass itin>
   let TSFlags{2}   = PPC970_Cracked;
   let TSFlags{5-3} = PPC970_Unit;
 
-  /// Indicate that the VSX instruction is to use VSX numbering/encoding.
-  /// Since ISA 3.0, there are scalar instructions that use the upper
-  /// half of the VSX register set only. Rather than adding further complexity
-  /// to the register class set, the VSX registers just include the Altivec
-  /// registers and this flag decides the numbering to be used for them.
-  bits<1> UseVSXReg = 0;
-  let TSFlags{6}   = UseVSXReg;
-
   // Indicate that this instruction is of type X-Form Load or Store
   bits<1> XFormMemOp = 0;
-  let TSFlags{7}  = XFormMemOp;
+  let TSFlags{6}  = XFormMemOp;
+
+  // Indicate that this instruction is prefixed.
+  bits<1> Prefixed = 0;
+  let TSFlags{7}  = Prefixed;
 
   // Fields used for relation models.
   string BaseName = "";
@@ -74,7 +69,6 @@ class PPC970_Unit_VALU     { bits<3> PPC970_Unit = 5;   }
 class PPC970_Unit_VPERM    { bits<3> PPC970_Unit = 6;   }
 class PPC970_Unit_BRU      { bits<3> PPC970_Unit = 7;   }
 
-class UseVSXReg { bits<1> UseVSXReg = 1; }
 class XFormMemOp { bits<1> XFormMemOp = 1; }
 
 // Two joined instructions; used to emit two adjacent instructions as one.
@@ -272,8 +266,8 @@ class DForm_2<bits<6> opcode, dag OOL, dag IOL, string asmstr,
               InstrItinClass itin, list<dag> pattern>
   : DForm_base<opcode, OOL, IOL, asmstr, itin, pattern> {
 
-  // Even though ADDICo does not really have an RC bit, provide
-  // the declaration of one here so that isDOT has something to set.
+  // Even though ADDIC_rec does not really have an RC bit, provide
+  // the declaration of one here so that isRecordForm has something to set.
   bit RC = 0;
 }
 
@@ -428,6 +422,20 @@ class DQ_RD6_RS5_DQ12<bits<6> opcode, bits<3> xo, dag OOL, dag IOL,
   let Inst{29-31} = xo;
 }
 
+class DQForm_RTp5_RA17_MEM<bits<6> opcode, bits<4> xo, dag OOL, dag IOL,
+                           string asmstr, InstrItinClass itin,
+                           list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<5> RTp;
+  bits<17> DQ_RA;
+  let Pattern = pattern;
+
+  let Inst{6-10} =  RTp{4-0};
+  let Inst{11-15} = DQ_RA{16-12};  // Register #
+  let Inst{16-27} = DQ_RA{11-0};   // Displacement.
+  let Inst{28-31} = xo;
+}
+
 // 1.7.6 X-Form
 class XForm_base_r3xo<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr, 
                       InstrItinClass itin, list<dag> pattern>
@@ -438,7 +446,7 @@ class XForm_base_r3xo<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asms
 
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = RST;
   let Inst{11-15} = A;
@@ -473,7 +481,7 @@ class XForm_base_r3xo_swapped
   bits<5> RST;
   bits<5> B;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = RST;
   let Inst{11-15} = A;
@@ -643,12 +651,12 @@ class XForm_17<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
 }
 
 class XForm_17a<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
-               InstrItinClass itin>
+               InstrItinClass itin, list<dag> pattern>
   : XForm_17<opcode, xo, OOL, IOL, asmstr, itin > {
   let FRA = 0;
+  let Pattern = pattern;
 }
 
-// Used for QPX
 class XForm_18<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
                InstrItinClass itin, list<dag> pattern>
          : I<opcode, OOL, IOL, asmstr, itin> {
@@ -730,6 +738,7 @@ class XForm_25_memOp<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
   : XForm_base_r3xo_memOp<opcode, xo, OOL, IOL, asmstr, itin, pattern> {
 }
 
+// [PO RT /// RB XO RC]
 class XForm_26<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
                InstrItinClass itin, list<dag> pattern>
   : XForm_base_r3xo<opcode, xo, OOL, IOL, asmstr, itin, pattern> {
@@ -753,7 +762,7 @@ class XForm_42<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
   : XForm_base_r3xo<opcode, xo, OOL, IOL, asmstr, itin, pattern> {
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = RST;
   let Inst{11-20} = 0;
@@ -766,7 +775,7 @@ class XForm_43<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
   let Pattern = pattern;
   bits<5> FM;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = FM;
   let Inst{11-20} = 0;
@@ -880,7 +889,7 @@ class XForm_16b<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
 }
 
 class XForm_htm0<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
-                 string asmstr, InstrItinClass itin, list<dag> pattern>
+                 string asmstr, InstrItinClass itin>
   : I<opcode, OOL, IOL, asmstr, itin> {
   bit R;
 
@@ -894,7 +903,7 @@ class XForm_htm0<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
 }
 
 class XForm_htm1<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
-                 string asmstr, InstrItinClass itin, list<dag> pattern>
+                 string asmstr, InstrItinClass itin>
   : I<opcode, OOL, IOL, asmstr, itin> {
   bit A;
 
@@ -907,11 +916,11 @@ class XForm_htm1<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
 }
 
 class XForm_htm2<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
-              InstrItinClass itin, list<dag> pattern>
+              InstrItinClass itin>
   : I<opcode, OOL, IOL, asmstr, itin> {
   bit L;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{7-9}   = 0;
   let Inst{10}    = L;
@@ -921,7 +930,7 @@ class XForm_htm2<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
 }
 
 class XForm_htm3<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
-              InstrItinClass itin, list<dag> pattern>
+              InstrItinClass itin>
   : I<opcode, OOL, IOL, asmstr, itin> {
   bits<3> BF;
 
@@ -1193,11 +1202,26 @@ class XX2_RD6_DCMX7_RS6<bits<6> opcode, bits<4> xo1, bits<3> xo2,
   let Inst{11-15} = DCMX{4-0};
   let Inst{16-20} = XB{4-0};
   let Inst{21-24} = xo1;
-  let Inst{25}    = DCMX{5};
+  let Inst{25}    = DCMX{6};
   let Inst{26-28} = xo2;
-  let Inst{29}    = DCMX{6};
+  let Inst{29}    = DCMX{5};
   let Inst{30}    = XB{5};
   let Inst{31}    = XT{5};
+}
+
+class XForm_XD6_RA5_RB5<bits<6> opcode, bits<10> xo, dag OOL, dag IOL,
+                        string asmstr, InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<11> D_RA_XD;
+  bits<5> RB;
+
+  let Pattern = pattern;
+
+  let Inst{6-10}  = D_RA_XD{4-0};  // D
+  let Inst{11-15} = D_RA_XD{10-6}; // RA
+  let Inst{16-20} = RB;
+  let Inst{21-30} = xo;
+  let Inst{31}    = D_RA_XD{5};    // DX
 }
 
 class XX3Form<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr, 
@@ -1218,18 +1242,11 @@ class XX3Form<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr,
   let Inst{31}    = XT{5};
 }
 
-class XX3Form_Zero<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr,
+class XX3Form_SameOp<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr,
               InstrItinClass itin, list<dag> pattern>
   : XX3Form<opcode, xo, OOL, IOL, asmstr, itin, pattern> {
   let XA = XT;
   let XB = XT;
-}
-
-class XX3Form_SetZero<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr,
-               InstrItinClass itin, list<dag> pattern>
-    : XX3Form<opcode, xo, OOL, IOL, asmstr, itin, pattern> {
-  let XB = XT;
-  let XA = XT;
 }
 
 class XX3Form_1<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr, 
@@ -1281,7 +1298,7 @@ class XX3Form_Rc<bits<6> opcode, bits<7> xo, dag OOL, dag IOL, string asmstr,
 
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = XT{4-0};
   let Inst{11-15} = XA{4-0};
@@ -1545,6 +1562,29 @@ class XLForm_2_ext_and_DSForm_1<bits<6> opcode1, bits<10> xo1,
   let BH = 0;
 }
 
+class XLForm_2_ext_and_DForm_1<bits<6> opcode1, bits<10> xo1, bits<5> bo,
+                               bits<5> bi, bit lk, bits<6> opcode2, dag OOL,
+                               dag IOL, string asmstr, InstrItinClass itin,
+                               list<dag> pattern>
+  : I2<opcode1, opcode2, OOL, IOL, asmstr, itin> {
+
+  bits<5>  RST;
+  bits<21> D_RA;
+
+  let Pattern = pattern;
+
+  let Inst{6-10} = bo;
+  let Inst{11-15} = bi;
+  let Inst{16-18} = 0;
+  let Inst{19-20} = 0;  // Unused (BH)
+  let Inst{21-30} = xo1;
+  let Inst{31} = lk;
+
+  let Inst{38-42} = RST;
+  let Inst{43-47} = D_RA{20-16};  // Base Register
+  let Inst{48-63} = D_RA{15-0};   // Displacement
+}
+
 // 1.7.8 XFX-Form
 class XFXForm_1<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
                 InstrItinClass itin>
@@ -1644,7 +1684,7 @@ class XFLForm<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
   bits<8> FM;
   bits<5> rT;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
   let Pattern = pattern;
 
   let Inst{6} = 0;
@@ -1663,7 +1703,7 @@ class XFLForm_1<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
   bit W;
   bits<5> FRB;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
   let Pattern = pattern;
 
   let Inst{6}     = L;
@@ -1682,7 +1722,7 @@ class XSForm_1<bits<6> opcode, bits<9> xo, dag OOL, dag IOL, string asmstr,
   bits<5> RS;
   bits<6> SH;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
   let Pattern = pattern;
 
   let Inst{6-10}  = RS;
@@ -1703,7 +1743,7 @@ class XOForm_1<bits<6> opcode, bits<9> xo, bit oe, dag OOL, dag IOL, string asms
 
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = RT;
   let Inst{11-15} = RA;
@@ -1730,7 +1770,7 @@ class AForm_1<bits<6> opcode, bits<5> xo, dag OOL, dag IOL, string asmstr,
 
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = FRT;
   let Inst{11-15} = FRA;
@@ -1770,14 +1810,6 @@ class AForm_4<bits<6> opcode, bits<5> xo, dag OOL, dag IOL, string asmstr,
   let Inst{31}    = 0;
 }
 
-// Used for QPX
-class AForm_4a<bits<6> opcode, bits<5> xo, dag OOL, dag IOL, string asmstr,
-              InstrItinClass itin, list<dag> pattern>
-  : AForm_1<opcode, xo, OOL, IOL, asmstr, itin, pattern> {
-  let FRA = 0;
-  let FRC = 0;
-}
-
 // 1.7.13 M-Form
 class MForm_1<bits<6> opcode, dag OOL, dag IOL, string asmstr,
               InstrItinClass itin, list<dag> pattern>
@@ -1790,7 +1822,7 @@ class MForm_1<bits<6> opcode, dag OOL, dag IOL, string asmstr,
 
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = RS;
   let Inst{11-15} = RA;
@@ -1816,7 +1848,7 @@ class MDForm_1<bits<6> opcode, bits<3> xo, dag OOL, dag IOL, string asmstr,
 
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = RS;
   let Inst{11-15} = RA;
@@ -1837,7 +1869,7 @@ class MDSForm_1<bits<6> opcode, bits<4> xo, dag OOL, dag IOL, string asmstr,
 
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = RS;
   let Inst{11-15} = RA;
@@ -2088,49 +2120,6 @@ class VX_RD5_RSp5_PS1_XO9<bits<9> xo, dag OOL, dag IOL, string asmstr,
   let Inst{23-31} = xo;
 }
 
-// Z23-Form (used by QPX)
-class Z23Form_1<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr, 
-              InstrItinClass itin, list<dag> pattern>
-         : I<opcode, OOL, IOL, asmstr, itin> {
-  bits<5> FRT;
-  bits<5> FRA;
-  bits<5> FRB;
-  bits<2> idx;
-
-  let Pattern = pattern;
-
-  bit RC = 0;    // set by isDOT
-
-  let Inst{6-10}  = FRT;
-  let Inst{11-15} = FRA;
-  let Inst{16-20} = FRB;
-  let Inst{21-22} = idx;
-  let Inst{23-30} = xo;
-  let Inst{31}    = RC;
-}
-
-class Z23Form_2<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr,
-              InstrItinClass itin, list<dag> pattern>
-  : Z23Form_1<opcode, xo, OOL, IOL, asmstr, itin, pattern> {
-  let FRB = 0;
-}
-
-class Z23Form_3<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr, 
-              InstrItinClass itin, list<dag> pattern>
-         : I<opcode, OOL, IOL, asmstr, itin> {
-  bits<5> FRT;
-  bits<12> idx;
-
-  let Pattern = pattern;
-
-  bit RC = 0;    // set by isDOT
-
-  let Inst{6-10}  = FRT;
-  let Inst{11-22} = idx;
-  let Inst{23-30} = xo;
-  let Inst{31}    = RC;
-}
-
 class Z23Form_8<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr,
               InstrItinClass itin, list<dag> pattern>
          : I<opcode, OOL, IOL, asmstr, itin> {
@@ -2141,7 +2130,7 @@ class Z23Form_8<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr,
 
   let Pattern = pattern;
 
-  bit RC = 0;    // set by isDOT
+  bit RC = 0;    // set by isRecordForm
 
   let Inst{6-10}  = VRT;
   let Inst{11-14} = 0;
@@ -2152,8 +2141,28 @@ class Z23Form_8<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr,
   let Inst{31}    = RC;
 }
 
+class Z23Form_RTAB5_CY2<bits<6> opcode, bits<8> xo, dag OOL, dag IOL,
+                        string asmstr, InstrItinClass itin, list<dag> pattern>
+         : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<5> RT;
+  bits<5> RA;
+  bits<5> RB;
+  bits<2> CY;
+
+  let Pattern = pattern;
+
+  let Inst{6-10}  = RT;
+  let Inst{11-15} = RA;
+  let Inst{16-20} = RB;
+  let Inst{21-22} = CY;
+  let Inst{23-30} = xo;
+  let Inst{31} = 0;
+}
+
 //===----------------------------------------------------------------------===//
-class Pseudo<dag OOL, dag IOL, string asmstr, list<dag> pattern>
+// EmitTimePseudo won't have encoding information for the [MC]CodeEmitter
+// stuff
+class PPCEmitTimePseudo<dag OOL, dag IOL, string asmstr, list<dag> pattern>
     : I<0, OOL, IOL, asmstr, NoItinerary> {
   let isCodeGenOnly = 1;
   let PPC64 = 0;
@@ -2162,6 +2171,21 @@ class Pseudo<dag OOL, dag IOL, string asmstr, list<dag> pattern>
   let hasNoSchedulingInfo = 1;
 }
 
+// Instruction that require custom insertion support
+// a.k.a. ISelPseudos, however, these won't have isPseudo set
+class PPCCustomInserterPseudo<dag OOL, dag IOL, string asmstr,
+                              list<dag> pattern>
+    : PPCEmitTimePseudo<OOL, IOL, asmstr, pattern> {
+  let usesCustomInserter = 1;
+}
+
+// PostRAPseudo will be expanded in expandPostRAPseudo, isPseudo flag in td
+// files is set only for PostRAPseudo
+class PPCPostRAExpPseudo<dag OOL, dag IOL, string asmstr, list<dag> pattern>
+    : PPCEmitTimePseudo<OOL, IOL, asmstr, pattern> {
+  let isPseudo = 1;
+}
+
 class PseudoXFormMemOp<dag OOL, dag IOL, string asmstr, list<dag> pattern>
-    : Pseudo<OOL, IOL, asmstr, pattern>, XFormMemOp;
+    : PPCPostRAExpPseudo<OOL, IOL, asmstr, pattern>, XFormMemOp;
 

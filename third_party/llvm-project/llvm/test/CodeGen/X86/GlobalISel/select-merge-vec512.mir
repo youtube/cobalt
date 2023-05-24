@@ -12,7 +12,7 @@
 ...
 ---
 name:            test_merge_v128
-alignment:       4
+alignment:       16
 legalized:       true
 regBankSelected: true
 registers:
@@ -30,14 +30,14 @@ body:             |
     ; ALL: $zmm0 = COPY [[VINSERTF32x4Zrr2]]
     ; ALL: RET 0, implicit $zmm0
     %0(<4 x s32>) = IMPLICIT_DEF
-    %1(<16 x s32>) = G_MERGE_VALUES %0(<4 x s32>), %0(<4 x s32>), %0(<4 x s32>), %0(<4 x s32>)
+    %1(<16 x s32>) = G_CONCAT_VECTORS %0(<4 x s32>), %0(<4 x s32>), %0(<4 x s32>), %0(<4 x s32>)
     $zmm0 = COPY %1(<16 x s32>)
     RET 0, implicit $zmm0
 
 ...
 ---
 name:            test_merge_v256
-alignment:       4
+alignment:       16
 legalized:       true
 regBankSelected: true
 registers:
@@ -53,7 +53,7 @@ body:             |
     ; ALL: $zmm0 = COPY [[VINSERTF64x4Zrr]]
     ; ALL: RET 0, implicit $zmm0
     %0(<8 x s32>) = IMPLICIT_DEF
-    %1(<16 x s32>) = G_MERGE_VALUES %0(<8 x s32>), %0(<8 x s32>)
+    %1(<16 x s32>) = G_CONCAT_VECTORS %0(<8 x s32>), %0(<8 x s32>)
     $zmm0 = COPY %1(<16 x s32>)
     RET 0, implicit $zmm0
 

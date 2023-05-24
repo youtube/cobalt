@@ -1,16 +1,11 @@
-//===-- SBBreakpointName.cpp ----------------------------------------*- C++ -*-===//
+//===-- SBBreakpointOptionCommon.cpp --------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/API/SBBreakpointName.h"
 #include "lldb/API/SBBreakpointLocation.h"
 #include "lldb/API/SBDebugger.h"
@@ -31,6 +26,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadSpec.h"
+#include "lldb/Utility/Instrumentation.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Stream.h"
 
@@ -43,19 +39,18 @@
 using namespace lldb;
 using namespace lldb_private;
 
-SBBreakpointCallbackBaton::SBBreakpointCallbackBaton(SBBreakpointHitCallback 
-                                                         callback,
-                                                     void *baton)
-      : TypedBaton(llvm::make_unique<CallbackData>()) {
-    getItem()->callback = callback;
-    getItem()->callback_baton = baton;
-  }
+SBBreakpointCallbackBaton::SBBreakpointCallbackBaton(
+    SBBreakpointHitCallback callback, void *baton)
+    : TypedBaton(std::make_unique<CallbackData>()) {
+  LLDB_INSTRUMENT_VA(this, callback, baton);
+  getItem()->callback = callback;
+  getItem()->callback_baton = baton;
+}
 
- bool SBBreakpointCallbackBaton::PrivateBreakpointHitCallback(void *baton,
-                                                  StoppointCallbackContext *ctx,
-                                                  lldb::user_id_t break_id,
-                                                  lldb::user_id_t break_loc_id)
-{
+bool SBBreakpointCallbackBaton::PrivateBreakpointHitCallback(
+    void *baton, StoppointCallbackContext *ctx, lldb::user_id_t break_id,
+    lldb::user_id_t break_loc_id) {
+  LLDB_INSTRUMENT_VA(baton, ctx, break_id, break_loc_id);
   ExecutionContext exe_ctx(ctx->exe_ctx_ref);
   BreakpointSP bp_sp(
       exe_ctx.GetTargetRef().GetBreakpointList().FindBreakpointByID(break_id));

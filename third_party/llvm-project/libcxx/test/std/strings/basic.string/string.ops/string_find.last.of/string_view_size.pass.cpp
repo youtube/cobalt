@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,12 +13,14 @@
 #include <string>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 template <class S, class SV>
 void
 test(const S& s, SV sv, typename S::size_type pos, typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find_last_of(sv, pos));
     assert(s.find_last_of(sv, pos) == x);
     if (x != S::npos)
         assert(x <= pos && x < s.size());
@@ -29,6 +30,7 @@ template <class S, class SV>
 void
 test(const S& s, SV sv, typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find_last_of(sv));
     assert(s.find_last_of(sv) == x);
     if (x != S::npos)
         assert(x < s.size());
@@ -140,7 +142,7 @@ void test1()
     test(S("pniotcfrhqsmgdkjbael"), SV("htaobedqikfplcgjsmrn"), 19);
 }
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::string S;
@@ -156,4 +158,6 @@ int main()
     test1<S, SV>();
     }
 #endif
+
+  return 0;
 }

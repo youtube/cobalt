@@ -1,9 +1,8 @@
 //===- BinaryByteStream.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //===----------------------------------------------------------------------===//
 // A BinaryStream which stores data in a single continguous memory buffer.
 //===----------------------------------------------------------------------===//
@@ -18,7 +17,6 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileOutputBuffer.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -39,7 +37,7 @@ public:
 
   llvm::support::endianness getEndian() const override { return Endian; }
 
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
     if (auto EC = checkOffsetForRead(Offset, Size))
       return EC;
@@ -47,7 +45,7 @@ public:
     return Error::success();
   }
 
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override {
     if (auto EC = checkOffsetForRead(Offset, 1))
       return EC;
@@ -55,7 +53,7 @@ public:
     return Error::success();
   }
 
-  uint32_t getLength() override { return Data.size(); }
+  uint64_t getLength() override { return Data.size(); }
 
   ArrayRef<uint8_t> data() const { return Data; }
 
@@ -98,19 +96,19 @@ public:
     return ImmutableStream.getEndian();
   }
 
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
     return ImmutableStream.readBytes(Offset, Size, Buffer);
   }
 
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override {
     return ImmutableStream.readLongestContiguousChunk(Offset, Buffer);
   }
 
-  uint32_t getLength() override { return ImmutableStream.getLength(); }
+  uint64_t getLength() override { return ImmutableStream.getLength(); }
 
-  Error writeBytes(uint32_t Offset, ArrayRef<uint8_t> Buffer) override {
+  Error writeBytes(uint64_t Offset, ArrayRef<uint8_t> Buffer) override {
     if (Buffer.empty())
       return Error::success();
 
@@ -146,7 +144,7 @@ public:
 
   llvm::support::endianness getEndian() const override { return Endian; }
 
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
     if (auto EC = checkOffsetForWrite(Offset, Buffer.size()))
       return EC;
@@ -155,11 +153,11 @@ public:
     return Error::success();
   }
 
-  void insert(uint32_t Offset, ArrayRef<uint8_t> Bytes) {
+  void insert(uint64_t Offset, ArrayRef<uint8_t> Bytes) {
     Data.insert(Data.begin() + Offset, Bytes.begin(), Bytes.end());
   }
 
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override {
     if (auto EC = checkOffsetForWrite(Offset, 1))
       return EC;
@@ -168,9 +166,9 @@ public:
     return Error::success();
   }
 
-  uint32_t getLength() override { return Data.size(); }
+  uint64_t getLength() override { return Data.size(); }
 
-  Error writeBytes(uint32_t Offset, ArrayRef<uint8_t> Buffer) override {
+  Error writeBytes(uint64_t Offset, ArrayRef<uint8_t> Buffer) override {
     if (Buffer.empty())
       return Error::success();
 
@@ -183,7 +181,7 @@ public:
     if (Offset > getLength())
       return make_error<BinaryStreamError>(stream_error_code::invalid_offset);
 
-    uint32_t RequiredSize = Offset + Buffer.size();
+    uint64_t RequiredSize = Offset + Buffer.size();
     if (RequiredSize > Data.size())
       Data.resize(RequiredSize);
 
@@ -241,19 +239,19 @@ public:
     return Impl.getEndian();
   }
 
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
     return Impl.readBytes(Offset, Size, Buffer);
   }
 
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override {
     return Impl.readLongestContiguousChunk(Offset, Buffer);
   }
 
-  uint32_t getLength() override { return Impl.getLength(); }
+  uint64_t getLength() override { return Impl.getLength(); }
 
-  Error writeBytes(uint32_t Offset, ArrayRef<uint8_t> Data) override {
+  Error writeBytes(uint64_t Offset, ArrayRef<uint8_t> Data) override {
     return Impl.writeBytes(Offset, Data);
   }
 
@@ -271,4 +269,4 @@ private:
 
 } // end namespace llvm
 
-#endif // LLVM_SUPPORT_BYTESTREAM_H
+#endif // LLVM_SUPPORT_BINARYBYTESTREAM_H

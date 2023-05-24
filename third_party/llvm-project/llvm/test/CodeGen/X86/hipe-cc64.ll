@@ -1,14 +1,13 @@
-; RUN: llc < %s -stack-symbol-ordering=0 -tailcallopt -relocation-model=static -code-model=medium -stack-alignment=8 -mtriple=x86_64-linux-gnu -mcpu=opteron | FileCheck %s
+; RUN: llc < %s -stack-symbol-ordering=0 -tailcallopt -relocation-model=static -code-model=medium -mtriple=x86_64-linux-gnu -mcpu=opteron | FileCheck %s
 
 ; Check the HiPE calling convention works (x86-64)
 
 define void @zap(i64 %a, i64 %b) nounwind {
 entry:
-  ; CHECK:      movq %rsi, %rax
+  ; CHECK:      movq %rsi, %rdx
   ; CHECK-NEXT: movl $8, %ecx
   ; CHECK-NEXT: movl $9, %r8d
   ; CHECK-NEXT: movq %rdi, %rsi
-  ; CHECK-NEXT: movq %rax, %rdx
   ; CHECK-NEXT: callq addfour
   %0 = call cc 11 {i64, i64, i64} @addfour(i64 undef, i64 undef, i64 %a, i64 %b, i64 8, i64 9)
   %res = extractvalue {i64, i64, i64} %0, 2
@@ -101,3 +100,5 @@ define cc 11 { i64, i64, i64 } @tailcaller(i64 %hp, i64 %p) #0 {
 @clos = external constant i64
 declare cc 11 void @bar(i64, i64, i64, i64, i64, i64)
 declare cc 11 { i64, i64, i64 } @tailcallee(i64, i64, i64, i64, i64, i64, i64)
+!llvm.module.flags = !{!3}
+!3 = !{i32 2, !"override-stack-alignment", i32 8}

@@ -1,3 +1,4 @@
+// UNSUPPORTED: -zos, -aix
 // RUN: rm -rf %t
 // RUN: %clang_cc1 -emit-pch -fmodules-cache-path=%t -fmodules -fimplicit-module-maps -o %t.pch -I %S/Inputs -x objective-c-header %S/Inputs/autolink-sub3.pch
 // RUN: %clang_cc1 -emit-llvm -o - -fmodules-cache-path=%t -fmodules -fimplicit-module-maps -F %S/Inputs -I %S/Inputs -include-pch %t.pch %s | FileCheck %s
@@ -37,9 +38,9 @@ int use_autolink_sub3() {
 // NOTE: "autolink_sub" is intentionally not linked.
 
 // CHECK: !llvm.linker.options = !{![[AUTOLINK_PCH:[0-9]+]], ![[AUTOLINK_FRAMEWORK:[0-9]+]], ![[AUTOLINK:[0-9]+]], ![[DEPENDSONMODULE:[0-9]+]], ![[MODULE:[0-9]+]], ![[NOUMBRELLA:[0-9]+]]}
-// CHECK: ![[AUTOLINK_PCH]] = !{!"{{(\\01|-l|/DEFAULTLIB:)}}autolink_from_pch{{(\.lib)?}}"}
+// CHECK: ![[AUTOLINK_PCH]] = !{!"{{(-l|/DEFAULTLIB:|lib", !")}}autolink_from_pch{{(\.lib)?}}"}
 // CHECK: ![[AUTOLINK_FRAMEWORK]] = !{!"-framework", !"autolink_framework"}
-// CHECK: ![[AUTOLINK]] = !{!"{{(\\01|-l|/DEFAULTLIB:)}}autolink{{(\.lib)?}}"}
+// CHECK: ![[AUTOLINK]] = !{!"{{(-l|/DEFAULTLIB:|lib", !")}}autolink{{(\.lib)?}}"}
 // CHECK: ![[DEPENDSONMODULE]] = !{!"-framework", !"DependsOnModule"}
 // CHECK: ![[MODULE]] = !{!"-framework", !"Module"}
 // CHECK: ![[NOUMBRELLA]] = !{!"-framework", !"NoUmbrella"}

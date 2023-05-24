@@ -1,9 +1,8 @@
 //===--- ImplicitConversionInLoopCheck.cpp - clang-tidy--------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,13 +21,13 @@ namespace tidy {
 namespace performance {
 
 // Checks if the stmt is a ImplicitCastExpr with a CastKind that is not a NoOp.
-// The subtelty is that in some cases (user defined conversions), we can
+// The subtlety is that in some cases (user defined conversions), we can
 // get to ImplicitCastExpr inside each other, with the outer one a NoOp. In this
 // case we skip the first cast expr.
-static bool IsNonTrivialImplicitCast(const Stmt *ST) {
+static bool isNonTrivialImplicitCast(const Stmt *ST) {
   if (const auto *ICE = dyn_cast<ImplicitCastExpr>(ST)) {
     return (ICE->getCastKind() != CK_NoOp) ||
-            IsNonTrivialImplicitCast(ICE->getSubExpr());
+           isNonTrivialImplicitCast(ICE->getSubExpr());
   }
   return false;
 }
@@ -48,16 +47,19 @@ void ImplicitConversionInLoopCheck::registerMatchers(MatchFinder *Finder) {
   // CXXOperatorCallExpr, so it should not get caught by the
   // cxxOperatorCallExpr() matcher.
   Finder->addMatcher(
-      cxxForRangeStmt(hasLoopVariable(
-          varDecl(
-              hasType(qualType(references(qualType(isConstQualified())))),
-              hasInitializer(
-                  expr(anyOf(hasDescendant(
-                                 cxxOperatorCallExpr().bind("operator-call")),
-                             hasDescendant(unaryOperator(hasOperatorName("*"))
-                                               .bind("operator-call"))))
-                      .bind("init")))
-              .bind("faulty-var"))),
+      traverse(
+          TK_AsIs,
+          cxxForRangeStmt(hasLoopVariable(
+              varDecl(
+                  hasType(qualType(references(qualType(isConstQualified())))),
+                  hasInitializer(
+                      expr(anyOf(
+                               hasDescendant(
+                                   cxxOperatorCallExpr().bind("operator-call")),
+                               hasDescendant(unaryOperator(hasOperatorName("*"))
+                                                 .bind("operator-call"))))
+                          .bind("init")))
+                  .bind("faulty-var")))),
       this);
 }
 
@@ -79,13 +81,13 @@ void ImplicitConversionInLoopCheck::check(
   // iterator returns a value instead of a reference, and the loop variable
   // is a reference. This situation is fine (it probably produces the same
   // code at the end).
-  if (IsNonTrivialImplicitCast(Materialized->getTemporary()))
-    ReportAndFix(Result.Context, VD, OperatorCall);
+  if (isNonTrivialImplicitCast(Materialized->getSubExpr()))
+    reportAndFix(Result.Context, VD, OperatorCall);
 }
 
-void ImplicitConversionInLoopCheck::ReportAndFix(
-    const ASTContext *Context, const VarDecl *VD,
-    const Expr *OperatorCall) {
+void ImplicitConversionInLoopCheck::reportAndFix(const ASTContext *Context,
+                                                 const VarDecl *VD,
+                                                 const Expr *OperatorCall) {
   // We only match on const ref, so we should print a const ref version of the
   // type.
   QualType ConstType = OperatorCall->getType().withConst();
@@ -96,7 +98,7 @@ void ImplicitConversionInLoopCheck::ReportAndFix(
       "change the type to the matching one (%1 but 'const auto&' is always a "
       "valid option) or remove the reference to make it explicit that you are "
       "creating a new value";
-  diag(VD->getLocStart(), Message) << VD << ConstRefType;
+  diag(VD->getBeginLoc(), Message) << VD << ConstRefType;
 }
 
 } // namespace performance

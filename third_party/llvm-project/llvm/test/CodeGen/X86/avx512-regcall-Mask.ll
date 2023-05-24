@@ -4,7 +4,7 @@
 ; RUN: llc < %s -mtriple=x86_64-linux-gnu    -mattr=+avx512bw  | FileCheck %s --check-prefix=CHECK64 --check-prefix=LINUXOSX64
 
 ; Test regcall when receiving arguments of v64i1 type
-define x86_regcallcc i64 @test_argv64i1(<64 x i1> %x0, <64 x i1> %x1, <64 x i1> %x2, <64 x i1> %x3, <64 x i1> %x4, <64 x i1> %x5, <64 x i1> %x6, <64 x i1> %x7, <64 x i1> %x8, <64 x i1> %x9, <64 x i1> %x10, <64 x i1> %x11, <64 x i1> %x12)  {
+define dso_local x86_regcallcc i64 @test_argv64i1(<64 x i1> %x0, <64 x i1> %x1, <64 x i1> %x2, <64 x i1> %x3, <64 x i1> %x4, <64 x i1> %x5, <64 x i1> %x6, <64 x i1> %x7, <64 x i1> %x8, <64 x i1> %x9, <64 x i1> %x10, <64 x i1> %x11, <64 x i1> %x12)  {
 ; X32-LABEL: test_argv64i1:
 ; X32:       # %bb.0:
 ; X32-NEXT:    addl %edx, %eax
@@ -93,7 +93,7 @@ define x86_regcallcc i64 @test_argv64i1(<64 x i1> %x0, <64 x i1> %x1, <64 x i1> 
 }
 
 ; Test regcall when passing arguments of v64i1 type
-define i64 @caller_argv64i1() #0 {
+define dso_local i64 @caller_argv64i1() #0 {
 ; X32-LABEL: caller_argv64i1:
 ; X32:       # %bb.0: # %entry
 ; X32-NEXT:    pushl %edi
@@ -118,28 +118,27 @@ define i64 @caller_argv64i1() #0 {
 ; WIN64-LABEL: caller_argv64i1:
 ; WIN64:       # %bb.0: # %entry
 ; WIN64-NEXT:    pushq %r15
-; WIN64-NEXT:    .seh_pushreg 15
+; WIN64-NEXT:    .seh_pushreg %r15
 ; WIN64-NEXT:    pushq %r14
-; WIN64-NEXT:    .seh_pushreg 14
+; WIN64-NEXT:    .seh_pushreg %r14
 ; WIN64-NEXT:    pushq %r12
-; WIN64-NEXT:    .seh_pushreg 12
+; WIN64-NEXT:    .seh_pushreg %r12
 ; WIN64-NEXT:    pushq %rsi
-; WIN64-NEXT:    .seh_pushreg 6
+; WIN64-NEXT:    .seh_pushreg %rsi
 ; WIN64-NEXT:    pushq %rdi
-; WIN64-NEXT:    .seh_pushreg 7
+; WIN64-NEXT:    .seh_pushreg %rdi
 ; WIN64-NEXT:    subq $48, %rsp
 ; WIN64-NEXT:    .seh_stackalloc 48
-; WIN64-NEXT:    vmovaps %xmm7, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 7, 32
-; WIN64-NEXT:    vmovaps %xmm6, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 6, 16
+; WIN64-NEXT:    vmovaps %xmm7, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm7, 32
+; WIN64-NEXT:    vmovaps %xmm6, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm6, 16
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    movabsq $4294967298, %rax # imm = 0x100000002
 ; WIN64-NEXT:    movq %rax, (%rsp)
 ; WIN64-NEXT:    movq %rax, %rcx
 ; WIN64-NEXT:    movq %rax, %rdx
 ; WIN64-NEXT:    movq %rax, %rdi
-; WIN64-NEXT:    movq %rax, %rsi
 ; WIN64-NEXT:    movq %rax, %r8
 ; WIN64-NEXT:    movq %rax, %r9
 ; WIN64-NEXT:    movq %rax, %r10
@@ -147,9 +146,10 @@ define i64 @caller_argv64i1() #0 {
 ; WIN64-NEXT:    movq %rax, %r12
 ; WIN64-NEXT:    movq %rax, %r14
 ; WIN64-NEXT:    movq %rax, %r15
+; WIN64-NEXT:    movq %rax, %rsi
 ; WIN64-NEXT:    callq test_argv64i1
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm6 # 16-byte Reload
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm7 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm6 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm7 # 16-byte Reload
 ; WIN64-NEXT:    addq $48, %rsp
 ; WIN64-NEXT:    popq %rdi
 ; WIN64-NEXT:    popq %rsi
@@ -157,8 +157,6 @@ define i64 @caller_argv64i1() #0 {
 ; WIN64-NEXT:    popq %r14
 ; WIN64-NEXT:    popq %r15
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: caller_argv64i1:
@@ -181,13 +179,13 @@ define i64 @caller_argv64i1() #0 {
 ; LINUXOSX64-NEXT:    movq %rax, %rcx
 ; LINUXOSX64-NEXT:    movq %rax, %rdx
 ; LINUXOSX64-NEXT:    movq %rax, %rdi
-; LINUXOSX64-NEXT:    movq %rax, %rsi
 ; LINUXOSX64-NEXT:    movq %rax, %r8
 ; LINUXOSX64-NEXT:    movq %rax, %r9
 ; LINUXOSX64-NEXT:    movq %rax, %r12
 ; LINUXOSX64-NEXT:    movq %rax, %r13
 ; LINUXOSX64-NEXT:    movq %rax, %r14
 ; LINUXOSX64-NEXT:    movq %rax, %r15
+; LINUXOSX64-NEXT:    movq %rax, %rsi
 ; LINUXOSX64-NEXT:    pushq %rax
 ; LINUXOSX64-NEXT:    .cfi_adjust_cfa_offset 8
 ; LINUXOSX64-NEXT:    pushq %rax
@@ -215,7 +213,7 @@ entry:
 }
 
 ; Test regcall when returning v64i1 type
-define x86_regcallcc <64 x i1> @test_retv64i1()  {
+define dso_local x86_regcallcc <64 x i1> @test_retv64i1()  {
 ; X32-LABEL: test_retv64i1:
 ; X32:       # %bb.0:
 ; X32-NEXT:    movl $2, %eax
@@ -231,7 +229,7 @@ define x86_regcallcc <64 x i1> @test_retv64i1()  {
 }
 
 ; Test regcall when processing result of v64i1 type
-define <64 x i1> @caller_retv64i1() #0 {
+define dso_local <64 x i1> @caller_retv64i1() #0 {
 ; X32-LABEL: caller_retv64i1:
 ; X32:       # %bb.0: # %entry
 ; X32-NEXT:    calll _test_retv64i1
@@ -244,27 +242,25 @@ define <64 x i1> @caller_retv64i1() #0 {
 ; WIN64-LABEL: caller_retv64i1:
 ; WIN64:       # %bb.0: # %entry
 ; WIN64-NEXT:    pushq %rsi
-; WIN64-NEXT:    .seh_pushreg 6
+; WIN64-NEXT:    .seh_pushreg %rsi
 ; WIN64-NEXT:    pushq %rdi
-; WIN64-NEXT:    .seh_pushreg 7
+; WIN64-NEXT:    .seh_pushreg %rdi
 ; WIN64-NEXT:    subq $40, %rsp
 ; WIN64-NEXT:    .seh_stackalloc 40
-; WIN64-NEXT:    vmovaps %xmm7, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 7, 16
+; WIN64-NEXT:    vmovaps %xmm7, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm7, 16
 ; WIN64-NEXT:    vmovaps %xmm6, (%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 6, 0
+; WIN64-NEXT:    .seh_savexmm %xmm6, 0
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    callq test_retv64i1
 ; WIN64-NEXT:    kmovq %rax, %k0
 ; WIN64-NEXT:    vpmovm2b %k0, %zmm0
 ; WIN64-NEXT:    vmovaps (%rsp), %xmm6 # 16-byte Reload
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm7 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm7 # 16-byte Reload
 ; WIN64-NEXT:    addq $40, %rsp
 ; WIN64-NEXT:    popq %rdi
 ; WIN64-NEXT:    popq %rsi
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: caller_retv64i1:
@@ -284,14 +280,13 @@ entry:
 
 ; Test regcall when receiving arguments of v32i1 type
 declare i32 @test_argv32i1helper(<32 x i1> %x0, <32 x i1> %x1, <32 x i1> %x2)
-define x86_regcallcc i32 @test_argv32i1(<32 x i1> %x0, <32 x i1> %x1, <32 x i1> %x2)  {
+define dso_local x86_regcallcc i32 @test_argv32i1(<32 x i1> %x0, <32 x i1> %x1, <32 x i1> %x2)  {
 ; X32-LABEL: test_argv32i1:
 ; X32:       # %bb.0: # %entry
-; X32-NEXT:    pushl %esp
-; X32-NEXT:    subl $72, %esp
-; X32-NEXT:    vmovups %xmm7, {{[0-9]+}}(%esp) # 16-byte Spill
-; X32-NEXT:    vmovups %xmm6, {{[0-9]+}}(%esp) # 16-byte Spill
-; X32-NEXT:    vmovups %xmm5, {{[0-9]+}}(%esp) # 16-byte Spill
+; X32-NEXT:    subl $76, %esp
+; X32-NEXT:    vmovups %xmm7, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
+; X32-NEXT:    vmovups %xmm6, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
+; X32-NEXT:    vmovups %xmm5, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
 ; X32-NEXT:    vmovups %xmm4, (%esp) # 16-byte Spill
 ; X32-NEXT:    kmovd %edx, %k0
 ; X32-NEXT:    kmovd %ecx, %k1
@@ -304,61 +299,61 @@ define x86_regcallcc i32 @test_argv32i1(<32 x i1> %x0, <32 x i1> %x1, <32 x i1> 
 ; X32-NEXT:    # kill: def $ymm2 killed $ymm2 killed $zmm2
 ; X32-NEXT:    calll _test_argv32i1helper
 ; X32-NEXT:    vmovups (%esp), %xmm4 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm5 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm6 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm7 # 16-byte Reload
-; X32-NEXT:    addl $72, %esp
-; X32-NEXT:    popl %esp
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm5 # 16-byte Reload
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm6 # 16-byte Reload
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm7 # 16-byte Reload
+; X32-NEXT:    addl $76, %esp
 ; X32-NEXT:    vzeroupper
 ; X32-NEXT:    retl
 ;
 ; WIN64-LABEL: test_argv32i1:
 ; WIN64:       # %bb.0: # %entry
+; WIN64-NEXT:    pushq %rbp
+; WIN64-NEXT:    .seh_pushreg %rbp
 ; WIN64-NEXT:    pushq %r11
-; WIN64-NEXT:    .seh_pushreg 11
+; WIN64-NEXT:    .seh_pushreg %r11
 ; WIN64-NEXT:    pushq %r10
-; WIN64-NEXT:    .seh_pushreg 10
-; WIN64-NEXT:    pushq %rsp
-; WIN64-NEXT:    .seh_pushreg 4
-; WIN64-NEXT:    subq $32, %rsp
-; WIN64-NEXT:    .seh_stackalloc 32
+; WIN64-NEXT:    .seh_pushreg %r10
+; WIN64-NEXT:    subq $128, %rsp
+; WIN64-NEXT:    .seh_stackalloc 128
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %rbp
+; WIN64-NEXT:    .seh_setframe %rbp, 128
 ; WIN64-NEXT:    .seh_endprologue
+; WIN64-NEXT:    andq $-32, %rsp
 ; WIN64-NEXT:    kmovd %edx, %k0
-; WIN64-NEXT:    kmovd %ecx, %k1
-; WIN64-NEXT:    kmovd %eax, %k2
+; WIN64-NEXT:    kmovd %eax, %k1
+; WIN64-NEXT:    kmovd %ecx, %k2
 ; WIN64-NEXT:    vpmovm2b %k2, %zmm0
-; WIN64-NEXT:    vpmovm2b %k1, %zmm1
-; WIN64-NEXT:    vpmovm2b %k0, %zmm2
-; WIN64-NEXT:    # kill: def $ymm0 killed $ymm0 killed $zmm0
-; WIN64-NEXT:    # kill: def $ymm1 killed $ymm1 killed $zmm1
-; WIN64-NEXT:    # kill: def $ymm2 killed $ymm2 killed $zmm2
+; WIN64-NEXT:    vmovdqa %ymm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    vpmovm2b %k1, %zmm0
+; WIN64-NEXT:    vmovdqa %ymm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    vpmovm2b %k0, %zmm0
+; WIN64-NEXT:    vmovdqa %ymm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %rcx
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %rdx
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %r8
+; WIN64-NEXT:    vzeroupper
 ; WIN64-NEXT:    callq test_argv32i1helper
 ; WIN64-NEXT:    nop
-; WIN64-NEXT:    addq $32, %rsp
-; WIN64-NEXT:    popq %rsp
+; WIN64-NEXT:    movq %rbp, %rsp
 ; WIN64-NEXT:    popq %r10
 ; WIN64-NEXT:    popq %r11
-; WIN64-NEXT:    vzeroupper
+; WIN64-NEXT:    popq %rbp
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: test_argv32i1:
 ; LINUXOSX64:       # %bb.0: # %entry
-; LINUXOSX64-NEXT:    pushq %rsp
-; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 16
-; LINUXOSX64-NEXT:    subq $128, %rsp
-; LINUXOSX64-NEXT:    vmovaps %xmm15, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm14, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm13, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm12, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm11, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm10, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm9, {{[0-9]+}}(%rsp) # 16-byte Spill
+; LINUXOSX64-NEXT:    subq $136, %rsp
+; LINUXOSX64-NEXT:    vmovaps %xmm15, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm14, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm13, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm12, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm11, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm10, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm9, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
 ; LINUXOSX64-NEXT:    vmovaps %xmm8, (%rsp) # 16-byte Spill
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 144
-; LINUXOSX64-NEXT:    .cfi_offset %rsp, -16
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm8, -144
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm9, -128
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm10, -112
@@ -376,18 +371,16 @@ define x86_regcallcc i32 @test_argv32i1(<32 x i1> %x0, <32 x i1> %x1, <32 x i1> 
 ; LINUXOSX64-NEXT:    # kill: def $ymm0 killed $ymm0 killed $zmm0
 ; LINUXOSX64-NEXT:    # kill: def $ymm1 killed $ymm1 killed $zmm1
 ; LINUXOSX64-NEXT:    # kill: def $ymm2 killed $ymm2 killed $zmm2
-; LINUXOSX64-NEXT:    callq test_argv32i1helper
+; LINUXOSX64-NEXT:    callq test_argv32i1helper@PLT
 ; LINUXOSX64-NEXT:    vmovaps (%rsp), %xmm8 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm9 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm10 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm11 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm12 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm13 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm14 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm15 # 16-byte Reload
-; LINUXOSX64-NEXT:    addq $128, %rsp
-; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 16
-; LINUXOSX64-NEXT:    popq %rsp
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm9 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm10 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm11 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm12 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm13 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm14 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm15 # 16-byte Reload
+; LINUXOSX64-NEXT:    addq $136, %rsp
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 8
 ; LINUXOSX64-NEXT:    vzeroupper
 ; LINUXOSX64-NEXT:    retq
@@ -397,7 +390,7 @@ entry:
 }
 
 ; Test regcall when passing arguments of v32i1 type
-define i32 @caller_argv32i1() #0 {
+define dso_local i32 @caller_argv32i1() #0 {
 ; X32-LABEL: caller_argv32i1:
 ; X32:       # %bb.0: # %entry
 ; X32-NEXT:    movl $1, %eax
@@ -409,28 +402,26 @@ define i32 @caller_argv32i1() #0 {
 ; WIN64-LABEL: caller_argv32i1:
 ; WIN64:       # %bb.0: # %entry
 ; WIN64-NEXT:    pushq %rsi
-; WIN64-NEXT:    .seh_pushreg 6
+; WIN64-NEXT:    .seh_pushreg %rsi
 ; WIN64-NEXT:    pushq %rdi
-; WIN64-NEXT:    .seh_pushreg 7
+; WIN64-NEXT:    .seh_pushreg %rdi
 ; WIN64-NEXT:    subq $40, %rsp
 ; WIN64-NEXT:    .seh_stackalloc 40
-; WIN64-NEXT:    vmovaps %xmm7, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 7, 16
+; WIN64-NEXT:    vmovaps %xmm7, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm7, 16
 ; WIN64-NEXT:    vmovaps %xmm6, (%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 6, 0
+; WIN64-NEXT:    .seh_savexmm %xmm6, 0
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    movl $1, %eax
 ; WIN64-NEXT:    movl $1, %ecx
 ; WIN64-NEXT:    movl $1, %edx
 ; WIN64-NEXT:    callq test_argv32i1
 ; WIN64-NEXT:    vmovaps (%rsp), %xmm6 # 16-byte Reload
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm7 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm7 # 16-byte Reload
 ; WIN64-NEXT:    addq $40, %rsp
 ; WIN64-NEXT:    popq %rdi
 ; WIN64-NEXT:    popq %rsi
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: caller_argv32i1:
@@ -451,7 +442,7 @@ entry:
 }
 
 ; Test regcall when returning v32i1 type
-define x86_regcallcc <32 x i1> @test_retv32i1()  {
+define dso_local x86_regcallcc <32 x i1> @test_retv32i1()  {
 ; X32-LABEL: test_retv32i1:
 ; X32:       # %bb.0:
 ; X32-NEXT:    movl $1, %eax
@@ -466,7 +457,7 @@ define x86_regcallcc <32 x i1> @test_retv32i1()  {
 }
 
 ; Test regcall when processing result of v32i1 type
-define i32 @caller_retv32i1() #0 {
+define dso_local i32 @caller_retv32i1() #0 {
 ; X32-LABEL: caller_retv32i1:
 ; X32:       # %bb.0: # %entry
 ; X32-NEXT:    calll _test_retv32i1
@@ -476,26 +467,24 @@ define i32 @caller_retv32i1() #0 {
 ; WIN64-LABEL: caller_retv32i1:
 ; WIN64:       # %bb.0: # %entry
 ; WIN64-NEXT:    pushq %rsi
-; WIN64-NEXT:    .seh_pushreg 6
+; WIN64-NEXT:    .seh_pushreg %rsi
 ; WIN64-NEXT:    pushq %rdi
-; WIN64-NEXT:    .seh_pushreg 7
+; WIN64-NEXT:    .seh_pushreg %rdi
 ; WIN64-NEXT:    subq $40, %rsp
 ; WIN64-NEXT:    .seh_stackalloc 40
-; WIN64-NEXT:    vmovaps %xmm7, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 7, 16
+; WIN64-NEXT:    vmovaps %xmm7, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm7, 16
 ; WIN64-NEXT:    vmovaps %xmm6, (%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 6, 0
+; WIN64-NEXT:    .seh_savexmm %xmm6, 0
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    callq test_retv32i1
 ; WIN64-NEXT:    incl %eax
 ; WIN64-NEXT:    vmovaps (%rsp), %xmm6 # 16-byte Reload
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm7 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm7 # 16-byte Reload
 ; WIN64-NEXT:    addq $40, %rsp
 ; WIN64-NEXT:    popq %rdi
 ; WIN64-NEXT:    popq %rsi
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: caller_retv32i1:
@@ -516,14 +505,13 @@ entry:
 
 ; Test regcall when receiving arguments of v16i1 type
 declare i16 @test_argv16i1helper(<16 x i1> %x0, <16 x i1> %x1, <16 x i1> %x2)
-define x86_regcallcc i16 @test_argv16i1(<16 x i1> %x0, <16 x i1> %x1, <16 x i1> %x2)  {
+define dso_local x86_regcallcc i16 @test_argv16i1(<16 x i1> %x0, <16 x i1> %x1, <16 x i1> %x2)  {
 ; X32-LABEL: test_argv16i1:
 ; X32:       # %bb.0:
-; X32-NEXT:    pushl %esp
-; X32-NEXT:    subl $72, %esp
-; X32-NEXT:    vmovups %xmm7, {{[0-9]+}}(%esp) # 16-byte Spill
-; X32-NEXT:    vmovups %xmm6, {{[0-9]+}}(%esp) # 16-byte Spill
-; X32-NEXT:    vmovups %xmm5, {{[0-9]+}}(%esp) # 16-byte Spill
+; X32-NEXT:    subl $76, %esp
+; X32-NEXT:    vmovups %xmm7, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
+; X32-NEXT:    vmovups %xmm6, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
+; X32-NEXT:    vmovups %xmm5, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
 ; X32-NEXT:    vmovups %xmm4, (%esp) # 16-byte Spill
 ; X32-NEXT:    kmovd %edx, %k0
 ; X32-NEXT:    kmovd %ecx, %k1
@@ -537,60 +525,54 @@ define x86_regcallcc i16 @test_argv16i1(<16 x i1> %x0, <16 x i1> %x1, <16 x i1> 
 ; X32-NEXT:    vzeroupper
 ; X32-NEXT:    calll _test_argv16i1helper
 ; X32-NEXT:    vmovups (%esp), %xmm4 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm5 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm6 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm7 # 16-byte Reload
-; X32-NEXT:    addl $72, %esp
-; X32-NEXT:    popl %esp
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm5 # 16-byte Reload
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm6 # 16-byte Reload
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm7 # 16-byte Reload
+; X32-NEXT:    addl $76, %esp
 ; X32-NEXT:    retl
 ;
 ; WIN64-LABEL: test_argv16i1:
 ; WIN64:       # %bb.0:
 ; WIN64-NEXT:    pushq %r11
-; WIN64-NEXT:    .seh_pushreg 11
+; WIN64-NEXT:    .seh_pushreg %r11
 ; WIN64-NEXT:    pushq %r10
-; WIN64-NEXT:    .seh_pushreg 10
-; WIN64-NEXT:    pushq %rsp
-; WIN64-NEXT:    .seh_pushreg 4
-; WIN64-NEXT:    subq $32, %rsp
-; WIN64-NEXT:    .seh_stackalloc 32
+; WIN64-NEXT:    .seh_pushreg %r10
+; WIN64-NEXT:    subq $88, %rsp
+; WIN64-NEXT:    .seh_stackalloc 88
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    kmovd %edx, %k0
-; WIN64-NEXT:    kmovd %ecx, %k1
-; WIN64-NEXT:    kmovd %eax, %k2
+; WIN64-NEXT:    kmovd %eax, %k1
+; WIN64-NEXT:    kmovd %ecx, %k2
 ; WIN64-NEXT:    vpmovm2b %k2, %zmm0
-; WIN64-NEXT:    vpmovm2b %k1, %zmm1
-; WIN64-NEXT:    vpmovm2b %k0, %zmm2
-; WIN64-NEXT:    # kill: def $xmm0 killed $xmm0 killed $zmm0
-; WIN64-NEXT:    # kill: def $xmm1 killed $xmm1 killed $zmm1
-; WIN64-NEXT:    # kill: def $xmm2 killed $xmm2 killed $zmm2
+; WIN64-NEXT:    vmovdqa %xmm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    vpmovm2b %k1, %zmm0
+; WIN64-NEXT:    vmovdqa %xmm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    vpmovm2b %k0, %zmm0
+; WIN64-NEXT:    vmovdqa %xmm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %rcx
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %rdx
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %r8
 ; WIN64-NEXT:    vzeroupper
 ; WIN64-NEXT:    callq test_argv16i1helper
 ; WIN64-NEXT:    nop
-; WIN64-NEXT:    addq $32, %rsp
-; WIN64-NEXT:    popq %rsp
+; WIN64-NEXT:    addq $88, %rsp
 ; WIN64-NEXT:    popq %r10
 ; WIN64-NEXT:    popq %r11
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: test_argv16i1:
 ; LINUXOSX64:       # %bb.0:
-; LINUXOSX64-NEXT:    pushq %rsp
-; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 16
-; LINUXOSX64-NEXT:    subq $128, %rsp
-; LINUXOSX64-NEXT:    vmovaps %xmm15, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm14, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm13, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm12, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm11, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm10, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm9, {{[0-9]+}}(%rsp) # 16-byte Spill
+; LINUXOSX64-NEXT:    subq $136, %rsp
+; LINUXOSX64-NEXT:    vmovaps %xmm15, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm14, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm13, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm12, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm11, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm10, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm9, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
 ; LINUXOSX64-NEXT:    vmovaps %xmm8, (%rsp) # 16-byte Spill
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 144
-; LINUXOSX64-NEXT:    .cfi_offset %rsp, -16
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm8, -144
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm9, -128
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm10, -112
@@ -609,18 +591,16 @@ define x86_regcallcc i16 @test_argv16i1(<16 x i1> %x0, <16 x i1> %x1, <16 x i1> 
 ; LINUXOSX64-NEXT:    # kill: def $xmm1 killed $xmm1 killed $zmm1
 ; LINUXOSX64-NEXT:    # kill: def $xmm2 killed $xmm2 killed $zmm2
 ; LINUXOSX64-NEXT:    vzeroupper
-; LINUXOSX64-NEXT:    callq test_argv16i1helper
+; LINUXOSX64-NEXT:    callq test_argv16i1helper@PLT
 ; LINUXOSX64-NEXT:    vmovaps (%rsp), %xmm8 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm9 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm10 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm11 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm12 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm13 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm14 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm15 # 16-byte Reload
-; LINUXOSX64-NEXT:    addq $128, %rsp
-; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 16
-; LINUXOSX64-NEXT:    popq %rsp
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm9 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm10 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm11 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm12 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm13 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm14 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm15 # 16-byte Reload
+; LINUXOSX64-NEXT:    addq $136, %rsp
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 8
 ; LINUXOSX64-NEXT:    retq
   %res = call i16 @test_argv16i1helper(<16 x i1> %x0, <16 x i1> %x1, <16 x i1> %x2)
@@ -628,7 +608,7 @@ define x86_regcallcc i16 @test_argv16i1(<16 x i1> %x0, <16 x i1> %x1, <16 x i1> 
 }
 
 ; Test regcall when passing arguments of v16i1 type
-define i16 @caller_argv16i1() #0 {
+define dso_local i16 @caller_argv16i1() #0 {
 ; X32-LABEL: caller_argv16i1:
 ; X32:       # %bb.0: # %entry
 ; X32-NEXT:    movl $1, %eax
@@ -640,28 +620,26 @@ define i16 @caller_argv16i1() #0 {
 ; WIN64-LABEL: caller_argv16i1:
 ; WIN64:       # %bb.0: # %entry
 ; WIN64-NEXT:    pushq %rsi
-; WIN64-NEXT:    .seh_pushreg 6
+; WIN64-NEXT:    .seh_pushreg %rsi
 ; WIN64-NEXT:    pushq %rdi
-; WIN64-NEXT:    .seh_pushreg 7
+; WIN64-NEXT:    .seh_pushreg %rdi
 ; WIN64-NEXT:    subq $40, %rsp
 ; WIN64-NEXT:    .seh_stackalloc 40
-; WIN64-NEXT:    vmovaps %xmm7, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 7, 16
+; WIN64-NEXT:    vmovaps %xmm7, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm7, 16
 ; WIN64-NEXT:    vmovaps %xmm6, (%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 6, 0
+; WIN64-NEXT:    .seh_savexmm %xmm6, 0
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    movl $1, %eax
 ; WIN64-NEXT:    movl $1, %ecx
 ; WIN64-NEXT:    movl $1, %edx
 ; WIN64-NEXT:    callq test_argv16i1
 ; WIN64-NEXT:    vmovaps (%rsp), %xmm6 # 16-byte Reload
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm7 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm7 # 16-byte Reload
 ; WIN64-NEXT:    addq $40, %rsp
 ; WIN64-NEXT:    popq %rdi
 ; WIN64-NEXT:    popq %rsi
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: caller_argv16i1:
@@ -682,7 +660,7 @@ entry:
 }
 
 ; Test regcall when returning v16i1 type
-define x86_regcallcc <16 x i1> @test_retv16i1()  {
+define dso_local x86_regcallcc <16 x i1> @test_retv16i1()  {
 ; X32-LABEL: test_retv16i1:
 ; X32:       # %bb.0:
 ; X32-NEXT:    movw $1, %ax
@@ -697,7 +675,7 @@ define x86_regcallcc <16 x i1> @test_retv16i1()  {
 }
 
 ; Test regcall when processing result of v16i1 type
-define i16 @caller_retv16i1() #0 {
+define dso_local i16 @caller_retv16i1() #0 {
 ; X32-LABEL: caller_retv16i1:
 ; X32:       # %bb.0: # %entry
 ; X32-NEXT:    calll _test_retv16i1
@@ -709,28 +687,26 @@ define i16 @caller_retv16i1() #0 {
 ; WIN64-LABEL: caller_retv16i1:
 ; WIN64:       # %bb.0: # %entry
 ; WIN64-NEXT:    pushq %rsi
-; WIN64-NEXT:    .seh_pushreg 6
+; WIN64-NEXT:    .seh_pushreg %rsi
 ; WIN64-NEXT:    pushq %rdi
-; WIN64-NEXT:    .seh_pushreg 7
+; WIN64-NEXT:    .seh_pushreg %rdi
 ; WIN64-NEXT:    subq $40, %rsp
 ; WIN64-NEXT:    .seh_stackalloc 40
-; WIN64-NEXT:    vmovaps %xmm7, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 7, 16
+; WIN64-NEXT:    vmovaps %xmm7, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm7, 16
 ; WIN64-NEXT:    vmovaps %xmm6, (%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 6, 0
+; WIN64-NEXT:    .seh_savexmm %xmm6, 0
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    callq test_retv16i1
 ; WIN64-NEXT:    # kill: def $ax killed $ax def $eax
 ; WIN64-NEXT:    incl %eax
 ; WIN64-NEXT:    # kill: def $ax killed $ax killed $eax
 ; WIN64-NEXT:    vmovaps (%rsp), %xmm6 # 16-byte Reload
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm7 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm7 # 16-byte Reload
 ; WIN64-NEXT:    addq $40, %rsp
 ; WIN64-NEXT:    popq %rdi
 ; WIN64-NEXT:    popq %rsi
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: caller_retv16i1:
@@ -753,14 +729,13 @@ entry:
 
 ; Test regcall when receiving arguments of v8i1 type
 declare i8 @test_argv8i1helper(<8 x i1> %x0, <8 x i1> %x1, <8 x i1> %x2)
-define x86_regcallcc i8 @test_argv8i1(<8 x i1> %x0, <8 x i1> %x1, <8 x i1> %x2)  {
+define dso_local x86_regcallcc i8 @test_argv8i1(<8 x i1> %x0, <8 x i1> %x1, <8 x i1> %x2)  {
 ; X32-LABEL: test_argv8i1:
 ; X32:       # %bb.0:
-; X32-NEXT:    pushl %esp
-; X32-NEXT:    subl $72, %esp
-; X32-NEXT:    vmovups %xmm7, {{[0-9]+}}(%esp) # 16-byte Spill
-; X32-NEXT:    vmovups %xmm6, {{[0-9]+}}(%esp) # 16-byte Spill
-; X32-NEXT:    vmovups %xmm5, {{[0-9]+}}(%esp) # 16-byte Spill
+; X32-NEXT:    subl $76, %esp
+; X32-NEXT:    vmovups %xmm7, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
+; X32-NEXT:    vmovups %xmm6, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
+; X32-NEXT:    vmovups %xmm5, {{[-0-9]+}}(%e{{[sb]}}p) # 16-byte Spill
 ; X32-NEXT:    vmovups %xmm4, (%esp) # 16-byte Spill
 ; X32-NEXT:    kmovd %edx, %k0
 ; X32-NEXT:    kmovd %ecx, %k1
@@ -774,60 +749,54 @@ define x86_regcallcc i8 @test_argv8i1(<8 x i1> %x0, <8 x i1> %x1, <8 x i1> %x2) 
 ; X32-NEXT:    vzeroupper
 ; X32-NEXT:    calll _test_argv8i1helper
 ; X32-NEXT:    vmovups (%esp), %xmm4 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm5 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm6 # 16-byte Reload
-; X32-NEXT:    vmovups {{[0-9]+}}(%esp), %xmm7 # 16-byte Reload
-; X32-NEXT:    addl $72, %esp
-; X32-NEXT:    popl %esp
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm5 # 16-byte Reload
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm6 # 16-byte Reload
+; X32-NEXT:    vmovups {{[-0-9]+}}(%e{{[sb]}}p), %xmm7 # 16-byte Reload
+; X32-NEXT:    addl $76, %esp
 ; X32-NEXT:    retl
 ;
 ; WIN64-LABEL: test_argv8i1:
 ; WIN64:       # %bb.0:
 ; WIN64-NEXT:    pushq %r11
-; WIN64-NEXT:    .seh_pushreg 11
+; WIN64-NEXT:    .seh_pushreg %r11
 ; WIN64-NEXT:    pushq %r10
-; WIN64-NEXT:    .seh_pushreg 10
-; WIN64-NEXT:    pushq %rsp
-; WIN64-NEXT:    .seh_pushreg 4
-; WIN64-NEXT:    subq $32, %rsp
-; WIN64-NEXT:    .seh_stackalloc 32
+; WIN64-NEXT:    .seh_pushreg %r10
+; WIN64-NEXT:    subq $88, %rsp
+; WIN64-NEXT:    .seh_stackalloc 88
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    kmovd %edx, %k0
-; WIN64-NEXT:    kmovd %ecx, %k1
-; WIN64-NEXT:    kmovd %eax, %k2
+; WIN64-NEXT:    kmovd %eax, %k1
+; WIN64-NEXT:    kmovd %ecx, %k2
 ; WIN64-NEXT:    vpmovm2w %k2, %zmm0
-; WIN64-NEXT:    vpmovm2w %k1, %zmm1
-; WIN64-NEXT:    vpmovm2w %k0, %zmm2
-; WIN64-NEXT:    # kill: def $xmm0 killed $xmm0 killed $zmm0
-; WIN64-NEXT:    # kill: def $xmm1 killed $xmm1 killed $zmm1
-; WIN64-NEXT:    # kill: def $xmm2 killed $xmm2 killed $zmm2
+; WIN64-NEXT:    vmovdqa %xmm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    vpmovm2w %k1, %zmm0
+; WIN64-NEXT:    vmovdqa %xmm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    vpmovm2w %k0, %zmm0
+; WIN64-NEXT:    vmovdqa %xmm0, {{[0-9]+}}(%rsp)
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %rcx
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %rdx
+; WIN64-NEXT:    leaq {{[0-9]+}}(%rsp), %r8
 ; WIN64-NEXT:    vzeroupper
 ; WIN64-NEXT:    callq test_argv8i1helper
 ; WIN64-NEXT:    nop
-; WIN64-NEXT:    addq $32, %rsp
-; WIN64-NEXT:    popq %rsp
+; WIN64-NEXT:    addq $88, %rsp
 ; WIN64-NEXT:    popq %r10
 ; WIN64-NEXT:    popq %r11
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: test_argv8i1:
 ; LINUXOSX64:       # %bb.0:
-; LINUXOSX64-NEXT:    pushq %rsp
-; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 16
-; LINUXOSX64-NEXT:    subq $128, %rsp
-; LINUXOSX64-NEXT:    vmovaps %xmm15, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm14, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm13, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm12, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm11, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm10, {{[0-9]+}}(%rsp) # 16-byte Spill
-; LINUXOSX64-NEXT:    vmovaps %xmm9, {{[0-9]+}}(%rsp) # 16-byte Spill
+; LINUXOSX64-NEXT:    subq $136, %rsp
+; LINUXOSX64-NEXT:    vmovaps %xmm15, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm14, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm13, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm12, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm11, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm10, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; LINUXOSX64-NEXT:    vmovaps %xmm9, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
 ; LINUXOSX64-NEXT:    vmovaps %xmm8, (%rsp) # 16-byte Spill
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 144
-; LINUXOSX64-NEXT:    .cfi_offset %rsp, -16
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm8, -144
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm9, -128
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm10, -112
@@ -846,18 +815,16 @@ define x86_regcallcc i8 @test_argv8i1(<8 x i1> %x0, <8 x i1> %x1, <8 x i1> %x2) 
 ; LINUXOSX64-NEXT:    # kill: def $xmm1 killed $xmm1 killed $zmm1
 ; LINUXOSX64-NEXT:    # kill: def $xmm2 killed $xmm2 killed $zmm2
 ; LINUXOSX64-NEXT:    vzeroupper
-; LINUXOSX64-NEXT:    callq test_argv8i1helper
+; LINUXOSX64-NEXT:    callq test_argv8i1helper@PLT
 ; LINUXOSX64-NEXT:    vmovaps (%rsp), %xmm8 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm9 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm10 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm11 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm12 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm13 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm14 # 16-byte Reload
-; LINUXOSX64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm15 # 16-byte Reload
-; LINUXOSX64-NEXT:    addq $128, %rsp
-; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 16
-; LINUXOSX64-NEXT:    popq %rsp
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm9 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm10 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm11 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm12 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm13 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm14 # 16-byte Reload
+; LINUXOSX64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm15 # 16-byte Reload
+; LINUXOSX64-NEXT:    addq $136, %rsp
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 8
 ; LINUXOSX64-NEXT:    retq
   %res = call i8 @test_argv8i1helper(<8 x i1> %x0, <8 x i1> %x1, <8 x i1> %x2)
@@ -865,7 +832,7 @@ define x86_regcallcc i8 @test_argv8i1(<8 x i1> %x0, <8 x i1> %x1, <8 x i1> %x2) 
 }
 
 ; Test regcall when passing arguments of v8i1 type
-define i8 @caller_argv8i1() #0 {
+define dso_local i8 @caller_argv8i1() #0 {
 ; X32-LABEL: caller_argv8i1:
 ; X32:       # %bb.0: # %entry
 ; X32-NEXT:    movl $1, %eax
@@ -877,28 +844,26 @@ define i8 @caller_argv8i1() #0 {
 ; WIN64-LABEL: caller_argv8i1:
 ; WIN64:       # %bb.0: # %entry
 ; WIN64-NEXT:    pushq %rsi
-; WIN64-NEXT:    .seh_pushreg 6
+; WIN64-NEXT:    .seh_pushreg %rsi
 ; WIN64-NEXT:    pushq %rdi
-; WIN64-NEXT:    .seh_pushreg 7
+; WIN64-NEXT:    .seh_pushreg %rdi
 ; WIN64-NEXT:    subq $40, %rsp
 ; WIN64-NEXT:    .seh_stackalloc 40
-; WIN64-NEXT:    vmovaps %xmm7, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 7, 16
+; WIN64-NEXT:    vmovaps %xmm7, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm7, 16
 ; WIN64-NEXT:    vmovaps %xmm6, (%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 6, 0
+; WIN64-NEXT:    .seh_savexmm %xmm6, 0
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    movl $1, %eax
 ; WIN64-NEXT:    movl $1, %ecx
 ; WIN64-NEXT:    movl $1, %edx
 ; WIN64-NEXT:    callq test_argv8i1
 ; WIN64-NEXT:    vmovaps (%rsp), %xmm6 # 16-byte Reload
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm7 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm7 # 16-byte Reload
 ; WIN64-NEXT:    addq $40, %rsp
 ; WIN64-NEXT:    popq %rdi
 ; WIN64-NEXT:    popq %rsi
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: caller_argv8i1:
@@ -919,7 +884,7 @@ entry:
 }
 
 ; Test regcall when returning v8i1 type
-define x86_regcallcc <8 x i1> @test_retv8i1()  {
+define dso_local x86_regcallcc <8 x i1> @test_retv8i1()  {
 ; X32-LABEL: test_retv8i1:
 ; X32:       # %bb.0:
 ; X32-NEXT:    movb $1, %al
@@ -934,7 +899,7 @@ define x86_regcallcc <8 x i1> @test_retv8i1()  {
 }
 
 ; Test regcall when processing result of v8i1 type
-define <8 x i1> @caller_retv8i1() #0 {
+define dso_local <8 x i1> @caller_retv8i1() #0 {
 ; X32-LABEL: caller_retv8i1:
 ; X32:       # %bb.0: # %entry
 ; X32-NEXT:    calll _test_retv8i1
@@ -948,15 +913,15 @@ define <8 x i1> @caller_retv8i1() #0 {
 ; WIN64-LABEL: caller_retv8i1:
 ; WIN64:       # %bb.0: # %entry
 ; WIN64-NEXT:    pushq %rsi
-; WIN64-NEXT:    .seh_pushreg 6
+; WIN64-NEXT:    .seh_pushreg %rsi
 ; WIN64-NEXT:    pushq %rdi
-; WIN64-NEXT:    .seh_pushreg 7
+; WIN64-NEXT:    .seh_pushreg %rdi
 ; WIN64-NEXT:    subq $40, %rsp
 ; WIN64-NEXT:    .seh_stackalloc 40
-; WIN64-NEXT:    vmovaps %xmm7, {{[0-9]+}}(%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 7, 16
+; WIN64-NEXT:    vmovaps %xmm7, {{[-0-9]+}}(%r{{[sb]}}p) # 16-byte Spill
+; WIN64-NEXT:    .seh_savexmm %xmm7, 16
 ; WIN64-NEXT:    vmovaps %xmm6, (%rsp) # 16-byte Spill
-; WIN64-NEXT:    .seh_savexmm 6, 0
+; WIN64-NEXT:    .seh_savexmm %xmm6, 0
 ; WIN64-NEXT:    .seh_endprologue
 ; WIN64-NEXT:    callq test_retv8i1
 ; WIN64-NEXT:    # kill: def $al killed $al def $eax
@@ -964,14 +929,12 @@ define <8 x i1> @caller_retv8i1() #0 {
 ; WIN64-NEXT:    vpmovm2w %k0, %zmm0
 ; WIN64-NEXT:    # kill: def $xmm0 killed $xmm0 killed $zmm0
 ; WIN64-NEXT:    vmovaps (%rsp), %xmm6 # 16-byte Reload
-; WIN64-NEXT:    vmovaps {{[0-9]+}}(%rsp), %xmm7 # 16-byte Reload
+; WIN64-NEXT:    vmovaps {{[-0-9]+}}(%r{{[sb]}}p), %xmm7 # 16-byte Reload
 ; WIN64-NEXT:    addq $40, %rsp
 ; WIN64-NEXT:    popq %rdi
 ; WIN64-NEXT:    popq %rsi
 ; WIN64-NEXT:    vzeroupper
 ; WIN64-NEXT:    retq
-; WIN64-NEXT:    .seh_handlerdata
-; WIN64-NEXT:    .text
 ; WIN64-NEXT:    .seh_endproc
 ;
 ; LINUXOSX64-LABEL: caller_retv8i1:

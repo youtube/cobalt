@@ -1,9 +1,8 @@
 //===- DeclObjC.h - Classes for representing declarations -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,7 @@
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
+#include "clang/AST/DeclObjCCommon.h"
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/Redeclarable.h"
 #include "clang/AST/SelectorLocationsKind.h"
@@ -137,62 +137,17 @@ public:
 /// the above methods are setMenu:, menu, replaceSubview:with:, and defaultMenu.
 ///
 class ObjCMethodDecl : public NamedDecl, public DeclContext {
+  // This class stores some data in DeclContext::ObjCMethodDeclBits
+  // to save some space. Use the provided accessors to access it.
+
 public:
   enum ImplementationControl { None, Required, Optional };
 
 private:
-  // The conventional meaning of this method; an ObjCMethodFamily.
-  // This is not serialized; instead, it is computed on demand and
-  // cached.
-  mutable unsigned Family : ObjCMethodFamilyBitWidth;
-
-  /// instance (true) or class (false) method.
-  unsigned IsInstance : 1;
-  unsigned IsVariadic : 1;
-
-  /// True if this method is the getter or setter for an explicit property.
-  unsigned IsPropertyAccessor : 1;
-
-  // Method has a definition.
-  unsigned IsDefined : 1;
-
-  /// Method redeclaration in the same interface.
-  unsigned IsRedeclaration : 1;
-
-  /// Is redeclared in the same interface.
-  mutable unsigned HasRedeclaration : 1;
-
-  // NOTE: VC++ treats enums as signed, avoid using ImplementationControl enum
-  /// \@required/\@optional
-  unsigned DeclImplementation : 2;
-
-  // NOTE: VC++ treats enums as signed, avoid using the ObjCDeclQualifier enum
-  /// in, inout, etc.
-  unsigned objcDeclQualifier : 7;
-
-  /// Indicates whether this method has a related result type.
-  unsigned RelatedResultType : 1;
-
-  /// Whether the locations of the selector identifiers are in a
-  /// "standard" position, a enum SelectorLocationsKind.
-  unsigned SelLocsKind : 2;
-
-  /// Whether this method overrides any other in the class hierarchy.
-  ///
-  /// A method is said to override any method in the class's
-  /// base classes, its protocols, or its categories' protocols, that has
-  /// the same selector and is of the same kind (class or instance).
-  /// A method in an implementation is not considered as overriding the same
-  /// method in the interface or its categories.
-  unsigned IsOverriding : 1;
-
-  /// Indicates if the method was a definition but its body was skipped.
-  unsigned HasSkippedBody : 1;
-
-  // Return type of this method.
+  /// Return type of this method.
   QualType MethodDeclType;
 
-  // Type source information for the return type.
+  /// Type source information for the return type.
   TypeSourceInfo *ReturnTInfo;
 
   /// Array of ParmVarDecls for the formal parameters of this method
@@ -203,7 +158,7 @@ private:
   /// List of attributes for this method declaration.
   SourceLocation DeclEndLoc; // the location of the ';' or '{'.
 
-  // The following are only used for method definitions, null otherwise.
+  /// The following are only used for method definitions, null otherwise.
   LazyDeclStmtPtr Body;
 
   /// SelfDecl - Decl for the implicit self parameter. This is lazily
@@ -218,23 +173,17 @@ private:
                  Selector SelInfo, QualType T, TypeSourceInfo *ReturnTInfo,
                  DeclContext *contextDecl, bool isInstance = true,
                  bool isVariadic = false, bool isPropertyAccessor = false,
+                 bool isSynthesizedAccessorStub = false, 
                  bool isImplicitlyDeclared = false, bool isDefined = false,
                  ImplementationControl impControl = None,
-                 bool HasRelatedResultType = false)
-      : NamedDecl(ObjCMethod, contextDecl, beginLoc, SelInfo),
-        DeclContext(ObjCMethod), Family(InvalidObjCMethodFamily),
-        IsInstance(isInstance), IsVariadic(isVariadic),
-        IsPropertyAccessor(isPropertyAccessor), IsDefined(isDefined),
-        IsRedeclaration(0), HasRedeclaration(0), DeclImplementation(impControl),
-        objcDeclQualifier(OBJC_TQ_None),
-        RelatedResultType(HasRelatedResultType),
-        SelLocsKind(SelLoc_StandardNoSpace), IsOverriding(0), HasSkippedBody(0),
-        MethodDeclType(T), ReturnTInfo(ReturnTInfo), DeclEndLoc(endLoc) {
-    setImplicit(isImplicitlyDeclared);
-  }
+                 bool HasRelatedResultType = false);
 
   SelectorLocationsKind getSelLocsKind() const {
-    return (SelectorLocationsKind)SelLocsKind;
+    return static_cast<SelectorLocationsKind>(ObjCMethodDeclBits.SelLocsKind);
+  }
+
+  void setSelLocsKind(SelectorLocationsKind Kind) {
+    ObjCMethodDeclBits.SelLocsKind = Kind;
   }
 
   bool hasStandardSelLocs() const {
@@ -244,10 +193,10 @@ private:
   /// Get a pointer to the stored selector identifiers locations array.
   /// No locations will be stored if HasStandardSelLocs is true.
   SourceLocation *getStoredSelLocs() {
-    return reinterpret_cast<SourceLocation*>(getParams() + NumParams);
+    return reinterpret_cast<SourceLocation *>(getParams() + NumParams);
   }
   const SourceLocation *getStoredSelLocs() const {
-    return reinterpret_cast<const SourceLocation*>(getParams() + NumParams);
+    return reinterpret_cast<const SourceLocation *>(getParams() + NumParams);
   }
 
   /// Get a pointer to the stored selector identifiers locations array.
@@ -285,6 +234,7 @@ public:
          Selector SelInfo, QualType T, TypeSourceInfo *ReturnTInfo,
          DeclContext *contextDecl, bool isInstance = true,
          bool isVariadic = false, bool isPropertyAccessor = false,
+         bool isSynthesizedAccessorStub = false,
          bool isImplicitlyDeclared = false, bool isDefined = false,
          ImplementationControl impControl = None,
          bool HasRelatedResultType = false);
@@ -297,20 +247,34 @@ public:
   }
 
   ObjCDeclQualifier getObjCDeclQualifier() const {
-    return ObjCDeclQualifier(objcDeclQualifier);
+    return static_cast<ObjCDeclQualifier>(ObjCMethodDeclBits.objcDeclQualifier);
   }
-  void setObjCDeclQualifier(ObjCDeclQualifier QV) { objcDeclQualifier = QV; }
+
+  void setObjCDeclQualifier(ObjCDeclQualifier QV) {
+    ObjCMethodDeclBits.objcDeclQualifier = QV;
+  }
 
   /// Determine whether this method has a result type that is related
   /// to the message receiver's type.
-  bool hasRelatedResultType() const { return RelatedResultType; }
+  bool hasRelatedResultType() const {
+    return ObjCMethodDeclBits.RelatedResultType;
+  }
 
   /// Note whether this method has a related result type.
-  void SetRelatedResultType(bool RRT = true) { RelatedResultType = RRT; }
+  void setRelatedResultType(bool RRT = true) {
+    ObjCMethodDeclBits.RelatedResultType = RRT;
+  }
 
   /// True if this is a method redeclaration in the same interface.
-  bool isRedeclaration() const { return IsRedeclaration; }
+  bool isRedeclaration() const { return ObjCMethodDeclBits.IsRedeclaration; }
+  void setIsRedeclaration(bool RD) { ObjCMethodDeclBits.IsRedeclaration = RD; }
   void setAsRedeclaration(const ObjCMethodDecl *PrevMethod);
+
+  /// True if redeclared in the same interface.
+  bool hasRedeclaration() const { return ObjCMethodDeclBits.HasRedeclaration; }
+  void setHasRedeclaration(bool HRD) const {
+    ObjCMethodDeclBits.HasRedeclaration = HRD;
+  }
 
   /// Returns the location where the declarator ends. It will be
   /// the location of ';' for a method declaration and the location of '{'
@@ -318,17 +282,15 @@ public:
   SourceLocation getDeclaratorEndLoc() const { return DeclEndLoc; }
 
   // Location information, modeled after the Stmt API.
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return getLocation(); }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY;
   SourceRange getSourceRange() const override LLVM_READONLY {
-    return SourceRange(getLocation(), getLocEnd());
+    return SourceRange(getLocation(), getEndLoc());
   }
 
   SourceLocation getSelectorStartLoc() const {
     if (isImplicit())
-      return getLocStart();
+      return getBeginLoc();
     return getSelectorLoc(0);
   }
 
@@ -356,6 +318,13 @@ public:
   ObjCInterfaceDecl *getClassInterface();
   const ObjCInterfaceDecl *getClassInterface() const {
     return const_cast<ObjCMethodDecl*>(this)->getClassInterface();
+  }
+
+  /// If this method is declared or implemented in a category, return
+  /// that category.
+  ObjCCategoryDecl *getCategory();
+  const ObjCCategoryDecl *getCategory() const {
+    return const_cast<ObjCMethodDecl*>(this)->getCategory();
   }
 
   Selector getSelector() const { return getDeclName().getObjCSelector(); }
@@ -409,6 +378,14 @@ public:
                               NumParams);
   }
 
+  ParmVarDecl *getParamDecl(unsigned Idx) {
+    assert(Idx < NumParams && "Index out of bounds!");
+    return getParams()[Idx];
+  }
+  const ParmVarDecl *getParamDecl(unsigned Idx) const {
+    return const_cast<ObjCMethodDecl *>(this)->getParamDecl(Idx);
+  }
+
   /// Sets the method's parameters and selector source locations.
   /// If the method is implicit (not coming from source) \p SelLocs is
   /// ignored.
@@ -433,7 +410,7 @@ public:
   }
 
   /// createImplicitParams - Used to lazily create the self and cmd
-  /// implict parameters. This must be called prior to using getSelfDecl()
+  /// implicit parameters. This must be called prior to using getSelfDecl()
   /// or getCmdDecl(). The call is ignored if the implicit parameters
   /// have already been created.
   void createImplicitParams(ASTContext &Context, const ObjCInterfaceDecl *ID);
@@ -441,7 +418,7 @@ public:
   /// \return the type for \c self and set \arg selfIsPseudoStrong and
   /// \arg selfIsConsumed accordingly.
   QualType getSelfType(ASTContext &Context, const ObjCInterfaceDecl *OID,
-                       bool &selfIsPseudoStrong, bool &selfIsConsumed);
+                       bool &selfIsPseudoStrong, bool &selfIsConsumed) const;
 
   ImplicitParamDecl * getSelfDecl() const { return SelfDecl; }
   void setSelfDecl(ImplicitParamDecl *SD) { SelfDecl = SD; }
@@ -451,18 +428,34 @@ public:
   /// Determines the family of this method.
   ObjCMethodFamily getMethodFamily() const;
 
-  bool isInstanceMethod() const { return IsInstance; }
-  void setInstanceMethod(bool isInst) { IsInstance = isInst; }
-  bool isVariadic() const { return IsVariadic; }
-  void setVariadic(bool isVar) { IsVariadic = isVar; }
+  bool isInstanceMethod() const { return ObjCMethodDeclBits.IsInstance; }
+  void setInstanceMethod(bool isInst) {
+    ObjCMethodDeclBits.IsInstance = isInst;
+  }
 
-  bool isClassMethod() const { return !IsInstance; }
+  bool isVariadic() const { return ObjCMethodDeclBits.IsVariadic; }
+  void setVariadic(bool isVar) { ObjCMethodDeclBits.IsVariadic = isVar; }
 
-  bool isPropertyAccessor() const { return IsPropertyAccessor; }
-  void setPropertyAccessor(bool isAccessor) { IsPropertyAccessor = isAccessor; }
+  bool isClassMethod() const { return !isInstanceMethod(); }
 
-  bool isDefined() const { return IsDefined; }
-  void setDefined(bool isDefined) { IsDefined = isDefined; }
+  bool isPropertyAccessor() const {
+    return ObjCMethodDeclBits.IsPropertyAccessor;
+  }
+
+  void setPropertyAccessor(bool isAccessor) {
+    ObjCMethodDeclBits.IsPropertyAccessor = isAccessor;
+  }
+
+  bool isSynthesizedAccessorStub() const {
+    return ObjCMethodDeclBits.IsSynthesizedAccessorStub;
+  }
+
+  void setSynthesizedAccessorStub(bool isSynthesizedAccessorStub) {
+    ObjCMethodDeclBits.IsSynthesizedAccessorStub = isSynthesizedAccessorStub;
+  }
+
+  bool isDefined() const { return ObjCMethodDeclBits.IsDefined; }
+  void setDefined(bool isDefined) { ObjCMethodDeclBits.IsDefined = isDefined; }
 
   /// Whether this method overrides any other in the class hierarchy.
   ///
@@ -471,8 +464,8 @@ public:
   /// the same selector and is of the same kind (class or instance).
   /// A method in an implementation is not considered as overriding the same
   /// method in the interface or its categories.
-  bool isOverriding() const { return IsOverriding; }
-  void setOverriding(bool isOverriding) { IsOverriding = isOverriding; }
+  bool isOverriding() const { return ObjCMethodDeclBits.IsOverriding; }
+  void setOverriding(bool IsOver) { ObjCMethodDeclBits.IsOverriding = IsOver; }
 
   /// Return overridden methods for the given \p Method.
   ///
@@ -486,8 +479,16 @@ public:
                      SmallVectorImpl<const ObjCMethodDecl *> &Overridden) const;
 
   /// True if the method was a definition but its body was skipped.
-  bool hasSkippedBody() const { return HasSkippedBody; }
-  void setHasSkippedBody(bool Skipped = true) { HasSkippedBody = Skipped; }
+  bool hasSkippedBody() const { return ObjCMethodDeclBits.HasSkippedBody; }
+  void setHasSkippedBody(bool Skipped = true) {
+    ObjCMethodDeclBits.HasSkippedBody = Skipped;
+  }
+
+  /// True if the method is tagged as objc_direct
+  bool isDirectMethod() const;
+
+  /// True if the method has a parameter that's destroyed in the callee.
+  bool hasParamDestroyedInCallee() const;
 
   /// Returns the property associated with this method's selector.
   ///
@@ -498,11 +499,11 @@ public:
 
   // Related to protocols declared in  \@protocol
   void setDeclImplementation(ImplementationControl ic) {
-    DeclImplementation = ic;
+    ObjCMethodDeclBits.DeclImplementation = ic;
   }
 
   ImplementationControl getImplementationControl() const {
-    return ImplementationControl(DeclImplementation);
+    return ImplementationControl(ObjCMethodDeclBits.DeclImplementation);
   }
 
   bool isOptional() const {
@@ -535,6 +536,9 @@ public:
 
   /// Returns whether this specific method is a definition.
   bool isThisDeclarationADefinition() const { return hasBody(); }
+
+  /// Is this method defined in the NSObject base class?
+  bool definedInNSObject(const ASTContext &) const;
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -655,20 +659,8 @@ public:
 /// \endcode
 class ObjCTypeParamList final
     : private llvm::TrailingObjects<ObjCTypeParamList, ObjCTypeParamDecl *> {
-  /// Stores the components of a SourceRange as a POD.
-  struct PODSourceRange {
-    unsigned Begin;
-    unsigned End;
-  };
-
-  union {
-    /// Location of the left and right angle brackets.
-    PODSourceRange Brackets;
-
-    // Used only for alignment.
-    ObjCTypeParamDecl *AlignmentHack;
-  };
-
+  /// Location of the left and right angle brackets.
+  SourceRange Brackets;
   /// The number of parameters in the list, which are tail-allocated.
   unsigned NumParams;
 
@@ -716,17 +708,9 @@ public:
     return *(end() - 1);
   }
 
-  SourceLocation getLAngleLoc() const {
-    return SourceLocation::getFromRawEncoding(Brackets.Begin);
-  }
-
-  SourceLocation getRAngleLoc() const {
-    return SourceLocation::getFromRawEncoding(Brackets.End);
-  }
-
-  SourceRange getSourceRange() const {
-    return SourceRange(getLAngleLoc(), getRAngleLoc());
-  }
+  SourceLocation getLAngleLoc() const { return Brackets.getBegin(); }
+  SourceLocation getRAngleLoc() const { return Brackets.getEnd(); }
+  SourceRange getSourceRange() const { return Brackets; }
 
   /// Gather the default set of type arguments to be substituted for
   /// these type parameters when dealing with an unspecialized type.
@@ -749,33 +733,6 @@ class ObjCPropertyDecl : public NamedDecl {
   void anchor() override;
 
 public:
-  enum PropertyAttributeKind {
-    OBJC_PR_noattr    = 0x00,
-    OBJC_PR_readonly  = 0x01,
-    OBJC_PR_getter    = 0x02,
-    OBJC_PR_assign    = 0x04,
-    OBJC_PR_readwrite = 0x08,
-    OBJC_PR_retain    = 0x10,
-    OBJC_PR_copy      = 0x20,
-    OBJC_PR_nonatomic = 0x40,
-    OBJC_PR_setter    = 0x80,
-    OBJC_PR_atomic    = 0x100,
-    OBJC_PR_weak      = 0x200,
-    OBJC_PR_strong    = 0x400,
-    OBJC_PR_unsafe_unretained = 0x800,
-    /// Indicates that the nullability of the type was spelled with a
-    /// property attribute rather than a type qualifier.
-    OBJC_PR_nullability = 0x1000,
-    OBJC_PR_null_resettable = 0x2000,
-    OBJC_PR_class = 0x4000
-    // Adding a property should change NumPropertyAttrsBits
-  };
-
-  enum {
-    /// Number of bits fitting all the property attributes.
-    NumPropertyAttrsBits = 15
-  };
-
   enum SetterKind { Assign, Retain, Copy, Weak };
   enum PropertyControl { None, Required, Optional };
 
@@ -788,8 +745,8 @@ private:
 
   QualType DeclType;
   TypeSourceInfo *DeclTypeSourceInfo;
-  unsigned PropertyAttributes : NumPropertyAttrsBits;
-  unsigned PropertyAttributesAsWritten : NumPropertyAttrsBits;
+  unsigned PropertyAttributes : NumObjCPropertyAttrsBits;
+  unsigned PropertyAttributesAsWritten : NumObjCPropertyAttrsBits;
 
   // \@required/\@optional
   unsigned PropertyImplementation : 2;
@@ -816,24 +773,19 @@ private:
   ObjCIvarDecl *PropertyIvarDecl = nullptr;
 
   ObjCPropertyDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
-                   SourceLocation AtLocation,  SourceLocation LParenLocation,
-                   QualType T, TypeSourceInfo *TSI,
-                   PropertyControl propControl)
-    : NamedDecl(ObjCProperty, DC, L, Id), AtLoc(AtLocation),
-      LParenLoc(LParenLocation), DeclType(T), DeclTypeSourceInfo(TSI),
-      PropertyAttributes(OBJC_PR_noattr),
-      PropertyAttributesAsWritten(OBJC_PR_noattr),
-      PropertyImplementation(propControl), GetterName(Selector()),
-      SetterName(Selector()) {}
+                   SourceLocation AtLocation, SourceLocation LParenLocation,
+                   QualType T, TypeSourceInfo *TSI, PropertyControl propControl)
+      : NamedDecl(ObjCProperty, DC, L, Id), AtLoc(AtLocation),
+        LParenLoc(LParenLocation), DeclType(T), DeclTypeSourceInfo(TSI),
+        PropertyAttributes(ObjCPropertyAttribute::kind_noattr),
+        PropertyAttributesAsWritten(ObjCPropertyAttribute::kind_noattr),
+        PropertyImplementation(propControl) {}
 
 public:
-  static ObjCPropertyDecl *Create(ASTContext &C, DeclContext *DC,
-                                  SourceLocation L,
-                                  IdentifierInfo *Id, SourceLocation AtLocation,
-                                  SourceLocation LParenLocation,
-                                  QualType T,
-                                  TypeSourceInfo *TSI,
-                                  PropertyControl propControl = None);
+  static ObjCPropertyDecl *
+  Create(ASTContext &C, DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
+         SourceLocation AtLocation, SourceLocation LParenLocation, QualType T,
+         TypeSourceInfo *TSI, PropertyControl propControl = None);
 
   static ObjCPropertyDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
@@ -856,11 +808,11 @@ public:
   /// type.
   QualType getUsageType(QualType objectType) const;
 
-  PropertyAttributeKind getPropertyAttributes() const {
-    return PropertyAttributeKind(PropertyAttributes);
+  ObjCPropertyAttribute::Kind getPropertyAttributes() const {
+    return ObjCPropertyAttribute::Kind(PropertyAttributes);
   }
 
-  void setPropertyAttributes(PropertyAttributeKind PRVal) {
+  void setPropertyAttributes(ObjCPropertyAttribute::Kind PRVal) {
     PropertyAttributes |= PRVal;
   }
 
@@ -868,11 +820,11 @@ public:
     PropertyAttributes = PRVal;
   }
 
-  PropertyAttributeKind getPropertyAttributesAsWritten() const {
-    return PropertyAttributeKind(PropertyAttributesAsWritten);
+  ObjCPropertyAttribute::Kind getPropertyAttributesAsWritten() const {
+    return ObjCPropertyAttribute::Kind(PropertyAttributesAsWritten);
   }
 
-  void setPropertyAttributesAsWritten(PropertyAttributeKind PRVal) {
+  void setPropertyAttributesAsWritten(ObjCPropertyAttribute::Kind PRVal) {
     PropertyAttributesAsWritten = PRVal;
   }
 
@@ -880,22 +832,26 @@ public:
 
   /// isReadOnly - Return true iff the property has a setter.
   bool isReadOnly() const {
-    return (PropertyAttributes & OBJC_PR_readonly);
+    return (PropertyAttributes & ObjCPropertyAttribute::kind_readonly);
   }
 
   /// isAtomic - Return true if the property is atomic.
   bool isAtomic() const {
-    return (PropertyAttributes & OBJC_PR_atomic);
+    return (PropertyAttributes & ObjCPropertyAttribute::kind_atomic);
   }
 
   /// isRetaining - Return true if the property retains its value.
   bool isRetaining() const {
-    return (PropertyAttributes &
-            (OBJC_PR_retain | OBJC_PR_strong | OBJC_PR_copy));
+    return (PropertyAttributes & (ObjCPropertyAttribute::kind_retain |
+                                  ObjCPropertyAttribute::kind_strong |
+                                  ObjCPropertyAttribute::kind_copy));
   }
 
   bool isInstanceProperty() const { return !isClassProperty(); }
-  bool isClassProperty() const { return PropertyAttributes & OBJC_PR_class; }
+  bool isClassProperty() const {
+    return PropertyAttributes & ObjCPropertyAttribute::kind_class;
+  }
+  bool isDirectProperty() const;
 
   ObjCPropertyQueryKind getQueryKind() const {
     return isClassProperty() ? ObjCPropertyQueryKind::OBJC_PR_query_class :
@@ -911,13 +867,13 @@ public:
   /// the property setter. This is only valid if the property has been
   /// defined to have a setter.
   SetterKind getSetterKind() const {
-    if (PropertyAttributes & OBJC_PR_strong)
+    if (PropertyAttributes & ObjCPropertyAttribute::kind_strong)
       return getType()->isBlockPointerType() ? Copy : Retain;
-    if (PropertyAttributes & OBJC_PR_retain)
+    if (PropertyAttributes & ObjCPropertyAttribute::kind_retain)
       return Retain;
-    if (PropertyAttributes & OBJC_PR_copy)
+    if (PropertyAttributes & ObjCPropertyAttribute::kind_copy)
       return Copy;
-    if (PropertyAttributes & OBJC_PR_weak)
+    if (PropertyAttributes & ObjCPropertyAttribute::kind_weak)
       return Weak;
     return Assign;
   }
@@ -986,7 +942,8 @@ public:
 /// ObjCProtocolDecl, and ObjCImplDecl.
 ///
 class ObjCContainerDecl : public NamedDecl, public DeclContext {
-  SourceLocation AtStart;
+  // This class stores some data in DeclContext::ObjCContainerDeclBits
+  // to save some space. Use the provided accessors to access it.
 
   // These two locations in the range mark the end of the method container.
   // The first points to the '@' token, and the second to the 'end' token.
@@ -995,10 +952,8 @@ class ObjCContainerDecl : public NamedDecl, public DeclContext {
   void anchor() override;
 
 public:
-  ObjCContainerDecl(Kind DK, DeclContext *DC,
-                    IdentifierInfo *Id, SourceLocation nameLoc,
-                    SourceLocation atStartLoc)
-      : NamedDecl(DK, DC, nameLoc, Id), DeclContext(DK), AtStart(atStartLoc) {}
+  ObjCContainerDecl(Kind DK, DeclContext *DC, IdentifierInfo *Id,
+                    SourceLocation nameLoc, SourceLocation atStartLoc);
 
   // Iterator access to instance/class properties.
   using prop_iterator = specific_decl_iterator<ObjCPropertyDecl>;
@@ -1116,6 +1071,9 @@ public:
   bool HasUserDeclaredSetterMethod(const ObjCPropertyDecl *P) const;
   ObjCIvarDecl *getIvarDecl(IdentifierInfo *Id) const;
 
+  ObjCPropertyDecl *getProperty(const IdentifierInfo *Id,
+                                bool IsInstance) const;
+
   ObjCPropertyDecl *
   FindPropertyDeclaration(const IdentifierInfo *PropertyId,
                           ObjCPropertyQueryKind QueryKind) const;
@@ -1132,20 +1090,19 @@ public:
   virtual void collectPropertiesToImplement(PropertyMap &PM,
                                             PropertyDeclOrder &PO) const {}
 
-  SourceLocation getAtStartLoc() const { return AtStart; }
-  void setAtStartLoc(SourceLocation Loc) { AtStart = Loc; }
+  SourceLocation getAtStartLoc() const { return ObjCContainerDeclBits.AtStart; }
+
+  void setAtStartLoc(SourceLocation Loc) {
+    ObjCContainerDeclBits.AtStart = Loc;
+  }
 
   // Marks the end of the container.
-  SourceRange getAtEndRange() const {
-    return AtEnd;
-  }
+  SourceRange getAtEndRange() const { return AtEnd; }
 
-  void setAtEndRange(SourceRange atEnd) {
-    AtEnd = atEnd;
-  }
+  void setAtEndRange(SourceRange atEnd) { AtEnd = atEnd; }
 
   SourceRange getSourceRange() const override LLVM_READONLY {
-    return SourceRange(AtStart, getAtEndRange().getEnd());
+    return SourceRange(getAtStartLoc(), getAtEndRange().getEnd());
   }
 
   // Implement isa/cast/dyncast/etc.
@@ -2000,6 +1957,13 @@ public:
   const ObjCIvarDecl *getNextIvar() const { return NextIvar; }
   void setNextIvar(ObjCIvarDecl *ivar) { NextIvar = ivar; }
 
+  ObjCIvarDecl *getCanonicalDecl() override {
+    return cast<ObjCIvarDecl>(FieldDecl::getCanonicalDecl());
+  }
+  const ObjCIvarDecl *getCanonicalDecl() const {
+    return const_cast<ObjCIvarDecl *>(this)->getCanonicalDecl();
+  }
+
   void setAccessControl(AccessControl ac) { DeclAccess = ac; }
 
   AccessControl getAccessControl() const { return AccessControl(DeclAccess); }
@@ -2200,6 +2164,14 @@ public:
     assert(hasDefinition() && "Protocol is not defined");
     data().ReferencedProtocols.set(List, Num, Locs, C);
   }
+
+  /// This is true iff the protocol is tagged with the
+  /// `objc_non_runtime_protocol` attribute.
+  bool isNonRuntimeProtocol() const;
+
+  /// Get the set of all protocols implied by this protocols inheritance
+  /// hierarchy.
+  void getImpliedProtocols(llvm::DenseSet<const ObjCProtocolDecl *> &IPs) const;
 
   ObjCProtocolDecl *lookupProtocolNamed(IdentifierInfo *PName);
 
@@ -2699,9 +2671,7 @@ public:
   /// Get the name of the class associated with this interface.
   //
   // FIXME: Move to StringRef API.
-  std::string getNameAsString() const {
-    return getName();
-  }
+  std::string getNameAsString() const { return std::string(getName()); }
 
   /// Produce a name to be used for class's metadata. It comes either via
   /// class's objc_runtime_name attribute or class name.
@@ -2801,6 +2771,11 @@ private:
   /// Null for \@dynamic. Required for \@synthesize.
   ObjCIvarDecl *PropertyIvarDecl;
 
+  /// The getter's definition, which has an empty body if synthesized.
+  ObjCMethodDecl *GetterMethodDecl = nullptr;
+  /// The getter's definition, which has an empty body if synthesized.
+  ObjCMethodDecl *SetterMethodDecl = nullptr;
+
   /// Null for \@dynamic. Non-null if property must be copy-constructed in
   /// getter.
   Expr *GetterCXXConstructor = nullptr;
@@ -2833,7 +2808,6 @@ public:
 
   SourceRange getSourceRange() const override LLVM_READONLY;
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtLoc; }
   void setAtLoc(SourceLocation Loc) { AtLoc = Loc; }
 
@@ -2867,6 +2841,12 @@ public:
   bool isIvarNameSpecified() const {
     return IvarLoc.isValid() && IvarLoc != getLocation();
   }
+
+  ObjCMethodDecl *getGetterMethodDecl() const { return GetterMethodDecl; }
+  void setGetterMethodDecl(ObjCMethodDecl *MD) { GetterMethodDecl = MD; }
+
+  ObjCMethodDecl *getSetterMethodDecl() const { return SetterMethodDecl; }
+  void setSetterMethodDecl(ObjCMethodDecl *MD) { SetterMethodDecl = MD; }
 
   Expr *getGetterCXXConstructor() const {
     return GetterCXXConstructor;
@@ -2905,11 +2885,11 @@ ObjCInterfaceDecl::filtered_category_iterator<Filter>::operator++() {
 }
 
 inline bool ObjCInterfaceDecl::isVisibleCategory(ObjCCategoryDecl *Cat) {
-  return !Cat->isHidden();
+  return Cat->isUnconditionallyVisible();
 }
 
 inline bool ObjCInterfaceDecl::isVisibleExtension(ObjCCategoryDecl *Cat) {
-  return Cat->IsClassExtension() && !Cat->isHidden();
+  return Cat->IsClassExtension() && Cat->isUnconditionallyVisible();
 }
 
 inline bool ObjCInterfaceDecl::isKnownExtension(ObjCCategoryDecl *Cat) {

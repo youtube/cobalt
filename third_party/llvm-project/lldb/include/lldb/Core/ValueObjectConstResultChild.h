@@ -1,45 +1,36 @@
 //===-- ValueObjectConstResultChild.h ----------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ValueObjectConstResultChild_h_
-#define liblldb_ValueObjectConstResultChild_h_
+#ifndef LLDB_CORE_VALUEOBJECTCONSTRESULTCHILD_H
+#define LLDB_CORE_VALUEOBJECTCONSTRESULTCHILD_H
 
 #include "lldb/Core/ValueObjectChild.h"
 #include "lldb/Core/ValueObjectConstResultImpl.h"
-#include "lldb/Symbol/CompilerType.h" // for CompilerType
-#include "lldb/Utility/ConstString.h" // for ConstString
-#include "lldb/lldb-defines.h"        // for DISALLOW_COPY_AND_...
-#include "lldb/lldb-forward.h"        // for ValueObjectSP
-#include "lldb/lldb-types.h"          // for addr_t
+#include "lldb/Symbol/CompilerType.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/lldb-defines.h"
+#include "lldb/lldb-forward.h"
+#include "lldb/lldb-types.h"
 
-#include <stddef.h> // for size_t
-#include <stdint.h> // for uint32_t, int32_t
+#include <cstddef>
+#include <cstdint>
+
 namespace lldb_private {
 class DataExtractor;
-}
-namespace lldb_private {
 class Status;
-}
-namespace lldb_private {
 class ValueObject;
-}
 
-namespace lldb_private {
-
-//----------------------------------------------------------------------
 // A child of a ValueObjectConstResult.
-//----------------------------------------------------------------------
 class ValueObjectConstResultChild : public ValueObjectChild {
 public:
   ValueObjectConstResultChild(ValueObject &parent,
                               const CompilerType &compiler_type,
-                              const ConstString &name, uint32_t byte_size,
+                              ConstString name, uint32_t byte_size,
                               int32_t byte_offset, uint32_t bitfield_bit_size,
                               uint32_t bitfield_bit_offset, bool is_base_class,
                               bool is_deref_of_parent,
@@ -63,6 +54,9 @@ public:
 
   lldb::ValueObjectSP AddressOf(Status &error) override;
 
+  lldb::addr_t GetAddressOf(bool scalar_is_load_address = true,
+                            AddressType *address_type = nullptr) override;
+
   size_t GetPointeeData(DataExtractor &data, uint32_t item_idx = 0,
                         uint32_t item_count = 1) override;
 
@@ -76,9 +70,11 @@ private:
   friend class ValueObjectConstResult;
   friend class ValueObjectConstResultImpl;
 
-  DISALLOW_COPY_AND_ASSIGN(ValueObjectConstResultChild);
+  ValueObjectConstResultChild(const ValueObjectConstResultChild &) = delete;
+  const ValueObjectConstResultChild &
+  operator=(const ValueObjectConstResultChild &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_ValueObjectConstResultChild_h_
+#endif // LLDB_CORE_VALUEOBJECTCONSTRESULTCHILD_H

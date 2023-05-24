@@ -1,23 +1,21 @@
 //===-- CompactUnwindInfo.h -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_CompactUnwindInfo_h_
-#define liblldb_CompactUnwindInfo_h_
+#ifndef LLDB_SYMBOL_COMPACTUNWINDINFO_H
+#define LLDB_SYMBOL_COMPACTUNWINDINFO_H
 
-#include <mutex>
-#include <vector>
-
-#include "lldb/Core/RangeMap.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/RangeMap.h"
 #include "lldb/lldb-private.h"
+#include <mutex>
+#include <vector>
 
 namespace lldb_private {
 
@@ -52,21 +50,20 @@ private:
   // There are relatively few of these (one per 500/1000 functions, depending
   // on format) so creating them on first scan will not be too costly.
   struct UnwindIndex {
-    uint32_t function_offset; // The offset of the first function covered by
-                              // this index
-    uint32_t second_level; // The offset (inside unwind_info sect) to the second
-                           // level page for this index
+    uint32_t function_offset = 0; // The offset of the first function covered by
+                                  // this index
+    uint32_t second_level = 0;    // The offset (inside unwind_info sect) to the
+                                  // second level page for this index
     // (either UNWIND_SECOND_LEVEL_REGULAR or UNWIND_SECOND_LEVEL_COMPRESSED)
-    uint32_t lsda_array_start; // The offset (inside unwind_info sect) LSDA
-                               // array for this index
-    uint32_t lsda_array_end; // The offset to the LSDA array for the NEXT index
-    bool sentinal_entry; // There is an empty index at the end which provides
-                         // the upper bound of
+    uint32_t lsda_array_start = 0; // The offset (inside unwind_info sect) LSDA
+                                   // array for this index
+    uint32_t lsda_array_end =
+        0; // The offset to the LSDA array for the NEXT index
+    bool sentinal_entry = false; // There is an empty index at the end which
+                                 // provides the upper bound of
     // function addresses that are described
 
-    UnwindIndex()
-        : function_offset(0), second_level(0), lsda_array_start(0),
-          lsda_array_end(0), sentinal_entry(false) {}
+    UnwindIndex() = default;
 
     bool operator<(const CompactUnwindInfo::UnwindIndex &rhs) const {
       return function_offset < rhs.function_offset;
@@ -80,30 +77,26 @@ private:
   // An internal object used to store the information we retrieve about a
   // function -- the encoding bits and possibly the LSDA/personality function.
   struct FunctionInfo {
-    uint32_t encoding;    // compact encoding 32-bit value for this function
+    uint32_t encoding = 0; // compact encoding 32-bit value for this function
     Address lsda_address; // the address of the LSDA data for this function
     Address personality_ptr_address; // the address where the personality
                                      // routine addr can be found
 
-    uint32_t valid_range_offset_start; // first offset that this encoding is
-                                       // valid for (start of the function)
-    uint32_t
-        valid_range_offset_end; // the offset of the start of the next function
-    FunctionInfo()
-        : encoding(0), lsda_address(), personality_ptr_address(),
-          valid_range_offset_start(0), valid_range_offset_end(0) {}
+    uint32_t valid_range_offset_start = 0; // first offset that this encoding is
+                                           // valid for (start of the function)
+    uint32_t valid_range_offset_end =
+        0; // the offset of the start of the next function
+    FunctionInfo() {}
   };
 
   struct UnwindHeader {
     uint32_t version;
-    uint32_t common_encodings_array_offset;
-    uint32_t common_encodings_array_count;
-    uint32_t personality_array_offset;
-    uint32_t personality_array_count;
+    uint32_t common_encodings_array_offset = 0;
+    uint32_t common_encodings_array_count = 0;
+    uint32_t personality_array_offset = 0;
+    uint32_t personality_array_count = 0;
 
-    UnwindHeader()
-        : common_encodings_array_offset(0), common_encodings_array_count(0),
-          personality_array_offset(0), personality_array_count(0) {}
+    UnwindHeader() = default;
   };
 
   void ScanIndex(const lldb::ProcessSP &process_sp);
@@ -166,4 +159,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // liblldb_CompactUnwindInfo_h_
+#endif // LLDB_SYMBOL_COMPACTUNWINDINFO_H

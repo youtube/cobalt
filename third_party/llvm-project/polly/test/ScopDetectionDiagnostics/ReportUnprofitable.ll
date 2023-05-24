@@ -29,7 +29,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            RejectionErrors
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 2, Column: 3 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 2, Column: 3 }
 ; YAML: Function:        onlyWrite
 ; YAML: Args:
 ; YAML:   - String:          The following errors keep this region from being a Scop.
@@ -37,7 +37,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            Unprofitable
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 2, Column: 3 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 2, Column: 3 }
 ; YAML: Function:        onlyWrite
 ; YAML: Args:
 ; YAML:   - String:          No profitable polyhedral optimization found
@@ -45,7 +45,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            InvalidScopEnd
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 3, Column: 10 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 3, Column: 10 }
 ; YAML: Function:        onlyWrite
 ; YAML: Args:
 ; YAML:   - String:          Invalid Scop candidate ends here.
@@ -53,7 +53,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            RejectionErrors
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 7, Column: 3 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 7, Column: 3 }
 ; YAML: Function:        onlyRead
 ; YAML: Args:
 ; YAML:   - String:          The following errors keep this region from being a Scop.
@@ -61,7 +61,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            Unprofitable
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 7, Column: 3 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 7, Column: 3 }
 ; YAML: Function:        onlyRead
 ; YAML: Args:
 ; YAML:   - String:          No profitable polyhedral optimization found
@@ -69,7 +69,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            InvalidScopEnd
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 8, Column: 10 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 8, Column: 10 }
 ; YAML: Function:        onlyRead
 ; YAML: Args:
 ; YAML:   - String:          Invalid Scop candidate ends here.
@@ -133,7 +133,7 @@ for.end:                                          ; preds = %for.cond
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

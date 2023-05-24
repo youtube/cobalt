@@ -1,22 +1,12 @@
 //===- BinaryStreamArray.h - Array backed by an arbitrary stream *- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-
-#ifndef LLVM_SUPPORT_BINARYSTREAMARRAY_H
-#define LLVM_SUPPORT_BINARYSTREAMARRAY_H
-
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/iterator.h"
-#include "llvm/Support/BinaryStreamRef.h"
-#include "llvm/Support/Error.h"
-#include <cassert>
-#include <cstdint>
-
+///
+/// \file
 /// Lightweight arrays that are backed by an arbitrary BinaryStream.  This file
 /// provides two different array implementations.
 ///
@@ -27,6 +17,19 @@
 ///     FixedStreamArray - Arrays of fixed length records.  This is similar in
 ///       spirit to ArrayRef<T>, but since it is backed by a BinaryStream, the
 ///       elements of the array need not be laid out in contiguous memory.
+///
+
+#ifndef LLVM_SUPPORT_BINARYSTREAMARRAY_H
+#define LLVM_SUPPORT_BINARYSTREAMARRAY_H
+
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/iterator.h"
+#include "llvm/Support/Alignment.h"
+#include "llvm/Support/BinaryStreamRef.h"
+#include "llvm/Support/Error.h"
+#include <cassert>
+#include <cstdint>
+
 namespace llvm {
 
 /// VarStreamArrayExtractor is intended to be specialized to provide customized
@@ -96,20 +99,31 @@ public:
 
   explicit VarStreamArray(const Extractor &E) : E(E) {}
 
-  explicit VarStreamArray(BinaryStreamRef Stream) : Stream(Stream) {}
+  explicit VarStreamArray(BinaryStreamRef Stream, uint32_t Skew = 0)
+      : Stream(Stream), Skew(Skew) {}
 
-  VarStreamArray(BinaryStreamRef Stream, const Extractor &E)
-      : Stream(Stream), E(E) {}
+  VarStreamArray(BinaryStreamRef Stream, const Extractor &E, uint32_t Skew = 0)
+      : Stream(Stream), E(E), Skew(Skew) {}
 
   Iterator begin(bool *HadError = nullptr) const {
-    return Iterator(*this, E, HadError);
+    return Iterator(*this, E, Skew, nullptr);
   }
 
   bool valid() const { return Stream.valid(); }
 
+  uint32_t skew() const { return Skew; }
   Iterator end() const { return Iterator(E); }
 
   bool empty() const { return Stream.getLength() == 0; }
+
+  VarStreamArray<ValueType, Extractor> substream(uint32_t Begin,
+                                                 uint32_t End) const {
+    assert(Begin >= Skew);
+    // We should never cut off the beginning of the stream since it might be
+    // skewed, meaning the initial bytes are important.
+    BinaryStreamRef NewStream = Stream.slice(0, End);
+    return {NewStream, E, Begin};
+  }
 
   /// given an offset into the array's underlying stream, return an
   /// iterator to the record at that offset.  This is considered unsafe
@@ -123,25 +137,27 @@ public:
   Extractor &getExtractor() { return E; }
 
   BinaryStreamRef getUnderlyingStream() const { return Stream; }
-  void setUnderlyingStream(BinaryStreamRef S) { Stream = S; }
+  void setUnderlyingStream(BinaryStreamRef NewStream, uint32_t NewSkew = 0) {
+    Stream = NewStream;
+    Skew = NewSkew;
+  }
+
+  void drop_front() { Skew += begin()->length(); }
 
 private:
   BinaryStreamRef Stream;
   Extractor E;
+  uint32_t Skew = 0;
 };
 
 template <typename ValueType, typename Extractor>
 class VarStreamArrayIterator
     : public iterator_facade_base<VarStreamArrayIterator<ValueType, Extractor>,
-                                  std::forward_iterator_tag, ValueType> {
+                                  std::forward_iterator_tag, const ValueType> {
   typedef VarStreamArrayIterator<ValueType, Extractor> IterType;
   typedef VarStreamArray<ValueType, Extractor> ArrayType;
 
 public:
-  VarStreamArrayIterator(const ArrayType &Array, const Extractor &E,
-                         bool *HadError)
-      : VarStreamArrayIterator(Array, E, 0, HadError) {}
-
   VarStreamArrayIterator(const ArrayType &Array, const Extractor &E,
                          uint32_t Offset, bool *HadError)
       : IterRef(Array.Stream.drop_front(Offset)), Extract(E),
@@ -177,11 +193,6 @@ public:
   }
 
   const ValueType &operator*() const {
-    assert(Array && !HasError);
-    return ThisValue;
-  }
-
-  ValueType &operator*() {
     assert(Array && !HasError);
     return ThisValue;
   }
@@ -262,6 +273,7 @@ public:
     return !(*this == Other);
   }
 
+  FixedStreamArray(const FixedStreamArray &) = default;
   FixedStreamArray &operator=(const FixedStreamArray &) = default;
 
   const T &operator[](uint32_t Index) const {
@@ -274,7 +286,7 @@ public:
       // an exact multiple of the element size.
       consumeError(std::move(EC));
     }
-    assert(llvm::alignmentAdjustment(Data.data(), alignof(T)) == 0);
+    assert(isAddrAligned(Align::Of<T>(), Data.data()));
     return *reinterpret_cast<const T *>(Data.data());
   }
 
@@ -311,6 +323,8 @@ public:
   FixedStreamArrayIterator(const FixedStreamArray<T> &Array, uint32_t Index)
       : Array(Array), Index(Index) {}
 
+  FixedStreamArrayIterator(const FixedStreamArrayIterator<T> &Other)
+      : Array(Other.Array), Index(Other.Index) {}
   FixedStreamArrayIterator<T> &
   operator=(const FixedStreamArrayIterator<T> &Other) {
     Array = Other.Array;

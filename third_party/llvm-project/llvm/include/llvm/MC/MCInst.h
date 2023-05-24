@@ -1,9 +1,8 @@
 //===- llvm/MC/MCInst.h - MCInst class --------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,6 +17,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/bit.h"
 #include "llvm/Support/SMLoc.h"
 #include <cassert>
 #include <cstddef>
@@ -28,36 +28,40 @@ namespace llvm {
 class MCExpr;
 class MCInst;
 class MCInstPrinter;
+class MCRegisterInfo;
 class raw_ostream;
 
 /// Instances of this class represent operands of the MCInst class.
 /// This is a simple discriminated union.
 class MCOperand {
   enum MachineOperandType : unsigned char {
-    kInvalid,     ///< Uninitialized.
-    kRegister,    ///< Register operand.
-    kImmediate,   ///< Immediate operand.
-    kFPImmediate, ///< Floating-point immediate operand.
-    kExpr,        ///< Relocatable immediate operand.
-    kInst         ///< Sub-instruction operand.
+    kInvalid,      ///< Uninitialized.
+    kRegister,     ///< Register operand.
+    kImmediate,    ///< Immediate operand.
+    kSFPImmediate, ///< Single-floating-point immediate operand.
+    kDFPImmediate, ///< Double-Floating-point immediate operand.
+    kExpr,         ///< Relocatable immediate operand.
+    kInst          ///< Sub-instruction operand.
   };
   MachineOperandType Kind = kInvalid;
 
   union {
     unsigned RegVal;
     int64_t ImmVal;
-    double FPImmVal;
+    uint32_t SFPImmVal;
+    uint64_t FPImmVal;
     const MCExpr *ExprVal;
     const MCInst *InstVal;
   };
 
 public:
-  MCOperand() : FPImmVal(0.0) {}
+  MCOperand() : FPImmVal(0) {}
 
   bool isValid() const { return Kind != kInvalid; }
   bool isReg() const { return Kind == kRegister; }
   bool isImm() const { return Kind == kImmediate; }
-  bool isFPImm() const { return Kind == kFPImmediate; }
+  bool isSFPImm() const { return Kind == kSFPImmediate; }
+  bool isDFPImm() const { return Kind == kDFPImmediate; }
   bool isExpr() const { return Kind == kExpr; }
   bool isInst() const { return Kind == kInst; }
 
@@ -83,14 +87,28 @@ public:
     ImmVal = Val;
   }
 
-  double getFPImm() const {
-    assert(isFPImm() && "This is not an FP immediate");
+  uint32_t getSFPImm() const {
+    assert(isSFPImm() && "This is not an SFP immediate");
+    return SFPImmVal;
+  }
+
+  void setSFPImm(uint32_t Val) {
+    assert(isSFPImm() && "This is not an SFP immediate");
+    SFPImmVal = Val;
+  }
+
+  uint64_t getDFPImm() const {
+    assert(isDFPImm() && "This is not an FP immediate");
     return FPImmVal;
   }
 
-  void setFPImm(double Val) {
-    assert(isFPImm() && "This is not an FP immediate");
+  void setDFPImm(uint64_t Val) {
+    assert(isDFPImm() && "This is not an FP immediate");
     FPImmVal = Val;
+  }
+  void setFPImm(double Val) {
+    assert(isDFPImm() && "This is not an FP immediate");
+    FPImmVal = bit_cast<uint64_t>(Val);
   }
 
   const MCExpr *getExpr() const {
@@ -127,9 +145,16 @@ public:
     return Op;
   }
 
-  static MCOperand createFPImm(double Val) {
+  static MCOperand createSFPImm(uint32_t Val) {
     MCOperand Op;
-    Op.Kind = kFPImmediate;
+    Op.Kind = kSFPImmediate;
+    Op.SFPImmVal = Val;
+    return Op;
+  }
+
+  static MCOperand createDFPImm(uint64_t Val) {
+    MCOperand Op;
+    Op.Kind = kDFPImmediate;
     Op.FPImmVal = Val;
     return Op;
   }
@@ -148,24 +173,23 @@ public:
     return Op;
   }
 
-  void print(raw_ostream &OS) const;
+  void print(raw_ostream &OS, const MCRegisterInfo *RegInfo = nullptr) const;
   void dump() const;
   bool isBareSymbolRef() const;
   bool evaluateAsConstantImm(int64_t &Imm) const;
 };
 
-template <> struct isPodLike<MCOperand> { static const bool value = true; };
-
 /// Instances of this class represent a single low-level machine
 /// instruction.
 class MCInst {
   unsigned Opcode = 0;
-  SMLoc Loc;
-  SmallVector<MCOperand, 8> Operands;
   // These flags could be used to pass some info from one target subcomponent
   // to another, for example, from disassembler to asm printer. The values of
   // the flags have any sense on target level only (e.g. prefixes on x86).
   unsigned Flags = 0;
+
+  SMLoc Loc;
+  SmallVector<MCOperand, 8> Operands;
 
 public:
   MCInst() = default;
@@ -183,13 +207,14 @@ public:
   MCOperand &getOperand(unsigned i) { return Operands[i]; }
   unsigned getNumOperands() const { return Operands.size(); }
 
-  void addOperand(const MCOperand &Op) { Operands.push_back(Op); }
+  void addOperand(const MCOperand Op) { Operands.push_back(Op); }
 
   using iterator = SmallVectorImpl<MCOperand>::iterator;
   using const_iterator = SmallVectorImpl<MCOperand>::const_iterator;
 
   void clear() { Operands.clear(); }
   void erase(iterator I) { Operands.erase(I); }
+  void erase(iterator First, iterator Last) { Operands.erase(First, Last); }
   size_t size() const { return Operands.size(); }
   iterator begin() { return Operands.begin(); }
   const_iterator begin() const { return Operands.begin(); }
@@ -200,14 +225,17 @@ public:
     return Operands.insert(I, Op);
   }
 
-  void print(raw_ostream &OS) const;
+  void print(raw_ostream &OS, const MCRegisterInfo *RegInfo = nullptr) const;
   void dump() const;
 
   /// Dump the MCInst as prettily as possible using the additional MC
   /// structures, if given. Operators are separated by the \p Separator
   /// string.
   void dump_pretty(raw_ostream &OS, const MCInstPrinter *Printer = nullptr,
-                   StringRef Separator = " ") const;
+                   StringRef Separator = " ",
+                   const MCRegisterInfo *RegInfo = nullptr) const;
+  void dump_pretty(raw_ostream &OS, StringRef Name, StringRef Separator = " ",
+                   const MCRegisterInfo *RegInfo = nullptr) const;
 };
 
 inline raw_ostream& operator<<(raw_ostream &OS, const MCOperand &MO) {

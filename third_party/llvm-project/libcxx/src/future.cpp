@@ -1,9 +1,8 @@
-//===------------------------- future.cpp ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,12 +19,12 @@ class _LIBCPP_HIDDEN __future_error_category
     : public __do_message
 {
 public:
-    virtual const char* name() const _NOEXCEPT;
+    virtual const char* name() const noexcept;
     virtual string message(int ev) const;
 };
 
 const char*
-__future_error_category::name() const _NOEXCEPT
+__future_error_category::name() const noexcept
 {
     return "future";
 }
@@ -66,7 +65,7 @@ __future_error_category::message(int ev) const
 #endif
 
 const error_category&
-future_category() _NOEXCEPT
+future_category() noexcept
 {
     static __future_error_category __f;
     return __f;
@@ -78,12 +77,12 @@ future_error::future_error(error_code __ec)
 {
 }
 
-future_error::~future_error() _NOEXCEPT
+future_error::~future_error() noexcept
 {
 }
 
 void
-__assoc_sub_state::__on_zero_shared() _NOEXCEPT
+__assoc_sub_state::__on_zero_shared() noexcept
 {
     delete this;
 }
@@ -179,10 +178,7 @@ __assoc_sub_state::__execute()
 future<void>::future(__assoc_sub_state* __state)
     : __state_(__state)
 {
-    if (__state_->__has_future_attached())
-        __throw_future_error(future_errc::future_already_retrieved);
-    __state_->__add_shared();
-    __state_->__set_future_attached();
+    __state_->__attach_future();
 }
 
 future<void>::~future()

@@ -1,16 +1,17 @@
 //===--- MSVC.h - MSVC ToolChain Implementations ----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_MSVC_H
 #define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_MSVC_H
 
+#include "AMDGPU.h"
 #include "Cuda.h"
+#include "clang/Basic/DebugInfoOptions.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
@@ -23,9 +24,7 @@ namespace tools {
 namespace visualstudio {
 class LLVM_LIBRARY_VISIBILITY Linker : public Tool {
 public:
-  Linker(const ToolChain &TC)
-      : Tool("visualstudio::Linker", "linker", TC, RF_Full,
-             llvm::sys::WEM_UTF16) {}
+  Linker(const ToolChain &TC) : Tool("visualstudio::Linker", "linker", TC) {}
 
   bool hasIntegratedCPP() const override { return false; }
   bool isLinkJob() const override { return true; }
@@ -34,28 +33,6 @@ public:
                     const InputInfo &Output, const InputInfoList &Inputs,
                     const llvm::opt::ArgList &TCArgs,
                     const char *LinkingOutput) const override;
-};
-
-class LLVM_LIBRARY_VISIBILITY Compiler : public Tool {
-public:
-  Compiler(const ToolChain &TC)
-      : Tool("visualstudio::Compiler", "compiler", TC, RF_Full,
-             llvm::sys::WEM_UTF16) {}
-
-  bool hasIntegratedAssembler() const override { return true; }
-  bool hasIntegratedCPP() const override { return true; }
-  bool isLinkJob() const override { return false; }
-
-  void ConstructJob(Compilation &C, const JobAction &JA,
-                    const InputInfo &Output, const InputInfoList &Inputs,
-                    const llvm::opt::ArgList &TCArgs,
-                    const char *LinkingOutput) const override;
-
-  std::unique_ptr<Command> GetCommand(Compilation &C, const JobAction &JA,
-                                      const InputInfo &Output,
-                                      const InputInfoList &Inputs,
-                                      const llvm::opt::ArgList &TCArgs,
-                                      const char *LinkingOutput) const;
 };
 } // end namespace visualstudio
 
@@ -75,8 +52,26 @@ public:
   bool IsIntegratedAssemblerDefault() const override;
   bool IsUnwindTablesDefault(const llvm::opt::ArgList &Args) const override;
   bool isPICDefault() const override;
-  bool isPIEDefault() const override;
+  bool isPIEDefault(const llvm::opt::ArgList &Args) const override;
   bool isPICDefaultForced() const override;
+
+  /// Set CodeView as the default debug info format for non-MachO binary
+  /// formats, and to DWARF otherwise. Users can use -gcodeview and -gdwarf to
+  /// override the default.
+  codegenoptions::DebugInfoFormat getDefaultDebugFormat() const override {
+    return getTriple().isOSBinFormatMachO() ? codegenoptions::DIF_DWARF
+                                            : codegenoptions::DIF_CodeView;
+  }
+
+  /// Set the debugger tuning to "default", since we're definitely not tuning
+  /// for GDB.
+  llvm::DebuggerKind getDefaultDebuggerTuning() const override {
+    return llvm::DebuggerKind::Default;
+  }
+
+  unsigned GetDefaultDwarfVersion() const override {
+    return 4;
+  }
 
   enum class SubDirectoryType {
     Bin,
@@ -84,12 +79,14 @@ public:
     Lib,
   };
   std::string getSubDirectoryPath(SubDirectoryType Type,
+                                  llvm::StringRef SubdirParent,
                                   llvm::Triple::ArchType TargetArch) const;
 
   // Convenience overload.
   // Uses the current target arch.
-  std::string getSubDirectoryPath(SubDirectoryType Type) const {
-    return getSubDirectoryPath(Type, getArch());
+  std::string getSubDirectoryPath(SubDirectoryType Type,
+                                  llvm::StringRef SubdirParent = "") const {
+    return getSubDirectoryPath(Type, SubdirParent, getArch());
   }
 
   enum class ToolsetLayout {
@@ -109,9 +106,13 @@ public:
   void AddCudaIncludeArgs(const llvm::opt::ArgList &DriverArgs,
                           llvm::opt::ArgStringList &CC1Args) const override;
 
-  bool getWindowsSDKLibraryPath(std::string &path) const;
-  /// Check if Universal CRT should be used if available
-  bool getUniversalCRTLibraryPath(std::string &path) const;
+  void AddHIPIncludeArgs(const llvm::opt::ArgList &DriverArgs,
+                         llvm::opt::ArgStringList &CC1Args) const override;
+
+  bool getWindowsSDKLibraryPath(
+      const llvm::opt::ArgList &Args, std::string &path) const;
+  bool getUniversalCRTLibraryPath(const llvm::opt::ArgList &Args,
+                                  std::string &path) const;
   bool useUniversalCRT() const;
   VersionTuple
   computeMSVCVersion(const Driver *D,
@@ -124,6 +125,11 @@ public:
   void printVerboseInfo(raw_ostream &OS) const override;
 
   bool FoundMSVCInstall() const { return !VCToolChainPath.empty(); }
+
+  void
+  addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
+                        llvm::opt::ArgStringList &CC1Args,
+                        Action::OffloadKind DeviceOffloadKind) const override;
 
 protected:
   void AddSystemIncludeWithSubfolder(const llvm::opt::ArgList &DriverArgs,
@@ -139,6 +145,7 @@ private:
   std::string VCToolChainPath;
   ToolsetLayout VSLayout = ToolsetLayout::OlderVS;
   CudaInstallationDetector CudaInstallation;
+  RocmInstallationDetector RocmInstallation;
 };
 
 } // end namespace toolchains

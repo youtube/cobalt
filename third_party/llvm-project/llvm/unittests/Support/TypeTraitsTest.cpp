@@ -1,13 +1,20 @@
 //===- TypeTraitsTest.cpp -------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/FunctionExtras.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/type_traits.h"
+#include "gtest/gtest.h"
 
 namespace {
 
@@ -35,7 +42,7 @@ void TrivialityTester() {
                     IsTriviallyMoveConstructible,
                 "Mismatch in expected trivial move construction!");
 #endif
-};
+}
 
 template void TrivialityTester<int, true, true>();
 template void TrivialityTester<void *, true, true>();
@@ -71,6 +78,48 @@ template void TrivialityTester<B &, true, true>();
 template void TrivialityTester<Z &&, false, true>();
 template void TrivialityTester<A &&, false, true>();
 template void TrivialityTester<B &&, false, true>();
+
+TEST(Triviality, Tester) {
+  TrivialityTester<int, true, true>();
+  TrivialityTester<void *, true, true>();
+  TrivialityTester<int &, true, true>();
+  TrivialityTester<int &&, false, true>();
+
+  TrivialityTester<X, true, true>();
+  TrivialityTester<Y, false, false>();
+  TrivialityTester<Z, false, false>();
+  TrivialityTester<A, true, false>();
+  TrivialityTester<B, false, true>();
+
+  TrivialityTester<Z &, true, true>();
+  TrivialityTester<A &, true, true>();
+  TrivialityTester<B &, true, true>();
+  TrivialityTester<Z &&, false, true>();
+  TrivialityTester<A &&, false, true>();
+  TrivialityTester<B &&, false, true>();
+}
+
+// Test that the following ADT behave as expected wrt. trivially copyable trait
+//
+// NB: It is important that this trait behaves the same for (at least) these
+// types for all supported compilers to prevent ABI issue when llvm is compiled
+// with compiler A and an other project using llvm is compiled with compiler B.
+
+TEST(Triviality, ADT) {
+
+  TrivialityTester<llvm::SmallVector<int>, false, false>();
+  TrivialityTester<llvm::SmallString<8>, false, false>();
+
+  TrivialityTester<std::function<int()>, false, false>();
+#if !defined(__FreeBSD__)
+  TrivialityTester<std::pair<int, bool>, true, true>();
+#endif
+  TrivialityTester<llvm::unique_function<int()>, false, false>();
+  TrivialityTester<llvm::StringRef, true, true>();
+  TrivialityTester<llvm::ArrayRef<int>, true, true>();
+  TrivialityTester<llvm::PointerIntPair<int *, 2>, true, true>();
+  TrivialityTester<llvm::Optional<int>, true, true>();
+}
 
 } // namespace triviality
 

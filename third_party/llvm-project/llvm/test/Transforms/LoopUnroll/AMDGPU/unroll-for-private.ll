@@ -1,4 +1,4 @@
-; RUN: opt -data-layout=A5 -mtriple=amdgcn-unknown-amdhsa -loop-unroll -S -amdgpu-unroll-threshold-private=20000 %s | FileCheck %s
+; RUN: opt -data-layout=A5 -mtriple=amdgcn-unknown-amdhsa -loop-unroll -S %s | FileCheck %s
 
 ; Check that we full unroll loop to be able to eliminate alloca
 ; CHECK-LABEL: @non_invariant_ind
@@ -143,12 +143,12 @@ for.body:                                         ; preds = %for.body, %entry
   br i1 %exitcond, label %for.cond.cleanup, label %for.body
 }
 
-declare i8 addrspace(2)* @llvm.amdgcn.dispatch.ptr() #1
+declare i8 addrspace(4)* @llvm.amdgcn.dispatch.ptr() #1
 
 declare i32 @llvm.amdgcn.workitem.id.x() #1
 
 declare i32 @llvm.amdgcn.workgroup.id.x() #1
 
-declare i8 addrspace(2)* @llvm.amdgcn.implicitarg.ptr() #1
+declare i8 addrspace(4)* @llvm.amdgcn.implicitarg.ptr() #1
 
 attributes #1 = { nounwind readnone }

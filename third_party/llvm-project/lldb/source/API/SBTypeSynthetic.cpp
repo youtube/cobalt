@@ -1,14 +1,13 @@
-//===-- SBTypeSynthetic.cpp -----------------------------------------*- C++
-//-*-===//
+//===-- SBTypeSynthetic.cpp -----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBTypeSynthetic.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include "lldb/API/SBStream.h"
 
@@ -17,12 +16,12 @@
 using namespace lldb;
 using namespace lldb_private;
 
-#ifndef LLDB_DISABLE_PYTHON
-
-SBTypeSynthetic::SBTypeSynthetic() : m_opaque_sp() {}
+SBTypeSynthetic::SBTypeSynthetic() { LLDB_INSTRUMENT_VA(this); }
 
 SBTypeSynthetic SBTypeSynthetic::CreateWithClassName(const char *data,
                                                      uint32_t options) {
+  LLDB_INSTRUMENT_VA(data, options);
+
   if (!data || data[0] == 0)
     return SBTypeSynthetic();
   return SBTypeSynthetic(ScriptedSyntheticChildrenSP(
@@ -31,6 +30,8 @@ SBTypeSynthetic SBTypeSynthetic::CreateWithClassName(const char *data,
 
 SBTypeSynthetic SBTypeSynthetic::CreateWithScriptCode(const char *data,
                                                       uint32_t options) {
+  LLDB_INSTRUMENT_VA(data, options);
+
   if (!data || data[0] == 0)
     return SBTypeSynthetic();
   return SBTypeSynthetic(ScriptedSyntheticChildrenSP(
@@ -38,13 +39,25 @@ SBTypeSynthetic SBTypeSynthetic::CreateWithScriptCode(const char *data,
 }
 
 SBTypeSynthetic::SBTypeSynthetic(const lldb::SBTypeSynthetic &rhs)
-    : m_opaque_sp(rhs.m_opaque_sp) {}
+    : m_opaque_sp(rhs.m_opaque_sp) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
-SBTypeSynthetic::~SBTypeSynthetic() {}
+SBTypeSynthetic::~SBTypeSynthetic() = default;
 
-bool SBTypeSynthetic::IsValid() const { return m_opaque_sp.get() != NULL; }
+bool SBTypeSynthetic::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBTypeSynthetic::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp.get() != nullptr;
+}
 
 bool SBTypeSynthetic::IsClassCode() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return false;
   const char *code = m_opaque_sp->GetPythonCode();
@@ -52,14 +65,18 @@ bool SBTypeSynthetic::IsClassCode() {
 }
 
 bool SBTypeSynthetic::IsClassName() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return false;
   return !IsClassCode();
 }
 
 const char *SBTypeSynthetic::GetData() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
-    return NULL;
+    return nullptr;
   if (IsClassCode())
     return m_opaque_sp->GetPythonCode();
   else
@@ -67,22 +84,30 @@ const char *SBTypeSynthetic::GetData() {
 }
 
 void SBTypeSynthetic::SetClassName(const char *data) {
+  LLDB_INSTRUMENT_VA(this, data);
+
   if (IsValid() && data && *data)
     m_opaque_sp->SetPythonClassName(data);
 }
 
 void SBTypeSynthetic::SetClassCode(const char *data) {
+  LLDB_INSTRUMENT_VA(this, data);
+
   if (IsValid() && data && *data)
     m_opaque_sp->SetPythonCode(data);
 }
 
 uint32_t SBTypeSynthetic::GetOptions() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return lldb::eTypeOptionNone;
   return m_opaque_sp->GetOptions();
 }
 
 void SBTypeSynthetic::SetOptions(uint32_t value) {
+  LLDB_INSTRUMENT_VA(this, value);
+
   if (!CopyOnWrite_Impl())
     return;
   m_opaque_sp->SetOptions(value);
@@ -90,6 +115,8 @@ void SBTypeSynthetic::SetOptions(uint32_t value) {
 
 bool SBTypeSynthetic::GetDescription(lldb::SBStream &description,
                                      lldb::DescriptionLevel description_level) {
+  LLDB_INSTRUMENT_VA(this, description, description_level);
+
   if (m_opaque_sp) {
     description.Printf("%s\n", m_opaque_sp->GetDescription().c_str());
     return true;
@@ -99,6 +126,8 @@ bool SBTypeSynthetic::GetDescription(lldb::SBStream &description,
 
 lldb::SBTypeSynthetic &SBTypeSynthetic::
 operator=(const lldb::SBTypeSynthetic &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs) {
     m_opaque_sp = rhs.m_opaque_sp;
   }
@@ -106,13 +135,17 @@ operator=(const lldb::SBTypeSynthetic &rhs) {
 }
 
 bool SBTypeSynthetic::operator==(lldb::SBTypeSynthetic &rhs) {
-  if (IsValid() == false)
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (!IsValid())
     return !rhs.IsValid();
   return m_opaque_sp == rhs.m_opaque_sp;
 }
 
 bool SBTypeSynthetic::IsEqualTo(lldb::SBTypeSynthetic &rhs) {
-  if (IsValid() == false)
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (!IsValid())
     return !rhs.IsValid();
 
   if (m_opaque_sp->IsScripted() != rhs.m_opaque_sp->IsScripted())
@@ -128,7 +161,9 @@ bool SBTypeSynthetic::IsEqualTo(lldb::SBTypeSynthetic &rhs) {
 }
 
 bool SBTypeSynthetic::operator!=(lldb::SBTypeSynthetic &rhs) {
-  if (IsValid() == false)
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (!IsValid())
     return !rhs.IsValid();
   return m_opaque_sp != rhs.m_opaque_sp;
 }
@@ -160,5 +195,3 @@ bool SBTypeSynthetic::CopyOnWrite_Impl() {
 
   return true;
 }
-
-#endif // LLDB_DISABLE_PYTHON

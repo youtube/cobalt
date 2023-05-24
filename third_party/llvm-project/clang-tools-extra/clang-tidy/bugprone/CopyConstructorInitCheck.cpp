@@ -1,9 +1,8 @@
 //===--- CopyConstructorInitCheck.cpp - clang-tidy-------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,9 +18,6 @@ namespace tidy {
 namespace bugprone {
 
 void CopyConstructorInitCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   // In the future this might be extended to move constructors?
   Finder->addMatcher(
       cxxConstructorDecl(
@@ -81,7 +77,7 @@ void CopyConstructorInitCheck::check(const MatchFinder::MatchResult &Result) {
     if (CtorInitIsWritten) {
       if (!ParamName.empty())
         SafeFixIts.push_back(
-            FixItHint::CreateInsertion(CExpr->getLocEnd(), ParamName));
+            FixItHint::CreateInsertion(CExpr->getEndLoc(), ParamName));
     } else {
       if (Init->getSourceLocation().isMacroID() ||
           Ctor->getLocation().isMacroID() || ShouldNotDoFixit)
@@ -104,7 +100,7 @@ void CopyConstructorInitCheck::check(const MatchFinder::MatchResult &Result) {
   SourceLocation FixItLoc;
   // There is no initialization list in this constructor.
   if (!HasWrittenInitializer) {
-    FixItLoc = Ctor->getBody()->getLocStart();
+    FixItLoc = Ctor->getBody()->getBeginLoc();
     FixItMsg = " : " + FixItMsg;
   } else {
     // We apply the missing ctors at the beginning of the initialization list.
@@ -114,8 +110,8 @@ void CopyConstructorInitCheck::check(const MatchFinder::MatchResult &Result) {
   FixItMsg += ' ';
 
   Diag << FixItHint::CreateInsertion(FixItLoc, FixItMsg);
-} // namespace misc
+}
 
-} // namespace misc
+} // namespace bugprone
 } // namespace tidy
 } // namespace clang

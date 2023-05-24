@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -443,4 +442,24 @@ private:
 
 #endif // TEST_STD_VER >= 11
 
-#endif  // SUPPORT_DELETER_TYPES_H
+template <class T>
+class DefaultCtorDeleter
+{
+    int state_;
+
+public:
+    int state() const {return state_;}
+    void operator()(T* p) {delete p;}
+};
+
+template <class T>
+class DefaultCtorDeleter<T[]>
+{
+    int state_;
+
+public:
+    int state() const {return state_;}
+    void operator()(T* p) {delete [] p;}
+};
+
+#endif // SUPPORT_DELETER_TYPES_H

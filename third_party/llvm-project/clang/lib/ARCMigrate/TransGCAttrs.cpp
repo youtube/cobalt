@@ -1,9 +1,8 @@
 //===--- TransGCAttrs.cpp - Transformations to ARC mode --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -69,6 +68,9 @@ public:
         if (handleAttr(Attr, D))
           break;
         TL = Attr.getModifiedLoc();
+      } else if (MacroQualifiedTypeLoc MDTL =
+                     TL.getAs<MacroQualifiedTypeLoc>()) {
+        TL = MDTL.getInnerLoc();
       } else if (ArrayTypeLoc Arr = TL.getAs<ArrayTypeLoc>()) {
         TL = Arr.getElementLoc();
       } else if (PointerTypeLoc PT = TL.getAs<PointerTypeLoc>()) {
@@ -81,25 +83,20 @@ public:
   }
 
   bool handleAttr(AttributedTypeLoc TL, Decl *D = nullptr) {
-    if (TL.getAttrKind() != AttributedType::attr_objc_ownership)
+    auto *OwnershipAttr = TL.getAttrAs<ObjCOwnershipAttr>();
+    if (!OwnershipAttr)
       return false;
 
-    SourceLocation Loc = TL.getAttrNameLoc();
-    unsigned RawLoc = Loc.getRawEncoding();
-    if (MigrateCtx.AttrSet.count(RawLoc))
+    SourceLocation Loc = OwnershipAttr->getLocation();
+    SourceLocation OrigLoc = Loc;
+    if (MigrateCtx.AttrSet.count(OrigLoc))
       return true;
 
     ASTContext &Ctx = MigrateCtx.Pass.Ctx;
     SourceManager &SM = Ctx.getSourceManager();
     if (Loc.isMacroID())
       Loc = SM.getImmediateExpansionRange(Loc).getBegin();
-    SmallString<32> Buf;
-    bool Invalid = false;
-    StringRef Spell = Lexer::getSpelling(
-                                  SM.getSpellingLoc(TL.getAttrEnumOperandLoc()),
-                                  Buf, SM, Ctx.getLangOpts(), &Invalid);
-    if (Invalid)
-      return false;
+    StringRef Spell = OwnershipAttr->getKind()->getName();
     MigrationContext::GCAttrOccurrence::AttrKind Kind;
     if (Spell == "strong")
       Kind = MigrationContext::GCAttrOccurrence::Strong;
@@ -108,7 +105,7 @@ public:
     else
       return false;
 
-    MigrateCtx.AttrSet.insert(RawLoc);
+    MigrateCtx.AttrSet.insert(OrigLoc);
     MigrateCtx.GCAttrs.push_back(MigrationContext::GCAttrOccurrence());
     MigrationContext::GCAttrOccurrence &Attr = MigrateCtx.GCAttrs.back();
 
@@ -207,7 +204,7 @@ static void checkWeakGCAttrs(MigrationContext &MigrateCtx) {
       if (!canApplyWeak(MigrateCtx.Pass.Ctx, Attr.ModifiedType,
                         /*AllowOnUnknownClass=*/true)) {
         Transaction Trans(TA);
-        if (!MigrateCtx.RemovedAttrSet.count(Attr.Loc.getRawEncoding()))
+        if (!MigrateCtx.RemovedAttrSet.count(Attr.Loc))
           TA.replaceText(Attr.Loc, "__weak", "__unsafe_unretained");
         TA.clearDiagnostic(diag::err_arc_weak_no_runtime,
                            diag::err_arc_unsupported_weak_class,
@@ -234,8 +231,7 @@ static void checkAllAtProps(MigrationContext &MigrateCtx,
 
   SmallVector<std::pair<AttributedTypeLoc, ObjCPropertyDecl *>, 4> ATLs;
   bool hasWeak = false, hasStrong = false;
-  ObjCPropertyDecl::PropertyAttributeKind
-    Attrs = ObjCPropertyDecl::OBJC_PR_noattr;
+  ObjCPropertyAttribute::Kind Attrs = ObjCPropertyAttribute::kind_noattr;
   for (IndivPropsTy::iterator
          PI = IndProps.begin(), PE = IndProps.end(); PI != PE; ++PI) {
     ObjCPropertyDecl *PD = *PI;
@@ -266,25 +262,25 @@ static void checkAllAtProps(MigrationContext &MigrateCtx,
   if (GCAttrsCollector::hasObjCImpl(
                               cast<Decl>(IndProps.front()->getDeclContext()))) {
     if (hasWeak)
-      MigrateCtx.AtPropsWeak.insert(AtLoc.getRawEncoding());
+      MigrateCtx.AtPropsWeak.insert(AtLoc);
 
   } else {
     StringRef toAttr = "strong";
     if (hasWeak) {
       if (canApplyWeak(MigrateCtx.Pass.Ctx, IndProps.front()->getType(),
-                       /*AllowOnUnkwownClass=*/true))
+                       /*AllowOnUnknownClass=*/true))
         toAttr = "weak";
       else
         toAttr = "unsafe_unretained";
     }
-    if (Attrs & ObjCPropertyDecl::OBJC_PR_assign)
+    if (Attrs & ObjCPropertyAttribute::kind_assign)
       MigrateCtx.rewritePropertyAttribute("assign", toAttr, AtLoc);
     else
       MigrateCtx.addPropertyAttribute(toAttr, AtLoc);
   }
 
   for (unsigned i = 0, e = ATLs.size(); i != e; ++i) {
-    SourceLocation Loc = ATLs[i].first.getAttrNameLoc();
+    SourceLocation Loc = ATLs[i].first.getAttr()->getLocation();
     if (Loc.isMacroID())
       Loc = MigrateCtx.Pass.Ctx.getSourceManager()
                 .getImmediateExpansionRange(Loc)
@@ -293,31 +289,29 @@ static void checkAllAtProps(MigrationContext &MigrateCtx,
     TA.clearDiagnostic(diag::err_objc_property_attr_mutually_exclusive, AtLoc);
     TA.clearDiagnostic(diag::err_arc_inconsistent_property_ownership,
                        ATLs[i].second->getLocation());
-    MigrateCtx.RemovedAttrSet.insert(Loc.getRawEncoding());
+    MigrateCtx.RemovedAttrSet.insert(Loc);
   }
 }
 
 static void checkAllProps(MigrationContext &MigrateCtx,
                           std::vector<ObjCPropertyDecl *> &AllProps) {
   typedef llvm::TinyPtrVector<ObjCPropertyDecl *> IndivPropsTy;
-  llvm::DenseMap<unsigned, IndivPropsTy> AtProps;
+  llvm::DenseMap<SourceLocation, IndivPropsTy> AtProps;
 
   for (unsigned i = 0, e = AllProps.size(); i != e; ++i) {
     ObjCPropertyDecl *PD = AllProps[i];
     if (PD->getPropertyAttributesAsWritten() &
-          (ObjCPropertyDecl::OBJC_PR_assign |
-           ObjCPropertyDecl::OBJC_PR_readonly)) {
+        (ObjCPropertyAttribute::kind_assign |
+         ObjCPropertyAttribute::kind_readonly)) {
       SourceLocation AtLoc = PD->getAtLoc();
       if (AtLoc.isInvalid())
         continue;
-      unsigned RawAt = AtLoc.getRawEncoding();
-      AtProps[RawAt].push_back(PD);
+      AtProps[AtLoc].push_back(PD);
     }
   }
 
-  for (llvm::DenseMap<unsigned, IndivPropsTy>::iterator
-         I = AtProps.begin(), E = AtProps.end(); I != E; ++I) {
-    SourceLocation AtLoc = SourceLocation::getFromRawEncoding(I->first);
+  for (auto I = AtProps.begin(), E = AtProps.end(); I != E; ++I) {
+    SourceLocation AtLoc = I->first;
     IndivPropsTy &IndProps = I->second;
     checkAllAtProps(MigrateCtx, AtLoc, IndProps);
   }
@@ -340,7 +334,7 @@ void MigrationContext::dumpGCAttrs() {
     llvm::errs() << "KIND: "
         << (Attr.Kind == GCAttrOccurrence::Strong ? "strong" : "weak");
     llvm::errs() << "\nLOC: ";
-    Attr.Loc.dump(Pass.Ctx.getSourceManager());
+    Attr.Loc.print(llvm::errs(), Pass.Ctx.getSourceManager());
     llvm::errs() << "\nTYPE: ";
     Attr.ModifiedType.dump();
     if (Attr.Dcl) {

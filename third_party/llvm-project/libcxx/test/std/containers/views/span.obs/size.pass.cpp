@@ -1,17 +1,19 @@
-// -*- C++ -*-
-//===------------------------------ span ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===---------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17 
+//===----------------------------------------------------------------------===//
+// UNSUPPORTED: c++03, c++11, c++14, c++17
+// UNSUPPORTED: libcpp-has-no-incomplete-ranges
+
+// AppleClang 12.0.0 doesn't fully support ranges/concepts
+// XFAIL: apple-clang-12.0.0
 
 // <span>
 
-// constexpr index_type size() const noexcept;
+// constexpr size_type size() const noexcept;
 //
 
 
@@ -23,7 +25,7 @@
 
 
 template <typename Span>
-constexpr bool testConstexprSpan(Span sp, ptrdiff_t sz)
+constexpr bool testConstexprSpan(Span sp, size_t sz)
 {
     ASSERT_NOEXCEPT(sp.size());
     return sp.size() == sz;
@@ -31,7 +33,7 @@ constexpr bool testConstexprSpan(Span sp, ptrdiff_t sz)
 
 
 template <typename Span>
-void testRuntimeSpan(Span sp, ptrdiff_t sz)
+void testRuntimeSpan(Span sp, size_t sz)
 {
     ASSERT_NOEXCEPT(sp.size());
     assert(sp.size() == sz);
@@ -41,7 +43,7 @@ struct A{};
 constexpr int iArr1[] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9};
           int iArr2[] = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 
-int main ()
+int main(int, char**)
 {
     static_assert(testConstexprSpan(std::span<int>(), 0),            "");
     static_assert(testConstexprSpan(std::span<long>(), 0),           "");
@@ -86,6 +88,8 @@ int main ()
     testRuntimeSpan(std::span<int, 5>(iArr2 + 1, 5), 5);
 
     std::string s;
-    testRuntimeSpan(std::span<std::string>(&s, (std::ptrdiff_t) 0), 0);
+    testRuntimeSpan(std::span<std::string>(&s, (std::size_t) 0), 0);
     testRuntimeSpan(std::span<std::string>(&s, 1), 1);
+
+  return 0;
 }

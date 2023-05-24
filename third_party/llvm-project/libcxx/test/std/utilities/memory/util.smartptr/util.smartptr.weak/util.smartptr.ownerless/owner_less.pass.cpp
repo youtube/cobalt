@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
 
 // <memory>
 
@@ -53,7 +54,7 @@
 
 struct X {};
 
-int main()
+int main(int, char**)
 {
     const std::shared_ptr<int> p1(new int);
     const std::shared_ptr<int> p2 = p1;
@@ -66,9 +67,11 @@ int main()
     typedef std::owner_less<std::shared_ptr<int> > CS;
     CS cs;
 
+#if TEST_STD_VER <= 17
     static_assert((std::is_same<std::shared_ptr<int>, CS::first_argument_type>::value), "" );
     static_assert((std::is_same<std::shared_ptr<int>, CS::second_argument_type>::value), "" );
     static_assert((std::is_same<bool, CS::result_type>::value), "" );
+#endif
 
     assert(!cs(p1, p2));
     assert(!cs(p2, p1));
@@ -87,9 +90,11 @@ int main()
     typedef std::owner_less<std::weak_ptr<int> > CS;
     CS cs;
 
+#if TEST_STD_VER <= 17
     static_assert((std::is_same<std::weak_ptr<int>, CS::first_argument_type>::value), "" );
     static_assert((std::is_same<std::weak_ptr<int>, CS::second_argument_type>::value), "" );
     static_assert((std::is_same<bool, CS::result_type>::value), "" );
+#endif
 
     assert(!cs(w1, w2));
     assert(!cs(w2, w1));
@@ -129,4 +134,6 @@ int main()
     assert(s.find(vp) == s.end());
     }
 #endif
+
+  return 0;
 }

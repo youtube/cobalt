@@ -1,9 +1,8 @@
 //===-- sanitizer_atomic_clang_x86.h ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,7 +16,7 @@
 
 namespace __sanitizer {
 
-INLINE void proc_yield(int cnt) {
+inline void proc_yield(int cnt) {
   __asm__ __volatile__("" ::: "memory");
   for (int i = 0; i < cnt; i++)
     __asm__ __volatile__("pause");
@@ -25,7 +24,7 @@ INLINE void proc_yield(int cnt) {
 }
 
 template<typename T>
-INLINE typename T::Type atomic_load(
+inline typename T::Type atomic_load(
     const volatile T *a, memory_order mo) {
   DCHECK(mo & (memory_order_relaxed | memory_order_consume
       | memory_order_acquire | memory_order_seq_cst));
@@ -61,8 +60,7 @@ INLINE typename T::Type atomic_load(
         "emms;"            // Empty mmx state/Reset FP regs
         : "=m" (v)
         : "m" (a->val_dont_use)
-        : // mark the FP stack and mmx registers as clobbered
-          "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)",
+        : // mark the mmx registers as clobbered
 #ifdef __MMX__
           "mm0", "mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm7",
 #endif  // #ifdef __MMX__
@@ -72,7 +70,7 @@ INLINE typename T::Type atomic_load(
 }
 
 template<typename T>
-INLINE void atomic_store(volatile T *a, typename T::Type v, memory_order mo) {
+inline void atomic_store(volatile T *a, typename T::Type v, memory_order mo) {
   DCHECK(mo & (memory_order_relaxed | memory_order_release
       | memory_order_seq_cst));
   DCHECK(!((uptr)a % sizeof(*a)));
@@ -100,8 +98,7 @@ INLINE void atomic_store(volatile T *a, typename T::Type v, memory_order mo) {
         "emms;"            // Empty mmx state/Reset FP regs
         : "=m" (a->val_dont_use)
         : "m" (v)
-        : // mark the FP stack and mmx registers as clobbered
-          "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)",
+        : // mark the mmx registers as clobbered
 #ifdef __MMX__
           "mm0", "mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm7",
 #endif  // #ifdef __MMX__

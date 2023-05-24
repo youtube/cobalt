@@ -1,15 +1,15 @@
 //===-- MipsTargetObjectFile.cpp - Mips Object Files ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "MipsTargetObjectFile.h"
 #include "MipsSubtarget.h"
 #include "MipsTargetMachine.h"
+#include "MCTargetDesc/MipsMCExpr.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -44,7 +44,6 @@ EmbeddedData("membedded-data", cl::Hidden,
 
 void MipsTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM){
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
-  InitializeELF(TM.Options.UseInitArray);
 
   SmallDataSection = getContext().getELFSection(
       ".sdata", ELF::SHT_PROGBITS,
@@ -177,18 +176,20 @@ bool MipsTargetObjectFile::IsConstantInSmallSection(
 MCSection *MipsTargetObjectFile::getSectionForConstant(const DataLayout &DL,
                                                        SectionKind Kind,
                                                        const Constant *C,
-                                                       unsigned &Align) const {
+                                                       Align &Alignment) const {
   if (IsConstantInSmallSection(DL, C, *TM))
     return SmallDataSection;
 
   // Otherwise, we work the same as ELF.
-  return TargetLoweringObjectFileELF::getSectionForConstant(DL, Kind, C, Align);
+  return TargetLoweringObjectFileELF::getSectionForConstant(DL, Kind, C,
+                                                            Alignment);
 }
 
 const MCExpr *
 MipsTargetObjectFile::getDebugThreadLocalSymbol(const MCSymbol *Sym) const {
   const MCExpr *Expr =
       MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None, getContext());
-  return MCBinaryExpr::createAdd(
+  Expr = MCBinaryExpr::createAdd(
       Expr, MCConstantExpr::create(0x8000, getContext()), getContext());
+  return MipsMCExpr::create(MipsMCExpr::MEK_DTPREL, Expr, getContext());
 }

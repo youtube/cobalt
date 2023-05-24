@@ -1,14 +1,14 @@
-; RUN: llc -march=mips -relocation-model=static < %s | FileCheck --check-prefixes=ALL,SYM32,O32,O32BE %s
-; RUN: llc -march=mipsel -relocation-model=static < %s | FileCheck --check-prefixes=ALL,SYM32,O32,O32LE %s
+; RUN: llc -mtriple=mips -relocation-model=static < %s | FileCheck --check-prefixes=ALL,SYM32,O32,O32BE %s
+; RUN: llc -mtriple=mipsel -relocation-model=static < %s | FileCheck --check-prefixes=ALL,SYM32,O32,O32LE %s
 
-; RUN-TODO: llc -march=mips64 -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefixes=ALL,SYM32,O32 %s
-; RUN-TODO: llc -march=mips64el -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefixes=ALL,SYM32,O32 %s
+; RUN-TODO: llc -mtriple=mips64 -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefixes=ALL,SYM32,O32 %s
+; RUN-TODO: llc -mtriple=mips64el -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefixes=ALL,SYM32,O32 %s
 
-; RUN: llc -march=mips64 -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefixes=ALL,SYM32,NEW %s
-; RUN: llc -march=mips64el -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefixes=ALL,SYM32,NEW %s
+; RUN: llc -mtriple=mips64 -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefixes=ALL,SYM32,NEW %s
+; RUN: llc -mtriple=mips64el -relocation-model=static -target-abi n32 < %s | FileCheck --check-prefixes=ALL,SYM32,NEW %s
 
-; RUN: llc -march=mips64 -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefixes=ALL,SYM64,NEW %s
-; RUN: llc -march=mips64el -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefixes=ALL,SYM64,NEW %s
+; RUN: llc -mtriple=mips64 -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefixes=ALL,SYM64,NEW %s
+; RUN: llc -mtriple=mips64el -relocation-model=static -target-abi n64 < %s | FileCheck --check-prefixes=ALL,SYM64,NEW %s
 
 ; Test the floating point arguments for all ABI's and byte orders as specified
 ; by section 5 of MD00305 (MIPS ABIs Described).
@@ -125,9 +125,11 @@ entry:
 ; I've yet to find a reference in the documentation about this but GCC uses up
 ; the remaining two argument slots in the GPR's first. We'll do the same for
 ; compatibility.
-; O32-DAG:           sw $6, 12([[R1]])
+; O32-DAG:           mtc1 $6, $f0
+; O32-DAG:           swc1 $f0, 12([[R1]])
 ; NEW-DAG:           swc1 $f14, 12([[R1]])
-; O32-DAG:           sw $7, 16([[R1]])
+; O32-DAG:           mtc1 $7, $f0
+; O32-DAG:           swc1 $f0, 16([[R1]])
 ; NEW-DAG:           swc1 $f15, 16([[R1]])
 
 ; O32 is definitely out of registers now and switches to the stack.
@@ -207,5 +209,6 @@ entry:
 ; MD00305 and GCC disagree on this one. MD00305 says that floats are treated
 ; as 8-byte aligned and occupy two slots on O32. GCC is treating them as 4-byte
 ; aligned and occupying one slot. We'll use GCC's definition.
-; O32-DAG:           sw $5, 4([[R2]])
+; O32-DAG:           mtc1 $5, $f0
+; O32-DAG:           swc1 $f0, 4([[R2]])
 ; NEW-DAG:           swc1 $f13, 4([[R2]])

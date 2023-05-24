@@ -1,5 +1,11 @@
 // RUN: %clang_cc1 -triple i386-pc-linux-gnu -emit-llvm < %s| FileCheck %s
 
+typedef __WCHAR_TYPE__ wchar_t;
+typedef __SIZE_TYPE__ size_t;
+
+void *memcpy(void *, void const *, size_t);
+void *memccpy(void *, void const *, int, size_t);
+
 // CHECK: @test1
 // CHECK: call void @llvm.memset.p0i8.i32
 // CHECK: call void @llvm.memset.p0i8.i32
@@ -82,4 +88,40 @@ void test9() {
   // CHECK: @test9
   // CHECK: call void @llvm.memcpy{{.*}} align 16 {{.*}} align 16 {{.*}} 16, i1 false)
   __builtin_memcpy(x, y, sizeof(y));
+}
+
+wchar_t dest;
+wchar_t src;
+
+// CHECK-LABEL: @test10
+// FIXME: Consider lowering these to llvm.memcpy / llvm.memmove.
+void test10() {
+  // CHECK: call i32* @wmemcpy(i32* noundef @dest, i32* noundef @src, i32 noundef 4)
+  __builtin_wmemcpy(&dest, &src, 4);
+
+  // CHECK: call i32* @wmemmove(i32* noundef @dest, i32* noundef @src, i32 noundef 4)
+  __builtin_wmemmove(&dest, &src, 4);
+}
+
+// CHECK-LABEL: @test11
+void test11() {
+  typedef struct { int a; } b;
+  int d;
+  b e;
+  // CHECK: call void @llvm.memcpy{{.*}}(
+  memcpy(&d, (char *)&e.a, sizeof(e));
+}
+
+// CHECK-LABEL: @test12
+extern char dest_array[];
+extern char src_array[];
+void test12() {
+  // CHECK: call void @llvm.memcpy{{.*}}(
+  memcpy(&dest_array, &dest_array, 2);
+}
+
+// CHECK-LABEL: @test13
+void test13(char *d, char *s, int c, size_t n) {
+  // CHECK: call i8* @memccpy
+  memccpy(d, s, c, n);
 }

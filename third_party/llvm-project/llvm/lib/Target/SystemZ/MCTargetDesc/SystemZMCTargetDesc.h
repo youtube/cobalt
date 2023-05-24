@@ -1,9 +1,8 @@
 //===-- SystemZMCTargetDesc.h - SystemZ target descriptions -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,21 +23,15 @@ class MCObjectTargetWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
 class MCTargetOptions;
-class StringRef;
 class Target;
-class Triple;
-class raw_pwrite_stream;
-class raw_ostream;
-
-Target &getTheSystemZTarget();
 
 namespace SystemZMC {
 // How many bytes are in the ABI-defined, caller-allocated part of
 // a stack frame.
-const int64_t CallFrameSize = 160;
+const int64_t ELFCallFrameSize = 160;
 
 // The offset of the DWARF CFA from the incoming stack pointer.
-const int64_t CFAOffsetFromInitialSP = CallFrameSize;
+const int64_t ELFCFAOffsetFromInitialSP = ELFCallFrameSize;
 
 // Maps of asm register numbers to LLVM register numbers, with 0 indicating
 // an invalid register.  In principle we could use 32-bit and 64-bit register

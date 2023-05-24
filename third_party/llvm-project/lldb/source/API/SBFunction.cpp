@@ -1,9 +1,8 @@
-//===-- SBFunction.cpp ------------------------------------------*- C++ -*-===//
+//===-- SBFunction.cpp ----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,89 +17,84 @@
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Instrumentation.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-SBFunction::SBFunction() : m_opaque_ptr(NULL) {}
+SBFunction::SBFunction() { LLDB_INSTRUMENT_VA(this); }
 
 SBFunction::SBFunction(lldb_private::Function *lldb_object_ptr)
     : m_opaque_ptr(lldb_object_ptr) {}
 
 SBFunction::SBFunction(const lldb::SBFunction &rhs)
-    : m_opaque_ptr(rhs.m_opaque_ptr) {}
+    : m_opaque_ptr(rhs.m_opaque_ptr) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
 const SBFunction &SBFunction::operator=(const SBFunction &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   m_opaque_ptr = rhs.m_opaque_ptr;
   return *this;
 }
 
-SBFunction::~SBFunction() { m_opaque_ptr = NULL; }
+SBFunction::~SBFunction() { m_opaque_ptr = nullptr; }
 
-bool SBFunction::IsValid() const { return m_opaque_ptr != NULL; }
+bool SBFunction::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBFunction::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_ptr != nullptr;
+}
 
 const char *SBFunction::GetName() const {
-  const char *cstr = NULL;
+  LLDB_INSTRUMENT_VA(this);
+
+  const char *cstr = nullptr;
   if (m_opaque_ptr)
     cstr = m_opaque_ptr->GetName().AsCString();
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log) {
-    if (cstr)
-      log->Printf("SBFunction(%p)::GetName () => \"%s\"",
-                  static_cast<void *>(m_opaque_ptr), cstr);
-    else
-      log->Printf("SBFunction(%p)::GetName () => NULL",
-                  static_cast<void *>(m_opaque_ptr));
-  }
   return cstr;
 }
 
 const char *SBFunction::GetDisplayName() const {
-  const char *cstr = NULL;
-  if (m_opaque_ptr)
-    cstr = m_opaque_ptr->GetMangled()
-               .GetDisplayDemangledName(m_opaque_ptr->GetLanguage())
-               .AsCString();
+  LLDB_INSTRUMENT_VA(this);
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log) {
-    if (cstr)
-      log->Printf("SBFunction(%p)::GetDisplayName () => \"%s\"",
-                  static_cast<void *>(m_opaque_ptr), cstr);
-    else
-      log->Printf("SBFunction(%p)::GetDisplayName () => NULL",
-                  static_cast<void *>(m_opaque_ptr));
-  }
+  const char *cstr = nullptr;
+  if (m_opaque_ptr)
+    cstr = m_opaque_ptr->GetMangled().GetDisplayDemangledName().AsCString();
+
   return cstr;
 }
 
 const char *SBFunction::GetMangledName() const {
-  const char *cstr = NULL;
+  LLDB_INSTRUMENT_VA(this);
+
+  const char *cstr = nullptr;
   if (m_opaque_ptr)
     cstr = m_opaque_ptr->GetMangled().GetMangledName().AsCString();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log) {
-    if (cstr)
-      log->Printf("SBFunction(%p)::GetMangledName () => \"%s\"",
-                  static_cast<void *>(m_opaque_ptr), cstr);
-    else
-      log->Printf("SBFunction(%p)::GetMangledName () => NULL",
-                  static_cast<void *>(m_opaque_ptr));
-  }
   return cstr;
 }
 
 bool SBFunction::operator==(const SBFunction &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   return m_opaque_ptr == rhs.m_opaque_ptr;
 }
 
 bool SBFunction::operator!=(const SBFunction &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   return m_opaque_ptr != rhs.m_opaque_ptr;
 }
 
 bool SBFunction::GetDescription(SBStream &s) {
+  LLDB_INSTRUMENT_VA(this, s);
+
   if (m_opaque_ptr) {
     s.Printf("SBFunction: id = 0x%8.8" PRIx64 ", name = %s",
              m_opaque_ptr->GetID(), m_opaque_ptr->GetName().AsCString());
@@ -114,28 +108,27 @@ bool SBFunction::GetDescription(SBStream &s) {
 }
 
 SBInstructionList SBFunction::GetInstructions(SBTarget target) {
-  return GetInstructions(target, NULL);
+  LLDB_INSTRUMENT_VA(this, target);
+
+  return GetInstructions(target, nullptr);
 }
 
 SBInstructionList SBFunction::GetInstructions(SBTarget target,
                                               const char *flavor) {
+  LLDB_INSTRUMENT_VA(this, target, flavor);
+
   SBInstructionList sb_instructions;
   if (m_opaque_ptr) {
-    ExecutionContext exe_ctx;
     TargetSP target_sp(target.GetSP());
     std::unique_lock<std::recursive_mutex> lock;
-    if (target_sp) {
-      lock = std::unique_lock<std::recursive_mutex>(target_sp->GetAPIMutex());
-      target_sp->CalculateExecutionContext(exe_ctx);
-      exe_ctx.SetProcessSP(target_sp->GetProcessSP());
-    }
     ModuleSP module_sp(
         m_opaque_ptr->GetAddressRange().GetBaseAddress().GetModule());
-    if (module_sp) {
-      const bool prefer_file_cache = false;
+    if (target_sp && module_sp) {
+      lock = std::unique_lock<std::recursive_mutex>(target_sp->GetAPIMutex());
+      const bool force_live_memory = true;
       sb_instructions.SetDisassembler(Disassembler::DisassembleRange(
-          module_sp->GetArchitecture(), NULL, flavor, exe_ctx,
-          m_opaque_ptr->GetAddressRange(), prefer_file_cache));
+          module_sp->GetArchitecture(), nullptr, flavor, *target_sp,
+          m_opaque_ptr->GetAddressRange(), force_live_memory));
     }
   }
   return sb_instructions;
@@ -148,18 +141,22 @@ void SBFunction::reset(lldb_private::Function *lldb_object_ptr) {
 }
 
 SBAddress SBFunction::GetStartAddress() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBAddress addr;
   if (m_opaque_ptr)
-    addr.SetAddress(&m_opaque_ptr->GetAddressRange().GetBaseAddress());
+    addr.SetAddress(m_opaque_ptr->GetAddressRange().GetBaseAddress());
   return addr;
 }
 
 SBAddress SBFunction::GetEndAddress() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBAddress addr;
   if (m_opaque_ptr) {
     addr_t byte_size = m_opaque_ptr->GetAddressRange().GetByteSize();
     if (byte_size > 0) {
-      addr.SetAddress(&m_opaque_ptr->GetAddressRange().GetBaseAddress());
+      addr.SetAddress(m_opaque_ptr->GetAddressRange().GetBaseAddress());
       addr->Slide(byte_size);
     }
   }
@@ -167,6 +164,8 @@ SBAddress SBFunction::GetEndAddress() {
 }
 
 const char *SBFunction::GetArgumentName(uint32_t arg_idx) {
+  LLDB_INSTRUMENT_VA(this, arg_idx);
+
   if (m_opaque_ptr) {
     Block &block = m_opaque_ptr->GetBlock(true);
     VariableListSP variable_list_sp = block.GetBlockVariableList(true);
@@ -183,12 +182,16 @@ const char *SBFunction::GetArgumentName(uint32_t arg_idx) {
 }
 
 uint32_t SBFunction::GetPrologueByteSize() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->GetPrologueByteSize();
   return 0;
 }
 
 SBType SBFunction::GetType() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBType sb_type;
   if (m_opaque_ptr) {
     Type *function_type = m_opaque_ptr->GetType();
@@ -199,6 +202,8 @@ SBType SBFunction::GetType() {
 }
 
 SBBlock SBFunction::GetBlock() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBBlock sb_block;
   if (m_opaque_ptr)
     sb_block.SetPtr(&m_opaque_ptr->GetBlock(true));
@@ -206,6 +211,8 @@ SBBlock SBFunction::GetBlock() {
 }
 
 lldb::LanguageType SBFunction::GetLanguage() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr) {
     if (m_opaque_ptr->GetCompileUnit())
       return m_opaque_ptr->GetCompileUnit()->GetLanguage();
@@ -214,6 +221,8 @@ lldb::LanguageType SBFunction::GetLanguage() {
 }
 
 bool SBFunction::GetIsOptimized() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr) {
     if (m_opaque_ptr->GetCompileUnit())
       return m_opaque_ptr->GetCompileUnit()->GetIsOptimized();

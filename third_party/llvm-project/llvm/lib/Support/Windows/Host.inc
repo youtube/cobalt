@@ -1,9 +1,8 @@
 //===- llvm/Support/Win32/Host.inc ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,7 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "WindowsSupport.h"
+// We need to include config.h here because LLVM_DEFAULT_TARGET_TRIPLE is not
+// defined in llvm-config.h if it is unset.
+#include "llvm/Config/config.h"
+#include "llvm/Support/Windows/WindowsSupport.h"
 #include <cstdio>
 #include <string>
 

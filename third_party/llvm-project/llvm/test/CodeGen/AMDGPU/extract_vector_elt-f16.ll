@@ -1,5 +1,5 @@
-; RUN: llc -march=amdgcn -mtriple=amdgcn---amdgiz -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=SI %s
-; RUN: llc -march=amdgcn -mtriple=amdgcn---amdgiz -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=VI %s
+; RUN: llc -march=amdgcn -mtriple=amdgcn-- -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=SI %s
+; RUN: llc -march=amdgcn -mtriple=amdgcn-- -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=VI %s
 
 ; GCN-LABEL: {{^}}extract_vector_elt_v2f16:
 ; GCN: s_load_dword [[VEC:s[0-9]+]]
@@ -163,6 +163,19 @@ define amdgpu_kernel void @reduce_load_vector_v8f16_extract_23(<16 x half> addrs
   %elt3 = extractelement <16 x half> %load, i32 3
   store volatile half %elt2, half addrspace(1)* undef, align 2
   store volatile half %elt3, half addrspace(1)* undef, align 2
+  ret void
+}
+
+; GCN-LABEL: {{^}}v_extractelement_v8f16_dynamic_sgpr:
+; GCN-COUNT-7: v_cndmask_b32_e32
+define amdgpu_kernel void @v_extractelement_v8f16_dynamic_sgpr(half addrspace(1)* %out, <8 x half> addrspace(1)* %in, i32 %n) #0 {
+  %tid = call i32 @llvm.amdgcn.workitem.id.x() #1
+  %tid.ext = sext i32 %tid to i64
+  %in.gep = getelementptr inbounds <8 x half>, <8 x half> addrspace(1)* %in, i64 %tid.ext
+  %out.gep = getelementptr inbounds half, half addrspace(1)* %out, i64 %tid.ext
+  %vec = load <8 x half>, <8 x half> addrspace(1)* %in.gep
+  %vec.extract = extractelement <8 x half> %vec, i32 %n
+  store half %vec.extract, half addrspace(1)* %out.gep
   ret void
 }
 

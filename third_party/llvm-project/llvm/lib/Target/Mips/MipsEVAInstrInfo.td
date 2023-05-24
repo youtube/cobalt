@@ -1,9 +1,8 @@
 //===- MipsEVAInstrInfo.td - EVA ASE instructions -*- tablegen ------------*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -71,8 +70,7 @@ class LHuE_DESC : LOAD_EVA_DESC_BASE<"lhue", GPR32Opnd, II_LHUE>;
 class LWE_DESC  : LOAD_EVA_DESC_BASE<"lwe",  GPR32Opnd, II_LWE>;
 
 class STORE_EVA_DESC_BASE<string instr_asm, RegisterOperand GPROpnd,
-                          SDPatternOperator OpNode = null_frag,
-                          InstrItinClass itin = NoItinerary> {
+                          InstrItinClass itin> {
   dag OutOperandList = (outs);
   dag InOperandList = (ins GPROpnd:$rt, mem_simm9:$addr);
   string AsmString = !strconcat(instr_asm, "\t$rt, $addr");
@@ -83,9 +81,9 @@ class STORE_EVA_DESC_BASE<string instr_asm, RegisterOperand GPROpnd,
   InstrItinClass Itinerary = itin;
 }
 
-class SBE_DESC  : STORE_EVA_DESC_BASE<"sbe",  GPR32Opnd, null_frag, II_SBE>;
-class SHE_DESC  : STORE_EVA_DESC_BASE<"she",  GPR32Opnd, null_frag, II_SHE>;
-class SWE_DESC  : STORE_EVA_DESC_BASE<"swe",  GPR32Opnd, null_frag, II_SWE>;
+class SBE_DESC : STORE_EVA_DESC_BASE<"sbe", GPR32Opnd, II_SBE>;
+class SHE_DESC : STORE_EVA_DESC_BASE<"she", GPR32Opnd, II_SHE>;
+class SWE_DESC : STORE_EVA_DESC_BASE<"swe", GPR32Opnd, II_SWE>;
 
 // Load/Store Left/Right EVA descriptions
 class LOAD_LEFT_RIGHT_EVA_DESC_BASE<string instr_asm, RegisterOperand GPROpnd,

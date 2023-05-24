@@ -1,23 +1,18 @@
 //===-- PathMappingList.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PathMappingList_h_
-#define liblldb_PathMappingList_h_
+#ifndef LLDB_TARGET_PATHMAPPINGLIST_H
+#define LLDB_TARGET_PATHMAPPINGLIST_H
 
-// C Includes
-// C++ Includes
 #include <map>
 #include <vector>
-// Other libraries and framework includes
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Status.h"
-// Project includes
 
 namespace lldb_private {
 
@@ -26,9 +21,7 @@ public:
   typedef void (*ChangedCallback)(const PathMappingList &path_list,
                                   void *baton);
 
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   PathMappingList();
 
   PathMappingList(ChangedCallback callback, void *callback_baton);
@@ -39,8 +32,7 @@ public:
 
   const PathMappingList &operator=(const PathMappingList &rhs);
 
-  void Append(const ConstString &path, const ConstString &replacement,
-              bool notify);
+  void Append(llvm::StringRef path, llvm::StringRef replacement, bool notify);
 
   void Append(const PathMappingList &rhs, bool notify);
 
@@ -56,43 +48,45 @@ public:
   bool GetPathsAtIndex(uint32_t idx, ConstString &path,
                        ConstString &new_path) const;
 
-  void Insert(const ConstString &path, const ConstString &replacement,
+  void Insert(llvm::StringRef path, llvm::StringRef replacement,
               uint32_t insert_idx, bool notify);
 
   bool Remove(size_t index, bool notify);
 
-  bool Remove(const ConstString &path, bool notify);
+  bool Remove(ConstString path, bool notify);
 
-  bool Replace(const ConstString &path, const ConstString &replacement,
-               bool notify);
+  bool Replace(llvm::StringRef path, llvm::StringRef replacement, bool notify);
 
-  bool Replace(const ConstString &path, const ConstString &replacement,
+  bool Replace(llvm::StringRef path, llvm::StringRef replacement,
                uint32_t index, bool notify);
-  bool RemapPath(const ConstString &path, ConstString &new_path) const;
+  bool RemapPath(ConstString path, ConstString &new_path) const;
 
-  //------------------------------------------------------------------
   /// Remaps a source file given \a path into \a new_path.
   ///
   /// Remaps \a path if any source remappings match. This function
   /// does NOT stat the file system so it can be used in tight loops
   /// where debug info is being parsed.
   ///
-  /// @param[in] path
+  /// \param[in] path
   ///     The original source file path to try and remap.
   ///
-  /// @param[out] new_path
-  ///     The newly remapped filespec that is may or may not exist.
+  /// \param[in] only_if_exists
+  ///     If \b true, besides matching \p path with the remapping rules, this
+  ///     tries to check with the filesystem that the remapped file exists. If
+  ///     no valid file is found, \b None is returned. This might be expensive,
+  ///     specially on a network.
   ///
-  /// @return
-  ///     /b true if \a path was successfully located and \a new_path
-  ///     is filled in with a new source path, \b false otherwise.
-  //------------------------------------------------------------------
-  bool RemapPath(llvm::StringRef path, std::string &new_path) const;
+  ///     If \b false, then the existence of the returned remapping is not
+  ///     checked.
+  ///
+  /// \return
+  ///     The remapped filespec that may or may not exist on disk.
+  llvm::Optional<FileSpec> RemapPath(llvm::StringRef path,
+                                     bool only_if_exists = false) const;
   bool RemapPath(const char *, std::string &) const = delete;
 
   bool ReverseRemapPath(const FileSpec &file, FileSpec &fixed) const;
 
-  //------------------------------------------------------------------
   /// Finds a source file given a file spec using the path remappings.
   ///
   /// Tries to resolve \a orig_spec by checking the path remappings.
@@ -101,20 +95,14 @@ public:
   /// or are even on the local file system, so use this function
   /// sparingly (not in a tight debug info parsing loop).
   ///
-  /// @param[in] orig_spec
+  /// \param[in] orig_spec
   ///     The original source file path to try and remap.
   ///
-  /// @param[out] new_spec
+  /// \return
   ///     The newly remapped filespec that is guaranteed to exist.
-  ///
-  /// @return
-  ///     /b true if \a orig_spec was successfully located and
-  ///     \a new_spec is filled in with an existing file spec,
-  ///     \b false otherwise.
-  //------------------------------------------------------------------
-  bool FindFile(const FileSpec &orig_spec, FileSpec &new_spec) const;
+  llvm::Optional<FileSpec> FindFile(const FileSpec &orig_spec) const;
 
-  uint32_t FindIndexForPath(const ConstString &path) const;
+  uint32_t FindIndexForPath(llvm::StringRef path) const;
 
   uint32_t GetModificationID() const { return m_mod_id; }
 
@@ -124,16 +112,16 @@ protected:
   typedef collection::iterator iterator;
   typedef collection::const_iterator const_iterator;
 
-  iterator FindIteratorForPath(const ConstString &path);
+  iterator FindIteratorForPath(ConstString path);
 
-  const_iterator FindIteratorForPath(const ConstString &path) const;
+  const_iterator FindIteratorForPath(ConstString path) const;
 
   collection m_pairs;
-  ChangedCallback m_callback;
-  void *m_callback_baton;
-  uint32_t m_mod_id; // Incremented anytime anything is added or removed.
+  ChangedCallback m_callback = nullptr;
+  void *m_callback_baton = nullptr;
+  uint32_t m_mod_id = 0; // Incremented anytime anything is added or removed.
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_PathMappingList_h_
+#endif // LLDB_TARGET_PATHMAPPINGLIST_H

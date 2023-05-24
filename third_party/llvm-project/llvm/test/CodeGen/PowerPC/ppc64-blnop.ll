@@ -1,11 +1,11 @@
-; RUN: llc < %s -verify-machineinstrs -mtriple=powerpc64-unknown-linux-gnu | FileCheck %s
-; RUN: llc < %s -verify-machineinstrs -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr8 | FileCheck %s
-; RUN: llc < %s -verify-machineinstrs -mtriple=powerpc64le-unknown-linux-gnu -mcpu=pwr8 | FileCheck %s
 ; RUN: llc < %s -relocation-model=pic -verify-machineinstrs -mtriple=powerpc64-unknown-linux-gnu | FileCheck %s
-; RUN: llc < %s -function-sections -verify-machineinstrs -mtriple=powerpc64-unknown-linux-gnu | FileCheck %s -check-prefix=CHECK-FS
+; RUN: llc < %s -relocation-model=pic -verify-machineinstrs -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr8 | FileCheck %s
+; RUN: llc < %s -relocation-model=pic -verify-machineinstrs -mtriple=powerpc64le-unknown-linux-gnu -mcpu=pwr8 | FileCheck %s
+; RUN: llc < %s -relocation-model=pic -verify-machineinstrs -mtriple=powerpc64-unknown-linux-gnu | FileCheck %s
+; RUN: llc < %s -relocation-model=pic -function-sections -verify-machineinstrs -mtriple=powerpc64-unknown-linux-gnu | FileCheck %s -check-prefix=CHECK-FS
 ; RUN: llc < %s -relocation-model=pic -verify-machineinstrs -mtriple=powerpc64le-unknown-linux-gnu | FileCheck %s
-; RUN: llc < %s -function-sections -verify-machineinstrs -mtriple=powerpc64le-unknown-linux-gnu | FileCheck %s -check-prefix=CHECK-FS
-; RUN: llc < %s -verify-machineinstrs -mtriple=powerpc64le-unknown-linux-gnu \
+; RUN: llc < %s -relocation-model=pic -function-sections -verify-machineinstrs -mtriple=powerpc64le-unknown-linux-gnu | FileCheck %s -check-prefix=CHECK-FS
+; RUN: llc < %s -relocation-model=pic -verify-machineinstrs -mtriple=powerpc64le-unknown-linux-gnu \
 ; RUN: -code-model=small -mcpu=pwr8 | FileCheck %s -check-prefix=SCM
 
 %class.T = type { [2 x i8] }
@@ -76,7 +76,7 @@ define void @wo_hcaller(%class.T* %this, i8* %c) {
 
 ; CHECK-LABEL: wo_hcaller:
 ; CHECK: bl wo_hcallee
-; CHECK-NOT: nop
+; CHECK-NEXT: nop
 
 ; SCM-LABEL: wo_hcaller:
 ; SCM:       bl wo_hcallee
@@ -90,7 +90,7 @@ define void @wo_pcaller(%class.T* %this, i8* %c) {
 
 ; CHECK-LABEL: wo_pcaller:
 ; CHECK: bl wo_pcallee
-; CHECK-NOT: nop
+; CHECK-NEXT: nop
 
 ; SCM-LABEL:   wo_pcaller:
 ; SCM:         bl wo_pcallee
@@ -114,7 +114,7 @@ define void @w_pcaller(i8* %ptr) {
 
 ; CHECK-LABEL: w_pcaller:
 ; CHECK: bl w_pcallee
-; CHECK-NOT: nop
+; CHECK-NEXT: nop
 
 ; SCM-LABEL: w_pcaller:
 ; SCM:       bl w_pcallee
@@ -128,7 +128,7 @@ define void @w_hcaller(i8* %ptr) {
 
 ; CHECK-LABEL: w_hcaller:
 ; CHECK: bl w_hcallee
-; CHECK-NOT: nop
+; CHECK-NEXT: nop
 
 ; SCM-LABEL: w_hcaller:
 ; SCM:       bl w_hcallee

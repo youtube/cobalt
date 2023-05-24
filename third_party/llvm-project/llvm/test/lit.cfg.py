@@ -22,7 +22,7 @@ config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
 
 # suffixes: A list of file extensions to treat as test files. This is overriden
 # by individual lit.local.cfg files in the test subdirectories.
-config.suffixes = ['.ll', '.c', '.cxx', '.test', '.txt', '.s', '.mir']
+config.suffixes = ['.ll', '.c', '.test', '.txt', '.s', '.mir', '.yaml']
 
 # excludes: A list of directories to exclude from the testsuite. The 'Inputs'
 # subdirectories contain auxiliary inputs for various tests in their parent
@@ -88,8 +88,8 @@ llvm_config.use_default_substitutions()
 # Add site-specific substitutions.
 config.substitutions.append(('%llvmshlibdir', config.llvm_shlib_dir))
 config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
+config.substitutions.append(('%pluginext', config.llvm_plugin_ext))
 config.substitutions.append(('%exeext', config.llvm_exe_ext))
-config.substitutions.append(('%host_cc', config.host_cc))
 
 
 lli_args = []
@@ -98,15 +98,15 @@ lli_args = []
 # we don't support COFF in MCJIT well enough for the tests, force ELF format on
 # Windows.  FIXME: the process target triple should be used here, but this is
 # difficult to obtain on Windows.
-if re.search(r'cygwin|mingw32|windows-gnu|windows-msvc|win32', config.host_triple):
+if re.search(r'cygwin|windows-gnu|windows-msvc', config.host_triple):
     lli_args = ['-mtriple=' + config.host_triple + '-elf']
 
 llc_args = []
 
-# Similarly, have a macro to use llc with DWARF even when the host is win32.
-if re.search(r'win32', config.target_triple):
+# Similarly, have a macro to use llc with DWARF even when the host is Windows
+if re.search(r'windows-msvc', config.target_triple):
     llc_args = [' -mtriple=' +
-                config.target_triple.replace('-win32', '-mingw32')]
+                config.target_triple.replace('-msvc', '-gnu')]
 
 # Provide the path to asan runtime lib if available. On darwin, this lib needs
 # to be loaded via DYLD_INSERT_LIBRARIES before libLTO.dylib in case the files
@@ -115,6 +115,8 @@ ld64_cmd = config.ld64_executable
 asan_rtlib = get_asan_rtlib()
 if asan_rtlib:
     ld64_cmd = 'DYLD_INSERT_LIBRARIES={} {}'.format(asan_rtlib, ld64_cmd)
+if config.osx_sysroot:
+    ld64_cmd = '{} -syslibroot {}'.format(ld64_cmd, config.osx_sysroot)
 
 ocamlc_command = '%s ocamlc -cclib -L%s %s' % (
     config.ocamlfind_executable, config.llvm_lib_dir, config.ocaml_flags)
@@ -124,6 +126,17 @@ if config.have_ocamlopt:
         config.ocamlfind_executable, config.llvm_lib_dir, config.llvm_lib_dir, config.ocaml_flags)
 
 opt_viewer_cmd = '%s %s/tools/opt-viewer/opt-viewer.py' % (sys.executable, config.llvm_src_root)
+
+llvm_original_di_preservation_cmd = os.path.join(
+    config.llvm_src_root,'utils', 'llvm-original-di-preservation.py')
+config.substitutions.append(
+    ('%llvm-original-di-preservation', "'%s' %s" % (
+        config.python_executable, llvm_original_di_preservation_cmd)))
+
+llvm_locstats_tool = os.path.join(config.llvm_tools_dir, 'llvm-locstats')
+config.substitutions.append(
+    ('%llvm-locstats', "'%s' %s" % (config.python_executable, llvm_locstats_tool)))
+config.llvm_locstats_used = os.path.exists(llvm_locstats_tool)
 
 tools = [
     ToolSubst('%lli', FindTool('lli'), post='.', extra_args=lli_args),
@@ -136,19 +149,26 @@ tools = [
     ToolSubst('%opt-viewer', opt_viewer_cmd),
     ToolSubst('%llvm-objcopy', FindTool('llvm-objcopy')),
     ToolSubst('%llvm-strip', FindTool('llvm-strip')),
+    ToolSubst('%llvm-install-name-tool', FindTool('llvm-install-name-tool')),
+    ToolSubst('%llvm-bitcode-strip', FindTool('llvm-bitcode-strip')),
+    ToolSubst('%split-file', FindTool('split-file')),
 ]
 
 # FIXME: Why do we have both `lli` and `%lli` that do slightly different things?
 tools.extend([
-    'dsymutil', 'lli', 'lli-child-target', 'llvm-ar', 'llvm-as', 'llvm-bcanalyzer',
-    'llvm-config', 'llvm-cov', 'llvm-cxxdump', 'llvm-cvtres', 'llvm-diff', 'llvm-dis',
-    'llvm-dwarfdump', 'llvm-extract', 'llvm-isel-fuzzer', 'llvm-opt-fuzzer', 'llvm-lib',
+    'dsymutil', 'lli', 'lli-child-target', 'llvm-ar', 'llvm-as',
+    'llvm-addr2line', 'llvm-bcanalyzer', 'llvm-bitcode-strip', 'llvm-config',
+    'llvm-cov', 'llvm-cxxdump', 'llvm-cvtres', 'llvm-debuginfod-find',
+    'llvm-diff', 'llvm-dis', 'llvm-dwarfdump', 'llvm-dlltool', 'llvm-exegesis',
+    'llvm-extract', 'llvm-isel-fuzzer', 'llvm-ifs',
+    'llvm-install-name-tool', 'llvm-jitlink', 'llvm-opt-fuzzer', 'llvm-lib',
     'llvm-link', 'llvm-lto', 'llvm-lto2', 'llvm-mc', 'llvm-mca',
-    'llvm-modextract', 'llvm-nm', 'llvm-objcopy', 'llvm-objdump',
-    'llvm-pdbutil', 'llvm-profdata', 'llvm-ranlib', 'llvm-readobj',
-    'llvm-rtdyld', 'llvm-size', 'llvm-split', 'llvm-strings', 'llvm-strip', 'llvm-tblgen',
-    'llvm-undname', 'llvm-c-test', 'llvm-cxxfilt', 'llvm-xray', 'yaml2obj', 'obj2yaml',
-    'yaml-bench', 'verify-uselistorder',
+    'llvm-modextract', 'llvm-nm', 'llvm-objcopy', 'llvm-objdump', 'llvm-otool',
+    'llvm-pdbutil', 'llvm-profdata', 'llvm-profgen', 'llvm-ranlib', 'llvm-rc', 'llvm-readelf',
+    'llvm-readobj', 'llvm-rtdyld', 'llvm-sim', 'llvm-size', 'llvm-split',
+    'llvm-stress', 'llvm-strings', 'llvm-strip', 'llvm-tblgen', 'llvm-tapi-diff',
+    'llvm-undname', 'llvm-windres', 'llvm-c-test', 'llvm-cxxfilt',
+    'llvm-xray', 'yaml2obj', 'obj2yaml', 'yaml-bench', 'verify-uselistorder',
     'bugpoint', 'llc', 'llvm-symbolizer', 'opt', 'sancov', 'sanstats'])
 
 # The following tools are optional
@@ -160,7 +180,15 @@ tools.extend([
     ToolSubst('Kaleidoscope-Ch5', unresolved='ignore'),
     ToolSubst('Kaleidoscope-Ch6', unresolved='ignore'),
     ToolSubst('Kaleidoscope-Ch7', unresolved='ignore'),
-    ToolSubst('Kaleidoscope-Ch8', unresolved='ignore')])
+    ToolSubst('Kaleidoscope-Ch8', unresolved='ignore'),
+    ToolSubst('LLJITWithThinLTOSummaries', unresolved='ignore'),
+    ToolSubst('LLJITWithRemoteDebugging', unresolved='ignore'),
+    ToolSubst('OrcV2CBindingsBasicUsage', unresolved='ignore'),
+    ToolSubst('OrcV2CBindingsAddObjectFile', unresolved='ignore'),
+    ToolSubst('OrcV2CBindingsRemovableCode', unresolved='ignore'),
+    ToolSubst('OrcV2CBindingsReflectProcessSymbols', unresolved='ignore'),
+    ToolSubst('OrcV2CBindingsLazy', unresolved='ignore'),
+    ToolSubst('OrcV2CBindingsVeryLazy', unresolved='ignore')])
 
 llvm_config.add_tool_substitutions(tools, config.llvm_tools_dir)
 
@@ -177,24 +205,60 @@ if (config.host_ldflags.find("-m32") < 0
     and any(config.llvm_host_triple.startswith(x) for x in known_arches)):
   config.available_features.add("llvm-64-bits")
 
-# Others/can-execute.txt
-if sys.platform not in ['win32']:
+config.available_features.add("host-byteorder-" + sys.byteorder + "-endian")
+
+if sys.platform in ['win32']:
+    # ExecutionEngine, no weak symbols in COFF.
+    config.available_features.add('uses_COFF')
+else:
+    # Others/can-execute.txt
     config.available_features.add('can-execute')
-    config.available_features.add('not_COFF')
 
 # Loadable module
-# FIXME: This should be supplied by Makefile or autoconf.
-if sys.platform in ['win32', 'cygwin']:
-    loadable_module = (config.enable_shared == 1)
-else:
-    loadable_module = True
+if config.has_plugins:
+    config.available_features.add('plugins')
 
-if loadable_module:
-    config.available_features.add('loadable_module')
+if config.build_examples:
+    config.available_features.add('examples')
+
+if config.linked_bye_extension:
+    config.substitutions.append(('%llvmcheckext', 'CHECK-EXT'))
+    config.substitutions.append(('%loadbye', ''))
+    config.substitutions.append(('%loadnewpmbye', ''))
+else:
+    config.substitutions.append(('%llvmcheckext', 'CHECK-NOEXT'))
+    config.substitutions.append(('%loadbye',
+                                 '-load={}/Bye{}'.format(config.llvm_shlib_dir,
+                                                         config.llvm_shlib_ext)))
+    config.substitutions.append(('%loadnewpmbye',
+                                 '-load-pass-plugin={}/Bye{}'
+                                 .format(config.llvm_shlib_dir,
+                                         config.llvm_shlib_ext)))
+
 
 # Static libraries are not built if BUILD_SHARED_LIBS is ON.
 if not config.build_shared_libs and not config.link_llvm_dylib:
     config.available_features.add('static-libs')
+
+if config.link_llvm_dylib:
+    config.available_features.add('llvm-dylib')
+    config.substitutions.append(
+        ('%llvmdylib',
+         '{}/libLLVM-{}{}'.format(config.llvm_shlib_dir,
+                                  config.llvm_dylib_version,
+                                  config.llvm_shlib_ext)))
+
+if config.have_tf_aot:
+    config.available_features.add("have_tf_aot")
+
+if config.have_tf_api:
+    config.available_features.add("have_tf_api")
+
+if config.llvm_inliner_model_autogenerated:
+    config.available_features.add("llvm_inliner_model_autogenerated")
+
+if config.llvm_raevict_model_autogenerated:
+    config.available_features.add("llvm_raevict_model_autogenerated")
 
 def have_cxx_shared_library():
     readobj_exe = lit.util.which('llvm-readobj', config.llvm_tools_dir)
@@ -204,7 +268,7 @@ def have_cxx_shared_library():
 
     try:
         readobj_cmd = subprocess.Popen(
-            [readobj_exe, '-needed-libs', readobj_exe], stdout=subprocess.PIPE)
+            [readobj_exe, '--needed-libs', readobj_exe], stdout=subprocess.PIPE)
     except OSError:
         print('could not exec llvm-readobj')
         return False
@@ -226,8 +290,11 @@ def have_cxx_shared_library():
 if have_cxx_shared_library():
     config.available_features.add('cxx-shared-library')
 
+if config.libcxx_used:
+    config.available_features.add('libcxx-used')
+
 # Direct object generation
-if not 'hexagon' in config.target_triple:
+if not 'xcore' in config.target_triple:
     config.available_features.add('object-emission')
 
 # LLVM can be configured with an empty default triple
@@ -278,7 +345,10 @@ if have_ld_plugin_support():
 
 
 def have_ld64_plugin_support():
-    if not config.llvm_tool_lto_build or config.ld64_executable == '':
+    if not os.path.exists(os.path.join(config.llvm_shlib_dir, 'libLTO' + config.llvm_shlib_ext)):
+        return False
+
+    if config.ld64_executable == '':
         return False
 
     ld_cmd = subprocess.Popen(
@@ -295,31 +365,65 @@ def have_ld64_plugin_support():
 if have_ld64_plugin_support():
     config.available_features.add('ld64_plugin')
 
-# Ask llvm-config about asserts and global-isel.
+# Ask llvm-config about asserts
 llvm_config.feature_config(
     [('--assertion-mode', {'ON': 'asserts'}),
-     ('--has-global-isel', {'ON': 'global-isel'})])
+     ('--build-mode', {'[Dd][Ee][Bb][Uu][Gg]': 'debug'})])
 
 if 'darwin' == sys.platform:
-    try:
-        sysctl_cmd = subprocess.Popen(['sysctl', 'hw.optional.fma'],
-                                      stdout=subprocess.PIPE)
-    except OSError:
-        print('Could not exec sysctl')
-    result = sysctl_cmd.stdout.read().decode('ascii')
-    if -1 != result.find('hw.optional.fma: 1'):
-        config.available_features.add('fma3')
-    sysctl_cmd.wait()
+    cmd = ['sysctl', 'hw.optional.fma']
+    sysctl_cmd = subprocess.Popen(cmd, stdout=subprocess.PIPE)
 
-# .debug_frame is not emitted for targeting Windows x64.
-if not re.match(r'^x86_64.*-(mingw32|windows-gnu|win32)', config.target_triple):
+    # Non zero return, probably a permission issue
+    if sysctl_cmd.wait():
+        print(
+          "Warning: sysctl exists but calling \"{}\" failed, defaulting to no fma3.".format(
+          " ".join(cmd)))
+    else:
+        result = sysctl_cmd.stdout.read().decode('ascii')
+        if 'hw.optional.fma: 1' in result:
+            config.available_features.add('fma3')
+
+# .debug_frame is not emitted for targeting Windows x64, arm64, or AIX.
+if not re.match(r'^(x86_64|arm64|powerpc|powerpc64).*-(windows-gnu|windows-msvc|aix)', config.target_triple):
     config.available_features.add('debug_frame')
 
 if config.have_libxar:
     config.available_features.add('xar')
 
-if config.llvm_libxml2_enabled == '1':
+if config.enable_threads:
+    config.available_features.add('thread_support')
+
+if config.have_libxml2:
     config.available_features.add('libxml2')
+
+if config.have_curl:
+    config.available_features.add('curl')
 
 if config.have_opt_viewer_modules:
     config.available_features.add('have_opt_viewer_modules')
+
+if config.expensive_checks:
+    config.available_features.add('expensive_checks')
+
+if "MemoryWithOrigins" in config.llvm_use_sanitizer:
+    config.available_features.add('use_msan_with_origins')
+
+def exclude_unsupported_files_for_aix(dirname):
+   for filename in os.listdir(dirname):
+       source_path = os.path.join( dirname, filename)
+       if os.path.isdir(source_path):
+           continue
+       f = open(source_path, 'r')
+       try:
+          data = f.read()
+          # 64-bit object files are not supported on AIX, so exclude the tests.
+          if ('-emit-obj' in data or '-filetype=obj' in data) and '64' in config.target_triple:
+            config.excludes += [ filename ]
+       finally:
+          f.close()
+
+if 'aix' in config.target_triple:
+    for directory in ('/CodeGen/X86', '/DebugInfo', '/DebugInfo/X86', '/DebugInfo/Generic', '/LTO/X86', '/Linker'):
+        exclude_unsupported_files_for_aix(config.test_source_root + directory)
+

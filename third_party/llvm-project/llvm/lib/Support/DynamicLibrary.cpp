@@ -1,9 +1,8 @@
 //===-- DynamicLibrary.cpp - Runtime link/load libraries --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -40,9 +39,7 @@ public:
   HandleSet() : Process(nullptr) {}
   ~HandleSet();
 
-  HandleList::iterator Find(void *Handle) {
-    return std::find(Handles.begin(), Handles.end(), Handle);
-  }
+  HandleList::iterator Find(void *Handle) { return find(Handles, Handle); }
 
   bool Contains(void *Handle) {
     return Handle == Process || Find(Handle) != Handles.end();
@@ -119,7 +116,7 @@ static llvm::ManagedStatic<llvm::StringMap<void *>> ExplicitSymbols;
 static llvm::ManagedStatic<DynamicLibrary::HandleSet> OpenedHandles;
 // Lock for ExplicitSymbols and OpenedHandles.
 static llvm::ManagedStatic<llvm::sys::SmartMutex<true>> SymbolsMutex;
-}
+} // namespace
 
 #ifdef _WIN32
 
@@ -139,7 +136,7 @@ namespace llvm {
 void *SearchForAddressOfSpecialSymbol(const char *SymbolName) {
   return DoSearch(SymbolName); // DynamicLibrary.inc
 }
-}
+} // namespace llvm
 
 void DynamicLibrary::AddSymbol(StringRef SymbolName, void *SymbolValue) {
   SmartScopedLock<true> Lock(*SymbolsMutex);

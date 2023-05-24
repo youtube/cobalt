@@ -1,9 +1,8 @@
 //===- ResourcePriorityQueue.cpp - A DFA-oriented priority queue -*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,9 +19,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/ResourcePriorityQueue.h"
+#include "llvm/CodeGen/DFAPacketizer.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -85,6 +88,7 @@ ResourcePriorityQueue::numberRCValPredInSU(SUnit *SU, unsigned RCId) {
       case ISD::CopyFromReg:    NumberDeps++;  break;
       case ISD::CopyToReg:      break;
       case ISD::INLINEASM:      break;
+      case ISD::INLINEASM_BR:   break;
     }
     if (!ScegN->isMachineOpcode())
       continue;
@@ -121,6 +125,7 @@ unsigned ResourcePriorityQueue::numberRCValSuccInSU(SUnit *SU,
       case ISD::CopyFromReg:    break;
       case ISD::CopyToReg:      NumberDeps++;  break;
       case ISD::INLINEASM:      break;
+      case ISD::INLINEASM_BR:   break;
     }
     if (!ScegN->isMachineOpcode())
       continue;
@@ -163,10 +168,9 @@ void ResourcePriorityQueue::initNodes(std::vector<SUnit> &sunits) {
   SUnits = &sunits;
   NumNodesSolelyBlocking.resize(SUnits->size(), 0);
 
-  for (unsigned i = 0, e = SUnits->size(); i != e; ++i) {
-    SUnit *SU = &(*SUnits)[i];
-    initNumRegDefsLeft(SU);
-    SU->NodeQueueId = 0;
+  for (SUnit &SU : *SUnits) {
+    initNumRegDefsLeft(&SU);
+    SU.NodeQueueId = 0;
   }
 }
 
@@ -263,8 +267,8 @@ bool ResourcePriorityQueue::isResourceAvailable(SUnit *SU) {
 
   // Now see if there are no other dependencies
   // to instructions already in the packet.
-  for (unsigned i = 0, e = Packet.size(); i != e; ++i)
-    for (const SDep &Succ : Packet[i]->Succs) {
+  for (const SUnit *S : Packet)
+    for (const SDep &Succ : S->Succs) {
       // Since we do not add pseudos to packets, might as well
       // ignore order deps.
       if (Succ.isCtrl())
@@ -446,6 +450,7 @@ int ResourcePriorityQueue::SUSchedulingCost(SUnit *SU) {
         break;
 
       case ISD::INLINEASM:
+      case ISD::INLINEASM_BR:
         ResCount += PriorityThree;
         break;
       }
@@ -548,6 +553,7 @@ void ResourcePriorityQueue::initNumRegDefsLeft(SUnit *SU) {
           NodeNumDefs++;
           break;
         case ISD::INLINEASM:
+        case ISD::INLINEASM_BR:
           NodeNumDefs++;
           break;
       }

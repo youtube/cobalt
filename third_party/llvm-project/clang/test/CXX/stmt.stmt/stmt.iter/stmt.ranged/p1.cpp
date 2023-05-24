@@ -22,7 +22,7 @@ namespace X {
 
   template<typename T>
     auto begin(T &&t) -> decltype(t.alt_begin()) { return t.alt_begin(); } // expected-note {{selected 'begin' template [with T = }} \
-                                                                              expected-note 2{{candidate template ignored: substitution failure [with T = }}
+                                                                           // expected-note 2{{candidate template ignored: substitution failure [with T = }}
   template<typename T>
     auto end(T &&t) -> decltype(t.alt_end()) { return t.alt_end(); } // expected-note {{candidate template ignored: substitution failure [with T = }}
 
@@ -64,6 +64,21 @@ namespace X {
   };
 
   constexpr int operator*(const C::It &) { return 0; }
+
+  struct D {
+    D();
+    using Ty = int[2];
+    Ty *begin();
+    Ty *end();
+  };
+
+  void test_D() {
+#if __cplusplus >= 201703L
+    for (extern auto [x, y] : D()) {
+    } // expected-error@-1 {{decomposition declaration cannot be declared 'extern'}}
+      // expected-error@-2 {{loop variable '[x, y]' may not be declared 'extern'}}
+#endif
+  }
 }
 
 using X::A;
@@ -106,10 +121,10 @@ void g() {
     ;
 
   extern int incomplete[];
-  for (auto a : incomplete) // expected-error {{cannot use incomplete type 'int []' as a range}}
+  for (auto a : incomplete) // expected-error {{cannot use incomplete type 'int[]' as a range}}
     ;
-  extern struct Incomplete also_incomplete[2]; // expected-note {{forward declaration}}
-  for (auto &a : also_incomplete) // expected-error {{cannot use incomplete type 'struct Incomplete [2]' as a range}}
+  extern struct Incomplete also_incomplete[2]; // expected-note 2{{forward declaration}}
+  for (auto &a : also_incomplete) // expected-error {{cannot use incomplete type 'struct Incomplete[2]' as a range}}
     ;
 
   struct VoidBegin {
@@ -136,6 +151,7 @@ void g() {
 
   for (extern int a : A()) {} // expected-error {{loop variable 'a' may not be declared 'extern'}}
   for (static int a : A()) {} // expected-error {{loop variable 'a' may not be declared 'static'}}
+  for (thread_local int a : A()) {} // expected-error {{loop variable 'a' may not be declared 'thread_local'}}
   for (register int a : A()) {} // expected-error {{loop variable 'a' may not be declared 'register'}} expected-warning 0-1{{register}} expected-error 0-1{{register}}
   for (constexpr int a : X::C()) {} // OK per CWG issue #1204.
 
@@ -150,9 +166,9 @@ void g() {
   struct NoEnd {
     null_t begin();
   };
-  for (auto u : NoBegin()) { // expected-error {{range type 'NoBegin' has 'end' member but no 'begin' member}}
+  for (auto u : NoBegin()) { // expected-error {{no viable 'begin' function available}}
   }
-  for (auto u : NoEnd()) { // expected-error {{range type 'NoEnd' has 'begin' member but no 'end' member}} 
+  for (auto u : NoEnd()) { // expected-error {{no viable 'end' function available}}
   }
 
   struct NoIncr {
@@ -270,4 +286,59 @@ namespace rdar13712739 {
   }
 
   template void foo(const int&); // expected-note{{in instantiation of function template specialization}}
+}
+
+namespace p0962r1 {
+  namespace NA {
+    struct A {
+      void begin();
+    };
+    int *begin(A);
+    int *end(A);
+  }
+
+  namespace NB {
+    struct B {
+      void end();
+    };
+    int *begin(B);
+    int *end(B);
+  }
+
+  namespace NC {
+    struct C {
+      void begin();
+    };
+    int *begin(C);
+  }
+
+  namespace ND {
+    struct D {
+      void end();
+    };
+    int *end(D);
+  }
+
+  namespace NE {
+    struct E {
+      void begin(); // expected-note {{member is not a candidate because range type 'NE::E' has no 'end' member}}
+    };
+    int *end(E);
+  }
+
+  namespace NF {
+    struct F {
+      void end(); // expected-note {{member is not a candidate because range type 'NF::F' has no 'begin' member}}
+    };
+    int *begin(F);
+  }
+
+  void use(NA::A a, NB::B b, NC::C c, ND::D d, NE::E e, NF::F f) {
+    for (auto x : a) {}
+    for (auto x : b) {}
+    for (auto x : c) {} // expected-error {{invalid range expression of type 'NC::C'; no viable 'end' function available}}
+    for (auto x : d) {} // expected-error {{invalid range expression of type 'ND::D'; no viable 'begin' function available}}
+    for (auto x : e) {} // expected-error {{invalid range expression of type 'NE::E'; no viable 'begin' function available}}
+    for (auto x : f) {} // expected-error {{invalid range expression of type 'NF::F'; no viable 'end' function available}}
+  }
 }

@@ -1,16 +1,14 @@
 //===-- GlobalStatus.cpp - Compute status info for globals -----------------==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/GlobalStatus.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalValue.h"
@@ -67,17 +65,18 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
 
   for (const Use &U : V->uses()) {
     const User *UR = U.getUser();
-    if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(UR)) {
-      GS.HasNonInstructionUser = true;
-
-      // If the result of the constantexpr isn't pointer type, then we won't
-      // know to expect it in various places.  Just reject early.
-      if (!isa<PointerType>(CE->getType()))
-        return true;
-
-      // FIXME: Do we need to add constexpr selects to VisitedUsers?
-      if (analyzeGlobalAux(CE, GS, VisitedUsers))
-        return true;
+    if (const Constant *C = dyn_cast<Constant>(UR)) {
+      const ConstantExpr *CE = dyn_cast<ConstantExpr>(C);
+      if (CE && isa<PointerType>(CE->getType())) {
+        // Recursively analyze pointer-typed constant expressions.
+        // FIXME: Do we need to add constexpr selects to VisitedUsers?
+        if (analyzeGlobalAux(CE, GS, VisitedUsers))
+          return true;
+      } else {
+        // Ignore dead constant users.
+        if (!isSafeToDestroyConstant(C))
+          return true;
+      }
     } else if (const Instruction *I = dyn_cast<Instruction>(UR)) {
       if (!GS.HasMultipleAccessingFunctions) {
         const Function *F = I->getParent()->getParent();
@@ -107,8 +106,8 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
         // value, not an aggregate), keep more specific information about
         // stores.
         if (GS.StoredType != GlobalStatus::Stored) {
-          if (const GlobalVariable *GV =
-                  dyn_cast<GlobalVariable>(SI->getOperand(1))) {
+          const Value *Ptr = SI->getPointerOperand()->stripPointerCasts();
+          if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(Ptr)) {
             Value *StoredVal = SI->getOperand(0);
 
             if (Constant *C = dyn_cast<Constant>(StoredVal)) {
@@ -127,9 +126,9 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
                 GS.StoredType = GlobalStatus::InitializerStored;
             } else if (GS.StoredType < GlobalStatus::StoredOnce) {
               GS.StoredType = GlobalStatus::StoredOnce;
-              GS.StoredOnceValue = StoredVal;
+              GS.StoredOnceStore = SI;
             } else if (GS.StoredType == GlobalStatus::StoredOnce &&
-                       GS.StoredOnceValue == StoredVal) {
+                       GS.getStoredOnceValue() == StoredVal) {
               // noop.
             } else {
               GS.StoredType = GlobalStatus::Stored;
@@ -138,7 +137,8 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
             GS.StoredType = GlobalStatus::Stored;
           }
         }
-      } else if (isa<BitCastInst>(I) || isa<GetElementPtrInst>(I)) {
+      } else if (isa<BitCastInst>(I) || isa<GetElementPtrInst>(I) ||
+                 isa<AddrSpaceCastInst>(I)) {
         // Skip over bitcasts and GEPs; we don't care about the type or offset
         // of the pointer.
         if (analyzeGlobalAux(I, GS, VisitedUsers))
@@ -165,20 +165,14 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
         if (MSI->isVolatile())
           return true;
         GS.StoredType = GlobalStatus::Stored;
-      } else if (auto C = ImmutableCallSite(I)) {
-        if (!C.isCallee(&U))
+      } else if (const auto *CB = dyn_cast<CallBase>(I)) {
+        if (!CB->isCallee(&U))
           return true;
         GS.IsLoaded = true;
       } else {
         return true; // Any other non-load instruction might take address!
       }
-    } else if (const Constant *C = dyn_cast<Constant>(UR)) {
-      GS.HasNonInstructionUser = true;
-      // We might have a dead and dangling constant hanging off of here.
-      if (!isSafeToDestroyConstant(C))
-        return true;
     } else {
-      GS.HasNonInstructionUser = true;
       // Otherwise must be some other user.
       return true;
     }

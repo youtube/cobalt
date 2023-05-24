@@ -1,18 +1,19 @@
 //===--- ASTSelection.h - Clang refactoring library -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOOLING_REFACTOR_AST_SELECTION_H
-#define LLVM_CLANG_TOOLING_REFACTOR_AST_SELECTION_H
+#ifndef LLVM_CLANG_TOOLING_REFACTORING_ASTSELECTION_H
+#define LLVM_CLANG_TOOLING_REFACTORING_ASTSELECTION_H
 
 #include "clang/AST/ASTTypeTraits.h"
+#include "clang/AST/Stmt.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
+#include "llvm/Support/raw_ostream.h"
 #include <vector>
 
 namespace clang {
@@ -48,12 +49,11 @@ enum class SourceSelectionKind {
 /// actually be selected, e.g. a statement in macro whose child is in a macro
 /// argument.
 struct SelectedASTNode {
-  ast_type_traits::DynTypedNode Node;
+  DynTypedNode Node;
   SourceSelectionKind SelectionKind;
   std::vector<SelectedASTNode> Children;
 
-  SelectedASTNode(const ast_type_traits::DynTypedNode &Node,
-                  SourceSelectionKind SelectionKind)
+  SelectedASTNode(const DynTypedNode &Node, SourceSelectionKind SelectionKind)
       : Node(Node), SelectionKind(SelectionKind) {}
   SelectedASTNode(SelectedASTNode &&) = default;
   SelectedASTNode &operator=(SelectedASTNode &&) = default;
@@ -152,4 +152,4 @@ private:
 } // end namespace tooling
 } // end namespace clang
 
-#endif // LLVM_CLANG_TOOLING_REFACTOR_AST_SELECTION_H
+#endif // LLVM_CLANG_TOOLING_REFACTORING_ASTSELECTION_H

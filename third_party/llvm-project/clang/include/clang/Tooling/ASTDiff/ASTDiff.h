@@ -1,10 +1,9 @@
 //===- ASTDiff.h - AST differencing API -----------------------*- C++ -*- -===//
 //
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -38,29 +37,15 @@ enum ChangeKind {
 struct Node {
   NodeId Parent, LeftMostDescendant, RightMostDescendant;
   int Depth, Height, Shift = 0;
-  ast_type_traits::DynTypedNode ASTNode;
+  DynTypedNode ASTNode;
   SmallVector<NodeId, 4> Children;
   ChangeKind Change = None;
 
-  ast_type_traits::ASTNodeKind getType() const;
+  ASTNodeKind getType() const;
   StringRef getTypeLabel() const;
   bool isLeaf() const { return Children.empty(); }
   llvm::Optional<StringRef> getIdentifier() const;
   llvm::Optional<std::string> getQualifiedIdentifier() const;
-};
-
-class ASTDiff {
-public:
-  ASTDiff(SyntaxTree &Src, SyntaxTree &Dst, const ComparisonOptions &Options);
-  ~ASTDiff();
-
-  // Returns the ID of the node that is mapped to the given node in SourceTree.
-  NodeId getMapped(const SyntaxTree &SourceTree, NodeId Id) const;
-
-  class Impl;
-
-private:
-  std::unique_ptr<Impl> DiffImpl;
 };
 
 /// SyntaxTree objects represent subtrees of the AST.
@@ -72,7 +57,7 @@ public:
   /// Constructs a tree from any AST node.
   template <class T>
   SyntaxTree(T *Node, ASTContext &AST)
-      : TreeImpl(llvm::make_unique<Impl>(this, Node, AST)) {}
+      : TreeImpl(std::make_unique<Impl>(this, Node, AST)) {}
   SyntaxTree(SyntaxTree &&Other) = default;
   ~SyntaxTree();
 
@@ -119,6 +104,20 @@ struct ComparisonOptions {
   bool isMatchingAllowed(const Node &N1, const Node &N2) const {
     return N1.getType().isSame(N2.getType());
   }
+};
+
+class ASTDiff {
+public:
+  ASTDiff(SyntaxTree &Src, SyntaxTree &Dst, const ComparisonOptions &Options);
+  ~ASTDiff();
+
+  // Returns the ID of the node that is mapped to the given node in SourceTree.
+  NodeId getMapped(const SyntaxTree &SourceTree, NodeId Id) const;
+
+  class Impl;
+
+private:
+  std::unique_ptr<Impl> DiffImpl;
 };
 
 } // end namespace diff

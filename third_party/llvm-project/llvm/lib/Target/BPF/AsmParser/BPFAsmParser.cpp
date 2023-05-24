@@ -1,13 +1,13 @@
 //===-- BPFAsmParser.cpp - Parse BPF assembly to MCInst instructions --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/BPFMCTargetDesc.h"
+#include "TargetInfo/BPFTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/MC/MCContext.h"
@@ -19,8 +19,8 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 
@@ -39,6 +39,8 @@ class BPFAsmParser : public MCTargetAsmParser {
                                bool MatchingInlineAsm) override;
 
   bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
+  OperandMatchResultTy tryParseRegister(unsigned &RegNo, SMLoc &StartLoc,
+                                        SMLoc &EndLoc) override;
 
   bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                         SMLoc NameLoc, OperandVector &Operands) override;
@@ -99,7 +101,7 @@ struct BPFOperand : public MCParsedAsmOperand {
     ImmOp Imm;
   };
 
-  BPFOperand(KindTy K) : MCParsedAsmOperand(), Kind(K) {}
+  BPFOperand(KindTy K) : Kind(K) {}
 
 public:
   BPFOperand(const BPFOperand &o) : MCParsedAsmOperand() {
@@ -126,7 +128,7 @@ public:
   bool isMem() const override { return false; }
 
   bool isConstantImm() const {
-    return isImm() && dyn_cast<MCConstantExpr>(getImm());
+    return isImm() && isa<MCConstantExpr>(getImm());
   }
 
   int64_t getConstantImm() const {
@@ -194,7 +196,7 @@ public:
   }
 
   static std::unique_ptr<BPFOperand> createToken(StringRef Str, SMLoc S) {
-    auto Op = make_unique<BPFOperand>(Token);
+    auto Op = std::make_unique<BPFOperand>(Token);
     Op->Tok = Str;
     Op->StartLoc = S;
     Op->EndLoc = S;
@@ -203,7 +205,7 @@ public:
 
   static std::unique_ptr<BPFOperand> createReg(unsigned RegNo, SMLoc S,
                                                SMLoc E) {
-    auto Op = make_unique<BPFOperand>(Register);
+    auto Op = std::make_unique<BPFOperand>(Register);
     Op->Reg.RegNum = RegNo;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -212,7 +214,7 @@ public:
 
   static std::unique_ptr<BPFOperand> createImm(const MCExpr *Val, SMLoc S,
                                                SMLoc E) {
-    auto Op = make_unique<BPFOperand>(Immediate);
+    auto Op = std::make_unique<BPFOperand>(Immediate);
     Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -295,7 +297,7 @@ bool BPFAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     break;
   case Match_Success:
     Inst.setLoc(IDLoc);
-    Out.EmitInstruction(Inst, getSTI());
+    Out.emitInstruction(Inst, getSTI());
     return false;
   case Match_MissingFeature:
     return Error(IDLoc, "instruction use requires an option to be enabled");
@@ -322,6 +324,14 @@ bool BPFAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 
 bool BPFAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                                  SMLoc &EndLoc) {
+  if (tryParseRegister(RegNo, StartLoc, EndLoc) != MatchOperand_Success)
+    return Error(StartLoc, "invalid register name");
+  return false;
+}
+
+OperandMatchResultTy BPFAsmParser::tryParseRegister(unsigned &RegNo,
+                                                    SMLoc &StartLoc,
+                                                    SMLoc &EndLoc) {
   const AsmToken &Tok = getParser().getTok();
   StartLoc = Tok.getLoc();
   EndLoc = Tok.getEndLoc();
@@ -330,10 +340,10 @@ bool BPFAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
 
   if (!MatchRegisterName(Name)) {
     getParser().Lex(); // Eat identifier token.
-    return false;
+    return MatchOperand_Success;
   }
 
-  return Error(StartLoc, "invalid register name");
+  return MatchOperand_NoMatch;
 }
 
 OperandMatchResultTy
@@ -357,8 +367,8 @@ BPFAsmParser::parseOperandAsOperator(OperandVector &Operands) {
   case AsmToken::Plus: {
     if (getLexer().peekTok().is(AsmToken::Integer))
       return MatchOperand_NoMatch;
+    LLVM_FALLTHROUGH;
   }
-  // Fall through.
 
   case AsmToken::Equal:
   case AsmToken::Greater:
@@ -493,7 +503,7 @@ bool BPFAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
 
 bool BPFAsmParser::ParseDirective(AsmToken DirectiveID) { return true; }
 
-extern "C" void LLVMInitializeBPFAsmParser() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeBPFAsmParser() {
   RegisterMCAsmParser<BPFAsmParser> X(getTheBPFTarget());
   RegisterMCAsmParser<BPFAsmParser> Y(getTheBPFleTarget());
   RegisterMCAsmParser<BPFAsmParser> Z(getTheBPFbeTarget());

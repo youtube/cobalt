@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,6 +16,7 @@
 
 #include <chrono>
 #include <cassert>
+#include <cstdint>
 
 #include "test_macros.h"
 
@@ -31,7 +31,7 @@ void test2739()  // LWG2739
     assert(t1 < t0);
 }
 
-int main()
+int main(int, char**)
 {
     typedef std::chrono::system_clock Clock;
     typedef std::chrono::milliseconds Duration1;
@@ -48,6 +48,8 @@ int main()
     static_assert(t2.time_since_epoch() == Duration2(2995), "");
     }
 #endif
-    test2739<int32_t>();
-    test2739<uint32_t>();
+    test2739<std::int32_t>();
+    test2739<std::uint32_t>();
+
+  return 0;
 }

@@ -1,5 +1,10 @@
 // RUN: rm -f %t
-// RUN: %clang_analyze_cc1 -fblocks -analyzer-checker=core,unix.Malloc,unix.cstring.NullArg -analyzer-disable-checker=alpha.unix.cstring.OutOfBounds -analyzer-output=plist -analyzer-config path-diagnostics-alternate=false -o %t %s
+// RUN: %clang_analyze_cc1 -fblocks \
+// RUN:   -analyzer-checker=core \
+// RUN:   -analyzer-checker=unix.Malloc \
+// RUN:   -analyzer-checker=unix.cstring.NullArg \
+// RUN:   -analyzer-disable-checker=alpha.unix.cstring.OutOfBounds \
+// RUN:   -analyzer-output=plist -o %t %s
 // RUN: FileCheck -input-file %t %s
 
 typedef __typeof(sizeof(int)) size_t;
@@ -16,6 +21,9 @@ void cstringchecker_bounds_nocrash() {
 }
 
 // CHECK: <key>diagnostics</key>
+// CHECK-NEXT: <array>
+// CHECK-NEXT: </array>
+// CHECK-NEXT: <key>files</key>
 // CHECK-NEXT: <array>
 // CHECK-NEXT: </array>
 // CHECK-NEXT: </dict>

@@ -213,8 +213,7 @@ a:
         not       $3             # CHECK: not $3, $3             # encoding: [0x00,0x60,0x18,0x27]
         or      $2, 4            # CHECK: ori $2, $2, 4          # encoding: [0x34,0x42,0x00,0x04]
         pause                    # CHECK: pause                  # encoding:  [0x00,0x00,0x01,0x40]
-                                 # CHECK-NEXT:                   # <MCInst #{{[0-9]+}} PAUSE
-                                 # CHECK-NOT                     # <MCInst #{{[0-9}+}} PAUSE_MM
+                                 # CHECK-NEXT:                   # <MCInst #{{[0-9]+}} PAUSE>
         pref    1, 8($5)         # CHECK: pref 1, 8($5)          # encoding: [0x7c,0xa1,0x04,0x35]
         # FIXME: Use the code generator in order to print the .set directives
         #        instead of the instruction printer.
@@ -242,6 +241,10 @@ a:
         sdbbp     34             # CHECK: sdbbp 34               # encoding: [0x00,0x00,0x08,0x8e]
                                  # CHECK-NEXT:                   # <MCInst #{{[0-9]+}} SDBBP
                                  # CHECK-NOT:                    # <MCInst #{{[0-9]+}} SDBBP_MM
+        sigrie                   # CHECK: sigrie                 # encoding: [0x04,0x17,0x00,0x00]
+                                 # CHECK-NEXT:                   # <MCInst #{{[0-9]+}} SIGRIE
+        sigrie    257            # CHECK: sigrie 257             # encoding: [0x04,0x17,0x01,0x01]
+                                 # CHECK-NEXT:                   # <MCInst #{{[0-9]+}} SIGRIE
         sdc2    $20,629($s2)     # CHECK: sdc2 $20, 629($18)     # encoding: [0x49,0xf4,0x92,0x75]
         sel.d   $f0,$f1,$f2      # CHECK: sel.d $f0, $f1, $f2 # encoding: [0x46,0x22,0x08,0x10]
         sel.s   $f0,$f1,$f2      # CHECK: sel.s $f0, $f1, $f2 # encoding: [0x46,0x02,0x08,0x10]

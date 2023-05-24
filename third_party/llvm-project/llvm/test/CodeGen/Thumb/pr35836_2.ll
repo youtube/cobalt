@@ -36,22 +36,20 @@ entry:
   %mul = mul i128 %add18, %add
   ret i128 %mul
 }
-; CHECK: adds	r4, r2, r7
-; CHECK: mov	r4, r1
-; CHECK: adcs	r4, r6
-; CHECK: ldr	r4, [sp, #20]           @ 4-byte Reload
-; CHECK: adcs	r5, r4
-; CHECK: ldr	r4, [sp, #24]           @ 4-byte Reload
-; CHECK: adcs	r3, r4
-; CHECK: adds	r4, r2, r7
-; CHECK: adcs	r1, r6
-; CHECK: mov	r2, sp
-; CHECK: str	r4, [r2]
-; CHECK: str	r1, [r2, #4]
-; CHECK: ldr	r6, [r0, #16]
-; CHECK: ldr	r7, [r0, #24]
-; CHECK: adcs	r7, r6
-; CHECK: str	r7, [r2, #8]
-; CHECK: ldr	r6, [r0, #20]
-; CHECK: ldr	r0, [r0, #28]
-; CHECK: adcs	r0, r6
+; CHECK: adds r5, r1, r6
+; CHECK: mov r5, r4
+; CHECK: adcs r5, r7
+; CHECK: ldr r5, [sp, #12]                   @ 4-byte Reload
+; CHECK: adcs r2, r5
+; CHECK: ldr r5, [sp, #16]                   @ 4-byte Reload
+; CHECK: adcs r3, r5
+; CHECK: adds r6, r1, r6
+; CHECK: adcs r4, r7
+; CHECK: ldr r1, [r0, #20]
+; CHECK: str r1, [sp, #16]                   @ 4-byte Spill
+; CHECK: ldr r5, [r0, #28]
+; CHECK: ldr r1, [r0, #16]
+; CHECK: ldr r7, [r0, #24]
+; CHECK: adcs r7, r1
+; CHECK: ldr r0, [sp, #16]                   @ 4-byte Reload
+; CHECK: adcs r5, r0

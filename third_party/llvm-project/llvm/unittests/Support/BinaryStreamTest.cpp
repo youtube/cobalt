@@ -1,12 +1,12 @@
 //===- llvm/unittest/Support/BinaryStreamTest.cpp -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/BinaryByteStream.h"
 #include "llvm/Support/BinaryItemStream.h"
 #include "llvm/Support/BinaryStreamArray.h"
@@ -25,25 +25,24 @@ namespace {
 
 class BrokenStream : public WritableBinaryStream {
 public:
-  BrokenStream(MutableArrayRef<uint8_t> Data, endianness Endian,
-                      uint32_t Align)
+  BrokenStream(MutableArrayRef<uint8_t> Data, endianness Endian, uint32_t Align)
       : Data(Data), PartitionIndex(alignDown(Data.size() / 2, Align)),
         Endian(Endian) {}
 
   endianness getEndian() const override { return Endian; }
 
-  Error readBytes(uint32_t Offset, uint32_t Size,
+  Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
     if (auto EC = checkOffsetForRead(Offset, Size))
       return EC;
-    uint32_t S = startIndex(Offset);
+    uint64_t S = startIndex(Offset);
     auto Ref = Data.drop_front(S);
     if (Ref.size() >= Size) {
       Buffer = Ref.take_front(Size);
       return Error::success();
     }
 
-    uint32_t BytesLeft = Size - Ref.size();
+    uint64_t BytesLeft = Size - Ref.size();
     uint8_t *Ptr = Allocator.Allocate<uint8_t>(Size);
     ::memcpy(Ptr, Ref.data(), Ref.size());
     ::memcpy(Ptr + Ref.size(), Data.data(), BytesLeft);
@@ -51,24 +50,24 @@ public:
     return Error::success();
   }
 
-  Error readLongestContiguousChunk(uint32_t Offset,
+  Error readLongestContiguousChunk(uint64_t Offset,
                                    ArrayRef<uint8_t> &Buffer) override {
     if (auto EC = checkOffsetForRead(Offset, 1))
       return EC;
-    uint32_t S = startIndex(Offset);
+    uint64_t S = startIndex(Offset);
     Buffer = Data.drop_front(S);
     return Error::success();
   }
 
-  uint32_t getLength() override { return Data.size(); }
+  uint64_t getLength() override { return Data.size(); }
 
-  Error writeBytes(uint32_t Offset, ArrayRef<uint8_t> SrcData) override {
+  Error writeBytes(uint64_t Offset, ArrayRef<uint8_t> SrcData) override {
     if (auto EC = checkOffsetForWrite(Offset, SrcData.size()))
       return EC;
     if (SrcData.empty())
       return Error::success();
 
-    uint32_t S = startIndex(Offset);
+    uint64_t S = startIndex(Offset);
     MutableArrayRef<uint8_t> Ref(Data);
     Ref = Ref.drop_front(S);
     if (Ref.size() >= SrcData.size()) {
@@ -76,7 +75,7 @@ public:
       return Error::success();
     }
 
-    uint32_t BytesLeft = SrcData.size() - Ref.size();
+    uint64_t BytesLeft = SrcData.size() - Ref.size();
     ::memcpy(Ref.data(), SrcData.data(), Ref.size());
     ::memcpy(&Data[0], SrcData.data() + Ref.size(), BytesLeft);
     return Error::success();
@@ -84,11 +83,11 @@ public:
   Error commit() override { return Error::success(); }
 
 private:
-  uint32_t startIndex(uint32_t Offset) const {
+  uint64_t startIndex(uint64_t Offset) const {
     return (Offset + PartitionIndex) % Data.size();
   }
 
-  uint32_t endIndex(uint32_t Offset, uint32_t Size) const {
+  uint64_t endIndex(uint64_t Offset, uint64_t Size) const {
     return (startIndex(Offset) + Size - 1) % Data.size();
   }
 
@@ -134,9 +133,9 @@ protected:
 
     BrokenInputData.resize(InputData.size());
     if (!Input.empty()) {
-      uint32_t PartitionIndex = alignDown(InputData.size() / 2, Align);
-      uint32_t RightBytes = InputData.size() - PartitionIndex;
-      uint32_t LeftBytes = PartitionIndex;
+      uint64_t PartitionIndex = alignDown(InputData.size() / 2, Align);
+      uint64_t RightBytes = InputData.size() - PartitionIndex;
+      uint64_t LeftBytes = PartitionIndex;
       if (RightBytes > 0)
         ::memcpy(&BrokenInputData[PartitionIndex], Input.data(), RightBytes);
       if (LeftBytes > 0)
@@ -145,8 +144,8 @@ protected:
 
     for (uint32_t I = 0; I < NumEndians; ++I) {
       auto InByteStream =
-          llvm::make_unique<BinaryByteStream>(InputData, Endians[I]);
-      auto InBrokenStream = llvm::make_unique<BrokenStream>(
+          std::make_unique<BinaryByteStream>(InputData, Endians[I]);
+      auto InBrokenStream = std::make_unique<BrokenStream>(
           BrokenInputData, Endians[I], Align);
 
       Streams[I * 2].Input = std::move(InByteStream);
@@ -154,14 +153,14 @@ protected:
     }
   }
 
-  void initializeOutput(uint32_t Size, uint32_t Align) {
+  void initializeOutput(uint64_t Size, uint32_t Align) {
     OutputData.resize(Size);
     BrokenOutputData.resize(Size);
 
     for (uint32_t I = 0; I < NumEndians; ++I) {
       Streams[I * 2].Output =
-          llvm::make_unique<MutableBinaryByteStream>(OutputData, Endians[I]);
-      Streams[I * 2 + 1].Output = llvm::make_unique<BrokenStream>(
+          std::make_unique<MutableBinaryByteStream>(OutputData, Endians[I]);
+      Streams[I * 2 + 1].Output = std::make_unique<BrokenStream>(
           BrokenOutputData, Endians[I], Align);
     }
   }
@@ -169,8 +168,8 @@ protected:
   void initializeOutputFromInput(uint32_t Align) {
     for (uint32_t I = 0; I < NumEndians; ++I) {
       Streams[I * 2].Output =
-          llvm::make_unique<MutableBinaryByteStream>(InputData, Endians[I]);
-      Streams[I * 2 + 1].Output = llvm::make_unique<BrokenStream>(
+          std::make_unique<MutableBinaryByteStream>(InputData, Endians[I]);
+      Streams[I * 2 + 1].Output = std::make_unique<BrokenStream>(
           BrokenInputData, Endians[I], Align);
     }
   }
@@ -178,8 +177,8 @@ protected:
   void initializeInputFromOutput(uint32_t Align) {
     for (uint32_t I = 0; I < NumEndians; ++I) {
       Streams[I * 2].Input =
-          llvm::make_unique<BinaryByteStream>(OutputData, Endians[I]);
-      Streams[I * 2 + 1].Input = llvm::make_unique<BrokenStream>(
+          std::make_unique<BinaryByteStream>(OutputData, Endians[I]);
+      Streams[I * 2 + 1].Input = std::make_unique<BrokenStream>(
           BrokenOutputData, Endians[I], Align);
     }
   }
@@ -368,7 +367,7 @@ TEST_F(BinaryStreamTest, MutableBinaryByteStreamBounds) {
     // from the middle.
     uint32_t Offsets[] = {0, 3};
     for (auto Offset : Offsets) {
-      uint32_t ExpectedSize = Stream.Input->getLength() - Offset;
+      uint64_t ExpectedSize = Stream.Input->getLength() - Offset;
 
       // Read everything from Offset until the end of the input data.
       ArrayRef<uint8_t> Data;
@@ -608,6 +607,77 @@ TEST_F(BinaryStreamTest, StreamReaderEnum) {
       EXPECT_EQ(Enums[I], Value);
     }
     ASSERT_EQ(0U, Reader.bytesRemaining());
+  }
+}
+
+TEST_F(BinaryStreamTest, StreamReaderULEB128) {
+  std::vector<uint64_t> TestValues = {
+      0,                  // Zero
+      0x7F,               // One byte
+      0xFF,               // One byte, all-ones
+      0xAAAA,             // Two bytes
+      0xAAAAAAAA,         // Four bytes
+      0xAAAAAAAAAAAAAAAA, // Eight bytes
+      0xffffffffffffffff  // Eight bytess, all-ones
+  };
+
+  // Conservatively assume a 10-byte encoding for each of our LEB128s, with no
+  // alignment requirement.
+  initializeOutput(10 * TestValues.size(), 1);
+  initializeInputFromOutput(1);
+
+  for (auto &Stream : Streams) {
+    // Write fields.
+    BinaryStreamWriter Writer(*Stream.Output);
+    for (const auto &Value : TestValues)
+      ASSERT_THAT_ERROR(Writer.writeULEB128(Value), Succeeded());
+
+    // Read fields.
+    BinaryStreamReader Reader(*Stream.Input);
+    std::vector<uint64_t> Results;
+    Results.resize(TestValues.size());
+    for (unsigned I = 0; I != TestValues.size(); ++I)
+      ASSERT_THAT_ERROR(Reader.readULEB128(Results[I]), Succeeded());
+
+    for (unsigned I = 0; I != TestValues.size(); ++I)
+      EXPECT_EQ(TestValues[I], Results[I]);
+  }
+}
+
+TEST_F(BinaryStreamTest, StreamReaderSLEB128) {
+  std::vector<int64_t> TestValues = {
+      0,                  // Zero
+      0x7F,               // One byte
+      -0x7F,              // One byte, negative
+      0xFF,               // One byte, all-ones
+      0xAAAA,             // Two bytes
+      -0xAAAA,            // Two bytes, negative
+      0xAAAAAAAA,         // Four bytes
+      -0xAAAAAAAA,        // Four bytes, negative
+      0x2AAAAAAAAAAAAAAA, // Eight bytes
+      -0x7ffffffffffffff  // Eight bytess, negative
+  };
+
+  // Conservatively assume a 10-byte encoding for each of our LEB128s, with no
+  // alignment requirement.
+  initializeOutput(10 * TestValues.size(), 1);
+  initializeInputFromOutput(1);
+
+  for (auto &Stream : Streams) {
+    // Write fields.
+    BinaryStreamWriter Writer(*Stream.Output);
+    for (const auto &Value : TestValues)
+      ASSERT_THAT_ERROR(Writer.writeSLEB128(Value), Succeeded());
+
+    // Read fields.
+    BinaryStreamReader Reader(*Stream.Input);
+    std::vector<int64_t> Results;
+    Results.resize(TestValues.size());
+    for (unsigned I = 0; I != TestValues.size(); ++I)
+      ASSERT_THAT_ERROR(Reader.readSLEB128(Results[I]), Succeeded());
+
+    for (unsigned I = 0; I != TestValues.size(); ++I)
+      EXPECT_EQ(TestValues[I], Results[I]);
   }
 }
 

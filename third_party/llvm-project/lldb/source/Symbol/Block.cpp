@@ -1,9 +1,8 @@
-//===-- Block.cpp -----------------------------------------------*- C++ -*-===//
+//===-- Block.cpp ---------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,9 +12,10 @@
 #include "lldb/Core/Section.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/SymbolFile.h"
-#include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Utility/Log.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -25,7 +25,7 @@ Block::Block(lldb::user_id_t uid)
       m_inlineInfoSP(), m_variable_list_sp(), m_parsed_block_info(false),
       m_parsed_block_variables(false), m_parsed_child_blocks(false) {}
 
-Block::~Block() {}
+Block::~Block() = default;
 
 void Block::GetDescription(Stream *s, Function *function,
                            lldb::DescriptionLevel level, Target *target) const {
@@ -44,8 +44,8 @@ void Block::GetDescription(Stream *s, Function *function,
     s->Printf(", range%s = ", num_ranges > 1 ? "s" : "");
     for (size_t i = 0; i < num_ranges; ++i) {
       const Range &range = m_ranges.GetEntryRef(i);
-      s->AddressRange(base_addr + range.GetRangeBase(),
-                      base_addr + range.GetRangeEnd(), 4);
+      DumpAddressRange(s->AsRawOstream(), base_addr + range.GetRangeBase(),
+                       base_addr + range.GetRangeEnd(), 4);
     }
   }
 
@@ -83,12 +83,12 @@ void Block::Dump(Stream *s, addr_t base_addr, int32_t depth,
     size_t num_ranges = m_ranges.GetSize();
     for (size_t i = 0; i < num_ranges; ++i) {
       const Range &range = m_ranges.GetEntryRef(i);
-      if (parent_block != nullptr && parent_block->Contains(range) == false)
+      if (parent_block != nullptr && !parent_block->Contains(range))
         *s << '!';
       else
         *s << ' ';
-      s->AddressRange(base_addr + range.GetRangeBase(),
-                      base_addr + range.GetRangeEnd(), 4);
+      DumpAddressRange(s->AsRawOstream(), base_addr + range.GetRangeBase(),
+                       base_addr + range.GetRangeEnd(), 4);
     }
   }
   s->EOL();
@@ -120,6 +120,16 @@ Block *Block::FindBlockByID(user_id_t block_id) {
       break;
   }
   return matching_block;
+}
+
+Block *Block::FindInnermostBlockByOffset(const lldb::addr_t offset) {
+  if (!Contains(offset))
+    return nullptr;
+  for (const BlockSP &block_sp : m_children) {
+    if (Block *block = block_sp->FindInnermostBlockByOffset(offset))
+      return block;
+  }
+  return this;
 }
 
 void Block::CalculateSymbolContext(SymbolContext *sc) {
@@ -160,8 +170,8 @@ void Block::DumpAddressRanges(Stream *s, lldb::addr_t base_addr) {
     size_t num_ranges = m_ranges.GetSize();
     for (size_t i = 0; i < num_ranges; ++i) {
       const Range &range = m_ranges.GetEntryRef(i);
-      s->AddressRange(base_addr + range.GetRangeBase(),
-                      base_addr + range.GetRangeEnd(), 4);
+      DumpAddressRange(s->AsRawOstream(), base_addr + range.GetRangeBase(),
+                       base_addr + range.GetRangeEnd(), 4);
     }
   }
 }
@@ -207,6 +217,21 @@ Block *Block::GetInlinedParent() {
       return parent_block;
     else
       return parent_block->GetInlinedParent();
+  }
+  return nullptr;
+}
+
+Block *Block::GetContainingInlinedBlockWithCallSite(
+    const Declaration &find_call_site) {
+  Block *inlined_block = GetContainingInlinedBlock();
+
+  while (inlined_block) {
+    const auto *function_info = inlined_block->GetInlinedFunctionInfo();
+
+    if (function_info &&
+        function_info->GetCallSite().FileAndLineEqual(find_call_site))
+      return inlined_block;
+    inlined_block = inlined_block->GetInlinedParent();
   }
   return nullptr;
 }
@@ -321,22 +346,24 @@ void Block::AddRange(const Range &range) {
 
       const Declaration &func_decl = func_type->GetDeclaration();
       if (func_decl.GetLine()) {
-        log->Printf("warning: %s:%u block {0x%8.8" PRIx64
-                    "} has range[%u] [0x%" PRIx64 " - 0x%" PRIx64
-                    ") which is not contained in parent block {0x%8.8" PRIx64
-                    "} in function {0x%8.8" PRIx64 "} from %s",
-                    func_decl.GetFile().GetPath().c_str(), func_decl.GetLine(),
-                    GetID(), (uint32_t)m_ranges.GetSize(), block_start_addr,
-                    block_end_addr, parent_block->GetID(), function->GetID(),
-                    module_sp->GetFileSpec().GetPath().c_str());
+        LLDB_LOGF(log,
+                  "warning: %s:%u block {0x%8.8" PRIx64
+                  "} has range[%u] [0x%" PRIx64 " - 0x%" PRIx64
+                  ") which is not contained in parent block {0x%8.8" PRIx64
+                  "} in function {0x%8.8" PRIx64 "} from %s",
+                  func_decl.GetFile().GetPath().c_str(), func_decl.GetLine(),
+                  GetID(), (uint32_t)m_ranges.GetSize(), block_start_addr,
+                  block_end_addr, parent_block->GetID(), function->GetID(),
+                  module_sp->GetFileSpec().GetPath().c_str());
       } else {
-        log->Printf("warning: block {0x%8.8" PRIx64
-                    "} has range[%u] [0x%" PRIx64 " - 0x%" PRIx64
-                    ") which is not contained in parent block {0x%8.8" PRIx64
-                    "} in function {0x%8.8" PRIx64 "} from %s",
-                    GetID(), (uint32_t)m_ranges.GetSize(), block_start_addr,
-                    block_end_addr, parent_block->GetID(), function->GetID(),
-                    module_sp->GetFileSpec().GetPath().c_str());
+        LLDB_LOGF(log,
+                  "warning: block {0x%8.8" PRIx64 "} has range[%u] [0x%" PRIx64
+                  " - 0x%" PRIx64
+                  ") which is not contained in parent block {0x%8.8" PRIx64
+                  "} in function {0x%8.8" PRIx64 "} from %s",
+                  GetID(), (uint32_t)m_ranges.GetSize(), block_start_addr,
+                  block_end_addr, parent_block->GetID(), function->GetID(),
+                  module_sp->GetFileSpec().GetPath().c_str());
       }
     }
     parent_block->AddRange(range);
@@ -364,18 +391,18 @@ void Block::AddChild(const BlockSP &child_block_sp) {
 void Block::SetInlinedFunctionInfo(const char *name, const char *mangled,
                                    const Declaration *decl_ptr,
                                    const Declaration *call_decl_ptr) {
-  m_inlineInfoSP.reset(
-      new InlineFunctionInfo(name, mangled, decl_ptr, call_decl_ptr));
+  m_inlineInfoSP = std::make_shared<InlineFunctionInfo>(name, mangled, decl_ptr,
+                                                        call_decl_ptr);
 }
 
 VariableListSP Block::GetBlockVariableList(bool can_create) {
-  if (m_parsed_block_variables == false) {
+  if (!m_parsed_block_variables) {
     if (m_variable_list_sp.get() == nullptr && can_create) {
       m_parsed_block_variables = true;
       SymbolContext sc;
       CalculateSymbolContext(&sc);
       assert(sc.module_sp);
-      sc.module_sp->GetSymbolVendor()->ParseVariablesForContext(sc);
+      sc.module_sp->GetSymbolFile()->ParseVariablesForContext(sc);
     }
   }
   return m_variable_list_sp;
@@ -389,11 +416,10 @@ Block::AppendBlockVariables(bool can_create, bool get_child_block_variables,
   uint32_t num_variables_added = 0;
   VariableList *block_var_list = GetBlockVariableList(can_create).get();
   if (block_var_list) {
-    for (size_t i = 0; i < block_var_list->GetSize(); ++i) {
-      VariableSP variable = block_var_list->GetVariableAtIndex(i);
-      if (filter(variable.get())) {
+    for (const VariableSP &var_sp : *block_var_list) {
+      if (filter(var_sp.get())) {
         num_variables_added++;
-        variable_list->AddVariable(variable);
+        variable_list->AddVariable(var_sp);
       }
     }
   }
@@ -402,7 +428,7 @@ Block::AppendBlockVariables(bool can_create, bool get_child_block_variables,
     collection::const_iterator pos, end = m_children.end();
     for (pos = m_children.begin(); pos != end; ++pos) {
       Block *child_block = pos->get();
-      if (stop_if_child_block_is_inlined_function == false ||
+      if (!stop_if_child_block_is_inlined_function ||
           child_block->GetInlinedFunctionInfo() == nullptr) {
         num_variables_added += child_block->AppendBlockVariables(
             can_create, get_child_block_variables,
@@ -444,19 +470,15 @@ uint32_t Block::AppendVariables(bool can_create, bool get_parent_variables,
   return num_variables_added;
 }
 
+SymbolFile *Block::GetSymbolFile() {
+  if (ModuleSP module_sp = CalculateSymbolContextModule())
+    return module_sp->GetSymbolFile();
+  return nullptr;
+}
+
 CompilerDeclContext Block::GetDeclContext() {
-  ModuleSP module_sp = CalculateSymbolContextModule();
-
-  if (module_sp) {
-    SymbolVendor *sym_vendor = module_sp->GetSymbolVendor();
-
-    if (sym_vendor) {
-      SymbolFile *sym_file = sym_vendor->GetSymbolFile();
-
-      if (sym_file)
-        return sym_file->GetDeclContextForUID(GetID());
-    }
-  }
+  if (SymbolFile *sym_file = GetSymbolFile())
+    return sym_file->GetDeclContextForUID(GetID());
   return CompilerDeclContext();
 }
 

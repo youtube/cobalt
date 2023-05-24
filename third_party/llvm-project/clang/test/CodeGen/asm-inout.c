@@ -5,7 +5,7 @@ int *foo(void);
 // CHECK: @test1
 void test1() {
   // CHECK: [[REGCALLRESULT:%[a-zA-Z0-9\.]+]] = call i32* @foo()
-  // CHECK: call void asm "foobar", "=*m,*m,~{dirflag},~{fpsr},~{flags}"(i32* [[REGCALLRESULT]], i32* [[REGCALLRESULT]])
+  // CHECK: call void asm "foobar", "=*m,*m,~{dirflag},~{fpsr},~{flags}"(i32* elementtype(i32) [[REGCALLRESULT]], i32* elementtype(i32) [[REGCALLRESULT]])
   asm ("foobar" : "+m"(*foo()));
 }
 
@@ -45,4 +45,13 @@ __m64 test5(__m64 __A, __m64 __B) {
   // CHECK: call x86_mmx asm "pmulhuw $1, $0\0A\09", "=y,y,0,~{dirflag},~{fpsr},~{flags}"(x86_mmx %{{.*}}, x86_mmx %{{.*}})
   asm ("pmulhuw %1, %0\n\t" : "+y" (__A) : "y" (__B));
   return __A;
+}
+
+// CHECK: @test6
+int test6(void) {
+  typedef unsigned char __attribute__((vector_size(8))) _m64u8;
+  _m64u8 __attribute__((aligned(16))) Mu8_0, __attribute__((aligned(16))) Mu8_1;
+  // CHECK: call x86_mmx asm "nop", "=y,0,~{dirflag},~{fpsr},~{flags}"(x86_mmx %1)
+  asm ("nop" : "=y"(Mu8_1 ) : "0"(Mu8_0 ));
+  return 0;
 }

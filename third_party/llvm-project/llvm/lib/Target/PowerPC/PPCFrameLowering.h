@@ -1,9 +1,8 @@
 //===-- PPCFrameLowering.h - Define frame lowering for PowerPC --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,7 +12,6 @@
 #ifndef LLVM_LIB_TARGET_POWERPC_PPCFRAMELOWERING_H
 #define LLVM_LIB_TARGET_POWERPC_PPCFRAMELOWERING_H
 
-#include "PPC.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
@@ -23,11 +21,16 @@ class PPCSubtarget;
 
 class PPCFrameLowering: public TargetFrameLowering {
   const PPCSubtarget &Subtarget;
-  const unsigned ReturnSaveOffset;
-  const unsigned TOCSaveOffset;
-  const unsigned FramePointerSaveOffset;
+  const uint64_t ReturnSaveOffset;
+  const uint64_t TOCSaveOffset;
+  const uint64_t FramePointerSaveOffset;
   const unsigned LinkageSize;
-  const unsigned BasePointerSaveOffset;
+  const uint64_t BasePointerSaveOffset;
+  const uint64_t CRSaveOffset;
+
+  // Map each group of one or two GPRs to corresponding VSR for spilling.
+  // TODO: Use local table in methods to avoid this mutable member.
+  mutable DenseMap<unsigned, std::pair<Register, Register>> VSRContainingGPRs;
 
   /**
    * Find register[s] that can be used in function prologue and epilogue
@@ -62,8 +65,8 @@ class PPCFrameLowering: public TargetFrameLowering {
   bool findScratchRegister(MachineBasicBlock *MBB,
                            bool UseAtEnd,
                            bool TwoUniqueRegsRequired = false,
-                           unsigned *SR1 = nullptr,
-                           unsigned *SR2 = nullptr) const;
+                           Register *SR1 = nullptr,
+                           Register *SR2 = nullptr) const;
   bool twoUniqueScratchRegsRequired(MachineBasicBlock *MBB) const;
 
   /**
@@ -73,17 +76,36 @@ class PPCFrameLowering: public TargetFrameLowering {
    */
   void createTailCallBranchInstr(MachineBasicBlock &MBB) const;
 
+  /**
+    * Check if the conditions are correct to allow for the stack update
+    * to be moved past the CSR save/restore code.
+    */
+  bool stackUpdateCanBeMoved(MachineFunction &MF) const;
+
 public:
   PPCFrameLowering(const PPCSubtarget &STI);
 
-  unsigned determineFrameLayout(MachineFunction &MF,
-                                bool UpdateMF = true,
-                                bool UseEstimate = false) const;
+  /**
+   * Determine the frame layout and update the machine function.
+   */
+  uint64_t determineFrameLayoutAndUpdate(MachineFunction &MF,
+                                         bool UseEstimate = false) const;
+
+  /**
+   * Determine the frame layout but do not update the machine function.
+   * The MachineFunction object can be const in this case as it is not
+   * modified.
+   */
+  uint64_t determineFrameLayout(const MachineFunction &MF,
+                                bool UseEstimate = false,
+                                unsigned *NewMaxCallFrameSize = nullptr) const;
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
+  void inlineStackProbe(MachineFunction &MF,
+                        MachineBasicBlock &PrologMBB) const override;
 
   bool hasFP(const MachineFunction &MF) const override;
   bool needsFP(const MachineFunction &MF) const;
@@ -97,17 +119,25 @@ public:
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
-                                 const std::vector<CalleeSavedInfo> &CSI,
+                                 ArrayRef<CalleeSavedInfo> CSI,
                                  const TargetRegisterInfo *TRI) const override;
+  /// This function will assign callee saved gprs to volatile vector registers
+  /// for prologue spills when applicable. It returns false if there are any
+  /// registers which were not spilled to volatile vector registers.
+  bool
+  assignCalleeSavedSpillSlots(MachineFunction &MF,
+                              const TargetRegisterInfo *TRI,
+                              std::vector<CalleeSavedInfo> &CSI) const override;
 
   MachineBasicBlock::iterator
   eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator I) const override;
 
-  bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                  MachineBasicBlock::iterator MI,
-                                  std::vector<CalleeSavedInfo> &CSI,
-                                  const TargetRegisterInfo *TRI) const override;
+  bool
+  restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator MI,
+                              MutableArrayRef<CalleeSavedInfo> CSI,
+                              const TargetRegisterInfo *TRI) const override;
 
   /// targetHandlesStackFrameRounding - Returns true if the target is
   /// responsible for rounding up the stack frame (probably at emitPrologue
@@ -116,19 +146,19 @@ public:
 
   /// getReturnSaveOffset - Return the previous frame offset to save the
   /// return address.
-  unsigned getReturnSaveOffset() const { return ReturnSaveOffset; }
+  uint64_t getReturnSaveOffset() const { return ReturnSaveOffset; }
 
   /// getTOCSaveOffset - Return the previous frame offset to save the
   /// TOC register -- 64-bit SVR4 ABI only.
-  unsigned getTOCSaveOffset() const { return TOCSaveOffset; }
+  uint64_t getTOCSaveOffset() const;
 
   /// getFramePointerSaveOffset - Return the previous frame offset to save the
   /// frame pointer.
-  unsigned getFramePointerSaveOffset() const { return FramePointerSaveOffset; }
+  uint64_t getFramePointerSaveOffset() const;
 
   /// getBasePointerSaveOffset - Return the previous frame offset to save the
   /// base pointer.
-  unsigned getBasePointerSaveOffset() const { return BasePointerSaveOffset; }
+  uint64_t getBasePointerSaveOffset() const;
 
   /// getLinkageSize - Return the size of the PowerPC ABI linkage area.
   ///

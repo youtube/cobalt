@@ -1,9 +1,8 @@
 //===---- tools/extra/ToolTemplate.cpp - Template for refactoring tool ----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -66,8 +65,8 @@ public:
     auto *D = Result.Nodes.getNodeAs<NamedDecl>("decl");
     assert(D);
     // Use AtomicChange to get a key.
-    if (D->getLocStart().isValid()) {
-      AtomicChange Change(*Result.SourceManager, D->getLocStart());
+    if (D->getBeginLoc().isValid()) {
+      AtomicChange Change(*Result.SourceManager, D->getBeginLoc());
       Context.reportResult(Change.getKey(), D->getQualifiedNameAsString());
     }
   }

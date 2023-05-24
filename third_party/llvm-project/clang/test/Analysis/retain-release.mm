@@ -175,14 +175,14 @@ typedef io_object_t io_iterator_t;
 typedef io_object_t io_service_t;
 typedef struct IONotificationPort * IONotificationPortRef;
 typedef void (*IOServiceMatchingCallback)(  void * refcon,  io_iterator_t iterator );
-io_service_t IOServiceGetMatchingService(  mach_port_t masterPort,  CFDictionaryRef matching );
-kern_return_t IOServiceGetMatchingServices(  mach_port_t masterPort,  CFDictionaryRef matching,  io_iterator_t * existing );
-kern_return_t IOServiceAddNotification(  mach_port_t masterPort,  const io_name_t notificationType,  CFDictionaryRef matching,  mach_port_t wakePort,  uintptr_t reference,  io_iterator_t * notification ) __attribute__((deprecated));
+io_service_t IOServiceGetMatchingService(  mach_port_t mainPort,  CFDictionaryRef matching );
+kern_return_t IOServiceGetMatchingServices(  mach_port_t mainPort,  CFDictionaryRef matching,  io_iterator_t * existing );
+kern_return_t IOServiceAddNotification(  mach_port_t mainPort,  const io_name_t notificationType,  CFDictionaryRef matching,  mach_port_t wakePort,  uintptr_t reference,  io_iterator_t * notification ) __attribute__((deprecated));
 kern_return_t IOServiceAddMatchingNotification(  IONotificationPortRef notifyPort,  const io_name_t notificationType,  CFDictionaryRef matching,         IOServiceMatchingCallback callback,         void * refCon,  io_iterator_t * notification );
 CFMutableDictionaryRef IOServiceMatching(  const char * name );
 CFMutableDictionaryRef IOServiceNameMatching(  const char * name );
-CFMutableDictionaryRef IOBSDNameMatching(  mach_port_t masterPort,  uint32_t options,  const char * bsdName );
-CFMutableDictionaryRef IOOpenFirmwarePathMatching(  mach_port_t masterPort,  uint32_t options,  const char * path );
+CFMutableDictionaryRef IOBSDNameMatching(  mach_port_t mainPort,  uint32_t options,  const char * bsdName );
+CFMutableDictionaryRef IOOpenFirmwarePathMatching(  mach_port_t mainPort,  uint32_t options,  const char * path );
 CFMutableDictionaryRef IORegistryEntryIDMatching(  uint64_t entryID );
 typedef struct __DASession * DASessionRef;
 extern DASessionRef DASessionCreate( CFAllocatorRef allocator );
@@ -469,4 +469,81 @@ void _() { _(); }; // no-warning
 void* IOBSDNameMatching();
 void rdar33832412() {
   void* x = IOBSDNameMatching(); // no-warning
+}
+
+namespace member_CFRetains {
+class Foo {
+public:
+  void CFRetain(const Foo &) {}
+  void CFRetain(int) {}
+};
+
+void bar() {
+  Foo foo;
+  foo.CFRetain(foo); // no-warning
+  foo.CFRetain(0); // no-warning
+}
+}
+
+namespace cxx_method_escaping {
+
+struct S {
+  static CFArrayRef testGetNoTracking();
+  CFArrayRef testGetNoTrackingMember();
+};
+
+void test_cxx_static_method_escaping() {
+  CFArrayRef arr = S::testGetNoTracking();
+  CFRelease(arr);
+}
+
+void test_cxx_method_escaping(S *s) {
+  CFArrayRef arr = s->testGetNoTrackingMember();
+  CFRelease(arr);
+}
+
+}
+
+namespace yet_another_unexpected_signature_crash {
+
+CFTypeRef CFSomethingSomethingRetain();
+CFTypeRef CFSomethingSomethingAutorelease();
+
+void foo() {
+  CFSomethingSomethingRetain(); // no-crash
+  CFSomethingSomethingAutorelease(); // no-crash
+}
+
+}
+
+namespace reinterpret_casts {
+
+void *foo() {
+  void *p = const_cast<void *>(
+      reinterpret_cast<const void *>(CFArrayCreate(0, 0, 0, 0)));
+  void *q = reinterpret_cast<void *>(
+      reinterpret_cast<char *>(p) + 1);
+  // FIXME: Should warn about a leak here. The function should return at +0,
+  // but it returns at +1 instead.
+  return q;
+}
+
+void *fooCreate() {
+  void *p = const_cast<void *>(
+      reinterpret_cast<const void *>(CFArrayCreate(0, 0, 0, 0)));
+  void *q = reinterpret_cast<void *>(
+      reinterpret_cast<char *>(p) + 1);
+  // The function follows the Create Rule.
+  return q; // no-warning
+}
+
+void *fooBar() CF_RETURNS_RETAINED {
+  void *p = const_cast<void *>(
+      reinterpret_cast<const void *>(CFArrayCreate(0, 0, 0, 0)));
+  void *q = reinterpret_cast<void *>(
+      reinterpret_cast<char *>(p) + 1);
+  // The function follows the Create Rule.
+  return q; // no-warning
+}
+
 }

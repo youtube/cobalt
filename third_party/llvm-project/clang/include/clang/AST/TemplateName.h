@@ -1,9 +1,8 @@
 //===- TemplateName.h - C++ Template Name Representation --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,6 +13,8 @@
 #ifndef LLVM_CLANG_AST_TEMPLATENAME_H
 #define LLVM_CLANG_AST_TEMPLATENAME_H
 
+#include "clang/AST/DependenceFlags.h"
+#include "clang/AST/NestedNameSpecifier.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerIntPair.h"
@@ -25,12 +26,12 @@ namespace clang {
 
 class ASTContext;
 class DependentTemplateName;
-class DiagnosticBuilder;
 class IdentifierInfo;
 class NamedDecl;
 class NestedNameSpecifier;
 enum OverloadedOperatorKind : int;
 class OverloadedTemplateStorage;
+class AssumedTemplateStorage;
 struct PrintingPolicy;
 class QualifiedTemplateName;
 class SubstTemplateTemplateParmPackStorage;
@@ -45,6 +46,7 @@ class UncommonTemplateNameStorage {
 protected:
   enum Kind {
     Overloaded,
+    Assumed, // defined in DeclarationName.h
     SubstTemplateTemplateParm,
     SubstTemplateTemplateParmPack
   };
@@ -74,6 +76,12 @@ public:
   OverloadedTemplateStorage *getAsOverloadedStorage()  {
     return Bits.Kind == Overloaded
              ? reinterpret_cast<OverloadedTemplateStorage *>(this)
+             : nullptr;
+  }
+
+  AssumedTemplateStorage *getAsAssumedTemplateName()  {
+    return Bits.Kind == Assumed
+             ? reinterpret_cast<AssumedTemplateStorage *>(this)
              : nullptr;
   }
 
@@ -110,6 +118,10 @@ public:
 
   iterator begin() const { return getStorage(); }
   iterator end() const { return getStorage() + size(); }
+
+  llvm::ArrayRef<NamedDecl*> decls() const {
+    return llvm::makeArrayRef(begin(), end());
+  }
 };
 
 /// A structure for storing an already-substituted template template
@@ -177,8 +189,8 @@ public:
 /// only be understood in the context of
 class TemplateName {
   using StorageType =
-      llvm::PointerUnion4<TemplateDecl *, UncommonTemplateNameStorage *,
-                          QualifiedTemplateName *, DependentTemplateName *>;
+      llvm::PointerUnion<TemplateDecl *, UncommonTemplateNameStorage *,
+                         QualifiedTemplateName *, DependentTemplateName *>;
 
   StorageType Storage;
 
@@ -192,6 +204,10 @@ public:
 
     /// A set of overloaded template declarations.
     OverloadedTemplate,
+
+    /// An unqualified-id that has been assumed to name a function template
+    /// that will be found by ADL.
+    AssumedTemplate,
 
     /// A qualified template name, where the qualification is kept
     /// to describe the source code as written.
@@ -214,6 +230,7 @@ public:
   TemplateName() = default;
   explicit TemplateName(TemplateDecl *Template);
   explicit TemplateName(OverloadedTemplateStorage *Storage);
+  explicit TemplateName(AssumedTemplateStorage *Storage);
   explicit TemplateName(SubstTemplateTemplateParmStorage *Storage);
   explicit TemplateName(SubstTemplateTemplateParmPackStorage *Storage);
   explicit TemplateName(QualifiedTemplateName *Qual);
@@ -235,13 +252,17 @@ public:
   TemplateDecl *getAsTemplateDecl() const;
 
   /// Retrieve the underlying, overloaded function template
-  // declarations that this template name refers to, if known.
+  /// declarations that this template name refers to, if known.
   ///
   /// \returns The set of overloaded function templates that this template
   /// name refers to, if known. If the template name does not refer to a
   /// specific set of function templates because it is a dependent name or
   /// refers to a single template, returns NULL.
   OverloadedTemplateStorage *getAsOverloadedTemplate() const;
+
+  /// Retrieve information on a name that has been assumed to be a
+  /// template-name in order to permit a call via ADL.
+  AssumedTemplateStorage *getAsAssumedTemplateName() const;
 
   /// Retrieve the substituted template template parameter, if
   /// known.
@@ -273,6 +294,8 @@ public:
   /// the template, including any default template arguments.
   TemplateName getNameToSubstitute() const;
 
+  TemplateNameDependence getDependence() const;
+
   /// Determines whether this is a dependent template name.
   bool isDependent() const;
 
@@ -284,16 +307,17 @@ public:
   /// unexpanded parameter pack (for C++0x variadic templates).
   bool containsUnexpandedParameterPack() const;
 
+  enum class Qualified { None, AsWritten, Fully };
   /// Print the template name.
   ///
   /// \param OS the output stream to which the template name will be
   /// printed.
   ///
-  /// \param SuppressNNS if true, don't print the
-  /// nested-name-specifier that precedes the template name (if it has
-  /// one).
+  /// \param Qual print the (Qualified::None) simple name,
+  /// (Qualified::AsWritten) any written (possibly partial) qualifier, or
+  /// (Qualified::Fully) the fully qualified name.
   void print(raw_ostream &OS, const PrintingPolicy &Policy,
-             bool SuppressNNS = false) const;
+             Qualified Qual = Qualified::AsWritten) const;
 
   /// Debugging aid that dumps the template name.
   void dump(raw_ostream &OS) const;
@@ -317,8 +341,8 @@ public:
 
 /// Insertion operator for diagnostics.  This allows sending TemplateName's
 /// into a diagnostic with <<.
-const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
-                                    TemplateName N);
+const StreamingDiagnostic &operator<<(const StreamingDiagnostic &DB,
+                                      TemplateName N);
 
 /// A structure for storing the information associated with a
 /// substituted template template parameter.
@@ -535,7 +559,7 @@ struct PointerLikeTypeTraits<clang::TemplateName> {
   }
 
   // No bits are available!
-  enum { NumLowBitsAvailable = 0 };
+  static constexpr int NumLowBitsAvailable = 0;
 };
 
 } // namespace llvm.

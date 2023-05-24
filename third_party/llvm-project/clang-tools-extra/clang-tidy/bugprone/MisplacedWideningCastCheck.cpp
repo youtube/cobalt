@@ -1,9 +1,8 @@
 //===--- MisplacedWideningCastCheck.cpp - clang-tidy-----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,9 +29,7 @@ void MisplacedWideningCastCheck::storeOptions(
 
 void MisplacedWideningCastCheck::registerMatchers(MatchFinder *Finder) {
   const auto Calc =
-      expr(anyOf(binaryOperator(
-                     anyOf(hasOperatorName("+"), hasOperatorName("-"),
-                           hasOperatorName("*"), hasOperatorName("<<"))),
+      expr(anyOf(binaryOperator(hasAnyOperatorName("+", "-", "*", "<<")),
                  unaryOperator(hasOperatorName("~"))),
            hasType(isInteger()))
           .bind("Calc");
@@ -42,15 +39,15 @@ void MisplacedWideningCastCheck::registerMatchers(MatchFinder *Finder) {
   const auto ImplicitCast =
       implicitCastExpr(hasImplicitDestinationType(isInteger()),
                        has(ignoringParenImpCasts(Calc)));
-  const auto Cast = expr(anyOf(ExplicitCast, ImplicitCast)).bind("Cast");
+  const auto Cast =
+      traverse(TK_AsIs, expr(anyOf(ExplicitCast, ImplicitCast)).bind("Cast"));
 
   Finder->addMatcher(varDecl(hasInitializer(Cast)), this);
   Finder->addMatcher(returnStmt(hasReturnValue(Cast)), this);
   Finder->addMatcher(callExpr(hasAnyArgument(Cast)), this);
   Finder->addMatcher(binaryOperator(hasOperatorName("="), hasRHS(Cast)), this);
   Finder->addMatcher(
-      binaryOperator(matchers::isComparisonOperator(), hasEitherOperand(Cast)),
-      this);
+      binaryOperator(isComparisonOperator(), hasEitherOperand(Cast)), this);
 }
 
 static unsigned getMaxCalculationWidth(const ASTContext &Context,
@@ -65,16 +62,16 @@ static unsigned getMaxCalculationWidth(const ASTContext &Context,
     if (Bop->getOpcode() == BO_Add)
       return std::max(LHSWidth, RHSWidth) + 1;
     if (Bop->getOpcode() == BO_Rem) {
-      llvm::APSInt Val;
-      if (Bop->getRHS()->EvaluateAsInt(Val, Context))
-        return Val.getActiveBits();
+      Expr::EvalResult Result;
+      if (Bop->getRHS()->EvaluateAsInt(Result, Context))
+        return Result.Val.getInt().getActiveBits();
     } else if (Bop->getOpcode() == BO_Shl) {
-      llvm::APSInt Bits;
-      if (Bop->getRHS()->EvaluateAsInt(Bits, Context)) {
+      Expr::EvalResult Result;
+      if (Bop->getRHS()->EvaluateAsInt(Result, Context)) {
         // We don't handle negative values and large values well. It is assumed
         // that compiler warnings are written for such values so the user will
         // fix that.
-        return LHSWidth + Bits.getExtValue();
+        return LHSWidth + Result.Val.getInt().getExtValue();
       }
 
       // Unknown bitcount, assume there is truncation.
@@ -185,11 +182,11 @@ void MisplacedWideningCastCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *Cast = Result.Nodes.getNodeAs<CastExpr>("Cast");
   if (!CheckImplicitCasts && isa<ImplicitCastExpr>(Cast))
     return;
-  if (Cast->getLocStart().isMacroID())
+  if (Cast->getBeginLoc().isMacroID())
     return;
 
   const auto *Calc = Result.Nodes.getNodeAs<Expr>("Calc");
-  if (Calc->getLocStart().isMacroID())
+  if (Calc->getBeginLoc().isMacroID())
     return;
 
   if (Cast->isTypeDependent() || Cast->isValueDependent() ||
@@ -213,8 +210,9 @@ void MisplacedWideningCastCheck::check(const MatchFinder::MatchResult &Result) {
         dyn_cast<BuiltinType>(CastType->getUnqualifiedDesugaredType());
     const auto *CalcBuiltinType =
         dyn_cast<BuiltinType>(CalcType->getUnqualifiedDesugaredType());
-    if (CastBuiltinType && CalcBuiltinType &&
-        !isFirstWider(CastBuiltinType->getKind(), CalcBuiltinType->getKind()))
+    if (!CastBuiltinType || !CalcBuiltinType)
+      return;
+    if (!isFirstWider(CastBuiltinType->getKind(), CalcBuiltinType->getKind()))
       return;
   }
 
@@ -223,7 +221,7 @@ void MisplacedWideningCastCheck::check(const MatchFinder::MatchResult &Result) {
   if (Context.getIntWidth(CalcType) >= getMaxCalculationWidth(Context, Calc))
     return;
 
-  diag(Cast->getLocStart(), "either cast from %0 to %1 is ineffective, or "
+  diag(Cast->getBeginLoc(), "either cast from %0 to %1 is ineffective, or "
                             "there is loss of precision before the conversion")
       << CalcType << CastType;
 }

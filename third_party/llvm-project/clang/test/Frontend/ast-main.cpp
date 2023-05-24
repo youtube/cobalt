@@ -1,6 +1,6 @@
-// RUN: %clang -emit-llvm -S -o %t1.ll -x c++ - < %s
-// RUN: %clang -fno-delayed-template-parsing -emit-ast -o %t.ast %s
-// RUN: %clang -emit-llvm -S -o %t2.ll -x ast - < %t.ast
+// RUN: env SDKROOT="/" %clang -emit-llvm -S -o %t1.ll -x c++ - < %s
+// RUN: env SDKROOT="/" %clang -fno-delayed-template-parsing -emit-ast -o %t.ast %s
+// RUN: env SDKROOT="/" %clang -emit-llvm -S -o %t2.ll -x ast - < %t.ast
 // RUN: diff %t1.ll %t2.ll
 
 // http://llvm.org/bugs/show_bug.cgi?id=15377
@@ -10,7 +10,7 @@ struct S {
 };
 template<typename T>
 T *S<T>::mf() {
-    // warning: control reaches end of non-void function [-Wreturn-type]
+    // warning: non-void function does not return a value [-Wreturn-type]
 }
 
 void f() {

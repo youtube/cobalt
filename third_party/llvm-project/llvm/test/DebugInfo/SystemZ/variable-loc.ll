@@ -1,5 +1,5 @@
-; RUN: llc -mtriple=s390x-linux-gnu -disable-fp-elim < %s | FileCheck %s
-; RUN: llc -mtriple=s390x-linux-gnu -disable-fp-elim -filetype=obj < %s \
+; RUN: llc -mtriple=s390x-linux-gnu -frame-pointer=all < %s | FileCheck %s
+; RUN: llc -mtriple=s390x-linux-gnu -frame-pointer=all -filetype=obj < %s \
 ; RUN:     | llvm-dwarfdump -v -debug-info - | FileCheck --check-prefix=DEBUG %s
 ;
 ; This is a regression test making sure the location of variables is correct in
@@ -10,12 +10,12 @@
 ;
 ; CHECK: main:
 ; CHECK: aghi    %r15, -568
-; CHECK: la      %r2, 164(%r11)
+; CHECK: la      %r2, 168(%r11)
 ; CHECK: brasl   %r14, populate_array@PLT
 
 ; DEBUG: DW_TAG_variable
 ; DEBUG-NOT: DW_TAG
-; DEBUG: DW_AT_location {{.*}}(DW_OP_fbreg +164)
+; DEBUG: DW_AT_location {{.*}}(DW_OP_fbreg +168)
 ; DEBUG-NOT: DW_TAG
 ; DEBUG: DW_AT_name {{.*}} "main_arr"
 

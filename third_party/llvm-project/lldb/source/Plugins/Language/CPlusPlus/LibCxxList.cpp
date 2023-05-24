@@ -1,22 +1,17 @@
-//===-- LibCxxList.cpp ------------------------------------------*- C++ -*-===//
+//===-- LibCxxList.cpp ----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "LibCxx.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/Endian.h"
@@ -32,8 +27,7 @@ namespace {
 class ListEntry {
 public:
   ListEntry() = default;
-  ListEntry(ValueObjectSP entry_sp) : m_entry_sp(entry_sp) {}
-  ListEntry(const ListEntry &rhs) = default;
+  ListEntry(ValueObjectSP entry_sp) : m_entry_sp(std::move(entry_sp)) {}
   ListEntry(ValueObject *entry)
       : m_entry_sp(entry ? entry->GetSP() : ValueObjectSP()) {}
 
@@ -78,9 +72,8 @@ private:
 class ListIterator {
 public:
   ListIterator() = default;
-  ListIterator(ListEntry entry) : m_entry(entry) {}
-  ListIterator(ValueObjectSP entry) : m_entry(entry) {}
-  ListIterator(const ListIterator &rhs) = default;
+  ListIterator(ListEntry entry) : m_entry(std::move(entry)) {}
+  ListIterator(ValueObjectSP entry) : m_entry(std::move(entry)) {}
   ListIterator(ValueObject *entry) : m_entry(entry) {}
 
   ValueObjectSP value() { return m_entry.GetEntry(); }
@@ -116,7 +109,7 @@ private:
 
 class AbstractListFrontEnd : public SyntheticChildrenFrontEnd {
 public:
-  size_t GetIndexOfChildWithName(const ConstString &name) override {
+  size_t GetIndexOfChildWithName(ConstString name) override {
     return ExtractIndexFromString(name.GetCString());
   }
   bool MightHaveChildren() override { return true; }
@@ -295,15 +288,6 @@ ValueObjectSP ForwardListFrontEnd::GetChildAtIndex(size_t idx) {
                                    m_element_type);
 }
 
-static ValueObjectSP GetValueOfCompressedPair(ValueObject &pair) {
-  ValueObjectSP value = pair.GetChildMemberWithName(ConstString("__value_"), true);
-  if (! value) {
-    // pre-r300140 member name
-    value = pair.GetChildMemberWithName(ConstString("__first_"), true);
-  }
-  return value;
-}
-
 bool ForwardListFrontEnd::Update() {
   AbstractListFrontEnd::Update();
 
@@ -316,7 +300,7 @@ bool ForwardListFrontEnd::Update() {
       m_backend.GetChildMemberWithName(ConstString("__before_begin_"), true));
   if (!impl_sp)
     return false;
-  impl_sp = GetValueOfCompressedPair(*impl_sp);
+  impl_sp = GetValueOfLibCXXCompressedPair(*impl_sp);
   if (!impl_sp)
     return false;
   m_head = impl_sp->GetChildMemberWithName(ConstString("__next_"), true).get();
@@ -337,7 +321,7 @@ size_t ListFrontEnd::CalculateNumChildren() {
   ValueObjectSP size_alloc(
       m_backend.GetChildMemberWithName(ConstString("__size_alloc_"), true));
   if (size_alloc) {
-    ValueObjectSP value = GetValueOfCompressedPair(*size_alloc);
+    ValueObjectSP value = GetValueOfLibCXXCompressedPair(*size_alloc);
     if (value) {
       m_count = value->GetValueAsUnsigned(UINT32_MAX);
     }
@@ -389,7 +373,7 @@ lldb::ValueObjectSP ListFrontEnd::GetChildAtIndex(size_t idx) {
   if (current_sp->GetName() == g_next) {
     ProcessSP process_sp(current_sp->GetProcessSP());
     if (!process_sp)
-      return nullptr;
+      return lldb::ValueObjectSP();
 
     // if we grabbed the __next_ pointer, then the child is one pointer deep-er
     lldb::addr_t addr = current_sp->GetParent()->GetPointerValue();
@@ -397,6 +381,8 @@ lldb::ValueObjectSP ListFrontEnd::GetChildAtIndex(size_t idx) {
     ExecutionContext exe_ctx(process_sp);
     current_sp =
         CreateValueObjectFromAddress("__value_", addr, exe_ctx, m_element_type);
+    if (!current_sp)
+      return lldb::ValueObjectSP();
   }
 
   // we need to copy current_sp into a new object otherwise we will end up with

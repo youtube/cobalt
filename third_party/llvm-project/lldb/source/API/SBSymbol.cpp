@@ -1,9 +1,8 @@
-//===-- SBSymbol.cpp --------------------------------------------*- C++ -*-===//
+//===-- SBSymbol.cpp ------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,83 +13,91 @@
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Instrumentation.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-SBSymbol::SBSymbol() : m_opaque_ptr(NULL) {}
+SBSymbol::SBSymbol() { LLDB_INSTRUMENT_VA(this); }
 
 SBSymbol::SBSymbol(lldb_private::Symbol *lldb_object_ptr)
     : m_opaque_ptr(lldb_object_ptr) {}
 
-SBSymbol::SBSymbol(const lldb::SBSymbol &rhs)
-    : m_opaque_ptr(rhs.m_opaque_ptr) {}
+SBSymbol::SBSymbol(const lldb::SBSymbol &rhs) : m_opaque_ptr(rhs.m_opaque_ptr) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
 const SBSymbol &SBSymbol::operator=(const SBSymbol &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   m_opaque_ptr = rhs.m_opaque_ptr;
   return *this;
 }
 
-SBSymbol::~SBSymbol() { m_opaque_ptr = NULL; }
+SBSymbol::~SBSymbol() { m_opaque_ptr = nullptr; }
 
 void SBSymbol::SetSymbol(lldb_private::Symbol *lldb_object_ptr) {
   m_opaque_ptr = lldb_object_ptr;
 }
 
-bool SBSymbol::IsValid() const { return m_opaque_ptr != NULL; }
+bool SBSymbol::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBSymbol::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_ptr != nullptr;
+}
 
 const char *SBSymbol::GetName() const {
-  const char *name = NULL;
+  LLDB_INSTRUMENT_VA(this);
+
+  const char *name = nullptr;
   if (m_opaque_ptr)
     name = m_opaque_ptr->GetName().AsCString();
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBSymbol(%p)::GetName () => \"%s\"",
-                static_cast<void *>(m_opaque_ptr), name ? name : "");
   return name;
 }
 
 const char *SBSymbol::GetDisplayName() const {
-  const char *name = NULL;
-  if (m_opaque_ptr)
-    name = m_opaque_ptr->GetMangled()
-               .GetDisplayDemangledName(m_opaque_ptr->GetLanguage())
-               .AsCString();
+  LLDB_INSTRUMENT_VA(this);
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBSymbol(%p)::GetDisplayName () => \"%s\"",
-                static_cast<void *>(m_opaque_ptr), name ? name : "");
+  const char *name = nullptr;
+  if (m_opaque_ptr)
+    name = m_opaque_ptr->GetMangled().GetDisplayDemangledName().AsCString();
+
   return name;
 }
 
 const char *SBSymbol::GetMangledName() const {
-  const char *name = NULL;
+  LLDB_INSTRUMENT_VA(this);
+
+  const char *name = nullptr;
   if (m_opaque_ptr)
     name = m_opaque_ptr->GetMangled().GetMangledName().AsCString();
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  if (log)
-    log->Printf("SBSymbol(%p)::GetMangledName () => \"%s\"",
-                static_cast<void *>(m_opaque_ptr), name ? name : "");
-
   return name;
 }
 
 bool SBSymbol::operator==(const SBSymbol &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   return m_opaque_ptr == rhs.m_opaque_ptr;
 }
 
 bool SBSymbol::operator!=(const SBSymbol &rhs) const {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   return m_opaque_ptr != rhs.m_opaque_ptr;
 }
 
 bool SBSymbol::GetDescription(SBStream &description) {
+  LLDB_INSTRUMENT_VA(this, description);
+
   Stream &strm = description.ref();
 
   if (m_opaque_ptr) {
-    m_opaque_ptr->GetDescription(&strm, lldb::eDescriptionLevelFull, NULL);
+    m_opaque_ptr->GetDescription(&strm, lldb::eDescriptionLevelFull, nullptr);
   } else
     strm.PutCString("No value");
 
@@ -98,30 +105,29 @@ bool SBSymbol::GetDescription(SBStream &description) {
 }
 
 SBInstructionList SBSymbol::GetInstructions(SBTarget target) {
-  return GetInstructions(target, NULL);
+  LLDB_INSTRUMENT_VA(this, target);
+
+  return GetInstructions(target, nullptr);
 }
 
 SBInstructionList SBSymbol::GetInstructions(SBTarget target,
                                             const char *flavor_string) {
+  LLDB_INSTRUMENT_VA(this, target, flavor_string);
+
   SBInstructionList sb_instructions;
   if (m_opaque_ptr) {
-    ExecutionContext exe_ctx;
     TargetSP target_sp(target.GetSP());
     std::unique_lock<std::recursive_mutex> lock;
-    if (target_sp) {
+    if (target_sp && m_opaque_ptr->ValueIsAddress()) {
       lock = std::unique_lock<std::recursive_mutex>(target_sp->GetAPIMutex());
-
-      target_sp->CalculateExecutionContext(exe_ctx);
-    }
-    if (m_opaque_ptr->ValueIsAddress()) {
       const Address &symbol_addr = m_opaque_ptr->GetAddressRef();
       ModuleSP module_sp = symbol_addr.GetModule();
       if (module_sp) {
         AddressRange symbol_range(symbol_addr, m_opaque_ptr->GetByteSize());
-        const bool prefer_file_cache = false;
+        const bool force_live_memory = true;
         sb_instructions.SetDisassembler(Disassembler::DisassembleRange(
-            module_sp->GetArchitecture(), NULL, flavor_string, exe_ctx,
-            symbol_range, prefer_file_cache));
+            module_sp->GetArchitecture(), nullptr, flavor_string, *target_sp,
+            symbol_range, force_live_memory));
       }
     }
   }
@@ -133,19 +139,23 @@ lldb_private::Symbol *SBSymbol::get() { return m_opaque_ptr; }
 void SBSymbol::reset(lldb_private::Symbol *symbol) { m_opaque_ptr = symbol; }
 
 SBAddress SBSymbol::GetStartAddress() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBAddress addr;
   if (m_opaque_ptr && m_opaque_ptr->ValueIsAddress()) {
-    addr.SetAddress(&m_opaque_ptr->GetAddressRef());
+    addr.SetAddress(m_opaque_ptr->GetAddressRef());
   }
   return addr;
 }
 
 SBAddress SBSymbol::GetEndAddress() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBAddress addr;
   if (m_opaque_ptr && m_opaque_ptr->ValueIsAddress()) {
     lldb::addr_t range_size = m_opaque_ptr->GetByteSize();
     if (range_size > 0) {
-      addr.SetAddress(&m_opaque_ptr->GetAddressRef());
+      addr.SetAddress(m_opaque_ptr->GetAddressRef());
       addr->Slide(m_opaque_ptr->GetByteSize());
     }
   }
@@ -153,24 +163,32 @@ SBAddress SBSymbol::GetEndAddress() {
 }
 
 uint32_t SBSymbol::GetPrologueByteSize() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->GetPrologueByteSize();
   return 0;
 }
 
 SymbolType SBSymbol::GetType() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->GetType();
   return eSymbolTypeInvalid;
 }
 
 bool SBSymbol::IsExternal() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->IsExternal();
   return false;
 }
 
 bool SBSymbol::IsSynthetic() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->IsSynthetic();
   return false;

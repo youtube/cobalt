@@ -7,9 +7,9 @@ define void @main() {
 ; CHECK-NEXT:    subq $424, %rsp # imm = 0x1A8
 ; CHECK-NEXT:    .cfi_def_cfa_offset 432
 ; CHECK-NEXT:    leaq {{[0-9]+}}(%rsp), %rdi
-; CHECK-NEXT:    xorl %esi, %esi
 ; CHECK-NEXT:    movl $400, %edx # imm = 0x190
-; CHECK-NEXT:    callq memset
+; CHECK-NEXT:    xorl %esi, %esi
+; CHECK-NEXT:    callq memset@PLT
 ; CHECK-NEXT:    movl {{[0-9]+}}(%rsp), %eax
 ; CHECK-NEXT:    movl (%rax), %ecx
 ; CHECK-NEXT:    addl 0, %eax

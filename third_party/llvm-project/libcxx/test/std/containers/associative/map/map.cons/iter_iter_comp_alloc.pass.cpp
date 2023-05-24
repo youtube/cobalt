@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,7 +22,7 @@
 #include "test_allocator.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::pair<const int, double> V;
@@ -39,7 +38,7 @@ int main()
         V(3, 1.5),
         V(3, 2),
     };
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     typedef test_allocator<V> A;
     std::map<int, double, C, A> m(ar, ar+sizeof(ar)/sizeof(ar[0]), C(5), A(7));
     assert(m.get_allocator() == A(7));
@@ -65,7 +64,7 @@ int main()
         V(3, 1.5),
         V(3, 2),
     };
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     typedef min_allocator<V> A;
     std::map<int, double, C, A> m(ar, ar+sizeof(ar)/sizeof(ar[0]), C(5), A());
     assert(m.get_allocator() == A());
@@ -93,7 +92,7 @@ int main()
     };
     {
     typedef min_allocator<V> A;
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     A a;
     std::map<int, double, C, A> m(ar, ar+sizeof(ar)/sizeof(ar[0]), a );
 
@@ -106,7 +105,7 @@ int main()
     }
     {
     typedef explicit_allocator<V> A;
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     A a;
     std::map<int, double, C, A> m(ar, ar+sizeof(ar)/sizeof(ar[0]), a );
 
@@ -120,4 +119,6 @@ int main()
     }
 #endif
 #endif
+
+  return 0;
 }

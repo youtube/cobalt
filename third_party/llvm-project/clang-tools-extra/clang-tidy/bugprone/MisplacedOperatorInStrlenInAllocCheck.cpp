@@ -1,15 +1,15 @@
 //===--- MisplacedOperatorInStrlenInAllocCheck.cpp - clang-tidy------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "MisplacedOperatorInStrlenInAllocCheck.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/Lex/Lexer.h"
 
 using namespace clang::ast_matchers;
 
@@ -19,35 +19,31 @@ namespace bugprone {
 
 void MisplacedOperatorInStrlenInAllocCheck::registerMatchers(
     MatchFinder *Finder) {
-  const auto StrLenFunc = functionDecl(anyOf(
-      hasName("::strlen"), hasName("::std::strlen"), hasName("::strnlen"),
-      hasName("::std::strnlen"), hasName("::strnlen_s"),
-      hasName("::std::strnlen_s"), hasName("::wcslen"),
-      hasName("::std::wcslen"), hasName("::wcsnlen"), hasName("::std::wcsnlen"),
-      hasName("::wcsnlen_s"), hasName("std::wcsnlen_s")));
+  const auto StrLenFunc = functionDecl(hasAnyName(
+      "::strlen", "::std::strlen", "::strnlen", "::std::strnlen", "::strnlen_s",
+      "::std::strnlen_s", "::wcslen", "::std::wcslen", "::wcsnlen",
+      "::std::wcsnlen", "::wcsnlen_s", "std::wcsnlen_s"));
 
   const auto BadUse =
       callExpr(callee(StrLenFunc),
                hasAnyArgument(ignoringImpCasts(
-                   binaryOperator(allOf(hasOperatorName("+"),
-                                        hasRHS(ignoringParenImpCasts(
-                                            integerLiteral(equals(1))))))
+                   binaryOperator(
+                       hasOperatorName("+"),
+                       hasRHS(ignoringParenImpCasts(integerLiteral(equals(1)))))
                        .bind("BinOp"))))
           .bind("StrLen");
 
   const auto BadArg = anyOf(
-      allOf(hasDescendant(BadUse),
-            unless(binaryOperator(allOf(
+      allOf(unless(binaryOperator(
                 hasOperatorName("+"), hasLHS(BadUse),
-                hasRHS(ignoringParenImpCasts(integerLiteral(equals(1)))))))),
+                hasRHS(ignoringParenImpCasts(integerLiteral(equals(1)))))),
+            hasDescendant(BadUse)),
       BadUse);
 
-  const auto Alloc0Func =
-      functionDecl(anyOf(hasName("::malloc"), hasName("std::malloc"),
-                         hasName("::alloca"), hasName("std::alloca")));
-  const auto Alloc1Func =
-      functionDecl(anyOf(hasName("::calloc"), hasName("std::calloc"),
-                         hasName("::realloc"), hasName("std::realloc")));
+  const auto Alloc0Func = functionDecl(
+      hasAnyName("::malloc", "std::malloc", "::alloca", "std::alloca"));
+  const auto Alloc1Func = functionDecl(
+      hasAnyName("::calloc", "std::calloc", "::realloc", "std::realloc"));
 
   const auto Alloc0FuncPtr =
       varDecl(hasType(isConstQualified()),
@@ -58,16 +54,20 @@ void MisplacedOperatorInStrlenInAllocCheck::registerMatchers(
               hasInitializer(ignoringParenImpCasts(
                   declRefExpr(hasDeclaration(Alloc1Func)))));
 
-  Finder->addMatcher(callExpr(callee(decl(anyOf(Alloc0Func, Alloc0FuncPtr))),
-                              hasArgument(0, BadArg))
-                         .bind("Alloc"),
-                     this);
-  Finder->addMatcher(callExpr(callee(decl(anyOf(Alloc1Func, Alloc1FuncPtr))),
-                              hasArgument(1, BadArg))
-                         .bind("Alloc"),
-                     this);
   Finder->addMatcher(
-      cxxNewExpr(isArray(), hasArraySize(BadArg)).bind("Alloc"), this);
+      traverse(TK_AsIs, callExpr(callee(decl(anyOf(Alloc0Func, Alloc0FuncPtr))),
+                                 hasArgument(0, BadArg))
+                            .bind("Alloc")),
+      this);
+  Finder->addMatcher(
+      traverse(TK_AsIs, callExpr(callee(decl(anyOf(Alloc1Func, Alloc1FuncPtr))),
+                                 hasArgument(1, BadArg))
+                            .bind("Alloc")),
+      this);
+  Finder->addMatcher(
+      traverse(TK_AsIs,
+               cxxNewExpr(isArray(), hasArraySize(BadArg)).bind("Alloc")),
+      this);
 }
 
 void MisplacedOperatorInStrlenInAllocCheck::check(
@@ -75,7 +75,7 @@ void MisplacedOperatorInStrlenInAllocCheck::check(
   const Expr *Alloc = Result.Nodes.getNodeAs<CallExpr>("Alloc");
   if (!Alloc)
     Alloc = Result.Nodes.getNodeAs<CXXNewExpr>("Alloc");
-  assert(Alloc && "Matched node bound by 'Alloc' shoud be either 'CallExpr'"
+  assert(Alloc && "Matched node bound by 'Alloc' should be either 'CallExpr'"
          " or 'CXXNewExpr'");
 
   const auto *StrLen = Result.Nodes.getNodeAs<CallExpr>("StrLen");
@@ -102,9 +102,10 @@ void MisplacedOperatorInStrlenInAllocCheck::check(
       StrLen->getSourceRange(),
       (StrLenBegin + LHSText + StrLenEnd + " + " + RHSText).str());
 
-  diag(Alloc->getLocStart(),
+  diag(Alloc->getBeginLoc(),
        "addition operator is applied to the argument of %0 instead of its "
-       "result") << StrLen->getDirectCallee()->getName() << Hint;
+       "result")
+      << StrLen->getDirectCallee()->getName() << Hint;
 }
 
 } // namespace bugprone

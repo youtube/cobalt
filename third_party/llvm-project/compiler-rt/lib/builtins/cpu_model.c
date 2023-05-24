@@ -1,20 +1,34 @@
 //===-- cpu_model.c - Support for __cpu_model builtin  ------------*- C -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
 //  This file is based on LLVM's lib/Support/Host.cpp.
 //  It implements the operating system Host concept and builtin
-//  __cpu_model for the compiler_rt library, for x86 only.
+//  __cpu_model for the compiler_rt library for x86 and
+//  __aarch64_have_lse_atomics for AArch64.
 //
 //===----------------------------------------------------------------------===//
 
-#if (defined(__i386__) || defined(_M_IX86) || \
-     defined(__x86_64__) || defined(_M_X64)) && \
+#ifndef __has_attribute
+#define __has_attribute(attr) 0
+#endif
+
+#if defined(HAVE_INIT_PRIORITY)
+#define CONSTRUCTOR_ATTRIBUTE __attribute__((__constructor__ 101))
+#elif __has_attribute(__constructor__)
+#define CONSTRUCTOR_ATTRIBUTE __attribute__((__constructor__))
+#else
+// FIXME: For MSVC, we should make a function pointer global in .CRT$X?? so that
+// this runs during initialization.
+#define CONSTRUCTOR_ATTRIBUTE
+#endif
+
+#if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||           \
+     defined(_M_X64)) &&                                                       \
     (defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER))
 
 #include <assert.h>
@@ -27,13 +41,9 @@
 #include <intrin.h>
 #endif
 
-#ifndef __has_attribute
-#define __has_attribute(attr) 0
-#endif
-
 enum VendorSignatures {
-  SIG_INTEL = 0x756e6547 /* Genu */,
-  SIG_AMD = 0x68747541 /* Auth */
+  SIG_INTEL = 0x756e6547, // Genu
+  SIG_AMD = 0x68747541,   // Auth
 };
 
 enum ProcessorVendors {
@@ -55,6 +65,10 @@ enum ProcessorTypes {
   AMD_BTVER2,
   AMDFAM17H,
   INTEL_KNM,
+  INTEL_GOLDMONT,
+  INTEL_GOLDMONT_PLUS,
+  INTEL_TREMONT,
+  AMDFAM19H,
   CPU_TYPE_MAX
 };
 
@@ -76,6 +90,16 @@ enum ProcessorSubtypes {
   INTEL_COREI7_SKYLAKE,
   INTEL_COREI7_SKYLAKE_AVX512,
   INTEL_COREI7_CANNONLAKE,
+  INTEL_COREI7_ICELAKE_CLIENT,
+  INTEL_COREI7_ICELAKE_SERVER,
+  AMDFAM17H_ZNVER2,
+  INTEL_COREI7_CASCADELAKE,
+  INTEL_COREI7_TIGERLAKE,
+  INTEL_COREI7_COOPERLAKE,
+  INTEL_COREI7_SAPPHIRERAPIDS,
+  INTEL_COREI7_ALDERLAKE,
+  AMDFAM19H_ZNVER3,
+  INTEL_COREI7_ROCKETLAKE,
   CPU_SUBTYPE_MAX
 };
 
@@ -110,7 +134,15 @@ enum ProcessorFeatures {
   FEATURE_AVX512IFMA,
   FEATURE_AVX5124VNNIW,
   FEATURE_AVX5124FMAPS,
-  FEATURE_AVX512VPOPCNTDQ
+  FEATURE_AVX512VPOPCNTDQ,
+  FEATURE_AVX512VBMI2,
+  FEATURE_GFNI,
+  FEATURE_VPCLMULQDQ,
+  FEATURE_AVX512VNNI,
+  FEATURE_AVX512BITALG,
+  FEATURE_AVX512BF16,
+  FEATURE_AVX512VP2INTERSECT,
+  CPU_FEATURE_MAX
 };
 
 // The check below for i386 was copied from clang's cpuid.h (__get_cpuid_max).
@@ -256,12 +288,17 @@ static void detectX86FamilyModel(unsigned EAX, unsigned *Family,
   }
 }
 
-static void
+static const char *
 getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
-                                unsigned Brand_id, unsigned Features,
+                                const unsigned *Features,
                                 unsigned *Type, unsigned *Subtype) {
-  if (Brand_id != 0)
-    return;
+#define testFeature(F)                                                         \
+  (Features[F / 32] & (1 << (F % 32))) != 0
+
+  // We select CPU strings to match the code in Host.cpp, but we don't use them
+  // in compiler-rt.
+  const char *CPU = 0;
+
   switch (Family) {
   case 6:
     switch (Model) {
@@ -272,39 +309,47 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
                // 0Fh. All processors are manufactured using the 65 nm process.
     case 0x16: // Intel Celeron processor model 16h. All processors are
                // manufactured using the 65 nm process
+      CPU = "core2";
+      *Type = INTEL_CORE2;
+      break;
     case 0x17: // Intel Core 2 Extreme processor, Intel Xeon processor, model
                // 17h. All processors are manufactured using the 45 nm process.
                //
                // 45nm: Penryn , Wolfdale, Yorkfield (XE)
     case 0x1d: // Intel Xeon processor MP. All processors are manufactured using
                // the 45 nm process.
-      *Type = INTEL_CORE2; // "penryn"
+      CPU = "penryn";
+      *Type = INTEL_CORE2;
       break;
     case 0x1a: // Intel Core i7 processor and Intel Xeon processor. All
                // processors are manufactured using the 45 nm process.
     case 0x1e: // Intel(R) Core(TM) i7 CPU         870  @ 2.93GHz.
                // As found in a Summer 2010 model iMac.
     case 0x1f:
-    case 0x2e:             // Nehalem EX
-      *Type = INTEL_COREI7; // "nehalem"
+    case 0x2e:              // Nehalem EX
+      CPU = "nehalem";
+      *Type = INTEL_COREI7;
       *Subtype = INTEL_COREI7_NEHALEM;
       break;
     case 0x25: // Intel Core i7, laptop version.
     case 0x2c: // Intel Core i7 processor and Intel Xeon processor. All
                // processors are manufactured using the 32 nm process.
     case 0x2f: // Westmere EX
-      *Type = INTEL_COREI7; // "westmere"
+      CPU = "westmere";
+      *Type = INTEL_COREI7;
       *Subtype = INTEL_COREI7_WESTMERE;
       break;
     case 0x2a: // Intel Core i7 processor. All processors are manufactured
                // using the 32 nm process.
     case 0x2d:
-      *Type = INTEL_COREI7; //"sandybridge"
+      CPU = "sandybridge";
+      *Type = INTEL_COREI7;
       *Subtype = INTEL_COREI7_SANDYBRIDGE;
       break;
     case 0x3a:
-    case 0x3e:             // Ivy Bridge EP
-      *Type = INTEL_COREI7; // "ivybridge"
+    case 0x3e:              // Ivy Bridge EP
+      CPU = "ivybridge";
+      *Type = INTEL_COREI7;
       *Subtype = INTEL_COREI7_IVYBRIDGE;
       break;
 
@@ -313,7 +358,8 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
     case 0x3f:
     case 0x45:
     case 0x46:
-      *Type = INTEL_COREI7; // "haswell"
+      CPU = "haswell";
+      *Type = INTEL_COREI7;
       *Subtype = INTEL_COREI7_HASWELL;
       break;
 
@@ -322,29 +368,89 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
     case 0x47:
     case 0x4f:
     case 0x56:
-      *Type = INTEL_COREI7; // "broadwell"
+      CPU = "broadwell";
+      *Type = INTEL_COREI7;
       *Subtype = INTEL_COREI7_BROADWELL;
       break;
 
     // Skylake:
-    case 0x4e: // Skylake mobile
-    case 0x5e: // Skylake desktop
-    case 0x8e: // Kaby Lake mobile
-    case 0x9e: // Kaby Lake desktop
-      *Type = INTEL_COREI7; // "skylake"
+    case 0x4e:              // Skylake mobile
+    case 0x5e:              // Skylake desktop
+    case 0x8e:              // Kaby Lake mobile
+    case 0x9e:              // Kaby Lake desktop
+    case 0xa5:              // Comet Lake-H/S
+    case 0xa6:              // Comet Lake-U
+      CPU = "skylake";
+      *Type = INTEL_COREI7;
       *Subtype = INTEL_COREI7_SKYLAKE;
+      break;
+
+    // Rocketlake:
+    case 0xa7:
+      CPU = "rocketlake";
+      *Type = INTEL_COREI7;
+      *Subtype = INTEL_COREI7_ROCKETLAKE;
       break;
 
     // Skylake Xeon:
     case 0x55:
       *Type = INTEL_COREI7;
-      *Subtype = INTEL_COREI7_SKYLAKE_AVX512; // "skylake-avx512"
+      if (testFeature(FEATURE_AVX512BF16)) {
+        CPU = "cooperlake";
+        *Subtype = INTEL_COREI7_COOPERLAKE;
+      } else if (testFeature(FEATURE_AVX512VNNI)) {
+        CPU = "cascadelake";
+        *Subtype = INTEL_COREI7_CASCADELAKE;
+      } else {
+        CPU = "skylake-avx512";
+        *Subtype = INTEL_COREI7_SKYLAKE_AVX512;
+      }
       break;
 
     // Cannonlake:
     case 0x66:
+      CPU = "cannonlake";
       *Type = INTEL_COREI7;
-      *Subtype = INTEL_COREI7_CANNONLAKE; // "cannonlake"
+      *Subtype = INTEL_COREI7_CANNONLAKE;
+      break;
+
+    // Icelake:
+    case 0x7d:
+    case 0x7e:
+      CPU = "icelake-client";
+      *Type = INTEL_COREI7;
+      *Subtype = INTEL_COREI7_ICELAKE_CLIENT;
+      break;
+
+    // Tigerlake:
+    case 0x8c:
+    case 0x8d:
+      CPU = "tigerlake";
+      *Type = INTEL_COREI7;
+      *Subtype = INTEL_COREI7_TIGERLAKE;
+      break;
+
+    // Alderlake:
+    case 0x97:
+    case 0x9a:
+      CPU = "alderlake";
+      *Type = INTEL_COREI7;
+      *Subtype = INTEL_COREI7_ALDERLAKE;
+      break;
+
+    // Icelake Xeon:
+    case 0x6a:
+    case 0x6c:
+      CPU = "icelake-server";
+      *Type = INTEL_COREI7;
+      *Subtype = INTEL_COREI7_ICELAKE_SERVER;
+      break;
+
+    // Sapphire Rapids:
+    case 0x8f:
+      CPU = "sapphirerapids";
+      *Type = INTEL_COREI7;
+      *Subtype = INTEL_COREI7_SAPPHIRERAPIDS;
       break;
 
     case 0x1c: // Most 45 nm Intel Atom processors
@@ -352,8 +458,9 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
     case 0x27: // 32 nm Atom Medfield
     case 0x35: // 32 nm Atom Midview
     case 0x36: // 32 nm Atom Midview
+      CPU = "bonnell";
       *Type = INTEL_BONNELL;
-      break; // "bonnell"
+      break;
 
     // Atom Silvermont codes from the Intel software optimization guide.
     case 0x37:
@@ -362,35 +469,57 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
     case 0x5a:
     case 0x5d:
     case 0x4c: // really airmont
+      CPU = "silvermont";
       *Type = INTEL_SILVERMONT;
-      break; // "silvermont"
+      break;
+    // Goldmont:
+    case 0x5c: // Apollo Lake
+    case 0x5f: // Denverton
+      CPU = "goldmont";
+      *Type = INTEL_GOLDMONT;
+      break; // "goldmont"
+    case 0x7a:
+      CPU = "goldmont-plus";
+      *Type = INTEL_GOLDMONT_PLUS;
+      break;
+    case 0x86:
+      CPU = "tremont";
+      *Type = INTEL_TREMONT;
+      break;
 
     case 0x57:
-      *Type = INTEL_KNL; // knl
+      CPU = "knl";
+      *Type = INTEL_KNL;
       break;
 
     case 0x85:
-      *Type = INTEL_KNM; // knm
+      CPU = "knm";
+      *Type = INTEL_KNM;
       break;
 
     default: // Unknown family 6 CPU.
       break;
-    break;
     }
+    break;
   default:
     break; // Unknown.
   }
+
+  return CPU;
 }
 
-static void getAMDProcessorTypeAndSubtype(unsigned Family, unsigned Model,
-                                          unsigned Features, unsigned *Type,
-                                          unsigned *Subtype) {
-  // FIXME: this poorly matches the generated SubtargetFeatureKV table.  There
-  // appears to be no way to generate the wide variety of AMD-specific targets
-  // from the information returned from CPUID.
+static const char *
+getAMDProcessorTypeAndSubtype(unsigned Family, unsigned Model,
+                              const unsigned *Features,
+                              unsigned *Type, unsigned *Subtype) {
+  // We select CPU strings to match the code in Host.cpp, but we don't use them
+  // in compiler-rt.
+  const char *CPU = 0;
+
   switch (Family) {
   case 16:
-    *Type = AMDFAM10H; // "amdfam10"
+    CPU = "amdfam10";
+    *Type = AMDFAM10H;
     switch (Model) {
     case 2:
       *Subtype = AMDFAM10H_BARCELONA;
@@ -404,69 +533,96 @@ static void getAMDProcessorTypeAndSubtype(unsigned Family, unsigned Model,
     }
     break;
   case 20:
+    CPU = "btver1";
     *Type = AMD_BTVER1;
-    break; // "btver1";
+    break;
   case 21:
+    CPU = "bdver1";
     *Type = AMDFAM15H;
     if (Model >= 0x60 && Model <= 0x7f) {
+      CPU = "bdver4";
       *Subtype = AMDFAM15H_BDVER4;
-      break; // "bdver4"; 60h-7Fh: Excavator
+      break; // 60h-7Fh: Excavator
     }
     if (Model >= 0x30 && Model <= 0x3f) {
+      CPU = "bdver3";
       *Subtype = AMDFAM15H_BDVER3;
-      break; // "bdver3"; 30h-3Fh: Steamroller
+      break; // 30h-3Fh: Steamroller
     }
     if ((Model >= 0x10 && Model <= 0x1f) || Model == 0x02) {
+      CPU = "bdver2";
       *Subtype = AMDFAM15H_BDVER2;
-      break; // "bdver2"; 02h, 10h-1Fh: Piledriver
+      break; // 02h, 10h-1Fh: Piledriver
     }
     if (Model <= 0x0f) {
       *Subtype = AMDFAM15H_BDVER1;
-      break; // "bdver1"; 00h-0Fh: Bulldozer
+      break; // 00h-0Fh: Bulldozer
     }
     break;
   case 22:
+    CPU = "btver2";
     *Type = AMD_BTVER2;
-    break; // "btver2"
+    break;
   case 23:
+    CPU = "znver1";
     *Type = AMDFAM17H;
-    *Subtype = AMDFAM17H_ZNVER1;
+    if ((Model >= 0x30 && Model <= 0x3f) || Model == 0x71) {
+      CPU = "znver2";
+      *Subtype = AMDFAM17H_ZNVER2;
+      break; // 30h-3fh, 71h: Zen2
+    }
+    if (Model <= 0x0f) {
+      *Subtype = AMDFAM17H_ZNVER1;
+      break; // 00h-0Fh: Zen1
+    }
+    break;
+  case 25:
+    CPU = "znver3";
+    *Type = AMDFAM19H;
+    if (Model <= 0x0f) {
+      *Subtype = AMDFAM19H_ZNVER3;
+      break; // 00h-0Fh: Zen3
+    }
     break;
   default:
-    break; // "generic"
+    break; // Unknown AMD CPU.
   }
+
+  return CPU;
 }
 
 static void getAvailableFeatures(unsigned ECX, unsigned EDX, unsigned MaxLeaf,
-                                 unsigned *FeaturesOut) {
-  unsigned Features = 0;
+                                 unsigned *Features) {
   unsigned EAX, EBX;
 
+#define setFeature(F)                                                          \
+  Features[F / 32] |= 1U << (F % 32)
+
   if ((EDX >> 15) & 1)
-    Features |= 1 << FEATURE_CMOV;
+    setFeature(FEATURE_CMOV);
   if ((EDX >> 23) & 1)
-    Features |= 1 << FEATURE_MMX;
+    setFeature(FEATURE_MMX);
   if ((EDX >> 25) & 1)
-    Features |= 1 << FEATURE_SSE;
+    setFeature(FEATURE_SSE);
   if ((EDX >> 26) & 1)
-    Features |= 1 << FEATURE_SSE2;
+    setFeature(FEATURE_SSE2);
 
   if ((ECX >> 0) & 1)
-    Features |= 1 << FEATURE_SSE3;
+    setFeature(FEATURE_SSE3);
   if ((ECX >> 1) & 1)
-    Features |= 1 << FEATURE_PCLMUL;
+    setFeature(FEATURE_PCLMUL);
   if ((ECX >> 9) & 1)
-    Features |= 1 << FEATURE_SSSE3;
+    setFeature(FEATURE_SSSE3);
   if ((ECX >> 12) & 1)
-    Features |= 1 << FEATURE_FMA;
+    setFeature(FEATURE_FMA);
   if ((ECX >> 19) & 1)
-    Features |= 1 << FEATURE_SSE4_1;
+    setFeature(FEATURE_SSE4_1);
   if ((ECX >> 20) & 1)
-    Features |= 1 << FEATURE_SSE4_2;
+    setFeature(FEATURE_SSE4_2);
   if ((ECX >> 23) & 1)
-    Features |= 1 << FEATURE_POPCNT;
+    setFeature(FEATURE_POPCNT);
   if ((ECX >> 25) & 1)
-    Features |= 1 << FEATURE_AES;
+    setFeature(FEATURE_AES);
 
   // If CPUID indicates support for XSAVE, XRESTORE and AVX, and XGETBV
   // indicates that the AVX registers will be saved and restored on context
@@ -474,46 +630,71 @@ static void getAvailableFeatures(unsigned ECX, unsigned EDX, unsigned MaxLeaf,
   const unsigned AVXBits = (1 << 27) | (1 << 28);
   bool HasAVX = ((ECX & AVXBits) == AVXBits) && !getX86XCR0(&EAX, &EDX) &&
                 ((EAX & 0x6) == 0x6);
+#if defined(__APPLE__)
+  // Darwin lazily saves the AVX512 context on first use: trust that the OS will
+  // save the AVX512 context if we use AVX512 instructions, even the bit is not
+  // set right now.
+  bool HasAVX512Save = true;
+#else
+  // AVX512 requires additional context to be saved by the OS.
   bool HasAVX512Save = HasAVX && ((EAX & 0xe0) == 0xe0);
+#endif
 
   if (HasAVX)
-    Features |= 1 << FEATURE_AVX;
+    setFeature(FEATURE_AVX);
 
   bool HasLeaf7 =
       MaxLeaf >= 0x7 && !getX86CpuIDAndInfoEx(0x7, 0x0, &EAX, &EBX, &ECX, &EDX);
 
   if (HasLeaf7 && ((EBX >> 3) & 1))
-    Features |= 1 << FEATURE_BMI;
+    setFeature(FEATURE_BMI);
   if (HasLeaf7 && ((EBX >> 5) & 1) && HasAVX)
-    Features |= 1 << FEATURE_AVX2;
-  if (HasLeaf7 && ((EBX >> 9) & 1))
-    Features |= 1 << FEATURE_BMI2;
+    setFeature(FEATURE_AVX2);
+  if (HasLeaf7 && ((EBX >> 8) & 1))
+    setFeature(FEATURE_BMI2);
   if (HasLeaf7 && ((EBX >> 16) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512F;
+    setFeature(FEATURE_AVX512F);
   if (HasLeaf7 && ((EBX >> 17) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512DQ;
+    setFeature(FEATURE_AVX512DQ);
   if (HasLeaf7 && ((EBX >> 21) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512IFMA;
+    setFeature(FEATURE_AVX512IFMA);
   if (HasLeaf7 && ((EBX >> 26) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512PF;
+    setFeature(FEATURE_AVX512PF);
   if (HasLeaf7 && ((EBX >> 27) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512ER;
+    setFeature(FEATURE_AVX512ER);
   if (HasLeaf7 && ((EBX >> 28) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512CD;
+    setFeature(FEATURE_AVX512CD);
   if (HasLeaf7 && ((EBX >> 30) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512BW;
+    setFeature(FEATURE_AVX512BW);
   if (HasLeaf7 && ((EBX >> 31) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512VL;
+    setFeature(FEATURE_AVX512VL);
 
   if (HasLeaf7 && ((ECX >> 1) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512VBMI;
+    setFeature(FEATURE_AVX512VBMI);
+  if (HasLeaf7 && ((ECX >> 6) & 1) && HasAVX512Save)
+    setFeature(FEATURE_AVX512VBMI2);
+  if (HasLeaf7 && ((ECX >> 8) & 1))
+    setFeature(FEATURE_GFNI);
+  if (HasLeaf7 && ((ECX >> 10) & 1) && HasAVX)
+    setFeature(FEATURE_VPCLMULQDQ);
+  if (HasLeaf7 && ((ECX >> 11) & 1) && HasAVX512Save)
+    setFeature(FEATURE_AVX512VNNI);
+  if (HasLeaf7 && ((ECX >> 12) & 1) && HasAVX512Save)
+    setFeature(FEATURE_AVX512BITALG);
   if (HasLeaf7 && ((ECX >> 14) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX512VPOPCNTDQ;
+    setFeature(FEATURE_AVX512VPOPCNTDQ);
 
   if (HasLeaf7 && ((EDX >> 2) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX5124VNNIW;
+    setFeature(FEATURE_AVX5124VNNIW);
   if (HasLeaf7 && ((EDX >> 3) & 1) && HasAVX512Save)
-    Features |= 1 << FEATURE_AVX5124FMAPS;
+    setFeature(FEATURE_AVX5124FMAPS);
+  if (HasLeaf7 && ((EDX >> 8) & 1) && HasAVX512Save)
+    setFeature(FEATURE_AVX512VP2INTERSECT);
+
+  bool HasLeaf7Subleaf1 =
+      MaxLeaf >= 0x7 && !getX86CpuIDAndInfoEx(0x7, 0x1, &EAX, &EBX, &ECX, &EDX);
+  if (HasLeaf7Subleaf1 && ((EAX >> 5) & 1) && HasAVX512Save)
+    setFeature(FEATURE_AVX512BF16);
 
   unsigned MaxExtLevel;
   getX86CpuIDAndInfo(0x80000000, &MaxExtLevel, &EBX, &ECX, &EDX);
@@ -521,27 +702,22 @@ static void getAvailableFeatures(unsigned ECX, unsigned EDX, unsigned MaxLeaf,
   bool HasExtLeaf1 = MaxExtLevel >= 0x80000001 &&
                      !getX86CpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
   if (HasExtLeaf1 && ((ECX >> 6) & 1))
-    Features |= 1 << FEATURE_SSE4_A;
+    setFeature(FEATURE_SSE4_A);
   if (HasExtLeaf1 && ((ECX >> 11) & 1))
-    Features |= 1 << FEATURE_XOP;
+    setFeature(FEATURE_XOP);
   if (HasExtLeaf1 && ((ECX >> 16) & 1))
-    Features |= 1 << FEATURE_FMA4;
-
-  *FeaturesOut = Features;
+    setFeature(FEATURE_FMA4);
+#undef setFeature
 }
 
-#if defined(HAVE_INIT_PRIORITY)
-#define CONSTRUCTOR_ATTRIBUTE __attribute__((__constructor__ 101))
-#elif __has_attribute(__constructor__)
-#define CONSTRUCTOR_ATTRIBUTE __attribute__((__constructor__))
-#else
-// FIXME: For MSVC, we should make a function pointer global in .CRT$X?? so that
-// this runs during initialization.
-#define CONSTRUCTOR_ATTRIBUTE
+#ifndef _WIN32
+__attribute__((visibility("hidden")))
 #endif
-
 int __cpu_indicator_init(void) CONSTRUCTOR_ATTRIBUTE;
 
+#ifndef _WIN32
+__attribute__((visibility("hidden")))
+#endif
 struct __processor_model {
   unsigned int __cpu_vendor;
   unsigned int __cpu_type;
@@ -549,49 +725,53 @@ struct __processor_model {
   unsigned int __cpu_features[1];
 } __cpu_model = {0, 0, 0, {0}};
 
-/* A constructor function that is sets __cpu_model and __cpu_features with
-   the right values.  This needs to run only once.  This constructor is
-   given the highest priority and it should run before constructors without
-   the priority set.  However, it still runs after ifunc initializers and
-   needs to be called explicitly there.  */
+#ifndef _WIN32
+__attribute__((visibility("hidden")))
+#endif
+unsigned int __cpu_features2 = 0;
 
-int CONSTRUCTOR_ATTRIBUTE
-__cpu_indicator_init(void) {
+// A constructor function that is sets __cpu_model and __cpu_features2 with
+// the right values.  This needs to run only once.  This constructor is
+// given the highest priority and it should run before constructors without
+// the priority set.  However, it still runs after ifunc initializers and
+// needs to be called explicitly there.
+
+int CONSTRUCTOR_ATTRIBUTE __cpu_indicator_init(void) {
   unsigned EAX, EBX, ECX, EDX;
   unsigned MaxLeaf = 5;
   unsigned Vendor;
-  unsigned Model, Family, Brand_id;
-  unsigned Features = 0;
+  unsigned Model, Family;
+  unsigned Features[(CPU_FEATURE_MAX + 31) / 32] = {0};
 
-  /* This function needs to run just once.  */
+  // This function needs to run just once.
   if (__cpu_model.__cpu_vendor)
     return 0;
 
-  if (!isCpuIdSupported())
-    return -1;
-
-  /* Assume cpuid insn present. Run in level 0 to get vendor id. */
-  if (getX86CpuIDAndInfo(0, &MaxLeaf, &Vendor, &ECX, &EDX) || MaxLeaf < 1) {
+  if (!isCpuIdSupported() ||
+      getX86CpuIDAndInfo(0, &MaxLeaf, &Vendor, &ECX, &EDX) || MaxLeaf < 1) {
     __cpu_model.__cpu_vendor = VENDOR_OTHER;
     return -1;
   }
+
   getX86CpuIDAndInfo(1, &EAX, &EBX, &ECX, &EDX);
   detectX86FamilyModel(EAX, &Family, &Model);
-  Brand_id = EBX & 0xff;
 
-  /* Find available features. */
-  getAvailableFeatures(ECX, EDX, MaxLeaf, &Features);
-  __cpu_model.__cpu_features[0] = Features;
+  // Find available features.
+  getAvailableFeatures(ECX, EDX, MaxLeaf, &Features[0]);
+
+  assert((sizeof(Features)/sizeof(Features[0])) == 2);
+  __cpu_model.__cpu_features[0] = Features[0];
+  __cpu_features2 = Features[1];
 
   if (Vendor == SIG_INTEL) {
-    /* Get CPU type.  */
-    getIntelProcessorTypeAndSubtype(Family, Model, Brand_id, Features,
+    // Get CPU type.
+    getIntelProcessorTypeAndSubtype(Family, Model, &Features[0],
                                     &(__cpu_model.__cpu_type),
                                     &(__cpu_model.__cpu_subtype));
     __cpu_model.__cpu_vendor = VENDOR_INTEL;
   } else if (Vendor == SIG_AMD) {
-    /* Get CPU type.  */
-    getAMDProcessorTypeAndSubtype(Family, Model, Features,
+    // Get CPU type.
+    getAMDProcessorTypeAndSubtype(Family, Model, &Features[0],
                                   &(__cpu_model.__cpu_type),
                                   &(__cpu_model.__cpu_subtype));
     __cpu_model.__cpu_vendor = VENDOR_AMD;
@@ -604,5 +784,46 @@ __cpu_indicator_init(void) {
 
   return 0;
 }
-
+#elif defined(__aarch64__)
+// LSE support detection for out-of-line atomics
+// using HWCAP and Auxiliary vector
+_Bool __aarch64_have_lse_atomics
+    __attribute__((visibility("hidden"), nocommon));
+#if defined(__has_include)
+#if __has_include(<sys/auxv.h>)
+#include <sys/auxv.h>
+#ifndef AT_HWCAP
+#define AT_HWCAP 16
 #endif
+#ifndef HWCAP_ATOMICS
+#define HWCAP_ATOMICS (1 << 8)
+#endif
+#if defined(__ANDROID__)
+#include <string.h>
+#include <sys/system_properties.h>
+#endif
+static void CONSTRUCTOR_ATTRIBUTE init_have_lse_atomics(void) {
+#if defined(__FreeBSD__)
+  unsigned long hwcap;
+  int result = elf_aux_info(AT_HWCAP, &hwcap, sizeof hwcap);
+  __aarch64_have_lse_atomics = result == 0 && (hwcap & HWCAP_ATOMICS) != 0;
+#else
+  unsigned long hwcap = getauxval(AT_HWCAP);
+  _Bool result = (hwcap & HWCAP_ATOMICS) != 0;
+#if defined(__ANDROID__)
+  if (result) {
+    char arch[PROP_VALUE_MAX];
+    if (__system_property_get("ro.arch", arch) > 0 &&
+        strncmp(arch, "exynos9810", sizeof("exynos9810") - 1) == 0) {
+      // Some cores of Exynos 9810 are ARMv8.2 and others are ARMv8.0,
+      // so disable the lse atomics completely.
+      result = false;
+    }
+  }
+#endif // defined(__ANDROID__)
+  __aarch64_have_lse_atomics = result;
+#endif // defined(__FreeBSD__)
+}
+#endif // defined(__has_include)
+#endif // __has_include(<sys/auxv.h>)
+#endif // defined(__aarch64__)

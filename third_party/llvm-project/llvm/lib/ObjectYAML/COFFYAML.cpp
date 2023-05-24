@@ -1,9 +1,8 @@
 //===- COFFYAML.cpp - COFF YAMLIO implementation --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -50,6 +49,7 @@ ScalarEnumerationTraits<COFFYAML::WeakExternalCharacteristics>::enumeration(
   ECase(IMAGE_WEAK_EXTERN_SEARCH_NOLIBRARY);
   ECase(IMAGE_WEAK_EXTERN_SEARCH_LIBRARY);
   ECase(IMAGE_WEAK_EXTERN_SEARCH_ALIAS);
+  ECase(IMAGE_WEAK_EXTERN_ANTI_DEPENDENCY);
 }
 
 void ScalarEnumerationTraits<COFFYAML::AuxSymbolType>::enumeration(
@@ -188,6 +188,7 @@ void ScalarEnumerationTraits<COFF::RelocationTypesARM>::enumeration(
   ECase(IMAGE_REL_ARM_TOKEN);
   ECase(IMAGE_REL_ARM_BLX24);
   ECase(IMAGE_REL_ARM_BLX11);
+  ECase(IMAGE_REL_ARM_REL32);
   ECase(IMAGE_REL_ARM_SECTION);
   ECase(IMAGE_REL_ARM_SECREL);
   ECase(IMAGE_REL_ARM_MOV32A);
@@ -195,6 +196,7 @@ void ScalarEnumerationTraits<COFF::RelocationTypesARM>::enumeration(
   ECase(IMAGE_REL_ARM_BRANCH20T);
   ECase(IMAGE_REL_ARM_BRANCH24T);
   ECase(IMAGE_REL_ARM_BLX23T);
+  ECase(IMAGE_REL_ARM_PAIR);
 }
 
 void ScalarEnumerationTraits<COFF::RelocationTypesARM64>::enumeration(
@@ -216,6 +218,7 @@ void ScalarEnumerationTraits<COFF::RelocationTypesARM64>::enumeration(
   ECase(IMAGE_REL_ARM64_ADDR64);
   ECase(IMAGE_REL_ARM64_BRANCH19);
   ECase(IMAGE_REL_ARM64_BRANCH14);
+  ECase(IMAGE_REL_ARM64_REL32);
 }
 
 void ScalarEnumerationTraits<COFF::WindowsSubsystem>::enumeration(
@@ -407,7 +410,8 @@ struct NDLLCharacteristics {
 void MappingTraits<COFFYAML::Relocation>::mapping(IO &IO,
                                                   COFFYAML::Relocation &Rel) {
   IO.mapRequired("VirtualAddress", Rel.VirtualAddress);
-  IO.mapRequired("SymbolName", Rel.SymbolName);
+  IO.mapOptional("SymbolName", Rel.SymbolName, StringRef());
+  IO.mapOptional("SymbolTableIndex", Rel.SymbolTableIndex);
 
   COFF::header &H = *static_cast<COFF::header *>(IO.getContext());
   if (H.Machine == COFF::IMAGE_FILE_MACHINE_I386) {
@@ -444,25 +448,27 @@ void MappingTraits<COFFYAML::PEHeader>::mapping(IO &IO,
   MappingNormalization<NDLLCharacteristics, uint16_t> NDC(
       IO, PH.Header.DLLCharacteristics);
 
-  IO.mapRequired("AddressOfEntryPoint", PH.Header.AddressOfEntryPoint);
-  IO.mapRequired("ImageBase", PH.Header.ImageBase);
-  IO.mapRequired("SectionAlignment", PH.Header.SectionAlignment);
-  IO.mapRequired("FileAlignment", PH.Header.FileAlignment);
-  IO.mapRequired("MajorOperatingSystemVersion",
+  IO.mapOptional("AddressOfEntryPoint", PH.Header.AddressOfEntryPoint);
+  IO.mapOptional("ImageBase", PH.Header.ImageBase);
+  IO.mapOptional("SectionAlignment", PH.Header.SectionAlignment, 1);
+  IO.mapOptional("FileAlignment", PH.Header.FileAlignment, 1);
+  IO.mapOptional("MajorOperatingSystemVersion",
                  PH.Header.MajorOperatingSystemVersion);
-  IO.mapRequired("MinorOperatingSystemVersion",
+  IO.mapOptional("MinorOperatingSystemVersion",
                  PH.Header.MinorOperatingSystemVersion);
-  IO.mapRequired("MajorImageVersion", PH.Header.MajorImageVersion);
-  IO.mapRequired("MinorImageVersion", PH.Header.MinorImageVersion);
-  IO.mapRequired("MajorSubsystemVersion", PH.Header.MajorSubsystemVersion);
-  IO.mapRequired("MinorSubsystemVersion", PH.Header.MinorSubsystemVersion);
-  IO.mapRequired("Subsystem", NWS->Subsystem);
-  IO.mapRequired("DLLCharacteristics", NDC->Characteristics);
-  IO.mapRequired("SizeOfStackReserve", PH.Header.SizeOfStackReserve);
-  IO.mapRequired("SizeOfStackCommit", PH.Header.SizeOfStackCommit);
-  IO.mapRequired("SizeOfHeapReserve", PH.Header.SizeOfHeapReserve);
-  IO.mapRequired("SizeOfHeapCommit", PH.Header.SizeOfHeapCommit);
+  IO.mapOptional("MajorImageVersion", PH.Header.MajorImageVersion);
+  IO.mapOptional("MinorImageVersion", PH.Header.MinorImageVersion);
+  IO.mapOptional("MajorSubsystemVersion", PH.Header.MajorSubsystemVersion);
+  IO.mapOptional("MinorSubsystemVersion", PH.Header.MinorSubsystemVersion);
+  IO.mapOptional("Subsystem", NWS->Subsystem);
+  IO.mapOptional("DLLCharacteristics", NDC->Characteristics);
+  IO.mapOptional("SizeOfStackReserve", PH.Header.SizeOfStackReserve);
+  IO.mapOptional("SizeOfStackCommit", PH.Header.SizeOfStackCommit);
+  IO.mapOptional("SizeOfHeapReserve", PH.Header.SizeOfHeapReserve);
+  IO.mapOptional("SizeOfHeapCommit", PH.Header.SizeOfHeapCommit);
 
+  IO.mapOptional("NumberOfRvaAndSize", PH.Header.NumberOfRvaAndSize,
+                 COFF::NUM_DATA_DIRECTORIES + 1);
   IO.mapOptional("ExportTable", PH.DataDirectories[COFF::EXPORT_TABLE]);
   IO.mapOptional("ImportTable", PH.DataDirectories[COFF::IMPORT_TABLE]);
   IO.mapOptional("ResourceTable", PH.DataDirectories[COFF::RESOURCE_TABLE]);
@@ -574,6 +580,12 @@ void MappingTraits<COFFYAML::Section>::mapping(IO &IO, COFFYAML::Section &Sec) {
     IO.mapOptional("PrecompTypes", Sec.DebugP);
   else if (Sec.Name == ".debug$H")
     IO.mapOptional("GlobalHashes", Sec.DebugH);
+
+  // Uninitialized sections, such as .bss, typically have no data, but the size
+  // is carried in SizeOfRawData, even though PointerToRawData is zero.
+  if (Sec.SectionData.binary_size() == 0 &&
+      NC->Characteristics & COFF::IMAGE_SCN_CNT_UNINITIALIZED_DATA)
+    IO.mapOptional("SizeOfRawData", Sec.Header.SizeOfRawData);
 
   IO.mapOptional("Relocations", Sec.Relocations);
 }

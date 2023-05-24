@@ -1,18 +1,19 @@
 //===--- UnusedParametersCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "UnusedParametersCheck.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTLambda.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/STLExtras.h"
+#include <unordered_map>
 #include <unordered_set>
 
 using namespace clang::ast_matchers;
@@ -30,10 +31,11 @@ bool isOverrideMethod(const FunctionDecl *Function) {
 } // namespace
 
 void UnusedParametersCheck::registerMatchers(MatchFinder *Finder) {
-  Finder->addMatcher(
-      functionDecl(isDefinition(), hasBody(stmt()), hasAnyParameter(decl()))
-          .bind("function"),
-      this);
+  Finder->addMatcher(functionDecl(isDefinition(), hasBody(stmt()),
+                                  hasAnyParameter(decl()),
+                                  unless(hasAttr(attr::Kind::Naked)))
+                         .bind("function"),
+                     this);
 }
 
 template <typename T>
@@ -41,15 +43,15 @@ static CharSourceRange removeNode(const MatchFinder::MatchResult &Result,
                                   const T *PrevNode, const T *Node,
                                   const T *NextNode) {
   if (NextNode)
-    return CharSourceRange::getCharRange(Node->getLocStart(),
-                                         NextNode->getLocStart());
+    return CharSourceRange::getCharRange(Node->getBeginLoc(),
+                                         NextNode->getBeginLoc());
 
   if (PrevNode)
     return CharSourceRange::getTokenRange(
-        Lexer::getLocForEndOfToken(PrevNode->getLocEnd(), 0,
+        Lexer::getLocForEndOfToken(PrevNode->getEndLoc(), 0,
                                    *Result.SourceManager,
                                    Result.Context->getLangOpts()),
-        Node->getLocEnd());
+        Node->getEndLoc());
 
   return CharSourceRange::getTokenRange(Node->getSourceRange());
 }
@@ -74,7 +76,7 @@ static FixItHint removeArgument(const MatchFinder::MatchResult &Result,
 class UnusedParametersCheck::IndexerVisitor
     : public RecursiveASTVisitor<IndexerVisitor> {
 public:
-  IndexerVisitor(TranslationUnitDecl *Top) { TraverseDecl(Top); }
+  IndexerVisitor(ASTContext &Ctx) { TraverseAST(Ctx); }
 
   const std::unordered_set<const CallExpr *> &
   getFnCalls(const FunctionDecl *Fn) {
@@ -123,7 +125,7 @@ UnusedParametersCheck::~UnusedParametersCheck() = default;
 UnusedParametersCheck::UnusedParametersCheck(StringRef Name,
                                              ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
-      StrictMode(Options.getLocalOrGlobal("StrictMode", 0) != 0) {}
+      StrictMode(Options.getLocalOrGlobal("StrictMode", false)) {}
 
 void UnusedParametersCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "StrictMode", StrictMode);
@@ -136,18 +138,23 @@ void UnusedParametersCheck::warnOnUnusedParameter(
   auto MyDiag = diag(Param->getLocation(), "parameter %0 is unused") << Param;
 
   if (!Indexer) {
-    Indexer = llvm::make_unique<IndexerVisitor>(
-        Result.Context->getTranslationUnitDecl());
+    Indexer = std::make_unique<IndexerVisitor>(*Result.Context);
   }
 
-  // Comment out parameter name for non-local functions.
+  // Cannot remove parameter for non-local functions.
   if (Function->isExternallyVisible() ||
       !Result.SourceManager->isInMainFile(Function->getLocation()) ||
-      !Indexer->getOtherRefs(Function).empty() || isOverrideMethod(Function)) {
+      !Indexer->getOtherRefs(Function).empty() || isOverrideMethod(Function) ||
+      isLambdaCallOperator(Function)) {
+
+    // It is illegal to omit parameter name here in C code, so early-out.
+    if (!Result.Context->getLangOpts().CPlusPlus)
+      return;
+
     SourceRange RemovalRange(Param->getLocation());
-    // Note: We always add a space before the '/*' to not accidentally create a
-    // '*/*' for pointer types, which doesn't start a comment. clang-format will
-    // clean this up afterwards.
+    // Note: We always add a space before the '/*' to not accidentally create
+    // a '*/*' for pointer types, which doesn't start a comment. clang-format
+    // will clean this up afterwards.
     MyDiag << FixItHint::CreateReplacement(
         RemovalRange, (Twine(" /*") + Param->getName() + "*/").str());
     return;
@@ -171,8 +178,8 @@ void UnusedParametersCheck::check(const MatchFinder::MatchResult &Result) {
   if (const auto *Method = dyn_cast<CXXMethodDecl>(Function))
     if (Method->isLambdaStaticInvoker())
       return;
-  for (unsigned i = 0, e = Function->getNumParams(); i != e; ++i) {
-    const auto *Param = Function->getParamDecl(i);
+  for (unsigned I = 0, E = Function->getNumParams(); I != E; ++I) {
+    const auto *Param = Function->getParamDecl(I);
     if (Param->isUsed() || Param->isReferenced() || !Param->getDeclName() ||
         Param->hasAttr<UnusedAttr>())
       continue;
@@ -184,7 +191,7 @@ void UnusedParametersCheck::check(const MatchFinder::MatchResult &Result) {
          Function->getBody()->child_end()) ||
         (isa<CXXConstructorDecl>(Function) &&
          cast<CXXConstructorDecl>(Function)->getNumCtorInitializers() > 0))
-      warnOnUnusedParameter(Result, Function, i);
+      warnOnUnusedParameter(Result, Function, I);
   }
 }
 

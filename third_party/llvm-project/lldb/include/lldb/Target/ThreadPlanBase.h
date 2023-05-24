@@ -1,31 +1,24 @@
 //===-- ThreadPlanBase.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ThreadPlanFundamental_h_
-#define liblldb_ThreadPlanFundamental_h_
+#ifndef LLDB_TARGET_THREADPLANBASE_H
+#define LLDB_TARGET_THREADPLANBASE_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 
 namespace lldb_private {
 
-//------------------------------------------------------------------
 //  Base thread plans:
 //  This is the generic version of the bottom most plan on the plan stack.  It
 //  should
 //  be able to handle generic breakpoint hitting, and signals and exceptions.
-//------------------------------------------------------------------
 
 class ThreadPlanBase : public ThreadPlan {
   friend class Process; // RunThreadPlan manages "stopper" base plans.
@@ -51,12 +44,12 @@ protected:
   ThreadPlanBase(Thread &thread);
 
 private:
-  friend lldb::ThreadPlanSP
-  Thread::QueueFundamentalPlan(bool abort_other_plans);
+  friend lldb::ThreadPlanSP Thread::QueueBasePlan(bool abort_other_plans);
 
-  DISALLOW_COPY_AND_ASSIGN(ThreadPlanBase);
+  ThreadPlanBase(const ThreadPlanBase &) = delete;
+  const ThreadPlanBase &operator=(const ThreadPlanBase &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_ThreadPlanFundamental_h_
+#endif // LLDB_TARGET_THREADPLANBASE_H

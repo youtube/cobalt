@@ -1,4 +1,4 @@
-; RUN: llc < %s -O0 -regalloc=fast -relocation-model=pic -disable-fp-elim | FileCheck %s
+; RUN: llc < %s -O0 -regalloc=fast -relocation-model=pic -frame-pointer=all | FileCheck %s
 target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-f80:128:128-n8:16:32"
 target triple = "i386-apple-darwin10.0.0"
 
@@ -14,7 +14,7 @@ target triple = "i386-apple-darwin10.0.0"
 ; CHECK: movl %[[reg]],{{.*}}(%ebp) ## 4-byte Spill
 ; CHECK: calll __Z6throwsv
 
-define i8* @_Z4test1SiS_(%struct.S* byval %s1, i32 %n, %struct.S* byval %s2) ssp personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+define i8* @_Z4test1SiS_(%struct.S* byval(%struct.S) %s1, i32 %n, %struct.S* byval(%struct.S) %s2) ssp personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
   %retval = alloca i8*, align 4                   ; <i8**> [#uses=2]
   %n.addr = alloca i32, align 4                   ; <i32*> [#uses=1]

@@ -1,9 +1,8 @@
 //===- SCCP.h - Sparse Conditional Constant Propagation ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -29,6 +28,14 @@ class Module;
 
 /// Pass to perform interprocedural constant propagation.
 class IPSCCPPass : public PassInfoMixin<IPSCCPPass> {
+public:
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+};
+
+/// Pass to perform interprocedural constant propagation by specializing
+/// functions
+class FunctionSpecializationPass
+    : public PassInfoMixin<FunctionSpecializationPass> {
 public:
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };

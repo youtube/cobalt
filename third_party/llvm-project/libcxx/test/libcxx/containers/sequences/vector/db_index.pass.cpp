@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,46 +10,22 @@
 
 // Index vector out of bounds.
 
-#if _LIBCPP_DEBUG >= 1
+// UNSUPPORTED: libcxx-no-debug-mode
 
-#define _LIBCPP_ASSERT(x, m) ((x) ? (void)0 : std::exit(0))
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DEBUG=1
 
 #include <vector>
 #include <cassert>
-#include <iterator>
-#include <exception>
-#include <cstdlib>
 
-#include "min_allocator.h"
+#include "test_macros.h"
+#include "debug_macros.h"
 
-int main()
-{
-    {
-    typedef int T;
-    typedef std::vector<T> C;
-    C c(1);
-    assert(c[0] == 0);
-    c.clear();
-    assert(c[0] == 0);
-    assert(false);
-    }
-#if __cplusplus >= 201103L
-    {
-    typedef int T;
-    typedef std::vector<T, min_allocator<T>> C;
-    C c(1);
-    assert(c[0] == 0);
-    c.clear();
-    assert(c[0] == 0);
-    assert(false);
-    }
-#endif
+int main(int, char**) {
+  typedef int T;
+  typedef std::vector<T> C;
+  C c(1);
+  assert(c[0] == 0);
+  TEST_LIBCPP_ASSERT_FAILURE(c[1], "vector[] index out of bounds");
+
+  return 0;
 }
-
-#else
-
-int main()
-{
-}
-
-#endif

@@ -1,9 +1,8 @@
 //===- Comdat.cpp - Implement Metadata classes ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,11 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm-c/Comdat.h"
-#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/StringMapEntry.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Comdat.h"
 #include "llvm/IR/GlobalObject.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Value.h"
 
 using namespace llvm;
 
@@ -25,6 +26,10 @@ Comdat::Comdat(Comdat &&C) : Name(C.Name), SK(C.SK) {}
 Comdat::Comdat() = default;
 
 StringRef Comdat::getName() const { return Name->first(); }
+
+void Comdat::addUser(GlobalObject *GO) { Users.insert(GO); }
+
+void Comdat::removeUser(GlobalObject *GO) { Users.erase(GO); }
 
 LLVMComdatRef LLVMGetOrInsertComdat(LLVMModuleRef M, const char *Name) {
   return wrap(unwrap(M)->getOrInsertComdat(Name));
@@ -48,8 +53,8 @@ LLVMComdatSelectionKind LLVMGetComdatSelectionKind(LLVMComdatRef C) {
     return LLVMExactMatchComdatSelectionKind;
   case Comdat::Largest:
     return LLVMLargestComdatSelectionKind;
-  case Comdat::NoDuplicates:
-    return LLVMNoDuplicatesComdatSelectionKind;
+  case Comdat::NoDeduplicate:
+    return LLVMNoDeduplicateComdatSelectionKind;
   case Comdat::SameSize:
     return LLVMSameSizeComdatSelectionKind;
   }
@@ -68,8 +73,8 @@ void LLVMSetComdatSelectionKind(LLVMComdatRef C, LLVMComdatSelectionKind kind) {
   case LLVMLargestComdatSelectionKind:
     Cd->setSelectionKind(Comdat::Largest);
     break;
-  case LLVMNoDuplicatesComdatSelectionKind:
-    Cd->setSelectionKind(Comdat::NoDuplicates);
+  case LLVMNoDeduplicateComdatSelectionKind:
+    Cd->setSelectionKind(Comdat::NoDeduplicate);
     break;
   case LLVMSameSizeComdatSelectionKind:
     Cd->setSelectionKind(Comdat::SameSize);

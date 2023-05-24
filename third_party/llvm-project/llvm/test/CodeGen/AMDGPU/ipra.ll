@@ -12,7 +12,7 @@ entry:
 
 ; GCN-LABEL: {{^}}func:
 ; GCN: ; NumVgprs: 8
-define void @func() #1 {
+define hidden void @func() #1 {
   call void asm sideeffect "", "~{v0},~{v1},~{v2},~{v3},~{v4},~{v5},~{v6},~{v7}"() #0
   ret void
 }
@@ -63,10 +63,10 @@ define void @func_regular_call() #1 {
 
 ; GCN-LABEL: {{^}}func_tail_call:
 ; GCN: s_waitcnt
-; GCN-NEXT: s_getpc_b64 s[6:7]
-; GCN-NEXT: s_add_u32 s6,
-; GCN-NEXT: s_addc_u32 s7,
-; GCN-NEXT: s_setpc_b64 s[6:7]
+; GCN-NEXT: s_getpc_b64 s[4:5]
+; GCN-NEXT: s_add_u32 s4,
+; GCN-NEXT: s_addc_u32 s5,
+; GCN-NEXT: s_setpc_b64 s[4:5]
 
 ; GCN: ; NumSgprs: 32
 ; GCN: ; NumVgprs: 8
@@ -105,5 +105,31 @@ define void @test_funcx2() #0 {
   ret void
 }
 
+define weak amdgpu_kernel void @wombat(i32* %arg, i32* %arg2) {
+bb:
+  call void @hoge() #0
+  ret void
+}
+
+; Make sure we save/restore the return address around the call.
+; Function Attrs: norecurse
+define internal void @hoge() #2 {
+bb:
+; GCN-LABEL: {{^}}hoge:
+; GCN-DAG: v_writelane_b32 [[CSR_VGPR:v[0-9]+]], s30,
+; GCN-DAG: v_writelane_b32 [[CSR_VGPR]], s31,
+; GCN: s_swappc_b64 s[30:31]
+; GCN-DAG: v_readlane_b32 s4, [[CSR_VGPR]],
+; GCN-DAG: v_readlane_b32 s5, [[CSR_VGPR]],
+; GCN: s_waitcnt vmcnt(0)
+; GCN: s_setpc_b64 s[4:5]
+  call void @eggs()
+  ret void
+}
+
+declare dso_local void @eggs()
+
+
 attributes #0 = { nounwind }
-attributes #1 = { nounwind noinline }
+attributes #1 = { nounwind noinline "amdgpu-no-workitem-id-x" "amdgpu-no-workitem-id-y" "amdgpu-no-workitem-id-z" }
+attributes #2 = { norecurse }

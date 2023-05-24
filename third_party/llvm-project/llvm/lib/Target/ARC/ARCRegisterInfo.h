@@ -1,9 +1,8 @@
 //===- ARCRegisterInfo.h - ARC Register Information Impl --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -22,10 +21,13 @@
 namespace llvm {
 
 class TargetInstrInfo;
+class ARCSubtarget;
 
 struct ARCRegisterInfo : public ARCGenRegisterInfo {
+  const ARCSubtarget &ST;
+
 public:
-  ARCRegisterInfo();
+  ARCRegisterInfo(const ARCSubtarget &);
 
   /// Code Generation virtual methods...
 
@@ -34,8 +36,6 @@ public:
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 
   bool requiresRegisterScavenging(const MachineFunction &MF) const override;
-
-  bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const override;
 
   bool useFPForScavengingIndex(const MachineFunction &MF) const override;
 
@@ -47,7 +47,7 @@ public:
                                        CallingConv::ID CC) const override;
 
   // Debug information queries.
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
+  Register getFrameRegister(const MachineFunction &MF) const override;
 
   //! Return whether to emit frame moves
   static bool needsFrameMoves(const MachineFunction &MF);

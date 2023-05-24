@@ -1,9 +1,8 @@
 //===- DiagnosticHandler.h - DiagnosticHandler class for LLVM -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,7 +30,7 @@ struct PassRemarksOpt {
       Pattern = std::make_shared<Regex>(Val);
       std::string RegexError;
       if (!Pattern->isValid(RegexError))
-        report_fatal_error("Invalid regular expression '" + Val +
+        report_fatal_error(Twine("Invalid regular expression '") + Val +
                                "' in -pass-remarks: " + RegexError,
                            false);
     }

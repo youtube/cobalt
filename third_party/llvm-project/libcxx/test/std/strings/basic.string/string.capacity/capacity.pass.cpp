@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,11 +18,13 @@
 
 #include "test_macros.h"
 
+test_allocator_statistics alloc_stats;
+
 template <class S>
 void
 test(S s)
 {
-    S::allocator_type::throw_after = 0;
+    alloc_stats.throw_after = 0;
 #ifndef TEST_HAS_NO_EXCEPTIONS
     try
 #endif
@@ -38,14 +39,14 @@ test(S s)
         assert(false);
     }
 #endif
-    S::allocator_type::throw_after = INT_MAX;
+    alloc_stats.throw_after = INT_MAX;
 }
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::basic_string<char, std::char_traits<char>, test_allocator<char> > S;
-    S s;
+    S s((test_allocator<char>(&alloc_stats)));
     test(s);
     s.assign(10, 'a');
     s.erase(5);
@@ -61,4 +62,6 @@ int main()
     assert(s.capacity() > 0);
     }
 #endif
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //===-- Analysis.cpp ------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -36,10 +35,10 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeCFGOnlyPrinterLegacyPassPass(Registry);
   initializeCFLAndersAAWrapperPassPass(Registry);
   initializeCFLSteensAAWrapperPassPass(Registry);
+  initializeCycleInfoWrapperPassPass(Registry);
   initializeDependenceAnalysisWrapperPassPass(Registry);
   initializeDelinearizationPass(Registry);
   initializeDemandedBitsWrapperPassPass(Registry);
-  initializeDivergenceAnalysisPass(Registry);
   initializeDominanceFrontierWrapperPassPass(Registry);
   initializeDomViewerPass(Registry);
   initializeDomPrinterPass(Registry);
@@ -52,20 +51,23 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeAAResultsWrapperPassPass(Registry);
   initializeGlobalsAAWrapperPassPass(Registry);
   initializeIVUsersWrapperPassPass(Registry);
-  initializeInstCountPass(Registry);
+  initializeInstCountLegacyPassPass(Registry);
   initializeIntervalPartitionPass(Registry);
+  initializeIRSimilarityIdentifierWrapperPassPass(Registry);
   initializeLazyBranchProbabilityInfoPassPass(Registry);
   initializeLazyBlockFrequencyInfoPassPass(Registry);
   initializeLazyValueInfoWrapperPassPass(Registry);
   initializeLazyValueInfoPrinterPass(Registry);
-  initializeLintPass(Registry);
+  initializeLegacyDivergenceAnalysisPass(Registry);
+  initializeLintLegacyPassPass(Registry);
   initializeLoopInfoWrapperPassPass(Registry);
   initializeMemDepPrinterPass(Registry);
   initializeMemDerefPrinterPass(Registry);
   initializeMemoryDependenceWrapperPassPass(Registry);
-  initializeModuleDebugInfoPrinterPass(Registry);
+  initializeModuleDebugInfoLegacyPrinterPass(Registry);
   initializeModuleSummaryIndexWrapperPassPass(Registry);
   initializeMustExecutePrinterPass(Registry);
+  initializeMustBeExecutedContextPrinterPass(Registry);
   initializeObjCARCAAWrapperPassPass(Registry);
   initializeOptimizationRemarkEmitterWrapperPassPass(Registry);
   initializePhiValuesWrapperPassPass(Registry);
@@ -77,6 +79,8 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeRegionOnlyPrinterPass(Registry);
   initializeSCEVAAWrapperPassPass(Registry);
   initializeScalarEvolutionWrapperPassPass(Registry);
+  initializeStackSafetyGlobalInfoWrapperPassPass(Registry);
+  initializeStackSafetyInfoWrapperPassPass(Registry);
   initializeTargetTransformInfoWrapperPassPass(Registry);
   initializeTypeBasedAAWrapperPassPass(Registry);
   initializeScopedNoAliasAAWrapperPassPass(Registry);

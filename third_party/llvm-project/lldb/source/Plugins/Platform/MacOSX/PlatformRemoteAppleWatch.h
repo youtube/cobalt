@@ -1,22 +1,17 @@
 //===-- PlatformRemoteAppleWatch.h ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformRemoteAppleWatch_h_
-#define liblldb_PlatformRemoteAppleWatch_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEAPPLEWATCH_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEAPPLEWATCH_H
 
-// C Includes
-// C++ Includes
 #include <string>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/FileSpec.h"
 
 #include "PlatformRemoteDarwinDevice.h"
@@ -27,11 +22,7 @@ class PlatformRemoteAppleWatch : public PlatformRemoteDarwinDevice {
 public:
   PlatformRemoteAppleWatch();
 
-  ~PlatformRemoteAppleWatch() override = default;
-
-  //------------------------------------------------------------
   // Class Functions
-  //------------------------------------------------------------
   static lldb::PlatformSP CreateInstance(bool force,
                                          const lldb_private::ArchSpec *arch);
 
@@ -39,44 +30,24 @@ public:
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "remote-watchos"; }
 
-  static const char *GetDescriptionStatic();
+  static llvm::StringRef GetDescriptionStatic();
 
-  //------------------------------------------------------------
   // lldb_private::Platform functions
-  //------------------------------------------------------------
 
-  const char *GetDescription() override { return GetDescriptionStatic(); }
+  llvm::StringRef GetDescription() override { return GetDescriptionStatic(); }
 
-  //------------------------------------------------------------
   // lldb_private::PluginInterface functions
-  //------------------------------------------------------------
-  lldb_private::ConstString GetPluginName() override {
-    return GetPluginNameStatic();
-  }
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
-  uint32_t GetPluginVersion() override { return 1; }
-
-  //------------------------------------------------------------
   // lldb_private::Platform functions
-  //------------------------------------------------------------
 
-  bool GetSupportedArchitectureAtIndex(uint32_t idx,
-                                       lldb_private::ArchSpec &arch) override;
+  std::vector<lldb_private::ArchSpec> GetSupportedArchitectures() override;
 
 protected:
-
-  //------------------------------------------------------------
-  // lldb_private::PlatformRemoteDarwinDevice functions
-  //------------------------------------------------------------
-
-  void GetDeviceSupportDirectoryNames (std::vector<std::string> &dirnames) override;
-
-  std::string GetPlatformName () override;
-
-private:
-  DISALLOW_COPY_AND_ASSIGN(PlatformRemoteAppleWatch);
+  llvm::StringRef GetDeviceSupportDirectoryName() override;
+  llvm::StringRef GetPlatformName() override;
 };
 
-#endif // liblldb_PlatformRemoteAppleWatch_h_
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEAPPLEWATCH_H

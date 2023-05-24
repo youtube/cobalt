@@ -1,9 +1,8 @@
 //===-- SystemZLDCleanup.cpp - Clean up local-dynamic TLS accesses --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -30,11 +29,8 @@ namespace {
 class SystemZLDCleanup : public MachineFunctionPass {
 public:
   static char ID;
-  SystemZLDCleanup(const SystemZTargetMachine &tm)
-    : MachineFunctionPass(ID), TII(nullptr), MF(nullptr) {}
-
-  StringRef getPassName() const override {
-    return "SystemZ Local Dynamic TLS Access Clean-up";
+  SystemZLDCleanup() : MachineFunctionPass(ID), TII(nullptr), MF(nullptr) {
+    initializeSystemZLDCleanupPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override;
@@ -53,8 +49,11 @@ char SystemZLDCleanup::ID = 0;
 
 } // end anonymous namespace
 
+INITIALIZE_PASS(SystemZLDCleanup, "systemz-ld-cleanup",
+                "SystemZ Local Dynamic TLS Access Clean-up", false, false)
+
 FunctionPass *llvm::createSystemZLDCleanupPass(SystemZTargetMachine &TM) {
-  return new SystemZLDCleanup(TM);
+  return new SystemZLDCleanup();
 }
 
 void SystemZLDCleanup::getAnalysisUsage(AnalysisUsage &AU) const {

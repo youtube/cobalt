@@ -1,9 +1,8 @@
 //=-- ExprEngineObjC.cpp - ExprEngine support for Objective-C ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -54,10 +53,8 @@ static void populateObjCForDestinationSet(
     ProgramStateRef state = Pred->getState();
     const LocationContext *LCtx = Pred->getLocationContext();
 
-    SVal hasElementsV = svalBuilder.makeTruthVal(hasElements);
-
-    // FIXME: S is not an expression. We should not be binding values to it.
-    ProgramStateRef nextState = state->BindExpr(S, LCtx, hasElementsV);
+    ProgramStateRef nextState =
+        ExprEngine::setWhetherHasMoreIteration(state, S, LCtx, hasElements);
 
     if (auto MV = elementV.getAs<loc::MemRegionVal>())
       if (const auto *R = dyn_cast<TypedValueRegion>(MV->getRegion())) {
@@ -94,10 +91,9 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   //  (1) binds the next container value to 'element'.  This creates a new
   //      node in the ExplodedGraph.
   //
-  //  (2) binds the value 0/1 to the ObjCForCollectionStmt* itself, indicating
-  //      whether or not the container has any more elements.  This value
-  //      will be tested in ProcessBranch.  We need to explicitly bind
-  //      this value because a container can contain nil elements.
+  //  (2) note whether the collection has any more elements (or in other words,
+  //      whether the loop has more iterations). This will be tested in
+  //      processBranch.
   //
   // FIXME: Eventually this logic should actually do dispatches to
   //   'countByEnumeratingWithState:objects:count:' (NSFastEnumeration).
@@ -129,7 +125,7 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   bool isContainerNull = state->isNull(collectionV).isConstrainedTrue();
 
   ExplodedNodeSet dstLocation;
-  evalLocation(dstLocation, S, elem, Pred, state, elementV, nullptr, false);
+  evalLocation(dstLocation, S, elem, Pred, state, elementV, false);
 
   ExplodedNodeSet Tmp;
   StmtNodeBuilder Bldr(Pred, Tmp, *currBldrCtx);
@@ -197,7 +193,8 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
 
       // Receiver is definitely nil, so run ObjCMessageNil callbacks and return.
       if (nilState && !notNilState) {
-        StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
+        ExplodedNodeSet dstNil;
+        StmtNodeBuilder Bldr(Pred, dstNil, *currBldrCtx);
         bool HasTag = Pred->getLocation().getTag();
         Pred = Bldr.generateNode(ME, Pred, nilState, nullptr,
                                  ProgramPoint::PreStmtKind);
@@ -205,8 +202,12 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
         (void)HasTag;
         if (!Pred)
           return;
-        getCheckerManager().runCheckersForObjCMessageNil(Dst, Pred,
+
+        ExplodedNodeSet dstPostCheckers;
+        getCheckerManager().runCheckersForObjCMessageNil(dstPostCheckers, Pred,
                                                          *Msg, *this);
+        for (auto I : dstPostCheckers)
+          finishArgumentConstruction(Dst, I, *Msg);
         return;
       }
 
@@ -267,8 +268,13 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
     defaultEvalCall(Bldr, Pred, *UpdatedMsg);
   }
 
+  // If there were constructors called for object-type arguments, clean them up.
+  ExplodedNodeSet dstArgCleanup;
+  for (auto I : dstEval)
+    finishArgumentConstruction(dstArgCleanup, I, *Msg);
+
   ExplodedNodeSet dstPostvisit;
-  getCheckerManager().runCheckersForPostCall(dstPostvisit, dstEval,
+  getCheckerManager().runCheckersForPostCall(dstPostvisit, dstArgCleanup,
                                              *Msg, *this);
 
   // Finally, perform the post-condition check of the ObjCMessageExpr and store

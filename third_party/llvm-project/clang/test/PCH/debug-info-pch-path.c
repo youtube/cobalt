@@ -1,3 +1,7 @@
+// Unsupported on AIX because we don't support the requisite "__clangast"
+// section in XCOFF yet.
+// UNSUPPORTED: aix
+
 // RUN: rm -rf %t
 // RUN: mkdir %t
 // RUN: cd %t
@@ -24,7 +28,7 @@
 // CHECK-REL-NODIR: !DICompileUnit(
 // CHECK-REL-NODIR-SAME:           file: ![[PCH:[0-9]+]]
 // CHECK-REL-NODIR-SAME:           splitDebugFilename: "prefix.pch"
-// CHECK-REL-NODIR: ![[PCH]] = !DIFile({{.*}}directory: "[[DIR]]"
+// CHECK-REL-NODIR: ![[PCH]] = !DIFile({{.*}}directory: "[[DIR]]
 
 // ---------------------------------------------------------------------
 // Relative PCH in a subdirectory.
@@ -47,8 +51,8 @@
 // CHECK-REL: ![[C]] = !DIFile({{.*}}directory: "[[DIR:.*]]"
 // CHECK-REL: !DICompileUnit(
 // CHECK-REL-SAME:           file: ![[PCH:[0-9]+]]
-// CHECK-REL-SAME:           splitDebugFilename: "prefix.pch"
-// CHECK-REL: ![[PCH]] = !DIFile({{.*}}directory: "[[DIR]]{{.*}}pchdir"
+// CHECK-REL-SAME:           splitDebugFilename: "pchdir{{.*}}prefix.pch"
+// CHECK-REL: ![[PCH]] = !DIFile({{.*}}directory: "[[DIR]]"
 
 // ---------------------------------------------------------------------
 // Absolute PCH.
@@ -71,4 +75,4 @@
 // CHECK-ABS: !DICompileUnit(
 // CHECK-ABS-SAME:           file: ![[PCH:[0-9]+]]
 // CHECK-ABS-SAME:           splitDebugFilename: "prefix.pch"
-// CHECK-ABS: ![[PCH]] = !DIFile({{.*}}directory: "[[DIR]]"
+// CHECK-ABS: ![[PCH]] = !DIFile({{.*}}directory: "[[DIR]]

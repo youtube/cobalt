@@ -1,9 +1,8 @@
 //===---- AVRAsmParser.cpp - Parse AVR assembly to MCInst instructions ----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,9 +11,9 @@
 #include "MCTargetDesc/AVRMCELFStreamer.h"
 #include "MCTargetDesc/AVRMCExpr.h"
 #include "MCTargetDesc/AVRMCTargetDesc.h"
+#include "TargetInfo/AVRTargetInfo.h"
 
 #include "llvm/ADT/APInt.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
@@ -26,16 +25,17 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Support/TargetRegistry.h"
 
 #include <sstream>
 
 #define DEBUG_TYPE "avr-asm-parser"
 
-namespace llvm {
+using namespace llvm;
 
+namespace {
 /// Parses AVR assembly from a stream.
 class AVRAsmParser : public MCTargetAsmParser {
   const MCSubtargetInfo &STI;
@@ -52,6 +52,8 @@ class AVRAsmParser : public MCTargetAsmParser {
                                bool MatchingInlineAsm) override;
 
   bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
+  OperandMatchResultTy tryParseRegister(unsigned &RegNo, SMLoc &StartLoc,
+                                        SMLoc &EndLoc) override;
 
   bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                         SMLoc NameLoc, OperandVector &Operands) override;
@@ -63,7 +65,7 @@ class AVRAsmParser : public MCTargetAsmParser {
   bool parseOperand(OperandVector &Operands);
   int parseRegisterName(unsigned (*matchFn)(StringRef));
   int parseRegisterName();
-  int parseRegister();
+  int parseRegister(bool RestoreOnFailure = false);
   bool tryParseRegisterOperand(OperandVector &Operands);
   bool tryParseExpression(OperandVector &Operands);
   bool tryParseRelocExpression(OperandVector &Operands);
@@ -105,13 +107,13 @@ class AVROperand : public MCParsedAsmOperand {
 
 public:
   AVROperand(StringRef Tok, SMLoc const &S)
-      : Base(), Kind(k_Token), Tok(Tok), Start(S), End(S) {}
+      : Kind(k_Token), Tok(Tok), Start(S), End(S) {}
   AVROperand(unsigned Reg, SMLoc const &S, SMLoc const &E)
-      : Base(), Kind(k_Register), RegImm({Reg, nullptr}), Start(S), End(E) {}
+      : Kind(k_Register), RegImm({Reg, nullptr}), Start(S), End(E) {}
   AVROperand(MCExpr const *Imm, SMLoc const &S, SMLoc const &E)
-      : Base(), Kind(k_Immediate), RegImm({0, Imm}), Start(S), End(E) {}
+      : Kind(k_Immediate), RegImm({0, Imm}), Start(S), End(E) {}
   AVROperand(unsigned Reg, MCExpr const *Imm, SMLoc const &S, SMLoc const &E)
-      : Base(), Kind(k_Memri), RegImm({Reg, Imm}), Start(S), End(E) {}
+      : Kind(k_Memri), RegImm({Reg, Imm}), Start(S), End(E) {}
 
   struct RegisterImmediate {
     unsigned Reg;
@@ -159,10 +161,28 @@ public:
     addExpr(Inst, getImm());
   }
 
-  bool isReg() const { return Kind == k_Register; }
-  bool isImm() const { return Kind == k_Immediate; }
-  bool isToken() const { return Kind == k_Token; }
-  bool isMem() const { return Kind == k_Memri; }
+  void addImmCom8Operands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    // The operand is actually a imm8, but we have its bitwise
+    // negation in the assembly source, so twiddle it here.
+    const auto *CE = cast<MCConstantExpr>(getImm());
+    Inst.addOperand(MCOperand::createImm(~(uint8_t)CE->getValue()));
+  }
+
+  bool isImmCom8() const {
+    if (!isImm())
+      return false;
+    const auto *CE = dyn_cast<MCConstantExpr>(getImm());
+    if (!CE)
+      return false;
+    int64_t Value = CE->getValue();
+    return isUInt<8>(Value);
+  }
+
+  bool isReg() const override { return Kind == k_Register; }
+  bool isImm() const override { return Kind == k_Immediate; }
+  bool isToken() const override { return Kind == k_Token; }
+  bool isMem() const override { return Kind == k_Memri; }
   bool isMemri() const { return Kind == k_Memri; }
 
   StringRef getToken() const {
@@ -170,7 +190,7 @@ public:
     return Tok;
   }
 
-  unsigned getReg() const {
+  unsigned getReg() const override {
     assert((Kind == k_Register || Kind == k_Memri) && "Invalid access!");
 
     return RegImm.Reg;
@@ -182,22 +202,22 @@ public:
   }
 
   static std::unique_ptr<AVROperand> CreateToken(StringRef Str, SMLoc S) {
-    return make_unique<AVROperand>(Str, S);
+    return std::make_unique<AVROperand>(Str, S);
   }
 
   static std::unique_ptr<AVROperand> CreateReg(unsigned RegNum, SMLoc S,
                                                SMLoc E) {
-    return make_unique<AVROperand>(RegNum, S, E);
+    return std::make_unique<AVROperand>(RegNum, S, E);
   }
 
   static std::unique_ptr<AVROperand> CreateImm(const MCExpr *Val, SMLoc S,
                                                SMLoc E) {
-    return make_unique<AVROperand>(Val, S, E);
+    return std::make_unique<AVROperand>(Val, S, E);
   }
 
   static std::unique_ptr<AVROperand>
   CreateMemri(unsigned RegNum, const MCExpr *Val, SMLoc S, SMLoc E) {
-    return make_unique<AVROperand>(RegNum, Val, S, E);
+    return std::make_unique<AVROperand>(RegNum, Val, S, E);
   }
 
   void makeToken(StringRef Token) {
@@ -220,10 +240,10 @@ public:
     RegImm = {RegNo, Imm};
   }
 
-  SMLoc getStartLoc() const { return Start; }
-  SMLoc getEndLoc() const { return End; }
+  SMLoc getStartLoc() const override { return Start; }
+  SMLoc getEndLoc() const override { return End; }
 
-  virtual void print(raw_ostream &O) const {
+  void print(raw_ostream &O) const override {
     switch (Kind) {
     case k_Token:
       O << "Token: \"" << getToken() << "\"";
@@ -245,6 +265,8 @@ public:
   }
 };
 
+} // end anonymous namespace.
+
 // Auto-generated Match Functions
 
 /// Maps from the set of all register names to a register number.
@@ -259,7 +281,7 @@ bool AVRAsmParser::invalidOperand(SMLoc const &Loc,
                                   OperandVector const &Operands,
                                   uint64_t const &ErrorInfo) {
   SMLoc ErrorLoc = Loc;
-  char const *Diag = 0;
+  char const *Diag = nullptr;
 
   if (ErrorInfo != ~0U) {
     if (ErrorInfo >= Operands.size()) {
@@ -288,7 +310,7 @@ bool AVRAsmParser::missingFeature(llvm::SMLoc const &Loc,
 
 bool AVRAsmParser::emit(MCInst &Inst, SMLoc const &Loc, MCStreamer &Out) const {
   Inst.setLoc(Loc);
-  Out.EmitInstruction(Inst, STI);
+  Out.emitInstruction(Inst, STI);
 
   return false;
 }
@@ -302,11 +324,16 @@ bool AVRAsmParser::MatchAndEmitInstruction(SMLoc Loc, unsigned &Opcode,
       MatchInstructionImpl(Operands, Inst, ErrorInfo, MatchingInlineAsm);
 
   switch (MatchResult) {
-  case Match_Success:        return emit(Inst, Loc, Out);
-  case Match_MissingFeature: return missingFeature(Loc, ErrorInfo);
-  case Match_InvalidOperand: return invalidOperand(Loc, Operands, ErrorInfo);
-  case Match_MnemonicFail:   return Error(Loc, "invalid instruction");
-  default:                   return true;
+  case Match_Success:
+    return emit(Inst, Loc, Out);
+  case Match_MissingFeature:
+    return missingFeature(Loc, ErrorInfo);
+  case Match_InvalidOperand:
+    return invalidOperand(Loc, Operands, ErrorInfo);
+  case Match_MnemonicFail:
+    return Error(Loc, "invalid instruction");
+  default:
+    return true;
   }
 }
 
@@ -340,18 +367,24 @@ int AVRAsmParser::parseRegisterName() {
   return RegNum;
 }
 
-int AVRAsmParser::parseRegister() {
+int AVRAsmParser::parseRegister(bool RestoreOnFailure) {
   int RegNum = AVR::NoRegister;
 
   if (Parser.getTok().is(AsmToken::Identifier)) {
     // Check for register pair syntax
     if (Parser.getLexer().peekTok().is(AsmToken::Colon)) {
+      AsmToken HighTok = Parser.getTok();
       Parser.Lex();
+      AsmToken ColonTok = Parser.getTok();
       Parser.Lex(); // Eat high (odd) register and colon
 
       if (Parser.getTok().is(AsmToken::Identifier)) {
         // Convert lower (even) register to DREG
         RegNum = toDREG(parseRegisterName());
+      }
+      if (RegNum == AVR::NoRegister && RestoreOnFailure) {
+        getLexer().UnLex(std::move(ColonTok));
+        getLexer().UnLex(std::move(HighTok));
       }
     } else {
       RegNum = parseRegisterName();
@@ -414,8 +447,7 @@ bool AVRAsmParser::tryParseRelocExpression(OperandVector &Operands) {
          tokens[1].getKind() == AsmToken::Minus)) {
 
       AsmToken::TokenKind CurTok = Parser.getLexer().getKind();
-      if (CurTok == AsmToken::Minus ||
-          tokens[1].getKind() == AsmToken::Minus) {
+      if (CurTok == AsmToken::Minus || tokens[1].getKind() == AsmToken::Minus) {
         isNegated = true;
       } else {
         assert(CurTok == AsmToken::Plus);
@@ -435,7 +467,7 @@ bool AVRAsmParser::tryParseRelocExpression(OperandVector &Operands) {
     return true;
   }
   StringRef ModifierName = Parser.getTok().getString();
-  ModifierKind = AVRMCExpr::getKindByName(ModifierName.str().c_str());
+  ModifierKind = AVRMCExpr::getKindByName(ModifierName);
 
   if (ModifierKind != AVRMCExpr::VK_AVR_None) {
     Parser.Lex();
@@ -443,7 +475,7 @@ bool AVRAsmParser::tryParseRelocExpression(OperandVector &Operands) {
     if (Parser.getTok().getString() == GENERATE_STUBS &&
         Parser.getTok().getKind() == AsmToken::Identifier) {
       std::string GSModName = ModifierName.str() + "_" + GENERATE_STUBS;
-      ModifierKind = AVRMCExpr::getKindByName(GSModName.c_str());
+      ModifierKind = AVRMCExpr::getKindByName(GSModName);
       if (ModifierKind != AVRMCExpr::VK_AVR_None)
         Parser.Lex(); // Eat gs modifier name
     }
@@ -472,8 +504,8 @@ bool AVRAsmParser::tryParseRelocExpression(OperandVector &Operands) {
   assert(Parser.getTok().getKind() == AsmToken::RParen);
   Parser.Lex(); // Eat closing parenthesis
 
-  MCExpr const *Expression = AVRMCExpr::create(ModifierKind, InnerExpression,
-                                               isNegated, getContext());
+  MCExpr const *Expression =
+      AVRMCExpr::create(ModifierKind, InnerExpression, isNegated, getContext());
 
   SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
   Operands.push_back(AVROperand::CreateImm(Expression, S, E));
@@ -510,6 +542,7 @@ bool AVRAsmParser::parseOperand(OperandVector &Operands) {
     case AsmToken::Real:
       if (!tryParseExpression(Operands))
         return false;
+      break;
     default:
       break;
     }
@@ -525,8 +558,7 @@ bool AVRAsmParser::parseOperand(OperandVector &Operands) {
   return true;
 }
 
-OperandMatchResultTy
-AVRAsmParser::parseMemriOperand(OperandVector &Operands) {
+OperandMatchResultTy AVRAsmParser::parseMemriOperand(OperandVector &Operands) {
   LLVM_DEBUG(dbgs() << "parseMemriOperand()\n");
 
   SMLoc E, S;
@@ -560,10 +592,22 @@ AVRAsmParser::parseMemriOperand(OperandVector &Operands) {
 bool AVRAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                                  SMLoc &EndLoc) {
   StartLoc = Parser.getTok().getLoc();
-  RegNo = parseRegister();
+  RegNo = parseRegister(/*RestoreOnFailure=*/false);
   EndLoc = Parser.getTok().getLoc();
 
   return (RegNo == AVR::NoRegister);
+}
+
+OperandMatchResultTy AVRAsmParser::tryParseRegister(unsigned &RegNo,
+                                                    SMLoc &StartLoc,
+                                                    SMLoc &EndLoc) {
+  StartLoc = Parser.getTok().getLoc();
+  RegNo = parseRegister(/*RestoreOnFailure=*/true);
+  EndLoc = Parser.getTok().getLoc();
+
+  if (RegNo == AVR::NoRegister)
+    return MatchOperand_NoMatch;
+  return MatchOperand_Success;
 }
 
 void AVRAsmParser::eatComma() {
@@ -581,7 +625,8 @@ bool AVRAsmParser::ParseInstruction(ParseInstructionInfo &Info,
 
   bool first = true;
   while (getLexer().isNot(AsmToken::EndOfStatement)) {
-    if (!first) eatComma();
+    if (!first)
+      eatComma();
 
     first = false;
 
@@ -630,8 +675,8 @@ bool AVRAsmParser::parseLiteralValues(unsigned SizeInBytes, SMLoc L) {
       Tokens[0].getKind() == AsmToken::Minus &&
       Tokens[1].getKind() == AsmToken::Identifier) {
     MCSymbol *Symbol = getContext().getOrCreateSymbol(".text");
-    AVRStreamer.EmitValueForModiferKind(Symbol, SizeInBytes, L,
-            AVRMCExpr::VK_AVR_None);
+    AVRStreamer.emitValueForModiferKind(Symbol, SizeInBytes, L,
+                                        AVRMCExpr::VK_AVR_None);
     return false;
   }
 
@@ -639,7 +684,7 @@ bool AVRAsmParser::parseLiteralValues(unsigned SizeInBytes, SMLoc L) {
       Parser.getLexer().peekTok().getKind() == AsmToken::LParen) {
     StringRef ModifierName = Parser.getTok().getString();
     AVRMCExpr::VariantKind ModifierKind =
-        AVRMCExpr::getKindByName(ModifierName.str().c_str());
+        AVRMCExpr::getKindByName(ModifierName);
     if (ModifierKind != AVRMCExpr::VK_AVR_None) {
       Parser.Lex();
       Parser.Lex(); // Eat the modifier and parenthesis
@@ -648,7 +693,7 @@ bool AVRAsmParser::parseLiteralValues(unsigned SizeInBytes, SMLoc L) {
     }
     MCSymbol *Symbol =
         getContext().getOrCreateSymbol(Parser.getTok().getString());
-    AVRStreamer.EmitValueForModiferKind(Symbol, SizeInBytes, L, ModifierKind);
+    AVRStreamer.emitValueForModiferKind(Symbol, SizeInBytes, L, ModifierKind);
     return false;
   }
 
@@ -656,13 +701,13 @@ bool AVRAsmParser::parseLiteralValues(unsigned SizeInBytes, SMLoc L) {
     const MCExpr *Value;
     if (Parser.parseExpression(Value))
       return true;
-    Parser.getStreamer().EmitValue(Value, SizeInBytes, L);
+    Parser.getStreamer().emitValue(Value, SizeInBytes, L);
     return false;
   };
   return (parseMany(parseOne));
 }
 
-extern "C" void LLVMInitializeAVRAsmParser() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAVRAsmParser() {
   RegisterMCAsmParser<AVRAsmParser> X(getTheAVRTarget());
 }
 
@@ -683,7 +728,7 @@ unsigned AVRAsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
       int64_t RegNum = Const->getValue();
       std::ostringstream RegName;
       RegName << "r" << RegNum;
-      RegNum = MatchRegisterName(RegName.str().c_str());
+      RegNum = MatchRegisterName(RegName.str());
       if (RegNum != AVR::NoRegister) {
         Op.makeReg(RegNum);
         if (validateOperandClass(Op, Expected) == Match_Success) {
@@ -708,5 +753,3 @@ unsigned AVRAsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
   }
   return Match_InvalidOperand;
 }
-
-} // end of namespace llvm

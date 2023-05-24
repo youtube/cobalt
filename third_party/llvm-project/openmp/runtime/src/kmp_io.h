@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,9 +25,10 @@ extern kmp_bootstrap_lock_t __kmp_stdio_lock; /* Control stdio functions */
 extern kmp_bootstrap_lock_t
     __kmp_console_lock; /* Control console initialization */
 
-extern void __kmp_vprintf(enum kmp_io __kmp_io, char const *format, va_list ap);
+extern void __kmp_vprintf(enum kmp_io stream, char const *format, va_list ap);
 extern void __kmp_printf(char const *format, ...);
 extern void __kmp_printf_no_lock(char const *format, ...);
+extern void __kmp_fprintf(enum kmp_io stream, char const *format, ...);
 extern void __kmp_close_console(void);
 
 #ifdef __cplusplus

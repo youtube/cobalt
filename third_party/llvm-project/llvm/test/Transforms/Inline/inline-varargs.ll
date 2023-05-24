@@ -24,11 +24,11 @@ define signext i16 @test_callee_2(...) {
 }
 
 define void @test_caller_2(i8* %p, i8* %q, i16 %r) {
-  call signext i16 (...) @test_callee_2(i8* %p, i8* byval %q, i16 signext %r)
+  call signext i16 (...) @test_callee_2(i8* %p, i8* byval(i8) %q, i16 signext %r)
   ret void
 }
 ; CHECK-LABEL: define void @test_caller_2
-; CHECK: call signext i16 (...) @vararg_fn(i8* %p, i8* byval %q, i16 signext %r) [[FN_ATTRS:#[0-9]+]]
+; CHECK: call signext i16 (...) @vararg_fn(i8* %p, i8* byval(i8) %q, i16 signext %r) [[FN_ATTRS:#[0-9]+]]
 
 define void @test_callee_3(i8* %p, ...) {
   call signext i16 (...) @vararg_fn()
@@ -83,6 +83,35 @@ define i32 @call_vargs() {
 ; CHECK-LABEL: @call_vargs
 ; CHECK: %res1 = call i32 (...) @varg_accessed(i32 10)
 ; CHECK-NEXT: %res2 = call i32 (...) @varg_accessed_alwaysinline(i32 15)
+
+define void @caller_with_vastart(i8* noalias nocapture readnone %args, ...) {
+entry:
+  %ap = alloca i8*, align 4
+  %ap.ptr = bitcast i8** %ap to i8*
+  %ap2 = alloca i8*, align 4
+  %ap2.ptr = bitcast i8** %ap to i8*
+  call void @llvm.va_start(i8* nonnull %ap.ptr)
+  call fastcc void @callee_with_vaend(i8* nonnull %ap.ptr)
+  call void @llvm.va_start(i8* nonnull %ap2.ptr)
+  call fastcc void @callee_with_vaend_alwaysinline(i8* nonnull %ap2.ptr)
+  ret void
+}
+
+define internal fastcc void @callee_with_vaend_alwaysinline(i8* %a) alwaysinline {
+entry:
+  tail call void @llvm.va_end(i8* %a)
+  ret void
+}
+
+define internal fastcc void @callee_with_vaend(i8* %a) {
+entry:
+  tail call void @llvm.va_end(i8* %a)
+  ret void
+}
+
+; CHECK-LABEL: @caller_with_vastart
+; CHECK-NOT: @callee_with_vaend
+; CHECK-NOT: @callee_with_vaend_alwaysinline
 
 declare void @llvm.va_start(i8*)
 declare void @llvm.va_end(i8*)

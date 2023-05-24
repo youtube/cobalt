@@ -1,9 +1,8 @@
 //===- RewriteRope.h - Rope specialized for rewriter ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -84,8 +83,7 @@ namespace clang {
   /// over bytes that are in a RopePieceBTree.  This first iterates over bytes
   /// in a RopePiece, then iterates over RopePiece's in a RopePieceBTreeLeaf,
   /// then iterates over RopePieceBTreeLeaf's in a RopePieceBTree.
-  class RopePieceBTreeIterator :
-      public std::iterator<std::forward_iterator_tag, const char, ptrdiff_t> {
+  class RopePieceBTreeIterator {
     /// CurNode - The current B+Tree node that we are inspecting.
     const void /*RopePieceBTreeLeaf*/ *CurNode = nullptr;
 
@@ -97,6 +95,12 @@ namespace clang {
     unsigned CurChar = 0;
 
   public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = const char;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
     RopePieceBTreeIterator() = default;
     RopePieceBTreeIterator(const void /*RopePieceBTreeNode*/ *N);
 

@@ -149,21 +149,32 @@ define void @test4() {
 
 ; THUMB: {{(movw r0, :lower16:L_test4g\$non_lazy_ptr)|(ldr.n r0, .LCPI)}}
 ; THUMB: {{(movt r0, :upper16:L_test4g\$non_lazy_ptr)?}}
-; THUMB: ldr r0, [r0]
-; THUMB: ldr r1, [r0]
-; THUMB: adds r1, #1
-; THUMB: str r1, [r0]
+; THUMB: ldr [[REG:r[0-9]+]], [r0]
+; THUMB: ldr [[REG1:r[0-9]+]], {{\[}}[[REG]]]
+; THUMB: adds [[REG1]], #1
+; THUMB: {{(movw r1, :lower16:L_test4g\$non_lazy_ptr)|(ldr.n r0, .LCPI)}}
+; THUMB: {{(movt r1, :upper16:L_test4g\$non_lazy_ptr)?}}
+; THUMB: ldr [[REG2:r[0-9]+]], [r1]
+; THUMB: str [[REG1]], {{\[}}[[REG2]]]
 
 ; ARM-MACHO: {{(movw r0, :lower16:L_test4g\$non_lazy_ptr)|(ldr r0, .LCPI)}}
 ; ARM-MACHO: {{(movt r0, :upper16:L_test4g\$non_lazy_ptr)?}}
-; ARM-MACHO: ldr r0, [r0]
+; ARM-MACHO: ldr [[REG:r[0-9]+]], [r0]
 
-; ARM-ELF: movw r0, :lower16:test4g
-; ARM-ELF: movt r0, :upper16:test4g
+; ARM-ELF: movw [[REG:r[0-9]+]], :lower16:test4g
+; ARM-ELF: movt [[REG]], :upper16:test4g
 
-; ARM: ldr r1, [r0]
-; ARM: add r1, r1, #1
-; ARM: str r1, [r0]
+; ARM: ldr [[REG1:r[0-9]+]], {{\[}}[[REG]]]
+; ARM: add [[REG2:r[0-9]+]], [[REG1]], #1
+
+; ARM-MACHO: {{(movw r1, :lower16:L_test4g\$non_lazy_ptr)|(ldr r0, .LCPI)}}
+; ARM-MACHO: {{(movt r1, :upper16:L_test4g\$non_lazy_ptr)?}}
+; ARM-MACHO: ldr [[REG3:r[0-9]+]], [r1]
+
+; ARM-ELF: movw [[REG3:r[0-9]+]], :lower16:test4g
+; ARM-ELF: movt [[REG3]], :upper16:test4g
+
+; ARM: str [[REG2]], {{\[}}[[REG3]]]
 }
 
 ; ARM: @urem_fold

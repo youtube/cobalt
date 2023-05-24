@@ -24,17 +24,17 @@ body: |
     successors: %bb.1.less, %bb.2.exit
 
     CMP32ri8 $edi, 10, implicit-def $eflags
-    JG_1 %bb.2.exit, implicit $eflags
+    JCC_1 %bb.2.exit, 15, implicit $eflags
 
   bb.1.less:
     ; CHECK:      $eax = MOV32r0
-    ; CHECK-NEXT: RETQ killed $eax
+    ; CHECK-NEXT: RET64 killed $eax
     $eax = MOV32r0 implicit-def $eflags
-    RETQ killed $eax
+    RET64 killed $eax
 
   bb.2.exit:
     ; CHECK:      $eax = COPY killed $edi
-    ; CHECK-NEXT: RETQ killed $eax
+    ; CHECK-NEXT: RET64 killed $eax
     $eax = COPY killed $edi
-    RETQ killed $eax
+    RET64 killed $eax
 ...

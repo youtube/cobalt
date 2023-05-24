@@ -1,4 +1,4 @@
-; RUN: opt < %s -bounds-checking -S | FileCheck %s
+; RUN: opt < %s -passes=bounds-checking -S | FileCheck %s
 target datalayout = "e-p:64:64:64-p1:16:16:16-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 
 @global = private unnamed_addr constant [10 x i8] c"ola\00mundo\00", align 1
@@ -57,8 +57,6 @@ fn.exit:
 define void @f1_as1(i8 addrspace(1)* nocapture %c) {
 ; CHECK: @f1_as1
 ; no checks are possible here
-; CHECK-NOT: trap
-; CHECK: add i16 undef, -1
 ; CHECK-NOT: trap
 entry:
   %0 = load i8, i8 addrspace(1)* %c, align 1

@@ -1,5 +1,5 @@
-; RUN: llc -mcpu=pwr8 -mtriple=powerpc64le-unknown-linux-gnu < %s | FileCheck %s
-; RUN: llc -mcpu=pwr9 -mtriple=powerpc64le-unknown-linux-gnu < %s | FileCheck \
+; RUN: llc -mcpu=pwr8 -mtriple=powerpc64le-unknown-linux-gnu < %s -verify-machineinstrs | FileCheck %s
+; RUN: llc -mcpu=pwr9 -mtriple=powerpc64le-unknown-linux-gnu < %s -verify-machineinstrs | FileCheck \
 ; RUN:   %s --check-prefix=CHECK-P9
 
 ; Verify peephole simplification of splats and swaps.  Bugpoint-reduced
@@ -57,13 +57,12 @@ L.LB38_2452:
 }
 
 ; CHECK-LABEL: @aercalc_
-; CHECK: lfsx
-; CHECK: xxspltd
+; CHECK: lfs
+; CHECK: xxswapd
 ; CHECK: stxvd2x
 ; CHECK-NOT: xxswapd
 
 ; CHECK-P9-LABEL: @aercalc_
 ; CHECK-P9: lfs
-; CHECK-P9: xxspltd
 ; CHECK-P9: stxv
 ; CHECK-P9-NOT: xxswapd

@@ -1,9 +1,8 @@
 //===- TypeMetadataUtils.h - Utilities related to type metadata --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,9 +15,17 @@
 #define LLVM_ANALYSIS_TYPEMETADATAUTILS_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/IR/CallSite.h"
+#include <cstdint>
 
 namespace llvm {
+
+class CallBase;
+class CallInst;
+class Constant;
+class Function;
+class DominatorTree;
+class Instruction;
+class Module;
 
 /// The type of CFI jumptable needed for a function.
 enum CfiFunctionLinkage {
@@ -32,14 +39,15 @@ struct DevirtCallSite {
   /// The offset from the address point to the virtual function.
   uint64_t Offset;
   /// The call site itself.
-  CallSite CS;
+  CallBase &CB;
 };
 
 /// Given a call to the intrinsic \@llvm.type.test, find all devirtualizable
 /// call sites based on the call and return them in DevirtCalls.
 void findDevirtualizableCallsForTypeTest(
     SmallVectorImpl<DevirtCallSite> &DevirtCalls,
-    SmallVectorImpl<CallInst *> &Assumes, const CallInst *CI);
+    SmallVectorImpl<CallInst *> &Assumes, const CallInst *CI,
+    DominatorTree &DT);
 
 /// Given a call to the intrinsic \@llvm.type.checked.load, find all
 /// devirtualizable call sites based on the call and return them in DevirtCalls.
@@ -47,7 +55,32 @@ void findDevirtualizableCallsForTypeCheckedLoad(
     SmallVectorImpl<DevirtCallSite> &DevirtCalls,
     SmallVectorImpl<Instruction *> &LoadedPtrs,
     SmallVectorImpl<Instruction *> &Preds, bool &HasNonCallUses,
-    const CallInst *CI);
-}
+    const CallInst *CI, DominatorTree &DT);
+
+/// Processes a Constant recursively looking into elements of arrays, structs
+/// and expressions to find a trivial pointer element that is located at the
+/// given offset (relative to the beginning of the whole outer Constant).
+///
+/// Used for example from GlobalDCE to find an entry in a C++ vtable that
+/// matches a vcall offset.
+///
+/// To support Swift vtables, getPointerAtOffset can see through "relative
+/// pointers", i.e. (sub-)expressions of the form of:
+///
+/// @symbol = ... {
+///   i32 trunc (i64 sub (
+///     i64 ptrtoint (<type> @target to i64), i64 ptrtoint (... @symbol to i64)
+///   ) to i32)
+/// }
+///
+/// For such (sub-)expressions, getPointerAtOffset returns the @target pointer.
+Constant *getPointerAtOffset(Constant *I, uint64_t Offset, Module &M,
+                             Constant *TopLevelGlobal = nullptr);
+
+/// Finds the same "relative pointer" pattern as described above, where the
+/// target is `F`, and replaces the entire pattern with a constant zero.
+void replaceRelativePointerUsersWithZero(Function *F);
+
+} // namespace llvm
 
 #endif

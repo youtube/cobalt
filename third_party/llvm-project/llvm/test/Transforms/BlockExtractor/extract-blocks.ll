@@ -2,13 +2,15 @@
 ; RUN: echo 'foo bb20' >> %t
 ; RUN: opt -S -extract-blocks -extract-blocks-file=%t %s | FileCheck %s --check-prefix=CHECK-NO-ERASE
 ; RUN: opt -S -extract-blocks -extract-blocks-file=%t -extract-blocks-erase-funcs %s | FileCheck %s --check-prefix=CHECK-ERASE
+; RUN: opt -S -passes=extract-blocks -extract-blocks-file=%t %s | FileCheck %s --check-prefix=CHECK-NO-ERASE
+; RUN: opt -S -passes=extract-blocks -extract-blocks-file=%t -extract-blocks-erase-funcs %s | FileCheck %s --check-prefix=CHECK-ERASE
 
 ; CHECK-NO-ERASE: @foo(
-; CHECK-NO-ERASE: @foo_bb9(
-; CHECK-NO-ERASE: @foo_bb20(
+; CHECK-NO-ERASE: @foo.bb9(
+; CHECK-NO-ERASE: @foo.bb20(
 ; CHECK-ERASE: declare i32 @foo(
-; CHECK-ERASE: @foo_bb9(
-; CHECK-ERASE: @foo_bb20(
+; CHECK-ERASE: @foo.bb9(
+; CHECK-ERASE: @foo.bb20(
 define i32 @foo(i32 %arg, i32 %arg1) {
 bb:
   %tmp5 = icmp sgt i32 %arg, 0

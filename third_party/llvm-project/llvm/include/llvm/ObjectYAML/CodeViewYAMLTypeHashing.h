@@ -1,9 +1,8 @@
 //==- CodeViewYAMLTypeHashing.h - CodeView YAMLIO Type hashing ----*- C++-*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -59,4 +58,4 @@ LLVM_YAML_DECLARE_MAPPING_TRAITS(CodeViewYAML::DebugHSection)
 LLVM_YAML_DECLARE_SCALAR_TRAITS(CodeViewYAML::GlobalHash, QuotingType::None)
 LLVM_YAML_IS_SEQUENCE_VECTOR(CodeViewYAML::GlobalHash)
 
-#endif // LLVM_OBJECTYAML_CODEVIEWYAMLTYPES_H
+#endif // LLVM_OBJECTYAML_CODEVIEWYAMLTYPEHASHING_H

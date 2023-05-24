@@ -1,9 +1,8 @@
 //===- unittests/AST/DeclTest.cpp --- Declaration tests -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,12 +10,22 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/Decl.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/Mangle.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/ASTMatchers/ASTMatchers.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/Lexer.h"
 #include "clang/Tooling/Tooling.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/Testing/Support/Annotations.h"
 #include "gtest/gtest.h"
 
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
+using namespace clang;
 
 TEST(Decl, CleansUpAPValues) {
   MatchFinder Finder;
@@ -56,4 +65,95 @@ TEST(Decl, CleansUpAPValues) {
       Factory->create(),
       "constexpr _Complex __uint128_t c = 0xffffffffffffffff;",
       Args));
+}
+
+TEST(Decl, AsmLabelAttr) {
+  // Create two method decls: `f` and `g`.
+  StringRef Code = R"(
+    struct S {
+      void f() {}
+      void g() {}
+    };
+  )";
+  auto AST =
+      tooling::buildASTFromCodeWithArgs(Code, {"-target", "i386-apple-darwin"});
+  ASTContext &Ctx = AST->getASTContext();
+  assert(Ctx.getTargetInfo().getUserLabelPrefix() == StringRef("_") &&
+         "Expected target to have a global prefix");
+  DiagnosticsEngine &Diags = AST->getDiagnostics();
+
+  const auto *DeclS =
+      selectFirst<CXXRecordDecl>("d", match(cxxRecordDecl().bind("d"), Ctx));
+  NamedDecl *DeclF = *DeclS->method_begin();
+  NamedDecl *DeclG = *(++DeclS->method_begin());
+
+  // Attach asm labels to the decls: one literal, and one not.
+  DeclF->addAttr(::new (Ctx) AsmLabelAttr(Ctx, SourceLocation(), "foo",
+                                          /*LiteralLabel=*/true));
+  DeclG->addAttr(::new (Ctx) AsmLabelAttr(Ctx, SourceLocation(), "goo",
+                                          /*LiteralLabel=*/false));
+
+  // Mangle the decl names.
+  std::string MangleF, MangleG;
+  std::unique_ptr<ItaniumMangleContext> MC(
+      ItaniumMangleContext::create(Ctx, Diags));
+  {
+    llvm::raw_string_ostream OS_F(MangleF);
+    llvm::raw_string_ostream OS_G(MangleG);
+    MC->mangleName(DeclF, OS_F);
+    MC->mangleName(DeclG, OS_G);
+  }
+
+  ASSERT_TRUE(0 == MangleF.compare("\x01" "foo"));
+  ASSERT_TRUE(0 == MangleG.compare("goo"));
+}
+
+TEST(Decl, MangleDependentSizedArray) {
+  StringRef Code = R"(
+    template <int ...N>
+    int A[] = {N...};
+
+    template <typename T, int N>
+    struct S {
+      T B[N];
+    };
+  )";
+  auto AST =
+      tooling::buildASTFromCodeWithArgs(Code, {"-target", "i386-apple-darwin"});
+  ASTContext &Ctx = AST->getASTContext();
+  assert(Ctx.getTargetInfo().getUserLabelPrefix() == StringRef("_") &&
+         "Expected target to have a global prefix");
+  DiagnosticsEngine &Diags = AST->getDiagnostics();
+
+  const auto *DeclA =
+      selectFirst<VarDecl>("A", match(varDecl().bind("A"), Ctx));
+  const auto *DeclB =
+      selectFirst<FieldDecl>("B", match(fieldDecl().bind("B"), Ctx));
+
+  std::string MangleA, MangleB;
+  llvm::raw_string_ostream OS_A(MangleA), OS_B(MangleB);
+  std::unique_ptr<ItaniumMangleContext> MC(
+      ItaniumMangleContext::create(Ctx, Diags));
+
+  MC->mangleTypeName(DeclA->getType(), OS_A);
+  MC->mangleTypeName(DeclB->getType(), OS_B);
+
+  ASSERT_TRUE(0 == MangleA.compare("_ZTSA_i"));
+  ASSERT_TRUE(0 == MangleB.compare("_ZTSAT0__T_"));
+}
+
+TEST(Decl, EnumDeclRange) {
+  llvm::Annotations Code(R"(
+    typedef int Foo;
+    [[enum Bar : Foo]];)");
+  auto AST = tooling::buildASTFromCodeWithArgs(Code.code(), /*Args=*/{});
+  ASTContext &Ctx = AST->getASTContext();
+  const auto &SM = Ctx.getSourceManager();
+
+  const auto *Bar =
+      selectFirst<TagDecl>("Bar", match(enumDecl().bind("Bar"), Ctx));
+  auto BarRange =
+      Lexer::getAsCharRange(Bar->getSourceRange(), SM, Ctx.getLangOpts());
+  EXPECT_EQ(SM.getFileOffset(BarRange.getBegin()), Code.range().Begin);
+  EXPECT_EQ(SM.getFileOffset(BarRange.getEnd()), Code.range().End);
 }

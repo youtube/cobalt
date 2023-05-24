@@ -1,9 +1,8 @@
 //===-- AArch64A53Fix835769.cpp -------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // This pass changes code to work around Cortex-A53 erratum 835769.
@@ -16,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64.h"
+#include "AArch64Subtarget.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -117,8 +117,13 @@ INITIALIZE_PASS(AArch64A53Fix835769, "aarch64-fix-cortex-a53-835769-pass",
 bool
 AArch64A53Fix835769::runOnMachineFunction(MachineFunction &F) {
   LLVM_DEBUG(dbgs() << "***** AArch64A53Fix835769 *****\n");
+  auto &STI = F.getSubtarget<AArch64Subtarget>();
+  // Fix not requested, skip pass.
+  if (!STI.fixCortexA53_835769())
+    return false;
+
   bool Changed = false;
-  TII = F.getSubtarget().getInstrInfo();
+  TII = STI.getInstrInfo();
 
   for (auto &MBB : F) {
     Changed |= runOnBasicBlock(MBB);
@@ -160,7 +165,7 @@ static MachineInstr *getLastNonPseudo(MachineBasicBlock &MBB,
   // If there is no non-pseudo in the current block, loop back around and try
   // the previous block (if there is one).
   while ((FMBB = getBBFallenThrough(FMBB, TII))) {
-    for (MachineInstr &I : make_range(FMBB->rbegin(), FMBB->rend()))
+    for (MachineInstr &I : llvm::reverse(*FMBB))
       if (!I.isPseudo())
         return &I;
   }

@@ -1,9 +1,8 @@
 //===--- RedundantControlFlowCheck.cpp - clang-tidy------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,16 +32,15 @@ bool isLocationInMacroExpansion(const SourceManager &SM, SourceLocation Loc) {
 
 void RedundantControlFlowCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(
-      functionDecl(
-          isDefinition(), returns(voidType()),
-          has(compoundStmt(hasAnySubstatement(returnStmt(unless(has(expr())))))
-                  .bind("return"))),
+      functionDecl(isDefinition(), returns(voidType()),
+                   hasBody(compoundStmt(hasAnySubstatement(
+                                            returnStmt(unless(has(expr())))))
+                               .bind("return"))),
       this);
-  auto CompoundContinue =
-      has(compoundStmt(hasAnySubstatement(continueStmt())).bind("continue"));
   Finder->addMatcher(
-      stmt(anyOf(forStmt(), cxxForRangeStmt(), whileStmt(), doStmt()),
-           CompoundContinue),
+      mapAnyOf(forStmt, cxxForRangeStmt, whileStmt, doStmt)
+          .with(hasBody(compoundStmt(hasAnySubstatement(continueStmt()))
+                            .bind("continue"))),
       this);
 }
 
@@ -56,16 +54,16 @@ void RedundantControlFlowCheck::check(const MatchFinder::MatchResult &Result) {
 
 void RedundantControlFlowCheck::checkRedundantReturn(
     const MatchFinder::MatchResult &Result, const CompoundStmt *Block) {
-  CompoundStmt::const_reverse_body_iterator last = Block->body_rbegin();
-  if (const auto *Return = dyn_cast<ReturnStmt>(*last))
+  CompoundStmt::const_reverse_body_iterator Last = Block->body_rbegin();
+  if (const auto *Return = dyn_cast<ReturnStmt>(*Last))
     issueDiagnostic(Result, Block, Return->getSourceRange(),
                     RedundantReturnDiag);
 }
 
 void RedundantControlFlowCheck::checkRedundantContinue(
     const MatchFinder::MatchResult &Result, const CompoundStmt *Block) {
-  CompoundStmt::const_reverse_body_iterator last = Block->body_rbegin();
-  if (const auto *Continue = dyn_cast<ContinueStmt>(*last))
+  CompoundStmt::const_reverse_body_iterator Last = Block->body_rbegin();
+  if (const auto *Continue = dyn_cast<ContinueStmt>(*Last))
     issueDiagnostic(Result, Block, Continue->getSourceRange(),
                     RedundantContinueDiag);
 }
@@ -81,7 +79,7 @@ void RedundantControlFlowCheck::issueDiagnostic(
   SourceLocation Start;
   if (Previous != Block->body_rend())
     Start = Lexer::findLocationAfterToken(
-        dyn_cast<Stmt>(*Previous)->getLocEnd(), tok::semi, SM, getLangOpts(),
+        dyn_cast<Stmt>(*Previous)->getEndLoc(), tok::semi, SM, getLangOpts(),
         /*SkipTrailingWhitespaceAndNewLine=*/true);
   if (!Start.isValid())
     Start = StmtRange.getBegin();

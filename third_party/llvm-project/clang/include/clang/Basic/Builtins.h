@@ -1,9 +1,8 @@
 //===--- Builtins.h - Builtin function header -------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -26,8 +25,6 @@
 namespace clang {
 class TargetInfo;
 class IdentifierTable;
-class ASTContext;
-class QualType;
 class LangOptions;
 
 enum LanguageID {
@@ -39,6 +36,8 @@ enum LanguageID {
   OCLC20_LANG = 0x20, // builtin for OpenCL C 2.0 only.
   OCLC1X_LANG = 0x40, // builtin for OpenCL C 1.x only.
   OMP_LANG = 0x80,    // builtin requires OpenMP.
+  CUDA_LANG = 0x100,  // builtin requires CUDA.
+  COR_LANG = 0x200,   // builtin requires use of 'fcoroutine-ts' option.
   ALL_LANGUAGES = C_LANG | CXX_LANG | OBJC_LANG, // builtin for all languages.
   ALL_GNU_LANGUAGES = ALL_LANGUAGES | GNU_LANG,  // builtin requires GNU mode.
   ALL_MS_LANGUAGES = ALL_LANGUAGES | MS_LANG,    // builtin requires MS mode.
@@ -161,6 +160,13 @@ public:
     return strchr(getRecord(ID).Attributes, 't') != nullptr;
   }
 
+  /// Determines whether a declaration of this builtin should be recognized
+  /// even if the type doesn't match the specified signature.
+  bool allowTypeMismatch(unsigned ID) const {
+    return strchr(getRecord(ID).Attributes, 'T') != nullptr ||
+           hasCustomTypechecking(ID);
+  }
+
   /// Determines whether this builtin has a result or any arguments which
   /// are pointer types.
   bool hasPtrArgsOrResult(unsigned ID) const {
@@ -173,10 +179,6 @@ public:
     return strchr(getRecord(ID).Type, '&') != nullptr ||
            strchr(getRecord(ID).Type, 'A') != nullptr;
   }
-
-  /// Completely forget that the given ID was ever considered a builtin,
-  /// e.g., because the user provided a conflicting signature.
-  void forgetBuiltin(unsigned ID, IdentifierTable &Table);
 
   /// If this is a library function that comes from a specific
   /// header, retrieve that header name.
@@ -193,6 +195,12 @@ public:
   /// formatting rules and, if so, set the index to the format string
   /// argument and whether this function as a va_list argument.
   bool isScanfLike(unsigned ID, unsigned &FormatIdx, bool &HasVAListArg);
+
+  /// Determine whether this builtin has callback behavior (see
+  /// llvm::AbstractCallSites for details). If so, add the index to the
+  /// callback callee argument and the callback payload arguments.
+  bool performsCallback(unsigned ID,
+                        llvm::SmallVectorImpl<int> &Encoding) const;
 
   /// Return true if this function has no side effects and doesn't
   /// read memory, except for possibly errno.
@@ -219,7 +227,7 @@ public:
 
   /// Returns true if this is a libc/libm function without the '__builtin_'
   /// prefix.
-  static bool isBuiltinFunc(const char *Name);
+  static bool isBuiltinFunc(llvm::StringRef Name);
 
   /// Returns true if this is a builtin that can be redeclared.  Returns true
   /// for non-builtins.

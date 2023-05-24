@@ -1,11 +1,10 @@
-//===--- Quality.h - Ranking alternatives for ambiguous queries -*- C++-*-===//
+//===--- Quality.h - Ranking alternatives for ambiguous queries --*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
-//
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 ///
 /// Some operations such as code completion produce a set of candidates.
 /// Usually the user can choose between them, but we should put the best options
@@ -23,21 +22,31 @@
 ///   - sorting utilities like the TopN container.
 /// These could be split up further to isolate dependencies if we care.
 ///
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_QUALITY_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_QUALITY_H
+
+#include "ExpectedTypes.h"
+#include "FileDistance.h"
+#include "TUScheduler.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSet.h"
 #include <algorithm>
 #include <functional>
 #include <vector>
+
 namespace llvm {
 class raw_ostream;
-}
+} // namespace llvm
+
 namespace clang {
 class CodeCompletionResult;
+
 namespace clangd {
+
 struct Symbol;
 class URIDistance;
 
@@ -50,6 +59,7 @@ struct SymbolQualitySignals {
   bool Deprecated = false;
   bool ReservedName = false; // __foo, _Foo are usually implementation details.
                              // FIXME: make these findable once user types _.
+  bool ImplementationDetail = false;
   unsigned References = 0;
 
   enum SymbolCategory {
@@ -59,33 +69,48 @@ struct SymbolQualitySignals {
     Type,
     Function,
     Constructor,
+    Destructor,
     Namespace,
     Keyword,
+    Operator,
   } Category = Unknown;
 
   void merge(const CodeCompletionResult &SemaCCResult);
   void merge(const Symbol &IndexResult);
 
   // Condense these signals down to a single number, higher is better.
-  float evaluate() const;
+  float evaluateHeuristics() const;
 };
 llvm::raw_ostream &operator<<(llvm::raw_ostream &,
                               const SymbolQualitySignals &);
 
 /// Attributes of a symbol-query pair that affect how much we like it.
 struct SymbolRelevanceSignals {
+  /// The name of the symbol (for ContextWords). Must be explicitly assigned.
+  llvm::StringRef Name;
   /// 0-1+ fuzzy-match score for unqualified name. Must be explicitly assigned.
   float NameMatch = 1;
+  /// Lowercase words relevant to the context (e.g. near the completion point).
+  llvm::StringSet<>* ContextWords = nullptr;
   bool Forbidden = false; // Unavailable (e.g const) or inaccessible (private).
+  /// Whether fixits needs to be applied for that completion or not.
+  bool NeedsFixIts = false;
+  bool InBaseClass = false; // A member from base class of the accessed class.
 
   URIDistance *FileProximityMatch = nullptr;
-  /// This is used to calculate proximity between the index symbol and the
+  /// These are used to calculate proximity between the index symbol and the
   /// query.
   llvm::StringRef SymbolURI;
-  /// Proximity between best declaration and the query. [0-1], 1 is closest.
   /// FIXME: unify with index proximity score - signals should be
   /// source-independent.
-  float SemaProximityScore = 0;
+  /// Proximity between best declaration and the query. [0-1], 1 is closest.
+  float SemaFileProximityScore = 0;
+
+  // Scope proximity is only considered (both index and sema) when this is set.
+  ScopeDistance *ScopeProximityMatch = nullptr;
+  llvm::Optional<llvm::StringRef> SymbolScope;
+  // A symbol from sema should be accessible from the current scope.
+  bool SemaSaysInScope = false;
 
   // An approximate measure of where we expect the symbol to be used.
   enum AccessibleScope {
@@ -105,17 +130,62 @@ struct SymbolRelevanceSignals {
   // Whether symbol is an instance member of a class.
   bool IsInstanceMember = false;
 
+  // Whether clang provided a preferred type in the completion context.
+  bool HadContextType = false;
+  // Whether a source completion item or a symbol had a type information.
+  bool HadSymbolType = false;
+  // Whether the item matches the type expected in the completion context.
+  bool TypeMatchesPreferred = false;
+
+  /// Length of the unqualified partial name of Symbol typed in
+  /// CompletionPrefix.
+  unsigned FilterLength = 0;
+
+  const ASTSignals *MainFileSignals = nullptr;
+  /// Number of references to the candidate in the main file.
+  unsigned MainFileRefs = 0;
+  /// Number of unique symbols in the main file which belongs to candidate's
+  /// namespace. This indicates how relevant the namespace is in the current
+  /// file.
+  unsigned ScopeRefsInFile = 0;
+
+  /// Set of derived signals computed by calculateDerivedSignals(). Must not be
+  /// set explicitly.
+  struct DerivedSignals {
+    /// Whether Name contains some word from context.
+    bool NameMatchesContext = false;
+    /// Min distance between SymbolURI and all the headers included by the TU.
+    unsigned FileProximityDistance = FileDistance::Unreachable;
+    /// Min distance between SymbolScope and all the available scopes.
+    unsigned ScopeProximityDistance = FileDistance::Unreachable;
+  };
+
+  DerivedSignals calculateDerivedSignals() const;
+
   void merge(const CodeCompletionResult &SemaResult);
   void merge(const Symbol &IndexResult);
+  void computeASTSignals(const CodeCompletionResult &SemaResult);
 
   // Condense these signals down to a single number, higher is better.
-  float evaluate() const;
+  float evaluateHeuristics() const;
 };
 llvm::raw_ostream &operator<<(llvm::raw_ostream &,
                               const SymbolRelevanceSignals &);
 
 /// Combine symbol quality and relevance into a single score.
 float evaluateSymbolAndRelevance(float SymbolQuality, float SymbolRelevance);
+
+/// Same semantics as CodeComplete::Score. Quality score and Relevance score
+/// have been removed since DecisionForest cannot assign individual scores to
+/// Quality and Relevance signals.
+struct DecisionForestScores {
+  float Total = 0.f;
+  float ExcludingName = 0.f;
+};
+
+DecisionForestScores
+evaluateDecisionForest(const SymbolQualitySignals &Quality,
+                       const SymbolRelevanceSignals &Relevance, float Base);
 
 /// TopN<T> is a lossy container that preserves only the "best" N elements.
 template <typename T, typename Compare = std::greater<T>> class TopN {
@@ -161,7 +231,16 @@ private:
 /// LSP. (The highest score compares smallest so it sorts at the top).
 std::string sortText(float Score, llvm::StringRef Tiebreak = "");
 
+struct SignatureQualitySignals {
+  uint32_t NumberOfParameters = 0;
+  uint32_t NumberOfOptionalParameters = 0;
+  CodeCompleteConsumer::OverloadCandidate::CandidateKind Kind =
+      CodeCompleteConsumer::OverloadCandidate::CandidateKind::CK_Function;
+};
+llvm::raw_ostream &operator<<(llvm::raw_ostream &,
+                              const SignatureQualitySignals &);
+
 } // namespace clangd
 } // namespace clang
 
-#endif
+#endif // LLVM_CLANG_TOOLS_EXTRA_CLANGD_QUALITY_H

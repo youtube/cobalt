@@ -1,18 +1,21 @@
 //===- PreprocessorOptions.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_LEX_PREPROCESSOROPTIONS_H_
 #define LLVM_CLANG_LEX_PREPROCESSOROPTIONS_H_
 
+#include "clang/Basic/BitmaskEnum.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Lex/PreprocessorExcludedConditionalDirectiveSkipMapping.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
+#include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -38,6 +41,24 @@ enum ObjCXXARCStandardLibraryKind {
   ARCXX_libstdcxx
 };
 
+/// Whether to disable the normal validation performed on precompiled
+/// headers and module files when they are loaded.
+enum class DisableValidationForModuleKind {
+  /// Perform validation, don't disable it.
+  None = 0,
+
+  /// Disable validation for a precompiled header and the modules it depends on.
+  PCH = 0x1,
+
+  /// Disable validation for module files.
+  Module = 0x2,
+
+  /// Disable validation for all kinds.
+  All = PCH | Module,
+
+  LLVM_MARK_AS_BITMASK_ENUM(Module)
+};
+
 /// PreprocessorOptions - This class is used for passing the various options
 /// used in preprocessor initialization to InitializePreprocessor().
 class PreprocessorOptions {
@@ -54,6 +75,16 @@ public:
   /// definitions and expansions.
   bool DetailedRecord = false;
 
+  /// When true, we are creating or using a PCH where a #pragma hdrstop is
+  /// expected to indicate the beginning or end of the PCH.
+  bool PCHWithHdrStop = false;
+
+  /// When true, we are creating a PCH or creating the PCH object while
+  /// expecting a #pragma hdrstop to separate the two.  Allow for a
+  /// missing #pragma hdrstop, which generates a PCH for the whole file,
+  /// and creates an empty PCH object.
+  bool PCHWithHdrStopCreate = false;
+
   /// If non-empty, the filename used in an #include directive in the primary
   /// source file (or command-line preinclude) that is used to implement
   /// MSVC-style precompiled headers. When creating a PCH, after the #include
@@ -67,12 +98,17 @@ public:
   /// Headers that will be converted to chained PCHs in memory.
   std::vector<std::string> ChainedIncludes;
 
-  /// When true, disables most of the normal validation performed on
-  /// precompiled headers.
-  bool DisablePCHValidation = false;
+  /// Whether to disable most of the normal validation performed on
+  /// precompiled headers and module files.
+  DisableValidationForModuleKind DisablePCHOrModuleValidation =
+      DisableValidationForModuleKind::None;
 
   /// When true, a PCH with compiler errors will not be rejected.
   bool AllowPCHWithCompilerErrors = false;
+
+  /// When true, a PCH with modules cache path different to the current
+  /// compilation will not be rejected.
+  bool AllowPCHWithDifferentModulesCachePath = false;
 
   /// Dump declarations that are deserialized from PCH, for testing.
   bool DumpDeserializedPCHDecls = false;
@@ -99,13 +135,6 @@ public:
   /// Reading the comments from the PCH can be a performance hit even if the
   /// clients don't use them.
   bool WriteCommentListToPCH = true;
-
-  /// The implicit PTH input included at the start of the translation unit, or
-  /// empty.
-  std::string ImplicitPTHInclude;
-
-  /// If given, a PTH cache file to use for speeding up header parsing.
-  std::string TokenCache;
 
   /// When enabled, preprocessor is in a mode for parsing a single file only.
   ///
@@ -140,6 +169,9 @@ public:
   /// compiler invocation and its buffers will be reused.
   bool RetainRemappedFileBuffers = false;
 
+  /// When enabled, excluded conditional blocks retain in the main file.
+  bool RetainExcludedConditionalBlocks = false;
+
   /// The Objective-C++ ARC standard library that we should support,
   /// by providing appropriate definitions to retrofit the standard library
   /// with support for lifetime-qualified pointers.
@@ -167,18 +199,36 @@ public:
   /// build it again.
   std::shared_ptr<FailedModulesSet> FailedModules;
 
+  /// Contains the currently active skipped range mappings for skipping excluded
+  /// conditional directives.
+  ///
+  /// The pointer is passed to the Preprocessor when it's constructed. The
+  /// pointer is unowned, the client is responsible for its lifetime.
+  ExcludedPreprocessorDirectiveSkipMapping
+      *ExcludedConditionalDirectiveSkipMappings = nullptr;
+
+  /// Set up preprocessor for RunAnalysis action.
+  bool SetUpStaticAnalyzer = false;
+
+  /// Prevents intended crashes when using #pragma clang __debug. For testing.
+  bool DisablePragmaDebugCrash = false;
+
 public:
   PreprocessorOptions() : PrecompiledPreambleBytes(0, false) {}
 
-  void addMacroDef(StringRef Name) { Macros.emplace_back(Name, false); }
-  void addMacroUndef(StringRef Name) { Macros.emplace_back(Name, true); }
+  void addMacroDef(StringRef Name) {
+    Macros.emplace_back(std::string(Name), false);
+  }
+  void addMacroUndef(StringRef Name) {
+    Macros.emplace_back(std::string(Name), true);
+  }
 
   void addRemappedFile(StringRef From, StringRef To) {
-    RemappedFiles.emplace_back(From, To);
+    RemappedFiles.emplace_back(std::string(From), std::string(To));
   }
 
   void addRemappedFile(StringRef From, llvm::MemoryBuffer *To) {
-    RemappedFileBuffers.emplace_back(From, To);
+    RemappedFileBuffers.emplace_back(std::string(From), To);
   }
 
   void clearRemappedFiles() {
@@ -194,13 +244,12 @@ public:
     ChainedIncludes.clear();
     DumpDeserializedPCHDecls = false;
     ImplicitPCHInclude.clear();
-    ImplicitPTHInclude.clear();
-    TokenCache.clear();
     SingleFileParseMode = false;
     LexEditorPlaceholders = true;
     RetainRemappedFileBuffers = true;
     PrecompiledPreambleBytes.first = 0;
     PrecompiledPreambleBytes.second = false;
+    RetainExcludedConditionalBlocks = false;
   }
 };
 

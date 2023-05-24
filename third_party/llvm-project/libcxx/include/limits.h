@@ -1,10 +1,9 @@
 // -*- C++ -*-
-//===--------------------------- limits.h ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -62,4 +61,4 @@ Macros:
 #include_next <limits.h>
 #endif // __GNUC__
 
-#endif  // _LIBCPP_LIMITS_H
+#endif // _LIBCPP_LIMITS_H

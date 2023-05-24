@@ -1,14 +1,13 @@
 //===--- RefactoringOptions.h - Clang refactoring library -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTIONS_H
-#define LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTIONS_H
+#ifndef LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONS_H
+#define LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONS_H
 
 #include "clang/Basic/LLVM.h"
 #include "clang/Tooling/Refactoring/RefactoringActionRuleRequirements.h"
@@ -21,8 +20,8 @@ namespace clang {
 namespace tooling {
 
 /// A refactoring option that stores a value of type \c T.
-template <typename T, typename = typename std::enable_if<
-                          traits::IsValidOptionType<T>::value>::type>
+template <typename T,
+          typename = std::enable_if_t<traits::IsValidOptionType<T>::value>>
 class OptionalRefactoringOption : public RefactoringOption {
 public:
   void passToVisitor(RefactoringOptionVisitor &Visitor) final override {
@@ -40,8 +39,8 @@ protected:
 };
 
 /// A required refactoring option that stores a value of type \c T.
-template <typename T, typename = typename std::enable_if<
-                          traits::IsValidOptionType<T>::value>::type>
+template <typename T,
+          typename = std::enable_if_t<traits::IsValidOptionType<T>::value>>
 class RequiredRefactoringOption : public OptionalRefactoringOption<T> {
 public:
   using ValueType = T;
@@ -55,4 +54,4 @@ public:
 } // end namespace tooling
 } // end namespace clang
 
-#endif // LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTIONS_H
+#endif // LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONS_H

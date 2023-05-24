@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <unordered_map>
 
@@ -19,17 +18,14 @@
 //           class = typename enable_if<is_convertible<P, value_type>::value>::type>
 //     iterator insert(const_iterator p, P&& x);
 
-#if _LIBCPP_DEBUG >= 1
-#define _LIBCPP_ASSERT(x, m) ((x) ? (void)0 : std::exit(0))
-#endif
-
 #include <unordered_map>
 #include <cassert>
 
+#include "test_macros.h"
 #include "MoveOnly.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::unordered_map<double, int> C;
@@ -42,7 +38,7 @@ int main()
         assert(r->first == 3.5);
         assert(r->second == 3);
 
-        r = c.insert(c.end(), P(3.5, static_cast<short>(4)));
+        r = c.insert(r, P(3.5, static_cast<short>(4)));
         assert(c.size() == 1);
         assert(r->first == 3.5);
         assert(r->second == 3);
@@ -68,7 +64,7 @@ int main()
         assert(r->first == 3);
         assert(r->second == 3);
 
-        r = c.insert(c.end(), P(3, 4));
+        r = c.insert(r, P(3, 4));
         assert(c.size() == 1);
         assert(r->first == 3);
         assert(r->second == 3);
@@ -95,7 +91,7 @@ int main()
         assert(r->first == 3.5);
         assert(r->second == 3);
 
-        r = c.insert(c.end(), P(3.5, static_cast<short>(4)));
+        r = c.insert(r, P(3.5, static_cast<short>(4)));
         assert(c.size() == 1);
         assert(r->first == 3.5);
         assert(r->second == 3);
@@ -122,7 +118,7 @@ int main()
         assert(r->first == 3);
         assert(r->second == 3);
 
-        r = c.insert(c.end(), P(3, 4));
+        r = c.insert(r, P(3, 4));
         assert(c.size() == 1);
         assert(r->first == 3);
         assert(r->second == 3);
@@ -147,7 +143,7 @@ int main()
         assert(r->first == 3.5);
         assert(r->second == 3);
 
-        r = c.insert(c.end(), {3.5, 4});
+        r = c.insert(r, {3.5, 4});
         assert(c.size() == 1);
         assert(r->first == 3.5);
         assert(r->second == 3);
@@ -162,16 +158,6 @@ int main()
         assert(r->first == 5.5);
         assert(r->second == 4);
     }
-#if _LIBCPP_DEBUG >= 1
-    {
-        typedef std::unordered_map<double, int> C;
-        typedef C::iterator R;
-        typedef C::value_type P;
-        C c;
-        C c2;
-        C::const_iterator e = c2.end();
-        R r = c.insert(e, P(3.5, 3));
-        assert(false);
-    }
-#endif
+
+    return 0;
 }

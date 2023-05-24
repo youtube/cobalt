@@ -1,3 +1,4 @@
+; UNSUPPORTED: powerpc64-ibm-aix
 ; RUN: llvm-as < %s > %t1
 ; RUN: llvm-as < %p/Inputs/remangle_intrinsics.ll > %t2
 ; RUN: llvm-lto %t1 %t2 | FileCheck %s
@@ -19,6 +20,3 @@ define void @foo(%struct.rtx_def* %a, i8 %b, i32 %c) {
 }
 
 declare void @llvm.memset.p0struct.rtx_def.i32(%struct.rtx_def*, i8, i32, i1)
-
-; Check that remangling code doesn't fail on an intrinsic with wrong signature
-declare void @llvm.memset.i64(i8* nocapture, i8, i64) nounwind

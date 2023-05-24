@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,7 +27,7 @@
 #define THREAD_LOCAL __thread
 #endif
 
-#define OMPT_WEAK_ATTRIBUTE KMP_WEAK_ATTRIBUTE
+#define OMPT_WEAK_ATTRIBUTE KMP_WEAK_ATTRIBUTE_INTERNAL
 
 //******************************************************************************
 // macros
@@ -211,10 +210,11 @@ ompt_data_t *__ompt_get_thread_data_internal() {
 void __ompt_thread_assign_wait_id(void *variable) {
   kmp_info_t *ti = ompt_get_thread();
 
-  ti->th.ompt_thread_info.wait_id = (omp_wait_id_t)variable;
+  if (ti)
+    ti->th.ompt_thread_info.wait_id = (ompt_wait_id_t)(uintptr_t)variable;
 }
 
-omp_state_t __ompt_get_state_internal(omp_wait_id_t *omp_wait_id) {
+int __ompt_get_state_internal(ompt_wait_id_t *omp_wait_id) {
   kmp_info_t *ti = ompt_get_thread();
 
   if (ti) {
@@ -222,7 +222,7 @@ omp_state_t __ompt_get_state_internal(omp_wait_id_t *omp_wait_id) {
       *omp_wait_id = ti->th.ompt_thread_info.wait_id;
     return ti->th.ompt_thread_info.state;
   }
-  return omp_state_undefined;
+  return ompt_state_undefined;
 }
 
 //----------------------------------------------------------
@@ -259,20 +259,19 @@ void __ompt_lw_taskteam_init(ompt_lw_taskteam_t *lwt, kmp_info_t *thr, int gtid,
   lwt->ompt_team_info.parallel_data = *ompt_pid;
   lwt->ompt_team_info.master_return_address = codeptr;
   lwt->ompt_task_info.task_data.value = 0;
-  lwt->ompt_task_info.frame.enter_frame = NULL;
-  lwt->ompt_task_info.frame.exit_frame = NULL;
+  lwt->ompt_task_info.frame.enter_frame = ompt_data_none;
+  lwt->ompt_task_info.frame.exit_frame = ompt_data_none;
   lwt->ompt_task_info.scheduling_parent = NULL;
-  lwt->ompt_task_info.deps = NULL;
-  lwt->ompt_task_info.ndeps = 0;
   lwt->heap = 0;
   lwt->parent = 0;
 }
 
 void __ompt_lw_taskteam_link(ompt_lw_taskteam_t *lwt, kmp_info_t *thr,
-                             int on_heap) {
+                             int on_heap, bool always) {
   ompt_lw_taskteam_t *link_lwt = lwt;
-  if (thr->th.th_team->t.t_serialized >
-      1) { // we already have a team, so link the new team and swap values
+  if (always ||
+      thr->th.th_team->t.t_serialized >
+          1) { // we already have a team, so link the new team and swap values
     if (on_heap) { // the lw_taskteam cannot stay on stack, allocate it on heap
       link_lwt =
           (ompt_lw_taskteam_t *)__kmp_allocate(sizeof(ompt_lw_taskteam_t));
@@ -284,19 +283,29 @@ void __ompt_lw_taskteam_link(ompt_lw_taskteam_t *lwt, kmp_info_t *thr,
     link_lwt->ompt_team_info = *OMPT_CUR_TEAM_INFO(thr);
     *OMPT_CUR_TEAM_INFO(thr) = tmp_team;
 
-    ompt_task_info_t tmp_task = lwt->ompt_task_info;
-    link_lwt->ompt_task_info = *OMPT_CUR_TASK_INFO(thr);
-    *OMPT_CUR_TASK_INFO(thr) = tmp_task;
-
     // link the taskteam into the list of taskteams:
     ompt_lw_taskteam_t *my_parent =
         thr->th.th_team->t.ompt_serialized_team_info;
     link_lwt->parent = my_parent;
     thr->th.th_team->t.ompt_serialized_team_info = link_lwt;
+#if OMPD_SUPPORT
+    if (ompd_state & OMPD_ENABLE_BP) {
+      ompd_bp_parallel_begin();
+    }
+#endif
+
+    ompt_task_info_t tmp_task = lwt->ompt_task_info;
+    link_lwt->ompt_task_info = *OMPT_CUR_TASK_INFO(thr);
+    *OMPT_CUR_TASK_INFO(thr) = tmp_task;
   } else {
     // this is the first serialized team, so we just store the values in the
     // team and drop the taskteam-object
     *OMPT_CUR_TEAM_INFO(thr) = lwt->ompt_team_info;
+#if OMPD_SUPPORT
+    if (ompd_state & OMPD_ENABLE_BP) {
+      ompd_bp_parallel_begin();
+    }
+#endif
     *OMPT_CUR_TASK_INFO(thr) = lwt->ompt_task_info;
   }
 }
@@ -304,15 +313,19 @@ void __ompt_lw_taskteam_link(ompt_lw_taskteam_t *lwt, kmp_info_t *thr,
 void __ompt_lw_taskteam_unlink(kmp_info_t *thr) {
   ompt_lw_taskteam_t *lwtask = thr->th.th_team->t.ompt_serialized_team_info;
   if (lwtask) {
+    ompt_task_info_t tmp_task = lwtask->ompt_task_info;
+    lwtask->ompt_task_info = *OMPT_CUR_TASK_INFO(thr);
+    *OMPT_CUR_TASK_INFO(thr) = tmp_task;
+#if OMPD_SUPPORT
+    if (ompd_state & OMPD_ENABLE_BP) {
+      ompd_bp_parallel_end();
+    }
+#endif
     thr->th.th_team->t.ompt_serialized_team_info = lwtask->parent;
 
     ompt_team_info_t tmp_team = lwtask->ompt_team_info;
     lwtask->ompt_team_info = *OMPT_CUR_TEAM_INFO(thr);
     *OMPT_CUR_TEAM_INFO(thr) = tmp_team;
-
-    ompt_task_info_t tmp_task = lwtask->ompt_task_info;
-    lwtask->ompt_task_info = *OMPT_CUR_TASK_INFO(thr);
-    *OMPT_CUR_TASK_INFO(thr) = tmp_task;
 
     if (lwtask->heap) {
       __kmp_free(lwtask);
@@ -328,7 +341,7 @@ void __ompt_lw_taskteam_unlink(kmp_info_t *thr) {
 
 int __ompt_get_task_info_internal(int ancestor_level, int *type,
                                   ompt_data_t **task_data,
-                                  omp_frame_t **task_frame,
+                                  ompt_frame_t **task_frame,
                                   ompt_data_t **parallel_data,
                                   int *thread_num) {
   if (__kmp_get_gtid() < 0)
@@ -351,13 +364,9 @@ int __ompt_get_task_info_internal(int ancestor_level, int *type,
     if (team == NULL)
       return 0;
     ompt_lw_taskteam_t *lwt = NULL,
-                       *next_lwt = LWT_FROM_TEAM(taskdata->td_team),
-                       *prev_lwt = NULL;
+                       *next_lwt = LWT_FROM_TEAM(taskdata->td_team);
 
     while (ancestor_level > 0) {
-      // needed for thread_num
-      prev_team = team;
-      prev_lwt = lwt;
       // next lightweight team (if any)
       if (lwt)
         lwt = lwt->parent;
@@ -376,6 +385,7 @@ int __ompt_get_task_info_internal(int ancestor_level, int *type,
           taskdata = taskdata->td_parent;
           if (team == NULL)
             return 0;
+          prev_team = team;
           team = team->t.t_parent;
           if (taskdata) {
             next_lwt = LWT_FROM_TEAM(taskdata->td_team);
@@ -417,15 +427,56 @@ int __ompt_get_task_info_internal(int ancestor_level, int *type,
     if (thread_num) {
       if (level == 0)
         *thread_num = __kmp_get_tid();
-      else if (prev_lwt)
+      else if (lwt)
         *thread_num = 0;
-      else
+      else if (!prev_team) {
+        // The innermost parallel region contains at least one explicit task.
+        // The task at level > 0 is either an implicit task that
+        // corresponds to the mentioned region or one of the explicit tasks
+        // nested inside the same region. Note that the task isn't the
+        // innermost explicit tasks (because of condition level > 0).
+        // Since the task at this level still belongs to the innermost parallel
+        // region, thread_num is determined the same way as for level==0.
+        *thread_num = __kmp_get_tid();
+      } else
         *thread_num = prev_team->t.t_master_tid;
       //        *thread_num = team->t.t_master_tid;
     }
     return info ? 2 : 0;
   }
   return 0;
+}
+
+int __ompt_get_task_memory_internal(void **addr, size_t *size, int blocknum) {
+  if (blocknum != 0)
+    return 0; // support only a single block
+
+  kmp_info_t *thr = ompt_get_thread();
+  if (!thr)
+    return 0;
+
+  kmp_taskdata_t *taskdata = thr->th.th_current_task;
+  kmp_task_t *task = KMP_TASKDATA_TO_TASK(taskdata);
+
+  if (taskdata->td_flags.tasktype != TASK_EXPLICIT)
+    return 0; // support only explicit task
+
+  void *ret_addr;
+  int64_t ret_size = taskdata->td_size_alloc - sizeof(kmp_taskdata_t);
+
+  // kmp_task_t->data1 is an optional member
+  if (taskdata->td_flags.destructors_thunk)
+    ret_addr = &task->data1 + 1;
+  else
+    ret_addr = &task->part_id + 1;
+
+  ret_size -= (char *)(ret_addr) - (char *)(task);
+  if (ret_size < 0)
+    return 0;
+
+  *addr = ret_addr;
+  *size = (size_t)ret_size;
+  return 1;
 }
 
 //----------------------------------------------------------
@@ -448,4 +499,26 @@ static uint64_t __ompt_get_unique_id_internal() {
     ID = new_thread << (sizeof(uint64_t) * 8 - OMPT_THREAD_ID_BITS);
   }
   return ++ID;
+}
+
+ompt_sync_region_t __ompt_get_barrier_kind(enum barrier_type bt,
+                                           kmp_info_t *thr) {
+  if (bt == bs_forkjoin_barrier)
+    return ompt_sync_region_barrier_implicit;
+
+  if (bt != bs_plain_barrier)
+    return ompt_sync_region_barrier_implementation;
+
+  if (!thr->th.th_ident)
+    return ompt_sync_region_barrier;
+
+  kmp_int32 flags = thr->th.th_ident->flags;
+
+  if ((flags & KMP_IDENT_BARRIER_EXPL) != 0)
+    return ompt_sync_region_barrier_explicit;
+
+  if ((flags & KMP_IDENT_BARRIER_IMPL) != 0)
+    return ompt_sync_region_barrier_implicit;
+
+  return ompt_sync_region_barrier_implementation;
 }

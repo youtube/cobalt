@@ -4,7 +4,7 @@
 // __ubsan_on_report is not defined as weak. Redefining it here isn't supported
 // on Windows.
 //
-// UNSUPPORTED: win32
+// UNSUPPORTED: windows-msvc
 // Linkage issue
 // XFAIL: openbsd
 
@@ -29,6 +29,7 @@ void __ubsan_on_report(void) {
   printf("Issue: %s\n", IssueKind);
   printf("Location: %s:%u:%u\n", Filename, Line, Col);
   printf("Message: %s\n", Message);
+  fflush(stdout);
 
   (void)Addr;
 }

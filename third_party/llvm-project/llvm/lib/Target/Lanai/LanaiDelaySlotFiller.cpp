@@ -1,13 +1,12 @@
 //===-- LanaiDelaySlotFiller.cpp - Lanai delay slot filler ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// Simple pass to fills delay slots with useful instructions.
+// Simple pass to fill delay slots with useful instructions.
 //
 //===----------------------------------------------------------------------===//
 
@@ -52,9 +51,8 @@ struct Filler : public MachineFunctionPass {
     TRI = Subtarget.getRegisterInfo();
 
     bool Changed = false;
-    for (MachineFunction::iterator FI = MF.begin(), FE = MF.end(); FI != FE;
-         ++FI)
-      Changed |= runOnMachineBasicBlock(*FI);
+    for (MachineBasicBlock &MBB : MF)
+      Changed |= runOnMachineBasicBlock(MBB);
     return Changed;
   }
 
@@ -201,8 +199,7 @@ bool Filler::delayHasHazard(MachineBasicBlock::instr_iterator MI, bool &SawLoad,
   assert((!MI->isCall() && !MI->isReturn()) &&
          "Cannot put calls or returns in delay slot.");
 
-  for (unsigned I = 0, E = MI->getNumOperands(); I != E; ++I) {
-    const MachineOperand &MO = MI->getOperand(I);
+  for (const MachineOperand &MO : MI->operands()) {
     unsigned Reg;
 
     if (!MO.isReg() || !(Reg = MO.getReg()))

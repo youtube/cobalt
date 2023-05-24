@@ -1,9 +1,8 @@
 //===--- SuspiciousStringCompareCheck.cpp - clang-tidy---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -70,8 +69,9 @@ static const char KnownStringCompareFunctions[] = "__builtin_memcmp;"
 SuspiciousStringCompareCheck::SuspiciousStringCompareCheck(
     StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
-      WarnOnImplicitComparison(Options.get("WarnOnImplicitComparison", 1)),
-      WarnOnLogicalNotComparison(Options.get("WarnOnLogicalNotComparison", 0)),
+      WarnOnImplicitComparison(Options.get("WarnOnImplicitComparison", true)),
+      WarnOnLogicalNotComparison(
+          Options.get("WarnOnLogicalNotComparison", false)),
       StringCompareLikeFunctions(
           Options.get("StringCompareLikeFunctions", "")) {}
 
@@ -85,8 +85,7 @@ void SuspiciousStringCompareCheck::storeOptions(
 void SuspiciousStringCompareCheck::registerMatchers(MatchFinder *Finder) {
   // Match relational operators.
   const auto ComparisonUnaryOperator = unaryOperator(hasOperatorName("!"));
-  const auto ComparisonBinaryOperator =
-      binaryOperator(matchers::isComparisonOperator());
+  const auto ComparisonBinaryOperator = binaryOperator(isComparisonOperator());
   const auto ComparisonOperator =
       expr(anyOf(ComparisonUnaryOperator, ComparisonBinaryOperator));
 
@@ -114,13 +113,10 @@ void SuspiciousStringCompareCheck::registerMatchers(MatchFinder *Finder) {
     // Detect suspicious calls to string compare:
     //     'if (strcmp())'  ->  'if (strcmp() != 0)'
     Finder->addMatcher(
-        stmt(anyOf(ifStmt(hasCondition(StringCompareCallExpr)),
-                   whileStmt(hasCondition(StringCompareCallExpr)),
-                   doStmt(hasCondition(StringCompareCallExpr)),
-                   forStmt(hasCondition(StringCompareCallExpr)),
-                   binaryOperator(
-                       anyOf(hasOperatorName("&&"), hasOperatorName("||")),
-                       hasEitherOperand(StringCompareCallExpr))))
+        stmt(anyOf(mapAnyOf(ifStmt, whileStmt, doStmt, forStmt)
+                       .with(hasCondition(StringCompareCallExpr)),
+                   binaryOperator(hasAnyOperatorName("&&", "||"),
+                                  hasEitherOperand(StringCompareCallExpr))))
             .bind("missing-comparison"),
         this);
   }
@@ -135,19 +131,19 @@ void SuspiciousStringCompareCheck::registerMatchers(MatchFinder *Finder) {
                        this);
   }
 
-  // Detect suspicious cast to an inconsistant type (i.e. not integer type).
+  // Detect suspicious cast to an inconsistent type (i.e. not integer type).
   Finder->addMatcher(
-      implicitCastExpr(unless(hasType(isInteger())),
-                       hasSourceExpression(StringCompareCallExpr))
-          .bind("invalid-conversion"),
+      traverse(TK_AsIs,
+               implicitCastExpr(unless(hasType(isInteger())),
+                                hasSourceExpression(StringCompareCallExpr))
+                   .bind("invalid-conversion")),
       this);
 
   // Detect suspicious operator with string compare function as operand.
   Finder->addMatcher(
-      binaryOperator(
-          unless(anyOf(matchers::isComparisonOperator(), hasOperatorName("&&"),
-                       hasOperatorName("||"), hasOperatorName("="))),
-          hasEitherOperand(StringCompareCallExpr))
+      binaryOperator(unless(anyOf(isComparisonOperator(), hasOperatorName("&&"),
+                                  hasOperatorName("||"), hasOperatorName("="))),
+                     hasEitherOperand(StringCompareCallExpr))
           .bind("suspicious-operator"),
       this);
 
@@ -159,11 +155,11 @@ void SuspiciousStringCompareCheck::registerMatchers(MatchFinder *Finder) {
                 has(ignoringParenImpCasts(integerLiteral(unless(equals(0)))))),
             characterLiteral(), cxxBoolLiteral()));
 
-  Finder->addMatcher(binaryOperator(matchers::isComparisonOperator(),
-                                    hasEitherOperand(StringCompareCallExpr),
-                                    hasEitherOperand(InvalidLiteral))
-                         .bind("invalid-comparison"),
-                     this);
+  Finder->addMatcher(
+      binaryOperator(isComparisonOperator(),
+                     hasOperands(StringCompareCallExpr, InvalidLiteral))
+          .bind("invalid-comparison"),
+      this);
 }
 
 void SuspiciousStringCompareCheck::check(
@@ -177,7 +173,7 @@ void SuspiciousStringCompareCheck::check(
         Call->getRParenLoc(), 0, Result.Context->getSourceManager(),
         getLangOpts());
 
-    diag(Call->getLocStart(),
+    diag(Call->getBeginLoc(),
          "function %0 is called without explicitly comparing result")
         << Decl << FixItHint::CreateInsertion(EndLoc, " != 0");
   }
@@ -186,29 +182,30 @@ void SuspiciousStringCompareCheck::check(
     SourceLocation EndLoc = Lexer::getLocForEndOfToken(
         Call->getRParenLoc(), 0, Result.Context->getSourceManager(),
         getLangOpts());
-    SourceLocation NotLoc = E->getLocStart();
+    SourceLocation NotLoc = E->getBeginLoc();
 
-    diag(Call->getLocStart(),
+    diag(Call->getBeginLoc(),
          "function %0 is compared using logical not operator")
-        << Decl << FixItHint::CreateRemoval(
-                       CharSourceRange::getTokenRange(NotLoc, NotLoc))
+        << Decl
+        << FixItHint::CreateRemoval(
+               CharSourceRange::getTokenRange(NotLoc, NotLoc))
         << FixItHint::CreateInsertion(EndLoc, " == 0");
   }
 
   if (Result.Nodes.getNodeAs<Stmt>("invalid-comparison")) {
-    diag(Call->getLocStart(),
+    diag(Call->getBeginLoc(),
          "function %0 is compared to a suspicious constant")
         << Decl;
   }
 
   if (const auto *BinOp =
           Result.Nodes.getNodeAs<BinaryOperator>("suspicious-operator")) {
-    diag(Call->getLocStart(), "results of function %0 used by operator '%1'")
+    diag(Call->getBeginLoc(), "results of function %0 used by operator '%1'")
         << Decl << BinOp->getOpcodeStr();
   }
 
   if (Result.Nodes.getNodeAs<Stmt>("invalid-conversion")) {
-    diag(Call->getLocStart(), "function %0 has suspicious implicit cast")
+    diag(Call->getBeginLoc(), "function %0 has suspicious implicit cast")
         << Decl;
   }
 }

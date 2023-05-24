@@ -1,14 +1,12 @@
 //===-- ARMWinEH.cpp - Windows on ARM EH Support Functions ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/ARMWinEH.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 namespace ARM {
@@ -32,7 +30,7 @@ std::pair<uint16_t, uint32_t> SavedRegisterMask(const RuntimeFunction &RF) {
 
   return std::make_pair(GPRMask, VFPMask);
 }
-}
-}
-}
+} // namespace WinEH
+} // namespace ARM
+} // namespace llvm
 

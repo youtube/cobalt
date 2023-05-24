@@ -58,14 +58,14 @@ void getObjectsTest(NSMutableArray<NSString *> *array) {
 
 void printMe(NSString *name) { }
 
-// CHECK-LABEL: define void @blockTest
+// CHECK-LABEL: define{{.*}} void @blockTest
 void blockTest(NSMutableArray<void (^)(void)> *array, NSString *name) {
   // CHECK-NOT: ret void
-  // CHECK: call i8* @objc_retainBlock
+  // CHECK: call i8* @llvm.objc.retainBlock
   [array addObject: ^ { printMe(name); }];
   // CHECK-NOT: ret void
   array[0] = ^ { printMe(name); };
-  // CHECK: call i8* @objc_retainBlock
+  // CHECK: call i8* @llvm.objc.retainBlock
   // CHECK: ret void
 }
 
@@ -80,7 +80,7 @@ void blockTest(NSMutableArray<void (^)(void)> *array, NSString *name) {
 // CHECK: %[[V5:.*]] = bitcast i8* %[[ADDPTR]] to %[[IVARTY]]**
 // CHECK: %[[V6:.*]] = bitcast %[[IVARTY]]** %[[V5]] to i8**
 // CHECK: %[[V7:.*]] = bitcast %[[IVARTY]]* %[[V2]] to i8*
-// CHECK: call void @objc_storeStrong(i8** %[[V6]], i8* %[[V7]])
+// CHECK: call void @llvm.objc.storeStrong(i8** %[[V6]], i8* %[[V7]])
 
 @interface Base<DestType> : NSObject {
   DestType _destination;
@@ -105,7 +105,7 @@ void blockTest(NSMutableArray<void (^)(void)> *array, NSString *name) {
 // CHECK: %[[V4:.*]] = load %[[TY]]*, %[[TY]]** %[[D]]
 // CHECK: store %[[TY]]* %[[V4]], %[[TY]]** %[[TEMP]]
 // CHECK: %[[V7:.*]] = bitcast %[[TY]]** %[[TEMP]] to i8**
-// CHECK: call void bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to void (i8*, i8*, i8**)*)(i8* %{{.*}}, i8* %{{.*}}, i8** %[[V7]])
+// CHECK: call void bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to void (i8*, i8*, i8**)*)(i8* noundef %{{.*}}, i8* noundef %{{.*}}, i8** noundef %[[V7]])
 
 @interface P0<ObjectType> : NSObject
 - (void)m0:(ObjectType *)first;

@@ -1,4 +1,4 @@
-; RUN: opt -loop-unswitch -S - < %s | FileCheck %s
+; RUN: opt -loop-unswitch -enable-new-pm=0 -verify-memoryssa -S - < %s | FileCheck %s
 
 ;CHECK-LABEL: @b
 ;CHECK: [[Loop1:for\.end.*]]:                              ; preds = %for.cond.us

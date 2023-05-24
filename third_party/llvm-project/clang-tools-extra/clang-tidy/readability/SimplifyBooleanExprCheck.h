@@ -1,16 +1,15 @@
 //===--- SimplifyBooleanExpr.h clang-tidy -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_READABILITY_SIMPLIFY_BOOLEAN_EXPR_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_READABILITY_SIMPLIFY_BOOLEAN_EXPR_H
 
-#include "../ClangTidy.h"
+#include "../ClangTidyCheck.h"
 
 namespace clang {
 namespace tidy {
@@ -28,6 +27,9 @@ public:
   void storeOptions(ClangTidyOptions::OptionMap &Options) override;
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
+  llvm::Optional<TraversalKind> getCheckTraversalKind() const override {
+    return TK_IgnoreUnlessSpelledInSource;
+  }
 
 private:
   class Visitor;
@@ -39,7 +41,7 @@ private:
                           StringRef BooleanId);
 
   void matchTernaryResult(ast_matchers::MatchFinder *Finder, bool Value,
-                          StringRef TernaryId);
+                          StringRef Id);
 
   void matchIfReturnsBool(ast_matchers::MatchFinder *Finder, bool Value,
                           StringRef Id);
@@ -50,30 +52,51 @@ private:
   void matchCompoundIfReturnsBool(ast_matchers::MatchFinder *Finder, bool Value,
                                   StringRef Id);
 
+  void matchCaseIfReturnsBool(ast_matchers::MatchFinder *Finder, bool Value,
+                              StringRef Id);
+
+  void matchDefaultIfReturnsBool(ast_matchers::MatchFinder *Finder, bool Value,
+                                 StringRef Id);
+
+  void matchLabelIfReturnsBool(ast_matchers::MatchFinder *Finder, bool Value,
+                               StringRef Id);
+
   void
   replaceWithThenStatement(const ast_matchers::MatchFinder::MatchResult &Result,
-                           const CXXBoolLiteralExpr *BoolLiteral);
+                           const Expr *BoolLiteral);
 
   void
   replaceWithElseStatement(const ast_matchers::MatchFinder::MatchResult &Result,
-                           const CXXBoolLiteralExpr *FalseConditionRemoved);
+                           const Expr *BoolLiteral);
 
   void
   replaceWithCondition(const ast_matchers::MatchFinder::MatchResult &Result,
-                       const ConditionalOperator *Ternary,
-                       bool Negated = false);
+                       const ConditionalOperator *Ternary, bool Negated);
 
   void replaceWithReturnCondition(
       const ast_matchers::MatchFinder::MatchResult &Result, const IfStmt *If,
-      bool Negated = false);
+      bool Negated);
 
   void
   replaceWithAssignment(const ast_matchers::MatchFinder::MatchResult &Result,
-                        const IfStmt *If, bool Negated = false);
+                        const IfStmt *If, bool Negated);
 
   void replaceCompoundReturnWithCondition(
       const ast_matchers::MatchFinder::MatchResult &Result,
-      const CompoundStmt *Compound, bool Negated = false);
+      const CompoundStmt *Compound, bool Negated);
+
+  void replaceCompoundReturnWithCondition(
+      const ast_matchers::MatchFinder::MatchResult &Result, bool Negated,
+      const IfStmt *If);
+
+  void replaceCaseCompoundReturnWithCondition(
+      const ast_matchers::MatchFinder::MatchResult &Result, bool Negated);
+
+  void replaceDefaultCompoundReturnWithCondition(
+      const ast_matchers::MatchFinder::MatchResult &Result, bool Negated);
+
+  void replaceLabelCompoundReturnWithCondition(
+      const ast_matchers::MatchFinder::MatchResult &Result, bool Negated);
 
   void issueDiag(const ast_matchers::MatchFinder::MatchResult &Result,
                  SourceLocation Loc, StringRef Description,

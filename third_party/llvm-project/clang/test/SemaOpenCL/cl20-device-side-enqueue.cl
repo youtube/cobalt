@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 %s -cl-std=CL2.0 -triple "spir-unknown-unknown" -verify -pedantic -fsyntax-only -DB32 -DQUALS=
+// RUN: %clang_cc1 %s -cl-std=CL2.0 -triple "spir-unknown-unknown" -verify -pedantic -fsyntax-only -DB32 -DQUALS= -cl-ext=-cl_khr_subgroups
 // RUN: %clang_cc1 %s -cl-std=CL2.0 -triple "spir-unknown-unknown" -verify -pedantic -fsyntax-only -DB32 -DQUALS="const volatile"
 // RUN: %clang_cc1 %s -cl-std=CL2.0 -triple "spir64-unknown-unknown" -verify -pedantic -fsyntax-only -Wconversion -DWCONV -DQUALS=
 // RUN: %clang_cc1 %s -cl-std=CL2.0 -triple "spir64-unknown-unknown" -verify -pedantic -fsyntax-only -Wconversion -DWCONV -DQUALS="const volatile"
@@ -91,7 +92,7 @@ kernel void enqueue_kernel_tests() {
                  },
                  c, 1024L);
 #ifdef WCONV
-// expected-warning-re@-2{{implicit conversion changes signedness: 'char' to 'unsigned {{int|long}}'}}
+// expected-warning-re@-2{{implicit conversion changes signedness: '__private char' to 'unsigned {{int|long}}'}}
 #endif
 #define UINT_MAX 4294967295
 
@@ -158,6 +159,8 @@ kernel void enqueue_kernel_tests() {
   enqueue_kernel(default_queue, flags, ndrange, 1, &event_wait_list, &evt); // expected-error{{illegal call to enqueue_kernel, incorrect argument types}}
 
   enqueue_kernel(default_queue, flags, ndrange, 1, 1); // expected-error{{illegal call to enqueue_kernel, incorrect argument types}}
+
+  enqueue_kernel(default_queue, ndrange, ^{}); // expected-error{{too few arguments to function call, expected at least 4, have 3}}
 }
 
 // Diagnostic tests for get_kernel_work_group_size and allowed block parameter types in dynamic parallelism.
@@ -210,9 +213,9 @@ kernel void work_group_size_tests() {
   size = get_kernel_preferred_work_group_size_multiple(block_A, 1); // expected-error{{too many arguments to function call, expected 1, have 2}}
 }
 
+#ifdef cl_khr_subgroups
 #pragma OPENCL EXTENSION cl_khr_subgroups : enable
-
-kernel void foo(global int *buf)
+kernel void foo(global unsigned int *buf)
 {
   ndrange_t n;
   buf[0] = get_kernel_max_sub_group_size_for_ndrange(n, ^(){});
@@ -220,7 +223,7 @@ kernel void foo(global int *buf)
   buf[0] = get_kernel_max_sub_group_size_for_ndrange(n, 1); // expected-error{{illegal call to 'get_kernel_max_sub_group_size_for_ndrange', expected block argument type}}
 }
 
-kernel void bar(global int *buf)
+kernel void bar(global unsigned int *buf)
 {
   __private ndrange_t n;
   buf[0] = get_kernel_sub_group_count_for_ndrange(n, ^(){});
@@ -229,15 +232,16 @@ kernel void bar(global int *buf)
 }
 
 #pragma OPENCL EXTENSION cl_khr_subgroups : disable
-
-kernel void foo1(global int *buf)
+#else
+kernel void foo1(global unsigned int *buf)
 {
   ndrange_t n;
-  buf[0] = get_kernel_max_sub_group_size_for_ndrange(n, ^(){}); // expected-error {{use of declaration 'get_kernel_max_sub_group_size_for_ndrange' requires cl_khr_subgroups extension to be enabled}}
+  buf[0] = get_kernel_max_sub_group_size_for_ndrange(n, ^(){}); // expected-error {{use of declaration 'get_kernel_max_sub_group_size_for_ndrange' requires cl_khr_subgroups support}}
 }
 
-kernel void bar1(global int *buf)
+kernel void bar1(global unsigned int *buf)
 {
   ndrange_t n;
-  buf[0] = get_kernel_sub_group_count_for_ndrange(n, ^(){}); // expected-error {{use of declaration 'get_kernel_sub_group_count_for_ndrange' requires cl_khr_subgroups extension to be enabled}}
+  buf[0] = get_kernel_sub_group_count_for_ndrange(n, ^(){}); // expected-error {{use of declaration 'get_kernel_sub_group_count_for_ndrange' requires cl_khr_subgroups support}}
 }
+#endif // ifdef cl_khr_subgroups

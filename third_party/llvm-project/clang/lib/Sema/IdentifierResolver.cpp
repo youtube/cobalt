@@ -1,9 +1,8 @@
 //===- IdentifierResolver.cpp - Lexical Scope Name lookup -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -147,7 +146,7 @@ void IdentifierResolver::AddDecl(NamedDecl *D) {
   if (IdentifierInfo *II = Name.getAsIdentifierInfo())
     updatingIdentifier(*II);
 
-  void *Ptr = Name.getFETokenInfo<void>();
+  void *Ptr = Name.getFETokenInfo();
 
   if (!Ptr) {
     Name.setFETokenInfo(D);
@@ -172,7 +171,7 @@ void IdentifierResolver::InsertDeclAfter(iterator Pos, NamedDecl *D) {
   if (IdentifierInfo *II = Name.getAsIdentifierInfo())
     updatingIdentifier(*II);
 
-  void *Ptr = Name.getFETokenInfo<void>();
+  void *Ptr = Name.getFETokenInfo();
 
   if (!Ptr) {
     AddDecl(D);
@@ -213,7 +212,7 @@ void IdentifierResolver::RemoveDecl(NamedDecl *D) {
   if (IdentifierInfo *II = Name.getAsIdentifierInfo())
     updatingIdentifier(*II);
 
-  void *Ptr = Name.getFETokenInfo<void>();
+  void *Ptr = Name.getFETokenInfo();
 
   assert(Ptr && "Didn't find this decl on its identifier's chain!");
 
@@ -232,7 +231,7 @@ IdentifierResolver::begin(DeclarationName Name) {
   if (IdentifierInfo *II = Name.getAsIdentifierInfo())
     readingIdentifier(*II);
 
-  void *Ptr = Name.getFETokenInfo<void>();
+  void *Ptr = Name.getFETokenInfo();
   if (!Ptr) return end();
 
   if (isDeclPtr(Ptr))
@@ -304,7 +303,7 @@ bool IdentifierResolver::tryAddTopLevelDecl(NamedDecl *D, DeclarationName Name){
   if (IdentifierInfo *II = Name.getAsIdentifierInfo())
     readingIdentifier(*II);
 
-  void *Ptr = Name.getFETokenInfo<void>();
+  void *Ptr = Name.getFETokenInfo();
 
   if (!Ptr) {
     Name.setFETokenInfo(D);
@@ -397,7 +396,7 @@ void IdentifierResolver::updatingIdentifier(IdentifierInfo &II) {
 /// It creates a new IdDeclInfo if one was not created before for this id.
 IdentifierResolver::IdDeclInfo &
 IdentifierResolver::IdDeclInfoMap::operator[](DeclarationName Name) {
-  void *Ptr = Name.getFETokenInfo<void>();
+  void *Ptr = Name.getFETokenInfo();
 
   if (Ptr) return *toIdDeclInfo(Ptr);
 
@@ -415,7 +414,7 @@ IdentifierResolver::IdDeclInfoMap::operator[](DeclarationName Name) {
 
 void IdentifierResolver::iterator::incrementSlowCase() {
   NamedDecl *D = **this;
-  void *InfoPtr = D->getDeclName().getFETokenInfo<void>();
+  void *InfoPtr = D->getDeclName().getFETokenInfo();
   assert(!isDeclPtr(InfoPtr) && "Decl with wrong id ?");
   IdDeclInfo *Info = toIdDeclInfo(InfoPtr);
 

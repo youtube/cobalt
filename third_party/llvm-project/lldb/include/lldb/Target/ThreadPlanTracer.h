@@ -1,23 +1,18 @@
 //===-- ThreadPlanTracer.h --------------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ThreadPlanTracer_h_
-#define liblldb_ThreadPlanTracer_h_
+#ifndef LLDB_TARGET_THREADPLANTRACER_H
+#define LLDB_TARGET_THREADPLANTRACER_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Symbol/TaggedASTType.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/lldb-private.h"
 
 namespace lldb_private {
@@ -26,12 +21,12 @@ class ThreadPlanTracer {
   friend class ThreadPlan;
 
 public:
-  typedef enum ThreadPlanTracerStyle {
+  enum ThreadPlanTracerStyle {
     eLocation = 0,
     eStateChange,
     eCheckFrames,
     ePython
-  } ThreadPlanTracerStyle;
+  };
 
   ThreadPlanTracer(Thread &thread, lldb::StreamSP &stream_sp);
   ThreadPlanTracer(Thread &thread);
@@ -55,16 +50,11 @@ public:
 
   bool TracingEnabled() { return m_enabled; }
 
-  bool EnableSingleStep(bool value) {
-    bool old_value = m_single_step;
-    m_single_step = value;
-    return old_value;
-  }
-
-  bool SingleStepEnabled() { return m_single_step; }
+  Thread &GetThread();
 
 protected:
-  Thread &m_thread;
+  Process &m_process;
+  lldb::tid_t m_tid;
 
   Stream *GetLogStream();
 
@@ -73,9 +63,9 @@ protected:
 private:
   bool TracerExplainsStop();
 
-  bool m_single_step;
   bool m_enabled;
   lldb::StreamSP m_stream_sp;
+  Thread *m_thread;
 };
 
 class ThreadPlanAssemblyTracer : public ThreadPlanTracer {
@@ -101,4 +91,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // liblldb_ThreadPlanTracer_h_
+#endif // LLDB_TARGET_THREADPLANTRACER_H

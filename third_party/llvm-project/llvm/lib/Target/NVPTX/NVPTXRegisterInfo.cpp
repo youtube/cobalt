@@ -1,9 +1,8 @@
 //===- NVPTXRegisterInfo.cpp - NVPTX Register Information -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,6 +13,7 @@
 #include "NVPTXRegisterInfo.h"
 #include "NVPTX.h"
 #include "NVPTXSubtarget.h"
+#include "NVPTXTargetMachine.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -107,6 +107,14 @@ NVPTXRegisterInfo::getCalleeSavedRegs(const MachineFunction *) const {
 
 BitVector NVPTXRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
+  for (unsigned Reg = NVPTX::ENVREG0; Reg <= NVPTX::ENVREG31; ++Reg) {
+    markSuperRegs(Reserved, Reg);
+  }
+  markSuperRegs(Reserved, NVPTX::VRFrame32);
+  markSuperRegs(Reserved, NVPTX::VRFrameLocal32);
+  markSuperRegs(Reserved, NVPTX::VRFrame64);
+  markSuperRegs(Reserved, NVPTX::VRFrameLocal64);
+  markSuperRegs(Reserved, NVPTX::VRDepot);
   return Reserved;
 }
 
@@ -123,10 +131,19 @@ void NVPTXRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                MI.getOperand(FIOperandNum + 1).getImm();
 
   // Using I0 as the frame pointer
-  MI.getOperand(FIOperandNum).ChangeToRegister(NVPTX::VRFrame, false);
+  MI.getOperand(FIOperandNum).ChangeToRegister(getFrameRegister(MF), false);
   MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
 }
 
-unsigned NVPTXRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  return NVPTX::VRFrame;
+Register NVPTXRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+  const NVPTXTargetMachine &TM =
+      static_cast<const NVPTXTargetMachine &>(MF.getTarget());
+  return TM.is64Bit() ? NVPTX::VRFrame64 : NVPTX::VRFrame32;
+}
+
+Register
+NVPTXRegisterInfo::getFrameLocalRegister(const MachineFunction &MF) const {
+  const NVPTXTargetMachine &TM =
+      static_cast<const NVPTXTargetMachine &>(MF.getTarget());
+  return TM.is64Bit() ? NVPTX::VRFrameLocal64 : NVPTX::VRFrameLocal32;
 }

@@ -1,9 +1,8 @@
 //===- SymbolManager.h - Management of Symbolic Values ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -60,6 +59,8 @@ public:
     Profile(profile, R);
   }
 
+  StringRef getKindStr() const override;
+
   void dumpToStream(raw_ostream &os) const override;
   const MemRegion *getOriginRegion() const override { return getRegion(); }
 
@@ -99,6 +100,8 @@ public:
   const void *getTag() const { return SymbolTag; }
 
   QualType getType() const override;
+
+  StringRef getKindStr() const override;
 
   void dumpToStream(raw_ostream &os) const override;
 
@@ -142,6 +145,8 @@ public:
 
   QualType getType() const override;
 
+  StringRef getKindStr() const override;
+
   void dumpToStream(raw_ostream &os) const override;
   const MemRegion *getOriginRegion() const override { return getRegion(); }
 
@@ -177,6 +182,8 @@ public:
   const SubRegion *getRegion() const { return R; }
 
   QualType getType() const override;
+
+  StringRef getKindStr() const override;
 
   void dumpToStream(raw_ostream &os) const override;
 
@@ -226,6 +233,8 @@ public:
   const void *getTag() const { return Tag; }
 
   QualType getType() const override;
+
+  StringRef getKindStr() const override;
 
   void dumpToStream(raw_ostream &os) const override;
 
@@ -309,7 +318,10 @@ protected:
   BinarySymExpr(Kind k, BinaryOperator::Opcode op, QualType t)
       : SymExpr(k), Op(op), T(t) {
     assert(classof(this));
-    assert(isValidTypeForSymbol(t));
+    // Binary expressions are results of arithmetic. Pointer arithmetic is not
+    // handled by binary expressions, but it is instead handled by applying
+    // sub-regions to regions.
+    assert(isValidTypeForSymbol(t) && !Loc::isLocType(t));
   }
 
 public:
@@ -324,140 +336,88 @@ public:
     Kind k = SE->getKind();
     return k >= BEGIN_BINARYSYMEXPRS && k <= END_BINARYSYMEXPRS;
   }
+
+protected:
+  static unsigned computeOperandComplexity(const SymExpr *Value) {
+    return Value->computeComplexity();
+  }
+  static unsigned computeOperandComplexity(const llvm::APSInt &Value) {
+    return 1;
+  }
+
+  static const llvm::APSInt *getPointer(const llvm::APSInt &Value) {
+    return &Value;
+  }
+  static const SymExpr *getPointer(const SymExpr *Value) { return Value; }
+
+  static void dumpToStreamImpl(raw_ostream &os, const SymExpr *Value);
+  static void dumpToStreamImpl(raw_ostream &os, const llvm::APSInt &Value);
+  static void dumpToStreamImpl(raw_ostream &os, BinaryOperator::Opcode op);
+};
+
+/// Template implementation for all binary symbolic expressions
+template <class LHSTYPE, class RHSTYPE, SymExpr::Kind ClassKind>
+class BinarySymExprImpl : public BinarySymExpr {
+  LHSTYPE LHS;
+  RHSTYPE RHS;
+
+public:
+  BinarySymExprImpl(LHSTYPE lhs, BinaryOperator::Opcode op, RHSTYPE rhs,
+                    QualType t)
+      : BinarySymExpr(ClassKind, op, t), LHS(lhs), RHS(rhs) {
+    assert(getPointer(lhs));
+    assert(getPointer(rhs));
+  }
+
+  void dumpToStream(raw_ostream &os) const override {
+    dumpToStreamImpl(os, LHS);
+    dumpToStreamImpl(os, getOpcode());
+    dumpToStreamImpl(os, RHS);
+  }
+
+  LHSTYPE getLHS() const { return LHS; }
+  RHSTYPE getRHS() const { return RHS; }
+
+  unsigned computeComplexity() const override {
+    if (Complexity == 0)
+      Complexity =
+          computeOperandComplexity(RHS) + computeOperandComplexity(LHS);
+    return Complexity;
+  }
+
+  static void Profile(llvm::FoldingSetNodeID &ID, LHSTYPE lhs,
+                      BinaryOperator::Opcode op, RHSTYPE rhs, QualType t) {
+    ID.AddInteger((unsigned)ClassKind);
+    ID.AddPointer(getPointer(lhs));
+    ID.AddInteger(op);
+    ID.AddPointer(getPointer(rhs));
+    ID.Add(t);
+  }
+
+  void Profile(llvm::FoldingSetNodeID &ID) override {
+    Profile(ID, LHS, getOpcode(), RHS, getType());
+  }
+
+  // Implement isa<T> support.
+  static bool classof(const SymExpr *SE) { return SE->getKind() == ClassKind; }
 };
 
 /// Represents a symbolic expression like 'x' + 3.
-class SymIntExpr : public BinarySymExpr {
-  const SymExpr *LHS;
-  const llvm::APSInt& RHS;
-
-public:
-  SymIntExpr(const SymExpr *lhs, BinaryOperator::Opcode op,
-             const llvm::APSInt &rhs, QualType t)
-      : BinarySymExpr(SymIntExprKind, op, t), LHS(lhs), RHS(rhs) {
-    assert(lhs);
-  }
-
-  void dumpToStream(raw_ostream &os) const override;
-
-  const SymExpr *getLHS() const { return LHS; }
-  const llvm::APSInt &getRHS() const { return RHS; }
-
-  unsigned computeComplexity() const override {
-    if (Complexity == 0)
-      Complexity = 1 + LHS->computeComplexity();
-    return Complexity;
-  }
-
-  static void Profile(llvm::FoldingSetNodeID& ID, const SymExpr *lhs,
-                      BinaryOperator::Opcode op, const llvm::APSInt& rhs,
-                      QualType t) {
-    ID.AddInteger((unsigned) SymIntExprKind);
-    ID.AddPointer(lhs);
-    ID.AddInteger(op);
-    ID.AddPointer(&rhs);
-    ID.Add(t);
-  }
-
-  void Profile(llvm::FoldingSetNodeID& ID) override {
-    Profile(ID, LHS, getOpcode(), RHS, getType());
-  }
-
-  // Implement isa<T> support.
-  static bool classof(const SymExpr *SE) {
-    return SE->getKind() == SymIntExprKind;
-  }
-};
+using SymIntExpr = BinarySymExprImpl<const SymExpr *, const llvm::APSInt &,
+                                     SymExpr::Kind::SymIntExprKind>;
 
 /// Represents a symbolic expression like 3 - 'x'.
-class IntSymExpr : public BinarySymExpr {
-  const llvm::APSInt& LHS;
-  const SymExpr *RHS;
-
-public:
-  IntSymExpr(const llvm::APSInt &lhs, BinaryOperator::Opcode op,
-             const SymExpr *rhs, QualType t)
-      : BinarySymExpr(IntSymExprKind, op, t), LHS(lhs), RHS(rhs) {
-    assert(rhs);
-  }
-
-  void dumpToStream(raw_ostream &os) const override;
-
-  const SymExpr *getRHS() const { return RHS; }
-  const llvm::APSInt &getLHS() const { return LHS; }
-
-  unsigned computeComplexity() const override {
-    if (Complexity == 0)
-      Complexity = 1 + RHS->computeComplexity();
-    return Complexity;
-  }
-
-  static void Profile(llvm::FoldingSetNodeID& ID, const llvm::APSInt& lhs,
-                      BinaryOperator::Opcode op, const SymExpr *rhs,
-                      QualType t) {
-    ID.AddInteger((unsigned) IntSymExprKind);
-    ID.AddPointer(&lhs);
-    ID.AddInteger(op);
-    ID.AddPointer(rhs);
-    ID.Add(t);
-  }
-
-  void Profile(llvm::FoldingSetNodeID& ID) override {
-    Profile(ID, LHS, getOpcode(), RHS, getType());
-  }
-
-  // Implement isa<T> support.
-  static bool classof(const SymExpr *SE) {
-    return SE->getKind() == IntSymExprKind;
-  }
-};
+using IntSymExpr = BinarySymExprImpl<const llvm::APSInt &, const SymExpr *,
+                                     SymExpr::Kind::IntSymExprKind>;
 
 /// Represents a symbolic expression like 'x' + 'y'.
-class SymSymExpr : public BinarySymExpr {
-  const SymExpr *LHS;
-  const SymExpr *RHS;
-
-public:
-  SymSymExpr(const SymExpr *lhs, BinaryOperator::Opcode op, const SymExpr *rhs,
-             QualType t)
-      : BinarySymExpr(SymSymExprKind, op, t), LHS(lhs), RHS(rhs) {
-    assert(lhs);
-    assert(rhs);
-  }
-
-  const SymExpr *getLHS() const { return LHS; }
-  const SymExpr *getRHS() const { return RHS; }
-
-  void dumpToStream(raw_ostream &os) const override;
-
-  unsigned computeComplexity() const override {
-    if (Complexity == 0)
-      Complexity = RHS->computeComplexity() + LHS->computeComplexity();
-    return Complexity;
-  }
-
-  static void Profile(llvm::FoldingSetNodeID& ID, const SymExpr *lhs,
-                    BinaryOperator::Opcode op, const SymExpr *rhs, QualType t) {
-    ID.AddInteger((unsigned) SymSymExprKind);
-    ID.AddPointer(lhs);
-    ID.AddInteger(op);
-    ID.AddPointer(rhs);
-    ID.Add(t);
-  }
-
-  void Profile(llvm::FoldingSetNodeID& ID) override {
-    Profile(ID, LHS, getOpcode(), RHS, getType());
-  }
-
-  // Implement isa<T> support.
-  static bool classof(const SymExpr *SE) {
-    return SE->getKind() == SymSymExprKind;
-  }
-};
+using SymSymExpr = BinarySymExprImpl<const SymExpr *, const SymExpr *,
+                                     SymExpr::Kind::SymSymExprKind>;
 
 class SymbolManager {
   using DataSetTy = llvm::FoldingSet<SymExpr>;
-  using SymbolDependTy = llvm::DenseMap<SymbolRef, SymbolRefSmallVectorTy *>;
+  using SymbolDependTy =
+      llvm::DenseMap<SymbolRef, std::unique_ptr<SymbolRefSmallVectorTy>>;
 
   DataSetTy DataSet;
 
@@ -474,7 +434,6 @@ public:
   SymbolManager(ASTContext &ctx, BasicValueFactory &bv,
                 llvm::BumpPtrAllocator& bpalloc)
       : SymbolDependencies(16), BPAlloc(bpalloc), BV(bv), Ctx(ctx) {}
-  ~SymbolManager();
 
   static bool canSymbolicate(QualType T);
 
@@ -555,7 +514,6 @@ class SymbolReaper {
 
   SymbolMapTy TheLiving;
   SymbolSetTy MetadataInUse;
-  SymbolSetTy TheDead;
 
   RegionSetTy RegionRoots;
 
@@ -581,7 +539,7 @@ public:
 
   bool isLive(SymbolRef sym);
   bool isLiveRegion(const MemRegion *region);
-  bool isLive(const Stmt *ExprVal, const LocationContext *LCtx) const;
+  bool isLive(const Expr *ExprVal, const LocationContext *LCtx) const;
   bool isLive(const VarRegion *VR, bool includeStoreBindings = false) const;
 
   /// Unconditionally marks a symbol as live.
@@ -600,21 +558,6 @@ public:
   /// symbol marking has occurred, i.e. in the MarkLiveSymbols callback.
   void markInUse(SymbolRef sym);
 
-  /// If a symbol is known to be live, marks the symbol as live.
-  ///
-  ///  Otherwise, if the symbol cannot be proven live, it is marked as dead.
-  ///  Returns true if the symbol is dead, false if live.
-  bool maybeDead(SymbolRef sym);
-
-  using dead_iterator = SymbolSetTy::const_iterator;
-
-  dead_iterator dead_begin() const { return TheDead.begin(); }
-  dead_iterator dead_end() const { return TheDead.end(); }
-
-  bool hasDeadSymbols() const {
-    return !TheDead.empty();
-  }
-
   using region_iterator = RegionSetTy::const_iterator;
 
   region_iterator region_begin() const { return RegionRoots.begin(); }
@@ -623,9 +566,9 @@ public:
   /// Returns whether or not a symbol has been confirmed dead.
   ///
   /// This should only be called once all marking of dead symbols has completed.
-  /// (For checkers, this means only in the evalDeadSymbols callback.)
-  bool isDead(SymbolRef sym) const {
-    return TheDead.count(sym);
+  /// (For checkers, this means only in the checkDeadSymbols callback.)
+  bool isDead(SymbolRef sym) {
+    return !isLive(sym);
   }
 
   void markLive(const MemRegion *region);
@@ -654,7 +597,7 @@ public:
   /// The method returns \c true if symbols should continue be scanned and \c
   /// false otherwise.
   virtual bool VisitSymbol(SymbolRef sym) = 0;
-  virtual bool VisitMemRegion(const MemRegion *region) { return true; }
+  virtual bool VisitMemRegion(const MemRegion *) { return true; }
 };
 
 } // namespace ento

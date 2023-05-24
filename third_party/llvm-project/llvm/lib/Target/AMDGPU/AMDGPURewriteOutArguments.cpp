@@ -1,9 +1,8 @@
 //===- AMDGPURewriteOutArgumentsPass.cpp - Create struct returns ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -44,34 +43,16 @@
 
 #include "AMDGPU.h"
 #include "Utils/AMDGPUBaseInfo.h"
-#include "llvm/Analysis/MemoryDependenceAnalysis.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/MemoryLocation.h"
-#include "llvm/IR/Argument.h"
-#include "llvm/IR/Attributes.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
+#include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Use.h"
-#include "llvm/IR/User.h"
-#include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cassert>
-#include <utility>
 
 #define DEBUG_TYPE "amdgpu-rewrite-out-arguments"
 
@@ -161,9 +142,9 @@ bool AMDGPURewriteOutArguments::checkArgumentUses(Value &Arg) const {
 
       // Special case handle structs with single members. It is useful to handle
       // some casts between structs and non-structs, but we can't bitcast
-      // directly between them.  directly bitcast between them.  Blender uses
-      // some casts that look like { <3 x float> }* to <4 x float>*
-      if ((SrcEltTy->isStructTy() && (SrcEltTy->getNumContainedTypes() != 1)))
+      // directly between them. Blender uses some casts that look like
+      // { <3 x float> }* to <4 x float>*
+      if ((SrcEltTy->isStructTy() && (SrcEltTy->getStructNumElements() != 1)))
         return false;
 
       // Clang emits OpenCL 3-vector type accesses with a bitcast to the
@@ -208,8 +189,8 @@ bool AMDGPURewriteOutArguments::doInitialization(Module &M) {
 
 #ifndef NDEBUG
 bool AMDGPURewriteOutArguments::isVec3ToVec4Shuffle(Type *Ty0, Type* Ty1) const {
-  VectorType *VT0 = dyn_cast<VectorType>(Ty0);
-  VectorType *VT1 = dyn_cast<VectorType>(Ty1);
+  auto *VT0 = dyn_cast<FixedVectorType>(Ty0);
+  auto *VT1 = dyn_cast<FixedVectorType>(Ty1);
   if (!VT0 || !VT1)
     return false;
 
@@ -278,7 +259,7 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
 
     // Keep retrying if we are able to successfully eliminate an argument. This
     // helps with cases with multiple arguments which may alias, such as in a
-    // sincos implemntation. If we have 2 stores to arguments, on the first
+    // sincos implementation. If we have 2 stores to arguments, on the first
     // attempt the MDA query will succeed for the second store but not the
     // first. On the second iteration we've removed that out clobbering argument
     // (by effectively moving it into another function) and will find the second
@@ -303,8 +284,8 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
       for (ReturnInst *RI : Returns) {
         BasicBlock *BB = RI->getParent();
 
-        MemDepResult Q = MDA->getPointerDependencyFrom(MemoryLocation(OutArg),
-                                                       true, BB->end(), BB, RI);
+        MemDepResult Q = MDA->getPointerDependencyFrom(
+            MemoryLocation::getBeforeOrAfter(OutArg), true, BB->end(), BB, RI);
         StoreInst *SI = nullptr;
         if (Q.isDef())
           SI = dyn_cast<StoreInst>(Q.getInst());
@@ -325,9 +306,10 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
         Value *ReplVal = Store.second->getValueOperand();
 
         auto &ValVec = Replacements[Store.first];
-        if (llvm::find_if(ValVec,
-              [OutArg](const std::pair<Argument *, Value *> &Entry) {
-                 return Entry.first == OutArg;}) != ValVec.end()) {
+        if (llvm::any_of(ValVec,
+                         [OutArg](const std::pair<Argument *, Value *> &Entry) {
+                           return Entry.first == OutArg;
+                         })) {
           LLVM_DEBUG(dbgs()
                      << "Saw multiple out arg stores" << *OutArg << '\n');
           // It is possible to see stores to the same argument multiple times,
@@ -371,11 +353,11 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
   // off any return attributes, e.g. zeroext doesn't make sense with a struct.
   NewFunc->stealArgumentListFrom(F);
 
-  AttrBuilder RetAttrs;
+  AttributeMask RetAttrs;
   RetAttrs.addAttribute(Attribute::SExt);
   RetAttrs.addAttribute(Attribute::ZExt);
   RetAttrs.addAttribute(Attribute::NoAlias);
-  NewFunc->removeAttributes(AttributeList::ReturnIndex, RetAttrs);
+  NewFunc->removeRetAttrs(RetAttrs);
   // TODO: How to preserve metadata?
 
   // Move the body of the function into the new rewritten function, and replace
@@ -401,15 +383,14 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
       if (Val->getType() != EltTy) {
         Type *EffectiveEltTy = EltTy;
         if (StructType *CT = dyn_cast<StructType>(EltTy)) {
-          assert(CT->getNumContainedTypes() == 1);
-          EffectiveEltTy = CT->getContainedType(0);
+          assert(CT->getNumElements() == 1);
+          EffectiveEltTy = CT->getElementType(0);
         }
 
         if (DL->getTypeSizeInBits(EffectiveEltTy) !=
             DL->getTypeSizeInBits(Val->getType())) {
           assert(isVec3ToVec4Shuffle(EffectiveEltTy, Val->getType()));
-          Val = B.CreateShuffleVector(Val, UndefValue::get(Val->getType()),
-                                      { 0, 1, 2 });
+          Val = B.CreateShuffleVector(Val, ArrayRef<int>{0, 1, 2});
         }
 
         Val = B.CreateBitCast(Val, EffectiveEltTy);
@@ -452,10 +433,9 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
 
     PointerType *ArgType = cast<PointerType>(Arg.getType());
 
-    auto *EltTy = ArgType->getElementType();
-    unsigned Align = Arg.getParamAlignment();
-    if (Align == 0)
-      Align = DL->getABITypeAlignment(EltTy);
+    auto *EltTy = ArgType->getPointerElementType();
+    const auto Align =
+        DL->getValueOrABITypeAlignment(Arg.getParamAlign(), EltTy);
 
     Value *Val = B.CreateExtractValue(StubCall, RetIdx++);
     Type *PtrTy = Val->getType()->getPointerTo(ArgType->getAddressSpace());

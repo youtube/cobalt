@@ -32,19 +32,19 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata)
 @GlobB = common addrspace(1) global i32 0, align 4, !dbg !6
 
 ; CHECK: {{.*}}DW_TAG_subprogram
-; CHECK: DW_AT_frame_base [DW_FORM_block1]	(DW_OP_reg9 SGPR9)
+; CHECK-NOT: DW_AT_frame_base
 
 define amdgpu_kernel void @kernel1(
 ; CHECK: {{.*}}DW_TAG_formal_parameter
-; CHECK-NEXT: DW_AT_location [DW_FORM_block1] (DW_OP_fbreg +4, DW_OP_constu 0x1, DW_OP_swap, DW_OP_xderef)
+; CHECK-NEXT: DW_AT_location [DW_FORM_block1] (DW_OP_fbreg +4, DW_OP_lit1, DW_OP_swap, DW_OP_xderef)
 ; CHECK-NEXT: DW_AT_name {{.*}}"ArgN"
     i32 %ArgN,
 ; CHECK: {{.*}}DW_TAG_formal_parameter
-; CHECK-NEXT: DW_AT_location [DW_FORM_block1] (DW_OP_fbreg +8, DW_OP_constu 0x1, DW_OP_swap, DW_OP_xderef)
+; CHECK-NEXT: DW_AT_location [DW_FORM_block1] (DW_OP_fbreg +8, DW_OP_lit1, DW_OP_swap, DW_OP_xderef)
 ; CHECK-NEXT: DW_AT_name {{.*}}"ArgA"
     i32 addrspace(1)* %ArgA,
 ; CHECK: {{.*}}DW_TAG_formal_parameter
-; CHECK-NEXT: DW_AT_location [DW_FORM_block1] (DW_OP_fbreg +16, DW_OP_constu 0x1, DW_OP_swap, DW_OP_xderef)
+; CHECK-NEXT: DW_AT_location [DW_FORM_block1] (DW_OP_fbreg +16, DW_OP_lit1, DW_OP_swap, DW_OP_xderef)
 ; CHECK-NEXT: DW_AT_name {{.*}}"ArgB"
     i32 addrspace(1)* %ArgB) !dbg !13 {
 entry:
