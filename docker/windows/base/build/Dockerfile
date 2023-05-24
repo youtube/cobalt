@@ -57,6 +57,7 @@ RUN mkdir C:\pip-cache;`
     git config --global core.filemode false;`
     git config --global core.preloadindex true;`
     git config --global core.fscache true;`
+    git config --global --add safe.directory C:/code;`
     # Registry changes to enable long filesystem paths.
     reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /reg:64 /d 1 /f;`
     reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /d 1 /f;`
