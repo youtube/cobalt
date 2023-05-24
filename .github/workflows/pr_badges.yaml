@@ -5,6 +5,7 @@ on:
     branches:
       - 'feature/*'
       - 'main'
+      - '24.lts.1\+'
       - '23.lts.1\+'
       - '22.lts.1\+'
       - '21.lts.1\+'
