@@ -7,8 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-concepts
-// UNSUPPORTED: libcpp-has-no-incomplete-ranges
 
 // template<range R>
 //   constexpr range_difference_t<R> ranges::distance(R&& r);
@@ -78,7 +76,7 @@ constexpr bool test() {
   }
   test_ordinary<cpp17_input_iterator<int*>, sentinel_wrapper<cpp17_input_iterator<int*>>>();
   test_ordinary<cpp20_input_iterator<int*>, sentinel_wrapper<cpp20_input_iterator<int*>>>();
-  test_ordinary<output_iterator<int*>, sentinel_wrapper<output_iterator<int*>>>();
+  test_ordinary<cpp17_output_iterator<int*>, sentinel_wrapper<cpp17_output_iterator<int*>>>();
   test_ordinary<forward_iterator<int*>, sentinel_wrapper<forward_iterator<int*>>>();
   test_ordinary<bidirectional_iterator<int*>, sentinel_wrapper<bidirectional_iterator<int*>>>();
   test_ordinary<random_access_iterator<int*>, sentinel_wrapper<random_access_iterator<int*>>>();
@@ -87,7 +85,7 @@ constexpr bool test() {
 
   test_ordinary<cpp17_input_iterator<int*>, sized_sentinel<cpp17_input_iterator<int*>>>();
   test_ordinary<cpp20_input_iterator<int*>, sized_sentinel<cpp20_input_iterator<int*>>>();
-  test_ordinary<output_iterator<int*>, sized_sentinel<output_iterator<int*>>>();
+  test_ordinary<cpp17_output_iterator<int*>, sized_sentinel<cpp17_output_iterator<int*>>>();
   test_ordinary<forward_iterator<int*>, sized_sentinel<forward_iterator<int*>>>();
   test_ordinary<bidirectional_iterator<int*>, sized_sentinel<bidirectional_iterator<int*>>>();
   test_ordinary<random_access_iterator<int*>, sized_sentinel<random_access_iterator<int*>>>();

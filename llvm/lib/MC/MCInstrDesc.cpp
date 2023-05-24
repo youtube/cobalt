@@ -14,7 +14,6 @@
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCRegisterInfo.h"
-#include "llvm/MC/MCSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -32,7 +31,7 @@ bool MCInstrDesc::mayAffectControlFlow(const MCInst &MI,
 
 bool MCInstrDesc::hasImplicitDefOfPhysReg(unsigned Reg,
                                           const MCRegisterInfo *MRI) const {
-  if (const MCPhysReg *ImpDefs = ImplicitDefs)
+  if (const MCPhysReg *ImpDefs = getImplicitDefs())
     for (; *ImpDefs; ++ImpDefs)
       if (*ImpDefs == Reg || (MRI && MRI->isSubRegister(Reg, *ImpDefs)))
         return true;

@@ -19,7 +19,7 @@
 namespace llvm {
 namespace orc {
 
-IRLayer::~IRLayer() {}
+IRLayer::~IRLayer() = default;
 
 Error IRLayer::add(ResourceTrackerSP RT, ThreadSafeModule TSM) {
   assert(RT && "RT can not be null");
@@ -81,7 +81,7 @@ IRMaterializationUnit::IRMaterializationUnit(
     }
 
     // If we need an init symbol for this module then create one.
-    if (!llvm::empty(getStaticInitGVs(M))) {
+    if (!getStaticInitGVs(M).empty()) {
       size_t Counter = 0;
 
       do {
@@ -158,7 +158,7 @@ char ObjectLayer::ID;
 
 ObjectLayer::ObjectLayer(ExecutionSession &ES) : ES(ES) {}
 
-ObjectLayer::~ObjectLayer() {}
+ObjectLayer::~ObjectLayer() = default;
 
 Error ObjectLayer::add(ResourceTrackerSP RT, std::unique_ptr<MemoryBuffer> O,
                        MaterializationUnit::Interface I) {

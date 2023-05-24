@@ -21,9 +21,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace bugprone {
+namespace clang::tidy::bugprone {
 
 namespace {
 
@@ -78,8 +76,8 @@ AssertSideEffectCheck::AssertSideEffectCheck(StringRef Name,
     : ClangTidyCheck(Name, Context),
       CheckFunctionCalls(Options.get("CheckFunctionCalls", false)),
       RawAssertList(Options.get("AssertMacros", "assert,NSAssert,NSCAssert")),
-      IgnoredFunctions(utils::options::parseStringList(
-          "__builtin_expect;" + Options.get("IgnoredFunctions", ""))) {
+      IgnoredFunctions(utils::options::parseListPair(
+          "__builtin_expect;", Options.get("IgnoredFunctions", ""))) {
   StringRef(RawAssertList).split(AssertMacros, ",", -1, false);
 }
 
@@ -134,6 +132,4 @@ void AssertSideEffectCheck::check(const MatchFinder::MatchResult &Result) {
       << AssertMacroName;
 }
 
-} // namespace bugprone
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::bugprone

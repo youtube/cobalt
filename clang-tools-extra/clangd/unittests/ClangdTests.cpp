@@ -7,9 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "Annotations.h"
-#include "ClangdLSPServer.h"
 #include "ClangdServer.h"
 #include "CodeComplete.h"
+#include "CompileCommands.h"
 #include "ConfigFragment.h"
 #include "GlobalCompilationDatabase.h"
 #include "Matchers.h"
@@ -17,7 +17,6 @@
 #include "TestFS.h"
 #include "TestTU.h"
 #include "TidyProvider.h"
-#include "URI.h"
 #include "refactor/Tweak.h"
 #include "support/MemoryTree.h"
 #include "support/Path.h"
@@ -26,13 +25,10 @@
 #include "clang/Sema/CodeCompleteConsumer.h"
 #include "clang/Tooling/ArgumentsAdjusters.h"
 #include "clang/Tooling/Core/Replacement.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
-#include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Regex.h"
@@ -43,6 +39,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <optional>
 #include <random>
 #include <string>
 #include <thread>
@@ -352,7 +349,7 @@ TEST(ClangdServerTest, RespectsConfig) {
   Opts.ContextProvider =
       ClangdServer::createConfiguredContextProvider(&CfgProvider, nullptr);
   OverlayCDB CDB(/*Base=*/nullptr, /*FallbackFlags=*/{},
-                 tooling::ArgumentsAdjuster(CommandMangler::forTests()));
+                 CommandMangler::forTests());
   MockFS FS;
   ClangdServer Server(CDB, FS, Opts);
   // foo.cc sees the expected definition, as FOO is defined.
@@ -945,7 +942,7 @@ void f() {}
   FS.Files[Path] = Code;
   runAddDocument(Server, Path, Code);
 
-  auto Replaces = runFormatFile(Server, Path, /*Rng=*/llvm::None);
+  auto Replaces = runFormatFile(Server, Path, /*Rng=*/std::nullopt);
   EXPECT_TRUE(static_cast<bool>(Replaces));
   auto Changed = tooling::applyAllReplacements(Code, *Replaces);
   EXPECT_TRUE(static_cast<bool>(Changed));
@@ -1113,7 +1110,7 @@ TEST(ClangdServerTest, FallbackWhenWaitingForCompileCommand) {
     DelayedCompilationDatabase(Notification &CanReturnCommand)
         : CanReturnCommand(CanReturnCommand) {}
 
-    llvm::Optional<tooling::CompileCommand>
+    std::optional<tooling::CompileCommand>
     getCompileCommand(PathRef File) const override {
       // FIXME: make this timeout and fail instead of waiting forever in case
       // something goes wrong.

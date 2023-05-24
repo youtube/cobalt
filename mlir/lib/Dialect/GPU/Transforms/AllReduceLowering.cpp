@@ -11,13 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
-#include "mlir/Dialect/GPU/GPUDialect.h"
-#include "mlir/Dialect/GPU/Passes.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
+#include "mlir/Dialect/GPU/Transforms/Passes.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
-#include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
 
@@ -31,7 +31,7 @@ struct GpuAllReduceRewriter {
   GpuAllReduceRewriter(gpu::GPUFuncOp funcOp, gpu::AllReduceOp reduceOp,
                        PatternRewriter &rewriter)
       : funcOp(funcOp), reduceOp(reduceOp), rewriter(rewriter),
-        loc(reduceOp.getLoc()), valueType(reduceOp.value().getType()),
+        loc(reduceOp.getLoc()), valueType(reduceOp.getValue().getType()),
         indexType(IndexType::get(reduceOp.getContext())),
         int32Type(IntegerType::get(reduceOp.getContext(), /*width=*/32)) {}
 
@@ -44,14 +44,14 @@ struct GpuAllReduceRewriter {
   /// workgroup memory.
   ///
   ///     %subgroup_reduce = `createSubgroupReduce(%operand)`
-  ///     cond_br %is_first_lane, ^then1, ^continue1
+  ///     cf.cond_br %is_first_lane, ^then1, ^continue1
   ///   ^then1:
   ///     store %subgroup_reduce, %workgroup_buffer[%subgroup_id]
-  ///     br ^continue1
+  ///     cf.br ^continue1
   ///   ^continue1:
   ///     gpu.barrier
   ///     %is_valid_subgroup = arith.cmpi "slt" %invocation_idx, %num_subgroups
-  ///     cond_br %is_valid_subgroup, ^then2, ^continue2
+  ///     cf.cond_br %is_valid_subgroup, ^then2, ^continue2
   ///   ^then2:
   ///     %partial_reduce = load %workgroup_buffer[%invocation_idx]
   ///     %all_reduce = `createSubgroupReduce(%partial_reduce)`
@@ -100,8 +100,8 @@ struct GpuAllReduceRewriter {
     assert(accumFactory && "failed to create accumulator factory");
 
     // Reduce elements within each subgroup to produce the intermediate results.
-    Value subgroupReduce = createSubgroupReduce(activeWidth, laneId,
-                                                reduceOp.value(), accumFactory);
+    Value subgroupReduce = createSubgroupReduce(
+        activeWidth, laneId, reduceOp.getValue(), accumFactory);
 
     // Add workgroup buffer to parent function for intermediate result.
     Value buffer = createWorkgroupBuffer();
@@ -158,8 +158,8 @@ private:
   /// Adds type to funcOp's workgroup attributions.
   Value createWorkgroupBuffer() {
     // TODO: Pick a proper location for the attribution.
-    int workgroupMemoryAddressSpace =
-        gpu::GPUDialect::getWorkgroupAddressSpace();
+    auto workgroupMemoryAddressSpace = gpu::AddressSpaceAttr::get(
+        funcOp->getContext(), gpu::GPUDialect::getWorkgroupAddressSpace());
     auto bufferType = MemRefType::get({kSubgroupSize}, valueType, AffineMap{},
                                       workgroupMemoryAddressSpace);
     return funcOp.addWorkgroupAttribution(bufferType, rewriter.getUnknownLoc());
@@ -168,10 +168,10 @@ private:
   /// Returns an accumulator factory using either the op attribute or the body
   /// region.
   AccumulatorFactory getFactory() {
-    auto &body = reduceOp.body();
+    auto &body = reduceOp.getBody();
     if (!body.empty())
       return getFactory(body);
-    auto opAttr = reduceOp.op();
+    auto opAttr = reduceOp.getOp();
     if (opAttr)
       return getFactory(*opAttr);
     return AccumulatorFactory();
@@ -186,7 +186,7 @@ private:
       Block *split = rewriter.splitBlock(block, rewriter.getInsertionPoint());
 
       // Insert accumulator body between split block.
-      BlockAndValueMapping mapping;
+      IRMapping mapping;
       mapping.map(body.getArgument(0), lhs);
       mapping.map(body.getArgument(1), rhs);
       rewriter.cloneRegionBefore(body, *split->getParent(),
@@ -194,7 +194,7 @@ private:
 
       // Add branch before inserted body, into body.
       block = block->getNextNode();
-      create<BranchOp>(block, ValueRange());
+      create<cf::BranchOp>(block, ValueRange());
 
       // Replace all gpu.yield ops with branch out of body.
       for (; block != split; block = block->getNextNode()) {
@@ -202,7 +202,7 @@ private:
         if (!isa<gpu::YieldOp>(terminator))
           continue;
         rewriter.setInsertionPointToEnd(block);
-        rewriter.replaceOpWithNewOp<BranchOp>(
+        rewriter.replaceOpWithNewOp<cf::BranchOp>(
             terminator, split, ValueRange(terminator->getOperand(0)));
       }
 
@@ -258,7 +258,7 @@ private:
   AccumulatorFactory getCmpFactory() const {
     return [&](Value lhs, Value rhs) {
       Value cmp = rewriter.create<T>(loc, predicate, lhs, rhs);
-      return rewriter.create<SelectOp>(loc, cmp, lhs, rhs);
+      return rewriter.create<arith::SelectOp>(loc, cmp, lhs, rhs);
     };
   }
 
@@ -285,17 +285,17 @@ private:
     Block *continueBlock = rewriter.splitBlock(elseBlock, elseBlock->begin());
 
     rewriter.setInsertionPointToEnd(currentBlock);
-    create<CondBranchOp>(condition, thenBlock,
-                         /*trueOperands=*/ArrayRef<Value>(), elseBlock,
-                         /*falseOperands=*/ArrayRef<Value>());
+    create<cf::CondBranchOp>(condition, thenBlock,
+                             /*trueOperands=*/ArrayRef<Value>(), elseBlock,
+                             /*falseOperands=*/ArrayRef<Value>());
 
     rewriter.setInsertionPointToStart(thenBlock);
     auto thenOperands = thenOpsFactory();
-    create<BranchOp>(continueBlock, thenOperands);
+    create<cf::BranchOp>(continueBlock, thenOperands);
 
     rewriter.setInsertionPointToStart(elseBlock);
     auto elseOperands = elseOpsFactory();
-    create<BranchOp>(continueBlock, elseOperands);
+    create<cf::BranchOp>(continueBlock, elseOperands);
 
     assert(thenOperands.size() == elseOperands.size());
     rewriter.setInsertionPointToStart(continueBlock);
@@ -347,7 +347,7 @@ private:
                   return SmallVector<Value, 1>{
                       accumFactory(value, shuffleOp.getResult(0))};
                 },
-                [&] { return llvm::makeArrayRef(value); });
+                [&] { return llvm::ArrayRef(value); });
             value = rewriter.getInsertionBlock()->getArgument(0);
           }
           return SmallVector<Value, 1>{value};
@@ -394,14 +394,23 @@ struct GpuAllReduceConversion : public RewritePattern {
   LogicalResult matchAndRewrite(Operation *op,
                                 PatternRewriter &rewriter) const override {
     auto funcOp = cast<gpu::GPUFuncOp>(op);
-    auto callback = [&](gpu::AllReduceOp reduceOp) {
-      GpuAllReduceRewriter(funcOp, reduceOp, rewriter).rewrite();
-      // Performing a rewrite invalidates the walk iterator. Report interrupt
-      // so that we can start a new walk until all all_reduce ops are replaced.
-      return WalkResult::interrupt();
+
+    SmallVector<gpu::AllReduceOp> reduceOps;
+    auto callback = [&](gpu::AllReduceOp reduceOp) -> WalkResult {
+      if (!reduceOp.getUniform())
+        return WalkResult::interrupt();
+
+      reduceOps.emplace_back(reduceOp);
+      return WalkResult::advance();
     };
-    while (funcOp.walk(callback).wasInterrupted()) {
-    }
+
+    if (funcOp.walk(callback).wasInterrupted() || reduceOps.empty())
+      return rewriter.notifyMatchFailure(
+          op, "Non uniform reductions are not supported yet.");
+
+    for (gpu::AllReduceOp reduceOp : reduceOps)
+      GpuAllReduceRewriter(funcOp, reduceOp, rewriter).rewrite();
+
     return success();
   }
 };

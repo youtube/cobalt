@@ -15,12 +15,14 @@
 #define MLIR_TESTTYPES_H
 
 #include <tuple>
+#include <optional>
 
 #include "TestTraits.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/SubElementInterfaces.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 
@@ -61,14 +63,31 @@ struct FieldParser<test::CustomParam> {
     auto value = FieldParser<int>::parse(parser);
     if (failed(value))
       return failure();
-    return test::CustomParam{value.getValue()};
+    return test::CustomParam{*value};
   }
 };
+
 inline mlir::AsmPrinter &operator<<(mlir::AsmPrinter &printer,
                                     test::CustomParam param) {
   return printer << param.value;
 }
 
+/// Overload the attribute parameter parser for optional integers.
+template <>
+struct FieldParser<std::optional<int>> {
+  static FailureOr<std::optional<int>> parse(AsmParser &parser) {
+    std::optional<int> value;
+    value.emplace();
+    OptionalParseResult result = parser.parseOptionalInteger(*value);
+    if (result.has_value()) {
+      if (succeeded(*result))
+        return value;
+      return failure();
+    }
+    value.reset();
+    return value;
+  }
+};
 } // namespace mlir
 
 #include "TestTypeInterfaces.h.inc"
@@ -83,8 +102,7 @@ namespace test {
 struct TestRecursiveTypeStorage : public ::mlir::TypeStorage {
   using KeyTy = ::llvm::StringRef;
 
-  explicit TestRecursiveTypeStorage(::llvm::StringRef key)
-      : name(key), body(::mlir::Type()) {}
+  explicit TestRecursiveTypeStorage(::llvm::StringRef key) : name(key) {}
 
   bool operator==(const KeyTy &other) const { return name == other; }
 
@@ -113,7 +131,9 @@ struct TestRecursiveTypeStorage : public ::mlir::TypeStorage {
 /// from type creation.
 class TestRecursiveType
     : public ::mlir::Type::TypeBase<TestRecursiveType, ::mlir::Type,
-                                    TestRecursiveTypeStorage> {
+                                    TestRecursiveTypeStorage,
+                                    ::mlir::SubElementTypeInterface::Trait,
+                                    ::mlir::TypeTrait::IsMutable> {
 public:
   using Base::Base;
 
@@ -124,10 +144,22 @@ public:
 
   /// Body getter and setter.
   ::mlir::LogicalResult setBody(Type body) { return Base::mutate(body); }
-  ::mlir::Type getBody() { return getImpl()->body; }
+  ::mlir::Type getBody() const { return getImpl()->body; }
 
   /// Name/key getter.
   ::llvm::StringRef getName() { return getImpl()->name; }
+
+  void walkImmediateSubElements(
+      ::llvm::function_ref<void(::mlir::Attribute)> walkAttrsFn,
+      ::llvm::function_ref<void(::mlir::Type)> walkTypesFn) const {
+    walkTypesFn(getBody());
+  }
+  Type replaceImmediateSubElements(llvm::ArrayRef<mlir::Attribute> replAttrs,
+                                   llvm::ArrayRef<mlir::Type> replTypes) const {
+    // TODO: It's not clear how we support replacing sub-elements of mutable
+    // types.
+    return nullptr;
+  }
 };
 
 } // namespace test

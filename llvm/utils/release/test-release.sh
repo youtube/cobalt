@@ -12,6 +12,7 @@
 #===------------------------------------------------------------------------===#
 
 System=`uname -s`
+Machine=`uname -m`
 if [ "$System" = "FreeBSD" ]; then
     MAKE=gmake
 else
@@ -29,6 +30,7 @@ do_debug="no"
 do_asserts="no"
 do_compare="yes"
 do_rt="yes"
+do_clang_tools="yes"
 do_libs="yes"
 do_libcxxabi="yes"
 do_libunwind="yes"
@@ -39,10 +41,20 @@ do_lldb="yes"
 do_polly="yes"
 do_mlir="yes"
 do_flang="yes"
+do_silent_log="no"
 BuildDir="`pwd`"
 ExtraConfigureFlags=""
 ExportBranch=""
 git_ref=""
+
+do_bolt="no"
+if [ "$System" = "Linux" ]; then
+    case $Machine in
+        x86_64 | arm64 | aarch64 )
+            do_bolt="yes"
+            ;;
+    esac
+fi
 
 function usage() {
     echo "usage: `basename $0` -release X.Y.Z -rc NUM [OPTIONS]"
@@ -62,6 +74,7 @@ function usage() {
     echo " -configure-flags FLAGS  Extra flags to pass to the configure step."
     echo " -git-ref sha         Use the specified git ref for testing instead of a release."
     echo " -no-rt               Disable check-out & build Compiler-RT"
+    echo " -no-clang-tools      Disable check-out & build clang-tools-extra"
     echo " -no-libs             Disable check-out & build libcxx/libcxxabi/libunwind"
     echo " -no-libcxxabi        Disable check-out & build libcxxabi"
     echo " -no-libunwind        Disable check-out & build libunwind"
@@ -73,6 +86,7 @@ function usage() {
     echo " -no-polly            Disable check-out & build Polly"
     echo " -no-mlir             Disable check-out & build MLIR"
     echo " -no-flang            Disable check-out & build Flang"
+    echo " -silent-log          Don't output build logs to stdout"
 }
 
 while [ $# -gt 0 ]; do
@@ -144,6 +158,9 @@ while [ $# -gt 0 ]; do
         -no-libs )
             do_libs="no"
             ;;
+        -no-clang-tools )
+            do_clang_tools="no"
+            ;;
         -no-libcxxabi )
             do_libcxxabi="no"
             ;;
@@ -155,6 +172,12 @@ while [ $# -gt 0 ]; do
             ;;
         -no-openmp )
             do_openmp="no"
+            ;;
+        -bolt )
+            do_bolt="yes"
+            ;;
+        -no-bolt )
+            do_bolt="no"
             ;;
         -no-lld )
             do_lld="no"
@@ -173,6 +196,9 @@ while [ $# -gt 0 ]; do
             ;;
         -no-flang )
             do_flang="no"
+            ;;
+        -silent-log )
+            do_silent_log="yes"
             ;;
         -help | --help | -h | --h | -\? )
             usage
@@ -235,26 +261,28 @@ if [ -z "$NumJobs" ]; then
 fi
 
 # Projects list
-projects="llvm clang clang-tools-extra"
+projects="llvm clang"
+if [ $do_clang_tools = "yes" ]; then
+  projects="$projects clang-tools-extra"
+fi
+runtimes=""
 if [ $do_rt = "yes" ]; then
-  projects="$projects compiler-rt"
+  runtimes="$runtimes compiler-rt"
 fi
 if [ $do_libs = "yes" ]; then
-  projects="$projects libcxx"
+  runtimes="$runtimes libcxx"
   if [ $do_libcxxabi = "yes" ]; then
-    projects="$projects libcxxabi"
+    runtimes="$runtimes libcxxabi"
   fi
   if [ $do_libunwind = "yes" ]; then
-    projects="$projects libunwind"
+    runtimes="$runtimes libunwind"
   fi
 fi
-case $do_test_suite in
-  yes|export-only)
-    projects="$projects test-suite"
-    ;;
-esac
 if [ $do_openmp = "yes" ]; then
   projects="$projects openmp"
+fi
+if [ $do_bolt = "yes" ]; then
+  projects="$projects bolt"
 fi
 if [ $do_lld = "yes" ]; then
   projects="$projects lld"
@@ -377,6 +405,11 @@ function configure_llvmCore() {
     esac
 
     project_list=${projects// /;}
+    # Leading spaces will result in ";<runtime name>". This causes a CMake
+    # error because the empty string before the first ';' is treated as an
+    # unknown runtime name.
+    runtimes=$(echo $runtimes | sed -e 's/^\s*//')
+    runtime_list=${runtimes// /;}
     echo "# Using C compiler: $c_compiler"
     echo "# Using C++ compiler: $cxx_compiler"
 
@@ -389,6 +422,7 @@ function configure_llvmCore() {
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DLLVM_ENABLE_PROJECTS="$project_list" \
         -DLLVM_LIT_ARGS="-j $NumJobs" \
+        -DLLVM_ENABLE_RUNTIMES="$runtime_list" \
         $ExtraConfigureFlags $BuildDir/llvm-project/llvm \
         2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
     env CC="$c_compiler" CXX="$cxx_compiler" \
@@ -397,6 +431,7 @@ function configure_llvmCore() {
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DLLVM_ENABLE_PROJECTS="$project_list" \
         -DLLVM_LIT_ARGS="-j $NumJobs" \
+        -DLLVM_ENABLE_RUNTIMES="$runtime_list" \
         $ExtraConfigureFlags $BuildDir/llvm-project/llvm \
         2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
 
@@ -414,16 +449,22 @@ function build_llvmCore() {
       Verbose="-v"
     fi
 
+    redir="/dev/stdout"
+    if [ $do_silent_log == "yes" ]; then
+      echo "# Silencing build logs because of -silent-log flag..."
+      redir="/dev/null"
+    fi
+
     cd $ObjDir
     echo "# Compiling llvm $Release-$RC $Flavor"
     echo "# ${MAKE} -j $NumJobs $Verbose"
     ${MAKE} -j $NumJobs $Verbose \
-        2>&1 | tee $LogDir/llvm.make-Phase$Phase-$Flavor.log
+        2>&1 | tee $LogDir/llvm.make-Phase$Phase-$Flavor.log > $redir
 
     echo "# Installing llvm $Release-$RC $Flavor"
     echo "# ${MAKE} install"
     DESTDIR="${DestDir}" ${MAKE} install \
-        2>&1 | tee $LogDir/llvm.install-Phase$Phase-$Flavor.log
+        2>&1 | tee $LogDir/llvm.install-Phase$Phase-$Flavor.log > $redir
     cd $BuildDir
 }
 
@@ -448,7 +489,8 @@ function test_llvmCore() {
     if [ $do_test_suite = 'yes' ]; then
       cd $TestSuiteBuildDir
       env CC="$c_compiler" CXX="$cxx_compiler" \
-          cmake $TestSuiteSrcDir -G "$generator" -DTEST_SUITE_LIT=$Lit
+          cmake $TestSuiteSrcDir -G "$generator" -DTEST_SUITE_LIT=$Lit \
+                -DTEST_SUITE_HOST_CC=$build_compiler
 
       if ! ( ${MAKE} -j $NumJobs $KeepGoing check \
           2>&1 | tee $LogDir/llvm.check-Phase$Phase-$Flavor.log ) ; then
@@ -544,6 +586,8 @@ for Flavor in $Flavors ; do
 
     c_compiler="$CC"
     cxx_compiler="$CXX"
+    build_compiler="$CC"
+    [[ -z "$build_compiler" ]] && build_compiler="cc"
     llvmCore_phase1_objdir=$BuildDir/Phase1/$Flavor/llvmCore-$Release-$RC.obj
     llvmCore_phase1_destdir=$BuildDir/Phase1/$Flavor/llvmCore-$Release-$RC.install
 

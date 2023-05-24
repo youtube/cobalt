@@ -18,9 +18,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace misc {
+namespace clang::tidy::misc {
 
 namespace {
 bool isOverrideMethod(const FunctionDecl *Function) {
@@ -135,6 +133,9 @@ void UnusedParametersCheck::warnOnUnusedParameter(
     const MatchFinder::MatchResult &Result, const FunctionDecl *Function,
     unsigned ParamIndex) {
   const auto *Param = Function->getParamDecl(ParamIndex);
+  // Don't bother to diagnose invalid parameters as being unused.
+  if (Param->isInvalidDecl())
+    return;
   auto MyDiag = diag(Param->getLocation(), "parameter %0 is unused") << Param;
 
   if (!Indexer) {
@@ -195,6 +196,4 @@ void UnusedParametersCheck::check(const MatchFinder::MatchResult &Result) {
   }
 }
 
-} // namespace misc
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::misc

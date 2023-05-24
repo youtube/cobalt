@@ -1,26 +1,26 @@
-# RUN: SUPPORT_LIB=%mlir_runner_utils_dir/libmlir_c_runner_utils%shlibext \
+# RUN: SUPPORT_LIB=%mlir_lib_dir/libmlir_c_runner_utils%shlibext \
 # RUN:   %PYTHON %s | FileCheck %s
 
 import ctypes
 import os
+import sys
 import tempfile
 
-import mlir.all_passes_registration
-
-from mlir import execution_engine
 from mlir import ir
-from mlir import passmanager
 from mlir import runtime as rt
 
 from mlir.dialects import builtin
 from mlir.dialects import sparse_tensor as st
 
+_SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(_SCRIPT_PATH)
+from tools import sparse_compiler
 
 # TODO: move more into actual IR building.
 def boilerplate(attr: st.EncodingAttr):
   """Returns boilerplate main method."""
   return f"""
-func @main(%p : !llvm.ptr<i8>) -> () attributes {{ llvm.emit_c_interface }} {{
+func.func @main(%p : !llvm.ptr<i8>) -> () attributes {{ llvm.emit_c_interface }} {{
   %d = arith.constant sparse<[[0, 0], [1, 1], [0, 9], [9, 0], [4, 4]],
                              [1.0, 2.0, 3.0, 4.0, 5.0]> : tensor<10x10xf64>
   %a = sparse_tensor.convert %d : tensor<10x10xf64> to tensor<10x10xf64, {attr}>
@@ -48,13 +48,10 @@ def expected():
 """
 
 
-def build_compile_and_run_output(attr: st.EncodingAttr, support_lib: str,
-                                 compiler):
+def build_compile_and_run_output(attr: st.EncodingAttr, compiler):
   # Build and Compile.
   module = ir.Module.parse(boilerplate(attr))
-  compiler(module)
-  engine = execution_engine.ExecutionEngine(
-      module, opt_level=0, shared_libs=[support_lib])
+  engine = compiler.compile_and_jit(module)
 
   # Invoke the kernel and compare output.
   with tempfile.TemporaryDirectory() as test_dir:
@@ -66,30 +63,6 @@ def build_compile_and_run_output(attr: st.EncodingAttr, support_lib: str,
     actual = open(out).read()
     if actual != expected():
       quit('FAILURE')
-
-
-class SparseCompiler:
-  """Sparse compiler passes."""
-
-  def __init__(self):
-    pipeline = (
-        f'builtin.func(linalg-generalize-named-ops,linalg-fuse-elementwise-ops),'
-        f'sparsification,'
-        f'sparse-tensor-conversion,'
-        f'builtin.func(linalg-bufferize,convert-linalg-to-loops,convert-vector-to-scf),'
-        f'convert-scf-to-std,'
-        f'func-bufferize,'
-        f'arith-bufferize,'
-        f'builtin.func(tensor-bufferize,std-bufferize,finalizing-bufferize),'
-        f'convert-vector-to-llvm{{reassociate-fp-reductions=1 enable-index-optimizations=1}},'
-        f'lower-affine,'
-        f'convert-memref-to-llvm,'
-        f'convert-std-to-llvm,'
-        f'reconcile-unrealized-casts')
-    self.pipeline = pipeline
-
-  def __call__(self, module: ir.Module):
-    passmanager.PassManager.parse(self.pipeline).run(module)
 
 
 def main():
@@ -111,12 +84,13 @@ def main():
         ir.AffineMap.get_permutation([1, 0])
     ]
     bitwidths = [8, 16, 32, 64]
+    compiler = sparse_compiler.SparseCompiler(
+        options='', opt_level=2, shared_libs=[support_lib])
     for level in levels:
       for ordering in orderings:
         for bwidth in bitwidths:
-          attr = st.EncodingAttr.get(level, ordering, bwidth, bwidth)
-          compiler = SparseCompiler()
-          build_compile_and_run_output(attr, support_lib, compiler)
+          attr = st.EncodingAttr.get(level, ordering, None, bwidth, bwidth)
+          build_compile_and_run_output(attr, compiler)
           count = count + 1
 
   # CHECK: Passed 16 tests

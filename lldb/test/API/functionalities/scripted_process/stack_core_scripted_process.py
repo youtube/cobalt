@@ -7,19 +7,25 @@ from lldb.plugins.scripted_process import ScriptedProcess
 from lldb.plugins.scripted_process import ScriptedThread
 
 class StackCoreScriptedProcess(ScriptedProcess):
-    def __init__(self, target: lldb.SBTarget, args : lldb.SBStructuredData):
-        super().__init__(target, args)
+    def get_module_with_name(self, target, name):
+        for module in target.modules:
+            if name in module.GetFileSpec().GetFilename():
+                return module
+        return None
 
-        self.backing_target_idx = args.GetValueForKey("backing_target_idx")
+    def __init__(self, exe_ctx: lldb.SBExecutionContext, args : lldb.SBStructuredData):
+        super().__init__(exe_ctx, args)
 
         self.corefile_target = None
         self.corefile_process = None
+
+        self.backing_target_idx = args.GetValueForKey("backing_target_idx")
         if (self.backing_target_idx and self.backing_target_idx.IsValid()):
             if self.backing_target_idx.GetType() == lldb.eStructuredDataTypeInteger:
                 idx = self.backing_target_idx.GetIntegerValue(42)
             if self.backing_target_idx.GetType() == lldb.eStructuredDataTypeString:
                 idx = int(self.backing_target_idx.GetStringValue(100))
-            self.corefile_target = target.GetDebugger().GetTargetAtIndex(idx)
+            self.corefile_target = self.target.GetDebugger().GetTargetAtIndex(idx)
             self.corefile_process = self.corefile_target.GetProcess()
             for corefile_thread in self.corefile_process:
                 structured_data = lldb.SBStructuredData()
@@ -29,6 +35,22 @@ class StackCoreScriptedProcess(ScriptedProcess):
                 }))
 
                 self.threads[corefile_thread.GetThreadID()] = StackCoreScriptedThread(self, structured_data)
+
+        if len(self.threads) == 2:
+            self.threads[len(self.threads) - 1].is_stopped = True
+
+        corefile_module = self.get_module_with_name(self.corefile_target,
+                                                    "libbaz.dylib")
+        if not corefile_module or not corefile_module.IsValid():
+            return
+        module_path = os.path.join(corefile_module.GetFileSpec().GetDirectory(),
+                                   corefile_module.GetFileSpec().GetFilename())
+        if not os.path.exists(module_path):
+            return
+        module_load_addr = corefile_module.GetObjectFileHeaderAddress().GetLoadAddress(self.corefile_target)
+
+        self.loaded_images.append({"path": module_path,
+                                   "load_addr": module_load_addr})
 
     def get_memory_region_containing_address(self, addr: int) -> lldb.SBMemoryRegionInfo:
         mem_region = lldb.SBMemoryRegionInfo()
@@ -43,9 +65,8 @@ class StackCoreScriptedProcess(ScriptedProcess):
     def get_registers_for_thread(self, tid: int):
         return {}
 
-    def read_memory_at_address(self, addr: int, size: int) -> lldb.SBData:
+    def read_memory_at_address(self, addr: int, size: int, error: lldb.SBError) -> lldb.SBData:
         data = lldb.SBData()
-        error = lldb.SBError()
         bytes_read = self.corefile_process.ReadMemory(addr, size, error)
 
         if error.Fail():
@@ -58,8 +79,6 @@ class StackCoreScriptedProcess(ScriptedProcess):
         return data
 
     def get_loaded_images(self):
-        # TODO: Iterate over corefile_target modules and build a data structure
-        # from it.
         return self.loaded_images
 
     def get_process_id(self) -> int:
@@ -80,6 +99,7 @@ class StackCoreScriptedThread(ScriptedThread):
         super().__init__(process, args)
         backing_target_idx = args.GetValueForKey("backing_target_idx")
         thread_idx = args.GetValueForKey("thread_idx")
+        self.is_stopped = False
 
         def extract_value_from_structured_data(data, default_val):
             if data and data.IsValid():
@@ -119,34 +139,21 @@ class StackCoreScriptedThread(ScriptedThread):
     def get_stop_reason(self) -> Dict[str, Any]:
         stop_reason = { "type": lldb.eStopReasonInvalid, "data": {  }}
 
-        if self.corefile_thread and self.corefile_thread.IsValid:
-            stop_reason["type"] = self.corefile_thread.GetStopReason()
+        if self.corefile_thread and self.corefile_thread.IsValid() \
+            and self.get_thread_id() == self.corefile_thread.GetThreadID():
+            stop_reason["type"] = lldb.eStopReasonNone
 
-            if self.corefile_thread.GetStopReasonDataCount() > 0:
-                if stop_reason["type"] == lldb.eStopReasonBreakpoint:
-                    stop_reason["data"]["break_id"] = self.corefile_thread.GetStopReasonDataAtIndex(0)
-                    stop_reason["data"]["break_loc_id"] = self.corefile_thread.GetStopReasonDataAtIndex(1)
-                elif stop_reason["type"] == lldb.eStopReasonSignal:
-                    stop_reason["data"]["signal"] = signal.SIGINT
-                elif stop_reason["type"] == lldb.eStopReasonException:
+            if self.is_stopped:
+                if 'arm64' in self.scripted_process.arch:
+                    stop_reason["type"] = lldb.eStopReasonException
                     stop_reason["data"]["desc"] = self.corefile_thread.GetStopDescription(100)
+                elif self.scripted_process.arch == 'x86_64':
+                    stop_reason["type"] = lldb.eStopReasonSignal
+                    stop_reason["data"]["signal"] = signal.SIGTRAP
+                else:
+                    stop_reason["type"] = self.corefile_thread.GetStopReason()
 
         return stop_reason
-
-    def get_stackframes(self):
-        class ScriptedStackFrame:
-            def __init__(idx, cfa, pc, symbol_ctx):
-                self.idx = idx
-                self.cfa = cfa
-                self.pc = pc
-                self.symbol_ctx = symbol_ctx
-
-
-        symbol_ctx = lldb.SBSymbolContext()
-        frame_zero = ScriptedStackFrame(0, 0x42424242, 0x5000000, symbol_ctx)
-        self.frames.append(frame_zero)
-
-        return self.frame_zero[0:0]
 
     def get_register_context(self) -> str:
         if not self.corefile_thread or self.corefile_thread.GetNumFrames() == 0:

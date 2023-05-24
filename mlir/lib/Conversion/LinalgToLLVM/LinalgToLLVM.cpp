@@ -8,19 +8,18 @@
 
 #include "mlir/Conversion/LinalgToLLVM/LinalgToLLVM.h"
 
-#include "../PassDetail.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
-#include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
+#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h"
 #include "mlir/Conversion/VectorToSCF/VectorToSCF.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Passes.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Attributes.h"
@@ -40,6 +39,11 @@
 #include "llvm/IR/Type.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ErrorHandling.h"
+
+namespace mlir {
+#define GEN_PASS_DEF_CONVERTLINALGTOLLVM
+#include "mlir/Conversion/Passes.h.inc"
+} // namespace mlir
 
 using namespace mlir;
 using namespace mlir::LLVM;
@@ -74,7 +78,7 @@ void mlir::populateLinalgToLLVMConversionPatterns(LLVMTypeConverter &converter,
 
 namespace {
 struct ConvertLinalgToLLVMPass
-    : public ConvertLinalgToLLVMBase<ConvertLinalgToLLVMPass> {
+    : public impl::ConvertLinalgToLLVMBase<ConvertLinalgToLLVMPass> {
   void runOnOperation() override;
 };
 } // namespace
