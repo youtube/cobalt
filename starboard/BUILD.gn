@@ -178,7 +178,9 @@ source_set("starboard_headers_only") {
 
 if (current_toolchain == starboard_toolchain) {
   target(starboard_target_type, "starboard_platform_group") {
-    build_loader = false
+    if (starboard_target_type == "shared_library") {
+      build_loader = false
+    }
     public_deps = [
       "//starboard/client_porting/cwrappers",
       "//starboard/client_porting/eztime",
