@@ -1,18 +1,16 @@
-name: evergreen
+name: android_24.lts.1+
 
 on:
   pull_request:
     types: [ready_for_review, opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - feature/*
+      - '24.lts.1\+'
   push:
     branches:
-      - main
-      - feature/*
+      - '24.lts.1\+'
   schedule:
     # GMT timezone.
-    - cron: '0 5 * * *'
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       nightly:
@@ -22,39 +20,27 @@ on:
         default: false
 
 jobs:
-  evergreen-x64:
+  android-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-x64
+      platform: android-arm64
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-  evergreen-arm-hardfp:
+  android-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-hardfp
+      platform: android-x86
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-  evergreen-arm-softfp:
+  android-arm:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-softfp
+      platform: android-arm
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-  evergreen-x86:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-x86
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true

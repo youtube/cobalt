@@ -1,5 +1,3 @@
-name: Label Cherry Pick
-
 on:
   pull_request_target:
     types:
