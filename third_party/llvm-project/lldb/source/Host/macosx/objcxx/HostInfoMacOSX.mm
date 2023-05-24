@@ -1,17 +1,16 @@
 //===-- HostInfoMacOSX.mm ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Host/HostInfo.h"
 #include "lldb/Host/macosx/HostInfoMacOSX.h"
+#include "lldb/Host/FileSystem.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Utility/Args.h"
 #include "lldb/Utility/Log.h"
-#include "lldb/Utility/SafeMachO.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
@@ -43,6 +42,11 @@
 #define CPU_TYPE_ARM64 (CPU_TYPE_ARM | CPU_ARCH_ABI64)
 #endif
 
+#ifndef CPU_TYPE_ARM64_32
+#define CPU_ARCH_ABI64_32 0x02000000
+#define CPU_TYPE_ARM64_32 (CPU_TYPE_ARM | CPU_ARCH_ABI64_32)
+#endif
+
 #include <TargetConditionals.h> // for TARGET_OS_TV, TARGET_OS_WATCH
 
 using namespace lldb_private;
@@ -72,22 +76,31 @@ bool HostInfoMacOSX::GetOSKernelDescription(std::string &s) {
   return false;
 }
 
+static void ParseOSVersion(llvm::VersionTuple &version, NSString *Key) {
+  @autoreleasepool {
+    NSDictionary *version_info =
+      [NSDictionary dictionaryWithContentsOfFile:
+       @"/System/Library/CoreServices/SystemVersion.plist"];
+    NSString *version_value = [version_info objectForKey: Key];
+    const char *version_str = [version_value UTF8String];
+    version.tryParse(version_str);
+  }
+}
+
 llvm::VersionTuple HostInfoMacOSX::GetOSVersion() {
   static llvm::VersionTuple g_version;
-
-  if (g_version.empty()) {
-    @autoreleasepool {
-      NSDictionary *version_info = [NSDictionary
-          dictionaryWithContentsOfFile:
-              @"/System/Library/CoreServices/SystemVersion.plist"];
-      NSString *version_value = [version_info objectForKey:@"ProductVersion"];
-      const char *version_str = [version_value UTF8String];
-      g_version.tryParse(version_str);
-    }
-  }
-
+  if (g_version.empty())
+    ParseOSVersion(g_version, @"ProductVersion");
   return g_version;
 }
+
+llvm::VersionTuple HostInfoMacOSX::GetMacCatalystVersion() {
+  static llvm::VersionTuple g_version;
+  if (g_version.empty())
+    ParseOSVersion(g_version, @"iOSSupportVersion");
+  return g_version;
+}
+
 
 FileSpec HostInfoMacOSX::GetProgramFileSpec() {
   static FileSpec g_program_filespec;
@@ -97,14 +110,13 @@ FileSpec HostInfoMacOSX::GetProgramFileSpec() {
     uint32_t len = sizeof(program_fullpath);
     int err = _NSGetExecutablePath(program_fullpath, &len);
     if (err == 0)
-      g_program_filespec.SetFile(program_fullpath, false,
-                                 FileSpec::Style::native);
+      g_program_filespec.SetFile(program_fullpath, FileSpec::Style::native);
     else if (err == -1) {
       char *large_program_fullpath = (char *)::malloc(len + 1);
 
       err = _NSGetExecutablePath(large_program_fullpath, &len);
       if (err == 0)
-        g_program_filespec.SetFile(large_program_fullpath, false,
+        g_program_filespec.SetFile(large_program_fullpath,
                                    FileSpec::Style::native);
 
       ::free(large_program_fullpath);
@@ -140,12 +152,12 @@ bool HostInfoMacOSX::ComputeSupportExeDirectory(FileSpec &file_spec) {
     // as in the case of a python script, the executable is python, not
     // the lldb driver.
     raw_path.append("/../bin");
-    FileSpec support_dir_spec(raw_path, true);
-    if (!llvm::sys::fs::is_directory(support_dir_spec.GetPath())) {
+    FileSpec support_dir_spec(raw_path);
+    FileSystem::Instance().Resolve(support_dir_spec);
+    if (!FileSystem::Instance().IsDirectory(support_dir_spec)) {
       Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST);
-      if (log)
-        log->Printf("HostInfoMacOSX::%s(): failed to find support directory",
-                    __FUNCTION__);
+      LLDB_LOGF(log, "HostInfoMacOSX::%s(): failed to find support directory",
+                __FUNCTION__);
       return false;
     }
 
@@ -204,7 +216,8 @@ bool HostInfoMacOSX::ComputeSystemPluginsDirectory(FileSpec &file_spec) {
 }
 
 bool HostInfoMacOSX::ComputeUserPluginsDirectory(FileSpec &file_spec) {
-  FileSpec temp_file("~/Library/Application Support/LLDB/PlugIns", true);
+  FileSpec temp_file("~/Library/Application Support/LLDB/PlugIns");
+  FileSystem::Instance().Resolve(temp_file);
   file_spec.GetDirectory().SetCString(temp_file.GetPath().c_str());
   return true;
 }
@@ -249,11 +262,19 @@ void HostInfoMacOSX::ComputeHostArchitectureSupport(ArchSpec &arch_32,
       arch_32.SetArchitecture(eArchTypeMachO, cputype & ~(CPU_ARCH_MASK),
                               cpusubtype32);
 
-      if (cputype == CPU_TYPE_ARM || cputype == CPU_TYPE_ARM64) {
+      if (cputype == CPU_TYPE_ARM || 
+          cputype == CPU_TYPE_ARM64 || 
+          cputype == CPU_TYPE_ARM64_32) {
 // When running on a watch or tv, report the host os correctly
 #if defined(TARGET_OS_TV) && TARGET_OS_TV == 1
         arch_32.GetTriple().setOS(llvm::Triple::TvOS);
         arch_64.GetTriple().setOS(llvm::Triple::TvOS);
+#elif defined(TARGET_OS_BRIDGE) && TARGET_OS_BRIDGE == 1
+        arch_32.GetTriple().setOS(llvm::Triple::BridgeOS);
+        arch_64.GetTriple().setOS(llvm::Triple::BridgeOS);
+#elif defined(TARGET_OS_WATCHOS) && TARGET_OS_WATCHOS == 1
+        arch_32.GetTriple().setOS(llvm::Triple::WatchOS);
+        arch_64.GetTriple().setOS(llvm::Triple::WatchOS);
 #else
         arch_32.GetTriple().setOS(llvm::Triple::IOS);
         arch_64.GetTriple().setOS(llvm::Triple::IOS);

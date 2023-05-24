@@ -1,7 +1,7 @@
 // REQUIRES: crash-recovery, shell
 
 // FIXME: This XFAIL is cargo-culted from crash-report.c. Do we need it?
-// XFAIL: mingw32
+// XFAIL: windows-gnu
 
 // Test clang can collect symbolic link headers used in modules.
 // crash reproducer if there's a symbolic link header file used in a module.
@@ -12,8 +12,8 @@
 // RUN: rm -f %t/i/usr/include/pthread_impl.h
 // RUN: ln -s pthread/pthread_impl.h %t/i/usr/include/pthread_impl.h
 
-// RUN: not env FORCE_CLANG_DIAGNOSTICS_CRASH= TMPDIR=%t TEMP=%t TMP=%t \
-// RUN: %clang -fsyntax-only %s -I %/t/i -isysroot %/t/sysroot/ \
+// RUN: env FORCE_CLANG_DIAGNOSTICS_CRASH= TMPDIR=%t TEMP=%t TMP=%t \
+// RUN: not %clang -fsyntax-only %s -I %/t/i -isysroot %/t/sysroot/ \
 // RUN:     -fmodules -fmodules-cache-path=%t/m/ 2>&1 | FileCheck %s
 
 // RUN: FileCheck --check-prefix=CHECKSRC %s -input-file %t/crash-vfs-*.m

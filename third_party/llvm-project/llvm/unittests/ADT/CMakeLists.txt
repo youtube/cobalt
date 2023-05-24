@@ -17,7 +17,11 @@ add_llvm_unittest(ADTTests
   DenseMapTest.cpp
   DenseSetTest.cpp
   DepthFirstIteratorTest.cpp
+  DirectedGraphTest.cpp
+  EnumeratedArrayTest.cpp
   EquivalenceClassesTest.cpp
+  FallibleIteratorTest.cpp
+  FloatingPointMode.cpp
   FoldingSet.cpp
   FunctionExtrasTest.cpp
   FunctionRefTest.cpp
@@ -28,6 +32,7 @@ add_llvm_unittest(ADTTests
   IListNodeTest.cpp
   IListSentinelTest.cpp
   IListTest.cpp
+  ImmutableListTest.cpp
   ImmutableMapTest.cpp
   ImmutableSetTest.cpp
   IntEqClassesTest.cpp
@@ -63,11 +68,13 @@ add_llvm_unittest(ADTTests
   StringExtrasTest.cpp
   StringMapTest.cpp
   StringRefTest.cpp
+  StringSetTest.cpp
   StringSwitchTest.cpp
   TinyPtrVectorTest.cpp
   TripleTest.cpp
   TwineTest.cpp
-  VariadicFunctionTest.cpp
   )
+
+target_link_libraries(ADTTests PRIVATE LLVMTestingSupport)
 
 add_dependencies(ADTTests intrinsics_gen)

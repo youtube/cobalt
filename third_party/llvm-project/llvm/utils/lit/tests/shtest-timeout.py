@@ -1,7 +1,7 @@
-# REQUIRES: python-psutil
+# REQUIRES: lit-max-individual-test-time
 
-# PR33944
-# XFAIL: windows
+# llvm.org/PR33944
+# UNSUPPORTED: system-windows
 
 # FIXME: This test is fragile because it relies on time which can
 # be affected by system performance. In particular we are currently

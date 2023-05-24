@@ -1,19 +1,18 @@
 //===-- Symtab.cpp ----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include <map>
 #include <set>
 
-#include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
 #include "Plugins/Language/ObjC/ObjCLanguage.h"
+
 #include "lldb/Core/Module.h"
-#include "lldb/Core/STLUtils.h"
+#include "lldb/Core/RichManglingContext.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/Symbol.h"
@@ -23,11 +22,13 @@
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/Timer.h"
 
+#include "llvm/ADT/StringRef.h"
+
 using namespace lldb;
 using namespace lldb_private;
 
 Symtab::Symtab(ObjectFile *objfile)
-    : m_objfile(objfile), m_symbols(), m_file_addr_to_index(),
+    : m_objfile(objfile), m_symbols(), m_file_addr_to_index(*this),
       m_name_to_index(), m_mutex(), m_file_addr_to_index_computed(false),
       m_name_indexes_computed(false) {}
 
@@ -68,7 +69,8 @@ void Symtab::SectionFileAddressesChanged() {
   m_file_addr_to_index_computed = false;
 }
 
-void Symtab::Dump(Stream *s, Target *target, SortOrder sort_order) {
+void Symtab::Dump(Stream *s, Target *target, SortOrder sort_order,
+                  Mangled::NamePreference name_preference) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
 
   //    s->Printf("%.*p: ", (int)sizeof(void*) * 2, this);
@@ -95,7 +97,7 @@ void Symtab::Dump(Stream *s, Target *target, SortOrder sort_order) {
       const_iterator end = m_symbols.end();
       for (const_iterator pos = m_symbols.begin(); pos != end; ++pos) {
         s->Indent();
-        pos->Dump(s, target, std::distance(begin, pos));
+        pos->Dump(s, target, std::distance(begin, pos), name_preference);
       }
     } break;
 
@@ -104,10 +106,8 @@ void Symtab::Dump(Stream *s, Target *target, SortOrder sort_order) {
       // sorted by name. So we must make the ordered symbol list up ourselves.
       s->PutCString(" (sorted by name):\n");
       DumpSymbolHeader(s);
-      typedef std::multimap<const char *, const Symbol *,
-                            CStringCompareFunctionObject>
-          CStringToSymbol;
-      CStringToSymbol name_map;
+
+      std::multimap<llvm::StringRef, const Symbol *> name_map;
       for (const_iterator pos = m_symbols.begin(), end = m_symbols.end();
            pos != end; ++pos) {
         const char *name = pos->GetName().AsCString();
@@ -115,11 +115,10 @@ void Symtab::Dump(Stream *s, Target *target, SortOrder sort_order) {
           name_map.insert(std::make_pair(name, &(*pos)));
       }
 
-      for (CStringToSymbol::const_iterator pos = name_map.begin(),
-                                           end = name_map.end();
-           pos != end; ++pos) {
+      for (const auto &name_to_symbol : name_map) {
+        const Symbol *symbol = name_to_symbol.second;
         s->Indent();
-        pos->second->Dump(s, target, pos->second - &m_symbols[0]);
+        symbol->Dump(s, target, symbol - &m_symbols[0], name_preference);
       }
     } break;
 
@@ -132,15 +131,17 @@ void Symtab::Dump(Stream *s, Target *target, SortOrder sort_order) {
       for (size_t i = 0; i < num_entries; ++i) {
         s->Indent();
         const uint32_t symbol_idx = m_file_addr_to_index.GetEntryRef(i).data;
-        m_symbols[symbol_idx].Dump(s, target, symbol_idx);
+        m_symbols[symbol_idx].Dump(s, target, symbol_idx, name_preference);
       }
       break;
     }
+  } else {
+    s->PutCString("\n");
   }
 }
 
-void Symtab::Dump(Stream *s, Target *target,
-                  std::vector<uint32_t> &indexes) const {
+void Symtab::Dump(Stream *s, Target *target, std::vector<uint32_t> &indexes,
+                  Mangled::NamePreference name_preference) const {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
 
   const size_t num_symbols = GetNumSymbols();
@@ -158,7 +159,7 @@ void Symtab::Dump(Stream *s, Target *target,
       size_t idx = *pos;
       if (idx < num_symbols) {
         s->Indent();
-        m_symbols[idx].Dump(s, target, idx);
+        m_symbols[idx].Dump(s, target, idx, name_preference);
       }
     }
   }
@@ -212,9 +213,40 @@ const Symbol *Symtab::SymbolAtIndex(size_t idx) const {
   return nullptr;
 }
 
-//----------------------------------------------------------------------
-// InitNameIndexes
-//----------------------------------------------------------------------
+static bool lldb_skip_name(llvm::StringRef mangled,
+                           Mangled::ManglingScheme scheme) {
+  switch (scheme) {
+  case Mangled::eManglingSchemeItanium: {
+    if (mangled.size() < 3 || !mangled.startswith("_Z"))
+      return true;
+
+    // Avoid the following types of symbols in the index.
+    switch (mangled[2]) {
+    case 'G': // guard variables
+    case 'T': // virtual tables, VTT structures, typeinfo structures + names
+    case 'Z': // named local entities (if we eventually handle
+              // eSymbolTypeData, we will want this back)
+      return true;
+
+    default:
+      break;
+    }
+
+    // Include this name in the index.
+    return false;
+  }
+
+  // No filters for this scheme yet. Include all names in indexing.
+  case Mangled::eManglingSchemeMSVC:
+    return false;
+
+  // Don't try and demangle things we can't categorize.
+  case Mangled::eManglingSchemeNone:
+    return true;
+  }
+  llvm_unreachable("unknown scheme!");
+}
+
 void Symtab::InitNameIndexes() {
   // Protected function, no need to lock mutex...
   if (!m_name_indexes_computed) {
@@ -223,36 +255,19 @@ void Symtab::InitNameIndexes() {
     Timer scoped_timer(func_cat, "%s", LLVM_PRETTY_FUNCTION);
     // Create the name index vector to be able to quickly search by name
     const size_t num_symbols = m_symbols.size();
-#if 1
     m_name_to_index.Reserve(num_symbols);
-#else
-    // TODO: benchmark this to see if we save any memory. Otherwise we
-    // will always keep the memory reserved in the vector unless we pull some
-    // STL swap magic and then recopy...
-    uint32_t actual_count = 0;
-    for (const_iterator pos = m_symbols.begin(), end = m_symbols.end();
-         pos != end; ++pos) {
-      const Mangled &mangled = pos->GetMangled();
-      if (mangled.GetMangledName())
-        ++actual_count;
 
-      if (mangled.GetDemangledName())
-        ++actual_count;
-    }
-
-    m_name_to_index.Reserve(actual_count);
-#endif
-
-    NameToIndexMap::Entry entry;
-
-    // The "const char *" in "class_contexts" must come from a
-    // ConstString::GetCString()
+    // The "const char *" in "class_contexts" and backlog::value_type::second
+    // must come from a ConstString::GetCString()
     std::set<const char *> class_contexts;
-    UniqueCStringMap<uint32_t> mangled_name_to_index;
-    std::vector<const char *> symbol_contexts(num_symbols, nullptr);
+    std::vector<std::pair<NameToIndexMap::Entry, const char *>> backlog;
+    backlog.reserve(num_symbols / 2);
 
-    for (entry.value = 0; entry.value < num_symbols; ++entry.value) {
-      const Symbol *symbol = &m_symbols[entry.value];
+    // Instantiation of the demangler is expensive, so better use a single one
+    // for all entries during batch processing.
+    RichManglingContext rmc;
+    for (uint32_t value = 0; value < num_symbols; ++value) {
+      Symbol *symbol = &m_symbols[value];
 
       // Don't let trampolines get into the lookup by name map If we ever need
       // the trampoline symbols to be searchable by name we can remove this and
@@ -261,131 +276,57 @@ void Symtab::InitNameIndexes() {
       if (symbol->IsTrampoline())
         continue;
 
-      const Mangled &mangled = symbol->GetMangled();
-      entry.cstring = mangled.GetMangledName();
-      if (entry.cstring) {
-        m_name_to_index.Append(entry);
+      // If the symbol's name string matched a Mangled::ManglingScheme, it is
+      // stored in the mangled field.
+      Mangled &mangled = symbol->GetMangled();
+      if (ConstString name = mangled.GetMangledName()) {
+        m_name_to_index.Append(name, value);
 
         if (symbol->ContainsLinkerAnnotations()) {
           // If the symbol has linker annotations, also add the version without
           // the annotations.
-          entry.cstring = ConstString(m_objfile->StripLinkerSymbolAnnotations(
-                                        entry.cstring.GetStringRef()));
-          m_name_to_index.Append(entry);
+          ConstString stripped = ConstString(
+              m_objfile->StripLinkerSymbolAnnotations(name.GetStringRef()));
+          m_name_to_index.Append(stripped, value);
         }
 
-        const SymbolType symbol_type = symbol->GetType();
-        if (symbol_type == eSymbolTypeCode ||
-            symbol_type == eSymbolTypeResolver) {
-          llvm::StringRef entry_ref(entry.cstring.GetStringRef());
-          if (entry_ref[0] == '_' && entry_ref[1] == 'Z' &&
-              (entry_ref[2] != 'T' && // avoid virtual table, VTT structure,
-                                      // typeinfo structure, and typeinfo
-                                      // name
-               entry_ref[2] != 'G' && // avoid guard variables
-               entry_ref[2] != 'Z'))  // named local entities (if we
-                                          // eventually handle eSymbolTypeData,
-                                          // we will want this back)
-          {
-            CPlusPlusLanguage::MethodName cxx_method(
-                mangled.GetDemangledName(lldb::eLanguageTypeC_plus_plus));
-            entry.cstring = ConstString(cxx_method.GetBasename());
-            if (entry.cstring) {
-              // ConstString objects permanently store the string in the pool
-              // so calling GetCString() on the value gets us a const char *
-              // that will never go away
-              const char *const_context =
-                  ConstString(cxx_method.GetContext()).GetCString();
-
-              if (!const_context || const_context[0] == 0) {
-                // No context for this function so this has to be a basename
-                m_basename_to_index.Append(entry);
-                // If there is no context (no namespaces or class scopes that
-                // come before the function name) then this also could be a
-                // fullname.
-                m_name_to_index.Append(entry);
-              } else {
-                entry_ref = entry.cstring.GetStringRef();
-                if (entry_ref[0] == '~' ||
-                    !cxx_method.GetQualifiers().empty()) {
-                  // The first character of the demangled basename is '~' which
-                  // means we have a class destructor. We can use this
-                  // information to help us know what is a class and what
-                  // isn't.
-                  if (class_contexts.find(const_context) == class_contexts.end())
-                    class_contexts.insert(const_context);
-                  m_method_to_index.Append(entry);
-                } else {
-                  if (class_contexts.find(const_context) !=
-                      class_contexts.end()) {
-                    // The current decl context is in our "class_contexts"
-                    // which means this is a method on a class
-                    m_method_to_index.Append(entry);
-                  } else {
-                    // We don't know if this is a function basename or a
-                    // method, so put it into a temporary collection so once we
-                    // are done we can look in class_contexts to see if each
-                    // entry is a class or just a function and will put any
-                    // remaining items into m_method_to_index or
-                    // m_basename_to_index as needed
-                    mangled_name_to_index.Append(entry);
-                    symbol_contexts[entry.value] = const_context;
-                  }
-                }
-              }
-            }
-          }
+        const SymbolType type = symbol->GetType();
+        if (type == eSymbolTypeCode || type == eSymbolTypeResolver) {
+          if (mangled.DemangleWithRichManglingInfo(rmc, lldb_skip_name))
+            RegisterMangledNameEntry(value, class_contexts, backlog, rmc);
         }
       }
 
-      entry.cstring = mangled.GetDemangledName(symbol->GetLanguage());
-      if (entry.cstring) {
-        m_name_to_index.Append(entry);
+      // Symbol name strings that didn't match a Mangled::ManglingScheme, are
+      // stored in the demangled field.
+      if (ConstString name = mangled.GetDemangledName(symbol->GetLanguage())) {
+        m_name_to_index.Append(name, value);
 
         if (symbol->ContainsLinkerAnnotations()) {
           // If the symbol has linker annotations, also add the version without
           // the annotations.
-          entry.cstring = ConstString(m_objfile->StripLinkerSymbolAnnotations(
-                                        entry.cstring.GetStringRef()));
-          m_name_to_index.Append(entry);
+          name = ConstString(
+              m_objfile->StripLinkerSymbolAnnotations(name.GetStringRef()));
+          m_name_to_index.Append(name, value);
         }
-      }
 
-      // If the demangled name turns out to be an ObjC name, and is a category
-      // name, add the version without categories to the index too.
-      ObjCLanguage::MethodName objc_method(entry.cstring.GetStringRef(), true);
-      if (objc_method.IsValid(true)) {
-        entry.cstring = objc_method.GetSelector();
-        m_selector_to_index.Append(entry);
+        // If the demangled name turns out to be an ObjC name, and is a category
+        // name, add the version without categories to the index too.
+        ObjCLanguage::MethodName objc_method(name.GetStringRef(), true);
+        if (objc_method.IsValid(true)) {
+          m_selector_to_index.Append(objc_method.GetSelector(), value);
 
-        ConstString objc_method_no_category(
-            objc_method.GetFullNameWithoutCategory(true));
-        if (objc_method_no_category) {
-          entry.cstring = objc_method_no_category;
-          m_name_to_index.Append(entry);
+          if (ConstString objc_method_no_category =
+                  objc_method.GetFullNameWithoutCategory(true))
+            m_name_to_index.Append(objc_method_no_category, value);
         }
       }
     }
 
-    size_t count;
-    if (!mangled_name_to_index.IsEmpty()) {
-      count = mangled_name_to_index.GetSize();
-      for (size_t i = 0; i < count; ++i) {
-        if (mangled_name_to_index.GetValueAtIndex(i, entry.value)) {
-          entry.cstring = mangled_name_to_index.GetCStringAtIndex(i);
-          if (symbol_contexts[entry.value] &&
-              class_contexts.find(symbol_contexts[entry.value]) !=
-                  class_contexts.end()) {
-            m_method_to_index.Append(entry);
-          } else {
-            // If we got here, we have something that had a context (was inside
-            // a namespace or class) yet we don't know if the entry
-            m_method_to_index.Append(entry);
-            m_basename_to_index.Append(entry);
-          }
-        }
-      }
+    for (const auto &record : backlog) {
+      RegisterBacklogEntry(record.first, record.second, class_contexts);
     }
+
     m_name_to_index.Sort();
     m_name_to_index.SizeToFit();
     m_selector_to_index.Sort();
@@ -394,6 +335,71 @@ void Symtab::InitNameIndexes() {
     m_basename_to_index.SizeToFit();
     m_method_to_index.Sort();
     m_method_to_index.SizeToFit();
+  }
+}
+
+void Symtab::RegisterMangledNameEntry(
+    uint32_t value, std::set<const char *> &class_contexts,
+    std::vector<std::pair<NameToIndexMap::Entry, const char *>> &backlog,
+    RichManglingContext &rmc) {
+  // Only register functions that have a base name.
+  rmc.ParseFunctionBaseName();
+  llvm::StringRef base_name = rmc.GetBufferRef();
+  if (base_name.empty())
+    return;
+
+  // The base name will be our entry's name.
+  NameToIndexMap::Entry entry(ConstString(base_name), value);
+
+  rmc.ParseFunctionDeclContextName();
+  llvm::StringRef decl_context = rmc.GetBufferRef();
+
+  // Register functions with no context.
+  if (decl_context.empty()) {
+    // This has to be a basename
+    m_basename_to_index.Append(entry);
+    // If there is no context (no namespaces or class scopes that come before
+    // the function name) then this also could be a fullname.
+    m_name_to_index.Append(entry);
+    return;
+  }
+
+  // Make sure we have a pool-string pointer and see if we already know the
+  // context name.
+  const char *decl_context_ccstr = ConstString(decl_context).GetCString();
+  auto it = class_contexts.find(decl_context_ccstr);
+
+  // Register constructors and destructors. They are methods and create
+  // declaration contexts.
+  if (rmc.IsCtorOrDtor()) {
+    m_method_to_index.Append(entry);
+    if (it == class_contexts.end())
+      class_contexts.insert(it, decl_context_ccstr);
+    return;
+  }
+
+  // Register regular methods with a known declaration context.
+  if (it != class_contexts.end()) {
+    m_method_to_index.Append(entry);
+    return;
+  }
+
+  // Regular methods in unknown declaration contexts are put to the backlog. We
+  // will revisit them once we processed all remaining symbols.
+  backlog.push_back(std::make_pair(entry, decl_context_ccstr));
+}
+
+void Symtab::RegisterBacklogEntry(
+    const NameToIndexMap::Entry &entry, const char *decl_context,
+    const std::set<const char *> &class_contexts) {
+  auto it = class_contexts.find(decl_context);
+  if (it != class_contexts.end()) {
+    m_method_to_index.Append(entry);
+  } else {
+    // If we got here, we have something that had a context (was inside
+    // a namespace or class) yet we don't know the entry
+    m_method_to_index.Append(entry);
+    m_basename_to_index.Append(entry);
   }
 }
 
@@ -411,24 +417,21 @@ void Symtab::AppendSymbolNamesToMap(const IndexCollection &indexes,
     std::lock_guard<std::recursive_mutex> guard(m_mutex);
 
     // Create the name index vector to be able to quickly search by name
-    NameToIndexMap::Entry entry;
     const size_t num_indexes = indexes.size();
     for (size_t i = 0; i < num_indexes; ++i) {
-      entry.value = indexes[i];
+      uint32_t value = indexes[i];
       assert(i < m_symbols.size());
-      const Symbol *symbol = &m_symbols[entry.value];
+      const Symbol *symbol = &m_symbols[value];
 
       const Mangled &mangled = symbol->GetMangled();
       if (add_demangled) {
-        entry.cstring = mangled.GetDemangledName(symbol->GetLanguage());
-        if (entry.cstring)
-          name_to_index_map.Append(entry);
+        if (ConstString name = mangled.GetDemangledName(symbol->GetLanguage()))
+          name_to_index_map.Append(name, value);
       }
 
       if (add_mangled) {
-        entry.cstring = mangled.GetMangledName();
-        if (entry.cstring)
-          name_to_index_map.Append(entry);
+        if (ConstString name = mangled.GetMangledName())
+          name_to_index_map.Append(name, value);
       }
     }
   }
@@ -571,10 +574,9 @@ void Symtab::SortSymbolIndexesByValue(std::vector<uint32_t> &indexes,
     return;
 
   // Sort the indexes in place using std::stable_sort.
-  // NOTE: The use of std::stable_sort instead of std::sort here is strictly for
-  // performance,
-  // not correctness.  The indexes vector tends to be "close" to sorted, which
-  // the stable sort handles better.
+  // NOTE: The use of std::stable_sort instead of llvm::sort here is strictly
+  // for performance, not correctness.  The indexes vector tends to be "close"
+  // to sorted, which the stable sort handles better.
 
   std::vector<lldb::addr_t> addr_cache(m_symbols.size(), LLDB_INVALID_ADDRESS);
 
@@ -588,7 +590,7 @@ void Symtab::SortSymbolIndexesByValue(std::vector<uint32_t> &indexes,
   }
 }
 
-uint32_t Symtab::AppendSymbolIndexesWithName(const ConstString &symbol_name,
+uint32_t Symtab::AppendSymbolIndexesWithName(ConstString symbol_name,
                                              std::vector<uint32_t> &indexes) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
 
@@ -603,7 +605,7 @@ uint32_t Symtab::AppendSymbolIndexesWithName(const ConstString &symbol_name,
   return 0;
 }
 
-uint32_t Symtab::AppendSymbolIndexesWithName(const ConstString &symbol_name,
+uint32_t Symtab::AppendSymbolIndexesWithName(ConstString symbol_name,
                                              Debug symbol_debug_type,
                                              Visibility symbol_visibility,
                                              std::vector<uint32_t> &indexes) {
@@ -630,7 +632,7 @@ uint32_t Symtab::AppendSymbolIndexesWithName(const ConstString &symbol_name,
 }
 
 uint32_t
-Symtab::AppendSymbolIndexesWithNameAndType(const ConstString &symbol_name,
+Symtab::AppendSymbolIndexesWithNameAndType(ConstString symbol_name,
                                            SymbolType symbol_type,
                                            std::vector<uint32_t> &indexes) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
@@ -649,7 +651,7 @@ Symtab::AppendSymbolIndexesWithNameAndType(const ConstString &symbol_name,
 }
 
 uint32_t Symtab::AppendSymbolIndexesWithNameAndType(
-    const ConstString &symbol_name, SymbolType symbol_type,
+    ConstString symbol_name, SymbolType symbol_type,
     Debug symbol_debug_type, Visibility symbol_visibility,
     std::vector<uint32_t> &indexes) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
@@ -701,7 +703,7 @@ uint32_t Symtab::AppendSymbolIndexesMatchingRegExAndType(
   for (uint32_t i = 0; i < sym_end; i++) {
     if (symbol_type == eSymbolTypeAny ||
         m_symbols[i].GetType() == symbol_type) {
-      if (CheckSymbolAtIndex(i, symbol_debug_type, symbol_visibility) == false)
+      if (!CheckSymbolAtIndex(i, symbol_debug_type, symbol_visibility))
         continue;
 
       const char *name = m_symbols[i].GetName().AsCString();
@@ -733,8 +735,8 @@ Symbol *Symtab::FindSymbolWithType(SymbolType symbol_type,
   return nullptr;
 }
 
-size_t
-Symtab::FindAllSymbolsWithNameAndType(const ConstString &name,
+void
+Symtab::FindAllSymbolsWithNameAndType(ConstString name,
                                       SymbolType symbol_type,
                                       std::vector<uint32_t> &symbol_indexes) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
@@ -751,11 +753,10 @@ Symtab::FindAllSymbolsWithNameAndType(const ConstString &name,
     // the symbols and match the symbol_type if any was given.
     AppendSymbolIndexesWithNameAndType(name, symbol_type, symbol_indexes);
   }
-  return symbol_indexes.size();
 }
 
-size_t Symtab::FindAllSymbolsWithNameAndType(
-    const ConstString &name, SymbolType symbol_type, Debug symbol_debug_type,
+void Symtab::FindAllSymbolsWithNameAndType(
+    ConstString name, SymbolType symbol_type, Debug symbol_debug_type,
     Visibility symbol_visibility, std::vector<uint32_t> &symbol_indexes) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
 
@@ -772,10 +773,9 @@ size_t Symtab::FindAllSymbolsWithNameAndType(
     AppendSymbolIndexesWithNameAndType(name, symbol_type, symbol_debug_type,
                                        symbol_visibility, symbol_indexes);
   }
-  return symbol_indexes.size();
 }
 
-size_t Symtab::FindAllSymbolsMatchingRexExAndType(
+void Symtab::FindAllSymbolsMatchingRexExAndType(
     const RegularExpression &regex, SymbolType symbol_type,
     Debug symbol_debug_type, Visibility symbol_visibility,
     std::vector<uint32_t> &symbol_indexes) {
@@ -783,10 +783,9 @@ size_t Symtab::FindAllSymbolsMatchingRexExAndType(
 
   AppendSymbolIndexesMatchingRegExAndType(regex, symbol_type, symbol_debug_type,
                                           symbol_visibility, symbol_indexes);
-  return symbol_indexes.size();
 }
 
-Symbol *Symtab::FindFirstSymbolWithNameAndType(const ConstString &name,
+Symbol *Symtab::FindFirstSymbolWithNameAndType(ConstString name,
                                                SymbolType symbol_type,
                                                Debug symbol_debug_type,
                                                Visibility symbol_visibility) {
@@ -937,32 +936,8 @@ void Symtab::InitAddressIndexes() {
 
 void Symtab::CalculateSymbolSizes() {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
-
-  if (!m_symbols.empty()) {
-    if (!m_file_addr_to_index_computed)
-      InitAddressIndexes();
-
-    const size_t num_entries = m_file_addr_to_index.GetSize();
-
-    for (size_t i = 0; i < num_entries; ++i) {
-      // The entries in the m_file_addr_to_index have calculated the sizes
-      // already so we will use this size if we need to.
-      const FileRangeToIndexMap::Entry &entry =
-          m_file_addr_to_index.GetEntryRef(i);
-
-      Symbol &symbol = m_symbols[entry.data];
-
-      // If the symbol size is already valid, no need to do anything
-      if (symbol.GetByteSizeIsValid())
-        continue;
-
-      const addr_t range_size = entry.GetByteSize();
-      if (range_size > 0) {
-        symbol.SetByteSize(range_size);
-        symbol.SetSizeIsSynthesized(true);
-      }
-    }
-  }
+  // Size computation happens inside InitAddressIndexes.
+  InitAddressIndexes();
 }
 
 Symbol *Symtab::FindSymbolAtFileAddress(addr_t file_addr) {
@@ -1037,10 +1012,8 @@ void Symtab::SymbolIndicesToSymbolContextList(
   }
 }
 
-size_t Symtab::FindFunctionSymbols(const ConstString &name,
-                                   uint32_t name_type_mask,
-                                   SymbolContextList &sc_list) {
-  size_t count = 0;
+void Symtab::FindFunctionSymbols(ConstString name, uint32_t name_type_mask,
+                                 SymbolContextList &sc_list) {
   std::vector<uint32_t> symbol_indexes;
 
   // eFunctionNameTypeAuto should be pre-resolved by a call to
@@ -1117,15 +1090,12 @@ size_t Symtab::FindFunctionSymbols(const ConstString &name,
   }
 
   if (!symbol_indexes.empty()) {
-    std::sort(symbol_indexes.begin(), symbol_indexes.end());
+    llvm::sort(symbol_indexes.begin(), symbol_indexes.end());
     symbol_indexes.erase(
         std::unique(symbol_indexes.begin(), symbol_indexes.end()),
         symbol_indexes.end());
-    count = symbol_indexes.size();
     SymbolIndicesToSymbolContextList(symbol_indexes, sc_list);
   }
-
-  return count;
 }
 
 const Symbol *Symtab::GetParent(Symbol *child_symbol) const {
@@ -1138,5 +1108,5 @@ const Symbol *Symtab::GetParent(Symbol *child_symbol) const {
         return symbol;
     }
   }
-  return NULL;
+  return nullptr;
 }

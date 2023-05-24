@@ -1,9 +1,8 @@
 //=== unittests/Sema/CodeCompleteTest.cpp - Code Complete tests ==============//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,31 +13,43 @@
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaDiagnostic.h"
 #include "clang/Tooling/Tooling.h"
-#include "gtest/gtest.h"
+#include "llvm/Testing/Support/Annotations.h"
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include <cstddef>
+#include <string>
 
 namespace {
 
 using namespace clang;
 using namespace clang::tooling;
+using ::testing::Each;
 using ::testing::UnorderedElementsAre;
 
 const char TestCCName[] = "test.cc";
-using VisitedContextResults = std::vector<std::string>;
 
-class VisitedContextFinder: public CodeCompleteConsumer {
+struct CompletionContext {
+  std::vector<std::string> VisitedNamespaces;
+  std::string PreferredType;
+  // String representation of std::ptrdiff_t on a given platform. This is a hack
+  // to properly account for different configurations of clang.
+  std::string PtrDiffType;
+};
+
+class VisitedContextFinder : public CodeCompleteConsumer {
 public:
-  VisitedContextFinder(VisitedContextResults &Results)
-      : CodeCompleteConsumer(/*CodeCompleteOpts=*/{},
-                             /*CodeCompleteConsumer*/ false),
-        VCResults(Results),
+  VisitedContextFinder(CompletionContext &ResultCtx)
+      : CodeCompleteConsumer(/*CodeCompleteOpts=*/{}), ResultCtx(ResultCtx),
         CCTUInfo(std::make_shared<GlobalCodeCompletionAllocator>()) {}
 
   void ProcessCodeCompleteResults(Sema &S, CodeCompletionContext Context,
                                   CodeCompletionResult *Results,
                                   unsigned NumResults) override {
-    VisitedContexts = Context.getVisitedContexts();
-    VCResults = getVisitedNamespace();
+    ResultCtx.VisitedNamespaces =
+        getVisitedNamespace(Context.getVisitedContexts());
+    ResultCtx.PreferredType = Context.getPreferredType().getAsString();
+    ResultCtx.PtrDiffType =
+        S.getASTContext().getPointerDiffType().getAsString();
   }
 
   CodeCompletionAllocator &getAllocator() override {
@@ -47,7 +58,9 @@ public:
 
   CodeCompletionTUInfo &getCodeCompletionTUInfo() override { return CCTUInfo; }
 
-  std::vector<std::string> getVisitedNamespace() const {
+private:
+  std::vector<std::string> getVisitedNamespace(
+      CodeCompletionContext::VisitedContextSet VisitedContexts) const {
     std::vector<std::string> NSNames;
     for (const auto *Context : VisitedContexts)
       if (const auto *NS = llvm::dyn_cast<NamespaceDecl>(Context))
@@ -55,27 +68,25 @@ public:
     return NSNames;
   }
 
-private:
-  VisitedContextResults& VCResults;
+  CompletionContext &ResultCtx;
   CodeCompletionTUInfo CCTUInfo;
-  CodeCompletionContext::VisitedContextSet VisitedContexts;
 };
 
 class CodeCompleteAction : public SyntaxOnlyAction {
 public:
-  CodeCompleteAction(ParsedSourceLocation P, VisitedContextResults &Results)
-      : CompletePosition(std::move(P)), VCResults(Results) {}
+  CodeCompleteAction(ParsedSourceLocation P, CompletionContext &ResultCtx)
+      : CompletePosition(std::move(P)), ResultCtx(ResultCtx) {}
 
   bool BeginInvocation(CompilerInstance &CI) override {
     CI.getFrontendOpts().CodeCompletionAt = CompletePosition;
-    CI.setCodeCompletionConsumer(new VisitedContextFinder(VCResults));
+    CI.setCodeCompletionConsumer(new VisitedContextFinder(ResultCtx));
     return true;
   }
 
 private:
   // 1-based code complete position <Line, Col>;
   ParsedSourceLocation CompletePosition;
-  VisitedContextResults& VCResults;
+  CompletionContext &ResultCtx;
 };
 
 ParsedSourceLocation offsetToPosition(llvm::StringRef Code, size_t Offset) {
@@ -88,21 +99,34 @@ ParsedSourceLocation offsetToPosition(llvm::StringRef Code, size_t Offset) {
           static_cast<unsigned>(Offset - StartOfLine + 1)};
 }
 
-VisitedContextResults runCodeCompleteOnCode(StringRef Code) {
-  VisitedContextResults Results;
-  auto TokenOffset = Code.find('^');
-  assert(TokenOffset != StringRef::npos &&
-         "Completion token ^ wasn't found in Code.");
-  std::string WithoutToken = Code.take_front(TokenOffset);
-  WithoutToken += Code.drop_front(WithoutToken.size() + 1);
-  assert(StringRef(WithoutToken).find('^') == StringRef::npos &&
-         "expected exactly one completion token ^ inside the code");
+CompletionContext runCompletion(StringRef Code, size_t Offset) {
+  CompletionContext ResultCtx;
+  clang::tooling::runToolOnCodeWithArgs(
+      std::make_unique<CodeCompleteAction>(offsetToPosition(Code, Offset),
+                                           ResultCtx),
+      Code, {"-std=c++11"}, TestCCName);
+  return ResultCtx;
+}
 
-  auto Action = llvm::make_unique<CodeCompleteAction>(
-      offsetToPosition(WithoutToken, TokenOffset), Results);
-  clang::tooling::runToolOnCodeWithArgs(Action.release(), Code, {"-std=c++11"},
-                                        TestCCName);
-  return Results;
+CompletionContext runCodeCompleteOnCode(StringRef AnnotatedCode) {
+  llvm::Annotations A(AnnotatedCode);
+  return runCompletion(A.code(), A.point());
+}
+
+std::vector<std::string>
+collectPreferredTypes(StringRef AnnotatedCode,
+                      std::string *PtrDiffType = nullptr) {
+  llvm::Annotations A(AnnotatedCode);
+  std::vector<std::string> Types;
+  for (size_t Point : A.points()) {
+    auto Results = runCompletion(A.code(), Point);
+    if (PtrDiffType) {
+      assert(PtrDiffType->empty() || *PtrDiffType == Results.PtrDiffType);
+      *PtrDiffType = Results.PtrDiffType;
+    }
+    Types.push_back(Results.PreferredType);
+  }
+  return Types;
 }
 
 TEST(SemaCodeCompleteTest, VisitedNSForValidQualifiedId) {
@@ -119,16 +143,22 @@ TEST(SemaCodeCompleteTest, VisitedNSForValidQualifiedId) {
      inline namespace bar { using namespace ns3::nns3; }
      } // foo
      namespace ns { foo::^ }
-  )cpp");
+  )cpp")
+                       .VisitedNamespaces;
   EXPECT_THAT(VisitedNS, UnorderedElementsAre("foo", "ns1", "ns2", "ns3::nns3",
                                               "foo::(anonymous)"));
 }
 
-TEST(SemaCodeCompleteTest, VisitedNSForInvalideQualifiedId) {
+TEST(SemaCodeCompleteTest, VisitedNSForInvalidQualifiedId) {
   auto VisitedNS = runCodeCompleteOnCode(R"cpp(
-     namespace ns { foo::^ }
-  )cpp");
-  EXPECT_TRUE(VisitedNS.empty());
+     namespace na {}
+     namespace ns1 {
+     using namespace na;
+     foo::^
+     }
+  )cpp")
+                       .VisitedNamespaces;
+  EXPECT_THAT(VisitedNS, UnorderedElementsAre("ns1", "na"));
 }
 
 TEST(SemaCodeCompleteTest, VisitedNSWithoutQualifier) {
@@ -138,8 +168,325 @@ TEST(SemaCodeCompleteTest, VisitedNSWithoutQualifier) {
       void f(^) {}
     }
     }
-  )cpp");
+  )cpp")
+                       .VisitedNamespaces;
   EXPECT_THAT(VisitedNS, UnorderedElementsAre("n1", "n1::n2"));
 }
 
+TEST(PreferredTypeTest, BinaryExpr) {
+  // Check various operations for arithmetic types.
+  StringRef Code = R"cpp(
+    void test(int x) {
+      x = ^10;
+      x += ^10; x -= ^10; x *= ^10; x /= ^10; x %= ^10;
+      x + ^10; x - ^10; x * ^10; x / ^10; x % ^10;
+    })cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("int"));
+
+  Code = R"cpp(
+    void test(float x) {
+      x = ^10;
+      x += ^10; x -= ^10; x *= ^10; x /= ^10; x %= ^10;
+      x + ^10; x - ^10; x * ^10; x / ^10; x % ^10;
+    })cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("float"));
+
+  // Pointer types.
+  Code = R"cpp(
+    void test(int *ptr) {
+      ptr - ^ptr;
+      ptr = ^ptr;
+    })cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("int *"));
+
+  Code = R"cpp(
+    void test(int *ptr) {
+      ptr + ^10;
+      ptr += ^10;
+      ptr -= ^10;
+    })cpp";
+  {
+    std::string PtrDiff;
+    auto Types = collectPreferredTypes(Code, &PtrDiff);
+    EXPECT_THAT(Types, Each(PtrDiff));
+  }
+
+  // Comparison operators.
+  Code = R"cpp(
+    void test(int i) {
+      i <= ^1; i < ^1; i >= ^1; i > ^1; i == ^1; i != ^1;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("int"));
+
+  Code = R"cpp(
+    void test(int *ptr) {
+      ptr <= ^ptr; ptr < ^ptr; ptr >= ^ptr; ptr > ^ptr;
+      ptr == ^ptr; ptr != ^ptr;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("int *"));
+
+  // Relational operations.
+  Code = R"cpp(
+    void test(int i, int *ptr) {
+      i && ^1; i || ^1;
+      ptr && ^1; ptr || ^1;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("_Bool"));
+
+  // Bitwise operations.
+  Code = R"cpp(
+    void test(long long ll) {
+      ll | ^1; ll & ^1;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("long long"));
+
+  Code = R"cpp(
+    enum A {};
+    void test(A a) {
+      a | ^1; a & ^1;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("enum A"));
+
+  Code = R"cpp(
+    enum class A {};
+    void test(A a) {
+      // This is technically illegal with the 'enum class' without overloaded
+      // operators, but we pretend it's fine.
+      a | ^a; a & ^a;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("enum A"));
+
+  // Binary shifts.
+  Code = R"cpp(
+    void test(int i, long long ll) {
+      i << ^1; ll << ^1;
+      i <<= ^1; i <<= ^1;
+      i >> ^1; ll >> ^1;
+      i >>= ^1; i >>= ^1;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("int"));
+
+  // Comma does not provide any useful information.
+  Code = R"cpp(
+    class Cls {};
+    void test(int i, int* ptr, Cls x) {
+      (i, ^i);
+      (ptr, ^ptr);
+      (x, ^x);
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("NULL TYPE"));
+
+  // User-defined types do not take operator overloading into account.
+  // However, they provide heuristics for some common cases.
+  Code = R"cpp(
+    class Cls {};
+    void test(Cls c) {
+      // we assume arithmetic and comparions ops take the same type.
+      c + ^c; c - ^c; c * ^c; c / ^c; c % ^c;
+      c == ^c; c != ^c; c < ^c; c <= ^c; c > ^c; c >= ^c;
+      // same for the assignments.
+      c = ^c; c += ^c; c -= ^c; c *= ^c; c /= ^c; c %= ^c;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("class Cls"));
+
+  Code = R"cpp(
+    class Cls {};
+    void test(Cls c) {
+      // we assume relational ops operate on bools.
+      c && ^c; c || ^c;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("_Bool"));
+
+  Code = R"cpp(
+    class Cls {};
+    void test(Cls c) {
+      // we make no assumptions about the following operators, since they are
+      // often overloaded with a non-standard meaning.
+      c << ^c; c >> ^c; c | ^c; c & ^c;
+      c <<= ^c; c >>= ^c; c |= ^c; c &= ^c;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("NULL TYPE"));
+}
+
+TEST(PreferredTypeTest, Members) {
+  StringRef Code = R"cpp(
+    struct vector {
+      int *begin();
+      vector clone();
+    };
+
+    void test(int *a) {
+      a = ^vector().^clone().^begin();
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("int *"));
+}
+
+TEST(PreferredTypeTest, Conditions) {
+  StringRef Code = R"cpp(
+    struct vector {
+      bool empty();
+    };
+
+    void test() {
+      if (^vector().^empty()) {}
+      while (^vector().^empty()) {}
+      for (; ^vector().^empty();) {}
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("_Bool"));
+}
+
+TEST(PreferredTypeTest, InitAndAssignment) {
+  StringRef Code = R"cpp(
+    struct vector {
+      int* begin();
+    };
+
+    void test() {
+      const int* x = ^vector().^begin();
+      x = ^vector().^begin();
+
+      if (const int* y = ^vector().^begin()) {}
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("const int *"));
+}
+
+TEST(PreferredTypeTest, UnaryExprs) {
+  StringRef Code = R"cpp(
+    void test(long long a) {
+      a = +^a;
+      a = -^a
+      a = ++^a;
+      a = --^a;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("long long"));
+
+  Code = R"cpp(
+    void test(int a, int *ptr) {
+      !^a;
+      !^ptr;
+      !!!^a;
+
+      a = !^a;
+      a = !^ptr;
+      a = !!!^a;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("_Bool"));
+
+  Code = R"cpp(
+    void test(int a) {
+      const int* x = &^a;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("const int"));
+
+  Code = R"cpp(
+    void test(int *a) {
+      int x = *^a;
+      int &r = *^a;
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("int *"));
+
+  Code = R"cpp(
+    void test(int a) {
+      *^a;
+      &^a;
+    }
+
+  )cpp";
+}
+
+TEST(PreferredTypeTest, ParenExpr) {
+  StringRef Code = R"cpp(
+    const int *i = ^(^(^(^10)));
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("const int *"));
+}
+
+TEST(PreferredTypeTest, FunctionArguments) {
+  StringRef Code = R"cpp(
+    void foo(const int*);
+
+    void bar(const int*);
+    void bar(const int*, int b);
+
+    struct vector {
+      const int *data();
+    };
+    void test() {
+      foo(^(^(^(^vec^tor^().^da^ta^()))));
+      bar(^(^(^(^vec^tor^().^da^ta^()))));
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("const int *"));
+
+  Code = R"cpp(
+    void bar(int, volatile double *);
+    void bar(int, volatile double *, int, int);
+
+    struct vector {
+      double *data();
+    };
+
+    struct class_members {
+      void bar(int, volatile double *);
+      void bar(int, volatile double *, int, int);
+    };
+    void test() {
+      bar(10, ^(^(^(^vec^tor^().^da^ta^()))));
+      class_members().bar(10, ^(^(^(^vec^tor^().^da^ta^()))));
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("volatile double *"));
+
+  Code = R"cpp(
+    namespace ns {
+      struct vector {
+      };
+    }
+    void accepts_vector(ns::vector);
+
+    void test() {
+      accepts_vector(^::^ns::^vector());
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("ns::vector"));
+
+  Code = R"cpp(
+    template <class T>
+    struct vector { using self = vector; };
+
+    void accepts_vector(vector<int>);
+    int foo(int);
+
+    void test() {
+      accepts_vector(^::^vector<decltype(foo(1))>::^self);
+    }
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("vector<int>"));
+}
+
+TEST(PreferredTypeTest, NoCrashOnInvalidTypes) {
+  StringRef Code = R"cpp(
+    auto x = decltype(&1)(^);
+    auto y = new decltype(&1)(^);
+  )cpp";
+  EXPECT_THAT(collectPreferredTypes(Code), Each("NULL TYPE"));
+}
 } // namespace

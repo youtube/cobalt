@@ -1,7 +1,13 @@
 ; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx803 -mattr=+code-object-v3 < %s | FileCheck --check-prefixes=ALL-ASM,OSABI-AMDHSA-ASM %s
-; RUN: llc -filetype=obj -mtriple=amdgcn-amd-amdhsa -mcpu=gfx803 -mattr=+code-object-v3 < %s | llvm-readobj -elf-output-style=GNU -notes -relocations -sections -symbols | FileCheck --check-prefixes=ALL-ELF,OSABI-AMDHSA-ELF %s
+; RUN: llc -filetype=obj -mtriple=amdgcn-amd-amdhsa -mcpu=gfx803 -mattr=+code-object-v3 < %s | llvm-readelf --notes -relocations -sections -symbols | FileCheck --check-prefixes=ALL-ELF,OSABI-AMDHSA-ELF %s
 
 ; ALL-ASM-LABEL: {{^}}fadd:
+
+; OSABI-AMDHSA-ASM-NOT: .hsa_code_object_version
+; OSABI-AMDHSA-ASM-NOT: .hsa_code_object_isa
+; OSABI-AMDHSA-ASM-NOT: .amdgpu_hsa_kernel
+; OSABI-AMDHSA-ASM-NOT: .amd_kernel_code_t
+
 ; OSABI-AMDHSA-ASM: s_endpgm
 ; OSABI-AMDHSA-ASM: .section .rodata,#alloc
 ; OSABI-AMDHSA-ASM: .p2align 6
@@ -16,6 +22,10 @@
 ; OSABI-AMDHSA-ASM: .text
 
 ; ALL-ASM-LABEL: {{^}}fsub:
+
+; OSABI-AMDHSA-ASM-NOT: .amdgpu_hsa_kernel
+; OSABI-AMDHSA-ASM-NOT: .amd_kernel_code_t
+
 ; OSABI-AMDHSA-ASM: s_endpgm
 ; OSABI-AMDHSA-ASM: .section .rodata,#alloc
 ; OSABI-AMDHSA-ASM: .p2align 6
@@ -40,16 +50,17 @@
 ; OSABI-AMDHSA-ELF: .rodata PROGBITS {{[0-9]+}} {{[0-9]+}} {{[0-9a-f]+}} {{[0-9]+}}  A {{[0-9]+}} {{[0-9]+}} 64
 
 ; OSABI-AMDHSA-ELF: Relocation section '.rela.rodata' at offset
-; OSABI-AMDHSA-ELF: 0000000000000010 0000000300000005 R_AMDGPU_REL64 0000000000000000 .text + 10
-; OSABI-AMDHSA-ELF: 0000000000000050 0000000300000005 R_AMDGPU_REL64 0000000000000000 .text + 110
+; OSABI-AMDHSA-ELF: 0000000000000010 0000000100000005 R_AMDGPU_REL64 0000000000000000 fadd + 10
+; OSABI-AMDHSA-ELF: 0000000000000050 0000000300000005 R_AMDGPU_REL64 0000000000000100 fsub + 10
 
 ; OSABI-AMDHSA-ELF: Symbol table '.symtab' contains {{[0-9]+}} entries
-; OSABI-AMDHSA-ELF: {{[0-9]+}}: 0000000000000000 {{[0-9]+}} FUNC   LOCAL  DEFAULT {{[0-9]+}} fadd
-; OSABI-AMDHSA-ELF: {{[0-9]+}}: 0000000000000100 {{[0-9]+}} FUNC   LOCAL  DEFAULT {{[0-9]+}} fsub
-; OSABI-AMDHSA-ELF: {{[0-9]+}}: 0000000000000000 64         OBJECT GLOBAL DEFAULT {{[0-9]+}} fadd.kd
-; OSABI-AMDHSA-ELF: {{[0-9]+}}: 0000000000000040 64         OBJECT GLOBAL DEFAULT {{[0-9]+}} fsub.kd
+; OSABI-AMDHSA-ELF: {{[0-9]+}}: 0000000000000000 {{[0-9]+}} FUNC   GLOBAL PROTECTED {{[0-9]+}} fadd
+; OSABI-AMDHSA-ELF: {{[0-9]+}}: 0000000000000000 64         OBJECT GLOBAL DEFAULT   {{[0-9]+}} fadd.kd
+; OSABI-AMDHSA-ELF: {{[0-9]+}}: 0000000000000100 {{[0-9]+}} FUNC   GLOBAL PROTECTED {{[0-9]+}} fsub
+; OSABI-AMDHSA-ELF: {{[0-9]+}}: 0000000000000040 64         OBJECT GLOBAL DEFAULT   {{[0-9]+}} fsub.kd
 
-; OSABI-AMDHSA-ELF-NOT: Displaying notes found
+; OSABI-AMDHSA-ELF: Displaying notes found at file offset
+; OSABI-AMDHSA-ELF: AMDGPU 0x{{[0-9a-f]+}} NT_AMDGPU_METADATA (AMDGPU Metadata)
 
 define amdgpu_kernel void @fadd(
     float addrspace(1)* %r,

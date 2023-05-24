@@ -1,5 +1,5 @@
-; RUN: llc < %s -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 | FileCheck %s
-; RUN: llc < %s -mtriple=powerpc64-unknown-linux-gnu -mcpu=a2 | FileCheck -check-prefix=CHECK-NOAV %s
+; RUN: llc < %s -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 -verify-machineinstrs | FileCheck %s
+; RUN: llc < %s -mtriple=powerpc64-unknown-linux-gnu -mcpu=a2 -verify-machineinstrs | FileCheck -check-prefix=CHECK-NOAV %s
 target datalayout = "E-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-f128:128:128-v128:128:128-n32:64"
 target triple = "powerpc64-unknown-linux-gnu"
 
@@ -7,6 +7,7 @@ target triple = "powerpc64-unknown-linux-gnu"
 %struct.__sigset_t = type { [16 x i64] }
 
 @env_sigill = internal global [1 x %struct.__jmp_buf_tag] zeroinitializer, align 16
+@cond = external global i8, align 1
 
 define void @foo() #0 {
 entry:
@@ -80,8 +81,8 @@ return:                                           ; preds = %if.end, %if.then
 ; CHECK: # %bb.1:
 
 ; CHECK: .LBB1_3:
-; CHECK: mflr [[REGL:[0-9]+]]
 ; CHECK: ld [[REG2:[0-9]+]], [[OFF]](31)                   # 8-byte Folded Reload
+; CHECK: mflr [[REGL:[0-9]+]]
 ; CHECK: std [[REGL]], 8([[REG2]])
 ; CHECK: li 3, 0
 
@@ -145,6 +146,24 @@ return:                                           ; preds = %if.end, %if.then
 ; CHECK: blr
 }
 
+define void @test_sjlj_setjmp() #0 {
+entry:
+  %0 = load i8, i8* @cond, align 1
+  %tobool = trunc i8 %0 to i1
+  br i1 %tobool, label %return, label %end
+
+end:
+  %1 = call i32 @llvm.eh.sjlj.setjmp(i8* bitcast ([1 x %struct.__jmp_buf_tag]* @env_sigill to i8*))
+  br label %return
+
+return:
+  ret void
+
+; CHECK-LABEL: test_sjlj_setjmp:
+; intrinsic llvm.eh.sjlj.setjmp does not call builtin function _setjmp.
+; CHECK-NOT: bl _setjmp
+}
+
 declare void @bar(i8*) #3
 
 declare i8* @llvm.frameaddress(i32) #2
@@ -153,7 +172,7 @@ declare i8* @llvm.stacksave() #3
 
 declare i32 @llvm.eh.sjlj.setjmp(i8*) #3
 
-attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "less-precise-fpmad"="false" "frame-pointer"="non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { noreturn nounwind }
 attributes #2 = { nounwind readnone }
 attributes #3 = { nounwind }

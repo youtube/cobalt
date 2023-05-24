@@ -32,10 +32,10 @@ set(NVPTXCodeGen_sources
   NVPTXUtilities.cpp
   NVVMIntrRange.cpp
   NVVMReflect.cpp
+  NVPTXProxyRegErasure.cpp
   )
 
 add_llvm_target(NVPTXCodeGen ${NVPTXCodeGen_sources})
 
-add_subdirectory(InstPrinter)
 add_subdirectory(MCTargetDesc)
 add_subdirectory(TargetInfo)

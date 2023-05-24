@@ -1,9 +1,8 @@
 //===--- TwineLocalCheck.cpp - clang-tidy ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,7 +15,7 @@ using namespace clang::ast_matchers;
 
 namespace clang {
 namespace tidy {
-namespace llvm {
+namespace llvm_check {
 
 void TwineLocalCheck::registerMatchers(MatchFinder *Finder) {
   auto TwineType =
@@ -48,9 +47,9 @@ void TwineLocalCheck::check(const MatchFinder::MatchResult &Result) {
     if (VD->getType()->getCanonicalTypeUnqualified() ==
         C->getType()->getCanonicalTypeUnqualified()) {
       SourceLocation EndLoc = Lexer::getLocForEndOfToken(
-          VD->getInit()->getLocEnd(), 0, *Result.SourceManager, getLangOpts());
+          VD->getInit()->getEndLoc(), 0, *Result.SourceManager, getLangOpts());
       Diag << FixItHint::CreateReplacement(TypeRange, "std::string")
-           << FixItHint::CreateInsertion(VD->getInit()->getLocStart(), "(")
+           << FixItHint::CreateInsertion(VD->getInit()->getBeginLoc(), "(")
            << FixItHint::CreateInsertion(EndLoc, ").str()");
     } else {
       // Just an implicit conversion. Insert the real type.
@@ -61,6 +60,6 @@ void TwineLocalCheck::check(const MatchFinder::MatchResult &Result) {
   }
 }
 
-} // namespace llvm
+} // namespace llvm_check
 } // namespace tidy
 } // namespace clang

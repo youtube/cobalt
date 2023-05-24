@@ -1,9 +1,8 @@
 //===- RDFRegisters.h -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -100,15 +99,15 @@ namespace rdf {
                          const MachineFunction &mf);
 
     static bool isRegMaskId(RegisterId R) {
-      return TargetRegisterInfo::isStackSlot(R);
+      return Register::isStackSlot(R);
     }
 
     RegisterId getRegMaskId(const uint32_t *RM) const {
-      return TargetRegisterInfo::index2StackSlot(RegMasks.find(RM));
+      return Register::index2StackSlot(RegMasks.find(RM));
     }
 
     const uint32_t *getRegMaskBits(RegisterId R) const {
-      return RegMasks.get(TargetRegisterInfo::stackSlot2Index(R));
+      return RegMasks.get(Register::stackSlot2Index(R));
     }
 
     RegisterRef normalize(RegisterRef RR) const;
@@ -126,7 +125,7 @@ namespace rdf {
     }
 
     const BitVector &getMaskUnits(RegisterId MaskId) const {
-      return MaskInfos[TargetRegisterInfo::stackSlot2Index(MaskId)].Units;
+      return MaskInfos[Register::stackSlot2Index(MaskId)].Units;
     }
 
     RegisterRef mapTo(RegisterRef RR, unsigned R) const;

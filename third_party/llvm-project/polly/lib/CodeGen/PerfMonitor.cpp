@@ -1,9 +1,8 @@
 //===------ PerfMonitor.cpp - Generate a run-time performance monitor. -======//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,7 +12,7 @@
 #include "polly/CodeGen/RuntimeDebugBuilder.h"
 #include "polly/ScopInfo.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsX86.h"
 #include <sstream>
 
 using namespace llvm;
@@ -113,9 +112,6 @@ void PerfMonitor::addGlobalVariables() {
 
   TryRegisterGlobal(M, "__polly_perf_cycles_in_scop_start", Builder.getInt64(0),
                     &CyclesInScopStartPtr);
-
-  TryRegisterGlobal(M, "__polly_perf_write_loation", Builder.getInt32(0),
-                    &RDTSCPWriteLocation);
 }
 
 static const char *InitFunctionName = "__polly_perf_init";
@@ -142,9 +138,9 @@ Function *PerfMonitor::insertFinalReporting() {
 
   // Measure current cycles and compute final timings.
   Function *RDTSCPFn = getRDTSCP();
-  Value *CurrentCycles = Builder.CreateCall(
-      RDTSCPFn,
-      Builder.CreatePointerCast(RDTSCPWriteLocation, Builder.getInt8PtrTy()));
+
+  Value *CurrentCycles =
+      Builder.CreateExtractValue(Builder.CreateCall(RDTSCPFn), {0});
   Value *CyclesStart = Builder.CreateLoad(CyclesTotalStartPtr, true);
   Value *CyclesTotal = Builder.CreateSub(CurrentCycles, CyclesStart);
   Value *CyclesInScops = Builder.CreateLoad(CyclesInScopsPtr, true);
@@ -255,9 +251,8 @@ Function *PerfMonitor::insertInitFunction(Function *FinalReporting) {
   if (Supported) {
     // Read the currently cycle counter and store the result for later.
     Function *RDTSCPFn = getRDTSCP();
-    Value *CurrentCycles = Builder.CreateCall(
-        RDTSCPFn,
-        Builder.CreatePointerCast(RDTSCPWriteLocation, Builder.getInt8PtrTy()));
+    Value *CurrentCycles =
+        Builder.CreateExtractValue(Builder.CreateCall(RDTSCPFn), {0});
     Builder.CreateStore(CurrentCycles, CyclesTotalStartPtr, true);
   }
   Builder.CreateRetVoid();
@@ -271,9 +266,8 @@ void PerfMonitor::insertRegionStart(Instruction *InsertBefore) {
 
   Builder.SetInsertPoint(InsertBefore);
   Function *RDTSCPFn = getRDTSCP();
-  Value *CurrentCycles = Builder.CreateCall(
-      RDTSCPFn,
-      Builder.CreatePointerCast(RDTSCPWriteLocation, Builder.getInt8PtrTy()));
+  Value *CurrentCycles =
+      Builder.CreateExtractValue(Builder.CreateCall(RDTSCPFn), {0});
   Builder.CreateStore(CurrentCycles, CyclesInScopStartPtr, true);
 }
 
@@ -284,9 +278,8 @@ void PerfMonitor::insertRegionEnd(Instruction *InsertBefore) {
   Builder.SetInsertPoint(InsertBefore);
   Function *RDTSCPFn = getRDTSCP();
   LoadInst *CyclesStart = Builder.CreateLoad(CyclesInScopStartPtr, true);
-  Value *CurrentCycles = Builder.CreateCall(
-      RDTSCPFn,
-      Builder.CreatePointerCast(RDTSCPWriteLocation, Builder.getInt8PtrTy()));
+  Value *CurrentCycles =
+      Builder.CreateExtractValue(Builder.CreateCall(RDTSCPFn), {0});
   Value *CyclesInScop = Builder.CreateSub(CurrentCycles, CyclesStart);
   Value *CyclesInScops = Builder.CreateLoad(CyclesInScopsPtr, true);
   CyclesInScops = Builder.CreateAdd(CyclesInScops, CyclesInScop);

@@ -1,9 +1,8 @@
 //===-- FrontendActions.h - Useful Frontend Actions -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -75,12 +74,6 @@ protected:
                                                  StringRef InFile) override;
 };
 
-class DeclContextPrintAction : public ASTFrontendAction {
-protected:
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) override;
-};
-
 class GeneratePCHAction : public ASTFrontendAction {
 protected:
   std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
@@ -126,6 +119,19 @@ protected:
   bool hasASTFileSupport() const override { return false; }
 };
 
+class GenerateInterfaceStubAction : public ASTFrontendAction {
+protected:
+  TranslationUnitKind getTranslationUnitKind() override { return TU_Module; }
+
+  bool hasASTFileSupport() const override { return false; }
+};
+
+class GenerateInterfaceIfsExpV1Action : public GenerateInterfaceStubAction {
+protected:
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
+};
+
 class GenerateModuleFromModuleMapAction : public GenerateModuleAction {
 private:
   bool BeginSourceFileAction(CompilerInstance &CI) override;
@@ -136,6 +142,19 @@ private:
 
 class GenerateModuleInterfaceAction : public GenerateModuleAction {
 private:
+  bool BeginSourceFileAction(CompilerInstance &CI) override;
+
+  std::unique_ptr<raw_pwrite_stream>
+  CreateOutputFile(CompilerInstance &CI, StringRef InFile) override;
+};
+
+class GenerateHeaderModuleAction : public GenerateModuleAction {
+  /// The synthesized module input buffer for the current compilation.
+  std::unique_ptr<llvm::MemoryBuffer> Buffer;
+  std::vector<std::string> ModuleHeaders;
+
+private:
+  bool PrepareToExecuteAction(CompilerInstance &CI) override;
   bool BeginSourceFileAction(CompilerInstance &CI) override;
 
   std::unique_ptr<raw_pwrite_stream>
@@ -234,6 +253,17 @@ protected:
   bool usesPreprocessorOnly() const override { return true; }
 };
 
+class PrintDependencyDirectivesSourceMinimizerAction : public FrontendAction {
+protected:
+  void ExecuteAction() override;
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &,
+                                                 StringRef) override {
+    return nullptr;
+  }
+
+  bool usesPreprocessorOnly() const override { return true; }
+};
+
 //===----------------------------------------------------------------------===//
 // Preprocessor Actions
 //===----------------------------------------------------------------------===//
@@ -244,11 +274,6 @@ protected:
 };
 
 class DumpTokensAction : public PreprocessorFrontendAction {
-protected:
-  void ExecuteAction() override;
-};
-
-class GeneratePTHAction : public PreprocessorFrontendAction {
 protected:
   void ExecuteAction() override;
 };

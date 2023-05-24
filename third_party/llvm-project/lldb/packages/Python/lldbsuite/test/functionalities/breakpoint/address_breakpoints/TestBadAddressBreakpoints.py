@@ -2,12 +2,8 @@
 Test that breakpoints set on a bad address say they are bad.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 import lldbsuite.test.lldbutil as lldbutil
 from lldbsuite.test.lldbtest import *
@@ -23,10 +19,6 @@ class BadAddressBreakpointTestCase(TestBase):
         """Test that breakpoints set on a bad address say they are bad."""
         self.build()
         self.address_breakpoints()
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
 
     def address_breakpoints(self):
         """Test that breakpoints set on a bad address say they are bad."""

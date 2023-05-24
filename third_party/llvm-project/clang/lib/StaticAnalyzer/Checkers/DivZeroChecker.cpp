@@ -1,9 +1,8 @@
 //== DivZeroChecker.cpp - Division by zero checker --------------*- C++ -*--==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,7 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "Taint.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
@@ -20,6 +20,7 @@
 
 using namespace clang;
 using namespace ento;
+using namespace taint;
 
 namespace {
 class DivZeroChecker : public Checker< check::PreStmt<BinaryOperator> > {
@@ -32,6 +33,13 @@ public:
 };
 } // end anonymous namespace
 
+static const Expr *getDenomExpr(const ExplodedNode *N) {
+  const Stmt *S = N->getLocationAs<PreStmt>()->getStmt();
+  if (const auto *BE = dyn_cast<BinaryOperator>(S))
+    return BE->getRHS();
+  return nullptr;
+}
+
 void DivZeroChecker::reportBug(
     const char *Msg, ProgramStateRef StateZero, CheckerContext &C,
     std::unique_ptr<BugReporterVisitor> Visitor) const {
@@ -39,9 +47,9 @@ void DivZeroChecker::reportBug(
     if (!BT)
       BT.reset(new BuiltinBug(this, "Division by zero"));
 
-    auto R = llvm::make_unique<BugReport>(*BT, Msg, N);
+    auto R = std::make_unique<PathSensitiveBugReport>(*BT, Msg, N);
     R->addVisitor(std::move(Visitor));
-    bugreporter::trackNullOrUndefValue(N, bugreporter::GetDenomExpr(N), *R);
+    bugreporter::trackExpressionValue(N, getDenomExpr(N), *R);
     C.emitReport(std::move(R));
   }
 }
@@ -77,10 +85,10 @@ void DivZeroChecker::checkPreStmt(const BinaryOperator *B,
     return;
   }
 
-  bool TaintedD = C.getState()->isTainted(*DV);
+  bool TaintedD = isTainted(C.getState(), *DV);
   if ((stateNotZero && stateZero && TaintedD)) {
     reportBug("Division by a tainted value, possibly zero", stateZero, C,
-              llvm::make_unique<TaintBugVisitor>(*DV));
+              std::make_unique<taint::TaintBugVisitor>(*DV));
     return;
   }
 
@@ -91,4 +99,8 @@ void DivZeroChecker::checkPreStmt(const BinaryOperator *B,
 
 void ento::registerDivZeroChecker(CheckerManager &mgr) {
   mgr.registerChecker<DivZeroChecker>();
+}
+
+bool ento::shouldRegisterDivZeroChecker(const LangOptions &LO) {
+  return true;
 }

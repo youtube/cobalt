@@ -1,4 +1,5 @@
 ; RUN: opt < %s -simplifycfg -sink-common-insts -S | FileCheck -enable-var-scope %s
+; RUN: opt < %s -passes='simplify-cfg<sink-common-insts>' -S | FileCheck -enable-var-scope %s
 
 define zeroext i1 @test1(i1 zeroext %flag, i32 %blksA, i32 %blksB, i32 %nblks) {
 entry:
@@ -841,6 +842,77 @@ if.end:
 ; CHECK: select
 ; CHECK: insertvalue
 ; CHECK-NOT: insertvalue
+
+
+declare void @baz(i32)
+
+define void @test_sink_void_calls(i32 %x) {
+entry:
+  switch i32 %x, label %default [
+    i32 0, label %bb0
+    i32 1, label %bb1
+    i32 2, label %bb2
+    i32 3, label %bb3
+    i32 4, label %bb4
+  ]
+bb0:
+  call void @baz(i32 12)
+  br label %return
+bb1:
+  call void @baz(i32 34)
+  br label %return
+bb2:
+  call void @baz(i32 56)
+  br label %return
+bb3:
+  call void @baz(i32 78)
+  br label %return
+bb4:
+  call void @baz(i32 90)
+  br label %return
+default:
+  unreachable
+return:
+  ret void
+
+; Check that the calls get sunk to the return block.
+; We would previously not sink calls without uses, see PR41259.
+; CHECK-LABEL: @test_sink_void_calls
+; CHECK-NOT: call
+; CHECK-LABEL: return:
+; CHECK: phi
+; CHECK: call
+; CHECK-NOT: call
+; CHECK: ret
+}
+
+; CHECK-LABEL: @test_not_sink_lifetime_marker
+; CHECK-NOT: select
+; CHECK: call void @llvm.lifetime.end
+; CHECK: call void @llvm.lifetime.end
+define i32 @test_not_sink_lifetime_marker(i1 zeroext %flag, i32 %x) {
+entry:
+  %y = alloca i32
+  %z = alloca i32
+  br i1 %flag, label %if.then, label %if.else
+
+if.then:
+  %y.cast = bitcast i32* %y to i8*
+  call void @llvm.lifetime.end.p0i8(i64 4, i8* %y.cast)
+  br label %if.end
+
+if.else:
+  %z.cast = bitcast i32* %z to i8*
+  call void @llvm.lifetime.end.p0i8(i64 4, i8* %z.cast)
+  br label %if.end
+
+if.end:
+  ret i32 1
+}
+
+declare void @llvm.lifetime.start.p0i8(i64, i8* nocapture)
+declare void @llvm.lifetime.end.p0i8(i64, i8* nocapture)
+
 
 ; CHECK: ![[$TBAA]] = !{![[TYPE:[0-9]]], ![[TYPE]], i64 0}
 ; CHECK: ![[TYPE]] = !{!"float", ![[TEXT:[0-9]]]}

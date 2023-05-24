@@ -1,9 +1,8 @@
 //===--- UnusedParametersCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -41,15 +40,15 @@ static CharSourceRange removeNode(const MatchFinder::MatchResult &Result,
                                   const T *PrevNode, const T *Node,
                                   const T *NextNode) {
   if (NextNode)
-    return CharSourceRange::getCharRange(Node->getLocStart(),
-                                         NextNode->getLocStart());
+    return CharSourceRange::getCharRange(Node->getBeginLoc(),
+                                         NextNode->getBeginLoc());
 
   if (PrevNode)
     return CharSourceRange::getTokenRange(
-        Lexer::getLocForEndOfToken(PrevNode->getLocEnd(), 0,
+        Lexer::getLocForEndOfToken(PrevNode->getEndLoc(), 0,
                                    *Result.SourceManager,
                                    Result.Context->getLangOpts()),
-        Node->getLocEnd());
+        Node->getEndLoc());
 
   return CharSourceRange::getTokenRange(Node->getSourceRange());
 }
@@ -74,7 +73,7 @@ static FixItHint removeArgument(const MatchFinder::MatchResult &Result,
 class UnusedParametersCheck::IndexerVisitor
     : public RecursiveASTVisitor<IndexerVisitor> {
 public:
-  IndexerVisitor(TranslationUnitDecl *Top) { TraverseDecl(Top); }
+  IndexerVisitor(ASTContext &Ctx) { TraverseAST(Ctx); }
 
   const std::unordered_set<const CallExpr *> &
   getFnCalls(const FunctionDecl *Fn) {
@@ -136,18 +135,22 @@ void UnusedParametersCheck::warnOnUnusedParameter(
   auto MyDiag = diag(Param->getLocation(), "parameter %0 is unused") << Param;
 
   if (!Indexer) {
-    Indexer = llvm::make_unique<IndexerVisitor>(
-        Result.Context->getTranslationUnitDecl());
+    Indexer = std::make_unique<IndexerVisitor>(*Result.Context);
   }
 
-  // Comment out parameter name for non-local functions.
+  // Cannot remove parameter for non-local functions.
   if (Function->isExternallyVisible() ||
       !Result.SourceManager->isInMainFile(Function->getLocation()) ||
       !Indexer->getOtherRefs(Function).empty() || isOverrideMethod(Function)) {
+
+    // It is illegal to omit parameter name here in C code, so early-out.
+    if (!Result.Context->getLangOpts().CPlusPlus)
+      return;
+
     SourceRange RemovalRange(Param->getLocation());
-    // Note: We always add a space before the '/*' to not accidentally create a
-    // '*/*' for pointer types, which doesn't start a comment. clang-format will
-    // clean this up afterwards.
+    // Note: We always add a space before the '/*' to not accidentally create
+    // a '*/*' for pointer types, which doesn't start a comment. clang-format
+    // will clean this up afterwards.
     MyDiag << FixItHint::CreateReplacement(
         RemovalRange, (Twine(" /*") + Param->getName() + "*/").str());
     return;

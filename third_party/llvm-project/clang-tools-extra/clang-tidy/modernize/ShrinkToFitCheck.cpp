@@ -1,9 +1,8 @@
 //===--- ShrinkToFitCheck.cpp - clang-tidy---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -59,7 +58,7 @@ void ShrinkToFitCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *Container = Result.Nodes.getNodeAs<Expr>("ContainerToShrink");
   FixItHint Hint;
 
-  if (!MemberCall->getLocStart().isMacroID()) {
+  if (!MemberCall->getBeginLoc().isMacroID()) {
     const LangOptions &Opts = getLangOpts();
     std::string ReplacementText;
     if (const auto *UnaryOp = llvm::dyn_cast<UnaryOperator>(Container)) {
@@ -79,7 +78,7 @@ void ShrinkToFitCheck::check(const MatchFinder::MatchResult &Result) {
                                         ReplacementText);
   }
 
-  diag(MemberCall->getLocStart(), "the shrink_to_fit method should be used "
+  diag(MemberCall->getBeginLoc(), "the shrink_to_fit method should be used "
                                   "to reduce the capacity of a shrinkable "
                                   "container")
       << Hint;

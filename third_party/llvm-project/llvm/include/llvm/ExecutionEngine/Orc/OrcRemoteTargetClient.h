@@ -1,9 +1,8 @@
 //===- OrcRemoteTargetClient.h - Orc Remote-target Client -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -118,30 +117,33 @@ public:
         Unmapped.back().RemoteCodeAddr =
             Client.reserveMem(Id, CodeSize, CodeAlign);
 
-        LLVM_DEBUG(dbgs() << "  code: "
-                          << format("0x%016x", Unmapped.back().RemoteCodeAddr)
-                          << " (" << CodeSize << " bytes, alignment "
-                          << CodeAlign << ")\n");
+        LLVM_DEBUG(
+            dbgs() << "  code: "
+                   << format("0x%016" PRIx64, Unmapped.back().RemoteCodeAddr)
+                   << " (" << CodeSize << " bytes, alignment " << CodeAlign
+                   << ")\n");
       }
 
       if (RODataSize != 0) {
         Unmapped.back().RemoteRODataAddr =
             Client.reserveMem(Id, RODataSize, RODataAlign);
 
-        LLVM_DEBUG(dbgs() << "  ro-data: "
-                          << format("0x%016x", Unmapped.back().RemoteRODataAddr)
-                          << " (" << RODataSize << " bytes, alignment "
-                          << RODataAlign << ")\n");
+        LLVM_DEBUG(
+            dbgs() << "  ro-data: "
+                   << format("0x%016" PRIx64, Unmapped.back().RemoteRODataAddr)
+                   << " (" << RODataSize << " bytes, alignment " << RODataAlign
+                   << ")\n");
       }
 
       if (RWDataSize != 0) {
         Unmapped.back().RemoteRWDataAddr =
             Client.reserveMem(Id, RWDataSize, RWDataAlign);
 
-        LLVM_DEBUG(dbgs() << "  rw-data: "
-                          << format("0x%016x", Unmapped.back().RemoteRWDataAddr)
-                          << " (" << RWDataSize << " bytes, alignment "
-                          << RWDataAlign << ")\n");
+        LLVM_DEBUG(
+            dbgs() << "  rw-data: "
+                   << format("0x%016" PRIx64, Unmapped.back().RemoteRWDataAddr)
+                   << " (" << RWDataSize << " bytes, alignment " << RWDataAlign
+                   << ")\n");
       }
     }
 
@@ -269,9 +271,9 @@ public:
       for (auto &Alloc : Allocs) {
         NextAddr = alignTo(NextAddr, Alloc.getAlign());
         Dyld.mapSectionAddress(Alloc.getLocalAddress(), NextAddr);
-        LLVM_DEBUG(dbgs() << "     "
-                          << static_cast<void *>(Alloc.getLocalAddress())
-                          << " -> " << format("0x%016x", NextAddr) << "\n");
+        LLVM_DEBUG(
+            dbgs() << "     " << static_cast<void *>(Alloc.getLocalAddress())
+                   << " -> " << format("0x%016" PRIx64, NextAddr) << "\n");
         Alloc.setRemoteAddress(NextAddr);
 
         // Only advance NextAddr if it was non-null to begin with,
@@ -293,7 +295,7 @@ public:
           LLVM_DEBUG(dbgs() << "  copying section: "
                             << static_cast<void *>(Alloc.getLocalAddress())
                             << " -> "
-                            << format("0x%016x", Alloc.getRemoteAddress())
+                            << format("0x%016" PRIx64, Alloc.getRemoteAddress())
                             << " (" << Alloc.getSize() << " bytes)\n";);
 
           if (Client.writeMem(Alloc.getRemoteAddress(), Alloc.getLocalAddress(),
@@ -306,7 +308,8 @@ public:
                           << (Permissions & sys::Memory::MF_WRITE ? 'W' : '-')
                           << (Permissions & sys::Memory::MF_EXEC ? 'X' : '-')
                           << " permissions on block: "
-                          << format("0x%016x", RemoteSegmentAddr) << "\n");
+                          << format("0x%016" PRIx64, RemoteSegmentAddr)
+                          << "\n");
         if (Client.setProtections(Id, RemoteSegmentAddr, Permissions))
           return true;
       }
@@ -446,16 +449,24 @@ public:
     StringMap<std::pair<StubKey, JITSymbolFlags>> StubIndexes;
   };
 
-  /// Remote compile callback manager.
-  class RemoteCompileCallbackManager : public JITCompileCallbackManager {
+  class RemoteTrampolinePool : public TrampolinePool {
   public:
-    RemoteCompileCallbackManager(OrcRemoteTargetClient &Client,
-                                 ExecutionSession &ES,
-                                 JITTargetAddress ErrorHandlerAddress)
-        : JITCompileCallbackManager(ES, ErrorHandlerAddress), Client(Client) {}
+    RemoteTrampolinePool(OrcRemoteTargetClient &Client) : Client(Client) {}
+
+    Expected<JITTargetAddress> getTrampoline() override {
+      std::lock_guard<std::mutex> Lock(RTPMutex);
+      if (AvailableTrampolines.empty()) {
+        if (auto Err = grow())
+          return std::move(Err);
+      }
+      assert(!AvailableTrampolines.empty() && "Failed to grow trampoline pool");
+      auto TrampolineAddr = AvailableTrampolines.back();
+      AvailableTrampolines.pop_back();
+      return TrampolineAddr;
+    }
 
   private:
-    Error grow() override {
+    Error grow() {
       JITTargetAddress BlockAddr = 0;
       uint32_t NumTrampolines = 0;
       if (auto TrampolineInfoOrErr = Client.emitTrampolineBlock())
@@ -470,7 +481,20 @@ public:
       return Error::success();
     }
 
+    std::mutex RTPMutex;
     OrcRemoteTargetClient &Client;
+    std::vector<JITTargetAddress> AvailableTrampolines;
+  };
+
+  /// Remote compile callback manager.
+  class RemoteCompileCallbackManager : public JITCompileCallbackManager {
+  public:
+    RemoteCompileCallbackManager(OrcRemoteTargetClient &Client,
+                                 ExecutionSession &ES,
+                                 JITTargetAddress ErrorHandlerAddress)
+        : JITCompileCallbackManager(
+              std::make_unique<RemoteTrampolinePool>(Client), ES,
+              ErrorHandlerAddress) {}
   };
 
   /// Create an OrcRemoteTargetClient.
@@ -489,8 +513,8 @@ public:
   /// Call the int(void) function at the given address in the target and return
   /// its result.
   Expected<int> callIntVoid(JITTargetAddress Addr) {
-    LLVM_DEBUG(dbgs() << "Calling int(*)(void) " << format("0x%016x", Addr)
-                      << "\n");
+    LLVM_DEBUG(dbgs() << "Calling int(*)(void) "
+                      << format("0x%016" PRIx64, Addr) << "\n");
     return callB<exec::CallIntVoid>(Addr);
   }
 
@@ -499,15 +523,15 @@ public:
   Expected<int> callMain(JITTargetAddress Addr,
                          const std::vector<std::string> &Args) {
     LLVM_DEBUG(dbgs() << "Calling int(*)(int, char*[]) "
-                      << format("0x%016x", Addr) << "\n");
+                      << format("0x%016" PRIx64, Addr) << "\n");
     return callB<exec::CallMain>(Addr, Args);
   }
 
   /// Call the void() function at the given address in the target and wait for
   /// it to finish.
   Error callVoidVoid(JITTargetAddress Addr) {
-    LLVM_DEBUG(dbgs() << "Calling void(*)(void) " << format("0x%016x", Addr)
-                      << "\n");
+    LLVM_DEBUG(dbgs() << "Calling void(*)(void) "
+                      << format("0x%016" PRIx64, Addr) << "\n");
     return callB<exec::CallVoidVoid>(Addr);
   }
 
@@ -529,7 +553,7 @@ public:
     auto Id = IndirectStubOwnerIds.getNext();
     if (auto Err = callB<stubs::CreateIndirectStubsOwner>(Id))
       return std::move(Err);
-    return llvm::make_unique<RemoteIndirectStubsManager>(*this, Id);
+    return std::make_unique<RemoteIndirectStubsManager>(*this, Id);
   }
 
   Expected<RemoteCompileCallbackManager &>

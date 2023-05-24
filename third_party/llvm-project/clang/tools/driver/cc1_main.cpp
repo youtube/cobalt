@@ -1,9 +1,8 @@
 //===-- cc1_main.cpp - Clang CC1 Compiler Frontend ------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,10 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Option/Arg.h"
+#include "clang/Basic/Stack.h"
+#include "clang/Basic/TargetOptions.h"
 #include "clang/CodeGen/ObjectFilePCHContainerOperations.h"
 #include "clang/Config/config.h"
-#include "clang/Basic/Stack.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -29,15 +28,21 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/LinkAllPasses.h"
+#include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/OptTable.h"
+#include "llvm/Support/BuryPointer.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
 #include <cstdio>
 
 #ifdef CLANG_HAVE_RLIMITS
@@ -66,12 +71,6 @@ static void LLVMErrorHandler(void *UserData, const std::string &Message,
   // defined as an internal software error.  Otherwise, exit with status 1.
   exit(GenCrashDiag ? 70 : 1);
 }
-
-#ifdef LINK_POLLY_INTO_TOOLS
-namespace polly {
-void initializePollyPasses(llvm::PassRegistry &Registry);
-}
-#endif
 
 #ifdef CLANG_HAVE_RLIMITS
 #if defined(__linux__) && defined(__PIE__)
@@ -164,6 +163,23 @@ static void ensureSufficientStack() {
 static void ensureSufficientStack() {}
 #endif
 
+/// Print supported cpus of the given target.
+static int PrintSupportedCPUs(std::string TargetStr) {
+  std::string Error;
+  const llvm::Target *TheTarget =
+      llvm::TargetRegistry::lookupTarget(TargetStr, Error);
+  if (!TheTarget) {
+    llvm::errs() << Error;
+    return 1;
+  }
+
+  // the target machine will handle the mcpu printing
+  llvm::TargetOptions Options;
+  std::unique_ptr<llvm::TargetMachine> TheTargetMachine(
+      TheTarget->createTargetMachine(TargetStr, "", "+cpuHelp", Options, None));
+  return 0;
+}
+
 int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   ensureSufficientStack();
 
@@ -172,8 +188,8 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
 
   // Register the support for object-file-wrapped Clang modules.
   auto PCHOps = Clang->getPCHContainerOperations();
-  PCHOps->registerWriter(llvm::make_unique<ObjectFilePCHContainerWriter>());
-  PCHOps->registerReader(llvm::make_unique<ObjectFilePCHContainerReader>());
+  PCHOps->registerWriter(std::make_unique<ObjectFilePCHContainerWriter>());
+  PCHOps->registerReader(std::make_unique<ObjectFilePCHContainerReader>());
 
   // Initialize targets first, so that --version shows registered targets.
   llvm::InitializeAllTargets();
@@ -181,18 +197,21 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   llvm::InitializeAllAsmPrinters();
   llvm::InitializeAllAsmParsers();
 
-#ifdef LINK_POLLY_INTO_TOOLS
-  llvm::PassRegistry &Registry = *llvm::PassRegistry::getPassRegistry();
-  polly::initializePollyPasses(Registry);
-#endif
-
   // Buffer diagnostics from argument parsing so that we can output them using a
   // well formed diagnostic object.
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
   TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
   DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
-  bool Success = CompilerInvocation::CreateFromArgs(
-      Clang->getInvocation(), Argv.begin(), Argv.end(), Diags);
+  bool Success =
+      CompilerInvocation::CreateFromArgs(Clang->getInvocation(), Argv, Diags);
+
+  if (Clang->getFrontendOpts().TimeTrace) {
+    llvm::timeTraceProfilerInitialize(
+        Clang->getFrontendOpts().TimeTraceGranularity, Argv0);
+  }
+  // --print-supported-cpus takes priority over the actual compilation.
+  if (Clang->getFrontendOpts().PrintSupportedCPUs)
+    return PrintSupportedCPUs(Clang->getTargetOpts().Triple);
 
   // Infer the builtin include path if unspecified.
   if (Clang->getHeaderSearchOpts().UseBuiltinIncludes &&
@@ -215,11 +234,32 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
     return 1;
 
   // Execute the frontend actions.
-  Success = ExecuteCompilerInvocation(Clang.get());
+  {
+    llvm::TimeTraceScope TimeScope("ExecuteCompiler");
+    Success = ExecuteCompilerInvocation(Clang.get());
+  }
 
   // If any timers were active but haven't been destroyed yet, print their
   // results now.  This happens in -disable-free mode.
   llvm::TimerGroup::printAll(llvm::errs());
+  llvm::TimerGroup::clearAll();
+
+  if (llvm::timeTraceProfilerEnabled()) {
+    SmallString<128> Path(Clang->getFrontendOpts().OutputFile);
+    llvm::sys::path::replace_extension(Path, "json");
+    if (auto profilerOutput =
+            Clang->createOutputFile(Path.str(),
+                                    /*Binary=*/false,
+                                    /*RemoveFileOnSignal=*/false, "",
+                                    /*Extension=*/"json",
+                                    /*useTemporary=*/false)) {
+
+      llvm::timeTraceProfilerWrite(*profilerOutput);
+      // FIXME(ibiryukov): make profilerOutput flush in destructor instead.
+      profilerOutput->flush();
+      llvm::timeTraceProfilerCleanup();
+    }
+  }
 
   // Our error handler depends on the Diagnostics object, which we're
   // potentially about to delete. Uninstall the handler now so that any
@@ -228,7 +268,7 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
 
   // When running with -disable-free, don't do any destruction or shutdown.
   if (Clang->getFrontendOpts().DisableFree) {
-    BuryPointer(std::move(Clang));
+    llvm::BuryPointer(std::move(Clang));
     return !Success;
   }
 

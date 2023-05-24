@@ -1,9 +1,8 @@
 //===-- DifferenceEngine.cpp - Structural function/module comparison ------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -68,7 +67,7 @@ public:
     unsigned NewSize = Storage.size() - 1;
     if (NewSize) {
       // Move the slot at the end to the beginning.
-      if (isPodLike<T>::value)
+      if (is_trivially_copyable<T>::value)
         Storage[0] = Storage[NewSize];
       else
         std::swap(Storage[0], Storage[NewSize]);
@@ -629,8 +628,8 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
   // If the terminators have different kinds, but one is an invoke and the
   // other is an unconditional branch immediately following a call, unify
   // the results and the destinations.
-  TerminatorInst *LTerm = LStart->getParent()->getTerminator();
-  TerminatorInst *RTerm = RStart->getParent()->getTerminator();
+  Instruction *LTerm = LStart->getParent()->getTerminator();
+  Instruction *RTerm = RStart->getParent()->getTerminator();
   if (isa<BranchInst>(LTerm) && isa<InvokeInst>(RTerm)) {
     if (cast<BranchInst>(LTerm)->isConditional()) return;
     BasicBlock::iterator I = LTerm->getIterator();
@@ -686,9 +685,18 @@ void DifferenceEngine::diff(Module *L, Module *R) {
   StringSet<> LNames;
   SmallVector<std::pair<Function*,Function*>, 20> Queue;
 
+  unsigned LeftAnonCount = 0;
+  unsigned RightAnonCount = 0;
+
   for (Module::iterator I = L->begin(), E = L->end(); I != E; ++I) {
     Function *LFn = &*I;
-    LNames.insert(LFn->getName());
+    StringRef Name = LFn->getName();
+    if (Name.empty()) {
+      ++LeftAnonCount;
+      continue;
+    }
+
+    LNames.insert(Name);
 
     if (Function *RFn = R->getFunction(LFn->getName()))
       Queue.push_back(std::make_pair(LFn, RFn));
@@ -698,8 +706,23 @@ void DifferenceEngine::diff(Module *L, Module *R) {
 
   for (Module::iterator I = R->begin(), E = R->end(); I != E; ++I) {
     Function *RFn = &*I;
-    if (!LNames.count(RFn->getName()))
+    StringRef Name = RFn->getName();
+    if (Name.empty()) {
+      ++RightAnonCount;
+      continue;
+    }
+
+    if (!LNames.count(Name))
       logf("function %r exists only in right module") << RFn;
+  }
+
+
+  if (LeftAnonCount != 0 || RightAnonCount != 0) {
+    SmallString<32> Tmp;
+    logf(("not comparing " + Twine(LeftAnonCount) +
+          " anonymous functions in the left module and " +
+          Twine(RightAnonCount) + " in the right module")
+             .toStringRef(Tmp));
   }
 
   for (SmallVectorImpl<std::pair<Function*,Function*> >::iterator
@@ -709,5 +732,14 @@ void DifferenceEngine::diff(Module *L, Module *R) {
 
 bool DifferenceEngine::equivalentAsOperands(GlobalValue *L, GlobalValue *R) {
   if (globalValueOracle) return (*globalValueOracle)(L, R);
+
+  if (isa<GlobalVariable>(L) && isa<GlobalVariable>(R)) {
+    GlobalVariable *GVL = cast<GlobalVariable>(L);
+    GlobalVariable *GVR = cast<GlobalVariable>(R);
+    if (GVL->hasLocalLinkage() && GVL->hasUniqueInitializer() &&
+        GVR->hasLocalLinkage() && GVR->hasUniqueInitializer())
+      return GVL->getInitializer() == GVR->getInitializer();
+  }
+
   return L->getName() == R->getName();
 }

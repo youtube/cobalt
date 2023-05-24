@@ -1,9 +1,8 @@
 //===- LoadStoreVectorizer.cpp - GPU Load & Store Vectorizer --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -39,6 +38,7 @@
 // could use this pass (with some modifications), but currently it implements
 // its own pass to do something similar to what we do here.
 
+#include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/MapVector.h"
@@ -53,7 +53,6 @@
 #include "llvm/Analysis/OrderedBasicBlock.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/Attributes.h"
@@ -72,12 +71,14 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Vectorize.h"
 #include <algorithm>
 #include <cassert>
@@ -147,7 +148,7 @@ private:
   static const unsigned MaxDepth = 3;
 
   bool isConsecutiveAccess(Value *A, Value *B);
-  bool areConsecutivePointers(Value *PtrA, Value *PtrB, const APInt &PtrDelta,
+  bool areConsecutivePointers(Value *PtrA, Value *PtrB, APInt PtrDelta,
                               unsigned Depth = 0) const;
   bool lookThroughComplexAddresses(Value *PtrA, Value *PtrB, APInt PtrDelta,
                                    unsigned Depth) const;
@@ -205,12 +206,12 @@ private:
                           unsigned Alignment);
 };
 
-class LoadStoreVectorizer : public FunctionPass {
+class LoadStoreVectorizerLegacyPass : public FunctionPass {
 public:
   static char ID;
 
-  LoadStoreVectorizer() : FunctionPass(ID) {
-    initializeLoadStoreVectorizerPass(*PassRegistry::getPassRegistry());
+  LoadStoreVectorizerLegacyPass() : FunctionPass(ID) {
+    initializeLoadStoreVectorizerLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;
@@ -230,30 +231,23 @@ public:
 
 } // end anonymous namespace
 
-char LoadStoreVectorizer::ID = 0;
+char LoadStoreVectorizerLegacyPass::ID = 0;
 
-INITIALIZE_PASS_BEGIN(LoadStoreVectorizer, DEBUG_TYPE,
+INITIALIZE_PASS_BEGIN(LoadStoreVectorizerLegacyPass, DEBUG_TYPE,
                       "Vectorize load and Store instructions", false, false)
 INITIALIZE_PASS_DEPENDENCY(SCEVAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
-INITIALIZE_PASS_END(LoadStoreVectorizer, DEBUG_TYPE,
+INITIALIZE_PASS_END(LoadStoreVectorizerLegacyPass, DEBUG_TYPE,
                     "Vectorize load and store instructions", false, false)
 
 Pass *llvm::createLoadStoreVectorizerPass() {
-  return new LoadStoreVectorizer();
+  return new LoadStoreVectorizerLegacyPass();
 }
 
-// The real propagateMetadata expects a SmallVector<Value*>, but we deal in
-// vectors of Instructions.
-static void propagateMetadata(Instruction *I, ArrayRef<Instruction *> IL) {
-  SmallVector<Value *, 8> VL(IL.begin(), IL.end());
-  propagateMetadata(I, VL);
-}
-
-bool LoadStoreVectorizer::runOnFunction(Function &F) {
+bool LoadStoreVectorizerLegacyPass::runOnFunction(Function &F) {
   // Don't vectorize when the attribute NoImplicitFloat is used.
   if (skipFunction(F) || F.hasFnAttribute(Attribute::NoImplicitFloat))
     return false;
@@ -266,6 +260,30 @@ bool LoadStoreVectorizer::runOnFunction(Function &F) {
 
   Vectorizer V(F, AA, DT, SE, TTI);
   return V.run();
+}
+
+PreservedAnalyses LoadStoreVectorizerPass::run(Function &F, FunctionAnalysisManager &AM) {
+  // Don't vectorize when the attribute NoImplicitFloat is used.
+  if (F.hasFnAttribute(Attribute::NoImplicitFloat))
+    return PreservedAnalyses::all();
+
+  AliasAnalysis &AA = AM.getResult<AAManager>(F);
+  DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
+  ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
+  TargetTransformInfo &TTI = AM.getResult<TargetIRAnalysis>(F);
+
+  Vectorizer V(F, AA, DT, SE, TTI);
+  bool Changed = V.run();
+  PreservedAnalyses PA;
+  PA.preserveSet<CFGAnalyses>();
+  return Changed ? PA : PreservedAnalyses::all();
+}
+
+// The real propagateMetadata expects a SmallVector<Value*>, but we deal in
+// vectors of Instructions.
+static void propagateMetadata(Instruction *I, ArrayRef<Instruction *> IL) {
+  SmallVector<Value *, 8> VL(IL.begin(), IL.end());
+  propagateMetadata(I, VL);
 }
 
 // Vectorizer Implementation
@@ -319,13 +337,28 @@ bool Vectorizer::isConsecutiveAccess(Value *A, Value *B) {
 }
 
 bool Vectorizer::areConsecutivePointers(Value *PtrA, Value *PtrB,
-                                        const APInt &PtrDelta,
-                                        unsigned Depth) const {
+                                        APInt PtrDelta, unsigned Depth) const {
   unsigned PtrBitWidth = DL.getPointerTypeSizeInBits(PtrA->getType());
   APInt OffsetA(PtrBitWidth, 0);
   APInt OffsetB(PtrBitWidth, 0);
   PtrA = PtrA->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetA);
   PtrB = PtrB->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetB);
+
+  unsigned NewPtrBitWidth = DL.getTypeStoreSizeInBits(PtrA->getType());
+
+  if (NewPtrBitWidth != DL.getTypeStoreSizeInBits(PtrB->getType()))
+    return false;
+
+  // In case if we have to shrink the pointer
+  // stripAndAccumulateInBoundsConstantOffsets should properly handle a
+  // possible overflow and the value should fit into a smallest data type
+  // used in the cast/gep chain.
+  assert(OffsetA.getMinSignedBits() <= NewPtrBitWidth &&
+         OffsetB.getMinSignedBits() <= NewPtrBitWidth);
+
+  OffsetA = OffsetA.sextOrTrunc(NewPtrBitWidth);
+  OffsetB = OffsetB.sextOrTrunc(NewPtrBitWidth);
+  PtrDelta = PtrDelta.sextOrTrunc(NewPtrBitWidth);
 
   APInt OffsetDelta = OffsetB - OffsetA;
 
@@ -633,7 +666,7 @@ Vectorizer::getVectorizablePrefix(ArrayRef<Instruction *> Chain) {
       // We can ignore the alias if the we have a load store pair and the load
       // is known to be invariant. The load cannot be clobbered by the store.
       auto IsInvariantLoad = [](const LoadInst *LI) -> bool {
-        return LI->getMetadata(LLVMContext::MD_invariant_load);
+        return LI->hasMetadata(LLVMContext::MD_invariant_load);
       };
 
       // We can ignore the alias as long as the load comes before the store,
@@ -909,7 +942,7 @@ bool Vectorizer::vectorizeStoreChain(
   StoreInst *S0 = cast<StoreInst>(Chain[0]);
 
   // If the vector has an int element, default to int for the whole store.
-  Type *StoreTy;
+  Type *StoreTy = nullptr;
   for (Instruction *I : Chain) {
     StoreTy = cast<StoreInst>(I)->getValueOperand()->getType();
     if (StoreTy->isIntOrIntVectorTy())
@@ -921,6 +954,7 @@ bool Vectorizer::vectorizeStoreChain(
       break;
     }
   }
+  assert(StoreTy && "Failed to find store type");
 
   unsigned Sz = DL.getTypeSizeInBits(StoreTy);
   unsigned AS = S0->getPointerAddressSpace();
@@ -954,11 +988,6 @@ bool Vectorizer::vectorizeStoreChain(
   // try again.
   unsigned EltSzInBytes = Sz / 8;
   unsigned SzInBytes = EltSzInBytes * ChainSize;
-  if (!TTI.isLegalToVectorizeStoreChain(SzInBytes, Alignment, AS)) {
-    auto Chains = splitOddVectorElts(Chain, Sz);
-    return vectorizeStoreChain(Chains.first, InstructionsProcessed) |
-           vectorizeStoreChain(Chains.second, InstructionsProcessed);
-  }
 
   VectorType *VecTy;
   VectorType *VecStoreTy = dyn_cast<VectorType>(StoreTy);
@@ -991,14 +1020,23 @@ bool Vectorizer::vectorizeStoreChain(
 
   // If the store is going to be misaligned, don't vectorize it.
   if (accessIsMisaligned(SzInBytes, AS, Alignment)) {
-    if (S0->getPointerAddressSpace() != 0)
-      return false;
+    if (S0->getPointerAddressSpace() != DL.getAllocaAddrSpace()) {
+      auto Chains = splitOddVectorElts(Chain, Sz);
+      return vectorizeStoreChain(Chains.first, InstructionsProcessed) |
+             vectorizeStoreChain(Chains.second, InstructionsProcessed);
+    }
 
     unsigned NewAlign = getOrEnforceKnownAlignment(S0->getPointerOperand(),
                                                    StackAdjustedAlignment,
                                                    DL, S0, nullptr, &DT);
-    if (NewAlign < StackAdjustedAlignment)
-      return false;
+    if (NewAlign != 0)
+      Alignment = NewAlign;
+  }
+
+  if (!TTI.isLegalToVectorizeStoreChain(SzInBytes, Alignment, AS)) {
+    auto Chains = splitOddVectorElts(Chain, Sz);
+    return vectorizeStoreChain(Chains.first, InstructionsProcessed) |
+           vectorizeStoreChain(Chains.second, InstructionsProcessed);
   }
 
   BasicBlock::iterator First, Last;
@@ -1037,13 +1075,11 @@ bool Vectorizer::vectorizeStoreChain(
     }
   }
 
-  // This cast is safe because Builder.CreateStore() always creates a bona fide
-  // StoreInst.
-  StoreInst *SI = cast<StoreInst>(
-      Builder.CreateStore(Vec, Builder.CreateBitCast(S0->getPointerOperand(),
-                                                     VecTy->getPointerTo(AS))));
+  StoreInst *SI = Builder.CreateAlignedStore(
+    Vec,
+    Builder.CreateBitCast(S0->getPointerOperand(), VecTy->getPointerTo(AS)),
+    Alignment);
   propagateMetadata(SI, Chain);
-  SI->setAlignment(Alignment);
 
   eraseInstructions(Chain);
   ++NumVectorInstructions;
@@ -1057,7 +1093,7 @@ bool Vectorizer::vectorizeLoadChain(
   LoadInst *L0 = cast<LoadInst>(Chain[0]);
 
   // If the vector has an int element, default to int for the whole load.
-  Type *LoadTy;
+  Type *LoadTy = nullptr;
   for (const auto &V : Chain) {
     LoadTy = cast<LoadInst>(V)->getType();
     if (LoadTy->isIntOrIntVectorTy())
@@ -1069,6 +1105,7 @@ bool Vectorizer::vectorizeLoadChain(
       break;
     }
   }
+  assert(LoadTy && "Can't determine LoadInst type from chain");
 
   unsigned Sz = DL.getTypeSizeInBits(LoadTy);
   unsigned AS = L0->getPointerAddressSpace();
@@ -1102,12 +1139,6 @@ bool Vectorizer::vectorizeLoadChain(
   // try again.
   unsigned EltSzInBytes = Sz / 8;
   unsigned SzInBytes = EltSzInBytes * ChainSize;
-  if (!TTI.isLegalToVectorizeLoadChain(SzInBytes, Alignment, AS)) {
-    auto Chains = splitOddVectorElts(Chain, Sz);
-    return vectorizeLoadChain(Chains.first, InstructionsProcessed) |
-           vectorizeLoadChain(Chains.second, InstructionsProcessed);
-  }
-
   VectorType *VecTy;
   VectorType *VecLoadTy = dyn_cast<VectorType>(LoadTy);
   if (VecLoadTy)
@@ -1132,16 +1163,20 @@ bool Vectorizer::vectorizeLoadChain(
 
   // If the load is going to be misaligned, don't vectorize it.
   if (accessIsMisaligned(SzInBytes, AS, Alignment)) {
-    if (L0->getPointerAddressSpace() != 0)
-      return false;
+    if (L0->getPointerAddressSpace() != DL.getAllocaAddrSpace()) {
+      auto Chains = splitOddVectorElts(Chain, Sz);
+      return vectorizeLoadChain(Chains.first, InstructionsProcessed) |
+             vectorizeLoadChain(Chains.second, InstructionsProcessed);
+    }
 
-    unsigned NewAlign = getOrEnforceKnownAlignment(L0->getPointerOperand(),
-                                                   StackAdjustedAlignment,
-                                                   DL, L0, nullptr, &DT);
-    if (NewAlign < StackAdjustedAlignment)
-      return false;
+    Alignment = getOrEnforceKnownAlignment(
+        L0->getPointerOperand(), StackAdjustedAlignment, DL, L0, nullptr, &DT);
+  }
 
-    Alignment = NewAlign;
+  if (!TTI.isLegalToVectorizeLoadChain(SzInBytes, Alignment, AS)) {
+    auto Chains = splitOddVectorElts(Chain, Sz);
+    return vectorizeLoadChain(Chains.first, InstructionsProcessed) |
+           vectorizeLoadChain(Chains.second, InstructionsProcessed);
   }
 
   LLVM_DEBUG({
@@ -1159,11 +1194,8 @@ bool Vectorizer::vectorizeLoadChain(
 
   Value *Bitcast =
       Builder.CreateBitCast(L0->getPointerOperand(), VecTy->getPointerTo(AS));
-  // This cast is safe because Builder.CreateLoad always creates a bona fide
-  // LoadInst.
-  LoadInst *LI = cast<LoadInst>(Builder.CreateLoad(Bitcast));
+  LoadInst *LI = Builder.CreateAlignedLoad(VecTy, Bitcast, Alignment);
   propagateMetadata(LI, Chain);
-  LI->setAlignment(Alignment);
 
   if (VecLoadTy) {
     SmallVector<Instruction *, 16> InstrsToErase;

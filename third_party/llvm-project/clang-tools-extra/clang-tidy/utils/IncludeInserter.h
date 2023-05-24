@@ -1,9 +1,8 @@
 //===---------- IncludeInserter.h - clang-tidy ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,19 +21,21 @@ namespace clang {
 namespace tidy {
 namespace utils {
 
-/// \brief Produces fixes to insert specified includes to source files, if not
+/// Produces fixes to insert specified includes to source files, if not
 /// yet present.
 ///
-/// ``IncludeInserter`` can be used by ``ClangTidyCheck`` in the following
-/// fashion:
+/// ``IncludeInserter`` can be used in clang-tidy checks in the following way:
 /// \code
+/// #include "../utils/IncludeInserter.h"
+/// #include "clang/Frontend/CompilerInstance.h"
+///
 /// class MyCheck : public ClangTidyCheck {
 ///  public:
-///   void registerPPCallbacks(CompilerInstance& Compiler) override {
-///     Inserter.reset(new IncludeInserter(&Compiler.getSourceManager(),
-///                                        &Compiler.getLangOpts()));
-///     Compiler.getPreprocessor().addPPCallbacks(
-///         Inserter->CreatePPCallback());
+///   void registerPPCallbacks(const SourceManager &SM, Preprocessor *PP,
+///                            Preprocessor *ModuleExpanderPP) override {
+///     Inserter = std::make_unique<IncludeInserter>(
+///         SM, getLangOpts(), utils::IncludeSorter::IS_Google);
+///     PP->addPPCallbacks(Inserter->CreatePPCallbacks());
 ///   }
 ///
 ///   void registerMatchers(ast_matchers::MatchFinder* Finder) override { ... }
@@ -49,7 +50,7 @@ namespace utils {
 ///   }
 ///
 ///  private:
-///   std::unique_ptr<IncludeInserter> Inserter;
+///   std::unique_ptr<clang::tidy::utils::IncludeInserter> Inserter;
 /// };
 /// \endcode
 class IncludeInserter {

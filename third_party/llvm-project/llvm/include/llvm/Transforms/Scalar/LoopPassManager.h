@@ -1,9 +1,8 @@
 //===- LoopPassManager.h - Loop pass management -----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -264,8 +263,10 @@ template <typename LoopPassT>
 class FunctionToLoopPassAdaptor
     : public PassInfoMixin<FunctionToLoopPassAdaptor<LoopPassT>> {
 public:
-  explicit FunctionToLoopPassAdaptor(LoopPassT Pass, bool DebugLogging = false)
-      : Pass(std::move(Pass)), LoopCanonicalizationFPM(DebugLogging) {
+  explicit FunctionToLoopPassAdaptor(LoopPassT Pass, bool UseMemorySSA = false,
+                                     bool DebugLogging = false)
+      : Pass(std::move(Pass)), LoopCanonicalizationFPM(DebugLogging),
+        UseMemorySSA(UseMemorySSA) {
     LoopCanonicalizationFPM.addPass(LoopSimplifyPass());
     LoopCanonicalizationFPM.addPass(LCSSAPass());
   }
@@ -276,7 +277,15 @@ public:
     // pass pipeline to put loops into their canonical form. Note that we can
     // directly build up function analyses after this as the function pass
     // manager handles all the invalidation at that layer.
-    PreservedAnalyses PA = LoopCanonicalizationFPM.run(F, AM);
+    PassInstrumentation PI = AM.getResult<PassInstrumentationAnalysis>(F);
+
+    PreservedAnalyses PA = PreservedAnalyses::all();
+    // Check the PassInstrumentation's BeforePass callbacks before running the
+    // canonicalization pipeline.
+    if (PI.runBeforePass<Function>(LoopCanonicalizationFPM, F)) {
+      PA = LoopCanonicalizationFPM.run(F, AM);
+      PI.runAfterPass<Function>(LoopCanonicalizationFPM, F);
+    }
 
     // Get the loop structure for this function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
@@ -286,7 +295,7 @@ public:
       return PA;
 
     // Get the analysis results needed by loop passes.
-    MemorySSA *MSSA = EnableMSSALoopDependency
+    MemorySSA *MSSA = UseMemorySSA
                           ? (&AM.getResult<MemorySSAAnalysis>(F).getMSSA())
                           : nullptr;
     LoopStandardAnalysisResults LAR = {AM.getResult<AAManager>(F),
@@ -303,8 +312,10 @@ public:
     // LoopStandardAnalysisResults object. The loop analyses cached in this
     // manager have access to those analysis results and so it must invalidate
     // itself when they go away.
-    LoopAnalysisManager &LAM =
-        AM.getResult<LoopAnalysisManagerFunctionProxy>(F).getManager();
+    auto &LAMFP = AM.getResult<LoopAnalysisManagerFunctionProxy>(F);
+    if (UseMemorySSA)
+      LAMFP.markMSSAUsed();
+    LoopAnalysisManager &LAM = LAMFP.getManager();
 
     // A postorder worklist of loops to process.
     SmallPriorityWorklist<Loop *, 4> Worklist;
@@ -337,8 +348,19 @@ public:
       assert(L->isRecursivelyLCSSAForm(LAR.DT, LI) &&
              "Loops must remain in LCSSA form!");
 #endif
-
+      // Check the PassInstrumentation's BeforePass callbacks before running the
+      // pass, skip its execution completely if asked to (callback returns
+      // false).
+      if (!PI.runBeforePass<Loop>(Pass, *L))
+        continue;
       PreservedAnalyses PassPA = Pass.run(*L, LAM, LAR, Updater);
+
+      // Do not pass deleted Loop into the instrumentation.
+      if (Updater.skipCurrentLoop())
+        PI.runAfterPassInvalidated<Loop>(Pass);
+      else
+        PI.runAfterPass<Loop>(Pass, *L);
+
       // FIXME: We should verify the set of analyses relevant to Loop passes
       // are preserved.
 
@@ -364,8 +386,8 @@ public:
     PA.preserve<DominatorTreeAnalysis>();
     PA.preserve<LoopAnalysis>();
     PA.preserve<ScalarEvolutionAnalysis>();
-    // FIXME: Uncomment this when all loop passes preserve MemorySSA
-    // PA.preserve<MemorySSAAnalysis>();
+    if (UseMemorySSA)
+      PA.preserve<MemorySSAAnalysis>();
     // FIXME: What we really want to do here is preserve an AA category, but
     // that concept doesn't exist yet.
     PA.preserve<AAManager>();
@@ -379,14 +401,18 @@ private:
   LoopPassT Pass;
 
   FunctionPassManager LoopCanonicalizationFPM;
+
+  bool UseMemorySSA = false;
 };
 
 /// A function to deduce a loop pass type and wrap it in the templated
 /// adaptor.
 template <typename LoopPassT>
 FunctionToLoopPassAdaptor<LoopPassT>
-createFunctionToLoopPassAdaptor(LoopPassT Pass, bool DebugLogging = false) {
-  return FunctionToLoopPassAdaptor<LoopPassT>(std::move(Pass), DebugLogging);
+createFunctionToLoopPassAdaptor(LoopPassT Pass, bool UseMemorySSA = false,
+                                bool DebugLogging = false) {
+  return FunctionToLoopPassAdaptor<LoopPassT>(std::move(Pass), UseMemorySSA,
+                                              DebugLogging);
 }
 
 /// Pass for printing a loop's contents as textual IR.

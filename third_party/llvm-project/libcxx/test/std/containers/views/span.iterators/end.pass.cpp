@@ -1,12 +1,11 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17 
+// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17
 
 // <span>
 
@@ -32,12 +31,15 @@ constexpr bool testConstexprSpan(Span s)
     }
     else
     {
+    	typename Span::const_pointer last = &*(s.cbegin() + s.size() - 1);
         ret = ret &&  ( e !=  s.begin());
         ret = ret &&  (ce != s.cbegin());
+        ret = ret &&  (&*( e-1) == last);
+        ret = ret &&  (&*(ce-1) == last);
     }
 
-    ret = ret &&  (( e -  s.begin()) == s.size());
-    ret = ret &&  ((ce - s.cbegin()) == s.size());
+    ret = ret &&  (static_cast<size_t>( e -  s.begin()) == s.size());
+    ret = ret &&  (static_cast<size_t>(ce - s.cbegin()) == s.size());
 
     ret = ret &&  (e == ce);
     return ret;
@@ -55,12 +57,15 @@ void testRuntimeSpan(Span s)
     }
     else
     {
+    	typename Span::const_pointer last = &*(s.cbegin() + s.size() - 1);
         assert( e !=  s.begin());
         assert(ce != s.cbegin());
+        assert( &*( e-1) == last);
+        assert( &*(ce-1) == last);
     }
 
-    assert(( e -  s.begin()) == s.size());
-    assert((ce - s.cbegin()) == s.size());
+    assert(static_cast<size_t>( e -  s.begin()) == s.size());
+    assert(static_cast<size_t>(ce - s.cbegin()) == s.size());
 
     assert(e == ce);
 }
@@ -73,7 +78,7 @@ constexpr int iArr1[] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9};
           int iArr2[] = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 
 
-int main()
+int main(int, char**)
 {
     static_assert(testConstexprSpan(std::span<int>()),            "");
     static_assert(testConstexprSpan(std::span<long>()),           "");
@@ -113,6 +118,8 @@ int main()
     testRuntimeSpan(std::span<int>(iArr2, 5));
 
     std::string s;
-    testRuntimeSpan(std::span<std::string>(&s, (std::ptrdiff_t) 0));
+    testRuntimeSpan(std::span<std::string>(&s, (std::size_t) 0));
     testRuntimeSpan(std::span<std::string>(&s, 1));
+
+  return 0;
 }

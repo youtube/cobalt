@@ -3,6 +3,7 @@
 ; RUN: llc -filetype=obj %S/Inputs/archive2.ll -o %t.a2.o
 ; RUN: llc -filetype=obj %S/Inputs/archive3.ll -o %t.a3.o
 ; RUN: llc -filetype=obj %S/Inputs/hello.ll -o %t.hello.o
+; RUN: rm -f %t.a
 ; RUN: llvm-ar rcs %t.a %t.a1.o %t.a2.o %t.a3.o %t.hello.o
 ; RUN: rm -f %t.imports
 ; RUN: not wasm-ld %t.a %t.o -o %t.wasm 2>&1 | FileCheck -check-prefix=CHECK-UNDEFINED %s
@@ -32,10 +33,10 @@ entry:
 ; TODO(ncw): Update LLD so that the symbol table is written out for
 ;   non-relocatable output (with an option to strip it)
 
-; CHECK:      00000004 T _start
-; CHECK-NEXT: 00000002 T archive2_symbol
+; CHECK:      00000016 T _start
+; CHECK-NEXT: 0000000a T archive2_symbol
 ; CHECK-NEXT: 00000001 T bar
-; CHECK-NEXT: 00000003 T foo
+; CHECK-NEXT: 0000000d T foo
 ; CHECK-NEXT:          U missing_func
 
 ; Verify that symbols from unused objects don't appear in the symbol table
@@ -46,6 +47,8 @@ entry:
 
 ; Verfiy errors include library name
 ; RUN: not wasm-ld -u archive2_symbol -u archive3_symbol %t.a %t.o -o %t.wasm 2>&1 | FileCheck -check-prefix=CHECK-DUP %s
+; And that this also works with --whole-archive
+; RUN: not wasm-ld -u archive2_symbol -u archive3_symbol --whole-archive %t.a %t.o -o %t.wasm 2>&1 | FileCheck -check-prefix=CHECK-DUP %s
 ; CHECK-DUP: error: duplicate symbol: bar
 ; CHECK-DUP: >>> defined in {{.*}}.a({{.*}}.a2.o)
 ; CHECK-DUP: >>> defined in {{.*}}.a({{.*}}.a3.o)

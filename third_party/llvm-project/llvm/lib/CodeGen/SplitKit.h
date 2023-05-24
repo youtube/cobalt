@@ -1,9 +1,8 @@
 //===- SplitKit.h - Toolkit for splitting live ranges -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,7 +14,6 @@
 #ifndef LLVM_LIB_CODEGEN_SPLITKIT_H
 #define LLVM_LIB_CODEGEN_SPLITKIT_H
 
-#include "LiveRangeCalc.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
@@ -25,6 +23,8 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/LiveInterval.h"
+#include "llvm/CodeGen/LiveIntervals.h"
+#include "llvm/CodeGen/LiveRangeCalc.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/SlotIndexes.h"
@@ -76,6 +76,18 @@ public:
   /// Returns the last insert point as an iterator for \pCurLI in \pMBB.
   MachineBasicBlock::iterator getLastInsertPointIter(const LiveInterval &CurLI,
                                                      MachineBasicBlock &MBB);
+
+  /// Return the base index of the first insert point in \pMBB.
+  SlotIndex getFirstInsertPoint(MachineBasicBlock &MBB) {
+    SlotIndex Res = LIS.getMBBStartIdx(&MBB);
+    if (!MBB.empty()) {
+      MachineBasicBlock::iterator MII = MBB.SkipPHIsLabelsAndDebug(MBB.begin());
+      if (MII != MBB.end())
+        Res = LIS.getInstructionIndex(*MII);
+    }
+    return Res;
+  }
+
 };
 
 /// SplitAnalysis - Analyze a LiveInterval, looking for live range splitting
@@ -224,6 +236,10 @@ public:
 
   MachineBasicBlock::iterator getLastSplitPointIter(MachineBasicBlock *BB) {
     return IPA.getLastInsertPointIter(*CurLI, *BB);
+  }
+
+  SlotIndex getFirstSplitPoint(unsigned Num) {
+    return IPA.getFirstInsertPoint(*MF.getBlockNumbered(Num));
   }
 };
 

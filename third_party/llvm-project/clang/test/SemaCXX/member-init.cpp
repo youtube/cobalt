@@ -13,10 +13,10 @@ public:
 
 bool b();
 int k;
-struct Recurse {
+struct Recurse { // expected-error {{initializer for 'n' needed}}
   int &n = // expected-note {{declared here}}
       b() ?
-      Recurse().n : // expected-error {{initializer for 'n' needed}}
+      Recurse().n : // expected-note {{in evaluation of exception spec}}
       k;
 };
 
@@ -51,7 +51,7 @@ struct CheckExcSpec {
   int n = 0;
 };
 struct CheckExcSpecFail {
-  CheckExcSpecFail() noexcept(true) = default; // expected-error {{exception specification of explicitly defaulted default constructor does not match the calculated one}}
+  CheckExcSpecFail() noexcept(true) = default; // ok, but calls terminate() on exception
   ThrowCtor tc = 123;
 };
 
@@ -127,19 +127,19 @@ A::A() {}
 namespace template_default_ctor {
 struct A {
   template <typename T>
-  struct B {
+  struct B { // expected-error {{initializer for 'm1' needed}}
     int m1 = 0; // expected-note {{declared here}}
   };
-  enum { NOE = noexcept(B<int>()) }; // expected-error {{initializer for 'm1' needed}}
+  enum { NOE = noexcept(B<int>()) }; // expected-note {{in evaluation of exception spec}}
 };
 }
 
 namespace default_ctor {
 struct A {
-  struct B {
+  struct B { // expected-error {{initializer for 'm1' needed}}
     int m1 = 0; // expected-note {{declared here}}
   };
-  enum { NOE = noexcept(B()) }; // expected-error {{initializer for 'm1' needed}}
+  enum { NOE = noexcept(B()) }; // expected-note {{in evaluation of exception spec}}
 };
 }
 
@@ -147,17 +147,17 @@ namespace member_template {
 struct A {
   template <typename T>
   struct B {
-    struct C {
+    struct C { // expected-error {{initializer for 'm1' needed}}
       int m1 = 0; // expected-note {{declared here}}
     };
     template <typename U>
-    struct D {
+    struct D { // expected-error {{initializer for 'm1' needed}}
       int m1 = 0; // expected-note {{declared here}}
     };
   };
   enum {
-    NOE1 = noexcept(B<int>::C()), // expected-error {{initializer for 'm1' needed}}
-    NOE2 = noexcept(B<int>::D<int>()) // expected-error {{initializer for 'm1' needed}}
+    NOE1 = noexcept(B<int>::C()), // expected-note {{in evaluation of exception spec}}
+    NOE2 = noexcept(B<int>::D<int>()) // expected-note {{in evaluation of exception spec}}
   };
 };
 }
@@ -184,7 +184,7 @@ void g() { f<int>(); } // expected-note {{in instantiation of function template 
 namespace PR22056 {
 template <int N>
 struct S {
-  int x[3] = {[N] = 3};
+  int x[3] = {[N] = 3}; // expected-warning {{C99 extension}}
 };
 }
 

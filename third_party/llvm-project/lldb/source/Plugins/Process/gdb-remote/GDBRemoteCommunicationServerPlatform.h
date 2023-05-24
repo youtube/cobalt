@@ -1,23 +1,18 @@
 //===-- GDBRemoteCommunicationServerPlatform.h ------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_GDBRemoteCommunicationServerPlatform_h_
 #define liblldb_GDBRemoteCommunicationServerPlatform_h_
 
-// C Includes
-// C++ Includes
 #include <map>
 #include <mutex>
 #include <set>
 
-// Other libraries and framework includes
-// Project includes
 #include "GDBRemoteCommunicationServerCommon.h"
 #include "lldb/Host/Socket.h"
 
@@ -40,7 +35,6 @@ public:
   // a port chosen by the OS.
   void SetPortMap(PortMap &&port_map);
 
-  //----------------------------------------------------------------------
   // If we are using a port map where we can only use certain ports,
   // get the next available port.
   //
@@ -48,7 +42,6 @@ public:
   //
   // If we aren't using a port map, return 0 to indicate we should bind to
   // port 0 and then figure out which port we used.
-  //----------------------------------------------------------------------
   uint16_t GetNextAvailablePort();
 
   bool AssociatePortWithProcess(uint16_t port, lldb::pid_t pid);

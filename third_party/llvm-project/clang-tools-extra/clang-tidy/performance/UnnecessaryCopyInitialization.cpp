@@ -1,9 +1,8 @@
 //===--- UnnecessaryCopyInitialization.cpp - clang-tidy--------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,6 +11,8 @@
 #include "../utils/DeclRefExprUtils.h"
 #include "../utils/FixItHintUtils.h"
 #include "../utils/Matchers.h"
+#include "../utils/OptionsUtils.h"
+#include "clang/Basic/Diagnostic.h"
 
 namespace clang {
 namespace tidy {
@@ -21,8 +22,11 @@ namespace {
 void recordFixes(const VarDecl &Var, ASTContext &Context,
                  DiagnosticBuilder &Diagnostic) {
   Diagnostic << utils::fixit::changeVarDeclToReference(Var, Context);
-  if (!Var.getType().isLocalConstQualified())
-    Diagnostic << utils::fixit::changeVarDeclToConst(Var);
+  if (!Var.getType().isLocalConstQualified()) {
+    if (llvm::Optional<FixItHint> Fix = utils::fixit::addQualifierToVarDecl(
+            Var, Context, DeclSpec::TQ::TQ_const))
+      Diagnostic << *Fix;
+  }
 }
 
 } // namespace
@@ -30,12 +34,14 @@ void recordFixes(const VarDecl &Var, ASTContext &Context,
 using namespace ::clang::ast_matchers;
 using utils::decl_ref_expr::isOnlyUsedAsConst;
 
+UnnecessaryCopyInitialization::UnnecessaryCopyInitialization(
+    StringRef Name, ClangTidyContext *Context)
+    : ClangTidyCheck(Name, Context),
+      AllowedTypes(
+          utils::options::parseStringList(Options.get("AllowedTypes", ""))) {}
+
 void UnnecessaryCopyInitialization::registerMatchers(MatchFinder *Finder) {
   auto ConstReference = referenceType(pointee(qualType(isConstQualified())));
-  auto ConstOrConstReference =
-      allOf(anyOf(ConstReference, isConstQualified()),
-            unless(allOf(pointerType(), unless(pointerType(pointee(
-                                            qualType(isConstQualified())))))));
 
   // Match method call expressions where the `this` argument is only used as
   // const, this will be checked in `check()` part. This returned const
@@ -50,12 +56,17 @@ void UnnecessaryCopyInitialization::registerMatchers(MatchFinder *Finder) {
       callExpr(callee(functionDecl(returns(ConstReference))),
                unless(callee(cxxMethodDecl())));
 
-  auto localVarCopiedFrom = [](const internal::Matcher<Expr> &CopyCtorArg) {
+  auto localVarCopiedFrom = [this](const internal::Matcher<Expr> &CopyCtorArg) {
     return compoundStmt(
                forEachDescendant(
                    declStmt(
                        has(varDecl(hasLocalStorage(),
-                                   hasType(matchers::isExpensiveToCopy()),
+                                   hasType(qualType(
+                                       hasCanonicalType(
+                                           matchers::isExpensiveToCopy()),
+                                       unless(hasDeclaration(namedDecl(
+                                           matchers::matchesAnyListedName(
+                                               AllowedTypes)))))),
                                    unless(isImplicit()),
                                    hasInitializer(
                                        cxxConstructExpr(
@@ -84,6 +95,7 @@ void UnnecessaryCopyInitialization::check(
   const auto *ObjectArg = Result.Nodes.getNodeAs<VarDecl>("objectArg");
   const auto *BlockStmt = Result.Nodes.getNodeAs<Stmt>("blockStmt");
   const auto *CtorCall = Result.Nodes.getNodeAs<CXXConstructExpr>("ctorCall");
+
   // Do not propose fixes if the DeclStmt has multiple VarDecls or in macros
   // since we cannot place them correctly.
   bool IssueFix =
@@ -142,6 +154,12 @@ void UnnecessaryCopyInitialization::handleCopyFromLocalVar(
                     << &NewVar << &OldVar;
   if (IssueFix)
     recordFixes(NewVar, Context, Diagnostic);
+}
+
+void UnnecessaryCopyInitialization::storeOptions(
+    ClangTidyOptions::OptionMap &Opts) {
+  Options.store(Opts, "AllowedTypes",
+                utils::options::serializeStringList(AllowedTypes));
 }
 
 } // namespace performance

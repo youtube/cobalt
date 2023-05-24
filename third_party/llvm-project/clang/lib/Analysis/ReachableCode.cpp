@@ -1,9 +1,8 @@
-//=- ReachableCodePathInsensitive.cpp ---------------------------*- C++ --*-==//
+//===-- ReachableCode.cpp - Code Reachability Analysis --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,6 +19,7 @@
 #include "clang/AST/StmtCXX.h"
 #include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Analysis/CFG.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/BitVector.h"
@@ -49,7 +49,7 @@ static bool isTrivialExpression(const Expr *Ex) {
 static bool isTrivialDoWhile(const CFGBlock *B, const Stmt *S) {
   // Check if the block ends with a do...while() and see if 'S' is the
   // condition.
-  if (const Stmt *Term = B->getTerminator()) {
+  if (const Stmt *Term = B->getTerminatorStmt()) {
     if (const DoStmt *DS = dyn_cast<DoStmt>(Term)) {
       const Expr *Cond = DS->getCond()->IgnoreParenCasts();
       return Cond == S && isTrivialExpression(Cond);
@@ -117,7 +117,7 @@ static bool isDeadReturn(const CFGBlock *B, const Stmt *S) {
       // the call to the destructor.
       assert(Current->succ_size() == 2);
       Current = *(Current->succ_begin() + 1);
-    } else if (!Current->getTerminator() && Current->succ_size() == 1) {
+    } else if (!Current->getTerminatorStmt() && Current->succ_size() == 1) {
       // If there is only one successor, we're not dealing with outgoing control
       // flow. Thus, look into the next block.
       Current = *Current->succ_begin();
@@ -153,7 +153,7 @@ static bool isExpandedFromConfigurationMacro(const Stmt *S,
   // value comes from a macro, but we can do much better.  This is likely
   // to be over conservative.  This logic is factored into a separate function
   // so that we can refine it later.
-  SourceLocation L = S->getLocStart();
+  SourceLocation L = S->getBeginLoc();
   if (L.isMacroID()) {
     SourceManager &SM = PP.getSourceManager();
     if (IgnoreYES_NO) {
@@ -193,14 +193,15 @@ static bool isConfigurationValue(const Stmt *S,
   if (!S)
     return false;
 
-  S = S->IgnoreImplicit();
+  if (const auto *Ex = dyn_cast<Expr>(S))
+    S = Ex->IgnoreImplicit();
 
-  if (const Expr *Ex = dyn_cast<Expr>(S))
+  if (const auto *Ex = dyn_cast<Expr>(S))
     S = Ex->IgnoreCasts();
 
   // Special case looking for the sigil '()' around an integer literal.
   if (const ParenExpr *PE = dyn_cast<ParenExpr>(S))
-    if (!PE->getLocStart().isMacroID())
+    if (!PE->getBeginLoc().isMacroID())
       return isConfigurationValue(PE->getSubExpr(), PP, SilenceableCondVal,
                                   IncludeIntegers, true);
 
@@ -219,7 +220,7 @@ static bool isConfigurationValue(const Stmt *S,
       return isConfigurationValue(cast<DeclRefExpr>(S)->getDecl(), PP);
     case Stmt::ObjCBoolLiteralExprClass:
       IgnoreYES_NO = true;
-      // Fallthrough.
+      LLVM_FALLTHROUGH;
     case Stmt::CXXBoolLiteralExprClass:
     case Stmt::IntegerLiteralClass: {
       const Expr *E = cast<Expr>(S);
@@ -247,7 +248,7 @@ static bool isConfigurationValue(const Stmt *S,
     }
     case Stmt::UnaryOperatorClass: {
       const UnaryOperator *UO = cast<UnaryOperator>(S);
-      if (UO->getOpcode() != UO_LNot)
+      if (UO->getOpcode() != UO_LNot && UO->getOpcode() != UO_Minus)
         return false;
       bool SilenceableCondValNotSet =
           SilenceableCondVal && SilenceableCondVal->getBegin().isInvalid();
@@ -292,7 +293,7 @@ static bool isConfigurationValue(const ValueDecl *D, Preprocessor &PP) {
 /// Returns true if we should always explore all successors of a block.
 static bool shouldTreatSuccessorsAsReachable(const CFGBlock *B,
                                              Preprocessor &PP) {
-  if (const Stmt *Term = B->getTerminator()) {
+  if (const Stmt *Term = B->getTerminatorStmt()) {
     if (isa<SwitchStmt>(Term))
       return true;
     // Specially handle '||' and '&&'.
@@ -446,7 +447,7 @@ bool DeadCodeScan::isDeadCodeRoot(const clang::CFGBlock *Block) {
 }
 
 static bool isValidDeadStmt(const Stmt *S) {
-  if (S->getLocStart().isInvalid())
+  if (S->getBeginLoc().isInvalid())
     return false;
   if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(S))
     return BO->getOpcode() != BO_Comma;
@@ -461,12 +462,11 @@ const Stmt *DeadCodeScan::findDeadCode(const clang::CFGBlock *Block) {
         return S;
     }
 
-  if (CFGTerminator T = Block->getTerminator()) {
-    if (!T.isTemporaryDtorsBranch()) {
-      const Stmt *S = T.getStmt();
-      if (isValidDeadStmt(S))
-        return S;
-    }
+  CFGTerminator T = Block->getTerminator();
+  if (T.isStmtBranch()) {
+    const Stmt *S = T.getStmt();
+    if (S && isValidDeadStmt(S))
+      return S;
   }
 
   return nullptr;
@@ -474,9 +474,9 @@ const Stmt *DeadCodeScan::findDeadCode(const clang::CFGBlock *Block) {
 
 static int SrcCmp(const std::pair<const CFGBlock *, const Stmt *> *p1,
                   const std::pair<const CFGBlock *, const Stmt *> *p2) {
-  if (p1->second->getLocStart() < p2->second->getLocStart())
+  if (p1->second->getBeginLoc() < p2->second->getBeginLoc())
     return -1;
-  if (p2->second->getLocStart() < p1->second->getLocStart())
+  if (p2->second->getBeginLoc() < p1->second->getBeginLoc())
     return 1;
   return 0;
 }
@@ -509,7 +509,7 @@ unsigned DeadCodeScan::scanBackwards(const clang::CFGBlock *Start,
     }
 
     // Specially handle macro-expanded code.
-    if (S->getLocStart().isMacroID()) {
+    if (S->getBeginLoc().isMacroID()) {
       count += scanMaybeReachableFromBlock(Block, PP, Reachable);
       continue;
     }
@@ -592,7 +592,7 @@ static SourceLocation GetUnreachableLoc(const Stmt *S,
     case Expr::CXXFunctionalCastExprClass: {
       const CXXFunctionalCastExpr *CE = cast <CXXFunctionalCastExpr>(S);
       R1 = CE->getSubExpr()->getSourceRange();
-      return CE->getLocStart();
+      return CE->getBeginLoc();
     }
     case Stmt::CXXTryStmtClass: {
       return cast<CXXTryStmt>(S)->getHandler(0)->getCatchLoc();
@@ -605,7 +605,7 @@ static SourceLocation GetUnreachableLoc(const Stmt *S,
     default: ;
   }
   R1 = S->getSourceRange();
-  return S->getLocStart();
+  return S->getBeginLoc();
 }
 
 void DeadCodeScan::reportDeadCode(const CFGBlock *B,
@@ -631,12 +631,12 @@ void DeadCodeScan::reportDeadCode(const CFGBlock *B,
     // a for/for-range loop.  This is the block that contains
     // the increment code.
     if (const Stmt *LoopTarget = B->getLoopTarget()) {
-      SourceLocation Loc = LoopTarget->getLocStart();
+      SourceLocation Loc = LoopTarget->getBeginLoc();
       SourceRange R1(Loc, Loc), R2;
 
       if (const ForStmt *FS = dyn_cast<ForStmt>(LoopTarget)) {
         const Expr *Inc = FS->getInc();
-        Loc = Inc->getLocStart();
+        Loc = Inc->getBeginLoc();
         R2 = Inc->getSourceRange();
       }
 

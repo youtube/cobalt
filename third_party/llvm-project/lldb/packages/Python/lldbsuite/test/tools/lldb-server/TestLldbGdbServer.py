@@ -10,14 +10,13 @@ gdb remote packet functional areas.  For now it contains
 the initial set of tests implemented.
 """
 
-from __future__ import print_function
+from __future__ import division, print_function
 
 
 import unittest2
 import gdbremote_testcase
 import lldbgdbserverutils
-import platform
-import signal
+from lldbsuite.support import seven
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.lldbdwarf import *
@@ -157,6 +156,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.build()
         self.inferior_print_exit()
 
+    @skipIfWindows # No pty support to test any inferior output
     @llgs_test
     @expectedFlakeyLinux("llvm.org/pr25652")
     def test_inferior_print_exit_llgs(self):
@@ -230,6 +230,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_attach()
         self.attach_commandline_continue_app_exits()
 
+    @expectedFailureNetBSD
     @llgs_test
     def test_attach_commandline_continue_app_exits_llgs(self):
         self.init_llgs_test()
@@ -435,6 +436,8 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
             self.targetHasAVX(),
             "Advanced Vector Extensions" in register_sets)
 
+    @expectedFailureAll(oslist=["windows"]) # no avx for now.
+    @expectedFailureNetBSD
     @llgs_test
     def test_qRegisterInfo_contains_avx_registers_llgs(self):
         self.init_llgs_test()
@@ -479,6 +482,8 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_attach()
         self.qThreadInfo_contains_thread()
 
+    @expectedFailureAll(oslist=["windows"]) # expect one more thread stopped
+    @expectedFailureNetBSD
     @llgs_test
     def test_qThreadInfo_contains_thread_attach_llgs(self):
         self.init_llgs_test()
@@ -537,6 +542,8 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_attach()
         self.qThreadInfo_matches_qC()
 
+    @expectedFailureAll(oslist=["windows"]) # expect one more thread stopped
+    @expectedFailureNetBSD
     @llgs_test
     def test_qThreadInfo_matches_qC_attach_llgs(self):
         self.init_llgs_test()
@@ -557,9 +564,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.assertIsNotNone(reg_infos)
         self.assertTrue(len(reg_infos) > 0)
 
-        inferior_exe_path = self.getBuildArtifact("a.out")
-        Target = self.dbg.CreateTarget(inferior_exe_path)
-        byte_order = Target.GetByteOrder()
+        byte_order = self.get_target_byte_order()
 
         # Read value for each register.
         reg_index = 0
@@ -602,6 +607,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.p_returns_correct_data_size_for_each_qRegisterInfo()
 
+    @expectedFailureNetBSD
     @llgs_test
     def test_p_returns_correct_data_size_for_each_qRegisterInfo_launch_llgs(
             self):
@@ -619,6 +625,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_attach()
         self.p_returns_correct_data_size_for_each_qRegisterInfo()
 
+    @expectedFailureNetBSD
     @llgs_test
     def test_p_returns_correct_data_size_for_each_qRegisterInfo_attach_llgs(
             self):
@@ -638,7 +645,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.run_process_then_stop(run_seconds=1)
 
         # Wait at most x seconds for 3 threads to be present.
-        threads = self.wait_for_thread_count(3, timeout_seconds=5)
+        threads = self.wait_for_thread_count(3, timeout_seconds=self._WAIT_TIMEOUT)
         self.assertEqual(len(threads), 3)
 
         # verify we can $H to each thead, and $qC matches the thread we set.
@@ -667,6 +674,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.Hg_switches_to_3_threads()
 
+    @expectedFailureAll(oslist=["windows"]) # expect 4 threads
     @llgs_test
     def test_Hg_switches_to_3_threads_launch_llgs(self):
         self.init_llgs_test()
@@ -682,6 +690,8 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_attach()
         self.Hg_switches_to_3_threads()
 
+    @expectedFailureAll(oslist=["windows"]) # expecting one more thread
+    @expectedFailureNetBSD
     @llgs_test
     def test_Hg_switches_to_3_threads_attach_llgs(self):
         self.init_llgs_test()
@@ -732,7 +742,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
                                                             2: "thread_id"}}],
                                              True)
 
-            context = self.expect_gdbremote_sequence(timeout_seconds=10)
+            context = self.expect_gdbremote_sequence(timeout_seconds=self._DEFAULT_TIMEOUT)
             self.assertIsNotNone(context)
             signo = context.get("signo")
             self.assertEqual(int(signo, 16), segfault_signo)
@@ -768,7 +778,8 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
                 True)
 
             # Run the sequence.
-            context = self.expect_gdbremote_sequence(timeout_seconds=10)
+            context = self.expect_gdbremote_sequence(
+                timeout_seconds=self._DEFAULT_TIMEOUT)
             self.assertIsNotNone(context)
 
             # Ensure the stop signal is the signal we delivered.
@@ -811,6 +822,8 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         # expectations about fixed signal numbers.
         self.Hc_then_Csignal_signals_correct_thread(self.TARGET_EXC_BAD_ACCESS)
 
+    @skipIfWindows # no SIGSEGV support
+    @expectedFailureNetBSD
     @llgs_test
     def test_Hc_then_Csignal_signals_correct_thread_launch_llgs(self):
         self.init_llgs_test()
@@ -868,7 +881,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
 
         # Ensure what we read from inferior memory is what we wrote.
         self.assertIsNotNone(context.get("read_contents"))
-        read_contents = context.get("read_contents").decode("hex")
+        read_contents = seven.unhexlify(context.get("read_contents"))
         self.assertEqual(read_contents, MEMORY_CONTENTS)
 
     @debugserver_test
@@ -879,6 +892,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.m_packet_reads_memory()
 
+    @skipIfWindows # No pty support to test any inferior output
     @llgs_test
     def test_m_packet_reads_memory_llgs(self):
         self.init_llgs_test()
@@ -969,6 +983,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.qMemoryRegionInfo_reports_code_address_as_executable()
 
+    @skipIfWindows # No pty support to test any inferior output
     @llgs_test
     def test_qMemoryRegionInfo_reports_code_address_as_executable_llgs(self):
         self.init_llgs_test()
@@ -1034,6 +1049,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.qMemoryRegionInfo_reports_stack_address_as_readable_writeable()
 
+    @skipIfWindows # No pty support to test any inferior output
     @llgs_test
     def test_qMemoryRegionInfo_reports_stack_address_as_readable_writeable_llgs(
             self):
@@ -1099,6 +1115,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.qMemoryRegionInfo_reports_heap_address_as_readable_writeable()
 
+    @skipIfWindows # No pty support to test any inferior output
     @llgs_test
     def test_qMemoryRegionInfo_reports_heap_address_as_readable_writeable_llgs(
             self):
@@ -1251,6 +1268,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.breakpoint_set_and_remove_work(want_hardware=False)
 
+    @skipIfWindows # No pty support to test any inferior output
     @llgs_test
     @expectedFlakeyLinux("llvm.org/pr25652")
     def test_software_breakpoint_set_and_remove_work_llgs(self):
@@ -1280,7 +1298,6 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
 
     @llgs_test
     @skipUnlessPlatform(oslist=['linux'])
-    @expectedFailureAndroid
     @skipIf(archs=no_match(['arm', 'aarch64']))
     def test_hardware_breakpoint_set_and_remove_work_llgs(self):
         self.init_llgs_test()
@@ -1352,7 +1369,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         message_address = int(context.get("message_address"), 16)
 
         # Hex-encode the test message, adding null termination.
-        hex_encoded_message = TEST_MESSAGE.encode("hex")
+        hex_encoded_message = seven.hexlify(TEST_MESSAGE)
 
         # Write the message to the inferior. Verify that we can read it with the hex-encoded (m)
         # and binary (x) memory read packets.
@@ -1388,6 +1405,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.written_M_content_reads_back_correctly()
 
+    @skipIfWindows # No pty support to test any inferior output
     @llgs_test
     @expectedFlakeyLinux("llvm.org/pr25652")
     def test_written_M_content_reads_back_correctly_llgs(self):
@@ -1467,7 +1485,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
 
         reg_index = self.select_modifiable_register(reg_infos)
         self.assertIsNotNone(reg_index)
-        reg_byte_size = int(reg_infos[reg_index]["bitsize"]) / 8
+        reg_byte_size = int(reg_infos[reg_index]["bitsize"]) // 8
         self.assertTrue(reg_byte_size > 0)
 
         # Run the process a bit so threads can start up, and collect register
@@ -1476,7 +1494,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.assertIsNotNone(context)
 
         # Wait for 3 threads to be present.
-        threads = self.wait_for_thread_count(3, timeout_seconds=5)
+        threads = self.wait_for_thread_count(3, timeout_seconds=self._WAIT_TIMEOUT)
         self.assertEqual(len(threads), 3)
 
         expected_reg_values = []
@@ -1563,6 +1581,7 @@ class LldbGdbServerTestCase(gdbremote_testcase.GdbRemoteTestCaseBase, DwarfOpcod
         self.set_inferior_startup_launch()
         self.P_and_p_thread_suffix_work()
 
+    @skipIfWindows
     @llgs_test
     def test_P_and_p_thread_suffix_work_llgs(self):
         self.init_llgs_test()

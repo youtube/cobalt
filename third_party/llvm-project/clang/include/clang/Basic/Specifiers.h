@@ -1,9 +1,8 @@
 //===--- Specifiers.h - Declaration and Type Specifiers ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -21,6 +20,22 @@
 #include "llvm/Support/ErrorHandling.h"
 
 namespace clang {
+
+  /// Define the meaning of possible values of the kind in ExplicitSpecifier.
+  enum class ExplicitSpecKind : unsigned {
+    ResolvedFalse,
+    ResolvedTrue,
+    Unresolved,
+  };
+
+  /// Define the kind of constexpr specifier.
+  enum ConstexprSpecKind {
+    CSK_unspecified,
+    CSK_constexpr,
+    CSK_consteval,
+    CSK_constinit
+  };
+
   /// Specifies the width of a type, e.g., short, long, or long long.
   enum TypeSpecifierWidth {
     TSW_unspecified,
@@ -141,6 +156,20 @@ namespace clang {
     OK_ObjCSubscript
   };
 
+  /// The reason why a DeclRefExpr does not constitute an odr-use.
+  enum NonOdrUseReason {
+    /// This is an odr-use.
+    NOUR_None = 0,
+    /// This name appears in an unevaluated operand.
+    NOUR_Unevaluated,
+    /// This name appears as a potential result of an lvalue-to-rvalue
+    /// conversion that is a constant expression.
+    NOUR_Constant,
+    /// This name appears as a potential result of a discarded value
+    /// expression.
+    NOUR_Discarded,
+  };
+
   /// Describes the kind of template specialization that a
   /// particular template specialization declaration represents.
   enum TemplateSpecializationKind {
@@ -251,6 +280,7 @@ namespace clang {
     CC_Swift,        // __attribute__((swiftcall))
     CC_PreserveMost, // __attribute__((preserve_most))
     CC_PreserveAll,  // __attribute__((preserve_all))
+    CC_AArch64VectorCall, // __attribute__((aarch64_vector_pcs))
   };
 
   /// Checks whether the given calling convention supports variadic
@@ -322,6 +352,15 @@ namespace clang {
     /// Swift context-pointer ABI treatment.  There can be at
     /// most one parameter on a given function that uses this treatment.
     SwiftContext
+  };
+
+  /// Assigned inheritance model for a class in the MS C++ ABI. Must match order
+  /// of spellings in MSInheritanceAttr.
+  enum class MSInheritanceModel {
+    Single = 0,
+    Multiple = 1,
+    Virtual = 2,
+    Unspecified = 3,
   };
 
   llvm::StringRef getParameterABISpelling(ParameterABI kind);

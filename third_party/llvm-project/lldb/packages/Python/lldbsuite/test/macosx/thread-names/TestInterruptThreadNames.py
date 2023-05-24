@@ -1,8 +1,6 @@
 """Test that we get thread names when interrupting a process."""
-from __future__ import print_function
 
 
-import os
 import time
 import lldb
 from lldbsuite.test.decorators import *
@@ -13,10 +11,6 @@ from lldbsuite.test import lldbutil
 class TestInterruptThreadNames(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
 
     @skipUnlessDarwin
     @add_test_categories(['pyapi'])
@@ -30,11 +24,11 @@ class TestInterruptThreadNames(TestBase):
 
         launch_info = lldb.SBLaunchInfo(None)
         error = lldb.SBError()
-        lldb.debugger.SetAsync(True)
+        self.dbg.SetAsync(True)
         process = target.Launch(launch_info, error)
         self.assertTrue(process, PROCESS_IS_VALID)
 
-        listener = lldb.debugger.GetListener()
+        listener = self.dbg.GetListener()
         broadcaster = process.GetBroadcaster()
         rc = broadcaster.AddListener(listener, lldb.SBProcess.eBroadcastBitStateChanged)
         self.assertTrue(rc != 0, "Unable to add listener to process")

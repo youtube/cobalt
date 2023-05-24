@@ -1,6 +1,8 @@
 tblgen - Target Description To C++ Code Generator
 =================================================
 
+.. program:: tblgen
+
 SYNOPSIS
 --------
 
@@ -129,6 +131,10 @@ OPTIONS
 .. option:: -gen-enhanced-disassembly-info
 
  Generate enhanced disassembly info.
+
+.. option:: -gen-exegesis
+
+ Generate llvm-exegesis tables.
 
 .. option:: -version
 

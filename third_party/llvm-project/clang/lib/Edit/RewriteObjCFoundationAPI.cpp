@@ -1,9 +1,8 @@
 //===--- RewriteObjCFoundationAPI.cpp - Foundation API Rewriter -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -420,8 +419,8 @@ static bool rewriteToArrayLiteral(const ObjCMessageExpr *Msg,
       commit.replace(MsgRange, "@[]");
       return true;
     }
-    SourceRange ArgRange(Msg->getArg(0)->getLocStart(),
-                         Msg->getArg(Msg->getNumArgs()-2)->getLocEnd());
+    SourceRange ArgRange(Msg->getArg(0)->getBeginLoc(),
+                         Msg->getArg(Msg->getNumArgs() - 2)->getEndLoc());
     commit.replaceWithInner(MsgRange, ArgRange);
     commit.insertWrap("@[", ArgRange, "]");
     return true;
@@ -550,8 +549,8 @@ static bool rewriteToDictionaryLiteral(const ObjCMessageExpr *Msg,
     // Range of arguments up until and including the last key.
     // The sentinel and first value are cut off, the value will move after the
     // key.
-    SourceRange ArgRange(Msg->getArg(1)->getLocStart(),
-                         Msg->getArg(SentinelIdx-1)->getLocEnd());
+    SourceRange ArgRange(Msg->getArg(1)->getBeginLoc(),
+                         Msg->getArg(SentinelIdx - 1)->getEndLoc());
     commit.insertWrap("@{", ArgRange, "}");
     commit.replaceWithInner(MsgRange, ArgRange);
     return true;
@@ -591,8 +590,7 @@ static bool rewriteToDictionaryLiteral(const ObjCMessageExpr *Msg,
     }
     // Range of arguments up until and including the last key.
     // The first value is cut off, the value will move after the key.
-    SourceRange ArgRange(Keys.front()->getLocStart(),
-                         Keys.back()->getLocEnd());
+    SourceRange ArgRange(Keys.front()->getBeginLoc(), Keys.back()->getEndLoc());
     commit.insertWrap("@{", ArgRange, "}");
     commit.replaceWithInner(MsgRange, ArgRange);
     return true;
@@ -1044,6 +1042,7 @@ static bool rewriteToNumericBoxedExpression(const ObjCMessageExpr *Msg,
     case CK_Dependent:
     case CK_BitCast:
     case CK_LValueBitCast:
+    case CK_LValueToRValueBitCast:
     case CK_BaseToDerived:
     case CK_DerivedToBase:
     case CK_UncheckedDerivedToBase:
@@ -1079,13 +1078,18 @@ static bool rewriteToNumericBoxedExpression(const ObjCMessageExpr *Msg,
     case CK_NonAtomicToAtomic:
     case CK_CopyAndAutoreleaseBlockObject:
     case CK_BuiltinFnToFnPtr:
-    case CK_ZeroToOCLEvent:
-    case CK_ZeroToOCLQueue:
+    case CK_ZeroToOCLOpaqueType:
     case CK_IntToOCLSampler:
       return false;
 
     case CK_BooleanToSignedIntegral:
       llvm_unreachable("OpenCL-specific cast in Objective-C?");
+
+    case CK_FixedPointCast:
+    case CK_FixedPointToBoolean:
+    case CK_FixedPointToIntegral:
+    case CK_IntegralToFixedPoint:
+      llvm_unreachable("Fixed point types are disabled for Objective-C");
     }
   }
 
@@ -1131,7 +1135,7 @@ static bool doRewriteToUTF8StringBoxedExpressionHelper(
   if (const StringLiteral *
         StrE = dyn_cast<StringLiteral>(OrigArg->IgnoreParens())) {
     commit.replaceWithInner(Msg->getSourceRange(), StrE->getSourceRange());
-    commit.insert(StrE->getLocStart(), "@");
+    commit.insert(StrE->getBeginLoc(), "@");
     return true;
   }
 

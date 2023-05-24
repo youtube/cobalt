@@ -2,10 +2,7 @@
 Test lldb data formatter subsystem.
 """
 
-from __future__ import print_function
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -66,6 +63,7 @@ class StdUniquePtrDataFormatterTestCase(TestBase):
     @skipIfWindows  # libstdcpp not ported to Windows
     @skipIfDarwin  # doesn't compile on Darwin
     @skipIfwatchOS  # libstdcpp not ported to watchos
+    @add_test_categories(["libstdcxx"])
     def test_recursive_unique_ptr(self):
         # Tests that LLDB can handle when we have a loop in the unique_ptr
         # reference chain and that it correctly handles the different options

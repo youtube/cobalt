@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,7 +31,7 @@ void test ( const std::basic_string<CharT, Traits> &str ) {
     assert ( sv1.data() == str.data());
 }
 
-int main () {
+int main(int, char**) {
 
     test ( std::string("QBCDE") );
     test ( std::string("") );
@@ -41,6 +40,12 @@ int main () {
     test ( std::wstring(L"QBCDE") );
     test ( std::wstring(L"") );
     test ( std::wstring() );
+
+#if defined(__cpp_lib_char8_t) && __cpp_lib_char8_t >= 201811L
+    test ( std::u8string{u8"QBCDE"} );
+    test ( std::u8string{u8""} );
+    test ( std::u8string{} );
+#endif
 
 #if TEST_STD_VER >= 11
     test ( std::u16string{u"QBCDE"} );
@@ -56,4 +61,6 @@ int main () {
     test ( std::basic_string<char, dummy_char_traits>("") );
     test ( std::basic_string<char, dummy_char_traits>() );
 
+
+  return 0;
 }

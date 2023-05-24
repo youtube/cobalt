@@ -1,20 +1,24 @@
 // Test target codegen - host bc file has to be created first.
 // RUN: %clang_cc1 -verify -fopenmp -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=nvptx64-nvidia-cuda -emit-llvm-bc %s -o %t-ppc-host.bc
-// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple nvptx64-unknown-unknown -fopenmp-targets=nvptx64-nvidia-cuda -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-64
+// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple nvptx64-unknown-unknown -fopenmp-targets=nvptx64-nvidia-cuda -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o - -disable-llvm-optzns | FileCheck %s --check-prefix CHECK --check-prefix CHECK-64
 // RUN: %clang_cc1 -verify -fopenmp -x c++ -triple i386-unknown-unknown -fopenmp-targets=nvptx-nvidia-cuda -emit-llvm-bc %s -o %t-x86-host.bc
-// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple nvptx-unknown-unknown -fopenmp-targets=nvptx-nvidia-cuda -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-32
-// RUN: %clang_cc1 -verify -fopenmp -fexceptions -fcxx-exceptions -x c++ -triple nvptx-unknown-unknown -fopenmp-targets=nvptx-nvidia-cuda -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o - | FileCheck %s --check-prefix CHECK --check-prefix CHECK-32
+// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple nvptx-unknown-unknown -fopenmp-targets=nvptx-nvidia-cuda -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o - -disable-llvm-optzns | FileCheck %s --check-prefix CHECK --check-prefix CHECK-32
+// RUN: %clang_cc1 -verify -fopenmp -fexceptions -fcxx-exceptions -x c++ -triple nvptx-unknown-unknown -fopenmp-targets=nvptx-nvidia-cuda -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-x86-host.bc -o - -disable-llvm-optzns | FileCheck %s --check-prefix CHECK --check-prefix CHECK-32
 // expected-no-diagnostics
+
 #ifndef HEADER
 #define HEADER
 
-// Check that the execution mode of all 6 target regions is set to Generic Mode.
-// CHECK-DAG: {{@__omp_offloading_.+l103}}_exec_mode = weak constant i8 1
-// CHECK-DAG: {{@__omp_offloading_.+l180}}_exec_mode = weak constant i8 1
-// CHECK-DAG: {{@__omp_offloading_.+l290}}_exec_mode = weak constant i8 1
-// CHECK-DAG: {{@__omp_offloading_.+l328}}_exec_mode = weak constant i8 1
-// CHECK-DAG: {{@__omp_offloading_.+l346}}_exec_mode = weak constant i8 1
-// CHECK-DAG: {{@__omp_offloading_.+l311}}_exec_mode = weak constant i8 1
+// Check that the execution mode of all 7 target regions is set to Generic Mode.
+// CHECK-DAG: [[NONSPMD:@.+]] = private unnamed_addr constant %struct.ident_t { i32 0, i32 2, i32 0, i32 0, i8* getelementptr inbounds
+// CHECK-DAG: [[UNKNOWN:@.+]] = private unnamed_addr constant %struct.ident_t { i32 0, i32 2, i32 2, i32 0, i8* getelementptr inbounds
+// CHECK-DAG: {{@__omp_offloading_.+l45}}_exec_mode = weak constant i8 0
+// CHECK-DAG: {{@__omp_offloading_.+l123}}_exec_mode = weak constant i8 1
+// CHECK-DAG: {{@__omp_offloading_.+l200}}_exec_mode = weak constant i8 1
+// CHECK-DAG: {{@__omp_offloading_.+l310}}_exec_mode = weak constant i8 1
+// CHECK-DAG: {{@__omp_offloading_.+l348}}_exec_mode = weak constant i8 1
+// CHECK-DAG: {{@__omp_offloading_.+l366}}_exec_mode = weak constant i8 1
+// CHECK-DAG: {{@__omp_offloading_.+l331}}_exec_mode = weak constant i8 1
 
 __thread int id;
 
@@ -27,6 +31,22 @@ struct TT{
   tx &operator[](int i) { return X; }
 };
 
+// CHECK: define weak void @__omp_offloading_{{.+}}_{{.+}}targetBar{{.+}}_l45(i32* [[PTR1:%.+]], i32** dereferenceable{{.*}} [[PTR2_REF:%.+]])
+// CHECK: store i32* [[PTR1]], i32** [[PTR1_ADDR:%.+]],
+// CHECK: store i32** [[PTR2_REF]], i32*** [[PTR2_REF_PTR:%.+]],
+// CHECK: [[PTR2_REF:%.+]] = load i32**, i32*** [[PTR2_REF_PTR]],
+// CHECK: call void @__kmpc_spmd_kernel_init(
+// CHECK: call void @__kmpc_data_sharing_init_stack_spmd()
+// CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num(%struct.ident_t* @{{.+}})
+// CHECK: store i32 [[GTID]], i32* [[THREADID:%.+]],
+// CHECK: call void @{{.+}}(i32* [[THREADID]], i32* %{{.+}}, i32** [[PTR1_ADDR]], i32** [[PTR2_REF]])
+// CHECK: call void @__kmpc_spmd_kernel_deinit_v2(i16 1)
+void targetBar(int *Ptr1, int *Ptr2) {
+#pragma omp target map(Ptr1[:0], Ptr2)
+#pragma omp parallel num_threads(2)
+  *Ptr1 = *Ptr2;
+}
+
 int foo(int n) {
   int a = 0;
   short aa = 0;
@@ -36,7 +56,7 @@ int foo(int n) {
   double cn[5][n];
   TT<long long, char> d;
 
-  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+foo.+l103}}_worker()
+  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+foo.+l123}}_worker()
   // CHECK-DAG: [[OMP_EXEC_STATUS:%.+]] = alloca i8,
   // CHECK-DAG: [[OMP_WORK_FN:%.+]] = alloca i8*,
   // CHECK: store i8* null, i8** [[OMP_WORK_FN]],
@@ -44,7 +64,7 @@ int foo(int n) {
   // CHECK: br label {{%?}}[[AWAIT_WORK:.+]]
   //
   // CHECK: [[AWAIT_WORK]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: [[WORK:%.+]] = load i8*, i8** [[OMP_WORK_FN]],
   // CHECK: [[SHOULD_EXIT:%.+]] = icmp eq i8* [[WORK]], null
   // CHECK: br i1 [[SHOULD_EXIT]], label {{%?}}[[EXIT:.+]], label {{%?}}[[SEL_WORKERS:.+]]
@@ -61,13 +81,13 @@ int foo(int n) {
   // CHECK: br label {{%?}}[[BAR_PARALLEL]]
   //
   // CHECK: [[BAR_PARALLEL]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[AWAIT_WORK]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
-  // CHECK: define {{.*}}void [[T1:@__omp_offloading_.+foo.+l103]]()
+  // CHECK: define {{.*}}void [[T1:@__omp_offloading_.+foo.+l123]]()
   // CHECK-DAG: [[TID:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
   // CHECK-DAG: [[NTH:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
   // CHECK-DAG: [[WS:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.warpsize()
@@ -95,7 +115,7 @@ int foo(int n) {
   //
   // CHECK: [[TERMINATE]]
   // CHECK: call void @__kmpc_kernel_deinit(
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[EXIT]]
   //
   // CHECK: [[EXIT]]
@@ -109,7 +129,7 @@ int foo(int n) {
   {
   }
 
-  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+foo.+l180}}_worker()
+  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+foo.+l200}}_worker()
   // CHECK-DAG: [[OMP_EXEC_STATUS:%.+]] = alloca i8,
   // CHECK-DAG: [[OMP_WORK_FN:%.+]] = alloca i8*,
   // CHECK: store i8* null, i8** [[OMP_WORK_FN]],
@@ -117,7 +137,7 @@ int foo(int n) {
   // CHECK: br label {{%?}}[[AWAIT_WORK:.+]]
   //
   // CHECK: [[AWAIT_WORK]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: [[WORK:%.+]] = load i8*, i8** [[OMP_WORK_FN]],
   // CHECK: [[SHOULD_EXIT:%.+]] = icmp eq i8* [[WORK]], null
   // CHECK: br i1 [[SHOULD_EXIT]], label {{%?}}[[EXIT:.+]], label {{%?}}[[SEL_WORKERS:.+]]
@@ -134,13 +154,13 @@ int foo(int n) {
   // CHECK: br label {{%?}}[[BAR_PARALLEL]]
   //
   // CHECK: [[BAR_PARALLEL]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[AWAIT_WORK]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
-  // CHECK: define {{.*}}void [[T2:@__omp_offloading_.+foo.+l180]](i[[SZ:32|64]] [[ARG1:%[a-zA-Z_]+]], i[[SZ:32|64]] [[ID:%[a-zA-Z_]+]])
+  // CHECK: define {{.*}}void [[T2:@__omp_offloading_.+foo.+l200]](i[[SZ:32|64]] [[ARG1:%[a-zA-Z_]+]], i[[SZ:32|64]] [[ID:%[a-zA-Z_]+]])
   // CHECK: [[AA_ADDR:%.+]] = alloca i[[SZ]],
   // CHECK: store i[[SZ]] [[ARG1]], i[[SZ]]* [[AA_ADDR]],
   // CHECK: [[AA_CADDR:%.+]] = bitcast i[[SZ]]* [[AA_ADDR]] to i16*
@@ -172,7 +192,7 @@ int foo(int n) {
   //
   // CHECK: [[TERMINATE]]
   // CHECK: call void @__kmpc_kernel_deinit(
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[EXIT]]
   //
   // CHECK: [[EXIT]]
@@ -183,7 +203,7 @@ int foo(int n) {
     id = aa;
   }
 
-  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+foo.+l290}}_worker()
+  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+foo.+l310}}_worker()
   // CHECK-DAG: [[OMP_EXEC_STATUS:%.+]] = alloca i8,
   // CHECK-DAG: [[OMP_WORK_FN:%.+]] = alloca i8*,
   // CHECK: store i8* null, i8** [[OMP_WORK_FN]],
@@ -191,7 +211,7 @@ int foo(int n) {
   // CHECK: br label {{%?}}[[AWAIT_WORK:.+]]
   //
   // CHECK: [[AWAIT_WORK]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: [[WORK:%.+]] = load i8*, i8** [[OMP_WORK_FN]],
   // CHECK: [[SHOULD_EXIT:%.+]] = icmp eq i8* [[WORK]], null
   // CHECK: br i1 [[SHOULD_EXIT]], label {{%?}}[[EXIT:.+]], label {{%?}}[[SEL_WORKERS:.+]]
@@ -208,13 +228,13 @@ int foo(int n) {
   // CHECK: br label {{%?}}[[BAR_PARALLEL]]
   //
   // CHECK: [[BAR_PARALLEL]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[AWAIT_WORK]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
-  // CHECK: define {{.*}}void [[T3:@__omp_offloading_.+foo.+l290]](i[[SZ]]
+  // CHECK: define {{.*}}void [[T3:@__omp_offloading_.+foo.+l310]](i[[SZ]]
   // Create local storage for each capture.
   // CHECK:    [[LOCAL_A:%.+]] = alloca i[[SZ]]
   // CHECK:    [[LOCAL_B:%.+]] = alloca [10 x float]*
@@ -282,7 +302,7 @@ int foo(int n) {
   //
   // CHECK: [[TERMINATE]]
   // CHECK: call void @__kmpc_kernel_deinit(
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[EXIT]]
   //
   // CHECK: [[EXIT]]
@@ -375,7 +395,7 @@ int baz(int f, double &a) {
   return f;
 }
 
-  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+static.+328}}_worker()
+  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+static.+348}}_worker()
   // CHECK-DAG: [[OMP_EXEC_STATUS:%.+]] = alloca i8,
   // CHECK-DAG: [[OMP_WORK_FN:%.+]] = alloca i8*,
   // CHECK: store i8* null, i8** [[OMP_WORK_FN]],
@@ -383,7 +403,7 @@ int baz(int f, double &a) {
   // CHECK: br label {{%?}}[[AWAIT_WORK:.+]]
   //
   // CHECK: [[AWAIT_WORK]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: [[WORK:%.+]] = load i8*, i8** [[OMP_WORK_FN]],
   // CHECK: [[SHOULD_EXIT:%.+]] = icmp eq i8* [[WORK]], null
   // CHECK: br i1 [[SHOULD_EXIT]], label {{%?}}[[EXIT:.+]], label {{%?}}[[SEL_WORKERS:.+]]
@@ -400,13 +420,13 @@ int baz(int f, double &a) {
   // CHECK: br label {{%?}}[[BAR_PARALLEL]]
   //
   // CHECK: [[BAR_PARALLEL]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[AWAIT_WORK]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
-  // CHECK: define {{.*}}void [[T4:@__omp_offloading_.+static.+l328]](i[[SZ]]
+  // CHECK: define {{.*}}void [[T4:@__omp_offloading_.+static.+l348]](i[[SZ]]
   // Create local storage for each capture.
   // CHECK:  [[LOCAL_A:%.+]] = alloca i[[SZ]]
   // CHECK:  [[LOCAL_AA:%.+]] = alloca i[[SZ]]
@@ -453,7 +473,7 @@ int baz(int f, double &a) {
   //
   // CHECK: [[TERMINATE]]
   // CHECK: call void @__kmpc_kernel_deinit(
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[EXIT]]
   //
   // CHECK: [[EXIT]]
@@ -461,16 +481,15 @@ int baz(int f, double &a) {
 
 
 
-  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+S1.+l346}}_worker()
+  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+S1.+l366}}_worker()
   // CHECK-DAG: [[OMP_EXEC_STATUS:%.+]] = alloca i8,
   // CHECK-DAG: [[OMP_WORK_FN:%.+]] = alloca i8*,
-  // CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num(%struct.ident_t*
   // CHECK: store i8* null, i8** [[OMP_WORK_FN]],
   // CHECK: store i8 0, i8* [[OMP_EXEC_STATUS]],
   // CHECK: br label {{%?}}[[AWAIT_WORK:.+]]
   //
   // CHECK: [[AWAIT_WORK]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: [[WORK:%.+]] = load i8*, i8** [[OMP_WORK_FN]],
   // CHECK: [[SHOULD_EXIT:%.+]] = icmp eq i8* [[WORK]], null
   // CHECK: br i1 [[SHOULD_EXIT]], label {{%?}}[[EXIT:.+]], label {{%?}}[[SEL_WORKERS:.+]]
@@ -481,6 +500,7 @@ int baz(int f, double &a) {
   // CHECK: br i1 [[IS_ACTIVE]], label {{%?}}[[EXEC_PARALLEL:.+]], label {{%?}}[[BAR_PARALLEL:.+]]
   //
   // CHECK: [[EXEC_PARALLEL]]
+  // CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num(%struct.ident_t* [[NONSPMD]]
   // CHECK: [[WORK_FN:%.+]] = bitcast i8* [[WORK]] to void (i16, i32)*
   // CHECK: call void [[WORK_FN]](i16 0, i32 [[GTID]])
   // CHECK: br label {{%?}}[[TERM_PARALLEL:.+]]
@@ -489,13 +509,13 @@ int baz(int f, double &a) {
   // CHECK: br label {{%?}}[[BAR_PARALLEL]]
   //
   // CHECK: [[BAR_PARALLEL]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[AWAIT_WORK]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
-  // CHECK: define {{.*}}void [[T5:@__omp_offloading_.+S1.+l346]](
+  // CHECK: define {{.*}}void [[T5:@__omp_offloading_.+S1.+l366]](
   // Create local storage for each capture.
   // CHECK:       [[LOCAL_THIS:%.+]] = alloca [[S1:%struct.*]]*
   // CHECK:       [[LOCAL_B:%.+]] = alloca i[[SZ]]
@@ -547,37 +567,53 @@ int baz(int f, double &a) {
   //
   // CHECK: [[TERMINATE]]
   // CHECK: call void @__kmpc_kernel_deinit(
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[EXIT]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
-  // CHECK: define i32 [[BAZ]](i32 [[F:%.*]], double* dereferenceable{{.*}})
+  // CHECK: define{{ hidden | }}i32 [[BAZ]](i32 [[F:%.*]], double* dereferenceable{{.*}})
+  // CHECK: alloca i32,
+  // CHECK: [[LOCAL_F_PTR:%.+]] = alloca i32,
   // CHECK: [[ZERO_ADDR:%.+]] = alloca i32,
-  // CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num(%struct.ident_t*
-  // CHECK: [[GTID_ADDR:%.+]] = alloca i32,
+  // CHECK: [[BND_ZERO_ADDR:%.+]] = alloca i32,
+  // CHECK: store i32 0, i32* [[BND_ZERO_ADDR]]
   // CHECK: store i32 0, i32* [[ZERO_ADDR]]
-  // CHECK: [[PTR:%.+]] = call i8* @__kmpc_data_sharing_push_stack(i{{64|32}} 4, i16 0)
-  // CHECK: [[REC_ADDR:%.+]] = bitcast i8* [[PTR]] to %struct._globalized_locals_ty*
-  // CHECK: [[F_PTR:%.+]] = getelementptr inbounds %struct._globalized_locals_ty, %struct._globalized_locals_ty* [[REC_ADDR]], i32 0, i32 0
+  // CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num(%struct.ident_t* [[UNKNOWN]]
+  // CHECK: [[PAR_LEVEL:%.+]] = call i16 @__kmpc_parallel_level(%struct.ident_t* [[UNKNOWN]], i32 [[GTID]])
+  // CHECK: [[IS_TTD:%.+]] = icmp eq i16 %1, 0
+  // CHECK: [[RES:%.+]] = call i8 @__kmpc_is_spmd_exec_mode()
+  // CHECK: [[IS_SPMD:%.+]] = icmp ne i8 [[RES]], 0
+  // CHECK: br i1 [[IS_SPMD]], label
+  // CHECK: br label
+  // CHECK: [[SIZE:%.+]] = select i1 [[IS_TTD]], i{{64|32}} 4, i{{64|32}} 128
+  // CHECK: [[PTR:%.+]] = call i8* @__kmpc_data_sharing_coalesced_push_stack(i{{64|32}} [[SIZE]], i16 0)
+  // CHECK: [[REC_ADDR:%.+]] = bitcast i8* [[PTR]] to [[GLOBAL_ST:%.+]]*
+  // CHECK: br label
+  // CHECK: [[ITEMS:%.+]] = phi [[GLOBAL_ST]]* [ null, {{.+}} ], [ [[REC_ADDR]], {{.+}} ]
+  // CHECK: [[TTD_ITEMS:%.+]] = bitcast [[GLOBAL_ST]]* [[ITEMS]] to [[SEC_GLOBAL_ST:%.+]]*
+  // CHECK: [[F_PTR_ARR:%.+]] = getelementptr inbounds [[GLOBAL_ST]], [[GLOBAL_ST]]* [[ITEMS]], i32 0, i32 0
+  // CHECK: [[TID:%.+]] = call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+  // CHECK: [[LID:%.+]] = and i32 [[TID]], 31
+  // CHECK: [[GLOBAL_F_PTR_PAR:%.+]] = getelementptr inbounds [32 x i32], [32 x i32]* [[F_PTR_ARR]], i32 0, i32 [[LID]]
+  // CHECK: [[GLOBAL_F_PTR_TTD:%.+]] = getelementptr inbounds [[SEC_GLOBAL_ST]], [[SEC_GLOBAL_ST]]* [[TTD_ITEMS]], i32 0, i32 0
+  // CHECK: [[GLOBAL_F_PTR:%.+]] = select i1 [[IS_TTD]], i32* [[GLOBAL_F_PTR_TTD]], i32* [[GLOBAL_F_PTR_PAR]]
+  // CHECK: [[F_PTR:%.+]] = select i1 [[IS_SPMD]], i32* [[LOCAL_F_PTR]], i32* [[GLOBAL_F_PTR]]
   // CHECK: store i32 %{{.+}}, i32* [[F_PTR]],
 
   // CHECK: [[RES:%.+]] = call i8 @__kmpc_is_spmd_exec_mode()
   // CHECK: icmp ne i8 [[RES]], 0
   // CHECK: br i1
 
-  // CHECK: [[RES:%.+]] = call i16 @__kmpc_parallel_level(%struct.ident_t* @{{.+}}, i32 [[GTID]])
+  // CHECK: [[RES:%.+]] = call i16 @__kmpc_parallel_level(%struct.ident_t* [[UNKNOWN]], i32 [[GTID]])
   // CHECK: icmp ne i16 [[RES]], 0
   // CHECK: br i1
 
-  // CHECK: call void @__kmpc_serialized_parallel(%struct.ident_t* @{{.+}}, i32 [[GTID]])
-  // CHECK: call void [[OUTLINED:@.+]](i32* [[ZERO_ADDR]], i32* [[ZERO_ADDR]], i32* [[F_PTR]], double* %{{.+}})
-  // CHECK: call void @__kmpc_end_serialized_parallel(%struct.ident_t* @{{.+}}, i32 [[GTID]])
+  // CHECK: call void @__kmpc_serialized_parallel(%struct.ident_t* [[UNKNOWN]], i32 [[GTID]])
+  // CHECK: call void [[OUTLINED:@.+]](i32* [[ZERO_ADDR]], i32* [[BND_ZERO_ADDR]], i32* [[F_PTR]], double* %{{.+}})
+  // CHECK: call void @__kmpc_end_serialized_parallel(%struct.ident_t* [[UNKNOWN]], i32 [[GTID]])
   // CHECK: br label
-
-  // CHECK: icmp eq i32
-  // CHECK: br i1
 
   // CHECK: call void @__kmpc_kernel_prepare_parallel(i8* bitcast (void (i16, i32)* @{{.+}} to i8*), i16 1)
   // CHECK: call void @__kmpc_begin_sharing_variables(i8*** [[SHARED_PTR:%.+]], i{{64|32}} 2)
@@ -585,21 +621,22 @@ int baz(int f, double &a) {
   // CHECK: [[REF:%.+]] = getelementptr inbounds i8*, i8** [[SHARED]], i{{64|32}} 0
   // CHECK: [[F_REF:%.+]] = bitcast i32* [[F_PTR]] to i8*
   // CHECK: store i8* [[F_REF]], i8** [[REF]],
-  // CHECK: call void @llvm.nvvm.barrier0()
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: call void @__kmpc_end_sharing_variables()
   // CHECK: br label
 
-  // CHECK: store i32 [[GTID]], i32* [[GTID_ADDR]],
-  // CHECK: call void [[OUTLINED]](i32* [[GTID_ADDR]], i32* [[ZERO_ADDR]], i32* [[F_PTR]], double* %{{.+}})
-  // CHECK: br label
-
   // CHECK: [[RES:%.+]] = load i32, i32* [[F_PTR]],
-  // CHECK: call void @__kmpc_data_sharing_pop_stack(i8* [[PTR]])
+  // CHECK: store i32 [[RES]], i32* [[RET:%.+]],
+  // CHECK: br i1 [[IS_SPMD]], label
+  // CHECK: [[BC:%.+]] = bitcast [[GLOBAL_ST]]* [[ITEMS]] to i8*
+  // CHECK: call void @__kmpc_data_sharing_pop_stack(i8* [[BC]])
+  // CHECK: br label
+  // CHECK: [[RES:%.+]] = load i32, i32* [[RET]],
   // CHECK: ret i32 [[RES]]
 
 
-  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+template.+l311}}_worker()
+  // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+template.+l331}}_worker()
   // CHECK-DAG: [[OMP_EXEC_STATUS:%.+]] = alloca i8,
   // CHECK-DAG: [[OMP_WORK_FN:%.+]] = alloca i8*,
   // CHECK: store i8* null, i8** [[OMP_WORK_FN]],
@@ -607,7 +644,7 @@ int baz(int f, double &a) {
   // CHECK: br label {{%?}}[[AWAIT_WORK:.+]]
   //
   // CHECK: [[AWAIT_WORK]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: [[WORK:%.+]] = load i8*, i8** [[OMP_WORK_FN]],
   // CHECK: [[SHOULD_EXIT:%.+]] = icmp eq i8* [[WORK]], null
   // CHECK: br i1 [[SHOULD_EXIT]], label {{%?}}[[EXIT:.+]], label {{%?}}[[SEL_WORKERS:.+]]
@@ -624,13 +661,13 @@ int baz(int f, double &a) {
   // CHECK: br label {{%?}}[[BAR_PARALLEL]]
   //
   // CHECK: [[BAR_PARALLEL]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[AWAIT_WORK]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
-  // CHECK: define {{.*}}void [[T6:@__omp_offloading_.+template.+l311]](i[[SZ]]
+  // CHECK: define {{.*}}void [[T6:@__omp_offloading_.+template.+l331]](i[[SZ]]
   // Create local storage for each capture.
   // CHECK:  [[LOCAL_A:%.+]] = alloca i[[SZ]]
   // CHECK:  [[LOCAL_AA:%.+]] = alloca i[[SZ]]
@@ -676,9 +713,10 @@ int baz(int f, double &a) {
   //
   // CHECK: [[TERMINATE]]
   // CHECK: call void @__kmpc_kernel_deinit(
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[EXIT]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
+
 #endif

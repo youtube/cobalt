@@ -1,10 +1,9 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,18 +13,14 @@
 // XFAIL: clang-3.5, clang-3.6, clang-3.7, clang-3.8
 // XFAIL: apple-clang-6, apple-clang-7, apple-clang-8.0
 
-// XFAIL: with_system_cxx_lib=macosx10.12
-// XFAIL: with_system_cxx_lib=macosx10.11
-// XFAIL: with_system_cxx_lib=macosx10.10
-// XFAIL: with_system_cxx_lib=macosx10.9
-// XFAIL: with_system_cxx_lib=macosx10.7
-// XFAIL: with_system_cxx_lib=macosx10.8
+// XFAIL: dylib-has-no-bad_variant_access && !libcpp-no-exceptions
+
 
 // <variant>
 
 // template <class ...Types> class variant;
 
-// variant& operator=(variant&&) noexcept(see below);
+// variant& operator=(variant&&) noexcept(see below); // constexpr in C++20
 
 #include <cassert>
 #include <string>
@@ -34,7 +29,7 @@
 #include <variant>
 
 #include "test_macros.h"
-#include "variant_test_helpers.hpp"
+#include "variant_test_helpers.h"
 
 struct NoCopy {
   NoCopy(const NoCopy &) = delete;
@@ -204,7 +199,8 @@ void test_move_assignment_sfinae() {
     static_assert(!std::is_move_assignable<V>::value, "");
   }
 
-  // The following tests are for not-yet-standardized behavior (P0602):
+  // Make sure we properly propagate triviality (see P0602R4).
+#if TEST_STD_VER > 17
   {
     using V = std::variant<int, long>;
     static_assert(std::is_trivially_move_assignable<V>::value, "");
@@ -230,6 +226,7 @@ void test_move_assignment_sfinae() {
     using V = std::variant<int, CopyOnly>;
     static_assert(std::is_trivially_move_assignable<V>::value, "");
   }
+#endif // > C++17
 }
 
 void test_move_assignment_empty_empty() {
@@ -351,7 +348,8 @@ void test_move_assignment_same_index() {
   }
 #endif // TEST_HAS_NO_EXCEPTIONS
 
-  // The following tests are for not-yet-standardized behavior (P0602):
+  // Make sure we properly propagate triviality, which implies constexpr-ness (see P0602R4).
+#if TEST_STD_VER > 17
   {
     struct {
       constexpr Result<int> operator()() const {
@@ -394,6 +392,7 @@ void test_move_assignment_same_index() {
     static_assert(result.index == 1, "");
     static_assert(result.value == 42, "");
   }
+#endif // > C++17
 }
 
 void test_move_assignment_different_index() {
@@ -408,7 +407,7 @@ void test_move_assignment_different_index() {
   }
   {
     using V = std::variant<int, MoveAssign, unsigned>;
-    V v1(std::in_place_type<unsigned>, 43);
+    V v1(std::in_place_type<unsigned>, 43u);
     V v2(std::in_place_type<MoveAssign>, 42);
     MoveAssign::reset();
     V &vref = (v1 = std::move(v2));
@@ -443,7 +442,8 @@ void test_move_assignment_different_index() {
   }
 #endif // TEST_HAS_NO_EXCEPTIONS
 
-  // The following tests are for not-yet-standardized behavior (P0602):
+  // Make sure we properly propagate triviality, which implies constexpr-ness (see P0602R4).
+#if TEST_STD_VER > 17
   {
     struct {
       constexpr Result<long> operator()() const {
@@ -462,7 +462,7 @@ void test_move_assignment_different_index() {
     struct {
       constexpr Result<long> operator()() const {
         using V = std::variant<int, TMoveAssign, unsigned>;
-        V v(std::in_place_type<unsigned>, 43);
+        V v(std::in_place_type<unsigned>, 43u);
         V v2(std::in_place_type<TMoveAssign>, 42);
         v = std::move(v2);
         return {v.index(), std::get<1>(v).value};
@@ -472,10 +472,11 @@ void test_move_assignment_different_index() {
     static_assert(result.index == 1, "");
     static_assert(result.value == 42, "");
   }
+#endif // > C++17
 }
 
 template <size_t NewIdx, class ValueType>
-constexpr bool test_constexpr_assign_extension_imp(
+constexpr bool test_constexpr_assign_imp(
     std::variant<long, void*, int>&& v, ValueType&& new_value)
 {
   std::variant<long, void*, int> v2(
@@ -486,18 +487,20 @@ constexpr bool test_constexpr_assign_extension_imp(
         std::get<NewIdx>(v) == std::get<NewIdx>(cp);
 }
 
-void test_constexpr_move_assignment_extension() {
-  // The following tests are for not-yet-standardized behavior (P0602):
+void test_constexpr_move_assignment() {
+  // Make sure we properly propagate triviality, which implies constexpr-ness (see P0602R4).
+#if TEST_STD_VER > 17
   using V = std::variant<long, void*, int>;
   static_assert(std::is_trivially_copyable<V>::value, "");
   static_assert(std::is_trivially_move_assignable<V>::value, "");
-  static_assert(test_constexpr_assign_extension_imp<0>(V(42l), 101l), "");
-  static_assert(test_constexpr_assign_extension_imp<0>(V(nullptr), 101l), "");
-  static_assert(test_constexpr_assign_extension_imp<1>(V(42l), nullptr), "");
-  static_assert(test_constexpr_assign_extension_imp<2>(V(42l), 101), "");
+  static_assert(test_constexpr_assign_imp<0>(V(42l), 101l), "");
+  static_assert(test_constexpr_assign_imp<0>(V(nullptr), 101l), "");
+  static_assert(test_constexpr_assign_imp<1>(V(42l), nullptr), "");
+  static_assert(test_constexpr_assign_imp<2>(V(42l), 101), "");
+#endif // > C++17
 }
 
-int main() {
+int main(int, char**) {
   test_move_assignment_empty_empty();
   test_move_assignment_non_empty_empty();
   test_move_assignment_empty_non_empty();
@@ -505,5 +508,7 @@ int main() {
   test_move_assignment_different_index();
   test_move_assignment_sfinae();
   test_move_assignment_noexcept();
-  test_constexpr_move_assignment_extension();
+  test_constexpr_move_assignment();
+
+  return 0;
 }

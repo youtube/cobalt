@@ -1,9 +1,8 @@
 //===- RedundantVoidArgCheck.cpp - clang-tidy -----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -49,7 +48,7 @@ void RedundantVoidArgCheck::registerMatchers(MatchFinder *Finder) {
     return;
 
   Finder->addMatcher(functionDecl(parameterCountIs(0), unless(isImplicit()),
-                                  unless(isExternC()))
+                                  unless(isInstantiated()), unless(isExternC()))
                          .bind(FunctionId),
                      this);
   Finder->addMatcher(typedefNameDecl().bind(TypedefId), this);
@@ -102,10 +101,15 @@ void RedundantVoidArgCheck::check(const MatchFinder::MatchResult &Result) {
 void RedundantVoidArgCheck::processFunctionDecl(
     const MatchFinder::MatchResult &Result, const FunctionDecl *Function) {
   if (Function->isThisDeclarationADefinition()) {
-    const Stmt *Body = Function->getBody();
-    SourceLocation Start = Function->getLocStart();
-    SourceLocation End =
-        Body ? Body->getLocStart().getLocWithOffset(-1) : Function->getLocEnd();
+    SourceLocation Start = Function->getBeginLoc();
+    SourceLocation End = Function->getEndLoc();
+    if (const Stmt *Body = Function->getBody()) {
+      End = Body->getBeginLoc();
+      if (End.isMacroID() &&
+          Result.SourceManager->isAtStartOfImmediateMacroExpansion(End))
+        End = Result.SourceManager->getExpansionLoc(End);
+      End = End.getLocWithOffset(-1);
+    }
     removeVoidArgumentTokens(Result, SourceRange(Start, End),
                              "function definition");
   } else {
@@ -149,6 +153,8 @@ void RedundantVoidArgCheck::removeVoidArgumentTokens(
           ProtoToken.getRawIdentifier() == "void") {
         State = SawVoid;
         VoidToken = ProtoToken;
+      } else if (ProtoToken.is(tok::TokenKind::l_paren)) {
+        State = SawLeftParen;
       } else {
         State = NothingYet;
       }
@@ -171,10 +177,8 @@ void RedundantVoidArgCheck::removeVoidArgumentTokens(
 
 void RedundantVoidArgCheck::removeVoidToken(Token VoidToken,
                                             StringRef Diagnostic) {
-  SourceLocation VoidLoc(VoidToken.getLocation());
-  auto VoidRange =
-      CharSourceRange::getTokenRange(VoidLoc, VoidLoc.getLocWithOffset(3));
-  diag(VoidLoc, Diagnostic) << FixItHint::CreateRemoval(VoidRange);
+  SourceLocation VoidLoc = VoidToken.getLocation();
+  diag(VoidLoc, Diagnostic) << FixItHint::CreateRemoval(VoidLoc);
 }
 
 void RedundantVoidArgCheck::processTypedefNameDecl(
@@ -198,10 +202,10 @@ void RedundantVoidArgCheck::processFieldDecl(
 void RedundantVoidArgCheck::processVarDecl(
     const MatchFinder::MatchResult &Result, const VarDecl *Var) {
   if (protoTypeHasNoParms(Var->getType())) {
-    SourceLocation Begin = Var->getLocStart();
+    SourceLocation Begin = Var->getBeginLoc();
     if (Var->hasInit()) {
       SourceLocation InitStart =
-          Result.SourceManager->getExpansionLoc(Var->getInit()->getLocStart())
+          Result.SourceManager->getExpansionLoc(Var->getInit()->getBeginLoc())
               .getLocWithOffset(-1);
       removeVoidArgumentTokens(Result, SourceRange(Begin, InitStart),
                                "variable declaration with initializer");
@@ -235,10 +239,11 @@ void RedundantVoidArgCheck::processLambdaExpr(
     const MatchFinder::MatchResult &Result, const LambdaExpr *Lambda) {
   if (Lambda->getLambdaClass()->getLambdaCallOperator()->getNumParams() == 0 &&
       Lambda->hasExplicitParameters()) {
-    SourceLocation Begin =
-        Lambda->getIntroducerRange().getEnd().getLocWithOffset(1);
-    SourceLocation End = Lambda->getBody()->getLocStart().getLocWithOffset(-1);
-    removeVoidArgumentTokens(Result, SourceRange(Begin, End),
+    SourceManager *SM = Result.SourceManager;
+    TypeLoc TL = Lambda->getLambdaClass()->getLambdaTypeInfo()->getTypeLoc();
+    removeVoidArgumentTokens(Result,
+                             {SM->getSpellingLoc(TL.getBeginLoc()),
+                              SM->getSpellingLoc(TL.getEndLoc())},
                              "lambda expression");
   }
 }

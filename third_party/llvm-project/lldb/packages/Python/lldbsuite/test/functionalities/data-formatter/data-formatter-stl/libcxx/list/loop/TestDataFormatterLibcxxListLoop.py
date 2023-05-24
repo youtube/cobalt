@@ -3,12 +3,8 @@ Test that the debugger handles loops in std::list (which can appear as a result 
 corruption).
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -22,7 +18,6 @@ class LibcxxListDataFormatterTestCase(TestBase):
 
     @add_test_categories(["libc++"])
     @expectedFailureAndroid(bugnumber="llvm.org/pr32592")
-    @skipIfDarwin  # rdar://25499635
     def test_with_run_command(self):
         self.build()
         exe = self.getBuildArtifact("a.out")

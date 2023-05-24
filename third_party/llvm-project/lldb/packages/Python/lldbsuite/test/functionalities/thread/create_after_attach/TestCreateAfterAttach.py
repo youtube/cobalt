@@ -2,11 +2,8 @@
 Test thread creation after process attach.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -23,7 +20,7 @@ class CreateAfterAttachTestCase(TestBase):
     # Occasionally hangs on Windows, may be same as other issues.
     @skipIfWindows
     @skipIfiOSSimulator
-    @expectedFailureAll(oslist=['ios', 'watchos', 'tvos', 'bridgeos'], bugnumber="<rdar://problem/34538611>") # old lldb-server has race condition, launching an inferior and then launching debugserver in quick succession sometimes fails
+    @expectedFailureNetBSD
     def test_create_after_attach_with_popen(self):
         """Test thread creation after process attach."""
         self.build(dictionary=self.getBuildFlags(use_cpp11=False))
@@ -34,7 +31,7 @@ class CreateAfterAttachTestCase(TestBase):
     @skipIfRemote
     @skipIfWindows  # Windows doesn't have fork.
     @skipIfiOSSimulator
-    @expectedFailureAll(oslist=['ios', 'watchos', 'tvos', 'bridgeos'], bugnumber="<rdar://problem/34538611>") # old lldb-server has race condition, launching an inferior and then launching debugserver in quick succession sometimes fails
+    @expectedFailureNetBSD
     def test_create_after_attach_with_fork(self):
         """Test thread creation after process attach."""
         self.build(dictionary=self.getBuildFlags(use_cpp11=False))

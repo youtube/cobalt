@@ -51,8 +51,8 @@ define <16 x float> @testf16_inp(<16 x float> %a, <16 x float> %b) nounwind {
 ; preserved ymm8-ymm15
 ; X64-LABEL: testf16_regs
 ; X64: call
-; X64: vaddps  {{%ymm[8-9]}}, {{%ymm[0-1]}}, {{%ymm[0-1]}}
-; X64: vaddps  {{%ymm[8-9]}}, {{%ymm[0-1]}}, {{%ymm[0-1]}}
+; X64: vaddps  {{%ymm[0-1]}}, {{%ymm[8-9]}}, {{%ymm[0-1]}}
+; X64: vaddps  {{%ymm[0-1]}}, {{%ymm[8-9]}}, {{%ymm[0-1]}}
 ; X64: ret
 
 define <16 x float> @testf16_regs(<16 x float> %a, <16 x float> %b) nounwind {
@@ -122,8 +122,8 @@ define intel_ocl_bicc <16 x float> @test_prolog_epilog(<16 x float> %a, <16 x fl
 
 ; pass parameters in registers for 64-bit platform
 ; X64-LABEL: test_int
-; X64: leal {{.*}}, %edi
 ; X64: movl {{.*}}, %esi
+; X64: leal {{.*}}, %edi
 ; X64: call
 ; X64: addl {{.*}}, %eax
 define i32 @test_int(i32 %a, i32 %b) nounwind {

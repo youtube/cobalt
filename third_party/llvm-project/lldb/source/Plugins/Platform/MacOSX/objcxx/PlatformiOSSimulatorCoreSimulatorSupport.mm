@@ -1,10 +1,9 @@
 //===-- PlatformiOSSimulatorCoreSimulatorSupport.cpp ---------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,7 +16,7 @@
 #include <Foundation/Foundation.h>
 // Project includes
 #include "lldb/Host/PseudoTerminal.h"
-#include "lldb/Target/FileAction.h"
+#include "lldb/Host/FileAction.h"
 
 #include "llvm/ADT/StringRef.h"
 
@@ -383,7 +382,7 @@ bool CoreSimulatorSupport::Device::Shutdown(Status &err) {
 
 static Status HandleFileAction(ProcessLaunchInfo &launch_info,
                                NSMutableDictionary *options, NSString *key,
-                               const int fd, File &file) {
+                               const int fd, lldb::FileSP &file) {
   Status error;
   const FileAction *file_action = launch_info.GetFileActionForFD(fd);
   if (file_action) {
@@ -409,7 +408,7 @@ static Status HandleFileAction(ProcessLaunchInfo &launch_info,
           // Check in case our file action open wants to open the slave
           const char *slave_path = launch_info.GetPTY().GetSlaveName(NULL, 0);
           if (slave_path) {
-            FileSpec slave_spec(slave_path, false);
+            FileSpec slave_spec(slave_path);
             if (file_spec == slave_spec) {
               int slave_fd = launch_info.GetPTY().GetSlaveFileDescriptor();
               if (slave_fd == PseudoTerminal::invalid_fd)
@@ -426,11 +425,16 @@ static Status HandleFileAction(ProcessLaunchInfo &launch_info,
           }
         }
         Status posix_error;
+        int oflag = file_action->GetActionArgument();
         int created_fd =
-            open(file_spec.GetPath().c_str(), file_action->GetActionArgument(),
-                 S_IRUSR | S_IWUSR);
+            open(file_spec.GetPath().c_str(), oflag, S_IRUSR | S_IWUSR);
         if (created_fd >= 0) {
-          file.SetDescriptor(created_fd, true);
+          auto file_options = File::OpenOptions(0);
+          if ((oflag & O_RDWR) || (oflag & O_RDONLY))
+            file_options |= File::eOpenOptionRead;
+          if ((oflag & O_RDWR) || (oflag & O_RDONLY))
+            file_options |= File::eOpenOptionWrite;
+          file = std::make_shared<NativeFile>(created_fd, file_options, true);
           [options setValue:[NSNumber numberWithInteger:created_fd] forKey:key];
           return error; // Success
         } else {
@@ -490,9 +494,9 @@ CoreSimulatorSupport::Device::Spawn(ProcessLaunchInfo &launch_info) {
   [options setObject:env_dict forKey:kSimDeviceSpawnEnvironment];
 
   Status error;
-  File stdin_file;
-  File stdout_file;
-  File stderr_file;
+  lldb::FileSP stdin_file;
+  lldb::FileSP stdout_file;
+  lldb::FileSP stderr_file;
   error = HandleFileAction(launch_info, options, kSimDeviceSpawnStdin,
                            STDIN_FILENO, stdin_file);
 
@@ -591,7 +595,7 @@ void CoreSimulatorSupport::DeviceSet::ForEach(
     std::function<bool(const Device &)> f) {
   const size_t n = GetNumDevices();
   for (NSUInteger i = 0; i < n; ++i) {
-    if (f(GetDeviceAtIndex(i)) == false)
+    if (!f(GetDeviceAtIndex(i)))
       break;
   }
 }

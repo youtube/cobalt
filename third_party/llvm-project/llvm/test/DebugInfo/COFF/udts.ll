@@ -1,5 +1,5 @@
 ; RUN: llc < %s -filetype=obj > %t.obj
-; RUN: llvm-readobj -codeview %t.obj | FileCheck --check-prefix=READOBJ %s
+; RUN: llvm-readobj --codeview %t.obj | FileCheck --check-prefix=READOBJ %s
 ; RUN: llvm-pdbutil dump -symbols %t.obj | FileCheck --check-prefix=PDBUTIL %s
 
 ; C++ to regenerate:
@@ -79,13 +79,13 @@
 ; PDBUTIL:                           Symbols
 ; PDBUTIL-NEXT: ============================================================
 ; PDBUTIL-NOT:   S_UDT {{.*}} `A::C`
-; PDBUTIL:       S_UDT [size = 15] `f::FOO`
-; PDBUTIL:       S_UDT [size = 15] `g::pun`
-; PDBUTIL:       S_UDT [size = 10] `S`
-; PDBUTIL:       S_UDT [size = 10] `A`
-; PDBUTIL:       S_UDT [size = 13] `A::D`
-; PDBUTIL:       S_UDT [size = 10] `U`
-; PDBUTIL:       S_UDT [size = 10] `U`
+; PDBUTIL:       S_UDT [size = 16] `f::FOO`
+; PDBUTIL:       S_UDT [size = 16] `g::pun`
+; PDBUTIL:       S_UDT [size = 12] `S`
+; PDBUTIL:       S_UDT [size = 12] `A`
+; PDBUTIL:       S_UDT [size = 16] `A::D`
+; PDBUTIL:       S_UDT [size = 12] `U`
+; PDBUTIL:       S_UDT [size = 12] `U`
 
 source_filename = "test/DebugInfo/COFF/udts.ll"
 target datalayout = "e-m:w-i64:64-f80:128-n8:16:32:64-S128"
@@ -127,7 +127,7 @@ define float @"\01?g@@YAMPEAUS@@@Z"(%struct.S*) #0 !dbg !38 {
   ret float %9, !dbg !56
 }
 
-attributes #0 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone speculatable }
 
 !llvm.dbg.cu = !{!2}

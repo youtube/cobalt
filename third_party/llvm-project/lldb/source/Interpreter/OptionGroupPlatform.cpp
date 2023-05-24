@@ -1,18 +1,13 @@
 //===-- OptionGroupPlatform.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/OptionGroupPlatform.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Target/Platform.h"
@@ -65,21 +60,21 @@ void OptionGroupPlatform::OptionParsingStarting(
   m_os_version = llvm::VersionTuple();
 }
 
-static OptionDefinition g_option_table[] = {
+static constexpr OptionDefinition g_option_table[] = {
     {LLDB_OPT_SET_ALL, false, "platform", 'p', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypePlatform, "Specify name of the platform to "
-                                            "use for this target, creating the "
-                                            "platform if necessary."},
+     nullptr, {}, 0, eArgTypePlatform, "Specify name of the platform to "
+                                       "use for this target, creating the "
+                                       "platform if necessary."},
     {LLDB_OPT_SET_ALL, false, "version", 'v', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeNone,
+     nullptr, {}, 0, eArgTypeNone,
      "Specify the initial SDK version to use prior to connecting."},
     {LLDB_OPT_SET_ALL, false, "build", 'b', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeNone,
+     nullptr, {}, 0, eArgTypeNone,
      "Specify the initial SDK build number."},
     {LLDB_OPT_SET_ALL, false, "sysroot", 'S', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeFilename, "Specify the SDK root directory "
-                                            "that contains a root of all "
-                                            "remote system files."}};
+     nullptr, {}, 0, eArgTypeFilename, "Specify the SDK root directory "
+                                       "that contains a root of all "
+                                       "remote system files."}};
 
 llvm::ArrayRef<OptionDefinition> OptionGroupPlatform::GetDefinitions() {
   llvm::ArrayRef<OptionDefinition> result(g_option_table);
@@ -118,8 +113,7 @@ OptionGroupPlatform::SetOptionValue(uint32_t option_idx,
     break;
 
   default:
-    error.SetErrorStringWithFormat("unrecognized option '%c'", short_option);
-    break;
+    llvm_unreachable("Unimplemented option");
   }
   return error;
 }

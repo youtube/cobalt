@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,11 +16,14 @@
 //     pair(piecewise_construct_t, tuple<Args1...> first_args,
 //                                 tuple<Args2...> second_args);
 
-#include <utility>
-#include <tuple>
 #include <cassert>
+#include <tuple>
+#include <utility>
 
-int main()
+#include "test_macros.h"
+
+
+int main(int, char**)
 {
     {
         typedef std::pair<int, int*> P1;
@@ -32,4 +34,6 @@ int main()
         assert(p3.first == P1(3, nullptr));
         assert(p3.second == P2(nullptr, 4));
     }
+
+  return 0;
 }

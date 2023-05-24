@@ -19,28 +19,16 @@ define void @_Z1av() local_unnamed_addr #0 {
 ; CHECK-LABEL: _Z1av:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    movl struct_obj_3+{{.*}}(%rip), %eax
-; CHECK-NEXT:    movsbl {{.*}}(%rip), %ecx
+; CHECK-NEXT:    movzbl {{.*}}(%rip), %ecx
 ; CHECK-NEXT:    movzbl {{.*}}(%rip), %edx
 ; CHECK-NEXT:    andl $1, %eax
-; CHECK-NEXT:    leal (%rax,%rax), %esi
-; CHECK-NEXT:    subl %ecx, %esi
-; CHECK-NEXT:    subl %edx, %esi
-; CHECK-NEXT:    xorl %ecx, %ecx
-; CHECK-NEXT:    testb %al, %al
-; CHECK-NEXT:    cmovel %eax, %ecx
-; CHECK-NEXT:    movzbl {{.*}}(%rip), %edx
-; CHECK-NEXT:    andl struct_obj_8+{{.*}}(%rip), %ecx
-; CHECK-NEXT:    andl $1, %ecx
-; CHECK-NEXT:    negl %ecx
-; CHECK-NEXT:    andl %edx, %ecx
-; CHECK-NEXT:    negl %ecx
-; CHECK-NEXT:    andl %eax, %ecx
-; CHECK-NEXT:    negl %ecx
-; CHECK-NEXT:    testl %ecx, %esi
-; CHECK-NEXT:    notl %esi
-; CHECK-NEXT:    movzbl %sil, %eax
+; CHECK-NEXT:    addl %eax, %eax
+; CHECK-NEXT:    subl %ecx, %eax
+; CHECK-NEXT:    subl %edx, %eax
+; CHECK-NEXT:    notl %eax
+; CHECK-NEXT:    movzbl %al, %eax
 ; CHECK-NEXT:    movw %ax, struct_obj_12+{{.*}}(%rip)
-; CHECK-NEXT:    setne {{.*}}(%rip)
+; CHECK-NEXT:    movb $0, {{.*}}(%rip)
 ; CHECK-NEXT:    retq
 entry:
   %bf.load = load i32, i32* bitcast (i24* getelementptr inbounds (%struct.d.3.7.11.15.39.71.75.91.95.99.107.123.363, %struct.d.3.7.11.15.39.71.75.91.95.99.107.123.363* @struct_obj_3, i64 0, i32 0, i32 2) to i32*), align 2
@@ -85,4 +73,4 @@ entry:
   ret void
 }
 
-attributes #0 = { norecurse nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { norecurse nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }

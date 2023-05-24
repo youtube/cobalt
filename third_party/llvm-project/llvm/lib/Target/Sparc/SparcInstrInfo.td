@@ -1,9 +1,8 @@
 //===-- SparcInstrInfo.td - Target Description for Sparc Target -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -56,6 +55,11 @@ def HasHardQuad : Predicate<"Subtarget->hasHardQuad()">;
 // instruction
 def HasLeonCASA : Predicate<"Subtarget->hasLeonCasa()">;
 
+// HasPWRPSR - This is true when the target processor supports partial
+// writes to the PSR register that only affects the ET field.
+def HasPWRPSR : Predicate<"Subtarget->hasPWRPSR()">,
+                AssemblerPredicate<"FeaturePWRPSR">;
+
 // HasUMAC_SMAC - This is true when the target processor supports the
 // UMAC and SMAC instructions
 def HasUMAC_SMAC : Predicate<"Subtarget->hasUmacSmac()">;
@@ -89,9 +93,21 @@ def HI22 : SDNodeXForm<imm, [{
                                    MVT::i32);
 }]>;
 
+// Return the complement of a HI22 immediate value.
+def HI22_not : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant(~(unsigned)N->getZExtValue() >> 10, SDLoc(N),
+                                   MVT::i32);
+}]>;
+
 def SETHIimm : PatLeaf<(imm), [{
   return isShiftedUInt<22, 10>(N->getZExtValue());
 }], HI22>;
+
+// The N->hasOneUse() prevents the immediate from being instantiated in both
+// normal and complement form.
+def SETHIimm_not : PatLeaf<(i32 imm), [{
+  return N->hasOneUse() && isShiftedUInt<22, 10>(~(unsigned)N->getZExtValue());
+}], HI22_not>;
 
 // Addressing modes.
 def ADDRrr : ComplexPattern<iPTR, 2, "SelectADDRrr", [], []>;
@@ -120,6 +136,16 @@ def MEMri : Operand<iPTR> {
 }
 
 def TLSSym : Operand<iPTR>;
+
+def SparcMembarTagAsmOperand : AsmOperandClass {
+  let Name = "MembarTag";
+  let ParserMethod = "parseMembarTag";
+}
+
+def MembarTag : Operand<i32> {
+  let PrintMethod = "printMembarTag";
+  let ParserMatchClass = SparcMembarTagAsmOperand;
+}
 
 // Branch targets have OtherVT type.
 def brtarget : Operand<OtherVT> {
@@ -169,9 +195,6 @@ SDTypeProfile<1, 3, [SDTCisInt<0>, SDTCisSameAs<0, 1>, SDTCisPtrTy<2>]>;
 def SDTSPtlsld :
 SDTypeProfile<1, 2, [SDTCisPtrTy<0>, SDTCisPtrTy<1>]>;
 
-def SDTSPeh_sjlj_setjmp : SDTypeProfile<1, 1, [SDTCisInt<0>, SDTCisPtrTy<1>]>;
-def SDTSPeh_sjlj_longjmp: SDTypeProfile<0, 1, [SDTCisPtrTy<0>]>;
-
 def SPcmpicc : SDNode<"SPISD::CMPICC", SDTSPcmpicc, [SDNPOutGlue]>;
 def SPcmpfcc : SDNode<"SPISD::CMPFCC", SDTSPcmpfcc, [SDNPOutGlue]>;
 def SPbricc : SDNode<"SPISD::BRICC", SDTSPbrcc, [SDNPHasChain, SDNPInGlue]>;
@@ -189,13 +212,6 @@ def SPxtof  : SDNode<"SPISD::XTOF", SDTSPXTOF>;
 def SPselecticc : SDNode<"SPISD::SELECT_ICC", SDTSPselectcc, [SDNPInGlue]>;
 def SPselectxcc : SDNode<"SPISD::SELECT_XCC", SDTSPselectcc, [SDNPInGlue]>;
 def SPselectfcc : SDNode<"SPISD::SELECT_FCC", SDTSPselectcc, [SDNPInGlue]>;
-
-def SPsjlj_setjmp: SDNode<"SPISD::EH_SJLJ_SETJMP",
-                          SDTSPeh_sjlj_setjmp,
-                          [SDNPHasChain, SDNPSideEffect]>;
-def SPsjlj_longjmp: SDNode<"SPISD::EH_SJLJ_LONGJMP",
-                           SDTSPeh_sjlj_longjmp,
-                           [SDNPHasChain, SDNPSideEffect]>;
 
 //  These are target-independent nodes, but have target-specific formats.
 def SDT_SPCallSeqStart : SDCallSeqStart<[ SDTCisVT<0, i32>,
@@ -473,27 +489,6 @@ let usesCustomInserter = 1, Uses = [FCC0] in {
             [(set f128:$dst, (SPselectfcc f128:$T, f128:$F, imm:$Cond))]>;
 }
 
-let hasSideEffects = 1, isBarrier = 1, usesCustomInserter = 1 in {
-  let Defs = [WIM] in
-  def EH_SJLJ_SETJMP32ri  : Pseudo<(outs IntRegs:$dst), (ins MEMri:$buf),
-                            "#EH_SJLJ_SETJMP32",
-                            [(set i32:$dst, (SPsjlj_setjmp ADDRri:$buf))]>,
-                            Requires<[Is32Bit]>;
-  def EH_SJLJ_SETJMP32rr  : Pseudo<(outs IntRegs:$dst), (ins MEMrr:$buf),
-                            "#EH_SJLJ_SETJMP32",
-                            [(set i32:$dst, (SPsjlj_setjmp ADDRrr:$buf))]>,
-                            Requires<[Is32Bit]>;
-  let isTerminator = 1 in
-  def EH_SJLJ_LONGJMP32ri : Pseudo<(outs), (ins MEMri:$buf),
-                            "#EH_SJLJ_LONGJMP32",
-                            [(SPsjlj_longjmp ADDRri:$buf)]>,
-                            Requires<[Is32Bit]>;
-  def EH_SJLJ_LONGJMP32rr : Pseudo<(outs), (ins MEMrr:$buf),
-                            "#EH_SJLJ_LONGJMP32",
-                            [(SPsjlj_longjmp ADDRrr:$buf)]>,
-                            Requires<[Is32Bit]>;
-}
-
 // Section B.1 - Load Integer Instructions, p. 90
 let DecoderMethod = "DecodeLoadInt" in {
   defm LDSB : LoadA<"ldsb", 0b001001, 0b011001, sextloadi8,  IntRegs, i32>;
@@ -521,9 +516,9 @@ let DecoderMethod = "DecodeLoadQFP" in
   defm LDQF  : LoadA<"ldq", 0b100010, 0b110010, load, QFPRegs, f128>,
                Requires<[HasV9, HasHardQuad]>;
 
-let DecoderMethod = "DecodeLoadCP" in 
-  defm LDC   : Load<"ld", 0b110000, load, CoprocRegs, i32>; 
-let DecoderMethod = "DecodeLoadCPPair" in 
+let DecoderMethod = "DecodeLoadCP" in
+  defm LDC   : Load<"ld", 0b110000, load, CoprocRegs, i32>;
+let DecoderMethod = "DecodeLoadCPPair" in
   defm LDDC   : Load<"ldd", 0b110011, load, CoprocPair, v2i32, IIC_ldd>;
 
 let DecoderMethod = "DecodeLoadCP", Defs = [CPSR] in {
@@ -679,6 +674,12 @@ def XNORrr  : F3_1<2, 0b000111,
 def XNORri  : F3_2<2, 0b000111,
                    (outs IntRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13),
                    "xnor $rs1, $simm13, $rd", []>;
+
+def : Pat<(and IntRegs:$rs1, SETHIimm_not:$rs2),
+          (ANDNrr i32:$rs1, (SETHIi SETHIimm_not:$rs2))>;
+
+def : Pat<(or IntRegs:$rs1, SETHIimm_not:$rs2),
+          (ORNrr i32:$rs1,  (SETHIi SETHIimm_not:$rs2))>;
 
 let Defs = [ICC] in {
   defm ANDCC  : F3_12np<"andcc",  0b010001>;
@@ -1316,7 +1317,7 @@ let Defs = [FCC0], rd = 0, isCodeGenOnly = 1 in {
 //===----------------------------------------------------------------------===//
 // Instructions for Thread Local Storage(TLS).
 //===----------------------------------------------------------------------===//
-let isCodeGenOnly = 1, isAsmParserOnly = 1 in {
+let isAsmParserOnly = 1 in {
 def TLS_ADDrr : F3_1<2, 0b000000,
                     (outs IntRegs:$rd),
                     (ins IntRegs:$rs1, IntRegs:$rs2, TLSSym:$sym),
@@ -1507,11 +1508,11 @@ let rs1 = 0 in
   def POPCrr : F3_1<2, 0b101110,
                     (outs IntRegs:$rd), (ins IntRegs:$rs2),
                     "popc $rs2, $rd", []>, Requires<[HasV9]>;
-def : Pat<(ctpop i32:$src),
+def : Pat<(i32 (ctpop i32:$src)),
           (POPCrr (SRLri $src, 0))>;
 
 let Predicates = [HasV9], hasSideEffects = 1, rd = 0, rs1 = 0b01111 in
- def MEMBARi : F3_2<2, 0b101000, (outs), (ins simm13Op:$simm13),
+ def MEMBARi : F3_2<2, 0b101000, (outs), (ins MembarTag:$simm13),
                     "membar $simm13", []>;
 
 // The CAS instruction, unlike other instructions, only comes in a 
@@ -1567,6 +1568,17 @@ let Predicates = [HasUMAC_SMAC], Defs = [Y, ASR18], Uses = [Y, ASR18] in {
                   (outs IntRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13, ASRRegs:$asr18),
                    "umac $rs1, $simm13, $rd",
                    [], IIC_smac_umac>;
+}
+
+// The partial write WRPSR instruction has a non-zero destination
+// register value to separate it from the standard instruction.
+let Predicates = [HasPWRPSR], Defs = [PSR], rd=1 in {
+  def PWRPSRrr : F3_1<2, 0b110001,
+     (outs), (ins IntRegs:$rs1, IntRegs:$rs2),
+     "pwr $rs1, $rs2, %psr", []>;
+  def PWRPSRri : F3_2<2, 0b110001,
+     (outs), (ins IntRegs:$rs1, simm13Op:$simm13),
+     "pwr $rs1, $simm13, %psr", []>;
 }
 
 let Defs = [ICC] in {
@@ -1664,7 +1676,10 @@ def : Pat<(store (i32 0), ADDRri:$dst), (STri ADDRri:$dst, (i32 G0))>;
 
 // store bar for all atomic_fence in V8.
 let Predicates = [HasNoV9] in
-  def : Pat<(atomic_fence imm, imm), (STBAR)>;
+  def : Pat<(atomic_fence timm, timm), (STBAR)>;
+
+let Predicates = [HasV9] in
+  def : Pat<(atomic_fence timm, timm), (MEMBARi 0xf)>;
 
 // atomic_load addr -> load addr
 def : Pat<(i32 (atomic_load_8 ADDRrr:$src)), (LDUBrr ADDRrr:$src)>;

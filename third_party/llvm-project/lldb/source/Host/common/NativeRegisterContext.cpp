@@ -1,16 +1,15 @@
 //===-- NativeRegisterContext.cpp -------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/common/NativeRegisterContext.h"
 
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegisterValue.h"
 
 #include "lldb/Host/PosixApi.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
@@ -22,9 +21,7 @@ using namespace lldb_private;
 NativeRegisterContext::NativeRegisterContext(NativeThreadProtocol &thread)
     : m_thread(thread) {}
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 NativeRegisterContext::~NativeRegisterContext() {}
 
 // FIXME revisit invalidation, process stop ids, etc.  Right now we don't
@@ -117,16 +114,15 @@ lldb::addr_t NativeRegisterContext::GetPC(lldb::addr_t fail_value) {
 
   uint32_t reg = ConvertRegisterKindToRegisterNumber(eRegisterKindGeneric,
                                                      LLDB_REGNUM_GENERIC_PC);
-  if (log)
-    log->Printf("NativeRegisterContext::%s using reg index %" PRIu32
-                " (default %" PRIu64 ")",
-                __FUNCTION__, reg, fail_value);
+  LLDB_LOGF(log,
+            "NativeRegisterContext::%s using reg index %" PRIu32
+            " (default %" PRIu64 ")",
+            __FUNCTION__, reg, fail_value);
 
   const uint64_t retval = ReadRegisterAsUnsigned(reg, fail_value);
 
-  if (log)
-    log->Printf("NativeRegisterContext::%s " PRIu32 " retval %" PRIu64,
-                __FUNCTION__, retval);
+  LLDB_LOGF(log, "NativeRegisterContext::%s " PRIu32 " retval %" PRIu64,
+            __FUNCTION__, retval);
 
   return retval;
 }
@@ -195,20 +191,19 @@ NativeRegisterContext::ReadRegisterAsUnsigned(const RegisterInfo *reg_info,
     RegisterValue value;
     Status error = ReadRegister(reg_info, value);
     if (error.Success()) {
-      if (log)
-        log->Printf("NativeRegisterContext::%s ReadRegister() succeeded, value "
-                    "%" PRIu64,
-                    __FUNCTION__, value.GetAsUInt64());
+      LLDB_LOGF(log,
+                "NativeRegisterContext::%s ReadRegister() succeeded, value "
+                "%" PRIu64,
+                __FUNCTION__, value.GetAsUInt64());
       return value.GetAsUInt64();
     } else {
-      if (log)
-        log->Printf("NativeRegisterContext::%s ReadRegister() failed, error %s",
-                    __FUNCTION__, error.AsCString());
+      LLDB_LOGF(log,
+                "NativeRegisterContext::%s ReadRegister() failed, error %s",
+                __FUNCTION__, error.AsCString());
     }
   } else {
-    if (log)
-      log->Printf("NativeRegisterContext::%s ReadRegister() null reg_info",
-                  __FUNCTION__);
+    LLDB_LOGF(log, "NativeRegisterContext::%s ReadRegister() null reg_info",
+              __FUNCTION__);
   }
   return fail_value;
 }

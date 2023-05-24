@@ -8,7 +8,6 @@ define i32 @foo(i32 %p, i8 zeroext %x) nounwind {
 ; X32-LABEL: foo:
 ; X32:       # %bb.0:
 ; X32-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
-; X32-NEXT:    # kill: def $eax killed $eax def $ax
 ; X32-NEXT:    divb {{[0-9]+}}(%esp)
 ; X32-NEXT:    movzbl %al, %eax
 ; X32-NEXT:    andl $1, %eax
@@ -17,7 +16,6 @@ define i32 @foo(i32 %p, i8 zeroext %x) nounwind {
 ; X64-LABEL: foo:
 ; X64:       # %bb.0:
 ; X64-NEXT:    movzbl %dil, %eax
-; X64-NEXT:    # kill: def $eax killed $eax def $ax
 ; X64-NEXT:    divb %sil
 ; X64-NEXT:    movzbl %al, %eax
 ; X64-NEXT:    andl $1, %eax
@@ -41,8 +39,9 @@ define i32 @bar(i32 %p, i16 zeroext %x) nounwind {
 ;
 ; X64-LABEL: bar:
 ; X64:       # %bb.0:
-; X64-NEXT:    xorl %edx, %edx
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    # kill: def $ax killed $ax killed $eax
+; X64-NEXT:    xorl %edx, %edx
 ; X64-NEXT:    divw %si
 ; X64-NEXT:    # kill: def $ax killed $ax def $eax
 ; X64-NEXT:    andl $1, %eax

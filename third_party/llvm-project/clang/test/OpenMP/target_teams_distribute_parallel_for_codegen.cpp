@@ -2,6 +2,7 @@
 #ifndef HEADER
 #define HEADER
 // Test host codegen.
+// RUN: %clang_cc1 -DCK1 -verify -fopenmp -x c++ -triple powerpc64le-unknown-unknown -emit-llvm %s -o - | FileCheck %s --check-prefix HCK_NO_TGT
 // RUN: %clang_cc1 -DCK1 -verify -fopenmp -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm %s -o - | FileCheck %s --check-prefix CK1 --check-prefix CK1-64 --check-prefix HCK1 --check-prefix HCK1-64
 // RUN: %clang_cc1 -DCK1 -fopenmp -x c++ -std=c++11 -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-pch -o %t %s
 // RUN: %clang_cc1 -DCK1 -fopenmp -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s --check-prefix CK1 --check-prefix CK1-64 --check-prefix HCK1 --check-prefix HCK1-64
@@ -38,6 +39,8 @@
 
 #ifdef CK1
 
+// HCK_NO_TGT-NOT: @__kmpc_push_target_tripcount
+
 // HCK1: define{{.*}} i32 @{{.+}}target_teams_fun{{.*}}(
 int target_teams_fun(int *g){
   int n = 1000;
@@ -57,7 +60,8 @@ int target_teams_fun(int *g){
   // HCK1: [[N_PAR:%.+]] = load{{.+}}, {{.+}} [[N_CAST]],
   // HCK1: [[TE_PAR:%.+]] = load{{.+}}, {{.+}} [[TE_CAST]],
   // HCK1: [[TH_PAR:%.+]] = load{{.+}}, {{.+}} [[TH_CAST]],
-  // HCK1: call i32 @__tgt_target_teams(i64 -1, i8* @{{[^,]+}}, i32 4, i8** %{{[^,]+}}, i8** %{{[^,]+}}, 
+  // HCK1: call void @__kmpc_push_target_tripcount(i64 -1, i64 %{{.+}})
+  // HCK1: call i32 @__tgt_target_teams(i64 -1, i8* @{{[^,]+}}, i32 4, i8** %{{[^,]+}}, i8** %{{[^,]+}},
 
   // HCK1: call void @[[OFFL1:.+]](i{{32|64}} [[N_PAR]], {{.+}}, i{{32|64}} [[TE_PAR]], i{{32|64}} [[TH_PAR]])
   #pragma omp target teams distribute parallel for num_teams(te), thread_limit(th)

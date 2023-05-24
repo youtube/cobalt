@@ -1,9 +1,8 @@
 //===- CodeCoverage.cpp - Coverage tool based on profiling instrumentation-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CoverageExporterJson.h"
+#include "CoverageExporterLcov.h"
 #include "CoverageFilters.h"
 #include "CoverageReport.h"
 #include "CoverageSummaryInfo.h"
@@ -36,6 +36,7 @@
 #include "llvm/Support/ThreadPool.h"
 #include "llvm/Support/Threading.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/VirtualFileSystem.h"
 
 #include <functional>
 #include <map>
@@ -215,12 +216,13 @@ void CodeCoverageTool::collectPaths(const std::string &Path) {
     for (llvm::sys::fs::recursive_directory_iterator F(Path, EC), E;
          F != E; F.increment(EC)) {
 
-      if (EC) {
-        warning(EC.message(), F->path());
+      auto Status = F->status();
+      if (!Status) {
+        warning(Status.getError().message(), F->path());
         continue;
       }
 
-      if (llvm::sys::fs::is_regular_file(F->path()))
+      if (Status->type() == llvm::sys::fs::file_type::regular_file)
         addCollectedPath(F->path());
     }
   }
@@ -368,12 +370,6 @@ std::unique_ptr<CoverageMapping> CodeCoverageTool::load() {
                << "No profile record found for '" << HashMismatch.first << "'"
                << " with hash = 0x" << Twine::utohexstr(HashMismatch.second)
                << '\n';
-
-      for (const auto &CounterMismatch : Coverage->getCounterMismatches())
-        errs() << "counter-mismatch: "
-               << "Coverage mapping for " << CounterMismatch.first
-               << " only has " << CounterMismatch.second
-               << " valid counter expressions\n";
     }
   }
 
@@ -571,7 +567,9 @@ int CodeCoverageTool::run(Command Cmd, int argc, const char **argv) {
       cl::values(clEnumValN(CoverageViewOptions::OutputFormat::Text, "text",
                             "Text output"),
                  clEnumValN(CoverageViewOptions::OutputFormat::HTML, "html",
-                            "HTML output")),
+                            "HTML output"),
+                 clEnumValN(CoverageViewOptions::OutputFormat::Lcov, "lcov",
+                            "lcov tracefile output")),
       cl::init(CoverageViewOptions::OutputFormat::Text));
 
   cl::opt<std::string> PathRemap(
@@ -679,6 +677,11 @@ int CodeCoverageTool::run(Command Cmd, int argc, const char **argv) {
         errs() << "Color output cannot be disabled when generating html.\n";
       ViewOpts.Colors = true;
       break;
+    case CoverageViewOptions::OutputFormat::Lcov:
+      if (UseColor == cl::BOU_TRUE)
+        errs() << "Color output cannot be enabled when generating lcov.\n";
+      ViewOpts.Colors = false;
+      break;
     }
 
     // If path-equivalence was given and is a comma seperated pair then set
@@ -688,7 +691,7 @@ int CodeCoverageTool::run(Command Cmd, int argc, const char **argv) {
       PathRemapping = EquivPair;
 
     // If a demangler is supplied, check if it exists and register it.
-    if (DemanglerOpts.size()) {
+    if (!DemanglerOpts.empty()) {
       auto DemanglerPathOrErr = sys::findProgramByName(DemanglerOpts[0]);
       if (!DemanglerPathOrErr) {
         error("Could not find the demangler!",
@@ -702,23 +705,23 @@ int CodeCoverageTool::run(Command Cmd, int argc, const char **argv) {
     // Read in -name-whitelist files.
     if (!NameFilterFiles.empty()) {
       std::string SpecialCaseListErr;
-      NameWhitelist =
-          SpecialCaseList::create(NameFilterFiles, SpecialCaseListErr);
+      NameWhitelist = SpecialCaseList::create(
+          NameFilterFiles, *vfs::getRealFileSystem(), SpecialCaseListErr);
       if (!NameWhitelist)
         error(SpecialCaseListErr);
     }
 
     // Create the function filters
     if (!NameFilters.empty() || NameWhitelist || !NameRegexFilters.empty()) {
-      auto NameFilterer = llvm::make_unique<CoverageFilters>();
+      auto NameFilterer = std::make_unique<CoverageFilters>();
       for (const auto &Name : NameFilters)
-        NameFilterer->push_back(llvm::make_unique<NameCoverageFilter>(Name));
+        NameFilterer->push_back(std::make_unique<NameCoverageFilter>(Name));
       if (NameWhitelist)
         NameFilterer->push_back(
-            llvm::make_unique<NameWhitelistCoverageFilter>(*NameWhitelist));
+            std::make_unique<NameWhitelistCoverageFilter>(*NameWhitelist));
       for (const auto &Regex : NameRegexFilters)
         NameFilterer->push_back(
-            llvm::make_unique<NameRegexCoverageFilter>(Regex));
+            std::make_unique<NameRegexCoverageFilter>(Regex));
       Filters.push_back(std::move(NameFilterer));
     }
 
@@ -726,18 +729,18 @@ int CodeCoverageTool::run(Command Cmd, int argc, const char **argv) {
         RegionCoverageGtFilter.getNumOccurrences() ||
         LineCoverageLtFilter.getNumOccurrences() ||
         LineCoverageGtFilter.getNumOccurrences()) {
-      auto StatFilterer = llvm::make_unique<CoverageFilters>();
+      auto StatFilterer = std::make_unique<CoverageFilters>();
       if (RegionCoverageLtFilter.getNumOccurrences())
-        StatFilterer->push_back(llvm::make_unique<RegionCoverageFilter>(
+        StatFilterer->push_back(std::make_unique<RegionCoverageFilter>(
             RegionCoverageFilter::LessThan, RegionCoverageLtFilter));
       if (RegionCoverageGtFilter.getNumOccurrences())
-        StatFilterer->push_back(llvm::make_unique<RegionCoverageFilter>(
+        StatFilterer->push_back(std::make_unique<RegionCoverageFilter>(
             RegionCoverageFilter::GreaterThan, RegionCoverageGtFilter));
       if (LineCoverageLtFilter.getNumOccurrences())
-        StatFilterer->push_back(llvm::make_unique<LineCoverageFilter>(
+        StatFilterer->push_back(std::make_unique<LineCoverageFilter>(
             LineCoverageFilter::LessThan, LineCoverageLtFilter));
       if (LineCoverageGtFilter.getNumOccurrences())
-        StatFilterer->push_back(llvm::make_unique<LineCoverageFilter>(
+        StatFilterer->push_back(std::make_unique<LineCoverageFilter>(
             RegionCoverageFilter::GreaterThan, LineCoverageGtFilter));
       Filters.push_back(std::move(StatFilterer));
     }
@@ -745,7 +748,7 @@ int CodeCoverageTool::run(Command Cmd, int argc, const char **argv) {
     // Create the ignore filename filters.
     for (const auto &RE : IgnoreFilenameRegexFilters)
       IgnoreFilenameFilters.push_back(
-          llvm::make_unique<NameRegexCoverageFilter>(RE));
+          std::make_unique<NameRegexCoverageFilter>(RE));
 
     if (!Arches.empty()) {
       for (const std::string &Arch : Arches) {
@@ -837,6 +840,11 @@ int CodeCoverageTool::doShow(int argc, const char **argv,
   auto Err = commandLineParser(argc, argv);
   if (Err)
     return Err;
+
+  if (ViewOpts.Format == CoverageViewOptions::OutputFormat::Lcov) {
+    error("Lcov format should be used with 'llvm-cov export'.");
+    return 1;
+  }
 
   ViewOpts.ShowLineNumbers = true;
   ViewOpts.ShowLineStats = ShowLineExecutionCounts.getNumOccurrences() != 0 ||
@@ -969,6 +977,9 @@ int CodeCoverageTool::doReport(int argc, const char **argv,
   if (ViewOpts.Format == CoverageViewOptions::OutputFormat::HTML) {
     error("HTML output for summary reports is not yet supported.");
     return 1;
+  } else if (ViewOpts.Format == CoverageViewOptions::OutputFormat::Lcov) {
+    error("Lcov format should be used with 'llvm-cov export'.");
+    return 1;
   }
 
   auto Coverage = load();
@@ -996,12 +1007,27 @@ int CodeCoverageTool::doReport(int argc, const char **argv,
 int CodeCoverageTool::doExport(int argc, const char **argv,
                                CommandLineParserType commandLineParser) {
 
+  cl::OptionCategory ExportCategory("Exporting options");
+
+  cl::opt<bool> SkipExpansions("skip-expansions", cl::Optional,
+                               cl::desc("Don't export expanded source regions"),
+                               cl::cat(ExportCategory));
+
+  cl::opt<bool> SkipFunctions("skip-functions", cl::Optional,
+                              cl::desc("Don't export per-function data"),
+                              cl::cat(ExportCategory));
+
   auto Err = commandLineParser(argc, argv);
   if (Err)
     return Err;
 
-  if (ViewOpts.Format != CoverageViewOptions::OutputFormat::Text) {
-    error("Coverage data can only be exported as textual JSON.");
+  ViewOpts.SkipExpansions = SkipExpansions;
+  ViewOpts.SkipFunctions = SkipFunctions;
+
+  if (ViewOpts.Format != CoverageViewOptions::OutputFormat::Text &&
+      ViewOpts.Format != CoverageViewOptions::OutputFormat::Lcov) {
+    error("Coverage data can only be exported as textual JSON or an "
+          "lcov tracefile.");
     return 1;
   }
 
@@ -1011,12 +1037,27 @@ int CodeCoverageTool::doExport(int argc, const char **argv,
     return 1;
   }
 
-  auto Exporter = CoverageExporterJson(*Coverage.get(), ViewOpts, outs());
+  std::unique_ptr<CoverageExporter> Exporter;
+
+  switch (ViewOpts.Format) {
+  case CoverageViewOptions::OutputFormat::Text:
+    Exporter = std::make_unique<CoverageExporterJson>(*Coverage.get(),
+                                                       ViewOpts, outs());
+    break;
+  case CoverageViewOptions::OutputFormat::HTML:
+    // Unreachable because we should have gracefully terminated with an error
+    // above.
+    llvm_unreachable("Export in HTML is not supported!");
+  case CoverageViewOptions::OutputFormat::Lcov:
+    Exporter = std::make_unique<CoverageExporterLcov>(*Coverage.get(),
+                                                       ViewOpts, outs());
+    break;
+  }
 
   if (SourceFiles.empty())
-    Exporter.renderRoot(IgnoreFilenameFilters);
+    Exporter->renderRoot(IgnoreFilenameFilters);
   else
-    Exporter.renderRoot(SourceFiles);
+    Exporter->renderRoot(SourceFiles);
 
   return 0;
 }

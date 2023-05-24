@@ -1,9 +1,8 @@
 //===-- SocketAddress.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,7 +20,6 @@
 #include <stddef.h>
 #include <stdio.h>
 
-// C Includes
 #if !defined(_WIN32)
 #include <arpa/inet.h>
 #endif
@@ -29,9 +27,6 @@
 #include <assert.h>
 #include <string.h>
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/PosixApi.h"
 
 // WindowsXP needs an inet_ntop implementation
@@ -76,9 +71,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t size) {
 
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // SocketAddress constructor
-//----------------------------------------------------------------------
 SocketAddress::SocketAddress() { Clear(); }
 
 SocketAddress::SocketAddress(const struct sockaddr &s) { m_socket_addr.sa = s; }
@@ -99,15 +92,7 @@ SocketAddress::SocketAddress(const struct addrinfo *addr_info) {
   *this = addr_info;
 }
 
-//----------------------------------------------------------------------
-// SocketAddress copy constructor
-//----------------------------------------------------------------------
-SocketAddress::SocketAddress(const SocketAddress &rhs)
-    : m_socket_addr(rhs.m_socket_addr) {}
-
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 SocketAddress::~SocketAddress() {}
 
 void SocketAddress::Clear() {
@@ -188,15 +173,7 @@ bool SocketAddress::SetPort(uint16_t port) {
   return false;
 }
 
-//----------------------------------------------------------------------
 // SocketAddress assignment operator
-//----------------------------------------------------------------------
-const SocketAddress &SocketAddress::operator=(const SocketAddress &rhs) {
-  if (this != &rhs)
-    m_socket_addr = rhs.m_socket_addr;
-  return *this;
-}
-
 const SocketAddress &SocketAddress::
 operator=(const struct addrinfo *addr_info) {
   Clear();
@@ -253,11 +230,11 @@ SocketAddress::GetAddressInfo(const char *hostname, const char *servname,
   hints.ai_protocol = ai_protocol;
   hints.ai_flags = ai_flags;
 
-  struct addrinfo *service_info_list = NULL;
+  struct addrinfo *service_info_list = nullptr;
   int err = ::getaddrinfo(hostname, servname, &hints, &service_info_list);
   if (err == 0 && service_info_list) {
-    for (struct addrinfo *service_ptr = service_info_list; service_ptr != NULL;
-         service_ptr = service_ptr->ai_next) {
+    for (struct addrinfo *service_ptr = service_info_list;
+         service_ptr != nullptr; service_ptr = service_ptr->ai_next) {
       addr_list.emplace_back(SocketAddress(service_ptr));
     }
   }

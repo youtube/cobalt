@@ -1,9 +1,8 @@
 //===- llvm/Support/YAMLTraits.h --------------------------------*- C++ -*-===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,6 +26,7 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <new>
@@ -37,6 +37,12 @@
 
 namespace llvm {
 namespace yaml {
+
+enum class NodeKind : uint8_t {
+  Scalar,
+  Map,
+  Sequence,
+};
 
 struct EmptyContext {};
 
@@ -95,8 +101,7 @@ template <class T, class Context> struct MappingContextTraits {
 ///           io.enumCase(value, "green", cGreen);
 ///         }
 ///       };
-template<typename T>
-struct ScalarEnumerationTraits {
+template <typename T, typename Enable = void> struct ScalarEnumerationTraits {
   // Must provide:
   // static void enumeration(IO &io, T &value);
 };
@@ -112,8 +117,7 @@ struct ScalarEnumerationTraits {
 ///          io.bitSetCase(value, "round", flagRound);
 ///        }
 ///      };
-template<typename T>
-struct ScalarBitSetTraits {
+template <typename T, typename Enable = void> struct ScalarBitSetTraits {
   // Must provide:
   // static void bitset(IO &io, T &value);
 };
@@ -139,19 +143,18 @@ enum class QuotingType { None, Single, Double };
 ///      }
 ///      static QuotingType mustQuote(StringRef) { return QuotingType::Single; }
 ///    };
-template<typename T>
-struct ScalarTraits {
+template <typename T, typename Enable = void> struct ScalarTraits {
   // Must provide:
   //
   // Function to write the value as a string:
-  //static void output(const T &value, void *ctxt, llvm::raw_ostream &out);
+  // static void output(const T &value, void *ctxt, llvm::raw_ostream &out);
   //
   // Function to convert a string to a value.  Returns the empty
   // StringRef on success or an error string if string is malformed:
-  //static StringRef input(StringRef scalar, void *ctxt, T &value);
+  // static StringRef input(StringRef scalar, void *ctxt, T &value);
   //
   // Function to determine if the value should be quoted.
-  //static QuotingType mustQuote(StringRef);
+  // static QuotingType mustQuote(StringRef);
 };
 
 /// This class should be specialized by type that requires custom conversion
@@ -162,7 +165,7 @@ struct ScalarTraits {
 ///      static void output(const MyType &Value, void*, llvm::raw_ostream &Out)
 ///      {
 ///        // stream out custom formatting
-///        Out << Val;
+///        Out << Value;
 ///      }
 ///      static StringRef input(StringRef Scalar, void*, MyType &Value) {
 ///        // parse scalar and set `value`
@@ -180,6 +183,47 @@ struct BlockScalarTraits {
   // Function to convert a string to a value.  Returns the empty
   // StringRef on success or an error string if string is malformed:
   // static StringRef input(StringRef Scalar, void *ctxt, T &Value);
+  //
+  // Optional:
+  // static StringRef inputTag(T &Val, std::string Tag)
+  // static void outputTag(const T &Val, raw_ostream &Out)
+};
+
+/// This class should be specialized by type that requires custom conversion
+/// to/from a YAML scalar with optional tags. For example:
+///
+///    template <>
+///    struct TaggedScalarTraits<MyType> {
+///      static void output(const MyType &Value, void*, llvm::raw_ostream
+///      &ScalarOut, llvm::raw_ostream &TagOut)
+///      {
+///        // stream out custom formatting including optional Tag
+///        Out << Value;
+///      }
+///      static StringRef input(StringRef Scalar, StringRef Tag, void*, MyType
+///      &Value) {
+///        // parse scalar and set `value`
+///        // return empty string on success, or error string
+///        return StringRef();
+///      }
+///      static QuotingType mustQuote(const MyType &Value, StringRef) {
+///        return QuotingType::Single;
+///      }
+///    };
+template <typename T> struct TaggedScalarTraits {
+  // Must provide:
+  //
+  // Function to write the value and tag as strings:
+  // static void output(const T &Value, void *ctx, llvm::raw_ostream &ScalarOut,
+  // llvm::raw_ostream &TagOut);
+  //
+  // Function to convert a string to a value.  Returns the empty
+  // StringRef on success or an error string if string is malformed:
+  // static StringRef input(StringRef Scalar, StringRef Tag, void *ctxt, T
+  // &Value);
+  //
+  // Function to determine if the value should be quoted.
+  // static QuotingType mustQuote(const T &Value, StringRef Scalar);
 };
 
 /// This class should be specialized by any type that needs to be converted
@@ -233,6 +277,31 @@ struct CustomMappingTraits {
   // static void output(IO &io, T &elem);
 };
 
+/// This class should be specialized by any type that can be represented as
+/// a scalar, map, or sequence, decided dynamically. For example:
+///
+///    typedef std::unique_ptr<MyBase> MyPoly;
+///
+///    template<>
+///    struct PolymorphicTraits<MyPoly> {
+///      static NodeKind getKind(const MyPoly &poly) {
+///        return poly->getKind();
+///      }
+///      static MyScalar& getAsScalar(MyPoly &poly) {
+///        if (!poly || !isa<MyScalar>(poly))
+///          poly.reset(new MyScalar());
+///        return *cast<MyScalar>(poly.get());
+///      }
+///      // ...
+///    };
+template <typename T> struct PolymorphicTraits {
+  // Must provide:
+  // static NodeKind getKind(const T &poly);
+  // static scalar_type &getAsScalar(T &poly);
+  // static map_type &getAsMap(T &poly);
+  // static sequence_type &getAsSequence(T &poly);
+};
+
 // Only used for better diagnostics of missing traits
 template <typename T>
 struct MissingTrait;
@@ -249,7 +318,6 @@ struct has_ScalarEnumerationTraits
   template <typename U>
   static double test(...);
 
-public:
   static bool const value =
     (sizeof(test<ScalarEnumerationTraits<T>>(nullptr)) == 1);
 };
@@ -266,7 +334,6 @@ struct has_ScalarBitSetTraits
   template <typename U>
   static double test(...);
 
-public:
   static bool const value = (sizeof(test<ScalarBitSetTraits<T>>(nullptr)) == 1);
 };
 
@@ -286,7 +353,6 @@ struct has_ScalarTraits
   template <typename U>
   static double test(...);
 
-public:
   static bool const value =
       (sizeof(test<ScalarTraits<T>>(nullptr, nullptr, nullptr)) == 1);
 };
@@ -305,9 +371,26 @@ struct has_BlockScalarTraits
   template <typename U>
   static double test(...);
 
-public:
   static bool const value =
       (sizeof(test<BlockScalarTraits<T>>(nullptr, nullptr)) == 1);
+};
+
+// Test if TaggedScalarTraits<T> is defined on type T.
+template <class T> struct has_TaggedScalarTraits {
+  using Signature_input = StringRef (*)(StringRef, StringRef, void *, T &);
+  using Signature_output = void (*)(const T &, void *, raw_ostream &,
+                                    raw_ostream &);
+  using Signature_mustQuote = QuotingType (*)(const T &, StringRef);
+
+  template <typename U>
+  static char test(SameType<Signature_input, &U::input> *,
+                   SameType<Signature_output, &U::output> *,
+                   SameType<Signature_mustQuote, &U::mustQuote> *);
+
+  template <typename U> static double test(...);
+
+  static bool const value =
+      (sizeof(test<TaggedScalarTraits<T>>(nullptr, nullptr, nullptr)) == 1);
 };
 
 // Test if MappingContextTraits<T> is defined on type T.
@@ -320,7 +403,6 @@ template <class T, class Context> struct has_MappingTraits {
   template <typename U>
   static double test(...);
 
-public:
   static bool const value =
       (sizeof(test<MappingContextTraits<T, Context>>(nullptr)) == 1);
 };
@@ -334,7 +416,6 @@ template <class T> struct has_MappingTraits<T, EmptyContext> {
 
   template <typename U> static double test(...);
 
-public:
   static bool const value = (sizeof(test<MappingTraits<T>>(nullptr)) == 1);
 };
 
@@ -348,7 +429,6 @@ template <class T, class Context> struct has_MappingValidateTraits {
   template <typename U>
   static double test(...);
 
-public:
   static bool const value =
       (sizeof(test<MappingContextTraits<T, Context>>(nullptr)) == 1);
 };
@@ -362,7 +442,6 @@ template <class T> struct has_MappingValidateTraits<T, EmptyContext> {
 
   template <typename U> static double test(...);
 
-public:
   static bool const value = (sizeof(test<MappingTraits<T>>(nullptr)) == 1);
 };
 
@@ -378,7 +457,6 @@ struct has_SequenceMethodTraits
   template <typename U>
   static double test(...);
 
-public:
   static bool const value =  (sizeof(test<SequenceTraits<T>>(nullptr)) == 1);
 };
 
@@ -394,7 +472,6 @@ struct has_CustomMappingTraits
   template <typename U>
   static double test(...);
 
-public:
   static bool const value =
       (sizeof(test<CustomMappingTraits<T>>(nullptr)) == 1);
 };
@@ -424,7 +501,6 @@ struct has_FlowTraits<T, true>
   template<typename C>
   static char (&f(...))[2];
 
-public:
   static bool const value = sizeof(f<Derived>(nullptr)) == 2;
 };
 
@@ -445,50 +521,114 @@ struct has_DocumentListTraits
   template <typename U>
   static double test(...);
 
-public:
   static bool const value = (sizeof(test<DocumentListTraits<T>>(nullptr))==1);
 };
 
-inline bool isNumber(StringRef S) {
-  static const char OctalChars[] = "01234567";
-  if (S.startswith("0") &&
-      S.drop_front().find_first_not_of(OctalChars) == StringRef::npos)
-    return true;
+template <class T> struct has_PolymorphicTraits {
+  using Signature_getKind = NodeKind (*)(const T &);
 
-  if (S.startswith("0o") &&
-      S.drop_front(2).find_first_not_of(OctalChars) == StringRef::npos)
-    return true;
+  template <typename U>
+  static char test(SameType<Signature_getKind, &U::getKind> *);
 
-  static const char HexChars[] = "0123456789abcdefABCDEF";
-  if (S.startswith("0x") &&
-      S.drop_front(2).find_first_not_of(HexChars) == StringRef::npos)
-    return true;
+  template <typename U> static double test(...);
 
-  static const char DecChars[] = "0123456789";
-  if (S.find_first_not_of(DecChars) == StringRef::npos)
-    return true;
-
-  if (S.equals(".inf") || S.equals(".Inf") || S.equals(".INF"))
-    return true;
-
-  Regex FloatMatcher("^(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?$");
-  if (FloatMatcher.match(S))
-    return true;
-
-  return false;
-}
+  static bool const value = (sizeof(test<PolymorphicTraits<T>>(nullptr)) == 1);
+};
 
 inline bool isNumeric(StringRef S) {
-  if ((S.front() == '-' || S.front() == '+') && isNumber(S.drop_front()))
-    return true;
+  const static auto skipDigits = [](StringRef Input) {
+    return Input.drop_front(
+        std::min(Input.find_first_not_of("0123456789"), Input.size()));
+  };
 
-  if (isNumber(S))
-    return true;
+  // Make S.front() and S.drop_front().front() (if S.front() is [+-]) calls
+  // safe.
+  if (S.empty() || S.equals("+") || S.equals("-"))
+    return false;
 
   if (S.equals(".nan") || S.equals(".NaN") || S.equals(".NAN"))
     return true;
 
-  return false;
+  // Infinity and decimal numbers can be prefixed with sign.
+  StringRef Tail = (S.front() == '-' || S.front() == '+') ? S.drop_front() : S;
+
+  // Check for infinity first, because checking for hex and oct numbers is more
+  // expensive.
+  if (Tail.equals(".inf") || Tail.equals(".Inf") || Tail.equals(".INF"))
+    return true;
+
+  // Section 10.3.2 Tag Resolution
+  // YAML 1.2 Specification prohibits Base 8 and Base 16 numbers prefixed with
+  // [-+], so S should be used instead of Tail.
+  if (S.startswith("0o"))
+    return S.size() > 2 &&
+           S.drop_front(2).find_first_not_of("01234567") == StringRef::npos;
+
+  if (S.startswith("0x"))
+    return S.size() > 2 && S.drop_front(2).find_first_not_of(
+                               "0123456789abcdefABCDEF") == StringRef::npos;
+
+  // Parse float: [-+]? (\. [0-9]+ | [0-9]+ (\. [0-9]* )?) ([eE] [-+]? [0-9]+)?
+  S = Tail;
+
+  // Handle cases when the number starts with '.' and hence needs at least one
+  // digit after dot (as opposed by number which has digits before the dot), but
+  // doesn't have one.
+  if (S.startswith(".") &&
+      (S.equals(".") ||
+       (S.size() > 1 && std::strchr("0123456789", S[1]) == nullptr)))
+    return false;
+
+  if (S.startswith("E") || S.startswith("e"))
+    return false;
+
+  enum ParseState {
+    Default,
+    FoundDot,
+    FoundExponent,
+  };
+  ParseState State = Default;
+
+  S = skipDigits(S);
+
+  // Accept decimal integer.
+  if (S.empty())
+    return true;
+
+  if (S.front() == '.') {
+    State = FoundDot;
+    S = S.drop_front();
+  } else if (S.front() == 'e' || S.front() == 'E') {
+    State = FoundExponent;
+    S = S.drop_front();
+  } else {
+    return false;
+  }
+
+  if (State == FoundDot) {
+    S = skipDigits(S);
+    if (S.empty())
+      return true;
+
+    if (S.front() == 'e' || S.front() == 'E') {
+      State = FoundExponent;
+      S = S.drop_front();
+    } else {
+      return false;
+    }
+  }
+
+  assert(State == FoundExponent && "Should have found exponent at this point.");
+  if (S.empty())
+    return false;
+
+  if (S.front() == '+' || S.front() == '-') {
+    S = S.drop_front();
+    if (S.empty())
+      return false;
+  }
+
+  return skipDigits(S).empty();
 }
 
 inline bool isNull(StringRef S) {
@@ -509,7 +649,8 @@ inline bool isBool(StringRef S) {
 inline QuotingType needsQuotes(StringRef S) {
   if (S.empty())
     return QuotingType::Single;
-  if (isspace(S.front()) || isspace(S.back()))
+  if (isspace(static_cast<unsigned char>(S.front())) ||
+      isspace(static_cast<unsigned char>(S.back())))
     return QuotingType::Single;
   if (isNull(S))
     return QuotingType::Single;
@@ -535,7 +676,6 @@ inline QuotingType needsQuotes(StringRef S) {
     // Safe scalar characters.
     case '_':
     case '-':
-    case '/':
     case '^':
     case '.':
     case ',':
@@ -552,6 +692,12 @@ inline QuotingType needsQuotes(StringRef S) {
     // DEL (0x7F) are excluded from the allowed character range.
     case 0x7F:
       return QuotingType::Double;
+    // Forward slash is allowed to be unquoted, but we quote it anyway.  We have
+    // many tests that use FileCheck against YAML output, and this output often
+    // contains paths.  If we quote backslashes but not forward slashes then
+    // paths will come out either quoted or unquoted depending on which platform
+    // the test is run on, making FileCheck comparisons difficult.
+    case '/':
     default: {
       // C0 control block (0x0 - 0x1F) is excluded from the allowed character
       // range.
@@ -578,10 +724,12 @@ struct missingTraits
                                         !has_ScalarBitSetTraits<T>::value &&
                                         !has_ScalarTraits<T>::value &&
                                         !has_BlockScalarTraits<T>::value &&
+                                        !has_TaggedScalarTraits<T>::value &&
                                         !has_MappingTraits<T, Context>::value &&
                                         !has_SequenceTraits<T>::value &&
                                         !has_CustomMappingTraits<T>::value &&
-                                        !has_DocumentListTraits<T>::value> {};
+                                        !has_DocumentListTraits<T>::value &&
+                                        !has_PolymorphicTraits<T>::value> {};
 
 template <typename T, typename Context>
 struct validatedMappingTraits
@@ -601,7 +749,7 @@ public:
   IO(void *Ctxt = nullptr);
   virtual ~IO();
 
-  virtual bool outputting() = 0;
+  virtual bool outputting() const = 0;
 
   virtual unsigned beginSequence() = 0;
   virtual bool preflightElement(unsigned, void *&) = 0;
@@ -635,6 +783,9 @@ public:
 
   virtual void scalarString(StringRef &, QuotingType) = 0;
   virtual void blockScalarString(StringRef &) = 0;
+  virtual void scalarTag(std::string &) = 0;
+
+  virtual NodeKind getNodeKind() = 0;
 
   virtual void setError(const Twine &) = 0;
 
@@ -692,7 +843,7 @@ public:
       Val = Val | ConstVal;
   }
 
-  void *getContext();
+  void *getContext() const;
   void setContext(void *);
 
   template <typename T> void mapRequired(const char *Key, T &Val) {
@@ -710,8 +861,8 @@ public:
     mapOptionalWithContext(Key, Val, Ctx);
   }
 
-  template <typename T>
-  void mapOptional(const char *Key, T &Val, const T &Default) {
+  template <typename T, typename DefaultT>
+  void mapOptional(const char *Key, T &Val, const DefaultT &Default) {
     EmptyContext Ctx;
     mapOptionalWithContext(Key, Val, Default, Ctx);
   }
@@ -737,10 +888,13 @@ public:
     this->processKey(Key, Val, false, Ctx);
   }
 
-  template <typename T, typename Context>
-  void mapOptionalWithContext(const char *Key, T &Val, const T &Default,
+  template <typename T, typename Context, typename DefaultT>
+  void mapOptionalWithContext(const char *Key, T &Val, const DefaultT &Default,
                               Context &Ctx) {
-    this->processKeyWithDefault(Key, Val, Default, false, Ctx);
+    static_assert(std::is_convertible<DefaultT, T>::value,
+                  "Default type must be implicitly convertible to value type!");
+    this->processKeyWithDefault(Key, Val, static_cast<const T &>(Default),
+                                false, Ctx);
   }
 
 private:
@@ -824,7 +978,7 @@ yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
   bool DoClear;
   if ( io.beginBitSetScalar(DoClear) ) {
     if ( DoClear )
-      Val = static_cast<T>(0);
+      Val = T();
     ScalarBitSetTraits<T>::bitset(io, Val);
     io.endBitSetScalar();
   }
@@ -866,6 +1020,31 @@ yamlize(IO &YamlIO, T &Val, bool, EmptyContext &Ctx) {
         BlockScalarTraits<T>::input(Str, YamlIO.getContext(), Val);
     if (!Result.empty())
       YamlIO.setError(Twine(Result));
+  }
+}
+
+template <typename T>
+typename std::enable_if<has_TaggedScalarTraits<T>::value, void>::type
+yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
+  if (io.outputting()) {
+    std::string ScalarStorage, TagStorage;
+    raw_string_ostream ScalarBuffer(ScalarStorage), TagBuffer(TagStorage);
+    TaggedScalarTraits<T>::output(Val, io.getContext(), ScalarBuffer,
+                                  TagBuffer);
+    io.scalarTag(TagBuffer.str());
+    StringRef ScalarStr = ScalarBuffer.str();
+    io.scalarString(ScalarStr,
+                    TaggedScalarTraits<T>::mustQuote(Val, ScalarStr));
+  } else {
+    std::string Tag;
+    io.scalarTag(Tag);
+    StringRef Str;
+    io.scalarString(Str, QuotingType::None);
+    StringRef Result =
+        TaggedScalarTraits<T>::input(Str, Tag, io.getContext(), Val);
+    if (!Result.empty()) {
+      io.setError(Twine(Result));
+    }
   }
 }
 
@@ -921,6 +1100,20 @@ yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
     for (StringRef key : io.keys())
       CustomMappingTraits<T>::inputOne(io, key, Val);
     io.endMapping();
+  }
+}
+
+template <typename T>
+typename std::enable_if<has_PolymorphicTraits<T>::value, void>::type
+yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
+  switch (io.outputting() ? PolymorphicTraits<T>::getKind(Val)
+                          : io.getNodeKind()) {
+  case NodeKind::Scalar:
+    return yamlize(io, PolymorphicTraits<T>::getAsScalar(Val), true, Ctx);
+  case NodeKind::Map:
+    return yamlize(io, PolymorphicTraits<T>::getAsMap(Val), true, Ctx);
+  case NodeKind::Sequence:
+    return yamlize(io, PolymorphicTraits<T>::getAsSequence(Val), true, Ctx);
   }
 }
 
@@ -1050,12 +1243,14 @@ struct ScalarTraits<double> {
   static QuotingType mustQuote(StringRef) { return QuotingType::None; }
 };
 
-// For endian types, we just use the existing ScalarTraits for the underlying
-// type.  This way endian aware types are supported whenever a ScalarTraits
-// is defined for the underlying type.
+// For endian types, we use existing scalar Traits class for the underlying
+// type.  This way endian aware types are supported whenever the traits are
+// defined for the underlying type.
 template <typename value_type, support::endianness endian, size_t alignment>
-struct ScalarTraits<support::detail::packed_endian_specific_integral<
-    value_type, endian, alignment>> {
+struct ScalarTraits<
+    support::detail::packed_endian_specific_integral<value_type, endian,
+                                                     alignment>,
+    typename std::enable_if<has_ScalarTraits<value_type>::value>::type> {
   using endian_type =
       support::detail::packed_endian_specific_integral<value_type, endian,
                                                        alignment>;
@@ -1073,6 +1268,38 @@ struct ScalarTraits<support::detail::packed_endian_specific_integral<
 
   static QuotingType mustQuote(StringRef Str) {
     return ScalarTraits<value_type>::mustQuote(Str);
+  }
+};
+
+template <typename value_type, support::endianness endian, size_t alignment>
+struct ScalarEnumerationTraits<
+    support::detail::packed_endian_specific_integral<value_type, endian,
+                                                     alignment>,
+    typename std::enable_if<
+        has_ScalarEnumerationTraits<value_type>::value>::type> {
+  using endian_type =
+      support::detail::packed_endian_specific_integral<value_type, endian,
+                                                       alignment>;
+
+  static void enumeration(IO &io, endian_type &E) {
+    value_type V = E;
+    ScalarEnumerationTraits<value_type>::enumeration(io, V);
+    E = V;
+  }
+};
+
+template <typename value_type, support::endianness endian, size_t alignment>
+struct ScalarBitSetTraits<
+    support::detail::packed_endian_specific_integral<value_type, endian,
+                                                     alignment>,
+    typename std::enable_if<has_ScalarBitSetTraits<value_type>::value>::type> {
+  using endian_type =
+      support::detail::packed_endian_specific_integral<value_type, endian,
+                                                       alignment>;
+  static void bitset(IO &io, endian_type &E) {
+    value_type V = E;
+    ScalarBitSetTraits<value_type>::bitset(io, V);
+    E = V;
   }
 };
 
@@ -1176,7 +1403,7 @@ public:
   std::error_code error();
 
 private:
-  bool outputting() override;
+  bool outputting() const override;
   bool mapTag(StringRef, bool) override;
   void beginMapping() override;
   void endMapping() override;
@@ -1202,6 +1429,8 @@ private:
   void endBitSetScalar() override;
   void scalarString(StringRef &, QuotingType) override;
   void blockScalarString(StringRef &) override;
+  void scalarTag(std::string &) override;
+  NodeKind getNodeKind() override;
   void setError(const Twine &message) override;
   bool canElideEmptySequence() override;
 
@@ -1302,7 +1531,7 @@ private:
   document_iterator                   DocIterator;
   std::vector<bool>                   BitValuesUsed;
   HNode *CurrentNode = nullptr;
-  bool                                ScalarMatchFound;
+  bool                                ScalarMatchFound = false;
 };
 
 ///
@@ -1321,7 +1550,7 @@ public:
   /// anyway.
   void setWriteDefaultValues(bool Write) { WriteDefaultValues = Write; }
 
-  bool outputting() override;
+  bool outputting() const override;
   bool mapTag(StringRef, bool) override;
   void beginMapping() override;
   void endMapping() override;
@@ -1347,6 +1576,8 @@ public:
   void endBitSetScalar() override;
   void scalarString(StringRef &, QuotingType) override;
   void blockScalarString(StringRef &) override;
+  void scalarTag(std::string &) override;
+  NodeKind getNodeKind() override;
   void setError(const Twine &message) override;
   bool canElideEmptySequence() override;
 
@@ -1366,13 +1597,20 @@ private:
   void flowKey(StringRef Key);
 
   enum InState {
-    inSeq,
-    inFlowSeq,
+    inSeqFirstElement,
+    inSeqOtherElement,
+    inFlowSeqFirstElement,
+    inFlowSeqOtherElement,
     inMapFirstKey,
     inMapOtherKey,
     inFlowMapFirstKey,
     inFlowMapOtherKey
   };
+
+  static bool inSeqAnyElement(InState State);
+  static bool inFlowSeqAnyElement(InState State);
+  static bool inMapAnyKey(InState State);
+  static bool inFlowMapAnyKey(InState State);
 
   raw_ostream &Out;
   int WrapColumn;
@@ -1383,8 +1621,9 @@ private:
   bool NeedBitValueComma = false;
   bool NeedFlowSequenceComma = false;
   bool EnumerationMatchFound = false;
-  bool NeedsNewLine = false;
   bool WriteDefaultValues = false;
+  StringRef Padding;
+  StringRef PaddingBeforeContainer;
 };
 
 /// YAML I/O does conversion based on types. But often native data types
@@ -1509,6 +1748,16 @@ operator>>(Input &In, T &Val) {
   return In;
 }
 
+// Define non-member operator>> so that Input can stream in a polymorphic type.
+template <typename T>
+inline typename std::enable_if<has_PolymorphicTraits<T>::value, Input &>::type
+operator>>(Input &In, T &Val) {
+  EmptyContext Ctx;
+  if (In.setCurrentDocument())
+    yamlize(In, Val, true, Ctx);
+  return In;
+}
+
 // Provide better error message about types missing a trait specialization
 template <typename T>
 inline typename std::enable_if<missingTraits<T, EmptyContext>::value,
@@ -1597,6 +1846,24 @@ operator<<(Output &Out, T &Val) {
   return Out;
 }
 
+// Define non-member operator<< so that Output can stream out a polymorphic
+// type.
+template <typename T>
+inline typename std::enable_if<has_PolymorphicTraits<T>::value, Output &>::type
+operator<<(Output &Out, T &Val) {
+  EmptyContext Ctx;
+  Out.beginDocuments();
+  if (Out.preflightDocument(0)) {
+    // FIXME: The parser does not support explicit documents terminated with a
+    // plain scalar; the end-marker is included as part of the scalar token.
+    assert(PolymorphicTraits<T>::getKind(Val) != NodeKind::Scalar && "plain scalar documents are not supported");
+    yamlize(Out, Val, true, Ctx);
+    Out.postflightDocument();
+  }
+  Out.endDocuments();
+  return Out;
+}
+
 // Provide better error message about types missing a trait specialization
 template <typename T>
 inline typename std::enable_if<missingTraits<T, EmptyContext>::value,
@@ -1640,6 +1907,11 @@ struct SequenceTraits<SmallVector<T, N>,
                       typename std::enable_if<CheckIsBool<
                           SequenceElementTraits<T>::flow>::value>::type>
     : SequenceTraitsImpl<SmallVector<T, N>, SequenceElementTraits<T>::flow> {};
+template <typename T>
+struct SequenceTraits<SmallVectorImpl<T>,
+                      typename std::enable_if<CheckIsBool<
+                          SequenceElementTraits<T>::flow>::value>::type>
+    : SequenceTraitsImpl<SmallVectorImpl<T>, SequenceElementTraits<T>::flow> {};
 
 // Sequences of fundamental types use flow formatting.
 template <typename T>
@@ -1762,5 +2034,10 @@ template <typename T> struct StdMapStringCustomMappingTraitsImpl {
       : public StdMapStringCustomMappingTraitsImpl<_type> {};                  \
   }                                                                            \
   }
+
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex64)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex32)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex16)
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(llvm::yaml::Hex8)
 
 #endif // LLVM_SUPPORT_YAMLTRAITS_H

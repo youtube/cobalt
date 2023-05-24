@@ -1,15 +1,16 @@
 //===- lib/Tooling/AllTUsExecution.cpp - Execute actions on all TUs. ------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "clang/Tooling/AllTUsExecution.h"
 #include "clang/Tooling/ToolExecutorPluginRegistry.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/Support/ThreadPool.h"
+#include "llvm/Support/VirtualFileSystem.h"
 
 namespace clang {
 namespace tooling {
@@ -53,6 +54,12 @@ private:
 
 } // namespace
 
+llvm::cl::opt<std::string>
+    Filter("filter",
+           llvm::cl::desc("Only process files that match this filter. "
+                          "This flag only applies to all-TUs."),
+           llvm::cl::init(".*"));
+
 AllTUsToolExecutor::AllTUsToolExecutor(
     const CompilationDatabase &Compilations, unsigned ThreadCount,
     std::shared_ptr<PCHContainerOperations> PCHContainerOps)
@@ -90,7 +97,12 @@ llvm::Error AllTUsToolExecutor::execute(
     llvm::errs() << Msg.str() << "\n";
   };
 
-  auto Files = Compilations.getAllFiles();
+  std::vector<std::string> Files;
+  llvm::Regex RegexFilter(Filter);
+  for (const auto& File : Compilations.getAllFiles()) {
+    if (RegexFilter.match(File))
+      Files.push_back(File);
+  }
   // Add a counter to track the progress.
   const std::string TotalNumStr = std::to_string(Files.size());
   unsigned Counter = 0;
@@ -104,13 +116,17 @@ llvm::Error AllTUsToolExecutor::execute(
   {
     llvm::ThreadPool Pool(ThreadCount == 0 ? llvm::hardware_concurrency()
                                            : ThreadCount);
-
     for (std::string File : Files) {
       Pool.async(
           [&](std::string Path) {
             Log("[" + std::to_string(Count()) + "/" + TotalNumStr +
                 "] Processing file " + Path);
-            ClangTool Tool(Compilations, {Path});
+            // Each thread gets an indepent copy of a VFS to allow different
+            // concurrent working directories.
+            IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS =
+                llvm::vfs::createPhysicalFileSystem().release();
+            ClangTool Tool(Compilations, {Path},
+                           std::make_shared<PCHContainerOperations>(), FS);
             Tool.appendArgumentsAdjuster(Action.second);
             Tool.appendArgumentsAdjuster(getDefaultArgumentsAdjusters());
             for (const auto &FileAndContent : OverlayFiles)
@@ -122,6 +138,8 @@ llvm::Error AllTUsToolExecutor::execute(
           },
           File);
     }
+    // Make sure all tasks have finished before resetting the working directory.
+    Pool.wait();
   }
 
   if (!ErrorMsg.empty())
@@ -130,10 +148,11 @@ llvm::Error AllTUsToolExecutor::execute(
   return llvm::Error::success();
 }
 
-static llvm::cl::opt<unsigned> ExecutorConcurrency(
+llvm::cl::opt<unsigned> ExecutorConcurrency(
     "execute-concurrency",
     llvm::cl::desc("The number of threads used to process all files in "
-                   "parallel. Set to 0 for hardware concurrency."),
+                   "parallel. Set to 0 for hardware concurrency. "
+                   "This flag only applies to all-TUs."),
     llvm::cl::init(0));
 
 class AllTUsToolExecutorPlugin : public ToolExecutorPlugin {
@@ -144,7 +163,7 @@ public:
       return make_string_error(
           "[AllTUsToolExecutorPlugin] Please provide a directory/file path in "
           "the compilation database.");
-    return llvm::make_unique<AllTUsToolExecutor>(std::move(OptionsParser),
+    return std::make_unique<AllTUsToolExecutor>(std::move(OptionsParser),
                                                  ExecutorConcurrency);
   }
 };

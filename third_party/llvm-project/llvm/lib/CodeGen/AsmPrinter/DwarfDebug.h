@@ -1,9 +1,8 @@
 //===- llvm/CodeGen/DwarfDebug.h - Dwarf Debug Framework --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,9 +14,8 @@
 #define LLVM_LIB_CODEGEN_ASMPRINTER_DWARFDEBUG_H
 
 #include "AddressPool.h"
-#include "DbgValueHistoryCalculator.h"
-#include "DebugHandlerBase.h"
 #include "DebugLocStream.h"
+#include "DebugLocEntry.h"
 #include "DwarfFile.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -31,6 +29,8 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/AccelTable.h"
+#include "llvm/CodeGen/DbgEntityHistoryCalculator.h"
+#include "llvm/CodeGen/DebugHandlerBase.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
@@ -52,6 +52,7 @@ class ByteStreamer;
 class DebugLocEntry;
 class DIE;
 class DwarfCompileUnit;
+class DwarfExpression;
 class DwarfTypeUnit;
 class DwarfUnit;
 class LexicalScope;
@@ -62,6 +63,47 @@ class MDNode;
 class Module;
 
 //===----------------------------------------------------------------------===//
+/// This class is defined as the common parent of DbgVariable and DbgLabel
+/// such that it could levarage polymorphism to extract common code for
+/// DbgVariable and DbgLabel.
+class DbgEntity {
+  const DINode *Entity;
+  const DILocation *InlinedAt;
+  DIE *TheDIE = nullptr;
+  unsigned SubclassID;
+
+public:
+  enum DbgEntityKind {
+    DbgVariableKind,
+    DbgLabelKind
+  };
+
+  DbgEntity(const DINode *N, const DILocation *IA, unsigned ID)
+    : Entity(N), InlinedAt(IA), SubclassID(ID) {}
+  virtual ~DbgEntity() {}
+
+  /// Accessors.
+  /// @{
+  const DINode *getEntity() const { return Entity; }
+  const DILocation *getInlinedAt() const { return InlinedAt; }
+  DIE *getDIE() const { return TheDIE; }
+  unsigned getDbgEntityID() const { return SubclassID; }
+  /// @}
+
+  void setDIE(DIE &D) { TheDIE = &D; }
+
+  static bool classof(const DbgEntity *N) {
+    switch (N->getDbgEntityID()) {
+    default:
+      return false;
+    case DbgVariableKind:
+    case DbgLabelKind:
+      return true;
+    }
+  }
+};
+
+//===----------------------------------------------------------------------===//
 /// This class is used to track local variable information.
 ///
 /// Variables can be created from allocas, in which case they're generated from
@@ -70,15 +112,17 @@ class Module;
 ///
 /// Variables can be created from \c DBG_VALUE instructions.  Those whose
 /// location changes over time use \a DebugLocListIndex, while those with a
-/// single instruction use \a MInsn and (optionally) a single entry of \a Expr.
+/// single location use \a ValueLoc and (optionally) a single entry of \a Expr.
 ///
 /// Variables that have been optimized out use none of these fields.
-class DbgVariable {
-  const DILocalVariable *Var;                /// Variable Descriptor.
-  const DILocation *IA;                      /// Inlined at location.
-  DIE *TheDIE = nullptr;                     /// Variable DIE.
-  unsigned DebugLocListIndex = ~0u;          /// Offset in DebugLocs.
-  const MachineInstr *MInsn = nullptr;       /// DBG_VALUE instruction.
+class DbgVariable : public DbgEntity {
+  /// Offset in DebugLocs.
+  unsigned DebugLocListIndex = ~0u;
+  /// DW_OP_LLVM_tag_offset value from DebugLocs.
+  Optional<uint8_t> DebugLocListTagOffset;
+
+  /// Single value location description.
+  std::unique_ptr<DbgValueLoc> ValueLoc = nullptr;
 
   struct FrameIndexExpr {
     int FI;
@@ -93,12 +137,12 @@ public:
   /// Creates a variable without any DW_AT_location.  Call \a initializeMMI()
   /// for MMI entries, or \a initializeDbgValue() for DBG_VALUE instructions.
   DbgVariable(const DILocalVariable *V, const DILocation *IA)
-      : Var(V), IA(IA) {}
+      : DbgEntity(V, IA, DbgVariableKind) {}
 
   /// Initialize from the MMI table.
   void initializeMMI(const DIExpression *E, int FI) {
     assert(FrameIndexExprs.empty() && "Already initialized?");
-    assert(!MInsn && "Already initialized?");
+    assert(!ValueLoc.get() && "Already initialized?");
 
     assert((!E || E->isValid()) && "Expected valid expression");
     assert(FI != std::numeric_limits<int>::max() && "Expected valid index");
@@ -106,35 +150,37 @@ public:
     FrameIndexExprs.push_back({FI, E});
   }
 
-  /// Initialize from a DBG_VALUE instruction.
-  void initializeDbgValue(const MachineInstr *DbgValue) {
+  // Initialize variable's location.
+  void initializeDbgValue(DbgValueLoc Value) {
     assert(FrameIndexExprs.empty() && "Already initialized?");
-    assert(!MInsn && "Already initialized?");
+    assert(!ValueLoc && "Already initialized?");
+    assert(!Value.getExpression()->isFragment() && "Fragments not supported.");
 
-    assert(Var == DbgValue->getDebugVariable() && "Wrong variable");
-    assert(IA == DbgValue->getDebugLoc()->getInlinedAt() && "Wrong inlined-at");
-
-    MInsn = DbgValue;
-    if (auto *E = DbgValue->getDebugExpression())
+    ValueLoc = std::make_unique<DbgValueLoc>(Value);
+    if (auto *E = ValueLoc->getExpression())
       if (E->getNumElements())
         FrameIndexExprs.push_back({0, E});
   }
 
+  /// Initialize from a DBG_VALUE instruction.
+  void initializeDbgValue(const MachineInstr *DbgValue);
+
   // Accessors.
-  const DILocalVariable *getVariable() const { return Var; }
-  const DILocation *getInlinedAt() const { return IA; }
+  const DILocalVariable *getVariable() const {
+    return cast<DILocalVariable>(getEntity());
+  }
 
   const DIExpression *getSingleExpression() const {
-    assert(MInsn && FrameIndexExprs.size() <= 1);
+    assert(ValueLoc.get() && FrameIndexExprs.size() <= 1);
     return FrameIndexExprs.size() ? FrameIndexExprs[0].Expr : nullptr;
   }
 
-  void setDIE(DIE &D) { TheDIE = &D; }
-  DIE *getDIE() const { return TheDIE; }
   void setDebugLocListIndex(unsigned O) { DebugLocListIndex = O; }
   unsigned getDebugLocListIndex() const { return DebugLocListIndex; }
-  StringRef getName() const { return Var->getName(); }
-  const MachineInstr *getMInsn() const { return MInsn; }
+  void setDebugLocListTagOffset(uint8_t O) { DebugLocListTagOffset = O; }
+  Optional<uint8_t> getDebugLocListTagOffset() const { return DebugLocListTagOffset; }
+  StringRef getName() const { return getVariable()->getName(); }
+  const DbgValueLoc *getValueLoc() const { return ValueLoc.get(); }
   /// Get the FI entries, sorted by fragment offset.
   ArrayRef<FrameIndexExpr> getFrameIndexExprs() const;
   bool hasFrameIndexExprs() const { return !FrameIndexExprs.empty(); }
@@ -143,7 +189,7 @@ public:
   // Translate tag to proper Dwarf tag.
   dwarf::Tag getTag() const {
     // FIXME: Why don't we just infer this tag and store it all along?
-    if (Var->isParameter())
+    if (getVariable()->isParameter())
       return dwarf::DW_TAG_formal_parameter;
 
     return dwarf::DW_TAG_variable;
@@ -151,7 +197,7 @@ public:
 
   /// Return true if DbgVariable is artificial.
   bool isArtificial() const {
-    if (Var->isArtificial())
+    if (getVariable()->isArtificial())
       return true;
     if (getType()->isArtificial())
       return true;
@@ -159,7 +205,7 @@ public:
   }
 
   bool isObjectPointer() const {
-    if (Var->isObjectPointer())
+    if (getVariable()->isObjectPointer())
       return true;
     if (getType()->isObjectPointer())
       return true;
@@ -167,7 +213,7 @@ public:
   }
 
   bool hasComplexAddress() const {
-    assert(MInsn && "Expected DBG_VALUE, not MMI variable");
+    assert(ValueLoc.get() && "Expected DBG_VALUE, not MMI variable");
     assert((FrameIndexExprs.empty() ||
             (FrameIndexExprs.size() == 1 &&
              FrameIndexExprs[0].Expr->getNumElements())) &&
@@ -175,14 +221,61 @@ public:
     return !FrameIndexExprs.empty();
   }
 
-  bool isBlockByrefVariable() const;
   const DIType *getType() const;
 
-private:
-  template <typename T> T *resolve(TypedDINodeRef<T> Ref) const {
-    return Ref.resolve();
+  static bool classof(const DbgEntity *N) {
+    return N->getDbgEntityID() == DbgVariableKind;
   }
 };
+
+//===----------------------------------------------------------------------===//
+/// This class is used to track label information.
+///
+/// Labels are collected from \c DBG_LABEL instructions.
+class DbgLabel : public DbgEntity {
+  const MCSymbol *Sym;                  /// Symbol before DBG_LABEL instruction.
+
+public:
+  /// We need MCSymbol information to generate DW_AT_low_pc.
+  DbgLabel(const DILabel *L, const DILocation *IA, const MCSymbol *Sym = nullptr)
+      : DbgEntity(L, IA, DbgLabelKind), Sym(Sym) {}
+
+  /// Accessors.
+  /// @{
+  const DILabel *getLabel() const { return cast<DILabel>(getEntity()); }
+  const MCSymbol *getSymbol() const { return Sym; }
+
+  StringRef getName() const { return getLabel()->getName(); }
+  /// @}
+
+  /// Translate tag to proper Dwarf tag.
+  dwarf::Tag getTag() const {
+    return dwarf::DW_TAG_label;
+  }
+
+  static bool classof(const DbgEntity *N) {
+    return N->getDbgEntityID() == DbgLabelKind;
+  }
+};
+
+/// Used for tracking debug info about call site parameters.
+class DbgCallSiteParam {
+private:
+  unsigned Register; ///< Parameter register at the callee entry point.
+  DbgValueLoc Value; ///< Corresponding location for the parameter value at
+                     ///< the call site.
+public:
+  DbgCallSiteParam(unsigned Reg, DbgValueLoc Val)
+      : Register(Reg), Value(Val) {
+    assert(Reg && "Parameter register cannot be undef");
+  }
+
+  unsigned getRegister() const { return Register; }
+  DbgValueLoc getValue() const { return Value; }
+};
+
+/// Collection used for storing debug call site parameters.
+using ParamSet = SmallVector<DbgCallSiteParam, 4>;
 
 /// Helper used to pair up a symbol and its DWARF compile unit.
 struct SymbolCU {
@@ -217,8 +310,8 @@ class DwarfDebug : public DebugHandlerBase {
   /// Size of each symbol emitted (for those symbols that have a specific size).
   DenseMap<const MCSymbol *, uint64_t> SymSize;
 
-  /// Collection of abstract variables.
-  SmallVector<std::unique_ptr<DbgVariable>, 64> ConcreteVariables;
+  /// Collection of abstract variables/labels.
+  SmallVector<std::unique_ptr<DbgEntity>, 64> ConcreteEntities;
 
   /// Collection of DebugLocEntry. Stored in a linked list so that DIELocLists
   /// can refer to them in spite of insertions into this list.
@@ -250,6 +343,8 @@ class DwarfDebug : public DebugHandlerBase {
   /// used to keep track of which types we have emitted type units for.
   DenseMap<const MDNode *, uint64_t> TypeSignatures;
 
+  DenseMap<const MCSection *, const MCSymbol *> SectionLabels;
+
   SmallVector<
       std::pair<std::unique_ptr<DwarfTypeUnit>, const DICompositeType *>, 1>
       TypeUnitsUnderConstruction;
@@ -265,9 +360,6 @@ class DwarfDebug : public DebugHandlerBase {
 
   /// Use inlined strings.
   bool UseInlineStrings = false;
-
-  /// Whether to emit DWARF pub sections or not.
-  bool UsePubSections = true;
 
   /// Allow emission of .debug_ranges section.
   bool UseRangesSection = true;
@@ -332,24 +424,36 @@ class DwarfDebug : public DebugHandlerBase {
     return InfoHolder.getUnits();
   }
 
-  using InlinedVariable = DbgValueHistoryMap::InlinedVariable;
+  using InlinedEntity = DbgValueHistoryMap::InlinedEntity;
 
-  void ensureAbstractVariableIsCreated(DwarfCompileUnit &CU, InlinedVariable IV,
-                                       const MDNode *Scope);
-  void ensureAbstractVariableIsCreatedIfScoped(DwarfCompileUnit &CU, InlinedVariable IV,
-                                               const MDNode *Scope);
+  void ensureAbstractEntityIsCreated(DwarfCompileUnit &CU,
+                                     const DINode *Node,
+                                     const MDNode *Scope);
+  void ensureAbstractEntityIsCreatedIfScoped(DwarfCompileUnit &CU,
+                                             const DINode *Node,
+                                             const MDNode *Scope);
 
-  DbgVariable *createConcreteVariable(DwarfCompileUnit &TheCU,
-                                      LexicalScope &Scope, InlinedVariable IV);
+  DbgEntity *createConcreteEntity(DwarfCompileUnit &TheCU,
+                                  LexicalScope &Scope,
+                                  const DINode *Node,
+                                  const DILocation *Location,
+                                  const MCSymbol *Sym = nullptr);
 
   /// Construct a DIE for this abstract scope.
   void constructAbstractSubprogramScopeDIE(DwarfCompileUnit &SrcCU, LexicalScope *Scope);
 
-  template <typename DataT>
-  void addAccelNameImpl(AccelTable<DataT> &AppleAccel, StringRef Name,
-                        const DIE &Die);
+  /// Construct a DIE for the subprogram definition \p SP and return it.
+  DIE &constructSubprogramDefinitionDIE(const DISubprogram *SP);
 
-  void finishVariableDefinitions();
+  /// Construct DIEs for call site entries describing the calls in \p MF.
+  void constructCallSiteEntryDIEs(const DISubprogram &SP, DwarfCompileUnit &CU,
+                                  DIE &ScopeDIE, const MachineFunction &MF);
+
+  template <typename DataT>
+  void addAccelNameImpl(const DICompileUnit &CU, AccelTable<DataT> &AppleAccel,
+                        StringRef Name, const DIE &Die);
+
+  void finishEntityDefinitions();
 
   void finishSubprogramDefinitions();
 
@@ -402,17 +506,21 @@ class DwarfDebug : public DebugHandlerBase {
   /// Emit variable locations into a debug loc dwo section.
   void emitDebugLocDWO();
 
+  void emitDebugLocImpl(MCSection *Sec);
+
   /// Emit address ranges into a debug aranges section.
   void emitDebugARanges();
 
   /// Emit address ranges into a debug ranges section.
   void emitDebugRanges();
-
-  /// Emit range lists into a DWARF v5 debug rnglists section.
-  void emitDebugRnglists();
+  void emitDebugRangesDWO();
+  void emitDebugRangesImpl(const DwarfFile &Holder, MCSection *Section);
 
   /// Emit macros into a debug macinfo section.
   void emitDebugMacinfo();
+  /// Emit macros into a debug macinfo.dwo section.
+  void emitDebugMacinfoDWO();
+  void emitDebugMacinfoImpl(MCSection *Section);
   void emitMacro(DIMacro &M);
   void emitMacroFile(DIMacroFile &F, DwarfCompileUnit &U);
   void handleMacroNodes(DIMacroNodeArray Nodes, DwarfCompileUnit &U);
@@ -457,6 +565,8 @@ class DwarfDebug : public DebugHandlerBase {
   /// Create new DwarfCompileUnit for the given metadata node with tag
   /// DW_TAG_compile_unit.
   DwarfCompileUnit &getOrCreateDwarfCompileUnit(const DICompileUnit *DIUnit);
+  void finishUnitAttributes(const DICompileUnit *DIUnit,
+                            DwarfCompileUnit &NewCU);
 
   /// Construct imported_module or imported_declaration DIE.
   void constructAndAddImportedEntityDIE(DwarfCompileUnit &TheCU,
@@ -469,17 +579,19 @@ class DwarfDebug : public DebugHandlerBase {
                         unsigned Flags);
 
   /// Populate LexicalScope entries with variables' info.
-  void collectVariableInfo(DwarfCompileUnit &TheCU, const DISubprogram *SP,
-                           DenseSet<InlinedVariable> &ProcessedVars);
+  void collectEntityInfo(DwarfCompileUnit &TheCU, const DISubprogram *SP,
+                         DenseSet<InlinedEntity> &ProcessedVars);
 
   /// Build the location list for all DBG_VALUEs in the
-  /// function that describe the same variable.
-  void buildLocationList(SmallVectorImpl<DebugLocEntry> &DebugLoc,
-                         const DbgValueHistoryMap::InstrRanges &Ranges);
+  /// function that describe the same variable. If the resulting 
+  /// list has only one entry that is valid for entire variable's
+  /// scope return true.
+  bool buildLocationList(SmallVectorImpl<DebugLocEntry> &DebugLoc,
+                         const DbgValueHistoryMap::Entries &Entries);
 
   /// Collect variable information from the side table maintained by MF.
   void collectVariableInfoFromMFTable(DwarfCompileUnit &TheCU,
-                                      DenseSet<InlinedVariable> &P);
+                                      DenseSet<InlinedEntity> &P);
 
   /// Emit the reference to the section.
   void emitSectionReference(const DwarfCompileUnit &CU);
@@ -508,6 +620,9 @@ public:
   /// Emit all Dwarf sections that should come after the content.
   void endModule() override;
 
+  /// Emits inital debug location directive.
+  DebugLoc emitInitialLocDirective(const MachineFunction &MF, unsigned CUID);
+
   /// Process beginning of an instruction.
   void beginInstruction(const MachineInstr *MI) override;
 
@@ -518,6 +633,19 @@ public:
   /// type units.
   void addDwarfTypeUnitType(DwarfCompileUnit &CU, StringRef Identifier,
                             DIE &Die, const DICompositeType *CTy);
+
+  friend class NonTypeUnitContext;
+  class NonTypeUnitContext {
+    DwarfDebug *DD;
+    decltype(DwarfDebug::TypeUnitsUnderConstruction) TypeUnitsUnderConstruction;
+    friend class DwarfDebug;
+    NonTypeUnitContext(DwarfDebug *DD);
+  public:
+    NonTypeUnitContext(NonTypeUnitContext&&) = default;
+    ~NonTypeUnitContext();
+  };
+
+  NonTypeUnitContext enterNonTypeUnitContext();
 
   /// Add a label so that arange data can be generated for it.
   void addArangeLabel(SymbolCU SCU) { ArangeLabels.push_back(SCU); }
@@ -542,9 +670,6 @@ public:
 
   /// Returns whether to use inline strings.
   bool useInlineStrings() const { return UseInlineStrings; }
-
-  /// Returns whether GNU pub sections should be emitted.
-  bool usePubSections() const { return UsePubSections; }
 
   /// Returns whether ranges section should be emitted.
   bool useRangesSection() const { return UseRangesSection; }
@@ -598,27 +723,27 @@ public:
   /// Emit an entry for the debug loc section. This can be used to
   /// handle an entry that's going to be emitted into the debug loc section.
   void emitDebugLocEntry(ByteStreamer &Streamer,
-                         const DebugLocStream::Entry &Entry);
+                         const DebugLocStream::Entry &Entry,
+                         const DwarfCompileUnit *CU);
 
   /// Emit the location for a debug loc entry, including the size header.
-  void emitDebugLocEntryLocation(const DebugLocStream::Entry &Entry);
+  void emitDebugLocEntryLocation(const DebugLocStream::Entry &Entry,
+                                 const DwarfCompileUnit *CU);
 
-  /// Find the MDNode for the given reference.
-  template <typename T> T *resolve(TypedDINodeRef<T> Ref) const {
-    return Ref.resolve();
-  }
-
-  void addSubprogramNames(const DISubprogram *SP, DIE &Die);
+  void addSubprogramNames(const DICompileUnit &CU, const DISubprogram *SP,
+                          DIE &Die);
 
   AddressPool &getAddressPool() { return AddrPool; }
 
-  void addAccelName(StringRef Name, const DIE &Die);
+  void addAccelName(const DICompileUnit &CU, StringRef Name, const DIE &Die);
 
-  void addAccelObjC(StringRef Name, const DIE &Die);
+  void addAccelObjC(const DICompileUnit &CU, StringRef Name, const DIE &Die);
 
-  void addAccelNamespace(StringRef Name, const DIE &Die);
+  void addAccelNamespace(const DICompileUnit &CU, StringRef Name,
+                         const DIE &Die);
 
-  void addAccelType(StringRef Name, const DIE &Die, char Flags);
+  void addAccelType(const DICompileUnit &CU, StringRef Name, const DIE &Die,
+                    char Flags);
 
   const MachineFunction *getCurrentFunction() const { return CurFn; }
 
@@ -640,6 +765,13 @@ public:
   bool tuneForLLDB() const { return DebuggerTuning == DebuggerKind::LLDB; }
   bool tuneForSCE() const { return DebuggerTuning == DebuggerKind::SCE; }
   /// @}
+
+  void addSectionLabel(const MCSymbol *Sym);
+  const MCSymbol *getSectionLabel(const MCSection *S);
+
+  static void emitDebugLocValue(const AsmPrinter &AP, const DIBasicType *BT,
+                                const DbgValueLoc &Value,
+                                DwarfExpression &DwarfExpr);
 };
 
 } // end namespace llvm

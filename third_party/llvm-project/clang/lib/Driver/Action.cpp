@@ -1,9 +1,8 @@
 //===- Action.cpp - Abstract compilation steps ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,11 +25,13 @@ const char *Action::getClassName(ActionClass AC) {
     return "offload";
   case PreprocessJobClass: return "preprocessor";
   case PrecompileJobClass: return "precompiler";
+  case HeaderModulePrecompileJobClass: return "header-module-precompiler";
   case AnalyzeJobClass: return "analyzer";
   case MigrateJobClass: return "migrator";
   case CompileJobClass: return "compiler";
   case BackendJobClass: return "backend";
   case AssembleJobClass: return "assembler";
+  case IfsMergeJobClass: return "interface-stub-merger";
   case LinkJobClass: return "linker";
   case LipoJobClass: return "lipo";
   case DsymutilJobClass: return "dsymutil";
@@ -40,6 +41,8 @@ const char *Action::getClassName(ActionClass AC) {
     return "clang-offload-bundler";
   case OffloadUnbundlingJobClass:
     return "clang-offload-unbundler";
+  case OffloadWrapperJobClass:
+    return "clang-offload-wrapper";
   }
 
   llvm_unreachable("invalid class");
@@ -319,6 +322,19 @@ void PrecompileJobAction::anchor() {}
 PrecompileJobAction::PrecompileJobAction(Action *Input, types::ID OutputType)
     : JobAction(PrecompileJobClass, Input, OutputType) {}
 
+PrecompileJobAction::PrecompileJobAction(ActionClass Kind, Action *Input,
+                                         types::ID OutputType)
+    : JobAction(Kind, Input, OutputType) {
+  assert(isa<PrecompileJobAction>((Action*)this) && "invalid action kind");
+}
+
+void HeaderModulePrecompileJobAction::anchor() {}
+
+HeaderModulePrecompileJobAction::HeaderModulePrecompileJobAction(
+    Action *Input, types::ID OutputType, const char *ModuleName)
+    : PrecompileJobAction(HeaderModulePrecompileJobClass, Input, OutputType),
+      ModuleName(ModuleName) {}
+
 void AnalyzeJobAction::anchor() {}
 
 AnalyzeJobAction::AnalyzeJobAction(Action *Input, types::ID OutputType)
@@ -343,6 +359,11 @@ void AssembleJobAction::anchor() {}
 
 AssembleJobAction::AssembleJobAction(Action *Input, types::ID OutputType)
     : JobAction(AssembleJobClass, Input, OutputType) {}
+
+void IfsMergeJobAction::anchor() {}
+
+IfsMergeJobAction::IfsMergeJobAction(ActionList &Inputs, types::ID Type)
+    : JobAction(IfsMergeJobClass, Inputs, Type) {}
 
 void LinkJobAction::anchor() {}
 
@@ -382,9 +403,15 @@ VerifyPCHJobAction::VerifyPCHJobAction(Action *Input, types::ID Type)
 void OffloadBundlingJobAction::anchor() {}
 
 OffloadBundlingJobAction::OffloadBundlingJobAction(ActionList &Inputs)
-    : JobAction(OffloadBundlingJobClass, Inputs, Inputs.front()->getType()) {}
+    : JobAction(OffloadBundlingJobClass, Inputs, Inputs.back()->getType()) {}
 
 void OffloadUnbundlingJobAction::anchor() {}
 
 OffloadUnbundlingJobAction::OffloadUnbundlingJobAction(Action *Input)
     : JobAction(OffloadUnbundlingJobClass, Input, Input->getType()) {}
+
+void OffloadWrapperJobAction::anchor() {}
+
+OffloadWrapperJobAction::OffloadWrapperJobAction(ActionList &Inputs,
+                                                 types::ID Type)
+  : JobAction(OffloadWrapperJobClass, Inputs, Type) {}

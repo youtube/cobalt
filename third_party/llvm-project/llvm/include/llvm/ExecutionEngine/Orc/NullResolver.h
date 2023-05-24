@@ -1,9 +1,8 @@
 //===------ NullResolver.h - Reject symbol lookup requests ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -23,10 +22,10 @@ namespace orc {
 
 class NullResolver : public SymbolResolver {
 public:
-  SymbolFlagsMap lookupFlags(const SymbolNameSet &Symbols) override;
+  SymbolNameSet getResponsibilitySet(const SymbolNameSet &Symbols) final;
 
   SymbolNameSet lookup(std::shared_ptr<AsynchronousSymbolQuery> Query,
-                       SymbolNameSet Symbols) override;
+                       SymbolNameSet Symbols) final;
 };
 
 /// SymbolResolver impliementation that rejects all resolution requests.

@@ -25,7 +25,11 @@ entry:
   tail call void @llvm.dbg.value(metadata i32* %x1, metadata !10, metadata !24), !dbg !16
 
 ; Supported dbg.value: rewritted based on the [[USP]] value.
-; CHECK: call void @llvm.dbg.value(metadata i8* %[[USP]], metadata ![[X1:.*]], metadata !DIExpression(DW_OP_deref, DW_OP_constu, 4, DW_OP_minus))
+; CHECK: call void @llvm.dbg.value(metadata i8* %[[USP]], metadata ![[X1:.*]], metadata !DIExpression(DW_OP_constu, 4, DW_OP_minus, DW_OP_deref, DW_OP_LLVM_fragment, 0, 4))
+  tail call void @llvm.dbg.value(metadata i32* %x1, metadata !10, metadata !25), !dbg !16
+
+; Supported dbg.value: rewritted based on the [[USP]] value.
+; CHECK: call void @llvm.dbg.value(metadata i8* %[[USP]], metadata ![[X1:.*]], metadata !DIExpression(DW_OP_constu, 4, DW_OP_minus, DW_OP_deref))
   tail call void @llvm.dbg.value(metadata i32* %x1, metadata !10, metadata !15), !dbg !16
   call void @capture(i32* nonnull %x1), !dbg !17
 
@@ -33,7 +37,7 @@ entry:
 ; CHECK: call void @llvm.random.metadata.use(metadata ![[EMPTY]])
   call void @llvm.random.metadata.use(metadata i32* %x2)
 
-; CHECK: call void @llvm.dbg.value(metadata i8* %[[USP]], metadata ![[X2:.*]], metadata !DIExpression(DW_OP_deref, DW_OP_constu, 8, DW_OP_minus))
+; CHECK: call void @llvm.dbg.value(metadata i8* %[[USP]], metadata ![[X2:.*]], metadata !DIExpression(DW_OP_constu, 8, DW_OP_minus, DW_OP_deref))
   call void @llvm.dbg.value(metadata i32* %x2, metadata !12, metadata !15), !dbg !18
   call void @capture(i32* nonnull %x2), !dbg !19
   ret void, !dbg !20
@@ -52,9 +56,9 @@ declare void @llvm.dbg.value(metadata, metadata, metadata) #3
 
 declare void @llvm.random.metadata.use(metadata)
 
-attributes #0 = { noinline safestack uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { noinline safestack uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { argmemonly nounwind }
-attributes #2 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #3 = { nounwind readnone }
 attributes #4 = { nounwind }
 
@@ -94,3 +98,4 @@ attributes #4 = { nounwind }
 !22 = !DILexicalBlockFile(scope: !6, file: !1, discriminator: 1)
 !23 = !DIExpression()
 !24 = !DIExpression(DW_OP_constu, 42, DW_OP_minus)
+!25 = !DIExpression(DW_OP_deref, DW_OP_LLVM_fragment, 0, 4)

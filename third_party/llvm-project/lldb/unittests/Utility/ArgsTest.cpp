@@ -1,9 +1,8 @@
 //===-- ArgsTest.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -36,6 +35,34 @@ TEST(ArgsTest, TestSingleArgWithQuotedSpace) {
   args.SetCommandString("arg\\ with\\ space");
   EXPECT_EQ(1u, args.GetArgumentCount());
   EXPECT_STREQ(args.GetArgumentAtIndex(0), "arg with space");
+}
+
+TEST(ArgsTest, TestTrailingBackslash) {
+  Args args;
+  args.SetCommandString("arg\\");
+  EXPECT_EQ(1u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(0), "arg\\");
+}
+
+TEST(ArgsTest, TestQuotedTrailingBackslash) {
+  Args args;
+  args.SetCommandString("\"arg\\");
+  EXPECT_EQ(1u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(0), "arg\\");
+}
+
+TEST(ArgsTest, TestUnknownEscape) {
+  Args args;
+  args.SetCommandString("arg\\y");
+  EXPECT_EQ(1u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(0), "arg\\y");
+}
+
+TEST(ArgsTest, TestQuotedUnknownEscape) {
+  Args args;
+  args.SetCommandString("\"arg\\y");
+  EXPECT_EQ(1u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(0), "arg\\y");
 }
 
 TEST(ArgsTest, TestMultipleArgs) {
@@ -125,9 +152,9 @@ TEST(ArgsTest, StringListConstructor) {
        << "baz";
   Args args(list);
   ASSERT_EQ(3u, args.GetArgumentCount());
-  EXPECT_EQ("foo", args[0].ref);
-  EXPECT_EQ("bar", args[1].ref);
-  EXPECT_EQ("baz", args[2].ref);
+  EXPECT_EQ("foo", args[0].ref());
+  EXPECT_EQ("bar", args[1].ref());
+  EXPECT_EQ("baz", args[2].ref());
 }
 
 TEST(ArgsTest, GetQuotedCommandString) {
@@ -188,4 +215,70 @@ TEST(ArgsTest, GetArgumentArrayRef) {
   ASSERT_EQ(2u, ref.size());
   EXPECT_STREQ("foo", ref[0]);
   EXPECT_STREQ("bar", ref[1]);
+}
+
+TEST(ArgsTest, EscapeLLDBCommandArgument) {
+  const std::string foo = "foo'";
+  EXPECT_EQ("foo\\'", Args::EscapeLLDBCommandArgument(foo, '\0'));
+  EXPECT_EQ("foo'", Args::EscapeLLDBCommandArgument(foo, '\''));
+  EXPECT_EQ("foo'", Args::EscapeLLDBCommandArgument(foo, '`'));
+  EXPECT_EQ("foo'", Args::EscapeLLDBCommandArgument(foo, '"'));
+
+  const std::string bar = "bar\"";
+  EXPECT_EQ("bar\\\"", Args::EscapeLLDBCommandArgument(bar, '\0'));
+  EXPECT_EQ("bar\"", Args::EscapeLLDBCommandArgument(bar, '\''));
+  EXPECT_EQ("bar\"", Args::EscapeLLDBCommandArgument(bar, '`'));
+  EXPECT_EQ("bar\\\"", Args::EscapeLLDBCommandArgument(bar, '"'));
+
+  const std::string baz = "baz`";
+  EXPECT_EQ("baz\\`", Args::EscapeLLDBCommandArgument(baz, '\0'));
+  EXPECT_EQ("baz`", Args::EscapeLLDBCommandArgument(baz, '\''));
+  EXPECT_EQ("baz`", Args::EscapeLLDBCommandArgument(baz, '`'));
+  EXPECT_EQ("baz\\`", Args::EscapeLLDBCommandArgument(baz, '"'));
+
+  const std::string quux = "quux\t";
+  EXPECT_EQ("quux\\\t", Args::EscapeLLDBCommandArgument(quux, '\0'));
+  EXPECT_EQ("quux\t", Args::EscapeLLDBCommandArgument(quux, '\''));
+  EXPECT_EQ("quux\t", Args::EscapeLLDBCommandArgument(quux, '`'));
+  EXPECT_EQ("quux\t", Args::EscapeLLDBCommandArgument(quux, '"'));
+}
+
+TEST(ArgsTest, ReplaceArgumentAtIndexShort) {
+  Args args;
+  args.SetCommandString("foo ba b");
+  args.ReplaceArgumentAtIndex(0, "f");
+  EXPECT_EQ(3u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(0), "f");
+}
+
+TEST(ArgsTest, ReplaceArgumentAtIndexEqual) {
+  Args args;
+  args.SetCommandString("foo ba b");
+  args.ReplaceArgumentAtIndex(0, "bar");
+  EXPECT_EQ(3u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(0), "bar");
+}
+
+TEST(ArgsTest, ReplaceArgumentAtIndexLonger) {
+  Args args;
+  args.SetCommandString("foo ba b");
+  args.ReplaceArgumentAtIndex(0, "baar");
+  EXPECT_EQ(3u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(0), "baar");
+}
+
+TEST(ArgsTest, ReplaceArgumentAtIndexOutOfRange) {
+  Args args;
+  args.SetCommandString("foo ba b");
+  args.ReplaceArgumentAtIndex(3, "baar");
+  EXPECT_EQ(3u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(2), "b");
+}
+
+TEST(ArgsTest, ReplaceArgumentAtIndexFarOutOfRange) {
+  Args args;
+  args.SetCommandString("foo ba b");
+  args.ReplaceArgumentAtIndex(4, "baar");
+  EXPECT_EQ(3u, args.GetArgumentCount());
+  EXPECT_STREQ(args.GetArgumentAtIndex(2), "b");
 }

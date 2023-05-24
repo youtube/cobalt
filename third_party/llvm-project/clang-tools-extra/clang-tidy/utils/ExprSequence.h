@@ -1,9 +1,8 @@
 //===------------- ExprSequence.h - clang-tidy ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -69,8 +68,8 @@ namespace utils {
 class ExprSequence {
 public:
   /// Initializes this `ExprSequence` with sequence information for the given
-  /// `CFG`.
-  ExprSequence(const CFG *TheCFG, ASTContext *TheContext);
+  /// `CFG`. `Root` is the root statement the CFG was built from.
+  ExprSequence(const CFG *TheCFG, const Stmt *Root, ASTContext *TheContext);
 
   /// Returns whether \p Before is sequenced before \p After.
   bool inSequence(const Stmt *Before, const Stmt *After) const;
@@ -94,6 +93,7 @@ private:
   const Stmt *resolveSyntheticStmt(const Stmt *S) const;
 
   ASTContext *Context;
+  const Stmt *Root;
 
   llvm::DenseMap<const Stmt *, const Stmt *> SyntheticStmtSourceMap;
 };

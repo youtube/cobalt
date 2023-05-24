@@ -1,6 +1,14 @@
-LEVEL = ../../../make
-
 OBJC_SOURCES := main.m
-LDFLAGS = $(CFLAGS) -lobjc -framework Foundation -framework AppKit
+UI_FRAMEWORK = AppKit
 
-include $(LEVEL)/Makefile.rules
+ifneq ("$(SDKROOT)", "")
+	ifeq (,$(findstring macOS,$(SDKROOT)))
+		ifeq (,$(findstring MacOS,$(SDKROOT)))
+			UI_FRAMEWORK = UIKit
+		endif
+	endif
+endif
+
+LD_EXTRAS = -lobjc -framework Foundation -framework $(UI_FRAMEWORK)
+
+include Makefile.rules

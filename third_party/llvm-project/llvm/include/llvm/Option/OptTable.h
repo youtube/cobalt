@@ -1,9 +1,8 @@
 //===- OptTable.h - Option Table --------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -217,8 +216,8 @@ public:
   /// Render the help text for an option table.
   ///
   /// \param OS - The stream to write the help text to.
-  /// \param Name - The name to use in the usage line.
-  /// \param Title - The title to use in the usage line.
+  /// \param Usage - USAGE: Usage
+  /// \param Title - OVERVIEW: Title
   /// \param FlagsToInclude - If non-zero, only include options with any
   ///                         of these flags set.
   /// \param FlagsToExclude - Exclude options with any of these flags set.
@@ -226,11 +225,11 @@ public:
   ///                         that don't have help texts. By default, we display
   ///                         only options that are not hidden and have help
   ///                         texts.
-  void PrintHelp(raw_ostream &OS, const char *Name, const char *Title,
+  void PrintHelp(raw_ostream &OS, const char *Usage, const char *Title,
                  unsigned FlagsToInclude, unsigned FlagsToExclude,
                  bool ShowAllAliases) const;
 
-  void PrintHelp(raw_ostream &OS, const char *Name, const char *Title,
+  void PrintHelp(raw_ostream &OS, const char *Usage, const char *Title,
                  bool ShowHidden = false, bool ShowAllAliases = false) const;
 };
 

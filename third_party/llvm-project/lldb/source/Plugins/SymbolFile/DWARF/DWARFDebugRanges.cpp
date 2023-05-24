@@ -1,19 +1,16 @@
 //===-- DWARFDebugRanges.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "DWARFDebugRanges.h"
-#include "SymbolFileDWARF.h"
+#include "DWARFUnit.h"
 #include "lldb/Utility/Stream.h"
-#include <assert.h>
 
 using namespace lldb_private;
-using namespace std;
 
 static dw_addr_t GetBaseAddressMarker(uint32_t addr_size) {
   switch(addr_size) {
@@ -29,27 +26,24 @@ static dw_addr_t GetBaseAddressMarker(uint32_t addr_size) {
 
 DWARFDebugRanges::DWARFDebugRanges() : m_range_map() {}
 
-DWARFDebugRanges::~DWARFDebugRanges() {}
-
-void DWARFDebugRanges::Extract(SymbolFileDWARF *dwarf2Data) {
+void DWARFDebugRanges::Extract(DWARFContext &context) {
   DWARFRangeList range_list;
   lldb::offset_t offset = 0;
   dw_offset_t debug_ranges_offset = offset;
-  while (Extract(dwarf2Data, &offset, range_list)) {
+  while (Extract(context, &offset, range_list)) {
     range_list.Sort();
     m_range_map[debug_ranges_offset] = range_list;
     debug_ranges_offset = offset;
   }
 }
 
-bool DWARFDebugRanges::Extract(SymbolFileDWARF *dwarf2Data,
+bool DWARFDebugRanges::Extract(DWARFContext &context,
                                lldb::offset_t *offset_ptr,
                                DWARFRangeList &range_list) {
   range_list.Clear();
 
   lldb::offset_t range_offset = *offset_ptr;
-  const DWARFDataExtractor &debug_ranges_data =
-      dwarf2Data->get_debug_ranges_data();
+  const DWARFDataExtractor &debug_ranges_data = context.getOrLoadRangesData();
   uint32_t addr_size = debug_ranges_data.GetAddressByteSize();
   dw_addr_t base_addr = 0;
   dw_addr_t base_addr_marker = GetBaseAddressMarker(addr_size);
@@ -101,24 +95,31 @@ void DWARFDebugRanges::Dump(Stream &s,
     } else if (begin == LLDB_INVALID_ADDRESS) {
       // A base address selection entry
       base_addr = end;
-      s.Address(base_addr, sizeof(dw_addr_t), " Base address = ");
+      DumpAddress(s.AsRawOstream(), base_addr, sizeof(dw_addr_t),
+                  " Base address = ");
     } else {
       // Convert from offset to an address
       dw_addr_t begin_addr = begin + base_addr;
       dw_addr_t end_addr = end + base_addr;
 
-      s.AddressRange(begin_addr, end_addr, sizeof(dw_addr_t), NULL);
+      DumpAddressRange(s.AsRawOstream(), begin_addr, end_addr,
+                       sizeof(dw_addr_t), nullptr);
     }
   }
 }
 
-bool DWARFDebugRanges::FindRanges(dw_addr_t debug_ranges_base,
+bool DWARFDebugRanges::FindRanges(const DWARFUnit *cu,
                                   dw_offset_t debug_ranges_offset,
                                   DWARFRangeList &range_list) const {
-  dw_addr_t debug_ranges_address = debug_ranges_base + debug_ranges_offset;
+  dw_addr_t debug_ranges_address = cu->GetRangesBase() + debug_ranges_offset;
   range_map_const_iterator pos = m_range_map.find(debug_ranges_address);
   if (pos != m_range_map.end()) {
     range_list = pos->second;
+
+    // All DW_AT_ranges are relative to the base address of the compile
+    // unit. We add the compile unit base address to make sure all the
+    // addresses are properly fixed up.
+    range_list.Slide(cu->GetBaseAddress());
     return true;
   }
   return false;

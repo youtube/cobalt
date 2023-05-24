@@ -16,8 +16,8 @@ from six.moves.urllib import parse as urlparse
 
 # LLDB modules
 from . import configuration
-import use_lldb_suite
 import lldb
+import lldbsuite.test.lldbplatform as lldbplatform
 
 
 def check_first_register_readable(test_case):
@@ -25,9 +25,9 @@ def check_first_register_readable(test_case):
 
     if arch in ['x86_64', 'i386']:
         test_case.expect("register read eax", substrs=['eax = 0x'])
-    elif arch in ['arm', 'armv7', 'armv7k']:
+    elif arch in ['arm', 'armv7', 'armv7k', 'armv8l', 'armv7l']:
         test_case.expect("register read r0", substrs=['r0 = 0x'])
-    elif arch in ['aarch64', 'arm64']:
+    elif arch in ['aarch64', 'arm64', 'arm64e', 'arm64_32']:
         test_case.expect("register read x0", substrs=['x0 = 0x'])
     elif re.match("mips", arch):
         test_case.expect("register read zero", substrs=['zero = 0x'])
@@ -129,7 +129,12 @@ def getDarwinOSTriples():
 
 def getPlatform():
     """Returns the target platform which the tests are running on."""
-    platform = lldb.DBG.GetSelectedPlatform().GetTriple().split('-')[2]
+    triple = lldb.DBG.GetSelectedPlatform().GetTriple()
+    if triple is None:
+      # It might be an unconnected remote platform.
+      return ''
+
+    platform = triple.split('-')[2]
     if platform.startswith('freebsd'):
         platform = 'freebsd'
     elif platform.startswith('netbsd'):
@@ -145,6 +150,9 @@ def platformIsDarwin():
 def findMainThreadCheckerDylib():
     if not platformIsDarwin():
         return ""
+
+    if getPlatform() in lldbplatform.translate(lldbplatform.darwin_embedded):
+        return "/Developer/usr/lib/libMainThreadChecker.dylib"
 
     with os.popen('xcode-select -p') as output:
         xcode_developer_path = output.read().strip()

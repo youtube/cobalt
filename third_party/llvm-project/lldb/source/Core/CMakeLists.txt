@@ -1,9 +1,21 @@
-set(LLDB_CURSES_LIBS)
+lldb_tablegen(CoreProperties.inc -gen-lldb-property-defs
+  SOURCE CoreProperties.td
+  TARGET LLDBCorePropertiesGen)
 
-if (NOT LLDB_DISABLE_CURSES)
-  list(APPEND LLDB_CURSES_LIBS ${CURSES_LIBRARIES})
+lldb_tablegen(CorePropertiesEnum.inc -gen-lldb-property-enum-defs
+  SOURCE CoreProperties.td
+  TARGET LLDBCorePropertiesEnumGen)
+
+set(LLDB_CURSES_LIBS)
+set(LLDB_LIBEDIT_LIBS)
+
+if (LLDB_ENABLE_CURSES)
+  list(APPEND LLDB_CURSES_LIBS ${CURSES_LIBRARIES} ${PANEL_LIBRARIES})
   if(LLVM_ENABLE_TERMINFO AND HAVE_TERMINFO)
     list(APPEND LLDB_CURSES_LIBS ${TERMINFO_LIBS})
+  endif()
+  if (LLVM_BUILD_STATIC)
+    list(APPEND LLDB_CURSES_LIBS gpm)
   endif()
 endif()
 
@@ -13,7 +25,6 @@ add_lldb_library(lldbCore
   AddressResolver.cpp
   AddressResolverFileLine.cpp
   AddressResolverName.cpp
-  Broadcaster.cpp
   Communication.cpp
   Debugger.cpp
   Disassembler.cpp
@@ -21,24 +32,22 @@ add_lldb_library(lldbCore
   DumpRegisterValue.cpp
   DynamicLoader.cpp
   EmulateInstruction.cpp
-  Event.cpp
   FileLineResolver.cpp
   FileSpecList.cpp
   FormatEntity.cpp
+  Highlighter.cpp
   IOHandler.cpp
-  Listener.cpp
+  IOHandlerCursesGUI.cpp
   Mangled.cpp
   Module.cpp
   ModuleChild.cpp
   ModuleList.cpp
   Opcode.cpp
   PluginManager.cpp
-  RegisterValue.cpp
-  Scalar.cpp
+  RichManglingContext.cpp
   SearchFilter.cpp
   Section.cpp
   SourceManager.cpp
-  State.cpp
   StreamAsynchronousIO.cpp
   StreamFile.cpp
   UserSettingsController.cpp
@@ -57,8 +66,10 @@ add_lldb_library(lldbCore
   ValueObjectSyntheticFilter.cpp
   ValueObjectVariable.cpp
 
+  DEPENDS
+    clang-tablegen-targets
+
   LINK_LIBS
-    clangAST
     lldbBreakpoint
     lldbDataFormatters
     lldbExpression
@@ -67,17 +78,30 @@ add_lldb_library(lldbCore
     lldbSymbol
     lldbTarget
     lldbUtility
-    lldbPluginProcessUtility
     lldbPluginCPlusPlusLanguage
     lldbPluginObjCLanguage
     ${LLDB_CURSES_LIBS}
 
+  CLANG_LIBS
+    clangDriver
+
   LINK_COMPONENTS
-    BinaryFormat
     Support
     Demangle
   )
 
+add_dependencies(lldbCore
+  LLDBCorePropertiesGen
+  LLDBCorePropertiesEnumGen)
+
 # Needed to properly resolve references in a debug build.
 # TODO: Remove once we have better layering
 set_target_properties(lldbCore PROPERTIES LINK_INTERFACE_MULTIPLICITY 4)
+
+if (LLDB_ENABLE_LIBEDIT)
+  target_include_directories(lldbCore PRIVATE ${LibEdit_INCLUDE_DIRS})
+endif()
+
+if (LLDB_ENABLE_CURSES)
+  target_include_directories(lldbCore PRIVATE ${CURSES_INCLUDE_DIRS})
+endif()

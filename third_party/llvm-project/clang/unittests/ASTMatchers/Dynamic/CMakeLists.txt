@@ -8,12 +8,13 @@ add_clang_unittest(DynamicASTMatchersTests
   RegistryTest.cpp
   )
 
-target_link_libraries(DynamicASTMatchersTests
+clang_target_link_libraries(DynamicASTMatchersTests
   PRIVATE
   clangAST
   clangASTMatchers
   clangBasic
   clangDynamicASTMatchers
   clangFrontend
+  clangSerialization
   clangTooling
   )

@@ -1,9 +1,8 @@
 //===--- TransUnbridgedCasts.cpp - Transformations to ARC mode ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -209,7 +208,7 @@ private:
     // We will remove the compiler diagnostic.
     if (!TA.hasDiagnostic(diag::err_arc_mismatched_cast,
                           diag::err_arc_cast_requires_bridge,
-                          E->getLocStart())) {
+                          E->getBeginLoc())) {
       Trans.abort();
       return;
     }
@@ -225,13 +224,12 @@ private:
     }
 
     TA.clearDiagnostic(diag::err_arc_mismatched_cast,
-                       diag::err_arc_cast_requires_bridge,
-                       E->getLocStart());
+                       diag::err_arc_cast_requires_bridge, E->getBeginLoc());
     if (Kind == OBC_Bridge || !Pass.CFBridgingFunctionsDefined()) {
       if (CStyleCastExpr *CCE = dyn_cast<CStyleCastExpr>(E)) {
         TA.insertAfterToken(CCE->getLParenLoc(), bridge);
       } else {
-        SourceLocation insertLoc = E->getSubExpr()->getLocStart();
+        SourceLocation insertLoc = E->getSubExpr()->getBeginLoc();
         SmallString<128> newCast;
         newCast += '(';
         newCast += bridge;
@@ -243,7 +241,7 @@ private:
         } else {
           newCast += '(';
           TA.insert(insertLoc, newCast.str());
-          TA.insertAfterToken(E->getLocEnd(), ")");
+          TA.insertAfterToken(E->getEndLoc(), ")");
         }
       }
     } else {
@@ -251,7 +249,7 @@ private:
       SmallString<32> BridgeCall;
 
       Expr *WrapE = E->getSubExpr();
-      SourceLocation InsertLoc = WrapE->getLocStart();
+      SourceLocation InsertLoc = WrapE->getBeginLoc();
 
       SourceManager &SM = Pass.Ctx.getSourceManager();
       char PrevChar = *SM.getCharacterData(InsertLoc.getLocWithOffset(-1));
@@ -268,7 +266,7 @@ private:
       } else {
         BridgeCall += '(';
         TA.insert(InsertLoc, BridgeCall);
-        TA.insertAfterToken(WrapE->getLocEnd(), ")");
+        TA.insertAfterToken(WrapE->getEndLoc(), ")");
       }
     }
   }
@@ -368,19 +366,19 @@ private:
       err += family == OMF_autorelease ? "autorelease" : "release";
       err += "' message; a __bridge cast may result in a pointer to a "
           "destroyed object and a __bridge_retained may leak the object";
-      Pass.TA.reportError(err, E->getLocStart(),
+      Pass.TA.reportError(err, E->getBeginLoc(),
                           E->getSubExpr()->getSourceRange());
       Stmt *parent = E;
       do {
         parent = StmtMap->getParentIgnoreParenImpCasts(parent);
-      } while (parent && isa<ExprWithCleanups>(parent));
+      } while (parent && isa<FullExpr>(parent));
 
       if (ReturnStmt *retS = dyn_cast_or_null<ReturnStmt>(parent)) {
         std::string note = "remove the cast and change return type of function "
             "to '";
         note += E->getSubExpr()->getType().getAsString(Pass.Ctx.getPrintingPolicy());
         note += "' to have the object automatically autoreleased";
-        Pass.TA.reportNote(note, retS->getLocStart());
+        Pass.TA.reportNote(note, retS->getBeginLoc());
       }
     }
 

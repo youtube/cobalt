@@ -17,23 +17,24 @@
 ;  4       return foo();
 ;  5     }
 
-; CHECK: remark: /tmp/s.c:4:10: foo inlined into bar with cost={{[0-9\-]+}} (threshold={{[0-9]+}}) (hotness: 30)
+; CHECK: remark: /tmp/s.c:4:10: foo inlined into bar with (cost={{[0-9\-]+}}, threshold={{[0-9]+}}) (hotness: 30)
 
 ; YAML:      --- !Passed
 ; YAML-NEXT: Pass:            inline
 ; YAML-NEXT: Name:            Inlined
-; YAML-NEXT: DebugLoc:        { File: /tmp/s.c, Line: 4, Column: 10 }
+; YAML-NEXT: DebugLoc:        { File: '/tmp/s.c', Line: 4, Column: 10 }
 ; YAML-NEXT: Function:        bar
 ; YAML-NEXT: Hotness:         30
 ; YAML-NEXT: Args:
 ; YAML-NEXT:   - Callee: foo
-; YAML-NEXT:     DebugLoc:        { File: /tmp/s.c, Line: 1, Column: 0 }
+; YAML-NEXT:     DebugLoc:        { File: '/tmp/s.c', Line: 1, Column: 0 }
 ; YAML-NEXT:   - String: ' inlined into '
 ; YAML-NEXT:   - Caller: bar
-; YAML-NEXT:     DebugLoc:        { File: /tmp/s.c, Line: 3, Column: 0 }
-; YAML-NEXT:   - String: ' with cost='
+; YAML-NEXT:     DebugLoc:        { File: '/tmp/s.c', Line: 3, Column: 0 }
+; YAML-NEXT:   - String: ' with '
+; YAML-NEXT:   - String: '(cost='
 ; YAML-NEXT:   - Cost: '{{[0-9\-]+}}'
-; YAML-NEXT:   - String: ' (threshold='
+; YAML-NEXT:   - String: ', threshold='
 ; YAML-NEXT:   - Threshold: '{{[0-9]+}}'
 ; YAML-NEXT:   - String: ')'
 ; YAML-NEXT: ...
@@ -56,7 +57,7 @@ entry:
   ret i32 %call, !dbg !12
 }
 
-attributes #0 = { nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="core2" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind ssp uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="core2" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+ssse3,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!3, !4, !5}

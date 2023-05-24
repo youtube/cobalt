@@ -3,7 +3,7 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_clang_library(clangMove
-  ClangMove.cpp
+  Move.cpp
   HelperDeclRefGraph.cpp
 
   LINK_LIBS
@@ -14,6 +14,7 @@ add_clang_library(clangMove
   clangFormat
   clangFrontend
   clangLex
+  clangSerialization
   clangTooling
   clangToolingCore
   )

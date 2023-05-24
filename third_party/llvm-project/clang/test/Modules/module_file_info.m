@@ -16,11 +16,12 @@
 
 // CHECK: Module name: DependsOnModule
 // CHECK: Module map file: {{.*}}DependsOnModule.framework{{[/\\]}}module.map
+// CHECK: Imports module 'Module': {{.*}}Module.pcm
 
 // CHECK: Language options:
 // CHECK:   C99: Yes
-// CHECK:   Objective-C 1: Yes
-// CHECK:   modules extension to C: Yes
+// CHECK:   Objective-C: Yes
+// CHECK:   modules semantics: Yes
 // CHECK:   Module features:
 // CHECK:     myfeature
 

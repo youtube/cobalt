@@ -1,9 +1,8 @@
 //===------------------------- AddressSpace.hpp ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //
 // Abstracts accessing local vs remote address spaces.
@@ -28,6 +27,16 @@
 
 #if _LIBUNWIND_USE_DLADDR
 #include <dlfcn.h>
+#if defined(__ELF__) && defined(_LIBUNWIND_LINK_DL_LIB)
+#pragma comment(lib, "dl")
+#endif
+#endif
+
+#if defined(_LIBUNWIND_ARM_EHABI)
+struct EHABIIndexEntry {
+  uint32_t functionOffset;
+  uint32_t data;
+};
 #endif
 
 #ifdef __APPLE__
@@ -155,7 +164,7 @@ namespace libunwind {
 struct UnwindInfoSections {
 #if defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND) || defined(_LIBUNWIND_SUPPORT_DWARF_INDEX) ||       \
     defined(_LIBUNWIND_SUPPORT_COMPACT_UNWIND)
-  // No dso_base for ARM EHABI.
+  // No dso_base for SEH or ARM EHABI.
   uintptr_t       dso_base;
 #endif
 #if defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND)
@@ -180,7 +189,7 @@ struct UnwindInfoSections {
 /// LocalAddressSpace is used as a template parameter to UnwindCursor when
 /// unwinding a thread in the same process.  The wrappers compile away,
 /// making local unwinds fast.
-class __attribute__((visibility("hidden"))) LocalAddressSpace {
+class _LIBUNWIND_HIDDEN LocalAddressSpace {
 public:
   typedef uintptr_t pint_t;
   typedef intptr_t  sint_t;
@@ -424,8 +433,12 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
   HANDLE process = GetCurrentProcess();
   DWORD needed;
 
-  if (!EnumProcessModules(process, mods, sizeof(mods), &needed))
+  if (!EnumProcessModules(process, mods, sizeof(mods), &needed)) {
+    DWORD err = GetLastError();
+    _LIBUNWIND_TRACE_UNWINDING("findUnwindSections: EnumProcessModules failed, "
+                               "returned error %d", (int)err);
     return false;
+  }
 
   for (unsigned i = 0; i < (needed / sizeof(HMODULE)); i++) {
     PIMAGE_DOS_HEADER pidh = (PIMAGE_DOS_HEADER)mods[i];
@@ -454,12 +467,19 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
     }
   }
   return false;
-#elif defined(_LIBUNWIND_ARM_EHABI) && defined(__BIONIC__) &&                  \
-    (__ANDROID_API__ < 21)
+#elif defined(_LIBUNWIND_SUPPORT_SEH_UNWIND) && defined(_WIN32)
+  // Don't even bother, since Windows has functions that do all this stuff
+  // for us.
+  (void)targetAddr;
+  (void)info;
+  return true;
+#elif defined(_LIBUNWIND_ARM_EHABI) && defined(__BIONIC__)
+  // For ARM EHABI, Bionic didn't implement dl_iterate_phdr until API 21. After
+  // API 21, dl_iterate_phdr exists, but dl_unwind_find_exidx is much faster.
   int length = 0;
   info.arm_section =
       (uintptr_t)dl_unwind_find_exidx((_Unwind_Ptr)targetAddr, &length);
-  info.arm_section_length = (uintptr_t)length;
+  info.arm_section_length = (uintptr_t)length * sizeof(EHABIIndexEntry);
   if (info.arm_section && info.arm_section_length)
     return true;
 #elif defined(_LIBUNWIND_ARM_EHABI) || defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND)
@@ -489,8 +509,28 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
 #if !defined(Elf_Phdr)
         typedef ElfW(Phdr) Elf_Phdr;
 #endif
-#if !defined(Elf_Addr) && defined(__ANDROID__)
+#if !defined(Elf_Addr)
         typedef ElfW(Addr) Elf_Addr;
+#endif
+
+        Elf_Addr image_base = pinfo->dlpi_addr;
+
+#if defined(__ANDROID__) && __ANDROID_API__ < 18
+        if (image_base == 0) {
+          // Normally, an image base of 0 indicates a non-PIE executable. On
+          // versions of Android prior to API 18, the dynamic linker reported a
+          // dlpi_addr of 0 for PIE executables. Compute the true image base
+          // using the PT_PHDR segment.
+          // See https://github.com/android/ndk/issues/505.
+          for (Elf_Half i = 0; i < pinfo->dlpi_phnum; i++) {
+            const Elf_Phdr *phdr = &pinfo->dlpi_phdr[i];
+            if (phdr->p_type == PT_PHDR) {
+              image_base = reinterpret_cast<Elf_Addr>(pinfo->dlpi_phdr) -
+                  phdr->p_vaddr;
+              break;
+            }
+          }
+        }
 #endif
 
  #if defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND)
@@ -498,23 +538,11 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
    #error "_LIBUNWIND_SUPPORT_DWARF_UNWIND requires _LIBUNWIND_SUPPORT_DWARF_INDEX on this platform."
   #endif
         size_t object_length;
-#if defined(__ANDROID__)
-        Elf_Addr image_base =
-            pinfo->dlpi_phnum
-                ? reinterpret_cast<Elf_Addr>(pinfo->dlpi_phdr) -
-                      reinterpret_cast<const Elf_Phdr *>(pinfo->dlpi_phdr)
-                          ->p_offset
-                : 0;
-#endif
 
         for (Elf_Half i = 0; i < pinfo->dlpi_phnum; i++) {
           const Elf_Phdr *phdr = &pinfo->dlpi_phdr[i];
           if (phdr->p_type == PT_LOAD) {
-            uintptr_t begin = pinfo->dlpi_addr + phdr->p_vaddr;
-#if defined(__ANDROID__)
-            if (pinfo->dlpi_addr == 0 && phdr->p_vaddr < image_base)
-              begin = begin + image_base;
-#endif
+            uintptr_t begin = image_base + phdr->p_vaddr;
             uintptr_t end = begin + phdr->p_memsz;
             if (cbdata->targetAddr >= begin && cbdata->targetAddr < end) {
               cbdata->sects->dso_base = begin;
@@ -523,18 +551,14 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
             }
           } else if (phdr->p_type == PT_GNU_EH_FRAME) {
             EHHeaderParser<LocalAddressSpace>::EHHeaderInfo hdrInfo;
-            uintptr_t eh_frame_hdr_start = pinfo->dlpi_addr + phdr->p_vaddr;
-#if defined(__ANDROID__)
-            if (pinfo->dlpi_addr == 0 && phdr->p_vaddr < image_base)
-              eh_frame_hdr_start = eh_frame_hdr_start + image_base;
-#endif
+            uintptr_t eh_frame_hdr_start = image_base + phdr->p_vaddr;
             cbdata->sects->dwarf_index_section = eh_frame_hdr_start;
             cbdata->sects->dwarf_index_section_length = phdr->p_memsz;
-            EHHeaderParser<LocalAddressSpace>::decodeEHHdr(
+            found_hdr = EHHeaderParser<LocalAddressSpace>::decodeEHHdr(
                 *cbdata->addressSpace, eh_frame_hdr_start, phdr->p_memsz,
                 hdrInfo);
-            cbdata->sects->dwarf_section = hdrInfo.eh_frame_ptr;
-            found_hdr = true;
+            if (found_hdr)
+              cbdata->sects->dwarf_section = hdrInfo.eh_frame_ptr;
           }
         }
 
@@ -548,12 +572,12 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
         for (Elf_Half i = 0; i < pinfo->dlpi_phnum; i++) {
           const Elf_Phdr *phdr = &pinfo->dlpi_phdr[i];
           if (phdr->p_type == PT_LOAD) {
-            uintptr_t begin = pinfo->dlpi_addr + phdr->p_vaddr;
+            uintptr_t begin = image_base + phdr->p_vaddr;
             uintptr_t end = begin + phdr->p_memsz;
             if (cbdata->targetAddr >= begin && cbdata->targetAddr < end)
               found_obj = true;
           } else if (phdr->p_type == PT_ARM_EXIDX) {
-            uintptr_t exidx_start = pinfo->dlpi_addr + phdr->p_vaddr;
+            uintptr_t exidx_start = image_base + phdr->p_vaddr;
             cbdata->sects->arm_section = exidx_start;
             cbdata->sects->arm_section_length = phdr->p_memsz;
             found_hdr = true;
@@ -593,141 +617,14 @@ inline bool LocalAddressSpace::findFunctionName(pint_t addr, char *buf,
       return true;
     }
   }
+#else
+  (void)addr;
+  (void)buf;
+  (void)bufLen;
+  (void)offset;
 #endif
   return false;
 }
-
-
-
-#ifdef UNW_REMOTE
-
-/// RemoteAddressSpace is used as a template parameter to UnwindCursor when
-/// unwinding a thread in the another process.  The other process can be a
-/// different endianness and a different pointer size which is handled by
-/// the P template parameter.
-template <typename P>
-class RemoteAddressSpace {
-public:
-  RemoteAddressSpace(task_t task) : fTask(task) {}
-
-  typedef typename P::uint_t pint_t;
-
-  uint8_t   get8(pint_t addr);
-  uint16_t  get16(pint_t addr);
-  uint32_t  get32(pint_t addr);
-  uint64_t  get64(pint_t addr);
-  pint_t    getP(pint_t addr);
-  uint64_t  getRegister(pint_t addr);
-  uint64_t  getULEB128(pint_t &addr, pint_t end);
-  int64_t   getSLEB128(pint_t &addr, pint_t end);
-  pint_t    getEncodedP(pint_t &addr, pint_t end, uint8_t encoding,
-                        pint_t datarelBase = 0);
-  bool      findFunctionName(pint_t addr, char *buf, size_t bufLen,
-                        unw_word_t *offset);
-  bool      findUnwindSections(pint_t targetAddr, UnwindInfoSections &info);
-  bool      findOtherFDE(pint_t targetAddr, pint_t &fde);
-private:
-  void *localCopy(pint_t addr);
-
-  task_t fTask;
-};
-
-template <typename P> uint8_t RemoteAddressSpace<P>::get8(pint_t addr) {
-  return *((uint8_t *)localCopy(addr));
-}
-
-template <typename P> uint16_t RemoteAddressSpace<P>::get16(pint_t addr) {
-  return P::E::get16(*(uint16_t *)localCopy(addr));
-}
-
-template <typename P> uint32_t RemoteAddressSpace<P>::get32(pint_t addr) {
-  return P::E::get32(*(uint32_t *)localCopy(addr));
-}
-
-template <typename P> uint64_t RemoteAddressSpace<P>::get64(pint_t addr) {
-  return P::E::get64(*(uint64_t *)localCopy(addr));
-}
-
-template <typename P>
-typename P::uint_t RemoteAddressSpace<P>::getP(pint_t addr) {
-  return P::getP(*(uint64_t *)localCopy(addr));
-}
-
-template <typename P>
-typename P::uint_t OtherAddressSpace<P>::getRegister(pint_t addr) {
-  return P::getRegister(*(uint64_t *)localCopy(addr));
-}
-
-template <typename P>
-uint64_t OtherAddressSpace<P>::getULEB128(pint_t &addr, pint_t end) {
-  uintptr_t size = (end - addr);
-  LocalAddressSpace::pint_t laddr = (LocalAddressSpace::pint_t) localCopy(addr);
-  LocalAddressSpace::pint_t sladdr = laddr;
-  uint64_t result = LocalAddressSpace::getULEB128(laddr, laddr + size);
-  addr += (laddr - sladdr);
-  return result;
-}
-
-template <typename P>
-int64_t RemoteAddressSpace<P>::getSLEB128(pint_t &addr, pint_t end) {
-  uintptr_t size = (end - addr);
-  LocalAddressSpace::pint_t laddr = (LocalAddressSpace::pint_t) localCopy(addr);
-  LocalAddressSpace::pint_t sladdr = laddr;
-  uint64_t result = LocalAddressSpace::getSLEB128(laddr, laddr + size);
-  addr += (laddr - sladdr);
-  return result;
-}
-
-template <typename P> void *RemoteAddressSpace<P>::localCopy(pint_t addr) {
-  // FIX ME
-}
-
-template <typename P>
-bool RemoteAddressSpace<P>::findFunctionName(pint_t addr, char *buf,
-                                             size_t bufLen,
-                                             unw_word_t *offset) {
-  // FIX ME
-}
-
-/// unw_addr_space is the base class that abstract unw_addr_space_t type in
-/// libunwind.h points to.
-struct unw_addr_space {
-  cpu_type_t cpuType;
-  task_t taskPort;
-};
-
-/// unw_addr_space_i386 is the concrete instance that a unw_addr_space_t points
-/// to when examining
-/// a 32-bit intel process.
-struct unw_addr_space_i386 : public unw_addr_space {
-  unw_addr_space_i386(task_t task) : oas(task) {}
-  RemoteAddressSpace<Pointer32<LittleEndian>> oas;
-};
-
-/// unw_addr_space_x86_64 is the concrete instance that a unw_addr_space_t
-/// points to when examining
-/// a 64-bit intel process.
-struct unw_addr_space_x86_64 : public unw_addr_space {
-  unw_addr_space_x86_64(task_t task) : oas(task) {}
-  RemoteAddressSpace<Pointer64<LittleEndian>> oas;
-};
-
-/// unw_addr_space_ppc is the concrete instance that a unw_addr_space_t points
-/// to when examining
-/// a 32-bit PowerPC process.
-struct unw_addr_space_ppc : public unw_addr_space {
-  unw_addr_space_ppc(task_t task) : oas(task) {}
-  RemoteAddressSpace<Pointer32<BigEndian>> oas;
-};
-
-/// unw_addr_space_ppc is the concrete instance that a unw_addr_space_t points
-/// to when examining a 64-bit PowerPC process.
-struct unw_addr_space_ppc64 : public unw_addr_space {
-  unw_addr_space_ppc64(task_t task) : oas(task) {}
-  RemoteAddressSpace<Pointer64<LittleEndian>> oas;
-};
-
-#endif // UNW_REMOTE
 
 } // namespace libunwind
 

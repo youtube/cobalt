@@ -1,39 +1,23 @@
 //===- DWARFDebugRnglists.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/DWARF/DWARFDebugRnglists.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/DebugInfo/DWARF/DWARFUnit.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
-template <typename... Ts>
-static Error createError(char const *Fmt, const Ts &... Vals) {
-  std::string Buffer;
-  raw_string_ostream Stream(Buffer);
-  Stream << format(Fmt, Vals...);
-  return make_error<StringError>(Stream.str(), inconvertibleErrorCode());
-}
-
-namespace llvm {   // workaround for gcc bug
-template <>
-Error DWARFListType<RangeListEntry>::createError(const char *Fmt, const char *s,
-                                                 uint32_t Val) {
-  return ::createError(Fmt, s, Val);
-}
-}
-
-Error RangeListEntry::extract(DWARFDataExtractor Data, uint32_t End,
-                              uint32_t *OffsetPtr) {
+Error RangeListEntry::extract(DWARFDataExtractor Data, uint64_t End,
+                              uint64_t *OffsetPtr) {
   Offset = *OffsetPtr;
   SectionIndex = -1ULL;
   // The caller should guarantee that we have at least 1 byte available, so
@@ -47,59 +31,80 @@ Error RangeListEntry::extract(DWARFDataExtractor Data, uint32_t End,
     Value0 = Value1 = 0;
     break;
   // TODO: Support other encodings.
-  case dwarf::DW_RLE_base_addressx:
-    return createError("unsupported rnglists encoding DW_RLE_base_addressx "
-                       "at offset 0x%" PRIx32,
-                       *OffsetPtr - 1);
+  case dwarf::DW_RLE_base_addressx: {
+    uint64_t PreviousOffset = *OffsetPtr - 1;
+    Value0 = Data.getULEB128(OffsetPtr);
+    if (End < *OffsetPtr)
+      return createStringError(
+          errc::invalid_argument,
+          "read past end of table when reading "
+          "DW_RLE_base_addressx encoding at offset 0x%" PRIx64,
+          PreviousOffset);
+    break;
+  }
   case dwarf::DW_RLE_startx_endx:
-    return createError("unsupported rnglists encoding DW_RLE_startx_endx at "
-                       "offset 0x%" PRIx32,
+    return createStringError(errc::not_supported,
+                       "unsupported rnglists encoding DW_RLE_startx_endx at "
+                       "offset 0x%" PRIx64,
                        *OffsetPtr - 1);
-  case dwarf::DW_RLE_startx_length:
-    return createError("unsupported rnglists encoding DW_RLE_startx_length "
-                       "at offset 0x%" PRIx32,
-                       *OffsetPtr - 1);
-  case dwarf::DW_RLE_offset_pair: {
-    uint32_t PreviousOffset = *OffsetPtr - 1;
+  case dwarf::DW_RLE_startx_length: {
+    uint64_t PreviousOffset = *OffsetPtr - 1;
     Value0 = Data.getULEB128(OffsetPtr);
     Value1 = Data.getULEB128(OffsetPtr);
     if (End < *OffsetPtr)
-      return createError("read past end of table when reading "
-                         "DW_RLE_offset_pair encoding at offset 0x%" PRIx32,
+      return createStringError(
+          errc::invalid_argument,
+          "read past end of table when reading "
+          "DW_RLE_startx_length encoding at offset 0x%" PRIx64,
+          PreviousOffset);
+    break;
+  }
+  case dwarf::DW_RLE_offset_pair: {
+    uint64_t PreviousOffset = *OffsetPtr - 1;
+    Value0 = Data.getULEB128(OffsetPtr);
+    Value1 = Data.getULEB128(OffsetPtr);
+    if (End < *OffsetPtr)
+      return createStringError(errc::invalid_argument,
+                         "read past end of table when reading "
+                         "DW_RLE_offset_pair encoding at offset 0x%" PRIx64,
                          PreviousOffset);
     break;
   }
   case dwarf::DW_RLE_base_address: {
     if ((End - *OffsetPtr) < Data.getAddressSize())
-      return createError("insufficient space remaining in table for "
-                         "DW_RLE_base_address encoding at offset 0x%" PRIx32,
+      return createStringError(errc::invalid_argument,
+                         "insufficient space remaining in table for "
+                         "DW_RLE_base_address encoding at offset 0x%" PRIx64,
                          *OffsetPtr - 1);
     Value0 = Data.getRelocatedAddress(OffsetPtr, &SectionIndex);
     break;
   }
   case dwarf::DW_RLE_start_end: {
     if ((End - *OffsetPtr) < unsigned(Data.getAddressSize() * 2))
-      return createError("insufficient space remaining in table for "
+      return createStringError(errc::invalid_argument,
+                         "insufficient space remaining in table for "
                          "DW_RLE_start_end encoding "
-                         "at offset 0x%" PRIx32,
+                         "at offset 0x%" PRIx64,
                          *OffsetPtr - 1);
     Value0 = Data.getRelocatedAddress(OffsetPtr, &SectionIndex);
     Value1 = Data.getRelocatedAddress(OffsetPtr);
     break;
   }
   case dwarf::DW_RLE_start_length: {
-    uint32_t PreviousOffset = *OffsetPtr - 1;
+    uint64_t PreviousOffset = *OffsetPtr - 1;
     Value0 = Data.getRelocatedAddress(OffsetPtr, &SectionIndex);
     Value1 = Data.getULEB128(OffsetPtr);
     if (End < *OffsetPtr)
-      return createError("read past end of table when reading "
-                         "DW_RLE_start_length encoding at offset 0x%" PRIx32,
+      return createStringError(errc::invalid_argument,
+                         "read past end of table when reading "
+                         "DW_RLE_start_length encoding at offset 0x%" PRIx64,
                          PreviousOffset);
     break;
   }
   default:
-    return createError("unknown rnglists encoding 0x%" PRIx32
-                       " at offset 0x%" PRIx32,
+    return createStringError(errc::not_supported,
+                       "unknown rnglists encoding 0x%" PRIx32
+                       " at offset 0x%" PRIx64,
                        uint32_t(Encoding), *OffsetPtr - 1);
   }
 
@@ -108,11 +113,26 @@ Error RangeListEntry::extract(DWARFDataExtractor Data, uint32_t End,
 }
 
 DWARFAddressRangesVector DWARFDebugRnglist::getAbsoluteRanges(
-    llvm::Optional<BaseAddress> BaseAddr) const {
+    llvm::Optional<object::SectionedAddress> BaseAddr, DWARFUnit &U) const {
+  return getAbsoluteRanges(BaseAddr, [&](uint32_t Index) {
+    return U.getAddrOffsetSectionItem(Index);
+  });
+}
+
+DWARFAddressRangesVector DWARFDebugRnglist::getAbsoluteRanges(
+    Optional<object::SectionedAddress> BaseAddr,
+    function_ref<Optional<object::SectionedAddress>(uint32_t)>
+        LookupPooledAddress) const {
   DWARFAddressRangesVector Res;
   for (const RangeListEntry &RLE : Entries) {
     if (RLE.EntryKind == dwarf::DW_RLE_end_of_list)
       break;
+    if (RLE.EntryKind == dwarf::DW_RLE_base_addressx) {
+      BaseAddr = LookupPooledAddress(RLE.Value0);
+      if (!BaseAddr)
+        BaseAddr = {RLE.Value0, -1ULL};
+      continue;
+    }
     if (RLE.EntryKind == dwarf::DW_RLE_base_address) {
       BaseAddr = {RLE.Value0, RLE.SectionIndex};
       continue;
@@ -140,6 +160,15 @@ DWARFAddressRangesVector DWARFDebugRnglist::getAbsoluteRanges(
       E.LowPC = RLE.Value0;
       E.HighPC = E.LowPC + RLE.Value1;
       break;
+    case dwarf::DW_RLE_startx_length: {
+      auto Start = LookupPooledAddress(RLE.Value0);
+      if (!Start)
+        Start = {0, -1ULL};
+      E.SectionIndex = Start->SectionIndex;
+      E.LowPC = Start->Address;
+      E.HighPC = E.LowPC + RLE.Value1;
+      break;
+    }
     default:
       // Unsupported encodings should have been reported during extraction,
       // so we should not run into any here.
@@ -150,9 +179,11 @@ DWARFAddressRangesVector DWARFDebugRnglist::getAbsoluteRanges(
   return Res;
 }
 
-void RangeListEntry::dump(raw_ostream &OS, uint8_t AddrSize,
-                          uint8_t MaxEncodingStringLength,
-                          uint64_t &CurrentBase, DIDumpOptions DumpOpts) const {
+void RangeListEntry::dump(
+    raw_ostream &OS, uint8_t AddrSize, uint8_t MaxEncodingStringLength,
+    uint64_t &CurrentBase, DIDumpOptions DumpOpts,
+    llvm::function_ref<Optional<object::SectionedAddress>(uint32_t)>
+        LookupPooledAddress) const {
   auto PrintRawEntry = [](raw_ostream &OS, const RangeListEntry &Entry,
                           uint8_t AddrSize, DIDumpOptions DumpOpts) {
     if (DumpOpts.Verbose) {
@@ -165,7 +196,7 @@ void RangeListEntry::dump(raw_ostream &OS, uint8_t AddrSize,
 
   if (DumpOpts.Verbose) {
     // Print the section offset in verbose mode.
-    OS << format("0x%8.8" PRIx32 ":", Offset);
+    OS << format("0x%8.8" PRIx64 ":", Offset);
     auto EncodingString = dwarf::RangeListEncodingString(EntryKind);
     // Unsupported encodings should have been reported during parsing.
     assert(!EncodingString.empty() && "Unknown range entry encoding");
@@ -179,6 +210,16 @@ void RangeListEntry::dump(raw_ostream &OS, uint8_t AddrSize,
   case dwarf::DW_RLE_end_of_list:
     OS << (DumpOpts.Verbose ? "" : "<End of list>");
     break;
+  case dwarf::DW_RLE_base_addressx: {
+    if (auto SA = LookupPooledAddress(Value0))
+      CurrentBase = SA->Address;
+    else
+      CurrentBase = Value0;
+    if (!DumpOpts.Verbose)
+      return;
+    OS << format(" 0x%*.*" PRIx64, AddrSize * 2, AddrSize * 2, Value0);
+    break;
+  }
   case dwarf::DW_RLE_base_address:
     // In non-verbose mode we do not print anything for this entry.
     CurrentBase = Value0;
@@ -198,6 +239,14 @@ void RangeListEntry::dump(raw_ostream &OS, uint8_t AddrSize,
   case dwarf::DW_RLE_start_end:
     DWARFAddressRange(Value0, Value1).dump(OS, AddrSize, DumpOpts);
     break;
+  case dwarf::DW_RLE_startx_length: {
+    PrintRawEntry(OS, *this, AddrSize, DumpOpts);
+    uint64_t Start = 0;
+    if (auto SA = LookupPooledAddress(Value0))
+      Start = SA->Address;
+    DWARFAddressRange(Start, Start + Value1).dump(OS, AddrSize, DumpOpts);
+    break;
+  }
   default:
     llvm_unreachable("Unsupported range list encoding");
   }

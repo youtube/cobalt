@@ -180,7 +180,7 @@ define void @cxcccc() {
   ; 32R1:       sra     $7, $[[R]], 24
   ; 32R2:       seb     $7, $[[R]]
 
-  ; ALL:        lw      $25, %got(xcccc)($2)
+  ; ALL:        lw      $25, %got(xcccc)(${{[0-9]+}})
   ; ALL:        jalr    $25
   ; ALL:        jr      $ra
   call void @xcccc(i8 88, i8 44, i8 11, i8 33)
@@ -209,7 +209,7 @@ define void @cxhhhh() {
   ; 32R1:       sra     $7, $[[R]], 16
   ; 32R2:       seh     $7, $[[R]]
 
-  ; ALL:        lw      $25, %got(xhhhh)($2)
+  ; ALL:        lw      $25, %got(xhhhh)(${{[0-9]+}})
   ; ALL:        jalr    $25
   ; ALL:        jr      $ra
 
@@ -244,12 +244,12 @@ define void @cxiiiiconv() {
   ; ALL-DAG:        lw      $[[REG_C1_ADDR:[0-9]+]], %got(c1)($[[REG_GP]])
   ; ALL-DAG:        lbu     $[[REG_C1:[0-9]+]], 0($[[REG_C1_ADDR]])
   ; 32R1-DAG:       sll     $[[REG_C1_1:[0-9]+]], $[[REG_C1]], 24
-  ; 32R1-DAG:       sra     $4, $[[REG_C1_1]], 24
-  ; 32R2-DAG:       seb     $4, $[[REG_C1]]
+  ; 32R1-DAG:       sra     $5, $[[REG_C1_1]], 24
+  ; 32R2-DAG:       seb     $5, $[[REG_C1]]
   ; FIXME: andi is superfulous
   ; ALL-DAG:        lw      $[[REG_UC1_ADDR:[0-9]+]], %got(uc1)($[[REG_GP]])
   ; ALL-DAG:        lbu     $[[REG_UC1:[0-9]+]], 0($[[REG_UC1_ADDR]])
-  ; ALL-DAG:        andi    $5, $[[REG_UC1]], 255
+  ; ALL-DAG:        andi    $4, $[[REG_UC1]], 255
   ; ALL-DAG:        lw      $[[REG_S1_ADDR:[0-9]+]], %got(s1)($[[REG_GP]])
   ; ALL-DAG:        lhu     $[[REG_S1:[0-9]+]], 0($[[REG_S1_ADDR]])
   ; 32R1-DAG:       sll     $[[REG_S1_1:[0-9]+]], $[[REG_S1]], 16

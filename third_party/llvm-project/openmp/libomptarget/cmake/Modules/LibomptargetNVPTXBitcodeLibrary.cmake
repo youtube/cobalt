@@ -1,10 +1,9 @@
 #
 #//===----------------------------------------------------------------------===//
 #//
-#//                     The LLVM Compiler Infrastructure
-#//
-#// This file is dual licensed under the MIT and the University of Illinois Open
-#// Source Licenses. See LICENSE.txt for details.
+#// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+#// See https://llvm.org/LICENSE.txt for license information.
+#// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #//
 #//===----------------------------------------------------------------------===//
 #
@@ -79,7 +78,7 @@ endfunction()
 
 # These flags are required to emit LLVM Bitcode. We check them together because
 # if any of them are not supported, there is no point in finding out which are.
-set(compiler_flags_required -emit-llvm -O1 --cuda-device-only --cuda-path=${CUDA_TOOLKIT_ROOT_DIR})
+set(compiler_flags_required -emit-llvm -O1 --cuda-device-only -std=c++11 --cuda-path=${CUDA_TOOLKIT_ROOT_DIR})
 set(compiler_flags_required_src "extern \"C\" __device__ int thread() { return threadIdx.x; }")
 check_bitcode_compilation(LIBOMPTARGET_NVPTX_CUDA_COMPILER_SUPPORTS_FLAGS_REQUIRED "${compiler_flags_required_src}" ${compiler_flags_required})
 

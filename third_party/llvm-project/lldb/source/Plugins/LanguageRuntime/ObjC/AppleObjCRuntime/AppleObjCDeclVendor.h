@@ -1,36 +1,34 @@
 //===-- AppleObjCDeclVendor.h -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_AppleObjCDeclVendor_h_
 #define liblldb_AppleObjCDeclVendor_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Symbol/DeclVendor.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/lldb-private.h"
+
+#include "Plugins/ExpressionParser/Clang/ClangDeclVendor.h"
+#include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
 
 namespace lldb_private {
 
 class AppleObjCExternalASTSource;
 
-class AppleObjCDeclVendor : public DeclVendor {
+class AppleObjCDeclVendor : public ClangDeclVendor {
 public:
   AppleObjCDeclVendor(ObjCLanguageRuntime &runtime);
 
-  uint32_t FindDecls(const ConstString &name, bool append, uint32_t max_matches,
-                     std::vector<clang::NamedDecl *> &decls) override;
+  static bool classof(const DeclVendor *vendor) {
+    return vendor->GetKind() == eAppleObjCDeclVendor;
+  }
 
-  clang::ExternalASTMerger::ImporterSource GetImporterSource() override;
+  uint32_t FindDecls(ConstString name, bool append, uint32_t max_matches,
+                     std::vector<CompilerDecl> &decls) override;
 
   friend class AppleObjCExternalASTSource;
 

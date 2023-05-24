@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,7 +22,7 @@
 #include <system_error>
 
 #include "test_macros.h"
-#include "test_convertible.hpp"
+#include "test_convertible.h"
 #include "MoveOnly.h"
 
 #if defined(_LIBCPP_ENABLE_TUPLE_IMPLICIT_REDUCED_ARITY_EXTENSION)
@@ -78,7 +77,7 @@ void test_example_from_docs() {
   assert(std::get<2>(tup) == std::error_code{});
 }
 
-int main()
+int main(int, char**)
 {
     {
         using E = MoveOnly;
@@ -105,4 +104,6 @@ int main()
     // constructor extensions.
     test_default_constructible_extension_sfinae();
     test_example_from_docs();
+
+  return 0;
 }

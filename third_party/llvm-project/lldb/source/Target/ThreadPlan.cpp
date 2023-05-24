@@ -1,34 +1,28 @@
 //===-- ThreadPlan.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/State.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // ThreadPlan constructor
-//----------------------------------------------------------------------
 ThreadPlan::ThreadPlan(ThreadPlanKind kind, const char *name, Thread &thread,
                        Vote stop_vote, Vote run_vote)
     : m_thread(thread), m_stop_vote(stop_vote), m_run_vote(run_vote),
+      m_takes_iteration_count(false), m_could_not_resolve_hw_bp(false),
       m_kind(kind), m_name(name), m_plan_complete_mutex(),
       m_cached_plan_explains_stop(eLazyBoolCalculate), m_plan_complete(false),
       m_plan_private(false), m_okay_to_discard(true), m_is_master_plan(false),
@@ -36,9 +30,7 @@ ThreadPlan::ThreadPlan(ThreadPlanKind kind, const char *name, Thread &thread,
   SetID(GetNextID());
 }
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 ThreadPlan::~ThreadPlan() = default;
 
 bool ThreadPlan::PlanExplainsStop(Event *event_ptr) {
@@ -116,7 +108,8 @@ bool ThreadPlan::WillResume(StateType resume_state, bool current_plan) {
       addr_t pc = reg_ctx->GetPC();
       addr_t sp = reg_ctx->GetSP();
       addr_t fp = reg_ctx->GetFP();
-      log->Printf(
+      LLDB_LOGF(
+          log,
           "%s Thread #%u (0x%p): tid = 0x%4.4" PRIx64 ", pc = 0x%8.8" PRIx64
           ", sp = 0x%8.8" PRIx64 ", fp = 0x%8.8" PRIx64 ", "
           "plan = '%s', state = %s, stop others = %d",
@@ -164,9 +157,7 @@ bool ThreadPlan::IsUsuallyUnexplainedStopReason(lldb::StopReason reason) {
   }
 }
 
-//----------------------------------------------------------------------
 // ThreadPlanNull
-//----------------------------------------------------------------------
 
 ThreadPlanNull::ThreadPlanNull(Thread &thread)
     : ThreadPlan(ThreadPlan::eKindNull, "Null Thread Plan", thread,

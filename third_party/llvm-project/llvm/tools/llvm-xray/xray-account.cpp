@@ -1,9 +1,8 @@
 //===- xray-account.h - XRay Function Call Accounting ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -35,23 +34,20 @@ static cl::opt<bool>
     AccountKeepGoing("keep-going", cl::desc("Keep going on errors encountered"),
                      cl::sub(Account), cl::init(false));
 static cl::alias AccountKeepGoing2("k", cl::aliasopt(AccountKeepGoing),
-                                   cl::desc("Alias for -keep_going"),
-                                   cl::sub(Account));
+                                   cl::desc("Alias for -keep_going"));
 static cl::opt<bool> AccountDeduceSiblingCalls(
     "deduce-sibling-calls",
     cl::desc("Deduce sibling calls when unrolling function call stacks"),
     cl::sub(Account), cl::init(false));
 static cl::alias
     AccountDeduceSiblingCalls2("d", cl::aliasopt(AccountDeduceSiblingCalls),
-                               cl::desc("Alias for -deduce_sibling_calls"),
-                               cl::sub(Account));
+                               cl::desc("Alias for -deduce_sibling_calls"));
 static cl::opt<std::string>
     AccountOutput("output", cl::value_desc("output file"), cl::init("-"),
                   cl::desc("output file; use '-' for stdout"),
                   cl::sub(Account));
 static cl::alias AccountOutput2("o", cl::aliasopt(AccountOutput),
-                                cl::desc("Alias for -output"),
-                                cl::sub(Account));
+                                cl::desc("Alias for -output"));
 enum class AccountOutputFormats { TEXT, CSV };
 static cl::opt<AccountOutputFormats>
     AccountOutputFormat("format", cl::desc("output format"),
@@ -61,8 +57,7 @@ static cl::opt<AccountOutputFormats>
                                               "report stats in csv")),
                         cl::sub(Account));
 static cl::alias AccountOutputFormat2("f", cl::desc("Alias of -format"),
-                                      cl::aliasopt(AccountOutputFormat),
-                                      cl::sub(Account));
+                                      cl::aliasopt(AccountOutputFormat));
 
 enum class SortField {
   FUNCID,
@@ -89,8 +84,7 @@ static cl::opt<SortField> AccountSortOutput(
                clEnumValN(SortField::SUM, "sum", "sum of call durations"),
                clEnumValN(SortField::FUNC, "func", "function names")));
 static cl::alias AccountSortOutput2("s", cl::aliasopt(AccountSortOutput),
-                                    cl::desc("Alias for -sort"),
-                                    cl::sub(Account));
+                                    cl::desc("Alias for -sort"));
 
 enum class SortDirection {
   ASCENDING,
@@ -102,14 +96,13 @@ static cl::opt<SortDirection> AccountSortOrder(
                clEnumValN(SortDirection::DESCENDING, "dsc", "descending")),
     cl::sub(Account));
 static cl::alias AccountSortOrder2("r", cl::aliasopt(AccountSortOrder),
-                                   cl::desc("Alias for -sortorder"),
-                                   cl::sub(Account));
+                                   cl::desc("Alias for -sortorder"));
 
 static cl::opt<int> AccountTop("top", cl::desc("only show the top N results"),
                                cl::value_desc("N"), cl::sub(Account),
                                cl::init(-1));
 static cl::alias AccountTop2("p", cl::desc("Alias for -top"),
-                             cl::aliasopt(AccountTop), cl::sub(Account));
+                             cl::aliasopt(AccountTop));
 
 static cl::opt<std::string>
     AccountInstrMap("instr_map",
@@ -118,8 +111,7 @@ static cl::opt<std::string>
                     cl::value_desc("binary with xray_instr_map"),
                     cl::sub(Account), cl::init(""));
 static cl::alias AccountInstrMap2("m", cl::aliasopt(AccountInstrMap),
-                                  cl::desc("Alias for -instr_map"),
-                                  cl::sub(Account));
+                                  cl::desc("Alias for -instr_map"));
 
 namespace {
 
@@ -146,6 +138,10 @@ bool LatencyAccountant::accountRecord(const XRayRecord &Record) {
 
   auto &ThreadStack = PerThreadFunctionStack[Record.TId];
   switch (Record.Type) {
+  case RecordTypes::CUSTOM_EVENT:
+  case RecordTypes::TYPED_EVENT:
+    // TODO: Support custom and typed event accounting in the future.
+    return true;
   case RecordTypes::ENTER:
   case RecordTypes::ENTER_ARG: {
     ThreadStack.emplace_back(Record.FuncId, Record.TSC);
@@ -255,9 +251,18 @@ ResultRow getStats(std::vector<uint64_t> &Timings) {
 
 } // namespace
 
+using TupleType = std::tuple<int32_t, uint64_t, ResultRow>;
+
+template <typename F>
+static void sortByKey(std::vector<TupleType> &Results, F Fn) {
+  bool ASC = AccountSortOrder == SortDirection::ASCENDING;
+  llvm::sort(Results, [=](const TupleType &L, const TupleType &R) {
+    return ASC ? Fn(L) < Fn(R) : Fn(L) > Fn(R);
+  });
+}
+
 template <class F>
 void LatencyAccountant::exportStats(const XRayFileHeader &Header, F Fn) const {
-  using TupleType = std::tuple<int32_t, uint64_t, ResultRow>;
   std::vector<TupleType> Results;
   Results.reserve(FunctionLatencies.size());
   for (auto FT : FunctionLatencies) {
@@ -282,80 +287,31 @@ void LatencyAccountant::exportStats(const XRayFileHeader &Header, F Fn) const {
   // Sort the data according to user-provided flags.
   switch (AccountSortOutput) {
   case SortField::FUNCID:
-    llvm::sort(Results.begin(), Results.end(),
-               [](const TupleType &L, const TupleType &R) {
-                 if (AccountSortOrder == SortDirection::ASCENDING)
-                   return std::get<0>(L) < std::get<0>(R);
-                 if (AccountSortOrder == SortDirection::DESCENDING)
-                   return std::get<0>(L) > std::get<0>(R);
-                 llvm_unreachable("Unknown sort direction");
-               });
+    sortByKey(Results, [](const TupleType &X) { return std::get<0>(X); });
     break;
   case SortField::COUNT:
-    llvm::sort(Results.begin(), Results.end(),
-               [](const TupleType &L, const TupleType &R) {
-                 if (AccountSortOrder == SortDirection::ASCENDING)
-                   return std::get<1>(L) < std::get<1>(R);
-                 if (AccountSortOrder == SortDirection::DESCENDING)
-                   return std::get<1>(L) > std::get<1>(R);
-                 llvm_unreachable("Unknown sort direction");
-               });
+    sortByKey(Results, [](const TupleType &X) { return std::get<1>(X); });
     break;
-  default:
-    // Here we need to look into the ResultRow for the rest of the data that
-    // we want to sort by.
-    llvm::sort(Results.begin(), Results.end(),
-               [&](const TupleType &L, const TupleType &R) {
-                 auto &LR = std::get<2>(L);
-                 auto &RR = std::get<2>(R);
-                 switch (AccountSortOutput) {
-                 case SortField::COUNT:
-                   if (AccountSortOrder == SortDirection::ASCENDING)
-                     return LR.Count < RR.Count;
-                   if (AccountSortOrder == SortDirection::DESCENDING)
-                     return LR.Count > RR.Count;
-                   llvm_unreachable("Unknown sort direction");
-                 case SortField::MIN:
-                   if (AccountSortOrder == SortDirection::ASCENDING)
-                     return LR.Min < RR.Min;
-                   if (AccountSortOrder == SortDirection::DESCENDING)
-                     return LR.Min > RR.Min;
-                   llvm_unreachable("Unknown sort direction");
-                 case SortField::MED:
-                   if (AccountSortOrder == SortDirection::ASCENDING)
-                     return LR.Median < RR.Median;
-                   if (AccountSortOrder == SortDirection::DESCENDING)
-                     return LR.Median > RR.Median;
-                   llvm_unreachable("Unknown sort direction");
-                 case SortField::PCT90:
-                   if (AccountSortOrder == SortDirection::ASCENDING)
-                     return LR.Pct90 < RR.Pct90;
-                   if (AccountSortOrder == SortDirection::DESCENDING)
-                     return LR.Pct90 > RR.Pct90;
-                   llvm_unreachable("Unknown sort direction");
-                 case SortField::PCT99:
-                   if (AccountSortOrder == SortDirection::ASCENDING)
-                     return LR.Pct99 < RR.Pct99;
-                   if (AccountSortOrder == SortDirection::DESCENDING)
-                     return LR.Pct99 > RR.Pct99;
-                   llvm_unreachable("Unknown sort direction");
-                 case SortField::MAX:
-                   if (AccountSortOrder == SortDirection::ASCENDING)
-                     return LR.Max < RR.Max;
-                   if (AccountSortOrder == SortDirection::DESCENDING)
-                     return LR.Max > RR.Max;
-                   llvm_unreachable("Unknown sort direction");
-                 case SortField::SUM:
-                   if (AccountSortOrder == SortDirection::ASCENDING)
-                     return LR.Sum < RR.Sum;
-                   if (AccountSortOrder == SortDirection::DESCENDING)
-                     return LR.Sum > RR.Sum;
-                   llvm_unreachable("Unknown sort direction");
-                 default:
-                   llvm_unreachable("Unsupported sort order");
-                 }
-               });
+  case SortField::MIN:
+    sortByKey(Results, [](const TupleType &X) { return std::get<2>(X).Min; });
     break;
+  case SortField::MED:
+    sortByKey(Results, [](const TupleType &X) { return std::get<2>(X).Median; });
+    break;
+  case SortField::PCT90:
+    sortByKey(Results, [](const TupleType &X) { return std::get<2>(X).Pct90; });
+    break;
+  case SortField::PCT99:
+    sortByKey(Results, [](const TupleType &X) { return std::get<2>(X).Pct99; });
+    break;
+  case SortField::MAX:
+    sortByKey(Results, [](const TupleType &X) { return std::get<2>(X).Max; });
+    break;
+  case SortField::SUM:
+    sortByKey(Results, [](const TupleType &X) { return std::get<2>(X).Sum; });
+    break;
+  case SortField::FUNC:
+    llvm_unreachable("Not implemented");
   }
 
   if (AccountTop > 0) {
@@ -420,19 +376,25 @@ namespace llvm {
 template <> struct format_provider<llvm::xray::RecordTypes> {
   static void format(const llvm::xray::RecordTypes &T, raw_ostream &Stream,
                      StringRef Style) {
-    switch(T) {
-      case RecordTypes::ENTER:
-        Stream << "enter";
-        break;
-      case RecordTypes::ENTER_ARG:
-        Stream << "enter-arg";
-        break;
-      case RecordTypes::EXIT:
-        Stream << "exit";
-        break;
-      case RecordTypes::TAIL_EXIT:
-        Stream << "tail-exit";
-        break;
+    switch (T) {
+    case RecordTypes::ENTER:
+      Stream << "enter";
+      break;
+    case RecordTypes::ENTER_ARG:
+      Stream << "enter-arg";
+      break;
+    case RecordTypes::EXIT:
+      Stream << "exit";
+      break;
+    case RecordTypes::TAIL_EXIT:
+      Stream << "tail-exit";
+      break;
+    case RecordTypes::CUSTOM_EVENT:
+      Stream << "custom-event";
+      break;
+    case RecordTypes::TYPED_EVENT:
+      Stream << "typed-event";
+      break;
     }
   }
 };
@@ -452,15 +414,13 @@ static CommandRegistration Unused(&Account, []() -> Error {
   }
 
   std::error_code EC;
-  raw_fd_ostream OS(AccountOutput, EC, sys::fs::OpenFlags::F_Text);
+  raw_fd_ostream OS(AccountOutput, EC, sys::fs::OpenFlags::OF_Text);
   if (EC)
     return make_error<StringError>(
         Twine("Cannot open file '") + AccountOutput + "' for writing.", EC);
 
   const auto &FunctionAddresses = Map.getFunctionAddresses();
-  symbolize::LLVMSymbolizer::Options Opts(
-      symbolize::FunctionNameKind::LinkageName, true, true, false, "");
-  symbolize::LLVMSymbolizer Symbolizer(Opts);
+  symbolize::LLVMSymbolizer Symbolizer;
   llvm::xray::FuncIdConversionHelper FuncIdHelper(AccountInstrMap, Symbolizer,
                                                   FunctionAddresses);
   xray::LatencyAccountant FCA(FuncIdHelper, AccountDeduceSiblingCalls);

@@ -1,9 +1,8 @@
 //===--- AMDGPUMacroFusion.cpp - AMDGPU Macro Fusion ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -42,9 +41,12 @@ static bool shouldScheduleAdjacent(const TargetInstrInfo &TII_,
     if (!FirstMI)
       return true;
 
+    const MachineBasicBlock &MBB = *FirstMI->getParent();
+    const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+    const TargetRegisterInfo *TRI = MRI.getTargetRegisterInfo();
     const MachineOperand *Src2 = TII.getNamedOperand(SecondMI,
                                                      AMDGPU::OpName::src2);
-    return FirstMI->definesRegister(Src2->getReg());
+    return FirstMI->definesRegister(Src2->getReg(), TRI);
   }
   default:
     return false;

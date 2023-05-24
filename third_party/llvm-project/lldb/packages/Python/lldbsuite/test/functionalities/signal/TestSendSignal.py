@@ -1,11 +1,7 @@
 ﻿"""Test that lldb command 'process signal SIGUSR1' to send a signal to the inferior works."""
 
-from __future__ import print_function
 
 
-import os
-import time
-import signal
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -25,6 +21,7 @@ class SendSignalTestCase(TestBase):
     @expectedFailureAll(
         oslist=['freebsd'],
         bugnumber="llvm.org/pr23318: does not report running state")
+    @expectedFailureNetBSD(bugnumber='llvm.org/pr43959')
     @skipIfWindows  # Windows does not support signals
     def test_with_run_command(self):
         """Test that lldb command 'process signal SIGUSR1' sends a signal to the inferior process."""

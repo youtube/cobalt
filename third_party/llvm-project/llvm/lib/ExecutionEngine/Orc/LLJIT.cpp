@@ -1,60 +1,167 @@
 //===--------- LLJIT.cpp - An ORC-based JIT for compiling LLVM IR ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/JITLink/JITLinkMemoryManager.h"
+#include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/OrcError.h"
+#include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/Mangler.h"
 
 namespace llvm {
 namespace orc {
 
-Expected<std::unique_ptr<LLJIT>>
-LLJIT::Create(std::unique_ptr<ExecutionSession> ES,
-              std::unique_ptr<TargetMachine> TM, DataLayout DL) {
-  return std::unique_ptr<LLJIT>(
-      new LLJIT(std::move(ES), std::move(TM), std::move(DL)));
+Error LLJITBuilderState::prepareForConstruction() {
+
+  if (!JTMB) {
+    if (auto JTMBOrErr = JITTargetMachineBuilder::detectHost())
+      JTMB = std::move(*JTMBOrErr);
+    else
+      return JTMBOrErr.takeError();
+  }
+
+  // If the client didn't configure any linker options then auto-configure the
+  // JIT linker.
+  if (!CreateObjectLinkingLayer && JTMB->getCodeModel() == None &&
+      JTMB->getRelocationModel() == None) {
+
+    auto &TT = JTMB->getTargetTriple();
+    if (TT.isOSBinFormatMachO() &&
+        (TT.getArch() == Triple::aarch64 || TT.getArch() == Triple::x86_64)) {
+
+      JTMB->setRelocationModel(Reloc::PIC_);
+      JTMB->setCodeModel(CodeModel::Small);
+      CreateObjectLinkingLayer =
+          [](ExecutionSession &ES,
+             const Triple &) -> std::unique_ptr<ObjectLayer> {
+        return std::make_unique<ObjectLinkingLayer>(
+            ES, std::make_unique<jitlink::InProcessMemoryManager>());
+      };
+    }
+  }
+
+  return Error::success();
+}
+
+LLJIT::~LLJIT() {
+  if (CompileThreads)
+    CompileThreads->wait();
 }
 
 Error LLJIT::defineAbsolute(StringRef Name, JITEvaluatedSymbol Sym) {
-  auto InternedName = ES->getSymbolStringPool().intern(Name);
+  auto InternedName = ES->intern(Name);
   SymbolMap Symbols({{InternedName, Sym}});
   return Main.define(absoluteSymbols(std::move(Symbols)));
 }
 
-Error LLJIT::addIRModule(VSO &V, std::unique_ptr<Module> M) {
-  assert(M && "Can not add null module");
+Error LLJIT::addIRModule(JITDylib &JD, ThreadSafeModule TSM) {
+  assert(TSM && "Can not add null module");
 
-  if (auto Err = applyDataLayout(*M))
+  if (auto Err =
+          TSM.withModuleDo([&](Module &M) { return applyDataLayout(M); }))
     return Err;
 
-  auto K = ES->allocateVModule();
-  return CompileLayer.add(V, K, std::move(M));
+  return CompileLayer->add(JD, std::move(TSM), ES->allocateVModule());
 }
 
-Expected<JITEvaluatedSymbol> LLJIT::lookupLinkerMangled(VSO &V,
+Error LLJIT::addObjectFile(JITDylib &JD, std::unique_ptr<MemoryBuffer> Obj) {
+  assert(Obj && "Can not add null object");
+
+  return ObjTransformLayer.add(JD, std::move(Obj), ES->allocateVModule());
+}
+
+Expected<JITEvaluatedSymbol> LLJIT::lookupLinkerMangled(JITDylib &JD,
                                                         StringRef Name) {
-  return llvm::orc::lookup({&V}, ES->getSymbolStringPool().intern(Name));
+  return ES->lookup(
+      makeJITDylibSearchOrder(&JD, JITDylibLookupFlags::MatchAllSymbols),
+      ES->intern(Name));
 }
 
-LLJIT::LLJIT(std::unique_ptr<ExecutionSession> ES,
-             std::unique_ptr<TargetMachine> TM, DataLayout DL)
-    : ES(std::move(ES)), Main(this->ES->createVSO("main")), TM(std::move(TM)),
-      DL(std::move(DL)),
-      ObjLinkingLayer(*this->ES,
-                      [this](VModuleKey K) { return getMemoryManager(K); }),
-      CompileLayer(*this->ES, ObjLinkingLayer, SimpleCompiler(*this->TM)),
-      CtorRunner(Main), DtorRunner(Main) {}
+std::unique_ptr<ObjectLayer>
+LLJIT::createObjectLinkingLayer(LLJITBuilderState &S, ExecutionSession &ES) {
 
-std::shared_ptr<RuntimeDyld::MemoryManager>
-LLJIT::getMemoryManager(VModuleKey K) {
-  return llvm::make_unique<SectionMemoryManager>();
+  // If the config state provided an ObjectLinkingLayer factory then use it.
+  if (S.CreateObjectLinkingLayer)
+    return S.CreateObjectLinkingLayer(ES, S.JTMB->getTargetTriple());
+
+  // Otherwise default to creating an RTDyldObjectLinkingLayer that constructs
+  // a new SectionMemoryManager for each object.
+  auto GetMemMgr = []() { return std::make_unique<SectionMemoryManager>(); };
+  auto ObjLinkingLayer =
+      std::make_unique<RTDyldObjectLinkingLayer>(ES, std::move(GetMemMgr));
+
+  if (S.JTMB->getTargetTriple().isOSBinFormatCOFF())
+    ObjLinkingLayer->setOverrideObjectFlagsWithResponsibilityFlags(true);
+
+  // FIXME: Explicit conversion to std::unique_ptr<ObjectLayer> added to silence
+  //        errors from some GCC / libstdc++ bots. Remove this conversion (i.e.
+  //        just return ObjLinkingLayer) once those bots are upgraded.
+  return std::unique_ptr<ObjectLayer>(std::move(ObjLinkingLayer));
+}
+
+Expected<IRCompileLayer::CompileFunction>
+LLJIT::createCompileFunction(LLJITBuilderState &S,
+                             JITTargetMachineBuilder JTMB) {
+
+  /// If there is a custom compile function creator set then use it.
+  if (S.CreateCompileFunction)
+    return S.CreateCompileFunction(std::move(JTMB));
+
+  // Otherwise default to creating a SimpleCompiler, or ConcurrentIRCompiler,
+  // depending on the number of threads requested.
+  if (S.NumCompileThreads > 0)
+    return ConcurrentIRCompiler(std::move(JTMB));
+
+  auto TM = JTMB.createTargetMachine();
+  if (!TM)
+    return TM.takeError();
+
+  return TMOwningSimpleCompiler(std::move(*TM));
+}
+
+LLJIT::LLJIT(LLJITBuilderState &S, Error &Err)
+    : ES(S.ES ? std::move(S.ES) : std::make_unique<ExecutionSession>()),
+      Main(this->ES->createJITDylib("<main>")), DL(""),
+      ObjLinkingLayer(createObjectLinkingLayer(S, *ES)),
+      ObjTransformLayer(*this->ES, *ObjLinkingLayer), CtorRunner(Main),
+      DtorRunner(Main) {
+
+  ErrorAsOutParameter _(&Err);
+
+  if (auto DLOrErr = S.JTMB->getDefaultDataLayoutForTarget())
+    DL = std::move(*DLOrErr);
+  else {
+    Err = DLOrErr.takeError();
+    return;
+  }
+
+  {
+    auto CompileFunction = createCompileFunction(S, std::move(*S.JTMB));
+    if (!CompileFunction) {
+      Err = CompileFunction.takeError();
+      return;
+    }
+    CompileLayer = std::make_unique<IRCompileLayer>(
+        *ES, ObjTransformLayer, std::move(*CompileFunction));
+  }
+
+  if (S.NumCompileThreads > 0) {
+    CompileLayer->setCloneToNewContextOnEmit(true);
+    CompileThreads = std::make_unique<ThreadPool>(S.NumCompileThreads);
+    ES->setDispatchMaterialization(
+        [this](JITDylib &JD, std::unique_ptr<MaterializationUnit> MU) {
+          // FIXME: Switch to move capture once we have c++14.
+          auto SharedMU = std::shared_ptr<MaterializationUnit>(std::move(MU));
+          auto Work = [SharedMU, &JD]() { SharedMU->doMaterialize(JD); };
+          CompileThreads->async(std::move(Work));
+        });
+  }
 }
 
 std::string LLJIT::mangle(StringRef UnmangledName) {
@@ -83,52 +190,75 @@ void LLJIT::recordCtorDtors(Module &M) {
   DtorRunner.add(getDestructors(M));
 }
 
-Expected<std::unique_ptr<LLLazyJIT>>
-LLLazyJIT::Create(std::unique_ptr<ExecutionSession> ES,
-                  std::unique_ptr<TargetMachine> TM, DataLayout DL,
-                  LLVMContext &Ctx) {
-  const Triple &TT = TM->getTargetTriple();
-
-  auto CCMgr = createLocalCompileCallbackManager(TT, *ES, 0);
-  if (!CCMgr)
-    return make_error<StringError>(
-        std::string("No callback manager available for ") + TT.str(),
-        inconvertibleErrorCode());
-
-  auto ISMBuilder = createLocalIndirectStubsManagerBuilder(TT);
-  if (!ISMBuilder)
-    return make_error<StringError>(
-        std::string("No indirect stubs manager builder for ") + TT.str(),
-        inconvertibleErrorCode());
-
-  return std::unique_ptr<LLLazyJIT>(
-      new LLLazyJIT(std::move(ES), std::move(TM), std::move(DL), Ctx,
-                    std::move(CCMgr), std::move(ISMBuilder)));
+Error LLLazyJITBuilderState::prepareForConstruction() {
+  if (auto Err = LLJITBuilderState::prepareForConstruction())
+    return Err;
+  TT = JTMB->getTargetTriple();
+  return Error::success();
 }
 
-Error LLLazyJIT::addLazyIRModule(VSO &V, std::unique_ptr<Module> M) {
-  assert(M && "Can not add null module");
+Error LLLazyJIT::addLazyIRModule(JITDylib &JD, ThreadSafeModule TSM) {
+  assert(TSM && "Can not add null module");
 
-  if (auto Err = applyDataLayout(*M))
+  if (auto Err = TSM.withModuleDo([&](Module &M) -> Error {
+        if (auto Err = applyDataLayout(M))
+          return Err;
+
+        recordCtorDtors(M);
+        return Error::success();
+      }))
     return Err;
 
-  makeAllSymbolsExternallyAccessible(*M);
-
-  recordCtorDtors(*M);
-
-  auto K = ES->allocateVModule();
-  return CODLayer.add(V, K, std::move(M));
+  return CODLayer->add(JD, std::move(TSM), ES->allocateVModule());
 }
 
-LLLazyJIT::LLLazyJIT(
-    std::unique_ptr<ExecutionSession> ES, std::unique_ptr<TargetMachine> TM,
-    DataLayout DL, LLVMContext &Ctx,
-    std::unique_ptr<JITCompileCallbackManager> CCMgr,
-    std::function<std::unique_ptr<IndirectStubsManager>()> ISMBuilder)
-    : LLJIT(std::move(ES), std::move(TM), std::move(DL)),
-      CCMgr(std::move(CCMgr)), TransformLayer(*this->ES, CompileLayer),
-      CODLayer(*this->ES, TransformLayer, *this->CCMgr, std::move(ISMBuilder),
-               [&]() -> LLVMContext & { return Ctx; }) {}
+LLLazyJIT::LLLazyJIT(LLLazyJITBuilderState &S, Error &Err) : LLJIT(S, Err) {
+
+  // If LLJIT construction failed then bail out.
+  if (Err)
+    return;
+
+  ErrorAsOutParameter _(&Err);
+
+  /// Take/Create the lazy-compile callthrough manager.
+  if (S.LCTMgr)
+    LCTMgr = std::move(S.LCTMgr);
+  else {
+    if (auto LCTMgrOrErr = createLocalLazyCallThroughManager(
+            S.TT, *ES, S.LazyCompileFailureAddr))
+      LCTMgr = std::move(*LCTMgrOrErr);
+    else {
+      Err = LCTMgrOrErr.takeError();
+      return;
+    }
+  }
+
+  // Take/Create the indirect stubs manager builder.
+  auto ISMBuilder = std::move(S.ISMBuilder);
+
+  // If none was provided, try to build one.
+  if (!ISMBuilder)
+    ISMBuilder = createLocalIndirectStubsManagerBuilder(S.TT);
+
+  // No luck. Bail out.
+  if (!ISMBuilder) {
+    Err = make_error<StringError>("Could not construct "
+                                  "IndirectStubsManagerBuilder for target " +
+                                      S.TT.str(),
+                                  inconvertibleErrorCode());
+    return;
+  }
+
+  // Create the transform layer.
+  TransformLayer = std::make_unique<IRTransformLayer>(*ES, *CompileLayer);
+
+  // Create the COD layer.
+  CODLayer = std::make_unique<CompileOnDemandLayer>(
+      *ES, *TransformLayer, *LCTMgr, std::move(ISMBuilder));
+
+  if (S.NumCompileThreads > 0)
+    CODLayer->setCloneToNewContextOnEmit(true);
+}
 
 } // End namespace orc.
 } // End namespace llvm.

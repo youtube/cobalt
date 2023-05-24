@@ -1,9 +1,8 @@
 //===- ConstructionContext.h - CFG constructor information ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 
 #include "clang/Analysis/Support/BumpVector.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/ExprObjC.h"
 
 namespace clang {
 
@@ -623,9 +623,16 @@ public:
 };
 
 class ArgumentConstructionContext : public ConstructionContext {
-  const Expr *CE; // The call of which the context is an argument.
-  unsigned Index; // Which argument we're constructing.
-  const CXXBindTemporaryExpr *BTE; // Whether the object needs to be destroyed.
+  // The call of which the context is an argument.
+  const Expr *CE;
+
+  // Which argument we're constructing. Note that when numbering between
+  // arguments and parameters is inconsistent (eg., operator calls),
+  // this is the index of the argument, not of the parameter.
+  unsigned Index;
+
+  // Whether the object needs to be destroyed.
+  const CXXBindTemporaryExpr *BTE;
 
   friend class ConstructionContext; // Allows to create<>() itself.
 

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,8 @@
 #include <cwchar>
 #include <cfloat>
 #include <cassert>
+
+#include "test_macros.h"
 
 template <class T>
 void
@@ -31,13 +32,16 @@ test(T expected)
     assert(std::numeric_limits<const volatile T>::is_bounded);
 }
 
-int main()
+int main(int, char**)
 {
     test<bool>(true);
     test<char>(CHAR_MAX);
     test<signed char>(SCHAR_MAX);
     test<unsigned char>(UCHAR_MAX);
     test<wchar_t>(WCHAR_MAX);
+#if TEST_STD_VER > 17 && defined(__cpp_char8_t)
+    test<char8_t>(UCHAR_MAX); // ??
+#endif
 #ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
     test<char16_t>(USHRT_MAX);
     test<char32_t>(UINT_MAX);
@@ -57,4 +61,6 @@ int main()
     test<float>(FLT_MAX);
     test<double>(DBL_MAX);
     test<long double>(LDBL_MAX);
+
+  return 0;
 }

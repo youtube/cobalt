@@ -13,11 +13,21 @@
 // NO-HOST-BC: The provided host compiler IR file '1111.bc' is required to generate code for OpenMP target regions but cannot be found.
 
 // RUN: %clang_cc1 -fopenmp -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm-bc %s -o %t-ppc-host.bc -DREGION_HOST
-// RUN: not %clang_cc1 -fopenmp -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o - -DREGION_DEVICE 2>&1 | FileCheck %s --check-prefix NO-REGION
-// NO-REGION: Offloading entry for target region is incorrect: either the address or the ID is invalid.
+// RUN: not %clang_cc1 -verify -fopenmp -x c++ -triple powerpc64le-unknown-unknown -fopenmp-targets=powerpc64le-ibm-linux-gnu -emit-llvm %s -fopenmp-is-device -fopenmp-host-ir-file-path %t-ppc-host.bc -o - -DREGION_DEVICE 2>&1
 
 #if defined(REGION_HOST) || defined(REGION_DEVICE)
 void foo() {
+#ifdef REGION_HOST
+#pragma omp target // expected-error {{Offloading entry for target region in _Z3foov is incorrect: either the address or the ID is invalid.}}
+  ;
+#endif
+#ifdef REGION_DEVICE
+#pragma omp target
+  ;
+#endif
+}
+#pragma omp declare target to(foo)
+void bar() {
 #ifdef REGION_HOST
 #pragma omp target
   ;
@@ -30,6 +40,18 @@ void foo() {
 #else
 void foo() {
 }
+
+class S {
+  public:
+  void zee() {
+    #pragma omp target map(this[:2]) // expected-note {{expected length on mapping of 'this' array section expression to be '1'}} // expected-error {{invalid 'this' expression on 'map' clause}}
+      int a;
+    #pragma omp target map(this[1:1]) // expected-note {{expected lower bound on mapping of 'this' array section expression to be '0' or not specified}} // expected-error {{invalid 'this' expression on 'map' clause}}
+      int b;
+    #pragma omp target map(this[1]) // expected-note {{expected 'this' subscript expression on map clause to be 'this[0]'}} // expected-error {{invalid 'this' expression on 'map' clause}}
+      int c;
+  }
+};
 
 #pragma omp target // expected-error {{unexpected OpenMP directive '#pragma omp target'}}
 

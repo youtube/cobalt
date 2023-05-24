@@ -1,9 +1,8 @@
 /*===- InstrProfilingPort.h- Support library for PGO instrumentation ------===*\
 |*
-|*                     The LLVM Compiler Infrastructure
-|*
-|* This file is distributed under the University of Illinois Open Source
-|* License. See LICENSE.TXT for details.
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+|* See https://llvm.org/LICENSE.txt for license information.
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 |*
 \*===----------------------------------------------------------------------===*/
 
@@ -23,6 +22,7 @@
 /* Need to include <stdio.h> and <io.h> */
 #define COMPILER_RT_FTRUNCATE(f,l) _chsize(_fileno(f),l)
 #define COMPILER_RT_ALWAYS_INLINE __forceinline
+#define COMPILER_RT_CLEANUP(x)
 #elif __GNUC__
 #define COMPILER_RT_ALIGNAS(x) __attribute__((aligned(x)))
 #define COMPILER_RT_VISIBILITY __attribute__((visibility("hidden")))
@@ -30,6 +30,7 @@
 #define COMPILER_RT_ALLOCA __builtin_alloca
 #define COMPILER_RT_FTRUNCATE(f,l) ftruncate(fileno(f),l)
 #define COMPILER_RT_ALWAYS_INLINE inline __attribute((always_inline))
+#define COMPILER_RT_CLEANUP(x) __attribute__((cleanup(x)))
 #endif
 
 #if defined(__APPLE__)
@@ -99,6 +100,17 @@
 #define IS_DIR_SEPARATOR(ch)                                                   \
   (((ch) == DIR_SEPARATOR) || ((ch) == DIR_SEPARATOR_2))
 #endif /* DIR_SEPARATOR_2 */
+
+#if defined(_WIN32)
+#include <windows.h>
+static inline size_t getpagesize() {
+  SYSTEM_INFO S;
+  GetNativeSystemInfo(&S);
+  return S.dwPageSize;
+}
+#else /* defined(_WIN32) */
+#include <unistd.h>
+#endif /* defined(_WIN32) */
 
 #define PROF_ERR(Format, ...)                                                  \
   fprintf(stderr, "LLVM Profile Error: " Format, __VA_ARGS__);

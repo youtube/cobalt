@@ -1,17 +1,13 @@
 //===-- RenderScriptExpressionOpts.cpp --------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
 #include <string>
 
-// Other libraries and framework includes
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Instruction.h"
@@ -24,7 +20,6 @@
 
 #include "clang/Basic/TargetOptions.h"
 
-// Project includes
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/Log.h"
@@ -145,10 +140,10 @@ bool RenderScriptRuntimeModulePass::runOnModule(llvm::Module &module) {
     // We've been using a triple and datalayout of some ARM variant all along,
     // so we need to let the backend know that this is no longer the case.
     if (log) {
-      log->Printf("%s - Changing RS target triple to '%s'", __FUNCTION__,
-                  real_triple.str().c_str());
-      log->Printf(
-          "%s - Changing RS datalayout to '%s'", __FUNCTION__,
+      LLDB_LOGF(log, "%s - Changing RS target triple to '%s'", __FUNCTION__,
+                real_triple.str().c_str());
+      LLDB_LOGF(
+          log, "%s - Changing RS datalayout to '%s'", __FUNCTION__,
           target_machine->createDataLayout().getStringRepresentation().c_str());
     }
     module.setTargetTriple(real_triple);

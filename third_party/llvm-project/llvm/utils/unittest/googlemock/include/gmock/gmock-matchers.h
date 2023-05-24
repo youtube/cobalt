@@ -35,6 +35,8 @@
 // matchers can be defined by the user implementing the
 // MatcherInterface<T> interface if necessary.
 
+// IWYU pragma: private, include "gmock/gmock.h"
+
 #ifndef GMOCK_INCLUDE_GMOCK_GMOCK_MATCHERS_H_
 #define GMOCK_INCLUDE_GMOCK_GMOCK_MATCHERS_H_
 
@@ -2654,7 +2656,7 @@ class WhenSortedByMatcher {
       LhsStlContainerReference lhs_stl_container = LhsView::ConstReference(lhs);
       ::std::vector<LhsValue> sorted_container(lhs_stl_container.begin(),
                                                lhs_stl_container.end());
-      ::llvm::sort(
+      ::std::sort(
            sorted_container.begin(), sorted_container.end(), comparator_);
 
       if (!listener->IsInterested()) {
@@ -3586,6 +3588,8 @@ class BoundSecondMatcher {
   void operator=(const BoundSecondMatcher& /*rhs*/) {
     GTEST_LOG_(FATAL) << "BoundSecondMatcher should never be assigned.";
   }
+
+  BoundSecondMatcher(const BoundSecondMatcher &) = default;
 
  private:
   template <typename T>

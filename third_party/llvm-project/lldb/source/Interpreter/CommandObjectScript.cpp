@@ -1,23 +1,15 @@
 //===-- CommandObjectScript.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "CommandObjectScript.h"
-
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-
 #include "lldb/Core/Debugger.h"
-
 #include "lldb/DataFormatters/DataVisualization.h"
-
+#include "lldb/Host/Config.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/ScriptInterpreter.h"
@@ -26,9 +18,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//-------------------------------------------------------------------------
 // CommandObjectScript
-//-------------------------------------------------------------------------
 
 CommandObjectScript::CommandObjectScript(CommandInterpreter &interpreter,
                                          ScriptLanguage script_lang)
@@ -42,13 +32,6 @@ CommandObjectScript::~CommandObjectScript() {}
 
 bool CommandObjectScript::DoExecute(llvm::StringRef command,
                                     CommandReturnObject &result) {
-#ifdef LLDB_DISABLE_PYTHON
-  // if we ever support languages other than Python this simple #ifdef won't
-  // work
-  result.AppendError("your copy of LLDB does not support scripting.");
-  result.SetStatus(eReturnStatusFailed);
-  return false;
-#else
   if (m_interpreter.GetDebugger().GetScriptLanguage() ==
       lldb::eScriptLanguageNone) {
     result.AppendError(
@@ -57,7 +40,7 @@ bool CommandObjectScript::DoExecute(llvm::StringRef command,
     return false;
   }
 
-  ScriptInterpreter *script_interpreter = m_interpreter.GetScriptInterpreter();
+  ScriptInterpreter *script_interpreter = GetDebugger().GetScriptInterpreter();
 
   if (script_interpreter == nullptr) {
     result.AppendError("no script interpreter");
@@ -65,9 +48,9 @@ bool CommandObjectScript::DoExecute(llvm::StringRef command,
     return false;
   }
 
-  DataVisualization::ForceUpdate(); // script might change Python code we use
-                                    // for formatting.. make sure we keep up to
-                                    // date with it
+  // Script might change Python code we use for formatting. Make sure we keep
+  // up to date with it.
+  DataVisualization::ForceUpdate();
 
   if (command.empty()) {
     script_interpreter->ExecuteInterpreterLoop();
@@ -82,5 +65,4 @@ bool CommandObjectScript::DoExecute(llvm::StringRef command,
     result.SetStatus(eReturnStatusFailed);
 
   return result.Succeeded();
-#endif
 }

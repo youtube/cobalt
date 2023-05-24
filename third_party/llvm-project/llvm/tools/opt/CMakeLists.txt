@@ -1,5 +1,8 @@
 set(LLVM_LINK_COMPONENTS
-  ${LLVM_TARGETS_TO_BUILD}
+  AllTargetsAsmParsers
+  AllTargetsCodeGens
+  AllTargetsDescs
+  AllTargetsInfos
   AggressiveInstCombine
   Analysis
   BitWriter
@@ -12,6 +15,7 @@ set(LLVM_LINK_COMPONENTS
   Instrumentation
   MC
   ObjCARCOpts
+  Remarks
   ScalarOpts
   Support
   Target
@@ -20,24 +24,23 @@ set(LLVM_LINK_COMPONENTS
   Passes
   )
 
-# Support plugins.
-set(LLVM_NO_DEAD_STRIP 1)
-
 add_llvm_tool(opt
   AnalysisWrappers.cpp
   BreakpointPrinter.cpp
-  Debugify.cpp
   GraphPrinters.cpp
   NewPMDriver.cpp
   PassPrinters.cpp
   PrintSCC.cpp
   opt.cpp
 
+  ENABLE_PLUGINS
+
   DEPENDS
   intrinsics_gen
+  SUPPORT_PLUGINS
   )
 export_executable_symbols(opt)
 
-if(WITH_POLLY AND LINK_POLLY_INTO_TOOLS)
-  target_link_libraries(opt PRIVATE Polly)
-endif(WITH_POLLY AND LINK_POLLY_INTO_TOOLS)
+if(LLVM_BUILD_EXAMPLES)
+    target_link_libraries(opt PRIVATE ExampleIRTransforms)
+endif(LLVM_BUILD_EXAMPLES)

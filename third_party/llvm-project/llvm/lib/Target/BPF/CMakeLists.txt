@@ -13,6 +13,7 @@ tablegen(LLVM BPFGenSubtargetInfo.inc -gen-subtarget)
 add_public_tablegen_target(BPFCommonTableGen)
 
 add_llvm_target(BPFCodeGen
+  BPFAbstractMemberAccess.cpp
   BPFAsmPrinter.cpp
   BPFFrameLowering.cpp
   BPFInstrInfo.cpp
@@ -24,10 +25,12 @@ add_llvm_target(BPFCodeGen
   BPFSubtarget.cpp
   BPFTargetMachine.cpp
   BPFMIPeephole.cpp
+  BPFMIChecking.cpp
+  BPFMISimplifyPatchable.cpp
+  BTFDebug.cpp
   )
 
 add_subdirectory(AsmParser)
 add_subdirectory(Disassembler)
-add_subdirectory(InstPrinter)
 add_subdirectory(MCTargetDesc)
 add_subdirectory(TargetInfo)

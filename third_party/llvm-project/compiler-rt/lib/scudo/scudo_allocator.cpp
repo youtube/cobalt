@@ -1,9 +1,8 @@
 //===-- scudo_allocator.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -25,6 +24,12 @@
 #include "sanitizer_common/sanitizer_allocator_checks.h"
 #include "sanitizer_common/sanitizer_allocator_interface.h"
 #include "sanitizer_common/sanitizer_quarantine.h"
+
+#ifdef GWP_ASAN_HOOKS
+# include "gwp_asan/guarded_pool_allocator.h"
+# include "gwp_asan/optional/backtrace.h"
+# include "gwp_asan/optional/options_parser.h"
+#endif // GWP_ASAN_HOOKS
 
 #include <errno.h>
 #include <string.h>
@@ -129,16 +134,9 @@ namespace Chunk {
             computeChecksum(Ptr, &NewUnpackedHeader));
   }
 
-  // Nulls out a chunk header. When returning the chunk to the backend, there
-  // is no need to store a valid ChunkAvailable header, as this would be
-  // computationally expensive. Zeroing out serves the same purpose by making
-  // the header invalid. In the extremely rare event where 0 would be a valid
-  // checksum for the chunk, the state of the chunk is ChunkAvailable anyway.
+  // Ensure that ChunkAvailable is 0, so that if a 0 checksum is ever valid
+  // for a fully nulled out header, its state will be available anyway.
   COMPILER_CHECK(ChunkAvailable == 0);
-  static INLINE void eraseHeader(void *Ptr) {
-    const PackedHeader NullPackedHeader = 0;
-    atomic_store_relaxed(getAtomicHeader(Ptr), NullPackedHeader);
-  }
 
   // Loads and unpacks the header, verifying the checksum in the process.
   static INLINE
@@ -185,7 +183,9 @@ struct QuarantineCallback {
     Chunk::loadHeader(Ptr, &Header);
     if (UNLIKELY(Header.State != ChunkQuarantine))
       dieWithMessage("invalid chunk state when recycling address %p\n", Ptr);
-    Chunk::eraseHeader(Ptr);
+    UnpackedHeader NewHeader = Header;
+    NewHeader.State = ChunkAvailable;
+    Chunk::compareExchangeHeader(Ptr, &NewHeader, &Header);
     void *BackendPtr = Chunk::getBackendPtr(Ptr, &Header);
     if (Header.ClassId)
       getBackend().deallocatePrimary(Cache_, BackendPtr, Header.ClassId);
@@ -218,6 +218,10 @@ COMPILER_CHECK(sizeof(QuarantineCacheT) <=
 QuarantineCacheT *getQuarantineCache(ScudoTSD *TSD) {
   return reinterpret_cast<QuarantineCacheT *>(TSD->QuarantineCachePlaceHolder);
 }
+
+#ifdef GWP_ASAN_HOOKS
+static gwp_asan::GuardedPoolAllocator GuardedAlloc;
+#endif // GWP_ASAN_HOOKS
 
 struct Allocator {
   static const uptr MaxAllowedMallocSize =
@@ -264,7 +268,8 @@ struct Allocator {
     Quarantine.Init(
         static_cast<uptr>(getFlags()->QuarantineSizeKb) << 10,
         static_cast<uptr>(getFlags()->ThreadLocalQuarantineSizeKb) << 10);
-    QuarantineChunksUpToSize = getFlags()->QuarantineChunksUpToSize;
+    QuarantineChunksUpToSize = (Quarantine.GetCacheSize() == 0) ? 0 :
+        getFlags()->QuarantineChunksUpToSize;
     DeallocationTypeMismatch = getFlags()->DeallocationTypeMismatch;
     DeleteSizeMismatch = getFlags()->DeleteSizeMismatch;
     ZeroContents = getFlags()->ZeroContents;
@@ -296,6 +301,14 @@ struct Allocator {
   void *allocate(uptr Size, uptr Alignment, AllocType Type,
                  bool ForceZeroContents = false) {
     initThreadMaybe();
+
+#ifdef GWP_ASAN_HOOKS
+    if (UNLIKELY(GuardedAlloc.shouldSample())) {
+      if (void *Ptr = GuardedAlloc.allocate(Size))
+        return Ptr;
+    }
+#endif // GWP_ASAN_HOOKS
+
     if (UNLIKELY(Alignment > MaxAlignment)) {
       if (AllocatorMayReturnNull())
         return nullptr;
@@ -389,10 +402,11 @@ struct Allocator {
   // quarantine chunk size threshold.
   void quarantineOrDeallocateChunk(void *Ptr, UnpackedHeader *Header,
                                    uptr Size) {
-    const bool BypassQuarantine = (Quarantine.GetCacheSize() == 0) ||
-        (Size > QuarantineChunksUpToSize);
+    const bool BypassQuarantine = !Size || (Size > QuarantineChunksUpToSize);
     if (BypassQuarantine) {
-      Chunk::eraseHeader(Ptr);
+      UnpackedHeader NewHeader = *Header;
+      NewHeader.State = ChunkAvailable;
+      Chunk::compareExchangeHeader(Ptr, &NewHeader, Header);
       void *BackendPtr = Chunk::getBackendPtr(Ptr, Header);
       if (Header->ClassId) {
         bool UnlockRequired;
@@ -438,6 +452,14 @@ struct Allocator {
       __sanitizer_free_hook(Ptr);
     if (UNLIKELY(!Ptr))
       return;
+
+#ifdef GWP_ASAN_HOOKS
+    if (UNLIKELY(GuardedAlloc.pointerIsMine(Ptr))) {
+      GuardedAlloc.deallocate(Ptr);
+      return;
+    }
+#endif // GWP_ASAN_HOOKS
+
     if (UNLIKELY(!Chunk::isAligned(Ptr)))
       dieWithMessage("misaligned pointer when deallocating address %p\n", Ptr);
     UnpackedHeader Header;
@@ -467,6 +489,18 @@ struct Allocator {
   // size still fits in the chunk.
   void *reallocate(void *OldPtr, uptr NewSize) {
     initThreadMaybe();
+
+#ifdef GWP_ASAN_HOOKS
+    if (UNLIKELY(GuardedAlloc.pointerIsMine(OldPtr))) {
+      size_t OldSize = GuardedAlloc.getSize(OldPtr);
+      void *NewPtr = allocate(NewSize, MinAlignment, FromMalloc);
+      if (NewPtr)
+        memcpy(NewPtr, OldPtr, (NewSize < OldSize) ? NewSize : OldSize);
+      GuardedAlloc.deallocate(OldPtr);
+      return NewPtr;
+    }
+#endif // GWP_ASAN_HOOKS
+
     if (UNLIKELY(!Chunk::isAligned(OldPtr)))
       dieWithMessage("misaligned address when reallocating address %p\n",
                      OldPtr);
@@ -508,6 +542,12 @@ struct Allocator {
     initThreadMaybe();
     if (UNLIKELY(!Ptr))
       return 0;
+
+#ifdef GWP_ASAN_HOOKS
+    if (UNLIKELY(GuardedAlloc.pointerIsMine(Ptr)))
+      return GuardedAlloc.getSize(Ptr);
+#endif // GWP_ASAN_HOOKS
+
     UnpackedHeader Header;
     Chunk::loadHeader(Ptr, &Header);
     // Getting the usable size of a chunk only makes sense if it's allocated.
@@ -591,11 +631,11 @@ NOINLINE void Allocator::performSanityChecks() {
 }
 
 // Opportunistic RSS limit check. This will update the RSS limit status, if
-// it can, every 100ms, otherwise it will just return the current one.
+// it can, every 250ms, otherwise it will just return the current one.
 NOINLINE bool Allocator::isRssLimitExceeded() {
   u64 LastCheck = atomic_load_relaxed(&RssLastCheckedAtNS);
   const u64 CurrentCheck = MonotonicNanoTime();
-  if (LIKELY(CurrentCheck < LastCheck + (100ULL * 1000000ULL)))
+  if (LIKELY(CurrentCheck < LastCheck + (250ULL * 1000000ULL)))
     return atomic_load_relaxed(&RssLimitExceeded);
   if (!atomic_compare_exchange_weak(&RssLastCheckedAtNS, &LastCheck,
                                     CurrentCheck, memory_order_relaxed))
@@ -630,6 +670,13 @@ static BackendT &getBackend() {
 
 void initScudo() {
   Instance.init();
+#ifdef GWP_ASAN_HOOKS
+  gwp_asan::options::initOptions();
+  gwp_asan::options::Options &Opts = gwp_asan::options::getOptions();
+  Opts.Backtrace = gwp_asan::options::getBacktraceFunction();
+  Opts.PrintBacktrace = gwp_asan::options::getPrintBacktraceFunction();
+  GuardedAlloc.init(Opts);
+#endif // GWP_ASAN_HOOKS
 }
 
 void ScudoTSD::init() {
@@ -675,7 +722,7 @@ void *scudoValloc(uptr Size) {
 }
 
 void *scudoPvalloc(uptr Size) {
-  uptr PageSize = GetPageSizeCached();
+  const uptr PageSize = GetPageSizeCached();
   if (UNLIKELY(CheckForPvallocOverflow(Size, PageSize))) {
     errno = ENOMEM;
     if (Instance.canReturnNull())

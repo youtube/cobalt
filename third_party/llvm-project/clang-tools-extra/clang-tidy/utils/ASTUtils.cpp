@@ -1,9 +1,8 @@
 //===---------- ASTUtils.cpp - clang-tidy ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -45,8 +44,8 @@ bool exprHasBitFlagWithSpelling(const Expr *Flags, const SourceManager &SM,
                                 StringRef FlagName) {
   // If the Flag is an integer constant, check it.
   if (isa<IntegerLiteral>(Flags)) {
-    if (!SM.isMacroBodyExpansion(Flags->getLocStart()) &&
-        !SM.isMacroArgExpansion(Flags->getLocStart()))
+    if (!SM.isMacroBodyExpansion(Flags->getBeginLoc()) &&
+        !SM.isMacroArgExpansion(Flags->getBeginLoc()))
       return false;
 
     // Get the macro name.
@@ -65,6 +64,32 @@ bool exprHasBitFlagWithSpelling(const Expr *Flags, const SourceManager &SM,
 
   // Otherwise, assume it has the flag.
   return true;
+}
+
+bool rangeIsEntirelyWithinMacroArgument(SourceRange Range,
+                                        const SourceManager *SM) {
+  // Check if the range is entirely contained within a macro argument.
+  SourceLocation MacroArgExpansionStartForRangeBegin;
+  SourceLocation MacroArgExpansionStartForRangeEnd;
+  bool RangeIsEntirelyWithinMacroArgument =
+      SM &&
+      SM->isMacroArgExpansion(Range.getBegin(),
+                              &MacroArgExpansionStartForRangeBegin) &&
+      SM->isMacroArgExpansion(Range.getEnd(),
+                              &MacroArgExpansionStartForRangeEnd) &&
+      MacroArgExpansionStartForRangeBegin == MacroArgExpansionStartForRangeEnd;
+
+  return RangeIsEntirelyWithinMacroArgument;
+}
+
+bool rangeContainsMacroExpansion(SourceRange Range, const SourceManager *SM) {
+  return rangeIsEntirelyWithinMacroArgument(Range, SM) ||
+         Range.getBegin().isMacroID() || Range.getEnd().isMacroID();
+}
+
+bool rangeCanBeFixed(SourceRange Range, const SourceManager *SM) {
+  return utils::rangeIsEntirelyWithinMacroArgument(Range, SM) ||
+         !utils::rangeContainsMacroExpansion(Range, SM);
 }
 
 } // namespace utils

@@ -1,9 +1,8 @@
 //===-- ODRHash.h - Hashing to diagnose ODR failures ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -12,6 +11,9 @@
 /// a hash based on AST nodes, which is stable across different runs.
 ///
 //===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CLANG_AST_ODRHASH_H
+#define LLVM_CLANG_AST_ODRHASH_H
 
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Type.h"
@@ -80,7 +82,7 @@ public:
   void AddIdentifierInfo(const IdentifierInfo *II);
   void AddNestedNameSpecifier(const NestedNameSpecifier *NNS);
   void AddTemplateName(TemplateName Name);
-  void AddDeclarationName(DeclarationName Name);
+  void AddDeclarationName(DeclarationName Name, bool TreatAsDecl = false);
   void AddTemplateArgument(TemplateArgument TA);
   void AddTemplateParameterList(const TemplateParameterList *TPL);
 
@@ -88,6 +90,11 @@ public:
   void AddBoolean(bool value);
 
   static bool isWhitelistedDecl(const Decl* D, const DeclContext *Parent);
+
+private:
+  void AddDeclarationNameImpl(DeclarationName Name);
 };
 
 }  // end namespace clang
+
+#endif

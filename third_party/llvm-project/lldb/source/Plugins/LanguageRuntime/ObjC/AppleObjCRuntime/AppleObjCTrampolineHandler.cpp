@@ -1,19 +1,13 @@
 //===-- AppleObjCTrampolineHandler.cpp ----------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "AppleObjCTrampolineHandler.h"
-
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "AppleThreadPlanStepThroughObjCTrampoline.h"
 
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
@@ -29,7 +23,6 @@
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Target/ABI.h"
 #include "lldb/Target/ExecutionContext.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Target.h"
@@ -40,6 +33,10 @@
 #include "lldb/Utility/Log.h"
 
 #include "llvm/ADT/STLExtras.h"
+
+#include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -80,7 +77,7 @@ extern \"C\" void * __lldb_objc_find_implementation_for_selector (           \n\
         void *super_ptr;                                                     \n\
     };                                                                       \n\
     struct __lldb_objc_super {                                               \n\
-        void *reciever;                                                      \n\
+        void *receiver;                                                      \n\
         struct __lldb_objc_class *class_ptr;                                 \n\
     };                                                                       \n\
     struct __lldb_msg_ref {                                                  \n\
@@ -202,7 +199,7 @@ extern \"C\" void * __lldb_objc_find_implementation_for_selector (void *object, 
         void *super_ptr;                                                     \n\
     };                                                                       \n\
     struct __lldb_objc_super {                                               \n\
-        void *reciever;                                                      \n\
+        void *receiver;                                                      \n\
         struct __lldb_objc_class *class_ptr;                                 \n\
     };                                                                       \n\
     struct __lldb_msg_ref {                                                  \n\
@@ -461,8 +458,9 @@ bool AppleObjCTrampolineHandler::AppleObjCVTables::InitializeVTableSymbols() {
     size_t num_modules = target_modules.GetSize();
     if (!m_objc_module_sp) {
       for (size_t i = 0; i < num_modules; i++) {
-        if (process_sp->GetObjCLanguageRuntime()->IsModuleObjCLibrary(
-                target_modules.GetModuleAtIndexUnlocked(i))) {
+        if (ObjCLanguageRuntime::Get(*process_sp)
+                ->IsModuleObjCLibrary(
+                    target_modules.GetModuleAtIndexUnlocked(i))) {
           m_objc_module_sp = target_modules.GetModuleAtIndexUnlocked(i);
           break;
         }
@@ -474,7 +472,7 @@ bool AppleObjCTrampolineHandler::AppleObjCVTables::InitializeVTableSymbols() {
       const Symbol *trampoline_symbol =
           m_objc_module_sp->FindFirstSymbolWithNameAndType(trampoline_name,
                                                            eSymbolTypeData);
-      if (trampoline_symbol != NULL) {
+      if (trampoline_symbol != nullptr) {
         m_trampoline_header = trampoline_symbol->GetLoadAddress(&target);
         if (m_trampoline_header == LLDB_INVALID_ADDRESS)
           return false;
@@ -484,7 +482,7 @@ bool AppleObjCTrampolineHandler::AppleObjCVTables::InitializeVTableSymbols() {
         const Symbol *changed_symbol =
             m_objc_module_sp->FindFirstSymbolWithNameAndType(changed_name,
                                                              eSymbolTypeCode);
-        if (changed_symbol != NULL) {
+        if (changed_symbol != nullptr) {
           const Address changed_symbol_addr = changed_symbol->GetAddress();
           if (!changed_symbol_addr.IsValid())
             return false;
@@ -524,7 +522,10 @@ bool AppleObjCTrampolineHandler::AppleObjCVTables::RefreshTrampolines(
     const ABI *abi = process->GetABI().get();
 
     ClangASTContext *clang_ast_context =
-        process->GetTarget().GetScratchClangASTContext();
+        ClangASTContext::GetScratch(process->GetTarget());
+    if (!clang_ast_context)
+      return false;
+
     ValueList argument_values;
     Value input_value;
     CompilerType clang_void_ptr_type =
@@ -545,7 +546,7 @@ bool AppleObjCTrampolineHandler::AppleObjCVTables::RefreshTrampolines(
     Status error;
     DataExtractor data;
     error = argument_values.GetValueAtIndex(0)->GetValueAsData(&exe_ctx, data,
-                                                               0, NULL);
+                                                               nullptr);
     lldb::offset_t offset = 0;
     lldb::addr_t region_addr = data.GetPointer(&offset);
 
@@ -595,7 +596,7 @@ bool AppleObjCTrampolineHandler::AppleObjCVTables::ReadRegions(
     if (log) {
       StreamString s;
       m_regions.back().Dump(s);
-      log->Printf("Read vtable region: \n%s", s.GetData());
+      LLDB_LOGF(log, "Read vtable region: \n%s", s.GetData());
     }
 
     next_region = m_regions.back().GetNextRegionAddr();
@@ -672,7 +673,7 @@ AppleObjCTrampolineHandler::AppleObjCTrampolineHandler(
   ConstString msg_forward_name("_objc_msgForward");
   ConstString msg_forward_stret_name("_objc_msgForward_stret");
 
-  Target *target = process_sp ? &process_sp->GetTarget() : NULL;
+  Target *target = process_sp ? &process_sp->GetTarget() : nullptr;
   const Symbol *class_getMethodImplementation =
       m_objc_module_sp->FindFirstSymbolWithNameAndType(get_impl_name,
                                                        eSymbolTypeCode);
@@ -706,7 +707,7 @@ AppleObjCTrampolineHandler::AppleObjCTrampolineHandler(
     // step through any method dispatches.  Warn to that effect and get out of
     // here.
     if (process_sp->CanJIT()) {
-      process_sp->GetTarget().GetDebugger().GetErrorFile()->Printf(
+      process_sp->GetTarget().GetDebugger().GetErrorStream().Printf(
           "Could not find implementation lookup function \"%s\""
           " step in through ObjC method dispatch will not work.\n",
           get_impl_name.AsCString());
@@ -752,9 +753,9 @@ AppleObjCTrampolineHandler::AppleObjCTrampolineHandler(
   }
 
   // Build our vtable dispatch handler here:
-  m_vtables_ap.reset(new AppleObjCVTables(process_sp, m_objc_module_sp));
-  if (m_vtables_ap.get())
-    m_vtables_ap->ReadRegions();
+  m_vtables_up.reset(new AppleObjCVTables(process_sp, m_objc_module_sp));
+  if (m_vtables_up)
+    m_vtables_up->ReadRegions();
 }
 
 lldb::addr_t
@@ -774,38 +775,40 @@ AppleObjCTrampolineHandler::SetupDispatchFunction(Thread &thread,
 
     // First stage is to make the ClangUtility to hold our injected function:
 
-    if (!m_impl_code.get()) {
-      if (m_lookup_implementation_function_code != NULL) {
+    if (!m_impl_code) {
+      if (m_lookup_implementation_function_code != nullptr) {
         Status error;
         m_impl_code.reset(exe_ctx.GetTargetRef().GetUtilityFunctionForLanguage(
             m_lookup_implementation_function_code, eLanguageTypeObjC,
             g_lookup_implementation_function_name, error));
         if (error.Fail()) {
-          if (log)
-            log->Printf(
-                "Failed to get Utility Function for implementation lookup: %s.",
-                error.AsCString());
+          LLDB_LOGF(
+              log,
+              "Failed to get Utility Function for implementation lookup: %s.",
+              error.AsCString());
           m_impl_code.reset();
           return args_addr;
         }
 
         if (!m_impl_code->Install(diagnostics, exe_ctx)) {
           if (log) {
-            log->Printf("Failed to install implementation lookup.");
+            LLDB_LOGF(log, "Failed to install implementation lookup.");
             diagnostics.Dump(log);
           }
           m_impl_code.reset();
           return args_addr;
         }
       } else {
-        if (log)
-          log->Printf("No method lookup implementation code.");
+        LLDB_LOGF(log, "No method lookup implementation code.");
         return LLDB_INVALID_ADDRESS;
       }
 
       // Next make the runner function for our implementation utility function.
       ClangASTContext *clang_ast_context =
-          thread.GetProcess()->GetTarget().GetScratchClangASTContext();
+          ClangASTContext::GetScratch(thread.GetProcess()->GetTarget());
+      if (!clang_ast_context)
+        return LLDB_INVALID_ADDRESS;
+
       CompilerType clang_void_ptr_type =
           clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
       Status error;
@@ -813,10 +816,9 @@ AppleObjCTrampolineHandler::SetupDispatchFunction(Thread &thread,
       impl_function_caller = m_impl_code->MakeFunctionCaller(
           clang_void_ptr_type, dispatch_values, thread_sp, error);
       if (error.Fail()) {
-        if (log)
-          log->Printf(
-              "Error getting function caller for dispatch lookup: \"%s\".",
-              error.AsCString());
+        LLDB_LOGF(log,
+                  "Error getting function caller for dispatch lookup: \"%s\".",
+                  error.AsCString());
         return args_addr;
       }
     } else {
@@ -835,7 +837,7 @@ AppleObjCTrampolineHandler::SetupDispatchFunction(Thread &thread,
   if (!impl_function_caller->WriteFunctionArguments(
           exe_ctx, args_addr, dispatch_values, diagnostics)) {
     if (log) {
-      log->Printf("Error writing function arguments.");
+      LLDB_LOGF(log, "Error writing function arguments.");
       diagnostics.Dump(log);
     }
     return args_addr;
@@ -868,8 +870,8 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
 
   if (!found_it) {
     uint32_t flags;
-    if (m_vtables_ap.get()) {
-      found_it = m_vtables_ap->IsAddressInVTables(curr_pc, flags);
+    if (m_vtables_up) {
+      found_it = m_vtables_up->IsAddressInVTables(curr_pc, flags);
       if (found_it) {
         this_dispatch.name = "vtable";
         this_dispatch.stret_return =
@@ -890,16 +892,19 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
 
     lldb::StackFrameSP thread_cur_frame = thread.GetStackFrameAtIndex(0);
 
-    const ABI *abi = NULL;
+    const ABI *abi = nullptr;
     ProcessSP process_sp(thread.CalculateProcess());
     if (process_sp)
       abi = process_sp->GetABI().get();
-    if (abi == NULL)
+    if (abi == nullptr)
       return ret_plan_sp;
 
     TargetSP target_sp(thread.CalculateTarget());
 
-    ClangASTContext *clang_ast_context = target_sp->GetScratchClangASTContext();
+    ClangASTContext *clang_ast_context = ClangASTContext::GetScratch(*target_sp);
+    if (!clang_ast_context)
+      return ret_plan_sp;
+
     ValueList argument_values;
     Value void_ptr_value;
     CompilerType clang_void_ptr_type =
@@ -936,9 +941,9 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
     lldb::addr_t obj_addr =
         argument_values.GetValueAtIndex(obj_index)->GetScalar().ULongLong();
     if (obj_addr == 0x0) {
-      if (log)
-        log->Printf(
-            "Asked to step to dispatch to nil object, returning empty plan.");
+      LLDB_LOGF(
+          log,
+          "Asked to step to dispatch to nil object, returning empty plan.");
       return ret_plan_sp;
     }
 
@@ -978,13 +983,11 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
           if (super_value.GetScalar().IsValid())
             isa_addr = super_value.GetScalar().ULongLong();
           else {
-            if (log)
-              log->Printf("Failed to extract the super class value from the "
-                          "class in objc_super.");
+            LLDB_LOGF(log, "Failed to extract the super class value from the "
+                           "class in objc_super.");
           }
         } else {
-          if (log)
-            log->Printf("Failed to extract the class value from objc_super.");
+          LLDB_LOGF(log, "Failed to extract the class value from objc_super.");
         }
       } else {
         // In the objc_msgSendSuper case, we don't get the object
@@ -1000,8 +1003,7 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
         if (super_value.GetScalar().IsValid()) {
           isa_addr = super_value.GetScalar().ULongLong();
         } else {
-          if (log)
-            log->Printf("Failed to extract the class value from objc_super.");
+          LLDB_LOGF(log, "Failed to extract the class value from objc_super.");
         }
       }
     } else {
@@ -1024,8 +1026,7 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
       if (isa_value.GetScalar().IsValid()) {
         isa_addr = isa_value.GetScalar().ULongLong();
       } else {
-        if (log)
-          log->Printf("Failed to extract the isa value from object.");
+        LLDB_LOGF(log, "Failed to extract the isa value from object.");
       }
     }
 
@@ -1035,13 +1036,14 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
 
     if (isa_addr != LLDB_INVALID_ADDRESS) {
       if (log) {
-        log->Printf("Resolving call for class - 0x%" PRIx64
-                    " and selector - 0x%" PRIx64,
-                    isa_addr, sel_addr);
+        LLDB_LOGF(log,
+                  "Resolving call for class - 0x%" PRIx64
+                  " and selector - 0x%" PRIx64,
+                  isa_addr, sel_addr);
       }
       ObjCLanguageRuntime *objc_runtime =
-          thread.GetProcess()->GetObjCLanguageRuntime();
-      assert(objc_runtime != NULL);
+          ObjCLanguageRuntime::Get(*thread.GetProcess());
+      assert(objc_runtime != nullptr);
 
       impl_addr = objc_runtime->LookupInMethodCache(isa_addr, sel_addr);
     }
@@ -1049,12 +1051,11 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
     if (impl_addr != LLDB_INVALID_ADDRESS) {
       // Yup, it was in the cache, so we can run to that address directly.
 
-      if (log)
-        log->Printf("Found implementation address in cache: 0x%" PRIx64,
-                    impl_addr);
+      LLDB_LOGF(log, "Found implementation address in cache: 0x%" PRIx64,
+                impl_addr);
 
-      ret_plan_sp.reset(
-          new ThreadPlanRunToAddress(thread, impl_addr, stop_others));
+      ret_plan_sp = std::make_shared<ThreadPlanRunToAddress>(thread, impl_addr,
+                                                             stop_others);
     } else {
       // We haven't seen this class/selector pair yet.  Look it up.
       StreamString errors;
@@ -1133,13 +1134,13 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
       // is not safe to run only one thread.  So we override the
       // stop_others value passed in to us here:
       const bool trampoline_stop_others = false;
-      ret_plan_sp.reset(new AppleThreadPlanStepThroughObjCTrampoline(
+      ret_plan_sp = std::make_shared<AppleThreadPlanStepThroughObjCTrampoline>(
           thread, this, dispatch_values, isa_addr, sel_addr,
-          trampoline_stop_others));
+          trampoline_stop_others);
       if (log) {
         StreamString s;
         ret_plan_sp->GetDescription(&s, eDescriptionLevelFull);
-        log->Printf("Using ObjC step plan: %s.\n", s.GetData());
+        LLDB_LOGF(log, "Using ObjC step plan: %s.\n", s.GetData());
       }
     }
   }

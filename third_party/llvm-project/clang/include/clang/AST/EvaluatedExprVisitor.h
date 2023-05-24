@@ -1,9 +1,8 @@
 //===--- EvaluatedExprVisitor.h - Evaluated expression visitor --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtVisitor.h"
+#include "llvm/ADT/STLExtras.h"
 
 namespace clang {
 
@@ -107,23 +107,22 @@ public:
 };
 
 /// EvaluatedExprVisitor - This class visits 'Expr *'s
-template<typename ImplClass>
+template <typename ImplClass>
 class EvaluatedExprVisitor
- : public EvaluatedExprVisitorBase<make_ptr, ImplClass> {
+    : public EvaluatedExprVisitorBase<std::add_pointer, ImplClass> {
 public:
-  explicit EvaluatedExprVisitor(const ASTContext &Context) :
-    EvaluatedExprVisitorBase<make_ptr, ImplClass>(Context) { }
+  explicit EvaluatedExprVisitor(const ASTContext &Context)
+      : EvaluatedExprVisitorBase<std::add_pointer, ImplClass>(Context) {}
 };
 
 /// ConstEvaluatedExprVisitor - This class visits 'const Expr *'s.
-template<typename ImplClass>
+template <typename ImplClass>
 class ConstEvaluatedExprVisitor
- : public EvaluatedExprVisitorBase<make_const_ptr, ImplClass> {
+    : public EvaluatedExprVisitorBase<llvm::make_const_ptr, ImplClass> {
 public:
-  explicit ConstEvaluatedExprVisitor(const ASTContext &Context) :
-    EvaluatedExprVisitorBase<make_const_ptr, ImplClass>(Context) { }
+  explicit ConstEvaluatedExprVisitor(const ASTContext &Context)
+      : EvaluatedExprVisitorBase<llvm::make_const_ptr, ImplClass>(Context) {}
 };
-
 }
 
 #endif // LLVM_CLANG_AST_EVALUATEDEXPRVISITOR_H

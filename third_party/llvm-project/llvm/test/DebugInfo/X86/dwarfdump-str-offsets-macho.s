@@ -160,18 +160,19 @@ CU1_5_version:
 CU1_5_end:
 
 # DWARF v5 CU header
-        .long  CU2_5_end-CU2_5_version  # Length of Unit
+        .long  0xffffffff
+        .quad  CU2_5_end-CU2_5_version  # Length of Unit
 CU2_5_version:
         .short 5               # DWARF version number
         .byte 1                # DWARF Unit Type
         .byte 8                # Address Size (in bytes)
-        .long 0                # Offset Into Abbrev. Section
+        .quad 0                # Offset Into Abbrev. Section
 # The compile-unit DIE, which has a DW_AT_producer, DW_AT_name,
 # DW_AT_str_offsets and DW_AT_compdir.
         .byte 1                # Abbreviation code
         .byte 0                # The index of the producer string
         .byte 1                # The index of the CU name string
-        .long Ldebug_str_offsets_base1-Ldebug_str_offsets
+        .quad Ldebug_str_offsets_base1-Ldebug_str_offsets
         .byte 2                # The index of the comp dir string
         .byte 0 # NULL
 CU2_5_end:
@@ -216,37 +217,37 @@ TU_5_end:
 # COMMON:      .debug_info contents:
 # COMMON-NOT:  contents:     
 # COMMON:      DW_TAG_compile_unit
-# COMMON-NEXT: DW_AT_producer [DW_FORM_strx] ( indexed (00000000) string = "Handmade DWARF producer")
-# COMMON-NEXT: DW_AT_name [DW_FORM_strx] ( indexed (00000001) string = "Compile_Unit_1")
+# COMMON-NEXT: DW_AT_producer [DW_FORM_strx] (indexed (00000000) string = "Handmade DWARF producer")
+# COMMON-NEXT: DW_AT_name [DW_FORM_strx] (indexed (00000001) string = "Compile_Unit_1")
 # COMMON-NEXT: DW_AT_str_offsets_base [DW_FORM_sec_offset] (0x00000008)
-# COMMON-NEXT: DW_AT_comp_dir [DW_FORM_strx] ( indexed (00000002) string = "/home/test/CU1")
+# COMMON-NEXT: DW_AT_comp_dir [DW_FORM_strx] (indexed (00000002) string = "/home/test/CU1")
 # COMMON-NOT:  NULL
 # COMMON:      DW_TAG_subprogram
-# COMMON-NEXT: DW_AT_name [DW_FORM_strx1] ( indexed (00000003) string = "MyFunc")
+# COMMON-NEXT: DW_AT_name [DW_FORM_strx1] (indexed (00000003) string = "MyFunc")
 # COMMON-NOT:  NULL
 # COMMON:      DW_TAG_variable
-# COMMON-NEXT: DW_AT_name [DW_FORM_strx2] ( indexed (00000004) string = "MyVar1")
+# COMMON-NEXT: DW_AT_name [DW_FORM_strx2] (indexed (00000004) string = "MyVar1")
 # COMMON-NOT:  NULL
 # COMMON:      DW_TAG_variable
-# COMMON-NEXT: DW_AT_name [DW_FORM_strx3] ( indexed (00000005) string = "MyVar2")
+# COMMON-NEXT: DW_AT_name [DW_FORM_strx3] (indexed (00000005) string = "MyVar2")
 # COMMON-NOT:  NULL
 # COMMON:      DW_TAG_variable
-# COMMON-NEXT: DW_AT_name [DW_FORM_strx4] ( indexed (00000006) string = "MyVar3")
+# COMMON-NEXT: DW_AT_name [DW_FORM_strx4] (indexed (00000006) string = "MyVar3")
 # 
 # Second compile unit (b.cpp)
 # COMMON:      DW_TAG_compile_unit
-# COMMON-NEXT: DW_AT_producer [DW_FORM_strx] ( indexed (00000000) string = "Handmade DWARF producer")
-# COMMON-NEXT: DW_AT_name [DW_FORM_strx] ( indexed (00000001) string = "Compile_Unit_2")
+# COMMON-NEXT: DW_AT_producer [DW_FORM_strx] (indexed (00000000) string = "Handmade DWARF producer")
+# COMMON-NEXT: DW_AT_name [DW_FORM_strx] (indexed (00000001) string = "Compile_Unit_2")
 # COMMON-NEXT: DW_AT_str_offsets_base [DW_FORM_sec_offset] (0x00000038)
-# COMMON-NEXT: DW_AT_comp_dir [DW_FORM_strx] ( indexed (00000002) string = "/home/test/CU2")
+# COMMON-NEXT: DW_AT_comp_dir [DW_FORM_strx] (indexed (00000002) string = "/home/test/CU2")
 # 
 # The type unit
 # COMMON:      .debug_types contents:
 # COMMON:      DW_TAG_type_unit
-# COMMON-NEXT: DW_AT_name [DW_FORM_strx] ( indexed (00000000) string = "Type_Unit")
+# COMMON-NEXT: DW_AT_name [DW_FORM_strx] (indexed (00000000) string = "Type_Unit")
 # COMMON-NEXT: DW_AT_str_offsets_base [DW_FORM_sec_offset]       (0x00000058)
 # COMMON:      DW_TAG_structure_type
-# COMMON-NEXT: DW_AT_name [DW_FORM_strx] ( indexed (00000001) string = "MyStruct")
+# COMMON-NEXT: DW_AT_name [DW_FORM_strx] (indexed (00000001) string = "MyStruct")
 # 
 # The .debug_str_offsets section
 # COMMON:      .debug_str_offsets contents:

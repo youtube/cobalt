@@ -58,7 +58,7 @@ false:
 
 declare i32 @doSomething(i32, i32*)
 
-attributes #0 = { "no-frame-pointer-elim"="false" }
+attributes #0 = { "frame-pointer"="none" }
 
 ; Shrink-wrapping should occur here. We have a frame pointer.
 ; CHECK-LABEL: frameUnwind:
@@ -104,7 +104,7 @@ false:
   ret i32 %tmp.0
 }
 
-attributes #1 = { "no-frame-pointer-elim"="true" }
+attributes #1 = { "frame-pointer"="all" }
 
 ; Shrink-wrapping should occur here. We do not have to unwind.
 ; CHECK-LABEL: framelessnoUnwind:
@@ -150,7 +150,7 @@ false:
   ret i32 %tmp.0
 }
 
-attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
+attributes #2 = { "frame-pointer"="none" nounwind }
 
 
 ; Check that we generate correct code for segmented stack.
@@ -160,14 +160,7 @@ attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
 ;
 ; CHECK-LABEL: segmentedStack:
 ; CHECK: cmpq
-; CHECK-NEXT: ja [[ENTRY_LABEL:LBB[0-9_]+]]
-;
-; CHECK: callq ___morestack
-; CHECK-NEXT: retq
-;
-; CHECK: [[ENTRY_LABEL]]:
-; Prologue
-; CHECK: push
+; CHECK-NEXT: jbe [[ENTRY_LABEL:LBB[0-9_]+]]
 ;
 ; In PR26107, we use to drop these two basic blocks, because
 ; the segmentedStack entry block was jumping directly to
@@ -186,6 +179,12 @@ attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
 ;
 ; CHECK: [[STRINGS_EQUAL]]
 ; CHECK: popq
+;
+; CHECK: [[ENTRY_LABEL]]:
+; CHECK: callq ___morestack
+; CHECK-NEXT: retq
+;
+
 define zeroext i1 @segmentedStack(i8* readonly %vk1, i8* readonly %vk2, i64 %key_size) #5 {
 entry:
   %cmp.i = icmp eq i8* %vk1, null

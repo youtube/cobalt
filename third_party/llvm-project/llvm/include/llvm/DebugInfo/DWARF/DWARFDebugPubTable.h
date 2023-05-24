@@ -1,9 +1,8 @@
 //===- DWARFDebugPubTable.h -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,6 +12,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/DebugInfo/DWARF/DWARFObject.h"
 #include <cstdint>
 #include <vector>
 
@@ -25,7 +25,7 @@ class DWARFDebugPubTable {
 public:
   struct Entry {
     /// Section offset from the beginning of the compilation unit.
-    uint32_t SecOffset;
+    uint64_t SecOffset;
 
     /// An entry of the various gnu_pub* debug sections.
     dwarf::PubIndexEntryDescriptor Descriptor;
@@ -50,7 +50,7 @@ public:
 
     /// The offset from the beginning of the .debug_info section of the
     /// compilation unit header referenced by the set.
-    uint32_t Offset;
+    uint64_t Offset;
 
     /// The size in bytes of the contents of the .debug_info section generated
     /// to represent that compilation unit.
@@ -67,7 +67,8 @@ private:
   bool GnuStyle;
 
 public:
-  DWARFDebugPubTable(StringRef Data, bool LittleEndian, bool GnuStyle);
+  DWARFDebugPubTable(const DWARFObject &Obj, const DWARFSection &Sec,
+                     bool LittleEndian, bool GnuStyle);
 
   void dump(raw_ostream &OS) const;
 

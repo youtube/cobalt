@@ -1,9 +1,8 @@
 //===--- MoveConstArgCheck.cpp - clang-tidy -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,11 +22,11 @@ static void ReplaceCallWithArg(const CallExpr *Call, DiagnosticBuilder &Diag,
   const Expr *Arg = Call->getArg(0);
 
   CharSourceRange BeforeArgumentsRange = Lexer::makeFileCharRange(
-      CharSourceRange::getCharRange(Call->getLocStart(), Arg->getLocStart()),
+      CharSourceRange::getCharRange(Call->getBeginLoc(), Arg->getBeginLoc()),
       SM, LangOpts);
   CharSourceRange AfterArgumentsRange = Lexer::makeFileCharRange(
-      CharSourceRange::getCharRange(Call->getLocEnd(),
-                                    Call->getLocEnd().getLocWithOffset(1)),
+      CharSourceRange::getCharRange(Call->getEndLoc(),
+                                    Call->getEndLoc().getLocWithOffset(1)),
       SM, LangOpts);
 
   if (BeforeArgumentsRange.isValid() && AfterArgumentsRange.isValid()) {

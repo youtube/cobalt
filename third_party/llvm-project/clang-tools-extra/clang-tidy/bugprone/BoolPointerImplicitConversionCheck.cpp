@@ -1,9 +1,8 @@
 //===--- BoolPointerImplicitConversionCheck.cpp - clang-tidy --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,11 +19,11 @@ void BoolPointerImplicitConversionCheck::registerMatchers(MatchFinder *Finder) {
   // condition. Filter negations.
   Finder->addMatcher(
       ifStmt(hasCondition(findAll(implicitCastExpr(
-                 allOf(unless(hasParent(unaryOperator(hasOperatorName("!")))),
-                       hasSourceExpression(expr(
-                           hasType(pointerType(pointee(booleanType()))),
-                           ignoringParenImpCasts(declRefExpr().bind("expr")))),
-                       hasCastKind(CK_PointerToBoolean))))),
+                 unless(hasParent(unaryOperator(hasOperatorName("!")))),
+                 hasSourceExpression(
+                     expr(hasType(pointerType(pointee(booleanType()))),
+                          ignoringParenImpCasts(declRefExpr().bind("expr")))),
+                 hasCastKind(CK_PointerToBoolean)))),
              unless(isInTemplateInstantiation()))
           .bind("if"),
       this);
@@ -36,7 +35,7 @@ void BoolPointerImplicitConversionCheck::check(
   auto *Var = Result.Nodes.getNodeAs<DeclRefExpr>("expr");
 
   // Ignore macros.
-  if (Var->getLocStart().isMacroID())
+  if (Var->getBeginLoc().isMacroID())
     return;
 
   // Only allow variable accesses for now, no function calls or member exprs.
@@ -63,9 +62,9 @@ void BoolPointerImplicitConversionCheck::check(
            .empty())
     return;
 
-  diag(Var->getLocStart(), "dubious check of 'bool *' against 'nullptr', did "
+  diag(Var->getBeginLoc(), "dubious check of 'bool *' against 'nullptr', did "
                            "you mean to dereference it?")
-      << FixItHint::CreateInsertion(Var->getLocStart(), "*");
+      << FixItHint::CreateInsertion(Var->getBeginLoc(), "*");
 }
 
 } // namespace bugprone

@@ -1,9 +1,8 @@
 //===----- CGOpenMPRuntimeNVPTX.h - Interface to OpenMP NVPTX Runtimes ----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,7 +17,6 @@
 #include "CGOpenMPRuntime.h"
 #include "CodeGenFunction.h"
 #include "clang/AST/StmtOpenMP.h"
-#include "llvm/IR/CallSite.h"
 
 namespace clang {
 namespace CodeGen {
@@ -56,6 +54,11 @@ private:
 
   ExecutionMode getExecutionMode() const;
 
+  bool requiresFullRuntime() const { return RequiresFullRuntime; }
+
+  /// Get barrier to synchronize all threads in a block.
+  void syncCTAThreads(CodeGenFunction &CGF);
+
   /// Emit the worker function for the current target region.
   void emitWorkerFunction(WorkerFunctionState &WST);
 
@@ -72,10 +75,11 @@ private:
   void emitNonSPMDEntryFooter(CodeGenFunction &CGF, EntryFunctionState &EST);
 
   /// Helper for generic variables globalization prolog.
-  void emitGenericVarsProlog(CodeGenFunction &CGF, SourceLocation Loc);
+  void emitGenericVarsProlog(CodeGenFunction &CGF, SourceLocation Loc,
+                             bool WithSPMDCheck = false);
 
   /// Helper for generic variables globalization epilog.
-  void emitGenericVarsEpilog(CodeGenFunction &CGF);
+  void emitGenericVarsEpilog(CodeGenFunction &CGF, bool WithSPMDCheck = false);
 
   /// Helper for SPMD mode target directive's entry function.
   void emitSPMDEntryHeader(CodeGenFunction &CGF, EntryFunctionState &EST,
@@ -167,7 +171,7 @@ private:
   /// specified, nullptr otherwise.
   ///
   void emitSPMDParallelCall(CodeGenFunction &CGF, SourceLocation Loc,
-                            llvm::Value *OutlinedFn,
+                            llvm::Function *OutlinedFn,
                             ArrayRef<llvm::Value *> CapturedVars,
                             const Expr *IfCond);
 
@@ -179,13 +183,36 @@ protected:
     return "__omp_outlined__";
   }
 
+  /// Check if the default location must be constant.
+  /// Constant for NVPTX for better optimization.
+  bool isDefaultLocationConstant() const override { return true; }
+
+  /// Returns additional flags that can be stored in reserved_2 field of the
+  /// default location.
+  /// For NVPTX target contains data about SPMD/Non-SPMD execution mode +
+  /// Full/Lightweight runtime mode. Used for better optimization.
+  unsigned getDefaultLocationReserved2Flags() const override;
+
+  /// Tries to emit declare variant function for \p OldGD from \p NewGD.
+  /// \param OrigAddr LLVM IR value for \p OldGD.
+  /// \param IsForDefinition true, if requested emission for the definition of
+  /// \p OldGD.
+  /// \returns true, was able to emit a definition function for \p OldGD, which
+  /// points to \p NewGD.
+  /// NVPTX backend does not support global aliases, so just use the function,
+  /// emitted for \p NewGD instead of \p OldGD.
+  bool tryEmitDeclareVariant(const GlobalDecl &NewGD, const GlobalDecl &OldGD,
+                             llvm::GlobalValue *OrigAddr,
+                             bool IsForDefinition) override;
+
 public:
   explicit CGOpenMPRuntimeNVPTX(CodeGenModule &CGM);
+  void clear() override;
 
   /// Emit call to void __kmpc_push_proc_bind(ident_t *loc, kmp_int32
   /// global_tid, int proc_bind) to generate code for 'proc_bind' clause.
   virtual void emitProcBindClause(CodeGenFunction &CGF,
-                                  OpenMPProcBindClauseKind ProcBind,
+                                  llvm::omp::ProcBindKind ProcBind,
                                   SourceLocation Loc) override;
 
   /// Emits call to void __kmpc_push_num_threads(ident_t *loc, kmp_int32
@@ -213,7 +240,7 @@ public:
   /// \param InnermostKind Kind of innermost directive (for simple directives it
   /// is a directive itself, for combined - its innermost directive).
   /// \param CodeGen Code generation sequence for the \a D directive.
-  llvm::Value *
+  llvm::Function *
   emitParallelOutlinedFunction(const OMPExecutableDirective &D,
                                const VarDecl *ThreadIDVar,
                                OpenMPDirectiveKind InnermostKind,
@@ -228,7 +255,7 @@ public:
   /// \param InnermostKind Kind of innermost directive (for simple directives it
   /// is a directive itself, for combined - its innermost directive).
   /// \param CodeGen Code generation sequence for the \a D directive.
-  llvm::Value *
+  llvm::Function *
   emitTeamsOutlinedFunction(const OMPExecutableDirective &D,
                             const VarDecl *ThreadIDVar,
                             OpenMPDirectiveKind InnermostKind,
@@ -243,7 +270,7 @@ public:
   /// variables used in \a OutlinedFn function.
   ///
   void emitTeamsCall(CodeGenFunction &CGF, const OMPExecutableDirective &D,
-                     SourceLocation Loc, llvm::Value *OutlinedFn,
+                     SourceLocation Loc, llvm::Function *OutlinedFn,
                      ArrayRef<llvm::Value *> CapturedVars) override;
 
   /// Emits code for parallel or serial call of the \a OutlinedFn with
@@ -256,9 +283,21 @@ public:
   /// \param IfCond Condition in the associated 'if' clause, if it was
   /// specified, nullptr otherwise.
   void emitParallelCall(CodeGenFunction &CGF, SourceLocation Loc,
-                        llvm::Value *OutlinedFn,
+                        llvm::Function *OutlinedFn,
                         ArrayRef<llvm::Value *> CapturedVars,
                         const Expr *IfCond) override;
+
+  /// Emit an implicit/explicit barrier for OpenMP threads.
+  /// \param Kind Directive for which this implicit barrier call must be
+  /// generated. Must be OMPD_barrier for explicit barrier generation.
+  /// \param EmitChecks true if need to emit checks for cancellation barriers.
+  /// \param ForceSimpleCall true simple barrier call must be emitted, false if
+  /// runtime class decides which one to emit (simple or with cancellation
+  /// checks).
+  ///
+  void emitBarrierCall(CodeGenFunction &CGF, SourceLocation Loc,
+                       OpenMPDirectiveKind Kind, bool EmitChecks = true,
+                       bool ForceSimpleCall = false) override;
 
   /// Emits a critical region.
   /// \param CriticalName Name of the critical region.
@@ -294,7 +333,7 @@ public:
   /// implementation.  Specialized for the NVPTX device.
   /// \param Function OpenMP runtime function.
   /// \return Specified function.
-  llvm::Constant *createNVPTXRuntimeFunction(unsigned Function);
+  llvm::FunctionCallee createNVPTXRuntimeFunction(unsigned Function);
 
   /// Translates the native parameter of outlined function if this is required
   /// for target.
@@ -313,7 +352,7 @@ public:
   /// Emits call of the outlined function with the provided arguments,
   /// translating these arguments to correct target-specific arguments.
   void emitOutlinedFunctionCall(
-      CodeGenFunction &CGF, SourceLocation Loc, llvm::Value *OutlinedFn,
+      CodeGenFunction &CGF, SourceLocation Loc, llvm::FunctionCallee OutlinedFn,
       ArrayRef<llvm::Value *> Args = llvm::None) const override;
 
   /// Emits OpenMP-specific function prolog.
@@ -339,6 +378,34 @@ public:
   ///
   void functionFinished(CodeGenFunction &CGF) override;
 
+  /// Choose a default value for the dist_schedule clause.
+  void getDefaultDistScheduleAndChunk(CodeGenFunction &CGF,
+      const OMPLoopDirective &S, OpenMPDistScheduleClauseKind &ScheduleKind,
+      llvm::Value *&Chunk) const override;
+
+  /// Choose a default value for the schedule clause.
+  void getDefaultScheduleAndChunk(CodeGenFunction &CGF,
+      const OMPLoopDirective &S, OpenMPScheduleClauseKind &ScheduleKind,
+      const Expr *&ChunkExpr) const override;
+
+  /// Adjust some parameters for the target-based directives, like addresses of
+  /// the variables captured by reference in lambdas.
+  void adjustTargetSpecificDataForLambdas(
+      CodeGenFunction &CGF, const OMPExecutableDirective &D) const override;
+
+  /// Perform check on requires decl to ensure that target architecture
+  /// supports unified addressing
+  void checkArchForUnifiedAddressing(const OMPRequiresDecl *D) override;
+
+  /// Returns default address space for the constant firstprivates, __constant__
+  /// address space by default.
+  unsigned getDefaultFirstprivateAddressSpace() const override;
+
+  /// Checks if the variable has associated OMPAllocateDeclAttr attribute with
+  /// the predefined allocator and translates it into the corresponding address
+  /// space.
+  bool hasAllocateAttributeForGlobalVar(const VarDecl *VD, LangAS &AS) override;
+
 private:
   /// Track the execution mode when codegening directives within a target
   /// region. The appropriate mode (SPMD/NON-SPMD) is set on entry to the
@@ -346,9 +413,15 @@ private:
   /// to emit optimized code.
   ExecutionMode CurrentExecutionMode = EM_Unknown;
 
+  /// Check if the full runtime is required (default - yes).
+  bool RequiresFullRuntime = true;
+
   /// true if we're emitting the code for the target region and next parallel
   /// region is L0 for sure.
   bool IsInTargetMasterThreadRegion = false;
+  /// true if currently emitting code for target/teams/distribute region, false
+  /// - otherwise.
+  bool IsInTTDRegion = false;
   /// true if we're definitely in the parallel region.
   bool IsInParallelRegion = false;
 
@@ -362,23 +435,65 @@ private:
   llvm::Function *createParallelDataSharingWrapper(
       llvm::Function *OutlinedParallelFn, const OMPExecutableDirective &D);
 
+  /// The data for the single globalized variable.
+  struct MappedVarData {
+    /// Corresponding field in the global record.
+    const FieldDecl *FD = nullptr;
+    /// Corresponding address.
+    Address PrivateAddr = Address::invalid();
+    /// true, if only one element is required (for latprivates in SPMD mode),
+    /// false, if need to create based on the warp-size.
+    bool IsOnePerTeam = false;
+    MappedVarData() = delete;
+    MappedVarData(const FieldDecl *FD, bool IsOnePerTeam = false)
+        : FD(FD), IsOnePerTeam(IsOnePerTeam) {}
+  };
   /// The map of local variables to their addresses in the global memory.
-  using DeclToAddrMapTy = llvm::MapVector<const Decl *,
-      std::pair<const FieldDecl *, Address>>;
+  using DeclToAddrMapTy = llvm::MapVector<const Decl *, MappedVarData>;
   /// Set of the parameters passed by value escaping OpenMP context.
   using EscapedParamsTy = llvm::SmallPtrSet<const Decl *, 4>;
   struct FunctionData {
     DeclToAddrMapTy LocalVarData;
+    llvm::Optional<DeclToAddrMapTy> SecondaryLocalVarData = llvm::None;
     EscapedParamsTy EscapedParameters;
     llvm::SmallVector<const ValueDecl*, 4> EscapedVariableLengthDecls;
     llvm::SmallVector<llvm::Value *, 4> EscapedVariableLengthDeclsAddrs;
     const RecordDecl *GlobalRecord = nullptr;
+    llvm::Optional<const RecordDecl *> SecondaryGlobalRecord = llvm::None;
     llvm::Value *GlobalRecordAddr = nullptr;
+    llvm::Value *IsInSPMDModeFlag = nullptr;
     std::unique_ptr<CodeGenFunction::OMPMapVars> MappedParams;
   };
   /// Maps the function to the list of the globalized variables with their
   /// addresses.
   llvm::SmallDenseMap<llvm::Function *, FunctionData> FunctionGlobalizedDecls;
+  /// List of records for the globalized variables in target/teams/distribute
+  /// contexts. Inner records are going to be joined into the single record,
+  /// while those resulting records are going to be joined into the single
+  /// union. This resulting union (one per CU) is the entry point for the static
+  /// memory management runtime functions.
+  struct GlobalPtrSizeRecsTy {
+    llvm::GlobalVariable *UseSharedMemory = nullptr;
+    llvm::GlobalVariable *RecSize = nullptr;
+    llvm::GlobalVariable *Buffer = nullptr;
+    SourceLocation Loc;
+    llvm::SmallVector<const RecordDecl *, 2> Records;
+    unsigned RegionCounter = 0;
+  };
+  llvm::SmallVector<GlobalPtrSizeRecsTy, 8> GlobalizedRecords;
+  llvm::GlobalVariable *KernelTeamsReductionPtr = nullptr;
+  /// List of the records with the list of fields for the reductions across the
+  /// teams. Used to build the intermediate buffer for the fast teams
+  /// reductions.
+  /// All the records are gathered into a union `union.type` is created.
+  llvm::SmallVector<const RecordDecl *, 4> TeamsReductions;
+  /// Shared pointer for the global memory in the global memory buffer used for
+  /// the given kernel.
+  llvm::GlobalVariable *KernelStaticGlobalized = nullptr;
+  /// Pair of the Non-SPMD team and all reductions variables in this team
+  /// region.
+  std::pair<const Decl *, llvm::SmallVector<const ValueDecl *, 4>>
+      TeamAndReductions;
 };
 
 } // CodeGen namespace.

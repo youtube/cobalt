@@ -1,9 +1,8 @@
 //===--- Hexagon.cpp - Implement Hexagon target feature support -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -25,14 +24,7 @@ void HexagonTargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("__qdsp6__", "1");
   Builder.defineMacro("__hexagon__", "1");
 
-  if (CPU == "hexagonv4") {
-    Builder.defineMacro("__HEXAGON_V4__");
-    Builder.defineMacro("__HEXAGON_ARCH__", "4");
-    if (Opts.HexagonQdsp6Compat) {
-      Builder.defineMacro("__QDSP6_V4__");
-      Builder.defineMacro("__QDSP6_ARCH__", "4");
-    }
-  } else if (CPU == "hexagonv5") {
+  if (CPU == "hexagonv5") {
     Builder.defineMacro("__HEXAGON_V5__");
     Builder.defineMacro("__HEXAGON_ARCH__", "5");
     if (Opts.HexagonQdsp6Compat) {
@@ -55,6 +47,9 @@ void HexagonTargetInfo::getTargetDefines(const LangOptions &Opts,
   } else if (CPU == "hexagonv65") {
     Builder.defineMacro("__HEXAGON_V65__");
     Builder.defineMacro("__HEXAGON_ARCH__", "65");
+  } else if (CPU == "hexagonv66") {
+    Builder.defineMacro("__HEXAGON_V66__");
+    Builder.defineMacro("__HEXAGON_ARCH__", "66");
   }
 
   if (hasFeature("hvx-length64b")) {
@@ -105,7 +100,10 @@ const char *const HexagonTargetInfo::GCCRegNames[] = {
     "r9",  "r10", "r11", "r12", "r13", "r14", "r15", "r16", "r17",
     "r18", "r19", "r20", "r21", "r22", "r23", "r24", "r25", "r26",
     "r27", "r28", "r29", "r30", "r31", "p0",  "p1",  "p2",  "p3",
-    "sa0", "lc0", "sa1", "lc1", "m0",  "m1",  "usr", "ugp"
+    "sa0", "lc0", "sa1", "lc1", "m0",  "m1",  "usr", "ugp",
+    "r1:0", "r3:2", "r5:4", "r7:6", "r9:8", "r11:10", "r13:12", "r15:14",
+    "r17:16", "r19:18", "r21:20", "r23:22", "r25:24", "r27:26", "r29:28",
+    "r31:30"
 };
 
 ArrayRef<const char *> HexagonTargetInfo::getGCCRegNames() const {
@@ -150,9 +148,9 @@ struct CPUSuffix {
 };
 
 static constexpr CPUSuffix Suffixes[] = {
-    {{"hexagonv4"}, {"4"}},   {{"hexagonv5"}, {"5"}},
-    {{"hexagonv55"}, {"55"}}, {{"hexagonv60"}, {"60"}},
-    {{"hexagonv62"}, {"62"}}, {{"hexagonv65"}, {"65"}},
+    {{"hexagonv5"},  {"5"}},  {{"hexagonv55"}, {"55"}},
+    {{"hexagonv60"}, {"60"}}, {{"hexagonv62"}, {"62"}},
+    {{"hexagonv65"}, {"65"}}, {{"hexagonv66"}, {"66"}},
 };
 
 const char *HexagonTargetInfo::getHexagonCPUSuffix(StringRef Name) {

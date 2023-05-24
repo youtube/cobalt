@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #ifndef MAP_ALLOCATOR_REQUIREMENT_TEST_TEMPLATES_H
@@ -24,7 +23,7 @@
 #include <cassert>
 
 #include "test_macros.h"
-#include "count_new.hpp"
+#include "count_new.h"
 #include "container_test_types.h"
 #include "assert_checkpoint.h"
 
@@ -33,10 +32,6 @@ template <class Container>
 void testMapInsert()
 {
   typedef typename Container::value_type ValueTp;
-  typedef typename Container::key_type Key;
-  typedef typename Container::mapped_type Mapped;
-  typedef Container C;
-  typedef std::pair<typename C::iterator, bool> R;
   ConstructController* cc = getConstructController();
   cc->reset();
   {
@@ -297,8 +292,6 @@ void testMapEmplace()
   typedef typename Container::key_type Key;
   typedef typename Container::mapped_type Mapped;
   typedef typename std::pair<Key, Mapped> NonConstKeyPair;
-  typedef Container C;
-  typedef std::pair<typename C::iterator, bool> R;
   ConstructController* cc = getConstructController();
   cc->reset();
   {
@@ -630,7 +623,6 @@ template <class Container>
 void testMultimapInsert()
 {
   typedef typename Container::value_type ValueTp;
-  typedef Container C;
   ConstructController* cc = getConstructController();
   cc->reset();
   {
@@ -704,7 +696,6 @@ template <class Container>
 void testMultimapInsertHint()
 {
   typedef typename Container::value_type ValueTp;
-  typedef Container C;
   ConstructController* cc = getConstructController();
   cc->reset();
   {

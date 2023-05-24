@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 
 import gdbremote_testcase
@@ -20,6 +19,7 @@ class TestGdbRemoteSingleStep(gdbremote_testcase.GdbRemoteTestCaseBase):
         self.single_step_only_steps_one_instruction(
             use_Hc_packet=True, step_instruction="s")
 
+    @skipIfWindows # No pty support to test any inferior std -i/e/o
     @llgs_test
     @expectedFailureAndroid(
         bugnumber="llvm.org/pr24739",
@@ -28,9 +28,7 @@ class TestGdbRemoteSingleStep(gdbremote_testcase.GdbRemoteTestCaseBase):
             "aarch64"])
     @expectedFailureAll(
         oslist=["linux"],
-        archs=[
-            "arm",
-            "aarch64"],
+        archs=["arm"],
         bugnumber="llvm.org/pr24739")
     @skipIf(triple='^mips')
     def test_single_step_only_steps_one_instruction_with_s_llgs(self):

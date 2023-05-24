@@ -1,9 +1,8 @@
 //===-- NVPTXISelDAGToDAG.cpp - A dag to dag inst selector for NVPTX ------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,10 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "NVPTXISelDAGToDAG.h"
+#include "MCTargetDesc/NVPTXBaseInfo.h"
 #include "NVPTXUtilities.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -611,7 +612,7 @@ bool NVPTXDAGToDAGISel::tryEXTRACT_VECTOR_ELEMENT(SDNode *N) {
 
   // Find and record all uses of this vector that extract element 0 or 1.
   SmallVector<SDNode *, 4> E0, E1;
-  for (const auto &U : Vector.getNode()->uses()) {
+  for (auto U : Vector.getNode()->uses()) {
     if (U->getOpcode() != ISD::EXTRACT_VECTOR_ELT)
       continue;
     if (U->getOperand(0) != Vector)
@@ -702,11 +703,11 @@ static bool canLowerToLDG(MemSDNode *N, const NVPTXSubtarget &Subtarget,
   // We use GetUnderlyingObjects() here instead of GetUnderlyingObject() mainly
   // because the former looks through phi nodes while the latter does not. We
   // need to look through phi nodes to handle pointer induction variables.
-  SmallVector<Value *, 8> Objs;
-  GetUnderlyingObjects(const_cast<Value *>(N->getMemOperand()->getValue()),
+  SmallVector<const Value *, 8> Objs;
+  GetUnderlyingObjects(N->getMemOperand()->getValue(),
                        Objs, F->getDataLayout());
 
-  return all_of(Objs, [&](Value *V) {
+  return all_of(Objs, [&](const Value *V) {
     if (auto *A = dyn_cast<const Argument>(V))
       return IsKernelFn && A->onlyReadsMemory() && A->hasNoAliasAttr();
     if (auto *GV = dyn_cast<const GlobalVariable>(V))
@@ -885,7 +886,7 @@ bool NVPTXDAGToDAGISel::tryLoad(SDNode *N) {
   MVT SimpleVT = LoadedVT.getSimpleVT();
   MVT ScalarVT = SimpleVT.getScalarType();
   // Read at least 8 bits (predicates are stored as 8-bit values)
-  unsigned fromTypeWidth = std::max(8U, ScalarVT.getSizeInBits());
+  unsigned fromTypeWidth = std::max(8U, (unsigned)ScalarVT.getSizeInBits());
   unsigned int fromType;
 
   // Vector Setting
@@ -981,9 +982,8 @@ bool NVPTXDAGToDAGISel::tryLoad(SDNode *N) {
   if (!NVPTXLD)
     return false;
 
-  MachineSDNode::mmo_iterator MemRefs0 = MF->allocateMemRefsArray(1);
-  MemRefs0[0] = cast<MemSDNode>(N)->getMemOperand();
-  cast<MachineSDNode>(NVPTXLD)->setMemRefs(MemRefs0, MemRefs0 + 1);
+  MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(NVPTXLD), {MemRef});
 
   ReplaceNode(N, NVPTXLD);
   return true;
@@ -1031,7 +1031,7 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
   // Float  : ISD::NON_EXTLOAD or ISD::EXTLOAD and the type is float
   MVT ScalarVT = SimpleVT.getScalarType();
   // Read at least 8 bits (predicates are stored as 8-bit values)
-  unsigned FromTypeWidth = std::max(8U, ScalarVT.getSizeInBits());
+  unsigned FromTypeWidth = std::max(8U, (unsigned)ScalarVT.getSizeInBits());
   unsigned int FromType;
   // The last operand holds the original LoadSDNode::getExtensionType() value
   unsigned ExtensionType = cast<ConstantSDNode>(
@@ -1221,9 +1221,8 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
     LD = CurDAG->getMachineNode(Opcode.getValue(), DL, N->getVTList(), Ops);
   }
 
-  MachineSDNode::mmo_iterator MemRefs0 = MF->allocateMemRefsArray(1);
-  MemRefs0[0] = cast<MemSDNode>(N)->getMemOperand();
-  cast<MachineSDNode>(LD)->setMemRefs(MemRefs0, MemRefs0 + 1);
+  MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(LD), {MemRef});
 
   ReplaceNode(N, LD);
   return true;
@@ -1659,9 +1658,8 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
     LD = CurDAG->getMachineNode(Opcode.getValue(), DL, InstVTList, Ops);
   }
 
-  MachineSDNode::mmo_iterator MemRefs0 = MF->allocateMemRefsArray(1);
-  MemRefs0[0] = Mem->getMemOperand();
-  cast<MachineSDNode>(LD)->setMemRefs(MemRefs0, MemRefs0 + 1);
+  MachineMemOperand *MemRef = Mem->getMemOperand();
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(LD), {MemRef});
 
   // For automatic generation of LDG (through SelectLoad[Vector], not the
   // intrinsics), we may have an extending load like:
@@ -1864,9 +1862,8 @@ bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
   if (!NVPTXST)
     return false;
 
-  MachineSDNode::mmo_iterator MemRefs0 = MF->allocateMemRefsArray(1);
-  MemRefs0[0] = cast<MemSDNode>(N)->getMemOperand();
-  cast<MachineSDNode>(NVPTXST)->setMemRefs(MemRefs0, MemRefs0 + 1);
+  MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(NVPTXST), {MemRef});
   ReplaceNode(N, NVPTXST);
   return true;
 }
@@ -2088,9 +2085,8 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
 
   ST = CurDAG->getMachineNode(Opcode.getValue(), DL, MVT::Other, StOps);
 
-  MachineSDNode::mmo_iterator MemRefs0 = MF->allocateMemRefsArray(1);
-  MemRefs0[0] = cast<MemSDNode>(N)->getMemOperand();
-  cast<MachineSDNode>(ST)->setMemRefs(MemRefs0, MemRefs0 + 1);
+  MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(ST), {MemRef});
 
   ReplaceNode(N, ST);
   return true;
@@ -2236,9 +2232,8 @@ bool NVPTXDAGToDAGISel::tryStoreRetval(SDNode *N) {
     return false;
 
   SDNode *Ret = CurDAG->getMachineNode(Opcode.getValue(), DL, MVT::Other, Ops);
-  MachineSDNode::mmo_iterator MemRefs0 = MF->allocateMemRefsArray(1);
-  MemRefs0[0] = cast<MemSDNode>(N)->getMemOperand();
-  cast<MachineSDNode>(Ret)->setMemRefs(MemRefs0, MemRefs0 + 1);
+  MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(Ret), {MemRef});
 
   ReplaceNode(N, Ret);
   return true;
@@ -2341,9 +2336,8 @@ bool NVPTXDAGToDAGISel::tryStoreParam(SDNode *N) {
   SDVTList RetVTs = CurDAG->getVTList(MVT::Other, MVT::Glue);
   SDNode *Ret =
       CurDAG->getMachineNode(Opcode.getValue(), DL, RetVTs, Ops);
-  MachineSDNode::mmo_iterator MemRefs0 = MF->allocateMemRefsArray(1);
-  MemRefs0[0] = cast<MemSDNode>(N)->getMemOperand();
-  cast<MachineSDNode>(Ret)->setMemRefs(MemRefs0, MemRefs0 + 1);
+  MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(Ret), {MemRef});
 
   ReplaceNode(N, Ret);
   return true;

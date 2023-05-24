@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -emit-llvm -cl-ext=+cl_khr_subgroups -O0 -cl-std=CL2.0 -o - %s | FileCheck %s
+// RUN: %clang_cc1 -triple %itanium_abi_triple -emit-llvm -cl-ext=+cl_khr_subgroups -O0 -cl-std=clc++ -o - %s | FileCheck %s
+// FIXME: Add MS ABI manglings of OpenCL things and remove %itanium_abi_triple
+// above to support OpenCL in the MS C++ ABI.
 
 // CHECK-DAG: %opencl.pipe_ro_t = type opaque
 // CHECK-DAG: %opencl.pipe_wo_t = type opaque
@@ -68,26 +70,4 @@ void test8(write_only pipe int p, global int *ptr) {
   *ptr = get_pipe_num_packets(p);
   // CHECK: call i32 @__get_pipe_max_packets_wo(%opencl.pipe_wo_t* %{{.*}}, i32 4, i32 4)
   *ptr = get_pipe_max_packets(p);
-}
-
-void test9(read_only pipe int r, write_only pipe int w, global int *ptr) {
-  // verify that return type is correctly casted to i1 value
-  // CHECK: %[[R:[0-9]+]] = call i32 @__read_pipe_2
-  // CHECK: icmp ne i32 %[[R]], 0
-  if (read_pipe(r, ptr)) *ptr = -1;
-  // CHECK: %[[W:[0-9]+]] = call i32 @__write_pipe_2
-  // CHECK: icmp ne i32 %[[W]], 0
-  if (write_pipe(w, ptr)) *ptr = -1;
-  // CHECK: %[[NR:[0-9]+]] = call i32 @__get_pipe_num_packets_ro
-  // CHECK: icmp ne i32 %[[NR]], 0
-  if (get_pipe_num_packets(r)) *ptr = -1;
-  // CHECK: %[[NW:[0-9]+]] = call i32 @__get_pipe_num_packets_wo
-  // CHECK: icmp ne i32 %[[NW]], 0
-  if (get_pipe_num_packets(w)) *ptr = -1;
-  // CHECK: %[[MR:[0-9]+]] = call i32 @__get_pipe_max_packets_ro
-  // CHECK: icmp ne i32 %[[MR]], 0
-  if (get_pipe_max_packets(r)) *ptr = -1;
-  // CHECK: %[[MW:[0-9]+]] = call i32 @__get_pipe_max_packets_wo
-  // CHECK: icmp ne i32 %[[MW]], 0
-  if (get_pipe_max_packets(w)) *ptr = -1;
 }

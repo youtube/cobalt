@@ -1,22 +1,19 @@
 //===-- ValueObjectVariable.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Core/ValueObjectVariable.h"
 
-#include "lldb/Core/Address.h"      // for Address
-#include "lldb/Core/AddressRange.h" // for AddressRange
+#include "lldb/Core/Address.h"
+#include "lldb/Core/AddressRange.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/RegisterValue.h"
-#include "lldb/Core/Scalar.h" // for Scalar, operator!=
 #include "lldb/Core/Value.h"
-#include "lldb/Expression/DWARFExpression.h" // for DWARFExpression
-#include "lldb/Symbol/Declaration.h"         // for Declaration
+#include "lldb/Expression/DWARFExpression.h"
+#include "lldb/Symbol/Declaration.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolContext.h"
@@ -27,15 +24,17 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Utility/DataExtractor.h"     // for DataExtractor
-#include "lldb/Utility/Status.h"            // for Status
-#include "lldb/lldb-private-enumerations.h" // for AddressType::eAddressTy...
-#include "lldb/lldb-types.h"                // for addr_t
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/RegisterValue.h"
+#include "lldb/Utility/Scalar.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/lldb-private-enumerations.h"
+#include "lldb/lldb-types.h"
 
-#include "llvm/ADT/StringRef.h" // for StringRef
+#include "llvm/ADT/StringRef.h"
 
-#include <assert.h> // for assert
-#include <memory>   // for shared_ptr
+#include <assert.h>
+#include <memory>
 
 namespace lldb_private {
 class ExecutionContextScope;
@@ -58,7 +57,7 @@ ValueObjectVariable::ValueObjectVariable(ExecutionContextScope *exe_scope,
                                          const lldb::VariableSP &var_sp)
     : ValueObject(exe_scope), m_variable_sp(var_sp) {
   // Do not attempt to construct one of these objects with no variable!
-  assert(m_variable_sp.get() != NULL);
+  assert(m_variable_sp.get() != nullptr);
   m_name = var_sp->GetName();
 }
 
@@ -98,8 +97,9 @@ size_t ValueObjectVariable::CalculateNumChildren(uint32_t max) {
   if (!type.IsValid())
     return 0;
 
+  ExecutionContext exe_ctx(GetExecutionContextRef());
   const bool omit_empty_base_classes = true;
-  auto child_count = type.GetNumChildren(omit_empty_base_classes);
+  auto child_count = type.GetNumChildren(omit_empty_base_classes, &exe_ctx);
   return child_count <= max ? child_count : max;
 }
 
@@ -111,7 +111,7 @@ uint64_t ValueObjectVariable::GetByteSize() {
   if (!type.IsValid())
     return 0;
 
-  return type.GetByteSize(exe_ctx.GetBestExecutionContextScope());
+  return type.GetByteSize(exe_ctx.GetBestExecutionContextScope()).getValueOr(0);
 }
 
 lldb::ValueType ValueObjectVariable::GetValueType() const {
@@ -135,7 +135,7 @@ bool ValueObjectVariable::UpdateValue() {
     else
       m_error.SetErrorString("empty constant data");
     // constant bytes can't be edited - sorry
-    m_resolved_value.SetContext(Value::eContextTypeInvalid, NULL);
+    m_resolved_value.SetContext(Value::eContextTypeInvalid, nullptr);
   } else {
     lldb::addr_t loclist_base_load_addr = LLDB_INVALID_ADDRESS;
     ExecutionContext exe_ctx(GetExecutionContextRef());
@@ -168,51 +168,6 @@ bool ValueObjectVariable::UpdateValue() {
 
       Process *process = exe_ctx.GetProcessPtr();
       const bool process_is_alive = process && process->IsAlive();
-      const uint32_t type_info = compiler_type.GetTypeInfo();
-      const bool is_pointer_or_ref =
-          (type_info & (lldb::eTypeIsPointer | lldb::eTypeIsReference)) != 0;
-
-      switch (value_type) {
-      case Value::eValueTypeFileAddress:
-        // If this type is a pointer, then its children will be considered load
-        // addresses if the pointer or reference is dereferenced, but only if
-        // the process is alive.
-        //
-        // There could be global variables like in the following code:
-        // struct LinkedListNode { Foo* foo; LinkedListNode* next; };
-        // Foo g_foo1;
-        // Foo g_foo2;
-        // LinkedListNode g_second_node = { &g_foo2, NULL };
-        // LinkedListNode g_first_node = { &g_foo1, &g_second_node };
-        //
-        // When we aren't running, we should be able to look at these variables
-        // using the "target variable" command. Children of the "g_first_node"
-        // always will be of the same address type as the parent. But children
-        // of the "next" member of LinkedListNode will become load addresses if
-        // we have a live process, or remain what a file address if it what a
-        // file address.
-        if (process_is_alive && is_pointer_or_ref)
-          SetAddressTypeOfChildren(eAddressTypeLoad);
-        else
-          SetAddressTypeOfChildren(eAddressTypeFile);
-        break;
-      case Value::eValueTypeHostAddress:
-        // Same as above for load addresses, except children of pointer or refs
-        // are always load addresses. Host addresses are used to store freeze
-        // dried variables. If this type is a struct, the entire struct
-        // contents will be copied into the heap of the
-        // LLDB process, but we do not currently follow any pointers.
-        if (is_pointer_or_ref)
-          SetAddressTypeOfChildren(eAddressTypeLoad);
-        else
-          SetAddressTypeOfChildren(eAddressTypeHost);
-        break;
-      case Value::eValueTypeLoadAddress:
-      case Value::eValueTypeScalar:
-      case Value::eValueTypeVector:
-        SetAddressTypeOfChildren(eAddressTypeLoad);
-        break;
-      }
 
       switch (value_type) {
       case Value::eValueTypeVector:
@@ -221,7 +176,7 @@ bool ValueObjectVariable::UpdateValue() {
         // The variable value is in the Scalar value inside the m_value. We can
         // point our m_data right to it.
         m_error =
-            m_value.GetValueAsData(&exe_ctx, m_data, 0, GetModule().get());
+            m_value.GetValueAsData(&exe_ctx, m_data, GetModule().get());
         break;
 
       case Value::eValueTypeFileAddress:
@@ -250,7 +205,7 @@ bool ValueObjectVariable::UpdateValue() {
           Value value(m_value);
           value.SetContext(Value::eContextTypeVariable, variable);
           m_error =
-              value.GetValueAsData(&exe_ctx, m_data, 0, GetModule().get());
+              value.GetValueAsData(&exe_ctx, m_data, GetModule().get());
 
           SetValueDidChange(value_type != old_value.GetValueType() ||
                             m_value.GetScalar() != old_value.GetScalar());
@@ -261,7 +216,7 @@ bool ValueObjectVariable::UpdateValue() {
       SetValueIsValid(m_error.Success());
     } else {
       // could not find location, won't allow editing
-      m_resolved_value.SetContext(Value::eContextTypeInvalid, NULL);
+      m_resolved_value.SetContext(Value::eContextTypeInvalid, nullptr);
     }
   }
   return m_error.Success();
@@ -298,7 +253,7 @@ lldb::ModuleSP ValueObjectVariable::GetModule() {
 SymbolContextScope *ValueObjectVariable::GetSymbolContextScope() {
   if (m_variable_sp)
     return m_variable_sp->GetSymbolContextScope();
-  return NULL;
+  return nullptr;
 }
 
 bool ValueObjectVariable::GetDeclaration(Declaration &decl) {

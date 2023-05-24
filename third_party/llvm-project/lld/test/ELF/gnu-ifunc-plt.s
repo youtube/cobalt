@@ -1,59 +1,77 @@
 // REQUIRES: x86
+
+/// For non-preemptable ifunc, place ifunc PLT entries after regular PLT entries.
+
 // RUN: llvm-mc -filetype=obj -triple=x86_64-pc-linux %S/Inputs/shared2-x86-64.s -o %t1.o
-// RUN: ld.lld %t1.o --shared -o %t.so
+// RUN: ld.lld %t1.o --shared -soname=so -o %t.so
 // RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %s -o %t.o
 // RUN: ld.lld --hash-style=sysv %t.so %t.o -o %tout
-// RUN: llvm-objdump -d %tout | FileCheck %s --check-prefix=DISASM
+// RUN: llvm-objdump -d --no-show-raw-insn %tout | FileCheck %s --check-prefix=DISASM
 // RUN: llvm-objdump -s %tout | FileCheck %s --check-prefix=GOTPLT
-// RUN: llvm-readobj -r -dynamic-table %tout | FileCheck %s
+// RUN: llvm-readobj -r --dynamic-table %tout | FileCheck %s
 
 // Check that the IRELATIVE relocations are after the JUMP_SLOT in the plt
 // CHECK: Relocations [
-// CHECK-NEXT:   Section (4) .rela.plt {
-// CHECK-NEXT:     0x202018 R_X86_64_JUMP_SLOT bar2 0x0
-// CHECK-NEXT:     0x202020 R_X86_64_JUMP_SLOT zed2 0x0
-// CHECK-NEXT:     0x202028 R_X86_64_IRELATIVE - 0x201000
-// CHECK-NEXT:     0x202030 R_X86_64_IRELATIVE - 0x201001
+// CHECK-NEXT:   Section (4) .rela.dyn {
+// CHECK-NEXT:     0x203458 R_X86_64_IRELATIVE - 0x2012D8
+// CHECK-NEXT:     0x203460 R_X86_64_IRELATIVE - 0x2012D9
+// CHECK-NEXT:   }
+// CHECK-NEXT:   Section (5) .rela.plt {
+// CHECK-NEXT:     0x203448 R_X86_64_JUMP_SLOT bar2 0x0
+// CHECK-NEXT:     0x203450 R_X86_64_JUMP_SLOT zed2 0x0
+// CHECK-NEXT:   }
 
 // Check that .got.plt entries point back to PLT header
 // GOTPLT: Contents of section .got.plt:
-// GOTPLT-NEXT:  202000 00302000 00000000 00000000 00000000
-// GOTPLT-NEXT:  202010 00000000 00000000 36102000 00000000
-// GOTPLT-NEXT:  202020 46102000 00000000 56102000 00000000
-// GOTPLT-NEXT:  202030 66102000 00000000
+// GOTPLT-NEXT:  203430 40232000 00000000 00000000 00000000
+// GOTPLT-NEXT:  203440 00000000 00000000 06132000 00000000
+// GOTPLT-NEXT:  203450 16132000 00000000 00000000 00000000
+// GOTPLT-NEXT:  203460 00000000 00000000
 
-// Check that the PLTRELSZ tag includes the IRELATIVE relocations
+// Check that the PLTRELSZ tag does not include the IRELATIVE relocations
 // CHECK: DynamicSection [
-// CHECK:   0x0000000000000002 PLTRELSZ             96 (bytes)
+// CHECK:   0x0000000000000008 RELASZ               48 (bytes)
+// CHECK:   0x0000000000000002 PLTRELSZ             48 (bytes)
 
 // Check that a PLT header is written and the ifunc entries appear last
 // DISASM: Disassembly of section .text:
+// DISASM-EMPTY:
 // DISASM-NEXT: foo:
-// DISASM-NEXT:   201000:       c3      retq
+// DISASM-NEXT:   2012d8:       retq
 // DISASM:      bar:
-// DISASM-NEXT:   201001:       c3      retq
+// DISASM-NEXT:   2012d9:       retq
 // DISASM:      _start:
-// DISASM-NEXT:   201002:       e8 49 00 00 00          callq   73
-// DISASM-NEXT:   201007:       e8 54 00 00 00          callq   84
-// DISASM-NEXT:   20100c:       e8 1f 00 00 00          callq   31
-// DISASM-NEXT:   201011:       e8 2a 00 00 00          callq   42
+// DISASM-NEXT:   2012da:       callq   65
+// DISASM-NEXT:   2012df:       callq   76
+// DISASM-NEXT:                 callq   {{.*}} <bar2@plt>
+// DISASM-NEXT:                 callq   {{.*}} <zed2@plt>
+// DISASM-EMPTY:
 // DISASM-NEXT: Disassembly of section .plt:
+// DISASM-EMPTY:
 // DISASM-NEXT: .plt:
-// DISASM-NEXT:   201020:       ff 35 e2 0f 00 00       pushq   4066(%rip)
-// DISASM-NEXT:   201026:       ff 25 e4 0f 00 00       jmpq    *4068(%rip)
-// DISASM-NEXT:   20102c:       0f 1f 40 00     nopl    (%rax)
-// DISASM-NEXT:   201030:       ff 25 e2 0f 00 00       jmpq    *4066(%rip)
-// DISASM-NEXT:   201036:       68 00 00 00 00          pushq   $0
-// DISASM-NEXT:   20103b:       e9 e0 ff ff ff          jmp     -32 <.plt>
-// DISASM-NEXT:   201040:       ff 25 da 0f 00 00       jmpq    *4058(%rip)
-// DISASM-NEXT:   201046:       68 01 00 00 00          pushq   $1
-// DISASM-NEXT:   20104b:       e9 d0 ff ff ff          jmp     -48 <.plt>
-// DISASM-NEXT:   201050:       ff 25 d2 0f 00 00       jmpq    *4050(%rip)
-// DISASM-NEXT:   201056:       68 00 00 00 00          pushq   $0
-// DISASM-NEXT:   20105b:       e9 e0 ff ff ff          jmp     -32 <.plt+0x20>
-// DISASM-NEXT:   201060:       ff 25 ca 0f 00 00       jmpq    *4042(%rip)
-// DISASM-NEXT:   201066:       68 01 00 00 00          pushq   $1
-// DISASM-NEXT:   20106b:       e9 d0 ff ff ff          jmp     -48 <.plt+0x20>
+// DISASM-NEXT:   2012f0:       pushq   8514(%rip)
+// DISASM-NEXT:   2012f6:       jmpq    *8516(%rip)
+// DISASM-NEXT:   2012fc:       nopl    (%rax)
+// DISASM-EMPTY:
+// DISASM-NEXT:   bar2@plt:
+// DISASM-NEXT:   201300:       jmpq    *8514(%rip)
+// DISASM-NEXT:   201306:       pushq   $0
+// DISASM-NEXT:   20130b:       jmp     -32 <.plt>
+// DISASM-EMPTY:
+// DISASM-NEXT:   zed2@plt:
+// DISASM-NEXT:   201310:       jmpq    *8506(%rip)
+// DISASM-NEXT:   201316:       pushq   $1
+// DISASM-NEXT:   20131b:       jmp     -48 <.plt>
+// DISASM-EMPTY:
+// DISASM-NEXT: Disassembly of section .iplt:
+// DISASM-EMPTY:
+// DISASM-NEXT: .iplt:
+// DISASM-NEXT:   201320:       jmpq    *8498(%rip)
+// DISASM-NEXT:   201326:       pushq   $0
+// DISASM-NEXT:   20132b:       jmp     -64 <.plt>
+// DISASM-NEXT:   201330:       jmpq    *8490(%rip)
+// DISASM-NEXT:   201336:       pushq   $1
+// DISASM-NEXT:   20133b:       jmp     -80 <.plt>
 
 .text
 .type foo STT_GNU_IFUNC

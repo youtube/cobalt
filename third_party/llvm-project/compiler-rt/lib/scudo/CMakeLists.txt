@@ -12,16 +12,36 @@ append_list_if(COMPILER_RT_HAS_LIBDL dl SCUDO_MINIMAL_DYNAMIC_LIBS)
 append_list_if(COMPILER_RT_HAS_LIBRT rt SCUDO_MINIMAL_DYNAMIC_LIBS)
 append_list_if(COMPILER_RT_HAS_LIBPTHREAD pthread SCUDO_MINIMAL_DYNAMIC_LIBS)
 append_list_if(COMPILER_RT_HAS_LIBLOG log SCUDO_MINIMAL_DYNAMIC_LIBS)
+append_list_if(COMPILER_RT_HAS_OMIT_FRAME_POINTER_FLAG -fno-omit-frame-pointer
+               SCUDO_CFLAGS)
 
 set(SCUDO_DYNAMIC_LINK_FLAGS ${SANITIZER_COMMON_LINK_FLAGS})
 # Use gc-sections by default to avoid unused code being pulled in.
 list(APPEND SCUDO_DYNAMIC_LINK_FLAGS -Wl,--gc-sections)
+
+if(ANDROID)
+# Put most Sanitizer shared libraries in the global group. For more details, see
+# android-changes-for-ndk-developers.md#changes-to-library-search-order
+  if (COMPILER_RT_HAS_Z_GLOBAL)
+    list(APPEND SCUDO_DYNAMIC_LINK_FLAGS -Wl,-z,global)
+  endif()
+endif()
 
 # The minimal Scudo runtime does not inlude the UBSan runtime.
 set(SCUDO_MINIMAL_OBJECT_LIBS
   RTSanitizerCommonNoTermination
   RTSanitizerCommonLibc
   RTInterception)
+
+if (COMPILER_RT_HAS_GWP_ASAN)
+  # Currently, Scudo uses the GwpAsan flag parser. This backs onto the flag
+  # parsing mechanism of sanitizer_common. Once Scudo has its own flag parsing,
+  # and parses GwpAsan options, you can remove this dependency.
+  list(APPEND SCUDO_MINIMAL_OBJECT_LIBS RTGwpAsan RTGwpAsanOptionsParser
+                                        RTGwpAsanBacktraceLibc)
+  list(APPEND SCUDO_CFLAGS -DGWP_ASAN_HOOKS)
+endif()
+
 set(SCUDO_OBJECT_LIBS ${SCUDO_MINIMAL_OBJECT_LIBS})
 set(SCUDO_DYNAMIC_LIBS ${SCUDO_MINIMAL_DYNAMIC_LIBS})
 
@@ -29,7 +49,7 @@ if (FUCHSIA)
   list(APPEND SCUDO_CFLAGS -nostdinc++)
   list(APPEND SCUDO_DYNAMIC_LINK_FLAGS -nostdlib++)
 else()
-  list(APPEND SCUDO_DYNAMIC_LIBS ${SANITIZER_CXX_ABI_LIBRARY})
+  list(APPEND SCUDO_DYNAMIC_LIBS ${SANITIZER_CXX_ABI_LIBRARIES})
   list(APPEND SCUDO_OBJECT_LIBS
     RTSanitizerCommonCoverage
     RTSanitizerCommonSymbolizer

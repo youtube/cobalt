@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,6 +14,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#define __KMP_IMP
 #include "omp.h" // omp_* declarations, must be included before "kmp.h"
 #include "kmp.h" // KMP_DEFAULT_STKSIZE
 #include "kmp_stub.h"
@@ -34,6 +34,10 @@
 #define omp_set_num_threads ompc_set_num_threads
 #define omp_set_dynamic ompc_set_dynamic
 #define omp_set_nested ompc_set_nested
+#define omp_set_affinity_format ompc_set_affinity_format
+#define omp_get_affinity_format ompc_get_affinity_format
+#define omp_display_affinity ompc_display_affinity
+#define omp_capture_affinity ompc_capture_affinity
 #define kmp_set_stacksize kmpc_set_stacksize
 #define kmp_set_stacksize_s kmpc_set_stacksize_s
 #define kmp_set_blocktime kmpc_set_blocktime
@@ -46,7 +50,9 @@
 #define kmp_realloc kmpc_realloc
 #define kmp_free kmpc_free
 
+#if KMP_OS_WINDOWS
 static double frequency = 0.0;
+#endif
 
 // Helper functions.
 static size_t __kmps_init() {
@@ -158,7 +164,7 @@ void *kmp_aligned_malloc(size_t sz, size_t a) {
 #if KMP_OS_WINDOWS
   res = _aligned_malloc(sz, a);
 #else
-  if (err = posix_memalign(&res, a, sz)) {
+  if ((err = posix_memalign(&res, a, sz))) {
     errno = err; // can be EINVAL or ENOMEM
     res = NULL;
   }
@@ -269,21 +275,10 @@ void __kmps_get_schedule(kmp_sched_t *kind, int *modifier) {
   *modifier = __kmps_sched_modifier;
 } // __kmps_get_schedule
 
-#if OMP_40_ENABLED
-
-static kmp_proc_bind_t __kmps_proc_bind = proc_bind_false;
-
-void __kmps_set_proc_bind(kmp_proc_bind_t arg) {
-  i;
-  __kmps_proc_bind = arg;
-} // __kmps_set_proc_bind
-
 kmp_proc_bind_t __kmps_get_proc_bind(void) {
   i;
-  return __kmps_proc_bind;
+  return proc_bind_false;
 } // __kmps_get_proc_bind
-
-#endif /* OMP_40_ENABLED */
 
 double __kmps_get_wtime(void) {
   // Elapsed wall clock time (in second) from "sometime in the past".
@@ -335,5 +330,56 @@ double __kmps_get_wtick(void) {
 #endif
   return wtick;
 } // __kmps_get_wtick
+
+/* OpenMP 5.0 Memory Management */
+#if KMP_OS_WINDOWS
+omp_allocator_handle_t const omp_null_allocator = 0;
+omp_allocator_handle_t const omp_default_mem_alloc =
+    (omp_allocator_handle_t const)1;
+omp_allocator_handle_t const omp_large_cap_mem_alloc =
+    (omp_allocator_handle_t const)2;
+omp_allocator_handle_t const omp_const_mem_alloc =
+    (omp_allocator_handle_t const)3;
+omp_allocator_handle_t const omp_high_bw_mem_alloc =
+    (omp_allocator_handle_t const)4;
+omp_allocator_handle_t const omp_low_lat_mem_alloc =
+    (omp_allocator_handle_t const)5;
+omp_allocator_handle_t const omp_cgroup_mem_alloc =
+    (omp_allocator_handle_t const)6;
+omp_allocator_handle_t const omp_pteam_mem_alloc =
+    (omp_allocator_handle_t const)7;
+omp_allocator_handle_t const omp_thread_mem_alloc =
+    (omp_allocator_handle_t const)8;
+
+omp_memspace_handle_t const omp_default_mem_space =
+    (omp_memspace_handle_t const)0;
+omp_memspace_handle_t const omp_large_cap_mem_space =
+    (omp_memspace_handle_t const)1;
+omp_memspace_handle_t const omp_const_mem_space =
+    (omp_memspace_handle_t const)2;
+omp_memspace_handle_t const omp_high_bw_mem_space =
+    (omp_memspace_handle_t const)3;
+omp_memspace_handle_t const omp_low_lat_mem_space =
+    (omp_memspace_handle_t const)4;
+#endif /* KMP_OS_WINDOWS */
+void *omp_alloc(size_t size, const omp_allocator_handle_t allocator) {
+  i;
+  return malloc(size);
+}
+void omp_free(void *ptr, const omp_allocator_handle_t allocator) {
+  i;
+  free(ptr);
+}
+/* OpenMP 5.0 Affinity Format */
+void omp_set_affinity_format(char const *format) { i; }
+size_t omp_get_affinity_format(char *buffer, size_t size) {
+  i;
+  return 0;
+}
+void omp_display_affinity(char const *format) { i; }
+size_t omp_capture_affinity(char *buffer, size_t buf_size, char const *format) {
+  i;
+  return 0;
+}
 
 // end of file //

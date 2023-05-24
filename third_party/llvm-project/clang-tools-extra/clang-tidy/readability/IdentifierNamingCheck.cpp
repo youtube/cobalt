@@ -1,15 +1,16 @@
 //===--- IdentifierNamingCheck.cpp - clang-tidy ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "IdentifierNamingCheck.h"
 
+#include "../utils/ASTUtils.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/AST/CXXInheritance.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
@@ -77,8 +78,12 @@ namespace readability {
     m(ClassConstant) \
     m(ClassMember) \
     m(GlobalConstant) \
+    m(GlobalConstantPointer) \
+    m(GlobalPointer) \
     m(GlobalVariable) \
     m(LocalConstant) \
+    m(LocalConstantPointer) \
+    m(LocalPointer) \
     m(LocalVariable) \
     m(StaticConstant) \
     m(StaticVariable) \
@@ -87,6 +92,8 @@ namespace readability {
     m(ConstantParameter) \
     m(ParameterPack) \
     m(Parameter) \
+    m(PointerParameter) \
+    m(ConstantPointerParameter) \
     m(AbstractClass) \
     m(Struct) \
     m(Class) \
@@ -186,6 +193,8 @@ IdentifierNamingCheck::IdentifierNamingCheck(StringRef Name,
   IgnoreFailedSplit = Options.get("IgnoreFailedSplit", 0);
 }
 
+IdentifierNamingCheck::~IdentifierNamingCheck() = default;
+
 void IdentifierNamingCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   auto const toString = [](CaseType Type) {
     switch (Type) {
@@ -228,16 +237,33 @@ void IdentifierNamingCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(namedDecl().bind("decl"), this);
   Finder->addMatcher(usingDecl().bind("using"), this);
   Finder->addMatcher(declRefExpr().bind("declRef"), this);
-  Finder->addMatcher(cxxConstructorDecl().bind("classRef"), this);
-  Finder->addMatcher(cxxDestructorDecl().bind("classRef"), this);
+  Finder->addMatcher(cxxConstructorDecl(unless(isImplicit())).bind("classRef"),
+                     this);
+  Finder->addMatcher(cxxDestructorDecl(unless(isImplicit())).bind("classRef"),
+                     this);
   Finder->addMatcher(typeLoc().bind("typeLoc"), this);
   Finder->addMatcher(nestedNameSpecifierLoc().bind("nestedNameLoc"), this);
+  Finder->addMatcher(
+      functionDecl(unless(cxxMethodDecl(isImplicit())),
+                   hasBody(forEachDescendant(memberExpr().bind("memberExpr")))),
+      this);
+  Finder->addMatcher(
+      cxxConstructorDecl(
+          unless(isImplicit()),
+          forEachConstructorInitializer(
+              allOf(isWritten(), withInitializer(forEachDescendant(
+                                     memberExpr().bind("memberExpr")))))),
+      this);
+  Finder->addMatcher(fieldDecl(hasInClassInitializer(
+                         forEachDescendant(memberExpr().bind("memberExpr")))),
+                     this);
 }
 
-void IdentifierNamingCheck::registerPPCallbacks(CompilerInstance &Compiler) {
-  Compiler.getPreprocessor().addPPCallbacks(
-      llvm::make_unique<IdentifierNamingCheckPPCallbacks>(
-          &Compiler.getPreprocessor(), this));
+void IdentifierNamingCheck::registerPPCallbacks(
+    const SourceManager &SM, Preprocessor *PP, Preprocessor *ModuleExpanderPP) {
+  ModuleExpanderPP->addPPCallbacks(
+      std::make_unique<IdentifierNamingCheckPPCallbacks>(ModuleExpanderPP,
+                                                          this));
 }
 
 static bool matchesStyle(StringRef Name,
@@ -252,26 +278,25 @@ static bool matchesStyle(StringRef Name,
       llvm::Regex("^[a-z]([a-z0-9]*(_[A-Z])?)*"),
   };
 
-  bool Matches = true;
   if (Name.startswith(Style.Prefix))
     Name = Name.drop_front(Style.Prefix.size());
   else
-    Matches = false;
+    return false;
 
   if (Name.endswith(Style.Suffix))
     Name = Name.drop_back(Style.Suffix.size());
   else
-    Matches = false;
+    return false;
 
   // Ensure the name doesn't have any extra underscores beyond those specified
   // in the prefix and suffix.
   if (Name.startswith("_") || Name.endswith("_"))
-    Matches = false;
+    return false;
 
   if (Style.Case && !Matchers[static_cast<size_t>(*Style.Case)].match(Name))
-    Matches = false;
+    return false;
 
-  return Matches;
+  return true;
 }
 
 static std::string fixupWithCase(StringRef Name,
@@ -385,6 +410,9 @@ static StyleKind findStyleKind(
     const NamedDecl *D,
     const std::vector<llvm::Optional<IdentifierNamingCheck::NamingStyle>>
         &NamingStyles) {
+  assert(D && D->getIdentifier() && !D->getName().empty() && !D->isImplicit() &&
+         "Decl must be an explicit identifier with a name.");
+
   if (isa<ObjCIvarDecl>(D) && NamingStyles[SK_ObjcIvar])
     return SK_ObjcIvar;
   
@@ -483,6 +511,9 @@ static StyleKind findStyleKind(
       return SK_ConstexprVariable;
 
     if (!Type.isNull() && Type.isConstQualified()) {
+      if (Type.getTypePtr()->isAnyPointerType() && NamingStyles[SK_ConstantPointerParameter])
+        return SK_ConstantPointerParameter;
+
       if (NamingStyles[SK_ConstantParameter])
         return SK_ConstantParameter;
 
@@ -492,6 +523,9 @@ static StyleKind findStyleKind(
 
     if (Decl->isParameterPack() && NamingStyles[SK_ParameterPack])
       return SK_ParameterPack;
+
+    if (!Type.isNull() && Type.getTypePtr()->isAnyPointerType() && NamingStyles[SK_PointerParameter])
+        return SK_PointerParameter;
 
     if (NamingStyles[SK_Parameter])
       return SK_Parameter;
@@ -509,11 +543,17 @@ static StyleKind findStyleKind(
       if (Decl->isStaticDataMember() && NamingStyles[SK_ClassConstant])
         return SK_ClassConstant;
 
+      if (Decl->isFileVarDecl() && Type.getTypePtr()->isAnyPointerType() && NamingStyles[SK_GlobalConstantPointer])
+        return SK_GlobalConstantPointer;
+
       if (Decl->isFileVarDecl() && NamingStyles[SK_GlobalConstant])
         return SK_GlobalConstant;
 
       if (Decl->isStaticLocal() && NamingStyles[SK_StaticConstant])
         return SK_StaticConstant;
+
+      if (Decl->isLocalVarDecl() && Type.getTypePtr()->isAnyPointerType() && NamingStyles[SK_LocalConstantPointer])
+        return SK_LocalConstantPointer;
 
       if (Decl->isLocalVarDecl() && NamingStyles[SK_LocalConstant])
         return SK_LocalConstant;
@@ -528,11 +568,17 @@ static StyleKind findStyleKind(
     if (Decl->isStaticDataMember() && NamingStyles[SK_ClassMember])
       return SK_ClassMember;
 
+    if (Decl->isFileVarDecl() && Type.getTypePtr()->isAnyPointerType() && NamingStyles[SK_GlobalPointer])
+      return SK_GlobalPointer;
+
     if (Decl->isFileVarDecl() && NamingStyles[SK_GlobalVariable])
       return SK_GlobalVariable;
 
     if (Decl->isStaticLocal() && NamingStyles[SK_StaticVariable])
       return SK_StaticVariable;
+ 
+    if (Decl->isLocalVarDecl() && Type.getTypePtr()->isAnyPointerType() && NamingStyles[SK_LocalPointer])
+      return SK_LocalPointer;
 
     if (Decl->isLocalVarDecl() && NamingStyles[SK_LocalVariable])
       return SK_LocalVariable;
@@ -548,9 +594,16 @@ static StyleKind findStyleKind(
 
   if (const auto *Decl = dyn_cast<CXXMethodDecl>(D)) {
     if (Decl->isMain() || !Decl->isUserProvided() ||
-        Decl->isUsualDeallocationFunction() ||
-        Decl->isCopyAssignmentOperator() || Decl->isMoveAssignmentOperator() ||
         Decl->size_overridden_methods() > 0)
+      return SK_Invalid;
+
+    // If this method has the same name as any base method, this is likely
+    // necessary even if it's not an override. e.g. CRTP.
+    auto FindHidden = [&](const CXXBaseSpecifier *S, clang::CXXBasePath &P) {
+      return CXXRecordDecl::FindOrdinaryMember(S, P, Decl->getDeclName());
+    };
+    CXXBasePaths UnusedPaths;
+    if (Decl->getParent()->lookupInBases(FindHidden, UnusedPaths))
       return SK_Invalid;
 
     if (Decl->isConstexpr() && NamingStyles[SK_ConstexprMethod])
@@ -653,28 +706,11 @@ static void addUsage(IdentifierNamingCheck::NamingCheckFailureMap &Failures,
   if (!Failure.RawUsageLocs.insert(FixLocation.getRawEncoding()).second)
     return;
 
-  if (!Failure.ShouldFix)
+  if (!Failure.ShouldFix())
     return;
 
-  // Check if the range is entirely contained within a macro argument.
-  SourceLocation MacroArgExpansionStartForRangeBegin;
-  SourceLocation MacroArgExpansionStartForRangeEnd;
-  bool RangeIsEntirelyWithinMacroArgument =
-      SourceMgr &&
-      SourceMgr->isMacroArgExpansion(Range.getBegin(),
-                                     &MacroArgExpansionStartForRangeBegin) &&
-      SourceMgr->isMacroArgExpansion(Range.getEnd(),
-                                     &MacroArgExpansionStartForRangeEnd) &&
-      MacroArgExpansionStartForRangeBegin == MacroArgExpansionStartForRangeEnd;
-
-  // Check if the range contains any locations from a macro expansion.
-  bool RangeContainsMacroExpansion = RangeIsEntirelyWithinMacroArgument ||
-                                     Range.getBegin().isMacroID() ||
-                                     Range.getEnd().isMacroID();
-
-  bool RangeCanBeFixed =
-      RangeIsEntirelyWithinMacroArgument || !RangeContainsMacroExpansion;
-  Failure.ShouldFix = RangeCanBeFixed;
+  if (!utils::rangeCanBeFixed(Range, SourceMgr))
+    Failure.FixStatus = IdentifierNamingCheck::ShouldFixStatus::InsideMacro;
 }
 
 /// Convenience method when the usage to be added is a NamedDecl
@@ -690,8 +726,6 @@ static void addUsage(IdentifierNamingCheck::NamingCheckFailureMap &Failures,
 void IdentifierNamingCheck::check(const MatchFinder::MatchResult &Result) {
   if (const auto *Decl =
           Result.Nodes.getNodeAs<CXXConstructorDecl>("classRef")) {
-    if (Decl->isImplicit())
-      return;
 
     addUsage(NamingCheckFailures, Decl->getParent(),
              Decl->getNameInfo().getSourceRange());
@@ -710,8 +744,6 @@ void IdentifierNamingCheck::check(const MatchFinder::MatchResult &Result) {
 
   if (const auto *Decl =
           Result.Nodes.getNodeAs<CXXDestructorDecl>("classRef")) {
-    if (Decl->isImplicit())
-      return;
 
     SourceRange Range = Decl->getNameInfo().getSourceRange();
     if (Range.getBegin().isInvalid())
@@ -772,7 +804,7 @@ void IdentifierNamingCheck::check(const MatchFinder::MatchResult &Result) {
   }
 
   if (const auto *Decl = Result.Nodes.getNodeAs<UsingDecl>("using")) {
-    for (const auto &Shadow : Decl->shadows()) {
+    for (const auto *Shadow : Decl->shadows()) {
       addUsage(NamingCheckFailures, Shadow->getTargetDecl(),
                Decl->getNameInfo().getSourceRange());
     }
@@ -786,16 +818,25 @@ void IdentifierNamingCheck::check(const MatchFinder::MatchResult &Result) {
     return;
   }
 
+  if (const auto *MemberRef =
+          Result.Nodes.getNodeAs<MemberExpr>("memberExpr")) {
+    SourceRange Range = MemberRef->getMemberNameInfo().getSourceRange();
+    addUsage(NamingCheckFailures, MemberRef->getMemberDecl(), Range,
+             Result.SourceManager);
+    return;
+  }
+
   if (const auto *Decl = Result.Nodes.getNodeAs<NamedDecl>("decl")) {
     if (!Decl->getIdentifier() || Decl->getName().empty() || Decl->isImplicit())
       return;
 
     // Fix type aliases in value declarations
     if (const auto *Value = Result.Nodes.getNodeAs<ValueDecl>("decl")) {
-      if (const auto *Typedef =
-              Value->getType().getTypePtr()->getAs<TypedefType>()) {
-        addUsage(NamingCheckFailures, Typedef->getDecl(),
-                 Value->getSourceRange());
+      if (const auto *TypePtr = Value->getType().getTypePtrOrNull()) {
+        if (const auto *Typedef = TypePtr->getAs<TypedefType>()) {
+          addUsage(NamingCheckFailures, Typedef->getDecl(),
+                   Value->getSourceRange());
+        }
       }
     }
 
@@ -841,7 +882,7 @@ void IdentifierNamingCheck::check(const MatchFinder::MatchResult &Result) {
     if (StringRef(Fixup).equals(Name)) {
       if (!IgnoreFailedSplit) {
         LLVM_DEBUG(llvm::dbgs()
-                   << Decl->getLocStart().printToString(*Result.SourceManager)
+                   << Decl->getBeginLoc().printToString(*Result.SourceManager)
                    << llvm::format(": unable to split words for %s '%s'\n",
                                    KindName.c_str(), Name.str().c_str()));
       }
@@ -851,6 +892,16 @@ void IdentifierNamingCheck::check(const MatchFinder::MatchResult &Result) {
       SourceRange Range =
           DeclarationNameInfo(Decl->getDeclName(), Decl->getLocation())
               .getSourceRange();
+
+      const IdentifierTable &Idents = Decl->getASTContext().Idents;
+      auto CheckNewIdentifier = Idents.find(Fixup);
+      if (CheckNewIdentifier != Idents.end()) {
+        const IdentifierInfo *Ident = CheckNewIdentifier->second;
+        if (Ident->isKeyword(getLangOpts()))
+          Failure.FixStatus = ShouldFixStatus::ConflictsWithKeyword;
+        else if (Ident->hasMacroDefinition())
+          Failure.FixStatus = ShouldFixStatus::ConflictsWithMacroDefinition;
+      }
 
       Failure.Fixup = std::move(Fixup);
       Failure.KindName = std::move(KindName);
@@ -914,24 +965,35 @@ void IdentifierNamingCheck::onEndOfTranslationUnit() {
     if (Failure.KindName.empty())
       continue;
 
-    if (Failure.ShouldFix) {
-      auto Diag = diag(Decl.first, "invalid case style for %0 '%1'")
-                  << Failure.KindName << Decl.second;
+    if (Failure.ShouldNotify()) {
+      auto Diag =
+          diag(Decl.first,
+               "invalid case style for %0 '%1'%select{|" // Case 0 is empty on
+                                                         // purpose, because we
+                                                         // intent to provide a
+                                                         // fix
+               "; cannot be fixed because '%3' would conflict with a keyword|"
+               "; cannot be fixed because '%3' would conflict with a macro "
+               "definition}2")
+          << Failure.KindName << Decl.second
+          << static_cast<int>(Failure.FixStatus) << Failure.Fixup;
 
-      for (const auto &Loc : Failure.RawUsageLocs) {
-        // We assume that the identifier name is made of one token only. This is
-        // always the case as we ignore usages in macros that could build
-        // identifier names by combining multiple tokens.
-        //
-        // For destructors, we alread take care of it by remembering the
-        // location of the start of the identifier and not the start of the
-        // tilde.
-        //
-        // Other multi-token identifiers, such as operators are not checked at
-        // all.
-        Diag << FixItHint::CreateReplacement(
-            SourceRange(SourceLocation::getFromRawEncoding(Loc)),
-            Failure.Fixup);
+      if (Failure.ShouldFix()) {
+        for (const auto &Loc : Failure.RawUsageLocs) {
+          // We assume that the identifier name is made of one token only. This
+          // is always the case as we ignore usages in macros that could build
+          // identifier names by combining multiple tokens.
+          //
+          // For destructors, we already take care of it by remembering the
+          // location of the start of the identifier and not the start of the
+          // tilde.
+          //
+          // Other multi-token identifiers, such as operators are not checked at
+          // all.
+          Diag << FixItHint::CreateReplacement(
+              SourceRange(SourceLocation::getFromRawEncoding(Loc)),
+              Failure.Fixup);
+        }
       }
     }
   }

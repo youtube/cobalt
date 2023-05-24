@@ -1,9 +1,8 @@
 //===-- MachTask.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //----------------------------------------------------------------------
@@ -496,8 +495,10 @@ task_t MachTask::TaskPortForProcessID(pid_t pid, DNBError &err,
                                      "pid = %d, &task ) => err = 0x%8.8x (%s)",
                    task_self, pid, err.Status(),
                    err.AsString() ? err.AsString() : "success");
-        if (err.Fail())
+        if (err.Fail()) {
           err.SetErrorString(str);
+          DNBLogError ("MachTask::TaskPortForProcessID task_for_pid failed: %s", str);
+        }
         err.LogThreaded(str);
       }
 
@@ -753,7 +754,7 @@ void *MachTask::ExceptionThread(void *arg) {
       // to get all currently available exceptions for this task
       err = exception_message.Receive(
           mach_task->ExceptionPort(),
-          MACH_RCV_MSG | MACH_RCV_INTERRUPT | MACH_RCV_TIMEOUT, 0);
+          MACH_RCV_MSG | MACH_RCV_INTERRUPT | MACH_RCV_TIMEOUT, 1);
     } else if (periodic_timeout > 0) {
       // We need to stop periodically in this loop, so try and get a mach
       // message with a valid timeout (ms)

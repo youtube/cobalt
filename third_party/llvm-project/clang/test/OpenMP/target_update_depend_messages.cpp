@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 -o - -std=c++11 %s
+// RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 -o - -std=c++11 %s -Wuninitialized
 
-// RUN: %clang_cc1 -verify -fopenmp-simd -ferror-limit 100 -o - -std=c++11 %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -ferror-limit 100 -o - -std=c++11 %s -Wuninitialized
 
 void foo() {
 }
@@ -15,7 +15,6 @@ class vector {
   public:
     int operator[](int index) { return 0; }
 };
-
 template <class T, class S, class R>
 int tmain(T argc, S **argv, R *env[]) {
   vector vec;
@@ -30,10 +29,10 @@ int tmain(T argc, S **argv, R *env[]) {
   {}
 
   #pragma omp target update to(z) depend // expected-error {{expected '(' after 'depend'}}
-  #pragma omp target update to(z) depend( // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-error {{expected ')'}} expected-note {{to match this '('}} expected-warning {{missing ':' after dependency type - ignoring}}
-  #pragma omp target update to(z) depend() // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}}
-  #pragma omp target update to(z) depend(argc // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}} expected-error {{expected ')'}} expected-note {{to match this '('}}
-  #pragma omp target update to(z) depend(source : argc) // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}}
+  #pragma omp target update to(z) depend( // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-error {{expected ')'}} expected-note {{to match this '('}} expected-warning {{missing ':' after dependency type - ignoring}}
+  #pragma omp target update to(z) depend() // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}}
+  #pragma omp target update to(z) depend(argc // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}} expected-error {{expected ')'}} expected-note {{to match this '('}}
+  #pragma omp target update to(z) depend(source : argc) // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}}
   #pragma omp target update to(z) depend(source) // expected-error {{expected expression}} expected-warning {{missing ':' after dependency type - ignoring}}
   #pragma omp target update to(z) depend(in : argc)) // expected-warning {{extra tokens at the end of '#pragma omp target update' are ignored}}
   #pragma omp target update to(z) depend(out: ) // expected-error {{expected expression}}
@@ -52,7 +51,7 @@ int tmain(T argc, S **argv, R *env[]) {
   #pragma omp target update to(z) depend(in : argv[argc: // expected-error {{expected expression}} expected-error {{expected ']'}} expected-error {{expected ')'}} expected-note {{to match this '['}} expected-note {{to match this '('}}
   #pragma omp target update to(z) depend(in : argv[argc:argc] // expected-error {{expected ')'}} expected-note {{to match this '('}}
   #pragma omp target update to(z) depend(in : argv[0:-1]) // expected-error {{section length is evaluated to a negative value -1}}
-  #pragma omp target update to(z) depend(in : argv[-1:0])
+  #pragma omp target update to(z) depend(in : argv[-1:0]) // expected-error {{zero-length array section is not allowed in 'depend' clause}}
   #pragma omp target update to(z) depend(in : argv[:]) // expected-error {{section length is unspecified and cannot be inferred because subscripted value is not an array}}
   #pragma omp target update to(z) depend(in : argv[3:4:1]) // expected-error {{expected ']'}} expected-note {{to match this '['}}
   #pragma omp target update to(z) depend(in:a[0:1]) // expected-error {{subscripted value is not an array or pointer}}
@@ -64,7 +63,6 @@ int tmain(T argc, S **argv, R *env[]) {
 
   return 0;
 }
-
 int main(int argc, char **argv, char *env[]) {
   vector vec;
   typedef float V __attribute__((vector_size(16)));
@@ -78,10 +76,10 @@ int main(int argc, char **argv, char *env[]) {
   {}
 
   #pragma omp target update to(z) depend // expected-error {{expected '(' after 'depend'}}
-  #pragma omp target update to(z) depend( // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-error {{expected ')'}} expected-note {{to match this '('}} expected-warning {{missing ':' after dependency type - ignoring}}
-  #pragma omp target update to(z) depend() // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}}
-  #pragma omp target update to(z) depend(argc // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}} expected-error {{expected ')'}} expected-note {{to match this '('}}
-  #pragma omp target update to(z) depend(source : argc) // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}}
+  #pragma omp target update to(z) depend( // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-error {{expected ')'}} expected-note {{to match this '('}} expected-warning {{missing ':' after dependency type - ignoring}}
+  #pragma omp target update to(z) depend() // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}}
+  #pragma omp target update to(z) depend(argc // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}} expected-error {{expected ')'}} expected-note {{to match this '('}}
+  #pragma omp target update to(z) depend(source : argc) // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}}
   #pragma omp target update to(z) depend(source) // expected-error {{expected expression}} expected-warning {{missing ':' after dependency type - ignoring}}
   #pragma omp target update to(z) depend(in : argc)) // expected-warning {{extra tokens at the end of '#pragma omp target update' are ignored}}
   #pragma omp target update to(z) depend(out: ) // expected-error {{expected expression}}
@@ -100,7 +98,7 @@ int main(int argc, char **argv, char *env[]) {
   #pragma omp target update to(z) depend(in : argv[argc: // expected-error {{expected expression}} expected-error {{expected ']'}} expected-error {{expected ')'}} expected-note {{to match this '['}} expected-note {{to match this '('}}
   #pragma omp target update to(z) depend(in : argv[argc:argc] // expected-error {{expected ')'}} expected-note {{to match this '('}}
   #pragma omp target update to(z) depend(in : argv[0:-1]) // expected-error {{section length is evaluated to a negative value -1}}
-  #pragma omp target update to(z) depend(in : argv[-1:0])
+  #pragma omp target update to(z) depend(in : argv[-1:0]) // expected-error {{zero-length array section is not allowed in 'depend' clause}}
   #pragma omp target update to(z) depend(in : argv[:]) // expected-error {{section length is unspecified and cannot be inferred because subscripted value is not an array}}
   #pragma omp target update to(z) depend(in : argv[3:4:1]) // expected-error {{expected ']'}} expected-note {{to match this '['}}
   #pragma omp target update to(z) depend(in:a[0:1]) // expected-error {{subscripted value is not an array or pointer}}
@@ -109,6 +107,5 @@ int main(int argc, char **argv, char *env[]) {
   #pragma omp target update to(z) depend(in:env[0:][:]) // expected-error {{section length is unspecified and cannot be inferred because subscripted value is an array of unknown bound}}
   #pragma omp target update to(z) depend(in : argv[ : argc][1 : argc - 1])
   #pragma omp target update to(z) depend(in : arr[0])
-
   return tmain(argc, argv, env); // expected-note {{in instantiation of function template specialization 'tmain<int, char, char>' requested here}}
 }

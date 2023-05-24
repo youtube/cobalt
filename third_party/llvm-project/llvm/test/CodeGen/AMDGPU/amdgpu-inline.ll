@@ -1,5 +1,5 @@
-; RUN: opt -mtriple=amdgcn--amdhsa -data-layout=A5 -O3 -S -amdgpu-function-calls -inline-threshold=1 < %s | FileCheck -check-prefix=GCN -check-prefix=GCN-INL1 %s
-; RUN: opt -mtriple=amdgcn--amdhsa -data-layout=A5 -O3 -S -amdgpu-function-calls < %s | FileCheck -check-prefix=GCN -check-prefix=GCN-INLDEF %s
+; RUN: opt -mtriple=amdgcn--amdhsa -data-layout=A5 -O3 -S -inline-threshold=1 < %s | FileCheck -check-prefix=GCN -check-prefix=GCN-INL1 %s
+; RUN: opt -mtriple=amdgcn--amdhsa -data-layout=A5 -O3 -S < %s | FileCheck -check-prefix=GCN -check-prefix=GCN-INLDEF %s
 
 define coldcc float @foo(float %x, float %y) {
 entry:
@@ -31,12 +31,12 @@ entry:
   %cmp = fcmp ogt float %tmp1, 1.000000e+00
   br i1 %cmp, label %if.then, label %if.end
 
-if.then:                                          ; preds = %entry
+if.then:
   %div = fdiv float 2.000000e+00, %tmp1
   store float %div, float addrspace(5)* %p2, align 4
   br label %if.end
 
-if.end:                                           ; preds = %if.then, %entry
+if.end:
   ret void
 }
 

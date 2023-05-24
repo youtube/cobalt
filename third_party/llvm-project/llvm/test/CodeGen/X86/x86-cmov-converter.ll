@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=x86_64-pc-linux -x86-cmov-converter=true -verify-machineinstrs < %s | FileCheck -allow-deprecated-dag-overlap %s
+; RUN: llc -mtriple=x86_64-pc-linux -x86-cmov-converter=true -verify-machineinstrs -disable-block-placement < %s | FileCheck -allow-deprecated-dag-overlap %s
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; This test checks that x86-cmov-converter optimization transform CMOV
@@ -57,7 +57,7 @@
 ;;    if (a[i] > a[t])
 ;;      t = i;
 ;;  }
-;;  return a[t];
+;;  return t;
 ;;}
 ;;
 ;;
@@ -177,30 +177,24 @@ for.body.preheader:                               ; preds = %entry
   %wide.trip.count = zext i32 %n to i64
   br label %for.body
 
-for.cond.cleanup.loopexit:                        ; preds = %for.body
-  %phitmp = sext i32 %i.0.t.0 to i64
-  br label %for.cond.cleanup
-
-for.cond.cleanup:                                 ; preds = %for.cond.cleanup.loopexit, %entry
-  %t.0.lcssa = phi i64 [ 0, %entry ], [ %phitmp, %for.cond.cleanup.loopexit ]
-  %arrayidx5 = getelementptr inbounds i32, i32* %a, i64 %t.0.lcssa
-  %0 = load i32, i32* %arrayidx5, align 4
-  ret i32 %0
+for.cond.cleanup:                                 ; preds = %for.body, %entry
+  %t.0.lcssa = phi i32 [ 0, %entry ], [ %i.0.t.0, %for.body ]
+  ret i32 %t.0.lcssa
 
 for.body:                                         ; preds = %for.body.preheader, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 1, %for.body.preheader ]
   %t.015 = phi i32 [ %i.0.t.0, %for.body ], [ 0, %for.body.preheader ]
   %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
-  %1 = load i32, i32* %arrayidx, align 4
+  %0 = load i32, i32* %arrayidx, align 4
   %idxprom1 = sext i32 %t.015 to i64
   %arrayidx2 = getelementptr inbounds i32, i32* %a, i64 %idxprom1
-  %2 = load i32, i32* %arrayidx2, align 4
-  %cmp3 = icmp sgt i32 %1, %2
-  %3 = trunc i64 %indvars.iv to i32
-  %i.0.t.0 = select i1 %cmp3, i32 %3, i32 %t.015
+  %1 = load i32, i32* %arrayidx2, align 4
+  %cmp3 = icmp sgt i32 %0, %1
+  %2 = trunc i64 %indvars.iv to i32
+  %i.0.t.0 = select i1 %cmp3, i32 %2, i32 %t.015
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
   %exitcond = icmp eq i64 %indvars.iv.next, %wide.trip.count
-  br i1 %exitcond, label %for.cond.cleanup.loopexit, label %for.body
+  br i1 %exitcond, label %for.cond.cleanup, label %for.body
 }
 
 ; CHECK-LABEL: MaxValue
@@ -336,14 +330,14 @@ define i32 @test_cmov_memoperand(i32 %a, i32 %b, i32 %x, i32* %y) #0 {
 ; CHECK-LABEL: test_cmov_memoperand:
 entry:
   %cond = icmp ugt i32 %a, %b
+; CHECK:         movl %edx, %eax
 ; CHECK:         cmpl
   %load = load i32, i32* %y
   %z = select i1 %cond, i32 %x, i32 %load
 ; CHECK-NOT:     cmov
 ; CHECK:         ja [[FALSE_BB:.*]]
-; CHECK:         movl (%r{{..}}), %[[R:.*]]
+; CHECK:         movl (%rcx), %eax
 ; CHECK:       [[FALSE_BB]]:
-; CHECK:         movl %[[R]], %
   ret i32 %z
 }
 
@@ -353,6 +347,7 @@ define i32 @test_cmov_memoperand_in_group(i32 %a, i32 %b, i32 %x, i32* %y.ptr) #
 ; CHECK-LABEL: test_cmov_memoperand_in_group:
 entry:
   %cond = icmp ugt i32 %a, %b
+; CHECK:         movl %edx, %eax
 ; CHECK:         cmpl
   %y = load i32, i32* %y.ptr
   %z1 = select i1 %cond, i32 %x, i32 %a
@@ -362,17 +357,16 @@ entry:
 ; CHECK:         ja [[FALSE_BB:.*]]
 ; CHECK-DAG:     movl %{{.*}}, %[[R1:.*]]
 ; CHECK-DAG:     movl (%r{{..}}), %[[R2:.*]]
-; CHECK-DAG:     movl %{{.*}} %[[R3:.*]]
+; CHECK-DAG:     movl %{{.*}} %eax
 ; CHECK:       [[FALSE_BB]]:
 ; CHECK:         addl
 ; CHECK-DAG:       %[[R1]]
 ; CHECK-DAG:       ,
-; CHECK-DAG:       %[[R3]]
+; CHECK-DAG:       %eax
 ; CHECK-DAG:     addl
 ; CHECK-DAG:       %[[R2]]
 ; CHECK-DAG:       ,
-; CHECK-DAG:       %[[R3]]
-; CHECK:         movl %[[R3]], %eax
+; CHECK-DAG:       %eax
 ; CHECK:         retq
   %s1 = add i32 %z1, %z2
   %s2 = add i32 %s1, %z3
@@ -384,6 +378,7 @@ define i32 @test_cmov_memoperand_in_group2(i32 %a, i32 %b, i32 %x, i32* %y.ptr) 
 ; CHECK-LABEL: test_cmov_memoperand_in_group2:
 entry:
   %cond = icmp ugt i32 %a, %b
+; CHECK:         movl %edx, %eax
 ; CHECK:         cmpl
   %y = load i32, i32* %y.ptr
   %z2 = select i1 %cond, i32 %a, i32 %x
@@ -393,17 +388,16 @@ entry:
 ; CHECK:         jbe [[FALSE_BB:.*]]
 ; CHECK-DAG:     movl %{{.*}}, %[[R1:.*]]
 ; CHECK-DAG:     movl (%r{{..}}), %[[R2:.*]]
-; CHECK-DAG:     movl %{{.*}} %[[R3:.*]]
+; CHECK-DAG:     movl %{{.*}} %eax
 ; CHECK:       [[FALSE_BB]]:
 ; CHECK:         addl
 ; CHECK-DAG:       %[[R1]]
 ; CHECK-DAG:       ,
-; CHECK-DAG:       %[[R3]]
+; CHECK-DAG:       %eax
 ; CHECK-DAG:     addl
 ; CHECK-DAG:       %[[R2]]
 ; CHECK-DAG:       ,
-; CHECK-DAG:       %[[R3]]
-; CHECK:         movl %[[R3]], %eax
+; CHECK-DAG:       %eax
 ; CHECK:         retq
   %s1 = add i32 %z1, %z2
   %s2 = add i32 %s1, %z3
@@ -434,15 +428,15 @@ define i32 @test_cmov_memoperand_in_group_reuse_for_addr(i32 %a, i32 %b, i32* %x
 ; CHECK-LABEL: test_cmov_memoperand_in_group_reuse_for_addr:
 entry:
   %cond = icmp ugt i32 %a, %b
+; CHECK:         movl %edi, %eax
 ; CHECK:         cmpl
   %p = select i1 %cond, i32* %x, i32* %y
   %load = load i32, i32* %p
   %z = select i1 %cond, i32 %a, i32 %load
 ; CHECK-NOT:     cmov
 ; CHECK:         ja [[FALSE_BB:.*]]
-; CHECK:         movl (%r{{..}}), %[[R:.*]]
+; CHECK:         movl (%r{{..}}), %eax
 ; CHECK:       [[FALSE_BB]]:
-; CHECK:         movl %[[R]], %eax
 ; CHECK:         retq
   ret i32 %z
 }
@@ -453,6 +447,7 @@ define i32 @test_cmov_memoperand_in_group_reuse_for_addr2(i32 %a, i32 %b, i32* %
 ; CHECK-LABEL: test_cmov_memoperand_in_group_reuse_for_addr2:
 entry:
   %cond = icmp ugt i32 %a, %b
+; CHECK:         movl %edi, %eax
 ; CHECK:         cmpl
   %load1 = load i32*, i32** %y
   %p = select i1 %cond, i32* %x, i32* %load1
@@ -461,9 +456,8 @@ entry:
 ; CHECK-NOT:     cmov
 ; CHECK:         ja [[FALSE_BB:.*]]
 ; CHECK:         movq (%r{{..}}), %[[R1:.*]]
-; CHECK:         movl (%[[R1]]), %[[R2:.*]]
+; CHECK:         movl (%[[R1]]), %eax
 ; CHECK:       [[FALSE_BB]]:
-; CHECK:         movl %[[R2]], %eax
 ; CHECK:         retq
   ret i32 %z
 }
@@ -475,6 +469,7 @@ define i32 @test_cmov_memoperand_in_group_reuse_for_addr3(i32 %a, i32 %b, i32* %
 ; CHECK-LABEL: test_cmov_memoperand_in_group_reuse_for_addr3:
 entry:
   %cond = icmp ugt i32 %a, %b
+; CHECK:         movl %edi, %eax
 ; CHECK:         cmpl
   %p = select i1 %cond, i32* %x, i32* %y
   %p2 = select i1 %cond, i32* %z, i32* %p
@@ -482,9 +477,8 @@ entry:
   %r = select i1 %cond, i32 %a, i32 %load
 ; CHECK-NOT:     cmov
 ; CHECK:         ja [[FALSE_BB:.*]]
-; CHECK:         movl (%r{{..}}), %[[R:.*]]
+; CHECK:         movl (%r{{..}}), %eax
 ; CHECK:       [[FALSE_BB]]:
-; CHECK:         movl %[[R]], %eax
 ; CHECK:         retq
   ret i32 %r
 }

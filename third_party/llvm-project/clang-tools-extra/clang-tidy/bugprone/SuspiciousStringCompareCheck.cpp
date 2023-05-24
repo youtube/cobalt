@@ -1,9 +1,8 @@
 //===--- SuspiciousStringCompareCheck.cpp - clang-tidy---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -177,7 +176,7 @@ void SuspiciousStringCompareCheck::check(
         Call->getRParenLoc(), 0, Result.Context->getSourceManager(),
         getLangOpts());
 
-    diag(Call->getLocStart(),
+    diag(Call->getBeginLoc(),
          "function %0 is called without explicitly comparing result")
         << Decl << FixItHint::CreateInsertion(EndLoc, " != 0");
   }
@@ -186,29 +185,30 @@ void SuspiciousStringCompareCheck::check(
     SourceLocation EndLoc = Lexer::getLocForEndOfToken(
         Call->getRParenLoc(), 0, Result.Context->getSourceManager(),
         getLangOpts());
-    SourceLocation NotLoc = E->getLocStart();
+    SourceLocation NotLoc = E->getBeginLoc();
 
-    diag(Call->getLocStart(),
+    diag(Call->getBeginLoc(),
          "function %0 is compared using logical not operator")
-        << Decl << FixItHint::CreateRemoval(
-                       CharSourceRange::getTokenRange(NotLoc, NotLoc))
+        << Decl
+        << FixItHint::CreateRemoval(
+               CharSourceRange::getTokenRange(NotLoc, NotLoc))
         << FixItHint::CreateInsertion(EndLoc, " == 0");
   }
 
   if (Result.Nodes.getNodeAs<Stmt>("invalid-comparison")) {
-    diag(Call->getLocStart(),
+    diag(Call->getBeginLoc(),
          "function %0 is compared to a suspicious constant")
         << Decl;
   }
 
   if (const auto *BinOp =
           Result.Nodes.getNodeAs<BinaryOperator>("suspicious-operator")) {
-    diag(Call->getLocStart(), "results of function %0 used by operator '%1'")
+    diag(Call->getBeginLoc(), "results of function %0 used by operator '%1'")
         << Decl << BinOp->getOpcodeStr();
   }
 
   if (Result.Nodes.getNodeAs<Stmt>("invalid-conversion")) {
-    diag(Call->getLocStart(), "function %0 has suspicious implicit cast")
+    diag(Call->getBeginLoc(), "function %0 has suspicious implicit cast")
         << Decl;
   }
 }

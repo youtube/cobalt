@@ -1,22 +1,20 @@
 //===-- FileLineResolver.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Core/FileLineResolver.h"
 
-// Project includes
-#include "lldb/Core/FileSpecList.h" // for FileSpecList
+#include "lldb/Core/FileSpecList.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/LineTable.h"
-#include "lldb/Utility/ConstString.h" // for ConstString
-#include "lldb/Utility/Stream.h"      // for Stream
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Stream.h"
 
-#include <string> // for string
+#include <string>
 
 namespace lldb_private {
 class Address;
@@ -25,9 +23,7 @@ class Address;
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // FileLineResolver:
-//----------------------------------------------------------------------
 FileLineResolver::FileLineResolver(const FileSpec &file_spec, uint32_t line_no,
                                    bool check_inlines)
     : Searcher(), m_file_spec(file_spec), m_line_number(line_no),
@@ -37,11 +33,11 @@ FileLineResolver::~FileLineResolver() {}
 
 Searcher::CallbackReturn
 FileLineResolver::SearchCallback(SearchFilter &filter, SymbolContext &context,
-                                 Address *addr, bool containing) {
+                                 Address *addr) {
   CompileUnit *cu = context.comp_unit;
 
-  if (m_inlines ||
-      m_file_spec.Compare(*cu, m_file_spec, (bool)m_file_spec.GetDirectory())) {
+  if (m_inlines || m_file_spec.Compare(cu->GetPrimaryFile(), m_file_spec,
+                                       (bool)m_file_spec.GetDirectory())) {
     uint32_t start_file_idx = 0;
     uint32_t file_idx =
         cu->GetSupportFiles().FindFileIndex(start_file_idx, m_file_spec, false);
@@ -68,8 +64,8 @@ FileLineResolver::SearchCallback(SearchFilter &filter, SymbolContext &context,
   return Searcher::eCallbackReturnContinue;
 }
 
-Searcher::Depth FileLineResolver::GetDepth() {
-  return Searcher::eDepthCompUnit;
+lldb::SearchDepth FileLineResolver::GetDepth() {
+  return lldb::eSearchDepthCompUnit;
 }
 
 void FileLineResolver::GetDescription(Stream *s) {

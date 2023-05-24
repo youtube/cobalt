@@ -20,15 +20,15 @@ command line options, and it drives further linking processes. LLD accepts
 almost all command line options that the linker shipped with Microsoft Visual
 C++ (link.exe) supports.
 
-The current status is that LLD can link itself on Windows x86/x64
-using Visual C++ 2013 as the compiler.
+The current status is that LLD is used to link production builds of large
+real-world binaries such as Firefox and Chromium.
 
 Development status
 ==================
 
 Driver
   :good:`Mostly done`. Some exotic command line options that are not usually
-  used for application develompent, such as ``/DRIVER``, are not supported.
+  used for application development, such as ``/DRIVER``, are not supported.
 
 Linking against DLL
   :good:`Done`. LLD can read import libraries needed to link against DLL. Both

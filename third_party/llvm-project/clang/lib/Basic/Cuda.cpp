@@ -3,6 +3,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/VersionTuple.h"
 
 namespace clang {
 
@@ -22,8 +23,24 @@ const char *CudaVersionToString(CudaVersion V) {
     return "9.1";
   case CudaVersion::CUDA_92:
     return "9.2";
+  case CudaVersion::CUDA_100:
+    return "10.0";
+  case CudaVersion::CUDA_101:
+    return "10.1";
   }
   llvm_unreachable("invalid enum");
+}
+
+CudaVersion CudaStringToVersion(llvm::StringRef S) {
+  return llvm::StringSwitch<CudaVersion>(S)
+      .Case("7.0", CudaVersion::CUDA_70)
+      .Case("7.5", CudaVersion::CUDA_75)
+      .Case("8.0", CudaVersion::CUDA_80)
+      .Case("9.0", CudaVersion::CUDA_90)
+      .Case("9.1", CudaVersion::CUDA_91)
+      .Case("9.2", CudaVersion::CUDA_92)
+      .Case("10.0", CudaVersion::CUDA_100)
+      .Case("10.1", CudaVersion::CUDA_101);
 }
 
 const char *CudaArchToString(CudaArch A) {
@@ -60,6 +77,8 @@ const char *CudaArchToString(CudaArch A) {
     return "sm_70";
   case CudaArch::SM_72:
     return "sm_72";
+  case CudaArch::SM_75:
+    return "sm_75";
   case CudaArch::GFX600: // tahiti
     return "gfx600";
   case CudaArch::GFX601: // pitcairn, verde, oland,hainan
@@ -86,6 +105,20 @@ const char *CudaArchToString(CudaArch A) {
     return "gfx900";
   case CudaArch::GFX902: // TBA
     return "gfx902";
+  case CudaArch::GFX904: // TBA
+    return "gfx904";
+  case CudaArch::GFX906: // TBA
+    return "gfx906";
+  case CudaArch::GFX908: // TBA
+    return "gfx908";
+  case CudaArch::GFX909: // TBA
+    return "gfx909";
+  case CudaArch::GFX1010: // TBA
+    return "gfx1010";
+  case CudaArch::GFX1011: // TBA
+    return "gfx1011";
+  case CudaArch::GFX1012: // TBA
+    return "gfx1012";
   }
   llvm_unreachable("invalid enum");
 }
@@ -106,6 +139,7 @@ CudaArch StringToCudaArch(llvm::StringRef S) {
       .Case("sm_62", CudaArch::SM_62)
       .Case("sm_70", CudaArch::SM_70)
       .Case("sm_72", CudaArch::SM_72)
+      .Case("sm_75", CudaArch::SM_75)
       .Case("gfx600", CudaArch::GFX600)
       .Case("gfx601", CudaArch::GFX601)
       .Case("gfx700", CudaArch::GFX700)
@@ -119,6 +153,13 @@ CudaArch StringToCudaArch(llvm::StringRef S) {
       .Case("gfx810", CudaArch::GFX810)
       .Case("gfx900", CudaArch::GFX900)
       .Case("gfx902", CudaArch::GFX902)
+      .Case("gfx904", CudaArch::GFX904)
+      .Case("gfx906", CudaArch::GFX906)
+      .Case("gfx908", CudaArch::GFX908)
+      .Case("gfx909", CudaArch::GFX909)
+      .Case("gfx1010", CudaArch::GFX1010)
+      .Case("gfx1011", CudaArch::GFX1011)
+      .Case("gfx1012", CudaArch::GFX1012)
       .Default(CudaArch::UNKNOWN);
 }
 
@@ -152,6 +193,8 @@ const char *CudaVirtualArchToString(CudaVirtualArch A) {
     return "compute_70";
   case CudaVirtualArch::COMPUTE_72:
     return "compute_72";
+  case CudaVirtualArch::COMPUTE_75:
+    return "compute_75";
   case CudaVirtualArch::COMPUTE_AMDGCN:
     return "compute_amdgcn";
   }
@@ -173,6 +216,7 @@ CudaVirtualArch StringToCudaVirtualArch(llvm::StringRef S) {
       .Case("compute_62", CudaVirtualArch::COMPUTE_62)
       .Case("compute_70", CudaVirtualArch::COMPUTE_70)
       .Case("compute_72", CudaVirtualArch::COMPUTE_72)
+      .Case("compute_75", CudaVirtualArch::COMPUTE_75)
       .Case("compute_amdgcn", CudaVirtualArch::COMPUTE_AMDGCN)
       .Default(CudaVirtualArch::UNKNOWN);
 }
@@ -210,6 +254,8 @@ CudaVirtualArch VirtualArchForCudaArch(CudaArch A) {
     return CudaVirtualArch::COMPUTE_70;
   case CudaArch::SM_72:
     return CudaVirtualArch::COMPUTE_72;
+  case CudaArch::SM_75:
+    return CudaVirtualArch::COMPUTE_75;
   case CudaArch::GFX600:
   case CudaArch::GFX601:
   case CudaArch::GFX700:
@@ -223,6 +269,13 @@ CudaVirtualArch VirtualArchForCudaArch(CudaArch A) {
   case CudaArch::GFX810:
   case CudaArch::GFX900:
   case CudaArch::GFX902:
+  case CudaArch::GFX904:
+  case CudaArch::GFX906:
+  case CudaArch::GFX908:
+  case CudaArch::GFX909:
+  case CudaArch::GFX1010:
+  case CudaArch::GFX1011:
+  case CudaArch::GFX1012:
     return CudaVirtualArch::COMPUTE_AMDGCN;
   }
   llvm_unreachable("invalid enum");
@@ -252,6 +305,8 @@ CudaVersion MinVersionForCudaArch(CudaArch A) {
     return CudaVersion::CUDA_90;
   case CudaArch::SM_72:
     return CudaVersion::CUDA_91;
+  case CudaArch::SM_75:
+    return CudaVersion::CUDA_100;
   case CudaArch::GFX600:
   case CudaArch::GFX601:
   case CudaArch::GFX700:
@@ -265,6 +320,13 @@ CudaVersion MinVersionForCudaArch(CudaArch A) {
   case CudaArch::GFX810:
   case CudaArch::GFX900:
   case CudaArch::GFX902:
+  case CudaArch::GFX904:
+  case CudaArch::GFX906:
+  case CudaArch::GFX908:
+  case CudaArch::GFX909:
+  case CudaArch::GFX1010:
+  case CudaArch::GFX1011:
+  case CudaArch::GFX1012:
     return CudaVersion::CUDA_70;
   }
   llvm_unreachable("invalid enum");
@@ -289,10 +351,51 @@ CudaVersion MaxVersionForCudaArch(CudaArch A) {
   case CudaArch::GFX810:
   case CudaArch::GFX900:
   case CudaArch::GFX902:
+  case CudaArch::GFX1010:
+  case CudaArch::GFX1011:
+  case CudaArch::GFX1012:
     return CudaVersion::CUDA_80;
   default:
     return CudaVersion::LATEST;
   }
 }
 
+static CudaVersion ToCudaVersion(llvm::VersionTuple Version) {
+  int IVer =
+      Version.getMajor() * 10 + Version.getMinor().getValueOr(0);
+  switch(IVer) {
+  case 70:
+    return CudaVersion::CUDA_70;
+  case 75:
+    return CudaVersion::CUDA_75;
+  case 80:
+    return CudaVersion::CUDA_80;
+  case 90:
+    return CudaVersion::CUDA_90;
+  case 91:
+    return CudaVersion::CUDA_91;
+  case 92:
+    return CudaVersion::CUDA_92;
+  case 100:
+    return CudaVersion::CUDA_100;
+  case 101:
+    return CudaVersion::CUDA_101;
+  default:
+    return CudaVersion::UNKNOWN;
+  }
+}
+
+bool CudaFeatureEnabled(llvm::VersionTuple  Version, CudaFeature Feature) {
+  return CudaFeatureEnabled(ToCudaVersion(Version), Feature);
+}
+
+bool CudaFeatureEnabled(CudaVersion Version, CudaFeature Feature) {
+  switch (Feature) {
+  case CudaFeature::CUDA_USES_NEW_LAUNCH:
+    return Version >= CudaVersion::CUDA_92;
+  case CudaFeature::CUDA_USES_FATBIN_REGISTER_END:
+    return Version >= CudaVersion::CUDA_101;
+  }
+  llvm_unreachable("Unknown CUDA feature.");
+}
 } // namespace clang

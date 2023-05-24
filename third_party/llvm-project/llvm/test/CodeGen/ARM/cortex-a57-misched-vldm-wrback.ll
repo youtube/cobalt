@@ -1,5 +1,5 @@
 ; REQUIRES: asserts
-; RUN: llc < %s -mtriple=armv8r-eabi -mcpu=cortex-a57 -misched-postra -enable-misched -verify-misched -debug-only=machine-scheduler -o - 2>&1 > /dev/null | FileCheck %s
+; RUN: llc < %s -mtriple=armv8r-eabi -mcpu=cortex-a57 -mattr=use-misched -verify-misched -debug-only=machine-scheduler -o - 2>&1 > /dev/null | FileCheck %s
 ; 
 
 @a = global double 0.0, align 4
@@ -20,9 +20,9 @@
 ; CHECK-NEXT:  Data
 ; CHECK-SAME:  Latency=5
 ; CHECK-NEXT:  Data
-; CHECK-SAME:  Latency=5
+; CHECK-SAME:  Latency=0
 ; CHECK-NEXT:  Data
-; CHECK-SAME:  Latency=6
+; CHECK-SAME:  Latency=0
 define i32 @bar(i32* %iptr) minsize optsize {
   %1 = load double, double* @a, align 8
   %2 = load double, double* @b, align 8

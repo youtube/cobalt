@@ -2,7 +2,7 @@
 ; RUN: llc -filetype=obj < %s \
 ; RUN:   | llvm-dwarfdump -debug-info - | FileCheck %s --check-prefix=DWARF
 ;
-; CHECK: @DEBUG_VALUE: h:x <- [DW_OP_plus_uconst {{.*}}] [$r{{.*}}+0]
+; CHECK: @DEBUG_VALUE: h:x <- [DW_OP_plus_uconst {{.*}}, DW_OP_deref] $r{{.*}}
 ; DWARF: DW_TAG_formal_parameter
 ; DWARF:       DW_AT_location
 ; DWARF-NEXT:    DW_OP_reg0 R0
@@ -31,7 +31,7 @@ target datalayout = "e-p:32:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-i64:64:64-
 target triple = "thumbv7-apple-ios"
 
 ; Function Attrs: nounwind
-define arm_aapcscc void @_Z1hiiiif(i32, i32, i32, i32, float %x) #0 "no-frame-pointer-elim"="true" !dbg !4 {
+define arm_aapcscc void @_Z1hiiiif(i32, i32, i32, i32, float %x) #0 "frame-pointer"="all" !dbg !4 {
 entry:
   tail call void @llvm.dbg.value(metadata i32 %0, metadata !12, metadata !DIExpression()), !dbg !18
   tail call void @llvm.dbg.value(metadata i32 %1, metadata !13, metadata !DIExpression()), !dbg !18

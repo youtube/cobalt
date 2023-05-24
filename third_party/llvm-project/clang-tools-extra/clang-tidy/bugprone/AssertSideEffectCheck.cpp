@@ -1,9 +1,8 @@
 //===--- AssertSideEffectCheck.cpp - clang-tidy ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -102,15 +101,14 @@ void AssertSideEffectCheck::registerMatchers(MatchFinder *Finder) {
 void AssertSideEffectCheck::check(const MatchFinder::MatchResult &Result) {
   const SourceManager &SM = *Result.SourceManager;
   const LangOptions LangOpts = getLangOpts();
-  SourceLocation Loc = Result.Nodes.getNodeAs<Stmt>("condStmt")->getLocStart();
+  SourceLocation Loc = Result.Nodes.getNodeAs<Stmt>("condStmt")->getBeginLoc();
 
   StringRef AssertMacroName;
   while (Loc.isValid() && Loc.isMacroID()) {
     StringRef MacroName = Lexer::getImmediateMacroName(Loc, SM, LangOpts);
 
     // Check if this macro is an assert.
-    if (std::find(AssertMacros.begin(), AssertMacros.end(), MacroName) !=
-        AssertMacros.end()) {
+    if (llvm::is_contained(AssertMacros, MacroName)) {
       AssertMacroName = MacroName;
       break;
     }

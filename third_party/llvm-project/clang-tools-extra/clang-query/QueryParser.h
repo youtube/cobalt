@@ -1,9 +1,8 @@
 //===--- QueryParser.h - clang-query ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -37,26 +36,25 @@ public:
 
 private:
   QueryParser(StringRef Line, const QuerySession &QS)
-      : Begin(Line.begin()), End(Line.end()), CompletionPos(nullptr), QS(QS) {}
+      : Line(Line), CompletionPos(nullptr), QS(QS) {}
 
   StringRef lexWord();
 
   template <typename T> struct LexOrCompleteWord;
 
   QueryRef parseSetBool(bool QuerySession::*Var);
-  QueryRef parseSetOutputKind();
+  template <typename QueryType> QueryRef parseSetOutputKind();
   QueryRef completeMatcherExpression();
 
   QueryRef endQuery(QueryRef Q);
 
-  /// \brief Parse [\p Begin,\p End).
+  /// Parse [\p Begin,\p End).
   ///
   /// \return A reference to the parsed query object, which may be an
   /// \c InvalidQuery if a parse error occurs.
   QueryRef doParse();
 
-  const char *Begin;
-  const char *End;
+  StringRef Line;
 
   const char *CompletionPos;
   std::vector<llvm::LineEditor::Completion> Completions;

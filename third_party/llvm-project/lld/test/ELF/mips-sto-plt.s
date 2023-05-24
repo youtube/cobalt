@@ -6,10 +6,10 @@
 # RUN: ld.lld %t.so.o -shared -o %t.so
 # RUN: llvm-mc -filetype=obj -triple=mips-unknown-linux %s -o %t.o
 # RUN: ld.lld %t.o %t.so -o %t.exe
-# RUN: llvm-readobj -dt -mips-plt-got %t.exe | FileCheck %s
+# RUN: llvm-readobj --dyn-syms -A %t.exe | FileCheck %s
 
 # CHECK:      Symbol {
-# CHECK:        Name: foo0@
+# CHECK:        Name: foo0
 # CHECK-NEXT:   Value: 0x0
 # CHECK-NEXT:   Size: 0
 # CHECK-NEXT:   Binding: Global
@@ -18,7 +18,7 @@
 # CHECK-NEXT:   Section: Undefined
 # CHECK-NEXT: }
 # CHECK-NEXT: Symbol {
-# CHECK-NEXT:   Name: foo1@
+# CHECK-NEXT:   Name: foo1
 # CHECK-NEXT:   Value: 0x[[FOO1:[0-9A-F]+]]
 # CHECK-NEXT:   Size: 0
 # CHECK-NEXT:   Binding: Global

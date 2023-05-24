@@ -1,9 +1,9 @@
-# RUN: llc -O0 -mtriple arm-linux -relocation-model=ropi -mattr=-no-movt,+v8m -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RW-DEFAULT-MOVT,RW-DEFAULT,ROPI-MOVT,ROPI
-# RUN: llc -O0 -mtriple arm-linux -relocation-model=ropi -mattr=+no-movt -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RW-DEFAULT-NOMOVT,RW-DEFAULT,ROPI-NOMOVT,ROPI
-# RUN: llc -O0 -mtriple arm-linux -relocation-model=rwpi -mattr=-no-movt,+v8m -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RWPI-MOVT,RWPI,RO-DEFAULT-MOVT,RO-DEFAULT
-# RUN: llc -O0 -mtriple arm-linux -relocation-model=rwpi -mattr=+no-movt -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RWPI-NOMOVT,RWPI,RO-DEFAULT-NOMOVT,RO-DEFAULT
-# RUN: llc -O0 -mtriple arm-linux -relocation-model=ropi-rwpi -mattr=-no-movt,+v8m -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RWPI-MOVT,RWPI,ROPI-MOVT,ROPI
-# RUN: llc -O0 -mtriple arm-linux -relocation-model=ropi-rwpi -mattr=+no-movt -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RWPI-NOMOVT,RWPI,ROPI-NOMOVT,ROPI
+# RUN: llc -O0 -mtriple arm-linux -relocation-model=ropi -mattr=-no-movt,+v8m -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RW-DEFAULT-MOVT,ROPI-MOVT
+# RUN: llc -O0 -mtriple arm-linux -relocation-model=ropi -mattr=+no-movt -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RW-DEFAULT-NOMOVT,ROPI-NOMOVT
+# RUN: llc -O0 -mtriple arm-linux -relocation-model=rwpi -mattr=-no-movt,+v8m -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RWPI-MOVT,RWPI,RO-DEFAULT-MOVT
+# RUN: llc -O0 -mtriple arm-linux -relocation-model=rwpi -mattr=+no-movt -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RWPI-NOMOVT,RWPI,RO-DEFAULT-NOMOVT
+# RUN: llc -O0 -mtriple arm-linux -relocation-model=ropi-rwpi -mattr=-no-movt,+v8m -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RWPI-MOVT,RWPI,ROPI-MOVT
+# RUN: llc -O0 -mtriple arm-linux -relocation-model=ropi-rwpi -mattr=+no-movt -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s -check-prefixes=CHECK,RWPI-NOMOVT,RWPI,ROPI-NOMOVT
 --- |
   @internal_global = internal global i32 42
   define void @test_internal_global() { ret void }
@@ -38,7 +38,7 @@ body:             |
     %0(p0) = G_GLOBAL_VALUE @internal_global
     ; RW-DEFAULT-MOVT: [[G:%[0-9]+]]:gpr = MOVi32imm @internal_global
     ; RW-DEFAULT-NOMOVT: [[G:%[0-9]+]]:gpr = LDRi12 %const.0, 0, 14, $noreg :: (load 4 from constant-pool)
-    ; RWPI-MOVT: [[OFF:%[0-9]+]]:gpr = MOVi32imm {{.*}} @internal_global
+    ; RWPI-MOVT: [[OFF:%[0-9]+]]:gpr = MOVi32imm target-flags(arm-sbrel) @internal_global
     ; RWPI-NOMOVT: [[OFF:%[0-9]+]]:gpr = LDRi12 %const.0, 0, 14, $noreg :: (load 4 from constant-pool)
     ; RWPI: [[G:%[0-9]+]]:gpr = ADDrr $r9, [[OFF]], 14, $noreg, $noreg
 
@@ -72,7 +72,7 @@ body:             |
     %0(p0) = G_GLOBAL_VALUE @external_global
     ; RW-DEFAULT-MOVT: [[G:%[0-9]+]]:gpr = MOVi32imm @external_global
     ; RW-DEFAULT-NOMOVT: [[G:%[0-9]+]]:gpr = LDRi12 %const.0, 0, 14, $noreg :: (load 4 from constant-pool)
-    ; RWPI-MOVT: [[OFF:%[0-9]+]]:gpr = MOVi32imm {{.*}} @external_global
+    ; RWPI-MOVT: [[OFF:%[0-9]+]]:gpr = MOVi32imm target-flags(arm-sbrel) @external_global
     ; RWPI-NOMOVT: [[OFF:%[0-9]+]]:gpr = LDRi12 %const.0, 0, 14, $noreg :: (load 4 from constant-pool)
     ; RWPI: [[G:%[0-9]+]]:gpr = ADDrr $r9, [[OFF]], 14, $noreg, $noreg
 

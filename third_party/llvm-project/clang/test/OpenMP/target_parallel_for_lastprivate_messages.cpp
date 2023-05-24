@@ -1,6 +1,18 @@
-// RUN: %clang_cc1 -verify -fopenmp %s
+// RUN: %clang_cc1 -verify=expected,omp45 -fopenmp-version=45 -fopenmp %s -Wuninitialized
+// RUN: %clang_cc1 -verify=expected,omp50 -fopenmp-version=50 -fopenmp %s -Wuninitialized
 
-// RUN: %clang_cc1 -verify -fopenmp-simd %s
+// RUN: %clang_cc1 -verify=expected,omp45 -fopenmp-version=45 -fopenmp-simd %s -Wuninitialized
+// RUN: %clang_cc1 -verify=expected,omp50 -fopenmp-version=50 -fopenmp-simd %s -Wuninitialized
+
+typedef void **omp_allocator_handle_t;
+extern const omp_allocator_handle_t omp_default_mem_alloc;
+extern const omp_allocator_handle_t omp_large_cap_mem_alloc;
+extern const omp_allocator_handle_t omp_const_mem_alloc;
+extern const omp_allocator_handle_t omp_high_bw_mem_alloc;
+extern const omp_allocator_handle_t omp_low_lat_mem_alloc;
+extern const omp_allocator_handle_t omp_cgroup_mem_alloc;
+extern const omp_allocator_handle_t omp_pteam_mem_alloc;
+extern const omp_allocator_handle_t omp_thread_mem_alloc;
 
 void foo() {
 }
@@ -20,7 +32,7 @@ public:
   S2 &operator=(const S2 &);
   const S2 &operator=(const S2 &) const;
   static float S2s; // expected-note {{static data member is predetermined as shared}}
-  static const float S2sc; // expected-note {{static data member is predetermined as shared}}
+  static const float S2sc; // expected-note {{'S2sc' declared here}}
 };
 const float S2::S2sc = 0;
 const S2 b;
@@ -33,9 +45,9 @@ public:
   S3() : a(0) {}
   S3(S3 &s3) : a(s3.a) {}
 };
-const S3 c;         // expected-note {{global variable is predetermined as shared}}
-const S3 ca[5];     // expected-note {{global variable is predetermined as shared}}
-extern const int f; // expected-note {{global variable is predetermined as shared}}
+const S3 c;         // expected-note {{'c' defined here}}
+const S3 ca[5];     // expected-note {{'ca' defined here}}
+extern const int f; // expected-note {{'f' declared here}}
 class S4 {
   int a;
   S4();             // expected-note 3 {{implicitly declared private here}}
@@ -70,6 +82,7 @@ int foomain(int argc, char **argv) {
   I g(5);
   int i;
   int &j = i;
+  S6 s(0); // omp50-note {{'s' defined here}}
 #pragma omp target parallel for lastprivate // expected-error {{expected '(' after 'lastprivate'}}
   for (int k = 0; k < argc; ++k)
     ++k;
@@ -88,7 +101,13 @@ int foomain(int argc, char **argv) {
 #pragma omp target parallel for lastprivate(argc > 0 ? argv[1] : argv[2]) // expected-error {{expected variable name}}
   for (int k = 0; k < argc; ++k)
     ++k;
-#pragma omp target parallel for lastprivate(argc)
+#pragma omp target parallel for lastprivate(argc) allocate , allocate(, allocate(omp_default , allocate(omp_default_mem_alloc, allocate(omp_default_mem_alloc:, allocate(omp_default_mem_alloc: argc, allocate(omp_default_mem_alloc: argv), allocate(argv) // expected-error {{expected '(' after 'allocate'}} expected-error 2 {{expected expression}} expected-error 2 {{expected ')'}} expected-error {{use of undeclared identifier 'omp_default'}} expected-note 2 {{to match this '('}}
+  for (int k = 0; k < argc; ++k)
+    ++k;
+#pragma omp target parallel for lastprivate(conditional: s,argc) lastprivate(conditional: // omp50-error {{expected expression}} omp45-error 2 {{use of undeclared identifier 'conditional'}} expected-error {{expected ')'}} expected-note {{to match this '('}} omp50-error {{expected list item of scalar type in 'lastprivate' clause with 'conditional' modifier}}
+  for (int k = 0; k < argc; ++k)
+    ++k;
+#pragma omp target parallel for lastprivate(foo:argc) // omp50-error {{expected 'conditional' in OpenMP clause 'lastprivate'}} omp45-error {{expected ',' or ')' in 'lastprivate' clause}} omp45-error {{expected ')'}} omp45-error {{expected variable name}} omp45-note {{to match this '('}}
   for (int k = 0; k < argc; ++k)
     ++k;
 #pragma omp target parallel for lastprivate(S1) // expected-error {{'S1' does not refer to a value}}
@@ -136,8 +155,8 @@ using A::x;
 }
 
 int main(int argc, char **argv) {
-  const int d = 5;       // expected-note {{constant variable is predetermined as shared}}
-  const int da[5] = {0}; // expected-note {{constant variable is predetermined as shared}}
+  const int d = 5;       // expected-note {{'d' defined here}}
+  const int da[5] = {0}; // expected-note {{'da' defined here}}
   S4 e(4);
   S5 g(5);
   S3 m;
@@ -168,7 +187,7 @@ int main(int argc, char **argv) {
 #pragma omp target parallel for lastprivate(S1) // expected-error {{'S1' does not refer to a value}}
   for (i = 0; i < argc; ++i)
     foo();
-#pragma omp target parallel for lastprivate(a, b, c, d, f) // expected-error {{lastprivate variable with incomplete type 'S1'}} expected-error 3 {{shared variable cannot be lastprivate}}
+#pragma omp target parallel for lastprivate(a, b, c, d, f) // expected-error {{lastprivate variable with incomplete type 'S1'}} expected-error 1 {{const-qualified variable without mutable fields cannot be lastprivate}} expected-error 2 {{const-qualified variable cannot be lastprivate}}
   for (i = 0; i < argc; ++i)
     foo();
 #pragma omp target parallel for lastprivate(argv[1]) // expected-error {{expected variable name}}
@@ -177,13 +196,13 @@ int main(int argc, char **argv) {
 #pragma omp target parallel for lastprivate(2 * 2) // expected-error {{expected variable name}}
   for (i = 0; i < argc; ++i)
     foo();
-#pragma omp target parallel for lastprivate(ba)
+#pragma omp target parallel for lastprivate(ba) allocate(omp_thread_mem_alloc: ba) // expected-warning {{allocator with the 'thread' trait access has unspecified behavior on 'target parallel for' directive}}
   for (i = 0; i < argc; ++i)
     foo();
-#pragma omp target parallel for lastprivate(ca) // expected-error {{shared variable cannot be lastprivate}}
+#pragma omp target parallel for lastprivate(ca) // expected-error {{const-qualified variable without mutable fields cannot be lastprivate}}
   for (i = 0; i < argc; ++i)
     foo();
-#pragma omp target parallel for lastprivate(da) // expected-error {{shared variable cannot be lastprivate}}
+#pragma omp target parallel for lastprivate(da) // expected-error {{const-qualified variable cannot be lastprivate}}
   for (i = 0; i < argc; ++i)
     foo();
   int xa;
@@ -193,7 +212,7 @@ int main(int argc, char **argv) {
 #pragma omp target parallel for lastprivate(S2::S2s) // expected-error {{shared variable cannot be lastprivate}}
   for (i = 0; i < argc; ++i)
     foo();
-#pragma omp target parallel for lastprivate(S2::S2sc) // expected-error {{shared variable cannot be lastprivate}}
+#pragma omp target parallel for lastprivate(S2::S2sc) // expected-error {{const-qualified variable cannot be lastprivate}}
   for (i = 0; i < argc; ++i)
     foo();
 #pragma omp target parallel for safelen(5) // expected-error {{unexpected OpenMP clause 'safelen' in directive '#pragma omp target parallel for'}}

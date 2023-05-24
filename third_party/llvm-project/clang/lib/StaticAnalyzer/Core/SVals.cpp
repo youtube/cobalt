@@ -1,9 +1,8 @@
-//===- RValues.cpp - Abstract RValues for Path-Sens. Value Tracking -------===//
+//===-- SVals.cpp - Abstract RValues for Path-Sens. Value Tracking --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,6 +16,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/JsonSupport.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/BasicValueFactory.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
@@ -85,7 +85,7 @@ const FunctionDecl *SVal::getAsFunctionDecl() const {
 SymbolRef SVal::getAsLocSymbol(bool IncludeBaseRegions) const {
   // FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
   if (Optional<nonloc::LocAsInteger> X = getAs<nonloc::LocAsInteger>())
-    return X->getLoc().getAsLocSymbol();
+    return X->getLoc().getAsLocSymbol(IncludeBaseRegions);
 
   if (Optional<loc::MemRegionVal> X = getAs<loc::MemRegionVal>()) {
     const MemRegion *R = X->getRegion();
@@ -169,6 +169,10 @@ const void *nonloc::LazyCompoundVal::getStore() const {
 
 const TypedValueRegion *nonloc::LazyCompoundVal::getRegion() const {
   return static_cast<const LazyCompoundValData*>(Data)->getRegion();
+}
+
+bool nonloc::PointerToMember::isNullMemberPointer() const {
+  return getPTMData().isNull();
 }
 
 const DeclaratorDecl *nonloc::PointerToMember::getDecl() const {
@@ -279,6 +283,15 @@ SVal loc::ConcreteInt::evalBinOp(BasicValueFactory& BasicVals,
 //===----------------------------------------------------------------------===//
 
 LLVM_DUMP_METHOD void SVal::dump() const { dumpToStream(llvm::errs()); }
+
+void SVal::printJson(raw_ostream &Out, bool AddQuotes) const {
+  std::string Buf;
+  llvm::raw_string_ostream TempOut(Buf);
+
+  dumpToStream(TempOut);
+
+  Out << JsonFormat(TempOut.str(), AddQuotes);
+}
 
 void SVal::dumpToStream(raw_ostream &os) const {
   switch (getBaseKind()) {

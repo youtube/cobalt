@@ -1,9 +1,8 @@
 //==- SystemZRegisterInfo.td - SystemZ register definitions -*- tablegen -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -25,11 +24,8 @@ def subreg_l32   : SubRegIndex<32, 0>;  // Also acts as subreg_ll32.
 def subreg_h32   : SubRegIndex<32, 32>; // Also acts as subreg_lh32.
 def subreg_l64   : SubRegIndex<64, 0>;
 def subreg_h64   : SubRegIndex<64, 64>;
-def subreg_r32   : SubRegIndex<32, 32>; // Reinterpret a wider reg as 32 bits.
-def subreg_r64   : SubRegIndex<64, 64>; // Reinterpret a wider reg as 64 bits.
 def subreg_hh32  : ComposedSubRegIndex<subreg_h64, subreg_h32>;
 def subreg_hl32  : ComposedSubRegIndex<subreg_h64, subreg_l32>;
-def subreg_hr32  : ComposedSubRegIndex<subreg_h64, subreg_r32>;
 }
 
 // Define a register class that contains values of types TYPES and an
@@ -188,7 +184,7 @@ class FPR32<bits<16> num, string n> : SystemZReg<n> {
 class FPR64<bits<16> num, string n, FPR32 high>
  : SystemZRegWithSubregs<n, [high]> {
   let HWEncoding = num;
-  let SubRegIndices = [subreg_r32];
+  let SubRegIndices = [subreg_h32];
 }
 
 // 8 pairs of FPR64s, with a one-register gap inbetween.
@@ -231,7 +227,7 @@ defm FP128 : SystemZRegClass<"FP128", [f128], 128,
 class VR128<bits<16> num, string n, FPR64 high>
   : SystemZRegWithSubregs<n, [high]> {
   let HWEncoding = num;
-  let SubRegIndices = [subreg_r64];
+  let SubRegIndices = [subreg_h64];
 }
 
 // Full vector registers.
@@ -298,6 +294,13 @@ def v128any : TypedReg<untyped, VR128>;
 def CC : SystemZReg<"cc">;
 let isAllocatable = 0, CopyCost = -1 in
   def CCR : RegisterClass<"SystemZ", [i32], 32, (add CC)>;
+
+// The floating-point control register.
+// Note: We only model the current rounding modes and the IEEE masks.
+// IEEE flags and DXC are not modeled here.
+def FPC : SystemZReg<"fpc">;
+let isAllocatable = 0 in
+  def FPCRegs : RegisterClass<"SystemZ", [i32], 32, (add FPC)>;
 
 // Access registers.
 class ACR32<bits<16> num, string n> : SystemZReg<n> {

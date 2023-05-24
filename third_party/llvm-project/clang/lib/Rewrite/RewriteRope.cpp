@@ -1,9 +1,8 @@
 //===- RewriteRope.cpp - Rope specialized for rewriter --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -59,7 +58,7 @@ using namespace clang;
 ///
 ///     RopePieceBTreeLeaf - Directly manages up to '2*WidthFactor' RopePiece
 ///          nodes.  This directly represents a chunk of the string with those
-///          RopePieces contatenated.
+///          RopePieces concatenated.
 ///     RopePieceBTreeInterior - An interior node in the B+ Tree, which manages
 ///          up to '2*WidthFactor' other nodes in the tree.
 
@@ -128,7 +127,7 @@ namespace {
 
   /// RopePieceBTreeLeaf - Directly manages up to '2*WidthFactor' RopePiece
   /// nodes.  This directly represents a chunk of the string with those
-  /// RopePieces contatenated.  Since this is a B+Tree, all values (in this case
+  /// RopePieces concatenated.  Since this is a B+Tree, all values (in this case
   /// instances of RopePiece) are stored in leaves like this.  To make iteration
   /// over the leaves efficient, they maintain a singly linked list through the
   /// NextLeaf field.  This allows the B+Tree forward iterator to be constant

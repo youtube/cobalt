@@ -1,9 +1,8 @@
 //===-- StreamBuffer.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,16 +23,10 @@ public:
   StreamBuffer(uint32_t flags, uint32_t addr_size, lldb::ByteOrder byte_order)
       : Stream(flags, addr_size, byte_order), m_packet() {}
 
-  virtual ~StreamBuffer() {}
+  ~StreamBuffer() override {}
 
-  virtual void Flush() {
+  void Flush() override {
     // Nothing to do when flushing a buffer based stream...
-  }
-
-  virtual size_t Write(const void *s, size_t length) {
-    if (s && length)
-      m_packet.append((const char *)s, ((const char *)s) + length);
-    return length;
   }
 
   void Clear() { m_packet.clear(); }
@@ -48,6 +41,12 @@ public:
 
 protected:
   llvm::SmallVector<char, N> m_packet;
+
+  size_t WriteImpl(const void *s, size_t length) override {
+    if (s && length)
+      m_packet.append((const char *)s, ((const char *)s) + length);
+    return length;
+  }
 };
 
 } // namespace lldb_private

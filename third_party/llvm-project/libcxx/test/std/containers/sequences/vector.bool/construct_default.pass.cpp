@@ -1,16 +1,20 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// <vector>
 // vector<bool>
 
-// vector(const Alloc& = Alloc());
+// vector();
+// vector(const Alloc&);
+
+// This tests a conforming extension
+// For vector<>, this was added to the standard by N4258,
+//   but vector<bool> was not changed.
+
 
 #include <vector>
 #include <cassert>
@@ -24,9 +28,9 @@ void
 test0()
 {
 #if TEST_STD_VER > 14
-    static_assert((noexcept(C{})), "" );
+    LIBCPP_STATIC_ASSERT((noexcept(C{})), "" );
 #elif TEST_STD_VER >= 11
-    static_assert((noexcept(C()) == noexcept(typename C::allocator_type())), "" );
+    LIBCPP_STATIC_ASSERT((noexcept(C()) == noexcept(typename C::allocator_type())), "" );
 #endif
     C c;
     LIBCPP_ASSERT(c.__invariants());
@@ -45,9 +49,9 @@ void
 test1(const typename C::allocator_type& a)
 {
 #if TEST_STD_VER > 14
-    static_assert((noexcept(C{typename C::allocator_type{}})), "" );
+    LIBCPP_STATIC_ASSERT((noexcept(C{typename C::allocator_type{}})), "" );
 #elif TEST_STD_VER >= 11
-    static_assert((noexcept(C(typename C::allocator_type())) == std::is_nothrow_copy_constructible<typename C::allocator_type>::value), "" );
+    LIBCPP_STATIC_ASSERT((noexcept(C(typename C::allocator_type())) == std::is_nothrow_copy_constructible<typename C::allocator_type>::value), "" );
 #endif
     C c(a);
     LIBCPP_ASSERT(c.__invariants());
@@ -55,7 +59,7 @@ test1(const typename C::allocator_type& a)
     assert(c.get_allocator() == a);
 }
 
-int main()
+int main(int, char**)
 {
     {
     test0<std::vector<bool> >();
@@ -71,4 +75,6 @@ int main()
     test1<std::vector<bool, explicit_allocator<bool> > >(explicit_allocator<bool>());
     }
 #endif
+
+  return 0;
 }

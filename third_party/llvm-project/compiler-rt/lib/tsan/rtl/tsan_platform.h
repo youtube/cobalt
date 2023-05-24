@@ -1,9 +1,8 @@
 //===-- tsan_platform.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -458,6 +457,34 @@ struct Mapping47 {
   static const uptr kAppMemEnd     = 0x00e000000000ull;
 };
 
+#define TSAN_RUNTIME_VMA 1
+
+#elif SANITIZER_GO && defined(__aarch64__)
+
+/* Go on linux/aarch64 (48-bit VMA)
+0000 0000 1000 - 0000 1000 0000: executable
+0000 1000 0000 - 00c0 0000 0000: -
+00c0 0000 0000 - 00e0 0000 0000: heap
+00e0 0000 0000 - 2000 0000 0000: -
+2000 0000 0000 - 3000 0000 0000: shadow
+3000 0000 0000 - 3000 0000 0000: -
+3000 0000 0000 - 4000 0000 0000: metainfo (memory blocks and sync objects)
+4000 0000 0000 - 6000 0000 0000: -
+6000 0000 0000 - 6200 0000 0000: traces
+6200 0000 0000 - 8000 0000 0000: -
+*/
+
+struct Mapping {
+  static const uptr kMetaShadowBeg = 0x300000000000ull;
+  static const uptr kMetaShadowEnd = 0x400000000000ull;
+  static const uptr kTraceMemBeg   = 0x600000000000ull;
+  static const uptr kTraceMemEnd   = 0x620000000000ull;
+  static const uptr kShadowBeg     = 0x200000000000ull;
+  static const uptr kShadowEnd     = 0x300000000000ull;
+  static const uptr kAppMemBeg     = 0x000000001000ull;
+  static const uptr kAppMemEnd     = 0x00e000000000ull;
+};
+
 // Indicates the runtime will define the memory regions at runtime.
 #define TSAN_RUNTIME_VMA 1
 
@@ -523,7 +550,7 @@ uptr MappingImpl(void) {
 
 template<int Type>
 uptr MappingArchImpl(void) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return MappingImpl<Mapping39, Type>();
     case 42: return MappingImpl<Mapping42, Type>();
@@ -680,7 +707,7 @@ bool IsAppMemImpl(uptr mem) {
 
 ALWAYS_INLINE
 bool IsAppMem(uptr mem) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return IsAppMemImpl<Mapping39>(mem);
     case 42: return IsAppMemImpl<Mapping42>(mem);
@@ -711,7 +738,7 @@ bool IsShadowMemImpl(uptr mem) {
 
 ALWAYS_INLINE
 bool IsShadowMem(uptr mem) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return IsShadowMemImpl<Mapping39>(mem);
     case 42: return IsShadowMemImpl<Mapping42>(mem);
@@ -742,7 +769,7 @@ bool IsMetaMemImpl(uptr mem) {
 
 ALWAYS_INLINE
 bool IsMetaMem(uptr mem) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return IsMetaMemImpl<Mapping39>(mem);
     case 42: return IsMetaMemImpl<Mapping42>(mem);
@@ -783,7 +810,7 @@ uptr MemToShadowImpl(uptr x) {
 
 ALWAYS_INLINE
 uptr MemToShadow(uptr x) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return MemToShadowImpl<Mapping39>(x);
     case 42: return MemToShadowImpl<Mapping42>(x);
@@ -826,7 +853,7 @@ u32 *MemToMetaImpl(uptr x) {
 
 ALWAYS_INLINE
 u32 *MemToMeta(uptr x) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return MemToMetaImpl<Mapping39>(x);
     case 42: return MemToMetaImpl<Mapping42>(x);
@@ -882,7 +909,7 @@ uptr ShadowToMemImpl(uptr s) {
 
 ALWAYS_INLINE
 uptr ShadowToMem(uptr s) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return ShadowToMemImpl<Mapping39>(s);
     case 42: return ShadowToMemImpl<Mapping42>(s);
@@ -921,7 +948,7 @@ uptr GetThreadTraceImpl(int tid) {
 
 ALWAYS_INLINE
 uptr GetThreadTrace(int tid) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return GetThreadTraceImpl<Mapping39>(tid);
     case 42: return GetThreadTraceImpl<Mapping42>(tid);
@@ -955,7 +982,7 @@ uptr GetThreadTraceHeaderImpl(int tid) {
 
 ALWAYS_INLINE
 uptr GetThreadTraceHeader(int tid) {
-#if defined(__aarch64__) && !defined(__APPLE__)
+#if defined(__aarch64__) && !defined(__APPLE__) && !SANITIZER_GO
   switch (vmaSize) {
     case 39: return GetThreadTraceHeaderImpl<Mapping39>(tid);
     case 42: return GetThreadTraceHeaderImpl<Mapping42>(tid);
@@ -986,6 +1013,7 @@ void FlushShadowMemory();
 void WriteMemoryProfile(char *buf, uptr buf_size, uptr nthread, uptr nlive);
 int ExtractResolvFDs(void *state, int *fds, int nfd);
 int ExtractRecvmsgFDs(void *msg, int *fds, int nfd);
+uptr ExtractLongJmpSp(uptr *env);
 void ImitateTlsWrite(ThreadState *thr, uptr tls_addr, uptr tls_size);
 
 int call_pthread_cancel_with_cleanup(int(*fn)(void *c, void *m,

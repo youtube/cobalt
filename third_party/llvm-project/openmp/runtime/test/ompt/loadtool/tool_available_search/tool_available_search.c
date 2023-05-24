@@ -18,7 +18,7 @@
 #ifdef CODE
 #include "stdio.h"
 #include "omp.h"
-#include "ompt.h"
+#include "omp-tools.h"
 
 int main()
 {
@@ -52,7 +52,7 @@ int main()
 
 #ifdef TOOL
 
-#include <ompt.h>
+#include <omp-tools.h>
 #include "stdio.h"
 
 #ifdef SECOND_TOOL
@@ -70,7 +70,7 @@ ompt_start_tool_result_t* ompt_start_tool(
 
 static void
 on_ompt_callback_thread_begin(
-  ompt_thread_type_t thread_type,
+  ompt_thread_t thread_type,
   ompt_data_t *thread_data)
 {
   printf("0: ompt_event_thread_begin\n");

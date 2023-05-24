@@ -60,6 +60,11 @@ runs just before the pass that we are trying to test:
 
    ``llc -stop-after=machine-cp bug-trigger.ll > test.mir``
 
+If the same pass is run multiple times, a run index can be included
+after the name with a comma.
+
+   ``llc -stop-after=dead-mi-elimination,1 bug-trigger.ll > test.mir``
+
 After generating the input MIR file, you'll have to add a run line that uses
 the ``-run-pass`` option to it. In order to test the post register allocation
 pseudo instruction expansion pass on X86-64, a run line like the one shown
@@ -135,7 +140,7 @@ can serialize:
 - The target-specific ``MachineConstantPoolValue`` subclasses (in the ARM and
   SystemZ backends) aren't serialized at the moment.
 
-- The ``MCSymbol`` machine operands are only printed, they can't be parsed.
+- The ``MCSymbol`` machine operands don't support temporary or local symbols.
 
 - A lot of the state in ``MachineModuleInfo`` isn't serialized - only the CFI
   instructions and the variable debug information from MMI is serialized right
@@ -143,9 +148,9 @@ can serialize:
 
 These limitations impose restrictions on what you can test with the MIR format.
 For now, tests that would like to test some behaviour that depends on the state
-of certain ``MCSymbol``  operands or the exception handling state in MMI, can't
-use the MIR format. As well as that, tests that test some behaviour that
-depends on the state of the target specific ``MachineFunctionInfo`` or
+of temporary or local ``MCSymbol``  operands or the exception handling state in
+MMI, can't use the MIR format. As well as that, tests that test some behaviour
+that depends on the state of the target specific ``MachineFunctionInfo`` or
 ``MachineConstantPoolValue`` subclasses can't use the MIR format at the moment.
 
 High Level Structure
@@ -186,6 +191,9 @@ of such YAML document:
      tracksRegLiveness: true
      liveins:
        - { reg: '$rdi' }
+     callSites:
+       - { bb: 0, offset: 3, fwdArgRegs:
+           - { arg: 0, reg: '$edi' } }
      body: |
        bb.0.entry:
          liveins: $rdi
@@ -193,6 +201,7 @@ of such YAML document:
          $eax = MOV32rm $rdi, 1, _, 0, _
          $eax = INC32r killed $eax, implicit-def dead $eflags
          MOV32mr killed $rdi, 1, _, 0, _, $eax
+         CALL64pcrel32 @foo <regmask...>
          RETQ $eax
      ...
 
@@ -204,6 +213,9 @@ name of a function that this machine function is based on.
 
 The attribute ``body`` is a `YAML block literal string`_. Its value represents
 the function's machine basic blocks and their machine instructions.
+
+The attribute ``callSites`` is a representation of call site information which
+keeps track of call instructions and registers used to transfer call arguments.
 
 Machine Instructions Format Reference
 =====================================
@@ -331,6 +343,10 @@ specified in brackets after the block's definition:
 .. TODO: Describe the way the reference to an unnamed LLVM IR block can be
    preserved.
 
+``Alignment`` is specified in bytes, and must be a power of two.
+
+.. _mir-instructions:
+
 Machine Instructions
 --------------------
 
@@ -393,6 +409,8 @@ The syntax for bundled instructions is the following:
 The first instruction is often a bundle header. The instructions between ``{``
 and ``}`` are bundled with the first instruction.
 
+.. _mir-registers:
+
 Registers
 ---------
 
@@ -439,9 +457,8 @@ is preferred.
 Machine Operands
 ----------------
 
-There are seventeen different kinds of machine operands, and all of them, except
-the ``MCSymbol`` operand, can be serialized. The ``MCSymbol`` operands are
-just printed out - they can't be parsed back yet.
+There are seventeen different kinds of machine operands, and all of them can be
+serialized.
 
 Immediate Operands
 ^^^^^^^^^^^^^^^^^^
@@ -603,9 +620,13 @@ following format is used:
         alignment:        <alignment>
         isTargetSpecific: <target-specific>
 
-where ``<index>`` is a 32-bit unsigned integer, ``<value>`` is a `LLVM IR Constant
-<https://www.llvm.org/docs/LangRef.html#constants>`_, alignment is a 32-bit
-unsigned integer, and ``<target-specific>`` is either true or false.
+where:
+  - ``<index>`` is a 32-bit unsigned integer;
+  - ``<value>`` is a `LLVM IR Constant
+    <https://www.llvm.org/docs/LangRef.html#constants>`_;
+  - ``<alignment>`` is a 32-bit unsigned integer specified in bytes, and must be
+    power of two;
+  - ``<target-specific>`` is either true or false.
 
 Example:
 

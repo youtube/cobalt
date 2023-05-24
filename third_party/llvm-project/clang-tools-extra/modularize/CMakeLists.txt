@@ -11,13 +11,14 @@ add_clang_tool(modularize
   PreprocessorTracker.cpp
   )
 
-target_link_libraries(modularize
+clang_target_link_libraries(modularize
   PRIVATE
   clangAST
   clangBasic
   clangDriver
   clangFrontend
   clangLex
+  clangSerialization
   clangTooling
   )
 

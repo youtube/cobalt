@@ -12,7 +12,10 @@ cmovae %ebx, %eax
 # CHECK:      Iterations:        1500
 # CHECK-NEXT: Instructions:      3000
 # CHECK-NEXT: Total Cycles:      1504
-# CHECK-NEXT: Dispatch Width:    2
+# CHECK-NEXT: Total uOps:        3000
+
+# CHECK:      Dispatch Width:    2
+# CHECK-NEXT: uOps Per Cycle:    1.99
 # CHECK-NEXT: IPC:               1.99
 # CHECK-NEXT: Block RThroughput: 1.0
 
@@ -72,3 +75,4 @@ cmovae %ebx, %eax
 # CHECK:            [0]    [1]    [2]    [3]
 # CHECK-NEXT: 0.     3     1.0    1.0    0.0       cmpl	%eax, %eax
 # CHECK-NEXT: 1.     3     2.0    0.0    0.0       cmovael	%ebx, %eax
+# CHECK-NEXT:        3     1.5    0.5    0.0       <total>

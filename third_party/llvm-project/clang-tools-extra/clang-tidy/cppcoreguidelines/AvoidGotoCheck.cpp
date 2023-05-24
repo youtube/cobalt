@@ -1,9 +1,8 @@
 //===--- AvoidGotoCheck.cpp - clang-tidy-----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,7 +18,7 @@ namespace cppcoreguidelines {
 
 namespace {
 AST_MATCHER(GotoStmt, isForwardJumping) {
-  return Node.getLocStart() < Node.getLabel()->getLocStart();
+  return Node.getBeginLoc() < Node.getLabel()->getBeginLoc();
 }
 } // namespace
 
@@ -49,7 +48,7 @@ void AvoidGotoCheck::check(const MatchFinder::MatchResult &Result) {
 
   diag(Goto->getGotoLoc(), "avoid using 'goto' for flow control")
       << Goto->getSourceRange();
-  diag(Goto->getLabel()->getLocStart(), "label defined here",
+  diag(Goto->getLabel()->getBeginLoc(), "label defined here",
        DiagnosticIDs::Note);
 }
 } // namespace cppcoreguidelines

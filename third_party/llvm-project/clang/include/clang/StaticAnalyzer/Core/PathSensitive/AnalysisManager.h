@@ -1,9 +1,8 @@
 //== AnalysisManager.h - Path sensitive analysis data manager ------*- C++ -*-//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,9 +15,9 @@
 #define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_ANALYSISMANAGER_H
 
 #include "clang/Analysis/AnalysisDeclContext.h"
+#include "clang/Analysis/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 
 namespace clang {
@@ -33,7 +32,6 @@ class AnalysisManager : public BugReporterData {
   AnalysisDeclContextManager AnaCtxMgr;
 
   ASTContext &Ctx;
-  DiagnosticsEngine &Diags;
   const LangOptions &LangOpts;
   PathDiagnosticConsumers PathConsumers;
 
@@ -46,14 +44,12 @@ class AnalysisManager : public BugReporterData {
 public:
   AnalyzerOptions &options;
 
-  AnalysisManager(ASTContext &ctx,DiagnosticsEngine &diags,
-                  const LangOptions &lang,
+  AnalysisManager(ASTContext &ctx,
                   const PathDiagnosticConsumers &Consumers,
                   StoreManagerCreator storemgr,
                   ConstraintManagerCreator constraintmgr,
-                  CheckerManager *checkerMgr,
-                  AnalyzerOptions &Options,
-                  CodeInjector* injector = nullptr);
+                  CheckerManager *checkerMgr, AnalyzerOptions &Options,
+                  CodeInjector *injector = nullptr);
 
   ~AnalysisManager() override;
 
@@ -87,10 +83,6 @@ public:
     return getASTContext().getSourceManager();
   }
 
-  DiagnosticsEngine &getDiagnostic() override {
-    return Diags;
-  }
-
   const LangOptions &getLangOpts() const {
     return LangOpts;
   }
@@ -102,8 +94,7 @@ public:
   void FlushDiagnostics();
 
   bool shouldVisualize() const {
-    return options.visualizeExplodedGraphWithGraphViz ||
-           options.visualizeExplodedGraphWithUbiGraph;
+    return options.visualizeExplodedGraphWithGraphViz;
   }
 
   bool shouldInlineCall() const {

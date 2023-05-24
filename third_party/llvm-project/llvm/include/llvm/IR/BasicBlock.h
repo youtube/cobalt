@@ -1,9 +1,8 @@
 //===- llvm/BasicBlock.h - Represent a basic block in the VM ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -38,7 +37,6 @@ class LandingPadInst;
 class LLVMContext;
 class Module;
 class PHINode;
-class TerminatorInst;
 class ValueSymbolTable;
 
 /// LLVM Basic Block Representation
@@ -50,12 +48,12 @@ class ValueSymbolTable;
 /// represents a label to which a branch can jump.
 ///
 /// A well formed basic block is formed of a list of non-terminating
-/// instructions followed by a single TerminatorInst instruction.
-/// TerminatorInst's may not occur in the middle of basic blocks, and must
-/// terminate the blocks. The BasicBlock class allows malformed basic blocks to
-/// occur because it may be useful in the intermediate stage of constructing or
-/// modifying a program. However, the verifier will ensure that basic blocks
-/// are "well formed".
+/// instructions followed by a single terminator instruction. Terminator
+/// instructions may not occur in the middle of basic blocks, and must terminate
+/// the blocks. The BasicBlock class allows malformed basic blocks to occur
+/// because it may be useful in the intermediate stage of constructing or
+/// modifying a program. However, the verifier will ensure that basic blocks are
+/// "well formed".
 class BasicBlock final : public Value, // Basic blocks are data objects also
                          public ilist_node_with_parent<BasicBlock, Function> {
 public:
@@ -120,10 +118,10 @@ public:
 
   /// Returns the terminator instruction if the block is well formed or null
   /// if the block is not well formed.
-  const TerminatorInst *getTerminator() const LLVM_READONLY;
-  TerminatorInst *getTerminator() {
-    return const_cast<TerminatorInst *>(
-                        static_cast<const BasicBlock *>(this)->getTerminator());
+  const Instruction *getTerminator() const LLVM_READONLY;
+  Instruction *getTerminator() {
+    return const_cast<Instruction *>(
+        static_cast<const BasicBlock *>(this)->getTerminator());
   }
 
   /// Returns the call instruction calling \@llvm.experimental.deoptimize
@@ -194,6 +192,11 @@ public:
                                  std::function<bool(Instruction &)>>>
   instructionsWithoutDebug();
 
+  /// Return the size of the basic block ignoring debug instructions
+  filter_iterator<BasicBlock::const_iterator,
+                  std::function<bool(const Instruction &)>>::difference_type
+  sizeWithoutDebug() const;
+
   /// Unlink 'this' from the containing function, but do not delete it.
   void removeFromParent();
 
@@ -237,6 +240,12 @@ public:
     return const_cast<BasicBlock *>(
                  static_cast<const BasicBlock *>(this)->getUniquePredecessor());
   }
+
+  /// Return true if this block has exactly N predecessors.
+  bool hasNPredecessors(unsigned N) const;
+
+  /// Return true if this block has N predecessors or more.
+  bool hasNPredecessorsOrMore(unsigned N) const;
 
   /// Return the successor of this block if it has a single successor.
   /// Otherwise return a null pointer.
@@ -358,7 +367,7 @@ public:
   /// This is actually not used to update the Predecessor list, but is actually
   /// used to update the PHI nodes that reside in the block.  Note that this
   /// should be called while the predecessor still refers to this block.
-  void removePredecessor(BasicBlock *Pred, bool DontDeleteUselessPHIs = false);
+  void removePredecessor(BasicBlock *Pred, bool KeepOneInputPHIs = false);
 
   bool canSplitPredecessors() const;
 
@@ -385,6 +394,14 @@ public:
   /// Returns true if there are any uses of this basic block other than
   /// direct branches, switches, etc. to it.
   bool hasAddressTaken() const { return getSubclassDataFromValue() != 0; }
+
+  /// Update all phi nodes in this basic block to refer to basic block \p New
+  /// instead of basic block \p Old.
+  void replacePhiUsesWith(BasicBlock *Old, BasicBlock *New);
+
+  /// Update all phi nodes in this basic block's successors to refer to basic
+  /// block \p New instead of basic block \p Old.
+  void replaceSuccessorsPhiUsesWith(BasicBlock *Old, BasicBlock *New);
 
   /// Update all phi nodes in this basic block's successors to refer to basic
   /// block \p New instead of to it.

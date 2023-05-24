@@ -1,9 +1,8 @@
 //===- Any.h - Generic type erased holder of any type -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -39,7 +38,7 @@ class Any {
     explicit StorageImpl(T &&Value) : Value(std::move(Value)) {}
 
     std::unique_ptr<StorageBase> clone() const override {
-      return llvm::make_unique<StorageImpl<T>>(Value);
+      return std::make_unique<StorageImpl<T>>(Value);
     }
 
     const void *id() const override { return &TypeId<T>::Id; }
@@ -65,11 +64,21 @@ public:
       typename std::enable_if<
           llvm::conjunction<
               llvm::negation<std::is_same<typename std::decay<T>::type, Any>>,
+              // We also disable this overload when an `Any` object can be
+              // converted to the parameter type because in that case, this
+              // constructor may combine with that conversion during overload
+              // resolution for determining copy constructibility, and then
+              // when we try to determine copy constructibility below we may
+              // infinitely recurse. This is being evaluated by the standards
+              // committee as a potential DR in `std::any` as well, but we're
+              // going ahead and adopting it to work-around usage of `Any` with
+              // types that need to be implicitly convertible from an `Any`.
+              llvm::negation<std::is_convertible<Any, typename std::decay<T>::type>>,
               std::is_copy_constructible<typename std::decay<T>::type>>::value,
           int>::type = 0>
   Any(T &&Value) {
     using U = typename std::decay<T>::type;
-    Storage = llvm::make_unique<StorageImpl<U>>(std::forward<T>(Value));
+    Storage = std::make_unique<StorageImpl<U>>(std::forward<T>(Value));
   }
 
   Any(Any &&Other) : Storage(std::move(Other.Storage)) {}

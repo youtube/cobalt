@@ -2,11 +2,8 @@
 Test that ASan memory history provider returns correct stack traces
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -18,11 +15,8 @@ class AsanTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
-    @expectedFailureAll(
-        oslist=["linux"],
-        bugnumber="non-core functionality, need to reenable and fix later (DES 2014.11.07)")
     @skipIfFreeBSD  # llvm.org/pr21136 runtimes not yet available by default
-    @skipIfRemote
+    @expectedFailureNetBSD
     @skipUnlessAddressSanitizer
     def test(self):
         self.build()
@@ -38,9 +32,10 @@ class AsanTestCase(TestBase):
 
     def asan_tests(self):
         exe = self.getBuildArtifact("a.out")
-        self.expect(
-            "file " + exe,
-            patterns=["Current executable set to .*a.out"])
+        target = self.dbg.CreateTarget(exe)
+        self.assertTrue(target, VALID_TARGET)
+
+        self.registerSanitizerLibrariesWithTarget(target)
 
         self.runCmd("breakpoint set -f main.c -l %d" % self.line_breakpoint)
 

@@ -8,10 +8,16 @@
 ; RUN:  %t.o -o %t -shared
 ; RUN: cat %t.yaml | FileCheck %s -check-prefix=YAML
 ; RUN: cat %t.hot.yaml | FileCheck %s -check-prefix=YAML-HOT
+; RUN: ld.lld --opt-remarks-filename %t1.yaml --opt-remarks-passes inline %t.o \
+; RUN: -o /dev/null -shared
+; RUN: cat %t1.yaml | FileCheck %s -check-prefix=YAML-PASSES
+; RUN: ld.lld --opt-remarks-filename %t1.yaml --opt-remarks-format yaml %t.o \
+; RUN: -o /dev/null -shared
+; RUN: cat %t.yaml | FileCheck %s -check-prefix=YAML
 
 ; Check that @tinkywinky is inlined after optimizations.
 ; CHECK-LABEL: define i32 @main
-; CHECK-NEXT:  %a.i = call i32 @patatino()
+; CHECK-NEXT:  %a.i = {{.*}}call i32 @patatino()
 ; CHECK-NEXT:  ret i32 %a.i
 ; CHECK-NEXT: }
 
@@ -23,9 +29,10 @@
 ; YAML-NEXT:   - Callee:          tinkywinky
 ; YAML-NEXT:   - String:          ' inlined into '
 ; YAML-NEXT:   - Caller:          main
-; YAML-NEXT:   - String:          ' with cost='
+; YAML-NEXT:   - String:          ' with '
+; YAML-NEXT:   - String:          '(cost='
 ; YAML-NEXT:   - Cost:            '0'
-; YAML-NEXT:   - String:          ' (threshold='
+; YAML-NEXT:   - String:          ', threshold='
 ; YAML-NEXT:   - Threshold:       '337'
 ; YAML-NEXT:   - String:          ')'
 ; YAML-NEXT: ...
@@ -39,14 +46,17 @@
 ; YAML-HOT-NEXT:   - Callee:          tinkywinky
 ; YAML-HOT-NEXT:   - String:          ' inlined into '
 ; YAML-HOT-NEXT:   - Caller:          main
-; YAML-HOT-NEXT:   - String:          ' with cost='
+; YAML-HOT-NEXT:   - String:          ' with '
+; YAML-HOT-NEXT:   - String:          '(cost='
 ; YAML-HOT-NEXT:   - Cost:            '0'
-; YAML-HOT-NEXT:   - String:          ' (threshold='
+; YAML-HOT-NEXT:   - String:          ', threshold='
 ; YAML-HOT-NEXT:   - Threshold:       '337'
 ; YAML-HOT-NEXT:   - String:          ')'
 ; YAML-HOT-NEXT: ...
 
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+; YAML-PASSES: Pass:            inline
+
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-scei-ps4"
 
 declare i32 @patatino()

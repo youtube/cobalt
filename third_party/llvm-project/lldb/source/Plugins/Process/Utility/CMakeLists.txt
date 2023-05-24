@@ -1,10 +1,12 @@
 add_lldb_library(lldbPluginProcessUtility PLUGIN
+  AuxVector.cpp
   DynamicRegisterInfo.cpp
   FreeBSDSignals.cpp
   GDBRemoteSignals.cpp
   HistoryThread.cpp
   HistoryUnwind.cpp
   InferiorCallPOSIX.cpp
+  LinuxProcMaps.cpp
   LinuxSignals.cpp
   MipsLinuxSignals.cpp
   NativeRegisterContextRegisterInfo.cpp
@@ -41,6 +43,8 @@ add_lldb_library(lldbPluginProcessUtility PLUGIN
   RegisterContextPOSIX_s390x.cpp
   RegisterContextPOSIX_x86.cpp
   RegisterContextThreadMemory.cpp
+  RegisterContextWindows_i386.cpp
+  RegisterContextWindows_x86_64.cpp
   RegisterInfoPOSIX_arm.cpp
   RegisterInfoPOSIX_arm64.cpp
   RegisterInfoPOSIX_ppc64le.cpp

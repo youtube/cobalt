@@ -1,9 +1,8 @@
 //===-- lldb-private-types.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,10 +28,8 @@ class ExecutionContext;
 typedef llvm::sys::DynamicLibrary (*LoadPluginCallbackType)(
     const lldb::DebuggerSP &debugger_sp, const FileSpec &spec, Status &error);
 
-//----------------------------------------------------------------------
 // Every register is described in detail including its name, alternate name
 // (optional), encoding, size in bytes and the default display format.
-//----------------------------------------------------------------------
 struct RegisterInfo {
   const char *name;     // Name of this register, can't be NULL
   const char *alt_name; // Alternate name of this register, can be NULL
@@ -74,9 +71,7 @@ struct RegisterInfo {
   }
 };
 
-//----------------------------------------------------------------------
 // Registers are grouped into register sets
-//----------------------------------------------------------------------
 struct RegisterSet {
   const char *name;          // Name of this register set
   const char *short_name;    // A short name for this register set
@@ -95,6 +90,8 @@ struct OptionEnumValueElement {
   const char *usage;
 };
 
+using OptionEnumValues = llvm::ArrayRef<OptionEnumValueElement>;
+
 struct OptionValidator {
   virtual ~OptionValidator() {}
   virtual bool IsValid(Platform &platform,
@@ -112,9 +109,8 @@ struct OptionDefinition {
   int short_option;        // Single character for this option.
   int option_has_arg; // no_argument, required_argument or optional_argument
   OptionValidator *validator; // If non-NULL, option is valid iff
-                              // |validator->IsValid()|, otherwise always
-                              // valid.
-  OptionEnumValueElement *enum_values; // If non-NULL an array of enum values.
+                              // |validator->IsValid()|, otherwise always valid.
+  OptionEnumValues enum_values; // If not empty, an array of enum values.
   uint32_t completion_type; // Cookie the option class can use to do define the
                             // argument completion.
   lldb::CommandArgumentType argument_type; // Type of argument this option takes

@@ -86,8 +86,6 @@ Pass <arg> to the target offloading toolchain identified by <triple>.
 
 Run the static analyzer
 
-.. option:: --analyze-auto
-
 .. option:: --analyzer-no-default-checks
 
 .. option:: --analyzer-output<arg>
@@ -126,7 +124,11 @@ Output path for the plist report
 
 .. option:: -cfguard
 
-Emit tables required for Windows Control Flow Guard.
+Emit tables and checks for Windows Control Flow Guard.
+
+.. option:: -cfguard-no-checks
+
+Emit tables required for Windows Control Flow Guard without checks.
 
 .. option:: -client\_name<arg>
 
@@ -158,7 +160,7 @@ Compile CUDA code for host only.  Has no effect on non-CUDA compilations.
 
 .. option:: --cuda-include-ptx=<arg>, --no-cuda-include-ptx=<arg>
 
-Include PTX for the follwing GPU architecture (e.g. sm\_35) or 'all'. May be specified more than once.
+Include PTX for the following GPU architecture (e.g. sm\_35) or 'all'. May be specified more than once.
 
 .. option:: --cuda-noopt-device-debug, --no-cuda-noopt-device-debug
 
@@ -346,6 +348,8 @@ Disable builtin #include directories
 
 .. option:: -noprebind
 
+.. option:: -noprofilelib
+
 .. option:: -noseglinkedit
 
 .. option:: -nostartfiles
@@ -460,6 +464,10 @@ Use pipes between commands, when possible
 
 .. option:: --print-diagnostic-categories
 
+.. option:: -print-effective-triple, --print-effective-triple
+
+Print the effective target triple
+
 .. option:: -print-file-name=<file>, --print-file-name=<file>, --print-file-name <arg>
 
 Print the full library path of <file>
@@ -487,6 +495,10 @@ Print the resource directory pathname
 .. option:: -print-search-dirs, --print-search-dirs
 
 Print the paths used for finding libraries and programs
+
+.. option:: -print-target-triple, --print-target-triple
+
+Print the normalized target triple
 
 .. option:: -private\_bundle
 
@@ -566,6 +578,8 @@ Serialize compiler diagnostics to a file
 
 .. option:: -shared-libsan, -shared-libasan
 
+Dynamically link the sanitizer runtime
+
 .. option:: -single\_module
 
 .. option:: -specs=<arg>, --specs=<arg>
@@ -575,6 +589,8 @@ Serialize compiler diagnostics to a file
 .. option:: -static-libgcc
 
 .. option:: -static-libsan
+
+Statically link the sanitizer runtime
 
 .. option:: -static-libstdc++
 
@@ -597,6 +613,10 @@ C++ standard library to use
 .. option:: --target=<arg>, -target <arg>
 
 Generate code for the given target
+
+.. option:: --print-supported-cpus
+
+Print supported cpu models for the given target
 
 .. option:: -time
 
@@ -780,6 +800,16 @@ Don't use blacklist file for sanitizers
 
 .. option:: -fparse-all-comments
 
+.. option:: -frecord-command-line, -frecord-gcc-switches, -fno-record-command-line, -fno-record-gcc-switches
+
+Generate a section named ".GCC.command.line" containing the clang driver
+command-line. After linking, the section may contain multiple command lines,
+which will be individually terminated by null bytes. Separate arguments within
+a command line are combined with spaces; spaces and backslashes within an
+argument are escaped with backslashes. This format differs from the format of
+the equivalent section produced by GCC with the -frecord-gcc-switches flag.
+This option is currently only supported on ELF targets.
+
 .. option:: -fsanitize-address-field-padding=<arg>
 
 Level of field padding for AddressSanitizer
@@ -788,9 +818,15 @@ Level of field padding for AddressSanitizer
 
 Enable linker dead stripping of globals in AddressSanitizer
 
-.. option:: -fsanitize-address-poison-class-member-array-new-cookie, -fno-sanitize-address-poison-class-member-array-new-cookie
+.. option:: -fsanitize-address-use-odr-indicator, -fno-sanitize-address-use-odr-indicator
 
-Enable poisoning array cookies when using class member operator new\[\] in AddressSanitizer
+Enable ODR indicator globals to avoid false ODR violation reports in partially sanitized programs at the cost of an increase in binary size
+
+.. option:: -fsanitize-address-poison-custom-array-cookie, -fno-sanitize-address-poison-custom-array-cookie
+
+Enable "poisoning" array cookies when allocating arrays with a custom operator new\[\] in Address Sanitizer, preventing accesses to the cookies from user code. An array cookie is a small implementation-defined header added to certain array allocations to record metadata such as the length of the array. Accesses to array cookies from user code are technically allowed by the standard but are more likely to be the result of an out-of-bounds array access.
+
+An operator new\[\] is "custom" if it is not one of the allocation functions provided by the C++ standard library. Array cookies from non-custom allocation functions are always poisoned.
 
 .. option:: -fsanitize-address-use-after-scope, -fno-sanitize-address-use-after-scope
 
@@ -1113,8 +1149,6 @@ Flags allowing the state of the preprocessor to be dumped in various ways.
 .. option:: -d<arg>
 .. program:: clang
 
-.. option:: -dA
-
 .. option:: -dD
 
 Print macro definitions in -E mode in addition to normal output
@@ -1244,6 +1278,10 @@ Accept non-standard constructs supported by the Borland compiler
 .. option:: -fbuiltin-module-map
 
 Load the clang builtins module map file.
+
+.. option:: -fc++-static-destructors, -fno-c++-static-destructors
+
+Enable C++ static destructor registration (the default)
 
 .. option:: -fcaret-diagnostics, -fno-caret-diagnostics
 
@@ -1481,6 +1519,10 @@ Enable the integrated assembler
 
 .. option:: -fjump-tables, -fno-jump-tables
 
+.. option:: -fkeep-static-consts
+
+Keep static const variables even if unused
+
 .. option:: -flax-vector-conversions, -fno-lax-vector-conversions
 
 .. option:: -flimited-precision=<arg>
@@ -1657,9 +1699,14 @@ Emit OpenMP code only for SIMD-based constructs.
 
 .. option:: -foperator-arrow-depth=<arg>
 
-.. option:: -foptimization-record-file=<arg>
+.. option:: -foptimization-record-file=<file>
 
-Specify the file name of any generated YAML optimization record
+Implies -fsave-optimization-record. On Darwin platforms, this
+  cannot be used with multiple -arch <arch> options.
+
+.. option:: -foptimization-record-passes=<regex>
+
+Only include passes which match a specified regular expression in the generated optimization record (by default, include all passes)
 
 .. option:: -foptimize-sibling-calls, -fno-optimize-sibling-calls
 
@@ -1792,6 +1839,12 @@ Turn on loop reroller
 
 Generate a YAML optimization record file
 
+.. program:: clang1
+.. option:: -fsave-optimization-record=<format>
+.. program:: clang
+
+Generate an optimization record file in a specific format.
+
 .. option:: -fseh-exceptions
 
 Use SEH style exceptions
@@ -1902,6 +1955,15 @@ Perform ThinLTO importing using provided function summary index
 
 .. option:: -ftime-report
 
+.. option:: -ftime-trace
+
+Turn on time profiler. Results can be analyzed with chrome://tracing or
+`Speedscope App <https://www.speedscope.app>`_ for flamegraph visualization
+
+.. option:: -ftime-trace-granularity=<arg>
+
+Minimum time granularity (in microseconds) traced by time profiler
+
 .. option:: -ftls-model=<arg>
 
 .. option:: -ftrap-function=<arg>
@@ -1962,7 +2024,7 @@ Use the given vector functions library
 
 Enable the loop vectorization passes
 
-.. option:: -fverbose-asm, -fno-verbose-asm
+.. option:: -fverbose-asm, -fno-verbose-asm, -dA
 
 .. option:: -fvisibility-inlines-hidden
 
@@ -2126,7 +2188,9 @@ Link stack frames through backchain on System Z
 
 .. option:: -mconsole<arg>
 
-.. option:: -mcpu=<arg>, -mv4 (equivalent to -mcpu=hexagonv4), -mv5 (equivalent to -mcpu=hexagonv5), -mv55 (equivalent to -mcpu=hexagonv55), -mv60 (equivalent to -mcpu=hexagonv60), -mv62 (equivalent to -mcpu=hexagonv62), -mv65 (equivalent to -mcpu=hexagonv65)
+.. option:: -mcpu=<arg>, -mv5 (equivalent to -mcpu=hexagonv5), -mv55 (equivalent to -mcpu=hexagonv55), -mv60 (equivalent to -mcpu=hexagonv60), -mv62 (equivalent to -mcpu=hexagonv62), -mv65 (equivalent to -mcpu=hexagonv65)
+
+Use -mcpu=? to see a list of supported cpu models.
 
 .. option:: -mcrc, -mno-crc
 
@@ -2144,7 +2208,7 @@ Set EABI type, e.g. 4, 5 or gnu (default depends on triple)
 
 .. option:: -mfentry
 
-Insert calls to fentry at function entry (x86 only)
+Insert calls to fentry at function entry (x86/SystemZ only)
 
 .. option:: -mfloat-abi=<arg>
 
@@ -2182,7 +2246,7 @@ Generate branches with extended addressability, usually via indirect jumps.
 
 .. option:: -mmacosx-version-min=<arg>, -mmacos-version-min=<arg>
 
-Set Mac OS X deployment target
+Set macOS deployment target
 
 .. option:: -mmcu=<arg>
 
@@ -2222,9 +2286,15 @@ Enable hexagon-qdsp6 backward compatibility
 
 (integrated-as) Relax all machine instructions
 
+.. option:: -mretpoline, -mno-retpoline
+
 .. option:: -mrtd, -mno-rtd
 
 Make StdCall calling convention the default
+
+.. option:: -msign-return-address=<arg>
+
+Select return address signing scope
 
 .. option:: -msoft-float, -mno-soft-float
 
@@ -2256,6 +2326,8 @@ The thread model to use, e.g. posix, single (posix by default)
 
 .. option:: -mtune=<arg>
 
+Use -mtune=? to see a list of supported cpu models.
+
 .. option:: -mtvos-version-min=<arg>, -mappletvos-version-min=<arg>
 
 .. option:: -municode<arg>
@@ -2272,6 +2344,34 @@ The thread model to use, e.g. posix, single (posix by default)
 
 AARCH64
 -------
+.. option:: -ffixed-x1
+
+Reserve the x1 register (AArch64 only)
+
+.. option:: -ffixed-x2
+
+Reserve the x2 register (AArch64 only)
+
+.. option:: -ffixed-x3
+
+Reserve the x3 register (AArch64 only)
+
+.. option:: -ffixed-x4
+
+Reserve the x4 register (AArch64 only)
+
+.. option:: -ffixed-x5
+
+Reserve the x5 register (AArch64 only)
+
+.. option:: -ffixed-x6
+
+Reserve the x6 register (AArch64 only)
+
+.. option:: -ffixed-x7
+
+Reserve the x7 register (AArch64 only)
+
 .. option:: -ffixed-x18
 
 Reserve the x18 register (AArch64 only)
@@ -2279,6 +2379,42 @@ Reserve the x18 register (AArch64 only)
 .. option:: -ffixed-x20
 
 Reserve the x20 register (AArch64 only)
+
+.. option:: -fcall-saved-x8
+
+Make the x8 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x9
+
+Make the x9 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x10
+
+Make the x10 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x11
+
+Make the x11 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x12
+
+Make the x12 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x13
+
+Make the x13 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x14
+
+Make the x14 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x15
+
+Make the x15 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x18
+
+Make the x18 register call-saved (AArch64 only)
 
 .. option:: -mfix-cortex-a53-835769, -mno-fix-cortex-a53-835769
 
@@ -2290,6 +2426,15 @@ Generate code which only uses the general purpose registers (AArch64 only)
 
 AMDGPU
 ------
+.. option:: -mcumode, -mno-cumode
+
+CU wavefront execution mode is used if enabled and WGP wavefront execution mode
+is used if disabled (AMDGPU only)
+
+.. option:: -mwavefrontsize64, -mno-wavefrontsize64
+
+Wavefront size 64 is used if enabled and wavefront size 32 if disabled (AMDGPU only)
+
 .. option:: -mxnack, -mno-xnack
 
 Enable XNACK (AMDGPU only)
@@ -2504,6 +2649,8 @@ X86
 
 .. option:: -mavx512bitalg, -mno-avx512bitalg
 
+.. option:: -mavx512bf16, -mno-avx512bf16
+
 .. option:: -mavx512bw, -mno-avx512bw
 
 .. option:: -mavx512cd, -mno-avx512cd
@@ -2526,6 +2673,8 @@ X86
 
 .. option:: -mavx512vnni, -mno-avx512vnni
 
+.. option:: -mavx512vp2intersect, -mno-avx512vp2intersect
+
 .. option:: -mavx512vpopcntdq, -mno-avx512vpopcntdq
 
 .. option:: -mbmi, -mno-bmi
@@ -2541,6 +2690,8 @@ X86
 .. option:: -mclzero, -mno-clzero
 
 .. option:: -mcx16, -mno-cx16
+
+.. option:: -menqcmd, -mno-enqcmd
 
 .. option:: -mf16c, -mno-f16c
 
@@ -2591,8 +2742,6 @@ X86
 .. option:: -mrdrnd, -mno-rdrnd
 
 .. option:: -mrdseed, -mno-rdseed
-
-.. option:: -mretpoline, -mno-retpoline
 
 .. option:: -mretpoline-external-thunk, -mno-retpoline-external-thunk
 
@@ -2735,7 +2884,9 @@ Embed source text in DWARF debug sections
 
 .. option:: -ggnu-pubnames, -gno-gnu-pubnames
 
-.. option:: -grecord-gcc-switches, -gno-record-gcc-switches
+.. option:: -gpubnames, -gno-pubnames
+
+.. option:: -grecord-command-line, -grecord-gcc-switches, -gno-record-command-line, -gno-record-gcc-switches
 
 .. option:: -gsplit-dwarf
 

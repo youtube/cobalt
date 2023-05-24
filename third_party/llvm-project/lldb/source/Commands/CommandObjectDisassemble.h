@@ -1,9 +1,8 @@
 //===-- CommandObjectDisassemble.h ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,9 +15,7 @@
 
 namespace lldb_private {
 
-//-------------------------------------------------------------------------
 // CommandObjectDisassemble
-//-------------------------------------------------------------------------
 
 class CommandObjectDisassemble : public CommandObjectParsed {
 public:
@@ -65,7 +62,6 @@ public:
                                   // "at_pc".  This should be set
     // in SetOptionValue if anything the selects a location is set.
     lldb::addr_t symbol_containing_addr;
-    static OptionDefinition g_option_table[];
   };
 
   CommandObjectDisassemble(CommandInterpreter &interpreter);

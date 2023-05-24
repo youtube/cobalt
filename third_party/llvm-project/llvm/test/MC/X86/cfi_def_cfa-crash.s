@@ -1,4 +1,4 @@
-// RUN: llvm-mc -triple x86_64-apple-darwin -filetype=obj %s -o - | llvm-readobj -sections | FileCheck %s
+// RUN: llvm-mc -triple x86_64-apple-darwin -filetype=obj %s -o - | llvm-readobj --sections | FileCheck %s
 
 // We were trying to generate compact unwind info for assembly like this.
 // The .cfi_def_cfa directive, however, throws a wrench into that and was
@@ -78,7 +78,7 @@ _foo:
 // CHECK:   Alignment: 3
 // CHECK:   RelocationOffset: 0x0
 // CHECK:   RelocationCount: 0
-// CHECK:   Type: 0xB
+// CHECK:   Type: Coalesced (0xB)
 // CHECK:   Attributes [ (0x680000)
 // CHECK:     LiveSupport (0x80000)
 // CHECK:     NoTOC (0x400000)

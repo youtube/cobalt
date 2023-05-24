@@ -1,33 +1,35 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++98, c++03, c++11, c++14
 // UNSUPPORTED: sanitizer-new-delete
 
-// dylibs shipped before macosx10.13 do not provide aligned allocation, so our
-// custom aligned allocation functions are not called and the test fails
-// UNSUPPORTED: with_system_cxx_lib=macosx10.12
-// UNSUPPORTED: with_system_cxx_lib=macosx10.11
-// UNSUPPORTED: with_system_cxx_lib=macosx10.10
-// UNSUPPORTED: with_system_cxx_lib=macosx10.9
-// UNSUPPORTED: with_system_cxx_lib=macosx10.8
-// UNSUPPORTED: with_system_cxx_lib=macosx10.7
+// Aligned allocation was not provided before macosx10.14 and as a result we
+// get availability errors when the deployment target is older than macosx10.14.
+// However, AppleClang 10 (and older) don't trigger availability errors, and
+// Clang < 8.0 doesn't warn for 10.13.
+// XFAIL: !(apple-clang-9 || apple-clang-10 || clang-7) && availability=macosx10.13
+// XFAIL: !(apple-clang-9 || apple-clang-10) && availability=macosx10.12
+// XFAIL: !(apple-clang-9 || apple-clang-10) && availability=macosx10.11
+// XFAIL: !(apple-clang-9 || apple-clang-10) && availability=macosx10.10
+// XFAIL: !(apple-clang-9 || apple-clang-10) && availability=macosx10.9
+// XFAIL: !(apple-clang-9 || apple-clang-10) && availability=macosx10.8
+// XFAIL: !(apple-clang-9 || apple-clang-10) && availability=macosx10.7
 
-// Our custom aligned allocation functions are not called when deploying to
-// platforms older than macosx10.13, since those platforms don't support
-// aligned allocation.
-// UNSUPPORTED: macosx10.12
-// UNSUPPORTED: macosx10.11
-// UNSUPPORTED: macosx10.10
-// UNSUPPORTED: macosx10.9
-// UNSUPPORTED: macosx10.8
-// UNSUPPORTED: macosx10.7
+// On AppleClang 10 (and older), instead of getting an availability failure
+// like above, we get a link error when we link against a dylib that does
+// not export the aligned allocation functions.
+// XFAIL: (apple-clang-9 || apple-clang-10) && with_system_cxx_lib=macosx10.12
+// XFAIL: (apple-clang-9 || apple-clang-10) && with_system_cxx_lib=macosx10.11
+// XFAIL: (apple-clang-9 || apple-clang-10) && with_system_cxx_lib=macosx10.10
+// XFAIL: (apple-clang-9 || apple-clang-10) && with_system_cxx_lib=macosx10.9
+// XFAIL: (apple-clang-9 || apple-clang-10) && with_system_cxx_lib=macosx10.8
+// XFAIL: (apple-clang-9 || apple-clang-10) && with_system_cxx_lib=macosx10.7
 
 // XFAIL: no-aligned-allocation && !gcc
 
@@ -84,7 +86,7 @@ void  operator delete[](void* p, std::align_val_t a) TEST_NOEXCEPT
     --new_called;
 }
 
-int main()
+int main(int, char**)
 {
     {
         A* ap = new (std::nothrow) A[2];
@@ -104,4 +106,6 @@ int main()
         assert(!new_called);
         assert(!B_constructed);
     }
+
+  return 0;
 }

@@ -335,3 +335,102 @@ namespace Nested {
   void g(int, int);
   using Int = A<int>::B<&g>::param2;
 }
+
+namespace rdar41852459 {
+template <auto V> struct G {};
+
+template <class T> struct S {
+  template <auto V> void f() {
+    G<V> x;
+  }
+  template <auto *PV> void f2() {
+    G<PV> x;
+  }
+  template <decltype(auto) V> void f3() {
+    G<V> x;
+  }
+};
+
+template <auto *PV> struct I {};
+
+template <class T> struct K {
+  template <auto *PV> void f() {
+    I<PV> x;
+  }
+  template <auto V> void f2() {
+    I<V> x;
+  }
+  template <decltype(auto) V> void f3() {
+    I<V> x;
+  }
+};
+
+template <decltype(auto)> struct L {};
+template <class T> struct M {
+  template <auto *PV> void f() {
+    L<PV> x;
+  }
+  template <auto V> void f() {
+    L<V> x;
+  }
+  template <decltype(auto) V> void f() {
+    L<V> x;
+  }
+};
+}
+
+namespace PR42362 {
+  template<auto ...A> struct X { struct Y; void f(int...[A]); };
+  template<auto ...A> struct X<A...>::Y {};
+  template<auto ...A> void X<A...>::f(int...[A]) {}
+  void f() { X<1, 2>::Y y; X<1, 2>().f(0, 0); }
+
+  template<typename, auto...> struct Y;
+  template<auto ...A> struct Y<int, A...> {};
+  Y<int, 1, 2, 3> y;
+
+  template<auto (&...F)()> struct Z { struct Q; };
+  template<auto (&...F)()> struct Z<F...>::Q {};
+  Z<f, f, f>::Q q;
+}
+
+namespace QualConv {
+  int *X;
+  template<const int *const *P> void f() {
+    using T = decltype(P);
+    using T = const int* const*;
+  }
+  template void f<&X>();
+
+  template<const int *const &R> void g() {
+    using T = decltype(R);
+    using T = const int *const &;
+  }
+  template void g<(const int *const&)X>();
+}
+
+namespace FunctionConversion {
+  struct a { void c(char *) noexcept; };
+  template<void (a::*f)(char*)> void g() {
+    using T = decltype(f);
+    using T = void (a::*)(char*); // (not 'noexcept')
+  }
+  template void g<&a::c>();
+
+  void c() noexcept;
+  template<void (*p)()> void h() {
+    using T = decltype(p);
+    using T = void (*)(); // (not 'noexcept')
+  }
+  template void h<&c>();
+}
+
+namespace VoidPtr {
+  // Note, this is an extension in C++17 but valid in C++20.
+  template<void *P> void f() {
+    using T = decltype(P);
+    using T = void*;
+  }
+  int n;
+  template void f<(void*)&n>();
+}

@@ -4,13 +4,13 @@
 # RUN: ld.lld %t.o -o %t.so --gc-sections -shared
 # RUN: llvm-readobj --dyn-symbols %t.so | FileCheck %s
 
-# CHECK:      Name: _end@
+# CHECK:      Name: _end
 # CHECK-NEXT: Value:
 # CHECK-NEXT: Size:
 # CHECK-NEXT: Binding: Global
 # CHECK-NEXT: Type: None
 # CHECK-NEXT: Other:
-# CHECK-NEXT: Section: .dynamic
+# CHECK-NEXT: Section: .data
 
         .data
         .globl g

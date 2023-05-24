@@ -1,9 +1,8 @@
 //===- HexagonSubtarget.h - Define Subtarget for the Hexagon ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -52,14 +51,16 @@ class HexagonSubtarget : public HexagonGenSubtargetInfo {
   bool UseNewValueJumps = false;
   bool UseNewValueStores = false;
   bool UseSmallData = false;
+  bool UseZRegOps = false;
 
   bool HasMemNoShuf = false;
   bool EnableDuplex = false;
   bool ReservedR19 = false;
+  bool NoreturnStackElim = false;
 
 public:
   Hexagon::ArchEnum HexagonArchVersion;
-  Hexagon::ArchEnum HexagonHVXVersion = Hexagon::ArchEnum::V4;
+  Hexagon::ArchEnum HexagonHVXVersion = Hexagon::ArchEnum::NoArch;
   CodeGenOpt::Level OptLevel;
   /// True if the target should use Back-Skip-Back scheduling. This is the
   /// default for V60.
@@ -150,6 +151,12 @@ public:
   bool hasV65OpsOnly() const {
     return getHexagonArchVersion() == Hexagon::ArchEnum::V65;
   }
+  bool hasV66Ops() const {
+    return getHexagonArchVersion() >= Hexagon::ArchEnum::V66;
+  }
+  bool hasV66OpsOnly() const {
+    return getHexagonArchVersion() == Hexagon::ArchEnum::V66;
+  }
 
   bool useLongCalls() const { return UseLongCalls; }
   bool useMemops() const { return UseMemops; }
@@ -157,14 +164,19 @@ public:
   bool useNewValueJumps() const { return UseNewValueJumps; }
   bool useNewValueStores() const { return UseNewValueStores; }
   bool useSmallData() const { return UseSmallData; }
+  bool useZRegOps() const { return UseZRegOps; }
 
-  bool useHVXOps() const { return HexagonHVXVersion > Hexagon::ArchEnum::V4; }
+  bool useHVXOps() const {
+    return HexagonHVXVersion > Hexagon::ArchEnum::NoArch;
+  }
   bool useHVX128BOps() const { return useHVXOps() && UseHVX128BOps; }
   bool useHVX64BOps() const { return useHVXOps() && UseHVX64BOps; }
 
   bool hasMemNoShuf() const { return HasMemNoShuf; }
   bool hasReservedR19() const { return ReservedR19; }
   bool usePredicatedCalls() const;
+
+  bool noreturnStackElim() const { return NoreturnStackElim; }
 
   bool useBSBScheduling() const { return UseBSBScheduling; }
   bool enableMachineScheduler() const override;
@@ -216,7 +228,7 @@ public:
   }
 
   bool isHVXVectorType(MVT VecTy, bool IncludeBool = false) const {
-    if (!VecTy.isVector() || !useHVXOps())
+    if (!VecTy.isVector() || !useHVXOps() || VecTy.isScalableVector())
       return false;
     MVT ElemTy = VecTy.getVectorElementType();
     if (!IncludeBool && ElemTy == MVT::i1)

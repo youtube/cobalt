@@ -1,9 +1,8 @@
 //===--- AMDGPUHSAMetadataStreamer.h ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,10 +18,12 @@
 #include "AMDGPU.h"
 #include "AMDKernelCodeT.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/BinaryFormat/MsgPackDocument.h"
 #include "llvm/Support/AMDGPUMetadata.h"
 
 namespace llvm {
 
+class AMDGPUTargetStreamer;
 class Argument;
 class DataLayout;
 class Function;
@@ -34,10 +35,92 @@ class Type;
 namespace AMDGPU {
 namespace HSAMD {
 
-class MetadataStreamer final {
+class MetadataStreamer {
+public:
+  virtual ~MetadataStreamer(){};
+
+  virtual bool emitTo(AMDGPUTargetStreamer &TargetStreamer) = 0;
+
+  virtual void begin(const Module &Mod) = 0;
+
+  virtual void end() = 0;
+
+  virtual void emitKernel(const MachineFunction &MF,
+                          const SIProgramInfo &ProgramInfo) = 0;
+};
+
+class MetadataStreamerV3 final : public MetadataStreamer {
+private:
+  std::unique_ptr<msgpack::Document> HSAMetadataDoc =
+      std::make_unique<msgpack::Document>();
+
+  void dump(StringRef HSAMetadataString) const;
+
+  void verify(StringRef HSAMetadataString) const;
+
+  Optional<StringRef> getAccessQualifier(StringRef AccQual) const;
+
+  Optional<StringRef> getAddressSpaceQualifier(unsigned AddressSpace) const;
+
+  StringRef getValueKind(Type *Ty, StringRef TypeQual,
+                         StringRef BaseTypeName) const;
+
+  StringRef getValueType(Type *Ty, StringRef TypeName) const;
+
+  std::string getTypeName(Type *Ty, bool Signed) const;
+
+  msgpack::ArrayDocNode getWorkGroupDimensions(MDNode *Node) const;
+
+  msgpack::MapDocNode getHSAKernelProps(const MachineFunction &MF,
+                                        const SIProgramInfo &ProgramInfo) const;
+
+  void emitVersion();
+
+  void emitPrintf(const Module &Mod);
+
+  void emitKernelLanguage(const Function &Func, msgpack::MapDocNode Kern);
+
+  void emitKernelAttrs(const Function &Func, msgpack::MapDocNode Kern);
+
+  void emitKernelArgs(const Function &Func, msgpack::MapDocNode Kern);
+
+  void emitKernelArg(const Argument &Arg, unsigned &Offset,
+                     msgpack::ArrayDocNode Args);
+
+  void emitKernelArg(const DataLayout &DL, Type *Ty, StringRef ValueKind,
+                     unsigned &Offset, msgpack::ArrayDocNode Args,
+                     unsigned PointeeAlign = 0, StringRef Name = "",
+                     StringRef TypeName = "", StringRef BaseTypeName = "",
+                     StringRef AccQual = "", StringRef TypeQual = "");
+
+  void emitHiddenKernelArgs(const Function &Func, unsigned &Offset,
+                            msgpack::ArrayDocNode Args);
+
+  msgpack::DocNode &getRootMetadata(StringRef Key) {
+    return HSAMetadataDoc->getRoot().getMap(/*Convert=*/true)[Key];
+  }
+
+  msgpack::DocNode &getHSAMetadataRoot() {
+    return HSAMetadataDoc->getRoot();
+  }
+
+public:
+  MetadataStreamerV3() = default;
+  ~MetadataStreamerV3() = default;
+
+  bool emitTo(AMDGPUTargetStreamer &TargetStreamer) override;
+
+  void begin(const Module &Mod) override;
+
+  void end() override;
+
+  void emitKernel(const MachineFunction &MF,
+                  const SIProgramInfo &ProgramInfo) override;
+};
+
+class MetadataStreamerV2 final : public MetadataStreamer {
 private:
   Metadata HSAMetadata;
-  AMDGPUAS AMDGPUASI;
 
   void dump(StringRef HSAMetadataString) const;
 
@@ -45,7 +128,7 @@ private:
 
   AccessQualifier getAccessQualifier(StringRef AccQual) const;
 
-  AddressSpaceQualifier getAddressSpaceQualifer(unsigned AddressSpace) const;
+  AddressSpaceQualifier getAddressSpaceQualifier(unsigned AddressSpace) const;
 
   ValueKind getValueKind(Type *Ty, StringRef TypeQual,
                          StringRef BaseTypeName) const;
@@ -83,19 +166,22 @@ private:
 
   void emitHiddenKernelArgs(const Function &Func);
 
-public:
-  MetadataStreamer() = default;
-  ~MetadataStreamer() = default;
-
   const Metadata &getHSAMetadata() const {
     return HSAMetadata;
   }
 
-  void begin(const Module &Mod);
+public:
+  MetadataStreamerV2() = default;
+  ~MetadataStreamerV2() = default;
 
-  void end();
+  bool emitTo(AMDGPUTargetStreamer &TargetStreamer) override;
 
-  void emitKernel(const MachineFunction &MF, const SIProgramInfo &ProgramInfo);
+  void begin(const Module &Mod) override;
+
+  void end() override;
+
+  void emitKernel(const MachineFunction &MF,
+                  const SIProgramInfo &ProgramInfo) override;
 };
 
 } // end namespace HSAMD

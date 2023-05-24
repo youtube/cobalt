@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,7 +21,7 @@
 // operator>>(basic_istream<charT, traits>& is, path& p)
 //
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <sstream>
 #include <cassert>
@@ -30,8 +29,8 @@
 
 #include "test_macros.h"
 #include "test_iterators.h"
-#include "count_new.hpp"
-#include "filesystem_test_helper.hpp"
+#include "count_new.h"
+#include "filesystem_test_helper.h"
 
 MultiStringType InStr =  MKSTR("abcdefg/\"hijklmnop\"/qrstuvwxyz/123456789");
 MultiStringType OutStr = MKSTR("\"abcdefg/\\\"hijklmnop\\\"/qrstuvwxyz/123456789\"");
@@ -89,10 +88,12 @@ void test_LWG2989() {
   static_assert(!is_istreamable<decltype(std::wcin), std::string>::value, "");
 }
 
-int main() {
+int main(int, char**) {
   doIOTest<char>();
   doIOTest<wchar_t>();
   //doIOTest<char16_t>();
   //doIOTest<char32_t>();
   test_LWG2989();
+
+  return 0;
 }

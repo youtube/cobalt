@@ -3,7 +3,15 @@
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Threading.h"
+#include <atomic>
 #include <thread>
+#ifdef __USE_POSIX
+#include <pthread.h>
+#elif defined(__APPLE__)
+#include <sys/resource.h>
+#elif defined (_WIN32)
+#include <windows.h>
+#endif
 
 namespace clang {
 namespace clangd {
@@ -22,6 +30,15 @@ void Notification::wait() const {
 }
 
 Semaphore::Semaphore(std::size_t MaxLocks) : FreeSlots(MaxLocks) {}
+
+bool Semaphore::try_lock() {
+  std::unique_lock<std::mutex> Lock(Mutex);
+  if (FreeSlots > 0) {
+    --FreeSlots;
+    return true;
+  }
+  return false;
+}
 
 void Semaphore::lock() {
   trace::Span Span("WaitForFreeSemaphoreSlot");

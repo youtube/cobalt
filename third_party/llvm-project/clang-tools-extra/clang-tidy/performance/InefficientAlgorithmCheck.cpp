@@ -1,9 +1,8 @@
 //===--- InefficientAlgorithmCheck.cpp - clang-tidy------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -99,7 +98,7 @@ void InefficientAlgorithmCheck::check(const MatchFinder::MatchResult &Result) {
                                       .getUnqualifiedType()
                                       .getCanonicalType();
     if (AlgCmp != ContainerCmp) {
-      diag(Arg->getLocStart(),
+      diag(Arg->getBeginLoc(),
            "different comparers used in the algorithm and the container");
       return;
     }
@@ -153,7 +152,7 @@ void InefficientAlgorithmCheck::check(const MatchFinder::MatchResult &Result) {
     Hint = FixItHint::CreateReplacement(CallRange, ReplacementText);
   }
 
-  diag(AlgCall->getLocStart(),
+  diag(AlgCall->getBeginLoc(),
        "this STL algorithm call should be replaced with a container method")
       << Hint;
 }

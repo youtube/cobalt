@@ -13,20 +13,19 @@ define void @vectorDiv (<2 x i32> addrspace(1)* %nsource, <2 x i32> addrspace(1)
 ; CHECK-NEXT:    movq %rsi, -{{[0-9]+}}(%rsp)
 ; CHECK-NEXT:    movq %rdx, -{{[0-9]+}}(%rsp)
 ; CHECK-NEXT:    movslq -{{[0-9]+}}(%rsp), %rcx
-; CHECK-NEXT:    pmovsxdq (%rdi,%rcx,8), %xmm0
-; CHECK-NEXT:    pmovsxdq (%rsi,%rcx,8), %xmm1
-; CHECK-NEXT:    pextrq $1, %xmm0, %rax
-; CHECK-NEXT:    pextrq $1, %xmm1, %rsi
-; CHECK-NEXT:    cqto
-; CHECK-NEXT:    idivq %rsi
-; CHECK-NEXT:    movq %rax, %xmm2
-; CHECK-NEXT:    movq %xmm0, %rax
-; CHECK-NEXT:    movq %xmm1, %rsi
-; CHECK-NEXT:    cqto
-; CHECK-NEXT:    idivq %rsi
-; CHECK-NEXT:    movq %rax, %xmm0
-; CHECK-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm2[0]
-; CHECK-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[0,2,2,3]
+; CHECK-NEXT:    movq {{.*#+}} xmm0 = mem[0],zero
+; CHECK-NEXT:    movq {{.*#+}} xmm1 = mem[0],zero
+; CHECK-NEXT:    pextrd $1, %xmm0, %eax
+; CHECK-NEXT:    pextrd $1, %xmm1, %esi
+; CHECK-NEXT:    cltd
+; CHECK-NEXT:    idivl %esi
+; CHECK-NEXT:    movl %eax, %esi
+; CHECK-NEXT:    movd %xmm0, %eax
+; CHECK-NEXT:    movd %xmm1, %edi
+; CHECK-NEXT:    cltd
+; CHECK-NEXT:    idivl %edi
+; CHECK-NEXT:    movd %eax, %xmm0
+; CHECK-NEXT:    pinsrd $1, %esi, %xmm0
 ; CHECK-NEXT:    movq %xmm0, (%r8,%rcx,8)
 ; CHECK-NEXT:    retq
 entry:
@@ -57,16 +56,13 @@ entry:
 define <3 x i8> @test_char_div(<3 x i8> %num, <3 x i8> %div) {
 ; CHECK-LABEL: test_char_div:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    movl %edi, %eax
-; CHECK-NEXT:    cbtw
+; CHECK-NEXT:    movsbl %dil, %eax
 ; CHECK-NEXT:    idivb %cl
 ; CHECK-NEXT:    movl %eax, %edi
-; CHECK-NEXT:    movl %esi, %eax
-; CHECK-NEXT:    cbtw
+; CHECK-NEXT:    movsbl %sil, %eax
 ; CHECK-NEXT:    idivb %r8b
 ; CHECK-NEXT:    movl %eax, %esi
-; CHECK-NEXT:    movl %edx, %eax
-; CHECK-NEXT:    cbtw
+; CHECK-NEXT:    movsbl %dl, %eax
 ; CHECK-NEXT:    idivb %r9b
 ; CHECK-NEXT:    movl %eax, %ecx
 ; CHECK-NEXT:    movl %edi, %eax
@@ -81,15 +77,12 @@ define <3 x i8> @test_uchar_div(<3 x i8> %num, <3 x i8> %div) {
 ; CHECK-LABEL: test_uchar_div:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movzbl %dil, %eax
-; CHECK-NEXT:    # kill: def $eax killed $eax def $ax
 ; CHECK-NEXT:    divb %cl
 ; CHECK-NEXT:    movl %eax, %edi
 ; CHECK-NEXT:    movzbl %sil, %eax
-; CHECK-NEXT:    # kill: def $eax killed $eax def $ax
 ; CHECK-NEXT:    divb %r8b
 ; CHECK-NEXT:    movl %eax, %esi
 ; CHECK-NEXT:    movzbl %dl, %eax
-; CHECK-NEXT:    # kill: def $eax killed $eax def $ax
 ; CHECK-NEXT:    divb %r9b
 ; CHECK-NEXT:    movl %eax, %ecx
 ; CHECK-NEXT:    movl %edi, %eax
@@ -147,30 +140,34 @@ define <5 x i16> @test_short_div(<5 x i16> %num, <5 x i16> %div) {
 define <4 x i16> @test_ushort_div(<4 x i16> %num, <4 x i16> %div) {
 ; CHECK-LABEL: test_ushort_div:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    pxor %xmm2, %xmm2
-; CHECK-NEXT:    pblendw {{.*#+}} xmm1 = xmm1[0],xmm2[1],xmm1[2],xmm2[3],xmm1[4],xmm2[5],xmm1[6],xmm2[7]
-; CHECK-NEXT:    pblendw {{.*#+}} xmm0 = xmm0[0],xmm2[1],xmm0[2],xmm2[3],xmm0[4],xmm2[5],xmm0[6],xmm2[7]
-; CHECK-NEXT:    pextrd $1, %xmm0, %eax
-; CHECK-NEXT:    pextrd $1, %xmm1, %ecx
+; CHECK-NEXT:    pextrw $1, %xmm0, %eax
+; CHECK-NEXT:    pextrw $1, %xmm1, %ecx
+; CHECK-NEXT:    # kill: def $ax killed $ax killed $eax
 ; CHECK-NEXT:    xorl %edx, %edx
-; CHECK-NEXT:    divl %ecx
+; CHECK-NEXT:    divw %cx
 ; CHECK-NEXT:    movl %eax, %ecx
 ; CHECK-NEXT:    movd %xmm0, %eax
 ; CHECK-NEXT:    movd %xmm1, %esi
+; CHECK-NEXT:    # kill: def $ax killed $ax killed $eax
 ; CHECK-NEXT:    xorl %edx, %edx
-; CHECK-NEXT:    divl %esi
+; CHECK-NEXT:    divw %si
+; CHECK-NEXT:    # kill: def $ax killed $ax def $eax
 ; CHECK-NEXT:    movd %eax, %xmm2
-; CHECK-NEXT:    pinsrd $1, %ecx, %xmm2
-; CHECK-NEXT:    pextrd $2, %xmm0, %eax
-; CHECK-NEXT:    pextrd $2, %xmm1, %ecx
+; CHECK-NEXT:    pinsrw $1, %ecx, %xmm2
+; CHECK-NEXT:    pextrw $2, %xmm0, %eax
+; CHECK-NEXT:    pextrw $2, %xmm1, %ecx
+; CHECK-NEXT:    # kill: def $ax killed $ax killed $eax
 ; CHECK-NEXT:    xorl %edx, %edx
-; CHECK-NEXT:    divl %ecx
-; CHECK-NEXT:    pinsrd $2, %eax, %xmm2
-; CHECK-NEXT:    pextrd $3, %xmm0, %eax
-; CHECK-NEXT:    pextrd $3, %xmm1, %ecx
+; CHECK-NEXT:    divw %cx
+; CHECK-NEXT:    # kill: def $ax killed $ax def $eax
+; CHECK-NEXT:    pinsrw $2, %eax, %xmm2
+; CHECK-NEXT:    pextrw $3, %xmm0, %eax
+; CHECK-NEXT:    pextrw $3, %xmm1, %ecx
+; CHECK-NEXT:    # kill: def $ax killed $ax killed $eax
 ; CHECK-NEXT:    xorl %edx, %edx
-; CHECK-NEXT:    divl %ecx
-; CHECK-NEXT:    pinsrd $3, %eax, %xmm2
+; CHECK-NEXT:    divw %cx
+; CHECK-NEXT:    # kill: def $ax killed $ax def $eax
+; CHECK-NEXT:    pinsrw $3, %eax, %xmm2
 ; CHECK-NEXT:    movdqa %xmm2, %xmm0
 ; CHECK-NEXT:    retq
   %div.r = udiv <4 x i16> %num, %div
@@ -233,16 +230,16 @@ define <3 x i64> @test_ulong_div(<3 x i64> %num, <3 x i64> %div) {
 ; CHECK-LABEL: test_ulong_div:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movq %rdx, %r10
-; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    movq %rdi, %rax
+; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    divq %rcx
 ; CHECK-NEXT:    movq %rax, %rcx
-; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    movq %rsi, %rax
+; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    divq %r8
 ; CHECK-NEXT:    movq %rax, %rsi
-; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    movq %r10, %rax
+; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    divq %r9
 ; CHECK-NEXT:    movq %rax, %rdi
 ; CHECK-NEXT:    movq %rcx, %rax
@@ -257,31 +254,30 @@ define <3 x i64> @test_ulong_div(<3 x i64> %num, <3 x i64> %div) {
 define <4 x i8> @test_char_rem(<4 x i8> %num, <4 x i8> %rem) {
 ; CHECK-LABEL: test_char_rem:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    pslld $24, %xmm1
-; CHECK-NEXT:    psrad $24, %xmm1
-; CHECK-NEXT:    pslld $24, %xmm0
-; CHECK-NEXT:    psrad $24, %xmm0
-; CHECK-NEXT:    pextrd $1, %xmm0, %eax
-; CHECK-NEXT:    pextrd $1, %xmm1, %ecx
-; CHECK-NEXT:    cltd
-; CHECK-NEXT:    idivl %ecx
-; CHECK-NEXT:    movl %edx, %ecx
-; CHECK-NEXT:    movd %xmm0, %eax
-; CHECK-NEXT:    movd %xmm1, %esi
-; CHECK-NEXT:    cltd
-; CHECK-NEXT:    idivl %esi
-; CHECK-NEXT:    movd %edx, %xmm2
-; CHECK-NEXT:    pinsrd $1, %ecx, %xmm2
-; CHECK-NEXT:    pextrd $2, %xmm0, %eax
-; CHECK-NEXT:    pextrd $2, %xmm1, %ecx
-; CHECK-NEXT:    cltd
-; CHECK-NEXT:    idivl %ecx
-; CHECK-NEXT:    pinsrd $2, %edx, %xmm2
-; CHECK-NEXT:    pextrd $3, %xmm0, %eax
-; CHECK-NEXT:    pextrd $3, %xmm1, %ecx
-; CHECK-NEXT:    cltd
-; CHECK-NEXT:    idivl %ecx
-; CHECK-NEXT:    pinsrd $3, %edx, %xmm2
+; CHECK-NEXT:    pextrb $1, %xmm1, %ecx
+; CHECK-NEXT:    pextrb $1, %xmm0, %eax
+; CHECK-NEXT:    cbtw
+; CHECK-NEXT:    idivb %cl
+; CHECK-NEXT:    movsbl %ah, %ecx
+; CHECK-NEXT:    pextrb $0, %xmm1, %edx
+; CHECK-NEXT:    pextrb $0, %xmm0, %eax
+; CHECK-NEXT:    cbtw
+; CHECK-NEXT:    idivb %dl
+; CHECK-NEXT:    movsbl %ah, %eax
+; CHECK-NEXT:    movd %eax, %xmm2
+; CHECK-NEXT:    pinsrb $1, %ecx, %xmm2
+; CHECK-NEXT:    pextrb $2, %xmm1, %ecx
+; CHECK-NEXT:    pextrb $2, %xmm0, %eax
+; CHECK-NEXT:    cbtw
+; CHECK-NEXT:    idivb %cl
+; CHECK-NEXT:    movsbl %ah, %eax
+; CHECK-NEXT:    pinsrb $2, %eax, %xmm2
+; CHECK-NEXT:    pextrb $3, %xmm1, %ecx
+; CHECK-NEXT:    pextrb $3, %xmm0, %eax
+; CHECK-NEXT:    cbtw
+; CHECK-NEXT:    idivb %cl
+; CHECK-NEXT:    movsbl %ah, %eax
+; CHECK-NEXT:    pinsrb $3, %eax, %xmm2
 ; CHECK-NEXT:    movdqa %xmm2, %xmm0
 ; CHECK-NEXT:    retq
   %rem.r = srem <4 x i8> %num, %rem
@@ -372,22 +368,22 @@ define <5 x i64> @test_ulong_rem(<5 x i64> %num, <5 x i64> %rem) {
 ; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    divq {{[0-9]+}}(%rsp)
 ; CHECK-NEXT:    movq %rdx, %xmm0
-; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    movq %rsi, %rax
+; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    divq {{[0-9]+}}(%rsp)
 ; CHECK-NEXT:    movq %rdx, %xmm1
 ; CHECK-NEXT:    punpcklqdq {{.*#+}} xmm1 = xmm1[0],xmm0[0]
-; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    movq %r8, %rax
+; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    divq {{[0-9]+}}(%rsp)
 ; CHECK-NEXT:    movq %rdx, %xmm0
-; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    movq %rcx, %rax
+; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    divq {{[0-9]+}}(%rsp)
 ; CHECK-NEXT:    movq %rdx, %xmm2
 ; CHECK-NEXT:    punpcklqdq {{.*#+}} xmm2 = xmm2[0],xmm0[0]
-; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    movq %r9, %rax
+; CHECK-NEXT:    xorl %edx, %edx
 ; CHECK-NEXT:    divq {{[0-9]+}}(%rsp)
 ; CHECK-NEXT:    movq %rdx, 32(%rdi)
 ; CHECK-NEXT:    movdqa %xmm2, 16(%rdi)

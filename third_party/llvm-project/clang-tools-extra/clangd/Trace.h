@@ -1,9 +1,8 @@
 //===--- Trace.h - Performance tracing facilities ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,7 +18,6 @@
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_TRACE_H_
 
 #include "Context.h"
-#include "Function.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
@@ -29,7 +27,7 @@ namespace clangd {
 namespace trace {
 
 /// A consumer of trace events. The events are produced by Spans and trace::log.
-/// Implmentations of this interface must be thread-safe.
+/// Implementations of this interface must be thread-safe.
 class EventTracer {
 public:
   virtual ~EventTracer() = default;
@@ -87,6 +85,7 @@ public:
 
   /// Mutable metadata, if this span is interested.
   /// Prefer to use SPAN_ATTACH rather than accessing this directly.
+  /// The lifetime of Args is the whole event, even if the Span dies.
   llvm::json::Object *const Args;
 
 private:

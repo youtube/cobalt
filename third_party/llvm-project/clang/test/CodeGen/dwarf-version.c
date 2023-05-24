@@ -14,19 +14,36 @@
 // RUN: %clang -target powerpc-unknown-openbsd -g -S -emit-llvm -o - %s | FileCheck %s --check-prefix=VER2
 // RUN: %clang -target powerpc-unknown-freebsd -g -S -emit-llvm -o - %s | FileCheck %s --check-prefix=VER2
 // RUN: %clang -target i386-pc-solaris -g -S -emit-llvm -o - %s | FileCheck %s --check-prefix=VER2
-//
-// Test what -gcodeview and -gdwarf do on Windows.
-// RUN: %clang -target i686-pc-windows-msvc -gcodeview -S -emit-llvm -o - %s | FileCheck %s --check-prefix=NODWARF --check-prefix=CODEVIEW
-// RUN: %clang -target i686-pc-windows-msvc -gdwarf -gcodeview -S -emit-llvm -o - %s | FileCheck %s --check-prefix=VER4 --check-prefix=CODEVIEW
+// RUN: %clang -target i386-pc-solaris -gdwarf -S -emit-llvm -o - %s | FileCheck %s --check-prefix=VER2
+
+// Check which debug info formats we use on Windows. By default, in an MSVC
+// environment, we should use codeview. You can enable dwarf, which implicitly
+// disables codeview, of you can explicitly ask for both if you don't know how
+// the app will be debugged.
+//     Default is codeview.
+// RUN: %clang -target i686-pc-windows-msvc -g -S -emit-llvm -o - %s \
+// RUN:     | FileCheck %s --check-prefixes=NODWARF,CODEVIEW
+//     Explicitly request codeview.
+// RUN: %clang -target i686-pc-windows-msvc -gcodeview -S -emit-llvm -o - %s \
+// RUN:     | FileCheck %s --check-prefixes=NODWARF,CODEVIEW
+//     Explicitly request DWARF.
+// RUN: %clang -target i686-pc-windows-msvc -gdwarf -S -emit-llvm -o - %s \
+// RUN:     | FileCheck %s --check-prefixes=VER4,NOCODEVIEW
+//     Explicitly request both.
+// RUN: %clang -target i686-pc-windows-msvc -gdwarf -gcodeview -S -emit-llvm -o - %s \
+// RUN:     | FileCheck %s --check-prefixes=VER4,CODEVIEW
 int main (void) {
   return 0;
 }
 
-// VER2: !{i32 2, !"Dwarf Version", i32 2}
-// VER3: !{i32 2, !"Dwarf Version", i32 3}
-// VER4: !{i32 2, !"Dwarf Version", i32 4}
-// VER5: !{i32 2, !"Dwarf Version", i32 5}
+// NOCODEVIEW-NOT: !"CodeView"
+
+// VER2: !{i32 7, !"Dwarf Version", i32 2}
+// VER3: !{i32 7, !"Dwarf Version", i32 3}
+// VER4: !{i32 7, !"Dwarf Version", i32 4}
+// VER5: !{i32 7, !"Dwarf Version", i32 5}
 
 // NODWARF-NOT: !"Dwarf Version"
 // CODEVIEW: !{i32 2, !"CodeView", i32 1}
+// NOCODEVIEW-NOT: !"CodeView"
 // NODWARF-NOT: !"Dwarf Version"

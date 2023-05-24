@@ -1,9 +1,8 @@
 //===-- NativeRegisterContextLinux_mips64.cpp ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,22 +10,19 @@
 
 #include "NativeRegisterContextLinux_mips64.h"
 
-// C Includes
-// C++ Includes
 
-// Other libraries and framework includes
 #include "Plugins/Process/Linux/NativeProcessLinux.h"
 #include "Plugins/Process/Linux/Procfs.h"
 #include "Plugins/Process/POSIX/ProcessPOSIXLog.h"
 #include "Plugins/Process/Utility/RegisterContextLinux_mips.h"
 #include "Plugins/Process/Utility/RegisterContextLinux_mips64.h"
 #include "lldb/Core/EmulateInstruction.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/LLDBAssert.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/lldb-enumerations.h"
 #include "lldb/lldb-private-enumerations.h"
@@ -83,7 +79,7 @@ using namespace lldb_private::process_linux;
 std::unique_ptr<NativeRegisterContextLinux>
 NativeRegisterContextLinux::CreateHostNativeRegisterContextLinux(
     const ArchSpec &target_arch, NativeThreadProtocol &native_thread) {
-  return llvm::make_unique<NativeRegisterContextLinux_mips64>(target_arch,
+  return std::make_unique<NativeRegisterContextLinux_mips64>(target_arch,
                                                               native_thread);
 }
 
@@ -91,9 +87,7 @@ NativeRegisterContextLinux::CreateHostNativeRegisterContextLinux(
   (GetRegisterInfoInterface().GetGPRSize() + sizeof(FPR_linux_mips) +          \
    sizeof(MSA_linux_mips))
 
-// ----------------------------------------------------------------------------
 // NativeRegisterContextLinux_mips64 members.
-// ----------------------------------------------------------------------------
 
 static RegisterInfoInterface *
 CreateRegisterInfoInterface(const ArchSpec &target_arch) {
@@ -387,13 +381,6 @@ Status NativeRegisterContextLinux_mips64::ReadAllRegisterValues(
   Status error;
 
   data_sp.reset(new DataBufferHeap(REG_CONTEXT_SIZE, 0));
-  if (!data_sp) {
-    error.SetErrorStringWithFormat(
-        "failed to allocate DataBufferHeap instance of size %" PRIu64,
-        REG_CONTEXT_SIZE);
-    return error;
-  }
-
   error = ReadGPR();
   if (!error.Success()) {
     error.SetErrorString("ReadGPR() failed");
@@ -407,13 +394,6 @@ Status NativeRegisterContextLinux_mips64::ReadAllRegisterValues(
   }
 
   uint8_t *dst = data_sp->GetBytes();
-  if (dst == nullptr) {
-    error.SetErrorStringWithFormat("DataBufferHeap instance of size %" PRIu64
-                                   " returned a null pointer",
-                                   REG_CONTEXT_SIZE);
-    return error;
-  }
-
   ::memcpy(dst, &m_gpr, GetRegisterInfoInterface().GetGPRSize());
   dst += GetRegisterInfoInterface().GetGPRSize();
 
@@ -944,25 +924,25 @@ NativeRegisterContextLinux_mips64::GetWatchpointHitAddress(uint32_t wp_index) {
 
   lldb_private::ArchSpec arch;
   arch = GetRegisterInfoInterface().GetTargetArchitecture();
-  std::unique_ptr<EmulateInstruction> emulator_ap(
+  std::unique_ptr<EmulateInstruction> emulator_up(
       EmulateInstruction::FindPlugin(arch, lldb_private::eInstructionTypeAny,
                                      nullptr));
 
-  if (emulator_ap == nullptr)
+  if (emulator_up == nullptr)
     return LLDB_INVALID_ADDRESS;
 
   EmulatorBaton baton(
       static_cast<NativeProcessLinux *>(&m_thread.GetProcess()), this);
-  emulator_ap->SetBaton(&baton);
-  emulator_ap->SetReadMemCallback(&ReadMemoryCallback);
-  emulator_ap->SetReadRegCallback(&ReadRegisterCallback);
-  emulator_ap->SetWriteMemCallback(&WriteMemoryCallback);
-  emulator_ap->SetWriteRegCallback(&WriteRegisterCallback);
+  emulator_up->SetBaton(&baton);
+  emulator_up->SetReadMemCallback(&ReadMemoryCallback);
+  emulator_up->SetReadRegCallback(&ReadRegisterCallback);
+  emulator_up->SetWriteMemCallback(&WriteMemoryCallback);
+  emulator_up->SetWriteRegCallback(&WriteRegisterCallback);
 
-  if (!emulator_ap->ReadInstruction())
+  if (!emulator_up->ReadInstruction())
     return LLDB_INVALID_ADDRESS;
 
-  if (emulator_ap->EvaluateInstruction(lldb::eEmulateInstructionOptionNone))
+  if (emulator_up->EvaluateInstruction(lldb::eEmulateInstructionOptionNone))
     return baton.m_watch_hit_addr;
 
   return LLDB_INVALID_ADDRESS;

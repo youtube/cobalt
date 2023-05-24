@@ -9,6 +9,9 @@ macro(find_llvm_parts)
     set(LLVM_PATH ${LLVM_PATH} CACHE PATH "Path to LLVM source tree")
     set(LLVM_MAIN_SRC_DIR ${LLVM_PATH})
     set(LLVM_CMAKE_PATH "${LLVM_PATH}/cmake/modules")
+    if (NOT IS_DIRECTORY "${LLVM_PATH}")
+      message(FATAL_ERROR "The provided LLVM_PATH (${LLVM_PATH}) is not a valid directory")
+    endif()
   elseif(LLVM_CONFIG_PATH)
     message(STATUS "Found LLVM_CONFIG_PATH as ${LLVM_CONFIG_PATH}")
     set(LIBCXXABI_USING_INSTALLED_LLVM 1)
@@ -94,7 +97,6 @@ macro(configure_out_of_tree_llvm)
   endif()
   if (LLVM_FOUND)
     include(AddLLVM OPTIONAL)
-    include(HandleLLVMOptions OPTIONAL)
   endif()
 
   # LLVM Options --------------------------------------------------------------
@@ -117,7 +119,7 @@ macro(configure_out_of_tree_llvm)
     # Required LIT Configuration ------------------------------------------------
     # Define the default arguments to use with 'lit', and an option for the user
     # to override.
-    set(LLVM_EXTERNAL_LIT "${LLVM_MAIN_SRC_DIR}/utils/lit/lit.py")
+    set(LLVM_DEFAULT_EXTERNAL_LIT "${LLVM_MAIN_SRC_DIR}/utils/lit/lit.py")
     set(LIT_ARGS_DEFAULT "-sv --show-xfail --show-unsupported")
     if (MSVC OR XCODE)
       set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")

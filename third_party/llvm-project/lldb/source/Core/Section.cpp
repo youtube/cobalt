@@ -1,25 +1,24 @@
 //===-- Section.cpp ---------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Core/Section.h"
-#include "lldb/Core/Address.h" // for Address
+#include "lldb/Core/Address.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Utility/FileSpec.h" // for FileSpec
-#include "lldb/Utility/Stream.h"   // for Stream
-#include "lldb/Utility/VMRange.h"  // for VMRange
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/VMRange.h"
 
-#include <inttypes.h> // for PRIx64
-#include <limits>     // for numeric_limits
-#include <utility>    // for distance
+#include <inttypes.h>
+#include <limits>
+#include <utility>
 
 namespace lldb_private {
 class DataExtractor;
@@ -61,6 +60,8 @@ const char *Section::GetTypeAsCString() const {
     return "objc-cfstrings";
   case eSectionTypeDWARFDebugAbbrev:
     return "dwarf-abbrev";
+  case eSectionTypeDWARFDebugAbbrevDwo:
+    return "dwarf-abbrev-dwo";
   case eSectionTypeDWARFDebugAddr:
     return "dwarf-addr";
   case eSectionTypeDWARFDebugAranges:
@@ -71,10 +72,20 @@ const char *Section::GetTypeAsCString() const {
     return "dwarf-frame";
   case eSectionTypeDWARFDebugInfo:
     return "dwarf-info";
+  case eSectionTypeDWARFDebugInfoDwo:
+    return "dwarf-info-dwo";
   case eSectionTypeDWARFDebugLine:
     return "dwarf-line";
+  case eSectionTypeDWARFDebugLineStr:
+    return "dwarf-line-str";
   case eSectionTypeDWARFDebugLoc:
     return "dwarf-loc";
+  case eSectionTypeDWARFDebugLocDwo:
+    return "dwarf-loc-dwo";
+  case eSectionTypeDWARFDebugLocLists:
+    return "dwarf-loclists";
+  case eSectionTypeDWARFDebugLocListsDwo:
+    return "dwarf-loclists-dwo";
   case eSectionTypeDWARFDebugMacInfo:
     return "dwarf-macinfo";
   case eSectionTypeDWARFDebugMacro:
@@ -85,12 +96,22 @@ const char *Section::GetTypeAsCString() const {
     return "dwarf-pubtypes";
   case eSectionTypeDWARFDebugRanges:
     return "dwarf-ranges";
+  case eSectionTypeDWARFDebugRngLists:
+    return "dwarf-rnglists";
+  case eSectionTypeDWARFDebugRngListsDwo:
+    return "dwarf-rnglists-dwo";
   case eSectionTypeDWARFDebugStr:
     return "dwarf-str";
+  case eSectionTypeDWARFDebugStrDwo:
+    return "dwarf-str-dwo";
   case eSectionTypeDWARFDebugStrOffsets:
     return "dwarf-str-offsets";
+  case eSectionTypeDWARFDebugStrOffsetsDwo:
+    return "dwarf-str-offsets-dwo";
   case eSectionTypeDWARFDebugTypes:
     return "dwarf-types";
+  case eSectionTypeDWARFDebugTypesDwo:
+    return "dwarf-types-dwo";
   case eSectionTypeDWARFDebugNames:
     return "dwarf-names";
   case eSectionTypeELFSymbolTable:
@@ -130,7 +151,7 @@ const char *Section::GetTypeAsCString() const {
 }
 
 Section::Section(const ModuleSP &module_sp, ObjectFile *obj_file,
-                 user_id_t sect_id, const ConstString &name,
+                 user_id_t sect_id, ConstString name,
                  SectionType sect_type, addr_t file_addr, addr_t byte_size,
                  lldb::offset_t file_offset, lldb::offset_t file_size,
                  uint32_t log2align, uint32_t flags,
@@ -152,7 +173,7 @@ Section::Section(const ModuleSP &module_sp, ObjectFile *obj_file,
 
 Section::Section(const lldb::SectionSP &parent_section_sp,
                  const ModuleSP &module_sp, ObjectFile *obj_file,
-                 user_id_t sect_id, const ConstString &name,
+                 user_id_t sect_id, ConstString name,
                  SectionType sect_type, addr_t file_addr, addr_t byte_size,
                  lldb::offset_t file_offset, lldb::offset_t file_size,
                  uint32_t log2align, uint32_t flags,
@@ -254,36 +275,13 @@ bool Section::ResolveContainedAddress(addr_t offset, Address &so_addr,
 
 bool Section::ContainsFileAddress(addr_t vm_addr) const {
   const addr_t file_addr = GetFileAddress();
-  if (file_addr != LLDB_INVALID_ADDRESS) {
+  if (file_addr != LLDB_INVALID_ADDRESS && !IsThreadSpecific()) {
     if (file_addr <= vm_addr) {
       const addr_t offset = (vm_addr - file_addr) * m_target_byte_size;
       return offset < GetByteSize();
     }
   }
   return false;
-}
-
-int Section::Compare(const Section &a, const Section &b) {
-  if (&a == &b)
-    return 0;
-
-  const ModuleSP a_module_sp = a.GetModule();
-  const ModuleSP b_module_sp = b.GetModule();
-  if (a_module_sp == b_module_sp) {
-    user_id_t a_sect_uid = a.GetID();
-    user_id_t b_sect_uid = b.GetID();
-    if (a_sect_uid < b_sect_uid)
-      return -1;
-    if (a_sect_uid > b_sect_uid)
-      return 1;
-    return 0;
-  } else {
-    // The modules are different, just compare the module pointers
-    if (a_module_sp.get() < b_module_sp.get())
-      return -1;
-    else
-      return 1; // We already know the modules aren't equal
-  }
 }
 
 void Section::Dump(Stream *s, Target *target, uint32_t depth) const {
@@ -306,7 +304,7 @@ void Section::Dump(Stream *s, Target *target, uint32_t depth) const {
     }
 
     VMRange range(addr, addr + m_byte_size);
-    range.Dump(s, 0);
+    range.Dump(s->AsRawOstream(), 0);
   }
 
   s->Printf("%c %c%c%c  0x%8.8" PRIx64 " 0x%8.8" PRIx64 " 0x%8.8x ",
@@ -329,7 +327,7 @@ void Section::DumpName(Stream *s) const {
     s->PutChar('.');
   } else {
     // The top most section prints the module basename
-    const char *name = NULL;
+    const char *name = nullptr;
     ModuleSP module_sp(GetModule());
 
     if (m_obj_file) {
@@ -368,9 +366,7 @@ bool Section::Slide(addr_t slide_amount, bool slide_children) {
   return false;
 }
 
-//------------------------------------------------------------------
 /// Get the permissions as OR'ed bits from lldb::Permissions
-//------------------------------------------------------------------
 uint32_t Section::GetPermissions() const {
   uint32_t permissions = 0;
   if (m_readable)
@@ -382,9 +378,7 @@ uint32_t Section::GetPermissions() const {
   return permissions;
 }
 
-//------------------------------------------------------------------
 /// Set the permissions using bits OR'ed from lldb::Permissions
-//------------------------------------------------------------------
 void Section::SetPermissions(uint32_t permissions) {
   m_readable = (permissions & ePermissionsReadable) != 0;
   m_writable = (permissions & ePermissionsWritable) != 0;
@@ -405,10 +399,6 @@ lldb::offset_t Section::GetSectionData(DataExtractor &section_data) {
 }
 
 #pragma mark SectionList
-
-SectionList::SectionList() : m_sections() {}
-
-SectionList::~SectionList() {}
 
 SectionList &SectionList::operator=(const SectionList &rhs) {
   if (this != &rhs)
@@ -493,14 +483,14 @@ SectionSP SectionList::GetSectionAtIndex(size_t idx) const {
 }
 
 SectionSP
-SectionList::FindSectionByName(const ConstString &section_dstr) const {
+SectionList::FindSectionByName(ConstString section_dstr) const {
   SectionSP sect_sp;
   // Check if we have a valid section string
   if (section_dstr && !m_sections.empty()) {
     const_iterator sect_iter;
     const_iterator end = m_sections.end();
     for (sect_iter = m_sections.begin();
-         sect_iter != end && sect_sp.get() == NULL; ++sect_iter) {
+         sect_iter != end && sect_sp.get() == nullptr; ++sect_iter) {
       Section *child_section = sect_iter->get();
       if (child_section) {
         if (child_section->GetName() == section_dstr) {
@@ -521,7 +511,7 @@ SectionSP SectionList::FindSectionByID(user_id_t sect_id) const {
     const_iterator sect_iter;
     const_iterator end = m_sections.end();
     for (sect_iter = m_sections.begin();
-         sect_iter != end && sect_sp.get() == NULL; ++sect_iter) {
+         sect_iter != end && sect_sp.get() == nullptr; ++sect_iter) {
       if ((*sect_iter)->GetID() == sect_id) {
         sect_sp = *sect_iter;
         break;
@@ -558,7 +548,7 @@ SectionSP SectionList::FindSectionContainingFileAddress(addr_t vm_addr,
   const_iterator sect_iter;
   const_iterator end = m_sections.end();
   for (sect_iter = m_sections.begin();
-       sect_iter != end && sect_sp.get() == NULL; ++sect_iter) {
+       sect_iter != end && sect_sp.get() == nullptr; ++sect_iter) {
     Section *sect = sect_iter->get();
     if (sect->ContainsFileAddress(vm_addr)) {
       // The file address is in this section. We need to make sure one of our
@@ -568,7 +558,7 @@ SectionSP SectionList::FindSectionContainingFileAddress(addr_t vm_addr,
         sect_sp = sect->GetChildren().FindSectionContainingFileAddress(
             vm_addr, depth - 1);
 
-      if (sect_sp.get() == NULL && !sect->IsFake())
+      if (sect_sp.get() == nullptr && !sect->IsFake())
         sect_sp = *sect_iter;
     }
   }
@@ -576,7 +566,7 @@ SectionSP SectionList::FindSectionContainingFileAddress(addr_t vm_addr,
 }
 
 bool SectionList::ContainsSection(user_id_t sect_id) const {
-  return FindSectionByID(sect_id).get() != NULL;
+  return FindSectionByID(sect_id).get() != nullptr;
 }
 
 void SectionList::Dump(Stream *s, Target *target, bool show_header,
@@ -599,7 +589,7 @@ void SectionList::Dump(Stream *s, Target *target, bool show_header,
   const_iterator sect_iter;
   const_iterator end = m_sections.end();
   for (sect_iter = m_sections.begin(); sect_iter != end; ++sect_iter) {
-    (*sect_iter)->Dump(s, target_has_loaded_sections ? target : NULL, depth);
+    (*sect_iter)->Dump(s, target_has_loaded_sections ? target : nullptr, depth);
   }
 
   if (show_header && !m_sections.empty())

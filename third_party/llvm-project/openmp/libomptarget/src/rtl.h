@@ -1,9 +1,8 @@
 //===------------ rtl.h - Target independent OpenMP target RTL ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -37,13 +36,13 @@ struct RTLInfoTy {
                                  int32_t);
   typedef int32_t(run_team_region_ty)(int32_t, void *, void **, ptrdiff_t *,
                                       int32_t, int32_t, int32_t, uint64_t);
+  typedef int64_t(init_requires_ty)(int64_t);
 
   int32_t Idx;                     // RTL index, index is the number of devices
                                    // of other RTLs that were registered before,
                                    // i.e. the OpenMP index of the first device
                                    // to be registered with this RTL.
   int32_t NumberOfDevices;         // Number of devices this RTL deals with.
-  std::vector<DeviceTy *> Devices; // one per device (NumberOfDevices in total).
 
   void *LibraryHandler;
 
@@ -62,6 +61,7 @@ struct RTLInfoTy {
   data_delete_ty *data_delete;
   run_region_ty *run_region;
   run_team_region_ty *run_team_region;
+  init_requires_ty *init_requires;
 
   // Are there images associated with this RTL.
   bool isUsed;
@@ -74,19 +74,18 @@ struct RTLInfoTy {
   // The existence of the mutex above makes RTLInfoTy non-copyable.
   // We need to provide a copy constructor explicitly.
   RTLInfoTy()
-      : Idx(-1), NumberOfDevices(-1), Devices(), LibraryHandler(0),
+      : Idx(-1), NumberOfDevices(-1), LibraryHandler(0),
 #ifdef OMPTARGET_DEBUG
         RTLName(),
 #endif
         is_valid_binary(0), number_of_devices(0), init_device(0),
         load_binary(0), data_alloc(0), data_submit(0), data_retrieve(0),
-        data_delete(0), run_region(0), run_team_region(0), isUsed(false),
-        Mtx() {}
+        data_delete(0), run_region(0), run_team_region(0),
+        init_requires(0), isUsed(false), Mtx() {}
 
   RTLInfoTy(const RTLInfoTy &r) : Mtx() {
     Idx = r.Idx;
     NumberOfDevices = r.NumberOfDevices;
-    Devices = r.Devices;
     LibraryHandler = r.LibraryHandler;
 #ifdef OMPTARGET_DEBUG
     RTLName = r.RTLName;
@@ -101,6 +100,7 @@ struct RTLInfoTy {
     data_delete = r.data_delete;
     run_region = r.run_region;
     run_team_region = r.run_team_region;
+    init_requires = r.init_requires;
     isUsed = r.isUsed;
   }
 };
@@ -121,7 +121,12 @@ public:
   // binaries.
   std::vector<RTLInfoTy *> UsedRTLs;
 
+  int64_t RequiresFlags;
+
   explicit RTLsTy() {}
+
+  // Register the clauses of the requires directive.
+  void RegisterRequires(int64_t flags);
 
   // Register a shared library with all (compatible) RTLs.
   void RegisterLib(__tgt_bin_desc *desc);

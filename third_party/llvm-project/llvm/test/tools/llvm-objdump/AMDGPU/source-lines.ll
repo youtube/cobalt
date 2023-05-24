@@ -1,7 +1,7 @@
 ; RUN: sed -e "s,SRC_COMPDIR,%/p/Inputs,g" %s > %t.ll
-; RUN: llc -mtriple=amdgcn-amd-amdhsa-amdgiz -mcpu=gfx802 -filetype=obj -O0 -o %t.o %t.ll
-; RUN: llvm-objdump -triple=amdgcn-amd-amdhsa-amdgiz -mcpu=gfx802 -disassemble -line-numbers %t.o | FileCheck --check-prefix=LINE %t.ll
-; RUN: llvm-objdump -triple=amdgcn-amd-amdhsa-amdgiz -mcpu=gfx802 -disassemble -source %t.o | FileCheck --check-prefix=SOURCE %t.ll
+; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx802 -filetype=obj -O0 -o %t.o %t.ll
+; RUN: llvm-objdump -triple=amdgcn-amd-amdhsa -mcpu=gfx802 -disassemble -line-numbers %t.o | FileCheck --check-prefix=LINE %t.ll
+; RUN: llvm-objdump -triple=amdgcn-amd-amdhsa -mcpu=gfx802 -disassemble -source %t.o | FileCheck --check-prefix=SOURCE %t.ll
 
 ; Prologue.
 ; LINE:      source_lines_test:
@@ -12,7 +12,7 @@
 ; LINE: v_mov_b32_e32 v{{[0-9]+}}, 0x888
 ; LINE: ; {{.*}}source-lines.cl:3
 ; LINE: ; {{.*}}source-lines.cl:4
-; LINE: v_add_u32_e32
+; LINE: v_add_u32_e64
 ; LINE: ; {{.*}}source-lines.cl:5
 ; LINE: flat_store_dword
 ; Epilogue.
@@ -28,7 +28,7 @@
 ; SOURCE: v_mov_b32_e32 v{{[0-9]+}}, 0x888
 ; SOURCE: ; int var1 = 0x888;
 ; SOURCE: ; int var2 = var0 + var1;
-; SOURCE: v_add_u32_e32
+; SOURCE: v_add_u32_e64
 ; SOURCE: ; *Out = var2;
 ; SOURCE: flat_store_dword
 ; Epilogue.
@@ -38,7 +38,7 @@
 ; ModuleID = 'source-lines.cl'
 source_filename = "source-lines.cl"
 target datalayout = "e-p:32:32-p1:64:64-p2:64:64-p3:32:32-p4:64:64-p5:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-A5"
-target triple = "amdgcn-amd-amdhsa-amdgiz"
+target triple = "amdgcn-amd-amdhsa"
 
 ; Function Attrs: noinline nounwind
 define amdgpu_kernel void @source_lines_test(i32 addrspace(1)* %Out) #0 !dbg !7 !kernel_arg_addr_space !12 !kernel_arg_access_qual !13 !kernel_arg_type !14 !kernel_arg_base_type !14 !kernel_arg_type_qual !15 {
@@ -67,7 +67,7 @@ entry:
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-attributes #0 = { noinline nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="gfx700" "target-features"="+fp64-fp16-denormals,-fp32-denormals" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { noinline nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-features"="+fp64-fp16-denormals,-fp32-denormals" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

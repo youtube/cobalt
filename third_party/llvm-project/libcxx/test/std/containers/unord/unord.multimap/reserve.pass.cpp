@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,10 +12,11 @@
 //           class Alloc = allocator<pair<const Key, T>>>
 // class unordered_multimap
 
-// void rehash(size_type n);
+// void reserve(size_type n);
 
 #include <unordered_map>
 #include <string>
+#include <set>
 #include <cassert>
 
 #include "test_macros.h"
@@ -26,10 +26,22 @@ template <class C>
 void test(const C& c)
 {
     assert(c.size() == 6);
-    assert(c.find(1)->second == "one");
-    assert(next(c.find(1))->second == "four");
-    assert(c.find(2)->second == "two");
-    assert(next(c.find(2))->second == "four");
+    {
+        std::set<std::string> s;
+        s.insert("one");
+        s.insert("four");
+        assert(s.find(c.find(1)->second) != s.end());
+        s.erase(s.find(c.find(1)->second));
+        assert(s.find(next(c.find(1))->second) != s.end());
+    }
+    {
+        std::set<std::string> s;
+        s.insert("two");
+        s.insert("four");
+        assert(s.find(c.find(2)->second) != s.end());
+        s.erase(s.find(c.find(2)->second));
+        assert(s.find(next(c.find(2))->second) != s.end());
+    }
     assert(c.find(3)->second == "three");
     assert(c.find(4)->second == "four");
 }
@@ -49,7 +61,7 @@ void reserve_invariant(size_t n) // LWG #2156
     }
 }
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::unordered_multimap<int, std::string> C;
@@ -107,4 +119,6 @@ int main()
     }
 #endif
     reserve_invariant(20);
+
+  return 0;
 }

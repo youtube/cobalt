@@ -1,7 +1,7 @@
 // REQUIRES: crash-recovery, shell
 
 // FIXME: This XFAIL is cargo-culted from crash-report.c. Do we need it?
-// XFAIL: mingw32
+// XFAIL: windows-gnu
 
 // Test that clang is capable of collecting the right header files in the
 // crash reproducer if there's a symbolic link component in the path.
@@ -11,8 +11,8 @@
 // RUN: cp -R %S/Inputs/crash-recovery/usr %t/i/
 // RUN: ln -s include/tcl-private %t/i/usr/x
 
-// RUN: not env FORCE_CLANG_DIAGNOSTICS_CRASH= TMPDIR=%t TEMP=%t TMP=%t \
-// RUN: %clang -fsyntax-only %s -I %/t/i -isysroot %/t/sysroot/ \
+// RUN: env FORCE_CLANG_DIAGNOSTICS_CRASH= TMPDIR=%t TEMP=%t TMP=%t \
+// RUN: not %clang -fsyntax-only %s -I %/t/i -isysroot %/t/sysroot/ \
 // RUN:     -fmodules -fmodules-cache-path=%t/m/ 2>&1 | FileCheck %s
 
 // RUN: FileCheck --check-prefix=CHECKSRC %s -input-file %t/crash-vfs-*.m

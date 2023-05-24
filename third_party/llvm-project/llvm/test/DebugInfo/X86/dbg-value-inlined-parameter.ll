@@ -30,12 +30,13 @@
 ;CHECK-NEXT: DW_AT_high_pc [DW_FORM_data4]
 ;CHECK-NEXT: DW_AT_call_file
 ;CHECK-NEXT: DW_AT_call_line
+;CHECK-NEXT: DW_AT_call_column
 
 ;CHECK: DW_TAG_formal_parameter
-;FIXME: Linux shouldn't drop this parameter either...
 ;CHECK-NOT: DW_TAG
-;DARWIN:   DW_AT_abstract_origin {{.*}} "sp"
-;DARWIN: DW_TAG_formal_parameter
+;CHECK:   DW_AT_abstract_origin {{.*}} "sp"
+;CHECK: DW_TAG_formal_parameter
+;CHECK-NOT: DW_TAG
 ;CHECK: DW_AT_abstract_origin {{.*}} "nums"
 ;CHECK-NOT: DW_TAG_formal_parameter
 

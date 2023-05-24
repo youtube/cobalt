@@ -2,11 +2,8 @@
 Check for an issue where capping does not work because the Target pointer appears to be changing behind our backs
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *

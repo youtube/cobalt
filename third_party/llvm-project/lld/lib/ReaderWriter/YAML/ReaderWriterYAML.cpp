@@ -1,9 +1,8 @@
 //===- lib/ReaderWriter/YAML/ReaderWriterYAML.cpp -------------------------===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -122,7 +121,7 @@ public:
       StringRef newName = copyString(buffer.str());
       _refNames[&atom] = newName;
       DEBUG_WITH_TYPE("WriterYAML",
-                      llvm::dbgs() << "name collsion: creating ref-name: '"
+                      llvm::dbgs() << "name collision: creating ref-name: '"
                                    << newName << "' ("
                                    << (const void *)newName.data()
                                    << ", " << newName.size() << ")\n");
@@ -136,7 +135,7 @@ public:
         StringRef newName2 = copyString(buffer2.str());
         _refNames[prevAtom] = newName2;
         DEBUG_WITH_TYPE("WriterYAML",
-                        llvm::dbgs() << "name collsion: creating ref-name: '"
+                        llvm::dbgs() << "name collision: creating ref-name: '"
                                      << newName2 << "' ("
                                      << (const void *)newName2.data() << ", "
                                      << newName2.size() << ")\n");
@@ -1300,7 +1299,7 @@ public:
   llvm::Error writeFile(const lld::File &file, StringRef outPath) override {
     // Create stream to path.
     std::error_code ec;
-    llvm::raw_fd_ostream out(outPath, ec, llvm::sys::fs::F_Text);
+    llvm::raw_fd_ostream out(outPath, ec, llvm::sys::fs::OF_Text);
     if (ec)
       return llvm::errorCodeToError(ec);
 

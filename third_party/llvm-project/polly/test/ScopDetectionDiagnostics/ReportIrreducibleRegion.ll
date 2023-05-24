@@ -70,14 +70,14 @@ if.end6:                                          ; preds = %if.end5, %entry
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!8, !9}
 !llvm.ident = !{!10}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0 (http://llvm.org/git/clang.git a9b56346a9fa49b176872a2068b479d4ff759ae4) (http://llvm.org/git/llvm.git 82a04b17aeffdf31b7665f927ac42d81e80c07f0)", isOptimized: false, runtimeVersion: 0, emissionKind: 1, enums: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0", isOptimized: false, runtimeVersion: 0, emissionKind: 1, enums: !2)
 !1 = !DIFile(filename: "ReportIrreducibleRegion.c", directory: "llvm/tools/polly/test/ScopDetectionDiagnostics")
 !2 = !{}
 !4 = distinct !DISubprogram(name: "foo", scope: !1, file: !1, line: 1, type: !5, isLocal: false, isDefinition: true, scopeLine: 1, flags: DIFlagPrototyped, isOptimized: false, unit: !0, retainedNodes: !2)
@@ -86,7 +86,7 @@ attributes #1 = { nounwind readnone }
 !7 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !8 = !{i32 2, !"Dwarf Version", i32 4}
 !9 = !{i32 2, !"Debug Info Version", i32 3}
-!10 = !{!"clang version 3.8.0 (http://llvm.org/git/clang.git a9b56346a9fa49b176872a2068b479d4ff759ae4) (http://llvm.org/git/llvm.git 82a04b17aeffdf31b7665f927ac42d81e80c07f0)"}
+!10 = !{!"clang version 3.8.0"}
 !11 = !DILocalVariable(name: "a", arg: 1, scope: !4, file: !1, line: 1, type: !7)
 !12 = !DIExpression()
 !13 = !DILocation(line: 1, column: 14, scope: !4)

@@ -1,9 +1,8 @@
 //===---- QueryParser.cpp - clang-query command parser --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,24 +26,25 @@ namespace query {
 // is found before End, return StringRef().  Begin is adjusted to exclude the
 // lexed region.
 StringRef QueryParser::lexWord() {
-  while (true) {
-    if (Begin == End)
-      return StringRef(Begin, 0);
+  Line = Line.drop_while([](char c) {
+    // Don't trim newlines.
+    return StringRef(" \t\v\f\r").contains(c);
+  });
 
-    if (!isWhitespace(*Begin))
-      break;
+  if (Line.empty())
+    // Even though the Line is empty, it contains a pointer and
+    // a (zero) length. The pointer is used in the LexOrCompleteWord
+    // code completion.
+    return Line;
 
-    ++Begin;
-  }
+  StringRef Word;
+  if (Line.front() == '#')
+    Word = Line.substr(0, 1);
+  else
+    Word = Line.take_until(isWhitespace);
 
-  const char *WordBegin = Begin;
-
-  while (true) {
-    ++Begin;
-
-    if (Begin == End || isWhitespace(*Begin))
-      return StringRef(WordBegin, Begin - WordBegin);
-  }
+  Line = Line.drop_front(Word.size());
+  return Word;
 }
 
 // This is the StringSwitch-alike used by lexOrCompleteWord below. See that
@@ -101,25 +101,52 @@ QueryRef QueryParser::parseSetBool(bool QuerySession::*Var) {
   return new SetQuery<bool>(Var, Value);
 }
 
-QueryRef QueryParser::parseSetOutputKind() {
+template <typename QueryType> QueryRef QueryParser::parseSetOutputKind() {
   StringRef ValStr;
   unsigned OutKind = LexOrCompleteWord<unsigned>(this, ValStr)
                          .Case("diag", OK_Diag)
                          .Case("print", OK_Print)
-                         .Case("dump", OK_Dump)
+                         .Case("detailed-ast", OK_DetailedAST)
+                         .Case("dump", OK_DetailedAST)
                          .Default(~0u);
   if (OutKind == ~0u) {
-    return new InvalidQuery("expected 'diag', 'print' or 'dump', got '" +
-                            ValStr + "'");
+    return new InvalidQuery(
+        "expected 'diag', 'print', 'detailed-ast' or 'dump', got '" + ValStr +
+        "'");
   }
-  return new SetQuery<OutputKind>(&QuerySession::OutKind, OutputKind(OutKind));
+
+  switch (OutKind) {
+  case OK_DetailedAST:
+    return new QueryType(&QuerySession::DetailedASTOutput);
+  case OK_Diag:
+    return new QueryType(&QuerySession::DiagOutput);
+  case OK_Print:
+    return new QueryType(&QuerySession::PrintOutput);
+  }
+
+  llvm_unreachable("Invalid output kind");
 }
 
 QueryRef QueryParser::endQuery(QueryRef Q) {
-  const char *Extra = Begin;
-  if (!lexWord().empty())
-    return new InvalidQuery("unexpected extra input: '" +
-                            StringRef(Extra, End - Extra) + "'");
+  StringRef Extra = Line;
+  StringRef ExtraTrimmed = Extra.drop_while(
+      [](char c) { return StringRef(" \t\v\f\r").contains(c); });
+
+  if ((!ExtraTrimmed.empty() && ExtraTrimmed[0] == '\n') ||
+      (ExtraTrimmed.size() >= 2 && ExtraTrimmed[0] == '\r' &&
+       ExtraTrimmed[1] == '\n'))
+    Q->RemainingContent = Extra;
+  else {
+    StringRef TrailingWord = lexWord();
+    if (!TrailingWord.empty() && TrailingWord.front() == '#') {
+      Line = Line.drop_until([](char c) { return c == '\n'; });
+      Line = Line.drop_while([](char c) { return c == '\n'; });
+      return endQuery(Q);
+    }
+    if (!TrailingWord.empty()) {
+      return new InvalidQuery("unexpected extra input: '" + Extra + "'");
+    }
+  }
   return Q;
 }
 
@@ -127,16 +154,24 @@ namespace {
 
 enum ParsedQueryKind {
   PQK_Invalid,
+  PQK_Comment,
   PQK_NoOp,
   PQK_Help,
   PQK_Let,
   PQK_Match,
   PQK_Set,
   PQK_Unlet,
-  PQK_Quit
+  PQK_Quit,
+  PQK_Enable,
+  PQK_Disable
 };
 
-enum ParsedQueryVariable { PQV_Invalid, PQV_Output, PQV_BindRoot };
+enum ParsedQueryVariable {
+  PQV_Invalid,
+  PQV_Output,
+  PQV_BindRoot,
+  PQV_PrintMatcher
+};
 
 QueryRef makeInvalidQueryFromDiagnostics(const Diagnostics &Diag) {
   std::string ErrStr;
@@ -149,8 +184,7 @@ QueryRef makeInvalidQueryFromDiagnostics(const Diagnostics &Diag) {
 
 QueryRef QueryParser::completeMatcherExpression() {
   std::vector<MatcherCompletion> Comps = Parser::completeExpression(
-      StringRef(Begin, End - Begin), CompletionPos - Begin, nullptr,
-      &QS.NamedValues);
+      Line, CompletionPos - Line.begin(), nullptr, &QS.NamedValues);
   for (auto I = Comps.begin(), E = Comps.end(); I != E; ++I) {
     Completions.push_back(LineEditor::Completion(I->TypedText, I->MatcherDecl));
   }
@@ -161,18 +195,28 @@ QueryRef QueryParser::doParse() {
   StringRef CommandStr;
   ParsedQueryKind QKind = LexOrCompleteWord<ParsedQueryKind>(this, CommandStr)
                               .Case("", PQK_NoOp)
+                              .Case("#", PQK_Comment, /*IsCompletion=*/false)
                               .Case("help", PQK_Help)
-                              .Case("m", PQK_Match, /*IsCompletion=*/false)
+                              .Case("l", PQK_Let, /*IsCompletion=*/false)
                               .Case("let", PQK_Let)
+                              .Case("m", PQK_Match, /*IsCompletion=*/false)
                               .Case("match", PQK_Match)
-                              .Case("set", PQK_Set)
-                              .Case("unlet", PQK_Unlet)
+                              .Case("q", PQK_Quit,  /*IsCompletion=*/false)
                               .Case("quit", PQK_Quit)
+                              .Case("set", PQK_Set)
+                              .Case("enable", PQK_Enable)
+                              .Case("disable", PQK_Disable)
+                              .Case("unlet", PQK_Unlet)
                               .Default(PQK_Invalid);
 
   switch (QKind) {
+  case PQK_Comment:
   case PQK_NoOp:
-    return new NoOpQuery;
+    Line = Line.drop_until([](char c) { return c == '\n'; });
+    Line = Line.drop_while([](char c) { return c == '\n'; });
+    if (Line.empty())
+      return new NoOpQuery;
+    return doParse();
 
   case PQK_Help:
     return endQuery(new HelpQuery);
@@ -191,12 +235,14 @@ QueryRef QueryParser::doParse() {
 
     Diagnostics Diag;
     ast_matchers::dynamic::VariantValue Value;
-    if (!Parser::parseExpression(StringRef(Begin, End - Begin), nullptr,
-                                 &QS.NamedValues, &Value, &Diag)) {
+    if (!Parser::parseExpression(Line, nullptr, &QS.NamedValues, &Value,
+                                 &Diag)) {
       return makeInvalidQueryFromDiagnostics(Diag);
     }
 
-    return new LetQuery(Name, Value);
+    auto *Q = new LetQuery(Name, Value);
+    Q->RemainingContent = Line;
+    return Q;
   }
 
   case PQK_Match: {
@@ -204,21 +250,28 @@ QueryRef QueryParser::doParse() {
       return completeMatcherExpression();
 
     Diagnostics Diag;
+    auto MatcherSource = Line.ltrim();
+    auto OrigMatcherSource = MatcherSource;
     Optional<DynTypedMatcher> Matcher = Parser::parseMatcherExpression(
-        StringRef(Begin, End - Begin), nullptr, &QS.NamedValues, &Diag);
+        MatcherSource, nullptr, &QS.NamedValues, &Diag);
     if (!Matcher) {
       return makeInvalidQueryFromDiagnostics(Diag);
     }
-    return new MatchQuery(*Matcher);
+    auto ActualSource = OrigMatcherSource.slice(0, OrigMatcherSource.size() -
+                                                       MatcherSource.size());
+    auto *Q = new MatchQuery(ActualSource, *Matcher);
+    Q->RemainingContent = MatcherSource;
+    return Q;
   }
 
   case PQK_Set: {
     StringRef VarStr;
-    ParsedQueryVariable Var = LexOrCompleteWord<ParsedQueryVariable>(this,
-                                                                     VarStr)
-                                  .Case("output", PQV_Output)
-                                  .Case("bind-root", PQV_BindRoot)
-                                  .Default(PQV_Invalid);
+    ParsedQueryVariable Var =
+        LexOrCompleteWord<ParsedQueryVariable>(this, VarStr)
+            .Case("output", PQV_Output)
+            .Case("bind-root", PQV_BindRoot)
+            .Case("print-matcher", PQV_PrintMatcher)
+            .Default(PQV_Invalid);
     if (VarStr.empty())
       return new InvalidQuery("expected variable name");
     if (Var == PQV_Invalid)
@@ -227,15 +280,40 @@ QueryRef QueryParser::doParse() {
     QueryRef Q;
     switch (Var) {
     case PQV_Output:
-      Q = parseSetOutputKind();
+      Q = parseSetOutputKind<SetExclusiveOutputQuery>();
       break;
     case PQV_BindRoot:
       Q = parseSetBool(&QuerySession::BindRoot);
+      break;
+    case PQV_PrintMatcher:
+      Q = parseSetBool(&QuerySession::PrintMatcher);
       break;
     case PQV_Invalid:
       llvm_unreachable("Invalid query kind");
     }
 
+    return endQuery(Q);
+  }
+  case PQK_Enable:
+  case PQK_Disable: {
+    StringRef VarStr;
+    ParsedQueryVariable Var =
+        LexOrCompleteWord<ParsedQueryVariable>(this, VarStr)
+            .Case("output", PQV_Output)
+            .Default(PQV_Invalid);
+    if (VarStr.empty())
+      return new InvalidQuery("expected variable name");
+    if (Var == PQV_Invalid)
+      return new InvalidQuery("unknown variable: '" + VarStr + "'");
+
+    QueryRef Q;
+
+    if (QKind == PQK_Enable)
+      Q = parseSetOutputKind<EnableOutputQuery>();
+    else if (QKind == PQK_Disable)
+      Q = parseSetOutputKind<DisableOutputQuery>();
+    else
+      llvm_unreachable("Invalid query kind");
     return endQuery(Q);
   }
 

@@ -1,4 +1,5 @@
 // RUN: %libomp-compile-and-run
+
 #include <omp.h>
 
 int main()

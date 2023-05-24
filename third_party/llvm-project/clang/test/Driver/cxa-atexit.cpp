@@ -19,8 +19,8 @@
 // RUN: %clang -### -target sparc-sun-solaris -c %s -o /dev/null 2>&1 | FileCheck %s -check-prefix CHECK-SOLARIS
 
 // CHECK-WINDOWS: "-fno-use-cxa-atexit"
-// CHECK-SOLARIS: "-fno-use-cxa-atexit"
-// CHECK-HEXAGON: "-fno-use-cxa-atexit"
+// CHECK-SOLARIS-NOT: "-fno-use-cxa-atexit"
+// CHECK-HEXAGON-NOT: "-fno-use-cxa-atexit"
 // CHECK-XCORE: "-fno-use-cxa-atexit"
 // CHECK-MTI: "-fno-use-cxa-atexit"
 // CHECK-MIPS-NOT: "-fno-use-cxa-atexit"

@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 -o - -std=c++11 %s
+// RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 -o - -std=c++11 %s -Wuninitialized
 
-// RUN: %clang_cc1 -verify -fopenmp-simd -ferror-limit 100 -o - -std=c++11 %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -ferror-limit 100 -o - -std=c++11 %s -Wuninitialized
 
 void foo() {
 }
@@ -25,13 +25,13 @@ int main(int argc, char **argv, char *env[]) {
 
   #pragma omp target parallel for depend // expected-error {{expected '(' after 'depend'}}
   for (i = 0; i < argc; ++i) foo();
-  #pragma omp target parallel for depend ( // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-error {{expected ')'}} expected-note {{to match this '('}} expected-warning {{missing ':' after dependency type - ignoring}}
+  #pragma omp target parallel for depend ( // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-error {{expected ')'}} expected-note {{to match this '('}} expected-warning {{missing ':' after dependency type - ignoring}}
   for (i = 0; i < argc; ++i) foo();
-  #pragma omp target parallel for depend () // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}}
+  #pragma omp target parallel for depend () // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}}
   for (i = 0; i < argc; ++i) foo();
-  #pragma omp target parallel for depend (argc // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}} expected-error {{expected ')'}} expected-note {{to match this '('}}
+  #pragma omp target parallel for depend (argc // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}} expected-warning {{missing ':' after dependency type - ignoring}} expected-error {{expected ')'}} expected-note {{to match this '('}}
   for (i = 0; i < argc; ++i) foo();
-  #pragma omp target parallel for depend (source : argc) // expected-error {{expected 'in', 'out' or 'inout' in OpenMP clause 'depend'}}
+  #pragma omp target parallel for depend (source : argc) // expected-error {{expected 'in', 'out', 'inout' or 'mutexinoutset' in OpenMP clause 'depend'}}
   for (i = 0; i < argc; ++i) foo();
   #pragma omp target parallel for depend (source) // expected-error {{expected expression}} expected-warning {{missing ':' after dependency type - ignoring}}
   for (i = 0; i < argc; ++i) foo();
@@ -69,7 +69,7 @@ int main(int argc, char **argv, char *env[]) {
   for (i = 0; i < argc; ++i) foo();
   #pragma omp target parallel for depend (in : argv[0:-1]) // expected-error {{section length is evaluated to a negative value -1}}
   for (i = 0; i < argc; ++i) foo();
-  #pragma omp target parallel for depend (in : argv[-1:0])
+  #pragma omp target parallel for depend (in : argv[-1:0]) // expected-error {{zero-length array section is not allowed in 'depend' clause}}
   for (i = 0; i < argc; ++i) foo();
   #pragma omp target parallel for depend (in : argv[:]) // expected-error {{section length is unspecified and cannot be inferred because subscripted value is not an array}}
   for (i = 0; i < argc; ++i) foo();

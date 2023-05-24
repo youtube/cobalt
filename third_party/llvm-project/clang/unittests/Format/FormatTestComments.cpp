@@ -1,9 +1,8 @@
 //===- unittest/Format/FormatTestComments.cpp - Formatting unit tests -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -1252,6 +1251,12 @@ TEST_F(FormatTestComments, SplitsLongLinesInComments) {
                    " * multiline block comment\n"
                    " *\n"
                    " */",
+                   getLLVMStyleWithColumns(20)));
+
+  // This reproduces a crashing bug where both adaptStartOfLine and
+  // getCommentSplit were trying to wrap after the "/**".
+  EXPECT_EQ("/** multilineblockcommentwithnowrapopportunity */",
+            format("/** multilineblockcommentwithnowrapopportunity */",
                    getLLVMStyleWithColumns(20)));
 
   EXPECT_EQ("/*\n"

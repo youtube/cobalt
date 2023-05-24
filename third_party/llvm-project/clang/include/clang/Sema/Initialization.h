@@ -1,9 +1,8 @@
 //===- Initialization.h - Semantic Analysis for Initializers ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -387,6 +386,8 @@ public:
   }
 
   /// Create the initialization entity for a lambda capture.
+  ///
+  /// \p VarID The name of the entity being captured, or nullptr for 'this'.
   static InitializedEntity InitializeLambdaCapture(IdentifierInfo *VarID,
                                                    QualType FieldType,
                                                    SourceLocation Loc) {
@@ -510,7 +511,7 @@ public:
   /// For a lambda capture, return the capture's name.
   StringRef getCapturedVarName() const {
     assert(getKind() == EK_LambdaCapture && "Not a lambda capture!");
-    return Capture.VarID->getName();
+    return Capture.VarID ? Capture.VarID->getName() : "this";
   }
 
   /// Determine the location of the capture when initializing
@@ -671,10 +672,11 @@ public:
   static InitializationKind CreateForInit(SourceLocation Loc, bool DirectInit,
                                           Expr *Init) {
     if (!Init) return CreateDefault(Loc);
-    if (!DirectInit) return CreateCopy(Loc, Init->getLocStart());
+    if (!DirectInit)
+      return CreateCopy(Loc, Init->getBeginLoc());
     if (isa<InitListExpr>(Init))
-      return CreateDirectList(Loc, Init->getLocStart(), Init->getLocEnd());
-    return CreateDirect(Loc, Init->getLocStart(), Init->getLocEnd());
+      return CreateDirectList(Loc, Init->getBeginLoc(), Init->getEndLoc());
+    return CreateDirect(Loc, Init->getBeginLoc(), Init->getEndLoc());
   }
 
   /// Determine the initialization kind.
@@ -819,9 +821,6 @@ public:
     /// Perform a conversion adding _Atomic to a type.
     SK_AtomicConversion,
 
-    /// Perform a load from a glvalue, producing an rvalue.
-    SK_LValueToRValue,
-
     /// Perform an implicit conversion sequence.
     SK_ConversionSequence,
 
@@ -892,11 +891,8 @@ public:
     /// Initialize an OpenCL sampler from an integer.
     SK_OCLSamplerInit,
 
-    /// Initialize queue_t from 0.
-    SK_OCLZeroQueue,
-
-    /// Passing zero to a function where OpenCL event_t is expected.
-    SK_OCLZeroEvent
+    /// Initialize an opaque OpenCL type (event_t, queue_t, etc.) with zero
+    SK_OCLZeroOpaqueType
   };
 
   /// A single step in the initialization sequence.
@@ -1012,6 +1008,9 @@ public:
 
     /// Reference binding drops qualifiers.
     FK_ReferenceInitDropsQualifiers,
+
+    /// Reference with mismatching address space binding to temporary.
+    FK_ReferenceAddrspaceMismatchTemporary,
 
     /// Reference binding failed.
     FK_ReferenceInitFailed,
@@ -1268,12 +1267,6 @@ public:
   /// type.
   void AddAtomicConversionStep(QualType Ty);
 
-  /// Add a new step that performs a load of the given type.
-  ///
-  /// Although the term "LValueToRValue" is conventional, this applies to both
-  /// lvalues and xvalues.
-  void AddLValueToRValueStep(QualType Ty);
-
   /// Add a new step that applies an implicit conversion sequence.
   void AddConversionSequenceStep(const ImplicitConversionSequence &ICS,
                                  QualType T, bool TopLevelOfInitList = false);
@@ -1333,12 +1326,13 @@ public:
   /// constant.
   void AddOCLSamplerInitStep(QualType T);
 
-  /// Add a step to initialize an OpenCL event_t from a NULL
-  /// constant.
-  void AddOCLZeroEventStep(QualType T);
+  /// Add a step to initialzie an OpenCL opaque type (event_t, queue_t, etc.)
+  /// from a zero constant.
+  void AddOCLZeroOpaqueTypeStep(QualType T);
 
-  /// Add a step to initialize an OpenCL queue_t from 0.
-  void AddOCLZeroQueueStep(QualType T);
+  /// Add a step to initialize by zero types defined in the
+  /// cl_intel_device_side_avc_motion_estimation OpenCL extension
+  void AddOCLIntelSubgroupAVCZeroInitStep(QualType T);
 
   /// Add steps to unwrap a initializer list for a reference around a
   /// single element and rewrap it at the end.

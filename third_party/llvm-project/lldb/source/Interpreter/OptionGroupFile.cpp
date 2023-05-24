@@ -1,18 +1,13 @@
 //===-- OptionGroupFile.cpp -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/OptionGroupFile.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/OptionParser.h"
 
 using namespace lldb;
@@ -30,7 +25,7 @@ OptionGroupFile::OptionGroupFile(uint32_t usage_mask, bool required,
   m_option_definition.short_option = short_option;
   m_option_definition.validator = nullptr;
   m_option_definition.option_has_arg = OptionParser::eRequiredArgument;
-  m_option_definition.enum_values = nullptr;
+  m_option_definition.enum_values = {};
   m_option_definition.completion_type = completion_type;
   m_option_definition.argument_type = argument_type;
   m_option_definition.usage_text = usage_text;
@@ -61,7 +56,7 @@ OptionGroupFileList::OptionGroupFileList(
   m_option_definition.short_option = short_option;
   m_option_definition.validator = nullptr;
   m_option_definition.option_has_arg = OptionParser::eRequiredArgument;
-  m_option_definition.enum_values = nullptr;
+  m_option_definition.enum_values = {};
   m_option_definition.completion_type = completion_type;
   m_option_definition.argument_type = argument_type;
   m_option_definition.usage_text = usage_text;

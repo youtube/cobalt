@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -emit-llvm -O1 -o - -triple=i686-apple-darwin9 -std=c++11 | FileCheck %s
+// RUN: %clang_cc1 %s -emit-llvm -O1 -fno-experimental-new-pass-manager -o - -triple=i686-apple-darwin9 -std=c++11 | FileCheck %s
 
 // CHECK-DAG: @PR22043 = local_unnamed_addr global i32 0, align 4
 typedef _Atomic(int) AtomicInt;
@@ -31,7 +31,7 @@ _Atomic(B) b;
 // CHECK-LABEL: define void @_Z11atomic_initR1Ai
 void atomic_init(A& a, int i) {
   // CHECK-NOT: atomic
-  // CHECK: tail call void @_ZN1BC1Ei
+  // CHECK: call void @_ZN1BC1Ei
   __c11_atomic_init(&b, B(i));
   // CHECK-NEXT: ret void
 }

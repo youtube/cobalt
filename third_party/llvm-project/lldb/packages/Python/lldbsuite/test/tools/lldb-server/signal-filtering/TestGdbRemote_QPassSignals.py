@@ -1,6 +1,5 @@
 # This test makes sure that lldb-server supports and properly handles
 # QPassSignals GDB protocol package.
-from __future__ import print_function
 
 import gdbremote_testcase
 from lldbsuite.test.decorators import *
@@ -81,6 +80,8 @@ class TestGdbRemote_QPassSignals(gdbremote_testcase.GdbRemoteTestCaseBase):
                 self.ignore_signals(signals_to_ignore)
         self.expect_exit_code(len(signals_to_ignore))
 
+    @skipIfWindows # no signal support
+    @expectedFailureNetBSD
     @llgs_test
     def test_default_signals_behavior(self):
         self.init_llgs_test()

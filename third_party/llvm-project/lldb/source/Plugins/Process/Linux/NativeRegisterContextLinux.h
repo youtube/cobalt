@@ -1,9 +1,8 @@
 //===-- NativeRegisterContextLinux.h ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,6 +28,9 @@ public:
   CreateHostNativeRegisterContextLinux(const ArchSpec &target_arch,
                                        NativeThreadProtocol &native_thread);
 
+  // Invalidates cached values in register context data structures
+  virtual void InvalidateAllRegisters(){}
+
 protected:
   lldb::ByteOrder GetByteOrder() const;
 
@@ -51,15 +53,19 @@ protected:
 
   virtual Status WriteFPR();
 
-  virtual void *GetGPRBuffer() { return nullptr; }
+  virtual void *GetGPRBuffer() = 0;
 
   virtual size_t GetGPRSize() {
     return GetRegisterInfoInterface().GetGPRSize();
   }
 
-  virtual void *GetFPRBuffer() { return nullptr; }
+  virtual void *GetFPRBuffer() = 0;
 
-  virtual size_t GetFPRSize() { return 0; }
+  virtual size_t GetFPRSize() = 0;
+
+  virtual uint32_t GetPtraceOffset(uint32_t reg_index) {
+    return GetRegisterInfoAtIndex(reg_index)->byte_offset;
+  }
 
   // The Do*** functions are executed on the privileged thread and can perform
   // ptrace
@@ -69,14 +75,6 @@ protected:
 
   virtual Status DoWriteRegisterValue(uint32_t offset, const char *reg_name,
                                       const RegisterValue &value);
-
-  virtual Status DoReadGPR(void *buf, size_t buf_size);
-
-  virtual Status DoWriteGPR(void *buf, size_t buf_size);
-
-  virtual Status DoReadFPR(void *buf, size_t buf_size);
-
-  virtual Status DoWriteFPR(void *buf, size_t buf_size);
 };
 
 } // namespace process_linux

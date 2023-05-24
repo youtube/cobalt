@@ -1,9 +1,8 @@
 //===- ARMMacroFusion.cpp - ARM Macro Fusion ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -23,20 +22,13 @@ namespace llvm {
 static bool isAESPair(const MachineInstr *FirstMI,
                       const MachineInstr &SecondMI) {
   // Assume the 1st instr to be a wildcard if it is unspecified.
-  unsigned FirstOpcode =
-      FirstMI ? FirstMI->getOpcode()
-              : static_cast<unsigned>(ARM::INSTRUCTION_LIST_END);
-  unsigned SecondOpcode = SecondMI.getOpcode();
-
-  switch(SecondOpcode) {
+  switch(SecondMI.getOpcode()) {
   // AES encode.
   case ARM::AESMC :
-    return FirstOpcode == ARM::AESE ||
-           FirstOpcode == ARM::INSTRUCTION_LIST_END;
+    return FirstMI == nullptr || FirstMI->getOpcode() == ARM::AESE;
   // AES decode.
   case ARM::AESIMC:
-    return FirstOpcode == ARM::AESD ||
-           FirstOpcode == ARM::INSTRUCTION_LIST_END;
+    return FirstMI == nullptr || FirstMI->getOpcode() == ARM::AESD;
   }
 
   return false;
@@ -46,15 +38,8 @@ static bool isAESPair(const MachineInstr *FirstMI,
 static bool isLiteralsPair(const MachineInstr *FirstMI,
                            const MachineInstr &SecondMI) {
   // Assume the 1st instr to be a wildcard if it is unspecified.
-  unsigned FirstOpcode =
-      FirstMI ? FirstMI->getOpcode()
-              : static_cast<unsigned>(ARM::INSTRUCTION_LIST_END);
-  unsigned SecondOpcode = SecondMI.getOpcode();
-
-  // 32 bit immediate.
-  if ((FirstOpcode == ARM::INSTRUCTION_LIST_END ||
-       FirstOpcode == ARM::MOVi16) &&
-      SecondOpcode == ARM::MOVTi16)
+  if ((FirstMI == nullptr || FirstMI->getOpcode() == ARM::MOVi16) &&
+      SecondMI.getOpcode() == ARM::MOVTi16)
     return true;
 
   return false;

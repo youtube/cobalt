@@ -1,9 +1,8 @@
 //===--- SemaCXXScopeSpec.cpp - Semantic Analysis for C++ scope specifiers-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -209,11 +208,13 @@ bool Sema::RequireCompleteDeclContext(CXXScopeSpec &SS,
   if (!tag || tag->isDependentContext())
     return false;
 
+  // Grab the tag definition, if there is one.
+  QualType type = Context.getTypeDeclType(tag);
+  tag = type->getAsTagDecl();
+
   // If we're currently defining this type, then lookup into the
   // type is okay: don't complain that it isn't complete yet.
-  QualType type = Context.getTypeDeclType(tag);
-  const TagType *tagType = type->getAs<TagType>();
-  if (tagType && tagType->isBeingDefined())
+  if (tag->isBeingDefined())
     return false;
 
   SourceLocation loc = SS.getLastQualifierNameLoc();
@@ -229,13 +230,13 @@ bool Sema::RequireCompleteDeclContext(CXXScopeSpec &SS,
   // Fixed enum types are complete, but they aren't valid as scopes
   // until we see a definition, so awkwardly pull out this special
   // case.
-  const EnumType *enumType = dyn_cast_or_null<EnumType>(tagType);
-  if (!enumType)
+  auto *EnumD = dyn_cast<EnumDecl>(tag);
+  if (!EnumD)
     return false;
-  if (enumType->getDecl()->isCompleteDefinition()) {
+  if (EnumD->isCompleteDefinition()) {
     // If we know about the definition but it is not visible, complain.
     NamedDecl *SuggestedDef = nullptr;
-    if (!hasVisibleDefinition(enumType->getDecl(), &SuggestedDef,
+    if (!hasVisibleDefinition(EnumD, &SuggestedDef,
                               /*OnlyNeedComplete*/false)) {
       // If the user is going to see an error here, recover by making the
       // definition visible.
@@ -249,11 +250,11 @@ bool Sema::RequireCompleteDeclContext(CXXScopeSpec &SS,
 
   // Try to instantiate the definition, if this is a specialization of an
   // enumeration temploid.
-  EnumDecl *ED = enumType->getDecl();
-  if (EnumDecl *Pattern = ED->getInstantiatedFromMemberEnum()) {
-    MemberSpecializationInfo *MSI = ED->getMemberSpecializationInfo();
+  if (EnumDecl *Pattern = EnumD->getInstantiatedFromMemberEnum()) {
+    MemberSpecializationInfo *MSI = EnumD->getMemberSpecializationInfo();
     if (MSI->getTemplateSpecializationKind() != TSK_ExplicitSpecialization) {
-      if (InstantiateEnum(loc, ED, Pattern, getTemplateInstantiationArgs(ED),
+      if (InstantiateEnum(loc, EnumD, Pattern,
+                          getTemplateInstantiationArgs(EnumD),
                           TSK_ImplicitInstantiation)) {
         SS.SetInvalid(SS.getRange());
         return true;
@@ -428,13 +429,18 @@ namespace {
 
 // Callback to only accept typo corrections that can be a valid C++ member
 // intializer: either a non-static field member or a base class.
-class NestedNameSpecifierValidatorCCC : public CorrectionCandidateCallback {
- public:
+class NestedNameSpecifierValidatorCCC final
+    : public CorrectionCandidateCallback {
+public:
   explicit NestedNameSpecifierValidatorCCC(Sema &SRef)
       : SRef(SRef) {}
 
   bool ValidateCandidate(const TypoCorrection &candidate) override {
     return SRef.isAcceptableNestedNameSpecifier(candidate.getCorrectionDecl());
+  }
+
+  std::unique_ptr<CorrectionCandidateCallback> clone() override {
+    return std::make_unique<NestedNameSpecifierValidatorCCC>(*this);
   }
 
  private:
@@ -613,9 +619,9 @@ bool Sema::BuildCXXNestedNameSpecifier(Scope *S, NestedNameSpecInfo &IdInfo,
     // different kind of error, so look for typos.
     DeclarationName Name = Found.getLookupName();
     Found.clear();
+    NestedNameSpecifierValidatorCCC CCC(*this);
     if (TypoCorrection Corrected = CorrectTypo(
-            Found.getLookupNameInfo(), Found.getLookupKind(), S, &SS,
-            llvm::make_unique<NestedNameSpecifierValidatorCCC>(*this),
+            Found.getLookupNameInfo(), Found.getLookupKind(), S, &SS, CCC,
             CTK_ErrorRecovery, LookupCtx, EnteringContext)) {
       if (LookupCtx) {
         bool DroppedSpecifier =
@@ -882,7 +888,7 @@ bool Sema::IsInvalidUnlessNestedName(Scope *S, CXXScopeSpec &SS,
 bool Sema::ActOnCXXNestedNameSpecifier(Scope *S,
                                        CXXScopeSpec &SS,
                                        SourceLocation TemplateKWLoc,
-                                       TemplateTy Template,
+                                       TemplateTy OpaqueTemplate,
                                        SourceLocation TemplateNameLoc,
                                        SourceLocation LAngleLoc,
                                        ASTTemplateArgsPtr TemplateArgsIn,
@@ -892,11 +898,13 @@ bool Sema::ActOnCXXNestedNameSpecifier(Scope *S,
   if (SS.isInvalid())
     return true;
 
+  TemplateName Template = OpaqueTemplate.get();
+
   // Translate the parser's template argument list in our AST format.
   TemplateArgumentListInfo TemplateArgs(LAngleLoc, RAngleLoc);
   translateTemplateArguments(TemplateArgsIn, TemplateArgs);
 
-  DependentTemplateName *DTN = Template.get().getAsDependentTemplateName();
+  DependentTemplateName *DTN = Template.getAsDependentTemplateName();
   if (DTN && DTN->isIdentifier()) {
     // Handle a dependent template specialization for which we cannot resolve
     // the template name.
@@ -924,23 +932,28 @@ bool Sema::ActOnCXXNestedNameSpecifier(Scope *S,
     return false;
   }
 
-  TemplateDecl *TD = Template.get().getAsTemplateDecl();
-  if (Template.get().getAsOverloadedTemplate() || DTN ||
+  // If we assumed an undeclared identifier was a template name, try to
+  // typo-correct it now.
+  if (Template.getAsAssumedTemplateName() &&
+      resolveAssumedTemplateNameAsType(S, Template, TemplateNameLoc))
+    return true;
+
+  TemplateDecl *TD = Template.getAsTemplateDecl();
+  if (Template.getAsOverloadedTemplate() || DTN ||
       isa<FunctionTemplateDecl>(TD) || isa<VarTemplateDecl>(TD)) {
     SourceRange R(TemplateNameLoc, RAngleLoc);
     if (SS.getRange().isValid())
       R.setBegin(SS.getRange().getBegin());
 
     Diag(CCLoc, diag::err_non_type_template_in_nested_name_specifier)
-      << (TD && isa<VarTemplateDecl>(TD)) << Template.get() << R;
-    NoteAllFoundTemplates(Template.get());
+      << (TD && isa<VarTemplateDecl>(TD)) << Template << R;
+    NoteAllFoundTemplates(Template);
     return true;
   }
 
   // We were able to resolve the template name to an actual template.
   // Build an appropriate nested-name-specifier.
-  QualType T =
-      CheckTemplateIdType(Template.get(), TemplateNameLoc, TemplateArgs);
+  QualType T = CheckTemplateIdType(Template, TemplateNameLoc, TemplateArgs);
   if (T.isNull())
     return true;
 
@@ -948,7 +961,7 @@ bool Sema::ActOnCXXNestedNameSpecifier(Scope *S,
   // nested name specifiers.
   if (!T->isDependentType() && !T->getAs<TagType>()) {
     Diag(TemplateNameLoc, diag::err_nested_name_spec_non_tag) << T;
-    NoteAllFoundTemplates(Template.get());
+    NoteAllFoundTemplates(Template);
     return true;
   }
 

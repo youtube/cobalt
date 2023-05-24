@@ -1,7 +1,11 @@
 ; RUN: llc < %s -mtriple=armv7-eabi -mattr=+neon,+vfp4 -fp-contract=fast | FileCheck %s
+; RUN: llc < %s -mtriple=arm-arm-eabi -mcpu=cortex-m7  -fp-contract=fast | FileCheck %s
+; RUN: llc < %s -mtriple=arm-arm-eabi -mcpu=cortex-m4  -fp-contract=fast | FileCheck %s -check-prefix=DONT-FUSE
+; RUN: llc < %s -mtriple=arm-arm-eabi -mcpu=cortex-m33 -fp-contract=fast | FileCheck %s -check-prefix=DONT-FUSE
+
 ; Check generated fused MAC and MLS.
 
-define double @fusedMACTest1(double %d1, double %d2, double %d3) {
+define arm_aapcs_vfpcc double @fusedMACTest1(double %d1, double %d2, double %d3) {
 ;CHECK-LABEL: fusedMACTest1:
 ;CHECK: vfma.f64
   %1 = fmul double %d1, %d2
@@ -9,15 +13,20 @@ define double @fusedMACTest1(double %d1, double %d2, double %d3) {
   ret double %2
 }
 
-define float @fusedMACTest2(float %f1, float %f2, float %f3) {
+define arm_aapcs_vfpcc float @fusedMACTest2(float %f1, float %f2, float %f3) {
 ;CHECK-LABEL: fusedMACTest2:
 ;CHECK: vfma.f32
+
+;DONT-FUSE-LABEL: fusedMACTest2:
+;DONT-FUSE:       vmul.f32
+;DONT-FUSE-NEXT:  vadd.f32
+
   %1 = fmul float %f1, %f2
   %2 = fadd float %1, %f3
   ret float %2
 }
 
-define double @fusedMACTest3(double %d1, double %d2, double %d3) {
+define arm_aapcs_vfpcc double @fusedMACTest3(double %d1, double %d2, double %d3) {
 ;CHECK-LABEL: fusedMACTest3:
 ;CHECK: vfms.f64
   %1 = fmul double %d2, %d3
@@ -25,7 +34,7 @@ define double @fusedMACTest3(double %d1, double %d2, double %d3) {
   ret double %2
 }
 
-define float @fusedMACTest4(float %f1, float %f2, float %f3) {
+define arm_aapcs_vfpcc float @fusedMACTest4(float %f1, float %f2, float %f3) {
 ;CHECK-LABEL: fusedMACTest4:
 ;CHECK: vfms.f32
   %1 = fmul float %f2, %f3
@@ -33,7 +42,7 @@ define float @fusedMACTest4(float %f1, float %f2, float %f3) {
   ret float %2
 }
 
-define double @fusedMACTest5(double %d1, double %d2, double %d3) {
+define arm_aapcs_vfpcc double @fusedMACTest5(double %d1, double %d2, double %d3) {
 ;CHECK-LABEL: fusedMACTest5:
 ;CHECK: vfnma.f64
   %1 = fmul double %d1, %d2
@@ -42,7 +51,7 @@ define double @fusedMACTest5(double %d1, double %d2, double %d3) {
   ret double %3
 }
 
-define float @fusedMACTest6(float %f1, float %f2, float %f3) {
+define arm_aapcs_vfpcc float @fusedMACTest6(float %f1, float %f2, float %f3) {
 ;CHECK-LABEL: fusedMACTest6:
 ;CHECK: vfnma.f32
   %1 = fmul float %f1, %f2
@@ -51,7 +60,7 @@ define float @fusedMACTest6(float %f1, float %f2, float %f3) {
   ret float %3
 }
 
-define double @fusedMACTest7(double %d1, double %d2, double %d3) {
+define arm_aapcs_vfpcc double @fusedMACTest7(double %d1, double %d2, double %d3) {
 ;CHECK-LABEL: fusedMACTest7:
 ;CHECK: vfnms.f64
   %1 = fmul double %d1, %d2
@@ -59,7 +68,7 @@ define double @fusedMACTest7(double %d1, double %d2, double %d3) {
   ret double %2
 }
 
-define float @fusedMACTest8(float %f1, float %f2, float %f3) {
+define arm_aapcs_vfpcc float @fusedMACTest8(float %f1, float %f2, float %f3) {
 ;CHECK-LABEL: fusedMACTest8:
 ;CHECK: vfnms.f32
   %1 = fmul float %f1, %f2
@@ -67,7 +76,7 @@ define float @fusedMACTest8(float %f1, float %f2, float %f3) {
   ret float %2
 }
 
-define <2 x float> @fusedMACTest9(<2 x float> %a, <2 x float> %b) {
+define arm_aapcs_vfpcc <2 x float> @fusedMACTest9(<2 x float> %a, <2 x float> %b) {
 ;CHECK-LABEL: fusedMACTest9:
 ;CHECK: vfma.f32
   %mul = fmul <2 x float> %a, %b
@@ -75,7 +84,7 @@ define <2 x float> @fusedMACTest9(<2 x float> %a, <2 x float> %b) {
   ret <2 x float> %add
 }
 
-define <2 x float> @fusedMACTest10(<2 x float> %a, <2 x float> %b) {
+define arm_aapcs_vfpcc <2 x float> @fusedMACTest10(<2 x float> %a, <2 x float> %b) {
 ;CHECK-LABEL: fusedMACTest10:
 ;CHECK: vfms.f32
   %mul = fmul <2 x float> %a, %b
@@ -83,7 +92,7 @@ define <2 x float> @fusedMACTest10(<2 x float> %a, <2 x float> %b) {
   ret <2 x float> %sub
 }
 
-define <4 x float> @fusedMACTest11(<4 x float> %a, <4 x float> %b) {
+define arm_aapcs_vfpcc <4 x float> @fusedMACTest11(<4 x float> %a, <4 x float> %b) {
 ;CHECK-LABEL: fusedMACTest11:
 ;CHECK: vfma.f32
   %mul = fmul <4 x float> %a, %b
@@ -91,7 +100,7 @@ define <4 x float> @fusedMACTest11(<4 x float> %a, <4 x float> %b) {
   ret <4 x float> %add
 }
 
-define <4 x float> @fusedMACTest12(<4 x float> %a, <4 x float> %b) {
+define arm_aapcs_vfpcc <4 x float> @fusedMACTest12(<4 x float> %a, <4 x float> %b) {
 ;CHECK-LABEL: fusedMACTest12:
 ;CHECK: vfms.f32
   %mul = fmul <4 x float> %a, %b
@@ -99,7 +108,7 @@ define <4 x float> @fusedMACTest12(<4 x float> %a, <4 x float> %b) {
   ret <4 x float> %sub
 }
 
-define float @test_fma_f32(float %a, float %b, float %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc float @test_fma_f32(float %a, float %b, float %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fma_f32
 ; CHECK: vfma.f32
@@ -107,7 +116,7 @@ entry:
   ret float %tmp1
 }
 
-define double @test_fma_f64(double %a, double %b, double %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc double @test_fma_f64(double %a, double %b, double %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fma_f64
 ; CHECK: vfma.f64
@@ -115,7 +124,7 @@ entry:
   ret double %tmp1
 }
 
-define <2 x float> @test_fma_v2f32(<2 x float> %a, <2 x float> %b, <2 x float> %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc <2 x float> @test_fma_v2f32(<2 x float> %a, <2 x float> %b, <2 x float> %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fma_v2f32
 ; CHECK: vfma.f32
@@ -123,7 +132,7 @@ entry:
   ret <2 x float> %tmp1
 }
 
-define double @test_fms_f64(double %a, double %b, double %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc double @test_fms_f64(double %a, double %b, double %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fms_f64
 ; CHECK: vfms.f64
@@ -132,7 +141,7 @@ entry:
   ret double %tmp2
 }
 
-define double @test_fms_f64_2(double %a, double %b, double %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc double @test_fms_f64_2(double %a, double %b, double %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fms_f64_2
 ; CHECK: vfms.f64
@@ -141,7 +150,7 @@ entry:
   ret double %tmp2
 }
 
-define float @test_fnms_f32(float %a, float %b, float* %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc float @test_fnms_f32(float %a, float %b, float* %c) nounwind readnone ssp {
 ; CHECK: test_fnms_f32
 ; CHECK: vfnms.f32
   %tmp1 = load float, float* %c, align 4
@@ -150,7 +159,7 @@ define float @test_fnms_f32(float %a, float %b, float* %c) nounwind readnone ssp
   ret float %tmp3 
 }
 
-define double @test_fnms_f64(double %a, double %b, double %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc double @test_fnms_f64(double %a, double %b, double %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fnms_f64
 ; CHECK: vfnms.f64
@@ -160,7 +169,7 @@ entry:
   ret double %tmp3
 }
 
-define double @test_fnms_f64_2(double %a, double %b, double %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc double @test_fnms_f64_2(double %a, double %b, double %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fnms_f64_2
 ; CHECK: vfnms.f64
@@ -170,7 +179,7 @@ entry:
   ret double %tmp3
 }
 
-define double @test_fnma_f64(double %a, double %b, double %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc double @test_fnma_f64(double %a, double %b, double %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fnma_f64
 ; CHECK: vfnma.f64
@@ -179,7 +188,7 @@ entry:
   ret double %tmp2
 }
 
-define double @test_fnma_f64_2(double %a, double %b, double %c) nounwind readnone ssp {
+define arm_aapcs_vfpcc double @test_fnma_f64_2(double %a, double %b, double %c) nounwind readnone ssp {
 entry:
 ; CHECK: test_fnma_f64_2
 ; CHECK: vfnma.f64
@@ -189,7 +198,7 @@ entry:
   ret double %tmp3
 }
 
-define float @test_fma_const_fold(float %a, float %b) nounwind {
+define arm_aapcs_vfpcc float @test_fma_const_fold(float %a, float %b) nounwind {
 ; CHECK: test_fma_const_fold
 ; CHECK-NOT: vfma
 ; CHECK-NOT: vmul
@@ -198,7 +207,7 @@ define float @test_fma_const_fold(float %a, float %b) nounwind {
   ret float %ret
 }
 
-define float @test_fma_canonicalize(float %a, float %b) nounwind {
+define arm_aapcs_vfpcc float @test_fma_canonicalize(float %a, float %b) nounwind {
 ; CHECK: test_fma_canonicalize
 ; CHECK: vmov.f32 [[R1:s[0-9]+]], #2.000000e+00
 ; CHECK: vfma.f32 {{s[0-9]+}}, {{s[0-9]+}}, [[R1]]
@@ -207,7 +216,7 @@ define float @test_fma_canonicalize(float %a, float %b) nounwind {
 }
 
 ; Check that very wide vector fma's can be split into legal fma's.
-define void @test_fma_v8f32(<8 x float> %a, <8 x float> %b, <8 x float> %c, <8 x float>* %p) nounwind readnone ssp {
+define arm_aapcs_vfpcc void @test_fma_v8f32(<8 x float> %a, <8 x float> %b, <8 x float> %c, <8 x float>* %p) nounwind readnone ssp {
 ; CHECK: test_fma_v8f32
 ; CHECK: vfma.f32
 ; CHECK: vfma.f32

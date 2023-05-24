@@ -1,9 +1,8 @@
 //===------ PPCGCodeGeneration.cpp - Polly Accelerator Code Generation. ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -25,30 +24,24 @@
 #include "polly/ScopInfo.h"
 #include "polly/Support/SCEVValidator.h"
 #include "llvm/ADT/PostOrderIterator.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/BasicAliasAnalysis.h"
-#include "llvm/Analysis/GlobalsModRef.h"
-#include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Linker/Linker.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-
 #include "isl/union_map.h"
 
 extern "C" {
 #include "ppcg/cuda.h"
 #include "ppcg/gpu.h"
-#include "ppcg/gpu_print.h"
 #include "ppcg/ppcg.h"
-#include "ppcg/schedule.h"
 }
 
 #include "llvm/Support/Debug.h"
@@ -2250,7 +2243,7 @@ void GPUNodeBuilder::createKernelVariables(ppcg_kernel *Kernel, Function *FN) {
       auto GlobalVar = new GlobalVariable(
           *M, ArrayTy, false, GlobalValue::InternalLinkage, 0, Var.name,
           nullptr, GlobalValue::ThreadLocalMode::NotThreadLocal, 3);
-      GlobalVar->setAlignment(EleTy->getPrimitiveSizeInBits() / 8);
+      GlobalVar->setAlignment(llvm::Align(EleTy->getPrimitiveSizeInBits() / 8));
       GlobalVar->setInitializer(Constant::getNullValue(ArrayTy));
 
       Allocation = GlobalVar;
@@ -2376,8 +2369,7 @@ std::string GPUNodeBuilder::createKernelASM() {
 
   PM.add(createTargetTransformInfoWrapperPass(TargetM->getTargetIRAnalysis()));
 
-  if (TargetM->addPassesToEmitFile(PM, ASMStream, nullptr,
-                                   TargetMachine::CGFT_AssemblyFile,
+  if (TargetM->addPassesToEmitFile(PM, ASMStream, nullptr, CGFT_AssemblyFile,
                                    true /* verify */)) {
     errs() << "The target does not support generation of this file type!\n";
     return "";

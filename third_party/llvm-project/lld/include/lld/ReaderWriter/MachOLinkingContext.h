@@ -1,9 +1,8 @@
 //===- lld/ReaderWriter/MachOLinkingContext.h -----------------------------===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -102,7 +101,7 @@ public:
     auto file = std::unique_ptr<T>(new T(std::forward<Args>(args)...));
     auto *filePtr = file.get();
     auto *ctx = const_cast<MachOLinkingContext *>(this);
-    ctx->getNodes().push_back(llvm::make_unique<FileNode>(std::move(file)));
+    ctx->getNodes().push_back(std::make_unique<FileNode>(std::move(file)));
     return filePtr;
   }
 
@@ -249,7 +248,7 @@ public:
   /// installed dynamic library.
   uint32_t compatibilityVersion() const { return _compatibilityVersion; }
 
-  /// The dylib's current version, in the the raw uint32 format.
+  /// The dylib's current version, in the raw uint32 format.
   ///
   /// When building a dynamic library, this is the current version that gets
   /// embedded into the result. Other Mach-O binaries that link against

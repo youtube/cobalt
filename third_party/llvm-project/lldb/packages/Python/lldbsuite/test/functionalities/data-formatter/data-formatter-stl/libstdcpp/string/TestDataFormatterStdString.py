@@ -3,11 +3,8 @@
 Test lldb data formatter subsystem.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -54,28 +51,35 @@ class StdStringDataFormatterTestCase(TestBase):
         # Execute the cleanup function during test case tear down.
         self.addTearDownHook(cleanup)
 
+        var_wempty = self.frame().FindVariable('wempty')
         var_s = self.frame().FindVariable('s')
         var_S = self.frame().FindVariable('S')
         var_mazeltov = self.frame().FindVariable('mazeltov')
+        var_empty = self.frame().FindVariable('empty')
         var_q = self.frame().FindVariable('q')
         var_Q = self.frame().FindVariable('Q')
+        var_uchar = self.frame().FindVariable('uchar')
 
-        self.assertTrue(
-            var_s.GetSummary() == 'L"hello world! מזל טוב!"',
+        # TODO: This is currently broken
+        # self.assertEqual(var_wempty.GetSummary(), 'L""', "wempty summary wrong")
+        self.assertEqual(
+            var_s.GetSummary(), 'L"hello world! מזל טוב!"',
             "s summary wrong")
-        self.assertTrue(var_S.GetSummary() == 'L"!!!!"', "S summary wrong")
-        self.assertTrue(
-            var_mazeltov.GetSummary() == 'L"מזל טוב"',
+        self.assertEqual(var_S.GetSummary(), 'L"!!!!"', "S summary wrong")
+        self.assertEqual(
+            var_mazeltov.GetSummary(), 'L"מזל טוב"',
             "mazeltov summary wrong")
-        self.assertTrue(
-            var_q.GetSummary() == '"hello world"',
+        self.assertEqual(var_empty.GetSummary(), '""', "empty summary wrong")
+        self.assertEqual(
+            var_q.GetSummary(), '"hello world"',
             "q summary wrong")
-        self.assertTrue(
-            var_Q.GetSummary() == '"quite a long std::strin with lots of info inside it"',
+        self.assertEqual(
+            var_Q.GetSummary(), '"quite a long std::strin with lots of info inside it"',
             "Q summary wrong")
+        self.assertEqual(var_uchar.GetSummary(), '"aaaaa"', "u summary wrong")
 
         self.runCmd("next")
 
-        self.assertTrue(
-            var_S.GetSummary() == 'L"!!!!!"',
+        self.assertEqual(
+            var_S.GetSummary(), 'L"!!!!!"',
             "new S summary wrong")

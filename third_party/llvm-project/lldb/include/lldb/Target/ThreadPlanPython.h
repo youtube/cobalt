@@ -1,22 +1,19 @@
 //===-- ThreadPlanPython.h --------------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_ThreadPlan_Python_h_
 #define liblldb_ThreadPlan_Python_h_
 
-// C Includes
-// C++ Includes
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
+#include "lldb/lldb-forward.h"
+
 #include "lldb/Target/Process.h"
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Target.h"
@@ -29,14 +26,13 @@
 
 namespace lldb_private {
 
-//------------------------------------------------------------------
 //  ThreadPlanPython:
 //
-//------------------------------------------------------------------
 
 class ThreadPlanPython : public ThreadPlan {
 public:
-  ThreadPlanPython(Thread &thread, const char *class_name);
+  ThreadPlanPython(Thread &thread, const char *class_name, 
+                   StructuredDataImpl *args_data);
   ~ThreadPlanPython() override;
 
   void GetDescription(Stream *s, lldb::DescriptionLevel level) override;
@@ -62,7 +58,13 @@ protected:
 
 private:
   std::string m_class_name;
+  StructuredDataImpl *m_args_data; // We own this, but the implementation
+                                   // has to manage the UP (since that is
+                                   // how it gets stored in the
+                                   // SBStructuredData).
+  std::string m_error_str;
   StructuredData::ObjectSP m_implementation_sp;
+  bool m_did_push;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadPlanPython);
 };

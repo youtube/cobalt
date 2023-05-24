@@ -1,9 +1,8 @@
 //===-- MipsELFObjectWriter.cpp - Mips ELF Writer -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 #include "MCTargetDesc/MipsMCTargetDesc.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/BinaryFormat/ELF.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCFixup.h"
 #include "llvm/MC/MCObjectWriter.h"
@@ -219,13 +219,15 @@ unsigned MipsELFObjectWriter::getRelocType(MCContext &Ctx,
                                            const MCFixup &Fixup,
                                            bool IsPCRel) const {
   // Determine the type of the relocation.
-  unsigned Kind = (unsigned)Fixup.getKind();
+  unsigned Kind = Fixup.getTargetKind();
 
   switch (Kind) {
-  case Mips::fixup_Mips_NONE:
+  case FK_NONE:
     return ELF::R_MIPS_NONE;
   case FK_Data_1:
-    report_fatal_error("MIPS does not support one byte relocations");
+    Ctx.reportError(Fixup.getLoc(),
+                    "MIPS does not support one byte relocations");
+    return ELF::R_MIPS_NONE;
   case Mips::fixup_Mips_16:
   case FK_Data_2:
     return IsPCRel ? ELF::R_MIPS_PC16 : ELF::R_MIPS_16;
@@ -236,6 +238,10 @@ unsigned MipsELFObjectWriter::getRelocType(MCContext &Ctx,
 
   if (IsPCRel) {
     switch (Kind) {
+    case FK_Data_8:
+      Ctx.reportError(Fixup.getLoc(),
+                      "MIPS does not support 64-bit PC-relative relocations");
+      return ELF::R_MIPS_NONE;
     case Mips::fixup_Mips_Branch_PCRel:
     case Mips::fixup_Mips_PC16:
       return ELF::R_MIPS_PC16;
@@ -401,6 +407,10 @@ unsigned MipsELFObjectWriter::getRelocType(MCContext &Ctx,
     return ELF::R_MICROMIPS_HIGHER;
   case Mips::fixup_MICROMIPS_HIGHEST:
     return ELF::R_MICROMIPS_HIGHEST;
+  case Mips::fixup_Mips_JALR:
+    return ELF::R_MIPS_JALR;
+  case Mips::fixup_MICROMIPS_JALR:
+    return ELF::R_MICROMIPS_JALR;
   }
 
   llvm_unreachable("invalid fixup kind!");
@@ -453,7 +463,7 @@ void MipsELFObjectWriter::sortRelocs(const MCAssembler &Asm,
     return;
 
   // Sort relocations by the address they are applied to.
-  llvm::sort(Relocs.begin(), Relocs.end(),
+  llvm::sort(Relocs,
              [](const ELFRelocationEntry &A, const ELFRelocationEntry &B) {
                return A.Offset < B.Offset;
              });
@@ -680,6 +690,6 @@ llvm::createMipsELFObjectWriter(const Triple &TT, bool IsN32) {
   uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TT.getOS());
   bool IsN64 = TT.isArch64Bit() && !IsN32;
   bool HasRelocationAddend = TT.isArch64Bit();
-  return llvm::make_unique<MipsELFObjectWriter>(OSABI, HasRelocationAddend,
+  return std::make_unique<MipsELFObjectWriter>(OSABI, HasRelocationAddend,
                                                 IsN64);
 }

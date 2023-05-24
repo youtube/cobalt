@@ -1,4 +1,5 @@
-; RUN: llc < %s -filetype=obj | llvm-readobj - -codeview | FileCheck %s
+; RUN: llc < %s -filetype=obj | llvm-readobj - --codeview | FileCheck %s
+; RUN: llc < %s | llvm-mc -filetype=obj --triple=i686-windows | llvm-readobj - --codeview | FileCheck %s
 
 ; C++ source to regenerate:
 ; $ cat t.cpp
@@ -64,11 +65,10 @@
 ; CHECK:   Pointer (0x1004) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: A (0x1003)
-; CHECK:     PointerAttributes: 0x800A
 ; CHECK:     PtrType: Near32 (0xA)
 ; CHECK:     PtrMode: Pointer (0x0)
 ; CHECK:     IsFlat: 0
-; CHECK:     IsConst: 0
+; CHECK:     IsConst: 1
 ; CHECK:     IsVolatile: 0
 ; CHECK:     IsUnaligned: 0
 ; CHECK:   }
@@ -76,7 +76,7 @@
 ; CHECK:     TypeLeafKind: LF_MFUNCTION (0x1009)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     ClassType: A (0x1003)
-; CHECK:     ThisType: A* (0x1004)
+; CHECK:     ThisType: A* const (0x1004)
 ; CHECK:     CallingConvention: ThisCall (0xB)
 ; CHECK:     FunctionOptions [ (0x0)
 ; CHECK:     ]
@@ -144,11 +144,10 @@
 ; CHECK:   Pointer (0x100B) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: B (0x100A)
-; CHECK:     PointerAttributes: 0x800A
 ; CHECK:     PtrType: Near32 (0xA)
 ; CHECK:     PtrMode: Pointer (0x0)
 ; CHECK:     IsFlat: 0
-; CHECK:     IsConst: 0
+; CHECK:     IsConst: 1
 ; CHECK:     IsVolatile: 0
 ; CHECK:     IsUnaligned: 0
 ; CHECK:     SizeOf: 4
@@ -157,7 +156,7 @@
 ; CHECK:     TypeLeafKind: LF_MFUNCTION (0x1009)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     ClassType: B (0x100A)
-; CHECK:     ThisType: B* (0x100B)
+; CHECK:     ThisType: B* const (0x100B)
 ; CHECK:     CallingConvention: ThisCall (0xB)
 ; CHECK:     FunctionOptions [ (0x0)
 ; CHECK:     ]
@@ -176,7 +175,7 @@
 ; CHECK:     TypeLeafKind: LF_MFUNCTION (0x1009)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     ClassType: B (0x100A)
-; CHECK:     ThisType: B* (0x100B)
+; CHECK:     ThisType: B* const (0x100B)
 ; CHECK:     CallingConvention: ThisCall (0xB)
 ; CHECK:     FunctionOptions [ (0x0)
 ; CHECK:     ]
@@ -195,7 +194,7 @@
 ; CHECK:     TypeLeafKind: LF_MFUNCTION (0x1009)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     ClassType: B (0x100A)
-; CHECK:     ThisType: B* (0x100B)
+; CHECK:     ThisType: B* const (0x100B)
 ; CHECK:     CallingConvention: ThisCall (0xB)
 ; CHECK:     FunctionOptions [ (0x0)
 ; CHECK:     ]

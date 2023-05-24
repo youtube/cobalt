@@ -1,9 +1,8 @@
 //===- CXCursor.h - Routines for manipulating CXCursors -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -43,11 +42,11 @@ class TemplateName;
 class TypeDecl;
 class VarDecl;
 class IdentifierInfo;
-  
+
 namespace cxcursor {
 
 CXCursor getCursor(CXTranslationUnit, SourceLocation);
-  
+
 CXCursor MakeCXCursor(const clang::Attr *A, const clang::Decl *Parent,
                       CXTranslationUnit TU);
 CXCursor MakeCXCursor(const clang::Decl *D, CXTranslationUnit TU,
@@ -125,7 +124,7 @@ std::pair<const VarDecl *, SourceLocation> getCursorVariableRef(CXCursor C);
 /// Create a reference to a field at the given location.
 CXCursor MakeCursorMemberRef(const FieldDecl *Field, SourceLocation Loc, 
                              CXTranslationUnit TU);
-  
+
 /// Unpack a MemberRef cursor into the field it references and the 
 /// location where the reference occurred.
 std::pair<const FieldDecl *, SourceLocation> getCursorMemberRef(CXCursor C);
@@ -229,20 +228,19 @@ CXCursor MakeCursorOverloadedDeclRef(TemplateName Template,
                                      CXTranslationUnit TU);
 
 /// Internal storage for an overloaded declaration reference cursor;
-typedef llvm::PointerUnion3<const OverloadExpr *, const Decl *,
-                            OverloadedTemplateStorage *>
-  OverloadedDeclRefStorage;
-  
+typedef llvm::PointerUnion<const OverloadExpr *, const Decl *,
+                           OverloadedTemplateStorage *>
+    OverloadedDeclRefStorage;
+
 /// Unpack an overloaded declaration reference into an expression,
 /// declaration, or template name along with the source location.
 std::pair<OverloadedDeclRefStorage, SourceLocation>
   getCursorOverloadedDeclRef(CXCursor C);
-  
+
 const Decl *getCursorDecl(CXCursor Cursor);
 const Expr *getCursorExpr(CXCursor Cursor);
 const Stmt *getCursorStmt(CXCursor Cursor);
 const Attr *getCursorAttr(CXCursor Cursor);
-const Decl *getCursorParentDecl(CXCursor Cursor);
 
 ASTContext &getCursorContext(CXCursor Cursor);
 ASTUnit *getCursorASTUnit(CXCursor Cursor);
@@ -250,14 +248,14 @@ CXTranslationUnit getCursorTU(CXCursor Cursor);
 
 void getOverriddenCursors(CXCursor cursor,
                           SmallVectorImpl<CXCursor> &overridden);
-  
+
 /// Create an opaque pool used for fast generation of overridden
 /// CXCursor arrays.
 void *createOverridenCXCursorsPool();
 
 /// Dispose of the overridden CXCursors pool.
 void disposeOverridenCXCursorsPool(void *pool);
-  
+
 /// Returns a index/location pair for a selector identifier if the cursor
 /// points to one.
 std::pair<int, SourceLocation> getSelectorIdentifierIndexAndLoc(CXCursor);
@@ -285,7 +283,7 @@ CXCursor getTypeRefCursor(CXCursor cursor);
 bool getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf);
 
 bool operator==(CXCursor X, CXCursor Y);
-  
+
 inline bool operator!=(CXCursor X, CXCursor Y) {
   return !(X == Y);
 }

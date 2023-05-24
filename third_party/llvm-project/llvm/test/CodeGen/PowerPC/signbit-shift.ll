@@ -29,7 +29,7 @@ define i32 @add_zext_ifpos(i32 %x) {
 define <4 x i32> @add_zext_ifpos_vec_splat(<4 x i32> %x) {
 ; CHECK-LABEL: add_zext_ifpos_vec_splat:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    vspltisb 3, -1
+; CHECK-NEXT:    xxleqv 35, 35, 35
 ; CHECK-NEXT:    addis 3, 2, .LCPI2_0@toc@ha
 ; CHECK-NEXT:    addi 3, 3, .LCPI2_0@toc@l
 ; CHECK-NEXT:    vcmpgtsw 2, 2, 3
@@ -69,9 +69,8 @@ define i32 @sext_ifpos(i32 %x) {
 define i32 @add_sext_ifpos(i32 %x) {
 ; CHECK-LABEL: add_sext_ifpos:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    nor 3, 3, 3
-; CHECK-NEXT:    srawi 3, 3, 31
-; CHECK-NEXT:    addi 3, 3, 42
+; CHECK-NEXT:    srwi 3, 3, 31
+; CHECK-NEXT:    addi 3, 3, 41
 ; CHECK-NEXT:    blr
   %c = icmp sgt i32 %x, -1
   %e = sext i1 %c to i32
@@ -82,7 +81,7 @@ define i32 @add_sext_ifpos(i32 %x) {
 define <4 x i32> @add_sext_ifpos_vec_splat(<4 x i32> %x) {
 ; CHECK-LABEL: add_sext_ifpos_vec_splat:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    vspltisb 3, -1
+; CHECK-NEXT:    xxleqv 35, 35, 35
 ; CHECK-NEXT:    addis 3, 2, .LCPI6_0@toc@ha
 ; CHECK-NEXT:    addi 3, 3, .LCPI6_0@toc@l
 ; CHECK-NEXT:    vcmpgtsw 2, 2, 3

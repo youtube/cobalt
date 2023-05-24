@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -148,7 +147,7 @@ static constexpr bool clang_disallows_valid_static_cast_bug =
 #endif
 
 
-int main()
+int main(int, char**)
 {
     typedef Base B;
     typedef Derived D;
@@ -245,13 +244,17 @@ int main()
 
     test_is_constructible<const int&, ExplicitTo<int&>&>();
     test_is_constructible<const int&, ExplicitTo<int&>>();
-    test_is_constructible<int&, ExplicitTo<int&>>();
-    test_is_constructible<const int&, ExplicitTo<int&&>>();
+
 
     // Binding through reference-compatible type is required to perform
     // direct-initialization as described in [over.match.ref] p. 1 b. 1:
+    //
+    // But the rvalue to lvalue reference binding isn't allowed according to
+    // [over.match.ref] despite Clang accepting it.
     test_is_constructible<int&, ExplicitTo<int&>>();
+#ifndef TEST_COMPILER_GCC
     test_is_constructible<const int&, ExplicitTo<int&&>>();
+#endif
 
     static_assert(std::is_constructible<int&&, ExplicitTo<int&&>>::value, "");
 #ifdef __clang__
@@ -302,4 +305,6 @@ int main()
     test_is_not_constructible<void() &&> ();
 #endif
 #endif // TEST_STD_VER >= 11
+
+  return 0;
 }

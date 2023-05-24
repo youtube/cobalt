@@ -67,7 +67,7 @@ int bar(int n){
   // CHECK: br label {{%?}}[[AWAIT_WORK:.+]]
   //
   // CHECK: [[AWAIT_WORK]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: [[KPR:%.+]] = call i1 @__kmpc_kernel_parallel(i8** [[OMP_WORK_FN]], i16 1)
   // CHECK: [[KPRB:%.+]] = zext i1 [[KPR]] to i8
   // store i8 [[KPRB]], i8* [[OMP_EXEC_STATUS]], align 1
@@ -88,7 +88,7 @@ int bar(int n){
   // CHECK: br label {{%?}}[[BAR_PARALLEL]]
   //
   // CHECK: [[BAR_PARALLEL]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[AWAIT_WORK]]
   //
   // CHECK: [[EXIT]]
@@ -127,23 +127,23 @@ int bar(int n){
   // CHECK: [[ACP:%.+]] = bitcast i[[SZ]]* [[AC:%.+]] to i8*
   // CHECK: store i8 [[A_VAL]], i8* [[ACP]], align
   // CHECK: [[ACV:%.+]] = load i[[SZ]], i[[SZ]]* [[AC]], align
-  // CHECK: store i[[SZ]] [[ACV]], i[[SZ]]* [[A_ADDR_T:%.+]], align
-  // CHECK: [[CONV2:%.+]] = bitcast i[[SZ]]* [[A_ADDR_T]] to i8*
-  // CHECK: store i8 49, i8* [[CONV2]], align
+  // CHECK: call void [[PARALLEL:@.+]](i32* %{{.+}}, i32* %{{.+}}, i[[SZ]] [[ACV]])
   // CHECK: br label {{%?}}[[TERMINATE:.+]]
   //
   // CHECK: [[TERMINATE]]
   // CHECK: call void @__kmpc_kernel_deinit(
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[EXIT]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
-
-
-
-
+  // CHECK: define internal void [[PARALLEL]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i[[SZ]] [[A_VAL:%.+]])
+  // CHECK: [[A_ADDR:%.+]] = alloca i[[SZ]],
+  // CHECK: store i[[SZ]] [[A_VAL]], i[[SZ]]* [[A_ADDR]],
+  // CHECK: [[CONV:%.+]] = bitcast i[[SZ]]* [[A_ADDR]] to i8*
+  // CHECK: store i8 49, i8* [[CONV]],
+  // CHECK: ret void
 
   // CHECK-LABEL: define {{.*}}void {{@__omp_offloading_.+template.+l32}}_worker()
   // CHECK-DAG: [[OMP_EXEC_STATUS:%.+]] = alloca i8,
@@ -153,7 +153,7 @@ int bar(int n){
   // CHECK: br label {{%?}}[[AWAIT_WORK:.+]]
   //
   // CHECK: [[AWAIT_WORK]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: [[KPR:%.+]] = call i1 @__kmpc_kernel_parallel(i8** [[OMP_WORK_FN]], i16 1)
   // CHECK: [[KPRB:%.+]] = zext i1 [[KPR]] to i8
   // store i8 [[KPRB]], i8* [[OMP_EXEC_STATUS]], align 1
@@ -174,7 +174,7 @@ int bar(int n){
   // CHECK: br label {{%?}}[[BAR_PARALLEL]]
   //
   // CHECK: [[BAR_PARALLEL]]
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[AWAIT_WORK]]
   //
   // CHECK: [[EXIT]]
@@ -213,37 +213,46 @@ int bar(int n){
   // CHECK: [[ACP:%.+]] = bitcast i[[SZ]]* [[AC:%.+]] to i16*
   // CHECK: store i16 [[AA_VAL]], i16* [[ACP]], align
   // CHECK: [[ACV:%.+]] = load i[[SZ]], i[[SZ]]* [[AC]], align
-  // CHECK: store i[[SZ]] [[ACV]], i[[SZ]]* [[AA_ADDR_T:%.+]], align
-  // CHECK: [[CONV2:%.+]] = bitcast i[[SZ]]* [[AA_ADDR_T]] to i16*
-  // CHECK: store i16 1, i16* [[CONV2]], align
+  // CHECK: call void [[PARALLEL:@.+]](i32* %{{.+}}, i32* %{{.+}}, i[[SZ]] [[ACV]])
   // CHECK: br label {{%?}}[[TERMINATE:.+]]
   //
   // CHECK: [[TERMINATE]]
   // CHECK: call void @__kmpc_kernel_deinit(
-  // CHECK: call void @llvm.nvvm.barrier0()
+  // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
   // CHECK: br label {{%?}}[[EXIT]]
   //
   // CHECK: [[EXIT]]
   // CHECK: ret void
 
+  // CHECK: define internal void [[PARALLEL]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i[[SZ]] [[A_VAL:%.+]])
+  // CHECK: [[A_ADDR:%.+]] = alloca i[[SZ]],
+  // CHECK: store i[[SZ]] [[A_VAL]], i[[SZ]]* [[A_ADDR]],
+  // CHECK: [[CONV:%.+]] = bitcast i[[SZ]]* [[A_ADDR]] to i16*
+  // CHECK: store i16 1, i16* [[CONV]],
+  // CHECK: ret void
+
 // CHECK: define weak void @__omp_offloading_{{.*}}ftemplate{{.*}}_l37(
-// CHECK: call void @__kmpc_spmd_kernel_init(
+// CHECK: call void @__kmpc_spmd_kernel_init(i32 {{.+}}, i16 1, i16 0)
 // CHECK: call void @__kmpc_data_sharing_init_stack_spmd
-// CHECK: call i8* @__kmpc_data_sharing_push_stack(
+// CHECK-NOT: call i8* @__kmpc_data_sharing_push_stack(
 // CHECK-NOT: call void @__kmpc_serialized_parallel(
-// CHECK: call void [[L0:@.+]](i32* %{{.+}}, i32* %{{.+}}, i16* %{{.*}})
+// CHECK: call void [[L0:@.+]](i32* %{{.+}}, i32* %{{.+}}, i[[SZ]] %{{.+}})
 // CHECK-NOT: call void @__kmpc_end_serialized_parallel(
-// CHECK: call void @__kmpc_data_sharing_pop_stack(
-// CHECK: call void @__kmpc_spmd_kernel_deinit()
+// CHECK-NOT: call void @__kmpc_data_sharing_pop_stack(
+// CHECK: call void @__kmpc_spmd_kernel_deinit_v2(i16 1)
 // CHECK: ret
 
-// CHECK: define internal void [[L0]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i16* dereferenceable
-// CHECK: call void @__kmpc_serialized_parallel(
+// CHECK: define internal void [[L0]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i[[SZ]] %{{.+}})
 // CHECK: call void [[L1:@.+]](i32* %{{.+}}, i32* %{{.+}}, i16* %{{.+}})
-// CHECK: call void @__kmpc_end_serialized_parallel(
 // CHECK: ret void
 
 // CHECK: define internal void [[L1]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i16* dereferenceable
+// CHECK: call void @__kmpc_serialized_parallel(
+// CHECK: call void [[L2:@.+]](i32* %{{.+}}, i32* %{{.+}}, i16* %{{.+}})
+// CHECK: call void @__kmpc_end_serialized_parallel(
+// CHECK: ret void
+
+// CHECK: define internal void [[L2]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i16* dereferenceable
 // CHECK: store i16 1, i16* %
 // CHECK: ret void
 

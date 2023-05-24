@@ -1,9 +1,8 @@
 //===-- StreamTee.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -50,8 +49,11 @@ public:
   StreamTee &operator=(const StreamTee &rhs) {
     if (this != &rhs) {
       Stream::operator=(rhs);
-      std::lock_guard<std::recursive_mutex> lhs_locker(m_streams_mutex);
-      std::lock_guard<std::recursive_mutex> rhs_locker(rhs.m_streams_mutex);
+      std::lock(m_streams_mutex, rhs.m_streams_mutex);
+      std::lock_guard<std::recursive_mutex> lhs_locker(m_streams_mutex,
+                                                       std::adopt_lock);
+      std::lock_guard<std::recursive_mutex> rhs_locker(rhs.m_streams_mutex,
+                                                       std::adopt_lock);
       m_streams = rhs.m_streams;
     }
     return *this;
@@ -68,29 +70,6 @@ public:
       if (strm)
         strm->Flush();
     }
-  }
-
-  size_t Write(const void *s, size_t length) override {
-    std::lock_guard<std::recursive_mutex> guard(m_streams_mutex);
-    if (m_streams.empty())
-      return 0;
-
-    size_t min_bytes_written = SIZE_MAX;
-    collection::iterator pos, end;
-    for (pos = m_streams.begin(), end = m_streams.end(); pos != end; ++pos) {
-      // Allow for our collection to contain NULL streams. This allows the
-      // StreamTee to be used with hard coded indexes for clients that might
-      // want N total streams with only a few that are set to valid values.
-      Stream *strm = pos->get();
-      if (strm) {
-        const size_t bytes_written = strm->Write(s, length);
-        if (min_bytes_written > bytes_written)
-          min_bytes_written = bytes_written;
-      }
-    }
-    if (min_bytes_written == SIZE_MAX)
-      return 0;
-    return min_bytes_written;
   }
 
   size_t AppendStream(const lldb::StreamSP &stream_sp) {
@@ -131,6 +110,29 @@ protected:
   typedef std::vector<lldb::StreamSP> collection;
   mutable std::recursive_mutex m_streams_mutex;
   collection m_streams;
+
+  size_t WriteImpl(const void *s, size_t length) override {
+    std::lock_guard<std::recursive_mutex> guard(m_streams_mutex);
+    if (m_streams.empty())
+      return 0;
+
+    size_t min_bytes_written = SIZE_MAX;
+    collection::iterator pos, end;
+    for (pos = m_streams.begin(), end = m_streams.end(); pos != end; ++pos) {
+      // Allow for our collection to contain NULL streams. This allows the
+      // StreamTee to be used with hard coded indexes for clients that might
+      // want N total streams with only a few that are set to valid values.
+      Stream *strm = pos->get();
+      if (strm) {
+        const size_t bytes_written = strm->Write(s, length);
+        if (min_bytes_written > bytes_written)
+          min_bytes_written = bytes_written;
+      }
+    }
+    if (min_bytes_written == SIZE_MAX)
+      return 0;
+    return min_bytes_written;
+  }
 };
 
 } // namespace lldb_private

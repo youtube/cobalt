@@ -2,7 +2,6 @@
 Test the lldb command line completion mechanism.
 """
 
-from __future__ import print_function
 
 
 import os
@@ -43,7 +42,6 @@ class CommandLineCompletionTestCase(TestBase):
         self.build()
         self.main_source = "main.cpp"
         self.main_source_spec = lldb.SBFileSpec(self.main_source)
-        self.dbg.CreateTarget(self.getBuildArtifact("a.out"))
 
         (target, process, thread, bkpt) = lldbutil.run_to_source_breakpoint(self,
                                           '// Break here', self.main_source_spec)
@@ -84,6 +82,94 @@ class CommandLineCompletionTestCase(TestBase):
         self.complete_from_to(
             'process attach --con',
             'process attach --continue ')
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_process_launch_arch(self):
+        self.complete_from_to('process launch --arch ',
+                              ['mips',
+                               'arm64'])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_ambiguous_long_opt(self):
+        self.completions_match('breakpoint modify --th',
+                               ['--thread-id',
+                                '--thread-index',
+                                '--thread-name'])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_plugin_load(self):
+        self.complete_from_to('plugin load ', [])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_log_enable(self):
+        self.complete_from_to('log enable ll', ['lldb'])
+        self.complete_from_to('log enable dw', ['dwarf'])
+        self.complete_from_to('log enable lldb al', ['all'])
+        self.complete_from_to('log enable lldb sym', ['symbol'])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_log_enable(self):
+        self.complete_from_to('log disable ll', ['lldb'])
+        self.complete_from_to('log disable dw', ['dwarf'])
+        self.complete_from_to('log disable lldb al', ['all'])
+        self.complete_from_to('log disable lldb sym', ['symbol'])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_log_list(self):
+        self.complete_from_to('log list ll', ['lldb'])
+        self.complete_from_to('log list dw', ['dwarf'])
+        self.complete_from_to('log list ll', ['lldb'])
+        self.complete_from_to('log list lldb dwa', ['dwarf'])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_quoted_command(self):
+        self.complete_from_to('"set',
+                              ['"settings" '])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_quoted_arg_with_quoted_command(self):
+        self.complete_from_to('"settings" "repl',
+                              ['"replace" '])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_quoted_arg_without_quoted_command(self):
+        self.complete_from_to('settings "repl',
+                              ['"replace" '])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_single_quote_command(self):
+        self.complete_from_to("'set",
+                              ["'settings' "])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_terminated_quote_command(self):
+        # This should not crash, but we don't get any
+        # reasonable completions from this.
+        self.complete_from_to("'settings'", [])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_process_launch_arch_arm(self):
+        self.complete_from_to('process launch --arch arm',
+                              ['arm64'])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_target_symbols_add_shlib(self):
+        # Doesn't seem to work, but at least it shouldn't crash.
+        self.complete_from_to('target symbols add --shlib ', [])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_log_file(self):
+        # Complete in our source directory which contains a 'main.cpp' file.
+        src_dir =  os.path.dirname(os.path.realpath(__file__)) + '/'
+        self.complete_from_to('log enable lldb expr -f ' + src_dir,
+                              ['main.cpp'])
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_log_dir(self):
+        # Complete our source directory.
+        src_dir =  os.path.dirname(os.path.realpath(__file__))
+        self.complete_from_to('log enable lldb expr -f ' + src_dir,
+                              [src_dir + os.sep], turn_off_re_match=True)
 
     # <rdar://problem/11052829>
     @skipIfFreeBSD  # timing out on the FreeBSD buildbot
@@ -164,6 +250,24 @@ class CommandLineCompletionTestCase(TestBase):
             'settings replace target.run-args')
 
     @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_settings_show_term(self):
+        self.complete_from_to(
+            'settings show term-',
+            'settings show term-width')
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_settings_list_term(self):
+        self.complete_from_to(
+            'settings list term-',
+            'settings list term-width')
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
+    def test_settings_remove_term(self):
+        self.complete_from_to(
+            'settings remove term-',
+            'settings remove term-width')
+
+    @skipIfFreeBSD  # timing out on the FreeBSD buildbot
     def test_settings_s(self):
         """Test that 'settings s' completes to ['set', 'show']."""
         self.complete_from_to(
@@ -177,8 +281,8 @@ class CommandLineCompletionTestCase(TestBase):
 
     @skipIfFreeBSD  # timing out on the FreeBSD buildbot
     def test_settings_s_dash(self):
-        """Test that 'settings set -' completes to 'settings set -g'."""
-        self.complete_from_to('settings set -', 'settings set -g')
+        """Test that 'settings set --g' completes to 'settings set --global'."""
+        self.complete_from_to('settings set --g', 'settings set --global')
 
     @skipIfFreeBSD  # timing out on the FreeBSD buildbot
     def test_settings_clear_th(self):
@@ -275,6 +379,46 @@ class CommandLineCompletionTestCase(TestBase):
         self.complete_from_to("watchpoint set variable foo --watch w", "watchpoint set variable foo --watch write")
         self.complete_from_to('watchpoint set variable foo -w read_', 'watchpoint set variable foo -w read_write')
 
+    def test_completion_description_commands(self):
+        """Test descriptions of top-level command completions"""
+        self.check_completion_with_desc("", [
+            ["command", "Commands for managing custom LLDB commands."],
+            ["breakpoint", "Commands for operating on breakpoints (see 'help b' for shorthand.)"]
+        ])
+
+        self.check_completion_with_desc("pl", [
+            ["platform", "Commands to manage and create platforms."],
+            ["plugin", "Commands for managing LLDB plugins."]
+        ])
+
+        # Just check that this doesn't crash.
+        self.check_completion_with_desc("comman", [])
+        self.check_completion_with_desc("non-existent-command", [])
+
+    def test_completion_description_command_options(self):
+        """Test descriptions of command options"""
+        # Short options
+        self.check_completion_with_desc("breakpoint set -", [
+            ["-h", "Set the breakpoint on exception catcH."],
+            ["-w", "Set the breakpoint on exception throW."]
+        ])
+
+        # Long options.
+        self.check_completion_with_desc("breakpoint set --", [
+            ["--on-catch", "Set the breakpoint on exception catcH."],
+            ["--on-throw", "Set the breakpoint on exception throW."]
+        ])
+
+        # Ambiguous long options.
+        self.check_completion_with_desc("breakpoint set --on-", [
+            ["--on-catch", "Set the breakpoint on exception catcH."],
+            ["--on-throw", "Set the breakpoint on exception throW."]
+        ])
+
+        # Unknown long option.
+        self.check_completion_with_desc("breakpoint set --Z", [
+        ])
+
     @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24489")
     def test_symbol_name(self):
         self.build()
@@ -282,39 +426,6 @@ class CommandLineCompletionTestCase(TestBase):
         self.complete_from_to('breakpoint set -n Fo',
                               'breakpoint set -n Foo::Bar(int,\\ int)',
                               turn_off_re_match=True)
-
-    def complete_from_to(self, str_input, patterns, turn_off_re_match=False):
-        """Test that the completion mechanism completes str_input to patterns,
-        where patterns could be a pattern-string or a list of pattern-strings"""
-        # Patterns should not be None in order to proceed.
-        self.assertFalse(patterns is None)
-        # And should be either a string or list of strings.  Check for list type
-        # below, if not, make a list out of the singleton string.  If patterns
-        # is not a string or not a list of strings, there'll be runtime errors
-        # later on.
-        if not isinstance(patterns, list):
-            patterns = [patterns]
-
-        interp = self.dbg.GetCommandInterpreter()
-        match_strings = lldb.SBStringList()
-        num_matches = interp.HandleCompletion(str_input, len(str_input), 0, -1, match_strings)
-        common_match = match_strings.GetStringAtIndex(0)
-        if num_matches == 0:
-            compare_string = str_input
-        else:
-            if common_match != None and len(common_match) > 0:
-                compare_string = str_input + common_match
-            else:
-                compare_string = ""
-                for idx in range(1, num_matches+1):
-                    compare_string += match_strings.GetStringAtIndex(idx) + "\n"
-
-        for p in patterns:
-            if turn_off_re_match:
-                self.expect(
-                    compare_string, msg=COMPLETION_MSG(
-                        str_input, p, match_strings), exe=False, substrs=[p])
-            else:
-                self.expect(
-                    compare_string, msg=COMPLETION_MSG(
-                        str_input, p, match_strings), exe=False, patterns=[p])
+        # No completion for Qu because the candidate is
+        # (anonymous namespace)::Quux().
+        self.complete_from_to('breakpoint set -n Qu', '')

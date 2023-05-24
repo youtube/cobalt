@@ -2,10 +2,11 @@
 Test basics of linux core file debugging.
 """
 
-from __future__ import print_function
+from __future__ import division, print_function
 
 import shutil
 import struct
+import os
 
 import lldb
 from lldbsuite.test.decorators import *
@@ -40,35 +41,30 @@ class LinuxCoreTestCase(TestBase):
         lldb.DBG.SetSelectedPlatform(self._initial_platform)
         super(LinuxCoreTestCase, self).tearDown()
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIf(triple='^mips')
     @skipIfLLVMTargetMissing("X86")
     def test_i386(self):
         """Test that lldb can read the process information from an i386 linux core file."""
         self.do_test("linux-i386", self._i386_pid, self._i386_regions, "a.out")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIfLLVMTargetMissing("Mips")
     def test_mips_o32(self):
         """Test that lldb can read the process information from an MIPS O32 linux core file."""
         self.do_test("linux-mipsel-gnuabio32", self._mips_o32_pid,
                 self._mips_regions, "linux-mipsel-gn")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIfLLVMTargetMissing("Mips")
     def test_mips_n32(self):
         """Test that lldb can read the process information from an MIPS N32 linux core file """
         self.do_test("linux-mips64el-gnuabin32", self._mips64_n32_pid,
                 self._mips_regions, "linux-mips64el-")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIfLLVMTargetMissing("Mips")
     def test_mips_n64(self):
         """Test that lldb can read the process information from an MIPS N64 linux core file """
         self.do_test("linux-mips64el-gnuabi64", self._mips64_n64_pid,
                 self._mips_regions, "linux-mips64el-")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIf(triple='^mips')
     @skipIfLLVMTargetMissing("PowerPC")
     def test_ppc64le(self):
@@ -76,7 +72,6 @@ class LinuxCoreTestCase(TestBase):
         self.do_test("linux-ppc64le", self._ppc64le_pid, self._ppc64le_regions,
                 "linux-ppc64le.ou")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIf(triple='^mips')
     @skipIfLLVMTargetMissing("X86")
     def test_x86_64(self):
@@ -84,7 +79,6 @@ class LinuxCoreTestCase(TestBase):
         self.do_test("linux-x86_64", self._x86_64_pid, self._x86_64_regions,
         "a.out")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIf(triple='^mips')
     @skipIfLLVMTargetMissing("SystemZ")
     def test_s390x(self):
@@ -92,7 +86,6 @@ class LinuxCoreTestCase(TestBase):
         self.do_test("linux-s390x", self._s390x_pid, self._s390x_regions,
         "a.out")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIf(triple='^mips')
     @skipIfLLVMTargetMissing("X86")
     def test_same_pid_running(self):
@@ -121,7 +114,6 @@ class LinuxCoreTestCase(TestBase):
         self.do_test(self.getBuildArtifact("linux-x86_64-pid"), os.getpid(),
                 self._x86_64_regions, "a.out")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIf(triple='^mips')
     @skipIfLLVMTargetMissing("X86")
     def test_two_cores_same_pid(self):
@@ -152,7 +144,6 @@ class LinuxCoreTestCase(TestBase):
         self.do_test("linux-x86_64", self._x86_64_pid, self._x86_64_regions,
                 "a.out")
 
-    @expectedFailureAll(bugnumber="llvm.org/pr37371", hostoslist=["windows"])
     @skipIf(triple='^mips')
     @skipIfLLVMTargetMissing("X86")
     def test_FPR_SSE(self):
@@ -189,7 +180,7 @@ class LinuxCoreTestCase(TestBase):
         values["xmm6"] = "{0xf8 0xf1 0x8b 0x4f 0xf8 0xf1 0x8b 0x4f 0xf8 0xf1 0x8b 0x4f 0xf8 0xf1 0x8b 0x4f}"
         values["xmm7"] = "{0x13 0xf1 0x30 0xcd 0x13 0xf1 0x30 0xcd 0x13 0xf1 0x30 0xcd 0x13 0xf1 0x30 0xcd}"
 
-        for regname, value in values.iteritems():
+        for regname, value in values.items():
             self.expect("register read {}".format(regname), substrs=["{} = {}".format(regname, value)])
 
 
@@ -200,7 +191,59 @@ class LinuxCoreTestCase(TestBase):
 
         values["fioff"] = "0x080480cc"
 
-        for regname, value in values.iteritems():
+        for regname, value in values.items():
+            self.expect("register read {}".format(regname), substrs=["{} = {}".format(regname, value)])
+
+    @skipIf(triple='^mips')
+    @skipIfLLVMTargetMissing("X86")
+    def test_i386_sysroot(self):
+        """Test that lldb can find the exe for an i386 linux core file using the sysroot."""
+
+        # Copy linux-i386.out to tmp_sysroot/home/labath/test/a.out (since it was compiled as
+        # /home/labath/test/a.out)
+        tmp_sysroot = os.path.join(self.getBuildDir(), "lldb_i386_mock_sysroot")
+        executable = os.path.join(tmp_sysroot, "home", "labath", "test", "a.out")
+        lldbutil.mkdir_p(os.path.dirname(executable))
+        shutil.copyfile("linux-i386.out", executable)
+
+        # Set sysroot and load core
+        self.runCmd("platform select remote-linux --sysroot '%s'" % tmp_sysroot)
+        target = self.dbg.CreateTarget(None)
+        self.assertTrue(target, VALID_TARGET)
+        process = target.LoadCore("linux-i386.core")
+
+        # Check that we found a.out from the sysroot
+        self.check_all(process, self._i386_pid, self._i386_regions, "a.out")
+
+        self.dbg.DeleteTarget(target)
+
+    @skipIf(triple='^mips')
+    @skipIfLLVMTargetMissing("ARM")
+    def test_arm_core(self):
+        # check 32 bit ARM core file
+        target = self.dbg.CreateTarget(None)
+        self.assertTrue(target, VALID_TARGET)
+        process = target.LoadCore("linux-arm.core")
+
+        values = {}
+        values["r0"] = "0x00000000"
+        values["r1"] = "0x00000001"
+        values["r2"] = "0x00000002"
+        values["r3"] = "0x00000003"
+        values["r4"] = "0x00000004"
+        values["r5"] = "0x00000005"
+        values["r6"] = "0x00000006"
+        values["r7"] = "0x00000007"
+        values["r8"] = "0x00000008"
+        values["r9"] = "0x00000009"
+        values["r10"] = "0x0000000a"
+        values["r11"] = "0x0000000b"
+        values["r12"] = "0x0000000c"
+        values["sp"] = "0x0000000d"
+        values["lr"] = "0x0000000e"
+        values["pc"] = "0x0000000f"
+        values["cpsr"] = "0x00000010"
+        for regname, value in values.items():
             self.expect("register read {}".format(regname), substrs=["{} = {}".format(regname, value)])
 
     def check_memory_regions(self, process, region_count):
@@ -235,7 +278,7 @@ class LinuxCoreTestCase(TestBase):
             # Test an address in the middle of a region returns it's enclosing
             # region.
             middle_address = (region.GetRegionBase() +
-                              region.GetRegionEnd()) / 2
+                              region.GetRegionEnd()) // 2
             region_at_middle = lldb.SBMemoryRegionInfo()
             error = process.GetMemoryRegionInfo(
                 middle_address, region_at_middle)
@@ -299,15 +342,7 @@ class LinuxCoreTestCase(TestBase):
             self.dbg.SetOutputFileHandle(None, False)
             self.dbg.SetErrorFileHandle(None, False)
 
-    def do_test(self, filename, pid, region_count, thread_name):
-        target = self.dbg.CreateTarget(filename + ".out")
-        process = target.LoadCore(filename + ".core")
-        self.assertTrue(process, PROCESS_IS_VALID)
-        self.assertEqual(process.GetNumThreads(), 1)
-        self.assertEqual(process.GetProcessID(), pid)
-
-        self.check_state(process)
-
+    def check_stack(self, process, pid, thread_name):
         thread = process.GetSelectedThread()
         self.assertTrue(thread)
         self.assertEqual(thread.GetThreadID(), pid)
@@ -324,6 +359,21 @@ class LinuxCoreTestCase(TestBase):
                 frame.FindVariable("F").GetValueAsUnsigned(), ord(
                     backtrace[i][0]))
 
+    def check_all(self, process, pid, region_count, thread_name):
+        self.assertTrue(process, PROCESS_IS_VALID)
+        self.assertEqual(process.GetNumThreads(), 1)
+        self.assertEqual(process.GetProcessID(), pid)
+
+        self.check_state(process)
+
+        self.check_stack(process, pid, thread_name)
+
         self.check_memory_regions(process, region_count)
+
+    def do_test(self, filename, pid, region_count, thread_name):
+        target = self.dbg.CreateTarget(filename + ".out")
+        process = target.LoadCore(filename + ".core")
+
+        self.check_all(process, pid, region_count, thread_name)
 
         self.dbg.DeleteTarget(target)

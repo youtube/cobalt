@@ -1,9 +1,8 @@
 //===- TableGen.cpp - Top-Level TableGen implementation for Clang ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "TableGenBackends.h" // Declares all backends.
+#include "ASTTableGen.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
@@ -23,6 +23,8 @@ using namespace llvm;
 using namespace clang;
 
 enum ActionType {
+  PrintRecords,
+  DumpJSON,
   GenClangAttrClasses,
   GenClangAttrParserStringSwitches,
   GenClangAttrSubjectMatchRulesParserStringSwitches,
@@ -38,23 +40,36 @@ enum ActionType {
   GenClangAttrParsedAttrList,
   GenClangAttrParsedAttrImpl,
   GenClangAttrParsedAttrKinds,
-  GenClangAttrDump,
+  GenClangAttrTextNodeDump,
+  GenClangAttrNodeTraverse,
+  GenClangBasicReader,
+  GenClangBasicWriter,
   GenClangDiagsDefs,
   GenClangDiagGroups,
   GenClangDiagsIndexName,
   GenClangCommentNodes,
   GenClangDeclNodes,
   GenClangStmtNodes,
+  GenClangTypeNodes,
+  GenClangTypeReader,
+  GenClangTypeWriter,
+  GenClangOpcodes,
   GenClangSACheckers,
   GenClangCommentHTMLTags,
   GenClangCommentHTMLTagsProperties,
   GenClangCommentHTMLNamedCharacterReferences,
   GenClangCommentCommandInfo,
   GenClangCommentCommandList,
+  GenClangOpenCLBuiltins,
   GenArmNeon,
   GenArmFP16,
   GenArmNeonSema,
   GenArmNeonTest,
+  GenArmMveHeader,
+  GenArmMveBuiltinDef,
+  GenArmMveBuiltinSema,
+  GenArmMveBuiltinCG,
+  GenArmMveBuiltinAliases,
   GenAttrDocs,
   GenDiagDocs,
   GenOptDocs,
@@ -66,6 +81,10 @@ namespace {
 cl::opt<ActionType> Action(
     cl::desc("Action to perform:"),
     cl::values(
+        clEnumValN(PrintRecords, "print-records",
+                   "Print all records to stdout (default)"),
+        clEnumValN(DumpJSON, "dump-json",
+                   "Dump all records as machine-readable JSON"),
         clEnumValN(GenClangAttrClasses, "gen-clang-attr-classes",
                    "Generate clang attribute clases"),
         clEnumValN(GenClangAttrParserStringSwitches,
@@ -106,20 +125,34 @@ cl::opt<ActionType> Action(
         clEnumValN(GenClangAttrParsedAttrKinds,
                    "gen-clang-attr-parsed-attr-kinds",
                    "Generate a clang parsed attribute kinds"),
-        clEnumValN(GenClangAttrDump, "gen-clang-attr-dump",
-                   "Generate clang attribute dumper"),
+        clEnumValN(GenClangAttrTextNodeDump, "gen-clang-attr-text-node-dump",
+                   "Generate clang attribute text node dumper"),
+        clEnumValN(GenClangAttrNodeTraverse, "gen-clang-attr-node-traverse",
+                   "Generate clang attribute traverser"),
         clEnumValN(GenClangDiagsDefs, "gen-clang-diags-defs",
                    "Generate Clang diagnostics definitions"),
         clEnumValN(GenClangDiagGroups, "gen-clang-diag-groups",
                    "Generate Clang diagnostic groups"),
         clEnumValN(GenClangDiagsIndexName, "gen-clang-diags-index-name",
                    "Generate Clang diagnostic name index"),
+        clEnumValN(GenClangBasicReader, "gen-clang-basic-reader",
+                   "Generate Clang BasicReader classes"),
+        clEnumValN(GenClangBasicWriter, "gen-clang-basic-writer",
+                   "Generate Clang BasicWriter classes"),
         clEnumValN(GenClangCommentNodes, "gen-clang-comment-nodes",
                    "Generate Clang AST comment nodes"),
         clEnumValN(GenClangDeclNodes, "gen-clang-decl-nodes",
                    "Generate Clang AST declaration nodes"),
         clEnumValN(GenClangStmtNodes, "gen-clang-stmt-nodes",
                    "Generate Clang AST statement nodes"),
+        clEnumValN(GenClangTypeNodes, "gen-clang-type-nodes",
+                   "Generate Clang AST type nodes"),
+        clEnumValN(GenClangTypeReader, "gen-clang-type-reader",
+                   "Generate Clang AbstractTypeReader class"),
+        clEnumValN(GenClangTypeWriter, "gen-clang-type-writer",
+                   "Generate Clang AbstractTypeWriter class"),
+        clEnumValN(GenClangOpcodes, "gen-clang-opcodes",
+                   "Generate Clang constexpr interpreter opcodes"),
         clEnumValN(GenClangSACheckers, "gen-clang-sa-checkers",
                    "Generate Clang Static Analyzer checkers"),
         clEnumValN(GenClangCommentHTMLTags, "gen-clang-comment-html-tags",
@@ -139,12 +172,24 @@ cl::opt<ActionType> Action(
         clEnumValN(GenClangCommentCommandList, "gen-clang-comment-command-list",
                    "Generate list of commands that are used in "
                    "documentation comments"),
+        clEnumValN(GenClangOpenCLBuiltins, "gen-clang-opencl-builtins",
+                   "Generate OpenCL builtin declaration handlers"),
         clEnumValN(GenArmNeon, "gen-arm-neon", "Generate arm_neon.h for clang"),
         clEnumValN(GenArmFP16, "gen-arm-fp16", "Generate arm_fp16.h for clang"),
         clEnumValN(GenArmNeonSema, "gen-arm-neon-sema",
                    "Generate ARM NEON sema support for clang"),
         clEnumValN(GenArmNeonTest, "gen-arm-neon-test",
                    "Generate ARM NEON tests for clang"),
+        clEnumValN(GenArmMveHeader, "gen-arm-mve-header",
+                   "Generate arm_mve.h for clang"),
+        clEnumValN(GenArmMveBuiltinDef, "gen-arm-mve-builtin-def",
+                   "Generate ARM MVE builtin definitions for clang"),
+        clEnumValN(GenArmMveBuiltinSema, "gen-arm-mve-builtin-sema",
+                   "Generate ARM MVE builtin sema checks for clang"),
+        clEnumValN(GenArmMveBuiltinCG, "gen-arm-mve-builtin-codegen",
+                   "Generate ARM MVE builtin code-generator for clang"),
+        clEnumValN(GenArmMveBuiltinAliases, "gen-arm-mve-builtin-aliases",
+                   "Generate list of valid ARM MVE builtin aliases for clang"),
         clEnumValN(GenAttrDocs, "gen-attr-docs",
                    "Generate attribute documentation"),
         clEnumValN(GenDiagDocs, "gen-diag-docs",
@@ -164,6 +209,12 @@ ClangComponent("clang-component",
 
 bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   switch (Action) {
+  case PrintRecords:
+    OS << Records;           // No argument, dump all contents
+    break;
+  case DumpJSON:
+    EmitJSON(Records, OS);
+    break;
   case GenClangAttrClasses:
     EmitClangAttrClass(Records, OS);
     break;
@@ -209,8 +260,11 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenClangAttrParsedAttrKinds:
     EmitClangAttrParsedAttrKinds(Records, OS);
     break;
-  case GenClangAttrDump:
-    EmitClangAttrDump(Records, OS);
+  case GenClangAttrTextNodeDump:
+    EmitClangAttrTextNodeDump(Records, OS);
+    break;
+  case GenClangAttrNodeTraverse:
+    EmitClangAttrNodeTraverse(Records, OS);
     break;
   case GenClangDiagsDefs:
     EmitClangDiagsDefs(Records, OS, ClangComponent);
@@ -222,14 +276,32 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
     EmitClangDiagsIndexName(Records, OS);
     break;
   case GenClangCommentNodes:
-    EmitClangASTNodes(Records, OS, "Comment", "");
+    EmitClangASTNodes(Records, OS, CommentNodeClassName, "");
     break;
   case GenClangDeclNodes:
-    EmitClangASTNodes(Records, OS, "Decl", "Decl");
+    EmitClangASTNodes(Records, OS, DeclNodeClassName, "Decl");
     EmitClangDeclContext(Records, OS);
     break;
   case GenClangStmtNodes:
-    EmitClangASTNodes(Records, OS, "Stmt", "");
+    EmitClangASTNodes(Records, OS, StmtNodeClassName, "");
+    break;
+  case GenClangTypeNodes:
+    EmitClangTypeNodes(Records, OS);
+    break;
+  case GenClangTypeReader:
+    EmitClangTypeReader(Records, OS);
+    break;
+  case GenClangTypeWriter:
+    EmitClangTypeWriter(Records, OS);
+    break;
+  case GenClangBasicReader:
+    EmitClangBasicReader(Records, OS);
+    break;
+  case GenClangBasicWriter:
+    EmitClangBasicWriter(Records, OS);
+    break;
+  case GenClangOpcodes:
+    EmitClangOpcodes(Records, OS);
     break;
   case GenClangSACheckers:
     EmitClangSACheckers(Records, OS);
@@ -249,6 +321,9 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenClangCommentCommandList:
     EmitClangCommentCommandList(Records, OS);
     break;
+  case GenClangOpenCLBuiltins:
+    EmitClangOpenCLBuiltins(Records, OS);
+    break;
   case GenArmNeon:
     EmitNeon(Records, OS);
     break;
@@ -260,6 +335,21 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
     break;
   case GenArmNeonTest:
     EmitNeonTest(Records, OS);
+    break;
+  case GenArmMveHeader:
+    EmitMveHeader(Records, OS);
+    break;
+  case GenArmMveBuiltinDef:
+    EmitMveBuiltinDef(Records, OS);
+    break;
+  case GenArmMveBuiltinSema:
+    EmitMveBuiltinSema(Records, OS);
+    break;
+  case GenArmMveBuiltinCG:
+    EmitMveBuiltinCG(Records, OS);
+    break;
+  case GenArmMveBuiltinAliases:
+    EmitMveBuiltinAliases(Records, OS);
     break;
   case GenAttrDocs:
     EmitClangAttrDocs(Records, OS);

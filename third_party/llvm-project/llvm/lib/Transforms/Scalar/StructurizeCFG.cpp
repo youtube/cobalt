@@ -1,9 +1,8 @@
 //===- StructurizeCFG.cpp -------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,7 +12,8 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Analysis/DivergenceAnalysis.h"
+#include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
@@ -34,8 +34,10 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -61,6 +63,11 @@ static cl::opt<bool> ForceSkipUniformRegions(
   cl::Hidden,
   cl::desc("Force whether the StructurizeCFG pass skips uniform regions"),
   cl::init(false));
+
+static cl::opt<bool>
+    RelaxedUniformRegions("structurizecfg-relaxed-uniform-regions", cl::Hidden,
+                          cl::desc("Allow relaxed uniform region checks"),
+                          cl::init(true));
 
 // Definition of the complex types used in this pass.
 
@@ -183,7 +190,7 @@ class StructurizeCFG : public RegionPass {
   Function *Func;
   Region *ParentRegion;
 
-  DivergenceAnalysis *DA;
+  LegacyDivergenceAnalysis *DA;
   DominatorTree *DT;
   LoopInfo *LI;
 
@@ -269,7 +276,7 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     if (SkipUniformRegions)
-      AU.addRequired<DivergenceAnalysis>();
+      AU.addRequired<LegacyDivergenceAnalysis>();
     AU.addRequiredID(LowerSwitchID);
     AU.addRequired<DominatorTreeWrapperPass>();
     AU.addRequired<LoopInfoWrapperPass>();
@@ -285,7 +292,7 @@ char StructurizeCFG::ID = 0;
 
 INITIALIZE_PASS_BEGIN(StructurizeCFG, "structurizecfg", "Structurize the CFG",
                       false, false)
-INITIALIZE_PASS_DEPENDENCY(DivergenceAnalysis)
+INITIALIZE_PASS_DEPENDENCY(LegacyDivergenceAnalysis)
 INITIALIZE_PASS_DEPENDENCY(LowerSwitch)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(RegionInfoPass)
@@ -596,7 +603,8 @@ void StructurizeCFG::addPhiValues(BasicBlock *From, BasicBlock *To) {
 
 /// Add the real PHI value as soon as everything is set up
 void StructurizeCFG::setPhiValues() {
-  SSAUpdater Updater;
+  SmallVector<PHINode *, 8> InsertedPhis;
+  SSAUpdater Updater(&InsertedPhis);
   for (const auto &AddedPhi : AddedPhis) {
     BasicBlock *To = AddedPhi.first;
     const BBVector &From = AddedPhi.second;
@@ -622,21 +630,38 @@ void StructurizeCFG::setPhiValues() {
       if (!Dominator.resultIsRememberedBlock())
         Updater.AddAvailableValue(Dominator.result(), Undef);
 
-      for (BasicBlock *FI : From) {
-        int Idx = Phi->getBasicBlockIndex(FI);
-        assert(Idx != -1);
-        Phi->setIncomingValue(Idx, Updater.GetValueAtEndOfBlock(FI));
-      }
+      for (BasicBlock *FI : From)
+        Phi->setIncomingValueForBlock(FI, Updater.GetValueAtEndOfBlock(FI));
     }
 
     DeletedPhis.erase(To);
   }
   assert(DeletedPhis.empty());
+
+  // Simplify any phis inserted by the SSAUpdater if possible
+  bool Changed;
+  do {
+    Changed = false;
+
+    SimplifyQuery Q(Func->getParent()->getDataLayout());
+    Q.DT = DT;
+    for (size_t i = 0; i < InsertedPhis.size(); ++i) {
+      PHINode *Phi = InsertedPhis[i];
+      if (Value *V = SimplifyInstruction(Phi, Q)) {
+        Phi->replaceAllUsesWith(V);
+        Phi->eraseFromParent();
+        InsertedPhis[i] = InsertedPhis.back();
+        InsertedPhis.pop_back();
+        i--;
+        Changed = true;
+      }
+    }
+  } while (Changed);
 }
 
 /// Remove phi values from all successors and then remove the terminator.
 void StructurizeCFG::killTerminator(BasicBlock *BB) {
-  TerminatorInst *Term = BB->getTerminator();
+  Instruction *Term = BB->getTerminator();
   if (!Term)
     return;
 
@@ -914,7 +939,12 @@ void StructurizeCFG::rebuildSSA() {
 }
 
 static bool hasOnlyUniformBranches(Region *R, unsigned UniformMDKindID,
-                                   const DivergenceAnalysis &DA) {
+                                   const LegacyDivergenceAnalysis &DA) {
+  // Bool for if all sub-regions are uniform.
+  bool SubRegionsAreUniform = true;
+  // Count of how many direct children are conditional.
+  unsigned ConditionalDirectChildren = 0;
+
   for (auto E : R->elements()) {
     if (!E->isSubRegion()) {
       auto Br = dyn_cast<BranchInst>(E->getEntry()->getTerminator());
@@ -923,6 +953,10 @@ static bool hasOnlyUniformBranches(Region *R, unsigned UniformMDKindID,
 
       if (!DA.isUniform(Br))
         return false;
+
+      // One of our direct children is conditional.
+      ConditionalDirectChildren++;
+
       LLVM_DEBUG(dbgs() << "BB: " << Br->getParent()->getName()
                         << " has uniform terminator\n");
     } else {
@@ -940,12 +974,25 @@ static bool hasOnlyUniformBranches(Region *R, unsigned UniformMDKindID,
         if (!Br || !Br->isConditional())
           continue;
 
-        if (!Br->getMetadata(UniformMDKindID))
-          return false;
+        if (!Br->getMetadata(UniformMDKindID)) {
+          // Early exit if we cannot have relaxed uniform regions.
+          if (!RelaxedUniformRegions)
+            return false;
+
+          SubRegionsAreUniform = false;
+          break;
+        }
       }
     }
   }
-  return true;
+
+  // Our region is uniform if:
+  // 1. All conditional branches that are direct children are uniform (checked
+  // above).
+  // 2. And either:
+  //   a. All sub-regions are uniform.
+  //   b. There is one or less conditional branches among the direct children.
+  return SubRegionsAreUniform || (ConditionalDirectChildren <= 1);
 }
 
 /// Run the transformation for each region found
@@ -962,7 +1009,7 @@ bool StructurizeCFG::runOnRegion(Region *R, RGPassManager &RGM) {
     // but we shouldn't rely on metadata for correctness!
     unsigned UniformMDKindID =
         R->getEntry()->getContext().getMDKindID("structurizecfg.uniform");
-    DA = &getAnalysis<DivergenceAnalysis>();
+    DA = &getAnalysis<LegacyDivergenceAnalysis>();
 
     if (hasOnlyUniformBranches(R, UniformMDKindID, *DA)) {
       LLVM_DEBUG(dbgs() << "Skipping region with uniform control flow: " << *R

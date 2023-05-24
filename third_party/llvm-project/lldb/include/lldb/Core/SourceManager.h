@@ -1,9 +1,8 @@
 //===-- SourceManager.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,36 +10,26 @@
 #define liblldb_SourceManager_h_
 
 #include "lldb/Utility/FileSpec.h"
-#include "lldb/lldb-defines.h" // for DISALLOW_COPY_AND_ASSIGN
-#include "lldb/lldb-forward.h" // for DebuggerSP, DebuggerWP, DataBufferSP
+#include "lldb/lldb-defines.h"
+#include "lldb/lldb-forward.h"
 
 #include "llvm/Support/Chrono.h"
 
-#include <cstdint> // for uint32_t, UINT32_MAX
+#include <cstdint>
 #include <map>
 #include <memory>
-#include <stddef.h> // for size_t
-#include <string>   // for string
+#include <stddef.h>
+#include <string>
 #include <vector>
 
 namespace lldb_private {
 class RegularExpression;
-}
-namespace lldb_private {
 class Stream;
-}
-namespace lldb_private {
 class SymbolContextList;
-}
-namespace lldb_private {
 class Target;
-}
-
-namespace lldb_private {
 
 class SourceManager {
 public:
-#ifndef SWIG
   class File {
     friend bool operator==(const SourceManager::File &lhs,
                            const SourceManager::File &rhs);
@@ -52,7 +41,7 @@ public:
 
     void UpdateIfNeeded();
 
-    size_t DisplaySourceLines(uint32_t line, uint32_t column,
+    size_t DisplaySourceLines(uint32_t line, llvm::Optional<size_t> column,
                               uint32_t context_before, uint32_t context_after,
                               Stream *s);
     void FindLinesMatchingRegex(RegularExpression &regex, uint32_t start_line,
@@ -64,8 +53,6 @@ public:
     uint32_t GetLineOffset(uint32_t line);
 
     bool LineIsValid(uint32_t line);
-
-    bool FileSpecMatches(const FileSpec &file_spec);
 
     const FileSpec &GetFileSpec() { return m_file_spec; }
 
@@ -100,11 +87,9 @@ public:
   private:
     void CommonInitializer(const FileSpec &file_spec, Target *target);
   };
-#endif // SWIG
 
   typedef std::shared_ptr<File> FileSP;
 
-#ifndef SWIG
   // The SourceFileCache class separates the source manager from the cache of
   // source files, so the cache can be stored in the Debugger, but the source
   // managers can be per target.
@@ -120,11 +105,8 @@ public:
     typedef std::map<FileSpec, FileSP> FileCache;
     FileCache m_file_cache;
   };
-#endif // SWIG
 
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   // A source manager can be made with a non-null target, in which case it can
   // use the path remappings to find
   // source files that are not in their build locations.  With no target it

@@ -1,9 +1,8 @@
 //===--- UnusedAliasDeclsCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -34,9 +33,9 @@ void UnusedAliasDeclsCheck::registerMatchers(MatchFinder *Finder) {
 void UnusedAliasDeclsCheck::check(const MatchFinder::MatchResult &Result) {
   if (const auto *AliasDecl = Result.Nodes.getNodeAs<NamedDecl>("alias")) {
     FoundDecls[AliasDecl] = CharSourceRange::getCharRange(
-        AliasDecl->getLocStart(),
+        AliasDecl->getBeginLoc(),
         Lexer::findLocationAfterToken(
-            AliasDecl->getLocEnd(), tok::semi, *Result.SourceManager,
+            AliasDecl->getEndLoc(), tok::semi, *Result.SourceManager,
             getLangOpts(),
             /*SkipTrailingWhitespaceAndNewLine=*/true));
     return;

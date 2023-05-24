@@ -1,9 +1,9 @@
-; RUN: opt < %s -loop-vectorize -S -pass-remarks-missed='loop-vectorize' -pass-remarks-analysis='loop-vectorize' 2>&1 | FileCheck %s
-; RUN: opt < %s -loop-vectorize -o /dev/null -pass-remarks-output=%t.yaml
+; RUN: opt < %s -loop-vectorize -transform-warning -S -pass-remarks-missed='loop-vectorize' -pass-remarks-analysis='loop-vectorize' 2>&1 | FileCheck %s
+; RUN: opt < %s -loop-vectorize -transform-warning -o /dev/null -pass-remarks-output=%t.yaml
 ; RUN: cat %t.yaml | FileCheck -check-prefix=YAML %s
 
-; RUN: opt < %s -passes=loop-vectorize -S -pass-remarks-missed='loop-vectorize' -pass-remarks-analysis='loop-vectorize' 2>&1 | FileCheck %s
-; RUN: opt < %s -passes=loop-vectorize -o /dev/null -pass-remarks-output=%t.yaml
+; RUN: opt < %s -passes=loop-vectorize,transform-warning -S -pass-remarks-missed='loop-vectorize' -pass-remarks-analysis='loop-vectorize'  2>&1 | FileCheck %s
+; RUN: opt < %s -passes=loop-vectorize,transform-warning -o /dev/null -pass-remarks-output=%t.yaml
 ; RUN: cat %t.yaml | FileCheck -check-prefix=YAML %s
 
 ; C/C++ code for tests
@@ -16,15 +16,15 @@
 ;   }
 ; }
 ; File, line, and column should match those specified in the metadata
-; CHECK: remark: source.cpp:4:5: loop not vectorized: could not determine number of loop iterations
-; CHECK: remark: source.cpp:4:5: loop not vectorized
+; CHECK: remark: source.cpp:5:9: loop not vectorized: could not determine number of loop iterations
+; CHECK: remark: source.cpp:5:9: loop not vectorized
 
 ; void test_disabled(int *A, int Length) {
 ; #pragma clang loop vectorize(disable) interleave(disable)
 ;   for (int i = 0; i < Length; i++)
 ;     A[i] = i;
 ; }
-; CHECK: remark: source.cpp:13:5: loop not vectorized: vectorization and interleaving are explicitly disabled, or the loop has already been vectorized
+; CHECK: remark: source.cpp:12:8: loop not vectorized: vectorization and interleaving are explicitly disabled, or the loop has already been vectorized
 
 ; void test_array_bounds(int *A, int *B, int Length) {
 ; #pragma clang loop vectorize(enable)
@@ -33,7 +33,7 @@
 ; }
 ; CHECK: remark: source.cpp:19:5: loop not vectorized: cannot identify array bounds
 ; CHECK: remark: source.cpp:19:5: loop not vectorized
-; CHECK: warning: source.cpp:19:5: loop not vectorized: failed explicitly specified loop vectorization
+; CHECK: warning: source.cpp:19:5: loop not vectorized: the optimizer was unable to perform the requested transformation; the transformation might be disabled or specified as part of an unsupported transformation ordering
 
 ; int foo();
 ; void test_multiple_failures(int *A) {
@@ -51,7 +51,7 @@
 ; YAML:       --- !Analysis
 ; YAML-NEXT: Pass:            loop-vectorize
 ; YAML-NEXT: Name:            CantComputeNumberOfIterations
-; YAML-NEXT: DebugLoc:        { File: source.cpp, Line: 4, Column: 5 }
+; YAML-NEXT: DebugLoc:        { File: source.cpp, Line: 5, Column: 9 }
 ; YAML-NEXT: Function:        _Z4testPii
 ; YAML-NEXT: Args:
 ; YAML-NEXT:   - String:          'loop not vectorized: '
@@ -60,7 +60,7 @@
 ; YAML-NEXT: --- !Missed
 ; YAML-NEXT: Pass:            loop-vectorize
 ; YAML-NEXT: Name:            MissedDetails
-; YAML-NEXT: DebugLoc:        { File: source.cpp, Line: 4, Column: 5 }
+; YAML-NEXT: DebugLoc:        { File: source.cpp, Line: 5, Column: 9 }
 ; YAML-NEXT: Function:        _Z4testPii
 ; YAML-NEXT: Args:
 ; YAML-NEXT:   - String:          loop not vectorized
@@ -68,7 +68,7 @@
 ; YAML-NEXT: --- !Analysis
 ; YAML-NEXT: Pass:            loop-vectorize
 ; YAML-NEXT: Name:            AllDisabled
-; YAML-NEXT: DebugLoc:        { File: source.cpp, Line: 13, Column: 5 }
+; YAML-NEXT: DebugLoc:        { File: source.cpp, Line: 12, Column: 8 }
 ; YAML-NEXT: Function:        _Z13test_disabledPii
 ; YAML-NEXT: Args:
 ; YAML-NEXT:   - String:          'loop not vectorized: vectorization and interleaving are explicitly disabled, or the loop has already been vectorized
@@ -94,13 +94,12 @@
 ; YAML-NEXT:   - String:          ')'
 ; YAML-NEXT: ...
 ; YAML-NEXT: --- !Failure
-; YAML-NEXT: Pass:            loop-vectorize
+; YAML-NEXT: Pass:            transform-warning
 ; YAML-NEXT: Name:            FailedRequestedVectorization
 ; YAML-NEXT: DebugLoc:        { File: source.cpp, Line: 19, Column: 5 }
 ; YAML-NEXT: Function:        _Z17test_array_boundsPiS_i
 ; YAML-NEXT: Args:
-; YAML-NEXT:   - String:          'loop not vectorized: '
-; YAML-NEXT:   - String:          failed explicitly specified loop vectorization
+; YAML-NEXT:   - String:          'loop not vectorized: the optimizer was unable to perform the requested transformation; the transformation might be disabled or specified as part of an unsupported transformation ordering'
 ; YAML-NEXT: ...
 ; YAML-NEXT: --- !Analysis
 ; YAML-NEXT: Pass:            loop-vectorize

@@ -1,9 +1,8 @@
 //===-- ResourceFileWriter.cpp --------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 //
@@ -514,6 +513,11 @@ Error ResourceFileWriter::visitCharacteristicsStmt(
   return Error::success();
 }
 
+Error ResourceFileWriter::visitExStyleStmt(const ExStyleStmt *Stmt) {
+  ObjectData.ExStyle = Stmt->Value;
+  return Error::success();
+}
+
 Error ResourceFileWriter::visitFontStmt(const FontStmt *Stmt) {
   RETURN_IF_ERROR(checkNumberFits<uint16_t>(Stmt->Size, "Font size"));
   RETURN_IF_ERROR(checkNumberFits<uint16_t>(Stmt->Weight, "Font weight"));
@@ -718,7 +722,7 @@ Error ResourceFileWriter::writeBitmapBody(const RCResource *Base) {
 
 // --- CursorResource and IconResource helpers. --- //
 
-// ICONRESDIR structure. Describes a single icon in resouce group.
+// ICONRESDIR structure. Describes a single icon in resource group.
 //
 // Ref: msdn.microsoft.com/en-us/library/windows/desktop/ms648016.aspx
 struct IconResDir {
@@ -982,7 +986,8 @@ Error ResourceFileWriter::writeSingleDialogControl(const Control &Ctl,
   padStream(sizeof(uint32_t));
 
   auto TypeInfo = Control::SupportedCtls.lookup(Ctl.Type);
-  uint32_t CtlStyle = TypeInfo.Style | Ctl.Style.getValueOr(0);
+  IntWithNotMask CtlStyle(TypeInfo.Style);
+  CtlStyle |= Ctl.Style.getValueOr(RCInt(0));
   uint32_t CtlExtStyle = Ctl.ExtStyle.getValueOr(0);
 
   // DIALOG(EX) item header prefix.
@@ -990,7 +995,7 @@ Error ResourceFileWriter::writeSingleDialogControl(const Control &Ctl,
     struct {
       ulittle32_t Style;
       ulittle32_t ExtStyle;
-    } Prefix{ulittle32_t(CtlStyle), ulittle32_t(CtlExtStyle)};
+    } Prefix{ulittle32_t(CtlStyle.getValue()), ulittle32_t(CtlExtStyle)};
     writeObject(Prefix);
   } else {
     struct {
@@ -998,7 +1003,7 @@ Error ResourceFileWriter::writeSingleDialogControl(const Control &Ctl,
       ulittle32_t ExtStyle;
       ulittle32_t Style;
     } Prefix{ulittle32_t(Ctl.HelpID.getValueOr(0)), ulittle32_t(CtlExtStyle),
-             ulittle32_t(CtlStyle)};
+             ulittle32_t(CtlStyle.getValue())};
     writeObject(Prefix);
   }
 
@@ -1065,6 +1070,7 @@ Error ResourceFileWriter::writeDialogBody(const RCResource *Base) {
     UsedStyle |= StyleCaptionFlag;
 
   const uint16_t DialogExMagic = 0xFFFF;
+  uint32_t ExStyle = ObjectData.ExStyle.getValueOr(0);
 
   // Write DIALOG(EX) header prefix. These are pretty different.
   if (!Res->IsExtended) {
@@ -1083,7 +1089,7 @@ Error ResourceFileWriter::writeDialogBody(const RCResource *Base) {
       ulittle32_t Style;
       ulittle32_t ExtStyle;
     } Prefix{ulittle32_t(UsedStyle),
-             ulittle32_t(0)}; // As of now, we don't keep EXSTYLE.
+             ulittle32_t(ExStyle)};
 
     writeObject(Prefix);
   } else {
@@ -1094,7 +1100,7 @@ Error ResourceFileWriter::writeDialogBody(const RCResource *Base) {
       ulittle32_t ExtStyle;
       ulittle32_t Style;
     } Prefix{ulittle16_t(1), ulittle16_t(DialogExMagic),
-             ulittle32_t(Res->HelpID), ulittle32_t(0), ulittle32_t(UsedStyle)};
+             ulittle32_t(Res->HelpID), ulittle32_t(ExStyle), ulittle32_t(UsedStyle)};
 
     writeObject(Prefix);
   }
@@ -1502,6 +1508,10 @@ ResourceFileWriter::loadFile(StringRef File) const {
   SmallString<128> Cwd;
   std::unique_ptr<MemoryBuffer> Result;
 
+  // 0. The file path is absolute and the file exists.
+  if (sys::path::is_absolute(File))
+    return errorOrToExpected(MemoryBuffer::getFile(File, -1, false));
+
   // 1. The current working directory.
   sys::fs::current_path(Cwd);
   Path.assign(Cwd.begin(), Cwd.end());
@@ -1510,8 +1520,7 @@ ResourceFileWriter::loadFile(StringRef File) const {
     return errorOrToExpected(MemoryBuffer::getFile(Path, -1, false));
 
   // 2. The directory of the input resource file, if it is different from the
-  // current
-  //    working directory.
+  // current working directory.
   StringRef InputFileDir = sys::path::parent_path(Params.InputFilePath);
   Path.assign(InputFileDir.begin(), InputFileDir.end());
   sys::path::append(Path, File);

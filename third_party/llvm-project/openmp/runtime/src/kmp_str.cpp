@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -143,13 +142,28 @@ void __kmp_str_buf_cat(kmp_str_buf_t *buffer, char const *str, int len) {
   KMP_STR_BUF_INVARIANT(buffer);
 } // __kmp_str_buf_cat
 
-void __kmp_str_buf_vprint(kmp_str_buf_t *buffer, char const *format,
-                          va_list args) {
+void __kmp_str_buf_catbuf(kmp_str_buf_t *dest, const kmp_str_buf_t *src) {
+  KMP_DEBUG_ASSERT(dest);
+  KMP_DEBUG_ASSERT(src);
+  KMP_STR_BUF_INVARIANT(dest);
+  KMP_STR_BUF_INVARIANT(src);
+  if (!src->str || !src->used)
+    return;
+  __kmp_str_buf_reserve(dest, dest->used + src->used + 1);
+  KMP_MEMCPY(dest->str + dest->used, src->str, src->used);
+  dest->str[dest->used + src->used] = 0;
+  dest->used += src->used;
+  KMP_STR_BUF_INVARIANT(dest);
+} // __kmp_str_buf_catbuf
+
+// Return the number of characters written
+int __kmp_str_buf_vprint(kmp_str_buf_t *buffer, char const *format,
+                         va_list args) {
+  int rc;
   KMP_STR_BUF_INVARIANT(buffer);
 
   for (;;) {
     int const free = buffer->size - buffer->used;
-    int rc;
     int size;
 
     // Try to format string.
@@ -198,13 +212,17 @@ void __kmp_str_buf_vprint(kmp_str_buf_t *buffer, char const *format,
 
   KMP_DEBUG_ASSERT(buffer->size > 0);
   KMP_STR_BUF_INVARIANT(buffer);
+  return rc;
 } // __kmp_str_buf_vprint
 
-void __kmp_str_buf_print(kmp_str_buf_t *buffer, char const *format, ...) {
+// Return the number of characters written
+int __kmp_str_buf_print(kmp_str_buf_t *buffer, char const *format, ...) {
+  int rc;
   va_list args;
   va_start(args, format);
-  __kmp_str_buf_vprint(buffer, format, args);
+  rc = __kmp_str_buf_vprint(buffer, format, args);
   va_end(args);
+  return rc;
 } // __kmp_str_buf_print
 
 /* The function prints specified size to buffer. Size is expressed using biggest
@@ -233,7 +251,7 @@ void __kmp_str_fname_init(kmp_str_fname_t *fname, char const *path) {
     char *base = NULL; // Pointer to the beginning of basename.
     fname->path = __kmp_str_format("%s", path);
     // Original code used strdup() function to copy a string, but on Windows* OS
-    // Intel(R) 64 it causes assertioon id debug heap, so I had to replace
+    // Intel(R) 64 it causes assertion id debug heap, so I had to replace
     // strdup with __kmp_str_format().
     if (KMP_OS_WINDOWS) {
       __kmp_str_replace(fname->path, '\\', '/');
@@ -452,7 +470,8 @@ int __kmp_str_match_false(char const *data) {
   int result =
       __kmp_str_match("false", 1, data) || __kmp_str_match("off", 2, data) ||
       __kmp_str_match("0", 1, data) || __kmp_str_match(".false.", 2, data) ||
-      __kmp_str_match(".f.", 2, data) || __kmp_str_match("no", 1, data);
+      __kmp_str_match(".f.", 2, data) || __kmp_str_match("no", 1, data) ||
+      __kmp_str_match("disabled", 0, data);
   return result;
 } // __kmp_str_match_false
 
@@ -460,7 +479,8 @@ int __kmp_str_match_true(char const *data) {
   int result =
       __kmp_str_match("true", 1, data) || __kmp_str_match("on", 2, data) ||
       __kmp_str_match("1", 1, data) || __kmp_str_match(".true.", 2, data) ||
-      __kmp_str_match(".t.", 2, data) || __kmp_str_match("yes", 1, data);
+      __kmp_str_match(".t.", 2, data) || __kmp_str_match("yes", 1, data) ||
+      __kmp_str_match("enabled", 0, data);
   return result;
 } // __kmp_str_match_true
 

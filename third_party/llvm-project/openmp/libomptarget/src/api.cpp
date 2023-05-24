@@ -1,9 +1,8 @@
 //===----------- api.cpp - Target independent OpenMP target RTL -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -114,7 +113,15 @@ EXTERN int omp_target_is_present(void *ptr, int device_num) {
 
   DeviceTy& Device = Devices[device_num];
   bool IsLast; // not used
-  int rc = (Device.getTgtPtrBegin(ptr, 0, IsLast, false) != NULL);
+  bool IsHostPtr;
+  void *TgtPtr = Device.getTgtPtrBegin(ptr, 0, IsLast, false, IsHostPtr);
+  int rc = (TgtPtr != NULL);
+  // Under unified memory the host pointer can be returned by the
+  // getTgtPtrBegin() function which means that there is no device
+  // corresponding point for ptr. This function should return false
+  // in that situation.
+  if (RTLs.RequiresFlags & OMP_REQ_UNIFIED_SHARED_MEMORY)
+    rc = !IsHostPtr;
   DP("Call to omp_target_is_present returns %d\n", rc);
   return rc;
 }

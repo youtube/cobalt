@@ -1,9 +1,8 @@
 //===- BuildSystem.cpp - Utilities for use by build systems ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,12 +12,12 @@
 
 #include "clang-c/BuildSystem.h"
 #include "CXString.h"
-#include "clang/Basic/VirtualFileSystem.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/Chrono.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -28,11 +27,11 @@ unsigned long long clang_getBuildSessionTimestamp(void) {
   return llvm::sys::toTimeT(std::chrono::system_clock::now());
 }
 
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(clang::vfs::YAMLVFSWriter,
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(llvm::vfs::YAMLVFSWriter,
                                    CXVirtualFileOverlay)
 
 CXVirtualFileOverlay clang_VirtualFileOverlay_create(unsigned) {
-  return wrap(new clang::vfs::YAMLVFSWriter());
+  return wrap(new llvm::vfs::YAMLVFSWriter());
 }
 
 enum CXErrorCode

@@ -1,9 +1,8 @@
 //===--- MisleadingIndentationCheck.cpp - clang-tidy-----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -40,7 +39,7 @@ void MisleadingIndentationCheck::danglingElseCheck(const SourceManager &SM,
   if (IfLoc.isMacroID() || ElseLoc.isMacroID())
     return;
 
-  if (SM.getExpansionLineNumber(If->getThen()->getLocEnd()) ==
+  if (SM.getExpansionLineNumber(If->getThen()->getEndLoc()) ==
       SM.getExpansionLineNumber(ElseLoc))
     return;
 
@@ -79,17 +78,21 @@ void MisleadingIndentationCheck::missingBracesCheck(const SourceManager &SM,
     if (isa<CompoundStmt>(Inner))
       continue;
 
-    SourceLocation InnerLoc = Inner->getLocStart();
-    SourceLocation OuterLoc = CurrentStmt->getLocStart();
+    SourceLocation InnerLoc = Inner->getBeginLoc();
+    SourceLocation OuterLoc = CurrentStmt->getBeginLoc();
+
+    if (InnerLoc.isInvalid() || InnerLoc.isMacroID() || OuterLoc.isInvalid() ||
+        OuterLoc.isMacroID())
+      continue;
 
     if (SM.getExpansionLineNumber(InnerLoc) ==
         SM.getExpansionLineNumber(OuterLoc))
       continue;
 
     const Stmt *NextStmt = CStmt->body_begin()[i + 1];
-    SourceLocation NextLoc = NextStmt->getLocStart();
+    SourceLocation NextLoc = NextStmt->getBeginLoc();
 
-    if (InnerLoc.isMacroID() || OuterLoc.isMacroID() || NextLoc.isMacroID())
+    if (NextLoc.isInvalid() || NextLoc.isMacroID())
       continue;
 
     if (SM.getExpansionColumnNumber(InnerLoc) ==
@@ -103,7 +106,11 @@ void MisleadingIndentationCheck::missingBracesCheck(const SourceManager &SM,
 }
 
 void MisleadingIndentationCheck::registerMatchers(MatchFinder *Finder) {
-  Finder->addMatcher(ifStmt(hasElse(stmt())).bind("if"), this);
+  Finder->addMatcher(
+      ifStmt(allOf(hasElse(stmt()),
+                   unless(allOf(isConstexpr(), isInTemplateInstantiation()))))
+          .bind("if"),
+      this);
   Finder->addMatcher(
       compoundStmt(has(stmt(anyOf(ifStmt(), forStmt(), whileStmt()))))
           .bind("compound"),

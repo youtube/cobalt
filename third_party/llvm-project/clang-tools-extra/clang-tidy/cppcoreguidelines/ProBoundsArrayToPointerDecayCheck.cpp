@@ -1,9 +1,8 @@
 //===--- ProBoundsArrayToPointerDecayCheck.cpp - clang-tidy----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -58,10 +57,11 @@ void ProBoundsArrayToPointerDecayCheck::registerMatchers(MatchFinder *Finder) {
   // 2) inside a range-for over an array
   // 3) if it converts a string literal to a pointer
   Finder->addMatcher(
-      implicitCastExpr(unless(hasParent(arraySubscriptExpr())),
-                       unless(hasParentIgnoringImpCasts(explicitCastExpr())),
-                       unless(isInsideOfRangeBeginEndStmt()),
-                       unless(hasSourceExpression(stringLiteral())))
+      implicitCastExpr(
+          unless(hasParent(arraySubscriptExpr())),
+          unless(hasParentIgnoringImpCasts(explicitCastExpr())),
+          unless(isInsideOfRangeBeginEndStmt()),
+          unless(hasSourceExpression(ignoringParens(stringLiteral()))))
           .bind("cast"),
       this);
 }

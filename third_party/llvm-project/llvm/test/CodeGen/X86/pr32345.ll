@@ -29,9 +29,9 @@ define void @foo() {
 ; X640-NEXT:    movl %eax, %ecx
 ; X640-NEXT:    # kill: def $cl killed $rcx
 ; X640-NEXT:    sarq %cl, %rdx
-; X640-NEXT:    movb %dl, %cl
-; X640-NEXT:    # implicit-def: $rdx
-; X640-NEXT:    movb %cl, (%rdx)
+; X640-NEXT:    # kill: def $dl killed $dl killed $rdx
+; X640-NEXT:    # implicit-def: $rsi
+; X640-NEXT:    movb %dl, (%rsi)
 ; X640-NEXT:    retq
 ;
 ; 6860-LABEL: foo:
@@ -56,38 +56,37 @@ define void @foo() {
 ; 6860-NEXT:    # implicit-def: $esi
 ; 6860-NEXT:    movw %ax, %si
 ; 6860-NEXT:    xorl %ecx, %esi
-; 6860-NEXT:    movw %si, %ax
-; 6860-NEXT:    movzwl %ax, %ecx
+; 6860-NEXT:    # kill: def $si killed $si killed $esi
+; 6860-NEXT:    movzwl %si, %ecx
 ; 6860-NEXT:    movl %ecx, {{[0-9]+}}(%esp)
 ; 6860-NEXT:    movl $0, {{[0-9]+}}(%esp)
 ; 6860-NEXT:    movw var_22, %ax
 ; 6860-NEXT:    movzwl var_27, %ecx
 ; 6860-NEXT:    movw %cx, %dx
 ; 6860-NEXT:    xorw %dx, %ax
-; 6860-NEXT:    # implicit-def: $esi
-; 6860-NEXT:    movw %ax, %si
-; 6860-NEXT:    xorl %ecx, %esi
-; 6860-NEXT:    movw %si, %ax
-; 6860-NEXT:    movzwl %ax, %esi
-; 6860-NEXT:    addl $-16610, %ecx # imm = 0xBF1E
-; 6860-NEXT:    movb %cl, %bl
-; 6860-NEXT:    xorl %ecx, %ecx
-; 6860-NEXT:    movl %ecx, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
-; 6860-NEXT:    movb %bl, %cl
-; 6860-NEXT:    movl {{[-0-9]+}}(%e{{[sb]}}p), %edi # 4-byte Reload
-; 6860-NEXT:    shrdl %cl, %edi, %esi
-; 6860-NEXT:    testb $32, %bl
-; 6860-NEXT:    movl %edi, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
-; 6860-NEXT:    movl %esi, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
+; 6860-NEXT:    # implicit-def: $edi
+; 6860-NEXT:    movw %ax, %di
+; 6860-NEXT:    xorl %ecx, %edi
+; 6860-NEXT:    # kill: def $di killed $di killed $edi
+; 6860-NEXT:    movzwl %di, %ebx
+; 6860-NEXT:    # kill: def $cl killed $cl killed $ecx
+; 6860-NEXT:    addb $30, %cl
+; 6860-NEXT:    xorl %eax, %eax
+; 6860-NEXT:    movb %cl, {{[-0-9]+}}(%e{{[sb]}}p) # 1-byte Spill
+; 6860-NEXT:    shrdl %cl, %eax, %ebx
+; 6860-NEXT:    movb {{[-0-9]+}}(%e{{[sb]}}p), %cl # 1-byte Reload
+; 6860-NEXT:    testb $32, %cl
+; 6860-NEXT:    movl %ebx, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
+; 6860-NEXT:    movl %eax, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
 ; 6860-NEXT:    jne .LBB0_2
 ; 6860-NEXT:  # %bb.1: # %bb
 ; 6860-NEXT:    movl {{[-0-9]+}}(%e{{[sb]}}p), %eax # 4-byte Reload
 ; 6860-NEXT:    movl %eax, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
 ; 6860-NEXT:  .LBB0_2: # %bb
 ; 6860-NEXT:    movl {{[-0-9]+}}(%e{{[sb]}}p), %eax # 4-byte Reload
-; 6860-NEXT:    movb %al, %cl
-; 6860-NEXT:    # implicit-def: $eax
-; 6860-NEXT:    movb %cl, (%eax)
+; 6860-NEXT:    # kill: def $al killed $al killed $eax
+; 6860-NEXT:    # implicit-def: $ecx
+; 6860-NEXT:    movb %al, (%ecx)
 ; 6860-NEXT:    leal -12(%ebp), %esp
 ; 6860-NEXT:    popl %esi
 ; 6860-NEXT:    popl %edi
@@ -98,14 +97,13 @@ define void @foo() {
 ;
 ; X64-LABEL: foo:
 ; X64:       # %bb.0: # %bb
-; X64-NEXT:    movzwl {{.*}}(%rip), %eax
 ; X64-NEXT:    movzwl {{.*}}(%rip), %ecx
-; X64-NEXT:    movl %ecx, %edx
-; X64-NEXT:    xorl %edx, %edx
-; X64-NEXT:    xorl %eax, %edx
-; X64-NEXT:    movzwl %dx, %eax
+; X64-NEXT:    movzwl {{.*}}(%rip), %eax
+; X64-NEXT:    xorw %cx, %ax
+; X64-NEXT:    xorl %ecx, %eax
+; X64-NEXT:    movzwl %ax, %eax
 ; X64-NEXT:    movq %rax, -{{[0-9]+}}(%rsp)
-; X64-NEXT:    addl $-16610, %ecx # imm = 0xBF1E
+; X64-NEXT:    addb $30, %cl
 ; X64-NEXT:    # kill: def $cl killed $cl killed $ecx
 ; X64-NEXT:    shrq %cl, %rax
 ; X64-NEXT:    movb %al, (%rax)
@@ -120,15 +118,14 @@ define void @foo() {
 ; 686-NEXT:    .cfi_def_cfa_register %ebp
 ; 686-NEXT:    andl $-8, %esp
 ; 686-NEXT:    subl $8, %esp
-; 686-NEXT:    movzwl var_22, %eax
 ; 686-NEXT:    movzwl var_27, %ecx
-; 686-NEXT:    movl %ecx, %edx
-; 686-NEXT:    xorl %ecx, %edx
-; 686-NEXT:    xorl %eax, %edx
-; 686-NEXT:    movzwl %dx, %eax
+; 686-NEXT:    movzwl var_22, %eax
+; 686-NEXT:    xorw %cx, %ax
+; 686-NEXT:    xorl %ecx, %eax
+; 686-NEXT:    movzwl %ax, %eax
 ; 686-NEXT:    movl %eax, (%esp)
 ; 686-NEXT:    movl $0, {{[0-9]+}}(%esp)
-; 686-NEXT:    addl $-16610, %ecx # imm = 0xBF1E
+; 686-NEXT:    addb $30, %cl
 ; 686-NEXT:    xorl %edx, %edx
 ; 686-NEXT:    shrdl %cl, %edx, %eax
 ; 686-NEXT:    testb $32, %cl

@@ -12,6 +12,13 @@ typedef __typeof__((char*)0-(char*)0) ptrdiff_t;
 void *memmove(void *s1, const void *s2, size_t n);
 
 namespace std {
+  typedef size_t size_type;
+#if __cplusplus >= 201103L
+  using nullptr_t = decltype(nullptr);
+#endif
+}
+
+namespace std {
   struct input_iterator_tag { };
   struct output_iterator_tag { };
   struct forward_iterator_tag : public input_iterator_tag { };
@@ -63,9 +70,16 @@ template <typename T, typename Ptr, typename Ref> struct __vector_iterator {
     return ptr -= n;
   }
 
-  Ref operator*() const { return *ptr; }
-  Ptr operator->() const { return *ptr; }
+  template<typename U, typename Ptr2, typename Ref2>
+  difference_type operator-(const __vector_iterator<U, Ptr2, Ref2> &rhs);
 
+  Ref operator*() const { return *ptr; }
+  Ptr operator->() const { return ptr; }
+
+  Ref operator[](difference_type n) {
+    return *(ptr+n);
+  }
+  
   bool operator==(const iterator &rhs) const { return ptr == rhs.ptr; }
   bool operator==(const const_iterator &rhs) const { return ptr == rhs.ptr; }
 
@@ -115,8 +129,12 @@ template <typename T, typename Ptr, typename Ref> struct __deque_iterator {
   }
 
   Ref operator*() const { return *ptr; }
-  Ptr operator->() const { return *ptr; }
+  Ptr operator->() const { return ptr; }
 
+  Ref operator[](difference_type n) {
+    return *(ptr+n);
+  }
+  
   bool operator==(const iterator &rhs) const { return ptr == rhs.ptr; }
   bool operator==(const const_iterator &rhs) const { return ptr == rhs.ptr; }
 
@@ -140,7 +158,7 @@ template <typename T, typename Ptr, typename Ref> struct __list_iterator {
   typedef std::bidirectional_iterator_tag iterator_category;
 
   __list_iterator(T* it = 0) : item(it) {}
-  __list_iterator(const iterator &rhs): item(rhs.base()) {}
+  __list_iterator(const iterator &rhs): item(rhs.item) {}
   __list_iterator<T, Ptr, Ref> operator++() { item = item->next; return *this; }
   __list_iterator<T, Ptr, Ref> operator++(int) {
     auto tmp = *this;
@@ -155,7 +173,7 @@ template <typename T, typename Ptr, typename Ref> struct __list_iterator {
   }
 
   Ref operator*() const { return item->data; }
-  Ptr operator->() const { return item->data; }
+  Ptr operator->() const { return &item->data; }
 
   bool operator==(const iterator &rhs) const { return item == rhs->item; }
   bool operator==(const const_iterator &rhs) const { return item == rhs->item; }
@@ -164,6 +182,9 @@ template <typename T, typename Ptr, typename Ref> struct __list_iterator {
   bool operator!=(const const_iterator &rhs) const { return item != rhs->item; }
 
   const T* &base() const { return item; }
+
+  template <typename UT, typename UPtr, typename URef>
+  friend struct __list_iterator;
 
 private:
   T* item;
@@ -180,7 +201,7 @@ template <typename T, typename Ptr, typename Ref> struct __fwdl_iterator {
   typedef std::forward_iterator_tag iterator_category;
 
   __fwdl_iterator(T* it = 0) : item(it) {}
-  __fwdl_iterator(const iterator &rhs): item(rhs.base()) {}
+  __fwdl_iterator(const iterator &rhs): item(rhs.item) {}
   __fwdl_iterator<T, Ptr, Ref> operator++() { item = item->next; return *this; }
   __fwdl_iterator<T, Ptr, Ref> operator++(int) {
     auto tmp = *this;
@@ -188,7 +209,7 @@ template <typename T, typename Ptr, typename Ref> struct __fwdl_iterator {
     return tmp;
   }
   Ref operator*() const { return item->data; }
-  Ptr operator->() const { return item->data; }
+  Ptr operator->() const { return &item->data; }
 
   bool operator==(const iterator &rhs) const { return item == rhs->item; }
   bool operator==(const const_iterator &rhs) const { return item == rhs->item; }
@@ -197,6 +218,9 @@ template <typename T, typename Ptr, typename Ref> struct __fwdl_iterator {
   bool operator!=(const const_iterator &rhs) const { return item != rhs->item; }
 
   const T* &base() const { return item; }
+
+  template <typename UT, typename UPtr, typename URef>
+  friend struct __fwdl_iterator;
 
 private:
   T* item;
@@ -230,17 +254,25 @@ namespace std {
     return static_cast<RvalRef>(a);
   }
 
+  template <class T>
+  void swap(T &a, T &b) {
+    T c(std::move(a));
+    a = std::move(b);
+    b = std::move(c);
+  }
+
   template<typename T>
   class vector {
+    T *_start;
+    T *_finish;
+    T *_end_of_storage;
+
+  public:
     typedef T value_type;
     typedef size_t size_type;
     typedef __vector_iterator<T, T *, T &> iterator;
     typedef __vector_iterator<T, const T *, const T &> const_iterator;
 
-    T *_start;
-    T *_finish;
-    T *_end_of_storage;
-  public:
     vector() : _start(0), _finish(0), _end_of_storage(0) {}
     template <typename InputIterator>
     vector(InputIterator first, InputIterator last);
@@ -252,11 +284,37 @@ namespace std {
       return size_t(_finish - _start);
     }
 
+    vector& operator=(const vector &other);
+    vector& operator=(vector &&other);
+    vector& operator=(std::initializer_list<T> ilist);
+
+    void assign(size_type count, const T &value);
+    template <typename InputIterator >
+    void assign(InputIterator first, InputIterator last);
+    void assign(std::initializer_list<T> ilist);
+
     void clear();
 
     void push_back(const T &value);
     void push_back(T &&value);
+    template<class... Args>
+    void emplace_back(Args&&... args);
     void pop_back();
+
+    iterator insert(const_iterator position, const value_type &val);
+    iterator insert(const_iterator position, size_type n,
+                    const value_type &val);
+    template <typename InputIterator>
+    iterator insert(const_iterator position, InputIterator first,
+                    InputIterator last);
+    iterator insert(const_iterator position, value_type &&val);
+    iterator insert(const_iterator position, initializer_list<value_type> il);
+
+    template <class... Args>
+    iterator emplace(const_iterator position, Args&&... args);
+
+    iterator erase(const_iterator position);
+    iterator erase(const_iterator first, const_iterator last);
 
     T &operator[](size_t n) {
       return _start[n];
@@ -284,6 +342,7 @@ namespace std {
       T data;
       __item *prev, *next;
     } *_start, *_finish;
+
   public:
     typedef T value_type;
     typedef size_t size_type;
@@ -301,7 +360,39 @@ namespace std {
     list& operator=(list &&other);
     list& operator=(std::initializer_list<T> ilist);
 
+    void assign(size_type count, const T &value);
+    template <typename InputIterator >
+    void assign(InputIterator first, InputIterator last);
+    void assign(std::initializer_list<T> ilist);
+
     void clear();
+
+    void push_back(const T &value);
+    void push_back(T &&value);
+    template<class... Args>
+    void emplace_back(Args&&... args);
+    void pop_back();
+
+    void push_front(const T &value);
+    void push_front(T &&value);
+    template<class... Args>
+    void emplace_front(Args&&... args);
+    void pop_front();
+
+    iterator insert(const_iterator position, const value_type &val);
+    iterator insert(const_iterator position, size_type n,
+                    const value_type &val);
+    template <typename InputIterator>
+    iterator insert(const_iterator position, InputIterator first,
+                    InputIterator last);
+    iterator insert(const_iterator position, value_type &&val);
+    iterator insert(const_iterator position, initializer_list<value_type> il);
+
+    template <class... Args>
+    iterator emplace(const_iterator position, Args&&... args);
+
+    iterator erase(const_iterator position);
+    iterator erase(const_iterator first, const_iterator last);
 
     iterator begin() { return iterator(_start); }
     const_iterator begin() const { return const_iterator(_start); }
@@ -318,15 +409,16 @@ namespace std {
 
   template<typename T>
   class deque {
+    T *_start;
+    T *_finish;
+    T *_end_of_storage;
+
+  public:
     typedef T value_type;
     typedef size_t size_type;
     typedef __deque_iterator<T, T *, T &> iterator;
     typedef __deque_iterator<T, const T *, const T &> const_iterator;
 
-    T *_start;
-    T *_finish;
-    T *_end_of_storage;
-  public:
     deque() : _start(0), _finish(0), _end_of_storage(0) {}
     template <typename InputIterator>
     deque(InputIterator first, InputIterator last);
@@ -338,24 +430,52 @@ namespace std {
       return size_t(_finish - _start);
     }
     
+    deque& operator=(const deque &other);
+    deque& operator=(deque &&other);
+    deque& operator=(std::initializer_list<T> ilist);
+
+    void assign(size_type count, const T &value);
+    template <typename InputIterator >
+    void assign(InputIterator first, InputIterator last);
+    void assign(std::initializer_list<T> ilist);
+
     void clear();
 
     void push_back(const T &value);
     void push_back(T &&value);
+    template<class... Args>
+    void emplace_back(Args&&... args);
     void pop_back();
 
     void push_front(const T &value);
     void push_front(T &&value);
+    template<class... Args>
+    void emplace_front(Args&&... args);
     void pop_front();
+
+    iterator insert(const_iterator position, const value_type &val);
+    iterator insert(const_iterator position, size_type n,
+                    const value_type &val);
+    template <typename InputIterator>
+    iterator insert(const_iterator position, InputIterator first,
+                    InputIterator last);
+    iterator insert(const_iterator position, value_type &&val);
+    iterator insert(const_iterator position, initializer_list<value_type> il);
+
+    template <class... Args>
+    iterator emplace(const_iterator position, Args&&... args);
+
+    iterator erase(const_iterator position);
+    iterator erase(const_iterator first, const_iterator last);
 
     T &operator[](size_t n) {
       return _start[n];
     }
-    
+
     const T &operator[](size_t n) const {
       return _start[n];
     }
-    
+
     iterator begin() { return iterator(_start); }
     const_iterator begin() const { return const_iterator(_start); }
     const_iterator cbegin() const { return const_iterator(_start); }
@@ -367,13 +487,14 @@ namespace std {
     T& back() { return *(end() - 1); }
     const T& back() const { return *(end() - 1); }
   };
-  
+
   template<typename T>
   class forward_list {
     struct __item {
       T data;
       __item *next;
     } *_start;
+
   public:
     typedef T value_type;
     typedef size_t size_type;
@@ -387,11 +508,38 @@ namespace std {
     forward_list(forward_list &&other);
     ~forward_list();
     
+    forward_list& operator=(const forward_list &other);
+    forward_list& operator=(forward_list &&other);
+    forward_list& operator=(std::initializer_list<T> ilist);
+
+    void assign(size_type count, const T &value);
+    template <typename InputIterator >
+    void assign(InputIterator first, InputIterator last);
+    void assign(std::initializer_list<T> ilist);
+
     void clear();
 
     void push_front(const T &value);
     void push_front(T &&value);
+    template<class... Args>
+    void emplace_front(Args&&... args);
     void pop_front();
+
+    iterator insert_after(const_iterator position, const value_type &val);
+    iterator insert_after(const_iterator position, value_type &&val);
+    iterator insert_after(const_iterator position, size_type n,
+                          const value_type &val);
+    template <typename InputIterator>
+    iterator insert_after(const_iterator position, InputIterator first,
+                          InputIterator last);
+    iterator insert_after(const_iterator position,
+                          initializer_list<value_type> il);
+
+    template <class... Args>
+    iterator emplace_after(const_iterator position, Args&&... args);
+
+    iterator erase_after(const_iterator position);
+    iterator erase_after(const_iterator first, const_iterator last);
 
     iterator begin() { return iterator(_start); }
     const_iterator begin() const { return const_iterator(_start); }
@@ -403,6 +551,42 @@ namespace std {
     T& front() { return *begin(); }
     const T& front() const { return *begin(); }
   };
+
+  template <typename CharT>
+  class basic_string {
+  public:
+    basic_string();
+    basic_string(const CharT *s);
+
+    ~basic_string();
+    void clear();
+
+    basic_string &operator=(const basic_string &str);
+    basic_string &operator+=(const basic_string &str);
+
+    const CharT *c_str() const;
+    const CharT *data() const;
+    CharT *data();
+
+    basic_string &append(size_type count, CharT ch);
+    basic_string &assign(size_type count, CharT ch);
+    basic_string &erase(size_type index, size_type count);
+    basic_string &insert(size_type index, size_type count, CharT ch);
+    basic_string &replace(size_type pos, size_type count, const basic_string &str);
+    void pop_back();
+    void push_back(CharT ch);
+    void reserve(size_type new_cap);
+    void resize(size_type count);
+    void shrink_to_fit();
+    void swap(basic_string &other);
+  };
+
+  typedef basic_string<char> string;
+  typedef basic_string<wchar_t> wstring;
+#if __cplusplus >= 201103L
+  typedef basic_string<char16_t> u16string;
+  typedef basic_string<char32_t> u32string;
+#endif
 
   class exception {
   public:
@@ -602,11 +786,34 @@ namespace std {
   template <class InputIterator, class T>
   InputIterator find(InputIterator first, InputIterator last, const T &val);
 
+  template <class ForwardIterator1, class ForwardIterator2>
+  ForwardIterator1 find_first_of(ForwardIterator1 first1,
+                                 ForwardIterator1 last1,
+                                 ForwardIterator2 first2,
+                                 ForwardIterator2 last2);
+
   template <class InputIterator, class OutputIterator>
   OutputIterator copy(InputIterator first, InputIterator last,
                       OutputIterator result);
 
 }
+
+#if __cplusplus >= 201103L
+namespace std {
+  template <typename T> // TODO: Implement the stub for deleter.
+  class unique_ptr {
+  public:
+    unique_ptr(const unique_ptr &) = delete;
+    unique_ptr(unique_ptr &&);
+
+    T *get() const;
+
+    typename std::add_lvalue_reference<T>::type operator*() const;
+    T *operator->() const;
+    operator bool() const;
+  };
+}
+#endif
 
 #ifdef TEST_INLINABLE_ALLOCATORS
 namespace std {
@@ -637,3 +844,87 @@ extern char *__cxa_demangle(const char *mangled_name,
                             int *status);
 }}
 namespace abi = __cxxabiv1;
+
+namespace std {
+  template<class ForwardIt>
+  bool is_sorted(ForwardIt first, ForwardIt last);
+
+  template <class RandomIt>
+  void nth_element(RandomIt first, RandomIt nth, RandomIt last);
+
+  template<class RandomIt>
+  void partial_sort(RandomIt first, RandomIt middle, RandomIt last);
+
+  template<class RandomIt>
+  void sort (RandomIt first, RandomIt last);
+
+  template<class RandomIt>
+  void stable_sort(RandomIt first, RandomIt last);
+
+  template<class BidirIt, class UnaryPredicate>
+  BidirIt partition(BidirIt first, BidirIt last, UnaryPredicate p);
+
+  template<class BidirIt, class UnaryPredicate>
+  BidirIt stable_partition(BidirIt first, BidirIt last, UnaryPredicate p);
+}
+
+namespace std {
+
+template< class T = void >
+struct less;
+
+template< class T >
+struct allocator;
+
+template< class Key >
+struct hash;
+
+template<
+  class Key,
+  class Compare = std::less<Key>,
+  class Alloc = std::allocator<Key>
+> class set {
+  public:
+    set(initializer_list<Key> __list) {}
+
+    class iterator {
+    public:
+      iterator(Key *key): ptr(key) {}
+      iterator operator++() { ++ptr; return *this; }
+      bool operator!=(const iterator &other) const { return ptr != other.ptr; }
+      const Key &operator*() const { return *ptr; }
+    private:
+      Key *ptr;
+    };
+
+  public:
+    Key *val;
+    iterator begin() const { return iterator(val); }
+    iterator end() const { return iterator(val + 1); }
+};
+
+template<
+  class Key,
+  class Hash = std::hash<Key>,
+  class Compare = std::less<Key>,
+  class Alloc = std::allocator<Key>
+> class unordered_set {
+  public:
+    unordered_set(initializer_list<Key> __list) {}
+
+    class iterator {
+    public:
+      iterator(Key *key): ptr(key) {}
+      iterator operator++() { ++ptr; return *this; }
+      bool operator!=(const iterator &other) const { return ptr != other.ptr; }
+      const Key &operator*() const { return *ptr; }
+    private:
+      Key *ptr;
+    };
+
+  public:
+    Key *val;
+    iterator begin() const { return iterator(val); }
+    iterator end() const { return iterator(val + 1); }
+};
+}

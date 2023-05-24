@@ -1,9 +1,8 @@
 //===- Core/References.h - A Reference to Another Atom ----------*- C++ -*-===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -105,7 +104,7 @@ protected:
 
   /// The memory for Reference objects is always managed by the owning File
   /// object.  Therefore, no one but the owning File object should call
-  /// delete on an Reference.  In fact, some File objects may bulk allocate
+  /// delete on a Reference.  In fact, some File objects may bulk allocate
   /// an array of References, so they cannot be individually deleted by anyone.
   virtual ~Reference() = default;
 

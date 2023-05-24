@@ -63,6 +63,15 @@
 // RUN:   | FileCheck --check-prefix=CHECK-MIPSN32EL-LD %s
 // CHECK-MIPSN32EL-LD: ld{{.*}}" {{.*}} "-m" "elf32ltsmipn32_fbsd"
 //
+// Check that RISC-V passes the correct linker emulation.
+//
+// RUN: %clang -target riscv32-freebsd %s -### %s 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-RV32I-LD %s
+// CHECK-RV32I-LD: ld{{.*}}" {{.*}} "-m" "elf32lriscv"
+// RUN: %clang -target riscv64-freebsd %s -### %s 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-RV64I-LD %s
+// CHECK-RV64I-LD: ld{{.*}}" {{.*}} "-m" "elf64lriscv"
+//
 // Check that the new linker flags are passed to FreeBSD
 // RUN: %clang -no-canonical-prefixes -target x86_64-pc-freebsd8 -m32 %s \
 // RUN:   --sysroot=%S/Inputs/multiarch_freebsd64_tree -### 2>&1 \
@@ -184,9 +193,11 @@
 // RUN:   | FileCheck -check-prefix=CHECK-MIPS64-CPU %s
 // CHECK-MIPS64-CPU: "-target-cpu" "mips3"
 
-// Check that the integrated assembler is enabled for MIPS64
-// RUN: %clang -target mips64-unknown-freebsd -### -c %s 2>&1 \
-// RUN:   | FileCheck -check-prefix=CHECK-MIPS64-AS %s
-// RUN: %clang -target mips64el-unknown-freebsd -### -c %s 2>&1 \
-// RUN:   | FileCheck -check-prefix=CHECK-MIPS64-AS %s
-// CHECK-MIPS64-AS-NOT: "-no-integrated-as"
+// Check that the integrated assembler is enabled for SPARC64
+// RUN: %clang -target sparc64-unknown-freebsd -### -c %s 2>&1 \
+// RUN:   | FileCheck -check-prefix=CHECK-IAS %s
+// CHECK-IAS-NOT: "-no-integrated-as"
+
+// RUN: %clang -target ppc64-unknown-freebsd13.0 -### -S %s 2>&1 | \
+// RUN: FileCheck -check-prefix=PPC64-MUNWIND %s
+// PPC64-MUNWIND: -munwind-table

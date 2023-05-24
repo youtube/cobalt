@@ -1,9 +1,8 @@
 //ProgramStateTrait.h - Partial implementations of ProgramStateTrait -*- C++ -*-
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -30,8 +29,7 @@ namespace ento {
 
   /// Declares a program state trait for type \p Type called \p Name, and
   /// introduce a type named \c NameTy.
-  /// The macro should not be used inside namespaces, or for traits that must
-  /// be accessible from more than one translation unit.
+  /// The macro should not be used inside namespaces.
   #define REGISTER_TRAIT_WITH_PROGRAMSTATE(Name, Type) \
     namespace { \
       class Name {}; \
@@ -46,6 +44,102 @@ namespace ento {
       }; \
     } \
     }
+
+  /// Declares a factory for objects of type \p Type in the program state
+  /// manager. The type must provide a ::Factory sub-class. Commonly used for
+  /// ImmutableMap, ImmutableSet, ImmutableList. The macro should not be used
+  /// inside namespaces.
+  #define REGISTER_FACTORY_WITH_PROGRAMSTATE(Type) \
+    namespace clang { \
+    namespace ento { \
+      template <> \
+      struct ProgramStateTrait<Type> \
+        : public ProgramStatePartialTrait<Type> { \
+        static void *GDMIndex() { static int Index; return &Index; } \
+      }; \
+    } \
+    }
+
+  /// Helper for registering a map trait.
+  ///
+  /// If the map type were written directly in the invocation of
+  /// REGISTER_TRAIT_WITH_PROGRAMSTATE, the comma in the template arguments
+  /// would be treated as a macro argument separator, which is wrong.
+  /// This allows the user to specify a map type in a way that the preprocessor
+  /// can deal with.
+  #define CLANG_ENTO_PROGRAMSTATE_MAP(Key, Value) llvm::ImmutableMap<Key, Value>
+
+  /// Declares an immutable map of type \p NameTy, suitable for placement into
+  /// the ProgramState. This is implementing using llvm::ImmutableMap.
+  ///
+  /// \code
+  /// State = State->set<Name>(K, V);
+  /// const Value *V = State->get<Name>(K); // Returns NULL if not in the map.
+  /// State = State->remove<Name>(K);
+  /// NameTy Map = State->get<Name>();
+  /// \endcode
+  ///
+  /// The macro should not be used inside namespaces, or for traits that must
+  /// be accessible from more than one translation unit.
+  #define REGISTER_MAP_WITH_PROGRAMSTATE(Name, Key, Value) \
+    REGISTER_TRAIT_WITH_PROGRAMSTATE(Name, \
+                                     CLANG_ENTO_PROGRAMSTATE_MAP(Key, Value))
+
+  /// Declares an immutable map type \p Name and registers the factory
+  /// for such maps in the program state, but does not add the map itself
+  /// to the program state. Useful for managing lifetime of maps that are used
+  /// as elements of other program state data structures.
+  #define REGISTER_MAP_FACTORY_WITH_PROGRAMSTATE(Name, Key, Value) \
+    using Name = llvm::ImmutableMap<Key, Value>; \
+    REGISTER_FACTORY_WITH_PROGRAMSTATE(Name)
+
+
+  /// Declares an immutable set of type \p NameTy, suitable for placement into
+  /// the ProgramState. This is implementing using llvm::ImmutableSet.
+  ///
+  /// \code
+  /// State = State->add<Name>(E);
+  /// State = State->remove<Name>(E);
+  /// bool Present = State->contains<Name>(E);
+  /// NameTy Set = State->get<Name>();
+  /// \endcode
+  ///
+  /// The macro should not be used inside namespaces, or for traits that must
+  /// be accessible from more than one translation unit.
+  #define REGISTER_SET_WITH_PROGRAMSTATE(Name, Elem) \
+    REGISTER_TRAIT_WITH_PROGRAMSTATE(Name, llvm::ImmutableSet<Elem>)
+
+  /// Declares an immutable set type \p Name and registers the factory
+  /// for such sets in the program state, but does not add the set itself
+  /// to the program state. Useful for managing lifetime of sets that are used
+  /// as elements of other program state data structures.
+  #define REGISTER_SET_FACTORY_WITH_PROGRAMSTATE(Name, Elem) \
+    using Name = llvm::ImmutableSet<Elem>; \
+    REGISTER_FACTORY_WITH_PROGRAMSTATE(Name)
+
+
+  /// Declares an immutable list type \p NameTy, suitable for placement into
+  /// the ProgramState. This is implementing using llvm::ImmutableList.
+  ///
+  /// \code
+  /// State = State->add<Name>(E); // Adds to the /end/ of the list.
+  /// bool Present = State->contains<Name>(E);
+  /// NameTy List = State->get<Name>();
+  /// \endcode
+  ///
+  /// The macro should not be used inside namespaces, or for traits that must
+  /// be accessible from more than one translation unit.
+  #define REGISTER_LIST_WITH_PROGRAMSTATE(Name, Elem) \
+    REGISTER_TRAIT_WITH_PROGRAMSTATE(Name, llvm::ImmutableList<Elem>)
+
+  /// Declares an immutable list of type \p Name and registers the factory
+  /// for such lists in the program state, but does not add the list itself
+  /// to the program state. Useful for managing lifetime of lists that are used
+  /// as elements of other program state data structures.
+  #define REGISTER_LIST_FACTORY_WITH_PROGRAMSTATE(Name, Elem) \
+    using Name = llvm::ImmutableList<Elem>; \
+    REGISTER_FACTORY_WITH_PROGRAMSTATE(Name)
+
 
   // Partial-specialization for ImmutableMap.
   template <typename Key, typename Data, typename Info>
@@ -94,15 +188,6 @@ namespace ento {
       delete (typename data_type::Factory *) Ctx;
     }
   };
-
-  /// Helper for registering a map trait.
-  ///
-  /// If the map type were written directly in the invocation of
-  /// REGISTER_TRAIT_WITH_PROGRAMSTATE, the comma in the template arguments
-  /// would be treated as a macro argument separator, which is wrong.
-  /// This allows the user to specify a map type in a way that the preprocessor
-  /// can deal with.
-  #define CLANG_ENTO_PROGRAMSTATE_MAP(Key, Value) llvm::ImmutableMap<Key, Value>
 
   // Partial-specialization for ImmutableSet.
   template <typename Key, typename Info>

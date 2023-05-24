@@ -1,9 +1,8 @@
 //===- InstCombinePHI.cpp -------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,9 +14,10 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/InstructionSimplify.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 using namespace llvm::PatternMatch;
 
@@ -181,13 +181,14 @@ Instruction *InstCombiner::FoldIntegerTypedPHI(PHINode &PN) {
          "Not enough available ptr typed incoming values");
   PHINode *MatchingPtrPHI = nullptr;
   unsigned NumPhis = 0;
-  for (auto II = BB->begin(), EI = BasicBlock::iterator(BB->getFirstNonPHI());
-       II != EI; II++, NumPhis++) {
+  for (auto II = BB->begin(); II != BB->end(); II++, NumPhis++) {
     // FIXME: consider handling this in AggressiveInstCombine
+    PHINode *PtrPHI = dyn_cast<PHINode>(II);
+    if (!PtrPHI)
+      break;
     if (NumPhis > MaxNumPhis)
       return nullptr;
-    PHINode *PtrPHI = dyn_cast<PHINode>(II);
-    if (!PtrPHI || PtrPHI == &PN || PtrPHI->getType() != IntToPtr->getType())
+    if (PtrPHI == &PN || PtrPHI->getType() != IntToPtr->getType())
       continue;
     MatchingPtrPHI = PtrPHI;
     for (unsigned i = 0; i != PtrPHI->getNumIncomingValues(); ++i) {
@@ -211,20 +212,20 @@ Instruction *InstCombiner::FoldIntegerTypedPHI(PHINode &PN) {
   }
 
   // If it requires a conversion for every PHI operand, do not do it.
-  if (std::all_of(AvailablePtrVals.begin(), AvailablePtrVals.end(),
-                  [&](Value *V) {
-                    return (V->getType() != IntToPtr->getType()) ||
-                           isa<IntToPtrInst>(V);
-                  }))
+  if (all_of(AvailablePtrVals, [&](Value *V) {
+        return (V->getType() != IntToPtr->getType()) || isa<IntToPtrInst>(V);
+      }))
     return nullptr;
 
   // If any of the operand that requires casting is a terminator
   // instruction, do not do it.
-  if (std::any_of(AvailablePtrVals.begin(), AvailablePtrVals.end(),
-                  [&](Value *V) {
-                    return (V->getType() != IntToPtr->getType()) &&
-                           isa<TerminatorInst>(V);
-                  }))
+  if (any_of(AvailablePtrVals, [&](Value *V) {
+        if (V->getType() == IntToPtr->getType())
+          return false;
+
+        auto *Inst = dyn_cast<Instruction>(V);
+        return Inst && Inst->isTerminator();
+      }))
     return nullptr;
 
   PHINode *NewPtrPHI = PHINode::Create(
@@ -543,7 +544,7 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
   // visitLoadInst will propagate an alignment onto the load when TD is around,
   // and if TD isn't around, we can't handle the mixed case.
   bool isVolatile = FirstLI->isVolatile();
-  unsigned LoadAlignment = FirstLI->getAlignment();
+  MaybeAlign LoadAlignment(FirstLI->getAlignment());
   unsigned LoadAddrSpace = FirstLI->getPointerAddressSpace();
 
   // We can't sink the load if the loaded value could be modified between the
@@ -575,10 +576,10 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
 
     // If some of the loads have an alignment specified but not all of them,
     // we can't do the transformation.
-    if ((LoadAlignment != 0) != (LI->getAlignment() != 0))
+    if ((LoadAlignment.hasValue()) != (LI->getAlignment() != 0))
       return nullptr;
 
-    LoadAlignment = std::min(LoadAlignment, LI->getAlignment());
+    LoadAlignment = std::min(LoadAlignment, MaybeAlign(LI->getAlignment()));
 
     // If the PHI is of volatile loads and the load block has multiple
     // successors, sinking it would remove a load of the volatile value from
@@ -596,7 +597,8 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
 
   Value *InVal = FirstLI->getOperand(0);
   NewPN->addIncoming(InVal, PN.getIncomingBlock(0));
-  LoadInst *NewLI = new LoadInst(NewPN, "", isVolatile, LoadAlignment);
+  LoadInst *NewLI =
+      new LoadInst(FirstLI->getType(), NewPN, "", isVolatile, LoadAlignment);
 
   unsigned KnownIDs[] = {
     LLVMContext::MD_tbaa,
@@ -608,6 +610,7 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
     LLVMContext::MD_align,
     LLVMContext::MD_dereferenceable,
     LLVMContext::MD_dereferenceable_or_null,
+    LLVMContext::MD_access_group,
   };
 
   for (unsigned ID : KnownIDs)
@@ -616,7 +619,7 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
   // Add all operands to the new PHI and combine TBAA metadata.
   for (unsigned i = 1, e = PN.getNumIncomingValues(); i != e; ++i) {
     LoadInst *LI = cast<LoadInst>(PN.getIncomingValue(i));
-    combineMetadata(NewLI, LI, KnownIDs);
+    combineMetadata(NewLI, LI, KnownIDs, true);
     Value *NewInVal = LI->getOperand(0);
     if (NewInVal != InVal)
       InVal = nullptr;
@@ -649,7 +652,7 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
 Instruction *InstCombiner::FoldPHIArgZextsIntoPHI(PHINode &Phi) {
   // We cannot create a new instruction after the PHI if the terminator is an
   // EHPad because there is no valid insertion point.
-  if (TerminatorInst *TI = Phi.getParent()->getTerminator())
+  if (Instruction *TI = Phi.getParent()->getTerminator())
     if (TI->isEHPad())
       return nullptr;
 
@@ -723,7 +726,7 @@ Instruction *InstCombiner::FoldPHIArgZextsIntoPHI(PHINode &Phi) {
 Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   // We cannot create a new instruction after the PHI if the terminator is an
   // EHPad because there is no valid insertion point.
-  if (TerminatorInst *TI = PN.getParent()->getTerminator())
+  if (Instruction *TI = PN.getParent()->getTerminator())
     if (TI->isEHPad())
       return nullptr;
 
@@ -1001,6 +1004,11 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
       if (UserI->getOpcode() != Instruction::LShr ||
           !UserI->hasOneUse() || !isa<TruncInst>(UserI->user_back()) ||
           !isa<ConstantInt>(UserI->getOperand(1)))
+        return nullptr;
+
+      // Bail on out of range shifts.
+      unsigned SizeInBits = UserI->getType()->getScalarSizeInBits();
+      if (cast<ConstantInt>(UserI->getOperand(1))->getValue().uge(SizeInBits))
         return nullptr;
 
       unsigned Shift = cast<ConstantInt>(UserI->getOperand(1))->getZExtValue();

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,7 +14,7 @@
 // path proximate(const path& p, const path& base = current_path())
 // path proximate(const path& p, const path& base, error_code& ec);
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <vector>
 #include <iostream>
@@ -23,9 +22,9 @@
 
 #include "test_macros.h"
 #include "test_iterators.h"
-#include "count_new.hpp"
-#include "rapid-cxx-test.hpp"
-#include "filesystem_test_helper.hpp"
+#include "count_new.h"
+#include "rapid-cxx-test.h"
+#include "filesystem_test_helper.h"
 
 
 static int count_path_elems(const fs::path& p) {
@@ -75,12 +74,12 @@ TEST_CASE(basic_test) {
       {"a", parent_cwd, "fs.op.proximate/a"},
       {"/", "a", dot_dot_to_root / ".."},
       {"/", "a/b", dot_dot_to_root / "../.."},
-      {"/", "a/b/", dot_dot_to_root / "../../.."},
+      {"/", "a/b/", dot_dot_to_root / "../.."},
       {"a", "/", relative_cwd / "a"},
       {"a/b", "/", relative_cwd / "a/b"},
       {"a", "/net", ".." / relative_cwd / "a"},
-      {"//foo/", "//foo", "/foo/"},
-      {"//foo", "//foo/", ".."},
+      {"//foo/", "//foo", "."},
+      {"//foo", "//foo/", "."},
       {"//foo", "//foo", "."},
       {"//foo/", "//foo/", "."},
       {"//base", "a", dot_dot_to_root / "../base"},

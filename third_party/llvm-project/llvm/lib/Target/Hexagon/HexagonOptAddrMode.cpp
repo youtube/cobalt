@@ -1,9 +1,8 @@
 //===- HexagonOptAddrMode.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // This implements a Hexagon-specific pass to optimize addressing mode for
@@ -29,6 +28,7 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -163,7 +163,7 @@ bool HexagonOptAddrMode::canRemoveAddasl(NodeAddr<StmtNode *> AddAslSN,
   if (!OffsetOp.isImm() || OffsetOp.getImm() > 3)
     return false;
 
-  unsigned OffsetReg = MI.getOperand(2).getReg();
+  Register OffsetReg = MI.getOperand(2).getReg();
   RegisterRef OffsetRR;
   NodeId OffsetRegRD = 0;
   for (NodeAddr<UseNode *> UA : AddAslSN.Addr->members_if(DFG->IsUse, *DFG)) {
@@ -349,7 +349,7 @@ bool HexagonOptAddrMode::processAddUses(NodeAddr<StmtNode *> AddSN,
                                         MachineInstr *AddMI,
                                         const NodeList &UNodeList) {
 
-  unsigned AddDefR = AddMI->getOperand(0).getReg();
+  Register AddDefR = AddMI->getOperand(0).getReg();
   for (auto I = UNodeList.rbegin(), E = UNodeList.rend(); I != E; ++I) {
     NodeAddr<UseNode *> UN = *I;
     NodeAddr<StmtNode *> SN = UN.Addr->getOwner(*DFG);
@@ -382,7 +382,7 @@ bool HexagonOptAddrMode::processAddUses(NodeAddr<StmtNode *> AddSN,
     // Ex: Rx= add(Rt,#10)
     //     memw(Rx+#0) = Rs
     // will be replaced with =>  memw(Rt+#10) = Rs
-    unsigned BaseReg = AddMI->getOperand(1).getReg();
+    Register BaseReg = AddMI->getOperand(1).getReg();
     if (!isSafeToExtLR(AddSN, AddMI, BaseReg, UNodeList))
       return false;
   }
@@ -412,7 +412,7 @@ bool HexagonOptAddrMode::updateAddUses(MachineInstr *AddMI,
                                         MachineInstr *UseMI) {
   const MachineOperand ImmOp = AddMI->getOperand(2);
   const MachineOperand AddRegOp = AddMI->getOperand(1);
-  unsigned newReg = AddRegOp.getReg();
+  Register newReg = AddRegOp.getReg();
   const MCInstrDesc &MID = UseMI->getDesc();
 
   MachineOperand &BaseOp = MID.mayLoad() ? UseMI->getOperand(1)
@@ -502,7 +502,8 @@ bool HexagonOptAddrMode::changeLoad(MachineInstr *OldMI, MachineOperand ImmOp,
       MIB.add(ImmOp);
       OpStart = 4;
       Changed = true;
-    } else if (HII->getAddrMode(*OldMI) == HexagonII::BaseImmOffset) {
+    } else if (HII->getAddrMode(*OldMI) == HexagonII::BaseImmOffset &&
+               OldMI->getOperand(2).isImm()) {
       short NewOpCode = HII->changeAddrMode_io_abs(*OldMI);
       assert(NewOpCode >= 0 && "Invalid New opcode\n");
       MIB = BuildMI(*BB, InsertPt, OldMI->getDebugLoc(), HII->get(NewOpCode))
@@ -518,17 +519,19 @@ bool HexagonOptAddrMode::changeLoad(MachineInstr *OldMI, MachineOperand ImmOp,
 
     LLVM_DEBUG(dbgs() << "[Changing]: " << *OldMI << "\n");
     LLVM_DEBUG(dbgs() << "[TO]: " << *MIB << "\n");
-  } else if (ImmOpNum == 2 && OldMI->getOperand(3).getImm() == 0) {
-    short NewOpCode = HII->changeAddrMode_rr_io(*OldMI);
-    assert(NewOpCode >= 0 && "Invalid New opcode\n");
-    MIB = BuildMI(*BB, InsertPt, OldMI->getDebugLoc(), HII->get(NewOpCode));
-    MIB.add(OldMI->getOperand(0));
-    MIB.add(OldMI->getOperand(1));
-    MIB.add(ImmOp);
-    OpStart = 4;
-    Changed = true;
-    LLVM_DEBUG(dbgs() << "[Changing]: " << *OldMI << "\n");
-    LLVM_DEBUG(dbgs() << "[TO]: " << *MIB << "\n");
+  } else if (ImmOpNum == 2) {
+    if (OldMI->getOperand(3).isImm() && OldMI->getOperand(3).getImm() == 0) {
+      short NewOpCode = HII->changeAddrMode_rr_io(*OldMI);
+      assert(NewOpCode >= 0 && "Invalid New opcode\n");
+      MIB = BuildMI(*BB, InsertPt, OldMI->getDebugLoc(), HII->get(NewOpCode));
+      MIB.add(OldMI->getOperand(0));
+      MIB.add(OldMI->getOperand(1));
+      MIB.add(ImmOp);
+      OpStart = 4;
+      Changed = true;
+      LLVM_DEBUG(dbgs() << "[Changing]: " << *OldMI << "\n");
+      LLVM_DEBUG(dbgs() << "[TO]: " << *MIB << "\n");
+    }
   }
 
   if (Changed)
@@ -541,7 +544,7 @@ bool HexagonOptAddrMode::changeLoad(MachineInstr *OldMI, MachineOperand ImmOp,
 bool HexagonOptAddrMode::changeStore(MachineInstr *OldMI, MachineOperand ImmOp,
                                      unsigned ImmOpNum) {
   bool Changed = false;
-  unsigned OpStart;
+  unsigned OpStart = 0;
   unsigned OpEnd = OldMI->getNumOperands();
   MachineBasicBlock *BB = OldMI->getParent();
   auto UsePos = MachineBasicBlock::iterator(OldMI);
@@ -722,7 +725,7 @@ bool HexagonOptAddrMode::processBlock(NodeAddr<BlockNode *> BA) {
     }
 
     short SizeInc = 0;
-    unsigned DefR = MI->getOperand(0).getReg();
+    Register DefR = MI->getOperand(0).getReg();
     InstrEvalMap InstrEvalResult;
 
     // Analyze all uses and calculate increase in size. Perform the optimization
@@ -758,11 +761,13 @@ bool HexagonOptAddrMode::processBlock(NodeAddr<BlockNode *> BA) {
       // This could happen, for example, when DefR = R4, but the used
       // register is D2.
 
+      // Change UseMI if replacement is possible. If any replacement failed,
+      // or wasn't attempted, make sure to keep the TFR.
+      bool Xformed = false;
       if (UseMOnum >= 0 && InstrEvalResult[UseMI])
-        // Change UseMI if replacement is possible.
-        Changed |= xformUseMI(MI, UseMI, UseN, UseMOnum);
-      else
-        KeepTfr = true;
+        Xformed = xformUseMI(MI, UseMI, UseN, UseMOnum);
+      Changed |=  Xformed;
+      KeepTfr |= !Xformed;
     }
     if (!KeepTfr)
       Deleted.insert(MI);

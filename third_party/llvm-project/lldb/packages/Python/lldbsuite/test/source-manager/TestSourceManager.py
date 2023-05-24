@@ -10,7 +10,6 @@ o test_modify_source_file_while_debugging:
 """
 
 from __future__ import print_function
-import re
 
 import lldb
 from lldbsuite.test.decorators import *
@@ -22,6 +21,8 @@ def ansi_underline_surround_regex(inner_regex_text):
     # return re.compile(r"\[4m%s\[0m" % inner_regex_text)
     return "4.+\033\\[4m%s\033\\[0m" % inner_regex_text
 
+def ansi_color_surround_regex(inner_regex_text):
+    return "\033\\[3[0-7]m%s\033\\[0m" % inner_regex_text
 
 class SourceManagerTestCase(TestBase):
 
@@ -47,7 +48,7 @@ class SourceManagerTestCase(TestBase):
         # the character column after the initial whitespace.
         return len(stop_line) - len(stop_line.lstrip()) + 1
 
-    def do_display_source_python_api(self, use_color, column_marker_regex):
+    def do_display_source_python_api(self, use_color, needle_regex, highlight_source=False):
         self.build()
         exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
@@ -69,6 +70,9 @@ class SourceManagerTestCase(TestBase):
         # Setup whether we should use ansi escape sequences, including color
         # and styles such as underline.
         self.dbg.SetUseColor(use_color)
+        # Disable syntax highlighting if needed.
+
+        self.runCmd("settings set highlight-source " + str(highlight_source).lower())
 
         filespec = lldb.SBFileSpec(self.file, False)
         source_mgr = self.dbg.GetSourceManager()
@@ -87,10 +91,10 @@ class SourceManagerTestCase(TestBase):
         # => 4        printf("Hello world.\n"); // Set break point at this line.
         #    5        return 0;
         #    6    }
-        self.expect(stream.GetData(), "Source code displayed correctly",
+        self.expect(stream.GetData(), "Source code displayed correctly:\n" + stream.GetData(),
                     exe=False,
                     patterns=['=> %d.*Hello world' % self.line,
-                              column_marker_regex])
+                              needle_regex])
 
         # Boundary condition testings for SBStream().  LLDB should not crash!
         stream.Print(None)
@@ -108,8 +112,27 @@ class SourceManagerTestCase(TestBase):
         """Test display of source using the SBSourceManager API, using a
         dumb terminal and thus no color support (the default)."""
         use_color = True
-        underline_regex = ansi_underline_surround_regex(r".")
+        underline_regex = ansi_underline_surround_regex(r"printf")
         self.do_display_source_python_api(use_color, underline_regex)
+
+    @add_test_categories(['pyapi'])
+    def test_display_source_python_ansi_terminal_syntax_highlighting(self):
+        """Test display of source using the SBSourceManager API and check for
+        the syntax highlighted output"""
+        use_color = True
+        syntax_highlighting = True;
+
+        # Just pick 'int' as something that should be colored.
+        color_regex = ansi_color_surround_regex("int")
+        self.do_display_source_python_api(use_color, color_regex, syntax_highlighting)
+
+        # Same for 'char'.
+        color_regex = ansi_color_surround_regex("char")
+        self.do_display_source_python_api(use_color, color_regex, syntax_highlighting)
+
+        # Test that we didn't color unrelated identifiers.
+        self.do_display_source_python_api(use_color, r" main\(", syntax_highlighting)
+        self.do_display_source_python_api(use_color, r"\);", syntax_highlighting)
 
     def test_move_and_then_display_source(self):
         """Test that target.source-map settings work by moving main.c to hidden/main.c."""
@@ -134,17 +157,21 @@ class SourceManagerTestCase(TestBase):
             error=True,
             substrs=['''error: the replacement path doesn't exist: "/q/r/s/t/u"'''])
 
+        # 'make -C' has resolved current directory to its realpath form.
+        builddir_real = os.path.realpath(self.getBuildDir())
+        hidden_real = os.path.realpath(hidden)
         # Set target.source-map settings.
         self.runCmd("settings set target.source-map %s %s" %
-                    (self.getBuildDir(), hidden))
+                    (builddir_real, hidden_real))
         # And verify that the settings work.
         self.expect("settings show target.source-map",
-                    substrs=[self.getBuildDir(), hidden])
+                    substrs=[builddir_real, hidden_real])
 
         # Display main() and verify that the source mapping has been kicked in.
         self.expect("source list -n main", SOURCE_DISPLAYED_CORRECTLY,
                     substrs=['Hello world'])
 
+    @skipIf(oslist=["windows"], bugnumber="llvm.org/pr44431")
     def test_modify_source_file_while_debugging(self):
         """Modify a source file while debugging the executable."""
         self.build()
@@ -210,15 +237,19 @@ class SourceManagerTestCase(TestBase):
             SOURCE_DISPLAYED_CORRECTLY,
             substrs=['Hello lldb'])
 
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr44432")
     def test_set_breakpoint_with_absolute_path(self):
         self.build()
         hidden = self.getBuildArtifact("hidden")
         lldbutil.mkdir_p(hidden)
+        # 'make -C' has resolved current directory to its realpath form.
+        builddir_real = os.path.realpath(self.getBuildDir())
+        hidden_real = os.path.realpath(hidden)
         self.runCmd("settings set target.source-map %s %s" %
-                    (self.getBuildDir(), hidden))
+                    (builddir_real, hidden_real))
 
         exe = self.getBuildArtifact("a.out")
-        main = os.path.join(self.getBuildDir(), "hidden", "main-copy.c")
+        main = os.path.join(builddir_real, "hidden", "main-copy.c")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
         lldbutil.run_break_set_by_file_and_line(

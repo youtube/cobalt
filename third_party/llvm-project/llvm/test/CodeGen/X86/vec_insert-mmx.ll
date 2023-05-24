@@ -13,10 +13,8 @@ define x86_mmx @t0(i32 %A) nounwind {
 ;
 ; X64-LABEL: t0:
 ; X64:       ## %bb.0:
-; X64-NEXT:    ## kill: def $edi killed $edi def $rdi
-; X64-NEXT:    movq %rdi, %xmm0
-; X64-NEXT:    pslldq {{.*#+}} xmm0 = zero,zero,zero,zero,zero,zero,zero,zero,xmm0[0,1,2,3,4,5,6,7]
-; X64-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[0,2,2,3]
+; X64-NEXT:    movd %edi, %xmm0
+; X64-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[1,0,1,1]
 ; X64-NEXT:    retq
   %tmp3 = insertelement <2 x i32> < i32 0, i32 undef >, i32 %A, i32 1
   %tmp4 = bitcast <2 x i32> %tmp3 to x86_mmx
@@ -63,13 +61,7 @@ define void @t3() {
 ; X32-NEXT:    movl L_g0$non_lazy_ptr, %eax
 ; X32-NEXT:    movl L_g1$non_lazy_ptr, %ecx
 ; X32-NEXT:    movq {{.*#+}} xmm0 = mem[0],zero
-; X32-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0,0,1,1,2,2,3,3]
-; X32-NEXT:    movzwl (%eax), %eax
-; X32-NEXT:    movd %eax, %xmm1
-; X32-NEXT:    movss {{.*#+}} xmm0 = xmm1[0],xmm0[1,2,3]
-; X32-NEXT:    pshuflw {{.*#+}} xmm0 = xmm0[0,2,2,3,4,5,6,7]
-; X32-NEXT:    pshufhw {{.*#+}} xmm0 = xmm0[0,1,2,3,4,6,6,7]
-; X32-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[0,2,2,3]
+; X32-NEXT:    pinsrw $0, (%eax), %xmm0
 ; X32-NEXT:    movq %xmm0, (%ecx)
 ; X32-NEXT:    retl
 ;
@@ -77,10 +69,8 @@ define void @t3() {
 ; X64:       ## %bb.0:
 ; X64-NEXT:    movq _g0@{{.*}}(%rip), %rax
 ; X64-NEXT:    movq _g1@{{.*}}(%rip), %rcx
-; X64-NEXT:    pmovzxwd {{.*#+}} xmm0 = mem[0],zero,mem[1],zero,mem[2],zero,mem[3],zero
-; X64-NEXT:    movzwl (%rax), %eax
-; X64-NEXT:    pinsrd $0, %eax, %xmm0
-; X64-NEXT:    pshufb {{.*#+}} xmm0 = xmm0[0,1,4,5,8,9,12,13,8,9,12,13,12,13,14,15]
+; X64-NEXT:    movq {{.*#+}} xmm0 = mem[0],zero
+; X64-NEXT:    pinsrw $0, (%rax), %xmm0
 ; X64-NEXT:    movq %xmm0, (%rcx)
 ; X64-NEXT:    retq
   load i16, i16* @g0

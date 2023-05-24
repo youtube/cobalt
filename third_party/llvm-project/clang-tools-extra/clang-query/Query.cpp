@@ -1,14 +1,14 @@
 //===---- Query.cpp - clang-query query -----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "Query.h"
 #include "QuerySession.h"
+#include "clang/AST/ASTDumper.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/TextDiagnostic.h"
@@ -41,12 +41,26 @@ bool HelpQuery::run(llvm::raw_ostream &OS, QuerySession &QS) const {
         "as part of other expressions.\n"
         "  set bind-root (true|false)        "
         "Set whether to bind the root matcher to \"root\".\n"
-        "  set output (diag|print|dump)      "
-        "Set whether to print bindings as diagnostics,\n"
-        "                                    "
-        "AST pretty prints or AST dumps.\n"
-        "  quit                              "
-        "Terminates the query session.\n\n";
+        "  set print-matcher (true|false)    "
+        "Set whether to print the current matcher,\n"
+        "  set output <feature>              "
+        "Set whether to output only <feature> content.\n"
+        "  enable output <feature>           "
+        "Enable <feature> content non-exclusively.\n"
+        "  disable output <feature>          "
+        "Disable <feature> content non-exclusively.\n"
+        "  quit, q                           "
+        "Terminates the query session.\n\n"
+        "Several commands accept a <feature> parameter. The available features "
+        "are:\n\n"
+        "  print                             "
+        "Pretty-print bound nodes.\n"
+        "  diag                              "
+        "Diagnostic location for bound nodes.\n"
+        "  detailed-ast                      "
+        "Detailed AST output for bound nodes.\n"
+        "  dump                              "
+        "Detailed AST output for bound nodes (alias of detailed-ast).\n\n";
   return true;
 }
 
@@ -86,13 +100,33 @@ bool MatchQuery::run(llvm::raw_ostream &OS, QuerySession &QS) const {
     }
     Finder.matchAST(AST->getASTContext());
 
+    if (QS.PrintMatcher) {
+      SmallVector<StringRef, 4> Lines;
+      Source.split(Lines, "\n");
+      auto FirstLine = Lines[0];
+      Lines.erase(Lines.begin(), Lines.begin() + 1);
+      while (!Lines.empty() && Lines.back().empty()) {
+        Lines.resize(Lines.size() - 1);
+      }
+      unsigned MaxLength = FirstLine.size();
+      std::string PrefixText = "Matcher: ";
+      OS << "\n  " << PrefixText << FirstLine;
+
+      for (auto Line : Lines) {
+        OS << "\n" << std::string(PrefixText.size() + 2, ' ') << Line;
+        MaxLength = std::max<int>(MaxLength, Line.rtrim().size());
+      }
+
+      OS << "\n"
+         << "  " << std::string(PrefixText.size() + MaxLength, '=') << "\n\n";
+    }
+
     for (auto MI = Matches.begin(), ME = Matches.end(); MI != ME; ++MI) {
       OS << "\nMatch #" << ++MatchCount << ":\n\n";
 
       for (auto BI = MI->getMap().begin(), BE = MI->getMap().end(); BI != BE;
            ++BI) {
-        switch (QS.OutKind) {
-        case OK_Diag: {
+        if (QS.DiagOutput) {
           clang::SourceRange R = BI->second.getSourceRange();
           if (R.isValid()) {
             TextDiagnostic TD(OS, AST->getASTContext().getLangOpts(),
@@ -102,20 +136,20 @@ bool MatchQuery::run(llvm::raw_ostream &OS, QuerySession &QS) const {
                 DiagnosticsEngine::Note, "\"" + BI->first + "\" binds here",
                 CharSourceRange::getTokenRange(R), None);
           }
-          break;
         }
-        case OK_Print: {
+        if (QS.PrintOutput) {
           OS << "Binding for \"" << BI->first << "\":\n";
           BI->second.print(OS, AST->getASTContext().getPrintingPolicy());
           OS << "\n";
-          break;
         }
-        case OK_Dump: {
+        if (QS.DetailedASTOutput) {
           OS << "Binding for \"" << BI->first << "\":\n";
-          BI->second.dump(OS, AST->getSourceManager());
+          const ASTContext &Ctx = AST->getASTContext();
+          const SourceManager &SM = Ctx.getSourceManager();
+          ASTDumper Dumper(OS, &Ctx.getCommentCommandTraits(), &SM,
+                SM.getDiagnostics().getShowColors(), Ctx.getPrintingPolicy());
+          Dumper.Visit(BI->second);
           OS << "\n";
-          break;
-        }
         }
       }
 

@@ -1,9 +1,8 @@
 //=- RunLoopAutoreleaseLeakChecker.cpp --------------------------*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //
 //===----------------------------------------------------------------------===//
@@ -23,7 +22,7 @@
 //===----------------------------------------------------------------------===//
 //
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -58,13 +57,12 @@ public:
 
 } // end anonymous namespace
 
-
-using TriBoolTy = Optional<bool>;
-using MemoizationMapTy = llvm::DenseMap<const Stmt *, Optional<TriBoolTy>>;
-
-static TriBoolTy
-seenBeforeRec(const Stmt *Parent, const Stmt *A, const Stmt *B,
-              MemoizationMapTy &Memoization) {
+/// \return Whether {@code A} occurs before {@code B} in traversal of
+/// {@code Parent}.
+/// Conceptually a very incomplete/unsound approximation of happens-before
+/// relationship (A is likely to be evaluated before B),
+/// but useful enough in this case.
+static bool seenBefore(const Stmt *Parent, const Stmt *A, const Stmt *B) {
   for (const Stmt *C : Parent->children()) {
     if (!C) continue;
 
@@ -74,26 +72,9 @@ seenBeforeRec(const Stmt *Parent, const Stmt *A, const Stmt *B,
     if (C == B)
       return false;
 
-    Optional<TriBoolTy> &Cached = Memoization[C];
-    if (!Cached)
-      Cached = seenBeforeRec(C, A, B, Memoization);
-
-    if (Cached->hasValue())
-      return Cached->getValue();
+    return seenBefore(C, A, B);
   }
-
-  return None;
-}
-
-/// \return Whether {@code A} occurs before {@code B} in traversal of
-/// {@code Parent}.
-/// Conceptually a very incomplete/unsound approximation of happens-before
-/// relationship (A is likely to be evaluated before B),
-/// but useful enough in this case.
-static bool seenBefore(const Stmt *Parent, const Stmt *A, const Stmt *B) {
-  MemoizationMapTy Memoization;
-  TriBoolTy Val = seenBeforeRec(Parent, A, B, Memoization);
-  return Val.getValue();
+  return false;
 }
 
 static void emitDiagnostics(BoundNodes &Match,
@@ -134,7 +115,7 @@ static void emitDiagnostics(BoundNodes &Match,
 
   BR.EmitBasicReport(ADC->getDecl(), Checker,
                      /*Name=*/"Memory leak inside autorelease pool",
-                     /*Category=*/"Memory",
+                     /*BugCategory=*/"Memory",
                      /*Name=*/
                      (Twine("Temporary objects allocated in the") +
                       " autorelease pool " +
@@ -220,4 +201,8 @@ void RunLoopAutoreleaseLeakChecker::checkASTCodeBody(const Decl *D,
 
 void ento::registerRunLoopAutoreleaseLeakChecker(CheckerManager &mgr) {
   mgr.registerChecker<RunLoopAutoreleaseLeakChecker>();
+}
+
+bool ento::shouldRegisterRunLoopAutoreleaseLeakChecker(const LangOptions &LO) {
+  return true;
 }

@@ -1,9 +1,8 @@
 //===--- UniqueptrDeleteReleaseCheck.cpp - clang-tidy----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -42,7 +41,7 @@ void UniqueptrDeleteReleaseCheck::check(
   const auto *PtrExpr = Result.Nodes.getNodeAs<Expr>("uptr");
   const auto *DeleteExpr = Result.Nodes.getNodeAs<Expr>("delete");
 
-  if (PtrExpr->getLocStart().isMacroID())
+  if (PtrExpr->getBeginLoc().isMacroID())
     return;
 
   // Ignore dependent types.
@@ -52,15 +51,15 @@ void UniqueptrDeleteReleaseCheck::check(
     return;
 
   SourceLocation AfterPtr = Lexer::getLocForEndOfToken(
-      PtrExpr->getLocEnd(), 0, *Result.SourceManager, getLangOpts());
+      PtrExpr->getEndLoc(), 0, *Result.SourceManager, getLangOpts());
 
-  diag(DeleteExpr->getLocStart(),
+  diag(DeleteExpr->getBeginLoc(),
        "prefer '= nullptr' to 'delete x.release()' to reset unique_ptr<> "
        "objects")
       << FixItHint::CreateRemoval(CharSourceRange::getCharRange(
-             DeleteExpr->getLocStart(), PtrExpr->getLocStart()))
+             DeleteExpr->getBeginLoc(), PtrExpr->getBeginLoc()))
       << FixItHint::CreateReplacement(
-             CharSourceRange::getTokenRange(AfterPtr, DeleteExpr->getLocEnd()),
+             CharSourceRange::getTokenRange(AfterPtr, DeleteExpr->getEndLoc()),
              " = nullptr");
 }
 

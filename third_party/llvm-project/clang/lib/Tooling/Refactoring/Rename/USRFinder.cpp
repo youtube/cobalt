@@ -1,9 +1,8 @@
 //===--- USRFinder.cpp - Clang refactoring library ------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -83,8 +82,8 @@ const NamedDecl *getNamedDeclAt(const ASTContext &Context,
   // see. If both start and end is either before or after the point we're
   // looking for the point cannot be inside of this decl. Don't even look at it.
   for (auto *CurrDecl : Context.getTranslationUnitDecl()->decls()) {
-    SourceLocation StartLoc = CurrDecl->getLocStart();
-    SourceLocation EndLoc = CurrDecl->getLocEnd();
+    SourceLocation StartLoc = CurrDecl->getBeginLoc();
+    SourceLocation EndLoc = CurrDecl->getEndLoc();
     if (StartLoc.isValid() && EndLoc.isValid() &&
         SM.isBeforeInTranslationUnit(StartLoc, Point) !=
             SM.isBeforeInTranslationUnit(EndLoc, Point))

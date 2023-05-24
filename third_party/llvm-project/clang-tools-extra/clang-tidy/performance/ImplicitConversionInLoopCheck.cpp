@@ -1,9 +1,8 @@
 //===--- ImplicitConversionInLoopCheck.cpp - clang-tidy--------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -79,7 +78,7 @@ void ImplicitConversionInLoopCheck::check(
   // iterator returns a value instead of a reference, and the loop variable
   // is a reference. This situation is fine (it probably produces the same
   // code at the end).
-  if (IsNonTrivialImplicitCast(Materialized->getTemporary()))
+  if (IsNonTrivialImplicitCast(Materialized->getSubExpr()))
     ReportAndFix(Result.Context, VD, OperatorCall);
 }
 
@@ -96,7 +95,7 @@ void ImplicitConversionInLoopCheck::ReportAndFix(
       "change the type to the matching one (%1 but 'const auto&' is always a "
       "valid option) or remove the reference to make it explicit that you are "
       "creating a new value";
-  diag(VD->getLocStart(), Message) << VD << ConstRefType;
+  diag(VD->getBeginLoc(), Message) << VD << ConstRefType;
 }
 
 } // namespace performance

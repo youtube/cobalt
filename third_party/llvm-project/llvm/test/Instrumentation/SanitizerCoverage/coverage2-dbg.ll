@@ -1,6 +1,7 @@
 ; Test that coverage instrumentation does not lose debug location.
 
 ; RUN: opt < %s -sancov  -sanitizer-coverage-level=2 -S | FileCheck %s
+; RUN: opt < %s -passes='module(sancov-module)' -sanitizer-coverage-level=2 -S | FileCheck %s
 
 ; C++ source:
 ; 1: void foo(int *a) {
@@ -40,7 +41,7 @@ if.end:                                           ; preds = %entry, %if.then
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" sanitize_address}
+attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" sanitize_address}
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

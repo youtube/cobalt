@@ -1,9 +1,8 @@
 //===- VPlanValue.h - Represent Values in Vectorizer Plan -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -38,6 +37,10 @@ class VPUser;
 // and live-outs which the VPlan will need to fix accordingly.
 class VPValue {
   friend class VPBuilder;
+  friend class VPlanTransforms;
+  friend class VPBasicBlock;
+  friend class VPInterleavedAccessInfo;
+
 private:
   const unsigned char SubclassID; ///< Subclass identifier (for isa/dyn_cast).
 
@@ -102,6 +105,20 @@ public:
   const_user_range users() const {
     return const_user_range(user_begin(), user_end());
   }
+
+  /// Returns true if the value has more than one unique user.
+  bool hasMoreThanOneUniqueUser() {
+    if (getNumUsers() == 0)
+      return false;
+
+    // Check if all users match the first user.
+    auto Current = std::next(user_begin());
+    while (Current != user_end() && *user_begin() == *Current)
+      Current++;
+    return Current != user_end();
+  }
+
+  void replaceAllUsesWith(VPValue *New);
 };
 
 typedef DenseMap<Value *, VPValue *> Value2VPValueTy;
@@ -146,6 +163,8 @@ public:
     assert(N < Operands.size() && "Operand index out of bounds");
     return Operands[N];
   }
+
+  void setOperand(unsigned I, VPValue *New) { Operands[I] = New; }
 
   typedef SmallVectorImpl<VPValue *>::iterator operand_iterator;
   typedef SmallVectorImpl<VPValue *>::const_iterator const_operand_iterator;

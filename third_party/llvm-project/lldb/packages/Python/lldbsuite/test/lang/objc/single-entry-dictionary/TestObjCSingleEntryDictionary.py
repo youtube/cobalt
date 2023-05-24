@@ -1,14 +1,9 @@
 """Test that we properly vend children for a single entry NSDictionary"""
 
-from __future__ import print_function
 
 
 import unittest2
-import os
-import time
-import platform
 
-from distutils.version import StrictVersion
 
 import lldb
 from lldbsuite.test.decorators import *

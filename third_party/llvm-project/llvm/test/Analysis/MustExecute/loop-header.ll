@@ -83,6 +83,41 @@ exit:
   ret i1 false
 }
 
+define i1 @nested_no_throw(i32* noalias %p, i32 %high) {
+; CHECK-LABEL: @nested_no_throw
+; CHECK-LABEL: loop:                                             ; preds = %next
+; CHECK:         %iv = phi i32 [ 0, %entry ], [ %iv.next, %next ]	; (mustexec in: loop)
+; CHECK:         br label %inner_loop	; (mustexec in: loop)
+; CHECK-LABEL: inner_loop:
+; CHECK:         %v = load i32, i32* %p	; (mustexec in 2 loops: inner_loop, loop)
+; CHECK:         %inner.test = icmp eq i32 %v, 0	; (mustexec in 2 loops: inner_loop, loop)
+; CHECK:         br i1 %inner.test, label %inner_loop, label %next	; (mustexec in 2 loops: inner_loop, loop)
+; CHECK-LABEL: next:
+; CHECK:         %iv.next = add nuw nsw i32 %iv, 1 ; (mustexec in: loop)
+; CHECK:         %exit.test = icmp slt i32 %iv, %high ; (mustexec in: loop)
+; CHECK:         br i1 %exit.test, label %exit, label %loop ; (mustexec in: loop)
+
+entry:
+  br label %loop
+
+loop:
+  %iv = phi i32 [0, %entry], [%iv.next, %next]
+  br label %inner_loop
+
+inner_loop:
+  %v = load i32, i32* %p
+  %inner.test = icmp eq i32 %v, 0
+  br i1 %inner.test, label %inner_loop, label %next
+
+next:
+  %iv.next = add nsw nuw i32 %iv, 1
+  %exit.test = icmp slt i32 %iv, %high
+  br i1 %exit.test, label %exit, label %loop
+
+exit:
+  ret i1 false
+}
+
 ; Since all the instructions in the loop dominate the only exit
 ; and there's no implicit control flow in the loop, all must execute
 ; FIXME: handled by loop safety info, test it

@@ -2,12 +2,8 @@
 Test the MemoryCache L1 flush.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -24,7 +20,7 @@ class MemoryCacheTestCase(TestBase):
         # Find the line number to break inside main().
         self.line = line_number('main.cpp', '// Set break point at this line.')
 
-    @expectedFlakeyOS(oslist=["windows"])
+    @skipIfWindows # This is flakey on Windows: llvm.org/pr38373
     def test_memory_cache(self):
         """Test the MemoryCache class with a sequence of 'memory read' and 'memory write' operations."""
         self.build()

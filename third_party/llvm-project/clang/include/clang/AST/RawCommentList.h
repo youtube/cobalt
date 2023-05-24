@@ -1,9 +1,8 @@
 //===--- RawCommentList.h - Classes for processing raw comments -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,8 +10,11 @@
 #define LLVM_CLANG_AST_RAWCOMMENTLIST_H
 
 #include "clang/Basic/CommentOptions.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
+#include <map>
 
 namespace clang {
 
@@ -101,9 +103,7 @@ public:
   }
 
   SourceRange getSourceRange() const LLVM_READONLY { return Range; }
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return Range.getBegin(); }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return Range.getEnd(); }
 
   const char *getBriefText(const ASTContext &Context) const {
@@ -182,7 +182,7 @@ public:
   explicit BeforeThanCompare(const SourceManager &SM) : SM(SM) { }
 
   bool operator()(const RawComment &LHS, const RawComment &RHS) {
-    return SM.isBeforeInTranslationUnit(LHS.getLocStart(), RHS.getLocStart());
+    return SM.isBeforeInTranslationUnit(LHS.getBeginLoc(), RHS.getBeginLoc());
   }
 
   bool operator()(const RawComment *LHS, const RawComment *RHS) {
@@ -199,17 +199,25 @@ public:
   void addComment(const RawComment &RC, const CommentOptions &CommentOpts,
                   llvm::BumpPtrAllocator &Allocator);
 
-  ArrayRef<RawComment *> getComments() const {
-    return Comments;
-  }
+  /// \returns A mapping from an offset of the start of the comment to the
+  /// comment itself, or nullptr in case there are no comments in \p File.
+  const std::map<unsigned, RawComment *> *getCommentsInFile(FileID File) const;
+
+  bool empty() const;
+
+  unsigned getCommentBeginLine(RawComment *C, FileID File,
+                               unsigned Offset) const;
+  unsigned getCommentEndOffset(RawComment *C) const;
 
 private:
   SourceManager &SourceMgr;
-  std::vector<RawComment *> Comments;
-
-  void addDeserializedComments(ArrayRef<RawComment *> DeserializedComments);
+  // mapping: FileId -> comment begin offset -> comment
+  llvm::DenseMap<FileID, std::map<unsigned, RawComment *>> OrderedComments;
+  mutable llvm::DenseMap<RawComment *, unsigned> CommentBeginLine;
+  mutable llvm::DenseMap<RawComment *, unsigned> CommentEndOffset;
 
   friend class ASTReader;
+  friend class ASTWriter;
 };
 
 } // end namespace clang

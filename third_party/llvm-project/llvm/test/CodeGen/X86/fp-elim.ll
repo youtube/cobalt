@@ -1,5 +1,5 @@
 ; RUN: llc < %s -mtriple=i686-- -asm-verbose=false                           | FileCheck %s -check-prefix=FP-ELIM
-; RUN: llc < %s -mtriple=i686-- -asm-verbose=false -disable-fp-elim          | FileCheck %s -check-prefix=NO-ELIM
+; RUN: llc < %s -mtriple=i686-- -asm-verbose=false -frame-pointer=all          | FileCheck %s -check-prefix=NO-ELIM
 
 ; Implement -momit-leaf-frame-pointer
 ; rdar://7886181
@@ -31,7 +31,7 @@ entry:
   ret void
 }
 
-define i32 @t3() "no-frame-pointer-elim-non-leaf" nounwind readnone {
+define i32 @t3() "frame-pointer"="non-leaf" nounwind readnone {
 entry:
 ; FP-ELIM-LABEL:  t3:
 ; FP-ELIM-NEXT:     movl
@@ -44,7 +44,7 @@ entry:
   ret i32 10
 }
 
-define void @t4() "no-frame-pointer-elim-non-leaf" nounwind {
+define void @t4() "frame-pointer"="non-leaf" nounwind {
 entry:
 ; FP-ELIM-LABEL:  t4:
 ; FP-ELIM-NEXT:     pushl %ebp

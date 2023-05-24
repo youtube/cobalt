@@ -1,9 +1,8 @@
 //===- TypeLoc.cpp - Type Source Info Wrapper -----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,6 +12,7 @@
 
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TemplateBase.h"
@@ -294,6 +294,12 @@ bool TypeSpecTypeLoc::isKind(const TypeLoc &TL) {
   return TSTChecker().Visit(TL);
 }
 
+bool TagTypeLoc::isDefinition() const {
+  TagDecl *D = getDecl();
+  return D->isCompleteDefinition() &&
+         (D->getIdentifier() == nullptr || D->getLocation() == getNameLoc());
+}
+
 // Reimplemented to account for GNU/C++ extension
 //     typeof unary-expression
 // where there are no parentheses.
@@ -384,11 +390,17 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   case BuiltinType::Id:
 #include "clang/Basic/OpenCLImageTypes.def"
+#define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
+  case BuiltinType::Id:
+#include "clang/Basic/OpenCLExtensionTypes.def"
   case BuiltinType::OCLSampler:
   case BuiltinType::OCLEvent:
   case BuiltinType::OCLClkEvent:
   case BuiltinType::OCLQueue:
   case BuiltinType::OCLReserveID:
+#define SVE_TYPE(Name, Id, SingletonId) \
+  case BuiltinType::Id:
+#include "clang/Basic/AArch64SVEACLETypes.def"
   case BuiltinType::BuiltinFn:
   case BuiltinType::OMPArraySection:
     return TST_unspecified;
@@ -404,11 +416,11 @@ TypeLoc TypeLoc::IgnoreParensImpl(TypeLoc TL) {
 }
 
 SourceLocation TypeLoc::findNullabilityLoc() const {
-  if (auto attributedLoc = getAs<AttributedTypeLoc>()) {
-    if (attributedLoc.getAttrKind() == AttributedType::attr_nullable ||
-        attributedLoc.getAttrKind() == AttributedType::attr_nonnull ||
-        attributedLoc.getAttrKind() == AttributedType::attr_null_unspecified)
-      return attributedLoc.getAttrNameLoc();
+  if (auto ATL = getAs<AttributedTypeLoc>()) {
+    const Attr *A = ATL.getAttr();
+    if (A && (isa<TypeNullableAttr>(A) || isa<TypeNonNullAttr>(A) ||
+              isa<TypeNullUnspecifiedAttr>(A)))
+      return A->getLocation();
   }
 
   return {};
@@ -460,6 +472,19 @@ void ObjCObjectTypeLoc::initializeLocal(ASTContext &Context,
   setProtocolRAngleLoc(Loc);
   for (unsigned i = 0, e = getNumProtocols(); i != e; ++i)
     setProtocolLoc(i, Loc);
+}
+
+SourceRange AttributedTypeLoc::getLocalSourceRange() const {
+  // Note that this does *not* include the range of the attribute
+  // enclosure, e.g.:
+  //    __attribute__((foo(bar)))
+  //    ^~~~~~~~~~~~~~~        ~~
+  // or
+  //    [[foo(bar)]]
+  //    ^~        ~~
+  // That enclosure doesn't necessarily belong to a single attribute
+  // anyway.
+  return getAttr() ? getAttr()->getRange() : SourceRange();
 }
 
 void TypeOfTypeLoc::initializeLocal(ASTContext &Context,

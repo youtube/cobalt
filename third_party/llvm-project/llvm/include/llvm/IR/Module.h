@@ -1,9 +1,8 @@
 //===- llvm/Module.h - C++ class to represent a VM module -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,7 @@
 #define LLVM_IR_MODULE_H
 
 #include "llvm-c/Types.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -28,6 +28,7 @@
 #include "llvm/IR/GlobalIFunc.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/ProfileSummary.h"
 #include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/CodeGen.h"
@@ -45,9 +46,11 @@ class FunctionType;
 class GVMaterializer;
 class LLVMContext;
 class MemoryBuffer;
+class Pass;
 class RandomNumberGenerator;
 template <class PtrType> class SmallPtrSetImpl;
 class StructType;
+class VersionTuple;
 
 /// A Module instance is used to store all the information related to an
 /// LLVM module. Modules are the top level container of all other LLVM
@@ -331,16 +334,18 @@ public:
   /// Look up the specified function in the module symbol table. Four
   /// possibilities:
   ///   1. If it does not exist, add a prototype for the function and return it.
-  ///   2. If it exists, and has a local linkage, the existing function is
-  ///      renamed and a new one is inserted.
-  ///   3. Otherwise, if the existing function has the correct prototype, return
+  ///   2. Otherwise, if the existing function has the correct prototype, return
   ///      the existing function.
-  ///   4. Finally, the function exists but has the wrong prototype: return the
+  ///   3. Finally, the function exists but has the wrong prototype: return the
   ///      function with a constantexpr cast to the right prototype.
-  Constant *getOrInsertFunction(StringRef Name, FunctionType *T,
-                                AttributeList AttributeList);
+  ///
+  /// In all cases, the returned value is a FunctionCallee wrapper around the
+  /// 'FunctionType *T' passed in, as well as a 'Value*' either of the Function or
+  /// the bitcast to the function.
+  FunctionCallee getOrInsertFunction(StringRef Name, FunctionType *T,
+                                     AttributeList AttributeList);
 
-  Constant *getOrInsertFunction(StringRef Name, FunctionType *T);
+  FunctionCallee getOrInsertFunction(StringRef Name, FunctionType *T);
 
   /// Look up the specified function in the module symbol table. If it does not
   /// exist, add a prototype for the function and return it. This function
@@ -348,11 +353,10 @@ public:
   /// or a ConstantExpr BitCast of that type if the named function has a
   /// different type. This version of the method takes a list of
   /// function arguments, which makes it easier for clients to use.
-  template<typename... ArgsTy>
-  Constant *getOrInsertFunction(StringRef Name,
-                                AttributeList AttributeList,
-                                Type *RetTy, ArgsTy... Args)
-  {
+  template <typename... ArgsTy>
+  FunctionCallee getOrInsertFunction(StringRef Name,
+                                     AttributeList AttributeList, Type *RetTy,
+                                     ArgsTy... Args) {
     SmallVector<Type*, sizeof...(ArgsTy)> ArgTys{Args...};
     return getOrInsertFunction(Name,
                                FunctionType::get(RetTy, ArgTys, false),
@@ -360,10 +364,17 @@ public:
   }
 
   /// Same as above, but without the attributes.
-  template<typename... ArgsTy>
-  Constant *getOrInsertFunction(StringRef Name, Type *RetTy, ArgsTy... Args) {
+  template <typename... ArgsTy>
+  FunctionCallee getOrInsertFunction(StringRef Name, Type *RetTy,
+                                     ArgsTy... Args) {
     return getOrInsertFunction(Name, AttributeList{}, RetTy, Args...);
   }
+
+  // Avoid an incorrect ordering that'd otherwise compile incorrectly.
+  template <typename... ArgsTy>
+  FunctionCallee
+  getOrInsertFunction(StringRef Name, AttributeList AttributeList,
+                      FunctionType *Invalid, ArgsTy... Args) = delete;
 
   /// Look up the specified function in the module symbol table. If it does not
   /// exist, return null.
@@ -401,11 +412,15 @@ public:
   }
 
   /// Look up the specified global in the module symbol table.
-  ///   1. If it does not exist, add a declaration of the global and return it.
-  ///   2. Else, the global exists but has the wrong type: return the function
-  ///      with a constantexpr cast to the right type.
-  ///   3. Finally, if the existing global is the correct declaration, return
-  ///      the existing global.
+  /// If it does not exist, invoke a callback to create a declaration of the
+  /// global and return it. The global is constantexpr casted to the expected
+  /// type if necessary.
+  Constant *
+  getOrInsertGlobal(StringRef Name, Type *Ty,
+                    function_ref<GlobalVariable *()> CreateGlobalCallback);
+
+  /// Look up the specified global in the module symbol table. If required, this
+  /// overload constructs the global variable using its constructor's defaults.
   Constant *getOrInsertGlobal(StringRef Name, Type *Ty);
 
 /// @}
@@ -645,24 +660,8 @@ public:
       concat_iterator<const GlobalObject, const_iterator,
                       const_global_iterator>;
 
-  iterator_range<global_object_iterator> global_objects() {
-    return concat<GlobalObject>(functions(), globals());
-  }
-  iterator_range<const_global_object_iterator> global_objects() const {
-    return concat<const GlobalObject>(functions(), globals());
-  }
-
-  global_object_iterator global_object_begin() {
-    return global_objects().begin();
-  }
-  global_object_iterator global_object_end() { return global_objects().end(); }
-
-  const_global_object_iterator global_object_begin() const {
-    return global_objects().begin();
-  }
-  const_global_object_iterator global_object_end() const {
-    return global_objects().end();
-  }
+  iterator_range<global_object_iterator> global_objects();
+  iterator_range<const_global_object_iterator> global_objects() const;
 
   using global_value_iterator =
       concat_iterator<GlobalValue, iterator, global_iterator, alias_iterator,
@@ -671,23 +670,8 @@ public:
       concat_iterator<const GlobalValue, const_iterator, const_global_iterator,
                       const_alias_iterator, const_ifunc_iterator>;
 
-  iterator_range<global_value_iterator> global_values() {
-    return concat<GlobalValue>(functions(), globals(), aliases(), ifuncs());
-  }
-  iterator_range<const_global_value_iterator> global_values() const {
-    return concat<const GlobalValue>(functions(), globals(), aliases(),
-                                     ifuncs());
-  }
-
-  global_value_iterator global_value_begin() { return global_values().begin(); }
-  global_value_iterator global_value_end() { return global_values().end(); }
-
-  const_global_value_iterator global_value_begin() const {
-    return global_values().begin();
-  }
-  const_global_value_iterator global_value_end() const {
-    return global_values().end();
-  }
+  iterator_range<global_value_iterator> global_values();
+  iterator_range<const_global_value_iterator> global_values() const;
 
   /// @}
   /// @name Named Metadata Iteration
@@ -840,14 +824,26 @@ public:
   void setPIELevel(PIELevel::Level PL);
 /// @}
 
+  /// @}
+  /// @name Utility function for querying and setting code model
+  /// @{
+
+  /// Returns the code model (tiny, small, kernel, medium or large model)
+  Optional<CodeModel::Model> getCodeModel() const;
+
+  /// Set the code model (tiny, small, kernel, medium or large)
+  void setCodeModel(CodeModel::Model CL);
+  /// @}
+
   /// @name Utility functions for querying and setting PGO summary
   /// @{
 
   /// Attach profile summary metadata to this module.
-  void setProfileSummary(Metadata *M);
+  void setProfileSummary(Metadata *M, ProfileSummary::Kind Kind);
 
-  /// Returns profile summary metadata
-  Metadata *getProfileSummary();
+  /// Returns profile summary metadata. When IsCS is true, use the context
+  /// sensitive profile summary.
+  Metadata *getProfileSummary(bool IsCS);
   /// @}
 
   /// Returns true if PLT should be avoided for RTLib calls.
@@ -856,6 +852,17 @@ public:
   /// Set that PLT should be avoid for RTLib calls.
   void setRtLibUseGOT();
 
+  /// @name Utility functions for querying and setting the build SDK version
+  /// @{
+
+  /// Attach a build SDK version metadata to this module.
+  void setSDKVersion(const VersionTuple &V);
+
+  /// Get the build SDK version metadata.
+  ///
+  /// An empty version is returned if no such metadata is attached.
+  VersionTuple getSDKVersion() const;
+  /// @}
 
   /// Take ownership of the given memory buffer.
   void setOwnedMemoryBuffer(std::unique_ptr<MemoryBuffer> MB);

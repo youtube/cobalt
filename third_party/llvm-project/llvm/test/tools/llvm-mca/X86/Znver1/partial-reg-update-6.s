@@ -13,7 +13,10 @@ lzcnt 2(%rsp), %cx
 # CHECK:      Iterations:        1500
 # CHECK-NEXT: Instructions:      4500
 # CHECK-NEXT: Total Cycles:      10503
-# CHECK-NEXT: Dispatch Width:    4
+# CHECK-NEXT: Total uOps:        7500
+
+# CHECK:      Dispatch Width:    4
+# CHECK-NEXT: uOps Per Cycle:    0.71
 # CHECK-NEXT: IPC:               0.43
 # CHECK-NEXT: Block RThroughput: 1.3
 
@@ -81,3 +84,4 @@ lzcnt 2(%rsp), %cx
 # CHECK-NEXT: 0.     4     9.5    0.3    0.0       imull	%edx, %ecx
 # CHECK-NEXT: 1.     4     9.0    0.0    0.0       lzcntw	(%rsp), %cx
 # CHECK-NEXT: 2.     4     9.5    0.0    0.0       lzcntw	2(%rsp), %cx
+# CHECK-NEXT:        4     9.3    0.1    0.0       <total>

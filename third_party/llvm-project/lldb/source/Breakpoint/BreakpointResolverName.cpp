@@ -1,20 +1,13 @@
 //===-- BreakpointResolverName.cpp ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointResolverName.h"
 
-#include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
-#include "Plugins/Language/ObjC/ObjCLanguage.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Architecture.h"
 #include "lldb/Core/Module.h"
@@ -23,6 +16,7 @@
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Target/Language.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/StreamString.h"
 
@@ -30,14 +24,15 @@ using namespace lldb;
 using namespace lldb_private;
 
 BreakpointResolverName::BreakpointResolverName(
-    Breakpoint *bkpt, const char *name_cstr, uint32_t name_type_mask,
+    Breakpoint *bkpt, const char *name_cstr, FunctionNameType name_type_mask,
     LanguageType language, Breakpoint::MatchType type, lldb::addr_t offset,
     bool skip_prologue)
     : BreakpointResolver(bkpt, BreakpointResolver::NameResolver, offset),
       m_class_name(), m_regex(), m_match_type(type), m_language(language),
       m_skip_prologue(skip_prologue) {
   if (m_match_type == Breakpoint::Regexp) {
-    if (!m_regex.Compile(llvm::StringRef::withNullAsEmpty(name_cstr))) {
+    m_regex = RegularExpression(llvm::StringRef::withNullAsEmpty(name_cstr));
+    if (!m_regex.IsValid()) {
       Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
 
       if (log)
@@ -51,7 +46,7 @@ BreakpointResolverName::BreakpointResolverName(
 
 BreakpointResolverName::BreakpointResolverName(
     Breakpoint *bkpt, const char *names[], size_t num_names,
-    uint32_t name_type_mask, LanguageType language, lldb::addr_t offset,
+    FunctionNameType name_type_mask, LanguageType language, lldb::addr_t offset,
     bool skip_prologue)
     : BreakpointResolver(bkpt, BreakpointResolver::NameResolver, offset),
       m_match_type(Breakpoint::Exact), m_language(language),
@@ -61,9 +56,12 @@ BreakpointResolverName::BreakpointResolverName(
   }
 }
 
-BreakpointResolverName::BreakpointResolverName(
-    Breakpoint *bkpt, std::vector<std::string> names, uint32_t name_type_mask,
-    LanguageType language, lldb::addr_t offset, bool skip_prologue)
+BreakpointResolverName::BreakpointResolverName(Breakpoint *bkpt,
+                                               std::vector<std::string> names,
+                                               FunctionNameType name_type_mask,
+                                               LanguageType language,
+                                               lldb::addr_t offset,
+                                               bool skip_prologue)
     : BreakpointResolver(bkpt, BreakpointResolver::NameResolver, offset),
       m_match_type(Breakpoint::Exact), m_language(language),
       m_skip_prologue(skip_prologue) {
@@ -73,12 +71,12 @@ BreakpointResolverName::BreakpointResolverName(
 }
 
 BreakpointResolverName::BreakpointResolverName(Breakpoint *bkpt,
-                                               RegularExpression &func_regex,
+                                               RegularExpression func_regex,
                                                lldb::LanguageType language,
                                                lldb::addr_t offset,
                                                bool skip_prologue)
     : BreakpointResolver(bkpt, BreakpointResolver::NameResolver, offset),
-      m_class_name(nullptr), m_regex(func_regex),
+      m_class_name(nullptr), m_regex(std::move(func_regex)),
       m_match_type(Breakpoint::Regexp), m_language(language),
       m_skip_prologue(skip_prologue) {}
 
@@ -128,9 +126,8 @@ BreakpointResolver *BreakpointResolverName::CreateFromStructuredData(
   success = options_dict.GetValueForKeyAsString(
       GetKey(OptionNames::RegexString), regex_text);
   if (success) {
-    RegularExpression regex(regex_text);
-    return new BreakpointResolverName(bkpt, regex, language, offset,
-                                      skip_prologue);
+    return new BreakpointResolverName(bkpt, RegularExpression(regex_text),
+                                      language, offset, skip_prologue);
   } else {
     StructuredData::Array *names_array;
     success = options_dict.GetValueForKeyAsArray(
@@ -161,9 +158,8 @@ BreakpointResolver *BreakpointResolverName::CreateFromStructuredData(
       return nullptr;
     }
     std::vector<std::string> names;
-    std::vector<uint32_t> name_masks;
+    std::vector<FunctionNameType> name_masks;
     for (size_t i = 0; i < num_elem; i++) {
-      uint32_t name_mask;
       llvm::StringRef name;
 
       success = names_array->GetItemAtIndexAsString(i, name);
@@ -171,13 +167,14 @@ BreakpointResolver *BreakpointResolverName::CreateFromStructuredData(
         error.SetErrorString("BRN::CFSD: name entry is not a string.");
         return nullptr;
       }
-      success = names_mask_array->GetItemAtIndexAsInteger(i, name_mask);
+      std::underlying_type<FunctionNameType>::type fnt;
+      success = names_mask_array->GetItemAtIndexAsInteger(i, fnt);
       if (!success) {
         error.SetErrorString("BRN::CFSD: name mask entry is not an integer.");
         return nullptr;
       }
       names.push_back(name);
-      name_masks.push_back(name_mask);
+      name_masks.push_back(static_cast<FunctionNameType>(fnt));
     }
 
     BreakpointResolverName *resolver = new BreakpointResolverName(
@@ -219,22 +216,29 @@ StructuredData::ObjectSP BreakpointResolverName::SerializeToStructuredData() {
   return WrapOptionsDict(options_dict_sp);
 }
 
-void BreakpointResolverName::AddNameLookup(const ConstString &name,
-                                           uint32_t name_type_mask) {
-  ObjCLanguage::MethodName objc_method(name.GetCString(), false);
-  if (objc_method.IsValid(false)) {
-    std::vector<ConstString> objc_names;
-    objc_method.GetFullNames(objc_names, true);
-    for (ConstString objc_name : objc_names) {
-      Module::LookupInfo lookup;
-      lookup.SetName(name);
-      lookup.SetLookupName(objc_name);
-      lookup.SetNameTypeMask(eFunctionNameTypeFull);
-      m_lookups.push_back(lookup);
+void BreakpointResolverName::AddNameLookup(ConstString name,
+                                           FunctionNameType name_type_mask) {
+
+  Module::LookupInfo lookup(name, name_type_mask, m_language);
+  m_lookups.emplace_back(lookup);
+
+  auto add_variant_funcs = [&](Language *lang) {
+    for (ConstString variant_name : lang->GetMethodNameVariants(name)) {
+      Module::LookupInfo variant_lookup(name, name_type_mask,
+                                        lang->GetLanguageType());
+      variant_lookup.SetLookupName(variant_name);
+      m_lookups.emplace_back(variant_lookup);
     }
+    return true;
+  };
+
+  if (Language *lang = Language::FindPlugin(m_language)) {
+    add_variant_funcs(lang);
   } else {
-    Module::LookupInfo lookup(name, name_type_mask, m_language);
-    m_lookups.push_back(lookup);
+    // Most likely m_language is eLanguageTypeUnknown. We check each language for
+    // possible variants or more qualified names and create lookups for those as
+    // well.
+    Language::ForEach(add_variant_funcs);
   }
 }
 
@@ -246,8 +250,7 @@ void BreakpointResolverName::AddNameLookup(const ConstString &name,
 
 Searcher::CallbackReturn
 BreakpointResolverName::SearchCallback(SearchFilter &filter,
-                                       SymbolContext &context, Address *addr,
-                                       bool containing) {
+                                       SymbolContext &context, Address *addr) {
   SymbolContextList func_list;
   // SymbolContextList sym_list;
 
@@ -268,7 +271,6 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
   bool filter_by_language = (m_language != eLanguageTypeUnknown);
   const bool include_symbols = !filter_by_cu;
   const bool include_inlines = true;
-  const bool append = true;
 
   switch (m_match_type) {
   case Breakpoint::Exact:
@@ -277,7 +279,7 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
         const size_t start_func_idx = func_list.GetSize();
         context.module_sp->FindFunctions(
             lookup.GetLookupName(), nullptr, lookup.GetNameTypeMask(),
-            include_symbols, include_inlines, append, func_list);
+            include_symbols, include_inlines, func_list);
 
         const size_t end_func_idx = func_list.GetSize();
 
@@ -291,7 +293,7 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
       context.module_sp->FindFunctions(
           m_regex,
           !filter_by_cu, // include symbols only if we aren't filtering by CU
-          include_inlines, append, func_list);
+          include_inlines, func_list);
     }
     break;
   case Breakpoint::Glob:
@@ -384,7 +386,7 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
               if (log) {
                 StreamString s;
                 bp_loc_sp->GetDescription(&s, lldb::eDescriptionLevelVerbose);
-                log->Printf("Added location: %s\n", s.GetData());
+                LLDB_LOGF(log, "Added location: %s\n", s.GetData());
               }
             }
           }
@@ -396,8 +398,8 @@ BreakpointResolverName::SearchCallback(SearchFilter &filter,
   return Searcher::eCallbackReturnContinue;
 }
 
-Searcher::Depth BreakpointResolverName::GetDepth() {
-  return Searcher::eDepthModule;
+lldb::SearchDepth BreakpointResolverName::GetDepth() {
+  return lldb::eSearchDepthModule;
 }
 
 void BreakpointResolverName::GetDescription(Stream *s) {

@@ -1,37 +1,30 @@
 //===-- BreakpointResolverFileRegex.h ----------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_BreakpointResolverFileRegex_h_
 #define liblldb_BreakpointResolverFileRegex_h_
 
-// C Includes
-// C++ Includes
 #include <set>
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointResolver.h"
 #include "lldb/Utility/ConstString.h"
 
 namespace lldb_private {
 
-//----------------------------------------------------------------------
-/// @class BreakpointResolverFileRegex BreakpointResolverFileRegex.h
+/// \class BreakpointResolverFileRegex BreakpointResolverFileRegex.h
 /// "lldb/Breakpoint/BreakpointResolverFileRegex.h" This class sets
 /// breakpoints by file and line.  Optionally, it will look for inlined
 /// instances of the file and line specification.
-//----------------------------------------------------------------------
 
 class BreakpointResolverFileRegex : public BreakpointResolver {
 public:
   BreakpointResolverFileRegex(
-      Breakpoint *bkpt, RegularExpression &regex,
+      Breakpoint *bkpt, RegularExpression regex,
       const std::unordered_set<std::string> &func_name_set, bool exact_match);
 
   static BreakpointResolver *
@@ -44,10 +37,10 @@ public:
   ~BreakpointResolverFileRegex() override;
 
   Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
-                                          SymbolContext &context, Address *addr,
-                                          bool containing) override;
+                                          SymbolContext &context,
+                                          Address *addr) override;
 
-  Searcher::Depth GetDepth() override;
+  lldb::SearchDepth GetDepth() override;
 
   void GetDescription(Stream *s) override;
 

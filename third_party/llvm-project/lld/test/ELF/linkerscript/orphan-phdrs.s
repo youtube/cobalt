@@ -10,7 +10,7 @@
 # RUN:  .rw : { *(.rw) } \
 # RUN: }" > %t.script
 # RUN: ld.lld -o %t --script %t.script %t.o
-# RUN: llvm-readelf -s -l %t | FileCheck %s
+# RUN: llvm-readelf -S -l %t | FileCheck %s
 
 ## Check that the orphan section is placed correctly and belongs to
 ## the correct segment.
@@ -23,13 +23,13 @@
 
 # CHECK: Segment Sections
 # CHECK-NEXT: .text .orphan
-# CHECK-NEXT: .rw
+# CHECK-NEXT: .empty .rw
 
-.section .text, "ax"
+.section .text,"ax"
  ret
 
-.section .rw, "aw"
+.section .rw,"aw"
  .quad 0
 
-.section .orphan, "ax"
+.section .orphan,"ax"
  ret

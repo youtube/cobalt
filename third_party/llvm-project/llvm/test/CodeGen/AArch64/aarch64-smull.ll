@@ -291,15 +291,16 @@ define <2 x i64> @umull_extvec_v2i32_v2i64(<2 x i32> %arg) nounwind {
   ret <2 x i64> %tmp4
 }
 
-define i16 @smullWithInconsistentExtensions(<8 x i8> %vec) {
+define i16 @smullWithInconsistentExtensions(<8 x i8> %x, <8 x i8> %y) {
 ; If one operand has a zero-extend and the other a sign-extend, smull
 ; cannot be used.
 ; CHECK-LABEL: smullWithInconsistentExtensions:
 ; CHECK: mul {{v[0-9]+}}.8h, {{v[0-9]+}}.8h, {{v[0-9]+}}.8h
-  %1 = sext <8 x i8> %vec to <8 x i16>
-  %2 = mul <8 x i16> %1, <i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255>
-  %3 = extractelement <8 x i16> %2, i32 0
-  ret i16 %3
+  %s = sext <8 x i8> %x to <8 x i16>
+  %z = zext <8 x i8> %y to <8 x i16>
+  %m = mul <8 x i16> %s, %z
+  %r = extractelement <8 x i16> %m, i32 0
+  ret i16 %r
 }
 
 define void @distribute(i16* %dst, i8* %src, i32 %mul) nounwind {
@@ -324,6 +325,66 @@ entry:
   %14 = bitcast i16* %dst to i8*
   tail call void @llvm.aarch64.neon.vst1.v8i16(i8* %14, <8 x i16> %13, i32 2)
   ret void
+}
+
+define <16 x i16> @umull2_i8(<16 x i8> %arg1, <16 x i8> %arg2) {
+; CHECK-LABEL: umull2_i8:
+; CHECK-DAG: umull2 {{v[0-9]+}}.8h, {{v[0-9]+}}.16b, {{v[0-9]+}}.16b
+; CHECK-DAG: umull {{v[0-9]+}}.8h, {{v[0-9]+}}.8b, {{v[0-9]+}}.8b
+  %arg1_ext = zext <16 x i8> %arg1 to <16 x i16>
+  %arg2_ext = zext <16 x i8> %arg2 to <16 x i16>
+  %mul = mul <16 x i16> %arg1_ext, %arg2_ext
+  ret <16 x i16> %mul
+}
+
+define <16 x i16> @smull2_i8(<16 x i8> %arg1, <16 x i8> %arg2) {
+; CHECK-LABEL: smull2_i8:
+; CHECK-DAG: smull2 {{v[0-9]+}}.8h, {{v[0-9]+}}.16b, {{v[0-9]+}}.16b
+; CHECK-DAG: smull {{v[0-9]+}}.8h, {{v[0-9]+}}.8b, {{v[0-9]+}}.8b
+  %arg1_ext = sext <16 x i8> %arg1 to <16 x i16>
+  %arg2_ext = sext <16 x i8> %arg2 to <16 x i16>
+  %mul = mul <16 x i16> %arg1_ext, %arg2_ext
+  ret <16 x i16> %mul
+}
+
+define <8 x i32> @umull2_i16(<8 x i16> %arg1, <8 x i16> %arg2) {
+; CHECK-LABEL: umull2_i16:
+; CHECK-DAG: umull2 {{v[0-9]+}}.4s, {{v[0-9]+}}.8h, {{v[0-9]+}}.8h
+; CHECK-DAG: umull {{v[0-9]+}}.4s, {{v[0-9]+}}.4h, {{v[0-9]+}}.4h
+  %arg1_ext = zext <8 x i16> %arg1 to <8 x i32>
+  %arg2_ext = zext <8 x i16> %arg2 to <8 x i32>
+  %mul = mul <8 x i32> %arg1_ext, %arg2_ext
+  ret <8 x i32> %mul
+}
+
+define <8 x i32> @smull2_i16(<8 x i16> %arg1, <8 x i16> %arg2) {
+; CHECK-LABEL: smull2_i16:
+; CHECK-DAG: smull2 {{v[0-9]+}}.4s, {{v[0-9]+}}.8h, {{v[0-9]+}}.8h
+; CHECK-DAG: smull {{v[0-9]+}}.4s, {{v[0-9]+}}.4h, {{v[0-9]+}}.4h
+  %arg1_ext = sext <8 x i16> %arg1 to <8 x i32>
+  %arg2_ext = sext <8 x i16> %arg2 to <8 x i32>
+  %mul = mul <8 x i32> %arg1_ext, %arg2_ext
+  ret <8 x i32> %mul
+}
+
+define <4 x i64> @umull2_i32(<4 x i32> %arg1, <4 x i32> %arg2) {
+; CHECK-LABEL: umull2_i32:
+; CHECK-DAG: umull2 {{v[0-9]+}}.2d, {{v[0-9]+}}.4s, {{v[0-9]+}}.4s
+; CHECK-DAG: umull {{v[0-9]+}}.2d, {{v[0-9]+}}.2s, {{v[0-9]+}}.2s
+  %arg1_ext = zext <4 x i32> %arg1 to <4 x i64>
+  %arg2_ext = zext <4 x i32> %arg2 to <4 x i64>
+  %mul = mul <4 x i64> %arg1_ext, %arg2_ext
+  ret <4 x i64> %mul
+}
+
+define <4 x i64> @smull2_i32(<4 x i32> %arg1, <4 x i32> %arg2) {
+; CHECK-LABEL: smull2_i32:
+; CHECK-DAG: smull2 {{v[0-9]+}}.2d, {{v[0-9]+}}.4s, {{v[0-9]+}}.4s
+; CHECK-DAG: smull {{v[0-9]+}}.2d, {{v[0-9]+}}.2s, {{v[0-9]+}}.2s
+  %arg1_ext = sext <4 x i32> %arg1 to <4 x i64>
+  %arg2_ext = sext <4 x i32> %arg2 to <4 x i64>
+  %mul = mul <4 x i64> %arg1_ext, %arg2_ext
+  ret <4 x i64> %mul
 }
 
 declare <16 x i8> @llvm.aarch64.neon.vld1.v16i8(i8*, i32) nounwind readonly

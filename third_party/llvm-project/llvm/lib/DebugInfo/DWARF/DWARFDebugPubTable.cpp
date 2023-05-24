@@ -1,13 +1,13 @@
 //===- DWARFDebugPubTable.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/DWARF/DWARFDebugPubTable.h"
+#include "llvm/DebugInfo/DWARF/DWARFDataExtractor.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/Support/DataExtractor.h"
@@ -18,21 +18,22 @@
 using namespace llvm;
 using namespace dwarf;
 
-DWARFDebugPubTable::DWARFDebugPubTable(StringRef Data, bool LittleEndian,
-                                       bool GnuStyle)
+DWARFDebugPubTable::DWARFDebugPubTable(const DWARFObject &Obj,
+                                       const DWARFSection &Sec,
+                                       bool LittleEndian, bool GnuStyle)
     : GnuStyle(GnuStyle) {
-  DataExtractor PubNames(Data, LittleEndian, 0);
-  uint32_t Offset = 0;
+  DWARFDataExtractor PubNames(Obj, Sec, LittleEndian, 0);
+  uint64_t Offset = 0;
   while (PubNames.isValidOffset(Offset)) {
     Sets.push_back({});
     Set &SetData = Sets.back();
 
     SetData.Length = PubNames.getU32(&Offset);
     SetData.Version = PubNames.getU16(&Offset);
-    SetData.Offset = PubNames.getU32(&Offset);
+    SetData.Offset = PubNames.getRelocatedValue(4, &Offset);
     SetData.Size = PubNames.getU32(&Offset);
 
-    while (Offset < Data.size()) {
+    while (Offset < Sec.Data.size()) {
       uint32_t DieRef = PubNames.getU32(&Offset);
       if (DieRef == 0)
         break;
@@ -48,13 +49,13 @@ void DWARFDebugPubTable::dump(raw_ostream &OS) const {
   for (const Set &S : Sets) {
     OS << "length = " << format("0x%08x", S.Length);
     OS << " version = " << format("0x%04x", S.Version);
-    OS << " unit_offset = " << format("0x%08x", S.Offset);
+    OS << " unit_offset = " << format("0x%08" PRIx64, S.Offset);
     OS << " unit_size = " << format("0x%08x", S.Size) << '\n';
     OS << (GnuStyle ? "Offset     Linkage  Kind     Name\n"
                     : "Offset     Name\n");
 
     for (const Entry &E : S.Entries) {
-      OS << format("0x%8.8x ", E.SecOffset);
+      OS << format("0x%8.8" PRIx64 " ", E.SecOffset);
       if (GnuStyle) {
         StringRef EntryLinkage =
             GDBIndexEntryLinkageString(E.Descriptor.Linkage);

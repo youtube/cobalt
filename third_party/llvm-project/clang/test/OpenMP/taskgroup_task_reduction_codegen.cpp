@@ -12,6 +12,16 @@
 #ifndef HEADER
 #define HEADER
 
+typedef void **omp_allocator_handle_t;
+extern const omp_allocator_handle_t omp_default_mem_alloc;
+extern const omp_allocator_handle_t omp_large_cap_mem_alloc;
+extern const omp_allocator_handle_t omp_const_mem_alloc;
+extern const omp_allocator_handle_t omp_high_bw_mem_alloc;
+extern const omp_allocator_handle_t omp_low_lat_mem_alloc;
+extern const omp_allocator_handle_t omp_cgroup_mem_alloc;
+extern const omp_allocator_handle_t omp_pteam_mem_alloc;
+extern const omp_allocator_handle_t omp_thread_mem_alloc;
+
 // CHECK-DAG: @reduction_size.[[ID:.+]]_[[CID:[0-9]+]].artificial.
 // CHECK-DAG: @reduction_size.[[ID]]_[[CID]].artificial..cache.
 
@@ -29,7 +39,7 @@ int main(int argc, char **argv) {
   float b;
   S c[5];
   short d[argc];
-#pragma omp taskgroup task_reduction(+: a, b, argc)
+#pragma omp taskgroup allocate(omp_pteam_mem_alloc: a) task_reduction(+: a, b, argc)
   {
 #pragma omp taskgroup task_reduction(-:c, d)
     ;
@@ -43,12 +53,12 @@ int main(int argc, char **argv) {
 // CHECK:       [[A:%.+]] = alloca i32,
 // CHECK:       [[B:%.+]] = alloca float,
 // CHECK:       [[C:%.+]] = alloca [5 x %struct.S],
-// CHECK:       [[GTID:%.+]] = call i32 @__kmpc_global_thread_num(%struct.ident_t*
 // CHECK:       [[RD_IN1:%.+]] = alloca [3 x [[T1:%[^,]+]]],
 // CHECK:       [[TD1:%.+]] = alloca i8*,
 // CHECK:       [[RD_IN2:%.+]] = alloca [2 x [[T2:%[^,]+]]],
 // CHECK:       [[TD2:%.+]] = alloca i8*,
 
+// CHECK:       [[GTID:%.+]] = call i32 @__kmpc_global_thread_num(%struct.ident_t*
 // CHECK:       [[VLA:%.+]] = alloca i16, i64 [[VLA_SIZE:%[^,]+]],
 
 // CHECK:       call void @__kmpc_taskgroup(%struct.ident_t* {{[^,]+}}, i32 [[GTID]])
@@ -139,54 +149,54 @@ int main(int argc, char **argv) {
 // CHECK:       call void @__kmpc_end_taskgroup(%struct.ident_t* {{[^,]+}}, i32 [[GTID]])
 // CHECK:       call void @__kmpc_end_taskgroup(%struct.ident_t* {{[^,]+}}, i32 [[GTID]])
 
-// CHECK-DAG: define internal void @[[AINIT]](i8*)
+// CHECK-DAG: define internal void @[[AINIT]](i8* %0)
 // CHECK-DAG: store i32 0, i32* %
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[ACOMB]](i8*, i8*)
+// CHECK-DAG: define internal void @[[ACOMB]](i8* %0, i8* %1)
 // CHECK-DAG: add nsw i32 %
 // CHECK-DAG: store i32 %
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[BINIT]](i8*)
+// CHECK-DAG: define internal void @[[BINIT]](i8* %0)
 // CHECK-DAG: store float 0.000000e+00, float* %
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[BCOMB]](i8*, i8*)
+// CHECK-DAG: define internal void @[[BCOMB]](i8* %0, i8* %1)
 // CHECK-DAG: fadd float %
 // CHECK-DAG: store float %
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[ARGCINIT]](i8*)
+// CHECK-DAG: define internal void @[[ARGCINIT]](i8* %0)
 // CHECK-DAG: store i32 0, i32* %
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[ARGCCOMB]](i8*, i8*)
+// CHECK-DAG: define internal void @[[ARGCCOMB]](i8* %0, i8* %1)
 // CHECK-DAG: add nsw i32 %
 // CHECK-DAG: store i32 %
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[CINIT]](i8*)
+// CHECK-DAG: define internal void @[[CINIT]](i8* %0)
 // CHECK-DAG: phi %struct.S* [
 // CHECK-DAG: call {{.+}}(%struct.S* {{.+}})
 // CHECK-DAG: br i1 %
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[CFINI]](i8*)
+// CHECK-DAG: define internal void @[[CFINI]](i8* %0)
 // CHECK-DAG: phi %struct.S* [
 // CHECK-DAG: call {{.+}}(%struct.S* {{.+}})
 // CHECK-DAG: br i1 %
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[CCOMB]](i8*, i8*)
+// CHECK-DAG: define internal void @[[CCOMB]](i8* %0, i8* %1)
 // CHECK-DAG: phi %struct.S* [
 // CHECK-DAG: phi %struct.S* [
 // CHECK-DAG: call {{.+}}(%struct.S* {{.+}}, %struct.S* {{.+}}, %struct.S* {{.+}})
@@ -196,7 +206,7 @@ int main(int argc, char **argv) {
 // CHECK-DAG: ret void
 // CHECK_DAG: }
 
-// CHECK-DAG: define internal void @[[VLAINIT]](i8*)
+// CHECK-DAG: define internal void @[[VLAINIT]](i8* %0)
 // CHECK-DAG: call i32 @__kmpc_global_thread_num(%struct.ident_t* {{[^,]+}})
 // CHECK-DAG: call i8* @__kmpc_threadprivate_cached(%struct.ident_t*
 // CHECK-DAG: phi i16* [
@@ -205,7 +215,7 @@ int main(int argc, char **argv) {
 // CHECK-DAG: ret void
 // CHECK-DAG: }
 
-// CHECK-DAG: define internal void @[[VLACOMB]](i8*, i8*)
+// CHECK-DAG: define internal void @[[VLACOMB]](i8* %0, i8* %1)
 // CHECK-DAG: call i32 @__kmpc_global_thread_num(%struct.ident_t* {{[^,]+}})
 // CHECK-DAG: call i8* @__kmpc_threadprivate_cached(%struct.ident_t*
 // CHECK-DAG: phi i16* [

@@ -1,9 +1,8 @@
 //===- llvm/Support/Windows/Path.inc - Windows Path Impl --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -372,13 +371,19 @@ static std::error_code realPathFromHandle(HANDLE H,
   if (std::error_code EC = realPathFromHandle(H, Buffer))
     return EC;
 
-  const wchar_t *Data = Buffer.data();
+  // Strip the \\?\ prefix. We don't want it ending up in output, and such
+  // paths don't get canonicalized by file APIs.
+  wchar_t *Data = Buffer.data();
   DWORD CountChars = Buffer.size();
-  if (CountChars >= 4) {
-    if (0 == ::memcmp(Data, L"\\\\?\\", 8)) {
-      CountChars -= 4;
-      Data += 4;
-    }
+  if (CountChars >= 8 && ::memcmp(Data, L"\\\\?\\UNC\\", 16) == 0) {
+    // Convert \\?\UNC\foo\bar to \\foo\bar
+    CountChars -= 6;
+    Data += 6;
+    Data[0] = '\\';
+  } else if (CountChars >= 4 && ::memcmp(Data, L"\\\\?\\", 8) == 0) {
+    // Convert \\?\c:\foo to c:\foo
+    CountChars -= 4;
+    Data += 4;
   }
 
   // Convert the result from UTF-16 to UTF-8.
@@ -416,7 +421,7 @@ static std::error_code rename_internal(HANDLE FromHandle, const Twine &To,
       *reinterpret_cast<FILE_RENAME_INFO *>(RenameInfoBuf.data());
   RenameInfo.ReplaceIfExists = ReplaceIfExists;
   RenameInfo.RootDirectory = 0;
-  RenameInfo.FileNameLength = ToWide.size();
+  RenameInfo.FileNameLength = ToWide.size() * sizeof(wchar_t);
   std::copy(ToWide.begin(), ToWide.end(), &RenameInfo.FileName[0]);
 
   SetLastError(ERROR_SUCCESS);
@@ -735,6 +740,14 @@ std::error_code status(int FD, file_status &Result) {
   return getStatus(FileHandle, Result);
 }
 
+std::error_code status(file_t FileHandle, file_status &Result) {
+  return getStatus(FileHandle, Result);
+}
+
+unsigned getUmask() {
+  return 0;
+}
+
 std::error_code setPermissions(const Twine &Path, perms Permissions) {
   SmallVector<wchar_t, 128> PathUTF16;
   if (std::error_code EC = widenPath(Path, PathUTF16))
@@ -766,18 +779,24 @@ std::error_code setPermissions(const Twine &Path, perms Permissions) {
   return std::error_code();
 }
 
-std::error_code setLastModificationAndAccessTime(int FD, TimePoint<> Time) {
-  FILETIME FT = toFILETIME(Time);
+std::error_code setPermissions(int FD, perms Permissions) {
+  // FIXME Not implemented.
+  return std::make_error_code(std::errc::not_supported);
+}
+
+std::error_code setLastAccessAndModificationTime(int FD, TimePoint<> AccessTime,
+                                                 TimePoint<> ModificationTime) {
+  FILETIME AccessFT = toFILETIME(AccessTime);
+  FILETIME ModifyFT = toFILETIME(ModificationTime);
   HANDLE FileHandle = reinterpret_cast<HANDLE>(_get_osfhandle(FD));
-  if (!SetFileTime(FileHandle, NULL, &FT, &FT))
+  if (!SetFileTime(FileHandle, NULL, &AccessFT, &ModifyFT))
     return mapWindowsError(::GetLastError());
   return std::error_code();
 }
 
-std::error_code mapped_file_region::init(int FD, uint64_t Offset,
-                                         mapmode Mode) {
+std::error_code mapped_file_region::init(sys::fs::file_t OrigFileHandle,
+                                         uint64_t Offset, mapmode Mode) {
   this->Mode = Mode;
-  HANDLE OrigFileHandle = reinterpret_cast<HANDLE>(_get_osfhandle(FD));
   if (OrigFileHandle == INVALID_HANDLE_VALUE)
     return make_error_code(errc::bad_file_descriptor);
 
@@ -844,24 +863,46 @@ std::error_code mapped_file_region::init(int FD, uint64_t Offset,
   return std::error_code();
 }
 
-mapped_file_region::mapped_file_region(int fd, mapmode mode, size_t length,
-                                       uint64_t offset, std::error_code &ec)
+mapped_file_region::mapped_file_region(sys::fs::file_t fd, mapmode mode,
+                                       size_t length, uint64_t offset,
+                                       std::error_code &ec)
     : Size(length), Mapping() {
   ec = init(fd, offset, mode);
   if (ec)
     Mapping = 0;
 }
 
+static bool hasFlushBufferKernelBug() {
+  static bool Ret{GetWindowsOSVersion() < llvm::VersionTuple(10, 0, 0, 17763)};
+  return Ret;
+}
+
+static bool isEXE(StringRef Magic) {
+  static const char PEMagic[] = {'P', 'E', '\0', '\0'};
+  if (Magic.startswith(StringRef("MZ")) && Magic.size() >= 0x3c + 4) {
+    uint32_t off = read32le(Magic.data() + 0x3c);
+    // PE/COFF file, either EXE or DLL.
+    if (Magic.substr(off).startswith(StringRef(PEMagic, sizeof(PEMagic))))
+      return true;
+  }
+  return false;
+}
+
 mapped_file_region::~mapped_file_region() {
   if (Mapping) {
+
+    bool Exe = isEXE(StringRef((char *)Mapping, Size));
+
     ::UnmapViewOfFile(Mapping);
 
-    if (Mode == mapmode::readwrite) {
+    if (Mode == mapmode::readwrite && Exe && hasFlushBufferKernelBug()) {
       // There is a Windows kernel bug, the exact trigger conditions of which
       // are not well understood.  When triggered, dirty pages are not properly
       // flushed and subsequent process's attempts to read a file can return
       // invalid data.  Calling FlushFileBuffers on the write handle is
       // sufficient to ensure that this bug is not triggered.
+      // The bug only occurs when writing an executable and executing it right
+      // after, under high I/O pressure.
       ::FlushFileBuffers(FileHandle);
     }
 
@@ -900,28 +941,28 @@ static basic_file_status status_from_find_data(WIN32_FIND_DATAW *FindData) {
                            FindData->nFileSizeHigh, FindData->nFileSizeLow);
 }
 
-std::error_code detail::directory_iterator_construct(detail::DirIterState &it,
-                                                     StringRef path,
-                                                     bool follow_symlinks) {
-  SmallVector<wchar_t, 128> path_utf16;
+std::error_code detail::directory_iterator_construct(detail::DirIterState &IT,
+                                                     StringRef Path,
+                                                     bool FollowSymlinks) {
+  SmallVector<wchar_t, 128> PathUTF16;
 
-  if (std::error_code ec = widenPath(path, path_utf16))
-    return ec;
+  if (std::error_code EC = widenPath(Path, PathUTF16))
+    return EC;
 
   // Convert path to the format that Windows is happy with.
-  if (path_utf16.size() > 0 &&
-      !is_separator(path_utf16[path.size() - 1]) &&
-      path_utf16[path.size() - 1] != L':') {
-    path_utf16.push_back(L'\\');
-    path_utf16.push_back(L'*');
+  if (PathUTF16.size() > 0 &&
+      !is_separator(PathUTF16[Path.size() - 1]) &&
+      PathUTF16[Path.size() - 1] != L':') {
+    PathUTF16.push_back(L'\\');
+    PathUTF16.push_back(L'*');
   } else {
-    path_utf16.push_back(L'*');
+    PathUTF16.push_back(L'*');
   }
 
   //  Get the first directory entry.
   WIN32_FIND_DATAW FirstFind;
   ScopedFindHandle FindHandle(::FindFirstFileExW(
-      c_str(path_utf16), FindExInfoBasic, &FirstFind, FindExSearchNameMatch,
+      c_str(PathUTF16), FindExInfoBasic, &FirstFind, FindExSearchNameMatch,
       NULL, FIND_FIRST_EX_LARGE_FETCH));
   if (!FindHandle)
     return mapWindowsError(::GetLastError());
@@ -934,43 +975,45 @@ std::error_code detail::directory_iterator_construct(detail::DirIterState &it,
       DWORD LastError = ::GetLastError();
       // Check for end.
       if (LastError == ERROR_NO_MORE_FILES)
-        return detail::directory_iterator_destruct(it);
+        return detail::directory_iterator_destruct(IT);
       return mapWindowsError(LastError);
     } else
       FilenameLen = ::wcslen(FirstFind.cFileName);
 
   // Construct the current directory entry.
-  SmallString<128> directory_entry_name_utf8;
-  if (std::error_code ec =
+  SmallString<128> DirectoryEntryNameUTF8;
+  if (std::error_code EC =
           UTF16ToUTF8(FirstFind.cFileName, ::wcslen(FirstFind.cFileName),
-                      directory_entry_name_utf8))
-    return ec;
+                      DirectoryEntryNameUTF8))
+    return EC;
 
-  it.IterationHandle = intptr_t(FindHandle.take());
-  SmallString<128> directory_entry_path(path);
-  path::append(directory_entry_path, directory_entry_name_utf8);
-  it.CurrentEntry = directory_entry(directory_entry_path, follow_symlinks,
-                                    status_from_find_data(&FirstFind));
+  IT.IterationHandle = intptr_t(FindHandle.take());
+  SmallString<128> DirectoryEntryPath(Path);
+  path::append(DirectoryEntryPath, DirectoryEntryNameUTF8);
+  IT.CurrentEntry =
+      directory_entry(DirectoryEntryPath, FollowSymlinks,
+                      file_type_from_attrs(FirstFind.dwFileAttributes),
+                      status_from_find_data(&FirstFind));
 
   return std::error_code();
 }
 
-std::error_code detail::directory_iterator_destruct(detail::DirIterState &it) {
-  if (it.IterationHandle != 0)
+std::error_code detail::directory_iterator_destruct(detail::DirIterState &IT) {
+  if (IT.IterationHandle != 0)
     // Closes the handle if it's valid.
-    ScopedFindHandle close(HANDLE(it.IterationHandle));
-  it.IterationHandle = 0;
-  it.CurrentEntry = directory_entry();
+    ScopedFindHandle close(HANDLE(IT.IterationHandle));
+  IT.IterationHandle = 0;
+  IT.CurrentEntry = directory_entry();
   return std::error_code();
 }
 
-std::error_code detail::directory_iterator_increment(detail::DirIterState &it) {
+std::error_code detail::directory_iterator_increment(detail::DirIterState &IT) {
   WIN32_FIND_DATAW FindData;
-  if (!::FindNextFileW(HANDLE(it.IterationHandle), &FindData)) {
+  if (!::FindNextFileW(HANDLE(IT.IterationHandle), &FindData)) {
     DWORD LastError = ::GetLastError();
     // Check for end.
     if (LastError == ERROR_NO_MORE_FILES)
-      return detail::directory_iterator_destruct(it);
+      return detail::directory_iterator_destruct(IT);
     return mapWindowsError(LastError);
   }
 
@@ -978,16 +1021,18 @@ std::error_code detail::directory_iterator_increment(detail::DirIterState &it) {
   if ((FilenameLen == 1 && FindData.cFileName[0] == L'.') ||
       (FilenameLen == 2 && FindData.cFileName[0] == L'.' &&
                            FindData.cFileName[1] == L'.'))
-    return directory_iterator_increment(it);
+    return directory_iterator_increment(IT);
 
-  SmallString<128> directory_entry_path_utf8;
-  if (std::error_code ec =
+  SmallString<128> DirectoryEntryPathUTF8;
+  if (std::error_code EC =
           UTF16ToUTF8(FindData.cFileName, ::wcslen(FindData.cFileName),
-                      directory_entry_path_utf8))
-    return ec;
+                      DirectoryEntryPathUTF8))
+    return EC;
 
-  it.CurrentEntry.replace_filename(Twine(directory_entry_path_utf8),
-                                   status_from_find_data(&FindData));
+  IT.CurrentEntry.replace_filename(
+      Twine(DirectoryEntryPathUTF8),
+      file_type_from_attrs(FindData.dwFileAttributes),
+      status_from_find_data(&FindData));
   return std::error_code();
 }
 
@@ -1170,9 +1215,50 @@ Expected<file_t> openNativeFileForRead(const Twine &Name, OpenFlags Flags,
   return Result;
 }
 
-void closeFile(file_t &F) {
-  ::CloseHandle(F);
+file_t convertFDToNativeFile(int FD) {
+  return reinterpret_cast<HANDLE>(::_get_osfhandle(FD));
+}
+
+file_t getStdinHandle() { return ::GetStdHandle(STD_INPUT_HANDLE); }
+file_t getStdoutHandle() { return ::GetStdHandle(STD_OUTPUT_HANDLE); }
+file_t getStderrHandle() { return ::GetStdHandle(STD_ERROR_HANDLE); }
+
+Expected<size_t> readNativeFileImpl(file_t FileHandle,
+                                    MutableArrayRef<char> Buf,
+                                    OVERLAPPED *Overlap) {
+  // ReadFile can only read 2GB at a time. The caller should check the number of
+  // bytes and read in a loop until termination.
+  DWORD BytesToRead =
+      std::min(size_t(std::numeric_limits<DWORD>::max()), Buf.size());
+  DWORD BytesRead = 0;
+  if (::ReadFile(FileHandle, Buf.data(), BytesToRead, &BytesRead, Overlap))
+    return BytesRead;
+  DWORD Err = ::GetLastError();
+  // EOF is not an error.
+  if (Err == ERROR_BROKEN_PIPE || Err == ERROR_HANDLE_EOF)
+    return BytesRead;
+  return errorCodeToError(mapWindowsError(Err));
+}
+
+Expected<size_t> readNativeFile(file_t FileHandle, MutableArrayRef<char> Buf) {
+  return readNativeFileImpl(FileHandle, Buf, /*Overlap=*/nullptr);
+}
+
+Expected<size_t> readNativeFileSlice(file_t FileHandle,
+                                     MutableArrayRef<char> Buf,
+                                     uint64_t Offset) {
+  OVERLAPPED Overlapped = {};
+  Overlapped.Offset = uint32_t(Offset);
+  Overlapped.OffsetHigh = uint32_t(Offset >> 32);
+  return readNativeFileImpl(FileHandle, Buf, &Overlapped);
+}
+
+std::error_code closeFile(file_t &F) {
+  file_t TmpF = F;
   F = kInvalidFile;
+  if (!::CloseHandle(TmpF))
+    return mapWindowsError(::GetLastError());
+  return std::error_code();
 }
 
 std::error_code remove_directories(const Twine &path, bool IgnoreErrors) {
@@ -1226,6 +1312,17 @@ static void expandTildeExpr(SmallVectorImpl<char> &Path) {
   Path.insert(Path.begin() + 1, HomeDir.begin() + 1, HomeDir.end());
 }
 
+void expand_tilde(const Twine &path, SmallVectorImpl<char> &dest) {
+  dest.clear();
+  if (path.isTriviallyEmpty())
+    return;
+
+  path.toVector(dest);
+  expandTildeExpr(dest);
+
+  return;
+}
+
 std::error_code real_path(const Twine &path, SmallVectorImpl<char> &dest,
                           bool expand_tilde) {
   dest.clear();
@@ -1262,10 +1359,6 @@ static bool getKnownFolderPath(KNOWNFOLDERID folderId,
   bool ok = !UTF16ToUTF8(path, ::wcslen(path), result);
   ::CoTaskMemFree(path);
   return ok;
-}
-
-bool getUserCacheDir(SmallVectorImpl<char> &Result) {
-  return getKnownFolderPath(FOLDERID_LocalAppData, Result);
 }
 
 bool home_directory(SmallVectorImpl<char> &result) {

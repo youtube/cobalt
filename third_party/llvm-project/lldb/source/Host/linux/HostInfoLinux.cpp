@@ -1,14 +1,14 @@
 //===-- HostInfoLinux.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Host/Config.h"
 #include "lldb/Host/linux/HostInfoLinux.h"
+#include "lldb/Host/Config.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Utility/Log.h"
 
 #include "llvm/Support/Threading.h"
@@ -20,7 +20,7 @@
 #include <unistd.h>
 
 #include <algorithm>
-#include <mutex> // std::once
+#include <mutex>
 
 using namespace lldb_private;
 
@@ -88,8 +88,7 @@ llvm::StringRef HostInfoLinux::GetDistributionId() {
   llvm::call_once(g_once_flag, []() {
 
     Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST));
-    if (log)
-      log->Printf("attempting to determine Linux distribution...");
+    LLDB_LOGF(log, "attempting to determine Linux distribution...");
 
     // check if the lsb_release command exists at one of the following paths
     const char *const exe_paths[] = {"/bin/lsb_release",
@@ -100,9 +99,8 @@ llvm::StringRef HostInfoLinux::GetDistributionId() {
       const char *const get_distribution_info_exe = exe_paths[exe_index];
       if (access(get_distribution_info_exe, F_OK)) {
         // this exe doesn't exist, move on to next exe
-        if (log)
-          log->Printf("executable doesn't exist: %s",
-                      get_distribution_info_exe);
+        LLDB_LOGF(log, "executable doesn't exist: %s",
+                  get_distribution_info_exe);
         continue;
       }
 
@@ -112,19 +110,19 @@ llvm::StringRef HostInfoLinux::GetDistributionId() {
 
       FILE *file = popen(get_distribution_id_command.c_str(), "r");
       if (!file) {
-        if (log)
-          log->Printf("failed to run command: \"%s\", cannot retrieve "
-                      "platform information",
-                      get_distribution_id_command.c_str());
+        LLDB_LOGF(log,
+                  "failed to run command: \"%s\", cannot retrieve "
+                  "platform information",
+                  get_distribution_id_command.c_str());
         break;
       }
 
       // retrieve the distribution id string.
       char distribution_id[256] = {'\0'};
-      if (fgets(distribution_id, sizeof(distribution_id) - 1, file) != NULL) {
-        if (log)
-          log->Printf("distribution id command returned \"%s\"",
-                      distribution_id);
+      if (fgets(distribution_id, sizeof(distribution_id) - 1, file) !=
+          nullptr) {
+        LLDB_LOGF(log, "distribution id command returned \"%s\"",
+                  distribution_id);
 
         const char *const distributor_id_key = "Distributor ID:\t";
         if (strstr(distribution_id, distributor_id_key)) {
@@ -139,19 +137,17 @@ llvm::StringRef HostInfoLinux::GetDistributionId() {
               [](char ch) { return tolower(isspace(ch) ? '_' : ch); });
 
           g_fields->m_distribution_id = id_string;
-          if (log)
-            log->Printf("distribution id set to \"%s\"",
-                        g_fields->m_distribution_id.c_str());
+          LLDB_LOGF(log, "distribution id set to \"%s\"",
+                    g_fields->m_distribution_id.c_str());
         } else {
-          if (log)
-            log->Printf("failed to find \"%s\" field in \"%s\"",
-                        distributor_id_key, distribution_id);
+          LLDB_LOGF(log, "failed to find \"%s\" field in \"%s\"",
+                    distributor_id_key, distribution_id);
         }
       } else {
-        if (log)
-          log->Printf("failed to retrieve distribution id, \"%s\" returned no"
-                      " lines",
-                      get_distribution_id_command.c_str());
+        LLDB_LOGF(log,
+                  "failed to retrieve distribution id, \"%s\" returned no"
+                  " lines",
+                  get_distribution_id_command.c_str());
       }
 
       // clean up the file
@@ -170,7 +166,7 @@ FileSpec HostInfoLinux::GetProgramFileSpec() {
     ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
     if (len > 0) {
       exe_path[len] = 0;
-      g_program_filespec.SetFile(exe_path, false, FileSpec::Style::native);
+      g_program_filespec.SetFile(exe_path, FileSpec::Style::native);
     }
   }
 
@@ -179,14 +175,15 @@ FileSpec HostInfoLinux::GetProgramFileSpec() {
 
 bool HostInfoLinux::ComputeSupportExeDirectory(FileSpec &file_spec) {
   if (HostInfoPosix::ComputeSupportExeDirectory(file_spec) &&
-      file_spec.IsAbsolute() && file_spec.Exists())
+      file_spec.IsAbsolute() && FileSystem::Instance().Exists(file_spec))
     return true;
   file_spec.GetDirectory() = GetProgramFileSpec().GetDirectory();
   return !file_spec.GetDirectory().IsEmpty();
 }
 
 bool HostInfoLinux::ComputeSystemPluginsDirectory(FileSpec &file_spec) {
-  FileSpec temp_file("/usr/lib" LLDB_LIBDIR_SUFFIX "/lldb/plugins", true);
+  FileSpec temp_file("/usr/lib" LLDB_LIBDIR_SUFFIX "/lldb/plugins");
+  FileSystem::Instance().Resolve(temp_file);
   file_spec.GetDirectory().SetCString(temp_file.GetPath().c_str());
   return true;
 }

@@ -1,9 +1,8 @@
 //===-- Timer.cpp - Interval Timing Support -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,6 +19,7 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/Signposts.h"
 #include "llvm/Support/YAMLTraits.h"
 #include "llvm/Support/raw_ostream.h"
 #include <limits>
@@ -40,6 +40,9 @@ static std::string &getLibSupportInfoOutputFilename() {
 
 static ManagedStatic<sys::SmartMutex<true> > TimerLock;
 
+/// Allows llvm::Timer to emit signposts when supported.
+static ManagedStatic<SignpostEmitter> Signposts;
+
 namespace {
   static cl::opt<bool>
   TrackSpace("track-memory", cl::desc("Enable -time-passes memory "
@@ -55,23 +58,23 @@ namespace {
 std::unique_ptr<raw_fd_ostream> llvm::CreateInfoOutputFile() {
   const std::string &OutputFilename = getLibSupportInfoOutputFilename();
   if (OutputFilename.empty())
-    return llvm::make_unique<raw_fd_ostream>(2, false); // stderr.
+    return std::make_unique<raw_fd_ostream>(2, false); // stderr.
   if (OutputFilename == "-")
-    return llvm::make_unique<raw_fd_ostream>(1, false); // stdout.
+    return std::make_unique<raw_fd_ostream>(1, false); // stdout.
 
   // Append mode is used because the info output file is opened and closed
   // each time -stats or -time-passes wants to print output to it. To
   // compensate for this, the test-suite Makefiles have code to delete the
   // info output file before running commands which write to it.
   std::error_code EC;
-  auto Result = llvm::make_unique<raw_fd_ostream>(
-      OutputFilename, EC, sys::fs::F_Append | sys::fs::F_Text);
+  auto Result = std::make_unique<raw_fd_ostream>(
+      OutputFilename, EC, sys::fs::OF_Append | sys::fs::OF_Text);
   if (!EC)
     return Result;
 
   errs() << "Error opening info-output-file '"
     << OutputFilename << " for appending!\n";
-  return llvm::make_unique<raw_fd_ostream>(2, false); // stderr.
+  return std::make_unique<raw_fd_ostream>(2, false); // stderr.
 }
 
 namespace {
@@ -88,14 +91,15 @@ static TimerGroup *getDefaultTimerGroup() { return &*DefaultTimerGroup; }
 // Timer Implementation
 //===----------------------------------------------------------------------===//
 
-void Timer::init(StringRef Name, StringRef Description) {
-  init(Name, Description, *getDefaultTimerGroup());
+void Timer::init(StringRef TimerName, StringRef TimerDescription) {
+  init(TimerName, TimerDescription, *getDefaultTimerGroup());
 }
 
-void Timer::init(StringRef Name, StringRef Description, TimerGroup &tg) {
+void Timer::init(StringRef TimerName, StringRef TimerDescription,
+                 TimerGroup &tg) {
   assert(!TG && "Timer already initialized");
-  this->Name.assign(Name.begin(), Name.end());
-  this->Description.assign(Description.begin(), Description.end());
+  Name.assign(TimerName.begin(), TimerName.end());
+  Description.assign(TimerDescription.begin(), TimerDescription.end());
   Running = Triggered = false;
   TG = &tg;
   TG->addTimer(*this);
@@ -134,6 +138,7 @@ TimeRecord TimeRecord::getCurrentTime(bool Start) {
 void Timer::startTimer() {
   assert(!Running && "Cannot start a running timer");
   Running = Triggered = true;
+  Signposts->startTimerInterval(this);
   StartTime = TimeRecord::getCurrentTime(true);
 }
 
@@ -142,6 +147,7 @@ void Timer::stopTimer() {
   Running = false;
   Time += TimeRecord::getCurrentTime(false);
   Time -= StartTime;
+  Signposts->endTimerInterval(this);
 }
 
 void Timer::clear() {
@@ -295,7 +301,7 @@ void TimerGroup::addTimer(Timer &T) {
 
 void TimerGroup::PrintQueuedTimers(raw_ostream &OS) {
   // Sort the timers in descending order by amount of time taken.
-  llvm::sort(TimersToPrint.begin(), TimersToPrint.end());
+  llvm::sort(TimersToPrint);
 
   TimeRecord Total;
   for (const PrintRecord &Record : TimersToPrint)
@@ -342,9 +348,8 @@ void TimerGroup::PrintQueuedTimers(raw_ostream &OS) {
   TimersToPrint.clear();
 }
 
-void TimerGroup::prepareToPrintList() {
-  // See if any of our timers were started, if so add them to TimersToPrint and
-  // reset them.
+void TimerGroup::prepareToPrintList(bool ResetTime) {
+  // See if any of our timers were started, if so add them to TimersToPrint.
   for (Timer *T = FirstTimer; T; T = T->Next) {
     if (!T->hasTriggered()) continue;
     bool WasRunning = T->isRunning();
@@ -353,19 +358,30 @@ void TimerGroup::prepareToPrintList() {
 
     TimersToPrint.emplace_back(T->Time, T->Name, T->Description);
 
+    if (ResetTime)
+      T->clear();
+
     if (WasRunning)
       T->startTimer();
   }
 }
 
-void TimerGroup::print(raw_ostream &OS) {
-  sys::SmartScopedLock<true> L(*TimerLock);
-
-  prepareToPrintList();
+void TimerGroup::print(raw_ostream &OS, bool ResetAfterPrint) {
+  {
+    // After preparing the timers we can free the lock
+    sys::SmartScopedLock<true> L(*TimerLock);
+    prepareToPrintList(ResetAfterPrint);
+  }
 
   // If any timers were started, print the group.
   if (!TimersToPrint.empty())
     PrintQueuedTimers(OS);
+}
+
+void TimerGroup::clear() {
+  sys::SmartScopedLock<true> L(*TimerLock);
+  for (Timer *T = FirstTimer; T; T = T->Next)
+    T->clear();
 }
 
 void TimerGroup::printAll(raw_ostream &OS) {
@@ -373,6 +389,12 @@ void TimerGroup::printAll(raw_ostream &OS) {
 
   for (TimerGroup *TG = TimerGroupList; TG; TG = TG->Next)
     TG->print(OS);
+}
+
+void TimerGroup::clearAll() {
+  sys::SmartScopedLock<true> L(*TimerLock);
+  for (TimerGroup *TG = TimerGroupList; TG; TG = TG->Next)
+    TG->clear();
 }
 
 void TimerGroup::printJSONValue(raw_ostream &OS, const PrintRecord &R,
@@ -389,7 +411,7 @@ void TimerGroup::printJSONValue(raw_ostream &OS, const PrintRecord &R,
 const char *TimerGroup::printJSONValues(raw_ostream &OS, const char *delim) {
   sys::SmartScopedLock<true> L(*TimerLock);
 
-  prepareToPrintList();
+  prepareToPrintList(false);
   for (const PrintRecord &R : TimersToPrint) {
     OS << delim;
     delim = ",\n";

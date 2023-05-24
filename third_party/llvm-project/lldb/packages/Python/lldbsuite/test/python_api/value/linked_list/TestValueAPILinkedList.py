@@ -6,9 +6,6 @@ supports iteration till the end of list is reached.
 from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -18,6 +15,7 @@ from lldbsuite.test import lldbutil
 class ValueAsLinkedListTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
+    NO_DEBUG_INFO_TESTCASE = True
 
     def setUp(self):
         # Call super's setUp().

@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -51,9 +50,10 @@ void __kmp_str_buf_reserve(kmp_str_buf_t *buffer, int size);
 void __kmp_str_buf_detach(kmp_str_buf_t *buffer);
 void __kmp_str_buf_free(kmp_str_buf_t *buffer);
 void __kmp_str_buf_cat(kmp_str_buf_t *buffer, char const *str, int len);
-void __kmp_str_buf_vprint(kmp_str_buf_t *buffer, char const *format,
-                          va_list args);
-void __kmp_str_buf_print(kmp_str_buf_t *buffer, char const *format, ...);
+void __kmp_str_buf_catbuf(kmp_str_buf_t *dest, const kmp_str_buf_t *src);
+int __kmp_str_buf_vprint(kmp_str_buf_t *buffer, char const *format,
+                         va_list args);
+int __kmp_str_buf_print(kmp_str_buf_t *buffer, char const *format, ...);
 void __kmp_str_buf_print_size(kmp_str_buf_t *buffer, size_t size);
 
 /* File name parser.

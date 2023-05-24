@@ -1,9 +1,8 @@
 //===-- EmulateInstructionARM64.cpp ------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,10 +12,10 @@
 
 #include "lldb/Core/Address.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Stream.h"
 
 #include "Plugins/Process/Utility/ARMDefines.h"
@@ -41,8 +40,7 @@
 #include "Plugins/Process/Utility/RegisterInfos_arm64.h"
 
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/MathExtras.h" // for SignExtend32 template function
-                                     // and CountTrailingZeros_32 function
+#include "llvm/Support/MathExtras.h"
 
 #include "Plugins/Process/Utility/InstructionUtils.h"
 
@@ -119,11 +117,9 @@ ConstrainUnpredictable(EmulateInstructionARM64::Unpredictable which) {
   return result;
 }
 
-//----------------------------------------------------------------------
 //
 // EmulateInstructionARM implementation
 //
-//----------------------------------------------------------------------
 
 void EmulateInstructionARM64::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -153,12 +149,13 @@ EmulateInstructionARM64::CreateInstance(const ArchSpec &arch,
                                         InstructionType inst_type) {
   if (EmulateInstructionARM64::SupportsEmulatingInstructionsOfTypeStatic(
           inst_type)) {
-    if (arch.GetTriple().getArch() == llvm::Triple::aarch64) {
+    if (arch.GetTriple().getArch() == llvm::Triple::aarch64 ||
+        arch.GetTriple().getArch() == llvm::Triple::aarch64_32) {
       return new EmulateInstructionARM64(arch);
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 bool EmulateInstructionARM64::SetTargetTriple(const ArchSpec &arch) {
@@ -209,9 +206,7 @@ bool EmulateInstructionARM64::GetRegisterInfo(RegisterKind reg_kind,
 EmulateInstructionARM64::Opcode *
 EmulateInstructionARM64::GetOpcodeForInstruction(const uint32_t opcode) {
   static EmulateInstructionARM64::Opcode g_opcodes[] = {
-      //----------------------------------------------------------------------
       // Prologue instructions
-      //----------------------------------------------------------------------
 
       // push register(s)
       {0xff000000, 0xd1000000, No_VFP,
@@ -417,7 +412,7 @@ bool EmulateInstructionARM64::ReadInstruction() {
 bool EmulateInstructionARM64::EvaluateInstruction(uint32_t evaluate_options) {
   const uint32_t opcode = m_opcode.GetOpcode32();
   Opcode *opcode_data = GetOpcodeForInstruction(opcode);
-  if (opcode_data == NULL)
+  if (opcode_data == nullptr)
     return false;
 
   // printf ("opcode template for 0x%8.8x: %s\n", opcode, opcode_data->name);
@@ -437,7 +432,7 @@ bool EmulateInstructionARM64::EvaluateInstruction(uint32_t evaluate_options) {
 
   // Only return false if we are unable to read the CPSR if we care about
   // conditions
-  if (success == false && m_ignore_conditions == false)
+  if (!success && !m_ignore_conditions)
     return false;
 
   uint32_t orig_pc_value = 0;
@@ -485,6 +480,7 @@ bool EmulateInstructionARM64::CreateFunctionEntryUnwind(
   unwind_plan.SetSourceName("EmulateInstructionARM64");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolYes);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   unwind_plan.SetReturnAddressRegister(gpr_lr_arm64);
   return true;
 }
@@ -547,11 +543,8 @@ bool EmulateInstructionARM64::BranchTo(const Context &context, uint32_t N,
   } else
     return false;
 
-  if (!WriteRegisterUnsigned(context, eRegisterKindGeneric,
-                             LLDB_REGNUM_GENERIC_PC, addr))
-    return false;
-
-  return true;
+  return WriteRegisterUnsigned(context, eRegisterKindGeneric,
+                               LLDB_REGNUM_GENERIC_PC, addr);
 }
 
 bool EmulateInstructionARM64::ConditionHolds(const uint32_t cond) {
@@ -666,10 +659,10 @@ bool EmulateInstructionARM64::EmulateADDSUBImm(const uint32_t opcode) {
 
   if (sub_op) {
     operand2 = NOT(operand2);
-    carry_in = 1;
+    carry_in = true;
     imm = -imm; // For the Register plug offset context below
   } else {
-    carry_in = 0;
+    carry_in = false;
   }
 
   ProcState proc_state;
@@ -1097,9 +1090,7 @@ bool EmulateInstructionARM64::EmulateB(const uint32_t opcode) {
     return false;
   }
 
-  if (!BranchTo(context, 64, target))
-    return false;
-  return true;
+  return BranchTo(context, 64, target);
 }
 
 bool EmulateInstructionARM64::EmulateBcond(const uint32_t opcode) {

@@ -1,9 +1,8 @@
 //===-- WebAssemblyReplacePhysRegs.cpp - Replace phys regs with virt regs -===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -54,8 +53,8 @@ private:
 
 char WebAssemblyReplacePhysRegs::ID = 0;
 INITIALIZE_PASS(WebAssemblyReplacePhysRegs, DEBUG_TYPE,
-                "Replace physical registers with virtual registers",
-                false, false)
+                "Replace physical registers with virtual registers", false,
+                false)
 
 FunctionPass *llvm::createWebAssemblyReplacePhysRegs() {
   return new WebAssemblyReplacePhysRegs();
@@ -86,7 +85,7 @@ bool WebAssemblyReplacePhysRegs::runOnMachineFunction(MachineFunction &MF) {
     // Replace explicit uses of the physical register with a virtual register.
     const TargetRegisterClass *RC = TRI.getMinimalPhysRegClass(PReg);
     unsigned VReg = WebAssembly::NoRegister;
-    for (auto I = MRI.reg_begin(PReg), E = MRI.reg_end(); I != E; ) {
+    for (auto I = MRI.reg_begin(PReg), E = MRI.reg_end(); I != E;) {
       MachineOperand &MO = *I++;
       if (!MO.isImplicit()) {
         if (VReg == WebAssembly::NoRegister)

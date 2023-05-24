@@ -1,10 +1,10 @@
 // REQUIRES: arm
-// RUN: llvm-mc -filetype=obj -triple=armv7a-none-linux-gnueabi %s -o %t
+// RUN: llvm-mc -arm-add-build-attributes -filetype=obj -triple=armv7a-none-linux-gnueabi %s -o %t
 // RUN: echo "SECTIONS { \
 // RUN:       . = SIZEOF_HEADERS; \
 // RUN:       .text_low : { *(.text_low) *(.text_low2) . = . + 0x2000000 ; *(.text_high) *(.text_high2) } \
 // RUN:       } " > %t.script
-// RUN: ld.lld --script %t.script %t -o %t2 2>&1
+// RUN: ld.lld --script %t.script %t -o %t2
 // RUN: llvm-objdump -d %t2 -start-address=148 -stop-address=188 -triple=thumbv7a-linux-gnueabihf | FileCheck -check-prefix=CHECK1 %s
 // RUN: llvm-objdump -d %t2 -start-address=33554620 -stop-address=33554654 -triple=thumbv7a-linux-gnueabihf | FileCheck -check-prefix=CHECK2 %s
 // Test that range extension thunks can handle location expressions within
@@ -28,6 +28,7 @@ low_target2:
  bl high_target
  bl high_target2
 // CHECK1: Disassembly of section .text_low:
+// CHECK1-EMPTY:
 // CHECK1-NEXT: _start:
 // CHECK1-NEXT:       94:       70 47   bx      lr
 // CHECK1: low_target:

@@ -1,19 +1,14 @@
 //===-- AppleGetThreadItemInfoHandler.cpp -------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "AppleGetThreadItemInfoHandler.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Value.h"
@@ -157,26 +152,26 @@ lldb::addr_t AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction(
 
     // First stage is to make the ClangUtility to hold our injected function:
 
-    if (!m_get_thread_item_info_impl_code.get()) {
+    if (!m_get_thread_item_info_impl_code) {
       Status error;
-      if (g_get_thread_item_info_function_code != NULL) {
+      if (g_get_thread_item_info_function_code != nullptr) {
         m_get_thread_item_info_impl_code.reset(
             exe_ctx.GetTargetRef().GetUtilityFunctionForLanguage(
                 g_get_thread_item_info_function_code, eLanguageTypeC,
                 g_get_thread_item_info_function_name, error));
         if (error.Fail()) {
-          if (log)
-            log->Printf("Failed to get UtilityFunction for "
-                        "get-thread-item-info introspection: %s.",
-                        error.AsCString());
+          LLDB_LOGF(log,
+                    "Failed to get UtilityFunction for "
+                    "get-thread-item-info introspection: %s.",
+                    error.AsCString());
           m_get_thread_item_info_impl_code.reset();
           return args_addr;
         }
 
         if (!m_get_thread_item_info_impl_code->Install(diagnostics, exe_ctx)) {
           if (log) {
-            log->Printf(
-                "Failed to install get-thread-item-info introspection.");
+            LLDB_LOGF(log,
+                      "Failed to install get-thread-item-info introspection.");
             diagnostics.Dump(log);
           }
 
@@ -184,15 +179,14 @@ lldb::addr_t AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction(
           return args_addr;
         }
       } else {
-        if (log)
-          log->Printf("No get-thread-item-info introspection code found.");
+        LLDB_LOGF(log, "No get-thread-item-info introspection code found.");
         return LLDB_INVALID_ADDRESS;
       }
 
       // Also make the FunctionCaller for this UtilityFunction:
 
       ClangASTContext *clang_ast_context =
-          thread.GetProcess()->GetTarget().GetScratchClangASTContext();
+          ClangASTContext::GetScratch(thread.GetProcess()->GetTarget());
       CompilerType get_thread_item_info_return_type =
           clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
 
@@ -201,10 +195,10 @@ lldb::addr_t AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction(
               get_thread_item_info_return_type, get_thread_item_info_arglist,
               thread_sp, error);
       if (error.Fail() || get_thread_item_info_caller == nullptr) {
-        if (log)
-          log->Printf("Failed to install get-thread-item-info introspection "
-                      "caller: %s.",
-                      error.AsCString());
+        LLDB_LOGF(log,
+                  "Failed to install get-thread-item-info introspection "
+                  "caller: %s.",
+                  error.AsCString());
         m_get_thread_item_info_impl_code.reset();
         return args_addr;
       }
@@ -225,7 +219,7 @@ lldb::addr_t AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction(
   if (!get_thread_item_info_caller->WriteFunctionArguments(
           exe_ctx, args_addr, get_thread_item_info_arglist, diagnostics)) {
     if (log) {
-      log->Printf("Error writing get-thread-item-info function arguments");
+      LLDB_LOGF(log, "Error writing get-thread-item-info function arguments");
       diagnostics.Dump(log);
     }
     return args_addr;
@@ -243,7 +237,7 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo(Thread &thread,
   lldb::StackFrameSP thread_cur_frame = thread.GetStackFrameAtIndex(0);
   ProcessSP process_sp(thread.CalculateProcess());
   TargetSP target_sp(thread.CalculateTarget());
-  ClangASTContext *clang_ast_context = target_sp->GetScratchClangASTContext();
+  ClangASTContext *clang_ast_context = ClangASTContext::GetScratch(*target_sp);
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYSTEM_RUNTIME));
 
   GetThreadItemInfoReturnInfo return_value;
@@ -252,10 +246,9 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo(Thread &thread,
 
   error.Clear();
 
-  if (thread.SafeToCallFunctions() == false) {
-    if (log)
-      log->Printf("Not safe to call functions on thread 0x%" PRIx64,
-                  thread.GetID());
+  if (!thread.SafeToCallFunctions()) {
+    LLDB_LOGF(log, "Not safe to call functions on thread 0x%" PRIx64,
+              thread.GetID());
     error.SetErrorString("Not safe to call functions on this thread.");
     return return_value;
   }
@@ -310,9 +303,8 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo(Thread &thread,
     addr_t bufaddr = process_sp->AllocateMemory(
         32, ePermissionsReadable | ePermissionsWritable, error);
     if (!error.Success() || bufaddr == LLDB_INVALID_ADDRESS) {
-      if (log)
-        log->Printf("Failed to allocate memory for return buffer for get "
-                    "current queues func call");
+      LLDB_LOGF(log, "Failed to allocate memory for return buffer for get "
+                     "current queues func call");
       return return_value;
     }
     m_get_thread_item_info_return_buffer_addr = bufaddr;
@@ -349,8 +341,13 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo(Thread &thread,
   options.SetUnwindOnError(true);
   options.SetIgnoreBreakpoints(true);
   options.SetStopOthers(true);
+#if __has_feature(address_sanitizer)
+  options.SetTimeout(process_sp->GetUtilityExpressionTimeout());
+#else
   options.SetTimeout(std::chrono::milliseconds(500));
+#endif
   options.SetTryAllThreads(false);
+  options.SetIsForUtilityExpr(true);
   thread.CalculateExecutionContext(exe_ctx);
 
   if (!m_get_thread_item_info_impl_code) {
@@ -373,11 +370,11 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo(Thread &thread,
   func_call_ret = get_thread_item_info_caller->ExecuteFunction(
       exe_ctx, &args_addr, options, diagnostics, results);
   if (func_call_ret != eExpressionCompleted || !error.Success()) {
-    if (log)
-      log->Printf("Unable to call "
-                  "__introspection_dispatch_thread_get_item_info(), got "
-                  "ExpressionResults %d, error contains %s",
-                  func_call_ret, error.AsCString(""));
+    LLDB_LOGF(log,
+              "Unable to call "
+              "__introspection_dispatch_thread_get_item_info(), got "
+              "ExpressionResults %d, error contains %s",
+              func_call_ret, error.AsCString(""));
     error.SetErrorString("Unable to call "
                          "__introspection_dispatch_thread_get_item_info() for "
                          "list of queues");
@@ -401,13 +398,13 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo(Thread &thread,
     return return_value;
   }
 
-  if (log)
-    log->Printf("AppleGetThreadItemInfoHandler called "
-                "__introspection_dispatch_thread_get_item_info (page_to_free "
-                "== 0x%" PRIx64 ", size = %" PRId64
-                "), returned page is at 0x%" PRIx64 ", size %" PRId64,
-                page_to_free, page_to_free_size, return_value.item_buffer_ptr,
-                return_value.item_buffer_size);
+  LLDB_LOGF(log,
+            "AppleGetThreadItemInfoHandler called "
+            "__introspection_dispatch_thread_get_item_info (page_to_free "
+            "== 0x%" PRIx64 ", size = %" PRId64
+            "), returned page is at 0x%" PRIx64 ", size %" PRId64,
+            page_to_free, page_to_free_size, return_value.item_buffer_ptr,
+            return_value.item_buffer_size);
 
   return return_value;
 }

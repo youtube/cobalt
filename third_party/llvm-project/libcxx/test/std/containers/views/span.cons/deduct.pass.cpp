@@ -1,28 +1,27 @@
 // -*- C++ -*-
 //===------------------------------ span ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17 
+// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17
 
 // <span>
 
 //   template<class T, size_t N>
 //     span(T (&)[N]) -> span<T, N>;
-// 
+//
 //   template<class T, size_t N>
 //     span(array<T, N>&) -> span<T, N>;
-// 
+//
 //   template<class T, size_t N>
 //     span(const array<T, N>&) -> span<const T, N>;
-// 
+//
 //   template<class Container>
 //     span(Container&) -> span<typename Container::value_type>;
-// 
+//
 //   template<class Container>
 //     span(const Container&) -> span<const typename Container::value_type>;
 
@@ -41,7 +40,7 @@
 // Disable the missing braces warning for this reason.
 #include "disable_missing_braces_warning.h"
 
-int main ()
+int main(int, char**)
 {
     {
     int arr[] = {1,2,3};
@@ -66,7 +65,7 @@ int main ()
     ASSERT_SAME_TYPE(S, std::span<const long, 5>);
     assert((std::equal(std::begin(arr), std::end(arr), s.begin(), s.end())));
     }
-    
+
     {
     std::string str{"ABCDE"};
     std::span s{str};
@@ -84,4 +83,6 @@ int main ()
     assert((size_t)s.size() == str.size());
     assert((std::equal(s.begin(), s.end(), std::begin(s), std::end(s))));
     }
+
+  return 0;
 }

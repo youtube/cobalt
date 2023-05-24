@@ -2,12 +2,8 @@
 Test that the breakpoint auto-continue flag works correctly.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 import lldbsuite.test.lldbutil as lldbutil
 from lldbsuite.test.lldbtest import *
@@ -60,10 +56,6 @@ class BreakpointAutoContinue(TestBase):
         self.assertEqual(state, expected_state, "Didn't get expected state")
 
         return process
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
 
     def simple_auto_continue(self):
         bpno = self.make_target_and_bkpt()

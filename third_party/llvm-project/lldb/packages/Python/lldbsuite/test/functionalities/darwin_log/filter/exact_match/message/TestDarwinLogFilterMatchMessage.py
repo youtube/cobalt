@@ -6,10 +6,8 @@ These tests are currently only supported when running against Darwin
 targets.
 """
 
-from __future__ import print_function
 
 import lldb
-import os
 import re
 
 from lldbsuite.test import decorators

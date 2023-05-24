@@ -1,9 +1,8 @@
 // SValBuilder.h - Construction of SVals from evaluating expressions -*- C++ -*-
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -139,8 +138,8 @@ public:
   virtual SVal simplifySVal(ProgramStateRef State, SVal Val) = 0;
 
   /// Constructs a symbolic expression for two non-location values.
-  SVal makeSymExprValNN(ProgramStateRef state, BinaryOperator::Opcode op,
-                      NonLoc lhs, NonLoc rhs, QualType resultTy);
+  SVal makeSymExprValNN(BinaryOperator::Opcode op,
+                        NonLoc lhs, NonLoc rhs, QualType resultTy);
 
   SVal evalBinOp(ProgramStateRef state, BinaryOperator::Opcode op,
                  SVal lhs, SVal rhs, QualType type);

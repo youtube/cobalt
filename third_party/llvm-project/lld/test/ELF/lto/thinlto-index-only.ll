@@ -38,15 +38,11 @@
 ; RUN: ls %t1.o.thinlto.bc
 ; RUN: ls %t1.o.imports
 
-; Ensure lld generates an error if unable to write an empty index file
-; for lazy object file that is not added to link.
+; Ensure LLD generates an empty index for each bitcode file even if all bitcode files are lazy.
 ; RUN: rm -f %t1.o.thinlto.bc
-; RUN: touch %t1.o.thinlto.bc
-; RUN: chmod 400 %t1.o.thinlto.bc
-; RUN: not ld.lld --plugin-opt=thinlto-index-only -shared %t2.o --start-lib %t1.o --end-lib \
-; RUN:   -o %t3 2>&1 | FileCheck %s
-; CHECK: cannot open {{.*}}1.o.thinlto.bc: {{P|p}}ermission denied
-; RUN: rm -f %t1.o.thinlto.bc
+; RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux-gnu /dev/null -o %tdummy.o
+; RUN: ld.lld --plugin-opt=thinlto-index-only -shared %tdummy.o --start-lib %t1.o --end-lib -o /dev/null
+; RUN: ls %t1.o.thinlto.bc
 
 ; NM: T f
 
@@ -77,7 +73,7 @@
 ; BACKEND2-NEXT: <COMBINED
 ; BACKEND2-NEXT: </GLOBALVAL_SUMMARY_BLOCK
 
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 declare void @g(...)

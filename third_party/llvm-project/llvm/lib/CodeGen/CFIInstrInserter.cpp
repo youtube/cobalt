@@ -1,9 +1,8 @@
 //===------ CFIInstrInserter.cpp - Insert additional CFI instructions -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,6 +25,7 @@
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
@@ -49,8 +49,7 @@ class CFIInstrInserter : public MachineFunctionPass {
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override {
-    if (!MF.getMMI().hasDebugInfo() &&
-        !MF.getFunction().needsUnwindTableEntry())
+    if (!MF.needsFrameMoves())
       return false;
 
     MBBVector.resize(MF.getNumBlockIDs());
@@ -207,6 +206,7 @@ void CFIInstrInserter::calculateOutgoingCFAInfo(MBBCFAInfo &MBBInfo) {
       case MCCFIInstruction::OpUndefined:
       case MCCFIInstruction::OpRegister:
       case MCCFIInstruction::OpWindowSave:
+      case MCCFIInstruction::OpNegateRAState:
       case MCCFIInstruction::OpGnuArgsSize:
         break;
       }
@@ -317,6 +317,10 @@ unsigned CFIInstrInserter::verify(MachineFunction &MF) {
       // outgoing offset and register values of CurrMBB
       if (SuccMBBInfo.IncomingCFAOffset != CurrMBBInfo.OutgoingCFAOffset ||
           SuccMBBInfo.IncomingCFARegister != CurrMBBInfo.OutgoingCFARegister) {
+        // Inconsistent offsets/registers are ok for 'noreturn' blocks because
+        // we don't generate epilogues inside such blocks.
+        if (SuccMBBInfo.MBB->succ_empty() && !SuccMBBInfo.MBB->isReturnBlock())
+          continue;
         report(CurrMBBInfo, SuccMBBInfo);
         ErrorNum++;
       }

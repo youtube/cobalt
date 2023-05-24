@@ -1,9 +1,8 @@
 //===--- ClangTidyDiagnosticConsumer.h - clang-tidy -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,7 +17,6 @@
 #include "clang/Tooling/Refactoring.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/Support/Regex.h"
 #include "llvm/Support/Timer.h"
 
 namespace clang {
@@ -34,7 +32,7 @@ class CompilationDatabase;
 
 namespace tidy {
 
-/// \brief A detected error complete with information to display diagnostic and
+/// A detected error complete with information to display diagnostic and
 /// automatic fix.
 ///
 /// This is used as an intermediate format to transport Diagnostics without a
@@ -48,28 +46,7 @@ struct ClangTidyError : tooling::Diagnostic {
   bool IsWarningAsError;
 };
 
-/// \brief Read-only set of strings represented as a list of positive and
-/// negative globs. Positive globs add all matched strings to the set, negative
-/// globs remove them in the order of appearance in the list.
-class GlobList {
-public:
-  /// \brief \p GlobList is a comma-separated list of globs (only '*'
-  /// metacharacter is supported) with optional '-' prefix to denote exclusion.
-  GlobList(StringRef Globs);
-
-  /// \brief Returns \c true if the pattern matches \p S. The result is the last
-  /// matching glob's Positive flag.
-  bool contains(StringRef S) { return contains(S, false); }
-
-private:
-  bool contains(StringRef S, bool Contains);
-
-  bool Positive;
-  llvm::Regex Regex;
-  std::unique_ptr<GlobList> NextGlob;
-};
-
-/// \brief Contains displayed and ignored diagnostic counters for a ClangTidy
+/// Contains displayed and ignored diagnostic counters for a ClangTidy
 /// run.
 struct ClangTidyStats {
   ClangTidyStats()
@@ -88,7 +65,7 @@ struct ClangTidyStats {
   }
 };
 
-/// \brief Every \c ClangTidyCheck reports errors through a \c DiagnosticsEngine
+/// Every \c ClangTidyCheck reports errors through a \c DiagnosticsEngine
 /// provided by this context.
 ///
 /// A \c ClangTidyCheck always has access to the active context to report
@@ -99,13 +76,19 @@ struct ClangTidyStats {
 /// \endcode
 class ClangTidyContext {
 public:
-  /// \brief Initializes \c ClangTidyContext instance.
+  /// Initializes \c ClangTidyContext instance.
   ClangTidyContext(std::unique_ptr<ClangTidyOptionsProvider> OptionsProvider,
                    bool AllowEnablingAnalyzerAlphaCheckers = false);
+  /// Sets the DiagnosticsEngine that diag() will emit diagnostics to.
+  // FIXME: this is required initialization, and should be a constructor param.
+  // Fix the context -> diag engine -> consumer -> context initialization cycle.
+  void setDiagnosticsEngine(DiagnosticsEngine *DiagEngine) {
+    this->DiagEngine = DiagEngine;
+  }
 
   ~ClangTidyContext();
 
-  /// \brief Report any errors detected using this method.
+  /// Report any errors detected using this method.
   ///
   /// This is still under heavy development and will likely change towards using
   /// tablegen'd diagnostic IDs.
@@ -114,96 +97,90 @@ public:
                          StringRef Message,
                          DiagnosticIDs::Level Level = DiagnosticIDs::Warning);
 
-  /// \brief Sets the \c SourceManager of the used \c DiagnosticsEngine.
+  /// Sets the \c SourceManager of the used \c DiagnosticsEngine.
   ///
   /// This is called from the \c ClangTidyCheck base class.
   void setSourceManager(SourceManager *SourceMgr);
 
-  /// \brief Should be called when starting to process new translation unit.
+  /// Should be called when starting to process new translation unit.
   void setCurrentFile(StringRef File);
 
-  /// \brief Returns the main file name of the current translation unit.
+  /// Returns the main file name of the current translation unit.
   StringRef getCurrentFile() const { return CurrentFile; }
 
-  /// \brief Sets ASTContext for the current translation unit.
+  /// Sets ASTContext for the current translation unit.
   void setASTContext(ASTContext *Context);
 
-  /// \brief Gets the language options from the AST context.
+  /// Gets the language options from the AST context.
   const LangOptions &getLangOpts() const { return LangOpts; }
 
-  /// \brief Returns the name of the clang-tidy check which produced this
+  /// Returns the name of the clang-tidy check which produced this
   /// diagnostic ID.
-  StringRef getCheckName(unsigned DiagnosticID) const;
+  std::string getCheckName(unsigned DiagnosticID) const;
 
-  /// \brief Returns \c true if the check is enabled for the \c CurrentFile.
+  /// Returns \c true if the check is enabled for the \c CurrentFile.
   ///
   /// The \c CurrentFile can be changed using \c setCurrentFile.
   bool isCheckEnabled(StringRef CheckName) const;
 
-  /// \brief Returns \c true if the check should be upgraded to error for the
+  /// Returns \c true if the check should be upgraded to error for the
   /// \c CurrentFile.
   bool treatAsError(StringRef CheckName) const;
 
-  /// \brief Returns global options.
+  /// Returns global options.
   const ClangTidyGlobalOptions &getGlobalOptions() const;
 
-  /// \brief Returns options for \c CurrentFile.
+  /// Returns options for \c CurrentFile.
   ///
   /// The \c CurrentFile can be changed using \c setCurrentFile.
   const ClangTidyOptions &getOptions() const;
 
-  /// \brief Returns options for \c File. Does not change or depend on
+  /// Returns options for \c File. Does not change or depend on
   /// \c CurrentFile.
   ClangTidyOptions getOptionsForFile(StringRef File) const;
 
-  /// \brief Returns \c ClangTidyStats containing issued and ignored diagnostic
+  /// Returns \c ClangTidyStats containing issued and ignored diagnostic
   /// counters.
   const ClangTidyStats &getStats() const { return Stats; }
 
-  /// \brief Returns all collected errors.
-  ArrayRef<ClangTidyError> getErrors() const { return Errors; }
-
-  /// \brief Clears collected errors.
-  void clearErrors() { Errors.clear(); }
-
-  /// \brief Control profile collection in clang-tidy.
+  /// Control profile collection in clang-tidy.
   void setEnableProfiling(bool Profile);
   bool getEnableProfiling() const { return Profile; }
 
-  /// \brief Control storage of profile date.
+  /// Control storage of profile date.
   void setProfileStoragePrefix(StringRef ProfilePrefix);
   llvm::Optional<ClangTidyProfiling::StorageParams>
   getProfileStorageParams() const;
 
-  /// \brief Should be called when starting to process new translation unit.
+  /// Should be called when starting to process new translation unit.
   void setCurrentBuildDirectory(StringRef BuildDirectory) {
     CurrentBuildDirectory = BuildDirectory;
   }
 
-  /// \brief Returns build directory of the current translation unit.
+  /// Returns build directory of the current translation unit.
   const std::string &getCurrentBuildDirectory() {
     return CurrentBuildDirectory;
   }
 
-  /// \brief If the experimental alpha checkers from the static analyzer can be
+  /// If the experimental alpha checkers from the static analyzer can be
   /// enabled.
   bool canEnableAnalyzerAlphaCheckers() const {
     return AllowEnablingAnalyzerAlphaCheckers;
   }
 
+  using DiagLevelAndFormatString = std::pair<DiagnosticIDs::Level, std::string>;
+  DiagLevelAndFormatString getDiagLevelAndFormatString(unsigned DiagnosticID,
+                                                       SourceLocation Loc) {
+    return DiagLevelAndFormatString(
+        static_cast<DiagnosticIDs::Level>(
+            DiagEngine->getDiagnosticLevel(DiagnosticID, Loc)),
+        DiagEngine->getDiagnosticIDs()->getDescription(DiagnosticID));
+  }
+
 private:
-  // Calls setDiagnosticsEngine() and storeError().
+  // Writes to Stats.
   friend class ClangTidyDiagnosticConsumer;
-  friend class ClangTidyPluginAction;
 
-  /// \brief Sets the \c DiagnosticsEngine so that Diagnostics can be generated
-  /// correctly.
-  void setDiagnosticsEngine(DiagnosticsEngine *Engine);
-
-  /// \brief Store an \p Error.
-  void storeError(const ClangTidyError &Error);
-
-  std::vector<ClangTidyError> Errors;
   DiagnosticsEngine *DiagEngine;
   std::unique_ptr<ClangTidyOptionsProvider> OptionsProvider;
 
@@ -227,7 +204,24 @@ private:
   bool AllowEnablingAnalyzerAlphaCheckers;
 };
 
-/// \brief A diagnostic consumer that turns each \c Diagnostic into a
+/// Check whether a given diagnostic should be suppressed due to the presence
+/// of a "NOLINT" suppression comment.
+/// This is exposed so that other tools that present clang-tidy diagnostics
+/// (such as clangd) can respect the same suppression rules as clang-tidy.
+/// This does not handle suppression of notes following a suppressed diagnostic;
+/// that is left to the caller is it requires maintaining state in between calls
+/// to this function.
+/// The `CheckMacroExpansion` parameter determines whether the function should
+/// handle the case where the diagnostic is inside a macro expansion. A degree
+/// of control over this is needed because handling this case can require
+/// examining source files other than the one in which the diagnostic is
+/// located, and in some use cases we cannot rely on such other files being
+/// mapped in the SourceMapper.
+bool shouldSuppressDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                              const Diagnostic &Info, ClangTidyContext &Context,
+                              bool CheckMacroExpansion = true);
+
+/// A diagnostic consumer that turns each \c Diagnostic into a
 /// \c SourceManager-independent \c ClangTidyError.
 //
 // FIXME: If we move away from unit-tests, this can be moved to a private
@@ -235,6 +229,7 @@ private:
 class ClangTidyDiagnosticConsumer : public DiagnosticConsumer {
 public:
   ClangTidyDiagnosticConsumer(ClangTidyContext &Ctx,
+                              DiagnosticsEngine *ExternalDiagEngine = nullptr,
                               bool RemoveIncompatibleErrors = true);
 
   // FIXME: The concept of converting between FixItHints and Replacements is
@@ -243,27 +238,28 @@ public:
   void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
                         const Diagnostic &Info) override;
 
-  /// \brief Flushes the internal diagnostics buffer to the ClangTidyContext.
-  void finish() override;
+  // Retrieve the diagnostics that were captured.
+  std::vector<ClangTidyError> take();
 
 private:
   void finalizeLastError();
+  void removeIncompatibleErrors();
 
-  void removeIncompatibleErrors(SmallVectorImpl<ClangTidyError> &Errors) const;
-
-  /// \brief Returns the \c HeaderFilter constructed for the options set in the
+  /// Returns the \c HeaderFilter constructed for the options set in the
   /// context.
   llvm::Regex *getHeaderFilter();
 
-  /// \brief Updates \c LastErrorRelatesToUserCode and LastErrorPassesLineFilter
+  /// Updates \c LastErrorRelatesToUserCode and LastErrorPassesLineFilter
   /// according to the diagnostic \p Location.
-  void checkFilters(SourceLocation Location);
+  void checkFilters(SourceLocation Location, const SourceManager &Sources);
   bool passesLineFilter(StringRef FileName, unsigned LineNumber) const;
 
+  void forwardDiagnostic(const Diagnostic &Info);
+
   ClangTidyContext &Context;
+  DiagnosticsEngine *ExternalDiagEngine;
   bool RemoveIncompatibleErrors;
-  std::unique_ptr<DiagnosticsEngine> Diags;
-  SmallVector<ClangTidyError, 8> Errors;
+  std::vector<ClangTidyError> Errors;
   std::unique_ptr<llvm::Regex> HeaderFilter;
   bool LastErrorRelatesToUserCode;
   bool LastErrorPassesLineFilter;

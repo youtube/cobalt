@@ -1,9 +1,8 @@
 //===- AArch64InstrInfo.h - AArch64 Instruction Information -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,8 @@
 
 #include "AArch64.h"
 #include "AArch64RegisterInfo.h"
+#include "AArch64StackOffset.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/CodeGen/MachineCombinerPattern.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 
@@ -54,21 +55,13 @@ public:
                              unsigned &DstReg, unsigned &SubIdx) const override;
 
   bool
-  areMemAccessesTriviallyDisjoint(MachineInstr &MIa, MachineInstr &MIb,
-                                  AliasAnalysis *AA = nullptr) const override;
+  areMemAccessesTriviallyDisjoint(const MachineInstr &MIa,
+                                  const MachineInstr &MIb) const override;
 
   unsigned isLoadFromStackSlot(const MachineInstr &MI,
                                int &FrameIndex) const override;
   unsigned isStoreToStackSlot(const MachineInstr &MI,
                               int &FrameIndex) const override;
-
-  /// Returns true if there is a shiftable register and that the shift value
-  /// is non-zero.
-  static bool hasShiftedReg(const MachineInstr &MI);
-
-  /// Returns true if there is an extendable register and that the extending
-  /// value is non-zero.
-  static bool hasExtendedReg(const MachineInstr &MI);
 
   /// Does this instruction set its full destination register to zero?
   static bool isGPRZero(const MachineInstr &MI);
@@ -78,11 +71,6 @@ public:
 
   /// Does this instruction rename an FPR without modifying bits?
   static bool isFPRCopy(const MachineInstr &MI);
-
-  /// Return true if this is load/store scales or extends its register offset.
-  /// This refers to scaling a dynamic index as opposed to scaled immediates.
-  /// MI should be a memory op that allows scaled addressing.
-  static bool isScaledAddr(const MachineInstr &MI);
 
   /// Return true if pairing the given load or store is hinted to be
   /// unprofitable.
@@ -97,6 +85,20 @@ public:
     return isUnscaledLdSt(MI.getOpcode());
   }
 
+  /// Returns the unscaled load/store for the scaled load/store opcode,
+  /// if there is a corresponding unscaled variant available.
+  static Optional<unsigned> getUnscaledLdSt(unsigned Opc);
+
+  /// Scaling factor for (scaled or unscaled) load or store.
+  static int getMemScale(unsigned Opc);
+  static int getMemScale(const MachineInstr &MI) {
+    return getMemScale(MI.getOpcode());
+  }
+
+
+  /// Returns the index for the immediate for a given instruction.
+  static unsigned getLoadStoreImmIdx(unsigned Opc);
+
   /// Return true if pairing the given load or store may be paired with another.
   static bool isPairableLdStInst(const MachineInstr &MI);
 
@@ -105,18 +107,20 @@ public:
   static unsigned convertToFlagSettingOpc(unsigned Opc, bool &Is64Bit);
 
   /// Return true if this is a load/store that can be potentially paired/merged.
-  bool isCandidateToMergeOrPair(MachineInstr &MI) const;
+  bool isCandidateToMergeOrPair(const MachineInstr &MI) const;
 
   /// Hint that pairing the given load or store is unprofitable.
   static void suppressLdStPair(MachineInstr &MI);
 
-  bool getMemOpBaseRegImmOfs(MachineInstr &LdSt, unsigned &BaseReg,
-                             int64_t &Offset,
-                             const TargetRegisterInfo *TRI) const override;
+  bool getMemOperandWithOffset(const MachineInstr &MI,
+                               const MachineOperand *&BaseOp,
+                               int64_t &Offset,
+                               const TargetRegisterInfo *TRI) const override;
 
-  bool getMemOpBaseRegImmOfsWidth(MachineInstr &LdSt, unsigned &BaseReg,
-                                  int64_t &Offset, unsigned &Width,
-                                  const TargetRegisterInfo *TRI) const;
+  bool getMemOperandWithOffsetWidth(const MachineInstr &MI,
+                                    const MachineOperand *&BaseOp,
+                                    int64_t &Offset, unsigned &Width,
+                                    const TargetRegisterInfo *TRI) const;
 
   /// Return the immediate offset of the base register in a load/store \p LdSt.
   MachineOperand &getMemOpBaseRegImmOfsOffsetOperand(MachineInstr &LdSt) const;
@@ -125,19 +129,23 @@ public:
   /// \p Scale, \p Width, \p MinOffset, and \p MaxOffset accordingly.
   ///
   /// For unscaled instructions, \p Scale is set to 1.
-  bool getMemOpInfo(unsigned Opcode, unsigned &Scale, unsigned &Width,
-                    int64_t &MinOffset, int64_t &MaxOffset) const;
+  static bool getMemOpInfo(unsigned Opcode, unsigned &Scale, unsigned &Width,
+                           int64_t &MinOffset, int64_t &MaxOffset);
 
-  bool shouldClusterMemOps(MachineInstr &FirstLdSt, unsigned BaseReg1,
-                           MachineInstr &SecondLdSt, unsigned BaseReg2,
+  bool shouldClusterMemOps(const MachineOperand &BaseOp1,
+                           const MachineOperand &BaseOp2,
                            unsigned NumLoads) const override;
 
   void copyPhysRegTuple(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
-                        const DebugLoc &DL, unsigned DestReg, unsigned SrcReg,
-                        bool KillSrc, unsigned Opcode,
+                        const DebugLoc &DL, MCRegister DestReg,
+                        MCRegister SrcReg, bool KillSrc, unsigned Opcode,
                         llvm::ArrayRef<unsigned> Indices) const;
+  void copyGPRRegTuple(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+                       DebugLoc DL, unsigned DestReg, unsigned SrcReg,
+                       bool KillSrc, unsigned Opcode, unsigned ZeroReg,
+                       llvm::ArrayRef<unsigned> Indices) const;
   void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
-                   const DebugLoc &DL, unsigned DestReg, unsigned SrcReg,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
                    bool KillSrc) const override;
 
   void storeRegToStackSlot(MachineBasicBlock &MBB,
@@ -160,7 +168,8 @@ public:
   foldMemoryOperandImpl(MachineFunction &MF, MachineInstr &MI,
                         ArrayRef<unsigned> Ops,
                         MachineBasicBlock::iterator InsertPt, int FrameIndex,
-                        LiveIntervals *LIS = nullptr) const override;
+                        LiveIntervals *LIS = nullptr,
+                        VirtRegMap *VRM = nullptr) const override;
 
   /// \returns true if a branch from an instruction with opcode \p BranchOpc
   ///  bytes is capable of jumping to a position \p BrOffset bytes away.
@@ -188,6 +197,10 @@ public:
                     ArrayRef<MachineOperand> Cond, unsigned TrueReg,
                     unsigned FalseReg) const override;
   void getNoop(MCInst &NopInst) const override;
+
+  bool isSchedulingBoundary(const MachineInstr &MI,
+                            const MachineBasicBlock *MBB,
+                            const MachineFunction &MF) const override;
 
   /// analyzeCompare - For a comparison instruction, return the source registers
   /// in SrcReg and SrcReg2, and the value it compares against in CmpValue.
@@ -242,7 +255,8 @@ public:
       std::vector<outliner::Candidate> &RepeatedSequenceLocs) const override;
   outliner::InstrType
   getOutliningType(MachineBasicBlock::iterator &MIT, unsigned Flags) const override;
-  unsigned getMachineOutlinerMBBFlags(MachineBasicBlock &MBB) const override;
+  bool isMBBSafeToOutlineFrom(MachineBasicBlock &MBB,
+                              unsigned &Flags) const override;
   void buildOutlinedFrame(MachineBasicBlock &MBB, MachineFunction &MF,
                           const outliner::OutlinedFunction &OF) const override;
   MachineBasicBlock::iterator
@@ -250,15 +264,28 @@ public:
                      MachineBasicBlock::iterator &It, MachineFunction &MF,
                      const outliner::Candidate &C) const override;
   bool shouldOutlineFromFunctionByDefault(MachineFunction &MF) const override;
-  /// Returns true if the instruction sets to an immediate value that can be
-  /// executed more efficiently.
-  bool isExynosResetFast(const MachineInstr &MI) const;
-  /// Returns true if the instruction has a shift left that can be executed
-  /// more efficiently.
-  bool isExynosShiftLeftFast(const MachineInstr &MI) const;
   /// Returns true if the instruction has a shift by immediate that can be
   /// executed in one cycle less.
-  bool isFalkorShiftExtFast(const MachineInstr &MI) const;
+  static bool isFalkorShiftExtFast(const MachineInstr &MI);
+  /// Return true if the instructions is a SEH instruciton used for unwinding
+  /// on Windows.
+  static bool isSEHInstruction(const MachineInstr &MI);
+
+  Optional<RegImmPair> isAddImmediate(const MachineInstr &MI,
+                                      Register Reg) const override;
+
+  Optional<ParamLoadedValue> describeLoadedValue(const MachineInstr &MI,
+                                                 Register Reg) const override;
+
+#define GET_INSTRINFO_HELPER_DECLS
+#include "AArch64GenInstrInfo.inc"
+
+protected:
+  /// If the specific machine instruction is an instruction that moves/copies
+  /// value from one register to another register return destination and source
+  /// registers as machine operands.
+  Optional<DestSourcePair>
+  isCopyInstrImpl(const MachineInstr &MI) const override;
 
 private:
   /// Sets the offsets on outlined instructions in \p MBB which use SP
@@ -284,15 +311,16 @@ private:
 /// if necessary, to be replaced by the scavenger at the end of PEI.
 void emitFrameOffset(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
                      const DebugLoc &DL, unsigned DestReg, unsigned SrcReg,
-                     int Offset, const TargetInstrInfo *TII,
+                     StackOffset Offset, const TargetInstrInfo *TII,
                      MachineInstr::MIFlag = MachineInstr::NoFlags,
-                     bool SetNZCV = false);
+                     bool SetNZCV = false, bool NeedsWinCFI = false,
+                     bool *HasWinCFI = nullptr);
 
 /// rewriteAArch64FrameIndex - Rewrite MI to access 'Offset' bytes from the
 /// FP. Return false if the offset could not be handled directly in MI, and
 /// return the left-over portion by reference.
 bool rewriteAArch64FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
-                              unsigned FrameReg, int &Offset,
+                              unsigned FrameReg, StackOffset &Offset,
                               const AArch64InstrInfo *TII);
 
 /// Use to report the frame offset status in isAArch64FrameOffsetLegal.
@@ -316,10 +344,10 @@ enum AArch64FrameOffsetStatus {
 /// If set, @p EmittableOffset contains the amount that can be set in @p MI
 /// (possibly with @p OutUnscaledOp if OutUseUnscaledOp is true) and that
 /// is a legal offset.
-int isAArch64FrameOffsetLegal(const MachineInstr &MI, int &Offset,
+int isAArch64FrameOffsetLegal(const MachineInstr &MI, StackOffset &Offset,
                               bool *OutUseUnscaledOp = nullptr,
                               unsigned *OutUnscaledOp = nullptr,
-                              int *EmittableOffset = nullptr);
+                              int64_t *EmittableOffset = nullptr);
 
 static inline bool isUncondBranchOpcode(int Opc) { return Opc == AArch64::B; }
 

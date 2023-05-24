@@ -1,9 +1,8 @@
 //===--- CrashRecoveryContext.cpp - Crash Recovery ------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,9 +10,17 @@
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/Mutex.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Support/ThreadLocal.h"
+#include <mutex>
 #include <setjmp.h>
+#ifdef _WIN32
+#include <excpt.h> // for GetExceptionInformation
+#endif
+#if LLVM_ON_UNIX
+#include <sysexits.h> // EX_IOERR
+#endif
+
 using namespace llvm;
 
 namespace {
@@ -55,7 +62,11 @@ public:
 #endif
   }
 
-  void HandleCrash() {
+  // If the function ran by the CrashRecoveryContext crashes or fails, then
+  // 'RetCode' represents the returned error code, as if it was returned by a
+  // process. 'Context' represents the signal type on Unix; on Windows, it is
+  // the ExceptionContext.
+  void HandleCrash(int RetCode, uintptr_t Context) {
     // Eliminate the current context entry, to avoid re-entering in case the
     // cleanup code crashes.
     CurrentContext->set(Next);
@@ -63,7 +74,10 @@ public:
     assert(!Failed && "Crash recovery context already failed!");
     Failed = true;
 
-    // FIXME: Stash the backtrace.
+    if (CRC->DumpStackAndCleanupOnFailure)
+      sys::CleanupOnSignal(Context);
+
+    CRC->RetCode = RetCode;
 
     // Jump back to the RunSafely we were called under.
     longjmp(JumpBuffer, 1);
@@ -72,7 +86,7 @@ public:
 
 }
 
-static ManagedStatic<sys::Mutex> gCrashRecoveryContextMutex;
+static ManagedStatic<std::mutex> gCrashRecoveryContextMutex;
 static bool gCrashRecoveryEnabled = false;
 
 static ManagedStatic<sys::ThreadLocal<const CrashRecoveryContext>>
@@ -117,7 +131,7 @@ CrashRecoveryContext *CrashRecoveryContext::GetCurrent() {
 }
 
 void CrashRecoveryContext::Enable() {
-  sys::ScopedLock L(*gCrashRecoveryContextMutex);
+  std::lock_guard<std::mutex> L(*gCrashRecoveryContextMutex);
   // FIXME: Shouldn't this be a refcount or something?
   if (gCrashRecoveryEnabled)
     return;
@@ -126,7 +140,7 @@ void CrashRecoveryContext::Enable() {
 }
 
 void CrashRecoveryContext::Disable() {
-  sys::ScopedLock L(*gCrashRecoveryContextMutex);
+  std::lock_guard<std::mutex> L(*gCrashRecoveryContextMutex);
   if (!gCrashRecoveryEnabled)
     return;
   gCrashRecoveryEnabled = false;
@@ -172,19 +186,32 @@ CrashRecoveryContext::unregisterCleanup(CrashRecoveryContextCleanup *cleanup) {
 static void installExceptionOrSignalHandlers() {}
 static void uninstallExceptionOrSignalHandlers() {}
 
+// We need this function because the call to GetExceptionInformation() can only
+// occur inside the __except evaluation block
+static int ExceptionFilter(bool DumpStackAndCleanup,
+                           _EXCEPTION_POINTERS *Except) {
+  if (DumpStackAndCleanup)
+    sys::CleanupOnSignal((uintptr_t)Except);
+  return EXCEPTION_EXECUTE_HANDLER;
+}
+
+static bool InvokeFunctionCall(function_ref<void()> Fn,
+                               bool DumpStackAndCleanup, int &RetCode) {
+  __try {
+    Fn();
+  } __except (ExceptionFilter(DumpStackAndCleanup, GetExceptionInformation())) {
+    RetCode = GetExceptionCode();
+    return false;
+  }
+  return true;
+}
+
 bool CrashRecoveryContext::RunSafely(function_ref<void()> Fn) {
   if (!gCrashRecoveryEnabled) {
     Fn();
     return true;
   }
-
-  bool Result = true;
-  __try {
-    Fn();
-  } __except (1) { // Catch any exception.
-    Result = false;
-  }
-  return Result;
+  return InvokeFunctionCall(Fn, DumpStackAndCleanupOnFailure, RetCode);
 }
 
 #else // !_MSC_VER
@@ -238,7 +265,9 @@ static LONG CALLBACK ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo)
   // implementation if we so choose.
 
   // Handle the crash
-  const_cast<CrashRecoveryContextImpl*>(CRCI)->HandleCrash();
+  const_cast<CrashRecoveryContextImpl *>(CRCI)->HandleCrash(
+      (int)ExceptionInfo->ExceptionRecord->ExceptionCode,
+      reinterpret_cast<uintptr_t>(ExceptionInfo));
 
   // Note that we don't actually get here because HandleCrash calls
   // longjmp, which means the HandleCrash function never returns.
@@ -281,7 +310,7 @@ static void uninstallExceptionOrSignalHandlers() {
 // crash recovery context, and install signal handlers to invoke HandleCrash on
 // the active object.
 //
-// This implementation does not to attempt to chain signal handlers in any
+// This implementation does not attempt to chain signal handlers in any
 // reliable fashion -- if we get a signal outside of a crash recovery context we
 // simply disable crash recovery and raise the signal again.
 
@@ -320,8 +349,16 @@ static void CrashRecoverySignalHandler(int Signal) {
   sigaddset(&SigMask, Signal);
   sigprocmask(SIG_UNBLOCK, &SigMask, nullptr);
 
+  // As per convention, -2 indicates a crash or timeout as opposed to failure to
+  // execute (see llvm/include/llvm/Support/Program.h)
+  int RetCode = -2;
+
+  // Don't consider a broken pipe as a crash (see clang/lib/Driver/Driver.cpp)
+  if (Signal == SIGPIPE)
+    RetCode = EX_IOERR;
+
   if (CRCI)
-    const_cast<CrashRecoveryContextImpl*>(CRCI)->HandleCrash();
+    const_cast<CrashRecoveryContextImpl *>(CRCI)->HandleCrash(RetCode, Signal);
 }
 
 static void installExceptionOrSignalHandlers() {
@@ -365,7 +402,9 @@ bool CrashRecoveryContext::RunSafely(function_ref<void()> Fn) {
 void CrashRecoveryContext::HandleCrash() {
   CrashRecoveryContextImpl *CRCI = (CrashRecoveryContextImpl *) Impl;
   assert(CRCI && "Crash recovery context never initialized!");
-  CRCI->HandleCrash();
+  // As per convention, -2 indicates a crash or timeout as opposed to failure to
+  // execute (see llvm/include/llvm/Support/Program.h)
+  CRCI->HandleCrash(-2, 0);
 }
 
 // FIXME: Portability.
@@ -405,7 +444,10 @@ bool CrashRecoveryContext::RunSafelyOnThread(function_ref<void()> Fn,
                                              unsigned RequestedStackSize) {
   bool UseBackgroundPriority = hasThreadBackgroundPriority();
   RunSafelyOnThreadInfo Info = { Fn, this, UseBackgroundPriority, false };
-  llvm_execute_on_thread(RunSafelyOnThread_Dispatch, &Info, RequestedStackSize);
+  llvm_execute_on_thread(RunSafelyOnThread_Dispatch, &Info,
+                         RequestedStackSize == 0
+                             ? llvm::None
+                             : llvm::Optional<unsigned>(RequestedStackSize));
   if (CrashRecoveryContextImpl *CRC = (CrashRecoveryContextImpl *)Impl)
     CRC->setSwitchedThread();
   return Info.Result;

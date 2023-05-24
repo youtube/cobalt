@@ -1,9 +1,8 @@
 //===-- examples/clang-interpreter/Test.cxx - Clang C Interpreter Example -===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +20,7 @@ static void ThrowerAnError(const char* Name) {
 int main(int argc, const char** argv) {
   for (int I = 0; I < argc; ++I)
    printf("arg[%d]='%s'\n", I, argv[I]);
-  
+
   try {
     ThrowerAnError("In JIT");
   } catch (const std::exception& E) {

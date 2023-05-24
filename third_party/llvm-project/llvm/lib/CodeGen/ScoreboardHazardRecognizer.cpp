@@ -1,9 +1,8 @@
 //===- ScoreboardHazardRecognizer.cpp - Scheduler Support -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -157,8 +156,7 @@ ScoreboardHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
 
       if (!freeUnits) {
         LLVM_DEBUG(dbgs() << "*** Hazard in cycle +" << StageCycle << ", ");
-        LLVM_DEBUG(dbgs() << "SU(" << SU->NodeNum << "): ");
-        LLVM_DEBUG(DAG->dumpNode(SU));
+        LLVM_DEBUG(DAG->dumpNode(*SU));
         return Hazard;
       }
     }

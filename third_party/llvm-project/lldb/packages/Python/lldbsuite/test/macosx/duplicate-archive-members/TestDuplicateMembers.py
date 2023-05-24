@@ -1,10 +1,7 @@
 """Test breaking inside functions defined within a BSD archive file libfoo.a."""
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *

@@ -318,8 +318,8 @@ namespace dr420 { // dr420: yes
     q->~id<int>();
     p->id<int>::~id<int>();
     q->id<int>::~id<int>();
-    p->template id<int>::~id<int>(); // expected-error {{'template' keyword not permitted here}} expected-error {{base type 'int' is not a struct}}
-    q->template id<int>::~id<int>(); // expected-error {{'template' keyword not permitted here}} expected-error {{base type 'int' is not a struct}}
+    p->template id<int>::~id<int>(); // OK since dr2292
+    q->template id<int>::~id<int>(); // OK since dr2292
     p->A::template id<int>::~id<int>();
     q->A::template id<int>::~id<int>();
   }
@@ -486,14 +486,21 @@ namespace dr433 { // dr433: yes
   S<int> s;
 }
 
-namespace dr434 { // dr434: yes
+namespace dr434 { // dr434: sup 2352
   void f() {
     const int ci = 0;
     int *pi = 0;
-    const int *&rpci = pi; // expected-error {{cannot bind}}
+    const int *&rpci = pi; // expected-error {{incompatible qualifiers}}
+    const int * const &rcpci = pi; // OK
     rpci = &ci;
     *pi = 1;
   }
+
+#if __cplusplus >= 201103L
+  int *pi = 0;
+  const int * const &rcpci = pi;
+  static_assert(&rcpci == &pi, "");
+#endif
 }
 
 // dr435: na
