@@ -417,9 +417,9 @@ NativeProcessFreeBSD::GetSoftwareBreakpointTrapOpcode(size_t size_hint) {
   case llvm::Triple::arm:
     switch (size_hint) {
     case 2:
-      return llvm::makeArrayRef(g_thumb_opcode);
+      return llvm::ArrayRef(g_thumb_opcode);
     case 4:
-      return llvm::makeArrayRef(g_arm_opcode);
+      return llvm::ArrayRef(g_arm_opcode);
     default:
       return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                      "Unrecognised trap opcode size hint!");
@@ -497,6 +497,10 @@ Status NativeProcessFreeBSD::Resume(const ResumeActionList &resume_actions) {
 Status NativeProcessFreeBSD::Halt() {
   Status error;
 
+  // Do not try to stop a process that's already stopped, this may cause
+  // the SIGSTOP to get queued and stop the process again once resumed.
+  if (StateIsStoppedState(m_state, false))
+    return error;
   if (kill(GetID(), SIGSTOP) != 0)
     error.SetErrorToErrno();
   return error;

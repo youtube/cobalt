@@ -12,9 +12,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace misc {
+namespace clang::tidy::misc {
 
 namespace {
 
@@ -149,6 +147,9 @@ void DefinitionsInHeadersCheck::check(const MatchFinder::MatchResult &Result) {
     // Ignore inline variables.
     if (VD->isInline())
       return;
+    // Ignore partial specializations.
+    if (isa<VarTemplatePartialSpecializationDecl>(VD))
+      return;
 
     diag(VD->getLocation(),
          "variable %0 defined in a header file; "
@@ -157,6 +158,4 @@ void DefinitionsInHeadersCheck::check(const MatchFinder::MatchResult &Result) {
   }
 }
 
-} // namespace misc
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::misc

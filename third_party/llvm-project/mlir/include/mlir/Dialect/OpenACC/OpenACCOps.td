@@ -26,6 +26,7 @@ def OpenACC_Dialect : Dialect {
   }];
 
   let useDefaultAttributePrinterParser = 1;
+  let useFoldAPI = kEmitFoldAdaptorFolder;
   let cppNamespace = "::mlir::acc";
 }
 
@@ -34,12 +35,7 @@ include "mlir/Dialect/OpenACC/AccCommon.td"
 
 // Base class for OpenACC dialect ops.
 class OpenACC_Op<string mnemonic, list<Trait> traits = []> :
-  Op<OpenACC_Dialect, mnemonic, traits> {
-
-  let printer = [{ return ::print(p, *this); }];
-  let verifier = [{ return ::verify(*this); }];
-  let parser = [{ return ::parse$cppClass(parser, result); }];
-}
+  Op<OpenACC_Dialect, mnemonic, traits>;
 
 // Reduction operation enumeration.
 def OpenACC_ReductionOpAdd     : I32EnumAttrCase<"redop_add", 0>;
@@ -153,8 +149,7 @@ def OpenACC_ParallelOp : OpenACC_Op<"parallel",
     /// The i-th data operand passed.
     Value getDataOperand(unsigned i);
   }];
-
-  let verifier = ?;
+  let hasCustomAssemblyFormat = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -225,6 +220,7 @@ def OpenACC_DataOp : OpenACC_Op<"data",
     ( `attach` `(` $attachOperands^ `:` type($attachOperands) `)` )?
     $region attr-dict-with-keyword
   }];
+  let hasVerifier = 1;
 }
 
 def OpenACC_TerminatorOp : OpenACC_Op<"terminator", [Terminator]> {
@@ -236,8 +232,6 @@ def OpenACC_TerminatorOp : OpenACC_Op<"terminator", [Terminator]> {
     value so the terminator takes no operands. The terminator op returns control
     to the enclosing op.
   }];
-
-  let verifier = ?;
 
   let assemblyFormat = "attr-dict";
 }
@@ -292,6 +286,7 @@ def OpenACC_EnterDataOp : OpenACC_Op<"enter_data", [AttrSizedOperandSegments]> {
   }];
 
   let hasCanonicalizer = 1;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -342,6 +337,7 @@ def OpenACC_ExitDataOp : OpenACC_Op<"exit_data", [AttrSizedOperandSegments]> {
   }];
 
   let hasCanonicalizer = 1;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -392,11 +388,11 @@ def OpenACC_LoopOp : OpenACC_Op<"loop",
   let regions = (region AnyRegion:$region);
 
   let extraClassDeclaration = [{
-    static StringRef getCollapseAttrName() { return "collapse"; }
-    static StringRef getSeqAttrName() { return "seq"; }
-    static StringRef getIndependentAttrName() { return "independent"; }
-    static StringRef getAutoAttrName() { return "auto"; }
-    static StringRef getExecutionMappingAttrName() { return "exec_mapping"; }
+    static StringRef getCollapseAttrStrName() { return "collapse"; }
+    static StringRef getSeqAttrStrName() { return "seq"; }
+    static StringRef getIndependentAttrStrName() { return "independent"; }
+    static StringRef getAutoAttrStrName() { return "auto"; }
+    static StringRef getExecutionMappingAttrStrName() { return "exec_mapping"; }
     static StringRef getGangKeyword() { return "gang"; }
     static StringRef getGangNumKeyword() { return "num"; }
     static StringRef getGangStaticKeyword() { return "static"; }
@@ -406,8 +402,8 @@ def OpenACC_LoopOp : OpenACC_Op<"loop",
     static StringRef getPrivateKeyword() { return "private"; }
     static StringRef getReductionKeyword() { return "reduction"; }
   }];
-
-  let verifier = [{ return ::verifyLoopOp(*this); }];
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
 }
 
 // Yield operation for the acc.loop and acc.parallel operations.
@@ -424,8 +420,6 @@ def OpenACC_YieldOp : OpenACC_Op<"yield", [Terminator,
   let arguments = (ins Variadic<AnyType>:$operands);
 
   let builders = [OpBuilder<(ins), [{ /* nothing to do */ }]>];
-
-  let verifier = ?;
 
   let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
 }
@@ -458,6 +452,7 @@ def OpenACC_InitOp : OpenACC_Op<"init", [AttrSizedOperandSegments]> {
     ( `device_num` `(` $deviceNumOperand^ `:` type($deviceNumOperand) `)` )?
     ( `if` `(` $ifCond^ `)` )? attr-dict-with-keyword
   }];
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -488,6 +483,7 @@ def OpenACC_ShutdownOp : OpenACC_Op<"shutdown", [AttrSizedOperandSegments]> {
     ( `device_num` `(` $deviceNumOperand^ `:` type($deviceNumOperand) `)` )?
     ( `if` `(` $ifCond^ `)` )? attr-dict-with-keyword
   }];
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -542,6 +538,7 @@ def OpenACC_UpdateOp : OpenACC_Op<"update", [AttrSizedOperandSegments]> {
   }];
 
   let hasCanonicalizer = 1;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -575,6 +572,7 @@ def OpenACC_WaitOp : OpenACC_Op<"wait", [AttrSizedOperandSegments]> {
     ( `wait_devnum` `(` $waitDevnum^ `:` type($waitDevnum) `)` )?
     ( `if` `(` $ifCond^ `)` )? attr-dict-with-keyword
   }];
+  let hasVerifier = 1;
 }
 
 #endif // OPENACC_OPS

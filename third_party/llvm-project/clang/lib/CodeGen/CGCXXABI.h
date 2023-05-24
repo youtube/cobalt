@@ -41,6 +41,8 @@ struct CatchTypeInfo;
 
 /// Implements C++ ABI-specific code generation functions.
 class CGCXXABI {
+  friend class CodeGenModule;
+
 protected:
   CodeGenModule &CGM;
   std::unique_ptr<MangleContext> MangleCtx;
@@ -56,7 +58,10 @@ protected:
     return CGF.CXXABIThisValue;
   }
   Address getThisAddress(CodeGenFunction &CGF) {
-    return Address(CGF.CXXABIThisValue, CGF.CXXABIThisAlignment);
+    return Address(
+        CGF.CXXABIThisValue,
+        CGF.ConvertTypeForMem(CGF.CXXABIThisDecl->getType()->getPointeeType()),
+        CGF.CXXABIThisAlignment);
   }
 
   /// Issue a diagnostic about unsupported features in the ABI.
@@ -100,6 +105,10 @@ protected:
   /// final class will have been taken care of by the caller.
   virtual bool isThisCompleteObject(GlobalDecl GD) const = 0;
 
+  virtual bool constructorsAndDestructorsReturnThis() const {
+    return CGM.getCodeGenOpts().CtorDtorReturnThis;
+  }
+
 public:
 
   virtual ~CGCXXABI();
@@ -115,7 +124,13 @@ public:
   ///
   /// There currently is no way to indicate if a destructor returns 'this'
   /// when called virtually, and code generation does not support the case.
-  virtual bool HasThisReturn(GlobalDecl GD) const { return false; }
+  virtual bool HasThisReturn(GlobalDecl GD) const {
+    if (isa<CXXConstructorDecl>(GD.getDecl()) ||
+        (isa<CXXDestructorDecl>(GD.getDecl()) &&
+         GD.getDtorType() != Dtor_Deleting))
+      return constructorsAndDestructorsReturnThis();
+    return false;
+  }
 
   virtual bool hasMostDerivedReturn(GlobalDecl GD) const { return false; }
 

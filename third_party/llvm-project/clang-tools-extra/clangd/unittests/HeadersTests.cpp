@@ -9,20 +9,22 @@
 #include "Headers.h"
 
 #include "Compiler.h"
+#include "Matchers.h"
 #include "TestFS.h"
 #include "TestTU.h"
 #include "clang/Basic/TokenKinds.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
-#include "clang/Lex/PreprocessorOptions.h"
+#include "clang/Tooling/Inclusions/HeaderIncludes.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/ScopedPrinter.h"
+#include "llvm/Testing/Support/Error.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <optional>
 
 namespace clang {
 namespace clangd {
@@ -31,6 +33,7 @@ namespace {
 using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::Not;
 using ::testing::UnorderedElementsAre;
@@ -70,8 +73,8 @@ protected:
   IncludeStructure::HeaderID getID(StringRef Filename,
                                    IncludeStructure &Includes) {
     auto &SM = Clang->getSourceManager();
-    auto Entry = SM.getFileManager().getFile(Filename);
-    EXPECT_TRUE(Entry);
+    auto Entry = SM.getFileManager().getFileRef(Filename);
+    EXPECT_THAT_EXPECTED(Entry, llvm::Succeeded());
     return Includes.getOrCreateID(*Entry);
   }
 
@@ -113,10 +116,11 @@ protected:
       return "";
     auto Path = Inserter.calculateIncludePath(Inserted, MainFile);
     Action.EndSourceFile();
-    return Path.getValueOr("");
+    return Path.value_or("");
   }
 
-  llvm::Optional<TextEdit> insert(llvm::StringRef VerbatimHeader) {
+  std::optional<TextEdit> insert(llvm::StringRef VerbatimHeader,
+                                 tooling::IncludeDirective Directive) {
     Clang = setupClang();
     PreprocessOnlyAction Action;
     EXPECT_TRUE(
@@ -125,7 +129,7 @@ protected:
     IncludeInserter Inserter(MainFile, /*Code=*/"", format::getLLVMStyle(),
                              CDB.getCompileCommand(MainFile)->Directory,
                              &Clang->getPreprocessor().getHeaderSearchInfo());
-    auto Edit = Inserter.insert(VerbatimHeader);
+    auto Edit = Inserter.insert(VerbatimHeader, Directive);
     Action.EndSourceFile();
     return Edit;
   }
@@ -329,9 +333,13 @@ TEST_F(HeadersTest, DontInsertDuplicateResolved) {
 }
 
 TEST_F(HeadersTest, PreferInserted) {
-  auto Edit = insert("<y>");
-  EXPECT_TRUE(Edit.hasValue());
-  EXPECT_TRUE(StringRef(Edit->newText).contains("<y>"));
+  auto Edit = insert("<y>", tooling::IncludeDirective::Include);
+  ASSERT_TRUE(Edit);
+  EXPECT_EQ(Edit->newText, "#include <y>\n");
+
+  Edit = insert("\"header.h\"", tooling::IncludeDirective::Import);
+  ASSERT_TRUE(Edit);
+  EXPECT_EQ(Edit->newText, "#import \"header.h\"\n");
 }
 
 TEST(Headers, NoHeaderSearchInfo) {
@@ -352,7 +360,7 @@ TEST(Headers, NoHeaderSearchInfo) {
   EXPECT_EQ(Inserter.shouldInsertInclude(HeaderPath, Verbatim), true);
 
   EXPECT_EQ(Inserter.calculateIncludePath(Inserting, "sub2/main2.cpp"),
-            llvm::None);
+            std::nullopt);
 }
 
 TEST_F(HeadersTest, PresumedLocations) {
@@ -384,6 +392,7 @@ TEST_F(HeadersTest, SelfContainedHeaders) {
 #include "nonguarded.h"
 #include "pp_depend.h"
 #include "pragmaguarded.h"
+#include "recursive.h"
 )cpp";
   FS.Files["pragmaguarded.h"] = R"cpp(
 #pragma once
@@ -401,64 +410,48 @@ void foo();
   # error You have to have PP directive set to include this one!
   #endif
 )cpp";
+  FS.Files["recursive.h"] = R"cpp(
+  #ifndef RECURSIVE_H
+  #define RECURSIVE_H
+
+  #include "recursive.h"
+
+  #endif // RECURSIVE_H
+)cpp";
 
   auto Includes = collectIncludes();
   EXPECT_TRUE(Includes.isSelfContained(getID("pragmaguarded.h", Includes)));
   EXPECT_TRUE(Includes.isSelfContained(getID("includeguarded.h", Includes)));
+  EXPECT_TRUE(Includes.isSelfContained(getID("recursive.h", Includes)));
   EXPECT_FALSE(Includes.isSelfContained(getID("nonguarded.h", Includes)));
   EXPECT_FALSE(Includes.isSelfContained(getID("pp_depend.h", Includes)));
 }
 
-TEST(StdlibTest, All) {
-  auto VectorH = stdlib::Header::named("<vector>");
-  EXPECT_TRUE(VectorH);
-  EXPECT_EQ(llvm::to_string(*VectorH), "<vector>");
-  EXPECT_FALSE(stdlib::Header::named("HeadersTests.cpp"));
+TEST_F(HeadersTest, HasIWYUPragmas) {
+  FS.Files[MainFile] = R"cpp(
+#include "export.h"
+#include "begin_exports.h"
+#include "none.h"
+)cpp";
+  FS.Files["export.h"] = R"cpp(
+#pragma once
+#include "none.h" // IWYU pragma: export
+)cpp";
+  FS.Files["begin_exports.h"] = R"cpp(
+#pragma once
+// IWYU pragma: begin_exports
+#include "none.h"
+// IWYU pragma: end_exports
+)cpp";
+  FS.Files["none.h"] = R"cpp(
+#pragma once
+// Not a pragma.
+)cpp";
 
-  auto Vector = stdlib::Symbol::named("std::", "vector");
-  EXPECT_TRUE(Vector);
-  EXPECT_EQ(llvm::to_string(*Vector), "std::vector");
-  EXPECT_FALSE(stdlib::Symbol::named("std::", "dongle"));
-  EXPECT_FALSE(stdlib::Symbol::named("clang::", "ASTContext"));
-
-  EXPECT_EQ(Vector->header(), *VectorH);
-  EXPECT_THAT(Vector->headers(), ElementsAre(*VectorH));
-}
-
-TEST(StdlibTest, Recognizer) {
-  auto TU = TestTU::withCode(R"cpp(
-    namespace std {
-    inline namespace inl {
-
-    template <typename>
-    struct vector { class nested {}; };
-
-    class secret {};
-
-    } // inl
-    } // std
-
-    class vector {};
-    std::vector<int> vec;
-    std::vector<int>::nested nest;
-    std::secret sec;
-  )cpp");
-
-  auto AST = TU.build();
-  auto &VectorNonstd = findDecl(AST, "vector");
-  auto *Vec =
-      cast<VarDecl>(findDecl(AST, "vec")).getType()->getAsCXXRecordDecl();
-  auto *Nest =
-      cast<VarDecl>(findDecl(AST, "nest")).getType()->getAsCXXRecordDecl();
-  auto *Sec =
-      cast<VarDecl>(findDecl(AST, "sec")).getType()->getAsCXXRecordDecl();
-
-  stdlib::Recognizer Recognizer;
-
-  EXPECT_EQ(Recognizer(&VectorNonstd), llvm::None);
-  EXPECT_EQ(Recognizer(Vec), stdlib::Symbol::named("std::", "vector"));
-  EXPECT_EQ(Recognizer(Nest), stdlib::Symbol::named("std::", "vector"));
-  EXPECT_EQ(Recognizer(Sec), llvm::None);
+  auto Includes = collectIncludes();
+  EXPECT_TRUE(Includes.hasIWYUExport(getID("export.h", Includes)));
+  EXPECT_TRUE(Includes.hasIWYUExport(getID("begin_exports.h", Includes)));
+  EXPECT_FALSE(Includes.hasIWYUExport(getID("none.h", Includes)));
 }
 
 } // namespace

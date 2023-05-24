@@ -7,7 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-concepts
 
 // <compare>
 
@@ -349,10 +348,10 @@ constexpr bool test_1_3()
     // at compile-time, so the NAN-related tests must be runtime-only.
 
     if (!std::is_constant_evaluated()) {
-        F nq = _VSTD::copysign(std::numeric_limits<F>::quiet_NaN(), F(-1));
-        F ns = _VSTD::copysign(std::numeric_limits<F>::signaling_NaN(), F(-1));
-        F ps = _VSTD::copysign(std::numeric_limits<F>::signaling_NaN(), F(+1));
-        F pq = _VSTD::copysign(std::numeric_limits<F>::quiet_NaN(), F(+1));
+        F nq = std::copysign(std::numeric_limits<F>::quiet_NaN(), F(-1));
+        F ns = std::copysign(std::numeric_limits<F>::signaling_NaN(), F(-1));
+        F ps = std::copysign(std::numeric_limits<F>::signaling_NaN(), F(+1));
+        F pq = std::copysign(std::numeric_limits<F>::quiet_NaN(), F(+1));
 
         assert(std::compare_strong_order_fallback(nq, nq) == std::strong_ordering::equal);
 #ifndef TEST_BUGGY_SIGNALING_NAN

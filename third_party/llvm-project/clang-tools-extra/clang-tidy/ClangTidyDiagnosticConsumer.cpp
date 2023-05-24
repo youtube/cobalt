@@ -36,6 +36,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Regex.h"
+#include <optional>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -162,7 +163,8 @@ ClangTidyContext::ClangTidyContext(
     bool AllowEnablingAnalyzerAlphaCheckers)
     : DiagEngine(nullptr), OptionsProvider(std::move(OptionsProvider)),
       Profile(false),
-      AllowEnablingAnalyzerAlphaCheckers(AllowEnablingAnalyzerAlphaCheckers) {
+      AllowEnablingAnalyzerAlphaCheckers(AllowEnablingAnalyzerAlphaCheckers),
+      SelfContainedDiags(false) {
   // Before the first translation unit we can get errors related to command-line
   // parsing, use empty string for the file name in this case.
   setCurrentFile("");
@@ -254,10 +256,10 @@ void ClangTidyContext::setProfileStoragePrefix(StringRef Prefix) {
   ProfilePrefix = std::string(Prefix);
 }
 
-llvm::Optional<ClangTidyProfiling::StorageParams>
+std::optional<ClangTidyProfiling::StorageParams>
 ClangTidyContext::getProfileStorageParams() const {
   if (ProfilePrefix.empty())
-    return llvm::None;
+    return std::nullopt;
 
   return ClangTidyProfiling::StorageParams(ProfilePrefix, CurrentFile);
 }
@@ -317,8 +319,7 @@ void ClangTidyDiagnosticConsumer::finalizeLastError() {
   LastErrorPassesLineFilter = false;
 }
 
-namespace clang {
-namespace tidy {
+namespace clang::tidy {
 
 const llvm::StringMap<tooling::Replacements> *
 getFixIt(const tooling::Diagnostic &Diagnostic, bool GetFixFromNotes) {
@@ -338,8 +339,7 @@ getFixIt(const tooling::Diagnostic &Diagnostic, bool GetFixFromNotes) {
   return Result;
 }
 
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy
 
 void ClangTidyDiagnosticConsumer::HandleDiagnostic(
     DiagnosticsEngine::Level DiagLevel, const Diagnostic &Info) {
@@ -402,6 +402,8 @@ void ClangTidyDiagnosticConsumer::HandleDiagnostic(
 
     bool IsWarningAsError = DiagLevel == DiagnosticsEngine::Warning &&
                             Context.treatAsError(CheckName);
+    if (IsWarningAsError)
+      Level = ClangTidyError::Error;
     Errors.emplace_back(CheckName, Level, Context.getCurrentBuildDirectory(),
                         IsWarningAsError);
   }

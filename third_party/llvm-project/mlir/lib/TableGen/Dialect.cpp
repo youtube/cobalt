@@ -57,9 +57,9 @@ ArrayRef<StringRef> Dialect::getDependentDialects() const {
   return dependentDialects;
 }
 
-llvm::Optional<StringRef> Dialect::getExtraClassDeclaration() const {
+std::optional<StringRef> Dialect::getExtraClassDeclaration() const {
   auto value = def->getValueAsString("extraClassDeclaration");
-  return value.empty() ? llvm::Optional<StringRef>() : value;
+  return value.empty() ? std::optional<StringRef>() : value;
 }
 
 bool Dialect::hasCanonicalizer() const {
@@ -98,11 +98,18 @@ bool Dialect::useDefaultTypePrinterParser() const {
   return def->getValueAsBit("useDefaultTypePrinterParser");
 }
 
-Dialect::EmitPrefix Dialect::getEmitAccessorPrefix() const {
-  int prefix = def->getValueAsInt("emitAccessorPrefix");
-  if (prefix < 0 || prefix > static_cast<int>(EmitPrefix::Both))
-    PrintFatalError(def->getLoc(), "Invalid accessor prefix value");
-  return static_cast<EmitPrefix>(prefix);
+bool Dialect::isExtensible() const {
+  return def->getValueAsBit("isExtensible");
+}
+
+Dialect::FolderAPI Dialect::getFolderAPI() const {
+  int64_t value = def->getValueAsInt("useFoldAPI");
+  if (value < static_cast<int64_t>(FolderAPI::RawAttributes) ||
+      value > static_cast<int64_t>(FolderAPI::FolderAdaptor))
+    llvm::PrintFatalError(def->getLoc(),
+                          "Invalid value for dialect field `useFoldAPI`");
+
+  return static_cast<FolderAPI>(value);
 }
 
 bool Dialect::operator==(const Dialect &other) const {

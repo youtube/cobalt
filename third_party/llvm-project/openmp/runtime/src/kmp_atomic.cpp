@@ -832,7 +832,7 @@ static inline kmp_cmplx128_a16_t operator/(kmp_cmplx128_a16_t &lhs,
 // end of the first part of the workaround for C78287
 #endif // USE_CMPXCHG_FIX
 
-#if KMP_OS_WINDOWS && KMP_ARCH_AARCH64
+#if KMP_OS_WINDOWS && (KMP_ARCH_AARCH64 || KMP_ARCH_ARM)
 // Undo explicit type casts to get MSVC ARM64 to build. Uses
 // OP_CMPXCHG_WORKAROUND definition for OP_CMPXCHG
 #undef OP_CMPXCHG
@@ -863,7 +863,7 @@ static inline kmp_cmplx128_a16_t operator/(kmp_cmplx128_a16_t &lhs,
   (*lhs) = (*lhs)OP rhs;                                                       \
   __kmp_release_atomic_lock(&ATOMIC_LOCK##LCK_ID, gtid);
 
-#endif // KMP_OS_WINDOWS && KMP_ARCH_AARCH64
+#endif // KMP_OS_WINDOWS && (KMP_ARCH_AARCH64 || KMP_ARCH_ARM)
 
 #if KMP_ARCH_X86 || KMP_ARCH_X86_64
 
@@ -1914,8 +1914,7 @@ ATOMIC_CMPXCHG_CMPLX(cmplx4, kmp_cmplx32, mul, 64, *, cmplx8, kmp_cmplx64, 8c,
 ATOMIC_CMPXCHG_CMPLX(cmplx4, kmp_cmplx32, div, 64, /, cmplx8, kmp_cmplx64, 8c,
                      7, KMP_ARCH_X86) // __kmpc_atomic_cmplx4_div_cmplx8
 
-// READ, WRITE, CAPTURE are supported only on IA-32 architecture and Intel(R) 64
-#if KMP_ARCH_X86 || KMP_ARCH_X86_64
+// READ, WRITE, CAPTURE
 
 // ------------------------------------------------------------------------
 // Atomic READ routines
@@ -2452,6 +2451,7 @@ ATOMIC_CMPXCHG_CPT(float8, mul_cpt, kmp_real64, 64, *,
                                RTYPE, LCK_ID, MASK, GOMP_FLAG)                 \
   ATOMIC_BEGIN_CPT_MIX(TYPE_ID, OP_ID, TYPE, RTYPE_ID, RTYPE)                  \
   TYPE new_value;                                                              \
+  (void)new_value;                                                             \
   OP_GOMP_CRITICAL_CPT(TYPE, OP, GOMP_FLAG)                                    \
   OP_CMPXCHG_CPT(TYPE, BITS, OP)                                               \
   }
@@ -2461,6 +2461,7 @@ ATOMIC_CMPXCHG_CPT(float8, mul_cpt, kmp_real64, 64, *,
                                 LCK_ID, GOMP_FLAG)                             \
   ATOMIC_BEGIN_CPT_MIX(TYPE_ID, OP_ID, TYPE, RTYPE_ID, RTYPE)                  \
   TYPE new_value;                                                              \
+  (void)new_value;                                                             \
   OP_GOMP_CRITICAL_CPT(TYPE, OP, GOMP_FLAG) /* send assignment */              \
   OP_UPDATE_CRITICAL_CPT(TYPE, OP, LCK_ID) /* send assignment */               \
   }
@@ -2923,6 +2924,7 @@ ATOMIC_CRITICAL_CPT(cmplx16, div_a16_cpt, kmp_cmplx128_a16_t, /, 32c,
 // binop x; v = x; }  for non-commutative operations.
 // Supported only on IA-32 architecture and Intel(R) 64
 
+#if KMP_ARCH_X86 || KMP_ARCH_X86_64
 // -------------------------------------------------------------------------
 // Operation on *lhs, rhs bound by critical section
 //     OP     - operator (it's supposed to contain an assignment)
@@ -3162,6 +3164,7 @@ ATOMIC_CRITICAL_CPT_REV(cmplx16, div_a16_cpt_rev, kmp_cmplx128_a16_t, /, 32c,
                                    RTYPE, LCK_ID, MASK, GOMP_FLAG)             \
   ATOMIC_BEGIN_CPT_MIX(TYPE_ID, OP_ID, TYPE, RTYPE_ID, RTYPE)                  \
   TYPE new_value;                                                              \
+  (void)new_value;                                                             \
   OP_GOMP_CRITICAL_CPT_REV(TYPE, OP, GOMP_FLAG)                                \
   OP_CMPXCHG_CPT_REV(TYPE, BITS, OP)                                           \
   }
@@ -3171,6 +3174,7 @@ ATOMIC_CRITICAL_CPT_REV(cmplx16, div_a16_cpt_rev, kmp_cmplx128_a16_t, /, 32c,
                                     LCK_ID, GOMP_FLAG)                         \
   ATOMIC_BEGIN_CPT_MIX(TYPE_ID, OP_ID, TYPE, RTYPE_ID, RTYPE)                  \
   TYPE new_value;                                                              \
+  (void)new_value;                                                             \
   OP_GOMP_CRITICAL_CPT_REV(TYPE, OP, GOMP_FLAG) /* send assignment */          \
   OP_CRITICAL_CPT_REV(TYPE, OP, LCK_ID) /* send assignment */                  \
   }

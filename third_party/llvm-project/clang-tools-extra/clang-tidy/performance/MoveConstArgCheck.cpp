@@ -12,9 +12,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace performance {
+namespace clang::tidy::performance {
 
 static void replaceCallWithArg(const CallExpr *Call, DiagnosticBuilder &Diag,
                                const SourceManager &SM,
@@ -37,6 +35,7 @@ static void replaceCallWithArg(const CallExpr *Call, DiagnosticBuilder &Diag,
 
 void MoveConstArgCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "CheckTriviallyCopyableMove", CheckTriviallyCopyableMove);
+  Options.store(Opts, "CheckMoveToConstRef", CheckMoveToConstRef);
 }
 
 void MoveConstArgCheck::registerMatchers(MatchFinder *Finder) {
@@ -193,7 +192,7 @@ void MoveConstArgCheck::check(const MatchFinder::MatchResult &Result) {
           << (InvocationParm->getFunctionScopeIndex() + 1) << FunctionName
           << *InvocationParmType << ExpectParmTypeName;
     }
-  } else if (ReceivingExpr) {
+  } else if (ReceivingExpr && CheckMoveToConstRef) {
     if ((*InvocationParmType)->isRValueReferenceType())
       return;
 
@@ -205,6 +204,4 @@ void MoveConstArgCheck::check(const MatchFinder::MatchResult &Result) {
   }
 }
 
-} // namespace performance
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::performance

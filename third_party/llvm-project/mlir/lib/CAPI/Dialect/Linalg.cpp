@@ -29,16 +29,16 @@ void mlirLinalgFillBuiltinNamedOpRegion(MlirOperation mlirOp) {
 
   SmallVector<Type, 8> argTypes;
   SmallVector<Location, 8> argLocs;
-  for (OpOperand *opOperand : linalgOp.getInputAndOutputOperands()) {
-    argTypes.push_back(getElementTypeOrSelf(opOperand->get().getType()));
-    argLocs.push_back(opOperand->get().getLoc());
+  for (OpOperand &opOperand : linalgOp->getOpOperands()) {
+    argTypes.push_back(getElementTypeOrSelf(opOperand.get().getType()));
+    argLocs.push_back(opOperand.get().getLoc());
   }
 
   ImplicitLocOpBuilder b(op->getLoc(), op->getContext());
   Region &region = op->getRegion(0);
   Block *body = b.createBlock(&region, /*insertPt=*/{}, argTypes, argLocs);
   b.setInsertionPointToStart(body);
-  fun(b, *body);
+  fun(b, *body, op->getAttrs());
 }
 
 MLIR_DEFINE_CAPI_DIALECT_REGISTRATION(Linalg, linalg, LinalgDialect)
