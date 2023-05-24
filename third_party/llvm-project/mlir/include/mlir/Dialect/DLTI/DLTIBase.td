@@ -35,6 +35,9 @@ def DLTI_Dialect : Dialect {
     constexpr const static ::llvm::StringLiteral
     kDataLayoutEndiannessLittle = "little";
   }];
+
+  let useDefaultAttributePrinterParser = 1;
+  let useFoldAPI = kEmitFoldAdaptorFolder;
 }
 
 def DLTI_DataLayoutEntryAttr : DialectAttr<

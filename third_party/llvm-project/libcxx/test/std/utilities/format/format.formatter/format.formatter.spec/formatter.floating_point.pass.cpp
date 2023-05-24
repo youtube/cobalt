@@ -6,7 +6,6 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-concepts
 // UNSUPPORTED: libcpp-has-no-incomplete-format
 
 // <format>
@@ -26,6 +25,7 @@
 
 #include <format>
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -34,6 +34,7 @@
 #include <string>
 #include <type_traits>
 
+#include "test_format_context.h"
 #include "test_macros.h"
 #include "make_string.h"
 
@@ -52,7 +53,8 @@ void test(std::basic_string_view<CharT> fmt, ArithmeticT arg, std::basic_string<
   auto out = std::back_inserter(result);
   using FormatCtxT = std::basic_format_context<decltype(out), CharT>;
 
-  auto format_ctx = std::__format_context_create<decltype(out), CharT>(out, std::make_format_args<FormatCtxT>(arg));
+  FormatCtxT format_ctx =
+      test_format_context_create<decltype(out), CharT>(out, std::make_format_args<FormatCtxT>(arg));
   formatter.format(arg, format_ctx);
 
   if (expected.empty()) {
@@ -97,7 +99,7 @@ void test_hex_lower_case_precision(ArithmeticT value) {
     buffer[size] = '0';
   }
   test_termination_condition(STR("025000.20000a}"), value, std::basic_string<CharT>{buffer.begin(), buffer.end()});
-#ifndef _LIBCPP_HAS_NO_LOCALIZATION
+#ifndef TEST_HAS_NO_LOCALIZATION
   end = std::to_chars(buffer.begin(), buffer.end(), value, std::chars_format::hex, 20'000).ptr;
   test_termination_condition(STR(".20000La}"), value, std::basic_string<CharT>{buffer.begin(), end});
 
@@ -137,7 +139,7 @@ void test_hex_upper_case_precision(ArithmeticT value) {
     buffer[size] = '0';
   }
   test_termination_condition(STR("025000.20000A}"), value, std::basic_string<CharT>{buffer.begin(), buffer.end()});
-#ifndef _LIBCPP_HAS_NO_LOCALIZATION
+#ifndef TEST_HAS_NO_LOCALIZATION
   end = std::to_chars(buffer.begin(), buffer.end(), value, std::chars_format::hex, 20'000).ptr;
   std::transform(buffer.begin(), end, buffer.begin(), [](char c) { return std::toupper(c); });
   test_termination_condition(STR(".20000LA}"), value, std::basic_string<CharT>{buffer.begin(), end});
@@ -177,7 +179,7 @@ void test_scientific_lower_case_precision(ArithmeticT value) {
     buffer[size] = '0';
   }
   test_termination_condition(STR("025000.20000e}"), value, std::basic_string<CharT>{buffer.begin(), buffer.end()});
-#ifndef _LIBCPP_HAS_NO_LOCALIZATION
+#ifndef TEST_HAS_NO_LOCALIZATION
   end = std::to_chars(buffer.begin(), buffer.end(), value, std::chars_format::scientific, 20'000).ptr;
   test_termination_condition(STR(".20000Le}"), value, std::basic_string<CharT>{buffer.begin(), end});
 
@@ -217,7 +219,7 @@ void test_scientific_upper_case_precision(ArithmeticT value) {
     buffer[size] = '0';
   }
   test_termination_condition(STR("025000.20000E}"), value, std::basic_string<CharT>{buffer.begin(), buffer.end()});
-#ifndef _LIBCPP_HAS_NO_LOCALIZATION
+#ifndef TEST_HAS_NO_LOCALIZATION
   end = std::to_chars(buffer.begin(), buffer.end(), value, std::chars_format::scientific, 20'000).ptr;
   std::transform(buffer.begin(), end, buffer.begin(), [](char c) { return std::toupper(c); });
   test_termination_condition(STR(".20000LE}"), value, std::basic_string<CharT>{buffer.begin(), end});
@@ -257,7 +259,7 @@ void test_fixed_lower_case_precision(ArithmeticT value) {
     buffer[size] = '0';
   }
   test_termination_condition(STR("025000.20000f}"), value, std::basic_string<CharT>{buffer.begin(), buffer.end()});
-#ifndef _LIBCPP_HAS_NO_LOCALIZATION
+#ifndef TEST_HAS_NO_LOCALIZATION
   end = std::to_chars(buffer.begin(), buffer.end(), value, std::chars_format::fixed, 20'000).ptr;
   test_termination_condition(STR(".20000Lf}"), value, std::basic_string<CharT>{buffer.begin(), end});
 
@@ -297,7 +299,7 @@ void test_fixed_upper_case_precision(ArithmeticT value) {
     buffer[size] = '0';
   }
   test_termination_condition(STR("025000.20000F}"), value, std::basic_string<CharT>{buffer.begin(), buffer.end()});
-#ifndef _LIBCPP_HAS_NO_LOCALIZATION
+#ifndef TEST_HAS_NO_LOCALIZATION
   end = std::to_chars(buffer.begin(), buffer.end(), value, std::chars_format::fixed, 20'000).ptr;
   std::transform(buffer.begin(), end, buffer.begin(), [](char c) { return std::toupper(c); });
   test_termination_condition(STR(".20000LF}"), value, std::basic_string<CharT>{buffer.begin(), end});
@@ -337,7 +339,7 @@ void test_general_lower_case_precision(ArithmeticT value) {
     buffer[size] = '0';
   }
   test_termination_condition(STR("025000.20000g}"), value, std::basic_string<CharT>{buffer.begin(), buffer.end()});
-#ifndef _LIBCPP_HAS_NO_LOCALIZATION
+#ifndef TEST_HAS_NO_LOCALIZATION
   end = std::to_chars(buffer.begin(), buffer.end(), value, std::chars_format::general, 20'000).ptr;
   test_termination_condition(STR(".20000Lg}"), value, std::basic_string<CharT>{buffer.begin(), end});
 
@@ -377,7 +379,7 @@ void test_general_upper_case_precision(ArithmeticT value) {
     buffer[size] = '0';
   }
   test_termination_condition(STR("025000.20000G}"), value, std::basic_string<CharT>{buffer.begin(), buffer.end()});
-#ifndef _LIBCPP_HAS_NO_LOCALIZATION
+#ifndef TEST_HAS_NO_LOCALIZATION
   end = std::to_chars(buffer.begin(), buffer.end(), value, std::chars_format::general, 20'000).ptr;
   std::transform(buffer.begin(), end, buffer.begin(), [](char c) { return std::toupper(c); });
   test_termination_condition(STR(".20000LG}"), value, std::basic_string<CharT>{buffer.begin(), end});

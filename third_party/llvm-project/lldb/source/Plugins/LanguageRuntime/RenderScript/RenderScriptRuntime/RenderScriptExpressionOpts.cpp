@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -22,6 +21,7 @@
 
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 
 #include "RenderScriptExpressionOpts.h"
@@ -48,7 +48,7 @@ static bool registerRSDefaultTargetOpts(clang::TargetOptions &proto,
     proto.CPU = "atom";
     proto.Features.push_back("+long64");
     // Fallthrough for common x86 family features
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   case llvm::Triple::ArchType::x86_64:
     proto.Features.push_back("+mmx");
     proto.Features.push_back("+sse");
@@ -77,8 +77,7 @@ static bool registerRSDefaultTargetOpts(clang::TargetOptions &proto,
 
 bool RenderScriptRuntimeModulePass::runOnModule(llvm::Module &module) {
   bool changed_module = false;
-  Log *log(
-      GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE | LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Language | LLDBLog::Expressions);
 
   std::string err;
   llvm::StringRef real_triple =
@@ -92,7 +91,7 @@ bool RenderScriptRuntimeModulePass::runOnModule(llvm::Module &module) {
     return false;
   }
 
-  llvm::Optional<llvm::Reloc::Model> reloc_model = llvm::None;
+  std::optional<llvm::Reloc::Model> reloc_model;
   assert(m_process_ptr && "no available lldb process");
   switch (m_process_ptr->GetTarget().GetArchitecture().GetMachine()) {
   case llvm::Triple::ArchType::x86:
@@ -175,7 +174,6 @@ bool RenderScriptRuntime::GetIRPasses(LLVMUserExpression::IRPasses &passes) {
 namespace lldb_renderscript {
 
 RSIRPasses::RSIRPasses(Process *process) {
-  IRPasses();
   assert(process);
 
   EarlyPasses = std::make_shared<llvm::legacy::PassManager>();

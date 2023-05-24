@@ -23,26 +23,30 @@
 #include "mlir/Support/LLVM.h"
 #include "llvm/ADT/SmallVector.h"
 #include <memory>
+#include <optional>
 
 namespace mlir {
 
 class AffineForOp;
+class AffineValueMap;
 class Block;
 class Location;
 struct MemRefAccess;
 class Operation;
 class Value;
 
-/// Populates 'loops' with IVs of the loops surrounding 'op' ordered from
-/// the outermost 'affine.for' operation to the innermost one.
-//  TODO: handle 'affine.if' ops.
-void getLoopIVs(Operation &op, SmallVectorImpl<AffineForOp> *loops);
+/// Populates 'loops' with IVs of the affine.for ops surrounding 'op' ordered
+/// from the outermost 'affine.for' operation to the innermost one.
+void getAffineForIVs(Operation &op, SmallVectorImpl<AffineForOp> *loops);
 
-/// Populates 'ops' with IVs of the loops surrounding `op`, along with
-/// `affine.if` operations interleaved between these loops, ordered from the
-/// outermost `affine.for` or `affine.if` operation to the innermost one.
-void getEnclosingAffineForAndIfOps(Operation &op,
-                                   SmallVectorImpl<Operation *> *ops);
+/// Populates 'ops' with affine operations enclosing `op` ordered from outermost
+/// to innermost. affine.for, affine.if, or affine.parallel ops comprise such
+/// surrounding affine ops.
+/// TODO: Change this to return a list of enclosing ops up until the op that
+/// starts an `AffineScope`. In such a case, `ops` is guaranteed by design to
+/// have a successive chain of affine parent ops, and this is primarily what is
+/// needed for most analyses.
+void getEnclosingAffineOps(Operation &op, SmallVectorImpl<Operation *> *ops);
 
 /// Returns the nesting depth of this operation, i.e., the number of loops
 /// surrounding this operation.
@@ -88,7 +92,7 @@ struct ComputationSliceState {
   Block::iterator insertPoint;
   // Adds to 'cst' with constraints which represent the slice bounds on 'ivs'
   // in 'this'. Specifically, the values in 'ivs' are added to 'cst' as dim
-  // identifiers and the values in 'lb/ubOperands' are added as symbols.
+  // variables and the values in 'lb/ubOperands' are added as symbols.
   // Constraints are added for all loop IV bounds (dim or symbol), and
   // constraints are added for slice bounds in 'lbs'/'ubs'.
   // Returns failure if we cannot add loop bounds because of unsupported cases.
@@ -107,11 +111,11 @@ struct ComputationSliceState {
   bool isEmpty() const { return ivs.empty(); }
 
   /// Returns true if the computation slice encloses all the iterations of the
-  /// sliced loop nest. Returns false if it does not. Returns llvm::None if it
+  /// sliced loop nest. Returns false if it does not. Returns std::nullopt if it
   /// cannot determine if the slice is maximal or not.
   // TODO: Cache 'isMaximal' so that we don't recompute it when the slice
   // information hasn't changed.
-  Optional<bool> isMaximal() const;
+  std::optional<bool> isMaximal() const;
 
   /// Checks the validity of the slice computed. This is done using the
   /// following steps:
@@ -126,8 +130,8 @@ struct ComputationSliceState {
   /// If this difference is empty, the slice is declared to be valid. Otherwise,
   /// return false as it implies that the effective fusion results in at least
   /// one iteration of the slice that was not originally in the source's domain.
-  /// If the validity cannot be determined, returns llvm:None.
-  Optional<bool> isSliceValid();
+  /// If the validity cannot be determined, returns std::nullopt.
+  std::optional<bool> isSliceValid();
 
   void dump() const;
 
@@ -136,8 +140,8 @@ private:
   /// if each slice dimension maps to an existing dst dimension and both the src
   /// and the dst loops for those dimensions have the same bounds. Returns false
   /// if both the src and the dst loops don't have the same bounds. Returns
-  /// llvm::None if none of the above can be proven.
-  Optional<bool> isSliceMaximalFastCheck() const;
+  /// std::nullopt if none of the above can be proven.
+  std::optional<bool> isSliceMaximalFastCheck() const;
 };
 
 /// Computes the computation slice loop bounds for one loop nest as affine maps
@@ -250,8 +254,8 @@ struct MemRefRegion {
   /// Computes the memory region accessed by this memref with the region
   /// represented as constraints symbolic/parametric in 'loopDepth' loops
   /// surrounding opInst. The computed region's 'cst' field has exactly as many
-  /// dimensional identifiers as the rank of the memref, and *potentially*
-  /// additional symbolic identifiers which could include any of the loop IVs
+  /// dimensional variables as the rank of the memref, and *potentially*
+  /// additional symbolic variables which could include any of the loop IVs
   /// surrounding opInst up until 'loopDepth' and another additional Function
   /// symbols involved with the access (for eg., those appear in affine.apply's,
   /// loop bounds, etc.). If 'sliceState' is non-null, operands from
@@ -289,39 +293,40 @@ struct MemRefRegion {
   void setWrite(bool flag) { write = flag; }
 
   /// Returns a constant upper bound on the number of elements in this region if
-  /// bounded by a known constant (always possible for static shapes), None
-  /// otherwise. Note that the symbols of the region are treated specially,
-  /// i.e., the returned bounding constant holds for *any given* value of the
-  /// symbol identifiers. The 'shape' vector is set to the corresponding
-  /// dimension-wise bounds major to minor. The number of elements and all the
-  /// dimension-wise bounds are guaranteed to be non-negative. We use int64_t
-  /// instead of uint64_t since index types can be at most int64_t. `lbs` are
-  /// set to the lower bounds for each of the rank dimensions, and lbDivisors
-  /// contains the corresponding denominators for floorDivs.
-  Optional<int64_t> getConstantBoundingSizeAndShape(
+  /// bounded by a known constant (always possible for static shapes),
+  /// std::nullopt otherwise. Note that the symbols of the region are treated
+  /// specially, i.e., the returned bounding constant holds for *any given*
+  /// value of the symbol variables. The 'shape' vector is set to the
+  /// corresponding dimension-wise bounds major to minor. The number of elements
+  /// and all the dimension-wise bounds are guaranteed to be non-negative. We
+  /// use int64_t instead of uint64_t since index types can be at most
+  /// int64_t. `lbs` are set to the lower bounds for each of the rank
+  /// dimensions, and lbDivisors contains the corresponding denominators for
+  /// floorDivs.
+  std::optional<int64_t> getConstantBoundingSizeAndShape(
       SmallVectorImpl<int64_t> *shape = nullptr,
       std::vector<SmallVector<int64_t, 4>> *lbs = nullptr,
       SmallVectorImpl<int64_t> *lbDivisors = nullptr) const;
 
-  /// Gets the lower and upper bound map for the dimensional identifier at
+  /// Gets the lower and upper bound map for the dimensional variable at
   /// `pos`.
   void getLowerAndUpperBound(unsigned pos, AffineMap &lbMap,
                              AffineMap &ubMap) const;
 
   /// A wrapper around FlatAffineValueConstraints::getConstantBoundOnDimSize().
   /// 'pos' corresponds to the position of the memref shape's dimension (major
-  /// to minor) which matches 1:1 with the dimensional identifier positions in
+  /// to minor) which matches 1:1 with the dimensional variable positions in
   /// 'cst'.
-  Optional<int64_t>
+  std::optional<int64_t>
   getConstantBoundOnDimSize(unsigned pos,
                             SmallVectorImpl<int64_t> *lb = nullptr,
                             int64_t *lbFloorDivisor = nullptr) const {
     assert(pos < getRank() && "invalid position");
-    return cst.getConstantBoundOnDimSize(pos, lb);
+    return cst.getConstantBoundOnDimSize64(pos, lb);
   }
 
   /// Returns the size of this MemRefRegion in bytes.
-  Optional<int64_t> getRegionSize();
+  std::optional<int64_t> getRegionSize();
 
   // Wrapper around FlatAffineValueConstraints::unionBoundingBox.
   LogicalResult unionBoundingBox(const MemRefRegion &other);
@@ -340,19 +345,19 @@ struct MemRefRegion {
   Location loc;
 
   /// Region (data space) of the memref accessed. This set will thus have at
-  /// least as many dimensional identifiers as the shape dimensionality of the
+  /// least as many dimensional variables as the shape dimensionality of the
   /// memref, and these are the leading dimensions of the set appearing in that
   /// order (major to minor / outermost to innermost). There may be additional
-  /// identifiers since getMemRefRegion() is called with a specific loop depth,
+  /// variables since getMemRefRegion() is called with a specific loop depth,
   /// and thus the region is symbolic in the outer surrounding loops at that
   /// depth.
   // TODO: Replace this to exploit HyperRectangularSet.
   FlatAffineValueConstraints cst;
 };
 
-/// Returns the size of memref data in bytes if it's statically shaped, None
-/// otherwise.
-Optional<uint64_t> getMemRefSizeInBytes(MemRefType memRefType);
+/// Returns the size of memref data in bytes if it's statically shaped,
+/// std::nullopt otherwise.
+std::optional<uint64_t> getMemRefSizeInBytes(MemRefType memRefType);
 
 /// Checks a load or store op for an out of bound access; returns failure if the
 /// access is out of bounds along any of the dimensions, success otherwise.
@@ -366,8 +371,8 @@ unsigned getNumCommonSurroundingLoops(Operation &a, Operation &b);
 
 /// Gets the memory footprint of all data touched in the specified memory space
 /// in bytes; if the memory space is unspecified, considers all memory spaces.
-Optional<int64_t> getMemoryFootprintBytes(AffineForOp forOp,
-                                          int memorySpace = -1);
+std::optional<int64_t> getMemoryFootprintBytes(AffineForOp forOp,
+                                               int memorySpace = -1);
 
 /// Simplify the integer set by simplifying the underlying affine expressions by
 /// flattening and some simple inference. Also, drop any duplicate constraints.
@@ -379,6 +384,13 @@ IntegerSet simplifyIntegerSet(IntegerSet set);
 unsigned getInnermostCommonLoopDepth(
     ArrayRef<Operation *> ops,
     SmallVectorImpl<AffineForOp> *surroundingLoops = nullptr);
+
+/// Try to simplify the given affine.min or affine.max op to an affine map with
+/// a single result and operands, taking into account the specified constraint
+/// set. Return failure if no simplified version could be found.
+FailureOr<AffineValueMap>
+simplifyConstrainedMinMaxOp(Operation *op,
+                            FlatAffineValueConstraints constraints);
 
 } // namespace mlir
 

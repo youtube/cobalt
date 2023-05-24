@@ -13,6 +13,7 @@
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Interpreter/CommandHistory.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionValueBoolean.h"
@@ -23,6 +24,7 @@
 #include "lldb/Utility/Args.h"
 #include "lldb/Utility/StringList.h"
 #include "llvm/ADT/StringRef.h"
+#include <optional>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -56,9 +58,9 @@ public:
 
   ~CommandObjectCommandsSource() override = default;
 
-  const char *GetRepeatCommand(Args &current_command_args,
-                               uint32_t index) override {
-    return "";
+  std::optional<std::string> GetRepeatCommand(Args &current_command_args,
+                                              uint32_t index) override {
+    return std::string("");
   }
 
   void
@@ -117,7 +119,7 @@ protected:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_source_options);
+      return llvm::ArrayRef(g_source_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -200,18 +202,18 @@ protected:
 static const char *g_python_command_instructions =
     "Enter your Python command(s). Type 'DONE' to end.\n"
     "You must define a Python function with this signature:\n"
-    "def my_command_impl(debugger, args, result, internal_dict):\n";
+    "def my_command_impl(debugger, args, exe_ctx, result, internal_dict):\n";
 
 class CommandObjectCommandsAlias : public CommandObjectRaw {
 protected:
   class CommandOptions : public OptionGroup {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_alias_options);
+      return llvm::ArrayRef(g_alias_options);
     }
 
     Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
@@ -484,29 +486,31 @@ protected:
         OptionArgVectorSP(new OptionArgVector);
 
     const bool include_aliases = true;
-    if (CommandObjectSP cmd_obj_sp = m_interpreter.GetCommandSPExact(
-            cmd_obj.GetCommandName(), include_aliases)) {
-      if (m_interpreter.AliasExists(alias_command) ||
-          m_interpreter.UserCommandExists(alias_command)) {
-        result.AppendWarningWithFormat(
-            "Overwriting existing definition for '%s'.\n",
-            alias_command.str().c_str());
-      }
-      if (CommandAlias *alias = m_interpreter.AddAlias(
-              alias_command, cmd_obj_sp, raw_command_string)) {
-        if (m_command_options.m_help.OptionWasSet())
-          alias->SetHelp(m_command_options.m_help.GetCurrentValue());
-        if (m_command_options.m_long_help.OptionWasSet())
-          alias->SetHelpLong(m_command_options.m_long_help.GetCurrentValue());
-        result.SetStatus(eReturnStatusSuccessFinishNoResult);
-      } else {
-        result.AppendError("Unable to create requested alias.\n");
-      }
+    // Look up the command using command's name first.  This is to resolve
+    // aliases when you are making nested aliases.  But if you don't find
+    // it that way, then it wasn't an alias and we can just use the object
+    // we were passed in.
+    CommandObjectSP cmd_obj_sp = m_interpreter.GetCommandSPExact(
+            cmd_obj.GetCommandName(), include_aliases);
+    if (!cmd_obj_sp)
+      cmd_obj_sp = cmd_obj.shared_from_this();
 
+    if (m_interpreter.AliasExists(alias_command) ||
+        m_interpreter.UserCommandExists(alias_command)) {
+      result.AppendWarningWithFormat(
+          "Overwriting existing definition for '%s'.\n",
+          alias_command.str().c_str());
+    }
+    if (CommandAlias *alias = m_interpreter.AddAlias(
+            alias_command, cmd_obj_sp, raw_command_string)) {
+      if (m_command_options.m_help.OptionWasSet())
+        alias->SetHelp(m_command_options.m_help.GetCurrentValue());
+      if (m_command_options.m_long_help.OptionWasSet())
+        alias->SetHelpLong(m_command_options.m_long_help.GetCurrentValue());
+      result.SetStatus(eReturnStatusSuccessFinishNoResult);
     } else {
       result.AppendError("Unable to create requested alias.\n");
     }
-
     return result.Succeeded();
   }
 
@@ -824,6 +828,8 @@ a number follows 'f':"
         R"(
 
     (lldb) command regex f s/^$/finish/ 's/([0-9]+)/frame select %1/')");
+    CommandArgumentData thread_arg{eArgTypeSEDStylePair, eArgRepeatOptional};
+    m_arguments.push_back({thread_arg});
   }
 
   ~CommandObjectCommandsAddRegex() override = default;
@@ -888,7 +894,7 @@ protected:
           llvm::StringRef(),     // Continuation prompt
           multiple_lines, color_prompt,
           0, // Don't show line numbers
-          *this, nullptr));
+          *this));
 
       if (io_handler_sp) {
         debugger.RunIOHandlerAsync(io_handler_sp);
@@ -1022,7 +1028,7 @@ private:
 
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -1051,7 +1057,7 @@ private:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_regex_options);
+      return llvm::ArrayRef(g_regex_options);
     }
 
     llvm::StringRef GetHelp() { return m_help; }
@@ -1076,7 +1082,7 @@ public:
                               std::string funct, std::string help,
                               ScriptedCommandSynchronicity synch)
       : CommandObjectRaw(interpreter, name), m_function_name(funct),
-        m_synchro(synch), m_fetched_help_long(false) {
+        m_synchro(synch) {
     if (!help.empty())
       SetHelp(help);
     else {
@@ -1139,7 +1145,7 @@ protected:
 private:
   std::string m_function_name;
   ScriptedCommandSynchronicity m_synchro;
-  bool m_fetched_help_long;
+  bool m_fetched_help_long = false;
 };
 
 class CommandObjectScriptingObject : public CommandObjectRaw {
@@ -1267,7 +1273,7 @@ public:
 protected:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -1298,7 +1304,7 @@ protected:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_script_import_options);
+      return llvm::ArrayRef(g_script_import_options);
     }
     bool relative_to_command_file = false;
     bool silent = false;
@@ -1352,29 +1358,6 @@ protected:
   CommandOptions m_options;
 };
 
-// CommandObjectCommandsScriptAdd
-static constexpr OptionEnumValueElement g_script_synchro_type[] = {
-    {
-        eScriptedCommandSynchronicitySynchronous,
-        "synchronous",
-        "Run synchronous",
-    },
-    {
-        eScriptedCommandSynchronicityAsynchronous,
-        "asynchronous",
-        "Run asynchronous",
-    },
-    {
-        eScriptedCommandSynchronicityCurrentValue,
-        "current",
-        "Do not alter current setting",
-    },
-};
-
-static constexpr OptionEnumValues ScriptSynchroType() {
-  return OptionEnumValues(g_script_synchro_type);
-}
-
 #define LLDB_OPTIONS_script_add
 #include "CommandOptions.inc"
 
@@ -1422,7 +1405,7 @@ public:
 protected:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -1445,7 +1428,7 @@ protected:
           m_short_help = std::string(option_arg);
         break;
       case 'o':
-        m_overwrite = true;
+        m_overwrite_lazy = eLazyBoolYes;
         break;
       case 's':
         m_synchronicity =
@@ -1467,12 +1450,12 @@ protected:
       m_class_name.clear();
       m_funct_name.clear();
       m_short_help.clear();
-      m_overwrite = false;
+      m_overwrite_lazy = eLazyBoolCalculate;
       m_synchronicity = eScriptedCommandSynchronicitySynchronous;
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_script_add_options);
+      return llvm::ArrayRef(g_script_add_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -1480,7 +1463,7 @@ protected:
     std::string m_class_name;
     std::string m_funct_name;
     std::string m_short_help;
-    bool m_overwrite;
+    LazyBool m_overwrite_lazy = eLazyBoolCalculate;
     ScriptedCommandSynchronicity m_synchronicity =
         eScriptedCommandSynchronicitySynchronous;
   };
@@ -1499,7 +1482,6 @@ protected:
 
     ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
     if (interpreter) {
-
       StringList lines;
       lines.SplitIntoLines(data);
       if (lines.GetSize() > 0) {
@@ -1562,8 +1544,19 @@ protected:
       result.AppendError("'command script add' requires at least one argument");
       return false;
     }
-    // Store the options in case we get multi-line input
-    m_overwrite = m_options.m_overwrite;
+    // Store the options in case we get multi-line input, also figure out the
+    // default if not user supplied:
+    switch (m_options.m_overwrite_lazy) {
+      case eLazyBoolCalculate:
+        m_overwrite = !GetDebugger().GetCommandInterpreter().GetRequireCommandOverwrite();
+        break;
+      case eLazyBoolYes:
+        m_overwrite = true;
+        break;
+      case eLazyBoolNo:
+        m_overwrite = false;
+    }
+    
     Status path_error;
     m_container = GetCommandInterpreter().VerifyUserMultiwordCmdPath(
         command, true, path_error);
@@ -1637,8 +1630,9 @@ protected:
   std::string m_cmd_name;
   CommandObjectMultiword *m_container = nullptr;
   std::string m_short_help;
-  bool m_overwrite;
-  ScriptedCommandSynchronicity m_synchronicity;
+  bool m_overwrite = false;
+  ScriptedCommandSynchronicity m_synchronicity =
+      eScriptedCommandSynchronicitySynchronous;
 };
 
 // CommandObjectCommandsScriptList
@@ -1653,11 +1647,6 @@ public:
   ~CommandObjectCommandsScriptList() override = default;
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    if (command.GetArgumentCount() != 0) {
-      result.AppendError("'command script list' doesn't take any arguments");
-      return false;
-    }
-
     m_interpreter.GetHelp(result, CommandInterpreter::eCommandTypesUserDef);
 
     result.SetStatus(eReturnStatusSuccessFinishResult);
@@ -1678,11 +1667,6 @@ public:
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    if (command.GetArgumentCount() != 0) {
-      result.AppendError("'command script clear' doesn't take any arguments");
-      return false;
-    }
-
     m_interpreter.RemoveAllUser();
 
     result.SetStatus(eReturnStatusSuccessFinishResult);
@@ -1879,7 +1863,7 @@ public:
 protected:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -1914,7 +1898,7 @@ protected:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_container_add_options);
+      return llvm::ArrayRef(g_container_add_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -2088,8 +2072,8 @@ public:
       : CommandObjectMultiword(
             interpreter, "command container",
             "Commands for adding container commands to lldb.  "
-            "Container commands are containers for other commands.  You can"
-            "add nested container commands by specifying a command path, but "
+            "Container commands are containers for other commands.  You can "
+            "add nested container commands by specifying a command path, "
             "but you can't add commands into the built-in command hierarchy.",
             "command container <subcommand> [<subcommand-options>]") {
     LoadSubCommand("add", CommandObjectSP(new CommandObjectCommandsContainerAdd(
