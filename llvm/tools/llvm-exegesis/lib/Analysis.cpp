@@ -28,7 +28,7 @@ enum EscapeTag { kEscapeCsv, kEscapeHtml, kEscapeHtmlString };
 template <EscapeTag Tag> void writeEscaped(raw_ostream &OS, const StringRef S);
 
 template <> void writeEscaped<kEscapeCsv>(raw_ostream &OS, const StringRef S) {
-  if (std::find(S.begin(), S.end(), kCsvSep) == S.end()) {
+  if (!llvm::is_contained(S, kCsvSep)) {
     OS << S;
   } else {
     // Needs escaping.
@@ -244,9 +244,9 @@ Analysis::makePointsPerSchedClass() const {
   return Entries;
 }
 
-// Uops repeat the same opcode over again. Just show this opcode and show the
-// whole snippet only on hover.
-static void writeUopsSnippetHtml(raw_ostream &OS,
+// Parallel benchmarks repeat the same opcode multiple times. Just show this
+// opcode and show the whole snippet only on hover.
+static void writeParallelSnippetHtml(raw_ostream &OS,
                                  const std::vector<MCInst> &Instructions,
                                  const MCInstrInfo &InstrInfo) {
   if (Instructions.empty())
@@ -282,7 +282,7 @@ void Analysis::printPointHtml(const InstructionBenchmark &Point,
     break;
   case InstructionBenchmark::Uops:
   case InstructionBenchmark::InverseThroughput:
-    writeUopsSnippetHtml(OS, Point.Key.Instructions, *InstrInfo_);
+    writeParallelSnippetHtml(OS, Point.Key.Instructions, *InstrInfo_);
     break;
   default:
     llvm_unreachable("invalid mode");
@@ -555,11 +555,10 @@ Error Analysis::run<Analysis::PrintSchedClassInconsistencies>(
         continue; // Ignore noise and errors. FIXME: take noise into account ?
       if (ClusterId.isUnstable() ^ AnalysisDisplayUnstableOpcodes_)
         continue; // Either display stable or unstable clusters only.
-      auto SchedClassClusterIt =
-          std::find_if(SchedClassClusters.begin(), SchedClassClusters.end(),
-                       [ClusterId](const SchedClassCluster &C) {
-                         return C.id() == ClusterId;
-                       });
+      auto SchedClassClusterIt = llvm::find_if(
+          SchedClassClusters, [ClusterId](const SchedClassCluster &C) {
+            return C.id() == ClusterId;
+          });
       if (SchedClassClusterIt == SchedClassClusters.end()) {
         SchedClassClusters.emplace_back();
         SchedClassClusterIt = std::prev(SchedClassClusters.end());

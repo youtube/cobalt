@@ -1,36 +1,68 @@
-add_llvm_library(MLIRTestTransforms
+# Exclude tests from libMLIR.so
+add_mlir_library(MLIRTestTransforms
+  TestAffineLoopParametricTiling.cpp
+  TestExpandTanh.cpp
   TestCallGraph.cpp
+  TestDecomposeCallGraphTypes.cpp
   TestConstantFold.cpp
+  TestConvVectorization.cpp
+  TestConvertCallOp.cpp
+  TestConvertGPUKernelToCubin.cpp
+  TestConvertGPUKernelToHsaco.cpp
+  TestDominance.cpp
+  TestDynamicPipeline.cpp
   TestLoopFusion.cpp
   TestGpuMemoryPromotion.cpp
+  TestGpuParallelLoopMapping.cpp
+  TestGpuRewrite.cpp
   TestInlining.cpp
+  TestLinalgCodegenStrategy.cpp
+  TestLinalgFusionTransforms.cpp
+  TestLinalgHoisting.cpp
   TestLinalgTransforms.cpp
   TestLiveness.cpp
   TestLoopMapping.cpp
   TestLoopParametricTiling.cpp
+  TestLoopUnrolling.cpp
+  TestNumberOfExecutions.cpp
   TestOpaqueLoc.cpp
+  TestMemRefBoundCheck.cpp
+  TestMemRefDependenceCheck.cpp
   TestMemRefStrideCalculation.cpp
-  TestVectorToLoopsConversion.cpp
+  TestSCFUtils.cpp
+  TestSparsification.cpp
   TestVectorTransforms.cpp
-  TestVectorizationUtils.cpp
+
+  EXCLUDE_FROM_LIBMLIR
 
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Transforms
-  )
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../TestDialect)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/../TestDialect)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../DeclarativeTransforms)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/../DeclarativeTransforms)
-add_dependencies(MLIRTestTransforms MLIRStandardOpsIncGen)
-add_dependencies(MLIRTestTransforms MLIRTestLinalgTransformPatternsIncGen)
-add_dependencies(MLIRTestTransforms MLIRTestVectorTransformPatternsIncGen)
-target_link_libraries(MLIRTestTransforms
-  MLIRAffineOps
+
+  DEPENDS
+  MLIRStandardOpsIncGen
+
+  LINK_LIBS PUBLIC
+  MLIRAffine
   MLIRAnalysis
   MLIREDSC
   MLIRGPU
-  MLIRLoopOps
+  MLIRGPUToGPURuntimeTransforms
+  MLIRLinalg
+  MLIRLinalgTransforms
+  MLIRNVVMIR
+  MLIRSCF
+  MLIRSCFTransforms
+  MLIRGPU
   MLIRPass
+  MLIRROCDLIR
+  MLIRStandardOpsTransforms
+  MLIRTargetNVVMIR
+  MLIRTargetROCDLIR
   MLIRTestDialect
-  MLIRVectorOps
+  MLIRTransformUtils
+  MLIRVectorToSCF
+  MLIRVector
   )
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../Dialect/Test)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/../Dialect/Test)

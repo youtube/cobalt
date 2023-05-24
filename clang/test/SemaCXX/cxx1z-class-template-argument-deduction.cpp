@@ -17,7 +17,7 @@ namespace std {
 }
 
 template<typename T> constexpr bool has_type(...) { return false; }
-template<typename T> constexpr bool has_type(T) { return true; }
+template<typename T> constexpr bool has_type(T&) { return true; }
 
 std::initializer_list il = {1, 2, 3, 4, 5};
 
@@ -172,6 +172,10 @@ namespace nondeducible {
   template<typename A = int,
            typename ...B>
   X(float) -> X<A, B...>; // ok
+
+  template <typename> struct UnnamedTemplateParam {};
+  template <typename>                                  // expected-note {{non-deducible template parameter (anonymous)}}
+  UnnamedTemplateParam() -> UnnamedTemplateParam<int>; // expected-error {{deduction guide template contains a template parameter that cannot be deduced}}
 }
 
 namespace default_args_from_ctor {
@@ -505,6 +509,27 @@ template <class H, class P> struct umm;
 
 umm m(1);
 
+}
+
+namespace PR45124 {
+  class a { int d; };
+  class b : a {};
+
+  struct x { ~x(); };
+  template<typename> class y { y(x = x()); };
+  template<typename z> y(z)->y<z>;
+
+  // Not a constant initializer, but trivial default initialization. We won't
+  // detect this as trivial default initialization if synthesizing the implicit
+  // deduction guide 'template<typename T> y(x = x()) -> Y<T>;' leaves behind a
+  // pending cleanup.
+  __thread b g;
+}
+
+namespace PR47175 {
+  template<typename T> struct A { A(T); T x; };
+  template<typename T> int &&n = A(T()).x;
+  int m = n<int>;
 }
 
 #else

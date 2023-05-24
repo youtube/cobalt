@@ -26,14 +26,15 @@
 // RUN:   %S/Inputs/hip_multiple_inputs/a.cu \
 // RUN: 2>&1 | FileCheck -check-prefixes=CHECK,ASM %s
 
-// CHECK: {{".*clang.*"}} "-cc1" "-triple" "amdgcn-amd-amdhsa"
+// CHECK: {{".*clang.*"}} "-cc1" "-mllvm" "--amdhsa-code-object-version={{[0-9]+}}" "-triple" "amdgcn-amd-amdhsa"
 // CHECK-SAME: "-aux-triple" "x86_64-unknown-linux-gnu"
 // BC-SAME: "-emit-llvm-bc"
 // LL-SAME: "-emit-llvm"
 // ASM-NOT: "-emit-llvm"
-// CHECK-SAME: "-main-file-name" "a.cu" {{.*}} "-target-cpu" "gfx900"
+// CHECK-SAME: "-main-file-name" "a.cu"
 // CHECK-SAME: "-fcuda-is-device"
 // CHECK-SAME: {{".*lib1.bc"}}
+// CHECK-SAME: "-target-cpu" "gfx900"
 // BC-SAME: "-o" "a.bc"
 // LL-SAME: "-o" "a.ll"
 // ASM-SAME: "-o" "a.s"
@@ -42,7 +43,7 @@
 // CHECK-NOT: {{"*.llvm-link"}}
 // CHECK-NOT: {{".*opt"}}
 // CHECK-NOT: {{".*llc"}}
-// CHECK-NOT: {{".*lld"}}
+// CHECK-NOT: {{".*lld.*"}}
 // CHECK-NOT: {{".*clang-offload-bundler"}}
 // CHECK-NOT: {{".*ld.*"}}
 
@@ -63,10 +64,10 @@
 // RUN:   %S/Inputs/hip_multiple_inputs/a.cu \
 // RUN: 2>&1 | FileCheck -check-prefixes=BUNDLE %s
 
-// BUNDLE: {{"*.clang.*"}}
-// BUNDLE: {{"*.llvm-link"}}
-// BUNDLE: {{".*opt"}}
-// BUNDLE: {{".*llc"}}
-// BUNDLE: {{".*lld"}}
+// BUNDLE: {{"*.clang.*"}} {{.*}} "-emit-obj"
+// BUNDLE-NOT: {{"*.llvm-link"}}
+// BUNDLE-NOT: {{".*opt"}}
+// BUNDLE-NOT: {{".*llc"}}
+// BUNDLE: {{".*lld.*"}}
 // BUNDLE: {{".*clang-offload-bundler"}}
 

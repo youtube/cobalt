@@ -10,6 +10,7 @@
 
 #include "../CodeGenInstruction.h"
 
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/raw_ostream.h"
@@ -120,8 +121,7 @@ void GIMatchTreeBuilderLeafInfo::declareInstr(const GIMatchDagInstr *Instr, unsi
     Info.bindOperandVariable(VarBinding.second, ID, VarBinding.first);
 
   // Clear the bit indicating we haven't visited this instr.
-  const auto &NodeI = std::find(MatchDag.instr_nodes_begin(),
-                            MatchDag.instr_nodes_end(), Instr);
+  const auto &NodeI = find(MatchDag.instr_nodes(), Instr);
   assert(NodeI != MatchDag.instr_nodes_end() && "Instr isn't in this DAG");
   unsigned InstrIdx = MatchDag.getInstrNodeIdx(NodeI);
   RemainingInstrNodes.reset(InstrIdx);
@@ -265,11 +265,10 @@ void GIMatchTreeBuilder::runStep() {
       LLVM_DEBUG(dbgs() << "Leaf contains multiple rules, drop after the first "
                            "fully tested rule\n");
       auto FirstFullyTested =
-          std::find_if(Leaves.begin(), Leaves.end(),
-                       [](const GIMatchTreeBuilderLeafInfo &X) {
-                         return X.isFullyTraversed() && X.isFullyTested() &&
-                                !X.getMatchDag().hasPostMatchPredicate();
-                       });
+          llvm::find_if(Leaves, [](const GIMatchTreeBuilderLeafInfo &X) {
+            return X.isFullyTraversed() && X.isFullyTested() &&
+                   !X.getMatchDag().hasPostMatchPredicate();
+          });
       if (FirstFullyTested != Leaves.end())
         FirstFullyTested++;
 
@@ -455,8 +454,7 @@ void GIMatchTreeOpcodePartitioner::repartition(
         // predicates for one instruction in the same DAG. That should be
         // impossible.
         assert(AllOpcodes && "Conflicting opcode predicates");
-        for (const CodeGenInstruction *Expected : OpcodeP->getInstrs())
-          OpcodesForThisPredicate.push_back(Expected);
+        append_range(OpcodesForThisPredicate, OpcodeP->getInstrs());
       }
 
       for (const CodeGenInstruction *Expected : OpcodesForThisPredicate) {
@@ -611,18 +609,23 @@ void GIMatchTreeOpcodePartitioner::emitPartitionResults(
 
 void GIMatchTreeOpcodePartitioner::generatePartitionSelectorCode(
     raw_ostream &OS, StringRef Indent) const {
-  OS << Indent << "Partition = -1;\n"
-     << Indent << "switch (MIs[" << InstrID << "]->getOpcode()) {\n";
-  for (const auto &EnumInstr : enumerate(PartitionToInstr)) {
-    if (EnumInstr.value() == nullptr)
-      OS << Indent << "default:";
-    else
-      OS << Indent << "case " << EnumInstr.value()->Namespace
-         << "::" << EnumInstr.value()->TheDef->getName() << ":";
-    OS << " Partition = " << EnumInstr.index() << "; break;\n";
+  // Make sure not to emit empty switch or switch with just default
+  if (PartitionToInstr.size() == 1 && PartitionToInstr[0] == nullptr) {
+    OS << Indent << "Partition = 0;\n";
+  } else if (PartitionToInstr.size()) {
+    OS << Indent << "Partition = -1;\n"
+       << Indent << "switch (MIs[" << InstrID << "]->getOpcode()) {\n";
+    for (const auto &EnumInstr : enumerate(PartitionToInstr)) {
+      if (EnumInstr.value() == nullptr)
+        OS << Indent << "default:";
+      else
+        OS << Indent << "case " << EnumInstr.value()->Namespace
+           << "::" << EnumInstr.value()->TheDef->getName() << ":";
+      OS << " Partition = " << EnumInstr.index() << "; break;\n";
+    }
+    OS << Indent << "}\n";
   }
-  OS << Indent << "}\n"
-     << Indent
+  OS << Indent
      << "// Default case but without conflicting with potential default case "
         "in selection.\n"
      << Indent << "if (Partition == -1) return false;\n";
@@ -774,4 +777,3 @@ void GIMatchTreeVRegDefPartitioner::generatePartitionSelectorCode(
 
   OS << Indent << "if (Partition == -1) return false;\n";
 }
-

@@ -6,12 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ConstString_h_
-#define liblldb_ConstString_h_
+#ifndef LLDB_UTILITY_CONSTSTRING_H
+#define LLDB_UTILITY_CONSTSTRING_H
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/DenseMapInfo.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/YAMLTraits.h"
 
 #include <stddef.h>
 
@@ -41,15 +42,7 @@ public:
   /// Default constructor
   ///
   /// Initializes the string to an empty string.
-  ConstString() : m_string(nullptr) {}
-
-  /// Copy constructor
-  ///
-  /// Copies the string value in \a rhs into this object.
-  ///
-  /// \param[in] rhs
-  ///     Another string object to copy.
-  ConstString(const ConstString &rhs) : m_string(rhs.m_string) {}
+  ConstString() = default;
 
   explicit ConstString(const llvm::StringRef &s);
 
@@ -85,12 +78,6 @@ public:
   ///     from \a cstr.
   explicit ConstString(const char *cstr, size_t max_cstr_len);
 
-  /// Destructor
-  ///
-  /// Since constant string values are currently not reference counted, there
-  /// isn't much to do here.
-  ~ConstString() = default;
-
   /// C string equality binary predicate function object for ConstString
   /// objects.
   struct StringIsEqual {
@@ -122,20 +109,6 @@ public:
   ///     /b True this object contains a valid non-empty C string, \b
   ///     false otherwise.
   explicit operator bool() const { return !IsEmpty(); }
-
-  /// Assignment operator
-  ///
-  /// Assigns the string in this object with the value from \a rhs.
-  ///
-  /// \param[in] rhs
-  ///     Another string object to copy into this object.
-  ///
-  /// \return
-  ///     A const reference to this object.
-  ConstString operator=(ConstString rhs) {
-    m_string = rhs.m_string;
-    return *this;
-  }
 
   /// Equal to operator
   ///
@@ -191,9 +164,7 @@ public:
   /// \return
   ///     \b true if this object is not equal to \a rhs.
   ///     \b false if this object is equal to \a rhs.
-  bool operator!=(ConstString rhs) const {
-    return m_string != rhs.m_string;
-  }
+  bool operator!=(ConstString rhs) const { return m_string != rhs.m_string; }
 
   /// Not equal to operator against a non-ConstString value.
   ///
@@ -446,8 +417,7 @@ protected:
     return s;
   };
 
-  // Member variables
-  const char *m_string;
+  const char *m_string = nullptr;
 };
 
 /// Stream the string value \a str to the stream \a s
@@ -481,6 +451,21 @@ template <> struct DenseMapInfo<lldb_private::ConstString> {
   }
 };
 /// \}
-}
 
-#endif // liblldb_ConstString_h_
+namespace yaml {
+template <> struct ScalarTraits<lldb_private::ConstString> {
+  static void output(const lldb_private::ConstString &, void *, raw_ostream &);
+  static StringRef input(StringRef, void *, lldb_private::ConstString &);
+  static QuotingType mustQuote(StringRef S) { return QuotingType::Double; }
+};
+} // namespace yaml
+
+inline raw_ostream &operator<<(raw_ostream &os, lldb_private::ConstString s) {
+  os << s.GetStringRef();
+  return os;
+}
+} // namespace llvm
+
+LLVM_YAML_IS_SEQUENCE_VECTOR(lldb_private::ConstString)
+
+#endif // LLDB_UTILITY_CONSTSTRING_H

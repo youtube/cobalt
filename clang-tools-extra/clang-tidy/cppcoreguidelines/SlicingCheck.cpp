@@ -62,9 +62,10 @@ void SlicingCheck::registerMatchers(MatchFinder *Finder) {
       // constructor in DerivedDecl's constructors.
       unless(IsWithinDerivedCtor));
 
-  Finder->addMatcher(
-      expr(anyOf(SlicesObjectInAssignment, SlicesObjectInCtor)).bind("Call"),
-      this);
+  Finder->addMatcher(traverse(TK_AsIs, expr(anyOf(SlicesObjectInAssignment,
+                                                  SlicesObjectInCtor))
+                                           .bind("Call")),
+                     this);
 }
 
 /// Warns on methods overridden in DerivedDecl with respect to BaseDecl.

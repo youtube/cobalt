@@ -36,6 +36,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
@@ -69,7 +70,7 @@ static void LLVMErrorHandler(void *UserData, const std::string &Message,
   // We cannot recover from llvm errors.  When reporting a fatal error, exit
   // with status 70 to generate crash diagnostics.  For BSD systems this is
   // defined as an internal software error.  Otherwise, exit with status 1.
-  exit(GenCrashDiag ? 70 : 1);
+  llvm::sys::Process::Exit(GenCrashDiag ? 70 : 1);
 }
 
 #ifdef CLANG_HAVE_RLIMITS
@@ -176,7 +177,7 @@ static int PrintSupportedCPUs(std::string TargetStr) {
   // the target machine will handle the mcpu printing
   llvm::TargetOptions Options;
   std::unique_ptr<llvm::TargetMachine> TheTargetMachine(
-      TheTarget->createTargetMachine(TargetStr, "", "+cpuHelp", Options, None));
+      TheTarget->createTargetMachine(TargetStr, "", "+cpuhelp", Options, None));
   return 0;
 }
 
@@ -202,8 +203,8 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
   TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
   DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
-  bool Success =
-      CompilerInvocation::CreateFromArgs(Clang->getInvocation(), Argv, Diags);
+  bool Success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(),
+                                                    Argv, Diags, Argv0);
 
   if (Clang->getFrontendOpts().TimeTrace) {
     llvm::timeTraceProfilerInitialize(
@@ -247,17 +248,14 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   if (llvm::timeTraceProfilerEnabled()) {
     SmallString<128> Path(Clang->getFrontendOpts().OutputFile);
     llvm::sys::path::replace_extension(Path, "json");
-    if (auto profilerOutput =
-            Clang->createOutputFile(Path.str(),
-                                    /*Binary=*/false,
-                                    /*RemoveFileOnSignal=*/false, "",
-                                    /*Extension=*/"json",
-                                    /*useTemporary=*/false)) {
-
+    if (auto profilerOutput = Clang->createOutputFile(
+            Path.str(), /*Binary=*/false, /*RemoveFileOnSignal=*/false,
+            /*useTemporary=*/false)) {
       llvm::timeTraceProfilerWrite(*profilerOutput);
       // FIXME(ibiryukov): make profilerOutput flush in destructor instead.
       profilerOutput->flush();
       llvm::timeTraceProfilerCleanup();
+      Clang->clearOutputFiles(false);
     }
   }
 

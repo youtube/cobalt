@@ -1,4 +1,4 @@
-//===-- CompileUnit.cpp -----------------------------------------*- C++ -*-===//
+//===-- CompileUnit.cpp ---------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -75,8 +75,7 @@ void CompileUnit::ForeachFunction(
 
 lldb::FunctionSP CompileUnit::FindFunction(
     llvm::function_ref<bool(const FunctionSP &)> matching_lambda) {
-  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
-  Timer scoped_timer(func_cat, "CompileUnit::FindFunction");
+  LLDB_SCOPED_TIMER();
 
   lldb::ModuleSP module = CalculateSymbolContextModule();
 

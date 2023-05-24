@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_CommandObjectMultiword_h_
-#define liblldb_CommandObjectMultiword_h_
+#ifndef LLDB_INTERPRETER_COMMANDOBJECTMULTIWORD_H
+#define LLDB_INTERPRETER_COMMANDOBJECTMULTIWORD_H
 
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Utility/CompletionRequest.h"
@@ -82,6 +82,10 @@ public:
   // for this object.
   virtual CommandObject *GetProxyCommandObject() = 0;
 
+  llvm::StringRef GetSyntax() override;
+
+  llvm::StringRef GetHelp() override;
+
   llvm::StringRef GetHelpLong() override;
 
   bool IsRemovable() const override;
@@ -121,6 +125,11 @@ public:
   const char *GetRepeatCommand(Args &current_command_args,
                                uint32_t index) override;
 
+  /// \return
+  ///     An error message to be displayed when the command is executed (i.e.
+  ///     Execute is called) and \a GetProxyCommandObject returned null.
+  virtual llvm::StringRef GetUnsupportedError();
+
   bool Execute(const char *args_string, CommandReturnObject &result) override;
 
 protected:
@@ -131,4 +140,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_CommandObjectMultiword_h_
+#endif // LLDB_INTERPRETER_COMMANDOBJECTMULTIWORD_H

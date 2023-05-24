@@ -101,6 +101,43 @@ public:
   InstallNameToolOptTable() : OptTable(InstallNameToolInfoTable) {}
 };
 
+enum BitcodeStripID {
+  BITCODE_STRIP_INVALID = 0, // This is not an option ID.
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
+               HELPTEXT, METAVAR, VALUES)                                      \
+  BITCODE_STRIP_##ID,
+#include "BitcodeStripOpts.inc"
+#undef OPTION
+};
+
+#define PREFIX(NAME, VALUE) const char *const BITCODE_STRIP_##NAME[] = VALUE;
+#include "BitcodeStripOpts.inc"
+#undef PREFIX
+
+static const opt::OptTable::Info BitcodeStripInfoTable[] = {
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
+               HELPTEXT, METAVAR, VALUES)                                      \
+  {BITCODE_STRIP_##PREFIX,                                                     \
+   NAME,                                                                       \
+   HELPTEXT,                                                                   \
+   METAVAR,                                                                    \
+   BITCODE_STRIP_##ID,                                                         \
+   opt::Option::KIND##Class,                                                   \
+   PARAM,                                                                      \
+   FLAGS,                                                                      \
+   BITCODE_STRIP_##GROUP,                                                      \
+   BITCODE_STRIP_##ALIAS,                                                      \
+   ALIASARGS,                                                                  \
+   VALUES},
+#include "BitcodeStripOpts.inc"
+#undef OPTION
+};
+
+class BitcodeStripOptTable : public opt::OptTable {
+public:
+  BitcodeStripOptTable() : OptTable(BitcodeStripInfoTable) {}
+};
+
 enum StripID {
   STRIP_INVALID = 0, // This is not an option ID.
 #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
@@ -146,6 +183,7 @@ static SectionFlag parseSectionRenameFlag(StringRef SectionName) {
       .CaseLower("strings", SectionFlag::SecStrings)
       .CaseLower("contents", SectionFlag::SecContents)
       .CaseLower("share", SectionFlag::SecShare)
+      .CaseLower("exclude", SectionFlag::SecExclude)
       .Default(SectionFlag::SecNone);
 }
 
@@ -158,8 +196,8 @@ parseSectionFlagSet(ArrayRef<StringRef> SectionFlags) {
       return createStringError(
           errc::invalid_argument,
           "unrecognized section flag '%s'. Flags supported for GNU "
-          "compatibility: alloc, load, noload, readonly, debug, code, data, "
-          "rom, share, contents, merge, strings",
+          "compatibility: alloc, load, noload, readonly, exclude, debug, "
+          "code, data, rom, share, contents, merge, strings",
           Flag.str().c_str());
     ParsedFlags |= ParsedFlag;
   }
@@ -272,6 +310,7 @@ static const StringMap<MachineInfo> TargetMap{
     // SPARC
     {"elf32-sparc", {ELF::EM_SPARC, false, false}},
     {"elf32-sparcel", {ELF::EM_SPARC, false, true}},
+    {"elf32-hexagon", {ELF::EM_HEXAGON, false, true}},
 };
 
 static Expected<TargetInfo>
@@ -391,9 +430,34 @@ template <class T> static ErrorOr<T> getAsInteger(StringRef Val) {
   return Result;
 }
 
+namespace {
+
+enum class ToolType { Objcopy, Strip, InstallNameTool, BitcodeStrip };
+
+} // anonymous namespace
+
 static void printHelp(const opt::OptTable &OptTable, raw_ostream &OS,
-                      StringRef ToolName) {
-  OptTable.PrintHelp(OS, (ToolName + " input [output]").str().c_str(),
+                      ToolType Tool) {
+  StringRef HelpText, ToolName;
+  switch (Tool) {
+  case ToolType::Objcopy:
+    ToolName = "llvm-objcopy";
+    HelpText = " [options] input [output]";
+    break;
+  case ToolType::Strip:
+    ToolName = "llvm-strip";
+    HelpText = " [options] inputs...";
+    break;
+  case ToolType::InstallNameTool:
+    ToolName = "llvm-install-name-tool";
+    HelpText = " [options] input";
+    break;
+  case ToolType::BitcodeStrip:
+    ToolName = "llvm-bitcode-strip";
+    HelpText = " [options] input";
+    break;
+  }
+  OptTable.PrintHelp(OS, (ToolName + HelpText).str().c_str(),
                      (ToolName + " tool").str().c_str());
   // TODO: Replace this with libOption call once it adds extrahelp support.
   // The CommandLine library has a cl::extrahelp class to support this,
@@ -414,12 +478,12 @@ parseObjcopyOptions(ArrayRef<const char *> ArgsArr,
       T.ParseArgs(ArgsArr, MissingArgumentIndex, MissingArgumentCount);
 
   if (InputArgs.size() == 0) {
-    printHelp(T, errs(), "llvm-objcopy");
+    printHelp(T, errs(), ToolType::Objcopy);
     exit(1);
   }
 
   if (InputArgs.hasArg(OBJCOPY_help)) {
-    printHelp(T, outs(), "llvm-objcopy");
+    printHelp(T, outs(), ToolType::Objcopy);
     exit(0);
   }
 
@@ -665,8 +729,10 @@ parseObjcopyOptions(ArrayRef<const char *> ArgsArr,
   Config.KeepFileSymbols = InputArgs.hasArg(OBJCOPY_keep_file_symbols);
   Config.DecompressDebugSections =
       InputArgs.hasArg(OBJCOPY_decompress_debug_sections);
-  if (Config.DiscardMode == DiscardType::All)
+  if (Config.DiscardMode == DiscardType::All) {
     Config.StripDebug = true;
+    Config.KeepFileSymbols = true;
+  }
   for (auto Arg : InputArgs.filtered(OBJCOPY_localize_symbol))
     if (Error E = Config.SymbolsToLocalize.addMatcher(NameOrPattern::create(
             Arg->getValue(), SymbolMatchStyle, ErrorCallback)))
@@ -802,13 +868,20 @@ parseInstallNameToolOptions(ArrayRef<const char *> ArgsArr) {
   llvm::opt::InputArgList InputArgs =
       T.ParseArgs(ArgsArr, MissingArgumentIndex, MissingArgumentCount);
 
+  if (MissingArgumentCount)
+    return createStringError(
+        errc::invalid_argument,
+        "missing argument to " +
+            StringRef(InputArgs.getArgString(MissingArgumentIndex)) +
+            " option");
+
   if (InputArgs.size() == 0) {
-    printHelp(T, errs(), "llvm-install-name-tool");
+    printHelp(T, errs(), ToolType::InstallNameTool);
     exit(1);
   }
 
   if (InputArgs.hasArg(INSTALL_NAME_TOOL_help)) {
-    printHelp(T, outs(), "llvm-install-name-tool");
+    printHelp(T, outs(), ToolType::InstallNameTool);
     exit(0);
   }
 
@@ -821,6 +894,82 @@ parseInstallNameToolOptions(ArrayRef<const char *> ArgsArr) {
 
   for (auto Arg : InputArgs.filtered(INSTALL_NAME_TOOL_add_rpath))
     Config.RPathToAdd.push_back(Arg->getValue());
+
+  for (auto *Arg : InputArgs.filtered(INSTALL_NAME_TOOL_prepend_rpath))
+    Config.RPathToPrepend.push_back(Arg->getValue());
+
+  for (auto Arg : InputArgs.filtered(INSTALL_NAME_TOOL_delete_rpath)) {
+    StringRef RPath = Arg->getValue();
+
+    // Cannot add and delete the same rpath at the same time.
+    if (is_contained(Config.RPathToAdd, RPath))
+      return createStringError(
+          errc::invalid_argument,
+          "cannot specify both -add_rpath '%s' and -delete_rpath '%s'",
+          RPath.str().c_str(), RPath.str().c_str());
+    if (is_contained(Config.RPathToPrepend, RPath))
+      return createStringError(
+          errc::invalid_argument,
+          "cannot specify both -prepend_rpath '%s' and -delete_rpath '%s'",
+          RPath.str().c_str(), RPath.str().c_str());
+
+    Config.RPathsToRemove.insert(RPath);
+  }
+
+  for (auto *Arg : InputArgs.filtered(INSTALL_NAME_TOOL_rpath)) {
+    StringRef Old = Arg->getValue(0);
+    StringRef New = Arg->getValue(1);
+
+    auto Match = [=](StringRef RPath) { return RPath == Old || RPath == New; };
+
+    // Cannot specify duplicate -rpath entries
+    auto It1 = find_if(
+        Config.RPathsToUpdate,
+        [&Match](const DenseMap<StringRef, StringRef>::value_type &OldNew) {
+          return Match(OldNew.getFirst()) || Match(OldNew.getSecond());
+        });
+    if (It1 != Config.RPathsToUpdate.end())
+      return createStringError(errc::invalid_argument,
+                               "cannot specify both -rpath '" +
+                                   It1->getFirst() + "' '" + It1->getSecond() +
+                                   "' and -rpath '" + Old + "' '" + New + "'");
+
+    // Cannot specify the same rpath under both -delete_rpath and -rpath
+    auto It2 = find_if(Config.RPathsToRemove, Match);
+    if (It2 != Config.RPathsToRemove.end())
+      return createStringError(errc::invalid_argument,
+                               "cannot specify both -delete_rpath '" + *It2 +
+                                   "' and -rpath '" + Old + "' '" + New + "'");
+
+    // Cannot specify the same rpath under both -add_rpath and -rpath
+    auto It3 = find_if(Config.RPathToAdd, Match);
+    if (It3 != Config.RPathToAdd.end())
+      return createStringError(errc::invalid_argument,
+                               "cannot specify both -add_rpath '" + *It3 +
+                                   "' and -rpath '" + Old + "' '" + New + "'");
+
+    // Cannot specify the same rpath under both -prepend_rpath and -rpath.
+    auto It4 = find_if(Config.RPathToPrepend, Match);
+    if (It4 != Config.RPathToPrepend.end())
+      return createStringError(errc::invalid_argument,
+                               "cannot specify both -prepend_rpath '" + *It4 +
+                                   "' and -rpath '" + Old + "' '" + New + "'");
+
+    Config.RPathsToUpdate.insert({Old, New});
+  }
+
+  if (auto *Arg = InputArgs.getLastArg(INSTALL_NAME_TOOL_id)) {
+    Config.SharedLibId = Arg->getValue();
+    if (Config.SharedLibId->empty())
+      return createStringError(errc::invalid_argument,
+                               "cannot specify an empty id");
+  }
+
+  for (auto *Arg : InputArgs.filtered(INSTALL_NAME_TOOL_change))
+    Config.InstallNamesToUpdate.insert({Arg->getValue(0), Arg->getValue(1)});
+
+  Config.RemoveAllRpaths =
+      InputArgs.hasArg(INSTALL_NAME_TOOL_delete_all_rpaths);
 
   SmallVector<StringRef, 2> Positional;
   for (auto Arg : InputArgs.filtered(INSTALL_NAME_TOOL_UNKNOWN))
@@ -841,6 +990,50 @@ parseInstallNameToolOptions(ArrayRef<const char *> ArgsArr) {
   return std::move(DC);
 }
 
+Expected<DriverConfig>
+parseBitcodeStripOptions(ArrayRef<const char *> ArgsArr) {
+  DriverConfig DC;
+  CopyConfig Config;
+  BitcodeStripOptTable T;
+  unsigned MissingArgumentIndex, MissingArgumentCount;
+  opt::InputArgList InputArgs =
+      T.ParseArgs(ArgsArr, MissingArgumentIndex, MissingArgumentCount);
+
+  if (InputArgs.size() == 0) {
+    printHelp(T, errs(), ToolType::BitcodeStrip);
+    exit(1);
+  }
+
+  if (InputArgs.hasArg(BITCODE_STRIP_help)) {
+    printHelp(T, outs(), ToolType::BitcodeStrip);
+    exit(0);
+  }
+
+  if (InputArgs.hasArg(BITCODE_STRIP_version)) {
+    outs() << "llvm-bitcode-strip, compatible with cctools "
+              "bitcode_strip\n";
+    cl::PrintVersionMessage();
+    exit(0);
+  }
+
+  for (auto *Arg : InputArgs.filtered(BITCODE_STRIP_UNKNOWN))
+    return createStringError(errc::invalid_argument, "unknown argument '%s'",
+                             Arg->getAsString(InputArgs).c_str());
+
+  SmallVector<StringRef, 2> Positional;
+  for (auto *Arg : InputArgs.filtered(BITCODE_STRIP_INPUT))
+    Positional.push_back(Arg->getValue());
+  if (Positional.size() > 1)
+    return createStringError(errc::invalid_argument,
+                             "llvm-bitcode-strip expects a single input file");
+  assert(!Positional.empty());
+  Config.InputFilename = Positional[0];
+  Config.OutputFilename = Positional[0];
+
+  DC.CopyConfigs.push_back(std::move(Config));
+  return std::move(DC);
+}
+
 // ParseStripOptions returns the config and sets the input arguments. If a
 // help flag is set then ParseStripOptions will print the help messege and
 // exit.
@@ -853,12 +1046,12 @@ parseStripOptions(ArrayRef<const char *> ArgsArr,
       T.ParseArgs(ArgsArr, MissingArgumentIndex, MissingArgumentCount);
 
   if (InputArgs.size() == 0) {
-    printHelp(T, errs(), "llvm-strip");
+    printHelp(T, errs(), ToolType::Strip);
     exit(1);
   }
 
   if (InputArgs.hasArg(STRIP_help)) {
-    printHelp(T, outs(), "llvm-strip");
+    printHelp(T, outs(), ToolType::Strip);
     exit(0);
   }
 
@@ -908,6 +1101,7 @@ parseStripOptions(ArrayRef<const char *> ArgsArr,
   if (auto Arg = InputArgs.getLastArg(STRIP_strip_all, STRIP_no_strip_all))
     Config.StripAll = Arg->getOption().getID() == STRIP_strip_all;
   Config.StripAllGNU = InputArgs.hasArg(STRIP_strip_all_gnu);
+  Config.StripSwiftSymbols = InputArgs.hasArg(STRIP_strip_swift_symbols);
   Config.OnlyKeepDebug = InputArgs.hasArg(STRIP_only_keep_debug);
   Config.KeepFileSymbols = InputArgs.hasArg(STRIP_keep_file_symbols);
 
@@ -936,8 +1130,10 @@ parseStripOptions(ArrayRef<const char *> ArgsArr,
       !Config.StripAllGNU && Config.SymbolsToRemove.empty())
     Config.StripAll = true;
 
-  if (Config.DiscardMode == DiscardType::All)
+  if (Config.DiscardMode == DiscardType::All) {
     Config.StripDebug = true;
+    Config.KeepFileSymbols = true;
+  }
 
   Config.DeterministicArchives =
       InputArgs.hasFlag(STRIP_enable_deterministic_archives,

@@ -18,9 +18,11 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/BinaryFormat/XCOFF.h"
 #include "llvm/MC/MCAsmMacro.h"
 #include "llvm/MC/MCDwarf.h"
+#include "llvm/MC/MCPseudoProbe.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/SectionKind.h"
@@ -56,6 +58,7 @@ namespace llvm {
   class MCSymbol;
   class MCSymbolELF;
   class MCSymbolWasm;
+  class MCSymbolXCOFF;
   class SMLoc;
   class SourceMgr;
 
@@ -95,6 +98,7 @@ namespace llvm {
     SpecificBumpPtrAllocator<MCSectionMachO> MachOAllocator;
     SpecificBumpPtrAllocator<MCSectionWasm> WasmAllocator;
     SpecificBumpPtrAllocator<MCSectionXCOFF> XCOFFAllocator;
+    SpecificBumpPtrAllocator<MCInst> MCInstAllocator;
 
     /// Bindings of names to symbols.
     SymbolTable Symbols;
@@ -184,30 +188,42 @@ namespace llvm {
     /// The maximum version of dwarf that we should emit.
     uint16_t DwarfVersion = 4;
 
+    /// The format of dwarf that we emit.
+    dwarf::DwarfFormat DwarfFormat = dwarf::DWARF32;
+
     /// Honor temporary labels, this is useful for debugging semantic
     /// differences between temporary and non-temporary labels (primarily on
     /// Darwin).
     bool AllowTemporaryLabels = true;
-    bool UseNamesOnTempLabels = true;
+    bool UseNamesOnTempLabels = false;
 
     /// The Compile Unit ID that we are currently processing.
     unsigned DwarfCompileUnitID = 0;
 
+    /// A collection of MCPseudoProbe in the current module
+    MCPseudoProbeTable PseudoProbeTable;
+
+    // Sections are differentiated by the quadruple (section_name, group_name,
+    // unique_id, link_to_symbol_name). Sections sharing the same quadruple are
+    // combined into one section.
     struct ELFSectionKey {
       std::string SectionName;
       StringRef GroupName;
+      StringRef LinkedToName;
       unsigned UniqueID;
 
       ELFSectionKey(StringRef SectionName, StringRef GroupName,
-                    unsigned UniqueID)
-          : SectionName(SectionName), GroupName(GroupName), UniqueID(UniqueID) {
-      }
+                    StringRef LinkedToName, unsigned UniqueID)
+          : SectionName(SectionName), GroupName(GroupName),
+            LinkedToName(LinkedToName), UniqueID(UniqueID) {}
 
       bool operator<(const ELFSectionKey &Other) const {
         if (SectionName != Other.SectionName)
           return SectionName < Other.SectionName;
         if (GroupName != Other.GroupName)
           return GroupName < Other.GroupName;
+        if (int O = LinkedToName.compare(Other.LinkedToName))
+          return O < 0;
         return UniqueID < Other.UniqueID;
       }
     };
@@ -296,10 +312,44 @@ namespace llvm {
                                        unsigned EntrySize,
                                        const MCSymbolELF *Group,
                                        unsigned UniqueID,
-                                       const MCSymbolELF *Associated);
+                                       const MCSymbolELF *LinkedToSym);
+
+    MCSymbolXCOFF *createXCOFFSymbolImpl(const StringMapEntry<bool> *Name,
+                                         bool IsTemporary);
 
     /// Map of currently defined macros.
     StringMap<MCAsmMacro> MacroMap;
+
+    struct ELFEntrySizeKey {
+      std::string SectionName;
+      unsigned Flags;
+      unsigned EntrySize;
+
+      ELFEntrySizeKey(StringRef SectionName, unsigned Flags, unsigned EntrySize)
+          : SectionName(SectionName), Flags(Flags), EntrySize(EntrySize) {}
+
+      bool operator<(const ELFEntrySizeKey &Other) const {
+        if (SectionName != Other.SectionName)
+          return SectionName < Other.SectionName;
+        if ((Flags & ELF::SHF_STRINGS) != (Other.Flags & ELF::SHF_STRINGS))
+          return Other.Flags & ELF::SHF_STRINGS;
+        return EntrySize < Other.EntrySize;
+      }
+    };
+
+    // Symbols must be assigned to a section with a compatible entry
+    // size. This map is used to assign unique IDs to sections to
+    // distinguish between sections with identical names but incompatible entry
+    // sizes. This can occur when a symbol is explicitly assigned to a
+    // section, e.g. via __attribute__((section("myname"))).
+    std::map<ELFEntrySizeKey, unsigned> ELFEntrySizeMap;
+
+    // This set is used to record the generic mergeable section names seen.
+    // These are sections that are created as mergeable e.g. .debug_str. We need
+    // to avoid assigning non-mergeable symbols to these sections. It is used
+    // to prevent non-mergeable symbols being explicitly assigned  to mergeable
+    // sections (e.g. via _attribute_((section("myname")))).
+    DenseSet<StringRef> ELFSeenGenericMergeableSections;
 
   public:
     explicit MCContext(const MCAsmInfo *MAI, const MCRegisterInfo *MRI,
@@ -335,6 +385,11 @@ namespace llvm {
 
     /// @}
 
+    /// \name McInst Management
+
+    /// Create and return a new MC instruction.
+    MCInst *createMCInst();
+
     /// \name Symbol Management
     /// @{
 
@@ -342,12 +397,16 @@ namespace llvm {
     /// unspecified name.
     MCSymbol *createLinkerPrivateTempSymbol();
 
-    /// Create and return a new assembler temporary symbol with a unique but
-    /// unspecified name.
-    MCSymbol *createTempSymbol(bool CanBeUnnamed = true);
+    /// Create a temporary symbol with a unique name. The name will be omitted
+    /// in the symbol table if UseNamesOnTempLabels is false (default except
+    /// MCAsmStreamer). The overload without Name uses an unspecified name.
+    MCSymbol *createTempSymbol();
+    MCSymbol *createTempSymbol(const Twine &Name, bool AlwaysAddSuffix = true);
 
-    MCSymbol *createTempSymbol(const Twine &Name, bool AlwaysAddSuffix,
-                               bool CanBeUnnamed = true);
+    /// Create a temporary symbol with a unique name whose name cannot be
+    /// omitted in the symbol table. This is rarely used.
+    MCSymbol *createNamedTempSymbol();
+    MCSymbol *createNamedTempSymbol(const Twine &Name);
 
     /// Create the definition of a directional local symbol for numbered label
     /// (used for "1:" definitions).
@@ -429,25 +488,19 @@ namespace llvm {
     MCSectionELF *getELFSection(const Twine &Section, unsigned Type,
                                 unsigned Flags, unsigned EntrySize,
                                 const Twine &Group) {
-      return getELFSection(Section, Type, Flags, EntrySize, Group, ~0);
-    }
-
-    MCSectionELF *getELFSection(const Twine &Section, unsigned Type,
-                                unsigned Flags, unsigned EntrySize,
-                                const Twine &Group, unsigned UniqueID) {
-      return getELFSection(Section, Type, Flags, EntrySize, Group, UniqueID,
-                           nullptr);
+      return getELFSection(Section, Type, Flags, EntrySize, Group,
+                           MCSection::NonUniqueID, nullptr);
     }
 
     MCSectionELF *getELFSection(const Twine &Section, unsigned Type,
                                 unsigned Flags, unsigned EntrySize,
                                 const Twine &Group, unsigned UniqueID,
-                                const MCSymbolELF *Associated);
+                                const MCSymbolELF *LinkedToSym);
 
     MCSectionELF *getELFSection(const Twine &Section, unsigned Type,
                                 unsigned Flags, unsigned EntrySize,
                                 const MCSymbolELF *Group, unsigned UniqueID,
-                                const MCSymbolELF *Associated);
+                                const MCSymbolELF *LinkedToSym);
 
     /// Get a section with the provided group identifier. This section is
     /// named by concatenating \p Prefix with '.' then \p Suffix. The \p Type
@@ -465,6 +518,17 @@ namespace llvm {
     void renameELFSection(MCSectionELF *Section, StringRef Name);
 
     MCSectionELF *createELFGroupSection(const MCSymbolELF *Group);
+
+    void recordELFMergeableSectionInfo(StringRef SectionName, unsigned Flags,
+                                       unsigned UniqueID, unsigned EntrySize);
+
+    bool isELFImplicitMergeableSectionNamePrefix(StringRef Name);
+
+    bool isELFGenericMergeableSection(StringRef Name);
+
+    Optional<unsigned> getELFUniqueIDForEntsize(StringRef SectionName,
+                                                unsigned Flags,
+                                                unsigned EntrySize);
 
     MCSectionCOFF *getCOFFSection(StringRef Section, unsigned Characteristics,
                                   SectionKind Kind, StringRef COMDATSymName,
@@ -508,9 +572,8 @@ namespace llvm {
 
     MCSectionXCOFF *getXCOFFSection(StringRef Section,
                                     XCOFF::StorageMappingClass MappingClass,
-                                    XCOFF::SymbolType CSectType,
-                                    XCOFF::StorageClass StorageClass,
-                                    SectionKind K,
+                                    XCOFF::SymbolType CSectType, SectionKind K,
+                                    bool MultiSymbolsAllowed = false,
                                     const char *BeginSymName = nullptr);
 
     // Create and save a copy of STI and return a reference to the copy.
@@ -541,7 +604,7 @@ namespace llvm {
     const std::string &getMainFileName() const { return MainFileName; }
 
     /// Set the main file name and override the default.
-    void setMainFileName(StringRef S) { MainFileName = S; }
+    void setMainFileName(StringRef S) { MainFileName = std::string(S); }
 
     /// Creates an entry in the dwarf file and directory tables.
     Expected<unsigned> getDwarfFile(StringRef Directory, StringRef FileName,
@@ -651,10 +714,8 @@ namespace llvm {
     void setDwarfDebugProducer(StringRef S) { DwarfDebugProducer = S; }
     StringRef getDwarfDebugProducer() { return DwarfDebugProducer; }
 
-    dwarf::DwarfFormat getDwarfFormat() const {
-      // TODO: Support DWARF64
-      return dwarf::DWARF32;
-    }
+    void setDwarfFormat(dwarf::DwarfFormat f) { DwarfFormat = f; }
+    dwarf::DwarfFormat getDwarfFormat() const { return DwarfFormat; }
 
     void setDwarfVersion(uint16_t v) { DwarfVersion = v; }
     uint16_t getDwarfVersion() const { return DwarfVersion; }
@@ -696,6 +757,8 @@ namespace llvm {
     }
 
     void undefineMacro(StringRef Name) { MacroMap.erase(Name); }
+
+    MCPseudoProbeTable &getMCPseudoProbeTable() { return PseudoProbeTable; }
   };
 
 } // end namespace llvm

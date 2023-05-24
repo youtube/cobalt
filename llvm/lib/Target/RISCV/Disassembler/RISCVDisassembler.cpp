@@ -10,14 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/RISCVBaseInfo.h"
 #include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "TargetInfo/RISCVTargetInfo.h"
-#include "Utils/RISCVBaseInfo.h"
-#include "llvm/CodeGen/Register.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/MCFixedLenDisassembler.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/Endian.h"
@@ -31,10 +31,12 @@ typedef MCDisassembler::DecodeStatus DecodeStatus;
 
 namespace {
 class RISCVDisassembler : public MCDisassembler {
+  std::unique_ptr<MCInstrInfo const> const MCII;
 
 public:
-  RISCVDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx)
-      : MCDisassembler(STI, Ctx) {}
+  RISCVDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx,
+                    MCInstrInfo const *MCII)
+      : MCDisassembler(STI, Ctx), MCII(MCII) {}
 
   DecodeStatus getInstruction(MCInst &Instr, uint64_t &Size,
                               ArrayRef<uint8_t> Bytes, uint64_t Address,
@@ -45,7 +47,7 @@ public:
 static MCDisassembler *createRISCVDisassembler(const Target &T,
                                                const MCSubtargetInfo &STI,
                                                MCContext &Ctx) {
-  return new RISCVDisassembler(STI, Ctx);
+  return new RISCVDisassembler(STI, Ctx, T.createMCInstrInfo());
 }
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVDisassembler() {
@@ -68,7 +70,18 @@ static DecodeStatus DecodeGPRRegisterClass(MCInst &Inst, uint64_t RegNo,
   if (RegNo >= 32 || (IsRV32E && RegNo >= 16))
     return MCDisassembler::Fail;
 
-  Register Reg = RISCV::X0 + RegNo;
+  MCRegister Reg = RISCV::X0 + RegNo;
+  Inst.addOperand(MCOperand::createReg(Reg));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeFPR16RegisterClass(MCInst &Inst, uint64_t RegNo,
+                                             uint64_t Address,
+                                             const void *Decoder) {
+  if (RegNo >= 32)
+    return MCDisassembler::Fail;
+
+  MCRegister Reg = RISCV::F0_H + RegNo;
   Inst.addOperand(MCOperand::createReg(Reg));
   return MCDisassembler::Success;
 }
@@ -79,7 +92,7 @@ static DecodeStatus DecodeFPR32RegisterClass(MCInst &Inst, uint64_t RegNo,
   if (RegNo >= 32)
     return MCDisassembler::Fail;
 
-  Register Reg = RISCV::F0_F + RegNo;
+  MCRegister Reg = RISCV::F0_F + RegNo;
   Inst.addOperand(MCOperand::createReg(Reg));
   return MCDisassembler::Success;
 }
@@ -90,7 +103,7 @@ static DecodeStatus DecodeFPR32CRegisterClass(MCInst &Inst, uint64_t RegNo,
   if (RegNo >= 8) {
     return MCDisassembler::Fail;
   }
-  Register Reg = RISCV::F8_F + RegNo;
+  MCRegister Reg = RISCV::F8_F + RegNo;
   Inst.addOperand(MCOperand::createReg(Reg));
   return MCDisassembler::Success;
 }
@@ -101,7 +114,7 @@ static DecodeStatus DecodeFPR64RegisterClass(MCInst &Inst, uint64_t RegNo,
   if (RegNo >= 32)
     return MCDisassembler::Fail;
 
-  Register Reg = RISCV::F0_D + RegNo;
+  MCRegister Reg = RISCV::F0_D + RegNo;
   Inst.addOperand(MCOperand::createReg(Reg));
   return MCDisassembler::Success;
 }
@@ -112,7 +125,7 @@ static DecodeStatus DecodeFPR64CRegisterClass(MCInst &Inst, uint64_t RegNo,
   if (RegNo >= 8) {
     return MCDisassembler::Fail;
   }
-  Register Reg = RISCV::F8_D + RegNo;
+  MCRegister Reg = RISCV::F8_D + RegNo;
   Inst.addOperand(MCOperand::createReg(Reg));
   return MCDisassembler::Success;
 }
@@ -143,7 +156,34 @@ static DecodeStatus DecodeGPRCRegisterClass(MCInst &Inst, uint64_t RegNo,
   if (RegNo >= 8)
     return MCDisassembler::Fail;
 
-  Register Reg = RISCV::X8 + RegNo;
+  MCRegister Reg = RISCV::X8 + RegNo;
+  Inst.addOperand(MCOperand::createReg(Reg));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeVRRegisterClass(MCInst &Inst, uint64_t RegNo,
+                                          uint64_t Address,
+                                          const void *Decoder) {
+  if (RegNo >= 32)
+    return MCDisassembler::Fail;
+
+  MCRegister Reg = RISCV::V0 + RegNo;
+  Inst.addOperand(MCOperand::createReg(Reg));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus decodeVMaskReg(MCInst &Inst, uint64_t RegNo,
+                                   uint64_t Address, const void *Decoder) {
+  MCRegister Reg = RISCV::NoRegister;
+  switch (RegNo) {
+  default:
+    return MCDisassembler::Fail;
+  case 0:
+    Reg = RISCV::V0;
+    break;
+  case 1:
+    break;
+  }
   Inst.addOperand(MCOperand::createReg(Reg));
   return MCDisassembler::Success;
 }
@@ -342,6 +382,19 @@ DecodeStatus RISCVDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
           dbgs() << "Trying RISCV32Only_16 table (16-bit Instruction):\n");
       // Calling the auto-generated decoder function.
       Result = decodeInstruction(DecoderTableRISCV32Only_16, MI, Insn, Address,
+                                 this, STI);
+      if (Result != MCDisassembler::Fail) {
+        Size = 2;
+        return Result;
+      }
+    }
+
+    if (STI.getFeatureBits()[RISCV::FeatureExtZbproposedc] &&
+        STI.getFeatureBits()[RISCV::FeatureStdExtC]) {
+      LLVM_DEBUG(
+          dbgs() << "Trying RVBC32 table (BitManip 16-bit Instruction):\n");
+      // Calling the auto-generated decoder function.
+      Result = decodeInstruction(DecoderTableRVBC16, MI, Insn, Address,
                                  this, STI);
       if (Result != MCDisassembler::Fail) {
         Size = 2;

@@ -9,6 +9,7 @@
 #include "MacroUsageCheck.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Lex/PPCallbacks.h"
+#include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Regex.h"
 #include <algorithm>
@@ -31,8 +32,8 @@ bool isCapsOnly(StringRef Name) {
 class MacroUsageCallbacks : public PPCallbacks {
 public:
   MacroUsageCallbacks(MacroUsageCheck *Check, const SourceManager &SM,
-                      StringRef RegExp, bool CapsOnly, bool IgnoreCommandLine)
-      : Check(Check), SM(SM), RegExp(RegExp), CheckCapsOnly(CapsOnly),
+                      StringRef RegExpStr, bool CapsOnly, bool IgnoreCommandLine)
+      : Check(Check), SM(SM), RegExp(RegExpStr), CheckCapsOnly(CapsOnly),
         IgnoreCommandLineMacros(IgnoreCommandLine) {}
   void MacroDefined(const Token &MacroNameTok,
                     const MacroDirective *MD) override {
@@ -46,7 +47,7 @@ public:
       return;
 
     StringRef MacroName = MacroNameTok.getIdentifierInfo()->getName();
-    if (!CheckCapsOnly && !llvm::Regex(RegExp).match(MacroName))
+    if (!CheckCapsOnly && !RegExp.match(MacroName))
       Check->warnMacro(MD, MacroName);
 
     if (CheckCapsOnly && !isCapsOnly(MacroName))
@@ -56,7 +57,7 @@ public:
 private:
   MacroUsageCheck *Check;
   const SourceManager &SM;
-  StringRef RegExp;
+  const llvm::Regex RegExp;
   bool CheckCapsOnly;
   bool IgnoreCommandLineMacros;
 };
@@ -71,9 +72,6 @@ void MacroUsageCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
 void MacroUsageCheck::registerPPCallbacks(const SourceManager &SM,
                                           Preprocessor *PP,
                                           Preprocessor *ModuleExpanderPP) {
-  if (!getLangOpts().CPlusPlus11)
-    return;
-
   PP->addPPCallbacks(std::make_unique<MacroUsageCallbacks>(
       this, SM, AllowedRegexp, CheckCapsOnly, IgnoreCommandLineMacros));
 }

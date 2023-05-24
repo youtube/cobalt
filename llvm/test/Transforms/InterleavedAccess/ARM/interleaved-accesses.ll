@@ -557,21 +557,21 @@ define void @store_undef_mask_factor4(<16 x i32>* %ptr, <4 x i32> %v0, <4 x i32>
 define void @load_address_space(<8 x i32> addrspace(1)* %ptr) {
 ; CHECK-NEON-LABEL: @load_address_space(
 ; CHECK-NEON-NEXT:    [[TMP1:%.*]] = bitcast <8 x i32> addrspace(1)* [[PTR:%.*]] to i8 addrspace(1)*
-; CHECK-NEON-NEXT:    [[VLDN:%.*]] = call { <2 x i32>, <2 x i32>, <2 x i32> } @llvm.arm.neon.vld3.v2i32.p1i8(i8 addrspace(1)* [[TMP1]], i32 0)
+; CHECK-NEON-NEXT:    [[VLDN:%.*]] = call { <2 x i32>, <2 x i32>, <2 x i32> } @llvm.arm.neon.vld3.v2i32.p1i8(i8 addrspace(1)* [[TMP1]], i32 32)
 ; CHECK-NEON-NEXT:    [[TMP2:%.*]] = extractvalue { <2 x i32>, <2 x i32>, <2 x i32> } [[VLDN]], 2
 ; CHECK-NEON-NEXT:    [[TMP3:%.*]] = extractvalue { <2 x i32>, <2 x i32>, <2 x i32> } [[VLDN]], 1
 ; CHECK-NEON-NEXT:    [[TMP4:%.*]] = extractvalue { <2 x i32>, <2 x i32>, <2 x i32> } [[VLDN]], 0
 ; CHECK-NEON-NEXT:    ret void
 ;
 ; CHECK-MVE-LABEL: @load_address_space(
-; CHECK-MVE-NEXT:    [[INTERLEAVED_VEC:%.*]] = load <8 x i32>, <8 x i32> addrspace(1)* [[PTR:%.*]]
+; CHECK-MVE-NEXT:    [[INTERLEAVED_VEC:%.*]] = load <8 x i32>, <8 x i32> addrspace(1)* [[PTR:%.*]], align 32
 ; CHECK-MVE-NEXT:    [[V0:%.*]] = shufflevector <8 x i32> [[INTERLEAVED_VEC]], <8 x i32> undef, <2 x i32> <i32 0, i32 3>
 ; CHECK-MVE-NEXT:    [[V1:%.*]] = shufflevector <8 x i32> [[INTERLEAVED_VEC]], <8 x i32> undef, <2 x i32> <i32 1, i32 4>
 ; CHECK-MVE-NEXT:    [[V2:%.*]] = shufflevector <8 x i32> [[INTERLEAVED_VEC]], <8 x i32> undef, <2 x i32> <i32 2, i32 5>
 ; CHECK-MVE-NEXT:    ret void
 ;
 ; CHECK-NONE-LABEL: @load_address_space(
-; CHECK-NONE-NEXT:    [[INTERLEAVED_VEC:%.*]] = load <8 x i32>, <8 x i32> addrspace(1)* [[PTR:%.*]]
+; CHECK-NONE-NEXT:    [[INTERLEAVED_VEC:%.*]] = load <8 x i32>, <8 x i32> addrspace(1)* [[PTR:%.*]], align 32
 ; CHECK-NONE-NEXT:    [[V0:%.*]] = shufflevector <8 x i32> [[INTERLEAVED_VEC]], <8 x i32> undef, <2 x i32> <i32 0, i32 3>
 ; CHECK-NONE-NEXT:    [[V1:%.*]] = shufflevector <8 x i32> [[INTERLEAVED_VEC]], <8 x i32> undef, <2 x i32> <i32 1, i32 4>
 ; CHECK-NONE-NEXT:    [[V2:%.*]] = shufflevector <8 x i32> [[INTERLEAVED_VEC]], <8 x i32> undef, <2 x i32> <i32 2, i32 5>
@@ -589,17 +589,17 @@ define void @store_address_space(<4 x i32> addrspace(1)* %ptr, <2 x i32> %v0, <2
 ; CHECK-NEON-NEXT:    [[TMP1:%.*]] = shufflevector <2 x i32> [[V0:%.*]], <2 x i32> [[V1:%.*]], <2 x i32> <i32 0, i32 1>
 ; CHECK-NEON-NEXT:    [[TMP2:%.*]] = shufflevector <2 x i32> [[V0]], <2 x i32> [[V1]], <2 x i32> <i32 2, i32 3>
 ; CHECK-NEON-NEXT:    [[TMP3:%.*]] = bitcast <4 x i32> addrspace(1)* [[PTR:%.*]] to i8 addrspace(1)*
-; CHECK-NEON-NEXT:    call void @llvm.arm.neon.vst2.p1i8.v2i32(i8 addrspace(1)* [[TMP3]], <2 x i32> [[TMP1]], <2 x i32> [[TMP2]], i32 0)
+; CHECK-NEON-NEXT:    call void @llvm.arm.neon.vst2.p1i8.v2i32(i8 addrspace(1)* [[TMP3]], <2 x i32> [[TMP1]], <2 x i32> [[TMP2]], i32 8)
 ; CHECK-NEON-NEXT:    ret void
 ;
 ; CHECK-MVE-LABEL: @store_address_space(
 ; CHECK-MVE-NEXT:    [[INTERLEAVED_VEC:%.*]] = shufflevector <2 x i32> [[V0:%.*]], <2 x i32> [[V1:%.*]], <4 x i32> <i32 0, i32 2, i32 1, i32 3>
-; CHECK-MVE-NEXT:    store <4 x i32> [[INTERLEAVED_VEC]], <4 x i32> addrspace(1)* [[PTR:%.*]]
+; CHECK-MVE-NEXT:    store <4 x i32> [[INTERLEAVED_VEC]], <4 x i32> addrspace(1)* [[PTR:%.*]], align 8
 ; CHECK-MVE-NEXT:    ret void
 ;
 ; CHECK-NONE-LABEL: @store_address_space(
 ; CHECK-NONE-NEXT:    [[INTERLEAVED_VEC:%.*]] = shufflevector <2 x i32> [[V0:%.*]], <2 x i32> [[V1:%.*]], <4 x i32> <i32 0, i32 2, i32 1, i32 3>
-; CHECK-NONE-NEXT:    store <4 x i32> [[INTERLEAVED_VEC]], <4 x i32> addrspace(1)* [[PTR:%.*]]
+; CHECK-NONE-NEXT:    store <4 x i32> [[INTERLEAVED_VEC]], <4 x i32> addrspace(1)* [[PTR:%.*]], align 8
 ; CHECK-NONE-NEXT:    ret void
 ;
   %interleaved.vec = shufflevector <2 x i32> %v0, <2 x i32> %v1, <4 x i32> <i32 0, i32 2, i32 1, i32 3>
@@ -1086,10 +1086,10 @@ define void @load_factor2_wide3(<24 x i32>* %ptr) {
 ; CHECK-NEON-NEXT:    [[TMP11:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[VLDN2]], 1
 ; CHECK-NEON-NEXT:    [[TMP12:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[VLDN2]], 0
 ; CHECK-NEON-NEXT:    [[TMP13:%.*]] = shufflevector <4 x i32> [[TMP3]], <4 x i32> [[TMP7]], <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-; CHECK-NEON-NEXT:    [[TMP14:%.*]] = shufflevector <4 x i32> [[TMP11]], <4 x i32> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
+; CHECK-NEON-NEXT:    [[TMP14:%.*]] = shufflevector <4 x i32> [[TMP11]], <4 x i32> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
 ; CHECK-NEON-NEXT:    [[TMP15:%.*]] = shufflevector <8 x i32> [[TMP13]], <8 x i32> [[TMP14]], <12 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11>
 ; CHECK-NEON-NEXT:    [[TMP16:%.*]] = shufflevector <4 x i32> [[TMP4]], <4 x i32> [[TMP8]], <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-; CHECK-NEON-NEXT:    [[TMP17:%.*]] = shufflevector <4 x i32> [[TMP12]], <4 x i32> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
+; CHECK-NEON-NEXT:    [[TMP17:%.*]] = shufflevector <4 x i32> [[TMP12]], <4 x i32> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
 ; CHECK-NEON-NEXT:    [[TMP18:%.*]] = shufflevector <8 x i32> [[TMP16]], <8 x i32> [[TMP17]], <12 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11>
 ; CHECK-NEON-NEXT:    ret void
 ;
@@ -1107,10 +1107,10 @@ define void @load_factor2_wide3(<24 x i32>* %ptr) {
 ; CHECK-MVE-NEXT:    [[TMP8:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[VLDN2]], 1
 ; CHECK-MVE-NEXT:    [[TMP9:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[VLDN2]], 0
 ; CHECK-MVE-NEXT:    [[TMP10:%.*]] = shufflevector <4 x i32> [[TMP2]], <4 x i32> [[TMP5]], <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-; CHECK-MVE-NEXT:    [[TMP11:%.*]] = shufflevector <4 x i32> [[TMP8]], <4 x i32> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
+; CHECK-MVE-NEXT:    [[TMP11:%.*]] = shufflevector <4 x i32> [[TMP8]], <4 x i32> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
 ; CHECK-MVE-NEXT:    [[TMP12:%.*]] = shufflevector <8 x i32> [[TMP10]], <8 x i32> [[TMP11]], <12 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11>
 ; CHECK-MVE-NEXT:    [[TMP13:%.*]] = shufflevector <4 x i32> [[TMP3]], <4 x i32> [[TMP6]], <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-; CHECK-MVE-NEXT:    [[TMP14:%.*]] = shufflevector <4 x i32> [[TMP9]], <4 x i32> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
+; CHECK-MVE-NEXT:    [[TMP14:%.*]] = shufflevector <4 x i32> [[TMP9]], <4 x i32> poison, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 undef, i32 undef, i32 undef, i32 undef>
 ; CHECK-MVE-NEXT:    [[TMP15:%.*]] = shufflevector <8 x i32> [[TMP13]], <8 x i32> [[TMP14]], <12 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11>
 ; CHECK-MVE-NEXT:    ret void
 ;

@@ -107,3 +107,26 @@
 // RUN: %clang %s -### -fsanitize=address -target wasm32-unknown-emscripten 2>&1 | FileCheck -check-prefix=CHECK-ASAN-EMSCRIPTEN %s
 // CHECK-ASAN-EMSCRIPTEN: "-fsanitize=address"
 // CHECK-ASAN-EMSCRIPTEN: "-fsanitize-address-globals-dead-stripping"
+
+// Basic exec-model tests.
+
+// RUN: %clang %s -### -no-canonical-prefixes -target wasm32-unknown-unknown --sysroot=%s/no-sysroot-there -mexec-model=command 2>&1 \
+// RUN:   | FileCheck -check-prefix=CHECK-COMMAND %s
+// CHECK-COMMAND: clang{{.*}}" "-cc1" {{.*}} "-o" "[[temp:[^"]*]]"
+// CHECK-COMMAND: wasm-ld{{.*}}" "crt1.o" "[[temp]]" "-lc" "{{.*[/\\]}}libclang_rt.builtins-wasm32.a" "-o" "a.out"
+
+// RUN: %clang %s -### -no-canonical-prefixes -target wasm32-unknown-unknown --sysroot=%s/no-sysroot-there -mexec-model=reactor 2>&1 \
+// RUN:   | FileCheck -check-prefix=CHECK-REACTOR %s
+// CHECK-REACTOR: clang{{.*}}" "-cc1" {{.*}} "-o" "[[temp:[^"]*]]"
+// CHECK-REACTOR: wasm-ld{{.*}}" "crt1-reactor.o" "--entry" "_initialize" "[[temp]]" "-lc" "{{.*[/\\]}}libclang_rt.builtins-wasm32.a" "-o" "a.out"
+
+// -fPIC implies +mutable-globals
+
+// RUN: %clang %s -### -no-canonical-prefixes -target wasm32-unknown-unknown --sysroot=%s/no-sysroot-there -fPIC 2>&1 \
+// RUN:   | FileCheck -check-prefix=CHECK-PIC %s
+// CHECK-PIC: clang{{.*}}" "-cc1" {{.*}} "-target-feature" "+mutable-globals"
+
+// '-mno-mutable-globals' is not allowed with '-fPIC'
+// RUN: %clang %s -### -no-canonical-prefixes -target wasm32-unknown-unknown --sysroot=%s/no-sysroot-there -fPIC -mno-mutable-globals %s 2>&1 \
+// RUN:   | FileCheck -check-prefix=PIC_NO_MUTABLE_GLOBALS %s
+// PIC_NO_MUTABLE_GLOBALS: error: invalid argument '-fPIC' not allowed with '-mno-mutable-globals'

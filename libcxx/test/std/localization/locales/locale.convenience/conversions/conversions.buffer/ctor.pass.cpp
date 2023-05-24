@@ -10,8 +10,13 @@
 
 // wbuffer_convert<Codecvt, Elem, Tr>
 
-// wbuffer_convert(streambuf *bytebuf = 0, Codecvt *pcvt = new Codecvt,
-//                 state_type state = state_type());
+// wbuffer_convert(streambuf* bytebuf = 0, Codecvt* pcvt = new Codecvt,
+//                 state_type state = state_type());          // before C++14
+// explicit wbuffer_convert(streambuf* bytebuf = nullptr, Codecvt* pcvt = new Codecvt,
+//                          state_type state = state_type()); // before C++20
+// wbuffer_convert() : wbuffer_convert(nullptr) {} // C++20
+// explicit wbuffer_convert(streambuf* bytebuf, Codecvt* pcvt = new Codecvt,
+//                          state_type state = state_type()); // C++20
 
 #include <locale>
 #include <codecvt>
@@ -20,9 +25,13 @@
 
 #include "test_macros.h"
 #include "count_new.h"
+#if TEST_STD_VER >= 11
+#include "test_convertible.h"
+#endif
 
 int main(int, char**)
 {
+    globalMemCounter.reset();
     typedef std::wbuffer_convert<std::codecvt_utf8<wchar_t> > B;
 #if TEST_STD_VER > 11
     static_assert(!std::is_convertible<std::streambuf*, B>::value, "");
@@ -56,5 +65,12 @@ int main(int, char**)
     }
     assert(globalMemCounter.checkOutstandingNewEq(0));
 
-  return 0;
+#if TEST_STD_VER >= 11
+    {
+      static_assert(test_convertible<B>(), "");
+      static_assert(!test_convertible<B, std::streambuf*>(), "");
+    }
+#endif
+
+    return 0;
 }

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_SBBreakpoint_h_
-#define LLDB_SBBreakpoint_h_
+#ifndef LLDB_API_SBBREAKPOINT_H
+#define LLDB_API_SBBREAKPOINT_H
 
 #include "lldb/API/SBDefines.h"
 
@@ -41,6 +41,8 @@ public:
   bool IsValid() const;
 
   void ClearAllBreakpointSites();
+
+  lldb::SBTarget GetTarget() const;
 
   lldb::SBBreakpointLocation FindLocationByAddress(lldb::addr_t vm_addr);
 
@@ -105,6 +107,8 @@ public:
 
   bool AddName(const char *new_name);
 
+  SBError AddNameWithErrorHandling(const char *new_name);
+
   void RemoveName(const char *name_to_remove);
 
   bool MatchesName(const char *name);
@@ -138,7 +142,9 @@ public:
   // Can only be called from a ScriptedBreakpointResolver...
   SBError
   AddLocation(SBAddress &address);
-  
+
+  SBStructuredData SerializeToStructuredData();
+
 private:
   friend class SBBreakpointList;
   friend class SBBreakpointLocation;
@@ -181,4 +187,4 @@ private:
 
 } // namespace lldb
 
-#endif // LLDB_SBBreakpoint_h_
+#endif // LLDB_API_SBBREAKPOINT_H

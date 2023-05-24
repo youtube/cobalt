@@ -1,4 +1,4 @@
-//===-- VOPInstructions.td - Vector Instruction Defintions ----------------===//
+//===-- VOPInstructions.td - Vector Instruction Definitions ---------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -8,6 +8,9 @@
 
 // dummies for outer let
 class LetDummies {
+  bit TRANS;
+  bit ReadsModeReg;
+  bit mayRaiseFPException;
   bit isCommutable;
   bit isConvertibleToThreeAddress;
   bit isMoveImm;
@@ -35,7 +38,7 @@ class VOPAnyCommon <dag outs, dag ins, string asm, list<dag> pattern> :
   let hasSideEffects = 0;
   let UseNamedOperandTable = 1;
   let VALU = 1;
-  let Uses = [EXEC];
+  let Uses = !if(ReadsModeReg, [MODE, EXEC], [EXEC]);
 }
 
 class VOP_Pseudo <string opName, string suffix, VOPProfile P, dag outs, dag ins,
@@ -67,7 +70,7 @@ class VOP3Common <dag outs, dag ins, string asm = "",
   let VOP3 = 1;
 
   let AsmVariantName = AMDGPUAsmVariants.VOP3;
-  let AsmMatchConverter = !if(!eq(HasMods,1), "cvtVOP3", "");
+  let AsmMatchConverter = !if(HasMods, "cvtVOP3", "");
 
   let isCodeGenOnly = 0;
 
@@ -118,13 +121,16 @@ class VOP3_Pseudo <string opName, VOPProfile P, list<dag> pattern = [],
   let ClampLo = P.HasClampLo;
   let ClampHi = P.HasClampHi;
 
-  let Uses = [EXEC];
+  let ReadsModeReg = !or(isFloatType<P.DstVT>.ret, isFloatType<P.Src0VT>.ret);
+
+  let mayRaiseFPException = ReadsModeReg;
+  let Uses = !if(ReadsModeReg, [MODE, EXEC], [EXEC]);
 
   let AsmVariantName = AMDGPUAsmVariants.VOP3;
   let AsmMatchConverter =
     !if(isVOP3P,
         "cvtVOP3P",
-        !if(!or(P.HasModifiers, !or(P.HasOMod, P.HasIntClamp)),
+        !if(!or(P.HasModifiers, P.HasOMod, P.HasIntClamp),
             "cvtVOP3",
             ""));
 }
@@ -160,7 +166,7 @@ class VOP3_Real <VOP_Pseudo ps, int EncodingFamily> :
   VOPProfile Pfl = ps.Pfl;
 }
 
-// XXX - Is there any reason to distingusih this from regular VOP3
+// XXX - Is there any reason to distinguish this from regular VOP3
 // here?
 class VOP3P_Real<VOP_Pseudo ps, int EncodingFamily> :
   VOP3_Real<ps, EncodingFamily>;
@@ -291,7 +297,7 @@ class VOP3be <VOPProfile P> : Enc64 {
   let Inst{63}    = !if(P.HasSrc2Mods, src2_modifiers{0}, 0);
 }
 
-class VOP3Pe <bits<10> op, VOPProfile P> : Enc64 {
+class VOP3Pe <bits<7> op, VOPProfile P> : Enc64 {
   bits<8> vdst;
   // neg, neg_hi, op_sel put in srcN_modifiers
   bits<4> src0_modifiers;
@@ -315,8 +321,8 @@ class VOP3Pe <bits<10> op, VOPProfile P> : Enc64 {
 
   let Inst{15} = !if(P.HasClamp, clamp{0}, 0);
 
-  let Inst{25-16} = op;
-  let Inst{31-26} = 0x34; //encoding
+  let Inst{22-16} = op;
+  let Inst{31-23} = 0x1a7; //encoding
   let Inst{40-32} = !if(P.HasSrc0, src0, 0);
   let Inst{49-41} = !if(P.HasSrc1, src1, 0);
   let Inst{58-50} = !if(P.HasSrc2, src2, 0);
@@ -327,7 +333,7 @@ class VOP3Pe <bits<10> op, VOPProfile P> : Enc64 {
   let Inst{63}    = !if(P.HasSrc2Mods, src2_modifiers{0}, 0); // neg (lo)
 }
 
-class VOP3Pe_MAI <bits<10> op, VOPProfile P> : Enc64 {
+class VOP3Pe_MAI <bits<7> op, VOPProfile P> : Enc64 {
   bits<8> vdst;
   bits<10> src0;
   bits<10> src1;
@@ -344,8 +350,8 @@ class VOP3Pe_MAI <bits<10> op, VOPProfile P> : Enc64 {
 
   let Inst{15} = !if(P.HasClamp, clamp{0}, 0);
 
-  let Inst{25-16} = op;
-  let Inst{31-26} = 0x34; //encoding
+  let Inst{22-16} = op;
+  let Inst{31-23} = 0x1a7; //encoding
   let Inst{40-32} = !if(P.HasSrc0, src0{8-0}, 0);
   let Inst{49-41} = !if(P.HasSrc1, src1{8-0}, 0);
   let Inst{58-50} = !if(P.HasSrc2, src2, 0);
@@ -357,8 +363,8 @@ class VOP3Pe_MAI <bits<10> op, VOPProfile P> : Enc64 {
 }
 
 
-class VOP3Pe_gfx10 <bits<10> op, VOPProfile P> : VOP3Pe<op, P> {
-  let Inst{31-26} = 0x33; //encoding
+class VOP3Pe_gfx10 <bits<7> op, VOPProfile P> : VOP3Pe<op, P> {
+  let Inst{31-23} = 0x198; //encoding
 }
 
 class VOP3be_gfx6_gfx7<bits<9> op, VOPProfile p> : VOP3be<p> {
@@ -490,10 +496,14 @@ class VOP_SDWA_Pseudo <string opName, VOPProfile P, list<dag> pattern=[]> :
 
   let VALU = 1;
   let SDWA = 1;
-  let Uses = [EXEC];
 
-  let SubtargetPredicate = !if(P.HasExtSDWA, HasSDWA, DisableInst);
-  let AssemblerPredicate = !if(P.HasExtSDWA, HasSDWA, DisableInst);
+  let ReadsModeReg = !or(isFloatType<P.DstVT>.ret, isFloatType<P.Src0VT>.ret);
+
+  let mayRaiseFPException = ReadsModeReg;
+  let Uses = !if(ReadsModeReg, [MODE, EXEC], [EXEC]);
+
+  let SubtargetPredicate = HasSDWA;
+  let AssemblerPredicate = HasSDWA;
   let AsmVariantName = !if(P.HasExtSDWA, AMDGPUAsmVariants.SDWA,
                                          AMDGPUAsmVariants.Disable);
   let DecoderNamespace = "SDWA";
@@ -542,8 +552,8 @@ class Base_VOP_SDWA9_Real <VOP_SDWA_Pseudo ps> :
   let Constraints     = ps.Constraints;
   let DisableEncoding = ps.DisableEncoding;
 
-  let SubtargetPredicate = !if(ps.Pfl.HasExtSDWA9, HasSDWA9, DisableInst);
-  let AssemblerPredicate = !if(ps.Pfl.HasExtSDWA9, HasSDWA9, DisableInst);
+  let SubtargetPredicate = HasSDWA9;
+  let AssemblerPredicate = HasSDWA9;
   let AsmVariantName = !if(ps.Pfl.HasExtSDWA9, AMDGPUAsmVariants.SDWA9,
                                                AMDGPUAsmVariants.Disable);
   let DecoderNamespace = "SDWA9";
@@ -561,8 +571,8 @@ class VOP_SDWA9_Real <VOP_SDWA_Pseudo ps> :
   SIMCInstr <ps.PseudoInstr, SIEncodingFamily.SDWA9>;
 
 class Base_VOP_SDWA10_Real<VOP_SDWA_Pseudo ps> : Base_VOP_SDWA9_Real<ps> {
-  let SubtargetPredicate = !if(ps.Pfl.HasExtSDWA9, HasSDWA10, DisableInst);
-  let AssemblerPredicate = !if(ps.Pfl.HasExtSDWA9, HasSDWA10, DisableInst);
+  let SubtargetPredicate = HasSDWA10;
+  let AssemblerPredicate = HasSDWA10;
   let DecoderNamespace = "SDWA10";
 }
 
@@ -607,15 +617,19 @@ class VOP_DPP_Pseudo <string OpName, VOPProfile P, list<dag> pattern=[]> :
   let VALU = 1;
   let DPP = 1;
   let Size = 8;
-  let Uses = [EXEC];
+
+  let ReadsModeReg = !or(isFloatType<P.DstVT>.ret, isFloatType<P.Src0VT>.ret);
+
+  let mayRaiseFPException = ReadsModeReg;
+  let Uses = !if(ReadsModeReg, [MODE, EXEC], [EXEC]);
   let isConvergent = 1;
 
   string Mnemonic = OpName;
   string AsmOperands = P.AsmDPP;
 
-  let AsmMatchConverter = !if(!eq(P.HasModifiers,1), "cvtDPP", "");
+  let AsmMatchConverter = !if(P.HasModifiers, "cvtDPP", "");
   let SubtargetPredicate = HasDPP;
-  let AssemblerPredicate = !if(P.HasExtDPP, HasDPP, DisableInst);
+  let AssemblerPredicate = HasDPP;
   let AsmVariantName = !if(P.HasExtDPP, AMDGPUAsmVariants.DPP,
                                         AMDGPUAsmVariants.Disable);
   let Constraints = !if(P.NumSrcArgs, P.TieRegDPP # " = $vdst", "");
@@ -668,9 +682,9 @@ class VOP_DPP <string OpName, VOPProfile P, bit IsDPP16,
   let DPP = 1;
   let Size = 8;
 
-  let AsmMatchConverter = !if(!eq(P.HasModifiers,1), "cvtDPP", "");
+  let AsmMatchConverter = !if(P.HasModifiers, "cvtDPP", "");
   let SubtargetPredicate = HasDPP;
-  let AssemblerPredicate = !if(P.HasExtDPP, HasDPP, DisableInst);
+  let AssemblerPredicate = HasDPP;
   let AsmVariantName = !if(P.HasExtDPP, AMDGPUAsmVariants.DPP,
                                         AMDGPUAsmVariants.Disable);
   let Constraints = !if(P.NumSrcArgs, P.TieRegDPP # " = $vdst", "");
@@ -702,7 +716,7 @@ class VOP_DPP8<string OpName, VOPProfile P> :
 
   let AsmMatchConverter = "cvtDPP8";
   let SubtargetPredicate = HasDPP8;
-  let AssemblerPredicate = !if(P.HasExt, HasDPP8, DisableInst);
+  let AssemblerPredicate = HasDPP8;
   let AsmVariantName = !if(P.HasExt, AMDGPUAsmVariants.DPP,
                                      AMDGPUAsmVariants.Disable);
   let Constraints = !if(P.NumSrcArgs, P.TieRegDPP # " = $vdst", "");
@@ -762,6 +776,19 @@ class DivergentFragOrOp<SDPatternOperator Op, VOPProfile P> {
   SDPatternOperator ret = !if(!eq(P.NeedPatGen,PatGenMode.Pattern),
    !if(!isa<SDNode>(Op), getDivergentFrag<Op>.ret, Op), Op);
 }
+
+class getVSrcOp<ValueType vt> {
+  RegisterOperand ret = !if(!eq(vt.Size, 32), VSrc_b32, VSrc_b16);
+}
+
+// Class for binary integer operations with the clamp bit set for saturation
+// TODO: Add sub with negated inline constant pattern.
+class VOPBinOpClampPat<SDPatternOperator node, Instruction inst, ValueType vt> :
+  GCNPat<(node vt:$src0, vt:$src1),
+         (inst getVSrcOp<vt>.ret:$src0, getVSrcOp<vt>.ret:$src1,
+               DSTCLAMP.ENABLE)
+>;
+
 
 include "VOPCInstructions.td"
 include "VOP1Instructions.td"

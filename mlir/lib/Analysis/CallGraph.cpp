@@ -1,6 +1,6 @@
 //===- CallGraph.cpp - CallGraph analysis for MLIR ------------------------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -11,9 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Analysis/CallGraph.h"
-#include "mlir/Analysis/CallInterfaces.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/SymbolTable.h"
+#include "mlir/Interfaces/CallInterfaces.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/Support/raw_ostream.h"
@@ -21,16 +21,10 @@
 using namespace mlir;
 
 //===----------------------------------------------------------------------===//
-// CallInterfaces
-//===----------------------------------------------------------------------===//
-
-#include "mlir/Analysis/CallInterfaces.cpp.inc"
-
-//===----------------------------------------------------------------------===//
 // CallGraphNode
 //===----------------------------------------------------------------------===//
 
-/// Returns if this node refers to the indirect/external node.
+/// Returns true if this node refers to the indirect/external node.
 bool CallGraphNode::isExternal() const { return !callableRegion; }
 
 /// Return the callable region this node represents. This can only be called
@@ -74,15 +68,14 @@ void CallGraphNode::addEdge(CallGraphNode *node, Edge::Kind kind) {
 /// Recursively compute the callgraph edges for the given operation. Computed
 /// edges are placed into the given callgraph object.
 static void computeCallGraph(Operation *op, CallGraph &cg,
+                             SymbolTableCollection &symbolTable,
                              CallGraphNode *parentNode, bool resolveCalls) {
   if (CallOpInterface call = dyn_cast<CallOpInterface>(op)) {
     // If there is no parent node, we ignore this operation. Even if this
     // operation was a call, there would be no callgraph node to attribute it
     // to.
-    if (!resolveCalls || !parentNode)
-      return;
-    parentNode->addCallEdge(
-        cg.resolveCallable(call.getCallableForCallee(), op));
+    if (resolveCalls && parentNode)
+      parentNode->addCallEdge(cg.resolveCallable(call, symbolTable));
     return;
   }
 
@@ -95,17 +88,19 @@ static void computeCallGraph(Operation *op, CallGraph &cg,
   }
 
   for (Region &region : op->getRegions())
-    for (Block &block : region)
-      for (Operation &nested : block)
-        computeCallGraph(&nested, cg, parentNode, resolveCalls);
+    for (Operation &nested : region.getOps())
+      computeCallGraph(&nested, cg, symbolTable, parentNode, resolveCalls);
 }
 
 CallGraph::CallGraph(Operation *op) : externalNode(/*callableRegion=*/nullptr) {
   // Make two passes over the graph, one to compute the callables and one to
   // resolve the calls. We split these up as we may have nested callable objects
   // that need to be reserved before the calls.
-  computeCallGraph(op, *this, /*parentNode=*/nullptr, /*resolveCalls=*/false);
-  computeCallGraph(op, *this, /*parentNode=*/nullptr, /*resolveCalls=*/true);
+  SymbolTableCollection symbolTable;
+  computeCallGraph(op, *this, symbolTable, /*parentNode=*/nullptr,
+                   /*resolveCalls=*/false);
+  computeCallGraph(op, *this, symbolTable, /*parentNode=*/nullptr,
+                   /*resolveCalls=*/true);
 }
 
 /// Get or add a call graph node for the given region.
@@ -118,16 +113,17 @@ CallGraphNode *CallGraph::getOrAddNode(Region *region,
     node.reset(new CallGraphNode(region));
 
     // Add this node to the given parent node if necessary.
-    if (parentNode)
+    if (parentNode) {
       parentNode->addChildEdge(node.get());
-    else
+    } else {
       // Otherwise, connect all callable nodes to the external node, this allows
       // for conservatively including all callable nodes within the graph.
-      // FIXME(riverriddle) This isn't correct, this is only necessary for
-      // callable nodes that *could* be called from external sources. This
-      // requires extending the interface for callables to check if they may be
-      // referenced externally.
+      // FIXME This isn't correct, this is only necessary for callable nodes
+      // that *could* be called from external sources. This requires extending
+      // the interface for callables to check if they may be referenced
+      // externally.
       externalNode.addAbstractEdge(node.get());
+    }
   }
   return node.get();
 }
@@ -141,26 +137,33 @@ CallGraphNode *CallGraph::lookupNode(Region *region) const {
 
 /// Resolve the callable for given callee to a node in the callgraph, or the
 /// external node if a valid node was not resolved.
-CallGraphNode *CallGraph::resolveCallable(CallInterfaceCallable callable,
-                                          Operation *from) const {
-  // Get the callee operation from the callable.
-  Operation *callee;
-  if (auto symbolRef = callable.dyn_cast<SymbolRefAttr>())
-    callee = SymbolTable::lookupNearestSymbolFrom(from, symbolRef);
-  else
-    callee = callable.get<Value>().getDefiningOp();
-
-  // If the callee is non-null and is a valid callable object, try to get the
-  // called region from it.
-  if (callee && callee->getNumRegions()) {
-    if (auto callableOp = dyn_cast_or_null<CallableOpInterface>(callee)) {
-      if (auto *node = lookupNode(callableOp.getCallableRegion()))
-        return node;
-    }
-  }
+CallGraphNode *
+CallGraph::resolveCallable(CallOpInterface call,
+                           SymbolTableCollection &symbolTable) const {
+  Operation *callable = call.resolveCallable(&symbolTable);
+  if (auto callableOp = dyn_cast_or_null<CallableOpInterface>(callable))
+    if (auto *node = lookupNode(callableOp.getCallableRegion()))
+      return node;
 
   // If we don't have a valid direct region, this is an external call.
   return getExternalNode();
+}
+
+/// Erase the given node from the callgraph.
+void CallGraph::eraseNode(CallGraphNode *node) {
+  // Erase any children of this node first.
+  if (node->hasChildren()) {
+    for (const CallGraphNode::Edge &edge : llvm::make_early_inc_range(*node))
+      if (edge.isChild())
+        eraseNode(edge.getTarget());
+  }
+  // Erase any edges to this node from any other nodes.
+  for (auto &it : nodes) {
+    it.second->edges.remove_if([node](const CallGraphNode::Edge &edge) {
+      return edge.getTarget() == node;
+    });
+  }
+  nodes.erase(node->getCallableRegion());
 }
 
 //===----------------------------------------------------------------------===//
@@ -182,7 +185,8 @@ void CallGraph::print(raw_ostream &os) const {
     auto *parentOp = callableRegion->getParentOp();
     os << "'" << callableRegion->getParentOp()->getName() << "' - Region #"
        << callableRegion->getRegionNumber();
-    if (auto attrs = parentOp->getAttrList().getDictionary())
+    auto attrs = parentOp->getAttrDictionary();
+    if (!attrs.empty())
       os << " : " << attrs;
   };
 

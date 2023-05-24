@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_UtilityFunction_h_
-#define liblldb_UtilityFunction_h_
+#ifndef LLDB_EXPRESSION_UTILITYFUNCTION_H
+#define LLDB_EXPRESSION_UTILITYFUNCTION_H
 
 #include <memory>
 #include <string>
@@ -42,8 +42,8 @@ public:
   ///
   /// \param[in] name
   ///     The name of the function, as used in the text.
-  UtilityFunction(ExecutionContextScope &exe_scope, const char *text,
-                  const char *name);
+  UtilityFunction(ExecutionContextScope &exe_scope, std::string text,
+                  std::string name);
 
   ~UtilityFunction() override;
 
@@ -110,12 +110,13 @@ public:
 protected:
   std::shared_ptr<IRExecutionUnit> m_execution_unit_sp;
   lldb::ModuleWP m_jit_module_wp;
-  std::string m_function_text; ///< The text of the function.  Must be a
-                               ///well-formed translation unit.
-  std::string m_function_name; ///< The name of the function.
+  /// The text of the function.  Must be a well-formed translation unit.
+  std::string m_function_text;
+  /// The name of the function.
+  std::string m_function_name;
   std::unique_ptr<FunctionCaller> m_caller_up;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_UtilityFunction_h_
+#endif // LLDB_EXPRESSION_UTILITYFUNCTION_H

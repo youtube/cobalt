@@ -83,8 +83,8 @@ void MapExtDefNamesConsumer::addIfInMain(const DeclaratorDecl *DD,
   assert(!LookupName->empty() && "Lookup name should be non-empty.");
 
   if (CurrentFileName.empty()) {
-    CurrentFileName =
-        SM.getFileEntryForID(SM.getMainFileID())->tryGetRealPathName();
+    CurrentFileName = std::string(
+        SM.getFileEntryForID(SM.getMainFileID())->tryGetRealPathName());
     if (CurrentFileName.empty())
       CurrentFileName = "invalid_file";
   }
@@ -104,7 +104,7 @@ void MapExtDefNamesConsumer::addIfInMain(const DeclaratorDecl *DD,
 class MapExtDefNamesAction : public ASTFrontendAction {
 protected:
   std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 llvm::StringRef) {
+                                                 llvm::StringRef) override {
     return std::make_unique<MapExtDefNamesConsumer>(CI.getASTContext());
   }
 };

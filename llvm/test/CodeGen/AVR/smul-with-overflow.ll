@@ -13,16 +13,11 @@ entry-block:
 ; CHECK: muls   r24, r22
 ; CHECK: mov    [[HIGH:r[0-9]+]], r1
 ; CHECK: mov    [[LOW:r[0-9]+]], r0
-; CHECK: asr    {{.*}}[[LOW]]
-; CHECK: asr    {{.*}}[[LOW]]
-; CHECK: asr    {{.*}}[[LOW]]
-; CHECK: asr    {{.*}}[[LOW]]
-; CHECK: asr    {{.*}}[[LOW]]
-; CHECK: asr    {{.*}}[[LOW]]
-; CHECK: asr    {{.*}}[[LOW]]
+; CHECK: lsl    {{.*}}[[LOW]]
+; CHECK: sbc    {{.*}}[[LOW]], {{.*}}[[LOW]]
 ; CHECK: ldi    [[RET:r[0-9]+]], 1
 ; CHECK: cp     {{.*}}[[HIGH]], {{.*}}[[LOW]]
-; CHECK: brne   [[LABEL:LBB[_0-9]+]]
+; CHECK: brne   [[LABEL:.LBB[_0-9]+]]
 ; CHECK: ldi    {{.*}}[[RET]], 0
 ; CHECK: {{.*}}[[LABEL]]
 ; CHECK: ret

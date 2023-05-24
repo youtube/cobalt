@@ -11,6 +11,7 @@
 // CHECK-NEXT:  Type: SHT_RELA
 // CHECK-NEXT:  Flags [
 // CHECK-NEXT:    SHF_ALLOC
+// CHECK-NEXT:    SHF_INFO_LINK
 // CHECK-NEXT:  ]
 // CHECK-NEXT:  Address: [[RELA:.*]]
 // CHECK-NEXT:  Offset: 0x158
@@ -101,24 +102,24 @@
 
 // DISASM: Disassembly of section .text:
 // DISASM-EMPTY:
-// DISASM-NEXT: foo:
+// DISASM-NEXT: <foo>:
 // DISASM-NEXT:  210188: ret
-// DISASM: bar:
+// DISASM: <bar>:
 // DISASM-NEXT:  21018c: ret
-// DISASM:      _start:
-// DISASM-NEXT:  210190: bl  #16
-// DISASM-NEXT:  210194: bl  #28
+// DISASM:      <_start>:
+// DISASM-NEXT:  210190: bl  0x2101a0
+// DISASM-NEXT:  210194: bl  0x2101b0
 // DISASM-NEXT:  210198: add x2, x2, #344
 // DISASM-NEXT:  21019c: add x2, x2, #392
 // DISASM-EMPTY:
 // DISASM-NEXT: Disassembly of section .iplt:
 // DISASM-EMPTY:
-// DISASM-NEXT: .iplt:
-// DISASM-NEXT:  2101a0: adrp x16, #65536
+// DISASM-NEXT: <.iplt>:
+// DISASM-NEXT:  2101a0: adrp x16, 0x220000
 // DISASM-NEXT:  2101a4: ldr x17, [x16, #448]
 // DISASM-NEXT:  2101a8: add x16, x16, #448
 // DISASM-NEXT:  2101ac: br x17
-// DISASM-NEXT:  2101b0: adrp x16, #65536
+// DISASM-NEXT:  2101b0: adrp x16, 0x220000
 // DISASM-NEXT:  2101b4: ldr x17, [x16, #456]
 // DISASM-NEXT:  2101b8: add x16, x16, #456
 // DISASM-NEXT:  2101bc: br x17

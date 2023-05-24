@@ -1,14 +1,8 @@
 set(LLVM_LINK_COMPONENTS
+  Core
   FrontendOpenMP
   Support
   )
-
-if (MSVC)
-  set_source_files_properties(SemaDeclAttr.cpp PROPERTIES COMPILE_FLAGS /bigobj)
-  set_source_files_properties(SemaExpr.cpp PROPERTIES COMPILE_FLAGS /bigobj)
-  set_source_files_properties(SemaExprCXX.cpp PROPERTIES COMPILE_FLAGS /bigobj)
-  set_source_files_properties(SemaTemplate.cpp PROPERTIES COMPILE_FLAGS /bigobj)
-endif()
 
 clang_tablegen(OpenCLBuiltins.inc -gen-clang-opencl-builtins
   SOURCE OpenCLBuiltins.td
@@ -29,6 +23,7 @@ add_clang_library(clangSema
   Sema.cpp
   SemaAccess.cpp
   SemaAttr.cpp
+  SemaAvailability.cpp
   SemaCXXScopeSpec.cpp
   SemaCast.cpp
   SemaChecking.cpp
@@ -58,6 +53,7 @@ add_clang_library(clangSema
   SemaStmt.cpp
   SemaStmtAsm.cpp
   SemaStmtAttr.cpp
+  SemaSYCL.cpp
   SemaTemplate.cpp
   SemaTemplateDeduction.cpp
   SemaTemplateInstantiate.cpp
@@ -68,6 +64,7 @@ add_clang_library(clangSema
 
   DEPENDS
   ClangOpenCLBuiltinsImpl
+  omp_gen
 
   LINK_LIBS
   clangAST

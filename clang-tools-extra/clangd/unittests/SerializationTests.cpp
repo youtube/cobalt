@@ -7,15 +7,23 @@
 //===----------------------------------------------------------------------===//
 
 #include "Headers.h"
+#include "RIFF.h"
 #include "index/Index.h"
 #include "index/Serialization.h"
+#include "support/Logger.h"
 #include "clang/Tooling/CompilationDatabase.h"
+#include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/Compression.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#ifdef LLVM_ON_UNIX
+#include <sys/resource.h>
+#endif
 
-using ::testing::_;
-using ::testing::AllOf;
+using ::testing::ElementsAre;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
@@ -91,6 +99,20 @@ Predicate:       0
 Object:
   ID:              6512AEC512EA3A2D
 ...
+--- !Cmd
+Directory:       'testdir'
+CommandLine:
+  - 'cmd1'
+  - 'cmd2'
+...
+--- !Source
+URI:             'file:///path/source1.cpp'
+Flags:           1
+Digest:          EED8F5EAF25C453C
+DirectIncludes:
+  - 'file:///path/inc1.h'
+  - 'file:///path/inc2.h'
+...
 )";
 
 MATCHER_P(ID, I, "") { return arg.ID == cantFail(SymbolID::fromStr(I)); }
@@ -104,9 +126,6 @@ TEST(SerializationTest, NoCrashOnEmptyYAML) {
 }
 
 TEST(SerializationTest, YAMLConversions) {
-  auto In = readIndexFile(YAML);
-  EXPECT_TRUE(bool(In)) << In.takeError();
-
   auto ParsedYAML = readIndexFile(YAML);
   ASSERT_TRUE(bool(ParsedYAML)) << ParsedYAML.takeError();
   ASSERT_TRUE(bool(ParsedYAML->Symbols));
@@ -155,6 +174,21 @@ TEST(SerializationTest, YAMLConversions) {
   EXPECT_THAT(
       *ParsedYAML->Relations,
       UnorderedElementsAre(Relation{Base, RelationKind::BaseOf, Derived}));
+
+  ASSERT_TRUE(bool(ParsedYAML->Cmd));
+  auto &Cmd = *ParsedYAML->Cmd;
+  ASSERT_EQ(Cmd.Directory, "testdir");
+  EXPECT_THAT(Cmd.CommandLine, ElementsAre("cmd1", "cmd2"));
+
+  ASSERT_TRUE(bool(ParsedYAML->Sources));
+  const auto *URI = "file:///path/source1.cpp";
+  ASSERT_TRUE(ParsedYAML->Sources->count(URI));
+  auto IGNDeserialized = ParsedYAML->Sources->lookup(URI);
+  EXPECT_EQ(llvm::toHex(IGNDeserialized.Digest), "EED8F5EAF25C453C");
+  EXPECT_THAT(IGNDeserialized.DirectIncludes,
+              ElementsAre("file:///path/inc1.h", "file:///path/inc2.h"));
+  EXPECT_EQ(IGNDeserialized.URI, URI);
+  EXPECT_EQ(IGNDeserialized.Flags, IncludeGraphNode::SourceFlag(1));
 }
 
 std::vector<std::string> YAMLFromSymbols(const SymbolSlab &Slab) {
@@ -270,6 +304,128 @@ TEST(SerializationTest, CmdlTest) {
     EXPECT_NE(SerializedCmd.Output, Cmd.Output);
   }
 }
+
+// rlimit is part of POSIX.
+// ASan uses a lot of address space, so we can't apply strict limits.
+#if LLVM_ON_UNIX && !LLVM_ADDRESS_SANITIZER_BUILD
+class ScopedMemoryLimit {
+  struct rlimit OriginalLimit;
+  bool Succeeded = false;
+
+public:
+  ScopedMemoryLimit(rlim_t Bytes) {
+    if (!getrlimit(RLIMIT_AS, &OriginalLimit)) {
+      struct rlimit NewLimit = OriginalLimit;
+      NewLimit.rlim_cur = Bytes;
+      Succeeded = !setrlimit(RLIMIT_AS, &NewLimit);
+    }
+    if (!Succeeded)
+      log("Failed to set rlimit");
+  }
+
+  ~ScopedMemoryLimit() {
+    if (Succeeded)
+      setrlimit(RLIMIT_AS, &OriginalLimit);
+  }
+};
+#else
+class ScopedMemoryLimit {
+public:
+  ScopedMemoryLimit(unsigned Bytes) { log("rlimit unsupported"); }
+};
+#endif
+
+// Test that our deserialization detects invalid array sizes without allocating.
+// If this detection fails, the test should allocate a huge array and crash.
+TEST(SerializationTest, NoCrashOnBadArraySize) {
+  // This test is tricky because we need to construct a subtly invalid file.
+  // First, create a valid serialized file.
+  auto In = readIndexFile(YAML);
+  ASSERT_FALSE(!In) << In.takeError();
+  IndexFileOut Out(*In);
+  Out.Format = IndexFileFormat::RIFF;
+  std::string Serialized = llvm::to_string(Out);
+
+  // Low-level parse it again and find the `srcs` chunk we're going to corrupt.
+  auto Parsed = riff::readFile(Serialized);
+  ASSERT_FALSE(!Parsed) << Parsed.takeError();
+  auto Srcs = llvm::find_if(Parsed->Chunks, [](riff::Chunk C) {
+    return C.ID == riff::fourCC("srcs");
+  });
+  ASSERT_NE(Srcs, Parsed->Chunks.end());
+
+  // Srcs consists of a sequence of IncludeGraphNodes. In our case, just one.
+  // The node has:
+  //  - 1 byte: flags (1)
+  //  - varint(stringID): URI
+  //  - 8 byte: file digest
+  //  - varint: DirectIncludes.length
+  //  - repeated varint(stringID): DirectIncludes
+  // We want to set DirectIncludes.length to a huge number.
+  // The offset isn't trivial to find, so we use the file digest.
+  std::string FileDigest = llvm::fromHex("EED8F5EAF25C453C");
+  unsigned Pos = Srcs->Data.find_first_of(FileDigest);
+  ASSERT_NE(Pos, StringRef::npos) << "Couldn't locate file digest";
+  Pos += FileDigest.size();
+
+  // Varints are little-endian base-128 numbers, where the top-bit of each byte
+  // indicates whether there are more. ffffffff0f -> 0xffffffff.
+  std::string CorruptSrcs =
+      (Srcs->Data.take_front(Pos) + llvm::fromHex("ffffffff0f") +
+       "some_random_garbage")
+          .str();
+  Srcs->Data = CorruptSrcs;
+
+  // Try to crash rather than hang on large allocation.
+  ScopedMemoryLimit MemLimit(1000 * 1024 * 1024); // 1GB
+
+  std::string CorruptFile = llvm::to_string(*Parsed);
+  auto CorruptParsed = readIndexFile(CorruptFile);
+  ASSERT_TRUE(!CorruptParsed);
+  EXPECT_EQ(llvm::toString(CorruptParsed.takeError()),
+            "malformed or truncated include uri");
+}
+
+// Check we detect invalid string table size size without allocating it first.
+// If this detection fails, the test should allocate a huge array and crash.
+TEST(SerializationTest, NoCrashOnBadStringTableSize) {
+  if (!llvm::zlib::isAvailable()) {
+    log("skipping test, no zlib");
+    return;
+  }
+
+  // First, create a valid serialized file.
+  auto In = readIndexFile(YAML);
+  ASSERT_FALSE(!In) << In.takeError();
+  IndexFileOut Out(*In);
+  Out.Format = IndexFileFormat::RIFF;
+  std::string Serialized = llvm::to_string(Out);
+
+  // Low-level parse it again, we're going to replace the `stri` chunk.
+  auto Parsed = riff::readFile(Serialized);
+  ASSERT_FALSE(!Parsed) << Parsed.takeError();
+  auto Stri = llvm::find_if(Parsed->Chunks, [](riff::Chunk C) {
+    return C.ID == riff::fourCC("stri");
+  });
+  ASSERT_NE(Stri, Parsed->Chunks.end());
+
+  // stri consists of an 8 byte uncompressed-size, and then compressed data.
+  // We'll claim our small amount of data expands to 4GB
+  std::string CorruptStri =
+      (llvm::fromHex("ffffffff") + Stri->Data.drop_front(4)).str();
+  Stri->Data = CorruptStri;
+  std::string FileDigest = llvm::fromHex("EED8F5EAF25C453C");
+
+  // Try to crash rather than hang on large allocation.
+  ScopedMemoryLimit MemLimit(1000 * 1024 * 1024); // 1GB
+
+  std::string CorruptFile = llvm::to_string(*Parsed);
+  auto CorruptParsed = readIndexFile(CorruptFile);
+  ASSERT_TRUE(!CorruptParsed);
+  EXPECT_THAT(llvm::toString(CorruptParsed.takeError()),
+              testing::HasSubstr("bytes is implausible"));
+}
+
 } // namespace
 } // namespace clangd
 } // namespace clang

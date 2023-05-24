@@ -9,7 +9,6 @@
 #include "clang/Format/Format.h"
 
 #include "../Tooling/ReplacementTest.h"
-#include "../Tooling/RewriterTestContext.h"
 #include "clang/Tooling/Core/Replacement.h"
 
 #include "gtest/gtest.h"
@@ -149,6 +148,31 @@ TEST_F(CleanupTest, CtorInitializationSimpleRedundantComma) {
   Code = "class A {\nA() :,,,,{} };";
   Expected = "class A {\nA() {} };";
   EXPECT_EQ(Expected, cleanupAroundOffsets({15}, Code));
+}
+
+// regression test for bug 39310
+TEST_F(CleanupTest, CtorInitializationSimpleRedundantCommaInFunctionTryBlock) {
+  std::string Code = "class A {\nA() try : , {} };";
+  std::string Expected = "class A {\nA() try  {} };";
+  EXPECT_EQ(Expected, cleanupAroundOffsets({21, 23}, Code));
+
+  Code = "class A {\nA() try : x(1), {} };";
+  Expected = "class A {\nA() try : x(1) {} };";
+  EXPECT_EQ(Expected, cleanupAroundOffsets({27}, Code));
+
+  Code = "class A {\nA() try :,,,,{} };";
+  Expected = "class A {\nA() try {} };";
+  EXPECT_EQ(Expected, cleanupAroundOffsets({19}, Code));
+
+  Code = "class A {\nA() try : x(1),,, {} };";
+  Expected = "class A {\nA() try : x(1) {} };";
+  EXPECT_EQ(Expected, cleanupAroundOffsets({27}, Code));
+
+  // Do not remove every comma following a colon as it simply doesn't make
+  // sense in some situations.
+  Code = "try : , {}";
+  Expected = "try : , {}";
+  EXPECT_EQ(Expected, cleanupAroundOffsets({8}, Code));
 }
 
 TEST_F(CleanupTest, CtorInitializationSimpleRedundantColon) {
@@ -453,7 +477,6 @@ TEST_F(CleanUpReplacementsTest, NoNewLineAtTheEndOfCodeMultipleInsertions) {
                       createInsertion("#include <vector>")});
   EXPECT_EQ(Expected, apply(Code, Replaces));
 }
-
 
 TEST_F(CleanUpReplacementsTest, FormatCorrectLineWhenHeadersAreInserted) {
   std::string Code = "\n"

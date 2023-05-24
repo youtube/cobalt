@@ -1,4 +1,4 @@
-//===-- Variable.cpp --------------------------------------------*- C++ -*-===//
+//===-- Variable.cpp ------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -40,12 +40,13 @@ Variable::Variable(lldb::user_id_t uid, const char *name, const char *mangled,
                    ValueType scope, SymbolContextScope *context,
                    const RangeList &scope_range, Declaration *decl_ptr,
                    const DWARFExpression &location, bool external,
-                   bool artificial, bool static_member)
+                   bool artificial, bool location_is_constant_data,
+                   bool static_member)
     : UserID(uid), m_name(name), m_mangled(ConstString(mangled)),
       m_symfile_type_sp(symfile_type_sp), m_scope(scope),
       m_owner_scope(context), m_scope_range(scope_range),
       m_declaration(decl_ptr), m_location(location), m_external(external),
-      m_artificial(artificial), m_loc_is_const_data(false),
+      m_artificial(artificial), m_loc_is_const_data(location_is_constant_data),
       m_static_member(static_member) {}
 
 Variable::~Variable() {}
@@ -68,7 +69,7 @@ lldb::LanguageType Variable::GetLanguage() const {
 }
 
 ConstString Variable::GetName() const {
-  ConstString name = m_mangled.GetName(GetLanguage());
+  ConstString name = m_mangled.GetName();
   if (name)
     return name;
   return m_name;
@@ -82,16 +83,13 @@ bool Variable::NameMatches(ConstString name) const {
   SymbolContext variable_sc;
   m_owner_scope->CalculateSymbolContext(&variable_sc);
 
-  LanguageType language = eLanguageTypeUnknown;
-  if (variable_sc.comp_unit)
-    language = variable_sc.comp_unit->GetLanguage();
-  return m_mangled.NameMatches(name, language);
+  return m_mangled.NameMatches(name);
 }
 bool Variable::NameMatches(const RegularExpression &regex) const {
   if (regex.Execute(m_name.AsCString()))
     return true;
   if (m_mangled)
-    return m_mangled.NameMatches(regex, GetLanguage());
+    return m_mangled.NameMatches(regex);
   return false;
 }
 
@@ -532,7 +530,7 @@ static void PrivateAutoCompleteMembers(
           i, member_name, nullptr, nullptr, nullptr);
 
       if (partial_member_name.empty() ||
-          member_name.find(partial_member_name) == 0) {
+          llvm::StringRef(member_name).startswith(partial_member_name)) {
         if (member_name == partial_member_name) {
           PrivateAutoComplete(
               frame, partial_path,
@@ -684,8 +682,8 @@ static void PrivateAutoComplete(
           break;
         }
 
-        std::string token(partial_path, 0, pos);
-        remaining_partial_path = partial_path.substr(pos);
+        std::string token(std::string(partial_path), 0, pos);
+        remaining_partial_path = std::string(partial_path.substr(pos));
 
         if (compiler_type.IsValid()) {
           PrivateAutoCompleteMembers(frame, token, remaining_partial_path,

@@ -57,8 +57,11 @@ unsigned long GetPid();
 size_t GetPeakRSSMb();
 
 int ExecuteCommand(const Command &Cmd);
+bool ExecuteCommand(const Command &Cmd, std::string *CmdOutput);
 
+// Fuchsia does not have popen/pclose.
 FILE *OpenProcessPipe(const char *Command, const char *Mode);
+int CloseProcessPipe(FILE *F);
 
 const void *SearchMemory(const void *haystack, size_t haystacklen,
                          const void *needle, size_t needlelen);
@@ -102,6 +105,12 @@ inline uint8_t *RoundDownByPage(uint8_t *P) {
   X = X & ~Mask;
   return reinterpret_cast<uint8_t *>(X);
 }
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+template <typename T> T HostToLE(T X) { return X; }
+#else
+template <typename T> T HostToLE(T X) { return Bswap(X); }
+#endif
 
 }  // namespace fuzzer
 

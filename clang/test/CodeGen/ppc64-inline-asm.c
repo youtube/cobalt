@@ -4,7 +4,7 @@ _Bool test_wc_i1(_Bool b1, _Bool b2) {
   _Bool o;
   asm("crand %0, %1, %2" : "=wc"(o) : "wc"(b1), "wc"(b2) : );
   return o;
-// CHECK-LABEL: define zeroext i1 @test_wc_i1(i1 zeroext %b1, i1 zeroext %b2)
+// CHECK-LABEL: define{{.*}} zeroext i1 @test_wc_i1(i1 zeroext %b1, i1 zeroext %b2)
 // CHECK: call i8 asm "crand $0, $1, $2", "=^wc,^wc,^wc"(i1 %b1, i1 %b2)
 }
 
@@ -36,4 +36,17 @@ double test_fmax(double x, double y) {
   return x;
 // CHECK-LABEL: double @test_fmax(double %x, double %y)
 // CHECK: call double asm "xsmaxdp ${0:x}, ${1:x}, ${2:x}", "=^ws,^ws,^ws"(double %x, double %y)
+}
+
+void testZ(void *addr) {
+  asm volatile ("dcbz %y0\n" :: "Z"(*(unsigned char *)addr) : "memory");
+// CHECK-LABEL: void @testZ(i8* %addr)
+// CHECK: call void asm sideeffect "dcbz ${0:y}\0A", "*Z,~{memory}"(i8* %addr)
+}
+
+void testZwOff(void *addr, long long off) {
+  asm volatile ("dcbz %y0\n" :: "Z"(*(unsigned char *)(addr + off)) : "memory");
+// CHECK-LABEL: void @testZwOff(i8* %addr, i64 %off)
+// CHECK: %[[VAL:[^ ]+]] = getelementptr i8, i8* %addr, i64 %off
+// CHECK: call void asm sideeffect "dcbz ${0:y}\0A", "*Z,~{memory}"(i8* %[[VAL]])
 }

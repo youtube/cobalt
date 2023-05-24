@@ -17,6 +17,7 @@ setup(
     author_email = lit.__email__,
     url = 'http://llvm.org',
     license = 'Apache-2.0 with LLVM exception',
+    license_files = ['LICENSE.TXT'],
 
     description = "A Software Testing Tool",
     keywords = 'test C++ automatic discovery',
@@ -71,7 +72,7 @@ https://github.com/llvm/llvm-project/tree/master/llvm/utils/lit
     packages = find_packages(),
     entry_points = {
         'console_scripts': [
-            'lit = lit:main',
+            'lit = lit.main:main',
             ],
         }
 )

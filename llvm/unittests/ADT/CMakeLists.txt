@@ -4,14 +4,17 @@ set(LLVM_LINK_COMPONENTS
 
 add_llvm_unittest(ADTTests
   AnyTest.cpp
+  APFixedPointTest.cpp
   APFloatTest.cpp
   APIntTest.cpp
   APSIntTest.cpp
   ArrayRefTest.cpp
+  BitFieldsTest.cpp
   BitmaskEnumTest.cpp
   BitVectorTest.cpp
   BreadthFirstIteratorTest.cpp
   BumpPtrListTest.cpp
+  CoalescingBitVectorTest.cpp
   DAGDeltaAlgorithmTest.cpp
   DeltaAlgorithmTest.cpp
   DenseMapTest.cpp
@@ -39,7 +42,6 @@ add_llvm_unittest(ADTTests
   IntervalMapTest.cpp
   IntrusiveRefCntPtrTest.cpp
   IteratorTest.cpp
-  MakeUniqueTest.cpp
   MappedIteratorTest.cpp
   MapVectorTest.cpp
   OptionalTest.cpp
@@ -73,6 +75,9 @@ add_llvm_unittest(ADTTests
   TinyPtrVectorTest.cpp
   TripleTest.cpp
   TwineTest.cpp
+  TypeSwitchTest.cpp
+  TypeTraitsTest.cpp
+  WaymarkingTest.cpp
   )
 
 target_link_libraries(ADTTests PRIVATE LLVMTestingSupport)

@@ -1,4 +1,4 @@
-// RUN: mlir-opt -test-legalize-patterns -test-legalize-mode=full -split-input-file -verify-diagnostics %s | FileCheck %s
+// RUN: mlir-opt -allow-unregistered-dialect -test-legalize-patterns -test-legalize-mode=full -split-input-file -verify-diagnostics %s | FileCheck %s
 
 // CHECK-LABEL: func @multi_level_mapping
 func @multi_level_mapping() {
@@ -56,5 +56,46 @@ func @test_undo_region_clone() {
 
   // expected-error@+1 {{failed to legalize operation 'test.illegal_op_f'}}
   %ignored = "test.illegal_op_f"() : () -> (i32)
+  "test.return"() : () -> ()
+}
+
+// -----
+
+// Test that unknown operations can be dynamically legal.
+func @test_unknown_dynamically_legal() {
+  "foo.unknown_op"() {test.dynamically_legal} : () -> ()
+
+  // expected-error@+1 {{failed to legalize operation 'foo.unknown_op'}}
+  "foo.unknown_op"() {} : () -> ()
+  "test.return"() : () -> ()
+}
+
+// -----
+
+// Test that region inlining can be properly undone.
+func @test_undo_region_inline() {
+  "test.region"() ({
+    ^bb1(%i0: i64):
+       // expected-error@+1 {{failed to legalize operation 'std.br'}}
+       br ^bb2(%i0 : i64)
+    ^bb2(%i1: i64):
+      "test.invalid"(%i1) : (i64) -> ()
+  }) {} : () -> ()
+
+  "test.return"() : () -> ()
+}
+
+// -----
+
+// Test that multiple block erases can be properly undone.
+func @test_undo_block_erase() {
+   // expected-error@+1 {{failed to legalize operation 'test.region'}}
+  "test.region"() ({
+    ^bb1(%i0: i64):
+       br ^bb2(%i0 : i64)
+    ^bb2(%i1: i64):
+      "test.invalid"(%i1) : (i64) -> ()
+  }) {legalizer.should_clone, legalizer.erase_old_blocks} : () -> ()
+
   "test.return"() : () -> ()
 }

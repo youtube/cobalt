@@ -96,7 +96,7 @@ static void display_usage(const char *progname, const char *subcommand) {
 
 static Status save_socket_id_to_file(const std::string &socket_id,
                                      const FileSpec &file_spec) {
-  FileSpec temp_file_spec(file_spec.GetDirectory().AsCString());
+  FileSpec temp_file_spec(file_spec.GetDirectory().GetStringRef());
   Status error(llvm::sys::fs::create_directory(temp_file_spec.GetPath()));
   if (error.Fail())
     return Status("Failed to create directory %s: %s",
@@ -104,11 +104,12 @@ static Status save_socket_id_to_file(const std::string &socket_id,
 
   llvm::SmallString<64> temp_file_path;
   temp_file_spec.AppendPathComponent("port-file.%%%%%%");
+  temp_file_path = temp_file_spec.GetPath();
 
   Status status;
   if (auto Err =
           handleErrors(llvm::writeFileAtomically(
-                           temp_file_path, temp_file_spec.GetPath(), socket_id),
+                           temp_file_path, file_spec.GetPath(), socket_id),
                        [&status, &file_spec](const AtomicFileWriteError &E) {
                          std::string ErrorMsgBuffer;
                          llvm::raw_string_ostream S(ErrorMsgBuffer);
@@ -230,7 +231,7 @@ int main_platform(int argc, char *argv[]) {
         break;
       }
       if (ch == 'P')
-        gdbserver_portmap[portnum] = LLDB_INVALID_PROCESS_ID;
+        gdbserver_portmap.AllowPort(portnum);
       else if (ch == 'm')
         min_gdbserver_port = portnum;
       else
@@ -249,8 +250,8 @@ int main_platform(int argc, char *argv[]) {
 
   // Make a port map for a port range that was specified.
   if (min_gdbserver_port && min_gdbserver_port < max_gdbserver_port) {
-    for (uint16_t port = min_gdbserver_port; port < max_gdbserver_port; ++port)
-      gdbserver_portmap[port] = LLDB_INVALID_PROCESS_ID;
+    gdbserver_portmap = GDBRemoteCommunicationServerPlatform::PortMap(
+        min_gdbserver_port, max_gdbserver_port);
   } else if (min_gdbserver_port || max_gdbserver_port) {
     fprintf(stderr, "error: --min-gdbserver-port (%u) is not lower than "
                     "--max-gdbserver-port (%u)\n",
@@ -343,18 +344,18 @@ int main_platform(int argc, char *argv[]) {
       // connections while a connection is active.
       acceptor_up.reset();
     }
-    platform.SetConnection(conn);
+    platform.SetConnection(std::unique_ptr<Connection>(conn));
 
     if (platform.IsConnected()) {
       if (inferior_arguments.GetArgumentCount() > 0) {
         lldb::pid_t pid = LLDB_INVALID_PROCESS_ID;
-        uint16_t port = 0;
+        llvm::Optional<uint16_t> port = 0;
         std::string socket_name;
         Status error = platform.LaunchGDBServer(inferior_arguments,
                                                 "", // hostname
                                                 pid, port, socket_name);
         if (error.Success())
-          platform.SetPendingGdbServer(pid, port, socket_name);
+          platform.SetPendingGdbServer(pid, *port, socket_name);
         else
           fprintf(stderr, "failed to start gdbserver: %s\n", error.AsCString());
       }

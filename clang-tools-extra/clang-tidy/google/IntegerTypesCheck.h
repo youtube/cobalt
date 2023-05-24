@@ -25,9 +25,15 @@ namespace runtime {
 /// with `u?intXX(_t)?`.
 ///
 /// Corresponding cpplint.py check: 'runtime/int'.
+///
+/// For the user-facing documentation see:
+/// http://clang.llvm.org/extra/clang-tidy/checks/google-runtime-int.html
 class IntegerTypesCheck : public ClangTidyCheck {
 public:
   IntegerTypesCheck(StringRef Name, ClangTidyContext *Context);
+  bool isLanguageVersionSupported(const LangOptions &LangOpts) const override {
+    return LangOpts.CPlusPlus && !LangOpts.ObjC;
+  }
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
   void storeOptions(ClangTidyOptions::OptionMap &Options) override;

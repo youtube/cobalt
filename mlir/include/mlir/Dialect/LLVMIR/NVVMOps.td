@@ -1,6 +1,6 @@
 //===-- NVVMOps.td - NVVM IR dialect op definition file ----*- tablegen -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -14,6 +14,7 @@
 #define NVVMIR_OPS
 
 include "mlir/Dialect/LLVMIR/LLVMOpBase.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
 // NVVM dialect definitions
@@ -21,7 +22,8 @@ include "mlir/Dialect/LLVMIR/LLVMOpBase.td"
 
 def NVVM_Dialect : Dialect {
   let name = "nvvm";
-  let cppNamespace = "NVVM";
+  let cppNamespace = "::mlir::NVVM";
+  let dependentDialects = ["LLVM::LLVMDialect"];
 }
 
 //===----------------------------------------------------------------------===//
@@ -33,17 +35,25 @@ class NVVM_Op<string mnemonic, list<OpTrait> traits = []> :
 }
 
 //===----------------------------------------------------------------------===//
+// NVVM intrinsic operations
+//===----------------------------------------------------------------------===//
+
+class NVVM_IntrOp<string mnem, list<int> overloadedResults,
+                  list<int> overloadedOperands, list<OpTrait> traits,
+                  int numResults>
+  : LLVM_IntrOpBase<NVVM_Dialect, mnem, "nvvm_" # !subst(".", "_", mnem),
+                    overloadedResults, overloadedOperands, traits, numResults>;
+
+
+//===----------------------------------------------------------------------===//
 // NVVM special register op definitions
 //===----------------------------------------------------------------------===//
 
 class NVVM_SpecialRegisterOp<string mnemonic,
     list<OpTrait> traits = []> :
-  NVVM_Op<mnemonic, !listconcat(traits, [NoSideEffect])>,
-  Results<(outs LLVM_Type:$res)>, Arguments<(ins)> {
-  string llvmBuilder = "$res = createIntrinsicCall(builder,"
-    # "llvm::Intrinsic::nvvm_" # !subst(".","_", mnemonic) # ");";
-  let parser = [{ return parseNVVMSpecialRegisterOp(parser, result); }];
-  let printer = [{ printNVVMIntrinsicOp(p, this->getOperation()); }];
+  NVVM_IntrOp<mnemonic, [], [], !listconcat(traits, [NoSideEffect]), 1>,
+  Arguments<(ins)> {
+  let assemblyFormat = "attr-dict `:` type($res)";
 }
 
 //===----------------------------------------------------------------------===//
@@ -77,8 +87,7 @@ def NVVM_Barrier0Op : NVVM_Op<"barrier0"> {
   string llvmBuilder = [{
       createIntrinsicCall(builder, llvm::Intrinsic::nvvm_barrier0);
   }];
-  let parser = [{ return success(); }];
-  let printer = [{ printNVVMIntrinsicOp(p, this->getOperation()); }];
+  let assemblyFormat = "attr-dict";
 }
 
 def NVVM_ShflBflyOp :
@@ -98,13 +107,15 @@ def NVVM_ShflBflyOp :
   let parser = [{ return parseNVVMShflSyncBflyOp(parser, result); }];
   let printer = [{ printNVVMIntrinsicOp(p, this->getOperation()); }];
   let verifier = [{
-    if (!getAttrOfType<UnitAttr>("return_value_and_is_valid"))
+    if (!(*this)->getAttrOfType<UnitAttr>("return_value_and_is_valid"))
       return success();
-    auto type = getType().cast<LLVM::LLVMType>();
-    if (!type.isStructTy() || type.getStructNumElements() != 2 ||
-        !type.getStructElementType(1).isIntegerTy(
-            /*Bitwidth=*/1))
-      return emitError("expected return type !llvm<\"{ ?, i1 }\">");
+    auto type = getType().dyn_cast<LLVM::LLVMStructType>();
+    auto elementType = (type && type.getBody().size() == 2)
+                     ? type.getBody()[1].dyn_cast<IntegerType>()
+                     : nullptr;
+    if (!elementType || elementType.getWidth() != 1)
+      return emitError("expected return type to be a two-element struct with "
+                       "i1 as the second element");
     return success();
   }];
 }
@@ -127,10 +138,9 @@ def NVVM_MmaOp :
   Arguments<(ins Variadic<LLVM_Type>:$args)> {
   string llvmBuilder = [{
     $res = createIntrinsicCall(
-        builder, llvm::Intrinsic::nvvm_mma_m8n8k4_row_row_f32_f32, $args);
+        builder, llvm::Intrinsic::nvvm_mma_m8n8k4_row_col_f32_f32, $args);
   }];
-  let parser = [{ return parseNVVMMmaOp(parser, result); }];
-  let printer = [{ printNVVMMmaOp(p, *this); }];
+  let assemblyFormat = "$args attr-dict `:` functional-type($args, $res)";
   let verifier = [{ return ::verify(*this); }];
 }
 

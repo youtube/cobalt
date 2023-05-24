@@ -63,6 +63,8 @@
 ; Test the other kinds of type test resoultions
 ^27 = typeid: (name: "_ZTS1D", summary: (typeTestRes: (kind: byteArray, sizeM1BitWidth: 0)))
 ^28 = typeid: (name: "_ZTS1E", summary: (typeTestRes: (kind: unsat, sizeM1BitWidth: 0)))
+^29 = flags: 8
+^30 = blockcount: 1888
 
 ; Make sure we get back from llvm-dis essentially what we put in via llvm-as.
 ; CHECK: ^0 = module: (path: "thinlto-summary1.o", hash: (1369602428, 2747878711, 259090915, 2507395659, 1141468049))
@@ -76,10 +78,10 @@
 ; CHECK: ^8 = gv: (guid: 7, summaries: (function: (module: ^0, flags: (linkage: linkonce_odr, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), insts: 1)))
 ; CHECK: ^9 = gv: (guid: 8, summaries: (function: (module: ^0, flags: (linkage: weak_odr, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 1), insts: 1)))
 ; CHECK: ^10 = gv: (guid: 9, summaries: (function: (module: ^0, flags: (linkage: weak, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), insts: 1)))
-; CHECK: ^11 = gv: (guid: 10, summaries: (variable: (module: ^0, flags: (linkage: common, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), varFlags: (readonly: 0, writeonly: 0))))
-; CHECK: ^12 = gv: (guid: 11, summaries: (variable: (module: ^0, flags: (linkage: appending, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), varFlags: (readonly: 0, writeonly: 0), refs: (^4))))
-; CHECK: ^13 = gv: (guid: 12, summaries: (variable: (module: ^0, flags: (linkage: external, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), varFlags: (readonly: 1, writeonly: 0))))
-; CHECK: ^14 = gv: (guid: 13, summaries: (variable: (module: ^0, flags: (linkage: external, notEligibleToImport: 0, live: 0, dsoLocal: 1, canAutoHide: 0), varFlags: (readonly: 0, writeonly: 0))))
+; CHECK: ^11 = gv: (guid: 10, summaries: (variable: (module: ^0, flags: (linkage: common, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), varFlags: (readonly: 0, writeonly: 0, constant: 0))))
+; CHECK: ^12 = gv: (guid: 11, summaries: (variable: (module: ^0, flags: (linkage: appending, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), varFlags: (readonly: 0, writeonly: 0, constant: 0), refs: (^4))))
+; CHECK: ^13 = gv: (guid: 12, summaries: (variable: (module: ^0, flags: (linkage: external, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), varFlags: (readonly: 1, writeonly: 0, constant: 0))))
+; CHECK: ^14 = gv: (guid: 13, summaries: (variable: (module: ^0, flags: (linkage: external, notEligibleToImport: 0, live: 0, dsoLocal: 1, canAutoHide: 0), varFlags: (readonly: 0, writeonly: 0, constant: 0))))
 ; CHECK: ^15 = gv: (guid: 14, summaries: (function: (module: ^1, flags: (linkage: external, notEligibleToImport: 1, live: 1, dsoLocal: 0, canAutoHide: 0), insts: 1, funcFlags: (readNone: 0, readOnly: 0, noRecurse: 0, returnDoesNotAlias: 0, noInline: 1, alwaysInline: 0))))
 ; CHECK: ^16 = gv: (guid: 15, summaries: (function: (module: ^1, flags: (linkage: external, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), insts: 1, funcFlags: (readNone: 1, readOnly: 0, noRecurse: 1, returnDoesNotAlias: 0, noInline: 0, alwaysInline: 1))))
 ; CHECK: ^17 = gv: (guid: 16, summaries: (function: (module: ^1, flags: (linkage: external, notEligibleToImport: 0, live: 0, dsoLocal: 0, canAutoHide: 0), insts: 1, funcFlags: (readNone: 0, readOnly: 1, noRecurse: 0, returnDoesNotAlias: 1, noInline: 0, alwaysInline: 0), calls: ((callee: ^15)))))
@@ -94,6 +96,8 @@
 ; CHECK: ^26 = typeid: (name: "_ZTS1A", summary: (typeTestRes: (kind: allOnes, sizeM1BitWidth: 7), wpdResolutions: ((offset: 0, wpdRes: (kind: branchFunnel)), (offset: 8, wpdRes: (kind: singleImpl, singleImplName: "_ZN1A1nEi")), (offset: 16, wpdRes: (kind: indir, resByArg: (args: (1, 2), byArg: (kind: indir, byte: 2, bit: 3), args: (3), byArg: (kind: uniformRetVal, info: 1), args: (4), byArg: (kind: uniqueRetVal, info: 1), args: (5), byArg: (kind: virtualConstProp))))))) ; guid = 7004155349499253778
 ; CHECK: ^27 = typeid: (name: "_ZTS1D", summary: (typeTestRes: (kind: byteArray, sizeM1BitWidth: 0))) ; guid = 9614786172484273522
 ; CHECK: ^28 = typeid: (name: "_ZTS1E", summary: (typeTestRes: (kind: unsat, sizeM1BitWidth: 0))) ; guid = 17437243864166745132
+; CHECK: ^29 = flags: 8
+; CHECK: ^30 = blockcount: 1888
 
 ; Make sure parsing of a non-summary entry containing a ":" does not fail
 ; after summary parsing, which handles colons differently.

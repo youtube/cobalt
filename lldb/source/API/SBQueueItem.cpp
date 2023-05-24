@@ -1,4 +1,4 @@
-//===-- SBQueueItem.cpp -----------------------------------------*- C++ -*-===//
+//===-- SBQueueItem.cpp ---------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -80,7 +80,7 @@ SBAddress SBQueueItem::GetAddress() const {
 
   SBAddress result;
   if (m_queue_item_sp) {
-    result.SetAddress(&m_queue_item_sp->GetAddress());
+    result.SetAddress(m_queue_item_sp->GetAddress());
   }
   return LLDB_RECORD_RESULT(result);
 }

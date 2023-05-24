@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17
+// UNSUPPORTED: c++03, c++11, c++14, c++17
 
 // <chrono>
 // class year_month;
@@ -26,8 +26,6 @@
 #include <cassert>
 
 #include "test_macros.h"
-
-#include <iostream>
 
 int main(int, char**)
 {
@@ -79,7 +77,6 @@ int main(int, char**)
         for (int j = 1; j <= 12; ++j)
     {
         months diff = year_month{y, month(i)} - year_month{y, month(j)};
-        std::cout << "i: " << i << " j: " << j << " -> " << diff.count() << std::endl;
         assert(diff.count() == i - j);
     }
 

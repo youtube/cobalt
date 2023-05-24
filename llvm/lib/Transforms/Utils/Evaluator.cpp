@@ -17,7 +17,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -184,11 +183,11 @@ evaluateBitcastFromPtr(Constant *Ptr, const DataLayout &DL,
                        std::function<Constant *(Constant *)> Func) {
   Constant *Val;
   while (!(Val = Func(Ptr))) {
-    // If Ty is a struct, we can convert the pointer to the struct
+    // If Ty is a non-opaque struct, we can convert the pointer to the struct
     // into a pointer to its first member.
     // FIXME: This could be extended to support arrays as well.
     Type *Ty = cast<PointerType>(Ptr->getType())->getElementType();
-    if (!isa<StructType>(Ty))
+    if (!isa<StructType>(Ty) || cast<StructType>(Ty)->isOpaque())
       break;
 
     IntegerType *IdxTy = IntegerType::get(Ty->getContext(), 32);
@@ -196,8 +195,7 @@ evaluateBitcastFromPtr(Constant *Ptr, const DataLayout &DL,
     Constant *const IdxList[] = {IdxZero, IdxZero};
 
     Ptr = ConstantExpr::getGetElementPtr(Ty, Ptr, IdxList);
-    if (auto *FoldedPtr = ConstantFoldConstant(Ptr, DL, TLI))
-      Ptr = FoldedPtr;
+    Ptr = ConstantFoldConstant(Ptr, DL, TLI);
   }
   return Val;
 }
@@ -212,11 +210,7 @@ static Constant *getInitializer(Constant *C) {
 Constant *Evaluator::ComputeLoadResult(Constant *P) {
   // If this memory location has been recently stored, use the stored value: it
   // is the most up-to-date.
-  auto findMemLoc = [this](Constant *Ptr) {
-    DenseMap<Constant *, Constant *>::const_iterator I =
-        MutatedMemory.find(Ptr);
-    return I != MutatedMemory.end() ? I->second : nullptr;
-  };
+  auto findMemLoc = [this](Constant *Ptr) { return MutatedMemory.lookup(Ptr); };
 
   if (Constant *Val = findMemLoc(P))
     return Val;
@@ -266,33 +260,33 @@ static Function *getFunction(Constant *C) {
 }
 
 Function *
-Evaluator::getCalleeWithFormalArgs(CallSite &CS,
-                                   SmallVector<Constant *, 8> &Formals) {
-  auto *V = CS.getCalledValue();
+Evaluator::getCalleeWithFormalArgs(CallBase &CB,
+                                   SmallVectorImpl<Constant *> &Formals) {
+  auto *V = CB.getCalledOperand();
   if (auto *Fn = getFunction(getVal(V)))
-    return getFormalParams(CS, Fn, Formals) ? Fn : nullptr;
+    return getFormalParams(CB, Fn, Formals) ? Fn : nullptr;
 
   auto *CE = dyn_cast<ConstantExpr>(V);
   if (!CE || CE->getOpcode() != Instruction::BitCast ||
-      !getFormalParams(CS, getFunction(CE->getOperand(0)), Formals))
+      !getFormalParams(CB, getFunction(CE->getOperand(0)), Formals))
     return nullptr;
 
   return dyn_cast<Function>(
       ConstantFoldLoadThroughBitcast(CE, CE->getOperand(0)->getType(), DL));
 }
 
-bool Evaluator::getFormalParams(CallSite &CS, Function *F,
-                                SmallVector<Constant *, 8> &Formals) {
+bool Evaluator::getFormalParams(CallBase &CB, Function *F,
+                                SmallVectorImpl<Constant *> &Formals) {
   if (!F)
     return false;
 
   auto *FTy = F->getFunctionType();
-  if (FTy->getNumParams() > CS.getNumArgOperands()) {
+  if (FTy->getNumParams() > CB.getNumArgOperands()) {
     LLVM_DEBUG(dbgs() << "Too few arguments for function.\n");
     return false;
   }
 
-  auto ArgI = CS.arg_begin();
+  auto ArgI = CB.arg_begin();
   for (auto ParI = FTy->param_begin(), ParE = FTy->param_end(); ParI != ParE;
        ++ParI) {
     auto *ArgC = ConstantFoldLoadThroughBitcast(getVal(*ArgI), *ParI, DL);
@@ -339,7 +333,8 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
         return false;  // no volatile/atomic accesses.
       }
       Constant *Ptr = getVal(SI->getOperand(1));
-      if (auto *FoldedPtr = ConstantFoldConstant(Ptr, DL, TLI)) {
+      Constant *FoldedPtr = ConstantFoldConstant(Ptr, DL, TLI);
+      if (Ptr != FoldedPtr) {
         LLVM_DEBUG(dbgs() << "Folding constant ptr expression: " << *Ptr);
         Ptr = FoldedPtr;
         LLVM_DEBUG(dbgs() << "; To: " << *Ptr << "\n");
@@ -448,7 +443,8 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
       }
 
       Constant *Ptr = getVal(LI->getOperand(0));
-      if (auto *FoldedPtr = ConstantFoldConstant(Ptr, DL, TLI)) {
+      Constant *FoldedPtr = ConstantFoldConstant(Ptr, DL, TLI);
+      if (Ptr != FoldedPtr) {
         Ptr = FoldedPtr;
         LLVM_DEBUG(dbgs() << "Found a constant pointer expression, constant "
                              "folding: "
@@ -476,22 +472,22 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
       InstResult = AllocaTmps.back().get();
       LLVM_DEBUG(dbgs() << "Found an alloca. Result: " << *InstResult << "\n");
     } else if (isa<CallInst>(CurInst) || isa<InvokeInst>(CurInst)) {
-      CallSite CS(&*CurInst);
+      CallBase &CB = *cast<CallBase>(&*CurInst);
 
       // Debug info can safely be ignored here.
-      if (isa<DbgInfoIntrinsic>(CS.getInstruction())) {
+      if (isa<DbgInfoIntrinsic>(CB)) {
         LLVM_DEBUG(dbgs() << "Ignoring debug info.\n");
         ++CurInst;
         continue;
       }
 
       // Cannot handle inline asm.
-      if (isa<InlineAsm>(CS.getCalledValue())) {
+      if (CB.isInlineAsm()) {
         LLVM_DEBUG(dbgs() << "Found inline asm, can not evaluate.\n");
         return false;
       }
 
-      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(CS.getInstruction())) {
+      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(&CB)) {
         if (MemSetInst *MSI = dyn_cast<MemSetInst>(II)) {
           if (MSI->isVolatile()) {
             LLVM_DEBUG(dbgs() << "Can not optimize a volatile memset "
@@ -551,6 +547,10 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
           LLVM_DEBUG(dbgs() << "Skipping sideeffect intrinsic.\n");
           ++CurInst;
           continue;
+        } else if (II->getIntrinsicID() == Intrinsic::pseudoprobe) {
+          LLVM_DEBUG(dbgs() << "Skipping pseudoprobe intrinsic.\n");
+          ++CurInst;
+          continue;
         }
 
         LLVM_DEBUG(dbgs() << "Unknown intrinsic. Can not evaluate.\n");
@@ -559,7 +559,7 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
 
       // Resolve function pointers.
       SmallVector<Constant *, 8> Formals;
-      Function *Callee = getCalleeWithFormalArgs(CS, Formals);
+      Function *Callee = getCalleeWithFormalArgs(CB, Formals);
       if (!Callee || Callee->isInterposable()) {
         LLVM_DEBUG(dbgs() << "Can not resolve function pointer.\n");
         return false;  // Cannot resolve.
@@ -567,9 +567,8 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
 
       if (Callee->isDeclaration()) {
         // If this is a function we can constant fold, do it.
-        if (Constant *C = ConstantFoldCall(cast<CallBase>(CS.getInstruction()),
-                                           Callee, Formals, TLI)) {
-          InstResult = castCallResultIfNeeded(CS.getCalledValue(), C);
+        if (Constant *C = ConstantFoldCall(&CB, Callee, Formals, TLI)) {
+          InstResult = castCallResultIfNeeded(CB.getCalledOperand(), C);
           if (!InstResult)
             return false;
           LLVM_DEBUG(dbgs() << "Constant folded function call. Result: "
@@ -592,7 +591,7 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
           return false;
         }
         ValueStack.pop_back();
-        InstResult = castCallResultIfNeeded(CS.getCalledValue(), RetVal);
+        InstResult = castCallResultIfNeeded(CB.getCalledOperand(), RetVal);
         if (RetVal && !InstResult)
           return false;
 
@@ -648,9 +647,7 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
     }
 
     if (!CurInst->use_empty()) {
-      if (auto *FoldedInstResult = ConstantFoldConstant(InstResult, DL, TLI))
-        InstResult = FoldedInstResult;
-
+      InstResult = ConstantFoldConstant(InstResult, DL, TLI);
       setVal(&*CurInst, InstResult);
     }
 

@@ -14,7 +14,7 @@ namespace lldb {
 "Represents a destination for streaming data output to. By default, a string
 stream is created.
 
-For example (from test/source-manager/TestSourceManager.py),
+For example (from test/source-manager/TestSourceManager.py), ::
 
         # Create the filespec for 'main.c'.
         filespec = lldb.SBFileSpec('main.c', False)
@@ -62,14 +62,8 @@ public:
     size_t
     GetSize();
 
-    // wrapping the variadic Printf() with a plain Print()
-    // because it is hard to support varargs in SWIG bridgings
-    %extend {
-        void Print (const char* str)
-        {
-            self->Printf("%s", str);
-        }
-    }
+    void
+    Print (const char* str);
 
     void
     RedirectToFile (const char *path, bool append);

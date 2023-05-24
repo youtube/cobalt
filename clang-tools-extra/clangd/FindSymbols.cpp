@@ -9,18 +9,24 @@
 
 #include "AST.h"
 #include "FuzzyMatch.h"
-#include "Logger.h"
 #include "ParsedAST.h"
 #include "Quality.h"
 #include "SourceCode.h"
 #include "index/Index.h"
+#include "support/Logger.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Index/IndexDataConsumer.h"
 #include "clang/Index/IndexSymbol.h"
 #include "clang/Index/IndexingAction.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
+#include <limits>
+#include <tuple>
 
 #define DEBUG_TYPE "FindSymbols"
 
@@ -37,30 +43,45 @@ struct ScoredSymbolGreater {
   }
 };
 
+// Returns true if \p Query can be found as a sub-sequence inside \p Scope.
+bool approximateScopeMatch(llvm::StringRef Scope, llvm::StringRef Query) {
+  assert(Scope.empty() || Scope.endswith("::"));
+  assert(Query.empty() || Query.endswith("::"));
+  while (!Scope.empty() && !Query.empty()) {
+    auto Colons = Scope.find("::");
+    assert(Colons != llvm::StringRef::npos);
+
+    llvm::StringRef LeadingSpecifier = Scope.slice(0, Colons + 2);
+    Scope = Scope.slice(Colons + 2, llvm::StringRef::npos);
+    Query.consume_front(LeadingSpecifier);
+  }
+  return Query.empty();
+}
+
 } // namespace
 
-llvm::Expected<Location> symbolToLocation(const Symbol &Sym,
-                                          llvm::StringRef HintPath) {
-  // Prefer the definition over e.g. a function declaration in a header
-  auto &CD = Sym.Definition ? Sym.Definition : Sym.CanonicalDeclaration;
-  auto Path = URI::resolve(CD.FileURI, HintPath);
-  if (!Path) {
-    return llvm::make_error<llvm::StringError>(
-        formatv("Could not resolve path for symbol '{0}': {1}",
-                Sym.Name, llvm::toString(Path.takeError())),
-        llvm::inconvertibleErrorCode());
-  }
+llvm::Expected<Location> indexToLSPLocation(const SymbolLocation &Loc,
+                                            llvm::StringRef TUPath) {
+  auto Path = URI::resolve(Loc.FileURI, TUPath);
+  if (!Path)
+    return error("Could not resolve path for file '{0}': {1}", Loc.FileURI,
+                 Path.takeError());
   Location L;
-  // Use HintPath as TUPath since there is no TU associated with this
-  // request.
-  L.uri = URIForFile::canonicalize(*Path, HintPath);
+  L.uri = URIForFile::canonicalize(*Path, TUPath);
   Position Start, End;
-  Start.line = CD.Start.line();
-  Start.character = CD.Start.column();
-  End.line = CD.End.line();
-  End.character = CD.End.column();
+  Start.line = Loc.Start.line();
+  Start.character = Loc.Start.column();
+  End.line = Loc.End.line();
+  End.character = Loc.End.column();
   L.range = {Start, End};
   return L;
+}
+
+llvm::Expected<Location> symbolToLocation(const Symbol &Sym,
+                                          llvm::StringRef TUPath) {
+  // Prefer the definition over e.g. a function declaration in a header
+  return indexToLSPLocation(
+      Sym.Definition ? Sym.Definition : Sym.CanonicalDeclaration, TUPath);
 }
 
 llvm::Expected<std::vector<SymbolInformation>>
@@ -70,43 +91,54 @@ getWorkspaceSymbols(llvm::StringRef Query, int Limit,
   if (Query.empty() || !Index)
     return Result;
 
+  // Lookup for qualified names are performed as:
+  // - Exact namespaces are boosted by the index.
+  // - Approximate matches are (sub-scope match) included via AnyScope logic.
+  // - Non-matching namespaces (no sub-scope match) are post-filtered.
   auto Names = splitQualifiedName(Query);
 
   FuzzyFindRequest Req;
-  Req.Query = Names.second;
+  Req.Query = std::string(Names.second);
 
-  // FuzzyFind doesn't want leading :: qualifier
-  bool IsGlobalQuery = Names.first.consume_front("::");
-  // Restrict results to the scope in the query string if present (global or
-  // not).
-  if (IsGlobalQuery || !Names.first.empty())
-    Req.Scopes = {Names.first};
-  else
-    Req.AnyScope = true;
-  if (Limit)
+  // FuzzyFind doesn't want leading :: qualifier.
+  auto HasLeadingColons = Names.first.consume_front("::");
+  // Limit the query to specific namespace if it is fully-qualified.
+  Req.AnyScope = !HasLeadingColons;
+  // Boost symbols from desired namespace.
+  if (HasLeadingColons || !Names.first.empty())
+    Req.Scopes = {std::string(Names.first)};
+  if (Limit) {
     Req.Limit = Limit;
+    // If we are boosting a specific scope allow more results to be retrieved,
+    // since some symbols from preferred namespaces might not make the cut.
+    if (Req.AnyScope && !Req.Scopes.empty())
+      *Req.Limit *= 5;
+  }
   TopN<ScoredSymbolInfo, ScoredSymbolGreater> Top(
       Req.Limit ? *Req.Limit : std::numeric_limits<size_t>::max());
   FuzzyMatcher Filter(Req.Query);
-  Index->fuzzyFind(Req, [HintPath, &Top, &Filter](const Symbol &Sym) {
+
+  Index->fuzzyFind(Req, [HintPath, &Top, &Filter, AnyScope = Req.AnyScope,
+                         ReqScope = Names.first](const Symbol &Sym) {
+    llvm::StringRef Scope = Sym.Scope;
+    // Fuzzyfind might return symbols from irrelevant namespaces if query was
+    // not fully-qualified, drop those.
+    if (AnyScope && !approximateScopeMatch(Scope, ReqScope))
+      return;
+
     auto Loc = symbolToLocation(Sym, HintPath);
     if (!Loc) {
       log("Workspace symbols: {0}", Loc.takeError());
       return;
     }
 
-    SymbolKind SK = indexSymbolKindToSymbolKind(Sym.SymInfo.Kind);
-    std::string Scope = Sym.Scope;
-    llvm::StringRef ScopeRef = Scope;
-    ScopeRef.consume_back("::");
-    SymbolInformation Info = {(Sym.Name + Sym.TemplateSpecializationArgs).str(),
-                              SK, *Loc, ScopeRef};
-
     SymbolQualitySignals Quality;
     Quality.merge(Sym);
     SymbolRelevanceSignals Relevance;
     Relevance.Name = Sym.Name;
     Relevance.Query = SymbolRelevanceSignals::Generic;
+    // If symbol and request scopes do not match exactly, apply a penalty.
+    Relevance.InBaseClass = AnyScope && Scope != ReqScope;
     if (auto NameMatch = Filter.match(Sym.Name))
       Relevance.NameMatch = *NameMatch;
     else {
@@ -115,11 +147,23 @@ getWorkspaceSymbols(llvm::StringRef Query, int Limit,
       return;
     }
     Relevance.merge(Sym);
-    auto Score =
-        evaluateSymbolAndRelevance(Quality.evaluate(), Relevance.evaluate());
+    auto QualScore = Quality.evaluateHeuristics();
+    auto RelScore = Relevance.evaluateHeuristics();
+    auto Score = evaluateSymbolAndRelevance(QualScore, RelScore);
     dlog("FindSymbols: {0}{1} = {2}\n{3}{4}\n", Sym.Scope, Sym.Name, Score,
          Quality, Relevance);
 
+    SymbolInformation Info;
+    Info.name = (Sym.Name + Sym.TemplateSpecializationArgs).str();
+    Info.kind = indexSymbolKindToSymbolKind(Sym.SymInfo.Kind);
+    Info.location = *Loc;
+    Scope.consume_back("::");
+    Info.containerName = Scope.str();
+
+    // Exposed score excludes fuzzy-match component, for client-side re-ranking.
+    Info.score = Relevance.NameMatch > std::numeric_limits<float>::epsilon()
+                     ? Score / Relevance.NameMatch
+                     : QualScore;
     Top.push({Score, std::move(Info)});
   });
   for (auto &R : std::move(Top).items())
@@ -131,39 +175,53 @@ namespace {
 llvm::Optional<DocumentSymbol> declToSym(ASTContext &Ctx, const NamedDecl &ND) {
   auto &SM = Ctx.getSourceManager();
 
-  SourceLocation NameLoc = nameLocation(ND, SM);
-  // getFileLoc is a good choice for us, but we also need to make sure
-  // sourceLocToPosition won't switch files, so we call getSpellingLoc on top of
-  // that to make sure it does not switch files.
-  // FIXME: sourceLocToPosition should not switch files!
   SourceLocation BeginLoc = SM.getSpellingLoc(SM.getFileLoc(ND.getBeginLoc()));
   SourceLocation EndLoc = SM.getSpellingLoc(SM.getFileLoc(ND.getEndLoc()));
-  if (NameLoc.isInvalid() || BeginLoc.isInvalid() || EndLoc.isInvalid())
+  const auto SymbolRange =
+      toHalfOpenFileRange(SM, Ctx.getLangOpts(), {BeginLoc, EndLoc});
+  if (!SymbolRange)
     return llvm::None;
-
-  if (!SM.isWrittenInMainFile(NameLoc) || !SM.isWrittenInMainFile(BeginLoc) ||
-      !SM.isWrittenInMainFile(EndLoc))
-    return llvm::None;
-
-  Position NameBegin = sourceLocToPosition(SM, NameLoc);
-  Position NameEnd = sourceLocToPosition(
-      SM, Lexer::getLocForEndOfToken(NameLoc, 0, SM, Ctx.getLangOpts()));
 
   index::SymbolInfo SymInfo = index::getSymbolInfo(&ND);
-  // FIXME: this is not classifying constructors, destructors and operators
-  //        correctly (they're all "methods").
+  // FIXME: This is not classifying constructors, destructors and operators
+  // correctly.
   SymbolKind SK = indexSymbolKindToSymbolKind(SymInfo.Kind);
 
   DocumentSymbol SI;
   SI.name = printName(Ctx, ND);
   SI.kind = SK;
   SI.deprecated = ND.isDeprecated();
-  SI.range =
-      Range{sourceLocToPosition(SM, BeginLoc), sourceLocToPosition(SM, EndLoc)};
-  SI.selectionRange = Range{NameBegin, NameEnd};
+  SI.range = Range{sourceLocToPosition(SM, SymbolRange->getBegin()),
+                   sourceLocToPosition(SM, SymbolRange->getEnd())};
+
+  SourceLocation NameLoc = ND.getLocation();
+  SourceLocation FallbackNameLoc;
+  if (NameLoc.isMacroID()) {
+    if (isSpelledInSource(NameLoc, SM)) {
+      // Prefer the spelling loc, but save the expansion loc as a fallback.
+      FallbackNameLoc = SM.getExpansionLoc(NameLoc);
+      NameLoc = SM.getSpellingLoc(NameLoc);
+    } else {
+      NameLoc = SM.getExpansionLoc(NameLoc);
+    }
+  }
+  auto ComputeSelectionRange = [&](SourceLocation L) -> Range {
+    Position NameBegin = sourceLocToPosition(SM, L);
+    Position NameEnd = sourceLocToPosition(
+        SM, Lexer::getLocForEndOfToken(L, 0, SM, Ctx.getLangOpts()));
+    return Range{NameBegin, NameEnd};
+  };
+
+  SI.selectionRange = ComputeSelectionRange(NameLoc);
+  if (!SI.range.contains(SI.selectionRange) && FallbackNameLoc.isValid()) {
+    // 'selectionRange' must be contained in 'range'. In cases where clang
+    // reports unrelated ranges, we first try falling back to the expansion
+    // loc for the selection range.
+    SI.selectionRange = ComputeSelectionRange(FallbackNameLoc);
+  }
   if (!SI.range.contains(SI.selectionRange)) {
-    // 'selectionRange' must be contained in 'range', so in cases where clang
-    // reports unrelated ranges we need to reconcile somehow.
+    // If the containment relationship still doesn't hold, throw away
+    // 'range' and use 'selectionRange' for both.
     SI.range = SI.selectionRange;
   }
   return SI;
@@ -190,23 +248,37 @@ public:
   }
 
 private:
-  enum class VisitKind { No, OnlyDecl, DeclAndChildren };
+  enum class VisitKind { No, OnlyDecl, OnlyChildren, DeclAndChildren };
 
   void traverseDecl(Decl *D, std::vector<DocumentSymbol> &Results) {
-    if (auto *Templ = llvm::dyn_cast<TemplateDecl>(D))
-      D = Templ->getTemplatedDecl();
-    auto *ND = llvm::dyn_cast<NamedDecl>(D);
-    if (!ND)
+    // Skip symbols which do not originate from the main file.
+    if (!isInsideMainFile(D->getLocation(), AST.getSourceManager()))
       return;
-    VisitKind Visit = shouldVisit(ND);
+
+    if (auto *Templ = llvm::dyn_cast<TemplateDecl>(D)) {
+      // TemplatedDecl might be null, e.g. concepts.
+      if (auto *TD = Templ->getTemplatedDecl())
+        D = TD;
+    }
+
+    VisitKind Visit = shouldVisit(D);
     if (Visit == VisitKind::No)
       return;
-    llvm::Optional<DocumentSymbol> Sym = declToSym(AST.getASTContext(), *ND);
+
+    if (Visit == VisitKind::OnlyChildren)
+      return traverseChildren(D, Results);
+
+    auto *ND = llvm::cast<NamedDecl>(D);
+    auto Sym = declToSym(AST.getASTContext(), *ND);
     if (!Sym)
       return;
-    if (Visit == VisitKind::DeclAndChildren)
-      traverseChildren(D, Sym->children);
     Results.push_back(std::move(*Sym));
+
+    if (Visit == VisitKind::OnlyDecl)
+      return;
+
+    assert(Visit == VisitKind::DeclAndChildren && "Unexpected VisitKind");
+    traverseChildren(ND, Results.back().children);
   }
 
   void traverseChildren(Decl *D, std::vector<DocumentSymbol> &Results) {
@@ -217,8 +289,14 @@ private:
       traverseDecl(C, Results);
   }
 
-  VisitKind shouldVisit(NamedDecl *D) {
+  VisitKind shouldVisit(Decl *D) {
     if (D->isImplicit())
+      return VisitKind::No;
+
+    if (llvm::isa<LinkageSpecDecl>(D) || llvm::isa<ExportDecl>(D))
+      return VisitKind::OnlyChildren;
+
+    if (!llvm::isa<NamedDecl>(D))
       return VisitKind::No;
 
     if (auto Func = llvm::dyn_cast<FunctionDecl>(D)) {

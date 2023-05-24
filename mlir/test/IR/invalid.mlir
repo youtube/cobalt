@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s -split-input-file -verify-diagnostics
+// RUN: mlir-opt -allow-unregistered-dialect %s -split-input-file -verify-diagnostics
 
 // Check different error cases.
 // -----
@@ -17,15 +17,15 @@ func @nestedtensor(tensor<tensor<i8>>) -> () // expected-error {{invalid tensor 
 
 // -----
 
+func @illegalmemrefelementtype(memref<?xtensor<i8>>) -> () // expected-error {{invalid memref element type}}
+
+// -----
+
+func @illegalunrankedmemrefelementtype(memref<*xtensor<i8>>) -> () // expected-error {{invalid memref element type}}
+
+// -----
+
 func @indexvector(vector<4 x index>) -> () // expected-error {{vector elements must be int or float type}}
-
-// -----
-
-func @indexmemref(memref<? x index>) -> () // expected-error {{invalid memref element type}}
-
-// -----
-
-func @indextensor(tensor<4 x index>) -> () // expected-error {{invalid tensor element type}}
 
 // -----
 // Test no map in memref type.
@@ -153,7 +153,7 @@ func @block_arg_no_type() {
 
 func @block_arg_no_close_paren() {
 ^bb42:
-  br ^bb2( // expected-error@+1 {{expected ')' to close argument list}}
+  br ^bb2( // expected-error@+1 {{expected ':'}}
   return
 }
 
@@ -170,7 +170,8 @@ func @block_first_has_predecessor() {
 // -----
 
 func @no_return() {
-  %x = constant 0 : i32  // expected-error {{block with no terminator}}
+  %x = constant 0 : i32
+  %y = constant 1 : i32  // expected-error {{block with no terminator}}
 }
 
 // -----
@@ -200,7 +201,7 @@ func @no_terminator() {
 
 // -----
 
-func @illegaltype(i0) // expected-error {{invalid integer width}}
+func @illegaltype(i21312312323120) // expected-error {{invalid integer width}}
 
 // -----
 
@@ -294,7 +295,7 @@ func @invalid_if_conditional6() {
 }
 
 // -----
-// TODO (support affine.if (1)?
+// TODO: support affine.if (1)?
 func @invalid_if_conditional7() {
   affine.for %i = 1 to 10 {
     affine.if affine_set<(i) : (1)> // expected-error {{expected '== 0' or '>= 0' at end of affine constraint}}
@@ -339,13 +340,13 @@ func @malformed_type(%a : intt) { // expected-error {{expected non-function type
 
 func @resulterror() -> i32 {
 ^bb42:
-  return    // expected-error {{'std.return' op has 0 operands, but enclosing function returns 1}}
+  return    // expected-error {{'std.return' op has 0 operands, but enclosing function (@resulterror) returns 1}}
 }
 
 // -----
 
 func @func_resulterror() -> i32 {
-  return // expected-error {{'std.return' op has 0 operands, but enclosing function returns 1}}
+  return // expected-error {{'std.return' op has 0 operands, but enclosing function (@func_resulterror) returns 1}}
 }
 
 // -----
@@ -394,7 +395,6 @@ func @condbr_notbool() {
 ^bb0:
   %a = "foo"() : () -> i32 // expected-note {{prior use here}}
   cond_br %a, ^bb0, ^bb0 // expected-error {{use of value '%a' expects different type than prior uses: 'i1' vs 'i32'}}
-// expected-error@-1 {{expected condition type was boolean (i1)}}
 }
 
 // -----
@@ -464,7 +464,49 @@ func @dominance_failure() {
   "foo"(%x) : (i32) -> ()    // expected-error {{operand #0 does not dominate this use}}
   br ^bb1
 ^bb1:
-  %x = "bar"() : () -> i32    // expected-note {{operand defined here}}
+  %x = "bar"() : () -> i32    // expected-note {{operand defined here (op in the same region)}}
+  return
+}
+
+// -----
+
+func @dominance_failure() {
+^bb0:
+  "foo"(%x) : (i32) -> ()    // expected-error {{operand #0 does not dominate this use}}
+  %x = "bar"() : () -> i32    // expected-note {{operand defined here (op in the same block)}}
+  br ^bb1
+^bb1:
+  return
+}
+
+// -----
+
+func @dominance_failure() {
+  "foo"() ({
+    "foo"(%x) : (i32) -> ()    // expected-error {{operand #0 does not dominate this use}}
+  }) : () -> ()
+  %x = "bar"() : () -> i32    // expected-note {{operand defined here (op in a parent region)}}
+  return
+}
+
+// -----
+
+func @dominance_failure() {  //  expected-note {{operand defined as a block argument (block #1 in the same region)}}
+^bb0:
+  br ^bb1(%x : i32)    // expected-error {{operand #0 does not dominate this use}}
+^bb1(%x : i32):
+  return
+}
+
+// -----
+
+func @dominance_failure() {  //  expected-note {{operand defined as a block argument (block #1 in a parent region)}}
+^bb0:
+  %f = "foo"() ({
+    "foo"(%x) : (i32) -> ()    // expected-error {{operand #0 does not dominate this use}}
+  }) : () -> (i32)
+  br ^bb1(%f : i32)
+^bb1(%x : i32):
   return
 }
 
@@ -472,14 +514,14 @@ func @dominance_failure() {
 
 func @return_type_mismatch() -> i32 {
   %0 = "foo"() : ()->f32
-  return %0 : f32  // expected-error {{type of return operand 0 ('f32') doesn't match function result type ('i32')}}
+  return %0 : f32  // expected-error {{type of return operand 0 ('f32') doesn't match function result type ('i32') in function @return_type_mismatch}}
 }
 
 // -----
 
 func @return_inside_loop() {
   affine.for %i = 1 to 100 {
-    // expected-error@-1 {{op expects regions to end with 'affine.terminator', found 'std.return'}}
+    // expected-error@-1 {{op expects regions to end with 'affine.yield', found 'std.return'}}
     // expected-note@-2 {{in custom textual format, the absence of terminator implies}}
     return
   }
@@ -518,7 +560,7 @@ func @foo() {
 
 func @undefined_function() {
 ^bb0:
-  %x = constant @bar : (i32) -> ()  // expected-error {{reference to undefined function 'bar'}}
+  %x = constant @qux : (i32) -> ()  // expected-error {{reference to undefined function 'qux'}}
   return
 }
 
@@ -528,7 +570,7 @@ func @undefined_function() {
 
 func @bound_symbol_mismatch(%N : index) {
   affine.for %i = #map1(%N) to 100 {
-  // expected-error@-1 {{symbol operand count and integer set symbol count must match}}
+  // expected-error@-1 {{symbol operand count and affine map symbol count must match}}
   }
   return
 }
@@ -539,7 +581,7 @@ func @bound_symbol_mismatch(%N : index) {
 
 func @bound_dim_mismatch(%N : index) {
   affine.for %i = #map1(%N, %N)[%N] to 100 {
-  // expected-error@-1 {{dim operand count and integer set dim count must match}}
+  // expected-error@-1 {{dim operand count and affine map dim count must match}}
   }
   return
 }
@@ -687,10 +729,31 @@ func @elementsattr_toolarge1() -> () {
 
 // -----
 
+// expected-error@+1 {{parsed zero elements, but type ('tensor<i64>') expected at least 1}}
+#attr = dense<> : tensor<i64>
+
+// -----
+
 func @elementsattr_toolarge2() -> () {
 ^bb0:
   "foo"(){bar = dense<[-777]> : tensor<1xi8>} : () -> () // expected-error {{integer constant out of range}}
 }
+
+// -----
+
+"foo"(){bar = dense<[()]> : tensor<complex<i64>>} : () -> () // expected-error {{expected element literal of primitive type}}
+
+// -----
+
+"foo"(){bar = dense<[(10)]> : tensor<complex<i64>>} : () -> () // expected-error {{expected ',' between complex elements}}
+
+// -----
+
+"foo"(){bar = dense<[(10,)]> : tensor<complex<i64>>} : () -> () // expected-error {{expected element literal of primitive type}}
+
+// -----
+
+"foo"(){bar = dense<[(10,10]> : tensor<complex<i64>>} : () -> () // expected-error {{expected ')' after complex elements}}
 
 // -----
 
@@ -703,14 +766,14 @@ func @elementsattr_malformed_opaque() -> () {
 
 func @elementsattr_malformed_opaque1() -> () {
 ^bb0:
-  "foo"(){bar = opaque<"", "0xQZz123"> : tensor<1xi8>} : () -> () // expected-error {{opaque string only contains hex digits}}
+  "foo"(){bar = opaque<"", "0xQZz123"> : tensor<1xi8>} : () -> () // expected-error {{expected string containing hex digits starting with `0x`}}
 }
 
 // -----
 
 func @elementsattr_malformed_opaque2() -> () {
 ^bb0:
-  "foo"(){bar = opaque<"", "00abc"> : tensor<1xi8>} : () -> () // expected-error {{opaque string should start with '0x'}}
+  "foo"(){bar = opaque<"", "00abc"> : tensor<1xi8>} : () -> () // expected-error {{expected string containing hex digits starting with `0x`}}
 }
 
 // -----
@@ -748,7 +811,7 @@ func @mixed_named_arguments(f32,
 // `tensor` as operator rather than as a type.
 func @f(f32) {
 ^bb0(%a : f32):
-  %18 = cmpi "slt", %idx, %idx : index
+  %18 = cmpi slt, %idx, %idx : index
   tensor<42 x index  // expected-error {{custom op 'tensor' is unknown}}
   return
 }
@@ -907,7 +970,7 @@ func @negative_in_tensor_size() -> tensor<1x-1xi32>
 // -----
 
 func @invalid_nested_dominance() {
-  "foo.region"() ({
+  "test.ssacfg_region"() ({
     // expected-error @+1 {{operand #0 does not dominate this use}}
     "foo.use" (%1) : (i32) -> ()
     br ^bb2
@@ -1095,7 +1158,7 @@ func @bad_complex(complex<i32)
 // -----
 
 func @invalid_region_dominance() {
-  "foo.region"() ({
+  "test.ssacfg_region"() ({
     // expected-error @+1 {{operand #0 does not dominate this use}}
     "foo.use" (%def) : (i32) -> ()
     "foo.yield" () : () -> ()
@@ -1110,7 +1173,7 @@ func @invalid_region_dominance() {
 
 func @invalid_region_dominance() {
   // expected-note @+1 {{operand defined here}}
-  %def = "foo.region_with_def"() ({
+  %def = "test.ssacfg_region"() ({
     // expected-error @+1 {{operand #0 does not dominate this use}}
     "foo.use" (%def) : (i32) -> ()
     "foo.yield" () : () -> ()
@@ -1206,5 +1269,357 @@ func @bool_literal_in_non_bool_tensor() {
   "foo"() {bar = dense<true> : tensor<2xi16>} : () -> ()
 }
 
+// -----
+
 // expected-error @+1 {{unbalanced ')' character in pretty dialect name}}
 func @bad_arrow(%arg : !unreg.ptr<(i32)->)
+
+// -----
+
+func @negative_value_in_unsigned_int_attr() {
+  // expected-error @+1 {{negative integer literal not valid for unsigned integer type}}
+  "foo"() {bar = -5 : ui32} : () -> ()
+}
+
+// -----
+
+func @negative_value_in_unsigned_vector_attr() {
+  // expected-error @+1 {{expected unsigned integer elements, but parsed negative value}}
+  "foo"() {bar = dense<[5, -5]> : vector<2xui32>} : () -> ()
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = -129 : i8
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 256 : i8
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = -129 : si8
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 129 : si8
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{negative integer literal not valid for unsigned integer type}}
+    attr = -1 : ui8
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 256 : ui8
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = -32769 : i16
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 65536 : i16
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = -32769 : si16
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 32768 : si16
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{negative integer literal not valid for unsigned integer type}}
+    attr = -1 : ui16
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 65536: ui16
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = -2147483649 : i32
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 4294967296 : i32
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = -2147483649 : si32
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 2147483648 : si32
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{negative integer literal not valid for unsigned integer type}}
+    attr = -1 : ui32
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 4294967296 : ui32
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = -9223372036854775809 : i64
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 18446744073709551616 : i64
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = -9223372036854775809 : si64
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 9223372036854775808 : si64
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{negative integer literal not valid for unsigned integer type}}
+    attr = -1 : ui64
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 18446744073709551616 : ui64
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @really_large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 79228162514264337593543950336 : ui96
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @really_large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 79228162514264337593543950336 : i96
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @really_large_bound() {
+  "test.out_of_range_attribute"() {
+    // expected-error @+1 {{integer constant out of range for attribute}}
+    attr = 39614081257132168796771975168 : si96
+  } : () -> ()
+  return
+}
+
+// -----
+
+func @duplicate_dictionary_attr_key() {
+  // expected-error @+1 {{duplicate key 'a' in dictionary attribute}}
+  "foo.op"() {a, a} : () -> ()
+}
+
+// -----
+
+// expected-error @+1 {{attribute 'attr' occurs more than once in the attribute list}}
+test.format_symbol_name_attr_op @name { attr = "xx" }
+
+// -----
+
+func @forward_reference_type_check() -> (i8) {
+  br ^bb2
+
+^bb1:
+  // expected-note @+1 {{previously used here with type 'i8'}}
+  return %1 : i8
+
+^bb2:
+  // expected-error @+1 {{definition of SSA value '%1#0' has type 'f32'}}
+  %1 = "bar"() : () -> (f32)
+  br ^bb1
+}
+
+// -----
+
+func @dominance_error_in_unreachable_op() -> i1 {
+  %c = constant false
+  return %c : i1
+^bb0:
+  "test.ssacfg_region" () ({ // unreachable
+    ^bb1:
+// expected-error @+1 {{operand #0 does not dominate this use}}
+      %2:3 = "bar"(%1) : (i64) -> (i1,i1,i1)
+      br ^bb4
+    ^bb2:
+      br ^bb2
+    ^bb4:
+      %1 = "foo"() : ()->i64   // expected-note {{operand defined here}}
+  }) : () -> ()
+  return %c : i1
+}
+
+// -----
+
+func @invalid_region_dominance_with_dominance_free_regions() {
+  test.graph_region {
+    "foo.use" (%1) : (i32) -> ()
+    "foo.region"() ({
+      %1 = constant 0 : i32  // This value is used outside of the region.
+      "foo.yield" () : () -> ()
+    }, {
+      // expected-error @+1 {{expected operation name in quotes}}
+      %2 = constant 1 i32  // Syntax error causes region deletion.
+    }) : () -> ()
+  }
+  return
+}
+
+// -----
+
+func @foo() {} // expected-error {{expected non-empty function body}}

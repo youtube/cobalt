@@ -4,7 +4,7 @@
 ; RUN: llc < %s -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs | FileCheck %s --check-prefix=VI --check-prefix=FUNC --check-prefix=GCN --check-prefix=GCN2
 ; RUN: llc < %s -march=amdgcn -mcpu=fiji -mattr=-flat-for-global -verify-machineinstrs | FileCheck %s --check-prefix=VI --check-prefix=FUNC --check-prefix=GCN --check-prefix=GCN2
 
-declare i32 @llvm.r600.read.tidig.x() nounwind readnone
+declare i32 @llvm.amdgcn.workitem.id.x() nounwind readnone
 
 ; FUNC-LABEL: {{^}}u32_mad24:
 ; EG: MULADD_UINT24
@@ -76,6 +76,7 @@ entry:
 ; FUNC-LABEL: {{^}}i24_i32_i32_mad:
 ; EG: CNDE_INT
 ; SI: v_cndmask
+; GCN2: s_cselect
 define amdgpu_kernel void @i24_i32_i32_mad(i32 addrspace(1)* %out, i32 %a, i32 %b, i32 %c, i32 %d) {
 entry:
   %0 = ashr i32 %a, 8

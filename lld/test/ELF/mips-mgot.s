@@ -11,15 +11,15 @@
 # RUN:         . = 0x70000; .got  : { *(.got)  } \
 # RUN:       }" > %t.script
 # RUN: ld.lld -shared -mips-got-size 52 --script %t.script %t0.o %t1.o %t2.o -o %t.so
-# RUN: llvm-objdump -s -section=.got -t %t.so | FileCheck %s
+# RUN: llvm-objdump -s --section=.got -t %t.so | FileCheck %s
 # RUN: llvm-readobj -r --dyn-syms -A %t.so | FileCheck -check-prefix=GOT %s
 
 # CHECK: SYMBOL TABLE:
 # CHECK:           00000000 l    O .tdata          00000000 loc0
-# CHECK: [[FOO0:[0-9a-f]+]]        .text           00000000 foo0
+# CHECK: [[FOO0:[0-9a-f]+]] g      .text           00000000 foo0
 # CHECK:           00000000 g    O .tdata          00000000 tls0
 # CHECK:           00000004 g    O .tdata          00000000 tls1
-# CHECK: [[FOO2:[0-9a-f]+]]        .text           00000000 foo2
+# CHECK: [[FOO2:[0-9a-f]+]] g      .text           00000000 foo2
 
 # CHECK:      Contents of section .got:
 # CHECK-NEXT:  70000 00000000 80000000 [[FOO0]] [[FOO2]]
@@ -30,20 +30,20 @@
 
 # GOT:      Relocations [
 # GOT-NEXT:   Section (7) .rel.dyn {
-# GOT-NEXT:     0x70018 R_MIPS_REL32 - 0x0
-# GOT-NEXT:     0x7001C R_MIPS_REL32 - 0x0
-# GOT-NEXT:     0x70020 R_MIPS_REL32 - 0x0
-# GOT-NEXT:     0x70024 R_MIPS_REL32 - 0x0
-# GOT-NEXT:     0x70028 R_MIPS_REL32 - 0x0
-# GOT-NEXT:     0x7002C R_MIPS_REL32 - 0x0
-# GOT-NEXT:     0x70030 R_MIPS_REL32 foo0 0x0
-# GOT-NEXT:     0x70034 R_MIPS_REL32 foo2 0x0
-# GOT-NEXT:     0x70044 R_MIPS_TLS_DTPMOD32 - 0x0
-# GOT-NEXT:     0x70010 R_MIPS_TLS_TPREL32 tls0 0x0
-# GOT-NEXT:     0x70038 R_MIPS_TLS_TPREL32 tls0 0x0
-# GOT-NEXT:     0x7003C R_MIPS_TLS_DTPMOD32 tls0 0x0
-# GOT-NEXT:     0x70040 R_MIPS_TLS_DTPREL32 tls0 0x0
-# GOT-NEXT:     0x70014 R_MIPS_TLS_TPREL32 tls1 0x0
+# GOT-NEXT:     0x70018 R_MIPS_REL32 -
+# GOT-NEXT:     0x7001C R_MIPS_REL32 -
+# GOT-NEXT:     0x70020 R_MIPS_REL32 -
+# GOT-NEXT:     0x70024 R_MIPS_REL32 -
+# GOT-NEXT:     0x70028 R_MIPS_REL32 -
+# GOT-NEXT:     0x7002C R_MIPS_REL32 -
+# GOT-NEXT:     0x70030 R_MIPS_REL32 foo0
+# GOT-NEXT:     0x70034 R_MIPS_REL32 foo2
+# GOT-NEXT:     0x70044 R_MIPS_TLS_DTPMOD32 -
+# GOT-NEXT:     0x70010 R_MIPS_TLS_TPREL32 tls0
+# GOT-NEXT:     0x70038 R_MIPS_TLS_TPREL32 tls0
+# GOT-NEXT:     0x7003C R_MIPS_TLS_DTPMOD32 tls0
+# GOT-NEXT:     0x70040 R_MIPS_TLS_DTPREL32 tls0
+# GOT-NEXT:     0x70014 R_MIPS_TLS_TPREL32 tls1
 # GOT-NEXT:   }
 # GOT-NEXT: ]
 

@@ -21,15 +21,20 @@
 namespace clang {
 namespace clangd {
 
-struct MainFileMacros {
-  llvm::StringSet<> Names;
+struct MacroOccurrence {
   // Instead of storing SourceLocation, we have to store the token range because
   // SourceManager from preamble is not available when we build the AST.
-  llvm::DenseMap<SymbolID, std::vector<Range>> MacroRefs;
+  Range Rng;
+  bool IsDefinition;
+};
+
+struct MainFileMacros {
+  llvm::StringSet<> Names;
+  llvm::DenseMap<SymbolID, std::vector<MacroOccurrence>> MacroRefs;
   // Somtimes it is not possible to compute the SymbolID for the Macro, e.g. a
   // reference to an undefined macro. Store them separately, e.g. for semantic
   // highlighting.
-  std::vector<Range> UnknownMacros;
+  std::vector<MacroOccurrence> UnknownMacros;
   // Ranges skipped by the preprocessor due to being inactive.
   std::vector<Range> SkippedRanges;
 };
@@ -40,10 +45,8 @@ struct MainFileMacros {
 ///  - collect macros after the preamble of the main file (in ParsedAST.cpp)
 class CollectMainFileMacros : public PPCallbacks {
 public:
-  explicit CollectMainFileMacros(const SourceManager &SM,
-                                 const LangOptions &LangOpts,
-                                 MainFileMacros &Out)
-      : SM(SM), LangOpts(LangOpts), Out(Out) {}
+  explicit CollectMainFileMacros(const SourceManager &SM, MainFileMacros &Out)
+      : SM(SM), Out(Out) {}
 
   void FileChanged(SourceLocation Loc, FileChangeReason,
                    SrcMgr::CharacteristicKind, FileID) override {
@@ -51,7 +54,7 @@ public:
   }
 
   void MacroDefined(const Token &MacroName, const MacroDirective *MD) override {
-    add(MacroName, MD->getMacroInfo());
+    add(MacroName, MD->getMacroInfo(), /*IsDefinition=*/true);
   }
 
   void MacroExpands(const Token &MacroName, const MacroDefinition &MD,
@@ -89,24 +92,9 @@ public:
   }
 
 private:
-  void add(const Token &MacroNameTok, const MacroInfo *MI) {
-    if (!InMainFile)
-      return;
-    auto Loc = MacroNameTok.getLocation();
-    if (Loc.isMacroID())
-      return;
-
-    if (auto Range = getTokenRange(SM, LangOpts, Loc)) {
-      auto Name = MacroNameTok.getIdentifierInfo()->getName();
-      Out.Names.insert(Name);
-      if (auto SID = getSymbolID(Name, MI, SM))
-        Out.MacroRefs[*SID].push_back(*Range);
-      else
-        Out.UnknownMacros.push_back(*Range);
-    }
-  }
+  void add(const Token &MacroNameTok, const MacroInfo *MI,
+           bool IsDefinition = false);
   const SourceManager &SM;
-  const LangOptions &LangOpts;
   bool InMainFile = true;
   MainFileMacros &Out;
 };

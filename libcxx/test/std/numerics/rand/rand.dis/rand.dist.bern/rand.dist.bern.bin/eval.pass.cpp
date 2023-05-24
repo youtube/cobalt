@@ -522,5 +522,5 @@ int main(int, char**)
     test10();
     test11();
 
-  return 0;
+    return 0;
 }

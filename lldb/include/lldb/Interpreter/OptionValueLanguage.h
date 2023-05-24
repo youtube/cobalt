@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueLanguage_h_
-#define liblldb_OptionValueLanguage_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUELANGUAGE_H
+#define LLDB_INTERPRETER_OPTIONVALUELANGUAGE_H
 
 #include "lldb/Interpreter/OptionValue.h"
 #include "lldb/lldb-enumerations.h"
@@ -41,10 +41,9 @@ public:
   SetValueFromString(const char *,
                      VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_current_value = m_default_value;
     m_value_was_set = false;
-    return true;
   }
 
   lldb::OptionValueSP DeepCopy() const override;
@@ -66,4 +65,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueLanguage_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUELANGUAGE_H

@@ -1,4 +1,4 @@
-//===-- NativeProcessWindows.cpp --------------------------------*- C++ -*-===//
+//===-- NativeProcessWindows.cpp ------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -48,7 +48,7 @@ NativeProcessWindows::NativeProcessWindows(ProcessLaunchInfo &launch_info,
                                            NativeDelegate &delegate,
                                            llvm::Error &E)
     : NativeProcessProtocol(LLDB_INVALID_PROCESS_ID,
-                            launch_info.GetPTY().ReleaseMasterFileDescriptor(),
+                            launch_info.GetPTY().ReleasePrimaryFileDescriptor(),
                             delegate),
       ProcessDebugger(), m_arch(launch_info.GetArchitecture()) {
   ErrorAsOutParameter EOut(&E);
@@ -217,13 +217,17 @@ Status NativeProcessWindows::WriteMemory(lldb::addr_t addr, const void *buf,
   return ProcessDebugger::WriteMemory(addr, buf, size, bytes_written);
 }
 
-Status NativeProcessWindows::AllocateMemory(size_t size, uint32_t permissions,
-                                            lldb::addr_t &addr) {
-  return ProcessDebugger::AllocateMemory(size, permissions, addr);
+llvm::Expected<lldb::addr_t>
+NativeProcessWindows::AllocateMemory(size_t size, uint32_t permissions) {
+  lldb::addr_t addr;
+  Status ST = ProcessDebugger::AllocateMemory(size, permissions, addr);
+  if (ST.Success())
+    return addr;
+  return ST.ToError();
 }
 
-Status NativeProcessWindows::DeallocateMemory(lldb::addr_t addr) {
-  return ProcessDebugger::DeallocateMemory(addr);
+llvm::Error NativeProcessWindows::DeallocateMemory(lldb::addr_t addr) {
+  return ProcessDebugger::DeallocateMemory(addr).ToError();
 }
 
 lldb::addr_t NativeProcessWindows::GetSharedLibraryInfoAddress() { return 0; }
@@ -394,7 +398,7 @@ void NativeProcessWindows::OnDebuggerConnected(lldb::addr_t image_base) {
            GetDebuggedProcessId(), image_base);
 
   // This is the earliest chance we can resolve the process ID and
-  // architecutre if we don't know them yet.
+  // architecture if we don't know them yet.
   if (GetID() == LLDB_INVALID_PROCESS_ID)
     SetID(GetDebuggedProcessId());
 

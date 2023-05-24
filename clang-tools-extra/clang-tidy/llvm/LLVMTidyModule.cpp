@@ -9,6 +9,7 @@
 #include "../ClangTidy.h"
 #include "../ClangTidyModule.h"
 #include "../ClangTidyModuleRegistry.h"
+#include "../readability/ElseAfterReturnCheck.h"
 #include "../readability/NamespaceCommentCheck.h"
 #include "../readability/QualifiedAutoCheck.h"
 #include "HeaderGuardCheck.h"
@@ -24,6 +25,8 @@ namespace llvm_check {
 class LLVMModule : public ClangTidyModule {
 public:
   void addCheckFactories(ClangTidyCheckFactories &CheckFactories) override {
+    CheckFactories.registerCheck<readability::ElseAfterReturnCheck>(
+        "llvm-else-after-return");
     CheckFactories.registerCheck<LLVMHeaderGuardCheck>("llvm-header-guard");
     CheckFactories.registerCheck<IncludeOrderCheck>("llvm-include-order");
     CheckFactories.registerCheck<readability::NamespaceCommentCheck>(
@@ -35,6 +38,15 @@ public:
     CheckFactories.registerCheck<readability::QualifiedAutoCheck>(
         "llvm-qualified-auto");
     CheckFactories.registerCheck<TwineLocalCheck>("llvm-twine-local");
+  }
+
+  ClangTidyOptions getModuleOptions() override {
+    ClangTidyOptions Options;
+    Options.CheckOptions["llvm-qualified-auto.AddConstToQualified"] = "0";
+    Options.CheckOptions["llvm-else-after-return.WarnOnUnfixable"] = "0";
+    Options.CheckOptions["llvm-else-after-return.WarnOnConditionVariables"] =
+        "0";
+    return Options;
   }
 };
 

@@ -43,6 +43,9 @@ namespace modernize {
 class ReplaceAutoPtrCheck : public ClangTidyCheck {
 public:
   ReplaceAutoPtrCheck(StringRef Name, ClangTidyContext *Context);
+  bool isLanguageVersionSupported(const LangOptions &LangOpts) const override {
+    return LangOpts.CPlusPlus;
+  }
   void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void registerPPCallbacks(const SourceManager &SM, Preprocessor *PP,
@@ -50,8 +53,7 @@ public:
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
 
 private:
-  std::unique_ptr<utils::IncludeInserter> Inserter;
-  const utils::IncludeSorter::IncludeStyle IncludeStyle;
+  utils::IncludeInserter Inserter;
 };
 
 } // namespace modernize

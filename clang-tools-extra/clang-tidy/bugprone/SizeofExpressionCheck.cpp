@@ -60,12 +60,12 @@ CharUnits getSizeOfType(const ASTContext &Ctx, const Type *Ty) {
 SizeofExpressionCheck::SizeofExpressionCheck(StringRef Name,
                                              ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
-      WarnOnSizeOfConstant(Options.get("WarnOnSizeOfConstant", 1) != 0),
+      WarnOnSizeOfConstant(Options.get("WarnOnSizeOfConstant", true)),
       WarnOnSizeOfIntegerExpression(
-          Options.get("WarnOnSizeOfIntegerExpression", 0) != 0),
-      WarnOnSizeOfThis(Options.get("WarnOnSizeOfThis", 1) != 0),
+          Options.get("WarnOnSizeOfIntegerExpression", false)),
+      WarnOnSizeOfThis(Options.get("WarnOnSizeOfThis", true)),
       WarnOnSizeOfCompareToConstant(
-          Options.get("WarnOnSizeOfCompareToConstant", 1) != 0) {}
+          Options.get("WarnOnSizeOfCompareToConstant", true)) {}
 
 void SizeofExpressionCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "WarnOnSizeOfConstant", WarnOnSizeOfConstant);
@@ -77,6 +77,10 @@ void SizeofExpressionCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
 }
 
 void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
+  // FIXME:
+  // Some of the checks should not match in template code to avoid false
+  // positives if sizeof is applied on template argument.
+
   const auto IntegerExpr = ignoringParenImpCasts(integerLiteral());
   const auto ConstantExpr = expr(ignoringParenImpCasts(
       anyOf(integerLiteral(), unaryOperator(hasUnaryOperand(IntegerExpr)),
@@ -132,6 +136,7 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
                      this);
 
   // Detect sizeof(ptr) where ptr points to an aggregate (i.e. sizeof(&S)).
+  // Do not find it if RHS of a 'sizeof(arr) / sizeof(arr[0])' expression.
   const auto ArrayExpr = expr(ignoringParenImpCasts(
       expr(hasType(qualType(hasCanonicalType(arrayType()))))));
   const auto ArrayCastExpr = expr(anyOf(
@@ -151,22 +156,40 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
       hasType(qualType(hasCanonicalType(PointerToStructType))),
       unless(cxxThisExpr()))));
 
-  Finder->addMatcher(
-      expr(anyOf(sizeOfExpr(has(expr(ignoringParenImpCasts(
-               anyOf(ArrayCastExpr, PointerToArrayExpr, StructAddrOfExpr,
-                     PointerToStructExpr))))),
-                            sizeOfExpr(has(PointerToStructType))))
-          .bind("sizeof-pointer-to-aggregate"),
-      this);
+  const auto ArrayOfPointersExpr = expr(ignoringParenImpCasts(expr(hasType(
+      qualType(hasCanonicalType(arrayType(hasElementType(pointerType()))
+                                    .bind("type-of-array-of-pointers")))))));
+  const auto ArrayOfSamePointersExpr =
+      expr(ignoringParenImpCasts(expr(hasType(qualType(hasCanonicalType(
+          arrayType(equalsBoundNode("type-of-array-of-pointers"))))))));
+  const auto ZeroLiteral =
+      expr(ignoringParenImpCasts(integerLiteral(equals(0))));
+  const auto ArrayOfSamePointersZeroSubscriptExpr =
+      expr(ignoringParenImpCasts(arraySubscriptExpr(
+          hasBase(ArrayOfSamePointersExpr), hasIndex(ZeroLiteral))));
+  const auto ArrayLengthExprDenom =
+      expr(hasParent(expr(ignoringParenImpCasts(
+               binaryOperator(hasOperatorName("/"),
+                              hasLHS(expr(ignoringParenImpCasts(expr(
+                                  sizeOfExpr(has(ArrayOfPointersExpr)))))))))),
+           sizeOfExpr(has(ArrayOfSamePointersZeroSubscriptExpr)));
+
+  Finder->addMatcher(expr(anyOf(sizeOfExpr(has(expr(ignoringParenImpCasts(anyOf(
+                                    ArrayCastExpr, PointerToArrayExpr,
+                                    StructAddrOfExpr, PointerToStructExpr))))),
+                                sizeOfExpr(has(PointerToStructType))),
+                          unless(ArrayLengthExprDenom))
+                         .bind("sizeof-pointer-to-aggregate"),
+                     this);
 
   // Detect expression like: sizeof(epxr) <= k for a suspicious constant 'k'.
   if (WarnOnSizeOfCompareToConstant) {
     Finder->addMatcher(
         binaryOperator(matchers::isRelationalOperator(),
-                       hasEitherOperand(ignoringParenImpCasts(SizeOfExpr)),
-                       hasEitherOperand(ignoringParenImpCasts(
-                           anyOf(integerLiteral(equals(0)),
-                                 integerLiteral(isBiggerThan(0x80000))))))
+                       hasOperands(ignoringParenImpCasts(SizeOfExpr),
+                                   ignoringParenImpCasts(anyOf(
+                                       integerLiteral(equals(0)),
+                                       integerLiteral(isBiggerThan(0x80000))))))
             .bind("sizeof-compare-constant"),
         this);
   }
@@ -178,6 +201,12 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
                      this);
 
   // Detect sizeof(...) /sizeof(...));
+  // FIXME:
+  // Re-evaluate what cases to handle by the checker.
+  // Probably any sizeof(A)/sizeof(B) should be error if
+  // 'A' is not an array (type) and 'B' the (type of the) first element of it.
+  // Except if 'A' and 'B' are non-pointers, then use the existing size division
+  // rule.
   const auto ElemType =
       arrayType(hasElementType(recordType().bind("elem-type")));
   const auto ElemPtrType = pointerType(pointee(type().bind("elem-ptr-type")));
@@ -205,10 +234,11 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
 
   Finder->addMatcher(
       binaryOperator(hasOperatorName("*"),
-                     hasEitherOperand(ignoringParenImpCasts(SizeOfExpr)),
-                     hasEitherOperand(ignoringParenImpCasts(binaryOperator(
-                         hasOperatorName("*"),
-                         hasEitherOperand(ignoringParenImpCasts(SizeOfExpr))))))
+                     hasOperands(ignoringParenImpCasts(SizeOfExpr),
+                                 ignoringParenImpCasts(binaryOperator(
+                                     hasOperatorName("*"),
+                                     hasEitherOperand(
+                                         ignoringParenImpCasts(SizeOfExpr))))))
           .bind("sizeof-multiply-sizeof"),
       this);
 
@@ -220,7 +250,7 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
           .bind("sizeof-sizeof-expr"),
       this);
 
-  // Detect sizeof in pointer aritmetic like: N * sizeof(S) == P1 - P2 or
+  // Detect sizeof in pointer arithmetic like: N * sizeof(S) == P1 - P2 or
   // (P1 - P2) / sizeof(S) where P1 and P2 are pointers to type S.
   const auto PtrDiffExpr = binaryOperator(
       hasOperatorName("-"),
@@ -231,16 +261,13 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
 
   Finder->addMatcher(
       binaryOperator(
-          anyOf(hasOperatorName("=="), hasOperatorName("!="),
-                hasOperatorName("<"), hasOperatorName("<="),
-                hasOperatorName(">"), hasOperatorName(">="),
-                hasOperatorName("+"), hasOperatorName("-")),
-          hasEitherOperand(expr(anyOf(
-              ignoringParenImpCasts(SizeOfExpr),
-              ignoringParenImpCasts(binaryOperator(
-                  hasOperatorName("*"),
-                  hasEitherOperand(ignoringParenImpCasts(SizeOfExpr))))))),
-          hasEitherOperand(ignoringParenImpCasts(PtrDiffExpr)))
+          hasAnyOperatorName("==", "!=", "<", "<=", ">", ">=", "+", "-"),
+          hasOperands(expr(anyOf(ignoringParenImpCasts(SizeOfExpr),
+                                 ignoringParenImpCasts(binaryOperator(
+                                     hasOperatorName("*"),
+                                     hasEitherOperand(
+                                         ignoringParenImpCasts(SizeOfExpr)))))),
+                      ignoringParenImpCasts(PtrDiffExpr)))
           .bind("sizeof-in-ptr-arithmetic-mul"),
       this);
 

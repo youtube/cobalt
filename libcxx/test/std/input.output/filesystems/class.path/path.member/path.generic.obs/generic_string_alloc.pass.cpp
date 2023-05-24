@@ -6,7 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+
+// These tests require locale for non-char paths
+// UNSUPPORTED: libcpp-has-no-localization
 
 // <filesystem>
 

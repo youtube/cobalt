@@ -5,7 +5,5 @@ executable("llvm-ifs") {
     "//llvm/lib/Support",
     "//llvm/lib/TextAPI",
   ]
-  sources = [
-    "llvm-ifs.cpp",
-  ]
+  sources = [ "llvm-ifs.cpp" ]
 }

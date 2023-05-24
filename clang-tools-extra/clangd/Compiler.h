@@ -15,9 +15,10 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_COMPILER_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_COMPILER_H
 
-#include "../clang-tidy/ClangTidyOptions.h"
 #include "GlobalCompilationDatabase.h"
+#include "TidyProvider.h"
 #include "index/Index.h"
+#include "support/ThreadsafeFS.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/PrecompiledPreamble.h"
 #include "clang/Tooling/CompilationDatabase.h"
@@ -36,18 +37,23 @@ public:
 
 // Options to run clang e.g. when parsing AST.
 struct ParseOptions {
-  tidy::ClangTidyOptions ClangTidyOpts;
-  bool SuggestMissingIncludes = false;
+  // (empty at present, formerly controlled recovery AST, include-fixer etc)
 };
 
 /// Information required to run clang, e.g. to parse AST or do code completion.
 struct ParseInputs {
   tooling::CompileCommand CompileCommand;
-  IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS;
+  const ThreadsafeFS *TFS;
   std::string Contents;
+  // Version identifier for Contents, provided by the client and opaque to us.
+  std::string Version = "null";
+  // Prevent reuse of the cached preamble/AST. Slow! Useful to workaround
+  // clangd's assumption that missing header files will stay missing.
+  bool ForceRebuild = false;
   // Used to recover from diagnostics (e.g. find missing includes for symbol).
   const SymbolIndex *Index = nullptr;
-  ParseOptions Opts;
+  ParseOptions Opts = ParseOptions();
+  TidyProviderRef ClangTidyProvider = {};
 };
 
 /// Builds compiler invocation that could be used to build AST or preamble.

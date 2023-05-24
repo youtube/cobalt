@@ -19,7 +19,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/ObjCARCInstKind.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/ObjCARCAnalysisUtils.h"
 #include "llvm/IR/Intrinsics.h"
 
@@ -153,7 +152,7 @@ ARCInstKind llvm::objcarc::GetFunctionClass(const Function *F) {
   }
 }
 
-// A whitelist of intrinsics that we know do not use objc pointers or decrement
+// A list of intrinsics that we know do not use objc pointers or decrement
 // ref counts.
 static bool isInertIntrinsic(unsigned ID) {
   // TODO: Make this into a covered switch.
@@ -192,7 +191,7 @@ static bool isInertIntrinsic(unsigned ID) {
   }
 }
 
-// A whitelist of intrinsics that we know do not use objc pointers or decrement
+// A list of intrinsics that we know do not use objc pointers or decrement
 // ref counts.
 static bool isUseOnlyIntrinsic(unsigned ID) {
   // We are conservative and even though intrinsics are unlikely to touch
@@ -234,11 +233,11 @@ ARCInstKind llvm::objcarc::GetARCInstKind(const Value *V) {
       }
 
       // Otherwise, be conservative.
-      return GetCallSiteClass(CI);
+      return GetCallSiteClass(*CI);
     }
     case Instruction::Invoke:
       // Otherwise, be conservative.
-      return GetCallSiteClass(cast<InvokeInst>(I));
+      return GetCallSiteClass(cast<InvokeInst>(*I));
     case Instruction::BitCast:
     case Instruction::GetElementPtr:
     case Instruction::Select:

@@ -6,19 +6,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ProcessMachCore_h_
-#define liblldb_ProcessMachCore_h_
+#ifndef LLDB_SOURCE_PLUGINS_PROCESS_MACH_CORE_PROCESSMACHCORE_H
+#define LLDB_SOURCE_PLUGINS_PROCESS_MACH_CORE_PROCESSMACHCORE_H
 
 #include <list>
 #include <vector>
 
-#include "lldb/Target/Process.h"
+#include "lldb/Target/PostMortemProcess.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Status.h"
 
 class ThreadKDP;
 
-class ProcessMachCore : public lldb_private::Process {
+class ProcessMachCore : public lldb_private::PostMortemProcess {
 public:
   // Constructors and Destructors
   ProcessMachCore(lldb::TargetSP target_sp, lldb::ListenerSP listener,
@@ -28,7 +28,8 @@ public:
 
   static lldb::ProcessSP
   CreateInstance(lldb::TargetSP target_sp, lldb::ListenerSP listener,
-                 const lldb_private::FileSpec *crash_file_path);
+                 const lldb_private::FileSpec *crash_file_path,
+                 bool can_connect);
 
   static void Initialize();
 
@@ -80,8 +81,8 @@ protected:
 
   void Clear();
 
-  bool UpdateThreadList(lldb_private::ThreadList &old_thread_list,
-                        lldb_private::ThreadList &new_thread_list) override;
+  bool DoUpdateThreadList(lldb_private::ThreadList &old_thread_list,
+                          lldb_private::ThreadList &new_thread_list) override;
 
   lldb_private::ObjectFile *GetCoreObjectFile();
 
@@ -120,8 +121,6 @@ private:
   lldb::addr_t m_dyld_addr;
   lldb::addr_t m_mach_kernel_addr;
   lldb_private::ConstString m_dyld_plugin_name;
-
-  DISALLOW_COPY_AND_ASSIGN(ProcessMachCore);
 };
 
-#endif // liblldb_ProcessMachCore_h_
+#endif // LLDB_SOURCE_PLUGINS_PROCESS_MACH_CORE_PROCESSMACHCORE_H

@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <filesystem>
 
@@ -24,8 +24,6 @@
 #include "test_macros.h"
 #include "rapid-cxx-test.h"
 #include "filesystem_test_helper.h"
-
-#include <iostream>
 
 using namespace fs;
 
@@ -103,7 +101,7 @@ TEST_CASE(test_attributes_get_copied) {
   scoped_test_env env;
   const path file = env.create_file("file1", 42);
   const path dest = env.make_env_path("file2");
-  auto st = status(file);
+  (void)status(file);
   perms new_perms = perms::owner_read;
   permissions(file, new_perms);
   std::error_code ec = GetTestEC();

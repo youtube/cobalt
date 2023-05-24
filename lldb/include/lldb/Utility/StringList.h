@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_StringList_h_
-#define liblldb_StringList_h_
+#ifndef LLDB_UTILITY_STRINGLIST_H
+#define LLDB_UTILITY_STRINGLIST_H
 
 #include "llvm/ADT/StringRef.h"
 
@@ -102,7 +102,7 @@ public:
 
   StringList &operator<<(const std::string &s);
 
-  StringList &operator<<(StringList strings);
+  StringList &operator<<(const StringList &strings);
 
   // Copy assignment for a vector of strings
   StringList &operator=(const std::vector<std::string> &rhs);
@@ -132,4 +132,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // liblldb_StringList_h_
+#endif // LLDB_UTILITY_STRINGLIST_H

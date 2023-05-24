@@ -802,7 +802,7 @@ define <3 x float> @constrained_vector_fadd_v3f32() #0 {
 ;
 ; SZ13-LABEL: constrained_vector_fadd_v3f32:
 ; SZ13:       # %bb.0: # %entry
-; SZ13-NEXT:    vgbm %v0, 15
+; SZ13-NEXT:    vgbm %v0, 61440
 ; SZ13-NEXT:    vgmf %v2, 1, 1
 ; SZ13-NEXT:    vgmf %v3, 2, 8
 ; SZ13-NEXT:    lzer %f1
@@ -974,12 +974,12 @@ define <3 x float> @constrained_vector_fsub_v3f32() #0 {
 ;
 ; SZ13-LABEL: constrained_vector_fsub_v3f32:
 ; SZ13:       # %bb.0: # %entry
-; SZ13-NEXT:    vgbm %v2, 15
+; SZ13-NEXT:    vgbm %v2, 61440
 ; SZ13-NEXT:    lzer %f1
 ; SZ13-NEXT:    sebr %f2, %f1
 ; SZ13-NEXT:    vgmf %v1, 1, 1
-; SZ13-NEXT:    vgbm %v3, 15
-; SZ13-NEXT:    vgbm %v0, 15
+; SZ13-NEXT:    vgbm %v3, 61440
+; SZ13-NEXT:    vgbm %v0, 61440
 ; SZ13-NEXT:    sebr %f3, %f1
 ; SZ13-NEXT:    vgmf %v1, 2, 8
 ; SZ13-NEXT:    sebr %f0, %f1
@@ -5377,12 +5377,12 @@ define void @constrained_vector_fptrunc_v3f64(<3 x double>* %src, <3 x float>* %
 ; SZ13-LABEL: constrained_vector_fptrunc_v3f64:
 ; SZ13:       # %bb.0: # %entry
 ; SZ13-NEXT:    vl %v1, 0(%r2), 4
+; SZ13-NEXT:    ld %f0, 16(%r2)
 ; SZ13-NEXT:    vledb %v1, %v1, 0, 0
 ; SZ13-NEXT:    larl %r1, .LCPI97_0
-; SZ13-NEXT:    ld %f0, 16(%r2)
-; SZ13-NEXT:    vl %v2, 0(%r1), 3
-; SZ13-NEXT:    vperm %v1, %v1, %v0, %v2
 ; SZ13-NEXT:    ledbra %f0, 0, %f0, 0
+; SZ13-NEXT:    vl %v2, 0(%r1), 3
+; SZ13-NEXT:    vperm %v1, %v1, %v1, %v2
 ; SZ13-NEXT:    ste %f0, 8(%r3)
 ; SZ13-NEXT:    vsteg %v1, 0(%r3), 0
 ; SZ13-NEXT:    br %r14

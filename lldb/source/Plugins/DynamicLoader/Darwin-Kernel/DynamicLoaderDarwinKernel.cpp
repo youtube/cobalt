@@ -1,5 +1,4 @@
-//===-- DynamicLoaderDarwinKernel.cpp -----------------------------*- C++
-//-*-===//
+//===-- DynamicLoaderDarwinKernel.cpp -------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -44,6 +43,8 @@
 
 using namespace lldb;
 using namespace lldb_private;
+
+LLDB_PLUGIN_DEFINE(DynamicLoaderDarwinKernel)
 
 // Progressively greater amounts of scanning we will allow For some targets
 // very early in startup, we can't do any random reads of memory or we can
@@ -244,6 +245,7 @@ DynamicLoaderDarwinKernel::SearchForKernelWithDebugHints(Process *process) {
 
   Status read_err;
   addr_t kernel_addresses_64[] = {
+      0xfffffff000002010ULL,
       0xfffffff000004010ULL, // newest arm64 devices
       0xffffff8000004010ULL, // 2014-2015-ish arm64 devices
       0xffffff8000002010ULL, // oldest arm64 devices
@@ -398,7 +400,7 @@ DynamicLoaderDarwinKernel::ReadMachHeader(addr_t addr, Process *process, llvm::M
     *read_error = false;
 
   // Read the mach header and see whether it looks like a kernel
-  if (process->DoReadMemory (addr, &header, sizeof(header), error) !=
+  if (process->ReadMemory(addr, &header, sizeof(header), error) !=
       sizeof(header)) {
     if (read_error)
       *read_error = true;
@@ -515,12 +517,8 @@ DynamicLoaderDarwinKernel::DynamicLoaderDarwinKernel(Process *process,
   Status error;
   PlatformSP platform_sp(
       Platform::Create(PlatformDarwinKernel::GetPluginNameStatic(), error));
-  // Only select the darwin-kernel Platform if we've been asked to load kexts.
-  // It can take some time to scan over all of the kext info.plists and that
-  // shouldn't be done if kext loading is explicitly disabled.
-  if (platform_sp.get() && GetGlobalProperties()->GetLoadKexts()) {
+  if (platform_sp.get())
     process->GetTarget().SetPlatform(platform_sp);
-  }
 }
 
 // Destructor
@@ -792,7 +790,7 @@ bool DynamicLoaderDarwinKernel::KextImageInfo::LoadImageUsingMemoryModule(
 
       // For the kernel, we really do need an on-disk file copy of the binary
       // to do anything useful. This will force a call to dsymForUUID if it
-      // exists, instead of depending on the DebugSymbols preferences being 
+      // exists, instead of depending on the DebugSymbols preferences being
       // set.
       if (IsKernel()) {
         if (Symbols::DownloadObjectAndSymbolFile(module_spec, true)) {

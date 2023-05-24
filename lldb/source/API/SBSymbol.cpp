@@ -1,4 +1,4 @@
-//===-- SBSymbol.cpp --------------------------------------------*- C++ -*-===//
+//===-- SBSymbol.cpp ------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -68,9 +68,7 @@ const char *SBSymbol::GetDisplayName() const {
 
   const char *name = nullptr;
   if (m_opaque_ptr)
-    name = m_opaque_ptr->GetMangled()
-               .GetDisplayDemangledName(m_opaque_ptr->GetLanguage())
-               .AsCString();
+    name = m_opaque_ptr->GetMangled().GetDisplayDemangledName().AsCString();
 
   return name;
 }
@@ -126,22 +124,17 @@ SBInstructionList SBSymbol::GetInstructions(SBTarget target,
 
   SBInstructionList sb_instructions;
   if (m_opaque_ptr) {
-    ExecutionContext exe_ctx;
     TargetSP target_sp(target.GetSP());
     std::unique_lock<std::recursive_mutex> lock;
-    if (target_sp) {
+    if (target_sp && m_opaque_ptr->ValueIsAddress()) {
       lock = std::unique_lock<std::recursive_mutex>(target_sp->GetAPIMutex());
-
-      target_sp->CalculateExecutionContext(exe_ctx);
-    }
-    if (m_opaque_ptr->ValueIsAddress()) {
       const Address &symbol_addr = m_opaque_ptr->GetAddressRef();
       ModuleSP module_sp = symbol_addr.GetModule();
       if (module_sp) {
         AddressRange symbol_range(symbol_addr, m_opaque_ptr->GetByteSize());
         const bool prefer_file_cache = false;
         sb_instructions.SetDisassembler(Disassembler::DisassembleRange(
-            module_sp->GetArchitecture(), nullptr, flavor_string, exe_ctx,
+            module_sp->GetArchitecture(), nullptr, flavor_string, *target_sp,
             symbol_range, prefer_file_cache));
       }
     }
@@ -158,7 +151,7 @@ SBAddress SBSymbol::GetStartAddress() {
 
   SBAddress addr;
   if (m_opaque_ptr && m_opaque_ptr->ValueIsAddress()) {
-    addr.SetAddress(&m_opaque_ptr->GetAddressRef());
+    addr.SetAddress(m_opaque_ptr->GetAddressRef());
   }
   return LLDB_RECORD_RESULT(addr);
 }
@@ -170,7 +163,7 @@ SBAddress SBSymbol::GetEndAddress() {
   if (m_opaque_ptr && m_opaque_ptr->ValueIsAddress()) {
     lldb::addr_t range_size = m_opaque_ptr->GetByteSize();
     if (range_size > 0) {
-      addr.SetAddress(&m_opaque_ptr->GetAddressRef());
+      addr.SetAddress(m_opaque_ptr->GetAddressRef());
       addr->Slide(m_opaque_ptr->GetByteSize());
     }
   }

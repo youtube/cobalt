@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s -triple=i686-pc-linux-gnu -Wno-new-returns-null
 // RUN: %clang_cc1 -fsyntax-only -verify %s -triple=i686-pc-linux-gnu -Wno-new-returns-null -std=c++98
 // RUN: %clang_cc1 -fsyntax-only -verify %s -triple=i686-pc-linux-gnu -Wno-new-returns-null -std=c++11
+// RUN: %clang_cc1 -fsyntax-only -verify %s -triple=i686-pc-linux-gnu -Wno-new-returns-null -std=c++14
 
 #include <stddef.h>
 
@@ -27,7 +28,7 @@ inline void operator delete(void *); // expected-warning {{replacement function 
 
 __attribute__((used))
 inline void *operator new(size_t) { // no warning, due to __attribute__((used))
-  return 0;
+  return 0; // expected-warning {{null returned from function that requires a non-null return value}}
 }
 
 // PR5823
@@ -53,9 +54,9 @@ void good_news()
   pi = ::new int;
   U *pu = new (ps) U;
   V *pv = new (ps) V;
-  
+
   pi = new (S(1.0f, 2)) int;
-  
+
   (void)new int[true];
 
   // PR7147
@@ -329,7 +330,7 @@ namespace Test1 {
 
 void f() {
   (void)new int[10](1, 2); // expected-error {{array 'new' cannot have initialization arguments}}
-  
+
   typedef int T[10];
   (void)new T(1, 2); // expected-error {{array 'new' cannot have initialization arguments}}
 }
@@ -363,7 +364,7 @@ class S2 {
   void operator delete(void* p); // expected-note {{declared private here}}
 };
 
-void test(S1* s1, S2* s2) { 
+void test(S1* s1, S2* s2) {
   delete s1;
   delete s2; // expected-error {{is a private member}}
   (void)new S1();
@@ -397,7 +398,7 @@ namespace rdar8018245 {
 
 // <rdar://problem/8248780>
 namespace Instantiate {
-  template<typename T> struct X { 
+  template<typename T> struct X {
     operator T*();
   };
 
@@ -620,4 +621,14 @@ template<typename ...T> int *dependent_array_size(T ...v) {
 int *p0 = dependent_array_size();
 int *p3 = dependent_array_size(1, 2, 3);
 int *fail = dependent_array_size("hello"); // expected-note {{instantiation of}}
+#endif
+
+// FIXME: Our behavior here is incredibly inconsistent. GCC allows
+// constant-folding in array bounds in new-expressions.
+int (*const_fold)[12] = new int[3][&const_fold + 12 - &const_fold];
+#if __cplusplus >= 201402L
+// expected-error@-2 {{array size is not a constant expression}}
+// expected-note@-3 {{cannot refer to element 12 of non-array}}
+#elif __cplusplus < 201103L
+// expected-error@-5 {{cannot allocate object of variably modified type}}
 #endif

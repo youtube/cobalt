@@ -7,9 +7,14 @@
 //===----------------------------------------------------------------------===//
 //
 // UNSUPPORTED: libcpp-has-no-threads
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
-// FLAKY_TEST.
+// ALLOW_RETRIES: 2
+
+// shared_mutex was introduced in macosx10.12
+// UNSUPPORTED: with_system_cxx_lib=macosx10.11
+// UNSUPPORTED: with_system_cxx_lib=macosx10.10
+// UNSUPPORTED: with_system_cxx_lib=macosx10.9
 
 // <shared_mutex>
 
@@ -22,6 +27,7 @@
 #include <cstdlib>
 #include <cassert>
 
+#include "make_test_thread.h"
 #include "test_macros.h"
 
 std::shared_mutex m;
@@ -56,7 +62,7 @@ void f()
 int main(int, char**)
 {
     m.lock();
-    std::thread t(f);
+    std::thread t = support::make_test_thread(f);
     std::this_thread::sleep_for(WaitTime);
     m.unlock();
     t.join();

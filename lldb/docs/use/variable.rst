@@ -366,12 +366,13 @@ simply say ${var.z} because that symbol refers to the pointer z. In order to
 dereference it and get the pointed value, you should say ``${*var.z}``. The
 ``${*var`` tells LLDB to get the object that the expression paths leads to, and
 then dereference it. In this example is it equivalent to ``*(bObject.z)`` in
-C/C++ syntax. Because . and -> operators can both be used, there is no need to
-have dereferences in the middle of an expression path (e.g. you do not need to
-type ``${*(var.x).x}``) to read A::x as contained in ``*(B::x)``. To achieve
-that effect you can simply write ``${var.x->x}``, or even ``${var.x.x}``. The
-``*`` operator only binds to the result of the whole expression path, rather
-than piecewise, and there is no way to use parentheses to change that behavior.
+C/C++ syntax. Because ``.`` and ``->`` operators can both be used, there is no
+need to have dereferences in the middle of an expression path (e.g. you do not
+need to type ``${*(var.x).x}``) to read A::x as contained in ``*(B::x)``. To
+achieve that effect you can simply write ``${var.x->x}``, or even
+``${var.x.x}``. The ``*`` operator only binds to the result of the whole
+expression path, rather than piecewise, and there is no way to use parentheses
+to change that behavior.
 
 Of course, a summary string can contain more than one ${var specifier, and can
 use ``${var`` and ``${*var`` specifiers together.
@@ -573,7 +574,7 @@ the pointer value. However, because pointers have no notion of their size, the
 empty brackets [] operator does not work, and you must explicitly provide
 higher and lower bounds.
 
-In general, LLDB needs the square brackets operator [] in order to handle
+In general, LLDB needs the square brackets ``operator []`` in order to handle
 arrays and pointers correctly, and for pointers it also needs a range. However,
 a few special cases are defined to make your life easier:
 
@@ -650,7 +651,7 @@ class, as shown in this example:
 
    (lldb) type summary add -P Rectangle
    Enter your Python command(s). Type 'DONE' to end.
-   def function (valobj,internal_dict):
+   def function (valobj,internal_dict,options):
       height_val = valobj.GetChildMemberWithName('height')
       width_val = valobj.GetChildMemberWithName('width')
       height = height_val.GetValueAsUnsigned(0)
@@ -676,7 +677,7 @@ passed two parameters: ``valobj`` and ``internal_dict``.
 not touch it.
 
 ``valobj`` is the object encapsulating the actual variable being displayed, and
-its type is SBValue. Out of the many possible operations on an SBValue, the
+its type is `SBValue`. Out of the many possible operations on an `SBValue`, the
 basic one is retrieve the children objects it contains (essentially, the fields
 of the object wrapped by it), by calling ``GetChildMemberWithName()``, passing
 it the child's name as a string.
@@ -684,18 +685,24 @@ it the child's name as a string.
 If the variable has a value, you can ask for it, and return it as a string
 using ``GetValue()``, or as a signed/unsigned number using
 ``GetValueAsSigned()``, ``GetValueAsUnsigned()``. It is also possible to
-retrieve an SBData object by calling ``GetData()`` and then read the object's
-contents out of the SBData.
+retrieve an `SBData` object by calling ``GetData()`` and then read the object's
+contents out of the `SBData`.
 
 If you need to delve into several levels of hierarchy, as you can do with
 summary strings, you can use the method ``GetValueForExpressionPath()``,
 passing it an expression path just like those you could use for summary strings
 (one of the differences is that dereferencing a pointer does not occur by
 prefixing the path with a ``*```, but by calling the ``Dereference()`` method
-on the returned SBValue). If you need to access array slices, you cannot do
+on the returned `SBValue`). If you need to access array slices, you cannot do
 that (yet) via this method call, and you must use ``GetChildAtIndex()``
 querying it for the array items one by one. Also, handling custom formats is
 something you have to deal with on your own.
+
+``options`` Python summary formatters can optionally define this
+third argument, which is an object of type ``lldb.SBTypeSummaryOptions``,
+allowing for a few customizations of the result. The decision to
+adopt or not this third argument - and the meaning of options 
+thereof - is up to the individual formatter's writer.
 
 Other than interactively typing a Python script there are two other ways for
 you to input a Python script as a summary:
@@ -714,14 +721,6 @@ you to input a Python script as a summary:
   or somehow loaded it from a file, using the command script import command.
   LLDB will emit a warning if it is unable to find the function you passed, but
   will still register the binding.
-
-Starting in SVN r222593, Python summary formatters can optionally define a
-third argument: options
-
-This is an object of type ``lldb.SBTypeSummaryOptions`` that can be passed into
-the formatter, allowing for a few customizations of the result. The decision to
-adopt or not this third argument - and the meaning of options thereof - is
-within the individual formatters' writer.
 
 Regular Expression Typenames
 ----------------------------
@@ -845,7 +844,7 @@ adheres to a given interface (the word is italicized because Python has no
 explicit notion of interface, by that word we mean a given set of methods must
 be implemented by the Python class):
 
-::
+.. code-block:: python
 
    class SyntheticChildrenProvider:
       def __init__(self, valobj, internal_dict):
@@ -875,16 +874,37 @@ update.
 implementing it in terms of num_children is acceptable, implementors are
 encouraged to look for optimized coding alternatives whenever reasonable.
 
-[3] This method is optional (starting with SVN revision 219330). The SBValue
+[3] This method is optional (starting with SVN revision 219330). The `SBValue`
 you return here will most likely be a numeric type (int, float, ...) as its
-value bytes will be used as-if they were the value of the root SBValue proper.
+value bytes will be used as-if they were the value of the root `SBValue` proper.
 As a shortcut for this, you can inherit from lldb.SBSyntheticValueProvider, and
 just define get_value as other methods are defaulted in the superclass as
 returning default no-children responses.
 
-If a synthetic child provider supplies a special child named $$dereference$$
-then it will be used when evaluating opertaor* and operator-> in the frame
-variable command and related SB API functions.
+If a synthetic child provider supplies a special child named
+``$$dereference$$`` then it will be used when evaluating ``operator *`` and
+``operator ->`` in the frame variable command and related SB API
+functions. It is possible to declare this synthetic child without
+including it in the range of children displayed by LLDB. For example,
+this subset of a synthetic children provider class would allow the
+synthetic value to be dereferenced without actually showing any
+synthtic children in the UI:
+
+.. code-block:: python
+
+      class SyntheticChildrenProvider:
+          [...]
+          def num_children(self):
+              return 0
+          def get_child_index(self, name):
+              if name == '$$dereference$$':
+                  return 0
+              return -1
+          def get_child_at_index(self, index):
+              if index == 0:
+                  return <valobj resulting from dereference>
+              return None
+
 
 For examples of how synthetic children are created, you are encouraged to look
 at examples/synthetic in the LLDB trunk. Please, be aware that the code in
@@ -893,7 +913,7 @@ especially want to begin looking at this example to get a feel for this
 feature, as it is a very easy and well commented example.
 
 The design pattern consistently used in synthetic providers shipping with LLDB
-is to use the __init__ to store the SBValue instance as a part of self. The
+is to use the __init__ to store the `SBValue` instance as a part of self. The
 update function is then used to perform the actual initialization. Once a
 synthetic children provider is written, one must load it into LLDB before it
 can be used. Currently, one can use the LLDB script command to type Python code
@@ -960,10 +980,10 @@ expression:
    Error [IRForTarget]: Call to a function '_ZNSt33vector<int, std::allocator<int> >ixEm' that is not present in the target
    error: Couldn't convert the expression to DWARF
 
-The reason for this is that classes might have an overloaded operator [], or
-other special provisions and the expression command chooses to ignore synthetic
-children in the interest of equivalency with code you asked to have compiled
-from source.
+The reason for this is that classes might have an overloaded ``operator []``,
+or other special provisions and the expression command chooses to ignore
+synthetic children in the interest of equivalency with code you asked to have
+compiled from source.
 
 Filters
 -------
@@ -973,7 +993,7 @@ have many member variables but not all of these are actually necessary for the
 user to see.
 
 A filter will solve this issue by only letting the user see those member
-variables he cares about. Of course, the equivalent of a filter can be
+variables they care about. Of course, the equivalent of a filter can be
 implemented easily using synthetic children, but a filter lets you get the job
 done without having to write Python code.
 

@@ -110,8 +110,8 @@ define i1 @test_relocate(i32 addrspace(1)* %a) gc "statepoint-example" {
 ; CHECK-NEXT:    retq
 ; Check that an ununsed relocate has no code-generation impact
 entry:
-  %safepoint_token = tail call token (i64, i32, i1 ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_i1f(i64 0, i32 0, i1 ()* @return_i1, i32 0, i32 0, i32 0, i32 0, i32 addrspace(1)* %a)
-  %call1 = call i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token %safepoint_token,  i32 7, i32 7)
+  %safepoint_token = tail call token (i64, i32, i1 ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_i1f(i64 0, i32 0, i1 ()* @return_i1, i32 0, i32 0, i32 0, i32 0) ["gc-live" (i32 addrspace(1)* %a)]
+  %call1 = call i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token %safepoint_token,  i32 0, i32 0)
   %call2 = call zeroext i1 @llvm.experimental.gc.result.i1(token %safepoint_token)
   ret i1 %call2
 }
@@ -141,7 +141,6 @@ define i1 @test_i1_return_patchable() gc "statepoint-example" {
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    pushq %rax
 ; CHECK-NEXT:    .cfi_def_cfa_offset 16
-; CHECK-NEXT:    xorl %eax, %eax
 ; CHECK-NEXT:    nopl (%rax)
 ; CHECK-NEXT:  .Ltmp7:
 ; CHECK-NEXT:    popq %rcx
@@ -190,11 +189,11 @@ define i1 @test_cross_bb(i32 addrspace(1)* %a, i1 %external_cond) gc "statepoint
 ; CHECK-NEXT:    .cfi_def_cfa_offset 8
 ; CHECK-NEXT:    retq
 entry:
-  %safepoint_token = tail call token (i64, i32, i1 ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_i1f(i64 0, i32 0, i1 ()* @return_i1, i32 0, i32 0, i32 0, i32 0, i32 addrspace(1)* %a)
+  %safepoint_token = tail call token (i64, i32, i1 ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_i1f(i64 0, i32 0, i1 ()* @return_i1, i32 0, i32 0, i32 0, i32 0) ["gc-live" (i32 addrspace(1)* %a)]
   br i1 %external_cond, label %left, label %right
 
 left:
-  %call1 = call i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token %safepoint_token,  i32 7, i32 7)
+  %call1 = call i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token %safepoint_token,  i32 0, i32 0)
   %call2 = call zeroext i1 @llvm.experimental.gc.result.i1(token %safepoint_token)
   call void @consume(i32 addrspace(1)* %call1)
   ret i1 %call2
@@ -205,9 +204,9 @@ right:
 
 %struct2 = type { i64, i64, i64 }
 
-declare void @consume_attributes(i32, i8* nest, i32, %struct2* byval)
+declare void @consume_attributes(i32, i8* nest, i32, %struct2* byval(%struct2))
 
-define void @test_attributes(%struct2* byval %s) gc "statepoint-example" {
+define void @test_attributes(%struct2* byval(%struct2) %s) gc "statepoint-example" {
 ; CHECK-LABEL: test_attributes:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    pushq %rax
@@ -236,7 +235,7 @@ define void @test_attributes(%struct2* byval %s) gc "statepoint-example" {
 entry:
 ; Check that arguments with attributes are lowered correctly.
 ; We call a function that has a nest argument and a byval argument.
-  %statepoint_token = call token (i64, i32, void (i32, i8*, i32, %struct2*)*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidi32p0i8i32p0s_struct2sf(i64 0, i32 0, void (i32, i8*, i32, %struct2*)* @consume_attributes, i32 4, i32 0, i32 42, i8* nest null, i32 17, %struct2* byval %s, i32 0, i32 0)
+  %statepoint_token = call token (i64, i32, void (i32, i8*, i32, %struct2*)*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidi32p0i8i32p0s_struct2sf(i64 0, i32 0, void (i32, i8*, i32, %struct2*)* @consume_attributes, i32 4, i32 0, i32 42, i8* nest null, i32 17, %struct2* byval(%struct2) %s, i32 0, i32 0)
   ret void
 }
 

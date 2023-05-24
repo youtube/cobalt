@@ -1,6 +1,6 @@
 //===- toyc.cpp - The Toy Compiler ----------------------------------------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -15,9 +15,10 @@
 #include "toy/Parser.h"
 #include <memory>
 
-#include "mlir/Analysis/Verifier.h"
+#include "mlir/IR/AsmState.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Module.h"
+#include "mlir/IR/Verifier.h"
 #include "mlir/Parser.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -61,16 +62,15 @@ std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
     return nullptr;
   }
   auto buffer = fileOrErr.get()->getBuffer();
-  LexerBuffer lexer(buffer.begin(), buffer.end(), filename);
+  LexerBuffer lexer(buffer.begin(), buffer.end(), std::string(filename));
   Parser parser(lexer);
   return parser.parseModule();
 }
 
 int dumpMLIR() {
-  // Register our Dialect with MLIR.
-  mlir::registerDialect<mlir::toy::ToyDialect>();
-
   mlir::MLIRContext context;
+  // Load our Dialect in this MLIR Context.
+  context.getOrLoadDialect<mlir::toy::ToyDialect>();
 
   // Handle '.toy' input to the compiler.
   if (inputType != InputType::MLIR &&
@@ -122,6 +122,9 @@ int dumpAST() {
 }
 
 int main(int argc, char **argv) {
+  // Register any command line options.
+  mlir::registerAsmPrinterCLOptions();
+  mlir::registerMLIRContextCLOptions();
   cl::ParseCommandLineOptions(argc, argv, "toy compiler\n");
 
   switch (emitAction) {

@@ -204,6 +204,15 @@ public:
   ArrayRef<uint8_t> getContents() const;
   void writeTo(uint8_t *buf) const;
 
+  // Defend against unsorted relocations. This may be overly conservative.
+  void sortRelocations();
+
+  // Write and relocate a portion of the section. This is intended to be called
+  // in a loop. Relocations must be sorted first.
+  void writeAndRelocateSubsection(ArrayRef<uint8_t> sec,
+                                  ArrayRef<uint8_t> subsec,
+                                  uint32_t &nextRelocIndex, uint8_t *buf) const;
+
   uint32_t getOutputCharacteristics() const {
     return header->Characteristics & (permMask | typeMask);
   }
@@ -212,6 +221,7 @@ public:
   }
   void getBaserels(std::vector<Baserel> *res);
   bool isCOMDAT() const;
+  void applyRelocation(uint8_t *off, const coff_relocation &rel) const;
   void applyRelX64(uint8_t *off, uint16_t type, OutputSection *os, uint64_t s,
                    uint64_t p) const;
   void applyRelX86(uint8_t *off, uint16_t type, OutputSection *os, uint64_t s,
@@ -269,7 +279,8 @@ public:
     AssociatedIterator() = default;
     AssociatedIterator(SectionChunk *head) : cur(head) {}
     bool operator==(const AssociatedIterator &r) const { return cur == r.cur; }
-    const SectionChunk &operator*() const { return *cur; }
+    // FIXME: Wrong const-ness, but it makes filter ranges work.
+    SectionChunk &operator*() const { return *cur; }
     SectionChunk &operator*() { return *cur; }
     AssociatedIterator &operator++() {
       cur = cur->assocChildren;
@@ -486,7 +497,9 @@ public:
 
 class ImportThunkChunkARM : public ImportThunkChunk {
 public:
-  explicit ImportThunkChunkARM(Defined *s) : ImportThunkChunk(s) {}
+  explicit ImportThunkChunkARM(Defined *s) : ImportThunkChunk(s) {
+    setAlignment(2);
+  }
   size_t getSize() const override { return sizeof(importThunkARM); }
   void getBaserels(std::vector<Baserel> *res) override;
   void writeTo(uint8_t *buf) const override;
@@ -494,14 +507,16 @@ public:
 
 class ImportThunkChunkARM64 : public ImportThunkChunk {
 public:
-  explicit ImportThunkChunkARM64(Defined *s) : ImportThunkChunk(s) {}
+  explicit ImportThunkChunkARM64(Defined *s) : ImportThunkChunk(s) {
+    setAlignment(4);
+  }
   size_t getSize() const override { return sizeof(importThunkARM64); }
   void writeTo(uint8_t *buf) const override;
 };
 
 class RangeExtensionThunkARM : public NonSectionChunk {
 public:
-  explicit RangeExtensionThunkARM(Defined *t) : target(t) {}
+  explicit RangeExtensionThunkARM(Defined *t) : target(t) { setAlignment(2); }
   size_t getSize() const override;
   void writeTo(uint8_t *buf) const override;
 

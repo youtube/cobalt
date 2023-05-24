@@ -19,7 +19,6 @@
 #include <algorithm>
 
 using namespace clang::ast_matchers;
-using namespace clang::ast_type_traits;
 
 namespace clang {
 
@@ -67,11 +66,14 @@ MagicNumbersCheck::MagicNumbersCheck(StringRef Name, ClangTidyContext *Context)
           Options.get("IgnoreAllFloatingPointValues", false)),
       IgnoreBitFieldsWidths(Options.get("IgnoreBitFieldsWidths", true)),
       IgnorePowersOf2IntegerValues(
-          Options.get("IgnorePowersOf2IntegerValues", false)) {
+          Options.get("IgnorePowersOf2IntegerValues", false)),
+      RawIgnoredIntegerValues(
+          Options.get("IgnoredIntegerValues", DefaultIgnoredIntegerValues)),
+      RawIgnoredFloatingPointValues(Options.get(
+          "IgnoredFloatingPointValues", DefaultIgnoredFloatingPointValues)) {
   // Process the set of ignored integer values.
   const std::vector<std::string> IgnoredIntegerValuesInput =
-      utils::options::parseStringList(
-          Options.get("IgnoredIntegerValues", DefaultIgnoredIntegerValues));
+      utils::options::parseStringList(RawIgnoredIntegerValues);
   IgnoredIntegerValues.resize(IgnoredIntegerValuesInput.size());
   llvm::transform(IgnoredIntegerValuesInput, IgnoredIntegerValues.begin(),
                   [](const std::string &Value) { return std::stoll(Value); });
@@ -80,8 +82,7 @@ MagicNumbersCheck::MagicNumbersCheck(StringRef Name, ClangTidyContext *Context)
   if (!IgnoreAllFloatingPointValues) {
     // Process the set of ignored floating point values.
     const std::vector<std::string> IgnoredFloatingPointValuesInput =
-        utils::options::parseStringList(Options.get(
-            "IgnoredFloatingPointValues", DefaultIgnoredFloatingPointValues));
+        utils::options::parseStringList(RawIgnoredFloatingPointValues);
     IgnoredFloatingPointValues.reserve(IgnoredFloatingPointValuesInput.size());
     IgnoredDoublePointValues.reserve(IgnoredFloatingPointValuesInput.size());
     for (const auto &InputValue : IgnoredFloatingPointValuesInput) {
@@ -107,9 +108,14 @@ MagicNumbersCheck::MagicNumbersCheck(StringRef Name, ClangTidyContext *Context)
 }
 
 void MagicNumbersCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
-  Options.store(Opts, "IgnoredIntegerValues", DefaultIgnoredIntegerValues);
+  Options.store(Opts, "IgnoreAllFloatingPointValues",
+                IgnoreAllFloatingPointValues);
+  Options.store(Opts, "IgnoreBitFieldsWidths", IgnoreBitFieldsWidths);
+  Options.store(Opts, "IgnorePowersOf2IntegerValues",
+                IgnorePowersOf2IntegerValues);
+  Options.store(Opts, "IgnoredIntegerValues", RawIgnoredIntegerValues);
   Options.store(Opts, "IgnoredFloatingPointValues",
-                DefaultIgnoredFloatingPointValues);
+                RawIgnoredFloatingPointValues);
 }
 
 void MagicNumbersCheck::registerMatchers(MatchFinder *Finder) {
@@ -119,6 +125,9 @@ void MagicNumbersCheck::registerMatchers(MatchFinder *Finder) {
 }
 
 void MagicNumbersCheck::check(const MatchFinder::MatchResult &Result) {
+
+  TraversalKindScope RAII(*Result.Context, TK_AsIs);
+
   checkBoundMatch<IntegerLiteral>(Result, "integer");
   checkBoundMatch<FloatingLiteral>(Result, "float");
 }
@@ -199,7 +208,7 @@ bool MagicNumbersCheck::isSyntheticValue(const SourceManager *SourceManager,
     return false;
 
   const StringRef BufferIdentifier =
-      SourceManager->getBuffer(FileOffset.first)->getBufferIdentifier();
+      SourceManager->getBufferOrFake(FileOffset.first).getBufferIdentifier();
 
   return BufferIdentifier.empty();
 }

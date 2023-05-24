@@ -16,14 +16,12 @@
 #include "llvm/CodeGen/CSEConfigBase.h"
 #include "llvm/CodeGen/GlobalISel/GISelChangeObserver.h"
 #include "llvm/CodeGen/GlobalISel/GISelWorkList.h"
-#include "llvm/CodeGen/GlobalISel/Utils.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/CodeGen.h"
 
 namespace llvm {
+class MachineBasicBlock;
 
 /// A class that wraps MachineInstrs and derives from FoldingSetNode in order to
 /// be uniqued in a CSEMap. The tradeoff here is extra memory allocations for
@@ -120,6 +118,8 @@ public:
 
   void setMF(MachineFunction &MF);
 
+  Error verify();
+
   /// Records a newly created inst in a list and lazily insert it to the CSEMap.
   /// Sometimes, this method might be called with a partially constructed
   /// MachineInstr,
@@ -173,14 +173,16 @@ public:
       : ID(ID), MRI(MRI) {}
   // Profiling methods.
   const GISelInstProfileBuilder &addNodeIDOpcode(unsigned Opc) const;
-  const GISelInstProfileBuilder &addNodeIDRegType(const LLT &Ty) const;
-  const GISelInstProfileBuilder &addNodeIDRegType(const unsigned) const;
+  const GISelInstProfileBuilder &addNodeIDRegType(const LLT Ty) const;
+  const GISelInstProfileBuilder &addNodeIDRegType(const Register) const;
 
   const GISelInstProfileBuilder &
   addNodeIDRegType(const TargetRegisterClass *RC) const;
   const GISelInstProfileBuilder &addNodeIDRegType(const RegisterBank *RB) const;
 
-  const GISelInstProfileBuilder &addNodeIDRegNum(unsigned Reg) const;
+  const GISelInstProfileBuilder &addNodeIDRegNum(Register Reg) const;
+
+  const GISelInstProfileBuilder &addNodeIDReg(Register Reg) const;
 
   const GISelInstProfileBuilder &addNodeIDImmediate(int64_t Imm) const;
   const GISelInstProfileBuilder &

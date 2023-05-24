@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_DynamicLoader_h_
-#define liblldb_DynamicLoader_h_
+#ifndef LLDB_TARGET_DYNAMICLOADER_H
+#define LLDB_TARGET_DYNAMICLOADER_H
 
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Utility/FileSpec.h"
@@ -67,12 +67,6 @@ public:
 
   /// Construct with a process.
   DynamicLoader(Process *process);
-
-  /// Destructor.
-  ///
-  /// The destructor is virtual since this class is designed to be inherited
-  /// from by the plug-in instance.
-  ~DynamicLoader() override;
 
   /// Called after attaching a process.
   ///
@@ -308,11 +302,8 @@ protected:
   // Member variables.
   Process
       *m_process; ///< The process that this dynamic loader plug-in is tracking.
-
-private:
-  DISALLOW_COPY_AND_ASSIGN(DynamicLoader);
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_DynamicLoader_h_
+#endif // LLDB_TARGET_DYNAMICLOADER_H

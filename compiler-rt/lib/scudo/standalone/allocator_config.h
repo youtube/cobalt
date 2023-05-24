@@ -25,52 +25,91 @@ namespace scudo {
 
 struct DefaultConfig {
   using SizeClassMap = DefaultSizeClassMap;
+  static const bool MaySupportMemoryTagging = false;
+
 #if SCUDO_CAN_USE_PRIMARY64
-  // 1GB Regions
-  typedef SizeClassAllocator64<SizeClassMap, 30U> Primary;
+  typedef SizeClassAllocator64<DefaultConfig> Primary;
+  static const uptr PrimaryRegionSizeLog = 30U;
 #else
-  // 512KB regions
-  typedef SizeClassAllocator32<SizeClassMap, 19U> Primary;
+  typedef SizeClassAllocator32<DefaultConfig> Primary;
+  static const uptr PrimaryRegionSizeLog = 19U;
 #endif
-  typedef MapAllocator<> Secondary;
+  static const s32 PrimaryMinReleaseToOsIntervalMs = INT32_MIN;
+  static const s32 PrimaryMaxReleaseToOsIntervalMs = INT32_MAX;
+
+  typedef MapAllocatorCache<DefaultConfig> SecondaryCache;
+  static const u32 SecondaryCacheEntriesArraySize = 32U;
+  static const u32 SecondaryCacheDefaultMaxEntriesCount = 32U;
+  static const uptr SecondaryCacheDefaultMaxEntrySize = 1UL << 19;
+  static const s32 SecondaryCacheMinReleaseToOsIntervalMs = INT32_MIN;
+  static const s32 SecondaryCacheMaxReleaseToOsIntervalMs = INT32_MAX;
+
   template <class A> using TSDRegistryT = TSDRegistryExT<A>; // Exclusive
 };
 
 struct AndroidConfig {
   using SizeClassMap = AndroidSizeClassMap;
+  static const bool MaySupportMemoryTagging = true;
+
 #if SCUDO_CAN_USE_PRIMARY64
-  // 1GB regions
-  typedef SizeClassAllocator64<SizeClassMap, 30U> Primary;
+  typedef SizeClassAllocator64<AndroidConfig> Primary;
+  static const uptr PrimaryRegionSizeLog = 28U;
 #else
-  // 512KB regions
-  typedef SizeClassAllocator32<SizeClassMap, 19U> Primary;
+  typedef SizeClassAllocator32<AndroidConfig> Primary;
+  static const uptr PrimaryRegionSizeLog = 18U;
 #endif
-  typedef MapAllocator<> Secondary;
+  static const s32 PrimaryMinReleaseToOsIntervalMs = 1000;
+  static const s32 PrimaryMaxReleaseToOsIntervalMs = 1000;
+
+  typedef MapAllocatorCache<AndroidConfig> SecondaryCache;
+  static const u32 SecondaryCacheEntriesArraySize = 256U;
+  static const u32 SecondaryCacheDefaultMaxEntriesCount = 32U;
+  static const uptr SecondaryCacheDefaultMaxEntrySize = 2UL << 20;
+  static const s32 SecondaryCacheMinReleaseToOsIntervalMs = 0;
+  static const s32 SecondaryCacheMaxReleaseToOsIntervalMs = 1000;
+
   template <class A>
-  using TSDRegistryT = TSDRegistrySharedT<A, 2U>; // Shared, max 2 TSDs.
+  using TSDRegistryT = TSDRegistrySharedT<A, 8U, 2U>; // Shared, max 8 TSDs.
 };
 
 struct AndroidSvelteConfig {
   using SizeClassMap = SvelteSizeClassMap;
+  static const bool MaySupportMemoryTagging = false;
+
 #if SCUDO_CAN_USE_PRIMARY64
-  // 512MB regions
-  typedef SizeClassAllocator64<SizeClassMap, 29U> Primary;
+  typedef SizeClassAllocator64<AndroidSvelteConfig> Primary;
+  static const uptr PrimaryRegionSizeLog = 27U;
 #else
-  // 64KB regions
-  typedef SizeClassAllocator32<SizeClassMap, 16U> Primary;
+  typedef SizeClassAllocator32<AndroidSvelteConfig> Primary;
+  static const uptr PrimaryRegionSizeLog = 16U;
 #endif
-  typedef MapAllocator<0U> Secondary;
+  static const s32 PrimaryMinReleaseToOsIntervalMs = 1000;
+  static const s32 PrimaryMaxReleaseToOsIntervalMs = 1000;
+
+  typedef MapAllocatorCache<AndroidSvelteConfig> SecondaryCache;
+  static const u32 SecondaryCacheEntriesArraySize = 16U;
+  static const u32 SecondaryCacheDefaultMaxEntriesCount = 4U;
+  static const uptr SecondaryCacheDefaultMaxEntrySize = 1UL << 18;
+  static const s32 SecondaryCacheMinReleaseToOsIntervalMs = 0;
+  static const s32 SecondaryCacheMaxReleaseToOsIntervalMs = 0;
+
   template <class A>
-  using TSDRegistryT = TSDRegistrySharedT<A, 1U>; // Shared, only 1 TSD.
+  using TSDRegistryT = TSDRegistrySharedT<A, 2U, 1U>; // Shared, max 2 TSDs.
 };
 
 #if SCUDO_CAN_USE_PRIMARY64
 struct FuchsiaConfig {
-  // 1GB Regions
-  typedef SizeClassAllocator64<DefaultSizeClassMap, 30U> Primary;
-  typedef MapAllocator<0U> Secondary;
+  using SizeClassMap = DefaultSizeClassMap;
+  static const bool MaySupportMemoryTagging = false;
+
+  typedef SizeClassAllocator64<FuchsiaConfig> Primary;
+  static const uptr PrimaryRegionSizeLog = 30U;
+  static const s32 PrimaryMinReleaseToOsIntervalMs = INT32_MIN;
+  static const s32 PrimaryMaxReleaseToOsIntervalMs = INT32_MAX;
+
+  typedef MapAllocatorNoCache SecondaryCache;
   template <class A>
-  using TSDRegistryT = TSDRegistrySharedT<A, 8U>; // Shared, max 8 TSDs.
+  using TSDRegistryT = TSDRegistrySharedT<A, 8U, 4U>; // Shared, max 8 TSDs.
 };
 #endif
 

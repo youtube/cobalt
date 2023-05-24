@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_SERIALIZATION_ASTRECORDREADER_H
 #define LLVM_CLANG_SERIALIZATION_ASTRECORDREADER_H
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/AbstractBasicReader.h"
 #include "clang/Lex/Token.h"
 #include "clang/Serialization/ASTReader.h"
@@ -22,6 +23,8 @@
 #include "llvm/ADT/APSInt.h"
 
 namespace clang {
+class OMPTraitInfo;
+class OMPChildren;
 
 /// An object for streaming information from a record.
 class ASTRecordReader
@@ -117,7 +120,7 @@ public:
   //readExceptionSpecInfo(SmallVectorImpl<QualType> &ExceptionStorage);
 
   /// Get the global offset corresponding to a local offset.
-  uint64_t getGlobalBitOffset(uint32_t LocalOffset) {
+  uint64_t getGlobalBitOffset(uint64_t LocalOffset) {
     return Reader->getGlobalBitOffset(*F, LocalOffset);
   }
 
@@ -258,8 +261,14 @@ public:
     return Reader->ReadCXXTemporary(*F, Record, Idx);
   }
 
+  /// Read an OMPTraitInfo object, advancing Idx.
+  OMPTraitInfo *readOMPTraitInfo();
+
   /// Read an OpenMP clause, advancing Idx.
   OMPClause *readOMPClause();
+
+  /// Read an OpenMP children, advancing Idx.
+  void readOMPChildren(OMPChildren *Data);
 
   /// Read a source location, advancing Idx.
   SourceLocation readSourceLocation() {
@@ -272,7 +281,7 @@ public:
   }
 
   /// Read an arbitrary constant value, advancing Idx.
-  APValue readAPValue();
+  // APValue readAPValue(); (inherited)
 
   /// Read an integral value, advancing Idx.
   // llvm::APInt readAPInt(); (inherited)

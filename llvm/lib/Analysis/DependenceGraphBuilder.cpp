@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/DependenceGraphBuilder.h"
+#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/EnumeratedArray.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/Statistic.h"
@@ -139,75 +140,74 @@ template <class G> void AbstractDependenceGraphBuilder<G>::createPiBlocks() {
       if (*N == PiNode || NodesInSCC.count(N))
         continue;
 
-      for (NodeType *SCCNode : NL) {
+      enum Direction {
+        Incoming,      // Incoming edges to the SCC
+        Outgoing,      // Edges going ot of the SCC
+        DirectionCount // To make the enum usable as an array index.
+      };
 
-        enum Direction {
-          Incoming,      // Incoming edges to the SCC
-          Outgoing,      // Edges going ot of the SCC
-          DirectionCount // To make the enum usable as an array index.
-        };
+      // Use these flags to help us avoid creating redundant edges. If there
+      // are more than one edges from an outside node to inside nodes, we only
+      // keep one edge from that node to the pi-block node. Similarly, if
+      // there are more than one edges from inside nodes to an outside node,
+      // we only keep one edge from the pi-block node to the outside node.
+      // There is a flag defined for each direction (incoming vs outgoing) and
+      // for each type of edge supported, using a two-dimensional boolean
+      // array.
+      using EdgeKind = typename EdgeType::EdgeKind;
+      EnumeratedArray<bool, EdgeKind> EdgeAlreadyCreated[DirectionCount]{false,
+                                                                         false};
 
-        // Use these flags to help us avoid creating redundant edges. If there
-        // are more than one edges from an outside node to inside nodes, we only
-        // keep one edge from that node to the pi-block node. Similarly, if
-        // there are more than one edges from inside nodes to an outside node,
-        // we only keep one edge from the pi-block node to the outside node.
-        // There is a flag defined for each direction (incoming vs outgoing) and
-        // for each type of edge supported, using a two-dimensional boolean
-        // array.
-        using EdgeKind = typename EdgeType::EdgeKind;
-        EnumeratedArray<bool, EdgeKind> EdgeAlreadyCreated[DirectionCount]{
-            false, false};
+      auto createEdgeOfKind = [this](NodeType &Src, NodeType &Dst,
+                                     const EdgeKind K) {
+        switch (K) {
+        case EdgeKind::RegisterDefUse:
+          createDefUseEdge(Src, Dst);
+          break;
+        case EdgeKind::MemoryDependence:
+          createMemoryEdge(Src, Dst);
+          break;
+        case EdgeKind::Rooted:
+          createRootedEdge(Src, Dst);
+          break;
+        default:
+          llvm_unreachable("Unsupported type of edge.");
+        }
+      };
 
-        auto createEdgeOfKind = [this](NodeType &Src, NodeType &Dst,
-                                       const EdgeKind K) {
-          switch (K) {
-          case EdgeKind::RegisterDefUse:
-            createDefUseEdge(Src, Dst);
-            break;
-          case EdgeKind::MemoryDependence:
-            createMemoryEdge(Src, Dst);
-            break;
-          case EdgeKind::Rooted:
-            createRootedEdge(Src, Dst);
-            break;
-          default:
-            llvm_unreachable("Unsupported type of edge.");
-          }
-        };
+      auto reconnectEdges = [&](NodeType *Src, NodeType *Dst, NodeType *New,
+                                const Direction Dir) {
+        if (!Src->hasEdgeTo(*Dst))
+          return;
+        LLVM_DEBUG(
+            dbgs() << "reconnecting("
+                   << (Dir == Direction::Incoming ? "incoming)" : "outgoing)")
+                   << ":\nSrc:" << *Src << "\nDst:" << *Dst << "\nNew:" << *New
+                   << "\n");
+        assert((Dir == Direction::Incoming || Dir == Direction::Outgoing) &&
+               "Invalid direction.");
 
-        auto reconnectEdges = [&](NodeType *Src, NodeType *Dst, NodeType *New,
-                                  const Direction Dir) {
-          if (!Src->hasEdgeTo(*Dst))
-            return;
-          LLVM_DEBUG(dbgs()
-                     << "reconnecting("
-                     << (Dir == Direction::Incoming ? "incoming)" : "outgoing)")
-                     << ":\nSrc:" << *Src << "\nDst:" << *Dst
-                     << "\nNew:" << *New << "\n");
-          assert((Dir == Direction::Incoming || Dir == Direction::Outgoing) &&
-                 "Invalid direction.");
-
-          SmallVector<EdgeType *, 10> EL;
-          Src->findEdgesTo(*Dst, EL);
-          for (EdgeType *OldEdge : EL) {
-            EdgeKind Kind = OldEdge->getKind();
-            if (!EdgeAlreadyCreated[Dir][Kind]) {
-              if (Dir == Direction::Incoming) {
-                createEdgeOfKind(*Src, *New, Kind);
-                LLVM_DEBUG(dbgs() << "created edge from Src to New.\n");
-              } else if (Dir == Direction::Outgoing) {
-                createEdgeOfKind(*New, *Dst, Kind);
-                LLVM_DEBUG(dbgs() << "created edge from New to Dst.\n");
-              }
-              EdgeAlreadyCreated[Dir][Kind] = true;
+        SmallVector<EdgeType *, 10> EL;
+        Src->findEdgesTo(*Dst, EL);
+        for (EdgeType *OldEdge : EL) {
+          EdgeKind Kind = OldEdge->getKind();
+          if (!EdgeAlreadyCreated[Dir][Kind]) {
+            if (Dir == Direction::Incoming) {
+              createEdgeOfKind(*Src, *New, Kind);
+              LLVM_DEBUG(dbgs() << "created edge from Src to New.\n");
+            } else if (Dir == Direction::Outgoing) {
+              createEdgeOfKind(*New, *Dst, Kind);
+              LLVM_DEBUG(dbgs() << "created edge from New to Dst.\n");
             }
-            Src->removeEdge(*OldEdge);
-            destroyEdge(*OldEdge);
-            LLVM_DEBUG(dbgs() << "removed old edge between Src and Dst.\n\n");
+            EdgeAlreadyCreated[Dir][Kind] = true;
           }
-        };
+          Src->removeEdge(*OldEdge);
+          destroyEdge(*OldEdge);
+          LLVM_DEBUG(dbgs() << "removed old edge between Src and Dst.\n\n");
+        }
+      };
 
+      for (NodeType *SCCNode : NL) {
         // Process incoming edges incident to the pi-block node.
         reconnectEdges(N, SCCNode, &PiNode, Direction::Incoming);
 
@@ -374,6 +374,109 @@ void AbstractDependenceGraphBuilder<G>::createMemoryDependencyEdges() {
   }
 }
 
+template <class G> void AbstractDependenceGraphBuilder<G>::simplify() {
+  if (!shouldSimplify())
+    return;
+  LLVM_DEBUG(dbgs() << "==== Start of Graph Simplification ===\n");
+
+  // This algorithm works by first collecting a set of candidate nodes that have
+  // an out-degree of one (in terms of def-use edges), and then ignoring those
+  // whose targets have an in-degree more than one. Each node in the resulting
+  // set can then be merged with its corresponding target and put back into the
+  // worklist until no further merge candidates are available.
+  SmallPtrSet<NodeType *, 32> CandidateSourceNodes;
+
+  // A mapping between nodes and their in-degree. To save space, this map
+  // only contains nodes that are targets of nodes in the CandidateSourceNodes.
+  DenseMap<NodeType *, unsigned> TargetInDegreeMap;
+
+  for (NodeType *N : Graph) {
+    if (N->getEdges().size() != 1)
+      continue;
+    EdgeType &Edge = N->back();
+    if (!Edge.isDefUse())
+      continue;
+    CandidateSourceNodes.insert(N);
+
+    // Insert an element into the in-degree map and initialize to zero. The
+    // count will get updated in the next step.
+    TargetInDegreeMap.insert({&Edge.getTargetNode(), 0});
+  }
+
+  LLVM_DEBUG({
+    dbgs() << "Size of candidate src node list:" << CandidateSourceNodes.size()
+           << "\nNode with single outgoing def-use edge:\n";
+    for (NodeType *N : CandidateSourceNodes) {
+      dbgs() << N << "\n";
+    }
+  });
+
+  for (NodeType *N : Graph) {
+    for (EdgeType *E : *N) {
+      NodeType *Tgt = &E->getTargetNode();
+      auto TgtIT = TargetInDegreeMap.find(Tgt);
+      if (TgtIT != TargetInDegreeMap.end())
+        ++(TgtIT->second);
+    }
+  }
+
+  LLVM_DEBUG({
+    dbgs() << "Size of target in-degree map:" << TargetInDegreeMap.size()
+           << "\nContent of in-degree map:\n";
+    for (auto &I : TargetInDegreeMap) {
+      dbgs() << I.first << " --> " << I.second << "\n";
+    }
+  });
+
+  SmallVector<NodeType *, 32> Worklist(CandidateSourceNodes.begin(),
+                                       CandidateSourceNodes.end());
+  while (!Worklist.empty()) {
+    NodeType &Src = *Worklist.pop_back_val();
+    // As nodes get merged, we need to skip any node that has been removed from
+    // the candidate set (see below).
+    if (!CandidateSourceNodes.erase(&Src))
+      continue;
+
+    assert(Src.getEdges().size() == 1 &&
+           "Expected a single edge from the candidate src node.");
+    NodeType &Tgt = Src.back().getTargetNode();
+    assert(TargetInDegreeMap.find(&Tgt) != TargetInDegreeMap.end() &&
+           "Expected target to be in the in-degree map.");
+
+    if (TargetInDegreeMap[&Tgt] != 1)
+      continue;
+
+    if (!areNodesMergeable(Src, Tgt))
+      continue;
+
+    // Do not merge if there is also an edge from target to src (immediate
+    // cycle).
+    if (Tgt.hasEdgeTo(Src))
+      continue;
+
+    LLVM_DEBUG(dbgs() << "Merging:" << Src << "\nWith:" << Tgt << "\n");
+
+    mergeNodes(Src, Tgt);
+
+    // If the target node is in the candidate set itself, we need to put the
+    // src node back into the worklist again so it gives the target a chance
+    // to get merged into it. For example if we have:
+    // {(a)->(b), (b)->(c), (c)->(d), ...} and the worklist is initially {b, a},
+    // then after merging (a) and (b) together, we need to put (a,b) back in
+    // the worklist so that (c) can get merged in as well resulting in
+    // {(a,b,c) -> d}
+    // We also need to remove the old target (b), from the worklist. We first
+    // remove it from the candidate set here, and skip any item from the
+    // worklist that is not in the set.
+    if (CandidateSourceNodes.erase(&Tgt)) {
+      Worklist.push_back(&Src);
+      CandidateSourceNodes.insert(&Src);
+      LLVM_DEBUG(dbgs() << "Putting " << &Src << " back in the worklist.\n");
+    }
+  }
+  LLVM_DEBUG(dbgs() << "=== End of Graph Simplification ===\n");
+}
+
 template <class G>
 void AbstractDependenceGraphBuilder<G>::sortNodesTopologically() {
 
@@ -388,16 +491,14 @@ void AbstractDependenceGraphBuilder<G>::sortNodesTopologically() {
       // Put members of the pi-block right after the pi-block itself, for
       // convenience.
       const NodeListType &PiBlockMembers = getNodesInPiBlock(*N);
-      NodesInPO.insert(NodesInPO.end(), PiBlockMembers.begin(),
-                       PiBlockMembers.end());
+      llvm::append_range(NodesInPO, PiBlockMembers);
     }
     NodesInPO.push_back(N);
   }
 
   size_t OldSize = Graph.Nodes.size();
   Graph.Nodes.clear();
-  for (NodeType *N : reverse(NodesInPO))
-    Graph.Nodes.push_back(N);
+  append_range(Graph.Nodes, reverse(NodesInPO));
   if (Graph.Nodes.size() != OldSize)
     assert(false &&
            "Expected the number of nodes to stay the same after the sort");

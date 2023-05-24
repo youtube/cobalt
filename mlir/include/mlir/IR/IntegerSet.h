@@ -1,6 +1,6 @@
 //===- IntegerSet.h - MLIR Integer Set Class --------------------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -103,6 +103,15 @@ public:
   void dump() const;
 
   friend ::llvm::hash_code hash_value(IntegerSet arg);
+
+  /// Methods supporting C API.
+  const void *getAsOpaquePointer() const {
+    return static_cast<const void *>(set);
+  }
+  static IntegerSet getFromOpaquePointer(const void *pointer) {
+    return IntegerSet(
+        reinterpret_cast<ImplType *>(const_cast<void *>(pointer)));
+  }
 
 private:
   ImplType *set;

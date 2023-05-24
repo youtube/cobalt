@@ -15,19 +15,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangTidy.h"
+#include "ClangTidyCheck.h"
 #include "ClangTidyDiagnosticConsumer.h"
 #include "ClangTidyModuleRegistry.h"
 #include "ClangTidyProfiling.h"
 #include "ExpandModularHeadersPPCallbacks.h"
+#include "clang-tidy-config.h"
 #include "clang/AST/ASTConsumer.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/Decl.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
-#include "clang/Config/config.h"
 #include "clang/Format/Format.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
@@ -42,14 +40,13 @@
 #include "clang/Tooling/ReplacementsYaml.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/Process.h"
-#include "llvm/Support/Signals.h"
 #include <algorithm>
 #include <utility>
 
-#if CLANG_ENABLE_STATIC_ANALYZER
+#if CLANG_TIDY_ENABLE_STATIC_ANALYZER
 #include "clang/Analysis/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Frontend/AnalysisConsumer.h"
-#endif // CLANG_ENABLE_STATIC_ANALYZER
+#endif // CLANG_TIDY_ENABLE_STATIC_ANALYZER
 
 using namespace clang::ast_matchers;
 using namespace clang::driver;
@@ -62,7 +59,7 @@ namespace clang {
 namespace tidy {
 
 namespace {
-#if CLANG_ENABLE_STATIC_ANALYZER
+#if CLANG_TIDY_ENABLE_STATIC_ANALYZER
 static const char *AnalyzerCheckNamePrefix = "clang-analyzer-";
 
 class AnalyzerDiagnosticConsumer : public ento::PathDiagnosticConsumer {
@@ -94,20 +91,25 @@ public:
 private:
   ClangTidyContext &Context;
 };
-#endif // CLANG_ENABLE_STATIC_ANALYZER
+#endif // CLANG_TIDY_ENABLE_STATIC_ANALYZER
 
 class ErrorReporter {
 public:
   ErrorReporter(ClangTidyContext &Context, bool ApplyFixes,
                 llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS)
-      : Files(FileSystemOptions(), BaseFS), DiagOpts(new DiagnosticOptions()),
+      : Files(FileSystemOptions(), std::move(BaseFS)),
+        DiagOpts(new DiagnosticOptions()),
         DiagPrinter(new TextDiagnosticPrinter(llvm::outs(), &*DiagOpts)),
         Diags(IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs), &*DiagOpts,
               DiagPrinter),
         SourceMgr(Diags, Files), Context(Context), ApplyFixes(ApplyFixes),
         TotalFixes(0), AppliedFixes(0), WarningsAsErrors(0) {
-    DiagOpts->ShowColors = llvm::sys::Process::StandardOutHasColors();
+    DiagOpts->ShowColors = Context.getOptions().UseColor.getValueOr(
+        llvm::sys::Process::StandardOutHasColors());
     DiagPrinter->BeginSourceFile(LangOpts);
+    if (DiagOpts->ShowColors && !llvm::sys::Process::StandardOutIsDisplayed()) {
+      llvm::sys::Process::UseANSIEscapeCodes(true);
+    }
   }
 
   SourceManager &getSourceManager() { return SourceMgr; }
@@ -121,6 +123,8 @@ public:
     {
       auto Level = static_cast<DiagnosticsEngine::Level>(Error.DiagLevel);
       std::string Name = Error.DiagnosticName;
+      if (!Error.EnabledDiagnosticAliases.empty())
+        Name += "," + llvm::join(Error.EnabledDiagnosticAliases, ",");
       if (Error.IsWarningAsError) {
         Name += ",-warnings-as-errors";
         Level = DiagnosticsEngine::Error;
@@ -312,7 +316,7 @@ private:
 ClangTidyASTConsumerFactory::ClangTidyASTConsumerFactory(
     ClangTidyContext &Context,
     IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> OverlayFS)
-    : Context(Context), OverlayFS(OverlayFS),
+    : Context(Context), OverlayFS(std::move(OverlayFS)),
       CheckFactories(new ClangTidyCheckFactories) {
   for (ClangTidyModuleRegistry::entry E : ClangTidyModuleRegistry::entries()) {
     std::unique_ptr<ClangTidyModule> Module = E.instantiate();
@@ -320,15 +324,17 @@ ClangTidyASTConsumerFactory::ClangTidyASTConsumerFactory(
   }
 }
 
-#if CLANG_ENABLE_STATIC_ANALYZER
-static void setStaticAnalyzerCheckerOpts(const ClangTidyOptions &Opts,
-                                         AnalyzerOptionsRef AnalyzerOptions) {
+#if CLANG_TIDY_ENABLE_STATIC_ANALYZER
+static void
+setStaticAnalyzerCheckerOpts(const ClangTidyOptions &Opts,
+                             clang::AnalyzerOptions &AnalyzerOptions) {
   StringRef AnalyzerPrefix(AnalyzerCheckNamePrefix);
   for (const auto &Opt : Opts.CheckOptions) {
-    StringRef OptName(Opt.first);
-    if (!OptName.startswith(AnalyzerPrefix))
+    StringRef OptName(Opt.getKey());
+    if (!OptName.consume_front(AnalyzerPrefix))
       continue;
-    AnalyzerOptions->Config[OptName.substr(AnalyzerPrefix.size())] = Opt.second;
+    // Analyzer options are always local options so we can ignore priority.
+    AnalyzerOptions.Config[OptName] = Opt.getValue().Value;
   }
 }
 
@@ -359,12 +365,12 @@ static CheckersList getAnalyzerCheckersAndPackages(ClangTidyContext &Context,
 
     if (CheckName.startswith("core") ||
         Context.isCheckEnabled(ClangTidyCheckName)) {
-      List.emplace_back(CheckName, true);
+      List.emplace_back(std::string(CheckName), true);
     }
   }
   return List;
 }
-#endif // CLANG_ENABLE_STATIC_ANALYZER
+#endif // CLANG_TIDY_ENABLE_STATIC_ANALYZER
 
 std::unique_ptr<clang::ASTConsumer>
 ClangTidyASTConsumerFactory::CreateASTConsumer(
@@ -409,6 +415,8 @@ ClangTidyASTConsumerFactory::CreateASTConsumer(
   }
 
   for (auto &Check : Checks) {
+    if (!Check->isLanguageVersionSupported(Context.getLangOpts()))
+      continue;
     Check->registerMatchers(&*Finder);
     Check->registerPPCallbacks(*SM, PP, ModuleExpanderPP);
   }
@@ -417,12 +425,12 @@ ClangTidyASTConsumerFactory::CreateASTConsumer(
   if (!Checks.empty())
     Consumers.push_back(Finder->newASTConsumer());
 
-#if CLANG_ENABLE_STATIC_ANALYZER
+#if CLANG_TIDY_ENABLE_STATIC_ANALYZER
   AnalyzerOptionsRef AnalyzerOptions = Compiler.getAnalyzerOpts();
   AnalyzerOptions->CheckersAndPackages = getAnalyzerCheckersAndPackages(
       Context, Context.canEnableAnalyzerAlphaCheckers());
   if (!AnalyzerOptions->CheckersAndPackages.empty()) {
-    setStaticAnalyzerCheckerOpts(Context.getOptions(), AnalyzerOptions);
+    setStaticAnalyzerCheckerOpts(Context.getOptions(), *AnalyzerOptions);
     AnalyzerOptions->AnalysisStoreOpt = RegionStoreModel;
     AnalyzerOptions->AnalysisDiagOpt = PD_NONE;
     AnalyzerOptions->AnalyzeNestedBlocks = true;
@@ -433,7 +441,7 @@ ClangTidyASTConsumerFactory::CreateASTConsumer(
         new AnalyzerDiagnosticConsumer(Context));
     Consumers.push_back(std::move(AnalysisConsumer));
   }
-#endif // CLANG_ENABLE_STATIC_ANALYZER
+#endif // CLANG_TIDY_ENABLE_STATIC_ANALYZER
   return std::make_unique<ClangTidyASTConsumer>(
       std::move(Consumers), std::move(Profiling), std::move(Finder),
       std::move(Checks));
@@ -442,17 +450,17 @@ ClangTidyASTConsumerFactory::CreateASTConsumer(
 std::vector<std::string> ClangTidyASTConsumerFactory::getCheckNames() {
   std::vector<std::string> CheckNames;
   for (const auto &CheckFactory : *CheckFactories) {
-    if (Context.isCheckEnabled(CheckFactory.first))
-      CheckNames.push_back(CheckFactory.first);
+    if (Context.isCheckEnabled(CheckFactory.getKey()))
+      CheckNames.emplace_back(CheckFactory.getKey());
   }
 
-#if CLANG_ENABLE_STATIC_ANALYZER
+#if CLANG_TIDY_ENABLE_STATIC_ANALYZER
   for (const auto &AnalyzerCheck : getAnalyzerCheckersAndPackages(
            Context, Context.canEnableAnalyzerAlphaCheckers()))
     CheckNames.push_back(AnalyzerCheckNamePrefix + AnalyzerCheck.first);
-#endif // CLANG_ENABLE_STATIC_ANALYZER
+#endif // CLANG_TIDY_ENABLE_STATIC_ANALYZER
 
-  std::sort(CheckNames.begin(), CheckNames.end());
+  llvm::sort(CheckNames);
   return CheckNames;
 }
 
@@ -529,7 +537,7 @@ runClangTidy(clang::tidy::ClangTidyContext &Context,
   public:
     ActionFactory(ClangTidyContext &Context,
                   IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> BaseFS)
-        : ConsumerFactory(Context, BaseFS) {}
+        : ConsumerFactory(Context, std::move(BaseFS)) {}
     std::unique_ptr<FrontendAction> create() override {
       return std::make_unique<Action>(&ConsumerFactory);
     }
@@ -560,7 +568,7 @@ runClangTidy(clang::tidy::ClangTidyContext &Context,
     ClangTidyASTConsumerFactory ConsumerFactory;
   };
 
-  ActionFactory Factory(Context, BaseFS);
+  ActionFactory Factory(Context, std::move(BaseFS));
   Tool.run(&Factory);
   return DiagConsumer.take();
 }
@@ -569,7 +577,7 @@ void handleErrors(llvm::ArrayRef<ClangTidyError> Errors,
                   ClangTidyContext &Context, bool Fix,
                   unsigned &WarningsAsErrorsCount,
                   llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS) {
-  ErrorReporter Reporter(Context, Fix, BaseFS);
+  ErrorReporter Reporter(Context, Fix, std::move(BaseFS));
   llvm::vfs::FileSystem &FileSystem =
       Reporter.getSourceManager().getFileManager().getVirtualFileSystem();
   auto InitialWorkingDir = FileSystem.getCurrentWorkingDirectory();
@@ -596,7 +604,7 @@ void exportReplacements(const llvm::StringRef MainFilePath,
                         const std::vector<ClangTidyError> &Errors,
                         raw_ostream &OS) {
   TranslationUnitDiagnostics TUD;
-  TUD.MainSourceFile = MainFilePath;
+  TUD.MainSourceFile = std::string(MainFilePath);
   for (const auto &Error : Errors) {
     tooling::Diagnostic Diag = Error;
     TUD.Diagnostics.insert(TUD.Diagnostics.end(), Diag);

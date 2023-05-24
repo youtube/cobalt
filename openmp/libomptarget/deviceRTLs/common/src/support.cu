@@ -9,6 +9,7 @@
 // Wrapper implementation to some functions natively supported by the GPU.
 //
 //===----------------------------------------------------------------------===//
+#pragma omp declare target
 
 #include "common/support.h"
 #include "common/debug.h"
@@ -91,16 +92,6 @@ DEVICE bool checkRuntimeInitialized(kmp_Ident *loc) {
 ////////////////////////////////////////////////////////////////////////////////
 // support: get info from machine
 ////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// Calls to the NVPTX layer  (assuming 1D layout)
-//
-////////////////////////////////////////////////////////////////////////////////
-
-DEVICE unsigned GetWarpId() { return GetThreadIdInBlock() / WARPSIZE; }
-
-DEVICE unsigned GetLaneId() { return GetThreadIdInBlock() & (WARPSIZE - 1); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -274,6 +265,4 @@ DEVICE char *GetTeamsReductionScratchpad() {
   return static_cast<char *>(ReductionScratchpadPtr) + 256;
 }
 
-DEVICE void SetTeamsReductionScratchpadPtr(void *ScratchpadPtr) {
-  ReductionScratchpadPtr = ScratchpadPtr;
-}
+#pragma omp end declare target

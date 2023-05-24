@@ -16,19 +16,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
-#include "AMDGPUSubtarget.h"
-#include "SIInstrInfo.h"
+#include "GCNSubtarget.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "SIMachineFunctionInfo.h"
 #include "llvm/CodeGen/LiveIntervals.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/CodeGen/VirtRegMap.h"
+#include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -97,10 +90,11 @@ static void insertCSRSaves(MachineBasicBlock &SaveBlock,
   if (!TFI->spillCalleeSavedRegisters(SaveBlock, I, CSI, TRI)) {
     for (const CalleeSavedInfo &CS : CSI) {
       // Insert the spill to the stack frame.
-      unsigned Reg = CS.getReg();
+      MCRegister Reg = CS.getReg();
 
       MachineInstrSpan MIS(I, &SaveBlock);
-      const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+      const TargetRegisterClass *RC =
+        TRI->getMinimalPhysRegClass(Reg, MVT::i32);
 
       TII.storeRegToStackSlot(SaveBlock, I, Reg, true, CS.getFrameIdx(), RC,
                               TRI);
@@ -118,7 +112,7 @@ static void insertCSRSaves(MachineBasicBlock &SaveBlock,
 
 /// Insert restore code for the callee-saved registers used in the function.
 static void insertCSRRestores(MachineBasicBlock &RestoreBlock,
-                              std::vector<CalleeSavedInfo> &CSI,
+                              MutableArrayRef<CalleeSavedInfo> CSI,
                               LiveIntervals *LIS) {
   MachineFunction &MF = *RestoreBlock.getParent();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
@@ -133,7 +127,8 @@ static void insertCSRRestores(MachineBasicBlock &RestoreBlock,
   if (!TFI->restoreCalleeSavedRegisters(RestoreBlock, I, CSI, TRI)) {
     for (const CalleeSavedInfo &CI : reverse(CSI)) {
       unsigned Reg = CI.getReg();
-      const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+      const TargetRegisterClass *RC =
+        TRI->getMinimalPhysRegClass(Reg, MVT::i32);
 
       TII.loadRegFromStackSlot(RestoreBlock, I, Reg, CI.getFrameIdx(), RC, TRI);
       assert(I != RestoreBlock.begin() &&
@@ -182,6 +177,16 @@ void SILowerSGPRSpills::calculateSaveRestoreBlocks(MachineFunction &MF) {
   }
 }
 
+// TODO: To support shrink wrapping, this would need to copy
+// PrologEpilogInserter's updateLiveness.
+static void updateLiveness(MachineFunction &MF, ArrayRef<CalleeSavedInfo> CSI) {
+  MachineBasicBlock &EntryBB = MF.front();
+
+  for (const CalleeSavedInfo &CSIReg : CSI)
+    EntryBB.addLiveIn(CSIReg.getReg());
+  EntryBB.sortUniqueLiveIns();
+}
+
 bool SILowerSGPRSpills::spillCalleeSavedRegs(MachineFunction &MF) {
   MachineRegisterInfo &MRI = MF.getRegInfo();
   const Function &F = MF.getFunction();
@@ -204,12 +209,13 @@ bool SILowerSGPRSpills::spillCalleeSavedRegs(MachineFunction &MF) {
     const MCPhysReg *CSRegs = MRI.getCalleeSavedRegs();
 
     for (unsigned I = 0; CSRegs[I]; ++I) {
-      unsigned Reg = CSRegs[I];
+      MCRegister Reg = CSRegs[I];
+
       if (SavedRegs.test(Reg)) {
-        const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+        const TargetRegisterClass *RC =
+          TRI->getMinimalPhysRegClass(Reg, MVT::i32);
         int JunkFI = MFI.CreateStackObject(TRI->getSpillSize(*RC),
-                                           TRI->getSpillAlignment(*RC),
-                                           true);
+                                           TRI->getSpillAlign(*RC), true);
 
         CSI.push_back(CalleeSavedInfo(Reg, JunkFI));
       }
@@ -219,6 +225,10 @@ bool SILowerSGPRSpills::spillCalleeSavedRegs(MachineFunction &MF) {
       for (MachineBasicBlock *SaveBlock : SaveBlocks)
         insertCSRSaves(*SaveBlock, CSI, LIS);
 
+      // Add live ins to save blocks.
+      assert(SaveBlocks.size() == 1 && "shrink wrapping not fully implemented");
+      updateLiveness(MF, CSI);
+
       for (MachineBasicBlock *RestoreBlock : RestoreBlocks)
         insertCSRRestores(*RestoreBlock, CSI, LIS);
       return true;
@@ -226,6 +236,53 @@ bool SILowerSGPRSpills::spillCalleeSavedRegs(MachineFunction &MF) {
   }
 
   return false;
+}
+
+// Find lowest available VGPR and use it as VGPR reserved for SGPR spills.
+static bool lowerShiftReservedVGPR(MachineFunction &MF,
+                                   const GCNSubtarget &ST) {
+  SIMachineFunctionInfo *FuncInfo = MF.getInfo<SIMachineFunctionInfo>();
+  const Register PreReservedVGPR = FuncInfo->VGPRReservedForSGPRSpill;
+  // Early out if pre-reservation of a VGPR for SGPR spilling is disabled.
+  if (!PreReservedVGPR)
+    return false;
+
+  // If there are no free lower VGPRs available, default to using the
+  // pre-reserved register instead.
+  const SIRegisterInfo *TRI = ST.getRegisterInfo();
+  Register LowestAvailableVGPR =
+      TRI->findUnusedRegister(MF.getRegInfo(), &AMDGPU::VGPR_32RegClass, MF);
+  if (!LowestAvailableVGPR)
+    LowestAvailableVGPR = PreReservedVGPR;
+
+  const MCPhysReg *CSRegs = MF.getRegInfo().getCalleeSavedRegs();
+  MachineFrameInfo &FrameInfo = MF.getFrameInfo();
+  Optional<int> FI;
+  // Check if we are reserving a CSR. Create a stack object for a possible spill
+  // in the function prologue.
+  if (FuncInfo->isCalleeSavedReg(CSRegs, LowestAvailableVGPR))
+    FI = FrameInfo.CreateSpillStackObject(4, Align(4));
+
+  // Find saved info about the pre-reserved register.
+  const auto *ReservedVGPRInfoItr =
+      llvm::find_if(FuncInfo->getSGPRSpillVGPRs(),
+                    [PreReservedVGPR](const auto &SpillRegInfo) {
+                      return SpillRegInfo.VGPR == PreReservedVGPR;
+                    });
+
+  assert(ReservedVGPRInfoItr != FuncInfo->getSGPRSpillVGPRs().end());
+  auto Index =
+      std::distance(FuncInfo->getSGPRSpillVGPRs().begin(), ReservedVGPRInfoItr);
+
+  FuncInfo->setSGPRSpillVGPRs(LowestAvailableVGPR, FI, Index);
+
+  for (MachineBasicBlock &MBB : MF) {
+    assert(LowestAvailableVGPR.isValid() && "Did not find an available VGPR");
+    MBB.addLiveIn(LowestAvailableVGPR);
+    MBB.sortUniqueLiveIns();
+  }
+
+  return true;
 }
 
 bool SILowerSGPRSpills::runOnMachineFunction(MachineFunction &MF) {
@@ -257,16 +314,23 @@ bool SILowerSGPRSpills::runOnMachineFunction(MachineFunction &MF) {
   bool MadeChange = false;
 
   const bool SpillToAGPR = EnableSpillVGPRToAGPR && ST.hasMAIInsts();
+  std::unique_ptr<RegScavenger> RS;
+
+  bool NewReservedRegs = false;
 
   // TODO: CSR VGPRs will never be spilled to AGPRs. These can probably be
   // handled as SpilledToReg in regular PrologEpilogInserter.
-  if ((TRI->spillSGPRToVGPR() && (HasCSRs || FuncInfo->hasSpilledSGPRs())) ||
-      SpillVGPRToAGPR) {
+  const bool HasSGPRSpillToVGPR = TRI->spillSGPRToVGPR() &&
+                                  (HasCSRs || FuncInfo->hasSpilledSGPRs());
+  if (HasSGPRSpillToVGPR || SpillVGPRToAGPR) {
     // Process all SGPR spills before frame offsets are finalized. Ideally SGPRs
     // are spilled to VGPRs, in which case we can eliminate the stack usage.
     //
     // This operates under the assumption that only other SGPR spills are users
     // of the frame index.
+
+    lowerShiftReservedVGPR(MF, ST);
+
     for (MachineBasicBlock &MBB : MF) {
       MachineBasicBlock::iterator Next;
       for (auto I = MBB.begin(), E = MBB.end(); I != E; I = Next) {
@@ -283,7 +347,13 @@ bool SILowerSGPRSpills::runOnMachineFunction(MachineFunction &MF) {
               TII->getNamedOperand(MI, AMDGPU::OpName::vdata)->getReg();
           if (FuncInfo->allocateVGPRSpillToAGPR(MF, FI,
                                                 TRI->isAGPR(MRI, VReg))) {
-            TRI->eliminateFrameIndex(MI, 0, FIOp, nullptr);
+            NewReservedRegs = true;
+            if (!RS)
+              RS.reset(new RegScavenger());
+
+            // FIXME: change to enterBasicBlockEnd()
+            RS->enterBasicBlock(MBB);
+            TRI->eliminateFrameIndex(MI, 0, FIOp, RS.get());
             continue;
           }
         }
@@ -294,6 +364,7 @@ bool SILowerSGPRSpills::runOnMachineFunction(MachineFunction &MF) {
         int FI = TII->getNamedOperand(MI, AMDGPU::OpName::addr)->getIndex();
         assert(MFI.getStackID(FI) == TargetStackID::SGPRSpill);
         if (FuncInfo->allocateSGPRSpillToVGPR(MF, FI)) {
+          NewReservedRegs = true;
           bool Spilled = TRI->eliminateSGPRToVGPRSpillFrameIndex(MI, FI, nullptr);
           (void)Spilled;
           assert(Spilled && "failed to spill SGPR to VGPR when allocated");
@@ -315,10 +386,16 @@ bool SILowerSGPRSpills::runOnMachineFunction(MachineFunction &MF) {
     }
 
     MadeChange = true;
+  } else if (FuncInfo->VGPRReservedForSGPRSpill) {
+    FuncInfo->removeVGPRForSGPRSpill(FuncInfo->VGPRReservedForSGPRSpill, MF);
   }
 
   SaveBlocks.clear();
   RestoreBlocks.clear();
+
+  // Updated the reserved registers with any VGPRs added for SGPR spills.
+  if (NewReservedRegs)
+    MRI.freezeReservedRegs(MF);
 
   return MadeChange;
 }

@@ -1,4 +1,4 @@
-//===-- CompilerType.cpp ----------------------------------------*- C++ -*-===//
+//===-- CompilerType.cpp --------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -37,6 +37,12 @@ bool CompilerType::IsAggregateType() const {
 bool CompilerType::IsAnonymousType() const {
   if (IsValid())
     return m_type_system->IsAnonymousType(m_type);
+  return false;
+}
+
+bool CompilerType::IsScopedEnumerationType() const {
+  if (IsValid())
+    return m_type_system->IsScopedEnumerationType(m_type);
   return false;
 }
 
@@ -92,9 +98,9 @@ bool CompilerType::IsCStringType(uint32_t &length) const {
   return false;
 }
 
-bool CompilerType::IsFunctionType(bool *is_variadic_ptr) const {
+bool CompilerType::IsFunctionType() const {
   if (IsValid())
-    return m_type_system->IsFunctionType(m_type, is_variadic_ptr);
+    return m_type_system->IsFunctionType(m_type);
   return false;
 }
 
@@ -268,19 +274,6 @@ size_t CompilerType::GetPointerByteSize() const {
   return 0;
 }
 
-ConstString CompilerType::GetConstQualifiedTypeName() const {
-  return GetConstTypeName();
-}
-
-ConstString CompilerType::GetConstTypeName() const {
-  if (IsValid()) {
-    ConstString type_name(GetTypeName());
-    if (type_name)
-      return type_name;
-  }
-  return ConstString("<invalid>");
-}
-
 ConstString CompilerType::GetTypeName() const {
   if (IsValid()) {
     return m_type_system->GetTypeName(m_type);
@@ -288,7 +281,11 @@ ConstString CompilerType::GetTypeName() const {
   return ConstString("<invalid>");
 }
 
-ConstString CompilerType::GetDisplayTypeName() const { return GetTypeName(); }
+ConstString CompilerType::GetDisplayTypeName() const {
+  if (IsValid())
+    return m_type_system->GetDisplayTypeName(m_type);
+  return ConstString("<invalid>");
+}
 
 uint32_t CompilerType::GetTypeInfo(
     CompilerType *pointee_or_element_compiler_type) const {
@@ -326,9 +323,10 @@ unsigned CompilerType::GetTypeQualifiers() const {
 
 // Creating related types
 
-CompilerType CompilerType::GetArrayElementType(uint64_t *stride) const {
+CompilerType
+CompilerType::GetArrayElementType(ExecutionContextScope *exe_scope) const {
   if (IsValid()) {
-    return m_type_system->GetArrayElementType(m_type, stride);
+    return m_type_system->GetArrayElementType(m_type, exe_scope);
   }
   return CompilerType();
 }
@@ -349,6 +347,12 @@ CompilerType CompilerType::GetCanonicalType() const {
 CompilerType CompilerType::GetFullyUnqualifiedType() const {
   if (IsValid())
     return m_type_system->GetFullyUnqualifiedType(m_type);
+  return CompilerType();
+}
+
+CompilerType CompilerType::GetEnumerationIntegerType() const {
+  if (IsValid())
+    return m_type_system->GetEnumerationIntegerType(m_type);
   return CompilerType();
 }
 
@@ -448,11 +452,11 @@ CompilerType CompilerType::AddRestrictModifier() const {
     return CompilerType();
 }
 
-CompilerType
-CompilerType::CreateTypedef(const char *name,
-                            const CompilerDeclContext &decl_ctx) const {
+CompilerType CompilerType::CreateTypedef(const char *name,
+                                         const CompilerDeclContext &decl_ctx,
+                                         uint32_t payload) const {
   if (IsValid())
-    return m_type_system->CreateTypedef(m_type, name, decl_ctx);
+    return m_type_system->CreateTypedef(m_type, name, decl_ctx, payload);
   else
     return CompilerType();
 }
@@ -715,7 +719,6 @@ CompilerType::GetIndexOfChildWithName(const char *name,
 }
 
 // Dumping types
-#define DEPTH_INCREMENT 2
 
 void CompilerType::DumpValue(ExecutionContext *exe_ctx, Stream *s,
                              lldb::Format format, const DataExtractor &data,
@@ -753,14 +756,15 @@ void CompilerType::DumpSummary(ExecutionContext *exe_ctx, Stream *s,
                                data_byte_size);
 }
 
-void CompilerType::DumpTypeDescription() const {
+void CompilerType::DumpTypeDescription(lldb::DescriptionLevel level) const {
   if (IsValid())
-    m_type_system->DumpTypeDescription(m_type);
+    m_type_system->DumpTypeDescription(m_type, level);
 }
 
-void CompilerType::DumpTypeDescription(Stream *s) const {
+void CompilerType::DumpTypeDescription(Stream *s,
+                                       lldb::DescriptionLevel level) const {
   if (IsValid()) {
-    m_type_system->DumpTypeDescription(m_type, s);
+    m_type_system->DumpTypeDescription(m_type, s, level);
   }
 }
 
@@ -775,8 +779,8 @@ LLVM_DUMP_METHOD void CompilerType::dump() const {
 
 bool CompilerType::GetValueAsScalar(const lldb_private::DataExtractor &data,
                                     lldb::offset_t data_byte_offset,
-                                    size_t data_byte_size,
-                                    Scalar &value) const {
+                                    size_t data_byte_size, Scalar &value,
+                                    ExecutionContextScope *exe_scope) const {
   if (!IsValid())
     return false;
 
@@ -789,7 +793,7 @@ bool CompilerType::GetValueAsScalar(const lldb_private::DataExtractor &data,
     if (encoding == lldb::eEncodingInvalid || count != 1)
       return false;
 
-    llvm::Optional<uint64_t> byte_size = GetByteSize(nullptr);
+    llvm::Optional<uint64_t> byte_size = GetByteSize(exe_scope);
     if (!byte_size)
       return false;
     lldb::offset_t offset = data_byte_offset;
@@ -873,6 +877,12 @@ bool CompilerType::GetValueAsScalar(const lldb_private::DataExtractor &data,
   }
   return false;
 }
+
+#ifndef NDEBUG
+bool CompilerType::Verify() const {
+  return !IsValid() || m_type_system->Verify(m_type);
+}
+#endif
 
 bool lldb_private::operator==(const lldb_private::CompilerType &lhs,
                               const lldb_private::CompilerType &rhs) {

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueArch_h_
-#define liblldb_OptionValueArch_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEARCH_H
+#define LLDB_INTERPRETER_OPTIONVALUEARCH_H
 
 #include "lldb/Interpreter/OptionValue.h"
 #include "lldb/Utility/ArchSpec.h"
@@ -47,10 +47,9 @@ public:
   SetValueFromString(const char *,
                      VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_current_value = m_default_value;
     m_value_was_set = false;
-    return true;
   }
 
   lldb::OptionValueSP DeepCopy() const override;
@@ -81,4 +80,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueArch_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEARCH_H

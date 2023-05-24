@@ -65,7 +65,7 @@ TEST(CollectMainFileMacros, SelectedMacros) {
         #define $2[[PREPEND]](X) MACRO##X()
         #define $3[[MACROA]]() 123
         int B = $1[[CONCAT]](MACRO);
-        int D = $2[[PREPEND]](A)
+        int D = $2[[PREPEND]](A);
       )cpp",
       R"cpp(
         // FIXME: Macro names in a definition are not detected.
@@ -87,20 +87,26 @@ TEST(CollectMainFileMacros, SelectedMacros) {
       if (ExpectedRefs.empty())
         break;
 
-      auto Loc = getBeginningOfIdentifier(ExpectedRefs.begin()->start, SM,
-                                          AST.getLangOpts());
-      auto Macro = locateMacroAt(Loc, PP);
+      auto Loc = sourceLocationInMainFile(SM, ExpectedRefs.begin()->start);
+      ASSERT_TRUE(bool(Loc));
+      const auto *Id = syntax::spelledIdentifierTouching(*Loc, AST.getTokens());
+      ASSERT_TRUE(Id);
+      auto Macro = locateMacroAt(*Id, PP);
       assert(Macro);
       auto SID = getSymbolID(Macro->Name, Macro->Info, SM);
 
-      EXPECT_THAT(ExpectedRefs,
-                  UnorderedElementsAreArray(ActualMacroRefs.MacroRefs[*SID]))
+      std::vector<Range> Ranges;
+      for (const auto &Ref : ActualMacroRefs.MacroRefs[SID])
+        Ranges.push_back(Ref.Rng);
+      EXPECT_THAT(ExpectedRefs, UnorderedElementsAreArray(Ranges))
           << "Annotation=" << I << ", MacroName=" << Macro->Name
           << ", Test = " << Test;
     }
-    // Unkown macros.
-    EXPECT_THAT(AST.getMacros().UnknownMacros,
-                UnorderedElementsAreArray(T.ranges("Unknown")))
+    // Unknown macros.
+    std::vector<Range> Ranges;
+    for (const auto &Ref : AST.getMacros().UnknownMacros)
+      Ranges.push_back(Ref.Rng);
+    EXPECT_THAT(Ranges, UnorderedElementsAreArray(T.ranges("Unknown")))
         << "Unknown macros doesn't match in " << Test;
   }
 }

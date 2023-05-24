@@ -15,6 +15,7 @@
 #ifndef LLVM_CLANG_BASIC_TARGETCXXABI_H
 #define LLVM_CLANG_BASIC_TARGETCXXABI_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace clang {
@@ -61,17 +62,17 @@ public:
     ///   - constructor/destructor signatures.
     iOS,
 
-    /// The iOS 64-bit ABI is follows ARM's published 64-bit ABI more
-    /// closely, but we don't guarantee to follow it perfectly.
+    /// The iOS 64-bit and macOS 64-bit ARM ABI follows ARM's published 64-bit
+    /// ABI more closely, but we don't guarantee to follow it perfectly.
     ///
     /// It is documented here:
     ///    http://infocenter.arm.com
     ///                  /help/topic/com.arm.doc.ihi0059a/IHI0059A_cppabi64.pdf
-    iOS64,
+    AppleARM64,
 
     /// WatchOS is a modernisation of the iOS ABI, which roughly means it's
-    /// the iOS64 ABI ported to 32-bits. The primary difference from iOS64 is
-    /// that RTTI objects must still be unique at the moment.
+    /// the AppleARM64 ABI ported to 32-bits. The primary difference from
+    /// AppleARM64 is that RTTI objects must still be unique at the moment.
     WatchOS,
 
     /// The generic AArch64 ABI is also a modified version of the Itanium ABI,
@@ -97,7 +98,7 @@ public:
     ///   - guard variables are 32-bit on wasm32, as in ARM;
     ///   - unused bits of guard variables are reserved, as in ARM;
     ///   - inline functions are never key functions, as in ARM;
-    ///   - C++11 POD rules are used for tail padding, as in iOS64.
+    ///   - C++11 POD rules are used for tail padding, as in AppleARM64.
     ///
     /// TODO: At present the WebAssembly ABI is not considered stable, so none
     /// of these details is necessarily final yet.
@@ -108,6 +109,13 @@ public:
     /// The relevant changes from the Itanium ABI are:
     ///   - constructors and destructors return 'this', as in ARM.
     Fuchsia,
+
+    /// The XL ABI is the ABI used by IBM xlclang compiler and is a modified
+    /// version of the Itanium ABI.
+    ///
+    /// The relevant changes from the Itanium ABI are:
+    ///   - static initialization is adjusted to use sinit and sterm functions;
+    XL,
 
     /// The Microsoft ABI is the ABI used by Microsoft Visual Studio (and
     /// compatible compilers).
@@ -139,15 +147,16 @@ public:
   /// Does this ABI generally fall into the Itanium family of ABIs?
   bool isItaniumFamily() const {
     switch (getKind()) {
+    case AppleARM64:
     case Fuchsia:
     case GenericAArch64:
     case GenericItanium:
     case GenericARM:
     case iOS:
-    case iOS64:
     case WatchOS:
     case GenericMIPS:
     case WebAssembly:
+    case XL:
       return true;
 
     case Microsoft:
@@ -159,15 +168,16 @@ public:
   /// Is this ABI an MSVC-compatible ABI?
   bool isMicrosoft() const {
     switch (getKind()) {
+    case AppleARM64:
     case Fuchsia:
     case GenericAArch64:
     case GenericItanium:
     case GenericARM:
     case iOS:
-    case iOS64:
     case WatchOS:
     case GenericMIPS:
     case WebAssembly:
+    case XL:
       return false;
 
     case Microsoft:
@@ -190,6 +200,7 @@ public:
     case WebAssembly:
       // WebAssembly doesn't require any special alignment for member functions.
       return false;
+    case AppleARM64:
     case Fuchsia:
     case GenericARM:
     case GenericAArch64:
@@ -199,9 +210,9 @@ public:
       //       special alignment and could therefore also return false.
     case GenericItanium:
     case iOS:
-    case iOS64:
     case WatchOS:
     case Microsoft:
+    case XL:
       return true;
     }
     llvm_unreachable("bad ABI kind");
@@ -266,9 +277,9 @@ public:
   /// done on a generic Itanium platform.
   bool canKeyFunctionBeInline() const {
     switch (getKind()) {
+    case AppleARM64:
     case Fuchsia:
     case GenericARM:
-    case iOS64:
     case WebAssembly:
     case WatchOS:
       return false;
@@ -278,6 +289,7 @@ public:
     case iOS:   // old iOS compilers did not follow this rule
     case Microsoft:
     case GenericMIPS:
+    case XL:
       return true;
     }
     llvm_unreachable("bad ABI kind");
@@ -315,12 +327,13 @@ public:
     case GenericARM:
     case iOS:
     case GenericMIPS:
+    case XL:
       return UseTailPaddingUnlessPOD03;
 
-    // iOS on ARM64 and WebAssembly use the C++11 POD rules.  They do not honor
+    // AppleARM64 and WebAssembly use the C++11 POD rules.  They do not honor
     // the Itanium exception about classes with over-large bitfields.
+    case AppleARM64:
     case Fuchsia:
-    case iOS64:
     case WebAssembly:
     case WatchOS:
       return UseTailPaddingUnlessPOD11;

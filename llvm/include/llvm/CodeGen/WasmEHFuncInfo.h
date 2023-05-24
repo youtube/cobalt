@@ -15,12 +15,16 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerUnion.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/IR/BasicBlock.h"
 
 namespace llvm {
 
+class BasicBlock;
+class Function;
+class MachineBasicBlock;
+
+namespace WebAssembly {
 enum EventTag { CPP_EXCEPTION = 0, C_LONGJMP = 1 };
+}
 
 using BBOrMBB = PointerUnion<const BasicBlock *, MachineBasicBlock *>;
 

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_NativeProcessProtocol_h_
-#define liblldb_NativeProcessProtocol_h_
+#ifndef LLDB_HOST_COMMON_NATIVEPROCESSPROTOCOL_H
+#define LLDB_HOST_COMMON_NATIVEPROCESSPROTOCOL_H
 
 #include "NativeBreakpointList.h"
 #include "NativeThreadProtocol.h"
@@ -17,6 +17,7 @@
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/TraceOptions.h"
+#include "lldb/Utility/UnimplementedError.h"
 #include "lldb/lldb-private-forward.h"
 #include "lldb/lldb-types.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -112,10 +113,14 @@ public:
   virtual Status WriteMemory(lldb::addr_t addr, const void *buf, size_t size,
                              size_t &bytes_written) = 0;
 
-  virtual Status AllocateMemory(size_t size, uint32_t permissions,
-                                lldb::addr_t &addr) = 0;
+  virtual llvm::Expected<lldb::addr_t> AllocateMemory(size_t size,
+                                                      uint32_t permissions) {
+    return llvm::make_error<UnimplementedError>();
+  }
 
-  virtual Status DeallocateMemory(lldb::addr_t addr) = 0;
+  virtual llvm::Error DeallocateMemory(lldb::addr_t addr) {
+    return llvm::make_error<UnimplementedError>();
+  }
 
   virtual lldb::addr_t GetSharedLibraryInfoAddress() = 0;
 
@@ -379,18 +384,17 @@ public:
   /// \param[in] traceid
   ///     The user id of the tracing instance.
   ///
-  /// \param[in] config
-  ///     The thread id of the tracing instance, in case configuration
-  ///     for a specific thread is needed should be specified in the
-  ///     config.
-  ///
-  /// \param[out] error
-  ///     Status indicates what went wrong.
-  ///
   /// \param[out] config
-  ///     The actual configuration being used for tracing.
+  ///     The configuration being used for tracing.
+  ///
+  /// \return A status indicating what went wrong.
   virtual Status GetTraceConfig(lldb::user_id_t traceid, TraceOptions &config) {
     return Status("Not implemented");
+  }
+
+  /// \copydoc Process::GetSupportedTraceType()
+  virtual llvm::Expected<TraceTypeInfo> GetSupportedTraceType() {
+    return llvm::make_error<UnimplementedError>();
   }
 
 protected:
@@ -475,4 +479,4 @@ private:
 };
 } // namespace lldb_private
 
-#endif // #ifndef liblldb_NativeProcessProtocol_h_
+#endif // LLDB_HOST_COMMON_NATIVEPROCESSPROTOCOL_H

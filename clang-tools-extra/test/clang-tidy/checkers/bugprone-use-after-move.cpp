@@ -1,4 +1,4 @@
-// RUN: %check_clang_tidy %s bugprone-use-after-move %t -- -- -std=c++17 -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -std=c++17-or-later %s bugprone-use-after-move %t -- -- -fno-delayed-template-parsing
 
 typedef decltype(nullptr) nullptr_t;
 
@@ -1270,4 +1270,32 @@ class C : T, B {
     C c;
   }
 };
+} // namespace PR33020
+
+namespace UnevalContext {
+struct Foo {};
+void noExcept() {
+  Foo Bar;
+  (void) noexcept(Foo{std::move(Bar)});
+  Foo Other{std::move(Bar)};
 }
+void sizeOf() {
+  Foo Bar;
+  (void)sizeof(Foo{std::move(Bar)});
+  Foo Other{std::move(Bar)};
+}
+void alignOf() {
+  Foo Bar;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-alignof-expression"
+  (void)alignof(Foo{std::move(Bar)});
+#pragma clang diagnostic pop
+  Foo Other{std::move(Bar)};
+}
+void typeId() {
+  Foo Bar;
+  // error: you need to include <typeinfo> before using the 'typeid' operator
+  // (void) typeid(Foo{std::move(Bar)}).name();
+  Foo Other{std::move(Bar)};
+}
+} // namespace UnevalContext

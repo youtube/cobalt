@@ -8,7 +8,7 @@
 //
 // UNSUPPORTED: libcpp-has-no-threads
 
-// FLAKY_TEST.
+// ALLOW_RETRIES: 2
 
 // <condition_variable>
 
@@ -26,6 +26,7 @@
 #include <chrono>
 #include <cassert>
 
+#include "make_test_thread.h"
 #include "test_macros.h"
 
 struct Clock
@@ -95,7 +96,7 @@ int main(int, char**)
 {
     {
         L1 lk(m0);
-        std::thread t(f);
+        std::thread t = support::make_test_thread(f);
         assert(test1 == 0);
         while (test1 == 0)
             cv.wait(lk);
@@ -109,7 +110,7 @@ int main(int, char**)
     test2 = 0;
     {
         L1 lk(m0);
-        std::thread t(f);
+        std::thread t = support::make_test_thread(f);
         assert(test1 == 0);
         while (test1 == 0)
             cv.wait(lk);

@@ -27,7 +27,7 @@ TEST(ConstantsTest, Integer_i1) {
   Constant* Zero = ConstantInt::get(Int1, 0);
   Constant* NegOne = ConstantInt::get(Int1, static_cast<uint64_t>(-1), true);
   EXPECT_EQ(NegOne, ConstantInt::getSigned(Int1, -1));
-  Constant* Undef = UndefValue::get(Int1);
+  Constant* Poison = PoisonValue::get(Int1);
 
   // Input:  @b = constant i1 add(i1 1 , i1 1)
   // Output: @b = constant i1 false
@@ -53,21 +53,21 @@ TEST(ConstantsTest, Integer_i1) {
   // @g = constant i1 false
   EXPECT_EQ(Zero, ConstantExpr::getSub(One, One));
 
-  // @h = constant i1 shl(i1 1 , i1 1)  ; undefined
-  // @h = constant i1 undef
-  EXPECT_EQ(Undef, ConstantExpr::getShl(One, One));
+  // @h = constant i1 shl(i1 1 , i1 1)  ; poison
+  // @h = constant i1 poison
+  EXPECT_EQ(Poison, ConstantExpr::getShl(One, One));
 
   // @i = constant i1 shl(i1 1 , i1 0)
   // @i = constant i1 true
   EXPECT_EQ(One, ConstantExpr::getShl(One, Zero));
 
-  // @j = constant i1 lshr(i1 1, i1 1)  ; undefined
-  // @j = constant i1 undef
-  EXPECT_EQ(Undef, ConstantExpr::getLShr(One, One));
+  // @j = constant i1 lshr(i1 1, i1 1)  ; poison
+  // @j = constant i1 poison
+  EXPECT_EQ(Poison, ConstantExpr::getLShr(One, One));
 
-  // @m = constant i1 ashr(i1 1, i1 1)  ; undefined
-  // @m = constant i1 undef
-  EXPECT_EQ(Undef, ConstantExpr::getAShr(One, One));
+  // @m = constant i1 ashr(i1 1, i1 1)  ; poison
+  // @m = constant i1 poison
+  EXPECT_EQ(Poison, ConstantExpr::getAShr(One, One));
 
   // @n = constant i1 mul(i1 -1, i1 1)
   // @n = constant i1 true
@@ -131,9 +131,9 @@ TEST(ConstantsTest, PointerCast) {
   Type *Int8PtrTy = Type::getInt8PtrTy(C);
   Type *Int32PtrTy = Type::getInt32PtrTy(C);
   Type *Int64Ty = Type::getInt64Ty(C);
-  VectorType *Int8PtrVecTy = VectorType::get(Int8PtrTy, 4);
-  VectorType *Int32PtrVecTy = VectorType::get(Int32PtrTy, 4);
-  VectorType *Int64VecTy = VectorType::get(Int64Ty, 4);
+  VectorType *Int8PtrVecTy = FixedVectorType::get(Int8PtrTy, 4);
+  VectorType *Int32PtrVecTy = FixedVectorType::get(Int32PtrTy, 4);
+  VectorType *Int64VecTy = FixedVectorType::get(Int64Ty, 4);
 
   // ptrtoint i8* to i64
   EXPECT_EQ(Constant::getNullValue(Int64Ty),
@@ -210,15 +210,15 @@ TEST(ConstantsTest, AsInstructionsTest) {
   Constant *P3 = ConstantExpr::getTrunc(P0, Int1Ty);
   Constant *P4 = ConstantExpr::getPtrToInt(Global2, Int32Ty);
   Constant *P5 = ConstantExpr::getUIToFP(P4, FloatTy);
-  Constant *P6 = ConstantExpr::getBitCast(P4, VectorType::get(Int16Ty, 2));
+  Constant *P6 = ConstantExpr::getBitCast(P4, FixedVectorType::get(Int16Ty, 2));
 
   Constant *One = ConstantInt::get(Int32Ty, 1);
   Constant *Two = ConstantInt::get(Int64Ty, 2);
   Constant *Big = ConstantInt::get(Context, APInt{256, uint64_t(-1), true});
   Constant *Elt = ConstantInt::get(Int16Ty, 2015);
-  Constant *Undef16  = UndefValue::get(Int16Ty);
+  Constant *Poison16 = PoisonValue::get(Int16Ty);
   Constant *Undef64  = UndefValue::get(Int64Ty);
-  Constant *UndefV16 = UndefValue::get(P6->getType());
+  Constant *PoisonV16 = PoisonValue::get(P6->getType());
 
   #define P0STR "ptrtoint (i32** @dummy to i32)"
   #define P1STR "uitofp (i32 ptrtoint (i32** @dummy to i32) to float)"
@@ -288,15 +288,15 @@ TEST(ConstantsTest, AsInstructionsTest) {
   CHECK(ConstantExpr::getExtractElement(P6, One), "extractelement <2 x i16> "
         P6STR ", i32 1");
 
-  EXPECT_EQ(Undef16, ConstantExpr::getExtractElement(P6, Two));
-  EXPECT_EQ(Undef16, ConstantExpr::getExtractElement(P6, Big));
-  EXPECT_EQ(Undef16, ConstantExpr::getExtractElement(P6, Undef64));
+  EXPECT_EQ(Poison16, ConstantExpr::getExtractElement(P6, Two));
+  EXPECT_EQ(Poison16, ConstantExpr::getExtractElement(P6, Big));
+  EXPECT_EQ(Poison16, ConstantExpr::getExtractElement(P6, Undef64));
 
   EXPECT_EQ(Elt, ConstantExpr::getExtractElement(
                  ConstantExpr::getInsertElement(P6, Elt, One), One));
-  EXPECT_EQ(UndefV16, ConstantExpr::getInsertElement(P6, Elt, Two));
-  EXPECT_EQ(UndefV16, ConstantExpr::getInsertElement(P6, Elt, Big));
-  EXPECT_EQ(UndefV16, ConstantExpr::getInsertElement(P6, Elt, Undef64));
+  EXPECT_EQ(PoisonV16, ConstantExpr::getInsertElement(P6, Elt, Two));
+  EXPECT_EQ(PoisonV16, ConstantExpr::getInsertElement(P6, Elt, Big));
+  EXPECT_EQ(PoisonV16, ConstantExpr::getInsertElement(P6, Elt, Undef64));
 }
 
 #ifdef GTEST_HAS_DEATH_TEST
@@ -585,16 +585,62 @@ TEST(ConstantsTest, FoldGlobalVariablePtr) {
       Instruction::And, TheConstantExpr, TheConstant)->isNullValue());
 }
 
+// Check that containsUndefOrPoisonElement and containsPoisonElement is working
+// great
+
+TEST(ConstantsTest, containsUndefElemTest) {
+  LLVMContext Context;
+
+  Type *Int32Ty = Type::getInt32Ty(Context);
+  Constant *CU = UndefValue::get(Int32Ty);
+  Constant *CP = PoisonValue::get(Int32Ty);
+  Constant *C1 = ConstantInt::get(Int32Ty, 1);
+  Constant *C2 = ConstantInt::get(Int32Ty, 2);
+
+  {
+    Constant *V1 = ConstantVector::get({C1, C2});
+    EXPECT_FALSE(V1->containsUndefOrPoisonElement());
+    EXPECT_FALSE(V1->containsPoisonElement());
+  }
+
+  {
+    Constant *V2 = ConstantVector::get({C1, CU});
+    EXPECT_TRUE(V2->containsUndefOrPoisonElement());
+    EXPECT_FALSE(V2->containsPoisonElement());
+  }
+
+  {
+    Constant *V3 = ConstantVector::get({C1, CP});
+    EXPECT_TRUE(V3->containsUndefOrPoisonElement());
+    EXPECT_TRUE(V3->containsPoisonElement());
+  }
+
+  {
+    Constant *V4 = ConstantVector::get({CU, CP});
+    EXPECT_TRUE(V4->containsUndefOrPoisonElement());
+    EXPECT_TRUE(V4->containsPoisonElement());
+  }
+}
+
 // Check that undefined elements in vector constants are matched
-// correctly for both integer and floating-point types.
+// correctly for both integer and floating-point types. Just don't
+// crash on vectors of pointers (could be handled?).
 
 TEST(ConstantsTest, isElementWiseEqual) {
   LLVMContext Context;
 
   Type *Int32Ty = Type::getInt32Ty(Context);
   Constant *CU = UndefValue::get(Int32Ty);
+  Constant *CP = PoisonValue::get(Int32Ty);
   Constant *C1 = ConstantInt::get(Int32Ty, 1);
   Constant *C2 = ConstantInt::get(Int32Ty, 2);
+
+  Constant *CUU = ConstantVector::get({CU, CU});
+  Constant *CPP = ConstantVector::get({CP, CP});
+  Constant *CUP = ConstantVector::get({CU, CP});
+  EXPECT_EQ(CUU, UndefValue::get(CUU->getType()));
+  EXPECT_EQ(CPP, PoisonValue::get(CPP->getType()));
+  EXPECT_NE(CUP, UndefValue::get(CUP->getType()));
 
   Constant *C1211 = ConstantVector::get({C1, C2, C1, C1});
   Constant *C12U1 = ConstantVector::get({C1, C2, CU, C1});
@@ -607,7 +653,6 @@ TEST(ConstantsTest, isElementWiseEqual) {
   EXPECT_FALSE(C12U1->isElementWiseEqual(C12U2));
   EXPECT_FALSE(C12U21->isElementWiseEqual(C12U2));
 
-/* FIXME: This will crash.
   Type *FltTy = Type::getFloatTy(Context);
   Constant *CFU = UndefValue::get(FltTy);
   Constant *CF1 = ConstantFP::get(FltTy, 1.0);
@@ -616,12 +661,55 @@ TEST(ConstantsTest, isElementWiseEqual) {
   Constant *CF1211 = ConstantVector::get({CF1, CF2, CF1, CF1});
   Constant *CF12U1 = ConstantVector::get({CF1, CF2, CFU, CF1});
   Constant *CF12U2 = ConstantVector::get({CF1, CF2, CFU, CF2});
+  Constant *CFUU1U = ConstantVector::get({CFU, CFU, CF1, CFU});
 
   EXPECT_TRUE(CF1211->isElementWiseEqual(CF12U1));
   EXPECT_TRUE(CF12U1->isElementWiseEqual(CF1211));
+  EXPECT_TRUE(CFUU1U->isElementWiseEqual(CF12U1));
   EXPECT_FALSE(CF12U2->isElementWiseEqual(CF12U1));
   EXPECT_FALSE(CF12U1->isElementWiseEqual(CF12U2));
-*/
+
+  PointerType *PtrTy = Type::getInt8PtrTy(Context);
+  Constant *CPU = UndefValue::get(PtrTy);
+  Constant *CP0 = ConstantPointerNull::get(PtrTy);
+
+  Constant *CP0000 = ConstantVector::get({CP0, CP0, CP0, CP0});
+  Constant *CP00U0 = ConstantVector::get({CP0, CP0, CPU, CP0});
+  Constant *CP00U = ConstantVector::get({CP0, CP0, CPU});
+
+  EXPECT_FALSE(CP0000->isElementWiseEqual(CP00U0));
+  EXPECT_FALSE(CP00U0->isElementWiseEqual(CP0000));
+  EXPECT_FALSE(CP0000->isElementWiseEqual(CP00U));
+  EXPECT_FALSE(CP00U->isElementWiseEqual(CP00U0));
+}
+
+TEST(ConstantsTest, GetSplatValueRoundTrip) {
+  LLVMContext Context;
+
+  Type *FloatTy = Type::getFloatTy(Context);
+  Type *Int32Ty = Type::getInt32Ty(Context);
+  Type *Int8Ty = Type::getInt8Ty(Context);
+
+  for (unsigned Min : {1, 2, 8}) {
+    auto ScalableEC = ElementCount::getScalable(Min);
+    auto FixedEC = ElementCount::getFixed(Min);
+
+    for (auto EC : {ScalableEC, FixedEC}) {
+      for (auto *Ty : {FloatTy, Int32Ty, Int8Ty}) {
+        Constant *Zero = Constant::getNullValue(Ty);
+        Constant *One = Constant::getAllOnesValue(Ty);
+
+        for (auto *C : {Zero, One}) {
+          Constant *Splat = ConstantVector::getSplat(EC, C);
+          ASSERT_NE(nullptr, Splat);
+
+          Constant *SplatVal = Splat->getSplatValue();
+          EXPECT_NE(nullptr, SplatVal);
+          EXPECT_EQ(SplatVal, C);
+        }
+      }
+    }
+  }
 }
 
 }  // end anonymous namespace

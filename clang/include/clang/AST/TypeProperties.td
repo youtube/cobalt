@@ -224,6 +224,41 @@ let Class = DependentSizedExtVectorType in {
   }]>;
 }
 
+let Class = MatrixType in {
+  def : Property<"elementType", QualType> {
+    let Read = [{ node->getElementType() }];
+  }
+}
+
+let Class = ConstantMatrixType in {
+  def : Property<"numRows", UInt32> {
+    let Read = [{ node->getNumRows() }];
+  }
+  def : Property<"numColumns", UInt32> {
+    let Read = [{ node->getNumColumns() }];
+  }
+
+  def : Creator<[{
+    return ctx.getConstantMatrixType(elementType, numRows, numColumns);
+  }]>;
+}
+
+let Class = DependentSizedMatrixType in {
+  def : Property<"rows", ExprRef> {
+    let Read = [{ node->getRowExpr() }];
+  }
+  def : Property<"columns", ExprRef> {
+    let Read = [{ node->getColumnExpr() }];
+  }
+  def : Property<"attributeLoc", SourceLocation> {
+    let Read = [{ node->getAttributeLoc() }];
+  }
+
+  def : Creator<[{
+    return ctx.getDependentSizedMatrixType(elementType, rows, columns, attributeLoc);
+  }]>;
+}
+
 let Class = FunctionType in {
   def : Property<"returnType", QualType> {
     let Read = [{ node->getReturnType() }];
@@ -249,13 +284,17 @@ let Class = FunctionType in {
   def : Property<"noCfCheck", Bool> {
     let Read = [{ node->getExtInfo().getNoCfCheck() }];
   }
+  def : Property<"cmseNSCall", Bool> {
+    let Read = [{ node->getExtInfo().getCmseNSCall() }];
+  }
 }
 
 let Class = FunctionNoProtoType in {
   def : Creator<[{
     auto extInfo = FunctionType::ExtInfo(noReturn, hasRegParm, regParm,
                                          callingConvention, producesResult,
-                                         noCallerSavedRegs, noCfCheck);
+                                         noCallerSavedRegs, noCfCheck,
+                                         cmseNSCall);
     return ctx.getFunctionNoProtoType(returnType, extInfo);
   }]>;
 }
@@ -288,7 +327,8 @@ let Class = FunctionProtoType in {
   def : Creator<[{
     auto extInfo = FunctionType::ExtInfo(noReturn, hasRegParm, regParm,
                                          callingConvention, producesResult,
-                                         noCallerSavedRegs, noCfCheck);
+                                         noCallerSavedRegs, noCfCheck,
+                                         cmseNSCall);
     FunctionProtoType::ExtProtoInfo epi;
     epi.ExtInfo = extInfo;
     epi.Variadic = variadic;
@@ -395,6 +435,13 @@ let Class = AutoType in {
   def : Property<"keyword", AutoTypeKeyword> {
     let Read = [{ node->getKeyword() }];
   }
+  def : Property<"typeConstraintConcept", Optional<ConceptDeclRef>> {
+    let Read = [{ makeOptionalFromPointer(
+        const_cast<const ConceptDecl*>(node->getTypeConstraintConcept())) }];
+  }
+  def : Property<"typeConstraintArguments", Array<TemplateArgument>> {
+    let Read = [{ node->getTypeConstraintArguments() }];
+  }
   // FIXME: better enumerated value
   // Only really required when the deduced type is null
   def : Property<"dependence", UInt32> {
@@ -406,7 +453,9 @@ let Class = AutoType in {
   def : Creator<[{
     return ctx.getAutoType(makeNullableFromOptional(deducedType), keyword,
                            /*isDependentWithoutDeducedType*/ dependence > 0,
-                           /*isPackWithoutDeducedType*/ dependence > 1);
+                           /*isPackWithoutDeducedType*/ dependence > 1,
+                           makePointerFromOptional(typeConstraintConcept),
+                           typeConstraintArguments);
   }]>;
 }
 
@@ -435,8 +484,12 @@ let Class = TagType in {
     let Read = [{ node->isDependentType() }];
   }
   def : Property<"declaration", DeclRef> {
-    // Serializing a reference to the canonical declaration is apparently
-    // necessary to make module-merging work.
+    // We don't know which declaration was originally referenced here, and we
+    // cannot reference a declaration that follows the use (because that can
+    // introduce deserialization cycles), so conservatively generate a
+    // reference to the first declaration.
+    // FIXME: If this is a reference to a class template specialization, that
+    // can still introduce a deserialization cycle.
     let Read = [{ node->getDecl()->getCanonicalDecl() }];
   }
 }
@@ -444,7 +497,9 @@ let Class = TagType in {
 let Class = EnumType in {
   def : Creator<[{
     QualType result = ctx.getEnumType(cast<EnumDecl>(declaration));
-    const_cast<Type*>(result.getTypePtr())->setDependent(dependent);
+    if (dependent)
+      const_cast<Type *>(result.getTypePtr())
+          ->addDependence(TypeDependence::DependentInstantiation);
     return result;
   }]>;
 }
@@ -453,7 +508,9 @@ let Class = RecordType in {
   def : Creator<[{
     auto record = cast<RecordDecl>(declaration);
     QualType result = ctx.getRecordType(record);
-    const_cast<Type*>(result.getTypePtr())->setDependent(dependent);
+    if (dependent)
+      const_cast<Type *>(result.getTypePtr())
+          ->addDependence(TypeDependence::DependentInstantiation);
     return result;
   }]>;
 }
@@ -596,7 +653,9 @@ let Class = TemplateSpecializationType in {
                                                  templateArguments,
                                                  *underlyingType);
     }
-    const_cast<Type*>(result.getTypePtr())->setDependent(dependent);
+    if (dependent)
+      const_cast<Type *>(result.getTypePtr())
+          ->addDependence(TypeDependence::DependentInstantiation);
     return result;
   }]>;
 }
@@ -667,7 +726,8 @@ let Class = PackExpansionType in {
   }
 
   def : Creator<[{
-    return ctx.getPackExpansionType(pattern, numExpansions);
+    return ctx.getPackExpansionType(pattern, numExpansions,
+                                    /*ExpectPackInType*/false);
   }]>;
 }
 
@@ -704,6 +764,10 @@ let Class = BuiltinType in {
 #define SVE_TYPE(NAME, ID, SINGLETON_ID) \
       case BuiltinType::ID: return ctx.SINGLETON_ID;
 #include "clang/Basic/AArch64SVEACLETypes.def"
+
+#define PPC_VECTOR_TYPE(NAME, ID, SIZE) \
+      case BuiltinType::ID: return ctx.ID##Ty;
+#include "clang/Basic/PPCTypes.def"
 
 #define BUILTIN_TYPE(ID, SINGLETON_ID) \
       case BuiltinType::ID: return ctx.SINGLETON_ID;
@@ -811,5 +875,30 @@ let Class = PipeType in {
 
   def : Creator<[{
     return ctx.getPipeType(elementType, isReadOnly);
+  }]>;
+}
+
+let Class = ExtIntType in {
+  def : Property<"isUnsigned", Bool> {
+    let Read = [{ node->isUnsigned() }];
+  }
+  def : Property <"numBits", UInt32> {
+    let Read = [{ node->getNumBits() }];
+  }
+
+  def : Creator<[{
+    return ctx.getExtIntType(isUnsigned, numBits);
+  }]>;
+}
+
+let Class = DependentExtIntType in {
+  def : Property<"isUnsigned", Bool> {
+    let Read = [{ node->isUnsigned() }];
+  }
+  def : Property <"numBitsExpr", ExprRef> {
+    let Read = [{ node->getNumBitsExpr() }];
+  }
+  def : Creator<[{
+    return ctx.getDependentExtIntType(isUnsigned, numBitsExpr);
   }]>;
 }

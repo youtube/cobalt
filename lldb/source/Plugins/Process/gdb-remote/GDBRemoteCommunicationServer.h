@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_GDBRemoteCommunicationServer_h_
-#define liblldb_GDBRemoteCommunicationServer_h_
+#ifndef LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATIONSERVER_H
+#define LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATIONSERVER_H
 
 #include <functional>
 #include <map>
@@ -27,7 +27,6 @@ class ProcessGDBRemote;
 
 class GDBRemoteCommunicationServer : public GDBRemoteCommunication {
 public:
-  using PortMap = std::map<uint16_t, lldb::pid_t>;
   using PacketHandler =
       std::function<PacketResult(StringExtractorGDBRemote &packet,
                                  Status &error, bool &interrupt, bool &quit)>;
@@ -74,22 +73,12 @@ protected:
   PacketResult SendOKResponse();
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(GDBRemoteCommunicationServer);
-};
-
-class PacketUnimplementedError
-    : public llvm::ErrorInfo<PacketUnimplementedError, llvm::StringError> {
-public:
-  static char ID;
-  using llvm::ErrorInfo<PacketUnimplementedError,
-                        llvm::StringError>::ErrorInfo; // inherit constructors
-  PacketUnimplementedError(const llvm::Twine &S)
-      : ErrorInfo(S, llvm::errc::not_supported) {}
-
-  PacketUnimplementedError() : ErrorInfo(llvm::errc::not_supported) {}
+  GDBRemoteCommunicationServer(const GDBRemoteCommunicationServer &) = delete;
+  const GDBRemoteCommunicationServer &
+  operator=(const GDBRemoteCommunicationServer &) = delete;
 };
 
 } // namespace process_gdb_remote
 } // namespace lldb_private
 
-#endif // liblldb_GDBRemoteCommunicationServer_h_
+#endif // LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATIONSERVER_H

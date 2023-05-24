@@ -1,6 +1,6 @@
 //===- TypeUtilities.cpp - Helper function for type queries ---------------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -12,7 +12,7 @@
 
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/IR/Attributes.h"
-#include "mlir/IR/StandardTypes.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
@@ -43,7 +43,7 @@ SmallVector<Type, 10> mlir::getFlattenedTypes(TupleType t) {
 bool mlir::isOpaqueTypeWithName(Type type, StringRef dialect,
                                 StringRef typeData) {
   if (auto opaque = type.dyn_cast<mlir::OpaqueType>())
-    return opaque.getDialectNamespace().is(dialect) &&
+    return opaque.getDialectNamespace() == dialect &&
            opaque.getTypeData() == typeData;
   return false;
 }

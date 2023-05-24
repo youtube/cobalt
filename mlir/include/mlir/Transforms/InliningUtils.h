@@ -1,6 +1,6 @@
 //===- InliningUtils.h - Inliner utilities ----------------------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -27,7 +27,9 @@ class FuncOp;
 class OpBuilder;
 class Operation;
 class Region;
+class TypeRange;
 class Value;
+class ValueRange;
 
 //===----------------------------------------------------------------------===//
 // InlinerInterface
@@ -45,22 +47,39 @@ public:
   // Analysis Hooks
   //===--------------------------------------------------------------------===//
 
+  /// Returns true if the given operation 'callable', that implements the
+  /// 'CallableOpInterface', can be inlined into the position given call
+  /// operation 'call', that is registered to the current dialect and implements
+  /// the `CallOpInterface`. 'wouldBeCloned' is set to true if the region of the
+  /// given 'callable' is set to be cloned during the inlining process, or false
+  /// if the region is set to be moved in-place(i.e. no duplicates would be
+  /// created).
+  virtual bool isLegalToInline(Operation *call, Operation *callable,
+                               bool wouldBeCloned) const {
+    return false;
+  }
+
   /// Returns true if the given region 'src' can be inlined into the region
   /// 'dest' that is attached to an operation registered to the current dialect.
-  /// 'valueMapping' contains any remapped values from within the 'src' region.
-  /// This can be used to examine what values will replace entry arguments into
-  /// the 'src' region for example.
-  virtual bool isLegalToInline(Region *dest, Region *src,
+  /// 'wouldBeCloned' is set to true if the given 'src' region is set to be
+  /// cloned during the inlining process, or false if the region is set to be
+  /// moved in-place(i.e. no duplicates would be created). 'valueMapping'
+  /// contains any remapped values from within the 'src' region. This can be
+  /// used to examine what values will replace entry arguments into the 'src'
+  /// region for example.
+  virtual bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
                                BlockAndValueMapping &valueMapping) const {
     return false;
   }
 
   /// Returns true if the given operation 'op', that is registered to this
   /// dialect, can be inlined into the given region, false otherwise.
-  /// 'valueMapping' contains any remapped values from within the 'src' region.
-  /// This can be used to examine what values may potentially replace the
-  /// operands to 'op'.
-  virtual bool isLegalToInline(Operation *op, Region *dest,
+  /// 'wouldBeCloned' is set to true if the given 'op' is set to be cloned
+  /// during the inlining process, or false if the operation is set to be moved
+  /// in-place(i.e. no duplicates would be created). 'valueMapping' contains any
+  /// remapped values from within the 'src' region. This can be used to examine
+  /// what values may potentially replace the operands to 'op'.
+  virtual bool isLegalToInline(Operation *op, Region *dest, bool wouldBeCloned,
                                BlockAndValueMapping &valueMapping) const {
     return false;
   }
@@ -144,9 +163,11 @@ public:
   // Analysis Hooks
   //===--------------------------------------------------------------------===//
 
-  virtual bool isLegalToInline(Region *dest, Region *src,
+  virtual bool isLegalToInline(Operation *call, Operation *callable,
+                               bool wouldBeCloned) const;
+  virtual bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
                                BlockAndValueMapping &valueMapping) const;
-  virtual bool isLegalToInline(Operation *op, Region *dest,
+  virtual bool isLegalToInline(Operation *op, Region *dest, bool wouldBeCloned,
                                BlockAndValueMapping &valueMapping) const;
   virtual bool shouldAnalyzeRecursively(Operation *op) const;
 
@@ -172,13 +193,15 @@ public:
 /// remapped operands that are used within the region, and *must* include
 /// remappings for the entry arguments to the region. 'resultsToReplace'
 /// corresponds to any results that should be replaced by terminators within the
-/// inlined region. 'inlineLoc' is an optional Location that, if provided, will
-/// be used to update the inlined operations' location information.
-/// 'shouldCloneInlinedRegion' corresponds to whether the source region should
-/// be cloned into the 'inlinePoint' or spliced directly.
+/// inlined region. 'regionResultTypes' specifies the expected return types of
+/// the terminators in the region. 'inlineLoc' is an optional Location that, if
+/// provided, will be used to update the inlined operations' location
+/// information. 'shouldCloneInlinedRegion' corresponds to whether the source
+/// region should be cloned into the 'inlinePoint' or spliced directly.
 LogicalResult inlineRegion(InlinerInterface &interface, Region *src,
                            Operation *inlinePoint, BlockAndValueMapping &mapper,
-                           ArrayRef<Value> resultsToReplace,
+                           ValueRange resultsToReplace,
+                           TypeRange regionResultTypes,
                            Optional<Location> inlineLoc = llvm::None,
                            bool shouldCloneInlinedRegion = true);
 
@@ -187,8 +210,8 @@ LogicalResult inlineRegion(InlinerInterface &interface, Region *src,
 /// in-favor of the region arguments when inlining.
 LogicalResult inlineRegion(InlinerInterface &interface, Region *src,
                            Operation *inlinePoint,
-                           ArrayRef<Value> inlinedOperands,
-                           ArrayRef<Value> resultsToReplace,
+                           ValueRange inlinedOperands,
+                           ValueRange resultsToReplace,
                            Optional<Location> inlineLoc = llvm::None,
                            bool shouldCloneInlinedRegion = true);
 

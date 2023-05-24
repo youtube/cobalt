@@ -6,14 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 // <optional>
 
 // constexpr const T& optional<T>::operator*() const &;
-
-#ifdef _LIBCPP_DEBUG
-#define _LIBCPP_ASSERT(x, m) ((x) ? (void)0 : std::exit(0))
-#endif
 
 #include <optional>
 #include <type_traits>
@@ -58,13 +54,6 @@ int main(int, char**)
         constexpr optional<Y> opt(Y{});
         assert((*opt).test() == 2);
     }
-#ifdef _LIBCPP_DEBUG
-    {
-        const optional<X> opt;
-        assert((*opt).test() == 3);
-        assert(false);
-    }
-#endif  // _LIBCPP_DEBUG
 
-  return 0;
+    return 0;
 }

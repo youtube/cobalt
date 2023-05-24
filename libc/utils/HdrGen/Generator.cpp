@@ -1,4 +1,4 @@
-//===---- Implementation of the main header generation class -----*- C++ -*===//
+//===-- Implementation of the main header generation class ----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -40,7 +40,7 @@ Command *Generator::getCommandHandler(llvm::StringRef CommandName) {
     return IncludeFileCmd.get();
   } else if (CommandName == PublicAPICommand::Name) {
     if (!PublicAPICmd)
-      PublicAPICmd = std::make_unique<PublicAPICommand>();
+      PublicAPICmd = std::make_unique<PublicAPICommand>(EntrypointNameList);
     return PublicAPICmd.get();
   } else {
     return nullptr;
@@ -58,7 +58,7 @@ void Generator::parseCommandArgs(llvm::StringRef ArgStr, ArgVector &Args) {
     A = A.trim(' ');
     if (A.startswith(ParamNamePrefix) && A.endswith(ParamNameSuffix)) {
       A = A.drop_front(ParamNamePrefixSize).drop_back(ParamNameSuffixSize);
-      A = ArgMap[A];
+      A = ArgMap[std::string(A)];
     }
   }
 }

@@ -31,6 +31,12 @@ static cl::opt<bool> PropagateAttrs("propagate-attrs", cl::init(true),
                                     cl::Hidden,
                                     cl::desc("Propagate attributes in index"));
 
+static cl::opt<bool> ImportConstantsWithRefs(
+    "import-constants-with-refs", cl::init(true), cl::Hidden,
+    cl::desc("Import constant global variables with references"));
+
+constexpr uint32_t FunctionSummary::ParamAccess::RangeWidth;
+
 FunctionSummary FunctionSummary::ExternalNode =
     FunctionSummary::makeDummyFunctionSummary({});
 
@@ -67,6 +73,52 @@ std::pair<unsigned, unsigned> FunctionSummary::specialRefCounts() const {
 }
 
 constexpr uint64_t ModuleSummaryIndex::BitcodeSummaryVersion;
+
+uint64_t ModuleSummaryIndex::getFlags() const {
+  uint64_t Flags = 0;
+  if (withGlobalValueDeadStripping())
+    Flags |= 0x1;
+  if (skipModuleByDistributedBackend())
+    Flags |= 0x2;
+  if (hasSyntheticEntryCounts())
+    Flags |= 0x4;
+  if (enableSplitLTOUnit())
+    Flags |= 0x8;
+  if (partiallySplitLTOUnits())
+    Flags |= 0x10;
+  if (withAttributePropagation())
+    Flags |= 0x20;
+  return Flags;
+}
+
+void ModuleSummaryIndex::setFlags(uint64_t Flags) {
+  assert(Flags <= 0x3f && "Unexpected bits in flag");
+  // 1 bit: WithGlobalValueDeadStripping flag.
+  // Set on combined index only.
+  if (Flags & 0x1)
+    setWithGlobalValueDeadStripping();
+  // 1 bit: SkipModuleByDistributedBackend flag.
+  // Set on combined index only.
+  if (Flags & 0x2)
+    setSkipModuleByDistributedBackend();
+  // 1 bit: HasSyntheticEntryCounts flag.
+  // Set on combined index only.
+  if (Flags & 0x4)
+    setHasSyntheticEntryCounts();
+  // 1 bit: DisableSplitLTOUnit flag.
+  // Set on per module indexes. It is up to the client to validate
+  // the consistency of this flag across modules being linked.
+  if (Flags & 0x8)
+    setEnableSplitLTOUnit();
+  // 1 bit: PartiallySplitLTOUnits flag.
+  // Set on combined index only.
+  if (Flags & 0x10)
+    setPartiallySplitLTOUnits();
+  // 1 bit: WithAttributePropagation flag.
+  // Set on combined index only.
+  if (Flags & 0x20)
+    setWithAttributePropagation();
+}
 
 // Collect for the given module the list of function it defines
 // (GUID -> Summary).
@@ -111,7 +163,9 @@ bool ModuleSummaryIndex::isGUIDLive(GlobalValue::GUID GUID) const {
   return false;
 }
 
-static void propagateAttributesToRefs(GlobalValueSummary *S) {
+static void
+propagateAttributesToRefs(GlobalValueSummary *S,
+                          DenseSet<ValueInfo> &MarkedNonReadWriteOnly) {
   // If reference is not readonly or writeonly then referenced summary is not
   // read/writeonly either. Note that:
   // - All references from GlobalVarSummary are conservatively considered as
@@ -122,6 +176,11 @@ static void propagateAttributesToRefs(GlobalValueSummary *S) {
   //   for them.
   for (auto &VI : S->refs()) {
     assert(VI.getAccessSpecifier() == 0 || isa<FunctionSummary>(S));
+    if (!VI.getAccessSpecifier()) {
+      if (!MarkedNonReadWriteOnly.insert(VI).second)
+        continue;
+    } else if (MarkedNonReadWriteOnly.contains(VI))
+      continue;
     for (auto &Ref : VI.getSummaryList())
       // If references to alias is not read/writeonly then aliasee
       // is not read/writeonly
@@ -164,11 +223,24 @@ void ModuleSummaryIndex::propagateAttributes(
     const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols) {
   if (!PropagateAttrs)
     return;
+  DenseSet<ValueInfo> MarkedNonReadWriteOnly;
   for (auto &P : *this)
     for (auto &S : P.second.SummaryList) {
-      if (!isGlobalValueLive(S.get()))
+      if (!isGlobalValueLive(S.get())) {
+        // computeDeadSymbols should have marked all copies live. Note that
+        // it is possible that there is a GUID collision between internal
+        // symbols with the same name in different files of the same name but
+        // not enough distinguishing path. Because computeDeadSymbols should
+        // conservatively mark all copies live we can assert here that all are
+        // dead if any copy is dead.
+        assert(llvm::none_of(
+            P.second.SummaryList,
+            [&](const std::unique_ptr<GlobalValueSummary> &Summary) {
+              return isGlobalValueLive(Summary.get());
+            }));
         // We don't examine references from dead objects
-        continue;
+        break;
+      }
 
       // Global variable can't be marked read/writeonly if it is not eligible
       // to import since we need to ensure that all external references get
@@ -188,7 +260,7 @@ void ModuleSummaryIndex::propagateAttributes(
           GVS->setReadOnly(false);
           GVS->setWriteOnly(false);
         }
-      propagateAttributesToRefs(S.get());
+      propagateAttributesToRefs(S.get(), MarkedNonReadWriteOnly);
     }
   setWithAttributePropagation();
   if (llvm::AreStatisticsEnabled())
@@ -221,7 +293,8 @@ bool ModuleSummaryIndex::canImportGlobalVar(GlobalValueSummary *S,
     // c) Link error (external declaration with internal definition).
     // However we do not promote objects referenced by writeonly GV
     // initializer by means of converting it to 'zeroinitializer'
-    return !isReadOnly(GVS) && !isWriteOnly(GVS) && GVS->refs().size();
+    return !(ImportConstantsWithRefs && GVS->isConstant()) &&
+           !isReadOnly(GVS) && !isWriteOnly(GVS) && GVS->refs().size();
   };
   auto *GVS = cast<GlobalVarSummary>(S->getBaseObject());
 
@@ -249,7 +322,7 @@ void ModuleSummaryIndex::dumpSCCs(raw_ostream &O) {
       if (V.getSummaryList().size())
         F = cast<FunctionSummary>(V.getSummaryList().front().get());
       O << " " << (F == nullptr ? "External" : "") << " " << utostr(V.getGUID())
-        << (I.hasLoop() ? " (has loop)" : "") << "\n";
+        << (I.hasCycle() ? " (has cycle)" : "") << "\n";
     }
     O << "}\n";
   }
@@ -405,6 +478,12 @@ static bool hasWriteOnlyFlag(const GlobalValueSummary *S) {
   return false;
 }
 
+static bool hasConstantFlag(const GlobalValueSummary *S) {
+  if (auto *GVS = dyn_cast<GlobalVarSummary>(S))
+    return GVS->isConstant();
+  return false;
+}
+
 void ModuleSummaryIndex::exportToDot(
     raw_ostream &OS,
     const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols) const {
@@ -482,6 +561,8 @@ void ModuleSummaryIndex::exportToDot(
           A.addComment("immutable");
         if (Flags.Live && hasWriteOnlyFlag(SummaryIt.second))
           A.addComment("writeOnly");
+        if (Flags.Live && hasConstantFlag(SummaryIt.second))
+          A.addComment("constant");
       }
       if (Flags.DSOLocal)
         A.addComment("dsoLocal");

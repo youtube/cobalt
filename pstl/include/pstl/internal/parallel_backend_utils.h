@@ -12,7 +12,6 @@
 
 #include <iterator>
 #include <utility>
-#include <cassert>
 #include "utils.h"
 
 #include "pstl_config.h"
@@ -58,7 +57,7 @@ struct __serial_move_merge
         constexpr bool __same_move_seq = std::is_same<_MoveSequenceX, _MoveSequenceY>::value;
 
         auto __n = _M_nmerge;
-        assert(__n > 0);
+        _PSTL_ASSERT(__n > 0);
 
         auto __nx = __xe - __xs;
         //auto __ny = __ye - __ys;
@@ -137,6 +136,124 @@ struct __serial_move_merge
             __move_sequence_y(__ys, __ye, __zs);
     }
 };
+
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
+          typename _CopyConstructRange>
+_OutputIterator
+__set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                      _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
+                      _CopyConstructRange __cc_range)
+{
+    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
+
+    for (; __first1 != __last1; ++__result)
+    {
+        if (__first2 == __last2)
+            return __cc_range(__first1, __last1, __result);
+        if (__comp(*__first2, *__first1))
+        {
+            ::new (std::addressof(*__result)) _Tp(*__first2);
+            ++__first2;
+        }
+        else
+        {
+            ::new (std::addressof(*__result)) _Tp(*__first1);
+            if (!__comp(*__first1, *__first2))
+                ++__first2;
+            ++__first1;
+        }
+    }
+    return __cc_range(__first2, __last2, __result);
+}
+
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare>
+_OutputIterator
+__set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                             _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp)
+{
+    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
+
+    for (; __first1 != __last1 && __first2 != __last2;)
+    {
+        if (__comp(*__first1, *__first2))
+            ++__first1;
+        else
+        {
+            if (!__comp(*__first2, *__first1))
+            {
+                ::new (std::addressof(*__result)) _Tp(*__first1);
+                ++__result;
+                ++__first1;
+            }
+            ++__first2;
+        }
+    }
+    return __result;
+}
+
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
+          typename _CopyConstructRange>
+_OutputIterator
+__set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                           _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
+                           _CopyConstructRange __cc_range)
+{
+    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
+
+    for (; __first1 != __last1;)
+    {
+        if (__first2 == __last2)
+            return __cc_range(__first1, __last1, __result);
+
+        if (__comp(*__first1, *__first2))
+        {
+            ::new (std::addressof(*__result)) _Tp(*__first1);
+            ++__result;
+            ++__first1;
+        }
+        else
+        {
+            if (!__comp(*__first2, *__first1))
+                ++__first1;
+            ++__first2;
+        }
+    }
+    return __result;
+}
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Compare,
+          typename _CopyConstructRange>
+_OutputIterator
+__set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                                     _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
+                                     _CopyConstructRange __cc_range)
+{
+    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
+
+    for (; __first1 != __last1;)
+    {
+        if (__first2 == __last2)
+            return __cc_range(__first1, __last1, __result);
+
+        if (__comp(*__first1, *__first2))
+        {
+            ::new (std::addressof(*__result)) _Tp(*__first1);
+            ++__result;
+            ++__first1;
+        }
+        else
+        {
+            if (__comp(*__first2, *__first1))
+            {
+                ::new (std::addressof(*__result)) _Tp(*__first2);
+                ++__result;
+            }
+            else
+                ++__first1;
+            ++__first2;
+        }
+    }
+    return __cc_range(__first2, __last2, __result);
+}
 
 } // namespace __utils
 } // namespace __pstl

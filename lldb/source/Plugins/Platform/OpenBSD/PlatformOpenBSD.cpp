@@ -1,4 +1,4 @@
-//===-- PlatformOpenBSD.cpp -------------------------------------*- C++ -*-===//
+//===-- PlatformOpenBSD.cpp -----------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -33,6 +33,8 @@
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::platform_openbsd;
+
+LLDB_PLUGIN_DEFINE(PlatformOpenBSD)
 
 static uint32_t g_initialize_count = 0;
 
@@ -120,8 +122,6 @@ void PlatformOpenBSD::Terminate() {
 PlatformOpenBSD::PlatformOpenBSD(bool is_host)
     : PlatformPOSIX(is_host) // This is the local host platform
 {}
-
-PlatformOpenBSD::~PlatformOpenBSD() = default;
 
 bool PlatformOpenBSD::GetSupportedArchitectureAtIndex(uint32_t idx,
                                                       ArchSpec &arch) {

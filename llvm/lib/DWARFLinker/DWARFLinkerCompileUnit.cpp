@@ -29,6 +29,14 @@ uint16_t CompileUnit::getLanguage() {
   return Language;
 }
 
+StringRef CompileUnit::getSysRoot() {
+  if (SysRoot.empty()) {
+    DWARFDie CU = getOrigUnit().getUnitDIE();
+    SysRoot = dwarf::toStringRef(CU.find(dwarf::DW_AT_LLVM_sysroot)).str();
+  }
+  return SysRoot;
+}
+
 void CompileUnit::markEverythingAsKept() {
   unsigned Idx = 0;
 
@@ -61,10 +69,10 @@ void CompileUnit::markEverythingAsKept() {
   }
 }
 
-uint64_t CompileUnit::computeNextUnitOffset() {
+uint64_t CompileUnit::computeNextUnitOffset(uint16_t DwarfVersion) {
   NextUnitOffset = StartOffset;
   if (NewUnit) {
-    NextUnitOffset += 11 /* Header size */;
+    NextUnitOffset += (DwarfVersion >= 5) ? 12 : 11; // Header size
     NextUnitOffset += NewUnit->getUnitDie().getSize();
   }
   return NextUnitOffset;

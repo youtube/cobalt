@@ -1,6 +1,7 @@
 add_llvm_component_library(LLVMBinaryFormat
   AMDGPUMetadataVerifier.cpp
   Dwarf.cpp
+  MachO.cpp
   Magic.cpp
   Minidump.cpp
   MsgPackDocument.cpp
@@ -12,5 +13,7 @@ add_llvm_component_library(LLVMBinaryFormat
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/BinaryFormat
+
+  LINK_COMPONENTS
+  Support
   )
-  

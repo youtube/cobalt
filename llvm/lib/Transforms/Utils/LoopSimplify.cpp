@@ -163,7 +163,7 @@ BasicBlock *llvm::InsertPreheaderForLoop(Loop *L, DominatorTree *DT,
 /// if it's not already in there.  Stop predecessor traversal when we reach
 /// StopBlock.
 static void addBlockAndPredsToSet(BasicBlock *InputBB, BasicBlock *StopBlock,
-                                  std::set<BasicBlock*> &Blocks) {
+                                  SmallPtrSetImpl<BasicBlock *> &Blocks) {
   SmallVector<BasicBlock *, 8> Worklist;
   Worklist.push_back(InputBB);
   do {
@@ -171,10 +171,7 @@ static void addBlockAndPredsToSet(BasicBlock *InputBB, BasicBlock *StopBlock,
     if (Blocks.insert(BB).second && BB != StopBlock)
       // If BB is not already processed and it is not a stop block then
       // insert its predecessor in the work list
-      for (pred_iterator I = pred_begin(BB), E = pred_end(BB); I != E; ++I) {
-        BasicBlock *WBB = *I;
-        Worklist.push_back(WBB);
-      }
+      append_range(Worklist, predecessors(BB));
   } while (!Worklist.empty());
 }
 
@@ -229,6 +226,27 @@ static Loop *separateNestedLoop(Loop *L, BasicBlock *Preheader,
   // Don't try to separate loops without a preheader.
   if (!Preheader)
     return nullptr;
+
+  // Treat the presence of convergent functions conservatively. The
+  // transformation is invalid if calls to certain convergent
+  // functions (like an AMDGPU barrier) get included in the resulting
+  // inner loop. But blocks meant for the inner loop will be
+  // identified later at a point where it's too late to abort the
+  // transformation. Also, the convergent attribute is not really
+  // sufficient to express the semantics of functions that are
+  // affected by this transformation. So we choose to back off if such
+  // a function call is present until a better alternative becomes
+  // available. This is similar to the conservative treatment of
+  // convergent function calls in GVNHoist and JumpThreading.
+  for (auto BB : L->blocks()) {
+    for (auto &II : *BB) {
+      if (auto CI = dyn_cast<CallBase>(&II)) {
+        if (CI->isConvergent()) {
+          return nullptr;
+        }
+      }
+    }
+  }
 
   // The header is not a landing pad; preheader insertion should ensure this.
   BasicBlock *Header = L->getHeader();
@@ -287,9 +305,8 @@ static Loop *separateNestedLoop(Loop *L, BasicBlock *Preheader,
 
   // Determine which blocks should stay in L and which should be moved out to
   // the Outer loop now.
-  std::set<BasicBlock*> BlocksInL;
-  for (pred_iterator PI=pred_begin(Header), E = pred_end(Header); PI!=E; ++PI) {
-    BasicBlock *P = *PI;
+  SmallPtrSet<BasicBlock *, 4> BlocksInL;
+  for (BasicBlock *P : predecessors(Header)) {
     if (DT->dominates(Header, P))
       addBlockAndPredsToSet(P, Header, BlocksInL);
   }
@@ -598,6 +615,7 @@ ReprocessLoop:
       if (!PreserveLCSSA || LI->replacementPreservesLCSSAForm(PN, V)) {
         PN->replaceAllUsesWith(V);
         PN->eraseFromParent();
+        Changed = true;
       }
     }
 
@@ -661,7 +679,7 @@ ReprocessLoop:
       // The block has now been cleared of all instructions except for
       // a comparison and a conditional branch. SimplifyCFG may be able
       // to fold it now.
-      if (!FoldBranchToCommonDest(BI, MSSAU))
+      if (!FoldBranchToCommonDest(BI, /*DTU=*/nullptr, MSSAU))
         continue;
 
       // Success. The block is now dead, so remove it from the loop,
@@ -669,15 +687,13 @@ ReprocessLoop:
       LLVM_DEBUG(dbgs() << "LoopSimplify: Eliminating exiting block "
                         << ExitingBlock->getName() << "\n");
 
-      assert(pred_begin(ExitingBlock) == pred_end(ExitingBlock));
+      assert(pred_empty(ExitingBlock));
       Changed = true;
       LI->removeBlock(ExitingBlock);
 
       DomTreeNode *Node = DT->getNode(ExitingBlock);
-      const std::vector<DomTreeNodeBase<BasicBlock> *> &Children =
-        Node->getChildren();
-      while (!Children.empty()) {
-        DomTreeNode *Child = Children.front();
+      while (!Node->isLeaf()) {
+        DomTreeNode *Child = Node->back();
         DT->changeImmediateDominator(Child, Node->getIDom());
       }
       DT->eraseNode(ExitingBlock);
@@ -816,8 +832,8 @@ bool LoopSimplify::runOnFunction(Function &F) {
   bool PreserveLCSSA = mustPreserveAnalysisID(LCSSAID);
 
   // Simplify each loop nest in the function.
-  for (LoopInfo::iterator I = LI->begin(), E = LI->end(); I != E; ++I)
-    Changed |= simplifyLoop(*I, DT, LI, SE, AC, MSSAU.get(), PreserveLCSSA);
+  for (auto *L : *LI)
+    Changed |= simplifyLoop(L, DT, LI, SE, AC, MSSAU.get(), PreserveLCSSA);
 
 #ifndef NDEBUG
   if (PreserveLCSSA) {
@@ -846,9 +862,9 @@ PreservedAnalyses LoopSimplifyPass::run(Function &F,
 
   // Note that we don't preserve LCSSA in the new PM, if you need it run LCSSA
   // after simplifying the loops. MemorySSA is preserved if it exists.
-  for (LoopInfo::iterator I = LI->begin(), E = LI->end(); I != E; ++I)
+  for (auto *L : *LI)
     Changed |=
-        simplifyLoop(*I, DT, LI, SE, AC, MSSAU.get(), /*PreserveLCSSA*/ false);
+        simplifyLoop(L, DT, LI, SE, AC, MSSAU.get(), /*PreserveLCSSA*/ false);
 
   if (!Changed)
     return PreservedAnalyses::all();

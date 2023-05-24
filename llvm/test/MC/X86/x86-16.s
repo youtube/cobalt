@@ -547,7 +547,16 @@ jmp	$0x7ace,$0x7ace
 ljmp	$0x7ace,$0x7ace
 
 // CHECK: calll a
+// CHECK: calll a
+// CHECK: calll a
  calll a
+data32 call a
+data32 callw a
+
+// CHECK:      ljmpl $1, $2
+// CHECK-NEXT: ljmpl $1, $2
+data32 ljmp $1, $2
+data32 ljmpw $1, $2
 
 // CHECK:	incb	%al # encoding: [0xfe,0xc0]
 	incb %al
@@ -789,9 +798,13 @@ pshufw $90, %mm4, %mm0
 // CHECK:  encoding: [0x0f,0x0b]
         	ud2a
 
-// CHECK: ud2b
-// CHECK:  encoding: [0x0f,0xb9]
-        	ud2b
+// CHECK: ud1w %ax, %ax
+// CHECK:  encoding: [0x0f,0xb9,0xc0]
+        	ud1 %ax, %ax
+
+// CHECK: ud1w %ax, %ax
+// CHECK:  encoding: [0x0f,0xb9,0xc0]
+        	ud2b %ax, %ax
 
 // CHECK: loope 0
 // CHECK: encoding: [0xe1,A]
@@ -964,10 +977,8 @@ lretl
 // CHECK: encoding: [0x66]
 data32
 
-// CHECK: data32
-// CHECK: encoding: [0x66]
-// CHECK: lgdtw 4(%eax)
-// CHECK:  encoding: [0x67,0x0f,0x01,0x50,0x04]
+// CHECK: lgdtl 4(%eax)
+// CHECK-SAME:  encoding: [0x67,0x66,0x0f,0x01,0x50,0x04]
 data32 lgdt 4(%eax)
 
 // CHECK: wbnoinvd
@@ -1029,3 +1040,31 @@ enqcmd  (%edi), %edi
 // CHECK: enqcmds (%edi), %edi
 // CHECK: encoding: [0x67,0xf3,0x0f,0x38,0xf8,0x3f]
 enqcmds (%edi), %edi
+
+// CHECK: serialize
+// CHECK: encoding: [0x0f,0x01,0xe8]
+serialize
+
+// CHECK: xsusldtrk
+// CHECK: encoding: [0xf2,0x0f,0x01,0xe8]
+xsusldtrk
+
+// CHECK: xresldtrk
+// CHECK: encoding: [0xf2,0x0f,0x01,0xe9]
+xresldtrk
+
+// CHECK: jmp foo
+// CHECK:  encoding: [0xe9,A,A]
+// CHECK:  fixup A - offset: 1, value: foo-2, kind: FK_PCRel_2
+{disp32} jmp foo
+foo:
+
+// CHECK: je foo
+// CHECK:  encoding: [0x0f,0x84,A,A]
+// CHECK:  fixup A - offset: 2, value: foo-2, kind: FK_PCRel_2
+{disp32} je foo
+
+// CHECK: movl nearer, %ebx
+// CHECK:  encoding: [0x66,0x8b,0x1e,A,A]
+// CHECK:  fixup A - offset: 3, value: nearer, kind: FK_Data_2
+movl    nearer, %ebx

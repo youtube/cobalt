@@ -1,6 +1,6 @@
 //===-- GPUToSPIRV.td - GPU to SPIR-V Dialect Lowerings ----*- tablegen -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -11,12 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef CONVERT_GPU_TO_SPIRV
-#define CONVERT_GPU_TO_SPIRV
+#ifndef MLIR_CONVERSION_GPU_TO_SPIRV
+#define MLIR_CONVERSION_GPU_TO_SPIRV
 
 include "mlir/Dialect/GPU/GPUOps.td"
-include "mlir/Dialect/SPIRV/SPIRVStructureOps.td"
+include "mlir/Dialect/SPIRV/IR/SPIRVStructureOps.td"
 
 def : Pat<(GPU_ModuleEndOp), (SPV_ModuleEndOp)>;
 
-#endif // CONVERT_GPU_TO_SPIRV
+#endif // MLIR_CONVERSION_GPU_TO_SPIRV

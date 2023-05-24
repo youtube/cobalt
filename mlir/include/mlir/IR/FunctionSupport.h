@@ -1,6 +1,6 @@
 //===- FunctionSupport.h - Utility types for function-like ops --*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -14,6 +14,7 @@
 #ifndef MLIR_IR_FUNCTIONSUPPORT_H
 #define MLIR_IR_FUNCTIONSUPPORT_H
 
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OpDefinition.h"
 #include "llvm/ADT/SmallString.h"
 
@@ -28,6 +29,13 @@ inline StringRef getTypeAttrName() { return "type"; }
 inline StringRef getArgAttrName(unsigned arg, SmallVectorImpl<char> &out) {
   out.clear();
   return ("arg" + Twine(arg)).toStringRef(out);
+}
+
+/// Returns true if the given name is a valid argument attribute name.
+inline bool isArgAttrName(StringRef name) {
+  APInt unused;
+  return name.startswith("arg") &&
+         !name.drop_front(3).getAsInteger(/*Radix=*/10, unused);
 }
 
 /// Return the name of the attribute used for function results.
@@ -64,6 +72,21 @@ inline ArrayRef<NamedAttribute> getResultAttrs(Operation *op, unsigned index) {
   return resultDict ? resultDict.getValue() : llvm::None;
 }
 
+/// Erase the specified arguments and update the function type attribute.
+void eraseFunctionArguments(Operation *op, ArrayRef<unsigned> argIndices,
+                            unsigned originalNumArgs, Type newType);
+
+/// Erase the specified results and update the function type attribute.
+void eraseFunctionResults(Operation *op, ArrayRef<unsigned> resultIndices,
+                          unsigned originalNumResults, Type newType);
+
+/// Get and set a FunctionLike operation's type signature.
+FunctionType getFunctionType(Operation *op);
+void setFunctionType(Operation *op, FunctionType newType);
+
+/// Get a FunctionLike operation's body.
+Region &getFunctionBody(Operation *op);
+
 } // namespace impl
 
 namespace OpTrait {
@@ -72,17 +95,26 @@ namespace OpTrait {
 /// - Ops must be symbols, i.e. also have the `Symbol` trait;
 /// - Ops have a single region with multiple blocks that corresponds to the body
 ///   of the function;
-/// - the absence of a region corresponds to an external function;
+/// - An op with a single empty region corresponds to an external function;
 /// - leading arguments of the first block of the region are treated as function
 ///   arguments;
 /// - they can have argument attributes that are stored in a dictionary
 ///   attribute on the Op itself.
-/// This trait does *NOT* provide type support for the functions, meaning that
-/// concrete Ops must handle the type of the declared or defined function.
-/// `getTypeAttrName()` is a convenience function that returns the name of the
-/// attribute that can be used to store the function type, but the trait makes
-/// no assumption based on it.
 ///
+/// This trait provides limited type support for the declared or defined
+/// functions. The convenience function `getTypeAttrName()` returns the name of
+/// an attribute that can be used to store the function type. In addition, this
+/// trait provides `getType` and `setType` helpers to store a `FunctionType` in
+/// the attribute named by `getTypeAttrName()`.
+///
+/// In general, this trait assumes concrete ops use `FunctionType` under the
+/// hood. If this is not the case, in order to use the function type support,
+/// concrete ops must define the following methods, using the same name, to hide
+/// the ones defined for `FunctionType`: `addBodyBlock`, `getType`,
+/// `getTypeWithoutArgsAndResults` and `setType`.
+///
+/// Besides the requirements above, concrete ops must interact with this trait
+/// using the following functions:
 /// - Concrete ops *must* define a member function `getNumFuncArguments()` that
 ///   returns the number of function arguments based exclusively on type (so
 ///   that it can be called on function declarations).
@@ -109,7 +141,9 @@ public:
   /// Returns true if this function is external, i.e. it has no body.
   bool isExternal() { return empty(); }
 
-  Region &getBody() { return this->getOperation()->getRegion(0); }
+  Region &getBody() {
+    return ::mlir::impl::getFunctionBody(this->getOperation());
+  }
 
   /// Delete all blocks from this function.
   void eraseBody() {
@@ -137,6 +171,19 @@ public:
   Block &back() { return getBody().back(); }
   Block &front() { return getBody().front(); }
 
+  /// Add an entry block to an empty function, and set up the block arguments
+  /// to match the signature of the function. The newly inserted entry block
+  /// is returned.
+  ///
+  /// Note that the concrete class must define a method with the same name to
+  /// hide this one if the concrete class does not use FunctionType for the
+  /// function type under the hood.
+  Block *addEntryBlock();
+
+  /// Add a normal block to the end of the function's block list. The function
+  /// should at least already have an entry block.
+  Block *addBlock();
+
   /// Hook for concrete ops to verify the contents of the body. Called as a
   /// part of trait verification, after type verification and ensuring that a
   /// region exists.
@@ -154,6 +201,28 @@ public:
         getTypeAttrName());
   }
 
+  /// Return the type of this function.
+  ///
+  /// Note that the concrete class must define a method with the same name to
+  /// hide this one if the concrete class does not use FunctionType for the
+  /// function type under the hood.
+  FunctionType getType() {
+    return ::mlir::impl::getFunctionType(this->getOperation());
+  }
+
+  /// Return the type of this function without the specified arguments and
+  /// results. This is used to update the function's signature in the
+  /// `eraseArguments` and `eraseResults` methods. The arrays of indices are
+  /// allowed to have duplicates and can be in any order.
+  ///
+  /// Note that the concrete class must define a method with the same name to
+  /// hide this one if the concrete class does not use FunctionType for the
+  /// function type under the hood.
+  FunctionType getTypeWithoutArgsAndResults(ArrayRef<unsigned> argIndices,
+                                            ArrayRef<unsigned> resultIndices) {
+    return getType().getWithoutArgsAndResults(argIndices, resultIndices);
+  }
+
   bool isTypeAttrValid() {
     auto typeAttr = getTypeAttr();
     if (!typeAttr)
@@ -161,9 +230,23 @@ public:
     return typeAttr.getValue() != Type{};
   }
 
+  /// Change the type of this function in place. This is an extremely dangerous
+  /// operation and it is up to the caller to ensure that this is legal for this
+  /// function, and to restore invariants:
+  ///  - the entry block args must be updated to match the function params.
+  ///  - the argument/result attributes may need an update: if the new type
+  ///    has less parameters we drop the extra attributes, if there are more
+  ///    parameters they won't have any attributes.
+  ///
+  /// Note that the concrete class must define a method with the same name to
+  /// hide this one if the concrete class does not use FunctionType for the
+  /// function type under the hood.
+  void setType(FunctionType newType);
+
   //===--------------------------------------------------------------------===//
-  // Argument Handling
+  // Argument and Result Handling
   //===--------------------------------------------------------------------===//
+  using BlockArgListType = Region::BlockArgListType;
 
   unsigned getNumArguments() {
     return static_cast<ConcreteType *>(this)->getNumFuncArguments();
@@ -174,16 +257,40 @@ public:
   }
 
   /// Gets argument.
-  BlockArgument getArgument(unsigned idx) {
-    return getBlocks().front().getArgument(idx);
+  BlockArgument getArgument(unsigned idx) { return getBody().getArgument(idx); }
+
+  /// Support argument iteration.
+  using args_iterator = Region::args_iterator;
+  args_iterator args_begin() { return getBody().args_begin(); }
+  args_iterator args_end() { return getBody().args_end(); }
+  Block::BlockArgListType getArguments() { return getBody().getArguments(); }
+
+  ValueTypeRange<BlockArgListType> getArgumentTypes() {
+    return getBody().getArgumentTypes();
   }
 
-  // Supports non-const operand iteration.
-  using args_iterator = Block::args_iterator;
-  args_iterator args_begin() { return front().args_begin(); }
-  args_iterator args_end() { return front().args_end(); }
-  iterator_range<args_iterator> getArguments() {
-    return {args_begin(), args_end()};
+  /// Erase a single argument at `argIndex`.
+  void eraseArgument(unsigned argIndex) { eraseArguments({argIndex}); }
+
+  /// Erases the arguments listed in `argIndices`.
+  /// `argIndices` is allowed to have duplicates and can be in any order.
+  void eraseArguments(ArrayRef<unsigned> argIndices) {
+    unsigned originalNumArgs = getNumArguments();
+    Type newType = getTypeWithoutArgsAndResults(argIndices, {});
+    ::mlir::impl::eraseFunctionArguments(this->getOperation(), argIndices,
+                                         originalNumArgs, newType);
+  }
+
+  /// Erase a single result at `resultIndex`.
+  void eraseResult(unsigned resultIndex) { eraseResults({resultIndex}); }
+
+  /// Erases the results listed in `resultIndices`.
+  /// `resultIndices` is allowed to have duplicates and can be in any order.
+  void eraseResults(ArrayRef<unsigned> resultIndices) {
+    unsigned originalNumResults = getNumResults();
+    Type newType = getTypeWithoutArgsAndResults({}, resultIndices);
+    ::mlir::impl::eraseFunctionResults(this->getOperation(), resultIndices,
+                                       originalNumResults, newType);
   }
 
   //===--------------------------------------------------------------------===//
@@ -202,8 +309,9 @@ public:
     return ::mlir::impl::getArgAttrs(this->getOperation(), index);
   }
 
-  /// Return all argument attributes of this function.
-  void getAllArgAttrs(SmallVectorImpl<NamedAttributeList> &result) {
+  /// Return all argument attributes of this function. If an argument does not
+  /// have any attributes, the corresponding entry in `result` is nullptr.
+  void getAllArgAttrs(SmallVectorImpl<DictionaryAttr> &result) {
     for (unsigned i = 0, e = getNumArguments(); i != e; ++i)
       result.emplace_back(getArgAttrDict(i));
   }
@@ -230,12 +338,11 @@ public:
 
   /// Set the attributes held by the argument at 'index'.
   void setArgAttrs(unsigned index, ArrayRef<NamedAttribute> attributes);
-  void setArgAttrs(unsigned index, NamedAttributeList attributes);
-  void setAllArgAttrs(ArrayRef<NamedAttributeList> attributes) {
-    assert(attributes.size() == getNumArguments());
-    for (unsigned i = 0, e = attributes.size(); i != e; ++i)
-      setArgAttrs(i, attributes[i]);
-  }
+
+  /// Set the attributes held by the argument at 'index'. `attributes` may be
+  /// null, in which case any existing argument attributes are removed.
+  void setArgAttrs(unsigned index, DictionaryAttr attributes);
+  void setAllArgAttrs(ArrayRef<DictionaryAttr> attributes);
 
   /// If the an attribute exists with the specified name, change it to the new
   /// value. Otherwise, add a new attribute with the specified name/value.
@@ -245,9 +352,10 @@ public:
                value);
   }
 
-  /// Remove the attribute 'name' from the argument at 'index'.
-  NamedAttributeList::RemoveResult removeArgAttr(unsigned index,
-                                                 Identifier name);
+  /// Remove the attribute 'name' from the argument at 'index'. Return the
+  /// attribute that was erased, or nullptr if there was no attribute with such
+  /// name.
+  Attribute removeArgAttr(unsigned index, Identifier name);
 
   //===--------------------------------------------------------------------===//
   // Result Attributes
@@ -265,8 +373,9 @@ public:
     return ::mlir::impl::getResultAttrs(this->getOperation(), index);
   }
 
-  /// Return all result attributes of this function.
-  void getAllResultAttrs(SmallVectorImpl<NamedAttributeList> &result) {
+  /// Return all result attributes of this function. If a result does not have
+  /// any attributes, the corresponding entry in `result` is nullptr.
+  void getAllResultAttrs(SmallVectorImpl<DictionaryAttr> &result) {
     for (unsigned i = 0, e = getNumResults(); i != e; ++i)
       result.emplace_back(getResultAttrDict(i));
   }
@@ -293,12 +402,10 @@ public:
 
   /// Set the attributes held by the result at 'index'.
   void setResultAttrs(unsigned index, ArrayRef<NamedAttribute> attributes);
-  void setResultAttrs(unsigned index, NamedAttributeList attributes);
-  void setAllResultAttrs(ArrayRef<NamedAttributeList> attributes) {
-    assert(attributes.size() == getNumResults());
-    for (unsigned i = 0, e = attributes.size(); i != e; ++i)
-      setResultAttrs(i, attributes[i]);
-  }
+  /// Set the attributes held by the result at 'index'. `attributes` may be
+  /// null, in which case any existing argument attributes are removed.
+  void setResultAttrs(unsigned index, DictionaryAttr attributes);
+  void setAllResultAttrs(ArrayRef<DictionaryAttr> attributes);
 
   /// If the an attribute exists with the specified name, change it to the new
   /// value. Otherwise, add a new attribute with the specified name/value.
@@ -309,9 +416,10 @@ public:
                   value);
   }
 
-  /// Remove the attribute 'name' from the result at 'index'.
-  NamedAttributeList::RemoveResult removeResultAttr(unsigned index,
-                                                    Identifier name);
+  /// Remove the attribute 'name' from the result at 'index'. Return the
+  /// attribute that was erased, or nullptr if there was no attribute with such
+  /// name.
+  Attribute removeResultAttr(unsigned index, Identifier name);
 
 protected:
   /// Returns the attribute entry name for the set of argument attributes at
@@ -385,7 +493,7 @@ LogicalResult FunctionLike<ConcreteType>::verifyTrait(Operation *op) {
       if (!attr.first.strref().contains('.'))
         return funcOp.emitOpError("arguments may only have dialect attributes");
       auto dialectNamePair = attr.first.strref().split('.');
-      if (auto *dialect = ctx->getRegisteredDialect(dialectNamePair.first)) {
+      if (auto *dialect = ctx->getLoadedDialect(dialectNamePair.first)) {
         if (failed(dialect->verifyRegionArgAttribute(op, /*regionIndex=*/0,
                                                      /*argIndex=*/i, attr)))
           return failure();
@@ -401,7 +509,7 @@ LogicalResult FunctionLike<ConcreteType>::verifyTrait(Operation *op) {
       if (!attr.first.strref().contains('.'))
         return funcOp.emitOpError("results may only have dialect attributes");
       auto dialectNamePair = attr.first.strref().split('.');
-      if (auto *dialect = ctx->getRegisteredDialect(dialectNamePair.first)) {
+      if (auto *dialect = ctx->getLoadedDialect(dialectNamePair.first)) {
         if (failed(dialect->verifyRegionResultAttribute(op, /*regionIndex=*/0,
                                                         /*resultIndex=*/i,
                                                         attr)))
@@ -415,6 +523,35 @@ LogicalResult FunctionLike<ConcreteType>::verifyTrait(Operation *op) {
     return funcOp.emitOpError("expects one region");
 
   return funcOp.verifyBody();
+}
+
+//===----------------------------------------------------------------------===//
+// Function Body.
+//===----------------------------------------------------------------------===//
+
+template <typename ConcreteType>
+Block *FunctionLike<ConcreteType>::addEntryBlock() {
+  assert(empty() && "function already has an entry block");
+  auto *entry = new Block();
+  push_back(entry);
+  entry->addArguments(getType().getInputs());
+  return entry;
+}
+
+template <typename ConcreteType>
+Block *FunctionLike<ConcreteType>::addBlock() {
+  assert(!empty() && "function should at least have an entry block");
+  push_back(new Block());
+  return &back();
+}
+
+//===----------------------------------------------------------------------===//
+// Function Type Attribute.
+//===----------------------------------------------------------------------===//
+
+template <typename ConcreteType>
+void FunctionLike<ConcreteType>::setType(FunctionType newType) {
+  ::mlir::impl::setFunctionType(this->getOperation(), newType);
 }
 
 //===----------------------------------------------------------------------===//
@@ -437,13 +574,34 @@ void FunctionLike<ConcreteType>::setArgAttrs(
 
 template <typename ConcreteType>
 void FunctionLike<ConcreteType>::setArgAttrs(unsigned index,
-                                             NamedAttributeList attributes) {
+                                             DictionaryAttr attributes) {
   assert(index < getNumArguments() && "invalid argument number");
   SmallString<8> nameOut;
-  if (auto newAttr = attributes.getDictionary())
+  if (!attributes || attributes.empty())
+    this->getOperation()->removeAttr(getArgAttrName(index, nameOut));
+  else
     return this->getOperation()->setAttr(getArgAttrName(index, nameOut),
-                                         newAttr);
-  static_cast<ConcreteType *>(this)->removeAttr(getArgAttrName(index, nameOut));
+                                         attributes);
+}
+
+template <typename ConcreteType>
+void FunctionLike<ConcreteType>::setAllArgAttrs(
+    ArrayRef<DictionaryAttr> attributes) {
+  assert(attributes.size() == getNumArguments());
+  NamedAttrList attrs = this->getOperation()->getAttrs();
+
+  // Instead of calling setArgAttrs() multiple times, which rebuild the
+  // attribute dictionary every time, build a new list of attributes for the
+  // operation so that we rebuild the attribute dictionary in one shot.
+  SmallString<8> argAttrName;
+  for (unsigned i = 0, e = attributes.size(); i != e; ++i) {
+    StringRef attrName = getArgAttrName(i, argAttrName);
+    if (!attributes[i] || attributes[i].empty())
+      attrs.erase(attrName);
+    else
+      attrs.set(attrName, attributes[i]);
+  }
+  this->getOperation()->setAttrs(attrs);
 }
 
 /// If the an attribute exists with the specified name, change it to the new
@@ -451,27 +609,26 @@ void FunctionLike<ConcreteType>::setArgAttrs(unsigned index,
 template <typename ConcreteType>
 void FunctionLike<ConcreteType>::setArgAttr(unsigned index, Identifier name,
                                             Attribute value) {
-  auto curAttr = getArgAttrDict(index);
-  NamedAttributeList attrList(curAttr);
-  attrList.set(name, value);
+  NamedAttrList attributes(getArgAttrDict(index));
+  Attribute oldValue = attributes.set(name, value);
 
   // If the attribute changed, then set the new arg attribute list.
-  if (curAttr != attrList.getDictionary())
-    setArgAttrs(index, attrList);
+  if (value != oldValue)
+    setArgAttrs(index, attributes.getDictionary(value.getContext()));
 }
 
 /// Remove the attribute 'name' from the argument at 'index'.
 template <typename ConcreteType>
-NamedAttributeList::RemoveResult
-FunctionLike<ConcreteType>::removeArgAttr(unsigned index, Identifier name) {
+Attribute FunctionLike<ConcreteType>::removeArgAttr(unsigned index,
+                                                    Identifier name) {
   // Build an attribute list and remove the attribute at 'name'.
-  NamedAttributeList attrList(getArgAttrDict(index));
-  auto result = attrList.remove(name);
+  NamedAttrList attributes(getArgAttrDict(index));
+  Attribute removedAttr = attributes.erase(name);
 
   // If the attribute was removed, then update the argument dictionary.
-  if (result == NamedAttributeList::RemoveResult::Removed)
-    setArgAttrs(index, attrList);
-  return result;
+  if (removedAttr)
+    setArgAttrs(index, attributes.getDictionary(removedAttr.getContext()));
+  return removedAttr;
 }
 
 //===----------------------------------------------------------------------===//
@@ -487,21 +644,41 @@ void FunctionLike<ConcreteType>::setResultAttrs(
   getResultAttrName(index, nameOut);
 
   if (attributes.empty())
-    return (void)static_cast<ConcreteType *>(this)->removeAttr(nameOut);
+    return (void)this->getOperation()->removeAttr(nameOut);
   Operation *op = this->getOperation();
   op->setAttr(nameOut, DictionaryAttr::get(attributes, op->getContext()));
 }
 
 template <typename ConcreteType>
 void FunctionLike<ConcreteType>::setResultAttrs(unsigned index,
-                                                NamedAttributeList attributes) {
+                                                DictionaryAttr attributes) {
   assert(index < getNumResults() && "invalid result number");
   SmallString<8> nameOut;
-  if (auto newAttr = attributes.getDictionary())
-    return this->getOperation()->setAttr(getResultAttrName(index, nameOut),
-                                         newAttr);
-  static_cast<ConcreteType *>(this)->removeAttr(
-      getResultAttrName(index, nameOut));
+  if (!attributes || attributes.empty())
+    this->getOperation()->removeAttr(getResultAttrName(index, nameOut));
+  else
+    this->getOperation()->setAttr(getResultAttrName(index, nameOut),
+                                  attributes);
+}
+
+template <typename ConcreteType>
+void FunctionLike<ConcreteType>::setAllResultAttrs(
+    ArrayRef<DictionaryAttr> attributes) {
+  assert(attributes.size() == getNumResults());
+  NamedAttrList attrs = this->getOperation()->getAttrs();
+
+  // Instead of calling setResultAttrs() multiple times, which rebuild the
+  // attribute dictionary every time, build a new list of attributes for the
+  // operation so that we rebuild the attribute dictionary in one shot.
+  SmallString<8> resultAttrName;
+  for (unsigned i = 0, e = attributes.size(); i != e; ++i) {
+    StringRef attrName = getResultAttrName(i, resultAttrName);
+    if (!attributes[i] || attributes[i].empty())
+      attrs.erase(attrName);
+    else
+      attrs.set(attrName, attributes[i]);
+  }
+  this->getOperation()->setAttrs(attrs);
 }
 
 /// If the an attribute exists with the specified name, change it to the new
@@ -509,27 +686,26 @@ void FunctionLike<ConcreteType>::setResultAttrs(unsigned index,
 template <typename ConcreteType>
 void FunctionLike<ConcreteType>::setResultAttr(unsigned index, Identifier name,
                                                Attribute value) {
-  auto curAttr = getResultAttrDict(index);
-  NamedAttributeList attrList(curAttr);
-  attrList.set(name, value);
+  NamedAttrList attributes(getResultAttrDict(index));
+  Attribute oldAttr = attributes.set(name, value);
 
   // If the attribute changed, then set the new arg attribute list.
-  if (curAttr != attrList.getDictionary())
-    setResultAttrs(index, attrList);
+  if (oldAttr != value)
+    setResultAttrs(index, attributes.getDictionary(value.getContext()));
 }
 
 /// Remove the attribute 'name' from the result at 'index'.
 template <typename ConcreteType>
-NamedAttributeList::RemoveResult
-FunctionLike<ConcreteType>::removeResultAttr(unsigned index, Identifier name) {
+Attribute FunctionLike<ConcreteType>::removeResultAttr(unsigned index,
+                                                       Identifier name) {
   // Build an attribute list and remove the attribute at 'name'.
-  NamedAttributeList attrList(getResultAttrDict(index));
-  auto result = attrList.remove(name);
+  NamedAttrList attributes(getResultAttrDict(index));
+  Attribute removedAttr = attributes.erase(name);
 
   // If the attribute was removed, then update the result dictionary.
-  if (result == NamedAttributeList::RemoveResult::Removed)
-    setResultAttrs(index, attrList);
-  return result;
+  if (removedAttr)
+    setResultAttrs(index, attributes.getDictionary(removedAttr.getContext()));
+  return removedAttr;
 }
 
 } // end namespace OpTrait

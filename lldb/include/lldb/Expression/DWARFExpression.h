@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_DWARFExpression_h_
-#define liblldb_DWARFExpression_h_
+#ifndef LLDB_EXPRESSION_DWARFEXPRESSION_H
+#define LLDB_EXPRESSION_DWARFEXPRESSION_H
 
 #include "lldb/Core/Address.h"
 #include "lldb/Core/Disassembler.h"
@@ -217,15 +217,11 @@ public:
                               lldb::addr_t func_load_addr, lldb::addr_t address,
                               ABI *abi);
 
-  static bool PrintDWARFExpression(Stream &s, const DataExtractor &data,
-                                   int address_size, int dwarf_ref_size,
-                                   bool location_expression);
-
-  static void PrintDWARFLocationList(Stream &s, const DWARFUnit *cu,
-                                     const DataExtractor &debug_loc_data,
-                                     lldb::offset_t offset);
-
   bool MatchesOperand(StackFrame &frame, const Instruction::Operand &op);
+
+  llvm::Optional<DataExtractor>
+  GetLocationExpression(lldb::addr_t load_function_start,
+                        lldb::addr_t addr) const;
 
 private:
   /// Pretty-prints the location expression to a stream
@@ -233,11 +229,8 @@ private:
   /// \param[in] s
   ///     The stream to use for pretty-printing.
   ///
-  /// \param[in] offset
-  ///     The offset into the data buffer of the opcodes to be printed.
-  ///
-  /// \param[in] length
-  ///     The length in bytes of the opcodes to be printed.
+  /// \param[in] data
+  ///     The data extractor.
   ///
   /// \param[in] level
   ///     The level of detail to use in pretty-printing.
@@ -247,10 +240,6 @@ private:
   ///     names.
   void DumpLocation(Stream *s, const DataExtractor &data,
                     lldb::DescriptionLevel level, ABI *abi) const;
-
-  llvm::Optional<DataExtractor>
-  GetLocationExpression(lldb::addr_t load_function_start,
-                        lldb::addr_t addr) const;
 
   /// Module which defined this expression.
   lldb::ModuleWP m_module_wp;
@@ -275,4 +264,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // liblldb_DWARFExpression_h_
+#endif // LLDB_EXPRESSION_DWARFEXPRESSION_H

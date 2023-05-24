@@ -11,8 +11,8 @@ set(LLDB_LIBEDIT_LIBS)
 
 if (LLDB_ENABLE_CURSES)
   list(APPEND LLDB_CURSES_LIBS ${CURSES_LIBRARIES} ${PANEL_LIBRARIES})
-  if(LLVM_ENABLE_TERMINFO AND HAVE_TERMINFO)
-    list(APPEND LLDB_CURSES_LIBS ${TERMINFO_LIBS})
+  if(LLVM_ENABLE_TERMINFO)
+    list(APPEND LLDB_CURSES_LIBS ${TERMINFO_LIB})
   endif()
   if (LLVM_BUILD_STATIC)
     list(APPEND LLDB_CURSES_LIBS gpm)
@@ -96,7 +96,7 @@ add_dependencies(lldbCore
 
 # Needed to properly resolve references in a debug build.
 # TODO: Remove once we have better layering
-set_target_properties(lldbCore PROPERTIES LINK_INTERFACE_MULTIPLICITY 4)
+set_target_properties(lldbCore PROPERTIES LINK_INTERFACE_MULTIPLICITY 5)
 
 if (LLDB_ENABLE_LIBEDIT)
   target_include_directories(lldbCore PRIVATE ${LibEdit_INCLUDE_DIRS})

@@ -24,43 +24,47 @@ def HasAddr64 : Predicate<"Subtarget->hasAddr64()">;
 
 def HasSIMD128 :
     Predicate<"Subtarget->hasSIMD128()">,
-    AssemblerPredicate<"FeatureSIMD128", "simd128">;
+    AssemblerPredicate<(all_of FeatureSIMD128), "simd128">;
 
 def HasUnimplementedSIMD128 :
     Predicate<"Subtarget->hasUnimplementedSIMD128()">,
-    AssemblerPredicate<"FeatureUnimplementedSIMD128", "unimplemented-simd128">;
+    AssemblerPredicate<(all_of FeatureUnimplementedSIMD128), "unimplemented-simd128">;
 
 def HasAtomics :
     Predicate<"Subtarget->hasAtomics()">,
-    AssemblerPredicate<"FeatureAtomics", "atomics">;
+    AssemblerPredicate<(all_of FeatureAtomics), "atomics">;
 
 def HasMultivalue :
     Predicate<"Subtarget->hasMultivalue()">,
-    AssemblerPredicate<"FeatureMultivalue", "multivalue">;
+    AssemblerPredicate<(all_of FeatureMultivalue), "multivalue">;
 
 def HasNontrappingFPToInt :
     Predicate<"Subtarget->hasNontrappingFPToInt()">,
-    AssemblerPredicate<"FeatureNontrappingFPToInt", "nontrapping-fptoint">;
+    AssemblerPredicate<(all_of FeatureNontrappingFPToInt), "nontrapping-fptoint">;
 
 def NotHasNontrappingFPToInt :
     Predicate<"!Subtarget->hasNontrappingFPToInt()">,
-    AssemblerPredicate<"!FeatureNontrappingFPToInt", "nontrapping-fptoint">;
+    AssemblerPredicate<(all_of (not FeatureNontrappingFPToInt)), "nontrapping-fptoint">;
 
 def HasSignExt :
     Predicate<"Subtarget->hasSignExt()">,
-    AssemblerPredicate<"FeatureSignExt", "sign-ext">;
+    AssemblerPredicate<(all_of FeatureSignExt), "sign-ext">;
 
 def HasTailCall :
     Predicate<"Subtarget->hasTailCall()">,
-    AssemblerPredicate<"FeatureTailCall", "tail-call">;
+    AssemblerPredicate<(all_of FeatureTailCall), "tail-call">;
 
 def HasExceptionHandling :
     Predicate<"Subtarget->hasExceptionHandling()">,
-    AssemblerPredicate<"FeatureExceptionHandling", "exception-handling">;
+    AssemblerPredicate<(all_of FeatureExceptionHandling), "exception-handling">;
 
 def HasBulkMemory :
     Predicate<"Subtarget->hasBulkMemory()">,
-    AssemblerPredicate<"FeatureBulkMemory", "bulk-memory">;
+    AssemblerPredicate<(all_of FeatureBulkMemory), "bulk-memory">;
+
+def HasReferenceTypes :
+    Predicate<"Subtarget->hasReferenceTypes()">,
+    AssemblerPredicate<(all_of FeatureReferenceTypes), "reference-types">;
 
 //===----------------------------------------------------------------------===//
 // WebAssembly-specific DAG Node Types.
@@ -70,8 +74,6 @@ def SDT_WebAssemblyCallSeqStart : SDCallSeqStart<[SDTCisVT<0, iPTR>,
                                                   SDTCisVT<1, iPTR>]>;
 def SDT_WebAssemblyCallSeqEnd :
     SDCallSeqEnd<[SDTCisVT<0, iPTR>, SDTCisVT<1, iPTR>]>;
-def SDT_WebAssemblyCall0      : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;
-def SDT_WebAssemblyCall1      : SDTypeProfile<1, -1, [SDTCisPtrTy<1>]>;
 def SDT_WebAssemblyBrTable    : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;
 def SDT_WebAssemblyArgument   : SDTypeProfile<1, 1, [SDTCisVT<1, i32>]>;
 def SDT_WebAssemblyReturn     : SDTypeProfile<0, -1, []>;
@@ -79,7 +81,8 @@ def SDT_WebAssemblyWrapper    : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                      SDTCisPtrTy<0>]>;
 def SDT_WebAssemblyWrapperPIC : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                      SDTCisPtrTy<0>]>;
-def SDT_WebAssemblyThrow      : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;
+def SDT_WebAssemblyThrow      : SDTypeProfile<0, -1, []>;
+def SDT_WebAssemblyCatch      : SDTypeProfile<1, 1, [SDTCisPtrTy<0>]>;
 
 //===----------------------------------------------------------------------===//
 // WebAssembly-specific DAG Nodes.
@@ -91,15 +94,6 @@ def WebAssemblycallseq_start :
 def WebAssemblycallseq_end :
     SDNode<"ISD::CALLSEQ_END", SDT_WebAssemblyCallSeqEnd,
            [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
-def WebAssemblycall0 : SDNode<"WebAssemblyISD::CALL0",
-                              SDT_WebAssemblyCall0,
-                              [SDNPHasChain, SDNPVariadic]>;
-def WebAssemblycall1 : SDNode<"WebAssemblyISD::CALL1",
-                              SDT_WebAssemblyCall1,
-                              [SDNPHasChain, SDNPVariadic]>;
-def WebAssemblyretcall : SDNode<"WebAssemblyISD::RET_CALL",
-                                SDT_WebAssemblyCall0,
-                                [SDNPHasChain, SDNPVariadic]>;
 def WebAssemblybr_table : SDNode<"WebAssemblyISD::BR_TABLE",
                                  SDT_WebAssemblyBrTable,
                                  [SDNPHasChain, SDNPVariadic]>;
@@ -114,6 +108,8 @@ def WebAssemblywrapperPIC  : SDNode<"WebAssemblyISD::WrapperPIC",
                                      SDT_WebAssemblyWrapperPIC>;
 def WebAssemblythrow : SDNode<"WebAssemblyISD::THROW", SDT_WebAssemblyThrow,
                               [SDNPHasChain, SDNPVariadic]>;
+def WebAssemblycatch : SDNode<"WebAssemblyISD::CATCH", SDT_WebAssemblyCatch,
+                              [SDNPHasChain, SDNPSideEffect]>;
 
 //===----------------------------------------------------------------------===//
 // WebAssembly-specific Operands.
@@ -168,8 +164,14 @@ def vec_i64imm_op : Operand<i64>;
 let OperandType = "OPERAND_FUNCTION32" in
 def function32_op : Operand<i32>;
 
+let OperandType = "OPERAND_TABLE" in
+def table32_op : Operand<i32>;
+
 let OperandType = "OPERAND_OFFSET32" in
 def offset32_op : Operand<i32>;
+
+let OperandType = "OPERAND_OFFSET64" in
+def offset64_op : Operand<i64>;
 
 let OperandType = "OPERAND_P2ALIGN" in {
 def P2Align : Operand<i32> {
@@ -186,6 +188,11 @@ def Signature : Operand<i32> {
   let PrintMethod = "printWebAssemblySignatureOperand";
 }
 
+let OperandType = "OPERAND_HEAPTYPE" in
+def HeapType : Operand<i32> {
+  let PrintMethod = "printWebAssemblyHeapTypeOperand";
+}
+
 let OperandType = "OPERAND_TYPEINDEX" in
 def TypeIndex : Operand<i32>;
 
@@ -200,6 +207,19 @@ def getStackOpcode : InstrMapping {
   let FilterClass = "StackRel";
   let RowFields = ["BaseName"];
   let ColFields = ["StackBased"];
+  let KeyCol = ["false"];
+  let ValueCols = [["true"]];
+}
+
+//===----------------------------------------------------------------------===//
+// WebAssembly 32 to 64-bit instruction mapping
+//===----------------------------------------------------------------------===//
+
+class Wasm64Rel;
+def getWasm64Opcode : InstrMapping {
+  let FilterClass = "Wasm64Rel";
+  let RowFields = ["Wasm32Name"];
+  let ColFields = ["IsWasm64"];
   let KeyCol = ["false"];
   let ValueCols = [["true"]];
 }
@@ -225,7 +245,8 @@ defm "": ARGUMENT<I32, i32>;
 defm "": ARGUMENT<I64, i64>;
 defm "": ARGUMENT<F32, f32>;
 defm "": ARGUMENT<F64, f64>;
-defm "": ARGUMENT<EXNREF, exnref>;
+defm "": ARGUMENT<FUNCREF, funcref>;
+defm "": ARGUMENT<EXTERNREF, externref>;
 
 // local.get and local.set are not generated by instruction selection; they
 // are implied by virtual register uses and defs.
@@ -295,7 +316,8 @@ defm "" : LOCAL<I64>;
 defm "" : LOCAL<F32>;
 defm "" : LOCAL<F64>;
 defm "" : LOCAL<V128>, Requires<[HasSIMD128]>;
-defm "" : LOCAL<EXNREF>, Requires<[HasExceptionHandling]>;
+defm "" : LOCAL<FUNCREF>, Requires<[HasReferenceTypes]>;
+defm "" : LOCAL<EXTERNREF>, Requires<[HasReferenceTypes]>;
 
 let isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1 in {
 defm CONST_I32 : I<(outs I32:$res), (ins i32imm_op:$imm),
@@ -317,19 +339,30 @@ defm CONST_F64 : I<(outs F64:$res), (ins f64imm_op:$imm),
 } // isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1
 
 def : Pat<(i32 (WebAssemblywrapper tglobaladdr:$addr)),
-          (CONST_I32 tglobaladdr:$addr)>, Requires<[IsNotPIC]>;
+          (CONST_I32 tglobaladdr:$addr)>, Requires<[IsNotPIC, HasAddr32]>;
+def : Pat<(i64 (WebAssemblywrapper tglobaladdr:$addr)),
+          (CONST_I64 tglobaladdr:$addr)>, Requires<[IsNotPIC, HasAddr64]>;
 
 def : Pat<(i32 (WebAssemblywrapper tglobaladdr:$addr)),
-          (GLOBAL_GET_I32 tglobaladdr:$addr)>, Requires<[IsPIC]>;
+          (GLOBAL_GET_I32 tglobaladdr:$addr)>, Requires<[IsPIC, HasAddr32]>;
 
 def : Pat<(i32 (WebAssemblywrapperPIC tglobaladdr:$addr)),
-          (CONST_I32 tglobaladdr:$addr)>, Requires<[IsPIC]>;
+          (CONST_I32 tglobaladdr:$addr)>, Requires<[IsPIC, HasAddr32]>;
+def : Pat<(i64 (WebAssemblywrapperPIC tglobaladdr:$addr)),
+          (CONST_I64 tglobaladdr:$addr)>, Requires<[IsPIC, HasAddr64]>;
+
+def : Pat<(i32 (WebAssemblywrapper tglobaltlsaddr:$addr)),
+          (CONST_I32 tglobaltlsaddr:$addr)>, Requires<[HasAddr32]>;
+def : Pat<(i64 (WebAssemblywrapper tglobaltlsaddr:$addr)),
+          (CONST_I64 tglobaltlsaddr:$addr)>, Requires<[HasAddr64]>;
 
 def : Pat<(i32 (WebAssemblywrapper texternalsym:$addr)),
-          (GLOBAL_GET_I32 texternalsym:$addr)>, Requires<[IsPIC]>;
+          (GLOBAL_GET_I32 texternalsym:$addr)>, Requires<[IsPIC, HasAddr32]>;
 
 def : Pat<(i32 (WebAssemblywrapper texternalsym:$addr)),
-          (CONST_I32 texternalsym:$addr)>, Requires<[IsNotPIC]>;
+          (CONST_I32 texternalsym:$addr)>, Requires<[IsNotPIC, HasAddr32]>;
+def : Pat<(i64 (WebAssemblywrapper texternalsym:$addr)),
+          (CONST_I64 texternalsym:$addr)>, Requires<[IsNotPIC, HasAddr64]>;
 
 def : Pat<(i32 (WebAssemblywrapper mcsym:$sym)), (CONST_I32 mcsym:$sym)>;
 def : Pat<(i64 (WebAssemblywrapper mcsym:$sym)), (CONST_I64 mcsym:$sym)>;
@@ -348,3 +381,4 @@ include "WebAssemblyInstrAtomics.td"
 include "WebAssemblyInstrSIMD.td"
 include "WebAssemblyInstrRef.td"
 include "WebAssemblyInstrBulkMemory.td"
+include "WebAssemblyInstrTable.td"

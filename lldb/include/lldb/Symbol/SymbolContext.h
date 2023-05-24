@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_SymbolContext_h_
-#define liblldb_SymbolContext_h_
+#ifndef LLDB_SYMBOL_SYMBOLCONTEXT_H
+#define LLDB_SYMBOL_SYMBOLCONTEXT_H
 
 #include <memory>
 #include <string>
@@ -139,11 +139,19 @@ public:
   ///     be printed.  In disassembly formatting, where we want a format
   ///     like "<*+36>", this should be false and "*" will be printed
   ///     instead.
+  ///
+  /// \param[in] show_inline_callsite_line_info
+  ///     When processing an inline block, the line info of the callsite
+  ///     is dumped if this flag is \b true, otherwise the line info
+  ///     of the actual inlined function is dumped.
+  ///
+  /// \return
+  ///     \b true if some text was dumped, \b false otherwise.
   bool DumpStopContext(Stream *s, ExecutionContextScope *exe_scope,
                        const Address &so_addr, bool show_fullpaths,
                        bool show_module, bool show_inlined_frames,
-                       bool show_function_arguments,
-                       bool show_function_name) const;
+                       bool show_function_arguments, bool show_function_name,
+                       bool show_inline_callsite_line_info = true) const;
 
   /// Get the address range contained within a symbol context.
   ///
@@ -340,7 +348,7 @@ public:
 
   void Clear();
 
-  bool SymbolContextMatches(SymbolContext &sc);
+  bool SymbolContextMatches(const SymbolContext &sc);
 
   bool AddressMatches(lldb::addr_t addr);
 
@@ -475,4 +483,4 @@ bool operator!=(const SymbolContextList &lhs, const SymbolContextList &rhs);
 
 } // namespace lldb_private
 
-#endif // liblldb_SymbolContext_h_
+#endif // LLDB_SYMBOL_SYMBOLCONTEXT_H

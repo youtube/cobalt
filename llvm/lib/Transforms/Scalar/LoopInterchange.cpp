@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Scalar/LoopInterchange.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -27,6 +28,7 @@
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -412,7 +414,6 @@ public:
 
 private:
   bool adjustLoopLinks();
-  void adjustLoopPreheaders();
   bool adjustLoopBranches();
 
   Loop *OuterLoop;
@@ -428,9 +429,7 @@ private:
   const LoopInterchangeLegality &LIL;
 };
 
-// Main LoopInterchange Pass.
-struct LoopInterchange : public LoopPass {
-  static char ID;
+struct LoopInterchange {
   ScalarEvolution *SE = nullptr;
   LoopInfo *LI = nullptr;
   DependenceInfo *DI = nullptr;
@@ -439,26 +438,13 @@ struct LoopInterchange : public LoopPass {
   /// Interface to emit optimization remarks.
   OptimizationRemarkEmitter *ORE;
 
-  LoopInterchange() : LoopPass(ID) {
-    initializeLoopInterchangePass(*PassRegistry::getPassRegistry());
-  }
+  LoopInterchange(ScalarEvolution *SE, LoopInfo *LI, DependenceInfo *DI,
+                  DominatorTree *DT, OptimizationRemarkEmitter *ORE)
+      : SE(SE), LI(LI), DI(DI), DT(DT), ORE(ORE) {}
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<DependenceAnalysisWrapperPass>();
-    AU.addRequired<OptimizationRemarkEmitterWrapperPass>();
-
-    getLoopAnalysisUsage(AU);
-  }
-
-  bool runOnLoop(Loop *L, LPPassManager &LPM) override {
-    if (skipLoop(L) || L->getParentLoop())
+  bool run(Loop *L) {
+    if (L->getParentLoop())
       return false;
-
-    SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-    LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-    DI = &getAnalysis<DependenceAnalysisWrapperPass>().getDI();
-    DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-    ORE = &getAnalysis<OptimizationRemarkEmitterWrapperPass>().getORE();
 
     return processLoopList(populateWorklist(*L));
   }
@@ -466,7 +452,7 @@ struct LoopInterchange : public LoopPass {
   bool isComputableLoopNest(LoopVector LoopList) {
     for (Loop *L : LoopList) {
       const SCEV *ExitCountOuter = SE->getBackedgeTakenCount(L);
-      if (ExitCountOuter == SE->getCouldNotCompute()) {
+      if (isa<SCEVCouldNotCompute>(ExitCountOuter)) {
         LLVM_DEBUG(dbgs() << "Couldn't compute backedge count\n");
         return false;
       }
@@ -580,6 +566,12 @@ struct LoopInterchange : public LoopPass {
     LIT.transform();
     LLVM_DEBUG(dbgs() << "Loops interchanged.\n");
     LoopsInterchanged++;
+
+    assert(InnerLoop->isLCSSAForm(*DT) &&
+           "Inner loop not left in LCSSA form after loop interchange!");
+    assert(OuterLoop->isLCSSAForm(*DT) &&
+           "Outer loop not left in LCSSA form after loop interchange!");
+
     return true;
   }
 };
@@ -617,6 +609,13 @@ bool LoopInterchangeLegality::tightlyNested(Loop *OuterLoop, Loop *InnerLoop) {
   // and outer loop latch doesn't contain any unsafe instructions.
   if (containsUnsafeInstructions(OuterLoopHeader) ||
       containsUnsafeInstructions(OuterLoopLatch))
+    return false;
+
+  // Also make sure the inner loop preheader does not contain any unsafe
+  // instructions. Note that all instructions in the preheader will be moved to
+  // the outer loop header when interchanging.
+  if (InnerLoopPreHeader != OuterLoopHeader &&
+      containsUnsafeInstructions(InnerLoopPreHeader))
     return false;
 
   LLVM_DEBUG(dbgs() << "Loops are perfectly nested\n");
@@ -662,6 +661,10 @@ static Value *followLCSSA(Value *SV) {
 
 // Check V's users to see if it is involved in a reduction in L.
 static PHINode *findInnerReductionPhi(Loop *L, Value *V) {
+  // Reduction variables cannot be constants.
+  if (isa<Constant>(V))
+    return nullptr;
+
   for (Value *User : V->users()) {
     if (PHINode *PHI = dyn_cast<PHINode>(User)) {
       if (PHI->getNumIncomingValues() == 1)
@@ -689,7 +692,7 @@ bool LoopInterchangeLegality::findInductionAndReductions(
       // PHIs in inner loops need to be part of a reduction in the outer loop,
       // discovered when checking the PHIs of the outer loop earlier.
       if (!InnerLoop) {
-        if (OuterInnerReductions.find(&PHI) == OuterInnerReductions.end()) {
+        if (!OuterInnerReductions.count(&PHI)) {
           LLVM_DEBUG(dbgs() << "Inner loop PHI is not part of reductions "
                                "across the outer loop.\n");
           return false;
@@ -702,8 +705,7 @@ bool LoopInterchangeLegality::findInductionAndReductions(
         Value *V = followLCSSA(PHI.getIncomingValueForBlock(L->getLoopLatch()));
         PHINode *InnerRedPhi = findInnerReductionPhi(InnerLoop, V);
         if (!InnerRedPhi ||
-            !llvm::any_of(InnerRedPhi->incoming_values(),
-                          [&PHI](Value *V) { return V == &PHI; })) {
+            !llvm::is_contained(InnerRedPhi->incoming_values(), &PHI)) {
           LLVM_DEBUG(
               dbgs()
               << "Failed to recognize PHI as an induction or reduction.\n");
@@ -903,8 +905,8 @@ areInnerLoopExitPHIsSupported(Loop *InnerL, Loop *OuterL,
       return false;
     if (any_of(PHI.users(), [&Reductions, OuterL](User *U) {
           PHINode *PN = dyn_cast<PHINode>(U);
-          return !PN || (Reductions.find(PN) == Reductions.end() &&
-                         OuterL->contains(PN->getParent()));
+          return !PN ||
+                 (!Reductions.count(PN) && OuterL->contains(PN->getParent()));
         })) {
       return false;
     }
@@ -1040,6 +1042,10 @@ int LoopInterchangeProfitability::getInstrOrderCost() {
         bool FoundInnerInduction = false;
         bool FoundOuterInduction = false;
         for (unsigned i = 0; i < NumOp; ++i) {
+          // Skip operands that are not SCEV-able.
+          if (!SE->isSCEVable(GEP->getOperand(i)->getType()))
+            continue;
+
           const SCEV *OperandVal = SE->getSCEV(GEP->getOperand(i));
           const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(OperandVal);
           if (!AR)
@@ -1184,7 +1190,7 @@ void LoopInterchangeTransform::restructureLoops(
     removeChildLoop(NewInner, NewOuter);
     LI->changeTopLevelLoop(NewInner, NewOuter);
   }
-  while (!NewOuter->empty())
+  while (!NewOuter->isInnermost())
     NewInner->addChildLoop(NewOuter->removeChildLoop(NewOuter->begin()));
   NewOuter->addChildLoop(NewInner);
 
@@ -1300,6 +1306,21 @@ bool LoopInterchangeTransform::transform() {
     LLVM_DEBUG(dbgs() << "splitting InnerLoopHeader done\n");
   }
 
+  // Instructions in the original inner loop preheader may depend on values
+  // defined in the outer loop header. Move them there, because the original
+  // inner loop preheader will become the entry into the interchanged loop nest.
+  // Currently we move all instructions and rely on LICM to move invariant
+  // instructions outside the loop nest.
+  BasicBlock *InnerLoopPreHeader = InnerLoop->getLoopPreheader();
+  BasicBlock *OuterLoopHeader = OuterLoop->getHeader();
+  if (InnerLoopPreHeader != OuterLoopHeader) {
+    SmallPtrSet<Instruction *, 4> NeedsMoving;
+    for (Instruction &I :
+         make_early_inc_range(make_range(InnerLoopPreHeader->begin(),
+                                         std::prev(InnerLoopPreHeader->end()))))
+      I.moveBefore(OuterLoopHeader->getTerminator());
+  }
+
   Transformed |= adjustLoopLinks();
   if (!Transformed) {
     LLVM_DEBUG(dbgs() << "adjustLoopLinks failed\n");
@@ -1317,6 +1338,23 @@ static void moveBBContents(BasicBlock *FromBB, Instruction *InsertBefore) {
 
   ToList.splice(InsertBefore->getIterator(), FromList, FromList.begin(),
                 FromBB->getTerminator()->getIterator());
+}
+
+/// Swap instructions between \p BB1 and \p BB2 but keep terminators intact.
+static void swapBBContents(BasicBlock *BB1, BasicBlock *BB2) {
+  // Save all non-terminator instructions of BB1 into TempInstrs and unlink them
+  // from BB1 afterwards.
+  auto Iter = map_range(*BB1, [](Instruction &I) { return &I; });
+  SmallVector<Instruction *, 4> TempInstrs(Iter.begin(), std::prev(Iter.end()));
+  for (Instruction *I : TempInstrs)
+    I->removeFromParent();
+
+  // Move instructions from BB2 to BB1.
+  moveBBContents(BB2, BB1->getTerminator());
+
+  // Move instructions from TempInstrs to BB2.
+  for (Instruction *I : TempInstrs)
+    I->insertBefore(BB2->getTerminator());
 }
 
 // Update BI to jump to NewBB instead of OldBB. Records updates to the
@@ -1499,8 +1537,7 @@ bool LoopInterchangeTransform::adjustLoopBranches() {
                   InnerLoopPreHeader, DTUpdates, /*MustUpdateOnce=*/false);
   // The outer loop header might or might not branch to the outer latch.
   // We are guaranteed to branch to the inner loop preheader.
-  if (std::find(succ_begin(OuterLoopHeaderBI), succ_end(OuterLoopHeaderBI),
-                OuterLoopLatch) != succ_end(OuterLoopHeaderBI))
+  if (llvm::is_contained(OuterLoopHeaderBI->successors(), OuterLoopLatch))
     updateSuccessor(OuterLoopHeaderBI, OuterLoopLatch, LoopExit, DTUpdates,
                     /*MustUpdateOnce=*/false);
   updateSuccessor(OuterLoopHeaderBI, InnerLoopPreHeader,
@@ -1547,9 +1584,9 @@ bool LoopInterchangeTransform::adjustLoopBranches() {
 
   // Now update the reduction PHIs in the inner and outer loop headers.
   SmallVector<PHINode *, 4> InnerLoopPHIs, OuterLoopPHIs;
-  for (PHINode &PHI : drop_begin(InnerLoopHeader->phis(), 1))
+  for (PHINode &PHI : drop_begin(InnerLoopHeader->phis()))
     InnerLoopPHIs.push_back(cast<PHINode>(&PHI));
-  for (PHINode &PHI : drop_begin(OuterLoopHeader->phis(), 1))
+  for (PHINode &PHI : drop_begin(OuterLoopHeader->phis()))
     OuterLoopPHIs.push_back(cast<PHINode>(&PHI));
 
   auto &OuterInnerReductions = LIL.getOuterInnerReductions();
@@ -1560,13 +1597,11 @@ bool LoopInterchangeTransform::adjustLoopBranches() {
   // outer loop and all the remains to do is and updating the incoming blocks.
   for (PHINode *PHI : OuterLoopPHIs) {
     PHI->moveBefore(InnerLoopHeader->getFirstNonPHI());
-    assert(OuterInnerReductions.find(PHI) != OuterInnerReductions.end() &&
-           "Expected a reduction PHI node");
+    assert(OuterInnerReductions.count(PHI) && "Expected a reduction PHI node");
   }
   for (PHINode *PHI : InnerLoopPHIs) {
     PHI->moveBefore(OuterLoopHeader->getFirstNonPHI());
-    assert(OuterInnerReductions.find(PHI) != OuterInnerReductions.end() &&
-           "Expected a reduction PHI node");
+    assert(OuterInnerReductions.count(PHI) && "Expected a reduction PHI node");
   }
 
   // Update the incoming blocks for moved PHI nodes.
@@ -1575,45 +1610,86 @@ bool LoopInterchangeTransform::adjustLoopBranches() {
   InnerLoopHeader->replacePhiUsesWith(OuterLoopPreHeader, InnerLoopPreHeader);
   InnerLoopHeader->replacePhiUsesWith(OuterLoopLatch, InnerLoopLatch);
 
+  // Values defined in the outer loop header could be used in the inner loop
+  // latch. In that case, we need to create LCSSA phis for them, because after
+  // interchanging they will be defined in the new inner loop and used in the
+  // new outer loop.
+  IRBuilder<> Builder(OuterLoopHeader->getContext());
+  SmallVector<Instruction *, 4> MayNeedLCSSAPhis;
+  for (Instruction &I :
+       make_range(OuterLoopHeader->begin(), std::prev(OuterLoopHeader->end())))
+    MayNeedLCSSAPhis.push_back(&I);
+  formLCSSAForInstructions(MayNeedLCSSAPhis, *DT, *LI, SE, Builder);
+
   return true;
-}
-
-void LoopInterchangeTransform::adjustLoopPreheaders() {
-  // We have interchanged the preheaders so we need to interchange the data in
-  // the preheader as well.
-  // This is because the content of inner preheader was previously executed
-  // inside the outer loop.
-  BasicBlock *OuterLoopPreHeader = OuterLoop->getLoopPreheader();
-  BasicBlock *InnerLoopPreHeader = InnerLoop->getLoopPreheader();
-  BasicBlock *OuterLoopHeader = OuterLoop->getHeader();
-  BranchInst *InnerTermBI =
-      cast<BranchInst>(InnerLoopPreHeader->getTerminator());
-
-  // These instructions should now be executed inside the loop.
-  // Move instruction into a new block after outer header.
-  moveBBContents(InnerLoopPreHeader, OuterLoopHeader->getTerminator());
-  // These instructions were not executed previously in the loop so move them to
-  // the older inner loop preheader.
-  moveBBContents(OuterLoopPreHeader, InnerTermBI);
 }
 
 bool LoopInterchangeTransform::adjustLoopLinks() {
   // Adjust all branches in the inner and outer loop.
   bool Changed = adjustLoopBranches();
-  if (Changed)
-    adjustLoopPreheaders();
+  if (Changed) {
+    // We have interchanged the preheaders so we need to interchange the data in
+    // the preheaders as well. This is because the content of the inner
+    // preheader was previously executed inside the outer loop.
+    BasicBlock *OuterLoopPreHeader = OuterLoop->getLoopPreheader();
+    BasicBlock *InnerLoopPreHeader = InnerLoop->getLoopPreheader();
+    swapBBContents(OuterLoopPreHeader, InnerLoopPreHeader);
+  }
   return Changed;
 }
 
-char LoopInterchange::ID = 0;
+/// Main LoopInterchange Pass.
+struct LoopInterchangeLegacyPass : public LoopPass {
+  static char ID;
 
-INITIALIZE_PASS_BEGIN(LoopInterchange, "loop-interchange",
+  LoopInterchangeLegacyPass() : LoopPass(ID) {
+    initializeLoopInterchangeLegacyPassPass(*PassRegistry::getPassRegistry());
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<DependenceAnalysisWrapperPass>();
+    AU.addRequired<OptimizationRemarkEmitterWrapperPass>();
+
+    getLoopAnalysisUsage(AU);
+  }
+
+  bool runOnLoop(Loop *L, LPPassManager &LPM) override {
+    if (skipLoop(L))
+      return false;
+
+    auto *SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
+    auto *LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+    auto *DI = &getAnalysis<DependenceAnalysisWrapperPass>().getDI();
+    auto *DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+    auto *ORE = &getAnalysis<OptimizationRemarkEmitterWrapperPass>().getORE();
+
+    return LoopInterchange(SE, LI, DI, DT, ORE).run(L);
+  }
+};
+
+char LoopInterchangeLegacyPass::ID = 0;
+
+INITIALIZE_PASS_BEGIN(LoopInterchangeLegacyPass, "loop-interchange",
                       "Interchanges loops for cache reuse", false, false)
 INITIALIZE_PASS_DEPENDENCY(LoopPass)
 INITIALIZE_PASS_DEPENDENCY(DependenceAnalysisWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(OptimizationRemarkEmitterWrapperPass)
 
-INITIALIZE_PASS_END(LoopInterchange, "loop-interchange",
+INITIALIZE_PASS_END(LoopInterchangeLegacyPass, "loop-interchange",
                     "Interchanges loops for cache reuse", false, false)
 
-Pass *llvm::createLoopInterchangePass() { return new LoopInterchange(); }
+Pass *llvm::createLoopInterchangePass() {
+  return new LoopInterchangeLegacyPass();
+}
+
+PreservedAnalyses LoopInterchangePass::run(Loop &L, LoopAnalysisManager &AM,
+                                           LoopStandardAnalysisResults &AR,
+                                           LPMUpdater &U) {
+  Function &F = *L.getHeader()->getParent();
+
+  DependenceInfo DI(&F, &AR.AA, &AR.SE, &AR.LI);
+  OptimizationRemarkEmitter ORE(&F);
+  if (!LoopInterchange(&AR.SE, &AR.LI, &DI, &AR.DT, &ORE).run(&L))
+    return PreservedAnalyses::all();
+  return getLoopPassPreservedAnalyses();
+}

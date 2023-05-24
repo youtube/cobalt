@@ -1,4 +1,4 @@
-//===-- NativeRegisterContextLinux_mips64.cpp ---------------*- C++ -*-===//
+//===-- NativeRegisterContextLinux_mips64.cpp -----------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -104,8 +104,8 @@ CreateRegisterInfoInterface(const ArchSpec &target_arch) {
 
 NativeRegisterContextLinux_mips64::NativeRegisterContextLinux_mips64(
     const ArchSpec &target_arch, NativeThreadProtocol &native_thread)
-    : NativeRegisterContextLinux(native_thread,
-                                 CreateRegisterInfoInterface(target_arch)) {
+    : NativeRegisterContextRegisterInfo(
+          native_thread, CreateRegisterInfoInterface(target_arch)) {
   switch (target_arch.GetMachine()) {
   case llvm::Triple::mips:
   case llvm::Triple::mipsel:
@@ -679,7 +679,7 @@ static int GetVacantWatchIndex(struct pt_watch_regs *regs, lldb::addr_t addr,
     }
 
     if (vacant_watches > 1) {
-      // Split this watchpoint accross several registers
+      // Split this watchpoint across several registers
       struct pt_watch_regs regs_copy;
       regs_copy = *regs;
       lldb::addr_t break_addr;

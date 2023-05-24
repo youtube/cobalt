@@ -5,35 +5,35 @@
 # RUN:     | llvm-objdump -d -M no-aliases - \
 # RUN:     | FileCheck -check-prefix=RELAX-INST %s
 # RUN: llvm-mc -filetype=obj -triple riscv32 -mattr=+relax < %s \
-# RUN:     | llvm-readobj -r | FileCheck -check-prefix=RELAX-RELOC %s
+# RUN:     | llvm-readobj -r - | FileCheck -check-prefix=RELAX-RELOC %s
 
 # Relaxation disabled:
 # RUN: llvm-mc -filetype=obj -triple riscv32 -mattr=-relax < %s \
 # RUN:     | llvm-objdump -d -M no-aliases - \
 # RUN:     | FileCheck -check-prefix=NORELAX-INST %s
 # RUN: llvm-mc -filetype=obj -triple riscv32 -mattr=-relax < %s \
-# RUN:     | llvm-readobj -r | FileCheck -check-prefix=NORELAX-RELOC %s
+# RUN:     | llvm-readobj -r - | FileCheck -check-prefix=NORELAX-RELOC %s
 
 # Relaxation enabled with C extension:
 # RUN: llvm-mc -filetype=obj -triple riscv32 -mattr=+c,+relax < %s \
 # RUN:     | llvm-objdump -d -M no-aliases - \
 # RUN:     | FileCheck -check-prefix=C-EXT-RELAX-INST %s
 # RUN: llvm-mc -filetype=obj -triple riscv32 -mattr=+c,+relax < %s \
-# RUN:     | llvm-readobj -r | FileCheck -check-prefix=C-EXT-RELAX-RELOC %s
+# RUN:     | llvm-readobj -r - | FileCheck -check-prefix=C-EXT-RELAX-RELOC %s
 
 # Relaxation disabled with C extension:
 # RUN: llvm-mc -filetype=obj -triple riscv32 -mattr=+c,-relax < %s \
 # RUN:     | llvm-objdump -d -M no-aliases - \
 # RUN:     | FileCheck -check-prefix=C-EXT-NORELAX-INST %s
 # RUN: llvm-mc -filetype=obj -triple riscv32 -mattr=+c,-relax < %s \
-# RUN:     | llvm-readobj -r | FileCheck -check-prefix=C-EXT-NORELAX-RELOC %s
+# RUN:     | llvm-readobj -r - | FileCheck -check-prefix=C-EXT-NORELAX-RELOC %s
 
 # We need to insert N-MinNopSize bytes NOPs and R_RISCV_ALIGN relocation
 # type for .align N directive when linker relaxation enabled.
 # Linker could satisfy alignment by removing NOPs after linker relaxation.
 
 # The first R_RISCV_ALIGN come from
-# MCELFStreamer::InitSections() EmitCodeAlignment(4).
+# MCELFStreamer::InitSections() emitCodeAlignment(4).
 # C-EXT-RELAX-RELOC: R_RISCV_ALIGN - 0x2
 # C-EXT-RELAX-INST:  c.nop
 test:

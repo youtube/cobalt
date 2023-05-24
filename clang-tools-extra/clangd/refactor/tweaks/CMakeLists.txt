@@ -12,6 +12,7 @@ set(LLVM_LINK_COMPONENTS
 # $<TARGET_OBJECTS:obj.clangDaemonTweaks> to a list of sources, see
 # clangd/tool/CMakeLists.txt for an example.
 add_clang_library(clangDaemonTweaks OBJECT
+  AddUsing.cpp
   AnnotateHighlightings.cpp
   DumpAST.cpp
   DefineInline.cpp
@@ -21,6 +22,7 @@ add_clang_library(clangDaemonTweaks OBJECT
   ExtractFunction.cpp
   ExtractVariable.cpp
   ObjCLocalizeStringLiteral.cpp
+  PopulateSwitch.cpp
   RawStringLiteral.cpp
   RemoveUsingNamespace.cpp
   SwapIfBranches.cpp
@@ -29,8 +31,13 @@ add_clang_library(clangDaemonTweaks OBJECT
   clangAST
   clangBasic
   clangDaemon
+  clangdSupport
+  clangFormat
   clangLex
   clangToolingCore
   clangToolingRefactoring
   clangToolingSyntax
+
+  DEPENDS
+  omp_gen
   )

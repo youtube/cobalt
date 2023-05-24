@@ -32,7 +32,7 @@ struct isl_iterator
   using ElementT = list_element_type<ListT>;
 
   explicit isl_iterator(const ListT &List)
-      : List(&List), Position(List.size()) {}
+      : List(&List), Position(std::max(List.size(), 0)) {}
   isl_iterator(const ListT &List, int Position)
       : List(&List), Position(Position) {}
   isl_iterator &operator=(const isl_iterator &R) = default;
@@ -477,6 +477,9 @@ isl::map intersectRange(isl::map Map, isl::union_set Range);
 ///
 /// @param The map with the parameter conditions removed.
 isl::map subtractParams(isl::map Map, isl::set Params);
+
+/// Subtract the parameter space @p Params from @p Set.
+isl::set subtractParams(isl::set Set, isl::set Params);
 
 /// If @p PwAff maps to a constant, return said constant. If @p Max/@p Min, it
 /// can also be a piecewise constant and it would return the minimum/maximum

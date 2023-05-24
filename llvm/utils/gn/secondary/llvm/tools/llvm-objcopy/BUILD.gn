@@ -2,6 +2,11 @@ import("//llvm/tools/binutils_symlinks.gni")
 import("//llvm/utils/TableGen/tablegen.gni")
 import("//llvm/utils/gn/build/symlink_or_copy.gni")
 
+tablegen("BitcodeStripOpts") {
+  visibility = [ ":llvm-objcopy" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
 tablegen("InstallNameToolOpts") {
   visibility = [ ":llvm-objcopy" ]
   args = [ "-gen-opt-parser-defs" ]
@@ -18,6 +23,7 @@ tablegen("StripOpts") {
 }
 
 symlinks = [
+  "llvm-bitcode-strip",
   "llvm-install-name-tool",
   "llvm-strip",
 ]
@@ -29,9 +35,7 @@ if (llvm_install_binutils_symlinks) {
 }
 foreach(target, symlinks) {
   symlink_or_copy(target) {
-    deps = [
-      ":llvm-objcopy",
-    ]
+    deps = [ ":llvm-objcopy" ]
     source = "llvm-objcopy"
     output = "$root_out_dir/bin/$target"
   }
@@ -47,6 +51,7 @@ group("symlinks") {
 
 executable("llvm-objcopy") {
   deps = [
+    ":BitcodeStripOpts",
     ":InstallNameToolOpts",
     ":ObjcopyOpts",
     ":StripOpts",
@@ -72,5 +77,9 @@ executable("llvm-objcopy") {
     "MachO/MachOWriter.cpp",
     "MachO/Object.cpp",
     "llvm-objcopy.cpp",
+    "wasm/Object.cpp",
+    "wasm/Reader.cpp",
+    "wasm/WasmObjcopy.cpp",
+    "wasm/Writer.cpp",
   ]
 }

@@ -10,7 +10,7 @@
 
 @.str = private constant [65 x i8] c"0123456789012345678901234567890123456789012345678901234567890123\00", align 1
 
-declare i32 @memcmp(i8*, i8*, i64)
+declare dso_local i32 @memcmp(i8*, i8*, i64)
 
 define i32 @length2(i8* %X, i8* %Y) nounwind minsize {
 ; X86-LABEL: length2:
@@ -612,7 +612,7 @@ define i1 @length32_eq(i8* %x, i8* %y) nounwind minsize {
 ; X64-AVX1:       # %bb.0:
 ; X64-AVX1-NEXT:    vmovups (%rdi), %ymm0
 ; X64-AVX1-NEXT:    vxorps (%rsi), %ymm0, %ymm0
-; X64-AVX1-NEXT:    vptest %ymm0, %ymm
+; X64-AVX1-NEXT:    vptest %ymm0, %ymm0
 ; X64-AVX1-NEXT:    sete %al
 ; X64-AVX1-NEXT:    vzeroupper
 ; X64-AVX1-NEXT:    retq
@@ -621,7 +621,7 @@ define i1 @length32_eq(i8* %x, i8* %y) nounwind minsize {
 ; X64-AVX2:       # %bb.0:
 ; X64-AVX2-NEXT:    vmovdqu (%rdi), %ymm0
 ; X64-AVX2-NEXT:    vpxor (%rsi), %ymm0, %ymm0
-; X64-AVX2-NEXT:    vptest %ymm0, %ymm
+; X64-AVX2-NEXT:    vptest %ymm0, %ymm0
 ; X64-AVX2-NEXT:    sete %al
 ; X64-AVX2-NEXT:    vzeroupper
 ; X64-AVX2-NEXT:    retq

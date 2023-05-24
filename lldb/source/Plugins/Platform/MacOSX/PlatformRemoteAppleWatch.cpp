@@ -1,4 +1,4 @@
-//===-- PlatformRemoteAppleWatch.cpp ----------------------------*- C++ -*-===//
+//===-- PlatformRemoteAppleWatch.cpp --------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -298,13 +298,10 @@ bool PlatformRemoteAppleWatch::GetSupportedArchitectureAtIndex(uint32_t idx,
   return false;
 }
 
-void PlatformRemoteAppleWatch::GetDeviceSupportDirectoryNames (std::vector<std::string> &dirnames) 
-{
-    dirnames.clear();
-    dirnames.push_back("watchOS DeviceSupport");
+llvm::StringRef PlatformRemoteAppleWatch::GetDeviceSupportDirectoryName() {
+  return "watchOS DeviceSupport";
 }
 
-std::string PlatformRemoteAppleWatch::GetPlatformName ()
-{
-    return "WatchOS.platform";
+llvm::StringRef PlatformRemoteAppleWatch::GetPlatformName() {
+  return "WatchOS.platform";
 }

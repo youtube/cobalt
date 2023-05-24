@@ -64,19 +64,18 @@ std::string printName(const ASTContext &Ctx, const NamedDecl &ND);
 /// string if decl is not a template specialization.
 std::string printTemplateSpecializationArgs(const NamedDecl &ND);
 
-/// Gets the symbol ID for a declaration, if possible.
-llvm::Optional<SymbolID> getSymbolID(const Decl *D);
+/// Gets the symbol ID for a declaration. Returned SymbolID might be null.
+SymbolID getSymbolID(const Decl *D);
 
-/// Gets the symbol ID for a macro, if possible.
+/// Gets the symbol ID for a macro. Returned SymbolID might be null.
 /// Currently, this is an encoded USR of the macro, which incorporates macro
 /// locations (e.g. file name, offset in file).
 /// FIXME: the USR semantics might not be stable enough as the ID for index
 /// macro (e.g. a change in definition offset can result in a different USR). We
 /// could change these semantics in the future by reimplementing this funcure
 /// (e.g. avoid USR for macros).
-llvm::Optional<SymbolID> getSymbolID(const llvm::StringRef MacroName,
-                                     const MacroInfo *MI,
-                                     const SourceManager &SM);
+SymbolID getSymbolID(const llvm::StringRef MacroName, const MacroInfo *MI,
+                     const SourceManager &SM);
 
 /// Returns a QualType as string. The result doesn't contain unwritten scopes
 /// like anonymous/inline namespace.
@@ -109,8 +108,8 @@ NestedNameSpecifierLoc getQualifierLoc(const NamedDecl &ND);
 QualType declaredType(const TypeDecl *D);
 
 /// Retrieves the deduced type at a given location (auto, decltype).
-/// Retuns None unless Loc starts an auto/decltype token.
 /// It will return the underlying type.
+/// If the type is an undeduced auto, returns the type itself.
 llvm::Optional<QualType> getDeducedType(ASTContext &, SourceLocation Loc);
 
 /// Gets the nested name specifier necessary for spelling \p ND in \p
@@ -147,6 +146,21 @@ std::string getQualification(ASTContext &Context,
                              const DeclContext *DestContext,
                              const NamedDecl *ND,
                              llvm::ArrayRef<std::string> VisibleNamespaces);
+
+/// Whether we must avoid computing linkage for D during code completion.
+/// Clang aggressively caches linkage computation, which is stable after the AST
+/// is built. Unfortunately the AST is incomplete during code completion, so
+/// linkage may still change.
+///
+/// Example: `auto x = []{^}` at file scope.
+/// During code completion, the initializer for x hasn't been parsed yet.
+/// x has type `undeduced auto`, and external linkage.
+/// If we compute linkage at this point, the external linkage will be cached.
+///
+/// After code completion the initializer is attached, and x has a lambda type.
+/// This means x has "unique external" linkage. If we computed linkage above,
+/// the cached value is incorrect. (clang catches this with an assertion).
+bool hasUnstableLinkage(const Decl *D);
 
 } // namespace clangd
 } // namespace clang

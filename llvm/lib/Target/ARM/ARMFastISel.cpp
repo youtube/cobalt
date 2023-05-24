@@ -48,7 +48,6 @@
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Attributes.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
@@ -209,7 +208,7 @@ class ARMFastISel final : public FastISel {
     unsigned ARMMoveToFPReg(MVT VT, unsigned SrcReg);
     unsigned ARMMoveToIntReg(MVT VT, unsigned SrcReg);
     unsigned ARMSelectCallOp(bool UseReg);
-    unsigned ARMLowerPICELF(const GlobalValue *GV, unsigned Align, MVT VT);
+    unsigned ARMLowerPICELF(const GlobalValue *GV, MVT VT);
 
     const TargetLowering *getTargetLowering() { return &TLI; }
 
@@ -444,12 +443,8 @@ unsigned ARMFastISel::ARMMaterializeFP(const ConstantFP *CFP, MVT VT) {
   if (!Subtarget->hasVFP2Base()) return false;
 
   // MachineConstantPool wants an explicit alignment.
-  unsigned Align = DL.getPrefTypeAlignment(CFP->getType());
-  if (Align == 0) {
-    // TODO: Figure out if this is correct.
-    Align = DL.getTypeAllocSize(CFP->getType());
-  }
-  unsigned Idx = MCP.getConstantPoolIndex(cast<Constant>(CFP), Align);
+  Align Alignment = DL.getPrefTypeAlign(CFP->getType());
+  unsigned Idx = MCP.getConstantPoolIndex(cast<Constant>(CFP), Alignment);
   unsigned DestReg = createResultReg(TLI.getRegClassFor(VT));
   unsigned Opc = is64bit ? ARM::VLDRD : ARM::VLDRS;
 
@@ -508,12 +503,8 @@ unsigned ARMFastISel::ARMMaterializeInt(const Constant *C, MVT VT) {
     return 0;
 
   // MachineConstantPool wants an explicit alignment.
-  unsigned Align = DL.getPrefTypeAlignment(C->getType());
-  if (Align == 0) {
-    // TODO: Figure out if this is correct.
-    Align = DL.getTypeAllocSize(C->getType());
-  }
-  unsigned Idx = MCP.getConstantPoolIndex(C, Align);
+  Align Alignment = DL.getPrefTypeAlign(C->getType());
+  unsigned Idx = MCP.getConstantPoolIndex(C, Alignment);
   ResultReg = createResultReg(TLI.getRegClassFor(VT));
   if (isThumb2)
     AddOptionalDefs(BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
@@ -570,14 +561,10 @@ unsigned ARMFastISel::ARMMaterializeGV(const GlobalValue *GV, MVT VT) {
                             TII.get(Opc), DestReg).addGlobalAddress(GV, 0, TF));
   } else {
     // MachineConstantPool wants an explicit alignment.
-    unsigned Align = DL.getPrefTypeAlignment(GV->getType());
-    if (Align == 0) {
-      // TODO: Figure out if this is correct.
-      Align = DL.getTypeAllocSize(GV->getType());
-    }
+    Align Alignment = DL.getPrefTypeAlign(GV->getType());
 
     if (Subtarget->isTargetELF() && IsPositionIndependent)
-      return ARMLowerPICELF(GV, Align, VT);
+      return ARMLowerPICELF(GV, VT);
 
     // Grab index.
     unsigned PCAdj = IsPositionIndependent ? (Subtarget->isThumb() ? 4 : 8) : 0;
@@ -585,7 +572,7 @@ unsigned ARMFastISel::ARMMaterializeGV(const GlobalValue *GV, MVT VT) {
     ARMConstantPoolValue *CPV = ARMConstantPoolConstant::Create(GV, Id,
                                                                 ARMCP::CPValue,
                                                                 PCAdj);
-    unsigned Idx = MCP.getConstantPoolIndex(CPV, Align);
+    unsigned Idx = MCP.getConstantPoolIndex(CPV, Alignment);
 
     // Load value.
     MachineInstrBuilder MIB;
@@ -619,7 +606,9 @@ unsigned ARMFastISel::ARMMaterializeGV(const GlobalValue *GV, MVT VT) {
     }
   }
 
-  if (IsIndirect) {
+  if ((Subtarget->isTargetELF() && Subtarget->isGVInGOT(GV)) ||
+      (Subtarget->isTargetMachO() && IsIndirect) ||
+      Subtarget->genLongCalls()) {
     MachineInstrBuilder MIB;
     unsigned NewDestReg = createResultReg(TLI.getRegClassFor(VT));
     if (isThumb2)
@@ -882,7 +871,7 @@ void ARMFastISel::AddLoadStoreOperands(MVT VT, Address &Addr,
     int Offset = Addr.Offset;
     MachineMemOperand *MMO = FuncInfo.MF->getMachineMemOperand(
         MachinePointerInfo::getFixedStack(*FuncInfo.MF, FI, Offset), Flags,
-        MFI.getObjectSize(FI), MFI.getObjectAlignment(FI));
+        MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
     // Now add the rest of the operands.
     MIB.addFrameIndex(FI);
 
@@ -2090,6 +2079,7 @@ bool ARMFastISel::FinishCall(MVT RetVT, SmallVectorImpl<Register> &UsedRegs,
 bool ARMFastISel::SelectRet(const Instruction *I) {
   const ReturnInst *Ret = cast<ReturnInst>(I);
   const Function &F = *I->getParent()->getParent();
+  const bool IsCmseNSEntry = F.hasFnAttribute("cmse_nonsecure_entry");
 
   if (!FuncInfo.CanLowerReturn)
     return false;
@@ -2166,8 +2156,17 @@ bool ARMFastISel::SelectRet(const Instruction *I) {
     RetRegs.push_back(VA.getLocReg());
   }
 
+  unsigned RetOpc;
+  if (IsCmseNSEntry)
+    if (isThumb2)
+      RetOpc = ARM::tBXNS_RET;
+    else
+      llvm_unreachable("CMSE not valid for non-Thumb targets");
+  else
+    RetOpc = Subtarget->getReturnOpcode();
+
   MachineInstrBuilder MIB = BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
-                                    TII.get(Subtarget->getReturnOpcode()));
+                                    TII.get(RetOpc));
   AddOptionalDefs(MIB);
   for (unsigned R : RetRegs)
     MIB.addReg(R, RegState::Implicit);
@@ -2176,7 +2175,7 @@ bool ARMFastISel::SelectRet(const Instruction *I) {
 
 unsigned ARMFastISel::ARMSelectCallOp(bool UseReg) {
   if (UseReg)
-    return isThumb2 ? ARM::tBLXr : ARM::BLX;
+    return isThumb2 ? gettBLXrOpcode(*MF) : getBLXOpcode(*MF);
   else
     return isThumb2 ? ARM::tBL : ARM::BL;
 }
@@ -2239,7 +2238,7 @@ bool ARMFastISel::ARMEmitLibcall(const Instruction *I, RTLIB::Libcall Call) {
     if (!isTypeLegal(ArgTy, ArgVT)) return false;
 
     ISD::ArgFlagsTy Flags;
-    Flags.setOrigAlign(Align(DL.getABITypeAlignment(ArgTy)));
+    Flags.setOrigAlign(DL.getABITypeAlign(ArgTy));
 
     Args.push_back(Op);
     ArgRegs.push_back(Arg);
@@ -2267,9 +2266,11 @@ bool ARMFastISel::ARMEmitLibcall(const Instruction *I, RTLIB::Libcall Call) {
   // BL / BLX don't take a predicate, but tBL / tBLX do.
   if (isThumb2)
     MIB.add(predOps(ARMCC::AL));
-  if (Subtarget->genLongCalls())
+  if (Subtarget->genLongCalls()) {
+    CalleeReg =
+        constrainOperandRegClass(TII.get(CallOpc), CalleeReg, isThumb2 ? 2 : 0);
     MIB.addReg(CalleeReg);
-  else
+  } else
     MIB.addExternalSymbol(TLI.getLibcallName(Call));
 
   // Add implicit physical register uses to the call.
@@ -2293,7 +2294,7 @@ bool ARMFastISel::ARMEmitLibcall(const Instruction *I, RTLIB::Libcall Call) {
 bool ARMFastISel::SelectCall(const Instruction *I,
                              const char *IntrMemName = nullptr) {
   const CallInst *CI = cast<CallInst>(I);
-  const Value *Callee = CI->getCalledValue();
+  const Value *Callee = CI->getCalledOperand();
 
   // Can't handle inline asm.
   if (isa<InlineAsm>(Callee)) return false;
@@ -2302,12 +2303,11 @@ bool ARMFastISel::SelectCall(const Instruction *I,
   if (CI->isTailCall()) return false;
 
   // Check the calling convention.
-  ImmutableCallSite CS(CI);
-  CallingConv::ID CC = CS.getCallingConv();
+  CallingConv::ID CC = CI->getCallingConv();
 
   // TODO: Avoid some calling conventions?
 
-  FunctionType *FTy = CS.getFunctionType();
+  FunctionType *FTy = CI->getFunctionType();
   bool isVarArg = FTy->isVarArg();
 
   // Handle *simple* calls for now.
@@ -2334,47 +2334,46 @@ bool ARMFastISel::SelectCall(const Instruction *I,
   SmallVector<Register, 8> ArgRegs;
   SmallVector<MVT, 8> ArgVTs;
   SmallVector<ISD::ArgFlagsTy, 8> ArgFlags;
-  unsigned arg_size = CS.arg_size();
+  unsigned arg_size = CI->arg_size();
   Args.reserve(arg_size);
   ArgRegs.reserve(arg_size);
   ArgVTs.reserve(arg_size);
   ArgFlags.reserve(arg_size);
-  for (ImmutableCallSite::arg_iterator i = CS.arg_begin(), e = CS.arg_end();
-       i != e; ++i) {
+  for (auto ArgI = CI->arg_begin(), ArgE = CI->arg_end(); ArgI != ArgE; ++ArgI) {
     // If we're lowering a memory intrinsic instead of a regular call, skip the
     // last argument, which shouldn't be passed to the underlying function.
-    if (IntrMemName && e - i <= 1)
+    if (IntrMemName && ArgE - ArgI <= 1)
       break;
 
     ISD::ArgFlagsTy Flags;
-    unsigned ArgIdx = i - CS.arg_begin();
-    if (CS.paramHasAttr(ArgIdx, Attribute::SExt))
+    unsigned ArgIdx = ArgI - CI->arg_begin();
+    if (CI->paramHasAttr(ArgIdx, Attribute::SExt))
       Flags.setSExt();
-    if (CS.paramHasAttr(ArgIdx, Attribute::ZExt))
+    if (CI->paramHasAttr(ArgIdx, Attribute::ZExt))
       Flags.setZExt();
 
     // FIXME: Only handle *easy* calls for now.
-    if (CS.paramHasAttr(ArgIdx, Attribute::InReg) ||
-        CS.paramHasAttr(ArgIdx, Attribute::StructRet) ||
-        CS.paramHasAttr(ArgIdx, Attribute::SwiftSelf) ||
-        CS.paramHasAttr(ArgIdx, Attribute::SwiftError) ||
-        CS.paramHasAttr(ArgIdx, Attribute::Nest) ||
-        CS.paramHasAttr(ArgIdx, Attribute::ByVal))
+    if (CI->paramHasAttr(ArgIdx, Attribute::InReg) ||
+        CI->paramHasAttr(ArgIdx, Attribute::StructRet) ||
+        CI->paramHasAttr(ArgIdx, Attribute::SwiftSelf) ||
+        CI->paramHasAttr(ArgIdx, Attribute::SwiftError) ||
+        CI->paramHasAttr(ArgIdx, Attribute::Nest) ||
+        CI->paramHasAttr(ArgIdx, Attribute::ByVal))
       return false;
 
-    Type *ArgTy = (*i)->getType();
+    Type *ArgTy = (*ArgI)->getType();
     MVT ArgVT;
     if (!isTypeLegal(ArgTy, ArgVT) && ArgVT != MVT::i16 && ArgVT != MVT::i8 &&
         ArgVT != MVT::i1)
       return false;
 
-    Register Arg = getRegForValue(*i);
+    Register Arg = getRegForValue(*ArgI);
     if (!Arg.isValid())
       return false;
 
-    Flags.setOrigAlign(Align(DL.getABITypeAlignment(ArgTy)));
+    Flags.setOrigAlign(DL.getABITypeAlign(ArgTy));
 
-    Args.push_back(*i);
+    Args.push_back(*ArgI);
     ArgRegs.push_back(Arg);
     ArgVTs.push_back(ArgVT);
     ArgFlags.push_back(Flags);
@@ -2409,9 +2408,11 @@ bool ARMFastISel::SelectCall(const Instruction *I,
   // ARM calls don't take a predicate, but tBL / tBLX do.
   if(isThumb2)
     MIB.add(predOps(ARMCC::AL));
-  if (UseReg)
+  if (UseReg) {
+    CalleeReg =
+        constrainOperandRegClass(TII.get(CallOpc), CalleeReg, isThumb2 ? 2 : 0);
     MIB.addReg(CalleeReg);
-  else if (!IntrMemName)
+  } else if (!IntrMemName)
     MIB.addGlobalAddress(GV, 0, 0);
   else
     MIB.addExternalSymbol(IntrMemName, 0);
@@ -2949,8 +2950,7 @@ bool ARMFastISel::tryToFoldLoadIntoMI(MachineInstr *MI, unsigned OpNo,
   return true;
 }
 
-unsigned ARMFastISel::ARMLowerPICELF(const GlobalValue *GV,
-                                     unsigned Align, MVT VT) {
+unsigned ARMFastISel::ARMLowerPICELF(const GlobalValue *GV, MVT VT) {
   bool UseGOT_PREL = !TM.shouldAssumeDSOLocal(*GV->getParent(), GV);
 
   LLVMContext *Context = &MF->getFunction().getContext();
@@ -2961,12 +2961,12 @@ unsigned ARMFastISel::ARMLowerPICELF(const GlobalValue *GV,
       UseGOT_PREL ? ARMCP::GOT_PREL : ARMCP::no_modifier,
       /*AddCurrentAddress=*/UseGOT_PREL);
 
-  unsigned ConstAlign =
-      MF->getDataLayout().getPrefTypeAlignment(Type::getInt32PtrTy(*Context));
+  Align ConstAlign =
+      MF->getDataLayout().getPrefTypeAlign(Type::getInt32PtrTy(*Context));
   unsigned Idx = MF->getConstantPool()->getConstantPoolIndex(CPV, ConstAlign);
   MachineMemOperand *CPMMO =
       MF->getMachineMemOperand(MachinePointerInfo::getConstantPool(*MF),
-                               MachineMemOperand::MOLoad, 4, 4);
+                               MachineMemOperand::MOLoad, 4, Align(4));
 
   Register TempReg = MF->getRegInfo().createVirtualRegister(&ARM::rGPRRegClass);
   unsigned Opc = isThumb2 ? ARM::t2LDRpci : ARM::LDRcp;

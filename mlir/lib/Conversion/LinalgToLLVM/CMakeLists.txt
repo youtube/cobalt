@@ -1,16 +1,26 @@
-add_llvm_library(MLIRLinalgToLLVM
+add_mlir_conversion_library(MLIRLinalgToLLVM
   LinalgToLLVM.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Conversion/LinalgToLLVM
-)
-set(LIBS
+
+  DEPENDS
+  MLIRConversionPassIncGen
+  MLIRLinalgPassIncGen
+  intrinsics_gen
+
+  LINK_COMPONENTS
+  Core
+
+  LINK_LIBS PUBLIC
+  MLIRAffineToStandard
+  MLIREDSC
+  MLIRIR
   MLIRLinalg
   MLIRLLVMIR
+  MLIRSCFToStandard
+  MLIRStandardToLLVM
   MLIRTransforms
-  LLVMCore
-  LLVMSupport
+  MLIRVectorToLLVM
+  MLIRVectorToSCF
   )
-
-add_dependencies(MLIRLinalgToLLVM ${LIBS})
-target_link_libraries(MLIRLinalgToLLVM ${LIBS})

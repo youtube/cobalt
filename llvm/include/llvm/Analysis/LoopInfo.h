@@ -60,7 +60,6 @@ class Loop;
 class InductionDescriptor;
 class MDNode;
 class MemorySSAUpdater;
-class PHINode;
 class ScalarEvolution;
 class raw_ostream;
 template <class N, bool IsPostDom> class DominatorTreeBase;
@@ -103,6 +102,14 @@ public:
     return D;
   }
   BlockT *getHeader() const { return getBlocks().front(); }
+  /// Return the parent loop if it exists or nullptr for top
+  /// level loops.
+
+  /// A loop is either top-level in a function (that is, it is not
+  /// contained in any other loop) or it is entirely enclosed in
+  /// some other loop.
+  /// If a loop is top-level, it has no parent, otherwise its
+  /// parent is the innermost loop in which it is enclosed.
   LoopT *getParentLoop() const { return ParentLoop; }
 
   /// This is a raw interface for bypassing addChildLoop.
@@ -148,7 +155,17 @@ public:
   iterator end() const { return getSubLoops().end(); }
   reverse_iterator rbegin() const { return getSubLoops().rbegin(); }
   reverse_iterator rend() const { return getSubLoops().rend(); }
-  bool empty() const { return getSubLoops().empty(); }
+
+  // LoopInfo does not detect irreducible control flow, just natural
+  // loops. That is, it is possible that there is cyclic control
+  // flow within the "innermost loop" or around the "outermost
+  // loop".
+
+  /// Return true if the loop does not contain any (natural) loops.
+  bool isInnermost() const { return getSubLoops().empty(); }
+  /// Return true if the loop does not have a parent (natural) loop
+  // (i.e. it is outermost, which is the same as top-level).
+  bool isOutermost() const { return getParentLoop() == nullptr; }
 
   /// Get a list of the basic blocks which make up this loop.
   ArrayRef<BlockT *> getBlocks() const {
@@ -284,6 +301,9 @@ public:
   /// If getUniqueExitBlocks would return exactly one block, return that block.
   /// Otherwise return null.
   BlockT *getUniqueExitBlock() const;
+
+  /// Return true if this loop does not have any exit blocks.
+  bool hasNoExitBlocks() const;
 
   /// Edge type.
   typedef std::pair<BlockT *, BlockT *> Edge;
@@ -772,10 +792,11 @@ public:
   bool isCanonical(ScalarEvolution &SE) const;
 
   /// Return true if the Loop is in LCSSA form.
-  bool isLCSSAForm(DominatorTree &DT) const;
+  bool isLCSSAForm(const DominatorTree &DT) const;
 
   /// Return true if this Loop and all inner subloops are in LCSSA form.
-  bool isRecursivelyLCSSAForm(DominatorTree &DT, const LoopInfo &LI) const;
+  bool isRecursivelyLCSSAForm(const DominatorTree &DT,
+                              const LoopInfo &LI) const;
 
   /// Return true if the Loop is in the form that the LoopSimplify form
   /// transforms loops to, which is sometimes called normal form.
@@ -821,6 +842,9 @@ public:
   /// from being unrolled more than is directed by a pragma if the loop
   /// unrolling pass is run more than once (which it generally is).
   void setLoopAlreadyUnrolled();
+
+  /// Add llvm.loop.mustprogress to this loop's loop id metadata.
+  void setLoopMustProgress();
 
   void dump() const;
   void dumpVerbose() const;
@@ -954,13 +978,19 @@ public:
     return L && L->getHeader() == BB;
   }
 
+  /// Return the top-level loops.
+  const std::vector<LoopT *> &getTopLevelLoops() const { return TopLevelLoops; }
+
+  /// Return the top-level loops.
+  std::vector<LoopT *> &getTopLevelLoopsVector() { return TopLevelLoops; }
+
   /// This removes the specified top-level loop from this loop info object.
   /// The loop is not deleted, as it will presumably be inserted into
   /// another loop.
   LoopT *removeLoop(iterator I) {
     assert(I != end() && "Cannot remove end iterator!");
     LoopT *L = *I;
-    assert(!L->getParentLoop() && "Not a top-level loop!");
+    assert(L->isOutermost() && "Not a top-level loop!");
     TopLevelLoops.erase(TopLevelLoops.begin() + (I - begin()));
     return L;
   }
@@ -988,7 +1018,7 @@ public:
 
   /// This adds the specified loop to the collection of top-level loops.
   void addTopLevelLoop(LoopT *New) {
-    assert(!New->getParentLoop() && "Loop already in subloop!");
+    assert(New->isOutermost() && "Loop already in subloop!");
     TopLevelLoops.push_back(New);
   }
 

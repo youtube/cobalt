@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_unittests_Host_NativeProcessTestUtils_h_
-#define lldb_unittests_Host_NativeProcessTestUtils_h_
+#ifndef LLDB_UNITTESTS_TESTINGSUPPORT_HOST_NATIVEPROCESSTESTUTILS_H
+#define LLDB_UNITTESTS_TESTINGSUPPORT_HOST_NATIVEPROCESSTESTUTILS_H
 
 #include "lldb/Host/common/NativeProcessProtocol.h"
 #include "llvm/Testing/Support/Error.h"
@@ -41,9 +41,6 @@ public:
   MOCK_METHOD0(Detach, Status());
   MOCK_METHOD1(Signal, Status(int Signo));
   MOCK_METHOD0(Kill, Status());
-  MOCK_METHOD3(AllocateMemory,
-               Status(size_t Size, uint32_t Permissions, addr_t &Addr));
-  MOCK_METHOD1(DeallocateMemory, Status(addr_t Addr));
   MOCK_METHOD0(GetSharedLibraryInfoAddress, addr_t());
   MOCK_METHOD0(UpdateThreads, size_t());
   MOCK_CONST_METHOD0(GetAuxvData,

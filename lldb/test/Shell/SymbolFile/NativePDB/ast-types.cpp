@@ -1,8 +1,9 @@
 // clang-format off
-// REQUIRES: lld
+// REQUIRES: lld, x86
 
 // Test various interesting cases for AST reconstruction.
-// RUN: %build --compiler=clang-cl --nodefaultlib -o %t.exe -- %s
+// RUN: %clang_cl --target=x86_64-windows-msvc -Od -Z7 -c /Fo%t.obj -- %s
+// RUN: lld-link -debug:full -nodefaultlib -entry:main %t.obj -out:%t.exe -pdb:%t.pdb
 // RUN: env LLDB_USE_NATIVE_PDB_READER=1 %lldb -f %t.exe -s \
 // RUN:     %p/Inputs/ast-types.lldbinit 2>&1 | FileCheck %s
 
@@ -102,9 +103,9 @@ Anonymous<A::B::C<void>>::D AnonABCVoidD;
 // CHECK: (A::C<-1>::D) ACNeg1D = (ACDMember = 0, CPtr = 0x{{0+}})
 // CHECK: (A::D) AD = {}
 // CHECK: (A::D::E) ADE = (ADDMember = 0)
-// CHECK: ((anonymous namespace)::Anonymous<int>) AnonInt = (AnonymousMember = 0)
-// CHECK: ((anonymous namespace)::Anonymous<A::B::C<void>>) AnonABCVoid = (AnonymousMember = 0)
-// CHECK: ((anonymous namespace)::Anonymous<A::B::C<void>>::D) AnonABCVoidD = (AnonymousDMember = 0)
+// CHECK: (Anonymous<int>) AnonInt = (AnonymousMember = 0)
+// CHECK: (Anonymous<A::B::C<void>>) AnonABCVoid = (AnonymousMember = 0)
+// CHECK: (Anonymous<A::B::C<void>>::D) AnonABCVoidD = (AnonymousDMember = 0)
 // CHECK: Dumping clang ast for 1 modules.
 // CHECK: TranslationUnitDecl {{.*}}
 // CHECK: |-CXXRecordDecl {{.*}} class TrivialC definition

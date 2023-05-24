@@ -88,6 +88,7 @@
 #include "llvm/IR/DerivedUser.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
@@ -108,6 +109,7 @@ namespace llvm {
 /// Enables memory ssa as a dependency for loop passes.
 extern cl::opt<bool> EnableMSSALoopDependency;
 
+class AllocaInst;
 class Function;
 class Instruction;
 class MemoryAccess;
@@ -270,7 +272,7 @@ public:
   // Retrieve AliasResult type of the optimized access. Ideally this would be
   // returned by the caching walker and may go away in the future.
   Optional<AliasResult> getOptimizedAccessType() const {
-    return OptimizedAccessAlias;
+    return isOptimized() ? OptimizedAccessAlias : None;
   }
 
   /// Reset the ID of what this MemoryUse was optimized to, causing it to
@@ -499,14 +501,11 @@ public:
   using const_block_iterator = BasicBlock *const *;
 
   block_iterator block_begin() {
-    auto *Ref = reinterpret_cast<Use::UserRef *>(op_begin() + ReservedSpace);
-    return reinterpret_cast<block_iterator>(Ref + 1);
+    return reinterpret_cast<block_iterator>(op_begin() + ReservedSpace);
   }
 
   const_block_iterator block_begin() const {
-    const auto *Ref =
-        reinterpret_cast<const Use::UserRef *>(op_begin() + ReservedSpace);
-    return reinterpret_cast<const_block_iterator>(Ref + 1);
+    return reinterpret_cast<const_block_iterator>(op_begin() + ReservedSpace);
   }
 
   block_iterator block_end() { return block_begin() + getNumOperands(); }
@@ -726,6 +725,8 @@ public:
     return cast_or_null<MemoryPhi>(ValueToMemoryAccess.lookup(cast<Value>(BB)));
   }
 
+  DominatorTree &getDomTree() const { return *DT; }
+
   void dump() const;
   void print(raw_ostream &) const;
 
@@ -841,7 +842,6 @@ private:
 
   CachingWalker<AliasAnalysis> *getWalkerImpl();
   void buildMemorySSA(BatchAAResults &BAA);
-  void optimizeUses();
 
   void prepareForMoveTo(MemoryAccess *, BasicBlock *);
   void verifyUseInDefs(MemoryAccess *, MemoryAccess *) const;
@@ -849,15 +849,11 @@ private:
   using AccessMap = DenseMap<const BasicBlock *, std::unique_ptr<AccessList>>;
   using DefsMap = DenseMap<const BasicBlock *, std::unique_ptr<DefsList>>;
 
-  void
-  determineInsertionPoint(const SmallPtrSetImpl<BasicBlock *> &DefiningBlocks);
   void markUnreachableAsLiveOnEntry(BasicBlock *BB);
-  bool dominatesUse(const MemoryAccess *, const MemoryAccess *) const;
   MemoryPhi *createMemoryPhi(BasicBlock *BB);
   template <typename AliasAnalysisType>
   MemoryUseOrDef *createNewAccess(Instruction *, AliasAnalysisType *,
                                   const MemoryUseOrDef *Template = nullptr);
-  MemoryAccess *findDominatingDef(BasicBlock *, enum InsertionPlace);
   void placePHINodes(const SmallPtrSetImpl<BasicBlock *> &);
   MemoryAccess *renameBlock(BasicBlock *, MemoryAccess *, bool);
   void renameSuccessorPhis(BasicBlock *, MemoryAccess *, bool);
@@ -1182,9 +1178,11 @@ class upward_defs_iterator
   using BaseT = upward_defs_iterator::iterator_facade_base;
 
 public:
-  upward_defs_iterator(const MemoryAccessPair &Info)
+  upward_defs_iterator(const MemoryAccessPair &Info, DominatorTree *DT,
+                       bool *PerformedPhiTranslation = nullptr)
       : DefIterator(Info.first), Location(Info.second),
-        OriginalAccess(Info.first) {
+        OriginalAccess(Info.first), DT(DT),
+        PerformedPhiTranslation(PerformedPhiTranslation) {
     CurrentPair.first = nullptr;
 
     WalkingPhi = Info.first && isa<MemoryPhi>(Info.first);
@@ -1216,39 +1214,67 @@ public:
   BasicBlock *getPhiArgBlock() const { return DefIterator.getPhiArgBlock(); }
 
 private:
+  /// Returns true if \p Ptr is guaranteed to be loop invariant for any possible
+  /// loop. In particular, this guarantees that it only references a single
+  /// MemoryLocation during execution of the containing function.
+  bool IsGuaranteedLoopInvariant(Value *Ptr) const;
+
   void fillInCurrentPair() {
     CurrentPair.first = *DefIterator;
+    CurrentPair.second = Location;
     if (WalkingPhi && Location.Ptr) {
+      // Mark size as unknown, if the location is not guaranteed to be
+      // loop-invariant for any possible loop in the function. Setting the size
+      // to unknown guarantees that any memory accesses that access locations
+      // after the pointer are considered as clobbers, which is important to
+      // catch loop carried dependences.
+      if (Location.Ptr &&
+          !IsGuaranteedLoopInvariant(const_cast<Value *>(Location.Ptr)))
+        CurrentPair.second =
+            Location.getWithNewSize(LocationSize::beforeOrAfterPointer());
       PHITransAddr Translator(
           const_cast<Value *>(Location.Ptr),
           OriginalAccess->getBlock()->getModule()->getDataLayout(), nullptr);
+
       if (!Translator.PHITranslateValue(OriginalAccess->getBlock(),
-                                        DefIterator.getPhiArgBlock(), nullptr,
-                                        false))
-        if (Translator.getAddr() != Location.Ptr) {
-          CurrentPair.second = Location.getWithNewPtr(Translator.getAddr());
-          return;
+                                        DefIterator.getPhiArgBlock(), DT,
+                                        true)) {
+        Value *TransAddr = Translator.getAddr();
+        if (TransAddr != Location.Ptr) {
+          CurrentPair.second = CurrentPair.second.getWithNewPtr(TransAddr);
+
+          if (TransAddr &&
+              !IsGuaranteedLoopInvariant(const_cast<Value *>(TransAddr)))
+            CurrentPair.second = CurrentPair.second.getWithNewSize(
+                LocationSize::beforeOrAfterPointer());
+
+          if (PerformedPhiTranslation)
+            *PerformedPhiTranslation = true;
         }
+      }
     }
-    CurrentPair.second = Location;
   }
 
   MemoryAccessPair CurrentPair;
   memoryaccess_def_iterator DefIterator;
   MemoryLocation Location;
   MemoryAccess *OriginalAccess = nullptr;
+  DominatorTree *DT = nullptr;
   bool WalkingPhi = false;
+  bool *PerformedPhiTranslation = nullptr;
 };
 
-inline upward_defs_iterator upward_defs_begin(const MemoryAccessPair &Pair) {
-  return upward_defs_iterator(Pair);
+inline upward_defs_iterator
+upward_defs_begin(const MemoryAccessPair &Pair, DominatorTree &DT,
+                  bool *PerformedPhiTranslation = nullptr) {
+  return upward_defs_iterator(Pair, &DT, PerformedPhiTranslation);
 }
 
 inline upward_defs_iterator upward_defs_end() { return upward_defs_iterator(); }
 
 inline iterator_range<upward_defs_iterator>
-upward_defs(const MemoryAccessPair &Pair) {
-  return make_range(upward_defs_begin(Pair), upward_defs_end());
+upward_defs(const MemoryAccessPair &Pair, DominatorTree &DT) {
+  return make_range(upward_defs_begin(Pair, DT), upward_defs_end());
 }
 
 /// Walks the defining accesses of MemoryDefs. Stops after we hit something that

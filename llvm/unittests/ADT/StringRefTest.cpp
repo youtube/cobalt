@@ -59,6 +59,16 @@ TEST(StringRefTest, Construction) {
   EXPECT_EQ("hello", StringRef("hello"));
   EXPECT_EQ("hello", StringRef("hello world", 5));
   EXPECT_EQ("hello", StringRef(std::string("hello")));
+#if __cplusplus > 201402L
+  EXPECT_EQ("hello", StringRef(std::string_view("hello")));
+#endif
+}
+
+TEST(StringRefTest, Conversion) {
+  EXPECT_EQ("hello", std::string(StringRef("hello")));
+#if __cplusplus > 201402L
+  EXPECT_EQ("hello", std::string_view(StringRef("hello")));
+#endif
 }
 
 TEST(StringRefTest, EmptyInitializerList) {
@@ -1077,6 +1087,7 @@ TEST(StringRefTest, GTestPrinter) {
   EXPECT_EQ(R"("foo")", ::testing::PrintToString(StringRef("foo")));
 }
 
-static_assert(is_trivially_copyable<StringRef>::value, "trivially copyable");
+static_assert(std::is_trivially_copyable<StringRef>::value,
+              "trivially copyable");
 
 } // end anonymous namespace

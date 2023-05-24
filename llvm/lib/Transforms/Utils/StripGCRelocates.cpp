@@ -13,6 +13,7 @@
 // present.
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Utils/StripGCRelocates.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
@@ -24,22 +25,7 @@
 
 using namespace llvm;
 
-namespace {
-struct StripGCRelocates : public FunctionPass {
-  static char ID; // Pass identification, replacement for typeid
-  StripGCRelocates() : FunctionPass(ID) {
-    initializeStripGCRelocatesPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &Info) const override {}
-
-  bool runOnFunction(Function &F) override;
-
-};
-char StripGCRelocates::ID = 0;
-}
-
-bool StripGCRelocates::runOnFunction(Function &F) {
+static bool stripGCRelocates(Function &F) {
   // Nothing to do for declarations.
   if (F.isDeclaration())
     return false;
@@ -48,7 +34,7 @@ bool StripGCRelocates::runOnFunction(Function &F) {
   // i.e. not bound to a single statepoint token.
   for (Instruction &I : instructions(F)) {
     if (auto *GCR = dyn_cast<GCRelocateInst>(&I))
-      if (isStatepoint(GCR->getOperand(0)))
+      if (isa<GCStatepointInst>(GCR->getOperand(0)))
         GCRelocates.push_back(GCR);
   }
   // All gc.relocates are bound to a single statepoint token. The order of
@@ -71,6 +57,32 @@ bool StripGCRelocates::runOnFunction(Function &F) {
   return !GCRelocates.empty();
 }
 
-INITIALIZE_PASS(StripGCRelocates, "strip-gc-relocates",
+PreservedAnalyses StripGCRelocates::run(Function &F,
+                                        FunctionAnalysisManager &AM) {
+  if (!stripGCRelocates(F))
+    return PreservedAnalyses::all();
+
+  // Removing gc.relocate preserves the CFG, but most other analysis probably
+  // need to re-run.
+  PreservedAnalyses PA;
+  PA.preserveSet<CFGAnalyses>();
+  return PA;
+}
+
+namespace {
+struct StripGCRelocatesLegacy : public FunctionPass {
+  static char ID; // Pass identification, replacement for typeid
+  StripGCRelocatesLegacy() : FunctionPass(ID) {
+    initializeStripGCRelocatesLegacyPass(*PassRegistry::getPassRegistry());
+  }
+
+  void getAnalysisUsage(AnalysisUsage &Info) const override {}
+
+  bool runOnFunction(Function &F) override { return ::stripGCRelocates(F); }
+};
+char StripGCRelocatesLegacy::ID = 0;
+} // namespace
+
+INITIALIZE_PASS(StripGCRelocatesLegacy, "strip-gc-relocates",
                 "Strip gc.relocates inserted through RewriteStatepointsForGC",
                 true, false)

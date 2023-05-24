@@ -1,17 +1,17 @@
-; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=600000 -profile-sample-accurate -S | FileCheck %s --check-prefix=CALL_SUM_IS_WARM
+; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=600000 -profile-sample-accurate -enable-new-pm=0 -S | FileCheck %s --check-prefix=CALL_SUM_IS_WARM
 ; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=900000 -profile-sample-accurate -S | FileCheck %s --check-prefix=CALL_SUM_IS_HOT
-; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=600000 -profile-sample-accurate -S | FileCheck %s --check-prefix=CALL_SUM_IS_WARM
+; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=600000 -profile-sample-accurate -enable-new-pm=0 -S | FileCheck %s --check-prefix=CALL_SUM_IS_WARM
 ; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=900000 -profile-sample-accurate -S | FileCheck %s --check-prefix=CALL_SUM_IS_HOT
 
 ; RUN: llvm-profdata merge -sample -extbinary -prof-sym-list=%S/Inputs/profile-symbol-list.text %S/Inputs/profsampleacc.extbinary.afdo -o %t.symlist.afdo
-; RUN: opt < %s -sample-profile -sample-profile-file=%t.symlist.afdo -profile-summary-cutoff-hot=600000 -profile-accurate-for-symsinlist -S | FileCheck %s --check-prefix=PROFSYMLIST
+; RUN: opt < %s -sample-profile -sample-profile-file=%t.symlist.afdo -profile-summary-cutoff-hot=600000 -profile-accurate-for-symsinlist -enable-new-pm=0 -S | FileCheck %s --check-prefix=PROFSYMLIST
 ; RUN: opt < %s -passes=sample-profile -sample-profile-file=%t.symlist.afdo -profile-summary-cutoff-hot=600000 -profile-accurate-for-symsinlist -S | FileCheck %s --check-prefix=PROFSYMLIST
 ;
 ; If -profile-accurate-for-symsinlist and -profile-sample-accurate both present,
 ; -profile-sample-accurate will override -profile-accurate-for-symsinlist.
-; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=600000 -profile-sample-accurate -profile-accurate-for-symsinlist -S | FileCheck %s --check-prefix=CALL_SUM_IS_WARM
+; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=600000 -profile-sample-accurate -profile-accurate-for-symsinlist -enable-new-pm=0 -S | FileCheck %s --check-prefix=CALL_SUM_IS_WARM
 ; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=900000 -profile-sample-accurate -profile-accurate-for-symsinlist -S | FileCheck %s --check-prefix=CALL_SUM_IS_HOT
-; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=600000 -profile-sample-accurate -profile-accurate-for-symsinlist -S | FileCheck %s --check-prefix=CALL_SUM_IS_WARM
+; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=600000 -profile-sample-accurate -profile-accurate-for-symsinlist -enable-new-pm=0 -S | FileCheck %s --check-prefix=CALL_SUM_IS_WARM
 ; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/profsampleacc.extbinary.afdo -profile-summary-cutoff-hot=900000 -profile-sample-accurate -profile-accurate-for-symsinlist -S | FileCheck %s --check-prefix=CALL_SUM_IS_HOT
 ;
 ; Original C++ test case
@@ -48,7 +48,7 @@
 ; PROFSYMLIST: define i32 @_Z3sumii{{.*}}!prof ![[UNKNOWN_ID:[0-9]+]]
 ;
 ; Function Attrs: nounwind uwtable
-define i32 @_Z3sumii(i32 %x, i32 %y) !dbg !4 {
+define i32 @_Z3sumii(i32 %x, i32 %y) #0 !dbg !4 {
 entry:
   %x.addr = alloca i32, align 4
   %y.addr = alloca i32, align 4
@@ -61,7 +61,7 @@ entry:
 }
 
 ; Function Attrs: uwtable
-define i32 @main() !dbg !7 {
+define i32 @main() #0 !dbg !7 {
 entry:
   %retval = alloca i32, align 4
   %s = alloca i32, align 4
@@ -122,6 +122,8 @@ while.end:                                        ; preds = %while.cond
 }
 
 declare i32 @printf(i8*, ...) #2
+
+attributes #0 = { "use-sample-profile" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!8, !9}

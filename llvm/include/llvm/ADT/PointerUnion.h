@@ -93,13 +93,6 @@ namespace pointer_union_detail {
     static constexpr int NumLowBitsAvailable = lowBitsAvailable<PTs...>();
   };
 
-  /// Implement assignment in terms of construction.
-  template <typename Derived, typename T> struct AssignableFrom {
-    Derived &operator=(T t) {
-      return static_cast<Derived &>(*this) = Derived(t);
-    }
-  };
-
   template <typename Derived, typename ValTy, int I, typename ...Types>
   class PointerUnionMembers;
 
@@ -181,7 +174,7 @@ public:
   explicit operator bool() const { return !isNull(); }
 
   /// Test if the Union currently holds the type matching T.
-  template <typename T> int is() const {
+  template <typename T> bool is() const {
     constexpr int Index = pointer_union_detail::TypeIndex<T, PTs...>::Index;
     static_assert(Index < sizeof...(PTs),
                   "PointerUnion::is<T> given type not in the union");
@@ -197,7 +190,7 @@ public:
   }
 
   /// Returns the current pointer if it is of the specified pointer type,
-  /// otherwises returns null.
+  /// otherwise returns null.
   template <typename T> T dyn_cast() const {
     if (is<T>())
       return get<T>();

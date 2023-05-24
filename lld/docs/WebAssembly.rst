@@ -39,6 +39,10 @@ WebAssembly-specific options:
 
   Export all symbols (normally combined with --no-gc-sections)
 
+  Note that this will not export linker-generated mutable globals unless
+  the resulting binaryen already includes the 'mutable-globals' features
+  since that would otherwise create and invalid binaryen.
+
 .. option:: --export-dynamic
 
   When building an executable, export any non-hidden symbols.  By default only
@@ -67,7 +71,31 @@ WebAssembly-specific options:
 
 .. option:: --allow-undefined
 
-  Allow undefined symbols in linked binary.
+  Allow undefined symbols in linked binary.  This is the legacy
+  flag which corresponds to ``--unresolved-symbols=import-functions``.
+
+.. option:: --unresolved-symbols=<method>
+
+  This is a more full featured version of ``--allow-undefined``.
+  The semanatics of the different methods are as follows:
+
+  report-all:
+
+     Report all unresolved symbols.  This is the default.  Normally the linker
+     will generate an error message for each reported unresolved symbol but the
+     option ``--warn-unresolved-symbols`` can change this to a warning.
+
+  ignore-all:
+
+     Resolve all undefined symbols to zero.  For data and function addresses
+     this is trivial.  For direct function calls, the linker will generate a
+     trapping stub function in place of the undefined function.
+
+  import-functions:
+
+     Generate WebAssembly imports for any undefined functions.  Undefined data
+     symbols are resolved to zero as in ``ignore-all``.  This corresponds to
+     the legacy ``--allow-undefined`` flag.
 
 .. option:: --import-memory
 
@@ -112,8 +140,8 @@ The default behaviour is to generate these stub function and to produce
 a warning.  The ``--fatal-warnings`` flag can be used to disable this behaviour
 and error out if mismatched are found.
 
-Imports and Exports
-~~~~~~~~~~~~~~~~~~~
+Exports
+~~~~~~~
 
 When building a shared library any symbols marked as ``visibility=default`` will
 be exported.
@@ -129,6 +157,17 @@ In addition, symbols can be exported via the linker command line using
 Finally, just like with native ELF linker the ``--export-dynamic`` flag can be
 used to export symbols in the executable which are marked as
 ``visibility=default``.
+
+Imports
+~~~~~~~
+
+By default no undefined symbols are allowed in the final binary.  The flag
+``--allow-undefined`` results in a WebAssembly import being defined for each
+undefined symbol.  It is then up to the runtime to provide such symbols.
+
+Alternatively symbols can be marked in the source code as with the
+``import_name`` and/or ``import_module`` clang attributes which signals that
+they are expected to be undefined at static link time.
 
 Garbage Collection
 ~~~~~~~~~~~~~~~~~~

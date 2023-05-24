@@ -13,16 +13,17 @@
 // incomplete flags set, equality can be tested by comparing the type_info
 // addresses.
 
-// UNSUPPORTED: libcxxabi-no-exceptions
+// UNSUPPORTED: no-exceptions
+// UNSUPPORTED: no-rtti
 
-// NOTE: Pass -lc++abi explicitly and before -lc++ so that -lc++ doesn't drag
+// NOTE: Link libc++abi explicitly and before libc++ so that libc++ doesn't drag
 // in the system libc++abi installation on OS X. (DYLD_LIBRARY_PATH is ignored
 // for shell tests because of Apple security features).
 
-// RUN: %cxx %flags %compile_flags -c %s -o %t.one.o
-// RUN: %cxx %flags %compile_flags -c %s -o %t.two.o -DTU_ONE
-// RUN: %cxx %flags %t.one.o %t.two.o -lc++abi %link_flags -o %t.exe
-// RUN: %t.exe
+// RUN: %{cxx} %{flags} %{compile_flags} -Wno-unreachable-code -c %s -o %t.one.o
+// RUN: %{cxx} %{flags} %{compile_flags} -Wno-unreachable-code -c %s -o %t.two.o -DTU_ONE
+// RUN: %{cxx} %{flags} %t.one.o %t.two.o %{link_libcxxabi} %{link_flags} -o %t.exe
+// RUN: %{exec} %t.exe
 
 #include <stdio.h>
 #include <cstring>
@@ -82,7 +83,7 @@ void ThrowNullptr() { throw nullptr; }
 
 struct IncompleteAtThrow {};
 
-int main() {
+int main(int, char**) {
   AssertIncompleteTypeInfoEquals(ReturnTypeInfoNeverDefinedMP(), typeid(int NeverDefined::*));
   try {
     ThrowNeverDefinedMP();
@@ -204,7 +205,8 @@ int main() {
     assert(!p);
   }
   catch(...) { assert(!"FAIL: Didn't catch nullptr as NeverDefined::*" ); }
-
 #endif
+
+  return 0;
 }
 #endif

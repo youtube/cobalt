@@ -1,6 +1,6 @@
 //===- Canonicalizer.cpp - Canonicalize MLIR operations -------------------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -11,28 +11,29 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/PatternMatch.h"
+#include "PassDetail.h"
 #include "mlir/Pass/Pass.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
+
 using namespace mlir;
 
 namespace {
 /// Canonicalize operations in nested regions.
-struct Canonicalizer : public OperationPass<Canonicalizer> {
-  void runOnOperation() override {
-    OwningRewritePatternList patterns;
-
-    // TODO: Instead of adding all known patterns from the whole system lazily
-    // add and cache the canonicalization patterns for ops we see in practice
-    // when building the worklist.  For now, we just grab everything.
-    auto *context = &getContext();
+struct Canonicalizer : public CanonicalizerBase<Canonicalizer> {
+  /// Initialize the canonicalizer by building the set of patterns used during
+  /// execution.
+  void initialize(MLIRContext *context) override {
+    OwningRewritePatternList owningPatterns;
     for (auto *op : context->getRegisteredOperations())
-      op->getCanonicalizationPatterns(patterns, context);
-
-    Operation *op = getOperation();
-    applyPatternsGreedily(op->getRegions(), patterns);
+      op->getCanonicalizationPatterns(owningPatterns, context);
+    patterns = std::move(owningPatterns);
   }
+  void runOnOperation() override {
+    applyPatternsAndFoldGreedily(getOperation()->getRegions(), patterns);
+  }
+
+  FrozenRewritePatternList patterns;
 };
 } // end anonymous namespace
 
@@ -40,6 +41,3 @@ struct Canonicalizer : public OperationPass<Canonicalizer> {
 std::unique_ptr<Pass> mlir::createCanonicalizerPass() {
   return std::make_unique<Canonicalizer>();
 }
-
-static PassRegistration<Canonicalizer> pass("canonicalize",
-                                            "Canonicalize operations");

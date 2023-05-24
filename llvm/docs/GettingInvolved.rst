@@ -11,17 +11,26 @@ LLVM welcomes contributions of all kinds. To get started, please review the foll
 
    Contributing
    DeveloperPolicy
+   CodeReview
+   SupportPolicy
    SphinxQuickstartTemplate
    Phabricator
    HowToSubmitABug
    BugLifeCycle
    CodingStandards
+   GitBisecting
 
 :doc:`Contributing`
    An overview on how to contribute to LLVM.
 
 :doc:`DeveloperPolicy`
    The LLVM project's policy towards developers and their contributions.
+
+:doc:`CodeReview`
+   The LLVM project's code-review process.
+
+:doc:`SupportPolicy`
+   The LLVM support policy for core and non-core components.
 
 :doc:`SphinxQuickstartTemplate`
   A template + tutorial for writing new Sphinx documentation. It is meant
@@ -42,6 +51,9 @@ LLVM welcomes contributions of all kinds. To get started, please review the foll
   Details the LLVM coding standards and provides useful information on writing
   efficient C++ code.
 
+:doc:`GitBisecting`
+  Describes how to use ``git bisect`` on LLVM's repository.
+
 .. _development-process:
 
 Development Process
@@ -53,7 +65,6 @@ Information about LLVM's development process.
    :hidden:
 
    Projects
-   LLVMBuild
    HowToReleaseLLVM
    Packaging
    ReleaseProcess
@@ -65,10 +76,6 @@ Information about LLVM's development process.
   infrastructure.  The templates (directory organization, Makefiles, and test
   tree) allow the project code to be located outside (or inside) the ``llvm/``
   tree, while using LLVM header files and libraries.
-
-:doc:`LLVMBuild`
-  Describes the LLVMBuild organization and files used by LLVM to specify
-  component descriptions.
 
 :doc:`HowToReleaseLLVM`
   This is a guide to preparing LLVM releases. Most developers can ignore it.
@@ -182,6 +189,7 @@ can be better.
    Proposals/TestSuite
    Proposals/VariableNames
    Proposals/VectorizationPlan
+   Proposals/VectorPredication
 
 :doc:`CodeOfConduct`
    Proposal to adopt a code of conduct on the LLVM social spaces (lists, events,
@@ -204,3 +212,6 @@ can be better.
 
 :doc:`Proposals/VectorizationPlan`
    Proposal to model the process and upgrade the infrastructure of LLVM's Loop Vectorizer.
+
+:doc:`Proposals/VectorPredication`
+   Proposal for predicated vector instructions in LLVM.

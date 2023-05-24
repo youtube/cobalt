@@ -37,15 +37,14 @@ cleanup:
 ; CHECK-NEXT:    ret { i8*, i32* } [[T0]]
 ; CHECK-NEXT:  }
 
-; CHECK-LABEL: define internal void @f.resume.0(i8* noalias nonnull %0, i1 zeroext %1)
+; CHECK-LABEL: define internal void @f.resume.0(i8* noalias nonnull align 8 dereferenceable(8) %0, i1 zeroext %1)
 ; CHECK-NEXT:  :
 ; CHECK-NEXT:    [[T0:%.*]] = bitcast i8* %0 to [[FRAME_T:%.*]]**
 ; CHECK-NEXT:    [[FRAME:%.*]] = load [[FRAME_T]]*, [[FRAME_T]]** [[T0]]
 ; CHECK-NEXT:    bitcast [[FRAME_T]]* [[FRAME]] to i8*
-; CHECK-NEXT:    %temp = getelementptr inbounds [[FRAME_T]], [[FRAME_T]]* [[FRAME]], i32 0, i32 1
+; CHECK-NEXT:    [[TEMP_SLOT:%.*]] = getelementptr inbounds [[FRAME_T]], [[FRAME_T]]* [[FRAME]], i32 0, i32 1
 ; CHECK-NEXT:    br i1 %1,
 ; CHECK:       :
-; CHECK-NEXT:    [[TEMP_SLOT:%.*]] = getelementptr inbounds [[FRAME_T]], [[FRAME_T]]* [[FRAME]], i32 0, i32 1
 ; CHECK-NEXT:    [[PTR_SLOT:%.*]] = getelementptr inbounds [[FRAME_T]], [[FRAME_T]]* [[FRAME]], i32 0, i32 0
 ; CHECK-NEXT:    [[PTR_RELOAD:%.*]] = load i32*, i32** [[PTR_SLOT]]
 ; CHECK-NEXT:    %newvalue = load i32, i32* [[TEMP_SLOT]]

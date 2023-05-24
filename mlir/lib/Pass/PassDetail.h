@@ -1,6 +1,6 @@
 //===- PassDetail.h - MLIR Pass details -------------------------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -15,80 +15,72 @@ namespace mlir {
 namespace detail {
 
 //===----------------------------------------------------------------------===//
-// Verifier Pass
-//===----------------------------------------------------------------------===//
-
-/// Pass to verify an operation and signal failure if necessary.
-class VerifierPass : public OperationPass<VerifierPass> {
-  void runOnOperation() override;
-};
-
-//===----------------------------------------------------------------------===//
 // OpToOpPassAdaptor
 //===----------------------------------------------------------------------===//
 
-/// A base class for Op-to-Op adaptor passes.
-class OpToOpPassAdaptorBase {
+/// An adaptor pass used to run operation passes over nested operations.
+class OpToOpPassAdaptor
+    : public PassWrapper<OpToOpPassAdaptor, OperationPass<>> {
 public:
-  OpToOpPassAdaptorBase(OpPassManager &&mgr);
-  OpToOpPassAdaptorBase(const OpToOpPassAdaptorBase &rhs) = default;
+  OpToOpPassAdaptor(OpPassManager &&mgr);
+  OpToOpPassAdaptor(const OpToOpPassAdaptor &rhs) = default;
+
+  /// Run the held pipeline over all operations.
+  void runOnOperation(bool verifyPasses);
+  void runOnOperation() override;
 
   /// Merge the current pass adaptor into given 'rhs'.
-  void mergeInto(OpToOpPassAdaptorBase &rhs);
+  void mergeInto(OpToOpPassAdaptor &rhs);
 
   /// Returns the pass managers held by this adaptor.
   MutableArrayRef<OpPassManager> getPassManagers() { return mgrs; }
 
-  /// Returns the adaptor pass name.
-  std::string getName();
-
-protected:
-  // A set of adaptors to run.
-  SmallVector<OpPassManager, 1> mgrs;
-};
-
-/// An adaptor pass used to run operation passes over nested operations
-/// synchronously on a single thread.
-class OpToOpPassAdaptor : public OperationPass<OpToOpPassAdaptor>,
-                          public OpToOpPassAdaptorBase {
-public:
-  OpToOpPassAdaptor(OpPassManager &&mgr);
-
-  /// Run the held pipeline over all operations.
-  void runOnOperation() override;
-};
-
-/// An adaptor pass used to run operation passes over nested operations
-/// asynchronously across multiple threads.
-class OpToOpPassAdaptorParallel
-    : public OperationPass<OpToOpPassAdaptorParallel>,
-      public OpToOpPassAdaptorBase {
-public:
-  OpToOpPassAdaptorParallel(OpPassManager &&mgr);
-
-  /// Run the held pipeline over all operations.
-  void runOnOperation() override;
+  /// Populate the set of dependent dialects for the passes in the current
+  /// adaptor.
+  void getDependentDialects(DialectRegistry &dialects) const override;
 
   /// Return the async pass managers held by this parallel adaptor.
   MutableArrayRef<SmallVector<OpPassManager, 1>> getParallelPassManagers() {
     return asyncExecutors;
   }
 
+  /// Returns the adaptor pass name.
+  std::string getAdaptorName();
+
 private:
-  // A set of executors, cloned from the main executor, that run asynchronously
-  // on different threads.
+  /// Run this pass adaptor synchronously.
+  void runOnOperationImpl(bool verifyPasses);
+
+  /// Run this pass adaptor asynchronously.
+  void runOnOperationAsyncImpl(bool verifyPasses);
+
+  /// Run the given operation and analysis manager on a single pass.
+  /// `parentInitGeneration` is the initialization generation of the parent pass
+  /// manager, and is used to initialize any dynamic pass pipelines run by the
+  /// given pass.
+  static LogicalResult run(Pass *pass, Operation *op, AnalysisManager am,
+                           bool verifyPasses, unsigned parentInitGeneration);
+
+  /// Run the given operation and analysis manager on a provided op pass
+  /// manager. `parentInitGeneration` is the initialization generation of the
+  /// parent pass manager, and is used to initialize any dynamic pass pipelines
+  /// run by the given passes.
+  static LogicalResult runPipeline(
+      iterator_range<OpPassManager::pass_iterator> passes, Operation *op,
+      AnalysisManager am, bool verifyPasses, unsigned parentInitGeneration,
+      PassInstrumentor *instrumentor = nullptr,
+      const PassInstrumentation::PipelineParentInfo *parentInfo = nullptr);
+
+  /// A set of adaptors to run.
+  SmallVector<OpPassManager, 1> mgrs;
+
+  /// A set of executors, cloned from the main executor, that run asynchronously
+  /// on different threads. This is used when threading is enabled.
   SmallVector<SmallVector<OpPassManager, 1>, 8> asyncExecutors;
+
+  // For accessing "runPipeline".
+  friend class mlir::PassManager;
 };
-
-/// Utility function to convert the given class to the base adaptor it is an
-/// adaptor pass, returns nullptr otherwise.
-OpToOpPassAdaptorBase *getAdaptorPassBase(Pass *pass);
-
-/// Utility function to return if a pass refers to an adaptor pass. Adaptor
-/// passes are those that internally execute a pipeline.
-inline bool isAdaptorPass(Pass *pass) {
-  return isa<OpToOpPassAdaptorParallel>(pass) || isa<OpToOpPassAdaptor>(pass);
-}
 
 } // end namespace detail
 } // end namespace mlir

@@ -24,14 +24,14 @@
 // GOTREL-NEXT: }
 // GOTREL:      Relocations [
 // GOTREL-NEXT: Section ({{.*}}) .rel.dyn {
-// GOTREL-NEXT:   0x402258 R_386_TLS_TPOFF tlsshared0 0x0
-// GOTREL-NEXT:   0x40225C R_386_TLS_TPOFF tlsshared1 0x0
+// GOTREL-NEXT:   0x402258 R_386_TLS_TPOFF tlsshared0
+// GOTREL-NEXT:   0x40225C R_386_TLS_TPOFF tlsshared1
 // GOTREL-NEXT:  }
 // GOTREL-NEXT: ]
 
 // DISASM:      Disassembly of section .text:
 // DISASM-EMPTY:
-// DISASM-NEXT: _start:
+// DISASM-NEXT: <_start>:
 // DISASM-NEXT: 4011b0:       movl $0xfffffff8, %ecx
 // DISASM-NEXT:               movl %gs:(%ecx), %eax
 // DISASM-NEXT:               movl $0xfffffff8, %eax

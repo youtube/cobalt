@@ -10,15 +10,18 @@ unittest("ADTTests") {
     "//llvm/lib/Testing/Support",
   ]
   sources = [
+    "APFixedPointTest.cpp",
     "APFloatTest.cpp",
     "APIntTest.cpp",
     "APSIntTest.cpp",
     "AnyTest.cpp",
     "ArrayRefTest.cpp",
+    "BitFieldsTest.cpp",
     "BitVectorTest.cpp",
     "BitmaskEnumTest.cpp",
     "BreadthFirstIteratorTest.cpp",
     "BumpPtrListTest.cpp",
+    "CoalescingBitVectorTest.cpp",
     "DAGDeltaAlgorithmTest.cpp",
     "DeltaAlgorithmTest.cpp",
     "DenseMapTest.cpp",
@@ -46,7 +49,6 @@ unittest("ADTTests") {
     "IntervalMapTest.cpp",
     "IntrusiveRefCntPtrTest.cpp",
     "IteratorTest.cpp",
-    "MakeUniqueTest.cpp",
     "MapVectorTest.cpp",
     "MappedIteratorTest.cpp",
     "OptionalTest.cpp",
@@ -80,5 +82,8 @@ unittest("ADTTests") {
     "TinyPtrVectorTest.cpp",
     "TripleTest.cpp",
     "TwineTest.cpp",
+    "TypeSwitchTest.cpp",
+    "TypeTraitsTest.cpp",
+    "WaymarkingTest.cpp",
   ]
 }

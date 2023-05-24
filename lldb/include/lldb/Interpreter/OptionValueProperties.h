@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueProperties_h_
-#define liblldb_OptionValueProperties_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEPROPERTIES_H
+#define LLDB_INTERPRETER_OPTIONVALUEPROPERTIES_H
 
 #include <vector>
 
@@ -34,7 +34,7 @@ public:
 
   Type GetType() const override { return eTypeProperties; }
 
-  bool Clear() override;
+  void Clear() override;
 
   lldb::OptionValueSP DeepCopy() const override;
 
@@ -103,11 +103,6 @@ public:
 
   Status SetSubValue(const ExecutionContext *exe_ctx, VarSetOperationType op,
                      llvm::StringRef path, llvm::StringRef value) override;
-
-  virtual bool PredicateMatches(const ExecutionContext *exe_ctx,
-    llvm::StringRef predicate) const {
-    return false;
-  }
 
   OptionValueArch *
   GetPropertyAtIndexAsOptionValueArch(const ExecutionContext *exe_ctx,
@@ -218,4 +213,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueProperties_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEPROPERTIES_H

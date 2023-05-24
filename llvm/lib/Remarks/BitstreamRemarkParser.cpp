@@ -13,7 +13,6 @@
 
 #include "llvm/Remarks/BitstreamRemarkParser.h"
 #include "BitstreamRemarkParser.h"
-#include "llvm/Remarks/BitstreamRemarkContainer.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 
@@ -323,7 +322,7 @@ remarks::createBitstreamParserFromMeta(
              : std::make_unique<BitstreamRemarkParser>(Buf);
 
   if (ExternalFilePrependPath)
-    Parser->ExternalFilePrependPath = *ExternalFilePrependPath;
+    Parser->ExternalFilePrependPath = std::string(*ExternalFilePrependPath);
 
   return std::move(Parser);
 }

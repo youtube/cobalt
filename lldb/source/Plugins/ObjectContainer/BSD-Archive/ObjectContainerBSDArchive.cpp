@@ -1,4 +1,4 @@
-//===-- ObjectContainerBSDArchive.cpp ---------------------------*- C++ -*-===//
+//===-- ObjectContainerBSDArchive.cpp -------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -39,6 +39,8 @@ typedef struct ar_hdr {
 
 using namespace lldb;
 using namespace lldb_private;
+
+LLDB_PLUGIN_DEFINE(ObjectContainerBSDArchive)
 
 ObjectContainerBSDArchive::Object::Object()
     : ar_name(), modification_time(0), uid(0), gid(0), mode(0), size(0),
@@ -86,7 +88,7 @@ ObjectContainerBSDArchive::Object::Extract(const DataExtractor &data,
     return LLDB_INVALID_OFFSET;
 
   str.assign((const char *)data.GetData(&offset, 16), 16);
-  if (str.find("#1/") == 0) {
+  if (llvm::StringRef(str).startswith("#1/")) {
     // If the name is longer than 16 bytes, or contains an embedded space then
     // it will use this format where the length of the name is here and the
     // name characters are after this header.
@@ -298,9 +300,7 @@ ObjectContainer *ObjectContainerBSDArchive::CreateInstance(
     DataExtractor data;
     data.SetData(data_sp, data_offset, length);
     if (file && data_sp && ObjectContainerBSDArchive::MagicBytesMatch(data)) {
-      static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
-      Timer scoped_timer(
-          func_cat,
+      LLDB_SCOPED_TIMERF(
           "ObjectContainerBSDArchive::CreateInstance (module = %s, file = "
           "%p, file_offset = 0x%8.8" PRIx64 ", file_size = 0x%8.8" PRIx64 ")",
           module_sp->GetFileSpec().GetPath().c_str(),

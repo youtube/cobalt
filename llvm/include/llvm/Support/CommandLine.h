@@ -45,7 +45,6 @@
 namespace llvm {
 
 class StringSaver;
-class raw_ostream;
 
 /// cl Namespace - This namespace contains all of the command line option
 /// processing machinery.  It is intentionally a short name to make qualified
@@ -71,13 +70,6 @@ bool ParseCommandLineOptions(int argc, const char *const *argv,
                              raw_ostream *Errs = nullptr,
                              const char *EnvVar = nullptr,
                              bool LongOptionsUseDoubleDash = false);
-
-//===----------------------------------------------------------------------===//
-// ParseEnvironmentOptions - Environment variable option processing alternate
-//                           entry point.
-//
-void ParseEnvironmentOptions(const char *progName, const char *envvar,
-                             const char *Overview = "");
 
 // Function pointer type for printing version information.
 using VersionPrinterTy = std::function<void(raw_ostream &)>;
@@ -488,14 +480,13 @@ struct callback_traits : public callback_traits<decltype(&F::operator())> {};
 template <typename R, typename C, typename... Args>
 struct callback_traits<R (C::*)(Args...) const> {
   using result_type = R;
-  using arg_type = typename std::tuple_element<0, std::tuple<Args...>>::type;
+  using arg_type = std::tuple_element_t<0, std::tuple<Args...>>;
   static_assert(sizeof...(Args) == 1, "callback function must have one and only one parameter");
   static_assert(std::is_same<result_type, void>::value,
                 "callback return type must be void");
-  static_assert(
-      std::is_lvalue_reference<arg_type>::value &&
-          std::is_const<typename std::remove_reference<arg_type>::type>::value,
-      "callback arg_type must be a const lvalue reference");
+  static_assert(std::is_lvalue_reference<arg_type>::value &&
+                    std::is_const<std::remove_reference_t<arg_type>>::value,
+                "callback arg_type must be a const lvalue reference");
 };
 } // namespace detail
 
@@ -681,7 +672,7 @@ public:
       : Values(Options) {}
 
   template <class Opt> void apply(Opt &O) const {
-    for (auto Value : Values)
+    for (const auto &Value : Values)
       O.getParser().addLiteralOption(Value.Name, Value.Value,
                                      Value.Description);
   }
@@ -1453,16 +1444,16 @@ class opt : public Option,
     }
   }
 
-  template <class T, class = typename std::enable_if<
-            std::is_assignable<T&, T>::value>::type>
+  template <class T,
+            class = std::enable_if_t<std::is_assignable<T &, T>::value>>
   void setDefaultImpl() {
     const OptionValue<DataType> &V = this->getDefault();
     if (V.hasValue())
       this->setValue(V.getValue());
   }
 
-  template <class T, class = typename std::enable_if<
-            !std::is_assignable<T&, T>::value>::type>
+  template <class T,
+            class = std::enable_if_t<!std::is_assignable<T &, T>::value>>
   void setDefaultImpl(...) {}
 
   void setDefault() override { setDefaultImpl<DataType>(); }
@@ -1490,7 +1481,7 @@ public:
 
   template <class... Mods>
   explicit opt(const Mods &... Ms)
-      : Option(Optional, NotHidden), Parser(*this) {
+      : Option(llvm::cl::Optional, NotHidden), Parser(*this) {
     apply(this, Ms...);
     done();
   }
@@ -1607,8 +1598,8 @@ public:
   reference front() { return Storage.front(); }
   const_reference front() const { return Storage.front(); }
 
-  operator std::vector<DataType>&() { return Storage; }
-  operator ArrayRef<DataType>() { return Storage; }
+  operator std::vector<DataType> &() { return Storage; }
+  operator ArrayRef<DataType>() const { return Storage; }
   std::vector<DataType> *operator&() { return &Storage; }
   const std::vector<DataType> *operator&() const { return &Storage; }
 
@@ -2028,6 +2019,13 @@ void TokenizeWindowsCommandLine(StringRef Source, StringSaver &Saver,
                                 SmallVectorImpl<const char *> &NewArgv,
                                 bool MarkEOLs = false);
 
+/// Tokenizes a Windows command line while attempting to avoid copies. If no
+/// quoting or escaping was used, this produces substrings of the original
+/// string. If a token requires unquoting, it will be allocated with the
+/// StringSaver.
+void TokenizeWindowsCommandLineNoCopy(StringRef Source, StringSaver &Saver,
+                                      SmallVectorImpl<StringRef> &NewArgv);
+
 /// String tokenization function type.  Should be compatible with either
 /// Windows or Unix command line tokenizers.
 using TokenizerCallback = void (*)(StringRef Source, StringSaver &Saver,
@@ -2086,6 +2084,14 @@ bool ExpandResponseFiles(
     bool RelativeNames = false,
     llvm::vfs::FileSystem &FS = *llvm::vfs::getRealFileSystem(),
     llvm::Optional<llvm::StringRef> CurrentDir = llvm::None);
+
+/// A convenience helper which concatenates the options specified by the
+/// environment variable EnvVar and command line options, then expands response
+/// files recursively. The tokenizer is a predefined GNU or Windows one.
+/// \return true if all @files were expanded successfully or there were none.
+bool expandResponseFiles(int Argc, const char *const *Argv, const char *EnvVar,
+                         StringSaver &Saver,
+                         SmallVectorImpl<const char *> &NewArgv);
 
 /// Mark all options not part of this category as cl::ReallyHidden.
 ///

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SymbolFileDWARF_DWARFFormValue_h_
-#define SymbolFileDWARF_DWARFFormValue_h_
+#ifndef LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFFORMVALUE_H
+#define LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFFORMVALUE_H
 
 #include "DWARFDataExtractor.h"
 #include <stddef.h>
@@ -42,6 +42,7 @@ public:
   DWARFFormValue(const DWARFUnit *unit) : m_unit(unit) {}
   DWARFFormValue(const DWARFUnit *unit, dw_form_t form)
       : m_unit(unit), m_form(form) {}
+  const DWARFUnit *GetUnit() const { return m_unit; }
   void SetUnit(const DWARFUnit *unit) { m_unit = unit; }
   dw_form_t Form() const { return m_form; }
   dw_form_t& FormRef() { return m_form; }
@@ -86,4 +87,4 @@ protected:
   ValueType m_value;            // Contains all data for the form
 };
 
-#endif // SymbolFileDWARF_DWARFFormValue_h_
+#endif // LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFFORMVALUE_H

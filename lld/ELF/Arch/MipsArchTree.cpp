@@ -23,8 +23,8 @@ using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::ELF;
 
-namespace lld {
-namespace elf {
+using namespace lld;
+using namespace lld::elf;
 
 namespace {
 struct ArchTreeEdge {
@@ -294,10 +294,10 @@ static uint32_t getArchFlags(ArrayRef<FileFlags> files) {
   return ret;
 }
 
-template <class ELFT> uint32_t calcMipsEFlags() {
+template <class ELFT> uint32_t elf::calcMipsEFlags() {
   std::vector<FileFlags> v;
   for (InputFile *f : objectFiles)
-    v.push_back({f, cast<ObjFile<ELFT>>(f)->getObj().getHeader()->e_flags});
+    v.push_back({f, cast<ObjFile<ELFT>>(f)->getObj().getHeader().e_flags});
   if (v.empty()) {
     // If we don't have any input files, we'll have to rely on the information
     // we can derive from emulation information, since this at least gets us
@@ -350,7 +350,8 @@ static StringRef getMipsFpAbiName(uint8_t fpAbi) {
   }
 }
 
-uint8_t getMipsFpAbiFlag(uint8_t oldFlag, uint8_t newFlag, StringRef fileName) {
+uint8_t elf::getMipsFpAbiFlag(uint8_t oldFlag, uint8_t newFlag,
+                              StringRef fileName) {
   if (compareMipsFpAbi(newFlag, oldFlag) >= 0)
     return newFlag;
   if (compareMipsFpAbi(oldFlag, newFlag) < 0)
@@ -362,11 +363,11 @@ uint8_t getMipsFpAbiFlag(uint8_t oldFlag, uint8_t newFlag, StringRef fileName) {
 
 template <class ELFT> static bool isN32Abi(const InputFile *f) {
   if (auto *ef = dyn_cast<ELFFileBase>(f))
-    return ef->template getObj<ELFT>().getHeader()->e_flags & EF_MIPS_ABI2;
+    return ef->template getObj<ELFT>().getHeader().e_flags & EF_MIPS_ABI2;
   return false;
 }
 
-bool isMipsN32Abi(const InputFile *f) {
+bool elf::isMipsN32Abi(const InputFile *f) {
   switch (config->ekind) {
   case ELF32LEKind:
     return isN32Abi<ELF32LE>(f);
@@ -381,17 +382,14 @@ bool isMipsN32Abi(const InputFile *f) {
   }
 }
 
-bool isMicroMips() { return config->eflags & EF_MIPS_MICROMIPS; }
+bool elf::isMicroMips() { return config->eflags & EF_MIPS_MICROMIPS; }
 
-bool isMipsR6() {
+bool elf::isMipsR6() {
   uint32_t arch = config->eflags & EF_MIPS_ARCH;
   return arch == EF_MIPS_ARCH_32R6 || arch == EF_MIPS_ARCH_64R6;
 }
 
-template uint32_t calcMipsEFlags<ELF32LE>();
-template uint32_t calcMipsEFlags<ELF32BE>();
-template uint32_t calcMipsEFlags<ELF64LE>();
-template uint32_t calcMipsEFlags<ELF64BE>();
-
-} // namespace elf
-} // namespace lld
+template uint32_t elf::calcMipsEFlags<ELF32LE>();
+template uint32_t elf::calcMipsEFlags<ELF32BE>();
+template uint32_t elf::calcMipsEFlags<ELF64LE>();
+template uint32_t elf::calcMipsEFlags<ELF64BE>();

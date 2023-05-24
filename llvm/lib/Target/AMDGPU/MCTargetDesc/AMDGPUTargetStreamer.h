@@ -9,16 +9,12 @@
 #ifndef LLVM_LIB_TARGET_AMDGPU_MCTARGETDESC_AMDGPUTARGETSTREAMER_H
 #define LLVM_LIB_TARGET_AMDGPU_MCTARGETDESC_AMDGPUTARGETSTREAMER_H
 
-#include "AMDKernelCodeT.h"
 #include "Utils/AMDGPUPALMetadata.h"
-#include "llvm/BinaryFormat/MsgPackDocument.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/AMDGPUMetadata.h"
-#include "llvm/Support/AMDHSAKernelDescriptor.h"
+
+struct amd_kernel_code_t;
 
 namespace llvm {
-#include "AMDGPUPTNote.h"
 
 class DataLayout;
 class Function;
@@ -27,6 +23,16 @@ class MCSymbol;
 class MDNode;
 class Module;
 class Type;
+
+namespace AMDGPU {
+namespace HSAMD {
+struct Metadata;
+}
+} // namespace AMDGPU
+
+namespace amdhsa {
+struct kernel_descriptor_t;
+}
 
 class AMDGPUTargetStreamer : public MCTargetStreamer {
   AMDGPUPALMetadata PALMetadata;
@@ -54,7 +60,7 @@ public:
   virtual void EmitAMDGPUSymbolType(StringRef SymbolName, unsigned Type) = 0;
 
   virtual void emitAMDGPULDS(MCSymbol *Symbol, unsigned Size,
-                             unsigned Align) = 0;
+                             Align Alignment) = 0;
 
   /// \returns True on success, false on failure.
   virtual bool EmitISAVersion(StringRef IsaVersionString) = 0;
@@ -110,7 +116,7 @@ public:
 
   void EmitAMDGPUSymbolType(StringRef SymbolName, unsigned Type) override;
 
-  void emitAMDGPULDS(MCSymbol *Sym, unsigned Size, unsigned Align) override;
+  void emitAMDGPULDS(MCSymbol *Sym, unsigned Size, Align Alignment) override;
 
   /// \returns True on success, false on failure.
   bool EmitISAVersion(StringRef IsaVersionString) override;
@@ -133,6 +139,7 @@ public:
 
 class AMDGPUTargetELFStreamer final : public AMDGPUTargetStreamer {
   MCStreamer &Streamer;
+  Triple::OSType Os;
 
   void EmitNote(StringRef Name, const MCExpr *DescSize, unsigned NoteType,
                 function_ref<void(MCELFStreamer &)> EmitDesc);
@@ -157,7 +164,7 @@ public:
 
   void EmitAMDGPUSymbolType(StringRef SymbolName, unsigned Type) override;
 
-  void emitAMDGPULDS(MCSymbol *Sym, unsigned Size, unsigned Align) override;
+  void emitAMDGPULDS(MCSymbol *Sym, unsigned Size, Align Alignment) override;
 
   /// \returns True on success, false on failure.
   bool EmitISAVersion(StringRef IsaVersionString) override;

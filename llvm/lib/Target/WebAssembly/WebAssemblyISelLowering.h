@@ -39,7 +39,6 @@ enum NodeType : unsigned {
 } // end namespace WebAssemblyISD
 
 class WebAssemblySubtarget;
-class WebAssemblyTargetMachine;
 
 class WebAssemblyTargetLowering final : public TargetLowering {
 public:
@@ -107,6 +106,7 @@ private:
   SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_JT(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
@@ -119,6 +119,11 @@ private:
   SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerAccessVectorElement(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerShift(SDValue Op, SelectionDAG &DAG) const;
+
+  // Custom DAG combine hooks
+  SDValue
+  PerformDAGCombine(SDNode *N,
+                    TargetLowering::DAGCombinerInfo &DCI) const override;
 };
 
 namespace WebAssembly {

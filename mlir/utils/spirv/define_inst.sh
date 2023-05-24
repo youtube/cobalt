@@ -15,7 +15,7 @@
 # If <opname> is missing, this script updates existing ones in <filename>.
 
 # For example:
-# ./define_inst.sh SPIRVArithmeticOps.td ArithmeticBianryOp OpIAdd
+# ./define_inst.sh SPIRVArithmeticOps.td ArithmeticBinaryOp OpIAdd
 # ./define_inst.sh SPIRVLogicalOps.td LogicalOp OpFOrdEqual
 set -e
 
@@ -42,7 +42,7 @@ current_dir="$(dirname "$current_file")"
 
 python3 ${current_dir}/gen_spirv_dialect.py \
   --op-td-path \
-  ${current_dir}/../../include/mlir/Dialect/SPIRV/${file_name} \
+  ${current_dir}/../../include/mlir/Dialect/SPIRV/IR/${file_name} \
   --inst-category $baseclass --new-inst "$@"
 
 ${current_dir}/define_opcodes.sh "$@"

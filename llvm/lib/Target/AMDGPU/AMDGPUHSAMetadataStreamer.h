@@ -15,11 +15,9 @@
 #ifndef LLVM_LIB_TARGET_AMDGPU_MCTARGETDESC_AMDGPUHSAMETADATASTREAMER_H
 #define LLVM_LIB_TARGET_AMDGPU_MCTARGETDESC_AMDGPUHSAMETADATASTREAMER_H
 
-#include "AMDGPU.h"
-#include "AMDKernelCodeT.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/MsgPackDocument.h"
 #include "llvm/Support/AMDGPUMetadata.h"
+#include "llvm/Support/Alignment.h"
 
 namespace llvm {
 
@@ -27,6 +25,7 @@ class AMDGPUTargetStreamer;
 class Argument;
 class DataLayout;
 class Function;
+class MachineFunction;
 class MDNode;
 class Module;
 struct SIProgramInfo;
@@ -65,8 +64,6 @@ private:
   StringRef getValueKind(Type *Ty, StringRef TypeQual,
                          StringRef BaseTypeName) const;
 
-  StringRef getValueType(Type *Ty, StringRef TypeName) const;
-
   std::string getTypeName(Type *Ty, bool Signed) const;
 
   msgpack::ArrayDocNode getWorkGroupDimensions(MDNode *Node) const;
@@ -87,11 +84,12 @@ private:
   void emitKernelArg(const Argument &Arg, unsigned &Offset,
                      msgpack::ArrayDocNode Args);
 
-  void emitKernelArg(const DataLayout &DL, Type *Ty, StringRef ValueKind,
-                     unsigned &Offset, msgpack::ArrayDocNode Args,
-                     unsigned PointeeAlign = 0, StringRef Name = "",
-                     StringRef TypeName = "", StringRef BaseTypeName = "",
-                     StringRef AccQual = "", StringRef TypeQual = "");
+  void emitKernelArg(const DataLayout &DL, Type *Ty, Align Alignment,
+                     StringRef ValueKind, unsigned &Offset,
+                     msgpack::ArrayDocNode Args, MaybeAlign PointeeAlign = None,
+                     StringRef Name = "", StringRef TypeName = "",
+                     StringRef BaseTypeName = "", StringRef AccQual = "",
+                     StringRef TypeQual = "");
 
   void emitHiddenKernelArgs(const Function &Func, unsigned &Offset,
                             msgpack::ArrayDocNode Args);
@@ -133,8 +131,6 @@ private:
   ValueKind getValueKind(Type *Ty, StringRef TypeQual,
                          StringRef BaseTypeName) const;
 
-  ValueType getValueType(Type *Ty, StringRef TypeName) const;
-
   std::string getTypeName(Type *Ty, bool Signed) const;
 
   std::vector<uint32_t> getWorkGroupDimensions(MDNode *Node) const;
@@ -158,8 +154,8 @@ private:
 
   void emitKernelArg(const Argument &Arg);
 
-  void emitKernelArg(const DataLayout &DL, Type *Ty, ValueKind ValueKind,
-                     unsigned PointeeAlign = 0,
+  void emitKernelArg(const DataLayout &DL, Type *Ty, Align Alignment,
+                     ValueKind ValueKind, MaybeAlign PointeeAlign = None,
                      StringRef Name = "", StringRef TypeName = "",
                      StringRef BaseTypeName = "", StringRef AccQual = "",
                      StringRef TypeQual = "");

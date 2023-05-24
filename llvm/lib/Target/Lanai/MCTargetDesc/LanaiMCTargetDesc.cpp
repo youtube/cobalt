@@ -52,11 +52,11 @@ static MCRegisterInfo *createLanaiMCRegisterInfo(const Triple & /*TT*/) {
 
 static MCSubtargetInfo *
 createLanaiMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  std::string CPUName = CPU;
+  std::string CPUName = std::string(CPU);
   if (CPUName.empty())
     CPUName = "generic";
 
-  return createLanaiMCSubtargetInfoImpl(TT, CPUName, FS);
+  return createLanaiMCSubtargetInfoImpl(TT, CPUName, /*TuneCPU*/ CPUName, FS);
 }
 
 static MCStreamer *createMCStreamer(const Triple &T, MCContext &Context,

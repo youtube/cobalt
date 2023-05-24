@@ -67,7 +67,8 @@ static int getPriority(StringRef Filename, bool IsAngled, bool IsMainModule) {
     return 2;
 
   // System headers are sorted to the end.
-  if (IsAngled || Filename.startswith("gtest/"))
+  if (IsAngled || Filename.startswith("gtest/") ||
+      Filename.startswith("gmock/"))
     return 3;
 
   // Other headers are inserted between the main module header and LLVM headers.
@@ -81,7 +82,8 @@ void IncludeOrderPPCallbacks::InclusionDirective(
     SrcMgr::CharacteristicKind FileType) {
   // We recognize the first include as a special main module header and want
   // to leave it in the top position.
-  IncludeDirective ID = {HashLoc, FilenameRange, FileName, IsAngled, false};
+  IncludeDirective ID = {HashLoc, FilenameRange, std::string(FileName),
+                         IsAngled, false};
   if (LookForMainModule && !IsAngled) {
     ID.IsMainModule = true;
     LookForMainModule = false;

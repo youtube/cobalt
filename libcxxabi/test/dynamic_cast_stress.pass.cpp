@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 #include <cassert>
 #include <tuple>
@@ -63,9 +63,11 @@ void test()
     assert(b != 0);
 }
 
-int main()
+int main(int, char**)
 {
     test();
+
+    return 0;
 }
 
 /*

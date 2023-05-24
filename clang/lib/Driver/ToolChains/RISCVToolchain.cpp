@@ -31,6 +31,21 @@ static void addMultilibsFilePaths(const Driver &D, const MultilibSet &Multilibs,
       addPathIfExists(D, InstallPath + Path, Paths);
 }
 
+// This function tests whether a gcc installation is present either
+// through gcc-toolchain argument or in the same prefix where clang
+// is installed. This helps decide whether to instantiate this toolchain
+// or Baremetal toolchain.
+bool RISCVToolChain::hasGCCToolchain(const Driver &D,
+                                     const llvm::opt::ArgList &Args) {
+  if (Args.getLastArg(options::OPT_gcc_toolchain))
+    return true;
+
+  SmallString<128> GCCDir;
+  llvm::sys::path::append(GCCDir, D.Dir, "..", D.getTargetTriple(),
+                          "lib/crt0.o");
+  return llvm::sys::fs::exists(GCCDir);
+}
+
 /// RISCV Toolchain
 RISCVToolChain::RISCVToolChain(const Driver &D, const llvm::Triple &Triple,
                                const ArgList &Args)
@@ -119,7 +134,7 @@ std::string RISCVToolChain::computeSysRoot() const {
   if (!llvm::sys::fs::exists(SysRootDir))
     return std::string();
 
-  return SysRootDir.str();
+  return std::string(SysRootDir.str());
 }
 
 void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
@@ -142,7 +157,7 @@ void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("elf32lriscv");
   }
 
-  std::string Linker = getToolChain().GetProgramPath(getShortName());
+  std::string Linker = getToolChain().GetLinkerPath();
 
   bool WantCRTs =
       !Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles);
@@ -191,7 +206,8 @@ void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
-  C.addCommand(std::make_unique<Command>(JA, *this, Args.MakeArgString(Linker),
-                                          CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(
+      JA, *this, ResponseFileSupport::AtFileCurCP(), Args.MakeArgString(Linker),
+      CmdArgs, Inputs, Output));
 }
 // RISCV tools end.

@@ -1,12 +1,36 @@
-add_llvm_library(MLIRSPIRVTransforms
-  DecorateSPIRVCompositeTypeLayoutPass.cpp
+set(LLVM_OPTIONAL_SOURCES
+  DecorateCompositeTypeLayoutPass.cpp
   LowerABIAttributesPass.cpp
+  RewriteInsertsPass.cpp
+  SPIRVConversion.cpp
+  UpdateVCEPass.cpp
+)
+
+add_mlir_dialect_library(MLIRSPIRVConversion
+  SPIRVConversion.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Dialect/SPIRV
-  )
 
-target_link_libraries(MLIRSPIRVTransforms
-  MLIRPass
+  LINK_LIBS PUBLIC
   MLIRSPIRV
-  )
+  MLIRTransformUtils
+)
+
+add_mlir_dialect_library(MLIRSPIRVTransforms
+  DecorateCompositeTypeLayoutPass.cpp
+  LowerABIAttributesPass.cpp
+  RewriteInsertsPass.cpp
+  UpdateVCEPass.cpp
+
+  ADDITIONAL_HEADER_DIRS
+  ${MLIR_MAIN_INCLUDE_DIR}/mlir/Dialect/SPIRV
+
+  DEPENDS
+  MLIRSPIRVPassIncGen
+
+  LINK_LIBS PUBLIC
+  MLIRPass
+  MLIRSPIRVConversion
+  MLIRSPIRVUtils
+)

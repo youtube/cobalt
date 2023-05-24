@@ -8,6 +8,7 @@
 #include "PathMapping.h"
 #include "Transport.h"
 #include "URI.h"
+#include "support/Logger.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Errno.h"
@@ -21,7 +22,7 @@ namespace clangd {
 llvm::Optional<std::string> doPathMapping(llvm::StringRef S,
                                           PathMapping::Direction Dir,
                                           const PathMappings &Mappings) {
-  // Retrun early to optimize for the common case, wherein S is not a file URI
+  // Return early to optimize for the common case, wherein S is not a file URI
   if (!S.startswith("file://"))
     return llvm::None;
   auto Uri = URI::parse(S);
@@ -149,15 +150,14 @@ private:
 llvm::Expected<std::string> parsePath(llvm::StringRef Path) {
   namespace path = llvm::sys::path;
   if (path::is_absolute(Path, path::Style::posix)) {
-    return Path;
+    return std::string(Path);
   } else if (path::is_absolute(Path, path::Style::windows)) {
     std::string Converted = path::convert_to_slash(Path, path::Style::windows);
     if (Converted.front() != '/')
       Converted = "/" + Converted;
     return Converted;
   }
-  return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                 "Path not absolute: " + Path);
+  return error("Path not absolute: {0}", Path);
 }
 
 } // namespace
@@ -174,9 +174,7 @@ parsePathMappings(llvm::StringRef RawPathMappings) {
     std::tie(PathPair, Rest) = Rest.split(",");
     std::tie(ClientPath, ServerPath) = PathPair.split("=");
     if (ClientPath.empty() || ServerPath.empty())
-      return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                     "Not a valid path mapping pair: " +
-                                         PathPair);
+      return error("Not a valid path mapping pair: {0}", PathPair);
     llvm::Expected<std::string> ParsedClientPath = parsePath(ClientPath);
     if (!ParsedClientPath)
       return ParsedClientPath.takeError();

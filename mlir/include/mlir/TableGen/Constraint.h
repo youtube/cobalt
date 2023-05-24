@@ -1,6 +1,6 @@
 //===- Constraint.h - Constraint class --------------------------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -45,12 +45,19 @@ public:
 
   // Returns the user-readable description of this constraint. If the
   // description is not provided, returns the TableGen def name.
-  StringRef getDescription() const;
+  StringRef getSummary() const;
 
   // Constraint kind
-  enum Kind { CK_Attr, CK_Region, CK_Type, CK_Uncategorized };
+  enum Kind { CK_Attr, CK_Region, CK_Successor, CK_Type, CK_Uncategorized };
 
   Kind getKind() const { return kind; }
+
+  /// Get an opaque pointer to the constraint.
+  const void *getAsOpaquePointer() const { return def; }
+  /// Construct a constraint from the opaque pointer representation.
+  static Constraint getFromOpaquePointer(const void *ptr) {
+    return Constraint(reinterpret_cast<const llvm::Record *>(ptr));
+  }
 
 protected:
   Constraint(Kind kind, const llvm::Record *record);

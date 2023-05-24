@@ -621,9 +621,9 @@ NOINLINE void SigLongJmpFunc1(sigjmp_buf buf) {
   siglongjmp(buf, 1);
 }
 
-#if !defined(__ANDROID__) && !defined(__arm__) && \
-    !defined(__aarch64__) && !defined(__mips__) && \
-    !defined(__mips64) && !defined(__s390__)
+#if !defined(__ANDROID__) && !defined(__arm__) && !defined(__aarch64__) && \
+    !defined(__mips__) && !defined(__mips64) && !defined(__s390__) &&      \
+    !defined(__riscv)
 NOINLINE void BuiltinLongJmpFunc1(jmp_buf buf) {
   // create three red zones for these two stack objects.
   int a;
@@ -648,6 +648,7 @@ TEST(AddressSanitizer, BuiltinLongJmpTest) {
 #endif  // !defined(__ANDROID__) && !defined(__arm__) &&
         // !defined(__aarch64__) && !defined(__mips__)
         // !defined(__mips64) && !defined(__s390__)
+        // !defined(__riscv)
 
 TEST(AddressSanitizer, UnderscopeLongJmpTest) {
   static jmp_buf buf;
@@ -739,7 +740,7 @@ TEST(AddressSanitizer, Store128Test) {
 #endif
 
 // FIXME: All tests that use this function should be turned into lit tests.
-string RightOOBErrorMessage(int oob_distance, bool is_write) {
+std::string RightOOBErrorMessage(int oob_distance, bool is_write) {
   assert(oob_distance >= 0);
   char expected_str[100];
   sprintf(expected_str, ASAN_PCRE_DOTALL
@@ -751,19 +752,19 @@ string RightOOBErrorMessage(int oob_distance, bool is_write) {
           is_write ? "WRITE" : "READ",
 #endif
           oob_distance);
-  return string(expected_str);
+  return std::string(expected_str);
 }
 
-string RightOOBWriteMessage(int oob_distance) {
+std::string RightOOBWriteMessage(int oob_distance) {
   return RightOOBErrorMessage(oob_distance, /*is_write*/true);
 }
 
-string RightOOBReadMessage(int oob_distance) {
+std::string RightOOBReadMessage(int oob_distance) {
   return RightOOBErrorMessage(oob_distance, /*is_write*/false);
 }
 
 // FIXME: All tests that use this function should be turned into lit tests.
-string LeftOOBErrorMessage(int oob_distance, bool is_write) {
+std::string LeftOOBErrorMessage(int oob_distance, bool is_write) {
   assert(oob_distance > 0);
   char expected_str[100];
   sprintf(expected_str,
@@ -775,22 +776,22 @@ string LeftOOBErrorMessage(int oob_distance, bool is_write) {
           is_write ? "WRITE" : "READ",
 #endif
           oob_distance);
-  return string(expected_str);
+  return std::string(expected_str);
 }
 
-string LeftOOBWriteMessage(int oob_distance) {
+std::string LeftOOBWriteMessage(int oob_distance) {
   return LeftOOBErrorMessage(oob_distance, /*is_write*/true);
 }
 
-string LeftOOBReadMessage(int oob_distance) {
+std::string LeftOOBReadMessage(int oob_distance) {
   return LeftOOBErrorMessage(oob_distance, /*is_write*/false);
 }
 
-string LeftOOBAccessMessage(int oob_distance) {
+std::string LeftOOBAccessMessage(int oob_distance) {
   assert(oob_distance > 0);
   char expected_str[100];
   sprintf(expected_str, "located %d bytes to the left", oob_distance);
-  return string(expected_str);
+  return std::string(expected_str);
 }
 
 char* MallocAndMemsetString(size_t size, char ch) {
@@ -803,7 +804,7 @@ char* MallocAndMemsetString(size_t size) {
   return MallocAndMemsetString(size, 'z');
 }
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#if SANITIZER_GLIBC
 #define READ_TEST(READ_N_BYTES)                                          \
   char *x = new char[10];                                                \
   int fd = open("/proc/self/stat", O_RDONLY);                            \
@@ -826,7 +827,7 @@ TEST(AddressSanitizer, pread64) {
 TEST(AddressSanitizer, read) {
   READ_TEST(read(fd, x, 15));
 }
-#endif  // defined(__linux__) && !defined(__ANDROID__)
+#endif  // SANITIZER_GLIBC
 
 // This test case fails
 // Clang optimizes memcpy/memset calls which lead to unaligned access
@@ -1157,9 +1158,13 @@ TEST(AddressSanitizer, DISABLED_StressStackReuseAndExceptionsTest) {
 
 #if !defined(_WIN32)
 TEST(AddressSanitizer, MlockTest) {
+#if !defined(__ANDROID__) || __ANDROID_API__ >= 17
   EXPECT_EQ(0, mlockall(MCL_CURRENT));
+#endif
   EXPECT_EQ(0, mlock((void*)0x12345, 0x5678));
+#if !defined(__ANDROID__) || __ANDROID_API__ >= 17
   EXPECT_EQ(0, munlockall());
+#endif
   EXPECT_EQ(0, munlock((void*)0x987, 0x654));
 }
 #endif
@@ -1195,11 +1200,11 @@ TEST(AddressSanitizer, AttributeNoSanitizeAddressTest) {
 #if !defined(__ANDROID__) && \
     !defined(__APPLE__) && \
     !defined(_WIN32)
-static string MismatchStr(const string &str) {
-  return string("AddressSanitizer: alloc-dealloc-mismatch \\(") + str;
+static std::string MismatchStr(const std::string &str) {
+  return std::string("AddressSanitizer: alloc-dealloc-mismatch \\(") + str;
 }
 
-static string MismatchOrNewDeleteTypeStr(const string &mismatch_str) {
+static std::string MismatchOrNewDeleteTypeStr(const std::string &mismatch_str) {
   return "(" + MismatchStr(mismatch_str) +
          ")|(AddressSanitizer: new-delete-type-mismatch)";
 }

@@ -15,9 +15,22 @@ def OpA : NS_Op<"op_for_CPred_containing_multiple_same_placeholder", []> {
   let arguments = (ins I32OrF32:$x);
 }
 
+// CHECK: static ::mlir::LogicalResult [[$INTEGER_FLOAT_CONSTRAINT:__mlir_ods_local_type_constraint.*]](
+// CHECK:  if (!((type.isInteger(32) || type.isF32()))) {
+// CHECK:    return op->emitOpError(valueKind) << " #" << valueGroupStartIndex << " must be 32-bit integer or floating-point type, but got " << type;
+
+// CHECK: static ::mlir::LogicalResult [[$TENSOR_CONSTRAINT:__mlir_ods_local_type_constraint.*]](
+// CHECK:  if (!(((type.isa<::mlir::TensorType>())) && ((true)))) {
+// CHECK:    return op->emitOpError(valueKind) << " #" << valueGroupStartIndex << " must be tensor of any type values, but got " << type;
+
+// CHECK: static ::mlir::LogicalResult [[$TENSOR_INTEGER_FLOAT_CONSTRAINT:__mlir_ods_local_type_constraint.*]](
+// CHECK:  if (!(((type.isa<::mlir::TensorType>())) && (((type.cast<::mlir::ShapedType>().getElementType().isF32())) || ((type.cast<::mlir::ShapedType>().getElementType().isSignlessInteger(32)))))) {
+// CHECK:    return op->emitOpError(valueKind) << " #" << valueGroupStartIndex << " must be tensor of 32-bit float or 32-bit signless integer values, but got " << type;
+
 // CHECK-LABEL: OpA::verify
-// CHECK: for (Value v : getODSOperands(0)) {
-// CHECK:   if (!((v.getType().isInteger(32) || v.getType().isF32())))
+// CHECK: auto valueGroup0 = getODSOperands(0);
+// CHECK: for (::mlir::Value v : valueGroup0) {
+// CHECK:   if (::mlir::failed([[$INTEGER_FLOAT_CONSTRAINT]]
 
 def OpB : NS_Op<"op_for_And_PredOpTrait", [
     PredOpTrait<"both first and second holds",
@@ -31,41 +44,41 @@ def OpF : NS_Op<"op_for_int_min_val", []> {
   let arguments = (ins Confined<I32Attr, [IntMinValue<10>]>:$attr);
 }
 
-// CHECK-LABEL: OpF::verify()
-// CHECK:       (tblgen_attr.cast<IntegerAttr>().getInt() >= 10)
-// CHECK-SAME:    return emitOpError("attribute 'attr' failed to satisfy constraint: 32-bit integer attribute whose minimum value is 10");
+// CHECK-LABEL: OpFAdaptor::verify
+// CHECK:       (tblgen_attr.cast<::mlir::IntegerAttr>().getInt() >= 10)
+// CHECK-SAME:  "attribute 'attr' failed to satisfy constraint: 32-bit signless integer attribute whose minimum value is 10"
 
 def OpFX : NS_Op<"op_for_int_max_val", []> {
   let arguments = (ins Confined<I32Attr, [IntMaxValue<10>]>:$attr);
 }
 
-// CHECK-LABEL: OpFX::verify()
-// CHECK:       (tblgen_attr.cast<IntegerAttr>().getInt() <= 10)
-// CHECK-SAME:    return emitOpError("attribute 'attr' failed to satisfy constraint: 32-bit integer attribute whose maximum value is 10");
+// CHECK-LABEL: OpFXAdaptor::verify
+// CHECK:       (tblgen_attr.cast<::mlir::IntegerAttr>().getInt() <= 10)
+// CHECK-SAME:  "attribute 'attr' failed to satisfy constraint: 32-bit signless integer attribute whose maximum value is 10"
 
 def OpG : NS_Op<"op_for_arr_min_count", []> {
   let arguments = (ins Confined<ArrayAttr, [ArrayMinCount<8>]>:$attr);
 }
 
-// CHECK-LABEL: OpG::verify()
-// CHECK:       (tblgen_attr.cast<ArrayAttr>().size() >= 8)
-// CHECK-SAME:    return emitOpError("attribute 'attr' failed to satisfy constraint: array attribute with at least 8 elements");
+// CHECK-LABEL: OpGAdaptor::verify
+// CHECK:       (tblgen_attr.cast<::mlir::ArrayAttr>().size() >= 8)
+// CHECK-SAME:  "attribute 'attr' failed to satisfy constraint: array attribute with at least 8 elements"
 
 def OpH : NS_Op<"op_for_arr_value_at_index", []> {
   let arguments = (ins Confined<ArrayAttr, [IntArrayNthElemEq<0, 8>]>:$attr);
 }
 
-// CHECK-LABEL: OpH::verify()
-// CHECK: (((tblgen_attr.cast<ArrayAttr>().size() > 0)) && ((tblgen_attr.cast<ArrayAttr>().getValue()[0].cast<IntegerAttr>().getInt() == 8)))))
-// CHECK-SAME:    return emitOpError("attribute 'attr' failed to satisfy constraint: array attribute whose 0-th element must be 8");
+// CHECK-LABEL: OpHAdaptor::verify
+// CHECK: (((tblgen_attr.cast<::mlir::ArrayAttr>().size() > 0)) && ((tblgen_attr.cast<::mlir::ArrayAttr>()[0].cast<::mlir::IntegerAttr>().getInt() == 8)))))
+// CHECK-SAME:  "attribute 'attr' failed to satisfy constraint: array attribute whose 0-th element must be 8"
 
 def OpI: NS_Op<"op_for_arr_min_value_at_index", []> {
   let arguments = (ins Confined<ArrayAttr, [IntArrayNthElemMinValue<0, 8>]>:$attr);
 }
 
-// CHECK-LABEL: OpI::verify()
-// CHECK: (((tblgen_attr.cast<ArrayAttr>().size() > 0)) && ((tblgen_attr.cast<ArrayAttr>().getValue()[0].cast<IntegerAttr>().getInt() >= 8)))))
-// CHECK-SAME:    return emitOpError("attribute 'attr' failed to satisfy constraint: array attribute whose 0-th element must be at least 8");
+// CHECK-LABEL: OpIAdaptor::verify
+// CHECK: (((tblgen_attr.cast<::mlir::ArrayAttr>().size() > 0)) && ((tblgen_attr.cast<::mlir::ArrayAttr>()[0].cast<::mlir::IntegerAttr>().getInt() >= 8)))))
+// CHECK-SAME: "attribute 'attr' failed to satisfy constraint: array attribute whose 0-th element must be at least 8"
 
 def OpJ: NS_Op<"op_for_TCopVTEtAreSameAt", [
                 PredOpTrait<"operands indexed at 0, 2, 3 should all have "
@@ -79,16 +92,17 @@ def OpJ: NS_Op<"op_for_TCopVTEtAreSameAt", [
   );
 }
 
-// CHECK-LABEL: OpJ::verify()
-// CHECK:      llvm::is_splat(mlir::functional::map(
-// CHECK-SAME:   [this](unsigned i) { return getElementTypeOrSelf(this->getOperand(i)); },
-// CHECK-SAME:   llvm::ArrayRef<unsigned>({0, 2, 3})))
-// CHECK:   return emitOpError("failed to verify that operands indexed at 0, 2, 3 should all have the same type");
+// CHECK-LABEL: OpJAdaptor::verify
+// CHECK:      ::llvm::is_splat(::llvm::map_range(
+// CHECK-SAME:   ::mlir::ArrayRef<unsigned>({0, 2, 3}),
+// CHECK-SAME:   [this](unsigned i) { return getElementTypeOrSelf(this->getOperand(i)); }))
+// CHECK: "failed to verify that operands indexed at 0, 2, 3 should all have the same type"
 
 def OpK : NS_Op<"op_for_AnyTensorOf", []> {
   let arguments = (ins TensorOf<[F32, I32]>:$x);
 }
 
 // CHECK-LABEL: OpK::verify
-// CHECK: for (Value v : getODSOperands(0)) {
-// CHECK: if (!(((v.getType().isa<TensorType>())) && (((v.getType().cast<ShapedType>().getElementType().isF32())) || ((v.getType().cast<ShapedType>().getElementType().isInteger(32))))))
+// CHECK: auto valueGroup0 = getODSOperands(0);
+// CHECK: for (::mlir::Value v : valueGroup0) {
+// CHECK: if (::mlir::failed([[$TENSOR_INTEGER_FLOAT_CONSTRAINT]]

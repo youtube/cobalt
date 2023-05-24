@@ -50,6 +50,8 @@ _LIBUNWIND_HIDDEN int __unw_init_local(unw_cursor_t *cursor,
 # define REGISTER_KIND Registers_arm
 #elif defined(__or1k__)
 # define REGISTER_KIND Registers_or1k
+#elif defined(__hexagon__)
+# define REGISTER_KIND Registers_hexagon
 #elif defined(__mips__) && defined(_ABIO32) && _MIPS_SIM == _ABIO32
 # define REGISTER_KIND Registers_mips_o32
 #elif defined(__mips64)
@@ -60,6 +62,8 @@ _LIBUNWIND_HIDDEN int __unw_init_local(unw_cursor_t *cursor,
 # define REGISTER_KIND Registers_sparc
 #elif defined(__riscv) && __riscv_xlen == 64
 # define REGISTER_KIND Registers_riscv
+#elif defined(__ve__)
+# define REGISTER_KIND Registers_ve
 #else
 # error Architecture not supported
 #endif

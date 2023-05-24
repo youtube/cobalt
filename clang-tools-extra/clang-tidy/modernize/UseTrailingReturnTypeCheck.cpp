@@ -11,7 +11,9 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Tooling/FixIt.h"
+#include "llvm/ADT/StringExtras.h"
 
 #include <cctype>
 
@@ -62,6 +64,11 @@ public:
                                 ->getTemplateName()
                                 .getAsTemplateDecl()
                                 ->getName()))
+          return false;
+        break;
+      case TypeLoc::Typedef:
+        if (VisitUnqualName(
+                TL.getAs<TypedefTypeLoc>().getTypePtr()->getDecl()->getName()))
           return false;
         break;
       default:
@@ -173,6 +180,7 @@ classifyToken(const FunctionDecl &F, Preprocessor &PP, Token Tok) {
   bool ContainsSomethingElse = false;
 
   Token End;
+  End.startToken();
   End.setKind(tok::eof);
   SmallVector<Token, 2> Stream{Tok, End};
 
@@ -258,8 +266,8 @@ static bool hasAnyNestedLocalQualifiers(QualType Type) {
 }
 
 SourceRange UseTrailingReturnTypeCheck::findReturnTypeAndCVSourceRange(
-    const FunctionDecl &F, const ASTContext &Ctx, const SourceManager &SM,
-    const LangOptions &LangOpts) {
+    const FunctionDecl &F, const TypeLoc &ReturnLoc, const ASTContext &Ctx,
+    const SourceManager &SM, const LangOptions &LangOpts) {
 
   // We start with the range of the return type and expand to neighboring
   // qualifiers (const, volatile and restrict).
@@ -269,6 +277,35 @@ SourceRange UseTrailingReturnTypeCheck::findReturnTypeAndCVSourceRange(
     // unknown.
     diag(F.getLocation(), Message);
     return {};
+  }
+
+  // If the return type is a constrained 'auto' or 'decltype(auto)', we need to
+  // include the tokens after the concept. Unfortunately, the source range of an
+  // AutoTypeLoc, if it is constrained, does not include the 'auto' or
+  // 'decltype(auto)'. If the return type is a plain 'decltype(...)', the
+  // source range only contains the first 'decltype' token.
+  auto ATL = ReturnLoc.getAs<AutoTypeLoc>();
+  if ((ATL && (ATL.isConstrained() ||
+               ATL.getAutoKeyword() == AutoTypeKeyword::DecltypeAuto)) ||
+      ReturnLoc.getAs<DecltypeTypeLoc>()) {
+    SourceLocation End =
+        expandIfMacroId(ReturnLoc.getSourceRange().getEnd(), SM);
+    SourceLocation BeginNameF = expandIfMacroId(F.getLocation(), SM);
+
+    // Extend the ReturnTypeRange until the last token before the function
+    // name.
+    std::pair<FileID, unsigned> Loc = SM.getDecomposedLoc(End);
+    StringRef File = SM.getBufferData(Loc.first);
+    const char *TokenBegin = File.data() + Loc.second;
+    Lexer Lexer(SM.getLocForStartOfFile(Loc.first), LangOpts, File.begin(),
+                TokenBegin, File.end());
+    Token T;
+    SourceLocation LastTLoc = End;
+    while (!Lexer.LexFromRawLexer(T) &&
+           SM.isBeforeInTranslationUnit(T.getLocation(), BeginNameF)) {
+      LastTLoc = T.getLocation();
+    }
+    ReturnTypeRange.setEnd(LastTLoc);
   }
 
   // If the return type has no local qualifiers, it's source range is accurate.
@@ -314,7 +351,7 @@ SourceRange UseTrailingReturnTypeCheck::findReturnTypeAndCVSourceRange(
   return ReturnTypeRange;
 }
 
-bool UseTrailingReturnTypeCheck::keepSpecifiers(
+void UseTrailingReturnTypeCheck::keepSpecifiers(
     std::string &ReturnType, std::string &Auto, SourceRange ReturnTypeCVRange,
     const FunctionDecl &F, const FriendDecl *Fr, const ASTContext &Ctx,
     const SourceManager &SM, const LangOptions &LangOpts) {
@@ -324,14 +361,14 @@ bool UseTrailingReturnTypeCheck::keepSpecifiers(
   if (!F.isConstexpr() && !F.isInlineSpecified() &&
       F.getStorageClass() != SC_Extern && F.getStorageClass() != SC_Static &&
       !Fr && !(M && M->isVirtualAsWritten()))
-    return true;
+    return;
 
   // Tokenize return type. If it contains macros which contain a mix of
   // qualifiers, specifiers and types, give up.
   llvm::Optional<SmallVector<ClassifiedToken, 8>> MaybeTokens =
       classifyTokensBeforeFunctionName(F, Ctx, SM, LangOpts);
   if (!MaybeTokens)
-    return false;
+    return;
 
   // Find specifiers, remove them from the return type, add them to 'auto'.
   unsigned int ReturnTypeBeginOffset =
@@ -355,26 +392,21 @@ bool UseTrailingReturnTypeCheck::keepSpecifiers(
     unsigned int TOffsetInRT = TOffset - ReturnTypeBeginOffset - DeletedChars;
     unsigned int TLengthWithWS = CT.T.getLength();
     while (TOffsetInRT + TLengthWithWS < ReturnType.size() &&
-           std::isspace(ReturnType[TOffsetInRT + TLengthWithWS]))
+           llvm::isSpace(ReturnType[TOffsetInRT + TLengthWithWS]))
       TLengthWithWS++;
     std::string Specifier = ReturnType.substr(TOffsetInRT, TLengthWithWS);
-    if (!std::isspace(Specifier.back()))
+    if (!llvm::isSpace(Specifier.back()))
       Specifier.push_back(' ');
     Auto.insert(Auto.size() - InitialAutoLength, Specifier);
     ReturnType.erase(TOffsetInRT, TLengthWithWS);
     DeletedChars += TLengthWithWS;
   }
-
-  return true;
 }
 
 void UseTrailingReturnTypeCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus11)
-    return;
-
-  auto F = functionDecl(unless(anyOf(hasTrailingReturn(), returns(voidType()),
-                                     returns(autoType()), cxxConversionDecl(),
-                                     cxxMethodDecl(isImplicit()))))
+  auto F = functionDecl(
+               unless(anyOf(hasTrailingReturn(), returns(voidType()),
+                            cxxConversionDecl(), cxxMethodDecl(isImplicit()))))
                .bind("Func");
 
   Finder->addMatcher(F, this);
@@ -397,11 +429,17 @@ void UseTrailingReturnTypeCheck::check(const MatchFinder::MatchResult &Result) {
   if (F->getLocation().isInvalid())
     return;
 
+  // Skip functions which return just 'auto'.
+  const auto *AT = F->getDeclaredReturnType()->getAs<AutoType>();
+  if (AT != nullptr && !AT->isConstrained() &&
+      AT->getKeyword() == AutoTypeKeyword::Auto &&
+      !hasAnyNestedLocalQualifiers(F->getDeclaredReturnType()))
+    return;
+
   // TODO: implement those
   if (F->getDeclaredReturnType()->isFunctionPointerType() ||
       F->getDeclaredReturnType()->isMemberFunctionPointerType() ||
-      F->getDeclaredReturnType()->isMemberPointerType() ||
-      F->getDeclaredReturnType()->getAs<DecltypeType>() != nullptr) {
+      F->getDeclaredReturnType()->isMemberPointerType()) {
     diag(F->getLocation(), Message);
     return;
   }
@@ -435,7 +473,7 @@ void UseTrailingReturnTypeCheck::check(const MatchFinder::MatchResult &Result) {
   // discards user formatting and order of const, volatile, type, whitespace,
   // space before & ... .
   SourceRange ReturnTypeCVRange =
-      findReturnTypeAndCVSourceRange(*F, Ctx, SM, LangOpts);
+      findReturnTypeAndCVSourceRange(*F, FTL.getReturnLoc(), Ctx, SM, LangOpts);
   if (ReturnTypeCVRange.isInvalid())
     return;
 
@@ -444,7 +482,7 @@ void UseTrailingReturnTypeCheck::check(const MatchFinder::MatchResult &Result) {
   // FIXME: this could be done better, by performing a lookup of all
   // unqualified names in the return type in the scope of the function. If the
   // lookup finds a different entity than the original entity identified by the
-  // name, then we can either not perform a rewrite or explicitely qualify the
+  // name, then we can either not perform a rewrite or explicitly qualify the
   // entity. Such entities could be function parameter names, (inherited) class
   // members, template parameters, etc.
   UnqualNameVisitor UNV{*F};
@@ -461,10 +499,11 @@ void UseTrailingReturnTypeCheck::check(const MatchFinder::MatchResult &Result) {
                                     ReturnTypeEnd.getLocWithOffset(1)),
       SM, LangOpts);
   bool NeedSpaceAfterAuto =
-      CharAfterReturnType.empty() || !std::isspace(CharAfterReturnType[0]);
+      CharAfterReturnType.empty() || !llvm::isSpace(CharAfterReturnType[0]);
 
   std::string Auto = NeedSpaceAfterAuto ? "auto " : "auto";
-  std::string ReturnType = tooling::fixit::getText(ReturnTypeCVRange, Ctx);
+  std::string ReturnType =
+      std::string(tooling::fixit::getText(ReturnTypeCVRange, Ctx));
   keepSpecifiers(ReturnType, Auto, ReturnTypeCVRange, *F, Fr, Ctx, SM,
                  LangOpts);
 

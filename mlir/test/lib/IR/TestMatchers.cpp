@@ -1,13 +1,13 @@
 //===- TestMatchers.cpp - Pass to test matchers ---------------------------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/StandardOps/Ops.h"
-#include "mlir/IR/Function.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Matchers.h"
 #include "mlir/Pass/Pass.h"
 
@@ -15,13 +15,14 @@ using namespace mlir;
 
 namespace {
 /// This is a test pass for verifying matchers.
-struct TestMatchers : public FunctionPass<TestMatchers> {
+struct TestMatchers : public PassWrapper<TestMatchers, FunctionPass> {
   void runOnFunction() override;
 };
 } // end anonymous namespace
 
 // This could be done better but is not worth the variadic template trouble.
-template <typename Matcher> unsigned countMatches(FuncOp f, Matcher &matcher) {
+template <typename Matcher>
+static unsigned countMatches(FuncOp f, Matcher &matcher) {
   unsigned count = 0;
   f.walk([&count, &matcher](Operation *op) {
     if (matcher.match(op))
@@ -146,5 +147,8 @@ void TestMatchers::runOnFunction() {
     test2(f);
 }
 
-static PassRegistration<TestMatchers> pass("test-matchers",
-                                           "Test C++ pattern matchers.");
+namespace mlir {
+void registerTestMatchers() {
+  PassRegistration<TestMatchers>("test-matchers", "Test C++ pattern matchers.");
+}
+} // namespace mlir

@@ -68,7 +68,7 @@ int bar(int n){
   //
   // CHECK: [[AWAIT_WORK]]
   // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
-  // CHECK: [[KPR:%.+]] = call i1 @__kmpc_kernel_parallel(i8** [[OMP_WORK_FN]], i16 1)
+  // CHECK: [[KPR:%.+]] = call i1 @__kmpc_kernel_parallel(i8** [[OMP_WORK_FN]])
   // CHECK: [[KPRB:%.+]] = zext i1 [[KPR]] to i8
   // store i8 [[KPRB]], i8* [[OMP_EXEC_STATUS]], align 1
   // CHECK: [[WORK:%.+]] = load i8*, i8** [[OMP_WORK_FN]],
@@ -154,7 +154,7 @@ int bar(int n){
   //
   // CHECK: [[AWAIT_WORK]]
   // CHECK: call void @__kmpc_barrier_simple_spmd(%struct.ident_t* null, i32 0)
-  // CHECK: [[KPR:%.+]] = call i1 @__kmpc_kernel_parallel(i8** [[OMP_WORK_FN]], i16 1)
+  // CHECK: [[KPR:%.+]] = call i1 @__kmpc_kernel_parallel(i8** [[OMP_WORK_FN]])
   // CHECK: [[KPRB:%.+]] = zext i1 [[KPR]] to i8
   // store i8 [[KPRB]], i8* [[OMP_EXEC_STATUS]], align 1
   // CHECK: [[WORK:%.+]] = load i8*, i8** [[OMP_WORK_FN]],
@@ -232,7 +232,7 @@ int bar(int n){
   // CHECK: ret void
 
 // CHECK: define weak void @__omp_offloading_{{.*}}ftemplate{{.*}}_l37(
-// CHECK: call void @__kmpc_spmd_kernel_init(i32 {{.+}}, i16 1, i16 0)
+// CHECK: call void @__kmpc_spmd_kernel_init(i32 {{.+}}, i16 1)
 // CHECK: call void @__kmpc_data_sharing_init_stack_spmd
 // CHECK-NOT: call i8* @__kmpc_data_sharing_push_stack(
 // CHECK-NOT: call void @__kmpc_serialized_parallel(
@@ -246,13 +246,13 @@ int bar(int n){
 // CHECK: call void [[L1:@.+]](i32* %{{.+}}, i32* %{{.+}}, i16* %{{.+}})
 // CHECK: ret void
 
-// CHECK: define internal void [[L1]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i16* dereferenceable
+// CHECK: define internal void [[L1]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i16* nonnull align {{[0-9]+}} dereferenceable
 // CHECK: call void @__kmpc_serialized_parallel(
 // CHECK: call void [[L2:@.+]](i32* %{{.+}}, i32* %{{.+}}, i16* %{{.+}})
 // CHECK: call void @__kmpc_end_serialized_parallel(
 // CHECK: ret void
 
-// CHECK: define internal void [[L2]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i16* dereferenceable
+// CHECK: define internal void [[L2]](i32* noalias %{{.+}}, i32* noalias %{{.+}}, i16* nonnull align {{[0-9]+}} dereferenceable
 // CHECK: store i16 1, i16* %
 // CHECK: ret void
 

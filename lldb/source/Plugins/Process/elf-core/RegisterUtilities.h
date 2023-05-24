@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_REGISTERUTILITIES_H
-#define LLDB_REGISTERUTILITIES_H
+#ifndef LLDB_SOURCE_PLUGINS_PROCESS_ELF_CORE_REGISTERUTILITIES_H
+#define LLDB_SOURCE_PLUGINS_PROCESS_ELF_CORE_REGISTERUTILITIES_H
 
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
 #include "lldb/Utility/DataExtractor.h"
@@ -107,6 +107,10 @@ constexpr RegsetDesc FPR_Desc[] = {
     {llvm::Triple::OpenBSD, llvm::Triple::UnknownArch, OPENBSD::NT_FPREGS},
 };
 
+constexpr RegsetDesc AARCH64_SVE_Desc[] = {
+    {llvm::Triple::Linux, llvm::Triple::aarch64, llvm::ELF::NT_ARM_SVE},
+};
+
 constexpr RegsetDesc PPC_VMX_Desc[] = {
     {llvm::Triple::FreeBSD, llvm::Triple::UnknownArch, llvm::ELF::NT_PPC_VMX},
     {llvm::Triple::Linux, llvm::Triple::UnknownArch, llvm::ELF::NT_PPC_VMX},
@@ -118,4 +122,4 @@ constexpr RegsetDesc PPC_VSX_Desc[] = {
 
 } // namespace lldb_private
 
-#endif // #ifndef LLDB_REGISTERUTILITIES_H
+#endif // LLDB_SOURCE_PLUGINS_PROCESS_ELF_CORE_REGISTERUTILITIES_H

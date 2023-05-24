@@ -19,6 +19,7 @@
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_posix.h"
 #include "sanitizer_common/sanitizer_procmaps.h"
+#include "sanitizer_common/sanitizer_ptrauth.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
 #include "tsan_platform.h"
 #include "tsan_rtl.h"
@@ -233,7 +234,7 @@ static void my_pthread_introspection_hook(unsigned int event, pthread_t thread,
 #endif
 
 void InitializePlatformEarly() {
-#if defined(__aarch64__)
+#if !SANITIZER_GO && defined(__aarch64__)
   uptr max_vm = GetMaxUserVirtualAddress() + 1;
   if (max_vm != Mapping::kHiAppMemEnd) {
     Printf("ThreadSanitizer: unsupported vm address limit %p, expected %p.\n",
@@ -257,7 +258,7 @@ void InitializePlatform() {
       pthread_introspection_hook_install(&my_pthread_introspection_hook);
 #endif
 
-  if (GetMacosVersion() >= MACOS_VERSION_MOJAVE) {
+  if (GetMacosAlignedVersion() >= MacosVersion(10, 14)) {
     // Libsystem currently uses a process-global key; this might change.
     const unsigned kTLSLongjmpXorKeySlot = 0x7;
     longjmp_xor_key = (uptr)pthread_getspecific(kTLSLongjmpXorKeySlot);
@@ -266,7 +267,7 @@ void InitializePlatform() {
 
 #ifdef __aarch64__
 # define LONG_JMP_SP_ENV_SLOT \
-    ((GetMacosVersion() >= MACOS_VERSION_MOJAVE) ? 12 : 13)
+    ((GetMacosAlignedVersion() >= MacosVersion(10, 14)) ? 12 : 13)
 #else
 # define LONG_JMP_SP_ENV_SLOT 2
 #endif
@@ -274,6 +275,8 @@ void InitializePlatform() {
 uptr ExtractLongJmpSp(uptr *env) {
   uptr mangled_sp = env[LONG_JMP_SP_ENV_SLOT];
   uptr sp = mangled_sp ^ longjmp_xor_key;
+  sp = (uptr)ptrauth_auth_data((void *)sp, ptrauth_key_asdb,
+                               ptrauth_string_discriminator("sp"));
   return sp;
 }
 
@@ -303,14 +306,13 @@ void ImitateTlsWrite(ThreadState *thr, uptr tls_addr, uptr tls_size) {
 #if !SANITIZER_GO
 // Note: this function runs with async signals enabled,
 // so it must not touch any tsan state.
-int call_pthread_cancel_with_cleanup(int(*fn)(void *c, void *m,
-    void *abstime), void *c, void *m, void *abstime,
-    void(*cleanup)(void *arg), void *arg) {
+int call_pthread_cancel_with_cleanup(int (*fn)(void *arg),
+                                     void (*cleanup)(void *arg), void *arg) {
   // pthread_cleanup_push/pop are hardcore macros mess.
   // We can't intercept nor call them w/o including pthread.h.
   int res;
   pthread_cleanup_push(cleanup, arg);
-  res = fn(c, m, abstime);
+  res = fn(arg);
   pthread_cleanup_pop(0);
   return res;
 }

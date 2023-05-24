@@ -1,4 +1,4 @@
-//===-- TimerTest.cpp -------------------------------------------*- C++ -*-===//
+//===-- TimerTest.cpp -----------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -97,7 +97,7 @@ TEST(TimerTest, CategoryTimesStats) {
   int count1, count2;
   ASSERT_EQ(
       6, sscanf(ss.GetData(),
-                "%lf sec (total: %lfs; child: %lfs; count: %d) for CAT1%*[\n ]"
+                "%lf sec (total: %lfs; child: %lfs; count: %d) for CAT1%*[\n\r ]"
                 "%lf sec (total: %*fs; child: %*fs; count: %d) for CAT2",
                 &seconds1, &total1, &child1, &count1, &seconds2, &count2))
       << "String: " << ss.GetData();

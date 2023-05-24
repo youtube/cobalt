@@ -21,7 +21,5 @@ static_library("AsmParser") {
     "//llvm/lib/Target/AArch64/Utils",
   ]
   include_dirs = [ ".." ]
-  sources = [
-    "AArch64AsmParser.cpp",
-  ]
+  sources = [ "AArch64AsmParser.cpp" ]
 }

@@ -1,18 +1,6 @@
 // RUN: %clang_builtins %s %librt -o %t && %run %t
 // REQUIRES: librt_has_fixsfsivfp
 
-//===-- fixsfsivfp_test.c - Test __fixsfsivfp -----------------------------===//
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-//===----------------------------------------------------------------------===//
-//
-// This file tests __fixsfsivfp for the compiler_rt library.
-//
-//===----------------------------------------------------------------------===//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -20,7 +8,7 @@
 
 extern int __fixsfsivfp(float a);
 
-#if __arm__ && __VFP_FP__
+#if defined(__arm__) && defined(__ARM_FP) && (__ARM_FP & 0x4)
 int test__fixsfsivfp(float a)
 {
 	int actual = __fixsfsivfp(a);
@@ -34,7 +22,7 @@ int test__fixsfsivfp(float a)
 
 int main()
 {
-#if __arm__ && __VFP_FP__
+#if defined(__arm__) && defined(__ARM_FP) && (__ARM_FP & 0x4)
     if (test__fixsfsivfp(0.0))
         return 1;
     if (test__fixsfsivfp(1.0))

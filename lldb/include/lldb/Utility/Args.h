@@ -14,6 +14,7 @@
 #include "lldb/lldb-types.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/YAMLTraits.h"
 #include <string>
 #include <utility>
 #include <vector>
@@ -34,6 +35,9 @@ public:
   struct ArgEntry {
   private:
     friend class Args;
+    friend struct llvm::yaml::MappingTraits<Args>;
+    friend struct llvm::yaml::MappingTraits<Args::ArgEntry>;
+
     std::unique_ptr<char[]> ptr;
     char quote;
 
@@ -62,6 +66,7 @@ public:
 
   Args(const Args &rhs);
   explicit Args(const StringList &list);
+  explicit Args(llvm::ArrayRef<llvm::StringRef> args);
 
   Args &operator=(const Args &rhs);
 
@@ -258,9 +263,8 @@ public:
 
   static uint32_t StringToGenericRegister(llvm::StringRef s);
 
-  static const char *GetShellSafeArgument(const FileSpec &shell,
-                                          const char *unsafe_arg,
-                                          std::string &safe_arg);
+  static std::string GetShellSafeArgument(const FileSpec &shell,
+                                          llvm::StringRef unsafe_arg);
 
   // EncodeEscapeSequences will change the textual representation of common
   // escape sequences like "\n" (two characters) into a single '\n'. It does
@@ -283,6 +287,8 @@ public:
                                                char quote_char);
 
 private:
+  friend struct llvm::yaml::MappingTraits<Args>;
+
   std::vector<ArgEntry> m_entries;
   std::vector<char *> m_argv;
 };
@@ -372,5 +378,29 @@ private:
 };
 
 } // namespace lldb_private
+
+namespace llvm {
+namespace yaml {
+template <> struct MappingTraits<lldb_private::Args::ArgEntry> {
+  class NormalizedArgEntry {
+  public:
+    NormalizedArgEntry(IO &) {}
+    NormalizedArgEntry(IO &, lldb_private::Args::ArgEntry &entry)
+        : value(entry.ref()), quote(entry.quote) {}
+    lldb_private::Args::ArgEntry denormalize(IO &) {
+      return lldb_private::Args::ArgEntry(value, quote);
+    }
+    StringRef value;
+    uint8_t quote;
+  };
+  static void mapping(IO &io, lldb_private::Args::ArgEntry &v);
+};
+template <> struct MappingTraits<lldb_private::Args> {
+  static void mapping(IO &io, lldb_private::Args &v);
+};
+} // namespace yaml
+} // namespace llvm
+
+LLVM_YAML_IS_SEQUENCE_VECTOR(lldb_private::Args::ArgEntry)
 
 #endif // LLDB_UTILITY_ARGS_H

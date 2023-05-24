@@ -6,7 +6,7 @@
 // Source Licenses. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17
+// UNSUPPORTED: c++03, c++11, c++14, c++17
 
 // template <class T>
 //   constexpr int countr_zero(T x) noexcept;
@@ -65,7 +65,7 @@ void runtime_test()
 	assert( std::countr_zero(T(130)) == 1);
 }
 
-int main()
+int main(int, char**)
 {
 
     {
@@ -166,4 +166,5 @@ int main()
 	}
 #endif
 
+    return 0;
 }

@@ -19,7 +19,6 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Twine.h"
 #include "llvm/Support/Chrono.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
@@ -38,6 +37,8 @@
 namespace llvm {
 
 class MemoryBuffer;
+class MemoryBufferRef;
+class Twine;
 
 namespace vfs {
 
@@ -463,7 +464,8 @@ public:
   /// false if the file or directory already exists in the file system with
   /// different contents.
   bool addFileNoOwn(const Twine &Path, time_t ModificationTime,
-                    llvm::MemoryBuffer *Buffer, Optional<uint32_t> User = None,
+                    const llvm::MemoryBufferRef &Buffer,
+                    Optional<uint32_t> User = None,
                     Optional<uint32_t> Group = None,
                     Optional<llvm::sys::fs::file_type> Type = None,
                     Optional<llvm::sys::fs::perms> Perms = None);
@@ -498,7 +500,7 @@ llvm::sys::fs::UniqueID getNextVirtualUniqueID();
 
 /// Gets a \p FileSystem for a virtual file system described in YAML
 /// format.
-IntrusiveRefCntPtr<FileSystem>
+std::unique_ptr<FileSystem>
 getVFSFromYAML(std::unique_ptr<llvm::MemoryBuffer> Buffer,
                llvm::SourceMgr::DiagHandlerTy DiagHandler,
                StringRef YAMLFilePath, void *DiagContext = nullptr,
@@ -506,10 +508,12 @@ getVFSFromYAML(std::unique_ptr<llvm::MemoryBuffer> Buffer,
 
 struct YAMLVFSEntry {
   template <typename T1, typename T2>
-  YAMLVFSEntry(T1 &&VPath, T2 &&RPath)
-      : VPath(std::forward<T1>(VPath)), RPath(std::forward<T2>(RPath)) {}
+  YAMLVFSEntry(T1 &&VPath, T2 &&RPath, bool IsDirectory = false)
+      : VPath(std::forward<T1>(VPath)), RPath(std::forward<T2>(RPath)),
+        IsDirectory(IsDirectory) {}
   std::string VPath;
   std::string RPath;
+  bool IsDirectory = false;
 };
 
 class VFSFromYamlDirIterImpl;
@@ -647,14 +651,17 @@ private:
   friend class VFSFromYamlDirIterImpl;
   friend class RedirectingFileSystemParser;
 
-  bool shouldUseExternalFS() const {
-    return ExternalFSValidWD && IsFallthrough;
-  }
+  bool shouldUseExternalFS() const { return IsFallthrough; }
+
+  /// Canonicalize path by removing ".", "..", "./", components. This is
+  /// a VFS request, do not bother about symlinks in the path components
+  /// but canonicalize in order to perform the correct entry search.
+  std::error_code makeCanonical(SmallVectorImpl<char> &Path) const;
 
   // In a RedirectingFileSystem, keys can be specified in Posix or Windows
   // style (or even a mixture of both), so this comparison helper allows
   // slashes (representing a root) to match backslashes (and vice versa).  Note
-  // that, other than the root, patch components should not contain slashes or
+  // that, other than the root, path components should not contain slashes or
   // backslashes.
   bool pathComponentMatches(llvm::StringRef lhs, llvm::StringRef rhs) const {
     if ((CaseSensitive ? lhs.equals(rhs) : lhs.equals_lower(rhs)))
@@ -667,9 +674,6 @@ private:
 
   /// The current working directory of the file system.
   std::string WorkingDirectory;
-
-  /// Whether the current working directory is valid for the external FS.
-  bool ExternalFSValidWD = false;
 
   /// The file system to use for external references.
   IntrusiveRefCntPtr<FileSystem> ExternalFS;
@@ -705,16 +709,6 @@ private:
   bool IsFallthrough = true;
   /// @}
 
-  /// Virtual file paths and external files could be canonicalized without "..",
-  /// "." and "./" in their paths. FIXME: some unittests currently fail on
-  /// win32 when using remove_dots and remove_leading_dotslash on paths.
-  bool UseCanonicalizedPaths =
-#ifdef _WIN32
-      false;
-#else
-      true;
-#endif
-
   RedirectingFileSystem(IntrusiveRefCntPtr<FileSystem> ExternalFS);
 
   /// Looks up the path <tt>[Start, End)</tt> in \p From, possibly
@@ -728,14 +722,19 @@ private:
 
 public:
   /// Looks up \p Path in \c Roots.
-  ErrorOr<Entry *> lookupPath(const Twine &Path) const;
+  ErrorOr<Entry *> lookupPath(StringRef Path) const;
 
   /// Parses \p Buffer, which is expected to be in YAML format and
   /// returns a virtual file system representing its contents.
-  static RedirectingFileSystem *
+  static std::unique_ptr<RedirectingFileSystem>
   create(std::unique_ptr<MemoryBuffer> Buffer,
          SourceMgr::DiagHandlerTy DiagHandler, StringRef YAMLFilePath,
          void *DiagContext, IntrusiveRefCntPtr<FileSystem> ExternalFS);
+
+  /// Redirect each of the remapped files from first to second.
+  static std::unique_ptr<RedirectingFileSystem>
+  create(ArrayRef<std::pair<std::string, std::string>> RemappedFiles,
+         bool UseExternalNames, FileSystem &ExternalFS);
 
   ErrorOr<Status> status(const Twine &Path) override;
   ErrorOr<std::unique_ptr<File>> openFileForRead(const Twine &Path) override;
@@ -756,6 +755,10 @@ public:
   void setExternalContentsPrefixDir(StringRef PrefixDir);
 
   StringRef getExternalContentsPrefixDir() const;
+
+  void setFallthrough(bool Fallthrough);
+
+  std::vector<llvm::StringRef> getRoots() const;
 
   void dump(raw_ostream &OS) const;
   void dumpEntry(raw_ostream &OS, Entry *E, int NumSpaces = 0) const;
@@ -781,10 +784,13 @@ class YAMLVFSWriter {
   Optional<bool> UseExternalNames;
   std::string OverlayDir;
 
+  void addEntry(StringRef VirtualPath, StringRef RealPath, bool IsDirectory);
+
 public:
   YAMLVFSWriter() = default;
 
   void addFileMapping(StringRef VirtualPath, StringRef RealPath);
+  void addDirectoryMapping(StringRef VirtualPath, StringRef RealPath);
 
   void setCaseSensitivity(bool CaseSensitive) {
     IsCaseSensitive = CaseSensitive;

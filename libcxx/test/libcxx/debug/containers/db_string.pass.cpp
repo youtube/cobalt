@@ -6,17 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 // UNSUPPORTED: windows
 // UNSUPPORTED: libcpp-no-if-constexpr
-// MODULES_DEFINES: _LIBCPP_DEBUG=1
 
-// Can't test the system lib because this test enables debug mode
-// UNSUPPORTED: with_system_cxx_lib
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DEBUG=1
+// UNSUPPORTED: libcxx-no-debug-mode
 
 // test container debugging
 
-#define _LIBCPP_DEBUG 1
 #include <string>
 #include <vector>
 
@@ -53,7 +51,7 @@ public:
 
 private:
   static void BackOnEmptyContainer(int N) {
-    CHECKPOINT("testing back on empty");
+    // testing back on empty
     Container C = makeContainer(N);
     Container const& CC = C;
     iterator it = --C.end();
@@ -67,7 +65,7 @@ private:
   }
 
   static void FrontOnEmptyContainer(int N) {
-    CHECKPOINT("testing front on empty");
+    // testing front on empty
     Container C = makeContainer(N);
     Container const& CC = C;
     (void)C.front();
@@ -78,7 +76,7 @@ private:
   }
 
   static void PopBack(int N) {
-    CHECKPOINT("testing pop_back() invalidation");
+    // testing pop_back() invalidation
     Container C1 = makeContainer(N);
     iterator it1 = C1.end();
     --it1;

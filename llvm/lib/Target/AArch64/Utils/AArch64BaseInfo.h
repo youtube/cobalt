@@ -338,6 +338,14 @@ struct SysAliasReg : SysAlias {
       : SysAlias(N, E, F), NeedsReg(R) {}
 };
 
+struct SysAliasImm : SysAlias {
+  uint16_t ImmValue;
+  constexpr SysAliasImm(const char *N, uint16_t E, uint16_t I)
+      : SysAlias(N, E), ImmValue(I) {}
+  constexpr SysAliasImm(const char *N, uint16_t E, uint16_t I, FeatureBitset F)
+      : SysAlias(N, E, F), ImmValue(I) {}
+};
+
 namespace AArch64AT{
   struct AT : SysAlias {
     using SysAlias::SysAlias;
@@ -351,6 +359,14 @@ namespace AArch64DB {
     using SysAlias::SysAlias;
   };
   #define GET_DB_DECL
+  #include "AArch64GenSystemOperands.inc"
+}
+
+namespace AArch64DBnXS {
+  struct DBnXS : SysAliasImm {
+    using SysAliasImm::SysAliasImm;
+  };
+  #define GET_DBNXS_DECL
   #include "AArch64GenSystemOperands.inc"
 }
 
@@ -552,7 +568,7 @@ namespace AArch64TLBI {
   struct TLBI : SysAliasReg {
     using SysAliasReg::SysAliasReg;
   };
-  #define GET_TLBI_DECL
+  #define GET_TLBITable_DECL
   #include "AArch64GenSystemOperands.inc"
 }
 
@@ -606,7 +622,7 @@ namespace AArch64II {
     MO_HI12 = 7,
 
     /// MO_COFFSTUB - On a symbol operand "FOO", this indicates that the
-    /// reference is actually to the ".refptrp.FOO" symbol.  This is used for
+    /// reference is actually to the ".refptr.FOO" symbol.  This is used for
     /// stub symbols on windows.
     MO_COFFSTUB = 0x8,
 
@@ -658,6 +674,7 @@ namespace AArch64 {
 // in index i*P of a <n x (M*P) x t> vector.  The other elements of the
 // <n x (M*P) x t> vector (such as index 1) are undefined.
 static constexpr unsigned SVEBitsPerBlock = 128;
+static constexpr unsigned SVEMaxBitsPerVector = 2048;
 const unsigned NeonBitsPerVector = 128;
 } // end namespace AArch64
 } // end namespace llvm

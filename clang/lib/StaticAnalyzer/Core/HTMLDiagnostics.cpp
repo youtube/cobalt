@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Analysis/IssueHash.h"
 #include "clang/Analysis/PathDiagnostic.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
@@ -23,8 +24,6 @@
 #include "clang/Lex/Token.h"
 #include "clang/Rewrite/Core/HTMLRewrite.h"
 #include "clang/Rewrite/Core/Rewriter.h"
-#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
-#include "clang/StaticAnalyzer/Core/IssueHash.h"
 #include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallString.h"
@@ -58,19 +57,18 @@ using namespace ento;
 namespace {
 
 class HTMLDiagnostics : public PathDiagnosticConsumer {
+  PathDiagnosticConsumerOptions DiagOpts;
   std::string Directory;
   bool createdDir = false;
   bool noDir = false;
   const Preprocessor &PP;
-  AnalyzerOptions &AnalyzerOpts;
   const bool SupportsCrossFileDiagnostics;
 
 public:
-  HTMLDiagnostics(AnalyzerOptions &AnalyzerOpts,
-                  const std::string& prefix,
-                  const Preprocessor &pp,
+  HTMLDiagnostics(PathDiagnosticConsumerOptions DiagOpts,
+                  const std::string &OutputDir, const Preprocessor &pp,
                   bool supportsMultipleFiles)
-      : Directory(prefix), PP(pp), AnalyzerOpts(AnalyzerOpts),
+      : DiagOpts(std::move(DiagOpts)), Directory(OutputDir), PP(pp),
         SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
   ~HTMLDiagnostics() override { FlushDiagnostics(nullptr); }
@@ -135,17 +133,47 @@ private:
 } // namespace
 
 void ento::createHTMLDiagnosticConsumer(
-    AnalyzerOptions &AnalyzerOpts, PathDiagnosticConsumers &C,
-    const std::string &prefix, const Preprocessor &PP,
-    const cross_tu::CrossTranslationUnitContext &) {
-  C.push_back(new HTMLDiagnostics(AnalyzerOpts, prefix, PP, true));
+    PathDiagnosticConsumerOptions DiagOpts, PathDiagnosticConsumers &C,
+    const std::string &OutputDir, const Preprocessor &PP,
+    const cross_tu::CrossTranslationUnitContext &CTU) {
+
+  // FIXME: HTML is currently our default output type, but if the output
+  // directory isn't specified, it acts like if it was in the minimal text
+  // output mode. This doesn't make much sense, we should have the minimal text
+  // as our default. In the case of backward compatibility concerns, this could
+  // be preserved with -analyzer-config-compatibility-mode=true.
+  createTextMinimalPathDiagnosticConsumer(DiagOpts, C, OutputDir, PP, CTU);
+
+  // TODO: Emit an error here.
+  if (OutputDir.empty())
+    return;
+
+  C.push_back(new HTMLDiagnostics(std::move(DiagOpts), OutputDir, PP, true));
 }
 
 void ento::createHTMLSingleFileDiagnosticConsumer(
-    AnalyzerOptions &AnalyzerOpts, PathDiagnosticConsumers &C,
+    PathDiagnosticConsumerOptions DiagOpts, PathDiagnosticConsumers &C,
+    const std::string &OutputDir, const Preprocessor &PP,
+    const cross_tu::CrossTranslationUnitContext &CTU) {
+  createTextMinimalPathDiagnosticConsumer(DiagOpts, C, OutputDir, PP, CTU);
+
+  // TODO: Emit an error here.
+  if (OutputDir.empty())
+    return;
+
+  C.push_back(new HTMLDiagnostics(std::move(DiagOpts), OutputDir, PP, false));
+}
+
+void ento::createPlistHTMLDiagnosticConsumer(
+    PathDiagnosticConsumerOptions DiagOpts, PathDiagnosticConsumers &C,
     const std::string &prefix, const Preprocessor &PP,
-    const cross_tu::CrossTranslationUnitContext &) {
-  C.push_back(new HTMLDiagnostics(AnalyzerOpts, prefix, PP, false));
+    const cross_tu::CrossTranslationUnitContext &CTU) {
+  createHTMLDiagnosticConsumer(
+      DiagOpts, C, std::string(llvm::sys::path::parent_path(prefix)), PP,
+      CTU);
+  createPlistMultiFileDiagnosticConsumer(DiagOpts, C, prefix, PP, CTU);
+  createTextMinimalPathDiagnosticConsumer(std::move(DiagOpts), C, prefix, PP,
+                                          CTU);
 }
 
 //===----------------------------------------------------------------------===//
@@ -218,7 +246,7 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
   int FD;
   SmallString<128> Model, ResultPath;
 
-  if (!AnalyzerOpts.ShouldWriteStableReportFilename) {
+  if (!DiagOpts.ShouldWriteStableReportFilename) {
       llvm::sys::path::append(Model, Directory, "report-%%%%%%.html");
       if (std::error_code EC =
           llvm::sys::fs::make_absolute(Model)) {
@@ -508,7 +536,7 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
 <input type="checkbox" class="spoilerhider" id="showinvocation" />
 <label for="showinvocation" >Show analyzer invocation</label>
 <div class="spoiler">clang -cc1 )<<<";
-    os << html::EscapeText(AnalyzerOpts.FullCompilerInvocation);
+    os << html::EscapeText(DiagOpts.ToolInvocation);
     os << R"<<<(
 </div>
 <div id='tooltiphint' hidden="true">
@@ -555,8 +583,8 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
     os  << "\n<!-- FUNCTIONNAME " <<  declName << " -->\n";
 
     os << "\n<!-- ISSUEHASHCONTENTOFLINEINCONTEXT "
-       << GetIssueHash(SMgr, L, D.getCheckerName(), D.getBugType(),
-                       DeclWithIssue, PP.getLangOpts())
+       << getIssueHash(L, D.getCheckerName(), D.getBugType(), DeclWithIssue,
+                       PP.getLangOpts())
        << " -->\n";
 
     os << "\n<!-- BUGLINE "
@@ -607,10 +635,17 @@ window.addEventListener("keydown", function (event) {
 )<<<";
 }
 
+static bool shouldDisplayPopUpRange(const SourceRange &Range) {
+  return !(Range.getBegin().isMacroID() || Range.getEnd().isMacroID());
+}
+
 static void
 HandlePopUpPieceStartTag(Rewriter &R,
                          const std::vector<SourceRange> &PopUpRanges) {
   for (const auto &Range : PopUpRanges) {
+    if (!shouldDisplayPopUpRange(Range))
+      continue;
+
     html::HighlightRange(R, Range.getBegin(), Range.getEnd(), "",
                          "<table class='variable_popup'><tbody>",
                          /*IsTokenRange=*/true);
@@ -626,6 +661,8 @@ static void HandlePopUpPieceEndTag(Rewriter &R,
   llvm::raw_svector_ostream Out(Buf);
 
   SourceRange Range(Piece.getLocation().asRange());
+  if (!shouldDisplayPopUpRange(Range))
+    return;
 
   // Write out the path indices with a right arrow and the message as a row.
   Out << "<tr><td valign='top'><div class='PathIndex PathIndexPopUp'>"
@@ -750,8 +787,8 @@ void HTMLDiagnostics::HandlePiece(Rewriter &R, FileID BugFileID,
   if (LPosInfo.first != BugFileID)
     return;
 
-  const llvm::MemoryBuffer *Buf = SM.getBuffer(LPosInfo.first);
-  const char* FileStart = Buf->getBufferStart();
+  llvm::MemoryBufferRef Buf = SM.getBufferOrFake(LPosInfo.first);
+  const char *FileStart = Buf.getBufferStart();
 
   // Compute the column number.  Rewind from the current position to the start
   // of the line.
@@ -761,7 +798,7 @@ void HTMLDiagnostics::HandlePiece(Rewriter &R, FileID BugFileID,
 
   // Compute LineEnd.
   const char *LineEnd = TokInstantiationPtr;
-  const char* FileEnd = Buf->getBufferEnd();
+  const char *FileEnd = Buf.getBufferEnd();
   while (*LineEnd != '\n' && LineEnd != FileEnd)
     ++LineEnd;
 
@@ -870,7 +907,7 @@ void HTMLDiagnostics::HandlePiece(Rewriter &R, FileID BugFileID,
          << (num - 1)
          << "\" title=\"Previous event ("
          << (num - 1)
-         << ")\">&#x2190;</a></div></td>";
+         << ")\">&#x2190;</a></div>";
     }
 
     os << "</td><td>";
@@ -1034,8 +1071,13 @@ StringRef HTMLDiagnostics::generateKeyboardNavigationJavascript() {
 <script type='text/javascript'>
 var digitMatcher = new RegExp("[0-9]+");
 
+var querySelectorAllArray = function(selector) {
+  return Array.prototype.slice.call(
+    document.querySelectorAll(selector));
+}
+
 document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll(".PathNav > a").forEach(
+    querySelectorAllArray(".PathNav > a").forEach(
         function(currentValue, currentIndex) {
             var hrefValue = currentValue.getAttribute("href");
             currentValue.onclick = function() {
@@ -1055,7 +1097,7 @@ var findNum = function() {
 };
 
 var scrollTo = function(el) {
-    document.querySelectorAll(".selected").forEach(function(s) {
+    querySelectorAllArray(".selected").forEach(function(s) {
         s.classList.remove("selected");
     });
     el.classList.add("selected");

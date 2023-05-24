@@ -69,14 +69,6 @@ template <typename... Ts> Stencil cat(Ts &&... Parts) {
 // Functions for conveniently building stencils.
 //
 
-/// DEPRECATED: Use `cat` instead.
-/// \returns exactly the text provided.
-Stencil text(llvm::StringRef Text);
-
-/// DEPRECATED: Use `cat` instead.
-/// \returns the source corresponding to the selected range.
-Stencil selection(RangeSelector Selector);
-
 /// Generates the source of the expression bound to \p Id, wrapping it in
 /// parentheses if it may parse differently depending on context. For example, a
 /// binary operation is always wrapped, while a variable reference is never
@@ -90,7 +82,6 @@ Stencil deref(llvm::StringRef ExprId);
 /// If \p ExprId is of pointer type, constructs an idiomatic dereferencing of
 /// the expression bound to \p ExprId, including wrapping it in parentheses, if
 /// needed. Otherwise, generates the original expression source.
-/// FIXME: Identify smart-pointers as pointer types.
 Stencil maybeDeref(llvm::StringRef ExprId);
 
 /// Constructs an expression that idiomatically takes the address of the
@@ -102,7 +93,6 @@ Stencil addressOf(llvm::StringRef ExprId);
 /// idiomatically takes the address of the expression bound to \p ExprId,
 /// including wrapping \p ExprId in parentheses, if needed. Otherwise, generates
 /// the original expression source.
-/// FIXME: Identify smart-pointers as pointer types.
 Stencil maybeAddressOf(llvm::StringRef ExprId);
 
 /// Constructs a `MemberExpr` that accesses the named member (\p Member) of the
@@ -112,7 +102,7 @@ Stencil maybeAddressOf(llvm::StringRef ExprId);
 /// Additionally, `e` is wrapped in parentheses, if needed.
 Stencil access(llvm::StringRef BaseId, Stencil Member);
 inline Stencil access(llvm::StringRef BaseId, llvm::StringRef Member) {
-  return access(BaseId, text(Member));
+  return access(BaseId, detail::makeStencil(Member));
 }
 
 /// Chooses between the two stencil parts, based on whether \p ID is bound in
@@ -123,12 +113,22 @@ Stencil ifBound(llvm::StringRef Id, Stencil TrueStencil, Stencil FalseStencil);
 /// match.
 inline Stencil ifBound(llvm::StringRef Id, llvm::StringRef TrueText,
                        llvm::StringRef FalseText) {
-  return ifBound(Id, text(TrueText), text(FalseText));
+  return ifBound(Id, detail::makeStencil(TrueText),
+                 detail::makeStencil(FalseText));
 }
 
 /// Wraps a \c MatchConsumer in a \c Stencil, so that it can be used in a \c
 /// Stencil.  This supports user-defined extensions to the \c Stencil language.
 Stencil run(MatchConsumer<std::string> C);
+
+/// Produces a human-readable rendering of the node bound to `Id`, suitable for
+/// diagnostics and debugging. This operator can be applied to any node, but is
+/// targeted at those whose source cannot be printed directly, including:
+///
+/// * Types. represented based on their structure. Note that namespace
+///   qualifiers are always printed, with the anonymous namespace represented
+///   explicitly. No desugaring or canonicalization is applied.
+Stencil describe(llvm::StringRef Id);
 
 /// For debug use only; semantics are not guaranteed.
 ///

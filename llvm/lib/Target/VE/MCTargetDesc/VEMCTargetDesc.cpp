@@ -11,7 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "VEMCTargetDesc.h"
-#include "InstPrinter/VEInstPrinter.h"
+#include "TargetInfo/VETargetInfo.h"
+#include "VEInstPrinter.h"
 #include "VEMCAsmInfo.h"
 #include "VETargetStreamer.h"
 #include "llvm/MC/MCInstrInfo.h"
@@ -35,7 +36,7 @@ static MCAsmInfo *createVEMCAsmInfo(const MCRegisterInfo &MRI, const Triple &TT,
                                     const MCTargetOptions &Options) {
   MCAsmInfo *MAI = new VEELFMCAsmInfo(TT);
   unsigned Reg = MRI.getDwarfRegNum(VE::SX11, true);
-  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 0);
+  MCCFIInstruction Inst = MCCFIInstruction::cfiDefCfa(nullptr, Reg, 0);
   MAI->addInitialFrameState(Inst);
   return MAI;
 }
@@ -55,8 +56,8 @@ static MCRegisterInfo *createVEMCRegisterInfo(const Triple &TT) {
 static MCSubtargetInfo *createVEMCSubtargetInfo(const Triple &TT, StringRef CPU,
                                                 StringRef FS) {
   if (CPU.empty())
-    CPU = "ve";
-  return createVEMCSubtargetInfoImpl(TT, CPU, FS);
+    CPU = "generic";
+  return createVEMCSubtargetInfoImpl(TT, CPU, /*TuneCPU=*/CPU, FS);
 }
 
 static MCTargetStreamer *
@@ -79,7 +80,7 @@ static MCInstPrinter *createVEMCInstPrinter(const Triple &T,
   return new VEInstPrinter(MAI, MII, MRI);
 }
 
-extern "C" void LLVMInitializeVETargetMC() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeVETargetMC() {
   // Register the MC asm info.
   RegisterMCAsmInfoFn X(getTheVETarget(), createVEMCAsmInfo);
 
@@ -92,6 +93,12 @@ extern "C" void LLVMInitializeVETargetMC() {
 
     // Register the MC subtarget info.
     TargetRegistry::RegisterMCSubtargetInfo(*T, createVEMCSubtargetInfo);
+
+    // Register the MC Code Emitter.
+    TargetRegistry::RegisterMCCodeEmitter(*T, createVEMCCodeEmitter);
+
+    // Register the asm backend.
+    TargetRegistry::RegisterMCAsmBackend(*T, createVEAsmBackend);
 
     // Register the object target streamer.
     TargetRegistry::RegisterObjectTargetStreamer(*T,

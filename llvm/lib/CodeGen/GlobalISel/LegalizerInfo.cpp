@@ -59,6 +59,9 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, LegalizeAction Action) {
   case MoreElements:
     OS << "MoreElements";
     break;
+  case Bitcast:
+    OS << "Bitcast";
+    break;
   case Lower:
     OS << "Lower";
     break;
@@ -102,6 +105,7 @@ raw_ostream &LegalityQuery::print(raw_ostream &OS) const {
 static bool hasNoSimpleLoops(const LegalizeRule &Rule, const LegalityQuery &Q,
                              const std::pair<unsigned, LLT> &Mutation) {
   switch (Rule.getAction()) {
+  case Legal:
   case Custom:
   case Lower:
   case MoreElements:
@@ -119,7 +123,7 @@ static bool mutationIsSane(const LegalizeRule &Rule,
                            std::pair<unsigned, LLT> Mutation) {
   // If the user wants a custom mutation, then we can't really say much about
   // it. Return true, and trust that they're doing the right thing.
-  if (Rule.getAction() == Custom)
+  if (Rule.getAction() == Custom || Rule.getAction() == Legal)
     return true;
 
   const unsigned TypeIdx = Mutation.first;
@@ -144,7 +148,8 @@ static bool mutationIsSane(const LegalizeRule &Rule,
         if (NewTy.getNumElements() <= OldElts)
           return false;
       }
-    }
+    } else if (Rule.getAction() == MoreElements)
+      return false;
 
     // Make sure the element type didn't change.
     return NewTy.getScalarType() == OldTy.getScalarType();
@@ -172,6 +177,9 @@ static bool mutationIsSane(const LegalizeRule &Rule,
     }
 
     return true;
+  }
+  case Bitcast: {
+    return OldTy != NewTy && OldTy.getSizeInBits() == NewTy.getSizeInBits();
   }
   default:
     return true;
@@ -500,8 +508,7 @@ LegalizerInfo::getAction(const MachineInstr &MI,
   SmallVector<LegalityQuery::MemDesc, 2> MemDescrs;
   for (const auto &MMO : MI.memoperands())
     MemDescrs.push_back({8 * MMO->getSize() /* in bits */,
-                         8 * MMO->getAlignment(),
-                         MMO->getOrdering()});
+                         8 * MMO->getAlign().value(), MMO->getOrdering()});
 
   return getAction({MI.getOpcode(), Types, MemDescrs});
 }
@@ -517,12 +524,6 @@ bool LegalizerInfo::isLegalOrCustom(const MachineInstr &MI,
   // If the action is custom, it may not necessarily modify the instruction,
   // so we have to assume it's legal.
   return Action == Legal || Action == Custom;
-}
-
-bool LegalizerInfo::legalizeCustom(MachineInstr &MI, MachineRegisterInfo &MRI,
-                                   MachineIRBuilder &MIRBuilder,
-                                   GISelChangeObserver &Observer) const {
-  return false;
 }
 
 LegalizerInfo::SizeAndActionsVec
@@ -575,6 +576,7 @@ LegalizerInfo::findAction(const SizeAndActionsVec &Vec, const uint32_t Size) {
   LegalizeAction Action = Vec[VecIdx].second;
   switch (Action) {
   case Legal:
+  case Bitcast:
   case Lower:
   case Libcall:
   case Custom:
@@ -679,12 +681,6 @@ LegalizerInfo::findVectorLegalAction(const InstrAspect &Aspect) const {
   return {NumElementsAndAction.second,
           LLT::vector(NumElementsAndAction.first,
                       IntermediateType.getScalarSizeInBits())};
-}
-
-bool LegalizerInfo::legalizeIntrinsic(MachineInstr &MI,
-                                      MachineRegisterInfo &MRI,
-                                      MachineIRBuilder &MIRBuilder) const {
-  return true;
 }
 
 unsigned LegalizerInfo::getExtOpcodeForWideningConstant(LLT SmallTy) const {

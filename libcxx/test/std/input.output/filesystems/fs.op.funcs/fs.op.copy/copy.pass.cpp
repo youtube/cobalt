@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <filesystem>
 
@@ -63,6 +63,7 @@ TEST_CASE(test_error_reporting)
 #endif
     };
 
+    static_test_env static_env;
     scoped_test_env env;
     const path file = env.create_file("file1", 42);
     const path dir = env.create_dir("dir");
@@ -74,7 +75,7 @@ TEST_CASE(test_error_reporting)
     // !exists(f)
     {
         std::error_code ec = test_ec;
-        const path f = StaticEnv::DNE;
+        const path f = static_env.DNE;
         const path t = env.test_root;
         fs::copy(f, t, ec);
         TEST_REQUIRE(ec);
@@ -264,7 +265,7 @@ TEST_CASE(test_copy_symlinks_to_symlink_dir)
     const path file2 = env.create_file("file2", 101);
     const path file2_sym = env.create_symlink(file2, "file2_sym");
     const path dir = env.create_dir("dir");
-    const path dir_sym = env.create_symlink(dir, "dir_sym");
+    const path dir_sym = env.create_directory_symlink(dir, "dir_sym");
     {
         std::error_code ec = GetTestEC();
         fs::copy(file1, dir_sym, copy_options::copy_symlinks, ec);
@@ -285,14 +286,14 @@ TEST_CASE(test_dir_create_symlink)
     {
         std::error_code ec = GetTestEC();
         fs::copy(dir, dest, copy_options::create_symlinks, ec);
-        TEST_CHECK(ec == std::make_error_code(std::errc::is_a_directory));
+        TEST_CHECK(ErrorIs(ec, std::errc::is_a_directory));
         TEST_CHECK(!exists(dest));
         TEST_CHECK(!is_symlink(dest));
     }
     {
         std::error_code ec = GetTestEC();
         fs::copy(dir, dest, copy_options::create_symlinks|copy_options::recursive, ec);
-        TEST_CHECK(ec == std::make_error_code(std::errc::is_a_directory));
+        TEST_CHECK(ErrorIs(ec, std::errc::is_a_directory));
         TEST_CHECK(!exists(dest));
         TEST_CHECK(!is_symlink(dest));
     }

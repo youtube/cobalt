@@ -407,13 +407,18 @@ template <> struct ScalarTraits<Target> {
     case PlatformKind::watchOSSimulator:
       OS << "watchos-simulator";
       break;
+    case PlatformKind::driverKit:
+      OS << "driverkit";
+      break;
     }
   }
 
   static StringRef input(StringRef Scalar, void *, Target &Value) {
     auto Result = Target::create(Scalar);
-    if (!Result)
-      return toString(Result.takeError());
+    if (!Result) {
+      consumeError(Result.takeError());
+      return "unparsable target";
+    }
 
     Value = *Result;
     if (Value.Arch == AK_unknown)
@@ -450,10 +455,8 @@ template <> struct MappingTraits<const InterfaceFile *> {
       if (File->isInstallAPI())
         Flags |= TBDFlags::InstallAPI;
 
-      for (const auto &Iter : File->umbrellas()) {
-        ParentUmbrella = Iter.second;
-        break;
-      }
+      if (!File->umbrellas().empty())
+        ParentUmbrella = File->umbrellas().begin()->second;
 
       std::set<ArchitectureSet> ArchSet;
       for (const auto &Library : File->allowableClients())
@@ -518,13 +521,12 @@ template <> struct MappingTraits<const InterfaceFile *> {
             break;
           }
         }
-        llvm::sort(Section.Symbols.begin(), Section.Symbols.end());
-        llvm::sort(Section.Classes.begin(), Section.Classes.end());
-        llvm::sort(Section.ClassEHs.begin(), Section.ClassEHs.end());
-        llvm::sort(Section.IVars.begin(), Section.IVars.end());
-        llvm::sort(Section.WeakDefSymbols.begin(),
-                   Section.WeakDefSymbols.end());
-        llvm::sort(Section.TLVSymbols.begin(), Section.TLVSymbols.end());
+        llvm::sort(Section.Symbols);
+        llvm::sort(Section.Classes);
+        llvm::sort(Section.ClassEHs);
+        llvm::sort(Section.IVars);
+        llvm::sort(Section.WeakDefSymbols);
+        llvm::sort(Section.TLVSymbols);
         Exports.emplace_back(std::move(Section));
       }
 
@@ -576,12 +578,11 @@ template <> struct MappingTraits<const InterfaceFile *> {
             break;
           }
         }
-        llvm::sort(Section.Symbols.begin(), Section.Symbols.end());
-        llvm::sort(Section.Classes.begin(), Section.Classes.end());
-        llvm::sort(Section.ClassEHs.begin(), Section.ClassEHs.end());
-        llvm::sort(Section.IVars.begin(), Section.IVars.end());
-        llvm::sort(Section.WeakRefSymbols.begin(),
-                   Section.WeakRefSymbols.end());
+        llvm::sort(Section.Symbols);
+        llvm::sort(Section.Classes);
+        llvm::sort(Section.ClassEHs);
+        llvm::sort(Section.IVars);
+        llvm::sort(Section.WeakRefSymbols);
         Undefineds.emplace_back(std::move(Section));
       }
     }
@@ -959,7 +960,8 @@ template <> struct MappingTraits<const InterfaceFile *> {
 
           for (auto &sym : CurrentSection.WeakSymbols)
             File->addSymbol(SymbolKind::GlobalSymbol, sym,
-                            CurrentSection.Targets);
+                            CurrentSection.Targets, SymbolFlags::WeakDefined);
+
           for (auto &sym : CurrentSection.TlvSymbols)
             File->addSymbol(SymbolKind::GlobalSymbol, sym,
                             CurrentSection.Targets,
@@ -1088,8 +1090,8 @@ struct DocumentListTraits<std::vector<const MachO::InterfaceFile *>> {
 };
 
 } // end namespace yaml.
+} // namespace llvm
 
-namespace MachO {
 static void DiagHandler(const SMDiagnostic &Diag, void *Context) {
   auto *File = static_cast<TextAPIContext *>(Context);
   SmallString<1024> Message;
@@ -1107,7 +1109,7 @@ static void DiagHandler(const SMDiagnostic &Diag, void *Context) {
 Expected<std::unique_ptr<InterfaceFile>>
 TextAPIReader::get(MemoryBufferRef InputBuffer) {
   TextAPIContext Ctx;
-  Ctx.Path = InputBuffer.getBufferIdentifier();
+  Ctx.Path = std::string(InputBuffer.getBufferIdentifier());
   yaml::Input YAMLIn(InputBuffer.getBuffer(), &Ctx, DiagHandler, &Ctx);
 
   // Fill vector with interface file objects created by parsing the YAML file.
@@ -1119,6 +1121,10 @@ TextAPIReader::get(MemoryBufferRef InputBuffer) {
   auto File = std::unique_ptr<InterfaceFile>(
       const_cast<InterfaceFile *>(Files.front()));
 
+  for (auto Iter = std::next(Files.begin()); Iter != Files.end(); ++Iter)
+    File->addDocument(
+        std::shared_ptr<InterfaceFile>(const_cast<InterfaceFile *>(*Iter)));
+
   if (YAMLIn.error())
     return make_error<StringError>(Ctx.ErrorMessage, YAMLIn.error());
 
@@ -1127,18 +1133,18 @@ TextAPIReader::get(MemoryBufferRef InputBuffer) {
 
 Error TextAPIWriter::writeToStream(raw_ostream &OS, const InterfaceFile &File) {
   TextAPIContext Ctx;
-  Ctx.Path = File.getPath();
+  Ctx.Path = std::string(File.getPath());
   Ctx.FileKind = File.getFileType();
   llvm::yaml::Output YAMLOut(OS, &Ctx, /*WrapColumn=*/80);
 
   std::vector<const InterfaceFile *> Files;
   Files.emplace_back(&File);
 
+  for (auto Document : File.documents())
+    Files.emplace_back(Document.get());
+
   // Stream out yaml.
   YAMLOut << Files;
 
   return Error::success();
 }
-
-} // end namespace MachO.
-} // end namespace llvm.

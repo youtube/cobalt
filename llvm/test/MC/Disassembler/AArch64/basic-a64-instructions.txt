@@ -3033,6 +3033,7 @@
 # CHECK: wfi
 # CHECK: sev
 # CHECK: sevl
+# CHECK: dgh
 0x1f 0x20 0x3 0xd5
 0xff 0x2f 0x3 0xd5
 0x1f 0x20 0x3 0xd5
@@ -3041,6 +3042,7 @@
 0x7f 0x20 0x3 0xd5
 0x9f 0x20 0x3 0xd5
 0xbf 0x20 0x3 0xd5
+0xdf,0x20,0x3,0xd5
 
 # CHECK: clrex
 # CHECK: clrex    #0
@@ -3277,7 +3279,7 @@
 # CHECK: msr      {{SPSel|SPSEL}}, x12
 # CHECK: msr      {{nzcv|NZCV}}, x12
 # CHECK: msr      {{daif|DAIF}}, x12
-# CHECK: msr      {{CurrentEL|CURRENTEL}}, x12
+# CHECK: msr      S3_0_C4_C2_2, x12
 # CHECK: msr      {{SPSR_irq|SPSR_IRQ}}, x12
 # CHECK: msr      {{SPSR_abt|SPSR_ABT}}, x12
 # CHECK: msr      {{SPSR_und|SPSR_UND}}, x12
@@ -3531,6 +3533,7 @@
 # CHECK: mrs      x9, {{id_aa64afr1_el1|ID_AA64AFR1_EL1}}
 # CHECK: mrs      x9, {{id_aa64isar0_el1|ID_AA64ISAR0_EL1}}
 # CHECK: mrs      x9, {{id_aa64isar1_el1|ID_AA64ISAR1_EL1}}
+# CHECK: mrs      x9, {{id_aa64isar2_el1|ID_AA64ISAR2_EL1}}
 # CHECK: mrs      x9, {{id_aa64mmfr0_el1|ID_AA64MMFR0_EL1}}
 # CHECK: mrs      x9, {{id_aa64mmfr1_el1|ID_AA64MMFR1_EL1}}
 # CHECK: mrs      x9, {{sctlr_el1|SCTLR_EL1}}
@@ -4088,6 +4091,7 @@
 0xa9 0x5 0x38 0xd5
 0x9 0x6 0x38 0xd5
 0x29 0x6 0x38 0xd5
+0x49 0x06 0x38 0xd5
 0x9 0x7 0x38 0xd5
 0x29 0x7 0x38 0xd5
 0x9 0x10 0x38 0xd5

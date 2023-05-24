@@ -1,6 +1,6 @@
 //===- Diagnostics.h - MLIR Diagnostics -------------------------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -14,7 +14,6 @@
 #define MLIR_IR_DIAGNOSTICS_H
 
 #include "mlir/IR/Location.h"
-#include "mlir/Support/STLExtras.h"
 #include <functional>
 
 namespace llvm {
@@ -51,13 +50,40 @@ enum class DiagnosticSeverity {
 /// A variant type that holds a single argument for a diagnostic.
 class DiagnosticArgument {
 public:
+  /// Note: The constructors below are only exposed due to problems accessing
+  /// constructors from type traits, they should not be used directly by users.
+  // Construct from an Attribute.
+  explicit DiagnosticArgument(Attribute attr);
+  // Construct from a floating point number.
+  explicit DiagnosticArgument(double val)
+      : kind(DiagnosticArgumentKind::Double), doubleVal(val) {}
+  explicit DiagnosticArgument(float val) : DiagnosticArgument(double(val)) {}
+  // Construct from a signed integer.
+  template <typename T>
+  explicit DiagnosticArgument(
+      T val, typename std::enable_if<std::is_signed<T>::value &&
+                                     std::numeric_limits<T>::is_integer &&
+                                     sizeof(T) <= sizeof(int64_t)>::type * = 0)
+      : kind(DiagnosticArgumentKind::Integer), opaqueVal(int64_t(val)) {}
+  // Construct from an unsigned integer.
+  template <typename T>
+  explicit DiagnosticArgument(
+      T val, typename std::enable_if<std::is_unsigned<T>::value &&
+                                     std::numeric_limits<T>::is_integer &&
+                                     sizeof(T) <= sizeof(uint64_t)>::type * = 0)
+      : kind(DiagnosticArgumentKind::Unsigned), opaqueVal(uint64_t(val)) {}
+  // Construct from a string reference.
+  explicit DiagnosticArgument(StringRef val)
+      : kind(DiagnosticArgumentKind::String), stringVal(val) {}
+  // Construct from a Type.
+  explicit DiagnosticArgument(Type val);
+
   /// Enum that represents the different kinds of diagnostic arguments
   /// supported.
   enum class DiagnosticArgumentKind {
     Attribute,
     Double,
     Integer,
-    Operation,
     String,
     Type,
     Unsigned,
@@ -84,12 +110,6 @@ public:
     return static_cast<int64_t>(opaqueVal);
   }
 
-  /// Returns this argument as an operation.
-  Operation &getAsOperation() const {
-    assert(getKind() == DiagnosticArgumentKind::Operation);
-    return *reinterpret_cast<Operation *>(opaqueVal);
-  }
-
   /// Returns this argument as a string.
   StringRef getAsString() const {
     assert(getKind() == DiagnosticArgumentKind::String);
@@ -107,45 +127,6 @@ public:
 
 private:
   friend class Diagnostic;
-
-  // Construct from an Attribute.
-  explicit DiagnosticArgument(Attribute attr);
-
-  // Construct from a floating point number.
-  explicit DiagnosticArgument(double val)
-      : kind(DiagnosticArgumentKind::Double), doubleVal(val) {}
-  explicit DiagnosticArgument(float val) : DiagnosticArgument(double(val)) {}
-
-  // Construct from a signed integer.
-  template <typename T>
-  explicit DiagnosticArgument(
-      T val, typename std::enable_if<std::is_signed<T>::value &&
-                                     std::numeric_limits<T>::is_integer &&
-                                     sizeof(T) <= sizeof(int64_t)>::type * = 0)
-      : kind(DiagnosticArgumentKind::Integer), opaqueVal(int64_t(val)) {}
-
-  // Construct from an unsigned integer.
-  template <typename T>
-  explicit DiagnosticArgument(
-      T val, typename std::enable_if<std::is_unsigned<T>::value &&
-                                     std::numeric_limits<T>::is_integer &&
-                                     sizeof(T) <= sizeof(uint64_t)>::type * = 0)
-      : kind(DiagnosticArgumentKind::Unsigned), opaqueVal(uint64_t(val)) {}
-
-  // Construct from an operation reference.
-  explicit DiagnosticArgument(Operation &val) : DiagnosticArgument(&val) {}
-  explicit DiagnosticArgument(Operation *val)
-      : kind(DiagnosticArgumentKind::Operation),
-        opaqueVal(reinterpret_cast<intptr_t>(val)) {
-    assert(val && "expected valid operation");
-  }
-
-  // Construct from a string reference.
-  explicit DiagnosticArgument(StringRef val)
-      : kind(DiagnosticArgumentKind::String), stringVal(val) {}
-
-  // Construct from a Type.
-  explicit DiagnosticArgument(Type val);
 
   /// The kind of this argument.
   DiagnosticArgumentKind kind;
@@ -205,8 +186,10 @@ public:
 
   /// Stream operator for inserting new diagnostic arguments.
   template <typename Arg>
-  typename std::enable_if<!std::is_convertible<Arg, StringRef>::value,
-                          Diagnostic &>::type
+  typename std::enable_if<
+      !std::is_convertible<Arg, StringRef>::value &&
+          std::is_constructible<DiagnosticArgument, Arg>::value,
+      Diagnostic &>::type
   operator<<(Arg &&val) {
     arguments.push_back(DiagnosticArgument(std::forward<Arg>(val)));
     return *this;
@@ -229,21 +212,26 @@ public:
   /// Stream in an OperationName.
   Diagnostic &operator<<(OperationName val);
 
-  /// Stream in a range.
-  template <typename T> Diagnostic &operator<<(iterator_range<T> range) {
-    return appendRange(range);
+  /// Stream in an Operation.
+  Diagnostic &operator<<(Operation &val);
+  Diagnostic &operator<<(Operation *val) {
+    return *this << *val;
   }
-  template <typename T> Diagnostic &operator<<(ArrayRef<T> range) {
+
+  /// Stream in a range.
+  template <typename T, typename ValueT = llvm::detail::ValueOfRange<T>>
+  std::enable_if_t<!std::is_constructible<DiagnosticArgument, T>::value,
+                   Diagnostic &>
+  operator<<(T &&range) {
     return appendRange(range);
   }
 
   /// Append a range to the diagnostic. The default delimiter between elements
   /// is ','.
-  template <typename T, template <typename> class Container>
-  Diagnostic &appendRange(const Container<T> &c, const char *delim = ", ") {
-    interleave(
-        c, [&](const detail::ValueOfRange<Container<T>> &a) { *this << a; },
-        [&]() { *this << delim; });
+  template <typename T>
+  Diagnostic &appendRange(const T &c, const char *delim = ", ") {
+    llvm::interleave(
+        c, [this](const auto &a) { *this << a; }, [&]() { *this << delim; });
     return *this;
   }
 
@@ -372,10 +360,11 @@ private:
   InFlightDiagnostic(DiagnosticEngine *owner, Diagnostic &&rhs)
       : owner(owner), impl(std::move(rhs)) {}
 
-  /// Returns if the diagnostic is still active, i.e. it has a live diagnostic.
+  /// Returns true if the diagnostic is still active, i.e. it has a live
+  /// diagnostic.
   bool isActive() const { return impl.hasValue(); }
 
-  /// Returns if the diagnostic is still in flight to be reported.
+  /// Returns true if the diagnostic is still in flight to be reported.
   bool isInFlight() const { return owner; }
 
   // Allow access to the constructor.
@@ -547,7 +536,8 @@ public:
   ~SourceMgrDiagnosticHandler();
 
   /// Emit the given diagnostic information with the held source manager.
-  void emitDiagnostic(Location loc, Twine message, DiagnosticSeverity kind);
+  void emitDiagnostic(Location loc, Twine message, DiagnosticSeverity kind,
+                      bool displaySourceLine = true);
 
 protected:
   /// Emit the given diagnostic with the held source manager.
@@ -568,7 +558,7 @@ private:
   llvm::SMLoc convertLocToSMLoc(FileLineColLoc loc);
 
   /// The maximum depth that a call stack will be printed.
-  /// TODO(riverriddle) This should be a tunable flag.
+  /// TODO: This should be a tunable flag.
   unsigned callStackLimit = 10;
 
   std::unique_ptr<detail::SourceMgrDiagnosticHandlerImpl> impl;

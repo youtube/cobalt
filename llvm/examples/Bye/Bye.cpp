@@ -3,6 +3,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
@@ -45,7 +46,7 @@ static RegisterPass<LegacyBye> X("goodbye", "Good Bye World Pass",
 
 /* Legacy PM Registration */
 static llvm::RegisterStandardPasses RegisterBye(
-    llvm::PassManagerBuilder::EP_EarlyAsPossible,
+    llvm::PassManagerBuilder::EP_VectorizerStart,
     [](const llvm::PassManagerBuilder &Builder,
        llvm::legacy::PassManagerBase &PM) { PM.add(new LegacyBye()); });
 
@@ -57,6 +58,15 @@ llvm::PassPluginLibraryInfo getByePluginInfo() {
                 [](llvm::FunctionPassManager &PM,
                    llvm::PassBuilder::OptimizationLevel Level) {
                   PM.addPass(Bye());
+                });
+            PB.registerPipelineParsingCallback(
+                [](StringRef Name, llvm::FunctionPassManager &PM,
+                   ArrayRef<llvm::PassBuilder::PipelineElement>) {
+                  if (Name == "goodbye") {
+                    PM.addPass(Bye());
+                    return true;
+                  }
+                  return false;
                 });
           }};
 }

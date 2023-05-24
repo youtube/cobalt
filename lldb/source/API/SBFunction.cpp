@@ -1,4 +1,4 @@
-//===-- SBFunction.cpp ------------------------------------------*- C++ -*-===//
+//===-- SBFunction.cpp ----------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -69,9 +69,7 @@ const char *SBFunction::GetDisplayName() const {
 
   const char *cstr = nullptr;
   if (m_opaque_ptr)
-    cstr = m_opaque_ptr->GetMangled()
-               .GetDisplayDemangledName(m_opaque_ptr->GetLanguage())
-               .AsCString();
+    cstr = m_opaque_ptr->GetMangled().GetDisplayDemangledName().AsCString();
 
   return cstr;
 }
@@ -128,20 +126,15 @@ SBInstructionList SBFunction::GetInstructions(SBTarget target,
 
   SBInstructionList sb_instructions;
   if (m_opaque_ptr) {
-    ExecutionContext exe_ctx;
     TargetSP target_sp(target.GetSP());
     std::unique_lock<std::recursive_mutex> lock;
-    if (target_sp) {
-      lock = std::unique_lock<std::recursive_mutex>(target_sp->GetAPIMutex());
-      target_sp->CalculateExecutionContext(exe_ctx);
-      exe_ctx.SetProcessSP(target_sp->GetProcessSP());
-    }
     ModuleSP module_sp(
         m_opaque_ptr->GetAddressRange().GetBaseAddress().GetModule());
-    if (module_sp) {
+    if (target_sp && module_sp) {
+      lock = std::unique_lock<std::recursive_mutex>(target_sp->GetAPIMutex());
       const bool prefer_file_cache = false;
       sb_instructions.SetDisassembler(Disassembler::DisassembleRange(
-          module_sp->GetArchitecture(), nullptr, flavor, exe_ctx,
+          module_sp->GetArchitecture(), nullptr, flavor, *target_sp,
           m_opaque_ptr->GetAddressRange(), prefer_file_cache));
     }
   }
@@ -159,7 +152,7 @@ SBAddress SBFunction::GetStartAddress() {
 
   SBAddress addr;
   if (m_opaque_ptr)
-    addr.SetAddress(&m_opaque_ptr->GetAddressRange().GetBaseAddress());
+    addr.SetAddress(m_opaque_ptr->GetAddressRange().GetBaseAddress());
   return LLDB_RECORD_RESULT(addr);
 }
 
@@ -170,7 +163,7 @@ SBAddress SBFunction::GetEndAddress() {
   if (m_opaque_ptr) {
     addr_t byte_size = m_opaque_ptr->GetAddressRange().GetByteSize();
     if (byte_size > 0) {
-      addr.SetAddress(&m_opaque_ptr->GetAddressRange().GetBaseAddress());
+      addr.SetAddress(m_opaque_ptr->GetAddressRange().GetBaseAddress());
       addr->Slide(byte_size);
     }
   }

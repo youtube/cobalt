@@ -1,4 +1,4 @@
-//===-- GDBRemoteCommunicationServer.cpp ------------------------*- C++ -*-===//
+//===-- GDBRemoteCommunicationServer.cpp ----------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -12,11 +12,11 @@
 
 #include "GDBRemoteCommunicationServer.h"
 
-#include <cstring>
-
 #include "ProcessGDBRemoteLog.h"
 #include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/StringExtractorGDBRemote.h"
+#include "lldb/Utility/UnimplementedError.h"
+#include <cstring>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -113,18 +113,17 @@ GDBRemoteCommunicationServer::SendErrorResponse(const Status &error) {
 
 GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationServer::SendErrorResponse(llvm::Error error) {
+  assert(error);
   std::unique_ptr<llvm::ErrorInfoBase> EIB;
-  std::unique_ptr<PacketUnimplementedError> PUE;
+  std::unique_ptr<UnimplementedError> UE;
   llvm::handleAllErrors(
       std::move(error),
-      [&](std::unique_ptr<PacketUnimplementedError> E) { PUE = std::move(E); },
+      [&](std::unique_ptr<UnimplementedError> E) { UE = std::move(E); },
       [&](std::unique_ptr<llvm::ErrorInfoBase> E) { EIB = std::move(E); });
 
   if (EIB)
     return SendErrorResponse(Status(llvm::Error(std::move(EIB))));
-  if (PUE)
-    return SendUnimplementedResponse(PUE->message().c_str());
-  return SendErrorResponse(Status("Unknown Error"));
+  return SendUnimplementedResponse("");
 }
 
 GDBRemoteCommunication::PacketResult
@@ -152,5 +151,3 @@ GDBRemoteCommunicationServer::SendOKResponse() {
 bool GDBRemoteCommunicationServer::HandshakeWithClient() {
   return GetAck() == PacketResult::Success;
 }
-
-char PacketUnimplementedError::ID;

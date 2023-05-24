@@ -254,7 +254,7 @@ void BPFDAGToDAGISel::PreprocessLoad(SDNode *Node,
   const LoadSDNode *LD = cast<LoadSDNode>(Node);
   uint64_t size = LD->getMemOperand()->getSize();
 
-  if (!size || size > 8 || (size & (size - 1)))
+  if (!size || size > 8 || (size & (size - 1)) || !LD->isSimple())
     return;
 
   SDNode *LDAddrNode = LD->getOperand(1).getNode();
@@ -304,7 +304,7 @@ void BPFDAGToDAGISel::PreprocessLoad(SDNode *Node,
 
   LLVM_DEBUG(dbgs() << "Replacing load of size " << size << " with constant "
                     << val << '\n');
-  SDValue NVal = CurDAG->getConstant(val, DL, MVT::i64);
+  SDValue NVal = CurDAG->getConstant(val, DL, LD->getValueType(0));
 
   // After replacement, the current node is dead, we need to
   // go backward one step to make iterator still work
@@ -342,7 +342,7 @@ bool BPFDAGToDAGISel::getConstantFieldValue(const GlobalAddressSDNode *Node,
                                             unsigned char *ByteSeq) {
   const GlobalVariable *V = dyn_cast<GlobalVariable>(Node->getGlobal());
 
-  if (!V || !V->hasInitializer())
+  if (!V || !V->hasInitializer() || !V->isConstant())
     return false;
 
   const Constant *Init = V->getInitializer();
@@ -494,8 +494,6 @@ void BPFDAGToDAGISel::PreprocessTrunc(SDNode *Node,
   CurDAG->ReplaceAllUsesWith(SDValue(Node, 0), BaseV);
   I++;
   CurDAG->DeleteNode(Node);
-
-  return;
 }
 
 FunctionPass *llvm::createBPFISelDag(BPFTargetMachine &TM) {

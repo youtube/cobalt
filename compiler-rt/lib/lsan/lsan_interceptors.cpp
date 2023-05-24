@@ -22,7 +22,9 @@
 #include "sanitizer_common/sanitizer_platform_interceptors.h"
 #include "sanitizer_common/sanitizer_platform_limits_netbsd.h"
 #include "sanitizer_common/sanitizer_platform_limits_posix.h"
+#if SANITIZER_POSIX
 #include "sanitizer_common/sanitizer_posix.h"
+#endif
 #include "sanitizer_common/sanitizer_tls_get_addr.h"
 #include "lsan.h"
 #include "lsan_allocator.h"
@@ -61,6 +63,9 @@ INTERCEPTOR(void, free, void *p) {
 }
 
 INTERCEPTOR(void*, calloc, uptr nmemb, uptr size) {
+  // This hack is not required for Fuchsia because there are no dlsym calls
+  // involved in setting up interceptors.
+#if !SANITIZER_FUCHSIA
   if (lsan_init_is_running) {
     // Hack: dlsym calls calloc before REAL(calloc) is retrieved from dlsym.
     const uptr kCallocPoolSize = 1024;
@@ -72,6 +77,7 @@ INTERCEPTOR(void*, calloc, uptr nmemb, uptr size) {
     CHECK(allocated < kCallocPoolSize);
     return mem;
   }
+#endif  // !SANITIZER_FUCHSIA
   ENSURE_LSAN_INITED;
   GET_STACK_TRACE_MALLOC;
   return lsan_calloc(nmemb, size, stack);
@@ -100,7 +106,7 @@ INTERCEPTOR(void*, valloc, uptr size) {
   GET_STACK_TRACE_MALLOC;
   return lsan_valloc(size, stack);
 }
-#endif
+#endif  // !SANITIZER_MAC
 
 #if SANITIZER_INTERCEPT_MEMALIGN
 INTERCEPTOR(void*, memalign, uptr alignment, uptr size) {
@@ -109,7 +115,11 @@ INTERCEPTOR(void*, memalign, uptr alignment, uptr size) {
   return lsan_memalign(alignment, size, stack);
 }
 #define LSAN_MAYBE_INTERCEPT_MEMALIGN INTERCEPT_FUNCTION(memalign)
+#else
+#define LSAN_MAYBE_INTERCEPT_MEMALIGN
+#endif  // SANITIZER_INTERCEPT_MEMALIGN
 
+#if SANITIZER_INTERCEPT___LIBC_MEMALIGN
 INTERCEPTOR(void *, __libc_memalign, uptr alignment, uptr size) {
   ENSURE_LSAN_INITED;
   GET_STACK_TRACE_MALLOC;
@@ -119,9 +129,8 @@ INTERCEPTOR(void *, __libc_memalign, uptr alignment, uptr size) {
 }
 #define LSAN_MAYBE_INTERCEPT___LIBC_MEMALIGN INTERCEPT_FUNCTION(__libc_memalign)
 #else
-#define LSAN_MAYBE_INTERCEPT_MEMALIGN
 #define LSAN_MAYBE_INTERCEPT___LIBC_MEMALIGN
-#endif // SANITIZER_INTERCEPT_MEMALIGN
+#endif  // SANITIZER_INTERCEPT___LIBC_MEMALIGN
 
 #if SANITIZER_INTERCEPT_ALIGNED_ALLOC
 INTERCEPTOR(void*, aligned_alloc, uptr alignment, uptr size) {
@@ -307,7 +316,7 @@ INTERCEPTOR(void, _ZdaPvRKSt9nothrow_t, void *ptr, std::nothrow_t const&)
 
 ///// Thread initialization and finalization. /////
 
-#if !SANITIZER_NETBSD && !SANITIZER_FREEBSD
+#if !SANITIZER_NETBSD && !SANITIZER_FREEBSD && !SANITIZER_FUCHSIA
 static unsigned g_thread_finalize_key;
 
 static void thread_finalize(void *v) {
@@ -394,6 +403,8 @@ INTERCEPTOR(char *, strerror, int errnum) {
 #define LSAN_MAYBE_INTERCEPT_STRERROR
 #endif
 
+#if SANITIZER_POSIX
+
 struct ThreadParam {
   void *(*callback)(void *arg);
   void *param;
@@ -416,7 +427,6 @@ extern "C" void *__lsan_thread_start_func(void *arg) {
   int tid = 0;
   while ((tid = atomic_load(&p->tid, memory_order_acquire)) == 0)
     internal_sched_yield();
-  SetCurrentThread(tid);
   ThreadStart(tid, GetTid());
   atomic_store(&p->tid, 0, memory_order_release);
   return callback(param);
@@ -469,6 +479,15 @@ INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   return res;
 }
 
+INTERCEPTOR(int, pthread_detach, void *th) {
+  ENSURE_LSAN_INITED;
+  int tid = ThreadTid((uptr)th);
+  int res = REAL(pthread_detach)(th);
+  if (res == 0)
+    ThreadDetach(tid);
+  return res;
+}
+
 INTERCEPTOR(void, _exit, int status) {
   if (status == 0 && HasReportedLeaks()) status = common_flags()->exitcode;
   REAL(_exit)(status);
@@ -477,9 +496,13 @@ INTERCEPTOR(void, _exit, int status) {
 #define COMMON_INTERCEPT_FUNCTION(name) INTERCEPT_FUNCTION(name)
 #include "sanitizer_common/sanitizer_signal_interceptors.inc"
 
+#endif  // SANITIZER_POSIX
+
 namespace __lsan {
 
 void InitializeInterceptors() {
+  // Fuchsia doesn't use interceptors that require any setup.
+#if !SANITIZER_FUCHSIA
   InitializeSignalInterceptors();
 
   INTERCEPT_FUNCTION(malloc);
@@ -497,6 +520,7 @@ void InitializeInterceptors() {
   LSAN_MAYBE_INTERCEPT_MALLINFO;
   LSAN_MAYBE_INTERCEPT_MALLOPT;
   INTERCEPT_FUNCTION(pthread_create);
+  INTERCEPT_FUNCTION(pthread_detach);
   INTERCEPT_FUNCTION(pthread_join);
   INTERCEPT_FUNCTION(_exit);
 
@@ -515,6 +539,8 @@ void InitializeInterceptors() {
     Die();
   }
 #endif
+
+#endif  // !SANITIZER_FUCHSIA
 }
 
 } // namespace __lsan

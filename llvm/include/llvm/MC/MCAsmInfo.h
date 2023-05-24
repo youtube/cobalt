@@ -54,6 +54,15 @@ enum LCOMMType { NoAlignment, ByteAlignment, Log2Alignment };
 /// This class is intended to be used as a base class for asm
 /// properties and features specific to the target.
 class MCAsmInfo {
+public:
+  /// Assembly character literal syntax types.
+  enum AsmCharLiteralSyntax {
+    ACLS_Unknown, /// Unknown; character literals not used by LLVM for this
+                  /// target.
+    ACLS_SingleQuotePrefix, /// The desired character is prefixed by a single
+                            /// quote, e.g., `'A`.
+  };
+
 protected:
   //===------------------------------------------------------------------===//
   // Properties to be set by the target writer, used to configure asm printer.
@@ -92,6 +101,10 @@ protected:
   /// True if this is a non-GNU COFF target. For GNU targets, we don't generate
   /// constants into comdat sections.
   bool HasCOFFComdatConstants = false;
+
+  /// True if this is an XCOFF target that supports visibility attributes as
+  /// part of .global, .weak, .extern, and .comm. Default is false.
+  bool HasVisibilityOnlyWithLinkage = false;
 
   /// This is the maximum possible length of an instruction, which is needed to
   /// compute the size of an inline asm.  Defaults to 4.
@@ -156,6 +169,10 @@ protected:
   /// Defaults to false.
   bool AllowAtInName = false;
 
+  /// This is true if the assembler allows $ @ ? characters at the start of
+  /// symbol names. Defaults to false.
+  bool AllowSymbolAtNameStart = false;
+
   /// If this is true, symbol names with invalid characters will be printed in
   /// quotes.
   bool SupportsQuotedNames = true;
@@ -169,13 +186,21 @@ protected:
   /// alignment is supported.
   bool UseDotAlignForAlignment = false;
 
+  /// True if the target supports LEB128 directives.
+  bool HasLEB128Directives = true;
+
   //===--- Data Emission Directives -------------------------------------===//
 
-  /// This should be set to the directive used to get some number of zero bytes
-  /// emitted to the current section.  Common cases are "\t.zero\t" and
-  /// "\t.space\t".  If this is set to null, the Data*bitsDirective's will be
-  /// used to emit zero bytes.  Defaults to "\t.zero\t"
+  /// This should be set to the directive used to get some number of zero (and
+  /// non-zero if supported by the directive) bytes emitted to the current
+  /// section. Common cases are "\t.zero\t" and "\t.space\t". Defaults to
+  /// "\t.zero\t"
   const char *ZeroDirective;
+
+  /// This should be set to true if the zero directive supports a value to emit
+  /// other than zero. If this is set to false, the Data*bitsDirective's will be
+  /// used to emit these bytes. Defaults to true.
+  bool ZeroDirectiveSupportsNonZeroValue = true;
 
   /// This directive allows emission of an ascii string with the standard C
   /// escape characters embedded into it.  If a target doesn't support this, it
@@ -187,6 +212,16 @@ protected:
   /// doesn't support this, it can be set to null.  Defaults to "\t.asciz\t"
   const char *AscizDirective;
 
+  /// This directive accepts a comma-separated list of bytes for emission as a
+  /// string of bytes.  For targets that do not support this, it shall be set to
+  /// null.  Defaults to null.
+  const char *ByteListDirective = nullptr;
+
+  /// Form used for character literals in the assembly syntax.  Useful for
+  /// producing strings as byte lists.  If a target does not use or support
+  /// this, it shall be set to ACLS_Unknown.  Defaults to ACLS_Unknown.
+  AsmCharLiteralSyntax CharacterLiteralSyntax = ACLS_Unknown;
+
   /// These directives are used to output some unit of integer data to the
   /// current section.  If a data directive is set to null, smaller data
   /// directives will be used to emit the large sizes.  Defaults to "\t.byte\t",
@@ -195,6 +230,9 @@ protected:
   const char *Data16bitsDirective;
   const char *Data32bitsDirective;
   const char *Data64bitsDirective;
+
+  /// True if data directives support signed values
+  bool SupportsSignedData = true;
 
   /// If non-null, a directive that is used to emit a word which should be
   /// relocated as a 64-bit GP-relative offset, e.g. .gpdword on Mips.  Defaults
@@ -313,13 +351,10 @@ protected:
   /// symbol that can be hidden (unexported).  Defaults to false.
   bool HasWeakDefCanBeHiddenDirective = false;
 
-  /// True if we have a .linkonce directive.  This is used on cygwin/mingw.
+  /// True if we should mark symbols as global instead of weak, for
+  /// weak*/linkonce*, if the symbol has a comdat.
   /// Defaults to false.
-  bool HasLinkOnceDirective = false;
-
-  /// True if we have a .lglobl directive, which is used to emit the information
-  /// of a static symbol into the symbol table. Defaults to false.
-  bool HasDotLGloblDirective = false;
+  bool AvoidWeakIfComdat = false;
 
   /// This attribute, if not MCSA_Invalid, is used to declare a symbol as having
   /// hidden visibility.  Defaults to MCSA_Hidden.
@@ -332,10 +367,6 @@ protected:
   /// This attribute, if not MCSA_Invalid, is used to declare a symbol as having
   /// protected visibility.  Defaults to MCSA_Protected
   MCSymbolAttr ProtectedVisibilityAttr = MCSA_Protected;
-
-  // This attribute is used to indicate symbols such as commons on AIX may have
-  // a storage mapping class embedded in the name.
-  bool SymbolsHaveSMC = false;
 
   //===--- Dwarf Emission Directives -----------------------------------===//
 
@@ -374,6 +405,12 @@ protected:
   std::vector<MCCFIInstruction> InitialFrameState;
 
   //===--- Integrated Assembler Information ----------------------------===//
+
+  // Generated object files can use all ELF features supported by GNU ld of
+  // this binutils version and later. INT_MAX means all features can be used,
+  // regardless of GNU ld support. The default value is referenced by
+  // clang/Driver/Options.td.
+  std::pair<int, int> BinutilsVersion = {2, 26};
 
   /// Should we use the integrated assembler?
   /// The integrated assembler should be enabled by default (by the
@@ -430,6 +467,7 @@ public:
   const char *getData16bitsDirective() const { return Data16bitsDirective; }
   const char *getData32bitsDirective() const { return Data32bitsDirective; }
   const char *getData64bitsDirective() const { return Data64bitsDirective; }
+  bool supportsSignedData() const { return SupportsSignedData; }
   const char *getGPRel64Directive() const { return GPRel64Directive; }
   const char *getGPRel32Directive() const { return GPRel32Directive; }
   const char *getDTPRel64Directive() const { return DTPRel64Directive; }
@@ -492,6 +530,9 @@ public:
   bool hasMachoTBSSDirective() const { return HasMachoTBSSDirective; }
   bool hasCOFFAssociativeComdats() const { return HasCOFFAssociativeComdats; }
   bool hasCOFFComdatConstants() const { return HasCOFFComdatConstants; }
+  bool hasVisibilityOnlyWithLinkage() const {
+    return HasVisibilityOnlyWithLinkage;
+  }
 
   /// Returns the maximum possible encoded instruction size in bytes. If \p STI
   /// is null, this should be the maximum size for any subtarget.
@@ -532,6 +573,7 @@ public:
   const char *getCode64Directive() const { return Code64Directive; }
   unsigned getAssemblerDialect() const { return AssemblerDialect; }
   bool doesAllowAtInName() const { return AllowAtInName; }
+  bool doesAllowSymbolAtNameStart() const { return AllowSymbolAtNameStart; }
   bool supportsNameQuoting() const { return SupportsQuotedNames; }
 
   bool doesSupportDataRegionDirectives() const {
@@ -542,9 +584,18 @@ public:
     return UseDotAlignForAlignment;
   }
 
+  bool hasLEB128Directives() const { return HasLEB128Directives; }
+
   const char *getZeroDirective() const { return ZeroDirective; }
+  bool doesZeroDirectiveSupportNonZeroValue() const {
+    return ZeroDirectiveSupportsNonZeroValue;
+  }
   const char *getAsciiDirective() const { return AsciiDirective; }
   const char *getAscizDirective() const { return AscizDirective; }
+  const char *getByteListDirective() const { return ByteListDirective; }
+  AsmCharLiteralSyntax characterLiteralSyntax() const {
+    return CharacterLiteralSyntax;
+  }
   bool getAlignmentIsInBytes() const { return AlignmentIsInBytes; }
   unsigned getTextAlignFillValue() const { return TextAlignFillValue; }
   const char *getGlobalDirective() const { return GlobalDirective; }
@@ -577,9 +628,7 @@ public:
     return HasWeakDefCanBeHiddenDirective;
   }
 
-  bool hasLinkOnceDirective() const { return HasLinkOnceDirective; }
-
-  bool hasDotLGloblDirective() const { return HasDotLGloblDirective; }
+  bool avoidWeakIfComdat() const { return AvoidWeakIfComdat; }
 
   MCSymbolAttr getHiddenVisibilityAttr() const { return HiddenVisibilityAttr; }
 
@@ -591,13 +640,7 @@ public:
     return ProtectedVisibilityAttr;
   }
 
-  bool getSymbolsHaveSMC() const { return SymbolsHaveSMC; }
-
   bool doesSupportDebugInformation() const { return SupportsDebugInformation; }
-
-  bool doesSupportExceptionHandling() const {
-    return ExceptionsType != ExceptionHandling::None;
-  }
 
   ExceptionHandling getExceptionHandlingType() const { return ExceptionsType; }
   WinEH::EncodingType getWinEHEncodingType() const { return WinEHEncodingType; }
@@ -636,8 +679,16 @@ public:
     return InitialFrameState;
   }
 
+  void setBinutilsVersion(std::pair<int, int> Value) {
+    BinutilsVersion = Value;
+  }
+
   /// Return true if assembly (inline or otherwise) should be parsed.
   bool useIntegratedAssembler() const { return UseIntegratedAssembler; }
+
+  bool binutilsIsAtLeast(int Major, int Minor) const {
+    return BinutilsVersion >= std::make_pair(Major, Minor);
+  }
 
   /// Set whether assembly (inline or otherwise) should be parsed.
   virtual void setUseIntegratedAssembler(bool Value) {

@@ -135,6 +135,18 @@ namespace dr1512 { // dr1512: 4
 #endif
 }
 
+namespace dr1514 { // dr1514: 11
+#if __cplusplus >= 201103L
+  struct S {
+    enum E : int {}; // expected-note {{previous}}
+    enum E : int {}; // expected-error {{redefinition}}
+  };
+  S::E se; // OK, complete type, not zero-width bitfield.
+
+  // The behavior in other contexts is superseded by DR1966.
+#endif
+}
+
 namespace dr1518 { // dr1518: 4
 #if __cplusplus >= 201103L
 struct Z0 { // expected-note 0+ {{candidate}}
@@ -225,6 +237,20 @@ namespace dr1550 { // dr1550: yes
   int f(bool b, int n) {
     return (b ? (throw 0) : n) + (b ? n : (throw 0));
   }
+}
+
+namespace dr1558 { // dr1558: 12
+#if __cplusplus >= 201103L
+  template<class T, class...> using first_of = T;
+  template<class T> first_of<void, typename T::type> f(int); // expected-note {{'int' cannot be used prior to '::'}}
+  template<class T> void f(...) = delete; // expected-note {{deleted}}
+
+  struct X { typedef void type; };
+  void test() {
+    f<X>(0);
+    f<int>(0); // expected-error {{deleted}}
+  }
+#endif
 }
 
 namespace dr1560 { // dr1560: 3.5

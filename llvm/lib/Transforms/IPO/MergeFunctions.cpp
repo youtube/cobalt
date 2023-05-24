@@ -95,7 +95,6 @@
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -467,13 +466,13 @@ void MergeFunctions::replaceDirectCallers(Function *Old, Function *New) {
   for (auto UI = Old->use_begin(), UE = Old->use_end(); UI != UE;) {
     Use *U = &*UI;
     ++UI;
-    CallSite CS(U->getUser());
-    if (CS && CS.isCallee(U)) {
+    CallBase *CB = dyn_cast<CallBase>(U->getUser());
+    if (CB && CB->isCallee(U)) {
       // Do not copy attributes from the called function to the call-site.
       // Function comparison ensures that the attributes are the same up to
       // type congruences in byval(), in which case we need to keep the byval
       // type of the call-site, not the callee function.
-      remove(CS.getInstruction()->getFunction());
+      remove(CB->getFunction());
       U->set(BitcastNew);
     }
   }
@@ -726,8 +725,10 @@ void MergeFunctions::writeThunk(Function *F, Function *G) {
   if (MergeFunctionsPDI) {
     DISubprogram *DIS = G->getSubprogram();
     if (DIS) {
-      DebugLoc CIDbgLoc = DebugLoc::get(DIS->getScopeLine(), 0, DIS);
-      DebugLoc RIDbgLoc = DebugLoc::get(DIS->getScopeLine(), 0, DIS);
+      DebugLoc CIDbgLoc =
+          DILocation::get(DIS->getContext(), DIS->getScopeLine(), 0, DIS);
+      DebugLoc RIDbgLoc =
+          DILocation::get(DIS->getContext(), DIS->getScopeLine(), 0, DIS);
       CI->setDebugLoc(CIDbgLoc);
       RI->setDebugLoc(RIDbgLoc);
     } else {

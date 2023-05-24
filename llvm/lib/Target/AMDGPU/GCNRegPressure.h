@@ -5,25 +5,27 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file defines the GCNRegPressure class, which tracks registry pressure
+/// by bookkeeping number of SGPR/VGPRs used, weights for large SGPR/VGPRs. It
+/// also implements a compare function, which compares different register
+/// pressures, and declares one with max occupance as winner.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIB_TARGET_AMDGPU_GCNREGPRESSURE_H
 #define LLVM_LIB_TARGET_AMDGPU_GCNREGPRESSURE_H
 
-#include "AMDGPUSubtarget.h"
-#include "llvm/ADT/DenseMap.h"
+#include "GCNSubtarget.h"
 #include "llvm/CodeGen/LiveIntervals.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/SlotIndexes.h"
-#include "llvm/MC/LaneBitmask.h"
-#include "llvm/Support/Debug.h"
 #include <algorithm>
-#include <limits>
 
 namespace llvm {
 
 class MachineRegisterInfo;
 class raw_ostream;
+class SlotIndex;
 
 struct GCNRegPressure {
   enum RegKind {
@@ -82,7 +84,7 @@ struct GCNRegPressure {
 private:
   unsigned Value[TOTAL_KINDS];
 
-  static unsigned getRegKind(unsigned Reg, const MachineRegisterInfo &MRI);
+  static unsigned getRegKind(Register Reg, const MachineRegisterInfo &MRI);
 
   friend GCNRegPressure max(const GCNRegPressure &P1,
                             const GCNRegPressure &P2);
@@ -208,7 +210,7 @@ getLiveRegMap(Range &&R, bool After, LiveIntervals &LIS) {
     auto SI = SII.getInstructionIndex(*I);
     Indexes.push_back(After ? SI.getDeadSlot() : SI.getBaseIndex());
   }
-  std::sort(Indexes.begin(), Indexes.end());
+  llvm::sort(Indexes);
 
   auto &MRI = (*R.begin())->getParent()->getParent()->getRegInfo();
   DenseMap<MachineInstr *, GCNRPTracker::LiveRegSet> LiveRegMap;

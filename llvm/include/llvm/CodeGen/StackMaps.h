@@ -148,46 +148,104 @@ public:
 ///   <StackMaps::ConstantOp>, <calling convention>,
 ///   <StackMaps::ConstantOp>, <statepoint flags>,
 ///   <StackMaps::ConstantOp>, <num deopt args>, [deopt args...],
-///   <gc base/derived pairs...> <gc allocas...>
-/// Note that the last two sets of arguments are not currently length
-///   prefixed.
+///   <StackMaps::ConstantOp>, <num gc pointer args>, [gc pointer args...],
+///   <StackMaps::ConstantOp>, <num gc allocas>, [gc allocas args...],
+///   <StackMaps::ConstantOp>, <num  entries in gc map>, [base/derived pairs]
+///   base/derived pairs in gc map are logical indices into <gc pointer args>
+///   section.
+///   All gc pointers assigned to VRegs produce new value (in form of MI Def
+///   operand) and are tied to it.
 class StatepointOpers {
   // TODO:: we should change the STATEPOINT representation so that CC and
   // Flags should be part of meta operands, with args and deopt operands, and
   // gc operands all prefixed by their length and a type code. This would be
   // much more consistent.
-public:
-  // These values are aboolute offsets into the operands of the statepoint
+
+  // These values are absolute offsets into the operands of the statepoint
   // instruction.
   enum { IDPos, NBytesPos, NCallArgsPos, CallTargetPos, MetaEnd };
 
-  // These values are relative offests from the start of the statepoint meta
+  // These values are relative offsets from the start of the statepoint meta
   // arguments (i.e. the end of the call arguments).
   enum { CCOffset = 1, FlagsOffset = 3, NumDeoptOperandsOffset = 5 };
 
-  explicit StatepointOpers(const MachineInstr *MI) : MI(MI) {}
+public:
+  explicit StatepointOpers(const MachineInstr *MI) : MI(MI) {
+    NumDefs = MI->getNumDefs();
+  }
+
+  /// Get index of statepoint ID operand.
+  unsigned getIDPos() const { return NumDefs + IDPos; }
+
+  /// Get index of Num Patch Bytes operand.
+  unsigned getNBytesPos() const { return NumDefs + NBytesPos; }
+
+  /// Get index of Num Call Arguments operand.
+  unsigned getNCallArgsPos() const { return NumDefs + NCallArgsPos; }
 
   /// Get starting index of non call related arguments
   /// (calling convention, statepoint flags, vm state and gc state).
   unsigned getVarIdx() const {
-    return MI->getOperand(NCallArgsPos).getImm() + MetaEnd;
+    return MI->getOperand(NumDefs + NCallArgsPos).getImm() + MetaEnd + NumDefs;
+  }
+
+  /// Get index of Calling Convention operand.
+  unsigned getCCIdx() const { return getVarIdx() + CCOffset; }
+
+  /// Get index of Flags operand.
+  unsigned getFlagsIdx() const { return getVarIdx() + FlagsOffset; }
+
+  /// Get index of Number Deopt Arguments operand.
+  unsigned getNumDeoptArgsIdx() const {
+    return getVarIdx() + NumDeoptOperandsOffset;
   }
 
   /// Return the ID for the given statepoint.
-  uint64_t getID() const { return MI->getOperand(IDPos).getImm(); }
+  uint64_t getID() const { return MI->getOperand(NumDefs + IDPos).getImm(); }
 
   /// Return the number of patchable bytes the given statepoint should emit.
   uint32_t getNumPatchBytes() const {
-    return MI->getOperand(NBytesPos).getImm();
+    return MI->getOperand(NumDefs + NBytesPos).getImm();
   }
 
-  /// Returns the target of the underlying call.
+  /// Return the target of the underlying call.
   const MachineOperand &getCallTarget() const {
-    return MI->getOperand(CallTargetPos);
+    return MI->getOperand(NumDefs + CallTargetPos);
   }
+
+  /// Return the calling convention.
+  CallingConv::ID getCallingConv() const {
+    return MI->getOperand(getCCIdx()).getImm();
+  }
+
+  /// Return the statepoint flags.
+  uint64_t getFlags() const { return MI->getOperand(getFlagsIdx()).getImm(); }
+
+  uint64_t getNumDeoptArgs() const {
+    return MI->getOperand(getNumDeoptArgsIdx()).getImm();
+  }
+
+  /// Get index of number of gc map entries.
+  unsigned getNumGcMapEntriesIdx();
+
+  /// Get index of number of gc allocas.
+  unsigned getNumAllocaIdx();
+
+  /// Get index of number of GC pointers.
+  unsigned getNumGCPtrIdx();
+
+  /// Get index of first GC pointer operand of -1 if there are none.
+  int getFirstGCPtrIdx();
+
+  /// Get vector of base/derived pairs from statepoint.
+  /// Elements are indices into GC Pointer operand list (logical).
+  /// Returns number of elements in GCMap.
+  unsigned
+  getGCPointerMap(SmallVectorImpl<std::pair<unsigned, unsigned>> &GCMap);
 
 private:
   const MachineInstr *MI;
+  unsigned NumDefs;
 };
 
 class StackMaps {
@@ -228,6 +286,10 @@ public:
   using OpType = enum { DirectMemRefOp, IndirectMemRefOp, ConstantOp };
 
   StackMaps(AsmPrinter &AP);
+
+  /// Get index of next meta operand.
+  /// Similar to parseOperand, but does not actually parses operand meaning.
+  static unsigned getNextMetaArgIdx(const MachineInstr *MI, unsigned CurIdx);
 
   void reset() {
     CSInfos.clear();
@@ -300,6 +362,13 @@ private:
   parseOperand(MachineInstr::const_mop_iterator MOI,
                MachineInstr::const_mop_iterator MOE, LocationVec &Locs,
                LiveOutVec &LiveOuts) const;
+
+  /// Specialized parser of statepoint operands.
+  /// They do not directly correspond to StackMap record entries.
+  void parseStatepointOpers(const MachineInstr &MI,
+                            MachineInstr::const_mop_iterator MOI,
+                            MachineInstr::const_mop_iterator MOE,
+                            LocationVec &Locations, LiveOutVec &LiveOuts);
 
   /// Create a live-out register record for the given register @p Reg.
   LiveOutReg createLiveOutReg(unsigned Reg,

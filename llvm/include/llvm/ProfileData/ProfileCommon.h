@@ -33,8 +33,8 @@ class FunctionSamples;
 
 } // end namespace sampleprof
 
-inline const char *getHotSectionPrefix() { return ".hot"; }
-inline const char *getUnlikelySectionPrefix() { return ".unlikely"; }
+inline const char *getHotSectionPrefix() { return "hot"; }
+inline const char *getUnlikelySectionPrefix() { return "unlikely"; }
 
 class ProfileSummaryBuilder {
 private:
@@ -62,6 +62,10 @@ protected:
 public:
   /// A vector of useful cutoff values for detailed summary.
   static const ArrayRef<uint32_t> DefaultCutoffs;
+
+  /// Find the summary entry for a desired percentile of counts.
+  static const ProfileSummaryEntry &
+  getEntryForPercentile(SummaryEntryVector &DS, uint64_t Percentile);
 };
 
 class InstrProfSummaryBuilder final : public ProfileSummaryBuilder {

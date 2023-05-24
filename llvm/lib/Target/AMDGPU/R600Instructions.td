@@ -353,8 +353,8 @@ class LoadVtxId1 <PatFrag load> : PatFrag <
   const MemSDNode *LD = cast<MemSDNode>(N);
   return LD->getAddressSpace() == AMDGPUAS::GLOBAL_ADDRESS ||
          (LD->getAddressSpace() == AMDGPUAS::CONSTANT_ADDRESS &&
-           !isa<GlobalValue>(GetUnderlyingObject(
-           LD->getMemOperand()->getValue(), CurDAG->getDataLayout())));
+           !isa<GlobalValue>(getUnderlyingObject(
+           LD->getMemOperand()->getValue())));
 }]>;
 
 def vtx_id1_az_extloadi8 : LoadVtxId1 <az_extloadi8>;
@@ -365,8 +365,8 @@ class LoadVtxId2 <PatFrag load> : PatFrag <
   (ops node:$ptr), (load node:$ptr), [{
   const MemSDNode *LD = cast<MemSDNode>(N);
   return LD->getAddressSpace() == AMDGPUAS::CONSTANT_ADDRESS &&
-         isa<GlobalValue>(GetUnderlyingObject(
-         LD->getMemOperand()->getValue(), CurDAG->getDataLayout()));
+         isa<GlobalValue>(getUnderlyingObject(
+         LD->getMemOperand()->getValue()));
 }]>;
 
 def vtx_id2_az_extloadi8 : LoadVtxId2 <az_extloadi8>;
@@ -1006,7 +1006,7 @@ class MULADD_Common <bits<5> inst> : R600_3OP <
 
 class MULADD_IEEE_Common <bits<5> inst> : R600_3OP <
   inst, "MULADD_IEEE",
-  [(set f32:$dst, (fmad f32:$src0, f32:$src1, f32:$src2))]
+  [(set f32:$dst, (any_fmad f32:$src0, f32:$src1, f32:$src2))]
 >;
 
 class FMA_Common <bits<5> inst> : R600_3OP <
@@ -1233,6 +1233,11 @@ def : R600Pat<
 def : RcpPat<recip_ieee, f32>;
 }
 
+class SqrtPat<Instruction RsqInst, Instruction RecipInst> : R600Pat <
+  (fsqrt f32:$src),
+  (RecipInst (RsqInst $src))
+>;
+
 //===----------------------------------------------------------------------===//
 // R600 / R700 Instructions
 //===----------------------------------------------------------------------===//
@@ -1272,8 +1277,8 @@ let Predicates = [isR600] in {
   defm DIV_r600 : DIV_Common<RECIP_IEEE_r600>;
   def : POW_Common <LOG_IEEE_r600, EXP_IEEE_r600, MUL>;
 
-  def : R600Pat<(fsqrt f32:$src), (MUL $src, (RECIPSQRT_CLAMPED_r600 $src))>;
   def : RsqPat<RECIPSQRT_IEEE_r600, f32>;
+  def : SqrtPat<RECIPSQRT_IEEE_r600, RECIP_IEEE_r600>;
 
   def R600_ExportSwz : ExportSwzInst {
     let Word1{20-17} = 0; // BURST_COUNT

@@ -1,4 +1,4 @@
-//===-- MessageObjects.cpp --------------------------------------*- C++ -*-===//
+//===-- MessageObjects.cpp ------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -96,7 +96,8 @@ Expected<JThreadsInfo> JThreadsInfo::create(StringRef Response,
                                             ArrayRef<RegisterInfo> RegInfos) {
   JThreadsInfo jthreads_info;
 
-  StructuredData::ObjectSP json = StructuredData::ParseJSON(Response);
+  StructuredData::ObjectSP json =
+      StructuredData::ParseJSON(std::string(Response));
   StructuredData::Array *array = json->GetAsArray();
   if (!array)
     return make_parsing_error("JThreadsInfo: JSON array");
@@ -170,7 +171,7 @@ Expected<RegisterInfo> RegisterInfoParser::create(StringRef Response) {
   Info.byte_size /= CHAR_BIT;
 
   if (!to_integer(Elements["offset"], Info.byte_offset, 10))
-    return make_parsing_error("qRegisterInfo: offset");
+    Info.byte_offset = LLDB_INVALID_INDEX32;
 
   Info.encoding = Args::StringToEncoding(Elements["encoding"]);
   if (Info.encoding == eEncodingInvalid)

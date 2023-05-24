@@ -12,7 +12,7 @@
 // template<class F>
 // function(F) -> function<see-below>;
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 // UNSUPPORTED: libcpp-no-deduction-guides
 
 // The deduction guides for std::function do not handle rvalue-ref qualified
@@ -27,8 +27,9 @@ struct R { };
 struct f0 { R operator()() && { return {}; } };
 struct f1 { R operator()(int, ...) { return {}; } };
 
-int main() {
+int main(int, char**) {
     std::function f = f0{}; // expected-error{{no viable constructor or deduction guide for deduction of template arguments of 'function'}}
     std::function g = f1{}; // expected-error{{no viable constructor or deduction guide for deduction of template arguments of 'function'}}
     std::function h = nullptr; // expected-error{{no viable constructor or deduction guide for deduction of template arguments of 'function'}}
+    return 0;
 }

@@ -8,6 +8,14 @@
 #RELOC:      Relocations [
 #RELOC-NEXT: ]
 
+## Reject local-exec TLS relocations for -shared.
+# RUN: not ld.lld -shared %tmain.o -o /dev/null 2>&1 | FileCheck %s --check-prefix=ERR --implicit-check-not=error:
+
+# ERR: error: relocation R_AARCH64_TLSLE_ADD_TPREL_HI12 against v1 cannot be used with -shared
+# ERR: error: relocation R_AARCH64_TLSLE_ADD_TPREL_LO12_NC against v1 cannot be used with -shared
+# ERR: error: relocation R_AARCH64_TLSLE_ADD_TPREL_HI12 against v2 cannot be used with -shared
+# ERR: error: relocation R_AARCH64_TLSLE_ADD_TPREL_LO12_NC against v2 cannot be used with -shared
+
 .globl _start
 _start:
  mrs x0, TPIDR_EL0
@@ -19,7 +27,7 @@ _start:
 
 # TCB size = 0x16 and foo is first element from TLS register.
 #CHECK: Disassembly of section .text:
-#CHECK: _start:
+#CHECK: <_start>:
 #CHECK:  210158: 40 d0 3b d5     mrs     x0, TPIDR_EL0
 #CHECK:  21015c: 00 00 40 91     add     x0, x0, #0, lsl #12
 #CHECK:  210160: 00 40 00 91     add     x0, x0, #16

@@ -31,17 +31,17 @@
 #include "lld/Common/Strings.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Object/ELF.h"
+#include "llvm/Support/TimeProfiler.h"
 #include <functional>
 #include <vector>
 
 using namespace llvm;
 using namespace llvm::ELF;
 using namespace llvm::object;
+using namespace llvm::support::endian;
+using namespace lld;
+using namespace lld::elf;
 
-namespace endian = llvm::support::endian;
-
-namespace lld {
-namespace elf {
 namespace {
 template <class ELFT> class MarkLive {
 public:
@@ -56,7 +56,7 @@ private:
   void mark();
 
   template <class RelTy>
-  void resolveReloc(InputSectionBase &sec, RelTy &rel, bool isLSDA);
+  void resolveReloc(InputSectionBase &sec, RelTy &rel, bool fromFDE);
 
   template <class RelTy>
   void scanEhFrameSection(EhInputSection &eh, ArrayRef<RelTy> rels);
@@ -65,7 +65,7 @@ private:
   unsigned partition;
 
   // A list of sections to visit.
-  SmallVector<InputSection *, 256> queue;
+  SmallVector<InputSection *, 0> queue;
 
   // There are normally few input sections whose names are valid C
   // identifiers, so we just store a std::vector instead of a multimap.
@@ -89,7 +89,7 @@ static uint64_t getAddend(InputSectionBase &sec,
 template <class ELFT>
 template <class RelTy>
 void MarkLive<ELFT>::resolveReloc(InputSectionBase &sec, RelTy &rel,
-                                  bool isLSDA) {
+                                  bool fromFDE) {
   Symbol &sym = sec.getFile<ELFT>()->getRelocTargetSym(rel);
 
   // If a symbol is referenced in a live section, it is used.
@@ -104,7 +104,16 @@ void MarkLive<ELFT>::resolveReloc(InputSectionBase &sec, RelTy &rel,
     if (d->isSection())
       offset += getAddend<ELFT>(sec, rel);
 
-    if (!isLSDA || !(relSec->flags & SHF_EXECINSTR))
+    // fromFDE being true means this is referenced by a FDE in a .eh_frame
+    // piece. The relocation points to the described function or to a LSDA. We
+    // only need to keep the LSDA live, so ignore anything that points to
+    // executable sections. If the LSDA is in a section group, we ignore the
+    // relocation as well because (a) if the associated text section is live,
+    // the LSDA will be retained due to section group rules (b) if the
+    // associated text section should be discarded, marking the LSDA will
+    // unnecessarily retain the text section.
+    if (!(fromFDE &&
+          ((relSec->flags & SHF_EXECINSTR) || relSec->nextInSectionGroup)))
       enqueue(relSec, offset);
     return;
   }
@@ -141,20 +150,17 @@ void MarkLive<ELFT>::scanEhFrameSection(EhInputSection &eh,
     if (firstRelI == (unsigned)-1)
       continue;
 
-    if (endian::read32<ELFT::TargetEndianness>(piece.data().data() + 4) == 0) {
+    if (read32<ELFT::TargetEndianness>(piece.data().data() + 4) == 0) {
       // This is a CIE, we only need to worry about the first relocation. It is
       // known to point to the personality function.
       resolveReloc(eh, rels[firstRelI], false);
       continue;
     }
 
-    // This is a FDE. The relocations point to the described function or to
-    // a LSDA. We only need to keep the LSDA alive, so ignore anything that
-    // points to executable sections.
     uint64_t pieceEnd = piece.inputOff + piece.size;
-    for (size_t j = firstRelI, end2 = rels.size(); j < end2; ++j)
-      if (rels[j].r_offset < pieceEnd)
-        resolveReloc(eh, rels[j], true);
+    for (size_t j = firstRelI, end2 = rels.size();
+         j < end2 && rels[j].r_offset < pieceEnd; ++j)
+      resolveReloc(eh, rels[j], true);
   }
 }
 
@@ -322,7 +328,8 @@ template <class ELFT> void MarkLive<ELFT>::moveToMain() {
 // Before calling this function, Live bits are off for all
 // input sections. This function make some or all of them on
 // so that they are emitted to the output file.
-template <class ELFT> void markLive() {
+template <class ELFT> void elf::markLive() {
+  llvm::TimeTraceScope timeScope("markLive");
   // If -gc-sections is not given, no sections are removed.
   if (!config->gcSections) {
     for (InputSectionBase *sec : inputSections)
@@ -338,16 +345,16 @@ template <class ELFT> void markLive() {
 
   // Otherwise, do mark-sweep GC.
   //
-  // The -gc-sections option works only for SHF_ALLOC sections
-  // (sections that are memory-mapped at runtime). So we can
-  // unconditionally make non-SHF_ALLOC sections alive except
-  // SHF_LINK_ORDER and SHT_REL/SHT_RELA sections.
+  // The -gc-sections option works only for SHF_ALLOC sections (sections that
+  // are memory-mapped at runtime). So we can unconditionally make non-SHF_ALLOC
+  // sections alive except SHF_LINK_ORDER, SHT_REL/SHT_RELA sections, and
+  // sections in a group.
   //
   // Usually, non-SHF_ALLOC sections are not removed even if they are
-  // unreachable through relocations because reachability is not
-  // a good signal whether they are garbage or not (e.g. there is
-  // usually no section referring to a .comment section, but we
-  // want to keep it.).
+  // unreachable through relocations because reachability is not a good signal
+  // whether they are garbage or not (e.g. there is usually no section referring
+  // to a .comment section, but we want to keep it.) When a non-SHF_ALLOC
+  // section is retained, we also retain sections dependent on it.
   //
   // Note on SHF_LINK_ORDER: Such sections contain metadata and they
   // have a reverse dependency on the InputSection they are linked with.
@@ -369,8 +376,11 @@ template <class ELFT> void markLive() {
     bool isLinkOrder = (sec->flags & SHF_LINK_ORDER);
     bool isRel = (sec->type == SHT_REL || sec->type == SHT_RELA);
 
-    if (!isAlloc && !isLinkOrder && !isRel && !sec->nextInSectionGroup)
+    if (!isAlloc && !isLinkOrder && !isRel && !sec->nextInSectionGroup) {
       sec->markLive();
+      for (InputSection *isec : sec->dependentSections)
+        isec->markLive();
+    }
   }
 
   // Follow the graph to mark all live sections.
@@ -390,10 +400,7 @@ template <class ELFT> void markLive() {
         message("removing unused section " + toString(sec));
 }
 
-template void markLive<ELF32LE>();
-template void markLive<ELF32BE>();
-template void markLive<ELF64LE>();
-template void markLive<ELF64BE>();
-
-} // namespace elf
-} // namespace lld
+template void elf::markLive<ELF32LE>();
+template void elf::markLive<ELF32BE>();
+template void elf::markLive<ELF64LE>();
+template void elf::markLive<ELF64BE>();

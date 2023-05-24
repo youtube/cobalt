@@ -38,6 +38,7 @@ void CallingConvEmitter::run(raw_ostream &O) {
 
   // Emit prototypes for all of the non-custom CC's so that they can forward ref
   // each other.
+  Records.startTimer("Emit prototypes");
   for (Record *CC : CCs) {
     if (!CC->getValueAsBit("Custom")) {
       unsigned Pad = CC->getName().size();
@@ -56,6 +57,7 @@ void CallingConvEmitter::run(raw_ostream &O) {
   }
 
   // Emit each non-custom calling convention description in full.
+  Records.startTimer("Emit full descriptions");
   for (Record *CC : CCs) {
     if (!CC->getValueAsBit("Custom"))
       EmitCallingConv(CC, O);
@@ -85,7 +87,7 @@ void CallingConvEmitter::EmitCallingConv(Record *CC, raw_ostream &O) {
     EmitAction(CCActions->getElementAsRecord(i), 2, O);
   }
   
-  O << "\n  return true;  // CC didn't match.\n";
+  O << "\n  return true; // CC didn't match.\n";
   O << "}\n";
 }
 
@@ -197,11 +199,12 @@ void CallingConvEmitter::EmitAction(Record *Action,
              "getTypeAllocSize(EVT(LocVT).getTypeForEVT(State.getContext())),"
              " ";
       if (Align)
-        O << Align;
+        O << "Align(" << Align << ")";
       else
-        O << "\n" << IndentStr
+        O << "\n"
+          << IndentStr
           << "  State.getMachineFunction().getDataLayout()."
-             "getABITypeAlignment(EVT(LocVT).getTypeForEVT(State.getContext()"
+             "getABITypeAlign(EVT(LocVT).getTypeForEVT(State.getContext()"
              "))";
       O << ");\n" << IndentStr
         << "State.addLoc(CCValAssign::getMem(ValNo, ValVT, Offset"
@@ -224,8 +227,7 @@ void CallingConvEmitter::EmitAction(Record *Action,
       O << "\n" << IndentStr << "};\n";
 
       O << IndentStr << "unsigned Offset" << ++Counter
-        << " = State.AllocateStack("
-        << Size << ", " << Align << ", "
+        << " = State.AllocateStack(" << Size << ", Align(" << Align << "), "
         << "ShadowRegList" << ShadowRegListNumber << ");\n";
       O << IndentStr << "State.addLoc(CCValAssign::getMem(ValNo, ValVT, Offset"
         << Counter << ", LocVT, LocInfo));\n";
@@ -238,11 +240,11 @@ void CallingConvEmitter::EmitAction(Record *Action,
         O << IndentStr << "LocInfo = CCValAssign::FPExt;\n";
       } else {
         O << IndentStr << "if (ArgFlags.isSExt())\n"
-          << IndentStr << IndentStr << "LocInfo = CCValAssign::SExt;\n"
+          << IndentStr << "  LocInfo = CCValAssign::SExt;\n"
           << IndentStr << "else if (ArgFlags.isZExt())\n"
-          << IndentStr << IndentStr << "LocInfo = CCValAssign::ZExt;\n"
+          << IndentStr << "  LocInfo = CCValAssign::ZExt;\n"
           << IndentStr << "else\n"
-          << IndentStr << IndentStr << "LocInfo = CCValAssign::AExt;\n";
+          << IndentStr << "  LocInfo = CCValAssign::AExt;\n";
       }
     } else if (Action->isSubClassOf("CCPromoteToUpperBitsInType")) {
       Record *DestTy = Action->getValueAsDef("DestTy");
@@ -254,11 +256,11 @@ void CallingConvEmitter::EmitAction(Record *Action,
                         "point");
       } else {
         O << IndentStr << "if (ArgFlags.isSExt())\n"
-          << IndentStr << IndentStr << "LocInfo = CCValAssign::SExtUpper;\n"
+          << IndentStr << "  LocInfo = CCValAssign::SExtUpper;\n"
           << IndentStr << "else if (ArgFlags.isZExt())\n"
-          << IndentStr << IndentStr << "LocInfo = CCValAssign::ZExtUpper;\n"
+          << IndentStr << "  LocInfo = CCValAssign::ZExtUpper;\n"
           << IndentStr << "else\n"
-          << IndentStr << IndentStr << "LocInfo = CCValAssign::AExtUpper;\n";
+          << IndentStr << "  LocInfo = CCValAssign::AExtUpper;\n";
       }
     } else if (Action->isSubClassOf("CCBitConvertToType")) {
       Record *DestTy = Action->getValueAsDef("DestTy");
@@ -275,15 +277,14 @@ void CallingConvEmitter::EmitAction(Record *Action,
     } else if (Action->isSubClassOf("CCPassByVal")) {
       int Size = Action->getValueAsInt("Size");
       int Align = Action->getValueAsInt("Align");
-      O << IndentStr
-        << "State.HandleByVal(ValNo, ValVT, LocVT, LocInfo, "
-        << Size << ", " << Align << ", ArgFlags);\n";
+      O << IndentStr << "State.HandleByVal(ValNo, ValVT, LocVT, LocInfo, "
+        << Size << ", Align(" << Align << "), ArgFlags);\n";
       O << IndentStr << "return false;\n";
     } else if (Action->isSubClassOf("CCCustom")) {
       O << IndentStr
         << "if (" << Action->getValueAsString("FuncName") << "(ValNo, ValVT, "
         << "LocVT, LocInfo, ArgFlags, State))\n";
-      O << IndentStr << IndentStr << "return false;\n";
+      O << IndentStr << "  return false;\n";
     } else {
       errs() << *Action;
       PrintFatalError(Action->getLoc(), "Unknown CCAction!");

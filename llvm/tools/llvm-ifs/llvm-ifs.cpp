@@ -26,6 +26,7 @@
 #include "llvm/TextAPI/MachO/TextAPIWriter.h"
 #include <set>
 #include <string>
+#include <vector>
 
 using namespace llvm;
 using namespace llvm::yaml;
@@ -34,8 +35,8 @@ using namespace llvm::MachO;
 #define DEBUG_TYPE "llvm-ifs"
 
 namespace {
-const VersionTuple IFSVersionCurrent(1, 2);
-}
+const VersionTuple IFSVersionCurrent(2, 0);
+} // end anonymous namespace
 
 static cl::opt<std::string> Action("action", cl::desc("<llvm-ifs action>"),
                                    cl::value_desc("write-ifs | write-bin"),
@@ -61,7 +62,7 @@ enum class IFSSymbolType {
   Unknown = 16,
 };
 
-std::string getTypeName(IFSSymbolType Type) {
+static std::string getTypeName(IFSSymbolType Type) {
   switch (Type) {
   case IFSSymbolType::NoType:
     return "NoType";
@@ -76,6 +77,7 @@ std::string getTypeName(IFSSymbolType Type) {
 }
 
 struct IFSSymbol {
+  IFSSymbol() = default;
   IFSSymbol(std::string SymbolName) : Name(SymbolName) {}
   std::string Name;
   uint64_t Size;
@@ -84,6 +86,8 @@ struct IFSSymbol {
   Optional<std::string> Warning;
   bool operator<(const IFSSymbol &RHS) const { return Name < RHS.Name; }
 };
+
+LLVM_YAML_IS_SEQUENCE_VECTOR(IFSSymbol)
 
 namespace llvm {
 namespace yaml {
@@ -100,30 +104,10 @@ template <> struct ScalarEnumerationTraits<IFSSymbolType> {
   }
 };
 
-template <> struct ScalarTraits<VersionTuple> {
-  static void output(const VersionTuple &Value, void *,
-                     llvm::raw_ostream &Out) {
-    Out << Value.getAsString();
-  }
-
-  static StringRef input(StringRef Scalar, void *, VersionTuple &Value) {
-    if (Value.tryParse(Scalar))
-      return StringRef("Can't parse version: invalid version format.");
-
-    if (Value > IFSVersionCurrent)
-      return StringRef("Unsupported IFS version.");
-
-    // Returning empty StringRef indicates successful parse.
-    return StringRef();
-  }
-
-  // Don't place quotation marks around version value.
-  static QuotingType mustQuote(StringRef) { return QuotingType::None; }
-};
-
 /// YAML traits for IFSSymbol.
 template <> struct MappingTraits<IFSSymbol> {
   static void mapping(IO &IO, IFSSymbol &Symbol) {
+    IO.mapRequired("Name", Symbol.Name);
     IO.mapRequired("Type", Symbol.Type);
     // The need for symbol size depends on the symbol type.
     if (Symbol.Type == IFSSymbolType::NoType)
@@ -140,20 +124,6 @@ template <> struct MappingTraits<IFSSymbol> {
   static const bool flow = true;
 };
 
-/// YAML traits for set of IFSSymbols.
-template <> struct CustomMappingTraits<std::set<IFSSymbol>> {
-  static void inputOne(IO &IO, StringRef Key, std::set<IFSSymbol> &Set) {
-    std::string Name = Key.str();
-    IFSSymbol Sym(Name);
-    IO.mapRequired(Name.c_str(), Sym);
-    Set.insert(Sym);
-  }
-
-  static void output(IO &IO, std::set<IFSSymbol> &Set) {
-    for (auto &Sym : Set)
-      IO.mapRequired(Sym.Name.c_str(), const_cast<IFSSymbol &>(Sym));
-  }
-};
 } // namespace yaml
 } // namespace llvm
 
@@ -167,7 +137,7 @@ public:
   std::string ObjectFileFormat;
   Optional<std::string> SOName;
   std::vector<std::string> NeededLibs;
-  std::set<IFSSymbol> Symbols;
+  std::vector<IFSSymbol> Symbols;
 
   IFSStub() = default;
   IFSStub(const IFSStub &Stub)
@@ -186,14 +156,18 @@ namespace yaml {
 /// YAML traits for IFSStub objects.
 template <> struct MappingTraits<IFSStub> {
   static void mapping(IO &IO, IFSStub &Stub) {
-    if (!IO.mapTag("!experimental-ifs-v1", true))
+    if (!IO.mapTag("!experimental-ifs-v2", true))
       IO.setError("Not a .ifs YAML file.");
+
+    auto OldContext = IO.getContext();
+    IO.setContext(&Stub);
     IO.mapRequired("IfsVersion", Stub.IfsVersion);
     IO.mapOptional("Triple", Stub.Triple);
     IO.mapOptional("ObjectFileFormat", Stub.ObjectFileFormat);
     IO.mapOptional("SOName", Stub.SOName);
     IO.mapOptional("NeededLibs", Stub.NeededLibs);
     IO.mapRequired("Symbols", Stub.Symbols);
+    IO.setContext(&OldContext);
   }
 };
 } // namespace yaml
@@ -215,11 +189,16 @@ static Expected<std::unique_ptr<IFSStub>> readInputFile(StringRef FilePath) {
   if (std::error_code Err = YamlIn.error())
     return createStringError(Err, "Failed reading Interface Stub File.");
 
+  if (Stub->IfsVersion > IFSVersionCurrent)
+    return make_error<StringError>(
+        "IFS version " + Stub->IfsVersion.getAsString() + " is unsupported.",
+        std::make_error_code(std::errc::invalid_argument));
+
   return std::move(Stub);
 }
 
-int writeTbdStub(const llvm::Triple &T, const std::set<IFSSymbol> &Symbols,
-                 const StringRef Format, raw_ostream &Out) {
+static int writeTbdStub(const Triple &T, const std::vector<IFSSymbol> &Symbols,
+                        const StringRef Format, raw_ostream &Out) {
 
   auto PlatformKindOrError =
       [](const llvm::Triple &T) -> llvm::Expected<llvm::MachO::PlatformKind> {
@@ -280,8 +259,8 @@ int writeTbdStub(const llvm::Triple &T, const std::set<IFSSymbol> &Symbols,
   return 0;
 }
 
-int writeElfStub(const llvm::Triple &T, const std::set<IFSSymbol> &Symbols,
-                 const StringRef Format, raw_ostream &Out) {
+static int writeElfStub(const Triple &T, const std::vector<IFSSymbol> &Symbols,
+                        const StringRef Format, raw_ostream &Out) {
   SmallString<0> Storage;
   Storage.clear();
   raw_svector_ostream OS(Storage);
@@ -346,7 +325,7 @@ int writeElfStub(const llvm::Triple &T, const std::set<IFSSymbol> &Symbols,
   }
   OS << "...\n";
 
-  std::string YamlStr = OS.str();
+  std::string YamlStr = std::string(OS.str());
 
   // Only or debugging. Not an offical format.
   LLVM_DEBUG({
@@ -363,7 +342,7 @@ int writeElfStub(const llvm::Triple &T, const std::set<IFSSymbol> &Symbols,
   return convertYAML(YIn, Out, ErrHandler) ? 0 : 1;
 }
 
-int writeIfso(const IFSStub &Stub, bool IsWriteIfs, raw_ostream &Out) {
+static int writeIfso(const IFSStub &Stub, bool IsWriteIfs, raw_ostream &Out) {
   if (IsWriteIfs) {
     yaml::Output YamlOut(Out, NULL, /*WrapColumn =*/0);
     YamlOut << const_cast<IFSStub &>(Stub);
@@ -387,8 +366,8 @@ int writeIfso(const IFSStub &Stub, bool IsWriteIfs, raw_ostream &Out) {
 
 // TODO: Drop ObjectFileFormat, it can be subsumed from the triple.
 // New Interface Stubs Yaml Format:
-// --- !experimental-ifs-v1
-// IfsVersion:      1.0
+// --- !experimental-ifs-v2
+// IfsVersion: 2.0
 // Triple:          <llvm triple>
 // ObjectFileFormat: <ELF | others not yet supported>
 // Symbols:
@@ -405,7 +384,7 @@ int main(int argc, char *argv[]) {
   IFSStub Stub;
   std::map<std::string, IFSSymbol> SymbolMap;
 
-  std::string PreviousInputFilePath = "";
+  std::string PreviousInputFilePath;
   for (const std::string &InputFilePath : InputFilenames) {
     Expected<std::unique_ptr<IFSStub>> StubOrErr = readInputFile(InputFilePath);
     if (!StubOrErr) {
@@ -517,7 +496,7 @@ int main(int argc, char *argv[]) {
     }
 
   for (auto &Entry : SymbolMap)
-    Stub.Symbols.insert(Entry.second);
+    Stub.Symbols.push_back(Entry.second);
 
   std::error_code SysErr;
 

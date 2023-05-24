@@ -10,6 +10,7 @@
 ; RUN: opt -thinlto-bc -o %t4.o %p/Inputs/devirt_promote.ll
 
 ; RUN: llvm-lto2 run %t3.o %t4.o -save-temps -use-new-pm -pass-remarks=. \
+; RUN:   -whole-program-visibility \
 ; RUN:   -wholeprogramdevirt-print-index-based \
 ; RUN:   -o %t5 \
 ; RUN:   -r=%t3.o,test,px \
@@ -31,6 +32,9 @@
 ; NM-INDEX2-NOT: U _ZN1A1nEi
 ; NM-INDEX2: T _ZN1A1nEi.llvm.
 ; NM-INDEX2-NOT: U _ZN1A1nEi
+
+; The thin link devirtualizes all calls to _ZN1A1nEi.
+; PRINT: Devirtualized call to {{.*}} (_ZN1A1nEi)
 
 ; We should devirt call to _ZN1A1nEi once in importing module and once
 ; in original (exporting) module.

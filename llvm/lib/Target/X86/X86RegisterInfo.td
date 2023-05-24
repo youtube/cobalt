@@ -265,6 +265,19 @@ let SubRegIndices = [sub_ymm] in {
   }
 }
 
+// Tile config registers.
+def TMMCFG: X86Reg<"tmmcfg", 0>;
+
+// Tile "registers".
+def TMM0:  X86Reg<"tmm0",   0>;
+def TMM1:  X86Reg<"tmm1",   1>;
+def TMM2:  X86Reg<"tmm2",   2>;
+def TMM3:  X86Reg<"tmm3",   3>;
+def TMM4:  X86Reg<"tmm4",   4>;
+def TMM5:  X86Reg<"tmm5",   5>;
+def TMM6:  X86Reg<"tmm6",   6>;
+def TMM7:  X86Reg<"tmm7",   7>;
+
 // Mask Registers, used by AVX-512 instructions.
 def K0 : X86Reg<"k0", 0>, DwarfRegNum<[118,  93,  93]>;
 def K1 : X86Reg<"k1", 1>, DwarfRegNum<[119,  94,  94]>;
@@ -498,7 +511,7 @@ def GR64_NOREX_NOSP : RegisterClass<"X86", [i64], 64,
 // which we do not have right now.
 def LOW32_ADDR_ACCESS : RegisterClass<"X86", [i32], 32, (add GR32, RIP)>;
 
-// When RBP is used as a base pointer in a 32-bit addresses environement,
+// When RBP is used as a base pointer in a 32-bit addresses environment,
 // this is also safe to use the full register to access addresses.
 // Since RBP will never be spilled, stick to a 32 alignment to save
 // on memory consumption.
@@ -621,3 +634,13 @@ def VK64WM  : RegisterClass<"X86", [v64i1], 64, (add VK32WM)> {let Size = 64;}
 
 // Bound registers
 def BNDR : RegisterClass<"X86", [v2i64], 128, (sequence "BND%u", 0, 3)>;
+
+// Tiles
+let CopyCost = -1 in // Don't allow copying of tile registers
+def TILE : RegisterClass<"X86", [x86amx], 8192,
+                         (sequence "TMM%u", 0, 7)> {let Size = 8192;}
+def TILECFG : RegisterClass<"X86", [untyped], 512, (add TMMCFG)> {
+  let CopyCost = -1;  // Don't allow copying of tile config registers.
+  let isAllocatable = 1;
+  let Size = 512;
+}

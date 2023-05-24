@@ -1,8 +1,8 @@
 // RUN: %clang_cc1 -fsyntax-only -fopenmp -fopenmp-version=45 -verify=expected,omp45 %s -Wuninitialized
-// RUN: %clang_cc1 -fsyntax-only -fopenmp -fopenmp-version=50 -verify=expected,omp50 %s -Wuninitialized
+// RUN: %clang_cc1 -fsyntax-only -fopenmp -verify=expected,omp50 %s -Wuninitialized
 
 // RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -fopenmp-version=45 -verify=expected,omp45 -verify %s -Wuninitialized
-// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -fopenmp-version=50 -verify=expected,omp50 -verify %s -Wuninitialized
+// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -verify=expected,omp50 -verify %s -Wuninitialized
 
 void xxx(int argc) {
   int x; // expected-note {{initialize the variable 'x' to silence this warning}}
@@ -156,11 +156,11 @@ void test_safelen() {
 #pragma omp for simd safelen(4, 8)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp for simd safelen(2.5)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp for simd safelen(foo())
   for (i = 0; i < 16; ++i)
     ;
@@ -241,11 +241,11 @@ void test_simdlen() {
 #pragma omp for simd simdlen(4, 8)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp for simd simdlen(2.5)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp for simd simdlen(foo())
   for (i = 0; i < 16; ++i)
     ;
@@ -357,12 +357,12 @@ void test_collapse() {
   for (i = 0; i < 16; ++i)
     ; // expected-error {{expected 4 for loops after '#pragma omp for simd', but found only 1}}
 #pragma omp parallel
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp for simd collapse(2.5)
   for (i = 0; i < 16; ++i)
     ;
 #pragma omp parallel
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp for simd collapse(foo())
   for (i = 0; i < 16; ++i)
     ;
@@ -848,6 +848,21 @@ void test_nontemporal() {
 // omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp for simd'}}
 #pragma omp for simd lastprivate(x) nontemporal(x)
   for (i = 0; i < 16; ++i)
+    ;
+#pragma omp for simd order // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp for simd'}} expected-error {{expected '(' after 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp for simd order( // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp for simd'}} expected-error {{expected ')'}} expected-note {{to match this '('}} omp50-error {{expected 'concurrent' in OpenMP clause 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp for simd order(none // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp for simd'}} expected-error {{expected ')'}} expected-note {{to match this '('}} omp50-error {{expected 'concurrent' in OpenMP clause 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp for simd order(concurrent // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp for simd'}} expected-error {{expected ')'}} expected-note {{to match this '('}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp for simd order(concurrent) // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp for simd'}}
+  for (int i = 0; i < 10; ++i)
     ;
 }
 

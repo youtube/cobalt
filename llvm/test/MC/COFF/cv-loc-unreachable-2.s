@@ -6,11 +6,11 @@
 # section afterwards. We had negative label difference assertions when .cv_loc
 # bound tightly to the next instruction.
 
-# ASM:      00000000 _callit:
+# ASM:      00000000 <_callit>:
 #   begin inline {
-# ASM-NEXT:        0: e8 00 00 00 00                calll   0 <_callit+0x5>
+# ASM-NEXT:        0: e8 00 00 00 00                calll   0x5 <_callit+0x5>
 # ASM-NEXT:        5: 85 c0                         testl   %eax, %eax
-# ASM-NEXT:        7: 75 01                         jne     1 <_callit+0xa>
+# ASM-NEXT:        7: 75 01                         jne     0xa <_callit+0xa>
 #   } end inline
 # ASM-NEXT:        9: c3                            retl
 #   begin inline {
@@ -23,7 +23,7 @@
 
 # CODEVIEW:      S_INLINESITE [size = 26]
 # CODEVIEW-NEXT: inlinee = 0x1002 (do_exit), parent = 0, end = 0
-# CODEVIEW-NEXT:   0602      line 1 (+1)
+# CODEVIEW-NEXT:   0B20      code 0x0 (+0x0) line 1 (+1)
 # CODEVIEW-NEXT:   0409      code end 0x9 (+0x9)
 # CODEVIEW-NEXT:   0B21      code 0xA (+0x1) line 2 (+1)
 # CODEVIEW-NEXT:   0B28      code 0x12 (+0x8) line 3 (+1)

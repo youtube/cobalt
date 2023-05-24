@@ -226,6 +226,8 @@ typedef std::vector<bit_value_t> insn_t;
 
 namespace {
 
+static const uint64_t NO_FIXED_SEGMENTS_SENTINEL = -1ULL;
+
 class FilterChooser;
 
 /// Filter - Filter works with FilterChooser to produce the decoding tree for
@@ -279,7 +281,7 @@ protected:
   std::vector<EncodingIDAndOpcode> VariableInstructions;
 
   // Map of well-known segment value to its delegate.
-  std::map<unsigned, std::unique_ptr<const FilterChooser>> FilterChooserMap;
+  std::map<uint64_t, std::unique_ptr<const FilterChooser>> FilterChooserMap;
 
   // Number of instructions which fall under FilteredInstructions category.
   unsigned NumFiltered;
@@ -305,7 +307,7 @@ public:
   const FilterChooser &getVariableFC() const {
     assert(NumFiltered == 1);
     assert(FilterChooserMap.size() == 1);
-    return *(FilterChooserMap.find((unsigned)-1)->second);
+    return *(FilterChooserMap.find(NO_FIXED_SEGMENTS_SENTINEL)->second);
   }
 
   // Divides the decoding task into sub tasks and delegates them to the
@@ -602,10 +604,9 @@ void Filter::recurse() {
 
     // Delegates to an inferior filter chooser for further processing on this
     // group of instructions whose segment values are variable.
-    FilterChooserMap.insert(
-        std::make_pair(-1U, std::make_unique<FilterChooser>(
-                                Owner->AllInstructions, VariableInstructions,
-                                Owner->Operands, BitValueArray, *Owner)));
+    FilterChooserMap.insert(std::make_pair(NO_FIXED_SEGMENTS_SENTINEL,
+        std::make_unique<FilterChooser>(Owner->AllInstructions,
+            VariableInstructions, Owner->Operands, BitValueArray, *Owner)));
   }
 
   // No need to recurse for a singleton filtered instruction.
@@ -674,7 +675,7 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
   for (auto &Filter : FilterChooserMap) {
     // Field value -1 implies a non-empty set of variable instructions.
     // See also recurse().
-    if (Filter.first == (unsigned)-1) {
+    if (Filter.first == NO_FIXED_SEGMENTS_SENTINEL) {
       HasFallthrough = true;
 
       // Each scope should always have at least one filter value to check
@@ -721,7 +722,7 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
   assert(TableInfo.FixupStack.size() > 1 && "fixup stack underflow!");
   FixupScopeList::iterator Source = TableInfo.FixupStack.end() - 1;
   FixupScopeList::iterator Dest = Source - 1;
-  Dest->insert(Dest->end(), Source->begin(), Source->end());
+  llvm::append_range(*Dest, *Source);
   TableInfo.FixupStack.pop_back();
 
   // If there is no fallthrough, then the final filter should get fixed
@@ -941,7 +942,7 @@ emitPredicateFunction(formatted_raw_ostream &OS, PredicateSet &Predicates,
   // The predicate function is just a big switch statement based on the
   // input predicate index.
   OS.indent(Indentation) << "static bool checkDecoderPredicate(unsigned Idx, "
-    << "const FeatureBitset& Bits) {\n";
+    << "const FeatureBitset &Bits) {\n";
   Indentation += 2;
   if (!Predicates.empty()) {
     OS.indent(Indentation) << "switch (Idx) {\n";
@@ -965,7 +966,7 @@ emitDecoderFunction(formatted_raw_ostream &OS, DecoderSet &Decoders,
                     unsigned Indentation) const {
   // The decoder function is just a big switch statement based on the
   // input decoder index.
-  OS.indent(Indentation) << "template<typename InsnType>\n";
+  OS.indent(Indentation) << "template <typename InsnType>\n";
   OS.indent(Indentation) << "static DecodeStatus decodeToMCInst(DecodeStatus S,"
     << " unsigned Idx, InsnType insn, MCInst &MI,\n";
   OS.indent(Indentation) << "                                   uint64_t "
@@ -1182,15 +1183,6 @@ unsigned FilterChooser::getDecoderIndex(DecoderSet &Decoders,
   return (unsigned)(P - Decoders.begin());
 }
 
-static void emitSinglePredicateMatch(raw_ostream &o, StringRef str,
-                                     const std::string &PredicateNamespace) {
-  if (str[0] == '!')
-    o << "!Bits[" << PredicateNamespace << "::"
-      << str.slice(1,str.size()) << "]";
-  else
-    o << "Bits[" << PredicateNamespace << "::" << str << "]";
-}
-
 bool FilterChooser::emitPredicateMatch(raw_ostream &o, unsigned &Indentation,
                                        unsigned Opc) const {
   ListInit *Predicates =
@@ -1201,21 +1193,50 @@ bool FilterChooser::emitPredicateMatch(raw_ostream &o, unsigned &Indentation,
     if (!Pred->getValue("AssemblerMatcherPredicate"))
       continue;
 
-    StringRef P = Pred->getValueAsString("AssemblerCondString");
-
-    if (P.empty())
+    if (!isa<DagInit>(Pred->getValue("AssemblerCondDag")->getValue()))
       continue;
+
+    const DagInit *D = Pred->getValueAsDag("AssemblerCondDag");
+    std::string CombineType = D->getOperator()->getAsString();
+    if (CombineType != "any_of" && CombineType != "all_of")
+      PrintFatalError(Pred->getLoc(), "Invalid AssemblerCondDag!");
+    if (D->getNumArgs() == 0)
+      PrintFatalError(Pred->getLoc(), "Invalid AssemblerCondDag!");
+    bool IsOr = CombineType == "any_of";
 
     if (!IsFirstEmission)
       o << " && ";
 
-    std::pair<StringRef, StringRef> pairs = P.split(',');
-    while (!pairs.second.empty()) {
-      emitSinglePredicateMatch(o, pairs.first, Emitter->PredicateNamespace);
-      o << " && ";
-      pairs = pairs.second.split(',');
+    if (IsOr)
+      o << "(";
+
+    bool First = true;
+    for (auto *Arg : D->getArgs()) {
+      if (!First) {
+        if (IsOr)
+          o << " || ";
+        else
+          o << " && ";
+      }
+      if (auto *NotArg = dyn_cast<DagInit>(Arg)) {
+        if (NotArg->getOperator()->getAsString() != "not" ||
+            NotArg->getNumArgs() != 1)
+          PrintFatalError(Pred->getLoc(), "Invalid AssemblerCondDag!");
+        Arg = NotArg->getArg(0);
+        o << "!";
+      }
+      if (!isa<DefInit>(Arg) ||
+          !cast<DefInit>(Arg)->getDef()->isSubClassOf("SubtargetFeature"))
+        PrintFatalError(Pred->getLoc(), "Invalid AssemblerCondDag!");
+      o << "Bits[" << Emitter->PredicateNamespace << "::" << Arg->getAsString()
+        << "]";
+
+      First = false;
     }
-    emitSinglePredicateMatch(o, pairs.first, Emitter->PredicateNamespace);
+
+    if (IsOr)
+      o << ")";
+
     IsFirstEmission = false;
   }
   return !Predicates->empty();
@@ -1229,12 +1250,8 @@ bool FilterChooser::doesOpcodeNeedPredicate(unsigned Opc) const {
     if (!Pred->getValue("AssemblerMatcherPredicate"))
       continue;
 
-    StringRef P = Pred->getValueAsString("AssemblerCondString");
-
-    if (P.empty())
-      continue;
-
-    return true;
+    if (dyn_cast<DagInit>(Pred->getValue("AssemblerCondDag")->getValue()))
+      return true;
   }
   return false;
 }
@@ -1772,7 +1789,7 @@ static std::string findOperandDecoderMethod(TypedInit *TI) {
   StringInit *String = DecoderString ?
     dyn_cast<StringInit>(DecoderString->getValue()) : nullptr;
   if (String) {
-    Decoder = String->getValue();
+    Decoder = std::string(String->getValue());
     if (!Decoder.empty())
       return Decoder;
   }
@@ -1809,7 +1826,8 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
   StringRef InstDecoder = EncodingDef.getValueAsString("DecoderMethod");
   if (InstDecoder != "") {
     bool HasCompleteInstDecoder = EncodingDef.getValueAsBit("hasCompleteDecoder");
-    InsnOperands.push_back(OperandInfo(InstDecoder, HasCompleteInstDecoder));
+    InsnOperands.push_back(
+        OperandInfo(std::string(InstDecoder), HasCompleteInstDecoder));
     Operands[Opc] = InsnOperands;
     return true;
   }
@@ -1839,8 +1857,10 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
     if (tiedTo != -1) {
       std::pair<unsigned, unsigned> SO =
         CGI.Operands.getSubOperandNumber(tiedTo);
-      TiedNames[InOutOperands[i].second] = InOutOperands[SO.first].second;
-      TiedNames[InOutOperands[SO.first].second] = InOutOperands[i].second;
+      TiedNames[std::string(InOutOperands[i].second)] =
+          std::string(InOutOperands[SO.first].second);
+      TiedNames[std::string(InOutOperands[SO.first].second)] =
+          std::string(InOutOperands[i].second);
     }
   }
 
@@ -1867,7 +1887,7 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
     for (unsigned i = 0, e = Vals.size(); i != e; ++i) {
       // Ignore fixed fields in the record, we're looking for values like:
       //    bits<5> RST = { ?, ?, ?, ?, ? };
-      if (Vals[i].getPrefix() || Vals[i].getValue()->isComplete())
+      if (Vals[i].isNonconcreteOK() || Vals[i].getValue()->isComplete())
         continue;
 
       // Determine if Vals[i] actually contributes to the Inst encoding.
@@ -1936,7 +1956,7 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
       StringInit *String = DecoderString ?
         dyn_cast<StringInit>(DecoderString->getValue()) : nullptr;
       if (String && String->getValue() != "")
-        Decoder = String->getValue();
+        Decoder = std::string(String->getValue());
 
       if (Decoder == "" &&
           CGI.Operands[SO.first].MIOperandInfo &&
@@ -1963,7 +1983,7 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
       String = DecoderString ?
         dyn_cast<StringInit>(DecoderString->getValue()) : nullptr;
       if (!isReg && String && String->getValue() != "")
-        Decoder = String->getValue();
+        Decoder = std::string(String->getValue());
 
       RecordVal *HasCompleteDecoderVal =
         TypeRecord->getValue("hasCompleteDecoder");
@@ -1989,16 +2009,16 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
 
   // For each operand, see if we can figure out where it is encoded.
   for (const auto &Op : InOutOperands) {
-    if (!NumberedInsnOperands[Op.second].empty()) {
-      InsnOperands.insert(InsnOperands.end(),
-                          NumberedInsnOperands[Op.second].begin(),
-                          NumberedInsnOperands[Op.second].end());
+    if (!NumberedInsnOperands[std::string(Op.second)].empty()) {
+      llvm::append_range(InsnOperands,
+                         NumberedInsnOperands[std::string(Op.second)]);
       continue;
     }
-    if (!NumberedInsnOperands[TiedNames[Op.second]].empty()) {
-      if (!NumberedInsnOperandsNoTie.count(TiedNames[Op.second])) {
+    if (!NumberedInsnOperands[TiedNames[std::string(Op.second)]].empty()) {
+      if (!NumberedInsnOperandsNoTie.count(TiedNames[std::string(Op.second)])) {
         // Figure out to which (sub)operand we're tied.
-        unsigned i = CGI.Operands.getOperandNamed(TiedNames[Op.second]);
+        unsigned i =
+            CGI.Operands.getOperandNamed(TiedNames[std::string(Op.second)]);
         int tiedTo = CGI.Operands[i].getTiedRegister();
         if (tiedTo == -1) {
           i = CGI.Operands.getOperandNamed(Op.second);
@@ -2009,8 +2029,9 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
           std::pair<unsigned, unsigned> SO =
             CGI.Operands.getSubOperandNumber(tiedTo);
 
-          InsnOperands.push_back(NumberedInsnOperands[TiedNames[Op.second]]
-                                   [SO.second]);
+          InsnOperands.push_back(
+              NumberedInsnOperands[TiedNames[std::string(Op.second)]]
+                                  [SO.second]);
         }
       }
       continue;
@@ -2065,7 +2086,7 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
       }
 
       if (Var->getName() != Op.second &&
-          Var->getName() != TiedNames[Op.second]) {
+          Var->getName() != TiedNames[std::string(Op.second)]) {
         if (Base != ~0U) {
           OpInfo.addField(Base, Width, Offset);
           Base = ~0U;
@@ -2141,7 +2162,7 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
      << "// * Support shift (<<, >>) with signed and unsigned integers on the "
         "RHS\n"
      << "// * Support put (<<) to raw_ostream&\n"
-     << "template<typename InsnType>\n"
+     << "template <typename InsnType>\n"
      << "#if defined(_MSC_VER) && !defined(__clang__)\n"
      << "__declspec(noinline)\n"
      << "#endif\n"
@@ -2161,7 +2182,7 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
      << "  return (insn & fieldMask) >> startBit;\n"
      << "}\n"
      << "\n"
-     << "template<typename InsnType>\n"
+     << "template <typename InsnType>\n"
      << "static InsnType fieldFromInstruction(InsnType insn, unsigned "
         "startBit,\n"
      << "                                     unsigned numBits, "
@@ -2172,7 +2193,7 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
      << "  return (insn >> startBit) & fieldMask;\n"
      << "}\n"
      << "\n"
-     << "template<typename InsnType>\n"
+     << "template <typename InsnType>\n"
      << "static InsnType fieldFromInstruction(InsnType insn, unsigned "
         "startBit,\n"
      << "                                     unsigned numBits) {\n"
@@ -2184,14 +2205,14 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
 // emitDecodeInstruction - Emit the templated helper function
 // decodeInstruction().
 static void emitDecodeInstruction(formatted_raw_ostream &OS) {
-  OS << "template<typename InsnType>\n"
+  OS << "template <typename InsnType>\n"
      << "static DecodeStatus decodeInstruction(const uint8_t DecodeTable[], "
         "MCInst &MI,\n"
      << "                                      InsnType insn, uint64_t "
         "Address,\n"
      << "                                      const void *DisAsm,\n"
      << "                                      const MCSubtargetInfo &STI) {\n"
-     << "  const FeatureBitset& Bits = STI.getFeatureBits();\n"
+     << "  const FeatureBitset &Bits = STI.getFeatureBits();\n"
      << "\n"
      << "  const uint8_t *Ptr = DecodeTable;\n"
      << "  InsnType CurFieldValue = 0;\n"
@@ -2353,7 +2374,7 @@ static void emitDecodeInstruction(formatted_raw_ostream &OS) {
      << "      if (Fail)\n"
      << "        S = MCDisassembler::SoftFail;\n"
      << "      LLVM_DEBUG(dbgs() << Loc << \": OPC_SoftFail: \" << (Fail ? "
-        "\"FAIL\\n\":\"PASS\\n\"));\n"
+        "\"FAIL\\n\" : \"PASS\\n\"));\n"
      << "      break;\n"
      << "    }\n"
      << "    case MCD::OPC_Fail: {\n"
@@ -2371,8 +2392,8 @@ static void emitDecodeInstruction(formatted_raw_ostream &OS) {
 void FixedLenDecoderEmitter::run(raw_ostream &o) {
   formatted_raw_ostream OS(o);
   OS << "#include \"llvm/MC/MCInst.h\"\n";
-  OS << "#include \"llvm/Support/Debug.h\"\n";
   OS << "#include \"llvm/Support/DataTypes.h\"\n";
+  OS << "#include \"llvm/Support/Debug.h\"\n";
   OS << "#include \"llvm/Support/LEB128.h\"\n";
   OS << "#include \"llvm/Support/raw_ostream.h\"\n";
   OS << "#include <assert.h>\n";
@@ -2460,7 +2481,7 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
 
     if (populateInstruction(Target, *EncodingDef, *Inst, i, Operands)) {
       std::string DecoderNamespace =
-          EncodingDef->getValueAsString("DecoderNamespace");
+          std::string(EncodingDef->getValueAsString("DecoderNamespace"));
       if (!NumberedEncodings[i].HwModeName.empty())
         DecoderNamespace +=
             std::string("_") + NumberedEncodings[i].HwModeName.str();

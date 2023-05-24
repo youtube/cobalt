@@ -59,8 +59,7 @@ class TargetOptions;
 /// report the error(s).
 bool ParseDiagnosticArgs(DiagnosticOptions &Opts, llvm::opt::ArgList &Args,
                          DiagnosticsEngine *Diags = nullptr,
-                         bool DefaultDiagColor = true,
-                         bool DefaultShowOpt = true);
+                         bool DefaultDiagColor = true);
 
 class CompilerInvocationBase {
 public:
@@ -154,9 +153,12 @@ public:
   /// one of the vaild-to-access (albeit arbitrary) states.
   ///
   /// \param [out] Res - The resulting invocation.
+  /// \param [in] CommandLineArgs - Array of argument strings, this must not
+  /// contain "-cc1".
   static bool CreateFromArgs(CompilerInvocation &Res,
                              ArrayRef<const char *> CommandLineArgs,
-                             DiagnosticsEngine &Diags);
+                             DiagnosticsEngine &Diags,
+                             const char *Argv0 = nullptr);
 
   /// Get the directory where the compiler headers
   /// reside, relative to the compiler binary (found by the passed in
@@ -174,15 +176,28 @@ public:
   /// \param Opts - The LangOptions object to set up.
   /// \param IK - The input language.
   /// \param T - The target triple.
-  /// \param PPOpts - The PreprocessorOptions affected.
+  /// \param Includes - The affected list of included files.
   /// \param LangStd - The input language standard.
-  static void setLangDefaults(LangOptions &Opts, InputKind IK,
-                   const llvm::Triple &T, PreprocessorOptions &PPOpts,
-                   LangStandard::Kind LangStd = LangStandard::lang_unspecified);
+  static void
+  setLangDefaults(LangOptions &Opts, InputKind IK, const llvm::Triple &T,
+                  std::vector<std::string> &Includes,
+                  LangStandard::Kind LangStd = LangStandard::lang_unspecified);
 
   /// Retrieve a module hash string that is suitable for uniquely
   /// identifying the conditions under which the module was built.
   std::string getModuleHash() const;
+
+  using StringAllocator = llvm::function_ref<const char *(const llvm::Twine &)>;
+  /// Generate a cc1-compatible command line arguments from this instance.
+  ///
+  /// \param [out] Args - The generated arguments. Note that the caller is
+  /// responsible for inserting the path to the clang executable and "-cc1" if
+  /// desired.
+  /// \param SA - A function that given a Twine can allocate storage for a given
+  /// command line argument and return a pointer to the newly allocated string.
+  /// The returned pointer is what gets appended to Args.
+  void generateCC1CommandLine(llvm::SmallVectorImpl<const char *> &Args,
+                              StringAllocator SA) const;
 
   /// @}
   /// @name Option Subgroups
@@ -222,6 +237,29 @@ public:
   }
 
   /// @}
+
+private:
+  /// Parse options for flags that expose marshalling information in their
+  /// table-gen definition
+  ///
+  /// \param Args - The argument list containing the arguments to parse
+  /// \param Diags - The DiagnosticsEngine associated with CreateFromArgs
+  /// \returns - True if parsing was successful, false otherwise
+  bool parseSimpleArgs(const llvm::opt::ArgList &Args,
+                       DiagnosticsEngine &Diags);
+
+  /// Parse command line options that map to LangOptions.
+  static void ParseLangArgs(LangOptions &Opts, llvm::opt::ArgList &Args,
+                            InputKind IK, const llvm::Triple &T,
+                            std::vector<std::string> &Includes,
+                            DiagnosticsEngine &Diags);
+
+  /// Parse command line options that map to CodeGenOptions.
+  static bool ParseCodeGenArgs(CodeGenOptions &Opts, llvm::opt::ArgList &Args,
+                               InputKind IK, DiagnosticsEngine &Diags,
+                               const llvm::Triple &T,
+                               const std::string &OutputFile,
+                               const LangOptions &LangOptsRef);
 };
 
 IntrusiveRefCntPtr<llvm::vfs::FileSystem>

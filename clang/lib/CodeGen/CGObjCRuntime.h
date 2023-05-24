@@ -20,6 +20,7 @@
 #include "CGValue.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/Basic/IdentifierTable.h" // Selector
+#include "llvm/ADT/UniqueVector.h"
 
 namespace llvm {
   class Constant;
@@ -115,6 +116,9 @@ protected:
 public:
   virtual ~CGObjCRuntime();
 
+  std::string getSymbolNameForMethod(const ObjCMethodDecl *method,
+                                     bool includeCategoryName = true);
+
   /// Generate the function required to register all Objective-C components in
   /// this compilation unit with the runtime library.
   virtual llvm::Function *ModuleInitFunction() = 0;
@@ -202,6 +206,16 @@ public:
                            const CallArgList &CallArgs,
                            const ObjCMethodDecl *Method = nullptr) = 0;
 
+  /// Walk the list of protocol references from a class, category or
+  /// protocol to traverse the DAG formed from it's inheritance hierarchy. Find
+  /// the list of protocols that ends each walk at either a runtime
+  /// protocol or a non-runtime protocol with no parents. For the common case of
+  /// just a list of standard runtime protocols this just returns the same list
+  /// that was passed in.
+  std::vector<const ObjCProtocolDecl *>
+  GetRuntimeProtocolList(ObjCProtocolDecl::protocol_iterator begin,
+                         ObjCProtocolDecl::protocol_iterator end);
+
   /// Emit the code to return the named protocol as an object, as in a
   /// \@protocol expression.
   virtual llvm::Value *GenerateProtocolRef(CodeGenFunction &CGF,
@@ -210,6 +224,11 @@ public:
   /// Generate the named protocol.  Protocols contain method metadata but no
   /// implementations.
   virtual void GenerateProtocol(const ObjCProtocolDecl *OPD) = 0;
+
+  /// GetOrEmitProtocol - Get the protocol object for the given
+  /// declaration, emitting it if necessary. The return value has type
+  /// ProtocolPtrTy.
+  virtual llvm::Constant *GetOrEmitProtocol(const ObjCProtocolDecl *PD) = 0;
 
   /// Generate a function preamble for a method with the specified
   /// types.

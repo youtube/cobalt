@@ -28,14 +28,12 @@
 #ifndef LLVM_PASS_H
 #define LLVM_PASS_H
 
-#include "llvm/ADT/StringRef.h"
 #include <string>
 
 namespace llvm {
 
 class AnalysisResolver;
 class AnalysisUsage;
-class BasicBlock;
 class Function;
 class ImmutablePass;
 class Module;
@@ -43,6 +41,7 @@ class PassInfo;
 class PMDataManager;
 class PMStack;
 class raw_ostream;
+class StringRef;
 
 // AnalysisID - Use the PassInfo to identify a pass...
 using AnalysisID = const void *;
@@ -68,6 +67,20 @@ enum PassKind {
   PT_CallGraphSCC,
   PT_Module,
   PT_PassManager
+};
+
+/// This enumerates the LLVM full LTO or ThinLTO optimization phases.
+enum class ThinOrFullLTOPhase {
+  /// No LTO/ThinLTO behavior needed.
+  None,
+  /// ThinLTO prelink (summary) phase.
+  ThinLTOPreLink,
+  /// ThinLTO postlink (backend compile) phase.
+  ThinLTOPostLink,
+  /// Full LTO prelink phase.
+  FullLTOPreLink,
+  /// Full LTO postlink (backend compile) phase.
+  FullLTOPostLink
 };
 
 //===----------------------------------------------------------------------===//
@@ -204,14 +217,17 @@ public:
   template<typename AnalysisType>
   AnalysisType &getAnalysis() const; // Defined in PassAnalysisSupport.h
 
-  template<typename AnalysisType>
-  AnalysisType &getAnalysis(Function &F); // Defined in PassAnalysisSupport.h
+  template <typename AnalysisType>
+  AnalysisType &
+  getAnalysis(Function &F,
+              bool *Changed = nullptr); // Defined in PassAnalysisSupport.h
 
   template<typename AnalysisType>
   AnalysisType &getAnalysisID(AnalysisID PI) const;
 
-  template<typename AnalysisType>
-  AnalysisType &getAnalysisID(AnalysisID PI, Function &F);
+  template <typename AnalysisType>
+  AnalysisType &getAnalysisID(AnalysisID PI, Function &F,
+                              bool *Changed = nullptr);
 };
 
 //===----------------------------------------------------------------------===//
@@ -307,6 +323,12 @@ protected:
 /// then the value of this boolean will be true, otherwise false.
 /// This is the storage for the -time-passes option.
 extern bool TimePassesIsEnabled;
+/// If TimePassesPerRun is true, there would be one line of report for
+/// each pass invocation.
+/// If TimePassesPerRun is false, there would be only one line of
+/// report for each pass (even there are more than one pass objects).
+/// (For new pass manager only)
+extern bool TimePassesPerRun;
 
 } // end namespace llvm
 

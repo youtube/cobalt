@@ -1,5 +1,5 @@
 ; RUN: llc -filetype=obj %s -o %t.o
-; RUN: llc -filetype=obj %p/Inputs/ret32.ll -o %t.ret32.o
+; RUN: llvm-mc -filetype=obj -triple=wasm32-unknown-unknown %p/Inputs/ret32.s -o %t.ret32.o
 ; RUN: wasm-ld --emit-relocs -o %t.wasm %t.o %t.ret32.o
 ; RUN: obj2yaml %t.wasm | FileCheck %s
 
@@ -21,7 +21,7 @@ entry:
 ; CHECK-NEXT:     Relocations:
 ; CHECK-NEXT:       - Type:            R_WASM_FUNCTION_INDEX_LEB
 ; CHECK-NEXT:         Index:           1
-; CHECK-NEXT:         Offset:          0x00000009
+; CHECK-NEXT:         Offset:          0x9
 
 ; CHECK:        - Type:            CUSTOM
 ; CHECK-NEXT:     Name:            linking

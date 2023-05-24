@@ -1,4 +1,4 @@
-//===-- SBInstruction.cpp ---------------------------------------*- C++ -*-===//
+//===-- SBInstruction.cpp -------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -89,7 +89,7 @@ const SBInstruction &SBInstruction::operator=(const SBInstruction &rhs) {
   return LLDB_RECORD_RESULT(*this);
 }
 
-SBInstruction::~SBInstruction() {}
+SBInstruction::~SBInstruction() = default;
 
 bool SBInstruction::IsValid() {
   LLDB_RECORD_METHOD_NO_ARGS(bool, SBInstruction, IsValid);
@@ -107,7 +107,7 @@ SBAddress SBInstruction::GetAddress() {
   SBAddress sb_addr;
   lldb::InstructionSP inst_sp(GetOpaque());
   if (inst_sp && inst_sp->GetAddress().IsValid())
-    sb_addr.SetAddress(&inst_sp->GetAddress());
+    sb_addr.SetAddress(inst_sp->GetAddress());
   return LLDB_RECORD_RESULT(sb_addr);
 }
 

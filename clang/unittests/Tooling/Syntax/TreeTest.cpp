@@ -1,4 +1,4 @@
-//===- TreeTest.cpp -------------------------------------------------------===//
+//===- TreeTest.cpp ---------------------------------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,924 +7,400 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Tooling/Syntax/Tree.h"
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/Decl.h"
-#include "clang/AST/Stmt.h"
-#include "clang/Basic/LLVM.h"
-#include "clang/Basic/TokenKinds.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/CompilerInvocation.h"
-#include "clang/Frontend/FrontendAction.h"
-#include "clang/Lex/PreprocessorOptions.h"
-#include "clang/Tooling/Core/Replacement.h"
+#include "TreeTestBase.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Tooling/Syntax/BuildTree.h"
-#include "clang/Tooling/Syntax/Mutations.h"
 #include "clang/Tooling/Syntax/Nodes.h"
-#include "clang/Tooling/Syntax/Tokens.h"
-#include "clang/Tooling/Tooling.h"
-#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/Error.h"
-#include "llvm/Testing/Support/Annotations.h"
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include <cstdlib>
 
 using namespace clang;
+using namespace clang::syntax;
 
 namespace {
-static llvm::ArrayRef<syntax::Token> tokens(syntax::Node *N) {
-  assert(N->isOriginal() && "tokens of modified nodes are not well-defined");
-  if (auto *L = dyn_cast<syntax::Leaf>(N))
-    return llvm::makeArrayRef(L->token(), 1);
-  auto *T = cast<syntax::Tree>(N);
-  return llvm::makeArrayRef(T->firstLeaf()->token(),
-                            T->lastLeaf()->token() + 1);
-}
+using testing::ElementsAre;
 
-class SyntaxTreeTest : public ::testing::Test {
+class TreeTest : public SyntaxTreeTest {
+private:
+  Tree *createTree(ArrayRef<const Node *> Children) {
+    std::vector<std::pair<Node *, NodeRole>> ChildrenWithRoles;
+    ChildrenWithRoles.reserve(Children.size());
+    for (const auto *Child : Children) {
+      ChildrenWithRoles.push_back(std::make_pair(
+          deepCopyExpandingMacros(*Arena, Child), NodeRole::Unknown));
+    }
+    return clang::syntax::createTree(*Arena, ChildrenWithRoles,
+                                     NodeKind::UnknownExpression);
+  }
+
+  // Generate Forests by combining `Children` into `ParentCount` Trees.
+  //
+  // We do this recursively.
+  std::vector<std::vector<const Tree *>>
+  generateAllForests(ArrayRef<const Node *> Children, unsigned ParentCount) {
+    assert(ParentCount > 0);
+    // If there is only one Parent node, then combine `Children` under
+    // this Parent.
+    if (ParentCount == 1)
+      return {{createTree(Children)}};
+
+    // Otherwise, combine `ChildrenCount` children under the last parent and
+    // solve the smaller problem without these children and this parent. Do this
+    // for every `ChildrenCount` and combine the results.
+    std::vector<std::vector<const Tree *>> AllForests;
+    for (unsigned ChildrenCount = 0; ChildrenCount <= Children.size();
+         ++ChildrenCount) {
+      auto *LastParent = createTree(Children.take_back(ChildrenCount));
+      for (auto &Forest : generateAllForests(Children.drop_back(ChildrenCount),
+                                             ParentCount - 1)) {
+        Forest.push_back(LastParent);
+        AllForests.push_back(Forest);
+      }
+    }
+    return AllForests;
+  }
+
 protected:
-  // Build a syntax tree for the code.
-  syntax::TranslationUnit *buildTree(llvm::StringRef Code) {
-    // FIXME: this code is almost the identical to the one in TokensTest. Share
-    //        it.
-    class BuildSyntaxTree : public ASTConsumer {
-    public:
-      BuildSyntaxTree(syntax::TranslationUnit *&Root,
-                      std::unique_ptr<syntax::Arena> &Arena,
-                      std::unique_ptr<syntax::TokenCollector> Tokens)
-          : Root(Root), Arena(Arena), Tokens(std::move(Tokens)) {
-        assert(this->Tokens);
+  // Generates all trees with a `Base` of `Node`s and `NodeCountPerLayer`
+  // `Node`s per layer. An example of Tree with `Base` = {`(`, `)`} and
+  // `NodeCountPerLayer` = {2, 2}:
+  //  Tree
+  //  |-Tree
+  //  `-Tree
+  //    |-Tree
+  //    | `-'('
+  //    `-Tree
+  //      `-')'
+  std::vector<const Tree *>
+  generateAllTreesWithShape(ArrayRef<const Node *> Base,
+                            ArrayRef<unsigned> NodeCountPerLayer) {
+    // We compute the solution per layer. A layer is a collection of bases,
+    // where each base has the same number of nodes, given by
+    // `NodeCountPerLayer`.
+    auto GenerateNextLayer = [this](ArrayRef<std::vector<const Node *>> Layer,
+                                    unsigned NextLayerNodeCount) {
+      std::vector<std::vector<const Node *>> NextLayer;
+      for (const auto &Base : Layer) {
+        for (const auto &NextBase :
+             generateAllForests(Base, NextLayerNodeCount)) {
+          NextLayer.push_back(
+              std::vector<const Node *>(NextBase.begin(), NextBase.end()));
+        }
       }
-
-      void HandleTranslationUnit(ASTContext &Ctx) override {
-        Arena = std::make_unique<syntax::Arena>(Ctx.getSourceManager(),
-                                                Ctx.getLangOpts(),
-                                                std::move(*Tokens).consume());
-        Tokens = nullptr; // make sure we fail if this gets called twice.
-        Root = syntax::buildSyntaxTree(*Arena, *Ctx.getTranslationUnitDecl());
-      }
-
-    private:
-      syntax::TranslationUnit *&Root;
-      std::unique_ptr<syntax::Arena> &Arena;
-      std::unique_ptr<syntax::TokenCollector> Tokens;
+      return NextLayer;
     };
 
-    class BuildSyntaxTreeAction : public ASTFrontendAction {
-    public:
-      BuildSyntaxTreeAction(syntax::TranslationUnit *&Root,
-                            std::unique_ptr<syntax::Arena> &Arena)
-          : Root(Root), Arena(Arena) {}
+    std::vector<std::vector<const Node *>> Layer = {Base};
+    for (auto NodeCount : NodeCountPerLayer)
+      Layer = GenerateNextLayer(Layer, NodeCount);
 
-      std::unique_ptr<ASTConsumer>
-      CreateASTConsumer(CompilerInstance &CI, StringRef InFile) override {
-        // We start recording the tokens, ast consumer will take on the result.
-        auto Tokens =
-            std::make_unique<syntax::TokenCollector>(CI.getPreprocessor());
-        return std::make_unique<BuildSyntaxTree>(Root, Arena,
-                                                 std::move(Tokens));
-      }
+    std::vector<const Tree *> AllTrees;
+    AllTrees.reserve(Layer.size());
+    for (const auto &Base : Layer)
+      AllTrees.push_back(createTree(Base));
 
-    private:
-      syntax::TranslationUnit *&Root;
-      std::unique_ptr<syntax::Arena> &Arena;
-    };
-
-    constexpr const char *FileName = "./input.cpp";
-    FS->addFile(FileName, time_t(), llvm::MemoryBuffer::getMemBufferCopy(""));
-    if (!Diags->getClient())
-      Diags->setClient(new IgnoringDiagConsumer);
-    // Prepare to run a compiler.
-    std::vector<const char *> Args = {"syntax-test", "-std=c++11",
-                                      "-fsyntax-only", FileName};
-    Invocation = createInvocationFromCommandLine(Args, Diags, FS);
-    assert(Invocation);
-    Invocation->getFrontendOpts().DisableFree = false;
-    Invocation->getPreprocessorOpts().addRemappedFile(
-        FileName, llvm::MemoryBuffer::getMemBufferCopy(Code).release());
-    CompilerInstance Compiler;
-    Compiler.setInvocation(Invocation);
-    Compiler.setDiagnostics(Diags.get());
-    Compiler.setFileManager(FileMgr.get());
-    Compiler.setSourceManager(SourceMgr.get());
-
-    syntax::TranslationUnit *Root = nullptr;
-    BuildSyntaxTreeAction Recorder(Root, this->Arena);
-    if (!Compiler.ExecuteAction(Recorder)) {
-      ADD_FAILURE() << "failed to run the frontend";
-      std::abort();
-    }
-    return Root;
+    return AllTrees;
   }
-
-  // Adds a file to the test VFS.
-  void addFile(llvm::StringRef Path, llvm::StringRef Contents) {
-    if (!FS->addFile(Path, time_t(),
-                     llvm::MemoryBuffer::getMemBufferCopy(Contents))) {
-      ADD_FAILURE() << "could not add a file to VFS: " << Path;
-    }
-  }
-
-  /// Finds the deepest node in the tree that covers exactly \p R.
-  /// FIXME: implement this efficiently and move to public syntax tree API.
-  syntax::Node *nodeByRange(llvm::Annotations::Range R, syntax::Node *Root) {
-    llvm::ArrayRef<syntax::Token> Toks = tokens(Root);
-
-    if (Toks.front().location().isFileID() &&
-        Toks.back().location().isFileID() &&
-        syntax::Token::range(*SourceMgr, Toks.front(), Toks.back()) ==
-            syntax::FileRange(SourceMgr->getMainFileID(), R.Begin, R.End))
-      return Root;
-
-    auto *T = dyn_cast<syntax::Tree>(Root);
-    if (!T)
-      return nullptr;
-    for (auto *C = T->firstChild(); C != nullptr; C = C->nextSibling()) {
-      if (auto *Result = nodeByRange(R, C))
-        return Result;
-    }
-    return nullptr;
-  }
-
-  // Data fields.
-  llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags =
-      new DiagnosticsEngine(new DiagnosticIDs, new DiagnosticOptions);
-  IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> FS =
-      new llvm::vfs::InMemoryFileSystem;
-  llvm::IntrusiveRefCntPtr<FileManager> FileMgr =
-      new FileManager(FileSystemOptions(), FS);
-  llvm::IntrusiveRefCntPtr<SourceManager> SourceMgr =
-      new SourceManager(*Diags, *FileMgr);
-  std::shared_ptr<CompilerInvocation> Invocation;
-  // Set after calling buildTree().
-  std::unique_ptr<syntax::Arena> Arena;
 };
 
-TEST_F(SyntaxTreeTest, Basic) {
-  std::pair</*Input*/ std::string, /*Expected*/ std::string> Cases[] = {
-      {
-          R"cpp(
-int main() {}
-void foo() {}
-    )cpp",
-          R"txt(
-*: TranslationUnit
-|-SimpleDeclaration
-| |-int
-| |-main
-| |-(
-| |-)
-| `-CompoundStatement
-|   |-{
-|   `-}
-`-SimpleDeclaration
-  |-void
-  |-foo
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    `-}
-)txt"},
-      // if.
-      {
-          R"cpp(
-int main() {
-  if (true) {}
-  if (true) {} else if (false) {}
-}
-        )cpp",
-          R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-int
-  |-main
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-IfStatement
-    | |-if
-    | |-(
-    | |-UnknownExpression
-    | | `-true
-    | |-)
-    | `-CompoundStatement
-    |   |-{
-    |   `-}
-    |-IfStatement
-    | |-if
-    | |-(
-    | |-UnknownExpression
-    | | `-true
-    | |-)
-    | |-CompoundStatement
-    | | |-{
-    | | `-}
-    | |-else
-    | `-IfStatement
-    |   |-if
-    |   |-(
-    |   |-UnknownExpression
-    |   | `-false
-    |   |-)
-    |   `-CompoundStatement
-    |     |-{
-    |     `-}
-    `-}
-        )txt"},
-      // for.
-      {R"cpp(
-void test() {
-  for (;;)  {}
-}
-)cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-ForStatement
-    | |-for
-    | |-(
-    | |-;
-    | |-;
-    | |-)
-    | `-CompoundStatement
-    |   |-{
-    |   `-}
-    `-}
-        )txt"},
-      // declaration statement.
-      {"void test() { int a = 10; }",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-DeclarationStatement
-    | |-SimpleDeclaration
-    | | |-int
-    | | |-a
-    | | |-=
-    | | `-UnknownExpression
-    | |   `-10
-    | `-;
-    `-}
-)txt"},
-      {"void test() { ; }", R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-EmptyStatement
-    | `-;
-    `-}
-)txt"},
-      // switch, case and default.
-      {R"cpp(
-void test() {
-  switch (true) {
-    case 0:
-    default:;
+INSTANTIATE_TEST_CASE_P(TreeTests, TreeTest,
+                        ::testing::ValuesIn(allTestClangConfigs()), );
+
+TEST_P(TreeTest, FirstLeaf) {
+  buildTree("", GetParam());
+  std::vector<const Node *> Leafs = {createLeaf(*Arena, tok::l_paren),
+                                     createLeaf(*Arena, tok::r_paren)};
+  for (const auto *Tree : generateAllTreesWithShape(Leafs, {3u})) {
+    ASSERT_TRUE(Tree->findFirstLeaf() != nullptr);
+    EXPECT_EQ(Tree->findFirstLeaf()->getToken()->kind(), tok::l_paren);
   }
 }
-)cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-SwitchStatement
-    | |-switch
-    | |-(
-    | |-UnknownExpression
-    | | `-true
-    | |-)
-    | `-CompoundStatement
-    |   |-{
-    |   |-CaseStatement
-    |   | |-case
-    |   | |-UnknownExpression
-    |   | | `-0
-    |   | |-:
-    |   | `-DefaultStatement
-    |   |   |-default
-    |   |   |-:
-    |   |   `-EmptyStatement
-    |   |     `-;
-    |   `-}
-    `-}
-)txt"},
-      // while.
-      {R"cpp(
-void test() {
-  while (true) { continue; break; }
-}
-)cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-WhileStatement
-    | |-while
-    | |-(
-    | |-UnknownExpression
-    | | `-true
-    | |-)
-    | `-CompoundStatement
-    |   |-{
-    |   |-ContinueStatement
-    |   | |-continue
-    |   | `-;
-    |   |-BreakStatement
-    |   | |-break
-    |   | `-;
-    |   `-}
-    `-}
-)txt"},
-      // return.
-      {R"cpp(
-int test() { return 1; }
-      )cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-int
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-ReturnStatement
-    | |-return
-    | |-UnknownExpression
-    | | `-1
-    | `-;
-    `-}
-)txt"},
-      // Range-based for.
-      {R"cpp(
-void test() {
-  int a[3];
-  for (int x : a) ;
-}
-      )cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-DeclarationStatement
-    | |-SimpleDeclaration
-    | | |-int
-    | | |-a
-    | | |-[
-    | | |-UnknownExpression
-    | | | `-3
-    | | `-]
-    | `-;
-    |-RangeBasedForStatement
-    | |-for
-    | |-(
-    | |-SimpleDeclaration
-    | | |-int
-    | | |-x
-    | | `-:
-    | |-UnknownExpression
-    | | `-a
-    | |-)
-    | `-EmptyStatement
-    |   `-;
-    `-}
-       )txt"},
-      // Unhandled statements should end up as 'unknown statement'.
-      // This example uses a 'label statement', which does not yet have a syntax
-      // counterpart.
-      {"void main() { foo: return 100; }", R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-main
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-UnknownStatement
-    | |-foo
-    | |-:
-    | `-ReturnStatement
-    |   |-return
-    |   |-UnknownExpression
-    |   | `-100
-    |   `-;
-    `-}
-)txt"},
-      // expressions should be wrapped in 'ExpressionStatement' when they appear
-      // in a statement position.
-      {R"cpp(
-void test() {
-  test();
-  if (true) test(); else test();
-}
-    )cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-ExpressionStatement
-    | |-UnknownExpression
-    | | |-test
-    | | |-(
-    | | `-)
-    | `-;
-    |-IfStatement
-    | |-if
-    | |-(
-    | |-UnknownExpression
-    | | `-true
-    | |-)
-    | |-ExpressionStatement
-    | | |-UnknownExpression
-    | | | |-test
-    | | | |-(
-    | | | `-)
-    | | `-;
-    | |-else
-    | `-ExpressionStatement
-    |   |-UnknownExpression
-    |   | |-test
-    |   | |-(
-    |   | `-)
-    |   `-;
-    `-}
-)txt"},
-      // Multiple declarators group into a single SimpleDeclaration.
-      {R"cpp(
-      int *a, b;
-  )cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-int
-  |-*
-  |-a
-  |-,
-  |-b
-  `-;
-  )txt"},
-      {R"cpp(
-    typedef int *a, b;
-  )cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-typedef
-  |-int
-  |-*
-  |-a
-  |-,
-  |-b
-  `-;
-  )txt"},
-      // Multiple declarators inside a statement.
-      {R"cpp(
-void foo() {
-      int *a, b;
-      typedef int *ta, tb;
-}
-  )cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-foo
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-DeclarationStatement
-    | |-SimpleDeclaration
-    | | |-int
-    | | |-*
-    | | |-a
-    | | |-,
-    | | `-b
-    | `-;
-    |-DeclarationStatement
-    | |-SimpleDeclaration
-    | | |-typedef
-    | | |-int
-    | | |-*
-    | | |-ta
-    | | |-,
-    | | `-tb
-    | `-;
-    `-}
-  )txt"},
-      {R"cpp(
-namespace a { namespace b {} }
-namespace a::b {}
-namespace {}
 
-namespace foo = a;
-    )cpp",
-       R"txt(
-*: TranslationUnit
-|-NamespaceDefinition
-| |-namespace
-| |-a
-| |-{
-| |-NamespaceDefinition
-| | |-namespace
-| | |-b
-| | |-{
-| | `-}
-| `-}
-|-NamespaceDefinition
-| |-namespace
-| |-a
-| |-::
-| |-b
-| |-{
-| `-}
-|-NamespaceDefinition
-| |-namespace
-| |-{
-| `-}
-`-NamespaceAliasDefinition
-  |-namespace
-  |-foo
-  |-=
-  |-a
-  `-;
-)txt"},
-      // Free-standing classes, must live inside a SimpleDeclaration.
-      {R"cpp(
-sturct X;
-struct X {};
+TEST_P(TreeTest, LastLeaf) {
+  buildTree("", GetParam());
+  std::vector<const Node *> Leafs = {createLeaf(*Arena, tok::l_paren),
+                                     createLeaf(*Arena, tok::r_paren)};
+  for (const auto *Tree : generateAllTreesWithShape(Leafs, {3u})) {
+    ASSERT_TRUE(Tree->findLastLeaf() != nullptr);
+    EXPECT_EQ(Tree->findLastLeaf()->getToken()->kind(), tok::r_paren);
+  }
+}
 
-struct Y *y1;
-struct Y {} *y2;
+TEST_F(TreeTest, Iterators) {
+  buildTree("", allTestClangConfigs().front());
+  std::vector<Node *> Children = {createLeaf(*Arena, tok::identifier, "a"),
+                                  createLeaf(*Arena, tok::identifier, "b"),
+                                  createLeaf(*Arena, tok::identifier, "c")};
+  auto *Tree = syntax::createTree(*Arena,
+                                  {{Children[0], NodeRole::LeftHandSide},
+                                   {Children[1], NodeRole::OperatorToken},
+                                   {Children[2], NodeRole::RightHandSide}},
+                                  NodeKind::TranslationUnit);
+  const auto *ConstTree = Tree;
 
-struct {} *a1;
-    )cpp",
-       R"txt(
-*: TranslationUnit
-|-SimpleDeclaration
-| |-sturct
-| |-X
-| `-;
-|-SimpleDeclaration
-| |-struct
-| |-X
-| |-{
-| |-}
-| `-;
-|-SimpleDeclaration
-| |-struct
-| |-Y
-| |-*
-| |-y1
-| `-;
-|-SimpleDeclaration
-| |-struct
-| |-Y
-| |-{
-| |-}
-| |-*
-| |-y2
-| `-;
-`-SimpleDeclaration
-  |-struct
-  |-{
-  |-}
-  |-*
-  |-a1
-  `-;
-)txt"},
-      {R"cpp(
-namespace ns {}
-using namespace ::ns;
-    )cpp",
-       R"txt(
-*: TranslationUnit
-|-NamespaceDefinition
-| |-namespace
-| |-ns
-| |-{
-| `-}
-`-UsingNamespaceDirective
-  |-using
-  |-namespace
-  |-::
-  |-ns
-  `-;
-       )txt"},
-      {R"cpp(
-namespace ns { int a; }
-using ns::a;
-    )cpp",
-       R"txt(
-*: TranslationUnit
-|-NamespaceDefinition
-| |-namespace
-| |-ns
-| |-{
-| |-SimpleDeclaration
-| | |-int
-| | |-a
-| | `-;
-| `-}
-`-UsingDeclaration
-  |-using
-  |-ns
-  |-::
-  |-a
-  `-;
-       )txt"},
-      {R"cpp(
-template <class T> struct X {
-  using T::foo;
-  using typename T::bar;
+  auto Range = Tree->getChildren();
+  EXPECT_THAT(Range, ElementsAre(role(NodeRole::LeftHandSide),
+                                 role(NodeRole::OperatorToken),
+                                 role(NodeRole::RightHandSide)));
+
+  auto ConstRange = ConstTree->getChildren();
+  EXPECT_THAT(ConstRange, ElementsAre(role(NodeRole::LeftHandSide),
+                                      role(NodeRole::OperatorToken),
+                                      role(NodeRole::RightHandSide)));
+
+  // FIXME: mutate and observe no invalidation. Mutations are private for now...
+  auto It = Range.begin();
+  auto CIt = ConstRange.begin();
+  static_assert(std::is_same<decltype(*It), syntax::Node &>::value,
+                "mutable range");
+  static_assert(std::is_same<decltype(*CIt), const syntax::Node &>::value,
+                "const range");
+
+  for (unsigned I = 0; I < 3; ++I) {
+    EXPECT_EQ(It, CIt);
+    EXPECT_TRUE(It);
+    EXPECT_TRUE(CIt);
+    EXPECT_EQ(It.asPointer(), Children[I]);
+    EXPECT_EQ(CIt.asPointer(), Children[I]);
+    EXPECT_EQ(&*It, Children[I]);
+    EXPECT_EQ(&*CIt, Children[I]);
+    ++It;
+    ++CIt;
+  }
+  EXPECT_EQ(It, CIt);
+  EXPECT_EQ(It, Tree::ChildIterator());
+  EXPECT_EQ(CIt, Tree::ConstChildIterator());
+  EXPECT_FALSE(It);
+  EXPECT_FALSE(CIt);
+  EXPECT_EQ(nullptr, It.asPointer());
+  EXPECT_EQ(nullptr, CIt.asPointer());
+}
+
+class ListTest : public SyntaxTreeTest {
+private:
+  std::string dumpQuotedTokensOrNull(const Node *N) {
+    return N ? "'" +
+                   StringRef(N->dumpTokens(Arena->getSourceManager()))
+                       .trim()
+                       .str() +
+                   "'"
+             : "null";
+  }
+
+protected:
+  std::string
+  dumpElementsAndDelimiters(ArrayRef<List::ElementAndDelimiter<Node>> EDs) {
+    std::string Storage;
+    llvm::raw_string_ostream OS(Storage);
+
+    OS << "[";
+
+    llvm::interleaveComma(
+        EDs, OS, [&OS, this](const List::ElementAndDelimiter<Node> &ED) {
+          OS << "(" << dumpQuotedTokensOrNull(ED.element) << ", "
+             << dumpQuotedTokensOrNull(ED.delimiter) << ")";
+        });
+
+    OS << "]";
+
+    return OS.str();
+  }
+
+  std::string dumpNodes(ArrayRef<Node *> Nodes) {
+    std::string Storage;
+    llvm::raw_string_ostream OS(Storage);
+
+    OS << "[";
+
+    llvm::interleaveComma(Nodes, OS, [&OS, this](const Node *N) {
+      OS << dumpQuotedTokensOrNull(N);
+    });
+
+    OS << "]";
+
+    return OS.str();
+  }
 };
-    )cpp",
-       R"txt(
-*: TranslationUnit
-`-UnknownDeclaration
-  |-template
-  |-<
-  |-UnknownDeclaration
-  | |-class
-  | `-T
-  |->
-  `-SimpleDeclaration
-    |-struct
-    |-X
-    |-{
-    |-UsingDeclaration
-    | |-using
-    | |-T
-    | |-::
-    | |-foo
-    | `-;
-    |-UsingDeclaration
-    | |-using
-    | |-typename
-    | |-T
-    | |-::
-    | |-bar
-    | `-;
-    |-}
-    `-;
-       )txt"},
-      {R"cpp(
-using type = int;
-    )cpp",
-       R"txt(
-*: TranslationUnit
-`-TypeAliasDeclaration
-  |-using
-  |-type
-  |-=
-  |-int
-  `-;
-       )txt"},
-      {R"cpp(
-;
-    )cpp",
-       R"txt(
-*: TranslationUnit
-`-EmptyDeclaration
-  `-;
-       )txt"},
-      {R"cpp(
-static_assert(true, "message");
-static_assert(true);
-    )cpp",
-       R"txt(
-*: TranslationUnit
-|-StaticAssertDeclaration
-| |-static_assert
-| |-(
-| |-UnknownExpression
-| | `-true
-| |-,
-| |-UnknownExpression
-| | `-"message"
-| |-)
-| `-;
-`-StaticAssertDeclaration
-  |-static_assert
-  |-(
-  |-UnknownExpression
-  | `-true
-  |-)
-  `-;
-       )txt"},
-      {R"cpp(
-extern "C" int a;
-extern "C" { int b; int c; }
-    )cpp",
-       R"txt(
-*: TranslationUnit
-|-LinkageSpecificationDeclaration
-| |-extern
-| |-"C"
-| `-SimpleDeclaration
-|   |-int
-|   |-a
-|   `-;
-`-LinkageSpecificationDeclaration
-  |-extern
-  |-"C"
-  |-{
-  |-SimpleDeclaration
-  | |-int
-  | |-b
-  | `-;
-  |-SimpleDeclaration
-  | |-int
-  | |-c
-  | `-;
-  `-}
-       )txt"},
-      // Some nodes are non-modifiable, they are marked with 'I:'.
-      {R"cpp(
-#define HALF_IF if (1+
-#define HALF_IF_2 1) {}
-void test() {
-  HALF_IF HALF_IF_2 else {}
-})cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-IfStatement
-    | |-I: if
-    | |-I: (
-    | |-I: UnknownExpression
-    | | |-I: 1
-    | | |-I: +
-    | | `-I: 1
-    | |-I: )
-    | |-I: CompoundStatement
-    | | |-I: {
-    | | `-I: }
-    | |-else
-    | `-CompoundStatement
-    |   |-{
-    |   `-}
-    `-}
-       )txt"},
-      // All nodes can be mutated.
-      {R"cpp(
-#define OPEN {
-#define CLOSE }
 
-void test() {
-  OPEN
-    1;
-  CLOSE
+INSTANTIATE_TEST_CASE_P(TreeTests, ListTest,
+                        ::testing::ValuesIn(allTestClangConfigs()), );
 
-  OPEN
-    2;
+/// "a, b, c"  <=> [("a", ","), ("b", ","), ("c", null)]
+TEST_P(ListTest, List_Separated_WellFormed) {
+  buildTree("", GetParam());
+
+  // "a, b, c"
+  auto *List = dyn_cast<syntax::List>(syntax::createTree(
+      *Arena,
+      {
+          {createLeaf(*Arena, tok::identifier, "a"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::comma), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "b"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::comma), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "c"), NodeRole::ListElement},
+      },
+      NodeKind::CallArguments));
+
+  EXPECT_EQ(dumpElementsAndDelimiters(List->getElementsAsNodesAndDelimiters()),
+            "[('a', ','), ('b', ','), ('c', null)]");
+  EXPECT_EQ(dumpNodes(List->getElementsAsNodes()), "['a', 'b', 'c']");
+}
+
+/// "a,  , c"  <=> [("a", ","), (null, ","), ("c", null)]
+TEST_P(ListTest, List_Separated_MissingElement) {
+  buildTree("", GetParam());
+
+  // "a,  , c"
+  auto *List = dyn_cast<syntax::List>(syntax::createTree(
+      *Arena,
+      {
+          {createLeaf(*Arena, tok::identifier, "a"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::comma), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::comma), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "c"), NodeRole::ListElement},
+      },
+      NodeKind::CallArguments));
+
+  EXPECT_EQ(dumpElementsAndDelimiters(List->getElementsAsNodesAndDelimiters()),
+            "[('a', ','), (null, ','), ('c', null)]");
+  EXPECT_EQ(dumpNodes(List->getElementsAsNodes()), "['a', null, 'c']");
+}
+
+/// "a, b  c"  <=> [("a", ","), ("b", null), ("c", null)]
+TEST_P(ListTest, List_Separated_MissingDelimiter) {
+  buildTree("", GetParam());
+
+  // "a, b  c"
+  auto *List = dyn_cast<syntax::List>(syntax::createTree(
+      *Arena,
+      {
+          {createLeaf(*Arena, tok::identifier, "a"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::comma), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "b"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::identifier, "c"), NodeRole::ListElement},
+      },
+      NodeKind::CallArguments));
+
+  EXPECT_EQ(dumpElementsAndDelimiters(List->getElementsAsNodesAndDelimiters()),
+            "[('a', ','), ('b', null), ('c', null)]");
+  EXPECT_EQ(dumpNodes(List->getElementsAsNodes()), "['a', 'b', 'c']");
+}
+
+/// "a, b,"    <=> [("a", ","), ("b", ","), (null, null)]
+TEST_P(ListTest, List_Separated_MissingLastElement) {
+  buildTree("", GetParam());
+
+  // "a, b, c"
+  auto *List = dyn_cast<syntax::List>(syntax::createTree(
+      *Arena,
+      {
+          {createLeaf(*Arena, tok::identifier, "a"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::comma), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "b"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::comma), NodeRole::ListDelimiter},
+      },
+      NodeKind::CallArguments));
+
+  EXPECT_EQ(dumpElementsAndDelimiters(List->getElementsAsNodesAndDelimiters()),
+            "[('a', ','), ('b', ','), (null, null)]");
+  EXPECT_EQ(dumpNodes(List->getElementsAsNodes()), "['a', 'b', null]");
+}
+
+/// "a:: b:: c::" <=> [("a", "::"), ("b", "::"), ("c", "::")]
+TEST_P(ListTest, List_Terminated_WellFormed) {
+  if (!GetParam().isCXX()) {
+    return;
   }
+  buildTree("", GetParam());
+
+  // "a:: b:: c::"
+  auto *List = dyn_cast<syntax::List>(syntax::createTree(
+      *Arena,
+      {
+          {createLeaf(*Arena, tok::identifier, "a"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "b"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "c"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+      },
+      NodeKind::NestedNameSpecifier));
+
+  EXPECT_EQ(dumpElementsAndDelimiters(List->getElementsAsNodesAndDelimiters()),
+            "[('a', '::'), ('b', '::'), ('c', '::')]");
+  EXPECT_EQ(dumpNodes(List->getElementsAsNodes()), "['a', 'b', 'c']");
 }
-)cpp",
-       R"txt(
-*: TranslationUnit
-`-SimpleDeclaration
-  |-void
-  |-test
-  |-(
-  |-)
-  `-CompoundStatement
-    |-{
-    |-CompoundStatement
-    | |-{
-    | |-ExpressionStatement
-    | | |-UnknownExpression
-    | | | `-1
-    | | `-;
-    | `-}
-    |-CompoundStatement
-    | |-{
-    | |-ExpressionStatement
-    | | |-UnknownExpression
-    | | | `-2
-    | | `-;
-    | `-}
-    `-}
-       )txt"},
-  };
 
-  for (const auto &T : Cases) {
-    SCOPED_TRACE(T.first);
-
-    auto *Root = buildTree(T.first);
-    std::string Expected = llvm::StringRef(T.second).trim().str();
-    std::string Actual = llvm::StringRef(Root->dump(*Arena)).trim();
-    EXPECT_EQ(Expected, Actual) << "the resulting dump is:\n" << Actual;
+/// "a::  :: c::" <=> [("a", "::"), (null, "::"), ("c", "::")]
+TEST_P(ListTest, List_Terminated_MissingElement) {
+  if (!GetParam().isCXX()) {
+    return;
   }
+  buildTree("", GetParam());
+
+  // "a:: b:: c::"
+  auto *List = dyn_cast<syntax::List>(syntax::createTree(
+      *Arena,
+      {
+          {createLeaf(*Arena, tok::identifier, "a"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "c"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+      },
+      NodeKind::NestedNameSpecifier));
+
+  EXPECT_EQ(dumpElementsAndDelimiters(List->getElementsAsNodesAndDelimiters()),
+            "[('a', '::'), (null, '::'), ('c', '::')]");
+  EXPECT_EQ(dumpNodes(List->getElementsAsNodes()), "['a', null, 'c']");
 }
 
-TEST_F(SyntaxTreeTest, Mutations) {
-  using Transformation = std::function<void(
-      const llvm::Annotations & /*Input*/, syntax::TranslationUnit * /*Root*/)>;
-  auto CheckTransformation = [this](std::string Input, std::string Expected,
-                                    Transformation Transform) -> void {
-    llvm::Annotations Source(Input);
-    auto *Root = buildTree(Source.code());
+/// "a:: b  c::" <=> [("a", "::"), ("b", null), ("c", "::")]
+TEST_P(ListTest, List_Terminated_MissingDelimiter) {
+  if (!GetParam().isCXX()) {
+    return;
+  }
+  buildTree("", GetParam());
 
-    Transform(Source, Root);
+  // "a:: b  c::"
+  auto *List = dyn_cast<syntax::List>(syntax::createTree(
+      *Arena,
+      {
+          {createLeaf(*Arena, tok::identifier, "a"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "b"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::identifier, "c"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+      },
+      NodeKind::NestedNameSpecifier));
 
-    auto Replacements = syntax::computeReplacements(*Arena, *Root);
-    auto Output = tooling::applyAllReplacements(Source.code(), Replacements);
-    if (!Output) {
-      ADD_FAILURE() << "could not apply replacements: "
-                    << llvm::toString(Output.takeError());
-      return;
-    }
-
-    EXPECT_EQ(Expected, *Output) << "input is:\n" << Input;
-  };
-
-  // Removes the selected statement. Input should have exactly one selected
-  // range and it should correspond to a single statement.
-  auto RemoveStatement = [this](const llvm::Annotations &Input,
-                                syntax::TranslationUnit *TU) {
-    auto *S = cast<syntax::Statement>(nodeByRange(Input.range(), TU));
-    ASSERT_TRUE(S->canModify()) << "cannot remove a statement";
-    syntax::removeStatement(*Arena, S);
-    EXPECT_TRUE(S->isDetached());
-    EXPECT_FALSE(S->isOriginal())
-        << "node removed from tree cannot be marked as original";
-  };
-
-  std::vector<std::pair<std::string /*Input*/, std::string /*Expected*/>>
-      Cases = {
-          {"void test() { [[100+100;]] test(); }", "void test() {  test(); }"},
-          {"void test() { if (true) [[{}]] else {} }",
-           "void test() { if (true) ; else {} }"},
-          {"void test() { [[;]] }", "void test() {  }"}};
-  for (const auto &C : Cases)
-    CheckTransformation(C.first, C.second, RemoveStatement);
+  EXPECT_EQ(dumpElementsAndDelimiters(List->getElementsAsNodesAndDelimiters()),
+            "[('a', '::'), ('b', null), ('c', '::')]");
+  EXPECT_EQ(dumpNodes(List->getElementsAsNodes()), "['a', 'b', 'c']");
 }
 
-TEST_F(SyntaxTreeTest, SynthesizedNodes) {
-  buildTree("");
+/// "a:: b:: c"  <=> [("a", "::"), ("b", "::"), ("c", null)]
+TEST_P(ListTest, List_Terminated_MissingLastDelimiter) {
+  if (!GetParam().isCXX()) {
+    return;
+  }
+  buildTree("", GetParam());
 
-  auto *C = syntax::createPunctuation(*Arena, tok::comma);
-  ASSERT_NE(C, nullptr);
-  EXPECT_EQ(C->token()->kind(), tok::comma);
-  EXPECT_TRUE(C->canModify());
-  EXPECT_FALSE(C->isOriginal());
-  EXPECT_TRUE(C->isDetached());
+  // "a:: b:: c"
+  auto *List = dyn_cast<syntax::List>(syntax::createTree(
+      *Arena,
+      {
+          {createLeaf(*Arena, tok::identifier, "a"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "b"), NodeRole::ListElement},
+          {createLeaf(*Arena, tok::coloncolon), NodeRole::ListDelimiter},
+          {createLeaf(*Arena, tok::identifier, "c"), NodeRole::ListElement},
+      },
+      NodeKind::NestedNameSpecifier));
 
-  auto *S = syntax::createEmptyStatement(*Arena);
-  ASSERT_NE(S, nullptr);
-  EXPECT_TRUE(S->canModify());
-  EXPECT_FALSE(S->isOriginal());
-  EXPECT_TRUE(S->isDetached());
+  EXPECT_EQ(dumpElementsAndDelimiters(List->getElementsAsNodesAndDelimiters()),
+            "[('a', '::'), ('b', '::'), ('c', null)]");
+  EXPECT_EQ(dumpNodes(List->getElementsAsNodes()), "['a', 'b', 'c']");
 }
 
 } // namespace

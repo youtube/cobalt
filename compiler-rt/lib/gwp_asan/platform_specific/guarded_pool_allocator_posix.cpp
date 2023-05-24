@@ -6,91 +6,106 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "gwp_asan/common.h"
 #include "gwp_asan/guarded_pool_allocator.h"
+#include "gwp_asan/platform_specific/guarded_pool_allocator_tls.h"
+#include "gwp_asan/utilities.h"
 
+#include <assert.h>
+#include <pthread.h>
+#include <stdint.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <signal.h>
 #include <sys/mman.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
+
+#ifdef ANDROID
+#include <sys/prctl.h>
+#define PR_SET_VMA 0x53564d41
+#define PR_SET_VMA_ANON_NAME 0
+#endif // ANDROID
+
+namespace {
+void MaybeSetMappingName(void *Mapping, size_t Size, const char *Name) {
+#ifdef ANDROID
+  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, Mapping, Size, Name);
+#endif // ANDROID
+  // Anonymous mapping names are only supported on Android.
+  return;
+}
+} // anonymous namespace
 
 namespace gwp_asan {
 
-void *GuardedPoolAllocator::mapMemory(size_t Size) const {
-  void *Ptr =
-      mmap(nullptr, Size, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+void GuardedPoolAllocator::initPRNG() {
+  getThreadLocals()->RandomState =
+      static_cast<uint32_t>(time(nullptr) + getThreadID());
+}
 
-  if (Ptr == MAP_FAILED) {
-    Printf("Failed to map guarded pool allocator memory, errno: %d\n", errno);
-    Printf("  mmap(nullptr, %zu, ...) failed.\n", Size);
-    exit(EXIT_FAILURE);
-  }
+void *GuardedPoolAllocator::map(size_t Size, const char *Name) const {
+  assert((Size % State.PageSize) == 0);
+  void *Ptr = mmap(nullptr, Size, PROT_READ | PROT_WRITE,
+                   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  Check(Ptr != MAP_FAILED, "Failed to map guarded pool allocator memory");
+  MaybeSetMappingName(Ptr, Size, Name);
   return Ptr;
 }
 
-void GuardedPoolAllocator::markReadWrite(void *Ptr, size_t Size) const {
-  if (mprotect(Ptr, Size, PROT_READ | PROT_WRITE) != 0) {
-    Printf("Failed to set guarded pool allocator memory at as RW, errno: %d\n",
-           errno);
-    Printf("  mprotect(%p, %zu, RW) failed.\n", Ptr, Size);
-    exit(EXIT_FAILURE);
-  }
+void GuardedPoolAllocator::unmap(void *Ptr, size_t Size) const {
+  assert((reinterpret_cast<uintptr_t>(Ptr) % State.PageSize) == 0);
+  assert((Size % State.PageSize) == 0);
+  Check(munmap(Ptr, Size) == 0,
+        "Failed to unmap guarded pool allocator memory.");
 }
 
-void GuardedPoolAllocator::markInaccessible(void *Ptr, size_t Size) const {
+void *GuardedPoolAllocator::reserveGuardedPool(size_t Size) {
+  assert((Size % State.PageSize) == 0);
+  void *Ptr =
+      mmap(nullptr, Size, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  Check(Ptr != MAP_FAILED, "Failed to reserve guarded pool allocator memory");
+  MaybeSetMappingName(Ptr, Size, kGwpAsanGuardPageName);
+  return Ptr;
+}
+
+void GuardedPoolAllocator::unreserveGuardedPool() {
+  unmap(reinterpret_cast<void *>(State.GuardedPagePool),
+        State.GuardedPagePoolEnd - State.GuardedPagePool);
+}
+
+void GuardedPoolAllocator::allocateInGuardedPool(void *Ptr, size_t Size) const {
+  assert((reinterpret_cast<uintptr_t>(Ptr) % State.PageSize) == 0);
+  assert((Size % State.PageSize) == 0);
+  Check(mprotect(Ptr, Size, PROT_READ | PROT_WRITE) == 0,
+        "Failed to allocate in guarded pool allocator memory");
+  MaybeSetMappingName(Ptr, Size, kGwpAsanAliveSlotName);
+}
+
+void GuardedPoolAllocator::deallocateInGuardedPool(void *Ptr,
+                                                   size_t Size) const {
+  assert((reinterpret_cast<uintptr_t>(Ptr) % State.PageSize) == 0);
+  assert((Size % State.PageSize) == 0);
   // mmap() a PROT_NONE page over the address to release it to the system, if
   // we used mprotect() here the system would count pages in the quarantine
   // against the RSS.
-  if (mmap(Ptr, Size, PROT_NONE, MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1,
-           0) == MAP_FAILED) {
-    Printf("Failed to set guarded pool allocator memory as inaccessible, "
-           "errno: %d\n",
-           errno);
-    Printf("  mmap(%p, %zu, NONE, ...) failed.\n", Ptr, Size);
-    exit(EXIT_FAILURE);
-  }
+  Check(mmap(Ptr, Size, PROT_NONE, MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1,
+             0) != MAP_FAILED,
+        "Failed to deallocate in guarded pool allocator memory");
+  MaybeSetMappingName(Ptr, Size, kGwpAsanGuardPageName);
 }
 
 size_t GuardedPoolAllocator::getPlatformPageSize() {
   return sysconf(_SC_PAGESIZE);
 }
 
-struct sigaction PreviousHandler;
-
-static void sigSegvHandler(int sig, siginfo_t *info, void *ucontext) {
-  gwp_asan::GuardedPoolAllocator::reportError(
-      reinterpret_cast<uintptr_t>(info->si_addr));
-
-  // Process any previous handlers.
-  if (PreviousHandler.sa_flags & SA_SIGINFO) {
-    PreviousHandler.sa_sigaction(sig, info, ucontext);
-  } else if (PreviousHandler.sa_handler == SIG_IGN ||
-             PreviousHandler.sa_handler == SIG_DFL) {
-    // If the previous handler was the default handler, or was ignoring this
-    // signal, install the default handler and re-raise the signal in order to
-    // get a core dump and terminate this process.
-    signal(SIGSEGV, SIG_DFL);
-    raise(SIGSEGV);
-  } else {
-    PreviousHandler.sa_handler(sig);
-  }
+void GuardedPoolAllocator::installAtFork() {
+  auto Disable = []() {
+    if (auto *S = getSingleton())
+      S->disable();
+  };
+  auto Enable = []() {
+    if (auto *S = getSingleton())
+      S->enable();
+  };
+  pthread_atfork(Disable, Enable, Enable);
 }
-
-void GuardedPoolAllocator::installSignalHandlers() {
-  struct sigaction Action;
-  Action.sa_sigaction = sigSegvHandler;
-  Action.sa_flags = SA_SIGINFO;
-  sigaction(SIGSEGV, &Action, &PreviousHandler);
-}
-
-uint64_t GuardedPoolAllocator::getThreadID() {
-#ifdef SYS_gettid
-  return syscall(SYS_gettid);
-#else
-  return kInvalidThreadID;
-#endif
-}
-
 } // namespace gwp_asan

@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "index/Background.h"
+#include "support/Logger.h"
 
 namespace clang {
 namespace clangd {
@@ -28,10 +29,11 @@ void BackgroundQueue::work(std::function<void()> OnIdle) {
         CV.notify_all();
         return;
       }
-      ++NumActiveTasks;
+      ++Stat.Active;
       std::pop_heap(Queue.begin(), Queue.end());
       Task = std::move(Queue.back());
       Queue.pop_back();
+      notifyProgress();
     }
 
     if (Task->ThreadPri != llvm::ThreadPriority::Default &&
@@ -43,14 +45,20 @@ void BackgroundQueue::work(std::function<void()> OnIdle) {
 
     {
       std::unique_lock<std::mutex> Lock(Mu);
-      if (NumActiveTasks == 1 && Queue.empty() && OnIdle) {
+      ++Stat.Completed;
+      if (Stat.Active == 1 && Queue.empty()) {
         // We just finished the last item, the queue is going idle.
-        Lock.unlock();
-        OnIdle();
-        Lock.lock();
+        assert(ShouldStop || Stat.Completed == Stat.Enqueued);
+        Stat.LastIdle = Stat.Completed;
+        if (OnIdle) {
+          Lock.unlock();
+          OnIdle();
+          Lock.lock();
+        }
       }
-      assert(NumActiveTasks > 0 && "before decrementing");
-      --NumActiveTasks;
+      assert(Stat.Active > 0 && "before decrementing");
+      --Stat.Active;
+      notifyProgress();
     }
     CV.notify_all();
   }
@@ -64,12 +72,28 @@ void BackgroundQueue::stop() {
   CV.notify_all();
 }
 
+// Tweaks the priority of a newly-enqueued task, or returns false to cancel it.
+bool BackgroundQueue::adjust(Task &T) {
+  // It is tempting to drop duplicates of queued tasks, and merely deprioritize
+  // duplicates of completed tasks (i.e. reindexing on CDB changes). But:
+  //  - the background indexer doesn't support reindexing well, e.g. staleness
+  //    is checked at *enqueue* time only, and doesn't account for compile flags
+  //  - reindexing on compile flags is often a poor use of CPU in practice
+  if (T.Key && !SeenKeys.insert(T.Key).second)
+    return false;
+  T.QueuePri = std::max(T.QueuePri, Boosts.lookup(T.Tag));
+  return true;
+}
+
 void BackgroundQueue::push(Task T) {
   {
     std::lock_guard<std::mutex> Lock(Mu);
-    T.QueuePri = std::max(T.QueuePri, Boosts.lookup(T.Tag));
+    if (!adjust(T))
+      return;
     Queue.push_back(std::move(T));
     std::push_heap(Queue.begin(), Queue.end());
+    ++Stat.Enqueued;
+    notifyProgress();
   }
   CV.notify_all();
 }
@@ -77,10 +101,14 @@ void BackgroundQueue::push(Task T) {
 void BackgroundQueue::append(std::vector<Task> Tasks) {
   {
     std::lock_guard<std::mutex> Lock(Mu);
-    for (Task &T : Tasks)
-      T.QueuePri = std::max(T.QueuePri, Boosts.lookup(T.Tag));
-    std::move(Tasks.begin(), Tasks.end(), std::back_inserter(Queue));
+    for (Task &T : Tasks) {
+      if (!adjust(T))
+        continue;
+      Queue.push_back(std::move(T));
+      ++Stat.Enqueued;
+    }
     std::make_heap(Queue.begin(), Queue.end());
+    notifyProgress();
   }
   CV.notify_all();
 }
@@ -108,7 +136,14 @@ bool BackgroundQueue::blockUntilIdleForTest(
     llvm::Optional<double> TimeoutSeconds) {
   std::unique_lock<std::mutex> Lock(Mu);
   return wait(Lock, CV, timeoutSeconds(TimeoutSeconds),
-              [&] { return Queue.empty() && NumActiveTasks == 0; });
+              [&] { return Queue.empty() && Stat.Active == 0; });
+}
+
+void BackgroundQueue::notifyProgress() const {
+  dlog("Queue: {0}/{1} ({2} active). Last idle at {3}", Stat.Completed,
+       Stat.Enqueued, Stat.Active, Stat.LastIdle);
+  if (OnProgress)
+    OnProgress(Stat);
 }
 
 } // namespace clangd

@@ -8,19 +8,18 @@
 
 #include "lld/Common/ErrorHandler.h"
 
-#include "lld/Common/Threads.h"
+#include "llvm/Support/Parallel.h"
 
 #include "llvm/ADT/Twine.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
 #include <mutex>
 #include <regex>
-
-#if !defined(_MSC_VER) && !defined(__MINGW32__)
-#include <unistd.h>
-#endif
 
 using namespace llvm;
 using namespace lld;
@@ -43,12 +42,21 @@ static StringRef getSeparator(const Twine &msg) {
 raw_ostream *lld::stdoutOS;
 raw_ostream *lld::stderrOS;
 
-raw_ostream &lld::outs() { return stdoutOS ? *stdoutOS : llvm::outs(); }
-raw_ostream &lld::errs() { return stderrOS ? *stderrOS : llvm::errs(); }
-
 ErrorHandler &lld::errorHandler() {
   static ErrorHandler handler;
   return handler;
+}
+
+raw_ostream &lld::outs() {
+  if (errorHandler().disableOutput)
+    return llvm::nulls();
+  return stdoutOS ? *stdoutOS : llvm::outs();
+}
+
+raw_ostream &lld::errs() {
+  if (errorHandler().disableOutput)
+    return llvm::nulls();
+  return stderrOS ? *stderrOS : llvm::errs();
 }
 
 void lld::exitLld(int val) {
@@ -56,15 +64,26 @@ void lld::exitLld(int val) {
   if (errorHandler().outputBuffer)
     errorHandler().outputBuffer->discard();
 
+  // Re-throw a possible signal or exception once/if it was catched by
+  // safeLldMain().
+  CrashRecoveryContext::throwIfCrash(val);
+
   // Dealloc/destroy ManagedStatic variables before calling _exit().
   // In an LTO build, allows us to get the output of -time-passes.
   // Ensures that the thread pool for the parallel algorithms is stopped to
   // avoid intermittent crashes on Windows when exiting.
-  llvm_shutdown();
+  if (!CrashRecoveryContext::GetCurrent())
+    llvm_shutdown();
 
-  lld::outs().flush();
-  lld::errs().flush();
-  _exit(val);
+  {
+    std::lock_guard<std::mutex> lock(mu);
+    lld::outs().flush();
+    lld::errs().flush();
+  }
+  // When running inside safeLldMain(), restore the control flow back to the
+  // CrashRecoveryContext. Otherwise simply use _exit(), meanning no cleanup,
+  // since we want to avoid further crashes on shutdown.
+  llvm::sys::Process::Exit(val, /*NoCleanup=*/true);
 }
 
 void lld::diagnosticHandler(const DiagnosticInfo &di) {
@@ -114,7 +133,7 @@ void lld::checkError(Error e) {
 // extracted from an error message using regexps.
 std::string ErrorHandler::getLocation(const Twine &msg) {
   if (!vsDiagnostics)
-    return logName;
+    return std::string(logName);
 
   static std::regex regexes[] = {
       std::regex(
@@ -146,17 +165,19 @@ std::string ErrorHandler::getLocation(const Twine &msg) {
     return m.str(1) + "(" + m.str(2) + ")";
   }
 
-  return logName;
+  return std::string(logName);
 }
 
 void ErrorHandler::log(const Twine &msg) {
-  if (!verbose)
+  if (!verbose || disableOutput)
     return;
   std::lock_guard<std::mutex> lock(mu);
   lld::errs() << logName << ": " << msg << "\n";
 }
 
 void ErrorHandler::message(const Twine &msg) {
+  if (disableOutput)
+    return;
   std::lock_guard<std::mutex> lock(mu);
   lld::outs() << msg << "\n";
   lld::outs().flush();
@@ -191,20 +212,71 @@ void ErrorHandler::error(const Twine &msg) {
     }
   }
 
-  std::lock_guard<std::mutex> lock(mu);
+  bool exit = false;
+  {
+    std::lock_guard<std::mutex> lock(mu);
 
-  if (errorLimit == 0 || errorCount < errorLimit) {
-    lld::errs() << sep << getLocation(msg) << ": " << Colors::RED
-                << "error: " << Colors::RESET << msg << "\n";
-  } else if (errorCount == errorLimit) {
-    lld::errs() << sep << getLocation(msg) << ": " << Colors::RED
-                << "error: " << Colors::RESET << errorLimitExceededMsg << "\n";
-    if (exitEarly)
-      exitLld(1);
+    if (errorLimit == 0 || errorCount < errorLimit) {
+      lld::errs() << sep << getLocation(msg) << ": " << Colors::RED
+                  << "error: " << Colors::RESET << msg << "\n";
+    } else if (errorCount == errorLimit) {
+      lld::errs() << sep << getLocation(msg) << ": " << Colors::RED
+                  << "error: " << Colors::RESET << errorLimitExceededMsg
+                  << "\n";
+      exit = exitEarly;
+    }
+
+    sep = getSeparator(msg);
+    ++errorCount;
   }
 
-  sep = getSeparator(msg);
-  ++errorCount;
+  if (exit)
+    exitLld(1);
+}
+
+void ErrorHandler::error(const Twine &msg, ErrorTag tag,
+                         ArrayRef<StringRef> args) {
+  if (errorHandlingScript.empty()) {
+    error(msg);
+    return;
+  }
+  SmallVector<StringRef, 4> scriptArgs;
+  scriptArgs.push_back(errorHandlingScript);
+  switch (tag) {
+  case ErrorTag::LibNotFound:
+    scriptArgs.push_back("missing-lib");
+    break;
+  case ErrorTag::SymbolNotFound:
+    scriptArgs.push_back("undefined-symbol");
+    break;
+  }
+  scriptArgs.insert(scriptArgs.end(), args.begin(), args.end());
+  int res = llvm::sys::ExecuteAndWait(errorHandlingScript, scriptArgs);
+  if (res == 0) {
+    return error(msg);
+  } else {
+    // Temporarily disable error limit to make sure the two calls to error(...)
+    // only count as one.
+    uint64_t currentErrorLimit = errorLimit;
+    errorLimit = 0;
+    error(msg);
+    errorLimit = currentErrorLimit;
+    --errorCount;
+
+    switch (res) {
+    case -1:
+      error("error handling script '" + errorHandlingScript +
+            "' failed to execute");
+      break;
+    case -2:
+      error("error handling script '" + errorHandlingScript +
+            "' crashed or timeout");
+      break;
+    default:
+      error("error handling script '" + errorHandlingScript +
+            "' exited with code " + Twine(res));
+    }
+  }
 }
 
 void ErrorHandler::fatal(const Twine &msg) {

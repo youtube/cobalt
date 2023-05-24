@@ -12,14 +12,16 @@ define void @t0(<8 x i16>* %dest, <8 x i16>* %old) nounwind {
 ; X86:       # %bb.0: # %entry
 ; X86-NEXT:    movl {{[0-9]+}}(%esp), %eax
 ; X86-NEXT:    movl {{[0-9]+}}(%esp), %ecx
-; X86-NEXT:    movdqa {{.*#+}} xmm0 = [1,1,1,1]
+; X86-NEXT:    movl $1, %edx
+; X86-NEXT:    movd %edx, %xmm0
 ; X86-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0],mem[0],xmm0[1],mem[1],xmm0[2],mem[2],xmm0[3],mem[3]
 ; X86-NEXT:    movdqa %xmm0, (%eax)
 ; X86-NEXT:    retl
 ;
 ; X64-LABEL: t0:
 ; X64:       # %bb.0: # %entry
-; X64-NEXT:    movdqa {{.*#+}} xmm0 = [1,1,1,1]
+; X64-NEXT:    movl $1, %eax
+; X64-NEXT:    movd %eax, %xmm0
 ; X64-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0],mem[0],xmm0[1],mem[1],xmm0[2],mem[2],xmm0[3],mem[3]
 ; X64-NEXT:    movdqa %xmm0, (%rdi)
 ; X64-NEXT:    retq
@@ -64,7 +66,7 @@ define <8 x i16> @t2(<8 x i16> %A, <8 x i16> %B) nounwind {
 ; X86:       # %bb.0:
 ; X86-NEXT:    movdqa {{.*#+}} xmm2 = [0,65535,65535,0,65535,65535,65535,65535]
 ; X86-NEXT:    pand %xmm2, %xmm0
-; X86-NEXT:    pshuflw {{.*#+}} xmm1 = xmm1[1,1,2,1,4,5,6,7]
+; X86-NEXT:    pshuflw {{.*#+}} xmm1 = xmm1[1,1,1,1,4,5,6,7]
 ; X86-NEXT:    pandn %xmm1, %xmm2
 ; X86-NEXT:    por %xmm2, %xmm0
 ; X86-NEXT:    retl
@@ -73,7 +75,7 @@ define <8 x i16> @t2(<8 x i16> %A, <8 x i16> %B) nounwind {
 ; X64:       # %bb.0:
 ; X64-NEXT:    movdqa {{.*#+}} xmm2 = [0,65535,65535,0,65535,65535,65535,65535]
 ; X64-NEXT:    pand %xmm2, %xmm0
-; X64-NEXT:    pshuflw {{.*#+}} xmm1 = xmm1[1,1,2,1,4,5,6,7]
+; X64-NEXT:    pshuflw {{.*#+}} xmm1 = xmm1[1,1,1,1,4,5,6,7]
 ; X64-NEXT:    pandn %xmm1, %xmm2
 ; X64-NEXT:    por %xmm2, %xmm0
 ; X64-NEXT:    retq
@@ -247,8 +249,8 @@ define void @t9(<4 x float>* %r, <2 x i32>* %A) nounwind {
 ; FIXME: This testcase produces icky code. It can be made much better!
 ; PR2585
 
-@g1 = external constant <4 x i32>
-@g2 = external constant <4 x i16>
+@g1 = external dso_local constant <4 x i32>
+@g2 = external dso_local constant <4 x i16>
 
 define void @t10() nounwind {
 ; X86-LABEL: t10:

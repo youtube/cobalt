@@ -6,7 +6,7 @@
 // Source Licenses. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17
+// UNSUPPORTED: c++03, c++11, c++14, c++17
 
 // template <class T>
 //   constexpr int rotr(T x, unsigned int s) noexcept;
@@ -80,7 +80,7 @@ void runtime_test()
     assert( std::rotr(val, 7) == T((val >> 7) +  uppers[7]));
 }
 
-int main()
+int main(int, char**)
 {
 
     {
@@ -178,4 +178,6 @@ int main()
     assert( std::rotr(val, 166) ==  84);
     }
 #endif
+
+    return 0;
 }

@@ -24,7 +24,7 @@ using namespace llvm::sys;
 std::string lld::relativeToRoot(StringRef path) {
   SmallString<128> abs = path;
   if (fs::make_absolute(abs))
-    return path;
+    return std::string(path);
   path::remove_dots(abs, /*remove_dot_dot=*/true);
 
   // This is Windows specific. root_name() returns a drive letter
@@ -45,16 +45,21 @@ std::string lld::relativeToRoot(StringRef path) {
 std::string lld::quote(StringRef s) {
   if (s.contains(' '))
     return ("\"" + s + "\"").str();
-  return s;
+  return std::string(s);
 }
 
 // Converts an Arg to a string representation suitable for a response file.
 // To show an Arg in a diagnostic, use Arg::getAsString() instead.
 std::string lld::toString(const opt::Arg &arg) {
-  std::string k = arg.getSpelling();
+  std::string k = std::string(arg.getSpelling());
   if (arg.getNumValues() == 0)
     return k;
-  std::string v = quote(arg.getValue());
+  std::string v;
+  for (size_t i = 0; i < arg.getNumValues(); ++i) {
+    if (i > 0)
+      v.push_back(' ');
+    v += quote(arg.getValue(i));
+  }
   if (arg.getOption().getRenderStyle() == opt::Option::RenderJoinedStyle)
     return k + v;
   return k + " " + v;

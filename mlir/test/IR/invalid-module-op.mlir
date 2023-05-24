@@ -16,7 +16,7 @@ func @module_op() {
 // -----
 
 func @module_op() {
-  // expected-error@+1 {{expected body to have no arguments}}
+  // expected-error@+1 {{region should have no arguments}}
   module {
   ^bb1(%arg: i32):
     "module_terminator"() : () -> ()
@@ -44,7 +44,7 @@ func @module_op() {
 
 // -----
 
-// expected-error@+1 {{can only contain dialect-specific attributes}}
+// expected-error@+1 {{can only contain attributes with dialect-prefixed names}}
 module attributes {attr} {
 }
 

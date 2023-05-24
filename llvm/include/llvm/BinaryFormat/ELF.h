@@ -107,13 +107,17 @@ struct Elf64_Ehdr {
   unsigned char getDataEncoding() const { return e_ident[EI_DATA]; }
 };
 
-// File types
+// File types.
+// See current registered ELF types at:
+//    http://www.sco.com/developers/gabi/latest/ch4.eheader.html
 enum {
   ET_NONE = 0,        // No file type
   ET_REL = 1,         // Relocatable file
   ET_EXEC = 2,        // Executable file
   ET_DYN = 3,         // Shared object file
   ET_CORE = 4,        // Core file
+  ET_LOOS = 0xfe00,   // Beginning of operating system-specific codes
+  ET_HIOS = 0xfeff,   // Operating system-specific
   ET_LOPROC = 0xff00, // Beginning of processor-specific codes
   ET_HIPROC = 0xffff  // Processor-specific
 };
@@ -311,6 +315,8 @@ enum {
   EM_RISCV = 243,         // RISC-V
   EM_LANAI = 244,         // Lanai 32-bit processor
   EM_BPF = 247,           // Linux kernel bpf virtual machine
+  EM_VE = 251,            // NEC SX-Aurora VE
+  EM_CSKY = 252,          // C-SKY 32-bit processor
 };
 
 // Object file classes.
@@ -358,6 +364,14 @@ enum {
   ELFOSABI_LAST_ARCH = 255     // Last Architecture-specific OS ABI
 };
 
+// AMDGPU OS ABI Version identification.
+enum {
+  // ELFABIVERSION_AMDGPU_HSA_V1 does not exist because OS ABI identification
+  // was never defined for V1.
+  ELFABIVERSION_AMDGPU_HSA_V2 = 0,
+  ELFABIVERSION_AMDGPU_HSA_V3 = 1,
+};
+
 #define ELF_RELOC(name, value) name = value,
 
 // X86_64 relocations.
@@ -393,12 +407,6 @@ static inline int64_t decodePPC64LocalEntryOffset(unsigned Other) {
   unsigned Val = (Other & STO_PPC64_LOCAL_MASK) >> STO_PPC64_LOCAL_BIT;
   return ((1 << Val) >> 2) << 2;
 }
-static inline unsigned encodePPC64LocalEntryOffset(int64_t Offset) {
-  unsigned Val =
-      (Offset >= 4 * 4 ? (Offset >= 8 * 4 ? (Offset >= 16 * 4 ? 6 : 5) : 4)
-                       : (Offset >= 2 * 4 ? 3 : (Offset >= 1 * 4 ? 2 : 0)));
-  return Val << STO_PPC64_LOCAL_BIT;
-}
 
 // ELF Relocation types for PPC64
 enum {
@@ -408,6 +416,12 @@ enum {
 // ELF Relocation types for AArch64
 enum {
 #include "ELFRelocs/AArch64.def"
+};
+
+// Special values for the st_other field in the symbol table entry for AArch64.
+enum {
+  // Symbol may follow different calling convention than base PCS.
+  STO_AARCH64_VARIANT_PCS = 0x80
 };
 
 // ARM Specific e_flags
@@ -573,15 +587,17 @@ enum {
 // Hexagon-specific e_flags
 enum {
   // Object processor version flags, bits[11:0]
-  EF_HEXAGON_MACH_V2 = 0x00000001,  // Hexagon V2
-  EF_HEXAGON_MACH_V3 = 0x00000002,  // Hexagon V3
-  EF_HEXAGON_MACH_V4 = 0x00000003,  // Hexagon V4
-  EF_HEXAGON_MACH_V5 = 0x00000004,  // Hexagon V5
-  EF_HEXAGON_MACH_V55 = 0x00000005, // Hexagon V55
-  EF_HEXAGON_MACH_V60 = 0x00000060, // Hexagon V60
-  EF_HEXAGON_MACH_V62 = 0x00000062, // Hexagon V62
-  EF_HEXAGON_MACH_V65 = 0x00000065, // Hexagon V65
-  EF_HEXAGON_MACH_V66 = 0x00000066, // Hexagon V66
+  EF_HEXAGON_MACH_V2 = 0x00000001,   // Hexagon V2
+  EF_HEXAGON_MACH_V3 = 0x00000002,   // Hexagon V3
+  EF_HEXAGON_MACH_V4 = 0x00000003,   // Hexagon V4
+  EF_HEXAGON_MACH_V5 = 0x00000004,   // Hexagon V5
+  EF_HEXAGON_MACH_V55 = 0x00000005,  // Hexagon V55
+  EF_HEXAGON_MACH_V60 = 0x00000060,  // Hexagon V60
+  EF_HEXAGON_MACH_V62 = 0x00000062,  // Hexagon V62
+  EF_HEXAGON_MACH_V65 = 0x00000065,  // Hexagon V65
+  EF_HEXAGON_MACH_V66 = 0x00000066,  // Hexagon V66
+  EF_HEXAGON_MACH_V67 = 0x00000067,  // Hexagon V67
+  EF_HEXAGON_MACH_V67T = 0x00008067, // Hexagon V67T
 
   // Highest ISA version flags
   EF_HEXAGON_ISA_MACH = 0x00000000, // Same as specified in bits[11:0]
@@ -595,6 +611,7 @@ enum {
   EF_HEXAGON_ISA_V62 = 0x00000062,  // Hexagon V62 ISA
   EF_HEXAGON_ISA_V65 = 0x00000065,  // Hexagon V65 ISA
   EF_HEXAGON_ISA_V66 = 0x00000066,  // Hexagon V66 ISA
+  EF_HEXAGON_ISA_V67 = 0x00000067,  // Hexagon V67 ISA
 };
 
 // Hexagon-specific section indexes for common small data
@@ -682,40 +699,39 @@ enum : unsigned {
   EF_AMDGPU_MACH_R600_LAST = EF_AMDGPU_MACH_R600_TURKS,
 
   // AMDGCN-based processors.
-
-  // AMDGCN GFX6.
-  EF_AMDGPU_MACH_AMDGCN_GFX600 = 0x020,
-  EF_AMDGPU_MACH_AMDGCN_GFX601 = 0x021,
-  // AMDGCN GFX7.
-  EF_AMDGPU_MACH_AMDGCN_GFX700 = 0x022,
-  EF_AMDGPU_MACH_AMDGCN_GFX701 = 0x023,
-  EF_AMDGPU_MACH_AMDGCN_GFX702 = 0x024,
-  EF_AMDGPU_MACH_AMDGCN_GFX703 = 0x025,
-  EF_AMDGPU_MACH_AMDGCN_GFX704 = 0x026,
-  // AMDGCN GFX8.
-  EF_AMDGPU_MACH_AMDGCN_GFX801 = 0x028,
-  EF_AMDGPU_MACH_AMDGCN_GFX802 = 0x029,
-  EF_AMDGPU_MACH_AMDGCN_GFX803 = 0x02a,
-  EF_AMDGPU_MACH_AMDGCN_GFX810 = 0x02b,
-  // AMDGCN GFX9.
-  EF_AMDGPU_MACH_AMDGCN_GFX900 = 0x02c,
-  EF_AMDGPU_MACH_AMDGCN_GFX902 = 0x02d,
-  EF_AMDGPU_MACH_AMDGCN_GFX904 = 0x02e,
-  EF_AMDGPU_MACH_AMDGCN_GFX906 = 0x02f,
-  EF_AMDGPU_MACH_AMDGCN_GFX908 = 0x030,
-  EF_AMDGPU_MACH_AMDGCN_GFX909 = 0x031,
-  // AMDGCN GFX10.
-  EF_AMDGPU_MACH_AMDGCN_GFX1010 = 0x033,
-  EF_AMDGPU_MACH_AMDGCN_GFX1011 = 0x034,
-  EF_AMDGPU_MACH_AMDGCN_GFX1012 = 0x035,
-
-  // Reserved for AMDGCN-based processors.
-  EF_AMDGPU_MACH_AMDGCN_RESERVED0 = 0x027,
-  EF_AMDGPU_MACH_AMDGCN_RESERVED1 = 0x032,
+  EF_AMDGPU_MACH_AMDGCN_GFX600        = 0x020,
+  EF_AMDGPU_MACH_AMDGCN_GFX601        = 0x021,
+  EF_AMDGPU_MACH_AMDGCN_GFX700        = 0x022,
+  EF_AMDGPU_MACH_AMDGCN_GFX701        = 0x023,
+  EF_AMDGPU_MACH_AMDGCN_GFX702        = 0x024,
+  EF_AMDGPU_MACH_AMDGCN_GFX703        = 0x025,
+  EF_AMDGPU_MACH_AMDGCN_GFX704        = 0x026,
+  EF_AMDGPU_MACH_AMDGCN_RESERVED_0X27 = 0x027,
+  EF_AMDGPU_MACH_AMDGCN_GFX801        = 0x028,
+  EF_AMDGPU_MACH_AMDGCN_GFX802        = 0x029,
+  EF_AMDGPU_MACH_AMDGCN_GFX803        = 0x02a,
+  EF_AMDGPU_MACH_AMDGCN_GFX810        = 0x02b,
+  EF_AMDGPU_MACH_AMDGCN_GFX900        = 0x02c,
+  EF_AMDGPU_MACH_AMDGCN_GFX902        = 0x02d,
+  EF_AMDGPU_MACH_AMDGCN_GFX904        = 0x02e,
+  EF_AMDGPU_MACH_AMDGCN_GFX906        = 0x02f,
+  EF_AMDGPU_MACH_AMDGCN_GFX908        = 0x030,
+  EF_AMDGPU_MACH_AMDGCN_GFX909        = 0x031,
+  EF_AMDGPU_MACH_AMDGCN_GFX90C        = 0x032,
+  EF_AMDGPU_MACH_AMDGCN_GFX1010       = 0x033,
+  EF_AMDGPU_MACH_AMDGCN_GFX1011       = 0x034,
+  EF_AMDGPU_MACH_AMDGCN_GFX1012       = 0x035,
+  EF_AMDGPU_MACH_AMDGCN_GFX1030       = 0x036,
+  EF_AMDGPU_MACH_AMDGCN_GFX1031       = 0x037,
+  EF_AMDGPU_MACH_AMDGCN_GFX1032       = 0x038,
+  EF_AMDGPU_MACH_AMDGCN_GFX1033       = 0x039,
+  EF_AMDGPU_MACH_AMDGCN_GFX602        = 0x03a,
+  EF_AMDGPU_MACH_AMDGCN_GFX705        = 0x03b,
+  EF_AMDGPU_MACH_AMDGCN_GFX805        = 0x03c,
 
   // First/last AMDGCN-based processors.
   EF_AMDGPU_MACH_AMDGCN_FIRST = EF_AMDGPU_MACH_AMDGCN_GFX600,
-  EF_AMDGPU_MACH_AMDGCN_LAST = EF_AMDGPU_MACH_AMDGCN_GFX1012,
+  EF_AMDGPU_MACH_AMDGCN_LAST = EF_AMDGPU_MACH_AMDGCN_GFX805,
 
   // Indicates if the "xnack" target feature is enabled for all code contained
   // in the object.
@@ -767,6 +783,17 @@ enum {
 #include "ELFRelocs/MSP430.def"
 };
 
+// ELF Relocation type for VE.
+enum {
+#include "ELFRelocs/VE.def"
+};
+
+
+// ELF Relocation types for CSKY
+enum {
+#include "ELFRelocs/CSKY.def"
+};
+
 #undef ELF_RELOC
 
 // Section header.
@@ -813,50 +840,52 @@ enum {
 
 // Section types.
 enum : unsigned {
-  SHT_NULL = 0,                         // No associated section (inactive entry).
-  SHT_PROGBITS = 1,                     // Program-defined contents.
-  SHT_SYMTAB = 2,                       // Symbol table.
-  SHT_STRTAB = 3,                       // String table.
-  SHT_RELA = 4,                         // Relocation entries; explicit addends.
-  SHT_HASH = 5,                         // Symbol hash table.
-  SHT_DYNAMIC = 6,                      // Information for dynamic linking.
-  SHT_NOTE = 7,                         // Information about the file.
-  SHT_NOBITS = 8,                       // Data occupies no space in the file.
-  SHT_REL = 9,                          // Relocation entries; no explicit addends.
-  SHT_SHLIB = 10,                       // Reserved.
-  SHT_DYNSYM = 11,                      // Symbol table.
-  SHT_INIT_ARRAY = 14,                  // Pointers to initialization functions.
-  SHT_FINI_ARRAY = 15,                  // Pointers to termination functions.
-  SHT_PREINIT_ARRAY = 16,               // Pointers to pre-init functions.
-  SHT_GROUP = 17,                       // Section group.
-  SHT_SYMTAB_SHNDX = 18,                // Indices for SHN_XINDEX entries.
+  SHT_NULL = 0,           // No associated section (inactive entry).
+  SHT_PROGBITS = 1,       // Program-defined contents.
+  SHT_SYMTAB = 2,         // Symbol table.
+  SHT_STRTAB = 3,         // String table.
+  SHT_RELA = 4,           // Relocation entries; explicit addends.
+  SHT_HASH = 5,           // Symbol hash table.
+  SHT_DYNAMIC = 6,        // Information for dynamic linking.
+  SHT_NOTE = 7,           // Information about the file.
+  SHT_NOBITS = 8,         // Data occupies no space in the file.
+  SHT_REL = 9,            // Relocation entries; no explicit addends.
+  SHT_SHLIB = 10,         // Reserved.
+  SHT_DYNSYM = 11,        // Symbol table.
+  SHT_INIT_ARRAY = 14,    // Pointers to initialization functions.
+  SHT_FINI_ARRAY = 15,    // Pointers to termination functions.
+  SHT_PREINIT_ARRAY = 16, // Pointers to pre-init functions.
+  SHT_GROUP = 17,         // Section group.
+  SHT_SYMTAB_SHNDX = 18,  // Indices for SHN_XINDEX entries.
   // Experimental support for SHT_RELR sections. For details, see proposal
   // at https://groups.google.com/forum/#!topic/generic-abi/bX460iggiKg
-  SHT_RELR = 19,                        // Relocation entries; only offsets.
-  SHT_LOOS = 0x60000000,                // Lowest operating system-specific type.
+  SHT_RELR = 19,         // Relocation entries; only offsets.
+  SHT_LOOS = 0x60000000, // Lowest operating system-specific type.
   // Android packed relocation section types.
   // https://android.googlesource.com/platform/bionic/+/6f12bfece5dcc01325e0abba56a46b1bcf991c69/tools/relocation_packer/src/elf_file.cc#37
   SHT_ANDROID_REL = 0x60000001,
   SHT_ANDROID_RELA = 0x60000002,
-  SHT_LLVM_ODRTAB = 0x6fff4c00,         // LLVM ODR table.
-  SHT_LLVM_LINKER_OPTIONS = 0x6fff4c01, // LLVM Linker Options.
+  SHT_LLVM_ODRTAB = 0x6fff4c00,             // LLVM ODR table.
+  SHT_LLVM_LINKER_OPTIONS = 0x6fff4c01,     // LLVM Linker Options.
   SHT_LLVM_CALL_GRAPH_PROFILE = 0x6fff4c02, // LLVM Call Graph Profile.
-  SHT_LLVM_ADDRSIG = 0x6fff4c03,        // List of address-significant symbols
-                                        // for safe ICF.
-  SHT_LLVM_DEPENDENT_LIBRARIES = 0x6fff4c04, // LLVM Dependent Library Specifiers.
-  SHT_LLVM_SYMPART = 0x6fff4c05,        // Symbol partition specification.
-  SHT_LLVM_PART_EHDR = 0x6fff4c06,      // ELF header for loadable partition.
-  SHT_LLVM_PART_PHDR = 0x6fff4c07,      // Phdrs for loadable partition.
+  SHT_LLVM_ADDRSIG = 0x6fff4c03, // List of address-significant symbols
+                                 // for safe ICF.
+  SHT_LLVM_DEPENDENT_LIBRARIES =
+      0x6fff4c04,                    // LLVM Dependent Library Specifiers.
+  SHT_LLVM_SYMPART = 0x6fff4c05,     // Symbol partition specification.
+  SHT_LLVM_PART_EHDR = 0x6fff4c06,   // ELF header for loadable partition.
+  SHT_LLVM_PART_PHDR = 0x6fff4c07,   // Phdrs for loadable partition.
+  SHT_LLVM_BB_ADDR_MAP = 0x6fff4c08, // LLVM Basic Block Address Map.
   // Android's experimental support for SHT_RELR sections.
   // https://android.googlesource.com/platform/bionic/+/b7feec74547f84559a1467aca02708ff61346d2a/libc/include/elf.h#512
-  SHT_ANDROID_RELR = 0x6fffff00,        // Relocation entries; only offsets.
-  SHT_GNU_ATTRIBUTES = 0x6ffffff5,      // Object attributes.
-  SHT_GNU_HASH = 0x6ffffff6,            // GNU-style hash table.
-  SHT_GNU_verdef = 0x6ffffffd,          // GNU version definitions.
-  SHT_GNU_verneed = 0x6ffffffe,         // GNU version references.
-  SHT_GNU_versym = 0x6fffffff,          // GNU symbol versions table.
-  SHT_HIOS = 0x6fffffff,                // Highest operating system-specific type.
-  SHT_LOPROC = 0x70000000,              // Lowest processor arch-specific type.
+  SHT_ANDROID_RELR = 0x6fffff00,   // Relocation entries; only offsets.
+  SHT_GNU_ATTRIBUTES = 0x6ffffff5, // Object attributes.
+  SHT_GNU_HASH = 0x6ffffff6,       // GNU-style hash table.
+  SHT_GNU_verdef = 0x6ffffffd,     // GNU version definitions.
+  SHT_GNU_verneed = 0x6ffffffe,    // GNU version references.
+  SHT_GNU_versym = 0x6fffffff,     // GNU symbol versions table.
+  SHT_HIOS = 0x6fffffff,           // Highest operating system-specific type.
+  SHT_LOPROC = 0x70000000,         // Lowest processor arch-specific type.
   // Fixme: All this is duplicated in MCSectionELF. Why??
   // Exception Index table
   SHT_ARM_EXIDX = 0x70000001U,
@@ -866,20 +895,22 @@ enum : unsigned {
   SHT_ARM_ATTRIBUTES = 0x70000003U,
   SHT_ARM_DEBUGOVERLAY = 0x70000004U,
   SHT_ARM_OVERLAYSECTION = 0x70000005U,
-  SHT_HEX_ORDERED = 0x70000000,         // Link editor is to sort the entries in
-                                        // this section based on their sizes
-  SHT_X86_64_UNWIND = 0x70000001,       // Unwind information
+  SHT_HEX_ORDERED = 0x70000000,   // Link editor is to sort the entries in
+                                  // this section based on their sizes
+  SHT_X86_64_UNWIND = 0x70000001, // Unwind information
 
-  SHT_MIPS_REGINFO = 0x70000006,        // Register usage information
-  SHT_MIPS_OPTIONS = 0x7000000d,        // General options
-  SHT_MIPS_DWARF = 0x7000001e,          // DWARF debugging section.
-  SHT_MIPS_ABIFLAGS = 0x7000002a,       // ABI information.
+  SHT_MIPS_REGINFO = 0x70000006,  // Register usage information
+  SHT_MIPS_OPTIONS = 0x7000000d,  // General options
+  SHT_MIPS_DWARF = 0x7000001e,    // DWARF debugging section.
+  SHT_MIPS_ABIFLAGS = 0x7000002a, // ABI information.
 
   SHT_MSP430_ATTRIBUTES = 0x70000003U,
 
-  SHT_HIPROC = 0x7fffffff,              // Highest processor arch-specific type.
-  SHT_LOUSER = 0x80000000,              // Lowest type reserved for applications.
-  SHT_HIUSER = 0xffffffff               // Highest type reserved for applications.
+  SHT_RISCV_ATTRIBUTES = 0x70000003U,
+
+  SHT_HIPROC = 0x7fffffff, // Highest processor arch-specific type.
+  SHT_LOUSER = 0x80000000, // Lowest type reserved for applications.
+  SHT_HIUSER = 0xffffffff  // Highest type reserved for applications.
 };
 
 // Section flags.
@@ -1290,7 +1321,8 @@ enum {
   DF_1_NORELOC = 0x00400000,
   DF_1_SYMINTPOSE = 0x00800000, // Object has individual interposers.
   DF_1_GLOBAUDIT = 0x01000000,  // Global auditing required.
-  DF_1_SINGLETON = 0x02000000   // Singleton symbols are used.
+  DF_1_SINGLETON = 0x02000000,  // Singleton symbols are used.
+  DF_1_PIE = 0x08000000,        // Object is a position-independent executable.
 };
 
 // DT_MIPS_FLAGS values.

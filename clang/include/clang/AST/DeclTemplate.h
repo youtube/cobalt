@@ -77,7 +77,7 @@ class TemplateParameterList final
 
   /// The number of template parameters in this template
   /// parameter list.
-  unsigned NumParams : 30;
+  unsigned NumParams : 29;
 
   /// Whether this template parameter list contains an unexpanded parameter
   /// pack.
@@ -204,10 +204,6 @@ public:
              bool OmitTemplateKW = false) const;
   void print(raw_ostream &Out, const ASTContext &Context,
              const PrintingPolicy &Policy, bool OmitTemplateKW = false) const;
-
-public:
-  // FIXME: workaround for MSVC 2013; remove when no longer needed
-  using FixedSizeStorageOwner = TrailingObjects::FixedSizeStorageOwner;
 };
 
 /// Stores a list of template parameters and the associated
@@ -1102,6 +1098,17 @@ public:
   /// template.
   ArrayRef<TemplateArgument> getInjectedTemplateArgs();
 
+  /// Return whether this function template is an abbreviated function template,
+  /// e.g. `void foo(auto x)` or `template<typename T> void foo(auto x)`
+  bool isAbbreviated() const {
+    // Since the invented template parameters generated from 'auto' parameters
+    // are either appended to the end of the explicit template parameter list or
+    // form a new template paramter list, we can simply observe the last
+    // parameter to determine if such a thing happened.
+    const TemplateParameterList *TPL = getTemplateParameters();
+    return TPL->getParam(TPL->size() - 1)->isImplicit();
+  }
+
   /// Merge \p Prev with our RedeclarableTemplateDecl::Common.
   void mergePrevDecl(FunctionTemplateDecl *Prev);
 
@@ -1215,7 +1222,6 @@ public:
                                       bool ParameterPack,
                                       bool HasTypeConstraint = false,
                                       Optional<unsigned> NumExpanded = None);
-
   static TemplateTypeParmDecl *CreateDeserialized(const ASTContext &C,
                                                   unsigned ID);
   static TemplateTypeParmDecl *CreateDeserialized(const ASTContext &C,
@@ -1374,7 +1380,8 @@ class NonTypeTemplateParmDecl final
     : public DeclaratorDecl,
       protected TemplateParmPosition,
       private llvm::TrailingObjects<NonTypeTemplateParmDecl,
-                                    std::pair<QualType, TypeSourceInfo *>> {
+                                    std::pair<QualType, TypeSourceInfo *>,
+                                    Expr *> {
   friend class ASTDeclReader;
   friend TrailingObjects;
 
@@ -1429,10 +1436,12 @@ public:
          ArrayRef<TypeSourceInfo *> ExpandedTInfos);
 
   static NonTypeTemplateParmDecl *CreateDeserialized(ASTContext &C,
-                                                     unsigned ID);
+                                                     unsigned ID,
+                                                     bool HasTypeConstraint);
   static NonTypeTemplateParmDecl *CreateDeserialized(ASTContext &C,
                                                      unsigned ID,
-                                                     unsigned NumExpandedTypes);
+                                                     unsigned NumExpandedTypes,
+                                                     bool HasTypeConstraint);
 
   using TemplateParmPosition::getDepth;
   using TemplateParmPosition::setDepth;
@@ -1543,20 +1552,22 @@ public:
     return TypesAndInfos[I].second;
   }
 
-  /// Return the type-constraint in the placeholder type of this non-type
+  /// Return the constraint introduced by the placeholder type of this non-type
   /// template parameter (if any).
-  TypeConstraint *getPlaceholderTypeConstraint() const {
-    // TODO: Concepts: Implement once we have actual placeholders with type
-    //                 constraints.
-    return nullptr;
+  Expr *getPlaceholderTypeConstraint() const {
+    return hasPlaceholderTypeConstraint() ? *getTrailingObjects<Expr *>() :
+        nullptr;
+  }
+
+  void setPlaceholderTypeConstraint(Expr *E) {
+    *getTrailingObjects<Expr *>() = E;
   }
 
   /// Determine whether this non-type template parameter's type has a
   /// placeholder with a type-constraint.
   bool hasPlaceholderTypeConstraint() const {
-    // TODO: Concepts: Implement once we have actual placeholders with type
-    //                 constraints.
-    return false;
+    auto *AT = getType()->getContainedAutoType();
+    return AT && AT->isConstrained();
   }
 
   /// \brief Get the associated-constraints of this template parameter.
@@ -1566,8 +1577,8 @@ public:
   /// Use this instead of getPlaceholderImmediatelyDeclaredConstraint for
   /// concepts APIs that accept an ArrayRef of constraint expressions.
   void getAssociatedConstraints(llvm::SmallVectorImpl<const Expr *> &AC) const {
-    if (TypeConstraint *TC = getPlaceholderTypeConstraint())
-      AC.push_back(TC->getImmediatelyDeclaredConstraint());
+    if (Expr *E = getPlaceholderTypeConstraint())
+      AC.push_back(E);
   }
 
   // Implement isa/cast/dyncast/etc.
@@ -1876,6 +1887,10 @@ public:
     return *TemplateArgs;
   }
 
+  void setTemplateArgs(TemplateArgumentList *Args) {
+    TemplateArgs = Args;
+  }
+
   /// Determine the kind of specialization that this
   /// declaration represents.
   TemplateSpecializationKind getSpecializationKind() const {
@@ -1906,6 +1921,10 @@ public:
   bool isExplicitInstantiationOrSpecialization() const {
     return isTemplateExplicitInstantiationOrSpecialization(
         getTemplateSpecializationKind());
+  }
+
+  void setSpecializedTemplate(ClassTemplateDecl *Specialized) {
+    SpecializedTemplate = Specialized;
   }
 
   void setSpecializationKind(TemplateSpecializationKind TSK) {
@@ -2247,7 +2266,7 @@ protected:
   /// Retrieve the set of partial specializations of this class
   /// template.
   llvm::FoldingSetVector<ClassTemplatePartialSpecializationDecl> &
-  getPartialSpecializations();
+  getPartialSpecializations() const;
 
   ClassTemplateDecl(ASTContext &C, DeclContext *DC, SourceLocation L,
                     DeclarationName Name, TemplateParameterList *Params,
@@ -2344,7 +2363,7 @@ public:
 
   /// Retrieve the partial specializations as an ordered list.
   void getPartialSpecializations(
-          SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS);
+      SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS) const;
 
   /// Find a class template partial specialization with the given
   /// type T.
@@ -3076,7 +3095,7 @@ protected:
   /// Retrieve the set of partial specializations of this class
   /// template.
   llvm::FoldingSetVector<VarTemplatePartialSpecializationDecl> &
-  getPartialSpecializations();
+  getPartialSpecializations() const;
 
   VarTemplateDecl(ASTContext &C, DeclContext *DC, SourceLocation L,
                   DeclarationName Name, TemplateParameterList *Params,
@@ -3172,7 +3191,7 @@ public:
 
   /// Retrieve the partial specializations as an ordered list.
   void getPartialSpecializations(
-      SmallVectorImpl<VarTemplatePartialSpecializationDecl *> &PS);
+      SmallVectorImpl<VarTemplatePartialSpecializationDecl *> &PS) const;
 
   /// Find a variable template partial specialization which was
   /// instantiated
@@ -3207,7 +3226,7 @@ public:
   static bool classofKind(Kind K) { return K == VarTemplate; }
 };
 
-// \brief Declaration of a C++2a concept.
+/// Declaration of a C++2a concept.
 class ConceptDecl : public TemplateDecl, public Mergeable<ConceptDecl> {
 protected:
   Expr *ConstraintExpr;
@@ -3236,6 +3255,9 @@ public:
     return isa<TemplateTypeParmDecl>(getTemplateParameters()->getParam(0));
   }
 
+  ConceptDecl *getCanonicalDecl() override { return getFirstDecl(); }
+  const ConceptDecl *getCanonicalDecl() const { return getFirstDecl(); }
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == Concept; }
@@ -3243,6 +3265,74 @@ public:
   friend class ASTReader;
   friend class ASTDeclReader;
   friend class ASTDeclWriter;
+};
+
+/// A template parameter object.
+///
+/// Template parameter objects represent values of class type used as template
+/// arguments. There is one template parameter object for each such distinct
+/// value used as a template argument across the program.
+///
+/// \code
+/// struct A { int x, y; };
+/// template<A> struct S;
+/// S<A{1, 2}> s1;
+/// S<A{1, 2}> s2; // same type, argument is same TemplateParamObjectDecl.
+/// \endcode
+class TemplateParamObjectDecl : public ValueDecl,
+                                public Mergeable<TemplateParamObjectDecl>,
+                                public llvm::FoldingSetNode {
+private:
+  /// The value of this template parameter object.
+  APValue Value;
+
+  TemplateParamObjectDecl(DeclContext *DC, QualType T, const APValue &V)
+      : ValueDecl(TemplateParamObject, DC, SourceLocation(), DeclarationName(),
+                  T),
+        Value(V) {}
+
+  static TemplateParamObjectDecl *Create(const ASTContext &C, QualType T,
+                                         const APValue &V);
+  static TemplateParamObjectDecl *CreateDeserialized(ASTContext &C,
+                                                     unsigned ID);
+
+  /// Only ASTContext::getTemplateParamObjectDecl and deserialization
+  /// create these.
+  friend class ASTContext;
+  friend class ASTReader;
+  friend class ASTDeclReader;
+
+public:
+  /// Print this template parameter object in a human-readable format.
+  void printName(llvm::raw_ostream &OS) const override;
+
+  /// Print this object as an equivalent expression.
+  void printAsExpr(llvm::raw_ostream &OS) const;
+
+  /// Print this object as an initializer suitable for a variable of the
+  /// object's type.
+  void printAsInit(llvm::raw_ostream &OS) const;
+
+  const APValue &getValue() const { return Value; }
+
+  static void Profile(llvm::FoldingSetNodeID &ID, QualType T,
+                      const APValue &V) {
+    ID.AddPointer(T.getCanonicalType().getAsOpaquePtr());
+    V.Profile(ID);
+  }
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, getType(), getValue());
+  }
+
+  TemplateParamObjectDecl *getCanonicalDecl() override {
+    return getFirstDecl();
+  }
+  const TemplateParamObjectDecl *getCanonicalDecl() const {
+    return getFirstDecl();
+  }
+
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) { return K == TemplateParamObject; }
 };
 
 inline NamedDecl *getAsNamedDecl(TemplateParameter P) {
@@ -3261,6 +3351,36 @@ inline TemplateDecl *getAsTypeTemplateDecl(Decl *D) {
                 isa<TemplateTemplateParmDecl>(TD))
              ? TD
              : nullptr;
+}
+
+/// Check whether the template parameter is a pack expansion, and if so,
+/// determine the number of parameters produced by that expansion. For instance:
+///
+/// \code
+/// template<typename ...Ts> struct A {
+///   template<Ts ...NTs, template<Ts> class ...TTs, typename ...Us> struct B;
+/// };
+/// \endcode
+///
+/// In \c A<int,int>::B, \c NTs and \c TTs have expanded pack size 2, and \c Us
+/// is not a pack expansion, so returns an empty Optional.
+inline Optional<unsigned> getExpandedPackSize(const NamedDecl *Param) {
+  if (const auto *TTP = dyn_cast<TemplateTypeParmDecl>(Param)) {
+    if (TTP->isExpandedParameterPack())
+      return TTP->getNumExpansionParameters();
+  }
+
+  if (const auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(Param)) {
+    if (NTTP->isExpandedParameterPack())
+      return NTTP->getNumExpansionTypes();
+  }
+
+  if (const auto *TTP = dyn_cast<TemplateTemplateParmDecl>(Param)) {
+    if (TTP->isExpandedParameterPack())
+      return TTP->getNumExpansionTemplateParameters();
+  }
+
+  return None;
 }
 
 } // namespace clang
