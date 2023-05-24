@@ -1,24 +1,31 @@
 add_entrypoint_library(
-  llvmlibc
+  ${LIBC_TARGET}
   DEPENDS
   ${TARGET_LLVMLIBC_ENTRYPOINTS}
 )
+set_target_properties(
+  ${LIBC_TARGET}
+  PROPERTIES
+    ARCHIVE_OUTPUT_NAME ${LIBC_ARCHIVE_NAME}
+)
 
-if(LLVM_ENABLE_PER_TARGET_RUNTIME_DIR)
-  set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX}/${LLVM_DEFAULT_TARGET_TRIPLE})
+if(LIBC_TARGET_TRIPLE)
+  set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX}/${LIBC_TARGET_TRIPLE})
+elseif(LLVM_ENABLE_PER_TARGET_RUNTIME_DIR)
+  set(LIBC_INSTALL_LIBRARY_DIR
+      lib${LLVM_LIBDIR_SUFFIX}/${LLVM_DEFAULT_TARGET_TRIPLE})
 else()
   set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})
 endif()
 
 install(
-  TARGETS llvmlibc
-  ARCHIVE DESTINATION "${LIBC_INSTALL_LIBRARY_DIR}"
-  COMPONENT llvmlibc
+  TARGETS ${LIBC_TARGET}
+  ARCHIVE DESTINATION ${LIBC_INSTALL_LIBRARY_DIR}
+  COMPONENT libc-static-archives
 )
 
-add_custom_target(
-    install-llvmlibc
-    DEPENDS llvmlibc
-    COMMAND "${CMAKE_COMMAND}" -DCMAKE_INSTALL_COMPONENT=llvmlibc
-            -P "${LIBC_BINARY_DIR}/cmake_install.cmake"
+add_llvm_install_targets(
+  install-libc-static-archives
+  DEPENDS ${LIBC_TARGET}
+  COMPONENT libc-static-archives
 )

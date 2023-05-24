@@ -1,5 +1,5 @@
 =========================================
-Libc++ 14.0.0 (In-Progress) Release Notes
+Libc++ 16.0.0 (In-Progress) Release Notes
 =========================================
 
 .. contents::
@@ -10,7 +10,7 @@ Written by the `Libc++ Team <https://libcxx.llvm.org>`_
 
 .. warning::
 
-   These are in-progress notes for the upcoming libc++ 14 release.
+   These are in-progress notes for the upcoming libc++ 16 release.
    Release notes for previous releases can be found on
    `the Download Page <https://releases.llvm.org/download.html>`_.
 
@@ -18,7 +18,7 @@ Introduction
 ============
 
 This document contains the release notes for the libc++ C++ Standard Library,
-part of the LLVM Compiler Infrastructure, release 14.0.0. Here we describe the
+part of the LLVM Compiler Infrastructure, release 16.0.0. Here we describe the
 status of libc++ in some detail, including major improvements from the previous
 release and new feature work. For the general LLVM release notes, see `the LLVM
 documentation <https://llvm.org/docs/ReleaseNotes.html>`_. All LLVM releases may
@@ -32,199 +32,137 @@ main Libc++ web page, this document applies to the *next* release, not
 the current one. To see the release notes for a specific release, please
 see the `releases page <https://llvm.org/releases/>`_.
 
-What's New in Libc++ 14.0.0?
+What's New in Libc++ 16.0.0?
 ============================
 
-New Features
-------------
+The main focus of the libc++ team has been to implement new C++20 and C++23
+features.
 
-- There's support for the C++20 header ``<format>``. Some parts are still
-  missing, most notably the compile-time format string validation. Some
-  functions are known to be inefficient, both in memory usage and performance.
-  The implementation isn't API- or ABI-stable and therefore considered
-  experimental. (Some not-yet-implemented papers require an API-break.)
-  Vendors can still disable this header by turning the CMake option
-  `LIBCXX_ENABLE_INCOMPLETE_FEATURES` off.
+The C++20 format library has improved but it not yet considered stable. The
+main improvements are additional formatters for the chrono calendar types. Work
+on formatting ranges has started.
 
-- There's a new CMake option ``LIBCXX_ENABLE_UNICODE`` to disable Unicode
-  support in the ``<format>`` header. This only affects the estimation of the
-  output width of the format functions.
+The C++20 ranges library has been completed and is no longer experimental. Some
+``views`` have not been implemented yet. Work on C++23 ranges has started.
 
-- Support for building libc++ on top of a C Standard Library that does not support ``wchar_t`` was
-  added. This is useful for building libc++ in an embedded setting, and it adds itself to the various
-  freestanding-friendly options provided by libc++.
+The C++20 spaceship operator has been added to more types, the work is still
+ongoing.
 
-- Defining ``_LIBCPP_DEBUG`` to ``1`` enables the randomization of unspecified
-  behavior in standard algorithms (e.g. the ordering of equal elements in ``std::sort``, or
-  the ordering of both sides of the partition in ``std::nth_element``).
+Implemented Papers
+------------------
+- P2499R0 - ``string_view`` range constructor should be ``explicit``
+- P2417R2 - A more constexpr bitset
+- P2445R1 - ``std::forward_like``
+- P2273R3 - Making ``std::unique_ptr`` constexpr
+- P0591R4 - Utility functions to implement uses-allocator construction
+- P2291R3 - Add Constexpr Modifiers to Functions ``to_chars`` and
+  ``from_chars`` for Integral Types in ``<charconv>`` Header
+- P0220R1 - Adopt Library Fundamentals V1 TS Components for C++17
+- P0482R6 - char8_t: A type for UTF-8 characters and strings
+- P2438R2 - ``std::string::substr() &&``
+- P0600R1 - ``nodiscard`` in the library
+- P0339R6 - ``polymorphic_allocator<>`` as a vocabulary type
+- P1169R4 - ``static operator()``
+- P0415R1 - ``constexpr`` for ``std::complex``
+- P1208R6 - ``std::source_location``
+- P0323R12 - ``std::expected``
+- P1035R7 - Input Range Adaptors
 
-- Floating-point support for ``std::to_chars`` support has been added.
-  Thanks to Stephan T. Lavavej and Microsoft for providing their implementation
-  to libc++.
+Improvements and New Features
+-----------------------------
+- Declarations of ``std::c8rtomb()`` and ``std::mbrtoc8()`` from P0482R6 are
+  now provided when implementations in the global namespace are provided by
+  the C library.
+- Implemented ``<memory_resource>`` header from C++17
+- `D122780 <https://reviews.llvm.org/D122780>`_ Improved the performance of std::sort
 
-- The C++20 ``<coroutine>`` implementation has been completed.
+Deprecations and Removals
+-------------------------
+- ``unary_function`` and ``binary_function`` are no longer provided in C++17 and newer Standard modes.
+  They can be re-enabled with ``_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION``.
 
-- More C++20 features have been implemented. :doc:`Status/Cxx20` has the full
-  overview of libc++'s C++20 implementation status.
+- Several incidental transitive includes have been removed from libc++. Those
+  includes are removed based on the language version used. Incidental transitive
+  inclusions of the following headers have been removed:
 
-- More C++2b features have been implemented. :doc:`Status/Cxx2b` has the full
-  overview of libc++'s C++2b implementation status.
+  - C++11, C++14, C++17, and C++20: ``chrono``
+  - C++2b: ``algorithm``, ``array``, ``atomic``, ``bit``, ``chrono``,
+    ``climits``, ``cmath``, ``compare``, ``concepts``, ``cstdarg``, ``cstddef``,
+    ``cstdint``, ``cstdlib``, ``cstring``, ``ctime``, ``exception``,
+    ``functional``, ``initializer_list``, ``iosfwd``, ``iterator``, ``limits``,
+    ``memory``, ``new``, ``numeric``, ``optional``, ``ratio``, ``stdexcept``,
+    ``string``, ``tuple``, ``type_traits``, ``typeinfo``, ``unordered_map``,
+    ``utility``, ``variant``, ``vector``.
+
+  Users can also remove all incidental transitive includes by defining
+  ``_LIBCPP_REMOVE_TRANSITIVE_INCLUDES`` regardless of the language version
+  in use. Note that in the future, libc++ reserves the right to remove
+  incidental transitive includes more aggressively, in particular regardless
+  of the language version in use.
+
+- The legacy testing system for libc++, libc++abi, and libunwind has been removed.
+  All known clients have been migrated to the new configuration system, but please
+  reach out to the libc++ developers if you find something missing in the new
+  configuration system.
+
+- The functions ``to_chars`` and ``from_chars`` for integral types are
+  available starting with C++17. Libc++ offered these functions in C++11 and
+  C++14 as an undocumented extension. This extension makes it hard to implement
+  the C++23 paper that makes these functions ``constexpr``, therefore the
+  extension has been removed.
+
+- The ``_LIBCPP_ENABLE_CXX03_FUNCTION`` macro that allowed re-enabling the now-deprecated C++03 implementation of
+  ``std::function`` has been removed. Users who need to use ``std::function`` should switch to C++11 and above.
+
+- The contents of ``<experimental/memory_resource>`` are now deprecated since libc++ ships ``<memory_resource>`` now.
+  Please migrate to ``<memory_resource>`` instead. Per libc++'s TS deprecation policy,
+  ``<experimental/memory_resource>`` will be removed in LLVM 18.
+
+- The ``_LIBCPP_DEBUG`` macro is not honored anymore, and it is an error to try to use it. Please migrate to
+  ``_LIBCPP_ENABLE_DEBUG_MODE`` instead.
+
+Upcoming Deprecations and Removals
+----------------------------------
+- The base template for ``std::char_traits`` has been marked as deprecated and will be removed in LLVM 18. If
+  you are using ``std::char_traits`` with types other than ``char``, ``wchar_t``, ``char8_t``, ``char16_t``,
+  ``char32_t`` or a custom character type for which you specialized ``std::char_traits``, your code will stop
+  working when we remove the base template. The Standard does not mandate that a base template is provided,
+  and such a base template is bound to be incorrect for some types, which could currently cause unexpected
+  behavior while going undetected.
 
 API Changes
 -----------
+- The comparison operators on ``thread::id`` are now defined as free-standing
+  functions instead of as hidden friends, in conformance with the C++ standard.
+  Also see `issue 56187 <https://github.com/llvm/llvm-project/issues/56187>`_.
 
-- The functions ``std::atomic<T*>::fetch_(add|sub)`` and
-  ``std::atomic_fetch_(add|sub)`` no longer accept a function pointer. While
-  this is technically an API break, the invalid syntax isn't supported by
-  libstdc++ and MSVC STL.  See https://godbolt.org/z/49fvzz98d.
+- ``_LIBCPP_ENABLE_NODISCARD`` and ``_LIBCPP_DISABLE_NODISCARD_AFTER_CXX17`` are no longer respected.
+  Any standards-required ``[[nodiscard]]`` applications in C++20 are now always enabled. Any extended applications
+  are now enabled by default and can be disabled by defining ``_LIBCPP_DISABLE_NODISCARD_EXT``.
 
-- The call of the functions ``std::atomic_(add|sub)(std::atomic<T*>*, ...)``
-  with the explicit template argument ``T`` are now ill-formed. While this is
-  technically an API break, the invalid syntax isn't supported by libstdc++ and
-  MSVC STL. See https://godbolt.org/z/v9959re3v.
+- ``_LIBCPP_VERSION`` was previously defined to e.g. ``15001`` to represent LLVM 15.0.01, but this value had been
+  left undocumented. Starting with LLVM 16, ``_LIBCPP_VERSION`` will contain the version of LLVM represented as
+  ``XXYYZZ``. In other words, ``_LIBCPP_VERSION`` is gaining a digit. This should not be an issue for existing
+  code, since using e.g. ``_LIBCPP_VERSION > 15000`` will still give the right answer now that ``_LIBCPP_VERSION``
+  is defined as e.g. ``160000`` (with one more digit).
 
-  Due to this change it's now possible to call these functions with the
-  explicit template argument ``T*``. This allows using the same syntax on the
-  major Standard library implementations.
-  See https://godbolt.org/z/oEfzPhTTb.
+ABI Affecting Changes
+---------------------
+- In freestanding mode, ``atomic<small enum class>`` does not contain a lock byte anymore if the platform
+  can implement lockfree atomics for that size. More specifically, in LLVM <= 11.0.1, an ``atomic<small enum class>``
+  would not contain a lock byte. This was broken in LLVM >= 12.0.0, where it started including a lock byte despite
+  the platform supporting lockfree atomics for that size. Starting in LLVM 15.0.1, the ABI for these types has been
+  restored to what it used to be (no lock byte), which is the most efficient implementation.
 
-  Calls to these functions where the template argument was deduced by the
-  compiler are unaffected by this change.
+  This ABI break only affects users that compile with ``-ffreestanding``, and only for ``atomic<T>`` where ``T``
+  is a non-builtin type that could be lockfree on the platform. See https://llvm.org/D133377 for more details.
 
-- The functions ``std::allocator<T>::allocate`` and
-  ``std::experimental::pmr::polymorphic_allocator<T>::allocate`` now throw
-  an exception of type ``std::bad_array_new_length`` when the requested size
-  exceeds the maximum supported size, as required by the C++ standard.
-  Previously the type ``std::length_error`` was used.
-
-- Removed the nonstandard methods ``std::chrono::file_clock::to_time_t`` and
-  ``std::chrono::file_clock::from_time_t``; neither libstdc++ nor MSVC STL
-  had such methods. Instead, in C++20, you can use ``std::chrono::file_clock::from_sys``
-  and ``std::chrono::file_clock::to_sys``, which are specified in the Standard.
-  If you are not using C++20, you should move to it.
-
-- The declarations of functions ``declare_reachable``, ``undeclare_reachable``, ``declare_no_pointers``,
-  ``undeclare_no_pointers``, and ``get_pointer_safety`` have been removed not only from C++2b but
-  from all modes. Their symbols are still provided by the dynamic library for the benefit of
-  existing compiled code. All of these functions have always behaved as no-ops.
-
-- ``std::filesystem::path::iterator``, which (in our implementation) stashes
-  a ``path`` value inside itself similar to ``istream_iterator``, now sets its
-  ``reference`` type to ``path`` and its ``iterator_category`` to ``input_iterator_tag``,
-  so that it is a conforming input iterator in C++17 and a conforming
-  ``std::bidirectional_iterator`` in C++20. Before this release, it had set its
-  ``reference`` type to ``const path&`` and its ``iterator_category`` to
-  ``bidirectional_iterator_tag``, making it a non-conforming bidirectional iterator.
-  After this change, ``for`` loops of the form ``for (auto& c : path)`` must be rewritten
-  as either ``for (auto&& c : path)`` or ``for (const auto& c : path)``.
-  ``std::reverse_iterator<path::iterator>`` is no longer rejected.
-
-- Removed the nonstandard default constructor from ``std::chrono::month_weekday``.
-  You must now explicitly initialize with a ``chrono::month`` and
-  ``chrono::weekday_indexed`` instead of "meh, whenever".
-
-- C++20 requires that ``std::basic_string::reserve(n)`` never reduce the capacity
-  of the string. (For that, use ``shrink_to_fit()``.) Prior to this release, libc++'s
-  ``std::basic_string::reserve(n)`` could reduce capacity in C++17 and before, but
-  not in C++20 and later. This caused ODR violations when mixing code compiled under
-  different Standard modes. After this change, libc++'s ``std::basic_string::reserve(n)``
-  never reduces capacity, even in C++17 and before.
-  C++20 deprecates the zero-argument overload of ``std::basic_string::reserve()``,
-  but specifically permits it to reduce capacity. To avoid breaking existing code
-  assuming that ``std::basic_string::reserve()`` will shrink, libc++ maintains
-  the behavior to shrink, even though that makes ``std::basic_string::reserve()`` not
-  a synonym for ``std::basic_string::reserve(0)`` in any Standard mode anymore.
-
-- The ``<experimental/coroutine>`` header is deprecated, as is any
-  use of coroutines without C++20. Use C++20's ``<coroutine>`` header
-  instead. The ``<experimental/coroutine>`` header will be removed
-  in LLVM 15.
-
-- ``_VSTD`` is now an alias for ``std`` instead of ``std::_LIBCPP_ABI_NAMESPACE``.
-  This is technically not a functional change, except for folks that might have been
-  using ``_VSTD`` in creative ways (which has never been officially supported).
-
-ABI Changes
------------
-
-- The C++17 variable templates ``is_error_code_enum_v`` and
-  ``is_error_condition_enum_v`` are now of type ``bool`` instead of ``size_t``.
-
-- The C++03 emulation type for ``std::nullptr_t`` has been removed in favor of
-  using ``decltype(nullptr)`` in all standard modes. This is an ABI break for
-  anyone compiling in C++03 mode and who has ``std::nullptr_t`` as part of their
-  ABI. However, previously, these users' ABI would be incompatible with any other
-  binary or static archive compiled with C++11 or later. If you start seeing linker
-  errors involving ``std::nullptr_t`` against previously compiled binaries, this may
-  be the cause. You can define the ``_LIBCPP_ABI_USE_CXX03_NULLPTR_EMULATION`` macro
-  to return to the previous behavior. That macro will be removed in LLVM 15. Please
-  comment `on D109459 <https://reviews.llvm.org/D109459>`_ if you are broken by this change
-  and need to define the macro.
-
-- On Apple platforms, ``std::random_device`` is now implemented on top of ``arc4random()``
-  instead of reading from ``/dev/urandom``. Any implementation-defined token used when
-  constructing a ``std::random_device`` will now be ignored instead of interpreted as a
-  file to read entropy from.
-
-- ``std::lognormal_distribution::param_type`` used to store a data member of type
-  ``std::normal_distribution``; now this member is stored in the ``lognormal_distribution``
-  class itself, and the ``param_type`` stores only the mean and standard deviation,
-  as required by the Standard. This changes ``sizeof(std::lognormal_distribution::param_type)``.
-  You can define the ``_LIBCPP_ABI_OLD_LOGNORMAL_DISTRIBUTION`` macro to return to the
-  previous behavior. That macro will be removed in LLVM 15. Please comment
-  `on PR52906 <https://llvm.org/PR52906>`_ if you are broken by this change and need to
-  define the macro.
+- When building libc++ against newlib/picolibc, the type of ``regex_type_traits::char_class_type`` was changed to
+  ``uint16_t`` since all values of ``ctype_base::mask`` are taken. This is technically an ABI break, but including
+  ``<regex> `` has triggered a ``static_assert`` failure since libc++ 14, so it is unlikely that this causes
+  problems for existing users.
 
 Build System Changes
 --------------------
-
-- Building the libc++ shared or static library requires a C++ 20 capable compiler.
-  Consider using a Bootstrapping build to build libc++ with a fresh Clang if you
-  can't use the system compiler to build libc++ anymore.
-
-- Historically, there have been numerous ways of building libc++ and libc++abi. This has
-  led to at least 5 different ways to build the runtimes, which was impossible to
-  maintain with a good level of support. Starting with this release, libc++ and libc++abi support
-  exactly two ways of being built, which should cater to all use-cases. Furthermore,
-  these builds are as lightweight as possible and will work consistently even when targeting
-  embedded platforms, which used not to be the case. :doc:`BuildingLibcxx` describes
-  those two ways of building. Please migrate over to the appropriate build instructions
-  as soon as possible.
-
-  All other ways to build are deprecated and will not be supported in the next release.
-  We understand that making these changes can be daunting. For that reason, here's a
-  summary of how to migrate from the two most common ways to build:
-
-  - If you were rooting your CMake invocation at ``<monorepo>/llvm`` and passing ``-DLLVM_ENABLE_PROJECTS=<...>``
-    (which was the previously advertised way to build the runtimes), please simply root your CMake invocation at
-    ``<monorepo>/runtimes`` and pass ``-DLLVM_ENABLE_RUNTIMES=<...>``.
-
-  - If you were doing two CMake invocations, one rooted at ``<monorepo>/libcxx`` and one rooted at
-    ``<monorepo>/libcxxabi`` (this used to be called a "Standalone build"), please move them to a
-    single invocation like so:
-
-    .. code-block:: bash
-
-        $ cmake -S <monorepo>/libcxx -B libcxx-build <LIBCXX-OPTIONS>
-        $ cmake -S <monorepo>/libcxxabi -B libcxxabi-build <LIBCXXABI-OPTIONS>
-
-    should become
-
-    .. code-block:: bash
-
-        $ cmake -S <monorepo>/runtimes -B build -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" <LIBCXX-OPTIONS> <LIBCXXABI-OPTIONS>
-
-- Support for building the runtimes using the GCC 32 bit multilib flag (``-m32``) has been removed. Support
-  for this had been flaky for a while, and we didn't know of anyone depending on this. Instead, please perform
-  a normal cross-compilation of the runtimes using the appropriate target, such as passing the following to
-  your bootstrapping build:
-
-  .. code-block:: bash
-
-      -DLLVM_RUNTIME_TARGETS=i386-unknown-linux
-
-- Libc++, libc++abi, and libunwind will not be built with ``-fPIC`` by default anymore.
-  If you want to build those runtimes with position-independent code, please specify
-  ``-DCMAKE_POSITION_INDEPENDENT_CODE=ON`` explicitly when configuring the build, or
-  ``-DRUNTIMES_<target-name>_CMAKE_POSITION_INDEPENDENT_CODE=ON`` if using the
-  bootstrapping build.
+- Support for ``libcxx``, ``libcxxabi`` and ``libunwind`` in ``LLVM_ENABLE_PROJECTS`` has officially
+  been removed. Instead, please build according to :ref:`these instructions <build instructions>`.

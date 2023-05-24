@@ -1,8 +1,5 @@
-; RUN: opt %loadPolly -analyze -polly-ast -polly-vectorizer=polly < %s | \
-; RUN:     FileCheck %s -check-prefix=AST
-
-; RUN: opt %loadPolly -polly-codegen -polly-vectorizer=polly -S < %s | \
-; RUN:     FileCheck %s
+; RUN: opt %loadPolly -polly-vectorizer=polly -polly-print-ast -disable-output < %s | FileCheck %s -check-prefix=AST
+; RUN: opt %loadPolly -polly-vectorizer=polly -polly-codegen -S < %s | FileCheck %s
 ;
 ;    void foo(float *A) {
 ;      for (long i = 0; i < 16; i++) {
@@ -26,7 +23,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
 ; CHECK: polly.split_new_and_old
 
-define void @foo(float* %A) {
+define void @foo(ptr %A) {
 bb:
   br label %bb1
 
@@ -41,10 +38,10 @@ bb2:                                              ; preds = %bb1
   br i1 %tmp3, label %bb8, label %bb4
 
 bb4:                                              ; preds = %bb2
-  %tmp5 = getelementptr inbounds float, float* %A, i64 %i.0
-  %tmp6 = load float, float* %tmp5, align 4
+  %tmp5 = getelementptr inbounds float, ptr %A, i64 %i.0
+  %tmp6 = load float, ptr %tmp5, align 4
   %tmp7 = fadd float %tmp6, 2.000000e+00
-  store float %tmp7, float* %tmp5, align 4
+  store float %tmp7, ptr %tmp5, align 4
   br label %bb8
 
 bb8:                                              ; preds = %bb2, %bb4
@@ -53,10 +50,10 @@ bb8:                                              ; preds = %bb2, %bb4
   br i1 %tmp10, label %bb15, label %bb11
 
 bb11:                                             ; preds = %bb8
-  %tmp12 = getelementptr inbounds float, float* %A, i64 %i.0
-  %tmp13 = load float, float* %tmp12, align 4
+  %tmp12 = getelementptr inbounds float, ptr %A, i64 %i.0
+  %tmp13 = load float, ptr %tmp12, align 4
   %tmp14 = fadd float %tmp13, 3.000000e+00
-  store float %tmp14, float* %tmp12, align 4
+  store float %tmp14, ptr %tmp12, align 4
   br label %bb15
 
 bb15:                                             ; preds = %bb8, %bb11

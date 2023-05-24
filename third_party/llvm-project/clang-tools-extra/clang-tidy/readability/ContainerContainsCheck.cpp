@@ -12,9 +12,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace readability {
+namespace clang::tidy::readability {
 
 void ContainerContainsCheck::registerMatchers(MatchFinder *Finder) {
   const auto SupportedContainers = hasType(
@@ -108,10 +106,8 @@ void ContainerContainsCheck::check(const MatchFinder::MatchResult &Result) {
       Result.Nodes.getNodeAs<Expr>("positiveComparison");
   const auto *NegativeComparison =
       Result.Nodes.getNodeAs<Expr>("negativeComparison");
-  assert(
-      !PositiveComparison ||
-      !NegativeComparison &&
-          "only one of PositiveComparison or NegativeComparison should be set");
+  assert((!PositiveComparison || !NegativeComparison) &&
+         "only one of PositiveComparison or NegativeComparison should be set");
   bool Negated = NegativeComparison != nullptr;
   const auto *Comparison = Negated ? NegativeComparison : PositiveComparison;
 
@@ -139,6 +135,4 @@ void ContainerContainsCheck::check(const MatchFinder::MatchResult &Result) {
       CallEnd.getLocWithOffset(1), ComparisonEnd.getLocWithOffset(1)));
 }
 
-} // namespace readability
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::readability

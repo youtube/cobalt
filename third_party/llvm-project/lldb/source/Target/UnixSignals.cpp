@@ -13,6 +13,7 @@
 #include "Plugins/Process/Utility/NetBSDSignals.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Utility/ArchSpec.h"
+#include <optional>
 
 using namespace lldb_private;
 using namespace llvm;
@@ -22,7 +23,9 @@ UnixSignals::Signal::Signal(const char *name, bool default_suppress,
                             const char *description, const char *alias)
     : m_name(name), m_alias(alias), m_description(),
       m_suppress(default_suppress), m_stop(default_stop),
-      m_notify(default_notify) {
+      m_notify(default_notify),
+      m_default_suppress(default_suppress), m_default_stop(default_stop),
+      m_default_notify(default_notify) {
   if (description)
     m_description.assign(description);
 }
@@ -283,9 +286,9 @@ int32_t UnixSignals::GetSignalAtIndex(int32_t index) const {
 uint64_t UnixSignals::GetVersion() const { return m_version; }
 
 std::vector<int32_t>
-UnixSignals::GetFilteredSignals(llvm::Optional<bool> should_suppress,
-                                llvm::Optional<bool> should_stop,
-                                llvm::Optional<bool> should_notify) {
+UnixSignals::GetFilteredSignals(std::optional<bool> should_suppress,
+                                std::optional<bool> should_stop,
+                                std::optional<bool> should_notify) {
   std::vector<int32_t> result;
   for (int32_t signo = GetFirstSignalNumber();
        signo != LLDB_INVALID_SIGNAL_NUMBER;
@@ -298,14 +301,13 @@ UnixSignals::GetFilteredSignals(llvm::Optional<bool> should_suppress,
 
     // If any of filtering conditions are not met, we move on to the next
     // signal.
-    if (should_suppress.hasValue() &&
-        signal_suppress != should_suppress.getValue())
+    if (should_suppress && signal_suppress != *should_suppress)
       continue;
 
-    if (should_stop.hasValue() && signal_stop != should_stop.getValue())
+    if (should_stop && signal_stop != *should_stop)
       continue;
 
-    if (should_notify.hasValue() && signal_notify != should_notify.getValue())
+    if (should_notify && signal_notify != *should_notify)
       continue;
 
     result.push_back(signo);
@@ -330,3 +332,23 @@ json::Value UnixSignals::GetHitCountStatistics() const {
   }
   return std::move(json_signals);
 }
+
+void UnixSignals::Signal::Reset(bool reset_stop, bool reset_notify, 
+                                bool reset_suppress) {
+  if (reset_stop)
+    m_stop = m_default_stop;
+  if (reset_notify)
+    m_notify = m_default_notify;
+  if (reset_suppress)
+    m_suppress = m_default_suppress;
+}
+
+bool UnixSignals::ResetSignal(int32_t signo, bool reset_stop, 
+                                 bool reset_notify, bool reset_suppress) {
+    auto elem = m_signals.find(signo);
+    if (elem == m_signals.end())
+      return false;
+    (*elem).second.Reset(reset_stop, reset_notify, reset_suppress);
+    return true;
+}
+

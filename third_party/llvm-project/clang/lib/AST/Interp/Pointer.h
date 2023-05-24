@@ -246,7 +246,7 @@ public:
   }
 
   /// Returns the declaration ID.
-  llvm::Optional<unsigned> getDeclID() const { return Pointee->getDeclID(); }
+  std::optional<unsigned> getDeclID() const { return Pointee->getDeclID(); }
 
   /// Returns the byte offset from the start.
   unsigned getByteOffset() const {
@@ -298,7 +298,7 @@ public:
 
   /// Prints the pointer.
   void print(llvm::raw_ostream &OS) const {
-    OS << "{" << Base << ", " << Offset << ", ";
+    OS << Pointee << " {" << Base << ", " << Offset << ", ";
     if (Pointee)
       OS << Pointee->getSize();
     else

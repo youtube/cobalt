@@ -57,6 +57,8 @@ private:
                         bool KernelOrKext) const;
   void AddARM64TargetArgs(const llvm::opt::ArgList &Args,
                           llvm::opt::ArgStringList &CmdArgs) const;
+  void AddLoongArchTargetArgs(const llvm::opt::ArgList &Args,
+                              llvm::opt::ArgStringList &CmdArgs) const;
   void AddMIPSTargetArgs(const llvm::opt::ArgList &Args,
                          llvm::opt::ArgStringList &CmdArgs) const;
   void AddPPCTargetArgs(const llvm::opt::ArgList &Args,
@@ -170,6 +172,19 @@ public:
                     const char *LinkingOutput) const override;
 };
 
+/// Offload binary tool.
+class LLVM_LIBRARY_VISIBILITY OffloadPackager final : public Tool {
+public:
+  OffloadPackager(const ToolChain &TC)
+      : Tool("Offload::Packager", "clang-offload-packager", TC) {}
+
+  bool hasIntegratedCPP() const override { return false; }
+  void ConstructJob(Compilation &C, const JobAction &JA,
+                    const InputInfo &Output, const InputInfoList &Inputs,
+                    const llvm::opt::ArgList &TCArgs,
+                    const char *LinkingOutput) const override;
+};
+
 /// Linker wrapper tool.
 class LLVM_LIBRARY_VISIBILITY LinkerWrapper final : public Tool {
   const Tool *Linker;
@@ -184,6 +199,12 @@ public:
                     const llvm::opt::ArgList &TCArgs,
                     const char *LinkingOutput) const override;
 };
+
+enum class DwarfFissionKind { None, Split, Single };
+
+DwarfFissionKind getDebugFissionKind(const Driver &D,
+                                     const llvm::opt::ArgList &Args,
+                                     llvm::opt::Arg *&Arg);
 
 } // end namespace tools
 

@@ -66,6 +66,7 @@ def sub_vrm1_5 : ComposedSubRegIndex<sub_vrm2_2, sub_vrm1_1>;
 def sub_vrm1_6 : ComposedSubRegIndex<sub_vrm2_3, sub_vrm1_0>;
 def sub_vrm1_7 : ComposedSubRegIndex<sub_vrm2_3, sub_vrm1_1>;
 
+def sub_32_hi  : SubRegIndex<32, 32>;
 } // Namespace = "RISCV"
 
 // Integer registers
@@ -76,6 +77,7 @@ def sub_vrm1_7 : ComposedSubRegIndex<sub_vrm2_3, sub_vrm1_1>;
 // instructions.
 
 let RegAltNameIndices = [ABIRegAltName] in {
+  let isConstant = true in
   def X0  : RISCVReg<0, "x0", ["zero"]>, DwarfRegNum<[0]>;
   let CostPerUse = [0, 1] in {
   def X1  : RISCVReg<1, "x1", ["ra"]>, DwarfRegNum<[1]>;
@@ -457,9 +459,16 @@ let RegAltNameIndices = [ABIRegAltName] in {
   def VL     : RISCVReg<0, "vl", ["vl"]>;
   def VXSAT  : RISCVReg<0, "vxsat", ["vxsat"]>;
   def VXRM   : RISCVReg<0, "vxrm", ["vxrm"]>;
+  let isConstant = true in
   def VLENB  : RISCVReg<0, "vlenb", ["vlenb"]>,
                DwarfRegNum<[!add(4096, SysRegVLENB.Encoding)]>;
 }
+
+def VCSR : RegisterClass<"RISCV", [XLenVT], 32,
+                          (add VTYPE, VL, VLENB)> {
+  let RegInfos = XLenRI;
+}
+
 
 foreach m = [1, 2, 4] in {
   foreach n = NFList<m>.L in {
@@ -481,58 +490,80 @@ class VReg<list<ValueType> regTypes, dag regList, int Vlmul>
   int Size = !mul(Vlmul, 64);
 }
 
-def VR : VReg<[vint8m1_t, vint16m1_t, vint32m1_t, vint64m1_t,
-               vfloat16m1_t, vfloat32m1_t, vfloat64m1_t,
-               vint8mf2_t, vint8mf4_t, vint8mf8_t,
-               vint16mf2_t, vint16mf4_t, vint32mf2_t,
-               vfloat16mf4_t, vfloat16mf2_t, vfloat32mf2_t,
-               vbool64_t, vbool32_t, vbool16_t, vbool8_t, vbool4_t,
-               vbool2_t, vbool1_t],
-           (add (sequence "V%u", 8, 31),
-                (sequence "V%u", 0, 7)), 1>;
-
-def VRNoV0 : VReg<[vint8m1_t, vint16m1_t, vint32m1_t, vint64m1_t,
-                   vfloat16m1_t, vfloat32m1_t, vfloat64m1_t,
-                   vint8mf2_t, vint8mf4_t, vint8mf8_t,
-                   vint16mf2_t, vint16mf4_t, vint32mf2_t,
-                   vfloat16mf4_t, vfloat16mf2_t, vfloat32mf2_t,
-                   vbool64_t, vbool32_t, vbool16_t, vbool8_t, vbool4_t,
-                   vbool2_t, vbool1_t],
-               (add (sequence "V%u", 8, 31),
-                    (sequence "V%u", 1, 7)), 1>;
-
-def VRM2 : VReg<[vint8m2_t, vint16m2_t, vint32m2_t, vint64m2_t,
-                 vfloat16m2_t, vfloat32m2_t, vfloat64m2_t],
-             (add (sequence "V%uM2", 8, 31, 2),
-                  (sequence "V%uM2", 0, 7, 2)), 2>;
-
-def VRM2NoV0 : VReg<[vint8m2_t, vint16m2_t, vint32m2_t, vint64m2_t,
-                     vfloat16m2_t, vfloat32m2_t, vfloat64m2_t],
-             (add (sequence "V%uM2", 8, 31, 2),
-                  (sequence "V%uM2", 2, 7, 2)), 2>;
-
-def VRM4 : VReg<[vint8m4_t, vint16m4_t, vint32m4_t, vint64m4_t,
-                 vfloat16m4_t, vfloat32m4_t, vfloat64m4_t],
-             (add V8M4, V12M4, V16M4, V20M4, V24M4, V28M4, V0M4, V4M4), 4>;
-
-def VRM4NoV0 : VReg<[vint8m4_t, vint16m4_t, vint32m4_t, vint64m4_t,
-                     vfloat16m4_t, vfloat32m4_t, vfloat64m4_t],
-             (add V8M4, V12M4, V16M4, V20M4, V24M4, V28M4, V4M4), 4>;
-
-def VRM8 : VReg<[vint8m8_t, vint16m8_t, vint32m8_t, vint64m8_t,
-                 vfloat16m8_t, vfloat32m8_t, vfloat64m8_t],
-             (add V8M8, V16M8, V24M8, V0M8), 8>;
-
-def VRM8NoV0 : VReg<[vint8m8_t, vint16m8_t, vint32m8_t, vint64m8_t,
-                     vfloat16m8_t, vfloat32m8_t, vfloat64m8_t],
-             (add V8M8, V16M8, V24M8), 8>;
-
 defvar VMaskVTs = [vbool1_t, vbool2_t, vbool4_t, vbool8_t, vbool16_t,
                    vbool32_t, vbool64_t];
+
+defvar VM1VTs = [vint8m1_t, vint16m1_t, vint32m1_t, vint64m1_t,
+                 vfloat16m1_t, vfloat32m1_t, vfloat64m1_t,
+                 vint8mf2_t, vint8mf4_t, vint8mf8_t,
+                 vint16mf2_t, vint16mf4_t, vint32mf2_t,
+                 vfloat16mf4_t, vfloat16mf2_t, vfloat32mf2_t];
+
+defvar VM2VTs = [vint8m2_t, vint16m2_t, vint32m2_t, vint64m2_t,
+                 vfloat16m2_t, vfloat32m2_t, vfloat64m2_t];
+
+defvar VM4VTs = [vint8m4_t, vint16m4_t, vint32m4_t, vint64m4_t,
+                 vfloat16m4_t, vfloat32m4_t, vfloat64m4_t];
+
+defvar VM8VTs = [vint8m8_t, vint16m8_t, vint32m8_t, vint64m8_t,
+                 vfloat16m8_t, vfloat32m8_t, vfloat64m8_t];
+
+def VR : VReg<!listconcat(VM1VTs, VMaskVTs),
+              (add (sequence "V%u", 8, 31),
+                   (sequence "V%u", 0, 7)), 1>;
+
+def VRNoV0 : VReg<!listconcat(VM1VTs, VMaskVTs),
+                  (add (sequence "V%u", 8, 31),
+                       (sequence "V%u", 1, 7)), 1>;
+
+def VRM2 : VReg<VM2VTs, (add (sequence "V%uM2", 8, 31, 2),
+                             (sequence "V%uM2", 0, 7, 2)), 2>;
+
+def VRM2NoV0 : VReg<VM2VTs, (add (sequence "V%uM2", 8, 31, 2),
+                                 (sequence "V%uM2", 2, 7, 2)), 2>;
+
+def VRM4 : VReg<VM4VTs,
+             (add V8M4, V12M4, V16M4, V20M4, V24M4, V28M4, V0M4, V4M4), 4>;
+
+def VRM4NoV0 : VReg<VM4VTs,
+             (add V8M4, V12M4, V16M4, V20M4, V24M4, V28M4, V4M4), 4>;
+
+def VRM8 : VReg<VM8VTs, (add V8M8, V16M8, V24M8, V0M8), 8>;
+
+def VRM8NoV0 : VReg<VM8VTs, (add V8M8, V16M8, V24M8), 8>;
 
 def VMV0 : RegisterClass<"RISCV", VMaskVTs, 64, (add V0)> {
   let Size = 64;
 }
+
+let RegInfos = XLenRI in {
+def GPRF16  : RegisterClass<"RISCV", [f16], 16, (add GPR)>;
+def GPRF32  : RegisterClass<"RISCV", [f32], 32, (add GPR)>;
+def GPRF64  : RegisterClass<"RISCV", [f64], 64, (add GPR)>;
+} // RegInfos = XLenRI
+
+let RegAltNameIndices = [ABIRegAltName] in {
+  foreach Index = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22,
+                   24, 26, 28, 30] in {
+    defvar Reg = !cast<Register>("X"#Index);
+    def X#Index#_PD : RISCVRegWithSubRegs<Index, Reg.AsmName,
+                                          [!cast<Register>("X"#Index),
+                                           !cast<Register>("X"#!add(Index, 1))],
+                                           Reg.AltNames> {
+      let SubRegIndices = [sub_32, sub_32_hi];
+    }
+  }
+}
+
+let RegInfos = RegInfoByHwMode<[RV64], [RegInfo<64, 64, 64>]> in
+def GPRPF64 : RegisterClass<"RISCV", [f64], 64, (add
+    X10_PD, X12_PD, X14_PD, X16_PD,
+    X6_PD,
+    X28_PD, X30_PD,
+    X8_PD,
+    X18_PD, X20_PD, X22_PD, X24_PD, X26_PD,
+    X0_PD, X2_PD, X4_PD
+)>;
 
 // The register class is added for inline assembly for vector mask types.
 def VM : VReg<VMaskVTs,

@@ -11,6 +11,7 @@
 
 #include "../ClangTidyCheck.h"
 #include "llvm/ADT/StringSet.h"
+#include <optional>
 
 namespace clang {
 namespace tidy {
@@ -21,7 +22,7 @@ namespace readability {
 /// of the function.
 ///
 /// For the user-facing documentation see:
-/// http://clang.llvm.org/extra/clang-tidy/checks/readability-suspicious-call-argument.html
+/// http://clang.llvm.org/extra/clang-tidy/checks/readability/suspicious-call-argument.html
 class SuspiciousCallArgumentCheck : public ClangTidyCheck {
   enum class Heuristic {
     Equality,
@@ -71,7 +72,7 @@ private:
   llvm::StringMap<std::string> AbbreviationDictionary;
 
   bool isHeuristicEnabled(Heuristic H) const;
-  Optional<int8_t> getBound(Heuristic H, BoundKind BK) const;
+  std::optional<int8_t> getBound(Heuristic H, BoundKind BK) const;
 
   // Runtime information of the currently analyzed function call.
   SmallVector<QualType, SmallVectorSize> ArgTypes;

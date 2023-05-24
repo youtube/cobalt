@@ -6,14 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "__config"
-#include "fstream"
-#include "ios"
-#include "istream"
-#include "ostream"
-#include "sstream"
-#include "streambuf"
-
+#include <__config>
+#include <fstream>
+#include <ios>
+#include <istream>
+#include <ostream>
+#include <sstream>
+#include <streambuf>
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -37,9 +36,17 @@ template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_stringbuf<char>;
 template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_stringstream<char>;
 template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_ostringstream<char>;
 template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_istringstream<char>;
+
+#ifndef _LIBCPP_HAS_NO_FSTREAM
 template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_ifstream<char>;
 template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_ofstream<char>;
 template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_filebuf<char>;
+#endif
+
+#if defined(STARBOARD)
+_ALIGNAS_TYPE (ostream) _LIBCPP_FUNC_VIS char cout[sizeof(ostream)];
+_ALIGNAS_TYPE (ostream) _LIBCPP_FUNC_VIS char cerr[sizeof(ostream)];
+#endif
 
 // Add more here if needed...
 

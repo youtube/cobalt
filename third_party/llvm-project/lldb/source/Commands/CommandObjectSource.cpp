@@ -14,6 +14,7 @@
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/SourceManager.h"
 #include "lldb/Host/OptionParser.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionValueFileColonLine.h"
@@ -24,6 +25,7 @@
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Utility/FileSpec.h"
+#include <optional>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -36,7 +38,7 @@ using namespace lldb_private;
 class CommandObjectSourceInfo : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -97,7 +99,7 @@ class CommandObjectSourceInfo : public CommandObjectParsed {
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_source_info_options);
+      return llvm::ArrayRef(g_source_info_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -538,14 +540,6 @@ protected:
   }
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    const size_t argc = command.GetArgumentCount();
-
-    if (argc != 0) {
-      result.AppendErrorWithFormat("'%s' takes no arguments, only flags.\n",
-                                   GetCommandName().str().c_str());
-      return false;
-    }
-
     Target *target = m_exe_ctx.GetTargetPtr();
     if (target == nullptr) {
       target = GetDebugger().GetSelectedTarget().get();
@@ -623,7 +617,7 @@ protected:
 class CommandObjectSourceList : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -702,7 +696,7 @@ class CommandObjectSourceList : public CommandObjectParsed {
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_source_list_options);
+      return llvm::ArrayRef(g_source_list_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -728,8 +722,8 @@ public:
 
   Options *GetOptions() override { return &m_options; }
 
-  const char *GetRepeatCommand(Args &current_command_args,
-                               uint32_t index) override {
+  std::optional<std::string> GetRepeatCommand(Args &current_command_args,
+                                              uint32_t index) override {
     // This is kind of gross, but the command hasn't been parsed yet so we
     // can't look at the option values for this invocation...  I have to scan
     // the arguments directly.
@@ -738,13 +732,13 @@ public:
           return e.ref() == "-r" || e.ref() == "--reverse";
         });
     if (iter == current_command_args.end())
-      return m_cmd_name.c_str();
+      return m_cmd_name;
 
     if (m_reverse_name.empty()) {
       m_reverse_name = m_cmd_name;
       m_reverse_name.append(" -r");
     }
-    return m_reverse_name.c_str();
+    return m_reverse_name;
   }
 
 protected:
@@ -755,7 +749,7 @@ protected:
     SourceInfo(ConstString name, const LineEntry &line_entry)
         : function(name), line_entry(line_entry) {}
 
-    SourceInfo() {}
+    SourceInfo() = default;
 
     bool IsValid() const { return (bool)function && line_entry.IsValid(); }
 
@@ -924,14 +918,6 @@ protected:
   }
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
-    const size_t argc = command.GetArgumentCount();
-
-    if (argc != 0) {
-      result.AppendErrorWithFormat("'%s' takes no arguments, only flags.\n",
-                                   GetCommandName().str().c_str());
-      return false;
-    }
-
     Target *target = m_exe_ctx.GetTargetPtr();
 
     if (!m_options.symbol_name.empty()) {
