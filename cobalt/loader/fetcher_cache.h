@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_FETCHER_CACHE_H_
 #define COBALT_LOADER_FETCHER_CACHE_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -25,6 +26,7 @@
 #include "cobalt/loader/loader.h"
 #include "net/base/linked_hash_map.h"
 #include "net/http/http_response_headers.h"
+#include "starboard/thread.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -32,7 +34,7 @@ namespace cobalt {
 namespace loader {
 
 // Manages a cache for data fetched by Fetchers.
-class FetcherCache {
+class FetcherCache : public base::RefCountedThreadSafe<FetcherCache> {
  public:
   FetcherCache(const char* name, size_t capacity);
   ~FetcherCache();
@@ -40,6 +42,13 @@ class FetcherCache {
   Loader::FetcherCreator GetFetcherCreator(
       const GURL& url, const Loader::FetcherCreator& real_fetcher_creator);
   void NotifyResourceRequested(const std::string& url);
+
+  // To signal the imminent destruction of this object.  If everything is
+  // working as expected, there shouldn't be any other reference of this object,
+  // and all usages of this object should be completed.
+  // TODO(b/270993319): For debugging cache integrity issues in production only,
+  //                    remove after identifying the root cause.
+  void DestroySoon();
 
  private:
   class CacheEntry;
@@ -50,9 +59,14 @@ class FetcherCache {
   void OnFetchSuccess(const std::string& url,
                       const scoped_refptr<net::HttpResponseHeaders>& headers,
                       const Origin& last_url_origin,
-                      bool did_fail_from_transient_error, std::string* data);
+                      bool did_fail_from_transient_error, std::string data);
 
   THREAD_CHECKER(thread_checker_);
+
+  // TODO(b/270993319): For debugging cache integrity issues in production only,
+  //                    remove after identifying the root cause.
+  const SbThreadId thread_id_ = SbThreadGetId();
+  std::atomic_bool destroy_soon_called_{false};
 
   const size_t capacity_;
   size_t total_size_ = 0;

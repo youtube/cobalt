@@ -31,7 +31,13 @@ LoaderFactory::LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
       debugger_hooks_(debugger_hooks),
       resource_provider_(resource_provider) {
   if (encoded_image_cache_capacity > 0) {
-    fetcher_cache_.reset(new FetcherCache(name, encoded_image_cache_capacity));
+    fetcher_cache_ = new FetcherCache(name, encoded_image_cache_capacity);
+  }
+}
+
+LoaderFactory::~LoaderFactory() {
+  if (fetcher_cache_) {
+    fetcher_cache_->DestroySoon();
   }
 }
 
