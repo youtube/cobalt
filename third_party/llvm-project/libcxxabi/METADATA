@@ -1,0 +1,21 @@
+name: "libcxxabi"
+description:
+  "Filtered subtree at third_party/llvm-project/libcxxabi."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "https://cobalt.googlesource.com/third_party/llvm-project/libcxxabi_filtered_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/llvm/llvm-project.git"
+  }
+  # Closest commit hash to llvm-project's 39da55e8f548a11f7dadefa73ea73d809a5f1729.
+  version: "ae56bdc07c05dc3920476eef7adad00fd2548782"
+  last_upgrade_date {
+    year: 2023
+    month: 1
+    day: 17
+  }
+}
