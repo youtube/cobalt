@@ -196,6 +196,7 @@ class ApplicationUwp : public shared::starboard::Application,
   // TODO: Check if |window_| requires mutex or that it is safely accessed
   // The single open window, if any.
   SbWindow window_;
+  SbWindowSize window_size_;
   Platform::Agile<Windows::UI::Core::CoreWindow> core_window_;
 
   Platform::Agile<Windows::UI::Core::CoreDispatcher> dispatcher_;

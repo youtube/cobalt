@@ -850,6 +850,9 @@ ApplicationUwp::ApplicationUwp()
 #endif  // SB_API_VERSION >= 15
       localized_strings_(SbSystemGetLocaleId()),
       device_id_(MakeDeviceId()) {
+  SbWindowOptions options;
+  SbWindowSetDefaultOptions(&options);
+  window_size_ = options.size;
   analog_thumbstick_thread_.reset(new AnalogThumbstickThread(this));
 }
 
@@ -887,9 +890,9 @@ SbWindow ApplicationUwp::CreateWindowForUWP(const SbWindowOptions*) {
     watcher_->CreateWatcher();
   }
 
-  SbWindowSize size = GetPreferredWindowSize();
+  window_size_ = GetPreferredWindowSize();
 
-  window_ = new SbWindowPrivate(size.width, size.height);
+  window_ = new SbWindowPrivate(window_size_.width, window_size_.height);
   return window_;
 }
 
@@ -898,7 +901,7 @@ SbWindowSize ApplicationUwp::GetVisibleAreaSize() {
   if (SbWindowGetSize(window_, &size)) {
     return size;
   }
-  return GetPreferredWindowSize();
+  return window_size_;
 }
 
 SbWindowSize ApplicationUwp::GetPreferredWindowSize() {
