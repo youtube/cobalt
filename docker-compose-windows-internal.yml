@@ -27,7 +27,7 @@ x-common-definitions: &common-definitions
   volumes:
     - ${COBALT_SRC:-.}:c:/code/
     - ${SCCACHE_DIR:-container-sccache}:c:/root/sccache/
-  cpus: ${DOCKER_CPUS:-12}
+  cpus: ${DOCKER_CPUS:-20}
   mem_limit: ${DOCKER_MEMLIMIT:-100000M}
 
 x-shared-build-env: &shared-build-env
@@ -142,6 +142,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: ps4
+      VISUAL_STUDIO_VERSION: "2022"
     image: cobalt-build-ps4
     depends_on:
       - cobalt-build-vs2022-win-internal
@@ -157,6 +158,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: ps5
+      VISUAL_STUDIO_VERSION: "2022"
     image: cobalt-build-ps5
     depends_on:
       - cobalt-build-vs2022-win-internal
@@ -173,6 +175,7 @@ services:
       <<: *shared-build-env
       PLATFORM: xb1
       COBALT_CONCURRENT_LINKS: ${COBALT_CONCURRENT_LINKS:-1}
+      VISUAL_STUDIO_VERSION: "2022"
     image: cobalt-build-xb1
     depends_on:
       - cobalt-build-vs2022-win-internal
@@ -188,6 +191,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: nxswitch
+      VISUAL_STUDIO_VERSION: "2022"
     image: cobalt-build-nxswitch
     depends_on:
       - cobalt-build-vs2022-win-internal
