@@ -27,7 +27,7 @@ x-common-definitions: &common-definitions
   volumes:
     - ${COBALT_SRC:-.}:c:/code/
     - ${SCCACHE_DIR:-container-sccache}:c:/root/sccache/
-  cpus: ${DOCKER_CPUS:-20}
+  cpus: ${DOCKER_CPUS:-16}
   mem_limit: ${DOCKER_MEMLIMIT:-100000M}
 
 x-shared-build-env: &shared-build-env
