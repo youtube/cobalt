@@ -47,6 +47,7 @@ class LoaderFactory : public ScriptLoaderFactory {
                 const base::DebuggerHooks& debugger_hooks,
                 size_t encoded_image_cache_capacity,
                 base::ThreadPriority loader_thread_priority);
+  ~LoaderFactory();
 
   // Creates a loader that fetches and decodes an image.
   std::unique_ptr<Loader> CreateImageLoader(
@@ -108,7 +109,7 @@ class LoaderFactory : public ScriptLoaderFactory {
   // Used to cache the fetched raw data.  Note that currently the cache is only
   // used to cache Image data.  We may introduce more caches once we want to
   // cache fetched data for other resource types.
-  std::unique_ptr<FetcherCache> fetcher_cache_;
+  scoped_refptr<FetcherCache> fetcher_cache_;
 
   // Used with CLOG to report errors with the image source.
   const base::DebuggerHooks& debugger_hooks_;
