@@ -236,9 +236,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
     Microsoft::WRL::ComPtr<ID3D12Device> d3d12device;
+    Microsoft::WRL::ComPtr<ID3D12Heap> d3d12buffer_heap;
     void* d3d12queue = nullptr;
     if (!uwp::ExtendedResourcesManager::GetInstance()->GetD3D12Objects(
-            &d3d12device, &d3d12queue)) {
+            &d3d12device, &d3d12buffer_heap, &d3d12queue)) {
       // Somehow extended resources get lost.  Returns directly to trigger an
       // error to the player.
       *error_message =
@@ -248,6 +249,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       return false;
     }
     SB_DCHECK(d3d12device);
+    SB_DCHECK(d3d12buffer_heap);
     SB_DCHECK(d3d12queue);
 
 #if defined(INTERNAL_BUILD)
@@ -258,14 +260,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       video_decoder->reset(new GpuVp9VideoDecoder(
           creation_parameters.decode_target_graphics_context_provider(),
           creation_parameters.video_stream_info(), is_hdr_video, d3d12device,
-          d3d12queue));
+          d3d12buffer_heap, d3d12queue));
     }
 
     if (video_codec == kSbMediaVideoCodecAv1) {
       video_decoder->reset(new GpuAv1VideoDecoder(
           creation_parameters.decode_target_graphics_context_provider(),
           creation_parameters.video_stream_info(), is_hdr_video, d3d12device,
-          d3d12queue));
+          d3d12buffer_heap, d3d12queue));
     }
 #endif  // defined(INTERNAL_BUILD)
 

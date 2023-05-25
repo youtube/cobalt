@@ -47,8 +47,10 @@ class ExtendedResourcesManager {
   void ReleaseExtendedResources();
   void Quit();
 
-  // Returns true when the d3d12 device and command queue can be used.
+  // Returns true when the d3d12 device, buffer heap
+  // and command queue can be used.
   bool GetD3D12Objects(Microsoft::WRL::ComPtr<ID3D12Device>* device,
+                       Microsoft::WRL::ComPtr<ID3D12Heap>* buffer_heap,
                        void** command_queue);
 
   bool IsGpuDecoderReady() const {
@@ -91,6 +93,8 @@ class ExtendedResourcesManager {
   Queue<Event> event_queue_;
   Microsoft::WRL::ComPtr<ID3D12Device> d3d12device_;
   Microsoft::WRL::ComPtr<ID3D12CommandQueue> d3d12queue_;
+  // heap for frame buffers (for the decoder and output queue) memory allocation
+  Microsoft::WRL::ComPtr<ID3D12Heap> d3d12FrameBuffersHeap_;
 
   // This is set to true when a release of extended resources is requested.
   // Anything delaying the release should be expedited when this is set.
