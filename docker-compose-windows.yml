@@ -23,7 +23,11 @@ x-common-definitions: &common-definitions
   volumes:
     - ${COBALT_SRC:-.}:c:/code/
     - ${SCCACHE_DIR:-container-sccache}:c:/root/sccache/
+<<<<<<< HEAD
   cpus: ${DOCKER_CPUS:-12}
+=======
+  cpus: ${DOCKER_CPUS:-16}
+>>>>>>> 77b6283bcc9 (Fix docker GCB builds to use 16 cores limit (#466))
   mem_limit: ${DOCKER_MEMLIMIT:-100000M}
 
 x-shared-build-env: &shared-build-env
