@@ -33,7 +33,7 @@ class CachedFetcherHandler : public Fetcher::Handler {
       const std::string& url,
       const scoped_refptr<net::HttpResponseHeaders>& headers,
       const Origin& last_url_origin, bool did_fail_from_transient_error,
-      std::string* data)>
+      std::string data)>
       SuccessCallback;
 
   CachedFetcherHandler(const std::string& url, Fetcher::Handler* handler,
@@ -52,6 +52,7 @@ class CachedFetcherHandler : public Fetcher::Handler {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!wrapping_fetcher_);
     DCHECK(wrapping_fetcher);
+
     wrapping_fetcher_ = wrapping_fetcher;
   }
 
@@ -63,6 +64,7 @@ class CachedFetcherHandler : public Fetcher::Handler {
     // TODO: Respect HttpResponseHeaders::GetMaxAgeValue().
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(wrapping_fetcher_);
+
     auto response = handler_->OnResponseStarted(wrapping_fetcher_, headers);
     if (response == kLoadResponseContinue && headers) {
       headers_ = headers;
@@ -77,6 +79,7 @@ class CachedFetcherHandler : public Fetcher::Handler {
   void OnReceived(Fetcher*, const char* data, size_t size) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(wrapping_fetcher_);
+
     data_.insert(data_.end(), data, data + size);
     handler_->OnReceived(wrapping_fetcher_, data, size);
   }
@@ -84,6 +87,7 @@ class CachedFetcherHandler : public Fetcher::Handler {
   void OnReceivedPassed(Fetcher*, std::unique_ptr<std::string> data) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(wrapping_fetcher_);
+
     data_.insert(data_.end(), data->begin(), data->end());
     handler_->OnReceivedPassed(wrapping_fetcher_, std::move(data));
   }
@@ -91,15 +95,17 @@ class CachedFetcherHandler : public Fetcher::Handler {
   void OnDone(Fetcher*) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(wrapping_fetcher_);
+
     handler_->OnDone(wrapping_fetcher_);
     on_success_callback_.Run(
         url_, headers_, wrapping_fetcher_->last_url_origin(),
-        wrapping_fetcher_->did_fail_from_transient_error(), &data_);
+        wrapping_fetcher_->did_fail_from_transient_error(), std::move(data_));
   }
 
   void OnError(Fetcher*, const std::string& error) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(wrapping_fetcher_);
+
     handler_->OnError(wrapping_fetcher_, error);
   }
 
@@ -184,13 +190,12 @@ class FetcherCache::CacheEntry {
  public:
   CacheEntry(const scoped_refptr<net::HttpResponseHeaders>& headers,
              const Origin& last_url_origin, bool did_fail_from_transient_error,
-             std::string* data)
+             std::string data)
       : headers_(headers),
         last_url_origin_(last_url_origin),
-        did_fail_from_transient_error_(did_fail_from_transient_error) {
-    DCHECK(data);
-    data_.swap(*data);
-  }
+        did_fail_from_transient_error_(did_fail_from_transient_error),
+        data_(std::move(data)),
+        capacity_(data_.capacity()) {}
 
   const scoped_refptr<net::HttpResponseHeaders>& headers() const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -213,16 +218,24 @@ class FetcherCache::CacheEntry {
   }
   size_t capacity() const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    return data_.capacity();
+    CHECK_EQ(capacity_, data_.capacity());
+    return capacity_;
   }
 
  private:
+  CacheEntry(const CacheEntry&) = delete;
+  CacheEntry& operator=(const CacheEntry&) = delete;
+
   THREAD_CHECKER(thread_checker_);
 
   scoped_refptr<net::HttpResponseHeaders> headers_;
-  Origin last_url_origin_;
-  bool did_fail_from_transient_error_;
-  std::string data_;
+  const Origin last_url_origin_;
+  const bool did_fail_from_transient_error_;
+  const std::string data_;
+
+  // TODO(b/270993319): For debugging cache integrity issues in production only,
+  //                    remove after identifying the root cause.
+  const size_t capacity_;
 };
 
 FetcherCache::FetcherCache(const char* name, size_t capacity)
@@ -236,12 +249,15 @@ FetcherCache::FetcherCache(const char* name, size_t capacity)
 
 FetcherCache::~FetcherCache() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_EQ(thread_id_, SbThreadGetId());
+  CHECK(destroy_soon_called_);
 
   while (!cache_entries_.empty()) {
     delete cache_entries_.begin()->second;
-    cache_entries_.erase(cache_entries_.begin());
+    cache_entries_.pop_front();
   }
 
+  total_size_ = 0;
   memory_size_in_bytes_ = 0;
   count_resources_cached_ = 0;
 }
@@ -251,12 +267,13 @@ Loader::FetcherCreator FetcherCache::GetFetcherCreator(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!real_fetcher_creator.is_null());
 
-  return base::Bind(&FetcherCache::CreateCachedFetcher, base::Unretained(this),
-                    url, real_fetcher_creator);
+  return base::Bind(&FetcherCache::CreateCachedFetcher, this, url,
+                    real_fetcher_creator);
 }
 
 void FetcherCache::NotifyResourceRequested(const std::string& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_EQ(thread_id_, SbThreadGetId());
 
   auto iter = cache_entries_.find(url);
   if (iter != cache_entries_.end()) {
@@ -266,12 +283,25 @@ void FetcherCache::NotifyResourceRequested(const std::string& url) {
   }
 }
 
+void FetcherCache::DestroySoon() {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  CHECK(HasOneRef());
+#endif  //! defined(COBALT_BUILD_TYPE_GOLD)
+
+  destroy_soon_called_ = true;
+}
+
 std::unique_ptr<Fetcher> FetcherCache::CreateCachedFetcher(
     const GURL& url, const Loader::FetcherCreator& real_fetcher_creator,
     Fetcher::Handler* handler) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!real_fetcher_creator.is_null());
   DCHECK(handler);
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  CHECK(!destroy_soon_called_);
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+  CHECK_EQ(thread_id_, SbThreadGetId());
 
   auto iterator = cache_entries_.find(url.spec());
   if (iterator != cache_entries_.end()) {
@@ -285,8 +315,7 @@ std::unique_ptr<Fetcher> FetcherCache::CreateCachedFetcher(
   }
 
   std::unique_ptr<CachedFetcherHandler> cached_handler(new CachedFetcherHandler(
-      url.spec(), handler,
-      base::Bind(&FetcherCache::OnFetchSuccess, base::Unretained(this))));
+      url.spec(), handler, base::Bind(&FetcherCache::OnFetchSuccess, this)));
   return std::unique_ptr<Fetcher>(
       new OngoingFetcher(std::move(cached_handler), real_fetcher_creator));
 }
@@ -295,32 +324,44 @@ void FetcherCache::OnFetchSuccess(
     const std::string& url,
     const scoped_refptr<net::HttpResponseHeaders>& headers,
     const Origin& last_url_origin, bool did_fail_from_transient_error,
-    std::string* data) {
+    std::string data) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(data);
 
-  if (data->size() <= capacity_) {
-    auto entry = new CacheEntry(headers, last_url_origin,
-                                did_fail_from_transient_error, data);
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  CHECK(!destroy_soon_called_);
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+  CHECK_EQ(thread_id_, SbThreadGetId());
 
-    bool inserted = cache_entries_.insert(std::make_pair(url, entry)).second;
-    if (!inserted) {
-      // The resource is already cached.
-      delete entry;
-      return;
-    }
-
-    total_size_ += entry->capacity();
-    while (total_size_ > capacity_) {
-      DCHECK(!cache_entries_.empty());
-      total_size_ -= cache_entries_.begin()->second->capacity();
-      delete cache_entries_.begin()->second;
-      cache_entries_.erase(cache_entries_.begin());
-      --count_resources_cached_;
-    }
-    ++count_resources_cached_;
-    memory_size_in_bytes_ = total_size_;
+  if (data.capacity() > capacity_) {
+    return;
   }
+
+  auto entry = new CacheEntry(headers, last_url_origin,
+                              did_fail_from_transient_error, std::move(data));
+
+  bool inserted = cache_entries_.insert(std::make_pair(url, entry)).second;
+  if (!inserted) {
+    // The resource is already cached.
+    delete entry;
+    return;
+  }
+
+  total_size_ += entry->capacity();
+  ++count_resources_cached_;
+
+  while (total_size_ > capacity_) {
+    // TODO(b/270993319): For debugging cache integrity issues in production
+    //                    only, remove after identifying the root cause.
+    CHECK(!cache_entries_.empty());
+    CHECK_GE(total_size_, cache_entries_.begin()->second->capacity());
+
+    total_size_ -= cache_entries_.begin()->second->capacity();
+    delete cache_entries_.begin()->second;
+    cache_entries_.pop_front();
+    --count_resources_cached_;
+  }
+
+  memory_size_in_bytes_ = total_size_;
 }
 
 }  // namespace loader
