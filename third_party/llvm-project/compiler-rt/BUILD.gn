@@ -75,6 +75,7 @@ static_library("compiler_rt") {
       "lib/builtins/fixtfsi.c",
       "lib/builtins/floatsitf.c",
       "lib/builtins/floatunsitf.c",
+      "lib/builtins/riscv/fp_mode.c",
       "lib/builtins/multf3.c",
       "lib/builtins/subtf3.c",
       "lib/builtins/trunctfdf2.c",
