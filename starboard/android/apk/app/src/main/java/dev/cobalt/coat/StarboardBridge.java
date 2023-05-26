@@ -850,4 +850,10 @@ public class StarboardBridge {
   protected boolean getIsAmatiDevice() {
     return this.isAmatiDevice;
   }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected String getBuildFingerprint() {
+    return Build.FINGERPRINT;
+  }
 }
