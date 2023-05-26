@@ -319,7 +319,7 @@ std::unique_ptr<Serializable> CreateErrorResponse(
     protocol_error->SetData(
         std::string(errors->Errors().begin(), errors->Errors().end()));
   }
-  return std::unique_ptr<Serializable>(protocol_error.release());
+  return protocol_error;
 }
 
 std::unique_ptr<Serializable> CreateErrorResponse(
@@ -331,12 +331,12 @@ std::unique_ptr<Serializable> CreateErrorResponse(
   protocol_error->SetCallId(call_id);
   // TODO(caseq): should we plumb the call name here?
   protocol_error->SetData(state.ErrorMessage(MakeSpan("params")));
-  return std::unique_ptr<Serializable>(protocol_error.release());
+  return protocol_error;
 }
 
 std::unique_ptr<Serializable> CreateErrorNotification(
     DispatchResponse dispatch_response) {
-  return std::unique_ptr<Serializable>(new ProtocolError(std::move(dispatch_response)));
+  return std::make_unique<ProtocolError>(std::move(dispatch_response));
 }
 
 namespace {

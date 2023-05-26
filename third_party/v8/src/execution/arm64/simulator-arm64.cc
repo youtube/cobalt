@@ -7,7 +7,6 @@
 #if defined(USE_SIMULATOR)
 
 #include <stdlib.h>
-
 #include <cmath>
 #include <cstdarg>
 #include <type_traits>
@@ -3594,8 +3593,7 @@ void Simulator::VisitException(Instruction* instr) {
         uint32_t code;
         uint32_t parameters;
 
-        memcpy(&code, pc_->InstructionAtOffset(kDebugCodeOffset),
-                     sizeof(code));
+        memcpy(&code, pc_->InstructionAtOffset(kDebugCodeOffset), sizeof(code));
         memcpy(&parameters, pc_->InstructionAtOffset(kDebugParamsOffset),
                      sizeof(parameters));
         char const* message = reinterpret_cast<char const*>(

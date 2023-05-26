@@ -170,7 +170,8 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
   masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
   masm.jmp(rax);
   DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
-  memcpy(&record->exception_thunk[0], masm.buffer_start(), masm.instruction_size());
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
+         masm.instruction_size());
 }
 
 #elif defined(V8_OS_WIN_ARM64)
@@ -447,27 +448,22 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
            Operand(reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME)));
   masm.Br(x16);
   DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
-  memcpy(&record->exception_thunk[0], masm.buffer_start(), masm.instruction_size());
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
+         masm.instruction_size());
 }
 
 #endif  // V8_OS_WIN_X64
 
 namespace {
 
-// Many codes here are disabled because Cobalt's Windows host build does not
-// support RtlAddGrowableFunctionTable and RtlDeleteGrowableFunctionTable yet
-// and Cobalt doesn't need them unwinding data.
-#if !defined(DISABLE_UNWIND_STARBOARD)
 V8_DECLARE_ONCE(load_ntdll_unwinding_functions_once);
 static decltype(
     &::RtlAddGrowableFunctionTable) add_growable_function_table_func = nullptr;
 static decltype(
     &::RtlDeleteGrowableFunctionTable) delete_growable_function_table_func =
     nullptr;
-#endif
 
 void LoadNtdllUnwindingFunctions() {
-#if !defined(DISABLE_UNWIND_STARBOARD)
   base::CallOnce(&load_ntdll_unwinding_functions_once, []() {
     // Load functions from the ntdll.dll module.
     HMODULE ntdll_module =
@@ -485,14 +481,12 @@ void LoadNtdllUnwindingFunctions() {
             ::GetProcAddress(ntdll_module, "RtlDeleteGrowableFunctionTable"));
     DCHECK_IMPLIES(IsWindows8OrGreater(), delete_growable_function_table_func);
   });
-#endif
 }
 
 bool AddGrowableFunctionTable(PVOID* DynamicTable,
                               PRUNTIME_FUNCTION FunctionTable, DWORD EntryCount,
                               DWORD MaximumEntryCount, ULONG_PTR RangeBase,
                               ULONG_PTR RangeEnd) {
-#if !defined(DISABLE_UNWIND_STARBOARD)
   DCHECK(::IsWindows8OrGreater());
 
   LoadNtdllUnwindingFunctions();
@@ -505,25 +499,20 @@ bool AddGrowableFunctionTable(PVOID* DynamicTable,
   DCHECK((status == 0 && *DynamicTable != nullptr) ||
          status == 0xC000009A);  // STATUS_INSUFFICIENT_RESOURCES
   return (status == 0);
-#else
-  return false;
-#endif
 }
 
 void DeleteGrowableFunctionTable(PVOID dynamic_table) {
-#if !defined(DISABLE_UNWIND_STARBOARD)
   DCHECK(::IsWindows8OrGreater());
+
   LoadNtdllUnwindingFunctions();
   DCHECK_NOT_NULL(delete_growable_function_table_func);
 
   delete_growable_function_table_func(dynamic_table);
-#endif
 }
 
 }  // namespace
 
 void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
-#if !defined(DISABLE_UNWIND_STARBOARD)
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
 
   // When the --win64-unwinding-info flag is set, we call
@@ -571,11 +560,9 @@ void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
     CHECK(VirtualProtect(start, sizeof(CodeRangeUnwindingRecord),
                          PAGE_EXECUTE_READ, &old_protect));
   }
-#endif
 }
 
 void UnregisterNonABICompliantCodeRange(void* start) {
-#if !defined(DISABLE_UNWIND_STARBOARD)
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
 
   if (RegisterUnwindInfoForExceptionHandlingOnly()) {
@@ -595,7 +582,6 @@ void UnregisterNonABICompliantCodeRange(void* start) {
       DeleteGrowableFunctionTable(record->dynamic_table);
     }
   }
-#endif
 }
 
 #if defined(V8_OS_WIN_X64)

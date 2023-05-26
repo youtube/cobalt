@@ -9,7 +9,6 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
-
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -3262,8 +3261,8 @@ void VectorSum(void* dst, void* src1, void* src2) {
     value += *(reinterpret_cast<S*>(src1) + i);
     if ((i + 1) % (sizeof(D) / sizeof(S)) == 0) {
       value += *(reinterpret_cast<S*>(src2) + i);
-      memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)),
-                   &value, sizeof(D));
+      memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)), &value,
+             sizeof(D));
       value = 0;
     }
   }
