@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_EXTENSION_ANDROID_INFO_H_
-#define STARBOARD_EXTENSION_ANDROID_INFO_H_
+#ifndef STARBOARD_EXTENSION_PLATFORM_INFO_H_
+#define STARBOARD_EXTENSION_PLATFORM_INFO_H_
 
 #include <stdint.h>
 
@@ -23,10 +23,10 @@
 extern "C" {
 #endif
 
-#define kCobaltExtensionAndroidInfoName "dev.cobalt.extension.AndroidInfo"
+#define kCobaltExtensionPlatformInfoName "dev.cobalt.extension.PlatformInfo"
 
-typedef struct CobaltExtensionAndroidInfoApi {
-  // Name should be the string |kCobaltExtensionAndroidInfoName|.
+typedef struct CobaltExtensionPlatformInfoApi {
+  // Name should be the string |kCobaltExtensionPlatformInfoName|.
   // This helps to validate that the extension API is correct.
   const char* name;
 
@@ -35,12 +35,16 @@ typedef struct CobaltExtensionAndroidInfoApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // Returns the Android OS experience (e.g. Amati or Watson).
+  // Returns details about the device firmware version. This can be something
+  // like Android build fingerprint (go/android-build-fingerprint).
+  bool (*GetFirmwareVersionDetails)(char* out_value, int value_length);
+
+  // Returns the OS experience. (e.g. Amati or Watson on an Android device).
   const char* (*GetOsExperience)();
-} CobaltExtensionAndroidInfoApi;
+} CobaltExtensionPlatformInfoApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_EXTENSION_ANDROID_INFO_H_
+#endif  // STARBOARD_EXTENSION_PLATFORM_INFO_H_
