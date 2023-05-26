@@ -41,6 +41,19 @@ jobs:
     with:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
+<<<<<<< HEAD:.github/workflows/evergreen_22.lts.1+.yaml
+=======
+      run_api_leak_detector: true
+  evergreen-arm64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: evergreen-arm64
+      nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
+>>>>>>> e6dc1dbd45e (Add missing Evergreen-arm64 builds (#470)):.github/workflows/evergreen.yaml
   evergreen-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
