@@ -707,7 +707,11 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
     // a method of querying that texture.
     decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
         &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
+    SB_LOG(INFO) << "Playing in decode-to-texture mode.";
+  } else {
+    SB_LOG(INFO) << "Playing in punch-out mode.";
   }
+
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
@@ -773,7 +777,11 @@ void SbPlayerBridge::CreatePlayer() {
     // a method of querying that texture.
     decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
         &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
+    SB_LOG(INFO) << "Playing in decode-to-texture mode.";
+  } else {
+    SB_LOG(INFO) << "Playing in punch-out mode.";
   }
+
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
   set_bounds_helper_->SetPlayerBridge(this);
