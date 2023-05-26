@@ -515,8 +515,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
 
     scoped_ptr<VideoDecoder> video_decoder(new VideoDecoder(
-        creation_parameters.video_codec(), creation_parameters.drm_system(),
-        creation_parameters.output_mode(),
+        creation_parameters.video_stream_info(),
+        creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,

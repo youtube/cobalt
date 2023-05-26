@@ -34,6 +34,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
@@ -50,6 +51,8 @@ class VideoDecoder
       private ::starboard::shared::starboard::player::JobQueue::JobOwner,
       private VideoSurfaceHolder {
  public:
+  typedef ::starboard::shared::starboard::media::VideoStreamInfo
+      VideoStreamInfo;
   typedef ::starboard::shared::starboard::player::filter::VideoRenderAlgorithm
       VideoRenderAlgorithm;
   typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
@@ -57,7 +60,7 @@ class VideoDecoder
 
   class Sink;
 
-  VideoDecoder(SbMediaVideoCodec video_codec,
+  VideoDecoder(const VideoStreamInfo& video_stream_info,
                SbDrmSystem drm_system,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider*
@@ -90,6 +93,7 @@ class VideoDecoder
   void Reset() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
+  void UpdateDecodeTargetSizeAndContentRegion_Locked();
   void SetPlaybackRate(double playback_rate);
 
   void OnNewTextureAvailable();
@@ -99,7 +103,8 @@ class VideoDecoder
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
   // successful.
-  bool InitializeCodec(std::string* error_message);
+  bool InitializeCodec(const VideoStreamInfo& video_stream_info,
+                       std::string* error_message);
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
@@ -168,9 +173,12 @@ class VideoDecoder
   // and we do so through this mutex.
   Mutex decode_target_mutex_;
 
-  // The width and height of the latest decoded frame.
-  int32_t frame_width_ = 0;
-  int32_t frame_height_ = 0;
+  // The size infos of the frames in use, i.e. the frames being displayed, and
+  // the frames recently decoded frames and pending display.
+  // They are the same at most of the time, but they can be different when there
+  // is a format change. For example, when the newly decoded frames are at
+  // 1080p, and the frames being played are still at 480p.
+  std::vector<FrameSize> frame_sizes_;
 
   double playback_rate_ = 1.0;
 
