@@ -1,0 +1,25 @@
+{
+  "docker_service": "build-evergreen",
+  "platforms": [
+    "evergreen-arm64",
+    "evergreen-arm64-sbversion-13",
+    "evergreen-arm64-sbversion-12"
+  ],
+  "includes": [
+    {
+      "name":"arm64",
+      "platform":"evergreen-arm64",
+      "target_platform":"evergreen-arm64"
+    },
+    {
+      "name":"sbversion-13",
+      "platform":"evergreen-arm64-sbversion-13",
+      "target_platform":"evergreen-arm64"
+    },
+    {
+      "name":"sbversion-12",
+      "platform":"evergreen-arm64-sbversion-12",
+      "target_platform":"evergreen-arm64"
+    }
+  ]
+}

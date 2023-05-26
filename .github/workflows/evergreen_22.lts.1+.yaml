@@ -41,6 +41,14 @@ jobs:
     with:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
+  evergreen-arm64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: evergreen-arm64
+      nightly: ${{ github.event.inputs.nightly }}
   evergreen-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
