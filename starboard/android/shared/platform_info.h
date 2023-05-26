@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_ANDROID_INFO_H_
-#define STARBOARD_ANDROID_SHARED_ANDROID_INFO_H_
+#ifndef STARBOARD_ANDROID_SHARED_PLATFORM_INFO_H_
+#define STARBOARD_ANDROID_SHARED_PLATFORM_INFO_H_
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-const void* GetAndroidInfoApi();
+const void* GetPlatformInfoApi();
 
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_ANDROID_INFO_H_
+#endif  // STARBOARD_ANDROID_SHARED_PLATFORM_INFO_H_

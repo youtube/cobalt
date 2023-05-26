@@ -12,19 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/android_info.h"
+#include "starboard/android/shared/platform_info.h"
+
+#include <string>
 
 #include "starboard/common/log.h"
 
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/extension/android_info.h"
+#include "starboard/android/shared/jni_utils.h"
+#include "starboard/common/string.h"
+#include "starboard/extension/platform_info.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
 namespace {
+
+bool GetFirmwareVersionDetails(char* out_value, int value_length) {
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jstring> id_string(env->CallStarboardObjectMethodOrAbort(
+      "getBuildFingerprint", "()Ljava/lang/String;"));
+  std::string utf_str = env->GetStringStandardUTFOrAbort(id_string.Get());
+  if (strlen(utf_str.c_str()) + 1 > value_length)
+    return false;
+  starboard::strlcpy(out_value, utf_str.c_str(), value_length);
+  return true;
+}
 
 const char* GetOsExperience() {
   bool is_amati = JniEnvExt::Get()->CallStarboardBooleanMethodOrAbort(
@@ -35,16 +50,17 @@ const char* GetOsExperience() {
   return "Watson";
 }
 
-const CobaltExtensionAndroidInfoApi kAndroidInfoApi = {
-    kCobaltExtensionAndroidInfoName,
+const CobaltExtensionPlatformInfoApi kPlatformInfoApi = {
+    kCobaltExtensionPlatformInfoName,
     1,
+    &GetFirmwareVersionDetails,
     &GetOsExperience,
 };
 
 }  // namespace
 
-const void* GetAndroidInfoApi() {
-  return &kAndroidInfoApi;
+const void* GetPlatformInfoApi() {
+  return &kPlatformInfoApi;
 }
 
 }  // namespace shared
