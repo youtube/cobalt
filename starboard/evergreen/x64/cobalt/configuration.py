@@ -64,4 +64,8 @@ class CobaltX64Configuration(cobalt_configuration.CobaltConfiguration):
         }
     }
 
+<<<<<<< HEAD
   __FILTERED_TESTS = {}
+=======
+  __FILTERED_TESTS = {}  # pylint: disable=invalid-name
+>>>>>>> e483010b926 (Enable base_unittests and net_unittests. (#463))
