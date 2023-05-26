@@ -39,15 +39,4 @@ class CobaltX64Configuration(cobalt_configuration.CobaltConfiguration):
         }
     }
 
-  __FILTERED_TESTS = {  # pylint: disable=invalid-name
-    # These unittest cases are failing after llvm rebase. They will be fixed
-    # and re-enabled.
-    'base_unittests': [
-        '*',
-    ],
-    # These unittest cases are failing after llvm rebase. They will be fixed
-    # and re-enabled.
-    'net_unittests': [
-        '*',
-    ],
-  }
+  __FILTERED_TESTS = {}  # pylint: disable=invalid-name

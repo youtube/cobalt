@@ -66,14 +66,4 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
         'PixelTest.CircularSubPixelBorder',
         'PixelTest.FilterBlurred100PxText',
     ],
-    # These unittest cases are failing after llvm rebase. They will be fixed
-    # and re-enabled.
-    'base_unittests': [
-        '*',
-    ],
-    # These unittest cases are failing after llvm rebase. They will be fixed
-    # and re-enabled.
-    'net_unittests': [
-        '*',
-    ],
   }
