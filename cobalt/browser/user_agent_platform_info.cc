@@ -28,7 +28,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/system_property.h"
-#include "starboard/extension/android_info.h"
+#include "starboard/extension/platform_info.h"
 #if SB_IS(EVERGREEN)
 #include "starboard/extension/installation_manager.h"
 #endif  // SB_IS(EVERGREEN)
@@ -271,15 +271,20 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   }
 #endif
 
-  // Android Info
-  auto android_info_extension =
-      static_cast<const CobaltExtensionAndroidInfoApi*>(
-          SbSystemGetExtension(kCobaltExtensionAndroidInfoName));
-  if (android_info_extension &&
-      strcmp(android_info_extension->name, kCobaltExtensionAndroidInfoName) ==
+  // Additional Platform Info
+  auto platform_info_extension =
+      static_cast<const CobaltExtensionPlatformInfoApi*>(
+          SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
+  if (platform_info_extension &&
+      strcmp(platform_info_extension->name, kCobaltExtensionPlatformInfoName) ==
           0 &&
-      android_info_extension->version >= 1) {
-    info.set_android_os_experience(android_info_extension->GetOsExperience());
+      platform_info_extension->version >= 1) {
+    result = platform_info_extension->GetFirmwareVersionDetails(
+        value, kSystemPropertyMaxLength);
+    if (result) {
+      info.set_firmware_version_details(value);
+    }
+    info.set_os_experience(platform_info_extension->GetOsExperience());
   }
 
   info.set_cobalt_version(COBALT_VERSION);
@@ -417,9 +422,12 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
         } else if (!input.first.compare("evergreen_version")) {
           info.set_evergreen_version(input.second);
           LOG(INFO) << "Set evergreen version to " << input.second;
-        } else if (!input.first.compare("android_os_experience")) {
-          info.set_android_os_experience(input.second);
-          LOG(INFO) << "Set evergreen version to " << input.second;
+        } else if (!input.first.compare("firmware_version_details")) {
+          info.set_firmware_version_details(input.second);
+          LOG(INFO) << "Set firmware version details to " << input.second;
+        } else if (!input.first.compare("os_experience")) {
+          info.set_os_experience(input.second);
+          LOG(INFO) << "Set os experience to " << input.second;
         } else if (!input.first.compare("cobalt_version")) {
           info.set_cobalt_version(input.second);
           LOG(INFO) << "Set cobalt type to " << input.second;
@@ -534,9 +542,15 @@ void UserAgentPlatformInfo::set_evergreen_version(
   evergreen_version_ = Sanitize(evergreen_version, isTCHAR);
 }
 
-void UserAgentPlatformInfo::set_android_os_experience(
-    const std::string& android_os_experience) {
-  android_os_experience_ = Sanitize(android_os_experience, isTCHAR);
+void UserAgentPlatformInfo::set_firmware_version_details(
+    const std::string& firmware_version_details) {
+  firmware_version_details_ =
+      Sanitize(firmware_version_details, isVCHARorSpace);
+}
+
+void UserAgentPlatformInfo::set_os_experience(
+    const std::string& os_experience) {
+  os_experience_ = Sanitize(os_experience, isTCHAR);
 }
 
 void UserAgentPlatformInfo::set_cobalt_version(
