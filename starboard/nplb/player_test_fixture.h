@@ -74,7 +74,9 @@ class SbPlayerTestFixture {
     bool write_video_eos_ = false;
   };
 
-  explicit SbPlayerTestFixture(const SbPlayerTestConfig& config);
+  explicit SbPlayerTestFixture(
+      const SbPlayerTestConfig& config,
+      testing::FakeGraphicsContextProvider* fake_graphics_context_provider);
   ~SbPlayerTestFixture();
 
   void Seek(const SbTime time);
@@ -188,7 +190,7 @@ class SbPlayerTestFixture {
   std::string key_system_;
   scoped_ptr<VideoDmpReader> audio_dmp_reader_;
   scoped_ptr<VideoDmpReader> video_dmp_reader_;
-  testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
+  testing::FakeGraphicsContextProvider* fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;

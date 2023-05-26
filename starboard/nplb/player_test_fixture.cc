@@ -46,8 +46,12 @@ SbPlayerTestFixture::CallbackEvent::CallbackEvent(SbPlayer player,
       player_state(state),
       ticket(ticket) {}
 
-SbPlayerTestFixture::SbPlayerTestFixture(const SbPlayerTestConfig& config)
-    : output_mode_(std::get<2>(config)), key_system_(std::get<3>(config)) {
+SbPlayerTestFixture::SbPlayerTestFixture(
+    const SbPlayerTestConfig& config,
+    FakeGraphicsContextProvider* fake_graphics_context_provider)
+    : output_mode_(std::get<2>(config)),
+      key_system_(std::get<3>(config)),
+      fake_graphics_context_provider_(fake_graphics_context_provider) {
   SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
             output_mode_ == kSbPlayerOutputModePunchOut);
 
@@ -257,10 +261,10 @@ void SbPlayerTestFixture::Initialize() {
     video_codec = video_dmp_reader_->video_codec();
   }
   player_ = CallSbPlayerCreate(
-      fake_graphics_context_provider_.window(), video_codec, audio_codec,
+      fake_graphics_context_provider_->window(), video_codec, audio_codec,
       drm_system_, audio_stream_info, "", DummyDeallocateSampleFunc,
       DecoderStatusCallback, PlayerStatusCallback, ErrorCallback, this,
-      output_mode_, fake_graphics_context_provider_.decoder_target_provider());
+      output_mode_, fake_graphics_context_provider_->decoder_target_provider());
   ASSERT_TRUE(SbPlayerIsValid(player_));
   ASSERT_NO_FATAL_FAILURE(WaitForPlayerState(kSbPlayerStateInitialized));
   ASSERT_NO_FATAL_FAILURE(Seek(0));
@@ -432,7 +436,7 @@ void SbPlayerTestFixture::GetDecodeTargetWhenSupported() {
     return;
   }
 #if SB_HAS(GLES2)
-  fake_graphics_context_provider_.RunOnGlesContextThread([&]() {
+  fake_graphics_context_provider_->RunOnGlesContextThread([&]() {
     ASSERT_TRUE(SbPlayerIsValid(player_));
     if (output_mode_ != kSbPlayerOutputModeDecodeToTexture) {
       ASSERT_EQ(SbPlayerGetCurrentFrame(player_), kSbDecodeTargetInvalid);
