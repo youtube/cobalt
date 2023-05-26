@@ -64,3 +64,16 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
             'ASAN_OPTIONS': 'detect_leaks=0'
         }
     }
+<<<<<<< HEAD
+=======
+
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
+    'bindings_test': [
+        'DateBindingsTest.PosixEpoch',
+    ],
+    'renderer_test': [
+        'PixelTest.CircularSubPixelBorder',
+        'PixelTest.FilterBlurred100PxText',
+    ],
+  }
+>>>>>>> e483010b926 (Enable base_unittests and net_unittests. (#463))
