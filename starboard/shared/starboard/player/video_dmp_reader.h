@@ -149,11 +149,11 @@ class VideoDmpReader {
     int video_fps = 0;
     int video_duration = 0;
   };
-
   class Registry {
    public:
-    bool GetDmpInfo(const std::string& filename, DmpInfo* dmp_info) const;
-    void Register(const std::string& filename, const DmpInfo& dmp_info);
+    bool GetDmpInfo(const std::string& filename,
+                    DmpInfo* dmp_info,
+                    const std::function<const DmpInfo&()>& parse_dmp_info);
 
    private:
     Mutex mutex_;
@@ -165,7 +165,7 @@ class VideoDmpReader {
 
   void ParseHeader(uint32_t* dmp_writer_version);
   bool ParseOneRecord();
-  void Parse();
+  const DmpInfo& Parse();
   void EnsureSampleLoaded(SbMediaType type, size_t index);
 
   AudioAccessUnit ReadAudioAccessUnit();
