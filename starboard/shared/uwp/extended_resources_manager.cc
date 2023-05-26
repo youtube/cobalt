@@ -16,9 +16,7 @@
 
 #include <ppltasks.h>
 
-#include "internal/starboard/xb1/shared/av1_video_decoder.h"
 #include "internal/starboard/xb1/shared/internal_shims.h"
-#include "internal/starboard/xb1/shared/vpx_video_decoder.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -27,7 +25,11 @@
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
+#if defined(INTERNAL_BUILD)
+#include "internal/starboard/xb1/internal/av1_video_decoder.h"
+#include "internal/starboard/xb1/internal/vpx_video_decoder.h"
 #include "third_party/internal/libvpx_xb1/libvpx/d3dx12.h"
+#endif  // defined(INTERNAL_BUILD)
 
 namespace starboard {
 namespace shared {
@@ -37,9 +39,11 @@ namespace {
 
 using Microsoft::WRL::ComPtr;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
+using Windows::Foundation::Metadata::ApiInformation;
+#if defined(INTERNAL_BUILD)
 using ::starboard::xb1::shared::Av1VideoDecoder;
 using ::starboard::xb1::shared::VpxVideoDecoder;
-using Windows::Foundation::Metadata::ApiInformation;
+#endif  // defined(INTERNAL_BUILD)
 
 const SbTime kReleaseTimeout = kSbTimeSecond;
 
@@ -173,6 +177,7 @@ bool ExtendedResourcesManager::GetD3D12Objects(
     return false;
   }
 
+#if defined(INTERNAL_BUILD)
   // Verify that we can allocate one MB without getting an error. This should
   // detect a DXGI_ERROR_DEVICE_REMOVED failure mode.
   ComPtr<ID3D12Resource> res;
@@ -187,6 +192,7 @@ bool ExtendedResourcesManager::GetD3D12Objects(
     OnNonrecoverableFailure();
     return false;
   }
+#endif  // defined(INTERNAL_BUILD)
 
   *device = d3d12device_;
   *command_queue = d3d12queue_.Get();
@@ -320,6 +326,7 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
   // and they will be placed in cache as binaries for further reusing.
   Concurrency::create_task([this] {
     ScopedLock scoped_lock(mutex_);
+#if defined(INTERNAL_BUILD)
     SB_LOG(INFO) << "Start to compile AV1 decoder shaders.";
     SB_DCHECK(!is_av1_shader_compiled_)
         << "Unexpected attempt to recompile AV1 decoder shaders.";
@@ -355,6 +362,7 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
       SB_LOG(WARNING) << "Failed to compile VP9 decoder shaders, next attempt "
                          "will happen right on the VP9 decoder instantiation.";
     }
+#endif  // defined(INTERNAL_BUILD)
 
     if (is_av1_shader_compiled_ && is_vp9_shader_compiled_) {
       MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
@@ -364,8 +372,9 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
 
 void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
+#if defined(INTERNAL_BUILD)
   Av1VideoDecoder::ClearFrameBufferPool();
+#endif  // defined(INTERNAL_BUILD)
 
   ScopedLock scoped_lock(mutex_);
   if (!is_extended_resources_acquired_.load()) {
@@ -400,8 +409,10 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
         } else {
           SB_LOG(INFO) << "CreateEvent() failed with " << GetLastError();
         }
+#if defined(INTERNAL_BUILD)
         Av1VideoDecoder::ReleaseShaders();
         VpxVideoDecoder::ReleaseShaders();
+#endif  // #if defined(INTERNAL_BUILD)
         is_av1_shader_compiled_ = false;
         is_vp9_shader_compiled_ = false;
       } else {
