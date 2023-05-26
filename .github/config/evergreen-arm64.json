@@ -3,7 +3,7 @@
   "platforms": [
     "evergreen-arm64",
     "evergreen-arm64-sbversion-15",
-		"evergreen-arm64-sbversion-14",
+    "evergreen-arm64-sbversion-14",
     "evergreen-arm64-sbversion-13"
   ],
   "includes": [
