@@ -282,7 +282,7 @@ def _CreateLinuxTarCmd(source_path, intermediate_tar_path, patterns,
       if glob.glob(os.path.join(source_path, pattern))
   ]
   files_to_tar = ' '.join(contents)
-  return (f'tar -{mode}vf {intermediate_tar_path} --format=posix '
+  return (f'tar -{mode}f {intermediate_tar_path} --format=posix '
           f'{excludes} {files_to_tar}')
 
 
@@ -290,7 +290,7 @@ def _CreateUntarCommand(intermediate_tar_path):
   if _IsWindows():
     return f'"{_7Z_PATH}" x -bsp1 {intermediate_tar_path}'
   else:
-    return f'tar -xvf {intermediate_tar_path}'
+    return f'tar -xf {intermediate_tar_path}'
 
 
 def _CreateZipCommand(intermediate_tar_path, dest_path, is_parallel=False):

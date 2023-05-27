@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -92,10 +93,13 @@ _TESTS_NO_SIGNAL = [
     'text_encoding_test',
     'wasm_basic_test',
     'web_debugger',
-    'web_platform_tests',
     'web_worker_test',
     'worker_csp_test',
     'worker_load_test',
+]
+# These are very different and require a custom config + proxy
+_WPT_TESTS = [
+    'web_platform_tests',
 ]
 # These tests can only be run on platforms whose app launcher can send deep
 # links.
@@ -114,7 +118,7 @@ _LAUNCH_TARGET = 'cobalt'
 # Platform configuration and device information parameters.
 _launcher_params = None
 # Binding address used to create the test server.
-_binding_address = None
+_server_binding_address = None
 # Port used to create the web platform test http server.
 _wpt_http_port = None
 
@@ -132,6 +136,7 @@ class BlackBoxTestCase(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     super(BlackBoxTestCase, cls).setUpClass()
+    logging.info('\n\n\n%s\n\n', '=' * 40)
     logging.info('Running %s', cls.__name__)
 
   @classmethod
@@ -151,13 +156,13 @@ class BlackBoxTestCase(unittest.TestCase):
         **kwargs)
 
   def GetBindingAddress(self):
-    return _binding_address
+    return _server_binding_address
 
   def GetWptHttpPort(self):
     return _wpt_http_port
 
 
-def LoadTests(launcher_params):
+def LoadTests(launcher_params, test_set):
   launcher = abstract_launcher.LauncherFactory(
       launcher_params.platform,
       _LAUNCH_TARGET,
@@ -170,13 +175,19 @@ def LoadTests(launcher_params):
       loader_config=launcher_params.loader_config,
       loader_out_directory=launcher_params.loader_out_directory)
 
-  test_targets = _TESTS_NO_SIGNAL
+  test_targets = []
 
-  if launcher.SupportsSuspendResume():
-    test_targets += _TESTS_NEEDING_SYSTEM_SIGNAL
+  if test_set in ['all', 'blackbox']:
+    test_targets = _TESTS_NO_SIGNAL
 
-  if launcher.SupportsDeepLink():
-    test_targets += _TESTS_NEEDING_DEEP_LINK
+    if launcher.SupportsSuspendResume():
+      test_targets += _TESTS_NEEDING_SYSTEM_SIGNAL
+
+    if launcher.SupportsDeepLink():
+      test_targets += _TESTS_NEEDING_DEEP_LINK
+
+  if test_set in ['all', 'wpt']:
+    test_targets += _WPT_TESTS
 
   test_suite = unittest.TestSuite()
   for test in test_targets:
@@ -213,50 +224,49 @@ def LoadEvergreenEndToEndTests(launcher_params):
 class BlackBoxTests(object):
   """Helper class to run all black box tests and return results."""
 
-  def __init__(self,
-               server_binding_address,
-               proxy_address=None,
-               proxy_port=None,
-               test_name=None,
-               wpt_http_port=None,
-               device_ips=None,
-               device_id=None):
+  def __init__(self, args):
+
+    self.args = args
+
+    #TODO(b/137905502): These globals should be refactored
     # Setup global variables used by test cases.
     global _launcher_params
     _launcher_params = command_line.CreateLauncherParams()
     # Keep other modules from seeing these args.
     sys.argv = sys.argv[:1]
-    global _binding_address
-    _binding_address = server_binding_address
+    global _server_binding_address
+    _server_binding_address = args.server_binding_address
+
     # Port used to create the web platform test http server. If not specified,
     # a random free port is used.
-    if wpt_http_port is None:
-      wpt_http_port = str(self.GetUnusedPort([server_binding_address]))
     global _wpt_http_port
-    _wpt_http_port = wpt_http_port
+    _wpt_http_port = args.wpt_http_port or str(
+        self.GetUnusedPort([_server_binding_address]))
+
+    # Proxy is only needed for WPT
+    self.use_proxy = args.test_set in ['all', 'wpt']
+
     # TODO: Remove generation of --dev_servers_listen_ip once executable will
     # be able to bind correctly with incomplete support of IPv6
-    if device_id and IsValidIpAddress(device_id):
+    if args.device_id and IsValidIpAddress(args.device_id):
       _launcher_params.target_params.append(
-          f'--dev_servers_listen_ip={device_id}')
-    elif IsValidIpAddress(server_binding_address):
+          f'--dev_servers_listen_ip={args.device_id}')
+    elif IsValidIpAddress(_server_binding_address):
       _launcher_params.target_params.append(
-          f'--dev_servers_listen_ip={server_binding_address}')
+          f'--dev_servers_listen_ip={_server_binding_address}')
     _launcher_params.target_params.append(
-        f'--web-platform-test-server=http://web-platform.test:{wpt_http_port}')
+        f'--web-platform-test-server=http://web-platform.test:{_wpt_http_port}')
 
     # Port used to create the proxy server. If not specified, a random free
     # port is used.
-    if proxy_port is None:
-      proxy_port = str(self.GetUnusedPort([server_binding_address]))
-    if proxy_address is None:
-      proxy_address = server_binding_address
-    _launcher_params.target_params.append(
-        f'--proxy={proxy_address}:{proxy_port}')
+    if self.use_proxy:
+      self.proxy_port = args.proxy_port or str(
+          self.GetUnusedPort([_server_binding_address]))
+      proxy_address = args.proxy_address or _server_binding_address
+      _launcher_params.target_params.append(
+          f'--proxy={proxy_address}:{self.proxy_port}')
 
-    self.proxy_port = proxy_port
-    self.test_name = test_name
-    self.device_ips = device_ips
+    self.device_ips = args.device_ips
 
     # Test domains used in web platform tests to be resolved to the server
     # binding address.
@@ -265,15 +275,17 @@ class BlackBoxTests(object):
         'www2.web-platform.test', 'xn--n8j6ds53lwwkrqhv28a.web-platform.test',
         'xn--lve-6lad.web-platform.test'
     ]
-    self.host_resolve_map = {host: server_binding_address for host in hosts}
+    self.host_resolve_map = {host: _server_binding_address for host in hosts}
 
   def Run(self):
-    if self.proxy_port == '-1':
+    if self.use_proxy and self.proxy_port == '-1':
       return 1
 
     run_cobalt_tests = True
     run_evergreen_tests = False
     launch_config = f'{_launcher_params.platform}/{_launcher_params.config}'
+    # TODO(b/135549281): Configuring this in Python is superfluous, the on/off
+    # flags can be in Github Actions code
     if launch_config in _DISABLED_BLACKBOXTEST_CONFIGS:
       run_cobalt_tests = False
       logging.warning(
@@ -281,27 +293,22 @@ class BlackBoxTests(object):
           _launcher_params.platform, _launcher_params.config)
 
     if launch_config in _EVERGREEN_COMPATIBLE_CONFIGS:
-      run_evergreen_tests = True
+      run_evergreen_tests = self.args.test_set in ['all', 'evergreen']
 
     if not (run_cobalt_tests or run_evergreen_tests):
       return 0
 
-    logging.info('Using proxy port: %s', self.proxy_port)
-
-    with ProxyServer(
-        port=self.proxy_port,
-        host_resolve_map=self.host_resolve_map,
-        client_ips=self.device_ips):
-      if self.test_name:
+    def LoadAndRunTests():
+      if self.args.test_name:
         suite = unittest.TestLoader().loadTestsFromName(_TEST_DIR_PATH +
-                                                        self.test_name)
+                                                        self.args.test_name)
         return_code = not unittest.TextTestRunner(
             verbosity=2, stream=sys.stdout).run(suite).wasSuccessful()
         return return_code
       else:
         cobalt_tests_return_code = 0
         if run_cobalt_tests:
-          suite = LoadTests(_launcher_params)
+          suite = LoadTests(_launcher_params, self.args.test_set)
           # Using verbosity=2 to log individual test function names and results.
           cobalt_tests_return_code = not unittest.TextTestRunner(
               verbosity=2, stream=sys.stdout).run(suite).wasSuccessful()
@@ -313,6 +320,16 @@ class BlackBoxTests(object):
               verbosity=2, stream=sys.stdout).run(suite).wasSuccessful()
 
         return cobalt_tests_return_code or evergreen_tests_return_code
+
+    if self.use_proxy:
+      logging.info('Using proxy port: %s', self.proxy_port)
+      with ProxyServer(
+          port=self.proxy_port,
+          host_resolve_map=self.host_resolve_map,
+          client_ips=self.args.device_ips):
+        return LoadAndRunTests()
+    else:
+      return LoadAndRunTests()
 
   def GetUnusedPort(self, addresses):
     """Find a free port on the list of addresses by pinging with sockets."""
@@ -410,14 +427,15 @@ def main():
       nargs='*',
       help=('IPs of test devices that will be allowed to connect. If not '
             'specified, all IPs will be allowed to connect.'))
+  parser.add_argument(
+      '--test_set',
+      choices=['all', 'wpt', 'blackbox', 'evergreen'],
+      default='all')
   args, _ = parser.parse_known_args()
 
   log_level.InitializeLogging(args)
 
-  test_object = BlackBoxTests(args.server_binding_address, args.proxy_address,
-                              args.proxy_port, args.test_name,
-                              args.wpt_http_port, args.device_ips,
-                              args.device_id)
+  test_object = BlackBoxTests(args)
   sys.exit(test_object.Run())
 
 
