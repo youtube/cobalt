@@ -315,6 +315,88 @@ template("copy") {
   }
 }
 
+template("evergreen_loader") {
+  # Add additional evergreen_loader target for every native target.
+  original_target_name = invoker.original_target_name
+  shared_data_deps = invoker.data_deps
+  shared_data_deps += [ "//third_party/icu:icudata" ]
+  shared_data_deps += [
+    ":copy_loader_app_lib${original_target_name}",
+    "//starboard/loader_app:copy_loader_app_content",
+  ]
+  if (cobalt_font_package == "empty") {
+    shared_data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+  } else {
+    shared_data_deps += [
+      "//cobalt/content/fonts:copy_fonts",
+      "//cobalt/content/fonts:fonts_xml",
+    ]
+  }
+  shared_library(target_name) {
+    forward_variables_from(invoker, [ "testonly" ])
+    if (has_pedantic_warnings) {
+      configs += [ "//starboard/build/config:pedantic_warnings" ]
+    }
+
+    configs += [ "//$starboard_path/platform_configuration" ]
+    if (!has_pedantic_warnings) {
+      configs += [ "//starboard/build/config:no_pedantic_warnings" ]
+    }
+
+    sources = [ "//starboard/elf_loader/sandbox.cc" ]
+    configs += [ "//starboard/elf_loader:elf_loader_config" ]
+
+    deps = [
+      ":copy_loader_app_lib${original_target_name}",
+      "//cobalt/content/fonts:copy_font_data",
+      "//starboard",
+      "//starboard/elf_loader:constants",
+      "//starboard/elf_loader:elf_loader",
+      "//starboard/elf_loader:evergreen_info",
+      "//starboard/elf_loader:sabi_string",
+      "//starboard/loader_app:copy_loader_app_content",
+    ]
+
+    if (!sb_is_evergreen_compatible) {
+      deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
+  }
+  if (separate_install_targets_for_bundling) {
+    import("//starboard/build/config/bundle_content.gni")
+    bundle_content(
+        "copy_loader_app_lib${original_target_name}_bundle_content") {
+      forward_variables_from(invoker, [ "testonly" ])
+
+      bundle_name = target_name
+      bundle_deps = shared_data_deps
+    }
+  }
+  copy("copy_loader_app_lib${original_target_name}") {
+    install_content = true
+    if (target_cpu == "arm" && arm_float_abi == "softfp") {
+      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/lib${original_target_name}.so" ]
+    } else if (target_cpu == "arm64") {
+      sources = [ "$root_out_dir/../evergreen-$target_cpu_$build_type/install/lib/libcobalt.so" ]
+    }
+    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/lib/lib${original_target_name}.so" ]
+  }
+  install_target(original_target_name + "_evergreen_loader_install") {
+    forward_variables_from(invoker, [ "testonly" ])
+    installable_target_name = original_target_name + "_evergreen_loader"
+    type = "shared_library"
+    deps = []
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+    foreach(dep, shared_data_deps) {
+      deps += [ "${dep}_install_content" ]
+    }
+    if (separate_install_targets_for_bundling) {
+      deps += [ ":copy_loader_app_lib${original_target_name}_bundle_content" ]
+    }
+  }
+}
+
 template("executable") {
   not_needed(invoker, [ "build_loader" ])
 
@@ -450,6 +532,13 @@ template("shared_library") {
         bundle_name = shared_library_target_name
         bundle_deps = []
         bundle_deps = data_deps
+      }
+    }
+
+    if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
+        target_name != "loader_app") {
+      evergreen_loader(original_target_name + "_evergreen_loader") {
+        forward_variables_from(invoker, "*")
       }
     }
 

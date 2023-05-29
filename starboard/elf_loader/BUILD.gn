@@ -115,6 +115,9 @@ if (current_toolchain == starboard_toolchain) {
     if (!sb_is_evergreen_compatible) {
       deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
     }
+    if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
+      deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
+    }
   }
 }
 
