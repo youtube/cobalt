@@ -32,7 +32,7 @@ def line_expect(in_list, expect, howmuch):
   return 0
 
 
-fields = ('size rss pss shr_clean priv_clean priv_dirty '
+fields = ('size rss pss shr_clean shr_dirty priv_clean priv_dirty '
           'referenced anonymous anonhuge').split()
 MemDetail = namedtuple('name', fields)
 
@@ -71,21 +71,15 @@ def read_smap(args):
     d = MemDetail(
         split_kb_line(ls, 'Size:') + line_expect(ls, 'KernelPageSize:', 4) +
         line_expect(ls, 'MMUPageSize:', 4), split_kb_line(ls, 'Rss:'),
-        split_kb_line(ls, 'Pss:'),
-        split_kb_line(ls, 'Shared_Clean:') +
-        line_expect(ls, 'Shared_Dirty:', 0),
-        split_kb_line(ls,
-                      'Private_Clean:'), split_kb_line(ls, 'Private_Dirty:'),
-        split_kb_line(ls, 'Referenced:'), split_kb_line(ls, 'Anonymous:'),
-        line_expect(ls, 'LazyFree:', 0) + split_kb_line(ls, 'AnonHugePages:'))
+        split_kb_line(ls, 'Pss:'), split_kb_line(ls, 'Shared_Clean:'),
+        split_kb_line(ls, 'Shared_Dirty:'), split_kb_line(ls, 'Private_Clean:'),
+        split_kb_line(ls, 'Private_Dirty:'), split_kb_line(ls, 'Referenced:'),
+        split_kb_line(ls, 'Anonymous:'), split_kb_line(ls, 'AnonHugePages:'))
     # expected to be constant
 
     line_expect(ls, 'ShmemPmdMapped:', 0)
-    line_expect(ls, 'FilePmdMapped:', 0)
     line_expect(ls, 'Shared_Hugetlb:', 0)
     line_expect(ls, 'Private_Hugetlb:', 0)
-    line_expect(ls, 'Swap:', 0)
-    line_expect(ls, 'SwapPss:', 0)
     addr_range = head[0].split('-')
     start = int('0x' + addr_range[0], 16)
     end = int('0x' + addr_range[1], 16)
