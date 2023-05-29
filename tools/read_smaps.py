@@ -4,20 +4,18 @@ Reads and summarizes /proc/<pid>/smaps
 """
 import argparse
 import re
-from itertools import islice
+import itertools
 from collections import namedtuple, OrderedDict
 
 
-def chunks(items, chunk_size):
-  iterator = iter(items)
-  while True:
-    chunk = list(islice(iterator, chunk_size))
-    if not chunk:
-      break
-    yield chunk
+def consume_until(l, expect):
+  while not l[0].startswith(expect):
+    l.pop(0)
+  return l.pop(0)
 
 
-def split_kb_line(l, expect):
+def split_kb_line(in_list, expect):
+  l = consume_until(in_list, expect)
   sz = re.split(' +', l)
   if not sz[0].startswith(expect):
     raise RuntimeError(
@@ -27,15 +25,28 @@ def split_kb_line(l, expect):
   return int(sz[1])
 
 
-def line_expect(value, what, howmuch):
-  val = split_kb_line(value, what)
+def line_expect(in_list, expect, howmuch):
+  val = split_kb_line(in_list, expect)
   if howmuch != val:
-    raise RuntimeError(f'Expected {what} to be {howmuch}, got {val}')
+    raise RuntimeError(f'Expected {expect} to be {howmuch}, got {val}')
+  return 0
 
 
 fields = ('size rss pss shr_clean priv_clean priv_dirty '
-          'referenced anonymous').split()
+          'referenced anonymous anonhuge').split()
 MemDetail = namedtuple('name', fields)
+
+
+def takeuntil(items, predicate):
+  groups = itertools.groupby(items, predicate)
+  while True:
+    try:
+      _, pieces = next(groups)
+    except StopIteration:
+      return
+    list_pieces = list(pieces)
+    _, last_pice = list(next(groups))  # pylint: disable=stop-iteration-return
+    yield list_pieces + list(last_pice)
 
 
 def read_smap(args):
@@ -45,8 +56,8 @@ def read_smap(args):
   summary = {}
   namewidth = 20 if args.strip_paths else 50
   # The expected output from smaps is 23 lines for each allocation
-  for ls in chunks(lines, 23):
-    head = re.split(' +', ls[0])
+  for ls in takeuntil(lines, lambda x: x.startswith('VmFlags:')):
+    head = re.split(' +', ls.pop(0))
     key = (head[5:] or ['<anon>'])[0]
     if args.strip_paths:
       key = re.sub('.*/', '', key)
@@ -58,27 +69,26 @@ def read_smap(args):
       key = re.sub(r'libstdc\++\.so', '<libstdc++>', key)
       key = re.sub(r'[0-9a-zA-Z-_\.]+\.so', '<dynlibs>', key)
     d = MemDetail(
-        split_kb_line(ls[1], 'Size:'), split_kb_line(ls[4], 'Rss:'),
-        split_kb_line(ls[5], 'Pss:'), split_kb_line(ls[6], 'Shared_Clean:'),
-        split_kb_line(ls[8], 'Private_Clean:'),
-        split_kb_line(ls[9], 'Private_Dirty:'),
-        split_kb_line(ls[10], 'Referenced:'),
-        split_kb_line(ls[11], 'Anonymous:'))
+        split_kb_line(ls, 'Size:') + line_expect(ls, 'KernelPageSize:', 4) +
+        line_expect(ls, 'MMUPageSize:', 4), split_kb_line(ls, 'Rss:'),
+        split_kb_line(ls, 'Pss:'),
+        split_kb_line(ls, 'Shared_Clean:') +
+        line_expect(ls, 'Shared_Dirty:', 0),
+        split_kb_line(ls,
+                      'Private_Clean:'), split_kb_line(ls, 'Private_Dirty:'),
+        split_kb_line(ls, 'Referenced:'), split_kb_line(ls, 'Anonymous:'),
+        line_expect(ls, 'LazyFree:', 0) + split_kb_line(ls, 'AnonHugePages:'))
     # expected to be constant
-    line_expect(ls[2], 'KernelPageSize:', 4)
-    line_expect(ls[3], 'MMUPageSize:', 4)
-    line_expect(ls[7], 'Shared_Dirty:', 0)
-    line_expect(ls[12], 'LazyFree:', 0)
-    line_expect(ls[13], 'AnonHugePages:', 0)
-    line_expect(ls[14], 'ShmemPmdMapped:', 0)
-    line_expect(ls[15], 'FilePmdMapped:', 0)
-    line_expect(ls[16], 'Shared_Hugetlb:', 0)
-    line_expect(ls[17], 'Private_Hugetlb:', 0)
-    line_expect(ls[18], 'Swap:', 0)
-    line_expect(ls[19], 'SwapPss:', 0)
-    addrrange = head[0].split('-')
-    start = int('0x' + addrrange[0], 16)
-    end = int('0x' + addrrange[1], 16)
+
+    line_expect(ls, 'ShmemPmdMapped:', 0)
+    line_expect(ls, 'FilePmdMapped:', 0)
+    line_expect(ls, 'Shared_Hugetlb:', 0)
+    line_expect(ls, 'Private_Hugetlb:', 0)
+    line_expect(ls, 'Swap:', 0)
+    line_expect(ls, 'SwapPss:', 0)
+    addr_range = head[0].split('-')
+    start = int('0x' + addr_range[0], 16)
+    end = int('0x' + addr_range[1], 16)
     if (end - start) / 1024 != d.size:
       raise RuntimeError('Sizes dont match')
     lls = owners.get(key, [])
@@ -118,18 +128,22 @@ if __name__ == '__main__':
       'smaps_file',
       help='Contents of /proc/pid/smaps, for example /proc/self/smaps')
   parser.add_argument(
+      '-k',
       '--sortkey',
       choices=['size', 'rss', 'pss', 'anonymous', 'name'],
       default='pss')
   parser.add_argument(
+      '-s',
       '--strip_paths',
       action='store_true',
       help='Remove leading paths from binaries')
   parser.add_argument(
+      '-r',
       '--remove_so_versions',
       action='store_true',
       help='Remove dynamic library versions')
   parser.add_argument(
+      '-a',
       '--aggregate_solibs',
       action='store_true',
       help='Collapse solibs into single row')
