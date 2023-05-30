@@ -88,6 +88,11 @@ jobs:
         run: echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')" >> $GITHUB_ENV
       - id: set-docker-runner-service
         run: echo "docker_runner_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v3
+        with:
+          name: cobalt-actions-source
+          path: ${{ github.workspace }}/.github/
+          retention-days: 1
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
@@ -96,6 +101,7 @@ jobs:
       on_host_test_shards: ${{ env.on_host_test_shards }}
       docker_service: ${{ env.docker_service }}
       docker_runner_service: ${{ env.docker_runner_service }}
+      job_id: ${{ github.job }}
   # Build windows docker images.
   build-docker-image:
     needs: [initialize]
@@ -172,11 +178,14 @@ jobs:
         config: [devel]
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
-      - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
-        with:
-          fetch-depth: 1
-          persist-credentials: false
+      - name: Clean up
+        run: rm -rf ${{ github.workspace }}/out/win-win32_devel
+        shell: bash
+          #- name: Get Cobalt Actions Source
+          #uses: actions/download-artifact@v3
+          #with:
+          #name: cobalt-actions-source
+          #path: ${{ github.workspace }}/.github/
       - name: Run Tests
         uses: ./.github/actions/on_host_test
         with:
