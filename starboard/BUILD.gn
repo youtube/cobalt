@@ -200,7 +200,7 @@ if (current_toolchain == starboard_toolchain) {
   if (platform_tests_path == "") {
     # If 'starboard_platform_tests' is not defined by the platform, then an
     # empty 'starboard_platform_tests' target is defined.
-    target(gtest_target_type, "starboard_platform_tests") {
+    target(starboard_level_target_type, "starboard_platform_tests") {
       testonly = true
 
       sources = [ "//starboard/common/test_main.cc" ]

@@ -435,7 +435,7 @@ static_library("starboard_platform_sources") {
 }
 
 if (current_toolchain == starboard_toolchain) {
-  target(gtest_target_type, "starboard_platform_tests") {
+  target(starboard_level_target_type, "starboard_platform_tests") {
     build_loader = false
     testonly = true
 

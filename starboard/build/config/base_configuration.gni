@@ -68,6 +68,8 @@ declare_args() {
   # (ex. Android).
   final_executable_type = default_target_type
 
+  starboard_level_target_type = "executable"
+
   # Halt execution on failure to allocate memory.
   abort_on_allocation_failure = true
 

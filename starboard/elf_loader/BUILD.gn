@@ -89,7 +89,7 @@ if (sb_is_evergreen_compatible) {
 }
 
 if (current_toolchain == starboard_toolchain) {
-  target(final_executable_type, "elf_loader_sandbox") {
+  target(starboard_level_target_type, "elf_loader_sandbox") {
     data_deps = [ "//third_party/icu:icudata" ]
     if (cobalt_font_package == "empty") {
       data_deps += [ "//cobalt/content/fonts:copy_font_data" ]

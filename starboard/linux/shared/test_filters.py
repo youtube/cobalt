@@ -20,7 +20,7 @@ from starboard.tools.testing import test_filter
 
 
 # pylint: disable=line-too-long
-_FILTERED_TESTS = {
+_MODULAR_BUILD_FILTERED_TESTS = {
     'nplb': [
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_329_ec3_dmp_video__null__output_DecodeToTexture',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_329_ec3_dmp_video__null__output_Punchout',
@@ -34,7 +34,13 @@ _FILTERED_TESTS = {
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
     ],
+    'player_filter_tests': [test_filter.FILTER_ALL],
 }
+
+_FILTERED_TESTS = {}
+if os.getenv('MODULAR_BUILD', '0') == '1':
+  _FILTERED_TESTS = _MODULAR_BUILD_FILTERED_TESTS
+
 # Conditionally disables tests that require ipv6
 if os.getenv('IPV6_AVAILABLE', '1') == '0':
   _FILTERED_TESTS['nplb'].extend([
