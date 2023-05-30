@@ -54,7 +54,7 @@ def read_smap(args):
     lines = [line.rstrip() for line in file]
   owners = {}
   summary = {}
-  namewidth = 20 if args.strip_paths else 50
+  namewidth = 40 if args.strip_paths else 50
   # The expected output from smaps is 23 lines for each allocation
   for ls in takeuntil(lines, lambda x: x.startswith('VmFlags:')):
     head = re.split(' +', ls.pop(0))
@@ -67,7 +67,13 @@ def read_smap(args):
       # Split out C / C++ solibs
       key = re.sub(r'libc-[\.0-9]+\.so', '<glibc>', key)
       key = re.sub(r'libstdc\++\.so', '<libstdc++>', key)
-      key = re.sub(r'[0-9a-zA-Z-_\.]+\.so', '<dynlibs>', key)
+      key = re.sub(r'[@\-\.\w]+\.so', '<dynlibs>', key)
+    if args.aggregate_android:
+      key = re.sub(r'[@\-\.\w]*\.(hyb|vdex|odex|art|jar|oat)[\]]*$', r'<\g<1>>',
+                   key)
+      key = re.sub(r'anon:stack_and_tls:[0-9a-zA-Z-_]+', '<stack_and_tls>', key)
+      key = re.sub(r'[@\-\.\w]+prop:s0', '<prop>', key)
+      key = re.sub(r'[@\-\.\w]*@idmap$', '<idmap>', key)
     d = MemDetail(
         split_kb_line(ls, 'Size:') + line_expect(ls, 'KernelPageSize:', 4) +
         line_expect(ls, 'MMUPageSize:', 4), split_kb_line(ls, 'Rss:'),
@@ -76,10 +82,12 @@ def read_smap(args):
         split_kb_line(ls, 'Private_Dirty:'), split_kb_line(ls, 'Referenced:'),
         split_kb_line(ls, 'Anonymous:'), split_kb_line(ls, 'AnonHugePages:'))
     # expected to be constant
-
     line_expect(ls, 'ShmemPmdMapped:', 0)
     line_expect(ls, 'Shared_Hugetlb:', 0)
     line_expect(ls, 'Private_Hugetlb:', 0)
+    if args.aggregate_zeros and (d.rss == 0) and (d.pss == 0):
+      key = '<zero resident>'
+
     addr_range = head[0].split('-')
     start = int('0x' + addr_range[0], 16)
     end = int('0x' + addr_range[1], 16)
@@ -141,4 +149,14 @@ if __name__ == '__main__':
       '--aggregate_solibs',
       action='store_true',
       help='Collapse solibs into single row')
+  parser.add_argument(
+      '-d',
+      '--aggregate_android',
+      action='store_true',
+      help='Consolidate various Android allocations')
+  parser.add_argument(
+      '-z',
+      '--aggregate_zeros',
+      action='store_true',
+      help='Consolidate rows that show zero RSS and PSS')
   read_smap(parser.parse_args())
