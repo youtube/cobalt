@@ -1,5 +1,5 @@
 # Cobalt [![Build Status](https://img.shields.io/badge/-Build%20Status-blueviolet)](https://github.com/youtube/cobalt/blob/main/BUILD_STATUS.md)
-[OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/youtube/cobalt/badge)](https://github.com/youtube/cobalt/security/code-scanning)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/youtube/cobalt/badge)](https://github.com/youtube/cobalt/security/code-scanning)
 
 ## Overview
 
