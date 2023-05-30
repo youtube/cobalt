@@ -26,7 +26,6 @@
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/math/size.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace cobalt {
 namespace browser {

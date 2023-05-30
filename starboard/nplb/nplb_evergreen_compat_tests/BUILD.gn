@@ -29,6 +29,7 @@ target(gtest_target_type, "nplb_evergreen_compat_tests") {
   public_deps = [
     "//starboard",
     "//testing/gmock",
+    "//testing/gtest",
   ]
 
   data_deps = [

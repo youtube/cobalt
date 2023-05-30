@@ -146,6 +146,6 @@ target(gtest_target_type, "layout_test") {
     "//cobalt/math",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
-    "//testing/gmock",
+    "//testing/gtest",
   ]
 }

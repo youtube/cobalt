@@ -4,6 +4,7 @@
 
 #include "base/containers/unique_ptr_adapters.h"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 

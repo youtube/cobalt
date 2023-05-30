@@ -44,9 +44,11 @@
 
 #include <stdio.h>
 
+#if !defined(STARBOARD)
 #include <cctype>
 #include <cstdint>
 #include <cwchar>
+#endif  // !defined(STARBOARD)
 #include <ostream>  // NOLINT
 #include <string>
 #include <type_traits>
