@@ -35,6 +35,7 @@ struct TaskEvent {
   Type type;
 };
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SequencedTaskTracker);
 // Utility class used in the tests below.
 class SequencedTaskTracker : public RefCountedThreadSafe<SequencedTaskTracker> {
  public:
@@ -312,6 +313,7 @@ REGISTER_TYPED_TEST_CASE_P(SequencedTaskRunnerTest,
                            DelayedTaskAfterLongTask,
                            DelayedTaskAfterManyLongTasks);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SequencedTaskRunnerDelayedTest);
 template <typename TaskRunnerTestDelegate>
 class SequencedTaskRunnerDelayedTest
     : public SequencedTaskRunnerTest<TaskRunnerTestDelegate> {};
