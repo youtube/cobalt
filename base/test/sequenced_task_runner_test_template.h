@@ -113,6 +113,7 @@ void PrintTo(const TaskEvent& event, std::ostream* os);
 
 }  // namespace internal
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SequencedTaskRunnerTest);
 template <typename TaskRunnerTestDelegate>
 class SequencedTaskRunnerTest : public testing::Test {
  protected:
