@@ -17,6 +17,7 @@ if (current_toolchain == default_toolchain &&
   import("//starboard/evergreen/x64/platform_configuration/configuration.gni")
   platform_tests_path =
       "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
+  cobalt_font_package = "standard"
 } else {
   import("//starboard/linux/shared/platform_configuration/configuration.gni")
 
