@@ -110,12 +110,6 @@ declare_args() {
   # defines how the build should produce the install/ directory.
   install_target_path = "//starboard/build/install/no_install.gni"
 
-  # Target-specific configurations for executable targets.
-  executable_configs = []
-
-  # Target-specific configurations for shared_library targets.
-  shared_library_configs = []
-
   # Target-specific configurations for static_library targets.
   static_library_configs = []
 
@@ -176,4 +170,25 @@ declare_args() {
 
   # Enable WASM and install WebAssembly global.
   v8_enable_webassembly = false
+}
+
+if (current_toolchain == starboard_toolchain &&
+    build_with_separate_cobalt_toolchain) {
+  declare_args() {
+    # Target-specific configurations for executable targets.
+    executable_configs =
+        [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+
+    # Target-specific configurations for shared_library targets.
+    shared_library_configs =
+        [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+  }
+} else {
+  declare_args() {
+    # Target-specific configurations for executable targets.
+    executable_configs = []
+
+    # Target-specific configurations for shared_library targets.
+    shared_library_configs = []
+  }
 }
