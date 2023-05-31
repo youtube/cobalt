@@ -72,7 +72,8 @@ class SbPlayerBridge {
                  const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
                  const std::string& url, SbWindow window, Host* host,
                  SbPlayerSetBoundsHelper* set_bounds_helper,
-                 bool allow_resume_after_suspend, bool prefer_decode_to_texture,
+                 bool allow_resume_after_suspend,
+                 SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
                      encrypted_media_init_data_encountered_cb,
                  DecodeTargetProvider* const decode_target_provider,
@@ -89,7 +90,8 @@ class SbPlayerBridge {
                  const std::string& video_mime_type, SbWindow window,
                  SbDrmSystem drm_system, Host* host,
                  SbPlayerSetBoundsHelper* set_bounds_helper,
-                 bool allow_resume_after_suspend, bool prefer_decode_to_texture,
+                 bool allow_resume_after_suspend,
+                 SbPlayerOutputMode default_output_mode,
                  DecodeTargetProvider* const decode_target_provider,
                  const std::string& max_video_capabilities,
                  std::string pipeline_identifier);
@@ -234,12 +236,12 @@ class SbPlayerBridge {
 
 #if SB_HAS(PLAYER_WITH_URL)
   SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(
-      bool prefer_decode_to_texture);
+      SbPlayerOutputMode default_output_mode);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Returns the output mode that should be used for a video with the given
   // specifications.
   SbPlayerOutputMode ComputeSbPlayerOutputMode(
-      bool prefer_decode_to_texture) const;
+      SbPlayerOutputMode default_output_mode) const;
 
   void LogStartupLatency() const;
 

@@ -27,6 +27,7 @@
 #include "cobalt/base/statistics.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "starboard/common/media.h"
+#include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
@@ -37,6 +38,8 @@ namespace cobalt {
 namespace media {
 
 namespace {
+
+using starboard::GetPlayerOutputModeName;
 
 class StatisticsWrapper {
  public:
@@ -177,7 +180,7 @@ SbPlayerBridge::SbPlayerBridge(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const std::string& url, SbWindow window, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
-    bool prefer_decode_to_texture,
+    SbPlayerOutputMode default_output_mode,
     const OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered_cb,
     DecodeTargetProvider* const decode_target_provider,
@@ -200,7 +203,7 @@ SbPlayerBridge::SbPlayerBridge(
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
 
-  output_mode_ = ComputeSbUrlPlayerOutputMode(prefer_decode_to_texture);
+  output_mode_ = ComputeSbUrlPlayerOutputMode(default_output_mode);
 
   CreateUrlPlayer(url_);
 
@@ -220,7 +223,7 @@ SbPlayerBridge::SbPlayerBridge(
     const VideoDecoderConfig& video_config, const std::string& video_mime_type,
     SbWindow window, SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
-    bool prefer_decode_to_texture,
+    SbPlayerOutputMode default_output_mode,
     DecodeTargetProvider* const decode_target_provider,
     const std::string& max_video_capabilities, std::string pipeline_identifier)
     : sbplayer_interface_(interface),
@@ -261,7 +264,7 @@ SbPlayerBridge::SbPlayerBridge(
     UpdateVideoConfig(video_config, video_mime_type);
   }
 
-  output_mode_ = ComputeSbPlayerOutputMode(prefer_decode_to_texture);
+  output_mode_ = ComputeSbPlayerOutputMode(default_output_mode);
 
   CreatePlayer();
 
@@ -1190,7 +1193,7 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player, void* context,
 
 #if SB_HAS(PLAYER_WITH_URL)
 SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
-    bool prefer_decode_to_texture) {
+    SbPlayerOutputMode default_output_mode) {
   // Try to choose the output mode according to the passed in value of
   // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
   // though, fallback to an output mode that is available.
@@ -1199,7 +1202,8 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
           kSbPlayerOutputModePunchOut)) {
     output_mode = kSbPlayerOutputModePunchOut;
   }
-  if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
+  if ((default_output_mode == kSbPlayerOutputModeDecodeToTexture ||
+       output_mode == kSbPlayerOutputModeInvalid) &&
       sbplayer_interface_->GetUrlPlayerOutputModeSupported(
           kSbPlayerOutputModeDecodeToTexture)) {
     output_mode = kSbPlayerOutputModeDecodeToTexture;
@@ -1211,9 +1215,10 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
-    bool prefer_decode_to_texture) const {
+    SbPlayerOutputMode default_output_mode) const {
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
+
 #if SB_API_VERSION >= 15
   creation_param.audio_stream_info = audio_stream_info_;
   creation_param.video_stream_info = video_stream_info_;
@@ -1222,13 +1227,34 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
   creation_param.video_sample_info = video_stream_info_;
 #endif  // SB_API_VERSION >= 15
 
-  // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
-  // |prefer_decode_to_texture| is true.
-  if (prefer_decode_to_texture) {
-    creation_param.output_mode = kSbPlayerOutputModeDecodeToTexture;
-  } else {
-    creation_param.output_mode = kSbPlayerOutputModePunchOut;
+  if (default_output_mode != kSbPlayerOutputModeDecodeToTexture &&
+      video_stream_info_.codec != kSbMediaVideoCodecNone) {
+    SB_DCHECK(video_stream_info_.mime);
+    SB_DCHECK(video_stream_info_.max_video_capabilities);
+
+    // Set the `default_output_mode` to `kSbPlayerOutputModeDecodeToTexture` if
+    // any of the mime associated with it has `decode-to-texture=true` set.
+    // TODO(b/232559177): Make the check below more flexible, to work with
+    //                    other well formed inputs (e.g. with extra space).
+    bool is_decode_to_texture_preferred =
+        strstr(video_stream_info_.mime, "decode-to-texture=true") ||
+        strstr(video_stream_info_.max_video_capabilities,
+               "decode-to-texture=true");
+
+    if (is_decode_to_texture_preferred) {
+      SB_LOG(INFO) << "Setting `default_output_mode` from \""
+                   << GetPlayerOutputModeName(default_output_mode) << "\" to \""
+                   << GetPlayerOutputModeName(
+                          kSbPlayerOutputModeDecodeToTexture)
+                   << "\" because mime is set to \"" << video_stream_info_.mime
+                   << "\", and max_video_capabilities is set to \""
+                   << video_stream_info_.max_video_capabilities << "\"";
+      default_output_mode = kSbPlayerOutputModeDecodeToTexture;
+    }
   }
+
+  creation_param.output_mode = default_output_mode;
+
   auto output_mode =
       sbplayer_interface_->GetPreferredOutputMode(&creation_param);
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
