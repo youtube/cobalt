@@ -225,8 +225,12 @@ class GTEST_INTERNAL_EMPTY_BASE_CLASS StrictMock
       "https://google.github.io/googletest/"
       "gmock_cook_book.html#NiceStrictNaggy");
   StrictMock() : MockClass() {
+#if !GTEST_OS_STARBOARD
     static_assert(sizeof(*this) == sizeof(MockClass),
                   "The impl subclass shouldn't introduce any padding");
+#else // !GTEST_OS_STARBOARD - gives MSVC compilation error. I think due to
+      // Starboard padding.
+#endif
   }
 
   // Ideally, we would inherit base class's constructors through a using
