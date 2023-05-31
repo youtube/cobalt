@@ -136,6 +136,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
+      bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
       SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
@@ -189,7 +190,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool DidLoadingProgress() const override;
   PipelineStatistics GetStatistics() const override;
   SetBoundsCB GetSetBoundsCB() override;
-  void SetDecodeToTextureOutputMode(bool enabled) override;
+  void SetPreferredOutputModeToDecodeToTexture() override;
 
  private:
   void StartTask(StartTaskParameters parameters);
@@ -267,6 +268,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Whether we enable batched sample write functionality.
   const bool allow_batched_sample_write_;
 
+  // The default output mode passed to `SbPlayerGetPreferredOutputMode()`.
+  SbPlayerOutputMode default_output_mode_ = kSbPlayerOutputModeInvalid;
+
   // The window this player associates with.  It should only be assigned in the
   // dtor and accessed once by SbPlayerCreate().
   PipelineWindow window_;
@@ -320,7 +324,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::Closure duration_change_cb_;
   base::Closure output_mode_change_cb_;
   base::Closure content_size_change_cb_;
-  base::Optional<bool> decode_to_texture_output_mode_;
+
 #if SB_HAS(PLAYER_WITH_URL)
   SbPlayerBridge::OnEncryptedMediaInitDataEncounteredCB
       on_encrypted_media_init_data_encountered_cb_;
@@ -408,6 +412,7 @@ SbPlayerPipeline::SbPlayerPipeline(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
     SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
@@ -464,6 +469,9 @@ SbPlayerPipeline::SbPlayerPipeline(
                              pipeline_identifier_.c_str()),
           "", "The max video capabilities required for the media pipeline."),
       playback_statistics_(pipeline_identifier_) {
+  if (force_punch_out_by_default) {
+    default_output_mode_ = kSbPlayerOutputModePunchOut;
+  }
 #if SB_API_VERSION < 15
   SbMediaSetAudioWriteDuration(audio_write_duration_);
   LOG(INFO) << "Setting audio write duration to " << audio_write_duration_
@@ -887,15 +895,15 @@ Pipeline::SetBoundsCB SbPlayerPipeline::GetSetBoundsCB() {
   return base::Bind(&SbPlayerSetBoundsHelper::SetBounds, set_bounds_helper_);
 }
 
-void SbPlayerPipeline::SetDecodeToTextureOutputMode(bool enabled) {
-  TRACE_EVENT1("cobalt::media",
-               "SbPlayerPipeline::SetDecodeToTextureOutputMode", "mode",
-               enabled);
+void SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture() {
+  TRACE_EVENT0("cobalt::media",
+               "SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture");
 
   if (!task_runner_->BelongsToCurrentThread()) {
     task_runner_->PostTask(
-        FROM_HERE, base::Bind(&SbPlayerPipeline::SetDecodeToTextureOutputMode,
-                              this, enabled));
+        FROM_HERE,
+        base::Bind(&SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture,
+                   this));
     return;
   }
 
@@ -903,7 +911,7 @@ void SbPlayerPipeline::SetDecodeToTextureOutputMode(bool enabled) {
   // mode too late.
   DCHECK(!player_bridge_);
 
-  decode_to_texture_output_mode_ = enabled;
+  default_output_mode_ = kSbPlayerOutputModeDecodeToTexture;
 }
 
 void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
@@ -1017,9 +1025,8 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
     player_bridge_.reset(new SbPlayerBridge(
         sbplayer_interface_, task_runner_, source_url, window_, this,
         set_bounds_helper_.get(), allow_resume_after_suspend_,
-        *decode_to_texture_output_mode_,
-        on_encrypted_media_init_data_encountered_cb_, decode_target_provider_,
-        pipeline_identifier_));
+        default_output_mode_, on_encrypted_media_init_data_encountered_cb_,
+        decode_target_provider_, pipeline_identifier_));
     if (player_bridge_->IsValid()) {
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
@@ -1123,8 +1130,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         get_decode_target_graphics_context_provider_func_, audio_config,
         audio_mime_type, video_config, video_mime_type, window_, drm_system,
         this, set_bounds_helper_.get(), allow_resume_after_suspend_,
-        *decode_to_texture_output_mode_, decode_target_provider_,
-        max_video_capabilities_, pipeline_identifier_));
+        default_output_mode_, decode_target_provider_, max_video_capabilities_,
+        pipeline_identifier_));
     if (player_bridge_->IsValid()) {
 #if SB_API_VERSION >= 15
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
@@ -1714,6 +1721,7 @@ scoped_refptr<Pipeline> Pipeline::Create(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
     SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
@@ -1722,6 +1730,7 @@ scoped_refptr<Pipeline> Pipeline::Create(
       interface, window, task_runner,
       get_decode_target_graphics_context_provider_func,
       allow_resume_after_suspend, allow_batched_sample_write,
+      force_punch_out_by_default,
 #if SB_API_VERSION >= 15
       audio_write_duration_local, audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15

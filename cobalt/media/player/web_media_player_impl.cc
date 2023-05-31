@@ -118,6 +118,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
         get_decode_target_graphics_context_provider_func,
     WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
     SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
@@ -130,6 +131,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       delegate_(delegate),
       allow_resume_after_suspend_(allow_resume_after_suspend),
       allow_batched_sample_write_(allow_batched_sample_write),
+      force_punch_out_by_default_(force_punch_out_by_default),
       proxy_(new WebMediaPlayerProxy(main_loop_->task_runner(), this)),
       media_log_(media_log),
       is_local_source_(false),
@@ -149,6 +151,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       Pipeline::Create(interface, window, pipeline_thread_.task_runner(),
                        get_decode_target_graphics_context_provider_func,
                        allow_resume_after_suspend_, allow_batched_sample_write_,
+                       force_punch_out_by_default_,
 #if SB_API_VERSION >= 15
                        audio_write_duration_local, audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
@@ -807,7 +810,9 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
 
   state_.starting = true;
 
-  pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
+  if (client_->PreferDecodeToTexture()) {
+    pipeline_->SetPreferredOutputModeToDecodeToTexture();
+  }
   pipeline_->Start(
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
       BIND_TO_RENDER_LOOP(
@@ -827,7 +832,9 @@ void WebMediaPlayerImpl::StartPipeline(::media::Demuxer* demuxer) {
 
   state_.starting = true;
 
-  pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
+  if (client_->PreferDecodeToTexture()) {
+    pipeline_->SetPreferredOutputModeToDecodeToTexture();
+  }
   pipeline_->Start(
       demuxer, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),

@@ -98,6 +98,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
+      bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
       SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
@@ -105,10 +106,10 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   virtual ~Pipeline() {}
 
-  virtual void Suspend() {}
+  virtual void Suspend() = 0;
   // TODO: This is temporary for supporting background media playback.
   //       Need to be removed with media refactor.
-  virtual void Resume(PipelineWindow window) {}
+  virtual void Resume(PipelineWindow window) = 0;
 
   // Build a pipeline to using the given filter collection to construct a filter
   // chain, executing |seek_cb| when the initial seek/preroll has completed.
@@ -231,10 +232,12 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual PipelineStatistics GetStatistics() const = 0;
 
   // Get the SetBoundsCB used to set the bounds of the video frame.
-  virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
+  virtual SetBoundsCB GetSetBoundsCB() = 0;
 
-  // Updates the player's preference for decode-to-texture versus punch through.
-  virtual void SetDecodeToTextureOutputMode(bool enabled) {}
+  // Cobalt by default doesn't have preference on the output mode used by
+  // SbPlayer.  Once called, this function explicitly sets the preferred output
+  // mode to decode to texture.
+  virtual void SetPreferredOutputModeToDecodeToTexture() = 0;
 };
 
 }  // namespace media
