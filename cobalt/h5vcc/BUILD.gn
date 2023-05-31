@@ -69,7 +69,6 @@ static_library("h5vcc") {
   configs += [ ":h5vcc_internal_config" ]
   public_configs = [ ":h5vcc_external_config" ]
   deps = [
-    "//cobalt/account",
     "//cobalt/base",
     "//cobalt/browser:browser_switches",
     "//cobalt/build:cobalt_build_id",

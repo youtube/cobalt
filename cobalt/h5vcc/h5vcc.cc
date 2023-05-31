@@ -26,7 +26,7 @@ namespace h5vcc {
 
 H5vcc::H5vcc(const Settings& settings) {
   accessibility_ = new H5vccAccessibility(settings.event_dispatcher);
-  account_info_ = new H5vccAccountInfo(settings.account_manager);
+  account_info_ = new H5vccAccountInfo();
   audio_config_array_ = new H5vccAudioConfigArray();
   c_val_ = new dom::CValView();
   crash_log_ = new H5vccCrashLog();
