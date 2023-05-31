@@ -46,7 +46,6 @@ class WaitableEvent;
 }  // namespace base
 
 namespace cobalt {
-
 namespace network {
 
 const char kClientHintHeadersEnabledPersistentSettingsKey[] =
@@ -55,7 +54,7 @@ const char kClientHintHeadersEnabledPersistentSettingsKey[] =
 class NetworkSystem;
 // NetworkModule wraps various networking-related components such as
 // a URL request context. This is owned by BrowserModule.
-class NetworkModule {
+class NetworkModule : public base::MessageLoop::DestructionObserver {
  public:
   struct Options {
     Options()
@@ -121,6 +120,9 @@ class NetworkModule {
 
   // Adds the Client Hint Headers to the provided URLFetcher if enabled.
   void AddClientHintHeaders(net::URLFetcher& url_fetcher) const;
+
+  // From base::MessageLoop::DestructionObserver.
+  void WillDestroyCurrentMessageLoop() override;
 
  private:
   void Initialize(const std::string& user_agent_string,
