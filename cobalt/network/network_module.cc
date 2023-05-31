@@ -101,6 +101,14 @@ void NetworkModule::SetEnableQuic(bool enable_quic) {
                  base::Unretained(url_request_context_.get()), enable_quic));
 }
 
+void NetworkModule::SetEnableClientHintHeadersFromPersistentSettings() {
+  // Called on initialization and when the persistent setting is changed.
+  enable_client_hint_headers_.store(
+      options_.persistent_settings != nullptr &&
+      options_.persistent_settings->GetPersistentSettingAsBool(
+          kClientHintHeadersEnabledPersistentSettingsKey, false));
+}
+
 void NetworkModule::Initialize(const std::string& user_agent_string,
                                base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
@@ -110,6 +118,8 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   network_system_ = NetworkSystem::Create(event_dispatcher);
   http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
       options_.preferred_language, user_agent_string));
+
+  SetEnableClientHintHeadersFromPersistentSettings();
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -202,10 +212,7 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 }
 
 void NetworkModule::AddClientHintHeaders(net::URLFetcher& url_fetcher) const {
-  // Check if persistent setting is enabled before adding the headers.
-  if (options_.persistent_settings != nullptr &&
-      options_.persistent_settings->GetPersistentSettingAsBool(
-          kClientHintHeadersEnabledPersistentSettingsKey, false)) {
+  if (enable_client_hint_headers_.load()) {
     for (const auto& header : client_hint_headers_) {
       url_fetcher.AddExtraRequestHeader(header);
     }

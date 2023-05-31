@@ -38,6 +38,7 @@
 #include "net/dial/dial_service.h"
 #endif
 #include "net/url_request/http_user_agent_settings.h"
+#include "starboard/common/atomic.h"
 
 namespace base {
 class WaitableEvent;
@@ -116,8 +117,10 @@ class NetworkModule {
 
   void SetEnableQuic(bool enable_quic);
 
-  // Adds the Client Hint Headers to the provided URLFetcher.
-  // It is conditional on kClientHintHeadersEnabledPersistentSettingsKey != 0.
+  // Checks persistent settings to determine if Client Hint Headers are enabled.
+  void SetEnableClientHintHeadersFromPersistentSettings();
+
+  // Adds the Client Hint Headers to the provided URLFetcher if enabled.
   void AddClientHintHeaders(net::URLFetcher& url_fetcher) const;
 
  private:
@@ -127,6 +130,7 @@ class NetworkModule {
   std::unique_ptr<network_bridge::NetPoster> CreateNetPoster();
 
   std::vector<std::string> client_hint_headers_;
+  starboard::atomic_bool enable_client_hint_headers_;
   storage::StorageManager* storage_manager_;
   std::unique_ptr<base::Thread> thread_;
   std::unique_ptr<URLRequestContext> url_request_context_;
