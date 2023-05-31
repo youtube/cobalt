@@ -354,7 +354,7 @@ static_library("starboard_platform_sources") {
     ":starboard_base_symbolize",
     "//starboard:starboard_headers_only",
     "//starboard/common",
-    "//starboard/shared/ffmpeg:ffmpeg_linked",
+    "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]

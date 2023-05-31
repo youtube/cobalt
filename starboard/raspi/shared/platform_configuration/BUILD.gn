@@ -123,9 +123,7 @@ config("compiler_flags") {
 config("platform_configuration") {
   libs = [
     "asound",
-    "avcodec",
-    "avformat",
-    "avutil",
+    "dl",
     "pthread",
     "rt",
     "openmaxil",
