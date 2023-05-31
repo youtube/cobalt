@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "base/optional.h"
-#include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/egl_and_gles.h"
@@ -61,10 +60,6 @@ class GraphicsSystemEGL : public GraphicsSystem {
   // can actually be used to create a surface.  If successful, we store the
   // created surface to avoid re-creating it when it is needed later.
   EGLSurface window_surface_;
-
-  // A special graphics context which is used exclusively for mapping/unmapping
-  // texture memory.
-  base::Optional<ResourceContext> resource_context_;
 };
 
 }  // namespace backend
