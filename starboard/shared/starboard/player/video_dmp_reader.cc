@@ -82,14 +82,16 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-bool VideoDmpReader::Registry::GetDmpInfo(const std::string& filename,
-                                          DmpInfo* dmp_info) const {
+bool VideoDmpReader::Registry::GetDmpInfo(
+    const std::string& filename,
+    DmpInfo* dmp_info,
+    const std::function<const DmpInfo&()>& parse_dmp_info) {
   SB_DCHECK(!filename.empty());
-  SB_DCHECK(dmp_info);
 
   ScopedLock scoped_lock(mutex_);
   auto iter = dmp_infos_.find(filename);
   if (iter == dmp_infos_.end()) {
+    dmp_infos_[filename] = parse_dmp_info();
     return false;
   }
   *dmp_info = iter->second;
@@ -112,7 +114,8 @@ VideoDmpReader::VideoDmpReader(
       read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)),
       allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand) {
   bool already_cached =
-      GetRegistry()->GetDmpInfo(file_reader_.GetAbsolutePathName(), &dmp_info_);
+      GetRegistry()->GetDmpInfo(file_reader_.GetAbsolutePathName(), &dmp_info_,
+                                std::bind(&VideoDmpReader::Parse, this));
 
   if (already_cached && allow_read_on_demand_) {
     // This is necessary as the current implementation assumes that the address
@@ -121,12 +124,6 @@ VideoDmpReader::VideoDmpReader(
     audio_access_units_.reserve(dmp_info_.audio_access_units_size);
     video_access_units_.reserve(dmp_info_.video_access_units_size);
     return;
-  }
-
-  Parse();
-
-  if (!already_cached) {
-    GetRegistry()->Register(file_reader_.GetAbsolutePathName(), dmp_info_);
   }
 }
 
@@ -274,7 +271,7 @@ bool VideoDmpReader::ParseOneRecord() {
   return true;
 }
 
-void VideoDmpReader::Parse() {
+const VideoDmpReader::DmpInfo& VideoDmpReader::Parse() {
   SB_DCHECK(!reverse_byte_order_.has_engaged());
 
   uint32_t dmp_writer_version = 0;
@@ -284,7 +281,7 @@ void VideoDmpReader::Parse() {
                   << "). Please regenerate dmp files with"
                   << " right dmp writer. Currently support version "
                   << kSupportedWriterVersion << ".";
-    return;
+    return dmp_info_;
   }
 
   while (ParseOneRecord()) {
@@ -329,6 +326,7 @@ void VideoDmpReader::Parse() {
     }
     dmp_info_.video_duration = last_frame_timestamp + frame_duration;
   }
+  return dmp_info_;
 }
 
 void VideoDmpReader::EnsureSampleLoaded(SbMediaType type, size_t index) {
