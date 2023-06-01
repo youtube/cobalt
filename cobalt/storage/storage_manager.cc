@@ -148,6 +148,18 @@ void StorageManager::FlushNow(base::OnceClosure callback) {
   QueueFlush(std::move(callback));
 }
 
+// Triggers a write to disk to happen immediately and doesn't return until the
+// I/O has completed.
+void StorageManager::FlushSynchronous() {
+  base::WaitableEvent flush_finished = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
+  FlushNow(base::Bind(
+      [](base::WaitableEvent* flush_finished) { flush_finished->Signal(); },
+      base::Unretained(&flush_finished)));
+  flush_finished.Wait();
+}
+
 void StorageManager::FinishInit() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(storage_task_runner_->RunsTasksInCurrentSequence());
