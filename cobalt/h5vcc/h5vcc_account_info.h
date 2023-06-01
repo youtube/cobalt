@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "cobalt/account/account_manager.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -25,7 +24,7 @@ namespace h5vcc {
 
 class H5vccAccountInfo : public script::Wrappable {
  public:
-  explicit H5vccAccountInfo(account::AccountManager* account_manager);
+  H5vccAccountInfo();
   std::string avatar_url() const;
   std::string username() const;
   std::string user_id() const;
@@ -33,7 +32,6 @@ class H5vccAccountInfo : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccAccountInfo);
 
  private:
-  account::AccountManager* account_manager_;
   DISALLOW_COPY_AND_ASSIGN(H5vccAccountInfo);
 };
 

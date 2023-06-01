@@ -154,7 +154,6 @@ static_library("browser") {
     ":browser_switches",
     ":generated_bindings",
     ":generated_types",
-    "//cobalt/account",
     "//cobalt/audio",
     "//cobalt/base",
     "//cobalt/browser/memory_settings:browser_memory_settings",

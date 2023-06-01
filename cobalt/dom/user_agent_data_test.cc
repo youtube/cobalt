@@ -40,11 +40,10 @@ class UserAgentDataTest : public testing::TestWithJavaScript {
 
     // Inject H5vcc interface to make it also accessible via Window
     h5vcc::H5vcc::Settings h5vcc_settings;
-    h5vcc_settings.network_module = NULL;
+    h5vcc_settings.network_module = nullptr;
 #if SB_IS(EVERGREEN)
-    h5vcc_settings.updater_module = NULL;
+    h5vcc_settings.updater_module = nullptr;
 #endif
-    h5vcc_settings.account_manager = NULL;
     h5vcc_settings.event_dispatcher = event_dispatcher();
     h5vcc_settings.user_agent_data = window()->navigator()->user_agent_data();
     h5vcc_settings.global_environment = global_environment();
