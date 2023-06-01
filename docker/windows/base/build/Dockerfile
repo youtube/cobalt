@@ -29,6 +29,13 @@ COPY ./spin.ps1 /spin.ps1
 # of the execution, i.e. the full invocation string.
 COPY ./list_python_processes.py /list_python_processes.py
 
+# Chocolatey sometimes can't install if .NET 4.8 hasn't been preinstalled, install it first
+RUN (New-Object Net.WebClient).DownloadFile(`
+    'https://download.visualstudio.microsoft.com/download/pr/2d6bb6b2-226a-4baa-bdec-798822606ff1/8494001c276a4b96804cde7829c04d7f/ndp48-x86-x64-allos-enu.exe',`
+    C:\tmp\dotnet48.exe');`
+    C:\tmp\dotnet48.exe /q /norestart;`
+    Remove-Item -Path C:\tmp\dotnet48.exe
+
 # Install deps via chocolatey.
 RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
     mkdir C:\choco-cache;`
