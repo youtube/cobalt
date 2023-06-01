@@ -36,7 +36,8 @@
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/file.h"
 #include "starboard/system.h"
-#else
+#endif
+
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -44,7 +45,6 @@
 #include <time.h>
 #include <wchar.h>
 #include <wctype.h>
-#endif
 
 #include <algorithm>
 #include <chrono>  // NOLINT
