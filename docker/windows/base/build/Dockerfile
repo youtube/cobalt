@@ -21,14 +21,6 @@ SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
 # Helper script for quick delete operations in windows
 COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
 
-# Helper script to run an looping command to persist the container instead of
-# running the main command.
-COPY ./spin.ps1 /spin.ps1
-
-# Helper script to output all the running python processes showing the details
-# of the execution, i.e. the full invocation string.
-COPY ./list_python_processes.py /list_python_processes.py
-
 # Chocolatey sometimes can't install if .NET 4.8 hasn't been preinstalled, install it first
 RUN (New-Object Net.WebClient).DownloadFile(`
     'https://download.visualstudio.microsoft.com/download/pr/2d6bb6b2-226a-4baa-bdec-798822606ff1/8494001c276a4b96804cde7829c04d7f/ndp48-x86-x64-allos-enu.exe',`
