@@ -2,7 +2,7 @@ name: android
 
 on:
   pull_request:
-    types: [ready_for_review, opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled]
     branches:
       - main
       - feature/*
