@@ -31,6 +31,8 @@ STATUS_CHANGE_TIMEOUT = 15
 # This file is still executed with Python2 in CI.
 # pylint:disable=consider-using-f-string,super-with-arguments
 
+IS_MODULAR_BUILD = os.getenv("MODULAR_BUILD", "0") == "1"
+
 
 def GetProcessStatus(pid):
   """Returns process running status given its pid, or empty string if not found.
@@ -61,11 +63,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self.device_ip = socket.gethostbyname(socket.gethostname())
 
     self.executable = self.GetTargetPath()
-    if not os.path.exists(self.executable):
+    if IS_MODULAR_BUILD:
       self.executable += "_loader"
-    if not os.path.exists(self.executable):
-      self.executable = os.path.abspath(
-          os.path.join(self.out_directory, "starboard", self.target_name))
+      if not os.path.exists(self.executable):
+        self.executable = os.path.abspath(
+            os.path.join(self.out_directory, "starboard", self.target_name))
+
+      self.IgnoreAsanLeaks()
 
     env = os.environ.copy()
     env.update(self.env_variables)
@@ -210,3 +214,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def GetDeviceOutputPath(self):
     """Writable path where test targets can output files"""
     return "/tmp/testoutput"
+
+  def IgnoreAsanLeaks(self):
+    asan_options = self.env_variables.get("ASAN_OPTIONS", "")
+    asan_options = [
+        opt for opt in asan_options.split(":") if "detect_leaks" not in opt
+    ]
+    asan_options.append("detect_leaks=0")
+    self.env_variables["ASAN_OPTIONS"] = ":".join(asan_options)
