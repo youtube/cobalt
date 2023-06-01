@@ -48,29 +48,37 @@ NetworkModule::NetworkModule(
   Initialize(user_agent_string, event_dispatcher);
 }
 
+void NetworkModule::WillDestroyCurrentMessageLoop() {
+#if defined(DIAL_SERVER)
+  dial_service_proxy_ = nullptr;
+  dial_service_.reset();
+#endif
+
+  cookie_jar_.reset();
+  net_poster_.reset();
+  url_request_context_.reset();
+  network_delegate_.reset();
+}
+
 NetworkModule::~NetworkModule() {
   // Order of destruction is important here.
   // URLRequestContext and NetworkDelegate must be destroyed on the IO thread.
   // The ObjectWatchMultiplexer must be destroyed last.  (The sockets owned
   // by URLRequestContext will destroy their ObjectWatchers, which need the
   // multiplexer.)
-  url_request_context_getter_ = NULL;
-#if defined(DIAL_SERVER)
-  dial_service_proxy_ = NULL;
-  task_runner()->DeleteSoon(FROM_HERE, dial_service_.release());
-#endif
+  url_request_context_getter_ = nullptr;
 
-  task_runner()->DeleteSoon(FROM_HERE, cookie_jar_.release());
-  task_runner()->DeleteSoon(FROM_HERE, net_poster_.release());
-  task_runner()->DeleteSoon(FROM_HERE, url_request_context_.release());
-  task_runner()->DeleteSoon(FROM_HERE, network_delegate_.release());
-
-  // This will run the above task, and then stop the thread.
-  thread_.reset(NULL);
+  if (thread_) {
+    // Wait for all previously posted tasks to finish.
+    thread_->message_loop()->task_runner()->WaitForFence();
+    // This will trigger a call to WillDestroyCurrentMessageLoop in the thread
+    // and wait for it to finish.
+    thread_.reset();
+  }
 #if !defined(STARBOARD)
-  object_watch_multiplexer_.reset(NULL);
+  object_watch_multiplexer_.reset();
 #endif
-  network_system_.reset(NULL);
+  network_system_.reset();
 }
 
 std::string NetworkModule::GetUserAgent() const {
@@ -183,6 +191,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
 
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   DCHECK(task_runner()->RunsTasksInCurrentSequence());
+  base::MessageLoopCurrent::Get()->AddDestructionObserver(this);
 
   net::NetLog* net_log = NULL;
 #if defined(ENABLE_NETWORK_LOGGING)
