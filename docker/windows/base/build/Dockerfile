@@ -25,8 +25,7 @@ COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
 RUN (New-Object Net.WebClient).DownloadFile(`
     'https://download.visualstudio.microsoft.com/download/pr/2d6bb6b2-226a-4baa-bdec-798822606ff1/8494001c276a4b96804cde7829c04d7f/ndp48-x86-x64-allos-enu.exe',`
     C:\tmp\dotnet48.exe');`
-    C:\tmp\dotnet48.exe /q /norestart;`
-    Remove-Item -Path C:\tmp\dotnet48.exe
+    Invoke-Expression '& C:\tmp\dotnet48.exe /q /norestart'
 
 # Install deps via chocolatey.
 RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
