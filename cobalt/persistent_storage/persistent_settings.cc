@@ -23,19 +23,15 @@
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace persistent_storage {
 
 namespace {
-
 // Protected persistent settings key indicating whether or not the persistent
 // settings file has been validated.
 const char kValidated[] = "validated";
-
-// Signals the given WaitableEvent.
-void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
-
 }  // namespace
 
 void PersistentSettings::WillDestroyCurrentMessageLoop() {
@@ -69,22 +65,6 @@ PersistentSettings::PersistentSettings(const std::string& file_name)
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&PersistentSettings::InitializeWriteablePrefStore,
                             base::Unretained(this)));
-
-  // Register as a destruction observer to shut down the Web Agent once all
-  // pending tasks have been executed and the message loop is about to be
-  // destroyed. This allows us to safely stop the thread, drain the task queue,
-  // then destroy the internal components before the message loop is reset.
-  // No posted tasks will be executed once the thread is stopped.
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&base::MessageLoop::AddDestructionObserver,
-                 base::Unretained(message_loop()), base::Unretained(this)));
-
-  // This works almost like a PostBlockingTask, except that any blocking that
-  // may be necessary happens when Stop() is called instead of right now.
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&SignalWaitableEvent,
-                            base::Unretained(&destruction_observer_added_)));
 }
 
 PersistentSettings::~PersistentSettings() {
@@ -96,11 +76,19 @@ PersistentSettings::~PersistentSettings() {
   // the destruction observer to be notified.
   writeable_pref_store_initialized_.Wait();
   destruction_observer_added_.Wait();
+  // Wait for all previously posted tasks to finish.
+  thread_.message_loop()->task_runner()->WaitForFence();
   thread_.Stop();
 }
 
 void PersistentSettings::InitializeWriteablePrefStore() {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  // Register as a destruction observer to shut down the thread once all
+  // pending tasks have been executed and the message loop is about to be
+  // destroyed. This allows us to safely stop the thread, drain the task queue,
+  // then destroy the internal components before the message loop is reset.
+  // No posted tasks will be executed once the thread is stopped.
+  base::MessageLoopCurrent::Get()->AddDestructionObserver(this);
   {
     base::AutoLock auto_lock(pref_store_lock_);
     pref_store_ = base::MakeRefCounted<JsonPrefStore>(
@@ -114,6 +102,7 @@ void PersistentSettings::InitializeWriteablePrefStore() {
   if (!validated_initial_settings_) {
     starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
   }
+  destruction_observer_added_.Signal();
 }
 
 void PersistentSettings::ValidatePersistentSettings() {
