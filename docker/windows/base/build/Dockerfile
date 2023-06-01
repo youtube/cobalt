@@ -29,6 +29,8 @@ COPY ./spin.ps1 /spin.ps1
 # of the execution, i.e. the full invocation string.
 COPY ./list_python_processes.py /list_python_processes.py
 
+# Pin Choco to 1.4.0 to avoid required reboot in 2.0.0
+ENV chocolateyVersion '1.4.0'
 # Install deps via chocolatey.
 RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
     mkdir C:\choco-cache;`
