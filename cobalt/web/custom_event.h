@@ -33,29 +33,32 @@ class CustomEvent : public web::Event {
  public:
   explicit CustomEvent(script::EnvironmentSettings* environment_settings,
                        const std::string& type)
-      : Event(type), environment_settings_(environment_settings) {}
+      : Event(type) {}
   CustomEvent(script::EnvironmentSettings* environment_settings,
               const std::string& type, const CustomEventInit& init_dict)
-      : Event(type, init_dict), environment_settings_(environment_settings) {
-    set_detail(init_dict.detail());
+      : Event(type, init_dict) {
+    set_detail(environment_settings, init_dict.detail());
   }
 
   // Creates an event with its "initialized flag" unset.
-  explicit CustomEvent(UninitializedFlag uninitialized_flag)
+  CustomEvent(script::EnvironmentSettings*,
+              UninitializedFlag uninitialized_flag)
       : Event(uninitialized_flag) {}
 
   // Web API: CustomEvent
   //
-  void InitCustomEvent(const std::string& type, bool bubbles, bool cancelable,
+  void InitCustomEvent(script::EnvironmentSettings* environment_settings,
+                       const std::string& type, bool bubbles, bool cancelable,
                        const script::ValueHandleHolder& detail) {
     InitEvent(type, bubbles, cancelable);
-    set_detail(&detail);
+    set_detail(environment_settings, &detail);
   }
 
-  void set_detail(const script::ValueHandleHolder* detail) {
+  void set_detail(script::EnvironmentSettings* environment_settings,
+                  const script::ValueHandleHolder* detail) {
     if (detail) {
-      auto* wrappable = environment_settings_
-                            ? get_global_wrappable(environment_settings_)
+      auto* wrappable = environment_settings
+                            ? get_global_wrappable(environment_settings)
                             : this;
       detail_.reset(
           new script::ValueHandleHolder::Reference(wrappable, *detail));
@@ -75,12 +78,9 @@ class CustomEvent : public web::Event {
   DEFINE_WRAPPABLE_TYPE(CustomEvent);
 
  protected:
-  ~CustomEvent() override { environment_settings_ = nullptr; }
+  ~CustomEvent() override {}
 
   std::unique_ptr<script::ValueHandleHolder::Reference> detail_;
-
- private:
-  script::EnvironmentSettings* environment_settings_ = nullptr;
 };
 
 }  // namespace web
