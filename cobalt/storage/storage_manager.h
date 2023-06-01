@@ -67,6 +67,10 @@ class StorageManager : public base::MessageLoop::DestructionObserver {
   // This call returns immediately.
   void FlushNow(base::OnceClosure callback = base::Closure());
 
+  // Triggers a write to disk to happen immediately and doesn't return until the
+  // I/O has completed.
+  void FlushSynchronous();
+
   const Options& options() const { return options_; }
 
   void set_network_task_runner(
