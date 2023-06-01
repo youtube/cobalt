@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/renderer/backend/egl/graphics_context.h"
+
 #include <algorithm>
 #include <memory>
 #include <utility>
-
-#include "cobalt/renderer/backend/egl/graphics_context.h"
 
 #include "base/debug/leak_annotations.h"
 #include "base/trace_event/trace_event.h"
@@ -53,15 +53,16 @@ bool HasExtension(const char* extension) {
 }  // namespace
 
 GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
-                                       EGLDisplay display, EGLConfig config,
-                                       ResourceContext* resource_context)
+                                       EGLDisplay display, EGLConfig config)
     : GraphicsContext(parent_system),
       display_(display),
       config_(config),
       is_current_(false) {
   // Create an OpenGL ES 2.0 context.
   EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
+      EGL_CONTEXT_CLIENT_VERSION,
+      2,
+      EGL_NONE,
   };
   context_ = EGL_CALL_SIMPLE(
       eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list));
