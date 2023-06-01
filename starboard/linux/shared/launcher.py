@@ -69,6 +69,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self.executable = os.path.abspath(
             os.path.join(self.out_directory, "starboard", self.target_name))
 
+      # TODO(b/285234546): Resolve ASAN leaks and re-enable it.
       self.IgnoreAsanLeaks()
 
     env = os.environ.copy()
