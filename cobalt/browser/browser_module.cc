@@ -214,7 +214,6 @@ renderer::Submission CreateSubmissionFromLayoutResults(
 BrowserModule::BrowserModule(const GURL& url,
                              base::ApplicationState initial_application_state,
                              base::EventDispatcher* event_dispatcher,
-                             account::AccountManager* account_manager,
                              network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
                              updater::UpdaterModule* updater_module,
@@ -226,7 +225,6 @@ BrowserModule::BrowserModule(const GURL& url,
       options_(options),
       self_message_loop_(base::MessageLoop::current()),
       event_dispatcher_(event_dispatcher),
-      account_manager_(account_manager),
       is_rendered_(false),
       is_web_module_rendered_(false),
       can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
@@ -459,7 +457,17 @@ BrowserModule::~BrowserModule() {
   SbCoreDumpUnregisterHandler(BrowserModule::CoreDumpHandler, this);
 #endif
 
+#if defined(ENABLE_DEBUGGER)
+  if (debug_console_) {
+    lifecycle_observers_.RemoveObserver(debug_console_.get());
+  }
+  debug_console_.reset();
+#endif
+  DestroySplashScreen();
   // Make sure the WebModule is destroyed before the ServiceWorkerRegistry
+  if (web_module_) {
+    lifecycle_observers_.RemoveObserver(web_module_.get());
+  }
   web_module_.reset();
 }
 
@@ -544,7 +552,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   // Show a splash screen while we're waiting for the web page to load.
   const ViewportSize viewport_size = GetViewportSize();
 
-  DestroySplashScreen(base::TimeDelta());
+  DestroySplashScreen();
   if (options_.enable_splash_screen_on_reloads ||
       main_web_module_generation_ == 1) {
     base::Optional<std::string> topic = SetSplashScreenTopicFallback(url);
@@ -799,7 +807,7 @@ void BrowserModule::OnRenderTreeProduced(
   if (splash_screen_) {
     if (on_screen_keyboard_show_called_) {
       // Hide the splash screen as quickly as possible.
-      DestroySplashScreen(base::TimeDelta());
+      DestroySplashScreen();
     } else if (!splash_screen_->ShutdownSignaled()) {
       splash_screen_->Shutdown();
     }
@@ -947,7 +955,7 @@ void BrowserModule::OnOnScreenKeyboardShown(
   // Only inject shown events to the main WebModule.
   on_screen_keyboard_show_called_ = true;
   if (splash_screen_ && splash_screen_->ShutdownSignaled()) {
-    DestroySplashScreen(base::TimeDelta());
+    DestroySplashScreen();
   }
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardShownEvent(event->ticket());
@@ -1364,7 +1372,7 @@ void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
     }
     splash_screen_layer_->Reset();
     SubmitCurrentRenderTreeToRenderer();
-    splash_screen_.reset(NULL);
+    splash_screen_.reset();
   }
 }
 
@@ -2072,7 +2080,6 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vccCallback(
 #if SB_IS(EVERGREEN)
   h5vcc_settings.updater_module = updater_module_;
 #endif
-  h5vcc_settings.account_manager = account_manager_;
   h5vcc_settings.event_dispatcher = event_dispatcher_;
 
   h5vcc_settings.user_agent_data = settings->context()

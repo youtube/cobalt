@@ -51,7 +51,6 @@ class H5vcc : public script::Wrappable {
 #if SB_IS(EVERGREEN)
           updater_module(NULL),
 #endif
-          account_manager(NULL),
           event_dispatcher(NULL),
           user_agent_data(NULL),
           global_environment(NULL) {
@@ -63,7 +62,6 @@ class H5vcc : public script::Wrappable {
 #if SB_IS(EVERGREEN)
     updater::UpdaterModule* updater_module;
 #endif
-    account::AccountManager* account_manager;
     base::EventDispatcher* event_dispatcher;
     web::NavigatorUAData* user_agent_data;
     script::GlobalEnvironment* global_environment;

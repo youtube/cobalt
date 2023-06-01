@@ -14,27 +14,52 @@
 
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 
-#include "cobalt/account/account_manager.h"
+#include <memory>
+#include <string>
+
+#include "starboard/user.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vccAccountInfo::H5vccAccountInfo(account::AccountManager* account_manager)
-    : account_manager_(account_manager) {}
+namespace {
+const int kMaxValueLength = 64 * 1024;
+
+std::string GetCurrentUserProperty(SbUserPropertyId property_id) {
+  SbUser user = SbUserGetCurrent();
+
+  if (!SbUserIsValid(user)) {
+    return "";
+  }
+
+  int size = SbUserGetPropertySize(user, property_id);
+  if (!size || size > kMaxValueLength) {
+    return "";
+  }
+
+  std::unique_ptr<char[]> value(new char[size]);
+  if (!SbUserGetProperty(user, property_id, value.get(), size)) {
+    return "";
+  }
+
+  std::string result = value.get();
+  return result;
+}
+
+}  // namespace
+
+H5vccAccountInfo::H5vccAccountInfo() {}
 
 std::string H5vccAccountInfo::avatar_url() const {
-  DCHECK(account_manager_);
-  return account_manager_->GetAvatarURL();
+  return GetCurrentUserProperty(kSbUserPropertyAvatarUrl);
 }
 
 std::string H5vccAccountInfo::username() const {
-  DCHECK(account_manager_);
-  return account_manager_->GetUsername();
+  return GetCurrentUserProperty(kSbUserPropertyUserName);
 }
 
 std::string H5vccAccountInfo::user_id() const {
-  DCHECK(account_manager_);
-  return account_manager_->GetUserId();
+  return GetCurrentUserProperty(kSbUserPropertyUserId);
 }
 
 }  // namespace h5vcc

@@ -86,6 +86,7 @@ void StopApplication() {
   LOG(INFO) << "Stopping application.";
   delete g_application;
   g_application = NULL;
+  LOG(INFO) << "Application stopped.";
 }
 
 void HandleStarboardEvent(const SbEvent* starboard_event) {

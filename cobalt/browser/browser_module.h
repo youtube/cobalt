@@ -26,7 +26,6 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/timer/timer.h"
-#include "cobalt/account/account_manager.h"
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/date_time_configuration_changed_event.h"
@@ -66,7 +65,6 @@
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/script/array_buffer.h"
-#include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/ui_navigation/scroll_engine/scroll_engine.h"
 #include "cobalt/web/web_settings.h"
@@ -127,7 +125,6 @@ class BrowserModule {
   BrowserModule(const GURL& url,
                 base::ApplicationState initial_application_state,
                 base::EventDispatcher* event_dispatcher,
-                account::AccountManager* account_manager,
                 network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
                 updater::UpdaterModule* updater_module,
@@ -342,7 +339,7 @@ class BrowserModule {
   bool TryURLHandlers(const GURL& url);
 
   // Destroys the splash screen, if currently displayed.
-  void DestroySplashScreen(base::TimeDelta close_time);
+  void DestroySplashScreen(base::TimeDelta close_time = base::TimeDelta());
 
   // Called when web module has received window.close().
   void OnWindowClose(base::TimeDelta close_time);
@@ -516,8 +513,6 @@ class BrowserModule {
   URLHandlerCollection url_handlers_;
 
   base::EventDispatcher* event_dispatcher_;
-
-  account::AccountManager* account_manager_;
 
   // Whether the browser module has yet rendered anything. On the very first
   // render, we hide the system splash screen.
