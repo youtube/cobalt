@@ -75,12 +75,12 @@ class CustomEvent : public web::Event {
   DEFINE_WRAPPABLE_TYPE(CustomEvent);
 
  protected:
-  ~CustomEvent() override {}
+  ~CustomEvent() override { environment_settings_ = nullptr; }
 
   std::unique_ptr<script::ValueHandleHolder::Reference> detail_;
 
  private:
-  script::EnvironmentSettings* environment_settings_;
+  script::EnvironmentSettings* environment_settings_ = nullptr;
 };
 
 }  // namespace web
