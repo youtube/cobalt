@@ -1782,6 +1782,11 @@ void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
   // First freeze all our web modules which implies that they will release
   // their resource provider and all resources created through it.
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Freeze(timestamp));
+
+  if (network_module_) {
+    // Synchronously wait for storage to flush before returning from freezing.
+    network_module_->storage_manager()->FlushSynchronous();
+  }
 }
 
 void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
