@@ -30,6 +30,7 @@
 #include "cobalt/network/url_request_context.h"
 #include "cobalt/network/url_request_context_getter.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
+#include "cobalt/storage/storage_manager.h"
 #include "net/base/static_cookie_policy.h"
 #include "url/gurl.h"
 #if defined(DIAL_SERVER)
@@ -45,10 +46,6 @@ class WaitableEvent;
 }  // namespace base
 
 namespace cobalt {
-
-namespace storage {
-class StorageManager;
-}  // namespace storage
 
 namespace network {
 
@@ -77,6 +74,7 @@ class NetworkModule {
     std::string custom_proxy;
     SbTime max_network_delay;
     persistent_storage::PersistentSettings* persistent_settings;
+    storage::StorageManager::Options storage_manager_options;
   };
 
   // Simple constructor intended to be used only by tests.
@@ -85,7 +83,6 @@ class NetworkModule {
   // Constructor for production use.
   NetworkModule(const std::string& user_agent_string,
                 const std::vector<std::string>& client_hint_headers,
-                storage::StorageManager* storage_manager,
                 base::EventDispatcher* event_dispatcher,
                 const Options& options = Options());
   ~NetworkModule();
@@ -105,7 +102,9 @@ class NetworkModule {
   scoped_refptr<base::SequencedTaskRunner> task_runner() const {
     return thread_->task_runner();
   }
-  storage::StorageManager* storage_manager() const { return storage_manager_; }
+  storage::StorageManager* storage_manager() const {
+    return storage_manager_.get();
+  }
   network_bridge::CookieJar* cookie_jar() const { return cookie_jar_.get(); }
   network_bridge::PostSender GetPostSender() const;
 #if defined(DIAL_SERVER)
@@ -131,7 +130,7 @@ class NetworkModule {
 
   std::vector<std::string> client_hint_headers_;
   starboard::atomic_bool enable_client_hint_headers_;
-  storage::StorageManager* storage_manager_;
+  std::unique_ptr<storage::StorageManager> storage_manager_;
   std::unique_ptr<base::Thread> thread_;
   std::unique_ptr<URLRequestContext> url_request_context_;
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;

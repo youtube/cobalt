@@ -36,19 +36,15 @@ const char kCaptureModeIncludeSocketBytes[] = "IncludeSocketBytes";
 #endif
 }  // namespace
 
-NetworkModule::NetworkModule(const Options& options)
-    : storage_manager_(NULL), options_(options) {
+NetworkModule::NetworkModule(const Options& options) : options_(options) {
   Initialize("Null user agent string.", NULL);
 }
 
 NetworkModule::NetworkModule(
     const std::string& user_agent_string,
     const std::vector<std::string>& client_hint_headers,
-    storage::StorageManager* storage_manager,
     base::EventDispatcher* event_dispatcher, const Options& options)
-    : client_hint_headers_(client_hint_headers),
-      storage_manager_(storage_manager),
-      options_(options) {
+    : client_hint_headers_(client_hint_headers), options_(options) {
   Initialize(user_agent_string, event_dispatcher);
 }
 
@@ -111,6 +107,9 @@ void NetworkModule::SetEnableClientHintHeadersFromPersistentSettings() {
 
 void NetworkModule::Initialize(const std::string& user_agent_string,
                                base::EventDispatcher* event_dispatcher) {
+  storage_manager_.reset(
+      new storage::StorageManager(options_.storage_manager_options));
+
   thread_.reset(new base::Thread("NetworkModule"));
 #if !defined(STARBOARD)
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
@@ -190,9 +189,9 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   net_log = net_log_.get();
 #endif
   url_request_context_.reset(
-      new URLRequestContext(storage_manager_, options_.custom_proxy, net_log,
-                            options_.ignore_certificate_errors, task_runner(),
-                            options_.persistent_settings));
+      new URLRequestContext(storage_manager_.get(), options_.custom_proxy,
+                            net_log, options_.ignore_certificate_errors,
+                            task_runner(), options_.persistent_settings));
   network_delegate_.reset(new NetworkDelegate(options_.cookie_policy,
                                               options_.https_requirement,
                                               options_.cors_policy));

@@ -24,7 +24,6 @@
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
@@ -95,12 +94,6 @@ class Application {
 
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
-
-  // Account manager.
-  std::unique_ptr<account::AccountManager> account_manager_;
-
-  // Storage manager used by the network module below.
-  std::unique_ptr<storage::StorageManager> storage_manager_;
 
   // Sets up the network component for requesting internet resources.
   std::unique_ptr<network::NetworkModule> network_module_;

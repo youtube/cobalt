@@ -80,7 +80,7 @@ browser::WebModule::LayoutResults SnapshotURL(
   browser::UserAgentPlatformInfo platform_info;
   network::NetworkModule network_module(
       browser::CreateUserAgentString(platform_info),
-      browser::GetClientHintHeaders(platform_info), NULL, NULL, net_options);
+      browser::GetClientHintHeaders(platform_info), nullptr, net_options);
 
   // Use 128M of image cache to minimize the effect of image loading.
   const size_t kImageCacheCapacity = 128 * 1024 * 1024;
