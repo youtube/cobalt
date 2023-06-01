@@ -30,7 +30,8 @@ COPY ./spin.ps1 /spin.ps1
 COPY ./list_python_processes.py /list_python_processes.py
 
 # Install deps via chocolatey.
-RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
+RUN $env:chocolatelyVersion="1.4.0";`  # This is read by the following script.
+    iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
     mkdir C:\choco-cache;`
     # Note: We pinned python 3.11.0 version here because 3.11.2 has a regression
     # where the install arguments like TargetDir were being ignored.
