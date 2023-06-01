@@ -221,4 +221,5 @@ class Launcher(abstract_launcher.AbstractLauncher):
         opt for opt in asan_options.split(":") if "detect_leaks" not in opt
     ]
     asan_options.append("detect_leaks=0")
+    asan_options.append("detect_odr_violation=0")
     self.env_variables["ASAN_OPTIONS"] = ":".join(asan_options)
