@@ -83,12 +83,16 @@ class SbPlayerTestFixture {
   // requested, the function will write EOS after all samples of the same type
   // are written.
   void Write(const GroupedSamples& grouped_samples);
+  // Wait until kSbPlayerStatePresenting received.
+  void WaitForPlayerPresenting();
   // Wait until kSbPlayerStateEndOfStream received.
   void WaitForPlayerEndOfStream();
 
-  SbPlayer GetPlayer() { return player_; }
+  SbPlayer GetPlayer() const { return player_; }
   bool HasAudio() const { return audio_dmp_reader_; }
   bool HasVideo() const { return video_dmp_reader_; }
+  int ConvertDurationToAudioBufferCount(SbTime duration) const;
+  int ConvertDurationToVideoBufferCount(SbTime duration) const;
 
  private:
   static constexpr SbTime kDefaultWaitForDecoderStateNeedsDataTimeout =

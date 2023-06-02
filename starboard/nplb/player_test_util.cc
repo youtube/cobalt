@@ -147,6 +147,26 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
   return test_configs;
 }
 
+std::string GetSbPlayerTestConfigName(
+    ::testing::TestParamInfo<SbPlayerTestConfig> info) {
+  const SbPlayerTestConfig& config = info.param;
+  const char* audio_filename = std::get<0>(config);
+  const char* video_filename = std::get<1>(config);
+  const SbPlayerOutputMode output_mode = std::get<2>(config);
+  const char* key_system = std::get<3>(config);
+  std::string name(FormatString(
+      "audio_%s_video_%s_output_%s_key_system_%s",
+      audio_filename && strlen(audio_filename) > 0 ? audio_filename : "null",
+      video_filename && strlen(video_filename) > 0 ? video_filename : "null",
+      output_mode == kSbPlayerOutputModeDecodeToTexture ? "decode_to_texture"
+                                                        : "punch_out",
+      strlen(key_system) > 0 ? key_system : "null"));
+  std::replace(name.begin(), name.end(), '.', '_');
+  std::replace(name.begin(), name.end(), '(', '_');
+  std::replace(name.begin(), name.end(), ')', '_');
+  return name;
+}
+
 void DummyDeallocateSampleFunc(SbPlayer player,
                                void* context,
                                const void* sample_buffer) {}
