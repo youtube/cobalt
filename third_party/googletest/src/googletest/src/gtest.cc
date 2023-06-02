@@ -66,7 +66,10 @@
 
 
 
-#if GTEST_OS_LINUX || GTEST_OS_STARBOARD
+#if GTEST_OS_STARBOARD
+// Starboard does not require any additional includes.
+
+#elif GTEST_OS_LINUX
 
 #include <fcntl.h>   // NOLINT
 #include <limits.h>  // NOLINT
