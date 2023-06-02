@@ -173,6 +173,14 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
   }
 }
 
+void SbPlayerTestFixture::WaitForPlayerPresenting() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(SbPlayerIsValid(player_));
+
+  ASSERT_FALSE(error_occurred_);
+  ASSERT_NO_FATAL_FAILURE(WaitForPlayerState(kSbPlayerStatePresenting));
+}
+
 void SbPlayerTestFixture::WaitForPlayerEndOfStream() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -181,6 +189,32 @@ void SbPlayerTestFixture::WaitForPlayerEndOfStream() {
 
   ASSERT_FALSE(error_occurred_);
   ASSERT_NO_FATAL_FAILURE(WaitForPlayerState(kSbPlayerStateEndOfStream));
+}
+
+int SbPlayerTestFixture::ConvertDurationToAudioBufferCount(
+    SbTime duration) const {
+  if (!HasAudio()) {
+    SB_DLOG(ERROR)
+        << "Unable to calculate buffer count without a valid audio dmp file.";
+    return 0;
+  }
+
+  SB_DCHECK(audio_dmp_reader_->number_of_audio_buffers());
+  return duration * audio_dmp_reader_->number_of_audio_buffers() /
+         audio_dmp_reader_->audio_duration();
+}
+
+int SbPlayerTestFixture::ConvertDurationToVideoBufferCount(
+    SbTime duration) const {
+  if (!HasVideo()) {
+    SB_DLOG(ERROR)
+        << "Unable to calculate buffer count without a valid video dmp file.";
+    return 0;
+  }
+
+  SB_DCHECK(video_dmp_reader_->number_of_video_buffers());
+  return duration * video_dmp_reader_->number_of_video_buffers() /
+         video_dmp_reader_->video_duration();
 }
 
 // static
