@@ -64,7 +64,9 @@
 #include "gtest/gtest-spi.h"
 #include "gtest/internal/custom/gtest.h"
 
-#if GTEST_OS_LINUX
+
+
+#if GTEST_OS_LINUX || GTEST_OS_STARBOARD
 
 #include <fcntl.h>   // NOLINT
 #include <limits.h>  // NOLINT
