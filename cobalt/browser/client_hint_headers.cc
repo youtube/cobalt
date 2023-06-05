@@ -43,6 +43,9 @@ std::vector<std::string> GetClientHintHeaders(
     const UserAgentPlatformInfo& platform_info) {
   std::vector<std::string> headers;
 
+  AddHeader(headers, "Android-Build-Fingerprint",
+            platform_info.android_build_fingerprint());
+
   AddHeader(headers, "Android-OS-Experience",
             platform_info.android_os_experience());
 

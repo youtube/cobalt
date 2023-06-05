@@ -14,6 +14,11 @@ on:
         required: true
         type: string
         default: 'false'
+      modular:
+        description: 'Whether this is a modular build.'
+        required: false
+        type: boolean
+        default: false
 
 # Global env vars.
 env:
@@ -49,13 +54,10 @@ jobs:
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
     # All triggers except draft PRs, unless PR is labeled with runtest
     if: |
-      github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' ||
       (
-        github.event.pull_request.draft == false ||
-        (
-          github.event.action == 'labeled' &&
-          github.event.label.name == 'runtest'
-        )
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'runtest'
       )
     steps:
       - id: Checkout
@@ -171,6 +173,8 @@ jobs:
         shard: ${{ fromJson(needs.initialize.outputs.on_host_test_shards) }}
         config: [devel]
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    env:
+      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999

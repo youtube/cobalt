@@ -143,9 +143,8 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   // GetCurrentDecodeTarget() needs to be called from an arbitrary thread
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
-  // and we do so through this mutex.
-  Mutex decode_target_mutex_;
-  // Mutex frame_mutex_;
+  // and |frames_|, we do so through this mutex.
+  Mutex decode_target_and_frames_mutex_;
 
   // int frame_last_rendered_pts_;
   // scoped_refptr<VideoFrame> frame_;

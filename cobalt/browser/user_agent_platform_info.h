@@ -76,6 +76,9 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   const std::string& evergreen_version() const override {
     return evergreen_version_;
   }
+  const std::string& android_build_fingerprint() const override {
+    return android_build_fingerprint_;
+  }
   const std::string& android_os_experience() const override {
     return android_os_experience_;
   }
@@ -110,6 +113,8 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   void set_evergreen_type(const std::string& evergreen_type);
   void set_evergreen_file_type(const std::string& evergreen_file_type);
   void set_evergreen_version(const std::string& evergreen_version);
+  void set_android_build_fingerprint(
+      const std::string& android_build_fingerprint);
   void set_android_os_experience(const std::string& android_os_experience);
   void set_cobalt_version(const std::string& cobalt_version);
   void set_cobalt_build_version_number(
@@ -135,7 +140,8 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   std::string evergreen_type_;
   std::string evergreen_file_type_;
   std::string evergreen_version_;
-  std::string android_os_experience_;  // Only via Client Hints
+  std::string android_build_fingerprint_;  // Only via Client Hints
+  std::string android_os_experience_;      // Only via Client Hints
 
   std::string cobalt_version_;
   std::string cobalt_build_version_number_;

@@ -24,7 +24,6 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
@@ -145,6 +144,29 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
   }
 
   return test_configs;
+}
+
+std::string GetSbPlayerTestConfigName(const SbPlayerTestConfig& config) {
+  const char* audio_filename = std::get<0>(config);
+  const char* video_filename = std::get<1>(config);
+  const SbPlayerOutputMode output_mode = std::get<2>(config);
+  const char* key_system = std::get<3>(config);
+  std::string name(FormatString(
+      "audio_%s_video_%s_output_%s_key_system_%s",
+      audio_filename && strlen(audio_filename) > 0 ? audio_filename : "null",
+      video_filename && strlen(video_filename) > 0 ? video_filename : "null",
+      output_mode == kSbPlayerOutputModeDecodeToTexture ? "decode_to_texture"
+                                                        : "punch_out",
+      strlen(key_system) > 0 ? key_system : "null"));
+  std::replace(name.begin(), name.end(), '.', '_');
+  std::replace(name.begin(), name.end(), '(', '_');
+  std::replace(name.begin(), name.end(), ')', '_');
+  return name;
+}
+
+std::string GetSbPlayerTestConfigNameFromTestParamInfo(
+    ::testing::TestParamInfo<SbPlayerTestConfig> info) {
+  return GetSbPlayerTestConfigName(info.param);
 }
 
 void DummyDeallocateSampleFunc(SbPlayer player,

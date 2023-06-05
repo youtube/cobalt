@@ -236,7 +236,7 @@ template("v8_executable") {
     }
     configs += invoker.configs
     if ((is_linux || is_chromeos) &&
-        (!is_starboard || current_toolchain == default_toolchain)) {
+        (!is_starboard || is_starboardized_toolchain)) {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
     }

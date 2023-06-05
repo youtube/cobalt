@@ -443,7 +443,7 @@ config("internal_config_base") {
     }
 
     if (is_clang) {
-      if (current_toolchain == default_toolchain) {
+      if (is_starboardized_toolchain) {
         cflags = [
           "-Werror",
           "-Wno-unknown-pragmas",
@@ -1627,7 +1627,7 @@ template("run_mksnapshot") {
 
     data = []
 
-    if (is_starboard && current_toolchain == default_toolchain) {
+    if (is_starboard && is_starboardized_toolchain) {
       target_os_arg = "starboard"
     } else {
       target_os_arg = current_os

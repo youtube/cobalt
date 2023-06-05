@@ -30,19 +30,7 @@ using ::testing::ValuesIn;
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 typedef std::vector<SbPlayerTestConfig> SbPlayerMultiplePlayerTestConfig;
 
-std::string GetTestConfigName(const SbPlayerTestConfig& config) {
-  std::string name;
-
-  if (std::get<0>(config)) {
-    name += FormatString("audio_%s_", std::get<0>(config));
-  }
-  if (std::get<1>(config)) {
-    name += FormatString("video_%s_", std::get<1>(config));
-  }
-  return name;
-}
-
-std::map<SbPlayerTestConfig, int> TestConfigsToMap(
+std::map<SbPlayerTestConfig, int> TestConfigToMap(
     const SbPlayerMultiplePlayerTestConfig& test_configs) {
   std::map<SbPlayerTestConfig, int> map;
   for (const auto& test_config : test_configs) {
@@ -53,17 +41,17 @@ std::map<SbPlayerTestConfig, int> TestConfigsToMap(
 
 std::string GetMultipleSbPlayerTestConfigName(
     ::testing::TestParamInfo<SbPlayerMultiplePlayerTestConfig> info) {
-  const auto test_configs = info.param;
+  const auto& test_config = info.param;
   std::string name;
 
-  const auto& map = TestConfigsToMap(test_configs);
+  const auto& map = TestConfigToMap(test_config);
   for (const auto& it : map) {
-    name += GetTestConfigName(it.first);
-    name += "num_";
+    name += GetSbPlayerTestConfigName(it.first);
+    name += "_num_";
     name += std::to_string(it.second);
   }
   name +=
-      (std::get<2>(test_configs.front()) == kSbPlayerOutputModeDecodeToTexture
+      (std::get<2>(test_config.front()) == kSbPlayerOutputModeDecodeToTexture
            ? "_DecodeToTexture"
            : "_Punchout");
   std::replace(name.begin(), name.end(), '.', '_');
@@ -104,48 +92,18 @@ void NoInput(SbPlayerTestFixture* player_fixture) {
   ASSERT_NO_FATAL_FAILURE(player_fixture->WaitForPlayerEndOfStream());
 }
 
-void WriteSingleBatch(SbPlayerTestFixture* player_fixture) {
-  GroupedSamples samples;
-  if (player_fixture->HasAudio()) {
-    int samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
-        player_fixture->GetPlayer(), kSbMediaTypeAudio);
-    samples.AddAudioSamplesWithEOS(0, samples_to_write);
-  }
-  if (player_fixture->HasVideo()) {
-    int samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
-        player_fixture->GetPlayer(), kSbMediaTypeVideo);
-    samples.AddVideoSamplesWithEOS(0, samples_to_write);
-  }
-
-  ASSERT_NO_FATAL_FAILURE(player_fixture->Write(samples));
-  ASSERT_NO_FATAL_FAILURE(player_fixture->WaitForPlayerEndOfStream());
-}
-
-void WriteMultipleBatches(SbPlayerTestFixture* player_fixture) {
-  int samples_to_write = 0;
-  // Try to write multiple batches for both audio and video.
-  if (player_fixture->HasAudio()) {
-    samples_to_write = std::max(
-        samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
-                              player_fixture->GetPlayer(), kSbMediaTypeAudio) +
-                              1);
-  }
-  if (player_fixture->HasVideo()) {
-    samples_to_write = std::max(
-        samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
-                              player_fixture->GetPlayer(), kSbMediaTypeVideo) +
-                              1);
-  }
-  // TODO(b/283533109): We'd better to align the written audio and video samples
-  // to a same timestamp. Currently, we simply cap the batch size to 8 samples.
-  samples_to_write = std::min(samples_to_write, 8);
+void WriteSamples(SbPlayerTestFixture* player_fixture) {
+  const SbTime kDuration = 200 * kSbTimeMillisecond;
 
   GroupedSamples samples;
+
   if (player_fixture->HasAudio()) {
-    samples.AddAudioSamplesWithEOS(0, samples_to_write);
+    samples.AddAudioSamplesWithEOS(
+        0, player_fixture->ConvertDurationToAudioBufferCount(kDuration));
   }
   if (player_fixture->HasVideo()) {
-    samples.AddVideoSamplesWithEOS(0, samples_to_write);
+    samples.AddVideoSamplesWithEOS(
+        0, player_fixture->ConvertDurationToAudioBufferCount(kDuration));
   }
 
   ASSERT_NO_FATAL_FAILURE(player_fixture->Write(samples));
@@ -204,12 +162,8 @@ TEST_P(MultiplePlayerTest, SeekAndDestroy) {
   RunTest(SeekAndDestroy);
 }
 
-TEST_P(MultiplePlayerTest, WriteSingleBatch) {
-  RunTest(WriteSingleBatch);
-}
-
-TEST_P(MultiplePlayerTest, WriteMultipleBatches) {
-  RunTest(WriteMultipleBatches);
+TEST_P(MultiplePlayerTest, WriteSamples) {
+  RunTest(WriteSamples);
 }
 
 INSTANTIATE_TEST_CASE_P(MultiplePlayerTests,

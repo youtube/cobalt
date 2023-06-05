@@ -25,7 +25,8 @@ _FILTERED_TESTS = {
         'SbMicrophoneCloseTest.*',
         'SbMicrophoneOpenTest.*',
         'SbMicrophoneReadTest.*',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*',
+        'SbPlayerGetAudioConfigurationTests/*',
+        'SbPlayerWriteSampleTests/*',
         ('SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
          '.WriteContinuedLimitedInput/*'),
         ('SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'

@@ -47,7 +47,7 @@ class LocalStorageDatabase {
              const std::string& value);
   void Delete(const loader::Origin& origin, const std::string& key);
   void Clear(const loader::Origin& origin);
-  void Flush(const base::Closure& callback);
+  void Flush(const base::Closure& callback = base::Closure());
 
  private:
   void Init();

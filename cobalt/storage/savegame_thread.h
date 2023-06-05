@@ -27,7 +27,7 @@ namespace storage {
 
 // The SavegameThread wraps a Savegame object within its own thread in order to
 // enable asynchronous writes to the savegame object.
-class SavegameThread {
+class SavegameThread : public base::MessageLoop::DestructionObserver {
  public:
   explicit SavegameThread(const Savegame::Options& options);
   ~SavegameThread();
@@ -44,12 +44,11 @@ class SavegameThread {
              const base::Closure& on_flush_complete);
 
  private:
+  // From base::MessageLoop::DestructionObserver.
+  void WillDestroyCurrentMessageLoop() override;
+
   // Run on the I/O thread to start loading the savegame.
   void InitializeOnIOThread();
-
-  // Called by the destructor, to ensure we destroy certain objects on the
-  // I/O thread.
-  void ShutdownOnIOThread();
 
   // Runs on the I/O thread to write the database to the savegame's persistent
   // storage.

@@ -12,17 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_ANDROID_INFO_H_
-#define STARBOARD_ANDROID_SHARED_ANDROID_INFO_H_
+#include "starboard/event.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
-
-const void* GetAndroidInfoApi();
-
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
-
-#endif  // STARBOARD_ANDROID_SHARED_ANDROID_INFO_H_
+int main(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}

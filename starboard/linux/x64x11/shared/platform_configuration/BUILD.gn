@@ -13,17 +13,28 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  configs = [
-    ":libraries",
-    "//starboard/linux/shared/platform_configuration",
-    "//starboard/linux/shared/platform_configuration:compiler_flags",
-    ":linker_flags",
-  ]
+  if (current_toolchain == default_toolchain &&
+      build_with_separate_cobalt_toolchain) {
+    configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+  } else {
+    configs = [
+      ":libraries",
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/shared/platform_configuration:compiler_flags",
+      ":linker_flags",
+    ]
+  }
 }
 
 config("libraries") {
   configs = [ "//starboard/linux/shared/platform_configuration:libraries" ]
-  libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.a" ]
+  if (build_with_separate_cobalt_toolchain) {
+    libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.so.6" ]
+    ldflags = [ "-Wl,-rpath=" + rebase_path("//") +
+                "/third_party/libvpx/platforms/linux-x64/" ]
+  } else {
+    libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.a" ]
+  }
 }
 
 config("linker_flags") {

@@ -16,6 +16,7 @@ import("//starboard/build/config/install.gni")
 
 template("install_target") {
   installable_target_name = invoker.installable_target_name
+  installable_target_dep = invoker.installable_target_dep
 
   if (invoker.type == "executable") {
     install_subdir = "bin"
@@ -30,7 +31,7 @@ template("install_target") {
   copy("copy_" + target_name) {
     forward_variables_from(invoker, [ "testonly" ])
     deps = invoker.deps
-    deps += [ ":$installable_target_name" ]
+    deps += [ installable_target_dep ]
     sources = [ "$root_out_dir/$source_name" ]
     outputs = [ "$root_out_dir/install/$install_subdir/{{source_file_part}}" ]
   }
@@ -38,8 +39,8 @@ template("install_target") {
   group(target_name) {
     forward_variables_from(invoker, [ "testonly" ])
     deps = [
-      ":$installable_target_name",
       ":copy_${target_name}",
+      installable_target_dep,
     ]
   }
 }

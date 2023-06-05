@@ -23,6 +23,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
@@ -37,6 +38,11 @@ typedef std::tuple<const char* /* audio_filename */,
 
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     const char* key_system = "");
+
+std::string GetSbPlayerTestConfigName(const SbPlayerTestConfig& config);
+
+std::string GetSbPlayerTestConfigNameFromTestParamInfo(
+    ::testing::TestParamInfo<SbPlayerTestConfig> info);
 
 void DummyDeallocateSampleFunc(SbPlayer player,
                                void* context,

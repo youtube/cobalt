@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <malloc.h>
 #include <time.h>
 
 #include "starboard/configuration.h"
@@ -31,6 +32,9 @@
 #include "third_party/crashpad/wrapper/wrapper.h"
 
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
+  // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.
+  mallopt(M_ARENA_MAX, 2);
+
   tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallDebugSignalHandlers();

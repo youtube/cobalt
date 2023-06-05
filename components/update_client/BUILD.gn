@@ -240,11 +240,15 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//components/prefs:test_support",
     "//crypto",
     "//net:test_support",
-    "//starboard/loader_app",
     "//starboard/loader_app:app_key_files",
     "//starboard/loader_app:drain_file",
     "//starboard/loader_app:installation_manager",
     "//testing/gmock",
     "//testing/gtest",
   ]
+  if (build_with_separate_cobalt_toolchain) {
+    data_deps = [ "//starboard/loader_app($starboard_toolchain)" ]
+  } else {
+    deps += [ "//starboard/loader_app" ]
+  }
 }

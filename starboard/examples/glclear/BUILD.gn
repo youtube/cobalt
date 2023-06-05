@@ -13,10 +13,6 @@
 # limitations under the License.
 
 target(final_executable_type, "starboard_glclear_example") {
-  deps = [ "//starboard" ]
-  if (!sb_is_evergreen) {
-    deps += [ "//starboard/egl_and_gles" ]
-  }
-
   sources = [ "main.cc" ]
+  deps = [ "//starboard" ]
 }

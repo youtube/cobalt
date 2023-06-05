@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("account") {
-  has_pedantic_warnings = true
+declare_args() {
+  starboard_target_type = ""
+}
 
-  sources = [
-    "account_manager.cc",
-    "account_manager.h",
-  ]
-
-  deps = [ "//starboard:starboard_headers_only" ]
+if (starboard_target_type == "") {
+  if (build_with_separate_cobalt_toolchain) {
+    starboard_target_type = "shared_library"
+  } else {
+    starboard_target_type = "group"
+  }
 }
