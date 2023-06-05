@@ -48,10 +48,12 @@ class CobaltUADataValuesInterface : public script::Wrappable {
     return evergreen_file_type_;
   }
   const std::string& evergreen_version() const { return evergreen_version_; }
-  const std::string& firmware_version_details() const {
-    return firmware_version_details_;
+  const std::string& android_build_fingerprint() const {
+    return android_build_fingerprint_;
   }
-  const std::string& os_experience() const { return os_experience_; }
+  const std::string& android_os_experience() const {
+    return android_os_experience_;
+  }
   const std::string& starboard_version() const { return starboard_version_; }
   const std::string& original_design_manufacturer() const {
     return original_design_manufacturer_;
@@ -83,8 +85,8 @@ class CobaltUADataValuesInterface : public script::Wrappable {
   std::string evergreen_type_;
   std::string evergreen_file_type_;
   std::string evergreen_version_;
-  std::string firmware_version_details_;
-  std::string os_experience_;
+  std::string android_build_fingerprint_;
+  std::string android_os_experience_;
   std::string starboard_version_;
   std::string original_design_manufacturer_;
   std::string device_type_;

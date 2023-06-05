@@ -27,14 +27,14 @@ using ::testing::UnorderedElementsAre;
 
 TEST(ClientHintHeadersTest, GetClientHintHeaders) {
   UserAgentPlatformInfo platform_info;
-  platform_info.set_firmware_version_details("abc/def:123.456/xy-z");
-  platform_info.set_os_experience("Amati");
+  platform_info.set_android_build_fingerprint("abc/def:123.456/xy-z");
+  platform_info.set_android_os_experience("Amati");
 
   std::vector<std::string> headers = GetClientHintHeaders(platform_info);
   EXPECT_THAT(headers,
               UnorderedElementsAre(
-                  "Sec-CH-UA-Co-Firmware-Version-Details:abc/def:123.456/xy-z",
-                  "Sec-CH-UA-Co-OS-Experience:Amati"));
+                  "Sec-CH-UA-Co-Android-Build-Fingerprint:abc/def:123.456/xy-z",
+                  "Sec-CH-UA-Co-Android-OS-Experience:Amati"));
 }
 
 }  // namespace
