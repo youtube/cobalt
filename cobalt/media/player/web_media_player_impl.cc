@@ -22,6 +22,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
 #include "cobalt/media/base/drm_system.h"
+#include "cobalt/media/base/sbplayer_pipeline.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
 #include "cobalt/media/progressive/data_source_reader.h"
 #include "cobalt/media/progressive/demuxer_extension_wrapper.h"
@@ -142,11 +143,22 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   media_log_->AddEvent<::media::MediaLogEvent::kWebMediaPlayerCreated>();
 
   pipeline_thread_.Start();
+<<<<<<< HEAD
   pipeline_ =
       Pipeline::Create(interface, window, pipeline_thread_.task_runner(),
                        get_decode_target_graphics_context_provider_func,
                        allow_resume_after_suspend_, allow_batched_sample_write_,
                        media_log_, decode_target_provider_.get());
+=======
+  pipeline_ = new SbPlayerPipeline(
+      interface, window, pipeline_thread_.task_runner(),
+      get_decode_target_graphics_context_provider_func,
+      allow_resume_after_suspend_, allow_batched_sample_write_,
+#if SB_API_VERSION >= 15
+      audio_write_duration_local, audio_write_duration_remote,
+#endif  // SB_API_VERSION >= 15
+      media_log_, decode_target_provider_.get());
+>>>>>>> abf4ceaf54b (Move SbPlayerPipeline declaration to .h file (#535))
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);

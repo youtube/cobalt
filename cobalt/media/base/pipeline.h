@@ -92,6 +92,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
       OnEncryptedMediaInitDataEncounteredCB;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
+<<<<<<< HEAD
   static scoped_refptr<Pipeline> Create(
       SbPlayerInterface* interface, PipelineWindow window,
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
@@ -100,6 +101,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
       MediaLog* media_log, DecodeTargetProvider* decode_target_provider);
 
+=======
+>>>>>>> abf4ceaf54b (Move SbPlayerPipeline declaration to .h file (#535))
   virtual ~Pipeline() {}
 
   virtual void Suspend() {}

@@ -12,45 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/media/base/sbplayer_pipeline.h"
+
 #include <algorithm>
-#include <memory>
-#include <string>
-#include <vector>
+#include <utility>
 
 #include "base/basictypes.h"  // For COMPILE_ASSERT
 #include "base/bind.h"
-#include "base/callback_helpers.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "base/strings/stringprintf.h"
-#include "base/synchronization/lock.h"
-#include "base/synchronization/waitable_event.h"
-#include "base/task_runner.h"
-#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/startup_timer.h"
+<<<<<<< HEAD
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/playback_statistics.h"
 #include "cobalt/media/base/sbplayer_bridge.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
+=======
+#include "starboard/common/media.h"
+>>>>>>> abf4ceaf54b (Move SbPlayerPipeline declaration to .h file (#535))
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/time.h"
-#include "third_party/chromium/media/base/audio_decoder_config.h"
 #include "third_party/chromium/media/base/bind_to_current_loop.h"
 #include "third_party/chromium/media/base/channel_layout.h"
-#include "third_party/chromium/media/base/decoder_buffer.h"
-#include "third_party/chromium/media/base/demuxer.h"
-#include "third_party/chromium/media/base/demuxer_stream.h"
-#include "third_party/chromium/media/base/media_log.h"
-#include "third_party/chromium/media/base/pipeline_status.h"
-#include "third_party/chromium/media/base/ranges.h"
-#include "third_party/chromium/media/base/video_decoder_config.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
-#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -71,6 +58,7 @@ static const int kRetryDelayAtSuspendInMilliseconds = 100;
 
 unsigned int g_pipeline_identifier_counter = 0;
 
+<<<<<<< HEAD
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
 // parameters exceed what base::Bind() can support.
 struct StartTaskParameters {
@@ -350,6 +338,40 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
+=======
+#if SB_API_VERSION >= 15
+bool HasRemoteAudioOutputs(
+    const std::vector<SbMediaAudioConfiguration>& configurations) {
+  for (auto&& configuration : configurations) {
+    const auto connector = configuration.connector;
+    switch (connector) {
+      case kSbMediaAudioConnectorUnknown:
+      case kSbMediaAudioConnectorAnalog:
+      case kSbMediaAudioConnectorBuiltIn:
+      case kSbMediaAudioConnectorHdmi:
+      case kSbMediaAudioConnectorSpdif:
+      case kSbMediaAudioConnectorUsb:
+        LOG(INFO) << "Encountered local audio connector: "
+                  << GetMediaAudioConnectorName(connector);
+        break;
+      case kSbMediaAudioConnectorBluetooth:
+      case kSbMediaAudioConnectorRemoteWired:
+      case kSbMediaAudioConnectorRemoteWireless:
+      case kSbMediaAudioConnectorRemoteOther:
+        LOG(INFO) << "Encountered remote audio connector: "
+                  << GetMediaAudioConnectorName(connector);
+        return true;
+    }
+  }
+
+  LOG(INFO) << "No remote audio outputs found.";
+
+  return false;
+}
+#endif  // SB_API_VERSION >= 15
+
+}  // namespace
+>>>>>>> abf4ceaf54b (Move SbPlayerPipeline declaration to .h file (#535))
 
 SbPlayerPipeline::SbPlayerPipeline(
     SbPlayerInterface* interface, PipelineWindow window,
@@ -1593,6 +1615,7 @@ bool SbPlayerPipeline::GetReadInProgress(DemuxerStream::Type type) const {
   return video_read_in_progress_;
 }
 
+<<<<<<< HEAD
 }  // namespace
 
 // static
@@ -1610,5 +1633,7 @@ scoped_refptr<Pipeline> Pipeline::Create(
                               decode_target_provider);
 }
 
+=======
+>>>>>>> abf4ceaf54b (Move SbPlayerPipeline declaration to .h file (#535))
 }  // namespace media
 }  // namespace cobalt
