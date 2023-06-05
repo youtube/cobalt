@@ -67,11 +67,11 @@ CobaltUADataValuesInterface::CobaltUADataValuesInterface(
   if (init_dict.has_evergreen_version()) {
     evergreen_version_ = init_dict.evergreen_version();
   }
-  if (init_dict.has_firmware_version_details()) {
-    firmware_version_details_ = init_dict.firmware_version_details();
+  if (init_dict.has_android_build_fingerprint()) {
+    android_build_fingerprint_ = init_dict.android_build_fingerprint();
   }
-  if (init_dict.has_os_experience()) {
-    os_experience_ = init_dict.os_experience();
+  if (init_dict.has_android_os_experience()) {
+    android_os_experience_ = init_dict.android_os_experience();
   }
   if (init_dict.has_starboard_version()) {
     starboard_version_ = init_dict.starboard_version();
