@@ -14,6 +14,7 @@
 
 import("//build/toolchain/gcc_toolchain.gni")
 import("//starboard/build/platform_path.gni")
+import("//starboard/build/toolchain/linux/clang_lld_toolchain.gni")
 
 clang_toolchain("x64") {
   clang_base_path = clang_base_path
@@ -37,15 +38,5 @@ clang_toolchain("x86") {
   }
 }
 
-gcc_toolchain("clang_lld") {
-  prefix = rebase_path("$clang_base_path/bin", root_build_dir)
-  cc = "$prefix/clang"
-  cxx = "$prefix/clang++"
-  ld = "$prefix/ld.lld"
-  ar = "$prefix/llvm-ar"
-  nm = "nm"
-
-  toolchain_args = {
-    is_clang = true
-  }
+clang_lld_toolchain("clang_lld") {
 }

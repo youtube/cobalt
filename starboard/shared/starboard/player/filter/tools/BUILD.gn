@@ -12,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(final_executable_type, "audio_dmp_player") {
-  sources = [ "audio_dmp_player.cc" ]
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-  public_deps = [
-    "//starboard",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:player_download_test_data",
-    "//starboard/shared/starboard/player:video_dmp",
-  ]
-  data_deps = [
-    "//cobalt/network:copy_ssl_certificates",
-    "//starboard/shared/starboard/player:player_download_test_data",
-    "//third_party/icu:icudata",
-  ]
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_level_final_executable_type, "audio_dmp_player") {
+    build_loader = false
+    sources = [ "audio_dmp_player.cc" ]
+    configs += [ "//starboard/build/config:starboard_implementation" ]
+    public_deps = [
+      "//starboard",
+      "//starboard/shared/starboard/media:media_util",
+      "//starboard/shared/starboard/player:player_download_test_data",
+      "//starboard/shared/starboard/player:video_dmp",
+    ]
+    data_deps = [
+      "//cobalt/network:copy_ssl_certificates",
+      "//starboard/shared/starboard/player:player_download_test_data",
+      "//third_party/icu:icudata",
+    ]
+  }
 }

@@ -92,9 +92,11 @@ config("host") {
 config("target") {
   if (current_toolchain != host_toolchain) {
     if (final_executable_type == "shared_library") {
-      # Rewrite main() functions into StarboardMain. TODO: This is a
-      # hack, it would be better to be more surgical, here.
-      defines = [ "main=StarboardMain" ]
+      if (!build_with_separate_cobalt_toolchain) {
+        # Rewrite main() functions into StarboardMain. TODO: This is a
+        # hack, it would be better to be more surgical, here.
+        defines = [ "main=StarboardMain" ]
+      }
 
       # To link into a shared library on Linux and similar platforms,
       # the compiler must be told to generate Position Independent Code.
@@ -114,7 +116,7 @@ config("target") {
 # TODO(b/212641065): Scope global defines migrated from
 # cobalt_configuration.gypi to only the targets they're necessary in.
 config("starboard") {
-  if (current_toolchain == default_toolchain) {
+  if (is_starboardized_toolchain) {
     defines = [
       "STARBOARD",
       "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
@@ -180,7 +182,7 @@ config("starboard_implementation") {
 }
 
 config("speed") {
-  if (current_toolchain == default_toolchain) {
+  if (is_starboardized_toolchain) {
     if (defined(speed_config_path)) {
       configs = [ speed_config_path ]
     }
@@ -188,7 +190,7 @@ config("speed") {
 }
 
 config("size") {
-  if (current_toolchain == default_toolchain) {
+  if (is_starboardized_toolchain) {
     if (defined(size_config_path)) {
       configs = [ size_config_path ]
     }
@@ -196,7 +198,7 @@ config("size") {
 }
 
 config("pedantic_warnings") {
-  if (current_toolchain == default_toolchain) {
+  if (is_starboardized_toolchain) {
     if (defined(pedantic_warnings_config_path)) {
       configs = [ pedantic_warnings_config_path ]
     }
@@ -204,7 +206,7 @@ config("pedantic_warnings") {
 }
 
 config("no_pedantic_warnings") {
-  if (current_toolchain == default_toolchain ||
+  if (is_starboardized_toolchain ||
       current_toolchain == "//$starboard_path/toolchain:native_target") {
     if (defined(no_pedantic_warnings_config_path)) {
       configs = [ no_pedantic_warnings_config_path ]
@@ -223,8 +225,7 @@ config("warnings_as_errors") {
 # override flags specified in a platform's "platform_configuration" config,
 # which is where these particular flags would otherwise naturally fit.
 config("default_compiler_flags") {
-  if (current_toolchain == default_toolchain && sb_is_evergreen &&
-      target_cpu == "arm") {
+  if (is_starboardized_toolchain && sb_is_evergreen && target_cpu == "arm") {
     cflags = [ "-mfpu=vfpv3" ]
     asmflags = cflags
   }
