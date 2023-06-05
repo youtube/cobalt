@@ -21,7 +21,6 @@
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
-#include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/graphics_context.h"  // nogncheck
@@ -38,7 +37,7 @@ class GraphicsSystemEGL;
 class GraphicsContextEGL : public GraphicsContext {
  public:
   GraphicsContextEGL(GraphicsSystem* parent_system, EGLDisplay display,
-                     EGLConfig config, ResourceContext* resource_context);
+                     EGLConfig config);
   ~GraphicsContextEGL() override;
 
   GraphicsSystemEGL* system_egl();

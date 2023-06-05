@@ -21,7 +21,6 @@
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
-#include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #include "cobalt/renderer/backend/egl/utils.h"
