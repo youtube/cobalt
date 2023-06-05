@@ -48,6 +48,7 @@ component("media") {
     "base/sbplayer_interface.cc",
     "base/sbplayer_interface.h",
     "base/sbplayer_pipeline.cc",
+    "base/sbplayer_pipeline.h",
     "base/sbplayer_set_bounds_helper.cc",
     "base/sbplayer_set_bounds_helper.h",
     "decoder_buffer_allocator.cc",
