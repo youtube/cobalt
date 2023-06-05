@@ -65,7 +65,7 @@ jobs:
       github.event.action != 'labeled' ||
       (
         github.event.action == 'labeled' &&
-        github.event.label.name == 'runtest' || 
+        github.event.label.name == 'runtest' ||
         github.event.label.name == 'on_device'
       )
     steps:
