@@ -41,8 +41,7 @@ class CustomEvent : public web::Event {
   }
 
   // Creates an event with its "initialized flag" unset.
-  CustomEvent(script::EnvironmentSettings*,
-              UninitializedFlag uninitialized_flag)
+  explicit CustomEvent(UninitializedFlag uninitialized_flag)
       : Event(uninitialized_flag) {}
 
   // Web API: CustomEvent
@@ -57,9 +56,8 @@ class CustomEvent : public web::Event {
   void set_detail(script::EnvironmentSettings* environment_settings,
                   const script::ValueHandleHolder* detail) {
     if (detail) {
-      auto* wrappable = environment_settings
-                            ? get_global_wrappable(environment_settings)
-                            : this;
+      DCHECK(environment_settings);
+      auto* wrappable = get_global_wrappable(environment_settings);
       detail_.reset(
           new script::ValueHandleHolder::Reference(wrappable, *detail));
     } else {

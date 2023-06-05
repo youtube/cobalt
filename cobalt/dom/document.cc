@@ -257,8 +257,7 @@ scoped_refptr<web::Event> Document::CreateEvent(
     //   https://www.w3.org/TR/2016/WD-uievents-20160804/#interface-wheelevent
     return new WheelEvent(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "customevent") == 0) {
-    return new web::CustomEvent(environment_settings(),
-                                web::Event::Uninitialized);
+    return new web::CustomEvent(web::Event::Uninitialized);
   }
 
   web::DOMException::Raise(
