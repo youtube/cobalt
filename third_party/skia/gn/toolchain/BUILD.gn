@@ -37,7 +37,7 @@ if (host_os == "win") {
   stamp = "touch"
 }
 
-if (current_toolchain == default_toolchain) {
+if (is_starboardized_toolchain) {
   pool("dsymutil_pool") {
     depth = dlsymutil_pool_depth
   }

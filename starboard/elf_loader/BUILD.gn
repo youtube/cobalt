@@ -88,31 +88,33 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
-target(final_executable_type, "elf_loader_sandbox") {
-  data_deps = [ "//third_party/icu:icudata" ]
-  if (cobalt_font_package == "empty") {
-    data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
-  } else {
-    data_deps += [
-      "//cobalt/content/fonts:copy_fonts",
-      "//cobalt/content/fonts:fonts_xml",
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+    data_deps = [ "//third_party/icu:icudata" ]
+    if (cobalt_font_package == "empty") {
+      data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+    } else {
+      data_deps += [
+        "//cobalt/content/fonts:copy_fonts",
+        "//cobalt/content/fonts:fonts_xml",
+      ]
+    }
+
+    sources = [ "sandbox.cc" ]
+    configs += [ ":elf_loader_config" ]
+
+    deps = [
+      ":constants",
+      ":elf_loader",
+      ":evergreen_info",
+      ":sabi_string",
+      "//cobalt/content/fonts:copy_font_data",
+      "//starboard",
     ]
-  }
 
-  sources = [ "sandbox.cc" ]
-  configs += [ ":elf_loader_config" ]
-
-  deps = [
-    ":constants",
-    ":elf_loader",
-    ":evergreen_info",
-    ":sabi_string",
-    "//cobalt/content/fonts:copy_font_data",
-    "//starboard",
-  ]
-
-  if (!sb_is_evergreen_compatible) {
-    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    if (!sb_is_evergreen_compatible) {
+      deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
   }
 }
 

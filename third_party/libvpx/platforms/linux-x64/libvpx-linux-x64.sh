@@ -19,6 +19,6 @@ cd libvpx
 
 mkdir linux-x64
 cd linux-x64
-../configure --disable-vp8 --disable-examples --disable-webm-io --disable-vp9-encoder --disable-unit-tests --enable-static --disable-shared --enable-multithread --enable-vp9-highbitdepth --disable-tools --disable-docs --enable-runtime-cpu-detect --enable-postproc --enable-vp9-temporal-denoising --target=x86_64-linux-gcc
+../configure --disable-vp8 --disable-examples --disable-webm-io --disable-vp9-encoder --disable-unit-tests --enable-shared --enable-multithread --enable-vp9-highbitdepth --disable-tools --disable-docs --enable-runtime-cpu-detect --enable-postproc --enable-vp9-temporal-denoising --target=x86_64-linux-gcc
 make V=1 -j
 make libvpx_srcs.txt

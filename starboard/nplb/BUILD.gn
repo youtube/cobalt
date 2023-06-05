@@ -245,10 +245,6 @@ target(gtest_target_type, "nplb") {
     deps += [ "//internal/starboard/private/nplb:nplb_private" ]
   }
 
-  if (gl_type != "none") {
-    deps += [ "//starboard/egl_and_gles" ]
-  }
-
   if (sb_enable_cpp17_audit) {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
   }

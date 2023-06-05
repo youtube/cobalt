@@ -117,7 +117,9 @@ static_library("cxx") {
     "//starboard/common",
     "//third_party/llvm-project/compiler-rt:compiler_rt",
     "//third_party/llvm-project/libcxxabi:cxxabi",
-    "//third_party/llvm-project/libunwind:unwind_evergreen",
     "//third_party/musl:c",
   ]
+  if (!build_with_separate_cobalt_toolchain) {
+    deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
+  }
 }

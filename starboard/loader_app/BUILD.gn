@@ -88,39 +88,44 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
   }
 }
 
-target(final_executable_type, "loader_app") {
-  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-      target_cpu == "arm64") {
-    data_deps = [ "//third_party/icu:icudata" ]
-    if (cobalt_font_package == "empty") {
-      data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
-    } else {
-      data_deps += [
-        "//cobalt/content/fonts:copy_fonts",
-        "//cobalt/content/fonts:fonts_xml",
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_level_final_executable_type, "loader_app") {
+    build_loader = false
+    if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+        target_cpu == "arm64") {
+      data_deps = [ "//third_party/icu:icudata" ]
+      if (cobalt_font_package == "empty") {
+        data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+      } else {
+        data_deps += [
+          "//cobalt/content/fonts:copy_fonts",
+          "//cobalt/content/fonts:fonts_xml",
+        ]
+      }
+      sources = _common_loader_app_sources
+      deps = [
+        ":common_loader_app_dependencies",
+        "//cobalt/content/fonts:copy_font_data",
+        "//starboard/elf_loader",
       ]
-    }
-    sources = _common_loader_app_sources
-    deps = [
-      ":common_loader_app_dependencies",
-      "//cobalt/content/fonts:copy_font_data",
-      "//starboard/elf_loader",
-    ]
-    if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
-      data_deps += [
-        ":copy_crashpad_handler_named_as_so",
-        ":copy_loader_app_content",
-        ":copy_loader_app_lib",
-        ":copy_loader_app_manifest",
-      ]
-      deps += [
-        ":copy_crashpad_handler_named_as_so",
-        ":copy_loader_app_content",
-        ":copy_loader_app_lib",
-        ":copy_loader_app_manifest",
-      ]
+      if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
+        data_deps += [
+          ":copy_crashpad_handler_named_as_so",
+          ":copy_loader_app_content",
+          ":copy_loader_app_lib",
+          ":copy_loader_app_manifest",
+        ]
+        deps += [
+          ":copy_crashpad_handler_named_as_so",
+          ":copy_loader_app_content",
+          ":copy_loader_app_lib",
+          ":copy_loader_app_manifest",
+        ]
+      }
     }
   }
+} else {
+  not_needed([ "_common_loader_app_sources" ])
 }
 
 if (sb_is_evergreen_compatible) {

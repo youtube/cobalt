@@ -24,6 +24,11 @@ on:
         required: false
         type: string
         default: ""
+      modular:
+        description: 'Whether this is a modular build.'
+        required: false
+        type: boolean
+        default: false
 
 # Global env vars.
 env:
@@ -276,6 +281,7 @@ jobs:
     env:
       COBALT_BOOTLOADER: ${{ needs.initialize.outputs.bootloader }}
       ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
+      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
@@ -306,6 +312,7 @@ jobs:
       # with permission denied error.
       HOME: /root
       COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
+      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999

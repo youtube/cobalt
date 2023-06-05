@@ -33,6 +33,8 @@ declare_args() {
   is_docker_build = getenv("IS_DOCKER") == "1"
 
   using_old_compiler = false
+
+  build_with_separate_cobalt_toolchain = false
 }
 
 assert(!(is_starboard && is_native_target_build),
@@ -86,9 +88,6 @@ if (is_mac) {
 # configuration.
 import("//starboard/build/platform_path.gni")
 
-import("//$starboard_path/platform_configuration/configuration.gni")
-import("//starboard/build/config/build_assertions.gni")
-
 # TODO(b/272790873): Set host_cpu to x86 for 32 bit builds.
 if (target_cpu == "x86" || target_cpu == "arm") {
   _host_toolchain_cpu = "x86"
@@ -96,12 +95,19 @@ if (target_cpu == "x86" || target_cpu == "arm") {
   _host_toolchain_cpu = host_cpu
 }
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
-if (sb_is_evergreen) {
-  target_toolchain = "//starboard/build/toolchain/linux:clang_lld"
+
+if (build_with_separate_cobalt_toolchain) {
+  cobalt_toolchain = "//starboard/build/toolchain/linux:clang_lld"
+  starboard_toolchain = "//$starboard_path/toolchain:starboard"
 } else {
-  target_toolchain = "//$starboard_path/toolchain:target"
+  cobalt_toolchain = "//$starboard_path/toolchain:target"
+  starboard_toolchain = cobalt_toolchain
 }
-set_default_toolchain(target_toolchain)
+set_default_toolchain(cobalt_toolchain)
+import("//starboard/build/config/toolchain_variables.gni")
+
+import("//$starboard_path/platform_configuration/configuration.gni")
+import("//starboard/build/config/build_assertions.gni")
 
 declare_args() {
   use_tsan = getenv("USE_TSAN") == 1
@@ -308,12 +314,14 @@ template("copy") {
 }
 
 template("executable") {
+  not_needed(invoker, [ "build_loader" ])
+
   target_with_platform_configs(target_name) {
     target_type = "executable"
     forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  if (current_toolchain == default_toolchain &&
+  if (is_starboardized_toolchain &&
       (!defined(invoker.install_target) || invoker.install_target)) {
     executable_target_name = target_name
 
@@ -338,13 +346,20 @@ template("executable") {
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = executable_target_name
+      installable_target_dep = ":$executable_target_name"
+      not_needed([ "installable_target_dep" ])
       type = "executable"
+
       deps = []
       if (defined(invoker.deps)) {
         deps += invoker.deps
       }
       foreach(dep, data_deps) {
-        deps += [ "${dep}_install_content" ]
+        spl = []
+        spl = string_split(dep, "(")
+        if ([ spl[0] ] == spl) {
+          deps += [ "${dep}_install_content" ]
+        }
       }
       if (separate_install_targets_for_bundling) {
         deps += [ ":${executable_target_name}_bundle_content" ]
@@ -354,12 +369,66 @@ template("executable") {
 }
 
 template("shared_library") {
-  target_with_platform_configs(target_name) {
+  if (defined(invoker.build_loader) && invoker.build_loader == false) {
+    build_loader = false
+  } else {
+    build_loader = build_with_separate_cobalt_toolchain
+  }
+
+  if (build_loader) {
+    original_target_name = "${target_name}_original_target"
+  } else {
+    original_target_name = target_name
+  }
+  actual_target_name = target_name
+
+  target_with_platform_configs(original_target_name) {
+    output_name = actual_target_name
     target_type = "shared_library"
     forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  if (current_toolchain == default_toolchain &&
+  if (build_loader) {
+    group(target_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      deps = [
+        ":${actual_target_name}_loader($starboard_toolchain)",
+        ":${actual_target_name}_loader_copy($starboard_toolchain)",
+      ]
+    }
+    if (current_toolchain == starboard_toolchain) {
+      executable("${actual_target_name}_loader") {
+        output_name = "${actual_target_name}_loader"
+        forward_variables_from(invoker, [ "testonly" ])
+        sources = [ "//$starboard_path/starboard_loader.cc" ]
+
+        out_dir = rebase_path(root_build_dir)
+        defines = [
+          "SB_LOADER_MODULE=\"$actual_target_name\"",
+          "OUT_DIRECTORY=\"${out_dir}\"",
+        ]
+        configs += [ "//starboard/build/config:starboard_implementation" ]
+
+        ldflags = [
+          "-Wl,-rpath=" + rebase_path("$root_build_dir/starboard"),
+          "-Wl,-rpath=" + rebase_path("$root_build_dir"),
+        ]
+
+        deps = [
+          ":$original_target_name($cobalt_toolchain)",
+          "//starboard:starboard_platform_group($starboard_toolchain)",
+        ]
+      }
+      copy("${actual_target_name}_loader_copy") {
+        forward_variables_from(invoker, [ "testonly" ])
+        sources = [ "$root_out_dir/${actual_target_name}_loader" ]
+        outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
+        deps = [ ":${actual_target_name}_loader" ]
+      }
+    }
+  }
+
+  if (is_starboardized_toolchain &&
       (!defined(invoker.install_target) || invoker.install_target)) {
     shared_library_target_name = target_name
 
@@ -385,13 +454,20 @@ template("shared_library") {
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = shared_library_target_name
+      installable_target_dep = ":$original_target_name"
+      not_needed([ "installable_target_dep" ])
       type = "shared_library"
+
       deps = []
       if (defined(invoker.deps)) {
         deps += invoker.deps
       }
       foreach(dep, data_deps) {
-        deps += [ "${dep}_install_content" ]
+        spl = []
+        spl = string_split(dep, "(")
+        if ([ spl[0] ] == spl) {
+          deps += [ "${dep}_install_content" ]
+        }
       }
       if (separate_install_targets_for_bundling) {
         deps += [ ":${shared_library_target_name}_bundle_content" ]
