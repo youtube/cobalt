@@ -350,6 +350,8 @@ static_library("starboard_platform") {
     "media_is_video_supported.cc",
     "microphone_impl.cc",
     "network_status_impl.cc",
+    "platform_info.cc",
+    "platform_info.h",
     "platform_service.cc",
     "player_components_factory.cc",
     "player_components_factory.h",

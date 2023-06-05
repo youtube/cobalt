@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
-#include "libc.h"
 
 extern char **__environ;
 
@@ -29,8 +28,7 @@ int __execvpe(const char *file, char *const argv[], char *const envp[])
 
 	for(p=path; ; p=z) {
 		char b[l+k+1];
-		z = strchr(p, ':');
-		if (!z) z = p+strlen(p);
+		z = __strchrnul(p, ':');
 		if (z-p >= l) {
 			if (!*z++) break;
 			continue;

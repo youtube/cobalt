@@ -1,16 +1,5 @@
 // RUN: %clang_builtins %s %librt -o %t && %run %t
-//===-- floatditf_test.c - Test __floatditf -------------------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file tests __floatditf for the compiler_rt library.
-//
-//===----------------------------------------------------------------------===//
+// REQUIRES: librt_has_floatditf
 
 #include "int_lib.h"
 #include <math.h>
@@ -23,9 +12,9 @@
 
 // Returns: long integer converted to long double
 
-COMPILER_RT_ABI long double __floatditf(long long a);
+COMPILER_RT_ABI long double __floatditf(di_int a);
 
-int test__floatditf(long long a, uint64_t expectedHi, uint64_t expectedLo)
+int test__floatditf(di_int a, uint64_t expectedHi, uint64_t expectedLo)
 {
     long double x = __floatditf(a);
     int ret = compareResultLD(x, expectedHi, expectedLo);

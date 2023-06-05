@@ -114,6 +114,8 @@ static_library("browser") {
     "application.h",
     "browser_module.cc",
     "browser_module.h",
+    "client_hint_headers.cc",
+    "client_hint_headers.h",
     "device_authentication.cc",
     "device_authentication.h",
     "lifecycle_observer.h",
@@ -152,7 +154,6 @@ static_library("browser") {
     ":browser_switches",
     ":generated_bindings",
     ":generated_types",
-    "//cobalt/account",
     "//cobalt/audio",
     "//cobalt/base",
     "//cobalt/browser/memory_settings:browser_memory_settings",
@@ -231,6 +232,7 @@ target(gtest_target_type, "browser_test") {
   has_pedantic_warnings = true
 
   sources = [
+    "client_hint_headers_test.cc",
     "device_authentication_test.cc",
     "memory_settings/auto_mem_settings_test.cc",
     "memory_settings/auto_mem_test.cc",
@@ -411,15 +413,4 @@ cache_lex_tables("cached_lex_yacc_tables") {
 
 cache_templates("cached_jinja_templates") {
   output_dir = _bindings_scripts_output_dir
-}
-
-target(final_executable_type, "snapshot_app_stats") {
-  sources = [ "snapshot_app_stats.cc" ]
-  deps = [
-    ":browser",
-    ":browser_switches",
-    ":cobalt",
-    "//cobalt/base",
-    "//third_party/protobuf:protobuf_lite",
-  ]
 }

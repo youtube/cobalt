@@ -1,27 +1,27 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <utility>
 
 // template <class T1, class T2> struct pair
 
-// template<class U, class V> pair(U&& x, V&& y);
-
+// template<class U = T1, class V = T2> pair(U&&, V&&);
 
 #include <utility>
-#include <memory>
 #include <cassert>
+#include <memory>
 
-#include "archetypes.hpp"
-#include "test_convertible.hpp"
+#include "archetypes.h"
+#include "test_convertible.h"
+
+#include "test_macros.h"
 using namespace ImplicitTypes; // Get implicitly archetypes
 
 template <class T1, class T1Arg,
@@ -46,8 +46,7 @@ struct ImplicitT {
   int value;
 };
 
-
-int main()
+int main(int, char**)
 {
     {
         typedef std::pair<std::unique_ptr<int>, short*> P;
@@ -97,4 +96,48 @@ int main()
         static_assert(p.second.value == 43, "");
     }
 #endif
+
+    // Test support for http://wg21.link/P1951, default arguments for pair's constructor.
+    // Basically, this turns copies for brace initialization into moves.
+#if TEST_STD_VER > 20
+    {
+        struct TrackInit {
+            TrackInit() = default;
+            constexpr TrackInit(TrackInit const& other) : wasMoveInit(other.wasMoveInit), wasCopyInit(true) { }
+            constexpr TrackInit(TrackInit&& other) : wasMoveInit(true), wasCopyInit(other.wasCopyInit) { }
+            bool wasMoveInit = false;
+            bool wasCopyInit = false;
+        };
+
+        // Explicit constructor
+        {
+            {
+                std::pair<TrackInit, int> p({}, 3);
+                assert( p.first.wasMoveInit);
+                assert(!p.first.wasCopyInit);
+            }
+            {
+                std::pair<int, TrackInit> p(3, {});
+                assert( p.second.wasMoveInit);
+                assert(!p.second.wasCopyInit);
+            }
+        }
+
+        // Implicit constructor
+        {
+            {
+                std::pair<TrackInit, int> p = {{}, 3};
+                assert( p.first.wasMoveInit);
+                assert(!p.first.wasCopyInit);
+            }
+            {
+                std::pair<int, TrackInit> p = {3, {}};
+                assert( p.second.wasMoveInit);
+                assert(!p.second.wasCopyInit);
+            }
+        }
+    }
+#endif // TEST_STD_VER > 20
+
+    return 0;
 }

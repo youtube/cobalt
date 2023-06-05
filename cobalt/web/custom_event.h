@@ -33,11 +33,11 @@ class CustomEvent : public web::Event {
  public:
   explicit CustomEvent(script::EnvironmentSettings* environment_settings,
                        const std::string& type)
-      : Event(type), environment_settings_(environment_settings) {}
+      : Event(type) {}
   CustomEvent(script::EnvironmentSettings* environment_settings,
               const std::string& type, const CustomEventInit& init_dict)
-      : Event(type, init_dict), environment_settings_(environment_settings) {
-    set_detail(init_dict.detail());
+      : Event(type, init_dict) {
+    set_detail(environment_settings, init_dict.detail());
   }
 
   // Creates an event with its "initialized flag" unset.
@@ -46,17 +46,18 @@ class CustomEvent : public web::Event {
 
   // Web API: CustomEvent
   //
-  void InitCustomEvent(const std::string& type, bool bubbles, bool cancelable,
+  void InitCustomEvent(script::EnvironmentSettings* environment_settings,
+                       const std::string& type, bool bubbles, bool cancelable,
                        const script::ValueHandleHolder& detail) {
     InitEvent(type, bubbles, cancelable);
-    set_detail(&detail);
+    set_detail(environment_settings, &detail);
   }
 
-  void set_detail(const script::ValueHandleHolder* detail) {
+  void set_detail(script::EnvironmentSettings* environment_settings,
+                  const script::ValueHandleHolder* detail) {
     if (detail) {
-      auto* wrappable = environment_settings_
-                            ? get_global_wrappable(environment_settings_)
-                            : this;
+      DCHECK(environment_settings);
+      auto* wrappable = get_global_wrappable(environment_settings);
       detail_.reset(
           new script::ValueHandleHolder::Reference(wrappable, *detail));
     } else {
@@ -78,9 +79,6 @@ class CustomEvent : public web::Event {
   ~CustomEvent() override {}
 
   std::unique_ptr<script::ValueHandleHolder::Reference> detail_;
-
- private:
-  script::EnvironmentSettings* environment_settings_;
 };
 
 }  // namespace web

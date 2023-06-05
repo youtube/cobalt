@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -50,7 +49,7 @@ test(C& c1, int size, int x)
     typename C::size_type c1_osize = c1.size();
     c1.resize(size, x);
     assert(c1.size() == static_cast<std::size_t>(size));
-    assert(static_cast<std::size_t>(distance(c1.begin(), c1.end())) == c1.size());
+    assert(static_cast<std::size_t>(std::distance(c1.begin(), c1.end())) == c1.size());
     CI i = c1.begin();
     for (int j = 0; static_cast<std::size_t>(j) < std::min(c1_osize, c1.size()); ++j, ++i)
         assert(*i == j);
@@ -66,7 +65,7 @@ testN(int start, int N, int M)
     test(c1, M, -10);
 }
 
-int main()
+int main(int, char**)
 {
     {
     int rng[] = {0, 1, 2, 3, 1023, 1024, 1025, 2047, 2048, 2049};
@@ -86,4 +85,6 @@ int main()
                 testN<std::deque<int, min_allocator<int>>>(rng[i], rng[j], rng[k]);
     }
 #endif
+
+  return 0;
 }

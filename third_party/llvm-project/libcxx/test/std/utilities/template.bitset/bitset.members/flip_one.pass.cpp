@@ -1,72 +1,58 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// test bitset<N>& flip(size_t pos);
+// bitset<N>& flip(size_t pos); // constexpr since C++23
 
 #include <bitset>
-#include <cstdlib>
 #include <cassert>
+#include <cstddef>
+#include <vector>
 
+#include "../bitset_test_cases.h"
 #include "test_macros.h"
 
-#if defined(TEST_COMPILER_C1XX)
-#pragma warning(disable: 6294) // Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed.
-#endif
-
 template <std::size_t N>
-std::bitset<N>
-make_bitset()
-{
-    std::bitset<N> v;
-    for (std::size_t i = 0; i < N; ++i)
-        v[i] = static_cast<bool>(std::rand() & 1);
-    return v;
+TEST_CONSTEXPR_CXX23 void test_flip_one() {
+    std::vector<std::bitset<N> > const cases = get_test_cases<N>();
+    for (std::size_t c = 0; c != cases.size(); ++c) {
+        std::bitset<N> v = cases[c];
+        if (v.size() > 0) {
+            std::size_t middle = v.size() / 2;
+            v.flip(middle);
+            bool b = v[middle];
+            assert(v[middle] == b);
+            v.flip(middle);
+            assert(v[middle] != b);
+            v.flip(middle);
+            assert(v[middle] == b);
+        }
+    }
 }
 
-template <std::size_t N>
-void test_flip_one(bool test_throws)
-{
-    std::bitset<N> v = make_bitset<N>();
-#ifdef TEST_HAS_NO_EXCEPTIONS
-    if (test_throws) return;
-#else
-    try
-    {
-#endif
-        v.flip(50);
-        bool b = v[50];
-        if (50 >= v.size())
-            assert(false);
-        assert(v[50] == b);
-        v.flip(50);
-        assert(v[50] != b);
-        v.flip(50);
-        assert(v[50] == b);
-        assert(!test_throws);
-#ifndef TEST_HAS_NO_EXCEPTIONS
-    }
-    catch (std::out_of_range&)
-    {
-        assert(test_throws);
-    }
-#endif
+TEST_CONSTEXPR_CXX23 bool test() {
+  test_flip_one<0>();
+  test_flip_one<1>();
+  test_flip_one<31>();
+  test_flip_one<32>();
+  test_flip_one<33>();
+  test_flip_one<63>();
+  test_flip_one<64>();
+  test_flip_one<65>();
+
+  return true;
 }
 
-int main()
-{
-    test_flip_one<0>(true);
-    test_flip_one<1>(true);
-    test_flip_one<31>(true);
-    test_flip_one<32>(true);
-    test_flip_one<33>(true);
-    test_flip_one<63>(false);
-    test_flip_one<64>(false);
-    test_flip_one<65>(false);
-    test_flip_one<1000>(false);
+int main(int, char**) {
+  test();
+  test_flip_one<1000>(); // not in constexpr because of constexpr evaluation step limits
+#if TEST_STD_VER > 20
+  static_assert(test());
+#endif
+
+  return 0;
 }

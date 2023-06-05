@@ -1,13 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: libcpp-has-no-threads
+// UNSUPPORTED: no-threads
+// ALLOW_RETRIES: 2
 
 // <condition_variable>
 
@@ -19,6 +19,9 @@
 #include <mutex>
 #include <thread>
 #include <cassert>
+
+#include "make_test_thread.h"
+#include "test_macros.h"
 
 std::condition_variable_any cv;
 
@@ -51,10 +54,10 @@ void f2()
     test2 = 2;
 }
 
-int main()
+int main(int, char**)
 {
-    std::thread t1(f1);
-    std::thread t2(f2);
+    std::thread t1 = support::make_test_thread(f1);
+    std::thread t2 = support::make_test_thread(f2);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     {
         L1 lk(m0);
@@ -95,4 +98,6 @@ int main()
     }
     else
         assert(false);
+
+  return 0;
 }

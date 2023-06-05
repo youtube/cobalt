@@ -1,13 +1,10 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// UNSUPPORTED: libcpp-has-no-threads
 
 // <atomic>
 
@@ -25,10 +22,10 @@
 extern std::atomic_flag global;
 struct X { X() { global.test_and_set(); }};
 X x;
-std::atomic_flag global = ATOMIC_FLAG_INIT;
+std::atomic_flag global{false};
 #endif
 
-int main()
+int main(int, char**)
 {
 #if TEST_STD_VER >= 11
     assert(global.test_and_set() == 1);
@@ -41,4 +38,6 @@ int main()
         std::atomic_flag f(true);
         assert(f.test_and_set() == 1);
     }
+
+  return 0;
 }

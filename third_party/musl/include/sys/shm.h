@@ -33,9 +33,9 @@ extern "C" {
 
 #define SHM_LOCK 11
 #define SHM_UNLOCK 12
-#define SHM_STAT 13
+#define SHM_STAT (13 | (IPC_STAT & 0x100))
 #define SHM_INFO 14
-#define SHM_STAT_ANY 15
+#define SHM_STAT_ANY (15 | (IPC_STAT & 0x100))
 #define SHM_DEST 01000
 #define SHM_LOCKED 02000
 #define SHM_HUGETLB 04000
@@ -49,7 +49,9 @@ extern "C" {
 #define SHM_HUGE_2MB   (21 << 26)
 #define SHM_HUGE_8MB   (23 << 26)
 #define SHM_HUGE_16MB  (24 << 26)
+#define SHM_HUGE_32MB  (25 << 26)
 #define SHM_HUGE_256MB (28 << 26)
+#define SHM_HUGE_512MB (29 << 26)
 #define SHM_HUGE_1GB   (30 << 26)
 #define SHM_HUGE_2GB   (31 << 26)
 #define SHM_HUGE_16GB  (34U << 26)

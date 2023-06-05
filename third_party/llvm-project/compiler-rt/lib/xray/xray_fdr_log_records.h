@@ -1,9 +1,8 @@
 //===-- xray_fdr_log_records.h  -------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,6 +11,9 @@
 //===----------------------------------------------------------------------===//
 #ifndef XRAY_XRAY_FDR_LOG_RECORDS_H
 #define XRAY_XRAY_FDR_LOG_RECORDS_H
+#include <cstdint>
+
+namespace __xray {
 
 enum class RecordType : uint8_t { Function, Metadata };
 
@@ -67,5 +69,7 @@ struct alignas(8) FunctionRecord {
 } __attribute__((packed));
 
 static_assert(sizeof(FunctionRecord) == 8, "Wrong size for FunctionRecord.");
+
+} // namespace __xray
 
 #endif // XRAY_XRAY_FDR_LOG_RECORDS_H

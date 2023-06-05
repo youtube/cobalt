@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/starboard_target_type.gni")
+
 group("gn_all") {
   testonly = true
 
@@ -39,15 +41,15 @@ group("gn_all") {
   }
 
   if (platform_tests_path == "") {
-    deps += [ ":starboard_platform_tests" ]
+    deps += [ ":starboard_platform_tests($starboard_toolchain)" ]
   } else {
     deps += [ platform_tests_path ]
   }
 
   if (sb_filter_based_player) {
     deps += [
-      "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
-      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player",
+      "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
+      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
     ]
   }
 
@@ -95,19 +97,25 @@ group("starboard") {
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/llvm-project/libcxx:cxx",
       "//third_party/llvm-project/libcxxabi:cxxabi",
-      "//third_party/llvm-project/libunwind:unwind_evergreen",
       "//third_party/musl:c",
     ]
+    if (build_with_separate_cobalt_toolchain) {
+      data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
+    } else {
+      public_deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
+    }
   } else {
     public_deps += [
-      "//$starboard_path:starboard_platform",
+      ":starboard_platform_group($starboard_toolchain)",
       "//starboard/common",
     ]
 
-    if (sb_is_evergreen_compatible) {
-      public_deps += [ "//third_party/crashpad/wrapper" ]
-    } else {
-      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    if (!build_with_separate_cobalt_toolchain) {
+      if (sb_is_evergreen_compatible) {
+        public_deps += [ "//third_party/crashpad/wrapper" ]
+      } else {
+        public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+      }
     }
 
     if (final_executable_type == "shared_library" &&
@@ -168,17 +176,39 @@ source_set("starboard_headers_only") {
   }
 }
 
-if (platform_tests_path == "") {
-  # If 'starboard_platform_tests' is not defined by the platform, then an
-  # empty 'starboard_platform_tests' target is defined.
-  target(gtest_target_type, "starboard_platform_tests") {
-    testonly = true
-
-    sources = [ "//starboard/common/test_main.cc" ]
-
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_target_type, "starboard_platform_group") {
+    if (starboard_target_type == "shared_library") {
+      build_loader = false
+    }
     public_deps = [
-      ":starboard",
-      "//testing/gmock",
+      "//starboard/client_porting/cwrappers",
+      "//starboard/client_porting/eztime",
+      "//starboard/common",
+      "//starboard/egl_and_gles",
     ]
+    if (sb_is_evergreen_compatible) {
+      public_deps += [ "//third_party/crashpad/wrapper" ]
+    } else {
+      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
+    if (!sb_is_evergreen) {
+      public_deps += [ "//$starboard_path:starboard_platform" ]
+    }
+  }
+
+  if (platform_tests_path == "") {
+    # If 'starboard_platform_tests' is not defined by the platform, then an
+    # empty 'starboard_platform_tests' target is defined.
+    target(starboard_level_gtest_target_type, "starboard_platform_tests") {
+      testonly = true
+
+      sources = [ "//starboard/common/test_main.cc" ]
+
+      public_deps = [
+        ":starboard",
+        "//testing/gmock",
+      ]
+    }
   }
 }

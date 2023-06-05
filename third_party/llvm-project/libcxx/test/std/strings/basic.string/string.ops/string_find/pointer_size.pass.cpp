@@ -1,26 +1,27 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <string>
 
-// size_type find(const charT* s, size_type pos = 0) const;
+// size_type find(const charT* s, size_type pos = 0) const; // constexpr since C++20
 
 #include <string>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 template <class S>
-void
+TEST_CONSTEXPR_CXX20 void
 test(const S& s, const typename S::value_type* str, typename S::size_type pos,
      typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find(str, pos));
     assert(s.find(str, pos) == x);
     if (x != S::npos)
     {
@@ -30,9 +31,10 @@ test(const S& s, const typename S::value_type* str, typename S::size_type pos,
 }
 
 template <class S>
-void
+TEST_CONSTEXPR_CXX20 void
 test(const S& s, const typename S::value_type* str, typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find(str));
     assert(s.find(str) == x);
     if (x != S::npos)
     {
@@ -42,7 +44,7 @@ test(const S& s, const typename S::value_type* str, typename S::size_type x)
 }
 
 template <class S>
-void test0()
+TEST_CONSTEXPR_CXX20 void test0()
 {
     test(S(""), "", 0, 0);
     test(S(""), "abcde", 0, S::npos);
@@ -127,7 +129,7 @@ void test0()
 }
 
 template <class S>
-void test1()
+TEST_CONSTEXPR_CXX20 void test1()
 {
     test(S(""), "", 0);
     test(S(""), "abcde", S::npos);
@@ -147,18 +149,29 @@ void test1()
     test(S("abcdeabcdeabcdeabcde"), "abcdeabcdeabcdeabcde", 0);
 }
 
-int main()
-{
-    {
+TEST_CONSTEXPR_CXX20 bool test() {
+  {
     typedef std::string S;
     test0<S>();
     test1<S>();
-    }
+  }
 #if TEST_STD_VER >= 11
-    {
+  {
     typedef std::basic_string<char, std::char_traits<char>, min_allocator<char>> S;
     test0<S>();
     test1<S>();
-    }
+  }
 #endif
+
+  return true;
+}
+
+int main(int, char**)
+{
+  test();
+#if TEST_STD_VER > 17
+  static_assert(test());
+#endif
+
+  return 0;
 }

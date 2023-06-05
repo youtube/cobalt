@@ -1,6 +1,7 @@
 #ifndef _STDDEF_H
 #define _STDDEF_H
 
+// nullptr causes cast errors in third_party code
 #ifdef __cplusplus
 #define NULL 0L
 #else

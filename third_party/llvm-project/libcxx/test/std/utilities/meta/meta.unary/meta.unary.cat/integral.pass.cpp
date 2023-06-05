@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -46,7 +45,7 @@ void test_integral()
 
 struct incomplete_type;
 
-int main()
+int main(int, char**)
 {
     test_integral<bool>();
     test_integral<char>();
@@ -61,11 +60,13 @@ int main()
     test_integral<unsigned long>();
     test_integral<long long>();
     test_integral<unsigned long long>();
-#ifndef _LIBCPP_HAS_NO_INT128
+#ifndef TEST_HAS_NO_INT128
     test_integral<__int128_t>();
     test_integral<__uint128_t>();
 #endif
 
 //  LWG#2582
     static_assert(!std::is_integral<incomplete_type>::value, "");
+
+  return 0;
 }

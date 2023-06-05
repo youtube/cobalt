@@ -18,13 +18,19 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 import logging
 
 PLATFORMS_SUPPORTED = [
+    'stub',
+    'linux-x64x11',
+    'linux-x64x11-egl',
+    'linux-x64x11-gcc-6-3',
+    'linux-x64x11-skia',
     'android-arm',
     'android-arm64',
     'android-arm64-vulkan',
     'android-x86',
-    'linux-x64x11',
     'raspi-2',
     'raspi-2-skia',
+    'win-win32',
+    'linux-x64x11-clang-crosstool',
 ]
 
 

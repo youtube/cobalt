@@ -539,6 +539,8 @@ void Agent::Stop() {
 
   // Ensure that the destruction observer got added before stopping the thread.
   destruction_observer_added_.Wait();
+  // Wait for all previously posted tasks to finish.
+  thread_.message_loop()->task_runner()->WaitForFence();
   // Stop the thread. This will cause the destruction observer to be notified.
   thread_.Stop();
 }

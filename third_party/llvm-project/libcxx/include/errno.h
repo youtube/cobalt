@@ -1,10 +1,9 @@
 // -*- C++ -*-
-//===-------------------------- errno.h -----------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,10 +25,12 @@ Macros:
 #include <__config>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
-#include_next <errno.h>
+#if __has_include_next(<errno.h>)
+#  include_next <errno.h>
+#endif
 
 #ifdef __cplusplus
 
@@ -73,9 +74,9 @@ static const int __elast2 = 105;
 #define ELAST ENOTRECOVERABLE
 #endif
 
-#endif  // defined(EOWNERDEAD)
+#endif // defined(EOWNERDEAD)
 
-#endif  // !defined(EOWNERDEAD) || !defined(ENOTRECOVERABLE)
+#endif // !defined(EOWNERDEAD) || !defined(ENOTRECOVERABLE)
 
 //  supply errno values likely to be missing, particularly on Windows
 
@@ -395,4 +396,4 @@ static const int __elast2 = 105;
 
 #endif // __cplusplus
 
-#endif  // _LIBCPP_ERRNO_H
+#endif // _LIBCPP_ERRNO_H

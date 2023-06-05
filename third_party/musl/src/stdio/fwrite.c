@@ -44,7 +44,7 @@ size_t fwrite(const void *restrict src, size_t size, size_t nmemb, FILE *restric
 	k = __fwritex(src, l, f);
 	FUNLOCK(f);
 	return k==l ? nmemb : k/size;
-#endif  // STARBOARD
+#endif // STARBOARD
 }
 
 weak_alias(fwrite, fwrite_unlocked);

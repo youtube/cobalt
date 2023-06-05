@@ -116,6 +116,10 @@ if (enable_resource_allowlist_generation) {
 #      that the snarl tool will accept.
 template("gcc_toolchain") {
   toolchain(target_name) {
+    is_starboard_toolchain = target_name == "starboard"
+    if (!build_with_separate_cobalt_toolchain) {
+      not_needed(["is_starboard_toolchain"])
+    }
     assert(defined(invoker.ar), "gcc_toolchain() must specify a \"ar\" value")
     assert(defined(invoker.cc), "gcc_toolchain() must specify a \"cc\" value")
     assert(defined(invoker.cxx), "gcc_toolchain() must specify a \"cxx\" value")
@@ -145,6 +149,7 @@ template("gcc_toolchain") {
     toolchain_args = {
       # Populate toolchain args from the invoker.
       forward_variables_from(invoker_toolchain_args, "*")
+      build_with_separate_cobalt_toolchain = build_with_separate_cobalt_toolchain
 
       # The host toolchain value computed by the default toolchain's setup
       # needs to be passed through unchanged to all secondary toolchains to
@@ -386,7 +391,7 @@ template("gcc_toolchain") {
       # TODO(b/206642994): see if we can remove this condition. It's needed for
       # now to add cflags for evergreen platforms but we haven't yet decided
       # whether cflags should be added here for all platforms.
-      if (is_starboard && sb_is_evergreen) {
+      if (is_starboard && sb_is_evergreen && !is_starboard_toolchain) {
         command = "$asm -MMD -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{cflags}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
       } else {
         command = "$asm -MMD -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
@@ -455,7 +460,7 @@ template("gcc_toolchain") {
       # TODO(b/206642994): see if we can remove this condition. It's needed for
       # now because we use the ld.lld linker for evergreen platforms and need to
       # pass options as `option` instead of `-Wl,option`.
-      if (is_starboard && sb_is_evergreen) {
+      if (is_starboard && sb_is_evergreen && !is_starboard_toolchain) {
         link_command = "$ld -shared -soname=\"$soname\" {{ldflags}}${extra_ldflags} -o \"$unstripped_sofile\" @\"$rspfile\""
       } else {
         link_command = "$ld -shared -Wl,-soname=\"$soname\" {{ldflags}}${extra_ldflags} -o \"$unstripped_sofile\" @\"$rspfile\""
@@ -489,7 +494,7 @@ template("gcc_toolchain") {
         # TODO(b/206642994): see if we can remove this condition. It's needed for
         # now because we use the ld.lld linker for evergreen platforms and need
         # to pass options as `option` instead of `-Wl,option`.
-      } else if (is_starboard && sb_is_evergreen) {
+      } else if (is_starboard && sb_is_evergreen && !is_starboard_toolchain) {
         rspfile_content = "--whole-archive {{inputs}} {{solibs}} --no-whole-archive {{libs}}$tail_lib_dependencies"
       } else {
         rspfile_content = "-Wl,--whole-archive {{inputs}} {{solibs}} -Wl,--no-whole-archive {{libs}}$tail_lib_dependencies"

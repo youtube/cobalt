@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,9 +26,11 @@
 #include <limits>
 #include <complex>
 
-template <class T>
-void test()
-{
+#include "type_algorithms.h"
+
+struct Test {
+  template <class T>
+  void operator()() {
     static_assert(std::numeric_limits<T>::is_specialized,
                  "std::numeric_limits<T>::is_specialized");
     static_assert(std::numeric_limits<const T>::is_specialized,
@@ -38,34 +39,15 @@ void test()
                  "std::numeric_limits<volatile T>::is_specialized");
     static_assert(std::numeric_limits<const volatile T>::is_specialized,
                  "std::numeric_limits<const volatile T>::is_specialized");
-}
+  }
+};
 
-int main()
+int main(int, char**)
 {
-    test<bool>();
-    test<char>();
-    test<wchar_t>();
-#ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
-    test<char16_t>();
-    test<char32_t>();
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
-    test<signed char>();
-    test<unsigned char>();
-    test<signed short>();
-    test<unsigned short>();
-    test<signed int>();
-    test<unsigned int>();
-    test<signed long>();
-    test<unsigned long>();
-    test<signed long long>();
-    test<unsigned long long>();
-#ifndef _LIBCPP_HAS_NO_INT128
-    test<__int128_t>();
-    test<__uint128_t>();
-#endif
-    test<float>();
-    test<double>();
-    test<long double>();
-    static_assert(!std::numeric_limits<std::complex<double> >::is_specialized,
-                 "!std::numeric_limits<std::complex<double> >::is_specialized");
+  meta::for_each(meta::arithmetic_types(), Test());
+
+  static_assert(!std::numeric_limits<std::complex<double> >::is_specialized,
+                "!std::numeric_limits<std::complex<double> >::is_specialized");
+
+  return 0;
 }

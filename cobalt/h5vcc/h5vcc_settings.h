@@ -19,6 +19,7 @@
 
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/navigator_ua_data.h"
@@ -46,7 +47,8 @@ class H5vccSettings : public script::Wrappable {
                 cobalt::updater::UpdaterModule* updater_module,
 #endif
                 web::NavigatorUAData* user_agent_data,
-                script::GlobalEnvironment* global_environment);
+                script::GlobalEnvironment* global_environment,
+                persistent_storage::PersistentSettings* persistent_settings);
 
   // Returns true when the setting is set successfully or if the setting has
   // already been set to the expected value.  Returns false when the setting is
@@ -65,6 +67,7 @@ class H5vccSettings : public script::Wrappable {
 #endif
   web::NavigatorUAData* user_agent_data_;
   script::GlobalEnvironment* global_environment_;
+  persistent_storage::PersistentSettings* persistent_settings_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccSettings);
 };

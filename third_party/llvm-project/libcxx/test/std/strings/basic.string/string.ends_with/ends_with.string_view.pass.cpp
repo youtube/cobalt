@@ -1,25 +1,23 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17
+// UNSUPPORTED: c++03, c++11, c++14, c++17
 
 // <string>
 
-//   bool ends_with(basic_string_view x) const noexcept;
+// constexpr bool ends_with(basic_string_view x) const noexcept;
 
 #include <string>
 #include <cassert>
 
 #include "test_macros.h"
 
-int main()
-{
-    {
+constexpr bool test() {
+  {
     typedef std::string S;
     typedef std::string_view SV;
     const char *s = "abcde";
@@ -68,5 +66,14 @@ int main()
     assert (!sNot.ends_with(sv4));
     assert (!sNot.ends_with(sv5));
     assert ( sNot.ends_with(svNot));
-    }
+  }
+
+  return true;
+}
+
+int main(int, char**) {
+  test();
+  static_assert(test());
+
+  return 0;
 }

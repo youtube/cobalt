@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,10 +10,7 @@
 
 // move_iterator
 
-// requires RandomAccessIterator<Iter>
-//   unspecified operator[](difference_type n) const;
-//
-//  constexpr in C++17
+// constexpr reference operator[](difference_type n) const; // Return type unspecified until C++20
 
 #include <iterator>
 #include <cassert>
@@ -39,7 +35,7 @@ struct do_nothing
     void operator()(void*) const {}
 };
 
-int main()
+int main(int, char**)
 {
     {
         char s[] = "1234567890";
@@ -65,4 +61,21 @@ int main()
     static_assert(it1[5] == '6', "");
     }
 #endif
+
+#if TEST_STD_VER > 17
+  // Ensure the `iter_move` customization point is being used.
+  {
+    int a[] = {0, 1, 2};
+
+    int iter_moves = 0;
+    adl::Iterator i = adl::Iterator::TrackMoves(a, iter_moves);
+    std::move_iterator<adl::Iterator> mi(i);
+
+    auto x = mi[0];
+    assert(x == 0);
+    assert(iter_moves == 1);
+  }
+#endif
+
+  return 0;
 }

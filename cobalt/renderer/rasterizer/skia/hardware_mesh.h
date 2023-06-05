@@ -18,8 +18,10 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_MESH_H_
 
 #include <memory>
+#include <utility>
 #include <vector>
 
+#include "base/single_thread_task_runner.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
@@ -58,9 +60,9 @@ class HardwareMesh : public render_tree::Mesh {
   const render_tree::Mesh::DrawMode GetDrawMode() const {
     return draw_mode_ == GL_TRIANGLE_FAN
                ? render_tree::Mesh::DrawMode::kDrawModeTriangleFan
-               : draw_mode_ == GL_TRIANGLE_STRIP
-                     ? render_tree::Mesh::DrawMode::kDrawModeTriangleStrip
-                     : render_tree::Mesh::DrawMode::kDrawModeTriangles;
+           : draw_mode_ == GL_TRIANGLE_STRIP
+               ? render_tree::Mesh::DrawMode::kDrawModeTriangleStrip
+               : render_tree::Mesh::DrawMode::kDrawModeTriangles;
   }
 
   // Obtains a vertex buffer object from this mesh. Called right before first

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,9 +12,11 @@
 
 // bool failed() const throw();
 
+#include <cassert>
 #include <iterator>
 #include <sstream>
-#include <cassert>
+
+#include "test_macros.h"
 
 template <typename Char, typename Traits = std::char_traits<Char> >
 struct my_streambuf : public std::basic_streambuf<Char,Traits> {
@@ -24,9 +25,9 @@ struct my_streambuf : public std::basic_streambuf<Char,Traits> {
 
     my_streambuf() {}
     int_type sputc(char_type) { return Traits::eof(); }
-    };
+};
 
-int main()
+int main(int, char**)
 {
     {
         my_streambuf<char> buf;
@@ -34,10 +35,14 @@ int main()
         i = 'a';
         assert(i.failed());
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         my_streambuf<wchar_t> buf;
         std::ostreambuf_iterator<wchar_t> i(&buf);
         i = L'a';
         assert(i.failed());
     }
+#endif
+
+  return 0;
 }

@@ -26,6 +26,8 @@ sb_static_contents_output_data_dir = "$root_out_dir/content"
 
 final_executable_type = "shared_library"
 gtest_target_type = "shared_library"
+starboard_level_final_executable_type = "shared_library"
+starboard_level_gtest_target_type = "shared_library"
 
 speed_config_path = "//starboard/evergreen/shared/platform_configuration:speed"
 size_config_path = "//starboard/evergreen/shared/platform_configuration:size"

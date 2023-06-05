@@ -1,9 +1,8 @@
 //===-- dd_rtl.h ----------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #ifndef DD_RTL_H
@@ -20,7 +19,7 @@ namespace __dsan {
 
 typedef DDFlags Flags;
 
-struct Mutex {
+struct UserMutex {
   DDMutex dd;
 };
 
@@ -31,19 +30,19 @@ struct Thread {
   bool ignore_interceptors;
 };
 
-struct Callback : DDCallback {
+struct Callback final : public DDCallback {
   Thread *thr;
 
   Callback(Thread *thr);
   u32 Unwind() override;
 };
 
-typedef AddrHashMap<Mutex, 31051> MutexHashMap;
+typedef AddrHashMap<UserMutex, 31051> MutexHashMap;
 
 struct Context {
   DDetector *dd;
 
-  BlockingMutex report_mutex;
+  Mutex report_mutex;
   MutexHashMap mutex_map;
 };
 

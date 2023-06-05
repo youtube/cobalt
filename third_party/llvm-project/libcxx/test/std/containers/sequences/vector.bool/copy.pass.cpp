@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,8 +19,7 @@
 #include "min_allocator.h"
 
 template <class C>
-void
-test(const C& x)
+TEST_CONSTEXPR_CXX20 void test(const C& x)
 {
     typename C::size_type s = x.size();
     C c(x);
@@ -30,7 +28,7 @@ test(const C& x)
     assert(c == x);
 }
 
-int main()
+TEST_CONSTEXPR_CXX20 bool tests()
 {
     {
         bool a[] = {0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0};
@@ -62,4 +60,15 @@ int main()
         assert(v2.get_allocator() == v.get_allocator());
     }
 #endif
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

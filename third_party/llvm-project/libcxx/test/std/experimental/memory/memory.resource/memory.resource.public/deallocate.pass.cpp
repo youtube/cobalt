@@ -1,15 +1,17 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// <experimental/memory_resource>
+// UNSUPPORTED: c++03
 
-// UNSUPPORTED: c++98, c++03
+// test_memory_resource requires RTTI for dynamic_cast
+// UNSUPPORTED: no-rtti
+
+// <experimental/memory_resource>
 
 //------------------------------------------------------------------------------
 // TESTING void * memory_resource::deallocate(void *, size_t, size_t = max_align)
@@ -21,17 +23,20 @@
 //  C) 'deallocate' is not marked as 'noexcept'.
 //  D) Invoking 'deallocate' invokes 'do_deallocate' with the same arguments.
 
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
 
 #include <experimental/memory_resource>
 #include <type_traits>
 #include <cstddef>
 #include <cassert>
 
-#include "test_memory_resource.hpp"
+#include "test_memory_resource.h"
+
+#include "test_macros.h"
 
 using std::experimental::pmr::memory_resource;
 
-int main()
+int main(int, char**)
 {
     NullResource R(42);
     auto& P = R.getController();
@@ -71,4 +76,6 @@ int main()
         assert(P.dealloc_count == 2);
         assert(P.checkDealloc(p, s, a));
     }
+
+  return 0;
 }

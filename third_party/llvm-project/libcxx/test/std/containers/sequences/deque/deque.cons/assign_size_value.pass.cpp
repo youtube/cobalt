@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -48,7 +47,7 @@ test(C& c1, int size, int v)
     typedef typename C::const_iterator CI;
     c1.assign(size, v);
     assert(c1.size() == static_cast<std::size_t>(size));
-    assert(static_cast<std::size_t>(distance(c1.begin(), c1.end())) == c1.size());
+    assert(static_cast<std::size_t>(std::distance(c1.begin(), c1.end())) == c1.size());
     for (CI i = c1.begin(); i != c1.end(); ++i)
         assert(*i == v);
 }
@@ -61,7 +60,7 @@ testN(int start, int N, int M)
     test(c1, M, -10);
 }
 
-int main()
+int main(int, char**)
 {
     {
     int rng[] = {0, 1, 2, 3, 1023, 1024, 1025, 2047, 2048, 2049};
@@ -81,4 +80,6 @@ int main()
                 testN<std::deque<int, min_allocator<int>> >(rng[i], rng[j], rng[k]);
     }
 #endif
+
+  return 0;
 }

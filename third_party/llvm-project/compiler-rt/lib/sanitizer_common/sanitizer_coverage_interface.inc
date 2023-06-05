@@ -1,9 +1,8 @@
 //===-- sanitizer_coverage_interface.inc ----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // Sanitizer Coverage interface list.
@@ -28,6 +27,17 @@ INTERFACE_WEAK_FUNCTION(__sanitizer_cov_trace_gep)
 INTERFACE_WEAK_FUNCTION(__sanitizer_cov_trace_pc_guard)
 INTERFACE_WEAK_FUNCTION(__sanitizer_cov_trace_pc_guard_init)
 INTERFACE_WEAK_FUNCTION(__sanitizer_cov_trace_pc_indir)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_load1)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_load2)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_load4)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_load8)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_load16)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_store1)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_store2)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_store4)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_store8)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_store16)
 INTERFACE_WEAK_FUNCTION(__sanitizer_cov_trace_switch)
 INTERFACE_WEAK_FUNCTION(__sanitizer_cov_8bit_counters_init)
+INTERFACE_WEAK_FUNCTION(__sanitizer_cov_bool_flag_init)
 INTERFACE_WEAK_FUNCTION(__sanitizer_cov_pcs_init)

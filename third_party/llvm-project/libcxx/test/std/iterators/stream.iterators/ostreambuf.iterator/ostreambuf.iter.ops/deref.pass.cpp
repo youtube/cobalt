@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,7 +16,9 @@
 #include <sstream>
 #include <cassert>
 
-int main()
+#include "test_macros.h"
+
+int main(int, char**)
 {
     {
         std::ostringstream outf;
@@ -25,10 +26,14 @@ int main()
         std::ostreambuf_iterator<char>& iref = *i;
         assert(&iref == &i);
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         std::wostringstream outf;
         std::ostreambuf_iterator<wchar_t> i(outf);
         std::ostreambuf_iterator<wchar_t>& iref = *i;
         assert(&iref == &i);
     }
+#endif
+
+  return 0;
 }

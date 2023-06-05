@@ -109,6 +109,7 @@ android {
                 cmake.arguments "-DCOBALT_CONFIG=debug"
             }
             signingConfig signingConfigs.debugConfig
+            testCoverageEnabled true
         }
         devel {
             debuggable true
@@ -117,12 +118,14 @@ android {
                 cmake.arguments "-DCOBALT_CONFIG=devel"
             }
             signingConfig signingConfigs.debugConfig
+            testCoverageEnabled true
         }
         qa {
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=qa"
             }
             signingConfig signingConfigs.debugConfig
+            testCoverageEnabled true
         }
         release {
             minifyEnabled true

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,7 +31,7 @@ test2(unsigned n)
     C d(n, Allocator());
     assert(static_cast<unsigned>(DefaultOnly::count) == n);
     assert(d.size() == n);
-    assert(static_cast<std::size_t>(distance(d.begin(), d.end())) == d.size());
+    assert(static_cast<std::size_t>(std::distance(d.begin(), d.end())) == d.size());
     for (const_iterator i = d.begin(), e = d.end(); i != e; ++i)
         assert(*i == T());
     }
@@ -53,7 +52,7 @@ test1(unsigned n)
     C d(n);
     assert(static_cast<unsigned>(DefaultOnly::count) == n);
     assert(d.size() == n);
-    assert(static_cast<std::size_t>(distance(d.begin(), d.end())) == d.size());
+    assert(static_cast<std::size_t>(std::distance(d.begin(), d.end())) == d.size());
 #if TEST_STD_VER >= 11
     for (const_iterator i = d.begin(), e = d.end(); i != e; ++i)
         assert(*i == T());
@@ -87,7 +86,7 @@ test(unsigned n)
     test2<T, Allocator> ( n );
 }
 
-int main()
+int main(int, char**)
 {
     test<DefaultOnly, std::allocator<DefaultOnly> >(0);
     test<DefaultOnly, std::allocator<DefaultOnly> >(1);
@@ -114,4 +113,6 @@ int main()
     test3<int, min_allocator<int>> (3);
 #endif
 
+
+  return 0;
 }

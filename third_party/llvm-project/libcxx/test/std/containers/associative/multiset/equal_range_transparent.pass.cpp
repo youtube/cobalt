@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11
+// UNSUPPORTED: c++03, c++11
 
 // <set>
 
@@ -23,10 +22,6 @@
 #include <cassert>
 #include <set>
 #include <utility>
-
-#include "min_allocator.h"
-#include "private_constructor.hpp"
-#include "test_macros.h"
 
 struct Comp {
   using is_transparent = void;
@@ -45,7 +40,7 @@ struct Comp {
   }
 };
 
-int main() {
+int main(int, char**) {
   std::multiset<std::pair<int, int>, Comp> s{{2, 1}, {1, 1}, {1, 1}, {1, 1}, {2, 2}};
 
   auto er = s.equal_range(1);
@@ -57,4 +52,6 @@ int main() {
   }
 
   assert(nels == 3);
+
+  return 0;
 }

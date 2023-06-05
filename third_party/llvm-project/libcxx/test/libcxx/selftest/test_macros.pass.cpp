@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,36 +30,9 @@ void test_noexcept() TEST_NOEXCEPT
 {
 }
 
-void test_libcxx_macros()
-{
-//  ===== C++14 features =====
-//  defined(TEST_HAS_EXTENDED_CONSTEXPR)  != defined(_LIBCPP_HAS_NO_CXX14_CONSTEXPR)
-#ifdef TEST_HAS_EXTENDED_CONSTEXPR
-# ifdef _LIBCPP_HAS_NO_CXX14_CONSTEXPR
-#  error "TEST_EXTENDED_CONSTEXPR mismatch (1)"
-# endif
-#else
-# ifndef _LIBCPP_HAS_NO_CXX14_CONSTEXPR
-#  error "TEST_EXTENDED_CONSTEXPR mismatch (2)"
-# endif
-#endif
-
-//  defined(TEST_HAS_VARIABLE_TEMPLATES) != defined(_LIBCPP_HAS_NO_VARIABLE_TEMPLATES)
-#ifdef TEST_HAS_VARIABLE_TEMPLATES
-# ifdef _LIBCPP_HAS_NO_VARIABLE_TEMPLATES
-#  error "TEST_VARIABLE_TEMPLATES mismatch (1)"
-# endif
-#else
-# ifndef _LIBCPP_HAS_NO_VARIABLE_TEMPLATES
-#  error "TEST_VARIABLE_TEMPLATES mismatch (2)"
-# endif
-#endif
-
-//  ===== C++17 features =====
-}
-
-int main()
+int main(int, char**)
 {
     test_noexcept();
-    test_libcxx_macros();
+
+    return 0;
 }

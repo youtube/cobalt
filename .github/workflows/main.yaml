@@ -24,6 +24,11 @@ on:
         required: false
         type: string
         default: ""
+      modular:
+        description: 'Whether this is a modular build.'
+        required: false
+        type: boolean
+        default: false
 
 # Global env vars.
 env:
@@ -56,19 +61,16 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
-    # All triggers except draft PRs, unless PR is labeled with runtest
     if: |
-      github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' ||
       (
-        github.event.pull_request.draft == false ||
-        (
-          github.event.action == 'labeled' &&
-          github.event.label.name == 'runtest'
-        )
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'runtest' ||
+        github.event.label.name == 'on_device'
       )
     steps:
       - id: checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -119,7 +121,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -152,7 +154,7 @@ jobs:
     runs-on: [self-hosted, linux, X64]
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -196,7 +198,7 @@ jobs:
       TMPDIR: /__w/_temp
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
@@ -276,9 +278,10 @@ jobs:
     env:
       COBALT_BOOTLOADER: ${{ needs.initialize.outputs.bootloader }}
       ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
+      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -306,9 +309,10 @@ jobs:
       # with permission denied error.
       HOME: /root
       COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
+      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           persist-credentials: false

@@ -27,7 +27,7 @@ void operator delete(void* pointer) noexcept {
   SbMemoryDeallocate(pointer);
 }
 
-void* operator new(size_t size, const std::nothrow_t& nothrow_tag) {
+void* operator new(size_t size, const std::nothrow_t& nothrow_tag) noexcept {
   return SbMemoryAllocate(size);
 }
 
@@ -42,3 +42,13 @@ void* operator new[](size_t size) {
 void operator delete[](void* pointer) noexcept {
   SbMemoryDeallocate(pointer);
 }
+
+#if __cpp_aligned_new
+void* operator new(size_t size, std::align_val_t align) {
+  return SbMemoryAllocateAligned(static_cast<size_t>(align), size);
+}
+
+void operator delete(void* pointer, std::align_val_t align) {
+  SbMemoryDeallocateAligned(pointer);
+}
+#endif

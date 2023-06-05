@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,8 @@
 # limitations under the License.
 
 config("compiler_rt_config") {
-  cflags = [ "-nostdinc" ]
   cflags_cc = [
-    "-std=c++11",
+    "-std=c++17",
     "-nostdinc++",
     "-fvisibility-inlines-hidden",
     "-fms-compatibility-version=19.00",
@@ -75,8 +74,10 @@ static_library("compiler_rt") {
       "lib/builtins/extendsftf2.c",
       "lib/builtins/fixtfsi.c",
       "lib/builtins/floatsitf.c",
+      "lib/builtins/floatunditf.c",
       "lib/builtins/floatunsitf.c",
       "lib/builtins/multf3.c",
+      "lib/builtins/riscv/fp_mode.c",
       "lib/builtins/subtf3.c",
       "lib/builtins/trunctfdf2.c",
       "lib/builtins/trunctfsf2.c",

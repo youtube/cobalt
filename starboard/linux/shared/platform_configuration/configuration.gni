@@ -34,7 +34,8 @@ no_pedantic_warnings_config_path =
 
 sb_widevine_platform = "linux"
 
-platform_tests_path = "//starboard/linux/shared:starboard_platform_tests"
+platform_tests_path =
+    "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
 
 enable_in_app_dial = true
 

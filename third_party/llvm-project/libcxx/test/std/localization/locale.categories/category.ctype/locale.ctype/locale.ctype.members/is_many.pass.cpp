@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,6 +12,8 @@
 
 // const charT* do_is(const charT* low, const charT* high, mask* vec) const;
 
+// XFAIL: no-wide-characters
+
 #include <locale>
 #include <string>
 #include <vector>
@@ -20,7 +21,9 @@
 
 #include <stdio.h>
 
-int main()
+#include "test_macros.h"
+
+int main(int, char**)
 {
     std::locale l = std::locale::classic();
     {
@@ -115,4 +118,6 @@ int main()
         assert( (m[5] & F::alnum));
         assert( (m[5] & F::graph));
     }
+
+  return 0;
 }

@@ -1,17 +1,17 @@
 #===----------------------------------------------------------------------===##
 #
-#                     The LLVM Compiler Infrastructure
-#
-# This file is dual licensed under the MIT and the University of Illinois Open
-# Source Licenses. See LICENSE.TXT for details.
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
 #===----------------------------------------------------------------------===##
 
+from pprint import pformat
 import ast
 import distutils.spawn
-import sys
 import re
-import libcxx.util
+import subprocess
+import sys
 
 
 def read_syms_from_list(slist):
@@ -31,7 +31,7 @@ def read_syms_from_file(filename):
     return read_syms_from_list(data.splitlines())
 
 
-def read_blacklist(filename):
+def read_exclusions(filename):
     with open(filename, 'r') as f:
         data = f.read()
     lines = [l.strip() for l in data.splitlines() if l.strip()]
@@ -39,17 +39,20 @@ def read_blacklist(filename):
     return lines
 
 
-def write_syms(sym_list, out=None, names_only=False):
+def write_syms(sym_list, out=None, names_only=False, filter=None):
     """
     Write a list of symbols to the file named by out.
     """
     out_str = ''
     out_list = sym_list
     out_list.sort(key=lambda x: x['name'])
+    if filter is not None:
+        out_list = filter(out_list)
     if names_only:
-        out_list = [sym['name'] for sym in sym_list]
+        out_list = [sym['name'] for sym in out_list]
     for sym in out_list:
-        out_str += '%s\n' % sym
+        # Use pformat for consistent ordering of keys.
+        out_str += pformat(sym, width=100000) + '\n'
     if out is None:
         sys.stdout.write(out_str)
     else:
@@ -63,11 +66,10 @@ _cppfilt_exe = distutils.spawn.find_executable('c++filt')
 def demangle_symbol(symbol):
     if _cppfilt_exe is None:
         return symbol
-    out, _, exit_code = libcxx.util.executeCommandVerbose(
-        [_cppfilt_exe], input=symbol)
-    if exit_code != 0:
+    result = subprocess.run([_cppfilt_exe], input=symbol.encode(), capture_output=True)
+    if result.returncode != 0:
         return symbol
-    return out
+    return result.stdout.decode()
 
 
 def is_elf(filename):
@@ -80,18 +82,27 @@ def is_mach_o(filename):
     with open(filename, 'rb') as f:
         magic_bytes = f.read(4)
     return magic_bytes in [
-        '\xfe\xed\xfa\xce',  # MH_MAGIC
-        '\xce\xfa\xed\xfe',  # MH_CIGAM
-        '\xfe\xed\xfa\xcf',  # MH_MAGIC_64
-        '\xcf\xfa\xed\xfe',  # MH_CIGAM_64
-        '\xca\xfe\xba\xbe',  # FAT_MAGIC
-        '\xbe\xba\xfe\xca'   # FAT_CIGAM
+        b'\xfe\xed\xfa\xce',  # MH_MAGIC
+        b'\xce\xfa\xed\xfe',  # MH_CIGAM
+        b'\xfe\xed\xfa\xcf',  # MH_MAGIC_64
+        b'\xcf\xfa\xed\xfe',  # MH_CIGAM_64
+        b'\xca\xfe\xba\xbe',  # FAT_MAGIC
+        b'\xbe\xba\xfe\xca'   # FAT_CIGAM
     ]
 
+def is_xcoff_or_big_ar(filename):
+    with open(filename, 'rb') as f:
+        magic_bytes = f.read(7)
+    return magic_bytes[:4] in [
+        b'\x01DF',  # XCOFF32
+        b'\x01F7'   # XCOFF64
+    ] or magic_bytes == b'<bigaf>'
 
 def is_library_file(filename):
     if sys.platform == 'darwin':
         return is_mach_o(filename)
+    elif sys.platform.startswith('aix'):
+        return is_xcoff_or_big_ar(filename)
     else:
         return is_elf(filename)
 
@@ -241,10 +252,11 @@ cxxabi_symbols = [
     '_ZTSy'
 ]
 
-def is_stdlib_symbol_name(name):
+def is_stdlib_symbol_name(name, sym):
     name = adjust_mangled_name(name)
     if re.search("@GLIBC|@GCC", name):
-        return False
+        # Only when symbol is defined do we consider it ours
+        return sym['is_defined']
     if re.search('(St[0-9])|(__cxa)|(__cxxabi)', name):
         return True
     if name in new_delete_std_symbols:
@@ -260,8 +272,7 @@ def filter_stdlib_symbols(syms):
     other_symbols = []
     for s in syms:
         canon_name = adjust_mangled_name(s['name'])
-        if not is_stdlib_symbol_name(canon_name):
-            assert not s['is_defined'] and "found defined non-std symbol"
+        if not is_stdlib_symbol_name(canon_name, s):
             other_symbols += [s]
         else:
             stdlib_symbols += [s]

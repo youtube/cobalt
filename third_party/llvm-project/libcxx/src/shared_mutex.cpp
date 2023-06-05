@@ -1,16 +1,19 @@
-//===---------------------- shared_mutex.cpp ------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "__config"
+#include <__config>
+
 #ifndef _LIBCPP_HAS_NO_THREADS
 
-#include "shared_mutex"
+#include <shared_mutex>
+#if defined(__ELF__) && defined(_LIBCPP_LINK_PTHREAD_LIB)
+#  pragma comment(lib, "pthread")
+#endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -103,13 +106,13 @@ __shared_mutex_base::unlock_shared()
 
 // Shared Timed Mutex
 // These routines are here for ABI stability
-shared_timed_mutex::shared_timed_mutex() : __base() {}
-void shared_timed_mutex::lock()     { return __base.lock(); }
-bool shared_timed_mutex::try_lock() { return __base.try_lock(); }
-void shared_timed_mutex::unlock()   { return __base.unlock(); }
-void shared_timed_mutex::lock_shared() { return __base.lock_shared(); }
-bool shared_timed_mutex::try_lock_shared() { return __base.try_lock_shared(); }
-void shared_timed_mutex::unlock_shared() { return __base.unlock_shared(); }
+shared_timed_mutex::shared_timed_mutex() : __base_() {}
+void shared_timed_mutex::lock()     { return __base_.lock(); }
+bool shared_timed_mutex::try_lock() { return __base_.try_lock(); }
+void shared_timed_mutex::unlock()   { return __base_.unlock(); }
+void shared_timed_mutex::lock_shared() { return __base_.lock_shared(); }
+bool shared_timed_mutex::try_lock_shared() { return __base_.try_lock_shared(); }
+void shared_timed_mutex::unlock_shared() { return __base_.unlock_shared(); }
 
 _LIBCPP_END_NAMESPACE_STD
 

@@ -1,13 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // REQUIRES: locale.en_US.UTF-8
+// XFAIL: LIBCXX-AIX-FIXME
+// XFAIL: no-wide-characters
 
 // <locale>
 
@@ -22,9 +23,10 @@
 #include <vector>
 #include <cassert>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
-int main()
+int main(int, char**)
 {
     {
         std::locale l(LOCALE_en_US_UTF_8);
@@ -32,7 +34,7 @@ int main()
             typedef std::ctype_byname<wchar_t> F;
             std::locale ll(l, new F(LOCALE_en_US_UTF_8));
             F const& f = std::use_facet<F>(ll);
-            std::string in(" A\x07.a1\x85");
+            std::string in(" A\x07.a1\xfb");
             std::vector<wchar_t> v(in.size());
 
             assert(f.widen(&in[0], in.data() + in.size(), v.data()) == in.data() + in.size());
@@ -51,7 +53,7 @@ int main()
             typedef std::ctype_byname<wchar_t> F;
             std::locale ll(l, new F("C"));
             const F& f = std::use_facet<F>(ll);
-            std::string in(" A\x07.a1\x85");
+            std::string in(" A\x07.a1\xfb");
             std::vector<wchar_t> v(in.size());
 
             assert(f.widen(&in[0], in.data() + in.size(), v.data()) == in.data() + in.size());
@@ -61,11 +63,13 @@ int main()
             assert(v[3] == L'.');
             assert(v[4] == L'a');
             assert(v[5] == L'1');
-#if defined(__APPLE__) || defined(__FreeBSD__)
-            assert(v[6] == L'\x85');
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_WIN32)
+            assert(v[6] == L'\xfb');
 #else
             assert(v[6] == wchar_t(-1));
 #endif
         }
     }
+
+  return 0;
 }

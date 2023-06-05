@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,10 +18,10 @@
 
 #include "test_macros.h"
 #include "min_allocator.h"
-#include "private_constructor.hpp"
+#include "private_constructor.h"
 #include "is_transparent.h"
 
-int main()
+int main(int, char**)
 {
     typedef std::pair<const int, double> V;
     {
@@ -47,11 +46,11 @@ int main()
         r = m.find(6);
         assert(r == m.end());
         r = m.find(7);
-        assert(r == next(m.begin(), 3));
+        assert(r == std::next(m.begin(), 3));
         r = m.find(8);
         assert(r == m.end());
         r = m.find(9);
-        assert(r == next(m.begin(), 6));
+        assert(r == std::next(m.begin(), 6));
         r = m.find(10);
         assert(r == m.end());
     }
@@ -75,11 +74,11 @@ int main()
         r = m.find(6);
         assert(r == m.end());
         r = m.find(7);
-        assert(r == next(m.begin(), 3));
+        assert(r == std::next(m.begin(), 3));
         r = m.find(8);
         assert(r == m.end());
         r = m.find(9);
-        assert(r == next(m.begin(), 6));
+        assert(r == std::next(m.begin(), 6));
         r = m.find(10);
         assert(r == m.end());
     }
@@ -107,11 +106,11 @@ int main()
         r = m.find(6);
         assert(r == m.end());
         r = m.find(7);
-        assert(r == next(m.begin(), 3));
+        assert(r == std::next(m.begin(), 3));
         r = m.find(8);
         assert(r == m.end());
         r = m.find(9);
-        assert(r == next(m.begin(), 6));
+        assert(r == std::next(m.begin(), 6));
         r = m.find(10);
         assert(r == m.end());
     }
@@ -135,11 +134,11 @@ int main()
         r = m.find(6);
         assert(r == m.end());
         r = m.find(7);
-        assert(r == next(m.begin(), 3));
+        assert(r == std::next(m.begin(), 3));
         r = m.find(8);
         assert(r == m.end());
         r = m.find(9);
-        assert(r == next(m.begin(), 6));
+        assert(r == std::next(m.begin(), 6));
         r = m.find(10);
         assert(r == m.end());
     }
@@ -168,11 +167,11 @@ int main()
         r = m.find(6);
         assert(r == m.end());
         r = m.find(7);
-        assert(r == next(m.begin(), 3));
+        assert(r == std::next(m.begin(), 3));
         r = m.find(8);
         assert(r == m.end());
         r = m.find(9);
-        assert(r == next(m.begin(), 6));
+        assert(r == std::next(m.begin(), 6));
         r = m.find(10);
         assert(r == m.end());
 
@@ -181,11 +180,11 @@ int main()
         r = m.find(C2Int(6));
         assert(r == m.end());
         r = m.find(C2Int(7));
-        assert(r == next(m.begin(), 3));
+        assert(r == std::next(m.begin(), 3));
         r = m.find(C2Int(8));
         assert(r == m.end());
         r = m.find(C2Int(9));
-        assert(r == next(m.begin(), 6));
+        assert(r == std::next(m.begin(), 6));
         r = m.find(C2Int(10));
         assert(r == m.end());
     }
@@ -211,13 +210,15 @@ int main()
     r = m.find(6);
     assert(r == m.end());
     r = m.find(7);
-    assert(r == next(m.begin(), 3));
+    assert(r == std::next(m.begin(), 3));
     r = m.find(8);
     assert(r == m.end());
     r = m.find(9);
-    assert(r == next(m.begin(), 6));
+    assert(r == std::next(m.begin(), 6));
     r = m.find(10);
     assert(r == m.end());
     }
 #endif
+
+  return 0;
 }

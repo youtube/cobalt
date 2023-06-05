@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 
 // UNSUPPORTED: sanitizer-new-delete
 // XFAIL: libcpp-no-vcruntime
+// XFAIL: LIBCXX-AIX-FIXME
 
 #include <new>
 #include <cstddef>
@@ -44,15 +44,18 @@ struct A
     ~A() {--A_constructed;}
 };
 
-int main()
+int main(int, char**)
 {
+    new_called = 0;
     A *ap = new (std::nothrow) A[3];
     DoNotOptimize(ap);
     assert(ap);
     assert(A_constructed == 3);
-    assert(new_called);
+    ASSERT_WITH_OPERATOR_NEW_FALLBACKS(new_called);
     delete [] ap;
     DoNotOptimize(ap);
     assert(A_constructed == 0);
-    assert(!new_called);
+    ASSERT_WITH_OPERATOR_NEW_FALLBACKS(!new_called);
+
+  return 0;
 }

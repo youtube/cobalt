@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
 // <any>
 
@@ -19,14 +18,13 @@
 
 #include "test_macros.h"
 #include "any_helpers.h"
-#include "count_new.hpp"
+#include "count_new.h"
 
-int main()
+int main(int, char**)
 {
-    using std::any;
     {
         static_assert(
-            std::is_nothrow_default_constructible<any>::value
+            std::is_nothrow_default_constructible<std::any>::value
           , "Must be default constructible"
           );
     }
@@ -34,14 +32,14 @@ int main()
         struct TestConstexpr : public std::any {
           constexpr TestConstexpr() : std::any() {}
         };
-#ifdef _LIBCPP_SAFE_STATIC
-        _LIBCPP_SAFE_STATIC static std::any a;
-        ((void)a);
-#endif
+        static TEST_CONSTINIT std::any a;
+        (void)a;
     }
     {
         DisableAllocationGuard g; ((void)g);
-        any const a;
+        const std::any a;
         assertEmpty(a);
     }
+
+  return 0;
 }

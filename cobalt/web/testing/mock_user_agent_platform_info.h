@@ -75,6 +75,12 @@ class MockUserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   const std::string& evergreen_version() const override {
     return empty_string_;
   }
+  const std::string& android_build_fingerprint() const override {
+    return empty_string_;
+  }
+  const std::string& android_os_experience() const override {
+    return empty_string_;
+  }
   const std::string& cobalt_version() const override { return empty_string_; }
   const std::string& cobalt_build_version_number() const override {
     return empty_string_;

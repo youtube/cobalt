@@ -1,13 +1,16 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+
+// The string reported on errors changed, which makes those tests fail when run
+// against already-released libc++'s.
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx{{10.15|11.0}}
 
 // <filesystem>
 
@@ -17,33 +20,84 @@
 // void last_write_time(const path& p, file_time_type new_type,
 //                      std::error_code& ec) noexcept;
 
-#include "filesystem_include.hpp"
-#include <type_traits>
+#include "filesystem_include.h"
 #include <chrono>
-#include <fstream>
+#include <cstdio>
 #include <cstdlib>
+#include <ctime>
+#include <ratio>
+#include <type_traits>
 
 #include "test_macros.h"
-#include "rapid-cxx-test.hpp"
-#include "filesystem_test_helper.hpp"
-
-#include <sys/stat.h>
-#include <iostream>
+#include "rapid-cxx-test.h"
+#include "filesystem_test_helper.h"
 
 #include <fcntl.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/time.h>
+#include <sys/stat.h>
+#endif
 
 using namespace fs;
-
-using TimeSpec = struct ::timespec;
-using StatT = struct ::stat;
 
 using Sec = std::chrono::duration<file_time_type::rep>;
 using Hours = std::chrono::hours;
 using Minutes = std::chrono::minutes;
+using MilliSec = std::chrono::duration<file_time_type::rep, std::milli>;
 using MicroSec = std::chrono::duration<file_time_type::rep, std::micro>;
 using NanoSec = std::chrono::duration<file_time_type::rep, std::nano>;
 using std::chrono::duration_cast;
+
+#ifdef _WIN32
+struct TimeSpec {
+  int64_t tv_sec;
+  int64_t tv_nsec;
+};
+struct StatT {
+  TimeSpec st_atim;
+  TimeSpec st_mtim;
+};
+// There were 369 years and 89 leap days from the Windows epoch
+// (1601) to the Unix epoch (1970).
+#define FILE_TIME_OFFSET_SECS (uint64_t(369 * 365 + 89) * (24 * 60 * 60))
+static TimeSpec filetime_to_timespec(LARGE_INTEGER li) {
+  TimeSpec ret;
+  ret.tv_sec = li.QuadPart / 10000000 - FILE_TIME_OFFSET_SECS;
+  ret.tv_nsec = (li.QuadPart % 10000000) * 100;
+  return ret;
+}
+static int stat_file(const char *path, StatT *buf, int flags) {
+  HANDLE h = CreateFileA(path, FILE_READ_ATTRIBUTES,
+                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                         nullptr, OPEN_EXISTING,
+                         FILE_FLAG_BACKUP_SEMANTICS | flags, nullptr);
+  if (h == INVALID_HANDLE_VALUE)
+    return -1;
+  int ret = -1;
+  FILE_BASIC_INFO basic;
+  if (GetFileInformationByHandleEx(h, FileBasicInfo, &basic, sizeof(basic))) {
+    buf->st_mtim = filetime_to_timespec(basic.LastWriteTime);
+    buf->st_atim = filetime_to_timespec(basic.LastAccessTime);
+    ret = 0;
+  }
+  CloseHandle(h);
+  return ret;
+}
+static int stat(const char *path, StatT *buf) {
+  return stat_file(path, buf, 0);
+}
+static int lstat(const char *path, StatT *buf) {
+  return stat_file(path, buf, FILE_FLAG_OPEN_REPARSE_POINT);
+}
+#elif defined(_AIX)
+using TimeSpec = st_timespec_t;
+using StatT = struct stat;
+#else
+using TimeSpec = timespec;
+using StatT = struct stat;
+#endif
 
 #if defined(__APPLE__)
 TimeSpec extract_mtime(StatT const& st) { return st.st_mtimespec; }
@@ -108,14 +162,12 @@ struct Times {
 };
 
 Times GetTimes(path const& p) {
-    using Clock = file_time_type::clock;
     StatT st;
-    if (::stat(p.c_str(), &st) == -1) {
+    if (::stat(p.string().c_str(), &st) == -1) {
         std::error_code ec(errno, std::generic_category());
 #ifndef TEST_HAS_NO_EXCEPTIONS
         throw ec;
 #else
-        std::cerr << ec.message() << std::endl;
         std::exit(EXIT_FAILURE);
 #endif
     }
@@ -126,32 +178,28 @@ TimeSpec LastAccessTime(path const& p) { return GetTimes(p).access; }
 
 TimeSpec LastWriteTime(path const& p) { return GetTimes(p).write; }
 
-std::pair<TimeSpec, TimeSpec> GetSymlinkTimes(path const& p) {
-  using Clock = file_time_type::clock;
+Times GetSymlinkTimes(path const& p) {
   StatT st;
-  if (::lstat(p.c_str(), &st) == -1) {
+  if (::lstat(p.string().c_str(), &st) == -1) {
     std::error_code ec(errno, std::generic_category());
 #ifndef TEST_HAS_NO_EXCEPTIONS
         throw ec;
 #else
-        std::cerr << ec.message() << std::endl;
         std::exit(EXIT_FAILURE);
 #endif
     }
-    return {extract_atime(st), extract_mtime(st)};
+    Times res;
+    res.access = extract_atime(st);
+    res.write = extract_mtime(st);
+    return res;
 }
 
 namespace {
 
 // In some configurations, the comparison is tautological and the test is valid.
-// We disable the warning so that we can actually test it regardless. Also, that
-// diagnostic is pretty new, so also don't fail if old clang does not support it
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunknown-warning-option"
-#pragma clang diagnostic ignored "-Wunknown-pragmas"
-#pragma clang diagnostic ignored "-Wtautological-constant-compare"
-#endif
+// We disable the warning so that we can actually test it regardless.
+TEST_DIAGNOSTIC_PUSH
+TEST_CLANG_DIAGNOSTIC_IGNORED("-Wtautological-constant-compare")
 
 static const bool SupportsNegativeTimes = [] {
   using namespace std::chrono;
@@ -316,9 +364,7 @@ inline bool TimeIsRepresentableByFilesystem(file_time_type tp) {
   return true;
 }
 
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
+TEST_DIAGNOSTIC_POP
 
 // Create a sub-second duration using the smallest period the filesystem supports.
 file_time_type::duration SubSec(long long val) {
@@ -349,33 +395,38 @@ TEST_CASE(signature_test)
 
 TEST_CASE(read_last_write_time_static_env_test)
 {
+    static_test_env static_env;
     using C = file_time_type::clock;
     file_time_type min = file_time_type::min();
+    // Sleep a little to make sure that static_env.File created above is
+    // strictly older than C::now() even with a coarser clock granularity
+    // in C::now(). (GetSystemTimeAsFileTime on windows has a fairly coarse
+    // granularity.)
+    SleepFor(MilliSec(30));
     {
-        file_time_type ret = last_write_time(StaticEnv::File);
+        file_time_type ret = last_write_time(static_env.File);
         TEST_CHECK(ret != min);
         TEST_CHECK(ret < C::now());
-        TEST_CHECK(CompareTime(ret, LastWriteTime(StaticEnv::File)));
+        TEST_CHECK(CompareTime(ret, LastWriteTime(static_env.File)));
 
-        file_time_type ret2 = last_write_time(StaticEnv::SymlinkToFile);
+        file_time_type ret2 = last_write_time(static_env.SymlinkToFile);
         TEST_CHECK(CompareTime(ret, ret2));
-        TEST_CHECK(CompareTime(ret2, LastWriteTime(StaticEnv::SymlinkToFile)));
+        TEST_CHECK(CompareTime(ret2, LastWriteTime(static_env.SymlinkToFile)));
     }
     {
-        file_time_type ret = last_write_time(StaticEnv::Dir);
+        file_time_type ret = last_write_time(static_env.Dir);
         TEST_CHECK(ret != min);
         TEST_CHECK(ret < C::now());
-        TEST_CHECK(CompareTime(ret, LastWriteTime(StaticEnv::Dir)));
+        TEST_CHECK(CompareTime(ret, LastWriteTime(static_env.Dir)));
 
-        file_time_type ret2 = last_write_time(StaticEnv::SymlinkToDir);
+        file_time_type ret2 = last_write_time(static_env.SymlinkToDir);
         TEST_CHECK(CompareTime(ret, ret2));
-        TEST_CHECK(CompareTime(ret2, LastWriteTime(StaticEnv::SymlinkToDir)));
+        TEST_CHECK(CompareTime(ret2, LastWriteTime(static_env.SymlinkToDir)));
     }
 }
 
 TEST_CASE(get_last_write_time_dynamic_env_test)
 {
-    using Clock = file_time_type::clock;
     using Sec = std::chrono::seconds;
     scoped_test_env env;
 
@@ -388,19 +439,17 @@ TEST_CASE(get_last_write_time_dynamic_env_test)
     const TimeSpec dir_write_time = dir_times.write;
 
     file_time_type ftime = last_write_time(file);
-    TEST_CHECK(Clock::to_time_t(ftime) == file_write_time.tv_sec);
     TEST_CHECK(CompareTime(ftime, file_write_time));
 
     file_time_type dtime = last_write_time(dir);
-    TEST_CHECK(Clock::to_time_t(dtime) == dir_write_time.tv_sec);
     TEST_CHECK(CompareTime(dtime, dir_write_time));
 
     SleepFor(Sec(2));
 
     // update file and add a file to the directory. Make sure the times increase.
-    std::ofstream of(file, std::ofstream::app);
-    of << "hello";
-    of.close();
+    std::FILE* of = std::fopen(file.string().c_str(), "a");
+    std::fwrite("hello", 1, sizeof("hello"), of);
+    std::fclose(of);
     env.create_file("dir/file1", 1);
 
     file_time_type ftime2 = last_write_time(file);
@@ -427,13 +476,15 @@ TEST_CASE(set_last_write_time_dynamic_env_test)
     const file_time_type past_time = now - Minutes(3) - Sec(42) - SubSec(17);
     const file_time_type before_epoch_time =
         epoch_time - Minutes(3) - Sec(42) - SubSec(17);
+    (void)before_epoch_time;
     // FreeBSD has a bug in their utimes implementation where the time is not update
     // when the number of seconds is '-1'.
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
     const file_time_type just_before_epoch_time =
         epoch_time - Sec(2) - SubSec(17);
 #else
     const file_time_type just_before_epoch_time = epoch_time - SubSec(17);
+    (void)just_before_epoch_time;
 #endif
 
     struct TestCase {
@@ -446,14 +497,20 @@ TEST_CASE(set_last_write_time_dynamic_env_test)
         {"file, future_time", file, future_time},
         {"dir, future_time", dir, future_time},
         {"file, past_time", file, past_time},
-        {"dir, past_time", dir, past_time},
+        {"dir, past_time", dir, past_time}
+        // Exclude file time types of before epoch time from testing on AIX
+        // because AIX system call utimensat() does not accept the times
+        // parameter having a negative tv_sec or tv_nsec field.
+#if !defined(_AIX)
+        ,
         {"file, before_epoch_time", file, before_epoch_time},
         {"dir, before_epoch_time", dir, before_epoch_time},
         {"file, just_before_epoch_time", file, just_before_epoch_time},
         {"dir, just_before_epoch_time", dir, just_before_epoch_time}
+#endif
     };
+
     for (const auto& TC : cases) {
-        std::cerr << "Test Case = " << TC.case_name << "\n";
         const auto old_times = GetTimes(TC.p);
         file_time_type old_time;
         TEST_REQUIRE(ConvertFromTimeSpec(old_time, old_times.write));
@@ -502,15 +559,13 @@ TEST_CASE(last_write_time_symlink_test)
 
     TEST_CHECK(CompareTime(LastWriteTime(file), new_time));
     TEST_CHECK(CompareTime(LastAccessTime(sym), old_times.access));
-    std::pair<TimeSpec, TimeSpec> sym_times = GetSymlinkTimes(sym);
-    TEST_CHECK(CompareTime(sym_times.first, old_sym_times.first));
-    TEST_CHECK(CompareTime(sym_times.second, old_sym_times.second));
+    Times sym_times = GetSymlinkTimes(sym);
+    TEST_CHECK(CompareTime(sym_times.write, old_sym_times.write));
 }
 
 
 TEST_CASE(test_write_min_time)
 {
-    using Clock = file_time_type::clock;
     scoped_test_env env;
     const path p = env.create_file("file", 42);
     const file_time_type old_time = last_write_time(p);
@@ -545,10 +600,6 @@ TEST_CASE(test_write_min_time)
 }
 
 TEST_CASE(test_write_max_time) {
-  using Clock = file_time_type::clock;
-  using Sec = std::chrono::seconds;
-  using Hours = std::chrono::hours;
-
   scoped_test_env env;
   const path p = env.create_file("file", 42);
   const file_time_type old_time = last_write_time(p);
@@ -569,12 +620,16 @@ TEST_CASE(test_write_max_time) {
 
 TEST_CASE(test_value_on_failure)
 {
-    const path p = StaticEnv::DNE;
+    static_test_env static_env;
+    const path p = static_env.DNE;
     std::error_code ec = GetTestEC();
     TEST_CHECK(last_write_time(p, ec) == file_time_type::min());
     TEST_CHECK(ErrorIs(ec, std::errc::no_such_file_or_directory));
 }
 
+// Windows doesn't support setting perms::none to trigger failures
+// reading directories.
+#ifndef TEST_WIN_NO_FILESYSTEM_PERMS_NONE
 TEST_CASE(test_exists_fails)
 {
     scoped_test_env env;
@@ -590,5 +645,6 @@ TEST_CASE(test_exists_fails)
                              "last_write_time");
     TEST_CHECK_THROW_RESULT(filesystem_error, Checker, last_write_time(file));
 }
+#endif
 
 TEST_SUITE_END()

@@ -1,0 +1,21 @@
+name: "libunwind"
+description:
+  "Filtered subtree at third_party/llvm-project/libunwind."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "https://cobalt.googlesource.com/third_party/llvm-project/libunwind_filtered_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/llvm/llvm-project.git"
+  }
+  # Closest commit hash to llvm-project's 39da55e8f548a11f7dadefa73ea73d809a5f1729.
+  version: "4cc5f231b5b0174cdd5b0f7fc3be5a595be0009d"
+  last_upgrade_date {
+    year: 2023
+    month: 1
+    day: 17
+  }
+}

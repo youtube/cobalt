@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,6 +12,7 @@
 
 #include <forward_list>
 #include <cassert>
+#include <iterator>
 
 #include "test_macros.h"
 #include "DefaultOnly.h"
@@ -22,7 +22,7 @@
 #include "container_test_types.h"
 #endif
 
-int main()
+int main(int, char**)
 {
     {
         typedef int T;
@@ -31,28 +31,28 @@ int main()
         C c(std::begin(t), std::end(t));
 
         c.resize(3, 10);
-        assert(distance(c.begin(), c.end()) == 3);
-        assert(*next(c.begin(), 0) == 0);
-        assert(*next(c.begin(), 1) == 1);
-        assert(*next(c.begin(), 2) == 2);
+        assert(std::distance(c.begin(), c.end()) == 3);
+        assert(*std::next(c.begin(), 0) == 0);
+        assert(*std::next(c.begin(), 1) == 1);
+        assert(*std::next(c.begin(), 2) == 2);
 
         c.resize(6, 10);
-        assert(distance(c.begin(), c.end()) == 6);
-        assert(*next(c.begin(), 0) == 0);
-        assert(*next(c.begin(), 1) == 1);
-        assert(*next(c.begin(), 2) == 2);
-        assert(*next(c.begin(), 3) == 10);
-        assert(*next(c.begin(), 4) == 10);
-        assert(*next(c.begin(), 5) == 10);
+        assert(std::distance(c.begin(), c.end()) == 6);
+        assert(*std::next(c.begin(), 0) == 0);
+        assert(*std::next(c.begin(), 1) == 1);
+        assert(*std::next(c.begin(), 2) == 2);
+        assert(*std::next(c.begin(), 3) == 10);
+        assert(*std::next(c.begin(), 4) == 10);
+        assert(*std::next(c.begin(), 5) == 10);
 
         c.resize(6, 12);
-        assert(distance(c.begin(), c.end()) == 6);
-        assert(*next(c.begin(), 0) == 0);
-        assert(*next(c.begin(), 1) == 1);
-        assert(*next(c.begin(), 2) == 2);
-        assert(*next(c.begin(), 3) == 10);
-        assert(*next(c.begin(), 4) == 10);
-        assert(*next(c.begin(), 5) == 10);
+        assert(std::distance(c.begin(), c.end()) == 6);
+        assert(*std::next(c.begin(), 0) == 0);
+        assert(*std::next(c.begin(), 1) == 1);
+        assert(*std::next(c.begin(), 2) == 2);
+        assert(*std::next(c.begin(), 3) == 10);
+        assert(*std::next(c.begin(), 4) == 10);
+        assert(*std::next(c.begin(), 5) == 10);
     }
 #if TEST_STD_VER >= 11
     {
@@ -62,33 +62,32 @@ int main()
         C c(std::begin(t), std::end(t));
 
         c.resize(3, 10);
-        assert(distance(c.begin(), c.end()) == 3);
-        assert(*next(c.begin(), 0) == 0);
-        assert(*next(c.begin(), 1) == 1);
-        assert(*next(c.begin(), 2) == 2);
+        assert(std::distance(c.begin(), c.end()) == 3);
+        assert(*std::next(c.begin(), 0) == 0);
+        assert(*std::next(c.begin(), 1) == 1);
+        assert(*std::next(c.begin(), 2) == 2);
 
         c.resize(6, 10);
-        assert(distance(c.begin(), c.end()) == 6);
-        assert(*next(c.begin(), 0) == 0);
-        assert(*next(c.begin(), 1) == 1);
-        assert(*next(c.begin(), 2) == 2);
-        assert(*next(c.begin(), 3) == 10);
-        assert(*next(c.begin(), 4) == 10);
-        assert(*next(c.begin(), 5) == 10);
+        assert(std::distance(c.begin(), c.end()) == 6);
+        assert(*std::next(c.begin(), 0) == 0);
+        assert(*std::next(c.begin(), 1) == 1);
+        assert(*std::next(c.begin(), 2) == 2);
+        assert(*std::next(c.begin(), 3) == 10);
+        assert(*std::next(c.begin(), 4) == 10);
+        assert(*std::next(c.begin(), 5) == 10);
 
         c.resize(6, 12);
-        assert(distance(c.begin(), c.end()) == 6);
-        assert(*next(c.begin(), 0) == 0);
-        assert(*next(c.begin(), 1) == 1);
-        assert(*next(c.begin(), 2) == 2);
-        assert(*next(c.begin(), 3) == 10);
-        assert(*next(c.begin(), 4) == 10);
-        assert(*next(c.begin(), 5) == 10);
+        assert(std::distance(c.begin(), c.end()) == 6);
+        assert(*std::next(c.begin(), 0) == 0);
+        assert(*std::next(c.begin(), 1) == 1);
+        assert(*std::next(c.begin(), 2) == 2);
+        assert(*std::next(c.begin(), 3) == 10);
+        assert(*std::next(c.begin(), 4) == 10);
+        assert(*std::next(c.begin(), 5) == 10);
     }
     {
         // Test that the allocator's construct method is being used to
         // construct the new elements and that it's called exactly N times.
-        typedef int T;
         typedef std::forward_list<int, ContainerTestAllocator<int, int>> Container;
         ConstructController* cc = getConstructController();
         cc->reset();
@@ -100,4 +99,6 @@ int main()
         }
     }
 #endif
+
+  return 0;
 }

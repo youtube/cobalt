@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,10 +16,11 @@
 #include <map>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::multimap<int, double> M;
@@ -38,26 +38,26 @@ int main()
             P(3, 2),
         };
         M m;
-        m.insert(input_iterator<P*>(ar), input_iterator<P*>(ar + sizeof(ar)/sizeof(ar[0])));
+        m.insert(cpp17_input_iterator<P*>(ar), cpp17_input_iterator<P*>(ar + sizeof(ar)/sizeof(ar[0])));
         assert(m.size() == 9);
         assert(m.begin()->first == 1);
         assert(m.begin()->second == 1);
-        assert(next(m.begin())->first == 1);
-        assert(next(m.begin())->second == 1.5);
-        assert(next(m.begin(), 2)->first == 1);
-        assert(next(m.begin(), 2)->second == 2);
-        assert(next(m.begin(), 3)->first == 2);
-        assert(next(m.begin(), 3)->second == 1);
-        assert(next(m.begin(), 4)->first == 2);
-        assert(next(m.begin(), 4)->second == 1.5);
-        assert(next(m.begin(), 5)->first == 2);
-        assert(next(m.begin(), 5)->second == 2);
-        assert(next(m.begin(), 6)->first == 3);
-        assert(next(m.begin(), 6)->second == 1);
-        assert(next(m.begin(), 7)->first == 3);
-        assert(next(m.begin(), 7)->second == 1.5);
-        assert(next(m.begin(), 8)->first == 3);
-        assert(next(m.begin(), 8)->second == 2);
+        assert(std::next(m.begin())->first == 1);
+        assert(std::next(m.begin())->second == 1.5);
+        assert(std::next(m.begin(), 2)->first == 1);
+        assert(std::next(m.begin(), 2)->second == 2);
+        assert(std::next(m.begin(), 3)->first == 2);
+        assert(std::next(m.begin(), 3)->second == 1);
+        assert(std::next(m.begin(), 4)->first == 2);
+        assert(std::next(m.begin(), 4)->second == 1.5);
+        assert(std::next(m.begin(), 5)->first == 2);
+        assert(std::next(m.begin(), 5)->second == 2);
+        assert(std::next(m.begin(), 6)->first == 3);
+        assert(std::next(m.begin(), 6)->second == 1);
+        assert(std::next(m.begin(), 7)->first == 3);
+        assert(std::next(m.begin(), 7)->second == 1.5);
+        assert(std::next(m.begin(), 8)->first == 3);
+        assert(std::next(m.begin(), 8)->second == 2);
     }
 #if TEST_STD_VER >= 11
     {
@@ -76,26 +76,28 @@ int main()
             P(3, 2),
         };
         M m;
-        m.insert(input_iterator<P*>(ar), input_iterator<P*>(ar + sizeof(ar)/sizeof(ar[0])));
+        m.insert(cpp17_input_iterator<P*>(ar), cpp17_input_iterator<P*>(ar + sizeof(ar)/sizeof(ar[0])));
         assert(m.size() == 9);
         assert(m.begin()->first == 1);
         assert(m.begin()->second == 1);
-        assert(next(m.begin())->first == 1);
-        assert(next(m.begin())->second == 1.5);
-        assert(next(m.begin(), 2)->first == 1);
-        assert(next(m.begin(), 2)->second == 2);
-        assert(next(m.begin(), 3)->first == 2);
-        assert(next(m.begin(), 3)->second == 1);
-        assert(next(m.begin(), 4)->first == 2);
-        assert(next(m.begin(), 4)->second == 1.5);
-        assert(next(m.begin(), 5)->first == 2);
-        assert(next(m.begin(), 5)->second == 2);
-        assert(next(m.begin(), 6)->first == 3);
-        assert(next(m.begin(), 6)->second == 1);
-        assert(next(m.begin(), 7)->first == 3);
-        assert(next(m.begin(), 7)->second == 1.5);
-        assert(next(m.begin(), 8)->first == 3);
-        assert(next(m.begin(), 8)->second == 2);
+        assert(std::next(m.begin())->first == 1);
+        assert(std::next(m.begin())->second == 1.5);
+        assert(std::next(m.begin(), 2)->first == 1);
+        assert(std::next(m.begin(), 2)->second == 2);
+        assert(std::next(m.begin(), 3)->first == 2);
+        assert(std::next(m.begin(), 3)->second == 1);
+        assert(std::next(m.begin(), 4)->first == 2);
+        assert(std::next(m.begin(), 4)->second == 1.5);
+        assert(std::next(m.begin(), 5)->first == 2);
+        assert(std::next(m.begin(), 5)->second == 2);
+        assert(std::next(m.begin(), 6)->first == 3);
+        assert(std::next(m.begin(), 6)->second == 1);
+        assert(std::next(m.begin(), 7)->first == 3);
+        assert(std::next(m.begin(), 7)->second == 1.5);
+        assert(std::next(m.begin(), 8)->first == 3);
+        assert(std::next(m.begin(), 8)->second == 2);
     }
 #endif
+
+  return 0;
 }

@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// XFAIL: no-wide-characters
 
 // <string>
 
@@ -21,7 +22,10 @@
 
 #include <string>
 #include <cassert>
-#include <sstream>
+#include <limits>
+
+#include "parse_integer.h"
+#include "test_macros.h"
 
 template <class T>
 void
@@ -48,16 +52,12 @@ test_signed()
     {
         std::wstring s = std::to_wstring(std::numeric_limits<T>::max());
         assert(s.size() == std::numeric_limits<T>::digits10 + 1);
-        std::wistringstream is(s);
-        T t(0);
-        is >> t;
+        T t = parse_integer<T>(s);
         assert(t == std::numeric_limits<T>::max());
     }
     {
         std::wstring s = std::to_wstring(std::numeric_limits<T>::min());
-        std::wistringstream is(s);
-        T t(0);
-        is >> t;
+        T t = parse_integer<T>(s);
         assert(t == std::numeric_limits<T>::min());
     }
 }
@@ -81,9 +81,7 @@ test_unsigned()
     {
         std::wstring s = std::to_wstring(std::numeric_limits<T>::max());
         assert(s.size() == std::numeric_limits<T>::digits10 + 1);
-        std::wistringstream is(s);
-        T t(0);
-        is >> t;
+        T t = parse_integer<T>(s);
         assert(t == std::numeric_limits<T>::max());
     }
 }
@@ -112,7 +110,7 @@ test_float()
     }
 }
 
-int main()
+int main(int, char**)
 {
     test_signed<int>();
     test_signed<long>();
@@ -123,4 +121,6 @@ int main()
     test_float<float>();
     test_float<double>();
     test_float<long double>();
+
+  return 0;
 }

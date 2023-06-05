@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
+#include <resolv.h>
 #include "lookup.h"
 #include "stdio_impl.h"
 #include "syscall.h"
@@ -49,7 +50,7 @@ static int name_from_hosts(struct address buf[static MAXADDRS], char canon[stati
 {
 	char line[512];
 	size_t l = strlen(name);
-	int cnt = 0, badfam = 0;
+	int cnt = 0, badfam = 0, have_canon = 0;
 	unsigned char _buf[1032];
 	FILE _f, *f = __fopen_rb_ca("/etc/hosts", &_f, _buf, sizeof _buf);
 	if (!f) switch (errno) {
@@ -78,15 +79,20 @@ static int name_from_hosts(struct address buf[static MAXADDRS], char canon[stati
 		case 0:
 			continue;
 		default:
-			badfam = EAI_NONAME;
-			continue;
+			badfam = EAI_NODATA;
+			break;
 		}
+
+		if (have_canon) continue;
 
 		/* Extract first name as canonical name */
 		for (; *p && isspace(*p); p++);
 		for (z=p; *z && !isspace(*z); z++);
 		*z = 0;
-		if (is_valid_hostname(p)) memcpy(canon, p, z-p+1);
+		if (is_valid_hostname(p)) {
+			have_canon = 1;
+			memcpy(canon, p, z-p+1);
+		}
 	}
 	__fclose_ca(f);
 	return cnt ? cnt : badfam;
@@ -96,50 +102,50 @@ struct dpc_ctx {
 	struct address *addrs;
 	char *canon;
 	int cnt;
+	int rrtype;
 };
-
-int __dns_parse(const unsigned char *, int, int (*)(void *, int, const void *, int, const void *), void *);
-int __dn_expand(const unsigned char *, const unsigned char *, const unsigned char *, char *, int);
-int __res_mkquery(int, const char *, int, int, const unsigned char *, int, const unsigned char*, unsigned char *, int);
-int __res_msend_rc(int, const unsigned char *const *, const int *, unsigned char *const *, int *, int, const struct resolvconf *);
 
 #define RR_A 1
 #define RR_CNAME 5
 #define RR_AAAA 28
 
-static int dns_parse_callback(void *c, int rr, const void *data, int len, const void *packet)
+#define ABUF_SIZE 768
+
+static int dns_parse_callback(void *c, int rr, const void *data, int len, const void *packet, int plen)
 {
 	char tmp[256];
+	int family;
 	struct dpc_ctx *ctx = c;
-	if (ctx->cnt >= MAXADDRS) return -1;
+	if (rr == RR_CNAME) {
+		if (__dn_expand(packet, (const unsigned char *)packet + plen,
+		    data, tmp, sizeof tmp) > 0 && is_valid_hostname(tmp))
+			strcpy(ctx->canon, tmp);
+		return 0;
+	}
+	if (ctx->cnt >= MAXADDRS) return 0;
+	if (rr != ctx->rrtype) return 0;
 	switch (rr) {
 	case RR_A:
 		if (len != 4) return -1;
-		ctx->addrs[ctx->cnt].family = AF_INET;
-		ctx->addrs[ctx->cnt].scopeid = 0;
-		memcpy(ctx->addrs[ctx->cnt++].addr, data, 4);
+		family = AF_INET;
 		break;
 	case RR_AAAA:
 		if (len != 16) return -1;
-		ctx->addrs[ctx->cnt].family = AF_INET6;
-		ctx->addrs[ctx->cnt].scopeid = 0;
-		memcpy(ctx->addrs[ctx->cnt++].addr, data, 16);
-		break;
-	case RR_CNAME:
-		if (__dn_expand(packet, (const unsigned char *)packet + 512,
-		    data, tmp, sizeof tmp) > 0 && is_valid_hostname(tmp))
-			strcpy(ctx->canon, tmp);
+		family = AF_INET6;
 		break;
 	}
+	ctx->addrs[ctx->cnt].family = family;
+	ctx->addrs[ctx->cnt].scopeid = 0;
+	memcpy(ctx->addrs[ctx->cnt++].addr, data, len);
 	return 0;
 }
 
 static int name_from_dns(struct address buf[static MAXADDRS], char canon[static 256], const char *name, int family, const struct resolvconf *conf)
 {
-	unsigned char qbuf[2][280], abuf[2][512];
+	unsigned char qbuf[2][280], abuf[2][ABUF_SIZE];
 	const unsigned char *qp[2] = { qbuf[0], qbuf[1] };
 	unsigned char *ap[2] = { abuf[0], abuf[1] };
-	int qlens[2], alens[2];
+	int qlens[2], alens[2], qtypes[2];
 	int i, nq = 0;
 	struct dpc_ctx ctx = { .addrs = buf, .canon = canon };
 	static const struct { int af; int rr; } afrr[2] = {
@@ -152,7 +158,12 @@ static int name_from_dns(struct address buf[static MAXADDRS], char canon[static 
 			qlens[nq] = __res_mkquery(0, name, 1, afrr[i].rr,
 				0, 0, 0, qbuf[nq], sizeof *qbuf);
 			if (qlens[nq] == -1)
-				return EAI_NONAME;
+				return 0;
+			qtypes[nq] = afrr[i].rr;
+			qbuf[nq][3] = 0; /* don't need AD flag */
+			/* Ensure query IDs are distinct. */
+			if (nq && qbuf[nq][0] == qbuf[0][0])
+				qbuf[nq][0]++;
 			nq++;
 		}
 	}
@@ -160,14 +171,20 @@ static int name_from_dns(struct address buf[static MAXADDRS], char canon[static 
 	if (__res_msend_rc(nq, qp, qlens, ap, alens, sizeof *abuf, conf) < 0)
 		return EAI_SYSTEM;
 
-	for (i=0; i<nq; i++)
+	for (i=0; i<nq; i++) {
+		if (alens[i] < 4 || (abuf[i][3] & 15) == 2) return EAI_AGAIN;
+		if ((abuf[i][3] & 15) == 3) return 0;
+		if ((abuf[i][3] & 15) != 0) return EAI_FAIL;
+	}
+
+	for (i=nq-1; i>=0; i--) {
+		ctx.rrtype = qtypes[i];
+		if (alens[i] > sizeof(abuf[i])) alens[i] = sizeof abuf[i];
 		__dns_parse(abuf[i], alens[i], dns_parse_callback, &ctx);
+	}
 
 	if (ctx.cnt) return ctx.cnt;
-	if (alens[0] < 4 || (abuf[0][3] & 15) == 2) return EAI_AGAIN;
-	if ((abuf[0][3] & 15) == 0) return EAI_NONAME;
-	if ((abuf[0][3] & 15) == 3) return 0;
-	return EAI_FAIL;
+	return EAI_NODATA;
 }
 
 static int name_from_dns_search(struct address buf[static MAXADDRS], char canon[static 256], const char *name, int family)

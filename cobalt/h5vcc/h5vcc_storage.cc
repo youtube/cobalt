@@ -128,10 +128,11 @@ void H5vccStorage::ClearCookies() {
 
 void H5vccStorage::Flush(const base::Optional<bool>& sync) {
   if (sync.value_or(false) == true) {
-    DLOG(WARNING) << "Synchronous flush is not supported.";
+    // Synchronously wait for storage to flush before returning.
+    network_module_->storage_manager()->FlushSynchronous();
+  } else {
+    network_module_->storage_manager()->FlushNow();
   }
-
-  network_module_->storage_manager()->FlushNow(base::Closure());
 }
 
 bool H5vccStorage::GetCookiesEnabled() {

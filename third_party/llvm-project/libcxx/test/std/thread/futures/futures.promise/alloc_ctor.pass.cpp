@@ -1,14 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: libcpp-has-no-threads
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: no-threads
+// UNSUPPORTED: c++03
 
 // <future>
 
@@ -20,36 +19,38 @@
 #include <future>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_allocator.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
-    assert(test_alloc_base::alloc_count == 0);
+    test_allocator_statistics alloc_stats;
+    assert(alloc_stats.alloc_count == 0);
     {
-        std::promise<int> p(std::allocator_arg, test_allocator<int>(42));
-        assert(test_alloc_base::alloc_count == 1);
+        std::promise<int> p(std::allocator_arg, test_allocator<int>(42, &alloc_stats));
+        assert(alloc_stats.alloc_count == 1);
         std::future<int> f = p.get_future();
-        assert(test_alloc_base::alloc_count == 1);
+        assert(alloc_stats.alloc_count == 1);
         assert(f.valid());
     }
-    assert(test_alloc_base::alloc_count == 0);
+    assert(alloc_stats.alloc_count == 0);
     {
-        std::promise<int&> p(std::allocator_arg, test_allocator<int>(42));
-        assert(test_alloc_base::alloc_count == 1);
+        std::promise<int&> p(std::allocator_arg, test_allocator<int>(42, &alloc_stats));
+        assert(alloc_stats.alloc_count == 1);
         std::future<int&> f = p.get_future();
-        assert(test_alloc_base::alloc_count == 1);
+        assert(alloc_stats.alloc_count == 1);
         assert(f.valid());
     }
-    assert(test_alloc_base::alloc_count == 0);
+    assert(alloc_stats.alloc_count == 0);
     {
-        std::promise<void> p(std::allocator_arg, test_allocator<void>(42));
-        assert(test_alloc_base::alloc_count == 1);
+        std::promise<void> p(std::allocator_arg, test_allocator<void>(42, &alloc_stats));
+        assert(alloc_stats.alloc_count == 1);
         std::future<void> f = p.get_future();
-        assert(test_alloc_base::alloc_count == 1);
+        assert(alloc_stats.alloc_count == 1);
         assert(f.valid());
     }
-    assert(test_alloc_base::alloc_count == 0);
+    assert(alloc_stats.alloc_count == 0);
     // Test with a minimal allocator
     {
         std::promise<int> p(std::allocator_arg, bare_allocator<void>());
@@ -82,4 +83,6 @@ int main()
         std::future<void> f = p.get_future();
         assert(f.valid());
     }
+
+  return 0;
 }

@@ -453,7 +453,7 @@ const void* GetPleasantryApi() {
 +  if (pleasantry_extension &&
 +      strcmp(pleasantry_extension->name, kStarboardExtensionPleasantryName) == 0 &&
 +      pleasantry_extension->version >= 1) {
-+        LOG(INFO) << pleasantry_extension->greeting;
++    LOG(INFO) << pleasantry_extension->greeting;
 +  }
  #if SB_API_VERSION >= 13
    DCHECK(!g_application);
@@ -640,7 +640,7 @@ const void* GetPleasantryApi() {
 +  if (pleasantry_extension &&
 +      strcmp(pleasantry_extension->name, kStarboardExtensionPleasantryName) == 0 &&
 +      pleasantry_extension->version >= 1) {
-+        LOG(INFO) << pleasantry_extension->greeting;
++    LOG(INFO) << pleasantry_extension->greeting;
 +  }
  #if SB_API_VERSION >= 13
    DCHECK(!g_application);
@@ -777,15 +777,9 @@ Thanks for taking the time to complete the codelab!
 
 **If you'd like to contribute an actual Starboard Extension to Cobalt in order to
 add some useful functionality for your platform, we encourage you to start a
-discussion with the Cobalt team before you begin coding.** To do so, please
-[file a feature request](https://issuetracker.google.com/issues/new?component=181120)
-for the extension and include the following information:
-
-*   The name of the Starboard Extension.
-*   A description of the extension.
-*   Why a Starboard Extension is the right tool, instead of some alternative.
-*   The fact that you'd like to contribute the extension (i.e., write the code)
-    rather than rely on the Cobalt team to prioritize, plan, and implement it.
+discussion with the Cobalt team before you begin coding.** To do so, please file
+a feature request for the extension
+[using this template](https://issuetracker.google.com/issues/new?component=181120&template=1820891).
 
 Please file this feature request with the appropriate priority and the Cobalt
 team will review the proposal accordingly. If the Cobalt team approves of the

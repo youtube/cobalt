@@ -1,4 +1,4 @@
-#ifndef _SOFT_FLOAT
+#if !defined(_SOFT_FLOAT) && !defined(__NO_FPRS__)
 .global feclearexcept
 .type feclearexcept,@function
 feclearexcept:
@@ -79,6 +79,7 @@ fegetround:
 	blr
 
 .global __fesetround
+.hidden __fesetround
 .type __fesetround,@function
 __fesetround:
 	/*

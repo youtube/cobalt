@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,9 +15,11 @@
 
 #include <locale>
 #include <cassert>
+#include <ios>
+#include "test_macros.h"
 #include "test_iterators.h"
 
-typedef std::time_put<char, output_iterator<char*> > F;
+typedef std::time_put<char, cpp17_output_iterator<char*> > F;
 
 class my_facet
     : public F
@@ -28,11 +29,10 @@ public:
         : F(refs) {}
 };
 
-int main()
+int main(int, char**)
 {
     const my_facet f(1);
     char str[200];
-    output_iterator<char*> iter;
     tm t;
     t.tm_sec = 6;
     t.tm_min = 3;
@@ -46,16 +46,18 @@ int main()
     std::ios ios(0);
     {
         std::string pat("Today is %A which is abbreviated %a.");
-        iter = f.put(output_iterator<char*>(str), ios, '*', &t,
-                     pat.data(), pat.data() + pat.size());
-        std::string ex(str, iter.base());
+        cpp17_output_iterator<char*> iter =
+            f.put(cpp17_output_iterator<char*>(str), ios, '*', &t, pat.data(), pat.data() + pat.size());
+        std::string ex(str, base(iter));
         assert(ex == "Today is Saturday which is abbreviated Sat.");
     }
     {
         std::string pat("The number of the month is %Om.");
-        iter = f.put(output_iterator<char*>(str), ios, '*', &t,
-                     pat.data(), pat.data() + pat.size());
-        std::string ex(str, iter.base());
+        cpp17_output_iterator<char*> iter =
+            f.put(cpp17_output_iterator<char*>(str), ios, '*', &t, pat.data(), pat.data() + pat.size());
+        std::string ex(str, base(iter));
         assert(ex == "The number of the month is 05.");
     }
+
+  return 0;
 }

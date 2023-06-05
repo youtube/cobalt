@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,8 +19,20 @@
 #include <algorithm>
 #include <cassert>
 
+#include "MoveOnly.h"
 #include "test_macros.h"
 #include "test_iterators.h"
+
+struct AssignableFromMoveOnly {
+  AssignableFromMoveOnly(int i) : data(i) {}
+  AssignableFromMoveOnly() : data(0) {}
+  int data;
+  AssignableFromMoveOnly& operator=(MoveOnly const& m) {
+    data = m.get();
+    return *this;
+  }
+  bool operator==(AssignableFromMoveOnly const& rhs) const { return data == rhs.data; }
+};
 
 #if TEST_STD_VER > 17
 TEST_CONSTEXPR bool test_constexpr() {
@@ -106,39 +117,52 @@ test()
     assert(ji[2] == 2);
 }
 
-int main()
+int main(int, char**)
 {
-    test<input_iterator<const int*>, output_iterator<int*> >();
-    test<input_iterator<const int*>, forward_iterator<int*> >();
-    test<input_iterator<const int*>, bidirectional_iterator<int*> >();
-    test<input_iterator<const int*>, random_access_iterator<int*> >();
-    test<input_iterator<const int*>, int*>();
+    test<cpp17_input_iterator<const int*>, cpp17_input_iterator<int*> >();
+    test<cpp17_input_iterator<const int*>, cpp17_output_iterator<int*> >();
+    test<cpp17_input_iterator<const int*>, forward_iterator<int*> >();
+    test<cpp17_input_iterator<const int*>, bidirectional_iterator<int*> >();
+    test<cpp17_input_iterator<const int*>, random_access_iterator<int*> >();
+    test<cpp17_input_iterator<const int*>, int*>();
 
-    test<forward_iterator<const int*>, output_iterator<int*> >();
+    test<forward_iterator<const int*>, cpp17_output_iterator<int*> >();
     test<forward_iterator<const int*>, forward_iterator<int*> >();
     test<forward_iterator<const int*>, bidirectional_iterator<int*> >();
     test<forward_iterator<const int*>, random_access_iterator<int*> >();
     test<forward_iterator<const int*>, int*>();
 
-    test<bidirectional_iterator<const int*>, output_iterator<int*> >();
+    test<bidirectional_iterator<const int*>, cpp17_output_iterator<int*> >();
     test<bidirectional_iterator<const int*>, forward_iterator<int*> >();
     test<bidirectional_iterator<const int*>, bidirectional_iterator<int*> >();
     test<bidirectional_iterator<const int*>, random_access_iterator<int*> >();
     test<bidirectional_iterator<const int*>, int*>();
 
-    test<random_access_iterator<const int*>, output_iterator<int*> >();
+    test<random_access_iterator<const int*>, cpp17_output_iterator<int*> >();
     test<random_access_iterator<const int*>, forward_iterator<int*> >();
     test<random_access_iterator<const int*>, bidirectional_iterator<int*> >();
     test<random_access_iterator<const int*>, random_access_iterator<int*> >();
     test<random_access_iterator<const int*>, int*>();
 
-    test<const int*, output_iterator<int*> >();
+    test<const int*, cpp17_output_iterator<int*> >();
     test<const int*, forward_iterator<int*> >();
     test<const int*, bidirectional_iterator<int*> >();
     test<const int*, random_access_iterator<int*> >();
     test<const int*, int*>();
 
+    // Move only inputs
+    {
+      MoveOnly in[5]                     = {1, 3, 3, 3, 1};
+      AssignableFromMoveOnly out[3]      = {};
+      auto result                        = std::unique_copy(in, in + 5, out);
+      AssignableFromMoveOnly expected[3] = {1, 3, 1};
+      assert(std::equal(out, out + 3, expected));
+      assert(result == out + 3);
+    }
+
 #if TEST_STD_VER > 17
     static_assert(test_constexpr());
 #endif
+
+  return 0;
 }

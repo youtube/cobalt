@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,8 @@
 #define TRANSPARENT_H
 
 #include "test_macros.h"
+
+#include <functional> // for std::equal_to
 
 // testing transparent
 #if TEST_STD_VER > 11
@@ -80,6 +81,6 @@ bool operator <(int          rhs,   const C2Int& lhs) { return rhs       < lhs.g
 bool operator <(const C2Int& rhs,   const C2Int& lhs) { return rhs.get() < lhs.get(); }
 bool operator <(const C2Int& rhs,            int lhs) { return rhs.get() < lhs; }
 
-#endif
+#endif // TEST_STD_VER > 11
 
-#endif  // TRANSPARENT_H
+#endif // TRANSPARENT_H

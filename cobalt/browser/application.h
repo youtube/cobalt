@@ -24,7 +24,6 @@
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
@@ -96,12 +95,6 @@ class Application {
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
 
-  // Account manager.
-  std::unique_ptr<account::AccountManager> account_manager_;
-
-  // Storage manager used by the network module below.
-  std::unique_ptr<storage::StorageManager> storage_manager_;
-
   // Sets up the network component for requesting internet resources.
   std::unique_ptr<network::NetworkModule> network_module_;
 
@@ -121,10 +114,8 @@ class Application {
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
   base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
   base::EventCallback on_caption_settings_changed_event_callback_;
-#if SB_API_VERSION >= SB_NETWORK_EVENT_VERSION
   base::EventCallback on_window_on_online_event_callback_;
   base::EventCallback on_window_on_offline_event_callback_;
-#endif
   base::EventCallback on_date_time_configuration_changed_event_callback_;
 
   // Thread checkers to ensure that callbacks for network and application events

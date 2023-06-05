@@ -33,9 +33,6 @@ config("compiler_flags") {
       "-Werror",
       "-fcolor-diagnostics",
 
-      # Default visibility to hidden, to enable dead stripping.
-      "-fvisibility=hidden",
-
       # Warn for implicit type conversions that may change a value.
       "-Wconversion",
 
@@ -66,6 +63,13 @@ config("compiler_flags") {
       # Do not warn about unused function params.
       "-Wno-unused-parameter",
     ]
+    if (build_with_separate_cobalt_toolchain) {
+      # If we're building modularly, we need visibility.
+      cflags += [ "-fvisibility=default" ]
+    } else {
+      # Default visibility to hidden, to enable dead stripping.
+      cflags += [ "-fvisibility=hidden" ]
+    }
 
     if (is_gold) {
       cflags += [

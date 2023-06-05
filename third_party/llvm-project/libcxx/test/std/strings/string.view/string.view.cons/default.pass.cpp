@@ -1,12 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
 
 // <string_view>
 
@@ -36,15 +36,16 @@ void test () {
     }
 }
 
-int main () {
-    typedef std::string_view    string_view;
-    typedef std::u16string_view u16string_view;
-    typedef std::u32string_view u32string_view;
-    typedef std::wstring_view   wstring_view;
+int main(int, char**) {
+    test<std::string_view> ();
+    test<std::u16string_view> ();
+#ifndef TEST_HAS_NO_CHAR8_T
+    test<std::u8string_view> ();
+#endif
+    test<std::u32string_view> ();
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    test<std::wstring_view> ();
+#endif
 
-    test<string_view> ();
-    test<u16string_view> ();
-    test<u32string_view> ();
-    test<wstring_view> ();
-
+  return 0;
 }

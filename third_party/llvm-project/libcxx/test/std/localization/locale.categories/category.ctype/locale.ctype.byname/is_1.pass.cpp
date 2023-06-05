@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,14 +13,16 @@
 // bool is(mask m, charT c) const;
 
 // REQUIRES: locale.en_US.UTF-8
+// XFAIL: no-wide-characters
 
 #include <locale>
 #include <type_traits>
 #include <cassert>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
-int main()
+int main(int, char**)
 {
     {
         std::locale l(LOCALE_en_US_UTF_8);
@@ -105,8 +106,17 @@ int main()
             assert(f.is(F::graph, L'.'));
             assert(!f.is(F::graph,  L'\x07'));
 
+#if defined(_WIN32)
+            // On Windows, these wchars are classified according to their
+            // Unicode interpretation even in the "C" locale.
+            assert(f.is(F::alpha, L'\x00DA'));
+            assert(f.is(F::upper, L'\x00DA'));
+#else
             assert(!f.is(F::alpha, L'\x00DA'));
             assert(!f.is(F::upper, L'\x00DA'));
+#endif
         }
     }
+
+  return 0;
 }

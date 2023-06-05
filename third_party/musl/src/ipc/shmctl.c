@@ -9,6 +9,14 @@
 
 int shmctl(int id, int cmd, struct shmid_ds *buf)
 {
+#if IPC_TIME64
+	struct shmid_ds out, *orig;
+	if (cmd&IPC_TIME64) {
+		out = (struct shmid_ds){0};
+		orig = buf;
+		buf = &out;
+	}
+#endif
 #ifdef SYSCALL_IPC_BROKEN_MODE
 	struct shmid_ds tmp;
 	if (cmd == IPC_SET) {
@@ -17,17 +25,26 @@ int shmctl(int id, int cmd, struct shmid_ds *buf)
 		buf = &tmp;
 	}
 #endif
-#ifdef SYS_shmctl
-	int r = __syscall(SYS_shmctl, id, cmd | IPC_64, buf);
+#ifndef SYS_ipc
+	int r = __syscall(SYS_shmctl, id, IPC_CMD(cmd), buf);
 #else
-	int r = __syscall(SYS_ipc, IPCOP_shmctl, id, cmd | IPC_64, 0, buf, 0);
+	int r = __syscall(SYS_ipc, IPCOP_shmctl, id, IPC_CMD(cmd), 0, buf, 0);
 #endif
 #ifdef SYSCALL_IPC_BROKEN_MODE
-	if (r >= 0) switch (cmd) {
+	if (r >= 0) switch (cmd | IPC_TIME64) {
 	case IPC_STAT:
 	case SHM_STAT:
 	case SHM_STAT_ANY:
 		buf->shm_perm.mode >>= 16;
+	}
+#endif
+#if IPC_TIME64
+	if (r >= 0 && (cmd&IPC_TIME64)) {
+		buf = orig;
+		*buf = out;
+		IPC_HILO(buf, shm_atime);
+		IPC_HILO(buf, shm_dtime);
+		IPC_HILO(buf, shm_ctime);
 	}
 #endif
 	return __syscall_ret(r);

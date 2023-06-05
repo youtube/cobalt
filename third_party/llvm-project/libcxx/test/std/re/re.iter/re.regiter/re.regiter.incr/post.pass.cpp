@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,9 +14,10 @@
 
 #include <regex>
 #include <cassert>
+#include <iterator>
 #include "test_macros.h"
 
-int main()
+int main(int, char**)
 {
     {
         std::regex phone_numbers("\\d{3}-\\d{4}");
@@ -95,7 +95,7 @@ int main()
         assert((*i2).position() == 0);
         assert((*i2).str() == "555-1234");
     }
-    { // https://bugs.llvm.org/show_bug.cgi?id=33681
+    { // https://llvm.org/PR33681
         std::regex rex(".*");
         const char foo[] = "foo";
     //  The -1 is because we don't want the implicit null from the array.
@@ -113,4 +113,6 @@ int main()
         ++i;
         assert(i == e);
     }
+
+  return 0;
 }

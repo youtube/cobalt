@@ -9,8 +9,7 @@
 #ifndef BROTLI_ENC_MEMORY_H_
 #define BROTLI_ENC_MEMORY_H_
 
-#include <string.h>  /* memcpy*/
-#define MEMCPY_MEMORY memcpy
+#include <string.h>  /* memcpy */
 
 #include "../common/platform.h"
 #include <brotli/types.h>
@@ -57,6 +56,18 @@ BROTLI_INTERNAL void BrotliFree(MemoryManager* m, void* p);
 #define BROTLI_IS_OOM(M) (!!(M)->is_oom)
 #endif  /* BROTLI_ENCODER_EXIT_ON_OOM */
 
+/*
+BROTLI_IS_NULL is a fake check, BROTLI_IS_OOM does the heavy lifting.
+The only purpose of it is to explain static analyzers the state of things.
+NB: use ONLY together with BROTLI_IS_OOM
+    AND ONLY for allocations in the current scope.
+ */
+#if defined(__clang_analyzer__) && !defined(BROTLI_ENCODER_EXIT_ON_OOM)
+#define BROTLI_IS_NULL(A) ((A) == nullptr)
+#else  /* defined(__clang_analyzer__) */
+#define BROTLI_IS_NULL(A) (!!0)
+#endif  /* defined(__clang_analyzer__) */
+
 BROTLI_INTERNAL void BrotliWipeOutMemoryManager(MemoryManager* m);
 
 /*
@@ -67,24 +78,37 @@ A: array
 C: capacity
 R: requested size
 */
-#define BROTLI_ENSURE_CAPACITY(M, T, A, C, R) {  \
-  if (C < (R)) {                                 \
-    size_t _new_size = (C == 0) ? (R) : C;       \
-    T* new_array;                                \
-    while (_new_size < (R)) _new_size *= 2;      \
-    new_array = BROTLI_ALLOC((M), T, _new_size); \
-    if (!BROTLI_IS_OOM(M) && C != 0)             \
-      MEMCPY_MEMORY(new_array, A, C * sizeof(T));\
-    BROTLI_FREE((M), A);                         \
-    A = new_array;                               \
-    C = _new_size;                               \
-  }                                              \
+#define BROTLI_ENSURE_CAPACITY(M, T, A, C, R) {                    \
+  if (C < (R)) {                                                   \
+    size_t _new_size = (C == 0) ? (R) : C;                         \
+    T* new_array;                                                  \
+    while (_new_size < (R)) _new_size *= 2;                        \
+    new_array = BROTLI_ALLOC((M), T, _new_size);                   \
+    if (!BROTLI_IS_OOM(M) && !BROTLI_IS_NULL(new_array) && C != 0) \
+      memcpy(new_array, A, C * sizeof(T));                         \
+    BROTLI_FREE((M), A);                                           \
+    A = new_array;                                                 \
+    C = _new_size;                                                 \
+  }                                                                \
+}
+
+/*
+Appends value and dynamically grows array capacity when needed
+M: MemoryManager
+T: data type
+A: array
+C: array capacity
+S: array size
+V: value to append
+*/
+#define BROTLI_ENSURE_CAPACITY_APPEND(M, T, A, C, S, V) { \
+  (S)++;                                                  \
+  BROTLI_ENSURE_CAPACITY(M, T, A, C, S);                  \
+  A[(S) - 1] = (V);                                       \
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif
-
-#undef MEMCPY_MEMORY
 
 #endif  /* BROTLI_ENC_MEMORY_H_ */

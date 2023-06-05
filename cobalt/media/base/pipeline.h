@@ -92,17 +92,6 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
       OnEncryptedMediaInitDataEncounteredCB;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-  static scoped_refptr<Pipeline> Create(
-      SbPlayerInterface* interface, PipelineWindow window,
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-      const GetDecodeTargetGraphicsContextProviderFunc&
-          get_decode_target_graphics_context_provider_func,
-      bool allow_resume_after_suspend, bool allow_batched_sample_write,
-#if SB_API_VERSION >= 15
-      SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
-#endif  // SB_API_VERSION >= 15
-      MediaLog* media_log, DecodeTargetProvider* decode_target_provider);
-
   virtual ~Pipeline() {}
 
   virtual void Suspend() {}

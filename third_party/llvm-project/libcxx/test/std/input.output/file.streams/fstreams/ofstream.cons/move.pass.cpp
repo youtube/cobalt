@@ -1,13 +1,10 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-
-// UNSUPPORTED: c++98, c++03
 
 // <fstream>
 
@@ -18,14 +15,15 @@
 
 #include <fstream>
 #include <cassert>
+#include "test_macros.h"
 #include "platform_support.h"
 
-int main()
+int main(int, char**)
 {
     std::string temp = get_temp_file_name();
     {
         std::ofstream fso(temp.c_str());
-        std::ofstream fs = move(fso);
+        std::ofstream fs = std::move(fso);
         fs << 3.25;
     }
     {
@@ -35,9 +33,11 @@ int main()
         assert(x == 3.25);
     }
     std::remove(temp.c_str());
+
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         std::wofstream fso(temp.c_str());
-        std::wofstream fs = move(fso);
+        std::wofstream fs = std::move(fso);
         fs << 3.25;
     }
     {
@@ -47,4 +47,7 @@ int main()
         assert(x == 3.25);
     }
     std::remove(temp.c_str());
+#endif
+
+  return 0;
 }

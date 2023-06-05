@@ -1,55 +1,38 @@
-//===-------------------------- ios.cpp -----------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "__config"
-
-#include "ios"
-
+#include <__config>
+#include <__locale>
+#include <algorithm>
+#include <ios>
+#include <limits>
+#include <memory>
+#include <new>
 #include <stdlib.h>
+#include <string>
 
-#include "__locale"
-#include "algorithm"
 #include "include/config_elast.h"
-#include "istream"
-#include "limits"
-#include "memory"
-#include "new"
-#include "streambuf"
-#include "string"
-#include "__undef_macros"
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
 
 _LIBCPP_BEGIN_NAMESPACE_STD
-
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_ios<char>;
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_ios<wchar_t>;
-
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_streambuf<char>;
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_streambuf<wchar_t>;
-
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_istream<char>;
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_istream<wchar_t>;
-
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_ostream<char>;
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_ostream<wchar_t>;
-
-template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_iostream<char>;
 
 class _LIBCPP_HIDDEN __iostream_category
     : public __do_message
 {
 public:
-    virtual const char* name() const _NOEXCEPT;
+    virtual const char* name() const noexcept;
     virtual string message(int ev) const;
 };
 
 const char*
-__iostream_category::name() const _NOEXCEPT
+__iostream_category::name() const noexcept
 {
     return "iostream";
 }
@@ -60,14 +43,14 @@ __iostream_category::message(int ev) const
     if (ev != static_cast<int>(io_errc::stream)
 #ifdef _LIBCPP_ELAST
         && ev <= _LIBCPP_ELAST
-#endif  // _LIBCPP_ELAST
+#endif // _LIBCPP_ELAST
         )
         return __do_message::message(ev);
     return string("unspecified iostream_category error");
 }
 
 const error_category&
-iostream_category() _NOEXCEPT
+iostream_category() noexcept
 {
     static __iostream_category s;
     return s;
@@ -154,7 +137,7 @@ ios_base::getloc() const
 
 // xalloc
 #if defined(_LIBCPP_HAS_C_ATOMIC_IMP) && !defined(_LIBCPP_HAS_NO_THREADS)
-atomic<int> ios_base::__xindex_ = ATOMIC_VAR_INIT(0);
+atomic<int> ios_base::__xindex_{0};
 #else
 int ios_base::__xindex_ = 0;
 #endif
@@ -162,11 +145,11 @@ int ios_base::__xindex_ = 0;
 template <typename _Tp>
 static size_t __ios_new_cap(size_t __req_size, size_t __current_cap)
 { // Precondition: __req_size > __current_cap
-	const size_t mx = std::numeric_limits<size_t>::max() / sizeof(_Tp);
-	if (__req_size < mx/2)
-		return _VSTD::max(2 * __current_cap, __req_size);
-	else
-		return mx;
+    const size_t mx = std::numeric_limits<size_t>::max() / sizeof(_Tp);
+    if (__req_size < mx/2)
+        return _VSTD::max(2 * __current_cap, __req_size);
+    else
+        return mx;
 }
 
 int
@@ -267,10 +250,9 @@ ios_base::clear(iostate state)
         __rdstate_ = state;
     else
         __rdstate_ = state | badbit;
-#ifndef _LIBCPP_NO_EXCEPTIONS
+
     if (((state | (__rdbuf_ ? goodbit : badbit)) & __exceptions_) != 0)
-        throw failure("ios_base::clear");
-#endif  // _LIBCPP_NO_EXCEPTIONS
+        __throw_failure("ios_base::clear");
 }
 
 // init
@@ -310,35 +292,27 @@ ios_base::copyfmt(const ios_base& rhs)
     {
         size_t newesize = sizeof(event_callback) * rhs.__event_size_;
         new_callbacks.reset(static_cast<event_callback*>(malloc(newesize)));
-#ifndef _LIBCPP_NO_EXCEPTIONS
         if (!new_callbacks)
-            throw bad_alloc();
-#endif  // _LIBCPP_NO_EXCEPTIONS
+            __throw_bad_alloc();
 
         size_t newisize = sizeof(int) * rhs.__event_size_;
         new_ints.reset(static_cast<int *>(malloc(newisize)));
-#ifndef _LIBCPP_NO_EXCEPTIONS
         if (!new_ints)
-            throw bad_alloc();
-#endif  // _LIBCPP_NO_EXCEPTIONS
+            __throw_bad_alloc();
     }
     if (__iarray_cap_ < rhs.__iarray_size_)
     {
         size_t newsize = sizeof(long) * rhs.__iarray_size_;
         new_longs.reset(static_cast<long*>(malloc(newsize)));
-#ifndef _LIBCPP_NO_EXCEPTIONS
         if (!new_longs)
-            throw bad_alloc();
-#endif  // _LIBCPP_NO_EXCEPTIONS
+            __throw_bad_alloc();
     }
     if (__parray_cap_ < rhs.__parray_size_)
     {
         size_t newsize = sizeof(void*) * rhs.__parray_size_;
         new_pointers.reset(static_cast<void**>(malloc(newsize)));
-#ifndef _LIBCPP_NO_EXCEPTIONS
         if (!new_pointers)
-            throw bad_alloc();
-#endif  // _LIBCPP_NO_EXCEPTIONS
+            __throw_bad_alloc();
     }
     // Got everything we need.  Copy everything but __rdstate_, __rdbuf_ and __exceptions_
     __fmtflags_ = rhs.__fmtflags_;
@@ -413,7 +387,7 @@ ios_base::move(ios_base& rhs)
 }
 
 void
-ios_base::swap(ios_base& rhs) _NOEXCEPT
+ios_base::swap(ios_base& rhs) noexcept
 {
     _VSTD::swap(__fmtflags_, rhs.__fmtflags_);
     _VSTD::swap(__precision_, rhs.__precision_);
@@ -442,7 +416,7 @@ ios_base::__set_badbit_and_consider_rethrow()
 #ifndef _LIBCPP_NO_EXCEPTIONS
     if (__exceptions_ & badbit)
         throw;
-#endif  // _LIBCPP_NO_EXCEPTIONS
+#endif // _LIBCPP_NO_EXCEPTIONS
 }
 
 void
@@ -452,7 +426,7 @@ ios_base::__set_failbit_and_consider_rethrow()
 #ifndef _LIBCPP_NO_EXCEPTIONS
     if (__exceptions_ & failbit)
         throw;
-#endif  // _LIBCPP_NO_EXCEPTIONS
+#endif // _LIBCPP_NO_EXCEPTIONS
 }
 
 bool
@@ -465,3 +439,5 @@ ios_base::sync_with_stdio(bool sync)
 }
 
 _LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS

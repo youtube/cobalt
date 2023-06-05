@@ -1,43 +1,44 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <string>
 
-// size_type rfind(charT c, size_type pos = npos) const;
+// size_type rfind(charT c, size_type pos = npos) const; // constexpr since C++20
 
 #include <string>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 template <class S>
-void
+TEST_CONSTEXPR_CXX20 void
 test(const S& s, typename S::value_type c, typename S::size_type pos,
      typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.rfind(c, pos));
     assert(s.rfind(c, pos) == x);
     if (x != S::npos)
         assert(x <= pos && x + 1 <= s.size());
 }
 
 template <class S>
-void
+TEST_CONSTEXPR_CXX20 void
 test(const S& s, typename S::value_type c, typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.rfind(c));
     assert(s.rfind(c) == x);
     if (x != S::npos)
         assert(x + 1 <= s.size());
 }
 
-int main()
-{
-    {
+TEST_CONSTEXPR_CXX20 bool test() {
+  {
     typedef std::string S;
     test(S(""), 'b', 0, S::npos);
     test(S(""), 'b', 1, S::npos);
@@ -64,9 +65,9 @@ int main()
     test(S("abcde"), 'b', 1);
     test(S("abcdeabcde"), 'b', 6);
     test(S("abcdeabcdeabcdeabcde"), 'b', 16);
-    }
+  }
 #if TEST_STD_VER >= 11
-    {
+  {
     typedef std::basic_string<char, std::char_traits<char>, min_allocator<char>> S;
     test(S(""), 'b', 0, S::npos);
     test(S(""), 'b', 1, S::npos);
@@ -93,6 +94,18 @@ int main()
     test(S("abcde"), 'b', 1);
     test(S("abcdeabcde"), 'b', 6);
     test(S("abcdeabcdeabcdeabcde"), 'b', 16);
-    }
+  }
 #endif
+
+  return true;
+}
+
+int main(int, char**)
+{
+  test();
+#if TEST_STD_VER > 17
+  static_assert(test());
+#endif
+
+  return 0;
 }

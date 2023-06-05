@@ -1,23 +1,22 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <string>
 
 // void swap(basic_string& c)
 //     noexcept(!allocator_type::propagate_on_container_swap::value ||
-//              __is_nothrow_swappable<allocator_type>::value);
+//              __is_nothrow_swappable<allocator_type>::value); // constexpr since C++20
 //
 //  In C++17, the standard says that swap shall have:
 //     noexcept(allocator_traits<Allocator>::propagate_on_container_swap::value ||
-//              allocator_traits<Allocator>::is_always_equal::value);
+//              allocator_traits<Allocator>::is_always_equal::value); // constexpr since C++20
 
 // This tests a conforming extension
 
@@ -54,7 +53,7 @@ struct some_alloc2
     typedef std::true_type is_always_equal;
 };
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::string C;
@@ -82,4 +81,6 @@ int main()
         static_assert( noexcept(swap(std::declval<C&>(), std::declval<C&>())), "");
     }
 #endif
+
+  return 0;
 }

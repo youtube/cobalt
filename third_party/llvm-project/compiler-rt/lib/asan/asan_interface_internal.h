@@ -1,9 +1,8 @@
 //===-- asan_interface_internal.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -54,8 +53,9 @@ extern "C" {
     const char *module_name; // Module name as a C string. This pointer is a
                              // unique identifier of a module.
     uptr has_dynamic_init;   // Non-zero if the global has dynamic initializer.
-    __asan_global_source_location *location;  // Source location of a global,
-                                              // or NULL if it is unknown.
+    uptr windows_padding;    // TODO: Figure out how to remove this padding
+                             // that's simply here to make the MSVC incremental
+                             // linker happy...
     uptr odr_indicator;      // The address of the ODR indicator symbol.
   };
 
@@ -89,6 +89,20 @@ extern "C" {
   // Sets bytes of the given range of the shadow memory into specific value.
   SANITIZER_INTERFACE_ATTRIBUTE
   void __asan_set_shadow_00(uptr addr, uptr size);
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __asan_set_shadow_01(uptr addr, uptr size);
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __asan_set_shadow_02(uptr addr, uptr size);
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __asan_set_shadow_03(uptr addr, uptr size);
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __asan_set_shadow_04(uptr addr, uptr size);
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __asan_set_shadow_05(uptr addr, uptr size);
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __asan_set_shadow_06(uptr addr, uptr size);
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __asan_set_shadow_07(uptr addr, uptr size);
   SANITIZER_INTERFACE_ATTRIBUTE
   void __asan_set_shadow_f1(uptr addr, uptr size);
   SANITIZER_INTERFACE_ATTRIBUTE
@@ -174,8 +188,8 @@ extern "C" {
 
   SANITIZER_INTERFACE_ATTRIBUTE void __asan_print_accumulated_stats();
 
-  SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-  const char* __asan_default_options();
+  SANITIZER_INTERFACE_ATTRIBUTE
+  const char *__asan_default_options();
 
   SANITIZER_INTERFACE_ATTRIBUTE
   extern uptr __asan_shadow_memory_dynamic_address;
@@ -250,6 +264,11 @@ extern "C" {
 
   SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
   const char* __asan_default_suppressions();
+
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_handle_vfork(void *sp);
+
+  SANITIZER_INTERFACE_ATTRIBUTE int __asan_update_allocation_context(
+      void *addr);
 }  // extern "C"
 
 #endif  // ASAN_INTERFACE_INTERNAL_H

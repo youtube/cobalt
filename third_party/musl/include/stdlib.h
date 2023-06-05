@@ -7,6 +7,7 @@ extern "C" {
 
 #include <features.h>
 
+// nullptr causes cast errors in third_party code
 #ifdef __cplusplus
 #define NULL 0L
 #else
@@ -93,7 +94,7 @@ size_t __ctype_get_mb_cur_max(void);
 #define WTERMSIG(s) ((s) & 0x7f)
 #define WSTOPSIG(s) WEXITSTATUS(s)
 #define WIFEXITED(s) (!WTERMSIG(s))
-#define WIFSTOPPED(s) ((short)((((s)&0xffff)*0x10001)>>8) > 0x7f00)
+#define WIFSTOPPED(s) ((short)((((s)&0xffff)*0x10001U)>>8) > 0x7f00)
 #define WIFSIGNALED(s) (((s)&0xffff)-1U < 0xffu)
 
 int posix_memalign (void **, size_t, size_t);
@@ -145,6 +146,8 @@ int getloadavg(double *, int);
 int clearenv(void);
 #define WCOREDUMP(s) ((s) & 0x80)
 #define WIFCONTINUED(s) ((s) == 0xffff)
+void *reallocarray (void *, size_t, size_t);
+void qsort_r (void *, size_t, size_t, int (*)(const void *, const void *, void *), void *);
 #endif
 
 #ifdef _GNU_SOURCE
@@ -152,13 +155,14 @@ int ptsname_r(int, char *, size_t);
 char *ecvt(double, int, int *, int *);
 char *fcvt(double, int, int *, int *);
 char *gcvt(double, int, char *);
+char *secure_getenv(const char *);
 struct __locale_struct;
 float strtof_l(const char *__restrict, char **__restrict, struct __locale_struct *);
 double strtod_l(const char *__restrict, char **__restrict, struct __locale_struct *);
 long double strtold_l(const char *__restrict, char **__restrict, struct __locale_struct *);
 #endif
 
-#if defined(_LARGEFILE64_SOURCE) || defined(_GNU_SOURCE)
+#if defined(_LARGEFILE64_SOURCE)
 #define mkstemp64 mkstemp
 #define mkostemp64 mkostemp
 #if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)

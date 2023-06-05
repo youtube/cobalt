@@ -1,13 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+
+// test_memory_resource requires RTTI for dynamic_cast
+// UNSUPPORTED: no-rtti
 
 // <experimental/memory_resource>
 
@@ -15,16 +17,20 @@
 
 // bool do_is_equal(memory_resource const &) const noexcept;
 
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
+
 #include <experimental/memory_resource>
 #include <type_traits>
 #include <memory>
 #include <cassert>
-#include "test_memory_resource.hpp"
+#include "test_memory_resource.h"
+
+#include "test_macros.h"
 
 using std::size_t;
 namespace ex = std::experimental::pmr;
 
-int main()
+int main(int, char**)
 {
 
     typedef CountingAllocator<char> Alloc1;
@@ -80,4 +86,6 @@ int main()
         assert(!m1.is_equal(m2));
         assert(!m2.is_equal(m1));
     }
+
+  return 0;
 }

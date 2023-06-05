@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,8 @@
 
 #include <sstream>
 #include <cassert>
+
+#include "test_macros.h"
 
 int overflow_called = 0;
 
@@ -35,11 +36,12 @@ struct testbuf
     void pbump(int n) {base::pbump(n);}
 };
 
-int main()
+int main(int, char**)
 {
-    {  // sanity check
-    testbuf<char> tb("");
-    tb.overflow();
+    // check overflow
+    {
+        testbuf<char> tb("");
+        tb.overflow();
     }
     {
         testbuf<char> sb("abc");
@@ -66,6 +68,7 @@ int main()
         assert(sb.sputc('1') == '1');
         assert(sb.str() == "12345678901");
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         testbuf<wchar_t> sb(L"abc");
         assert(sb.sputc(L'1') == L'1');
@@ -91,6 +94,7 @@ int main()
         assert(sb.sputc(L'1') == L'1');
         assert(sb.str() == L"12345678901");
     }
+#endif
     {
         testbuf<char> sb("abc", std::ios_base::app | std::ios_base::out);
         assert(sb.sputc('1') == '1');
@@ -98,4 +102,6 @@ int main()
         assert(sb.sputc('2') == '2');
         assert(sb.str() == "abc12");
     }
+
+  return 0;
 }

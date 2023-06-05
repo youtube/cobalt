@@ -1,14 +1,10 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// UNSUPPORTED: libcpp-has-no-threads
-//  ... test case crashes clang.
 
 // <atomic>
 
@@ -83,13 +79,9 @@ do_test()
 {
     typedef typename std::remove_pointer<T>::type X;
     A obj(T(0));
+    assert(obj == T(0));
     bool b0 = obj.is_lock_free();
     ((void)b0); // mark as unused
-    assert(obj == T(0));
-    std::atomic_init(&obj, T(1));
-    assert(obj == T(1));
-    std::atomic_init(&obj, T(2));
-    assert(obj == T(2));
     obj.store(T(0));
     assert(obj == T(0));
     obj.store(T(1), std::memory_order_release);
@@ -137,7 +129,9 @@ void test()
     do_test<volatile A, T>();
 }
 
-int main()
+int main(int, char**)
 {
     test<std::atomic<int*>, int*>();
+
+  return 0;
 }

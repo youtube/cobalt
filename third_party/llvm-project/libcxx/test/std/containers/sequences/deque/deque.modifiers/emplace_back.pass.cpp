@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <deque>
 
@@ -58,7 +57,7 @@ test(C& c1)
               c1.emplace_back(Emplaceable(1, 2.5));
 #endif
     assert(c1.size() == c1_osize + 1);
-    assert(distance(c1.begin(), c1.end())
+    assert(std::distance(c1.begin(), c1.end())
                == static_cast<std::ptrdiff_t>(c1.size()));
     I i = c1.end();
     assert(*--i == Emplaceable(1, 2.5));
@@ -75,7 +74,7 @@ testN(int start, int N)
     test(c1);
 }
 
-int main()
+int main(int, char**)
 {
     {
     int rng[] = {0, 1, 2, 3, 1023, 1024, 1025, 2047, 2048, 2049};
@@ -102,4 +101,6 @@ int main()
         c.emplace_front(1, 2, 3);
         assert(c.size() == 4);
     }
+
+  return 0;
 }

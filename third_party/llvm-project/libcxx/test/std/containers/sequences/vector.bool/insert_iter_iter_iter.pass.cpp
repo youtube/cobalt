@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,14 +20,14 @@
 #include "test_iterators.h"
 #include "min_allocator.h"
 
-int main()
+TEST_CONSTEXPR_CXX20 bool tests()
 {
     {
         std::vector<bool> v(100);
         bool a[] = {1, 0, 0, 1, 1};
         const unsigned N = sizeof(a)/sizeof(a[0]);
-        std::vector<bool>::iterator i = v.insert(v.cbegin() + 10, input_iterator<const bool*>(a),
-                                        input_iterator<const bool*>(a+N));
+        std::vector<bool>::iterator i = v.insert(v.cbegin() + 10, cpp17_input_iterator<const bool*>(a),
+                                        cpp17_input_iterator<const bool*>(a+N));
         assert(v.size() == 100 + N);
         assert(i == v.begin() + 10);
         std::size_t j;
@@ -94,11 +93,27 @@ int main()
     }
 #if TEST_STD_VER >= 11
     {
+        std::vector<bool, explicit_allocator<bool>> v(100);
+        bool a[] = {1, 0, 0, 1, 1};
+        const unsigned N = sizeof(a)/sizeof(a[0]);
+        std::vector<bool, explicit_allocator<bool>>::iterator i = v.insert(v.cbegin() + 10, cpp17_input_iterator<const bool*>(a),
+                                        cpp17_input_iterator<const bool*>(a+N));
+        assert(v.size() == 100 + N);
+        assert(i == v.begin() + 10);
+        std::size_t j;
+        for (j = 0; j < 10; ++j)
+            assert(v[j] == 0);
+        for (std::size_t k = 0; k < N; ++j, ++k)
+            assert(v[j] == a[k]);
+        for (; j < v.size(); ++j)
+            assert(v[j] == 0);
+    }
+    {
         std::vector<bool, min_allocator<bool>> v(100);
         bool a[] = {1, 0, 0, 1, 1};
         const unsigned N = sizeof(a)/sizeof(a[0]);
-        std::vector<bool, min_allocator<bool>>::iterator i = v.insert(v.cbegin() + 10, input_iterator<const bool*>(a),
-                                        input_iterator<const bool*>(a+N));
+        std::vector<bool, min_allocator<bool>>::iterator i = v.insert(v.cbegin() + 10, cpp17_input_iterator<const bool*>(a),
+                                        cpp17_input_iterator<const bool*>(a+N));
         assert(v.size() == 100 + N);
         assert(i == v.begin() + 10);
         std::size_t j;
@@ -126,4 +141,15 @@ int main()
             assert(v[j] == 0);
     }
 #endif
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

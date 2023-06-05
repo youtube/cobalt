@@ -1,20 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
-// XFAIL: with_system_cxx_lib=macosx10.12
-// XFAIL: with_system_cxx_lib=macosx10.11
-// XFAIL: with_system_cxx_lib=macosx10.10
-// XFAIL: with_system_cxx_lib=macosx10.9
-// XFAIL: with_system_cxx_lib=macosx10.7
-// XFAIL: with_system_cxx_lib=macosx10.8
+// Throwing bad_any_cast is supported starting in macosx10.13
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12}} && !no-exceptions
 
 // <any>
 
@@ -25,18 +20,16 @@
 #include <any>
 #include <cassert>
 
+#include "test_macros.h"
 #include "any_helpers.h"
-
-using std::any;
-using std::any_cast;
 
 template <class LHS, class RHS>
 void test_swap() {
     assert(LHS::count == 0);
     assert(RHS::count == 0);
     {
-        any a1((LHS(1)));
-        any a2(RHS{2});
+        std::any a1 = LHS(1);
+        std::any a2 = RHS(2);
         assert(LHS::count == 1);
         assert(RHS::count == 1);
 
@@ -58,8 +51,8 @@ template <class Tp>
 void test_swap_empty() {
     assert(Tp::count == 0);
     {
-        any a1((Tp(1)));
-        any a2;
+        std::any a1 = Tp(1);
+        std::any a2;
         assert(Tp::count == 1);
 
         a1.swap(a2);
@@ -71,8 +64,8 @@ void test_swap_empty() {
     }
     assert(Tp::count == 0);
     {
-        any a1((Tp(1)));
-        any a2;
+        std::any a1 = Tp(1);
+        std::any a2;
         assert(Tp::count == 1);
 
         a2.swap(a1);
@@ -88,24 +81,21 @@ void test_swap_empty() {
 
 void test_noexcept()
 {
-    any a1;
-    any a2;
-    static_assert(
-        noexcept(a1.swap(a2))
-      , "any::swap(any&) must be noexcept"
-      );
+    std::any a1;
+    std::any a2;
+    ASSERT_NOEXCEPT(a1.swap(a2));
 }
 
 void test_self_swap() {
     {
         // empty
-        any a;
+        std::any a;
         a.swap(a);
         assertEmpty(a);
     }
     { // small
         using T = small;
-        any a{T{42}};
+        std::any a = T(42);
         T::reset();
         a.swap(a);
         assertContains<T>(a, 42);
@@ -116,7 +106,7 @@ void test_self_swap() {
     assert(small::count == 0);
     { // large
         using T = large;
-        any a{T{42}};
+        std::any a = T(42);
         T::reset();
         a.swap(a);
         assertContains<T>(a, 42);
@@ -127,7 +117,7 @@ void test_self_swap() {
     assert(large::count == 0);
 }
 
-int main()
+int main(int, char**)
 {
     test_noexcept();
     test_swap_empty<small>();
@@ -137,4 +127,6 @@ int main()
     test_swap<small, large>();
     test_swap<large, small>();
     test_self_swap();
+
+  return 0;
 }

@@ -62,12 +62,16 @@ void DummySessionClosedFunc(SbDrmSystem drm_system,
 SbDrmSystem CreateDummyDrmSystem(const char* key_system);
 
 static const char* kKeySystems[] = {
-    "com.widevine", "com.widevine.alpha", "com.youtube.playready",
+    "com.widevine",
+    "com.widevine.alpha",
+    "com.youtube.playready",
     "com.youtube.fairplay",
 };
 
 static const char* kEncryptionSchemes[] = {
-    "cenc", "cbcs", "cbcs-1-9",
+    "cenc",
+    "cbcs",
+    "cbcs-1-9",
 };
 
 static constexpr uint8_t kWidevineCertificate[] = {

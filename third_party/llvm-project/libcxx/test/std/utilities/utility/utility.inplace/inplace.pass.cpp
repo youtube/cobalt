@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
 // <utility>
 
@@ -30,12 +29,10 @@
 // template <size_t I>
 //   inline constexpr in_place_index_t<I> in_place_index{};
 
-#include <utility>
 #include <cassert>
 #include <memory>
-
-#include "test_macros.h"
-#include "type_id.h"
+#include <type_traits>
+#include <utility>
 
 template <class Tp, class Up>
 constexpr bool check_tag(Up) {
@@ -43,7 +40,7 @@ constexpr bool check_tag(Up) {
         && std::is_same<Tp, Up>::value;
 }
 
-int main() {
+int main(int, char**) {
     // test in_place_t
     {
         using T = std::in_place_t;
@@ -71,4 +68,6 @@ int main() {
         static_assert(check_tag<T2>(std::in_place_index<1>));
         static_assert(check_tag<T3>(std::in_place_index<static_cast<size_t>(-1)>));
     }
+
+  return 0;
 }

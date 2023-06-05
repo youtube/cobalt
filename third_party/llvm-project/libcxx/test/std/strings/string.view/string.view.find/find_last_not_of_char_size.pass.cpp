@@ -1,27 +1,29 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
+
 // <string_view>
 
-// const size_type find_last_not_of(charT c, size_type pos = npos) const;
+// size_type find_last_not_of(charT c, size_type pos = npos) const;
 
 #include <string_view>
 #include <cassert>
 
 #include "test_macros.h"
-#include "constexpr_char_traits.hpp"
+#include "constexpr_char_traits.h"
 
 template <class S>
 void
 test(const S& s, typename S::value_type c, typename S::size_type pos,
      typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find_last_not_of(c, pos));
     assert(s.find_last_not_of(c, pos) == x);
     if (x != S::npos)
         assert(x <= pos && x < s.size());
@@ -31,12 +33,13 @@ template <class S>
 void
 test(const S& s, typename S::value_type c, typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find_last_not_of(c));
     assert(s.find_last_not_of(c) == x);
     if (x != S::npos)
         assert(x < s.size());
 }
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::string_view S;
@@ -80,4 +83,6 @@ int main()
     static_assert (sv2.find_last_not_of( 'e', 5 ) == 3, "" );
     }
 #endif
+
+  return 0;
 }

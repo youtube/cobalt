@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -40,7 +41,7 @@ class FixedSizeLRUCache {
 
   // Functor that checks if two items have keys that match (based on a template
   // argument).
-  struct KeyEqual : public std::unary_function<KeyEqual, bool> {
+  struct KeyEqual {
     explicit KeyEqual(const Key& key) : to_check(key) {}
     bool operator()(const value_type& i) const {
       KeyCompare comparator;

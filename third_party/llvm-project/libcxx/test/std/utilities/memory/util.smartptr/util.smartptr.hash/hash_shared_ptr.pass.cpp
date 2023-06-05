@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,15 +17,19 @@
 // };
 
 #include <memory>
+
 #include <cassert>
+#include <functional>
+
+#include "test_macros.h"
 
 #if TEST_STD_VER >= 11
-#include "poisoned_hash_helper.hpp"
+#include "poisoned_hash_helper.h"
 
 struct A {};
 #endif
 
-int main()
+int main(int, char**)
 {
   {
     int* ptr = new int;
@@ -41,4 +44,6 @@ int main()
     test_hash_enabled_for_type<std::shared_ptr<A>>();
   }
 #endif
+
+  return 0;
 }

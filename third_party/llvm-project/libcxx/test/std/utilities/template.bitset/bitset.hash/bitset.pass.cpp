@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,7 +10,6 @@
 
 // template <class T>
 // struct hash
-//     : public unary_function<T, size_t>
 // {
 //     size_t operator()(T val) const;
 // };
@@ -28,8 +26,10 @@ test()
 {
     typedef std::bitset<N> T;
     typedef std::hash<T> H;
+#if TEST_STD_VER <= 14
     static_assert((std::is_same<typename H::argument_type, T>::value), "" );
     static_assert((std::is_same<typename H::result_type, std::size_t>::value), "" );
+#endif
     ASSERT_NOEXCEPT(H()(T()));
 
     H h;
@@ -39,10 +39,12 @@ test()
     ((void)result); // Prevent unused warning
 }
 
-int main()
+int main(int, char**)
 {
     test<0>();
     test<10>();
     test<100>();
     test<1000>();
+
+  return 0;
 }

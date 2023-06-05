@@ -48,7 +48,9 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
                url,
                log_file=None,
                target_params=None,
-               success_message=None):
+               success_message=None,
+               poll_until_wait_seconds=POLL_UNTIL_WAIT_SECONDS,
+               **kwargs):
     # For black box tests, don't log inline script warnings, we intend to
     # explicitly control timings for suspends and resumes, so we are not
     # concerned about a "suspend at the wrong time".
@@ -56,8 +58,16 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
       target_params = []
     target_params.append('--silence_inline_script_warnings')
 
-    super().__init__(launcher_params, url, log_file, target_params,
-                     success_message)
+    super().__init__(
+        launcher_params,
+        url,
+        log_file,
+        target_params,
+        success_message,
+        poll_until_wait_seconds=poll_until_wait_seconds,
+        **kwargs)
+
+    self.poll_until_wait_seconds = poll_until_wait_seconds
 
   def PollUntilFoundOrTestsFailedWithReconnects(self, css_selector):
     """Polls until an element is found.
@@ -66,7 +76,7 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
       css_selector: A CSS selector
     """
     start_time = time.time()
-    while time.time() - start_time < POLL_UNTIL_WAIT_SECONDS:
+    while time.time() - start_time < self.poll_until_wait_seconds:
       is_failed = False
       try:
         if self.FindElements(css_selector):
@@ -76,7 +86,8 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
               selenium_exceptions.NoSuchElementException,
               selenium_exceptions.NoSuchWindowException,
               selenium_exceptions.WebDriverException) as e:
-        # If the page
+        # If the page is reloaded, the webdriver client status becomes
+        # stale and should be reconnected.
         logging.warning(e)
         self.ReconnectWebDriver()
         continue

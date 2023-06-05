@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,25 +34,25 @@ void my_free(void*) { my_free_called = true; }
 
 #if TEST_STD_VER >= 11
 struct DeleterBase {
-  void operator()(void*) const {}
+  TEST_CONSTEXPR_CXX23 void operator()(void*) const {}
 };
 struct CopyOnlyDeleter : DeleterBase {
-  CopyOnlyDeleter() = default;
-  CopyOnlyDeleter(CopyOnlyDeleter const&) = default;
+  TEST_CONSTEXPR_CXX23 CopyOnlyDeleter()                       = default;
+  TEST_CONSTEXPR_CXX23 CopyOnlyDeleter(CopyOnlyDeleter const&) = default;
   CopyOnlyDeleter(CopyOnlyDeleter&&) = delete;
 };
 struct MoveOnlyDeleter : DeleterBase {
-  MoveOnlyDeleter() = default;
-  MoveOnlyDeleter(MoveOnlyDeleter&&) = default;
+  TEST_CONSTEXPR_CXX23 MoveOnlyDeleter()                  = default;
+  TEST_CONSTEXPR_CXX23 MoveOnlyDeleter(MoveOnlyDeleter&&) = default;
 };
 struct NoCopyMoveDeleter : DeleterBase {
-  NoCopyMoveDeleter() = default;
+  TEST_CONSTEXPR_CXX23 NoCopyMoveDeleter()    = default;
   NoCopyMoveDeleter(NoCopyMoveDeleter const&) = delete;
 };
 #endif
 
 template <bool IsArray>
-void test_sfinae() {
+TEST_CONSTEXPR_CXX23 void test_sfinae() {
 #if TEST_STD_VER >= 11
   typedef typename std::conditional<!IsArray, int, int[]>::type VT;
   {
@@ -103,7 +102,7 @@ void test_sfinae() {
 }
 
 template <bool IsArray>
-void test_noexcept() {
+TEST_CONSTEXPR_CXX23 void test_noexcept() {
 #if TEST_STD_VER >= 11
   typedef typename std::conditional<!IsArray, int, int[]>::type VT;
   {
@@ -134,7 +133,7 @@ void test_noexcept() {
 #endif
 }
 
-void test_sfinae_runtime() {
+TEST_CONSTEXPR_CXX23 void test_sfinae_runtime() {
 #if TEST_STD_VER >= 11
   {
     using D = CopyOnlyDeleter;
@@ -205,20 +204,23 @@ void test_sfinae_runtime() {
 }
 
 template <bool IsArray>
-void test_basic() {
+TEST_CONSTEXPR_CXX23 void test_basic() {
   typedef typename std::conditional<!IsArray, A, A[]>::type VT;
   const int expect_alive = IsArray ? 5 : 1;
   { // MoveConstructible deleter (C-1)
     A* p = newValue<VT>(expect_alive);
-    assert(A::count == expect_alive);
+    if (!TEST_IS_CONSTANT_EVALUATED)
+      assert(A::count == expect_alive);
     std::unique_ptr<VT, Deleter<VT> > s(p, Deleter<VT>(5));
     assert(s.get() == p);
     assert(s.get_deleter().state() == 5);
   }
-  assert(A::count == 0);
+  if (!TEST_IS_CONSTANT_EVALUATED)
+    assert(A::count == 0);
   { // CopyConstructible deleter (C-2)
     A* p = newValue<VT>(expect_alive);
-    assert(A::count == expect_alive);
+    if (!TEST_IS_CONSTANT_EVALUATED)
+      assert(A::count == expect_alive);
     CopyDeleter<VT> d(5);
     std::unique_ptr<VT, CopyDeleter<VT> > s(p, d);
     assert(s.get() == p);
@@ -226,10 +228,12 @@ void test_basic() {
     d.set_state(6);
     assert(s.get_deleter().state() == 5);
   }
-  assert(A::count == 0);
+  if (!TEST_IS_CONSTANT_EVALUATED)
+    assert(A::count == 0);
   { // Reference deleter (C-3)
     A* p = newValue<VT>(expect_alive);
-    assert(A::count == expect_alive);
+    if (!TEST_IS_CONSTANT_EVALUATED)
+      assert(A::count == expect_alive);
     NCDeleter<VT> d(5);
     std::unique_ptr<VT, NCDeleter<VT>&> s(p, d);
     assert(s.get() == p);
@@ -238,59 +242,70 @@ void test_basic() {
     d.set_state(6);
     assert(s.get_deleter().state() == 6);
   }
-  assert(A::count == 0);
+  if (!TEST_IS_CONSTANT_EVALUATED)
+    assert(A::count == 0);
   { // Const Reference deleter (C-4)
     A* p = newValue<VT>(expect_alive);
-    assert(A::count == expect_alive);
+    if (!TEST_IS_CONSTANT_EVALUATED)
+      assert(A::count == expect_alive);
     NCConstDeleter<VT> d(5);
     std::unique_ptr<VT, NCConstDeleter<VT> const&> s(p, d);
     assert(s.get() == p);
     assert(s.get_deleter().state() == 5);
     assert(&s.get_deleter() == &d);
   }
-  assert(A::count == 0);
-  { // Void and function pointers (C-6,7)
-    typedef typename std::conditional<IsArray, int[], int>::type VT2;
-    my_free_called = false;
-    {
-      int i = 0;
-      std::unique_ptr<VT2, void (*)(void*)> s(&i, my_free);
-      assert(s.get() == &i);
-      assert(s.get_deleter() == my_free);
-      assert(!my_free_called);
+  if (!TEST_IS_CONSTANT_EVALUATED) {
+    assert(A::count == 0);
+    { // Void and function pointers (C-6,7)
+      typedef typename std::conditional<IsArray, int[], int>::type VT2;
+      my_free_called = false;
+      {
+        int i = 0;
+        std::unique_ptr<VT2, void (*)(void*)> s(&i, my_free);
+        assert(s.get() == &i);
+        assert(s.get_deleter() == my_free);
+        assert(!my_free_called);
+      }
+      assert(my_free_called);
     }
-    assert(my_free_called);
   }
 }
 
-void test_basic_single() {
-  assert(A::count == 0);
-  assert(B::count == 0);
+TEST_CONSTEXPR_CXX23 void test_basic_single() {
+  if (!TEST_IS_CONSTANT_EVALUATED) {
+    assert(A::count == 0);
+    assert(B::count == 0);
+  }
   { // Derived pointers (C-5)
     B* p = new B;
-    assert(A::count == 1);
-    assert(B::count == 1);
+    if (!TEST_IS_CONSTANT_EVALUATED) {
+      assert(A::count == 1);
+      assert(B::count == 1);
+    }
     std::unique_ptr<A, Deleter<A> > s(p, Deleter<A>(5));
     assert(s.get() == p);
     assert(s.get_deleter().state() == 5);
   }
-  assert(A::count == 0);
-  assert(B::count == 0);
-  { // Void and function pointers (C-6,7)
-    my_free_called = false;
-    {
-      int i = 0;
-      std::unique_ptr<void, void (*)(void*)> s(&i, my_free);
-      assert(s.get() == &i);
-      assert(s.get_deleter() == my_free);
-      assert(!my_free_called);
+  if (!TEST_IS_CONSTANT_EVALUATED) {
+    assert(A::count == 0);
+    assert(B::count == 0);
+
+    { // Void and function pointers (C-6,7)
+      my_free_called = false;
+      {
+        int i = 0;
+        std::unique_ptr<void, void (*)(void*)> s(&i, my_free);
+        assert(s.get() == &i);
+        assert(s.get_deleter() == my_free);
+        assert(!my_free_called);
+      }
+      assert(my_free_called);
     }
-    assert(my_free_called);
   }
 }
 
 template <bool IsArray>
-void test_nullptr() {
+TEST_CONSTEXPR_CXX23 void test_nullptr() {
 #if TEST_STD_VER >= 11
   typedef typename std::conditional<!IsArray, A, A[]>::type VT;
   {
@@ -310,7 +325,7 @@ void test_nullptr() {
 #endif
 }
 
-int main() {
+TEST_CONSTEXPR_CXX23 bool test() {
   {
     test_basic</*IsArray*/ false>();
     test_nullptr<false>();
@@ -325,4 +340,15 @@ int main() {
     test_sfinae_runtime();
     test_noexcept<true>();
   }
+
+  return true;
+}
+
+int main(int, char**) {
+  test();
+#if TEST_STD_VER >= 23
+  static_assert(test());
+#endif
+
+  return 0;
 }

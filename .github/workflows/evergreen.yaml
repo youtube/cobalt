@@ -2,7 +2,7 @@ name: evergreen
 
 on:
   pull_request:
-    types: [ready_for_review, opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled]
     branches:
       - main
       - feature/*
@@ -47,6 +47,15 @@ jobs:
       pull-requests: write
     with:
       platform: evergreen-arm-softfp
+      nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
+  evergreen-arm64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
   evergreen-x86:

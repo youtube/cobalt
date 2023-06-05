@@ -1,13 +1,18 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
+// UNSUPPORTED: no-filesystem
+
+// Filesystem is supported on Apple platforms starting with macosx10.15.
+// UNSUPPORTED: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12|13|14}}
+
+// FILE_DEPENDENCIES: test.dat
 
 // <fstream>
 
@@ -21,9 +26,11 @@
 #include <filesystem>
 #include <cassert>
 
+#include "test_macros.h"
+
 namespace fs = std::filesystem;
 
-int main() {
+int main(int, char**) {
   {
     fs::path p;
     static_assert(!std::is_convertible<fs::path, std::ifstream>::value,
@@ -41,6 +48,8 @@ int main() {
   // std::ifstream(const fs::path&, std::ios_base::openmode) is tested in
   // test/std/input.output/file.streams/fstreams/ofstream.cons/string.pass.cpp
   // which creates writable files.
+
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
   {
     std::wifstream fs(fs::path("test.dat"));
     double x = 0;
@@ -50,4 +59,7 @@ int main() {
   // std::wifstream(const fs::path&, std::ios_base::openmode) is tested in
   // test/std/input.output/file.streams/fstreams/ofstream.cons/string.pass.cpp
   // which creates writable files.
+#endif
+
+  return 0;
 }

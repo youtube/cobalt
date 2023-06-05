@@ -23,7 +23,7 @@ x-common-definitions: &common-definitions
   volumes:
     - ${COBALT_SRC:-.}:c:/code/
     - ${SCCACHE_DIR:-container-sccache}:c:/root/sccache/
-  cpus: ${DOCKER_CPUS:-12}
+  cpus: ${DOCKER_CPUS:-16}
   mem_limit: ${DOCKER_MEMLIMIT:-100000M}
 
 x-shared-build-env: &shared-build-env
@@ -168,6 +168,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: win-win32
+      VISUAL_STUDIO_VERSION: "2022"
     image: cobalt-build-win32-vs2022
 
   runner-win-win32:

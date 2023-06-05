@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,6 +12,8 @@
 
 #include <limits>
 #include <cfloat>
+
+#include "test_macros.h"
 
 template <class T, int expected>
 void
@@ -28,17 +29,18 @@ test()
     static_assert(std::numeric_limits<const volatile T>::is_bounded, "digits10 test 8");
 }
 
-int main()
+int main(int, char**)
 {
     test<bool, 0>();
     test<char, 2>();
     test<signed char, 2>();
     test<unsigned char, 2>();
     test<wchar_t, 5*sizeof(wchar_t)/2-1>();  // 4 -> 9 and 2 -> 4
-#ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
+#if TEST_STD_VER > 17 && defined(__cpp_char8_t)
+    test<char8_t, 2>();
+#endif
     test<char16_t, 4>();
     test<char32_t, 9>();
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
     test<short, 4>();
     test<unsigned short, 4>();
     test<int, 9>();
@@ -47,11 +49,13 @@ int main()
     test<unsigned long, sizeof(long) == 4 ? 9 : 19>();
     test<long long, 18>();
     test<unsigned long long, 19>();
-#ifndef _LIBCPP_HAS_NO_INT128
+#ifndef TEST_HAS_NO_INT128
     test<__int128_t, 38>();
     test<__uint128_t, 38>();
 #endif
     test<float, FLT_DIG>();
     test<double, DBL_DIG>();
     test<long double, LDBL_DIG>();
+
+  return 0;
 }

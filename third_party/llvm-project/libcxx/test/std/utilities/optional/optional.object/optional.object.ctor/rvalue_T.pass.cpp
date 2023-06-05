@@ -1,20 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
-// XFAIL: with_system_cxx_lib=macosx10.12
-// XFAIL: with_system_cxx_lib=macosx10.11
-// XFAIL: with_system_cxx_lib=macosx10.10
-// XFAIL: with_system_cxx_lib=macosx10.9
-// XFAIL: with_system_cxx_lib=macosx10.7
-// XFAIL: with_system_cxx_lib=macosx10.8
+// Throwing bad_optional_access is supported starting in macosx10.13
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12}} && !no-exceptions
 
 // <optional>
 
@@ -25,7 +20,7 @@
 #include <cassert>
 
 #include "test_macros.h"
-#include "archetypes.hpp"
+#include "archetypes.h"
 
 
 using std::optional;
@@ -39,7 +34,7 @@ public:
 };
 
 
-int main()
+int main(int, char**)
 {
     {
         typedef int T;
@@ -140,15 +135,10 @@ int main()
     }
 #ifndef TEST_HAS_NO_EXCEPTIONS
     {
-        struct Z {
-            Z(int) {}
-            Z(Z&&) {throw 6;}
-        };
-        typedef Z T;
         try
         {
-            T t(3);
-            optional<T> opt(std::move(t));
+            Z z(3);
+            optional<Z> opt(std::move(z));
             assert(false);
         }
         catch (int i)
@@ -157,4 +147,6 @@ int main()
         }
     }
 #endif
+
+  return 0;
 }

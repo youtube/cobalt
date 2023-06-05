@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,12 +12,12 @@
 
 #include <vector>
 #include <cassert>
+#include "test_macros.h"
 #include "test_allocator.h"
 #include "min_allocator.h"
 #include "asan_testing.h"
 
-int main()
-{
+TEST_CONSTEXPR_CXX20 bool tests() {
     {
         std::vector<int> v(100);
         v.resize(50, 1);
@@ -74,4 +73,15 @@ int main()
         assert(is_contiguous_container_asan_correct(v));
     }
 #endif
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,12 +13,18 @@
 
 // explicit basic_ifstream(const wchar_t* s, ios_base::openmode mode = ios_base::in);
 
+// This extension is only provided on Windows.
+// REQUIRES: windows
+// UNSUPPORTED: no-wide-characters
+
+// FILE_DEPENDENCIES: test.dat
+
 #include <fstream>
 #include <cassert>
 
-int main()
-{
-#ifdef _LIBCPP_HAS_OPEN_WITH_WCHAR
+#include "test_macros.h"
+
+int main(int, char**) {
     {
         std::ifstream fs(L"test.dat");
         double x = 0;
@@ -38,5 +43,6 @@ int main()
     // std::wifstream(const wchar_t*, std::ios_base::openmode) is tested in
     // test/libcxx/input.output/file.streams/fstreams/ofstream.cons/wchar_pointer.pass.cpp
     // which creates writable files.
-#endif
+
+    return 0;
 }

@@ -18,9 +18,7 @@
 
 #include <functional>
 
-#include "internal/starboard/xb1/shared/av1_video_decoder.h"
 #include "internal/starboard/xb1/shared/video_decoder_uwp.h"
-#include "internal/starboard/xb1/shared/vpx_video_decoder.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -43,6 +41,11 @@
 #include "starboard/shared/uwp/audio_renderer_passthrough.h"
 #include "starboard/shared/uwp/extended_resources_manager.h"
 #include "starboard/shared/win32/audio_decoder.h"
+
+#if defined(INTERNAL_BUILD)
+#include "internal/starboard/xb1/internal/av1_video_decoder.h"
+#include "internal/starboard/xb1/internal/vpx_video_decoder.h"
+#endif  // defined(INTERNAL_BUILD)
 
 namespace starboard {
 namespace shared {
@@ -247,6 +250,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_DCHECK(d3d12device);
     SB_DCHECK(d3d12queue);
 
+#if defined(INTERNAL_BUILD)
     using GpuVp9VideoDecoder = ::starboard::xb1::shared::VpxVideoDecoder;
     using GpuAv1VideoDecoder = ::starboard::xb1::shared::Av1VideoDecoder;
 
@@ -263,6 +267,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           creation_parameters.video_stream_info(), is_hdr_video, d3d12device,
           d3d12queue));
     }
+#endif  // defined(INTERNAL_BUILD)
 
     if (video_decoder) {
       video_render_algorithm->reset(

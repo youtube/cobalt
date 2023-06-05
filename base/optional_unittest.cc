@@ -1921,12 +1921,12 @@ TEST(OptionalTest, MakeOptional) {
   }
 
   {
-    Optional<std::string> o = make_optional(std::string("foo"));
+    Optional<std::string> o = base::make_optional(std::string("foo"));
     EXPECT_TRUE(o);
     EXPECT_EQ("foo", *o);
 
     std::string value = "bar";
-    o = make_optional(std::move(value));
+    o = base::make_optional(std::move(value));
     EXPECT_TRUE(o);
     EXPECT_EQ(std::string("bar"), *o);
   }
@@ -1968,7 +1968,7 @@ TEST(OptionalTest, MakeOptional) {
     EXPECT_EQ("123", *str1);
 
     auto str2 =
-        make_optional<std::string>({'a', 'b', 'c'}, std::allocator<char>());
+        base::make_optional<std::string>({'a', 'b', 'c'}, std::allocator<char>());
     EXPECT_EQ("abc", *str2);
   }
 }

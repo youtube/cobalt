@@ -15,9 +15,9 @@
 #include "cobalt/dom/keyboard_event.h"
 
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
-#include "cobalt/dom/global_stats.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -134,6 +134,15 @@ TEST_F(KeyboardEventTest, CanGetKeyIdentifierAndKeyAndCode) {
   EXPECT_EQ(keyboard_event_space->key_identifier(), " ");
   EXPECT_EQ(keyboard_event_space->key(), " ");
   EXPECT_EQ(keyboard_event_space->code(), "Space");
+
+#if SB_API_VERSION >= 15
+  init.set_key_code(keycode::kMediaRecord);
+  scoped_refptr<KeyboardEvent> keyboard_event_record =
+      new KeyboardEvent("keydown", init);
+  EXPECT_EQ(keyboard_event_record->key_identifier(), "MediaRecord");
+  EXPECT_EQ(keyboard_event_record->key(), "MediaRecord");
+  EXPECT_EQ(keyboard_event_record->code(), "MediaRecord");
+#endif
 }
 
 TEST_F(KeyboardEventTest, CanGetAltKey) {

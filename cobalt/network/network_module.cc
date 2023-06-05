@@ -36,17 +36,28 @@ const char kCaptureModeIncludeSocketBytes[] = "IncludeSocketBytes";
 #endif
 }  // namespace
 
-NetworkModule::NetworkModule(const Options& options)
-    : storage_manager_(NULL), options_(options) {
+NetworkModule::NetworkModule(const Options& options) : options_(options) {
   Initialize("Null user agent string.", NULL);
 }
 
-NetworkModule::NetworkModule(const std::string& user_agent_string,
-                             storage::StorageManager* storage_manager,
-                             base::EventDispatcher* event_dispatcher,
-                             const Options& options)
-    : storage_manager_(storage_manager), options_(options) {
+NetworkModule::NetworkModule(
+    const std::string& user_agent_string,
+    const std::vector<std::string>& client_hint_headers,
+    base::EventDispatcher* event_dispatcher, const Options& options)
+    : client_hint_headers_(client_hint_headers), options_(options) {
   Initialize(user_agent_string, event_dispatcher);
+}
+
+void NetworkModule::WillDestroyCurrentMessageLoop() {
+#if defined(DIAL_SERVER)
+  dial_service_proxy_ = nullptr;
+  dial_service_.reset();
+#endif
+
+  cookie_jar_.reset();
+  net_poster_.reset();
+  url_request_context_.reset();
+  network_delegate_.reset();
 }
 
 NetworkModule::~NetworkModule() {
@@ -55,23 +66,19 @@ NetworkModule::~NetworkModule() {
   // The ObjectWatchMultiplexer must be destroyed last.  (The sockets owned
   // by URLRequestContext will destroy their ObjectWatchers, which need the
   // multiplexer.)
-  url_request_context_getter_ = NULL;
-#if defined(DIAL_SERVER)
-  dial_service_proxy_ = NULL;
-  task_runner()->DeleteSoon(FROM_HERE, dial_service_.release());
-#endif
+  url_request_context_getter_ = nullptr;
 
-  task_runner()->DeleteSoon(FROM_HERE, cookie_jar_.release());
-  task_runner()->DeleteSoon(FROM_HERE, net_poster_.release());
-  task_runner()->DeleteSoon(FROM_HERE, url_request_context_.release());
-  task_runner()->DeleteSoon(FROM_HERE, network_delegate_.release());
-
-  // This will run the above task, and then stop the thread.
-  thread_.reset(NULL);
+  if (thread_) {
+    // Wait for all previously posted tasks to finish.
+    thread_->message_loop()->task_runner()->WaitForFence();
+    // This will trigger a call to WillDestroyCurrentMessageLoop in the thread
+    // and wait for it to finish.
+    thread_.reset();
+  }
 #if !defined(STARBOARD)
-  object_watch_multiplexer_.reset(NULL);
+  object_watch_multiplexer_.reset();
 #endif
-  network_system_.reset(NULL);
+  network_system_.reset();
 }
 
 std::string NetworkModule::GetUserAgent() const {
@@ -98,8 +105,19 @@ void NetworkModule::SetEnableQuic(bool enable_quic) {
                  base::Unretained(url_request_context_.get()), enable_quic));
 }
 
+void NetworkModule::SetEnableClientHintHeadersFromPersistentSettings() {
+  // Called on initialization and when the persistent setting is changed.
+  enable_client_hint_headers_.store(
+      options_.persistent_settings != nullptr &&
+      options_.persistent_settings->GetPersistentSettingAsBool(
+          kClientHintHeadersEnabledPersistentSettingsKey, false));
+}
+
 void NetworkModule::Initialize(const std::string& user_agent_string,
                                base::EventDispatcher* event_dispatcher) {
+  storage_manager_.reset(
+      new storage::StorageManager(options_.storage_manager_options));
+
   thread_.reset(new base::Thread("NetworkModule"));
 #if !defined(STARBOARD)
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
@@ -107,6 +125,8 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   network_system_ = NetworkSystem::Create(event_dispatcher);
   http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
       options_.preferred_language, user_agent_string));
+
+  SetEnableClientHintHeadersFromPersistentSettings();
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -171,15 +191,16 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
 
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   DCHECK(task_runner()->RunsTasksInCurrentSequence());
+  base::MessageLoopCurrent::Get()->AddDestructionObserver(this);
 
   net::NetLog* net_log = NULL;
 #if defined(ENABLE_NETWORK_LOGGING)
   net_log = net_log_.get();
 #endif
   url_request_context_.reset(
-      new URLRequestContext(storage_manager_, options_.custom_proxy, net_log,
-                            options_.ignore_certificate_errors, task_runner(),
-                            options_.persistent_settings));
+      new URLRequestContext(storage_manager_.get(), options_.custom_proxy,
+                            net_log, options_.ignore_certificate_errors,
+                            task_runner(), options_.persistent_settings));
   network_delegate_.reset(new NetworkDelegate(options_.cookie_policy,
                                               options_.https_requirement,
                                               options_.cors_policy));
@@ -196,6 +217,14 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   net_poster_.reset(new NetPoster(this));
 
   creation_event->Signal();
+}
+
+void NetworkModule::AddClientHintHeaders(net::URLFetcher& url_fetcher) const {
+  if (enable_client_hint_headers_.load()) {
+    for (const auto& header : client_hint_headers_) {
+      url_fetcher.AddExtraRequestHeader(header);
+    }
+  }
 }
 
 }  // namespace network

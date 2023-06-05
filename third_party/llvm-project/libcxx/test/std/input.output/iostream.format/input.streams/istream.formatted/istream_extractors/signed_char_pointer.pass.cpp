@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,6 +13,7 @@
 
 #include <istream>
 #include <cassert>
+#include "test_macros.h"
 
 template <class CharT>
 struct testbuf
@@ -39,7 +39,7 @@ public:
     CharT* egptr() const {return base::egptr();}
 };
 
-int main()
+int main(int, char**)
 {
     {
         testbuf<char> sb("   abcdefghijk    ");
@@ -61,6 +61,17 @@ int main()
         assert(std::string((char*)s) == "abc");
         assert(is.width() == 0);
     }
+#if TEST_STD_VER > 17
+    {
+        testbuf<char> sb("   abcdefghijk    ");
+        std::istream is(&sb);
+        signed char s[4];
+        is >> s;
+        assert(!is.eof());
+        assert(!is.fail());
+        assert(std::string((char*)s) == "abc");
+    }
+#endif
     {
         testbuf<char> sb("   abcdefghijk");
         std::istream is(&sb);
@@ -82,4 +93,57 @@ int main()
         assert(std::string((char*)s) == "");
         assert(is.width() == 0);
     }
+#if TEST_STD_VER > 17
+    {
+        testbuf<char> sb("   abcdefghijk");
+        std::istream is(&sb);
+        signed char s[1];
+        is >> s;
+        assert(!is.eof());
+        assert( is.fail());
+        assert(std::string((char*)s) == "");
+    }
+#endif
+#ifndef TEST_HAS_NO_EXCEPTIONS
+    {
+        testbuf<char> sb;
+        std::basic_istream<char> is(&sb);
+        is.exceptions(std::ios_base::failbit);
+
+        bool threw = false;
+        try {
+            signed char s[20];
+            is.width(10);
+            is >> s;
+        } catch (std::ios_base::failure const&) {
+            threw = true;
+        }
+
+        assert(!is.bad());
+        assert(is.fail());
+        assert(is.eof());
+        assert(threw);
+    }
+    {
+        testbuf<char> sb;
+        std::basic_istream<char> is(&sb);
+        is.exceptions(std::ios_base::eofbit);
+
+        bool threw = false;
+        try {
+            signed char s[20];
+            is.width(10);
+            is >> s;
+        } catch (std::ios_base::failure const&) {
+            threw = true;
+        }
+
+        assert(!is.bad());
+        assert(is.fail());
+        assert(is.eof());
+        assert(threw);
+    }
+#endif
+
+    return 0;
 }

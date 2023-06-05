@@ -1,14 +1,17 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// REQUIRES: c++experimental
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+
+// Aligned allocation is required by std::experimental::pmr, but it was not provided
+// before macosx10.13 and as a result we get linker errors when deploying to older than
+// macosx10.13.
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12}}
 
 // <experimental/memory_resource>
 
@@ -17,13 +20,17 @@
 // template <class U1, class U2>
 // void polymorphic_allocator<T>::construct(pair<U1, U2>*)
 
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
+
 #include <experimental/memory_resource>
 #include <type_traits>
 #include <utility>
 #include <tuple>
 #include <cassert>
 #include <cstdlib>
-#include "uses_alloc_types.hpp"
+#include "uses_alloc_types.h"
+
+#include "test_macros.h"
 
 namespace ex = std::experimental::pmr;
 
@@ -35,7 +42,7 @@ struct default_constructible
     int x{0};
 };
 
-int main()
+int main(int, char**)
 {
     // pair<default_constructible, default_constructible> as T()
     {
@@ -50,4 +57,6 @@ int main()
         assert(ptr->second.x == 42);
         std::free(ptr);
     }
+
+  return 0;
 }

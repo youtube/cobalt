@@ -1,24 +1,12 @@
 // RUN: %clang_builtins %s %librt -o %t && %run %t
+// REQUIRES: librt_has_floatuntixf
 // REQUIRES: x86-target-arch
-
-//===-- floatuntixf.c - Test __floatuntixf --------------------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file tests __floatuntixf for the compiler_rt library.
-//
-//===----------------------------------------------------------------------===//
 
 #include "int_lib.h"
 #include <float.h>
 #include <stdio.h>
 
-#ifdef CRT_HAS_128BIT
+#if defined(CRT_HAS_128BIT) && HAS_80_BIT_LONG_DOUBLE
 
 // Returns: convert a to a long double, rounding toward even.
 
@@ -43,15 +31,15 @@ int test__floatuntixf(tu_int a, long double expected)
     return x != expected;
 }
 
-char assumption_1[sizeof(tu_int) == 2*sizeof(du_int)] = {0};
-char assumption_2[sizeof(tu_int)*CHAR_BIT == 128] = {0};
-char assumption_3[sizeof(long double)*CHAR_BIT == 128] = {0};
+COMPILE_TIME_ASSERT(sizeof(tu_int) == 2*sizeof(du_int));
+COMPILE_TIME_ASSERT(sizeof(tu_int)*CHAR_BIT == 128);
+COMPILE_TIME_ASSERT(sizeof(long double)*CHAR_BIT == 128);
 
 #endif
 
 int main()
 {
-#ifdef CRT_HAS_128BIT
+#if defined(CRT_HAS_128BIT) && HAS_80_BIT_LONG_DOUBLE
     if (test__floatuntixf(0, 0.0))
         return 1;
 

@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
 
 // <string_view>
 
@@ -15,13 +16,14 @@
 #include <cassert>
 
 #include "test_macros.h"
-#include "constexpr_char_traits.hpp"
+#include "constexpr_char_traits.h"
 
 template <class S>
 void
 test(const S& s, typename S::value_type c, typename S::size_type pos,
      typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find(c, pos));
     assert(s.find(c, pos) == x);
     if (x != S::npos)
         assert(pos <= x && x + 1 <= s.size());
@@ -36,7 +38,7 @@ test(const S& s, typename S::value_type c, typename S::size_type x)
         assert(0 <= x && x + 1 <= s.size());
 }
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::string_view S;
@@ -82,4 +84,6 @@ int main()
     static_assert (sv2.find( 'c', 4 ) == SV::npos, "" );
     }
 #endif
+
+  return 0;
 }

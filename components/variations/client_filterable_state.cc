@@ -26,6 +26,11 @@ Study::Platform ClientFilterableState::GetCurrentPlatform() {
   // Default BSD and SOLARIS to Linux to not break those builds, although these
   // platforms are not officially supported by Chrome.
   return Study::PLATFORM_LINUX;
+#elif defined(STARBOARD)
+  // On Cobalt, the current OS/Platform are logged elsewhere. The return value
+  // here doesn't matter, but it needs to be something to keep the compiler
+  // happy.
+  return Study::PLATFORM_STARBOARD;
 #else
 #error Unknown platform
 #endif

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,7 @@
 #include <clocale>
 #include <type_traits>
 
-#ifndef _LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS
+#include "test_macros.h"
 
 #ifndef LC_ALL
 #error LC_ALL not defined
@@ -38,18 +37,16 @@
 #error LC_TIME not defined
 #endif
 
-#endif // !_LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS
-
 #ifndef NULL
 #error NULL not defined
 #endif
 
-int main()
+int main(int, char**)
 {
     std::lconv lc;
     ((void)lc); // Prevent unused warning
-#ifndef _LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS
     static_assert((std::is_same<decltype(std::setlocale(0, "")), char*>::value), "");
-#endif
     static_assert((std::is_same<decltype(std::localeconv()), std::lconv*>::value), "");
+
+  return 0;
 }

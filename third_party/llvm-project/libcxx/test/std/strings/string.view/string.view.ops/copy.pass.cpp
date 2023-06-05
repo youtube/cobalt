@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
 
 // <string_view>
 
@@ -17,10 +18,10 @@
 // Effects: Equivalent to std::copy_n(begin() + pos, rlen, s).
 // Returns: rlen.
 
-
 #include <string_view>
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 
 #include "test_macros.h"
 
@@ -74,19 +75,30 @@ void test ( const CharT *s ) {
     test1(sv1, sv1.size() + 1, 0);
     test1(sv1, sv1.size() + 1, 1);
     test1(sv1, sv1.size() + 1, string_view_t::npos);
-
 }
 
-int main () {
+template<typename CharT>
+TEST_CONSTEXPR_CXX20 bool test_constexpr_copy(const CharT *abcde, const CharT *ghijk, const CharT *bcdjk)
+{
+    CharT buf[6] = {};
+    std::basic_string_view<CharT> lval(ghijk); lval.copy(buf, 6);
+    std::basic_string_view<CharT>(abcde).copy(buf, 3, 1);
+    assert(std::basic_string_view<CharT>(buf) == bcdjk);
+    return true;
+}
+
+int main(int, char**) {
     test ( "ABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDE" );
     test ( "ABCDE");
     test ( "a" );
     test ( "" );
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     test ( L"ABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDE" );
     test ( L"ABCDE" );
     test ( L"a" );
     test ( L"" );
+#endif
 
 #if TEST_STD_VER >= 11
     test ( u"ABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDEABCDE" );
@@ -99,4 +111,27 @@ int main () {
     test ( U"a" );
     test ( U"" );
 #endif
+
+    test_constexpr_copy("ABCDE", "GHIJK", "BCDJK");
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    test_constexpr_copy(L"ABCDE", L"GHIJK", L"BCDJK");
+#endif
+#if TEST_STD_VER >= 11
+    test_constexpr_copy(u"ABCDE", u"GHIJK", u"BCDJK");
+    test_constexpr_copy(U"ABCDE", U"GHIJK", U"BCDJK");
+#endif
+#if TEST_STD_VER >= 17
+    test_constexpr_copy(u8"ABCDE", u8"GHIJK", u8"BCDJK");
+#endif
+#if TEST_STD_VER >= 20
+    static_assert(test_constexpr_copy("ABCDE", "GHIJK", "BCDJK"));
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    static_assert(test_constexpr_copy(L"ABCDE", L"GHIJK", L"BCDJK"));
+#endif
+    static_assert(test_constexpr_copy(u"ABCDE", u"GHIJK", u"BCDJK"));
+    static_assert(test_constexpr_copy(U"ABCDE", U"GHIJK", U"BCDJK"));
+    static_assert(test_constexpr_copy(u8"ABCDE", u8"GHIJK", u8"BCDJK"));
+#endif
+
+  return 0;
 }

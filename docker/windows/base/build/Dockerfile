@@ -29,6 +29,8 @@ COPY ./spin.ps1 /spin.ps1
 # of the execution, i.e. the full invocation string.
 COPY ./list_python_processes.py /list_python_processes.py
 
+# Pin Choco to 1.4.0 to avoid required reboot in 2.0.0
+ENV chocolateyVersion '1.4.0'
 # Install deps via chocolatey.
 RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
     mkdir C:\choco-cache;`
@@ -57,6 +59,7 @@ RUN mkdir C:\pip-cache;`
     git config --global core.filemode false;`
     git config --global core.preloadindex true;`
     git config --global core.fscache true;`
+    git config --global --add safe.directory C:/code;`
     # Registry changes to enable long filesystem paths.
     reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /reg:64 /d 1 /f;`
     reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /d 1 /f;`

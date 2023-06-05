@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,7 @@
 #include <complex>
 #include <cassert>
 
+#include "test_macros.h"
 #include "../cases.h"
 
 template <class T>
@@ -102,13 +102,19 @@ void test_edges()
             assert(!std::signbit(r.real()));
             assert(std::signbit(r.imag()) == std::signbit(testcases[i].imag()));
         }
+        else if (std::isinf(r.real()) && testcases[i].imag() == 0) {
+            assert(r.imag() == 0);
+            assert(std::signbit(testcases[i].imag()) == std::signbit(r.imag()));
+        }
     }
 }
 
-int main()
+int main(int, char**)
 {
     test<float>();
     test<double>();
     test<long double>();
     test_edges();
+
+    return 0;
 }

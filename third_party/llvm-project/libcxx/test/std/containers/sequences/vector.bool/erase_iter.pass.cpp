@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,10 +13,12 @@
 
 #include <vector>
 #include <cassert>
+#include <iterator>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
-int main()
+TEST_CONSTEXPR_CXX20 bool tests()
 {
     bool a1[] = {1, 0, 1};
     {
@@ -26,19 +27,19 @@ int main()
     ++i;
     std::vector<bool>::iterator j = l1.erase(i);
     assert(l1.size() == 2);
-    assert(distance(l1.begin(), l1.end()) == 2);
+    assert(std::distance(l1.begin(), l1.end()) == 2);
     assert(*j == true);
     assert(*l1.begin() == 1);
-    assert(*next(l1.begin()) == true);
+    assert(*std::next(l1.begin()) == true);
     j = l1.erase(j);
     assert(j == l1.end());
     assert(l1.size() == 1);
-    assert(distance(l1.begin(), l1.end()) == 1);
+    assert(std::distance(l1.begin(), l1.end()) == 1);
     assert(*l1.begin() == true);
     j = l1.erase(l1.begin());
     assert(j == l1.end());
     assert(l1.size() == 0);
-    assert(distance(l1.begin(), l1.end()) == 0);
+    assert(std::distance(l1.begin(), l1.end()) == 0);
     }
 #if TEST_STD_VER >= 11
     {
@@ -47,19 +48,30 @@ int main()
     ++i;
     std::vector<bool, min_allocator<bool>>::iterator j = l1.erase(i);
     assert(l1.size() == 2);
-    assert(distance(l1.begin(), l1.end()) == 2);
+    assert(std::distance(l1.begin(), l1.end()) == 2);
     assert(*j == true);
     assert(*l1.begin() == 1);
-    assert(*next(l1.begin()) == true);
+    assert(*std::next(l1.begin()) == true);
     j = l1.erase(j);
     assert(j == l1.end());
     assert(l1.size() == 1);
-    assert(distance(l1.begin(), l1.end()) == 1);
+    assert(std::distance(l1.begin(), l1.end()) == 1);
     assert(*l1.begin() == true);
     j = l1.erase(l1.begin());
     assert(j == l1.end());
     assert(l1.size() == 0);
-    assert(distance(l1.begin(), l1.end()) == 0);
+    assert(std::distance(l1.begin(), l1.end()) == 0);
     }
 #endif
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

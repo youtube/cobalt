@@ -1,24 +1,23 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <filesystem>
 
 // void rename(const path& old_p, const path& new_p);
 // void rename(const path& old_p,  const path& new_p, error_code& ec) noexcept;
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 
 #include "test_macros.h"
-#include "rapid-cxx-test.hpp"
-#include "filesystem_test_helper.hpp"
+#include "rapid-cxx-test.h"
+#include "filesystem_test_helper.h"
 
 using namespace fs;
 
@@ -63,7 +62,13 @@ TEST_CASE(test_error_reporting)
     } cases[] = {
         {dne, dne},
         {file, dir},
-        {dir, file}
+#ifndef _WIN32
+        // The spec doesn't say that this case must be an error; fs.op.rename
+        // note 1.2.1 says that a file may be overwritten by a rename.
+        // On Windows, with rename() implemented with MoveFileExW, overwriting
+        // a file with a directory is not an error.
+        {dir, file},
+#endif
     };
     for (auto& TC : cases) {
         auto from_before = status(TC.from);
@@ -120,6 +125,33 @@ TEST_CASE(basic_rename_test)
         TEST_CHECK(is_symlink(bad_sym_dest));
         TEST_CHECK(read_symlink(bad_sym_dest) == dne);
     }
+}
+
+TEST_CASE(basic_rename_dir_test)
+{
+    static_test_env env;
+    const std::error_code set_ec = std::make_error_code(std::errc::address_in_use);
+    const path new_dir = env.makePath("new_dir");
+    { // dir -> dir (with contents)
+        std::error_code ec = set_ec;
+        rename(env.Dir, new_dir, ec);
+        TEST_CHECK(!ec);
+        TEST_CHECK(!exists(env.Dir));
+        TEST_CHECK(is_directory(new_dir));
+        TEST_CHECK(exists(new_dir / "file1"));
+    }
+#ifdef _WIN32
+    // On Windows, renaming a directory over a file isn't an error (this
+    // case is skipped in test_error_reporting above).
+    { // dir -> file
+        std::error_code ec = set_ec;
+        rename(new_dir, env.NonEmptyFile, ec);
+        TEST_CHECK(!ec);
+        TEST_CHECK(!exists(new_dir));
+        TEST_CHECK(is_directory(env.NonEmptyFile));
+        TEST_CHECK(exists(env.NonEmptyFile / "file1"));
+    }
+#endif
 }
 
 TEST_SUITE_END()

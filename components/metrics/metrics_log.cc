@@ -156,7 +156,7 @@ void MetricsLog::RecordCoreSystemProfile(MetricsServiceClient* client,
 
   metrics::SystemProfileProto::Hardware* hardware =
       system_profile->mutable_hardware();
-#if !defined(OS_IOS)
+#if !defined(OS_IOS) && !defined(STARBOARD)
   // On iOS, OperatingSystemArchitecture() returns values like iPad4,4 which is
   // not the actual CPU architecture. Don't set it until the API is fixed. See
   // crbug.com/370104 for details.
@@ -169,8 +169,11 @@ void MetricsLog::RecordCoreSystemProfile(MetricsServiceClient* client,
 #endif
 
   metrics::SystemProfileProto::OS* os = system_profile->mutable_os();
+// TODO(b/283256747): Remove when base::SysInfo is Starboardized.
+#if !defined(STARBOARD)
   os->set_name(base::SysInfo::OperatingSystemName());
   os->set_version(base::SysInfo::OperatingSystemVersion());
+#endif
 #if defined(OS_CHROMEOS)
   os->set_kernel_version(base::SysInfo::KernelVersion());
 #elif defined(OS_ANDROID)
@@ -265,12 +268,15 @@ const SystemProfileProto& MetricsLog::RecordEnvironment(
   if (client_->GetBrand(&brand_code))
     system_profile->set_brand_code(brand_code);
 
+// TODO(b/283255893): Remove when base::CPU is Starboardized.
+#if !defined(STARBOARD)
   SystemProfileProto::Hardware::CPU* cpu =
       system_profile->mutable_hardware()->mutable_cpu();
   base::CPU cpu_info;
   cpu->set_vendor_name(cpu_info.vendor_name());
   cpu->set_signature(cpu_info.signature());
   cpu->set_num_cores(base::SysInfo::NumberOfProcessors());
+#endif
 
   delegating_provider->ProvideSystemProfileMetrics(system_profile);
 

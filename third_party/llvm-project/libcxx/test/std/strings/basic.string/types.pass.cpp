@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -36,6 +35,7 @@
 #include <iterator>
 #include <type_traits>
 
+#include "test_macros.h"
 #include "test_traits.h"
 #include "test_allocator.h"
 #include "min_allocator.h"
@@ -71,10 +71,12 @@ test()
     static_assert(S::npos == -1, "");
 }
 
-int main()
+int main(int, char**)
 {
     test<test_traits<char>, test_allocator<char> >();
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     test<std::char_traits<wchar_t>, std::allocator<wchar_t> >();
+#endif
     static_assert((std::is_same<std::basic_string<char>::traits_type,
                                 std::char_traits<char> >::value), "");
     static_assert((std::is_same<std::basic_string<char>::allocator_type,
@@ -82,4 +84,6 @@ int main()
 #if TEST_STD_VER >= 11
     test<std::char_traits<char>, min_allocator<char> >();
 #endif
+
+  return 0;
 }

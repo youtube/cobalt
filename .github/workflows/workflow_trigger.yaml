@@ -7,6 +7,7 @@ on:
         type: choice
         description: Branch
         options:
+          - '24.lts.1+'
           - '23.lts.1+'
           - '22.lts.1+'
           - '21.lts.1+'
@@ -36,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           ref: ${{ github.event.branch }}

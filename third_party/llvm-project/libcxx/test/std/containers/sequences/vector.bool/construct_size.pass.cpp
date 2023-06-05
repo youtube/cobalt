@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,9 +19,8 @@
 #include "test_allocator.h"
 
 template <class C>
-void
-test2(typename C::size_type n,
-      typename C::allocator_type const& a = typename C::allocator_type ())
+TEST_CONSTEXPR_CXX20 void test2(typename C::size_type n,
+                                typename C::allocator_type const& a = typename C::allocator_type ())
 {
 #if TEST_STD_VER >= 14
     C c(n, a);
@@ -38,8 +36,7 @@ test2(typename C::size_type n,
 }
 
 template <class C>
-void
-test1(typename C::size_type n)
+TEST_CONSTEXPR_CXX20 void test1(typename C::size_type n)
 {
     C c(n);
     LIBCPP_ASSERT(c.__invariants());
@@ -50,18 +47,28 @@ test1(typename C::size_type n)
 }
 
 template <class C>
-void
-test(typename C::size_type n)
+TEST_CONSTEXPR_CXX20 void test(typename C::size_type n)
 {
     test1<C> ( n );
     test2<C> ( n );
 }
 
-int main()
+TEST_CONSTEXPR_CXX20 bool tests()
 {
     test<std::vector<bool> >(50);
 #if TEST_STD_VER >= 11
     test<std::vector<bool, min_allocator<bool>> >(50);
     test2<std::vector<bool, test_allocator<bool>> >( 100, test_allocator<bool>(23));
 #endif
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

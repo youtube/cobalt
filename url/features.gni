@@ -13,4 +13,4 @@ declare_args() {
 # Never use platform icu for host toolchain.
 # E.g. Don't apply this for host binaries when target_os = "android".
 use_platform_icu_alternatives =
-    use_platform_icu_alternatives && current_toolchain == default_toolchain
+    use_platform_icu_alternatives && is_starboardized_toolchain

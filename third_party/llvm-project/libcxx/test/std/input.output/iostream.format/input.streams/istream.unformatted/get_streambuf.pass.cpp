@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12|13|14}}
 
 // <istream>
 
@@ -13,6 +14,8 @@
 
 #include <istream>
 #include <cassert>
+
+#include "test_macros.h"
 
 template <class CharT>
 class testbuf
@@ -53,7 +56,7 @@ protected:
         }
 };
 
-int main()
+int main(int, char**)
 {
     {
         testbuf<char> sb("testing\n...");
@@ -70,6 +73,7 @@ int main()
         assert(!is.fail());
         assert(is.gcount() == 3);
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         testbuf<wchar_t> sb(L"testing\n...");
         std::wistream is(&sb);
@@ -85,4 +89,78 @@ int main()
         assert(!is.fail());
         assert(is.gcount() == 3);
     }
+#endif
+#ifndef TEST_HAS_NO_EXCEPTIONS
+    {
+        testbuf<char> sb(" ");
+        std::basic_istream<char> is(&sb);
+        testbuf<char> sb2;
+        is.exceptions(std::ios_base::eofbit);
+        bool threw = false;
+        try {
+            is.get(sb2);
+        } catch (std::ios_base::failure&) {
+            threw = true;
+        }
+        assert(threw);
+        assert(!is.bad());
+        assert( is.eof());
+        assert(!is.fail());
+    }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    {
+        testbuf<wchar_t> sb(L" ");
+        std::basic_istream<wchar_t> is(&sb);
+        testbuf<wchar_t> sb2;
+        is.exceptions(std::ios_base::eofbit);
+        bool threw = false;
+        try {
+            is.get(sb2);
+        } catch (std::ios_base::failure&) {
+            threw = true;
+        }
+        assert(threw);
+        assert(!is.bad());
+        assert( is.eof());
+        assert(!is.fail());
+    }
+#endif
+
+    {
+        testbuf<char> sb;
+        std::basic_istream<char> is(&sb);
+        testbuf<char> sb2;
+        is.exceptions(std::ios_base::eofbit);
+        bool threw = false;
+        try {
+            is.get(sb2);
+        } catch (std::ios_base::failure&) {
+            threw = true;
+        }
+        assert(threw);
+        assert(!is.bad());
+        assert( is.eof());
+        assert( is.fail());
+    }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    {
+        testbuf<wchar_t> sb;
+        std::basic_istream<wchar_t> is(&sb);
+        testbuf<wchar_t> sb2;
+        is.exceptions(std::ios_base::eofbit);
+        bool threw = false;
+        try {
+            is.get(sb2);
+        } catch (std::ios_base::failure&) {
+            threw = true;
+        }
+        assert(threw);
+        assert(!is.bad());
+        assert( is.eof());
+        assert( is.fail());
+    }
+#endif
+#endif // TEST_HAS_NO_EXCEPTIONS
+
+    return 0;
 }

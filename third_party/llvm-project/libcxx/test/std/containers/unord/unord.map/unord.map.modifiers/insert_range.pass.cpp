@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,10 +19,11 @@
 #include <string>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::unordered_map<int, std::string> C;
@@ -38,7 +38,7 @@ int main()
             P(2, "four"),
         };
         C c;
-        c.insert(input_iterator<P*>(a), input_iterator<P*>(a + sizeof(a)/sizeof(a[0])));
+        c.insert(cpp17_input_iterator<P*>(a), cpp17_input_iterator<P*>(a + sizeof(a)/sizeof(a[0])));
         assert(c.size() == 4);
         assert(c.at(1) == "one");
         assert(c.at(2) == "two");
@@ -60,7 +60,7 @@ int main()
             P(2, "four"),
         };
         C c;
-        c.insert(input_iterator<P*>(a), input_iterator<P*>(a + sizeof(a)/sizeof(a[0])));
+        c.insert(cpp17_input_iterator<P*>(a), cpp17_input_iterator<P*>(a + sizeof(a)/sizeof(a[0])));
         assert(c.size() == 4);
         assert(c.at(1) == "one");
         assert(c.at(2) == "two");
@@ -68,4 +68,6 @@ int main()
         assert(c.at(4) == "four");
     }
 #endif
+
+  return 0;
 }

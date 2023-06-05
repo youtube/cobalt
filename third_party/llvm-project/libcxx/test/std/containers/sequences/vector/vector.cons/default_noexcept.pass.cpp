@@ -1,20 +1,19 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+// UNSUPPORTED: c++03
 
 // <vector>
 
 // vector()
 //        noexcept(is_nothrow_default_constructible<allocator_type>::value);
 
-// This tests a conforming extension
+// This *was* a conforming extension, but it was adopted in N4258.
 
-// UNSUPPORTED: c++98, c++03
 
 #include <vector>
 #include <cassert>
@@ -28,10 +27,10 @@ struct some_alloc
 {
     typedef T value_type;
     some_alloc(const some_alloc&);
+    void allocate(size_t);
 };
 
-int main()
-{
+TEST_CONSTEXPR_CXX20 bool tests() {
     {
         typedef std::vector<MoveOnly> C;
         static_assert(std::is_nothrow_default_constructible<C>::value, "");
@@ -48,4 +47,15 @@ int main()
         typedef std::vector<MoveOnly, some_alloc<MoveOnly>> C;
         static_assert(!std::is_nothrow_default_constructible<C>::value, "");
     }
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }
