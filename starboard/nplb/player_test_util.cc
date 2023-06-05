@@ -228,9 +228,24 @@ void CallSbPlayerWriteSamples(
     SbMediaType sample_type,
     shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
     int start_index,
-    int number_of_samples_to_write) {
+    int number_of_samples_to_write,
+    SbTime timestamp_offset,
+    const std::vector<SbTime>& discarded_durations_from_front,
+    const std::vector<SbTime>& discarded_durations_from_back) {
   SB_DCHECK(start_index >= 0);
   SB_DCHECK(number_of_samples_to_write > 0);
+
+  if (sample_type == kSbMediaTypeAudio) {
+    SB_DCHECK(discarded_durations_from_front.empty() ||
+              discarded_durations_from_front.size() ==
+                  number_of_samples_to_write);
+    SB_DCHECK(discarded_durations_from_front.size() ==
+              discarded_durations_from_back.size());
+  } else {
+    SB_DCHECK(sample_type == kSbMediaTypeVideo);
+    SB_DCHECK(discarded_durations_from_front.empty());
+    SB_DCHECK(discarded_durations_from_back.empty());
+  }
 
   static auto const* enhanced_audio_extension =
       static_cast<const CobaltExtensionEnhancedAudioApi*>(
@@ -258,7 +273,7 @@ void CallSbPlayerWriteSamples(
       sample_infos.back().type = source.type;
       sample_infos.back().buffer = source.buffer;
       sample_infos.back().buffer_size = source.buffer_size;
-      sample_infos.back().timestamp = source.timestamp;
+      sample_infos.back().timestamp = source.timestamp + timestamp_offset;
       sample_infos.back().side_data = source.side_data;
       sample_infos.back().side_data_count = source.side_data_count;
       sample_infos.back().drm_info = source.drm_info;
@@ -267,8 +282,15 @@ void CallSbPlayerWriteSamples(
         audio_sample_infos.emplace_back(source.audio_sample_info);
         audio_sample_infos.back().ConvertTo(
             &sample_infos.back().audio_sample_info);
+        if (!discarded_durations_from_front.empty()) {
+          sample_infos.back().audio_sample_info.discarded_duration_from_front =
+              discarded_durations_from_front[i];
+        }
+        if (!discarded_durations_from_back.empty()) {
+          sample_infos.back().audio_sample_info.discarded_duration_from_back =
+              discarded_durations_from_back[i];
+        }
       } else {
-        SB_DCHECK(sample_type == kSbMediaTypeVideo);
         video_sample_infos.emplace_back(source.video_sample_info);
         video_sample_infos.back().ConvertTo(
             &sample_infos.back().video_sample_info);
@@ -285,6 +307,17 @@ void CallSbPlayerWriteSamples(
   for (int i = 0; i < number_of_samples_to_write; ++i) {
     sample_infos.push_back(
         dmp_reader->GetPlayerSampleInfo(sample_type, start_index++));
+    sample_infos.back().timestamp += timestamp_offset;
+#if SB_API_VERSION >= 15
+    if (!discarded_durations_from_front.empty()) {
+      sample_infos.back().audio_sample_info.discarded_duration_from_front =
+          discarded_durations_from_front[i];
+    }
+    if (!discarded_durations_from_back.empty()) {
+      sample_infos.back().audio_sample_info.discarded_duration_from_back =
+          discarded_durations_from_back[i];
+    }
+#endif  // SB_API_VERSION >= 15
   }
 #if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos.data(),
@@ -323,6 +356,14 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
     SbDrmDestroySystem(param.drm_system);
   }
   return supported;
+}
+
+bool IsPartialAudioSupported() {
+#if SB_API_VERSION >= 15
+  return true;
+#else   // SB_API_VERSION >= 15
+  return SbSystemGetExtension(kCobaltExtensionEnhancedAudioName) != nullptr;
+#endif  // SB_API_VERSION >= 15
 }
 
 }  // namespace nplb
