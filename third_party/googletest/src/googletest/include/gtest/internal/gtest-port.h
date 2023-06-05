@@ -1006,11 +1006,14 @@ class GTEST_API_ GTestLog {
 };
 
 #if !defined(GTEST_LOG_)
-
+#if GTEST_OS_STARBOARD
+#define GTEST_LOG_ SB_LOG
+#else
 #define GTEST_LOG_(severity)                                           \
   ::testing::internal::GTestLog(::testing::internal::GTEST_##severity, \
                                 __FILE__, __LINE__)                    \
       .GetStream()
+#endif
 
 inline void LogToStderr() {}
 #if GTEST_OS_STARBOARD
