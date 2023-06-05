@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(final_executable_type, "starboard_glclear_example") {
-  sources = [ "main.cc" ]
-  deps = [ "//starboard" ]
-}
+is_default_toolchain = current_toolchain == default_toolchain
+is_starboard_toolchain = current_toolchain == starboard_toolchain
+is_cobalt_toolchain = current_toolchain == cobalt_toolchain
+is_host_toolchain = current_toolchain == host_toolchain
+
+# Toolchains using Starboard tools, not native tools.
+is_starboardized_toolchain = is_starboard_toolchain || is_default_toolchain

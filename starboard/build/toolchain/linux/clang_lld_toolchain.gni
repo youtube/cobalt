@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(final_executable_type, "starboard_glclear_example") {
-  sources = [ "main.cc" ]
-  deps = [ "//starboard" ]
+import("//build/toolchain/gcc_toolchain.gni")
+
+template("clang_lld_toolchain") {
+  not_needed(invoker, "*")
+
+  gcc_toolchain(target_name) {
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cc = "$prefix/clang"
+    cxx = "$prefix/clang++"
+    ld = "$prefix/ld.lld"
+    ar = "$prefix/llvm-ar"
+    nm = "nm"
+
+    toolchain_args = {
+      is_clang = true
+    }
+  }
 }
