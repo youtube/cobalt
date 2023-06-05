@@ -35,8 +35,8 @@ typedef struct CobaltExtensionPlatformInfoApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // Returns details about the device firmware version. This can be something
-  // like Android build fingerprint (go/android-build-fingerprint).
+  // Returns details about the device firmware version. On Android, this will
+  // be the Android build fingerprint (go/android-build-fingerprint).
   bool (*GetFirmwareVersionDetails)(char* out_value, int value_length);
 
   // Returns the OS experience. (e.g. Amati or Watson on an Android device).

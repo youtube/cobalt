@@ -22,8 +22,8 @@ dictionary CobaltUADataValues : UADataValues {
   DOMString evergreenType;
   DOMString evergreenFileType;
   DOMString evergreenVersion;
-  DOMString firmwareVersionDetails;
-  DOMString osExperience;
+  DOMString androidBuildFingerprint;
+  DOMString androidOsExperience;
   DOMString starboardVersion;
   DOMString originalDesignManufacturer;
   DOMString deviceType;
