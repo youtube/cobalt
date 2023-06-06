@@ -22,7 +22,6 @@ import logging
 import os
 import pathlib
 import subprocess
-import sys
 
 from starboard.build import clang
 from starboard.tools import build
@@ -97,7 +96,7 @@ def _generate_reports(target_paths, merged_data_path, report_dir, report_type):
     ]
     subprocess.check_call(show_cmd_list, text=True)
 
-  if report_type in ['text', 'both']:
+  if report_type in ['gcov', 'both']:
     logging.info('Creating text coverage report')
     report_cmd_list = [
         llvm_cov, 'show', *exclude_opts, '-instr-profile=' + merged_data_path,
@@ -136,13 +135,8 @@ def create_report(binary_dir, test_binaries, coverage_dir, report_type='both'):
   _generate_reports(target_paths, merged_data_path, report_dir, report_type)
 
 
-if __name__ == '__main__':
+def main():
   SetupDefaultLoggingConfig()
-
-  def report_type_checker(param):
-    if param not in ['text', 'html', 'both']:
-      raise argparse.ArgumentTypeError('invalid value: ' + param)
-    return param
 
   arg_parser = argparse.ArgumentParser()
   arg_parser.add_argument(
@@ -160,15 +154,30 @@ if __name__ == '__main__':
       default=[],
       help='List of test binaries that should be used for the coverage report. '
       'If not passed all coverage files in --coverage_dir will be used.')
-  arg_parser.add_argument(
-      '--report_type',
-      type=report_type_checker,
-      default='both',
-      help='Specifies the report type to create. Must be one of \'html\', '
-      '\'text\', or \'both\'. Default is \'both\'.')
+
+  report_type_group = arg_parser.add_mutually_exclusive_group()
+  report_type_group.add_argument(
+      '--html_only',
+      action='store_true',
+      help='If passed only the html report will be created. Can not be used '
+      'with --gcov_only.')
+  report_type_group.add_argument(
+      '--gcov_only',
+      action='store_true',
+      help='If passed only the gcov report will be created. Can not be used '
+      'with --html_only.')
 
   args = arg_parser.parse_args()
 
-  sys.exit(
-      create_report(args.binaries_dir, args.targets, args.coverage_dir,
-                    args.report_type))
+  report_type = 'both'
+  if args.html_only:
+    report_type = 'html'
+  elif args.gcov_only:
+    report_type = 'gcov'
+
+  create_report(args.binaries_dir, args.test_binaries, args.coverage_dir,
+                report_type)
+
+
+if __name__ == '__main__':
+  main()
