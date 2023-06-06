@@ -591,6 +591,8 @@ class MediaCodecBridge {
       int width,
       int height,
       int fps,
+      int maxWidth,
+      int maxHeight,
       Surface surface,
       MediaCrypto crypto,
       ColorInfo colorInfo,
@@ -671,19 +673,33 @@ class MediaCodecBridge {
       Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
     }
 
-    int maxWidth = videoCapabilities.getSupportedWidths().getUpper();
-    int maxHeight = videoCapabilities.getSupportedHeights().getUpper();
-    if (fps > 0) {
-      if (!videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
-        if (maxHeight >= 4320 && videoCapabilities.areSizeAndRateSupported(7680, 4320, fps)) {
-          maxWidth = 7680;
-          maxHeight = 4320;
-        } else if (maxHeight >= 2160
-            && videoCapabilities.areSizeAndRateSupported(3840, 2160, fps)) {
+    if (maxWidth <= 0 || maxHeight <= 0) {
+      maxWidth = videoCapabilities.getSupportedWidths().getUpper();
+      maxHeight = videoCapabilities.getSupportedHeights().getUpper();
+      if (fps > 0) {
+        if (!videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
+          if (maxHeight >= 4320 && videoCapabilities.areSizeAndRateSupported(7680, 4320, fps)) {
+            maxWidth = 7680;
+            maxHeight = 4320;
+          } else if (maxHeight >= 2160
+              && videoCapabilities.areSizeAndRateSupported(3840, 2160, fps)) {
+            maxWidth = 3840;
+            maxHeight = 2160;
+          } else if (maxHeight >= 1080
+              && videoCapabilities.areSizeAndRateSupported(1920, 1080, fps)) {
+            maxWidth = 1920;
+            maxHeight = 1080;
+          } else {
+            Log.e(TAG, "Failed to find a compatible resolution");
+            maxWidth = 1920;
+            maxHeight = 1080;
+          }
+        }
+      } else {
+        if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
           maxWidth = 3840;
           maxHeight = 2160;
-        } else if (maxHeight >= 1080
-            && videoCapabilities.areSizeAndRateSupported(1920, 1080, fps)) {
+        } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
           maxWidth = 1920;
           maxHeight = 1080;
         } else {
@@ -692,18 +708,10 @@ class MediaCodecBridge {
           maxHeight = 1080;
         }
       }
+
+      Log.i(TAG, "Set maxWidth and maxHeight to (%d, %d)", maxWidth, maxHeight);
     } else {
-      if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
-        maxWidth = 3840;
-        maxHeight = 2160;
-      } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
-        maxWidth = 1920;
-        maxHeight = 1080;
-      } else {
-        Log.e(TAG, "Failed to find a compatible resolution");
-        maxWidth = 1920;
-        maxHeight = 1080;
-      }
+      Log.i(TAG, "Using default maxWidth and maxHeight (%d, %d)", maxWidth, maxHeight);
     }
 
     if (!bridge.configureVideo(

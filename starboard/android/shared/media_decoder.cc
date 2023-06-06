@@ -105,6 +105,8 @@ MediaDecoder::MediaDecoder(Host* host,
                            SbMediaVideoCodec video_codec,
                            int width,
                            int height,
+                           optional<int> max_width,
+                           optional<int> max_height,
                            int fps,
                            jobject j_output_surface,
                            SbDrmSystem drm_system,
@@ -128,7 +130,8 @@ MediaDecoder::MediaDecoder(Host* host,
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      video_codec, width, height, fps, this, j_output_surface, j_media_crypto,
+      video_codec, width, height, fps, max_width.value_or(0),
+      max_height.value_or(0), this, j_output_surface, j_media_crypto,
       color_metadata, require_secured_decoder, require_software_codec,
       tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
       force_improved_support_check, error_message);

@@ -72,6 +72,13 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return false;
     }
 
+    // Allow the web app to explicitly enable/disable software decoders.
+    if (!mime_type->ValidateStringParameter(
+            "softwaredecoder",
+            "allowed|disallowed|preferred|unpreferred|required")) {
+      return false;
+    }
+
     // Forces the use of specific Android APIs (isSizeSupported() and
     // areSizeAndRateSupported()) to determine format support.
     if (!mime_type->ValidateBoolParameter("forceimprovedsupportcheck")) {

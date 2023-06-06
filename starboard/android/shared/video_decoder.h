@@ -127,8 +127,10 @@ class VideoDecoder
   ErrorCB error_cb_;
   DrmSystem* drm_system_;
   const SbPlayerOutputMode output_mode_;
-  SbDecodeTargetGraphicsContextProvider*
+  SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
+  const std::string max_video_capabilities_;
+
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
   // Google's software decoders can work concurrently. So, we use HW decoder for

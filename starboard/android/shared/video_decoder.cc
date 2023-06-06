@@ -34,6 +34,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/string.h"
 #include "starboard/thread.h"
@@ -44,11 +45,89 @@ namespace shared {
 
 namespace {
 
+using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoRenderAlgorithmBase =
     ::starboard::shared::starboard::player::filter::VideoRenderAlgorithm;
 using std::placeholders::_1;
 using std::placeholders::_2;
+
+bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
+  if (max_video_capabilities.empty()) {
+    return false;
+  }
+
+  // `max_video_capabilities_` is in the form of mime type attributes, like
+  // "width=1920; height=1080; ...".  Prepend valid mime type/subtype and codecs
+  // so it can be parsed by MimeType.
+  MimeType mime_type("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
+  if (!mime_type.is_valid()) {
+    return false;
+  }
+
+  std::string software_decoder_expectation =
+      mime_type.GetParamStringValue("softwaredecoder", "");
+  if (software_decoder_expectation == "required" ||
+      software_decoder_expectation == "preferred") {
+    return true;
+  } else if (software_decoder_expectation == "disallowed" ||
+             software_decoder_expectation == "unpreferred") {
+    return false;
+  }
+
+  bool is_low_resolution = mime_type.GetParamIntValue("width", 1920) <= 432 &&
+                           mime_type.GetParamIntValue("height", 1080) <= 240;
+  bool is_low_fps = mime_type.GetParamIntValue("fps", 30) <= 15;
+  // Workaround to be compatible with existing backend implementation.
+  return is_low_resolution && is_low_fps;
+}
+
+void ParseMaxResolution(const std::string& max_video_capabilities,
+                        int window_width,
+                        int window_height,
+                        optional<int>* max_width,
+                        optional<int>* max_height) {
+  SB_DCHECK(window_width > 0);
+  SB_DCHECK(window_height > 0);
+  SB_DCHECK(max_width);
+  SB_DCHECK(max_height);
+
+  *max_width = nullopt;
+  *max_height = nullopt;
+
+  if (max_video_capabilities.empty()) {
+    return;
+  }
+
+  // `max_video_capabilities_` is in the form of mime type attributes, like
+  // "width=1920; height=1080; ...".  Prepend valid mime type/subtype and codecs
+  // so it can be parsed by MimeType.
+  MimeType mime_type("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
+  if (!mime_type.is_valid()) {
+    return;
+  }
+
+  int width = mime_type.GetParamIntValue("width", -1);
+  int height = mime_type.GetParamIntValue("height", -1);
+  if (width <= 0 && height <= 0) {
+    return;
+  }
+  if (width != -1 && height != -1) {
+    *max_width = width;
+    *max_height = height;
+    return;
+  }
+  if (width > 0) {
+    *max_width = width;
+    *max_height = max_width->value() * height / width;
+    return;
+  }
+  if (height > 0) {
+    *max_height = height;
+    *max_width = max_height->value() * width / height;
+    return;
+  }
+}
 
 class VideoFrameImpl : public VideoFrame {
  public:
@@ -235,12 +314,13 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
+      max_video_capabilities_(max_video_capabilities),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
-      require_software_codec_(!max_video_capabilities.empty()),
+      require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       force_improved_support_check_(force_improved_support_check),
       number_of_preroll_frames_(kInitialPrerollFrameCount) {
@@ -555,8 +635,8 @@ bool VideoDecoder::InitializeCodec(std::string* error_message) {
     return false;
   }
 
-  int width, height;
-  if (!GetVideoWindowSize(&width, &height)) {
+  int window_width, window_height;
+  if (!GetVideoWindowSize(&window_width, &window_height)) {
     *error_message =
         "Can't initialize the codec since we don't have a video window.";
     SB_LOG(ERROR) << *error_message;
@@ -570,10 +650,14 @@ bool VideoDecoder::InitializeCodec(std::string* error_message) {
   } else {
     SB_DCHECK(video_fps_ == 0);
   }
+
+  optional<int> max_width, max_height;
+  ParseMaxResolution(max_video_capabilities_, window_width, window_height,
+                     &max_width, &max_height);
   media_decoder_.reset(new MediaDecoder(
-      this, video_codec_, width, height, video_fps_, j_output_surface,
-      drm_system_, color_metadata_ ? &*color_metadata_ : nullptr,
-      require_software_codec_,
+      this, video_codec_, window_width, window_height, max_width, max_height,
+      video_fps_, j_output_surface, drm_system_,
+      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnTunnelModeFrameRendered, this, _1),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
       force_improved_support_check_, error_message));

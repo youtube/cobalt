@@ -208,6 +208,11 @@ GURL GetInitialURL(bool should_preload) {
   GURL initial_url = GURL(kDefaultURL);
   // Allow the user to override the default URL via a command line parameter.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line) {
+    return GURL(
+        "https://storage.googleapis.com/xiaomings-cobalt-test-public/"
+        "multi-encrypted-video.html");
+  }
   if (command_line->HasSwitch(switches::kInitialURL)) {
     std::string url_switch =
         command_line->GetSwitchValueASCII(switches::kInitialURL);
