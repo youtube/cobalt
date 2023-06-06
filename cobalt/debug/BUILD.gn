@@ -17,6 +17,8 @@ static_library("debug") {
   sources = [
     "backend/agent_base.cc",
     "backend/agent_base.h",
+    "backend/cobalt_agent.cc",
+    "backend/cobalt_agent.h",
     "backend/command_map.h",
     "backend/css_agent.cc",
     "backend/css_agent.h",
