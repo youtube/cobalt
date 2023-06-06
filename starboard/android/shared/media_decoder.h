@@ -84,6 +84,8 @@ class MediaDecoder
                SbMediaVideoCodec video_codec,
                int width,
                int height,
+               optional<int> max_width,
+               optional<int> max_height,
                int fps,
                jobject j_output_surface,
                SbDrmSystem drm_system,

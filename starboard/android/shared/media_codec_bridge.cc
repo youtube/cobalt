@@ -218,6 +218,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     int width,
     int height,
     int fps,
+    optional<int> max_width,
+    optional<int> max_height,
     Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
@@ -229,6 +231,9 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     bool force_improved_support_check,
     std::string* error_message) {
   SB_DCHECK(error_message);
+  SB_DCHECK(max_width.has_engaged() == max_height.has_engaged());
+  SB_DCHECK(max_width.value_or(1920) > 0);
+  SB_DCHECK(max_height.value_or(1080) > 0);
 
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
@@ -310,16 +315,16 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       new MediaCodecBridge(handler));
   env->CallStaticVoidMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
-      "(JLjava/lang/String;Ljava/lang/String;IIILandroid/view/Surface;"
+      "(JLjava/lang/String;Ljava/lang/String;IIIIILandroid/view/Surface;"
       "Landroid/media/MediaCrypto;"
       "Ldev/cobalt/media/MediaCodecBridge$ColorInfo;"
       "I"
       "Ldev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult;)"
       "V",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
-      j_decoder_name.Get(), width, height, fps, j_surface, j_media_crypto,
-      j_color_info.Get(), tunnel_mode_audio_session_id,
-      j_create_media_codec_bridge_result.Get());
+      j_decoder_name.Get(), width, height, fps, max_width.value_or(-1),
+      max_height.value_or(-1), j_surface, j_media_crypto, j_color_info.Get(),
+      tunnel_mode_audio_session_id, j_create_media_codec_bridge_result.Get());
 
   jobject j_media_codec_bridge = env->CallObjectMethodOrAbort(
       j_create_media_codec_bridge_result.Get(), "mediaCodecBridge",
