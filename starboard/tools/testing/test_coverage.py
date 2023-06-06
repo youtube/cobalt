@@ -59,7 +59,7 @@ def _get_test_binary_paths(binaries_dir, test_binaries, coverage_dir):
 
 
 def _get_exclude_opts():
-  """Get list of exclude options,"""
+  """Get list of exclude options."""
   # TODO(oxv): This requires the script to be invoked from the source root.
   all_dirs = next(os.walk(os.getcwd()))[1]
   # TODO(oxv): Make configurable?
@@ -85,9 +85,9 @@ def _generate_reports(target_paths, merged_data_path, report_dir, report_type):
   llvm_cov = os.path.join(toolchain_dir, 'llvm-cov')
 
   exclude_opts = _get_exclude_opts()
-
   test_binary_opts = [target_paths[0]] + \
     ['-object=' + target for target in target_paths[1:]]
+
   if report_type in ['html', 'both']:
     logging.info('Creating html coverage report')
     show_cmd_list = [
@@ -130,7 +130,7 @@ def create_report(binary_dir, test_binaries, coverage_dir, report_type='both'):
   """Generate source code coverage reports."""
   merged_data_path = _merge_coverage_data(test_binaries, coverage_dir)
 
-  # TODO(oxv): Make configurable?
+  # TODO(oxv): Make report_dir configurable?
   report_dir = coverage_dir
   target_paths = _get_test_binary_paths(binary_dir, test_binaries, coverage_dir)
   _generate_reports(target_paths, merged_data_path, report_dir, report_type)
