@@ -36,6 +36,7 @@ interface H5vcc {
   readonly attribute H5vccAudioConfigArray audioConfig;
   readonly attribute H5vccCrashLog crashLog;
   readonly attribute CValView cVal;
+  readonly attribute H5vccMetrics metrics;
   readonly attribute H5vccRuntime runtime;
   readonly attribute H5vccSettings settings;
   readonly attribute H5vccStorage storage;
