@@ -32,15 +32,21 @@ from starboard.tools.util import SetupDefaultLoggingConfig
 def _get_raw_reports(test_binaries, coverage_dir):
   """Get a list of raw coverage reports from the coverage directory."""
   raw_reports = []
+  missing_reports = []
   for target in test_binaries:
     # Find coverage reports from the supplied test binaries.
     profraw_file = os.path.join(coverage_dir, target + '.profraw')
     if not os.path.isfile(profraw_file):
-      raise RuntimeError(f'Missing coverage report file: \'{profraw_file}\'')
-    raw_reports.append(profraw_file)
+      missing_reports.append(profraw_file)
+    else:
+      raw_reports.append(profraw_file)
   else:
     # If no test binaries were supplied we use all coverage data we find.
     raw_reports = glob.glob(os.path.join(coverage_dir, '*.profraw'))
+
+  if missing_reports:
+    logging.error('Unable to find the following coverage files: %s.',
+                  ', '.join(missing_reports))
   return raw_reports
 
 
