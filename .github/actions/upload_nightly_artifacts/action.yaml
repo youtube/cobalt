@@ -1,6 +1,7 @@
 name: Upload Nightly Artifacts
 description: Archives and uploads nightly artifacts to GCS bucket.
 runs:
+
   using: "composite"
   steps:
     - name: Set up Cloud SDK
