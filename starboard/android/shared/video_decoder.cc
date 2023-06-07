@@ -1107,7 +1107,7 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 }
 
 void VideoDecoder::OnVideoFrameRelease() {
-  if (output_format_) {
+  if (output_format_ || buffered_output_frames_ > 0) {
     --buffered_output_frames_;
     SB_DCHECK(buffered_output_frames_ >= 0);
   }
