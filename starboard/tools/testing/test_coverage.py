@@ -27,6 +27,9 @@ from starboard.build import clang
 from starboard.tools import build
 from starboard.tools.util import SetupDefaultLoggingConfig
 
+SRC_DIR = os.path.join(
+    os.path.dirname(__file__), os.pardir, os.pardir, os.pardir)
+
 
 def _get_raw_reports(test_binaries, coverage_dir):
   """Get a list of raw coverage reports from the coverage directory."""
@@ -59,8 +62,8 @@ def _get_test_binary_paths(binaries_dir, test_binaries, coverage_dir):
 
 def _get_exclude_opts():
   """Get list of exclude options."""
-  # TODO(oxv): This requires the script to be invoked from the source root.
-  all_dirs = next(os.walk(os.getcwd()))[1]
+  # Get a list of all directories in the src root.
+  all_dirs = next(os.walk(SRC_DIR))[1]
   # TODO(oxv): Make configurable?
   include_dirs = ['cobalt', 'starboard']
   exclude_dirs = [d for d in all_dirs if d not in include_dirs]
@@ -97,7 +100,7 @@ def _generate_reports(target_paths, merged_data_path, report_dir, report_type):
     subprocess.check_call(show_cmd_list, text=True)
 
   if report_type in ['gcov', 'both']:
-    logging.info('Creating text coverage report')
+    logging.info('Creating gcov coverage report')
     report_cmd_list = [
         llvm_cov, 'show', *exclude_opts, '-instr-profile=' + merged_data_path,
         '-format=text', *test_binary_opts
