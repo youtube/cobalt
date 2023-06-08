@@ -65,10 +65,10 @@ service-worker/fetch-event-is-reload-navigation-manual.https.html, DISABLE
 # b/265841607 Unhandled rejection with value: object "TypeError"
 service-worker/same-site-cookies.https.html, DISABLE
 
-# b/265844662
+# b/265844662 Expected false, got true
 service-worker/interface-requirements-sw.https.html, DISABLE
 
-# b/265847846
+# b/265847846 SecurityError Reached unreachable code
 service-worker/navigate-window.https.html, DISABLE
 
 # b/267230419 Error type incorrect
