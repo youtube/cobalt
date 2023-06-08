@@ -1678,9 +1678,9 @@ void ServiceWorkerJobs::UpdateRegistrationState(
       // 2.2. For each registrationObject in registrationObjects:
       for (auto& context : web_context_registrations_) {
         // 2.2.1. Queue a task to...
-        context->message_loop()->task_runner()->PostTask(
+        context->message_loop()->task_runner()->PostBlockingTask(
             FROM_HERE,
-            base::BindOnce(
+            base::Bind(
                 [](web::Context* context,
                    ServiceWorkerRegistrationObject* registration) {
                   // 2.2.1. ... set the installing attribute of
@@ -1708,9 +1708,9 @@ void ServiceWorkerJobs::UpdateRegistrationState(
       // 3.2. For each registrationObject in registrationObjects:
       for (auto& context : web_context_registrations_) {
         // 3.2.1. Queue a task to...
-        context->message_loop()->task_runner()->PostTask(
+        context->message_loop()->task_runner()->PostBlockingTask(
             FROM_HERE,
-            base::BindOnce(
+            base::Bind(
                 [](web::Context* context,
                    ServiceWorkerRegistrationObject* registration) {
                   // 3.2.1. ... set the waiting attribute of registrationObject
@@ -1736,9 +1736,9 @@ void ServiceWorkerJobs::UpdateRegistrationState(
       // 4.2. For each registrationObject in registrationObjects:
       for (auto& context : web_context_registrations_) {
         // 4.2.1. Queue a task to...
-        context->message_loop()->task_runner()->PostTask(
+        context->message_loop()->task_runner()->PostBlockingTask(
             FROM_HERE,
-            base::BindOnce(
+            base::Bind(
                 [](web::Context* context,
                    ServiceWorkerRegistrationObject* registration) {
                   // 4.2.1. ... set the active attribute of registrationObject
@@ -1786,34 +1786,31 @@ void ServiceWorkerJobs::UpdateWorkerState(ServiceWorkerObject* worker,
       // 4. ... queue a task on
       //    settingsObject's responsible event loop in the DOM manipulation task
       //    source to run the following steps:
-      context->message_loop()->task_runner()->PostTask(
-          FROM_HERE,
-          base::BindOnce(
-              [](web::Context* context, ServiceWorkerObject* worker,
-                 ServiceWorkerState state) {
-                DCHECK_EQ(context->message_loop(),
-                          base::MessageLoop::current());
-                // 4.1. Let objectMap be settingsObject's service worker object
-                //      map.
-                // 4.2. If objectMap[worker] does not exist, then abort these
-                //      steps.
-                // 4.3. Let  workerObj be objectMap[worker].
-                auto worker_obj = context->LookupServiceWorker(worker);
-                if (worker_obj) {
-                  // 4.4. Set workerObj's state to state.
-                  worker_obj->set_state(state);
-                  // 4.5. Fire an event named statechange at workerObj.
-                  context->message_loop()->task_runner()->PostTask(
-                      FROM_HERE,
-                      base::BindOnce(
-                          [](scoped_refptr<ServiceWorker> worker_obj) {
-                            worker_obj->DispatchEvent(
-                                new web::Event(base::Tokens::statechange()));
-                          },
-                          worker_obj));
-                }
-              },
-              context, base::Unretained(worker), state));
+      context->message_loop()->task_runner()->PostBlockingTask(
+          FROM_HERE, base::Bind(
+                         [](web::Context* context, ServiceWorkerObject* worker,
+                            ServiceWorkerState state) {
+                           DCHECK_EQ(context->message_loop(),
+                                     base::MessageLoop::current());
+                           // 4.1. Let objectMap be settingsObject's service
+                           // worker object
+                           //      map.
+                           // 4.2. If objectMap[worker] does not exist, then
+                           // abort these
+                           //      steps.
+                           // 4.3. Let  workerObj be objectMap[worker].
+                           auto worker_obj =
+                               context->LookupServiceWorker(worker);
+                           if (worker_obj) {
+                             // 4.4. Set workerObj's state to state.
+                             worker_obj->set_state(state);
+                             // 4.5. Fire an event named statechange at
+                             // workerObj.
+                             worker_obj->DispatchEvent(
+                                 new web::Event(base::Tokens::statechange()));
+                           }
+                         },
+                         context, base::Unretained(worker), state));
     }
   }
 }
