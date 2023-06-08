@@ -87,6 +87,7 @@ _TESTS_NO_SIGNAL = [
     'service_worker_fetch_main_resource_test',
     'service_worker_fetch_test',
     'service_worker_message_test',
+    'service_worker_post_message_test',
     'service_worker_test',
     'service_worker_persist_test',
     'soft_mic_platform_service_test',
@@ -96,6 +97,7 @@ _TESTS_NO_SIGNAL = [
     'web_worker_test',
     'worker_csp_test',
     'worker_load_test',
+    'worker_post_message_test',
 ]
 # These are very different and require a custom config + proxy
 _WPT_TESTS = [

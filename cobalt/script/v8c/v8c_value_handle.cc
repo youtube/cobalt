@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/script/v8c/v8c_value_handle.h"
+
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "cobalt/script/v8c/v8c_value_handle.h"
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
@@ -122,39 +122,84 @@ v8::Local<v8::Value> GetV8Value(const ValueHandleHolder& value) {
   return v8_value_handle_holder->v8_value();
 }
 
-ValueHandleHolder* DeserializeScriptValue(v8::Isolate* isolate,
-                                          const DataBuffer& data_buffer) {
+StructuredClone::StructuredClone(const ValueHandleHolder& value) {
+  deserialize_failed_ = false;
+  isolate_ = GetIsolate(value);
+  v8c::EntryScope entry_scope(isolate_);
+  v8::Local<v8::Value> v8_value = GetV8Value(value);
+  v8::ValueSerializer serializer(isolate_, this);
+  bool wrote_value;
+  if (!serializer.WriteValue(isolate_->GetCurrentContext(), v8_value)
+           .To(&wrote_value) ||
+      !wrote_value) {
+    serialize_failed_ = true;
+    return;
+  }
+  std::pair<uint8_t*, size_t> pair = serializer.Release();
+  data_buffer_ =
+      std::make_unique<DataBuffer>(std::move(pair.first), pair.second);
+  serialize_failed_ = false;
+}
+
+Handle<ValueHandle> StructuredClone::Deserialize(v8::Isolate* isolate) {
+  if (!deserialized_.IsEmpty()) {
+    return deserialized_;
+  }
+  if (failed()) {
+    return Handle<ValueHandle>();
+  }
+  DCHECK(isolate);
+  DCHECK(data_buffer_);
+  if (!data_buffer_ || !isolate) {
+    return Handle<ValueHandle>();
+  }
   v8::EscapableHandleScope scope(isolate);
   v8::TryCatch try_catch(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-
-  v8::ValueDeserializer deserializer(isolate, data_buffer.ptr.get(),
-                                     data_buffer.size);
+  v8::ValueDeserializer deserializer(isolate, data_buffer_->ptr.get(),
+                                     data_buffer_->size, this);
   v8::Local<v8::Value> value;
   if (!deserializer.ReadValue(context).ToLocal(&value)) {
-    return nullptr;
+    LOG(WARNING) << v8c::V8cGlobalEnvironment::ExceptionToString(isolate,
+                                                                 try_catch);
+    deserialize_failed_ = true;
+    return Handle<ValueHandle>();
   }
-  script::v8c::V8cExceptionState exception_state(isolate);
-  auto* holder = new script::v8c::V8cValueHandleHolder();
-  FromJSValue(isolate, scope.Escape(value), script::v8c::kNoConversionFlags,
-              &exception_state, holder);
-  return holder;
+  data_buffer_.reset();
+  backing_stores_.clear();
+  v8c::V8cExceptionState exception_state(isolate);
+  auto* deserialized = new v8c::V8cValueHandleHolder();
+  FromJSValue(isolate, scope.Escape(value), v8c::kNoConversionFlags,
+              &exception_state, deserialized);
+  if (exception_state.is_exception_set()) {
+    deserialize_failed_ = true;
+    return Handle<ValueHandle>();
+  }
+  deserialized_ = Handle<ValueHandle>(deserialized);
+  return deserialized_;
 }
 
-std::unique_ptr<DataBuffer> SerializeScriptValue(
-    const ValueHandleHolder& value) {
-  v8::Isolate* isolate = GetIsolate(value);
-  script::v8c::EntryScope entry_scope(isolate);
-  v8::Local<v8::Value> v8_value = GetV8Value(value);
-  v8::ValueSerializer serializer(isolate);
-  bool wrote_value;
-  if (!serializer.WriteValue(isolate->GetCurrentContext(), v8_value)
-           .To(&wrote_value) ||
-      !wrote_value) {
-    return nullptr;
+v8::Maybe<uint32_t> StructuredClone::GetSharedArrayBufferId(
+    v8::Isolate* isolate,
+    v8::Local<v8::SharedArrayBuffer> shared_array_buffer) {
+  auto backing_store = shared_array_buffer->GetBackingStore();
+  for (size_t index = 0; index < backing_stores_.size(); ++index) {
+    if (backing_stores_[index] == backing_store) {
+      return v8::Just<uint32_t>(static_cast<uint32_t>(index));
+    }
   }
-  std::pair<uint8_t*, size_t> pair = serializer.Release();
-  return std::make_unique<DataBuffer>(std::move(pair.first), pair.second);
+  backing_stores_.push_back(backing_store);
+  return v8::Just<uint32_t>(backing_stores_.size() - 1);
+}
+
+v8::MaybeLocal<v8::SharedArrayBuffer>
+StructuredClone::GetSharedArrayBufferFromId(v8::Isolate* isolate,
+                                            uint32_t clone_id) {
+  if (clone_id < backing_stores_.size()) {
+    return v8::SharedArrayBuffer::New(isolate,
+                                      std::move(backing_stores_.at(clone_id)));
+  }
+  return v8::MaybeLocal<v8::SharedArrayBuffer>();
 }
 
 }  // namespace script

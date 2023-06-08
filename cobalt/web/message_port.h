@@ -53,7 +53,8 @@ class MessagePort : public script::Wrappable,
   // -> void PostMessage(const script::ValueHandleHolder& message,
   //                     script::Sequence<script::ValueHandle*> transfer) {}
   void PostMessage(const script::ValueHandleHolder& message);
-  void PostMessageSerialized(std::unique_ptr<script::DataBuffer> data_buffer);
+  void PostMessageSerialized(
+      std::unique_ptr<script::StructuredClone> structured_clone);
 
   void Start() {}
   void Close();
@@ -95,7 +96,8 @@ class MessagePort : public script::Wrappable,
   DEFINE_WRAPPABLE_TYPE(MessagePort);
 
  private:
-  void DispatchMessage(std::unique_ptr<script::DataBuffer> data_buffer);
+  void DispatchMessage(
+      std::unique_ptr<script::StructuredClone> structured_clone);
 
   // The event target to dispatch events to.
   web::EventTarget* event_target_ = nullptr;
