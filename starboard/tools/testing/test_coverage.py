@@ -62,9 +62,8 @@ def _get_test_binary_paths(binaries_dir, test_binaries, coverage_dir):
 
 def _get_exclude_opts():
   """Get list of exclude options."""
-  # Get a list of all directories in the src root.
+  # Get a list of all directories in the src root and exclude all but our code.
   all_dirs = next(os.walk(SRC_DIR))[1]
-  # TODO(oxv): Make configurable?
   include_dirs = ['cobalt', 'starboard']
   exclude_dirs = [d for d in all_dirs if d not in include_dirs]
   return [
@@ -132,7 +131,6 @@ def create_report(binary_dir, test_binaries, coverage_dir, report_type='both'):
   """Generate source code coverage reports."""
   merged_data_path = _merge_coverage_data(test_binaries, coverage_dir)
 
-  # TODO(oxv): Make report_dir configurable?
   report_dir = coverage_dir
   target_paths = _get_test_binary_paths(binary_dir, test_binaries, coverage_dir)
   _generate_reports(target_paths, merged_data_path, report_dir, report_type)
