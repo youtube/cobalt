@@ -60,7 +60,6 @@ const char kRevealCommandLongHelp[] =
     "Cobalt may be unresponsive in which case you will need to "
     "resume it in a platform-specific way.";
 
-
 const char kQuitCommand[] = "quit";
 const char kQuitCommandShortHelp[] = "Sends a request to stop Cobalt.";
 const char kQuitCommandLongHelp[] =
