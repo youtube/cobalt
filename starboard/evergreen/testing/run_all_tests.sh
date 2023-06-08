@@ -24,8 +24,7 @@ AUTH_METHOD="public-key"
 USE_COMPRESSED_SYSTEM_IMAGE="false"
 SYSTEM_IMAGE_EXTENSION=".so"
 
-# TODO: Enable once the Starboard 16 binaries are published for Evergreen.
-DISABLE_TESTS="true"
+DISABLE_TESTS="false"
 
 while getopts "d:a:c" o; do
     case "${o}" in
