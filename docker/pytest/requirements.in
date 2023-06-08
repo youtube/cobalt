@@ -1,3 +1,7 @@
+# IMPORTANT:
+# In order for requirements.txt to be correct you must follow the
+# playbook entry: go/cobalt/team/...
+
 pytest<8
 coverage<7
 requests==2.25.1
