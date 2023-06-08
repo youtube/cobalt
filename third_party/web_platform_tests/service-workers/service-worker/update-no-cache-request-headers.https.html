@@ -32,10 +32,7 @@ promise_test(async (t) => {
   // Do an update.
   await registration.update();
 
-  // Ask the new worker what the request headers were.
-  // b/234788479 Implement waiting for update worker state tasks in
-  // Install algorithm, otherwise the worker is activated too early
-  const newWorker = get_newest_worker(registration);
+  const newWorker = registration.installing;
   const sawMessage = new Promise((resolve) => {
     navigator.serviceWorker.onmessage = (event) => {
       resolve(event.data);
