@@ -69,6 +69,8 @@ def _get_exclude_opts():
   return [
       r'--ignore-filename-regex=.*_test\.h$',
       r'--ignore-filename-regex=.*_test\.cc$',
+      r'--ignore-filename-regex=.*_tests\.h$',
+      r'--ignore-filename-regex=.*_tests\.cc$',
       r'--ignore-filename-regex=.*_test_fixture\.h$',
       r'--ignore-filename-regex=.*_test_fixture\.cc$',
       r'--ignore-filename-regex=.*_test_internal\.h$',
