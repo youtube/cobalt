@@ -981,8 +981,11 @@ def main():
     run_success = runner.RunAllTests()
 
   if args.coverage_report and coverage_directory:
-    create_report(runner.out_directory, runner.test_targets.keys(),
-                  coverage_directory)
+    if run_success:
+      create_report(runner.out_directory, runner.test_targets.keys(),
+                    coverage_directory)
+    else:
+      logging.warning("Test run failed, skipping code coverage report.")
 
   # If either step has failed, count the whole test run as failed.
   if not build_success or not run_success:
