@@ -982,8 +982,11 @@ def main():
 
   if args.coverage_report and coverage_directory:
     if run_success:
-      create_report(runner.out_directory, runner.test_targets.keys(),
-                    coverage_directory)
+      try:
+        create_report(runner.out_directory, runner.test_targets.keys(),
+                      coverage_directory)
+      except Exception as e:  # pylint: disable=broad-except
+        logging.error("Failed to generate coverage report: %s", e)
     else:
       logging.warning("Test run failed, skipping code coverage report.")
 
