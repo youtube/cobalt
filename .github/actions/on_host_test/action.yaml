@@ -60,11 +60,16 @@ runs:
       run: |
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
         echo "TEST_RESULTS_DIR=${GITHUB_WORKSPACE}/unit-test-results" >> $GITHUB_ENV
+        echo "COVERAGE_DIR=${GITHUB_WORKSPACE}/coverage" >> $GITHUB_ENV
         echo "TEST_REPORT_FILE=${GITHUB_WORKSPACE}/${{matrix.platform}}-${{matrix.shard}}" >> $GITHUB_ENV
     - name: Run Tests
       shell: bash
       run: |
         set -x
+        # Starboard toolchains are downloaded to a different dir on github. Create a symlink to reassure our tooling that everything is fine.
+        if [ -d /root/starboard-toolchains ]; then
+          ln -s /root/starboard-toolchains /github/home/starboard-toolchains
+        fi
         loader_args=''
         if [ "${COBALT_BOOTLOADER}" != "null" ]; then
           loader_args="--loader_platform ${COBALT_BOOTLOADER} --loader_config ${{matrix.config}}"
@@ -77,6 +82,8 @@ runs:
           xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args} --test_set wpt
         elif [[ "${{matrix.shard}}" == 'evergreen' ]]; then
           xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/evergreen_tests/evergreen_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args} --no-can_mount_tmpfs
+        elif [[ "${{matrix.shard}}" == 'coverage' ]]; then
+          xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR} --coverage_dir=${COVERAGE_DIR} --coverage_report
         else
           if [[ "${{inputs.os}}" == 'windows' ]]; then
             python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
@@ -97,3 +104,14 @@ runs:
       with:
         name: unit-test-reports
         path: ${{env.TEST_REPORT_FILE}}
+    - name: Upload coverage html report
+      if: ${{matrix.shard}} == 'coverage'
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: ${{env.COVERAGE_DIR}}/html
+    - name: Upload to Codecov
+      if: ${{matrix.shard}} == 'coverage'
+      uses: codecov/codecov-action@v3
+      with:
+        files: ${{env.COVERAGE_DIR}}/report.txt

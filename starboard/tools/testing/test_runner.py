@@ -27,7 +27,6 @@ import threading
 import traceback
 
 from six.moves import cStringIO as StringIO
-from starboard.build import clang
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
@@ -35,6 +34,7 @@ from starboard.tools import paths
 from starboard.tools.testing import build_tests
 from starboard.tools.testing import test_filter
 from starboard.tools.testing.test_sharding import ShardingTestConfig
+from starboard.tools.testing.test_coverage import create_report
 from starboard.tools.util import SetupDefaultLoggingConfig
 
 # pylint: disable=consider-using-f-string
@@ -223,7 +223,8 @@ class TestRunner(object):
                xml_output_dir=None,
                log_xml_results=False,
                shard_index=None,
-               launcher_args=None):
+               launcher_args=None,
+               coverage_directory=None):
     self.platform = platform
     self.config = config
     self.loader_platform = loader_platform
@@ -237,7 +238,7 @@ class TestRunner(object):
     if not self.out_directory:
       self.out_directory = paths.BuildOutputDirectory(self.platform,
                                                       self.config)
-    self.coverage_directory = os.path.join(self.out_directory, "coverage")
+    self.coverage_directory = coverage_directory
     if (not self.loader_out_directory and self.loader_platform and
         self.loader_config):
       self.loader_out_directory = paths.BuildOutputDirectory(
@@ -439,6 +440,9 @@ class TestRunner(object):
     # For on-device testing, this is w.r.t on device storage.
     test_result_xml_path = None
 
+    # Path to coverage file to generate.
+    coverage_file_path = None
+
     def MakeLauncher():
       logging.info("MakeLauncher(): %s", test_result_xml_path)
       return abstract_launcher.LauncherFactory(
@@ -449,7 +453,7 @@ class TestRunner(object):
           target_params=test_params,
           output_file=write_pipe,
           out_directory=self.out_directory,
-          coverage_directory=self.coverage_directory,
+          coverage_file_path=coverage_file_path,
           env_variables=env,
           test_result_xml_path=test_result_xml_path,
           loader_platform=self.loader_platform,
@@ -485,6 +489,12 @@ class TestRunner(object):
                    test_result_xml_path)
       test_params.append(f"--gtest_output=xml:{test_result_xml_path}")
     logging.info("XML test result path: %s", test_result_xml_path)
+
+    if self.coverage_directory:
+      coverage_file_path = os.path.join(self.coverage_directory,
+                                        target_name + ".profraw")
+      logging.info("Coverage data will be saved to %s",
+                   os.path.relpath(coverage_file_path))
 
     # Turn off color codes from output to make it easy to parse
     test_params.append("--gtest_color=no")
@@ -830,51 +840,6 @@ class TestRunner(object):
         results.append(self._RunTest(test_target))
     return self._ProcessAllTestResults(results)
 
-  def GenerateCoverageReport(self):
-    """Generate the source code coverage report."""
-    available_profraw_files = []
-    available_targets = []
-    for target in sorted(self.test_targets.keys()):
-      profraw_file = os.path.join(self.coverage_directory, target + ".profraw")
-      if os.path.isfile(profraw_file):
-        available_profraw_files.append(profraw_file)
-        available_targets.append(target)
-
-    # If there are no profraw files, then there is no work to do.
-    if not available_profraw_files:
-      return
-
-    toolchain_dir = build.GetClangBinPath(clang.GetClangSpecification())
-
-    report_name = "report"
-    profdata_name = os.path.join(self.coverage_directory,
-                                 report_name + ".profdata")
-    merge_cmd_list = [
-        os.path.join(toolchain_dir, "llvm-profdata"), "merge", "-sparse=true",
-        "-o", profdata_name
-    ]
-    merge_cmd_list += available_profraw_files
-
-    self._Exec(merge_cmd_list)
-    show_cmd_list = [
-        os.path.join(toolchain_dir, "llvm-cov"), "show",
-        "-instr-profile=" + profdata_name, "-format=html",
-        "-output-dir=" + os.path.join(self.coverage_directory, "html"),
-        available_targets[0]
-    ]
-    show_cmd_list += ["-object=" + target for target in available_targets[1:]]
-    self._Exec(show_cmd_list)
-
-    report_cmd_list = [
-        os.path.join(toolchain_dir, "llvm-cov"), "report",
-        "-instr-profile=" + profdata_name, available_targets[0]
-    ]
-    report_cmd_list += ["-object=" + target for target in available_targets[1:]]
-    self._Exec(
-        report_cmd_list,
-        output_file=os.path.join(self.coverage_directory, report_name + ".txt"))
-    return
-
 
 def main():
   SetupDefaultLoggingConfig()
@@ -941,6 +906,17 @@ def main():
       type=int,
       help="The index of the test shard to run. This selects a subset of tests "
       "to run based on the configuration per platform, if it exists.")
+  arg_parser.add_argument(
+      "--coverage_dir",
+      help="If defined, coverage data will be collected in the directory "
+      "specified. This requires the files to have been compiled with clang "
+      "coverage.")
+  arg_parser.add_argument(
+      "--coverage_report",
+      action="store_true",
+      help="If set, a coverage report will be generated if there is available "
+      "coverage information in the directory specified by --coverage_dir."
+      "If --coverage_dir is not passed this parameter is ignored.")
   args = arg_parser.parse_args()
 
   if (args.loader_platform and not args.loader_config or
@@ -961,13 +937,19 @@ def main():
   if args.dry_run:
     launcher_args.append(abstract_launcher.ARG_DRYRUN)
 
+  coverage_directory = None
+  if args.coverage_dir:
+    # Clang needs an absolute path to generate coverage reports.
+    coverage_directory = os.path.abspath(args.coverage_dir)
+
   logging.info("Initializing test runner")
   runner = TestRunner(args.platform, args.config, args.loader_platform,
                       args.loader_config, args.device_id, args.target_name,
                       target_params, args.out_directory,
                       args.loader_out_directory, args.platform_tests_only,
                       args.application_name, args.dry_run, args.xml_output_dir,
-                      args.log_xml_results, args.shard_index, launcher_args)
+                      args.log_xml_results, args.shard_index, launcher_args,
+                      coverage_directory)
   logging.info("Test runner initialized")
 
   def Abort(signum, frame):
@@ -998,7 +980,15 @@ def main():
   if args.run:
     run_success = runner.RunAllTests()
 
-  runner.GenerateCoverageReport()
+  if args.coverage_report and coverage_directory:
+    if run_success:
+      try:
+        create_report(runner.out_directory, runner.test_targets.keys(),
+                      coverage_directory)
+      except Exception as e:  # pylint: disable=broad-except
+        logging.error("Failed to generate coverage report: %s", e)
+    else:
+      logging.warning("Test run failed, skipping code coverage report.")
 
   # If either step has failed, count the whole test run as failed.
   if not build_success or not run_success:
