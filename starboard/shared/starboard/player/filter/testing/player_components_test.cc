@@ -382,6 +382,7 @@ class PlayerComponentsTest
   // working.
   void RenderAndProcessPendingJobs() {
     // Call GetCurrentDecodeTarget() periodically for decode to texture mode.
+    // Or call fake rendering to force renderer go on in punch-out mode.
     if (GetVideoRenderer()) {
 #if SB_HAS(GLES2)
       fake_graphics_context_provider_.RunOnGlesContextThread(
