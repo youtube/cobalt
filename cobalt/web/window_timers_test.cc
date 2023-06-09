@@ -25,6 +25,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/testing/fake_script_value.h"
+#include "cobalt/test/mock_debugger_hooks.h"
 #include "cobalt/web/stat_tracker.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -35,7 +36,6 @@ namespace web {
 
 namespace testing {
 
-using ::testing::_;
 using ::testing::Return;
 
 class MockTimerCallback : public WindowTimers::TimerCallback {
@@ -51,30 +51,6 @@ class MockTimerCallback : public WindowTimers::TimerCallback {
     }
   }
 };
-
-class MockDebuggerHooks : public base::DebuggerHooks {
- public:
-  MOCK_CONST_METHOD2(ConsoleLog, void(::logging::LogSeverity, std::string));
-  MOCK_CONST_METHOD3(AsyncTaskScheduled,
-                     void(const void*, const std::string&, AsyncTaskFrequency));
-  MOCK_CONST_METHOD1(AsyncTaskStarted, void(const void*));
-  MOCK_CONST_METHOD1(AsyncTaskFinished, void(const void*));
-  MOCK_CONST_METHOD1(AsyncTaskCanceled, void(const void*));
-
-  void ExpectAsyncTaskScheduled(int times) {
-    EXPECT_CALL(*this, AsyncTaskScheduled(_, _, _)).Times(times);
-  }
-  void ExpectAsyncTaskStarted(int times) {
-    EXPECT_CALL(*this, AsyncTaskStarted(_)).Times(times);
-  }
-  void ExpectAsyncTaskFinished(int times) {
-    EXPECT_CALL(*this, AsyncTaskFinished(_)).Times(times);
-  }
-  void ExpectAsyncTaskCanceled(int times) {
-    EXPECT_CALL(*this, AsyncTaskCanceled(_)).Times(times);
-  }
-};
-
 }  // namespace testing
 
 namespace {
@@ -99,7 +75,7 @@ class WindowTimersTest : public ::testing::Test,
 
   ~WindowTimersTest() override {}
 
-  testing::MockDebuggerHooks hooks_;
+  test::MockDebuggerHooks hooks_;
   web::StatTracker stat_tracker_;
   std::unique_ptr<WindowTimers> timers_;
   testing::MockTimerCallback mock_timer_callback_;

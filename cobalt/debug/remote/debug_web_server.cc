@@ -102,6 +102,7 @@ DebugWebServer::DebugWebServer(
       // Local address will be set when the web server is successfully started.
       local_address_("Cobalt.Server.DevTools", "<NOT RUNNING>",
                      "Address to connect to for remote debugging.") {
+  LOG(INFO) << "DebugWebServer::DebugWebServer(); IP " << listen_ip;
   // Construct the content root directory to serve files from.
   base::PathService::Get(paths::DIR_COBALT_WEB_ROOT, &content_root_dir_);
   content_root_dir_ = content_root_dir_.AppendASCII(kContentDir);
@@ -118,17 +119,19 @@ DebugWebServer::DebugWebServer(
 }
 
 DebugWebServer::~DebugWebServer() {
+  LOG(INFO) << "DebugWebServer::~DebugWebServer()";
   // Destroy the server on its own thread then stop the thread.
   http_server_thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&DebugWebServer::StopServer, base::Unretained(this)));
   http_server_thread_.Stop();
+  LOG(INFO) << "DebugWebServer::~DebugWebServer() end";
 }
 
 void DebugWebServer::OnHttpRequest(int connection_id,
                                    const net::HttpServerRequestInfo& info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DLOG(INFO) << "Got HTTP request: " << connection_id << ": " << info.path;
+  LOG(INFO) << "Got HTTP request: " << connection_id << ": " << info.path;
 
   // TODO: Requests for / or /json (listing of discoverable pages)
   // currently send static index pages. When the debugger has support to get

@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>
 
-#include "base/message_loop/message_loop.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/debug/backend/cobalt_agent.h"
 #include "cobalt/debug/backend/css_agent.h"
@@ -58,14 +58,6 @@ class DebugModule : public script::ScriptDebugger::Delegate {
               render_tree::ResourceProvider* resource_provider,
               dom::Window* window, DebuggerState* debugger_state);
 
-  // Construct the debug dispatcher on the specified message loop.
-  DebugModule(DebuggerHooksImpl* debugger_hooks,
-              script::GlobalEnvironment* global_environment,
-              RenderOverlay* render_overlay,
-              render_tree::ResourceProvider* resource_provider,
-              dom::Window* window, DebuggerState* debugger_state,
-              base::MessageLoop* message_loop);
-
   virtual ~DebugModule();
 
   DebugDispatcher* debug_dispatcher() const { return debug_dispatcher_.get(); }
@@ -78,39 +70,6 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   std::unique_ptr<DebuggerState> Freeze();
 
  private:
-  // Data used to construct an instance of this class that does not need to be
-  // persisted.
-  struct ConstructionData {
-    ConstructionData(DebuggerHooksImpl* debugger_hooks,
-                     script::GlobalEnvironment* global_environment,
-                     base::MessageLoop* message_loop,
-                     RenderOverlay* render_overlay,
-                     render_tree::ResourceProvider* resource_provider,
-                     dom::Window* window, DebuggerState* debugger_state)
-        : debugger_hooks(debugger_hooks),
-          global_environment(global_environment),
-          message_loop(message_loop),
-          render_overlay(render_overlay),
-          resource_provider(resource_provider),
-          window(window),
-          debugger_state(debugger_state) {}
-
-    DebuggerHooksImpl* debugger_hooks;
-    script::GlobalEnvironment* global_environment;
-    base::MessageLoop* message_loop;
-    RenderOverlay* render_overlay;
-    render_tree::ResourceProvider* resource_provider;
-    dom::Window* window;
-    DebuggerState* debugger_state;
-  };
-
-  // Builds |debug_dispatcher_| on |message_loop_| by calling |BuildInternal|,
-  // posting the task and waiting for it if necessary.
-  void Build(const ConstructionData& data);
-
-  // Signals |created| when done, if not NULL.
-  void BuildInternal(const ConstructionData& data);
-
   // Sends a protocol event to the frontend through |DebugDispatcher|.
   void SendEvent(const std::string& method, const std::string& params);
 
@@ -143,6 +102,8 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   std::unique_ptr<PageAgent> page_agent_;
   std::unique_ptr<ScriptDebuggerAgent> script_debugger_agent_;
   std::unique_ptr<TracingAgent> tracing_agent_;
+
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace backend

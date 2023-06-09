@@ -47,7 +47,7 @@ typedef ResourceCache<ImageResourceCacheType> ImageCache;
 
 // CreateImageCache() provides a mechanism for creating an |ImageCache|.
 inline static std::unique_ptr<ImageCache> CreateImageCache(
-    const std::string& name, const base::DebuggerHooks& debugger_hooks,
+    const std::string& name, base::DebuggerHooks& debugger_hooks,
     uint32 cache_capacity, loader::LoaderFactory* loader_factory) {
   return std::unique_ptr<ImageCache>(
       new ImageCache(name, debugger_hooks, cache_capacity,
