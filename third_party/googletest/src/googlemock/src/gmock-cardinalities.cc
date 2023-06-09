@@ -33,7 +33,9 @@
 
 #include "gmock/gmock-cardinalities.h"
 
+#if !GTEST_OS_STARBOARD
 #include <limits.h>
+#endif
 
 #include <ostream>  // NOLINT
 #include <sstream>

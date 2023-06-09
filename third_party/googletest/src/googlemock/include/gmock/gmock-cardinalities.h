@@ -39,7 +39,11 @@
 #ifndef GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_CARDINALITIES_H_
 #define GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_CARDINALITIES_H_
 
+#if defined(STARBOARD)
+#include "starboard/types.h"
+#else
 #include <limits.h>
+#endif
 
 #include <memory>
 #include <ostream>  // NOLINT

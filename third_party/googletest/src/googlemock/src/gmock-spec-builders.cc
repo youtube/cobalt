@@ -34,9 +34,7 @@
 
 #include "gmock/gmock-spec-builders.h"
 
-#if !GTEST_OS_STARBOARD
 #include <stdlib.h>
-#endif  // !GTEST_OS_STARBOARD
 
 #include <iostream>  // NOLINT
 #include <map>
