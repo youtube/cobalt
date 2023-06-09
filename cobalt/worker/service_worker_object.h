@@ -152,6 +152,10 @@ class ServiceWorkerObject
     return set_of_event_types_to_handle_;
   }
 
+  // Algorithm for Should Skip Event:
+  //  https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-has-no-pending-events
+  bool ServiceWorkerHasNoPendingEvents();
+
  private:
   // Called by ObtainWebAgentAndWaitUntilDone to perform initialization required
   // on the dedicated thread.

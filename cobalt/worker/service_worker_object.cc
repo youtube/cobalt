@@ -308,5 +308,17 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   // 8.19. Empty workerGlobalScope’s list of active timers.
 }
 
+bool ServiceWorkerObject::ServiceWorkerHasNoPendingEvents() {
+  // Algorithm for Service Worker Has No Pending Events
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-has-no-pending-events
+  // TODO(b/240174245): Implement this using the 'set of extended events'.
+  NOTIMPLEMENTED();
+
+  // 1. For each event of worker’s set of extended events:
+  // 1.1. If event is active, return false.
+  // 2. Return true.
+  return true;
+}
+
 }  // namespace worker
 }  // namespace cobalt

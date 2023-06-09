@@ -141,7 +141,7 @@ ServiceWorkerJobs::ServiceWorkerJobs(web::WebSettings* web_settings,
                                      web::UserAgentPlatformInfo* platform_info,
                                      base::MessageLoop* message_loop,
                                      const GURL& url)
-    : message_loop_(message_loop) {
+    : ServiceWorkerAbstractJobs(message_loop) {
   DCHECK_EQ(message_loop_, base::MessageLoop::current());
   fetcher_factory_.reset(new loader::FetcherFactory(network_module));
   DCHECK(fetcher_factory_);
@@ -173,7 +173,6 @@ ServiceWorkerJobs::~ServiceWorkerJobs() {
         }
       }
     }
-
     // Wait for web context registrations to be cleared.
     web_context_registrations_cleared_.TimedWait(kShutdownWaitTimeoutSecs);
   }
@@ -293,163 +292,6 @@ void ServiceWorkerJobs::StartRegister(
   DCHECK(!job.get());
 }
 
-void ServiceWorkerJobs::PromiseErrorData::Reject(
-    std::unique_ptr<JobPromiseType> promise) const {
-  DCHECK(promise);
-  if (message_type_ != script::kNoError) {
-    promise->Reject(GetSimpleExceptionType(message_type_));
-  } else {
-    promise->Reject(new web::DOMException(exception_code_, message_));
-  }
-}
-
-std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
-    JobType type, const url::Origin& storage_key, const GURL& scope_url,
-    const GURL& script_url, std::unique_ptr<JobPromiseType> promise,
-    web::Context* client) {
-  TRACE_EVENT2("cobalt::worker", "ServiceWorkerJobs::CreateJob()", "type", type,
-               "script_url", script_url.spec());
-  // Algorithm for Create Job:
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-job
-  // 1. Let job be a new job.
-  // 2. Set job’s job type to jobType.
-  // 3. Set job’s storage key to storage key.
-  // 4. Set job’s scope url to scopeURL.
-  // 5. Set job’s script url to scriptURL.
-  // 6. Set job’s job promise to promise.
-  // 7. Set job’s client to client.
-  std::unique_ptr<Job> job(new Job(type, storage_key, scope_url, script_url,
-                                   client, std::move(promise)));
-  // 8. If client is not null, set job’s referrer to client’s creation URL.
-  if (client) {
-    job->referrer = client->environment_settings()->creation_url();
-  }
-  // 9. Return job.
-  return job;
-}
-
-void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
-  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ScheduleJob()");
-  DCHECK(job);
-
-  if (base::MessageLoop::current() != message_loop()) {
-    DCHECK(message_loop());
-    message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
-                                  base::Unretained(this), std::move(job)));
-    return;
-  }
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  // Algorithm for Schedule Job:
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#schedule-job
-  // 1. Let jobQueue be null.
-
-  // 2. Let jobScope be job’s scope url, serialized.
-  std::string job_scope = job->scope_url.spec();
-
-  // 3. If scope to job queue map[jobScope] does not exist, set scope to job
-  // queue map[jobScope] to a new job queue.
-  auto job_queue_iterator_for_scope = job_queue_map_.find(job_scope);
-  if (job_queue_iterator_for_scope == job_queue_map_.end()) {
-    auto insertion = job_queue_map_.emplace(
-        job_scope, std::unique_ptr<JobQueue>(new JobQueue()));
-    DCHECK(insertion.second);
-    job_queue_iterator_for_scope = insertion.first;
-  }
-
-  // 4. Set jobQueue to scope to job queue map[jobScope].
-  DCHECK(job_queue_iterator_for_scope != job_queue_map_.end());
-  JobQueue* job_queue = job_queue_iterator_for_scope->second.get();
-
-  // 5. If jobQueue is empty, then:
-  if (job_queue->empty()) {
-    // 5.1. Set job’s containing job queue to jobQueue, and enqueue job to
-    // jobQueue.
-    job->containing_job_queue = job_queue;
-    if (!IsWebContextRegistered(job->client)) {
-      // Note: The client that requested the job has already exited and isn't
-      // able to handle the promise.
-      job->containing_job_queue->PrepareJobForClientShutdown(job, job->client);
-    }
-    job_queue->Enqueue(std::move(job));
-
-    // 5.2. Invoke Run Job with jobQueue.
-    RunJob(job_queue);
-  } else {
-    // 6. Else:
-    // 6.1. Let lastJob be the element at the back of jobQueue.
-    {
-      auto last_item = job_queue->LastItem();
-      Job* last_job = last_item.first;
-
-      // 6.2. If job is equivalent to lastJob and lastJob’s job promise has not
-      // settled, append job to lastJob’s list of equivalent jobs.
-      DCHECK(last_job);
-      base::AutoLock lock(last_job->equivalent_jobs_promise_mutex);
-      if (ReturnJobsAreEquivalent(job.get(), last_job) && last_job->promise &&
-          last_job->promise->is_pending()) {
-        last_job->equivalent_jobs.push_back(std::move(job));
-        return;
-      }
-    }
-
-    // 6.3. Else, set job’s containing job queue to jobQueue, and enqueue job to
-    // jobQueue.
-    job->containing_job_queue = job_queue;
-    if (!IsWebContextRegistered(job->client)) {
-      // Note: The client that requested the job has already exited and isn't
-      // able to handle the promise.
-      job->containing_job_queue->PrepareJobForClientShutdown(job, job->client);
-    }
-    job_queue->Enqueue(std::move(job));
-  }
-  DCHECK(!job);
-}
-
-bool ServiceWorkerJobs::ReturnJobsAreEquivalent(Job* one, Job* two) {
-  // Algorithm for Two jobs are equivalent:
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-job-equivalent
-  DCHECK(one);
-  DCHECK(two);
-  if (!one || !two) {
-    return false;
-  }
-
-  // Two jobs are equivalent when their job type is the same and:
-  if (one->type != two->type) {
-    return false;
-  }
-
-  // For register and update jobs, their scope url, script url, worker type, and
-  // update via cache mode are the same.
-  if ((one->type == kRegister || one->type == kUpdate) &&
-      (one->scope_url == two->scope_url) &&
-      (one->script_url == two->script_url) &&
-      (one->update_via_cache == two->update_via_cache)) {
-    return true;
-  }
-
-  // For unregister jobs, their scope url is the same.
-  return (one->type == kUnregister) && (one->scope_url == two->scope_url);
-}
-
-void ServiceWorkerJobs::RunJob(JobQueue* job_queue) {
-  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunJob()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  // Algorithm for Run Job:
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#run-job-algorithm
-
-  // 1. Assert: jobQueue is not empty.
-  DCHECK(job_queue && !job_queue->empty());
-  if (!job_queue || job_queue->empty()) {
-    return;
-  }
-
-  // 2. Queue a task to run these steps:
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::RunJobTask,
-                                base::Unretained(this), job_queue));
-}
 
 void ServiceWorkerJobs::RunJobTask(JobQueue* job_queue) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunJobTask()");
@@ -1341,7 +1183,7 @@ void ServiceWorkerJobs::TryActivate(
   if (!invoke_activate) {
     //    - The result of running Service Worker Has No Pending Events with
     //      registration’s active worker is true...
-    if (ServiceWorkerHasNoPendingEvents(registration->active_worker())) {
+    if (registration->active_worker()->ServiceWorkerHasNoPendingEvents()) {
       //      ... and no service worker client is using registration...
       bool any_client_using = IsAnyClientUsingRegistration(registration);
       invoke_activate = !any_client_using;
@@ -1553,19 +1395,6 @@ void ServiceWorkerJobs::NotifyControllerChange(web::Context* client) {
                      client));
 }
 
-bool ServiceWorkerJobs::ServiceWorkerHasNoPendingEvents(
-    ServiceWorkerObject* worker) {
-  // Algorithm for Service Worker Has No Pending Events
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-has-no-pending-events
-  // TODO(b/240174245): Implement this using the 'set of extended events'.
-  NOTIMPLEMENTED();
-
-  // 1. For each event of worker’s set of extended events:
-  // 1.1. If event is active, return false.
-  // 2. Return true.
-  return true;
-}
-
 void ServiceWorkerJobs::ClearRegistration(
     ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ClearRegistration()");
@@ -1635,21 +1464,21 @@ void ServiceWorkerJobs::TryClearRegistration(
   //      Service Worker Has No Pending Events with registration’s installing
   //      worker is true.
   if (registration->installing_worker() &&
-      !ServiceWorkerHasNoPendingEvents(registration->installing_worker()))
+      !registration->installing_worker()->ServiceWorkerHasNoPendingEvents())
     return;
 
   //    . registration’s waiting worker is null or the result of running
   //      Service Worker Has No Pending Events with registration’s waiting
   //      worker is true.
   if (registration->waiting_worker() &&
-      !ServiceWorkerHasNoPendingEvents(registration->waiting_worker()))
+      !registration->waiting_worker()->ServiceWorkerHasNoPendingEvents())
     return;
 
   //    . registration’s active worker is null or the result of running
   //      ServiceWorker Has No Pending Events with registration’s active worker
   //      is true.
   if (registration->active_worker() &&
-      !ServiceWorkerHasNoPendingEvents(registration->active_worker()))
+      !registration->active_worker()->ServiceWorkerHasNoPendingEvents())
     return;
 
   ClearRegistration(registration);
@@ -1852,7 +1681,6 @@ void ServiceWorkerJobs::HandleServiceWorkerClientUnload(web::Context* client) {
 
 void ServiceWorkerJobs::TerminateServiceWorker(ServiceWorkerObject* worker) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::TerminateServiceWorker()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Terminate Service Worker:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#terminate-service-worker
   // 1. Run the following steps in parallel with serviceWorker’s main loop:
@@ -1964,122 +1792,6 @@ void ServiceWorkerJobs::Unregister(Job* job) {
 
   // 7. Invoke Finish Job with job.
   FinishJob(job);
-}
-
-void ServiceWorkerJobs::RejectJobPromise(Job* job,
-                                         const PromiseErrorData& error_data) {
-  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RejectJobPromise()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  // Algorithm for Reject Job Promise:
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#reject-job-promise
-  base::AutoLock lock(job->equivalent_jobs_promise_mutex);
-  // 1. If job’s client is not null, queue a task, on job’s client's responsible
-  //    event loop using the DOM manipulation task source, to reject job’s job
-  //    promise with a new exception with errorData and a user agent-defined
-  //    message, in job’s client's Realm.
-  // 2.1. If equivalentJob’s client is null, continue.
-  // 2.2. Queue a task, on equivalentJob’s client's responsible event loop
-  //      using the DOM manipulation task source, to reject equivalentJob’s
-  //      job promise with a new exception with errorData and a user
-  //      agent-defined message, in equivalentJob’s client's Realm.
-  if (job->client && job->promise != nullptr) {
-    DCHECK(IsWebContextRegistered(job->client));
-    job->client->message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::BindOnce(
-                       [](std::unique_ptr<JobPromiseType> promise,
-                          const PromiseErrorData& error_data) {
-                         error_data.Reject(std::move(promise));
-                       },
-                       std::move(job->promise), error_data));
-    // Ensure that the promise is cleared, so that equivalent jobs won't get
-    // added from this point on.
-    CHECK(!job->promise);
-  }
-  // 2. For each equivalentJob in job’s list of equivalent jobs:
-  for (auto& equivalent_job : job->equivalent_jobs) {
-    // Recurse for the equivalent jobs.
-    RejectJobPromise(equivalent_job.get(), error_data);
-  }
-  job->equivalent_jobs.clear();
-}
-
-void ServiceWorkerJobs::ResolveJobPromise(
-    Job* job, bool value,
-    const scoped_refptr<ServiceWorkerRegistrationObject>& registration) {
-  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ResolveJobPromise()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  DCHECK(job);
-  // Algorithm for Resolve Job Promise:
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#resolve-job-promise-algorithm
-  base::AutoLock lock(job->equivalent_jobs_promise_mutex);
-  // 1. If job’s client is not null, queue a task, on job’s client's responsible
-  //    event loop using the DOM manipulation task source, to run the following
-  //    substeps:
-  // 2.1 If equivalentJob’s client is null, continue to the next iteration of
-  // the loop.
-  if (job->client && job->promise != nullptr) {
-    DCHECK(IsWebContextRegistered(job->client));
-    job->client->message_loop()->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            [](JobType type, web::Context* client,
-               std::unique_ptr<JobPromiseType> promise, bool value,
-               scoped_refptr<ServiceWorkerRegistrationObject> registration) {
-              TRACE_EVENT0(
-                  "cobalt::worker",
-                  "ServiceWorkerJobs::ResolveJobPromise() ResolveTask");
-              // 1.1./2.2.1. Let convertedValue be null.
-              // 1.2./2.2.2. If job’s job type is either register or update, set
-              //             convertedValue to the result of getting the service
-              //             worker registration object that represents value in
-              //             job’s client.
-              if (type == kRegister || type == kUpdate) {
-                scoped_refptr<cobalt::script::Wrappable> converted_value =
-                    client->GetServiceWorkerRegistration(registration);
-                // 1.4./2.2.4. Resolve job’s job promise with convertedValue.
-                promise->Resolve(converted_value);
-              } else {
-                DCHECK_EQ(kUnregister, type);
-                // 1.3./2.2.3. Else, set convertedValue to value, in job’s
-                // client's
-                //             Realm.
-                bool converted_value = value;
-                // 1.4./2.2.4. Resolve job’s job promise with convertedValue.
-                promise->Resolve(converted_value);
-              }
-            },
-            job->type, job->client, std::move(job->promise), value,
-            registration));
-    // Ensure that the promise is cleared, so that equivalent jobs won't get
-    // added from this point on.
-    CHECK(!job->promise);
-  }
-
-  // 2. For each equivalentJob in job’s list of equivalent jobs:
-  for (auto& equivalent_job : job->equivalent_jobs) {
-    // Recurse for the equivalent jobs.
-    ResolveJobPromise(equivalent_job.get(), value, registration);
-  }
-  job->equivalent_jobs.clear();
-}
-
-// https://www.w3.org/TR/2022/CRD-service-workers-20220712/#finish-job-algorithm
-void ServiceWorkerJobs::FinishJob(Job* job) {
-  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::FinishJob()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  // 1. Let jobQueue be job’s containing job queue.
-  JobQueue* job_queue = job->containing_job_queue;
-
-  // 2. Assert: the first item in jobQueue is job.
-  DCHECK_EQ(job, job_queue->FirstItem());
-
-  // 3. Dequeue from jobQueue.
-  job_queue->Dequeue();
-
-  // 4. If jobQueue is not empty, invoke Run Job with jobQueue.
-  if (!job_queue->empty()) {
-    RunJob(job_queue);
-  }
 }
 
 void ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps(web::Context* client) {
@@ -2893,56 +2605,6 @@ void ServiceWorkerJobs::JobQueue::PrepareJobForClientShutdown(
     // Recurse for the equivalent jobs.
     PrepareJobForClientShutdown(equivalent_job, client);
   }
-}
-
-ServiceWorkerJobs::JobPromiseType::JobPromiseType(
-    std::unique_ptr<script::ValuePromiseBool::Reference> promise_reference)
-    : promise_bool_reference_(std::move(promise_reference)) {}
-ServiceWorkerJobs::JobPromiseType::JobPromiseType(
-    std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference)
-    : promise_wrappable_reference_(std::move(promise_reference)) {}
-
-void ServiceWorkerJobs::JobPromiseType::Resolve(const bool result) {
-  DCHECK(promise_bool_reference_);
-  is_pending_.store(false);
-  promise_bool_reference_->value().Resolve(result);
-}
-
-void ServiceWorkerJobs::JobPromiseType::Resolve(
-    const scoped_refptr<cobalt::script::Wrappable>& result) {
-  DCHECK(promise_wrappable_reference_);
-  is_pending_.store(false);
-  promise_wrappable_reference_->value().Resolve(result);
-}
-
-void ServiceWorkerJobs::JobPromiseType::Reject(
-    script::SimpleExceptionType exception) {
-  if (promise_bool_reference_) {
-    is_pending_.store(false);
-    promise_bool_reference_->value().Reject(exception);
-    return;
-  }
-  if (promise_wrappable_reference_) {
-    is_pending_.store(false);
-    promise_wrappable_reference_->value().Reject(exception);
-    return;
-  }
-  NOTREACHED();
-}
-
-void ServiceWorkerJobs::JobPromiseType::Reject(
-    const scoped_refptr<script::ScriptException>& result) {
-  if (promise_bool_reference_) {
-    is_pending_.store(false);
-    promise_bool_reference_->value().Reject(result);
-    return;
-  }
-  if (promise_wrappable_reference_) {
-    is_pending_.store(false);
-    promise_wrappable_reference_->value().Reject(result);
-    return;
-  }
-  NOTREACHED();
 }
 
 }  // namespace worker
