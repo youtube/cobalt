@@ -19,7 +19,6 @@
 #include "cobalt/base/log_message_handler.h"
 #include "cobalt/debug/backend/agent_base.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
-#include "cobalt/debug/console/command_manager.h"
 
 namespace cobalt {
 namespace debug {
@@ -34,9 +33,6 @@ class LogAgent : public AgentBase {
   explicit LogAgent(DebugDispatcher* dispatcher);
   ~LogAgent();
 
-  void OnDebugLog(const std::string& message);
-  void SetDebugLog(bool enable);
-
  private:
   // Called by LogMessageHandler for each log message.
   // May be called from any thread.
@@ -50,11 +46,6 @@ class LogAgent : public AgentBase {
 
   // The callback id of our recipient of log messages so we can unregister it.
   base::LogMessageHandler::CallbackId log_message_handler_callback_id_;
-
-  std::string event_method_;
-
-  debug::console::ConsoleCommandManager::CommandHandler
-      debug_log_command_handler_;
 };
 
 }  // namespace backend
