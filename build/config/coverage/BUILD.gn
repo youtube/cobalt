@@ -30,5 +30,13 @@ config("default_coverage") {
       # TODO(crbug.com/1194301): Remove this flag.
       cflags += [ "-fno-use-cxa-atexit" ]
     }
+
+    if (using_old_compiler) {
+      # These compiler flags aren't supported by the older clang compiler.
+      cflags -= [
+        "-limited-coverage-experimental=true",
+        "-fno-use-cxa-atexit",
+      ]
+    }
   }
 }

@@ -20,6 +20,7 @@
 
 #include "base/message_loop/message_loop.h"
 #include "cobalt/base/debugger_hooks.h"
+#include "cobalt/debug/backend/cobalt_agent.h"
 #include "cobalt/debug/backend/css_agent.h"
 #include "cobalt/debug/backend/debug_backend.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
@@ -134,6 +135,7 @@ class DebugModule : public script::ScriptDebugger::Delegate {
 
   // Wrappable object providing native helpers for backend JavaScript.
   scoped_refptr<DebugBackend> debug_backend_;
+  std::unique_ptr<CobaltAgent> cobalt_agent_;
   std::unique_ptr<LogAgent> log_agent_;
   std::unique_ptr<DOMAgent> dom_agent_;
   scoped_refptr<CSSAgent> css_agent_;

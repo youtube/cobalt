@@ -14,6 +14,7 @@ export default class CobaltPanel extends UI.VBox {
 
         this._target = UI.context.flavor(SDK.Target);
         this._runtimeAgent = this._target.runtimeAgent();
+        this._cobaltAgent = this._target.cobaltAgent();
 
         this.element = this._shadowRoot.createChild('div');
         this.element.textContent = 'Cobalt Console';
@@ -32,7 +33,7 @@ export default class CobaltPanel extends UI.VBox {
             this.run(`(function() { window.h5vcc.traceEvent.stop();})()`);
             console.log("Stopped Trace");
         }));
-        trace_files.forEach( (file) => {
+        trace_files.forEach((file) => {
             traceContainer.appendChild(UI.createTextButton(Common.UIString('Download ' + file[0]), event => {
                 console.log("Download Trace");
                 const filename = file[1];
@@ -46,6 +47,39 @@ export default class CobaltPanel extends UI.VBox {
                 });
             }));
         });
+        const debugLogContainer = this.element.createChild('div', 'debug-log-container');
+        debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog On'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({
+                command: 'debug_log', message: 'on'
+            });
+        }));
+        debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog Off'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({
+                command: 'debug_log', message: 'off'
+            });
+        }));
+        const consoleContainer = this.element.createChild('div', 'console-container');
+        consoleContainer.appendChild(UI.createTextButton(Common.UIString('DebugCommand'), event => {
+            const outputElement = document.getElementsByClassName('console-output')[0];
+            const command = document.getElementsByClassName('debug-command')[0].value;
+            if (command.length == 0) {
+                const result = this._cobaltAgent.invoke_getConsoleCommands().then(result => {
+                    outputElement.innerHTML = JSON.stringify(result.commands, undefined, 2);
+                });
+            } else {
+                const result = this._cobaltAgent.invoke_sendConsoleCommand({
+                    command: command,
+                    message: document.getElementsByClassName('debug-message')[0].value
+                }).then(result => {
+                    outputElement.innerHTML = JSON.stringify(result, undefined, 2);
+                });
+            }
+        }));
+        consoleContainer.appendChild(UI.createLabel('Command:'));
+        consoleContainer.appendChild(UI.createInput('debug-command', 'text'));
+        consoleContainer.appendChild(UI.createLabel('Message:'));
+        consoleContainer.appendChild(UI.createInput('debug-message', 'text'));
+        consoleContainer.createChild('pre', 'console-output');
     }
 
     async run(expression) {

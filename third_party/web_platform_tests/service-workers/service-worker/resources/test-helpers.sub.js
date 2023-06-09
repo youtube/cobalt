@@ -86,9 +86,7 @@ function wait_for_update(test, registration) {
   return new Promise(test.step_func(function(resolve) {
       var handler = test.step_func(function() {
         registration.removeEventListener('updatefound', handler);
-        // b/234788479 Implement waiting for update worker state tasks in
-        // Install algorithm, otherwise the worker is activated too early
-        resolve(get_newest_worker(registration));
+        resolve(registration.installing);
       });
       registration.addEventListener('updatefound', handler);
     }));

@@ -33,10 +33,14 @@ constexpr int kVideoResolutions[][2] = {
     {1920, 1080},
     {2560, 1440},
     {3840, 2160},
+    {7680, 4320},
 };
 
 constexpr int kBitsPerPixelValues[] = {
-    kSbMediaBitsPerPixelInvalid, 8, 10, 12,
+    kSbMediaBitsPerPixelInvalid,
+    8,
+    10,
+    12,
 };
 
 constexpr SbMediaVideoCodec kVideoCodecs[] = {
@@ -48,13 +52,53 @@ constexpr SbMediaVideoCodec kVideoCodecs[] = {
 };
 
 constexpr SbMediaType kMediaTypes[] = {
-    kSbMediaTypeAudio, kSbMediaTypeVideo,
+    kSbMediaTypeAudio,
+    kSbMediaTypeVideo,
 };
 
-// Minimum audio and video budgets required by the 2020 Youtube Software
+// Minimum audio and video budgets required by the 2024 Youtube Hardware
 // Requirements.
 constexpr int kMinAudioBudget = 5 * 1024 * 1024;
-constexpr int kMinVideoBudget = 30 * 1024 * 1024;
+constexpr int kMinVideoBudget1080p = 30 * 1024 * 1024;
+constexpr int kMinVideoBudget4kSdr = 50 * 1024 * 1024;
+constexpr int kMinVideoBudget4kHdr = 80 * 1024 * 1024;
+constexpr int kMinVideoBudget8k = 200 * 1024 * 1024;
+
+int GetVideoBufferBudget(SbMediaVideoCodec codec,
+                         int frame_width,
+                         bool is_hdr) {
+  if (codec != kSbMediaVideoCodecAv1 && codec != kSbMediaVideoCodecH264 &&
+      codec != kSbMediaVideoCodecVp9) {
+    return kMinVideoBudget1080p;
+  }
+
+  static const bool kSupports8k =
+      SbMediaCanPlayMimeAndKeySystem(
+          "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320", "") ==
+      kSbMediaSupportTypeProbably;
+  static const bool kSupports4kHdr =
+      SbMediaCanPlayMimeAndKeySystem(
+          "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
+          "height=2160",
+          "") == kSbMediaSupportTypeProbably;
+  static const bool kSupports4kSdr =
+      SbMediaCanPlayMimeAndKeySystem(
+          "video/webm; codecs=\"vp9\"; width=3840; height=2160", "") ==
+      kSbMediaSupportTypeProbably;
+
+  int video_budget = kMinVideoBudget1080p;
+  if (kSupports8k && frame_width > 3840) {
+    video_budget = kMinVideoBudget8k;
+  } else if (frame_width > 1920 && frame_width <= 3840) {
+    if (kSupports4kHdr && is_hdr) {
+      video_budget = kMinVideoBudget4kHdr;
+    } else if (kSupports4kSdr && !is_hdr) {
+      video_budget = kMinVideoBudget4kSdr;
+    }
+  }
+
+  return video_budget;
+}
 
 std::vector<void*> TryToAllocateMemory(int size,
                                        int allocation_unit,
@@ -121,7 +165,7 @@ TEST(SbMediaBufferTest, Alignment) {
     // The test will be run more than once, it's redundant but allows us to keep
     // the test logic in one place.
     int alignment = SbMediaGetBufferAlignment();
-#else  // SB_API_VERSION >= 14
+#else   // SB_API_VERSION >= 14
     int alignment = SbMediaGetBufferAlignment(type);
 #endif  // SB_API_VERSION >= 14
     EXPECT_GE(alignment, 1);
@@ -151,7 +195,7 @@ TEST(SbMediaBufferTest, AllocationUnit) {
       // The test will be run more than once, it's redundant but allows us to
       // keep the test logic in one place.
       int alignment = SbMediaGetBufferAlignment();
-#else  // SB_API_VERSION >= 14
+#else   // SB_API_VERSION >= 14
       int alignment = SbMediaGetBufferAlignment(type);
 #endif  // SB_API_VERSION >= 14
       EXPECT_EQ(alignment & (alignment - 1), 0)
@@ -161,7 +205,7 @@ TEST(SbMediaBufferTest, AllocationUnit) {
       }
       int media_budget = type == SbMediaType::kSbMediaTypeAudio
                              ? kMinAudioBudget
-                             : kMinVideoBudget;
+                             : kMinVideoBudget1080p;
       std::vector<void*> media_buffer_allocated_memory =
           TryToAllocateMemory(media_budget, allocation_unit, alignment);
       allocated_ptrs.insert(allocated_ptrs.end(),
@@ -266,9 +310,11 @@ TEST(SbMediaBufferTest, VideoBudget) {
   for (auto codec : kVideoCodecs) {
     for (auto resolution : kVideoResolutions) {
       for (auto bits_per_pixel : kBitsPerPixelValues) {
+        int video_budget =
+            GetVideoBufferBudget(codec, resolution[0], bits_per_pixel > 8);
         EXPECT_GE(SbMediaGetVideoBufferBudget(codec, resolution[0],
                                               resolution[1], bits_per_pixel),
-                  kMinVideoBudget);
+                  video_budget);
       }
     }
   }

@@ -8,6 +8,27 @@ version
   major 1
   minor 3
 
+# The Cobalt domain defines custom methods and events for Cobalt
+experimental domain Cobalt
+  command disable
+
+  command enable
+
+  experimental type ConsoleCommand extends object
+    properties
+      string command
+      string shortHelp
+      string longHelp
+
+  experimental command getConsoleCommands
+    returns
+      array of ConsoleCommand commands
+
+  experimental command sendConsoleCommand
+    parameters
+      string command
+      optional string message
+
 experimental domain Accessibility
   depends on DOM
 

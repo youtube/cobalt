@@ -56,3 +56,12 @@ jobs:
       platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
       modular: true
+  linux-coverage:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: linux-coverage
+      nightly: ${{ github.event.inputs.nightly }}

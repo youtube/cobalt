@@ -119,7 +119,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         target_params=target_command_line_params,
         output_file=self.output_file,
         out_directory=self.staging_directory,
-        coverage_directory=self.coverage_directory,
+        coverage_file_path=self.coverage_file_path,
         env_variables=self.env_variables,
         log_targets=False)
 
