@@ -1,4 +1,14 @@
-# Cobalt [![Build Status](https://img.shields.io/badge/-Build%20Status-blueviolet)](https://github.com/youtube/cobalt/blob/main/BUILD_STATUS.md)
+# Cobalt [![Build Matrix](https://img.shields.io/badge/-Build%20Matrix-blueviolet)](https://github.com/youtube/cobalt/blob/main/BUILD_STATUS.md)
+
+[![codecov](https://codecov.io/github/youtube/cobalt/branch/main/graph/badge.svg?token=QZY8I830S6)](https://codecov.io/github/youtube/cobalt)
+[![lint](https://github.com/youtube/cobalt/actions/workflows/lint.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/lint.yaml?query=event%3Apush+branch%3Amain)
+[![java](https://github.com/youtube/cobalt/actions/workflows/gradle.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/gradle.yaml?query=event%3Apush+branch%3Amain)
+[![python](https://github.com/youtube/cobalt/actions/workflows/pytest.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/pytest.yaml?query=event%3Apush+branch%3Amain) \
+[![android](https://github.com/youtube/cobalt/actions/workflows/android.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/android.yaml?query=event%3Apush+branch%3Amain)
+[![evergreen](https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml?query=event%3Apush+branch%3Amain)
+[![linux](https://github.com/youtube/cobalt/actions/workflows/linux.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/linux.yaml?query=event%3Apush+branch%3Amain)
+[![raspi-2](https://github.com/youtube/cobalt/actions/workflows/raspi-2.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/raspi-2.yaml?query=event%3Apush+branch%3Amain)
+[![win32](https://github.com/youtube/cobalt/actions/workflows/win32.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/win32.yaml?query=event%3Apush+branch%3Amain)
 
 ## Overview
 
