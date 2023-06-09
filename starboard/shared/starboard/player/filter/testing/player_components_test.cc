@@ -382,8 +382,7 @@ class PlayerComponentsTest
   // working.
   void RenderAndProcessPendingJobs() {
     // Call GetCurrentDecodeTarget() periodically for decode to texture mode.
-    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture &&
-        GetVideoRenderer()) {
+    if (GetVideoRenderer()) {
 #if SB_HAS(GLES2)
       fake_graphics_context_provider_.RunOnGlesContextThread(
           std::bind(&PlayerComponentsTest::RenderOnGlesContextThread, this));
@@ -441,7 +440,11 @@ class PlayerComponentsTest
   }
 
   void RenderOnGlesContextThread() {
-    SbDecodeTargetRelease(GetVideoRenderer()->GetCurrentDecodeTarget());
+    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+      SbDecodeTargetRelease(GetVideoRenderer()->GetCurrentDecodeTarget());
+    } else {
+      fake_graphics_context_provider_.Render();
+    }
   }
 
   bool TryToWriteOneInputBuffer(SbTime max_timestamp) {
