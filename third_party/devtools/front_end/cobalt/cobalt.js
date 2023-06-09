@@ -47,17 +47,6 @@ export default class CobaltPanel extends UI.VBox {
                 });
             }));
         });
-        const debugLogContainer = this.element.createChild('div', 'debug-log-container');
-        debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog On'), event => {
-            this._cobaltAgent.invoke_sendConsoleCommand({
-                command: 'debug_log', message: 'on'
-            });
-        }));
-        debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog Off'), event => {
-            this._cobaltAgent.invoke_sendConsoleCommand({
-                command: 'debug_log', message: 'off'
-            });
-        }));
         const consoleContainer = this.element.createChild('div', 'console-container');
         consoleContainer.appendChild(UI.createTextButton(Common.UIString('DebugCommand'), event => {
             const outputElement = document.getElementsByClassName('console-output')[0];
