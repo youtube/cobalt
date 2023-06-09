@@ -7,9 +7,11 @@ service-worker/fetch-event-add-async.https.html, PASS
 service-worker/import-scripts-cross-origin.https.html, PASS
 service-worker/import-scripts-resource-map.https.html, PASS
 service-worker/import-scripts-updated-flag.https.html, PASS
+service-worker/multiple-update.https.html, PASS
 service-worker/register-default-scope.https.html, PASS
 service-worker/registration-basic.https.html, PASS
 service-worker/registration-security-error.https.html, PASS
+service-worker/registration-service-worker-attributes.https.html, PASS
 service-worker/registration-script-url.https.html, PASS
 service-worker/rejections.https.html, PASS
 service-worker/serviceworkerobject-scripturl.https.html, PASS
@@ -36,9 +38,7 @@ service-worker/import-scripts-mime-types.https.html, DISABLE
 
 # b/234788479 Implement waiting for update worker state tasks in Install algorithm.
 service-worker/import-scripts-redirect.https.html, DISABLE
-service-worker/multiple-update.https.html, DISABLE
 service-worker/register-wait-forever-in-install-worker.https.html, DISABLE
-service-worker/registration-service-worker-attributes.https.html, DISABLE
 
 # "Module" type of dedicated worker is supported in Cobalt
 service-worker/dedicated-worker-service-worker-interception.https.html, DISABLE
