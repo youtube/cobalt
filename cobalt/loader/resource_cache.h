@@ -17,7 +17,9 @@
 
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -94,9 +96,7 @@ class CachedResourceBase
   // Whether not the resource located at |url_| is finished loading.
   bool IsLoadingComplete();
 
-  net::LoadTimingInfo GetLoadTimingInfo() {
-    return load_timing_info_;
-  }
+  net::LoadTimingInfo GetLoadTimingInfo() { return load_timing_info_; }
 
   bool get_resource_timing_created_flag() {
     return is_resource_timing_created_flag_;
@@ -414,7 +414,7 @@ class ResourceCacheBase {
     return security_callback_;
   }
 
-  const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
+  base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
 
   uint32 capacity() const { return cache_capacity_; }
   void SetCapacity(uint32 capacity);
@@ -442,8 +442,8 @@ class ResourceCacheBase {
       ResourceCallbackMap;
 
   ResourceCacheBase(const std::string& name,
-                    const base::DebuggerHooks& debugger_hooks,
-                    uint32 cache_capacity, bool are_loading_retries_enabled,
+                    base::DebuggerHooks& debugger_hooks, uint32 cache_capacity,
+                    bool are_loading_retries_enabled,
                     const ReclaimMemoryFunc& reclaim_memory_func);
 
   // Called by CachedResource objects when they fail to load as a result of a
@@ -471,7 +471,7 @@ class ResourceCacheBase {
   // The name of this resource cache object, useful while debugging.
   const std::string name_;
 
-  const base::DebuggerHooks& debugger_hooks_;
+  base::DebuggerHooks& debugger_hooks_;
 
   bool are_loading_retries_enabled_;
 
@@ -544,8 +544,7 @@ class ResourceCache : public ResourceCacheBase {
   typedef base::Callback<void(const std::string&)>
       NotifyResourceRequestedFunction;
 
-  ResourceCache(const std::string& name,
-                const base::DebuggerHooks& debugger_hooks,
+  ResourceCache(const std::string& name, base::DebuggerHooks& debugger_hooks,
                 uint32 cache_capacity, bool are_loading_retries_enabled,
                 const CreateLoaderFunction& create_loader_function,
                 const NotifyResourceRequestedFunction&
@@ -631,7 +630,7 @@ class ResourceCache : public ResourceCacheBase {
 
 template <typename CacheType>
 ResourceCache<CacheType>::ResourceCache(
-    const std::string& name, const base::DebuggerHooks& debugger_hooks,
+    const std::string& name, base::DebuggerHooks& debugger_hooks,
     uint32 cache_capacity, bool are_loading_retries_enabled,
     const CreateLoaderFunction& create_loader_function,
     const NotifyResourceRequestedFunction& notify_resource_requested_function)

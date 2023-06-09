@@ -100,7 +100,7 @@ ImageDecoder::ImageType DetermineImageType(const uint8* header) {
 
 ImageDecoder::ImageDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks,
+    base::DebuggerHooks& debugger_hooks,
     const ImageAvailableCallback& image_available_callback,
     const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : resource_provider_(resource_provider),
@@ -116,7 +116,7 @@ ImageDecoder::ImageDecoder(
 
 ImageDecoder::ImageDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks,
+    base::DebuggerHooks& debugger_hooks,
     const ImageAvailableCallback& image_available_callback,
     ImageType image_type,
     const loader::Decoder::OnCompleteFunction& load_complete_callback)
@@ -313,7 +313,7 @@ const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
 std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
     const std::string& mime_type, ImageDecoder::ImageType image_type,
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks) {
+    base::DebuggerHooks& debugger_hooks) {
   // clang-format off
   const SbDecodeTargetFormat kPreferredFormats[] = {
       kSbDecodeTargetFormat1PlaneRGBA,
@@ -355,7 +355,7 @@ std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
 std::unique_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     ImageDecoder::ImageType image_type,
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks, bool use_failure_image_decoder) {
+    base::DebuggerHooks& debugger_hooks, bool use_failure_image_decoder) {
   // Call different types of decoders by matching the image signature.
   if (s_use_stub_image_decoder) {
     return std::unique_ptr<ImageDataDecoder>(

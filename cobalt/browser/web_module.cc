@@ -141,7 +141,23 @@ class WebModule::Impl {
   ~Impl();
 
 #if defined(ENABLE_DEBUGGER)
+  void EnsureDebugModule(
+      debug::backend::DebuggerState* debugger_state = nullptr) {
+    LOG(INFO) << "WebModule::Impl::EnsureDebugModule()";
+    if (!debug_overlay_) {
+      debug_overlay_.reset(
+          new debug::backend::RenderOverlay(render_tree_produced_callback_));
+    }
+    if (!debug_module_) {
+      debug_module_.reset(new debug::backend::DebugModule(
+          &debugger_hooks_, web_context_->global_environment(),
+          debug_overlay_.get(), resource_provider_, window_, debugger_state));
+    }
+    LOG(INFO) << "WebModule::Impl::EnsureDebugModule() end";
+  }
+
   debug::backend::DebugDispatcher* debug_dispatcher() {
+    EnsureDebugModule();
     DCHECK(debug_module_);
     return debug_module_->debug_dispatcher();
   }
@@ -229,7 +245,8 @@ class WebModule::Impl {
 
   void FreezeDebugger(
       std::unique_ptr<debug::backend::DebuggerState>* debugger_state) {
-    if (debugger_state) *debugger_state = debug_module_->Freeze();
+    if (debugger_state && debug_module_)
+      *debugger_state = debug_module_->Freeze();
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -717,14 +734,11 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   }
 
 #if defined(ENABLE_DEBUGGER)
-  debug_overlay_.reset(
-      new debug::backend::RenderOverlay(render_tree_produced_callback_));
-
-  debug_module_.reset(new debug::backend::DebugModule(
-      &debugger_hooks_, web_context_->global_environment(),
-      debug_overlay_.get(), resource_provider_, window_,
-      data.options.debugger_state));
-#endif  // ENABLE_DEBUGGER
+  if (data.options.debugger_state)
+    EnsureDebugModule(data.options.debugger_state);
+  debugger_hooks_.SetCreateDebuggerCallback(base::BindOnce(
+      &WebModule::Impl::EnsureDebugModule, base::Unretained(this), nullptr));
+#endif
 
   report_unload_timing_info_callback_ =
       data.options.collect_unload_event_time_callback;
@@ -954,7 +968,11 @@ void WebModule::Impl::OnRenderTreeProduced(
                  last_render_tree_produced_time_));
 
 #if defined(ENABLE_DEBUGGER)
-  debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
+  if (debug_overlay_) {
+    debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
+  } else {
+    render_tree_produced_callback_.Run(layout_results_with_callback);
+  }
 #else   // ENABLE_DEBUGGER
   render_tree_produced_callback_.Run(layout_results_with_callback);
 #endif  // ENABLE_DEBUGGER
@@ -1039,7 +1057,7 @@ void WebModule::Impl::WaitForWebDebugger() {
                   "\n Waiting for web debugger to connect "
                   "\n-------------------------------------";
   // This blocks until the web debugger connects.
-  debug_module_->debug_dispatcher()->SetPaused(true);
+  debug_dispatcher()->SetPaused(true);
   waiting_for_web_debugger_->store(false);
 }
 #endif  // defined(ENABLE_DEBUGGER)
@@ -1130,7 +1148,9 @@ void WebModule::Impl::Conceal(render_tree::ResourceProvider* resource_provider,
 
 #if defined(ENABLE_DEBUGGER)
   // The debug overlay may be holding onto a render tree, clear that out.
-  debug_overlay_->ClearInput();
+  if (debug_overlay_) {
+    debug_overlay_->ClearInput();
+  }
 #endif
 
   // Force garbage collection in |javascript_engine|.

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "base/trace_event/trace_event.h"
 
@@ -30,7 +31,7 @@ uint32 kMaxBufferSizeBytes = 4 * 1024 * 1024L;
 
 ImageDataDecoder::ImageDataDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks)
+    base::DebuggerHooks& debugger_hooks)
     : resource_provider_(resource_provider),
       debugger_hooks_(debugger_hooks),
       state_(kWaitingForHeader) {

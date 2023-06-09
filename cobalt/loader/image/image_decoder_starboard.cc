@@ -29,7 +29,7 @@ namespace image {
 
 ImageDecoderStarboard::ImageDecoderStarboard(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks, const char* mime_type,
+    base::DebuggerHooks& debugger_hooks, const char* mime_type,
     SbDecodeTargetFormat format)
     : ImageDataDecoder(resource_provider, debugger_hooks),
       mime_type_(mime_type),

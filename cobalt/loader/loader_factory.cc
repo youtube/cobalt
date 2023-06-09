@@ -24,7 +24,7 @@ namespace loader {
 
 LoaderFactory::LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
                              render_tree::ResourceProvider* resource_provider,
-                             const base::DebuggerHooks& debugger_hooks,
+                             base::DebuggerHooks& debugger_hooks,
                              size_t encoded_image_cache_capacity,
                              base::ThreadPriority loader_thread_priority)
     : ScriptLoaderFactory(name, fetcher_factory, loader_thread_priority),

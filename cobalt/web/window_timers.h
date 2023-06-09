@@ -40,7 +40,7 @@ class WindowTimers {
   typedef script::ScriptValue<TimerCallback> TimerCallbackArg;
   explicit WindowTimers(script::Wrappable* const owner,
                         StatTracker* stat_tracker,
-                        const base::DebuggerHooks& debugger_hooks,
+                        base::DebuggerHooks& debugger_hooks,
                         base::ApplicationState application_state)
       : owner_(owner),
         stat_tracker_(stat_tracker),
@@ -70,7 +70,7 @@ class WindowTimers {
     enum TimerType { kOneShot, kRepeating };
 
     Timer(TimerType type, script::Wrappable* const owner,
-          StatTracker* stat_tracker, const base::DebuggerHooks& debugger_hooks,
+          StatTracker* stat_tracker, base::DebuggerHooks& debugger_hooks,
           const TimerCallbackArg& callback, int timeout, int handle,
           WindowTimers* window_timers);
 
@@ -96,7 +96,7 @@ class WindowTimers {
     std::unique_ptr<base::internal::TimerBase> timer_;
     TimerCallbackArg::Reference callback_;
     StatTracker* const stat_tracker_;
-    const base::DebuggerHooks& debugger_hooks_;
+    base::DebuggerHooks& debugger_hooks_;
     int timeout_;
     int handle_;
     bool active_;
@@ -122,7 +122,7 @@ class WindowTimers {
   int current_timer_index_ = 0;
   script::Wrappable* const owner_;
   StatTracker* const stat_tracker_;
-  const base::DebuggerHooks& debugger_hooks_;
+  base::DebuggerHooks& debugger_hooks_;
 
   // Set to false when we're about to shutdown, to ensure that no new JavaScript
   // is fired as we are waiting for it to drain.

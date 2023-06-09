@@ -23,7 +23,7 @@ namespace image {
 
 LottieAnimationDecoder::LottieAnimationDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks)
+    base::DebuggerHooks& debugger_hooks)
     : ImageDataDecoder(resource_provider, debugger_hooks) {
   TRACE_EVENT0("cobalt::loader::image",
                "LottieAnimationDecoder::LottieAnimationDecoder()");

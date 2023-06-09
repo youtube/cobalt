@@ -31,7 +31,7 @@ namespace image {
 class WEBPImageDecoder : public ImageDataDecoder {
  public:
   explicit WEBPImageDecoder(render_tree::ResourceProvider* resource_provider,
-                            const base::DebuggerHooks& debugger_hooks);
+                            base::DebuggerHooks& debugger_hooks);
   ~WEBPImageDecoder() override;
 
   // From ImageDataDecoder

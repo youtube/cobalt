@@ -14,6 +14,8 @@
 
 #include "cobalt/loader/image/webp_image_decoder.h"
 
+#include <utility>
+
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/loader/image/animated_webp_image.h"
@@ -27,7 +29,7 @@ namespace image {
 
 WEBPImageDecoder::WEBPImageDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks)
+    base::DebuggerHooks& debugger_hooks)
     : ImageDataDecoder(resource_provider, debugger_hooks),
       internal_decoder_(NULL) {
   TRACK_MEMORY_SCOPE("Rendering");

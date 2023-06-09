@@ -54,7 +54,7 @@ void PostToMessageLoopChecked(
 
 ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks* debugger_hooks,
+    base::DebuggerHooks* debugger_hooks,
     const ImageAvailableCallback& image_available_callback,
     base::MessageLoop* load_message_loop,
     const loader::Decoder::OnCompleteFunction& load_complete_callback)

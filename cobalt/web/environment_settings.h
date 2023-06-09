@@ -35,7 +35,7 @@ class Context;
 class EnvironmentSettings : public script::EnvironmentSettings {
  public:
   EnvironmentSettings() {}
-  explicit EnvironmentSettings(const base::DebuggerHooks& debugger_hooks)
+  explicit EnvironmentSettings(base::DebuggerHooks& debugger_hooks)
       : script::EnvironmentSettings(debugger_hooks) {}
   ~EnvironmentSettings() override {}
 

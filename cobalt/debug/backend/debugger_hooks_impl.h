@@ -15,7 +15,9 @@
 #define COBALT_DEBUG_BACKEND_DEBUGGER_HOOKS_IMPL_H_
 
 #include <string>
+#include <utility>
 
+#include "base/callback_forward.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/debugger_hooks.h"
@@ -35,14 +37,19 @@ class DebuggerHooksImpl : public base::DebuggerHooks {
  public:
   DebuggerHooksImpl();
 
+  void SetCreateDebuggerCallback(base::OnceClosure create_debugger_callback) {
+    create_debugger_callback_ = std::move(create_debugger_callback);
+  }
+
+  // From: DebuggerHooks.
   void ConsoleLog(::logging::LogSeverity severity,
-                  std::string message) const override;
+                  std::string message) override;
 
   void AsyncTaskScheduled(const void* task, const std::string& name,
-                          AsyncTaskFrequency frequency) const override;
-  void AsyncTaskStarted(const void* task) const override;
-  void AsyncTaskFinished(const void* task) const override;
-  void AsyncTaskCanceled(const void* task) const override;
+                          AsyncTaskFrequency frequency) override;
+  void AsyncTaskStarted(const void* task) override;
+  void AsyncTaskFinished(const void* task) override;
+  void AsyncTaskCanceled(const void* task) override;
 
  private:
   // Only DebugModule can attach/detach the debugger.
@@ -50,6 +57,12 @@ class DebuggerHooksImpl : public base::DebuggerHooks {
 
   void AttachDebugger(script::ScriptDebugger* script_debugger);
   void DetachDebugger();
+
+  // Ensures the script debugger is attached if one is available.
+  void EnsureScriptDebuggerIfAvailable();
+
+  // Callback to call to create a debugger that will attach to these hooks.
+  base::OnceClosure create_debugger_callback_;
 
   // Message loop of the web module these hooks were created on.
   base::MessageLoop* message_loop_;

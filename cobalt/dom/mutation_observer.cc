@@ -90,7 +90,7 @@ class NativeCallback : public MutationObserver::CallbackInternal {
 MutationObserver::MutationObserver(
     const NativeMutationCallback& native_callback,
     MutationObserverTaskManager* task_manager,
-    const base::DebuggerHooks& debugger_hooks)
+    base::DebuggerHooks& debugger_hooks)
     : task_manager_(task_manager), debugger_hooks_(debugger_hooks) {
   callback_.reset(new NativeCallback(native_callback));
   task_manager_->OnMutationObserverCreated(this);
@@ -100,8 +100,7 @@ MutationObserver::MutationObserver(script::EnvironmentSettings* settings,
                                    const MutationCallbackArg& callback)
     : task_manager_(base::polymorphic_downcast<DOMSettings*>(settings)
                         ->mutation_observer_task_manager()),
-      debugger_hooks_(base::polymorphic_downcast<DOMSettings*>(settings)
-                          ->debugger_hooks()) {
+      debugger_hooks_(settings->debugger_hooks()) {
   callback_.reset(new ScriptCallback(callback, this));
   task_manager_->OnMutationObserverCreated(this);
 }

@@ -42,7 +42,7 @@ const int kMinimumDelayInMilliseconds = 10;
 AnimatedWebPImage::AnimatedWebPImage(
     const math::Size& size, bool is_opaque,
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks)
+    base::DebuggerHooks& debugger_hooks)
     : size_(size),
       is_opaque_(is_opaque),
       demux_(NULL),

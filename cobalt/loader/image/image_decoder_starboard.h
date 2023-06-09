@@ -31,7 +31,7 @@ class ImageDecoderStarboard : public ImageDataDecoder {
  public:
   explicit ImageDecoderStarboard(
       render_tree::ResourceProvider* resource_provider,
-      const base::DebuggerHooks& debugger_hooks, const char* mime_type,
+      base::DebuggerHooks& debugger_hooks, const char* mime_type,
       SbDecodeTargetFormat format);
   ~ImageDecoderStarboard() override;
 

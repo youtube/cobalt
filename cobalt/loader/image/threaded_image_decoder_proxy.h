@@ -46,7 +46,7 @@ class ThreadedImageDecoderProxy : public Decoder {
   // ThreadedImageDecoderProxy.
   static std::unique_ptr<Decoder> Create(
       render_tree::ResourceProvider* resource_provider,
-      const base::DebuggerHooks* debugger_hooks,
+      base::DebuggerHooks* debugger_hooks,
       const ImageAvailableCallback& image_available_callback,
       base::MessageLoop* load_message_loop_,
       const loader::Decoder::OnCompleteFunction& load_complete_callback) {
@@ -68,7 +68,7 @@ class ThreadedImageDecoderProxy : public Decoder {
  private:
   ThreadedImageDecoderProxy(
       render_tree::ResourceProvider* resource_provider,
-      const base::DebuggerHooks* debugger_hooks,
+      base::DebuggerHooks* debugger_hooks,
       const ImageAvailableCallback& image_available_callback,
       base::MessageLoop* load_message_loop_,
       const loader::Decoder::OnCompleteFunction& load_complete_callback);

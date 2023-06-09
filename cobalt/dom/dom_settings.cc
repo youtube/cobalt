@@ -26,7 +26,7 @@ namespace cobalt {
 namespace dom {
 
 DOMSettings::DOMSettings(
-    const base::DebuggerHooks& debugger_hooks, const int max_dom_element_depth,
+    base::DebuggerHooks& debugger_hooks, const int max_dom_element_depth,
     MediaSourceRegistry* media_source_registry,
     media::CanPlayTypeHandler* can_play_type_handler,
     const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,

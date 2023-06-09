@@ -19,15 +19,14 @@
 namespace cobalt {
 namespace script {
 
-EnvironmentSettings::EnvironmentSettings(
-    const base::DebuggerHooks& debugger_hooks)
+EnvironmentSettings::EnvironmentSettings(base::DebuggerHooks& debugger_hooks)
     : debugger_hooks_(debugger_hooks) {
   uuid_ = base::GenerateGUID();
 }
 
 
 // static
-const base::NullDebuggerHooks EnvironmentSettings::null_debugger_hooks_;
+base::NullDebuggerHooks EnvironmentSettings::null_debugger_hooks_;
 
 }  // namespace script
 }  // namespace cobalt

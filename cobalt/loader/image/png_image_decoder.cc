@@ -14,6 +14,8 @@
 
 #include "cobalt/loader/image/png_image_decoder.h"
 
+#include <utility>
+
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/console_log.h"
@@ -68,7 +70,7 @@ void DecodingWarning(png_structp png, png_const_charp warning_msg) {
 
 PNGImageDecoder::PNGImageDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks)
+    base::DebuggerHooks& debugger_hooks)
     : ImageDataDecoder(resource_provider, debugger_hooks),
       png_(NULL),
       info_(NULL),
@@ -88,7 +90,7 @@ size_t PNGImageDecoder::DecodeChunkInternal(const uint8* data, size_t size) {
   TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "PNGImageDecoder::DecodeChunkInternal()");
-  // int setjmp(jmp_buf env) saves the current environment (ths program state),
+  // int setjmp(jmp_buf env) saves the current environment (the program state),
   // at some point of program execution, into a platform-specific data
   // structure (jmp_buf) that can be used at some later point of program
   // execution by longjmp to restore the program state to that saved by setjmp

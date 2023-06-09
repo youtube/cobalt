@@ -42,7 +42,7 @@ class JPEGImageDecoder : public ImageDataDecoder {
   // multi plane images efficiently, and the output will always be produced in
   // single plane RGBA or BGRA.
   JPEGImageDecoder(render_tree::ResourceProvider* resource_provider,
-                   const base::DebuggerHooks& debugger_hooks,
+                   base::DebuggerHooks& debugger_hooks,
                    bool allow_image_decoding_to_multi_plane);
   ~JPEGImageDecoder() override;
 

@@ -66,30 +66,9 @@ void StoreAgentState(base::DictionaryValue* state_dict,
 
 }  // namespace
 
-DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
-                         script::GlobalEnvironment* global_environment,
-                         RenderOverlay* render_overlay,
-                         render_tree::ResourceProvider* resource_provider,
-                         dom::Window* window, DebuggerState* debugger_state) {
-  ConstructionData data(debugger_hooks, global_environment,
-                        base::MessageLoop::current(), render_overlay,
-                        resource_provider, window, debugger_state);
-  Build(data);
-}
-
-DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
-                         script::GlobalEnvironment* global_environment,
-                         RenderOverlay* render_overlay,
-                         render_tree::ResourceProvider* resource_provider,
-                         dom::Window* window, DebuggerState* debugger_state,
-                         base::MessageLoop* message_loop) {
-  ConstructionData data(debugger_hooks, global_environment, message_loop,
-                        render_overlay, resource_provider, window,
-                        debugger_state);
-  Build(data);
-}
-
 DebugModule::~DebugModule() {
+  LOG(INFO) << "DebugModule::~DebugModule()";
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (debugger_hooks_) debugger_hooks_->DetachDebugger();
   if (!is_frozen_) {
     // Shutting down without navigating. Give everything a chance to cleanup by
@@ -99,39 +78,28 @@ DebugModule::~DebugModule() {
   if (debug_backend_) {
     debug_backend_->UnbindAgents();
   }
+  LOG(INFO) << "DebugModule::~DebugModule() end";
 }
 
-void DebugModule::Build(const ConstructionData& data) {
-  DCHECK(data.message_loop);
-
-  if (base::MessageLoop::current() == data.message_loop) {
-    BuildInternal(data);
-  } else {
-    data.message_loop->task_runner()->PostBlockingTask(
-        FROM_HERE,
-        base::Bind(&DebugModule::BuildInternal, base::Unretained(this), data));
-  }
-
-  DCHECK(debug_dispatcher_);
-}
-
-void DebugModule::BuildInternal(const ConstructionData& data) {
-  DCHECK(base::MessageLoop::current() == data.message_loop);
-  DCHECK(data.global_environment);
-
+DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
+                         script::GlobalEnvironment* global_environment,
+                         RenderOverlay* render_overlay,
+                         render_tree::ResourceProvider* resource_provider,
+                         dom::Window* window, DebuggerState* debugger_state) {
+  LOG(INFO) << "DebugModule::DebugModule()";
   // Create the backend objects supporting the debugger agents.
   script_debugger_ =
-      script::ScriptDebugger::CreateDebugger(data.global_environment, this);
-  script_runner_.reset(new DebugScriptRunner(
-      data.global_environment, script_debugger_.get(),
-      data.window ? data.window->csp_delegate() : nullptr));
+      script::ScriptDebugger::CreateDebugger(global_environment, this);
+  script_runner_.reset(
+      new DebugScriptRunner(global_environment, script_debugger_.get(),
+                            window ? window->csp_delegate() : nullptr));
   debug_dispatcher_.reset(
       new DebugDispatcher(script_debugger_.get(), script_runner_.get()));
   debug_backend_ = WrapRefCounted(new DebugBackend(
-      data.global_environment, script_debugger_.get(),
+      global_environment, script_debugger_.get(),
       base::Bind(&DebugModule::SendEvent, base::Unretained(this))));
 
-  debugger_hooks_ = data.debugger_hooks;
+  debugger_hooks_ = debugger_hooks;
   if (debugger_hooks_) debugger_hooks_->AttachDebugger(script_debugger_.get());
 
 
@@ -145,21 +113,21 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   log_agent_.reset(new LogAgent(debug_dispatcher_.get()));
   dom_agent_.reset(new DOMAgent(debug_dispatcher_.get()));
   css_agent_ = WrapRefCounted(new CSSAgent(debug_dispatcher_.get()));
-  if (data.render_overlay && data.resource_provider && data.window) {
+  if (render_overlay && resource_provider && window) {
     // Create render layers for the agents that need them and chain them
     // together. Ownership will be passed to the agent that uses each layer.
     // The layers will be painted in the reverse order they are listed here.
     std::unique_ptr<RenderLayer> page_render_layer(new RenderLayer(base::Bind(
-        &RenderOverlay::SetOverlay, base::Unretained(data.render_overlay))));
+        &RenderOverlay::SetOverlay, base::Unretained(render_overlay))));
 
     std::unique_ptr<RenderLayer> overlay_render_layer(
         new RenderLayer(base::Bind(&RenderLayer::SetBackLayer,
                                    page_render_layer->AsWeakPtr())));
     overlay_agent_.reset(new OverlayAgent(debug_dispatcher_.get(),
                                           std::move(overlay_render_layer)));
-    page_agent_.reset(new PageAgent(debug_dispatcher_.get(), data.window,
+    page_agent_.reset(new PageAgent(debug_dispatcher_.get(), window,
                                     std::move(page_render_layer),
-                                    data.resource_provider));
+                                    resource_provider));
   }
   tracing_agent_.reset(
       new TracingAgent(debug_dispatcher_.get(), script_debugger_.get()));
@@ -169,17 +137,16 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
 
   // Restore the clients in the dispatcher first so they get events that the
   // agents might send as part of restoring state.
-  if (data.debugger_state) {
+  if (debugger_state) {
     debug_dispatcher_->RestoreClients(
-        std::move(data.debugger_state->attached_clients));
+        std::move(debugger_state->attached_clients));
   }
 
   // Restore the agents with their state from before navigation. Do this
   // unconditionally to give the agents a place to initialize themselves whether
   // or not state is being restored.
   base::DictionaryValue* agents_state =
-      data.debugger_state == nullptr ? nullptr
-                                     : data.debugger_state->agents_state.get();
+      debugger_state == nullptr ? nullptr : debugger_state->agents_state.get();
   cobalt_agent_->Thaw(RemoveAgentState(kCobaltAgent, agents_state));
   script_debugger_agent_->Thaw(
       RemoveAgentState(kScriptDebuggerAgent, agents_state));
@@ -193,9 +160,11 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
 
   is_frozen_ = false;
+  LOG(INFO) << "DebugModule::DebugModule() end";
 }
 
 std::unique_ptr<DebuggerState> DebugModule::Freeze() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_frozen_);
   is_frozen_ = true;
 
@@ -225,16 +194,19 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
 void DebugModule::SendEvent(const std::string& method,
                             const std::string& params) {
   DCHECK(debug_dispatcher_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   debug_dispatcher_->SendEvent(method, params);
 }
 
 void DebugModule::OnScriptDebuggerPause() {
   DCHECK(debug_dispatcher_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   debug_dispatcher_->SetPaused(true);
 }
 
 void DebugModule::OnScriptDebuggerResume() {
   DCHECK(debug_dispatcher_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   debug_dispatcher_->SetPaused(false);
 }
 

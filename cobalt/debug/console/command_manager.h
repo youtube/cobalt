@@ -61,6 +61,9 @@ class ConsoleCommandManager {
     const std::string& short_help() const { return short_help_; }
     const std::string& long_help() const { return long_help_; }
 
+    // Returns true if the message is 'on', 'enable', or 'true'.
+    static bool IsOnEnableOrTrue(const std::string& message);
+
    private:
     std::string command_;
     CommandCallback callback_;

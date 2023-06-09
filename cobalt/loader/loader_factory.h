@@ -44,7 +44,7 @@ class LoaderFactory : public ScriptLoaderFactory {
  public:
   LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
                 render_tree::ResourceProvider* resource_provider,
-                const base::DebuggerHooks& debugger_hooks,
+                base::DebuggerHooks& debugger_hooks,
                 size_t encoded_image_cache_capacity,
                 base::ThreadPriority loader_thread_priority);
   ~LoaderFactory();
@@ -112,7 +112,7 @@ class LoaderFactory : public ScriptLoaderFactory {
   scoped_refptr<FetcherCache> fetcher_cache_;
 
   // Used with CLOG to report errors with the image source.
-  const base::DebuggerHooks& debugger_hooks_;
+  base::DebuggerHooks& debugger_hooks_;
 
   // Used to create render_tree resources.
   render_tree::ResourceProvider* resource_provider_;

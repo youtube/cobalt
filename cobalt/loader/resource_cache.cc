@@ -25,8 +25,7 @@ namespace loader {
 
 CachedResourceBase::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     const scoped_refptr<CachedResourceBase>& cached_resource,
-    const base::Closure& success_callback,
-    const base::Closure& error_callback)
+    const base::Closure& success_callback, const base::Closure& error_callback)
     : cached_resource_(cached_resource),
       success_callback_(success_callback),
       error_callback_(error_callback) {
@@ -47,7 +46,7 @@ CachedResourceBase::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
 }
 
 net::LoadTimingInfo
-    CachedResourceBase::OnLoadedCallbackHandler::GetLoadTimingInfo() {
+CachedResourceBase::OnLoadedCallbackHandler::GetLoadTimingInfo() {
   return cached_resource_->GetLoadTimingInfo();
 }
 
@@ -227,7 +226,7 @@ void ResourceCacheBase::DisableCallbacks() {
 }
 
 ResourceCacheBase::ResourceCacheBase(
-    const std::string& name, const base::DebuggerHooks& debugger_hooks,
+    const std::string& name, base::DebuggerHooks& debugger_hooks,
     uint32 cache_capacity, bool are_loading_retries_enabled,
     const ReclaimMemoryFunc& reclaim_memory_func)
     : name_(name),

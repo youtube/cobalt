@@ -55,7 +55,7 @@ typedef ResourceCache<RemoteTypefaceResourceCacheType> RemoteTypefaceCache;
 // CreateTypefaceCache() provides a mechanism for creating a remote typeface
 // cache.
 inline static std::unique_ptr<RemoteTypefaceCache> CreateRemoteTypefaceCache(
-    const std::string& name, const base::DebuggerHooks& debugger_hooks,
+    const std::string& name, base::DebuggerHooks& debugger_hooks,
     uint32 cache_capacity, loader::LoaderFactory* loader_factory) {
   return std::unique_ptr<RemoteTypefaceCache>(new RemoteTypefaceCache(
       name, debugger_hooks, cache_capacity,

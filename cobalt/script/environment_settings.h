@@ -31,7 +31,7 @@ namespace script {
 class EnvironmentSettings {
  public:
   explicit EnvironmentSettings(
-      const base::DebuggerHooks& debugger_hooks = null_debugger_hooks_);
+      base::DebuggerHooks& debugger_hooks = null_debugger_hooks_);
   virtual ~EnvironmentSettings() {}
 
   // The API id.
@@ -53,7 +53,7 @@ class EnvironmentSettings {
     return loader::Origin(base_url().GetOrigin());
   }
 
-  const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
+  base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
 
  protected:
   friend std::unique_ptr<EnvironmentSettings>::deleter_type;
@@ -62,8 +62,8 @@ class EnvironmentSettings {
   DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);
 
   std::string uuid_;
-  static const base::NullDebuggerHooks null_debugger_hooks_;
-  const base::DebuggerHooks& debugger_hooks_;
+  static base::NullDebuggerHooks null_debugger_hooks_;
+  base::DebuggerHooks& debugger_hooks_;
   GURL creation_url_;
 };
 

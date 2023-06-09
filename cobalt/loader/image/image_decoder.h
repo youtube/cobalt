@@ -51,12 +51,12 @@ class ImageDecoder : public Decoder {
 
   ImageDecoder(
       render_tree::ResourceProvider* resource_provider,
-      const base::DebuggerHooks& debugger_hooks,
+      base::DebuggerHooks& debugger_hooks,
       const ImageAvailableCallback& image_available_callback,
       const loader::Decoder::OnCompleteFunction& load_complete_callback);
   ImageDecoder(
       render_tree::ResourceProvider* resource_provider,
-      const base::DebuggerHooks& debugger_hooks,
+      base::DebuggerHooks& debugger_hooks,
       const ImageAvailableCallback& image_available_callback,
       ImageType image_type,
       const loader::Decoder::OnCompleteFunction& load_complete_callback);
@@ -104,7 +104,7 @@ class ImageDecoder : public Decoder {
                                  size_t* consumed_size);
 
   render_tree::ResourceProvider* resource_provider_;
-  const base::DebuggerHooks& debugger_hooks_;
+  base::DebuggerHooks& debugger_hooks_;
   const ImageAvailableCallback image_available_callback_;
   ImageType image_type_;
   const loader::Decoder::OnCompleteFunction load_complete_callback_;

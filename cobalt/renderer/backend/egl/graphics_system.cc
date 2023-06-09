@@ -200,7 +200,6 @@ GraphicsSystemEGL::GraphicsSystemEGL(
 }
 
 GraphicsSystemEGL::~GraphicsSystemEGL() {
-  LOG(INFO) << "GraphicsSystemEGL::~GraphicsSystemEGL()";
   if (window_surface_ != EGL_NO_SURFACE) {
     EGL_CALL_SIMPLE(eglDestroySurface(display_, window_surface_));
   }
@@ -208,7 +207,6 @@ GraphicsSystemEGL::~GraphicsSystemEGL() {
   EGL_CALL_SIMPLE(eglTerminate(display_));
   EGLint result = EGL_CALL_SIMPLE(eglGetError());
   if (result != EGL_SUCCESS) LOG(INFO) << "eglTerminate returned " << result;
-  LOG(INFO) << "GraphicsSystemEGL::~GraphicsSystemEGL() done";
 }
 
 std::unique_ptr<Display> GraphicsSystemEGL::CreateDisplay(

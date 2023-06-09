@@ -127,7 +127,7 @@ void SourceManagerSkipInputData(j_decompress_ptr decompress_ptr,
 
 JPEGImageDecoder::JPEGImageDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks,
+    base::DebuggerHooks& debugger_hooks,
     bool allow_image_decoding_to_multi_plane)
     : ImageDataDecoder(resource_provider, debugger_hooks),
       allow_image_decoding_to_multi_plane_(

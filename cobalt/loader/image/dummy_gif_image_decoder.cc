@@ -27,7 +27,7 @@ const char kDummyAdsGif[] = {
 
 DummyGIFImageDecoder::DummyGIFImageDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks)
+    base::DebuggerHooks& debugger_hooks)
     : ImageDataDecoder(resource_provider, debugger_hooks) {}
 
 size_t DummyGIFImageDecoder::DecodeChunkInternal(const uint8* data,

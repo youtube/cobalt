@@ -530,7 +530,7 @@ class EventTarget : public script::Wrappable,
   DEFINE_WRAPPABLE_TYPE(EventTarget);
   void TraceMembers(script::Tracer* tracer) override;
 
-  const base::DebuggerHooks& debugger_hooks() const {
+  base::DebuggerHooks& debugger_hooks() const {
     return environment_settings_->debugger_hooks();
   }
   web::EnvironmentSettings* environment_settings() const {

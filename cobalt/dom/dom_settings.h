@@ -53,7 +53,7 @@ class DOMSettings : public web::EnvironmentSettings {
     speech::Microphone::Options microphone_options;
   };
 
-  DOMSettings(const base::DebuggerHooks& debugger_hooks,
+  DOMSettings(base::DebuggerHooks& debugger_hooks,
               const int max_dom_element_depth,
               MediaSourceRegistry* media_source_registry,
               media::CanPlayTypeHandler* can_play_type_handler,

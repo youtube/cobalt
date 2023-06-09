@@ -32,7 +32,7 @@ namespace image {
 class FailureImageDecoder : public ImageDataDecoder {
  public:
   explicit FailureImageDecoder(render_tree::ResourceProvider* resource_provider,
-                               const base::DebuggerHooks& debugger_hooks)
+                               base::DebuggerHooks& debugger_hooks)
       : ImageDataDecoder(resource_provider, debugger_hooks) {}
 
   // From ImageDataDecoder

@@ -546,12 +546,12 @@ inline void yyerror(YYLTYPE* source_location, ParserImpl* parser_impl,
 
 namespace {
 
-void LogWarningCallback(const ::base::DebuggerHooks* debugger_hooks,
+void LogWarningCallback(::base::DebuggerHooks* debugger_hooks,
                         const std::string& message) {
   CLOG(WARNING, *debugger_hooks) << message;
 }
 
-void LogErrorCallback(const ::base::DebuggerHooks* debugger_hooks,
+void LogErrorCallback(::base::DebuggerHooks* debugger_hooks,
                       const std::string& message) {
   CLOG(ERROR, *debugger_hooks) << message;
 }
@@ -559,7 +559,7 @@ void LogErrorCallback(const ::base::DebuggerHooks* debugger_hooks,
 }  // namespace
 
 std::unique_ptr<Parser> Parser::Create(
-    const ::base::DebuggerHooks& debugger_hooks,
+    ::base::DebuggerHooks& debugger_hooks,
     SupportsMapToMeshFlag supports_map_to_mesh) {
   return base::WrapUnique(new Parser(
       ::base::Bind(&LogWarningCallback, ::base::Unretained(&debugger_hooks)),

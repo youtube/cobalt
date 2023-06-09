@@ -40,7 +40,7 @@ class DebuggerHooks {
 
   // Logs a message to the JavaScript console.
   virtual void ConsoleLog(::logging::LogSeverity severity,
-                          std::string message) const = 0;
+                          std::string message) = 0;
 
   // Record the JavaScript stack on the WebModule thread at the point a task is
   // initiated that will run at a later time (on the same thread), allowing it
@@ -57,30 +57,30 @@ class DebuggerHooks {
   // If kOneshot then the task will be implicitly canceled after it is finished,
   // and if kRecurring then it must be explicitly canceled.
   virtual void AsyncTaskScheduled(const void* task, const std::string& name,
-                                  AsyncTaskFrequency frequency) const = 0;
+                                  AsyncTaskFrequency frequency) = 0;
 
   // Inform the debugger that a scheduled task is starting to run.
-  virtual void AsyncTaskStarted(const void* task) const = 0;
+  virtual void AsyncTaskStarted(const void* task) = 0;
 
   // Inform the debugger that a scheduled task has finished running.
-  virtual void AsyncTaskFinished(const void* task) const = 0;
+  virtual void AsyncTaskFinished(const void* task) = 0;
 
   // Inform the debugger that a scheduled task will no longer be run, and that
   // it may free any resources associated with it.
-  virtual void AsyncTaskCanceled(const void* task) const = 0;
+  virtual void AsyncTaskCanceled(const void* task) = 0;
 };
 
 // Helper to start & finish async tasks using RAII.
 class ScopedAsyncTask {
  public:
-  ScopedAsyncTask(const DebuggerHooks& debugger_hooks, const void* task)
+  ScopedAsyncTask(DebuggerHooks& debugger_hooks, const void* task)
       : debugger_hooks_(debugger_hooks), task_(task) {
     debugger_hooks_.AsyncTaskStarted(task_);
   }
   ~ScopedAsyncTask() { debugger_hooks_.AsyncTaskFinished(task_); }
 
  private:
-  const DebuggerHooks& debugger_hooks_;
+  DebuggerHooks& debugger_hooks_;
   const void* const task_;
 };
 
@@ -88,12 +88,12 @@ class ScopedAsyncTask {
 class NullDebuggerHooks : public DebuggerHooks {
  public:
   void ConsoleLog(::logging::LogSeverity severity,
-                  std::string message) const override {}
+                  std::string message) override {}
   void AsyncTaskScheduled(const void* task, const std::string& name,
-                          AsyncTaskFrequency frequency) const override {}
-  void AsyncTaskStarted(const void* task) const override {}
-  void AsyncTaskFinished(const void* task) const override {}
-  void AsyncTaskCanceled(const void* task) const override {}
+                          AsyncTaskFrequency frequency) override {}
+  void AsyncTaskStarted(const void* task) override {}
+  void AsyncTaskFinished(const void* task) override {}
+  void AsyncTaskCanceled(const void* task) override {}
 };
 
 }  // namespace base

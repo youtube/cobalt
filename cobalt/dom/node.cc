@@ -439,7 +439,7 @@ Element* Node::AsElement() { return NULL; }
 
 Text* Node::AsText() { return NULL; }
 
-const base::DebuggerHooks& Node::debugger_hooks() const {
+base::DebuggerHooks& Node::debugger_hooks() const {
   return environment_settings()->debugger_hooks();
 }
 

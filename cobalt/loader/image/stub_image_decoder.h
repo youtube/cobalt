@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/compiler_specific.h"
 #include "cobalt/loader/image/image.h"
@@ -31,15 +32,13 @@ namespace image {
 class StubImageDecoder : public ImageDataDecoder {
  public:
   explicit StubImageDecoder(render_tree::ResourceProvider* resource_provider,
-                            const base::DebuggerHooks& debugger_hooks)
+                            base::DebuggerHooks& debugger_hooks)
       : ImageDataDecoder(resource_provider, debugger_hooks) {}
 
   // From ImageDataDecoder
   std::string GetTypeString() const override { return "StubImageDecoder"; }
 
-  static bool IsValidSignature(const uint8* header) {
-    return true;
-  }
+  static bool IsValidSignature(const uint8* header) { return true; }
 
  private:
   // From ImageDataDecoder

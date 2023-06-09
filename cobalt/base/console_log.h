@@ -26,8 +26,7 @@ namespace base {
 // CLOG macro that sends the message to the JS console through DebuggerHooks.
 class ConsoleMessage {
  public:
-  ConsoleMessage(::logging::LogSeverity severity,
-                 const DebuggerHooks& debugger_hooks)
+  ConsoleMessage(::logging::LogSeverity severity, DebuggerHooks& debugger_hooks)
       : severity_(severity), debugger_hooks_(debugger_hooks) {}
 
   ~ConsoleMessage() { debugger_hooks_.ConsoleLog(severity_, stream_.str()); }
@@ -36,7 +35,7 @@ class ConsoleMessage {
 
  private:
   ::logging::LogSeverity severity_;
-  const DebuggerHooks& debugger_hooks_;
+  DebuggerHooks& debugger_hooks_;
   std::ostringstream stream_;
 };
 

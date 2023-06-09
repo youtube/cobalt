@@ -142,7 +142,7 @@ void WindowTimers::SetApplicationState(base::ApplicationState state) {
 
 WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
                            web::StatTracker* stat_tracker,
-                           const base::DebuggerHooks& debugger_hooks,
+                           base::DebuggerHooks& debugger_hooks,
                            const TimerCallbackArg& callback, int timeout,
                            int handle, WindowTimers* window_timers)
     : type_(type),
