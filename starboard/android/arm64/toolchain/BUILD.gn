@@ -21,9 +21,9 @@ gcc_toolchain("target") {
   cc = "$prefix/aarch64-linux-android${android_ndk_api_level}-clang"
   cxx = "$prefix/aarch64-linux-android${android_ndk_api_level}-clang++"
   ld = cxx
-  readelf = "$prefix/aarch64-linux-android-readelf"
-  ar = "$prefix/aarch64-linux-android-ar"
-  nm = "$prefix/aarch64-linux-android-nm"
+  readelf = "readelf"
+  ar = "ar"
+  nm = "nm"
 
   toolchain_args = {
     is_clang = true
