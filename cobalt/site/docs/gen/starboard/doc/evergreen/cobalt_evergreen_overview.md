@@ -557,6 +557,15 @@ Please see
 [`suspend_signals.cc`](../../shared/signal/suspend_signals.cc)
 for an example.
 
+### Cleaning up after uninstall
+When the application is uninstalled the updates should be cleanup by calling the
+application with the `--reset_evergreen_update` flag. This would remove all files
+under `kSbSystemPathStorageDirectory` and exit the app.
+
+```
+  loader_app --reset_evergreen_update
+```
+
 ### Multi-App Support
 Evergreen can support multiple apps that share a Cobalt binary. This is a very
 common way to save space and keep all your Cobalt apps using the latest version
