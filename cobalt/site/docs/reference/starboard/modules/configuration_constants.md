@@ -50,10 +50,6 @@ component separator character.
 
 The string form of SB_FILE_SEP_CHAR.
 
-### kSbHasAc3Audio ###
-
-Allow ac3 and ec3 support
-
 ### kSbHasMediaWebmVp9Support ###
 
 Specifies whether this platform has webm/vp9 support. This should be set to non-

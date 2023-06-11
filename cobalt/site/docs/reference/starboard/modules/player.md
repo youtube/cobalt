@@ -22,6 +22,14 @@ the duration is unknown, such as for live streams.
 
 Well-defined value for an invalid player.
 
+### kSbPlayerWriteDurationLocal ###
+
+The audio write duration when all the audio connectors are local.
+
+### kSbPlayerWriteDurationRemote ###
+
+The audio write duration when at least one of the audio connectors are remote.
+
 ## Enums ##
 
 ### SbPlayerDecoderState ###
@@ -159,15 +167,15 @@ SbPlayerGetPreferredOutputMode().
     Provides an appropriate DRM system if the media stream has encrypted
     portions. It will be `kSbDrmSystemInvalid` if the stream does not have
     encrypted portions.
-*   `SbMediaAudioSampleInfo audio_sample_info`
+*   `SbMediaAudioStreamInfo audio_stream_info`
 
-    Contains a populated SbMediaAudioSampleInfo if `audio_sample_info.codec`
-    isn't `kSbMediaAudioCodecNone`. When `audio_sample_info.codec` is
+    Contains a populated SbMediaAudioStreamInfo if `audio_stream_info.codec`
+    isn't `kSbMediaAudioCodecNone`. When `audio_stream_info.codec` is
     `kSbMediaAudioCodecNone`, the video doesn't have an audio track.
-*   `SbMediaVideoSampleInfo video_sample_info`
+*   `SbMediaVideoStreamInfo video_stream_info`
 
-    Contains a populated SbMediaVideoSampleInfo if `video_sample_info.codec`
-    isn't `kSbMediaVideoCodecNone`. When `video_sample_info.codec` is
+    Contains a populated SbMediaVideoStreamInfo if `video_stream_info.codec`
+    isn't `kSbMediaVideoCodecNone`. When `video_stream_info.codec` is
     `kSbMediaVideoCodecNone`, the video is audio only.
 *   `SbPlayerOutputMode output_mode`
 
@@ -178,7 +186,7 @@ SbPlayerGetPreferredOutputMode().
     should be made available for the application to pull via calls to
     SbPlayerGetCurrentFrame().
 
-### SbPlayerInfo2 ###
+### SbPlayerInfo ###
 
 Information about the current media playback state.
 
@@ -231,7 +239,7 @@ Information about the current media playback state.
 
 ### SbPlayerSampleInfo ###
 
-Information about the samples to be written into SbPlayerWriteSample2.
+Information about the samples to be written into SbPlayerWriteSamples().
 
 #### Members ####
 
@@ -297,12 +305,76 @@ Destroys `player`, freeing all associated resources.
 
 *   It is not allowed to pass `player` into any other `SbPlayer` function once
     SbPlayerDestroy has been called on that player. `player`: The player to be
-    destroyed.
+    destroyed. Must not be `kSbPlayerInvalid`.
 
 #### Declaration ####
 
 ```
 void SbPlayerDestroy(SbPlayer player)
+```
+
+### SbPlayerGetAudioConfiguration ###
+
+Returns the audio configurations used by `player`.
+
+Returns true when `out_audio_configuration` is filled with the information of
+the configuration of the audio output devices used by `player`. Returns false
+for `index` 0 to indicate that there is no audio output for this `player`.
+Returns false for `index` greater than 0 to indicate that there are no more
+audio output configurations other than the ones already returned.
+
+The app will use the information returned to determine audio related behaviors,
+like:
+
+Audio Write Duration: Audio write duration is how far past the current playback
+position the app will write audio samples. The app will write all samples
+between `current_playback_position` and `current_playback_position` +
+`audio_write_duration`, as soon as they are available.
+
+`audio_write_duration` will be to `kSbPlayerWriteDurationLocal`
+kSbPlayerWriteDurationLocal when all audio configurations linked to `player` is
+local, or if there isn't any audio output. It will be set to
+`kSbPlayerWriteDurationRemote` kSbPlayerWriteDurationRemote for remote or
+wireless audio outputs, i.e. one of `kSbMediaAudioConnectorBluetooth`
+kSbMediaAudioConnectorBluetooth or `kSbMediaAudioConnectorRemote*`
+kSbMediaAudioConnectorRemote* .
+
+The app only guarantees to write `audio_write_duration` past
+`current_playback_position`, but the app is free to write more samples than
+that. So the platform shouldn't rely on this for flow control. The platform
+should achieve flow control by sending `kSbPlayerDecoderStateNeedsData`
+kSbPlayerDecoderStateNeedsData less frequently.
+
+The platform is responsible for guaranteeing that when only
+`audio_write_duration` audio samples are written at a time, no playback issues
+occur (such as transient or indefinite hanging).
+
+The audio configurations should be available as soon as possible, and they have
+to be available when the `player` is at `kSbPlayerStatePresenting`
+kSbPlayerStatePresenting , unless the audio codec is `kSbMediaAudioCodecNone` or
+there's no written audio inputs.
+
+The app will set `audio_write_duration` to `kSbPlayerWriteDurationLocal`
+kSbPlayerWriteDurationLocal when the audio configuration isn't available (i.e.
+the function returns false when index is 0). The platform has to make the audio
+configuration available immediately after the SbPlayer is created, if it expects
+the app to treat the platform as using wireless audio outputs.
+
+Once at least one audio configurations are returned, the return values and their
+orders shouldn't change during the life time of `player`. The platform may
+inform the app of any changes by sending `kSbPlayerErrorCapabilityChanged`
+kSbPlayerErrorCapabilityChanged to request a playback restart.
+
+`player`: The player about which information is being retrieved. Must not be
+`kSbPlayerInvalid`. `index`: The index of the audio output configuration. Must
+be greater than or equal to 0. `out_audio_configuration`: The information about
+the audio output, refer to `SbMediaAudioConfiguration` for more details. Must
+not be NULL.
+
+#### Declaration ####
+
+```
+bool SbPlayerGetAudioConfiguration(SbPlayer player, int index, SbMediaAudioConfiguration *out_audio_configuration)
 ```
 
 ### SbPlayerGetCurrentFrame ###
@@ -315,24 +387,12 @@ the frame. If this function is called with a `player` object that was created
 with an output mode other than kSbPlayerOutputModeDecodeToTexture,
 kSbDecodeTargetInvalid is returned.
 
+`player` must not be `kSbPlayerInvalid`.
+
 #### Declaration ####
 
 ```
 SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player)
-```
-
-### SbPlayerGetInfo2 ###
-
-Gets a snapshot of the current player state and writes it to `out_player_info`.
-This function may be called very frequently and is expected to be inexpensive.
-
-`player`: The player about which information is being retrieved.
-`out_player_info`: The information retrieved for the player.
-
-#### Declaration ####
-
-```
-void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2 *out_player_info2)
 ```
 
 ### SbPlayerGetMaximumNumberOfSamplesPerWrite ###
@@ -371,7 +431,7 @@ the implementation should return an output mode that it is supported, as if
 the call. Note that it is not the responsibility of this function to verify
 whether the video described by `creation_param` can be played on the platform,
 and the implementation should try its best effort to return a valid output mode.
-`creation_param` will never be NULL.
+`creation_param` must not be NULL.
 
 #### Declaration ####
 
@@ -403,12 +463,12 @@ up to 60 Hz. Since the function could be called up to once per frame,
 implementors should take care to avoid related performance concerns with such
 frequent calls.
 
-`player`: The player that is being resized. `z_index`: The z-index of the
-player. When the bounds of multiple players are overlapped, the one with larger
-z-index will be rendered on top of the ones with smaller z-index. `x`: The
-x-coordinate of the upper-left corner of the player. `y`: The y-coordinate of
-the upper-left corner of the player. `width`: The width of the player, in
-pixels. `height`: The height of the player, in pixels.
+`player`: The player that is being resized. Must not be `kSbPlayerInvalid`.
+`z_index`: The z-index of the player. When the bounds of multiple players are
+overlapped, the one with larger z-index will be rendered on top of the ones with
+smaller z-index. `x`: The x-coordinate of the upper-left corner of the player.
+`y`: The y-coordinate of the upper-left corner of the player. `width`: The width
+of the player, in pixels. `height`: The height of the player, in pixels.
 
 #### Declaration ####
 
@@ -429,6 +489,8 @@ the implementation supports. It returns false when the playback rate is
 unchanged, this can happen when `playback_rate` is negative or if it is too high
 to support.
 
+`player` must not be `kSbPlayerInvalid`.
+
 #### Declaration ####
 
 ```
@@ -439,10 +501,10 @@ bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate)
 
 Sets the player's volume.
 
-`player`: The player in which the volume is being adjusted. `volume`: The new
-player volume. The value must be between `0.0` and `1.0`, inclusive. A value of
-`0.0` means that the audio should be muted, and a value of `1.0` means that it
-should be played at full volume.
+`player`: The player in which the volume is being adjusted. Must not be
+`kSbPlayerInvalid`. `volume`: The new player volume. The value must be between
+`0.0` and `1.0`, inclusive. A value of `0.0` means that the audio should be
+muted, and a value of `1.0` means that it should be played at full volume.
 
 #### Declaration ####
 
@@ -466,31 +528,20 @@ stream for which the marker is written.
 void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type)
 ```
 
-### SbPlayerWriteSample2 ###
+### SbPlayerWriteSamples ###
 
-Writes samples of the given media type to `player`'s input stream. The lifetime
-of `sample_infos`, and the members of its elements like `buffer`,
-`video_sample_info`, and `drm_info` (as well as member `subsample_mapping`
-contained inside it) are not guaranteed past the call to SbPlayerWriteSample2.
-That means that before returning, the implementation must synchronously copy any
-information it wants to retain from those structures.
-
-SbPlayerWriteSample2 allows writing of multiple samples in one call.
-
-`player`: The player to which the sample is written. `sample_type`: The type of
-sample being written. See the `SbMediaType` enum in media.h. `sample_infos`: A
-pointer to an array of SbPlayerSampleInfo with `number_of_sample_infos`
-elements, each holds the data for an sample, i.e. a sequence of whole NAL Units
-for video, or a complete audio frame. `sample_infos` cannot be assumed to live
-past the call into SbPlayerWriteSample2(), so it must be copied if its content
-will be used after SbPlayerWriteSample2() returns. `number_of_sample_infos`:
-Specify the number of samples contained inside `sample_infos`. It has to be at
-least one, and less than the return value of
+`sample_type`: The type of sample being written. See the `SbMediaType` enum in
+media.h. `sample_infos`: A pointer to an array of SbPlayerSampleInfo with
+`number_of_sample_infos` elements, each holds the data for an sample, i.e. a
+sequence of whole NAL Units for video, or a complete audio frame. `sample_infos`
+cannot be assumed to live past the call into SbPlayerWriteSamples(), so it must
+be copied if its content will be used after SbPlayerWriteSamples() returns.
+`number_of_sample_infos`: Specify the number of samples contained inside
+`sample_infos`. It has to be at least one, and less than the return value of
 SbPlayerGetMaximumNumberOfSamplesPerWrite().
 
 #### Declaration ####
 
 ```
-void SbPlayerWriteSample2(SbPlayer player, SbMediaType sample_type, const SbPlayerSampleInfo *sample_infos, int number_of_sample_infos)
+void SbPlayerWriteSamples(SbPlayer player, SbMediaType sample_type, const SbPlayerSampleInfo *sample_infos, int number_of_sample_infos)
 ```
-

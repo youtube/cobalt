@@ -59,11 +59,20 @@ Possible audio connector types.
 
 #### Values ####
 
-*   `kSbMediaAudioConnectorNone`
+*   `kSbMediaAudioConnectorUnknown`
 *   `kSbMediaAudioConnectorAnalog`
 *   `kSbMediaAudioConnectorBluetooth`
+*   `kSbMediaAudioConnectorBuiltIn`
 *   `kSbMediaAudioConnectorHdmi`
-*   `kSbMediaAudioConnectorNetwork`
+*   `kSbMediaAudioConnectorRemoteWired`
+
+    A wired remote audio output, like a remote speaker via Ethernet.
+*   `kSbMediaAudioConnectorRemoteWireless`
+
+    A wireless remote audio output, like a remote speaker via Wi-Fi.
+*   `kSbMediaAudioConnectorRemoteOther`
+
+    A remote audio output cannot be classified into other existing types.
 *   `kSbMediaAudioConnectorSpdif`
 *   `kSbMediaAudioConnectorUsb`
 
@@ -174,13 +183,10 @@ output.
 
 #### Members ####
 
-*   `int index`
-
-    The platform-defined index of the associated audio output.
 *   `SbMediaAudioConnector connector`
 
-    The type of audio connector. Will be the empty `kSbMediaAudioConnectorNone`
-    if this device cannot provide this information.
+    The type of audio connector. Will be `kSbMediaAudioConnectorUnknown` if this
+    device cannot provide this information.
 *   `SbTime latency`
 
     The expected latency of audio over this output, in microseconds, or `0` if
@@ -196,13 +202,19 @@ output.
 
 ### SbMediaAudioSampleInfo ###
 
-An audio sample info, which is a description of a given audio sample. This acts
-as a set of instructions to the audio decoder.
+The set of information required by the decoder or player for each audio sample.
 
-The audio sample info consists of information found in the `WAVEFORMATEX`
-structure, as well as other information for the audio decoder, including the
-Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
-[http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx](http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx)x) .
+#### Members ####
+
+*   `SbMediaAudioStreamInfo stream_info`
+
+    The set of information of the video stream associated with this sample.
+*   `SbTime discarded_duration_from_front`
+*   `SbTime discarded_duration_from_back`
+
+### SbMediaAudioStreamInfo ###
+
+The set of information required by the decoder or player for each audio stream.
 
 #### Members ####
 
@@ -214,21 +226,12 @@ Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
     The mime of the audio stream when `codec` isn't kSbMediaAudioCodecNone. It
     may point to an empty string if the mime is not available, and it can only
     be set to NULL when `codec` is kSbMediaAudioCodecNone.
-*   `uint16_t format_tag`
-
-    The waveform-audio format type code.
 *   `uint16_t number_of_channels`
 
     The number of audio channels in this format. `1` for mono, `2` for stereo.
 *   `uint32_t samples_per_second`
 
     The sampling rate.
-*   `uint32_t average_bytes_per_second`
-
-    The number of bytes per second expected with this format.
-*   `uint16_t block_alignment`
-
-    Byte block alignment, e.g, 4.
 *   `uint16_t bits_per_sample`
 
     The bit depth for the stream this represents, e.g. `8` or `16`.
@@ -377,6 +380,20 @@ The set of information required by the decoder or player for each video sample.
 
 #### Members ####
 
+*   `SbMediaVideoStreamInfo stream_info`
+
+    The set of information of the video stream associated with this sample.
+*   `bool is_key_frame`
+
+    Indicates whether the associated sample is a key frame (I-frame). Avc video
+    key frames must always start with SPS and PPS NAL units.
+
+### SbMediaVideoStreamInfo ###
+
+The set of information required by the decoder or player for each video stream.
+
+#### Members ####
+
 *   `SbMediaVideoCodec codec`
 
     The video codec of this sample.
@@ -397,10 +414,6 @@ The set of information required by the decoder or player for each video sample.
     second higher than 15 fps. When the maximums are unknown, this will be set
     to an empty string. It can only be set to NULL when `codec` is
     kSbMediaVideoCodecNone.
-*   `bool is_key_frame`
-
-    Indicates whether the associated sample is a key frame (I-frame). Video key
-    frames must always start with SPS and PPS NAL units.
 *   `int frame_width`
 
     The frame width of this sample, in pixels. Also could be parsed from the
@@ -685,22 +698,4 @@ pools should be allocated on demand, as opposed to using SbMemory* functions.
 
 ```
 bool SbMediaIsBufferUsingMemoryPool()
-```
-
-### SbMediaSetAudioWriteDuration ###
-
-Communicate to the platform how far past `current_playback_position` the app
-will write audio samples. The app will write all samples between
-`current_playback_position` and `current_playback_position` + `duration`, as
-soon as they are available. The app may sometimes write more samples than that,
-but the app only guarantees to write `duration` past `current_playback_position`
-in general. The platform is responsible for guaranteeing that when only
-`duration` audio samples are written at a time, no playback issues occur (such
-as transient or indefinite hanging). The platform may assume `duration` >= 0.5
-seconds.
-
-#### Declaration ####
-
-```
-void SbMediaSetAudioWriteDuration(SbTime duration)
 ```

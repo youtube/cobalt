@@ -196,6 +196,7 @@ virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windo
 *   `kSbKeyGreen`
 *   `kSbKeyYellow`
 *   `kSbKeyBlue`
+*   `kSbKeyRecord`
 *   `kSbKeyChannelUp`
 *   `kSbKeyChannelDown`
 *   `kSbKeySubtitle`
@@ -290,4 +291,3 @@ Bit-mask of key modifiers.
 *   `kSbKeyModifiersPointerButtonMiddle`
 *   `kSbKeyModifiersPointerButtonBack`
 *   `kSbKeyModifiersPointerButtonForward`
-

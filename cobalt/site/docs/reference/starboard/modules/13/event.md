@@ -3,10 +3,6 @@ layout: doc
 title: "Starboard Module Reference: event.h"
 ---
 
-For SB_API_VERSION >= 13
-
-Module Overview: Starboard Event module
-
 Defines the event system that wraps the Starboard main loop and entry point.
 
 ## The Starboard Application Lifecycle ##
@@ -81,75 +77,6 @@ for a more graceful shutdown.
 
 Note that the application is always expected to transition through `BLURRED`,
 `CONCEALED` to `FROZEN` before receiving `Stop` or being killed.
-
-For SB_API_VERSION < 13
-
-Module Overview: Starboard Event module
-
-Defines the event system that wraps the Starboard main loop and entry point.
-
-## The Starboard Application Lifecycle ##
-
-```
-    ---------- *
-   |           |
-   |        Preload
-   |           |
-   |           V
- Start   [ PRELOADING ] ------------
-   |           |                    |
-   |         Start                  |
-   |           |                    |
-   |           V                    |
-    ----> [ STARTED ] <----         |
-               |           |        |
-             Pause       Unpause    |
-               |           |     Suspend
-               V           |        |
-    -----> [ PAUSED ] -----         |
-   |           |                    |
-Resume      Suspend                 |
-   |           |                    |
-   |           V                    |
-    ---- [ SUSPENDED ] <------------
-               |
-              Stop
-               |
-               V
-          [ STOPPED ]
-
-```
-
-The first event that a Starboard application receives is either `Start`
-(`kSbEventTypeStart`) or `Preload` (`kSbEventTypePreload`). `Start` puts the
-application in the `STARTED` state, whereas `Preload` puts the application in
-the `PRELOADING` state.
-
-`PRELOADING` can only happen as the first application state. In this state, the
-application should start and run as normal, but will not receive any input, and
-should not try to initialize graphics resources via GL. In `PRELOADING`, the
-application can receive `Start` or `Suspend` events. `Start` will receive the
-same data that was passed into `Preload`.
-
-In the `STARTED` state, the application is in the foreground and can expect to
-do all of the normal things it might want to do. Once in the `STARTED` state, it
-may receive a `Pause` event, putting the application into the `PAUSED` state.
-
-In the `PAUSED` state, the application is still visible, but has lost focus, or
-it is partially obscured by a modal dialog, or it is on its way to being shut
-down. The application should pause activity in this state. In this state, it can
-receive `Unpause` to be brought back to the foreground state (`STARTED`), or
-`Suspend` to be pushed further in the background to the `SUSPENDED` state.
-
-In the `SUSPENDED` state, the application is generally not visible. It should
-immediately release all graphics and video resources, and shut down all
-background activity (timers, rendering, etc). Additionally, the application
-should flush storage to ensure that if the application is killed, the storage
-will be up-to-date. The application may be killed at this point, but will
-ideally receive a `Stop` event for a more graceful shutdown.
-
-Note that the application is always expected to transition through `PAUSED` to
-`SUSPENDED` before receiving `Stop` or being killed.
 
 ## Enums ##
 
@@ -465,10 +392,10 @@ Schedules an event `callback` into the main Starboard event loop. This function
 may be called from any thread, but `callback` is always called from the main
 Starboard thread, queued with other pending events.
 
-`callback`: The callback function to be called. `context`: The context that is
-passed to the `callback` function. `delay`: The minimum number of microseconds
-to wait before calling the `callback` function. Set `delay` to `0` to call the
-callback as soon as possible.
+`callback`: The callback function to be called. Must not be NULL. `context`: The
+context that is passed to the `callback` function. `delay`: The minimum number
+of microseconds to wait before calling the `callback` function. Set `delay` to
+`0` to call the callback as soon as possible.
 
 #### Declaration ####
 
