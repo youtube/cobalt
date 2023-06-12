@@ -91,7 +91,7 @@ void H5vccRuntime::OnEventForDeepLink(const base::Event* event) {
     message_loop_->task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&H5vccRuntime::OnDeepLinkEvent, base::Unretained(this),
-                   base::Passed(&deep_link_event)));
+                   base::Passed(std::move(deep_link_event))));
     return;
   }
   OnDeepLinkEvent(std::move(deep_link_event));
