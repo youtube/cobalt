@@ -57,7 +57,8 @@ scoped_refptr<dom::HTMLElement> TopmostEventTarget::FindTopmostEventTarget(
   document->DoSynchronousLayout();
 
   html_element_ = document->html();
-  ConsiderElement(html_element_, coordinate);
+  bool consider_only_fixed_elements = false;
+  ConsiderElement(html_element_, coordinate, consider_only_fixed_elements);
   box_ = NULL;
   render_sequence_.clear();
   scoped_refptr<dom::HTMLElement> topmost_element;
@@ -178,8 +179,8 @@ struct CanTargetBox {
   }
 };
 
-bool ShouldConsiderElementAndChildren(dom::Element* element,
-                                      math::Vector2dF* coordinate) {
+bool CanTargetElementAndChildren(dom::Element* element,
+                                 math::Vector2dF* coordinate) {
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
   const Boxes boxes = layout_boxes->boxes();
   const Box* box = boxes.front();
@@ -434,17 +435,43 @@ math::Matrix3F GetCompleteTransformMatrix(dom::Element* element) {
   return complete_matrix;
 }
 
+bool LayoutBoxesAreFixed(LayoutBoxes* layout_boxes) {
+  const Boxes boxes = layout_boxes->boxes();
+  const Box* box = boxes.front();
+  if (!box->computed_style()) {
+    return false;
+  }
+
+  return box->computed_style()->position() == cssom::KeywordValue::GetFixed();
+}
+
+bool ShouldConsiderElementAndChildren(dom::Element* element,
+                                      math::Vector2dF* coordinate,
+                                      bool consider_only_fixed_elements) {
+  LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
+  if (!layout_boxes) {
+    return false;
+  }
+
+  bool is_fixed_element = LayoutBoxesAreFixed(layout_boxes);
+  if (consider_only_fixed_elements && !is_fixed_element) {
+    return false;
+  }
+  return CanTargetElementAndChildren(element, coordinate);
+}
+
 }  // namespace
 
 void TopmostEventTarget::ConsiderElement(dom::Element* element,
-                                         const math::Vector2dF& coordinate) {
+                                         const math::Vector2dF& coordinate,
+                                         bool consider_only_fixed_elements) {
   if (!element) return;
   math::Vector2dF element_coordinate(coordinate);
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
-  if (layout_boxes) {
-    if (!ShouldConsiderElementAndChildren(element, &element_coordinate)) {
-      return;
-    }
+  bool consider_element_and_children = ShouldConsiderElementAndChildren(
+      element, &element_coordinate, consider_only_fixed_elements);
+
+  if (consider_element_and_children) {
     scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
     if (html_element && html_element->CanBeDesignatedByPointerIfDisplayed()) {
       ConsiderBoxes(html_element, layout_boxes, element_coordinate);
@@ -453,7 +480,8 @@ void TopmostEventTarget::ConsiderElement(dom::Element* element,
 
   for (dom::Element* child_element = element->first_element_child();
        child_element; child_element = child_element->next_element_sibling()) {
-    ConsiderElement(child_element, element_coordinate);
+    ConsiderElement(child_element, element_coordinate,
+                    !consider_element_and_children);
   }
 }
 
