@@ -13,11 +13,7 @@ if (angle_has_build) {
   import("//build/config/sanitizers/sanitizers.gni")
   import("//build/config/ui.gni")  # import the use_x11 variable
   import("//build_overrides/build.gni")
-  if (is_starboard) {
-    import("//starboard/build/test.gni")
-  } else {
-    import("//testing/test.gni")
-  }
+  import("//testing/test.gni")
   if (is_android) {
     import("//build/config/android/config.gni")
   }
