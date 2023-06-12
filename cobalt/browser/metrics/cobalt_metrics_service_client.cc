@@ -44,7 +44,10 @@ namespace cobalt {
 namespace browser {
 namespace metrics {
 
-// How frequently to attempt uploading.
+// The interval in between upload attempts. That is, every interval in which
+// we package up the new, unlogged, metrics and attempt uploading them. In
+// Cobalt's case, this is the shortest interval in which we'll call the H5vcc
+// MetricEventHandlerWrapper.
 const int kStandardUploadIntervalSeconds = 5 * 60;  // 5 minutes.
 
 void CobaltMetricsServiceClient::SetOnUploadHandler(
@@ -77,6 +80,8 @@ void CobaltMetricsServiceClient::SetMetricsClientId(
   // TODO(b/286066035): What to do with client id here?
 }
 
+// TODO(b/286884542): Audit all stub implementations in this class and reaffirm
+// they're not needed and/or add a reasonable implementation.
 int32_t CobaltMetricsServiceClient::GetProduct() {
   // Note, Product is a Chrome concept and similar dimensions will get logged
   // elsewhere downstream. This value doesn't matter.
@@ -103,8 +108,8 @@ CobaltMetricsServiceClient::GetChannel() {
 }
 
 std::string CobaltMetricsServiceClient::GetVersionString() {
-  // All version strings will be attached to the GEL event sent by the web
-  // client, so the value doesn't matter much here.
+  // We assume the web client will log the Cobalt version along with its payload
+  // so this field is not that important.
   return "1.0";
 }
 
@@ -171,13 +176,13 @@ bool CobaltMetricsServiceClient::IsUMACellularUploadLogicEnabled() {
 
 bool CobaltMetricsServiceClient::SyncStateAllowsUkm() {
   // UKM currently not used. Value doesn't matter here.
-  return true;
+  return false;
 }
 
 bool CobaltMetricsServiceClient::SyncStateAllowsExtensionUkm() {
   // TODO(b/284467142): Revisit when enabling UKM.
   // UKM currently not used. Value doesn't matter here.
-  return true;
+  return false;
 }
 
 bool CobaltMetricsServiceClient::

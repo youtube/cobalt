@@ -39,6 +39,9 @@ class H5vccMetrics : public script::Wrappable {
 
   H5vccMetrics() {}
 
+  H5vccMetrics(const H5vccMetrics&) = delete;
+  H5vccMetrics& operator=(const H5vccMetrics&) = delete;
+
   // Binds an event handler that will be invoked every time Cobalt wants to
   // upload a metrics payload.
   void OnMetricEvent(
@@ -49,12 +52,14 @@ class H5vccMetrics : public script::Wrappable {
   // should never get called after that point.
   void ToggleMetricsEnabled(bool isEnabled);
 
+  // Returns current enabled state of metrics logging/reporting.
+  bool GetMetricsEnabled();
+
   DEFINE_WRAPPABLE_TYPE(H5vccMetrics);
 
  private:
   scoped_refptr<MetricEventHandlerWrapper> event_handler_;
-
-  DISALLOW_COPY_AND_ASSIGN(H5vccMetrics);
+  bool is_enabled_ = false;
 };
 
 }  // namespace h5vcc

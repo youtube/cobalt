@@ -50,9 +50,8 @@ class CobaltEnabledStateProvider : public ::metrics::EnabledStateProvider {
   void SetReportingEnabled(bool is_reporting_enabled);
 
  private:
-  const PrefService* local_state_;
-  bool is_consent_given_;
-  bool is_reporting_enabled_;
+  bool is_consent_given_ = false;
+  bool is_reporting_enabled_ = false;
 };
 
 

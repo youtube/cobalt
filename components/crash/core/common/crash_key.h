@@ -20,6 +20,7 @@
 // Annotation interface. Because not all platforms use Crashpad yet, a
 // source-compatible interface is provided on top of the older Breakpad
 // storage mechanism.
+// TODO(b/286881972): Investigate enabling crashpad support in Cobalt/Telemetry.
 #if BUILDFLAG(USE_CRASHPAD_ANNOTATION) && !defined(STARBOARD)
 #include "third_party/crashpad/crashpad/client/annotation.h"  // nogncheck
 #endif

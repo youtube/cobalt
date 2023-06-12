@@ -94,7 +94,6 @@ void MetricsServicesManager::UpdatePermissions(bool current_may_record,
                                                bool current_consent_given,
                                                bool current_may_upload) {
   DCHECK(thread_checker_.CalledOnValidThread());
-
 #if !defined(STARBOARD)
   // If the user has opted out of metrics, delete local UKM state. We Only check
   // consent for UKM.

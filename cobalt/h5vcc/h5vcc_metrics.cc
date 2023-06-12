@@ -31,6 +31,7 @@ void H5vccMetrics::OnMetricEvent(
       static_cast<browser::metrics::CobaltMetricsServiceClient*>(
           browser::metrics::CobaltMetricsServicesManager::GetInstance()
               ->GetMetricsServiceClient());
+  DCHECK(client);
   client->SetOnUploadHandler(event_handler_.get());
 }
 
@@ -39,11 +40,15 @@ void H5vccMetrics::ToggleMetricsEnabled(bool isEnabled) {
       static_cast<browser::metrics::CobaltMetricsServicesManagerClient*>(
           browser::metrics::CobaltMetricsServicesManager::GetInstance()
               ->GetMetricsServicesManagerClient());
+  DCHECK(client);
+  is_enabled_ = isEnabled;
   client->GetEnabledStateProvider()->SetConsentGiven(isEnabled);
   client->GetEnabledStateProvider()->SetReportingEnabled(isEnabled);
   browser::metrics::CobaltMetricsServicesManager::GetInstance()
       ->UpdateUploadPermissions(isEnabled);
 }
+
+bool H5vccMetrics::GetMetricsEnabled() { return is_enabled_; }
 
 }  // namespace h5vcc
 }  // namespace cobalt

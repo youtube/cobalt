@@ -157,9 +157,6 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
       ::metrics::MetricsStateManager* state_manager, PrefService* local_state);
 
  private:
-  // Any prefs/state specific to Cobalt Metrics.
-  PrefService* local_state_;
-
   // The MetricsStateManager, must outlive the Metrics Service.
   ::metrics::MetricsStateManager* metrics_state_manager_;
 

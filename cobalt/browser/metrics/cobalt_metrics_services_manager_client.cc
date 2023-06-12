@@ -42,6 +42,7 @@ CobaltMetricsServicesManagerClient::CreateMetricsServiceClient() {
 std::unique_ptr<const base::FieldTrial::EntropyProvider>
 CobaltMetricsServicesManagerClient::CreateEntropyProvider() {
   // Cobalt doesn't use FieldTrials, so this is a noop.
+  NOTIMPLEMENTED();
   return nullptr;
 }
 

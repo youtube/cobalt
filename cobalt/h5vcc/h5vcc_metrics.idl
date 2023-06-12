@@ -21,12 +21,23 @@ interface H5vccMetrics {
   // every time Cobalt wants to upload a metrics payload. Only one event
   // handler callback can be registered at any time. Duplicate calls to
   // onMetricEvent will override any previously registered callback.
+  //
+  // Example usage in JS:
+  //
+  //   window.h5vcc.metrics.onMetricEvent((metricType, payload) => {
+  //     if (metricType == 'UMA') {
+  //       // log UMA payload here...
+  //     }
+  //   });
   void onMetricEvent(H5vccMetricEventHandler eventHandler);
 
   // API to explicitly enable or disable Cobalt metrics logging. Pass true
   // to turn on and false to disable. If disabled, the metric event handler
   // should never get called afterward.
   void toggleMetricsEnabled(boolean isEnabled);
+
+  // Returns the current enabled state of metrics reporting.
+  boolean getMetricsEnabled();
 };
 
 // Callback invoked when a new metric payload is ready to be published. The
