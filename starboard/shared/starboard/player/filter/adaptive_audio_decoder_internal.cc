@@ -197,6 +197,12 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   int decoded_sample_rate;
   scoped_refptr<DecodedAudio> decoded_audio =
       audio_decoder_->Read(&decoded_sample_rate);
+
+  if (!decoded_audio->is_end_of_stream() && !decoded_audio->frames()) {
+    // Empty output doesn't need further process.
+    return;
+  }
+
   if (!first_output_received_) {
     first_output_received_ = true;
     output_sample_type_ = decoded_audio->sample_type();
