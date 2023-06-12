@@ -11,7 +11,6 @@ service-worker/registration-script-url.https.html, PASS
 service-worker/rejections.https.html, PASS
 service-worker/service-worker-csp-default.https.html, PASS
 service-worker/service-worker-csp-connect.https.html, PASS
-service-worker/service-worker-header.https.html, PASS
 service-worker/service-worker-csp-script.https.html, PASS
 service-worker/Service-Worker-Allowed-header.https.html, PASS
 service-worker/skip-waiting-without-client.https.html, PASS
@@ -33,6 +32,9 @@ service-worker/import-scripts-mime-types.https.html, DISABLE
 
 # TODO(b/279915935): Another service worker flaky test
 service-worker/serviceworkerobject-scripturl.https.html, DISABLE
+
+# TODO(b/240174245): This somettimes flakes with "unimplemented"
+service-worker/service-worker-header.https.html, DISABLE
 
 # b/234788479 Implement waiting for update worker state tasks in Install algorithm.
 service-worker/activation-after-registration.https.html, DISABLE
