@@ -31,9 +31,9 @@ if (!is_starboard) {
   import("//build/config/allocator.gni")
   import("//build/config/jumbo.gni")
   import("//build/timestamp.gni")
-  import("//testing/libfuzzer/fuzzer_test.gni")
-  import("//testing/test.gni")
 }
+import("//testing/libfuzzer/fuzzer_test.gni")
+import("//testing/test.gni")
 
 declare_args() {
   # Indicates if the Location object contains the source code information
