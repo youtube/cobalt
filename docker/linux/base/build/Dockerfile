@@ -110,5 +110,7 @@ RUN cd /tmp \
     && echo ${CLANG_16_VER} >> ${CLANG_16_TC_HOME}/cr_build_revision \
     && rm clang-llvmorg-${CLANG_16_VER}.tgz
 
+RUN git config --global --add safe.directory /code
+
 WORKDIR /code
 CMD ["/usr/bin/python","--version"]
