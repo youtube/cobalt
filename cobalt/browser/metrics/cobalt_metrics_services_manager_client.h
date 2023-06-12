@@ -41,7 +41,7 @@ class CobaltMetricsServicesManagerClient
  public:
   CobaltMetricsServicesManagerClient()
       : enabled_state_provider_(
-            std::make_unique<CobaltEnabledStateProvider>(true, true)) {}
+            std::make_unique<CobaltEnabledStateProvider>(false, false)) {}
 
   ~CobaltMetricsServicesManagerClient() override {}
 
