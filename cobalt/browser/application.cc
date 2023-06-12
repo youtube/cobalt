@@ -63,8 +63,12 @@
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/cache/cache.h"
 #include "cobalt/configuration/configuration.h"
+<<<<<<< HEAD
 #include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/installation_manager.h"
+=======
+#include "cobalt/h5vcc/h5vcc_crash_log.h"
+>>>>>>> 4eb9bbc7fbc (Add application state to crash reports. (#580))
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
@@ -589,26 +593,24 @@ void AddCrashHandlerAnnotations() {
   }
 }
 
-void AddCrashHandlerApplicationState(base::ApplicationState state) {
-  auto crash_handler_extension =
-      static_cast<const CobaltExtensionCrashHandlerApi*>(
-          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
-  if (!crash_handler_extension) {
-    DLOG(INFO) << "No crash handler extension, not sending application state.";
-    return;
-  }
-
+void AddCrashLogApplicationState(base::ApplicationState state) {
   std::string application_state = std::string(GetApplicationStateString(state));
   application_state.push_back('\0');
 
-  if (crash_handler_extension->version > 1) {
-    if (crash_handler_extension->SetString("application_state",
-                                           application_state.c_str())) {
-      DLOG(INFO) << "Sent application state to crash handler.";
-      return;
+  auto crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2) {
+    if (!crash_handler_extension->SetString("application_state",
+                                            application_state.c_str())) {
+      LOG(ERROR) << "Could not send application state to crash handler.";
     }
+    return;
   }
-  DLOG(ERROR) << "Could not send application state to crash handler.";
+
+  // Crash handler is not supported, fallback to crash log dictionary.
+  h5vcc::CrashLogDictionary::GetInstance()->SetString("application_state",
+                                                      application_state);
 }
 
 }  // namespace
@@ -1220,7 +1222,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeStop:
       LOG(INFO) << "Got quit event.";
       if (watchdog) watchdog->UpdateState(base::kApplicationStateStopped);
-      AddCrashHandlerApplicationState(base::kApplicationStateStopped);
+      AddCrashLogApplicationState(base::kApplicationStateStopped);
       Quit();
       LOG(INFO) << "Finished quitting.";
       break;
@@ -1339,7 +1341,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
       return;
   }
   if (watchdog) watchdog->UpdateState(browser_module_->GetApplicationState());
-  AddCrashHandlerApplicationState(browser_module_->GetApplicationState());
+  AddCrashLogApplicationState(browser_module_->GetApplicationState());
 }
 
 void Application::OnWindowSizeChangedEvent(const base::Event* event) {
