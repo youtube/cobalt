@@ -7,9 +7,7 @@ import("gni/angle.gni")
 if (angle_has_build) {
   import("//build/config/linux/pkg_config.gni")
   import("//build/config/ui.gni")
-  if (!is_starboard) {
-    import("//testing/libfuzzer/fuzzer_test.gni")
-  }
+  import("//testing/libfuzzer/fuzzer_test.gni")
 
   if (is_android) {
     # android/rules.gni can only be imported for Android targets

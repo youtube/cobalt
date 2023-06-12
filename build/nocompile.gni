@@ -61,9 +61,7 @@
 import("//build/config/clang/clang.gni")
 import("//build/config/python.gni")
 import("//build/toolchain/toolchain.gni")
-if (!is_starboard) {
-  import("//testing/test.gni")
-}
+import("//testing/test.gni")
 
 declare_args() {
   # TODO(crbug.com/105388): make sure no-compile test is not flaky.
