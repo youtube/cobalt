@@ -41,7 +41,7 @@ from starboard.tools.util import SetupDefaultLoggingConfig
 
 _FLAKY_RETRY_LIMIT = 4
 _TOTAL_TESTS_REGEX = re.compile(r"^\[==========\] (.*) tests? from .*"
-                                r"test cases? ran. \(.* ms total\)")
+                                r"test suites? ran. \(.* ms total\)")
 _TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
 _TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
 _SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")

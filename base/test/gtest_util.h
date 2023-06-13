@@ -33,6 +33,7 @@
 #else
 // DCHECK_IS_ON() && defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
 
+#if !GTEST_OS_STARBOARD
 // Macro copied from gtest-death-test-internal.h as it's (1) internal for now
 // and (2) only defined if !GTEST_HAS_DEATH_TEST which is only a subset of the
 // conditions in which it's needed here.
@@ -50,6 +51,7 @@
     terminator;                                                     \
   } else                                                            \
     ::testing::Message()
+#endif // !GTEST_OS_STARBOARD
 
 #define EXPECT_DCHECK_DEATH(statement) \
     GTEST_UNSUPPORTED_DEATH_TEST(statement, "Check failed", )

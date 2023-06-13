@@ -608,11 +608,11 @@ class GTEST_API_ TypedTestSuitePState {
   bool AddTestName(const char* file, int line, const char* case_name,
                    const char* test_name) {
     if (registered_) {
-      fprintf(stderr,
+      posix::PrintF(
               "%s Test %s must be defined before "
               "REGISTER_TYPED_TEST_SUITE_P(%s, ...).\n",
               FormatFileLocation(file, line).c_str(), test_name, case_name);
-      fflush(stderr);
+      posix::Flush();
       posix::Abort();
     }
     registered_tests_.insert(
@@ -654,7 +654,7 @@ GTEST_DISABLE_MSC_WARNINGS_POP_()  //  4251
 // Skips to the first non-space char after the first comma in 'str';
 // returns NULL if no comma is found in 'str'.
 inline const char* SkipComma(const char* str) {
-  const char* comma = strchr(str, ',');
+  const char* comma = posix::StrChr(str, ',');
   if (comma == nullptr) {
     return nullptr;
   }
@@ -666,7 +666,7 @@ inline const char* SkipComma(const char* str) {
 // Returns the prefix of 'str' before the first comma in it; returns
 // the entire string if it contains no comma.
 inline std::string GetPrefixUntilComma(const char* str) {
-  const char* comma = strchr(str, ',');
+  const char* comma = posix::StrChr(str, ',');
   return comma == nullptr ? str : std::string(str, comma);
 }
 
@@ -789,11 +789,11 @@ class TypeParameterizedTestSuite {
     std::string test_name =
         StripTrailingSpaces(GetPrefixUntilComma(test_names));
     if (!state->TestExists(test_name)) {
-      fprintf(stderr, "Failed to get code location for test %s.%s at %s.",
+      posix::PrintF("Failed to get code location for test %s.%s at %s.",
               case_name, test_name.c_str(),
               FormatFileLocation(code_location.file.c_str(), code_location.line)
                   .c_str());
-      fflush(stderr);
+      posix::Flush();
       posix::Abort();
     }
     const CodeLocation& test_location = state->GetCodeLocation(test_name);

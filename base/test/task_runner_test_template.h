@@ -106,6 +106,7 @@ class TaskTracker : public RefCountedThreadSafe<TaskTracker> {
 
 }  // namespace test
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TaskRunnerTest);
 template <typename TaskRunnerTestDelegate>
 class TaskRunnerTest : public testing::Test {
  protected:
@@ -179,6 +180,7 @@ void ExpectRunsTasksInCurrentSequence(bool expected_value,
 
 }  // namespace test
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TaskRunnerAffinityTest);
 template <typename TaskRunnerTestDelegate>
 class TaskRunnerAffinityTest : public TaskRunnerTest<TaskRunnerTestDelegate> {};
 

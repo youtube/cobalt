@@ -1,6 +1,6 @@
 name: "googletest"
 description:
-  "Google Test is Google's C++ test framework."
+  "Google Test is Google's C++ test framework. src/ is taken from git hash listed here. BUILD.gn is copied from Chromium branch-heads/5735"
 
 third_party {
   url {

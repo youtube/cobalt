@@ -190,6 +190,7 @@ TYPED_TEST_P(CertIssuerSourceSyncNormalizationTest,
 REGISTER_TYPED_TEST_CASE_P(CertIssuerSourceSyncNormalizationTest,
                            MultipleMatchesAfterNormalization);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CertIssuerSourceSyncNotNormalizedTest);
 template <typename TestDelegate>
 class CertIssuerSourceSyncNotNormalizedTest
     : public CertIssuerSourceSyncTest<TestDelegate> {};
