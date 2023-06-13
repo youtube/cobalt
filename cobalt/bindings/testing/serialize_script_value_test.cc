@@ -36,10 +36,19 @@ class SerializeScriptValueTest
 TEST_F(SerializeScriptValueTest, Serialize) {
   // Stores serialized result that is then used by |deserializeTest()|.
   EvaluateScript(R"(
-      test.serializeTest({a: ['something'], b: new Uint8Array([42])});
+window.arrayBuffer = new ArrayBuffer(2);
+window.sharedArrayBuffer = new SharedArrayBuffer(4);
+{
+  new Uint8Array(window.arrayBuffer).fill(10);
+  new Uint8Array(window.sharedArrayBuffer).fill(20);
+}
+test.serializeTest({
+  a: ['something'],
+  b: new Uint8Array([42]),
+  c: window.arrayBuffer,
+  d: window.sharedArrayBuffer,
+});
     )");
-  // Sanity check the serialized size.
-  EXPECT_EQ(32, test_mock().serialized_size());
   ExpectTrue("!(test.deserializeTest() instanceof Array)");
   ExpectTrue("test.deserializeTest() instanceof Object");
   ExpectTrue("test.deserializeTest().a instanceof Array");
@@ -48,6 +57,44 @@ TEST_F(SerializeScriptValueTest, Serialize) {
   ExpectTrue("test.deserializeTest().b instanceof Uint8Array");
   ExpectTrue("!(test.deserializeTest().b instanceof Uint16Array)");
   ExpectTrue("42 === test.deserializeTest().b[0]");
+  ExpectTrue("test.deserializeTest().c instanceof ArrayBuffer");
+  ExpectTrue("test.deserializeTest().d instanceof SharedArrayBuffer");
+  EvaluateScript(R"(
+window.otherArrayBuffer = test.deserializeTest().c;
+window.otherSharedArrayBuffer = test.deserializeTest().d;
+const arrayBufferToString = arrayBuffer =>
+    new Uint8Array(arrayBuffer).toString();
+window.string = arrayBufferToString(window.arrayBuffer);
+window.otherString = arrayBufferToString(window.otherArrayBuffer);
+window.sharedString = arrayBufferToString(window.sharedArrayBuffer);
+window.otherSharedString = arrayBufferToString(window.otherSharedArrayBuffer);
+    )");
+  ExpectTrue("2 === window.arrayBuffer.byteLength");
+  ExpectTrue("2 === window.otherArrayBuffer.byteLength");
+  ExpectTrue("4 === window.sharedArrayBuffer.byteLength");
+  ExpectTrue("4 === window.otherSharedArrayBuffer.byteLength");
+  ExpectTrue("'10,10' === window.string");
+  ExpectTrue("'10,10' === window.otherString");
+  ExpectTrue("'20,20,20,20' === window.sharedString");
+  ExpectTrue("'20,20,20,20' === window.otherSharedString");
+  EvaluateScript(R"(
+const updateArrayBuffer = arrayBuffer => {
+ const view = new Uint8Array(arrayBuffer);
+ view.forEach((x, i) => {
+  view[i] = x + i * 10;
+ });
+};
+updateArrayBuffer(window.otherArrayBuffer);
+updateArrayBuffer(window.otherSharedArrayBuffer);
+window.string = arrayBufferToString(window.arrayBuffer);
+window.otherString = arrayBufferToString(window.otherArrayBuffer);
+window.sharedString = arrayBufferToString(window.sharedArrayBuffer);
+window.otherSharedString = arrayBufferToString(window.otherSharedArrayBuffer);
+    )");
+  ExpectTrue("'10,10' === window.string");
+  ExpectTrue("'10,20' === window.otherString");
+  ExpectTrue("'20,30,40,50' === window.sharedString");
+  ExpectTrue("'20,30,40,50' === window.otherSharedString");
 }
 
 }  // namespace testing

@@ -40,8 +40,30 @@ namespace v8c {
 
 namespace {
 
-std::string ExceptionToString(v8::Isolate* isolate,
-                              const v8::TryCatch& try_catch) {
+std::string ToStringOrNull(v8::Isolate* isolate, v8::Local<v8::Value> value) {
+  if (value.IsEmpty() || !value->IsString()) {
+    return "";
+  }
+  return *v8::String::Utf8Value(isolate, value.As<v8::String>());
+}
+
+uint32_t CreateJavaScriptCacheKey(const std::string& javascript_engine_version,
+                                  uint32_t cached_data_version_tag,
+                                  const std::string& source,
+                                  const std::string& origin) {
+  uint32_t res = starboard::MurmurHash2_32(javascript_engine_version.c_str(),
+                                           javascript_engine_version.size(),
+                                           cached_data_version_tag);
+  res = starboard::MurmurHash2_32(source.c_str(), source.size(), res);
+  res = starboard::MurmurHash2_32(origin.c_str(), origin.size(), res);
+  return res;
+}
+
+}  // namespace
+
+// static
+std::string V8cGlobalEnvironment::ExceptionToString(
+    v8::Isolate* isolate, const v8::TryCatch& try_catch) {
   v8::HandleScope handle_scope(isolate);
   v8::String::Utf8Value exception(isolate, try_catch.Exception());
   v8::Local<v8::Message> message(try_catch.Message());
@@ -64,27 +86,6 @@ std::string ExceptionToString(v8::Isolate* isolate,
   }
   return string;
 }
-
-std::string ToStringOrNull(v8::Isolate* isolate, v8::Local<v8::Value> value) {
-  if (value.IsEmpty() || !value->IsString()) {
-    return "";
-  }
-  return *v8::String::Utf8Value(isolate, value.As<v8::String>());
-}
-
-uint32_t CreateJavaScriptCacheKey(const std::string& javascript_engine_version,
-                                  uint32_t cached_data_version_tag,
-                                  const std::string& source,
-                                  const std::string& origin) {
-  uint32_t res = starboard::MurmurHash2_32(javascript_engine_version.c_str(),
-                                           javascript_engine_version.size(),
-                                           cached_data_version_tag);
-  res = starboard::MurmurHash2_32(source.c_str(), source.size(), res);
-  res = starboard::MurmurHash2_32(origin.c_str(), origin.size(), res);
-  return res;
-}
-
-}  // namespace
 
 V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
     : isolate_(isolate),

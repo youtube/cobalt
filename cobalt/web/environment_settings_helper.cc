@@ -23,6 +23,9 @@ namespace cobalt {
 namespace web {
 
 Context* get_context(script::EnvironmentSettings* environment_settings) {
+  if (!environment_settings) {
+    return nullptr;
+  }
   auto* settings =
       base::polymorphic_downcast<EnvironmentSettings*>(environment_settings);
   return settings->context();
@@ -30,26 +33,46 @@ Context* get_context(script::EnvironmentSettings* environment_settings) {
 
 script::GlobalEnvironment* get_global_environment(
     script::EnvironmentSettings* environment_settings) {
-  return get_context(environment_settings)->global_environment();
+  auto* context = get_context(environment_settings);
+  if (!context) {
+    return nullptr;
+  }
+  return context->global_environment();
 }
 
 v8::Isolate* get_isolate(script::EnvironmentSettings* environment_settings) {
-  return get_global_environment(environment_settings)->isolate();
+  auto* global_environment = get_global_environment(environment_settings);
+  if (!global_environment) {
+    return nullptr;
+  }
+  return global_environment->isolate();
 }
 
 script::Wrappable* get_global_wrappable(
     script::EnvironmentSettings* environment_settings) {
-  return get_global_environment(environment_settings)->global_wrappable();
+  auto* global_environment = get_global_environment(environment_settings);
+  if (!global_environment) {
+    return nullptr;
+  }
+  return global_environment->global_wrappable();
 }
 
 script::ScriptValueFactory* get_script_value_factory(
     script::EnvironmentSettings* environment_settings) {
-  return get_global_environment(environment_settings)->script_value_factory();
+  auto* global_environment = get_global_environment(environment_settings);
+  if (!global_environment) {
+    return nullptr;
+  }
+  return global_environment->script_value_factory();
 }
 
 base::MessageLoop* get_message_loop(
     script::EnvironmentSettings* environment_settings) {
-  return get_context(environment_settings)->message_loop();
+  auto* context = get_context(environment_settings);
+  if (!context) {
+    return nullptr;
+  }
+  return context->message_loop();
 }
 
 }  // namespace web

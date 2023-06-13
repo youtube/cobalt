@@ -35,24 +35,19 @@ class SerializeScriptValueInterface : public script::Wrappable {
  public:
   SerializeScriptValueInterface() = default;
 
-  size_t serialized_size() { return data_buffer_->size; }
-
   void SerializeTest(const script::ValueHandleHolder& value) {
-    data_buffer_ = std::move(script::SerializeScriptValue(value));
     isolate_ = script::GetIsolate(value);
+    structured_clone_ = std::make_unique<script::StructuredClone>(value);
   }
 
-  const script::ValueHandleHolder* DeserializeTest() {
-    deserialized_.reset(
-        script::DeserializeScriptValue(isolate_, *data_buffer_));
-    return deserialized_.get();
+  const script::Handle<script::ValueHandle> DeserializeTest() {
+    return structured_clone_->Deserialize(isolate_);
   }
 
   DEFINE_WRAPPABLE_TYPE(SerializeScriptValueInterface);
 
  private:
-  std::unique_ptr<script::DataBuffer> data_buffer_;
-  std::unique_ptr<script::ValueHandleHolder> deserialized_;
+  std::unique_ptr<script::StructuredClone> structured_clone_;
   v8::Isolate* isolate_;
 };
 

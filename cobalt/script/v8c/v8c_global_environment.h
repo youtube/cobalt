@@ -53,6 +53,9 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
         isolate->GetData(kIsolateDataIndex));
   }
 
+  static std::string ExceptionToString(v8::Isolate* isolate,
+                                       const v8::TryCatch& try_catch);
+
   explicit V8cGlobalEnvironment(v8::Isolate* isolate);
   ~V8cGlobalEnvironment() override;
 

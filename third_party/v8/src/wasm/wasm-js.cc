@@ -2189,6 +2189,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                         v8_str(isolate, "WebAssembly.Table"), ro_attributes);
 
   // Setup Memory
+  // Enables shared memory support.
+  i::FLAG_experimental_wasm_threads = true;
   Handle<JSFunction> memory_constructor =
       InstallConstructorFunc(isolate, webassembly, "Memory", WebAssemblyMemory);
   context->set_wasm_memory_constructor(*memory_constructor);
