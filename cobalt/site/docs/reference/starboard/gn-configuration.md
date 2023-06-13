@@ -19,11 +19,13 @@ title: "Starboard: configuration.gni Reference Guide"
 | **`gtest_target_type`**<br><br> The target type for test targets. Allows changing the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is `"executable"`. |
 | **`has_platform_targets`**<br><br> Whether the platform has platform-specific targets to depend on.<br><br>The default value is `false`. |
 | **`install_target_path`**<br><br> The path to the gni file containing the install_target template which defines how the build should produce the install/ directory.<br><br>The default value is `"//starboard/build/install/no_install.gni"`. |
+| **`is_clang_16`**<br><br> Enable when using clang 16.<br><br>The default value is `false`. |
 | **`loadable_module_configs`**<br><br> Target-specific configurations for loadable_module targets.<br><br>The default value is `[]`. |
-| **`path_to_yasm`**<br><br> Where yasm can be found on the host device.<br><br>The default value is `"yasm"`. |
+| **`nasm_exists`**<br><br> Enables the nasm compiler to be used to compile .asm files.<br><br>The default value is `false`. |
+| **`path_to_nasm`**<br><br> Where yasm can be found on the host device.<br><br>The default value is `"nasm"`. |
 | **`platform_tests_path`**<br><br> Set to the starboard_platform_tests target if the platform implements them.<br><br>The default value is `""`. |
 | **`sabi_path`**<br><br> Where the Starboard ABI file for this platform can be found.<br><br>The default value is `"starboard/sabi/default/sabi.json"`. |
-| **`sb_api_version`**<br><br> The Starboard API version of the current build configuration. The default value is meant to be overridden by a Starboard ABI file.<br><br>The default value is `15`. |
+| **`sb_api_version`**<br><br> The Starboard API version of the current build configuration. The default value is meant to be overridden by a Starboard ABI file.<br><br>The default value is `16`. |
 | **`sb_enable_benchmark`**<br><br> Used to enable benchmarks.<br><br>The default value is `false`. |
 | **`sb_enable_cpp17_audit`**<br><br> Enables an NPLB audit of C++17 support.<br><br>The default value is `true`. |
 | **`sb_enable_lib`**<br><br> Enables embedding Cobalt as a shared library within another app. This requires a 'lib' starboard implementation for the corresponding platform.<br><br>The default value is `false`. |
@@ -39,8 +41,10 @@ title: "Starboard: configuration.gni Reference Guide"
 | **`separate_install_targets_for_bundling`**<br><br> Set to true to separate install target directories.<br><br>The default value is `false`. |
 | **`shared_library_configs`**<br><br> Target-specific configurations for shared_library targets.<br><br>The default value is `[]`. |
 | **`source_set_configs`**<br><br> Target-specific configurations for source_set targets.<br><br>The default value is `[]`. |
+| **`starboard_level_final_executable_type`**<br><br>The default value is `"executable"`. |
+| **`starboard_level_gtest_target_type`**<br><br>The default value is `"executable"`. |
 | **`static_library_configs`**<br><br> Target-specific configurations for static_library targets.<br><br>The default value is `[]`. |
 | **`use_skia_next`**<br><br> Flag to use a future version of Skia, currently not available.<br><br>The default value is `false`. |
 | **`use_thin_archive`**<br><br> Whether or not to link with thin archives.<br><br>The default value is `true`. |
 | **`v8_enable_pointer_compression_override`**<br><br> Set to true to enable pointer compression for v8.<br><br>The default value is `true`. |
-| **`yasm_exists`**<br><br> Enables the yasm compiler to be used to compile .asm files.<br><br>The default value is `false`. |
+| **`v8_enable_webassembly`**<br><br> Enable WASM and install WebAssembly global.<br><br>The default value is `false`. |

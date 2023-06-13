@@ -24,7 +24,7 @@ if (!SbImageIsDecodeSupported(mime_type, format)) {
   return;
 }
 
-SbDecodeTarget result_target = SbDecodeImage(provider, data, data_size,
+SbDecodeTarget result_target = SbImageDecode(provider, data, data_size,
                                              mime_type, format);
 ```
 
@@ -48,13 +48,13 @@ scenarios regarding the provider may happen:
     called, and the implementation will proceed to decoding however it desires.
 
 1.  The provider is not required and is not passed in. The implementation will
-    proceed forward.
-
-Thus, it is NOT safe for clients of this API to assume that the `provider` it
-passes in will be called. Finally, if the decode succeeds, a new SbDecodeTarget
-will be allocated. If `mime_type` image decoding for the requested format is not
-supported or the decode fails, kSbDecodeTargetInvalid will be returned, with any
-intermediate allocations being cleaned up in the implementation.
+    proceed forward. The `data` pointer must not be NULL. The `mime_type` string
+    must not be NULL. Thus, it is NOT safe for clients of this API to assume
+    that the `provider` it passes in will be called. Finally, if the decode
+    succeeds, a new SbDecodeTarget will be allocated. If `mime_type` image
+    decoding for the requested format is not supported or the decode fails,
+    kSbDecodeTargetInvalid will be returned, with any intermediate allocations
+    being cleaned up in the implementation.
 
 #### Declaration ####
 
@@ -65,9 +65,10 @@ SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider *context_prov
 ### SbImageIsDecodeSupported ###
 
 Whether the current platform supports hardware accelerated decoding an image of
-mime type `mime_type` into SbDecodeTargetFormat `format`. The result of this
-function must not change over the course of the program, which means that the
-results of this function may be cached indefinitely.
+mime type `mime_type` into SbDecodeTargetFormat `format`. The `mime_type` must
+not be NULL. The result of this function must not change over the course of the
+program, which means that the results of this function may be cached
+indefinitely.
 
 #### Declaration ####
 
