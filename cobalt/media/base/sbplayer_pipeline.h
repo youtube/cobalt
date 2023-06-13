@@ -61,6 +61,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
+      bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
       SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
@@ -114,7 +115,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool DidLoadingProgress() const override;
   PipelineStatistics GetStatistics() const override;
   SetBoundsCB GetSetBoundsCB() override;
-  void SetDecodeToTextureOutputMode(bool enabled) override;
+  void SetPreferredOutputModeToDecodeToTexture() override;
 
  private:
   // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
@@ -210,6 +211,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Whether we enable batched sample write functionality.
   const bool allow_batched_sample_write_;
+
+  // The default output mode passed to `SbPlayerGetPreferredOutputMode()`.
+  SbPlayerOutputMode default_output_mode_ = kSbPlayerOutputModeInvalid;
 
   // The window this player associates with.  It should only be assigned in the
   // dtor and accessed once by SbPlayerCreate().
