@@ -2,6 +2,12 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 24
+ - **Cobalt has experimental Web Assembly capability
+
+   Web Assembly is enabled as experimental capabality on android-arm and
+   development build configurations.
+
 ## Version 23
  - **Cobalt now uses GN (Generate Ninja) meta-build system**
 
