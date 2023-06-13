@@ -327,8 +327,10 @@ static void PrivateDecodeTargetReleaser(void *context)
 
 ### SbDecodeTargetGetInfo ###
 
-Writes all information about `decode_target` into `out_info`. Returns false if
-the provided `out_info` structure is not zero initialized.
+Writes all information about `decode_target` into `out_info`. The
+`decode_target` must not be kSbDecodeTargetInvalid. The `out_info` pointer must
+not be NULL. Returns false if the provided `out_info` structure is not zero
+initialized.
 
 #### Declaration ####
 

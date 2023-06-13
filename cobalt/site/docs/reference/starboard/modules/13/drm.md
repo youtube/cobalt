@@ -238,6 +238,8 @@ bytes always appear first in the sample.
 
 Clear any internal states/resources related to the specified `session_id`.
 
+`drm_system` must not be `kSbDrmSystemInvalid`. `session_id` must not be NULL.
+
 #### Declaration ####
 
 ```
@@ -254,7 +256,7 @@ All callbacks are guaranteed to be finished when this function returns. As a
 result, if this function is called from a callback that is passed to
 SbDrmCreateSystem(), a deadlock will occur.
 
-`drm_system`: The DRM system to be destroyed.
+`drm_system`: The DRM system to be destroyed. Must not be `kSbDrmSystemInvalid`.
 
 #### Declaration ####
 
@@ -281,7 +283,7 @@ returns or from another thread.
 
 `drm_system`: The DRM system that defines the key system used for the session
 update request payload as well as the callback function that is called as a
-result of the function being called.
+result of the function being called. Must not be `kSbDrmSystemInvalid`.
 
 `ticket`: The opaque ID that allows to distinguish callbacks from multiple
 concurrent calls to SbDrmGenerateSessionUpdateRequest(), which will be passed to
@@ -289,10 +291,10 @@ concurrent calls to SbDrmGenerateSessionUpdateRequest(), which will be passed to
 establish ticket uniqueness, issuing multiple requests with the same ticket may
 result in undefined behavior. The value `kSbDrmTicketInvalid` must not be used.
 
-`type`: The case-sensitive type of the session update request payload.
-`initialization_data`: The data for which the session update request payload is
-created. `initialization_data_size`: The size of the session update request
-payload.
+`type`: The case-sensitive type of the session update request payload. Must not
+be NULL. `initialization_data`: The data for which the session update request
+payload is created. Must not be NULL. `initialization_data_size`: The size of
+the session update request payload.
 
 #### Declaration ####
 
@@ -322,7 +324,7 @@ pointer with `size` set to 0.
 It should return NULL when there is no metrics support in the underlying drm
 system, or when the drm system implementation fails to retrieve the metrics.
 
-The caller will never set `size` to NULL.
+`drm_system` must not be `kSbDrmSystemInvalid`. `size` must not be NULL.
 
 #### Declaration ####
 
@@ -337,6 +339,7 @@ SbDrmUpdateServerCertificate(). The return value should remain the same during
 the life time of `drm_system`.
 
 `drm_system`: The DRM system to check if its server certificate is updatable.
+Must not be `kSbDrmSystemInvalid`.
 
 #### Declaration ####
 
@@ -371,14 +374,15 @@ multiple times. It is possible that a call to it happens before the callback of
 a previous call is called. Note that this function should only be called after
 `SbDrmIsServerCertificateUpdatable` is called first and returned true.
 
-`drm_system`: The DRM system whose server certificate is being updated.
-`ticket`: The opaque ID that allows to distinguish callbacks from multiple
-concurrent calls to SbDrmUpdateServerCertificate(), which will be passed to
-`server_certificate_updated_callback` as-is. It is the responsibility of the
-caller to establish ticket uniqueness, issuing multiple requests with the same
-ticket may result in undefined behavior. The value `kSbDrmTicketInvalid` must
-not be used. `certificate`: Pointer to the server certificate data.
-`certificate_size`: Size of the server certificate data.
+`drm_system`: The DRM system whose server certificate is being updated. Must not
+be `kSbDrmSystemInvalid`. `ticket`: The opaque ID that allows to distinguish
+callbacks from multiple concurrent calls to SbDrmUpdateServerCertificate(),
+which will be passed to `server_certificate_updated_callback` as-is. It is the
+responsibility of the caller to establish ticket uniqueness, issuing multiple
+requests with the same ticket may result in undefined behavior. The value
+`kSbDrmTicketInvalid` must not be used. `certificate`: Pointer to the server
+certificate data. Must not be NULL. `certificate_size`: Size of the server
+certificate data.
 
 #### Declaration ####
 
@@ -391,22 +395,23 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system, int ticket, const void
 Update session with `key`, in `drm_system`'s key system, from the license server
 response. Calls `session_updated_callback` with `context` and whether the update
 succeeded. `context` may be used to route callbacks back to an object instance.
+The `key` must not be NULL.
 
-`ticket` is the opaque ID that allows to distinguish callbacks from multiple
-concurrent calls to SbDrmUpdateSession(), which will be passed to
-`session_updated_callback` as-is. It is the responsibility of the caller to
-establish ticket uniqueness, issuing multiple calls with the same ticket may
-result in undefined behavior.
+`drm_system` must not be `kSbDrmSystemInvalid`. `ticket` is the opaque ID that
+allows to distinguish callbacks from multiple concurrent calls to
+SbDrmUpdateSession(), which will be passed to `session_updated_callback` as-is.
+It is the responsibility of the caller to establish ticket uniqueness, issuing
+multiple calls with the same ticket may result in undefined behavior.
 
 Once the session is successfully updated, an SbPlayer or SbDecoder associated
 with that DRM key system will be able to decrypt encrypted samples.
 
 `drm_system`'s `session_updated_callback` may called either from the current
-thread before this function returns or from another thread.
+thread before this function returns or from another thread. The `session_id`
+must not be NULL.
 
 #### Declaration ####
 
 ```
 void SbDrmUpdateSession(SbDrmSystem drm_system, int ticket, const void *key, int key_size, const void *session_id, int session_id_size)
 ```
-

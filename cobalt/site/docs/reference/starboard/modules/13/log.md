@@ -30,10 +30,10 @@ and responsible for ensuring that the output from multiple threads is not mixed.
 `priority`: The SbLogPriority at which the message should be logged. Note that
 passing `kSbLogPriorityFatal` does not terminate the program. Such a policy must
 be enforced at the application level. In fact, `priority` may be completely
-ignored on many platforms. `message`: The message to be logged. No formatting is
-required to be done on the value, including newline termination. That said,
-platforms can adjust the message to be more suitable for their output method by
-wrapping the text, stripping unprintable characters, etc.
+ignored on many platforms. `message`: The message to be logged. Must not be
+NULL. No formatting is required to be done on the value, including newline
+termination. That said, platforms can adjust the message to be more suitable for
+their output method by wrapping the text, stripping unprintable characters, etc.
 
 #### Declaration ####
 
@@ -70,7 +70,7 @@ Inline wrapper of SbLogFormat that converts from ellipsis to va_args.
 #### Declaration ####
 
 ```
-void static void void SbLogFormatF(const char *format,...) SB_PRINTF_FORMAT(1
+void static void static void SbLogFormatF(const char *format,...) SB_PRINTF_FORMAT(1
 ```
 
 ### SbLogIsTty ###
@@ -89,7 +89,7 @@ A bare-bones log output method that is async-signal-safe, i.e. safe to call from
 an asynchronous signal handler (e.g. a `SIGSEGV` handler). It should not do any
 additional formatting.
 
-`message`: The message to be logged.
+`message`: The message to be logged. Must not be NULL.
 
 #### Declaration ####
 
@@ -132,6 +132,5 @@ Inline wrapper of SbLogFormat to convert from ellipsis to va_args.
 #### Declaration ####
 
 ```
-void static void void SbLogRawFormatF(const char *format,...) SB_PRINTF_FORMAT(1
+void static void static void SbLogRawFormatF(const char *format,...) SB_PRINTF_FORMAT(1
 ```
-
