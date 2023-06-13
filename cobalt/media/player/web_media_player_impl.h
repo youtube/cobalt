@@ -110,6 +110,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      WebMediaPlayerDelegate* delegate,
                      bool allow_resume_after_suspend,
                      bool allow_batched_sample_write,
+                     bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
                      SbTime audio_write_duration_local,
                      SbTime audio_write_duration_remote,
@@ -298,6 +299,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerDelegate* const delegate_;
   const bool allow_resume_after_suspend_;
   const bool allow_batched_sample_write_;
+  const bool force_punch_out_by_default_;
   scoped_refptr<DecodeTargetProvider> decode_target_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
