@@ -43,6 +43,8 @@ _FILTERED_TESTS = {
         'SbSocketAddressTypes/SbSocketSetOptionsTest.RainyDayInvalidSocket/type_ipv6',
         # Flakiness is tracked in b/278276779.
         'Semaphore.ThreadTakesWait_TimeExpires',
+        # Failure tracked by b/287666606.
+        'VerticalVideoTests/VerticalVideoTest.WriteSamples*',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing
