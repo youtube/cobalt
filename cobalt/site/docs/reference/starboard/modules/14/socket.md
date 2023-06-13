@@ -417,8 +417,8 @@ sources on a UDP server socket. TCP has two endpoints connected persistently, so
 the address is unnecessary, but allowed.
 
 `socket`: The SbSocket from which data is read. `out_data`: The data read from
-the socket. `data_size`: The number of bytes to read. `out_source`: The source
-address of the packet.
+the socket. Must not be NULL. `data_size`: The number of bytes to read.
+`out_source`: The source address of the packet.
 
 #### Declaration ####
 
@@ -456,10 +456,10 @@ bytes are available conveniently. It can be run in a loop until
 SbSocketGetLastError returns `kSbSocketPending` to make it a best-effort write
 (but still only up to not blocking, unless you want to spin).
 
-`socket`: The SbSocket to use to write data. `data`: The data read from the
-socket. `data_size`: The number of bytes of `data` to write. `destination`: The
-location to which data is written. This value must be `NULL` for TCP
-connections, which can only have a single endpoint.
+`socket`: The SbSocket to use to write data. `data`: The data written to the
+socket. Must not be NULL. `data_size`: The number of bytes of `data` to write.
+`destination`: The location to which data is written. This value must be `NULL`
+for TCP connections, which can only have a single endpoint.
 
 The primary use of `destination` is to send datagram packets, which can go out
 to multiple sources from a single UDP server socket. TCP has two endpoints
