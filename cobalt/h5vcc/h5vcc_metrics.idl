@@ -33,7 +33,9 @@ interface H5vccMetrics {
 
   // API to explicitly enable or disable Cobalt metrics logging. Pass true
   // to turn on and false to disable. If disabled, the metric event handler
-  // should never get called afterward.
+  // should never get called afterward. Metrics are disabled by default and
+  // should be enabled as soon as possible.
+  // TODO(b/286898092): Update docs here when setting is persistent.
   void toggleMetricsEnabled(boolean isEnabled);
 
   // Returns the current enabled state of metrics reporting.
