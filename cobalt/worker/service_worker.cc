@@ -21,6 +21,7 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/value_handle.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/message_port.h"
 #include "cobalt/worker/service_worker_global_scope.h"
@@ -47,9 +48,8 @@ void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
   // 4. Let serializeWithTransferResult be
   //    StructuredSerializeWithTransfer(message, options["transfer"]).
   //    Rethrow any exceptions.
-  std::unique_ptr<script::DataBuffer> serialize_result(
-      script::SerializeScriptValue(message));
-  if (!serialize_result) {
+  auto structured_clone = std::make_unique<script::StructuredClone>(message);
+  if (structured_clone->failed()) {
     return;
   }
   // 5. If the result of running the Should Skip Event algorithm with
@@ -64,7 +64,7 @@ void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
       base::BindOnce(&ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps,
                      base::Unretained(jobs), base::Unretained(service_worker),
                      base::Unretained(incumbent_settings->context()),
-                     std::move(serialize_result)));
+                     std::move(structured_clone)));
 }
 
 }  // namespace worker

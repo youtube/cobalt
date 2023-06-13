@@ -55,14 +55,17 @@ class MessageEvent : public Event {
       : Event(uninitialized_flag) {}
 
   explicit MessageEvent(const std::string& type) : Event(type) {}
-  MessageEvent(base::Token type, std::unique_ptr<script::DataBuffer> data)
-      : Event(type), response_type_(kAny), data_(std::move(data)) {}
+  MessageEvent(base::Token type,
+               std::unique_ptr<script::StructuredClone> structured_clone)
+      : Event(type),
+        response_type_(kAny),
+        structured_clone_(std::move(structured_clone)) {}
   MessageEvent(base::Token type, ResponseType response_type,
                const scoped_refptr<net::IOBufferWithSize>& data)
       : Event(type), response_type_(response_type), data_io_buffer_(data) {}
   MessageEvent(const std::string& type, const MessageEventInit& init_dict);
 
-  Response data(script::EnvironmentSettings* settings = nullptr) const;
+  Response data(script::EnvironmentSettings* settings = nullptr);
   const std::string& origin() const { return origin_; }
   const std::string& last_event_id() const { return last_event_id_; }
   const scoped_refptr<EventTarget>& source() const { return source_; }
@@ -88,7 +91,7 @@ class MessageEvent : public Event {
  private:
   ResponseType response_type_ = kText;
   scoped_refptr<net::IOBufferWithSize> data_io_buffer_;
-  std::unique_ptr<script::DataBuffer> data_;
+  std::unique_ptr<script::StructuredClone> structured_clone_;
   std::string origin_;
   std::string last_event_id_;
   scoped_refptr<EventTarget> source_;

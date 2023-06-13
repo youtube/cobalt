@@ -74,14 +74,11 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
 TEST_F(ExtendableMessageEventTestWithJavaScript, ConstructorWithAny) {
   base::Optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("'ConstructorWithAnyMessageData'", &reference);
-  std::unique_ptr<script::DataBuffer> data(
-      script::SerializeScriptValue(reference->referenced_value()));
-  EXPECT_NE(nullptr, data.get());
-  EXPECT_NE(nullptr, data->ptr);
-  EXPECT_GT(data->size, 0U);
+  auto* isolate = web::get_isolate(web_context()->environment_settings());
   const ExtendableMessageEventInit init;
   scoped_refptr<ExtendableMessageEvent> event = new ExtendableMessageEvent(
-      environment_settings(), base::Tokens::message(), init, std::move(data));
+      environment_settings(), base::Tokens::message(), init,
+      std::make_unique<script::StructuredClone>(reference->referenced_value()));
 
   EXPECT_EQ("message", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -93,12 +90,11 @@ TEST_F(ExtendableMessageEventTestWithJavaScript, ConstructorWithAny) {
   EXPECT_FALSE(event->IsBeingDispatched());
   EXPECT_FALSE(event->propagation_stopped());
   EXPECT_FALSE(event->immediate_propagation_stopped());
+  script::v8c::EntryScope entry_scope(isolate);
   script::Handle<script::ValueHandle> event_data =
       event->data(web_context()->environment_settings());
   EXPECT_FALSE(event_data.IsEmpty());
   auto script_value = event_data.GetScriptValue();
-  auto* isolate = script::GetIsolate(*script_value);
-  script::v8c::EntryScope entry_scope(isolate);
   v8::Local<v8::Value> v8_value = script::GetV8Value(*script_value);
   std::string actual =
       *(v8::String::Utf8Value(isolate, v8_value.As<v8::String>()));

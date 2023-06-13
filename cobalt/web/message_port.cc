@@ -66,12 +66,12 @@ void MessagePort::Close() {
 }
 
 void MessagePort::PostMessage(const script::ValueHandleHolder& message) {
-  PostMessageSerialized(std::move(script::SerializeScriptValue(message)));
+  PostMessageSerialized(std::make_unique<script::StructuredClone>(message));
 }
 
 void MessagePort::PostMessageSerialized(
-    std::unique_ptr<script::DataBuffer> data_buffer) {
-  if (!event_target_ || !data_buffer) {
+    std::unique_ptr<script::StructuredClone> structured_clone) {
+  if (!event_target_ || !structured_clone) {
     return;
   }
   // TODO: Forward the location of the origating API call to the PostTask call.
@@ -85,13 +85,13 @@ void MessagePort::PostMessageSerialized(
   // TODO: Remove dependency of MessageEvent on net iobuffer (b/227665847)
   message_loop->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&MessagePort::DispatchMessage, AsWeakPtr(),
-                                std::move(data_buffer)));
+                                std::move(structured_clone)));
 }
 
 void MessagePort::DispatchMessage(
-    std::unique_ptr<script::DataBuffer> data_buffer) {
-  event_target_->DispatchEvent(
-      new web::MessageEvent(base::Tokens::message(), std::move(data_buffer)));
+    std::unique_ptr<script::StructuredClone> structured_clone) {
+  event_target_->DispatchEvent(new web::MessageEvent(
+      base::Tokens::message(), std::move(structured_clone)));
 }
 
 }  // namespace web

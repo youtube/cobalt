@@ -32,8 +32,8 @@ ExtendableMessageEvent::ExtendableMessageEvent(
     const ExtendableMessageEventInit& init_dict)
     : ExtendableEvent(settings, type, init_dict) {
   if (init_dict.has_data() && init_dict.data()) {
-    DCHECK(init_dict.data());
-    data_ = script::SerializeScriptValue(*(init_dict.data()));
+    structured_clone_ =
+        std::make_unique<script::StructuredClone>(*(init_dict.data()));
   }
   if (init_dict.has_origin()) {
     origin_ = init_dict.origin();
@@ -50,19 +50,13 @@ ExtendableMessageEvent::ExtendableMessageEvent(
 }
 
 script::Handle<script::ValueHandle> ExtendableMessageEvent::data(
-    script::EnvironmentSettings* settings) const {
-  if (!settings) return script::Handle<script::ValueHandle>();
-  script::GlobalEnvironment* global_environment =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
-          ->context()
-          ->global_environment();
-  DCHECK(global_environment);
-  v8::Isolate* isolate = global_environment->isolate();
+    script::EnvironmentSettings* settings) {
+  if (!structured_clone_) {
+    return script::Handle<script::ValueHandle>();
+  }
+  auto* isolate = web::get_isolate(settings);
   script::v8c::EntryScope entry_scope(isolate);
-  DCHECK(isolate);
-  if (!data_) return script::Handle<script::ValueHandle>();
-  return script::Handle<script::ValueHandle>(
-      std::move(script::DeserializeScriptValue(isolate, *data_)));
+  return structured_clone_->Deserialize(isolate);
 }
 
 }  // namespace worker
