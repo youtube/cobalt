@@ -112,8 +112,11 @@ declare_args() {
   use_tsan = getenv("USE_TSAN") == 1
 }
 
-_use_asan_default = (is_debug || is_devel) && (is_linux || is_mac) &&
-                    is_clang && !sb_is_evergreen && !using_old_compiler
+_use_asan_default =
+    (is_debug || is_devel) && (is_linux || is_mac) && is_clang &&
+    (!sb_is_evergreen || build_with_separate_cobalt_toolchain) &&
+    !using_old_compiler
+
 declare_args() {
   use_asan = (_use_asan_default || getenv("USE_ASAN") == 1) && !use_tsan
 }

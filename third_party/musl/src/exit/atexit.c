@@ -54,12 +54,14 @@ void __funcs_on_exit()
 	}
 }
 
+#if !defined(ADDRESS_SANITIZER)
 void __cxa_finalize(void *dso)
 {
 #ifdef STARBOARD
   __funcs_on_exit();
 #endif  // STARBOARD
 }
+#endif  // !defined(ADDRESS_SANITIZER)
 
 int __cxa_atexit(void (*func)(void *), void *arg, void *dso)
 {

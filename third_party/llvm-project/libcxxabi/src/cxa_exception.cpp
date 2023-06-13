@@ -19,7 +19,7 @@
 #include "fallback_malloc.h"
 #include "include/atomic_support.h" // from libc++
 
-#if __has_feature(address_sanitizer)
+#if __has_feature(address_sanitizer) && !defined(STARBOARD)
 #include <sanitizer/asan_interface.h>
 #endif
 
@@ -268,7 +268,7 @@ __cxa_throw(void *thrown_object, std::type_info *tinfo, void (_LIBCXXABI_DTOR_FU
 
     exception_header->unwindHeader.exception_cleanup = exception_cleanup_func;
 
-#if __has_feature(address_sanitizer)
+#if __has_feature(address_sanitizer) && !defined(STARBOARD)
     // Inform the ASan runtime that now might be a good time to clean stuff up.
     __asan_handle_no_return();
 #endif
