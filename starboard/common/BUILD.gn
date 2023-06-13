@@ -61,6 +61,8 @@ static_library("common") {
     "optional.h",
     "paths.cc",
     "paths.h",
+    "player.cc",
+    "player.h",
     "queue.h",
     "recursive_mutex.cc",
     "recursive_mutex.h",
@@ -94,6 +96,7 @@ target(gtest_target_type, "common_test") {
   sources = [
     "media_test.cc",
     "memory_test.cc",
+    "player_test.cc",
     "socket_test.cc",
     "test_main.cc",
   ]
