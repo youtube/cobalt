@@ -1127,9 +1127,9 @@ void ServiceWorkerJobs::Install(
     if (context->environment_settings()->GetOrigin() == registration_origin) {
       // 9. ... queue a task on settingsObject’s responsible event loop in the
       //    DOM manipulation task source to run the following steps:
-      context->message_loop()->task_runner()->PostTask(
+      context->message_loop()->task_runner()->PostBlockingTask(
           FROM_HERE,
-          base::BindOnce(
+          base::Bind(
               [](web::Context* context,
                  scoped_refptr<ServiceWorkerRegistrationObject> registration) {
                 // 9.1. Let registrationObjects be every
@@ -1892,6 +1892,12 @@ void ServiceWorkerJobs::TerminateServiceWorker(ServiceWorkerObject* worker) {
     context->message_loop()->task_runner()->PostBlockingTask(
         FROM_HERE, base::Bind(
                        [](web::Context* context, ServiceWorkerObject* worker) {
+                         auto worker_obj = context->LookupServiceWorker(worker);
+                         if (worker_obj) {
+                           worker_obj->set_state(kServiceWorkerStateRedundant);
+                           worker_obj->DispatchEvent(
+                               new web::Event(base::Tokens::statechange()));
+                         }
                          context->RemoveServiceWorker(worker);
                        },
                        context, base::Unretained(worker)));

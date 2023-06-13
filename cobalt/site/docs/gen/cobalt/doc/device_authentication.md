@@ -38,8 +38,17 @@ Cobalt will first attempt to use the `SbSystemSignWithCertificationSecretKey()`
 function to sign the message using the secret key.  This method is preferred
 since it enables implementations where the key exists only in secure hardware
 and never enters the system's main memory.  A reference implementation, which
-depends on BoringSSL exists at
-[starboard/linux/x64x11/internal/system_sign_with_certification_secret_key.cc](../../starboard/linux/x64x11/internal/system_sign_with_certification_secret_key.cc).
+depends on BoringSSL, is as follows:
+
+```C++
+bool SbSystemSignWithCertificationSecretKey(
+    const uint8_t* message, size_t message_size_in_bytes,
+    uint8_t* digest, size_t digest_size_in_bytes) {
+  return starboard::shared::deviceauth::SignWithCertificationSecretKey(
+      kBase64EncodedCertificationSecret,
+      message, message_size_in_bytes, digest, digest_size_in_bytes);
+}
+```
 
 ### Cobalt signing
 

@@ -266,4 +266,3 @@ implementation MUST ignore the call.
 ```
 void SbSpeechRecognizerStop(SbSpeechRecognizer recognizer)
 ```
-
