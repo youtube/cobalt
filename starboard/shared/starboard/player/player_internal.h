@@ -47,8 +47,6 @@ struct SbPlayerPrivate {
       void* context,
       starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  static int number_of_players() { return number_of_players_; }
-
   void Seek(SbTime seek_to_time, int ticket);
   template <typename PlayerSampleInfo>
   void WriteSamples(const PlayerSampleInfo* sample_infos,
