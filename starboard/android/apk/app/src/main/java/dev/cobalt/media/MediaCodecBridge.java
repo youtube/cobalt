@@ -591,6 +591,8 @@ class MediaCodecBridge {
       int width,
       int height,
       int fps,
+      int maxWidth,
+      int maxHeight,
       Surface surface,
       MediaCrypto crypto,
       ColorInfo colorInfo,
@@ -671,10 +673,35 @@ class MediaCodecBridge {
       Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
     }
 
-    int maxWidth = videoCapabilities.getSupportedWidths().getUpper();
-    int maxHeight = videoCapabilities.getSupportedHeights().getUpper();
+    if (maxWidth > 0 && maxHeight > 0) {
+      Log.i(TAG, "Evaluate maxWidth and maxHeight (%d, %d) passed in", maxWidth, maxHeight);
+    } else {
+      maxWidth = videoCapabilities.getSupportedWidths().getUpper();
+      maxHeight = videoCapabilities.getSupportedHeights().getUpper();
+      Log.i(
+          TAG,
+          "maxWidth and maxHeight not passed in, using result of getSupportedWidths()/Heights()"
+              + " (%d, %d)",
+          maxWidth,
+          maxHeight);
+    }
+
     if (fps > 0) {
-      if (!videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
+      if (videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
+        Log.i(
+            TAG,
+            "Set maxWidth and maxHeight to (%d, %d)@%d per `areSizeAndRateSupported()`",
+            maxWidth,
+            maxHeight,
+            fps);
+      } else {
+        Log.w(
+            TAG,
+            "maxWidth and maxHeight (%d, %d)@%d not supported per `areSizeAndRateSupported()`,"
+                + " continue searching",
+            maxWidth,
+            maxHeight,
+            fps);
         if (maxHeight >= 4320 && videoCapabilities.areSizeAndRateSupported(7680, 4320, fps)) {
           maxWidth = 7680;
           maxHeight = 4320;
@@ -691,18 +718,40 @@ class MediaCodecBridge {
           maxWidth = 1920;
           maxHeight = 1080;
         }
+        Log.i(
+            TAG,
+            "Set maxWidth and maxHeight to (%d, %d)@%d per `areSizeAndRateSupported()`",
+            maxWidth,
+            maxHeight,
+            fps);
       }
     } else {
-      if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
-        maxWidth = 3840;
-        maxHeight = 2160;
-      } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
-        maxWidth = 1920;
-        maxHeight = 1080;
+      if (maxHeight >= 480 && videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
+        // Technically we can do this check for all resolutions, but only check for resolution with
+        // height more than 480p to minimize production impact.  To use a lower resolution is more
+        // to reduce memory footprint, and optimize for lower resolution isn't as helpful anyway.
+        Log.i(
+            TAG,
+            "Set maxWidth and maxHeight to (%d, %d) per `isSizeSupported()`",
+            maxWidth,
+            maxHeight);
       } else {
-        Log.e(TAG, "Failed to find a compatible resolution");
-        maxWidth = 1920;
-        maxHeight = 1080;
+        if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
+          maxWidth = 3840;
+          maxHeight = 2160;
+        } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
+          maxWidth = 1920;
+          maxHeight = 1080;
+        } else {
+          Log.e(TAG, "Failed to find a compatible resolution");
+          maxWidth = 1920;
+          maxHeight = 1080;
+        }
+        Log.i(
+            TAG,
+            "Set maxWidth and maxHeight to (%d, %d) per `isSizeSupported()`",
+            maxWidth,
+            maxHeight);
       }
     }
 

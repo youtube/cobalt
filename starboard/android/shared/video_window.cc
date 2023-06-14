@@ -103,7 +103,9 @@ void ClearNativeWindow(ANativeWindow* native_window) {
   // Create an OpenGL ES 2.0 context.
   EGLContext context = EGL_NO_CONTEXT;
   EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
+      EGL_CONTEXT_CLIENT_VERSION,
+      2,
+      EGL_NONE,
   };
   context =
       eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list);
@@ -171,7 +173,6 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
 
 jobject VideoSurfaceHolder::AcquireVideoSurface() {
   ScopedLock lock(*GetViewSurfaceMutex());
-  SB_DCHECK(g_video_surface_holder == NULL);
   if (g_video_surface_holder != NULL) {
     return NULL;
   }
