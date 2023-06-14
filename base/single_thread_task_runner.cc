@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/debug/stack_trace.h"
 #include "base/single_thread_task_runner.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
@@ -48,17 +47,7 @@ void SingleThreadTaskRunner::PostBlockingTask(const base::Location& from_here,
 
   if (task_may_run) {
     // Wait for the task to complete before proceeding.
-    do {
-      if (task_finished.TimedWait(base::TimeDelta::FromMilliseconds(1000))) {
-        break;
-      }
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-      base::debug::StackTrace trace;
-      trace.PrintWithPrefix("[task runner deadlock]");
-#endif // !defined(COBALT_BUILD_TYPE_GOLD)
-      base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
-      base::RunLoop().RunUntilIdle();
-    } while (true);
+    task_finished.Wait();
   }
 }
 #endif
