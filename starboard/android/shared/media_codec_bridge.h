@@ -20,6 +20,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -104,11 +105,19 @@ class MediaCodecBridge {
       Handler* handler,
       jobject j_media_crypto);
 
+  // `max_width` and `max_height` can be set to positive values to specify the
+  // maximum resolutions the video can be adapted to.
+  // When they are not set, MediaCodecBridge will set them to the maximum
+  // resolutions the platform can decode.
+  // Both of them have to be set at the same time (i.e. we cannot set one of
+  // them without the other), which will be checked in the function.
   static scoped_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
       SbMediaVideoCodec video_codec,
       int width,
       int height,
       int fps,
+      optional<int> max_width,
+      optional<int> max_height,
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,

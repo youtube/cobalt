@@ -184,24 +184,14 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  // Android doesn't support multiple concurrent hardware decoders, so we can't
-  // have more than one primary player. And as secondary player is disabled on
-  // android, we simply check the number of active players here.
-  const int kMaxNumberOfPlayers = 1;
-  if (SbPlayerPrivate::number_of_players() >= kMaxNumberOfPlayers) {
-    error_message = starboard::FormatString(
-        "Failed to create a new player. Platform cannot support more than %d "
-        "players.",
-        kMaxNumberOfPlayers);
-    SB_LOG(ERROR) << error_message << ".";
-    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      error_message.c_str());
-    return kSbPlayerInvalid;
-  }
-
   if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture &&
       // TODO: This is temporary for supporting background media playback.
       //       Need to be removed with media refactor.
+      //
+      // Now this code is also used to avoid creating multiple punch-out player
+      // as it happens to work as is.  Note that even without the check here,
+      // SbPlayer will properly handle this by reporting error in VideoDecoder,
+      // when it fails to acquire the surface.
       video_codec != kSbMediaVideoCodecNone) {
     // Check the availability of the video window. As we only support one main
     // player, and sub players are in decode to texture mode on Android, a
