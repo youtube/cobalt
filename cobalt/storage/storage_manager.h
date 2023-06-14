@@ -51,13 +51,15 @@ class StorageManager : public base::MessageLoop::DestructionObserver {
   explicit StorageManager(const Options& options);
   virtual ~StorageManager();
 
+  // Ensures the StorageManager thread is started.
+  void EnsureStarted();
+
   void WithReadOnlyMemoryStore(const ReadOnlyMemoryStoreCallback& callback);
   void WithMemoryStore(const MemoryStoreCallback& callback);
 
   // Schedule a write of our memory store to disk to happen at some point in the
   // future after a change occurs. Multiple calls to Flush() do not necessarily
-  // result in multiple writes to disk.
-  // This call returns immediately.
+  // result in multiple writes to disk. This call returns immediately.
   void FlushOnChange();
 
   // Triggers a write to disk to happen immediately.  Each call to FlushNow()
