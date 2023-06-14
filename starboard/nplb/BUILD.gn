@@ -110,6 +110,7 @@ target(gtest_target_type, "nplb") {
     "microphone_is_sample_rate_supported_test.cc",
     "microphone_open_test.cc",
     "microphone_read_test.cc",
+    "multiple_player_test.cc",
     "murmurhash2_test.cc",
     "mutex_acquire_test.cc",
     "mutex_acquire_try_test.cc",

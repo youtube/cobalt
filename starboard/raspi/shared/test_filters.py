@@ -23,6 +23,7 @@ _FILTERED_TESTS = {
         # Permanently filter out drm system related tests as raspi doesn't
         # support any drm systems and there is no plan to implement such
         # support.
+        'MultiplePlayerTests*',
         'SbDrmTest.AnySupportedKeySystems',
         'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
         'SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes',
