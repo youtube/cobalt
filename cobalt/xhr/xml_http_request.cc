@@ -1424,7 +1424,7 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   // Don't retry, let the caller deal with it.
   url_fetcher_->SetAutomaticallyRetryOn5xx(false);
   url_fetcher_->SetExtraRequestHeaders(request_headers_.ToString());
-  network_module->AddClientHintHeaders(*url_fetcher_);
+  network_module->AddClientHintHeaders(*url_fetcher_, network::kCallTypeXHR);
 
   // We want to do cors check and preflight during redirects
   url_fetcher_->SetStopOnRedirect(true);
