@@ -95,10 +95,11 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
     } else {
       persistent_settings_->SetPersistentSetting(
           network::kClientHintHeadersEnabledPersistentSettingsKey,
-          std::make_unique<base::Value>(value != 0));
+          std::make_unique<base::Value>(value));
       // Tell NetworkModule (if exists) to re-query persistent settings.
       if (network_module_) {
-        network_module_->SetEnableClientHintHeadersFromPersistentSettings();
+        network_module_
+            ->SetEnableClientHintHeadersFlagsFromPersistentSettings();
       }
       return true;
     }

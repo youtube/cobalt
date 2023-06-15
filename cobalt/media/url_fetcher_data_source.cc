@@ -340,7 +340,7 @@ void URLFetcherDataSource::CreateNewFetcher() {
       std::move(net::URLFetcher::Create(url_, net::URLFetcher::GET, this));
   fetcher_->SetRequestContext(
       network_module_->url_request_context_getter().get());
-  network_module_->AddClientHintHeaders(*fetcher_);
+  network_module_->AddClientHintHeaders(*fetcher_, network::kCallTypeMedia);
   std::unique_ptr<loader::URLFetcherStringWriter> download_data_writer(
       new loader::URLFetcherStringWriter());
   fetcher_->SaveResponseWithWriter(std::move(download_data_writer));
