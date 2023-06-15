@@ -439,14 +439,6 @@ static_library("starboard_platform") {
     "//third_party/opus",
   ]
 
-  if (is_internal_build) {
-    sources += [
-      "//internal/starboard/android/shared/internal/input_events_filter.cc",
-      "//internal/starboard/android/shared/internal/input_events_filter.h",
-    ]
-    defines = [ "STARBOARD_INPUT_EVENTS_FILTER" ]
-  }
-
   if (sb_is_evergreen_compatible) {
     sources -= [
       "crash_handler.cc",
