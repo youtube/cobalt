@@ -47,6 +47,36 @@ export default class CobaltPanel extends UI.VBox {
                 });
             }));
         });
+        const debugLogContainer = this.element.createChild('div', 'debug-log-container');
+        debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog On'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({
+                command: 'debug_log', message: 'on'
+            });
+        }));
+        debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog Off'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({
+                command: 'debug_log', message: 'off'
+            });
+        }));
+        const lifecycleContainer = this.element.createChild('div', 'lifecycle-container');
+        lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Blur'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({ command: 'blur' });
+        }));
+        lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Focus'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({ command: 'focus' });
+        }));
+        lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Conceal'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({ command: 'conceal' });
+        }));
+        lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Freeze'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({ command: 'freeze' });
+        }));
+        lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Reveal'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({ command: 'reveal' });
+        }));
+        lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Quit'), event => {
+            this._cobaltAgent.invoke_sendConsoleCommand({ command: 'quit' });
+        }));
         const consoleContainer = this.element.createChild('div', 'console-container');
         consoleContainer.appendChild(UI.createTextButton(Common.UIString('DebugCommand'), event => {
             const outputElement = document.getElementsByClassName('console-output')[0];
