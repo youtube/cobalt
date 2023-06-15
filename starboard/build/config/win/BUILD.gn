@@ -20,11 +20,13 @@ config("host") {
 }
 
 config("common") {
+  configs = []
+
   if (!cobalt_fastbuild) {
     # Containers cannot use PDBs, so we conditionally disable them.
     # We want to keep them for non-docker builds as they make compilation
     # significantly faster.
-    configs = [ ":no_pdbs" ]
+    configs += [ ":no_pdbs" ]
   }
 
   cflags_cc = [ "/TP" ]
@@ -40,6 +42,9 @@ config("common") {
     "_UNICODE",
     "UNICODE",
   ]
+
+  # Allows compilation against VS 2022.
+  configs += [ "//build/config/win:visual_studio_version_compat" ]
 
   # msvs_base
   # OutputDirectory and IntermediateDirectory, maybe CharacterSet
