@@ -19,6 +19,7 @@
 #include "cobalt/script/source_code.h"
 #endif
 
+#include "cobalt/h5vcc/h5vcc_metrics.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 
 namespace cobalt {
@@ -30,6 +31,7 @@ H5vcc::H5vcc(const Settings& settings) {
   audio_config_array_ = new H5vccAudioConfigArray();
   c_val_ = new dom::CValView();
   crash_log_ = new H5vccCrashLog();
+  metrics_ = new H5vccMetrics();
   runtime_ = new H5vccRuntime(settings.event_dispatcher);
   settings_ =
       new H5vccSettings(settings.set_web_setting_func, settings.media_module,
@@ -73,6 +75,7 @@ void H5vcc::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(audio_config_array_);
   tracer->Trace(c_val_);
   tracer->Trace(crash_log_);
+  tracer->Trace(metrics_);
   tracer->Trace(runtime_);
   tracer->Trace(settings_);
   tracer->Trace(storage_);

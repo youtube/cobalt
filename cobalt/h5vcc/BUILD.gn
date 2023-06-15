@@ -49,6 +49,8 @@ static_library("h5vcc") {
     "h5vcc_deep_link_event_target.cc",
     "h5vcc_deep_link_event_target.h",
     "h5vcc_event_listener_container.h",
+    "h5vcc_metrics.cc",
+    "h5vcc_metrics.h",
     "h5vcc_platform_service.cc",
     "h5vcc_platform_service.h",
     "h5vcc_runtime.cc",
@@ -69,8 +71,11 @@ static_library("h5vcc") {
   configs += [ ":h5vcc_internal_config" ]
   public_configs = [ ":h5vcc_external_config" ]
   deps = [
+    ":metric_event_handler_wrapper",
+    ":script_callback_wrapper",
     "//cobalt/base",
     "//cobalt/browser:browser_switches",
+    "//cobalt/browser/metrics",
     "//cobalt/build:cobalt_build_id",
     "//cobalt/cache",
     "//cobalt/configuration",
@@ -105,4 +110,20 @@ static_library("h5vcc") {
     ]
     deps += [ "//cobalt/updater" ]
   }
+}
+
+source_set("script_callback_wrapper") {
+  sources = [ "script_callback_wrapper.h" ]
+
+  deps = [ "//cobalt/script" ]
+}
+
+source_set("metric_event_handler_wrapper") {
+  sources = [ "metric_event_handler_wrapper.h" ]
+
+  deps = [
+    ":script_callback_wrapper",
+    "//cobalt/browser:generated_types",
+    "//cobalt/script",
+  ]
 }

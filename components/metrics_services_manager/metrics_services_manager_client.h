@@ -14,6 +14,7 @@ namespace metrics {
 class MetricsServiceClient;
 }
 
+#if !defined(STARBOARD)
 namespace network {
 class SharedURLLoaderFactory;
 }
@@ -25,6 +26,7 @@ class RapporServiceImpl;
 namespace variations {
 class VariationsService;
 }
+#endif
 
 namespace metrics_services_manager {
 
@@ -35,18 +37,22 @@ class MetricsServicesManagerClient {
   virtual ~MetricsServicesManagerClient() {}
 
   // Methods that create the various services in the context of the embedder.
+#if !defined(STARBOARD)
   virtual std::unique_ptr<rappor::RapporServiceImpl>
   CreateRapporServiceImpl() = 0;
   virtual std::unique_ptr<variations::VariationsService>
   CreateVariationsService() = 0;
+#endif
   virtual std::unique_ptr<metrics::MetricsServiceClient>
   CreateMetricsServiceClient() = 0;
   virtual std::unique_ptr<const base::FieldTrial::EntropyProvider>
   CreateEntropyProvider() = 0;
 
+#if !defined(STARBOARD)
   // Returns the URL loader factory which the metrics services should use.
   virtual scoped_refptr<network::SharedURLLoaderFactory>
   GetURLLoaderFactory() = 0;
+#endif
 
   // Returns whether metrics reporting is enabled.
   virtual bool IsMetricsReportingEnabled() = 0;

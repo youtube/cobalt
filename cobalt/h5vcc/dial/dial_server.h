@@ -25,6 +25,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/h5vcc/dial/dial_http_request.h"
 #include "cobalt/h5vcc/dial/dial_http_response.h"
+#include "cobalt/h5vcc/script_callback_wrapper.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value.h"
@@ -34,17 +35,6 @@
 namespace cobalt {
 namespace h5vcc {
 namespace dial {
-
-// Template boilerplate for wrapping a script callback safely.
-template <typename T>
-class ScriptCallbackWrapper
-    : public base::RefCountedThreadSafe<ScriptCallbackWrapper<T> > {
- public:
-  typedef script::ScriptValue<T> ScriptValue;
-  ScriptCallbackWrapper(script::Wrappable* wrappable, const ScriptValue& func)
-      : callback(wrappable, func) {}
-  typename ScriptValue::Reference callback;
-};
 
 class DialServer : public script::Wrappable,
                    public base::SupportsWeakPtr<DialServer> {

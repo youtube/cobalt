@@ -20,7 +20,8 @@
 // Annotation interface. Because not all platforms use Crashpad yet, a
 // source-compatible interface is provided on top of the older Breakpad
 // storage mechanism.
-#if BUILDFLAG(USE_CRASHPAD_ANNOTATION)
+// TODO(b/286881972): Investigate enabling crashpad support in Cobalt/Telemetry.
+#if BUILDFLAG(USE_CRASHPAD_ANNOTATION) && !defined(STARBOARD)
 #include "third_party/crashpad/crashpad/client/annotation.h"  // nogncheck
 #endif
 
@@ -58,7 +59,7 @@ class CrashKeyBreakpadTest;
 //      g_operation_id.Clear()
 //    }
 // \endcode
-#if BUILDFLAG(USE_CRASHPAD_ANNOTATION)
+#if BUILDFLAG(USE_CRASHPAD_ANNOTATION) && !defined(STARBOARD)
 
 template <crashpad::Annotation::ValueSizeType MaxLength>
 using CrashKeyString = crashpad::StringAnnotation<MaxLength>;
@@ -172,7 +173,7 @@ class CrashKeyString : public internal::CrashKeyStringImpl {
 //    }
 class ScopedCrashKeyString {
  public:
-#if BUILDFLAG(USE_CRASHPAD_ANNOTATION)
+#if BUILDFLAG(USE_CRASHPAD_ANNOTATION) && !defined(STARBOARD)
   using CrashKeyType = crashpad::Annotation;
 #else
   using CrashKeyType = internal::CrashKeyStringImpl;

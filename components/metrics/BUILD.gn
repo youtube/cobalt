@@ -153,7 +153,7 @@ static_library("metrics") {
     ]
   }
 
-  if (is_win) {
+  if (is_win && !use_cobalt_customizations) {
     sources -= [ "machine_id_provider_stub.cc" ]
     deps += [ "//components/browser_watcher:stability_client" ]
     libs = [ "wevtapi.lib" ]
@@ -366,7 +366,7 @@ static_library("test_support") {
   ]
 }
 
-if (is_linux) {
+if (is_linux && !use_cobalt_customizations) {
   static_library("serialization") {
     sources = [
       "serialization/metric_sample.cc",
@@ -379,6 +379,7 @@ if (is_linux) {
     ]
   }
 }
+
 # TODO(b/283275474): Re-enable as many of these tests as possible.
 if (!use_cobalt_customizations) {
   source_set("unit_tests") {
