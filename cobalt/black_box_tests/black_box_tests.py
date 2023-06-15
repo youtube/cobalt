@@ -46,9 +46,7 @@ _EVERGREEN_COMPATIBLE_CONFIGS = [
     # TODO(b/283788059): enable when there are GitHub jobs to run integration
     # and Black Box Tests on evergreen-arm-hardfp.
     #'evergreen-arm/devel',
-    # TODO(b/283144901): enable when the Starboard 16 binaries are released for
-    # Evergreen.
-    #'evergreen-x64/devel',
+    'evergreen-x64/devel',
 ]
 
 _PORT_SELECTION_RETRY_LIMIT = 10
