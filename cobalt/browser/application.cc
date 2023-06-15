@@ -24,6 +24,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/metrics/user_metrics.h"
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -59,6 +60,7 @@
 #include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/user_agent_string.h"
@@ -74,6 +76,7 @@
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "cobalt/watchdog/watchdog.h"
+#include "components/metrics/metrics_service.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/system_property.h"
 #include "starboard/configuration.h"
@@ -622,11 +625,6 @@ void AddCrashLogApplicationState(base::ApplicationState state) {
 
 }  // namespace
 
-// Helper stub to disable histogram tracking in StatisticsRecorder
-struct RecordCheckerStub : public base::RecordHistogramChecker {
-  bool ShouldRecord(uint64_t) const override { return false; }
-};
-
 // Static user logs
 ssize_t Application::available_memory_ = 0;
 int64 Application::lifetime_in_ms_ = 0;
@@ -690,15 +688,24 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
-  // Disable histogram tracking before TaskScheduler creates StatisticsRecorder
-  // instances.
-  auto record_checker = std::make_unique<RecordCheckerStub>();
-  base::StatisticsRecorder::SetRecordChecker(std::move(record_checker));
-
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
   base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
+
+  // Must be called early as it initializes global state which is then read by
+  // all threads without synchronization.
+  // RecordAction task runner must be called before metric initialization.
+  base::SetRecordActionTaskRunner(base::ThreadTaskRunnerHandle::Get());
+  metrics_services_manager_ =
+      metrics::CobaltMetricsServicesManager::GetInstance();
+  // Metric recording state initialization _must_ happen before we bootstrap
+  // otherwise we crash.
+  metrics_services_manager_->GetMetricsService()
+      ->InitializeMetricsRecordingState();
+  // UpdateUploadPermissions bootstraps the whole metric reporting, scheduling,
+  // and uploading cycle.
+  metrics_services_manager_->UpdateUploadPermissions(false);
 
   // Initializes persistent settings.
   persistent_settings_ =
@@ -1051,6 +1058,10 @@ Application::~Application() {
   // the destruction at this point gives a real file-line number and a place
   // for the debugger to land.
   watchdog::Watchdog::DeleteInstance();
+
+  // Explicitly delete the global metrics services manager here to give it
+  // an opportunity to clean up late logs and persist metrics.
+  delete metrics_services_manager_;
 
 #if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   memory_tracker_tool_.reset(NULL);
