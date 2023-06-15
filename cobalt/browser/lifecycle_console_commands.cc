@@ -23,24 +23,41 @@
 namespace cobalt {
 namespace browser {
 
-const char kPauseCommand[] = "pause";
-const char kPauseCommandShortHelp[] = "Sends a request to pause Cobalt.";
-const char kPauseCommandLongHelp[] =
-    "Sends a request to the platform to pause Cobalt, indicating that it is "
+const char kBlurCommand[] = "blur";
+const char kBlurCommandShortHelp[] = "Sends a request to blur Cobalt.";
+const char kBlurCommandLongHelp[] =
+    "Sends a request to the platform to blur Cobalt, indicating that it is "
     "not in focus and sending a blur event to the web application.";
 
-const char kUnpauseCommand[] = "unpause";
-const char kUnpauseCommandShortHelp[] = "Sends a request to unpause Cobalt.";
-const char kUnpauseCommandLongHelp[] =
-    "Sends a request to the platform to unpause Cobalt, resulting in a focus "
+const char kFocusCommand[] = "focus";
+const char kFocusCommandShortHelp[] = "Sends a request to focus Cobalt.";
+const char kFocusCommandLongHelp[] =
+    "Sends a request to the platform to focus Cobalt, resulting in a Focus "
     "event being sent to the web application.";
 
-const char kSuspendCommand[] = "suspend";
-const char kSuspendCommandShortHelp[] = "Sends a request to suspend Cobalt.";
-const char kSuspendCommandLongHelp[] =
-    "Sends a request to the platform to suspend Cobalt, indicating that it is "
+const char kConcealCommand[] = "conceal";
+const char kConcealCommandShortHelp[] = "Sends a request to conceal Cobalt.";
+const char kConcealCommandLongHelp[] =
+    "Sends a request to the platform to conceal Cobalt, indicating that it is "
     "not visible and sending a hidden event to the web application.  Note that "
-    "Cobalt may become unresponsive after this call and you will need to "
+    "Cobalt may become unresponsive after this call in which case you will "
+    "need to resume it in a platform-specific way.";
+
+const char kFreezeCommand[] = "freeze";
+const char kFreezeCommandShortHelp[] = "Sends a request to freeze Cobalt.";
+const char kFreezeCommandLongHelp[] =
+    "Sends a request to the platform to freeze Cobalt, indicating that it is "
+    "not visible, sending a hidden event to the web application, and halt "
+    "processing.  Note that Cobalt may become unresponsive after this call in "
+    "which case you will need to resume it in a platform-specific way.";
+
+const char kRevealCommand[] = "reveal";
+const char kRevealCommandShortHelp[] = "Sends a request to reveal Cobalt.";
+const char kRevealCommandLongHelp[] =
+    "Sends a request to the platform to reveal Cobalt, indicating that it is "
+    "visible but not focues, and sending a visible event to the web "
+    "application.  Note that "
+    "Cobalt may be unresponsive in which case you will need to "
     "resume it in a platform-specific way.";
 
 const char kQuitCommand[] = "quit";
@@ -50,31 +67,37 @@ const char kQuitCommandLongHelp[] =
     "ending the process (peacefully).";
 
 namespace {
-// This is temporary that will be changed in later CLs, for mapping Starboard
-// Concealed state support onto Cobalt without Concealed state support to be
-// able to test the former.
-void OnPause(const std::string& /*message*/) { SbSystemRequestBlur(); }
-
-void OnUnpause(const std::string& /*message*/) { SbSystemRequestFocus(); }
-
-void OnSuspend(const std::string& /*message*/) {
-  LOG(INFO) << "Concealing Cobalt through the console, but you will need to "
-            << "reveal Cobalt using a platform-specific method.";
+void OnBlur(const std::string&) { SbSystemRequestBlur(); }
+void OnFocus(const std::string&) { SbSystemRequestFocus(); }
+void OnConceal(const std::string&) {
+  LOG(WARNING)
+      << "Concealing Cobalt through the console.  Note that Cobalt may "
+         "become unresponsive after this call in which case you will "
+         "need to resume it in a platform-specific way.";
   SbSystemRequestConceal();
 }
-
+void OnFreeze(const std::string&) {
+  LOG(WARNING) << "Freezing Cobalt through the console.  Note that Cobalt may "
+                  "become unresponsive after this call in which case you will "
+                  "need to resume it in a platform-specific way.";
+  SbSystemRequestFreeze();
+}
+void OnReveal(const std::string&) { SbSystemRequestReveal(); }
 void OnQuit(const std::string& /*message*/) { SbSystemRequestStop(0); }
 }  // namespace
 
 LifecycleConsoleCommands::LifecycleConsoleCommands()
-    : pause_command_handler_(kPauseCommand, base::Bind(&OnPause),
-                             kPauseCommandShortHelp, kPauseCommandLongHelp),
-      unpause_command_handler_(kUnpauseCommand, base::Bind(OnUnpause),
-                               kUnpauseCommandShortHelp,
-                               kUnpauseCommandLongHelp),
-      suspend_command_handler_(kSuspendCommand, base::Bind(OnSuspend),
-                               kSuspendCommandShortHelp,
-                               kSuspendCommandLongHelp),
+    : blur_command_handler_(kBlurCommand, base::Bind(OnBlur),
+                            kBlurCommandShortHelp, kBlurCommandLongHelp),
+      focus_command_handler_(kFocusCommand, base::Bind(OnFocus),
+                             kFocusCommandShortHelp, kFocusCommandLongHelp),
+      conceal_command_handler_(kConcealCommand, base::Bind(OnConceal),
+                               kConcealCommandShortHelp,
+                               kConcealCommandLongHelp),
+      freeze_command_handler_(kFreezeCommand, base::Bind(OnFreeze),
+                              kFreezeCommandShortHelp, kFreezeCommandLongHelp),
+      reveal_command_handler_(kRevealCommand, base::Bind(OnReveal),
+                              kRevealCommandShortHelp, kRevealCommandLongHelp),
       quit_command_handler_(kQuitCommand, base::Bind(OnQuit),
                             kQuitCommandShortHelp, kQuitCommandLongHelp) {}
 
