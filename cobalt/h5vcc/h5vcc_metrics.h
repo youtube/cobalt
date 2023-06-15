@@ -15,8 +15,10 @@
 #ifndef COBALT_H5VCC_H5VCC_METRICS_H_
 #define COBALT_H5VCC_H5VCC_METRICS_H_
 
+#include <memory>
 #include <string>
 
+#include "cobalt/browser/metrics/cobalt_h5vcc_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
 #include "cobalt/h5vcc/metric_event_handler_wrapper.h"
 #include "cobalt/script/callback_function.h"
@@ -58,7 +60,8 @@ class H5vccMetrics : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccMetrics);
 
  private:
-  scoped_refptr<MetricEventHandlerWrapper> event_handler_;
+  std::unique_ptr<cobalt::browser::metrics::CobaltH5vccMetricsUploaderCallback>
+      uploader_callback_;
   bool is_enabled_ = false;
 };
 

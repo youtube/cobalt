@@ -75,6 +75,11 @@ std::unique_ptr<::metrics::ClientInfo> LoadMetricsClientInfo() {
 }
 
 ::metrics::MetricsStateManager*
+CobaltMetricsServicesManagerClient::GetMetricsStateManagerForTesting() {
+  return GetMetricsStateManager();
+}
+
+::metrics::MetricsStateManager*
 CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
   if (!metrics_state_manager_) {
     PrefServiceFactory pref_service_factory;
@@ -93,7 +98,7 @@ CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
         base::BindRepeating(&StoreMetricsClientInfo),
         base::BindRepeating(&LoadMetricsClientInfo));
   }
-  return metrics_state_manager_.release();
+  return metrics_state_manager_.get();
 }
 
 }  // namespace metrics

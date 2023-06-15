@@ -14,11 +14,10 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 
+#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
-#include "cobalt/h5vcc/metric_event_handler_wrapper.h"
 #include "components/metrics/log_decoder.h"
 #include "components/metrics/metrics_log_uploader.h"
-#include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
 
 
@@ -34,19 +33,13 @@ CobaltMetricsLogUploader::CobaltMetricsLogUploader(
 void CobaltMetricsLogUploader::UploadLog(
     const std::string& compressed_log_data, const std::string& log_hash,
     const ::metrics::ReportingInfo& reporting_info) {
-  ::metrics::ChromeUserMetricsExtension uma_log;
   if (service_type_ == ::metrics::MetricsLogUploader::UMA) {
-    std::string uncompressed_log_data;
-    ::metrics::DecodeLogData(compressed_log_data, &uncompressed_log_data);
-    uma_log.ParseFromString(uncompressed_log_data);
-    if (event_handler_ != nullptr) {
-      std::string serialized;
-      if (uma_log.SerializeToString(&serialized)) {
-        event_handler_->callback.value().Run(
-            h5vcc::H5vccMetricType::kH5vccMetricTypeUma, serialized);
-      } else {
-        LOG(ERROR) << "Failed serializing uma proto";
-      }
+    std::string uncompressed_serialized_proto;
+    ::metrics::DecodeLogData(compressed_log_data,
+                             &uncompressed_serialized_proto);
+    if (upload_handler_ != nullptr) {
+      upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeUma,
+                           uncompressed_serialized_proto);
     }
   }
 
@@ -58,8 +51,8 @@ void CobaltMetricsLogUploader::UploadLog(
 }
 
 void CobaltMetricsLogUploader::SetOnUploadHandler(
-    h5vcc::MetricEventHandlerWrapper* metric_event_handler) {
-  event_handler_ = metric_event_handler;
+    CobaltMetricsUploaderCallback* upload_handler) {
+  upload_handler_ = upload_handler;
 }
 
 }  // namespace metrics

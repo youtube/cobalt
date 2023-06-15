@@ -25,7 +25,7 @@
 #include "base/time/time.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
-#include "cobalt/h5vcc/metric_event_handler_wrapper.h"
+#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_reporting_default_state.h"
 #include "components/metrics/metrics_service.h"
@@ -48,14 +48,9 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
  public:
   ~CobaltMetricsServiceClient() override{};
 
-  // Initializes the client with all its requisite helper classes and other
-  // "ready" state.
-  void Initialize();
-
-  // Sets the event handler wrapper to be called when metrics are ready for
+  // Sets the uploader handler to be called when metrics are ready for
   // upload.
-  void SetOnUploadHandler(
-      h5vcc::MetricEventHandlerWrapper* metric_event_handler);
+  void SetOnUploadHandler(CobaltMetricsUploaderCallback* uploader_callback);
 
   // Returns the MetricsService instance that this client is associated with.
   // With the exception of testing contexts, the returned instance must be valid
@@ -165,7 +160,7 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
 
   CobaltMetricsLogUploader* log_uploader_ = nullptr;
 
-  h5vcc::MetricEventHandlerWrapper* metric_event_handler_ = nullptr;
+  CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(CobaltMetricsServiceClient);
 };

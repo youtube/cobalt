@@ -16,12 +16,15 @@ static_library("metrics") {
   sources = [
     "cobalt_enabled_state_provider.cc",
     "cobalt_enabled_state_provider.h",
+    "cobalt_h5vcc_metrics_uploader_callback.cc",
+    "cobalt_h5vcc_metrics_uploader_callback.h",
     "cobalt_metrics_log_uploader.cc",
     "cobalt_metrics_log_uploader.h",
     "cobalt_metrics_service_client.cc",
     "cobalt_metrics_service_client.h",
     "cobalt_metrics_services_manager_client.cc",
     "cobalt_metrics_services_manager_client.h",
+    "cobalt_metrics_uploader_callback.h",
   ]
 
   deps = [
@@ -32,5 +35,31 @@ static_library("metrics") {
     "//components/metrics_services_manager",
     "//components/prefs",
     "//third_party/metrics_proto",
+  ]
+}
+
+target(gtest_target_type, "metrics_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [
+    "cobalt_metrics_log_uploader_test.cc",
+    "cobalt_metrics_service_client_test.cc",
+    "cobalt_metrics_services_manager_client_test.cc",
+  ]
+
+  deps = [
+    ":metrics",
+    "//base",
+    "//cobalt/browser:generated_types",
+    "//cobalt/h5vcc",
+    "//cobalt/h5vcc:metric_event_handler_wrapper",
+    "//cobalt/test:run_all_unittests",
+    "//components/metrics",
+    "//components/prefs:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/metrics_proto",
+    "//third_party/zlib/google:compression_utils",
   ]
 }

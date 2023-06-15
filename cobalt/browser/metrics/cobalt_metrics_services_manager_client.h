@@ -71,6 +71,9 @@ class CobaltMetricsServicesManagerClient
     return enabled_state_provider_.get();
   }
 
+  // Testing getter for state manager.
+  ::metrics::MetricsStateManager* GetMetricsStateManagerForTesting();
+
  private:
   ::metrics::MetricsStateManager* GetMetricsStateManager();
 

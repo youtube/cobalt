@@ -20,6 +20,7 @@
 #include "base/callback.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
+#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/metric_event_handler_wrapper.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
@@ -51,13 +52,12 @@ class CobaltMetricsLogUploader : public ::metrics::MetricsLogUploader {
 
   // Sets the event handler wrapper to be called when metrics are ready for
   // upload. This should be the JavaScript H5vcc callback implementation.
-  void SetOnUploadHandler(
-      h5vcc::MetricEventHandlerWrapper* metric_event_handler);
+  void SetOnUploadHandler(CobaltMetricsUploaderCallback* metric_event_handler);
 
  private:
   const ::metrics::MetricsLogUploader::MetricServiceType service_type_;
   const ::metrics::MetricsLogUploader::UploadCallback on_upload_complete_;
-  h5vcc::MetricEventHandlerWrapper* event_handler_ = nullptr;
+  CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
 };
 
 }  // namespace metrics

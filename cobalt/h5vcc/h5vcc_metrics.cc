@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "cobalt/browser/metrics/cobalt_h5vcc_metrics_uploader_callback.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
@@ -26,13 +27,16 @@ namespace h5vcc {
 
 void H5vccMetrics::OnMetricEvent(
     const h5vcc::MetricEventHandlerWrapper::ScriptValue& eventHandler) {
-  event_handler_ = new h5vcc::MetricEventHandlerWrapper(this, eventHandler);
+  auto callback =
+      new cobalt::browser::metrics::CobaltH5vccMetricsUploaderCallback(
+          new h5vcc::MetricEventHandlerWrapper(this, eventHandler));
+  uploader_callback_.reset(callback);
   browser::metrics::CobaltMetricsServiceClient* client =
       static_cast<browser::metrics::CobaltMetricsServiceClient*>(
           browser::metrics::CobaltMetricsServicesManager::GetInstance()
               ->GetMetricsServiceClient());
   DCHECK(client);
-  client->SetOnUploadHandler(event_handler_.get());
+  client->SetOnUploadHandler(uploader_callback_.get());
 }
 
 void H5vccMetrics::ToggleMetricsEnabled(bool isEnabled) {
