@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/queue_application.h"
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/event.h"
@@ -23,14 +23,6 @@
 namespace starboard {
 namespace shared {
 namespace starboard {
-
-namespace {
-void SetTrueWhenCalled(void* flag) {
-  volatile bool* bool_flag =
-      const_cast<volatile bool*>(static_cast<bool*>(flag));
-  *bool_flag = true;
-}
-}  // namespace
 
 void QueueApplication::Wake() {
   if (IsCurrentThread()) {
@@ -100,11 +92,15 @@ void QueueApplication::CancelTimedEvent(SbEventId event_id) {
 
 void QueueApplication::InjectAndProcess(SbEventType type,
                                         bool checkSystemEvents) {
-  volatile bool event_processed = false;
-  Event* flagged_event =
-      new Event(type, const_cast<bool*>(&event_processed), &SetTrueWhenCalled);
+  atomic_bool event_processed;
+  Event* flagged_event = new Event(
+      type, const_cast<atomic_bool*>(&event_processed), [](void* flag) {
+        auto* bool_flag =
+            const_cast<atomic_bool*>(static_cast<atomic_bool*>(flag));
+        bool_flag->store(true);
+      });
   Inject(flagged_event);
-  while (!event_processed) {
+  while (!event_processed.load()) {
     if (checkSystemEvents) {
       DispatchAndDelete(GetNextEvent());
     } else {
