@@ -436,12 +436,6 @@ bool ApplicationAndroid::SendAndroidKeyEvent(
     const GameActivityKeyEvent* event) {
   bool result = false;
 
-#ifdef STARBOARD_INPUT_EVENTS_FILTER
-  if (!input_events_filter_.ShouldProcessKeyEvent(event)) {
-    return result;
-  }
-#endif
-
   ScopedLock lock(input_mutex_);
   if (!input_events_generator_) {
     return false;

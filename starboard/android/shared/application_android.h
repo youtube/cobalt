@@ -22,9 +22,6 @@
 #include <vector>
 
 #include "game-activity/GameActivity.h"
-#ifdef STARBOARD_INPUT_EVENTS_FILTER
-#include "internal/starboard/android/shared/internal/input_events_filter.h"
-#endif
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/atomic.h"
@@ -167,10 +164,6 @@ class ApplicationAndroid
   // to safely access it.
   Mutex input_mutex_;
   scoped_ptr<InputEventsGenerator> input_events_generator_;
-
-#ifdef STARBOARD_INPUT_EVENTS_FILTER
-  internal::InputEventsFilter input_events_filter_;
-#endif
 
   bool last_is_accessibility_high_contrast_text_enabled_;
 
