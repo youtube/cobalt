@@ -49,7 +49,7 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
   url_fetcher->SetStopOnRedirect(true);
   url_fetcher->SetRequestContext(
       network_module_->url_request_context_getter().get());
-  network_module_->AddClientHintHeaders(*url_fetcher);
+  network_module_->AddClientHintHeaders(*url_fetcher, network::kCallTypePost);
 
   if (data.size()) {
     url_fetcher->SetUploadData(content_type, data);

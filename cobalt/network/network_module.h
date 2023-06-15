@@ -48,6 +48,18 @@ class WaitableEvent;
 namespace cobalt {
 namespace network {
 
+// Used to differentiate type of network call for Client Hint Headers.
+// Values correspond to bit masks against |enable_client_hint_headers_flags_|.
+enum ClientHintHeadersCallType : int32_t {
+  kCallTypeLoader = (1u << 0),
+  kCallTypeMedia = (1u << 1),
+  kCallTypePost = (1u << 2),
+  kCallTypePreflight = (1u << 3),
+  kCallTypeUpdater = (1u << 4),
+  kCallTypeXHR = (1u << 5),
+};
+
+// Holds bit mask flag, read into |enable_client_hint_headers_flags_|.
 const char kClientHintHeadersEnabledPersistentSettingsKey[] =
     "clientHintHeadersEnabled";
 
@@ -116,10 +128,11 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   void SetEnableQuic(bool enable_quic);
 
   // Checks persistent settings to determine if Client Hint Headers are enabled.
-  void SetEnableClientHintHeadersFromPersistentSettings();
+  void SetEnableClientHintHeadersFlagsFromPersistentSettings();
 
   // Adds the Client Hint Headers to the provided URLFetcher if enabled.
-  void AddClientHintHeaders(net::URLFetcher& url_fetcher) const;
+  void AddClientHintHeaders(net::URLFetcher& url_fetcher,
+                            ClientHintHeadersCallType call_type) const;
 
   // From base::MessageLoop::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
@@ -131,7 +144,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   std::unique_ptr<network_bridge::NetPoster> CreateNetPoster();
 
   std::vector<std::string> client_hint_headers_;
-  starboard::atomic_bool enable_client_hint_headers_;
+  starboard::atomic_int32_t enable_client_hint_headers_flags_;
   std::unique_ptr<storage::StorageManager> storage_manager_;
   std::unique_ptr<base::Thread> thread_;
   std::unique_ptr<URLRequestContext> url_request_context_;

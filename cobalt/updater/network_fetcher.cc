@@ -189,7 +189,8 @@ void NetworkFetcher::CreateUrlFetcher(
 
   url_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter().get());
-  network_module_->AddClientHintHeaders(*url_fetcher_);
+  network_module_->AddClientHintHeaders(*url_fetcher_,
+                                        network::kCallTypeUpdater);
 
   // Request mode is kCORSModeOmitCredentials.
   const uint32 kDisableCookiesAndCacheLoadFlags =
