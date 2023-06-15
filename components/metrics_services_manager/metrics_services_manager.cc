@@ -13,10 +13,13 @@
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/metrics_switches.h"
 #include "components/metrics_services_manager/metrics_services_manager_client.h"
+#if !defined(STARBOARD)
 #include "components/rappor/rappor_service_impl.h"
+// TODOD(b/284467142): Re-enable when UKM is supported.
 #include "components/ukm/ukm_service.h"
 #include "components/variations/service/variations_service.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#endif
 
 namespace metrics_services_manager {
 
@@ -41,6 +44,7 @@ metrics::MetricsService* MetricsServicesManager::GetMetricsService() {
   return GetMetricsServiceClient()->GetMetricsService();
 }
 
+#if !defined(STARBOARD)
 rappor::RapporServiceImpl* MetricsServicesManager::GetRapporServiceImpl() {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (!rappor_service_) {
@@ -50,6 +54,7 @@ rappor::RapporServiceImpl* MetricsServicesManager::GetRapporServiceImpl() {
   return rappor_service_.get();
 }
 
+// TODOD(b/284467142): Re-enable when UKM is supported.
 ukm::UkmService* MetricsServicesManager::GetUkmService() {
   DCHECK(thread_checker_.CalledOnValidThread());
   return GetMetricsServiceClient()->GetUkmService();
@@ -61,6 +66,7 @@ variations::VariationsService* MetricsServicesManager::GetVariationsService() {
     variations_service_ = client_->CreateVariationsService();
   return variations_service_.get();
 }
+#endif
 
 void MetricsServicesManager::OnPluginLoadingError(
     const base::FilePath& plugin_path) {
@@ -88,6 +94,7 @@ void MetricsServicesManager::UpdatePermissions(bool current_may_record,
                                                bool current_consent_given,
                                                bool current_may_upload) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if !defined(STARBOARD)
   // If the user has opted out of metrics, delete local UKM state. We Only check
   // consent for UKM.
   if (consent_given_ && !current_consent_given) {
@@ -97,6 +104,7 @@ void MetricsServicesManager::UpdatePermissions(bool current_may_record,
       ukm->ResetClientId();
     }
   }
+#endif
 
   // Stash the current permissions so that we can update the RapporServiceImpl
   // correctly when the Rappor preference changes.
@@ -113,7 +121,9 @@ void MetricsServicesManager::UpdateRunningServices() {
   const base::CommandLine* cmdline = base::CommandLine::ForCurrentProcess();
   if (cmdline->HasSwitch(metrics::switches::kMetricsRecordingOnly)) {
     metrics->StartRecordingForTests();
+#if !defined(STARBOARD)
     GetRapporServiceImpl()->Update(true, false);
+#endif
     return;
   }
 
@@ -130,11 +140,16 @@ void MetricsServicesManager::UpdateRunningServices() {
     metrics->Stop();
   }
 
+#if !defined(STARBOARD)
+  // TODOD(b/284467142): Re-enable when UKM is supported.
   UpdateUkmService();
 
   GetRapporServiceImpl()->Update(may_record_, may_upload_);
+#endif
 }
 
+#if !defined(STARBOARD)
+// TODOD(b/284467142): Re-enable when UKM is supported.
 void MetricsServicesManager::UpdateUkmService() {
   ukm::UkmService* ukm = GetUkmService();
   if (!ukm)
@@ -159,6 +174,7 @@ void MetricsServicesManager::UpdateUkmService() {
     ukm->DisableReporting();
   }
 }
+#endif
 
 void MetricsServicesManager::UpdateUploadPermissions(bool may_upload) {
   if (client_->IsMetricsReportingForceEnabled()) {

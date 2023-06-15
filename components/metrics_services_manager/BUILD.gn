@@ -19,4 +19,16 @@ static_library("metrics_services_manager") {
     "//components/variations/service",
     "//services/network/public/cpp:cpp",
   ]
+
+  # These dependencies are currently disabled or do not exist in Cobalt.
+  # Eliminating these significantly simplifies bringing in the
+  # metrics_services_manager as a dependendency.
+  if (use_cobalt_customizations) {
+    deps -= [
+      "//components/rappor",
+      "//components/ukm",
+      "//components/variations/service",
+      "//services/network/public/cpp:cpp",
+    ]
+  }
 }

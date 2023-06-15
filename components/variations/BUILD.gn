@@ -87,7 +87,7 @@ static_library("variations") {
     ]
   }
 
-  if (is_android || is_ios) {
+  if (!use_cobalt_customizations && (is_android || is_ios)) {
     sources += [
       "variations_request_scheduler_mobile.cc",
       "variations_request_scheduler_mobile.h",
@@ -104,12 +104,12 @@ static_library("variations") {
     "//third_party/zlib/google:compression_utils",
   ]
 
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     deps += [ ":jni" ]
   }
 }
 
-if (is_android) {
+if (is_android && !use_cobalt_customizations) {
   generate_jni("jni") {
     sources = [
       "android/java/src/org/chromium/components/variations/VariationsAssociatedData.java",
@@ -128,25 +128,25 @@ if (is_android) {
   }
 }
 
-static_library("test_support") {
-  testonly = true
-  sources = [
-    "variations_params_manager.cc",
-    "variations_params_manager.h",
-  ]
-
-  public_deps = [
-    ":variations",
-  ]
-
-  deps = [
-    "field_trial_config:field_trial_config",
-    "//base/test:test_support",
-  ]
-}
-
 # TODO(b/283258321): Re-enable as many tests as posible.
 if (!use_cobalt_customizations) {
+  static_library("test_support") {
+    testonly = true
+    sources = [
+      "variations_params_manager.cc",
+      "variations_params_manager.h",
+    ]
+
+    public_deps = [
+      ":variations",
+    ]
+
+    deps = [
+      "field_trial_config:field_trial_config",
+      "//base/test:test_support",
+    ]
+  }
+
   source_set("unit_tests") {
     testonly = true
     sources = [
