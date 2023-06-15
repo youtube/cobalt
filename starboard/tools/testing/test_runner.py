@@ -19,6 +19,7 @@
 import argparse
 import logging
 import os
+import pathlib
 import re
 import signal
 import subprocess
@@ -488,6 +489,9 @@ class TestRunner(object):
       logging.info("Xml output for this test will be saved to: %s",
                    test_result_xml_path)
       test_params.append(f"--gtest_output=xml:{test_result_xml_path}")
+    if test_result_xml_path:
+      # Create the file in case the test suite fails to produce it.
+      pathlib.Path(test_result_xml_path).touch()
     logging.info("XML test result path: %s", test_result_xml_path)
 
     if self.coverage_directory:
