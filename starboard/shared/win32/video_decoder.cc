@@ -430,6 +430,7 @@ void VideoDecoder::InitializeCodec() {
       priming_output_count_ = 0;
       if (!media_transform) {
         SB_LOG(WARNING) << "H264 hardware decoder creation failed.";
+        SB_NOTREACHED();
         return;
       }
       break;
@@ -443,6 +444,7 @@ void VideoDecoder::InitializeCodec() {
       }
       if (!media_transform) {
         SB_LOG(WARNING) << "VP9 hardware decoder creation failed.";
+        SB_NOTREACHED();
         return;
       }
       break;
@@ -454,6 +456,7 @@ void VideoDecoder::InitializeCodec() {
       priming_output_count_ = 0;
       if (!media_transform) {
         SB_LOG(WARNING) << "AV1 hardware decoder creation failed.";
+        SB_NOTREACHED();
         return;
       }
       break;
@@ -462,6 +465,7 @@ void VideoDecoder::InitializeCodec() {
       SB_NOTREACHED();
     }
   }
+  SB_LOG(INFO) << "Successfully created media transform";
 
   decoder_.reset(
       new DecryptingDecoder("video", media_transform.Pass(), drm_system_));
