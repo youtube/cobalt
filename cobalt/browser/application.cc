@@ -985,15 +985,20 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif  // ENABLE_WEBDRIVER
 
 #if defined(ENABLE_DEBUGGER)
-  int remote_debugging_port = GetRemoteDebuggingPort();
-  if (remote_debugging_port == 0) {
-    DLOG(INFO) << "Remote web debugger disabled because "
-               << switches::kRemoteDebuggingPort << " is 0.";
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableWebDebugger)) {
+    LOG(INFO) << "Remote web debugger disabled.";
   } else {
-    debug_web_server_.reset(new debug::remote::DebugWebServer(
-        remote_debugging_port, GetDevServersListenIp(),
-        base::Bind(&BrowserModule::CreateDebugClient,
-                   base::Unretained(browser_module_.get()))));
+    int remote_debugging_port = GetRemoteDebuggingPort();
+    if (remote_debugging_port == 0) {
+      LOG(INFO) << "Remote web debugger disabled because "
+                << switches::kRemoteDebuggingPort << " is 0.";
+    } else {
+      debug_web_server_.reset(new debug::remote::DebugWebServer(
+          remote_debugging_port, GetDevServersListenIp(),
+          base::Bind(&BrowserModule::CreateDebugClient,
+                     base::Unretained(browser_module_.get()))));
+    }
   }
 #endif  // ENABLE_DEBUGGER
 
