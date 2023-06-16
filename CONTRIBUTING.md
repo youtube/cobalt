@@ -25,6 +25,11 @@ Follow either of the two links above to access the appropriate CLA and instructi
 
 ***NOTE***: Only original source code from you and other people that have signed the CLA can be accepted into the main repository.
 
+### Community Guidelines
+
+This project follows
+[Google's Open Source Community Guidelines](https://opensource.google/conduct/).
+
 ### Contributing code
 
 If you have improvements to Cobalt, send us your pull requests! For those
