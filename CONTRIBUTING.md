@@ -69,13 +69,8 @@ Include a license at the top of new files. Check existing files for license exam
 
 #### Coding style
 
-Changes to Cobalt C++ code should conform to
-[Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html).
-Changes to Cobalt Python code should conform to
-[Google Python Style Guide](https://github.com/google/styleguide/blob/gh-pages/pyguide.md)
-
-
-#### Coding style
+Cobalt follows the
+[Chromium style guide](https://chromium.googlesource.com/chromium/src/+/HEAD/styleguide/styleguide.md).
 
 Cobalt uses pre-commit to ensure good coding style. Create a python 3 virtual
 environment for working with Cobalt, then install `pre-commit` with:
@@ -86,13 +81,6 @@ $ pre-commit install -t post-checkout -t pre-commit -t pre-push --allow-missing-
 
 `pre-commit` will mostly run automatically, and can also be invoked manually.
 You can find documentation about it at https://pre-commit.com/.
-
-*   [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
-*   [Google Python Style Guide](https://google.github.io/styleguide/blob/gh-pages/pyguide.html)
-*   [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html)
-*   [Google JavaScript Style Guide](https://google.github.io/styleguide/jsguide.html)
-*   [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
-*   [Google Objective-C Style Guide](https://google.github.io/styleguide/objcguide.html)
 
 #### Running unit tests
 
