@@ -34,8 +34,9 @@ class V8cScriptDebugger : public ScriptDebugger,
  public:
   V8cScriptDebugger(V8cGlobalEnvironment* v8c_global_environment,
                     Delegate* delegate);
-  ~V8cScriptDebugger() override;
+  ~V8cScriptDebugger() override {}
 
+  // From ScriptDebugger.
   void Attach(const std::string& state) override;
   std::string Detach() override;
 
@@ -60,6 +61,7 @@ class V8cScriptDebugger : public ScriptDebugger,
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) override;
 
+  // From base::DebuggerHooks.
   void AsyncTaskScheduled(const void* task, const std::string& name,
                           bool recurring) override;
   void AsyncTaskStarted(const void* task) override;
@@ -67,7 +69,7 @@ class V8cScriptDebugger : public ScriptDebugger,
   void AsyncTaskCanceled(const void* task) override;
   void AllAsyncTasksCanceled() override;
 
-  // v8_inspector::V8InspectorClient implementation.
+  // From v8_inspector::V8InspectorClient.
   void runMessageLoopOnPause(int contextGroupId) override;
   void quitMessageLoopOnPause() override;
   void runIfWaitingForDebugger(int contextGroupId) override;
@@ -82,7 +84,7 @@ class V8cScriptDebugger : public ScriptDebugger,
                          unsigned lineNumber, unsigned columnNumber,
                          v8_inspector::V8StackTrace*) override;
 
-  // v8_inspector::V8Inspector::Channel implementation.
+  // From v8_inspector::V8Inspector::Channel.
   void sendResponse(
       int callId, std::unique_ptr<v8_inspector::StringBuffer> message) override;
   void sendNotification(

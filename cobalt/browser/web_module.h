@@ -229,6 +229,8 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     bool limit_performance_timer_resolution = true;
 
 #if defined(ENABLE_DEBUGGER)
+    // Whether a debugger should be started for this WebModule.
+    bool enable_debugger = false;
     // Whether the debugger should block until remote devtools connects.
     bool wait_for_web_debugger = false;
 
