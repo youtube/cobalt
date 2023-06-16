@@ -23,7 +23,7 @@ jobs:
         PR_NUMBER: ${{ github.event.number }}
       run: |
         PERMISSION_LEVEL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/$REPO_NAME/collaborators/$PR_AUTHOR_LOGIN/permission" | jq -r .permission)
+          "https://api.github.com/repos/$REPO_NAME/collaborators/$PR_AUTHOR_LOGIN/permission" | jq -r .role_name)
 
         if [ "$PERMISSION_LEVEL" == "none" ] || [ "$PERMISSION_LEVEL" == "read" ]; then
           echo "PR author is an outside collaborator. Assigning reviewer..."
