@@ -3,18 +3,18 @@ description:
   "v8 is Google's JavaScript engine developed for The Chromium Project. Cobalt "
   "uses v8 as its primary JavaScript engine. v8 works closely with Cobalt's "
   "script interface and templated bindings code."
-  "Current V8 version: 8.8.278.8"
+  "Current V8 version: 8.8.278.17"
 
 third_party {
   url {
     type: GIT
     value: "https://chromium.googlesource.com/v8/v8"
   }
-  version: "2dbcdc105b963ee2501c82139eef7e0603977ff0"
+  version: "f7f4327516912dfca0d7401044e890ca0ce885ad"
   last_upgrade_date {
-    year: 2019
-    month: 8
-    day: 26
+    year: 2023
+    month: 6
+    day: 16
   }
   license_type: NOTICE
 }
