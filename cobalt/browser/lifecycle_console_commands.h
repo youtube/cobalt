@@ -29,11 +29,12 @@ class LifecycleConsoleCommands {
   LifecycleConsoleCommands();
 
  private:
-  debug::console::ConsoleCommandManager::CommandHandler pause_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler blur_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler focus_command_handler_;
   debug::console::ConsoleCommandManager::CommandHandler
-      unpause_command_handler_;
-  debug::console::ConsoleCommandManager::CommandHandler
-      suspend_command_handler_;
+      conceal_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler freeze_command_handler_;
+  debug::console::ConsoleCommandManager::CommandHandler reveal_command_handler_;
   debug::console::ConsoleCommandManager::CommandHandler quit_command_handler_;
 };
 
