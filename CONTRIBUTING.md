@@ -7,9 +7,9 @@ Before sending your pull requests, make sure you do the following:
 -   Read the [contributing guidelines](CONTRIBUTING.md).
 -   Ensure you have signed the
     [Contributor License Agreement (CLA)](https://cla.developers.google.com/).
--   Check if your changes are consistent with the
-    [guidelines](#general-guidelines-and-philosophy-for-contribution).
--   Changes are consistent with the [Coding Style](#coding-style).
+-   Check if your changes are consistent with the:
+    -   [General guidelines](#general-guidelines-and-philosophy-for-contribution).
+    -   [Coding Style](#coding-style).
 -   Run the [unit tests](#running-unit-tests).
 
 ### Contributor License Agreements
@@ -36,8 +36,9 @@ If you have improvements to Cobalt, send us your pull requests! For those
 just getting started, Github has a
 [how to](https://help.github.com/articles/using-pull-requests/).
 
-Cobalt team members will be assigned to review your pull requests. Once the
-pull requests are approved and pass continuous integration checks, a Cobalt
+Cobalt team members will be assigned to review your pull requests. A team
+member will need to approve the workflow runs for each pull request. Once the
+pull requests are approved and pass *all* presubmit checks, a Cobalt
 team member will merge the pull request.
 
 ### Contribution guidelines and standards
@@ -49,9 +50,9 @@ Cobalt coding style.
 
 #### General guidelines and philosophy for contribution
 
-*   Include unit tests when you contribute new features, as they help to a)
-    prove that your code works correctly, and b) guard against future breaking
-    changes to lower the maintenance cost.
+*   Include unit tests when you contribute new features, as they help to:
+    1.   Prove that your code works correctly
+    1.   Guard against future breaking changes to lower the maintenance cost.
 *   Bug fixes also generally require unit tests, because the presence of bugs
     usually indicates insufficient test coverage.
 *   When you contribute a new feature to Cobalt, the maintenance burden is
