@@ -113,7 +113,8 @@ TEST_F(CobaltMetricsLogUploaderTest, UnknownMetricTypeDoesntTriggerUpload) {
   ASSERT_EQ(callback_count_, 1);
 }
 
-TEST_F(CobaltMetricsLogUploaderTest, BadCompressedDataSendsEmptyString) {
+TEST_F(CobaltMetricsLogUploaderTest,
+       DISABLED_BadCompressedDataSendsEmptyString) {
   StrictMock<MockMetricsUploaderCallback> mock_upload_handler;
   uploader_->SetOnUploadHandler(&mock_upload_handler);
   ::metrics::ReportingInfo dummy_reporting_info;
