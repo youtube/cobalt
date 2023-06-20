@@ -18,8 +18,8 @@ from starboard.tools import build
 
 # Which version of the Android NDK and CMake to install and build with.
 # Note that build.gradle parses these out of this file too.
-_NDK_VERSION = '21.1.6352462'
-_CMAKE_VERSION = '3.10.2.4988404'
+_NDK_VERSION = '25.2.9519653'
+_CMAKE_VERSION = '3.22.1'
 
 _STARBOARD_TOOLCHAINS_DIR = build.GetToolchainsDir()
 
