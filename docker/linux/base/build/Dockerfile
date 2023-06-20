@@ -26,7 +26,6 @@ RUN apt update -qqy \
         ninja-build \
         pkgconf \
         unzip \
-        yasm \
     && /opt/clean-after-apt.sh
 
 # === Get Nodejs pinned LTS version via NVM
