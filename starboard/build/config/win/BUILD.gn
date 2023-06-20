@@ -16,17 +16,13 @@ import("//build/config/win/visual_studio_version.gni")
 
 # TODO(andrewsavage): No way host builds need all these flags
 config("host") {
-  configs = [ ":common" ]
+  configs = [
+    ":common",
+    ":no_pdb",
+  ]
 }
 
 config("common") {
-  if (!cobalt_fastbuild) {
-    # Containers cannot use PDBs, so we conditionally disable them.
-    # We want to keep them for non-docker builds as they make compilation
-    # significantly faster.
-    configs = [ ":no_pdbs" ]
-  }
-
   cflags_cc = [ "/TP" ]
   cflags = []
   ldflags = [
@@ -239,14 +235,28 @@ config("common") {
   ]
 }
 
-config("no_pdbs") {
-  if (is_docker_build) {
-    cflags = [ "/Z7" ]
-  } else {
-    cflags = [
-      "/Zi",
-      "/FS",
-    ]
+config("pdb_config") {
+  if (!cobalt_fastbuild) {
+    # Containers cannot use PDBs, so we conditionally disable them.
+    # We want to keep them for non-docker builds as they make compilation
+    # significantly faster.
+    if (is_docker_build) {
+      configs = [ ":no_pdb" ]
+    } else {
+      configs = [ ":generate_pdb" ]
+    }
   }
+}
+
+config("generate_pdb") {
+  cflags = [
+    "/Zi",
+    "/FS",
+  ]
+  ldflags = [ "/DEBUG:FULL" ]
+}
+
+config("no_pdb") {
+  cflags = [ "/Z7" ]
   ldflags = [ "/DEBUG:FULL" ]
 }
