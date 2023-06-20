@@ -32,6 +32,8 @@ _FILTERED_TESTS = {
         'SbPlayerWriteSampleTests*',
         'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
         'SbSystemGetPropertyTest.FLAKY_ReturnsRequired',
+        # Failure tracked by b/287666606.
+        'VerticalVideoTests/VerticalVideoTest.WriteSamples*',
     ],
     'player_filter_tests': [
         # The implementations for the raspberry pi (0 and 2) are incomplete
