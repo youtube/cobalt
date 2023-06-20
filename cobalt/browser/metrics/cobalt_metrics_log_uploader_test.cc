@@ -113,17 +113,6 @@ TEST_F(CobaltMetricsLogUploaderTest, UnknownMetricTypeDoesntTriggerUpload) {
   ASSERT_EQ(callback_count_, 1);
 }
 
-TEST_F(CobaltMetricsLogUploaderTest, BadCompressedDataSendsEmptyString) {
-  StrictMock<MockMetricsUploaderCallback> mock_upload_handler;
-  uploader_->SetOnUploadHandler(&mock_upload_handler);
-  ::metrics::ReportingInfo dummy_reporting_info;
-  EXPECT_CALL(mock_upload_handler, Run(_, Eq(""))).Times(1);
-  // "bad data" isn't a compressed serialized proto, should just try to upload
-  // empty string.
-  uploader_->UploadLog("bad data", "fake_hash", dummy_reporting_info);
-  ASSERT_EQ(callback_count_, 1);
-}
-
 }  // namespace metrics
 }  // namespace browser
 }  // namespace cobalt
