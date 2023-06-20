@@ -171,6 +171,8 @@ services:
       args:
         - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
         - FROM_IMAGE=cobalt-build-vs2022-win-internal
+        - vs_buildtools_version=17
+        - windows_11_sdk_version=22621
     environment:
       <<: *shared-build-env
       PLATFORM: xb1
