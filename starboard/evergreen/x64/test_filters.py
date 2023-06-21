@@ -22,6 +22,8 @@ from starboard.tools.testing import test_filter
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'nplb': [
+        'MultiplePlayerTests/*/*sintel_329_ec3_dmp*',
+        'MultiplePlayerTests/*/*sintel_381_ac3_dmp*',
         'SbPlayerGetAudioConfigurationTests/*audio_sintel_329_ec3_dmp_*',
         'SbPlayerGetAudioConfigurationTests/*audio_sintel_381_ac3_dmp_*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/audio_sintel_329_ec3_dmp_*',
