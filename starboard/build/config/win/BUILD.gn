@@ -20,10 +20,8 @@ config("host") {
 }
 
 config("common") {
-  configs = [ ":no_pdbs" ]
-
   cflags_cc = [ "/TP" ]
-  cflags = []
+  cflags = [ "/Z7" ]
   ldflags = [
     "/NXCOMPAT",
     "/MANIFEST:NO",
@@ -232,9 +230,4 @@ config("common") {
     # Deprecated function warning.
     "/wd4996",
   ]
-}
-
-config("no_pdbs") {
-  cflags = [ "/Z7" ]
-  ldflags = [ "/DEBUG:FULL" ]
 }
