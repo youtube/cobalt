@@ -20,6 +20,8 @@ config("host") {
 }
 
 config("common") {
+  configs = []
+
   cflags_cc = [ "/TP" ]
   cflags = [ "/Z7" ]
   ldflags = [
@@ -33,6 +35,9 @@ config("common") {
     "_UNICODE",
     "UNICODE",
   ]
+
+  # Allows compilation against VS 2022.
+  configs += [ "//build/config/win:visual_studio_version_compat" ]
 
   # msvs_base
   # OutputDirectory and IntermediateDirectory, maybe CharacterSet
