@@ -22,15 +22,8 @@ config("host") {
 config("common") {
   configs = []
 
-  if (!cobalt_fastbuild) {
-    # Containers cannot use PDBs, so we conditionally disable them.
-    # We want to keep them for non-docker builds as they make compilation
-    # significantly faster.
-    configs += [ ":no_pdbs" ]
-  }
-
   cflags_cc = [ "/TP" ]
-  cflags = []
+  cflags = [ "/Z7" ]
   ldflags = [
     "/NXCOMPAT",
     "/MANIFEST:NO",
@@ -242,16 +235,4 @@ config("common") {
     # Deprecated function warning.
     "/wd4996",
   ]
-}
-
-config("no_pdbs") {
-  if (is_docker_build) {
-    cflags = [ "/Z7" ]
-  } else {
-    cflags = [
-      "/Zi",
-      "/FS",
-    ]
-  }
-  ldflags = [ "/DEBUG:FULL" ]
 }

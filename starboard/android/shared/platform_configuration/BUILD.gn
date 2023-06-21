@@ -112,6 +112,15 @@ config("platform_configuration") {
 
     # Don"t warn for implicit sign conversions. (in v8 and protobuf)
     "-Wno-sign-conversion",
+
+    # TODO: b/287129945 - Fix compiler warnings
+    "-Wno-implicit-const-int-float-conversion",
+
+    # TODO: b/287320271 - Fix compiler warnings
+    "-Wno-deprecated-copy",
+
+    # TODO: b/287324882 - Fix compiler warnings
+    "-Wno-unused-but-set-variable",
   ]
   defines += [
     # Enable compile-time decisions based on the ABI

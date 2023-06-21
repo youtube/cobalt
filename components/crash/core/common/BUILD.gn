@@ -15,7 +15,7 @@ group("common") {
     ":crash_key_utils",
   ]
 
-  if (is_mac || is_ios) {
+  if ((is_mac || is_ios) && !use_cobalt_customizations) {
     public_deps += [ ":zombies" ]
   }
 }
@@ -106,7 +106,7 @@ static_library("crash_key_utils") {
   ]
 }
 
-if (is_mac || is_ios) {
+if ((is_mac || is_ios) && !use_cobalt_customizations) {
   component("zombies") {
     visibility = [ ":common" ]
 

@@ -59,6 +59,7 @@ _FILTERED_TESTS = {
 
         # These tests are disabled due to not receiving the kEndOfStream
         # player state update within the specified timeout.
+        'MultiplePlayerTests/MultiplePlayerTest.NoInput/*',
         'SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
 
@@ -72,6 +73,12 @@ _FILTERED_TESTS = {
         # when invalid initialization data is passed to
         # SbDrmGenerateSessionUpdateRequest().
         'SbDrmSessionTest.InvalidSessionUpdateRequestParams',
+
+        # TODO: b/288107039 This test crashed after NDK 25 upgrade, re-enable it.
+        'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
+
+        # TODO: b/288107692 This test crashed on arm64 after NDK 25 upgrade, re-enable it.
+        'PixelTest.TooManyGlyphs',
     ],
 }
 # pylint: enable=line-too-long

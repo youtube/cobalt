@@ -2,7 +2,16 @@
   "docker_service": "build-linux-evergreen",
   "on_host_test": true,
   "bootloader": "linux-x64x11",
-  "on_host_test_shards": ["0", "1", "2", "3", "blackbox", "wpt", "evergreen"],
+  "on_host_test_shards": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "blackbox",
+    "wpt",
+    "evergreen",
+    "evergreen-as-blackbox"
+  ],
   "platforms": [
     "evergreen-x64",
     "evergreen-x64-sbversion-15",

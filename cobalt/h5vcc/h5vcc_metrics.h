@@ -47,19 +47,27 @@ class H5vccMetrics : public script::Wrappable {
   // Binds an event handler that will be invoked every time Cobalt wants to
   // upload a metrics payload.
   void OnMetricEvent(
-      const MetricEventHandlerWrapper::ScriptValue& eventHandler);
+      const MetricEventHandlerWrapper::ScriptValue& event_handler);
 
-  // API to explicitly enable or disable Cobalt metrics logging.  Pass true
-  // to turn on and false to disable. If disabled, the metric event handler
-  // should never get called after that point.
-  void ToggleMetricsEnabled(bool isEnabled);
+  // Enable Cobalt metrics logging.
+  void Enable();
+
+  // Disable Cobalt metrics logging.
+  void Disable();
 
   // Returns current enabled state of metrics logging/reporting.
-  bool GetMetricsEnabled();
+  bool IsEnabled();
+
+  // Sets the interval in which metrics will be aggregated and sent to the
+  // metric event handler.
+  void SetMetricEventInterval(uint32 interval_seconds);
 
   DEFINE_WRAPPABLE_TYPE(H5vccMetrics);
 
  private:
+  // Internal convenience method for toggling enabled/disabled state.
+  void ToggleMetricsEnabled(bool isEnabled);
+
   std::unique_ptr<cobalt::browser::metrics::CobaltH5vccMetricsUploaderCallback>
       uploader_callback_;
   bool is_enabled_ = false;

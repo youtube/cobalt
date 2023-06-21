@@ -45,11 +45,11 @@ echo "Updating the SDK..."
 # Update the installation
 ${SDK_MANAGER_TOOL} --sdk_root=${ANDROID_SDK_ROOT} \
     "build-tools;31.0.0" \
-    "cmake;3.10.2.4988404" \
+    "cmake;3.22.1" \
     "cmdline-tools;1.0" \
     "extras;android;m2repository" \
     "extras;google;m2repository" \
-    "ndk;21.1.6352462" \
+    "ndk;25.2.9519653" \
     "patcher;v4" \
     "platforms;android-31" \
     "platform-tools"
