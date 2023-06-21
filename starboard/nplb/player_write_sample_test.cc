@@ -16,6 +16,7 @@
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/string.h"
+#include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -25,12 +26,17 @@ namespace {
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
+typedef testing::FakeGraphicsContextProvider FakeGraphicsContextProvider;
 
 class SbPlayerWriteSampleTest
-    : public ::testing::TestWithParam<SbPlayerTestConfig> {};
+    : public ::testing::TestWithParam<SbPlayerTestConfig> {
+ protected:
+  FakeGraphicsContextProvider fake_graphics_context_provider_;
+};
 
 TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
-  SbPlayerTestFixture player_fixture(GetParam());
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
     return;
   }
@@ -38,7 +44,8 @@ TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, NoInput) {
-  SbPlayerTestFixture player_fixture(GetParam());
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
     return;
   }
@@ -55,7 +62,8 @@ TEST_P(SbPlayerWriteSampleTest, NoInput) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, WriteSingleBatch) {
-  SbPlayerTestFixture player_fixture(GetParam());
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
     return;
   }
@@ -77,7 +85,8 @@ TEST_P(SbPlayerWriteSampleTest, WriteSingleBatch) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, WriteMultipleBatches) {
-  SbPlayerTestFixture player_fixture(GetParam());
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
     return;
   }

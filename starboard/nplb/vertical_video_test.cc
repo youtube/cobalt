@@ -22,6 +22,7 @@
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
+#include "starboard/testing/fake_graphics_context_provider.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -35,6 +36,8 @@ using ::testing::ValuesIn;
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 
 class VerticalVideoTest : public ::testing::TestWithParam<SbPlayerTestConfig> {
+ protected:
+  testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
 void CheckVerticalResolutionSupport(const char* mime) {
@@ -117,7 +120,8 @@ TEST(VerticalVideoTest, CapabilityQuery) {
 }
 
 TEST_P(VerticalVideoTest, WriteSamples) {
-  SbPlayerTestFixture player_fixture(GetParam());
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
     return;
   }

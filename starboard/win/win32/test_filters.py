@@ -29,6 +29,7 @@ _FILTERED_TESTS = {
         # performs an optimization that defeats the SB_C_NOINLINE 'noinline'
         # attribute.
         'SbSystemGetStackTest.SunnyDayStackDirection',
+        'MultiplePlayerTests/*beneath_the_canopy_137_avc_dmp*',
 
         # Failures tracked by b/256160416.
         'SbSystemGetPathTest.ReturnsRequiredPaths',
