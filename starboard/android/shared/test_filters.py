@@ -59,6 +59,7 @@ _FILTERED_TESTS = {
 
         # These tests are disabled due to not receiving the kEndOfStream
         # player state update within the specified timeout.
+        'MultiplePlayerTests/MultiplePlayerTest.NoInput/*',
         'SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
 

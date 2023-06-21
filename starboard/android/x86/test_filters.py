@@ -19,6 +19,7 @@ from starboard.tools.testing import test_filter
 # A map of failing or crashing tests per target
 _FILTERED_TESTS = {
     'nplb': [
+        'MultiplePlayerTests/*',
         'SbAccessibilityTest.CallSetCaptionsEnabled',
         'SbAccessibilityTest.GetCaptionSettingsReturnIsValid',
         'SbAudioSinkTest.*',

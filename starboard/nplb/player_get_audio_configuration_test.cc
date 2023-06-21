@@ -16,6 +16,7 @@
 
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/string.h"
+#include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if SB_API_VERSION >= 15
@@ -29,6 +30,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
@@ -98,12 +100,15 @@ class SbPlayerGetAudioConfigurationTest
     ASSERT_TRUE(coding_type_is_valid);
     ASSERT_GE(configuration.number_of_channels, 0);
   }
+
+  FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
 TEST_P(SbPlayerGetAudioConfigurationTest, SunnyDay) {
   const int kSamplesToWrite = 8;
 
-  SbPlayerTestFixture player_fixture(GetParam());
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
     return;
   }
@@ -148,7 +153,8 @@ TEST_P(SbPlayerGetAudioConfigurationTest, SunnyDay) {
 }
 
 TEST_P(SbPlayerGetAudioConfigurationTest, NoInput) {
-  SbPlayerTestFixture player_fixture(GetParam());
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
     return;
   }
@@ -188,7 +194,8 @@ TEST_P(SbPlayerGetAudioConfigurationTest, NoInput) {
 TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
   const int kSamplesToWrite = 8;
 
-  SbPlayerTestFixture player_fixture(GetParam());
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
     return;
   }
