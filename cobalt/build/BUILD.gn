@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-action("cobalt_build_id") {
-  cobalt_version = exec_script("get_build_id.py", [], "trim string")
+action("cobalt_build_info") {
+  output = exec_script("get_build_info.py", [], "trim string")
+  build_info = string_split(output, "|")
 
-  script = "build_id.py"
-  outputs = [ "$root_gen_dir/cobalt_build_id.h" ]
+  build_number = build_info[0]
+  build_rev = build_info[1]
+  git_rev = build_info[2]
+  build_time = build_info[3]
+  author = build_info[4]
+  encoded_commit = build_info[5]
+
+  script = "build_id_and_info.py"
+  outputs = [
+    "$root_gen_dir/cobalt_build_id.h",
+    "$root_gen_dir/build_info.json",
+  ]
 
   args = [
     rebase_path(outputs[0], root_build_dir),
-    cobalt_version,
+    rebase_path(outputs[1], root_build_dir),
+    build_number,
+    build_rev,
+    git_rev,
+    build_time,
+    author,
+    encoded_commit,
   ]
 }

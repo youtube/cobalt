@@ -48,7 +48,7 @@ static_library("network") {
   deps = [
     ":copy_ssl_certificates",
     "//cobalt/base",
-    "//cobalt/build:cobalt_build_id",
+    "//cobalt/build:cobalt_build_info",
     "//cobalt/configuration",
     "//cobalt/network_bridge",
     "//cobalt/persistent_storage:persistent_settings",
