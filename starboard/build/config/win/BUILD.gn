@@ -20,6 +20,7 @@ config("host") {
 }
 
 config("common") {
+<<<<<<< HEAD
   configs = []
 
   if (!cobalt_fastbuild) {
@@ -29,8 +30,10 @@ config("common") {
     configs += [ ":no_pdbs" ]
   }
 
+=======
+>>>>>>> 5d53d3086a2 (Remove PDBs (#664))
   cflags_cc = [ "/TP" ]
-  cflags = []
+  cflags = [ "/Z7" ]
   ldflags = [
     "/NXCOMPAT",
     "/MANIFEST:NO",
@@ -242,16 +245,4 @@ config("common") {
     # Deprecated function warning.
     "/wd4996",
   ]
-}
-
-config("no_pdbs") {
-  if (is_docker_build) {
-    cflags = [ "/Z7" ]
-  } else {
-    cflags = [
-      "/Zi",
-      "/FS",
-    ]
-  }
-  ldflags = [ "/DEBUG:FULL" ]
 }
