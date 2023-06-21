@@ -72,7 +72,9 @@ bool DirectoryExists(const std::wstring& dir_path) {
   WIN32_FILE_ATTRIBUTE_DATA attribute_data = {0};
   if (!GetFileAttributesExW(norm_dir_path.c_str(), GetFileExInfoStandard,
                             &attribute_data)) {
-    return false;
+    // If this is system folder GetFileAttributesExW returns FALSE
+    // but the folder exists
+    return GetLastError() == ERROR_ACCESS_DENIED;
   }
   return (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
