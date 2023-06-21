@@ -114,6 +114,12 @@ TEST_F(CobaltMetricsServiceClientTest, UploadIntervalCanBeOverriden) {
   ASSERT_EQ(client_->GetStandardUploadInterval().InSeconds(), 300);
 }
 
+TEST_F(CobaltMetricsServiceClientTest, UploadIntervalOfZeroIsIgnored) {
+  ASSERT_EQ(client_->GetStandardUploadInterval().InSeconds(), 300);
+  client_->SetUploadInterval(0);
+  ASSERT_EQ(client_->GetStandardUploadInterval().InSeconds(), 300);
+}
+
 }  // namespace metrics
 }  // namespace browser
 }  // namespace cobalt

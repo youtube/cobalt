@@ -199,7 +199,9 @@ std::string CobaltMetricsServiceClient::GetAppPackageName() {
 }
 
 void CobaltMetricsServiceClient::SetUploadInterval(uint32_t interval_seconds) {
-  custom_upload_interval_ = interval_seconds;
+  if (interval_seconds > 0) {
+    custom_upload_interval_ = interval_seconds;
+  }
 }
 
 }  // namespace metrics
