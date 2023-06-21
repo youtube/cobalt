@@ -31,15 +31,24 @@ interface H5vccMetrics {
   //   });
   void onMetricEvent(H5vccMetricEventHandler eventHandler);
 
-  // API to explicitly enable or disable Cobalt metrics logging. Pass true
-  // to turn on and false to disable. If disabled, the metric event handler
-  // should never get called afterward. Metrics are disabled by default and
-  // should be enabled as soon as possible.
+  // Enable Cobalt metrics logging. Metrics are disabled by default and should
+  // be enabled as soon as possible. When enabled, at regular intervals, the
+  // bound onMetricEvent callback will be called with telemetry payloads to
+  // be uploaded and logged on the server.
   // TODO(b/286898092): Update docs here when setting is persistent.
-  void toggleMetricsEnabled(boolean isEnabled);
+  void enable();
+
+  // Disable Cobalt metrics logging. If disabled, the metric event handler
+  // should never get called afterward.
+  void disable();
 
   // Returns the current enabled state of metrics reporting.
-  boolean getMetricsEnabled();
+  boolean isEnabled();
+
+  // Sets the frequency in which Cobalt metrics will be snapshotted and sent to
+  // the metric event handler. Defaults to 5 minutes if not set. Must be > 0,
+  // else will be ignored.
+  void setMetricEventInterval(unsigned long intervalSeconds);
 };
 
 // Callback invoked when a new metric payload is ready to be published. The
