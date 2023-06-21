@@ -65,6 +65,12 @@
 
 #define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
 
+#define GL_CALL(x)                                                     \
+  do {                                                                 \
+    SbGetGlesInterface()->x;                                           \
+    SB_DCHECK((SbGetGlesInterface()->glGetError()) == SB_GL_NO_ERROR); \
+  } while (false)
+
 namespace starboard {
 namespace testing {
 
@@ -289,6 +295,11 @@ void FakeGraphicsContextProvider::MakeContextCurrent() {
 void FakeGraphicsContextProvider::MakeNoContextCurrent() {
   EGL_CALL(
       eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+}
+
+void FakeGraphicsContextProvider::Render() {
+  GL_CALL(glClear(SB_GL_COLOR_BUFFER_BIT));
+  EGL_CALL(eglSwapBuffers(display_, surface_));
 }
 
 void FakeGraphicsContextProvider::DestroyContext() {
