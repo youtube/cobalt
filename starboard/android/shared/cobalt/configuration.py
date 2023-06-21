@@ -78,6 +78,9 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           # test explicitly tries to allocate too much texture memory, we cannot
           # run it on Android platforms.
           'StressTest.TooManyTextures',
+
+          # TODO(b/288107692) Failing with NDK 25.2 upgrade, re-enable
+          'PixelTest.TooManyGlyphs',
       ],
       'zip_unittests': [
           # These tests, and zipping in general, rely on the ability to iterate
