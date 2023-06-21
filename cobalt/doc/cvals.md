@@ -75,7 +75,7 @@ Here are examples of its usage:
 
 #### PublicCVals
 
-*   **Count.DOM.EventListeners** - The total number of EventListeners in
+*   **Count.WEB.EventListeners** - The total number of EventListeners in
     existence globally. This includes ones that are pending garbage collection.
 *   **Count.DOM.Nodes** - The total number of Nodes in existence globally. This
     includes ones that are pending garbage collection.
@@ -91,7 +91,7 @@ Here are examples of its usage:
 
 #### DebugCVals
 
-*   **Count.DOM.ActiveJavaScriptEvents** - The number of JavaScript events that
+*   **Count.WEB.ActiveJavaScriptEvents** - The number of JavaScript events that
     are currently running.
 *   **Count.DOM.Attrs** - The total number of Attrs in existence globally. This
     includes ones that are pending garbage collection.
