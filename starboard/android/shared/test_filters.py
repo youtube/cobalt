@@ -75,8 +75,7 @@ _FILTERED_TESTS = {
 
         # TODO: b/288107039 This test crashed after NDK 25 upgrade, re-enable it.
         'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
-    ],
-    'renderer_test': [
+
         # TODO: b/288107692 This test crashed on arm64 after NDK 25 upgrade, re-enable it.
         'PixelTest.TooManyGlyphs',
     ],
