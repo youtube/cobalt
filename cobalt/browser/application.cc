@@ -1061,7 +1061,8 @@ Application::~Application() {
 
   // Explicitly delete the global metrics services manager here to give it
   // an opportunity to clean up late logs and persist metrics.
-  delete metrics_services_manager_;
+  metrics::CobaltMetricsServicesManager::DeleteInstance(
+      metrics_services_manager_);
 
 #if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   memory_tracker_tool_.reset(NULL);
