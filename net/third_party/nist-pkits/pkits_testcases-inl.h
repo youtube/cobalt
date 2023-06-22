@@ -394,6 +394,7 @@ WRAPPED_REGISTER_TYPED_TEST_CASE_P(
     Section3ValidRolloverfromPrintableStringtoUTF8StringTest10,
     Section3ValidUTF8StringCaseInsensitiveMatchTest11);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PkitsTest04BasicCertificateRevocationTests);
 template <typename PkitsTestDelegate>
 class PkitsTest04BasicCertificateRevocationTests
     : public PkitsTest<PkitsTestDelegate> {};
@@ -729,6 +730,7 @@ WRAPPED_REGISTER_TYPED_TEST_CASE_P(
     Section4InvalidSeparateCertificateandCRLKeysTest20,
     Section4InvalidSeparateCertificateandCRLKeysTest21);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PkitsTest05VerifyingPathswithSelfIssuedCertificates);
 template <typename PkitsTestDelegate>
 class PkitsTest05VerifyingPathswithSelfIssuedCertificates
     : public PkitsTest<PkitsTestDelegate> {};
@@ -3421,6 +3423,8 @@ WRAPPED_REGISTER_TYPED_TEST_CASE_P(
     Section13InvalidURInameConstraintsTest37,
     Section13InvalidDNSnameConstraintsTest38);
 
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PkitsTest14DistributionPoints);
 template <typename PkitsTestDelegate>
 class PkitsTest14DistributionPoints : public PkitsTest<PkitsTestDelegate> {};
 TYPED_TEST_CASE_P(PkitsTest14DistributionPoints);
@@ -3972,6 +3976,7 @@ WRAPPED_REGISTER_TYPED_TEST_CASE_P(
     Section14InvalidcRLIssuerTest34,
     Section14InvalidcRLIssuerTest35);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PkitsTest15DeltaCRLs);
 template <typename PkitsTestDelegate>
 class PkitsTest15DeltaCRLs : public PkitsTest<PkitsTestDelegate> {};
 TYPED_TEST_CASE_P(PkitsTest15DeltaCRLs);

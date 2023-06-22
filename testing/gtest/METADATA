@@ -1,16 +1,16 @@
-name: "gtest"
+name: "testing/gtest"
 description:
-  "Subtree at testing/gtest."
+  "Copy of testing/gtest from Chromium branch-heads/5735"
 
 third_party {
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/googletest"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "a1c4b46bc2c12ea7c61108f001a5b5eb4a8ccad0"
+  version: "5cd6a34d059463d2bf7c2090d1904e527c3428b2"
   last_upgrade_date {
-    year: 2012
-    month: 7
-    day: 9
+    year: 2023
+    month: 6
+    day: 16
   }
 }

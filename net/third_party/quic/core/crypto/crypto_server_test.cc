@@ -1101,6 +1101,7 @@ TEST_F(CryptoServerConfigGenerationTest, SCIDIsHashOfServerConfig) {
   EXPECT_EQ(0, memcmp(digest, scid_str.c_str(), scid.size()));
 }
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CryptoServerTestNoConfig);
 class CryptoServerTestNoConfig : public CryptoServerTest {
  public:
   void SetUp() override {
@@ -1120,6 +1121,7 @@ TEST_P(CryptoServerTestNoConfig, DontCrash) {
   CheckRejectReasons(kRejectReasons, QUIC_ARRAYSIZE(kRejectReasons));
 }
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CryptoServerTestOldVersion);
 class CryptoServerTestOldVersion : public CryptoServerTest {
  public:
   void SetUp() override {

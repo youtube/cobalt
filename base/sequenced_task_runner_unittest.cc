@@ -41,6 +41,7 @@ class FlagOnDelete {
   DISALLOW_COPY_AND_ASSIGN(FlagOnDelete);
 };
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SequencedTaskRunnerTest);
 class SequencedTaskRunnerTest : public testing::Test {
  protected:
   SequencedTaskRunnerTest() : foreign_thread_("foreign") {}
