@@ -33,8 +33,9 @@ class CobaltMetricsServicesManager {
  public:
   // Static Singleton getter for metrics services manager.
   static metrics_services_manager::MetricsServicesManager* GetInstance() {
-    const auto instance = new metrics_services_manager::MetricsServicesManager(
-        std::make_unique<CobaltMetricsServicesManagerClient>());
+    static const auto instance =
+        new metrics_services_manager::MetricsServicesManager(
+            std::make_unique<CobaltMetricsServicesManagerClient>());
     return instance;
   }
 
