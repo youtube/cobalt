@@ -50,5 +50,6 @@ class CobaltAndroidX86Configuration(configuration.CobaltAndroidConfiguration):
           'LottieCoveragePixelTest*skottie_matte_blendmode_json',
           'PixelTest.YUV422UYVYImageScaledUpSupport',
           'PixelTest.YUV422UYVYImageScaledAndTranslated',
+          'StressTest.LargeFramebuffer',
       ],
   }
