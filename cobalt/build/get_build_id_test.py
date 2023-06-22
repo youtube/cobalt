@@ -14,16 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Tests the get_build_info module."""
+"""Tests the get_build_id module."""
 
 import os
 import subprocess
 import tempfile
 import unittest
 
-from cobalt.build import get_build_info
+from cobalt.build import build_info
+from cobalt.build import get_build_id
 
-_TEST_BUILD_NUMBER = 1234 + get_build_info.COMMIT_COUNT_BUILD_NUMBER_OFFSET
+_TEST_BUILD_NUMBER = 1234 + build_info.COMMIT_COUNT_BUILD_ID_OFFSET
 
 
 # TODO(b/282040638): fix and re-enabled this
@@ -58,53 +59,51 @@ class GetBuildIdTest(unittest.TestCase):
 
   def testGetBuildNumberFromCommitsSunnyDay(self):
     self.make_commit_with_build_number()
-    build_number = get_build_info.get_build_number_and_hash_from_commits(
-        cwd=self.test_dir.name)[0]
+    build_number, _ = build_info.get_build_id_and_git_rev_from_commits(
+        cwd=self.test_dir.name)
     self.assertEqual(int(build_number), _TEST_BUILD_NUMBER)
 
   def testGetBuildNumberFromCommitsSunnyDayGetMostRecent(self):
     num_commits = 5
     for i in range(num_commits):
       self.make_commit_with_build_number(
-          get_build_info.COMMIT_COUNT_BUILD_NUMBER_OFFSET + i)
-    build_number = get_build_info.get_build_number_and_hash_from_commits(
-        cwd=self.test_dir.name)[0]
+          build_info.COMMIT_COUNT_BUILD_ID_OFFSET + i)
+    build_number, _ = build_info.get_build_id_and_git_rev_from_commits(
+        cwd=self.test_dir.name)
     self.assertEqual(
         int(build_number),
-        num_commits + get_build_info.COMMIT_COUNT_BUILD_NUMBER_OFFSET - 1)
+        num_commits + build_info.COMMIT_COUNT_BUILD_ID_OFFSET - 1)
 
   def testGetBuildNumberFromCommitsRainyDayInvalidBuildNumber(self):
     self.make_commit()
     self.make_commit(f'BUILD_NUMBER={_TEST_BUILD_NUMBER}')
-    build_number_hash = get_build_info.get_build_number_and_hash_from_commits(
+    build_number, _ = build_info.get_build_id_and_git_rev_from_commits(
         cwd=self.test_dir.name)
-    self.assertIsNone(build_number_hash)
+    self.assertIsNone(build_number)
 
   def testGetBuildNumberFromCommitCountSunnyDay(self):
     num_commits = 5
     for _ in range(num_commits):
       self.make_commit()
-    build_number = get_build_info.get_build_number_from_commit_count(
+    build_number = build_info.get_build_id_from_commit_count(
         cwd=self.test_dir.name)
-    self.assertEqual(
-        build_number,
-        num_commits + get_build_info.COMMIT_COUNT_BUILD_NUMBER_OFFSET)
+    self.assertEqual(build_number,
+                     num_commits + build_info.COMMIT_COUNT_BUILD_ID_OFFSET)
 
   def testCommitsOutrankCommitCount(self):
     self.make_commit()
     self.make_commit_with_build_number()
     self.make_commit()
-    build_number = get_build_info.main(True, cwd=self.test_dir.name)
+    build_number = get_build_id.main(cwd=self.test_dir.name)
     self.assertEqual(int(build_number), _TEST_BUILD_NUMBER)
 
   def testFallbackToCommitCount(self):
     num_commits = 5
     for _ in range(num_commits):
       self.make_commit()
-    build_number = get_build_info.main(True, cwd=self.test_dir.name)
-    self.assertEqual(
-        build_number,
-        num_commits + get_build_info.COMMIT_COUNT_BUILD_NUMBER_OFFSET)
+    build_number = get_build_id.main(cwd=self.test_dir.name)
+    self.assertEqual(build_number,
+                     num_commits + build_info.COMMIT_COUNT_BUILD_ID_OFFSET)
 
 
 if __name__ == '__main__':

@@ -13,7 +13,6 @@
 # limitations under the License.
 """Generate a Cobalt build ID header."""
 
-import json
 import sys
 
 BUILD_ID_HEADER_TEMPLATE = """
@@ -21,7 +20,7 @@ BUILD_ID_HEADER_TEMPLATE = """
 #define _COBALT_BUILD_ID_H_
 
 #ifndef COBALT_BUILD_VERSION_NUMBER
-#define COBALT_BUILD_VERSION_NUMBER "{build_id}"
+#define COBALT_BUILD_VERSION_NUMBER "{version_number}"
 #endif  // COBALT_BUILD_VERSION_NUMBER
 
 
@@ -29,38 +28,18 @@ BUILD_ID_HEADER_TEMPLATE = """
 """
 
 
-def BuildId(output_path, build_id):
-  """Write a Cobalt build_id header file.
+def BuildId(output_path, version_number):
+  """Write a Cobalt build_id header file version info.
 
   Args:
     output_path: Location of the build id header to write.
-    build_id: Build version number, generated when gn gen is run.
+    version_number: Build version number, generated when gn gen is run.
   Returns:
     0 on success.
   """
   with open(output_path, 'w', encoding='utf-8') as f:
-    f.write(BUILD_ID_HEADER_TEMPLATE.format(build_id=build_id))
-
-
-def BuildInfo(output_path, info):
-  """Write a Cobalt build_info json file."""
-  build_id, build_rev, git_rev, build_time, author, encoded_commit = info
-
-  info_json = {}
-  info_json['build_id'] = build_id
-  info_json['build_rev'] = build_rev
-  info_json['git_rev'] = git_rev
-  info_json['build_time'] = build_time
-  info_json['author'] = author
-
-  commit = ''.join([chr(int(c)) for c in encoded_commit.split(',')])
-
-  info_json['commit'] = commit
-
-  with open(output_path, 'w', encoding='utf-8') as f:
-    f.write(json.dumps(info_json, indent=4))
+    f.write(BUILD_ID_HEADER_TEMPLATE.format(version_number=version_number))
 
 
 if __name__ == '__main__':
-  BuildId(sys.argv[1], sys.argv[3])
-  BuildInfo(sys.argv[2], sys.argv[3:])
+  BuildId(sys.argv[1], sys.argv[2])

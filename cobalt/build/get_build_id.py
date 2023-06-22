@@ -1,4 +1,5 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#!/usr/bin/env python
+# Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,21 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Prints out the Cobalt Build ID."""
 
-action("cobalt_build_id") {
-  cobalt_version = exec_script("get_build_id.py", [], "trim string")
+from cobalt.build import build_info
 
-  script = "build_id.py"
-  outputs = [ "$root_gen_dir/cobalt_build_id.h" ]
 
-  args = [
-    rebase_path(outputs[0], root_build_dir),
-    cobalt_version,
-  ]
-}
+def main(cwd=build_info.FILE_DIR):
+  build_number, _ = build_info.get_build_id_and_git_rev_from_commits(cwd=cwd)
+  if not build_number:
+    build_number = build_info.get_build_id_from_commit_count(cwd=cwd)
+  return build_number
 
-action("cobalt_build_info") {
-  script = "build_info.py"
-  outputs = [ "$root_gen_dir/build_info.json" ]
-  args = [ rebase_path(outputs[0], root_build_dir) ]
-}
+
+if __name__ == '__main__':
+  print(main())
