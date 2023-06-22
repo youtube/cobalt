@@ -14,12 +14,13 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 
+#include "base/logging.h"
 #include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
 #include "components/metrics/log_decoder.h"
 #include "components/metrics/metrics_log_uploader.h"
+#include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
-
 
 namespace cobalt {
 namespace browser {
@@ -51,7 +52,7 @@ void CobaltMetricsLogUploader::UploadLog(
 }
 
 void CobaltMetricsLogUploader::SetOnUploadHandler(
-    CobaltMetricsUploaderCallback* upload_handler) {
+    const CobaltMetricsUploaderCallback* upload_handler) {
   upload_handler_ = upload_handler;
 }
 

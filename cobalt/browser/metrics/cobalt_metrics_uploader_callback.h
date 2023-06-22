@@ -17,21 +17,17 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
 
 namespace cobalt {
 namespace browser {
 namespace metrics {
 
-// An abstract class representing the callback to be invoked when the Cobalt
-// metrics payload is ready to be uploaded.
-class CobaltMetricsUploaderCallback {
- public:
-  virtual ~CobaltMetricsUploaderCallback() = default;
-
-  virtual void Run(const cobalt::h5vcc::H5vccMetricType&,
-                   const std::string&) = 0;
-};
+typedef base::RepeatingCallback<void(
+    const cobalt::h5vcc::H5vccMetricType& metric_type,
+    const std::string& serialized_proto)>
+    CobaltMetricsUploaderCallback;
 
 }  // namespace metrics
 }  // namespace browser
