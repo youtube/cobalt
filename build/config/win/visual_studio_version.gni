@@ -41,7 +41,10 @@ if (is_starboard) {
     } else {
       _vis_std_year = "2017"
     }
-    _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/$_vis_std_year/Professional"
+    _default_visual_studio_path = getenv("VS2022INSTALLDIR")
+    if (_default_visual_studio_path == "") {
+      _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/$_vis_std_year/Professional"
+    }
   }
 
   declare_args() {
