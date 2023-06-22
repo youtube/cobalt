@@ -27,6 +27,7 @@
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/system_window/system_window.h"
@@ -223,6 +224,8 @@ class Application {
   // Dispatch events for deep links.
   void DispatchDeepLink(const char* link, SbTimeMonotonic timestamp);
   void DispatchDeepLinkIfNotConsumed();
+
+  metrics::CobaltMetricsServicesManager* metrics_services_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(Application);
 };

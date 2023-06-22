@@ -16,7 +16,6 @@
 
 #include <string>
 
-#include "cobalt/browser/metrics/cobalt_h5vcc_metrics_uploader_callback.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
@@ -27,43 +26,49 @@ namespace h5vcc {
 
 void H5vccMetrics::OnMetricEvent(
     const h5vcc::MetricEventHandlerWrapper::ScriptValue& event_handler) {
-  auto callback =
-      new cobalt::browser::metrics::CobaltH5vccMetricsUploaderCallback(
-          new h5vcc::MetricEventHandlerWrapper(this, event_handler));
-  uploader_callback_.reset(callback);
-  browser::metrics::CobaltMetricsServiceClient* client =
-      static_cast<browser::metrics::CobaltMetricsServiceClient*>(
-          browser::metrics::CobaltMetricsServicesManager::GetInstance()
-              ->GetMetricsServiceClient());
-  DCHECK(client);
-  client->SetOnUploadHandler(uploader_callback_.get());
+  if (!uploader_callback_) {
+    run_event_handler_callback_ = std::make_unique<
+        cobalt::browser::metrics::CobaltMetricsUploaderCallback>(
+        base::BindRepeating(&H5vccMetrics::RunEventHandler,
+                            base::Unretained(this)));
+    browser::metrics::CobaltMetricsServicesManager::GetInstance()
+        ->SetOnUploadHandler(run_event_handler_callback_.get());
+  }
+
+  uploader_callback_ =
+      new h5vcc::MetricEventHandlerWrapper(this, event_handler);
 }
+
+void H5vccMetrics::RunEventHandler(
+    const cobalt::h5vcc::H5vccMetricType& metric_type,
+    const std::string& serialized_proto) {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(&H5vccMetrics::RunEventHandlerInternal, base::Unretained(this),
+                 metric_type, serialized_proto));
+}
+
+void H5vccMetrics::RunEventHandlerInternal(
+    const cobalt::h5vcc::H5vccMetricType& metric_type,
+    const std::string& serialized_proto) {
+  uploader_callback_->callback.value().Run(metric_type, serialized_proto);
+}
+
 void H5vccMetrics::Enable() { ToggleMetricsEnabled(true); }
 
 void H5vccMetrics::Disable() { ToggleMetricsEnabled(false); }
 
-void H5vccMetrics::ToggleMetricsEnabled(bool isEnabled) {
-  browser::metrics::CobaltMetricsServicesManagerClient* client =
-      static_cast<browser::metrics::CobaltMetricsServicesManagerClient*>(
-          browser::metrics::CobaltMetricsServicesManager::GetInstance()
-              ->GetMetricsServicesManagerClient());
-  DCHECK(client);
-  is_enabled_ = isEnabled;
-  client->GetEnabledStateProvider()->SetConsentGiven(isEnabled);
-  client->GetEnabledStateProvider()->SetReportingEnabled(isEnabled);
+void H5vccMetrics::ToggleMetricsEnabled(bool is_enabled) {
+  is_enabled_ = is_enabled;
   browser::metrics::CobaltMetricsServicesManager::GetInstance()
-      ->UpdateUploadPermissions(isEnabled);
+      ->ToggleMetricsEnabled(is_enabled);
 }
 
 bool H5vccMetrics::IsEnabled() { return is_enabled_; }
 
 void H5vccMetrics::SetMetricEventInterval(uint32_t interval_seconds) {
-  browser::metrics::CobaltMetricsServiceClient* client =
-      static_cast<browser::metrics::CobaltMetricsServiceClient*>(
-          browser::metrics::CobaltMetricsServicesManager::GetInstance()
-              ->GetMetricsServiceClient());
-  DCHECK(client);
-  client->SetUploadInterval(interval_seconds);
+  browser::metrics::CobaltMetricsServicesManager::GetInstance()
+      ->SetUploadInterval(interval_seconds);
 }
 
 }  // namespace h5vcc
