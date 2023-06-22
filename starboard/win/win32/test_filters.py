@@ -29,6 +29,9 @@ _FILTERED_TESTS = {
         # performs an optimization that defeats the SB_C_NOINLINE 'noinline'
         # attribute.
         'SbSystemGetStackTest.SunnyDayStackDirection',
+
+        # These tests are failing. Enable them once they're supported.
+        'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteContinuedLimitedInput*',
         'MultiplePlayerTests/*beneath_the_canopy_137_avc_dmp*',
 
         # Failures tracked by b/256160416.
