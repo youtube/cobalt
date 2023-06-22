@@ -51,7 +51,7 @@ namespace metrics {
 const int kStandardUploadIntervalSeconds = 5 * 60;  // 5 minutes.
 
 void CobaltMetricsServiceClient::SetOnUploadHandler(
-    CobaltMetricsUploaderCallback* uploader_callback) {
+    const CobaltMetricsUploaderCallback* uploader_callback) {
   upload_handler_ = uploader_callback;
   if (log_uploader_) {
     log_uploader_->SetOnUploadHandler(upload_handler_);

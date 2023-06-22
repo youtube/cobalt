@@ -50,7 +50,8 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
 
   // Sets the uploader handler to be called when metrics are ready for
   // upload.
-  void SetOnUploadHandler(CobaltMetricsUploaderCallback* uploader_callback);
+  void SetOnUploadHandler(
+      const CobaltMetricsUploaderCallback* uploader_callback);
 
   // Returns the MetricsService instance that this client is associated with.
   // With the exception of testing contexts, the returned instance must be valid
@@ -164,7 +165,7 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
 
   CobaltMetricsLogUploader* log_uploader_ = nullptr;
 
-  CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
+  const CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
 
   uint32_t custom_upload_interval_ = UINT32_MAX;
 
