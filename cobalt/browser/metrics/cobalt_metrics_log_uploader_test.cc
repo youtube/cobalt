@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/test/mock_callback.h"
 #include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/h5vcc_metrics.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -23,7 +24,6 @@
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
 #include "third_party/zlib/google/compression_utils.h"
-
 
 namespace cobalt {
 namespace browser {
@@ -36,6 +36,7 @@ using ::testing::_;
 using ::testing::Eq;
 using ::testing::StrEq;
 using ::testing::StrictMock;
+
 
 class CobaltMetricsLogUploaderTest : public ::testing::Test {
  public:
@@ -58,15 +59,10 @@ class CobaltMetricsLogUploaderTest : public ::testing::Test {
   int callback_count_ = 0;
 };
 
-class MockMetricsUploaderCallback : public CobaltMetricsUploaderCallback {
- public:
-  MOCK_METHOD2(Run, void(const cobalt::h5vcc::H5vccMetricType& type,
-                         const std::string& payload));
-};
-
 TEST_F(CobaltMetricsLogUploaderTest, TriggersUploadHandler) {
-  StrictMock<MockMetricsUploaderCallback> mock_upload_handler;
-  uploader_->SetOnUploadHandler(&mock_upload_handler);
+  base::MockCallback<CobaltMetricsUploaderCallback> mock_upload_handler;
+  const auto cb = mock_upload_handler.Get();
+  uploader_->SetOnUploadHandler(&cb);
   ::metrics::ReportingInfo dummy_reporting_info;
   ::metrics::ChromeUserMetricsExtension uma_log;
   uma_log.set_session_id(1234);
@@ -98,8 +94,9 @@ TEST_F(CobaltMetricsLogUploaderTest, UnknownMetricTypeDoesntTriggerUpload) {
       ::metrics::MetricsLogUploader::MetricServiceType::UKM,
       base::Bind(&CobaltMetricsLogUploaderTest::UploadCompleteCallback,
                  base::Unretained(this))));
-  StrictMock<MockMetricsUploaderCallback> mock_upload_handler;
-  uploader_->SetOnUploadHandler(&mock_upload_handler);
+  base::MockCallback<CobaltMetricsUploaderCallback> mock_upload_handler;
+  const auto cb = mock_upload_handler.Get();
+  uploader_->SetOnUploadHandler(&cb);
   ::metrics::ReportingInfo dummy_reporting_info;
   ::metrics::ChromeUserMetricsExtension uma_log;
   uma_log.set_session_id(1234);

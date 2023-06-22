@@ -27,10 +27,10 @@
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/system_window/system_window.h"
-#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "starboard/time.h"
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/updater_module.h"
@@ -225,7 +225,7 @@ class Application {
   void DispatchDeepLink(const char* link, SbTimeMonotonic timestamp);
   void DispatchDeepLinkIfNotConsumed();
 
-  metrics_services_manager::MetricsServicesManager* metrics_services_manager_;
+  metrics::CobaltMetricsServicesManager* metrics_services_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(Application);
 };
