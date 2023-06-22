@@ -96,6 +96,7 @@ target(gtest_target_type, "nplb") {
     "media_buffer_test.cc",
     "media_can_play_mime_and_key_system_test.cc",
     "media_configuration_test.cc",
+    "media_set_audio_write_duration_test.cc",
     "memory_allocate_aligned_test.cc",
     "memory_allocate_test.cc",
     "memory_deallocate_aligned_test.cc",
