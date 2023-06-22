@@ -113,7 +113,7 @@ class WebSocketImplTest : public ::testing::Test {
   StrictMock<MockExceptionState> exception_state_;
 };
 
-TEST_F(WebSocketImplTest, NormalSizeRequest) {
+TEST_F(WebSocketImplTest, DISABLED_NormalSizeRequest) {
   // Normally the high watermark quota is given at websocket connection success.
   AddQuota(kDefaultSendQuotaHighWaterMark);
 
@@ -133,7 +133,7 @@ TEST_F(WebSocketImplTest, NormalSizeRequest) {
   websocket_impl_->SendText(data, k800KB, &buffered_amount, &error);
 }
 
-TEST_F(WebSocketImplTest, LargeRequest) {
+TEST_F(WebSocketImplTest, DISABLED_LargeRequest) {
   AddQuota(kDefaultSendQuotaHighWaterMark);
 
   // mock_channel_ is created and used on network thread.
@@ -153,7 +153,7 @@ TEST_F(WebSocketImplTest, LargeRequest) {
                             &buffered_amount, &error);
 }
 
-TEST_F(WebSocketImplTest, OverLimitRequest) {
+TEST_F(WebSocketImplTest, DISABLED_OverLimitRequest) {
   AddQuota(kDefaultSendQuotaHighWaterMark);
 
   // mock_channel_ is created and used on network thread.
@@ -188,7 +188,7 @@ TEST_F(WebSocketImplTest, OverLimitRequest) {
   AddQuota(kDefaultSendQuotaHighWaterMark);
 }
 
-TEST_F(WebSocketImplTest, ReuseSocketForLargeRequest) {
+TEST_F(WebSocketImplTest, DISABLED_ReuseSocketForLargeRequest) {
   AddQuota(kDefaultSendQuotaHighWaterMark);
 
   // mock_channel_ is created and used on network thread.

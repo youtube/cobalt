@@ -1,81 +1,96 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Modifications Copyright 2017 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-config("gtest_direct_config") {
-  include_dirs = [ "include" ]
-
-  defines = [
-    "UNIT_TEST",
-    "GTEST_HAS_POSIX_RE=0",
-    "_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING",
-  ]
-  if (!is_win) {
-    defines += [ "GTEST_USE_OWN_TR1_TUPLE=1" ]
-  }
+import("//build_overrides/gtest.gni")
+if (is_ios) {
+  import("//build/buildflag_header.gni")
+  import("//build/config/coverage/coverage.gni")
+  import("//build/config/ios/ios_sdk.gni")
 }
 
+config("gtest_direct_config") {
+  visibility = [ ":*" ]
+  defines = [ "UNIT_TEST" ]
+}
+
+# The file/directory layout of Google Test is not yet considered stable. Until
+# it stabilizes, Chromium code MUST use this target instead of reaching directly
+# into //third_party/googletest.
 static_library("gtest") {
   testonly = true
+
   sources = [
-    "../multiprocess_func_list.cc",
-    "../multiprocess_func_list.h",
-    "../platform_test.h",
     "include/gtest/gtest-death-test.h",
     "include/gtest/gtest-message.h",
     "include/gtest/gtest-param-test.h",
-    "include/gtest/gtest-printers.h",
     "include/gtest/gtest-spi.h",
-    "include/gtest/gtest-test-part.h",
-    "include/gtest/gtest-typed-test.h",
     "include/gtest/gtest.h",
-    "include/gtest/gtest_pred_impl.h",
-    "include/gtest/internal/gtest-death-test-internal.h",
-    "include/gtest/internal/gtest-filepath.h",
-    "include/gtest/internal/gtest-internal.h",
-    "include/gtest/internal/gtest-linked_ptr.h",
-    "include/gtest/internal/gtest-param-util-generated.h",
-    "include/gtest/internal/gtest-param-util.h",
-    "include/gtest/internal/gtest-port.h",
-    "include/gtest/internal/gtest-string.h",
-    "include/gtest/internal/gtest-tuple.h",
-    "include/gtest/internal/gtest-type-util.h",
-    "src/gtest-death-test.cc",
-    "src/gtest-filepath.cc",
-    "src/gtest-internal-inl.h",
-    "src/gtest-port.cc",
-    "src/gtest-printers.cc",
-    "src/gtest-test-part.cc",
-    "src/gtest-typed-test.cc",
-    "src/gtest.cc",
-  ]
+    "include/gtest/gtest_prod.h",
 
-  include_dirs = [ "." ]
+    # This is a workaround for the issues below.
+    #
+    # 1) This target needs to be a static_library (not a source set) on Mac to
+    #    avoid the build errors in
+    #    https://codereview.chromium.org/2779193002#msg82.
+    # 2) A static_library must have at least one source file, to avoid build
+    #    errors on Mac and Windows. https://crbug.com/710334
+    # 3) A static_library with complete_static_lib = true, which would not
+    #    require adding the empty file, will result in duplicate symbols on
+    #    Android. https://codereview.chromium.org/2852613002/#ps20001
+    "empty.cc",
+  ]
+  public_deps = [ "//third_party/googletest:gtest" ]
 
   public_configs = [ ":gtest_direct_config" ]
 
-  # Ideally we would want to remove
-  # //starboard/build/config:default_rtti from the list of configs too.
-  # Unfortunately GN doesn't provide us a way to remove things from
-  # dependents' configs list.
-  # It happens to be that all_dependent_configs get processed after default
-  # configs, so the -frtti flag comes after the -fno-rtti flag on the command
-  # line, so it happens to work in this case.
-  all_dependent_configs = [ "//build/config/compiler:rtti" ]
+  if (gtest_include_multiprocess) {
+    sources += [
+      "../multiprocess_func_list.cc",
+      "../multiprocess_func_list.h",
+    ]
+  }
 
-  public_deps = [ "//starboard" ]
+  if (gtest_include_platform_test) {
+    sources += [ "../platform_test.h" ]
+  }
+
+  if (is_apple && gtest_include_objc_support) {
+    sources += [
+      "../gtest_mac.h",
+      "../gtest_mac.mm",
+    ]
+    if (gtest_include_platform_test) {
+      sources += [ "../platform_test_mac.mm" ]
+    }
+  }
+
+  if (is_ios && gtest_include_ios_coverage) {
+    public_deps += [ ":ios_coverage_utils" ]
+  }
+}
+
+# The file/directory layout of Google Test is not yet considered stable. Until
+# it stabilizes, Chromium code MUST use this target instead of reaching directly
+# into //third_party/googletest.
+source_set("gtest_main") {
+  testonly = true
+  deps = [ "//third_party/googletest:gtest_main" ]
+}
+
+if (is_ios) {
+  # These headers are needed in some non test targets for iOS code coverage. So
+  # can not be testonly.
+  source_set("ios_coverage_utils") {
+    sources = [
+      "../coverage_util_ios.h",
+      "../coverage_util_ios.mm",
+    ]
+    deps = [ ":ios_enable_coverage" ]
+  }
+
+  buildflag_header("ios_enable_coverage") {
+    header = "ios_enable_coverage.h"
+    flags = [ "IOS_ENABLE_COVERAGE=$use_clang_coverage" ]
+  }
 }

@@ -1,16 +1,16 @@
-name: "gmock"
+name: "testing/gmock"
 description:
-  "Subtree at testing/gmock."
+  "Copy of testing/gmock from Chromium branch-heads/5735"
 
 third_party {
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/external/googlemock"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "38513a8bb154f0b6d0a4088814fe92552696d465"
+  version: "5cd6a34d059463d2bf7c2090d1904e527c3428b2"
   last_upgrade_date {
-    year: 2012
-    month: 11
-    day: 15
+    year: 2023
+    month: 6
+    day: 16
   }
 }

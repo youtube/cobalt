@@ -1349,9 +1349,21 @@ template <typename T1, typename T2>
 AssertionResult CmpHelperEQ(const char* lhs_expression,
                             const char* rhs_expression, const T1& lhs,
                             const T2& rhs) {
+#if defined(_MSC_VER)
+GTEST_DISABLE_MSC_WARNINGS_PUSH_(4389 /* signed/unsigned mismatch */)
+#elif defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#endif
   if (lhs == rhs) {
     return AssertionSuccess();
   }
+#if defined(_MSC_VER)
+GTEST_DISABLE_MSC_WARNINGS_POP_()
+#elif defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
   return CmpHelperEQFailure(lhs_expression, rhs_expression, lhs, rhs);
 }

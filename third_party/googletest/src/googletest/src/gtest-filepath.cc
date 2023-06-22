@@ -96,7 +96,7 @@ static bool IsPathSeparator(char c) {
 FilePath FilePath::GetCurrentDir() {
 #if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_WINDOWS_PHONE ||         \
     GTEST_OS_WINDOWS_RT || GTEST_OS_ESP8266 || GTEST_OS_ESP32 || \
-    GTEST_OS_XTENSA
+    GTEST_OS_XTENSA || GTEST_OS_STARBOARD
   // These platforms do not have a current directory, so we just return
   // something reasonable.
   return FilePath(kCurrentDirectoryString);
@@ -133,9 +133,9 @@ FilePath FilePath::RemoveExtension(const char* extension) const {
 // the FilePath. On Windows, for example, both '/' and '\' are valid path
 // separators. Returns NULL if no path separator was found.
 const char* FilePath::FindLastPathSeparator() const {
-  const char* const last_sep = strrchr(c_str(), kPathSeparator);
+  const char* const last_sep = internal::posix::StrRChr(c_str(), kPathSeparator);
 #if GTEST_HAS_ALT_PATH_SEP_
-  const char* const last_alt_sep = strrchr(c_str(), kAlternatePathSeparator);
+  const char* const last_alt_sep = internal::posix::StrRChr(c_str(), kAlternatePathSeparator);
   // Comparing two pointers of which only one is NULL is undefined.
   if (last_alt_sep != nullptr &&
       (last_sep == nullptr || last_alt_sep > last_sep)) {
@@ -327,7 +327,7 @@ bool FilePath::CreateFolder() const {
   // do nothing
   int result = 0;
 #else
-  int result = mkdir(pathname_.c_str(), 0777);
+  int result = posix::MkDir(pathname_.c_str(), 0777);
 #endif  // GTEST_OS_WINDOWS_MOBILE
 
   if (result == -1) {

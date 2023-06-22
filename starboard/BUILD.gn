@@ -208,6 +208,7 @@ if (current_toolchain == starboard_toolchain) {
       public_deps = [
         ":starboard",
         "//testing/gmock",
+        "//testing/gtest",
       ]
     }
   }
