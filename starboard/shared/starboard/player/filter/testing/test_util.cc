@@ -181,14 +181,32 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       const auto& video_stream_info = dmp_reader.video_stream_info();
       const std::string video_mime = dmp_reader.video_mime_type();
       const MimeType video_mime_type(video_mime.c_str());
-      if (SbMediaIsVideoSupported(
-              dmp_reader.video_codec(),
-              video_mime.size() > 0 ? &video_mime_type : nullptr, -1, -1, 8,
-              kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,
-              kSbMediaMatrixIdUnspecified, video_stream_info.frame_width,
-              video_stream_info.frame_height, dmp_reader.video_bitrate(),
-              dmp_reader.video_fps(), false)) {
-        test_params.push_back(std::make_tuple(filename, output_mode));
+      // SbMediaIsVideoSupported may return false for gpu based decoder that in
+      // fact supports av1 or/and vp9 because the system can make async
+      // initialization at startup.
+      // To minimize probability of false negative we check result few times
+      static bool decoder_has_been_checked_once = false;
+      int counter = 5;
+      const SbMediaVideoCodec video_codec = dmp_reader.video_codec();
+      bool need_to_check_with_wait = video_codec == kSbMediaVideoCodecAv1 ||
+                                     video_codec == kSbMediaVideoCodecVp9;
+      do {
+        if (SbMediaIsVideoSupported(
+                video_codec, video_mime.size() > 0 ? &video_mime_type : nullptr,
+                -1, -1, 8, kSbMediaPrimaryIdUnspecified,
+                kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
+                video_stream_info.frame_width, video_stream_info.frame_height,
+                dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
+          test_params.push_back(std::make_tuple(filename, output_mode));
+          break;
+        } else if (need_to_check_with_wait && !decoder_has_been_checked_once) {
+          SbThreadSleep(kSbTimeSecond);
+        } else {
+          break;
+        }
+      } while (--counter);
+      if (need_to_check_with_wait) {
+        decoder_has_been_checked_once = true;
       }
     }
   }
