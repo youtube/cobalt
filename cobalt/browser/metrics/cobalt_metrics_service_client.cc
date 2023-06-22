@@ -153,7 +153,9 @@ CobaltMetricsServiceClient::CreateUploader(
 }
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
-  return base::TimeDelta::FromSeconds(kStandardUploadIntervalSeconds);
+  return custom_upload_interval_ != UINT32_MAX
+             ? base::TimeDelta::FromSeconds(custom_upload_interval_)
+             : base::TimeDelta::FromSeconds(kStandardUploadIntervalSeconds);
 }
 
 bool CobaltMetricsServiceClient::IsReportingPolicyManaged() {
@@ -194,6 +196,12 @@ bool CobaltMetricsServiceClient::
 std::string CobaltMetricsServiceClient::GetAppPackageName() {
   // Android package name is logged elsewhere, this should always be empty.
   return "";
+}
+
+void CobaltMetricsServiceClient::SetUploadInterval(uint32_t interval_seconds) {
+  if (interval_seconds > 0) {
+    custom_upload_interval_ = interval_seconds;
+  }
 }
 
 }  // namespace metrics

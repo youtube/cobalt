@@ -51,6 +51,8 @@ class FakeGraphicsContextProvider {
   void ReleaseDecodeTarget(SbDecodeTarget decode_target);
 #endif  // SB_HAS(GLES2)
 
+  void Render();
+
  private:
 #if SB_HAS(GLES2)
   static void* ThreadEntryPoint(void* context);

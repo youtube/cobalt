@@ -1,64 +1,95 @@
-# Contributing to Cobalt
+# Contributing guidelines
 
-We'd love to hear about how you would like to contribute to Cobalt! It's worth
-reading through this modest document first, to understand the process and to
-make sure you know what to expect.
+## Pull Request Checklist
 
+Before sending your pull requests, make sure you do the following:
 
-## Before You Contribute
+-   Read the [contributing guidelines](CONTRIBUTING.md).
+-   Ensure you have signed the
+    [Contributor License Agreement (CLA)](https://cla.developers.google.com/).
+-   Check if your changes are consistent with the:
+    -   [General guidelines](#general-guidelines-and-philosophy-for-contribution).
+    -   [Coding Style](#coding-style).
+-   Run the [unit tests](#running-unit-tests).
 
-### As an Individual
+### Contributor License Agreements
 
-Before Cobalt can use your code, as an unaffiliated individual, you must sign
-the [Google Individual Contributor License Agreement](https://cla.developers.google.com/about/google-individual) (CLA), which you can do online.
+We'd love to accept your patches! Before we can take them, we have to jump a couple of legal hurdles.
 
-### As a Company
+Please fill out either the individual or corporate Contributor License Agreement (CLA).
 
-If you are a company that wishes to have one or more employees contribute to
-Cobalt on-the-clock, that is covered by a different agreement, the
-[Software Grant and Corporate Contributor License Agreement](https://cla.developers.google.com/about/google-corporate).
+  * If you are an individual writing original source code and you're sure you own the intellectual property, then you'll need to sign an [individual CLA](https://code.google.com/legal/individual-cla-v1.0.html).
+  * If you work for a company that wants to allow you to contribute your work, then you'll need to sign a [corporate CLA](https://code.google.com/legal/corporate-cla-v1.0.html).
 
-### What is a CLA?
+Follow either of the two links above to access the appropriate CLA and instructions for how to sign and return it. Once we receive it, we'll be able to accept your pull requests.
 
-The Contributor License Agreement is necessary mainly because you own the
-copyright to your changes, even after your contribution becomes part of our
-codebase, so we need your permission to use and distribute your code. We also
-need to be sure of various other things — for instance that you'll tell us if
-you know that your code infringes on other people's patents. You don't have to
-sign the CLA until after you've submitted your code for review and a member has
-approved it, but you must do it before we can put your code into our codebase.
-Before you start working on a larger contribution, you should get in touch with
-us first with your idea so that we can help out and possibly guide
-you. Coordinating up front makes it much easier to avoid frustration later on.
+***NOTE***: Only original source code from you and other people that have signed the CLA can be accepted into the main repository.
 
+### Community Guidelines
 
-### Code Reviews
+This project follows
+[Google's Open Source Community Guidelines](https://opensource.google/conduct/).
 
-All submissions, including submissions by project members, require review. We
-currently use [Gerrit Code Review](https://www.gerritcodereview.com/) for this
-purpose. Currently, team-member submissions go through private reviews, and
-external submissions go through public reviews.
+### Contributing code
 
+If you have improvements to Cobalt, send us your pull requests! For those
+just getting started, Github has a
+[how to](https://help.github.com/articles/using-pull-requests/).
 
-## Submission Process
+Cobalt team members will be assigned to review your pull requests. A team
+member will need to approve the workflow runs for each pull request. Once the
+pull requests are approved and pass *all* presubmit checks, a Cobalt
+team member will merge the pull request.
 
-We admit that this submission process is currently not completely optimized to
-make contributions easy, and we hope to make improvements to it in the
-future. It will always include some form of signing the CLA and submitting the
-code for review before merging changes into the Cobalt master tree.
+### Contribution guidelines and standards
 
-  1. Ensure you or your company have signed the appropriate CLA (see "Before You
-     Contribute" above).
-  1. Rebase your changes down into a single git commit.
-  1. Run `git clang-format HEAD~` to apply default C++ formatting rules,
-     followed by `git commit -a --amend` to squash any formatting changes
-     into your commit.
-  1. Run `git push origin HEAD:refs/for/master` to upload the review to
-     [Cobalt's Gerrit instance](https://cobalt-review.googlesource.com/).
-  1. Someone from the maintainers team will review the code, putting up comments
-     on any things that need to change for submission.
-  1. If you need to make changes, make them locally, test them, then `git commit
-     --amend` to add them to the *existing* commit. Then return to step 2.
-  1. If you do not need to make any more changes, a maintainer will integrate
-     the change into our private repository, and it will get pushed out to the
-     public repository after some time.
+Before sending your pull request for
+[review](https://github.com/tensorflow/tensorflow/pulls),
+make sure your changes are consistent with the guidelines and follow the
+Cobalt coding style.
+
+#### General guidelines and philosophy for contribution
+
+*   Include unit tests when you contribute new features, as they help to:
+    1.   Prove that your code works correctly
+    1.   Guard against future breaking changes to lower the maintenance cost.
+*   Bug fixes also generally require unit tests, because the presence of bugs
+    usually indicates insufficient test coverage.
+*   When you contribute a new feature to Cobalt, the maintenance burden is
+    (by default) transferred to the Cobalbt team. This means that the benefit
+    of the contribution must be compared against the cost of maintaining the
+    feature.
+*   As every PR requires several CPU/GPU hours of CI testing, we discourage
+    submitting PRs to fix one typo, one warning,etc. We recommend fixing the
+    same issue at the file level at least (e.g.: fix all typos in a file, fix
+    all compiler warning in a file, etc.)
+
+#### License
+
+Include a license at the top of new files. Check existing files for license examples.
+
+#### Coding style
+
+Cobalt follows the
+[Chromium style guide](https://chromium.googlesource.com/chromium/src/+/HEAD/styleguide/styleguide.md).
+
+Cobalt uses pre-commit to ensure good coding style. Create a python 3 virtual
+environment for working with Cobalt, then install `pre-commit` with:
+
+```bash
+$ pre-commit install -t post-checkout -t pre-commit -t pre-push --allow-missing-config
+```
+
+`pre-commit` will mostly run automatically, and can also be invoked manually.
+You can find documentation about it at https://pre-commit.com/.
+
+#### Running unit tests
+
+First, ensure Docker and docker-compose are installed on your system. Then,
+you can run unit tests for our linux reference implementation using:
+
+```bash
+$ docker-compose up --build --no-start linux-x64x11-unittest
+$ PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker-compose run linux-x64x11
+$ PLATFORM=linux-x64x11 CONFIG=devel docker-compose run linux-x64x11-unittest
+```
