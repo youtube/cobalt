@@ -31,6 +31,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/cache_utils.h"
 #include "cobalt/worker/service_worker_consts.h"
+#include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
@@ -171,20 +172,20 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
     registration_map.insert(std::make_pair(key, registration));
     registration->set_is_persisted(true);
 
-    options_.service_worker_jobs->message_loop()->task_runner()->PostTask(
+    options_.service_worker_context->message_loop()->task_runner()->PostTask(
         FROM_HERE,
-        base::BindOnce(&ServiceWorkerJobs::Activate,
-                       base::Unretained(options_.service_worker_jobs),
+        base::BindOnce(&ServiceWorkerContext::Activate,
+                       base::Unretained(options_.service_worker_context),
                        registration));
 
-    auto job = options_.service_worker_jobs->CreateJobWithoutPromise(
+    auto job = options_.service_worker_context->jobs()->CreateJobWithoutPromise(
         ServiceWorkerJobs::JobType::kUpdate, storage_key, scope,
         registration->waiting_worker()->script_url());
-    options_.service_worker_jobs->message_loop()->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
-                       base::Unretained(options_.service_worker_jobs),
-                       std::move(job)));
+    options_.service_worker_context->message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
+                                  base::Unretained(
+                                      options_.service_worker_context->jobs()),
+                                  std::move(job)));
   }
 }
 
@@ -199,7 +200,7 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
                                        options_.web_settings,
                                        options_.network_module, registration);
   options.web_options.platform_info = options_.platform_info;
-  options.web_options.service_worker_jobs = options_.service_worker_jobs;
+  options.web_options.service_worker_context = options_.service_worker_context;
   scoped_refptr<ServiceWorkerObject> worker(new ServiceWorkerObject(options));
 
   base::Value* script_url_value = value_dict->FindKeyOfType(

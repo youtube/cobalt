@@ -37,7 +37,8 @@
 
 namespace cobalt {
 namespace worker {
-class ServiceWorkerJobs;
+
+class ServiceWorkerContext;
 
 // Algorithms for the service worker scope to registration map.
 //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-scope-to-registration-map
@@ -69,11 +70,11 @@ class ServiceWorkerRegistrationMap {
   bool IsUnregistered(ServiceWorkerRegistrationObject* registration);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-user-agent-shutdown-algorithm
-  void HandleUserAgentShutdown(ServiceWorkerJobs* jobs);
+  void HandleUserAgentShutdown(ServiceWorkerContext* context);
 
   void AbortAllActive();
 
-  // Called from the end of ServiceWorkerJobs Install, Activate, and Clear
+  // Called from the end of ServiceWorkerContext Install, Activate, and Clear
   // Registration since these are the cases in which a service worker
   // registration's active_worker or waiting_worker are updated.
   void PersistRegistration(const url::Origin& storage_key, const GURL& scope);

@@ -40,6 +40,8 @@ static_library("worker") {
     "service_worker_consts.h",
     "service_worker_container.cc",
     "service_worker_container.h",
+    "service_worker_context.cc",
+    "service_worker_context.h",
     "service_worker_global_scope.cc",
     "service_worker_global_scope.h",
     "service_worker_jobs.cc",

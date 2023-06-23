@@ -33,8 +33,8 @@
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/client.h"
+#include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/service_worker_global_scope.h"
-#include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_object.h"
 
 namespace cobalt {
@@ -72,12 +72,13 @@ script::HandlePromiseWrappable Clients::Get(const std::string& id) {
           settings_->context()->GetWindowOrWorkerGlobalScope(), promise));
 
   // 2. Run these substeps in parallel:
-  ServiceWorkerJobs* jobs = settings_->context()->service_worker_jobs();
-  DCHECK(jobs);
-  jobs->message_loop()->task_runner()->PostTask(
+  ServiceWorkerContext* context =
+      settings_->context()->service_worker_context();
+  DCHECK(context);
+  context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
-      base::BindOnce(&ServiceWorkerJobs::ClientsGetSubSteps,
-                     base::Unretained(jobs),
+      base::BindOnce(&ServiceWorkerContext::ClientsGetSubSteps,
+                     base::Unretained(context),
                      base::Unretained(settings_->context()),
                      base::Unretained(GetAssociatedServiceWorker(settings_)),
                      std::move(promise_reference), id));
@@ -101,12 +102,13 @@ script::HandlePromiseSequenceWrappable Clients::MatchAll(
       promise_reference(new script::ValuePromiseSequenceWrappable::Reference(
           settings_->context()->GetWindowOrWorkerGlobalScope(), promise));
   // 2. Run the following steps in parallel:
-  ServiceWorkerJobs* jobs = settings_->context()->service_worker_jobs();
-  DCHECK(jobs);
-  jobs->message_loop()->task_runner()->PostTask(
+  ServiceWorkerContext* context =
+      settings_->context()->service_worker_context();
+  DCHECK(context);
+  context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
-      base::BindOnce(&ServiceWorkerJobs::ClientsMatchAllSubSteps,
-                     base::Unretained(jobs),
+      base::BindOnce(&ServiceWorkerContext::ClientsMatchAllSubSteps,
+                     base::Unretained(context),
                      base::Unretained(settings_->context()),
                      base::Unretained(GetAssociatedServiceWorker(settings_)),
                      std::move(promise_reference),
@@ -156,11 +158,13 @@ script::HandlePromiseVoid Clients::Claim() {
          service_worker->state() == kServiceWorkerStateActivating);
 
   // 3. Run the following substeps in parallel:
-  ServiceWorkerJobs* jobs = settings_->context()->service_worker_jobs();
-  DCHECK(jobs);
-  jobs->message_loop()->task_runner()->PostTask(
+  ServiceWorkerContext* context =
+      settings_->context()->service_worker_context();
+  DCHECK(context);
+  context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
-      base::BindOnce(&ServiceWorkerJobs::ClaimSubSteps, base::Unretained(jobs),
+      base::BindOnce(&ServiceWorkerContext::ClaimSubSteps,
+                     base::Unretained(context),
                      base::Unretained(settings_->context()),
                      base::Unretained(GetAssociatedServiceWorker(settings_)),
                      std::move(promise_reference)));

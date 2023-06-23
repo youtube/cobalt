@@ -110,7 +110,7 @@ class StubWebContext final : public Context {
     return network_module_.get();
   }
 
-  worker::ServiceWorkerJobs* service_worker_jobs() const final {
+  worker::ServiceWorkerContext* service_worker_context() const final {
     NOTREACHED();
     return nullptr;
   }
