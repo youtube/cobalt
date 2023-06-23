@@ -59,7 +59,7 @@ class DecryptingDecoder {
   // decoding stream is changed.
   bool ProcessAndRead(ComPtr<IMFSample>* output,
                       ComPtr<IMFMediaType>* new_type,
-                      bool* hasError);
+                      bool* has_error);
   void Drain();
   void Reset();
 
