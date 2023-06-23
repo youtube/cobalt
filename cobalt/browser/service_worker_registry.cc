@@ -22,7 +22,6 @@
 #include "base/threading/thread.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/network/network_module.h"
-#include "cobalt/worker/service_worker_jobs.h"
 
 namespace cobalt {
 namespace browser {
@@ -34,7 +33,7 @@ void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
 
 void ServiceWorkerRegistry::WillDestroyCurrentMessageLoop() {
   // Clear all member variables allocated from the thread.
-  service_worker_jobs_.reset();
+  service_worker_context_.reset();
 }
 
 ServiceWorkerRegistry::ServiceWorkerRegistry(
@@ -75,20 +74,20 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   destruction_observer_added_.Wait();
   DCHECK_NE(thread_.message_loop(), base::MessageLoop::current());
   thread_.Stop();
-  DCHECK(!service_worker_jobs_);
+  DCHECK(!service_worker_context_);
 }
 
 void ServiceWorkerRegistry::EnsureServiceWorkerStarted(
     const url::Origin& storage_key, const GURL& client_url,
     base::WaitableEvent* done_event) {
-  service_worker_jobs()->EnsureServiceWorkerStarted(storage_key, client_url,
-                                                    done_event);
+  service_worker_context()->EnsureServiceWorkerStarted(storage_key, client_url,
+                                                       done_event);
 }
 
-worker::ServiceWorkerJobs* ServiceWorkerRegistry::service_worker_jobs() {
+worker::ServiceWorkerContext* ServiceWorkerRegistry::service_worker_context() {
   // Ensure that the thread had a chance to allocate the object.
   destruction_observer_added_.Wait();
-  return service_worker_jobs_.get();
+  return service_worker_context_.get();
 }
 
 void ServiceWorkerRegistry::Initialize(
@@ -96,7 +95,7 @@ void ServiceWorkerRegistry::Initialize(
     web::UserAgentPlatformInfo* platform_info, const GURL& url) {
   TRACE_EVENT0("cobalt::browser", "ServiceWorkerRegistry::Initialize()");
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
-  service_worker_jobs_.reset(new worker::ServiceWorkerJobs(
+  service_worker_context_.reset(new worker::ServiceWorkerContext(
       web_settings, network_module, platform_info, message_loop(), url));
 }
 

@@ -27,6 +27,7 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/service_worker_global_scope.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration_object.h"
@@ -110,20 +111,18 @@ void ServiceWorkerRegistration::UpdateTask(
   // 6. Let job be the result of running Create Job with update, registration’s
   //    storage key, registration’s scope url, newestWorker’s script url,
   //    promise, and this's relevant settings object.
-  worker::ServiceWorkerJobs* jobs =
-      environment_settings()->context()->service_worker_jobs();
+  ServiceWorkerJobs* jobs =
+      environment_settings()->context()->service_worker_context()->jobs();
   std::unique_ptr<ServiceWorkerJobs::Job> job = jobs->CreateJob(
       ServiceWorkerJobs::JobType::kUpdate, registration_->storage_key(),
       registration_->scope_url(), newest_worker->script_url(),
       std::move(promise_reference), environment_settings()->context());
-  DCHECK(!promise_reference);
 
   // 7. Set job’s worker type to newestWorker’s type.
   // Cobalt only supports 'classic' worker type.
 
   // 8. Invoke Schedule Job with job.
   jobs->ScheduleJob(std::move(job));
-  DCHECK(!job.get());
 }
 
 script::HandlePromiseBool ServiceWorkerRegistration::Unregister() {
@@ -146,7 +145,7 @@ script::HandlePromiseBool ServiceWorkerRegistration::Unregister() {
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
       base::BindOnce(
-          [](worker::ServiceWorkerJobs* jobs, const url::Origin& storage_key,
+          [](ServiceWorkerJobs* jobs, const url::Origin& storage_key,
              const GURL& scope_url,
              std::unique_ptr<script::ValuePromiseBool::Reference>
                  promise_reference,
@@ -163,7 +162,7 @@ script::HandlePromiseBool ServiceWorkerRegistration::Unregister() {
             jobs->ScheduleJob(std::move(job));
             DCHECK(!job.get());
           },
-          environment_settings()->context()->service_worker_jobs(),
+          environment_settings()->context()->service_worker_context()->jobs(),
           registration_->storage_key(), registration_->scope_url(),
           std::move(promise_reference), environment_settings()->context()));
   // 5. Return promise.

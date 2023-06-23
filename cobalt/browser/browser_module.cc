@@ -629,8 +629,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 
   options.web_options.web_settings = &web_settings_;
   options.web_options.network_module = network_module_;
-  options.web_options.service_worker_jobs =
-      service_worker_registry_->service_worker_jobs();
+  options.web_options.service_worker_context =
+      service_worker_registry_->service_worker_context();
   options.web_options.platform_info = platform_info_.get();
   web_module_.reset(new WebModule("MainWebModule"));
   // Wait for service worker to start if one exists.

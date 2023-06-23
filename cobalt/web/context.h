@@ -36,7 +36,7 @@ namespace worker {
 class ServiceWorkerRegistration;
 class ServiceWorkerRegistrationObject;
 class ServiceWorker;
-class ServiceWorkerJobs;
+class ServiceWorkerContext;
 class ServiceWorkerObject;
 }  // namespace worker
 namespace web {
@@ -65,7 +65,7 @@ class Context {
   virtual Blob::Registry* blob_registry() const = 0;
   virtual web::WebSettings* web_settings() const = 0;
   virtual network::NetworkModule* network_module() const = 0;
-  virtual worker::ServiceWorkerJobs* service_worker_jobs() const = 0;
+  virtual worker::ServiceWorkerContext* service_worker_context() const = 0;
 
   virtual const std::string& name() const = 0;
   virtual void SetupEnvironmentSettings(EnvironmentSettings* settings) = 0;
