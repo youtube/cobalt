@@ -163,12 +163,24 @@ class TestLauncher(object):
 
   def __init__(self, launcher):
     self.launcher = launcher
-    self.runner_thread = threading.Thread(target=self._Run)
 
     self.return_code_lock = threading.Lock()
     self.return_code = 1
 
-  def Start(self):
+  def Start(self, extended, deploy):
+    if extended:
+      assert hasattr(self.launcher, "Run2")
+      if hasattr(self.launcher, "InitDevice"):
+        self.launcher.InitDevice()
+      if deploy and hasattr(self.launcher, "Deploy"):
+        self.launcher.Deploy()
+        assert hasattr(self.launcher, "CheckPackageIsDeployed")
+        self.launcher.CheckPackageIsDeployed()
+
+      self.runner_thread = threading.Thread(target=self._Run2)
+    else:
+      self.runner_thread = threading.Thread(target=self._Run)
+
     self.runner_thread.start()
 
   def Kill(self):
@@ -183,6 +195,28 @@ class TestLauncher(object):
 
   def Join(self):
     self.runner_thread.join()
+
+  def _Run2(self):
+    """Runs the launcher, and assigns a return code.
+    Sets return_code to the following values:
+      - 0x00-0x03F - target return code;
+      - 0x40 if return code is not available;
+      - 0x80 in case of crash;
+      - 0xС0 cannot launch the target.
+    """
+
+    status, return_code = abstract_launcher.ReturnCodeStatus.ISSUE, 0
+    try:
+      logging.info("Running launcher")
+      status, return_code = self.launcher.Run2()
+      logging.info("Finished running launcher")
+    except Exception:  # pylint: disable=broad-except
+      sys.stderr.write(f"Error while running {self.launcher.target_name}:\n")
+      traceback.print_exc(file=sys.stderr)
+
+    with self.return_code_lock:
+      self.return_code = (status << 6) | (return_code & 0x3F)
+    logging.info("Launcher return_code=%d", self.return_code)
 
   def _Run(self):
     """Runs the launcher, and assigns a return code."""
@@ -223,6 +257,8 @@ class TestRunner(object):
                xml_output_dir=None,
                log_xml_results=False,
                shard_index=None,
+               extended=False,
+               deploy=False,
                launcher_args=None,
                coverage_directory=None):
     self.platform = platform
@@ -234,6 +270,8 @@ class TestRunner(object):
     self.out_directory = out_directory
     self.loader_out_directory = loader_out_directory
     self.shard_index = shard_index
+    self.extended = extended
+    self.deploy = deploy
     self.launcher_args = launcher_args
     if not self.out_directory:
       self.out_directory = paths.BuildOutputDirectory(self.platform,
@@ -272,6 +310,9 @@ class TestRunner(object):
                     self._loader_platform_test_filters.GetTestFilters())
 
     _VerifyConfig(self._app_config, self._app_config.GetTestFilters())
+
+    if extended:
+      specified_targets = [extended]
 
     # If a particular test binary has been provided, configure only that one.
     logging.info("Getting test targets")
@@ -394,11 +435,11 @@ class TestRunner(object):
         env_variables[test] = test_env
     return env_variables
 
-  def _RunTest(self,
-               target_name,
-               test_name=None,
-               shard_index=None,
-               shard_count=None):
+  def RunTest(self,
+              target_name,
+              test_name=None,
+              shard_index=None,
+              shard_count=None):
     """Runs a specific target or test and collects the output.
 
     Args:
@@ -529,7 +570,7 @@ class TestRunner(object):
       sys.stdout.write(f" {test_params}\n")
     test_reader.Start()
     logging.info("Starting test launcher")
-    test_launcher.Start()
+    test_launcher.Start(self.extended, self.deploy)
     logging.info("Test launcher started")
 
     # Wait for the launcher to exit then close the write pipe, which will
@@ -671,7 +712,7 @@ class TestRunner(object):
           for retry in range(_FLAKY_RETRY_LIMIT):
             # Sometimes the returned test "name" includes information about the
             # parameter that was passed to it. This needs to be stripped off.
-            retry_result = self._RunTest(target_name, test_case.split(",")[0])
+            retry_result = self.RunTest(target_name, test_case.split(",")[0])
             print()  # Explicit print for empty formatting line.
             if retry_result[2] == 1:
               flaky_passed_tests.append(test_case)
@@ -823,12 +864,12 @@ class TestRunner(object):
         if run_action == ShardingTestConfig.RUN_FULL_TEST:
           logging.info("SHARD %d RUNS TEST %s (full)", self.shard_index,
                        test_target)
-          results.append(self._RunTest(test_target))
+          results.append(self.RunTest(test_target))
         elif run_action == ShardingTestConfig.RUN_PARTIAL_TEST:
           logging.info("SHARD %d RUNS TEST %s (%d of %d)", self.shard_index,
                        test_target, sub_shard_index + 1, sub_shard_count)
           results.append(
-              self._RunTest(
+              self.RunTest(
                   test_target,
                   shard_index=sub_shard_index,
                   shard_count=sub_shard_count))
@@ -837,7 +878,7 @@ class TestRunner(object):
           logging.info("SHARD %d SKIP TEST %s", self.shard_index, test_target)
       else:
         # Run all tests and cases serially. No sharding enabled.
-        results.append(self._RunTest(test_target))
+        results.append(self.RunTest(test_target))
     return self._ProcessAllTestResults(results)
 
 
@@ -862,6 +903,16 @@ def main():
       "--dry_run",
       action="store_true",
       help="Specifies to show what would be done without actually doing it.")
+  arg_parser.add_argument(
+      "-e",
+      "--extended",
+      help="Name of executable target, which to run, using extended interface"
+      " of launcher. Option --target_name is ignored, if this is specified.")
+  arg_parser.add_argument(
+      "--deploy",
+      action="store_true",
+      help="Deploy target on device. Has no effect without"
+      " --extended parameter.")
   arg_parser.add_argument(
       "-t",
       "--target_name",
@@ -948,8 +999,8 @@ def main():
                       target_params, args.out_directory,
                       args.loader_out_directory, args.platform_tests_only,
                       args.application_name, args.dry_run, args.xml_output_dir,
-                      args.log_xml_results, args.shard_index, launcher_args,
-                      coverage_directory)
+                      args.log_xml_results, args.shard_index, args.extended,
+                      args.deploy, launcher_args, coverage_directory)
   logging.info("Test runner initialized")
 
   def Abort(signum, frame):
@@ -978,7 +1029,11 @@ def main():
       return 1
 
   if args.run:
-    run_success = runner.RunAllTests()
+    if not args.extended:
+      run_success = runner.RunAllTests()
+    else:
+      r = runner.RunTest(args.extended)
+      return r[5]
 
   if args.coverage_report and coverage_directory:
     if run_success:
