@@ -80,8 +80,8 @@ std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
 
     for (auto output_mode : kOutputModes) {
       if (IsOutputModeSupported(output_mode, audio_codec, video_codec, "")) {
-        test_configs.push_back(
-            std::make_tuple(kAudioFilename, video_filename, output_mode, ""));
+        test_configs.emplace_back(kAudioFilename, video_filename, output_mode,
+                                  "");
       }
     }
   }
