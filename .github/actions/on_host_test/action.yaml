@@ -97,3 +97,17 @@ runs:
       with:
         name: unit-test-reports
         path: ${{env.TEST_REPORT_FILE}}
+<<<<<<< HEAD
+=======
+    - name: Upload coverage html report
+      if: success() && matrix.shard == 'coverage'
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: ${{env.COVERAGE_DIR}}/html
+    - name: Upload to Codecov
+      if: success() && matrix.shard == 'coverage'
+      uses: codecov/codecov-action@v3
+      with:
+        files: ${{env.COVERAGE_DIR}}/report.txt
+>>>>>>> 6cdddf0dd0b (Fix coverage warnings (#692))
