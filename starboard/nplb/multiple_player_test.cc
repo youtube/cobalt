@@ -124,18 +124,14 @@ std::string GetMultipleSbPlayerTestConfigName(
   const SbPlayerMultiplePlayerTestConfig& multiplayer_test_config = info.param;
 
   SB_DCHECK(multiplayer_test_config.size() > 0);
-  const SbPlayerOutputMode output_mode =
-      std::get<2>(multiplayer_test_config[0]);
-  const char* key_system = std::get<3>(multiplayer_test_config[0]);
+  const SbPlayerOutputMode output_mode = multiplayer_test_config[0].output_mode;
+  const char* key_system = multiplayer_test_config[0].key_system;
 
   std::string name;
   for (int i = 0; i < multiplayer_test_config.size(); i++) {
     const SbPlayerTestConfig& config = multiplayer_test_config[i];
-    const char* audio_filename = std::get<0>(config);
-    const char* video_filename = std::get<1>(config);
-    SB_DCHECK(std::get<2>(multiplayer_test_config[i]) == output_mode);
-    // We simply check the string pointers here.
-    SB_DCHECK(std::get<3>(multiplayer_test_config[i]) == key_system);
+    const char* audio_filename = config.audio_filename;
+    const char* video_filename = config.video_filename;
 
     if (i > 0) {
       name += "_";
