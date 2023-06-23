@@ -32,6 +32,7 @@ _FILTERED_TESTS = {
          '.WriteContinuedLimitedInput/*'),
         ('SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
          '.WriteLimitedInput/*'),
+        'VerticalVideoTests/VerticalVideoTest.WriteSamples/*',
     ],
     'player_filter_tests': [
         'AudioDecoderTests/*',
