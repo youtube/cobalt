@@ -25,6 +25,12 @@ class Unzipper {
                      const base::FilePath& destination,
                      UnzipCompleteCallback callback) = 0;
 
+#if defined(IN_MEMORY_UPDATES)
+  virtual void Unzip(const std::string& zip_str,
+                     const base::FilePath& destination,
+                     UnzipCompleteCallback callback) = 0;
+#endif
+
  protected:
   Unzipper() = default;
 
