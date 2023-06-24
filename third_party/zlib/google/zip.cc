@@ -179,7 +179,7 @@ bool Unzip(const base::FilePath& src_file, const base::FilePath& dest_dir) {
 #if defined(IN_MEMORY_UPDATES)
 bool Unzip(const std::string& src_str, const base::FilePath& dest_dir) {
    return UnzipWithFilterCallback(
-    src_str, dest_dir, base::BindRepeating(&ExcludeNoFilesFilter), true);
+      src_str, dest_dir, base::BindRepeating(&ExcludeNoFilesFilter), true);
 }
 #endif
 
