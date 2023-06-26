@@ -75,6 +75,8 @@ class CobaltMetricsServicesManagerClient
   ::metrics::MetricsStateManager* GetMetricsStateManagerForTesting();
 
  private:
+  void InitializeMetricsStateManagerAndLocalState();
+
   ::metrics::MetricsStateManager* GetMetricsStateManager();
 
   // MetricsStateManager which is passed as a parameter to service constructors.
