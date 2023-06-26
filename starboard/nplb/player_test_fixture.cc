@@ -208,6 +208,7 @@ SbPlayerTestFixture::SbPlayerTestFixture(
     FakeGraphicsContextProvider* fake_graphics_context_provider)
     : output_mode_(config.output_mode),
       key_system_(config.key_system),
+      max_video_capabilities_(config.max_video_capabilities),
       fake_graphics_context_provider_(fake_graphics_context_provider) {
   SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
             output_mode_ == kSbPlayerOutputModePunchOut);
@@ -463,9 +464,10 @@ void SbPlayerTestFixture::Initialize() {
   // TODO: refine CallSbPlayerCreate() to use real video sample info.
   player_ = CallSbPlayerCreate(
       fake_graphics_context_provider_->window(), video_codec, audio_codec,
-      drm_system_, audio_stream_info, "", DummyDeallocateSampleFunc,
-      DecoderStatusCallback, PlayerStatusCallback, ErrorCallback, this,
-      output_mode_, fake_graphics_context_provider_->decoder_target_provider());
+      drm_system_, audio_stream_info, max_video_capabilities_.c_str(),
+      DummyDeallocateSampleFunc, DecoderStatusCallback, PlayerStatusCallback,
+      ErrorCallback, this, output_mode_,
+      fake_graphics_context_provider_->decoder_target_provider());
   ASSERT_TRUE(SbPlayerIsValid(player_));
   ASSERT_NO_FATAL_FAILURE(WaitForPlayerState(kSbPlayerStateInitialized));
   ASSERT_NO_FATAL_FAILURE(Seek(0));

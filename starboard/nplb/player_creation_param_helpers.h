@@ -20,6 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -68,6 +69,11 @@ shared::starboard::media::VideoStreamInfo CreateVideoStreamInfo(
 PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
                                               SbMediaVideoCodec video_codec,
                                               SbPlayerOutputMode output_mode);
+
+PlayerCreationParam CreatePlayerCreationParam(const SbPlayerTestConfig& config);
+
+SbPlayerOutputMode GetPreferredOutputMode(
+    const PlayerCreationParam& creation_param);
 
 }  // namespace nplb
 }  // namespace starboard

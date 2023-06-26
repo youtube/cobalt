@@ -22,13 +22,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-SbPlayerOutputMode GetPreferredOutputMode(
-    const PlayerCreationParam& creation_param) {
-  SbPlayerCreationParam param = {};
-  creation_param.ConvertTo(&param);
-  return SbPlayerGetPreferredOutputMode(&param);
-}
-
 TEST(SbPlayerGetPreferredOutputModeTest, SunnyDay) {
   auto creation_param =
       CreatePlayerCreationParam(kSbMediaAudioCodecAac, kSbMediaVideoCodecH264,
