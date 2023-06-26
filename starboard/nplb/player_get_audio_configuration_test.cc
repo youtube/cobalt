@@ -120,10 +120,12 @@ TEST_P(SbPlayerGetAudioConfigurationTest, SunnyDay) {
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamplesWithEOS(0, kSamplesToWrite);
+    samples.AddAudioSamples(0, kSamplesToWrite);
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamplesWithEOS(0, kSamplesToWrite);
+    samples.AddVideoSamples(0, kSamplesToWrite);
+    samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
@@ -165,10 +167,10 @@ TEST_P(SbPlayerGetAudioConfigurationTest, NoInput) {
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamplesWithEOS(0, 0);
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamplesWithEOS(0, 0);
+    samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
@@ -206,10 +208,12 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamplesWithEOS(0, kSamplesToWrite);
+    samples.AddAudioSamples(0, kSamplesToWrite);
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamplesWithEOS(0, kSamplesToWrite);
+    samples.AddVideoSamples(0, kSamplesToWrite);
+    samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
@@ -236,14 +240,16 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
 
   samples = GroupedSamples();
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamplesWithEOS(
+    samples.AddAudioSamples(
         0, player_fixture.ConvertDurationToAudioBufferCount(seek_to_time) +
                kSamplesToWrite);
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamplesWithEOS(
+    samples.AddVideoSamples(
         0, player_fixture.ConvertDurationToVideoBufferCount(seek_to_time) +
                kSamplesToWrite);
+    samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
