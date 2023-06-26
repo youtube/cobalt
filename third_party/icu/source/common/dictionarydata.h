@@ -14,15 +14,15 @@
 #ifndef __DICTIONARYDATA_H__
 #define __DICTIONARYDATA_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
-#include "unicode/utext.h"
-#include "unicode/udata.h"
-#include "udataswp.h"
-#include "unicode/uobject.h"
-#include "unicode/ustringtrie.h"
+#include "third_party/icu/source/common/unicode/utext.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/udataswp.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/ustringtrie.h"
 
 U_NAMESPACE_BEGIN
 

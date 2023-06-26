@@ -20,15 +20,15 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #endif  // defined(STARBOARD)
-#include "cmemory.h"
-#include "unicode/utypes.h"
-#include "unicode/ustring.h"
-#include "unicode/uchar.h"
-#include "unicode/ubidi.h"
-#include "unicode/utf16.h"
-#include "ubidi_props.h"
-#include "ubidiimp.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/ubidi.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/ubidi_props.h"
+#include "third_party/icu/source/common/ubidiimp.h"
+#include "third_party/icu/source/common/uassert.h"
 
 /*
  * General implementation notes:

@@ -19,8 +19,8 @@
 #ifndef __UNISETSPAN_H__
 #define __UNISETSPAN_H__
 
-#include "unicode/utypes.h"
-#include "unicode/uniset.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uniset.h"
 
 U_NAMESPACE_BEGIN
 

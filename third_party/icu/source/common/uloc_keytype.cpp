@@ -12,20 +12,20 @@
 
 #include <algorithm>
 
-#include "unicode/utypes.h"
-#include "unicode/unistr.h"
-#include "unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
 
-#include "charstr.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "uassert.h"
-#include "ucln_cmn.h"
-#include "uhash.h"
-#include "umutex.h"
-#include "uresimp.h"
-#include "uvector.h"
-#include "udataswp.h" /* for InvChar functions */
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/uresimp.h"
+#include "third_party/icu/source/common/uvector.h"
+#include "third_party/icu/source/common/udataswp.h" /* for InvChar functions */
 
 static UHashtable* gLocExtKeyMap = NULL;
 static icu::UInitOnce gLocExtKeyMapInitOnce = U_INITONCE_INITIALIZER;

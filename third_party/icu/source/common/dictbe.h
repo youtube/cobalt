@@ -10,12 +10,12 @@
 #ifndef DICTBE_H
 #define DICTBE_H
 
-#include "unicode/utypes.h"
-#include "unicode/uniset.h"
-#include "unicode/utext.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uniset.h"
+#include "third_party/icu/source/common/unicode/utext.h"
 
-#include "brkeng.h"
-#include "uvectr32.h"
+#include "third_party/icu/source/common/brkeng.h"
+#include "third_party/icu/source/common/uvectr32.h"
 
 U_NAMESPACE_BEGIN
 

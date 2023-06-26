@@ -15,10 +15,10 @@
 ******************************************************************************
 */
 
-#include "utypeinfo.h"  // for 'typeid' to work
+#include "third_party/icu/source/common/utypeinfo.h"  // for 'typeid' to work
 
-#include "unicode/chariter.h"
-#include "unicode/schriter.h"
+#include "third_party/icu/source/common/unicode/chariter.h"
+#include "third_party/icu/source/common/unicode/schriter.h"
 
 U_NAMESPACE_BEGIN
 

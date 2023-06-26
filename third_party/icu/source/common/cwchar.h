@@ -27,7 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #endif
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 /* Do this after utypes.h so that we have U_HAVE_WCHAR_H . */
 #if !defined(STARBOARD)

@@ -11,7 +11,7 @@
 #ifndef NORMLZR_H
 #define NORMLZR_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
@@ -22,11 +22,11 @@
  
 #if !UCONFIG_NO_NORMALIZATION
 
-#include "unicode/chariter.h"
-#include "unicode/normalizer2.h"
-#include "unicode/unistr.h"
-#include "unicode/unorm.h"
-#include "unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/chariter.h"
+#include "third_party/icu/source/common/unicode/normalizer2.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/unorm.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
 
 U_NAMESPACE_BEGIN
 /**

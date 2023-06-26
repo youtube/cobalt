@@ -14,11 +14,11 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "dictionarydata.h"
-#include "unicode/ucharstrie.h"
-#include "unicode/bytestrie.h"
-#include "unicode/udata.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/dictionarydata.h"
+#include "third_party/icu/source/common/unicode/ucharstrie.h"
+#include "third_party/icu/source/common/unicode/bytestrie.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/cmemory.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 

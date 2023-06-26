@@ -13,14 +13,14 @@
 #ifndef UNICODESET_H
 #define UNICODESET_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/ucpmap.h"
-#include "unicode/unifilt.h"
-#include "unicode/unistr.h"
-#include "unicode/uset.h"
+#include "third_party/icu/source/common/unicode/ucpmap.h"
+#include "third_party/icu/source/common/unicode/unifilt.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/uset.h"
 
 /**
  * \file

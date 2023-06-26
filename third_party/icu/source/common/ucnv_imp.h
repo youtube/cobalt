@@ -22,12 +22,12 @@
 #ifndef UCNV_IMP_H
 #define UCNV_IMP_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/uloc.h"
-#include "ucnv_bld.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
+#include "third_party/icu/source/common/ucnv_bld.h"
 
 /*
  * Fast check for whether a charset name is "UTF-8".

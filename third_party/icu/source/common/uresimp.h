@@ -10,10 +10,10 @@
 #ifndef URESIMP_H
 #define URESIMP_H
 
-#include "unicode/ures.h"
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
-#include "uresdata.h"
+#include "third_party/icu/source/common/uresdata.h"
 
 #define kRootLocaleName         "root"
 #define kPoolBundleName         "pool"

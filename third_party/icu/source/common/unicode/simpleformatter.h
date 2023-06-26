@@ -16,11 +16,11 @@
  * \brief C++ API: Simple formatter, minimal subset of MessageFormat.
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
 
 U_NAMESPACE_BEGIN
 

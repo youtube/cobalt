@@ -37,12 +37,12 @@
  * \brief C++ API: Interface for writing bytes, and implementation classes.
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/uobject.h"
-#include "unicode/std_string.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/std_string.h"
 
 U_NAMESPACE_BEGIN
 

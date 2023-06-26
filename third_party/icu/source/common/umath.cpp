@@ -10,7 +10,7 @@
 * This file contains platform independent math.
 */
 
-#include "putilimp.h"
+#include "third_party/icu/source/common/putilimp.h"
 
 U_CAPI int32_t U_EXPORT2
 uprv_max(int32_t x, int32_t y)

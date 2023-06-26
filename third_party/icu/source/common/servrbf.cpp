@@ -8,22 +8,22 @@
  *
  *******************************************************************************
  */
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_SERVICE
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/resbund.h"
-#include "uresimp.h"
-#include "cmemory.h"
-#include "servloc.h"
-#include "ustrfmt.h"
-#include "uhash.h"
-#include "charstr.h"
-#include "ucln_cmn.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/resbund.h"
+#include "third_party/icu/source/common/uresimp.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/servloc.h"
+#include "third_party/icu/source/common/ustrfmt.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/uassert.h"
 
 #define UNDERSCORE_CHAR ((UChar)0x005f)
 #define AT_SIGN_CHAR    ((UChar)64)

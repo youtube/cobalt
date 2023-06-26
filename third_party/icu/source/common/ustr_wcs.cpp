@@ -19,13 +19,13 @@
 *   moved here from ustrtrns.c for better modularization.
 */
 
-#include "unicode/utypes.h"
-#include "unicode/ustring.h"
-#include "cstring.h"
-#include "cwchar.h"
-#include "cmemory.h"
-#include "ustr_imp.h"
-#include "ustr_cnv.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/cwchar.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ustr_imp.h"
+#include "third_party/icu/source/common/ustr_cnv.h"
 
 #if defined(U_WCHAR_IS_UTF16) || defined(U_WCHAR_IS_UTF32) || !UCONFIG_NO_CONVERSION
 

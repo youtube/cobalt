@@ -17,18 +17,18 @@
 *   24/7/2001   Ram         Added support for EXT character handling
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION && !UCONFIG_NO_LEGACY_CONVERSION && !UCONFIG_ONLY_HTML_CONVERSION
 
-#include "unicode/ucnv.h"
-#include "unicode/ucnv_cb.h"
-#include "unicode/utf16.h"
-#include "cmemory.h"
-#include "ucnv_bld.h"
-#include "ucnv_cnv.h"
-#include "cstring.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/ucnv_cb.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ucnv_bld.h"
+#include "third_party/icu/source/common/ucnv_cnv.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uassert.h"
 
 #define UCNV_OPTIONS_VERSION_MASK 0xf
 #define NUKTA               0x093c

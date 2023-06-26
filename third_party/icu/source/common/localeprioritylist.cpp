@@ -4,17 +4,17 @@
 // localeprioritylist.cpp
 // created: 2019jul11 Markus W. Scherer
 
-#include "unicode/utypes.h"
-#include "unicode/localpointer.h"
-#include "unicode/locid.h"
-#include "unicode/stringpiece.h"
-#include "unicode/uobject.h"
-#include "charstr.h"
-#include "cmemory.h"
-#include "localeprioritylist.h"
-#include "uarrsort.h"
-#include "uassert.h"
-#include "uhash.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/stringpiece.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/localeprioritylist.h"
+#include "third_party/icu/source/common/uarrsort.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/uhash.h"
 
 U_NAMESPACE_BEGIN
 

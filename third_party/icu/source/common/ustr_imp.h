@@ -17,8 +17,8 @@
 #ifndef __USTR_IMP_H__
 #define __USTR_IMP_H__
 
-#include "unicode/utypes.h"
-#include "unicode/utf8.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
 
 /**
  * Internal option for unorm_cmpEquivFold() for strncmp style.

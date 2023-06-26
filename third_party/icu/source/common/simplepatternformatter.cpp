@@ -9,9 +9,9 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "simplepatternformatter.h"
-#include "cstring.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/simplepatternformatter.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uassert.h"
 
 U_NAMESPACE_BEGIN
 

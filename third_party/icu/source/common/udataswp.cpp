@@ -24,11 +24,11 @@
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
 #include <stdarg.h>
-#include "unicode/utypes.h"
-#include "unicode/udata.h" /* UDataInfo */
-#include "ucmndata.h" /* DataHeader */
-#include "cmemory.h"
-#include "udataswp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/udata.h" /* UDataInfo */
+#include "third_party/icu/source/common/ucmndata.h" /* DataHeader */
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 /* swapping primitives ------------------------------------------------------ */
 

@@ -19,9 +19,9 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "unicode/unistr.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/cmemory.h"
 
 /*==========================================================================*/
 /* Array copy utility functions */

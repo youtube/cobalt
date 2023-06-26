@@ -7,9 +7,9 @@
 #ifndef __UNIQUECHARSTR_H__
 #define __UNIQUECHARSTR_H__
 
-#include "charstr.h"
-#include "uassert.h"
-#include "uhash.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/uhash.h"
 
 U_NAMESPACE_BEGIN
 

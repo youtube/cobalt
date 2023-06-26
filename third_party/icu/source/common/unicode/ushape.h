@@ -19,7 +19,7 @@
 #ifndef __USHAPE_H__
 #define __USHAPE_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 /**
  * \file

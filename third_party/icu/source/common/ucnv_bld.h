@@ -19,17 +19,17 @@
 #ifndef UCNV_BLD_H
 #define UCNV_BLD_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/ucnv.h"
-#include "unicode/ucnv_err.h"
-#include "unicode/utf16.h"
-#include "ucnv_cnv.h"
-#include "ucnvmbcs.h"
-#include "ucnv_ext.h"
-#include "udataswp.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/ucnv_err.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/ucnv_cnv.h"
+#include "third_party/icu/source/common/ucnvmbcs.h"
+#include "third_party/icu/source/common/ucnv_ext.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 /* size of the overflow buffers in UConverter, enough for escaping callbacks */
 #define UCNV_ERROR_BUFFER_LENGTH 32

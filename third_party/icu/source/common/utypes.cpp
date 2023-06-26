@@ -15,7 +15,7 @@
 ******************************************************************************
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 /* u_errorName() ------------------------------------------------------------ */
 

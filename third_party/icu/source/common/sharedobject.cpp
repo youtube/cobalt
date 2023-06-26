@@ -10,11 +10,11 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #endif  // defined(STARBOARD)
-#include "sharedobject.h"
-#include "mutex.h"
-#include "uassert.h"
-#include "umutex.h"
-#include "unifiedcache.h"
+#include "third_party/icu/source/common/sharedobject.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/unifiedcache.h"
 
 U_NAMESPACE_BEGIN
 

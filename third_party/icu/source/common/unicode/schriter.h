@@ -20,12 +20,12 @@
 #ifndef SCHRITER_H
 #define SCHRITER_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/chariter.h"
-#include "unicode/uchriter.h"
+#include "third_party/icu/source/common/unicode/chariter.h"
+#include "third_party/icu/source/common/unicode/uchriter.h"
 
 /**
  * \file 

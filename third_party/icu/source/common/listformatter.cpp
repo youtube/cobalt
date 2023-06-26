@@ -17,15 +17,15 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/listformatter.h"
-#include "simplepatternformatter.h"
-#include "mutex.h"
-#include "hash.h"
-#include "cstring.h"
-#include "ulocimp.h"
-#include "charstr.h"
-#include "ucln_cmn.h"
-#include "uresimp.h"
+#include "third_party/icu/source/common/unicode/listformatter.h"
+#include "third_party/icu/source/common/simplepatternformatter.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/hash.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/ulocimp.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/uresimp.h"
 
 U_NAMESPACE_BEGIN
 

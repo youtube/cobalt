@@ -19,8 +19,8 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/uobject.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/cmemory.h"
 
 U_NAMESPACE_BEGIN
 

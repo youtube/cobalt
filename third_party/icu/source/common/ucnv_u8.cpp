@@ -20,19 +20,19 @@
 *   UTF-8 converter, with a branch for converting supplementary code points.
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/ucnv.h"
-#include "unicode/utf.h"
-#include "unicode/utf8.h"
-#include "unicode/utf16.h"
-#include "uassert.h"
-#include "ucnv_bld.h"
-#include "ucnv_cnv.h"
-#include "cmemory.h"
-#include "ustr_imp.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/utf.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ucnv_bld.h"
+#include "third_party/icu/source/common/ucnv_cnv.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ustr_imp.h"
 
 /* Prototypes --------------------------------------------------------------- */
 

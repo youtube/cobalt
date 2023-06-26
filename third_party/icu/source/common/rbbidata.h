@@ -34,9 +34,9 @@
 #ifndef __RBBIDATA_H__
 #define __RBBIDATA_H__
 
-#include "unicode/utypes.h"
-#include "unicode/udata.h"
-#include "udataswp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 /**
  * Swap RBBI data. See udataswp.h.
@@ -49,11 +49,11 @@ ubrk_swap(const UDataSwapper *ds,
 
 #ifdef __cplusplus
 
-#include "unicode/ucptrie.h"
-#include "unicode/uobject.h"
-#include "unicode/unistr.h"
-#include "unicode/uversion.h"
-#include "umutex.h"
+#include "third_party/icu/source/common/unicode/ucptrie.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/uversion.h"
+#include "third_party/icu/source/common/umutex.h"
 
 
 U_NAMESPACE_BEGIN

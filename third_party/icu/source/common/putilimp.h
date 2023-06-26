@@ -18,8 +18,8 @@
 #ifndef PUTILIMP_H
 #define PUTILIMP_H
 
-#include "unicode/utypes.h"
-#include "unicode/putil.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/putil.h"
 
 /**
  * \def U_SIGNED_RIGHT_SHIFT_IS_ARITHMETIC

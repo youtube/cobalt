@@ -31,17 +31,17 @@
 #ifndef LOCID_H
 #define LOCID_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/bytestream.h"
-#include "unicode/localpointer.h"
-#include "unicode/strenum.h"
-#include "unicode/stringpiece.h"
-#include "unicode/uobject.h"
-#include "unicode/putil.h"
-#include "unicode/uloc.h"
+#include "third_party/icu/source/common/unicode/bytestream.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/strenum.h"
+#include "third_party/icu/source/common/unicode/stringpiece.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
 
 /**
  * \file

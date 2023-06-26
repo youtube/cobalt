@@ -7,24 +7,24 @@
 *******************************************************************************
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 
-#include "unicode/locdspnm.h"
-#include "unicode/simpleformatter.h"
-#include "unicode/ucasemap.h"
-#include "unicode/ures.h"
-#include "unicode/udisplaycontext.h"
-#include "unicode/brkiter.h"
-#include "unicode/ucurr.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "mutex.h"
-#include "ulocimp.h"
-#include "umutex.h"
-#include "ureslocs.h"
-#include "uresimp.h"
+#include "third_party/icu/source/common/unicode/locdspnm.h"
+#include "third_party/icu/source/common/unicode/simpleformatter.h"
+#include "third_party/icu/source/common/unicode/ucasemap.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/unicode/udisplaycontext.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/ucurr.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/ulocimp.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/ureslocs.h"
+#include "third_party/icu/source/common/uresimp.h"
 
 #include <stdarg.h>
 

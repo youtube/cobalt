@@ -17,13 +17,13 @@
 #ifndef __UCHARSTRIEBUILDER_H__
 #define __UCHARSTRIEBUILDER_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/stringtriebuilder.h"
-#include "unicode/ucharstrie.h"
-#include "unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/stringtriebuilder.h"
+#include "third_party/icu/source/common/unicode/ucharstrie.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
 
 /**
  * \file

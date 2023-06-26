@@ -22,11 +22,11 @@
  * \brief C++ API: Appendable class: Sink for Unicode code points and 16-bit code units (char16_ts).
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
 
 U_NAMESPACE_BEGIN
 

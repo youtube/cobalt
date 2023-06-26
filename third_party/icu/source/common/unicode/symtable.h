@@ -12,11 +12,11 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
 
 /**
  * \file 

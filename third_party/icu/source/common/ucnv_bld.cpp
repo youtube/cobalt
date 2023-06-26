@@ -21,7 +21,7 @@
  *   06/29/2000  helena      Major rewrite of the callback interface.
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
@@ -29,26 +29,26 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/putil.h"
-#include "unicode/udata.h"
-#include "unicode/ucnv.h"
-#include "unicode/uloc.h"
-#include "mutex.h"
-#include "putilimp.h"
-#include "uassert.h"
-#include "utracimp.h"
-#include "ucnv_io.h"
-#include "ucnv_bld.h"
-#include "ucnvmbcs.h"
-#include "ucnv_ext.h"
-#include "ucnv_cnv.h"
-#include "ucnv_imp.h"
-#include "uhash.h"
-#include "umutex.h"
-#include "cstring.h"
-#include "cmemory.h"
-#include "ucln_cmn.h"
-#include "ustr_cnv.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/utracimp.h"
+#include "third_party/icu/source/common/ucnv_io.h"
+#include "third_party/icu/source/common/ucnv_bld.h"
+#include "third_party/icu/source/common/ucnvmbcs.h"
+#include "third_party/icu/source/common/ucnv_ext.h"
+#include "third_party/icu/source/common/ucnv_cnv.h"
+#include "third_party/icu/source/common/ucnv_imp.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/ustr_cnv.h"
 
 
 #if 0

@@ -4,12 +4,12 @@
 // edits.cpp
 // created: 2017feb08 Markus W. Scherer
 
-#include "unicode/edits.h"
-#include "unicode/unistr.h"
-#include "unicode/utypes.h"
-#include "cmemory.h"
-#include "uassert.h"
-#include "util.h"
+#include "third_party/icu/source/common/unicode/edits.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/util.h"
 
 U_NAMESPACE_BEGIN
 

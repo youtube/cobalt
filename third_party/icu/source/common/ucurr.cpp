@@ -7,45 +7,45 @@
 **********************************************************************
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 
-#include "unicode/ucurr.h"
-#include "unicode/locid.h"
-#include "unicode/ures.h"
-#include "unicode/ustring.h"
-#include "unicode/parsepos.h"
-#include "unicode/uniset.h"
-#include "unicode/usetiter.h"
-#include "unicode/utf16.h"
-#include "ustr_imp.h"
-#include "charstr.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "static_unicode_sets.h"
-#include "uassert.h"
-#include "umutex.h"
-#include "ucln_cmn.h"
-#include "uenumimp.h"
-#include "uhash.h"
-#include "hash.h"
-#include "uinvchar.h"
-#include "uresimp.h"
-#include "ulist.h"
-#include "uresimp.h"
-#include "ureslocs.h"
-#include "ulocimp.h"
+#include "third_party/icu/source/common/unicode/ucurr.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/parsepos.h"
+#include "third_party/icu/source/common/unicode/uniset.h"
+#include "third_party/icu/source/common/unicode/usetiter.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/ustr_imp.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/static_unicode_sets.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/uenumimp.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/hash.h"
+#include "third_party/icu/source/common/uinvchar.h"
+#include "third_party/icu/source/common/uresimp.h"
+#include "third_party/icu/source/common/ulist.h"
+#include "third_party/icu/source/common/uresimp.h"
+#include "third_party/icu/source/common/ureslocs.h"
+#include "third_party/icu/source/common/ulocimp.h"
 
 using namespace icu;
 
 //#define UCURR_DEBUG_EQUIV 1
 #ifdef UCURR_DEBUG_EQUIV
-#include "stdio.h"
+#include "third_party/icu/source/common/stdio.h"
 #endif
 //#define UCURR_DEBUG 1
 #ifdef UCURR_DEBUG
-#include "stdio.h"
+#include "third_party/icu/source/common/stdio.h"
 #endif
 
 typedef struct IsoCodeEntry {

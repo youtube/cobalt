@@ -7,7 +7,7 @@
 **********************************************************************
 */
 
-#include "unicode/unifunct.h"
+#include "third_party/icu/source/common/unicode/unifunct.h"
 
 U_NAMESPACE_BEGIN
 

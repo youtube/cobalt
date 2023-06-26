@@ -17,12 +17,12 @@
 #ifndef UNORM_H
 #define UNORM_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_NORMALIZATION
 
-#include "unicode/uiter.h"
-#include "unicode/unorm2.h"
+#include "third_party/icu/source/common/unicode/uiter.h"
+#include "third_party/icu/source/common/unicode/unorm2.h"
 
 /**
  * \file

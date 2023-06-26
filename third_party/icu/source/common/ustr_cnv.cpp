@@ -18,17 +18,17 @@
 *   Character conversion functions moved here from ustring.c
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/ustring.h"
-#include "unicode/ucnv.h"
-#include "cstring.h"
-#include "cmemory.h"
-#include "umutex.h"
-#include "ustr_cnv.h"
-#include "ucnv_bld.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/ustr_cnv.h"
+#include "third_party/icu/source/common/ucnv_bld.h"
 
 /* mutexed access to a shared default converter ----------------------------- */
 

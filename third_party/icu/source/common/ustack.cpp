@@ -10,7 +10,7 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "uvector.h"
+#include "third_party/icu/source/common/uvector.h"
 
 U_NAMESPACE_BEGIN
 

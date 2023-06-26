@@ -12,15 +12,15 @@
 #ifndef RBBISETB_H
 #define RBBISETB_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
-#include "unicode/ucptrie.h"
-#include "unicode/umutablecptrie.h"
-#include "unicode/uobject.h"
-#include "rbbirb.h"
-#include "uvector.h"
+#include "third_party/icu/source/common/unicode/ucptrie.h"
+#include "third_party/icu/source/common/unicode/umutablecptrie.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/rbbirb.h"
+#include "third_party/icu/source/common/uvector.h"
 
 U_NAMESPACE_BEGIN
 

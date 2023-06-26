@@ -30,7 +30,7 @@
 //                      the previous step.
 //
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
@@ -38,14 +38,14 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/uniset.h"
-#include "uvector.h"
-#include "uassert.h"
-#include "cmemory.h"
-#include "cstring.h"
+#include "third_party/icu/source/common/unicode/uniset.h"
+#include "third_party/icu/source/common/uvector.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
 
-#include "rbbisetb.h"
-#include "rbbinode.h"
+#include "third_party/icu/source/common/rbbisetb.h"
+#include "third_party/icu/source/common/rbbinode.h"
 
 U_NAMESPACE_BEGIN
 

@@ -14,7 +14,7 @@
 #ifndef __WINTZ
 #define __WINTZ
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_PLATFORM_USES_ONLY_WIN32_API
 

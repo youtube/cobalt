@@ -15,7 +15,7 @@ and print it to stderr
 
 #include <stdio.h>
 
-#include "unicode/ures.h"
+#include "third_party/icu/source/common/unicode/ures.h"
 
 /* Set the path to wmsg's bundle.
    Caller owns storage.

@@ -11,7 +11,7 @@
 #ifndef ICULSERV_H
 #define ICULSERV_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if UCONFIG_NO_SERVICE
 
@@ -27,15 +27,15 @@ U_NAMESPACE_END
 
 #else
 
-#include "unicode/unistr.h"
-#include "unicode/locid.h"
-#include "unicode/strenum.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/strenum.h"
 
-#include "hash.h"
-#include "uvector.h"
+#include "third_party/icu/source/common/hash.h"
+#include "third_party/icu/source/common/uvector.h"
 
-#include "serv.h"
-#include "locutil.h"
+#include "third_party/icu/source/common/serv.h"
+#include "third_party/icu/source/common/locutil.h"
 
 U_NAMESPACE_BEGIN
 

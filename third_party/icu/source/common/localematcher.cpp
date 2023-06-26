@@ -4,22 +4,22 @@
 // localematcher.cpp
 // created: 2019may08 Markus W. Scherer
 
-#include "unicode/utypes.h"
-#include "unicode/localebuilder.h"
-#include "unicode/localematcher.h"
-#include "unicode/locid.h"
-#include "unicode/stringpiece.h"
-#include "unicode/uloc.h"
-#include "unicode/uobject.h"
-#include "cstring.h"
-#include "localeprioritylist.h"
-#include "loclikelysubtags.h"
-#include "locdistance.h"
-#include "lsr.h"
-#include "uassert.h"
-#include "uhash.h"
-#include "ustr_imp.h"
-#include "uvector.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/localebuilder.h"
+#include "third_party/icu/source/common/unicode/localematcher.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/stringpiece.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/localeprioritylist.h"
+#include "third_party/icu/source/common/loclikelysubtags.h"
+#include "third_party/icu/source/common/locdistance.h"
+#include "third_party/icu/source/common/lsr.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/ustr_imp.h"
+#include "third_party/icu/source/common/uvector.h"
 
 #define UND_LSR LSR("und", "", "", LSR::EXPLICIT_LSR)
 

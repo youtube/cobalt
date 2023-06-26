@@ -18,19 +18,19 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "unicode/uclean.h"
-#include "cmemory.h"
-#include "mutex.h"
-#include "uassert.h"
-#include "ucln.h"
-#include "ucln_cmn.h"
-#include "utracimp.h"
-#include "umutex.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uclean.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ucln.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/utracimp.h"
+#include "third_party/icu/source/common/umutex.h"
 
 /**  Auto-client for UCLN_COMMON **/
 #define UCLN_TYPE_IS_COMMON
-#include "ucln_imp.h"
+#include "third_party/icu/source/common/ucln_imp.h"
 
 static cleanupFunc *gCommonCleanupFunctions[UCLN_COMMON_COUNT];
 static cleanupFunc *gLibCleanupFunctions[UCLN_COMMON];

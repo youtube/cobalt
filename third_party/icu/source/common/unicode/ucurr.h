@@ -9,8 +9,8 @@
 #ifndef _UCURR_H_
 #define _UCURR_H_
 
-#include "unicode/utypes.h"
-#include "unicode/uenum.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uenum.h"
 
 /**
  * \file 

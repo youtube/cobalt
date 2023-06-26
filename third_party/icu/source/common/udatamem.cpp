@@ -22,11 +22,11 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "cmemory.h"
-#include "unicode/udata.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/unicode/udata.h"
 
-#include "udatamem.h"
+#include "third_party/icu/source/common/udatamem.h"
 
 U_CFUNC void UDataMemory_init(UDataMemory *This) {
     uprv_memset(This, 0, sizeof(UDataMemory));

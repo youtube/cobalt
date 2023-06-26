@@ -17,7 +17,7 @@
 //         Code using it is expected to directly access fields much of the time.
 //
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
@@ -25,18 +25,18 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/unistr.h"
-#include "unicode/uniset.h"
-#include "unicode/uchar.h"
-#include "unicode/parsepos.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/uniset.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/parsepos.h"
 
-#include "cstr.h"
-#include "uvector.h"
+#include "third_party/icu/source/common/cstr.h"
+#include "third_party/icu/source/common/uvector.h"
 
-#include "rbbirb.h"
-#include "rbbinode.h"
+#include "third_party/icu/source/common/rbbirb.h"
+#include "third_party/icu/source/common/rbbinode.h"
 
-#include "uassert.h"
+#include "third_party/icu/source/common/uassert.h"
 
 
 U_NAMESPACE_BEGIN

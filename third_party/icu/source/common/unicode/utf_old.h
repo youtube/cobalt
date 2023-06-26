@@ -142,9 +142,9 @@
 #ifndef __UTF_OLD_H__
 #define __UTF_OLD_H__
 
-#include "unicode/utf.h"
-#include "unicode/utf8.h"
-#include "unicode/utf16.h"
+#include "third_party/icu/source/common/unicode/utf.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
 
 /**
  * \def U_HIDE_OBSOLETE_UTF_OLD_H

@@ -14,11 +14,11 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utrace.h"
-#include "utracimp.h"
-#include "cstring.h"
-#include "uassert.h"
-#include "ucln_cmn.h"
+#include "third_party/icu/source/common/unicode/utrace.h"
+#include "third_party/icu/source/common/utracimp.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
 
 
 static UTraceEntry     *pTraceEntryFunc = NULL;

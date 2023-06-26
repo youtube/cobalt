@@ -19,9 +19,9 @@
 #ifndef __UTRIE2_H__
 #define __UTRIE2_H__
 
-#include "unicode/utypes.h"
-#include "unicode/utf8.h"
-#include "putilimp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
+#include "third_party/icu/source/common/putilimp.h"
 
 U_CDECL_BEGIN
 
@@ -591,8 +591,8 @@ U_CDECL_END
 
 #ifdef __cplusplus
 
-#include "unicode/utf.h"
-#include "mutex.h"
+#include "third_party/icu/source/common/unicode/utf.h"
+#include "third_party/icu/source/common/mutex.h"
 
 U_NAMESPACE_BEGIN
 

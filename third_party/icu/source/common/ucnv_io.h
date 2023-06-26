@@ -15,11 +15,11 @@
 #ifndef UCNV_IO_H
 #define UCNV_IO_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "udataswp.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 #define UCNV_AMBIGUOUS_ALIAS_MAP_BIT 0x8000
 #define UCNV_CONTAINS_OPTION_BIT 0x4000

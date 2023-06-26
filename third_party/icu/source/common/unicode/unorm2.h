@@ -30,12 +30,12 @@
  * For more details see the Normalizer2 C++ class.
  */
 
-#include "unicode/utypes.h"
-#include "unicode/stringoptions.h"
-#include "unicode/uset.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/stringoptions.h"
+#include "third_party/icu/source/common/unicode/uset.h"
 
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 #endif   // U_SHOW_CPLUSPLUS_API
 
 /**

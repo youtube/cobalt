@@ -21,9 +21,9 @@
 #ifndef __UPROPSVEC_H__
 #define __UPROPSVEC_H__
 
-#include "unicode/utypes.h"
-#include "utrie.h"
-#include "utrie2.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/utrie.h"
+#include "third_party/icu/source/common/utrie2.h"
 
 U_CDECL_BEGIN
 

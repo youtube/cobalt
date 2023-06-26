@@ -6,7 +6,7 @@
  * others. All Rights Reserved.
  *******************************************************************************
  */
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_SERVICE || !UCONFIG_NO_TRANSLITERATION
 
@@ -14,15 +14,15 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/resbund.h"
-#include "unicode/uenum.h"
-#include "cmemory.h"
-#include "ustrfmt.h"
-#include "locutil.h"
-#include "charstr.h"
-#include "ucln_cmn.h"
-#include "uassert.h"
-#include "umutex.h"
+#include "third_party/icu/source/common/unicode/resbund.h"
+#include "third_party/icu/source/common/unicode/uenum.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ustrfmt.h"
+#include "third_party/icu/source/common/locutil.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/umutex.h"
 
 // see LocaleUtility::getAvailableLocaleNames
 static icu::UInitOnce   LocaleUtilityInitOnce = U_INITONCE_INITIALIZER;

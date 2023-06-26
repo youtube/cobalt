@@ -10,12 +10,12 @@
 #ifndef UBRK_H
 #define UBRK_H
 
-#include "unicode/utypes.h"
-#include "unicode/uloc.h"
-#include "unicode/utext.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
+#include "third_party/icu/source/common/unicode/utext.h"
 
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 #endif   // U_SHOW_CPLUSPLUS_API
 
 /**
@@ -33,7 +33,7 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
-#include "unicode/parseerr.h"
+#include "third_party/icu/source/common/unicode/parseerr.h"
 
 /**
  * \file

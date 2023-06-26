@@ -49,11 +49,11 @@
 #ifndef UCNV_H
 #define UCNV_H
 
-#include "unicode/ucnv_err.h"
-#include "unicode/uenum.h"
+#include "third_party/icu/source/common/unicode/ucnv_err.h"
+#include "third_party/icu/source/common/unicode/uenum.h"
 
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 #endif   // U_SHOW_CPLUSPLUS_API
 
 #if !defined(USET_DEFINED) && !defined(U_IN_DOXYGEN)

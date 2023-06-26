@@ -4,12 +4,12 @@
 // utrie_swap.cpp
 // created: 2018aug08 Markus W. Scherer
 
-#include "unicode/utypes.h"
-#include "cmemory.h"
-#include "ucptrie_impl.h"
-#include "udataswp.h"
-#include "utrie.h"
-#include "utrie2_impl.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ucptrie_impl.h"
+#include "third_party/icu/source/common/udataswp.h"
+#include "third_party/icu/source/common/utrie.h"
+#include "third_party/icu/source/common/utrie2_impl.h"
 
 // These functions for swapping different generations of ICU code point tries are here
 // so that their implementation files need not depend on swapper code,

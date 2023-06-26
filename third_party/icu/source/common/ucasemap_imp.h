@@ -7,10 +7,10 @@
 #ifndef __UCASEMAP_IMP_H__
 #define __UCASEMAP_IMP_H__
 
-#include "unicode/utypes.h"
-#include "unicode/ucasemap.h"
-#include "unicode/uchar.h"
-#include "ucase.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/ucasemap.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/ucase.h"
 
 /**
  * Bit mask for the titlecasing iterator options bit field.
@@ -100,7 +100,7 @@ BreakIterator *ustrcase_getTitleBreakIterator(
 
 U_NAMESPACE_END
 
-#include "unicode/unistr.h"  // for UStringCaseMapper
+#include "third_party/icu/source/common/unicode/unistr.h"  // for UStringCaseMapper
 
 /*
  * Internal string casing functions implementing

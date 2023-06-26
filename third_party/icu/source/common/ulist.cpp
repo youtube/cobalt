@@ -7,10 +7,10 @@
 ******************************************************************************
 */
 
-#include "ulist.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "uenumimp.h"
+#include "third_party/icu/source/common/ulist.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uenumimp.h"
 
 typedef struct UListNode UListNode;
 struct UListNode {

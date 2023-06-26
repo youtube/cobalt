@@ -24,15 +24,15 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/brkiter.h"
-#include "unicode/locid.h"
-#include "unicode/parsepos.h"
-#include "unicode/uniset.h"
-#include "cmemory.h"
-#include "ruleiter.h"
-#include "ucase.h"
-#include "util.h"
-#include "uvector.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/parsepos.h"
+#include "third_party/icu/source/common/unicode/uniset.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ruleiter.h"
+#include "third_party/icu/source/common/ucase.h"
+#include "third_party/icu/source/common/util.h"
+#include "third_party/icu/source/common/uvector.h"
 
 U_NAMESPACE_BEGIN
 

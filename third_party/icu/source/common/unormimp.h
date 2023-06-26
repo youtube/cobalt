@@ -19,11 +19,11 @@
 #ifndef __UNORMIMP_H__
 #define __UNORMIMP_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_NORMALIZATION
 
-#include "udataswp.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 /*
  * The 2001-2010 implementation of the normalization code loads its data from

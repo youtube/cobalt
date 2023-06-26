@@ -23,19 +23,19 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "unicode/appendable.h"
-#include "unicode/putil.h"
-#include "cstring.h"
-#include "cmemory.h"
-#include "unicode/ustring.h"
-#include "unicode/unistr.h"
-#include "unicode/utf.h"
-#include "unicode/utf16.h"
-#include "uelement.h"
-#include "ustr_imp.h"
-#include "umutex.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/appendable.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/utf.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/uelement.h"
+#include "third_party/icu/source/common/ustr_imp.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/uassert.h"
 
 #if 0
 

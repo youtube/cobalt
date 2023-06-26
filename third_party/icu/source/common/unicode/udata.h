@@ -19,10 +19,10 @@
 #ifndef __UDATA_H__
 #define __UDATA_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 #endif   // U_SHOW_CPLUSPLUS_API
 
 U_CDECL_BEGIN

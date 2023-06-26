@@ -22,15 +22,15 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "unicode/uchar.h"
-#include "unicode/ustring.h"
-#include "unicode/ushape.h"
-#include "cmemory.h"
-#include "putilimp.h"
-#include "ustr_imp.h"
-#include "ubidi_props.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/ushape.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/ustr_imp.h"
+#include "third_party/icu/source/common/ubidi_props.h"
+#include "third_party/icu/source/common/uassert.h"
 
 /*
  * This implementation is designed for 16-bit Unicode strings.

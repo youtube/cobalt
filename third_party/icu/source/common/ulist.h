@@ -10,8 +10,8 @@
 #ifndef ULIST_H
 #define ULIST_H
 
-#include "unicode/utypes.h"
-#include "unicode/uenum.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uenum.h"
 
 struct UList;
 typedef struct UList UList;

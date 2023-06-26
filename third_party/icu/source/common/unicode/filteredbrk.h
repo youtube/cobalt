@@ -10,11 +10,11 @@
 #ifndef FILTEREDBRK_H
 #define FILTEREDBRK_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION && !UCONFIG_NO_FILTERED_BREAK_ITERATION
 

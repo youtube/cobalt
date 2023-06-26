@@ -16,29 +16,29 @@
  *   created by: Ram Viswanadha
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_IDNA
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/usprep.h"
+#include "third_party/icu/source/common/unicode/usprep.h"
 
-#include "unicode/normalizer2.h"
-#include "unicode/ustring.h"
-#include "unicode/uchar.h"
-#include "unicode/uversion.h"
-#include "umutex.h"
-#include "cmemory.h"
-#include "sprpimpl.h"
-#include "ustr_imp.h"
-#include "uhash.h"
-#include "cstring.h"
-#include "udataswp.h"
-#include "ucln_cmn.h"
-#include "ubidi_props.h"
-#include "uprops.h"
+#include "third_party/icu/source/common/unicode/normalizer2.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/uversion.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/sprpimpl.h"
+#include "third_party/icu/source/common/ustr_imp.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/udataswp.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/ubidi_props.h"
+#include "third_party/icu/source/common/uprops.h"
 
 U_NAMESPACE_USE
 

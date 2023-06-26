@@ -21,11 +21,11 @@
 #ifndef __UBIDI_PROPS_H__
 #define __UBIDI_PROPS_H__
 
-#include "unicode/utypes.h"
-#include "unicode/uset.h"
-#include "putilimp.h"
-#include "uset_imp.h"
-#include "udataswp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uset.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/uset_imp.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 U_CDECL_BEGIN
 

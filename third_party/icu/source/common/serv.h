@@ -10,7 +10,7 @@
 #ifndef ICUSERV_H
 #define ICUSERV_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if UCONFIG_NO_SERVICE
 
@@ -26,13 +26,13 @@ U_NAMESPACE_END
 
 #else
 
-#include "unicode/unistr.h"
-#include "unicode/locid.h"
-#include "unicode/umisc.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/umisc.h"
 
-#include "hash.h"
-#include "uvector.h"
-#include "servnotf.h"
+#include "third_party/icu/source/common/hash.h"
+#include "third_party/icu/source/common/uvector.h"
+#include "third_party/icu/source/common/servnotf.h"
 
 class ICUServiceTest;
 

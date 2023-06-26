@@ -21,12 +21,12 @@
 #ifndef __UCASEMAP_H__
 #define __UCASEMAP_H__
 
-#include "unicode/utypes.h"
-#include "unicode/stringoptions.h"
-#include "unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/stringoptions.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
 
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 #endif   // U_SHOW_CPLUSPLUS_API
 
 /**

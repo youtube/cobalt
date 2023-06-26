@@ -14,7 +14,7 @@
 *   created by: Markus W. Scherer
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -22,15 +22,15 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/messagepattern.h"
-#include "unicode/unistr.h"
-#include "unicode/utf16.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "messageimpl.h"
-#include "patternprops.h"
-#include "putilimp.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/messagepattern.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/messageimpl.h"
+#include "third_party/icu/source/common/patternprops.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/uassert.h"
 
 U_NAMESPACE_BEGIN
 

@@ -22,14 +22,14 @@
 #ifndef BRKITER_H
 #define BRKITER_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 /**
  * \file
  * \brief C++ API: Break Iterator.
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 

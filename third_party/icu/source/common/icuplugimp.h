@@ -21,7 +21,7 @@
 #ifndef ICUPLUGIMP_H
 #define ICUPLUGIMP_H
 
-#include "unicode/icuplug.h"
+#include "third_party/icu/source/common/unicode/icuplug.h"
 
 #if UCONFIG_ENABLE_PLUGINS
 

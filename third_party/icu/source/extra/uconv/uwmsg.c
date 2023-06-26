@@ -15,14 +15,14 @@
 *******************************************************************************
 */
 
-#include "unicode/ucnv.h"
-#include "unicode/ustring.h"
-#include "unicode/umsg.h"
-#include "unicode/uwmsg.h"
-#include "unicode/ures.h"
-#include "unicode/putil.h"
-#include "cmemory.h"
-#include "cstring.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/umsg.h"
+#include "third_party/icu/source/common/unicode/uwmsg.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
 
 #include <stdbool.h>
 #include <stdlib.h>

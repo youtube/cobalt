@@ -12,9 +12,9 @@
 //                   class RuleBasedBreakIterator
 //
 
-#include "utypeinfo.h"  // for 'typeid' to work
+#include "third_party/icu/source/common/utypeinfo.h"  // for 'typeid' to work
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
@@ -25,23 +25,23 @@
 
 #include <cinttypes>
 
-#include "unicode/rbbi.h"
-#include "unicode/schriter.h"
-#include "unicode/uchriter.h"
-#include "unicode/uclean.h"
-#include "unicode/udata.h"
+#include "third_party/icu/source/common/unicode/rbbi.h"
+#include "third_party/icu/source/common/unicode/schriter.h"
+#include "third_party/icu/source/common/unicode/uchriter.h"
+#include "third_party/icu/source/common/unicode/uclean.h"
+#include "third_party/icu/source/common/unicode/udata.h"
 
-#include "brkeng.h"
-#include "ucln_cmn.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "localsvc.h"
-#include "rbbidata.h"
-#include "rbbi_cache.h"
-#include "rbbirb.h"
-#include "uassert.h"
-#include "umutex.h"
-#include "uvectr32.h"
+#include "third_party/icu/source/common/brkeng.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/localsvc.h"
+#include "third_party/icu/source/common/rbbidata.h"
+#include "third_party/icu/source/common/rbbi_cache.h"
+#include "third_party/icu/source/common/rbbirb.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/uvectr32.h"
 
 #ifdef RBBI_DEBUG
 static UBool gTrace = FALSE;

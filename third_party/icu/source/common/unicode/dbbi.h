@@ -13,11 +13,11 @@
 #ifndef DBBI_H
 #define DBBI_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/rbbi.h"
+#include "third_party/icu/source/common/unicode/rbbi.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 

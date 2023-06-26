@@ -137,13 +137,13 @@
 
 
 
-#include "unicode/utypes.h"
-#include "unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
-#include "unicode/rep.h"
-#include "unicode/unistr.h"
-#include "unicode/chariter.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/rep.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/chariter.h"
 #endif
 
 

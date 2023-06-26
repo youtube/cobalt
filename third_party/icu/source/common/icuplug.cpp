@@ -15,23 +15,23 @@
 ******************************************************************************
 */
 
-#include "unicode/icuplug.h"
+#include "third_party/icu/source/common/unicode/icuplug.h"
 
 
 #if UCONFIG_ENABLE_PLUGINS
 
 
-#include "icuplugimp.h"
-#include "cstring.h"
-#include "cmemory.h"
-#include "putilimp.h"
-#include "ucln.h"
+#include "third_party/icu/source/common/icuplugimp.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/ucln.h"
 #include <stdio.h>
 #ifdef __MVS__  /* defined by z/OS compiler */
 #define _POSIX_SOURCE
 #include <cics.h> /* 12 Nov 2011 JAM iscics() function */
 #endif
-#include "charstr.h"
+#include "third_party/icu/source/common/charstr.h"
 
 using namespace icu;
 

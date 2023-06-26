@@ -20,13 +20,13 @@
 *   that then do not depend on resource bundle code and this data.
 */
 
-#include "unicode/utypes.h"
-#include "unicode/putil.h"
-#include "unicode/uloc.h"
-#include "unicode/ures.h"
-#include "cstring.h"
-#include "ulocimp.h"
-#include "uresimp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/ulocimp.h"
+#include "third_party/icu/source/common/uresimp.h"
 
 /*
  * Lookup a resource bundle table item with fallback on the table level.

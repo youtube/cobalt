@@ -17,8 +17,8 @@
 #ifndef __PATTERNPROPS_H__
 #define __PATTERNPROPS_H__
 
-#include "unicode/unistr.h"
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 U_NAMESPACE_BEGIN
 

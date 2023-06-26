@@ -17,24 +17,24 @@
 *   were moved here to break dependency cycles among parts of the common library.
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/brkiter.h"
-#include "unicode/casemap.h"
-#include "unicode/chariter.h"
-#include "unicode/localpointer.h"
-#include "unicode/ubrk.h"
-#include "unicode/ucasemap.h"
-#include "unicode/utext.h"
-#include "cmemory.h"
-#include "uassert.h"
-#include "ucase.h"
-#include "ucasemap_imp.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/casemap.h"
+#include "third_party/icu/source/common/unicode/chariter.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/ubrk.h"
+#include "third_party/icu/source/common/unicode/ucasemap.h"
+#include "third_party/icu/source/common/unicode/utext.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ucase.h"
+#include "third_party/icu/source/common/ucasemap_imp.h"
 
 U_NAMESPACE_BEGIN
 

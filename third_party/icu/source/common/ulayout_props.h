@@ -7,7 +7,7 @@
 #ifndef __ULAYOUT_PROPS_H__
 #define __ULAYOUT_PROPS_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 // file definitions ------------------------------------------------------------
 

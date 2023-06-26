@@ -13,7 +13,7 @@
 #ifndef __UREP_H
 #define __UREP_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 U_CDECL_BEGIN
 

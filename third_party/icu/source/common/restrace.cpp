@@ -1,17 +1,17 @@
 // © 2019 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_ENABLE_TRACING
 
-#include "restrace.h"
-#include "charstr.h"
-#include "cstring.h"
-#include "utracimp.h"
-#include "uresimp.h"
-#include "uassert.h"
-#include "util.h"
+#include "third_party/icu/source/common/restrace.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/utracimp.h"
+#include "third_party/icu/source/common/uresimp.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/util.h"
 
 U_NAMESPACE_BEGIN
 

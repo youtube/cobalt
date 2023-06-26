@@ -20,8 +20,8 @@
 // This file was generated from the java source file BreakIterator.java
 // *****************************************************************************
 
-#include "unicode/ptypes.h"
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/ptypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
@@ -29,22 +29,22 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/rbbi.h"
-#include "unicode/brkiter.h"
-#include "unicode/udata.h"
-#include "unicode/ures.h"
-#include "unicode/ustring.h"
-#include "unicode/filteredbrk.h"
-#include "ucln_cmn.h"
-#include "cstring.h"
-#include "umutex.h"
-#include "servloc.h"
-#include "locbased.h"
-#include "uresimp.h"
-#include "uassert.h"
-#include "ubrkimpl.h"
-#include "utracimp.h"
-#include "charstr.h"
+#include "third_party/icu/source/common/unicode/rbbi.h"
+#include "third_party/icu/source/common/unicode/brkiter.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/filteredbrk.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/servloc.h"
+#include "third_party/icu/source/common/locbased.h"
+#include "third_party/icu/source/common/uresimp.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ubrkimpl.h"
+#include "third_party/icu/source/common/utracimp.h"
+#include "third_party/icu/source/common/charstr.h"
 
 // *****************************************************************************
 // class BreakIterator

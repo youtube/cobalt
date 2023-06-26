@@ -19,10 +19,10 @@
 #ifndef UBIDIIMP_H
 #define UBIDIIMP_H
 
-#include "unicode/utypes.h"
-#include "unicode/ubidi.h"
-#include "unicode/uchar.h"
-#include "ubidi_props.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/ubidi.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/ubidi_props.h"
 
 /* miscellaneous definitions ---------------------------------------------- */
 

@@ -20,22 +20,22 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "unicode/utypes.h"
-#include "unicode/putil.h"
-#include "unicode/uclean.h"
-#include "udbgutil.h"
-#include "unewdata.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "uoptions.h"
-#include "toolutil.h"
-#include "icuplugimp.h"
-#include <unicode/uloc.h>
-#include <unicode/ucnv.h>
-#include "unicode/ucal.h"
-#include <unicode/ulocdata.h>
-#include "putilimp.h"
-#include "unicode/uchar.h"
+#include "../udbgutil.h"
+#include "../unewdata.h"
+#include "../uoptions.h"
+#include "../toolutil.h"
+#include "../../unicode/utypes.h"
+#include "../../unicode/putil.h"
+#include "../../unicode/uclean.h"
+#include "../../unicode/uloc.h"
+#include "../../unicode/ucnv.h"
+#include "../../unicode/ucal.h"
+#include "../../unicode/ulocdata.h"
+#include "../../unicode/uchar.h"
+#include "../../cmemory.h"
+#include "../../cstring.h"
+#include "../../putilimp.h"
+#include "../../icuplugimp.h"
 
 static UOption options[]={
   /*0*/ UOPTION_HELP_H,

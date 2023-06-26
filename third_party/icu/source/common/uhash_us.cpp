@@ -15,7 +15,7 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "hash.h"
+#include "third_party/icu/source/common/hash.h"
 
 /**
  * Deleter for Hashtable objects.

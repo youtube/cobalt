@@ -30,8 +30,8 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/cmemory.h"
 #if !defined(STARBOARD)
 #include <string.h>
 #include <stdlib.h>

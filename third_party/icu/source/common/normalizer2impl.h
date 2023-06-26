@@ -19,19 +19,19 @@
 #ifndef __NORMALIZER2IMPL_H__
 #define __NORMALIZER2IMPL_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_NORMALIZATION
 
-#include "unicode/normalizer2.h"
-#include "unicode/ucptrie.h"
-#include "unicode/unistr.h"
-#include "unicode/unorm.h"
-#include "unicode/utf.h"
-#include "unicode/utf16.h"
-#include "mutex.h"
-#include "udataswp.h"
-#include "uset_imp.h"
+#include "third_party/icu/source/common/unicode/normalizer2.h"
+#include "third_party/icu/source/common/unicode/ucptrie.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/unorm.h"
+#include "third_party/icu/source/common/unicode/utf.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/udataswp.h"
+#include "third_party/icu/source/common/uset_imp.h"
 
 // When the nfc.nrm data is *not* hardcoded into the common library
 // (with this constant set to 0),

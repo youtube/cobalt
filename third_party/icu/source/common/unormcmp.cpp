@@ -20,20 +20,20 @@
 *   Allows unorm.cpp to not depend on any character properties code.
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_NORMALIZATION
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/unorm.h"
-#include "unicode/ustring.h"
-#include "cmemory.h"
-#include "normalizer2impl.h"
-#include "ucase.h"
-#include "uprops.h"
-#include "ustr_imp.h"
+#include "third_party/icu/source/common/unicode/unorm.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/normalizer2impl.h"
+#include "third_party/icu/source/common/ucase.h"
+#include "third_party/icu/source/common/uprops.h"
+#include "third_party/icu/source/common/ustr_imp.h"
 
 U_NAMESPACE_USE
 

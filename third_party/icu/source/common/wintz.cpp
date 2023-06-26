@@ -11,18 +11,18 @@
 ********************************************************************************
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_PLATFORM_USES_ONLY_WIN32_API
 
-#include "wintz.h"
-#include "charstr.h"
-#include "cmemory.h"
-#include "cstring.h"
+#include "third_party/icu/source/common/wintz.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
 
-#include "unicode/ures.h"
-#include "unicode/unistr.h"
-#include "uresimp.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/uresimp.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #   define WIN32_LEAN_AND_MEAN

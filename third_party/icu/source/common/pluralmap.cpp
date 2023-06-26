@@ -8,10 +8,10 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/unistr.h"
-#include "charstr.h"
-#include "cstring.h"
-#include "pluralmap.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/pluralmap.h"
 
 U_NAMESPACE_BEGIN
 

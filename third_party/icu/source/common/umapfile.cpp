@@ -19,12 +19,12 @@
  *----------------------------------------------------------------------------*/
 /* Defines _XOPEN_SOURCE for access to POSIX functions.
  * Must be before any other #includes. */
-#include "uposixdefs.h"
+#include "third_party/icu/source/common/uposixdefs.h"
 
-#include "unicode/putil.h"
-#include "unicode/ustring.h"
-#include "udatamem.h"
-#include "umapfile.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/udatamem.h"
+#include "third_party/icu/source/common/umapfile.h"
 
 #if MAP_IMPLEMENTATION==MAP_STARBOARD
 #include "starboard/extension/memory_mapped_file.h"

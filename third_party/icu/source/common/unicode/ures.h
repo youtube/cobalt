@@ -25,11 +25,11 @@
 #ifndef URES_H
 #define URES_H
 
-#include "unicode/utypes.h"
-#include "unicode/uloc.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
 
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 #endif   // U_SHOW_CPLUSPLUS_API
 
 /**

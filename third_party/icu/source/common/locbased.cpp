@@ -13,8 +13,8 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "locbased.h"
-#include "cstring.h"
+#include "third_party/icu/source/common/locbased.h"
+#include "third_party/icu/source/common/cstring.h"
 
 U_NAMESPACE_BEGIN
 

@@ -17,7 +17,7 @@ STLPort's broken stddef.h from being used when rc.exe parses this file.
 #define _STLP_OUTERMOST_HEADER_ID 0
 #define _STLP_WINCE 1
 
-#include "unicode/uversion.h"
+#include "third_party/icu/source/common/unicode/uversion.h"
 
 #define ICU_WEBSITE "http://icu-project.org"
 #define ICU_COMPANY "The ICU Project"

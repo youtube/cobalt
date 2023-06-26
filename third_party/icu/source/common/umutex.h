@@ -25,11 +25,11 @@
 #include <mutex>
 #include <type_traits>
 
-#include "unicode/utypes.h"
-#include "unicode/uclean.h"
-#include "unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uclean.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
 
-#include "putilimp.h"
+#include "third_party/icu/source/common/putilimp.h"
 
 #if defined(U_USER_ATOMICS_H) || defined(U_USER_MUTEX_H)
 // Support for including an alternate implementation of atomic & mutex operations has been withdrawn.

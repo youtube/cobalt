@@ -15,9 +15,9 @@
 ******************************************************************************
 */
 
-#include "unicode/uscript.h"
-#include "usc_impl.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/unicode/uscript.h"
+#include "third_party/icu/source/common/usc_impl.h"
+#include "third_party/icu/source/common/cmemory.h"
 
 #define PAREN_STACK_DEPTH 32
 

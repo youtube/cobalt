@@ -29,7 +29,7 @@
 #if defined(STARBOARD)
 #include "starboard/configuration_constants.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
  /**
   * \file
   * \brief C API: Platform Utilities

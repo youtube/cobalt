@@ -13,7 +13,7 @@
 #ifndef _RULEITER_H_
 #define _RULEITER_H_
 
-#include "unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
 
 U_NAMESPACE_BEGIN
 

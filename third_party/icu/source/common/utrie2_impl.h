@@ -23,9 +23,9 @@
 #define __UTRIE2_IMPL_H__
 
 #ifdef UCPTRIE_DEBUG
-#include "unicode/umutablecptrie.h"
+#include "third_party/icu/source/common/unicode/umutablecptrie.h"
 #endif
-#include "utrie2.h"
+#include "third_party/icu/source/common/utrie2.h"
 
 /* Public UTrie2 API implementation ----------------------------------------- */
 

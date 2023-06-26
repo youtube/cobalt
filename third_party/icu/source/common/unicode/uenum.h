@@ -19,10 +19,10 @@
 #ifndef __UENUM_H
 #define __UENUM_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 
 U_NAMESPACE_BEGIN
 class StringEnumeration;

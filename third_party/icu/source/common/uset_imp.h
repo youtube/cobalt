@@ -21,8 +21,8 @@
 #ifndef __USET_IMP_H__
 #define __USET_IMP_H__
 
-#include "unicode/utypes.h"
-#include "unicode/uset.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uset.h"
 
 U_CDECL_BEGIN
 

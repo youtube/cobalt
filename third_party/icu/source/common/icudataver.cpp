@@ -9,10 +9,10 @@
 ******************************************************************************
 */
 
-#include "unicode/utypes.h"
-#include "unicode/icudataver.h"
-#include "unicode/ures.h"
-#include "uresimp.h" /* for ures_getVersionByKey */
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/icudataver.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/uresimp.h" /* for ures_getVersionByKey */
 
 U_CAPI void U_EXPORT2 u_getDataVersion(UVersionInfo dataVersionFillin, UErrorCode *status) {
     UResourceBundle *icudatares = NULL;

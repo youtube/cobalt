@@ -11,7 +11,7 @@
 //
 
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
@@ -19,16 +19,16 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/unistr.h"
-#include "rbbitblb.h"
-#include "rbbirb.h"
-#include "rbbiscan.h"
-#include "rbbisetb.h"
-#include "rbbidata.h"
-#include "cstring.h"
-#include "uassert.h"
-#include "uvectr32.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/rbbitblb.h"
+#include "third_party/icu/source/common/rbbirb.h"
+#include "third_party/icu/source/common/rbbiscan.h"
+#include "third_party/icu/source/common/rbbisetb.h"
+#include "third_party/icu/source/common/rbbidata.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/uvectr32.h"
+#include "third_party/icu/source/common/cmemory.h"
 
 U_NAMESPACE_BEGIN
 

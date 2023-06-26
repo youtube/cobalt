@@ -10,10 +10,10 @@
 **********************************************************************
 */
 
-#include "unicode/unimatch.h"
-#include "unicode/utf16.h"
-#include "patternprops.h"
-#include "util.h"
+#include "third_party/icu/source/common/unicode/unimatch.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/patternprops.h"
+#include "third_party/icu/source/common/util.h"
 
 // Define UChar constants using hex for EBCDIC compatibility
 

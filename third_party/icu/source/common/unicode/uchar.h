@@ -25,9 +25,9 @@
 #ifndef UCHAR_H
 #define UCHAR_H
 
-#include "unicode/utypes.h"
-#include "unicode/stringoptions.h"
-#include "unicode/ucpmap.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/stringoptions.h"
+#include "third_party/icu/source/common/unicode/ucpmap.h"
 
 #if !defined(USET_DEFINED) && !defined(U_IN_DOXYGEN)
 

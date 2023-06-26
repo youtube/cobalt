@@ -24,13 +24,13 @@
 #else
 #include <stdlib.h>
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "cmemory.h"
-#include "utrie.h"
-#include "utrie2.h"
-#include "uarrsort.h"
-#include "propsvec.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/utrie.h"
+#include "third_party/icu/source/common/utrie2.h"
+#include "third_party/icu/source/common/uarrsort.h"
+#include "third_party/icu/source/common/propsvec.h"
+#include "third_party/icu/source/common/uassert.h"
 
 struct UPropsVectors {
     uint32_t *v;

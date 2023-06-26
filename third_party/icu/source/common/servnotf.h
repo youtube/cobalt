@@ -9,7 +9,7 @@
 #ifndef ICUNOTIF_H
 #define ICUNOTIF_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if UCONFIG_NO_SERVICE
 
@@ -25,11 +25,11 @@ U_NAMESPACE_END
 
 #else
 
-#include "unicode/uobject.h"
-#include "unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
 
-#include "mutex.h"
-#include "uvector.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/uvector.h"
 
 U_NAMESPACE_BEGIN
 

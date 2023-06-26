@@ -28,17 +28,17 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 #ifdef UCPTRIE_DEBUG
-#include "unicode/umutablecptrie.h"
+#include "third_party/icu/source/common/unicode/umutablecptrie.h"
 #endif
-#include "unicode/utf.h"
-#include "unicode/utf8.h"
-#include "unicode/utf16.h"
-#include "cmemory.h"
-#include "utrie2.h"
-#include "utrie2_impl.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/utf.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/utrie2.h"
+#include "third_party/icu/source/common/utrie2_impl.h"
+#include "third_party/icu/source/common/uassert.h"
 
 /* Public UTrie2 API implementation ----------------------------------------- */
 

@@ -11,7 +11,7 @@
 * created by: Markus W. Scherer
 */
 
-#include "resource.h"
+#include "third_party/icu/source/common/resource.h"
 
 U_NAMESPACE_BEGIN
 

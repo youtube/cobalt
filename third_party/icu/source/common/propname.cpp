@@ -14,18 +14,18 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "propname.h"
-#include "unicode/uchar.h"
-#include "unicode/udata.h"
-#include "unicode/uscript.h"
-#include "umutex.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "uarrsort.h"
-#include "uinvchar.h"
+#include "third_party/icu/source/common/propname.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/unicode/uscript.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uarrsort.h"
+#include "third_party/icu/source/common/uinvchar.h"
 
 #define INCLUDED_FROM_PROPNAME_CPP
-#include "propname_data.h"
+#include "third_party/icu/source/common/propname_data.h"
 
 U_CDECL_BEGIN
 

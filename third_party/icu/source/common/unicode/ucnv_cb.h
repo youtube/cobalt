@@ -63,12 +63,12 @@
 #ifndef UCNV_CB_H
 #define UCNV_CB_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/ucnv.h"
-#include "unicode/ucnv_err.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/ucnv_err.h"
 
 /**
  * ONLY used by FromU callback functions.

@@ -10,10 +10,10 @@
 * Since: ICU 2.6
 **********************************************************************
 */
-#include "unicode/ucat.h"
-#include "unicode/ustring.h"
-#include "cstring.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/ucat.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uassert.h"
 
 /* Separator between set_num and msg_num */
 static const char SEPARATOR = '%';

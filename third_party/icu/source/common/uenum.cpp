@@ -16,9 +16,9 @@
 *   created by: Vladimir Weinstein
 */
 
-#include "unicode/putil.h"
-#include "uenumimp.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/uenumimp.h"
+#include "third_party/icu/source/common/cmemory.h"
 
 /* Layout of the baseContext buffer. */
 typedef struct {

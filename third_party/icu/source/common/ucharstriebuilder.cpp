@@ -18,16 +18,16 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "unicode/ucharstrie.h"
-#include "unicode/ucharstriebuilder.h"
-#include "unicode/unistr.h"
-#include "unicode/ustring.h"
-#include "cmemory.h"
-#include "uarrsort.h"
-#include "uassert.h"
-#include "uhash.h"
-#include "ustr_imp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/ucharstrie.h"
+#include "third_party/icu/source/common/unicode/ucharstriebuilder.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/uarrsort.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/ustr_imp.h"
 
 U_NAMESPACE_BEGIN
 

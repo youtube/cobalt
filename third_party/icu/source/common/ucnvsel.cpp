@@ -26,7 +26,7 @@
  * stores all encodings a codepoint can map to
  */
 
-#include "unicode/ucnvsel.h"
+#include "third_party/icu/source/common/unicode/ucnvsel.h"
 
 #if !UCONFIG_NO_CONVERSION
 
@@ -37,19 +37,19 @@
 #include <string.h>
 #endif  // defined(STARBOARD)
 
-#include "unicode/uchar.h"
-#include "unicode/uniset.h"
-#include "unicode/ucnv.h"
-#include "unicode/ustring.h"
-#include "unicode/uchriter.h"
-#include "utrie2.h"
-#include "propsvec.h"
-#include "uassert.h"
-#include "ucmndata.h"
-#include "udataswp.h"
-#include "uenumimp.h"
-#include "cmemory.h"
-#include "cstring.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/uniset.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/uchriter.h"
+#include "third_party/icu/source/common/utrie2.h"
+#include "third_party/icu/source/common/propsvec.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ucmndata.h"
+#include "third_party/icu/source/common/udataswp.h"
+#include "third_party/icu/source/common/uenumimp.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
 
 U_NAMESPACE_USE
 

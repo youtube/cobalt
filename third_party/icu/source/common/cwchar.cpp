@@ -16,11 +16,11 @@
 *   created by: Markus W. Scherer
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !U_HAVE_WCSCPY && !defined(STARBOARD)
 
-#include "cwchar.h"
+#include "third_party/icu/source/common/cwchar.h"
 
 U_CAPI wchar_t *uprv_wcscat(wchar_t *dst, const wchar_t *src) {
     wchar_t *start=dst;

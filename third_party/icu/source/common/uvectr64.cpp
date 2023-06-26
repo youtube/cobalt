@@ -11,9 +11,9 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "uvectr64.h"
-#include "cmemory.h"
-#include "putilimp.h"
+#include "third_party/icu/source/common/uvectr64.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/putilimp.h"
 
 U_NAMESPACE_BEGIN
 

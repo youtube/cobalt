@@ -12,12 +12,12 @@
 #ifndef UNIFILT_H
 #define UNIFILT_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/unifunct.h"
-#include "unicode/unimatch.h"
+#include "third_party/icu/source/common/unicode/unifunct.h"
+#include "third_party/icu/source/common/unicode/unimatch.h"
 
 /**
  * \file 

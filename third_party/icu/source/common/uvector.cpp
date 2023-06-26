@@ -13,10 +13,10 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "uvector.h"
-#include "cmemory.h"
-#include "uarrsort.h"
-#include "uelement.h"
+#include "third_party/icu/source/common/uvector.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/uarrsort.h"
+#include "third_party/icu/source/common/uelement.h"
 
 U_NAMESPACE_BEGIN
 

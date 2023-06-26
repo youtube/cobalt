@@ -7,15 +7,15 @@
 *******************************************************************************
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_SERVICE
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "serv.h"
-#include "umutex.h"
+#include "third_party/icu/source/common/serv.h"
+#include "third_party/icu/source/common/umutex.h"
 
 #undef SERVICE_REFCOUNT
 

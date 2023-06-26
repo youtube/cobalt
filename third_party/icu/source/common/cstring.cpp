@@ -30,10 +30,10 @@
 
 #include <stdlib.h>
 
-#include "unicode/utypes.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/uassert.h"
 
 /*
  * We hardcode case conversion for invariant characters to match our expectation

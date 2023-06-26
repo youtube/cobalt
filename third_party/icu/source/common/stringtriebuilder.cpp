@@ -18,11 +18,11 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "utypeinfo.h"  // for 'typeid' to work
-#include "unicode/utypes.h"
-#include "unicode/stringtriebuilder.h"
-#include "uassert.h"
-#include "uhash.h"
+#include "third_party/icu/source/common/utypeinfo.h"  // for 'typeid' to work
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/stringtriebuilder.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/uhash.h"
 
 U_CDECL_BEGIN
 

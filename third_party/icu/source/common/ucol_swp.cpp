@@ -21,13 +21,13 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/udata.h" /* UDataInfo */
-#include "utrie.h"
-#include "utrie2.h"
-#include "udataswp.h"
-#include "cmemory.h"
-#include "ucol_data.h"
-#include "ucol_swp.h"
+#include "third_party/icu/source/common/unicode/udata.h" /* UDataInfo */
+#include "third_party/icu/source/common/utrie.h"
+#include "third_party/icu/source/common/utrie2.h"
+#include "third_party/icu/source/common/udataswp.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ucol_data.h"
+#include "third_party/icu/source/common/ucol_swp.h"
 
 /* swapping ----------------------------------------------------------------- */
 

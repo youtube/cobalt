@@ -17,8 +17,8 @@
 
 #ifndef USC_IMPL_H
 #define USC_IMPL_H
-#include "unicode/utypes.h"
-#include "unicode/uscript.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uscript.h"
 
 /**
  * <code>UScriptRun</code> is used to find runs of characters in

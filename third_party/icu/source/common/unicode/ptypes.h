@@ -53,7 +53,7 @@
  */
 
 /* Find out if we have stdint.h etc. */
-#include "unicode/platform.h"
+#include "third_party/icu/source/common/unicode/platform.h"
 
 /*===========================================================================*/
 /* Generic data types                                                        */

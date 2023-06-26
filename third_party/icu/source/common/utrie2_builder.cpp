@@ -33,17 +33,17 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 #ifdef UCPTRIE_DEBUG
-#include "unicode/ucptrie.h"
-#include "unicode/umutablecptrie.h"
-#include "ucptrie_impl.h"
+#include "third_party/icu/source/common/unicode/ucptrie.h"
+#include "third_party/icu/source/common/unicode/umutablecptrie.h"
+#include "third_party/icu/source/common/ucptrie_impl.h"
 #endif
-#include "cmemory.h"
-#include "utrie2.h"
-#include "utrie2_impl.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/utrie2.h"
+#include "third_party/icu/source/common/utrie2_impl.h"
 
-#include "utrie.h"  // for utrie2_fromUTrie()
+#include "third_party/icu/source/common/utrie.h"  // for utrie2_fromUTrie()
 
 /* Implementation notes ----------------------------------------------------- */
 

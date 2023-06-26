@@ -35,9 +35,9 @@
 #define __UTF16_H__
 
 #include <stdbool.h>
-#include "unicode/umachine.h"
+#include "third_party/icu/source/common/unicode/umachine.h"
 #ifndef __UTF_H__
-#   include "unicode/utf.h"
+#   include "third_party/icu/source/common/unicode/utf.h"
 #endif
 
 /* single-code point definitions -------------------------------------------- */

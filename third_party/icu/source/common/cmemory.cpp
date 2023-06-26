@@ -25,10 +25,10 @@
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/assert_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/uclean.h"
-#include "cmemory.h"
-#include "putilimp.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/uclean.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/uassert.h"
 #if !defined(STARBOARD)
 #include <stdlib.h>
 #endif

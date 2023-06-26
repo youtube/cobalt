@@ -3,14 +3,14 @@
 #ifndef __LOCALEBUILDER_H__
 #define __LOCALEBUILDER_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
-#include "unicode/locid.h"
-#include "unicode/localematcher.h"
-#include "unicode/stringpiece.h"
-#include "unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/localematcher.h"
+#include "third_party/icu/source/common/unicode/stringpiece.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
 
 /**
  * \file

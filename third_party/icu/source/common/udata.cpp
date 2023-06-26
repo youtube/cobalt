@@ -21,7 +21,7 @@
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
 
-#include "unicode/utypes.h"  /* U_PLATFORM etc. */
+#include "third_party/icu/source/common/unicode/utypes.h"  /* U_PLATFORM etc. */
 
 #ifdef __GNUC__
 /* if gcc
@@ -30,22 +30,22 @@ might have to #include some other header
 */
 #endif
 
-#include "unicode/putil.h"
-#include "unicode/udata.h"
-#include "unicode/uversion.h"
-#include "charstr.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "mutex.h"
-#include "putilimp.h"
-#include "restrace.h"
-#include "uassert.h"
-#include "ucln_cmn.h"
-#include "ucmndata.h"
-#include "udatamem.h"
-#include "uhash.h"
-#include "umapfile.h"
-#include "umutex.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/unicode/uversion.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/restrace.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/ucmndata.h"
+#include "third_party/icu/source/common/udatamem.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/umapfile.h"
+#include "third_party/icu/source/common/umutex.h"
 
 /***********************************************************************
 *

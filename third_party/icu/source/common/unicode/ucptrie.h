@@ -7,12 +7,12 @@
 #ifndef __UCPTRIE_H__
 #define __UCPTRIE_H__
 
-#include "unicode/utypes.h"
-#include "unicode/ucpmap.h"
-#include "unicode/utf8.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/ucpmap.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
 
 #if U_SHOW_CPLUSPLUS_API
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 #endif   // U_SHOW_CPLUSPLUS_API
 
 U_CDECL_BEGIN

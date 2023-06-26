@@ -116,7 +116,7 @@
 #ifndef __UTF_H__
 #define __UTF_H__
 
-#include "unicode/umachine.h"
+#include "third_party/icu/source/common/unicode/umachine.h"
 /* include the utfXX.h after the following definitions */
 
 /* single-code point definitions -------------------------------------------- */
@@ -214,11 +214,11 @@
 
 #if !U_NO_DEFAULT_INCLUDE_UTF_HEADERS
 
-#include "unicode/utf8.h"
-#include "unicode/utf16.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
 
 /* utf_old.h contains deprecated, pre-ICU 2.4 definitions */
-#include "unicode/utf_old.h"
+#include "third_party/icu/source/common/unicode/utf_old.h"
 
 #endif  /* !U_NO_DEFAULT_INCLUDE_UTF_HEADERS */
 

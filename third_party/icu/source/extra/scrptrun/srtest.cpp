@@ -7,11 +7,11 @@
  *
  */
 
-#include "unicode/utypes.h"
-#include "unicode/uscript.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uscript.h"
 
-#include "cmemory.h"
-#include "scrptrun.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/scrptrun.h"
 
 #include <stdio.h>
 

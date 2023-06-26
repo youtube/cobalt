@@ -42,7 +42,7 @@
 #ifndef __UTRACIMP_H__
 #define __UTRACIMP_H__
 
-#include "unicode/utrace.h"
+#include "third_party/icu/source/common/unicode/utrace.h"
 #include <stdarg.h>
 
 U_CDECL_BEGIN

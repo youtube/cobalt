@@ -3,21 +3,21 @@
 
 // file: rbbi_cache.cpp
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
-#include "unicode/ubrk.h"
-#include "unicode/rbbi.h"
+#include "third_party/icu/source/common/unicode/ubrk.h"
+#include "third_party/icu/source/common/unicode/rbbi.h"
 
-#include "rbbi_cache.h"
+#include "third_party/icu/source/common/rbbi_cache.h"
 
-#include "brkeng.h"
-#include "cmemory.h"
-#include "rbbidata.h"
-#include "rbbirb.h"
-#include "uassert.h"
-#include "uvectr32.h"
+#include "third_party/icu/source/common/brkeng.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/rbbidata.h"
+#include "third_party/icu/source/common/rbbirb.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/uvectr32.h"
 
 U_NAMESPACE_BEGIN
 

@@ -5,17 +5,17 @@
 *****************************************************************************************
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/ulistformatter.h"
-#include "unicode/listformatter.h"
-#include "unicode/localpointer.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/unicode/ulistformatter.h"
+#include "third_party/icu/source/common/unicode/listformatter.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
+#include "third_party/icu/source/common/cmemory.h"
 
 U_NAMESPACE_USE
 

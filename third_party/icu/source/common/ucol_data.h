@@ -26,7 +26,7 @@
 #ifndef __UCOL_DATA_H__
 #define __UCOL_DATA_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_COLLATION
 

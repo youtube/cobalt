@@ -25,9 +25,9 @@
 #ifndef __UMAPFILE_H__
 #define __UMAPFILE_H__
 
-#include "unicode/putil.h"
-#include "unicode/udata.h"
-#include "putilimp.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/putilimp.h"
 
 U_CFUNC UBool uprv_mapFile(UDataMemory *pdm, const char *path, UErrorCode *status);
 U_CFUNC void  uprv_unmapFile(UDataMemory *pData);

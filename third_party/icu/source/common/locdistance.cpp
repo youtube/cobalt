@@ -4,19 +4,19 @@
 // locdistance.cpp
 // created: 2019may08 Markus W. Scherer
 
-#include "unicode/utypes.h"
-#include "unicode/bytestrie.h"
-#include "unicode/localematcher.h"
-#include "unicode/locid.h"
-#include "unicode/uobject.h"
-#include "unicode/ures.h"
-#include "cstring.h"
-#include "locdistance.h"
-#include "loclikelysubtags.h"
-#include "uassert.h"
-#include "ucln_cmn.h"
-#include "uinvchar.h"
-#include "umutex.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/bytestrie.h"
+#include "third_party/icu/source/common/unicode/localematcher.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/locdistance.h"
+#include "third_party/icu/source/common/loclikelysubtags.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/uinvchar.h"
+#include "third_party/icu/source/common/umutex.h"
 
 U_NAMESPACE_BEGIN
 

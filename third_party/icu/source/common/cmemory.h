@@ -26,7 +26,7 @@
 #ifndef CMEMORY_H
 #define CMEMORY_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
@@ -35,7 +35,7 @@
 #include <stddef.h>
 #include <string.h>
 #endif
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)
 #include <stdio.h>
@@ -128,7 +128,7 @@ uprv_deleteUObject(void *obj);
 #ifdef __cplusplus
 
 #include <utility>
-#include "unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
 
 U_NAMESPACE_BEGIN
 

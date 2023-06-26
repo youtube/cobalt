@@ -28,16 +28,16 @@
  * \brief C++ API: Unicode String
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
 #include <cstddef>
-#include "unicode/char16ptr.h"
-#include "unicode/rep.h"
-#include "unicode/std_string.h"
-#include "unicode/stringpiece.h"
-#include "unicode/bytestream.h"
+#include "third_party/icu/source/common/unicode/char16ptr.h"
+#include "third_party/icu/source/common/unicode/rep.h"
+#include "third_party/icu/source/common/unicode/std_string.h"
+#include "third_party/icu/source/common/unicode/stringpiece.h"
+#include "third_party/icu/source/common/unicode/bytestream.h"
 
 struct UConverter;          // unicode/ucnv.h
 

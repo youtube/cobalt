@@ -7,9 +7,9 @@
 #ifndef __LSR_H__
 #define __LSR_H__
 
-#include "unicode/utypes.h"
-#include "unicode/uobject.h"
-#include "cstring.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/cstring.h"
 
 U_NAMESPACE_BEGIN
 

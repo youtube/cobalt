@@ -20,7 +20,7 @@
 #ifndef __UCLN_IMP_H__
 #define __UCLN_IMP_H__
 
-#include "ucln.h"
+#include "third_party/icu/source/common/ucln.h"
 #if !defined(STARBOARD)
 #include <stdlib.h>
 #endif
@@ -73,7 +73,7 @@
  *           static void ucln_registerAutomaticCleanup()
  *           static void ucln_unRegisterAutomaticCleanup()
  */
-#include "ucln_local_hook.c"
+#include "third_party/icu/source/common/ucln_local_hook.c"
 
 #elif defined(UCLN_AUTO_ATEXIT)
 /*

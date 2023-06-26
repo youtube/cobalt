@@ -27,8 +27,8 @@
 #ifndef __UCMNDATA_H__
 #define __UCMNDATA_H__
 
-#include "unicode/udata.h"
-#include "umapfile.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/umapfile.h"
 
 
 #define COMMON_DATA_NAME U_ICUDATA_NAME

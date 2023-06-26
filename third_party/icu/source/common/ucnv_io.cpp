@@ -32,22 +32,22 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/ucnv.h"
-#include "unicode/udata.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/udata.h"
 
-#include "umutex.h"
-#include "uarrsort.h"
-#include "uassert.h"
-#include "udataswp.h"
-#include "cstring.h"
-#include "cmemory.h"
-#include "ucnv_io.h"
-#include "uenumimp.h"
-#include "ucln_cmn.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/uarrsort.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/udataswp.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/ucnv_io.h"
+#include "third_party/icu/source/common/uenumimp.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
 
 /* Format of cnvalias.icu -----------------------------------------------------
  *

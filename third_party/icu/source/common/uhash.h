@@ -15,10 +15,10 @@
 #ifndef UHASH_H
 #define UHASH_H
 
-#include "unicode/utypes.h"
-#include "cmemory.h"
-#include "uelement.h"
-#include "unicode/localpointer.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/uelement.h"
+#include "third_party/icu/source/common/unicode/localpointer.h"
 
 /**
  * UHashtable stores key-value pairs and does moderately fast lookup

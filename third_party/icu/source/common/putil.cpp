@@ -49,10 +49,10 @@
 
 // Defines _XOPEN_SOURCE for access to POSIX functions.
 // Must be before any other #includes.
-#include "uposixdefs.h"
+#include "third_party/icu/source/common/uposixdefs.h"
 
 // First, the platform type. Need this for U_PLATFORM.
-#include "unicode/platform.h"
+#include "third_party/icu/source/common/unicode/platform.h"
 
 #if U_PLATFORM == U_PF_MINGW && defined __STRICT_ANSI__
 /* tzset isn't defined in strict ANSI on MinGW. */
@@ -69,16 +69,16 @@
 #endif
 
 /* include the rest of the ICU headers */
-#include "unicode/putil.h"
-#include "unicode/ustring.h"
-#include "putilimp.h"
-#include "uassert.h"
-#include "umutex.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "locmap.h"
-#include "ucln_cmn.h"
-#include "charstr.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/locmap.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/charstr.h"
 
 #if defined(STARBOARD)
 // Must be after "umitex.h" which includes "time.h" on some platforms.

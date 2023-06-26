@@ -10,19 +10,19 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 #if !UCONFIG_NO_BREAK_ITERATION && !UCONFIG_NO_FILTERED_BREAK_ITERATION
 
-#include "cmemory.h"
+#include "third_party/icu/source/common/cmemory.h"
 
-#include "unicode/filteredbrk.h"
-#include "unicode/ucharstriebuilder.h"
-#include "unicode/ures.h"
+#include "third_party/icu/source/common/unicode/filteredbrk.h"
+#include "third_party/icu/source/common/unicode/ucharstriebuilder.h"
+#include "third_party/icu/source/common/unicode/ures.h"
 
-#include "uresimp.h" // ures_getByKeyWithFallback
-#include "ubrkimpl.h" // U_ICUDATA_BRKITR
-#include "uvector.h"
-#include "cmemory.h"
+#include "third_party/icu/source/common/uresimp.h" // ures_getByKeyWithFallback
+#include "third_party/icu/source/common/ubrkimpl.h" // U_ICUDATA_BRKITR
+#include "third_party/icu/source/common/uvector.h"
+#include "third_party/icu/source/common/cmemory.h"
 
 U_NAMESPACE_BEGIN
 

@@ -22,11 +22,11 @@
  *
  */
 
-#include "unicode/utypes.h"
-#include "unicode/udata.h"
-#include "cstring.h"
-#include "ucmndata.h"
-#include "udatamem.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/ucmndata.h"
+#include "third_party/icu/source/common/udatamem.h"
 
 #if defined(UDATA_DEBUG) || defined(UDATA_DEBUG_DUMP)
 #   include <stdio.h>

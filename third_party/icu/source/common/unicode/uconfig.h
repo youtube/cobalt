@@ -52,7 +52,7 @@
  * @internal ICU 4.0
  */
 #if defined(UCONFIG_USE_LOCAL)
-#include "uconfig_local.h"
+#include "third_party/icu/source/common/unicode/uconfig_local.h"
 #endif
 
 /**

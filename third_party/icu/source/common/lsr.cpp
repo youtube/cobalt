@@ -4,13 +4,13 @@
 // lsr.cpp
 // created: 2019may08 Markus W. Scherer
 
-#include "unicode/utypes.h"
-#include "charstr.h"
-#include "cmemory.h"
-#include "cstring.h"
-#include "lsr.h"
-#include "uinvchar.h"
-#include "ustr_imp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/lsr.h"
+#include "third_party/icu/source/common/uinvchar.h"
+#include "third_party/icu/source/common/ustr_imp.h"
 
 U_NAMESPACE_BEGIN
 

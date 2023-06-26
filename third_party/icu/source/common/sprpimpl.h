@@ -19,17 +19,17 @@
 #ifndef SPRPIMPL_H
 #define SPRPIMPL_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_IDNA
 
-#include "unicode/ustring.h"
-#include "unicode/parseerr.h"
-#include "unicode/usprep.h"
-#include "unicode/udata.h"
-#include "utrie.h"
-#include "udataswp.h"
-#include "ubidi_props.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/parseerr.h"
+#include "third_party/icu/source/common/unicode/usprep.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/utrie.h"
+#include "third_party/icu/source/common/udataswp.h"
+#include "third_party/icu/source/common/ubidi_props.h"
 
 #define _SPREP_DATA_TYPE "spp"
 

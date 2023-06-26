@@ -17,16 +17,16 @@
 *   06/29/2000  helena      Major rewrite of the callback APIs.
 */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/ucnv_err.h"
-#include "unicode/ucnv_cb.h"
-#include "ucnv_cnv.h"
-#include "cmemory.h"
-#include "unicode/ucnv.h"
-#include "ustrfmt.h"
+#include "third_party/icu/source/common/unicode/ucnv_err.h"
+#include "third_party/icu/source/common/unicode/ucnv_cb.h"
+#include "third_party/icu/source/common/ucnv_cnv.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/ustrfmt.h"
 
 #define VALUE_STRING_LENGTH 48
 /*Magic # 32 = 4(number of char in value string) * 8(max number of bytes per char for any converter) */

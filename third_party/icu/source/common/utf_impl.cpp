@@ -27,10 +27,10 @@
 #   define U_UTF8_IMPL
 #endif
 
-#include "unicode/utypes.h"
-#include "unicode/utf.h"
-#include "unicode/utf8.h"
-#include "uassert.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utf.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
+#include "third_party/icu/source/common/uassert.h"
 
 /*
  * Table of the number of utf8 trail bytes, indexed by the lead byte.

@@ -10,8 +10,8 @@
 #ifndef __URESLOCS_H__
 #define __URESLOCS_H__
 
-#include "unicode/utypes.h"
-#include "unicode/udata.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/udata.h"
 
 U_CDECL_BEGIN
 

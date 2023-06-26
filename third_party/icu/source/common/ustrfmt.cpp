@@ -7,8 +7,8 @@
 **********************************************************************
 */
 
-#include "cstring.h"
-#include "ustrfmt.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/ustrfmt.h"
 
 
 /***

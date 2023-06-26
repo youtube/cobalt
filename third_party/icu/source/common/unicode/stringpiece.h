@@ -27,15 +27,15 @@
  * \brief C++ API: StringPiece: Read-only byte string wrapper class.
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if U_SHOW_CPLUSPLUS_API
 
 #include <cstddef>
 #include <type_traits>
 
-#include "unicode/uobject.h"
-#include "unicode/std_string.h"
+#include "third_party/icu/source/common/unicode/uobject.h"
+#include "third_party/icu/source/common/unicode/std_string.h"
 
 // Arghh!  I wish C++ literals were "string".
 

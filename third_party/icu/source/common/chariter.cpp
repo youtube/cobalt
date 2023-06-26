@@ -7,7 +7,7 @@
 **********************************************************************
 */
 
-#include "unicode/chariter.h"
+#include "third_party/icu/source/common/unicode/chariter.h"
 
 U_NAMESPACE_BEGIN
 

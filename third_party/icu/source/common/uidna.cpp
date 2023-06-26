@@ -16,7 +16,7 @@
  *   created by: Ram Viswanadha
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_IDNA
 
@@ -24,14 +24,14 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/uidna.h"
-#include "unicode/ustring.h"
-#include "unicode/usprep.h"
-#include "punycode.h"
-#include "ustr_imp.h"
-#include "cmemory.h"
-#include "uassert.h"
-#include "sprpimpl.h"
+#include "third_party/icu/source/common/unicode/uidna.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/common/unicode/usprep.h"
+#include "third_party/icu/source/common/punycode.h"
+#include "third_party/icu/source/common/ustr_imp.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/sprpimpl.h"
 
 /* it is official IDNA ACE Prefix is "xn--" */
 static const UChar ACE_PREFIX[] ={ 0x0078,0x006E,0x002d,0x002d } ;

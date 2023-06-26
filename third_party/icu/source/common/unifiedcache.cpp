@@ -10,7 +10,7 @@
 ******************************************************************************
 */
 
-#include "unifiedcache.h"
+#include "third_party/icu/source/common/unifiedcache.h"
 
 #include <algorithm>      // For std::max()
 #include <mutex>
@@ -20,9 +20,9 @@
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
 
-#include "uassert.h"
-#include "uhash.h"
-#include "ucln_cmn.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/uhash.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
 
 static icu::UnifiedCache *gCache = NULL;
 static std::mutex *gCacheMutex = nullptr;

@@ -18,11 +18,11 @@
 #ifndef __RESDATA_H__
 #define __RESDATA_H__
 
-#include "unicode/utypes.h"
-#include "unicode/udata.h"
-#include "unicode/ures.h"
-#include "putilimp.h"
-#include "udataswp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/unicode/ures.h"
+#include "third_party/icu/source/common/putilimp.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 /**
  * Numeric constants for internal-only types of resource items.
@@ -475,8 +475,8 @@ U_CFUNC Resource res_findResource(const ResourceData *pResData, Resource r,
 
 #ifdef __cplusplus
 
-#include "resource.h"
-#include "restrace.h"
+#include "third_party/icu/source/common/resource.h"
+#include "third_party/icu/source/common/restrace.h"
 
 U_NAMESPACE_BEGIN
 

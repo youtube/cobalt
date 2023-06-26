@@ -24,8 +24,8 @@
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
 #endif
-#include "unicode/uconfig.h"
-#include "unicode/uvernum.h"
+#include "third_party/icu/source/common/unicode/uconfig.h"
+#include "third_party/icu/source/common/unicode/uvernum.h"
 
 /**
  * \file

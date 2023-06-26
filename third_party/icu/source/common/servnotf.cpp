@@ -7,14 +7,14 @@
  *******************************************************************************
  */
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_SERVICE
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "servnotf.h"
+#include "third_party/icu/source/common/servnotf.h"
 #ifdef NOTIFIER_DEBUG
 #include <stdio.h>
 #endif

@@ -43,7 +43,7 @@
 /* which are contained in the platform-specific file platform.h             */
 /*==========================================================================*/
 
-#include "unicode/ptypes.h" /* platform.h is included in ptypes.h */
+#include "third_party/icu/source/common/unicode/ptypes.h" /* platform.h is included in ptypes.h */
 
 /*
  * ANSI C headers:

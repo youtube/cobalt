@@ -17,15 +17,15 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-#include "unicode/utypes.h"
-#include "unicode/icuplug.h"
-#include "unicode/uclean.h"
-#include "cmemory.h"
-#include "icuplugimp.h"
-#include "ucln_cmn.h"
-#include "ucnv_io.h"
-#include "umutex.h"
-#include "utracimp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/icuplug.h"
+#include "third_party/icu/source/common/unicode/uclean.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/icuplugimp.h"
+#include "third_party/icu/source/common/ucln_cmn.h"
+#include "third_party/icu/source/common/ucnv_io.h"
+#include "third_party/icu/source/common/umutex.h"
+#include "third_party/icu/source/common/utracimp.h"
 
 U_NAMESPACE_BEGIN
 

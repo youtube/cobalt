@@ -11,8 +11,8 @@
 #ifndef LOCUTIL_H
 #define LOCUTIL_H
 
-#include "unicode/utypes.h"
-#include "hash.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/hash.h"
 
 #if !UCONFIG_NO_SERVICE || !UCONFIG_NO_TRANSLITERATION
 

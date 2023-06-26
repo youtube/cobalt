@@ -48,15 +48,15 @@
 ******************************************************************************
 */
 
-#include "unicode/utypes.h"
-#include "unicode/resbund.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/resbund.h"
 
-#include "cmemory.h"
-#include "mutex.h"
-#include "uassert.h"
-#include "umutex.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/mutex.h"
+#include "third_party/icu/source/common/uassert.h"
+#include "third_party/icu/source/common/umutex.h"
 
-#include "uresimp.h"
+#include "third_party/icu/source/common/uresimp.h"
 
 U_NAMESPACE_BEGIN
 

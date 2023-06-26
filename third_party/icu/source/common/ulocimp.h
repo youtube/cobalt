@@ -10,10 +10,10 @@
 #ifndef ULOCIMP_H
 #define ULOCIMP_H
 
-#include "unicode/bytestream.h"
-#include "unicode/uloc.h"
+#include "third_party/icu/source/common/unicode/bytestream.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
 
-#include "charstr.h"
+#include "third_party/icu/source/common/charstr.h"
 
 /**
  * Create an iterator over the specified keywords list

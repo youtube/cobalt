@@ -20,26 +20,26 @@
  * See source code repository history for changes.
  */
 
-#include <unicode/utypes.h>
-#include <unicode/putil.h>
-#include <unicode/ucnv.h>
-#include <unicode/uenum.h>
-#include <unicode/unistr.h>
-#include <unicode/translit.h>
-#include <unicode/uset.h>
-#include <unicode/uclean.h>
-#include <unicode/utf16.h>
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/unicode/uenum.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/translit.h"
+#include "third_party/icu/source/common/unicode/uset.h"
+#include "third_party/icu/source/common/unicode/uclean.h"
+#include "third_party/icu/source/common/unicode/utf16.h"
 
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include "cmemory.h"
-#include "cstring.h"
-#include "ustrfmt.h"
+#include "third_party/icu/source/common/cmemory.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/ustrfmt.h"
 
-#include "unicode/uwmsg.h"
+#include "third_party/icu/source/common/unicode/uwmsg.h"
 
 U_NAMESPACE_USE
 
@@ -63,8 +63,8 @@ U_NAMESPACE_USE
 
 #ifdef UCONVMSG_LINK
 /* below from the README */
-#include "unicode/utypes.h"
-#include "unicode/udata.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/udata.h"
 U_CFUNC char uconvmsg_dat[];
 #endif
 

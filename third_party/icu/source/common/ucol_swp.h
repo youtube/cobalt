@@ -21,11 +21,11 @@
 #ifndef __UCOL_SWP_H__
 #define __UCOL_SWP_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_COLLATION
 
-#include "udataswp.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 /*
  * Does the data look like a collation binary?

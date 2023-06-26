@@ -7,7 +7,7 @@
 #ifndef __UCPMAP_H__
 #define __UCPMAP_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 U_CDECL_BEGIN
 

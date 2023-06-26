@@ -13,14 +13,14 @@
 //
 // Author: sffc
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 #ifndef __STATIC_UNICODE_SETS_H__
 #define __STATIC_UNICODE_SETS_H__
 
-#include "unicode/uniset.h"
-#include "unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/uniset.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
 
 U_NAMESPACE_BEGIN
 namespace unisets {

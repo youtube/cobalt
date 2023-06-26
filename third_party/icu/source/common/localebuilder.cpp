@@ -3,12 +3,12 @@
 
 #include <utility>
 
-#include "bytesinkutil.h"  // CharStringByteSink
-#include "charstr.h"
-#include "cstring.h"
-#include "ulocimp.h"
-#include "unicode/localebuilder.h"
-#include "unicode/locid.h"
+#include "third_party/icu/source/common/bytesinkutil.h"  // CharStringByteSink
+#include "third_party/icu/source/common/charstr.h"
+#include "third_party/icu/source/common/cstring.h"
+#include "third_party/icu/source/common/ulocimp.h"
+#include "third_party/icu/source/common/unicode/localebuilder.h"
+#include "third_party/icu/source/common/unicode/locid.h"
 
 U_NAMESPACE_BEGIN
 

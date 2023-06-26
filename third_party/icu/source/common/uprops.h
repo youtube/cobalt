@@ -22,10 +22,10 @@
 #ifndef __UPROPS_H__
 #define __UPROPS_H__
 
-#include "unicode/utypes.h"
-#include "unicode/uset.h"
-#include "uset_imp.h"
-#include "udataswp.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/uset.h"
+#include "third_party/icu/source/common/uset_imp.h"
+#include "third_party/icu/source/common/udataswp.h"
 
 /* indexes[] entries */
 enum {

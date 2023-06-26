@@ -18,9 +18,9 @@
 *   Character conversion functions moved here from resbund.cpp
 */
 
-#include "unicode/utypes.h"
-#include "unicode/resbund.h"
-#include "uinvchar.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/resbund.h"
+#include "third_party/icu/source/common/uinvchar.h"
 
 U_NAMESPACE_BEGIN
 

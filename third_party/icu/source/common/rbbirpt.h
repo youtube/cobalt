@@ -15,7 +15,7 @@
 #ifndef RBBIRPT_H
 #define RBBIRPT_H
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 U_NAMESPACE_BEGIN
 //

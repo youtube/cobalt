@@ -21,12 +21,12 @@
 #ifndef __UCNV_EXT_H__
 #define __UCNV_EXT_H__
 
-#include "unicode/utypes.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "unicode/ucnv.h"
-#include "ucnv_cnv.h"
+#include "third_party/icu/source/common/unicode/ucnv.h"
+#include "third_party/icu/source/common/ucnv_cnv.h"
 
 /*
  * See icuhtml/design/conversion/conversion_extensions.html
