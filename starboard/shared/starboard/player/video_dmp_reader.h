@@ -148,6 +148,9 @@ class VideoDmpReader {
     int64_t video_bitrate = 0;
     int video_fps = 0;
     int video_duration = 0;
+    int frame_width = 0;
+    int frame_height = 0;
+    bool video_is_hdr = false;
   };
 
   class Registry {
