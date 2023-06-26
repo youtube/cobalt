@@ -557,23 +557,15 @@ void ServiceWorkerContext::Activate(
   // Cobalt doesn't implement 'application cache':
   //   https://www.w3.org/TR/2011/WD-html5-20110525/offline.html#applicationcache
   // 9. For each service worker client client who is using registration:
-  // Note: The spec defines "control" and "use" of a service worker from the
-  // value of the active service worker property of the client environment, but
-  // that property is set here, so here we should not use that exact definition
-  // to determine if the client is using this registration. Instead, we use the
-  // Match Service Worker Registration algorithm to find the registration for a
-  // client and compare it with the registration being activated.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-use
   for (const auto& client : web_context_registrations_) {
-    scoped_refptr<ServiceWorkerRegistrationObject> client_registration =
-        scope_to_registration_map_->MatchServiceWorkerRegistration(
-            client->environment_settings()->ObtainStorageKey(),
-            client->environment_settings()->creation_url());
     // When a service worker client is controlled by a service worker, it is
     // said that the service worker client is using the service worker’s
     // containing service worker registration.
     //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-control
-    if (client_registration.get() == registration) {
+    if (client->active_service_worker() &&
+        client->active_service_worker()
+                ->containing_service_worker_registration() == registration) {
       // 9.1. Set client’s active worker to registration’s active worker.
       client->set_active_service_worker(registration->active_worker());
       // 9.2. Invoke Notify Controller Change algorithm with client as the
