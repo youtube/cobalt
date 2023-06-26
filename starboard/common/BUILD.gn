@@ -51,6 +51,8 @@ static_library("common") {
     "log.cc",
     "media.cc",
     "media.h",
+    "metrics/stats_tracker.cc",
+    "metrics/stats_tracker.h",
     "move.h",
     "murmurhash2.cc",
     "murmurhash2.h",

@@ -70,6 +70,7 @@ static_library("base") {
     "ref_counted_lock.h",
     "source_location.cc",
     "source_location.h",
+    "starboard_stats_tracker.h",
     "startup_timer.cc",
     "startup_timer.h",
     "statistics.h",
