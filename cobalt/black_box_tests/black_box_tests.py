@@ -34,7 +34,6 @@ from starboard.tools import command_line
 from starboard.tools import log_level
 
 _DISABLED_BLACKBOXTEST_CONFIGS = [
-    'android-arm/devel',
     'android-arm64/devel',
     'android-x86/devel',
     'evergreen-arm/devel',
@@ -144,7 +143,11 @@ class BlackBoxTestCase(unittest.TestCase):
     super(BlackBoxTestCase, cls).tearDownClass()
     logging.info('Done %s', cls.__name__)
 
-  def CreateCobaltRunner(self, url=None, target_params=None, **kwargs):
+  def CreateCobaltRunner(self,
+                         url=None,
+                         target_params=None,
+                         web_server_port=None,
+                         **kwargs):
     all_target_params = list(target_params) if target_params else []
     if _launcher_params.target_params is not None:
       all_target_params += _launcher_params.target_params
@@ -153,7 +156,9 @@ class BlackBoxTestCase(unittest.TestCase):
         launcher_params=_launcher_params,
         url=url,
         target_params=all_target_params,
-        **kwargs)
+        web_server_port=web_server_port,
+        **kwargs,
+    )
 
   def GetBindingAddress(self):
     return _server_binding_address

@@ -65,7 +65,9 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
         target_params,
         success_message,
         poll_until_wait_seconds=poll_until_wait_seconds,
-        **kwargs)
+        web_server_port=web_server_port,
+        **kwargs,
+    )
 
     self.poll_until_wait_seconds = poll_until_wait_seconds
 

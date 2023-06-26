@@ -148,10 +148,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Verify connection and dump target build fingerprint.
     self._CheckCallAdb('shell', 'getprop', 'ro.build.fingerprint')
 
-    out_directory = os.path.split(self.GetTargetPath())[0]
-    self.apk_path = os.path.join(out_directory, f'{target_name}.apk')
-    if not os.path.exists(self.apk_path):
-      raise Exception(f"Can't find APK {self.apk_path}")
+    if abstract_launcher.ARG_NOINSTALL not in self.launcher_args:
+      out_directory = os.path.split(self.GetTargetPath())[0]
+      self.apk_path = os.path.join(out_directory, f'{target_name}.apk')
+      if not os.path.exists(self.apk_path):
+        raise ValueError(f"Can't find APK {self.apk_path}")
 
     # This flag is set when the main Run() loop exits.  If Kill() is called
     # after this flag is set, it will not do anything.
@@ -160,6 +161,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Keep track of the port used by ADB forward in order to remove it later
     # on.
     self.local_port = None
+
+    # Keep track of the port used by ADB reverse in order to remove it later
+    # on.
+    self.web_server_port = None
 
   def _IsValidIPv4Address(self, address):
     """Returns True if address is a valid IPv4 address, False otherwise."""
@@ -384,6 +389,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._Shutdown()
       if self.local_port is not None:
         self.CallAdb('forward', '--remove', f'tcp:{self.local_port}')
+      if self.web_server_port is not None:
+        self.RemoveDeviceToHostTunnel(self.web_server_port)
       am_monitor.Shutdown()
       self.killed.set()
       run_timer.Stop()
@@ -443,6 +450,24 @@ class Launcher(abstract_launcher.AbstractLauncher):
                      '=> device port {port}\n')
     # pylint: disable=g-socket-gethostbyname
     return socket.gethostbyname('localhost'), self.local_port
+
+  def CreateDeviceToHostTunnel(self, host_port, device_port):
+    self.web_server_port = host_port
+    reverse_p = self._PopenAdb(
+        'reverse',
+        f'tcp:{device_port}',
+        f'tcp:{host_port}',
+        stdout=subprocess.PIPE)
+    reverse_p.wait()
+    sys.stderr.write(f'ADB reverse host port {host_port} '
+                     f'=> device port {device_port}\n')
+    return True
+
+  def RemoveDeviceToHostTunnel(self, host_port):
+    reverse_p = self._PopenAdb(
+        'reverse --remove ', f'tcp:{host_port}', stdout=subprocess.PIPE)
+    reverse_p.wait()
+    sys.stderr.write(f'ADB reverse --remove tcp:{host_port}\n')
 
   def GetDeviceIp(self):
     """Gets the device IP. TODO: Implement."""

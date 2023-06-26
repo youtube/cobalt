@@ -164,6 +164,9 @@ class ThreadedWebServer(object):
       # When listening to any interfaces, get the IPv4 address of the hostname.
       self._bound_host = socket.gethostbyname(socket.gethostname())
 
+  def GetPort(self):
+    return self._bound_port
+
   def GetURL(self, file_name):
     """Given a |file_name|, return a HTTP URI that can be fetched.
 
