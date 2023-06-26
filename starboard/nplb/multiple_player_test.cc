@@ -78,10 +78,10 @@ void NoInput(const SbPlayerTestConfig& player_config,
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamplesWithEOS(0, 0);
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamplesWithEOS(0, 0);
+    samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
@@ -103,12 +103,14 @@ void WriteSamples(const SbPlayerTestConfig& player_config,
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamplesWithEOS(
+    samples.AddAudioSamples(
         0, player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamplesWithEOS(
+    samples.AddVideoSamples(
         0, player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+    samples.AddVideoEOS();
   }
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));

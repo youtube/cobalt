@@ -52,10 +52,10 @@ TEST_P(SbPlayerWriteSampleTest, NoInput) {
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamplesWithEOS(0, 0);
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamplesWithEOS(0, 0);
+    samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
@@ -72,12 +72,14 @@ TEST_P(SbPlayerWriteSampleTest, WriteSingleBatch) {
   if (player_fixture.HasAudio()) {
     int samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
         player_fixture.GetPlayer(), kSbMediaTypeAudio);
-    samples.AddAudioSamplesWithEOS(0, samples_to_write);
+    samples.AddAudioSamples(0, samples_to_write);
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
     int samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
         player_fixture.GetPlayer(), kSbMediaTypeVideo);
-    samples.AddVideoSamplesWithEOS(0, samples_to_write);
+    samples.AddVideoSamples(0, samples_to_write);
+    samples.AddVideoEOS();
   }
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
@@ -94,10 +96,9 @@ TEST_P(SbPlayerWriteSampleTest, WriteMultipleBatches) {
   int samples_to_write = 0;
   // Try to write multiple batches for both audio and video.
   if (player_fixture.HasAudio()) {
-    samples_to_write = std::max(
-        samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
-                              player_fixture.GetPlayer(), kSbMediaTypeAudio) +
-                              1);
+    samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                           player_fixture.GetPlayer(), kSbMediaTypeAudio) +
+                       1;
   }
   if (player_fixture.HasVideo()) {
     samples_to_write = std::max(
@@ -111,14 +112,204 @@ TEST_P(SbPlayerWriteSampleTest, WriteMultipleBatches) {
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
-    samples.AddAudioSamplesWithEOS(0, samples_to_write);
+    samples.AddAudioSamples(0, samples_to_write);
+    samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamplesWithEOS(0, samples_to_write);
+    samples.AddVideoSamples(0, samples_to_write);
+    samples.AddVideoEOS();
   }
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+}
+
+TEST_P(SbPlayerWriteSampleTest, LimitedAudioInput) {
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+
+  // TODO: we simply set audio write duration to 0.5 second. Ideally, we should
+  // set the audio write duration to 10 seconds if audio connectors are remote.
+  player_fixture.SetAudioWriteDuration(kSbTimeSecond / 2);
+
+  GroupedSamples samples;
+  if (player_fixture.HasAudio()) {
+    samples.AddAudioSamples(
+        0, player_fixture.ConvertDurationToAudioBufferCount(kSbTimeSecond));
+    samples.AddAudioEOS();
+  }
+  if (player_fixture.HasVideo()) {
+    samples.AddVideoSamples(
+        0, player_fixture.ConvertDurationToVideoBufferCount(kSbTimeSecond));
+    samples.AddVideoEOS();
+  }
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+}
+
+TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
+  if (!IsPartialAudioSupported()) {
+    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
+    SB_LOG(INFO)
+        << "The platform doesn't support partial audio. Skip the tests.";
+    return;
+  }
+
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+  if (!player_fixture.HasAudio()) {
+    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
+    SB_LOG(INFO) << "Skip PartialAudio test for audioless content.";
+    return;
+  }
+
+  const SbTime kDurationToPlay = kSbTimeSecond;
+  const float kSegmentSize = 0.1f;
+
+  GroupedSamples samples;
+  if (player_fixture.HasVideo()) {
+    samples.AddVideoSamples(
+        0, player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+    samples.AddVideoEOS();
+  }
+
+  int total_buffers_to_write =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
+  for (int i = 0; i < total_buffers_to_write; i++) {
+    SbTime current_timestamp = player_fixture.GetAudioSampleTimestamp(i);
+    SbTime next_timestamp = player_fixture.GetAudioSampleTimestamp(i + 1);
+    SbTime buffer_duration = next_timestamp - current_timestamp;
+    SbTime segment_duration = buffer_duration * kSegmentSize;
+    SbTime written_duration = 0;
+    while (written_duration < buffer_duration) {
+      samples.AddAudioSamples(
+          i, 1, written_duration, written_duration,
+          std::max<int64_t>(
+              0, buffer_duration - written_duration - segment_duration));
+      written_duration += segment_duration;
+    }
+  }
+  samples.AddAudioEOS();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
+
+  SbTime start_system_time = SbTimeGetMonotonicNow();
+  SbTime start_media_time = player_fixture.GetCurrentMediaTime();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+
+  SbTime end_system_time = SbTimeGetMonotonicNow();
+  SbTime end_media_time = player_fixture.GetCurrentMediaTime();
+
+  const SbTime kDurationDifferenceAllowance = 500 * kSbTimeMillisecond;
+  EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
+  EXPECT_NEAR(end_system_time - start_system_time + start_media_time,
+              kDurationToPlay, kDurationDifferenceAllowance);
+
+  SB_DLOG(INFO) << "The expected media time should be " << kDurationToPlay
+                << ", the actual media time is " << end_media_time
+                << ", with difference "
+                << std::abs(end_media_time - kDurationToPlay) << ".";
+  SB_DLOG(INFO) << "The expected total playing time should be "
+                << kDurationToPlay << ", the actual playing time is "
+                << end_system_time - start_system_time + start_media_time
+                << ", with difference "
+                << std::abs(end_system_time - start_system_time +
+                            start_media_time - kDurationToPlay)
+                << ".";
+}
+
+TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
+  if (!IsPartialAudioSupported()) {
+    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
+    SB_LOG(INFO)
+        << "The platform doesn't support partial audio. Skip the tests.";
+    return;
+  }
+
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+  if (!player_fixture.HasAudio()) {
+    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
+    SB_LOG(INFO) << "Skip PartialAudio test for audioless content.";
+    return;
+  }
+
+  const SbTime kDurationToPlay = kSbTimeSecond;
+  const SbTime kDurationPerWrite = 100 * kSbTimeMillisecond;
+  const SbTime kNumberOfBuffersToDiscard = 20;
+
+  GroupedSamples samples;
+  if (player_fixture.HasVideo()) {
+    samples.AddVideoSamples(
+        0, player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+    samples.AddVideoEOS();
+  }
+
+  int written_buffer_index = 0;
+  SbTime current_time_offset = 0;
+  int num_of_buffers_per_write =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationPerWrite);
+  while (current_time_offset < kDurationToPlay) {
+    // Discard from front.
+    for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {
+      samples.AddAudioSamples(written_buffer_index, 1, current_time_offset,
+                              kSbTimeSecond, 0);
+    }
+
+    samples.AddAudioSamples(written_buffer_index, num_of_buffers_per_write);
+    written_buffer_index += num_of_buffers_per_write;
+    current_time_offset += kDurationPerWrite;
+
+    // Discard from back.
+    for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {
+      samples.AddAudioSamples(written_buffer_index, 1, current_time_offset, 0,
+                              kSbTimeSecond);
+    }
+  }
+  samples.AddAudioEOS();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
+
+  SbTime start_system_time = SbTimeGetMonotonicNow();
+  SbTime start_media_time = player_fixture.GetCurrentMediaTime();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+
+  SbTime end_system_time = SbTimeGetMonotonicNow();
+  SbTime end_media_time = player_fixture.GetCurrentMediaTime();
+
+  const SbTime kDurationDifferenceAllowance = 500 * kSbTimeMillisecond;
+  SbTime total_written_duration =
+      player_fixture.GetAudioSampleTimestamp(written_buffer_index);
+  EXPECT_NEAR(end_media_time, total_written_duration,
+              kDurationDifferenceAllowance);
+  EXPECT_NEAR(end_system_time - start_system_time + start_media_time,
+              total_written_duration, kDurationDifferenceAllowance);
+
+  SB_DLOG(INFO) << "The expected media time should be "
+                << total_written_duration << ", the actual media time is "
+                << end_media_time << ", with difference "
+                << std::abs(end_media_time - total_written_duration) << ".";
+  SB_DLOG(INFO) << "The expected total playing time should be "
+                << total_written_duration << ", the actual playing time is "
+                << end_system_time - start_system_time + start_media_time
+                << ", with difference "
+                << std::abs(end_system_time - start_system_time +
+                            start_media_time - total_written_duration)
+                << ".";
 }
 
 std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
