@@ -149,8 +149,6 @@ void DecodedAudio::AdjustForDiscardedDurations(
   discarded_frames_from_front = std::min(discarded_frames_from_front, frames());
   offset_in_bytes_ += bytes_per_frame * discarded_frames_from_front;
   size_in_bytes_ -= bytes_per_frame * discarded_frames_from_front;
-  timestamp_ +=
-      media::AudioFramesToDuration(discarded_frames_from_front, sample_rate);
 
   auto discarded_frames_from_back =
       AudioDurationToFrames(discarded_duration_from_back, sample_rate);
