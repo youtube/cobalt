@@ -14,6 +14,7 @@
 # limitations under the License.
 """Prints out the Cobalt Build ID."""
 
+<<<<<<< HEAD
 import os
 import re
 import subprocess
@@ -74,6 +75,16 @@ def main():
     build_number = get_build_number_from_commit_count()
 
   print(build_number)
+=======
+from cobalt.build import build_info
+
+
+def main(cwd=build_info.FILE_DIR):
+  build_number, _ = build_info.get_build_id_and_git_rev_from_commits(cwd=cwd)
+  if not build_number:
+    build_number = build_info.get_build_id_from_commit_count(cwd=cwd)
+  return build_number
+>>>>>>> e4607159f88 (Creates build_info.json alongside cobalt_build_id. (#685))
 
 
 if __name__ == '__main__':
