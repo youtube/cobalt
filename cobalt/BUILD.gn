@@ -18,6 +18,7 @@ group("gn_all") {
     ":default",
     "//cobalt/bindings/testing:bindings_test",
     "//cobalt/browser:browser_test",
+    "//cobalt/browser/metrics:metrics_test",
     "//cobalt/cssom:cssom_test",
     "//cobalt/demos/simple_sandbox",
     "//cobalt/dom:dom_test",
