@@ -143,7 +143,7 @@ static_library("metrics") {
     deps += [ ":serialization" ]
   }
 
-  if (is_mac) {
+  if (is_mac && !use_cobalt_customizations) {
     libs = [
       # The below are all needed for drive_metrics_provider_mac.mm.
       "CoreFoundation.framework",
