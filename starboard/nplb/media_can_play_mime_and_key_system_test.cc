@@ -54,7 +54,6 @@ bool IsKeySystemWithAttributesSupported() {
 }
 
 typedef enum DeviceType {
-  // These enums must not be reordered.
   kDeviceTypeFHD,
   kDeviceType4k,
   kDeviceType8k,
@@ -240,7 +239,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, Invalid) {
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
-  std::vector<const char*> params_1080p{
+  std::vector<const char*> params_fhd{
       "video/mp4; codecs=\"avc1.4d002a\"; width=1920; height=1080; "
       "framerate=30",
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
@@ -282,14 +281,13 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
   };
 
   DeviceType device_type = GetDeviceType();
-  if (device_type >= kDeviceTypeFHD) {
-    assert_mime_support(params_1080p);
-  }
-  if (device_type >= kDeviceType4k) {
-    assert_mime_support(params_4k);
-  }
-  if (device_type == kDeviceType8k) {
-    assert_mime_support(params_8k);
+  switch (device_type) {
+    case kDeviceType8k:
+      assert_mime_support(params_8k);
+    case kDeviceType4k:
+      assert_mime_support(params_4k);
+    default:
+      assert_mime_support(params_fhd);
   }
 
   // AAC-LC
