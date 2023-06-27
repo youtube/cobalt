@@ -148,6 +148,10 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
   // platforms.
   std::string GetAppPackageName() override;
 
+  // Setter to override the upload interval default
+  // (kStandardUploadIntervalSeconds).
+  void SetUploadInterval(uint32_t interval_seconds);
+
   explicit CobaltMetricsServiceClient(
       ::metrics::MetricsStateManager* state_manager, PrefService* local_state);
 
@@ -161,6 +165,8 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
   CobaltMetricsLogUploader* log_uploader_ = nullptr;
 
   CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
+
+  uint32_t custom_upload_interval_ = UINT32_MAX;
 
   DISALLOW_COPY_AND_ASSIGN(CobaltMetricsServiceClient);
 };

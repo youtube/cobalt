@@ -105,6 +105,21 @@ TEST_F(CobaltMetricsServiceClientTest, TestStubbedSystemFields) {
   ASSERT_EQ(client_->GetAppPackageName(), "");
 }
 
+TEST_F(CobaltMetricsServiceClientTest, UploadIntervalCanBeOverriden) {
+  ASSERT_EQ(client_->GetStandardUploadInterval().InSeconds(), 300);
+  client_->SetUploadInterval(42);
+  ASSERT_EQ(client_->GetStandardUploadInterval().InSeconds(), 42);
+  client_->SetUploadInterval(UINT32_MAX);
+  // UINT32_MAX is the sentinel value to revert back to the default of 5 min.
+  ASSERT_EQ(client_->GetStandardUploadInterval().InSeconds(), 300);
+}
+
+TEST_F(CobaltMetricsServiceClientTest, UploadIntervalOfZeroIsIgnored) {
+  ASSERT_EQ(client_->GetStandardUploadInterval().InSeconds(), 300);
+  client_->SetUploadInterval(0);
+  ASSERT_EQ(client_->GetStandardUploadInterval().InSeconds(), 300);
+}
+
 }  // namespace metrics
 }  // namespace browser
 }  // namespace cobalt
