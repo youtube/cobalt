@@ -26,10 +26,10 @@ namespace cobalt {
 namespace h5vcc {
 
 void H5vccMetrics::OnMetricEvent(
-    const h5vcc::MetricEventHandlerWrapper::ScriptValue& eventHandler) {
+    const h5vcc::MetricEventHandlerWrapper::ScriptValue& event_handler) {
   auto callback =
       new cobalt::browser::metrics::CobaltH5vccMetricsUploaderCallback(
-          new h5vcc::MetricEventHandlerWrapper(this, eventHandler));
+          new h5vcc::MetricEventHandlerWrapper(this, event_handler));
   uploader_callback_.reset(callback);
   browser::metrics::CobaltMetricsServiceClient* client =
       static_cast<browser::metrics::CobaltMetricsServiceClient*>(
@@ -38,6 +38,9 @@ void H5vccMetrics::OnMetricEvent(
   DCHECK(client);
   client->SetOnUploadHandler(uploader_callback_.get());
 }
+void H5vccMetrics::Enable() { ToggleMetricsEnabled(true); }
+
+void H5vccMetrics::Disable() { ToggleMetricsEnabled(false); }
 
 void H5vccMetrics::ToggleMetricsEnabled(bool isEnabled) {
   browser::metrics::CobaltMetricsServicesManagerClient* client =
@@ -52,7 +55,16 @@ void H5vccMetrics::ToggleMetricsEnabled(bool isEnabled) {
       ->UpdateUploadPermissions(isEnabled);
 }
 
-bool H5vccMetrics::GetMetricsEnabled() { return is_enabled_; }
+bool H5vccMetrics::IsEnabled() { return is_enabled_; }
+
+void H5vccMetrics::SetMetricEventInterval(uint32_t interval_seconds) {
+  browser::metrics::CobaltMetricsServiceClient* client =
+      static_cast<browser::metrics::CobaltMetricsServiceClient*>(
+          browser::metrics::CobaltMetricsServicesManager::GetInstance()
+              ->GetMetricsServiceClient());
+  DCHECK(client);
+  client->SetUploadInterval(interval_seconds);
+}
 
 }  // namespace h5vcc
 }  // namespace cobalt
