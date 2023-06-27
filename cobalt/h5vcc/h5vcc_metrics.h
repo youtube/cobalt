@@ -77,7 +77,7 @@ class H5vccMetrics : public script::Wrappable {
       const cobalt::h5vcc::H5vccMetricType& metric_type,
       const std::string& serialized_proto);
 
-  h5vcc::MetricEventHandlerWrapper* uploader_callback_ = nullptr;
+  scoped_refptr<h5vcc::MetricEventHandlerWrapper> uploader_callback_;
 
   std::unique_ptr<cobalt::browser::metrics::CobaltMetricsUploaderCallback>
       run_event_handler_callback_;
