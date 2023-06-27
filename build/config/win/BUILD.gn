@@ -602,6 +602,7 @@ if (is_starboard) {
       cflags = [
         "/wd4800",
         "/wd4834",
+        "/wd4858",
       ]
     }
   }
