@@ -23,6 +23,7 @@
 #include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
 #include "cobalt/h5vcc/metric_event_handler_wrapper.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -41,7 +42,10 @@ class H5vccMetrics : public script::Wrappable {
   // its entirety.
   typedef MetricEventHandler H5vccMetricEventHandler;
 
-  H5vccMetrics() : task_runner_(base::ThreadTaskRunnerHandle::Get()) {}
+  explicit H5vccMetrics(
+      persistent_storage::PersistentSettings* persistent_settings)
+      : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+        persistent_settings_(persistent_settings) {}
 
   H5vccMetrics(const H5vccMetrics&) = delete;
   H5vccMetrics& operator=(const H5vccMetrics&) = delete;
@@ -85,6 +89,8 @@ class H5vccMetrics : public script::Wrappable {
   bool is_enabled_ = false;
 
   scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
+
+  persistent_storage::PersistentSettings* persistent_settings_;
 };
 
 }  // namespace h5vcc
