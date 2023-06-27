@@ -18,10 +18,17 @@ from github import Github
 from typing import List
 
 YOUR_GITHUB_TOKEN = ''
+assert YOUR_GITHUB_TOKEN != '', 'YOUR_GITHUB_TOKEN must be set.'
 
 TARGET_REPO = 'youtube/cobalt'
 
-EXCLUDED_CHECK_PATTERNS = ['feedback/copybara', '_on_device_', r'${{']
+EXCLUDED_CHECK_PATTERNS = [
+    'feedback/copybara',
+    '_on_device_',
+    'codecov',
+    # Excludes templated check names.
+    '${{'
+]
 
 # Exclude rc_11 and COBALT_9 releases.
 MINIMUM_LTS_RELEASE_NUMBER = 19
@@ -35,7 +42,54 @@ def get_protected_branches() -> List[str]:
   return branches
 
 
-def parse_args():
+def initialize_repo_connection():
+  g = Github(YOUR_GITHUB_TOKEN)
+  return g.get_repo(TARGET_REPO)
+
+
+def get_checks_for_branch(repo, branch: str) -> None:
+  prs = repo.get_pulls(
+      state='closed', sort='updated', base=branch, direction='desc')
+
+  latest_pr = None
+  for pr in prs:
+    if pr.merged:
+      latest_pr = pr
+      break
+
+  latest_pr_commit = repo.get_commit(latest_pr.head.sha)
+  checks = latest_pr_commit.get_check_runs()
+  return checks
+
+
+def should_include_run(check_run) -> bool:
+  for pattern in EXCLUDED_CHECK_PATTERNS:
+    if pattern in check_run.name:
+      return False
+  return True
+
+
+def get_required_checks_for_branch(repo, branch: str) -> List[str]:
+  checks = get_checks_for_branch(repo, branch)
+  filtered_check_runs = [run for run in checks if should_include_run(run)]
+  check_names = [run.name for run in filtered_check_runs]
+  return check_names
+
+
+def print_checks(branch: str, check_names: List[str]) -> None:
+  print(f'Checks for {branch}:')
+  for check_name in check_names:
+    print(check_name)
+  print()
+
+
+def update_protection_for_branch(repo, branch: str,
+                                 check_names: List[str]) -> None:
+  branch = repo.get_branch(branch)
+  branch.edit_protection(contexts=check_names)
+
+
+def parse_args() -> None:
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '-b',
@@ -56,52 +110,7 @@ def parse_args():
   return args
 
 
-def initialize_repo_connection():
-  g = Github(YOUR_GITHUB_TOKEN)
-  return g.get_repo(TARGET_REPO)
-
-
-def get_checks_for_branch(repo, branch: str):
-  prs = repo.get_pulls(
-      state='open', sort='updated', base=branch, direction='desc')
-  try:
-    latest_pr = prs[0]
-  except IndexError:
-    prs = repo.get_pulls(
-        state='closed', sort='updated', base=branch, direction='desc')
-    latest_pr = prs[0]
-  latest_pr_commit = repo.get_commit(latest_pr.head.sha)
-  checks = latest_pr_commit.get_check_runs()
-  return checks
-
-
-def should_include_run(check_run) -> bool:
-  for pattern in EXCLUDED_CHECK_PATTERNS:
-    if pattern in check_run.name:
-      return False
-  return True
-
-
-def get_required_checks_for_branch(repo, branch: str) -> List[str]:
-  checks = get_checks_for_branch(repo, branch)
-  filtered_check_runs = [run for run in checks if should_include_run(run)]
-  check_names = [run.name for run in filtered_check_runs]
-  return check_names
-
-
-def print_checks(branch: str, check_names: List[str]):
-  print(f'Checks for {branch}:')
-  for check_name in check_names:
-    print(check_name)
-  print()
-
-
-def update_protection_for_branch(repo, branch: str, check_names: List[str]):
-  branch = repo.get_branch(branch)
-  branch.edit_protection(contexts=check_names)
-
-
-def main():
+def main() -> None:
   args = parse_args()
   repo = initialize_repo_connection()
   for branch in args.branch:
