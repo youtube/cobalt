@@ -18,7 +18,9 @@
 #include <memory>
 #include <string>
 
-#include "cobalt/browser/metrics/cobalt_h5vcc_metrics_uploader_callback.h"
+#include "base/single_thread_task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
+#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
 #include "cobalt/h5vcc/metric_event_handler_wrapper.h"
 #include "cobalt/script/callback_function.h"
@@ -39,7 +41,7 @@ class H5vccMetrics : public script::Wrappable {
   // its entirety.
   typedef MetricEventHandler H5vccMetricEventHandler;
 
-  H5vccMetrics() {}
+  H5vccMetrics() : task_runner_(base::ThreadTaskRunnerHandle::Get()) {}
 
   H5vccMetrics(const H5vccMetrics&) = delete;
   H5vccMetrics& operator=(const H5vccMetrics&) = delete;
@@ -66,11 +68,23 @@ class H5vccMetrics : public script::Wrappable {
 
  private:
   // Internal convenience method for toggling enabled/disabled state.
-  void ToggleMetricsEnabled(bool isEnabled);
+  void ToggleMetricsEnabled(bool is_enabled);
 
-  std::unique_ptr<cobalt::browser::metrics::CobaltH5vccMetricsUploaderCallback>
-      uploader_callback_;
+  void RunEventHandler(const cobalt::h5vcc::H5vccMetricType& metric_type,
+                       const std::string& serialized_proto);
+
+  void RunEventHandlerInternal(
+      const cobalt::h5vcc::H5vccMetricType& metric_type,
+      const std::string& serialized_proto);
+
+  h5vcc::MetricEventHandlerWrapper* uploader_callback_ = nullptr;
+
+  std::unique_ptr<cobalt::browser::metrics::CobaltMetricsUploaderCallback>
+      run_event_handler_callback_;
+
   bool is_enabled_ = false;
+
+  scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
 };
 
 }  // namespace h5vcc

@@ -52,12 +52,13 @@ class CobaltMetricsLogUploader : public ::metrics::MetricsLogUploader {
 
   // Sets the event handler wrapper to be called when metrics are ready for
   // upload. This should be the JavaScript H5vcc callback implementation.
-  void SetOnUploadHandler(CobaltMetricsUploaderCallback* metric_event_handler);
+  void SetOnUploadHandler(
+      const CobaltMetricsUploaderCallback* metric_event_handler);
 
  private:
   const ::metrics::MetricsLogUploader::MetricServiceType service_type_;
   const ::metrics::MetricsLogUploader::UploadCallback on_upload_complete_;
-  CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
+  const CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
 };
 
 }  // namespace metrics
