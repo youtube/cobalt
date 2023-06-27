@@ -38,6 +38,14 @@ static_library("ukm") {
     "//components/variations",
     "//url",
   ]
+
+  if (use_cobalt_customizations) {
+    public_deps -= [
+      "//services/metrics/public/cpp:metrics_cpp",
+      "//services/metrics/public/cpp:ukm_builders",
+      "//services/metrics/public/mojom",
+    ]
+  }
 }
 
 # Helper library for observing signals that we need to clear any local data.
@@ -79,40 +87,43 @@ static_library("test_support") {
   ]
 }
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "observers/sync_disable_observer_unittest.cc",
-    "ukm_service_unittest.cc",
-  ]
+# TODO(b/283275474): Re-enable as many tests as possible.
+if (!use_cobalt_customizations) {
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "observers/sync_disable_observer_unittest.cc",
+      "ukm_service_unittest.cc",
+    ]
 
-  deps = [
-    ":observers",
-    ":test_support",
-    ":ukm",
-    "//base",
-    "//base/test:test_support",
-    "//components/metrics",
-    "//components/metrics:test_support",
-    "//components/prefs:test_support",
-    "//components/sync",
-    "//components/sync:test_support_driver",
-    "//components/sync_preferences:test_support",
-    "//components/variations",
-    "//net:test_support",
-    "//services/metrics/public/cpp:ukm_builders",
-    "//testing/gtest",
-    "//third_party/zlib/google:compression_utils",
-    "//url",
-  ]
-}
+    deps = [
+      ":observers",
+      ":test_support",
+      ":ukm",
+      "//base",
+      "//base/test:test_support",
+      "//components/metrics",
+      "//components/metrics:test_support",
+      "//components/prefs:test_support",
+      "//components/sync",
+      "//components/sync:test_support_driver",
+      "//components/sync_preferences:test_support",
+      "//components/variations",
+      "//net:test_support",
+      "//services/metrics/public/cpp:ukm_builders",
+      "//testing/gtest",
+      "//third_party/zlib/google:compression_utils",
+      "//url",
+    ]
+  }
 
-# Convenience testing target
-test("ukm_unittests") {
-  deps = [
-    ":unit_tests",
-    "//base",
-    "//base/test:test_support",
-    "//components/test:run_all_unittests",
-  ]
+  # Convenience testing target
+  test("ukm_unittests") {
+    deps = [
+      ":unit_tests",
+      "//base",
+      "//base/test:test_support",
+      "//components/test:run_all_unittests",
+    ]
+  }
 }
