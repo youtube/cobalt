@@ -60,7 +60,6 @@ void H5vccMetrics::Enable() { ToggleMetricsEnabled(true); }
 void H5vccMetrics::Disable() { ToggleMetricsEnabled(false); }
 
 void H5vccMetrics::ToggleMetricsEnabled(bool is_enabled) {
-  is_enabled_ = is_enabled;
   persistent_settings_->SetPersistentSetting(
       browser::metrics::kMetricEnabledSettingName,
       std::make_unique<base::Value>(is_enabled));

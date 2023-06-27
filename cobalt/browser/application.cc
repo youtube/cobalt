@@ -1560,7 +1560,7 @@ void Application::InitMetrics() {
       metrics::kMetricEnabledSettingName, false);
   metrics_services_manager_->SetUploadInterval(
       persistent_settings_->GetPersistentSettingAsInt(
-          metrics::kMetricEventIntervalSettingName, false));
+          metrics::kMetricEventIntervalSettingName, 300));
   metrics_services_manager_->ToggleMetricsEnabled(is_metrics_enabled);
   // Metric recording state initialization _must_ happen before we bootstrap
   // otherwise we crash.

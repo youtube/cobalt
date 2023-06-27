@@ -86,8 +86,6 @@ class H5vccMetrics : public script::Wrappable {
   std::unique_ptr<cobalt::browser::metrics::CobaltMetricsUploaderCallback>
       run_event_handler_callback_;
 
-  bool is_enabled_ = false;
-
   scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
 
   persistent_storage::PersistentSettings* persistent_settings_;
