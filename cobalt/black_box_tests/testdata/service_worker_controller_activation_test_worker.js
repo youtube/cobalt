@@ -23,4 +23,5 @@ self.oninstall = function (e) {
 
 self.onactivate = function (e) {
   console.log('onactivate event received', e);
+  self.clients.claim();
 }
