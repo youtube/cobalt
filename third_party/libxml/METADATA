@@ -5,15 +5,13 @@ description:
 third_party {
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/libxml"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  # NOTE: This is @v2.9.10 release tag, which does not match the repo
-  # version exactly, because of various intermediate Chromium changes
-  version: "405e251c"
+  version: "96.0.4664.153"
   last_upgrade_date {
-    year: 2020
-    month: 5
-    day: 1
+    year: 2023
+    month: 6
+    day: 27
   }
   license_type: NOTICE
 }

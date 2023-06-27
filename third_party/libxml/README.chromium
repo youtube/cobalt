@@ -1,7 +1,7 @@
 Name: libxml
 URL: http://xmlsoft.org
-Version: e4fb36841800038c289997432ca547c9bfef9db1
-CPEPrefix: cpe:/a:xmlsoft:libxml2:2.9.9
+Version: dea91c97debeac7c1aaf9c19f79029809e23a353
+CPEPrefix: cpe:/a:xmlsoft:libxml2:2.9.12
 License: MIT
 License File: src/Copyright
 Security Critical: yes
@@ -20,10 +20,8 @@ Modifications:
     See https://crbug.com/708433
 - libxml2-2.9.4-security-xpath-nodetab-uaf.patch: See https://crbug.com/705445
 - chromium-issue-708434.patch: Guard against input counter overflow.
-- revert-non-recursive-xml-parsing.patch: Making parts of the XML parser
-    non-recursive broke a few web platform tests.
-- add-missing-ifdef-in-xml-reader.patch: Bug fix forgot to guard functionality
-    with appropriate #ifdef.
+- chromium-issue-1138555.patch: Change TRUE to 1 for ICU68 which remove the
+  #define of TRUE.
 - Add helper classes in the chromium/ subdirectory.
 - Delete various unused files, see chromium/roll.py
 
