@@ -19,12 +19,14 @@ namespace metrics {
 class MetricsService;
 class MetricsServiceClient;
 class MetricsStateManager;
-}
+}  // namespace metrics
 
+#if !defined(STARBOARD)
 namespace rappor {
 class RapporServiceImpl;
 }
 
+// TODOD(b/284467142): Re-enable when UKM is supported.
 namespace ukm {
 class UkmService;
 }
@@ -32,6 +34,7 @@ class UkmService;
 namespace variations {
 class VariationsService;
 }
+#endif
 
 namespace metrics_services_manager {
 
@@ -61,14 +64,17 @@ class MetricsServicesManager {
   // additionally creating the MetricsServiceClient in that case).
   metrics::MetricsService* GetMetricsService();
 
+#if !defined(STARBOARD)
   // Returns the RapporServiceImpl, creating it if it hasn't been created yet.
   rappor::RapporServiceImpl* GetRapporServiceImpl();
 
+  // TODOD(b/284467142): Re-enable when UKM is supported.
   // Returns the UkmService, creating it if it hasn't been created yet.
   ukm::UkmService* GetUkmService();
 
   // Returns the VariationsService, creating it if it hasn't been created yet.
   variations::VariationsService* GetVariationsService();
+#endif
 
   // Should be called when a plugin loading error occurs.
   void OnPluginLoadingError(const base::FilePath& plugin_path);
@@ -83,7 +89,21 @@ class MetricsServicesManager {
   // Gets the current state of metric reporting.
   bool IsMetricsReportingEnabled() const;
 
+// In Cobalt, we need public access to the metrics service clients so we can
+// overwrite the upload behavior and enable/disable metrics programmatically.
+#if defined(STARBOARD)
+  // Returns the MetricsServiceClient, creating it if it hasn't been
+  // created yet (and additionally creating the MetricsService in that case).
+  metrics::MetricsServiceClient* GetMetricsServiceClient();
+
+  // Returns the MetricsServicesManagerClient.
+  MetricsServicesManagerClient* GetMetricsServicesManagerClient() {
+    return client_.get();
+  }
+#endif
+
  private:
+#if !defined(STARBOARD)
   // Update the managed services when permissions for recording/uploading
   // metrics change.
   void UpdateRapporServiceImpl();
@@ -91,14 +111,18 @@ class MetricsServicesManager {
   // Returns the MetricsServiceClient, creating it if it hasn't been
   // created yet (and additionally creating the MetricsService in that case).
   metrics::MetricsServiceClient* GetMetricsServiceClient();
+#endif
 
   metrics::MetricsStateManager* GetMetricsStateManager();
 
   // Update which services are running to match current permissions.
   void UpdateRunningServices();
 
+#if !defined(STARBOARD)
+  // TODOD(b/284467142): Re-enable when UKM is supported.
   // Update the state of UkmService to match current permissions.
   void UpdateUkmService();
+#endif
 
   // Update the managed services when permissions for recording/uploading
   // metrics change.
@@ -124,11 +148,13 @@ class MetricsServicesManager {
   // The MetricsServiceClient. Owns the MetricsService.
   std::unique_ptr<metrics::MetricsServiceClient> metrics_service_client_;
 
+#if !defined(STARBOARD)
   // The RapporServiceImpl, for RAPPOR metric uploads.
   std::unique_ptr<rappor::RapporServiceImpl> rappor_service_;
 
   // The VariationsService, for server-side experiments infrastructure.
   std::unique_ptr<variations::VariationsService> variations_service_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(MetricsServicesManager);
 };

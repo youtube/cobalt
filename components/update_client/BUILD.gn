@@ -213,6 +213,7 @@ target(gtest_target_type, "update_client_test") {
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",
+    "//components/version_info",
     "//crypto",
     "//net",
     "//net:test_support",
