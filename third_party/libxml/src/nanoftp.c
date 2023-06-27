@@ -6,7 +6,6 @@
 
 #ifdef TESTING
 #define STANDALONE
-#define HAVE_STDLIB_H
 #define HAVE_UNISTD_H
 #define HAVE_SYS_SOCKET_H
 #define HAVE_NETINET_IN_H
@@ -19,12 +18,13 @@
 
 #ifdef LIBXML_FTP_ENABLED
 #include <string.h>
-
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
+#include <errno.h>
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#elif defined (_WIN32)
+#include <io.h>
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -41,9 +41,6 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_ERRNO_H
-#include <errno.h>
-#endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -53,12 +50,6 @@
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_STRINGS_H
-#include <strings.h>
-#endif
 
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
@@ -66,6 +57,9 @@
 #include <libxml/uri.h>
 #include <libxml/nanoftp.h>
 #include <libxml/globals.h>
+
+#include "private/error.h"
+#include "private/io.h"
 
 /* #define DEBUG_FTP 1  */
 #ifdef STANDALONE
@@ -75,7 +69,7 @@
 #endif
 
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32)
 #include <wsockcompat.h>
 #endif
 
@@ -83,26 +77,15 @@
  * A couple portability macros
  */
 #ifndef _WINSOCKAPI_
-#if !defined(__BEOS__) || defined(__HAIKU__)
 #define closesocket(s) close(s)
-#endif
-#endif
-
-#ifdef __BEOS__
-#ifndef PF_INET
-#define PF_INET AF_INET
-#endif
-#endif
-
-#ifdef _AIX
-#ifdef HAVE_BROKEN_SS_FAMILY
-#define ss_family __ss_family
-#endif
 #endif
 
 #ifndef XML_SOCKLEN_T
 #define XML_SOCKLEN_T unsigned int
 #endif
+
+#define GETHOSTBYNAME_ARG_CAST (char *)
+#define SEND_ARG2_CAST (char *)
 
 #define FTP_COMMAND_OK		200
 #define FTP_SYNTAX_ERROR	500
@@ -2114,5 +2097,3 @@ int main(int argc, char **argv) {
 }
 #endif /* STANDALONE */
 #endif /* LIBXML_FTP_ENABLED */
-#define bottom_nanoftp
-#include "elfgcchack.h"
