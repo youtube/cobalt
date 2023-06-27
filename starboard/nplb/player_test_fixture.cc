@@ -206,14 +206,14 @@ SbPlayerTestFixture::CallbackEvent::CallbackEvent(SbPlayer player,
 SbPlayerTestFixture::SbPlayerTestFixture(
     const SbPlayerTestConfig& config,
     FakeGraphicsContextProvider* fake_graphics_context_provider)
-    : output_mode_(std::get<2>(config)),
-      key_system_(std::get<3>(config)),
+    : output_mode_(config.output_mode),
+      key_system_(config.key_system),
       fake_graphics_context_provider_(fake_graphics_context_provider) {
   SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
             output_mode_ == kSbPlayerOutputModePunchOut);
 
-  const char* audio_dmp_filename = std::get<0>(config);
-  const char* video_dmp_filename = std::get<1>(config);
+  const char* audio_dmp_filename = config.audio_filename;
+  const char* video_dmp_filename = config.video_filename;
 
   if (audio_dmp_filename && strlen(audio_dmp_filename) > 0) {
     audio_dmp_reader_.reset(new VideoDmpReader(

@@ -121,8 +121,8 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
       for (auto output_mode : kOutputModes) {
         if (IsOutputModeSupported(output_mode, audio_codec, video_codec,
                                   key_system)) {
-          test_configs.push_back(std::make_tuple(audio_filename, video_filename,
-                                                 output_mode, key_system));
+          test_configs.emplace_back(audio_filename, video_filename, output_mode,
+                                    key_system);
         }
       }
     }
@@ -137,8 +137,8 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
       for (auto output_mode : kOutputModes) {
         if (IsOutputModeSupported(output_mode, dmp_reader.audio_codec(),
                                   kSbMediaVideoCodecNone, key_system)) {
-          test_configs.push_back(std::make_tuple(audio_filename, kEmptyName,
-                                                 output_mode, key_system));
+          test_configs.emplace_back(audio_filename, kEmptyName, output_mode,
+                                    key_system);
         }
       }
     }
@@ -150,10 +150,10 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
 std::string GetSbPlayerTestConfigName(
     ::testing::TestParamInfo<SbPlayerTestConfig> info) {
   const SbPlayerTestConfig& config = info.param;
-  const char* audio_filename = std::get<0>(config);
-  const char* video_filename = std::get<1>(config);
-  const SbPlayerOutputMode output_mode = std::get<2>(config);
-  const char* key_system = std::get<3>(config);
+  const char* audio_filename = config.audio_filename;
+  const char* video_filename = config.video_filename;
+  const SbPlayerOutputMode output_mode = config.output_mode;
+  const char* key_system = config.key_system;
   std::string name(FormatString(
       "audio_%s_video_%s_output_%s_key_system_%s",
       audio_filename && strlen(audio_filename) > 0 ? audio_filename : "null",

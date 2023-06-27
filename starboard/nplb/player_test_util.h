@@ -28,13 +28,20 @@
 namespace starboard {
 namespace nplb {
 
-// TODO(b/283002236): create a struct for SbPlayerTestConfig instead of using
-// std::tuple.
-typedef std::tuple<const char* /* audio_filename */,
-                   const char* /* video_filename */,
-                   SbPlayerOutputMode /* output_mode */,
-                   const char* /* key_system */>
-    SbPlayerTestConfig;
+struct SbPlayerTestConfig {
+  SbPlayerTestConfig(const char* audio_filename,
+                     const char* video_filename,
+                     SbPlayerOutputMode output_mode,
+                     const char* key_system)
+      : audio_filename(audio_filename),
+        video_filename(video_filename),
+        output_mode(output_mode),
+        key_system(key_system) {}
+  const char* audio_filename;
+  const char* video_filename;
+  SbPlayerOutputMode output_mode;
+  const char* key_system;
+};
 
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     const char* key_system = "");
