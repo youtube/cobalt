@@ -109,7 +109,7 @@ class InterleavedSincResampler {
   static const int kBufferSize = kBlockSize + kKernelSize;
 
   // The maximum numbers of buffer can be queued.
-  static const int kMaximumPendingBuffers = 8;
+  static const int kMaximumPendingBuffers = 16;
 
   static const int kMaxChannels = 8;
   static const int kInputBufferSize = kMaxChannels * kBufferSize;
