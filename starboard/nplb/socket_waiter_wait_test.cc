@@ -27,6 +27,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SbSocketWaiterWaitTest);
 class SbSocketWaiterWaitTest
     : public ::testing::TestWithParam<SbSocketAddressType> {
  public:

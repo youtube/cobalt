@@ -648,8 +648,12 @@ class MockObjectRegistry {
       // RUN_ALL_TESTS() has already returned when this destructor is
       // called.  Therefore we cannot use the normal Google Test
       // failure reporting mechanism.
+#if GTEST_OS_STARBOARD
+      internal::posix::Abort();
+#else
       _exit(1);  // We cannot call exit() as it is not reentrant and
                  // may already have been called.
+#endif // GTEST_OS_STARBOARD
     }
   }
 

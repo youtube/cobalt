@@ -241,6 +241,7 @@ target(gtest_target_type, "nplb") {
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:video_dmp",
     "//testing/gmock",
+    "//testing/gtest",
   ]
 
   deps += cobalt_platform_dependencies
