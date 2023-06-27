@@ -125,6 +125,13 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
   // Chrome uses this to update memory histograms. Regardless, you must call
   // done_callback when done else the uploader will never get invoked.
   std::move(done_callback).Run();
+
+  // MetricsService will shut itself down if the app doesn't periodically tell
+  // it it's not idle. In Cobalt's case, we don't want this behavior. Watch
+  // sessions for LR can happen for extended periods of time with no action by
+  // the user. So, we always just set the app as "non-idle" immediately after
+  // each metric log is finalized.
+  GetMetricsService()->OnApplicationNotIdle();
 }
 
 std::string CobaltMetricsServiceClient::GetMetricsServerUrl() {
