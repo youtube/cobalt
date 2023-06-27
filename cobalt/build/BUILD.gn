@@ -23,3 +23,9 @@ action("cobalt_build_id") {
     cobalt_version,
   ]
 }
+
+action("cobalt_build_info") {
+  script = "build_info.py"
+  outputs = [ "$root_gen_dir/build_info.json" ]
+  args = [ rebase_path(outputs[0], root_build_dir) ]
+}
