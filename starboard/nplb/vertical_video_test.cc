@@ -35,6 +35,7 @@ using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VerticalVideoTest);
 class VerticalVideoTest : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
   testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
@@ -156,10 +157,10 @@ std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
   return supported_configs;
 }
 
-INSTANTIATE_TEST_CASE_P(VerticalVideoTests,
-                        VerticalVideoTest,
-                        ValuesIn(GetSupportedTestConfigs()),
-                        GetSbPlayerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(VerticalVideoTests,
+                         VerticalVideoTest,
+                         ValuesIn(GetSupportedTestConfigs()),
+                         GetSbPlayerTestConfigName);
 
 }  // namespace
 }  // namespace nplb
