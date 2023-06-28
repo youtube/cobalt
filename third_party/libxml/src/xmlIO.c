@@ -3439,7 +3439,7 @@ xmlOutputBufferWrite(xmlOutputBufferPtr out, int len, const char *buf) {
             if (out->writecallback)
 	        nbchars = xmlBufUse(out->conv);
             else
-                nbchars = ret;
+                nbchars = ret >= 0 ? ret : 0;
 	} else {
 	    ret = xmlBufAdd(out->buffer, (const xmlChar *) buf, chunk);
 	    if (ret != 0)
@@ -3637,7 +3637,7 @@ xmlOutputBufferWriteEscape(xmlOutputBufferPtr out, const xmlChar *str,
             if (out->writecallback)
 	        nbchars = xmlBufUse(out->conv);
             else
-                nbchars = ret;
+                nbchars = ret >= 0 ? ret : 0;
 	} else {
 	    ret = escaping(xmlBufEnd(out->buffer), &chunk, str, &cons);
 	    if ((ret < 0) || (chunk == 0)) /* chunk==0 => nothing done */
