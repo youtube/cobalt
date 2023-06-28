@@ -74,8 +74,8 @@ def should_include_run(check_run) -> bool:
 def get_required_checks_for_branch(repo, branch: str) -> List[str]:
   checks = get_checks_for_branch(repo, branch)
   filtered_check_runs = [run for run in checks if should_include_run(run)]
-  check_names = [run.name for run in filtered_check_runs]
-  return check_names
+  check_names = set(run.name for run in filtered_check_runs)
+  return list(check_names)
 
 
 def print_checks(branch: str, check_names: List[str]) -> None:
@@ -88,7 +88,7 @@ def print_checks(branch: str, check_names: List[str]) -> None:
 def update_protection_for_branch(repo, branch: str,
                                  check_names: List[str]) -> None:
   branch = repo.get_branch(branch)
-  branch.edit_protection(contexts=check_names)
+  branch.edit_required_status_checks(contexts=check_names)
 
 
 def parse_args() -> None:
