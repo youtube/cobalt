@@ -26,11 +26,10 @@ jobs:
           "https://api.github.com/repos/$REPO_NAME/collaborators/$PR_AUTHOR_LOGIN/permission" | jq -r .role_name)
 
         if [ "$PERMISSION_LEVEL" == "none" ] || [ "$PERMISSION_LEVEL" == "read" ]; then
-          echo "PR author is an outside collaborator. Assigning reviewer..."
+          echo "PR author is an outside collaborator. Adding label..."
 
-          REVIEWERS_JSON='{"reviewers": ["youtube/cobalt-partner-eng"]}'
           curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d "$REVIEWERS_JSON" \
-            "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER/requested_reviewers"
+            -d '["outside collaborator"]' \
+            "https://api.github.com/repos/$REPO_NAME/issues/$PR_NUMBER/labels"
         fi
