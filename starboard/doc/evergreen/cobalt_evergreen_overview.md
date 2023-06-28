@@ -131,7 +131,7 @@ Evergreen:
 
 *   `kSbSystemPathStorageDirectory`
     *   Dedicated location for storing Cobalt Evergreen-related binaries
-    *   This path must be writable and have at least 96MB of reserved space for
+    *   This path must be writable and have at least 64MB of reserved space for
         Evergreen updates. Please see the “Platforms Requirements” section below
         for more details.
 *   `kSbMemoryMapProtectExec`
@@ -195,12 +195,12 @@ Supported Javascript Engines
 
 *   V8
 
-Additional reserved storage (96MB) is required for Evergreen binaries. We expect
+Additional reserved storage (64MB) is required for Evergreen binaries. We expect
 Evergreen implementations to have an initial Cobalt preloaded on the device and
 an additional reserved space for additional Cobalt update storage.
 
 *   Initial Cobalt binary deployment - 64MB
-*   Additional Cobalt update storage - 96MB
+*   Additional Cobalt update storage - 64MB
     *   Required for 2 update slots under `kSbSystemPathStorageDirectory`
 
 As Cobalt Evergreen is intended to be updated from Google Cloud architecture
