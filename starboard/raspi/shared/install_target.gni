@@ -42,7 +42,7 @@ template("install_target") {
     ]
 
     deps = invoker.deps
-    deps += [ ":$installable_target_name" ]
+    deps += [ invoker.installable_target_dep ]
 
     outputs = [ "$sb_install_output_dir/$install_subdir/$installable_target_name/$source_name" ]
 

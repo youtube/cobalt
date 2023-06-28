@@ -17,11 +17,14 @@ config("platform_configuration") {
     "//starboard/build/config/sabi",
     "//starboard/raspi/shared/platform_configuration",
   ]
-  cflags = [
-    "-march=armv7-a",
-    "-mfpu=neon-vfpv4",
-    "-mfloat-abi=hard",
-    "-mcpu=cortex-a8",
-    "-mtune=cortex-a8",
-  ]
+  if (current_toolchain != default_toolchain ||
+      !build_with_separate_cobalt_toolchain) {
+    cflags = [
+      "-march=armv7-a",
+      "-mfpu=neon-vfpv4",
+      "-mfloat-abi=hard",
+      "-mcpu=cortex-a8",
+      "-mtune=cortex-a8",
+    ]
+  }
 }

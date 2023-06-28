@@ -41,7 +41,6 @@ static_library("starboard_platform_sources") {
     "//starboard/raspi/shared/dispmanx_util.h",
     "//starboard/raspi/shared/graphics.cc",
     "//starboard/raspi/shared/graphics.h",
-    "//starboard/raspi/shared/main.cc",
     "//starboard/raspi/shared/media_is_video_supported.cc",
     "//starboard/raspi/shared/open_max/decode_target_create.cc",
     "//starboard/raspi/shared/open_max/decode_target_create.h",
@@ -333,9 +332,14 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/window_set_on_screen_keyboard_keep_focus.cc",
     "//starboard/shared/stub/window_show_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc",
+    "run_starboard_main.cc",
   ]
 
   sources += common_player_sources
+
+  if (!build_with_separate_cobalt_toolchain) {
+    sources += [ "//starboard/raspi/shared/main.cc" ]
+  }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 

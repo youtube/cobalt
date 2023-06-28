@@ -121,27 +121,31 @@ config("compiler_flags") {
 }
 
 config("platform_configuration") {
-  libs = [
-    "asound",
-    "dl",
-    "pthread",
-    "rt",
-    "openmaxil",
-    "bcm_host",
-    "vcos",
-    "vchiq_arm",
-    "brcmGLESv2",
-    "brcmEGL",
+  if (current_toolchain == default_toolchain &&
+      build_with_separate_cobalt_toolchain) {
+    configs = [ "//starboard/evergreen/arm/softfp/platform_configuration" ]
+  } else {
+    libs = [
+      "asound",
+      "rt",
+      "openmaxil",
+      "bcm_host",
+      "vcos",
+      "vchiq_arm",
+      "brcmGLESv2",
+      "brcmEGL",
 
-    # Static libs must be last, to avoid __dlopen linker errors
-    "EGL_static",
-    "GLESv2_static",
-  ]
+      # Static libs must be last, to avoid __dlopen linker errors
+      "EGL_static",
+      "GLESv2_static",
+    ]
 
-  configs = [ "//starboard/raspi/shared/platform_configuration:compiler_flags" ]
+    configs =
+        [ "//starboard/raspi/shared/platform_configuration:compiler_flags" ]
 
-  if (is_debug || is_devel) {
-    configs += [ "//build/config/compiler:rtti" ]
+    if (is_debug || is_devel) {
+      configs += [ "//build/config/compiler:rtti" ]
+    }
   }
 }
 
