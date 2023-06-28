@@ -602,11 +602,8 @@ if (is_starboard) {
       cflags = [
         "/wd4800",
         "/wd4834",
-<<<<<<< HEAD
-=======
         "/wd4858",
         "/wd5208"
->>>>>>> 9af3da77a7d (Suppress compiler warning for XB1 VS2022 Build (#690))
       ]
     }
   }

@@ -143,7 +143,7 @@ services:
       <<: *shared-build-env
       PLATFORM: ps4
       VISUAL_STUDIO_VERSION: "2022"
-    image: cobalt-build-ps4
+    image: cobalt-build-ps4-vs2022
     depends_on:
       - cobalt-build-vs2022-win-internal
 
@@ -159,7 +159,7 @@ services:
       <<: *shared-build-env
       PLATFORM: ps5
       VISUAL_STUDIO_VERSION: "2022"
-    image: cobalt-build-ps5
+    image: cobalt-build-ps5-vs2022
     depends_on:
       - cobalt-build-vs2022-win-internal
 
@@ -171,12 +171,14 @@ services:
       args:
         - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
         - FROM_IMAGE=cobalt-build-vs2022-win-internal
+        - vs_buildtools_version=17
+        - windows_11_sdk_version=22621
     environment:
       <<: *shared-build-env
       PLATFORM: xb1
       COBALT_CONCURRENT_LINKS: ${COBALT_CONCURRENT_LINKS:-1}
       VISUAL_STUDIO_VERSION: "2022"
-    image: cobalt-build-xb1
+    image: cobalt-build-xb1-vs2022
     depends_on:
       - cobalt-build-vs2022-win-internal
 
@@ -192,6 +194,6 @@ services:
       <<: *shared-build-env
       PLATFORM: nxswitch
       VISUAL_STUDIO_VERSION: "2022"
-    image: cobalt-build-nxswitch
+    image: cobalt-build-nxswitch-vs2022
     depends_on:
       - cobalt-build-vs2022-win-internal
