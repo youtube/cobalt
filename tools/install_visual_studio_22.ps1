@@ -11,4 +11,5 @@ C:\src\vs_professional.exe --wait --installPath `
     --add Microsoft.VisualStudio.Component.VC.14.34.17.4.x86.x64 `
     --add Microsoft.VisualStudio.Component.VC.Llvm.Clang `
     --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset `
-    --add Microsoft.VisualStudio.Component.Windows10SDK.18362
+    --add Microsoft.VisualStudio.Component.Windows10SDK.18362 `
+    --add Microsoft.VisualStudio.Workload.NativeDesktop
