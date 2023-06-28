@@ -85,6 +85,14 @@ services:
     depends_on:
       - base
 
+  crashpad-symbolize:
+    build:
+      context: ./docker/crashpad_symbolize
+      dockerfile: Dockerfile
+    image: crashpad-symbolize
+    depends_on:
+      - base
+
 #### Cobalt build containers
   base:
     build:
