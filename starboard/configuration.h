@@ -596,10 +596,6 @@ struct CompileAssert {};
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
 
-#if !defined(SB_HAS_BILINEAR_FILTERING_SUPPORT)
-#error "Your platform must define SB_HAS_BILINEAR_FILTERING_SUPPORT."
-#endif
-
 #if !defined(SB_HAS_NV12_TEXTURE_SUPPORT)
 #error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
 #endif
