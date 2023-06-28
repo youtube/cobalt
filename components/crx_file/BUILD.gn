@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (is_starboard) {
+  import("//components/crx_file/testdata/sha1_files.gni")
+}
 import("//third_party/protobuf/proto_library.gni")
 
 # The accompanying crx_creator target has been left behind during the migration
@@ -34,4 +37,61 @@ static_library("crx_file") {
     "//crypto",
     "//third_party/protobuf:protobuf_lite",
   ]
+}
+
+if (is_starboard) {
+  action("crx_file_download_test_data") {
+    install_content = true
+
+    script = "//tools/download_from_gcs.py"
+
+    sha_sources = []
+    foreach(sha1_file, sha1_files) {
+      sha_sources += [ string_join("/",
+                                   [
+                                     "testdata",
+                                     sha1_file,
+                                   ]) ]
+    }
+
+    sha_outputs = []
+    subdir = "components/crx_file"
+    outdir = "$sb_static_contents_output_data_dir/test/$subdir"
+    foreach(sha_source, sha_sources) {
+      sha_outputs += [ string_join("/",
+                                   [
+                                     outdir,
+                                     string_replace(sha_source, ".sha1", ""),
+                                   ]) ]
+    }
+
+    sources = sha_sources
+    outputs = sha_outputs
+
+    sha1_dir = rebase_path("testdata", root_build_dir)
+
+    args = [
+      "--bucket",
+      "cobalt-static-storage",
+      "--sha1",
+      sha1_dir,
+      "--output",
+      rebase_path("$outdir/testdata", root_build_dir),
+    ]
+  }
+
+  target(gtest_target_type, "crx_file_test") {
+    testonly = true
+
+    sources = [ "crx_verifier_unittest.cc" ]
+
+    deps = [
+      ":crx_file",
+      "//cobalt/test:run_all_unittests",
+      "//starboard:starboard_headers_only",
+      "//testing/gtest",
+    ]
+
+    data_deps = [ ":crx_file_download_test_data" ]
+  }
 }

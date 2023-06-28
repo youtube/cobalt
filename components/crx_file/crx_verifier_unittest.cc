@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,11 +7,24 @@
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#endif
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
 base::FilePath TestFile(const std::string& file) {
+#if defined(STARBOARD)
+  std::vector<char> buf(kSbFileMaxPath);
+  SbSystemGetPath(kSbSystemPathContentDirectory, buf.data(), kSbFileMaxPath);
+  return base::FilePath(buf.data())
+      .AppendASCII("test")
+      .AppendASCII("components")
+      .AppendASCII("crx_file")
+      .AppendASCII("testdata")
+      .AppendASCII(file);
+#else
   base::FilePath path;
   base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
   return path.AppendASCII("components")
@@ -19,6 +32,7 @@ base::FilePath TestFile(const std::string& file) {
       .AppendASCII("data")
       .AppendASCII("crx_file")
       .AppendASCII(file);
+#endif
 }
 
 constexpr char kOjjHash[] = "ojjgnpkioondelmggbekfhllhdaimnho";
