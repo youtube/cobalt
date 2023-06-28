@@ -20,18 +20,8 @@ config("host") {
 }
 
 config("common") {
-<<<<<<< HEAD
   configs = []
 
-  if (!cobalt_fastbuild) {
-    # Containers cannot use PDBs, so we conditionally disable them.
-    # We want to keep them for non-docker builds as they make compilation
-    # significantly faster.
-    configs += [ ":no_pdbs" ]
-  }
-
-=======
->>>>>>> 5d53d3086a2 (Remove PDBs (#664))
   cflags_cc = [ "/TP" ]
   cflags = [ "/Z7" ]
   ldflags = [
