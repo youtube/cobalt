@@ -169,6 +169,8 @@ typedef enum {
     XML_PARSE_READER = 5
 } xmlParserMode;
 
+typedef struct _xmlStartTag xmlStartTag;
+
 /**
  * xmlParserCtxt:
  *
@@ -231,7 +233,7 @@ struct _xmlParserCtxt {
     int                nameMax;       /* Max depth of the parsing stack */
     const xmlChar *   *nameTab;       /* array of nodes */
 
-    long               nbChars;       /* number of xmlChar processed */
+    long               nbChars;       /* unused */
     long            checkIndex;       /* used by progressive parsing lookup */
     int             keepBlanks;       /* ugly but ... */
     int             disableSAX;       /* SAX callbacks are disabled */
@@ -280,7 +282,7 @@ struct _xmlParserCtxt {
     int                nsMax;         /* the size of the arrays */
     const xmlChar *   *nsTab;         /* the array of prefix/namespace name */
     int               *attallocs;     /* which attribute were allocated */
-    void *            *pushTab;       /* array of data for push */
+    xmlStartTag       *pushTab;       /* array of data for push */
     xmlHashTablePtr    attsDefault;   /* defaulted attributes if any */
     xmlHashTablePtr    attsSpecial;   /* non-CDATA attributes if any */
     int                nsWellFormed;  /* is the document XML Namespace okay */

@@ -73,6 +73,7 @@ xmlGenericErrorDefaultFunc(void *ctx ATTRIBUTE_UNUSED, const char *msg, ...) {
 
     if (xmlGenericErrorContext == NULL)
 	xmlGenericErrorContext = (void *) stderr;
+
 #ifndef STARBOARD
     va_start(args, msg);
     vfprintf((FILE *)xmlGenericErrorContext, msg, args);
@@ -562,6 +563,7 @@ __xmlRaiseError(xmlStructuredErrorFunc schannel,
 	 * of the usual "base" (doc->URL) for the node (bug 152623).
 	 */
         xmlNodePtr prev = baseptr;
+        char *href = NULL;
 	int inclcount = 0;
 	while (prev != NULL) {
 	    if (prev->prev == NULL)
@@ -569,21 +571,20 @@ __xmlRaiseError(xmlStructuredErrorFunc schannel,
 	    else {
 	        prev = prev->prev;
 		if (prev->type == XML_XINCLUDE_START) {
-		    if (--inclcount < 0)
-		        break;
+		    if (inclcount > 0) {
+                        --inclcount;
+                    } else {
+                        href = (char *) xmlGetProp(prev, BAD_CAST "href");
+                        if (href != NULL)
+		            break;
+                    }
 		} else if (prev->type == XML_XINCLUDE_END)
 		    inclcount++;
 	    }
 	}
-	if (prev != NULL) {
-	    if (prev->type == XML_XINCLUDE_START) {
-		prev->type = XML_ELEMENT_NODE;
-		to->file = (char *) xmlGetProp(prev, BAD_CAST "href");
-		prev->type = XML_XINCLUDE_START;
-	    } else {
-		to->file = (char *) xmlGetProp(prev, BAD_CAST "href");
-	    }
-	} else
+        if (href != NULL)
+            to->file = href;
+	else
 #endif
 	    to->file = (char *) xmlStrdup(baseptr->doc->URL);
 	if ((to->file == NULL) && (node != NULL) && (node->doc != NULL)) {
