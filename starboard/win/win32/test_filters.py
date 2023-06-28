@@ -50,6 +50,9 @@ _FILTERED_TESTS = {
         'Semaphore.ThreadTakesWait_TimeExpires',
         # Failure tracked by b/287666606.
         'VerticalVideoTests/VerticalVideoTest.WriteSamples*',
+
+        # Enable once verified on the platform.
+        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing

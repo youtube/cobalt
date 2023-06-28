@@ -249,11 +249,13 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "height=1080; framerate=30",
       "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
       "framerate=30",
-      "video/mp4; codecs=\"av01.0.09M.10.0.110.09.16.09.0\"; width=1920; "
-      "height=1080; framerate=30",
   };
 
   std::vector<const char*> params_4k{
+      "video/mp4; codecs=\"avc1.4d002a\"; width=1920; height=1080; "
+      "framerate=30",
+      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
+      "framerate=30",
       "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=30",
       "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
       "height=2160; framerate=30",
@@ -264,6 +266,10 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
   };
 
   std::vector<const char*> params_8k{
+      "video/mp4; codecs=\"avc1.4d002a\"; width=1920; height=1080; "
+      "framerate=30",
+      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
+      "framerate=30",
       "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=60",
       "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
       "height=2160; framerate=60",
@@ -273,21 +279,22 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "height=4320; framerate=30",
   };
 
-  auto assert_mime_support = [](std::vector<const char*>& params) {
-    for (auto& param : params) {
-      SbMediaSupportType support = SbMediaCanPlayMimeAndKeySystem(param, "");
-      ASSERT_TRUE(support == kSbMediaSupportTypeProbably);
-    }
-  };
-
   DeviceType device_type = GetDeviceType();
+  std::vector<const char*> mime_params;
   switch (device_type) {
     case kDeviceType8k:
-      assert_mime_support(params_8k);
+      mime_params = params_8k;
+      break;
     case kDeviceType4k:
-      assert_mime_support(params_4k);
+      mime_params = params_4k;
+      break;
     default:
-      assert_mime_support(params_fhd);
+      mime_params = params_fhd;
+  }
+
+  for (auto& param : mime_params) {
+    SbMediaSupportType support = SbMediaCanPlayMimeAndKeySystem(param, "");
+    EXPECT_TRUE(support == kSbMediaSupportTypeProbably);
   }
 
   // AAC-LC
