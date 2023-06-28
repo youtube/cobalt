@@ -26,6 +26,8 @@ EXCLUDED_CHECK_PATTERNS = [
     'feedback/copybara',
     '_on_device_',
     'codecov',
+    'prepare_branch_list',
+    'cherry_pick',
     # Excludes templated check names.
     '${{'
 ]
