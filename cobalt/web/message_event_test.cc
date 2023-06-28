@@ -23,6 +23,7 @@
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/web/blob.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/web/message_event_init.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
 #include "cobalt/web/testing/test_with_javascript.h"
@@ -148,13 +149,11 @@ TEST_P(MessageEventTestWithJavaScript, ConstructorWithArrayBuffer) {
 TEST_P(MessageEventTestWithJavaScript, ConstructorWithAny) {
   base::Optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("'ConstructorWithAnyMessageData'", &reference);
-  std::unique_ptr<script::DataBuffer> data(
-      script::SerializeScriptValue(reference->referenced_value()));
-  EXPECT_NE(nullptr, data.get());
-  EXPECT_NE(nullptr, data->ptr);
-  EXPECT_GT(data->size, 0U);
+  auto* isolate = web::get_isolate(web_context()->environment_settings());
+  auto structured_clone =
+      std::make_unique<script::StructuredClone>(reference->referenced_value());
   scoped_refptr<MessageEvent> event =
-      new MessageEvent(base::Tokens::message(), std::move(data));
+      new MessageEvent(base::Tokens::message(), std::move(structured_clone));
 
   EXPECT_EQ("message", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -166,6 +165,7 @@ TEST_P(MessageEventTestWithJavaScript, ConstructorWithAny) {
   EXPECT_FALSE(event->IsBeingDispatched());
   EXPECT_FALSE(event->propagation_stopped());
   EXPECT_FALSE(event->immediate_propagation_stopped());
+  script::v8c::EntryScope entry_scope(isolate);
   MessageEvent::Response event_data =
       event->data(web_context()->environment_settings());
   EXPECT_TRUE(event_data.IsType<script::Handle<script::ValueHandle>>());
@@ -173,8 +173,6 @@ TEST_P(MessageEventTestWithJavaScript, ConstructorWithAny) {
       event_data.AsType<script::Handle<script::ValueHandle>>().IsEmpty());
   auto script_value =
       event_data.AsType<script::Handle<script::ValueHandle>>().GetScriptValue();
-  auto* isolate = script::GetIsolate(*script_value);
-  script::v8c::EntryScope entry_scope(isolate);
   v8::Local<v8::Value> v8_value = script::GetV8Value(*script_value);
   std::string actual =
       *(v8::String::Utf8Value(isolate, v8_value.As<v8::String>()));

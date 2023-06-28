@@ -266,7 +266,7 @@ class ServiceWorkerJobs {
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-postmessage-options
   void ServiceWorkerPostMessageSubSteps(
       ServiceWorkerObject* service_worker, web::Context* incumbent_client,
-      std::unique_ptr<script::DataBuffer> serialize_result);
+      std::unique_ptr<script::StructuredClone> structured_clone);
 
   // Registration of web contexts that may have service workers.
   void RegisterWebContext(web::Context* context);

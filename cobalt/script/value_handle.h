@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/exception_state.h"
@@ -38,16 +39,48 @@ class ValueHandle {
 
 typedef ScriptValue<ValueHandle> ValueHandleHolder;
 
-struct BufferDeleter {
-  void operator()(uint8_t* buffer) { SbMemoryDeallocate(buffer); }
-};
-using DataBufferPtr = std::unique_ptr<uint8_t[], BufferDeleter>;
 
-struct DataBuffer {
-  DataBufferPtr ptr;
-  size_t size;
+class StructuredClone : public v8::ValueSerializer::Delegate,
+                        public v8::ValueDeserializer::Delegate {
+ public:
+  explicit StructuredClone(const ValueHandleHolder& value);
 
-  DataBuffer(uint8_t* ptr, size_t size) : ptr(DataBufferPtr(ptr)), size(size) {}
+  // v8::ValueSerializer::Delegate
+  void ThrowDataCloneError(v8::Local<v8::String> message) override {
+    isolate_->ThrowException(v8::Exception::Error(message));
+  }
+  v8::Maybe<uint32_t> GetSharedArrayBufferId(
+      v8::Isolate* isolate,
+      v8::Local<v8::SharedArrayBuffer> shared_array_buffer) override;
+
+  // v8::ValueDeserializer::Delegate
+  v8::MaybeLocal<v8::SharedArrayBuffer> GetSharedArrayBufferFromId(
+      v8::Isolate* isolate, uint32_t clone_id) override;
+
+  Handle<ValueHandle> Deserialize(v8::Isolate* isolate);
+
+  bool failed() const { return serialize_failed_ || deserialize_failed_; }
+
+ private:
+  struct BufferDeleter {
+    void operator()(uint8_t* buffer) { SbMemoryDeallocate(buffer); }
+  };
+  using DataBufferPtr = std::unique_ptr<uint8_t[], BufferDeleter>;
+
+  struct DataBuffer {
+    DataBufferPtr ptr;
+    size_t size;
+
+    DataBuffer(uint8_t* ptr, size_t size)
+        : ptr(DataBufferPtr(ptr)), size(size) {}
+  };
+
+  v8::Isolate* isolate_;
+  Handle<ValueHandle> deserialized_;
+  std::unique_ptr<DataBuffer> data_buffer_;
+  bool serialize_failed_ = false;
+  bool deserialize_failed_ = false;
+  std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
 };
 
 // Converts a "simple" object to a map of the object's properties. "Simple"
@@ -64,10 +97,6 @@ std::unordered_map<std::string, std::string> ConvertSimpleObjectToMap(
 
 v8::Isolate* GetIsolate(const ValueHandleHolder& value);
 v8::Local<v8::Value> GetV8Value(const ValueHandleHolder& value);
-ValueHandleHolder* DeserializeScriptValue(v8::Isolate* isolate,
-                                          const DataBuffer& data_buffer);
-std::unique_ptr<DataBuffer> SerializeScriptValue(
-    const ValueHandleHolder& value);
 
 }  // namespace script
 }  // namespace cobalt

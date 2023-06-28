@@ -2704,7 +2704,7 @@ void ServiceWorkerJobs::ClaimSubSteps(
 
 void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
     ServiceWorkerObject* service_worker, web::Context* incumbent_client,
-    std::unique_ptr<script::DataBuffer> serialize_result) {
+    std::unique_ptr<script::StructuredClone> structured_clone) {
   // Parallel sub steps (6) for algorithm for ServiceWorker.postMessage():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-postmessage-options
   // 3. Let incumbentGlobal be incumbentSettings’s global object.
@@ -2713,7 +2713,7 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
   //     serviceWorker is failure, then return.
   auto* run_result = RunServiceWorker(service_worker);
   if (!run_result) return;
-  if (!serialize_result) return;
+  if (!structured_clone || structured_clone->failed()) return;
 
   // 6.2 Queue a task on the DOM manipulation task source to run the following
   //     steps:
@@ -2722,8 +2722,8 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
       base::BindOnce(
           [](ServiceWorkerObject* service_worker,
              web::Context* incumbent_client,
-             std::unique_ptr<script::DataBuffer> serialize_result) {
-            if (!serialize_result) return;
+             std::unique_ptr<script::StructuredClone> structured_clone) {
+            if (!structured_clone || structured_clone->failed()) return;
 
             web::EventTarget* event_target =
                 service_worker->worker_global_scope();
@@ -2751,7 +2751,8 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
                        ServiceWorkerObject* incumbent_worker,
                        web::Context* incumbent_client,
                        web::EventTarget* event_target,
-                       std::unique_ptr<script::DataBuffer> serialize_result) {
+                       std::unique_ptr<script::StructuredClone>
+                           structured_clone) {
                       ExtendableMessageEventInit init_dict;
                       if (incumbent_type ==
                           base::GetTypeId<ServiceWorkerGlobalScope>()) {
@@ -2787,7 +2788,7 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
                           new worker::ExtendableMessageEvent(
                               event_target->environment_settings(),
                               base::Tokens::message(), init_dict,
-                              std::move(serialize_result)));
+                              std::move(structured_clone)));
                     },
                     incumbent_type, base::Unretained(incumbent_worker),
                     // Note: These should probably be weak pointers for when
@@ -2797,10 +2798,10 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
                     // used here.
                     base::Unretained(incumbent_client),
                     base::Unretained(event_target),
-                    std::move(serialize_result)));
+                    std::move(structured_clone)));
           },
           base::Unretained(service_worker), base::Unretained(incumbent_client),
-          std::move(serialize_result)));
+          std::move(structured_clone)));
 }
 
 void ServiceWorkerJobs::RegisterWebContext(web::Context* context) {

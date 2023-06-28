@@ -56,16 +56,16 @@ class ExtendableMessageEvent : public ExtendableEvent {
   ExtendableMessageEvent(script::EnvironmentSettings* settings,
                          base::Token type,
                          const ExtendableMessageEventInit& init_dict);
-  ExtendableMessageEvent(script::EnvironmentSettings* settings,
-                         base::Token type,
-                         const ExtendableMessageEventInit& init_dict,
-                         std::unique_ptr<script::DataBuffer> data)
+  ExtendableMessageEvent(
+      script::EnvironmentSettings* settings, base::Token type,
+      const ExtendableMessageEventInit& init_dict,
+      std::unique_ptr<script::StructuredClone> structured_clone)
       : ExtendableMessageEvent(settings, type, init_dict) {
-    data_ = std::move(data);
+    structured_clone_ = std::move(structured_clone);
   }
 
   script::Handle<script::ValueHandle> data(
-      script::EnvironmentSettings* settings = nullptr) const;
+      script::EnvironmentSettings* settings = nullptr);
 
   const std::string& origin() const { return origin_; }
   const std::string& last_event_id() const { return last_event_id_; }
@@ -92,7 +92,7 @@ class ExtendableMessageEvent : public ExtendableEvent {
   std::string last_event_id_;
   SourceType source_;
   script::Sequence<scoped_refptr<MessagePort>> ports_;
-  std::unique_ptr<script::DataBuffer> data_;
+  std::unique_ptr<script::StructuredClone> structured_clone_;
 };
 
 }  // namespace worker

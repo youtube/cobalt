@@ -348,7 +348,7 @@ void Worker::Terminate() {
 
 void Worker::PostMessage(const script::ValueHandleHolder& message) {
   DCHECK(message_loop());
-  auto serialized_message = script::SerializeScriptValue(message);
+  auto structured_clone = std::make_unique<script::StructuredClone>(message);
   if (base::MessageLoop::current() != message_loop()) {
     // Block until the worker thread is ready to execute code to handle the
     // event.
@@ -356,10 +356,10 @@ void Worker::PostMessage(const script::ValueHandleHolder& message) {
     message_loop()->task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&web::MessagePort::PostMessageSerialized,
                                   message_port()->AsWeakPtr(),
-                                  std::move(serialized_message)));
+                                  std::move(structured_clone)));
   } else {
     DCHECK(execution_ready_.IsSignaled());
-    message_port()->PostMessageSerialized(std::move(serialized_message));
+    message_port()->PostMessageSerialized(std::move(structured_clone));
   }
 }
 

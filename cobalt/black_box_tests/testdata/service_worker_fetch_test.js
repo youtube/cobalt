@@ -35,7 +35,7 @@ self.addEventListener('activate', event => {
 });
 
 let fetchEventCount = 0;
-let exceptScriptIntercepted = false;
+let expectScriptIntercepted = false;
 
 self.addEventListener('message', event => {
   if (event.data === 'start-test') {
@@ -58,21 +58,21 @@ self.addEventListener('message', event => {
       return;
     }
     shouldIntercept = true;
-    exceptScriptIntercepted = true;
+    expectScriptIntercepted = true;
     postMessage({test: 'check-script-intercepted'});
     return;
   }
   if (event.data === 'script-intercepted') {
-    if (!exceptScriptIntercepted) {
+    if (!expectScriptIntercepted) {
       postMessage('script-intercepted-unexpected');
     }
     shouldIntercept = false;
-    exceptScriptIntercepted = false;
+    expectScriptIntercepted = false;
     postMessage({test: 'check-script-not-intercepted'})
     return;
   }
   if (event.data === 'script-not-intercepted') {
-    if (exceptScriptIntercepted) {
+    if (expectScriptIntercepted) {
       postMessage('script-not-intercepted-unexpected');
       return;
     }

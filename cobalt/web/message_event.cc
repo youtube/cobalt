@@ -25,6 +25,7 @@
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "v8/include/v8.h"
@@ -44,7 +45,8 @@ MessageEvent::MessageEvent(const std::string& type,
                            const MessageEventInit& init_dict)
     : Event(type, init_dict), response_type_(kAny) {
   if (init_dict.has_data() && init_dict.data()) {
-    data_ = script::SerializeScriptValue(*(init_dict.data()));
+    structured_clone_ =
+        std::make_unique<script::StructuredClone>(*(init_dict.data()));
   }
   if (init_dict.has_origin()) {
     origin_ = init_dict.origin();
@@ -80,24 +82,12 @@ MessageEvent::ResponseType MessageEvent::GetResponseType(
 }
 
 MessageEvent::Response MessageEvent::data(
-    script::EnvironmentSettings* settings) const {
-  if (!data_ && !data_io_buffer_) {
-    return Response(script::Handle<script::ValueHandle>());
-  }
-
-  script::GlobalEnvironment* global_environment = nullptr;
-  if (response_type_ == kBlob || response_type_ == kArrayBuffer ||
-      response_type_ == kAny) {
-    DCHECK(settings);
-    global_environment =
-        base::polymorphic_downcast<EnvironmentSettings*>(settings)
-            ->context()
-            ->global_environment();
-    DCHECK(global_environment);
-  }
-
+    script::EnvironmentSettings* settings) {
   switch (response_type_) {
     case kText: {
+      if (!data_io_buffer_) {
+        return Response(script::Handle<script::ValueHandle>());
+      }
       // TODO: Find a way to remove two copies of data here.
       std::string string_response(data_io_buffer_->data(),
                                   data_io_buffer_->size());
@@ -105,6 +95,10 @@ MessageEvent::Response MessageEvent::data(
     }
     case kBlob:
     case kArrayBuffer: {
+      auto* global_environment = web::get_global_environment(settings);
+      if (!data_io_buffer_ || !global_environment) {
+        return Response(script::Handle<script::ValueHandle>());
+      }
       auto buffer_copy = script::ArrayBuffer::New(
           global_environment, data_io_buffer_->data(), data_io_buffer_->size());
       script::Handle<script::ArrayBuffer> response_buffer =
@@ -117,12 +111,12 @@ MessageEvent::Response MessageEvent::data(
       return Response(response_buffer);
     }
     case kAny: {
-      v8::Isolate* isolate = global_environment->isolate();
+      if (!structured_clone_) {
+        return Response(script::Handle<script::ValueHandle>());
+      }
+      auto* isolate = web::get_isolate(settings);
       script::v8c::EntryScope entry_scope(isolate);
-      DCHECK(isolate);
-      DCHECK(data_);
-      return Response(script::Handle<script::ValueHandle>(
-          std::move(script::DeserializeScriptValue(isolate, *data_))));
+      return Response(structured_clone_->Deserialize(isolate));
     }
     default:
       NOTREACHED() << "Invalid response type.";
