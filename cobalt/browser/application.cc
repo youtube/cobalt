@@ -693,24 +693,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // URLRequestContext;
   base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
 
-  // Must be called early as it initializes global state which is then read by
-  // all threads without synchronization.
-  // RecordAction task runner must be called before metric initialization.
-  base::SetRecordActionTaskRunner(base::ThreadTaskRunnerHandle::Get());
-  metrics_services_manager_ =
-      metrics::CobaltMetricsServicesManager::GetInstance();
-  // Metric recording state initialization _must_ happen before we bootstrap
-  // otherwise we crash.
-  metrics_services_manager_->GetMetricsService()
-      ->InitializeMetricsRecordingState();
-  // UpdateUploadPermissions bootstraps the whole metric reporting, scheduling,
-  // and uploading cycle.
-  metrics_services_manager_->UpdateUploadPermissions(false);
-
   // Initializes persistent settings.
   persistent_settings_ =
       std::make_unique<persistent_storage::PersistentSettings>(
           kPersistentSettingsJson);
+
+  // Initialize telemetry/metrics.
+  InitMetrics();
 
   // Initializes Watchdog.
   watchdog::Watchdog* watchdog =
@@ -1556,6 +1545,30 @@ void Application::DispatchDeepLinkIfNotConsumed() {
   if (browser_module_) {
     browser_module_->SetDeepLinkTimestamp(timestamp);
   }
+}
+
+void Application::InitMetrics() {
+  // Must be called early as it initializes global state which is then read by
+  // all threads without synchronization.
+  // RecordAction task runner must be called before metric initialization.
+  base::SetRecordActionTaskRunner(base::ThreadTaskRunnerHandle::Get());
+  metrics_services_manager_ =
+      metrics::CobaltMetricsServicesManager::GetInstance();
+  // Before initializing metrics manager, set any persisted settings like if
+  // it's enabled or upload interval.
+  bool is_metrics_enabled = persistent_settings_->GetPersistentSettingAsBool(
+      metrics::kMetricEnabledSettingName, false);
+  metrics_services_manager_->SetUploadInterval(
+      persistent_settings_->GetPersistentSettingAsInt(
+          metrics::kMetricEventIntervalSettingName, 300));
+  metrics_services_manager_->ToggleMetricsEnabled(is_metrics_enabled);
+  // Metric recording state initialization _must_ happen before we bootstrap
+  // otherwise we crash.
+  metrics_services_manager_->GetMetricsService()
+      ->InitializeMetricsRecordingState();
+  // UpdateUploadPermissions bootstraps the whole metric reporting, scheduling,
+  // and uploading cycle.
+  metrics_services_manager_->UpdateUploadPermissions(is_metrics_enabled);
 }
 
 }  // namespace browser
