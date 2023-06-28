@@ -30,6 +30,13 @@ namespace cobalt {
 namespace browser {
 namespace metrics {
 
+
+// Persistent setting name for the metric event/upload interval.
+constexpr char kMetricEventIntervalSettingName[] = "metricEventInterval";
+
+// Persistent setting name for whether metrics are enabled or disabled.
+constexpr char kMetricEnabledSettingName[] = "metricsEnabledState";
+
 // A static wrapper around CobaltMetricsServicesManager. We need a way
 // to provide a static instance of the "Cobaltified" MetricsServicesManager (and
 // its public APIs) to control metrics behavior outside of //cobalt/browser
