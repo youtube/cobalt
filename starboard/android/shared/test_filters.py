@@ -47,6 +47,8 @@ _FILTERED_TESTS = {
         'PlayerComponentsTests/PlayerComponentsTest.Pause/*ec3*',
     ],
     'nplb': [
+        # Enable multiplayer tests once it's supported.
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
         # This test is failing because localhost is not defined for IPv6 in
         # /etc/hosts.
         'SbSocketAddressTypes/SbSocketResolveTest.Localhost/filter_ipv6_type_ipv6',

@@ -36,11 +36,23 @@ struct SbPlayerTestConfig {
       : audio_filename(audio_filename),
         video_filename(video_filename),
         output_mode(output_mode),
-        key_system(key_system) {}
+        key_system(key_system),
+        max_video_capabilities("") {}
+  SbPlayerTestConfig(const char* audio_filename,
+                     const char* video_filename,
+                     SbPlayerOutputMode output_mode,
+                     const char* key_system,
+                     const char* max_video_capabilities)
+      : audio_filename(audio_filename),
+        video_filename(video_filename),
+        output_mode(output_mode),
+        key_system(key_system),
+        max_video_capabilities(max_video_capabilities) {}
   const char* audio_filename;
   const char* video_filename;
   SbPlayerOutputMode output_mode;
   const char* key_system;
+  const char* max_video_capabilities;
 };
 
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
