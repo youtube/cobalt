@@ -1,0 +1,58 @@
+<!doctype html>
+<html class="test-wait">
+<head>
+<meta charset="utf-8">
+<style>
+dir {
+  animation: kf, 0s infinite paused;
+}
+svg {
+  animation-name: kf;
+}
+@keyframes kf {}
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const dir = document.querySelector("dir");
+  const waitForAnimationEnd = new Promise(resolve => {
+    let count = 0;
+    function onAnimationEnd() {
+      window.find("AAAAAAAAAA");
+      document.execCommand("forwardDelete");
+      count++;
+      function getRemainingEventCount() {
+        if (count >= 2) {
+          return 0;
+        }
+        // If `animationend` is delayed and `<dir>` has already been removed,
+        // `animationend` for it is never fired anymore.
+        return !dir.isConnected ? 0 : 1;
+      }
+      if (!getRemainingEventCount()) {
+        window.removeEventListener("animationend", onAnimationEnd);
+        resolve();
+      }
+    }
+    window.addEventListener("animationend", onAnimationEnd);
+  });
+  window.find("A");
+  document.execCommand("insertHTML", false, "AAAAAAAAAAAAAAAA");
+  dir.addEventListener("DOMNodeRemoved", event => {
+    dir.remove();
+  });
+  window.find("A");
+  document.execCommand("delete");
+  await waitForAnimationEnd;
+  document.documentElement.removeAttribute("class");
+});
+</script>
+</head>
+<body>
+<svg>
+<s></s>
+<dir contenteditable>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+</dir>
+</svg>
+</body>
+</html>
