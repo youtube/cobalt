@@ -21,6 +21,7 @@
 #include "starboard/common/string.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/drm_helpers.h"
+#include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -40,6 +41,24 @@ using std::placeholders::_3;
 using std::placeholders::_4;
 using testing::FakeGraphicsContextProvider;
 
+const char* kAudioTestFiles[] = {"beneath_the_canopy_aac_stereo.dmp",
+                                 "beneath_the_canopy_opus_stereo.dmp",
+                                 "sintel_329_ec3.dmp", "sintel_381_ac3.dmp"};
+
+// For uncommon audio formats, we add audio only tests, without tests combined
+// with a video stream, to shorten the overall test time.
+const char* kAudioOnlyTestFiles[] = {
+    "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_mono.dmp",
+    "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_mono.dmp",
+    "heaac.dmp"};
+
+const char* kVideoTestFiles[] = {"beneath_the_canopy_137_avc.dmp",
+                                 "beneath_the_canopy_248_vp9.dmp",
+                                 "sintel_399_av1.dmp"};
+
+const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                           kSbPlayerOutputModePunchOut};
+
 void ErrorFunc(SbPlayer player,
                void* context,
                SbPlayerError error,
@@ -50,29 +69,34 @@ void ErrorFunc(SbPlayer player,
 
 }  // namespace
 
+std::vector<const char*> GetAudioTestFiles() {
+  return std::vector<const char*>(std::begin(kAudioTestFiles),
+                                  std::end(kAudioTestFiles));
+}
+
+std::vector<const char*> GetVideoTestFiles() {
+  return std::vector<const char*>(std::begin(kVideoTestFiles),
+                                  std::end(kVideoTestFiles));
+}
+
+std::vector<SbPlayerOutputMode> GetPlayerOutputModes() {
+  return std::vector<SbPlayerOutputMode>(std::begin(kOutputModes),
+                                         std::end(kOutputModes));
+}
+
+std::vector<const char*> GetKeySystems() {
+  std::vector<const char*> key_systems;
+  key_systems.push_back("");
+  key_systems.insert(key_systems.end(), kKeySystems,
+                     kKeySystems + SB_ARRAY_SIZE_INT(kKeySystems));
+  return key_systems;
+}
+
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     const char* key_system) {
   SB_DCHECK(key_system);
 
   const char* kEmptyName = NULL;
-
-  const char* kAudioTestFiles[] = {"beneath_the_canopy_aac_stereo.dmp",
-                                   "beneath_the_canopy_opus_stereo.dmp",
-                                   "sintel_329_ec3.dmp", "sintel_381_ac3.dmp"};
-
-  // For uncommon audio formats, we add audio only tests, without tests combined
-  // with a video stream, to shorten the overall test time.
-  const char* kAudioOnlyTestFiles[] = {
-      "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_mono.dmp",
-      "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_mono.dmp",
-      "heaac.dmp"};
-
-  const char* kVideoTestFiles[] = {"beneath_the_canopy_137_avc.dmp",
-                                   "beneath_the_canopy_248_vp9.dmp",
-                                   "sintel_399_av1.dmp"};
-
-  const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
-                                             kSbPlayerOutputModePunchOut};
 
   std::vector<const char*> supported_audio_files;
   supported_audio_files.push_back(kEmptyName);
@@ -207,6 +231,7 @@ SbPlayer CallSbPlayerCreate(
     SB_CHECK(audio_codec == kSbMediaAudioCodecNone);
   }
 
+  // TODO: pass real audio/video info to SbPlayerGetPreferredOutputMode.
   PlayerCreationParam creation_param =
       CreatePlayerCreationParam(audio_codec, video_codec, output_mode);
   if (audio_stream_info) {
@@ -334,6 +359,7 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            const char* key_system) {
   SB_DCHECK(key_system);
 
+  // TODO: pass real audio/video info to SbPlayerGetPreferredOutputMode.
   PlayerCreationParam creation_param =
       CreatePlayerCreationParam(audio_codec, video_codec, output_mode);
 
