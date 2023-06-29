@@ -216,7 +216,7 @@ std::string VideoDmpReader::video_mime_type() {
     const auto& video_stream_info = this->video_stream_info();
     ss << "width=" << video_stream_info.frame_width
        << "; height=" << video_stream_info.frame_height
-       << "; bitrate=" << dmp_info_.video_bitrate;
+       << "; bitrate=" << dmp_info_.video_bitrate << ";";
   }
   ss << " framerate=" << dmp_info_.video_fps;
   return ss.str();
