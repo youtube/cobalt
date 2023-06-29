@@ -97,7 +97,7 @@ uint32_t ReadAndHashLittleEndianUInt32FromString(
     std::string::const_iterator* it,
     crypto::SecureHash* hash) {
   uint8_t buffer[4] = {};
-  ReadAndHashBufferFromString(buffer, 4, it, hash);
+  ReadAndHashBufferFromString(buffer, sizeof(buffer), it, hash);
   return buffer[3] << 24 | buffer[2] << 16 | buffer[1] << 8 | buffer[0];
 }
 #endif
@@ -578,7 +578,6 @@ VerifierResult Verify(
 
   // Magic number.
   bool diff = false;
-  char buffer[kCrxFileHeaderMagicSize] = {};
   if (!strncmp(crx_str.c_str(), kCrxDiffFileHeaderMagic,
                kCrxFileHeaderMagicSize)) {
     diff = true;
