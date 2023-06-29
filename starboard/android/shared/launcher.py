@@ -151,7 +151,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     out_directory = os.path.split(self.GetTargetPath())[0]
     self.apk_path = os.path.join(out_directory, f'{target_name}.apk')
     if not os.path.exists(self.apk_path):
-      raise Exception(f"Can't find APK {self.apk_path}")
+      raise FileNotFoundError(f"Can't find APK {self.apk_path}")
 
     # This flag is set when the main Run() loop exits.  If Kill() is called
     # after this flag is set, it will not do anything.
