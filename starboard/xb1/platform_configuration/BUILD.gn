@@ -1,0 +1,82 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+config("platform_configuration") {
+  configs = [
+    "//starboard/win/shared/platform_configuration",
+    ":target",
+  ]
+}
+
+config("target") {
+  if (is_internal_build) {
+    include_dirs = [
+      "//third_party/internal/libvpx_xb1",
+      "//third_party/internal/libav1_xb1/libav1",
+      "//third_party/internal/libav1_xb1/libav1/build",
+    ]
+  }
+  libs = []
+  ldflags = [
+    "/MACHINE:x64",
+
+    # Don't send error reports to MS.
+    "/errorReport:none",
+  ]
+  arflags = []
+  cflags = [
+    # The warning "Padding was added at the end of a structure" happens
+    # in the library third_party/internal/libav1_xb1.
+    "/wd4324",
+  ]
+
+  if (is_debug || is_devel) {
+    libs = [
+      "vccorlibd.lib",
+      "msvcrtd.lib",
+      "msvcprtd.lib",
+      "vcruntimed.lib",
+      "ucrtd.lib",
+    ]
+  } else {
+    libs = [
+      "vccorlib.lib",
+      "msvcrt.lib",
+      "msvcprt.lib",
+      "vcruntime.lib",
+      "ucrt.lib",
+    ]
+    ldflags += [ "/DEBUG:FASTLINK" ]
+  }
+
+  ldflags += [ "/NODEFAULTLIB" ]
+  arflags += [ "/NODEFAULTLIB" ]
+  libs += [
+    "d3d12.lib",
+    "dxguid.lib",
+    "iso_stdio_wide_specifiers.lib",
+    "mfplat.lib",
+    "mfuuid.lib",
+    "windowsapp.lib",
+  ]
+  ldflags += [
+    "/SUBSYSTEM:WINDOWS",
+
+    # WinMD file required for UWP.
+    "/WINMD",
+
+    # Required for UWP
+    "/APPCONTAINER",
+  ]
+}

@@ -1,0 +1,168 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/win/visual_studio_version.gni")
+import("//starboard/build/toolchain/win/variables.gni")
+
+template("install_target") {
+  not_needed(invoker, [ "type" ])
+  installable_target_name = invoker.installable_target_name
+  should_run_mspdbcmf =
+      installable_target_name == "cobalt" && (is_qa || is_gold)
+
+  if (should_run_mspdbcmf) {
+    # This takes a long time to run and is only necessary for cobalt.
+    create_pdb_file_name = "${installable_target_name}_create_pdb_file"
+    action(create_pdb_file_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      script = "//starboard/build/run_bash.py"
+      sources = [ "$root_out_dir/${installable_target_name}.exe" ]
+      outputs = [ "$root_out_dir/${installable_target_name}.exe.pdb" ]
+      args = [
+        "$tool_base_path/mspdbcmf.exe",
+        rebase_path(outputs[0], root_build_dir),
+      ]
+      deps = [ ":$installable_target_name" ]
+    }
+  }
+
+  if (is_internal_build) {
+    products = [ "youtube" ]
+    if (installable_target_name == "cobalt") {
+      products += [
+        "youtubetv",
+        "mainappbeta",
+      ]
+    }
+  } else {
+    products = [ "cobalt" ]
+  }
+
+  foreach(product, products) {
+    if (product == "youtube" || product == "cobalt") {
+      target_base_name = target_name
+      appx_output_dir = "$root_out_dir/appx"
+      template_output_dir = "$root_out_dir/templates"
+    } else if (product == "youtubetv") {
+      not_needed([ "target_name" ])
+      target_base_name = product + "_install"
+      appx_output_dir = "$root_out_dir/youtubetv-appx"
+      template_output_dir = "$root_out_dir/youtubetv-templates"
+    } else if (product == "mainappbeta") {
+      not_needed([ "target_name" ])
+      target_base_name = product + "_install"
+      appx_output_dir = "$root_out_dir/mainappbeta-appx"
+      template_output_dir = "$root_out_dir/mainappbeta-templates"
+    } else {
+      assert(
+          false,
+          "|product| must be one of youtube, youtubetv, mainappbeta, or cobalt.")
+    }
+
+    appx_template_dir_src = "//starboard/xb1/templates"
+    application_section_output =
+        "$template_output_dir/ApplicationSection.$installable_target_name.xml"
+    application_template =
+        "$appx_template_dir_src/ApplicationSection.xml.template"
+
+    copy_application_name = "${target_base_name}_copy_exe"
+    copy(copy_application_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      sources = [ "$root_out_dir/${installable_target_name}.exe" ]
+      outputs = [ "${appx_output_dir}/${installable_target_name}.exe" ]
+      deps = [ ":$installable_target_name" ]
+    }
+
+    copy_winmd_name = "${target_base_name}_copy_winmd_for_appx"
+    action(copy_winmd_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      sources = [ rebase_path("$root_out_dir/${installable_target_name}.exe") ]
+      outputs = [ "${appx_output_dir}/${installable_target_name}.winmd" ]
+
+      script = "//starboard/build/copy_file.py"
+      args = [
+        rebase_path("$root_out_dir/${installable_target_name}.winmd"),
+        rebase_path(outputs[0], root_build_dir),
+      ]
+      deps = [ ":$installable_target_name" ]
+    }
+
+    generate_application_section_name =
+        "${target_base_name}_generate_application_section"
+    action(generate_application_section_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      script = "//starboard/xb1/tools/application_section_generator.py"
+
+      inputs = [ application_template ]
+      outputs = [ application_section_output ]
+      args = [
+        "--config",
+        build_type,
+        "--application_template",
+        rebase_path(application_template, root_build_dir),
+        "--application_name",
+        installable_target_name,
+        "--product",
+        product,
+        "--output",
+        rebase_path(outputs[0], root_build_dir),
+      ]
+      deps = [ ":$installable_target_name" ]
+    }
+
+    appx_run_name = "${target_base_name}_appx_run"
+    action(appx_run_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      script = "//starboard/xb1/tools/appx.py"
+      appx_manifest_template =
+          "$appx_template_dir_src/AppxManifest.xml.template"
+      inputs = [
+        appx_manifest_template,
+        application_section_output,
+      ]
+      outputs = [ "$template_output_dir/${installable_target_name}.should_not_exist.always_run" ]
+      args = [
+        "--config",
+        build_type,
+        "--appx_template",
+        rebase_path(appx_manifest_template, root_build_dir),
+        "--template_directory",
+        rebase_path(template_output_dir, root_build_dir),
+        "--manifest_out",
+        rebase_path("$appx_output_dir/AppxManifest.xml", root_out_dir),
+        "--product",
+        product,
+      ]
+      deps = [ ":$generate_application_section_name" ]
+    }
+
+    group(target_base_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      deps = invoker.deps + [
+               ":$appx_run_name",
+               ":$copy_application_name",
+               ":$copy_winmd_name",
+               ":$generate_application_section_name",
+               ":$installable_target_name",
+               "//starboard/xb1/install_target:${product}_copy_assets",
+             ]
+      if (is_debug || is_devel) {
+        deps += [ "//starboard/xb1/install_target:${product}_copy_ucrt_dll" ]
+      }
+      if (should_run_mspdbcmf) {
+        deps += [ ":$create_pdb_file_name" ]
+      }
+    }
+  }
+}
