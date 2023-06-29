@@ -43,6 +43,11 @@ struct SbPlayerTestConfig {
   const char* key_system;
 };
 
+std::vector<const char*> GetAudioTestFiles();
+std::vector<const char*> GetVideoTestFiles();
+std::vector<SbPlayerOutputMode> GetPlayerOutputModes();
+std::vector<const char*> GetKeySystems();
+
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     const char* key_system = "");
 
