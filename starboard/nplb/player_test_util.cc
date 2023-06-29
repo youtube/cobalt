@@ -20,6 +20,7 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/enhanced_audio.h"
+#include "starboard/nplb/dmp_file_selector.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
@@ -52,9 +53,25 @@ const char* kAudioOnlyTestFiles[] = {
     "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_mono.dmp",
     "heaac.dmp"};
 
-const char* kVideoTestFiles[] = {"beneath_the_canopy_137_avc.dmp",
-                                 "beneath_the_canopy_248_vp9.dmp",
-                                 "sintel_399_av1.dmp"};
+// |kVideoTestFiles| list test files in a descending order of priority.
+// Higher resolutions are prioritzed over lower resolutions, 60 fps over 30
+// fps, and all HDR files are prioritized over SDR files.
+// TODO: Add more VP9 dmp files and full width 1080p AV1 dmp files.
+const char* kVideoTestFiles[] = {
+    "702_av1_8k_30_fps_hdr.dmp",      "701_av1_4k_60_fps_hdr.dmp",
+    "701_av1_4k_60_fps_hdr.dmp",      "701_av1_4k_60_fps_hdr.dmp",
+    "700_av1_1440p_30_fps_hdr.dmp",   "700_av1_1440p_30_fps_hdr.dmp",
+    "699_av1_1080p_60_fps_hdr.dmp",   "699_av1_1080p_30_fps_hdr.dmp",
+    "571_av1_8k_30_fps_sdr.dmp",      "401_av1_4k_60_fps_sdr.dmp",
+    "401_av1_4k_30_fps_sdr.dmp",      "400_av1_1440p_60_fps_sdr.dmp",
+    "400_av1_1440p_30_fps_sdr.dmp",   "399_av1_1080p_60_fps_sdr.dmp",
+    "399_av1_1080p_30_fps_sdr.dmp",   "sintel_399_av1.dmp",
+
+    "299_avc_1080p_60_fps_sdr.dmp",   "137_avc_1080p_30_fps_sdr.dmp",
+    "beneath_the_canopy_137_avc.dmp",
+
+    "beneath_the_canopy_248_vp9.dmp",
+};
 
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                            kSbPlayerOutputModePunchOut};
@@ -69,19 +86,27 @@ void ErrorFunc(SbPlayer player,
 
 }  // namespace
 
-std::vector<const char*> GetAudioTestFiles() {
-  return std::vector<const char*>(std::begin(kAudioTestFiles),
-                                  std::end(kAudioTestFiles));
-}
+std::vector<const char*>
+GetAudioTestFiles() {  // |kVideoTestFiles| list test files in a descending
+                       // order of priority.
+  // Higher resolutions are prioritzed over lower resolutions, 60 fps over 30
+  // fps, and all HDR files are prioritized over SDR files.
+  // TODO: Add more VP9 dmp files and full width 1080p AV1 dmp files.
+  const char* kVideoTestFiles[] = {
+      "702_av1_8k_30_fps_hdr.dmp",      "701_av1_4k_60_fps_hdr.dmp",
+      "701_av1_4k_60_fps_hdr.dmp",      "701_av1_4k_60_fps_hdr.dmp",
+      "700_av1_1440p_30_fps_hdr.dmp",   "700_av1_1440p_30_fps_hdr.dmp",
+      "699_av1_1080p_60_fps_hdr.dmp",   "699_av1_1080p_30_fps_hdr.dmp",
+      "571_av1_8k_30_fps_sdr.dmp",      "401_av1_4k_60_fps_sdr.dmp",
+      "401_av1_4k_30_fps_sdr.dmp",      "400_av1_1440p_60_fps_sdr.dmp",
+      "400_av1_1440p_30_fps_sdr.dmp",   "399_av1_1080p_60_fps_sdr.dmp",
+      "399_av1_1080p_30_fps_sdr.dmp",   "sintel_399_av1.dmp",
 
-std::vector<const char*> GetVideoTestFiles() {
-  return std::vector<const char*>(std::begin(kVideoTestFiles),
-                                  std::end(kVideoTestFiles));
-}
+      "299_avc_1080p_60_fps_sdr.dmp",   "137_avc_1080p_30_fps_sdr.dmp",
+      "beneath_the_canopy_137_avc.dmp",
 
-std::vector<SbPlayerOutputMode> GetPlayerOutputModes() {
-  return std::vector<SbPlayerOutputMode>(std::begin(kOutputModes),
-                                         std::end(kOutputModes));
+      "beneath_the_canopy_248_vp9.dmp",
+  };
 }
 
 std::vector<const char*> GetKeySystems() {
@@ -110,17 +135,13 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     }
   }
 
-  std::vector<const char*> supported_video_files;
-  supported_video_files.push_back(kEmptyName);
-  for (auto video_filename : kVideoTestFiles) {
-    VideoDmpReader dmp_reader(video_filename,
-                              VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
-    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
-                                       key_system)) {
-      supported_video_files.push_back(video_filename);
-    }
-  }
+  DmpFileSelector video_file_selector;
+
+  const std::vector<const char*>& supported_video_files =
+      video_file_selector.GetSupportedVideoDmpFiles(
+          {kVideoTestFiles,
+           kVideoTestFiles + SB_ARRAY_SIZE_INT(kVideoTestFiles)},
+          key_system);
 
   std::vector<SbPlayerTestConfig> test_configs;
   for (auto audio_filename : supported_audio_files) {

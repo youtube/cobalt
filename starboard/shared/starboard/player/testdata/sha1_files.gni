@@ -13,6 +13,22 @@
 # limitations under the License.
 
 sha1_files = [
+  "137_avc_1080p_30_fps_sdr.dmp.sha1",
+  "299_avc_1080p_60_fps_sdr.dmp.sha1",
+  "399_av1_1080p_30_fps_sdr.dmp.sha1",
+  "399_av1_1080p_60_fps_sdr.dmp.sha1",
+  "400_av1_1440p_30_fps_sdr.dmp.sha1",
+  "400_av1_1440p_60_fps_sdr.dmp.sha1",
+  "401_av1_4k_30_fps_sdr.dmp.sha1",
+  "401_av1_4k_60_fps_sdr.dmp.sha1",
+  "571_av1_8k_30_fps_sdr.dmp.sha1",
+  "699_av1_1080p_30_fps_hdr.dmp.sha1",
+  "699_av1_1080p_60_fps_hdr.dmp.sha1",
+  "700_av1_1440p_30_fps_hdr.dmp.sha1",
+  "700_av1_1440p_60_fps_hdr.dmp.sha1",
+  "701_av1_4k_30_fps_hdr.dmp.sha1",
+  "701_av1_4k_60_fps_hdr.dmp.sha1",
+  "702_av1_8k_30_fps_hdr.dmp.sha1",
   "beneath_the_canopy_135_avc.dmp.sha1",
   "beneath_the_canopy_136_avc.dmp.sha1",
   "beneath_the_canopy_137_avc.dmp.sha1",

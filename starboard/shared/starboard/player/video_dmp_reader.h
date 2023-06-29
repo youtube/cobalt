@@ -124,6 +124,8 @@ class VideoDmpReader {
   int video_fps() const { return dmp_info_.video_fps; }
   std::string video_mime_type();
   SbTime video_duration() const { return dmp_info_.video_duration; }
+  int video_width() const { return dmp_info_.frame_width; }
+  int video_height() const { return dmp_info_.frame_height; }
 
   size_t number_of_audio_buffers() const {
     return dmp_info_.audio_access_units_size;
@@ -148,6 +150,9 @@ class VideoDmpReader {
     int64_t video_bitrate = 0;
     int video_fps = 0;
     int video_duration = 0;
+    int frame_width = 0;
+    int frame_height = 0;
+    bool video_is_hdr = false;
   };
 
   class Registry {
