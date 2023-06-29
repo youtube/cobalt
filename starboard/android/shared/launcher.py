@@ -450,4 +450,4 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetDeviceOutputPath(self):
     """Writable path where test targets can output files"""
-    return f'/data/data/{_APP_PACKAGE_NAME}/cache/'
+    return f'/data/data/{_APP_PACKAGE_NAME}/log/'
