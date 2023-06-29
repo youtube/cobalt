@@ -11,6 +11,9 @@ namespace switches {
 // Alphabetical list of switches specific to the metrics component. Document
 // each in the .cc file.
 
+#if defined(STARBOARD)
+extern const char kInitialMetricsUploadIntervalSec[];
+#endif
 extern const char kMetricsRecordingOnly[];
 extern const char kResetVariationState[];
 extern const char kForceEnableMetricsReporting[];

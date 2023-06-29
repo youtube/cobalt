@@ -158,6 +158,11 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/entropy_provider.h"
+#if defined(STARBOARD)
+#include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
+#include "components/metrics/metrics_switches.h"
+#endif
 
 namespace metrics {
 
@@ -605,6 +610,30 @@ void MetricsService::OpenNewLog() {
     // We only need to schedule that run once.
     state_ = INIT_TASK_SCHEDULED;
 
+#if defined(STARBOARD)
+    const base::CommandLine* command_line =
+        base::CommandLine::ForCurrentProcess();
+    int initialization_delay_secs = kInitializationDelaySeconds;
+    if (command_line->HasSwitch(switches::kInitialMetricsUploadIntervalSec)) {
+      if (base::StringToInt(command_line->GetSwitchValueASCII(
+                                switches::kInitialMetricsUploadIntervalSec),
+                            &initialization_delay_secs)) {
+        LOG(INFO) << "Metrics initial delay overriden to: "
+                  << initialization_delay_secs;
+      }
+    }
+    base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&MetricsService::StartInitTask,
+                       self_ptr_factory_.GetWeakPtr()),
+        base::TimeDelta::FromSeconds(initialization_delay_secs));
+
+    base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&MetricsService::PrepareProviderMetricsTask,
+                       self_ptr_factory_.GetWeakPtr()),
+        base::TimeDelta::FromSeconds(2 * initialization_delay_secs));
+#else
     base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&MetricsService::StartInitTask,
@@ -616,6 +645,7 @@ void MetricsService::OpenNewLog() {
         base::BindOnce(&MetricsService::PrepareProviderMetricsTask,
                        self_ptr_factory_.GetWeakPtr()),
         base::TimeDelta::FromSeconds(2 * kInitializationDelaySeconds));
+#endif
   }
 }
 
