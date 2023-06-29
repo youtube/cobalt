@@ -49,6 +49,7 @@ _FILTERED_TESTS = {
     'nplb': [
         # Enable multiplayer tests once it's supported.
         'MultiplePlayerTests/*',
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
 
         # This test is failing because localhost is not defined for IPv6 in
         # /etc/hosts.

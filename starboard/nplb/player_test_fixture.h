@@ -198,6 +198,7 @@ class SbPlayerTestFixture {
   shared::starboard::ThreadChecker thread_checker_;
   const SbPlayerOutputMode output_mode_;
   std::string key_system_;
+  std::string max_video_capabilities_;
   scoped_ptr<VideoDmpReader> audio_dmp_reader_;
   scoped_ptr<VideoDmpReader> video_dmp_reader_;
   testing::FakeGraphicsContextProvider* fake_graphics_context_provider_;
