@@ -1,6 +1,6 @@
 # Cobalt [![Build Matrix](https://img.shields.io/badge/-Build%20Matrix-blueviolet)](https://github.com/youtube/cobalt/blob/main/BUILD_STATUS.md)
 
-[![codecov](https://codecov.io/github/youtube/cobalt/branch/main/graph/badge.svg?token=QZY8I830S6)](https://codecov.io/github/youtube/cobalt)
+[![codecov](https://codecov.io/github/youtube/cobalt/branch/main/graph/badge.svg?token=RR6MKKNYNV)](https://codecov.io/github/youtube/cobalt)
 [![lint](https://github.com/youtube/cobalt/actions/workflows/lint.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/lint.yaml?query=event%3Apush+branch%3Amain)
 [![java](https://github.com/youtube/cobalt/actions/workflows/gradle.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/gradle.yaml?query=event%3Apush+branch%3Amain)
 [![python](https://github.com/youtube/cobalt/actions/workflows/pytest.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/pytest.yaml?query=event%3Apush+branch%3Amain) \
