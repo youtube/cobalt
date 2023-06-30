@@ -35,6 +35,9 @@ _FILTERED_TESTS = {
         'SbSystemGetPropertyTest.FLAKY_ReturnsRequired',
         # Failure tracked by b/287666606.
         'VerticalVideoTests/VerticalVideoTest.WriteSamples*',
+
+        # Enable once verified on the platform.
+        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
     ],
     'player_filter_tests': [
         # The implementations for the raspberry pi (0 and 2) are incomplete
