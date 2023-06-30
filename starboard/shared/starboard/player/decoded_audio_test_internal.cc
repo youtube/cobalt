@@ -286,19 +286,16 @@ TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
           kSampleRate, quarter_duration, quarter_duration);
       ASSERT_NEAR(adjusted_decoded_audio->frames(),
                   original_decoded_audio->frames() / 2, 2);
-      ASSERT_NEAR(adjusted_decoded_audio->timestamp(),
-                  original_decoded_audio->timestamp() + quarter_duration,
-                  duration_of_one_frame * 2);
+      ASSERT_EQ(adjusted_decoded_audio->timestamp(),
+                original_decoded_audio->timestamp());
 
       adjusted_decoded_audio = original_decoded_audio->Clone();
       // Adjust more frames than it has from front
       adjusted_decoded_audio->AdjustForDiscardedDurations(
           kSampleRate, duration_of_decoded_audio * 2, 0);
       ASSERT_EQ(adjusted_decoded_audio->frames(), 0);
-      ASSERT_NEAR(
-          adjusted_decoded_audio->timestamp(),
-          original_decoded_audio->timestamp() + duration_of_decoded_audio,
-          duration_of_one_frame * 2);
+      ASSERT_EQ(adjusted_decoded_audio->timestamp(),
+                original_decoded_audio->timestamp());
 
       adjusted_decoded_audio = original_decoded_audio->Clone();
       // Adjust more frames than it has from back

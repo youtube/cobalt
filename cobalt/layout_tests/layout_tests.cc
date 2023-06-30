@@ -211,6 +211,7 @@ TEST_P(Layout, Test) {
   RunTest(GetParam(), graphics_context_, pixel_tester_options);
 }
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(LayoutExact);
 // This test does an exact pixel compare with the expected output.
 class LayoutExact : public Layout {};
 TEST_P(LayoutExact, Test) {

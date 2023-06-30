@@ -91,9 +91,9 @@ const char* TypedTestSuitePState::VerifyRegisteredTestNames(
 
   const std::string& errors_str = errors.GetString();
   if (errors_str != "") {
-    fprintf(stderr, "%s %s", FormatFileLocation(file, line).c_str(),
+    posix::PrintF("%s %s", FormatFileLocation(file, line).c_str(),
             errors_str.c_str());
-    fflush(stderr);
+    posix::Flush();
     posix::Abort();
   }
 

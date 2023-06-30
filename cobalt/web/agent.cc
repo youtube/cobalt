@@ -38,7 +38,7 @@
 #include "cobalt/web/url.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/service_worker.h"
-#include "cobalt/worker/service_worker_jobs.h"
+#include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_registration_object.h"
@@ -91,8 +91,8 @@ class Impl : public Context {
     DCHECK(fetcher_factory_);
     return fetcher_factory_->network_module();
   }
-  worker::ServiceWorkerJobs* service_worker_jobs() const final {
-    return service_worker_jobs_;
+  worker::ServiceWorkerContext* service_worker_context() const final {
+    return service_worker_context_;
   }
 
   const std::string& name() const final { return name_; };
@@ -217,7 +217,7 @@ class Impl : public Context {
   std::map<worker::ServiceWorkerObject*, scoped_refptr<worker::ServiceWorker>>
       service_worker_object_map_;
 
-  worker::ServiceWorkerJobs* service_worker_jobs_;
+  worker::ServiceWorkerContext* service_worker_context_;
   const web::UserAgentPlatformInfo* platform_info_;
 
   // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
@@ -250,7 +250,7 @@ void LogScriptError(const base::SourceLocation& source_location,
 Impl::Impl(const std::string& name, const Agent::Options& options)
     : name_(name), web_settings_(options.web_settings) {
   TRACE_EVENT0("cobalt::web", "Agent::Impl::Impl()");
-  service_worker_jobs_ = options.service_worker_jobs;
+  service_worker_context_ = options.service_worker_context;
   platform_info_ = options.platform_info;
   blob_registry_.reset(new Blob::Registry);
 
@@ -352,11 +352,9 @@ void Impl::SetupFinished() {
   }
 #endif
 
-  if (service_worker_jobs_) {
-    service_worker_jobs_->RegisterWebContext(this);
-  }
-  if (service_worker_jobs_) {
-    service_worker_jobs_->SetActiveWorker(environment_settings_.get());
+  if (service_worker_context_) {
+    service_worker_context_->RegisterWebContext(this);
+    service_worker_context_->SetActiveWorker(environment_settings_.get());
   }
 }
 
@@ -533,8 +531,8 @@ void Agent::Stop() {
   DCHECK(message_loop());
   DCHECK(thread_.IsRunning());
 
-  if (context() && context()->service_worker_jobs()) {
-    context()->service_worker_jobs()->UnregisterWebContext(context());
+  if (context() && context()->service_worker_context()) {
+    context()->service_worker_context()->UnregisterWebContext(context());
   }
 
   // Ensure that the destruction observer got added before stopping the thread.

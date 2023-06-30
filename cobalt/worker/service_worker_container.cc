@@ -80,11 +80,11 @@ script::HandlePromiseWrappable ServiceWorkerContainer::ready() {
   if (ready_promise->State() == script::PromiseState::kPending) {
     //    3.1. Let client by this's service worker client.
     web::Context* client = environment_settings()->context();
-    worker::ServiceWorkerJobs* jobs = client->service_worker_jobs();
-    jobs->message_loop()->task_runner()->PostTask(
+    ServiceWorkerContext* worker_context = client->service_worker_context();
+    worker_context->message_loop()->task_runner()->PostTask(
         FROM_HERE,
-        base::BindOnce(&ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps,
-                       base::Unretained(jobs), client));
+        base::BindOnce(&ServiceWorkerContext::MaybeResolveReadyPromiseSubSteps,
+                       base::Unretained(worker_context), client));
   }
   // 4. Return readyPromise.
   return ready_promise;
@@ -155,10 +155,10 @@ script::HandlePromiseWrappable ServiceWorkerContainer::Register(
   //    creation URL, options["type"], and options["updateViaCache"].
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
-      base::BindOnce(&ServiceWorkerJobs::StartRegister,
-                     base::Unretained(client->service_worker_jobs()), scope_url,
-                     script_url, std::move(promise_reference), client,
-                     options.type(), options.update_via_cache()));
+      base::BindOnce(&ServiceWorkerContext::StartRegister,
+                     base::Unretained(client->service_worker_context()),
+                     scope_url, script_url, std::move(promise_reference),
+                     client, options.type(), options.update_via_cache()));
   // 7. Return p.
   return promise;
 }
@@ -237,12 +237,13 @@ void ServiceWorkerContainer::GetRegistrationTask(
 
   // 7. Let promise be a new promise.
   // 8. Run the following substeps in parallel:
-  worker::ServiceWorkerJobs* jobs = client->service_worker_jobs();
-  DCHECK(jobs);
-  jobs->message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::GetRegistrationSubSteps,
-                                base::Unretained(jobs), storage_key, client_url,
-                                client, std::move(promise_reference)));
+  ServiceWorkerContext* worker_context = client->service_worker_context();
+  DCHECK(worker_context);
+  worker_context->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&ServiceWorkerContext::GetRegistrationSubSteps,
+                     base::Unretained(worker_context), storage_key, client_url,
+                     client, std::move(promise_reference)));
 }
 
 script::HandlePromiseSequenceWrappable
@@ -268,13 +269,13 @@ void ServiceWorkerContainer::GetRegistrationsTask(
         promise_reference) {
   auto* client = environment_settings()->context();
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistrations
-  worker::ServiceWorkerJobs* jobs =
-      environment_settings()->context()->service_worker_jobs();
+  ServiceWorkerContext* worker_context =
+      environment_settings()->context()->service_worker_context();
   url::Origin storage_key = environment_settings()->ObtainStorageKey();
-  jobs->message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::GetRegistrationsSubSteps,
-                                base::Unretained(jobs), storage_key, client,
-                                std::move(promise_reference)));
+  worker_context->message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&ServiceWorkerContext::GetRegistrationsSubSteps,
+                                base::Unretained(worker_context), storage_key,
+                                client, std::move(promise_reference)));
 }
 
 void ServiceWorkerContainer::StartMessages() {}

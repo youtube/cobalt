@@ -255,34 +255,50 @@
 //                                        deprecated; calling a marked function
 //                                        should generate a compiler warning
 
+#if !defined(STARBOARD)
 #include <ctype.h>   // for isspace, etc
 #include <stddef.h>  // for ptrdiff_t
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32_WCE
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif  // !_WIN32_WCE
+#else  // !defined(STARBOARD)
+#include "starboard/common/log.h"
+#include "starboard/common/spin_lock.h"
+#include "starboard/common/string.h"
+#include "starboard/directory.h"
+#include "starboard/file.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#include "starboard/mutex.h"
+#include "starboard/system.h"
+#include "starboard/thread.h"
+#include "starboard/types.h"
+#endif  // !defined(STARBOARD)
+
+#if defined __APPLE__
+#include <AvailabilityMacros.h>
+#include <TargetConditionals.h>
+#endif
+
+#include <algorithm>  // NOLINT
+#include <iostream>
+#include <memory>
 #include <cerrno>
 // #include <condition_variable>  // Guarded by GTEST_IS_THREADSAFE below
 #include <cstdint>
-#include <iostream>
 #include <limits>
 #include <locale>
-#include <memory>
 #include <string>
 // #include <mutex>  // Guarded by GTEST_IS_THREADSAFE below
 #include <tuple>
 #include <type_traits>
 #include <vector>
 
-#ifndef _WIN32_WCE
-#include <sys/stat.h>
-#include <sys/types.h>
-#endif  // !_WIN32_WCE
-
-#if defined __APPLE__
-#include <AvailabilityMacros.h>
-#include <TargetConditionals.h>
-#endif
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
@@ -336,6 +352,13 @@
 #define GTEST_DISABLE_MSC_DEPRECATED_POP_() GTEST_DISABLE_MSC_WARNINGS_POP_()
 #endif
 
+#if GTEST_OS_STARBOARD
+# define GTEST_HAS_EXCEPTIONS 0
+# define GTEST_HAS_POSIX_RE 0
+# define GTEST_HAS_RTTI 0
+# define GTEST_HAS_SEH 0
+# define GTEST_HAS_STREAM_REDIRECTION 0
+#else  // GTEST_OS_STARBOARD
 // Brings in definitions for functions used in the testing::internal::posix
 // namespace (read, write, close, chdir, isatty, stat). We do not currently
 // use them on Windows Mobile.
@@ -366,6 +389,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #include <strings.h>
 #include <unistd.h>
 #endif  // GTEST_OS_WINDOWS
+#endif  // GTEST_OS_STARBOARD
 
 #if GTEST_OS_LINUX_ANDROID
 // Used to define __ANDROID_API__ matching the target NDK API level.
@@ -982,14 +1006,21 @@ class GTEST_API_ GTestLog {
 };
 
 #if !defined(GTEST_LOG_)
-
+#if GTEST_OS_STARBOARD
+#define GTEST_LOG_ SB_LOG
+#else
 #define GTEST_LOG_(severity)                                           \
   ::testing::internal::GTestLog(::testing::internal::GTEST_##severity, \
                                 __FILE__, __LINE__)                    \
       .GetStream()
+#endif
 
 inline void LogToStderr() {}
+#if GTEST_OS_STARBOARD
+inline void FlushInfoLog() {}
+#else
 inline void FlushInfoLog() { fflush(nullptr); }
+#endif
 
 #endif  // !defined(GTEST_LOG_)
 
@@ -1169,6 +1200,104 @@ void ClearInjectableArgvs();
 #endif  // GTEST_HAS_DEATH_TEST
 
 // Defines synchronization primitives.
+#if defined(GTEST_OS_STARBOARD)
+class Mutex {
+ public:
+  enum MutexType { kStatic = 0, kDynamic = 1 };
+  // We rely on kStaticMutex being 0 as it is to what the linker initializes
+  // type_ in static mutexes.  critical_section_ will be initialized lazily
+  // in ThreadSafeLazyInit().
+  enum StaticConstructorSelector { kStaticMutex = 0 };
+  // This constructor intentionally does nothing.  It relies on type_ being
+  // statically initialized to 0 (effectively setting it to kStatic) and on
+  // ThreadSafeLazyInit() to lazily initialize the rest of the members.
+  explicit Mutex(StaticConstructorSelector /*dummy*/) {}
+  Mutex() : type_(kDynamic) { SbMutexCreate(&mutex_); }
+  ~Mutex() {
+    if (type_ != kStatic) {
+      SbMutexDestroy(&mutex_);
+    }
+  }
+  void Lock() {
+    LazyInit();
+    SbMutexAcquire(&mutex_);
+  }
+  void Unlock() { SbMutexRelease(&mutex_); }
+  void AssertHeld() const {}
+ private:
+  void LazyInit() {
+    if (type_ == kStatic && !initialized_) {
+      static starboard::SpinLock s_lock;
+      s_lock.Acquire();
+      if (!initialized_) {
+        SbMutexCreate(&mutex_);
+        initialized_ = true;
+      }
+      s_lock.Release();
+    }
+  }
+  SbMutex mutex_;
+  friend class GTestMutexLock;
+  bool initialized_ = false;
+  // For static mutexes, we rely on type_ member being initialized to zero
+  // by the linker.
+  MutexType type_;
+};
+#define GTEST_DECLARE_STATIC_MUTEX_(mutex) \
+  extern ::testing::internal::Mutex mutex
+#define GTEST_DEFINE_STATIC_MUTEX_(mutex) \
+  ::testing::internal::Mutex mutex(::testing::internal::Mutex::kStaticMutex)
+// We cannot name this class MutexLock because the ctor declaration would
+// conflict with a macro named MutexLock, which is defined on some
+// platforms. That macro is used as a defensive measure to prevent against
+// inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
+// "MutexLock l(&mu)".  Hence the typedef trick below.
+class GTestMutexLock {
+ public:
+  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) {
+    mutex_->Lock();
+  }  // NOLINT
+  ~GTestMutexLock() { mutex_->Unlock(); }
+ private:
+  Mutex* mutex_;
+};
+typedef GTestMutexLock MutexLock;
+template <typename T>
+class ThreadLocal {
+ public:
+  ThreadLocal() {
+    key_ = SbThreadCreateLocalKey(
+        [](void* value) { delete static_cast<T*>(value); });
+    SB_DCHECK(key_ != kSbThreadLocalKeyInvalid);
+  }
+  explicit ThreadLocal(const T& value) : ThreadLocal() {
+    default_value_ = value;
+    set(value);
+  }
+  ~ThreadLocal() {
+    SbThreadDestroyLocalKey(key_);
+  }
+  T* pointer() { return GetOrCreateValue(); }
+  const T* pointer() const { return GetOrCreateValue(); }
+  const T& get() const { return *pointer(); }
+  void set(const T& value) { *GetOrCreateValue() = value; }
+ private:
+  T* GetOrCreateValue() const {
+    T* ptr = static_cast<T*>(SbThreadGetLocalValue(key_));
+    if (ptr) {
+      return ptr;
+    } else {
+      T* new_value = new T(default_value_);
+      bool is_set = SbThreadSetLocalValue(key_, new_value);
+      SB_CHECK(is_set);
+      return new_value;
+    }
+  }
+  T default_value_;
+  SbThreadLocalKey key_;
+};
+
+#else  // GTEST_OS_STARBOARD
 #if GTEST_IS_THREADSAFE
 
 #if GTEST_OS_WINDOWS
@@ -1857,6 +1986,7 @@ class GTEST_API_ ThreadLocal {
 };
 
 #endif  // GTEST_IS_THREADSAFE
+#endif  // GTEST_OS_STARBOARD
 
 // Returns the number of threads running in the process, or 0 to indicate that
 // we cannot detect it.
@@ -1935,7 +2065,89 @@ inline std::string StripTrailingSpaces(std::string str) {
 // standard functions as macros, the wrapper cannot have the same name
 // as the wrapped function.
 
+
+#if GTEST_OS_STARBOARD
+typedef int FILE;
+#endif
+
 namespace posix {
+
+#if GTEST_OS_STARBOARD
+
+typedef SbFileInfo StatStruct;
+
+inline int FileNo(FILE* /*file*/) { return 0; }
+inline int IsATTY(FILE* /*file*/) { return SbLogIsTty() ? 1 : 0; }
+inline int Stat(const char* path, StatStruct* buf) {
+  return SbFileGetPathInfo(path, buf) ? 0 : -1;
+}
+inline int StrCaseCmp(const char* s1, const char* s2) {
+  return SbStringCompareNoCase(s1, s2);
+}
+inline char* StrDup(const char* src) { return SbStringDuplicate(src); }
+inline int RmDir(const char* dir) { return SbFileDelete(dir); }
+inline bool IsDir(const StatStruct& st) { return st.is_directory; }
+
+inline const char* StrNCpy(char* dest, const char* src, size_t n) {
+  strncpy(dest, src, static_cast<int>(n));
+  return dest;
+}
+
+inline FILE* FOpen(const char* /*path*/, const char* /*mode*/) { return NULL; }
+inline int FClose(FILE* /*fp*/) { return -1; }
+inline const char* StrError(int /*errnum*/) { return "N/A"; }
+
+inline const char* GetEnv(const char* /*name*/) { return NULL; }
+inline void Abort() { SbSystemBreakIntoDebugger(); }
+
+inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
+                      va_list args) {
+  return SbStringFormat(out_buffer, size, format, args);
+}
+
+inline size_t StrLen(const char *str) {
+  return strlen(str);
+}
+
+inline const char *StrChr(const char *str, char c) {
+  return strchr(str, c);
+}
+
+inline const char *StrRChr(const char *str, char c) {
+  return strrchr(str, c);
+}
+
+inline int StrNCmp(const char *s1, const char *s2, size_t n) {
+  return strncmp(s1, s2, n);
+}
+
+inline void *MemSet(void *s, int c, size_t n) {
+  return memset(s, c, n);
+}
+
+inline void Assert(bool b) { SB_CHECK(b); }
+
+inline int MkDir(const char* path, int /*mode*/) {
+  return SbDirectoryCreate(path) ? 0 : -1;
+}
+
+inline void VPrintF(const char* format, va_list args) {
+  SbLogFormat(format, args);
+}
+
+inline void PrintF(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VPrintF(format, args);
+  va_end(args);
+}
+
+inline void Flush() { SbLogFlush(); }
+
+inline void *Malloc(size_t n) { return SbMemoryAllocate(n); }
+inline void Free(void *p) { return SbMemoryDeallocate(p); }
+
+#else // GTEST_OS_STARBOARD
 
 // Functions with a different name on Windows.
 
@@ -2082,8 +2294,20 @@ GTEST_DISABLE_MSC_DEPRECATED_POP_()
 [[noreturn]] inline void Abort() { abort(); }
 #endif  // GTEST_OS_WINDOWS_MOBILE
 
+#endif  // GTEST_OS_STARBOARD
+
+inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
+  va_list args;
+  va_start(args, format);
+  VSNPrintF(out_buffer, size, format, args);
+  va_end(args);
+}
+
 }  // namespace posix
 
+#if GTEST_OS_STARBOARD
+# define GTEST_SNPRINTF_ internal::posix::SNPrintF
+#else  // GTEST_OS_STARBOARD
 // MSVC "deprecates" snprintf and issues warnings wherever it is used.  In
 // order to avoid these warnings, we need to use _snprintf or _snprintf_s on
 // MSVC-based platforms.  We map the GTEST_SNPRINTF_ macro to the appropriate
@@ -2099,6 +2323,7 @@ GTEST_DISABLE_MSC_DEPRECATED_POP_()
 #else
 #define GTEST_SNPRINTF_ snprintf
 #endif
+#endif  // GTEST_OS_STARBOARD
 
 // The biggest signed integer type the compiler supports.
 //
@@ -2161,7 +2386,11 @@ using TimeInMillis = int64_t;  // Represents time in milliseconds.
 #endif  // !defined(GTEST_FLAG)
 
 #if !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
+#if !defined(STARBOARD)
 #define GTEST_USE_OWN_FLAGFILE_FLAG_ 1
+#else
+# define GTEST_USE_OWN_FLAGFILE_FLAG_ 0
+#endif // !defined(STARBOARD)
 #endif  // !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
 
 #if !defined(GTEST_DECLARE_bool_)

@@ -176,6 +176,13 @@ bool Unzip(const base::FilePath& src_file, const base::FilePath& dest_dir) {
   return UnzipWithFilterCallback(
       src_file, dest_dir, base::BindRepeating(&ExcludeNoFilesFilter), true);
 }
+#if defined(IN_MEMORY_UPDATES)
+bool Unzip(const std::string& src_str, const base::FilePath& dest_dir) {
+  return UnzipWithFilterCallback(
+      src_str, dest_dir, base::BindRepeating(&ExcludeNoFilesFilter), true);
+}
+#endif
+
 
 bool UnzipWithFilterCallback(const base::FilePath& src_file,
                              const base::FilePath& dest_dir,
@@ -200,17 +207,24 @@ bool UnzipWithFilterCallback(const base::FilePath& src_file,
 #endif
 }
 
+#if defined(IN_MEMORY_UPDATES)
+bool UnzipWithFilterCallback(const std::string& src_str,
+                             const base::FilePath& dest_dir,
+                             const FilterCallback& filter_cb,
+                             bool log_skipped_files) {
+  return UnzipWithFilterAndWriters(
+      src_str, base::BindRepeating(&CreateFilePathWriterDelegate, dest_dir),
+      base::BindRepeating(&CreateDirectory, dest_dir), filter_cb,
+      log_skipped_files);
+}
+#endif
+
 #if defined(STARBOARD)
-bool UnzipWithFilterAndWriters(const base::FilePath& src_file,
+bool UnzipWithFilterAndWriters(ZipReader& reader,
                                const WriterFactory& writer_factory,
                                const DirectoryCreator& directory_creator,
                                const FilterCallback& filter_cb,
                                bool log_skipped_files) {
-  ZipReader reader;
-  if (!reader.Open(src_file)) {
-    DLOG(WARNING) << "Failed to open src_file " << src_file;
-    return false;
-  }
   while (reader.HasMore()) {
     if (!reader.OpenCurrentEntryInZip()) {
       DLOG(WARNING) << "Failed to open the current file in zip";
@@ -244,7 +258,44 @@ bool UnzipWithFilterAndWriters(const base::FilePath& src_file,
   }
   return true;
 }
-#else
+
+bool UnzipWithFilterAndWriters(const base::FilePath& src_file,
+                               const WriterFactory& writer_factory,
+                               const DirectoryCreator& directory_creator,
+                               const FilterCallback& filter_cb,
+                               bool log_skipped_files) {
+  ZipReader reader;
+  if (!reader.Open(src_file)) {
+    DLOG(WARNING) << "Failed to open src_file " << src_file;
+    return false;
+  }
+  return UnzipWithFilterAndWriters(reader,
+                                   writer_factory,
+                                   directory_creator,
+                                   filter_cb,
+                                   log_skipped_files);
+}
+
+#if defined(IN_MEMORY_UPDATES)
+bool UnzipWithFilterAndWriters(const std::string& src_str,
+                               const WriterFactory& writer_factory,
+                               const DirectoryCreator& directory_creator,
+                               const FilterCallback& filter_cb,
+                               bool log_skipped_files) {
+  ZipReader reader;
+  if (!reader.OpenFromString(src_str)) {
+    DLOG(WARNING) << "Failed to open src_str";
+    return false;
+  }
+  return UnzipWithFilterAndWriters(reader,
+                                   writer_factory,
+                                   directory_creator,
+                                   filter_cb,
+                                   log_skipped_files);
+}
+#endif  // defined(IN_MEMORY_UPDATES)
+#else  // defined(STARBOARD)
+
 bool UnzipWithFilterAndWriters(const base::PlatformFile& src_file,
                                const WriterFactory& writer_factory,
                                const DirectoryCreator& directory_creator,
@@ -288,7 +339,7 @@ bool UnzipWithFilterAndWriters(const base::PlatformFile& src_file,
   }
   return true;
 }
-#endif
+#endif  // STARBOARD
 
 bool ZipWithFilterCallback(const base::FilePath& src_dir,
                            const base::FilePath& dest_file,

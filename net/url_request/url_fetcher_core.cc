@@ -174,8 +174,9 @@ void URLFetcherCore::Start() {
 }
 
 void URLFetcherCore::Stop() {
-  if (delegate_task_runner_)  // May be NULL in tests.
+  if (delegate_task_runner_) {  // May be NULL in tests.
     DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
+  }
 
   delegate_ = NULL;
   fetcher_ = NULL;
@@ -782,8 +783,11 @@ void URLFetcherCore::StartURLRequest() {
   if (!extra_request_headers_.IsEmpty())
     request_->SetExtraRequestHeaders(extra_request_headers_);
 
+#if defined(STARBOARD)
   request_->SetLoadTimingInfoCallback(base::Bind(&URLFetcherCore::GetLoadTimingInfo,
       base::Unretained(this)));
+#endif
+
   request_->Start();
 }
 
@@ -1131,6 +1135,14 @@ void URLFetcherCore::AssertHasNoUploadData() const {
 
 #if defined(STARBOARD)
 void URLFetcherCore::GetLoadTimingInfo(
+    const net::LoadTimingInfo& timing_info) {
+  delegate_task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(&URLFetcherCore::GetLoadTimingInfoInDelegateThread,
+                 this, timing_info));
+}
+
+void URLFetcherCore::GetLoadTimingInfoInDelegateThread(
     const net::LoadTimingInfo& timing_info) {
   // Check if the URLFetcherCore has been stopped before.
   if (delegate_) {

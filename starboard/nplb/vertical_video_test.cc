@@ -35,6 +35,7 @@ using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VerticalVideoTest);
 class VerticalVideoTest : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
   testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
@@ -80,8 +81,8 @@ std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
 
     for (auto output_mode : kOutputModes) {
       if (IsOutputModeSupported(output_mode, audio_codec, video_codec, "")) {
-        test_configs.push_back(
-            std::make_tuple(kAudioFilename, video_filename, output_mode, ""));
+        test_configs.emplace_back(kAudioFilename, video_filename, output_mode,
+                                  "");
       }
     }
   }
@@ -135,8 +136,10 @@ TEST_P(VerticalVideoTest, WriteSamples) {
       200 * kSbTimeMillisecond);
 
   GroupedSamples samples;
-  samples.AddVideoSamplesWithEOS(0, audio_samples_to_write);
-  samples.AddAudioSamplesWithEOS(0, video_samples_to_write);
+  samples.AddVideoSamples(0, audio_samples_to_write);
+  samples.AddVideoEOS();
+  samples.AddAudioSamples(0, video_samples_to_write);
+  samples.AddAudioEOS();
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
@@ -154,10 +157,10 @@ std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
   return supported_configs;
 }
 
-INSTANTIATE_TEST_CASE_P(VerticalVideoTests,
-                        VerticalVideoTest,
-                        ValuesIn(GetSupportedTestConfigs()),
-                        GetSbPlayerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(VerticalVideoTests,
+                         VerticalVideoTest,
+                         ValuesIn(GetSupportedTestConfigs()),
+                         GetSbPlayerTestConfigName);
 
 }  // namespace
 }  // namespace nplb

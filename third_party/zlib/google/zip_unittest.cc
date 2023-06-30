@@ -196,6 +196,12 @@ class ZipTest : public PlatformTest {
     ASSERT_TRUE(base::PathExists(path)) << "no file " << path.value();
     ASSERT_TRUE(zip::Unzip(path, test_dir_));
 
+#if defined(STARBOARD)
+    VerifyUnzippedContents(expect_hidden_files);
+  }
+  void VerifyUnzippedContents(bool expect_hidden_files) {
+#endif
+
     base::FilePath original_dir;
     ASSERT_TRUE(GetTestDataDirectory(&original_dir));
     original_dir = original_dir.AppendASCII("test");
@@ -237,6 +243,21 @@ class ZipTest : public PlatformTest {
 
     EXPECT_EQ(expected_count, count);
   }
+
+#if defined(IN_MEMORY_UPDATES)
+  void ReadFileToString(const base::FilePath::StringType& filename,
+                        std::string* contents) {
+    base::FilePath test_dir;
+    ASSERT_TRUE(GetTestDataDirectory(&test_dir));
+    ASSERT_TRUE(base::ReadFileToString(test_dir.Append(filename), contents));
+  }
+
+  void TestUnzipString(const std::string& zip_src, bool expect_hidden_files) {
+    ASSERT_TRUE(zip::Unzip(zip_src, test_dir_));
+
+    VerifyUnzippedContents(expect_hidden_files);
+  }
+#endif
 
   // This function does the following:
   // 1) Creates a test.txt file with the given last modification timestamp
@@ -311,9 +332,27 @@ TEST_F(ZipTest, Unzip) {
   TestUnzipFile(FILE_PATH_LITERAL("test.zip"), true);
 }
 
+#if defined(IN_MEMORY_UPDATES)
+TEST_F(ZipTest, UnzipFromString) {
+  std::string zip_str;
+  ReadFileToString(FILE_PATH_LITERAL("test.zip"), &zip_str);
+
+  TestUnzipString(zip_str, true);
+}
+#endif
+
 TEST_F(ZipTest, UnzipUncompressed) {
   TestUnzipFile(FILE_PATH_LITERAL("test_nocompress.zip"), true);
 }
+
+#if defined(IN_MEMORY_UPDATES)
+TEST_F(ZipTest, UnzipFromStringUncompressed) {
+  std::string zip_str;
+  ReadFileToString(FILE_PATH_LITERAL("test_nocompress.zip"), &zip_str);
+
+  TestUnzipString(zip_str, true);
+}
+#endif
 
 TEST_F(ZipTest, UnzipEvil) {
   base::FilePath path;
@@ -330,6 +369,24 @@ TEST_F(ZipTest, UnzipEvil) {
   ASSERT_FALSE(base::PathExists(evil_file));
 }
 
+#if defined(IN_MEMORY_UPDATES)
+TEST_F(ZipTest, UnzipFromStringEvil) {
+  std::string zip_str;
+  ReadFileToString(FILE_PATH_LITERAL("evil.zip"), &zip_str);
+
+  // Unzip the zip file into a sub directory of test_dir_ so evil.zip
+  // won't create a persistent file outside test_dir_ in case of a
+  // failure.
+  base::FilePath output_dir = test_dir_.AppendASCII("out");
+  ASSERT_FALSE(zip::Unzip(zip_str, output_dir));
+
+  base::FilePath evil_file = output_dir;
+  evil_file = evil_file.AppendASCII(
+      "../levilevilevilevilevilevilevilevilevilevilevilevil");
+  ASSERT_FALSE(base::PathExists(evil_file));
+}
+#endif
+
 TEST_F(ZipTest, UnzipEvil2) {
   base::FilePath path;
   ASSERT_TRUE(GetTestDataDirectory(&path));
@@ -344,6 +401,24 @@ TEST_F(ZipTest, UnzipEvil2) {
   evil_file = evil_file.AppendASCII("../evil.txt");
   ASSERT_FALSE(base::PathExists(evil_file));
 }
+
+#if defined(IN_MEMORY_UPDATES)
+TEST_F(ZipTest, UnzipFromStringEvil2) {
+  std::string zip_str;
+  // The zip file contains an evil file with invalid UTF-8 in its file
+  // name.
+  ReadFileToString(FILE_PATH_LITERAL("evil_via_invalid_utf8.zip"), &zip_str);
+
+  // See the comment at UnzipEvil() for why we do this.
+  base::FilePath output_dir = test_dir_.AppendASCII("out");
+  // This should fail as it contains an evil file.
+  ASSERT_FALSE(zip::Unzip(zip_str, output_dir));
+
+  base::FilePath evil_file = output_dir;
+  evil_file = evil_file.AppendASCII("../evil.txt");
+  ASSERT_FALSE(base::PathExists(evil_file));
+}
+#endif
 
 TEST_F(ZipTest, UnzipWithFilter) {
   auto filter = base::BindRepeating([](const base::FilePath& path) {
@@ -380,6 +455,46 @@ TEST_F(ZipTest, UnzipWithFilter) {
     ++extracted_count;
   ASSERT_EQ(0, extracted_count);
 }
+
+#if defined(IN_MEMORY_UPDATES)
+TEST_F(ZipTest, UnzipFromStringWithFilter) {
+  auto filter = base::BindRepeating([](const base::FilePath& path) {
+    return path.BaseName().MaybeAsASCII() == "foo.txt";
+  });
+  std::string zip_str;
+  ReadFileToString(FILE_PATH_LITERAL("test.zip"), &zip_str);
+
+  ASSERT_TRUE(zip::UnzipWithFilterCallback(zip_str,
+                                           test_dir_, filter, false));
+
+  // Only foo.txt should have been extracted. The following paths should not
+  // be extracted:
+  //   foo/
+  //   foo/bar.txt
+  //   foo/bar/
+  //   foo/bar/.hidden
+  //   foo/bar/baz.txt
+  //   foo/bar/quux.txt
+  ASSERT_TRUE(base::PathExists(test_dir_.AppendASCII("foo.txt")));
+  base::FileEnumerator extractedFiles(
+      test_dir_,
+      false,  // Do not enumerate recursively - the file must be in the root.
+      base::FileEnumerator::FileType::FILES);
+  int extracted_count = 0;
+  while (!extractedFiles.Next().empty())
+    ++extracted_count;
+  ASSERT_EQ(1, extracted_count);
+
+  base::FileEnumerator extractedDirs(
+      test_dir_,
+      false,  // Do not enumerate recursively - we require zero directories.
+      base::FileEnumerator::FileType::DIRECTORIES);
+  extracted_count = 0;
+  while (!extractedDirs.Next().empty())
+    ++extracted_count;
+  ASSERT_EQ(0, extracted_count);
+}
+#endif
 
 TEST_F(ZipTest, UnzipWithDelegates) {
   auto filter =
@@ -418,6 +533,41 @@ TEST_F(ZipTest, UnzipWithDelegates) {
   ASSERT_TRUE(base::PathExists(dir_foo_bar.AppendASCII("baz.txt")));
   ASSERT_TRUE(base::PathExists(dir_foo_bar.AppendASCII("quux.txt")));
 }
+
+#if defined(IN_MEMORY_UPDATES)
+TEST_F(ZipTest, UnzipFromStringWithDelegates) {
+  auto filter =
+       base::BindRepeating([](const base::FilePath& path) { return true; });
+  auto dir_creator = base::BindRepeating(
+      [](const base::FilePath& extract_dir, const base::FilePath& entry_path) {
+        return base::CreateDirectory(extract_dir.Append(entry_path));
+      },
+      test_dir_);
+  auto writer = base::BindRepeating(
+      [](const base::FilePath& extract_dir, const base::FilePath& entry_path)
+          -> std::unique_ptr<zip::WriterDelegate> {
+        return std::make_unique<zip::FilePathWriterDelegate>(
+            extract_dir.Append(entry_path));
+      },
+      test_dir_);
+  std::string zip_str;
+  ReadFileToString(FILE_PATH_LITERAL("test.zip"), &zip_str);
+
+  ASSERT_TRUE(zip::UnzipWithFilterAndWriters(
+      zip_str, writer, dir_creator, filter, false));
+
+  base::FilePath dir = test_dir_;
+  base::FilePath dir_foo = dir.AppendASCII("foo");
+  base::FilePath dir_foo_bar = dir_foo.AppendASCII("bar");
+  ASSERT_TRUE(base::PathExists(dir.AppendASCII("foo.txt")));
+  ASSERT_TRUE(base::PathExists(dir_foo));
+  ASSERT_TRUE(base::PathExists(dir_foo.AppendASCII("bar.txt")));
+  ASSERT_TRUE(base::PathExists(dir_foo_bar));
+  ASSERT_TRUE(base::PathExists(dir_foo_bar.AppendASCII(".hidden")));
+  ASSERT_TRUE(base::PathExists(dir_foo_bar.AppendASCII("baz.txt")));
+  ASSERT_TRUE(base::PathExists(dir_foo_bar.AppendASCII("quux.txt")));
+}
+#endif
 
 TEST_F(ZipTest, Zip) {
   base::FilePath src_dir;

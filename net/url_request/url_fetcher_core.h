@@ -165,6 +165,7 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   static void SetIgnoreCertificateRequests(bool ignored);
 #if defined (STARBOARD)
   void GetLoadTimingInfo(const net::LoadTimingInfo& timing_info);
+  void GetLoadTimingInfoInDelegateThread(const net::LoadTimingInfo& timing_info);
 #endif  // defined(STARBOARD)
  private:
   friend class base::RefCountedThreadSafe<URLFetcherCore>;

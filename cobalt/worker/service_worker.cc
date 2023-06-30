@@ -24,8 +24,8 @@
 #include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/message_port.h"
+#include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/service_worker_global_scope.h"
-#include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_state.h"
 
@@ -56,13 +56,14 @@ void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
   // "message" and serviceWorker is true, then return.
   if (service_worker->ShouldSkipEvent(base::Tokens::message())) return;
   // 6. Run these substeps in parallel:
-  ServiceWorkerJobs* jobs =
-      incumbent_settings->context()->service_worker_jobs();
-  DCHECK(jobs);
-  jobs->message_loop()->task_runner()->PostTask(
+  ServiceWorkerContext* worker_context =
+      incumbent_settings->context()->service_worker_context();
+  DCHECK(worker_context);
+  worker_context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
-      base::BindOnce(&ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps,
-                     base::Unretained(jobs), base::Unretained(service_worker),
+      base::BindOnce(&ServiceWorkerContext::ServiceWorkerPostMessageSubSteps,
+                     base::Unretained(worker_context),
+                     base::Unretained(service_worker),
                      base::Unretained(incumbent_settings->context()),
                      std::move(structured_clone)));
 }

@@ -53,8 +53,10 @@ void SingleThreadTaskRunner::PostBlockingTask(const base::Location& from_here,
         break;
       }
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-      base::debug::StackTrace trace;
-      trace.PrintWithPrefix("[task runner deadlock]");
+      if (!SbSystemIsDebuggerAttached()) {
+        base::debug::StackTrace trace;
+        trace.PrintWithPrefix("[task runner deadlock]");
+      }
 #endif // !defined(COBALT_BUILD_TYPE_GOLD)
     } while (true);
   }

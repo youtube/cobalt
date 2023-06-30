@@ -28,13 +28,37 @@
 namespace starboard {
 namespace nplb {
 
-// TODO(b/283002236): create a struct for SbPlayerTestConfig instead of using
-// std::tuple.
-typedef std::tuple<const char* /* audio_filename */,
-                   const char* /* video_filename */,
-                   SbPlayerOutputMode /* output_mode */,
-                   const char* /* key_system */>
-    SbPlayerTestConfig;
+struct SbPlayerTestConfig {
+  SbPlayerTestConfig(const char* audio_filename,
+                     const char* video_filename,
+                     SbPlayerOutputMode output_mode,
+                     const char* key_system)
+      : audio_filename(audio_filename),
+        video_filename(video_filename),
+        output_mode(output_mode),
+        key_system(key_system),
+        max_video_capabilities("") {}
+  SbPlayerTestConfig(const char* audio_filename,
+                     const char* video_filename,
+                     SbPlayerOutputMode output_mode,
+                     const char* key_system,
+                     const char* max_video_capabilities)
+      : audio_filename(audio_filename),
+        video_filename(video_filename),
+        output_mode(output_mode),
+        key_system(key_system),
+        max_video_capabilities(max_video_capabilities) {}
+  const char* audio_filename;
+  const char* video_filename;
+  SbPlayerOutputMode output_mode;
+  const char* key_system;
+  const char* max_video_capabilities;
+};
+
+std::vector<const char*> GetAudioTestFiles();
+std::vector<const char*> GetVideoTestFiles();
+std::vector<SbPlayerOutputMode> GetPlayerOutputModes();
+std::vector<const char*> GetKeySystems();
 
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     const char* key_system = "");
@@ -82,12 +106,17 @@ void CallSbPlayerWriteSamples(
     SbMediaType sample_type,
     shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
     int start_index,
-    int number_of_samples_to_write);
+    int number_of_samples_to_write,
+    SbTime timestamp_offset = 0,
+    const std::vector<SbTime>& discarded_durations_from_front = {},
+    const std::vector<SbTime>& discarded_durations_from_back = {});
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec,
                            const char* key_system = "");
+
+bool IsPartialAudioSupported();
 
 }  // namespace nplb
 }  // namespace starboard

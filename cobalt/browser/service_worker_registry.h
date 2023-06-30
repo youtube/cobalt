@@ -22,7 +22,7 @@
 #include "base/threading/thread.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/web/web_settings.h"
-#include "cobalt/worker/service_worker_jobs.h"
+#include "cobalt/worker/service_worker_context.h"
 
 namespace cobalt {
 namespace browser {
@@ -48,7 +48,7 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
                                   const GURL& client_url,
                                   base::WaitableEvent* done_event);
 
-  worker::ServiceWorkerJobs* service_worker_jobs();
+  worker::ServiceWorkerContext* service_worker_context();
 
  private:
   // Called by the constructor to perform any other initialization required on
@@ -69,7 +69,7 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED};
 
-  std::unique_ptr<worker::ServiceWorkerJobs> service_worker_jobs_;
+  std::unique_ptr<worker::ServiceWorkerContext> service_worker_context_;
 };
 
 }  // namespace browser

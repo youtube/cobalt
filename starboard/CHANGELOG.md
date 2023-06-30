@@ -100,6 +100,9 @@ All the allowed device type values are now checked by nplb test:
 ### Deprecated kSbHasAc3Audio
 This constant is no longer used and has been deprecated.
 
+### Removed BILINEAR_FILTERING_SUPPORT config
+The unused macro for SB_HAS_BILINEAR_FILTERING_SUPPORT feature has been removed.
+
 ## Version 14
 ### Add MP3, FLAC, and PCM values to SbMediaAudioCodec.
 This makes it possible to support these codecs in the future.

@@ -35,8 +35,9 @@ namespace metrics {
 
 std::unique_ptr<::metrics::MetricsServiceClient>
 CobaltMetricsServicesManagerClient::CreateMetricsServiceClient() {
-  return std::make_unique<CobaltMetricsServiceClient>(GetMetricsStateManager(),
-                                                      local_state_.get());
+  InitializeMetricsStateManagerAndLocalState();
+  return std::make_unique<CobaltMetricsServiceClient>(
+      metrics_state_manager_.get(), local_state_.get());
 }
 
 std::unique_ptr<const base::FieldTrial::EntropyProvider>
@@ -79,8 +80,8 @@ CobaltMetricsServicesManagerClient::GetMetricsStateManagerForTesting() {
   return GetMetricsStateManager();
 }
 
-::metrics::MetricsStateManager*
-CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
+void CobaltMetricsServicesManagerClient::
+    InitializeMetricsStateManagerAndLocalState() {
   if (!metrics_state_manager_) {
     PrefServiceFactory pref_service_factory;
     pref_service_factory.set_user_prefs(
@@ -98,6 +99,11 @@ CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
         base::BindRepeating(&StoreMetricsClientInfo),
         base::BindRepeating(&LoadMetricsClientInfo));
   }
+}
+
+::metrics::MetricsStateManager*
+CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
+  InitializeMetricsStateManagerAndLocalState();
   return metrics_state_manager_.get();
 }
 

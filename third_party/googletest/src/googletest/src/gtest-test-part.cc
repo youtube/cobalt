@@ -68,7 +68,7 @@ void TestPartResultArray::Append(const TestPartResult& result) {
 // Returns the TestPartResult at the given index (0-based).
 const TestPartResult& TestPartResultArray::GetTestPartResult(int index) const {
   if (index < 0 || index >= size()) {
-    printf("\nInvalid index (%d) into TestPartResultArray.\n", index);
+    internal::posix::PrintF("\nInvalid index (%d) into TestPartResultArray.\n", index);
     internal::posix::Abort();
   }
 

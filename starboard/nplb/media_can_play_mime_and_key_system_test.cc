@@ -53,6 +53,25 @@ bool IsKeySystemWithAttributesSupported() {
   return false;
 }
 
+typedef enum DeviceType {
+  kDeviceTypeFHD,
+  kDeviceType4k,
+  kDeviceType8k,
+} DeviceType;
+
+DeviceType GetDeviceType() {
+  if (SbMediaCanPlayMimeAndKeySystem(
+          "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320", "") ==
+      kSbMediaSupportTypeProbably) {
+    return kDeviceType8k;
+  } else if (SbMediaCanPlayMimeAndKeySystem(
+                 "video/webm; codecs=\"vp9\"; width=3840; height=2160", "") ==
+             kSbMediaSupportTypeProbably) {
+    return kDeviceType4k;
+  }
+  return kDeviceTypeFHD;
+}
+
 TEST(SbMediaCanPlayMimeAndKeySystem, SunnyDay) {
   // Vp9
   SbMediaCanPlayMimeAndKeySystem(
@@ -220,53 +239,66 @@ TEST(SbMediaCanPlayMimeAndKeySystem, Invalid) {
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
-  // H.264 High Profile Level 4.2
-  SbMediaSupportType result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
-      "framerate=30; bitrate=20000000",
-      "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  // H.264 Main Profile Level 4.2
-  result = SbMediaCanPlayMimeAndKeySystem(
+  std::vector<const char*> params_fhd{
       "video/mp4; codecs=\"avc1.4d002a\"; width=1920; height=1080; "
-      "framerate=30;",
-      "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.4d002a\"; width=0; height=0; "
-      "framerate=0; bitrate=0",
-      "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.4d002a\"; width=-0; height=-0; "
-      "framerate=-0; bitrate=-0",
-      "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  // H.264 Main Profile Level 2.1
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.4d0015\"; width=432; height=240; "
-      "framerate=15;",
-      "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  // AV1 Main Profile 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
+      "framerate=30",
+      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
+      "framerate=30",
+      "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=30",
+      "video/webm; codecs=\"vp09.02.41.10.01.09.16.09.00\"; width=1920; "
+      "height=1080; framerate=30",
       "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
-      "framerate=30; bitrate=20000000",
-      "");
+      "framerate=30",
+  };
 
-  // VP9 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=60; "
-      "bitrate=20000000",
-      "");
+  std::vector<const char*> params_4k{
+      "video/mp4; codecs=\"avc1.4d002a\"; width=1920; height=1080; "
+      "framerate=30",
+      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
+      "framerate=30",
+      "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=30",
+      "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
+      "height=2160; framerate=30",
+      "video/mp4; codecs=\"av01.0.12M.08\"; width=3840; height=2160; "
+      "framerate=30",
+      "video/mp4; codecs=\"av01.0.13M.10.0.110.09.16.09.0\"; width=3840; "
+      "height=2160; framerate=30",
+  };
+
+  std::vector<const char*> params_8k{
+      "video/mp4; codecs=\"avc1.4d002a\"; width=1920; height=1080; "
+      "framerate=30",
+      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
+      "framerate=30",
+      "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=60",
+      "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
+      "height=2160; framerate=60",
+      "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320; "
+      "framerate=30",
+      "video/mp4; codecs=\"av01.0.17M.10.0.110.09.16.09.0\"; width=7680; "
+      "height=4320; framerate=30",
+  };
+
+  DeviceType device_type = GetDeviceType();
+  std::vector<const char*> mime_params;
+  switch (device_type) {
+    case kDeviceType8k:
+      mime_params = params_8k;
+      break;
+    case kDeviceType4k:
+      mime_params = params_4k;
+      break;
+    default:
+      mime_params = params_fhd;
+  }
+
+  for (auto& param : mime_params) {
+    SbMediaSupportType support = SbMediaCanPlayMimeAndKeySystem(param, "");
+    EXPECT_TRUE(support == kSbMediaSupportTypeProbably);
+  }
 
   // AAC-LC
-  result = SbMediaCanPlayMimeAndKeySystem(
+  SbMediaSupportType result = SbMediaCanPlayMimeAndKeySystem(
       "audio/mp4; codecs=\"mp4a.40.2\"; channels=2; bitrate=256000;", "");
   ASSERT_EQ(result, kSbMediaSupportTypeProbably);
 

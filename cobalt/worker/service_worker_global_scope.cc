@@ -29,7 +29,7 @@
 #include "cobalt/worker/clients.h"
 #include "cobalt/worker/fetch_event.h"
 #include "cobalt/worker/fetch_event_init.h"
-#include "cobalt/worker/service_worker_jobs.h"
+#include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/worker_settings.h"
 
 namespace cobalt {
@@ -180,12 +180,12 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
       new script::ValuePromiseVoid::Reference(this, promise));
 
   // 2. Run the following substeps in parallel:
-  worker::ServiceWorkerJobs* jobs =
-      environment_settings()->context()->service_worker_jobs();
-  jobs->message_loop()->task_runner()->PostTask(
+  ServiceWorkerContext* worker_context =
+      environment_settings()->context()->service_worker_context();
+  worker_context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
-      base::BindOnce(&ServiceWorkerJobs::SkipWaitingSubSteps,
-                     base::Unretained(jobs),
+      base::BindOnce(&ServiceWorkerContext::SkipWaitingSubSteps,
+                     base::Unretained(worker_context),
                      base::Unretained(environment_settings()->context()),
                      base::Unretained(service_worker_object_.get()),
                      std::move(promise_reference)));
@@ -226,13 +226,13 @@ void ServiceWorkerGlobalScope::StartFetch(
   auto* registration =
       service_worker_object_->containing_service_worker_registration();
   if (registration && (main_resource || registration->stale())) {
-    worker::ServiceWorkerJobs* jobs =
-        environment_settings()->context()->service_worker_jobs();
-    jobs->message_loop()->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ServiceWorkerJobs::SoftUpdate, base::Unretained(jobs),
-                       base::Unretained(registration),
-                       /*force_bypass_cache=*/false));
+    ServiceWorkerContext* worker_context =
+        environment_settings()->context()->service_worker_context();
+    worker_context->message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(&ServiceWorkerContext::SoftUpdate,
+                                  base::Unretained(worker_context),
+                                  base::Unretained(registration),
+                                  /*force_bypass_cache=*/false));
   }
 
   // TODO: handle the following steps in

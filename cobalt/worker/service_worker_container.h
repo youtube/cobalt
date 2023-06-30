@@ -26,7 +26,7 @@
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/registration_options.h"
-#include "cobalt/worker/service_worker_jobs.h"
+#include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/service_worker_registration.h"
 
 namespace cobalt {
