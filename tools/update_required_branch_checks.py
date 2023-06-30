@@ -11,12 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Updates the requires status checks for a branch."""
+"""Updates the requires status checks for a branch.
+
+Requires PyGithub to run:
+
+  $ pip install PyGithub
+"""
 
 import argparse
 from github import Github
 from typing import List
 
+# Issue a Personal Access Token with 'repo' permission on
+# https://github.com/settings/tokens.
 YOUR_GITHUB_TOKEN = ''
 assert YOUR_GITHUB_TOKEN != '', 'YOUR_GITHUB_TOKEN must be set.'
 
