@@ -30,11 +30,21 @@ assert YOUR_GITHUB_TOKEN != '', 'YOUR_GITHUB_TOKEN must be set.'
 TARGET_REPO = 'youtube/cobalt'
 
 EXCLUDED_CHECK_PATTERNS = [
+    # Excludes non build/test checks.
     'feedback/copybara',
-    '_on_device_',
-    'codecov',
     'prepare_branch_list',
     'cherry_pick',
+
+    # Excludes coverage and test reports.
+    'linux-coverage',
+    'codecov',
+    'on-host-unit-test-report',
+
+    # Excludes blackbox, web platform and on-device tests.
+    'blackbox_test',
+    'wpt',
+    '_on_device_',
+
     # Excludes templated check names.
     '${{'
 ]
