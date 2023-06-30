@@ -72,7 +72,7 @@ function assertTrue(result, msg) {
   }
 }
 
-function assertFalse(result) {
+function assertFalse(result, msg) {
   if (result) {
     const errorMessage = '\n' +
       'Black Box Test Assertion failed: \n' +
