@@ -20,11 +20,23 @@
 #include "components/metrics/log_decoder.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
+#include "third_party/metrics_proto/cobalt_uma_event.pb.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
 
 namespace cobalt {
 namespace browser {
 namespace metrics {
+
+// Helper method to create a trimmed down and sanitized version of the UMA
+// proto for Cobalt
+void PopulateCobaltUmaEvent(
+    const ::metrics::ChromeUserMetricsExtension& uma_proto,
+    CobaltUMAEvent& cobalt_proto) {
+  cobalt_proto.mutable_histogram_event()->CopyFrom(uma_proto.histogram_event());
+  cobalt_proto.mutable_user_action_event()->CopyFrom(
+      uma_proto.user_action_event());
+  cobalt_proto.mutable_reporting_info()->CopyFrom(uma_proto.reporting_info());
+}
 
 CobaltMetricsLogUploader::CobaltMetricsLogUploader(
     ::metrics::MetricsLogUploader::MetricServiceType service_type,
@@ -35,12 +47,23 @@ void CobaltMetricsLogUploader::UploadLog(
     const std::string& compressed_log_data, const std::string& log_hash,
     const ::metrics::ReportingInfo& reporting_info) {
   if (service_type_ == ::metrics::MetricsLogUploader::UMA) {
-    std::string uncompressed_serialized_proto;
-    ::metrics::DecodeLogData(compressed_log_data,
-                             &uncompressed_serialized_proto);
     if (upload_handler_ != nullptr) {
+      std::string uncompressed_serialized_proto;
+      ::metrics::DecodeLogData(compressed_log_data,
+                               &uncompressed_serialized_proto);
+
+      ::metrics::ChromeUserMetricsExtension uma_event;
+      uma_event.ParseFromString(uncompressed_serialized_proto);
+      CobaltUMAEvent cobalt_uma_event;
+      PopulateCobaltUmaEvent(uma_event, cobalt_uma_event);
+
+      // Publish the full UMA proto.
       upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeUma,
                            uncompressed_serialized_proto);
+
+      // Publish the trimmed Cobalt UMA proto.
+      upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma,
+                           cobalt_uma_event.SerializeAsString());
     }
   }
 

@@ -25,8 +25,8 @@ interface H5vccMetrics {
   // Example usage in JS:
   //
   //   window.h5vcc.metrics.onMetricEvent((metricType, payload) => {
-  //     if (metricType == 'UMA') {
-  //       // log UMA payload here...
+  //     if (metricType == 'COBALT_UMA') {
+  //       // log Cobalt UMA payload here...
   //     }
   //   });
   void onMetricEvent(H5vccMetricEventHandler eventHandler);

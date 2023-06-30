@@ -39,9 +39,12 @@ proto_library("metrics_proto") {
     "user_action_event.proto",
   ]
   proto_in_dir = "."
-  # TODO(b/282037939): Remove this when python proto are supported or disabled
-  # by default.
+
   if (use_cobalt_customizations) {
+    # TODO(b/282037939): Remove this when python proto are supported or disabled
+    # by default.
     generate_python = false
+
+    sources += [ "cobalt_uma_event.proto" ]
   }
 }
