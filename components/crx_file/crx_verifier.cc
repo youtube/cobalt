@@ -128,7 +128,7 @@ bool ReadHashAndVerifyArchiveFromString(const std::string& crx_str,
   int remaining_bytes = crx_str.end() - *it;
 
   uint8_t buffer[1 << 12] = {};
-  while (true) {
+  while (remaining_bytes > 0) {
     size_t len = remaining_bytes >= base::size(buffer) ? base::size(buffer)
                                                        : remaining_bytes;
 
@@ -137,10 +137,6 @@ bool ReadHashAndVerifyArchiveFromString(const std::string& crx_str,
 
     for (auto& verifier : verifiers) {
       verifier->VerifyUpdate(base::make_span(buffer, len));
-    }
-
-    if (remaining_bytes == 0) {
-      break;
     }
   }
 

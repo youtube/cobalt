@@ -86,7 +86,7 @@ TEST_F(CrxVerifierTest, ValidFullCrx2FromString) {
   std::string public_key;
   std::string crx_id;
   std::string crx_str;
-  base::ReadFileToString(TestFile("valid.crx2"), &crx_str);
+  ASSERT_TRUE(base::ReadFileToString(TestFile("valid.crx2"), &crx_str));
 
   EXPECT_EQ(VerifierResult::OK_FULL,
             Verify(crx_str, VerifierFormat::CRX2_OR_CRX3, keys, hash,
@@ -124,7 +124,8 @@ TEST_F(CrxVerifierTest, ValidFullCrx3FromString) {
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
   std::string crx_str;
-  base::ReadFileToString(TestFile("valid_no_publisher.crx3"), &crx_str);
+  ASSERT_TRUE(
+      base::ReadFileToString(TestFile("valid_no_publisher.crx3"), &crx_str));
   EXPECT_EQ(VerifierResult::OK_FULL,
             Verify(crx_str, VerifierFormat::CRX2_OR_CRX3, keys, hash,
                    &public_key, &crx_id));
@@ -160,7 +161,7 @@ TEST_F(CrxVerifierTest, Crx3RejectsCrx2FromString) {
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
   std::string crx_str;
-  base::ReadFileToString(TestFile("valid.crx2"), &crx_str);
+  ASSERT_TRUE(base::ReadFileToString(TestFile("valid.crx2"), &crx_str));
 
   EXPECT_EQ(
       VerifierResult::ERROR_HEADER_INVALID,
@@ -211,7 +212,8 @@ TEST_F(CrxVerifierTest, VerifiesFileHashForCrxFromString) {
   const std::vector<std::vector<uint8_t>> keys;
   std::vector<uint8_t> hash;
   std::string crx_str;
-  base::ReadFileToString(TestFile("valid_no_publisher.crx3"), &crx_str);
+  ASSERT_TRUE(
+      base::ReadFileToString(TestFile("valid_no_publisher.crx3"), &crx_str));
 
   EXPECT_TRUE(base::HexStringToBytes(
       "d033c510f9e4ee081ccb60ea2bf530dc2e5cb0e71085b55503c8b13b74515fe4",
@@ -280,7 +282,8 @@ TEST_F(CrxVerifierTest, ChecksRequiredKeyHashes) {
 TEST_F(CrxVerifierTest, ChecksRequiredKeyHashesForCrxFromString) {
   const std::vector<uint8_t> hash;
   std::string crx_str;
-  base::ReadFileToString(TestFile("valid_no_publisher.crx3"), &crx_str);
+  ASSERT_TRUE(
+      base::ReadFileToString(TestFile("valid_no_publisher.crx3"), &crx_str));
 
   std::vector<uint8_t> good_key;
   EXPECT_TRUE(base::HexStringToBytes(
@@ -346,8 +349,8 @@ TEST_F(CrxVerifierTest, ChecksPinnedKeyForCrxFromString) {
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
   std::string valid_publisher_crx_str;
-  base::ReadFileToString(TestFile("valid_publisher.crx3"),
-                         &valid_publisher_crx_str);
+  EXPECT_TRUE(base::ReadFileToString(TestFile("valid_publisher.crx3"),
+                                     &valid_publisher_crx_str));
 
   EXPECT_EQ(
       VerifierResult::OK_FULL,
@@ -359,8 +362,8 @@ TEST_F(CrxVerifierTest, ChecksPinnedKeyForCrxFromString) {
   public_key = "UNSET";
   crx_id = "UNSET";
   std::string valid_test_publisher_crx_str;
-  base::ReadFileToString(TestFile("valid_test_publisher.crx3"),
-                         &valid_test_publisher_crx_str);
+  EXPECT_TRUE(base::ReadFileToString(TestFile("valid_test_publisher.crx3"),
+                                     &valid_test_publisher_crx_str));
   EXPECT_EQ(VerifierResult::ERROR_REQUIRED_PROOF_MISSING,
             Verify(valid_test_publisher_crx_str,
                    VerifierFormat::CRX3_WITH_PUBLISHER_PROOF, keys, hash,
@@ -371,8 +374,8 @@ TEST_F(CrxVerifierTest, ChecksPinnedKeyForCrxFromString) {
   public_key = "UNSET";
   crx_id = "UNSET";
   std::string valid_no_publisher_crx_str;
-  base::ReadFileToString(TestFile("valid_no_publisher.crx3"),
-                         &valid_no_publisher_crx_str);
+  EXPECT_TRUE(base::ReadFileToString(TestFile("valid_no_publisher.crx3"),
+                                     &valid_no_publisher_crx_str));
   EXPECT_EQ(VerifierResult::ERROR_REQUIRED_PROOF_MISSING,
             Verify(valid_no_publisher_crx_str,
                    VerifierFormat::CRX3_WITH_PUBLISHER_PROOF, keys, hash,
@@ -420,8 +423,8 @@ TEST_F(CrxVerifierTest, ChecksPinnedKeyAcceptsTestForCrxFromString) {
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
   std::string valid_publisher_crx_str;
-  base::ReadFileToString(TestFile("valid_publisher.crx3"),
-                         &valid_publisher_crx_str);
+  EXPECT_TRUE(base::ReadFileToString(TestFile("valid_publisher.crx3"),
+                                     &valid_publisher_crx_str));
   EXPECT_EQ(VerifierResult::OK_FULL,
             Verify(valid_publisher_crx_str,
                    VerifierFormat::CRX3_WITH_TEST_PUBLISHER_PROOF, keys, hash,
@@ -432,8 +435,8 @@ TEST_F(CrxVerifierTest, ChecksPinnedKeyAcceptsTestForCrxFromString) {
   public_key = "UNSET";
   crx_id = "UNSET";
   std::string valid_test_publisher_crx_str;
-  base::ReadFileToString(TestFile("valid_test_publisher.crx3"),
-                         &valid_test_publisher_crx_str);
+  EXPECT_TRUE(base::ReadFileToString(TestFile("valid_test_publisher.crx3"),
+                                     &valid_test_publisher_crx_str));
   EXPECT_EQ(VerifierResult::OK_FULL,
             Verify(valid_test_publisher_crx_str,
                    VerifierFormat::CRX3_WITH_TEST_PUBLISHER_PROOF, keys, hash,
@@ -444,8 +447,8 @@ TEST_F(CrxVerifierTest, ChecksPinnedKeyAcceptsTestForCrxFromString) {
   public_key = "UNSET";
   crx_id = "UNSET";
   std::string valid_no_publisher_crx_str;
-  base::ReadFileToString(TestFile("valid_no_publisher.crx3"),
-                         &valid_no_publisher_crx_str);
+  EXPECT_TRUE(base::ReadFileToString(TestFile("valid_no_publisher.crx3"),
+                                     &valid_no_publisher_crx_str));
   EXPECT_EQ(VerifierResult::ERROR_REQUIRED_PROOF_MISSING,
             Verify(valid_no_publisher_crx_str,
                    VerifierFormat::CRX3_WITH_TEST_PUBLISHER_PROOF, keys, hash,
@@ -469,7 +472,8 @@ TEST_F(CrxVerifierTest, NullptrSafeForCrxFromString) {
   const std::vector<uint8_t> hash;
   const std::vector<std::vector<uint8_t>> keys;
   std::string crx_str;
-  base::ReadFileToString(TestFile("valid_publisher.crx3"), &crx_str);
+  ASSERT_TRUE(
+      base::ReadFileToString(TestFile("valid_publisher.crx3"), &crx_str));
 
   EXPECT_EQ(VerifierResult::OK_FULL,
             Verify(crx_str, VerifierFormat::CRX3_WITH_PUBLISHER_PROOF, keys,
@@ -496,7 +500,7 @@ TEST_F(CrxVerifierTest, RequiresDeveloperKeyForCrxFromString) {
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
   std::string crx_str;
-  base::ReadFileToString(TestFile("unsigned.crx3"), &crx_str);
+  ASSERT_TRUE(base::ReadFileToString(TestFile("unsigned.crx3"), &crx_str));
 
   EXPECT_EQ(VerifierResult::ERROR_REQUIRED_PROOF_MISSING,
             Verify(crx_str, VerifierFormat::CRX2_OR_CRX3, keys, hash,
