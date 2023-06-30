@@ -86,6 +86,7 @@ config("platform_configuration") {
     "-fno-limit-debug-info",
     "-fcolor-diagnostics",
     "-fno-strict-aliasing",  # See http://crbug.com/32204
+    "-fno-delete-null-pointer-checks",  # see b/288107039
 
     # Default visibility is hidden to enable dead stripping.
     "-fvisibility=hidden",
