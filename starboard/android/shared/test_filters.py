@@ -82,6 +82,9 @@ _FILTERED_TESTS = {
 
         # TODO: b/288107692 This test crashed on arm64 after NDK 25 upgrade, re-enable it.
         'PixelTest.TooManyGlyphs',
+
+        # TODO: Filter this test on a per-device basis.
+        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
     ],
 }
 # pylint: enable=line-too-long
