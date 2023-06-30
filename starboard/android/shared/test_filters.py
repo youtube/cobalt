@@ -47,6 +47,7 @@ _FILTERED_TESTS = {
         'PlayerComponentsTests/PlayerComponentsTest.Pause/*ec3*',
     ],
     'nplb': [
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
         # Enable multiplayer tests once it's supported.
         'MultiplePlayerTests/*',
 

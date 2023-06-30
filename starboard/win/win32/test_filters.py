@@ -31,8 +31,9 @@ _FILTERED_TESTS = {
         'SbSystemGetStackTest.SunnyDayStackDirection',
 
         # These tests are failing. Enable them once they're supported.
-        'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteContinuedLimitedInput*',
         'MultiplePlayerTests/*beneath_the_canopy_137_avc_dmp*',
+        'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteContinuedLimitedInput*',
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
 
         # Failures tracked by b/256160416.
         'SbSystemGetPathTest.ReturnsRequiredPaths',
