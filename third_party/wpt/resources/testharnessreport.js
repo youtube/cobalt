@@ -35,6 +35,10 @@ function dump_test_results(tests, status) {
         : document.documentElement;     // fallback for optional <body> in HTML5, SVG, etc.
 
     parent.appendChild(results_element);
+    if (window.testRunner) {
+        window.testRunner.notifyDone();
+        window.close();
+    }
 }
 
 add_completion_callback(dump_test_results);
