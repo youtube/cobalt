@@ -31,11 +31,12 @@ namespace metrics {
 // proto for Cobalt
 void PopulateCobaltUmaEvent(
     const ::metrics::ChromeUserMetricsExtension& uma_proto,
+    const ::metrics::ReportingInfo reporting_info_proto,
     CobaltUMAEvent& cobalt_proto) {
   cobalt_proto.mutable_histogram_event()->CopyFrom(uma_proto.histogram_event());
   cobalt_proto.mutable_user_action_event()->CopyFrom(
       uma_proto.user_action_event());
-  cobalt_proto.mutable_reporting_info()->CopyFrom(uma_proto.reporting_info());
+  cobalt_proto.mutable_reporting_info()->CopyFrom(reporting_info_proto);
 }
 
 CobaltMetricsLogUploader::CobaltMetricsLogUploader(
@@ -55,12 +56,7 @@ void CobaltMetricsLogUploader::UploadLog(
       ::metrics::ChromeUserMetricsExtension uma_event;
       uma_event.ParseFromString(uncompressed_serialized_proto);
       CobaltUMAEvent cobalt_uma_event;
-      PopulateCobaltUmaEvent(uma_event, cobalt_uma_event);
-
-      // Publish the full UMA proto.
-      upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeUma,
-                           uncompressed_serialized_proto);
-
+      PopulateCobaltUmaEvent(uma_event, reporting_info, cobalt_uma_event);
       // Publish the trimmed Cobalt UMA proto.
       upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma,
                            cobalt_uma_event.SerializeAsString());
