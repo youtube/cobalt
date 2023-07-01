@@ -57,7 +57,7 @@ class AnimatedWebPImage : public AnimatedImage {
   scoped_refptr<FrameProvider> GetFrameProvider() override;
 
   void Play(
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner) override;
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner) override;
 
   void Stop() override;
 
@@ -112,7 +112,7 @@ class AnimatedWebPImage : public AnimatedImage {
   bool should_dispose_previous_frame_to_background_;
   render_tree::ResourceProvider* resource_provider_;
   const base::DebuggerHooks& debugger_hooks_;
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   render_tree::ColorRGBA background_color_;
   math::RectF previous_frame_rect_;
@@ -128,7 +128,7 @@ class AnimatedWebPImage : public AnimatedImage {
   // Makes sure that the thread that sets the task_runner is always consistent.
   // This is the thread sending Play()/Stop() calls, and is not necessarily
   // the same thread that the task_runner itself is running on.
-  THREAD_CHECKER(task_runner_thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace image
