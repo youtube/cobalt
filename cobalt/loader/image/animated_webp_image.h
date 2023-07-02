@@ -83,9 +83,6 @@ class AnimatedWebPImage : public AnimatedImage {
   // Decodes all frames until current time.  Assumes |lock_| is acquired.
   void DecodeFrames();
 
-  // Acquires |lock_| and calls DecodeFrames().
-  void LockAndDecodeFrames();
-
   // Decodes the frame with the given index, returns if it succeeded.
   bool DecodeOneFrame(int frame_index);
 
@@ -123,7 +120,6 @@ class AnimatedWebPImage : public AnimatedImage {
   std::vector<uint8> data_buffer_;
   scoped_refptr<render_tree::Image> current_canvas_;
   scoped_refptr<FrameProvider> frame_provider_;
-  base::Lock lock_;
 
   // Makes sure that the thread that sets the task_runner is always consistent.
   // This is the thread sending Play()/Stop() calls, and is not necessarily

@@ -15,6 +15,7 @@
 #include "cobalt/loader/image/animated_image_tracker.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
