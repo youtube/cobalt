@@ -22,6 +22,7 @@
 #include "base/threading/thread.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/watchdog/watchdog.h"
 
 namespace cobalt {
 namespace browser {
@@ -29,6 +30,16 @@ namespace browser {
 namespace {
 // Signals the given WaitableEvent.
 void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
+
+// The watchdog client name used to represent Stats.
+const char kWatchdogName[] = "service worker";
+// The watchdog time interval in microseconds allowed between pings before
+// triggering violations.
+const int64_t kWatchdogTimeInterval = 5000000;
+// The watchdog time wait in microseconds to initially wait before triggering
+// violations.
+const int64_t kWatchdogTimeWait = 5000000;
+
 }  // namespace
 
 void ServiceWorkerRegistry::WillDestroyCurrentMessageLoop() {
@@ -42,6 +53,14 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
     : thread_("ServiceWorkerRegistry") {
   if (!thread_.Start()) return;
   DCHECK(message_loop());
+
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+
+  // Registers service worker thread as a watchdog client.
+  if (watchdog)
+    watchdog->Register(kWatchdogName, kWatchdogName,
+                       base::kApplicationStateStarted, kWatchdogTimeInterval,
+                       kWatchdogTimeWait, watchdog::PING);
 
   message_loop()->task_runner()->PostTask(
       FROM_HERE,
@@ -68,6 +87,10 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
 ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   DCHECK(message_loop());
   DCHECK(thread_.IsRunning());
+
+  // Unregisters service worker thread as a watchdog client.
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) watchdog->Unregister(kWatchdogName);
 
   // Ensure that the destruction observer got added before stopping the thread.
   // Stop the thread. This will cause the destruction observer to be notified.
