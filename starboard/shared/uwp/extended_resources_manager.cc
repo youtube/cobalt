@@ -16,7 +16,6 @@
 
 #include <ppltasks.h>
 
-#include "internal/starboard/xb1/shared/internal_shims.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -25,9 +24,10 @@
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
+#include "starboard/xb1/shared/internal_shims.h"
 #if defined(INTERNAL_BUILD)
-#include "internal/starboard/xb1/internal/av1_video_decoder.h"
-#include "internal/starboard/xb1/internal/vpx_video_decoder.h"
+#include "internal/starboard/xb1/av1_video_decoder.h"
+#include "internal/starboard/xb1/vpx_video_decoder.h"
 #include "third_party/internal/libvpx_xb1/libvpx/d3dx12.h"
 #endif  // defined(INTERNAL_BUILD)
 

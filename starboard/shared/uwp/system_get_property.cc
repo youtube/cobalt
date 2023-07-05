@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "internal/starboard/xb1/shared/internal_shims.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -29,6 +28,7 @@
 #include "starboard/shared/uwp/keys.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/system.h"
+#include "starboard/xb1/shared/internal_shims.h"
 
 using starboard::shared::win32::platformStringToString;
 using Windows::Security::ExchangeActiveSyncProvisioning::

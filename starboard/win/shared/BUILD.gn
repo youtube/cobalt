@@ -19,7 +19,7 @@ import("//starboard/shared/starboard/player/buildfiles.gni")
 config("starboard_platform_config") {
   if (current_os == "winuwp") {
     # We want this to apply to all shared win sources for xb1.
-    configs = [ "//internal/starboard/xb1:starboard_platform_config" ]
+    configs = [ "//starboard/xb1:starboard_platform_config" ]
   }
   include_dirs = [
     "//third_party/angle/include",
