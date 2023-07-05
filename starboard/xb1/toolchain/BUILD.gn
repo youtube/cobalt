@@ -1,0 +1,31 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/win/visual_studio_version.gni")
+import("//build/toolchain/win/msvc_toolchain.gni")
+import("//starboard/build/toolchain/win/variables.gni")
+
+msvc_toolchain("target") {
+  cl = "$tool_base_path/cl.exe"
+  lib = "$tool_base_path/lib.exe"
+  link = "$tool_base_path/link.exe"
+  asm = "$tool_base_path/ml64.exe"
+  sys_lib_flags = "/LIBPATH:\"$msvc_path/lib/x64/store\" " + common_libpaths
+
+  toolchain_args = {
+    is_clang = false
+    current_os = "win"
+    current_cpu = "x64"
+  }
+}

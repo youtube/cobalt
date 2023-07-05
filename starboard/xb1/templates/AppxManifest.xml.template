@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+        xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+        xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+        xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+        {% if 'IGNORABLE_NAMESPACES' in __PRODUCT_SETTINGS__ %}
+        IgnorableNamespaces="{{ __PRODUCT_SETTINGS__['IGNORABLE_NAMESPACES'] }}"
+        {% else %}
+        IgnorableNamespaces="uap mp rescap build"
+        {% endif %}
+        xmlns:build="http://schemas.microsoft.com/developer/appx/2015/build">
+  <Identity Name="{{__PRODUCT_SETTINGS__['IDENTITY_NAME']}}"
+          Publisher="{{__PRODUCT_SETTINGS__['PUBLISHER']}}"
+          Version="{{__APPX_VERSION__}}"
+          ProcessorArchitecture="x64"/>
+  {% if 'PHONE_IDENTITY' in __PRODUCT_SETTINGS__ %}
+  {{ __PRODUCT_SETTINGS__['PHONE_IDENTITY']|indent(2) }}
+  {% endif %}
+  <Properties>
+    <DisplayName>{{__PRODUCT_SETTINGS__['DISPLAY_NAME']}}</DisplayName>
+    <PublisherDisplayName>{{__PRODUCT_SETTINGS__['PUBLISHER_DISPLAY_NAME']}}</PublisherDisplayName>
+    <Logo>Assets\Square44x44Logo.scale-100.png</Logo>
+    <uap:SupportedUsers>single</uap:SupportedUsers>
+  </Properties>
+  <Dependencies>
+          <TargetDeviceFamily
+                  {% if __CONFIG__ == 'gold' %}
+                  Name="Windows.Xbox"
+                  {% else %}
+                  Name="Windows.Universal"
+                  {% endif %}
+                  MinVersion="10.0.22000.0"
+                  MaxVersionTested="10.0.22000.0" />
+          <PackageDependency
+                  {% if __CONFIG__ == 'debug' or __CONFIG__ == 'devel' %}
+                  Name="Microsoft.VCLibs.140.00.Debug"
+                  {% else %}
+                  Name="Microsoft.VCLibs.140.00"
+                  {% endif %}
+                  MinVersion="14.0.24123.0"
+                  Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+  </Dependencies>
+  <Resources>
+<!-- Note that Windows 10586 does not allow these locales. -->
+<!--    <Resource Language="SR" /> -->
+<!--    <Resource Language="SR-RS" /> -->
+<!--    <Resource Language="ZH" /> -->
+    <Resource Language="AF" />
+    <Resource Language="AF-ZA" />
+    <Resource Language="AM" />
+    <Resource Language="AM-ET" />
+    <Resource Language="AR" />
+    <Resource Language="AR-AE" />
+    <Resource Language="AR-BH" />
+    <Resource Language="AR-DZ" />
+    <Resource Language="AR-IQ" />
+    <Resource Language="AR-JO" />
+    <Resource Language="AR-KW" />
+    <Resource Language="AR-LB" />
+    <Resource Language="AR-LY" />
+    <Resource Language="AR-MA" />
+    <Resource Language="AR-OM" />
+    <Resource Language="AR-QA" />
+    <Resource Language="AR-SA" />
+    <Resource Language="AR-SY" />
+    <Resource Language="AR-TN" />
+    <Resource Language="AR-YE" />
+    <Resource Language="AR-EG" />
+    <Resource Language="BG" />
+    <Resource Language="BG-BG" />
+    <Resource Language="BN" />
+    <Resource Language="BN-BD" />
+    <Resource Language="CA" />
+    <Resource Language="CA-ES" />
+    <Resource Language="CS" />
+    <Resource Language="CS-CZ" />
+    <Resource Language="DA" />
+    <Resource Language="DA-DK" />
+    <Resource Language="DE" />
+    <Resource Language="DE-DE" />
+    <Resource Language="EL" />
+    <Resource Language="EL-GR" />
+    <Resource Language="EN" />
+    <Resource Language="EN-GB" />
+    <Resource Language="EN-US" />
+    <Resource Language="EN-XC" />
+    <Resource Language="ES" />
+    <Resource Language="ES-419" />
+    <Resource Language="ES-AR" />
+    <Resource Language="ES-BO" />
+    <Resource Language="ES-CL" />
+    <Resource Language="ES-CO" />
+    <Resource Language="ES-CR" />
+    <Resource Language="ES-DO" />
+    <Resource Language="ES-EC" />
+    <Resource Language="ES-ES" />
+    <Resource Language="ES-GT" />
+    <Resource Language="ES-HN" />
+    <Resource Language="ES-MX" />
+    <Resource Language="ES-NI" />
+    <Resource Language="ES-PA" />
+    <Resource Language="ES-PE" />
+    <Resource Language="ES-PR" />
+    <Resource Language="ES-PY" />
+    <Resource Language="ES-SV" />
+    <Resource Language="ES-US" />
+    <Resource Language="ES-UY" />
+    <Resource Language="ES-VE" />
+    <Resource Language="ET" />
+    <Resource Language="ET-EE" />
+    <Resource Language="EU" />
+    <Resource Language="EU-ES" />
+    <Resource Language="FA" />
+    <Resource Language="FA-IR" />
+    <Resource Language="FI" />
+    <Resource Language="FI-FI" />
+    <Resource Language="FIL" />
+    <Resource Language="FIL-PH" />
+    <Resource Language="FR" />
+    <Resource Language="FR-CA" />
+    <Resource Language="FR-FR" />
+    <Resource Language="GL" />
+    <Resource Language="GL-ES" />
+    <Resource Language="GU" />
+    <Resource Language="GU-IN" />
+    <Resource Language="HE" />
+    <Resource Language="HI" />
+    <Resource Language="HI-IN" />
+    <Resource Language="HR" />
+    <Resource Language="HR-HR" />
+    <Resource Language="HU" />
+    <Resource Language="HU-HU" />
+    <Resource Language="ID" />
+    <Resource Language="ID-ID" />
+    <Resource Language="IS" />
+    <Resource Language="IS-IS" />
+    <Resource Language="IT" />
+    <Resource Language="IT-IT" />
+    <Resource Language="IW" />
+    <Resource Language="IW-IL" />
+    <Resource Language="JA" />
+    <Resource Language="JA-JP" />
+    <Resource Language="KN" />
+    <Resource Language="KN-IN" />
+    <Resource Language="KO" />
+    <Resource Language="KO-KR" />
+    <Resource Language="LT" />
+    <Resource Language="LT-LT" />
+    <Resource Language="LV" />
+    <Resource Language="LV-LV" />
+    <Resource Language="ML" />
+    <Resource Language="ML-IN" />
+    <Resource Language="MO" />
+    <Resource Language="MR" />
+    <Resource Language="MR-IN" />
+    <Resource Language="MS" />
+    <Resource Language="MS-MY" />
+    <Resource Language="NB" />
+    <Resource Language="NB-NO" />
+    <Resource Language="NL" />
+    <Resource Language="NL-NL" />
+    <Resource Language="NO" />
+    <Resource Language="NO-NO" />
+    <Resource Language="PL" />
+    <Resource Language="PL-PL" />
+    <Resource Language="PT" />
+    <Resource Language="PT-BR" />
+    <Resource Language="PT-PT" />
+    <Resource Language="RO" />
+    <Resource Language="RO-RO" />
+    <Resource Language="RU" />
+    <Resource Language="RU-RU" />
+    <Resource Language="SK" />
+    <Resource Language="SK-SK" />
+    <Resource Language="SL" />
+    <Resource Language="SL-SI" />
+    <Resource Language="SR-CYRL-RS" />
+    <Resource Language="SV" />
+    <Resource Language="SV-SE" />
+    <Resource Language="SW" />
+    <Resource Language="SW-TZ" />
+    <Resource Language="TA" />
+    <Resource Language="TA-IN" />
+    <Resource Language="TE" />
+    <Resource Language="TE-IN" />
+    <Resource Language="TH" />
+    <Resource Language="TH-TH" />
+    <Resource Language="TL" />
+    <Resource Language="TL-PH" />
+    <Resource Language="TR" />
+    <Resource Language="TR-TR" />
+    <Resource Language="UK" />
+    <Resource Language="UK-UA" />
+    <Resource Language="UR" />
+    <Resource Language="UR-PK" />
+    <Resource Language="VI" />
+    <Resource Language="VI-VN" />
+    <Resource Language="ZH-CN" />
+    <Resource Language="ZH-HANS" />
+    <Resource Language="ZH-HANS-CN" />
+    <Resource Language="ZH-HANT" />
+    <Resource Language="ZH-HANT-HK" />
+    <Resource Language="ZH-HANT-TW" />
+    <Resource Language="ZH-HK" />
+    <Resource Language="ZH-TW" />
+    <Resource Language="ZU" />
+    <Resource Language="ZU-ZA" />
+  </Resources>
+  <Applications>
+    {{ __APPLICATIONS__|indent(4) }}
+  </Applications>
+  <Capabilities>
+    {% if __CONFIG__ != 'gold' %}
+    <uap:Capability Name="removableStorage" />
+    <Capability Name="internetClientServer" />
+    {% endif %}
+    <Capability Name="internetClient" />
+    <Capability Name="privateNetworkClientServer" />
+    <Capability Name="codeGeneration" />
+    {% if 'EXTRA_CAPABILITIES' in __PRODUCT_SETTINGS__ %}
+    {% for line in __PRODUCT_SETTINGS__['EXTRA_CAPABILITIES'] %}
+    {{line}}
+    {% endfor %}
+    {% endif %}
+    <DeviceCapability Name="microphone" />
+    <!-- Adds PlayReady capability -->
+    <DeviceCapability Name="6a7e5907-885c-4bcb-b40a-073c067bd3d5" />
+  </Capabilities>
+</Package>
