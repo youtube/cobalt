@@ -43,8 +43,8 @@
 #include "starboard/xb1/shared/video_decoder_uwp.h"
 
 #if defined(INTERNAL_BUILD)
-#include "internal/starboard/xb1/internal/av1_video_decoder.h"
-#include "internal/starboard/xb1/internal/vpx_video_decoder.h"
+#include "internal/starboard/xb1/av1_video_decoder.h"
+#include "internal/starboard/xb1/vpx_video_decoder.h"
 #endif  // defined(INTERNAL_BUILD)
 
 namespace starboard {

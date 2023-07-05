@@ -20,7 +20,7 @@ import os
 import sys
 
 try:
-  from internal.starboard.xb1.internal import appx_product_settings
+  from internal.starboard.xb1 import appx_product_settings
   PRODUCT_SETTINGS = appx_product_settings.PRODUCT_SETTINGS
 except ImportError:
   from starboard.xb1 import appx_product_settings

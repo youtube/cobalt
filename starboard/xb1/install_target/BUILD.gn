@@ -24,10 +24,10 @@ if (is_internal_build) {
 foreach(product, _products) {
   if (product == "youtube") {
     appx_output_dir = "$root_out_dir/appx"
-    appx_asset_dir_src = "//internal/starboard/xb1/internal/assets"
+    appx_asset_dir_src = "//internal/starboard/xb1/assets"
   } else if (product == "youtubetv") {
     appx_output_dir = "$root_out_dir/youtubetv-appx"
-    appx_asset_dir_src = "//internal/starboard/xb1/internal/youtubetv/assets"
+    appx_asset_dir_src = "//internal/starboard/xb1/youtubetv/assets"
   } else if (product == "mainappbeta") {
     appx_output_dir = "$root_out_dir/mainappbeta-appx"
     appx_asset_dir_src = "//starboard/xb1/assets"
