@@ -18,7 +18,6 @@
 
 #include <functional>
 
-#include "internal/starboard/xb1/shared/video_decoder_uwp.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -41,6 +40,7 @@
 #include "starboard/shared/uwp/audio_renderer_passthrough.h"
 #include "starboard/shared/uwp/extended_resources_manager.h"
 #include "starboard/shared/win32/audio_decoder.h"
+#include "starboard/xb1/shared/video_decoder_uwp.h"
 
 #if defined(INTERNAL_BUILD)
 #include "internal/starboard/xb1/internal/av1_video_decoder.h"

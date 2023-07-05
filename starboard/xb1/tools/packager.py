@@ -29,7 +29,8 @@ from starboard.tools import package
 
 _DEFAULT_CERT_PATH = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir,
-    os.pardir, 'internal', 'starboard', 'xb1', 'cert', 'youtube.pfx')
+    os.pardir, 'internal', 'starboard', 'xb1', 'internal', 'cert',
+    'youtube.pfx')
 _APPX_MANIFEST_XML_NAMESPACE = \
     'http://schemas.microsoft.com/appx/manifest/foundation/windows10'
 _NAMESPACE_DICT = {'appx': _APPX_MANIFEST_XML_NAMESPACE}
