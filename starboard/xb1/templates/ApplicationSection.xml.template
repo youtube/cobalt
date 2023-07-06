@@ -1,0 +1,49 @@
+{% if __IS_COBALT__ %}
+{# Currently, DIAL expects an application ID of "App" to work. #}
+<Application Id="App"
+{% else %}
+<Application Id="{{ __APPLICATION_NAME__|replace('_', '') }}App"
+{% endif %}
+  Executable="{{ __APPLICATION_NAME__ }}.exe"
+  {# EntryPoint must be <start URL with no ? suffix> #}
+  EntryPoint="{{__PRODUCT_SETTINGS__['ENTRYPOINT']}}">
+  <uap:VisualElements
+    {% if __IS_COBALT__ %}
+    DisplayName="{{__PRODUCT_SETTINGS__['APPLICATION_DISPLAY_NAME']}}"
+    Description="{{__PRODUCT_SETTINGS__['APPLICATION_DESCRIPTION']}}"
+    {% else %}
+    DisplayName="{{ __APPLICATION_NAME__ }}"
+    Description="{{ __APPLICATION_NAME__ }}"
+    {% endif %}
+    Square150x150Logo="Assets\Square150x150Logo.scale-100.png"
+    Square44x44Logo="Assets\Square44x44Logo.scale-100.png"
+    BackgroundColor="transparent">
+      <uap:DefaultTile
+        Square310x310Logo="Assets\Square310x310Logo.scale-100.png"
+        Square71x71Logo="Assets\Square71x71Logo.scale-100.png"
+        Wide310x150Logo="Assets\Wide310x150Logo.scale-100.png"/>
+  </uap:VisualElements>
+  <Extensions>
+    {% if __IS_COBALT__ %}
+    {% if 'EXTRA_EXTENSIONS' in __PRODUCT_SETTINGS__ %}
+    {% for line in __PRODUCT_SETTINGS__['EXTRA_EXTENSIONS'] %}
+    {{line}}
+    {% endfor %}
+    {% endif %}
+    {% endif %}
+    {% if __CONFIG__ != 'gold' %}
+    {% if __IS_COBALT__ %}
+    <uap:Extension Category="windows.fileTypeAssociation">
+      <uap:FileTypeAssociation Name="txt">
+        <uap:SupportedFileTypes>
+          <uap:FileType>.txt</uap:FileType>
+        </uap:SupportedFileTypes>
+      </uap:FileTypeAssociation>
+    </uap:Extension>
+    {% endif %}
+    <uap:Extension Category="windows.protocol">
+      <uap:Protocol Name="{{ __APPLICATION_NAME__|replace('_','-') }}-starboard"/>
+    </uap:Extension>
+    {% endif %}
+  </Extensions>
+</Application>

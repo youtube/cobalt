@@ -25,8 +25,8 @@ interface H5vccMetrics {
   // Example usage in JS:
   //
   //   window.h5vcc.metrics.onMetricEvent((metricType, payload) => {
-  //     if (metricType == 'UMA') {
-  //       // log UMA payload here...
+  //     if (metricType == 'COBALT_UMA') {
+  //       // log Cobalt UMA payload here...
   //     }
   //   });
   void onMetricEvent(H5vccMetricEventHandler eventHandler);
@@ -34,20 +34,29 @@ interface H5vccMetrics {
   // Enable Cobalt metrics logging. Metrics are disabled by default and should
   // be enabled as soon as possible. When enabled, at regular intervals, the
   // bound onMetricEvent callback will be called with telemetry payloads to
-  // be uploaded and logged on the server.
-  // TODO(b/286898092): Update docs here when setting is persistent.
+  // be uploaded and logged on the server. Both the enable/disable settings
+  // are persistent or "sticky". That is, you only have to call them once
+  // and that setting will persist through multiple app lifecycles until the
+  // enable/disable APIs are explicitly called again.
   void enable();
 
   // Disable Cobalt metrics logging. If disabled, the metric event handler
   // should never get called afterward.
   void disable();
 
-  // Returns the current enabled state of metrics reporting.
+  // Returns the current enabled state of metrics reporting. Note, the enable()
+  // and disable() APIs are asynchronous under the hood. This means if you call
+  // isEnabled() immediately after enable/disable, you may get unexpected
+  // results.
+  // TODO(b/290064552): Update this when H5vccMetrics APIs support async
+  // behavior.
   boolean isEnabled();
 
   // Sets the frequency in which Cobalt metrics will be snapshotted and sent to
   // the metric event handler. Defaults to 5 minutes if not set. Must be > 0,
-  // else will be ignored.
+  // else will be ignored. This setting is persistent. That is, it's "sticky"
+  // and will be persisted through multiple app lifetimes unless it's called
+  // again with a different value.
   void setMetricEventInterval(unsigned long intervalSeconds);
 };
 

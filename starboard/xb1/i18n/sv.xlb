@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<localizationbundle locale="sv">
+<messages>
+<msg desc="[XboxOne] This error message is shown to the user when the user is not logged in to an Xbox Live account" name="GOLD_ACCOUNT_REQUIRED">Om du vill använda YouTube loggar du in på ett konto med Xbox Live-medlemskap.</msg>
+<msg desc="This is the text on a button which will activate the Xbox account picker and allow the user to choose another Xbox Live account." name="CHOOSE_ACCOUNT_BUTTON">Välj ett konto</msg>
+<msg desc="This is the text on a button which will exit the application." name="EXIT_BUTTON">Avsluta</msg>
+<msg desc="This error message is shown to the user when the application is unable to make a request to a service that is required to use the application." name="UNABLE_TO_CONTACT_YOUTUBE_1">Det gick inte att ansluta till YouTube.</msg>
+<msg desc="This error message is shown to the user when the application is unable to make a request to a service that is required to use the application." name="UNABLE_TO_CONTACT_YOUTUBE_2">Det finns mer information om det här problemet på youtube.com/xb1_help, och du kan skicka feedback på youtube.com/xb1_feedback. Mer information om programavbrott finns på www.xbox.com/status.</msg>
+<msg desc="This message is shown to users if the application is unable to contact Microsoft's Xbox Live service." name="UNABLE_TO_CONTACT_LIVE">Det går inte att kontakta Xbox Live.</msg>
+<msg desc="This is the text on a button which will retry a previously attempted action." name="RETRY_BUTTON">Försök igen</msg>
+</messages>
+</localizationbundle>

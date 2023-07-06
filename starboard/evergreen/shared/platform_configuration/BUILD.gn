@@ -74,6 +74,17 @@ config("platform_configuration") {
     # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
     # nasty macros (|Status|, for example) that conflict with Chromium base.
     "MESA_EGL_NO_X11_HEADERS",
+
+    # During Evergreen updates the CRX package is kept in-memory, instead of
+    # on the file system, before getting unpacked.
+    # TODO(b/158043520): we need to make significant customizations to Chromium
+    # code to implement this feature and this macro allows us to switch back
+    # to the legacy behavior during development to verify the customizations
+    # are made cleanly. Once the feature is complete we may want to remove
+    # existing customizations that enable the legacy behavior for Cobalt builds,
+    # change IN_MEMORY_UPDATES references to USE_COBALT_CUSTOMIZATIONS
+    # references, and remove this macro.
+    "IN_MEMORY_UPDATES",
   ]
 
   if (is_debug) {

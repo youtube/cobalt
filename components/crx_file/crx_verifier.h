@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,6 +50,17 @@ VerifierResult Verify(
     const std::vector<uint8_t>& required_file_hash,
     std::string* public_key,
     std::string* crx_id);
+
+#if defined(IN_MEMORY_UPDATES)
+// An overload that instead verifies |crx_str| as a valid Crx.
+VerifierResult Verify(
+    const std::string& crx_str,
+    const VerifierFormat& format,
+    const std::vector<std::vector<uint8_t>>& required_key_hashes,
+    const std::vector<uint8_t>& required_file_hash,
+    std::string* public_key,
+    std::string* crx_id);
+#endif
 
 }  // namespace crx_file
 

@@ -14,8 +14,7 @@ async_test(function(t) {
   ws.onclose = t.step_func(function(e) {
     // test that nothing strange happens when send()ing in closed state
     var sent = ws.send('test');
-    // SpiderMonkey erroneously does not resolve a void function to "undefined".
-    //assert_equals(sent, undefined);
+    assert_equals(sent, undefined);
     ws.onclose = t.step_func(function() {assert_unreached()});
     setTimeout(function() {t.done()}, 50);
   })

@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include "starboard/nplb/drm_helpers.h"
+#include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
+#include "starboard/nplb/thread_helpers.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -312,17 +314,79 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
                 << ".";
 }
 
+class SecondaryPlayerTestThread : public AbstractTestThread {
+ public:
+  SecondaryPlayerTestThread(
+      const SbPlayerTestConfig& config,
+      FakeGraphicsContextProvider* fake_graphics_context_provider)
+      : config_(config),
+        fake_graphics_context_provider_(fake_graphics_context_provider) {}
+
+  void Run() override {
+    SbPlayerTestFixture player_fixture(config_,
+                                       fake_graphics_context_provider_);
+    if (::testing::Test::HasFatalFailure()) {
+      return;
+    }
+
+    const SbTime kDurationToPlay = kSbTimeMillisecond * 200;
+
+    GroupedSamples samples;
+    if (player_fixture.HasAudio()) {
+      samples.AddAudioSamples(
+          0, player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
+      samples.AddAudioEOS();
+    }
+    if (player_fixture.HasVideo()) {
+      samples.AddVideoSamples(
+          0, player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+      samples.AddVideoEOS();
+    }
+
+    ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+    ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+  }
+
+ private:
+  const SbPlayerTestConfig config_;
+  FakeGraphicsContextProvider* fake_graphics_context_provider_;
+};
+
+TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
+  // The secondary player should at least support h264 at 480p, 30fps and with
+  // a drm system.
+  const char* kMaxVideoCapabilities = "width=640; height=480; framerate=30;";
+  const char* kSecondaryTestFile = "beneath_the_canopy_135_avc.dmp";
+  const char* key_system = GetParam().key_system;
+
+  SbPlayerTestConfig secondary_player_config(nullptr, kSecondaryTestFile,
+                                             kSbPlayerOutputModeInvalid,
+                                             key_system, kMaxVideoCapabilities);
+  PlayerCreationParam creation_param =
+      CreatePlayerCreationParam(secondary_player_config);
+  secondary_player_config.output_mode = GetPreferredOutputMode(creation_param);
+
+  ASSERT_NE(secondary_player_config.output_mode, kSbPlayerOutputModeInvalid);
+
+  SecondaryPlayerTestThread primary_player_thread(
+      GetParam(), &fake_graphics_context_provider_);
+  SecondaryPlayerTestThread secondary_player_thread(
+      secondary_player_config, &fake_graphics_context_provider_);
+
+  primary_player_thread.Start();
+  secondary_player_thread.Start();
+
+  primary_player_thread.Join();
+  secondary_player_thread.Join();
+}
+
 std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
   static std::vector<SbPlayerTestConfig> supported_configs;
   if (supported_configs.size() > 0) {
     return supported_configs;
   }
 
-  std::vector<const char*> key_systems;
-  key_systems.push_back("");
-  key_systems.insert(key_systems.end(), kKeySystems,
-                     kKeySystems + SB_ARRAY_SIZE_INT(kKeySystems));
-
+  const std::vector<const char*>& key_systems = GetKeySystems();
   for (auto key_system : key_systems) {
     std::vector<SbPlayerTestConfig> configs =
         GetSupportedSbPlayerTestConfigs(key_system);

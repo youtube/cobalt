@@ -225,6 +225,13 @@ class Application {
   void DispatchDeepLink(const char* link, SbTimeMonotonic timestamp);
   void DispatchDeepLinkIfNotConsumed();
 
+
+  // Initializes all code necessary to start telemetry/metrics gathering and
+  // reporting. See go/cobalt-telemetry.
+  void InitMetrics();
+
+  // Reference to the current metrics manager, the highest level control point
+  // for metrics/telemetry.
   metrics::CobaltMetricsServicesManager* metrics_services_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(Application);

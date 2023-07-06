@@ -1,0 +1,64 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+if (is_internal_build) {
+  _products = [
+    "youtube",
+    "youtubetv",
+    "mainappbeta",
+  ]
+} else {
+  _products = [ "cobalt" ]
+}
+foreach(product, _products) {
+  if (product == "youtube") {
+    appx_output_dir = "$root_out_dir/appx"
+    appx_asset_dir_src = "//internal/starboard/xb1/assets"
+  } else if (product == "youtubetv") {
+    appx_output_dir = "$root_out_dir/youtubetv-appx"
+    appx_asset_dir_src = "//internal/starboard/xb1/youtubetv/assets"
+  } else if (product == "mainappbeta") {
+    appx_output_dir = "$root_out_dir/mainappbeta-appx"
+    appx_asset_dir_src = "//starboard/xb1/assets"
+  } else if (product == "cobalt") {
+    appx_output_dir = "$root_out_dir/appx"
+  } else {
+    assert(
+        false,
+        "|product| must be one of youtube, youtubetv, mainappbeta, or cobalt.")
+  }
+
+  if (!is_internal_build) {
+    # Use Cobalt assets for all external builds
+    appx_asset_dir_src = "//starboard/xb1/assets"
+  }
+
+  copy("${product}_copy_assets") {
+    sources = [
+      "$appx_asset_dir_src/Square150x150Logo.scale-100.png",
+      "$appx_asset_dir_src/Square310x310Logo.scale-100.png",
+      "$appx_asset_dir_src/Square44x44Logo.scale-100.png",
+      "$appx_asset_dir_src/Square71x71Logo.scale-100.png",
+      "$appx_asset_dir_src/Wide310x150Logo.scale-100.png",
+    ]
+    outputs = [ "$appx_output_dir/Assets/{{source_file_part}}" ]
+  }
+
+  if (is_debug || is_devel) {
+    copy("${product}_copy_ucrt_dll") {
+      sources = [ "C:/Program Files (x86)/Microsoft SDKs/Windows Kits/10/ExtensionSDKs/Microsoft.UniversalCRT.Debug/$wdk_version/Redist/Debug/x64/ucrtbased.dll" ]
+      outputs = [ "$appx_output_dir/ucrtbased.dll" ]
+    }
+  }
+}

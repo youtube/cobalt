@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/values.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
@@ -59,14 +60,22 @@ void H5vccMetrics::Enable() { ToggleMetricsEnabled(true); }
 void H5vccMetrics::Disable() { ToggleMetricsEnabled(false); }
 
 void H5vccMetrics::ToggleMetricsEnabled(bool is_enabled) {
-  is_enabled_ = is_enabled;
+  persistent_settings_->SetPersistentSetting(
+      browser::metrics::kMetricEnabledSettingName,
+      std::make_unique<base::Value>(is_enabled));
   browser::metrics::CobaltMetricsServicesManager::GetInstance()
       ->ToggleMetricsEnabled(is_enabled);
 }
 
-bool H5vccMetrics::IsEnabled() { return is_enabled_; }
+bool H5vccMetrics::IsEnabled() {
+  return browser::metrics::CobaltMetricsServicesManager::GetInstance()
+      ->IsMetricsReportingEnabled();
+}
 
 void H5vccMetrics::SetMetricEventInterval(uint32_t interval_seconds) {
+  persistent_settings_->SetPersistentSetting(
+      browser::metrics::kMetricEventIntervalSettingName,
+      std::make_unique<base::Value>(static_cast<int>(interval_seconds)));
   browser::metrics::CobaltMetricsServicesManager::GetInstance()
       ->SetUploadInterval(interval_seconds);
 }

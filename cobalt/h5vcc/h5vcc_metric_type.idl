@@ -19,5 +19,8 @@ enum H5vccMetricType {
   // ChromeUserMetricsExtension proto.
   "UMA",
   // //third_party/metrics_proto/ukm/report.proto Report proto.
-  "UKM"
+  "UKM",
+  // Cobalt's trimmed down version of the UMA proto
+  // //third_party/metrics_proto/cobalt_uma_event.proto
+  "COBALT_UMA",
 };

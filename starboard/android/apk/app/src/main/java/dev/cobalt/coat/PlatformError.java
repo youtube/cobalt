@@ -18,6 +18,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Handler;
@@ -36,12 +37,14 @@ public class PlatformError
   @Retention(RetentionPolicy.SOURCE)
   @IntDef({CONNECTION_ERROR})
   @interface ErrorType {}
+
   // This must be kept in sync with starboard/android/shared/system_platform_error.cc
   public static final int CONNECTION_ERROR = 0;
 
   @Retention(RetentionPolicy.SOURCE)
   @IntDef({CANCELLED, NEGATIVE, POSITIVE})
   @interface Response {}
+
   public static final int NEGATIVE = -1;
   public static final int CANCELLED = 0;
   public static final int POSITIVE = 1;
@@ -106,7 +109,11 @@ public class PlatformError
         case NETWORK_SETTINGS_BUTTON:
           Activity activity = activityHolder.get();
           if (activity != null) {
-            activity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+            try {
+              activity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+            } catch (ActivityNotFoundException e) {
+              Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
+            }
           }
           break;
         case RETRY_BUTTON:

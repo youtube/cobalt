@@ -29,11 +29,6 @@
 // available on this platform. For a definitive measure, the application should
 // still call SbSystemGetNumberOfProcessors at runtime.
 
-// Whether the current platform's thread scheduler will automatically balance
-// threads between cores, as opposed to systems where threads will only ever run
-// on the specifically pinned core.
-#define SB_HAS_CROSS_CORE_SCHEDULER 1
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Indicates whether or not the given platform supports rendering of NV12

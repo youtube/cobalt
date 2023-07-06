@@ -47,6 +47,10 @@ _FILTERED_TESTS = {
         'PlayerComponentsTests/PlayerComponentsTest.Pause/*ec3*',
     ],
     'nplb': [
+        # Enable multiplayer tests once it's supported.
+        'MultiplePlayerTests/*',
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
+
         # This test is failing because localhost is not defined for IPv6 in
         # /etc/hosts.
         'SbSocketAddressTypes/SbSocketResolveTest.Localhost/filter_ipv6_type_ipv6',
@@ -59,7 +63,6 @@ _FILTERED_TESTS = {
 
         # These tests are disabled due to not receiving the kEndOfStream
         # player state update within the specified timeout.
-        'MultiplePlayerTests/MultiplePlayerTest.NoInput/*',
         'SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
 
@@ -79,6 +82,9 @@ _FILTERED_TESTS = {
 
         # TODO: b/288107692 This test crashed on arm64 after NDK 25 upgrade, re-enable it.
         'PixelTest.TooManyGlyphs',
+
+        # TODO: Filter this test on a per-device basis.
+        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
     ],
 }
 # pylint: enable=line-too-long
