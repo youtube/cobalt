@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<localizationbundle locale="ko">
+<messages>
+<msg desc="[XboxOne] This error message is shown to the user when the user is not logged in to an Xbox Live account" name="GOLD_ACCOUNT_REQUIRED">YouTube를 사용하려면 Xbox LIVE 멤버십으로 계정에 로그인하세요.</msg>
+<msg desc="This is the text on a button which will activate the Xbox account picker and allow the user to choose another Xbox Live account." name="CHOOSE_ACCOUNT_BUTTON">계정 선택</msg>
+<msg desc="This is the text on a button which will exit the application." name="EXIT_BUTTON">종료</msg>
+<msg desc="This error message is shown to the user when the application is unable to make a request to a service that is required to use the application." name="UNABLE_TO_CONTACT_YOUTUBE_1">YouTube에 연결할 수 없습니다.</msg>
+<msg desc="This error message is shown to the user when the application is unable to make a request to a service that is required to use the application." name="UNABLE_TO_CONTACT_YOUTUBE_2">youtube.com/xb1_help에서 이 문제에 대한 자세한 내용을 확인하거나 youtube.com/xb1_feedback에서 의견을 남길 수 있습니다. 애플리케이션 중단에 대한 자세한 내용은 www.xbox.com/status에서도 확인할 수 있습니다.</msg>
+<msg desc="This message is shown to users if the application is unable to contact Microsoft's Xbox Live service." name="UNABLE_TO_CONTACT_LIVE">Xbox LIVE에 연결할 수 없습니다.</msg>
+<msg desc="This is the text on a button which will retry a previously attempted action." name="RETRY_BUTTON">다시 시도</msg>
+</messages>
+</localizationbundle>
