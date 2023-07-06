@@ -72,14 +72,15 @@ void ExtendableEvent::StateChange(
     web::Context* context =
         base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
             ->context();
-    ServiceWorkerJobs* jobs = context->service_worker_jobs();
-    DCHECK(jobs);
+    ServiceWorkerContext* worker_context = context->service_worker_context();
+    DCHECK(worker_context);
     // 5.2.1. Let registration be the current global object's associated
     //        service worker's containing service worker registration.
-    jobs->message_loop()->task_runner()->PostTask(
+    worker_context->message_loop()->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(
-            &ServiceWorkerJobs::WaitUntilSubSteps, base::Unretained(jobs),
+            &ServiceWorkerContext::WaitUntilSubSteps,
+            base::Unretained(worker_context),
             base::Unretained(context->GetWindowOrWorkerGlobalScope()
                                  ->AsServiceWorker()
                                  ->service_worker_object()

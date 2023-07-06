@@ -97,8 +97,8 @@ void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
   options.outside_event_target = this;
   options.outside_port = outside_port_.get();
   options.options = worker_options_;
-  options.web_options.service_worker_jobs =
-      options.outside_context->service_worker_jobs();
+  options.web_options.service_worker_context =
+      options.outside_context->service_worker_context();
   // Store the current source location as the construction location, to be used
   // in the error event if worker loading of initialization fails.
   auto stack_trace =

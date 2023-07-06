@@ -34,7 +34,7 @@
 
 namespace cobalt {
 namespace worker {
-class ServiceWorkerJobs;
+class ServiceWorkerContext;
 }
 namespace web {
 
@@ -69,7 +69,7 @@ class Agent : public base::MessageLoop::DestructionObserver {
     base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>
         read_cache_callback;
 
-    worker::ServiceWorkerJobs* service_worker_jobs = nullptr;
+    worker::ServiceWorkerContext* service_worker_context = nullptr;
 
     const UserAgentPlatformInfo* platform_info = nullptr;
   };

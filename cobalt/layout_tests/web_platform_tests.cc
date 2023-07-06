@@ -232,8 +232,8 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 
   web_module_options.web_options.web_settings = &web_settings;
   web_module_options.web_options.network_module = &network_module;
-  web_module_options.web_options.service_worker_jobs =
-      service_worker_registry->service_worker_jobs();
+  web_module_options.web_options.service_worker_context =
+      service_worker_registry->service_worker_context();
   web_module_options.web_options.platform_info = platform_info.get();
 
   // Prepare a slot for our results to be placed when ready.
