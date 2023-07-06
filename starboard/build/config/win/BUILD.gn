@@ -235,11 +235,17 @@ config("common") {
     # Compiler warnings introduced after upgrading to Visual Studio 2022.
     # Implicit conversion from 'type' to bool. Possible information loss.
     "/wd4800",
+<<<<<<< HEAD
 
     # Discarding return value of function with 'nodiscard' attribute.
     "/wd4834",
     "/wd4858",
 
+=======
+    # Discarding return value of function with 'nodiscard' attribute.
+    "/wd4834",
+    "/wd4858",
+>>>>>>> 643d5fc0666 (Set Visual Studio 2022 as default version (#788))
     # Unnamed class used in typedef name cannot declare members other than
     # non-static data members, member enumerations, or member classes.
     "/wd5208",

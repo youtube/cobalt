@@ -22,10 +22,14 @@ if (is_starboard) {
   if (is_docker_build) {
     _default_visual_studio_path = "C:/BuildTools"
   } else {
+<<<<<<< HEAD
     _default_visual_studio_path = getenv("VSINSTALLDIR")
     if (_default_visual_studio_path == "") {
       _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/2022/Professional"
     }
+=======
+    _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/2022/Professional"
+>>>>>>> 643d5fc0666 (Set Visual Studio 2022 as default version (#788))
   }
 
   declare_args() {
