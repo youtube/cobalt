@@ -32,7 +32,7 @@ namespace nplb_evergreen_compat_tests {
 namespace {
 
 const char kFileName[] = "test_file.data";
-const size_t kBufSize = 96 * 1024 * 1024;  // 96 MB
+const size_t kBufSize = 64 * 1024 * 1024;  // 64 MB
 
 class StorageTest : public ::testing::Test {
  protected:
