@@ -11,11 +11,11 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/webm/libwebp"
   }
-  version: "698b8844e38a0c5ca50bb20f866e71291bfc3b36"
+  version: "v1.3.1"
   last_upgrade_date {
-    year: 2018
-    month: 4
-    day: 21
+    year: 2023
+    month: 7
+    day: 6
   }
   license_type: NOTICE
 }

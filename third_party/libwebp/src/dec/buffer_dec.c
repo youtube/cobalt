@@ -79,7 +79,8 @@ static VP8StatusCode CheckDecBuffer(const WebPDecBuffer* const buffer) {
   } else {    // RGB checks
     const WebPRGBABuffer* const buf = &buffer->u.RGBA;
     const int stride = abs(buf->stride);
-    const uint64_t size = MIN_BUFFER_SIZE(width, height, stride);
+    const uint64_t size =
+        MIN_BUFFER_SIZE(width * kModeBpp[mode], height, stride);
     ok &= (size <= buf->size);
     ok &= (stride >= width * kModeBpp[mode]);
     ok &= (buf->rgba != NULL);
@@ -106,7 +107,7 @@ static VP8StatusCode AllocateBuffer(WebPDecBuffer* const buffer) {
     int stride;
     uint64_t size;
 
-    if ((uint64_t)w * kModeBpp[mode] >= (1ull << 32)) {
+    if ((uint64_t)w * kModeBpp[mode] >= (1ull << 31)) {
       return VP8_STATUS_INVALID_PARAM;
     }
     stride = w * kModeBpp[mode];
@@ -121,7 +122,6 @@ static VP8StatusCode AllocateBuffer(WebPDecBuffer* const buffer) {
     }
     total_size = size + 2 * uv_size + a_size;
 
-    // Security/sanity checks
     output = (uint8_t*)WebPSafeMalloc(total_size, sizeof(*output));
     if (output == NULL) {
       return VP8_STATUS_OUT_OF_MEMORY;
@@ -160,11 +160,11 @@ VP8StatusCode WebPFlipBuffer(WebPDecBuffer* const buffer) {
   }
   if (WebPIsRGBMode(buffer->colorspace)) {
     WebPRGBABuffer* const buf = &buffer->u.RGBA;
-    buf->rgba += (buffer->height - 1) * buf->stride;
+    buf->rgba += (int64_t)(buffer->height - 1) * buf->stride;
     buf->stride = -buf->stride;
   } else {
     WebPYUVABuffer* const buf = &buffer->u.YUVA;
-    const int H = buffer->height;
+    const int64_t H = buffer->height;
     buf->y += (H - 1) * buf->y_stride;
     buf->y_stride = -buf->y_stride;
     buf->u += ((H - 1) >> 1) * buf->u_stride;
@@ -192,8 +192,7 @@ VP8StatusCode WebPAllocateDecBuffer(int width, int height,
       const int ch = options->crop_height;
       const int x = options->crop_left & ~1;
       const int y = options->crop_top & ~1;
-      if (x < 0 || y < 0 || cw <= 0 || ch <= 0 ||
-          x + cw > width || y + ch > height) {
+      if (!WebPCheckCropDimensions(width, height, x, y, cw, ch)) {
         return VP8_STATUS_INVALID_PARAM;   // out of frame boundary.
       }
       width = cw;

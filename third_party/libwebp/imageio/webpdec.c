@@ -22,6 +22,7 @@
 #include "webp/decode.h"
 #include "webp/demux.h"
 #include "webp/encode.h"
+#include "../examples/unicode.h"
 #include "./imageio_util.h"
 #include "./metadata.h"
 
@@ -43,7 +44,7 @@ static void PrintAnimationWarning(const WebPDecoderConfig* const config) {
 }
 
 void PrintWebPError(const char* const in_file, int status) {
-  fprintf(stderr, "Decoding of %s failed.\n", in_file);
+  WFPRINTF(stderr, "Decoding of %s failed.\n", (const W_CHAR*)in_file);
   fprintf(stderr, "Status: %d", status);
   if (status >= VP8_STATUS_OK && status <= VP8_STATUS_NOT_ENOUGH_DATA) {
     fprintf(stderr, "(%s)", kStatusMessages[status]);
@@ -64,7 +65,7 @@ int LoadWebP(const char* const in_file,
 
   status = WebPGetFeatures(*data, *data_size, bitstream);
   if (status != VP8_STATUS_OK) {
-    free((void*)*data);
+    WebPFree((void*)*data);
     *data = NULL;
     *data_size = 0;
     PrintWebPError(in_file, status);
@@ -94,7 +95,7 @@ VP8StatusCode DecodeWebPIncremental(
   {
     WebPIDecoder* const idec = WebPIDecode(data, data_size, config);
     if (idec == NULL) {
-      fprintf(stderr, "Failed during WebPINewDecoder().\n");
+      fprintf(stderr, "Failed during WebPIDecode().\n");
       return VP8_STATUS_OUT_OF_MEMORY;
     } else {
       status = WebPIUpdate(idec, data, data_size);
