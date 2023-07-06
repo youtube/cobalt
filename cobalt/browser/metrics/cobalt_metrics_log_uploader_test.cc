@@ -22,6 +22,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
+#include "third_party/metrics_proto/cobalt_uma_event.pb.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
 #include "third_party/zlib/google/compression_utils.h"
 
@@ -64,14 +65,26 @@ TEST_F(CobaltMetricsLogUploaderTest, TriggersUploadHandler) {
   const auto cb = mock_upload_handler.Get();
   uploader_->SetOnUploadHandler(&cb);
   ::metrics::ReportingInfo dummy_reporting_info;
+  dummy_reporting_info.set_attempt_count(33);
   ::metrics::ChromeUserMetricsExtension uma_log;
   uma_log.set_session_id(1234);
   uma_log.set_client_id(1234);
+  auto histogram_event = uma_log.add_histogram_event();
+  histogram_event->set_name_hash(1234);
+  auto user_event = uma_log.add_user_action_event();
+  user_event->set_name_hash(42);
+
+  CobaltUMAEvent cobalt_event;
+  cobalt_event.mutable_histogram_event()->CopyFrom(uma_log.histogram_event());
+  cobalt_event.mutable_user_action_event()->CopyFrom(
+      uma_log.user_action_event());
+  cobalt_event.mutable_reporting_info()->CopyFrom(dummy_reporting_info);
+
   std::string compressed_message;
   compression::GzipCompress(uma_log.SerializeAsString(), &compressed_message);
   EXPECT_CALL(mock_upload_handler,
-              Run(Eq(h5vcc::H5vccMetricType::kH5vccMetricTypeUma),
-                  StrEq(uma_log.SerializeAsString())))
+              Run(Eq(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma),
+                  StrEq(cobalt_event.SerializeAsString())))
       .Times(1);
   uploader_->UploadLog(compressed_message, "fake_hash", dummy_reporting_info);
   ASSERT_EQ(callback_count_, 1);
@@ -79,11 +92,16 @@ TEST_F(CobaltMetricsLogUploaderTest, TriggersUploadHandler) {
   ::metrics::ChromeUserMetricsExtension uma_log2;
   uma_log2.set_session_id(456);
   uma_log2.set_client_id(567);
+  CobaltUMAEvent cobalt_event2;
+  cobalt_event2.mutable_histogram_event()->CopyFrom(uma_log2.histogram_event());
+  cobalt_event2.mutable_user_action_event()->CopyFrom(
+      uma_log2.user_action_event());
+  cobalt_event2.mutable_reporting_info()->CopyFrom(dummy_reporting_info);
   std::string compressed_message2;
   compression::GzipCompress(uma_log2.SerializeAsString(), &compressed_message2);
   EXPECT_CALL(mock_upload_handler,
-              Run(Eq(h5vcc::H5vccMetricType::kH5vccMetricTypeUma),
-                  StrEq(uma_log2.SerializeAsString())))
+              Run(Eq(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma),
+                  StrEq(cobalt_event2.SerializeAsString())))
       .Times(1);
   uploader_->UploadLog(compressed_message2, "fake_hash", dummy_reporting_info);
   ASSERT_EQ(callback_count_, 2);
