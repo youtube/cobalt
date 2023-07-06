@@ -7,8 +7,7 @@
 <script>
 test(function() {
   var ws = new WebSocket(SCHEME_DOMAIN_PORT+'/');
-  // SpiderMonkey erroneously does not resolve a void function to "undefined".
-  // assert_equals(ws.close(), undefined);
+  assert_equals(ws.close(), undefined);
   ws.close();
 });
 </script>
