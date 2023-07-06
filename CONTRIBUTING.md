@@ -56,7 +56,7 @@ Cobalt coding style.
 *   Bug fixes also generally require unit tests, because the presence of bugs
     usually indicates insufficient test coverage.
 *   When you contribute a new feature to Cobalt, the maintenance burden is
-    (by default) transferred to the Cobalbt team. This means that the benefit
+    (by default) transferred to the Cobalt team. This means that the benefit
     of the contribution must be compared against the cost of maintaining the
     feature.
 *   As every PR requires several CPU/GPU hours of CI testing, we discourage
