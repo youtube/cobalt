@@ -42,7 +42,12 @@ interface H5vccMetrics {
   // should never get called afterward.
   void disable();
 
-  // Returns the current enabled state of metrics reporting.
+  // Returns the current enabled state of metrics reporting. Note, the enable()
+  // and disable() APIs are asynchronous under the hood. This means if you call
+  // isEnabled() immediately after enable/disable, you may get unexpected
+  // results.
+  // TODO(b/290064552): Update this when H5vccMetrics APIs support async
+  // behavior.
   boolean isEnabled();
 
   // Sets the frequency in which Cobalt metrics will be snapshotted and sent to
