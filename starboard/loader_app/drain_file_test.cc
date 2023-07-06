@@ -19,6 +19,7 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/loader_app/drain_file_helper.h"
@@ -40,6 +41,11 @@ class DrainFileTest : public ::testing::Test {
     temp_dir_.resize(kSbFileMaxPath);
     ASSERT_TRUE(SbSystemGetPath(kSbSystemPathTempDirectory, temp_dir_.data(),
                                 temp_dir_.size()));
+
+    // Use dedicated dir for testing to avoid meddling with other files.
+    starboard::strlcat(temp_dir_.data(), kSbFileSepString, kSbFileMaxPath);
+    starboard::strlcat(temp_dir_.data(), "df", kSbFileMaxPath);
+    ASSERT_TRUE(SbDirectoryCreate(temp_dir_.data()));
   }
 
   void TearDown() override { DrainFileClearForApp(GetTempDir(), ""); }
