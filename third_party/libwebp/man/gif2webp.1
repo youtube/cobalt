@@ -1,5 +1,5 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.TH GIF2WEBP 1 "January 25, 2018"
+.TH GIF2WEBP 1 "November 17, 2021"
 .SH NAME
 gif2webp \- Convert a GIF image to WebP
 .SH SYNOPSIS
@@ -62,9 +62,9 @@ larger file size and lower compression quality.
 .TP
 .BI \-min_size
 Encode image to achieve smallest size. This disables key frame insertion and
-picks the dispose method resulting in smallest output for each frame. It uses
-lossless compression by default, but can be combined with \-q, \-m, \-lossy or
-\-mixed options.
+picks the dispose method resulting in the smallest output for each frame. It
+uses lossless compression by default, but can be combined with \-q, \-m,
+\-lossy or \-mixed options.
 .TP
 .BI \-kmin " int
 .TP
@@ -131,7 +131,7 @@ Please report all bugs to the issue tracker:
 https://bugs.chromium.org/p/webp
 .br
 Patches welcome! See this page to get started:
-http://www.webmproject.org/code/contribute/submitting-patches/
+https://www.webmproject.org/code/contribute/submitting\-patches/
 
 .SH EXAMPLES
 gif2webp picture.gif \-o picture.webp
@@ -160,5 +160,5 @@ Debian project (and may be used by others).
 .BR dwebp (1),
 .BR webpmux (1)
 .br
-Please refer to http://developers.google.com/speed/webp/ for additional
+Please refer to https://developers.google.com/speed/webp/ for additional
 information.
