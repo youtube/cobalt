@@ -73,9 +73,9 @@ class AnimatedImageTracker {
   URLSet playing_urls_;
 
   // Used to ensure that all AnimatedImageTracker methods are called on the
-  // same thread (*not* |animated_image_decode_thread_|), the thread that we
+  // same sequence (*not* |animated_image_decode_thread_|), the thread that we
   // were constructed on.
-  THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace image

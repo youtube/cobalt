@@ -125,7 +125,7 @@ class AnimatedImage : public Image {
   // Start playing the animation, decoding on the given message loop.
   // Implementation should be thread safe.
   virtual void Play(
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop) = 0;
+      const scoped_refptr<base::SequencedTaskRunner>& message_loop) = 0;
 
   // Stop playing the animation.
   virtual void Stop() = 0;

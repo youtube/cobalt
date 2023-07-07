@@ -57,7 +57,7 @@ class AnimatedWebPImage : public AnimatedImage {
   scoped_refptr<FrameProvider> GetFrameProvider() override;
 
   void Play(
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner) override;
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner) override;
 
   void Stop() override;
 
@@ -82,9 +82,6 @@ class AnimatedWebPImage : public AnimatedImage {
 
   // Decodes all frames until current time.  Assumes |lock_| is acquired.
   void DecodeFrames();
-
-  // Acquires |lock_| and calls DecodeFrames().
-  void LockAndDecodeFrames();
 
   // Decodes the frame with the given index, returns if it succeeded.
   bool DecodeOneFrame(int frame_index);
@@ -112,7 +109,7 @@ class AnimatedWebPImage : public AnimatedImage {
   bool should_dispose_previous_frame_to_background_;
   render_tree::ResourceProvider* resource_provider_;
   const base::DebuggerHooks& debugger_hooks_;
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   render_tree::ColorRGBA background_color_;
   math::RectF previous_frame_rect_;
@@ -123,12 +120,11 @@ class AnimatedWebPImage : public AnimatedImage {
   std::vector<uint8> data_buffer_;
   scoped_refptr<render_tree::Image> current_canvas_;
   scoped_refptr<FrameProvider> frame_provider_;
-  base::Lock lock_;
 
   // Makes sure that the thread that sets the task_runner is always consistent.
   // This is the thread sending Play()/Stop() calls, and is not necessarily
   // the same thread that the task_runner itself is running on.
-  THREAD_CHECKER(task_runner_thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace image

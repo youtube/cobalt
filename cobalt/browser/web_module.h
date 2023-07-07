@@ -174,7 +174,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     // blending and constructing individual frames from animated images. The
     // default value is base::ThreadPriority::BACKGROUND.
     base::ThreadPriority animated_image_decode_thread_priority =
-        base::ThreadPriority::BACKGROUND;
+        base::ThreadPriority::DISPLAY;
 
     // To support 3D camera movements.
     scoped_refptr<input::Camera3D> camera_3d;

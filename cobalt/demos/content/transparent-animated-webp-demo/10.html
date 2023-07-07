@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<!--
+ | Demo to help test animated webp with transparent backgrounds.  Sets up
+ | two different animated webp images where one renders its frames using
+ | no blending when applying the new image over the existing one, and the
+ | other disposes to the background (which is alpha) as it runs through its
+ | frames.
+ -->
+<html>
+
+<head>
+  <style>
+    body {
+      background-color: white;
+    }
+
+    .layer {
+      position: absolute;
+      left: 0px;
+      top: 0px;
+    }
+
+    @keyframes background-anim {
+      from {
+        background-color: green;
+      }
+
+      to {
+        background-color: blue;
+      }
+    }
+
+    .background {
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      width: 100%;
+      height: 100%;
+      background-color: green;
+      animation: background-anim 5s alternate-reverse infinite ease-in-out;
+    }
+
+    .image {
+      width: 200px;
+      height: 200px;
+      background-size: contain;
+      display: inline-block;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="background"></div>
+
+  <div class="layer">
+    <span class="image" style="background-image: url(1_fan.webp)"></span>
+    <div class="image" style="background-image: url(2_heart.webp)"> </div>
+    <div class="image" style="background-image: url(3_cry.webp)"> </div>
+    <div class="image" style="background-image: url(4_clap.webp)"> </div>
+    <div class="image" style="background-image: url(5_egg.webp)"> </div>
+    <div class="image" style="background-image: url(6_party.webp)"> </div>
+    <div class="image" style="background-image: url(7_rofl.webp)"> </div>
+    <div class="image" style="background-image: url(8_melt.webp)"> </div>
+    <div class="image" style="background-image: url(9_explode.webp)"> </div>
+    <div class="image" style="background-image: url(10_turtle.webp)"> </div>
+
+    <span class="image" style="background-image: url(1_fan.webp)"></span>
+    <div class="image" style="background-image: url(2_heart.webp)"> </div>
+    <div class="image" style="background-image: url(3_cry.webp)"> </div>
+    <div class="image" style="background-image: url(4_clap.webp)"> </div>
+    <div class="image" style="background-image: url(5_egg.webp)"> </div>
+    <div class="image" style="background-image: url(6_party.webp)"> </div>
+    <div class="image" style="background-image: url(7_rofl.webp)"> </div>
+    <div class="image" style="background-image: url(8_melt.webp)"> </div>
+    <div class="image" style="background-image: url(9_explode.webp)"> </div>
+    <div class="image" style="background-image: url(10_turtle.webp)"> </div>
+    </div>
+  </div>
+</body>
+
+</html>
