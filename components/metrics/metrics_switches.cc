@@ -21,5 +21,14 @@ const char kResetVariationState[] = "reset-variation-state";
 // Forces metrics reporting to be enabled.
 const char kForceEnableMetricsReporting[] = "force-enable-metrics-reporting";
 
+#if defined(STARBOARD)
+// Override the initial time interval for sending the first startup metrics log.
+// After the initial startup, it starts to use the "standard" upload interval.
+// In Cobalt, this is configured via SetUploadInterval() calls in C++ or
+// "SetMetricEventInterval()" via an H5vccMetrics JavaScript API.
+const char kInitialMetricsUploadIntervalSec[] =
+    "initial-metrics-upload-interval";
+#endif
+
 }  // namespace switches
 }  // namespace metrics

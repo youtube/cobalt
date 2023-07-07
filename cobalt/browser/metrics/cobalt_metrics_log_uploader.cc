@@ -57,6 +57,8 @@ void CobaltMetricsLogUploader::UploadLog(
       uma_event.ParseFromString(uncompressed_serialized_proto);
       CobaltUMAEvent cobalt_uma_event;
       PopulateCobaltUmaEvent(uma_event, reporting_info, cobalt_uma_event);
+      LOG(INFO) << "Publishing Cobalt metrics upload event. Type: "
+                << h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma;
       // Publish the trimmed Cobalt UMA proto.
       upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma,
                            cobalt_uma_event.SerializeAsString());
