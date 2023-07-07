@@ -322,7 +322,7 @@ static_library("dom") {
   ]
 
   deps = [
-    ":licenses",
+    ":embed_license_as_header_file",
     "//base:i18n",
     "//cobalt/base",
     "//cobalt/browser:generated_bindings",
@@ -359,13 +359,13 @@ static_library("dom") {
   ]
 }
 
-copy("licenses") {
-  install_content = true
-  license_path =
-      "licenses/platform/$cobalt_licenses_platform/licenses_cobalt.txt"
-  sources = [ "$static_contents_source_dir/$license_path" ]
-  outputs =
-      [ "$sb_static_contents_output_data_dir/licenses/licenses_cobalt.txt" ]
+action("embed_license_as_header_file") {
+  script = "//cobalt/build/generate_data_header.py"
+  license_path = "//cobalt/content/licenses/platform/$cobalt_licenses_platform/licenses_cobalt.txt"
+  inputs = [ "$license_path" ]
+  outputs = [ "$target_gen_dir/embedded_licenses.h" ]
+  args = [ "DOMEmbeddedResources" ] + rebase_path(outputs, root_build_dir) +
+         rebase_path(inputs, root_build_dir)
 }
 
 target(gtest_target_type, "dom_test") {
@@ -444,6 +444,4 @@ target(gtest_target_type, "dom_test") {
     "//testing/gtest",
     "//url",
   ]
-
-  data_deps = [ ":licenses" ]
 }

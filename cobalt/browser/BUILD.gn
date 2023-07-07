@@ -58,7 +58,6 @@ target(final_executable_type, "cobalt") {
     "//net",
   ]
   data_deps = [
-    "//cobalt/dom:licenses",
     "//cobalt/network:copy_ssl_certificates",
     "//third_party/icu:icudata",
   ]
