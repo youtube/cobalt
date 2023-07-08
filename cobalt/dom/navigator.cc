@@ -21,6 +21,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/embedded_licenses.h"  // Generated file.
 #include "cobalt/dom/eme/media_key_system_access.h"
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
@@ -36,7 +37,7 @@ namespace cobalt {
 namespace dom {
 namespace {
 
-const char kLicensesRelativePath[] = "/licenses/licenses_cobalt.txt";
+const char kEmbeddedLicenses[] = "licenses_cobalt.txt";
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
 
@@ -153,49 +154,12 @@ Navigator::Navigator(script::EnvironmentSettings* settings,
           new media_capture::MediaDevices(settings, script_value_factory())),
       system_caption_settings_(captions) {}
 
-base::Optional<std::string> GetFilenameForLicenses() {
-  const size_t kBufferSize = kSbFileMaxPath + 1;
-  std::vector<char> buffer(kBufferSize, 0);
-  bool got_path = SbSystemGetPath(kSbSystemPathContentDirectory, buffer.data(),
-                                  static_cast<int>(kBufferSize));
-  if (!got_path) {
-    SB_DLOG(ERROR) << "Cannot get content path for licenses files.";
-    return base::Optional<std::string>();
-  }
-
-  return std::string(buffer.data()).append(kLicensesRelativePath);
-}
-
 const std::string Navigator::licenses() const {
-  base::Optional<std::string> filename = GetFilenameForLicenses();
-  if (!filename) {
-    return std::string();
-  }
-
-  SbFile file = SbFileOpen(filename->c_str(), kSbFileOpenOnly | kSbFileRead,
-                           nullptr, nullptr);
-  if (file == kSbFileInvalid) {
-    SB_DLOG(WARNING) << "Cannot open licenses file: " << *filename;
-    return std::string();
-  }
-
-  SbFileInfo info;
-  bool success = SbFileGetInfo(file, &info);
-  if (!success) {
-    SB_DLOG(WARNING) << "Cannot get information for licenses file.";
-    SbFileClose(file);
-    return std::string();
-  }
-  // SbFileReadAll expects an int for the size argument. Assume that the file
-  // is smaller than 2^32.
-  int file_size = static_cast<int>(info.size);
-
-  std::unique_ptr<char[]> buffer(new char[file_size]);
-  SbFileReadAll(file, buffer.get(), file_size);
-  const std::string file_contents = std::string(buffer.get(), file_size);
-  SbFileClose(file);
-
-  return file_contents;
+  GeneratedResourceMap resource_map;
+  DOMEmbeddedResources::GenerateMap(resource_map);
+  FileContents file_contents = resource_map[kEmbeddedLicenses];
+  return std::string(reinterpret_cast<const char*>(file_contents.data),
+                     file_contents.size);
 }
 
 bool Navigator::java_enabled() const { return false; }
