@@ -17,6 +17,14 @@
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
+namespace starboard::foo::bar::baz {
+
+constexpr int life() {
+  return 42;
+}
+
+}  // namespace starboard::foo::bar::baz
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -28,7 +36,7 @@ namespace {
 #endif
 
 constexpr char test_structured_bindings() {
-  auto[a, b] = std::pair<int, char>(42, 'A');
+  auto [a, b] = std::pair<int, char>(42, 'A');
   return b;
 }
 
@@ -50,6 +58,11 @@ constexpr int add_one(int n) {
 }
 
 static_assert(add_one(1) == 2, "Constexpr lambdas support is required");
+
+// Test Nested Namespaces support
+
+static_assert(starboard::foo::bar::baz::life() == 42,
+              "Nested Namespaces support is required");
 
 }  // namespace
 }  // namespace nplb
