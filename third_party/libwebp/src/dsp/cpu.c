@@ -28,6 +28,8 @@ bool warn_if_not_enabled(const char * name, bool value) {
 }
 
 static int StarboardGetCPUInfo(CPUFeature feature) {
+  SbLogFormatF("LibWebP StarboardGetCPUInfo %d\n",feature);
+  SbLogFlush();
   SbCPUFeatures features;
   if (SbCPUFeaturesGet(&features)) {
     switch(feature) {
