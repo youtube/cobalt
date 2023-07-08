@@ -25,6 +25,14 @@ template("libwebp_lib") {
       "//starboard/build/config:speed",
       ":libwebp_direct_config",
     ]
+    if (is_win) {
+      cflags_c = [ "/wd4312" ]  # warning C4312: 'type cast': conversion from 'int' to 'int *'
+    } else {
+      cflags_c = [
+        "-Wno-implicit-function-declaration",
+        "-Wno-int-to-pointer-cast",
+      ]
+    }
   }
 }
 
