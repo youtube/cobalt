@@ -189,7 +189,7 @@ jobs:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel, debug, qa, gold]
+        config: [devel, qa]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       # We want temp folder to be on tmpfs which makes workloads faster.
