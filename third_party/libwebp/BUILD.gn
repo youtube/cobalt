@@ -83,6 +83,11 @@ libwebp_lib("libwebp_enc") {
   sources = libwebp_enc_sources
 }
 
+libwebp_lib("libwebp_sharpyuv") {
+  sources = libwebp_sharpyuv_sources
+  deps = [ ":libwebp_dsp_dec_common" ]
+}
+
 libwebp_lib("libwebp_dsp_enc") {
   sources = libwebp_dsp_enc_sources
 }
@@ -128,6 +133,7 @@ group("libwebp") {
     ":libwebp_dsp_dec_common",
     ":libwebp_dsp_enc",
     ":libwebp_enc",
+    ":libwebp_sharpyuv",
     ":libwebp_utils_dec",
     ":libwebp_utils_enc",
   ]
