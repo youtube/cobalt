@@ -16,6 +16,10 @@
 #ifndef WEBP_DSP_LOSSLESS_COMMON_H_
 #define WEBP_DSP_LOSSLESS_COMMON_H_
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#endif
+
 #include "src/webp/types.h"
 
 #include "src/utils/utils.h"
