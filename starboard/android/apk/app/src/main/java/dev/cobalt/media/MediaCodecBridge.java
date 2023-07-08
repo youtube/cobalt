@@ -498,6 +498,9 @@ class MediaCodecBridge {
                 return;
               }
               nativeOnMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
+              if (mFrameRateEstimator != null) {
+                mFrameRateEstimator.reset();
+              }
             }
           }
         };
