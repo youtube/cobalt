@@ -50,10 +50,8 @@ target(gtest_target_type, "text_encoding_test") {
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",
-  ]
-
-  data_deps = [
-    "//cobalt/network:copy_ssl_certificates",
     "//third_party/icu:icudata",
   ]
+
+  data_deps = [ "//cobalt/network:copy_ssl_certificates" ]
 }

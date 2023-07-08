@@ -42,11 +42,11 @@ else:
   step = -1
 
 input_data = open(input_file, 'rb').read()
-n = input_data.find("icudt")
+n = input_data.find(b'icudt')
 if n == -1:
   sys.exit("Cannot find a version number in %s." % input_file)
 
-version_number = input_data[n + 5:n + 7]
+version_number = input_data[n + 5:n + 7].decode("ascii")
 
 output = open(output_file, 'w')
 
@@ -75,7 +75,7 @@ else:
                "\t.type icudt%s_dat,%%object\n"
                "icudt%s_dat:\n" % tuple([version_number] * 4))
 
-split = [binascii.hexlify(input_data[i:i + 4][::step]).upper().lstrip('0')
+split = [binascii.hexlify(input_data[i:i + 4][::step]).decode('ascii').upper().lstrip('0')
         for i in range(0, len(input_data), 4)]
 
 for i in range(len(split)):
@@ -99,4 +99,3 @@ for i in range(len(split)):
 
 output.write("\n")
 output.close()
-print "Generated " + output_file
