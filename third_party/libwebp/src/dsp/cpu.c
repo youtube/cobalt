@@ -47,7 +47,8 @@ static int StarboardGetCPUInfo(CPUFeature feature) {
       case kSSE3:
         return warn_if_not_enabled("sse3",features.x86.has_sse3);
       case kSSE4_1:
-        return warn_if_not_enabled("sse41",features.x86.has_sse41);
+        warn_if_not_enabled("sse41",features.x86.has_sse41);
+        return 0
       case kAVX:
         return warn_if_not_enabled("avx",features.x86.has_avx);
       case kAVX2:
