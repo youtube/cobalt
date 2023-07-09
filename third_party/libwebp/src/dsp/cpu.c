@@ -43,7 +43,6 @@ static int StarboardGetCPUInfo(CPUFeature feature) {
   if (SbCPUFeaturesGet(&features)) {
     switch(feature) {
       case kSSE2:
-        return 0;
         return warn_if_not_enabled("sse2", features.x86.has_sse2);
       case kSSE3:
         return 0;
