@@ -108,7 +108,7 @@ config("libwebp_simd_config") {
       "-msse2",
       #"-msse4.1",
       #"-mavx",
-      "-mavx2",
+      #"-mavx2",
     ]
     defines = [
       "WEBP_HAVE_SSE2",

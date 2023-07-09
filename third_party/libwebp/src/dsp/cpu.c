@@ -42,10 +42,10 @@ static int StarboardGetCPUInfo(CPUFeature feature) {
   SbCPUFeatures features;
   if (SbCPUFeaturesGet(&features)) {
 
-    features.x86.has_sse3 = 0;
+    //features.x86.has_sse3 = 0;
     features.x86.has_sse41 = 0;
     features.x86.has_avx = 0;
-    //features.x86.has_avx2 = 0;
+    features.x86.has_avx2 = 0;
 
     switch(feature) {
       case kSSE2:
