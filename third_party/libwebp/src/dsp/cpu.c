@@ -22,12 +22,23 @@
 bool warn_if_not_enabled(const char * name, bool value) {
   if(!value) {
     SbLogFormatF("LibWebP optimization not enabled: %s\n",name);
+    SbLogFormatF("\n!!!\n");
+    SbLogFlush();
+  } else {
+    SbLogFormatF("LibWebP optimization ENABLED: %s\n",name);
+    SbLogFormatF("\n!!!\n");
     SbLogFlush();
   }
   return value;
 }
 
 static int StarboardGetCPUInfo(CPUFeature feature) {
+  SbLogFormatF("StarboardGetCPUInfo querying feature: %d\n\n",feature);
+  SbLogFlush();
+  SbLogFormatF("\n------------ ---------------         -\n");
+  SbLogFlush();
+  SbLogFlush();
+
   SbCPUFeatures features;
   if (SbCPUFeaturesGet(&features)) {
     switch(feature) {
