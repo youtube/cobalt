@@ -21,7 +21,7 @@
 
 bool warn_if_not_enabled(const char * name, bool value) {
   if(!value) {
-    SbLogFormatF("LibWebP optimization not enabled: %s\n",name);
+    SbLogFormatF("LibWebP optimization DISABLED: %s\n",name);
     SbLogFormatF("\n!!!\n");
     SbLogFlush();
   } else {
@@ -41,20 +41,22 @@ static int StarboardGetCPUInfo(CPUFeature feature) {
 
   SbCPUFeatures features;
   if (SbCPUFeaturesGet(&features)) {
+
+    features.x86.has_sse3 = 0;
+    features.x86.has_sse41 = 0;
+    features.x86.has_avx = 0;
+    //features.x86.has_avx2 = 0;
+
     switch(feature) {
       case kSSE2:
         return warn_if_not_enabled("sse2", features.x86.has_sse2);
       case kSSE3:
-        return 0;
         return warn_if_not_enabled("sse3",features.x86.has_sse3);
       case kSSE4_1:
         warn_if_not_enabled("sse41",features.x86.has_sse41);
-        return 0;
       case kAVX:
-        return 0;
         return warn_if_not_enabled("avx",features.x86.has_avx);
       case kAVX2:
-        return 0;
         return warn_if_not_enabled("avx2",features.x86.has_avx2);
       case kNEON: {
         return warn_if_not_enabled("neon",features.arm.has_neon);
