@@ -28,7 +28,6 @@ config("starboard_platform_config") {
 
 static_library("starboard_platform") {
   sources = [
-    "//starboard/keyboxes/xbox/system_properties.cc",
     "//starboard/shared/egl/system_egl.cc",
     "//starboard/shared/gles/system_gles2.cc",
     "//starboard/shared/opus/opus_audio_decoder.cc",
@@ -207,7 +206,6 @@ static_library("starboard_platform") {
   public_deps = [ "//starboard/win/shared:starboard_platform" ]
 
   deps = [
-    "//starboard/shared/widevine:oemcrypto",
     "//third_party/angle:translator",
     "//third_party/opus",
   ]
@@ -224,6 +222,7 @@ static_library("starboard_platform") {
       "//internal/starboard/xb1/system_sign_with_certification_secret_key.cc",
       "//internal/starboard/xb1/vpx_video_decoder.cc",
       "//internal/starboard/xb1/vpx_video_decoder.h",
+      "//starboard/keyboxes/xbox/system_properties.cc",
       "//starboard/shared/widevine/drm_system_widevine.cc",
       "//starboard/shared/widevine/drm_system_widevine.h",
       "//starboard/shared/widevine/widevine_storage.cc",
@@ -232,6 +231,7 @@ static_library("starboard_platform") {
       "//starboard/shared/widevine/widevine_timer.h",
     ]
     deps += [
+      "//starboard/shared/widevine:oemcrypto",
       "//third_party/internal/ce_cdm/cdm:widevine_cdm_core",
       "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
       "//third_party/internal/libav1_xb1",
@@ -243,6 +243,7 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/media_is_supported.cc",
       "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
       "//starboard/shared/uwp/keys.cc",
+      "//starboard/xb1/public_system_properties.cc",
       "//starboard/xb1/shared/internal_stubs.cc",
     ]
   }
