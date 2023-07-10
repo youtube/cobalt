@@ -51,8 +51,8 @@ class TopmostEventTarget {
   void CancelScrollsInParentNavItems(
       scoped_refptr<dom::HTMLElement> target_element);
 
-  void ConsiderElement(dom::Element* element,
-                       const math::Vector2dF& coordinate);
+  void ConsiderElement(dom::Element* element, const math::Vector2dF& coordinate,
+                       bool consider_only_fixed_elements);
   void ConsiderBoxes(const scoped_refptr<dom::HTMLElement>& html_element,
                      LayoutBoxes* layout_boxes,
                      const math::Vector2dF& coordinate);

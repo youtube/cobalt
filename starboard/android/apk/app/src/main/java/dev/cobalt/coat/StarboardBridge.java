@@ -81,6 +81,7 @@ public class StarboardBridge {
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
+  private CrashContextUpdateHandler crashContextUpdateHandler;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -827,9 +828,16 @@ public class StarboardBridge {
   public void setCrashContext(String key, String value) {
     Log.i(TAG, "setCrashContext Called: " + key + ", " + value);
     crashContext.put(key, value);
+    if (this.crashContextUpdateHandler != null) {
+      this.crashContextUpdateHandler.onCrashContextUpdate();
+    }
   }
 
   public HashMap<String, String> getCrashContext() {
     return this.crashContext;
+  }
+
+  public void registerCrashContextUpdateHandler(CrashContextUpdateHandler handler) {
+    this.crashContextUpdateHandler = handler;
   }
 }
