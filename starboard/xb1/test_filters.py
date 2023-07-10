@@ -19,7 +19,13 @@ import os
 from starboard.shared.win32 import test_filters as shared_test_filters
 from starboard.tools.testing import test_filter
 
+# pylint: disable=line-too-long
 _FILTERED_TESTS = {
+    'nplb': [
+        # Enable multiplayer tests once it's supported.
+        'MultiplePlayerTests/*',
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
+    ],
     'player_filter_tests': [
         'PlayerComponentsTests/PlayerComponentsTest.*',
         'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/*',
