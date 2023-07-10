@@ -907,6 +907,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   network_module_.reset(new network::NetworkModule(
       CreateUserAgentString(platform_info), GetClientHintHeaders(platform_info),
       &event_dispatcher_, network_module_options));
+  // This is not necessary, but since some platforms need a lot of time to read
+  // the savegame, start the storage manager as soon as possible here.
+  network_module_->EnsureStorageManagerStarted();
 
   AddCrashHandlerAnnotations(platform_info);
 
