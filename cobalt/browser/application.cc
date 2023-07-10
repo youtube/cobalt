@@ -63,12 +63,9 @@
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/cache/cache.h"
 #include "cobalt/configuration/configuration.h"
-<<<<<<< HEAD
 #include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/installation_manager.h"
-=======
 #include "cobalt/h5vcc/h5vcc_crash_log.h"
->>>>>>> 4eb9bbc7fbc (Add application state to crash reports. (#580))
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
