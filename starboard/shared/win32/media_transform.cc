@@ -101,7 +101,7 @@ ComPtr<IMFSample> MediaTransform::TryRead(ComPtr<IMFMediaType>* new_type) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(new_type);
 
-  if (state_ == kDrained || !transform_) {
+  if (state_ == kDrained || !transform_ || state_ == kInvalidInput) {
     return NULL;
   }
 
@@ -130,9 +130,10 @@ ComPtr<IMFSample> MediaTransform::TryRead(ComPtr<IMFMediaType>* new_type) {
 
   if (FAILED(hr)) {
     // Sometimes the decryptor refuse to emit output after shutting down.
-    SB_DCHECK(hr == MF_E_INVALIDREQUEST);
-    if (state_ == kDraining) {
+    if (hr == MF_E_INVALIDREQUEST && state_ == kDraining) {
       state_ = kDrained;
+    } else {
+      state_ = kInvalidInput;
     }
     return NULL;
   }
@@ -177,6 +178,11 @@ bool MediaTransform::draining() const {
 bool MediaTransform::drained() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   return state_ == kDrained;
+}
+
+bool MediaTransform::HasError() const {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  return state_ == kInvalidInput;
 }
 
 bool MediaTransform::HasValidTransform() const {

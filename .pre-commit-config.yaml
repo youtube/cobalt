@@ -58,7 +58,8 @@ repos:
                 cobalt/fetch/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
                 internal/cobalt/browser/splash_screen/youtube_splash_screen.html|
-                internal/starboard/shared/playstation/storage_internal.cc
+                internal/starboard/shared/playstation/storage_internal.cc|
+                starboard/shared/win32/media_transform.cc
             )
 
 -   repo: local
