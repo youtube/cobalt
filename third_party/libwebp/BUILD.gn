@@ -107,7 +107,7 @@ config("libwebp_simd_config") {
     cflags = [
       "-msse2",
       "-msse4.1",
-      #"-mavx",
+      "-mavx",
       #"-mavx2",
     ]
     defines = [
