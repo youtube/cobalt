@@ -4,7 +4,7 @@
 
 if (is_starboard) {
   declare_args() {
-    visual_studio_version = "14.15.26726"
+    visual_studio_version = "14.34.31933"
 
     # Full path to the Windows SDK, not including a backslash at the end.
     # This value is the default location, override if you have a different
@@ -15,20 +15,6 @@ if (is_starboard) {
     if (current_os == "winuwp") {
       wdk_version = "10.0.22000.0"
     } else {
-      wdk_version = "10.0.17763.0"
-    }
-  }
-
-  # TODO(b/210151198) Visual Studio 2022 upgrade compatibility changes.
-  # This argument should be removed, and replace the defaults for the arguments
-  # that are being overriden correspondingly.
-  declare_args() {
-    use_visual_studio_2022 = getenv("VISUAL_STUDIO_VERSION") == "2022"
-  }
-
-  if (use_visual_studio_2022) {
-    visual_studio_version = "14.34.31933"
-    if (current_os != "winuwp") {
       wdk_version = "10.0.18362.0"
     }
   }
@@ -36,15 +22,7 @@ if (is_starboard) {
   if (is_docker_build) {
     _default_visual_studio_path = "C:/BuildTools"
   } else {
-    if (use_visual_studio_2022) {
-      _vis_std_year = "2022"
-    } else {
-      _vis_std_year = "2017"
-    }
-    _default_visual_studio_path = getenv("VS2022INSTALLDIR")
-    if (_default_visual_studio_path == "") {
-      _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/$_vis_std_year/Professional"
-    }
+    _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/2022/Professional"
   }
 
   declare_args() {
