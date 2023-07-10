@@ -167,7 +167,8 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     impl_->Drain();
     ComPtr<IMFSample> sample;
     ComPtr<IMFMediaType> media_type;
-    while (impl_->ProcessAndRead(&sample, &media_type)) {
+    bool hasError;
+    while (impl_->ProcessAndRead(&sample, &media_type, &hasError)) {
       if (sample) {
         Consume(sample);
       }
@@ -183,7 +184,8 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
 
     ComPtr<IMFSample> sample;
     ComPtr<IMFMediaType> media_type;
-    while (impl_->ProcessAndRead(&sample, &media_type)) {
+    bool hasError;
+    while (impl_->ProcessAndRead(&sample, &media_type, &hasError)) {
       if (sample) {
         Consume(sample);
       }

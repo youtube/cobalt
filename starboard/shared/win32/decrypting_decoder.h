@@ -58,7 +58,8 @@ class DecryptingDecoder {
   // |new_type| contains the new output type in case the output type of the
   // decoding stream is changed.
   bool ProcessAndRead(ComPtr<IMFSample>* output,
-                      ComPtr<IMFMediaType>* new_type);
+                      ComPtr<IMFMediaType>* new_type,
+                      bool* has_error);
   void Drain();
   void Reset();
 
