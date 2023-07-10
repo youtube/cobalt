@@ -114,6 +114,9 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   void SaveResponseToFileAtPath(
       const base::FilePath& file_path,
       scoped_refptr<base::SequencedTaskRunner> file_task_runner);
+#if defined(IN_MEMORY_UPDATES)
+  void SaveResponseToLargeString();
+#endif
   void SaveResponseToTemporaryFile(
       scoped_refptr<base::SequencedTaskRunner> file_task_runner);
   void SaveResponseWithWriter(
@@ -143,6 +146,9 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   // headers.
   void ReceivedContentWasMalformed();
   bool GetResponseAsString(std::string* out_response_string) const;
+#if defined(IN_MEMORY_UPDATES)
+  bool GetResponseAsLargeString(std::string* out_response_string) const;
+#endif
   bool GetResponseAsFilePath(bool take_ownership,
                              base::FilePath* out_response_path);
 

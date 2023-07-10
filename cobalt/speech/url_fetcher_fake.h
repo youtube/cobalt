@@ -84,6 +84,9 @@ class URLFetcherFake : public net::URLFetcher {
   void SaveResponseToFileAtPath(
       const base::FilePath& file_path,
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) override {}
+#if defined(IN_MEMORY_UPDATES)
+  void SaveResponseToLargeString() override {}
+#endif
   void SaveResponseToTemporaryFile(
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) override {}
   void SaveResponseWithWriter(
@@ -151,6 +154,13 @@ class URLFetcherFake : public net::URLFetcher {
     NOTREACHED();
     return false;
   }
+#if defined(IN_MEMORY_UPDATES)
+  bool GetResponseAsLargeString(
+      std::string* out_response_string) const override {
+    NOTREACHED();
+    return false;
+  }
+#endif
 
  private:
   void OnURLFetchDownloadData();

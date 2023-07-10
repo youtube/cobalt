@@ -95,6 +95,20 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
                     scoped_refptr<Patcher> patcher,
                     crx_file::VerifierFormat crx_format);
 
+#if defined(IN_MEMORY_UPDATES)
+  // An overload where |crx_str| currently holds the CRX in memory and
+  // |installation_dir| is the location where the CRX should be unpacked to.
+  // Does not take ownership of |crx_str|, which must refer to a valid string
+  // that outlives this object.
+  ComponentUnpacker(const std::vector<uint8_t>& pk_hash,
+                    const std::string* crx_str,
+                    const base::FilePath& installation_dir,
+                    scoped_refptr<CrxInstaller> installer,
+                    std::unique_ptr<Unzipper> unzipper,
+                    scoped_refptr<Patcher> patcher,
+                    crx_file::VerifierFormat crx_format);
+#endif
+
   // Begins the actual unpacking of the files. May invoke a patcher and the
   // component installer if the package is a differential update.
   // Calls |callback| with the result.
@@ -128,7 +142,12 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
   void EndUnpacking();
 
   std::vector<uint8_t> pk_hash_;
+#if defined(IN_MEMORY_UPDATES)
+  const std::string& crx_str_;
+  base::FilePath installation_dir_;
+#else
   base::FilePath path_;
+#endif
   base::FilePath unpack_path_;
   base::FilePath unpack_diff_path_;
   bool is_delta_;

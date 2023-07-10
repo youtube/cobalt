@@ -91,11 +91,17 @@ void ActionRunner::RunOnTaskRunner(std::unique_ptr<Unzipper> unzip,
   }
 
   const auto config = component_.config();
+
+#if defined(IN_MEMORY_UPDATES)
+  // TODO(hwarriner): see if we need to support this code path in Cobalt.
+  CHECK(false);
+#else
   auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
       config->GetRunActionKeyHash(), crx_path, installer, std::move(unzip),
       std::move(patch), component_.crx_component()->crx_format_requirement);
   unpacker->Unpack(
       base::BindOnce(&ActionRunner::UnpackComplete, base::Unretained(this)));
+#endif
 }
 
 void ActionRunner::UnpackComplete(const ComponentUnpacker::Result& result) {
