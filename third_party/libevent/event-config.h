@@ -11,7 +11,7 @@
 #include "nacl_nonsfi/event-config.h"
 #elif defined(__APPLE__)
 #include "mac/event-config.h"
-#elif defined(ANDROID) || defined(__LB_ANDROID__)
+#elif defined(ANDROID)
 #include "android/event-config.h"
 #elif defined(__linux__)
 #include "linux/event-config.h"
