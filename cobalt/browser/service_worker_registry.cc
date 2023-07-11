@@ -39,6 +39,8 @@ const int64_t kWatchdogTimeInterval = 15000000;
 // The watchdog time wait in microseconds to initially wait before triggering
 // violations.
 const int64_t kWatchdogTimeWait = 15000000;
+// The watchdog time interval in milliseconds between pings.
+const int64_t kWatchdogTimePing = 5000;
 
 }  // namespace
 
@@ -66,7 +68,7 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
         FROM_HERE,
         base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this),
                    watchdog),
-        base::TimeDelta::FromMilliseconds(5000));
+        base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
   }
 
   message_loop()->task_runner()->PostTask(
@@ -121,7 +123,7 @@ void ServiceWorkerRegistry::PingWatchdog(watchdog::Watchdog* watchdog) {
       FROM_HERE,
       base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this),
                  watchdog),
-      base::TimeDelta::FromMilliseconds(5000));
+      base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
 }
 
 void ServiceWorkerRegistry::EnsureServiceWorkerStarted(
