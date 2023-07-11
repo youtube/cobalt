@@ -53,6 +53,8 @@ RUN chmod a+x /usr/local/bin/gn
 RUN mkdir /project_out_dir \
     && chown ${USER:-defaultuser}:defaultgroup /project_out_dir
 
+RUN git config --global --add safe.directory /code
+
 USER ${USER:-defaultuser}
 
 CMD /code/third_party/internal/repo-publishing-toolkit-local/preview-site.sh run
