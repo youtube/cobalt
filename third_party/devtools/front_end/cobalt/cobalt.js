@@ -14,6 +14,7 @@ export default class CobaltPanel extends UI.VBox {
 
         this._target = UI.context.flavor(SDK.Target);
         this._runtimeAgent = this._target.runtimeAgent();
+        this._cobaltAgent = this._target.cobaltAgent();
 
         this.element = this._shadowRoot.createChild('div');
         this.element.textContent = 'Cobalt Console';
@@ -32,7 +33,7 @@ export default class CobaltPanel extends UI.VBox {
             this.run(`(function() { window.h5vcc.traceEvent.stop();})()`);
             console.log("Stopped Trace");
         }));
-        trace_files.forEach( (file) => {
+        trace_files.forEach((file) => {
             traceContainer.appendChild(UI.createTextButton(Common.UIString('Download ' + file[0]), event => {
                 console.log("Download Trace");
                 const filename = file[1];
@@ -46,8 +47,6 @@ export default class CobaltPanel extends UI.VBox {
                 });
             }));
         });
-<<<<<<< HEAD
-=======
         const debugLogContainer = this.element.createChild('div', 'debug-log-container');
         debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog On'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({
@@ -81,7 +80,6 @@ export default class CobaltPanel extends UI.VBox {
         consoleContainer.appendChild(UI.createLabel('Message:'));
         consoleContainer.appendChild(UI.createInput('debug-message', 'text'));
         consoleContainer.createChild('pre', 'console-output');
->>>>>>> c12d4c0ac0d (Allow sending of browser logs to devtools. (#562))
     }
 
     async run(expression) {
