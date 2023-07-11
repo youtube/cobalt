@@ -144,8 +144,8 @@ void NetworkFetcher::DownloadToString(
     DownloadToStringCompleteCallback download_to_string_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  SB_LOG(INFO) << "cobalt::updater::NetworkFetcher::DownloadToString";
-  SB_LOG(INFO) << "DownloadToString url = " << url;
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::DownloadToString";
+  LOG(INFO) << "DownloadToString url = " << url;
 
   CHECK(dst != nullptr);
   dst_str_ = dst;
@@ -188,13 +188,13 @@ void NetworkFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   const int response_code = source->GetResponseCode();
   if (url_fetcher_type_ == kUrlFetcherTypePostRequest) {
     OnPostRequestComplete(source, status.error());
-#if !defined(IN_MEMORY_UPDATES)
-  } else if (url_fetcher_type_ == kUrlFetcherTypeDownloadToFile) {
-    OnDownloadToFileComplete(source, status.error());
-  }
-#else
+#if defined(IN_MEMORY_UPDATES)
   } else if (url_fetcher_type_ == kUrlFetcherTypeDownloadToString) {
     OnDownloadToStringComplete(source, status.error());
+  }
+#else
+  } else if (url_fetcher_type_ == kUrlFetcherTypeDownloadToFile) {
+    OnDownloadToFileComplete(source, status.error());
   }
 #endif
 
@@ -284,10 +284,10 @@ void NetworkFetcher::OnDownloadToFileComplete(const net::URLFetcher* source,
 #else
 void NetworkFetcher::OnDownloadToStringComplete(const net::URLFetcher* source,
                                                 const int status_error) {
-  SB_LOG(INFO) << "cobalt::updater::NetworkFetcher::OnDownloadToStringComplete";
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::OnDownloadToStringComplete";
 
   if (!source->GetResponseAsLargeString(dst_str_)) {
-    SB_LOG(ERROR) << "DownloadToString failed to get response from a string";
+    LOG(ERROR) << "DownloadToString failed to get response from a string";
   }
 
   std::move(download_to_string_complete_callback_)

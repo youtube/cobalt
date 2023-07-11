@@ -118,12 +118,12 @@ bool ComponentUnpacker::BeginUnzipping() {
     return false;
   }
 #else  // !defined(STARBOARD)
-#if !defined(IN_MEMORY_UPDATES)
+#if defined(IN_MEMORY_UPDATES)
+  destination = installation_dir_;
+#else  // defined(IN_MEMORY_UPDATES)
   // The directory of path_ is the installation slot.
   destination = path_.DirName();
-#else  // !defined(IN_MEMORY_UPDATES)
-  destination = installation_dir_;
-#endif  // !defined(IN_MEMORY_UPDATES)
+#endif  // defined(IN_MEMORY_UPDATES)
 #endif  // !defined(STARBOARD)
 
   VLOG(1) << "Unpacking in: " << destination.value();

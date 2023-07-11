@@ -85,6 +85,8 @@ TEST_F(URLFetcherLargeStringWriterTest, Basic) {
   // Verify the result.
   std::string actual_data;
   writer_->GetAndResetData(&actual_data);
+  // TODO(b/158043520): as requested by yuying@, we should add a test that uses
+  // a string that is actually large as the test data.
   EXPECT_EQ(kData, actual_data);
 
   // Initialize() again to reset.

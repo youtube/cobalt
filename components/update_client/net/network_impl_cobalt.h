@@ -39,9 +39,10 @@ namespace update_client {
 
 typedef enum UrlFetcherType {
   kUrlFetcherTypePostRequest,
-  kUrlFetcherTypeDownloadToFile,
 #if defined(IN_MEMORY_UPDATES)
   kUrlFetcherTypeDownloadToString,
+#else
+  kUrlFetcherTypeDownloadToFile,
 #endif
 } UrlFetcherType;
 
