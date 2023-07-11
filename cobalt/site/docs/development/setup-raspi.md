@@ -54,8 +54,8 @@ Raspberry Pi.
 
     ```
     $ sudo apt install -qqy --no-install-recommends g++-multilib \
-        wget xz-utils libxml2  binutils-aarch64-linux-gnu \
-        binutils-arm-linux-gnueabi  libglib2.0-dev
+        wget xz-utils libxml2 binutils-aarch64-linux-gnu \
+        binutils-arm-linux-gnueabi libglib2.0-dev
     ```
 
 1.  Choose a location for the installed toolchain &ndash; e.g. `raspi-tools`

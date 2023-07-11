@@ -4,7 +4,7 @@ title: "Set up your environment - Docker"
 ---
 
 We provide <a
-href="https://cobalt.googlesource.com/cobalt/+/refs/heads/22.lts.stable/src/docker/linux/">Docker image definitions</a> to simplify managing build environments.
+href="https://github.com/youtube/cobalt/tree/main/docker/linux/">Docker image definitions</a> to simplify managing build environments.
 
 The instructions below assume Docker is installed and is able to run basic
 hello-world verification. `docker-compose` command is expected to be available as well.
@@ -15,7 +15,7 @@ Clone the Cobalt code repository. The following `git` command creates a
 `cobalt` directory that contains the repository:
 
 ```
-$ git clone https://cobalt.googlesource.com/cobalt
+$ git clone https://github.com/youtube/cobalt.git
 $ cd cobalt
 ```
 
@@ -38,7 +38,7 @@ where config is one of the four optimization levels, `debug`, `devel`,
 `qa` and `gold`, and target is the build target passed to ninja
 
 See <a
-href="https://cobalt.googlesource.com/cobalt/+/refs/heads/22.lts.stable/src/README.md#build-types">Cobalt README</a> for full details.
+href="https://github.com/youtube/cobalt#building-and-running-the-code">Cobalt README</a> for full details.
 
 Builds will be available in your `${COBALT_SRC}/out` directory.
 
@@ -90,4 +90,4 @@ docker-compose run linux-x64x11 /bin/bash
 ```
 
 and try to build Cobalt with the <a
-href="https://cobalt.googlesource.com/cobalt/+/refs/heads/22.lts.stable/src/README.md#building-and-running-the-code">usual GN / ninja flow.</a>
+href="https://github.com/youtube/cobalt#building-and-running-the-code">usual GN / ninja flow.</a>
