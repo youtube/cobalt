@@ -90,7 +90,7 @@ libwebp_lib("libwebp_utils_enc") {
 
 config("libwebp_direct_config") {
   include_dirs = [ "." ]
-  if (is_starboard) {
+  if (is_starboard && !is_win) {
     if (current_cpu == "x64" || current_cpu == "x86") {
       cflags = [
         "-msse2",
