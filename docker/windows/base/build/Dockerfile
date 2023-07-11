@@ -21,14 +21,6 @@ SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
 # Helper script for quick delete operations in windows
 COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
 
-# Helper script to run an looping command to persist the container instead of
-# running the main command.
-COPY ./spin.ps1 /spin.ps1
-
-# Helper script to output all the running python processes showing the details
-# of the execution, i.e. the full invocation string.
-COPY ./list_python_processes.py /list_python_processes.py
-
 # Pin Choco to 1.4.0 to avoid required reboot in 2.0.0
 ENV chocolateyVersion '1.4.0'
 # Install deps via chocolatey.
