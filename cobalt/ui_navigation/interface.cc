@@ -117,9 +117,9 @@ void SetItemContentOffset(NativeItem item, float content_offset_x,
   if (!scroll_changed) {
     return;
   }
-  stub_item->content_offset_x = content_offset_x;
-  stub_item->content_offset_y = content_offset_y;
   if (stub_item->is_enabled) {
+    stub_item->content_offset_x = content_offset_x;
+    stub_item->content_offset_y = content_offset_y;
     stub_item->callbacks->onscroll(item, stub_item->callback_context);
   }
 }
