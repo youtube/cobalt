@@ -21,6 +21,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/watchdog/watchdog.h"
 #include "cobalt/web/web_settings.h"
 #include "cobalt/worker/service_worker_context.h"
 
@@ -56,6 +57,10 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
   void Initialize(web::WebSettings* web_settings,
                   network::NetworkModule* network_module,
                   web::UserAgentPlatformInfo* platform_info, const GURL& url);
+
+  void PingWatchdog(watchdog::Watchdog* watchdog);
+
+  bool watchdog_registered_ = false;
 
   // The thread created and owned by the Service Worker Registry.
   // All registry mutations occur on this thread. The thread has to outlive all
