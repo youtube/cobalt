@@ -115,6 +115,11 @@ jobs:
         uses: ./.github/actions/docker_win
         with:
           service: ${{ needs.initialize.outputs.docker_service }}
+      - name: Build runner docker image
+        id: build-runner-docker-image
+        uses: ./.github/actions/docker_win
+        with:
+          service: ${{ needs.initialize.outputs.docker_runner_service }}
   # Runs builds.
   build:
     needs: [initialize]
