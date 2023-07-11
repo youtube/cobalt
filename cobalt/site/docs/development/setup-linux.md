@@ -19,10 +19,9 @@ Required libraries can differ depending on your Linux distribution and version.
 
     ```
     $ sudo apt update && sudo apt install -qqy --no-install-recommends \
-        pkgconf ninja-build bison nasm binutils clang libgles2-mesa-dev \
-        mesa-common-dev libpulse-dev libasound2-dev libxrender-dev \
-        libxcomposite-dev libxml2-dev curl git python3.8-venv libxi-dev \
-        build-essential libglib2.0-dev
+        bison clang libasound2-dev libgles2-mesa-dev libglib2.0-dev \
+        libxcomposite-dev libxi-dev libxrender-dev nasm ninja-build \
+        python3.8-venv
     ```
 
 1.  Install ccache to support build acceleration. ccache is automatically used
