@@ -109,34 +109,7 @@ void NetworkFetcher::PostRequest(
   url_fetcher_->Start();
 }
 
-#if !defined(IN_MEMORY_UPDATES)
-void NetworkFetcher::DownloadToFile(
-    const GURL& url, const base::FilePath& file_path,
-    ResponseStartedCallback response_started_callback,
-    ProgressCallback progress_callback,
-    DownloadToFileCompleteCallback download_to_file_complete_callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  LOG(INFO) << "cobalt::updater::NetworkFetcher::DownloadToFile";
-  LOG(INFO) << "DownloadToFile url = " << url;
-  LOG(INFO) << "DownloadToFile file_path = " << file_path;
-
-  response_started_callback_ = std::move(response_started_callback);
-  progress_callback_ = std::move(progress_callback);
-  download_to_file_complete_callback_ =
-      std::move(download_to_file_complete_callback);
-
-  CreateUrlFetcher(url, net::URLFetcher::GET);
-
-  url_fetcher_->SaveResponseToFileAtPath(
-      file_path, base::SequencedTaskRunnerHandle::Get());
-
-  url_fetcher_type_ = kUrlFetcherTypeDownloadToFile;
-
-  url_fetcher_->Start();
-}
-
-#else
+#if defined(IN_MEMORY_UPDATES)
 void NetworkFetcher::DownloadToString(
     const GURL& url, std::string* dst,
     ResponseStartedCallback response_started_callback,
@@ -160,6 +133,33 @@ void NetworkFetcher::DownloadToString(
   url_fetcher_->SaveResponseToLargeString();
 
   url_fetcher_type_ = kUrlFetcherTypeDownloadToString;
+
+  url_fetcher_->Start();
+}
+
+#else
+void NetworkFetcher::DownloadToFile(
+    const GURL& url, const base::FilePath& file_path,
+    ResponseStartedCallback response_started_callback,
+    ProgressCallback progress_callback,
+    DownloadToFileCompleteCallback download_to_file_complete_callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::DownloadToFile";
+  LOG(INFO) << "DownloadToFile url = " << url;
+  LOG(INFO) << "DownloadToFile file_path = " << file_path;
+
+  response_started_callback_ = std::move(response_started_callback);
+  progress_callback_ = std::move(progress_callback);
+  download_to_file_complete_callback_ =
+      std::move(download_to_file_complete_callback);
+
+  CreateUrlFetcher(url, net::URLFetcher::GET);
+
+  url_fetcher_->SaveResponseToFileAtPath(
+      file_path, base::SequencedTaskRunnerHandle::Get());
+
+  url_fetcher_type_ = kUrlFetcherTypeDownloadToFile;
 
   url_fetcher_->Start();
 }
@@ -265,7 +265,22 @@ void NetworkFetcher::OnPostRequestComplete(const net::URLFetcher* source,
                           update_client::NetworkFetcher::kHeaderXRetryAfter));
 }
 
-#if !defined(IN_MEMORY_UPDATES)
+#if defined(IN_MEMORY_UPDATES)
+void NetworkFetcher::OnDownloadToStringComplete(const net::URLFetcher* source,
+                                                const int status_error) {
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::OnDownloadToStringComplete";
+
+  if (!source->GetResponseAsLargeString(dst_str_)) {
+    LOG(ERROR) << "DownloadToString failed to get response from a string";
+  }
+
+  std::move(download_to_string_complete_callback_)
+      .Run(dst_str_, status_error,
+           source->GetResponseHeaders()
+               ? source->GetResponseHeaders()->GetContentLength()
+               : -1);
+}
+#else
 void NetworkFetcher::OnDownloadToFileComplete(const net::URLFetcher* source,
                                               const int status_error) {
   LOG(INFO) << "cobalt::updater::NetworkFetcher::OnDownloadToFileComplete";
@@ -277,21 +292,6 @@ void NetworkFetcher::OnDownloadToFileComplete(const net::URLFetcher* source,
 
   std::move(download_to_file_complete_callback_)
       .Run(response_file, status_error,
-           source->GetResponseHeaders()
-               ? source->GetResponseHeaders()->GetContentLength()
-               : -1);
-}
-#else
-void NetworkFetcher::OnDownloadToStringComplete(const net::URLFetcher* source,
-                                                const int status_error) {
-  LOG(INFO) << "cobalt::updater::NetworkFetcher::OnDownloadToStringComplete";
-
-  if (!source->GetResponseAsLargeString(dst_str_)) {
-    LOG(ERROR) << "DownloadToString failed to get response from a string";
-  }
-
-  std::move(download_to_string_complete_callback_)
-      .Run(dst_str_, status_error,
            source->GetResponseHeaders()
                ? source->GetResponseHeaders()->GetContentLength()
                : -1);

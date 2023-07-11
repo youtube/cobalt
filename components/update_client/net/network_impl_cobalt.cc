@@ -106,34 +106,7 @@ void NetworkFetcherCobaltImpl::PostRequest(
   url_fetcher_->Start();
 }
 
-#if !defined(IN_MEMORY_UPDATES)
-void NetworkFetcherCobaltImpl::DownloadToFile(
-    const GURL& url,
-    const base::FilePath& file_path,
-    ResponseStartedCallback response_started_callback,
-    ProgressCallback progress_callback,
-    DownloadToFileCompleteCallback download_to_file_complete_callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  LOG(INFO) << "DownloadToFile url = " << url;
-  LOG(INFO) << "DownloadToFile file_path = " << file_path;
-
-  response_started_callback_ = std::move(response_started_callback);
-  progress_callback_ = std::move(progress_callback);
-  download_to_file_complete_callback_ =
-      std::move(download_to_file_complete_callback);
-
-  CreateUrlFetcher(url, net::URLFetcher::GET);
-
-  url_fetcher_->SaveResponseToFileAtPath(
-      file_path, base::SequencedTaskRunnerHandle::Get());
-
-  url_fetcher_type_ = kUrlFetcherTypeDownloadToFile;
-
-  url_fetcher_->Start();
-}
-
-#else
+#if defined(IN_MEMORY_UPDATES)
 void NetworkFetcherCobaltImpl::DownloadToString(
     const GURL& url,
     std::string* dst,
@@ -158,6 +131,33 @@ void NetworkFetcherCobaltImpl::DownloadToString(
   url_fetcher_->SaveResponseToLargeString();
 
   url_fetcher_type_ = kUrlFetcherTypeDownloadToString;
+
+  url_fetcher_->Start();
+}
+
+#else
+void NetworkFetcherCobaltImpl::DownloadToFile(
+    const GURL& url,
+    const base::FilePath& file_path,
+    ResponseStartedCallback response_started_callback,
+    ProgressCallback progress_callback,
+    DownloadToFileCompleteCallback download_to_file_complete_callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  LOG(INFO) << "DownloadToFile url = " << url;
+  LOG(INFO) << "DownloadToFile file_path = " << file_path;
+
+  response_started_callback_ = std::move(response_started_callback);
+  progress_callback_ = std::move(progress_callback);
+  download_to_file_complete_callback_ =
+      std::move(download_to_file_complete_callback);
+
+  CreateUrlFetcher(url, net::URLFetcher::GET);
+
+  url_fetcher_->SaveResponseToFileAtPath(
+      file_path, base::SequencedTaskRunnerHandle::Get());
+
+  url_fetcher_type_ = kUrlFetcherTypeDownloadToFile;
 
   url_fetcher_->Start();
 }
@@ -264,7 +264,21 @@ void NetworkFetcherCobaltImpl::OnPostRequestComplete(
                           update_client::NetworkFetcher::kHeaderXRetryAfter));
 }
 
-#if !defined(IN_MEMORY_UPDATES)
+#if defined(IN_MEMORY_UPDATES)
+void NetworkFetcherCobaltImpl::OnDownloadToStringComplete(
+    const net::URLFetcher* source,
+    const int status_error) {
+  if (!source->GetResponseAsLargeString(dst_str_)) {
+    LOG(ERROR) << "DownloadToString failed to get response from a string";
+  }
+
+  std::move(download_to_string_complete_callback_)
+      .Run(dst_str_, status_error,
+           source->GetResponseHeaders()
+               ? source->GetResponseHeaders()->GetContentLength()
+               : -1);
+}
+#else
 void NetworkFetcherCobaltImpl::OnDownloadToFileComplete(
     const net::URLFetcher* source,
     const int status_error) {
@@ -276,20 +290,6 @@ void NetworkFetcherCobaltImpl::OnDownloadToFileComplete(
 
   std::move(download_to_file_complete_callback_)
       .Run(response_file, status_error,
-           source->GetResponseHeaders()
-               ? source->GetResponseHeaders()->GetContentLength()
-               : -1);
-}
-#else
-void NetworkFetcherCobaltImpl::OnDownloadToStringComplete(
-    const net::URLFetcher* source,
-    const int status_error) {
-  if (!source->GetResponseAsLargeString(dst_str_)) {
-    LOG(ERROR) << "DownloadToString failed to get response from a string";
-  }
-
-  std::move(download_to_string_complete_callback_)
-      .Run(dst_str_, status_error,
            source->GetResponseHeaders()
                ? source->GetResponseHeaders()->GetContentLength()
                : -1);

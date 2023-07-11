@@ -49,17 +49,17 @@ std::string GetCrxComponentID(const CrxComponent& component);
 // Returns a CRX id from a public key hash.
 std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash);
 
-#if !defined(IN_MEMORY_UPDATES)
-// Returns true if the actual SHA-256 hash of the |filepath| matches the
-// |expected_hash|.
-bool VerifyFileHash256(const base::FilePath& filepath,
-                       const std::string& expected_hash);
-#else
+#if defined(IN_MEMORY_UPDATES)
 // Returns true if the actual SHA-256 hash of |content| matches the
 // |expected_hash|.
 // |content| must refer to a valid string.
 bool VerifyHash256(const std::string* content,
                    const std::string& expected_hash);
+#else
+// Returns true if the actual SHA-256 hash of the |filepath| matches the
+// |expected_hash|.
+bool VerifyFileHash256(const base::FilePath& filepath,
+                       const std::string& expected_hash);
 #endif
 
 // Returns true if the |brand| parameter matches ^[a-zA-Z]{4}?$ .
