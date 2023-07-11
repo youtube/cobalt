@@ -40,9 +40,7 @@ EXCLUDED_CHECK_PATTERNS = [
     'codecov',
     'on-host-unit-test-report',
 
-    # Excludes blackbox, web platform and on-device tests.
-    'blackbox_test',
-    'wpt',
+    # Excludes blackbox, web platform, and unit tests run on-device.
     '_on_device_',
 
     # Excludes templated check names.
