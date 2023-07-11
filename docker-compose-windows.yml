@@ -60,6 +60,16 @@ services:
         - FROM_IMAGE=mcr.microsoft.com/windows:1809
     image: visual-studio-win32-base
     scale: 0
+
+  visual-studio-win32-base-23branch:
+    build:
+      context: ./docker/windows/base/visualstudio2017and2022
+      dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=mcr.microsoft.com/windows:1809
+    image: visual-studio-win32-base-23branch
+    scale: 0
+
   # -----------------------------------------------
   # Cobalt-Build images for windows-based platforms
   # -----------------------------------------------
@@ -86,15 +96,26 @@ services:
     depends_on:
       - visual-studio-win32-base
 
+  cobalt-build-win32-base-23branch:
+    build:
+      context: ./docker/windows/base/build
+      dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=visual-studio-win32-base-23branch
+    image: cobalt-build-win32-base-23branch
+    scale: 0
+    depends_on:
+      - visual-studio-win32-base-23branch
+
   build-win-win32:
     <<: *common-definitions
     build:
       context: ./docker/windows/win32
       dockerfile: ./Dockerfile
       args:
-        - FROM_IMAGE=cobalt-build-win32-base
+        - FROM_IMAGE=cobalt-build-win32-base-23branch
     depends_on:
-      - cobalt-build-win32-base
+      - cobalt-build-win32-base-23branch
     image: cobalt-build-win-win32
 
   # -----------------------------------------
@@ -123,5 +144,5 @@ services:
       args:
         - RUNNER_VERSION=2.294.0
     depends_on:
-      - cobalt-build-win32-base
+      - cobalt-build-win32-base-23branch
     image: cobalt-runner-win-win32
