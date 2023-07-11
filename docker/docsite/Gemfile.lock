@@ -52,7 +52,7 @@ GEM
     html-pipeline (1.9.0)
       activesupport (>= 2)
       nokogiri (~> 1.4)
-    i18n (1.12.0)
+    i18n (1.14.1)
       concurrent-ruby (~> 1.0)
     jekyll (2.4.0)
       classifier-reborn (~> 2.0)
@@ -146,7 +146,7 @@ PLATFORMS
 DEPENDENCIES
   RedCloth (= 4.2.9)
   bourbon
-  i18n
+  i18n (= 1.14.1)
   jekyll (= 2.4.0)
   jekyll-coffeescript (= 1.0.1)
   jekyll-feed (= 0.3.1)
