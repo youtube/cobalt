@@ -24,8 +24,8 @@ Required libraries can differ depending on your Linux distribution and version.
         python3.8-venv
     ```
 
-1.  Install ccache to support build acceleration. ccache is automatically used
-    when available, otherwise defaults to unaccelerated building:
+1.  Install ccache to support build acceleration. Build acceleration is \
+    enabled by default and must be disabled if ccache is not installed.
 
     ```
     $ sudo apt install -qqy --no-install-recommends ccache
