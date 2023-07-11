@@ -17,27 +17,39 @@
   Called by package_application.py
 """
 
+import argparse
 import logging
 import os
 import platform
 import shutil
 import subprocess
+import sys
 from xml.etree import ElementTree as ET
 import zipfile
 
 from starboard.tools import package
 
-_DEFAULT_CERT_PATH = os.path.join(
+_INTERNAL_CERT_PATH = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir,
     os.pardir, 'internal', 'starboard', 'xb1', 'cert', 'youtube.pfx')
+_EXTERNAL_CERT_PATH = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir,
+    os.pardir, 'starboard', 'xb1', 'cert', 'cobalt.pfx')
 _APPX_MANIFEST_XML_NAMESPACE = \
     'http://schemas.microsoft.com/appx/manifest/foundation/windows10'
 _NAMESPACE_DICT = {'appx': _APPX_MANIFEST_XML_NAMESPACE}
 _PUBLISHER_XPATH = './appx:Identity[@Publisher]'
 _PRODUCT_APPX_NAME = {
+    'cobalt': 'cobalt',
     'youtube': 'cobalt',
     'mainappbeta': 'mainappbeta',
     'youtubetv': 'youtubetv'
+}
+_PRODUCT_CERT_PATH = {
+    'cobalt': _EXTERNAL_CERT_PATH,
+    'youtube': _INTERNAL_CERT_PATH,
+    'mainappbeta': _INTERNAL_CERT_PATH,
+    'youtubetv': _INTERNAL_CERT_PATH,
 }
 _DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
 _DEFAULT_WIN_SDK_VERSION = '10.0.22000.0'
@@ -48,6 +60,7 @@ _SOURCE_SPLASH_SCREEN_SUB_PATH = os.path.join('internal', 'cobalt', 'browser',
 _DESTINATION__SPLASH_SCREEN_SUB_PATH = os.path.join('appx', 'content', 'data',
                                                     'web', 'splash_screen')
 _SPLASH_SCREEN_FILE = {
+    'cobalt': '',
     'youtube': 'youtube_splash_screen.html',
     'youtubetv': 'ytv_splash_screen.html',
     'mainappbeta': 'youtube_splash_screen.html',
@@ -184,6 +197,7 @@ class Package(package.PackageBase):
   @property
   def appx_folder_location(self):
     product_locations = {
+        'cobalt': 'appx',
         'youtube': 'appx',
         'mainappbeta': 'mainappbeta-appx',
         'youtubetv': 'youtubetv-appx'
@@ -229,7 +243,7 @@ class Package(package.PackageBase):
     logging.info('Running %s', ' '.join(makeappx_args))
     subprocess.check_call(makeappx_args)
 
-    cert_path = _DEFAULT_CERT_PATH
+    cert_path = _PRODUCT_CERT_PATH[self.product]
 
     try:
       signtool_args = [
@@ -244,3 +258,40 @@ class Package(package.PackageBase):
       raise  # Rethrow original error with original stack trace.
 
     return self.appx_location
+
+
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '-s',
+      '--source',
+      required=True,
+      help='Source directory from which to create a package.')
+  parser.add_argument(
+      '-o',
+      '--output',
+      default=os.path.join(
+          os.path.dirname(os.path.realpath(__file__)), 'package'),
+      help='Output directory to place the packaged app. Defaults to ./package/')
+  parser.add_argument(
+      '-p',
+      '--product',
+      default='cobalt',
+      help=(
+          'Product name. This must be one of [cobalt, youtube, youtubetv,'
+          'mainappbeta]. Any builds that are not internal to YouTube should use'
+          'cobalt.'))
+  args, _ = parser.parse_known_args()
+
+  if not os.path.exists(args.output):
+    os.makedirs(args.output)
+
+  Package(
+      publisher=None,
+      product=args.product,
+      source_dir=args.source,
+      output_dir=args.output)
+
+
+if __name__ == '__main__':
+  sys.exit(main())
