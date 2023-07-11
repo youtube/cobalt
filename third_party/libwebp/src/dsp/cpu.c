@@ -19,7 +19,7 @@
 #include "starboard/log.h"
 #include "starboard/system.h"
 
-bool warn_if_not_enabled(const char* name, bool value) {
+inline bool warn_if_not_enabled(const char* name, bool value) {
   if (!value) {
     SbLogFormatF("LibWebP optimization not enabled: %s\n", name);
     SbLogFlush();
