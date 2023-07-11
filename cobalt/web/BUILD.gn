@@ -114,6 +114,7 @@ static_library("web") {
     "//cobalt/script",
     "//cobalt/script:engine",
     "//cobalt/script/v8c:engine",
+    "//cobalt/watchdog",
     "//cobalt/xhr:xhr_settings",
     "//net",
     "//url",
