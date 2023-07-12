@@ -190,7 +190,7 @@ PersistentSettings::GetPersistentSettingAsDictionary(const std::string& key) {
 
 void PersistentSettings::SetPersistentSetting(
     const std::string& key, std::unique_ptr<base::Value> value,
-    base::OnceClosure closure) {
+    base::OnceClosure closure, bool blocking) {
   if (key == kValidated) {
     LOG(ERROR) << "Cannot set protected persistent setting: " << key;
     return;
@@ -198,12 +198,12 @@ void PersistentSettings::SetPersistentSetting(
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&PersistentSettings::SetPersistentSettingHelper,
                                 base::Unretained(this), key, std::move(value),
-                                std::move(closure)));
+                                std::move(closure), blocking));
 }
 
 void PersistentSettings::SetPersistentSettingHelper(
     const std::string& key, std::unique_ptr<base::Value> value,
-    base::OnceClosure closure) {
+    base::OnceClosure closure, bool blocking) {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   if (validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
@@ -212,7 +212,7 @@ void PersistentSettings::SetPersistentSettingHelper(
         WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     writeable_pref_store()->SetValue(
         key, std::move(value), WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    writeable_pref_store()->CommitPendingWrite();
+    commit_pending_write(blocking);
   } else {
     LOG(ERROR) << "Cannot set persistent setting while unvalidated: " << key;
   }
@@ -220,15 +220,17 @@ void PersistentSettings::SetPersistentSettingHelper(
 }
 
 void PersistentSettings::RemovePersistentSetting(const std::string& key,
-                                                 base::OnceClosure closure) {
+                                                 base::OnceClosure closure,
+                                                 bool blocking) {
   message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&PersistentSettings::RemovePersistentSettingHelper,
-                     base::Unretained(this), key, std::move(closure)));
+                     base::Unretained(this), key, std::move(closure),
+                     blocking));
 }
 
 void PersistentSettings::RemovePersistentSettingHelper(
-    const std::string& key, base::OnceClosure closure) {
+    const std::string& key, base::OnceClosure closure, bool blocking) {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   if (validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
@@ -237,7 +239,7 @@ void PersistentSettings::RemovePersistentSettingHelper(
         WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     writeable_pref_store()->RemoveValue(
         key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    writeable_pref_store()->CommitPendingWrite();
+    commit_pending_write(blocking);
   } else {
     LOG(ERROR) << "Cannot remove persistent setting while unvalidated: " << key;
   }
