@@ -72,6 +72,17 @@ DeviceType GetDeviceType() {
   return kDeviceTypeFHD;
 }
 
+testing::AssertionResult MimeAndKeySystemIsSupported(std::string param,
+                                                     std::string key_system) {
+  if (SbMediaCanPlayMimeAndKeySystem(param.c_str(), key_system.c_str()) ==
+      kSbMediaSupportTypeProbably) {
+    return testing::AssertionSuccess();
+  }
+  return testing::AssertionFailure()
+         << "SbMediaCanPlayMimeAndKeySystem(\"" << param << "\", \""
+         << key_system << "\") is unsupported.";
+}
+
 TEST(SbMediaCanPlayMimeAndKeySystem, SunnyDay) {
   // Vp9
   SbMediaCanPlayMimeAndKeySystem(
@@ -292,20 +303,20 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       mime_params = params_fhd;
   }
 
+  const char* key_system = "";
   for (auto& param : mime_params) {
-    SbMediaSupportType support = SbMediaCanPlayMimeAndKeySystem(param, "");
-    EXPECT_TRUE(support == kSbMediaSupportTypeProbably);
+    EXPECT_TRUE(MimeAndKeySystemIsSupported(param, key_system));
   }
 
   // AAC-LC
-  SbMediaSupportType result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"mp4a.40.2\"; channels=2; bitrate=256000;", "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+  ASSERT_TRUE(MimeAndKeySystemIsSupported(
+      "audio/mp4; codecs=\"mp4a.40.2\"; channels=2; bitrate=256000",
+      key_system));
 
   // HE-AAC
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"mp4a.40.5\"; channels=2; bitrate=48000;", "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+  ASSERT_TRUE(MimeAndKeySystemIsSupported(
+      "audio/mp4; codecs=\"mp4a.40.5\"; channels=2; bitrate=48000",
+      key_system));
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, AnySupportedKeySystems) {
