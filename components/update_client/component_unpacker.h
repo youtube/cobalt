@@ -88,6 +88,7 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
   // |pk_hash| is the expected public developer key's SHA256 hash. If empty,
   // the unpacker accepts any developer key. |path| is the current location
   // of the CRX.
+#if !defined(IN_MEMORY_UPDATES)
   ComponentUnpacker(const std::vector<uint8_t>& pk_hash,
                     const base::FilePath& path,
                     scoped_refptr<CrxInstaller> installer,
@@ -95,7 +96,7 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
                     scoped_refptr<Patcher> patcher,
                     crx_file::VerifierFormat crx_format);
 
-#if defined(IN_MEMORY_UPDATES)
+#else
   // An overload where |crx_str| currently holds the CRX in memory and
   // |installation_dir| is the location where the CRX should be unpacked to.
   // Does not take ownership of |crx_str|, which must refer to a valid string
