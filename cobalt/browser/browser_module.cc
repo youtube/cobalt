@@ -651,6 +651,7 @@ void BrowserModule::NavigateSetupSplashScreen(
 
 void BrowserModule::NavigateSetupScrollEngine() {
   scroll_engine_.reset(new ui_navigation::scroll_engine::ScrollEngine());
+  lifecycle_observers_.AddObserver(scroll_engine_.get());
   scroll_engine_->thread()->Start();
 }
 
