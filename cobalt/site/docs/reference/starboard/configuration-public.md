@@ -50,7 +50,6 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
-| **`SB_HAS_BILINEAR_FILTERING_SUPPORT`**<br><br>Indicates whether or not the given platform supports bilinear filtering. This can be checked to enable/disable renderer tests that verify that this is working properly.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_NV12_TEXTURE_SUPPORT`**<br><br>Indicates whether or not the given platform supports rendering of NV12 textures. These textures typically originate from video decoders.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_VIRTUAL_REALITY`**<br><br>The default value in the Stub implementation is `1` |
 
