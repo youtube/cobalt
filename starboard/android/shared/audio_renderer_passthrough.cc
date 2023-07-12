@@ -282,6 +282,7 @@ void AudioRendererPassthrough::Seek(SbTime seek_to_time) {
   stop_called_ = false;
   playback_head_position_when_stopped_ = 0;
   stopped_at_ = 0;
+  first_audio_written_after_seek_ = false;
   if (!seek_to_time_set) {
     seek_to_time_ = seek_to_time;
   }
@@ -312,6 +313,19 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     return seek_to_time_;
   }
 
+  // After a seek, the timestamp of the first audio packet may not be aligned
+  // to the seek time. For example, if the seek time is to 78 ms, a stream with
+  // 32 ms audio packets may write a packet with timestamp 64 ms first. This
+  // will cause audio to be 14 ms earlier than the presented video frame.
+  // We adjust the reported seek time to the timestamp of the first written
+  // audio packet to avoid this issue.
+  SbTime audio_start_time;
+  if (first_audio_written_after_seek_) {
+    audio_start_time = first_audio_timestamp_;
+  } else {
+    audio_start_time = seek_to_time_;
+  }
+
   if (stop_called_) {
     // When AudioTrackBridge::Stop() is called, the playback will continue until
     // all the frames written are played, as the AudioTrack in created in
@@ -324,8 +338,8 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     int64_t total_frames_played =
         frames_played + playback_head_position_when_stopped_;
     total_frames_played = std::min(total_frames_played, total_frames_written_);
-    return seek_to_time_ + total_frames_played * kSbTimeSecond /
-                               audio_stream_info_.samples_per_second;
+    return audio_start_time + total_frames_played * kSbTimeSecond /
+                                  audio_stream_info_.samples_per_second;
   }
 
   SbTime updated_at;
@@ -334,14 +348,14 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   if (playback_head_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
-    return seek_to_time_;
+    return audio_start_time;
   }
 
   // TODO: This may cause time regression, because the unadjusted time will be
   //       returned on pause, after an adjusted time has been returned.
   SbTime playback_time =
-      seek_to_time_ + playback_head_position * kSbTimeSecond /
-                          audio_stream_info_.samples_per_second;
+      audio_start_time + playback_head_position * kSbTimeSecond /
+                             audio_stream_info_.samples_per_second;
 
   // When underlying AudioTrack is paused, we use returned playback time
   // directly. Note that we should not use |paused_| or |playback_rate_| here.
@@ -542,6 +556,12 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         audio_track_bridge_->PauseAndFlush();
         return;
       }
+
+      if (!first_audio_written_after_seek_) {
+        first_audio_timestamp_ = sync_time;
+        first_audio_written_after_seek_ = true;
+      }
+
       decoded_audio_writing_offset_ += samples_written;
 
       if (decoded_audio_writing_offset_ ==

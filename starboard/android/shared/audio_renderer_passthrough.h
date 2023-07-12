@@ -130,6 +130,8 @@ class AudioRendererPassthrough
   int64_t playback_head_position_when_stopped_ = 0;
   SbTimeMonotonic stopped_at_ = 0;
   SbTime seek_to_time_ = 0;
+  SbTime first_audio_timestamp_ = 0;
+  bool first_audio_written_after_seek_ = false;
   double volume_ = 1.0;
   bool paused_ = true;
   double playback_rate_ = 1.0;
