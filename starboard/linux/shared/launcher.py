@@ -24,6 +24,7 @@ import time
 import traceback
 
 from starboard.tools import abstract_launcher
+from starboard.tools.abstract_launcher import ReturnCodeStatus
 from starboard.tools import send_link
 
 STATUS_CHANGE_TIMEOUT = 15
@@ -105,6 +106,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.pid = self.proc.pid
     self.proc.wait()
     return self.proc.returncode
+
+  def Run2(self):
+    """Runs launcher's executable with extended interface."""
+    return ReturnCodeStatus.OK, self.Run()
 
   def Kill(self):
     sys.stderr.write("\n***Killing Launcher***\n")
