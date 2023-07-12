@@ -123,7 +123,7 @@ jobs:
   # Runs builds.
   build:
     needs: [initialize]
-    runs-on: [self-hosted, X64, Windows]
+    runs-on: [self-hosted, win32-23branch]
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
       fail-fast: false
@@ -155,7 +155,7 @@ jobs:
   on-host-test:
     needs: [initialize, build]
     if: needs.initialize.outputs.on_host_test == 'true'
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: [self-hosted, win32-23branch]
     name: ${{matrix.name}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
