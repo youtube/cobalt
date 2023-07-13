@@ -50,7 +50,6 @@
             log('Enabling metrics reporting: metrics.enable()');
             metrics.enable();
             log(`Setting metric event interval: metrics.setMetricEventInterval(${EVENT_INTERVAL_SECS})`);
-            log(`Note that the first upload interval will always be 60 seconds, regardless of metricEventInterval.`);
             metrics.setMetricEventInterval(EVENT_INTERVAL_SECS);
             log('Binding metric event handler: metrics.onMetricEvent(metricEventHandler)');
             metrics.onMetricEvent(metricEventHandler);
@@ -62,8 +61,12 @@
             log.textContent = logText;
             LOG_CONTAINER.appendChild(log);
         }
-
-        init();
+        // Persistent settings are only ready/validated after the browser module
+        // has fully loaded. As telemetry uses persistent settings, everything
+        // must happen after onload.
+        window.onload = function() {
+            init();
+        }
     </script>
 </body>
 
