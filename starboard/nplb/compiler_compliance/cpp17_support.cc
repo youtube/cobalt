@@ -64,6 +64,12 @@ static_assert(add_one(1) == 2, "Constexpr lambdas support is required");
 static_assert(starboard::foo::bar::baz::life() == 42,
               "Nested Namespaces support is required");
 
+// From https://gcc.gnu.org/projects/cxx-status.html#cxx17
+// test template argument deduction for class templates
+#if __cpp_deduction_guides < 201611
+static_assert(true, "template argument deduction not supported")
+#endif
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
