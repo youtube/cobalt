@@ -26,6 +26,7 @@ COMMIT_COUNT_BUILD_ID_OFFSET = 1000000
 
 _BUILD_ID_PATTERN = '^BUILD_NUMBER=([1-9][0-9]{6,})$'
 _GIT_REV_PATTERN = '^GitOrigin-RevId: ([0-9a-f]{40})$'
+_COBALT_VERSION_PATTERN = '^#define COBALT_VERSION "(.*)"$'
 
 
 def get_build_id_and_git_rev_from_commits(cwd):
@@ -77,6 +78,16 @@ def _get_subject_from_last_commit(cwd):
   return _get_last_commit_with_format(r'%s', cwd=cwd)
 
 
+def _get_cobalt_version():
+  version_header_path = os.path.join(os.path.dirname(FILE_DIR), 'version.h')
+  contents = ''
+  with open(version_header_path, 'r', encoding='utf-8') as f:
+    contents = f.read()
+  compiled_cobalt_version_pattern = re.compile(
+      _COBALT_VERSION_PATTERN, flags=re.MULTILINE)
+  return compiled_cobalt_version_pattern.search(contents).group(1)
+
+
 def main(output_path, cwd=FILE_DIR):
   """Writes a Cobalt build_info json file."""
   build_rev = _get_hash_from_last_commit(cwd=cwd)
@@ -84,6 +95,7 @@ def main(output_path, cwd=FILE_DIR):
   if build_id is None:
     build_id = get_build_id_from_commit_count(cwd=cwd)
     git_rev = build_rev
+  cobalt_version = _get_cobalt_version()
   build_time = datetime.datetime.now().ctime()
   author = _get_author_from_last_commit(cwd=cwd)
   commit = _get_subject_from_last_commit(cwd=cwd)
@@ -92,6 +104,7 @@ def main(output_path, cwd=FILE_DIR):
       'build_id': build_id,
       'build_rev': build_rev,
       'git_rev': git_rev,
+      'cobalt_version': cobalt_version,
       'build_time': build_time,
       'author': author,
       'commit': commit
@@ -108,6 +121,7 @@ def main(output_path, cwd=FILE_DIR):
 Build ID: {build_id}
 Build Rev: {build_rev}
 Git Rev: {git_rev}
+Cobalt Version: {cobalt_version}
 Build Time: {build_time}
 Author: {author}
 Commit: {commit}
