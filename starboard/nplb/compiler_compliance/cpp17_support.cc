@@ -64,6 +64,26 @@ static_assert(add_one(1) == 2, "Constexpr lambdas support is required");
 static_assert(starboard::foo::bar::baz::life() == 42,
               "Nested Namespaces support is required");
 
+// Test fallthrough support
+
+constexpr int test_fallthrough(int n) {
+  switch (n) {
+    case 1:
+      return 1;
+      break;
+    case 2:
+      [[fallthrough]];  // intentional fallthrough
+    case 3:
+      return 3;
+      break;
+  }
+
+  return 0;
+}
+
+static_assert(test_fallthrough(2) == 3,
+              "[fallthrough]] attribute support is required");
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
