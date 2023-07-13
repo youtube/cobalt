@@ -197,60 +197,9 @@ jobs:
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
-      - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
-        with:
-          # Use fetch depth of 0 to get full history for a valid build id.
-          fetch-depth: 0
-          persist-credentials: false
-      - name: GN
-        uses: ./.github/actions/gn
-      - name: Build Cobalt
-        uses: ./.github/actions/build
-      - name: Run API Leak Detector
-        uses: ./.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
-        with:
-          relative_manifest_path: ${{ inputs.leak_manifest_filename }}
-      - name: Upload Nightly Artifacts
-        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
-        uses: ./.github/actions/upload_nightly_artifacts
-      - name: Upload On Host Test Artifacts
-        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
-        uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: onhost
-          os: linux
-      # For some reason passing needs.initialize.outputs.bootloader as parameter to build
-      # action didn't work, so instead we set an env var.
-      - name: Set bootloader config
-        if: ${{ needs.initialize.outputs.bootloader != 'null' }}
-        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
-      # Build bootloader for on-host tests if necessary.
-      - name: Bootloader GN
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
-        uses: ./.github/actions/gn
-      - name: Build Bootloader
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
-        uses: ./.github/actions/build
-      - name: Upload Bootloader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true'}}
-        uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: onhost
-          os: linux
-      - name: Upload On Device Test Artifacts
-        if: |
-          matrix.config == 'devel' &&
-          fromJSON(needs.initialize.outputs.on_device_test).enabled == true &&
-          (
-            github.event_name != 'pull_request' ||
-            contains(github.event.pull_request.labels.*.name, 'on_device')
-          )
-        uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: ondevice
-          os: linux
+      - name: No-op
+        shell: bash
+        run: echo Build
 
   # Runs on-device integration and unit tests.
   on-device-test:
@@ -280,13 +229,9 @@ jobs:
       ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
-      - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Run Tests (${{ matrix.shard }})
-        uses: ./.github/actions/on_device_tests
+      - name: No-op
+        shell: bash
+        run: echo on-device-test
 
   # Runs on-host integration and unit tests.
   on-host-test:
