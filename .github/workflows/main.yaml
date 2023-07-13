@@ -334,6 +334,8 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         config: [devel]
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    env:
+      DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
     steps:
       - name: Collect Unit Test Reports
         uses: actions/download-artifact@v3
@@ -343,7 +345,7 @@ jobs:
       - name: Upload Unit Test Reports
         uses: datadog/junit-upload-github-action@v1
         with:
-            api-key: ${{ secrets.DD_API_KEY }}
+            api-key: ${{ env.DATADOG_API_KEY }}
             service: cobalt
             # TODO: More tags?
             tags: "name:${{matrix.name}},platform:${{matrix.platform}}"
