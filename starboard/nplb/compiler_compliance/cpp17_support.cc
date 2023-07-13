@@ -64,6 +64,12 @@ static_assert(add_one(1) == 2, "Constexpr lambdas support is required");
 static_assert(starboard::foo::bar::baz::life() == 42,
               "Nested Namespaces support is required");
 
+// Test if filesystem library is present - added in gcc8 and above.
+#ifndef __cpp_lib_filesystem
+#error "filesystem library is required"
+#endif
+
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
