@@ -321,22 +321,32 @@ jobs:
         with:
           os: linux
 
-  # Gets unit test report from on host tests and prints it.
-  on-host-unit-test-report:
-    needs: [on-host-test]
+  # Gets unit test report from artifact storage and uploads them to DataDog.
+  unit-test-report:
+    needs: [initialize, on-host-test, on-device-test]
     permissions: {}
-    if: failure()
+    if: always()
     runs-on: ubuntu-latest
+    name: ${{matrix.name}}_test_results_upload
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        config: [devel]
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
       - name: Collect Unit Test Reports
         uses: actions/download-artifact@v3
         with:
           name: unit-test-reports
-          path: unit-test-reports
-      - name: Print Unit Test Reports
-        run: |
-          for filename in ${GITHUB_WORKSPACE}/unit-test-reports/*; do
-            basename $filename
-            cat $filename
-            echo
-          done
+          path: unit-test-reports/
+      - name: Upload Unit Test Reports
+        uses: datadog/junit-upload-github-action@v1
+        with:
+            api-key: ${{ secrets.DD_API_KEY }}
+            service: cobalt
+            # TODO: More tags?
+            tags: "name:${{matrix.name}},platform:${{matrix.platform}}"
+            files: unit-test-reports/
+            # TODO: Put logs in xml files
+            # logs: true
