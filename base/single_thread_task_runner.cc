@@ -22,6 +22,12 @@ namespace base {
 #if defined(STARBOARD)
 namespace {
 
+#if defined(COBALT_BUILD_TYPE_DEBUG)
+const int kTimeWaitInterval = 10000;
+#else
+const int kTimeWaitInterval = 2000;
+#endif
+
 // Runs the given task, and then signals the given WaitableEvent.
 void RunAndSignal(const base::Closure& task, base::WaitableEvent* event) {
   TRACE_EVENT0("task", "RunAndSignal");
@@ -49,7 +55,8 @@ void SingleThreadTaskRunner::PostBlockingTask(const base::Location& from_here,
   if (task_may_run) {
     // Wait for the task to complete before proceeding.
     do {
-      if (task_finished.TimedWait(base::TimeDelta::FromMilliseconds(1000))) {
+      if (task_finished.TimedWait(
+              base::TimeDelta::FromMilliseconds(kTimeWaitInterval))) {
         break;
       }
 #if !defined(COBALT_BUILD_TYPE_GOLD)
