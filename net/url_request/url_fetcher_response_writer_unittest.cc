@@ -57,7 +57,7 @@ TEST_F(URLFetcherStringWriterTest, Basic) {
   EXPECT_TRUE(writer_->data().empty());
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 class URLFetcherLargeStringWriterTest : public PlatformTest {
  protected:
   void SetUp() override {

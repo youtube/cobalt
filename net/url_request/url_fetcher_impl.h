@@ -79,7 +79,7 @@ class NET_EXPORT_PRIVATE URLFetcherImpl : public URLFetcher {
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) override;
   void SaveResponseToTemporaryFile(
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) override;
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
   void SaveResponseToLargeString() override;
 #endif
   void SaveResponseWithWriter(
@@ -102,7 +102,7 @@ class NET_EXPORT_PRIVATE URLFetcherImpl : public URLFetcher {
   int GetResponseCode() const override;
   void ReceivedContentWasMalformed() override;
   bool GetResponseAsString(std::string* out_response_string) const override;
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
   bool GetResponseAsLargeString(std::string* out_response_string)
       const override;
 #endif

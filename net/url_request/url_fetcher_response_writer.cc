@@ -21,7 +21,7 @@ URLFetcherStringWriter* URLFetcherResponseWriter::AsStringWriter() {
   return NULL;
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 URLFetcherLargeStringWriter* URLFetcherResponseWriter::AsLargeStringWriter() {
   return NULL;
 }
@@ -57,7 +57,7 @@ URLFetcherStringWriter* URLFetcherStringWriter::AsStringWriter() {
   return this;
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 URLFetcherLargeStringWriter::URLFetcherLargeStringWriter() = default;
 
 URLFetcherLargeStringWriter::~URLFetcherLargeStringWriter() = default;

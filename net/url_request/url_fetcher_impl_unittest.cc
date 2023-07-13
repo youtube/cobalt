@@ -1664,7 +1664,7 @@ TEST_F(URLFetcherBadHTTPSTest, BadHTTPS) {
 }
 #endif  // STARBOARD
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 // Get a small file and save it to a "large string". SaveResponseToLargeString()
 // and GetResponseAsLargeString() are intended to be used for URLs with large
 // data sizes but should still work for URLs with small data sizes.

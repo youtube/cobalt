@@ -173,7 +173,7 @@ void TestURLFetcher::SaveResponseToTemporaryFile(
   SaveResponseToFileAtPath(path, file_task_runner);
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 void TestURLFetcher::SaveResponseToLargeString() {
   // TODO(b/158043520): implement when dependent unit tests are enabled.
   CHECK(false) << "Unimplemented";
@@ -292,7 +292,7 @@ bool TestURLFetcher::GetResponseAsString(
   return true;
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 bool TestURLFetcher::GetResponseAsLargeString(
     std::string* out_response_string) const {
   // TODO(b/158043520): implement when dependent unit tests are enabled.

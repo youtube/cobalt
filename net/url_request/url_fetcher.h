@@ -311,7 +311,7 @@ class NET_EXPORT URLFetcher {
   virtual void SaveResponseToTemporaryFile(
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) = 0;
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
   // By default, the response is saved in a string without preallocation. Call
   // this method when the response is expected to be large and the capacity
   // should be reserved to the response's content size upfront to reduce
@@ -389,7 +389,7 @@ class NET_EXPORT URLFetcher {
   // set to store the response as a string.
   virtual bool GetResponseAsString(std::string* out_response_string) const = 0;
 
-  #if defined(IN_MEMORY_UPDATES)
+  #if defined(STARBOARD)
   // Get the resonse as a string when the response is expected to be large and
   // the data should be "moved" and not copied. Should only be used in
   // conjunction with SaveResponseToLargeString() and returns false if the

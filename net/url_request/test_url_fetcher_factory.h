@@ -133,7 +133,7 @@ class TestURLFetcher : public URLFetcher {
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) override;
   void SaveResponseToTemporaryFile(
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) override;
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
   void SaveResponseToLargeString() override;
 #endif
   void SaveResponseWithWriter(
@@ -164,7 +164,7 @@ class TestURLFetcher : public URLFetcher {
   void ReceivedContentWasMalformed() override;
   // Override response access functions to return fake data.
   bool GetResponseAsString(std::string* out_response_string) const override;
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
   bool GetResponseAsLargeString(std::string* out_response_string)
       const override;
 #endif

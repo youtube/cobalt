@@ -352,7 +352,7 @@ void URLFetcherCore::SaveResponseToFileAtPath(
       new URLFetcherFileWriter(file_task_runner, file_path)));
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 void URLFetcherCore::SaveResponseToLargeString() {
   DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
   SaveResponseWithWriter(std::unique_ptr<URLFetcherResponseWriter>(
@@ -443,7 +443,7 @@ bool URLFetcherCore::GetResponseAsString(
   return true;
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 bool URLFetcherCore::GetResponseAsLargeString(
     std::string* out_response_string) const {
   URLFetcherLargeStringWriter* large_string_writer =

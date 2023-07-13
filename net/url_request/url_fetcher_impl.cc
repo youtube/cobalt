@@ -145,7 +145,7 @@ void URLFetcherImpl::SaveResponseToTemporaryFile(
   core_->SaveResponseToTemporaryFile(file_task_runner);
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 void URLFetcherImpl::SaveResponseToLargeString() {
   core_->SaveResponseToLargeString();
 }
@@ -223,7 +223,7 @@ bool URLFetcherImpl::GetResponseAsString(
   return core_->GetResponseAsString(out_response_string);
 }
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 bool URLFetcherImpl::GetResponseAsLargeString(
     std::string* out_response_string) const {
   return core_->GetResponseAsLargeString(out_response_string);

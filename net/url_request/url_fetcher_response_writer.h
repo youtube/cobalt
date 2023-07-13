@@ -25,7 +25,7 @@ class FileStream;
 class IOBuffer;
 class URLFetcherFileWriter;
 class URLFetcherStringWriter;
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 class URLFetcherLargeStringWriter;
 #endif
 
@@ -66,7 +66,7 @@ class NET_EXPORT URLFetcherResponseWriter {
   // Returns this instance's pointer as URLFetcherStringWriter when possible.
   virtual URLFetcherStringWriter* AsStringWriter();
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
   // Returns this instance's pointer as URLFetcherLargeStringWriter when
   // possible.
   virtual URLFetcherLargeStringWriter* AsLargeStringWriter();
@@ -101,7 +101,7 @@ class NET_EXPORT URLFetcherStringWriter : public URLFetcherResponseWriter {
   DISALLOW_COPY_AND_ASSIGN(URLFetcherStringWriter);
 };
 
-#if defined(IN_MEMORY_UPDATES)
+#if defined(STARBOARD)
 // Memory-conscious URLFetcherResponseWriter implementation for a "large"
 // std::string. The string's capacity is preallocated to the size of the content
 // and the data can be "moved" out.
