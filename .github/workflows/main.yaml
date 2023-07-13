@@ -336,19 +336,26 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     env:
       DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
+      DATADOG_SITE: us5.datadoghq.com
+      DD_TAGS: name:${{matrix.name}},platform:${{matrix.platform}}
     steps:
+      # TODO: Check if artifact exists
       - name: Collect Unit Test Reports
         uses: actions/download-artifact@v3
         with:
           name: unit-test-reports
           path: unit-test-reports/
-      - name: Upload Unit Test Reports
-        uses: datadog/junit-upload-github-action@v1
+      - name: Install node
+        uses: actions/setup-node@v3
         with:
-            api-key: ${{ env.DATADOG_API_KEY }}
-            service: cobalt
-            # TODO: More tags?
-            tags: "name:${{matrix.name}},platform:${{matrix.platform}}"
-            files: unit-test-reports/
-            # TODO: Put logs in xml files
-            # logs: true
+          node-version: 16
+      - name: Get Datadog CLI
+        shell: bash
+        run: npm install -g @datadog/datadog-ci
+      - name: Upload the JUnit files
+        shell: bash
+        run: |
+          datadog-ci junit upload \
+            --service cobalt \
+            --max-concurrency 20 \
+            unit-test-reports/
