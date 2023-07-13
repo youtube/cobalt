@@ -853,7 +853,7 @@ class MediaCodecBridge {
     try {
       mFlushed = true;
       mMediaCodec.flush();
-    } catch (IllegalStateException e) {
+    } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MEDIA_CODEC_ERROR;
     }
@@ -1019,6 +1019,9 @@ class MediaCodecBridge {
           "Failed to queue secure input buffer, CryptoException with error code "
               + e.getErrorCode());
       return MEDIA_CODEC_ERROR;
+    } catch (IllegalArgumentException e) {
+      Log.e(TAG, "Failed to queue secure input buffer, IllegalArgumentException " + e);
+      return MediaCodecStatus.ERROR;
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalStateException " + e);
       return MEDIA_CODEC_ERROR;
