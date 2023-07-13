@@ -1,6 +1,6 @@
-pytest<8
+pytest>=7.2.0
 coverage<7
-requests==2.25.1
+requests>=2.31.0
 jsonschema<5
 junitparser==2.8.0
 pexpect==4.8.0
