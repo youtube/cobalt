@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="18" failures="0" disabled="0" errors="0" time="0" timestamp="2392-07-12T13:53:06.549" name="AllTests">
+  <testsuite name="EzTimeTFromSbTime" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0" timestamp="2392-07-12T13:53:06.549">
+    <testcase name="IsTransitive" file="../../starboard/client_porting/eztime/eztime_test.cc" line="24" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTFromSbTime" />
+  </testsuite>
+  <testsuite name="EzTimeValueFromSbTime" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0" timestamp="2392-07-12T13:53:06.549">
+    <testcase name="IsTransitive" file="../../starboard/client_porting/eztime/eztime_test.cc" line="50" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeValueFromSbTime" />
+  </testsuite>
+  <testsuite name="EzTimeTGetNowTest" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0" timestamp="2392-07-12T13:53:06.549">
+    <testcase name="IsKindOfSane" file="../../starboard/client_porting/eztime/eztime_test.cc" line="64" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTGetNowTest" />
+  </testsuite>
+  <testsuite name="EzTimeValueGetNowTest" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0" timestamp="2392-07-12T13:53:06.549">
+    <testcase name="IsKindOfSane" file="../../starboard/client_porting/eztime/eztime_test.cc" line="84" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeValueGetNowTest" />
+  </testsuite>
+  <testsuite name="EzTimeTExplodeTest" tests="8" failures="0" disabled="0" skipped="0" errors="0" time="0" timestamp="2392-07-12T13:53:06.549">
+    <testcase name="Positive" file="../../starboard/client_porting/eztime/eztime_test.cc" line="102" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTExplodeTest" />
+    <testcase name="PositiveLocal" file="../../starboard/client_porting/eztime/eztime_test.cc" line="116" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTExplodeTest" />
+    <testcase name="PositivePacific" file="../../starboard/client_porting/eztime/eztime_test.cc" line="131" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTExplodeTest" />
+    <testcase name="PosixZero" file="../../starboard/client_porting/eztime/eztime_test.cc" line="146" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTExplodeTest" />
+    <testcase name="PosixNegative" file="../../starboard/client_porting/eztime/eztime_test.cc" line="160" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTExplodeTest" />
+    <testcase name="WindowsZero" file="../../starboard/client_porting/eztime/eztime_test.cc" line="175" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTExplodeTest" />
+    <testcase name="WindowsNegative" file="../../starboard/client_porting/eztime/eztime_test.cc" line="189" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTExplodeTest" />
+    <testcase name="NextCentury" file="../../starboard/client_porting/eztime/eztime_test.cc" line="204" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTExplodeTest" />
+  </testsuite>
+  <testsuite name="EzTimeTImplodeTest" tests="6" failures="0" disabled="0" skipped="0" errors="0" time="0" timestamp="2392-07-12T13:53:06.549">
+    <testcase name="Positive" file="../../starboard/client_porting/eztime/eztime_test.cc" line="218" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.549" classname="EzTimeTImplodeTest" />
+    <testcase name="PosixZero" file="../../starboard/client_porting/eztime/eztime_test.cc" line="230" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.550" classname="EzTimeTImplodeTest" />
+    <testcase name="PosixNegative" file="../../starboard/client_porting/eztime/eztime_test.cc" line="239" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.550" classname="EzTimeTImplodeTest" />
+    <testcase name="WindowsZero" file="../../starboard/client_porting/eztime/eztime_test.cc" line="251" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.550" classname="EzTimeTImplodeTest" />
+    <testcase name="WindowsNegative" file="../../starboard/client_porting/eztime/eztime_test.cc" line="260" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.550" classname="EzTimeTImplodeTest" />
+    <testcase name="NextCentury" file="../../starboard/client_porting/eztime/eztime_test.cc" line="269" status="run" result="completed" time="0" timestamp="2392-07-12T13:53:06.550" classname="EzTimeTImplodeTest" />
+  </testsuite>
+</testsuites>
