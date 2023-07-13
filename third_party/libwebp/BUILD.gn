@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import("//third_party/libwebp/libwebp.gni")
+if (current_cpu == "arm" || current_cpu == "arm64") {
+  import("//build/config/arm.gni")
+}
 
 template("libwebp_lib") {
   static_library(target_name) {
@@ -110,7 +113,8 @@ config("libwebp_direct_config") {
       ]
       defines += [ "WEBP_HAVE_AVX2" ]
     }
-    if (current_cpu == "arm" || current_cpu == "arm64") {
+    if ((current_cpu == "arm" || current_cpu == "arm64") && arm_use_neon &&
+        (target_os == "android" || target_os == "linux")) {
       defines = [ "WEBP_HAVE_NEON" ]
       cflags = [ "-mfpu=neon" ]
     }
