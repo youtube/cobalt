@@ -72,7 +72,7 @@ DeviceType GetDeviceType() {
   return kDeviceTypeFHD;
 }
 
-testing::AssertionResult MimeAndKeySystemIsSupported(std::string param,
+testing::AssertionResult IsMimeAndKeySystemSupported(std::string param,
                                                      std::string key_system) {
   if (SbMediaCanPlayMimeAndKeySystem(param.c_str(), key_system.c_str()) ==
       kSbMediaSupportTypeProbably) {
@@ -305,16 +305,16 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
 
   const char* key_system = "";
   for (auto& param : mime_params) {
-    EXPECT_TRUE(MimeAndKeySystemIsSupported(param, key_system));
+    EXPECT_TRUE(IsMimeAndKeySystemSupported(param, key_system));
   }
 
   // AAC-LC
-  ASSERT_TRUE(MimeAndKeySystemIsSupported(
+  ASSERT_TRUE(IsMimeAndKeySystemSupported(
       "audio/mp4; codecs=\"mp4a.40.2\"; channels=2; bitrate=256000",
       key_system));
 
   // HE-AAC
-  ASSERT_TRUE(MimeAndKeySystemIsSupported(
+  ASSERT_TRUE(IsMimeAndKeySystemSupported(
       "audio/mp4; codecs=\"mp4a.40.5\"; channels=2; bitrate=48000",
       key_system));
 }
