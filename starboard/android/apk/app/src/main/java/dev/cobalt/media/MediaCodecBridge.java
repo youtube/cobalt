@@ -1021,7 +1021,7 @@ class MediaCodecBridge {
       return MEDIA_CODEC_ERROR;
     } catch (IllegalArgumentException e) {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalArgumentException " + e);
-      return MediaCodecStatus.ERROR;
+      return MEDIA_CODEC_ERROR;
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalStateException " + e);
       return MEDIA_CODEC_ERROR;
