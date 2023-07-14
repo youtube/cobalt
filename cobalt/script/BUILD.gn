@@ -51,7 +51,6 @@ static_library("script") {
     "typed_arrays.h",
     "union_type.h",
     "union_type_internal.h",
-    "util/stack_trace_helpers.h",
     "value_handle.h",
     "wrappable.h",
   ]
