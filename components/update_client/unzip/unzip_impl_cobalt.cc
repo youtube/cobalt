@@ -1,10 +1,12 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/update_client/unzip/unzip_impl_cobalt.h"
 
+#include <string>
 #include <utility>
+
 #include "base/callback.h"
 #include "base/files/file_path.h"
 #include "starboard/time.h"
@@ -23,6 +25,13 @@ class UnzipperImpl : public update_client::Unzipper {
              UnzipCompleteCallback callback) override {
     std::move(callback).Run(zip::Unzip(zip_path, output_path));
   }
+#if defined(IN_MEMORY_UPDATES)
+  void Unzip(const std::string& zip_str,
+             const base::FilePath& output_path,
+             UnzipCompleteCallback callback) override {
+    std::move(callback).Run(zip::Unzip(zip_str, output_path));
+  }
+#endif
 };
 
 }  // namespace

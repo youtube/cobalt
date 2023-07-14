@@ -158,6 +158,14 @@ bool UnzipWithFilterCallback(const base::FilePath& zip_file,
                              const FilterCallback& filter_cb,
                              bool log_skipped_files);
 
+#if defined(IN_MEMORY_UPDATES)
+// An overload for a zip represented as a string.
+bool UnzipWithFilterCallback(const std::string& zip_str,
+                             const base::FilePath& dest_dir,
+                             const FilterCallback& filter_cb,
+                             bool log_skipped_files);
+#endif
+
 // Unzip the contents of zip_file, using the writers provided by writer_factory.
 // For each file in zip_file, include it only if the callback |filter_cb|
 // returns true. Otherwise omit it.
@@ -174,16 +182,28 @@ bool UnzipWithFilterAndWriters(const base::FilePath& zip_file,
                                const DirectoryCreator& directory_creator,
                                const FilterCallback& filter_cb,
                                bool log_skipped_files);
-#else
+#if defined(IN_MEMORY_UPDATES)
+// An overload for a zip represented as a string.
+bool UnzipWithFilterAndWriters(const std::string& zip_str,
+                               const WriterFactory& writer_factory,
+                               const DirectoryCreator& directory_creator,
+                               const FilterCallback& filter_cb,
+                               bool log_skipped_files);
+#endif  // defined(IN_MEMORY_UPDATES)
+#else  // defined(STARBOARD)
 bool UnzipWithFilterAndWriters(const base::PlatformFile& zip_file,
                                const WriterFactory& writer_factory,
                                const DirectoryCreator& directory_creator,
                                const FilterCallback& filter_cb,
                                bool log_skipped_files);
-#endif
+#endif  // defined(STARBOARD)
 
 // Unzip the contents of zip_file into dest_dir.
 bool Unzip(const base::FilePath& zip_file, const base::FilePath& dest_dir);
+#if defined(IN_MEMORY_UPDATES)
+// Unzip the contents of zip_str into dest_dir.
+bool Unzip(const std::string& zip_str, const base::FilePath& dest_dir);
+#endif
 
 }  // namespace zip
 

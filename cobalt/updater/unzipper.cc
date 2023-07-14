@@ -14,7 +14,9 @@
 
 #include "cobalt/updater/unzipper.h"
 
+#include <string>
 #include <utility>
+
 #include "base/callback.h"
 #include "base/files/file_path.h"
 #include "starboard/time.h"
@@ -40,6 +42,20 @@ class UnzipperImpl : public update_client::Unzipper {
     LOG(INFO) << "Unzip took " << time_unzip_took / kSbTimeMillisecond
               << " milliseconds.";
   }
+
+#if defined(IN_MEMORY_UPDATES)
+  void Unzip(const std::string& zip_str, const base::FilePath& output_path,
+             UnzipCompleteCallback callback) override {
+    SbTimeMonotonic time_before_unzip = SbTimeGetMonotonicNow();
+    std::move(callback).Run(zip::Unzip(zip_str, output_path));
+    SbTimeMonotonic time_unzip_took =
+        SbTimeGetMonotonicNow() - time_before_unzip;
+    LOG(INFO) << "Unzip from string";
+    LOG(INFO) << "output_path = " << output_path;
+    LOG(INFO) << "Unzip took " << time_unzip_took / kSbTimeMillisecond
+              << " milliseconds.";
+  }
+#endif
 };
 
 }  // namespace
