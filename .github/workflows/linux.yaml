@@ -30,6 +30,8 @@ jobs:
     with:
       platform: linux
       nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
   linux-clang-3-9:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -38,6 +40,8 @@ jobs:
     with:
       platform: linux-clang-3-9
       nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
   linux-gcc-6-3:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -56,6 +60,8 @@ jobs:
       platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
       modular: true
+    secrets:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
   linux-coverage:
     # Run on main branch for pushes, PRs and manual invocations.
     if: |
