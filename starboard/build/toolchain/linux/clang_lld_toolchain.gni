@@ -13,30 +13,20 @@
 # limitations under the License.
 
 import("//build/toolchain/gcc_toolchain.gni")
-import("//starboard/build/platform_path.gni")
-import("//starboard/build/toolchain/linux/clang_lld_toolchain.gni")
 
-clang_toolchain("x64") {
-  clang_base_path = clang_base_path
+template("clang_lld_toolchain") {
+  not_needed(invoker, "*")
 
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x64"
-    toolchain_config_path = "//starboard/build/config/linux:host"
-    is_clang_16 = true
+  gcc_toolchain(target_name) {
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cc = "$prefix/clang"
+    cxx = "$prefix/clang++"
+    ld = "$prefix/ld.lld"
+    ar = "$prefix/llvm-ar"
+    nm = "nm"
+
+    toolchain_args = {
+      is_clang = true
+    }
   }
-}
-
-clang_toolchain("x86") {
-  clang_base_path = clang_base_path
-
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x86"
-    toolchain_config_path = "//starboard/build/config/linux:host"
-    is_clang_16 = true
-  }
-}
-
-clang_lld_toolchain("clang_lld") {
 }
