@@ -26,7 +26,6 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
-#include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
@@ -198,17 +197,6 @@ class Application {
   CValStats c_val_stats_;
 
   base::RepeatingTimer stats_update_timer_;
-
-#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-  std::unique_ptr<memory_tracker::Tool> memory_tracker_tool_;
-
-  // Command handler object for creating a memory tracker.
-  debug::console::ConsoleCommandManager::CommandHandler
-      memory_tracker_command_handler_;
-
-  // Create a memory tracker with the given message
-  void OnMemoryTrackerCommand(const std::string& message);
-#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
   // Deep links are stored here until they are reported consumed.
   std::string unconsumed_deep_link_;

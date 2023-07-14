@@ -20,7 +20,6 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/console_log.h"
-#include "nb/memory_scope.h"
 #include "third_party/libjpeg-turbo/jpegint.h"
 
 namespace cobalt {
@@ -133,7 +132,6 @@ JPEGImageDecoder::JPEGImageDecoder(
       allow_image_decoding_to_multi_plane_(
           allow_image_decoding_to_multi_plane) {
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::JPEGImageDecoder()");
-  TRACK_MEMORY_SCOPE("Rendering");
   memset(&info_, 0, sizeof(info_));
   memset(&source_manager_, 0, sizeof(source_manager_));
 
@@ -161,7 +159,6 @@ JPEGImageDecoder::~JPEGImageDecoder() {
 
 size_t JPEGImageDecoder::DecodeChunkInternal(const uint8* data,
                                              size_t input_byte) {
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "JPEGImageDecoder::DecodeChunkInternal()");
   // |client_data| is available for use by application.
@@ -278,7 +275,6 @@ scoped_refptr<Image> JPEGImageDecoder::FinishInternal() {
 }
 
 bool JPEGImageDecoder::ReadHeader() {
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadHeader()");
   if (jpeg_read_header(&info_, true) == JPEG_SUSPENDED) {
     // Since |jpeg_read_header| doesn't have enough data, go back to the state
@@ -332,7 +328,6 @@ bool JPEGImageDecoder::ReadHeader() {
 }
 
 bool JPEGImageDecoder::StartDecompress() {
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::StartDecompress()");
   // jpeg_has_multiple_scans() returns TRUE if the incoming image file has more
   // than one scan.
@@ -357,7 +352,6 @@ bool JPEGImageDecoder::StartDecompress() {
 // TODO: support displaying the low resolution image while decoding the
 // progressive JPEG.
 bool JPEGImageDecoder::DecodeProgressiveJPEG() {
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "JPEGImageDecoder::DecodeProgressiveJPEG()");
   int status;
@@ -437,7 +431,6 @@ void FillRow(int width, uint8* dest, JSAMPLE* source) {
 
 bool JPEGImageDecoder::ReadYUVLines() {
   DCHECK(output_format_ == kOutputFormatYUV);
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadYUVLines()");
 
   while (info_.output_scanline < info_.output_height) {
@@ -475,7 +468,6 @@ bool JPEGImageDecoder::ReadRgbaOrGbraLines() {
   DCHECK(output_format_ == kOutputFormatRGBA ||
          output_format_ == kOutputFormatBGRA);
 
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "JPEGImageDecoder::ReadRgbaOrGbraLines()");
 
