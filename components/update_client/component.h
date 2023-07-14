@@ -481,7 +481,19 @@ class Component {
   // The error reported by the update checker.
   int update_check_error_ = 0;
 
+#if defined(IN_MEMORY_UPDATES)
+  // To hold the CRX package in memory. The component owns this string
+  // throughout the entire update.
+  std::string crx_str_;
+
+  // With in-memory updates the installation directory is still determined in
+  // the download flow even though it isn't needed until the unpack flow. Since
+  // there is no crx_path_ that the installation directory can be derived from,
+  // a dedicated installation_dir_ data member is added.
+  base::FilePath installation_dir_;
+#else
   base::FilePath crx_path_;
+#endif
 
 #if defined(STARBOARD)
   int installation_index_ = IM_EXT_INVALID_INDEX;

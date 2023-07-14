@@ -145,6 +145,12 @@ void URLFetcherImpl::SaveResponseToTemporaryFile(
   core_->SaveResponseToTemporaryFile(file_task_runner);
 }
 
+#if defined(STARBOARD)
+void URLFetcherImpl::SaveResponseToLargeString() {
+  core_->SaveResponseToLargeString();
+}
+#endif
+
 void URLFetcherImpl::SaveResponseWithWriter(
     std::unique_ptr<URLFetcherResponseWriter> response_writer) {
   core_->SaveResponseWithWriter(std::move(response_writer));
@@ -216,6 +222,13 @@ bool URLFetcherImpl::GetResponseAsString(
     std::string* out_response_string) const {
   return core_->GetResponseAsString(out_response_string);
 }
+
+#if defined(STARBOARD)
+bool URLFetcherImpl::GetResponseAsLargeString(
+    std::string* out_response_string) const {
+  return core_->GetResponseAsLargeString(out_response_string);
+}
+#endif
 
 bool URLFetcherImpl::GetResponseAsFilePath(
     bool take_ownership,

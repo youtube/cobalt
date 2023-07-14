@@ -41,21 +41,60 @@ class UrlFetcherDownloader : public CrxDownloader {
 
  private:
   // Overrides for CrxDownloader.
+#if defined(IN_MEMORY_UPDATES)
+  void DoStartDownload(const GURL& url, std::string* dst) override;
+#else
   void DoStartDownload(const GURL& url) override;
+#endif
 #if defined(STARBOARD)
   void DoCancelDownload() override;
 #endif
 
+#if !defined(IN_MEMORY_UPDATES)
   void CreateDownloadDir();
+#endif
+#if defined(IN_MEMORY_UPDATES)
+  // Does not take ownership of |dst|, which must refer to a valid string that
+  // outlives this object.
+  void StartURLFetch(const GURL& url, std::string* dst);
+#else
   void StartURLFetch(const GURL& url);
+#endif
 
 #if defined(STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+  // With in-memory updates it's no longer necessary to select and confirm the
+  // installation slot at download time, and it would likely be more clear to
+  // move this responsibility to the unpack flow. That said, yavor@ requested
+  // that we keep it here for now since there are a number of edge cases to
+  // consider and data races to avoid in this space (e.g., racing updaters). To
+  // limit the scope and risk of the in-memory updates changes we can leave it
+  // here for now and continue passing the installation dir on to the unpack
+  // flow, and consider changing this in a future refactoring.
+
+  // Does not take ownership of |dst|, which must refer to a valid string that
+  // outlives this object.
+  void SelectSlot(const GURL& url, std::string* dst);
+
+  // Does not take ownership of |dst|, which must refer to a valid string that
+  // outlives this object.
+  void ConfirmSlot(const GURL& url, std::string* dst);
+#else  // defined(IN_MEMORY_UPDATES)
   void SelectSlot(const GURL& url);
   void ConfirmSlot(const GURL& url);
-#endif
+#endif  // defined(IN_MEMORY_UPDATES)
+#endif  // defined(STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+  // Does not take ownership of |dst|, which must refer to a valid string that
+  // outlives this object.
+  void OnNetworkFetcherComplete(std::string* dst,
+                                int net_error,
+                                int64_t content_size);
+#else
   void OnNetworkFetcherComplete(base::FilePath file_path,
                                 int net_error,
                                 int64_t content_size);
+#endif
   void OnResponseStarted(const GURL& final_url,
                          int response_code,
                          int64_t content_length);
@@ -70,8 +109,15 @@ class UrlFetcherDownloader : public CrxDownloader {
   scoped_refptr<NetworkFetcherFactory> network_fetcher_factory_;
   std::unique_ptr<NetworkFetcher> network_fetcher_;
 
+#if !defined(IN_MEMORY_UPDATES)
   // Contains a temporary download directory for the downloaded file.
   base::FilePath download_dir_;
+#else
+  // For legacy, file-system based updates the download_dir_ doubles as the
+  // installation dir. But for in-memory updates this directory only serves as
+  // the installation directory and should be named accordingly.
+  base::FilePath installation_dir_;
+#endif
 
   base::TimeTicks download_start_time_;
 
