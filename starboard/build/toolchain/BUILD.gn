@@ -16,4 +16,5 @@ import("//build/config/clang/clang.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 
 clang_toolchain("clang") {
+  clang_base_path = clang_base_path
 }
