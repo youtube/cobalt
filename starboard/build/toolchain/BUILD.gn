@@ -12,27 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/clang/clang.gni")
 import("//build/toolchain/gcc_toolchain.gni")
-import("//starboard/build/platform_path.gni")
 
-clang_toolchain("x64") {
-  clang_base_path = clang_base_path
-
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x64"
-    toolchain_config_path = "//starboard/build/config/linux:host"
-    is_clang_16 = true
-  }
-}
-
-clang_toolchain("x86") {
-  clang_base_path = clang_base_path
-
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x86"
-    toolchain_config_path = "//starboard/build/config/linux:host"
-    is_clang_16 = true
-  }
+clang_toolchain("clang") {
 }
