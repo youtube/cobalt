@@ -70,3 +70,5 @@ jobs:
     with:
       platform: linux-coverage
       nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}

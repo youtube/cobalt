@@ -29,6 +29,10 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      DD_API_KEY:
+        description: DataDog API key
+        required: false
 
 # Global env vars.
 env:
@@ -285,6 +289,7 @@ jobs:
       DD_TAGS: name:${{matrix.name}},platform:${{matrix.platform}}
     steps:
       # TODO: Check if artifact exists
+      # TODO: Check if secret is set
       - name: Collect Unit Test Reports
         uses: actions/download-artifact@v3
         with:
@@ -301,6 +306,6 @@ jobs:
         shell: bash
         run: |
           datadog-ci junit upload \
-            --service cobalt \
+            --service ${{ github.event.repository.name }} \
             --max-concurrency 20 \
             unit-test-reports/
