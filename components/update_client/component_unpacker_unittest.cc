@@ -101,6 +101,7 @@ void ComponentUnpackerTest::UnpackComplete(
   main_thread_task_runner_->PostTask(FROM_HERE, std::move(quit_closure_));
 }
 
+#if !defined(IN_MEMORY_UPDATES)
 TEST_F(ComponentUnpackerTest, UnpackFullCrx) {
   auto config = base::MakeRefCounted<TestConfigurator>();
   scoped_refptr<ComponentUnpacker> component_unpacker =
@@ -171,5 +172,8 @@ TEST_F(ComponentUnpackerTest, UnpackFileHashMismatch) {
 
   EXPECT_TRUE(result_.unpack_path.empty());
 }
+// TODO(b/290410288): write tests targeting the version of ComponentUnpacker
+// that unpacks a Crx from memory.
+#endif
 
 }  // namespace update_client

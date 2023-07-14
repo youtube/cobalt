@@ -21,6 +21,12 @@ URLFetcherStringWriter* URLFetcherResponseWriter::AsStringWriter() {
   return NULL;
 }
 
+#if defined(STARBOARD)
+URLFetcherLargeStringWriter* URLFetcherResponseWriter::AsLargeStringWriter() {
+  return NULL;
+}
+#endif
+
 URLFetcherFileWriter* URLFetcherResponseWriter::AsFileWriter() {
   return NULL;
 }
@@ -50,6 +56,49 @@ int URLFetcherStringWriter::Finish(int net_error,
 URLFetcherStringWriter* URLFetcherStringWriter::AsStringWriter() {
   return this;
 }
+
+#if defined(STARBOARD)
+URLFetcherLargeStringWriter::URLFetcherLargeStringWriter() = default;
+
+URLFetcherLargeStringWriter::~URLFetcherLargeStringWriter() = default;
+
+int URLFetcherLargeStringWriter::Initialize(CompletionOnceCallback callback) {
+  data_.clear();
+  return OK;
+}
+
+void URLFetcherLargeStringWriter::OnResponseStarted(int64_t content_length) {
+  data_.reserve(content_length);
+}
+
+void URLFetcherLargeStringWriter::GetAndResetData(std::string* data) {
+  CHECK(data != nullptr);
+
+  // This implementation is copied from
+  // cobalt::loader::URLFetcherStringWriter::GetAndResetData().
+  std::string empty;
+  data->swap(empty);
+  data_.swap(*data);
+}
+
+int URLFetcherLargeStringWriter::Write(IOBuffer* buffer,
+                                       int num_bytes,
+                                       CompletionOnceCallback callback) {
+  data_.append(buffer->data(), num_bytes);
+  return num_bytes;
+}
+
+int URLFetcherLargeStringWriter::Finish(int net_error,
+                                        CompletionOnceCallback callback) {
+  // Do nothing.
+  return OK;
+}
+
+URLFetcherLargeStringWriter*
+    URLFetcherLargeStringWriter::AsLargeStringWriter() {
+  return this;
+}
+#endif
 
 URLFetcherFileWriter::URLFetcherFileWriter(
     scoped_refptr<base::SequencedTaskRunner> file_task_runner,
