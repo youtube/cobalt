@@ -1,0 +1,45 @@
+name: Upload Unit Test Reports
+
+on:
+  workflow_run:
+    workflows:
+      - linux
+      # TODO: xml file generation on windows
+      # - win32
+      # TODO: Other platforms
+    types:
+      - completed
+
+jobs:
+  # Gets unit test report from artifact storage and uploads them to DataDog.
+    unit-test-report:
+      permissions: {}
+      if: always()
+      runs-on: ubuntu-latest
+      name: Test Result Report
+      env:
+        DATADOG_API_KEY: ${{ secrets.DD_API_KEY }}
+        DATADOG_SITE: us5.datadoghq.com
+        DD_TAGS: name:${{matrix.name}},platform:${{matrix.platform}}
+      steps:
+        # TODO: Check if artifact exists
+        # TODO: Check if secret is set
+        - name: Collect Unit Test Reports
+          uses: actions/download-artifact@v3
+          with:
+            name: unit-test-reports
+            path: unit-test-reports/
+        - name: Install node
+          uses: actions/setup-node@v3
+          with:
+            node-version: 16
+        - name: Get Datadog CLI
+          shell: bash
+          run: npm install -g @datadog/datadog-ci
+        - name: Upload the JUnit files
+          shell: bash
+          run: |
+            datadog-ci junit upload \
+              --service ${{ github.event.repository.name }} \
+              --max-concurrency 20 \
+              unit-test-reports/
