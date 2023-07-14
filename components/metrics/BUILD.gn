@@ -141,6 +141,11 @@ static_library("metrics") {
       "system_memory_stats_recorder_win.cc",
       "system_session_analyzer_win.cc",
       "system_session_analyzer_win.h",
+
+      # Files with unused symbols. ex: DriveMetricsProvider::HasSeekPenalty
+      # These files give linker errors about undefined symbols during modualr builds.
+      "drive_metrics_provider.cc",
+      "drive_metrics_provider.h",
     ]
   }
 
