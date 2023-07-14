@@ -37,6 +37,8 @@ constexpr SbTime kAudioTrackUpdateInternal = kSbTimeMillisecond * 5;
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
 // TODO: Enable passthrough with tunnel mode.
 constexpr int kTunnelModeAudioSessionId = -1;
+// Length of an (E)AC3 48 kHz sync frame containing 1536 samples.
+constexpr SbTime kAc3FrameLength = 32 * kSbTimeMillisecond;
 
 // C++ rewrite of ExoPlayer function parseAc3SyncframeAudioSampleCount(), it
 // works for AC-3, E-AC-3, and E-AC-3-JOC.
@@ -282,7 +284,7 @@ void AudioRendererPassthrough::Seek(SbTime seek_to_time) {
   stop_called_ = false;
   playback_head_position_when_stopped_ = 0;
   stopped_at_ = 0;
-  first_audio_written_after_seek_ = false;
+  first_audio_timestamp_ = -1;
   if (!seek_to_time_set) {
     seek_to_time_ = seek_to_time;
   }
@@ -309,26 +311,23 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   *is_underflow = false;  // TODO: Support underflow
   *playback_rate = playback_rate_;
 
-  if (!audio_track_bridge_) {
-    return seek_to_time_;
+  // Align the reported seek time with the timestamp of the first written audio.
+  // If no audio has been written, adjust the seek time to a predicted first
+  // audio timestamp.
+  SbTime adjusted_seek_time;
+  if (first_audio_timestamp_ > -1) {
+    adjusted_seek_time = first_audio_timestamp_;
+  } else {
+    adjusted_seek_time = (seek_to_time_ / kAc3FrameLength) * kAc3FrameLength;
   }
 
-  // After a seek, the timestamp of the first audio packet may not be aligned
-  // to the seek time. For example, if the seek time is to 78 ms, a stream with
-  // 32 ms audio packets may write a packet with timestamp 64 ms first. This
-  // will cause audio to be 14 ms earlier than the presented video frame.
-  // We adjust the reported seek time to the timestamp of the first written
-  // audio packet to avoid this issue.
-  SbTime audio_start_time;
-  if (first_audio_written_after_seek_) {
-    audio_start_time = first_audio_timestamp_;
-  } else {
-    audio_start_time = seek_to_time_;
+  if (!audio_track_bridge_) {
+    return adjusted_seek_time;
   }
 
   if (stop_called_) {
     // When AudioTrackBridge::Stop() is called, the playback will continue until
-    // all the frames written are played, as the AudioTrack in created in
+    // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
     auto now = SbTimeGetMonotonicNow();
     SB_DCHECK(now >= stopped_at_);
@@ -338,8 +337,8 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     int64_t total_frames_played =
         frames_played + playback_head_position_when_stopped_;
     total_frames_played = std::min(total_frames_played, total_frames_written_);
-    return audio_start_time + total_frames_played * kSbTimeSecond /
-                                  audio_stream_info_.samples_per_second;
+    return adjusted_seek_time + total_frames_played * kSbTimeSecond /
+                                    audio_stream_info_.samples_per_second;
   }
 
   SbTime updated_at;
@@ -348,14 +347,14 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   if (playback_head_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
-    return audio_start_time;
+    return adjusted_seek_time;
   }
 
   // TODO: This may cause time regression, because the unadjusted time will be
   //       returned on pause, after an adjusted time has been returned.
   SbTime playback_time =
-      audio_start_time + playback_head_position * kSbTimeSecond /
-                             audio_stream_info_.samples_per_second;
+      adjusted_seek_time + playback_head_position * kSbTimeSecond /
+                               audio_stream_info_.samples_per_second;
 
   // When underlying AudioTrack is paused, we use returned playback time
   // directly. Note that we should not use |paused_| or |playback_rate_| here.
@@ -557,9 +556,8 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         return;
       }
 
-      if (!first_audio_written_after_seek_) {
+      if (first_audio_timestamp_ < 0) {
         first_audio_timestamp_ = sync_time;
-        first_audio_written_after_seek_ = true;
       }
 
       decoded_audio_writing_offset_ += samples_written;
