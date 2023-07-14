@@ -64,6 +64,25 @@ std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash) {
 }
 
 #if defined(STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+bool VerifyHash256(const std::string* content,
+                   const std::string& expected_hash_str) {
+  std::vector<uint8_t> expected_hash;
+  if (!base::HexStringToBytes(expected_hash_str, &expected_hash) ||
+      expected_hash.size() != crypto::kSHA256Length) {
+    return false;
+  }
+
+  uint8_t actual_hash[crypto::kSHA256Length] = {0};
+  std::unique_ptr<crypto::SecureHash> hasher(
+      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+
+  hasher->Update(content->c_str(), content->size());
+  hasher->Finish(actual_hash, sizeof(actual_hash));
+
+  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
+}
+#else  // defined(IN_MEMORY_UPDATES)
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
   std::vector<uint8_t> expected_hash;
@@ -106,7 +125,8 @@ bool VerifyFileHash256(const base::FilePath& filepath,
 
   return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
 }
-#else
+#endif  // defined(IN_MEMORY_UPDATES)
+#else  // defined(STARBOARD)
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
   std::vector<uint8_t> expected_hash;

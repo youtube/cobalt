@@ -40,7 +40,11 @@ namespace updater {
 
 typedef enum UrlFetcherType {
   kUrlFetcherTypePostRequest,
+#if defined(IN_MEMORY_UPDATES)
+  kUrlFetcherTypeDownloadToString,
+#else
   kUrlFetcherTypeDownloadToFile,
+#endif
 } UrlFetcherType;
 
 class NetworkFetcher : public update_client::NetworkFetcher,
@@ -51,8 +55,13 @@ class NetworkFetcher : public update_client::NetworkFetcher,
   using ProgressCallback = update_client::NetworkFetcher::ProgressCallback;
   using PostRequestCompleteCallback =
       update_client::NetworkFetcher::PostRequestCompleteCallback;
+#if defined(IN_MEMORY_UPDATES)
+  using DownloadToStringCompleteCallback =
+      update_client::NetworkFetcher::DownloadToStringCompleteCallback;
+#else
   using DownloadToFileCompleteCallback =
       update_client::NetworkFetcher::DownloadToFileCompleteCallback;
+#endif
 
   explicit NetworkFetcher(const network::NetworkModule* network_module);
   ~NetworkFetcher() override;
@@ -64,11 +73,21 @@ class NetworkFetcher : public update_client::NetworkFetcher,
       ResponseStartedCallback response_started_callback,
       ProgressCallback progress_callback,
       PostRequestCompleteCallback post_request_complete_callback) override;
+#if defined(IN_MEMORY_UPDATES)
+  // Does not take ownership of |dst|, which must refer to a valid string that
+  // outlives this object.
+  void DownloadToString(const GURL& url, std::string* dst,
+                        ResponseStartedCallback response_started_callback,
+                        ProgressCallback progress_callback,
+                        DownloadToStringCompleteCallback
+                            download_to_string_complete_callback) override;
+#else
   void DownloadToFile(const GURL& url, const base::FilePath& file_path,
                       ResponseStartedCallback response_started_callback,
                       ProgressCallback progress_callback,
                       DownloadToFileCompleteCallback
                           download_to_file_complete_callback) override;
+#endif
   void Cancel() override;
 
   // net::URLFetcherDelegate interface.
@@ -97,8 +116,14 @@ class NetworkFetcher : public update_client::NetworkFetcher,
 
   void OnPostRequestComplete(const net::URLFetcher* source,
                              const int status_error);
+
+#if defined(IN_MEMORY_UPDATES)
+  void OnDownloadToStringComplete(const net::URLFetcher* source,
+                                  const int status_error);
+#else
   void OnDownloadToFileComplete(const net::URLFetcher* source,
                                 const int status_error);
+#endif
 
   static constexpr int kMaxRetriesOnNetworkChange = 3;
 
@@ -111,7 +136,12 @@ class NetworkFetcher : public update_client::NetworkFetcher,
   ResponseStartedCallback response_started_callback_;
   ProgressCallback progress_callback_;
   PostRequestCompleteCallback post_request_complete_callback_;
+#if defined(IN_MEMORY_UPDATES)
+  DownloadToStringCompleteCallback download_to_string_complete_callback_;
+  std::string* dst_str_;  // not owned, can't be null
+#else
   DownloadToFileCompleteCallback download_to_file_complete_callback_;
+#endif
 
   const network::NetworkModule* network_module_;
 

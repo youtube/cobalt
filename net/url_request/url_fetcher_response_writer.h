@@ -25,6 +25,9 @@ class FileStream;
 class IOBuffer;
 class URLFetcherFileWriter;
 class URLFetcherStringWriter;
+#if defined(STARBOARD)
+class URLFetcherLargeStringWriter;
+#endif
 
 // This class encapsulates all state involved in writing URLFetcher response
 // bytes to the destination.
@@ -63,6 +66,12 @@ class NET_EXPORT URLFetcherResponseWriter {
   // Returns this instance's pointer as URLFetcherStringWriter when possible.
   virtual URLFetcherStringWriter* AsStringWriter();
 
+#if defined(STARBOARD)
+  // Returns this instance's pointer as URLFetcherLargeStringWriter when
+  // possible.
+  virtual URLFetcherLargeStringWriter* AsLargeStringWriter();
+#endif
+
   // Returns this instance's pointer as URLFetcherFileWriter when possible.
   virtual URLFetcherFileWriter* AsFileWriter();
 };
@@ -91,6 +100,35 @@ class NET_EXPORT URLFetcherStringWriter : public URLFetcherResponseWriter {
 
   DISALLOW_COPY_AND_ASSIGN(URLFetcherStringWriter);
 };
+
+#if defined(STARBOARD)
+// Memory-conscious URLFetcherResponseWriter implementation for a "large"
+// std::string. The string's capacity is preallocated to the size of the content
+// and the data can be "moved" out.
+// Similar to cobalt::loader::URLFetcherStringWriter but with a different
+// preallocation strategy.
+class NET_EXPORT URLFetcherLargeStringWriter : public URLFetcherResponseWriter {
+ public:
+  URLFetcherLargeStringWriter();
+  ~URLFetcherLargeStringWriter() override;
+
+  void GetAndResetData(std::string* data);
+
+  // URLFetcherResponseWriter overrides:
+  int Initialize(CompletionOnceCallback callback) override;
+  void OnResponseStarted(int64_t content_length) override;
+  int Write(IOBuffer* buffer,
+            int num_bytes,
+            CompletionOnceCallback callback) override;
+  int Finish(int net_error, CompletionOnceCallback callback) override;
+  URLFetcherLargeStringWriter* AsLargeStringWriter() override;
+
+ private:
+  std::string data_;
+
+  DISALLOW_COPY_AND_ASSIGN(URLFetcherLargeStringWriter);
+};
+#endif
 
 // URLFetcherResponseWriter implementation for files.
 class NET_EXPORT URLFetcherFileWriter : public URLFetcherResponseWriter {

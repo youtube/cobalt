@@ -311,6 +311,14 @@ class NET_EXPORT URLFetcher {
   virtual void SaveResponseToTemporaryFile(
       scoped_refptr<base::SequencedTaskRunner> file_task_runner) = 0;
 
+#if defined(STARBOARD)
+  // By default, the response is saved in a string without preallocation. Call
+  // this method when the response is expected to be large and the capacity
+  // should be reserved to the response's content size upfront to reduce
+  // fragmentation.
+  virtual void SaveResponseToLargeString() = 0;
+#endif
+
   // By default, the response is saved in a string. Call this method to use the
   // specified writer to save the response. Must be called before Start().
   virtual void SaveResponseWithWriter(
@@ -380,6 +388,15 @@ class NET_EXPORT URLFetcher {
   // Get the response as a string. Return false if the fetcher was not
   // set to store the response as a string.
   virtual bool GetResponseAsString(std::string* out_response_string) const = 0;
+
+  #if defined(STARBOARD)
+  // Get the resonse as a string when the response is expected to be large and
+  // the data should be "moved" and not copied. Should only be used in
+  // conjunction with SaveResponseToLargeString() and returns false if the
+  // fetcher was not set to store the response as a "large" string.
+  virtual bool GetResponseAsLargeString(std::string* out_response_string)
+      const = 0;
+  #endif
 
   // Get the path to the file containing the response body. Returns false
   // if the response body was not saved to a file. If take_ownership is

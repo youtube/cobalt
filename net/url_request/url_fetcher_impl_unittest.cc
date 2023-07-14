@@ -1664,6 +1664,73 @@ TEST_F(URLFetcherBadHTTPSTest, BadHTTPS) {
 }
 #endif  // STARBOARD
 
+#if defined(STARBOARD)
+// Get a small file and save it to a "large string". SaveResponseToLargeString()
+// and GetResponseAsLargeString() are intended to be used for URLs with large
+// data sizes but should still work for URLs with small data sizes.
+TEST_F(URLFetcherTest, LargeStringTestSmallGet) {
+  // Follows the structure of the TempFileTestSmallGet case + SaveFileTest
+  // helper.
+  const char* file_to_fetch = "simple.html";
+  std::unique_ptr<WaitingURLFetcherDelegate> delegate(
+        new WaitingURLFetcherDelegate());
+  delegate->CreateFetcher(
+      test_server_->GetURL(std::string(kTestServerFilePrefix) + file_to_fetch),
+      URLFetcher::GET, CreateSameThreadContextGetter());
+
+  delegate->fetcher()->SaveResponseToLargeString();
+
+  delegate->StartFetcherAndWait();
+
+  EXPECT_TRUE(delegate->fetcher()->GetStatus().is_success());
+  EXPECT_EQ(200, delegate->fetcher()->GetResponseCode());
+
+  std::string actual_content;
+  EXPECT_TRUE(
+      delegate->fetcher()->GetResponseAsLargeString(&actual_content));
+
+  base::FilePath server_root;
+    base::PathService::Get(base::DIR_TEST_DATA, &server_root);
+  std::string expected_content;
+  base::ReadFileToString(
+      server_root.Append(kDocRoot).AppendASCII(file_to_fetch),
+      &expected_content);
+  EXPECT_EQ(expected_content, actual_content);
+}
+
+// Get a file large enough to require more than one read into URLFetcher::Core's
+// IOBuffer and save it to a "large string".
+TEST_F(URLFetcherTest, LargeStringTestLargeGet) {
+  // Follows the structure of the TempFileTestLargeGet case + SaveFileTest
+  // helper.
+  const char* file_to_fetch = "animate1.gif";
+  std::unique_ptr<WaitingURLFetcherDelegate> delegate(
+        new WaitingURLFetcherDelegate());
+  delegate->CreateFetcher(
+      test_server_->GetURL(std::string(kTestServerFilePrefix) + file_to_fetch),
+      URLFetcher::GET, CreateSameThreadContextGetter());
+
+  delegate->fetcher()->SaveResponseToLargeString();
+
+  delegate->StartFetcherAndWait();
+
+  EXPECT_TRUE(delegate->fetcher()->GetStatus().is_success());
+  EXPECT_EQ(200, delegate->fetcher()->GetResponseCode());
+
+  std::string actual_content;
+  EXPECT_TRUE(
+      delegate->fetcher()->GetResponseAsLargeString(&actual_content));
+
+  base::FilePath server_root;
+    base::PathService::Get(base::DIR_TEST_DATA, &server_root);
+  std::string expected_content;
+  base::ReadFileToString(
+      server_root.Append(kDocRoot).AppendASCII(file_to_fetch),
+      &expected_content);
+  EXPECT_EQ(expected_content, actual_content);
+}
+#endif
+
 }  // namespace
 
 }  // namespace net
