@@ -27,7 +27,6 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/global_stats.h"
-#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace web {
@@ -285,7 +284,6 @@ void EventTarget::TraceMembers(script::Tracer* tracer) {
 
 void EventTarget::AddEventListenerInternal(
     std::unique_ptr<EventTargetListenerInfo> listener_info) {
-  TRACK_MEMORY_SCOPE("DOM");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Remove existing attribute listener of the same type.
@@ -320,7 +318,6 @@ void EventTarget::AddEventListenerInternal(
 }
 
 bool EventTarget::HasEventListener(base::Token type) {
-  TRACK_MEMORY_SCOPE("DOM");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();

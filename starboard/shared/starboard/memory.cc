@@ -28,9 +28,6 @@ inline void SbReportDeallocation(const void* memory);
 
 SbMemoryReporter* s_memory_reporter = NULL;
 
-bool LeakTraceEnabled();               // True when leak tracing enabled.
-bool StarboardAllowsMemoryTracking();  // True when build enabled.
-
 }  // namespace
 
 bool SbMemorySetReporter(SbMemoryReporter* reporter) {
@@ -51,20 +48,8 @@ bool SbMemorySetReporter(SbMemoryReporter* reporter) {
   SbAtomicMemoryBarrier();
   s_memory_reporter = reporter;
 
-  // These are straight forward error messages. We use the build settings to
-  // predict whether the MemoryReporter is likely to fail.
-  if (!StarboardAllowsMemoryTracking()) {
-    SbLogRaw(
-        "\nMemory Reporting is disabled because this build does "
-        "not support it. Try a QA, devel or debug build.\n");
-    return false;
-  } else if (LeakTraceEnabled()) {
-    SbLogRaw(
-        "\nMemory Reporting might be disabled because leak trace "
-        "(from address sanitizer?) is active.\n");
-    return false;
-  }
-  return true;
+  // Memory reporting is removed
+  return false;
 }
 
 void* SbMemoryAllocate(size_t size) {
@@ -137,49 +122,21 @@ void* SbMemoryAllocateChecked(size_t size) {
 }
 
 void SbMemoryReporterReportMappedMemory(const void* memory, size_t size) {
-#if !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   return;
-#else
-  if (SB_LIKELY(!s_memory_reporter)) {
-    return;
-  }
-  s_memory_reporter->on_mapmem_cb(s_memory_reporter->context, memory, size);
-#endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
 void SbMemoryReporterReportUnmappedMemory(const void* memory, size_t size) {
-#if !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   return;
-#else
-  if (SB_LIKELY(!s_memory_reporter)) {
-    return;
-  }
-  s_memory_reporter->on_unmapmem_cb(s_memory_reporter->context, memory, size);
-#endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
 namespace {
 
 inline void SbReportAllocation(const void* memory, size_t size) {
-#if !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   return;
-#else
-  if (SB_LIKELY(!s_memory_reporter)) {
-    return;
-  }
-  s_memory_reporter->on_alloc_cb(s_memory_reporter->context, memory, size);
-#endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
 inline void SbReportDeallocation(const void* memory) {
-#if !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   return;
-#else
-  if (SB_LIKELY(!s_memory_reporter)) {
-    return;
-  }
-  s_memory_reporter->on_dealloc_cb(s_memory_reporter->context, memory);
-#endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
 inline void* SbMemoryAllocateImpl(size_t size) {
@@ -203,27 +160,6 @@ inline void* SbMemoryReallocateImpl(void* memory, size_t size) {
   return SbMemoryReallocateChecked(memory, size);
 #else
   return SbMemoryReallocateUnchecked(memory, size);
-#endif
-}
-
-bool LeakTraceEnabled() {
-#if defined(HAS_LEAK_SANITIZER) && (0 == HAS_LEAK_SANITIZER)
-  // In this build the leak tracer is specifically disabled. This
-  // build condition is typical for some builds of address sanitizer.
-  return true;
-#elif defined(ADDRESS_SANITIZER)
-  // Leak tracer is not specifically disabled and address sanitizer is running.
-  return true;
-#else
-  return false;
-#endif
-}
-
-bool StarboardAllowsMemoryTracking() {
-#if defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-  return true;
-#else
-  return false;
 #endif
 }
 

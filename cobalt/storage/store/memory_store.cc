@@ -18,12 +18,12 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/storage/storage_constants.h"
 #include "cobalt/storage/store/storage.pb.h"
-#include "nb/memory_scope.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -85,7 +85,6 @@ class MemoryStore::Impl {
 MemoryStore::Impl::Impl() {}
 
 bool MemoryStore::Impl::Initialize(const std::vector<uint8>& in) {
-  TRACK_MEMORY_SCOPE("Storage");
   if (!IsValidFormat(in)) {
     LOG(ERROR) << "Invalid format with size=" << in.size();
     return false;
@@ -120,7 +119,6 @@ bool MemoryStore::Impl::Initialize(const std::vector<uint8>& in) {
 }
 
 bool MemoryStore::Impl::Serialize(std::vector<uint8>* out) const {
-  TRACK_MEMORY_SCOPE("Storage");
   Storage storage_data;
   for (const auto& cookie_pair : cookies_map_) {
     *(storage_data.add_cookies()) = cookie_pair.second;
@@ -150,7 +148,6 @@ bool MemoryStore::Impl::Serialize(std::vector<uint8>* out) const {
 
 void MemoryStore::Impl::GetAllCookies(
     std::vector<std::unique_ptr<net::CanonicalCookie>>* cookies) const {
-  TRACK_MEMORY_SCOPE("Storage");
   for (const auto& cookie_pair : cookies_map_) {
     // We create a CanonicalCookie directly through its constructor instead of
     // through CanonicalCookie::Create() and its sanitization because these
@@ -170,7 +167,6 @@ void MemoryStore::Impl::GetAllCookies(
 
 void MemoryStore::Impl::AddCookie(const net::CanonicalCookie& cc,
                                   int64 expiration_time_us) {
-  TRACK_MEMORY_SCOPE("Storage");
   Cookie cookie;
   cookie.set_domain(cc.Domain());
   cookie.set_path(cc.Path());
@@ -200,7 +196,6 @@ void MemoryStore::Impl::DeleteCookie(const net::CanonicalCookie& cc) {
 
 void MemoryStore::Impl::ReadAllLocalStorage(
     const loader::Origin& origin, LocalStorageMap* local_storage_map) const {
-  TRACK_MEMORY_SCOPE("Storage");
   const auto& it = local_storage_by_origin_map_.find(origin.SerializedOrigin());
 
   if (it != local_storage_by_origin_map_.end()) {
@@ -211,18 +206,15 @@ void MemoryStore::Impl::ReadAllLocalStorage(
 void MemoryStore::Impl::WriteToLocalStorage(const loader::Origin& origin,
                                             const std::string& key,
                                             const std::string& value) {
-  TRACK_MEMORY_SCOPE("Storage");
   local_storage_by_origin_map_[origin.SerializedOrigin()][key] = value;
 }
 
 void MemoryStore::Impl::DeleteFromLocalStorage(const loader::Origin& origin,
                                                const std::string& key) {
-  TRACK_MEMORY_SCOPE("Storage");
   local_storage_by_origin_map_[origin.SerializedOrigin()].erase(key);
 }
 
 void MemoryStore::Impl::ClearLocalStorage(const loader::Origin& origin) {
-  TRACK_MEMORY_SCOPE("Storage");
   local_storage_by_origin_map_[origin.SerializedOrigin()].clear();
 }
 

@@ -19,12 +19,6 @@ static_library("nb") {
     sources = [
       "allocator.cc",
       "allocator.h",
-      "analytics/memory_tracker.cc",
-      "analytics/memory_tracker.h",
-      "analytics/memory_tracker_helpers.cc",
-      "analytics/memory_tracker_helpers.h",
-      "analytics/memory_tracker_impl.cc",
-      "analytics/memory_tracker_impl.h",
       "bidirectional_fit_reuse_allocator.cc",
       "bidirectional_fit_reuse_allocator.h",
       "bit_cast.h",
@@ -37,8 +31,6 @@ static_library("nb") {
       "hash.cc",
       "hash.h",
       "memory_pool.h",
-      "memory_scope.cc",
-      "memory_scope.h",
       "move.h",
       "multipart_allocator.cc",
       "multipart_allocator.h",
@@ -82,15 +74,11 @@ target(gtest_target_type, "nb_test") {
 
   if (is_starboard) {
     sources = [
-      "analytics/memory_tracker_helpers_test.cc",
-      "analytics/memory_tracker_impl_test.cc",
-      "analytics/memory_tracker_test.cc",
       "bidirectional_fit_reuse_allocator_test.cc",
       "concurrent_map_test.cc",
       "concurrent_ptr_test.cc",
       "first_fit_reuse_allocator_test.cc",
       "fixed_no_free_allocator_test.cc",
-      "memory_scope_test.cc",
       "multipart_allocator_test.cc",
       "rewindable_vector_test.cc",
       "run_all_unittests.cc",

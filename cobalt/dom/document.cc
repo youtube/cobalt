@@ -64,7 +64,6 @@
 #include "cobalt/web/custom_event.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/message_event.h"
-#include "nb/memory_scope.h"
 
 using cobalt::cssom::ViewportSize;
 
@@ -234,7 +233,6 @@ scoped_refptr<Comment> Document::CreateComment(const std::string& data) {
 scoped_refptr<web::Event> Document::CreateEvent(
     const std::string& interface_name,
     script::ExceptionState* exception_state) {
-  TRACK_MEMORY_SCOPE("DOM");
   // https://www.w3.org/TR/dom/#dom-document-createevent
   // The match of interface name is case-insensitive.
   if (base::strcasecmp(interface_name.c_str(), "event") == 0 ||

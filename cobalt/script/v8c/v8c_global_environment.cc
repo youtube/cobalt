@@ -30,7 +30,6 @@
 #include "cobalt/script/v8c/v8c_source_code.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
-#include "nb/memory_scope.h"
 #include "starboard/common/murmurhash2.h"
 
 
@@ -92,7 +91,6 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
       destruction_helper_(isolate),
       wrapper_factory_(new WrapperFactory(isolate)),
       script_value_factory_(new V8cScriptValueFactory(isolate)) {
-  TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script",
                "V8cGlobalEnvironment::V8cGlobalEnvironment()");
   wrapper_factory_.reset(new WrapperFactory(isolate));
@@ -127,7 +125,6 @@ V8cGlobalEnvironment::~V8cGlobalEnvironment() {
 
 void V8cGlobalEnvironment::CreateGlobalObject() {
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::CreateGlobalObject()");
-  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Intentionally not an |EntryScope|, since the context doesn't exist yet.
@@ -143,7 +140,6 @@ void V8cGlobalEnvironment::CreateGlobalObject() {
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     std::string* out_result_utf8) {
-  TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -181,7 +177,6 @@ bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object,
     base::Optional<ValueHandleHolder::Reference>* out_value_handle) {
-  TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -259,7 +254,6 @@ void V8cGlobalEnvironment::PreventGarbageCollection(
 }
 
 void V8cGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
-  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   RemoveRoot(wrappable);
@@ -314,7 +308,6 @@ void V8cGlobalEnvironment::SetReportErrorCallback(
 void V8cGlobalEnvironment::Bind(const std::string& identifier,
                                 const scoped_refptr<Wrappable>& impl) {
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::Bind()");
-  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(impl);
 
   EntryScope entry_scope(isolate_);
@@ -336,7 +329,6 @@ void V8cGlobalEnvironment::BindTo(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl,
                                   const std::string& local_object_name) {
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::BindTo()");
-  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(impl);
 
   EntryScope entry_scope(isolate_);
@@ -431,7 +423,6 @@ void V8cGlobalEnvironment::MessageHandler(v8::Local<v8::Message> message,
 
 v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
     const scoped_refptr<SourceCode>& source_code) {
-  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Note that we expect an |EntryScope| and |v8::TryCatch| to have been set
@@ -553,7 +544,6 @@ void V8cGlobalEnvironment::EvaluateEmbeddedScript(const unsigned char* data,
                                                   const char* filename) {
   TRACE_EVENT1("cobalt::script", "V8cGlobalEnvironment::EvaluateEmbeddedScript",
                "filename", filename);
-  TRACK_MEMORY_SCOPE("Javascript");
   std::string source(reinterpret_cast<const char*>(data), size);
   scoped_refptr<SourceCode> source_code =
       new V8cSourceCode(source, base::SourceLocation(filename, 1, 1));

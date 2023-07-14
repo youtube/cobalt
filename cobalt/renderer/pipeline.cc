@@ -29,7 +29,6 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
 #include "cobalt/watchdog/watchdog.h"
-#include "nb/memory_scope.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
 
@@ -272,7 +271,6 @@ void Pipeline::RasterizeToRGBAPixels(
     const scoped_refptr<render_tree::Node>& render_tree_root,
     const base::Optional<math::Rect>& clip_rect,
     const RasterizationCompleteCallback& complete) {
-  TRACK_MEMORY_SCOPE("Renderer");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeToRGBAPixels()");
 
   if (base::MessageLoop::current() != rasterizer_thread_.message_loop()) {
@@ -311,7 +309,6 @@ void Pipeline::RasterizeToRGBAPixels(
 }
 
 void Pipeline::TimeFence(base::TimeDelta time_fence) {
-  TRACK_MEMORY_SCOPE("Renderer");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::TimeFence()");
 
   if (base::MessageLoop::current() != rasterizer_thread_.message_loop()) {
@@ -397,7 +394,6 @@ void Pipeline::ClearCurrentRenderTree() {
 }
 
 void Pipeline::RasterizeCurrentTree() {
-  TRACK_MEMORY_SCOPE("Renderer");
   DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
@@ -803,7 +799,6 @@ void Pipeline::FrameStatsOnFlushCallback(
 }
 
 void Pipeline::ResetSubmissionQueue() {
-  TRACK_MEMORY_SCOPE("Renderer");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ResetSubmissionQueue()");
   submission_queue_ = base::nullopt;
   submission_queue_.emplace(
@@ -816,7 +811,6 @@ void Pipeline::ResetSubmissionQueue() {
 
 void Pipeline::QueueSubmission(const Submission& submission,
                                base::TimeTicks receipt_time) {
-  TRACK_MEMORY_SCOPE("Renderer");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::QueueSubmission()");
   // Upon each submission, check if the timeline has changed.  If it has,
   // reset our submission queue (possibly with a new configuration specified

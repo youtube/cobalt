@@ -55,7 +55,6 @@
 #include "cobalt/ui_navigation/scroll_engine/scroll_engine.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
-#include "nb/memory_scope.h"
 #include "starboard/atomic.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
