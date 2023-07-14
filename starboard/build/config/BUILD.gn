@@ -145,10 +145,6 @@ config("starboard") {
       defines += [ "INTERNAL_BUILD" ]
     }
 
-    if (sb_allows_memory_tracking) {
-      defines += [ "STARBOARD_ALLOWS_MEMORY_TRACKING" ]
-    }
-
     if (sb_enable_lib) {
       defines += [ "SB_IS_LIBRARY=1" ]
     }

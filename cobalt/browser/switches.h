@@ -62,8 +62,6 @@ extern const char kIgnoreCertificateErrors[];
 extern const char kIgnoreCertificateErrorsHelp[];
 extern const char kInputFuzzer[];
 extern const char kInputFuzzerHelp[];
-extern const char kMemoryTracker[];
-extern const char kMemoryTrackerHelp[];
 extern const char kMinCompatibilityVersion[];
 extern const char kMinCompatibilityVersionHelp[];
 extern const char kNullSavegame[];

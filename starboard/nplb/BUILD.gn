@@ -106,7 +106,6 @@ target(gtest_target_type, "nplb") {
     "memory_deallocate_test.cc",
     "memory_map_test.cc",
     "memory_reallocate_test.cc",
-    "memory_reporter_test.cc",
     "microphone_close_test.cc",
     "microphone_create_test.cc",
     "microphone_destroy_test.cc",

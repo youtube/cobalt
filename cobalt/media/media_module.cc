@@ -25,7 +25,6 @@
 #include "base/strings/string_split.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
-#include "nb/memory_scope.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
@@ -218,7 +217,6 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
 
 std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
     WebMediaPlayerClient* client) {
-  TRACK_MEMORY_SCOPE("Media");
   SbWindow window = kSbWindowInvalid;
   if (system_window_) {
     window = system_window_->GetSbWindow();

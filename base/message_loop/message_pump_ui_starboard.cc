@@ -17,7 +17,6 @@
 #include "base/logging.h"
 #include "base/run_loop.h"
 #include "base/time/time.h"
-#include "nb/memory_scope.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
 
@@ -106,7 +105,6 @@ void MessagePumpUIStarboard::ScheduleWork() {
 
 void MessagePumpUIStarboard::ScheduleDelayedWork(
     const base::TimeTicks& delayed_work_time) {
-  TRACK_MEMORY_SCOPE("MessageLoop");
   base::TimeDelta delay;
   if (!delayed_work_time.is_null()) {
     delay = delayed_work_time - base::TimeTicks::Now();
@@ -121,7 +119,6 @@ void MessagePumpUIStarboard::ScheduleDelayedWork(
     // Make sure any outstanding delayed event is canceled.
     CancelDelayedLocked();
 
-    TRACK_MEMORY_SCOPE("MessageLoop");
     outstanding_delayed_events_.insert(
         SbEventSchedule(&CallMessagePumpDelayed, this, delay.ToSbTime()));
   }
@@ -154,7 +151,6 @@ void MessagePumpUIStarboard::CancelImmediateLocked() {
 }
 
 void MessagePumpUIStarboard::CancelDelayedLocked() {
-  TRACK_MEMORY_SCOPE("MessageLoop");
   outstanding_events_lock_.AssertAcquired();
   for (SbEventIdSet::iterator it = outstanding_delayed_events_.begin();
        it != outstanding_delayed_events_.end(); ++it) {

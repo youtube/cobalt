@@ -14,10 +14,11 @@
 
 #include "cobalt/loader/image/webp_image_decoder.h"
 
+#include <utility>
+
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/loader/image/animated_webp_image.h"
-#include "nb/memory_scope.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
@@ -30,7 +31,6 @@ WEBPImageDecoder::WEBPImageDecoder(
     const base::DebuggerHooks& debugger_hooks)
     : ImageDataDecoder(resource_provider, debugger_hooks),
       internal_decoder_(NULL) {
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::WEBPImageDecoder()");
   // Initialize the configuration as empty.
   WebPInitDecoderConfig(&config_);
@@ -50,7 +50,6 @@ WEBPImageDecoder::~WEBPImageDecoder() {
 
 size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
                                              size_t input_byte) {
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "WEBPImageDecoder::DecodeChunkInternal()");
   if (state() == kWaitingForHeader) {
@@ -151,7 +150,6 @@ scoped_refptr<Image> WEBPImageDecoder::FinishInternal() {
 }
 
 bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::ReadHeader()");
   // Retrieve features from the bitstream. The *features structure is filled
   // with information gathered from the bitstream.
@@ -172,7 +170,6 @@ bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {
 }
 
 bool WEBPImageDecoder::CreateInternalDecoder() {
-  TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
                "WEBPImageDecoder::CreateInternalDecoder()");
   bool has_alpha = !!config_.input.has_alpha;
