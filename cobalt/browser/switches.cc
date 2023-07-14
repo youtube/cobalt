@@ -121,11 +121,6 @@ const char kInputFuzzerHelp[] =
     "If this flag is set, input will be continuously generated randomly "
     "instead of taken from an external input device (like a controller).";
 
-const char kMemoryTracker[] = "memory_tracker";
-const char kMemoryTrackerHelp[] =
-    "Enables memory tracking by installing the memory tracker on startup. Run "
-    "--memory_tracker=help for more info.";
-
 const char kMinCompatibilityVersion[] = "min_compatibility_version";
 const char kMinCompatibilityVersionHelp[] =
     "The minimum version of Cobalt that will be checked during compatibility "
@@ -459,7 +454,7 @@ std::string HelpMessage() {
         {kExtraWebFileDir, kExtraWebFileDirHelp},
         {kFakeMicrophone, kFakeMicrophoneHelp},
         {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
-        {kInputFuzzer, kInputFuzzerHelp}, {kMemoryTracker, kMemoryTrackerHelp},
+        {kInputFuzzer, kInputFuzzerHelp},
         {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
         {kNullSavegame, kNullSavegameHelp}, {kProd, kProdHelp},
         {kRequireCSP, kRequireCSPHelp},

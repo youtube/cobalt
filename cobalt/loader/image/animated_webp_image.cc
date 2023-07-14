@@ -26,7 +26,6 @@
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/rect_node.h"
-#include "nb/memory_scope.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -101,7 +100,6 @@ void AnimatedWebPImage::Stop() {
 
 void AnimatedWebPImage::AppendChunk(const uint8* data, size_t size) {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::AppendChunk()");
-  TRACK_MEMORY_SCOPE("Rendering");
   base::AutoLock lock(lock_);
 
   data_buffer_.insert(data_buffer_.end(), data, data + size);
@@ -192,7 +190,6 @@ void AnimatedWebPImage::LockAndDecodeFrames() {
 
 void AnimatedWebPImage::DecodeFrames() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::DecodeFrames()");
-  TRACK_MEMORY_SCOPE("Rendering");
   lock_.AssertAcquired();
   DCHECK(is_playing_ && received_first_frame_);
   DCHECK(task_runner_->BelongsToCurrentThread());
@@ -242,7 +239,6 @@ void DecodeError(const base::Optional<std::string>& error) {
 
 bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::DecodeOneFrame()");
-  TRACK_MEMORY_SCOPE("Rendering");
   lock_.AssertAcquired();
 
   WebPIterator webp_iterator;
@@ -329,7 +325,6 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
 
 bool AnimatedWebPImage::AdvanceFrame() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::AdvanceFrame()");
-  TRACK_MEMORY_SCOPE("Rendering");
   DCHECK(task_runner_->BelongsToCurrentThread());
   lock_.AssertAcquired();
 

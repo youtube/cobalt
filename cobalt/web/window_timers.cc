@@ -25,7 +25,6 @@
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/global_stats.h"
-#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace web {
@@ -60,7 +59,6 @@ int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
       << "WindowTimers::SetTimeout received negative timeout: " << timeout;
   timeout = std::max(timeout, 0);
 
-  TRACK_MEMORY_SCOPE("DOM");
   return TryAddNewTimer(Timer::kOneShot, handler, timeout);
 }
 
@@ -80,7 +78,6 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
       << "WindowTimers::SetInterval received negative interval: " << timeout;
   timeout = std::max(timeout, 0);
 
-  TRACK_MEMORY_SCOPE("DOM");
   return TryAddNewTimer(Timer::kRepeating, handler, timeout);
 }
 

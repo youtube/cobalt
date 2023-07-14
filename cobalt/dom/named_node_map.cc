@@ -21,7 +21,6 @@
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
-#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -182,7 +181,6 @@ NamedNodeMap::~NamedNodeMap() { GlobalStats::GetInstance()->Remove(this); }
 
 scoped_refptr<Attr> NamedNodeMap::GetOrCreateAttr(
     const std::string& name) const {
-  TRACK_MEMORY_SCOPE("DOM");
   NameToAttrMap::iterator iter = proxy_attributes_.find(name);
   if (iter != proxy_attributes_.end() && iter->second) {
     return iter->second.get();

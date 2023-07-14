@@ -19,7 +19,6 @@
 
 #include "cobalt/math/size.h"
 #include "nb/allocator.h"
-#include "nb/memory_scope.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
@@ -59,8 +58,6 @@ DecoderBufferAllocator::DecoderBufferAllocator()
     return;
   }
 
-  TRACK_MEMORY_SCOPE("Media");
-
   ScopedLock scoped_lock(mutex_);
   EnsureReuseAllocatorIsCreated();
   Allocator::Set(this);
@@ -72,8 +69,6 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
   if (!using_memory_pool_) {
     return;
   }
-
-  TRACK_MEMORY_SCOPE("Media");
 
   ScopedLock scoped_lock(mutex_);
 
@@ -87,8 +82,6 @@ void DecoderBufferAllocator::Suspend() {
   if (!using_memory_pool_ || is_memory_pool_allocated_on_demand_) {
     return;
   }
-
-  TRACK_MEMORY_SCOPE("Media");
 
   ScopedLock scoped_lock(mutex_);
 
@@ -104,15 +97,11 @@ void DecoderBufferAllocator::Resume() {
     return;
   }
 
-  TRACK_MEMORY_SCOPE("Media");
-
   ScopedLock scoped_lock(mutex_);
   EnsureReuseAllocatorIsCreated();
 }
 
 void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
-  TRACK_MEMORY_SCOPE("Media");
-
   if (!using_memory_pool_) {
     sbmemory_bytes_used_.fetch_add(size);
     auto p = SbMemoryAllocateAligned(alignment, size);
@@ -133,8 +122,6 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
 }
 
 void DecoderBufferAllocator::Free(void* p, size_t size) {
-  TRACK_MEMORY_SCOPE("Media");
-
   if (p == nullptr) {
     DCHECK_EQ(size, 0);
     return;

@@ -18,7 +18,6 @@
 
 #include "base/strings/string_split.h"
 #include "cobalt/dom/global_stats.h"
-#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,7 +26,6 @@ DOMTokenList::DOMTokenList(Element* element, const std::string& attr_name)
     : element_(element),
       attr_name_(attr_name),
       element_node_generation_(Node::kInvalidNodeGeneration) {
-  TRACK_MEMORY_SCOPE("DOM");
   DCHECK(element);
   // The current implementation relies on nodes calling UpdateNodeGeneration()
   // each time the class is changed. This results in DOMTokenList only working
@@ -93,7 +91,6 @@ bool DOMTokenList::Contains(const std::string& token) const {
 // Algorithm for Add:
 //   https://www.w3.org/TR/dom/#dom-domtokenlist-add
 void DOMTokenList::Add(const std::vector<std::string>& tokens) {
-  TRACK_MEMORY_SCOPE("DOM");
   // Custom, not in any spec.
   MaybeRefresh();
 
@@ -236,7 +233,6 @@ DOMTokenList::~DOMTokenList() { GlobalStats::GetInstance()->Remove(this); }
 // Algorithm for RunUpdateSteps:
 //   https://www.w3.org/TR/dom/#concept-dtl-update
 void DOMTokenList::RunUpdateSteps() const {
-  TRACK_MEMORY_SCOPE("DOM");
   // 1. If there is no associated attribute (when the object is a
   // DOMSettableTokenList), terminate these steps.
   // 2. Set an attribute for the associated element using associated attribute's
@@ -257,7 +253,6 @@ bool DOMTokenList::IsTokenValid(const std::string& token) const {
 }
 
 void DOMTokenList::MaybeRefresh() const {
-  TRACK_MEMORY_SCOPE("DOM");
   if (element_node_generation_ != element_->node_generation()) {
     element_node_generation_ = element_->node_generation();
     std::string attribute = element_->GetAttribute(attr_name_).value_or("");

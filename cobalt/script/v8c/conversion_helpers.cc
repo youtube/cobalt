@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/script/v8c/conversion_helpers.h"
-#include "nb/memory_scope.h"
+
 #include "v8/include/v8.h"
 
 namespace cobalt {
@@ -108,7 +108,6 @@ void ToJSValue(v8::Isolate* isolate,
 // base::Time -> JSValue
 void ToJSValue(v8::Isolate* isolate, const base::Time& time,
                v8::Local<v8::Value>* out_value) {
-  TRACK_MEMORY_SCOPE("Javascript");
   *out_value =
       v8::Date::New(isolate->GetCurrentContext(),
                     time.is_null() ? std::numeric_limits<double>::quiet_NaN()
@@ -120,8 +119,6 @@ void ToJSValue(v8::Isolate* isolate, const base::Time& time,
 void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  int conversion_flags, ExceptionState* exception_state,
                  base::Time* out_time) {
-  TRACK_MEMORY_SCOPE("Javascript");
-
   if (!value->IsObject()) {
     exception_state->SetSimpleException(kNotObjectType);
     return;
@@ -142,7 +139,6 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
 void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  int conversion_flags, ExceptionState* exception_state,
                  V8cValueHandleHolder* out_holder) {
-  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsValueHandle, 0)
       << "Unexpected conversion flags found.";
   // If |value| is expected to be an IDL object, then we are supposed to throw

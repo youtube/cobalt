@@ -15,7 +15,6 @@
 #include "cobalt/loader/image/lottie_animation_decoder.h"
 
 #include "base/trace_event/trace_event.h"
-#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace loader {
@@ -27,14 +26,12 @@ LottieAnimationDecoder::LottieAnimationDecoder(
     : ImageDataDecoder(resource_provider, debugger_hooks) {
   TRACE_EVENT0("cobalt::loader::image",
                "LottieAnimationDecoder::LottieAnimationDecoder()");
-  TRACK_MEMORY_SCOPE("Rendering");
 }
 
 size_t LottieAnimationDecoder::DecodeChunkInternal(const uint8* data,
                                                    size_t input_byte) {
   TRACE_EVENT0("cobalt::loader::image",
                "LottieAnimationDecoder::DecodeChunkInternal()");
-  TRACK_MEMORY_SCOPE("Rendering");
   if (state() == kWaitingForHeader) {
     // TODO: Remove hard coded values.
     lottie_animation_ = new LottieAnimation(resource_provider());

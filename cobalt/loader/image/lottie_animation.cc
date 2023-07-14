@@ -15,7 +15,6 @@
 #include "cobalt/loader/image/lottie_animation.h"
 
 #include "base/trace_event/trace_event.h"
-#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace loader {
