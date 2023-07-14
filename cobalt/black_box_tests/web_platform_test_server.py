@@ -73,7 +73,7 @@ class WebPlatformTestServer(object):
     self._server_thread = threading.Thread(target=self.main)
     self._server_thread.start()
     while not self._server_started:
-      time.sleep(.1)
+      time.sleep(0.1)
     return self
 
   def __exit__(self, exc_type, exc_value, traceback):
