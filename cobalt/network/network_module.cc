@@ -114,6 +114,11 @@ void NetworkModule::SetEnableClientHintHeadersFlagsFromPersistentSettings() {
   }
 }
 
+void NetworkModule::EnsureStorageManagerStarted() {
+  DCHECK(storage_manager_);
+  storage_manager_->EnsureStarted();
+}
+
 void NetworkModule::Initialize(const std::string& user_agent_string,
                                base::EventDispatcher* event_dispatcher) {
   storage_manager_.reset(

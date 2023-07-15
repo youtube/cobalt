@@ -41,30 +41,31 @@
             metrics.setMetricEventInterval(EVENT_INTERVAL_SECS);
             metrics.onMetricEvent(metricEventHandler);
         }
+        window.onload = function () {
+            initTelemetry();
 
-        initTelemetry();
-
-        setupFinished();
-
-        setTimeout(() => {
-            assertTrue(metrics.isEnabled(), 'metrics should be enabled');
-            assertEqual('COBALT_UMA', lastMetricType, 'metricType should be uma');
-            assertTrue(lastPayload.length > 0, 'payload should be non-empty');
-            assertEqual(1, payloadCount, 'only one payload sent');
-        }, 4000);
-
-        setTimeout(() => {
-            assertEqual('COBALT_UMA', lastMetricType, 'metricType should be uma');
-            assertTrue(lastPayload.length > 0, 'payload should be non-empty');
-            assertEqual(2, payloadCount, 'two payloads sent');
-
-            metrics.disable();
+            setupFinished();
 
             setTimeout(() => {
-                assertFalse(metrics.isEnabled(), 'should disable metrics');
-                onEndTest();
-            }, 1000);
-        }, 11000);
+                assertTrue(metrics.isEnabled(), 'metrics should be enabled');
+                assertEqual('COBALT_UMA', lastMetricType, 'metricType should be uma');
+                assertTrue(lastPayload.length > 0, 'payload should be non-empty');
+                assertEqual(1, payloadCount, 'only one payload sent');
+            }, 4000);
+
+            setTimeout(() => {
+                assertEqual('COBALT_UMA', lastMetricType, 'metricType should be uma');
+                assertTrue(lastPayload.length > 0, 'payload should be non-empty');
+                assertEqual(2, payloadCount, 'two payloads sent');
+
+                metrics.disable();
+
+                setTimeout(() => {
+                    assertFalse(metrics.isEnabled(), 'should disable metrics');
+                    onEndTest();
+                }, 1000);
+            }, 11000);
+        }
     </script>
 </body>
 

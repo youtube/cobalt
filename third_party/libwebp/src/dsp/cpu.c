@@ -13,6 +13,51 @@
 
 #include "src/dsp/cpu.h"
 
+#if defined(STARBOARD)
+
+#include "starboard/cpu_features.h"
+#include "starboard/log.h"
+#include "starboard/system.h"
+
+bool warn_if_not_enabled(const char* name, bool value) {
+  if (!value) {
+    SbLogFormatF("LibWebP optimization not enabled: %s\n", name);
+    SbLogFlush();
+  }
+  return value;
+}
+
+static int StarboardGetCPUInfo(CPUFeature feature) {
+  SbCPUFeatures features;
+  if (SbCPUFeaturesGet(&features)) {
+    switch (feature) {
+      case kSSE2:
+        return warn_if_not_enabled("sse2", features.x86.has_sse2);
+      case kSSE3:
+        return warn_if_not_enabled("sse3", features.x86.has_sse3);
+      case kSSE4_1:
+        return warn_if_not_enabled("sse41", features.x86.has_sse41);
+      case kAVX:
+        return warn_if_not_enabled("avx", features.x86.has_avx);
+      case kAVX2:
+        return warn_if_not_enabled("avx2", features.x86.has_avx2);
+      case kNEON: {
+        return warn_if_not_enabled("neon", features.arm.has_neon);
+      }
+      default:
+        return 0;
+    }
+  } else {
+    SbLogFormatF("LibWebP CPU feature detection failed\n");
+    SbLogFlush();
+  }
+  return 0;
+}
+
+VP8CPUInfo VP8GetCPUInfo = StarboardGetCPUInfo;
+
+#else  // STARBOARD
+
 #if defined(WEBP_HAVE_NEON_RTCD)
 #include <stdio.h>
 #include <string.h>
@@ -257,3 +302,5 @@ VP8CPUInfo VP8GetCPUInfo = mipsCPUInfo;
 WEBP_EXTERN VP8CPUInfo VP8GetCPUInfo;
 VP8CPUInfo VP8GetCPUInfo = NULL;
 #endif
+
+#endif  // STARBOARD

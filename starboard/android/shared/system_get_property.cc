@@ -22,7 +22,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-// We can't #include "base/stringize_macros.h" in Starboard
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
 

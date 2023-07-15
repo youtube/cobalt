@@ -36,9 +36,6 @@ config("common") {
     "UNICODE",
   ]
 
-  # Allows compilation against VS 2022.
-  configs += [ "//build/config/win:visual_studio_version_compat" ]
-
   # msvs_base
   # OutputDirectory and IntermediateDirectory, maybe CharacterSet
   include_dirs += [
@@ -50,7 +47,7 @@ config("common") {
   ]
   cflags += [
     "/EHsc",
-    "/std:c++14",
+    "/std:c++17",
   ]
 
   # msvs_debug/_devel/etc
@@ -234,5 +231,17 @@ config("common") {
 
     # Deprecated function warning.
     "/wd4996",
+
+    # Compiler warnings introduced after upgrading to Visual Studio 2022.
+    # Implicit conversion from 'type' to bool. Possible information loss.
+    "/wd4800",
+
+    # Discarding return value of function with 'nodiscard' attribute.
+    "/wd4834",
+    "/wd4858",
+
+    # Unnamed class used in typedef name cannot declare members other than
+    # non-static data members, member enumerations, or member classes.
+    "/wd5208",
   ]
 }

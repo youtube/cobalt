@@ -176,10 +176,9 @@ static void RunTests(JNIEnv* env,
                      jobject obj,
                      jstring jfiles_dir,
                      jobject app_context) {
-#if !defined(__LB_ANDROID__)
   // Our MainHook creates this.
   base::AtExitManager exit_manager;
-#endif
+
   // Command line initialized basically, will be fully initialized later.
   static const char* const kInitialArgv[] = { "ChromeTestActivity" };
   CommandLine::Init(arraysize(kInitialArgv), kInitialArgv);

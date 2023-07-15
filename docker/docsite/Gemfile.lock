@@ -2,13 +2,13 @@ GEM
   remote: https://rubygems.org/
   specs:
     RedCloth (4.2.9)
-    activesupport (6.1.7.3)
+    activesupport (6.1.7.2)
       concurrent-ruby (~> 1.0, >= 1.0.2)
       i18n (>= 1.6, < 2)
       minitest (>= 5.1)
       tzinfo (~> 2.0)
       zeitwerk (~> 2.3)
-    addressable (2.8.4)
+    addressable (2.8.1)
       public_suffix (>= 2.0.2, < 6.0)
     blankslate (2.1.2.4)
     bourbon (7.3.0)
@@ -116,7 +116,7 @@ GEM
     pygments.rb (0.6.3)
       posix-spawn (~> 0.3.6)
       yajl-ruby (~> 1.2.0)
-    racc (1.7.0)
+    racc (1.6.2)
     rb-fsevent (0.11.2)
     rb-inotify (0.10.1)
       ffi (~> 1.0)
@@ -132,13 +132,13 @@ GEM
     sawyer (0.9.2)
       addressable (>= 2.3.5)
       faraday (>= 0.17.3, < 3)
-    thor (1.2.2)
+    thor (1.2.1)
     toml (0.1.2)
       parslet (~> 1.5.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     yajl-ruby (1.2.3)
-    zeitwerk (2.6.8)
+    zeitwerk (2.6.7)
 
 PLATFORMS
   ruby
@@ -146,7 +146,7 @@ PLATFORMS
 DEPENDENCIES
   RedCloth (= 4.2.9)
   bourbon
-  i18n
+  i18n (= 1.14.1)
   jekyll (= 2.4.0)
   jekyll-coffeescript (= 1.0.1)
   jekyll-feed (= 0.3.1)

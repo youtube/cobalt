@@ -27,7 +27,6 @@
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/scoped_persistent.h"
-#include "nb/memory_scope.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {

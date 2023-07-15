@@ -11,7 +11,7 @@
       "name":"win32",
       "platform":"win32",
       "target_platform":"win-win32",
-      "extra_gn_arguments":"is_clang=false visual_studio_path=\\\"C:/BuildTools/VC/Tools/MSVC/14.15.26726\\\" msvc_path=\\\"C:/BuildTools/VC/Tools/MSVC/14.15.26726\\\""
+      "extra_gn_arguments":"is_clang=false"
     }
   ]
 }

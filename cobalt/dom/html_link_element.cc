@@ -29,7 +29,6 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/web/csp_delegate.h"
-#include "nb/memory_scope.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -158,7 +157,6 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
 // Algorithm for Obtain:
 //   https://www.w3.org/TR/html50/document-metadata.html#concept-link-obtain
 void HTMLLinkElement::Obtain() {
-  TRACK_MEMORY_SCOPE("DOM");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::Obtain()");
   // Custom, not in any spec.
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -232,7 +230,6 @@ void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
                                         std::unique_ptr<std::string> content) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(content);
-  TRACK_MEMORY_SCOPE("DOM");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnContentProduced()");
 
   // Get resource's final destination url from loader.

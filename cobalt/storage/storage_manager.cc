@@ -37,7 +37,6 @@ const int kDatabaseFlushOnChangeMaxDelayMs = 2000;
 
 StorageManager::StorageManager(const Options& options)
     : options_(options),
-      storage_thread_(new base::Thread("StorageManager")),
       loaded_database_version_(0),
       initialized_(false),
       flush_processing_(false),
@@ -45,18 +44,26 @@ StorageManager::StorageManager(const Options& options)
       no_flushes_pending_(base::WaitableEvent::ResetPolicy::MANUAL,
                           base::WaitableEvent::InitialState::SIGNALED) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+}
 
-  // Start the savegame load immediately.
-  storage_thread_->Start();
-  storage_task_runner_ = storage_thread_->task_runner();
-  DCHECK(storage_task_runner_);
+void StorageManager::EnsureStarted() {
+  if (!storage_thread_) {
+    TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+    // Start the savegame load immediately.
+    storage_thread_.reset(new base::Thread("StorageManager"));
+    storage_thread_->Start();
+    DCHECK(!storage_task_runner_);
+    storage_task_runner_ = storage_thread_->task_runner();
 
-  storage_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&StorageManager::InitializeTaskInThread,
-                            base::Unretained(this)));
+    DCHECK(storage_task_runner_);
+    storage_task_runner_->PostTask(
+        FROM_HERE, base::Bind(&StorageManager::InitializeTaskInThread,
+                              base::Unretained(this)));
+  }
 }
 
 void StorageManager::InitializeTaskInThread() {
+  DCHECK(storage_task_runner_);
   DCHECK(storage_task_runner_->RunsTasksInCurrentSequence());
   base::MessageLoopCurrent::Get()->AddDestructionObserver(this);
 
@@ -69,21 +76,26 @@ void StorageManager::InitializeTaskInThread() {
 
 StorageManager::~StorageManager() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
-  DCHECK(!storage_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(!storage_task_runner_ ||
+         !storage_task_runner_->RunsTasksInCurrentSequence());
 
   // Wait for all I/O operations to complete.
   FinishIO();
 
-  // Wait for all previously posted tasks to finish.
-  storage_thread_->message_loop()->task_runner()->WaitForFence();
-  // This will trigger a call to WillDestroyCurrentMessageLoop in the thread and
-  // wait for it to finish.
-  storage_thread_.reset();
+  if (storage_thread_) {
+    // Wait for all previously posted tasks to finish.
+    DCHECK(storage_task_runner_);
+    storage_task_runner_->WaitForFence();
+    // This will trigger a call to WillDestroyCurrentMessageLoop in the thread
+    // and wait for it to finish.
+    storage_thread_.reset();
+  }
 }
 
 void StorageManager::WithReadOnlyMemoryStore(
     const ReadOnlyMemoryStoreCallback& callback) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
         FROM_HERE, base::Bind(&StorageManager::WithReadOnlyMemoryStore,
@@ -96,6 +108,7 @@ void StorageManager::WithReadOnlyMemoryStore(
 
 void StorageManager::WithMemoryStore(const MemoryStoreCallback& callback) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
         FROM_HERE, base::Bind(&StorageManager::WithMemoryStore,
@@ -110,6 +123,7 @@ void StorageManager::WithMemoryStore(const MemoryStoreCallback& callback) {
 void StorageManager::FlushOnChange() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   // Make sure this runs on the correct thread.
+  EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
         FROM_HERE,
@@ -137,6 +151,7 @@ void StorageManager::FlushOnChange() {
 void StorageManager::FlushNow(base::OnceClosure callback) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   // Make sure this runs on the correct thread.
+  EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
         FROM_HERE, base::Bind(&StorageManager::FlushNow, base::Unretained(this),
@@ -162,6 +177,7 @@ void StorageManager::FlushSynchronous() {
 
 void StorageManager::FinishInit() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(storage_task_runner_);
   DCHECK(storage_task_runner_->RunsTasksInCurrentSequence());
   if (initialized_) {
     return;
@@ -195,6 +211,7 @@ void StorageManager::StopFlushOnChangeTimers() {
 
 void StorageManager::OnFlushOnChangeTimerFired() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(storage_task_runner_);
   DCHECK(storage_task_runner_->RunsTasksInCurrentSequence());
 
   StopFlushOnChangeTimers();
@@ -204,6 +221,7 @@ void StorageManager::OnFlushOnChangeTimerFired() {
 void StorageManager::OnFlushIOCompletedCallback() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   // Make sure this runs on the SQL message loop.
+  EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
         FROM_HERE, base::Bind(&StorageManager::OnFlushIOCompletedCallback,
@@ -234,6 +252,7 @@ void StorageManager::OnFlushIOCompletedCallback() {
 
 void StorageManager::QueueFlush(base::OnceClosure callback) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(storage_task_runner_);
   DCHECK(storage_task_runner_->RunsTasksInCurrentSequence());
 
   if (!flush_processing_) {
@@ -255,6 +274,7 @@ void StorageManager::QueueFlush(base::OnceClosure callback) {
 
 void StorageManager::FlushInternal() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(storage_task_runner_);
   DCHECK(storage_task_runner_->RunsTasksInCurrentSequence());
   FinishInit();
 
@@ -277,6 +297,8 @@ void StorageManager::FlushInternal() {
 
 void StorageManager::FinishIO() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  if (!storage_task_runner_) return;
+  DCHECK(storage_task_runner_);
   DCHECK(!storage_task_runner_->RunsTasksInCurrentSequence());
 
   // Make sure that the on change timers fire if they're running.
@@ -304,6 +326,7 @@ void StorageManager::FinishIO() {
 
 void StorageManager::FireRunningOnChangeTimers() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(storage_task_runner_);
   DCHECK(storage_task_runner_->RunsTasksInCurrentSequence());
 
   if (flush_on_last_change_timer_->IsRunning() ||
@@ -320,6 +343,7 @@ void StorageManager::WillDestroyCurrentMessageLoop() {
   // Ensure these objects are destroyed on the proper thread.
   flush_on_last_change_timer_.reset(NULL);
   flush_on_change_max_delay_timer_.reset(NULL);
+  memory_store_.reset();
 }
 
 }  // namespace storage

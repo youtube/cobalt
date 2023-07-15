@@ -98,6 +98,9 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
                 const Options& options = Options());
   ~NetworkModule();
 
+  // Ensures that the storage manager is created.
+  void EnsureStorageManagerStarted();
+
   URLRequestContext* url_request_context() const {
     return url_request_context_.get();
   }

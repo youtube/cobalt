@@ -438,6 +438,7 @@ bool ServiceWorkerContext::IsAnyClientUsingRegistration(
     // said that the service worker client is using the service worker’s
     // containing service worker registration.
     //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-control
+    if (context->GetWindowOrWorkerGlobalScope()->IsServiceWorker()) continue;
     if (context->is_controlled_by(registration->active_worker())) {
       any_client_is_using = true;
       break;
@@ -959,9 +960,6 @@ void ServiceWorkerContext::HandleServiceWorkerClientUnload(
 
   // 4. If any other service worker client is using registration, abort these
   //    steps.
-  // Ensure the client is already removed from the registrations when this runs.
-  DCHECK(web_context_registrations_.end() ==
-         web_context_registrations_.find(client));
   if (IsAnyClientUsingRegistration(registration)) return;
 
   // 5. If registration is unregistered, invoke Try Clear Registration with

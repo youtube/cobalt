@@ -590,21 +590,3 @@ config("lean_and_mean") {
 config("nominmax") {
   defines = [ "NOMINMAX" ]
 }
-
-# Visual Studio 2022 Upgrade --------------------------------------------------
-
-# TODO(b/210151198) Visual Studio 2022 upgrade compatibility changes.
-# To be deleted after the upgrade completes and 2022 is the default.
-
-if (is_starboard) {
-  config("visual_studio_version_compat") {
-    if (use_visual_studio_2022) {
-      cflags = [
-        "/wd4800",
-        "/wd4834",
-        "/wd4858",
-        "/wd5208"
-      ]
-    }
-  }
-}

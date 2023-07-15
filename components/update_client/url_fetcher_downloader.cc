@@ -85,36 +85,56 @@ UrlFetcherDownloader::UrlFetcherDownloader(
 UrlFetcherDownloader::~UrlFetcherDownloader() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if defined(STARBOARD)
-  LOG(INFO) << "UrlFetcherDownloader::UrlFetcherDownloader";
+  LOG(INFO) << "UrlFetcherDownloader::~UrlFetcherDownloader";
 #endif
 }
 
 #if defined(STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+void UrlFetcherDownloader::ConfirmSlot(const GURL& url, std::string* dst) {
+#else  // defined(IN_MEMORY_UPDATES)
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
+#endif  // defined(IN_MEMORY_UPDATES)
   LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
   if (is_cancelled_) {
     LOG(ERROR) << "UrlFetcherDownloader::ConfirmSlot: Download already cancelled";
     ReportDownloadFailure(url);
     return;
   }
+#if defined(IN_MEMORY_UPDATES)
+  if (!cobalt_slot_management_.ConfirmSlot(installation_dir_)) {
+#else  // defined(IN_MEMORY_UPDATES)
   if (!cobalt_slot_management_.ConfirmSlot(download_dir_)) {
+#endif  // defined(IN_MEMORY_UPDATES)
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
   }
 
   base::SequencedTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::StartURLFetch,
+#if defined(IN_MEMORY_UPDATES)
+                                base::Unretained(this), url, dst));
+#else  // defined(IN_MEMORY_UPDATES)
                                 base::Unretained(this), url));
+#endif  // defined(IN_MEMORY_UPDATES)
 }
 
+#if defined(IN_MEMORY_UPDATES)
+void UrlFetcherDownloader::SelectSlot(const GURL& url, std::string* dst) {
+#else  // defined(IN_MEMORY_UPDATES)
 void UrlFetcherDownloader::SelectSlot(const GURL& url) {
+#endif  // defined(IN_MEMORY_UPDATES)
   LOG(INFO) << "UrlFetcherDownloader::SelectSlot: url=" << url;
   if (is_cancelled_) {
     LOG(ERROR) << "UrlFetcherDownloader::SelectSlot: Download already cancelled";
     ReportDownloadFailure(url);
     return;
   }
+#if defined(IN_MEMORY_UPDATES)
+  if (!cobalt_slot_management_.SelectSlot(&installation_dir_)) {
+#else  // defined(IN_MEMORY_UPDATES)
   if (!cobalt_slot_management_.SelectSlot(&download_dir_)) {
+#endif  // defined(IN_MEMORY_UPDATES)
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
   }
@@ -125,12 +145,20 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
   base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&UrlFetcherDownloader::ConfirmSlot, base::Unretained(this),
+#if defined(IN_MEMORY_UPDATES)
+                     url, dst),
+#else  // defined(IN_MEMORY_UPDATES)
                      url),
+#endif  // defined(IN_MEMORY_UPDATES)
       base::TimeDelta::FromSeconds(15));
 }
-#endif
+#endif  // defined(STARBOARD)
 
+#if defined(IN_MEMORY_UPDATES)
+void UrlFetcherDownloader::DoStartDownload(const GURL& url, std::string* dst) {
+#else  // defined(IN_MEMORY_UPDATES)
 void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
+#endif  // defined(IN_MEMORY_UPDATES)
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if defined(STARBOARD)
@@ -154,15 +182,19 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
   }
   base::SequencedTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::SelectSlot,
+#if defined(IN_MEMORY_UPDATES)
+                                base::Unretained(this), url, dst));
+#else  // defined(IN_MEMORY_UPDATES)
                                 base::Unretained(this), url));
-#else
+#endif  // defined(IN_MEMORY_UPDATES)
+#else  // defined(STARBOARD)
   base::PostTaskWithTraitsAndReply(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&UrlFetcherDownloader::CreateDownloadDir,
                      base::Unretained(this)),
       base::BindOnce(&UrlFetcherDownloader::StartURLFetch,
                      base::Unretained(this), url));
-#endif
+#endif  // defined(STARBOARD)
 }
 
 #if defined(STARBOARD)
@@ -176,10 +208,12 @@ void UrlFetcherDownloader::DoCancelDownload() {
 }
 #endif
 
+#if !defined(IN_MEMORY_UPDATES)
 void UrlFetcherDownloader::CreateDownloadDir() {
   base::CreateNewTempDirectory(FILE_PATH_LITERAL("chrome_url_fetcher_"),
                                &download_dir_);
 }
+#endif
 
 #if defined(STARBOARD)
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
@@ -217,30 +251,60 @@ void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
                      base::Unretained(this), false, result, download_metrics));
 }
 
+#if defined(IN_MEMORY_UPDATES)
+void UrlFetcherDownloader::StartURLFetch(const GURL& url, std::string* dst) {
+#else
 void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
+#endif
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if defined(IN_MEMORY_UPDATES)
+  CHECK(dst != nullptr);
+#endif
 
 #if defined(STARBOARD)
   LOG(INFO) << "UrlFetcherDownloader::StartURLFetch: url" << url
+#if defined(IN_MEMORY_UPDATES)
+               << " installation_dir=" << installation_dir_;
+#else  // defined(IN_MEMORY_UPDATES)
                << " download_dir=" << download_dir_;
+#endif  // defined(IN_MEMORY_UPDATES)
   if (is_cancelled_) {
     LOG(ERROR) << "UrlFetcherDownloader::StartURLFetch: Download already cancelled";
     ReportDownloadFailure(url);
     return;
   }
-#endif
+#endif  // defined(STARBOARD)
 
+#if defined(IN_MEMORY_UPDATES)
+  if (installation_dir_.empty()) {
+#else
   if (download_dir_.empty()) {
+#endif
 #if defined(STARBOARD)
     LOG(ERROR) << "UrlFetcherDownloader::StartURLFetch: failed with empty "
-                     "download_dir";
-#endif
+#if defined(IN_MEMORY_UPDATES)
+               << "installation_dir";
+#else  // defined(IN_MEMORY_UPDATES)
+               << "download_dir";
+#endif  // defined(IN_MEMORY_UPDATES)
+#endif  // defined(STARBOARD)
     ReportDownloadFailure(url);
     return;
   }
 
-  const auto file_path = download_dir_.AppendASCII(url.ExtractFileName());
   network_fetcher_ = network_fetcher_factory_->Create();
+#if defined(IN_MEMORY_UPDATES)
+  network_fetcher_->DownloadToString(
+      url,
+      dst,
+      base::BindOnce(&UrlFetcherDownloader::OnResponseStarted,
+                     base::Unretained(this)),
+      base::BindRepeating(&UrlFetcherDownloader::OnDownloadProgress,
+                          base::Unretained(this)),
+      base::BindOnce(&UrlFetcherDownloader::OnNetworkFetcherComplete,
+                     base::Unretained(this)));
+#else
+  const auto file_path = download_dir_.AppendASCII(url.ExtractFileName());
   network_fetcher_->DownloadToFile(
       url, file_path,
       base::BindOnce(&UrlFetcherDownloader::OnResponseStarted,
@@ -249,13 +313,19 @@ void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
                           base::Unretained(this)),
       base::BindOnce(&UrlFetcherDownloader::OnNetworkFetcherComplete,
                      base::Unretained(this)));
+#endif
 
   download_start_time_ = base::TimeTicks::Now();
 }
 
-void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
-                                                    int net_error,
-                                                    int64_t content_size) {
+void UrlFetcherDownloader::OnNetworkFetcherComplete(
+#if defined(IN_MEMORY_UPDATES)
+    std::string* dst,
+#else
+    base::FilePath file_path,
+#endif
+    int net_error,
+    int64_t content_size) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if defined(STARBOARD)
@@ -273,8 +343,12 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
   // is not accepting requests for the moment.
   int error = -1;
 #if defined(STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+  if (response_code_ == 200 && net_error == 0) {
+#else  // defined(IN_MEMORY_UPDATES)
   if (!file_path.empty() && response_code_ == 200 && net_error == 0) {
-#else
+#endif  // defined(IN_MEMORY_UPDATES)
+#else  // defined(STARBOARD)
   if (!file_path.empty() && response_code_ == 200) {
 #endif
     DCHECK_EQ(0, net_error);
@@ -290,7 +364,11 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
   Result result;
   result.error = error;
   if (!error) {
+#if defined(IN_MEMORY_UPDATES)
+    result.installation_dir = installation_dir_;
+#else
     result.response = file_path;
+#endif
 #if defined(STARBOARD)
     result.installation_index = cobalt_slot_management_.GetInstallationIndex();
 #endif
@@ -307,20 +385,26 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
 
   VLOG(1) << "Downloaded " << content_size << " bytes in "
           << download_time.InMilliseconds() << "ms from " << final_url_.spec()
+#if defined(IN_MEMORY_UPDATES)
+          << " to string";
+#else
           << " to " << result.response.value();
+#endif
 
+#if !defined(IN_MEMORY_UPDATES)
 #if !defined(STARBOARD)
   // Delete the download directory in the error cases.
   if (error && !download_dir_.empty())
     base::PostTaskWithTraits(
         FROM_HERE, kTaskTraits,
         base::BindOnce(IgnoreResult(&base::DeleteFile), download_dir_, true));
-#else
+#else  // defined(STARBOARD)
   if (error && !download_dir_.empty()) {
     // Cleanup the download dir.
     CleanupDirectory(download_dir_);
   }
-#endif
+#endif  // defined(STARBOARD)
+#endif  // !defined(IN_MEMORY_UPDATES)
 
   main_task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::OnDownloadComplete,

@@ -27,7 +27,6 @@
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
 #include "include/inspector/Runtime.h"  // generated
-#include "nb/memory_scope.h"
 #include "v8/include/libplatform/v8-tracing.h"
 #include "v8/include/v8-inspector.h"
 #include "v8/third_party/inspector_protocol/crdtp/json.h"
@@ -172,7 +171,6 @@ std::string V8cScriptDebugger::Detach() {
 
 bool V8cScriptDebugger::EvaluateDebuggerScript(const std::string& js_code,
                                                std::string* out_result_utf8) {
-  TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script", "V8cScriptDebugger::EvaluateDebuggerScript()");
 
   v8::Isolate* isolate = global_environment_->isolate();

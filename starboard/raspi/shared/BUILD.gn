@@ -337,17 +337,6 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
-  if (sb_api_version == 12) {
-    sources += [
-      "//starboard/shared/stub/speech_recognizer_cancel.cc",
-      "//starboard/shared/stub/speech_recognizer_create.cc",
-      "//starboard/shared/stub/speech_recognizer_destroy.cc",
-      "//starboard/shared/stub/speech_recognizer_is_supported.cc",
-      "//starboard/shared/stub/speech_recognizer_start.cc",
-      "//starboard/shared/stub/speech_recognizer_stop.cc",
-    ]
-  }
-
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
@@ -382,8 +371,8 @@ static_library("starboard_platform_sources") {
 
 static_library("starboard_base_symbolize") {
   sources = [
-    "//base/third_party/symbolize/demangle.cc",
-    "//base/third_party/symbolize/symbolize.cc",
+    "//third_party/symbolize/demangle.cc",
+    "//third_party/symbolize/symbolize.cc",
   ]
 
   public_deps = [ "//starboard/elf_loader:evergreen_info" ]

@@ -18,6 +18,7 @@
 #include <D3d11_1.h>
 #include <wrl/client.h>
 
+#include <atomic>
 #include <list>
 #include <memory>
 
@@ -159,6 +160,7 @@ class VideoDecoder
   std::list<SbDecodeTarget> prev_decode_targets_;
 
   bool is_hdr_supported_;
+  std::atomic_bool error_occured_ = {false};
 };
 
 }  // namespace win32

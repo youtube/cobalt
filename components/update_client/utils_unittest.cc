@@ -27,6 +27,7 @@ base::FilePath MakeTestFilePath(const char* file) {
 
 namespace update_client {
 
+#if !defined(IN_MEMORY_UPDATES)
 TEST(UpdateClientUtils, VerifyFileHash256) {
   EXPECT_TRUE(VerifyFileHash256(
       MakeTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
@@ -46,6 +47,9 @@ TEST(UpdateClientUtils, VerifyFileHash256) {
       std::string(
           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
 }
+// TODO(b/290410288): write a test targeting the string-based API,
+// VerifyHash256().
+#endif
 
 // Tests that the brand matches ^[a-zA-Z]{4}?$
 TEST(UpdateClientUtils, IsValidBrand) {

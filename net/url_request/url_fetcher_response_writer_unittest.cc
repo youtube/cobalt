@@ -57,6 +57,61 @@ TEST_F(URLFetcherStringWriterTest, Basic) {
   EXPECT_TRUE(writer_->data().empty());
 }
 
+#if defined(STARBOARD)
+class URLFetcherLargeStringWriterTest : public PlatformTest {
+ protected:
+  void SetUp() override {
+    writer_.reset(new URLFetcherLargeStringWriter);
+    buf_ = base::MakeRefCounted<StringIOBuffer>(kData);
+  }
+
+  std::unique_ptr<URLFetcherLargeStringWriter> writer_;
+  scoped_refptr<StringIOBuffer> buf_;
+};
+
+TEST_F(URLFetcherLargeStringWriterTest, Basic) {
+  // The structure of this case is copied from URLFetcherStringWriterTest.Basic.
+
+  int rv = 0;
+  // Initialize(), Write() and Finish().
+  TestCompletionCallback callback;
+  rv = writer_->Initialize(callback.callback());
+  EXPECT_THAT(callback.GetResult(rv), IsOk());
+  rv = writer_->Write(buf_.get(), buf_->size(), callback.callback());
+  EXPECT_EQ(buf_->size(), callback.GetResult(rv));
+  rv = writer_->Finish(OK, callback.callback());
+  EXPECT_THAT(callback.GetResult(rv), IsOk());
+
+  // Verify the result.
+  std::string actual_data;
+  writer_->GetAndResetData(&actual_data);
+  // TODO(b/158043520): as requested by yuying@, we should add a test that uses
+  // a string that is actually large as the test data.
+  EXPECT_EQ(kData, actual_data);
+
+  // Initialize() again to reset.
+  rv = writer_->Initialize(callback.callback());
+  EXPECT_THAT(callback.GetResult(rv), IsOk());
+  writer_->GetAndResetData(&actual_data);
+  EXPECT_TRUE(actual_data.empty());
+}
+
+TEST_F(URLFetcherLargeStringWriterTest, OnResponseStartedPreallocatesMemory) {
+  int rv = 0;
+  TestCompletionCallback callback;
+  rv = writer_->Initialize(callback.callback());
+  EXPECT_THAT(callback.GetResult(rv), IsOk());
+  // Should be larger than the default string size but otherwise arbitrary.
+  int64_t content_length = 1234;
+
+  writer_->OnResponseStarted(content_length);
+
+  std::string actual_data;
+  writer_->GetAndResetData(&actual_data);
+  EXPECT_GE(actual_data.capacity(), content_length);
+}
+#endif
+
 class URLFetcherFileWriterTest : public PlatformTest,
                                  public WithScopedTaskEnvironment {
  protected:

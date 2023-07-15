@@ -22,6 +22,7 @@
 #include "base/threading/thread.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/watchdog/watchdog.h"
 
 namespace cobalt {
 namespace browser {
@@ -29,6 +30,18 @@ namespace browser {
 namespace {
 // Signals the given WaitableEvent.
 void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
+
+// The watchdog client name used to represent service worker registry thread.
+const char kWatchdogName[] = "service worker registry";
+// The watchdog time interval in microseconds allowed between pings before
+// triggering violations.
+const int64_t kWatchdogTimeInterval = 15000000;
+// The watchdog time wait in microseconds to initially wait before triggering
+// violations.
+const int64_t kWatchdogTimeWait = 15000000;
+// The watchdog time interval in milliseconds between pings.
+const int64_t kWatchdogTimePing = 5000;
+
 }  // namespace
 
 void ServiceWorkerRegistry::WillDestroyCurrentMessageLoop() {
@@ -42,6 +55,21 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
     : thread_("ServiceWorkerRegistry") {
   if (!thread_.Start()) return;
   DCHECK(message_loop());
+
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+
+  // Registers service worker thread as a watchdog client.
+  if (watchdog) {
+    watchdog_registered_ = true;
+    watchdog->Register(kWatchdogName, kWatchdogName,
+                       base::kApplicationStateStarted, kWatchdogTimeInterval,
+                       kWatchdogTimeWait, watchdog::PING);
+    message_loop()->task_runner()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this),
+                   watchdog),
+        base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
+  }
 
   message_loop()->task_runner()->PostTask(
       FROM_HERE,
@@ -69,12 +97,33 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   DCHECK(message_loop());
   DCHECK(thread_.IsRunning());
 
+  // Unregisters service worker thread as a watchdog client.
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) {
+    watchdog_registered_ = false;
+    watchdog->Unregister(kWatchdogName);
+  }
+
   // Ensure that the destruction observer got added before stopping the thread.
   // Stop the thread. This will cause the destruction observer to be notified.
   destruction_observer_added_.Wait();
   DCHECK_NE(thread_.message_loop(), base::MessageLoop::current());
   thread_.Stop();
   DCHECK(!service_worker_context_);
+}
+
+// Ping watchdog every 5 second, otherwise a violation will be triggered.
+void ServiceWorkerRegistry::PingWatchdog(watchdog::Watchdog* watchdog) {
+  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  // If watchdog is already unregistered, stop ping watchdog.
+  if (!watchdog_registered_) return;
+
+  watchdog->Ping(kWatchdogName);
+  message_loop()->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this),
+                 watchdog),
+      base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
 }
 
 void ServiceWorkerRegistry::EnsureServiceWorkerStarted(

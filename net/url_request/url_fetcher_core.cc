@@ -352,6 +352,14 @@ void URLFetcherCore::SaveResponseToFileAtPath(
       new URLFetcherFileWriter(file_task_runner, file_path)));
 }
 
+#if defined(STARBOARD)
+void URLFetcherCore::SaveResponseToLargeString() {
+  DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
+  SaveResponseWithWriter(std::unique_ptr<URLFetcherResponseWriter>(
+      new URLFetcherLargeStringWriter()));
+}
+#endif
+
 void URLFetcherCore::SaveResponseToTemporaryFile(
     scoped_refptr<base::SequencedTaskRunner> file_task_runner) {
   DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
@@ -434,6 +442,19 @@ bool URLFetcherCore::GetResponseAsString(
   *out_response_string = string_writer->data();
   return true;
 }
+
+#if defined(STARBOARD)
+bool URLFetcherCore::GetResponseAsLargeString(
+    std::string* out_response_string) const {
+  URLFetcherLargeStringWriter* large_string_writer =
+      response_writer_ ? response_writer_->AsLargeStringWriter() : NULL;
+  if (!large_string_writer)
+    return false;
+
+  large_string_writer->GetAndResetData(out_response_string);
+  return true;
+}
+#endif
 
 bool URLFetcherCore::GetResponseAsFilePath(bool take_ownership,
                                            base::FilePath* out_response_path) {

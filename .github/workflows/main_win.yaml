@@ -130,7 +130,7 @@ jobs:
   build:
     needs: [initialize]
     permissions: {}
-    runs-on: [self-hosted, X64, Windows]
+    runs-on: [self-hosted, win32]
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
       fail-fast: false
@@ -164,7 +164,7 @@ jobs:
     needs: [initialize, build]
     permissions: {}
     if: needs.initialize.outputs.on_host_test == 'true'
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: [self-hosted, win32]
     name: ${{matrix.name}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false

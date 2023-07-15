@@ -59,7 +59,6 @@
 #include "cobalt/browser/client_hint_headers.h"
 #include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
-#include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_platform_info.h"
@@ -528,14 +527,6 @@ struct SecurityFlags {
 base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
     non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
-#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-const char kMemoryTrackerCommand[] = "memory_tracker";
-const char kMemoryTrackerCommandShortHelp[] = "Create a memory tracker.";
-const char kMemoryTrackerCommandLongHelp[] =
-    "Create a memory tracker of the given type. Use an empty string to see the "
-    "available trackers.";
-#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-
 void AddCrashHandlerAnnotations(const UserAgentPlatformInfo& platform_info) {
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
@@ -631,17 +622,7 @@ int64 Application::lifetime_in_ms_ = 0;
 
 Application::Application(const base::Closure& quit_closure, bool should_preload,
                          SbTimeMonotonic timestamp)
-    : message_loop_(base::MessageLoop::current()),
-      quit_closure_(quit_closure)
-#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-      ,
-      ALLOW_THIS_IN_INITIALIZER_LIST(memory_tracker_command_handler_(
-          kMemoryTrackerCommand,
-          base::Bind(&Application::OnMemoryTrackerCommand,
-                     base::Unretained(this)),
-          kMemoryTrackerCommandShortHelp, kMemoryTrackerCommandLongHelp))
-#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-{
+    : message_loop_(base::MessageLoop::current()), quit_closure_(quit_closure) {
   DCHECK(!quit_closure_.is_null());
   if (should_preload) {
     preload_timestamp_ = timestamp;
@@ -860,14 +841,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 
   EnableUsingStubImageDecoderIfRequired();
 
-#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-  if (command_line->HasSwitch(switches::kMemoryTracker)) {
-    std::string command_arg =
-        command_line->GetSwitchValueASCII(switches::kMemoryTracker);
-    memory_tracker_tool_ = memory_tracker::CreateMemoryTrackerTool(command_arg);
-  }
-#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-
   if (command_line->HasSwitch(switches::kDisableImageAnimations)) {
     options.web_module_options.enable_image_animations = false;
   }
@@ -907,6 +880,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   network_module_.reset(new network::NetworkModule(
       CreateUserAgentString(platform_info), GetClientHintHeaders(platform_info),
       &event_dispatcher_, network_module_options));
+  // This is not necessary, but since some platforms need a lot of time to read
+  // the savegame, start the storage manager as soon as possible here.
+  network_module_->EnsureStorageManagerStarted();
 
   AddCrashHandlerAnnotations(platform_info);
 
@@ -1051,10 +1027,6 @@ Application::~Application() {
   // Explicitly delete the global metrics services manager here to give it
   // an opportunity to clean up late logs and persist metrics.
   metrics::CobaltMetricsServicesManager::DeleteInstance();
-
-#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-  memory_tracker_tool_.reset(NULL);
-#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
@@ -1470,24 +1442,6 @@ void Application::UpdatePeriodicStats() {
 void Application::DispatchEventInternal(base::Event* event) {
   event_dispatcher_.DispatchEvent(std::unique_ptr<base::Event>(event));
 }
-
-#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-void Application::OnMemoryTrackerCommand(const std::string& message) {
-  if (base::MessageLoop::current() != message_loop_) {
-    message_loop_->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&Application::OnMemoryTrackerCommand,
-                              base::Unretained(this), message));
-    return;
-  }
-
-  if (memory_tracker_tool_) {
-    LOG(ERROR) << "Can not create a memory tracker when one is already active.";
-    return;
-  }
-  LOG(WARNING) << "Creating \"" << message << "\" memory tracker.";
-  memory_tracker_tool_ = memory_tracker::CreateMemoryTrackerTool(message);
-}
-#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
 // Called to handle deep link consumed events.
 void Application::OnDeepLinkConsumedCallback(const std::string& link) {

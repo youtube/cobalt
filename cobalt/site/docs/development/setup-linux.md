@@ -9,7 +9,7 @@ binary. Note that the binary has a graphical client and must be run locally
 on the machine that you are using to view the client. For example, you cannot
 SSH into another machine and run the binary on that machine.
 
-These instructions were tested on a fresh ubuntu:20.04 Docker image. (1/12/22)
+These instructions were tested on a clean ubuntu:20.04 Docker image. (7/11/23)
 Required libraries can differ depending on your Linux distribution and version.
 
 ## Set up your workstation
@@ -19,10 +19,22 @@ Required libraries can differ depending on your Linux distribution and version.
 
     ```
     $ sudo apt update && sudo apt install -qqy --no-install-recommends \
-        pkgconf ninja-build bison nasm yasm binutils clang libgles2-mesa-dev \
-        mesa-common-dev libpulse-dev libavresample-dev libasound2-dev \
-        libxrender-dev libxcomposite-dev libxml2-dev curl git \
-        python3.8-venv libxi-dev
+        bison clang libasound2-dev libgles2-mesa-dev libglib2.0-dev \
+        libxcomposite-dev libxi-dev libxrender-dev nasm ninja-build \
+        python3.8-venv
+    ```
+
+1.  Install ccache to support build acceleration. Build acceleration is \
+    enabled by default and must be disabled if ccache is not installed.
+
+    ```
+    $ sudo apt install -qqy --no-install-recommends ccache
+    ```
+
+    We recommend adjusting the cache size as needed to increase cache hits:
+
+    ```
+    $ ccache --max-size=20G
     ```
 
 1.  Install Node.js via `nvm`:
@@ -39,19 +51,6 @@ Required libraries can differ depending on your Linux distribution and version.
         && nvm use default
     ```
 
-1.  Install ccache to support build acceleration. ccache is automatically used
-    when available, otherwise defaults to unaccelerated building:
-
-    ```
-    $ sudo apt install -qqy --no-install-recommends ccache
-    ```
-
-    We recommend adjusting the cache size as needed to increase cache hits:
-
-    ```
-    $ ccache --max-size=20G
-    ```
-
 1.  Install GN, which we use for our build system code. There are a few ways to
     get the binary, follow the instructions for whichever way you prefer
     [here](https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/#getting-a-binary).
@@ -60,7 +59,7 @@ Required libraries can differ depending on your Linux distribution and version.
     `cobalt` directory that contains the repository:
 
     ```
-    $ git clone https://cobalt.googlesource.com/cobalt
+    $ git clone https://github.com/youtube/cobalt.git
     ```
 
 1.  Set `PYTHONPATH` environment variable to include the full path to the
@@ -200,10 +199,3 @@ to debug application performance, but also a great way to debug issues and
 better understand Cobalt's execution flow in general.
 
 Simply build and run one of these configs and observe the terminal output.
-<!--
-<aside class="note">
-<b>Note:</b> If you plan to upload reviews to the Cobalt repository, you
-also need to <a href="/development/setup-gitcookies.html">follow these
-instructions</a> to set up a <code>.gitcookies</code> file.
-</aside>
--->

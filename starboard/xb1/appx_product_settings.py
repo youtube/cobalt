@@ -22,7 +22,7 @@ PRODUCT_SETTINGS = {
         'IDENTITY_NAME': 'Cobalt',
         # Value for the Publisher attribute of Identity:
         # https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/element-identity#attributes
-        'PUBLISHER': 'CN=...',
+        'PUBLISHER': 'CN=CommonName',
         # Value for the DisplayName element:
         # https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/element-displayname
         'DISPLAY_NAME': 'Cobalt',
@@ -31,7 +31,7 @@ PRODUCT_SETTINGS = {
         'PUBLISHER_DISPLAY_NAME': 'My Company',
         # Value for the EntryPoint attribute of Application:
         # https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/element-application#attributes
-        'ENTRYPOINT': 'https://my.website.com',
+        'ENTRYPOINT': 'https://youtube.com/tv',
         # Value for the DisplayName attribute of VisualElements:
         # https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/element-uap-visualelements#attributes
         'APPLICATION_DISPLAY_NAME': 'CobaltApp',

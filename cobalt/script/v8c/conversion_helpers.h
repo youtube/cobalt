@@ -43,7 +43,6 @@
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/value_handle.h"
-#include "nb/memory_scope.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
@@ -720,7 +719,6 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
 template <typename T>
 void ToJSValue(v8::Isolate* isolate, const Handle<T>& local,
                v8::Local<v8::Value>* out_value) {
-  TRACK_MEMORY_SCOPE("Javascript");
   ToJSValue(isolate, local.GetScriptValue(), out_value);
 }
 

@@ -58,7 +58,8 @@ repos:
                 cobalt/fetch/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
                 internal/cobalt/browser/splash_screen/youtube_splash_screen.html|
-                internal/starboard/shared/playstation/storage_internal.cc
+                internal/starboard/shared/playstation/storage_internal.cc|
+                starboard/shared/win32/media_transform.cc
             )
 
 -   repo: local
@@ -166,20 +167,6 @@ repos:
         stages: [push]
         always_run: true
         pass_filenames: false
-    -   id: osslint
-        name: osslint
-        entry: python precommit_hooks/osslint_wrapper.py
-        language: python
-        types: [text]
-        stages: [manual]
-    -   id: internal-file-check
-        name: Internal File Check
-        entry: python precommit_hooks/internal_file_check_wrapper.py
-        language: python
-        types: [text]
-        # TODO: Remove docker-compose-windows.yml after internal check evaluates
-        # properly on it.
-        exclude: '(^docker-compose-windows(-internal)?.yml|EXCLUDE\.FILES(\.RECURSIVE)?|codereview\.settings)$'
     -   id: gn-format
         name: GN format
         entry: gn format

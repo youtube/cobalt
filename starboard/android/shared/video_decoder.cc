@@ -586,9 +586,6 @@ void VideoDecoder::Reset() {
   TeardownCodec();
   CancelPendingJobs();
 
-  // After TeardownCodec, buffered_output_frames_ should equal to 0.
-  SB_DCHECK(buffered_output_frames_ == 0);
-
   tunnel_mode_prerolling_.store(true);
   tunnel_mode_frame_rendered_.store(false);
   input_buffer_written_ = 0;

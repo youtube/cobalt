@@ -1,0 +1,24 @@
+name: "symbolize"
+description:
+  "Symbolization components extracted from google-glog logging library"
+
+third_party {
+  # Note: This is copied here from Chrome //base/third_party/symbolize
+  url {
+    type: LOCAL_SOURCE
+    value: "https://chromium.googlesource.com/chromium/src/base/+/refs/heads/main/third_party/symbolize/"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/google/glog"
+  }
+  # Approximate version from upstream is m70
+  version: "2fb7110f70453ccb8951428611330d95c496f3cd"
+  last_upgrade_date {
+    year: 2018
+    month: 10
+    day: 8
+  }
+  # Orignal has BSD-3-Clause license
+  license_type: NOTICE
+}

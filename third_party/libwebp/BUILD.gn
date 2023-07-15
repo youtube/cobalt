@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import("//third_party/libwebp/libwebp.gni")
+if (current_cpu == "arm" || current_cpu == "arm64") {
+  import("//build/config/arm.gni")
+}
 
 template("libwebp_lib") {
   static_library(target_name) {
@@ -43,6 +46,9 @@ libwebp_lib("libwebp_dsp_dec_common") {
     ":libwebp_dsp_dec_sse2",
     ":libwebp_dsp_dec_sse41",
   ]
+  if (is_starboard) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
 }
 
 libwebp_lib("libwebp_dsp_dec_msa") {
@@ -87,6 +93,32 @@ libwebp_lib("libwebp_utils_enc") {
 
 config("libwebp_direct_config") {
   include_dirs = [ "." ]
+  if (is_starboard && !is_win) {
+    if (current_cpu == "x64" || current_cpu == "x86") {
+      cflags = [
+        "-msse2",
+        "-msse4.1",
+      ]
+      defines = [
+        "WEBP_HAVE_SSE2",
+        "WEBP_HAVE_SSE41",
+      ]
+    }
+
+    # This crashes on x86/Atom, enable on 64-bit only.
+    if (current_cpu == "x64") {
+      cflags += [
+        "-mavx",
+        "-mavx2",
+      ]
+      defines += [ "WEBP_HAVE_AVX2" ]
+    }
+    if ((current_cpu == "arm" || current_cpu == "arm64") && arm_use_neon &&
+        (target_os == "android" || target_os == "linux")) {
+      defines = [ "WEBP_HAVE_NEON" ]
+      cflags = [ "-mfpu=neon" ]
+    }
+  }
 }
 
 group("libwebp") {

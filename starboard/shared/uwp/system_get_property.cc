@@ -22,13 +22,13 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/keyboxes/xbox/system_properties.h"
 #include "starboard/memory.h"
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/keys.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/system.h"
 #include "starboard/xb1/shared/internal_shims.h"
+#include "starboard/xb1/system_properties.h"
 
 using starboard::shared::win32::platformStringToString;
 using Windows::Security::ExchangeActiveSyncProvisioning::

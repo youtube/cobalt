@@ -233,6 +233,7 @@ void CrxDownloaderTest::RunThreadsUntilIdle() {
   base::RunLoop().RunUntilIdle();
 }
 
+#if !defined(IN_MEMORY_UPDATES)
 // Tests that starting a download without a url results in an error.
 TEST_F(CrxDownloaderTest, NoUrl) {
   std::vector<GURL> urls;
@@ -498,5 +499,8 @@ TEST_F(CrxDownloaderTest, TwoUrls_BothInvalid) {
   EXPECT_EQ(-1, download_metrics[1].downloaded_bytes);
   EXPECT_EQ(-1, download_metrics[1].total_bytes);
 }
+// TODO(b/290410288): write tests targeting the overload of StartDownload() that
+// downloads to a string.
+#endif
 
 }  // namespace update_client

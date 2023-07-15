@@ -282,7 +282,6 @@ config("angle_release_asserts_config") {
 if (is_starboard) {
   config("starboard_angle_config") {
     if (is_win) {
-      configs = [ "//build/config/win:visual_studio_version_compat" ]
       cflags = [
         "/wd4200",
       ]

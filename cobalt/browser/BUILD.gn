@@ -58,7 +58,6 @@ target(final_executable_type, "cobalt") {
     "//net",
   ]
   data_deps = [
-    "//cobalt/dom:licenses",
     "//cobalt/network:copy_ssl_certificates",
     "//third_party/icu:icudata",
   ]
@@ -157,7 +156,6 @@ static_library("browser") {
     "//cobalt/audio",
     "//cobalt/base",
     "//cobalt/browser/memory_settings:browser_memory_settings",
-    "//cobalt/browser/memory_tracker:memory_tracker_tool",
     "//cobalt/browser/metrics",
     "//cobalt/build:cobalt_build_id",
     "//cobalt/build:cobalt_build_info",
@@ -245,8 +243,6 @@ target(gtest_target_type, "browser_test") {
     "memory_settings/pretty_print_test.cc",
     "memory_settings/table_printer_test.cc",
     "memory_settings/test_common.h",
-    "memory_tracker/tool/tool_impl_test.cc",
-    "memory_tracker/tool/util_test.cc",
     "user_agent_string_test.cc",
   ]
 
@@ -255,7 +251,6 @@ target(gtest_target_type, "browser_test") {
     ":browser_switches",
     "//cobalt/base",
     "//cobalt/browser/memory_settings:browser_memory_settings",
-    "//cobalt/browser/memory_tracker:memory_tracker_tool",
     "//cobalt/dom",
     "//cobalt/loader",
     "//cobalt/math",

@@ -57,7 +57,6 @@ is_gold = build_type == "gold"
 assert(is_debug || is_devel || is_qa || is_gold)
 
 # Set some variables we never want to change.
-sb_allows_memory_tracking = !is_gold
 host_byteorder = "little"
 is_official_build = false  # Chromium's build files expect this to be set.
 is_component_build = false
