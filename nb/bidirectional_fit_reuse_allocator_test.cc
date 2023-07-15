@@ -16,9 +16,10 @@
 
 #include "nb/bidirectional_fit_reuse_allocator.h"
 
+#include <memory>
+
 #include "nb/fixed_no_free_allocator.h"
 #include "nb/pointer_arithmetic.h"
-#include "nb/scoped_ptr.h"
 #include "nb/starboard_aligned_memory_deleter.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
@@ -39,7 +40,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     buffer_.reset(static_cast<uint8_t*>(
         SbMemoryAllocateAligned(nb::Allocator::kMinAlignment, kBufferSize)));
 
-    nb::scoped_ptr<nb::FixedNoFreeAllocator> fallback_allocator(
+    std::unique_ptr<nb::FixedNoFreeAllocator> fallback_allocator(
         new nb::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
     allocator_.reset(new nb::BidirectionalFitReuseAllocator(
         fallback_allocator.get(), initial_capacity, small_allocation_threshold,
@@ -49,8 +50,8 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
   }
 
   std::unique_ptr<uint8_t, nb::AlignedMemoryDeleter> buffer_;
-  nb::scoped_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
-  nb::scoped_ptr<nb::BidirectionalFitReuseAllocator> allocator_;
+  std::unique_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
+  std::unique_ptr<nb::BidirectionalFitReuseAllocator> allocator_;
 };
 
 }  // namespace
