@@ -98,6 +98,9 @@ config("libwebp_extra_config") {
         "-Wno-implicit-function-declaration",
         "-Wno-int-to-pointer-cast",
         ]
+    defines = [
+      "WEBP_EXTERN="
+    ]
   }
   if(is_win) {
     cflags = [
