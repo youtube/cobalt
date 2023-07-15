@@ -99,6 +99,11 @@ config("libwebp_extra_config") {
         "-Wno-int-to-pointer-cast",
         ]
   }
+  if(is_win) {
+    cflags = [
+      "/wd4312",
+    ]
+  }
 }
 
 config("libwebp_direct_config") {
