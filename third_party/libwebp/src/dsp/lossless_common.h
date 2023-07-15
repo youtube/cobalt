@@ -20,6 +20,10 @@
 
 #include "src/utils/utils.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -24,6 +24,7 @@ template("libwebp_lib") {
     configs += [
       "//starboard/build/config:speed",
       ":libwebp_direct_config",
+      ":libwebp_extra_config",
     ]
   }
 }
@@ -89,6 +90,15 @@ libwebp_lib("libwebp_dsp_enc") {
 
 libwebp_lib("libwebp_utils_enc") {
   sources = libwebp_utils_enc_sources
+}
+
+config("libwebp_extra_config") {
+  if(is_clang) {
+    cflags = [
+        "-Wno-implicit-function-declaration",
+        "-Wno-int-to-pointer-cast",
+        ]
+  }
 }
 
 config("libwebp_direct_config") {
