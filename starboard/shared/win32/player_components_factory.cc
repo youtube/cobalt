@@ -16,7 +16,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
@@ -40,10 +39,10 @@ namespace {
 class PlayerComponentsFactory : public PlayerComponents::Factory {
   bool CreateSubComponents(
       const CreationParameters& creation_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      std::unique_ptr<AudioDecoder>* audio_decoder,
+      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
+      std::unique_ptr<VideoDecoder>* video_decoder,
+      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
@@ -59,15 +58,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             ::starboard::shared::opus::OpusAudioDecoder;
 
         if (audio_stream_info.codec == kSbMediaAudioCodecAac) {
-          return scoped_ptr<AudioDecoder>(
+          return std::unique_ptr<AudioDecoder>(
               new AacAudioDecoderImpl(audio_stream_info, drm_system));
         } else if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          return scoped_ptr<AudioDecoder>(
+          return std::unique_ptr<AudioDecoder>(
               new OpusAudioDecoderImpl(audio_stream_info));
         } else {
           SB_NOTREACHED();
         }
-        return scoped_ptr<AudioDecoder>();
+        return std::unique_ptr<AudioDecoder>();
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
@@ -83,7 +82,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
 
-      scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
+      std::unique_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
           creation_parameters.video_codec(), creation_parameters.output_mode(),
           creation_parameters.decode_target_graphics_context_provider(),
           creation_parameters.drm_system()));
@@ -99,8 +98,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 }  // namespace
 
 // static
-scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return make_scoped_ptr<PlayerComponents::Factory>(
+std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return std::unique_ptr<PlayerComponents::Factory>(
       new PlayerComponentsFactory);
 }
 

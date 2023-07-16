@@ -15,10 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
 
+#include <memory>
 #include <vector>
 
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/thread.h"
@@ -72,7 +72,7 @@ class TLSKeyManager {
   Mutex mutex_;
 
   struct InternalData;
-  scoped_ptr<InternalData> data_;
+  std::unique_ptr<InternalData> data_;
 };
 
 }  // namespace shared

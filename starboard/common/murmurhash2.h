@@ -15,7 +15,6 @@
 #ifndef STARBOARD_COMMON_MURMURHASH2_H_
 #define STARBOARD_COMMON_MURMURHASH2_H_
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/types.h"
 
 namespace starboard {

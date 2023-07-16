@@ -15,10 +15,10 @@
 #include "starboard/shared/uwp/log_file_impl.h"
 
 #include <ppltasks.h>
+#include <memory>
 #include <string>
 
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/once.h"
 #include "starboard/shared/uwp/log_writer_uwp.h"
@@ -63,7 +63,7 @@ class LogFileImpl {
  private:
   LogFileImpl() {}
   starboard::Mutex mutex_;
-  starboard::scoped_ptr<ILogWriter> impl_;
+  std::unique_ptr<ILogWriter> impl_;
 };
 
 SB_ONCE_INITIALIZE_FUNCTION(LogFileImpl, LogFileImpl::GetInstance);

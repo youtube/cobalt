@@ -34,7 +34,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_NET_LOG_H_
 #define STARBOARD_SHARED_STARBOARD_NET_LOG_H_
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/socket.h"
 #include "starboard/time.h"
 

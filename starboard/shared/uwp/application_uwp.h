@@ -18,6 +18,7 @@
 #include <D3D12.h>
 #include <agile.h>
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -216,7 +217,7 @@ class ApplicationUwp : public shared::starboard::Application,
   Mutex hdcp_session_mutex_;
   Windows::Media::Protection::HdcpSession ^ hdcp_session_;
 
-  scoped_ptr<AnalogThumbstickThread> analog_thumbstick_thread_;
+  std::unique_ptr<AnalogThumbstickThread> analog_thumbstick_thread_;
   Windows::ApplicationModel::SuspendingDeferral ^ suspend_deferral_ = nullptr;
 
   Mutex preferred_display_mode_mutex_;

@@ -16,6 +16,7 @@
 
 #include <mfapi.h>
 
+#include <memory>
 #include <vector>
 
 #include "starboard/memory.h"
@@ -171,7 +172,7 @@ class WinAudioFormat {
 
 }  // namespace.
 
-scoped_ptr<MediaTransform> CreateAudioTransform(
+std::unique_ptr<MediaTransform> CreateAudioTransform(
     const AudioStreamInfo& audio_stream_info) {
   SB_DCHECK(audio_stream_info.codec == kSbMediaAudioCodecAac ||
             audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
@@ -202,12 +203,12 @@ scoped_ptr<MediaTransform> CreateAudioTransform(
   ComPtr<IMFMediaType> selected = available_types[0];
   CopyProperties(input_type.Get(), selected.Get());
 
-  scoped_ptr<MediaTransform> output(new MediaTransform(transform));
+  std::unique_ptr<MediaTransform> output(new MediaTransform(transform));
   output->SetInputType(selected);
   output->SetOutputTypeBySubType(
       ConvertToWin32OutputFormat(audio_stream_info.codec));
 
-  return output.Pass();
+  return output;
 }
 
 }  // namespace win32

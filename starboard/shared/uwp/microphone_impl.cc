@@ -44,11 +44,11 @@
 using concurrency::task_continuation_context;
 using Microsoft::WRL::ComPtr;
 using starboard::Mutex;
-using starboard::scoped_ptr;
 using starboard::ScopedLock;
 using starboard::Semaphore;
 using starboard::shared::uwp::ApplicationUwp;
 using starboard::shared::win32::platformStringToString;
+using std::unique_ptr;
 using Windows::Devices::Enumeration::DeviceInformation;
 using Windows::Devices::Enumeration::DeviceInformationCollection;
 using Windows::Foundation::EventRegistrationToken;
@@ -306,10 +306,10 @@ class MicrophoneProcessor : public starboard::Thread {
  public:
   // This will try and create a microphone. This will fail (return null) if
   // there are not available microphones.
-  static scoped_ptr<MicrophoneProcessor> TryCreateAndStartRecording(
+  static std::unique_ptr<MicrophoneProcessor> TryCreateAndStartRecording(
       size_t max_num_samples,
       int sample_rate) {
-    scoped_ptr<MicrophoneProcessor> output;
+    std::unique_ptr<MicrophoneProcessor> output;
 
     std::vector<DeviceInformation ^> microphone_devices =
         GetAllMicrophoneDevices();
@@ -488,7 +488,7 @@ class MicrophoneImpl : public SbMicrophonePrivate {
  private:
   const int buffer_size_bytes_;
   const int sample_rate_;
-  scoped_ptr<MicrophoneProcessor> microphone_;
+  std::unique_ptr<MicrophoneProcessor> microphone_;
 };
 
 // Singleton access is required by the microphone interface as specified by

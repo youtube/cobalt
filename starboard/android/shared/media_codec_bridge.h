@@ -15,13 +15,13 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 
+#include <memory>
 #include <string>
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/optional.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
@@ -144,7 +144,7 @@ class MediaCodecBridge {
     ~Handler() {}
   };
 
-  static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
+  static st::unique_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
       jobject j_media_crypto);
@@ -155,7 +155,7 @@ class MediaCodecBridge {
   // resolutions the platform can decode.
   // Both of them have to be set at the same time (i.e. we cannot set one of
   // them without the other), which will be checked in the function.
-  static scoped_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
+  static unique_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
       SbMediaVideoCodec video_codec,
       // `width_hint` and `height_hint` are used to create the Android video
       // format, which don't have to be directly related to the resolution of

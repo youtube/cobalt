@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "starboard/android/shared/player_components_factory.h"
 
 #include "starboard/android/shared/drm_system.h"
@@ -23,8 +25,8 @@ namespace player {
 namespace filter {
 
 // static
-scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return make_scoped_ptr<PlayerComponents::Factory>(
+std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return make_std::unique_ptr<PlayerComponents::Factory>(
       new android::shared::PlayerComponentsFactory);
 }
 
