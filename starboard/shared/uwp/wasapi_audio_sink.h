@@ -22,6 +22,7 @@
 
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <queue>
 
 #include "starboard/common/atomic.h"
@@ -180,7 +181,7 @@ class WASAPIAudioSink {
   Mutex output_frames_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> pending_decoded_audios_;
 
-  scoped_ptr<JobThread> job_thread_;
+  std::unique_ptr<JobThread> job_thread_;
 
   starboard::ThreadChecker thread_checker_;
 };

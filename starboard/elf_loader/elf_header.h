@@ -15,9 +15,10 @@
 #ifndef STARBOARD_ELF_LOADER_ELF_HEADER_H_
 #define STARBOARD_ELF_LOADER_ELF_HEADER_H_
 
+#include <memory>
+
 #include "starboard/elf_loader/elf.h"
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/elf_loader/file.h"
 
 namespace starboard {
@@ -35,7 +36,7 @@ class ElfHeader {
   const Ehdr* GetHeader();
 
  private:
-  scoped_ptr<Ehdr> elf_header_;
+  std::unique_ptr<Ehdr> elf_header_;
 
   ElfHeader(const ElfHeader&) = delete;
   void operator=(const ElfHeader&) = delete;

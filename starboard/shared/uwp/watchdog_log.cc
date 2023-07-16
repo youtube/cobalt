@@ -14,11 +14,11 @@
 
 #include "starboard/shared/uwp/watchdog_log.h"
 
+#include <memory>
 #include <string>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
@@ -76,7 +76,7 @@ class WatchDogThread : public Thread {
  private:
   std::string file_path_;
 };
-starboard::scoped_ptr<WatchDogThread> s_watchdog_singleton_;
+std::unique_ptr<WatchDogThread> s_watchdog_singleton_;
 }  // namespace.
 
 void StartWatchdogLog(const std::string& path) {

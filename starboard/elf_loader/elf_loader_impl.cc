@@ -17,7 +17,6 @@
 #include <string>
 
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/file.h"
@@ -57,7 +56,7 @@ bool ElfLoaderImpl::Load(const char* name,
     return false;
   }
 
-  scoped_ptr<File> elf_file;
+  std::unique_ptr<File> elf_file;
   if (use_compression && EndsWith(name, kCompressionSuffix)) {
     elf_file.reset(new LZ4FileImpl());
     SB_LOG(INFO) << "Loading " << name << " using compression";
