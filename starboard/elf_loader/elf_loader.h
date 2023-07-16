@@ -15,9 +15,9 @@
 #ifndef STARBOARD_ELF_LOADER_ELF_LOADER_H_
 #define STARBOARD_ELF_LOADER_ELF_LOADER_H_
 
+#include <memory>
 #include <string>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -61,7 +61,7 @@ class ElfLoader {
   std::string content_path_;
 
   // The ELF Loader implementation.
-  scoped_ptr<ElfLoaderImpl> impl_;
+  std::unique_ptr<ElfLoaderImpl> impl_;
 
   // The single ELF Loader instance.
   static ElfLoader* g_instance;

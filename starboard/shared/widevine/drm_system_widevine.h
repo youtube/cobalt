@@ -17,12 +17,12 @@
 
 #include <limits>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "starboard/common/atomic.h"
 #include "starboard/common/optional.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -183,7 +183,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
       pending_generate_session_update_requests_;
   std::string first_wvcdm_session_id_;
 
-  scoped_ptr<::widevine::Cdm> cdm_;
+  std::unique_ptr<::widevine::Cdm> cdm_;
 
   bool is_server_certificate_set_ = false;
 

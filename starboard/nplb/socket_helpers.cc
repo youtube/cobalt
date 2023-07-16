@@ -14,9 +14,9 @@
 
 #include "starboard/nplb/socket_helpers.h"
 
+#include <memory>
 #include <utility>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/socket.h"
 #include "starboard/common/string.h"
 #include "starboard/once.h"
@@ -103,21 +103,21 @@ SbSocket CreateServerTcpSocket(SbSocketAddressType address_type) {
   return server_socket;
 }
 
-scoped_ptr<Socket> CreateServerTcpSocketWrapped(
+std::unique_ptr<Socket> CreateServerTcpSocketWrapped(
     SbSocketAddressType address_type) {
-  scoped_ptr<Socket> server_socket =
-      make_scoped_ptr(new Socket(address_type, kSbSocketProtocolTcp));
+  std::unique_ptr<Socket> server_socket =
+      std::unique_ptr<Socket>(new Socket(address_type, kSbSocketProtocolTcp));
   if (!server_socket->IsValid()) {
     ADD_FAILURE() << "SbSocketCreate failed";
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
   if (!server_socket->SetReuseAddress(true)) {
     ADD_FAILURE() << "SbSocketSetReuseAddress failed";
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
-  return server_socket.Pass();
+  return server_socket;
 }
 
 SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
@@ -137,21 +137,23 @@ SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
   return server_socket;
 }
 
-scoped_ptr<Socket> CreateBoundTcpSocketWrapped(SbSocketAddressType address_type,
-                                               int port) {
-  scoped_ptr<Socket> server_socket = CreateServerTcpSocketWrapped(address_type);
+std::unique_ptr<Socket> CreateBoundTcpSocketWrapped(
+    SbSocketAddressType address_type,
+    int port) {
+  std::unique_ptr<Socket> server_socket =
+      CreateServerTcpSocketWrapped(address_type);
   if (!server_socket) {
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
   SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
   SbSocketError result = server_socket->Bind(&address);
   if (result != kSbSocketOk) {
     ADD_FAILURE() << "SbSocketBind to " << port << " failed: " << result;
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
-  return server_socket.Pass();
+  return server_socket;
 }
 
 SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
@@ -170,22 +172,22 @@ SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
   return server_socket;
 }
 
-scoped_ptr<Socket> CreateListeningTcpSocketWrapped(
+std::unique_ptr<Socket> CreateListeningTcpSocketWrapped(
     SbSocketAddressType address_type,
     int port) {
-  scoped_ptr<Socket> server_socket =
+  std::unique_ptr<Socket> server_socket =
       CreateBoundTcpSocketWrapped(address_type, port);
   if (!server_socket) {
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
   SbSocketError result = server_socket->Listen();
   if (result != kSbSocketOk) {
     ADD_FAILURE() << "SbSocketListen failed: " << result;
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
-  return server_socket.Pass();
+  return server_socket;
 }
 
 namespace {
@@ -216,14 +218,14 @@ SbSocket CreateConnectingTcpSocket(SbSocketAddressType address_type, int port) {
   return client_socket;
 }
 
-scoped_ptr<Socket> CreateConnectingTcpSocketWrapped(
+std::unique_ptr<Socket> CreateConnectingTcpSocketWrapped(
     SbSocketAddressType address_type,
     int port) {
-  scoped_ptr<Socket> client_socket =
-      make_scoped_ptr(new Socket(address_type, kSbSocketProtocolTcp));
+  std::unique_ptr<Socket> client_socket =
+      std::unique_ptr<Socket>(new Socket(address_type, kSbSocketProtocolTcp));
   if (!client_socket->IsValid()) {
     ADD_FAILURE() << "SbSocketCreate failed";
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
   // Connect to localhost:<port>.
@@ -231,7 +233,7 @@ scoped_ptr<Socket> CreateConnectingTcpSocketWrapped(
   bool success = GetLocalhostAddress(address_type, port, &address);
   if (!success) {
     ADD_FAILURE() << "GetLocalhostAddress failed";
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
   // This connect will probably return pending, but we'll assume it will connect
@@ -239,10 +241,10 @@ scoped_ptr<Socket> CreateConnectingTcpSocketWrapped(
   SbSocketError result = client_socket->Connect(&address);
   if (result != kSbSocketOk && result != kSbSocketPending) {
     ADD_FAILURE() << "SbSocketConnect failed: " << result;
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
-  return client_socket.Pass();
+  return client_socket;
 }
 }  // namespace
 
@@ -269,12 +271,13 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
   return kSbSocketInvalid;
 }
 
-scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, SbTime timeout) {
+std::unique_ptr<Socket> AcceptBySpinning(Socket* server_socket,
+                                         SbTime timeout) {
   SbTimeMonotonic start = SbTimeGetMonotonicNow();
   while (true) {
     Socket* accepted_socket = server_socket->Accept();
     if (accepted_socket && accepted_socket->IsValid()) {
-      return make_scoped_ptr(accepted_socket);
+      return std::unique_ptr<Socket>(accepted_socket);
     }
 
     // If we didn't get a socket, it should be pending.
@@ -289,7 +292,7 @@ scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, SbTime timeout) {
     SbThreadYield();
   }
 
-  return scoped_ptr<Socket>().Pass();
+  return std::unique_ptr<Socket>();
 }
 
 bool WriteBySpinning(SbSocket socket,
@@ -506,38 +509,39 @@ ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
   return ConnectedTrio(listen_socket, client_socket, server_socket);
 }
 
-scoped_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
+std::unique_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
     SbSocketAddressType server_address_type,
     SbSocketAddressType client_address_type,
     int port,
     SbTime timeout) {
   // Verify the listening socket.
-  scoped_ptr<Socket> listen_socket =
+  std::unique_ptr<Socket> listen_socket =
       CreateListeningTcpSocketWrapped(server_address_type, port);
   if (!listen_socket || !listen_socket->IsValid()) {
     ADD_FAILURE() << "Could not create listen socket.";
-    return scoped_ptr<ConnectedTrioWrapped>().Pass();
+    return std::unique_ptr<ConnectedTrioWrapped>();
   }
 
   // Verify the socket to connect to the listening socket.
-  scoped_ptr<Socket> client_socket =
+  std::unique_ptr<Socket> client_socket =
       CreateConnectingTcpSocketWrapped(client_address_type, port);
   if (!client_socket || !client_socket->IsValid()) {
     ADD_FAILURE() << "Could not create client socket.";
-    return scoped_ptr<ConnectedTrioWrapped>().Pass();
+    return std::unique_ptr<ConnectedTrioWrapped>();
   }
 
   // Spin until the accept happens (or we get impatient).
   SbTimeMonotonic start = SbTimeGetMonotonicNow();
-  scoped_ptr<Socket> server_socket =
+  std::unique_ptr<Socket> server_socket =
       AcceptBySpinning(listen_socket.get(), timeout);
   if (!server_socket || !server_socket->IsValid()) {
     ADD_FAILURE() << "Failed to accept within " << timeout;
-    return scoped_ptr<ConnectedTrioWrapped>().Pass();
+    return std::unique_ptr<ConnectedTrioWrapped>();
   }
 
-  return make_scoped_ptr(new ConnectedTrioWrapped(
-      listen_socket.Pass(), client_socket.Pass(), server_socket.Pass()));
+  return std::unique_ptr<ConnectedTrioWrapped>(new ConnectedTrioWrapped(
+      std::move(listen_socket), std::move(client_socket),
+      std::move(server_socket)));
 }
 
 SbTimeMonotonic TimedWait(SbSocketWaiter waiter) {

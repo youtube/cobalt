@@ -144,11 +144,11 @@ class LogWriterUWP : public ILogWriter {
 };
 }  // namespace.
 
-scoped_ptr<ILogWriter> CreateLogWriterUWP(Windows::Storage::StorageFolder ^
-                                              folder,
-                                          const char* filename) {
-  scoped_ptr<ILogWriter> output(new LogWriterUWP(folder, filename));
-  return output.Pass();
+std::unique_ptr<ILogWriter> CreateLogWriterUWP(Windows::Storage::StorageFolder ^
+                                                   folder,
+                                               const char* filename) {
+  std::unique_ptr<ILogWriter> output(new LogWriterUWP(folder, filename));
+  return output;
 }
 
 }  // namespace uwp

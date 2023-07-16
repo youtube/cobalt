@@ -17,11 +17,11 @@
 
 #include <X11/Xlib.h>
 
+#include <memory>
 #include <queue>
 #include <unordered_map>
 #include <vector>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -154,7 +154,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   bool paste_buffer_key_release_pending_;
 
   // The /dev/input input handler. Only set when there is an open window.
-  scoped_ptr<::starboard::shared::dev_input::DevInput> dev_input_;
+  std::unique_ptr<::starboard::shared::dev_input::DevInput> dev_input_;
 
   // Indicates whether pointer input is from a touchscreen.
   bool touchscreen_pointer_;

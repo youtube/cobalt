@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/net_args.h"
-
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "starboard/common/scoped_ptr.h"
+#include "starboard/common/log.h"
+#include "starboard/shared/starboard/net_args.h"
+
 #include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
@@ -37,8 +38,8 @@ namespace shared {
 namespace starboard {
 namespace {
 
-scoped_ptr<Socket> CreateListenSocket() {
-  scoped_ptr<Socket> socket(
+std::unique_ptr<Socket> CreateListenSocket() {
+  std::unique_ptr<Socket> socket(
       new Socket(NET_ARGS_IP_VERSION, kSbSocketProtocolTcp));
   socket->SetReuseAddress(true);
   SbSocketAddress sock_addr;
@@ -56,7 +57,7 @@ scoped_ptr<Socket> CreateListenSocket() {
   if (sock_err != kSbSocketOk) {
     SbLogRawFormatF(kErrFmt, sock_err);
   }
-  return socket.Pass();
+  return socket;
 }
 
 void WaitUntilReadableOrConnectionReset(SbSocket sock) {
@@ -76,18 +77,18 @@ void WaitUntilReadableOrConnectionReset(SbSocket sock) {
   SbSocketWaiterDestroy(waiter);
 }
 
-scoped_ptr<Socket> WaitForClientConnection(Socket* listen_sock,
-                                           SbTime timeout) {
+std::unique_ptr<Socket> WaitForClientConnection(Socket* listen_sock,
+                                                SbTime timeout) {
   SbTimeMonotonic expire_time = (timeout >= 0) && (timeout < kSbTimeMax)
                                     ? SbTimeGetMonotonicNow() + timeout
                                     : kSbTimeMax;
   while (true) {
-    scoped_ptr<Socket> client_connection(listen_sock->Accept());
+    std::unique_ptr<Socket> client_connection(listen_sock->Accept());
     if (client_connection) {
-      return client_connection.Pass();
+      return client_connection;
     }
     if (SbTimeGetMonotonicNow() > expire_time) {
-      return scoped_ptr<Socket>();
+      return std::unique_ptr<Socket>();
     }
     SbThreadSleep(kSbTimeMillisecond);
   }
@@ -112,8 +113,8 @@ std::vector<std::string> SplitStringByLines(const std::string& string_buff) {
 const char kNetArgsCommandSwitchWait[] = "net_args_wait_for_connection";
 
 std::vector<std::string> NetArgsWaitForPayload(SbTime timeout) {
-  scoped_ptr<Socket> listen = CreateListenSocket();
-  scoped_ptr<Socket> client_connection =
+  std::unique_ptr<Socket> listen = CreateListenSocket();
+  std::unique_ptr<Socket> client_connection =
       WaitForClientConnection(listen.get(), timeout);
   if (!client_connection) {
     SB_LOG(ERROR) << "Timed out waiting for net args.";

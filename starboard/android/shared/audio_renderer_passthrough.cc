@@ -82,7 +82,7 @@ AudioRendererPassthrough::AudioRendererPassthrough(
             audio_stream_info_.codec == kSbMediaAudioCodecEac3);
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
-    scoped_ptr<AudioDecoder> audio_decoder(
+    std::unique_ptr<AudioDecoder> audio_decoder(
         new AudioDecoder(audio_stream_info, drm_system));
     if (audio_decoder->is_valid()) {
       decoder_.reset(audio_decoder.release());

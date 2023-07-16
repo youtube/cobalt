@@ -15,11 +15,11 @@
 #ifndef STARBOARD_NPLB_SOCKET_HELPERS_H_
 #define STARBOARD_NPLB_SOCKET_HELPERS_H_
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/time.h"
@@ -44,17 +44,18 @@ int GetPortNumberForTests();
 
 // Creates a TCP/IP server socket (sets Reuse Address option).
 SbSocket CreateServerTcpSocket(SbSocketAddressType address_type);
-scoped_ptr<Socket> CreateServerTcpSocketWrapped(
+std::unique_ptr<Socket> CreateServerTcpSocketWrapped(
     SbSocketAddressType address_type);
 
 // Creates a TCP/IP socket bound to all interfaces on the given port.
 SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port);
-scoped_ptr<Socket> CreateBoundTcpSocketWrapped(SbSocketAddressType address_type,
-                                               int port);
+std::unique_ptr<Socket> CreateBoundTcpSocketWrapped(
+    SbSocketAddressType address_type,
+    int port);
 
 // Creates a TCP/IP socket listening on all interfaces on the given port.
 SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port);
-scoped_ptr<Socket> CreateListeningTcpSocketWrapped(
+std::unique_ptr<Socket> CreateListeningTcpSocketWrapped(
     SbSocketAddressType address_type,
     int port);
 
@@ -62,7 +63,7 @@ scoped_ptr<Socket> CreateListeningTcpSocketWrapped(
 // yielding, and retrying for up to timeout. Returns kSbSocketInvalid if no
 // socket has been accepted in the given time.
 SbSocket AcceptBySpinning(SbSocket listen_socket, SbTime timeout);
-scoped_ptr<Socket> AcceptBySpinning(Socket* listen_socket, SbTime timeout);
+std::unique_ptr<Socket> AcceptBySpinning(Socket* listen_socket, SbTime timeout);
 
 // Writes the given data to socket, spinning until success or error.
 bool WriteBySpinning(SbSocket socket,
@@ -115,15 +116,15 @@ struct ConnectedTrio {
 
 struct ConnectedTrioWrapped {
   ConnectedTrioWrapped() {}
-  ConnectedTrioWrapped(scoped_ptr<Socket> listen_socket,
-                       scoped_ptr<Socket> client_socket,
-                       scoped_ptr<Socket> server_socket)
-      : listen_socket(listen_socket.Pass()),
-        client_socket(client_socket.Pass()),
-        server_socket(server_socket.Pass()) {}
-  scoped_ptr<Socket> listen_socket;
-  scoped_ptr<Socket> client_socket;
-  scoped_ptr<Socket> server_socket;
+  ConnectedTrioWrapped(std::unique_ptr<Socket> listen_socket,
+                       std::unique_ptr<Socket> client_socket,
+                       std::unique_ptr<Socket> server_socket)
+      : listen_socket(std::move(listen_socket)),
+        client_socket(std::move(client_socket)),
+        server_socket(std::move(server_socket)) {}
+  std::unique_ptr<Socket> listen_socket;
+  std::unique_ptr<Socket> client_socket;
+  std::unique_ptr<Socket> server_socket;
 };
 
 // Creates and returns 3 TCP/IP sockets, a connected client and server, and a
@@ -133,7 +134,7 @@ ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
                                SbSocketAddressType client_address_type,
                                int port,
                                SbTime timeout);
-scoped_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
+std::unique_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
     SbSocketAddressType server_address_type,
     SbSocketAddressType client_address_type,
     int port,
