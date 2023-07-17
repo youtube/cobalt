@@ -16,4 +16,3 @@ target_platform = "win-win32"
 target_os = "win"
 target_cpu = "x64"
 is_clang = false
-is_internal_build = true
