@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/toolchain/linux/clang_lld_toolchain.gni")
+import("//build/config/clang/clang.gni")
+import("//build/toolchain/gcc_toolchain.gni")
 
-clang_lld_toolchain("target") {
+clang_toolchain("target") {
+  clang_base_path = clang_base_path
 }

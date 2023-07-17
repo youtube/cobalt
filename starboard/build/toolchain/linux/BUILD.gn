@@ -14,7 +14,6 @@
 
 import("//build/toolchain/gcc_toolchain.gni")
 import("//starboard/build/platform_path.gni")
-import("//starboard/build/toolchain/linux/clang_lld_toolchain.gni")
 
 clang_toolchain("x64") {
   clang_base_path = clang_base_path
@@ -36,7 +35,4 @@ clang_toolchain("x86") {
     toolchain_config_path = "//starboard/build/config/linux:host"
     is_clang_16 = true
   }
-}
-
-clang_lld_toolchain("clang_lld") {
 }
