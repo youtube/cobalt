@@ -80,7 +80,7 @@ struct SbMemoryReporter {
 // management is done internally on input pointer.
 //
 // NOTE: This module is unused starting with Starboard 15 and will be removed
-// in future.
+// in the future.
 //
 // Returns true if the memory reporter was set with no errors. If an error
 // was reported then check the log for why it failed.
