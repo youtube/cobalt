@@ -71,11 +71,13 @@ class PersistentSettings : public base::MessageLoop::DestructionObserver {
 
   void SetPersistentSetting(
       const std::string& key, std::unique_ptr<base::Value> value,
-      base::OnceClosure closure = std::move(base::DoNothing()));
+      base::OnceClosure closure = std::move(base::DoNothing()),
+      bool blocking = false);
 
   void RemovePersistentSetting(
       const std::string& key,
-      base::OnceClosure closure = std::move(base::DoNothing()));
+      base::OnceClosure closure = std::move(base::DoNothing()),
+      bool blocking = false);
 
   void DeletePersistentSettings(
       base::OnceClosure closure = std::move(base::DoNothing()));
@@ -89,16 +91,28 @@ class PersistentSettings : public base::MessageLoop::DestructionObserver {
 
   void SetPersistentSettingHelper(const std::string& key,
                                   std::unique_ptr<base::Value> value,
-                                  base::OnceClosure closure);
+                                  base::OnceClosure closure, bool blocking);
 
   void RemovePersistentSettingHelper(const std::string& key,
-                                     base::OnceClosure closure);
+                                     base::OnceClosure closure, bool blocking);
 
   void DeletePersistentSettingsHelper(base::OnceClosure closure);
 
   scoped_refptr<PersistentPrefStore> writeable_pref_store() {
     writeable_pref_store_initialized_.Wait();
     return pref_store_;
+  }
+
+  void commit_pending_write(bool blocking) {
+    if (blocking) {
+      base::WaitableEvent written;
+      writeable_pref_store()->CommitPendingWrite(
+          base::OnceClosure(),
+          base::BindOnce(&base::WaitableEvent::Signal, Unretained(&written)));
+      written.Wait();
+    } else {
+      writeable_pref_store()->CommitPendingWrite();
+    }
   }
 
   // Persistent settings file path.
