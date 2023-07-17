@@ -18,6 +18,7 @@
 #ifdef STARBOARD
 #include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
+#include "nb/polymorphic_downcast.h"
 #endif
 
 #if defined(OS_ANDROID)

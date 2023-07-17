@@ -5,11 +5,9 @@
 #ifndef NB_REF_COUNTED_H_
 #define NB_REF_COUNTED_H_
 
-#include <utility>
-
+#include "nb/thread_collision_warner.h"
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
-#include "starboard/common/thread_collision_warner.h"
 
 namespace nb {
 
@@ -148,7 +146,7 @@ template <typename T>
 class RefCountedData : public nb::RefCountedThreadSafe<nb::RefCountedData<T> > {
  public:
   RefCountedData() : data() {}
-  explicit RefCountedData(const T& in_value) : data(in_value) {}
+  RefCountedData(const T& in_value) : data(in_value) {}
 
   T data;
 
@@ -212,7 +210,7 @@ class scoped_refptr {
 
   scoped_refptr() : ptr_(NULL) {}
 
-  explicit scoped_refptr(T* p) : ptr_(p) {
+  scoped_refptr(T* p) : ptr_(p) {
     if (ptr_)
       ptr_->AddRef();
   }
