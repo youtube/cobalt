@@ -14,20 +14,19 @@
 
 config("platform_configuration") {
   ldflags = [
-    "--build-id",
-    "--gc-sections",
-    "-X",
-    "-v",
-    "-eh-frame-hdr",
-    "--fini=__cxa_finalize",
-    "-shared",
-    "-L$clang_base_path",
-    "-L/usr/lib",
-    "-L/lib",
-    "-nostdlib",
-    "--whole-archive",
-    "--no-whole-archive",
-    "-u GetEvergreenSabiString",
+    "-fuse-ld=lld",
+    "-Wl,--build-id",
+    "-Wl,--gc-sections",
+    "-Wl,-X",
+    "-Wl,-v",
+    "-Wl,-eh-frame-hdr",
+    "-Wl,--fini=__cxa_finalize",
+    "-Wl,-shared",
+    "-Wl,-L$clang_base_path",
+    "-Wl,-L/usr/lib",
+    "-Wl,-L/lib",
+    "-Wl,-nostdlib",
+    "-Wl,-u GetEvergreenSabiString",
   ]
 
   cflags = [
@@ -201,7 +200,7 @@ config("speed") {
 config("size") {
   cflags = [ "-Os" ]
   if (is_qa || is_gold) {
-    ldflags = [ "--icf=safe" ]
+    ldflags = [ "-Wl,--icf=safe" ]
   }
 }
 
