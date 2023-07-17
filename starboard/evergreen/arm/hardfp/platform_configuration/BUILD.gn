@@ -28,7 +28,7 @@ config("platform_configuration") {
     "//starboard/evergreen/arm/shared/platform_configuration",
   ]
   ldflags = [
-    "-m",
-    "armelf",
+    "-Wl,-m",
+    "-Wl,armelf",
   ]
 }

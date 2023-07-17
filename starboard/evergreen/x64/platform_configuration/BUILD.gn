@@ -28,8 +28,8 @@ config("platform_configuration") {
   ]
 
   ldflags = [
-    "-m",
-    "elf_x86_64",
+    "-Wl,-m",
+    "-Wl,elf_x86_64",
   ]
   cflags = [ "-isystem" +
              rebase_path("//third_party/musl/arch/x86_64", root_build_dir) ]

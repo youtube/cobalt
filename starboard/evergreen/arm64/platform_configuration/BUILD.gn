@@ -31,8 +31,8 @@ config("platform_configuration") {
   ]
 
   ldflags = [
-    "-m",
-    "aarch64elf",
+    "-Wl,-m",
+    "-Wl,aarch64elf",
   ]
   cflags = [ "-isystem" +
              rebase_path("//third_party/musl/arch/aarch64", root_build_dir) ]

@@ -27,6 +27,10 @@ config("platform_configuration") {
     "//starboard/evergreen/shared/platform_configuration",
   ]
 
+  ldflags = [
+    "-Wl,-m",
+    "-Wl,elf_i386",
+  ]
   cflags = [ "-isystem" +
              rebase_path("//third_party/musl/arch/i386", root_build_dir) ]
 }
