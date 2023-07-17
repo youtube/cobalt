@@ -34,7 +34,7 @@ from starboard.tools import command_line
 from starboard.tools import log_level
 
 _DISABLED_BLACKBOXTEST_CONFIGS = [
-    'android-arm/devel',
+    'android-arm/devel',  
     'android-arm64/devel',
     'android-x86/devel',
     'evergreen-arm/devel',
