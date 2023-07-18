@@ -43,4 +43,6 @@ if (current_toolchain == default_toolchain &&
   enable_exceptions_override = true
 
   v8_enable_webassembly = true
+
+  is_raspi = true
 }
