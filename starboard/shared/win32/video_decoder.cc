@@ -468,8 +468,9 @@ void VideoDecoder::InitializeCodec() {
 
   ComPtr<IMFAttributes> attributes = transform->GetAttributes();
   SB_DCHECK(attributes);
-  CheckResult(attributes->SetUINT32(MF_SA_MINIMUM_OUTPUT_SAMPLE_COUNT,
-                                    kMaxOutputSamples));
+  CheckResult(
+      attributes->SetUINT32(MF_SA_MINIMUM_OUTPUT_SAMPLE_COUNT,
+                            static_cast<UINT32>(GetMaxNumberOfCachedFrames())));
 
   UpdateVideoArea(transform->GetCurrentOutputType());
 
@@ -704,7 +705,7 @@ void VideoDecoder::DecoderThreadRun() {
       // MF_SA_MINIMUM_OUTPUT_SAMPLE_COUNT.
       thread_lock_.Acquire();
       bool input_full = thread_events_.size() >= kMaxInputSamples;
-      bool output_full = thread_outputs_.size() >= kMaxOutputSamples;
+      bool output_full = thread_outputs_.size() >= GetMaxNumberOfCachedFrames();
       thread_lock_.Release();
 
       Status status = input_full ? kBufferFull : kNeedMoreInput;
