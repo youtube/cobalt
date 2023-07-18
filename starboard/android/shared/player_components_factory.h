@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/android/shared/audio_decoder.h"
@@ -151,8 +152,8 @@ class PlayerComponentsPassthrough
   PlayerComponentsPassthrough(
       std::unique_ptr<AudioRendererPassthrough> audio_renderer,
       std::unique_ptr<VideoRenderer> video_renderer)
-      : audio_renderer_(audio_renderer.Pass()),
-        video_renderer_(video_renderer.Pass()) {}
+      : audio_renderer_(std::move(audio_renderer)),
+        video_renderer_(std::move(video_renderer)) {}
 
  private:
   // PlayerComponents methods
@@ -276,15 +277,15 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         auto media_time_provider = audio_renderer.get();
 
         video_renderer.reset(new VideoRendererImpl(
-            std::unique_ptr<VideoDecoderBase>(video_decoder.Pass()),
-            media_time_provider, video_render_algorithm.Pass(),
+            std::unique_ptr<VideoDecoderBase>(std::move(video_decoder)),
+            media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink));
       } else {
         return std::unique_ptr<PlayerComponents>();
       }
     }
     return std::unique_ptr<PlayerComponents>(new PlayerComponentsPassthrough(
-        audio_renderer.Pass(), video_renderer.Pass()));
+        std::move(audio_renderer), std::move(video_renderer)));
   }
 
   bool CreateSubComponents(
@@ -399,14 +400,16 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
               new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl.PassAs<AudioDecoderBase>();
+            return std::unique_ptr<AudioDecoderBase>(
+                std::move(audio_decoder_impl));
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           std::unique_ptr<AudioDecoder> audio_decoder_impl(
               new AudioDecoder(audio_stream_info, drm_system));
           if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl.PassAs<AudioDecoderBase>();
+            return std::unique_ptr<AudioDecoderBase>(
+                std::move(audio_decoder_impl));
           }
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
@@ -525,7 +528,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_improved_support_check, error_message));
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
-      return video_decoder.Pass();
+      return video_decoder;
     }
     *error_message =
         "Failed to create video decoder with error: " + *error_message;
@@ -646,7 +649,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         max_cached_frames, &callback_stub);
     if (audio_sink->HasStarted() && !callback_stub.error_occurred()) {
       audio_sink->Stop();
-      return audio_sink.Pass();
+      return audio_sink;
     }
     SB_LOG(WARNING)
         << "AudioTrack does not support tunnel mode with sample rate:"

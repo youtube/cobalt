@@ -166,7 +166,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
   if (!mime) {
     SB_LOG(ERROR) << "Unsupported codec " << audio_stream_info.codec << ".";
-    return std::unique_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>(nullptr);
   }
 
   std::string decoder_name =
@@ -177,7 +177,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   if (decoder_name.empty()) {
     SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
                   << ".";
-    return std::unique_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>(nullptr);
   }
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -206,12 +206,12 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   if (!j_media_codec_bridge) {
     SB_LOG(ERROR) << "Failed to create codec bridge for "
                   << audio_stream_info.codec << ".";
-    return std::unique_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>(nullptr);
   }
 
   j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
   native_media_codec_bridge->Initialize(j_media_codec_bridge);
-  return native_media_codec_bridge.Pass();
+  return native_media_codec_bridge;
 }
 
 // static
@@ -240,7 +240,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     *error_message = FormatString("Unsupported mime for codec %d", video_codec);
-    return std::unique_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>(nullptr);
   }
 
   const bool must_support_secure = require_secured_decoder;
@@ -271,7 +271,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     *error_message =
         FormatString("Failed to find decoder: %s, mustSupportSecure: %d.", mime,
                      !!j_media_crypto);
-    return std::unique_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>(nullptr);
   }
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -338,12 +338,12 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
         env->CallObjectMethodOrAbort(j_create_media_codec_bridge_result.Get(),
                                      "errorMessage", "()Ljava/lang/String;"));
     *error_message = env->GetStringStandardUTFOrAbort(j_error_message.Get());
-    return std::unique_ptr<MediaCodecBridge>(NULL);
+    return std::unique_ptr<MediaCodecBridge>(nullptr);
   }
 
   j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
   native_media_codec_bridge->Initialize(j_media_codec_bridge);
-  return native_media_codec_bridge.Pass();
+  return native_media_codec_bridge;
 }
 
 MediaCodecBridge::~MediaCodecBridge() {
