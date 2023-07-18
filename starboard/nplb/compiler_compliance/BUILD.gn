@@ -40,3 +40,23 @@ if (sb_enable_cpp17_audit) {
     cflags_cc = [ "-std=c++17" ]
   }
 }
+
+if (sb_enable_cpp20_audit) {
+  static_library("cpp20_supported") {
+    sources = [ "cpp20_support.cc" ]
+    deps = [
+      ":cpp20_supported_config_shim",
+      "//starboard",
+    ]
+  }
+
+  # We do this to ensure the -std=c++20 flag is added after any other -std flag
+  # so it overrides any other one.
+  group("cpp20_supported_config_shim") {
+    public_configs = [ ":cpp20_supported_config" ]
+  }
+
+  config("cpp20_supported_config") {
+    # cflags_cc = [ "-std=c++20" ]
+  }
+}
