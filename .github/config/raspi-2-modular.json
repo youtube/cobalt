@@ -1,0 +1,28 @@
+{
+  "docker_service": "build-raspi",
+  "on_device_test": {
+    "enabled": true,
+    "tests": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "test_attempts": 2
+  },
+  "platforms": [
+    "raspi-2-modular"
+  ],
+  "includes": [
+    {
+      "name":"modular",
+      "platform":"raspi-2-modular",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments": "build_with_separate_cobalt_toolchain=true",
+      "dimension": "release_version=regex:10.*"
+    }
+  ]
+}
