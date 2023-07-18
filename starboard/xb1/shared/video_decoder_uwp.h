@@ -17,6 +17,7 @@
 
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/uwp/application_uwp.h"
+#include "starboard/shared/uwp/xb1_get_type.h"
 #include "starboard/shared/win32/video_decoder.h"
 
 namespace starboard {
@@ -47,6 +48,9 @@ class VideoDecoderUwp : public ::starboard::shared::win32::VideoDecoder {
   static bool IsHardwareAv1DecoderSupported();
 
   bool TryUpdateOutputForHdrVideo(const VideoStreamInfo& stream_info) override;
+
+  size_t GetPrerollFrameCount() const override;
+  size_t GetMaxNumberOfCachedFrames() const override;
 
  private:
   SbMediaColorMetadata current_color_metadata_ = {};
