@@ -14,7 +14,7 @@
 
 // Module Overview: Memory Reporting API.
 //
-// Provides an interface for memory reporting.
+// DEPRECATED: Provides an interface for memory reporting.
 
 #ifndef STARBOARD_MEMORY_REPORTER_H_
 #define STARBOARD_MEMORY_REPORTER_H_
@@ -34,7 +34,8 @@ extern "C" {
 
 // A function to report a memory allocation from SbMemoryAllocate(). Note that
 // operator new calls SbMemoryAllocate which will delegate to this callback.
-typedef void (*SbMemoryReporterOnAlloc)(void* context, const void* memory,
+typedef void (*SbMemoryReporterOnAlloc)(void* context,
+                                        const void* memory,
                                         size_t size);
 
 // A function to report a memory deallocation from SbMemoryDeallcoate(). Note
@@ -43,7 +44,8 @@ typedef void (*SbMemoryReporterOnAlloc)(void* context, const void* memory,
 typedef void (*SbMemoryReporterOnDealloc)(void* context, const void* memory);
 
 // A function to report a memory mapping from SbMemoryMap().
-typedef void (*SbMemoryReporterOnMapMemory)(void* context, const void* memory,
+typedef void (*SbMemoryReporterOnMapMemory)(void* context,
+                                            const void* memory,
                                             size_t size);
 
 // A function to report a memory unmapping from SbMemoryUnmap().
@@ -76,6 +78,9 @@ struct SbMemoryReporter {
 
 // Sets the MemoryReporter. Any previous memory reporter is unset. No lifetime
 // management is done internally on input pointer.
+//
+// NOTE: This module is unused starting with Starboard 15 and will be removed
+// in the future.
 //
 // Returns true if the memory reporter was set with no errors. If an error
 // was reported then check the log for why it failed.

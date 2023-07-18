@@ -21,8 +21,8 @@
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::GetThreadSubsystemSingleton;
-using starboard::shared::win32::TlsInternalFree;
 using starboard::shared::win32::ThreadSubsystemSingleton;
+using starboard::shared::win32::TlsInternalFree;
 
 void SbThreadDestroyLocalKey(SbThreadLocalKey key) {
   if (!SbThreadIsValidLocalKey(key)) {
@@ -39,5 +39,5 @@ void SbThreadDestroyLocalKey(SbThreadLocalKey key) {
   SbMutexRelease(&singleton->mutex_);
 
   TlsInternalFree(tls_index);
-  SbMemoryDeallocateNoReport(key);
+  SbMemoryDeallocate(key);
 }

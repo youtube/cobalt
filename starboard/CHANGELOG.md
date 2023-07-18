@@ -15,6 +15,14 @@ can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
 ## Version 15
+
+### SbMemoryReporter is no longer used
+
+`SbMemoryReporter` defined in `starboard/memory_reporter.h`` is no longer used
+and is considered deprecated. It will be removed in upcoming Starboard versions.
+The corresponding `SbMemoryAllocateNoReport` and `SbMemoryDeallocateNoReport`
+are also deprecated.
+
 ### Removed version suffixes of SbPlayer functions and structures
 Renamed SbPlayerInfo2 to SbPlayerInfo, SbPlayerSeek2() to SbPlayerSeek(),and
 SbPlayerGetInfo2() to SbPlayerGetInfo(), as the version suffixes are no longer

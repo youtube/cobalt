@@ -14,10 +14,8 @@
 
 #include "starboard/memory.h"
 #include "starboard/shared/posix/page_internal.h"
-#include "starboard/shared/starboard/memory_reporter_internal.h"
 
 void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
   void* memory = SbPageMap(size_bytes, flags, name);
-  SbMemoryReporterReportMappedMemory(memory, size_bytes);
   return memory;
 }

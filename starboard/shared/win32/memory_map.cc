@@ -17,7 +17,6 @@
 #include <windows.h>
 
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/memory_reporter_internal.h"
 
 void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
   if (size_bytes == 0) {
@@ -46,10 +45,7 @@ void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
 
   void* memory = VirtualAllocFromApp(
       NULL, size_bytes,
-     (flags == kSbMemoryMapProtectReserved) ? MEM_RESERVE : MEM_COMMIT,
+      (flags == kSbMemoryMapProtectReserved) ? MEM_RESERVE : MEM_COMMIT,
       protect);
-  if (PAGE_READONLY != protect) {
-    SbMemoryReporterReportMappedMemory(memory, size_bytes);
-  }
   return memory;
 }
