@@ -29,6 +29,8 @@ namespace starboard {
 namespace xb1 {
 namespace shared {
 
+const int kXboxeOneXMaxOutputSamples = 5;
+
 VideoDecoderUwp::~VideoDecoderUwp() {
   if (IsHdrSupported() && IsHdrAngleModeEnabled()) {
     SetHdrAngleModeEnabled(false);
@@ -76,6 +78,17 @@ bool VideoDecoderUwp::TryUpdateOutputForHdrVideo(
     }
   }
   return true;
+}
+
+size_t VideoDecoderUwp::GetPrerollFrameCount() {
+  return GetMaxNumberOfCachedFrames();
+}
+
+size_t VideoDecoderUwp::GetMaxNumberOfCachedFrames() {
+  return (::starboard::shared::uwp::kXboxOneX ==
+          ::starboard::shared::uwp::GetXboxType())
+             ? kXboxeOneXMaxOutputSamples
+             : ::starboard::shared::win32::VideoDecoder::GetPrerollFrameCount();
 }
 
 }  // namespace shared
