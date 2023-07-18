@@ -16,11 +16,21 @@ into another machine and run the binary on that machine.
     (see the `Installing on Windows` instructions)
     * [python3](https://www.python.org/downloads/)
     * [ninja](https://ninja-build.org/) (see the `Getting Ninja` instructions)
+    * The following [VS2022](https://visualstudio.microsoft.com/vs/) components:
+      * Microsoft.VisualStudio.Component.VC.14.34.17.4.x86.x64
+      * Microsoft.VisualStudio.Component.VC.Llvm.Clang
+      * Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset
+      * Microsoft.VisualStudio.Component.Windows10SDK.18362
+      * Microsoft.VisualStudio.Workload.NativeDesktop
+
     TODO: verify what needs to be installed for min build
-    * VS2017/2022
     * JRE?
     * winflexbison?
     * node?
+
+    <aside class="note">
+      <b>Note:</b> By default, Cobalt's build system will check C:\Program Files (x86)\ for the Visual Studio install directory. If you installed it elsewhere, you can set the `VSINSTALLDIR` environment variable to point to the correct location. For example `C:/Program Files/Microsoft Visual Studio/2022/Professional`
+    </aside>
 
 1.  (Optional)
     [Install Sccache](https://github.com/mozilla/sccache#installation) to
@@ -40,7 +50,7 @@ into another machine and run the binary on that machine.
     "C:\Program Files\Git"
     "C:\Program Files\Ninja"
     "C:\Program Files\nodejs"
-    "C:\python_38"
+    "C:\python_38" # Python 3.8 is the oldest supported python version. You may have a newer version installed.
     "C:\python_38\Scripts"
     "C:\gn"
     "C:\sccache"
@@ -50,8 +60,12 @@ into another machine and run the binary on that machine.
     `cobalt` directory that contains the repository:
 
     ```
-    $ git clone https://cobalt.googlesource.com/cobalt
+    $ git clone https://github.com/youtube/cobalt.git
     ```
+
+    <aside class="note">
+      If you plan to contribute to the Cobalt codebase it is recommended that you create your own [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) of the [Cobalt repository](https://github.com/youtube/cobalt), apply changes to the fork, and then [create a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) to merge those changes into the Cobalt repository.
+    </aside>
 
 1.  Set the `PYTHONPATH` environment variable to include the full path to the
     top-level `cobalt` directory from the previous step.
@@ -71,7 +85,7 @@ into another machine and run the binary on that machine.
     section.
     </aside>
 
-1.  Run the following in cmd:
+1.  Create a virtual evnrionment by running the following in cmd:
 
     ```
     py -3 -m venv "%HOME%/.virtualenvs/cobalt_dev"
@@ -98,7 +112,7 @@ into another machine and run the binary on that machine.
 
     ```
     $ pre-commit install -t post-checkout -t pre-commit -t pre-push --allow-missing-config
-    $ git checkout -b <my-branch-name> origin/master
+    $ git checkout -b <my-branch-name> origin/main
     ```
 
 ## Build and Run Cobalt
@@ -111,13 +125,6 @@ into another machine and run the binary on that machine.
     Valid build types are `debug`, `devel`, `qa`, and `gold`. If you
     specify a build type, the command finishes sooner. Otherwise, all types
     are built.
-
-    <aside class="note">
-    <b>Note:</b> By default, Windows is treated as an internal build and makes
-    use of files that aren't publicly available. To ignore these files and avoid
-    build errors, set `is_internal_build` to `false` in
-    `starboard/win/win32/args.gn`.
-    </aside>
 
     ```
     $ python cobalt/build/gn.py [-c <build_type>] -p <platform>
@@ -198,3 +205,39 @@ to debug application performance, but also a great way to debug issues and
 better understand Cobalt's execution flow in general.
 
 Simply build and run one of these configs and observe the terminal output.
+
+## Cobalt on Xbox One
+
+In order to sideload and run custom apps on Xbox you will need either an Xbox devkit or the ability to put an Xbox into developer mode. Those steps are outside the scope of this document.
+
+### AppxManifest Settings
+
+Cobalt makes use of several template files and a settings file to generate an AppxManifest.xml during the ninja step. The settings can be found in `starboard/xb1/appx_product_settings.py`. Most of the default values are stubs and intended to be overwritten by developers creating their own app with Cobalt, but they should work for local testing.
+
+<aside class="note">
+  <b>Note:</b> if you change the value of `PUBLISHER` in `appx_product_settings.py` you <b>must</b> regenerate a pfx file in order for the packaging step below to work correctly. Follow the instructions in `starboard/xb1/cert/README.md` to generate your own pfx.
+</aside>
+
+### Build Cobalt
+
+To build Cobalt for the Xbox One, set the platform to `xb` in the gn step:
+
+```
+$ python cobalt/build/gn.py [-c <build_type>] -p xb1
+```
+
+Then specify the `cobalt_install` build target in the ninja step:
+
+```
+ninja -C out/xb1_devel cobalt_install
+```
+
+### Package an Appx
+
+There's a convenience script at `starboard/xb1/tools/packager.py` for packaging the compiled code into an appx and then signing the appx with the pfx file located at `starboard/xb1/cert/cobalt.pfx`. The source, output, and product flags must be specified, and the only valid product for an external build is `cobalt`. Here's an example usage:
+
+```
+python starboard/xb1/tools/packager.py -s out/xb1_devel/ -o out/xb1_devel/package -p cobalt
+```
+
+Once the appx has been created and signed, it can be deployed to an Xbox using the [WinAppDeployCmd](https://learn.microsoft.com/en-us/windows/uwp/packaging/install-universal-windows-apps-with-the-winappdeploycmd-tool)

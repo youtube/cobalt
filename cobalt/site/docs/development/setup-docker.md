@@ -52,13 +52,6 @@ output files in `src/out/<platform>` directory have `root` as file owner.
 We have a separate docker compose file for windows. Use the -f or --file flags
 to specify a configuration file to use.
 
-<aside class="note">
-  <b>Note:</b> By default, Windows is treated as an internal build and makes use
-  of files that aren't publicly available. To ignore these files and avoid build
-  errors, set `is_internal_build` to `false` in `starboard/win/win32/args.gn`.
-</aside>
-
-TODO: add commands for properly getting is_internal_build to update
 ```
 docker-compose -f docker-compose-windows.yml run win-win32
 ```
