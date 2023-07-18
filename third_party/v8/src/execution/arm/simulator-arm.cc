@@ -8,7 +8,6 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
-
 #include <cmath>
 
 #include "src/base/bits.h"

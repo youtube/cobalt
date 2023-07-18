@@ -29,7 +29,7 @@
 
 #include <VersionHelpers.h>
 
-#if defined(_MSC_VER) && !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
+#if defined(_MSC_VER)
 #include <crtdbg.h>  // NOLINT
 #endif               // defined(_MSC_VER)
 
@@ -656,14 +656,7 @@ int OS::SNPrintF(char* str, int length, const char* format, ...) {
 
 
 int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
-#if defined(COBALT)
-  // In testing, _vsnprintf_s can fill result's tail with unexpected
-  // characters if strlen(str) < length. Switching to vsnprintf is what Cobalt
-  // uses for msvs platforms currently.
-  int n = vsnprintf(str, length, format, args);
-#else
   int n = _vsnprintf_s(str, length, _TRUNCATE, format, args);
-#endif
   // Make sure to zero-terminate the string if the output was
   // truncated or if there was an error.
   if (n < 0 || n >= length) {
@@ -1403,9 +1396,7 @@ void OS::AdjustSchedulingParams() {}
 
 // static
 Stack::StackSlot Stack::GetStackStart() {
-// Cobalt sometimes compile on windows x64 for linux arm64 targets. To make
-// host build compile we need the extra check.
-#if defined(V8_TARGET_ARCH_X64) || defined(USE_COBALT_CUSTOMIZATIONS)
+#if defined(V8_TARGET_ARCH_X64)
   return reinterpret_cast<void*>(
       reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
 #elif defined(V8_TARGET_ARCH_32_BIT)
