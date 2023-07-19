@@ -1152,7 +1152,9 @@ class Timer {
 // Timer instead.
 TimeInMillis GetTimeInMillis() {
 #if GTEST_OS_STARBOARD
-  return SbTimeGetNow() / kSbTimeMillisecond;
+  EzTimeValue time_value;
+  EzTimeValueGetNow(&time_value, NULL);
+  return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
 #else
   return std::chrono::duration_cast<std::chrono::milliseconds>(
              std::chrono::system_clock::now() -
