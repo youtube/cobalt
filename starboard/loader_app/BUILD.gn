@@ -106,6 +106,7 @@ if (current_toolchain == starboard_toolchain) {
       deps = [
         ":common_loader_app_dependencies",
         "//cobalt/content/fonts:copy_font_data",
+        "//starboard:starboard_with_main",
         "//starboard/elf_loader",
       ]
       if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {

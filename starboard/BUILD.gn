@@ -206,10 +206,17 @@ if (current_toolchain == starboard_toolchain) {
       sources = [ "//starboard/common/test_main.cc" ]
 
       public_deps = [
-        ":starboard",
+        ":starboard_with_main",
         "//testing/gmock",
         "//testing/gtest",
       ]
+    }
+  }
+
+  group("starboard_with_main") {
+    public_deps = [ ":starboard" ]
+    if (build_with_separate_cobalt_toolchain) {
+      public_deps += [ "//$starboard_path:starboard_platform_with_main" ]
     }
   }
 }

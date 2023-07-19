@@ -18,7 +18,7 @@ if (current_toolchain == starboard_toolchain) {
     sources = [ "audio_dmp_player.cc" ]
     configs += [ "//starboard/build/config:starboard_implementation" ]
     public_deps = [
-      "//starboard",
+      "//starboard:starboard_with_main",
       "//starboard/shared/starboard/media:media_util",
       "//starboard/shared/starboard/player:player_download_test_data",
       "//starboard/shared/starboard/player:video_dmp",
