@@ -112,23 +112,13 @@ class XboxVideoCapabilities {
       case starboard::shared::uwp::kXboxOneX:
         // Horizontal video resolutions
         hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 3840, 2160,
-                                            30);
-        hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 2560, 1440,
                                             60);
-        // Until we can resolve b/170881040, we should cap Xbox One X to 2K for
-        // HDR 60 FPS.
         hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecVp9, 3840, 2160,
-                                            30);
-        hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecVp9, 2560, 1440,
                                             60);
         // Vertical video resolutions
         hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 2160, 3840,
-                                            30);
-        hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 1440, 2560,
                                             60);
         hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecVp9, 2160, 3840,
-                                            30);
-        hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecVp9, 1440, 2560,
                                             60);
         break;
       case starboard::shared::uwp::kXboxSeriesS:
