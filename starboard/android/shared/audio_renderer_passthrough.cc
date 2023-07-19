@@ -282,6 +282,7 @@ void AudioRendererPassthrough::Seek(SbTime seek_to_time) {
   stop_called_ = false;
   playback_head_position_when_stopped_ = 0;
   stopped_at_ = 0;
+  first_audio_timestamp_ = -1;
   if (!seek_to_time_set) {
     seek_to_time_ = seek_to_time;
   }
@@ -312,9 +313,17 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     return seek_to_time_;
   }
 
+  SbTime audio_start_time;
+  if (first_audio_timestamp_ > -1) {
+    audio_start_time = first_audio_timestamp_;
+  } else {
+    audio_start_time = seek_to_time_;
+  }
+
+  SbTime playback_time;
   if (stop_called_) {
     // When AudioTrackBridge::Stop() is called, the playback will continue until
-    // all the frames written are played, as the AudioTrack in created in
+    // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
     auto now = SbTimeGetMonotonicNow();
     SB_DCHECK(now >= stopped_at_);
@@ -324,8 +333,10 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     int64_t total_frames_played =
         frames_played + playback_head_position_when_stopped_;
     total_frames_played = std::min(total_frames_played, total_frames_written_);
-    return seek_to_time_ + total_frames_played * kSbTimeSecond /
+    playback_time =
+        audio_start_time + total_frames_played * kSbTimeSecond /
                                audio_stream_info_.samples_per_second;
+    return std::max(playback_time, seek_to_time_);
   }
 
   SbTime updated_at;
@@ -334,14 +345,13 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   if (playback_head_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
-    return seek_to_time_;
+    return std::max(audio_start_time, seek_to_time_);
   }
 
   // TODO: This may cause time regression, because the unadjusted time will be
   //       returned on pause, after an adjusted time has been returned.
-  SbTime playback_time =
-      seek_to_time_ + playback_head_position * kSbTimeSecond /
-                          audio_stream_info_.samples_per_second;
+  playback_time = audio_start_time + playback_head_position * kSbTimeSecond /
+                                         audio_stream_info_.samples_per_second;
 
   // When underlying AudioTrack is paused, we use returned playback time
   // directly. Note that we should not use |paused_| or |playback_rate_| here.
@@ -352,7 +362,7 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   // before calling AudioTrack.Play(), the returned playback time and last frame
   // consumed time would be the same as at when we pause the video.
   if (audio_track_paused_) {
-    return playback_time;
+    return std::max(playback_time, seek_to_time_);
   }
 
   // TODO: Cap this to the maximum frames written to the AudioTrack.
@@ -366,7 +376,7 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   playback_time += std::max<SbTime>(now - updated_at, 0);
 
-  return playback_time;
+  return std::max(playback_time, seek_to_time_);
 }
 
 void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
@@ -542,6 +552,11 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         audio_track_bridge_->PauseAndFlush();
         return;
       }
+
+      if (first_audio_timestamp_ < 0) {
+        first_audio_timestamp_ = sync_time;
+      }
+
       decoded_audio_writing_offset_ += samples_written;
 
       if (decoded_audio_writing_offset_ ==
