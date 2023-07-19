@@ -14,44 +14,43 @@ into another machine and run the binary on that machine.
 1.  Install the following required packages:
     * [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
     (see the `Installing on Windows` instructions)
-    * [python3](https://www.python.org/downloads/)
     * [ninja](https://ninja-build.org/) (see the `Getting Ninja` instructions)
+    * [nodejs](https://nodejs.org/en)
+    * [python3](https://www.python.org/downloads/)
     * The following [VS2022](https://visualstudio.microsoft.com/vs/) components:
       * Microsoft.VisualStudio.Component.VC.14.34.17.4.x86.x64
       * Microsoft.VisualStudio.Component.VC.Llvm.Clang
       * Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset
       * Microsoft.VisualStudio.Component.Windows10SDK.18362
       * Microsoft.VisualStudio.Workload.NativeDesktop
-
-    TODO: verify what needs to be installed for min build
-    * JRE?
-    * winflexbison?
-    * node?
+    * [winflexbison](https://github.com/lexxmark/winflexbison)
 
     <aside class="note">
-      <b>Note:</b> By default, Cobalt's build system will check C:\Program Files (x86)\ for the Visual Studio install directory. If you installed it elsewhere, you can set the `VSINSTALLDIR` environment variable to point to the correct location. For example `C:/Program Files/Microsoft Visual Studio/2022/Professional`
+      <b>Note:</b> By default, Cobalt's build system will check
+      C:\Program Files (x86)\ for the Visual Studio install directory. If you
+      installed it elsewhere, you can set the `VSINSTALLDIR` environment
+      variable to point to the correct location. For example
+      `C:/Program Files/Microsoft Visual Studio/2022/Professional`
     </aside>
-
-1.  (Optional)
-    [Install Sccache](https://github.com/mozilla/sccache#installation) to
-    support build acceleration:
-
-    We recommend adjusting the cache size as needed to increase cache hits:
 
 1.  Install GN, which we use for our build system code. There are a few ways to
     get the binary, follow the instructions for whichever way you prefer
     [here](https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/#getting-a-binary).
 
-1.  Make sure the all of the installed packages are on your Path environment
+1.  (Optional)
+    [Install Sccache](https://github.com/mozilla/sccache#installation) to
+    support build acceleration
+
+1.  Make sure the all of the above installed packages are on your Path environment
     variable.
 
-    TODO: update to match everything that's installed above
     ```
     "C:\Program Files\Git"
     "C:\Program Files\Ninja"
     "C:\Program Files\nodejs"
     "C:\python_38" # Python 3.8 is the oldest supported python version. You may have a newer version installed.
     "C:\python_38\Scripts"
+    "C:\winflexbison" # Or wherever you chose to unpack the zip file
     "C:\gn"
     "C:\sccache"
     ```
@@ -64,7 +63,13 @@ into another machine and run the binary on that machine.
     ```
 
     <aside class="note">
-      If you plan to contribute to the Cobalt codebase it is recommended that you create your own [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) of the [Cobalt repository](https://github.com/youtube/cobalt), apply changes to the fork, and then [create a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) to merge those changes into the Cobalt repository.
+      If you plan to contribute to the Cobalt codebase it is recommended that
+      you create your own
+      [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks)
+      of the [Cobalt repository](https://github.com/youtube/cobalt), apply
+      changes to the fork, and then
+      [create a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork)
+      to merge those changes into the Cobalt repository.
     </aside>
 
 1.  Set the `PYTHONPATH` environment variable to include the full path to the
@@ -77,13 +82,6 @@ into another machine and run the binary on that machine.
     ```
     $ cd cobalt
     ```
-
-    <aside class="note">
-    <b>Note:</b> Pre-commit is only available on branches later than 22.lts.1+,
-    including trunk. The below commands will fail on 22.lts.1+ and earlier
-    branches. For earlier branches, run `cd src` and move on to the next
-    section.
-    </aside>
 
 1.  Create a virtual evnrionment by running the following in cmd:
 
@@ -108,6 +106,7 @@ into another machine and run the binary on that machine.
     source ~/.virtualenvs/cobalt_dev/Scripts/activate
     pip install -r requirements.txt
     ```
+
 1.  Install the pre-commit hooks:
 
     ```
@@ -172,8 +171,8 @@ into another machine and run the binary on that machine.
     ```
 
     The flags in the following table are frequently used, and the full set
-    of flags that this command supports are in <code><a
-    href="https://cobalt.googlesource.com/cobalt/+/master/cobalt/browser/switches.cc">cobalt/browser/switches.cc</a></code>.
+    of flags that this command supports are in
+    [cobalt/browser/switches.cc](https://github.com/youtube/cobalt/blob/main/cobalt/browser/switches.cc).
 
     <table class="details responsive">
       <tr>
@@ -208,14 +207,24 @@ Simply build and run one of these configs and observe the terminal output.
 
 ## Cobalt on Xbox One
 
-In order to sideload and run custom apps on Xbox you will need either an Xbox devkit or the ability to put an Xbox into developer mode. Those steps are outside the scope of this document.
+In order to build Cobalt for Xbox One, you will need access to Microsoft's XDK.
+In order to sideload and run custom apps on Xbox you will need either an Xbox
+devkit or the ability to put an Xbox into developer mode. Those steps are
+outside the scope of this document.
 
 ### AppxManifest Settings
 
-Cobalt makes use of several template files and a settings file to generate an AppxManifest.xml during the ninja step. The settings can be found in `starboard/xb1/appx_product_settings.py`. Most of the default values are stubs and intended to be overwritten by developers creating their own app with Cobalt, but they should work for local testing.
+Cobalt makes use of several template files and a settings file to generate an
+AppxManifest.xml during the ninja step. The settings can be found in
+`starboard/xb1/appx_product_settings.py`. Most of the default values are stubs
+and intended to be overwritten by developers creating their own app with Cobalt,
+but they should work for local testing.
 
 <aside class="note">
-  <b>Note:</b> if you change the value of `PUBLISHER` in `appx_product_settings.py` you <b>must</b> regenerate a pfx file in order for the packaging step below to work correctly. Follow the instructions in `starboard/xb1/cert/README.md` to generate your own pfx.
+  <b>Note:</b> if you change the value of `PUBLISHER` in
+  `appx_product_settings.py` you <b>must</b> regenerate a pfx file in order for
+  the packaging step below to work correctly. Follow the instructions in
+  `starboard/xb1/cert/README.md` to generate your own pfx.
 </aside>
 
 ### Build Cobalt
@@ -234,10 +243,23 @@ ninja -C out/xb1_devel cobalt_install
 
 ### Package an Appx
 
-There's a convenience script at `starboard/xb1/tools/packager.py` for packaging the compiled code into an appx and then signing the appx with the pfx file located at `starboard/xb1/cert/cobalt.pfx`. The source, output, and product flags must be specified, and the only valid product for an external build is `cobalt`. Here's an example usage:
+There's a convenience script at `starboard/xb1/tools/packager.py` for packaging
+the compiled code into an appx and then signing the appx with the pfx file
+located at `starboard/xb1/cert/cobalt.pfx`. The source, output, and product
+flags must be specified, and the only valid product for an external build is
+`cobalt`. Here's an example usage:
 
 ```
 python starboard/xb1/tools/packager.py -s out/xb1_devel/ -o out/xb1_devel/package -p cobalt
 ```
 
-Once the appx has been created and signed, it can be deployed to an Xbox using the [WinAppDeployCmd](https://learn.microsoft.com/en-us/windows/uwp/packaging/install-universal-windows-apps-with-the-winappdeploycmd-tool)
+Alternatively, you can use the
+[MakeAppx](https://learn.microsoft.com/en-us/windows/win32/appxpkg/make-appx-package--makeappx-exe-)
+and
+[SignTool](https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool)
+PowerShell commands to manually perform those steps.
+
+Once the appx has been created and signed, it can be deployed to an Xbox using
+the
+[WinAppDeployCmd](https://learn.microsoft.com/en-us/windows/uwp/packaging/install-universal-windows-apps-with-the-winappdeploycmd-tool)
+PowerShell command.
