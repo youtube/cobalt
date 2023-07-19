@@ -1512,9 +1512,9 @@ void Application::InitMetrics() {
   // it's enabled or upload interval.
   bool is_metrics_enabled = persistent_settings_->GetPersistentSettingAsBool(
       metrics::kMetricEnabledSettingName, false);
-  metrics_services_manager_->SetUploadInterval(
-      persistent_settings_->GetPersistentSettingAsInt(
-          metrics::kMetricEventIntervalSettingName, 300));
+  auto metric_event_interval = persistent_settings_->GetPersistentSettingAsInt(
+      metrics::kMetricEventIntervalSettingName, 300);
+  metrics_services_manager_->SetUploadInterval(metric_event_interval);
   metrics_services_manager_->ToggleMetricsEnabled(is_metrics_enabled);
   // Metric recording state initialization _must_ happen before we bootstrap
   // otherwise we crash.
@@ -1523,6 +1523,10 @@ void Application::InitMetrics() {
   // UpdateUploadPermissions bootstraps the whole metric reporting, scheduling,
   // and uploading cycle.
   metrics_services_manager_->UpdateUploadPermissions(is_metrics_enabled);
+  LOG(INFO)
+      << "Cobalt Telemetry initialized with settings: is_metrics_enabled: "
+      << is_metrics_enabled
+      << ", metric_event_interval: " << metric_event_interval;
 }
 
 }  // namespace browser
