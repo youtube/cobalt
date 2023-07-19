@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/logging.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -56,6 +57,7 @@ void CobaltMetricsServicesManager::SetOnUploadHandlerInternal(
       static_cast<CobaltMetricsServiceClient*>(GetMetricsServiceClient());
   DCHECK(client);
   client->SetOnUploadHandler(uploader_callback);
+  LOG(INFO) << "New Cobalt Telemetry metric upload handler bound.";
 }
 
 void CobaltMetricsServicesManager::ToggleMetricsEnabled(bool is_enabled) {
@@ -73,6 +75,7 @@ void CobaltMetricsServicesManager::ToggleMetricsEnabledInternal(
   client->GetEnabledStateProvider()->SetConsentGiven(is_enabled);
   client->GetEnabledStateProvider()->SetReportingEnabled(is_enabled);
   UpdateUploadPermissions(is_enabled);
+  LOG(INFO) << "Cobalt Telemetry enabled state toggled to: " << is_enabled;
 }
 
 void CobaltMetricsServicesManager::SetUploadInterval(
@@ -90,6 +93,8 @@ void CobaltMetricsServicesManager::SetUploadIntervalInternal(
           GetMetricsServiceClient());
   DCHECK(client);
   client->SetUploadInterval(interval_seconds);
+  LOG(INFO) << "Cobalt Telemetry metric upload interval changed to: "
+            << interval_seconds;
 }
 
 
