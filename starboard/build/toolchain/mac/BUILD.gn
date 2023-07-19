@@ -24,3 +24,13 @@ apple_toolchain("x64") {
     toolchain_config_path = "//starboard/build/config/mac:host"
   }
 }
+
+apple_toolchain("arm64") {
+  bin_path = apple_clang_base_path
+  toolchain_args = {
+    current_os = "mac"
+    current_cpu = "arm64"
+    use_xcode_clang = true
+    toolchain_config_path = "//starboard/build/config/mac:host"
+  }
+}
