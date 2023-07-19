@@ -97,9 +97,9 @@ libwebp_dsp_enc_sources = [
   "src/dsp/cost.c",
   "src/dsp/cost_mips32.c",
   "src/dsp/cost_mips_dsp_r2.c",
+  "src/dsp/cost_neon.c",
   "src/dsp/cost_sse2.c",
   "src/dsp/enc.c",
-  "src/dsp/enc_avx2.c",
   "src/dsp/enc_mips32.c",
   "src/dsp/enc_mips_dsp_r2.c",
   "src/dsp/enc_msa.c",
@@ -113,6 +113,7 @@ libwebp_dsp_enc_sources = [
   "src/dsp/lossless_enc_neon.c",
   "src/dsp/lossless_enc_sse2.c",
   "src/dsp/lossless_enc_sse41.c",
+  "src/dsp/lossless_sse41.c",
   "src/dsp/ssim.c",
   "src/dsp/ssim_sse2.c",
 ]
@@ -141,6 +142,16 @@ libwebp_enc_sources = [
   "src/enc/tree_enc.c",
   "src/enc/vp8l_enc.c",
   "src/enc/webp_enc.c",
+]
+
+libwebp_sharpyuv_sources = [
+  "sharpyuv/sharpyuv.c",
+  "sharpyuv/sharpyuv_cpu.c",
+  "sharpyuv/sharpyuv_csp.c",
+  "sharpyuv/sharpyuv_dsp.c",
+  "sharpyuv/sharpyuv_gamma.c",
+  "sharpyuv/sharpyuv_neon.c",
+  "sharpyuv/sharpyuv_sse2.c",
 ]
 
 libwebp_format_dec_sources = [

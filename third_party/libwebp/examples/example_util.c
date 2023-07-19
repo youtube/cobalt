@@ -75,7 +75,7 @@ static void ResetCommandLineArguments(int argc, const char* argv[],
 void ExUtilDeleteCommandLineArguments(CommandLineArguments* const args) {
   if (args != NULL) {
     if (args->own_argv_) {
-      free((void*)args->argv_);
+      WebPFree((void*)args->argv_);
       WebPDataClear(&args->argv_data_);
     }
     ResetCommandLineArguments(0, NULL, args);
@@ -90,12 +90,23 @@ int ExUtilInitCommandLineArguments(int argc, const char* argv[],
   if (argc == 1 && argv[0][0] != '-') {
     char* cur;
     const char sep[] = " \t\r\n\f\v";
+
+#if defined(_WIN32) && defined(_UNICODE)
+    fprintf(stderr,
+            "Error: Reading arguments from a file is a feature unavailable "
+            "with Unicode binaries.\n");
+    return 0;
+#endif
+
     if (!ExUtilReadFileToWebPData(argv[0], &args->argv_data_)) {
       return 0;
     }
     args->own_argv_ = 1;
-    args->argv_ = (const char**)malloc(MAX_ARGC * sizeof(*args->argv_));
-    if (args->argv_ == NULL) return 0;
+    args->argv_ = (const char**)WebPMalloc(MAX_ARGC * sizeof(*args->argv_));
+    if (args->argv_ == NULL) {
+      ExUtilDeleteCommandLineArguments(args);
+      return 0;
+    }
 
     argc = 0;
     for (cur = strtok((char*)args->argv_data_.bytes, sep);
@@ -103,6 +114,7 @@ int ExUtilInitCommandLineArguments(int argc, const char* argv[],
          cur = strtok(NULL, sep)) {
       if (argc == MAX_ARGC) {
         fprintf(stderr, "ERROR: Arguments limit %d reached\n", MAX_ARGC);
+        ExUtilDeleteCommandLineArguments(args);
         return 0;
       }
       assert(strlen(cur) != 0);
