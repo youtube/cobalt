@@ -93,7 +93,7 @@ libwebp_lib("libwebp_utils_enc") {
 
 config("libwebp_direct_config") {
   include_dirs = [ "." ]
-  if (is_starboard && !is_win) {
+  if (is_starboard && (target_os == "android" || target_os == "linux")) {
     if (current_cpu == "x64" || current_cpu == "x86") {
       cflags = [
         "-msse2",
@@ -113,8 +113,7 @@ config("libwebp_direct_config") {
       ]
       defines += [ "WEBP_HAVE_AVX2" ]
     }
-    if ((current_cpu == "arm" || current_cpu == "arm64") && arm_use_neon &&
-        (target_os == "android" || target_os == "linux")) {
+    if ((current_cpu == "arm" || current_cpu == "arm64") && arm_use_neon ) {
       defines = [ "WEBP_HAVE_NEON" ]
       cflags = [ "-mfpu=neon" ]
     }
