@@ -19,7 +19,6 @@
 
 #include "base/bind.h"
 #include "components/prefs/json_pref_store.h"
-#include "components/prefs/json_read_only_pref_store.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
@@ -51,37 +50,23 @@ PersistentSettings::PersistentSettings(const std::string& file_name)
       std::string(storage_dir.data()) + kSbFileSepString + file_name;
   LOG(INFO) << "Persistent settings file path: " << persistent_settings_file_;
 
-  // Initialize pref_store_ with a JSONReadOnlyPrefStore, Used for
-  // synchronous PersistentSettings::Get calls made before the asynchronous
-  // InitializeWriteablePrefStore initializes pref_store_ with a writable
-  // instance.
-  {
-    base::AutoLock auto_lock(pref_store_lock_);
-    pref_store_ = base::MakeRefCounted<JsonReadOnlyPrefStore>(
-        base::FilePath(persistent_settings_file_));
-    pref_store_->ReadPrefs();
-  }
-
   message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&PersistentSettings::InitializeWriteablePrefStore,
+      FROM_HERE, base::Bind(&PersistentSettings::InitializePrefStore,
                             base::Unretained(this)));
+  pref_store_initialized_.Wait();
+  destruction_observer_added_.Wait();
 }
 
 PersistentSettings::~PersistentSettings() {
   DCHECK(message_loop());
   DCHECK(thread_.IsRunning());
 
-  // Ensure that the destruction observer got added and the pref store was
-  // initialized before stopping the thread. Stop the thread. This will cause
-  // the destruction observer to be notified.
-  writeable_pref_store_initialized_.Wait();
-  destruction_observer_added_.Wait();
   // Wait for all previously posted tasks to finish.
   thread_.message_loop()->task_runner()->WaitForFence();
   thread_.Stop();
 }
 
-void PersistentSettings::InitializeWriteablePrefStore() {
+void PersistentSettings::InitializePrefStore() {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   // Register as a destruction observer to shut down the thread once all
   // pending tasks have been executed and the message loop is about to be
@@ -94,9 +79,7 @@ void PersistentSettings::InitializeWriteablePrefStore() {
     pref_store_ = base::MakeRefCounted<JsonPrefStore>(
         base::FilePath(persistent_settings_file_));
     pref_store_->ReadPrefs();
-    // PersistentSettings Set and Remove Helper methods will now be able to
-    // access the pref_store_ initialized from the dedicated thread_.
-    writeable_pref_store_initialized_.Signal();
+    pref_store_initialized_.Signal();
   }
   validated_initial_settings_ = GetPersistentSettingAsBool(kValidated, false);
   if (!validated_initial_settings_) {
@@ -116,10 +99,9 @@ void PersistentSettings::ValidatePersistentSettingsHelper() {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   if (!validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-    writeable_pref_store()->SetValue(
-        kValidated, std::make_unique<base::Value>(true),
-        WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    writeable_pref_store()->CommitPendingWrite();
+    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(true),
+                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    CommitPendingWrite(false);
     validated_initial_settings_ = true;
   }
 }
@@ -207,12 +189,11 @@ void PersistentSettings::SetPersistentSettingHelper(
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   if (validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-    writeable_pref_store()->SetValue(
-        kValidated, std::make_unique<base::Value>(false),
-        WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    writeable_pref_store()->SetValue(
-        key, std::move(value), WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    commit_pending_write(blocking);
+    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(false),
+                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    pref_store_->SetValue(key, std::move(value),
+                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    CommitPendingWrite(blocking);
   } else {
     LOG(ERROR) << "Cannot set persistent setting while unvalidated: " << key;
   }
@@ -234,12 +215,10 @@ void PersistentSettings::RemovePersistentSettingHelper(
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   if (validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-    writeable_pref_store()->SetValue(
-        kValidated, std::make_unique<base::Value>(false),
-        WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    writeable_pref_store()->RemoveValue(
-        key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    commit_pending_write(blocking);
+    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(false),
+                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    pref_store_->RemoveValue(key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    CommitPendingWrite(blocking);
   } else {
     LOG(ERROR) << "Cannot remove persistent setting while unvalidated: " << key;
   }
@@ -259,11 +238,23 @@ void PersistentSettings::DeletePersistentSettingsHelper(
   if (validated_initial_settings_) {
     starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
     base::AutoLock auto_lock(pref_store_lock_);
-    writeable_pref_store()->ReadPrefs();
+    pref_store_->ReadPrefs();
   } else {
     LOG(ERROR) << "Cannot delete persistent setting while unvalidated.";
   }
   std::move(closure).Run();
+}
+
+void PersistentSettings::CommitPendingWrite(bool blocking) {
+  if (blocking) {
+    base::WaitableEvent written;
+    pref_store_->CommitPendingWrite(
+        base::OnceClosure(),
+        base::BindOnce(&base::WaitableEvent::Signal, Unretained(&written)));
+    written.Wait();
+  } else {
+    pref_store_->CommitPendingWrite();
+  }
 }
 
 }  // namespace persistent_storage
