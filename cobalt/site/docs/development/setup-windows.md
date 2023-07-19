@@ -41,7 +41,7 @@ into another machine and run the binary on that machine.
     [Install Sccache](https://github.com/mozilla/sccache#installation) to
     support build acceleration
 
-1.  Make sure the all of the above installed packages are on your Path environment
+1.  Make sure all of the above installed packages are on your Path environment
     variable.
 
     ```
@@ -180,7 +180,8 @@ into another machine and run the binary on that machine.
       </tr>
       <tr>
         <td><code>allow_http</code></td>
-        <td>Indicates that you want to use `http` instead of `https`.</td>
+        <td>Indicates that you want to use <code>http</code> instead of
+            <code>https</code>.</td>
       </tr>
       <tr>
         <td><code>ignore_certificate_errors</code></td>
@@ -229,7 +230,7 @@ but they should work for local testing.
 
 ### Build Cobalt
 
-To build Cobalt for the Xbox One, set the platform to `xb` in the gn step:
+To build Cobalt for the Xbox One, set the platform to `xb1` in the gn step:
 
 ```
 $ python cobalt/build/gn.py [-c <build_type>] -p xb1
