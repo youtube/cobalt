@@ -1152,6 +1152,7 @@ class Timer {
 // Timer instead.
 TimeInMillis GetTimeInMillis() {
 #if GTEST_OS_STARBOARD
+  // Use EzTime to get millis from posix epoch.
   EzTimeValue time_value;
   EzTimeValueGetNow(&time_value, NULL);
   return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
