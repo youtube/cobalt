@@ -1,5 +1,5 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.TH WEBPMUX 1 "December 1, 2017"
+.TH WEBPMUX 1 "November 17, 2021"
 .SH NAME
 webpmux \- create animated WebP files from non\-animated WebP images, extract
 frames from animated WebP images, and manage XMP/EXIF metadata and ICC profile.
@@ -58,8 +58,8 @@ command.
 \fBwebpmux\fP can be used to create/extract from animated WebP files, as well as
 to add/extract/strip XMP/EXIF metadata and ICC profile.
 If a single file name (not starting with the character '\-') is supplied as
-the argument, the command line argument are actually tokenized from this file.
-This allows for easy scripting or using large number of arguments.
+the argument, the command line arguments are actually tokenized from this file.
+This allows for easy scripting or using a large number of arguments.
 .SH OPTIONS
 .SS GET_OPTIONS (\-get):
 .TP
@@ -76,6 +76,17 @@ Get XMP metadata.
 Get nth frame from an animated image. (n = 0 has a special meaning: last frame).
 
 .SS SET_OPTIONS (\-set)
+.TP
+.BI loop " loop_count
+Set loop count on an animated file.
+.P
+Where: 'loop_count' must be in range [0, 65535].
+.TP
+.BI bgcolor " A,R,G,B
+Set the background color of the canvas on an animated file.
+.P
+where: 'A', 'R', 'G' and 'B' are integers in the range 0 to 255 specifying the
+Alpha, Red, Green and Blue component values respectively.
 .TP
 .BI icc " file.icc
 Set ICC profile.
@@ -180,7 +191,7 @@ Please report all bugs to the issue tracker:
 https://bugs.chromium.org/p/webp
 .br
 Patches welcome! See this page to get started:
-http://www.webmproject.org/code/contribute/submitting\-patches/
+https://www.webmproject.org/code/contribute/submitting\-patches/
 
 .SH EXAMPLES
 .P
@@ -256,5 +267,5 @@ for the Debian project (and may be used by others).
 .BR dwebp (1),
 .BR gif2webp (1)
 .br
-Please refer to http://developers.google.com/speed/webp/ for additional
+Please refer to https://developers.google.com/speed/webp/ for additional
 information.

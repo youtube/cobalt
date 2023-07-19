@@ -25,6 +25,14 @@ template("libwebp_lib") {
       "//starboard/build/config:speed",
       ":libwebp_direct_config",
     ]
+    if (is_win) {
+      cflags_c = [ "/wd4312" ]  # warning C4312: 'type cast': conversion from 'int' to 'int *'
+    } else {
+      cflags_c = [
+        "-Wno-implicit-function-declaration",
+        "-Wno-int-to-pointer-cast",
+      ]
+    }
   }
 }
 
@@ -83,6 +91,11 @@ libwebp_lib("libwebp_enc") {
   sources = libwebp_enc_sources
 }
 
+libwebp_lib("libwebp_sharpyuv") {
+  sources = libwebp_sharpyuv_sources
+  deps = [ ":libwebp_dsp_dec_common" ]
+}
+
 libwebp_lib("libwebp_dsp_enc") {
   sources = libwebp_dsp_enc_sources
 }
@@ -128,6 +141,7 @@ group("libwebp") {
     ":libwebp_dsp_dec_common",
     ":libwebp_dsp_enc",
     ":libwebp_enc",
+    ":libwebp_sharpyuv",
     ":libwebp_utils_dec",
     ":libwebp_utils_enc",
   ]
