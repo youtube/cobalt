@@ -84,8 +84,8 @@ class PersistentSettings : public base::MessageLoop::DestructionObserver {
 
  private:
   // Called by the constructor to initialize pref_store_ from
-  // the dedicated thread_ as a writeable JSONPrefStore.
-  void InitializeWriteablePrefStore();
+  // the dedicated thread_ as a JSONPrefStore.
+  void InitializePrefStore();
 
   void ValidatePersistentSettingsHelper();
 
@@ -98,22 +98,7 @@ class PersistentSettings : public base::MessageLoop::DestructionObserver {
 
   void DeletePersistentSettingsHelper(base::OnceClosure closure);
 
-  scoped_refptr<PersistentPrefStore> writeable_pref_store() {
-    writeable_pref_store_initialized_.Wait();
-    return pref_store_;
-  }
-
-  void commit_pending_write(bool blocking) {
-    if (blocking) {
-      base::WaitableEvent written;
-      writeable_pref_store()->CommitPendingWrite(
-          base::OnceClosure(),
-          base::BindOnce(&base::WaitableEvent::Signal, Unretained(&written)));
-      written.Wait();
-    } else {
-      writeable_pref_store()->CommitPendingWrite();
-    }
-  }
+  void CommitPendingWrite(bool blocking);
 
   // Persistent settings file path.
   std::string persistent_settings_file_;
@@ -131,7 +116,7 @@ class PersistentSettings : public base::MessageLoop::DestructionObserver {
 
   // This event is used to signal when Initialize has been called and
   // pref_store_ mutations can now occur.
-  base::WaitableEvent writeable_pref_store_initialized_ = {
+  base::WaitableEvent pref_store_initialized_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED};
 
