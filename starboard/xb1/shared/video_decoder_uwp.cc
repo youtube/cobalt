@@ -80,11 +80,11 @@ bool VideoDecoderUwp::TryUpdateOutputForHdrVideo(
   return true;
 }
 
-size_t VideoDecoderUwp::GetPrerollFrameCount() {
+size_t VideoDecoderUwp::GetPrerollFrameCount() const {
   return GetMaxNumberOfCachedFrames();
 }
 
-size_t VideoDecoderUwp::GetMaxNumberOfCachedFrames() {
+size_t VideoDecoderUwp::GetMaxNumberOfCachedFrames() const {
   return (::starboard::shared::uwp::kXboxOneX ==
           ::starboard::shared::uwp::GetXboxType())
              ? kXboxeOneXMaxOutputSamples
