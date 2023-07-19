@@ -106,10 +106,16 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   }
 
   if (name.compare(kQUIC) == 0) {
-    if (!network_module_) {
+    if (!persistent_settings_) {
       return false;
     } else {
-      network_module_->SetEnableQuic(value != 0);
+      persistent_settings_->SetPersistentSetting(
+          network::kQuicEnabledPersistentSettingsKey,
+          std::make_unique<base::Value>(value != 0));
+      // Tell NetworkModule (if exists) to re-query persistent settings.
+      if (network_module_) {
+        network_module_->SetEnableQuicFromPersistentSettings();
+      }
       return true;
     }
   }
