@@ -98,11 +98,16 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
                             custom_proxy_rules));
 }
 
-void NetworkModule::SetEnableQuic(bool enable_quic) {
-  task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&URLRequestContext::SetEnableQuic,
-                 base::Unretained(url_request_context_.get()), enable_quic));
+void NetworkModule::SetEnableQuicFromPersistentSettings() {
+  // Called on initialization and when the persistent setting is changed.
+  if (options_.persistent_settings != nullptr) {
+    bool enable_quic = options_.persistent_settings->GetPersistentSettingAsBool(
+        kQuicEnabledPersistentSettingsKey, false);
+    task_runner()->PostTask(
+        FROM_HERE,
+        base::Bind(&URLRequestContext::SetEnableQuic,
+                   base::Unretained(url_request_context_.get()), enable_quic));
+  }
 }
 
 void NetworkModule::SetEnableClientHintHeadersFlagsFromPersistentSettings() {
@@ -193,6 +198,8 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   DCHECK(url_request_context_);
   url_request_context_getter_ = new network::URLRequestContextGetter(
       url_request_context_.get(), thread_.get());
+
+  SetEnableQuicFromPersistentSettings();
 }
 
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {

@@ -59,6 +59,8 @@ enum ClientHintHeadersCallType : int32_t {
   kCallTypeXHR = (1u << 5),
 };
 
+const char kQuicEnabledPersistentSettingsKey[] = "QUICEnabled";
+
 // Holds bit mask flag, read into |enable_client_hint_headers_flags_|.
 const char kClientHintHeadersEnabledPersistentSettingsKey[] =
     "clientHintHeadersEnabled";
@@ -128,7 +130,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
 #endif
   void SetProxy(const std::string& custom_proxy_rules);
 
-  void SetEnableQuic(bool enable_quic);
+  void SetEnableQuicFromPersistentSettings();
 
   // Checks persistent settings to determine if Client Hint Headers are enabled.
   void SetEnableClientHintHeadersFlagsFromPersistentSettings();
