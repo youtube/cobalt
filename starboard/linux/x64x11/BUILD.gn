@@ -30,6 +30,7 @@ static_library("starboard_platform") {
 
 if (build_with_separate_cobalt_toolchain) {
   static_library("starboard_platform_with_main") {
+    check_includes = false
     sources = [ "//starboard/linux/x64x11/main.cc" ]
     configs += [ "//starboard/build/config:starboard_implementation" ]
     public_deps = [ ":starboard_platform" ]
