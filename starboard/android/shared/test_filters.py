@@ -86,6 +86,19 @@ _FILTERED_TESTS = {
         # TODO: Filter this test on a per-device basis.
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
     ],
+    # These tests need to be en-enabled, b/# These tests need more work
+    'black_box_tests': [
+        'web_debugger',
+        'cancel_sync_loads_when_suspended',
+        'preload_font',
+        'preload_visibility',
+        'preload_launch_parameter',
+        'suspend_visibility',
+        'timer_hit_after_preload',
+        'timer_hit_in_preload',
+        'deep_links',
+        'web_platform_tests',
+    ],
 }
 # pylint: enable=line-too-long
 
