@@ -21,7 +21,6 @@ gcc_toolchain("target") {
   cc = "$prefix/armv7a-linux-androideabi${android_ndk_api_level}-clang"
   cxx = "$prefix/armv7a-linux-androideabi${android_ndk_api_level}-clang++"
   ld = cxx
-  ar = "$prefix/arm-linux-androideabi-readelf"
   ar = "ar"
   nm = "nm"
 
@@ -35,7 +34,6 @@ gcc_toolchain("native_target") {
   cc = "$prefix/armv7a-linux-androideabi${android_ndk_api_level}-clang"
   cxx = "$prefix/armv7a-linux-androideabi${android_ndk_api_level}-clang++"
   ld = cxx
-  ar = "$prefix/arm-linux-androideabi-readelf"
   ar = "ar"
   nm = "nm"
 
