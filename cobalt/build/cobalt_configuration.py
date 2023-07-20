@@ -112,6 +112,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'base_unittests',
         'bindings_test',
         'browser_test',
+        'components_metrics_tests',
         'crypto_unittests',
         'csp_test',
         'css_parser_test',
