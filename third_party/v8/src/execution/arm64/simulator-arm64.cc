@@ -143,7 +143,7 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
   char* stack = reinterpret_cast<char*>(entry_stack);
   std::vector<int64_t>::const_iterator it;
   for (it = stack_args.begin(); it != stack_args.end(); it++) {
-    memcpy(stack, &(*it), sizeof(*it));
+    base::Memcpy(stack, &(*it), sizeof(*it));
     stack += sizeof(*it);
   }
 
@@ -266,9 +266,9 @@ uintptr_t Simulator::PushAddress(uintptr_t address) {
   DCHECK(sizeof(uintptr_t) < 2 * kXRegSize);
   intptr_t new_sp = sp() - 2 * kXRegSize;
   uintptr_t* alignment_slot = reinterpret_cast<uintptr_t*>(new_sp + kXRegSize);
-  memcpy(alignment_slot, &kSlotsZapValue, kSystemPointerSize);
+  base::Memcpy(alignment_slot, &kSlotsZapValue, kSystemPointerSize);
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(new_sp);
-  memcpy(stack_slot, &address, kSystemPointerSize);
+  base::Memcpy(stack_slot, &address, kSystemPointerSize);
   set_sp(new_sp);
   return new_sp;
 }
@@ -1799,14 +1799,17 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
   unsigned addr_reg = instr->Rn();
   uintptr_t address = LoadStoreAddress(addr_reg, offset, addrmode);
   uintptr_t stack = 0;
+  LoadStoreOp op = static_cast<LoadStoreOp>(instr->Mask(LoadStoreMask));
 
   {
     base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
     if (instr->IsLoad()) {
       local_monitor_.NotifyLoad();
-    } else {
+    } else if (instr->IsStore()) {
       local_monitor_.NotifyStore();
       GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+    } else {
+      DCHECK_EQ(op, PRFM);
     }
   }
 
@@ -1825,7 +1828,6 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
     stack = sp();
   }
 
-  LoadStoreOp op = static_cast<LoadStoreOp>(instr->Mask(LoadStoreMask));
   switch (op) {
     // Use _no_log variants to suppress the register trace (LOG_REGS,
     // LOG_VREGS). We will print a more detailed log.
@@ -1900,6 +1902,10 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
       MemoryWrite<qreg_t>(address, qreg(srcdst));
       break;
 
+    // Do nothing for prefetch.
+    case PRFM:
+      break;
+
     default:
       UNIMPLEMENTED();
   }
@@ -1915,7 +1921,7 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
     } else {
       LogRead(address, srcdst, GetPrintRegisterFormatForSize(access_size));
     }
-  } else {
+  } else if (instr->IsStore()) {
     if ((op == STR_s) || (op == STR_d)) {
       LogVWrite(address, srcdst, GetPrintRegisterFormatForSizeFP(access_size));
     } else if ((op == STR_b) || (op == STR_h) || (op == STR_q)) {
@@ -1923,6 +1929,8 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
     } else {
       LogWrite(address, srcdst, GetPrintRegisterFormatForSize(access_size));
     }
+  } else {
+    DCHECK_EQ(op, PRFM);
   }
 
   // Handle the writeback for loads after the load to ensure safe pop
@@ -3594,9 +3602,9 @@ void Simulator::VisitException(Instruction* instr) {
         uint32_t code;
         uint32_t parameters;
 
-        memcpy(&code, pc_->InstructionAtOffset(kDebugCodeOffset),
+        base::Memcpy(&code, pc_->InstructionAtOffset(kDebugCodeOffset),
                      sizeof(code));
-        memcpy(&parameters, pc_->InstructionAtOffset(kDebugParamsOffset),
+        base::Memcpy(&parameters, pc_->InstructionAtOffset(kDebugParamsOffset),
                      sizeof(parameters));
         char const* message = reinterpret_cast<char const*>(
             pc_->InstructionAtOffset(kDebugMessageOffset));
@@ -5816,8 +5824,8 @@ void Simulator::DoPrintf(Instruction* instr) {
   uint32_t arg_count;
   uint32_t arg_pattern_list;
   STATIC_ASSERT(sizeof(*instr) == 1);
-  memcpy(&arg_count, instr + kPrintfArgCountOffset, sizeof(arg_count));
-  memcpy(&arg_pattern_list, instr + kPrintfArgPatternListOffset,
+  base::Memcpy(&arg_count, instr + kPrintfArgCountOffset, sizeof(arg_count));
+  base::Memcpy(&arg_pattern_list, instr + kPrintfArgPatternListOffset,
                sizeof(arg_pattern_list));
 
   DCHECK_LE(arg_count, kPrintfMaxArgCount);
