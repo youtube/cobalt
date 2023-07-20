@@ -142,7 +142,7 @@ TEST_F(MetricsLogTest, BasicRecord) {
 #endif
   metrics::SystemProfileProto::Hardware* hardware =
       system_profile->mutable_hardware();
-#if !defined(OS_IOS)
+#if !defined(OS_IOS) && !defined(STARBOARD)
   hardware->set_cpu_architecture(base::SysInfo::OperatingSystemArchitecture());
 #endif
   hardware->set_system_ram_mb(base::SysInfo::AmountOfPhysicalMemoryMB());
@@ -229,6 +229,8 @@ TEST_F(MetricsLogTest, HistogramBucketFields) {
   EXPECT_EQ(12, histogram_proto.bucket(4).max());
 }
 
+// TODO(b/283255893): Remove when base::CPU is Starboardized.
+#if !defined(STARBOARD)
 TEST_F(MetricsLogTest, RecordEnvironment) {
   TestMetricsServiceClient client;
   TestMetricsLog log(kClientId, kSessionId, MetricsLog::ONGOING_LOG, &client);
@@ -238,6 +240,7 @@ TEST_F(MetricsLogTest, RecordEnvironment) {
   // Check that the system profile on the log has the correct values set.
   CheckSystemProfile(log.system_profile());
 }
+#endif
 
 TEST_F(MetricsLogTest, RecordEnvironmentEnableDefault) {
   TestMetricsServiceClient client;
