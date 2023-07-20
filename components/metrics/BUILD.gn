@@ -130,7 +130,7 @@ static_library("metrics") {
       # MemoryMapped files, etc).
       "file_metrics_provider.cc",
       "file_metrics_provider.h",
-       # All code should be OS agnostic above SB.
+      # All code should be OS agnostic above SB.
       "machine_id_provider_win.cc",
       "system_memory_stats_recorder_linux.cc",
       "system_memory_stats_recorder_win.cc",
@@ -284,7 +284,6 @@ if (!use_cobalt_customizations) {
       "//components/metrics/public/interfaces:single_sample_metrics_mojo_bindings",
     ]
   }
-  
 
   source_set("call_stack_profile_params") {
     public = [
@@ -385,7 +384,6 @@ if (is_linux && !use_cobalt_customizations) {
   }
 }
 
-# TODO(b/283275474): Re-enable as many of these tests as possible.
 if (!use_cobalt_customizations) {
   source_set("unit_tests") {
     testonly = true
@@ -471,6 +469,37 @@ if (!use_cobalt_customizations) {
     deps = [
       ":unit_tests",
       "//components/test:test_support",
+    ]
+  }
+}
+
+if (use_cobalt_customizations) {
+  target(gtest_target_type, "components_metrics_tests") {
+    testonly = true
+    has_pedantic_warnings = true
+    sources = [
+      "histogram_encoder_unittest.cc",
+      "metrics_log_manager_unittest.cc",
+      "metrics_log_store_unittest.cc",
+      "metrics_log_unittest.cc",
+      "metrics_service_unittest.cc",
+      "metrics_state_manager_unittest.cc",
+      "reporting_service_unittest.cc",
+      "stability_metrics_helper_unittest.cc",
+      "stability_metrics_provider_unittest.cc",
+    ]
+
+    deps = [
+      ":metrics",
+      ":test_support",
+      "//base",
+      "//base/test:test_support",
+      "//cobalt/test:run_all_unittests",
+      "//components/prefs:test_support",
+      "//components/variations",
+      "//extensions/buildflags",
+      "//testing/gtest",
+      "//third_party/zlib/google:compression_utils",
     ]
   }
 }

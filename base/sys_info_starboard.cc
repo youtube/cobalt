@@ -15,9 +15,11 @@
 #include "base/sys_info.h"
 
 #include "base/logging.h"
+#include "starboard/common/system_property.h"
 #include "starboard/system.h"
 
 namespace base {
+ using starboard::kSystemPropertyMaxLength;
 
 // static
 int SysInfo::NumberOfProcessors() {
@@ -54,6 +56,19 @@ int64_t SysInfo::AmountOfTotalDiskSpace(const FilePath& path) {
 // static
 int64_t SysInfo::AmountOfVirtualMemory() {
   return AmountOfPhysicalMemoryImpl();
+}
+
+// static
+std::string SysInfo::OperatingSystemName() {
+  char value[kSystemPropertyMaxLength];
+  SbSystemGetProperty(kSbSystemPropertyPlatformName, value,
+                      kSystemPropertyMaxLength);
+  return value;
+}
+
+// static
+std::string SysInfo::OperatingSystemVersion() {
+  return SysInfo::OperatingSystemName();
 }
 
 }  // namespace base
