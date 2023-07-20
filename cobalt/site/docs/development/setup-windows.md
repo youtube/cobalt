@@ -39,7 +39,7 @@ into another machine and run the binary on that machine.
 
 1.  (Optional)
     [Install Sccache](https://github.com/mozilla/sccache#installation) to
-    support build acceleration
+    support build acceleration.
 
 1.  Make sure all of the above installed packages are on your Path environment
     variable.
