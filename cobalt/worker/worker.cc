@@ -174,9 +174,12 @@ void Worker::Obtain() {
   //     1. Set request's reserved client to inside settings.
   //     2. Fetch request, and asynchronously wait to run the remaining steps as
   //        part of fetch's process response for the response response.
+  DCHECK(web_context_);
   const GURL& url = web_context_->environment_settings()->creation_url();
+  DCHECK(!url.is_empty());
   loader::Origin origin = loader::Origin(url.GetOrigin());
 
+  DCHECK(options_.outside_context);
   csp::SecurityCallback csp_callback = base::Bind(
       &web::CspDelegate::CanLoad,
       base::Unretained(options_.outside_context->GetWindowOrWorkerGlobalScope()
