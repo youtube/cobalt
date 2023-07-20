@@ -154,7 +154,10 @@ class ThreadedWebServer(object):
     if not binding_address:
       # No specific binding address specified. Bind to any interfaces instead.
       binding_address = '0.0.0.0'
-    self._server = _ThreadedTCPServer((binding_address, 0), handler)
+    # pylint: disable=import-outside-toplevel
+    from cobalt.black_box_tests.bbt_settings import default_web_server_port
+    binding_port = default_web_server_port
+    self._server = _ThreadedTCPServer((binding_address, binding_port), handler)
 
     self._server_thread = None
 

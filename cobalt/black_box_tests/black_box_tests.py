@@ -27,6 +27,7 @@ import sys
 import unittest
 
 from cobalt.black_box_tests import black_box_cobalt_runner
+from cobalt.black_box_tests import bbt_settings
 from cobalt.black_box_tests.proxy_server import ProxyServer
 from starboard.tools import abstract_launcher
 from starboard.tools import build
@@ -122,8 +123,6 @@ _launcher_params = None
 _server_binding_address = None
 # Port used to create the web platform test http server.
 _wpt_http_port = None
-# Port used to set up tunneling between host and device for testdata server.
-_web_server_port = None
 
 
 class BlackBoxTestCase(unittest.TestCase):
@@ -156,7 +155,7 @@ class BlackBoxTestCase(unittest.TestCase):
         launcher_params=_launcher_params,
         url=url,
         target_params=all_target_params,
-        web_server_port=_web_server_port,
+        web_server_port=bbt_settings.default_web_server_port,
         **kwargs)
 
   def GetBindingAddress(self):
@@ -247,10 +246,10 @@ class BlackBoxTests(object):
     _wpt_http_port = args.wpt_http_port or str(
         self.GetUnusedPort([_server_binding_address]))
 
-    global _web_server_port
+    # Port used to set up tunneling between host and device for testdata server.
     sock = socket.socket()
     sock.bind(('', 0))
-    _web_server_port = sock.getsockname()[1]
+    bbt_settings.default_web_server_port = sock.getsockname()[1]
 
     # Proxy is only needed for WPT
     self.use_proxy = args.test_set in ['all', 'wpt']
