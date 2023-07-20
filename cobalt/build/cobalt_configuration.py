@@ -123,7 +123,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'dom_parser_test',
         'dom_test',
         'extension_test',
-        # TODO(b/292007482): This target is not built for all platforms.
+        # TODO(b/292127297): This target is not built for all platforms.
         # 'ffmpeg_demuxer_test',
         'graphics_system_test',
         'layout_test',
