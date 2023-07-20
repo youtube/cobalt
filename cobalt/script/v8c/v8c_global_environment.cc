@@ -394,14 +394,14 @@ void V8cGlobalEnvironment::MessageHandler(v8::Local<v8::Message> message,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   V8cGlobalEnvironment* global_environment =
       V8cGlobalEnvironment::GetFromIsolate(isolate);
-  if (isolate->GetEnteredContext().IsEmpty()) {
+  if (isolate->GetEnteredOrMicrotaskContext().IsEmpty()) {
     return;
   }
   if (message->ErrorLevel() != v8::Isolate::kMessageError) {
     return;
   }
 
-  v8::Local<v8::Context> context = isolate->GetEnteredContext();
+  v8::Local<v8::Context> context = isolate->GetEnteredOrMicrotaskContext();
   ErrorReport error_report;
   error_report.message = *v8::String::Utf8Value(isolate, message->Get());
   error_report.filename =
