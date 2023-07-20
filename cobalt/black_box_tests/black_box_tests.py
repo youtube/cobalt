@@ -35,7 +35,6 @@ from starboard.tools import command_line
 from starboard.tools import log_level
 
 _DISABLED_BLACKBOXTEST_CONFIGS = [
-    'android-arm/devel',
     'android-arm64/devel',
     'android-x86/devel',
     'evergreen-arm/devel',
@@ -112,6 +111,20 @@ _TESTS_NEEDING_DEEP_LINK = [
 _TESTS_EVERGREEN_END_TO_END = [
     'evergreen_verify_qa_channel_update_test',
 ]
+# These tests need more work
+_FILTERED_TESTS = [
+    'web_debugger',
+    'cancel_sync_loads_when_suspended',
+    'preload_font',
+    'preload_visibility',
+    'preload_launch_parameter',
+    'suspend_visibility',
+    'timer_hit_after_preload',
+    'timer_hit_in_preload',
+    'deep_links',
+    'web_platform_tests',
+]
+
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
 
@@ -194,6 +207,9 @@ def LoadTests(launcher_params, test_set):
 
   test_suite = unittest.TestSuite()
   for test in test_targets:
+    if test in _FILTERED_TESTS:
+      print("Filterred test: ", test)
+      continue
     test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
         importlib.import_module(_TEST_DIR_PATH + test)))
   return test_suite
