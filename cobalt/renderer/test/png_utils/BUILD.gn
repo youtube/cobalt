@@ -40,15 +40,18 @@ target(gtest_target_type, "png_utils_test") {
 
   deps = [
     ":png_utils",
-    ":png_utils_copy_test_data",
     "//cobalt/base",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  data_deps = [ ":png_utils_copy_test_data" ]
 }
 
 copy("png_utils_copy_test_data") {
+  install_content = true
+
   sources = [
     "png_benchmark_image.png",
     "png_premultiplied_alpha_test_image.png",
