@@ -475,6 +475,11 @@ BrowserModule::~BrowserModule() {
   }
   debug_console_.reset();
 #endif
+  if (scroll_engine_) {
+    lifecycle_observers_.RemoveObserver(scroll_engine_.get());
+  }
+  scroll_engine_.reset();
+
   DestroySplashScreen();
   // Make sure the WebModule is destroyed before the ServiceWorkerRegistry
   if (web_module_) {
