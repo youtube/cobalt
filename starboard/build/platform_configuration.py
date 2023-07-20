@@ -176,7 +176,8 @@ class PlatformConfiguration(object):
         'eztime_test',
         'installation_manager_test',
         'nplb',
-        'nplb_evergreen_compat_tests',
+        # TODO(b/292007482): Should only run on evergreen w/ SB version < 16.
+        # 'nplb_evergreen_compat_tests',
         'player_filter_tests',
         'reset_evergreen_update_test',
         'slot_management_test',

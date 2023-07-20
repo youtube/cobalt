@@ -123,7 +123,8 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'dom_parser_test',
         'dom_test',
         'extension_test',
-        'ffmpeg_demuxer_test',
+        # TODO(b/292007482): This target is not built for all platforms.
+        # 'ffmpeg_demuxer_test',
         'graphics_system_test',
         'layout_test',
         'layout_tests',
@@ -151,7 +152,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'watchdog_test',
         'web_animations_test',
         'webdriver_test',
-        'web_platform_tests',
         'websocket_test',
         'web_test',
         'worker_test',
