@@ -60,7 +60,7 @@ const char* GetNameForMediaCodecStatus(jint status) {
     case MEDIA_CODEC_ERROR:
       return "MEDIA_CODEC_ERROR";
     default:
-      SB_NOTREACHED();
+      SB_NOTREACHED() << "Unknown status value: " << status;
       return "MEDIA_CODEC_ERROR_UNKNOWN";
   }
 }
