@@ -169,11 +169,8 @@ void MetricsLog::RecordCoreSystemProfile(MetricsServiceClient* client,
 #endif
 
   metrics::SystemProfileProto::OS* os = system_profile->mutable_os();
-// TODO(b/283256747): Remove when base::SysInfo is Starboardized.
-#if !defined(STARBOARD)
   os->set_name(base::SysInfo::OperatingSystemName());
   os->set_version(base::SysInfo::OperatingSystemVersion());
-#endif
 #if defined(OS_CHROMEOS)
   os->set_kernel_version(base::SysInfo::KernelVersion());
 #elif defined(OS_ANDROID)
