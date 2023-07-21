@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/drm_helpers.h"
+#include "starboard/shared/starboard/drm/drm_test_helpers.h"
 
 #include "starboard/drm.h"
 
 namespace starboard {
-namespace nplb {
+namespace shared {
+namespace starboard {
+namespace drm {
 
 void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
                                    void* context,
@@ -65,5 +67,7 @@ SbDrmSystem CreateDummyDrmSystem(const char* key_system) {
       DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
 }
 
-}  // namespace nplb
+}  // namespace drm
+}  // namespace starboard
+}  // namespace shared
 }  // namespace starboard
