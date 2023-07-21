@@ -22,3 +22,12 @@ static_library("starboard_platform") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
   public_deps = [ "//starboard/raspi/shared:starboard_platform" ]
 }
+
+if (build_with_separate_cobalt_toolchain) {
+  static_library("starboard_platform_with_main") {
+    check_includes = false
+    sources = [ "//starboard/raspi/shared/main.cc" ]
+    configs += [ "//starboard/build/config:starboard_implementation" ]
+    public_deps = [ ":starboard_platform" ]
+  }
+}

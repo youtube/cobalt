@@ -29,6 +29,8 @@ import pexpect
 from starboard.tools import abstract_launcher
 from starboard.raspi.shared import retry
 
+IS_MODULAR_BUILD = os.getenv('MODULAR_BUILD', '0') == '1'
+
 
 # pylint: disable=unused-argument
 def _sigint_or_sigterm_handler(signum, frame):
@@ -138,6 +140,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     test_file = self.target_name
 
     test_path = os.path.join(test_dir, test_file)
+    if IS_MODULAR_BUILD:
+      test_path += '_loader'
+
     if not os.path.isfile(test_path):
       raise ValueError(f'TargetPath ({test_path}) must be a file.')
 
