@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/configuration.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/string.h"
 
@@ -64,35 +65,49 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
   auto drm_system = creation_param->drm_system;
   auto max_video_capabilities = video_stream_info.max_video_capabilities;
 
-  // Sub players must use decode-to-texture on Android.
+  bool is_sdr = true;
+  if (codec != kSbMediaVideoCodecNone) {
+    const auto& color_metadata = video_stream_info.color_metadata;
+    is_sdr = starboard::shared::starboard::media::IsSDRVideo(
+        color_metadata.bits_per_channel, color_metadata.primaries,
+        color_metadata.transfer, color_metadata.matrix);
+  }
+
   if (max_video_capabilities && strlen(max_video_capabilities) > 0) {
+    // Sub players must use "decode-to-texture" on Android.
+    // Since hdr videos are not supported under "decode-to-texture" mode, reject
+    // it for sub players.
     if (PlayerComponents::Factory::OutputModeSupported(
-            kSbPlayerOutputModeDecodeToTexture, codec, drm_system)) {
+            kSbPlayerOutputModeDecodeToTexture, codec, drm_system) &&
+        is_sdr) {
       return kSbPlayerOutputModeDecodeToTexture;
     }
-    SB_NOTREACHED();
     return kSbPlayerOutputModeInvalid;
   }
 
-  // The main player may use any output mode.
-  SbPlayerOutputMode output_modes_to_check[] = {
-      kSbPlayerOutputModePunchOut,
-      kSbPlayerOutputModeDecodeToTexture,
-  };
+  SbPlayerOutputMode output_modes_to_check[2] = {kSbPlayerOutputModeInvalid,
+                                                 kSbPlayerOutputModeInvalid};
+  int number_of_output_modes_to_check = 2;
 
-  // Check |kSbPlayerOutputModeDecodeToTexture| first if the caller prefers it.
-  if (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    std::swap(output_modes_to_check[0], output_modes_to_check[1]);
+  if (is_sdr) {
+    if (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture) {
+      output_modes_to_check[0] = kSbPlayerOutputModeDecodeToTexture;
+      output_modes_to_check[1] = kSbPlayerOutputModePunchOut;
+    } else {
+      output_modes_to_check[0] = kSbPlayerOutputModePunchOut;
+      output_modes_to_check[1] = kSbPlayerOutputModeDecodeToTexture;
+    }
+  } else {
+    // HDR videos require "punch-out".
+    output_modes_to_check[0] = kSbPlayerOutputModePunchOut;
+    number_of_output_modes_to_check = 1;
   }
 
-  if (PlayerComponents::Factory::OutputModeSupported(output_modes_to_check[0],
-                                                     codec, drm_system)) {
-    return output_modes_to_check[0];
-  }
-
-  if (PlayerComponents::Factory::OutputModeSupported(output_modes_to_check[1],
-                                                     codec, drm_system)) {
-    return output_modes_to_check[1];
+  for (int i = 0; i < number_of_output_modes_to_check; ++i) {
+    if (PlayerComponents::Factory::OutputModeSupported(output_modes_to_check[i],
+                                                       codec, drm_system)) {
+      return output_modes_to_check[i];
+    }
   }
 
   SB_LOG(WARNING) << "creation_param->video_stream_info.codec ("

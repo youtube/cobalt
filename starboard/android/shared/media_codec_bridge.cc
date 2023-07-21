@@ -215,8 +215,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 // static
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     SbMediaVideoCodec video_codec,
-    int width,
-    int height,
+    int width_hint,
+    int height_hint,
     int fps,
     optional<int> max_width,
     optional<int> max_height,
@@ -322,9 +322,10 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       "Ldev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult;)"
       "V",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
-      j_decoder_name.Get(), width, height, fps, max_width.value_or(-1),
-      max_height.value_or(-1), j_surface, j_media_crypto, j_color_info.Get(),
-      tunnel_mode_audio_session_id, j_create_media_codec_bridge_result.Get());
+      j_decoder_name.Get(), width_hint, height_hint, fps,
+      max_width.value_or(-1), max_height.value_or(-1), j_surface,
+      j_media_crypto, j_color_info.Get(), tunnel_mode_audio_session_id,
+      j_create_media_codec_bridge_result.Get());
 
   jobject j_media_codec_bridge = env->CallObjectMethodOrAbort(
       j_create_media_codec_bridge_result.Get(), "mediaCodecBridge",
@@ -451,16 +452,25 @@ jint MediaCodecBridge::Flush() {
                                                 "()I");
 }
 
-SurfaceDimensions MediaCodecBridge::GetOutputDimensions() {
+FrameSize MediaCodecBridge::GetOutputSize() {
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(
       j_media_codec_bridge_, "getOutputFormat",
       "(Ldev/cobalt/media/MediaCodecBridge$GetOutputFormatResult;)V",
       j_reused_get_output_format_result_);
-  return {env->CallIntMethodOrAbort(j_reused_get_output_format_result_, "width",
-                                    "()I"),
-          env->CallIntMethodOrAbort(j_reused_get_output_format_result_,
-                                    "height", "()I")};
+
+  auto call_int_method = [env, this](const char* name) {
+    return env->CallIntMethodOrAbort(j_reused_get_output_format_result_, name,
+                                     "()I");
+  };
+
+  FrameSize size = {
+      call_int_method("textureWidth"), call_int_method("textureHeight"),
+      call_int_method("cropLeft"),     call_int_method("cropTop"),
+      call_int_method("cropRight"),    call_int_method("cropBottom")};
+
+  size.DCheckValid();
+  return size;
 }
 
 AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
