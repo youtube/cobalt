@@ -50,6 +50,10 @@ Cobalt coding style.
 
 #### General guidelines and philosophy for contribution
 
+*   Ensure your change references the bug you are addressing. Follow the
+    instructions
+    [here](https://cobalt.dev/communication.html#filing-bugs-and-feature-requests)
+    to view and create bugs.
 *   Include unit tests when you contribute new features, as they help to:
     1.   Prove that your code works correctly
     1.   Guard against future breaking changes to lower the maintenance cost.
