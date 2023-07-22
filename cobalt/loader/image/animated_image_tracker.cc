@@ -15,7 +15,9 @@
 #include "cobalt/loader/image/animated_image_tracker.h"
 
 #include <algorithm>
+#include <utility>
 
+#include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 
@@ -24,8 +26,22 @@ namespace loader {
 namespace image {
 
 AnimatedImageTracker::AnimatedImageTracker(
+    const char* name,
     base::ThreadPriority animated_image_decode_thread_priority)
-    : animated_image_decode_thread_("AnimatedImage") {
+    : animated_image_decode_thread_("AnimatedImage"),
+      name_(name),
+      count_animated_images_active(
+          base::StringPrintf("Count.%s.AnimatedImage.Active", name), 0,
+          "Total number of active animated image decoders."),
+      count_animated_frames_decoded(
+          base::StringPrintf("Count.%s.AnimatedImage.DecodedFrames", name), 0,
+          "Total number of decoded animated image frames."),
+      count_animated_frames_decoding_underrun(
+          base::StringPrintf("Count.%s.AnimatedImage.DecodingUnderruns", name),
+          0, "Number of underruns from decoding animated images"),
+      count_animated_frames_decoding_overrun(
+          base::StringPrintf("Count.%s.AnimatedImage.DecodingOverruns", name),
+          0, "Number of overruns from decoding animated images") {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
   base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
                                 0 /* default stack size */);
@@ -121,6 +137,17 @@ void AnimatedImageTracker::Reset() {
   current_url_counts_.clear();
   previous_url_counts_.clear();
   playing_urls_.clear();
+}
+
+void AnimatedImageTracker::OnRenderTreeRasterized() {
+  count_animated_images_active = playing_urls_.size();
+  for (const auto& playing_url : playing_urls_) {
+    auto image = image_map_[playing_url.first].get();
+    auto stats = image->GetFrameDeltaStats();
+    count_animated_frames_decoded += stats.frames_decoded;
+    count_animated_frames_decoding_underrun += stats.frames_underrun;
+    count_animated_frames_decoding_overrun += stats.frames_overrun;
+  }
 }
 
 }  // namespace image
