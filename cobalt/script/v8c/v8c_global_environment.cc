@@ -97,8 +97,8 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
   isolate_->SetData(kIsolateDataIndex, this);
   DCHECK(isolate_->GetData(kIsolateDataIndex) == this);
 
-  isolate_->SetAllowCodeGenerationFromStringsCallback(
-      AllowCodeGenerationFromStringsCallback);
+  isolate_->SetModifyCodeGenerationFromStringsCallback(
+      ModifyCodeGenerationFromStringsCallback);
 
   isolate_->SetAllowWasmCodeGenerationCallback(
       [](v8::Local<v8::Context> context, v8::Local<v8::String> source) {
@@ -371,8 +371,10 @@ V8cGlobalEnvironment::DestructionHelper::~DestructionHelper() {
 }
 
 // static
-bool V8cGlobalEnvironment::AllowCodeGenerationFromStringsCallback(
-    v8::Local<v8::Context> context, v8::Local<v8::String> source) {
+v8::ModifyCodeGenerationFromStringsResult
+V8cGlobalEnvironment::ModifyCodeGenerationFromStringsCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+    bool is_code_like) {
   V8cGlobalEnvironment* global_environment =
       V8cGlobalEnvironment::GetFromIsolate(context->GetIsolate());
   DCHECK(global_environment);
@@ -385,7 +387,7 @@ bool V8cGlobalEnvironment::AllowCodeGenerationFromStringsCallback(
   // WebAssembly callback has not been explicitly set, however we *have* set
   // one.
   DCHECK_EQ(context->IsCodeGenerationFromStringsAllowed(), false);
-  return context->IsCodeGenerationFromStringsAllowed();
+  return {context->IsCodeGenerationFromStringsAllowed(), {}};
 }
 
 // static
