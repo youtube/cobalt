@@ -66,7 +66,8 @@ class LogMessageHandler {
  private:
   // Type for map of callbacks.
   typedef std::map<LogMessageHandler::CallbackId,
-                   LogMessageHandler::OnLogMessageCallback> CallbackMap;
+                   LogMessageHandler::OnLogMessageCallback>
+      CallbackMap;
 
   // This class should only be instanced by the base::Singleton.
   LogMessageHandler();

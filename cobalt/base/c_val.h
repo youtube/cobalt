@@ -235,17 +235,16 @@ inline std::string NumericalValToPrettyString<base::TimeDelta>(
   oss << std::fixed << std::setprecision(1) << std::setfill('0');
   if (value_in_us > kHour) {
     oss << value_in_us / kHour << ":" << std::setw(2)
-        << (value_in_us % kHour) / kMinute << ":"
-        << std::setw(2) << (value_in_us % kMinute) / kSecond << "h";
+        << (value_in_us % kHour) / kMinute << ":" << std::setw(2)
+        << (value_in_us % kMinute) / kSecond << "h";
   } else if (value_in_us > kMinute) {
     oss << value_in_us / kMinute << ":" << std::setw(2)
         << (value_in_us % kMinute) / kSecond << "m";
   } else if (value_in_us > kSecond) {
-    oss << std::setw(1)
-        << static_cast<double>(value_in_us) / kSecond << "s";
+    oss << std::setw(1) << static_cast<double>(value_in_us) / kSecond << "s";
   } else if (value_in_us > kMillisecond) {
-    oss << std::setw(1)
-        << static_cast<double>(value_in_us) / kMillisecond << "ms";
+    oss << std::setw(1) << static_cast<double>(value_in_us) / kMillisecond
+        << "ms";
   } else {
     oss << value_in_us << "us";
   }
@@ -646,10 +645,8 @@ class CValStub {
  public:
   CValStub(const std::string& name, const T& initial_value,
            const std::string& description)
-      : value_(initial_value) {
-  }
-  CValStub(const std::string& name, const std::string& description) {
-  }
+      : value_(initial_value) {}
+  CValStub(const std::string& name, const std::string& description) {}
 
   operator T() const { return value_; }
 

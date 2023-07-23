@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/math/matrix3_f.h"
-
 #include <cmath>
 #include <limits>
 
 #include "base/basictypes.h"
+#include "cobalt/math/matrix3_f.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -171,8 +170,7 @@ TEST(Matrix3fTest, MatrixMultiplyIdentityByIdentity) {
 TEST(Matrix3fTest, MatrixMultiplyIdentityByArbitrary) {
   // The identity matrix times an arbitrary matrix should return that same
   // arbitrary matrix.
-  Matrix3F matrix_a =
-      Matrix3F::FromValues(1, 2, 3, 4, 5, 6, 7, 8, 9);
+  Matrix3F matrix_a = Matrix3F::FromValues(1, 2, 3, 4, 5, 6, 7, 8, 9);
   EXPECT_TRUE(matrix_a.IsNear(Matrix3F::Identity() * matrix_a, 0.00001f));
   EXPECT_TRUE(matrix_a.IsNear(matrix_a * Matrix3F::Identity(), 0.00001f));
 }
@@ -180,10 +178,8 @@ TEST(Matrix3fTest, MatrixMultiplyIdentityByArbitrary) {
 TEST(Matrix3fTest, MatrixMultiplyArbitraryByArbitrary) {
   // Check that multiplying two arbitrary matrices together gives the expected
   // results.
-  Matrix3F matrix_a =
-      Matrix3F::FromValues(1, 2, 3, 4, 5, 6, 7, 8, 9);
-  Matrix3F matrix_b =
-      Matrix3F::FromValues(10, 11, 12, 13, 14, 15, 16, 17, 18);
+  Matrix3F matrix_a = Matrix3F::FromValues(1, 2, 3, 4, 5, 6, 7, 8, 9);
+  Matrix3F matrix_b = Matrix3F::FromValues(10, 11, 12, 13, 14, 15, 16, 17, 18);
 
   Matrix3F result = matrix_a * matrix_b;
   Matrix3F expected_result =

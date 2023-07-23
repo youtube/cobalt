@@ -15,9 +15,8 @@
 #ifndef COBALT_DOM_PARSER_LIBXML_HTML_PARSER_WRAPPER_H_
 #define COBALT_DOM_PARSER_LIBXML_HTML_PARSER_WRAPPER_H_
 
-#include "cobalt/dom_parser/libxml_parser_wrapper.h"
-
 #include <libxml/HTMLparser.h>
+
 #include <string>
 
 #include "base/callback.h"
@@ -25,6 +24,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/dom_parser/libxml_parser_wrapper.h"
 #include "cobalt/loader/decoder.h"
 
 namespace cobalt {

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/encoding/text_decoder.h"
+
 #include <algorithm>
 #include <cctype>
-
-#include "cobalt/encoding/text_decoder.h"
 
 #include "third_party/icu/source/common/unicode/uchriter.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"

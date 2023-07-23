@@ -180,7 +180,8 @@ WebDriverDispatcher::CommandMapping* WebDriverDispatcher::GetMappingForPath(
   typedef std::vector<std::string>::const_reverse_iterator MismatchResult;
   typedef std::pair<MismatchResult, MismatchResult> MismatchResultPair;
   typedef std::pair<CommandMappingLookup::iterator,
-                    CommandMappingLookup::iterator> EqualRangeResultPair;
+                    CommandMappingLookup::iterator>
+      EqualRangeResultPair;
 
   PathComponentsAreEqualPredicate predicate(strategy == kMatchExact);
 

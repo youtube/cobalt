@@ -54,8 +54,7 @@ inline TrivialStringPiece TrivialStringPiece::FromCString(
 
 // Used by tests.
 inline bool operator==(const TrivialStringPiece& lhs, const char* rhs) {
-  return strncmp(lhs.begin, rhs, lhs.size()) == 0 &&
-         rhs[lhs.size()] == '\0';
+  return strncmp(lhs.begin, rhs, lhs.size()) == 0 && rhs[lhs.size()] == '\0';
 }
 
 // Used by tests.

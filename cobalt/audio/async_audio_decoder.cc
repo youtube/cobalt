@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/audio/async_audio_decoder.h"
+
+#include <memory>
 
 #include "base/bind.h"
 #include "base/logging.h"

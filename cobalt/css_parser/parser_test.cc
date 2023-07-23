@@ -1405,7 +1405,9 @@ TEST_F(ParserTest, ParsesLonghandPropertyKeywords) {
 // for the expanded properties for values 'inherit' and 'initial'.
 TEST_F(ParserTest, ParsesShorthandPropertyInitialAndInherit) {
   const char* shorthand_property_keywords[] = {
-      "inherit", "initial", nullptr,
+      "inherit",
+      "initial",
+      nullptr,
   };
 
   // Helper class to check if a PropertyValue is a KeywordValue.

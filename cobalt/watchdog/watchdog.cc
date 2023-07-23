@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/watchdog/watchdog.h"
+
 #include <algorithm>
 #include <sstream>
 #include <utility>
@@ -20,7 +22,6 @@
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
-#include "cobalt/watchdog/watchdog.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"

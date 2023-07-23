@@ -186,8 +186,7 @@ template <typename EntryType>
 class CValTimeIntervalEntryStatsStub {
  public:
   CValTimeIntervalEntryStatsStub(const std::string& name,
-                                 int64 time_interval_in_ms) {
-  }
+                                 int64 time_interval_in_ms) {}
 
   void AddEntry(const EntryType& value) {}
   void AddEntry(const EntryType& value, const base::TimeTicks& now) {}

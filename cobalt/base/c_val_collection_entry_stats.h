@@ -319,12 +319,10 @@ class CValCollectionEntryStatsStub {
   typedef CValCollectionEntryStatsFlushResults<EntryType> FlushResults;
   typedef typename FlushResults::OnFlushCallback OnFlushCallback;
 
-  explicit CValCollectionEntryStatsStub(const std::string& name) {
-  }
+  explicit CValCollectionEntryStatsStub(const std::string& name) {}
   CValCollectionEntryStatsStub(
       const std::string& name, size_t max_size, bool enable_entry_list_c_val,
-      const OnFlushCallback& on_flush = OnFlushCallback()) {
-  }
+      const OnFlushCallback& on_flush = OnFlushCallback()) {}
 
   void AddEntry(const EntryType& value) {}
   void Flush() {}

@@ -16,6 +16,7 @@
 #define COBALT_WEBDRIVER_SCREENSHOT_H_
 
 #include <string>
+
 #include "base/optional.h"
 #include "cobalt/loader/image/image_encoder.h"
 #include "cobalt/math/rect.h"

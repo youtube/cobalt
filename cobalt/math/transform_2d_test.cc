@@ -12,41 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/math/transform_2d.h"
+
 #include <cmath>
 
-#include "cobalt/math/transform_2d.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::math::Matrix3F;
 
 TEST(Transform2DTest, Translation) {
-  Matrix3F expected_value = Matrix3F::FromValues(
-      1.0f, 0,    3.0f,
-      0,    1.0f, 4.0f,
-      0,    0,    1.0f);
+  Matrix3F expected_value =
+      Matrix3F::FromValues(1.0f, 0, 3.0f, 0, 1.0f, 4.0f, 0, 0, 1.0f);
 
-  EXPECT_TRUE(expected_value.IsNear(
-      cobalt::math::TranslateMatrix(3, 4), 0.00001f));
+  EXPECT_TRUE(
+      expected_value.IsNear(cobalt::math::TranslateMatrix(3, 4), 0.00001f));
 }
 
 TEST(Transform2DTest, AnisotropicScale) {
-  Matrix3F expected_value = Matrix3F::FromValues(
-      3.0f, 0,    0,
-      0,    4.0f, 0,
-      0,    0,    1.0f);
+  Matrix3F expected_value =
+      Matrix3F::FromValues(3.0f, 0, 0, 0, 4.0f, 0, 0, 0, 1.0f);
 
-  EXPECT_TRUE(expected_value.IsNear(
-      cobalt::math::ScaleMatrix(3, 4), 0.00001f));
+  EXPECT_TRUE(expected_value.IsNear(cobalt::math::ScaleMatrix(3, 4), 0.00001f));
 }
 
 TEST(Transform2DTest, IsotropicScale) {
-  Matrix3F expected_value = Matrix3F::FromValues(
-      3.0f, 0,    0,
-      0,    3.0f, 0,
-      0,    0,    1.0f);
+  Matrix3F expected_value =
+      Matrix3F::FromValues(3.0f, 0, 0, 0, 3.0f, 0, 0, 0, 1.0f);
 
-  EXPECT_TRUE(expected_value.IsNear(
-      cobalt::math::ScaleMatrix(3), 0.00001f));
+  EXPECT_TRUE(expected_value.IsNear(cobalt::math::ScaleMatrix(3), 0.00001f));
 }
 
 TEST(Transform2DTest, Rotation) {
@@ -54,10 +47,8 @@ TEST(Transform2DTest, Rotation) {
 
   // Note that we account for the fact that up is represented by negative y.
   Matrix3F expected_value = Matrix3F::FromValues(
-      cos(kTheta),  sin(kTheta), 0,
-      -sin(kTheta), cos(kTheta), 0,
-      0,            0,           1.0f);
+      cos(kTheta), sin(kTheta), 0, -sin(kTheta), cos(kTheta), 0, 0, 0, 1.0f);
 
-  EXPECT_TRUE(expected_value.IsNear(
-      cobalt::math::RotateMatrix(kTheta), 0.00001f));
+  EXPECT_TRUE(
+      expected_value.IsNear(cobalt::math::RotateMatrix(kTheta), 0.00001f));
 }

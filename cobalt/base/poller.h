@@ -60,9 +60,7 @@ class Poller {
     timer_->Start(FROM_HERE, period, user_task);
   }
 
-  void StopTimer() {
-    timer_.reset();
-  }
+  void StopTimer() { timer_.reset(); }
 
   base::MessageLoop* message_loop_;
   std::unique_ptr<RepeatingTimer<Poller> > timer_;

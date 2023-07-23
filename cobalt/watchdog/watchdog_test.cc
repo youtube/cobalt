@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/watchdog/watchdog.h"
+
 #include <vector>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
-#include "cobalt/watchdog/watchdog.h"
 #include "starboard/common/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

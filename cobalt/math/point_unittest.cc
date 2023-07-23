@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "cobalt/math/point.h"
-#include "cobalt/math/point_f.h"
 
 #include "base/basictypes.h"
 #include "cobalt/math/point_base.h"
 #include "cobalt/math/point_conversions.h"
+#include "cobalt/math/point_f.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

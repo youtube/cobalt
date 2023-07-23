@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/subtlecrypto/crypto_impl.h"
+
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

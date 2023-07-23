@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/samples/simple_example/simple_example.h"
-
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/wrap_main.h"
+#include "cobalt/samples/simple_example/simple_example.h"
 
 namespace {
 

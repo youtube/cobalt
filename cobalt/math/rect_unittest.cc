@@ -461,16 +461,16 @@ TEST(RectTest, ScaleRect) {
     float w2;
     float h2;
   } tests[] = {
-        {3, 3, 3, 3, 1.5f, 4.5f, 4.5f, 4.5f, 4.5f},
-        {3, 3, 3, 3, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-        {3, 3, 3, 3, std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN()},
-        {3, 3, 3, 3, std::numeric_limits<float>::max(),
-         std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
-         std::numeric_limits<float>::max(), std::numeric_limits<float>::max()}};
+      {3, 3, 3, 3, 1.5f, 4.5f, 4.5f, 4.5f, 4.5f},
+      {3, 3, 3, 3, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+      {3, 3, 3, 3, std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN()},
+      {3, 3, 3, 3, std::numeric_limits<float>::max(),
+       std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
+       std::numeric_limits<float>::max(), std::numeric_limits<float>::max()}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     Rect r1(tests[i].x1, tests[i].y1, tests[i].w1, tests[i].h1);
@@ -495,20 +495,20 @@ TEST(RectTest, ToEnclosedRect) {
     int w2;
     int h2;
   } tests[] = {
-        {0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0},
-        {-1.5f, -1.5f, 3.0f, 3.0f, -1, -1, 2, 2},
-        {-1.5f, -1.5f, 3.5f, 3.5f, -1, -1, 3, 3},
-        {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
-         2.0f, 2.0f, std::numeric_limits<int>::max(),
-         std::numeric_limits<int>::max(), 0, 0},
-        {0.0f, 0.0f, std::numeric_limits<float>::max(),
-         std::numeric_limits<float>::max(), 0, 0,
-         std::numeric_limits<int>::max(), std::numeric_limits<int>::max()},
-        {20000.5f, 20000.5f, 0.5f, 0.5f, 20001, 20001, 0, 0},
-        {std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(), 0, 0, 0, 0}};
+      {0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0},
+      {-1.5f, -1.5f, 3.0f, 3.0f, -1, -1, 2, 2},
+      {-1.5f, -1.5f, 3.5f, 3.5f, -1, -1, 3, 3},
+      {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
+       2.0f, 2.0f, std::numeric_limits<int>::max(),
+       std::numeric_limits<int>::max(), 0, 0},
+      {0.0f, 0.0f, std::numeric_limits<float>::max(),
+       std::numeric_limits<float>::max(), 0, 0, std::numeric_limits<int>::max(),
+       std::numeric_limits<int>::max()},
+      {20000.5f, 20000.5f, 0.5f, 0.5f, 20001, 20001, 0, 0},
+      {std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(), 0, 0, 0, 0}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     RectF r1(tests[i].x1, tests[i].y1, tests[i].w1, tests[i].h1);
@@ -533,21 +533,21 @@ TEST(RectTest, ToEnclosingRect) {
     int w2;
     int h2;
   } tests[] = {
-        {0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0},
-        {5.5f, 5.5f, 0.0f, 0.0f, 5, 5, 0, 0},
-        {-1.5f, -1.5f, 3.0f, 3.0f, -2, -2, 4, 4},
-        {-1.5f, -1.5f, 3.5f, 3.5f, -2, -2, 4, 4},
-        {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
-         2.0f, 2.0f, std::numeric_limits<int>::max(),
-         std::numeric_limits<int>::max(), 0, 0},
-        {0.0f, 0.0f, std::numeric_limits<float>::max(),
-         std::numeric_limits<float>::max(), 0, 0,
-         std::numeric_limits<int>::max(), std::numeric_limits<int>::max()},
-        {20000.5f, 20000.5f, 0.5f, 0.5f, 20000, 20000, 1, 1},
-        {std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(),
-         std::numeric_limits<float>::quiet_NaN(), 0, 0, 0, 0}};
+      {0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0},
+      {5.5f, 5.5f, 0.0f, 0.0f, 5, 5, 0, 0},
+      {-1.5f, -1.5f, 3.0f, 3.0f, -2, -2, 4, 4},
+      {-1.5f, -1.5f, 3.5f, 3.5f, -2, -2, 4, 4},
+      {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
+       2.0f, 2.0f, std::numeric_limits<int>::max(),
+       std::numeric_limits<int>::max(), 0, 0},
+      {0.0f, 0.0f, std::numeric_limits<float>::max(),
+       std::numeric_limits<float>::max(), 0, 0, std::numeric_limits<int>::max(),
+       std::numeric_limits<int>::max()},
+      {20000.5f, 20000.5f, 0.5f, 0.5f, 20000, 20000, 1, 1},
+      {std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(),
+       std::numeric_limits<float>::quiet_NaN(), 0, 0, 0, 0}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     RectF r1(tests[i].x1, tests[i].y1, tests[i].w1, tests[i].h1);
@@ -583,11 +583,11 @@ TEST(RectTest, ToFlooredRect) {
     int w2;
     int h2;
   } tests[] = {
-        {0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0},
-        {-1.5f, -1.5f, 3.0f, 3.0f, -2, -2, 3, 3},
-        {-1.5f, -1.5f, 3.5f, 3.5f, -2, -2, 3, 3},
-        {20000.5f, 20000.5f, 0.5f, 0.5f, 20000, 20000, 0, 0},
-    };
+      {0.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0},
+      {-1.5f, -1.5f, 3.0f, 3.0f, -2, -2, 3, 3},
+      {-1.5f, -1.5f, 3.5f, 3.5f, -2, -2, 3, 3},
+      {20000.5f, 20000.5f, 0.5f, 0.5f, 20000, 20000, 0, 0},
+  };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     RectF r1(tests[i].x1, tests[i].y1, tests[i].w1, tests[i].h1);
@@ -607,25 +607,39 @@ TEST(RectTest, ScaleToEnclosedRect) {
     float input_scale;
     Rect expected_rect;
   } tests[] = {{
-                Rect(), 5.f, Rect(),
+                   Rect(),
+                   5.f,
+                   Rect(),
                },
                {
-                Rect(1, 1, 1, 1), 5.f, Rect(5, 5, 5, 5),
+                   Rect(1, 1, 1, 1),
+                   5.f,
+                   Rect(5, 5, 5, 5),
                },
                {
-                Rect(-1, -1, 0, 0), 5.f, Rect(-5, -5, 0, 0),
+                   Rect(-1, -1, 0, 0),
+                   5.f,
+                   Rect(-5, -5, 0, 0),
                },
                {
-                Rect(1, -1, 0, 1), 5.f, Rect(5, -5, 0, 5),
+                   Rect(1, -1, 0, 1),
+                   5.f,
+                   Rect(5, -5, 0, 5),
                },
                {
-                Rect(-1, 1, 1, 0), 5.f, Rect(-5, 5, 5, 0),
+                   Rect(-1, 1, 1, 0),
+                   5.f,
+                   Rect(-5, 5, 5, 0),
                },
                {
-                Rect(1, 2, 3, 4), 1.5f, Rect(2, 3, 4, 6),
+                   Rect(1, 2, 3, 4),
+                   1.5f,
+                   Rect(2, 3, 4, 6),
                },
                {
-                Rect(-1, -2, 0, 0), 1.5f, Rect(-1, -3, 0, 0),
+                   Rect(-1, -2, 0, 0),
+                   1.5f,
+                   Rect(-1, -3, 0, 0),
                }};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
@@ -641,25 +655,39 @@ TEST(RectTest, ScaleToEnclosingRect) {
     float input_scale;
     Rect expected_rect;
   } tests[] = {{
-                Rect(), 5.f, Rect(),
+                   Rect(),
+                   5.f,
+                   Rect(),
                },
                {
-                Rect(1, 1, 1, 1), 5.f, Rect(5, 5, 5, 5),
+                   Rect(1, 1, 1, 1),
+                   5.f,
+                   Rect(5, 5, 5, 5),
                },
                {
-                Rect(-1, -1, 0, 0), 5.f, Rect(-5, -5, 0, 0),
+                   Rect(-1, -1, 0, 0),
+                   5.f,
+                   Rect(-5, -5, 0, 0),
                },
                {
-                Rect(1, -1, 0, 1), 5.f, Rect(5, -5, 0, 5),
+                   Rect(1, -1, 0, 1),
+                   5.f,
+                   Rect(5, -5, 0, 5),
                },
                {
-                Rect(-1, 1, 1, 0), 5.f, Rect(-5, 5, 5, 0),
+                   Rect(-1, 1, 1, 0),
+                   5.f,
+                   Rect(-5, 5, 5, 0),
                },
                {
-                Rect(1, 2, 3, 4), 1.5f, Rect(1, 3, 5, 6),
+                   Rect(1, 2, 3, 4),
+                   1.5f,
+                   Rect(1, 3, 5, 6),
                },
                {
-                Rect(-1, -2, 0, 0), 1.5f, Rect(-2, -3, 0, 0),
+                   Rect(-1, -2, 0, 0),
+                   1.5f,
+                   Rect(-2, -3, 0, 0),
                }};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
@@ -686,22 +714,23 @@ TEST(RectTest, BoundingRect) {
     Point a;
     Point b;
     Rect expected;
-  } int_tests[] = {// If point B dominates A, then A should be the origin.
-                   {Point(4, 6), Point(4, 6), Rect(4, 6, 0, 0)},
-                   {Point(4, 6), Point(8, 6), Rect(4, 6, 4, 0)},
-                   {Point(4, 6), Point(4, 9), Rect(4, 6, 0, 3)},
-                   {Point(4, 6), Point(8, 9), Rect(4, 6, 4, 3)},
-                   // If point A dominates B, then B should be the origin.
-                   {Point(4, 6), Point(4, 6), Rect(4, 6, 0, 0)},
-                   {Point(8, 6), Point(4, 6), Rect(4, 6, 4, 0)},
-                   {Point(4, 9), Point(4, 6), Rect(4, 6, 0, 3)},
-                   {Point(8, 9), Point(4, 6), Rect(4, 6, 4, 3)},
-                   // If neither point dominates, then the origin is a
-                   // combination of the two.
-                   {Point(4, 6), Point(6, 4), Rect(4, 4, 2, 2)},
-                   {Point(-4, -6), Point(-6, -4), Rect(-6, -6, 2, 2)},
-                   {Point(-4, 6), Point(6, -4), Rect(-4, -4, 10, 10)},
-    };
+  } int_tests[] = {
+      // If point B dominates A, then A should be the origin.
+      {Point(4, 6), Point(4, 6), Rect(4, 6, 0, 0)},
+      {Point(4, 6), Point(8, 6), Rect(4, 6, 4, 0)},
+      {Point(4, 6), Point(4, 9), Rect(4, 6, 0, 3)},
+      {Point(4, 6), Point(8, 9), Rect(4, 6, 4, 3)},
+      // If point A dominates B, then B should be the origin.
+      {Point(4, 6), Point(4, 6), Rect(4, 6, 0, 0)},
+      {Point(8, 6), Point(4, 6), Rect(4, 6, 4, 0)},
+      {Point(4, 9), Point(4, 6), Rect(4, 6, 0, 3)},
+      {Point(8, 9), Point(4, 6), Rect(4, 6, 4, 3)},
+      // If neither point dominates, then the origin is a
+      // combination of the two.
+      {Point(4, 6), Point(6, 4), Rect(4, 4, 2, 2)},
+      {Point(-4, -6), Point(-6, -4), Rect(-6, -6, 2, 2)},
+      {Point(-4, 6), Point(6, -4), Rect(-4, -4, 10, 10)},
+  };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(int_tests); ++i) {
     Rect actual = BoundingRect(int_tests[i].a, int_tests[i].b);
@@ -713,23 +742,23 @@ TEST(RectTest, BoundingRect) {
     PointF b;
     RectF expected;
   } float_tests[] = {
-        // If point B dominates A, then A should be the origin.
-        {PointF(4.2f, 6.8f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 0, 0)},
-        {PointF(4.2f, 6.8f), PointF(8.5f, 6.8f), RectF(4.2f, 6.8f, 4.3f, 0)},
-        {PointF(4.2f, 6.8f), PointF(4.2f, 9.3f), RectF(4.2f, 6.8f, 0, 2.5f)},
-        {PointF(4.2f, 6.8f), PointF(8.5f, 9.3f), RectF(4.2f, 6.8f, 4.3f, 2.5f)},
-        // If point A dominates B, then B should be the origin.
-        {PointF(4.2f, 6.8f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 0, 0)},
-        {PointF(8.5f, 6.8f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 4.3f, 0)},
-        {PointF(4.2f, 9.3f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 0, 2.5f)},
-        {PointF(8.5f, 9.3f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 4.3f, 2.5f)},
-        // If neither point dominates, then the origin is a combination of the
-        // two.
-        {PointF(4.2f, 6.8f), PointF(6.8f, 4.2f), RectF(4.2f, 4.2f, 2.6f, 2.6f)},
-        {PointF(-4.2f, -6.8f), PointF(-6.8f, -4.2f),
-         RectF(-6.8f, -6.8f, 2.6f, 2.6f)},
-        {PointF(-4.2f, 6.8f), PointF(6.8f, -4.2f),
-         RectF(-4.2f, -4.2f, 11.0f, 11.0f)}};
+      // If point B dominates A, then A should be the origin.
+      {PointF(4.2f, 6.8f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 0, 0)},
+      {PointF(4.2f, 6.8f), PointF(8.5f, 6.8f), RectF(4.2f, 6.8f, 4.3f, 0)},
+      {PointF(4.2f, 6.8f), PointF(4.2f, 9.3f), RectF(4.2f, 6.8f, 0, 2.5f)},
+      {PointF(4.2f, 6.8f), PointF(8.5f, 9.3f), RectF(4.2f, 6.8f, 4.3f, 2.5f)},
+      // If point A dominates B, then B should be the origin.
+      {PointF(4.2f, 6.8f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 0, 0)},
+      {PointF(8.5f, 6.8f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 4.3f, 0)},
+      {PointF(4.2f, 9.3f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 0, 2.5f)},
+      {PointF(8.5f, 9.3f), PointF(4.2f, 6.8f), RectF(4.2f, 6.8f, 4.3f, 2.5f)},
+      // If neither point dominates, then the origin is a combination of the
+      // two.
+      {PointF(4.2f, 6.8f), PointF(6.8f, 4.2f), RectF(4.2f, 4.2f, 2.6f, 2.6f)},
+      {PointF(-4.2f, -6.8f), PointF(-6.8f, -4.2f),
+       RectF(-6.8f, -6.8f, 2.6f, 2.6f)},
+      {PointF(-4.2f, 6.8f), PointF(6.8f, -4.2f),
+       RectF(-4.2f, -4.2f, 11.0f, 11.0f)}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(float_tests); ++i) {
     RectF actual = BoundingRect(float_tests[i].a, float_tests[i].b);

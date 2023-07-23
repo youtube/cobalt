@@ -27,9 +27,9 @@ namespace css_parser {
 // below, this DISABLED test should be enabled.
 
 const char* kNumericLocales[] = {
-  "",       // default locale
-  "C",      // dot radix separator
-  "de_DE",  // comma radix separator
+    "",       // default locale
+    "C",      // dot radix separator
+    "de_DE",  // comma radix separator
 };
 
 class ScannerTest : public ::testing::Test,
@@ -49,7 +49,7 @@ class ScannerTest : public ::testing::Test,
 #else
     // Save the old locale.
     char* old_locale_cstr = setlocale(LC_NUMERIC, nullptr);
-    EXPECT_TRUE(old_locale_cstr != nullptr) << "Cant' save original locale";
+    EXPECT_TRUE(old_locale_cstr != nullptr) << "Can't save original locale";
     old_locale_ = old_locale_cstr;
 
     // Keep the default locale when the param is empty, and for other param
@@ -764,10 +764,10 @@ struct {
   const char* text;
   int token;
 } known_dash_functions[] = {
-  { "-cobalt-mtm", kCobaltMtmFunctionToken },
-  { "-cobalt-ui-nav-focus-transform", kCobaltUiNavFocusTransformFunctionToken },
-  { "-cobalt-ui-nav-spotlight-transform",
-    kCobaltUiNavSpotlightTransformFunctionToken },
+    {"-cobalt-mtm", kCobaltMtmFunctionToken},
+    {"-cobalt-ui-nav-focus-transform", kCobaltUiNavFocusTransformFunctionToken},
+    {"-cobalt-ui-nav-spotlight-transform",
+     kCobaltUiNavSpotlightTransformFunctionToken},
 };
 }  // namespace
 
@@ -778,10 +778,11 @@ TEST_F(ScannerTest, ScansKnownDashFunction) {
 
     Scanner scanner(text.c_str(), &string_pool_);
     ASSERT_EQ(known_dash_functions[i].token,
-              yylex(&token_value_, &token_location_, &scanner)) << text;
+              yylex(&token_value_, &token_location_, &scanner))
+        << text;
     ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner)) << text;
-    ASSERT_EQ(kEndOfFileToken,
-              yylex(&token_value_, &token_location_, &scanner)) << text;
+    ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner))
+        << text;
   }
 }
 
@@ -792,10 +793,11 @@ TEST_F(ScannerTest, ScansKnownDashFunctionWithoutClosingAtEnd) {
 
     Scanner scanner(text.c_str(), &string_pool_);
     ASSERT_EQ(known_dash_functions[i].token,
-              yylex(&token_value_, &token_location_, &scanner)) << text;
+              yylex(&token_value_, &token_location_, &scanner))
+        << text;
     ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner)) << text;
-    ASSERT_EQ(kEndOfFileToken,
-              yylex(&token_value_, &token_location_, &scanner)) << text;
+    ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner))
+        << text;
   }
 }
 

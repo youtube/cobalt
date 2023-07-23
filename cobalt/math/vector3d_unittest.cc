@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/math/vector3d_f.h"
-
 #include <cmath>
 #include <limits>
 
 #include "base/basictypes.h"
+#include "cobalt/math/vector3d_f.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -29,9 +28,9 @@ TEST(Vector3dTest, Add) {
     Vector3dF expected;
     Vector3dF actual;
   } float_tests[] = {
-        {Vector3dF(3.1F, 5.1F, 2.7f), f1 + Vector3dF()},
-        {Vector3dF(3.1f + 4.3f, 5.1f - 1.3f, 2.7f + 8.1f), f1 + f2},
-        {Vector3dF(3.1f - 4.3f, 5.1f + 1.3f, 2.7f - 8.1f), f1 - f2}};
+      {Vector3dF(3.1F, 5.1F, 2.7f), f1 + Vector3dF()},
+      {Vector3dF(3.1f + 4.3f, 5.1f - 1.3f, 2.7f + 8.1f), f1 + f2},
+      {Vector3dF(3.1f - 4.3f, 5.1f + 1.3f, 2.7f - 8.1f), f1 - f2}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(float_tests); ++i)
     EXPECT_EQ(float_tests[i].expected.ToString(),
@@ -43,12 +42,12 @@ TEST(Vector3dTest, Negative) {
     Vector3dF expected;
     Vector3dF actual;
   } float_tests[] = {
-        {Vector3dF(-0.0f, -0.0f, -0.0f), -Vector3dF(0, 0, 0)},
-        {Vector3dF(-0.3f, -0.3f, -0.3f), -Vector3dF(0.3f, 0.3f, 0.3f)},
-        {Vector3dF(0.3f, 0.3f, 0.3f), -Vector3dF(-0.3f, -0.3f, -0.3f)},
-        {Vector3dF(-0.3f, 0.3f, -0.3f), -Vector3dF(0.3f, -0.3f, 0.3f)},
-        {Vector3dF(0.3f, -0.3f, -0.3f), -Vector3dF(-0.3f, 0.3f, 0.3f)},
-        {Vector3dF(-0.3f, -0.3f, 0.3f), -Vector3dF(0.3f, 0.3f, -0.3f)}};
+      {Vector3dF(-0.0f, -0.0f, -0.0f), -Vector3dF(0, 0, 0)},
+      {Vector3dF(-0.3f, -0.3f, -0.3f), -Vector3dF(0.3f, 0.3f, 0.3f)},
+      {Vector3dF(0.3f, 0.3f, 0.3f), -Vector3dF(-0.3f, -0.3f, -0.3f)},
+      {Vector3dF(-0.3f, 0.3f, -0.3f), -Vector3dF(0.3f, -0.3f, 0.3f)},
+      {Vector3dF(0.3f, -0.3f, -0.3f), -Vector3dF(-0.3f, 0.3f, 0.3f)},
+      {Vector3dF(-0.3f, -0.3f, 0.3f), -Vector3dF(0.3f, 0.3f, -0.3f)}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(float_tests); ++i)
     EXPECT_EQ(float_tests[i].expected.ToString(),
@@ -93,20 +92,14 @@ TEST(Vector3dTest, Scale) {
     EXPECT_EQ(triple_values[i][2] * triple_values[i][5], v2.z());
   }
 
-  float single_values[][4] = {{4.5f, 1.2f, 1.8f, 3.3f},
-                              {4.5f, -1.2f, 1.8f, 3.3f},
-                              {4.5f, 1.2f, -1.8f, 3.3f},
-                              {4.5f, -1.2f, -1.8f, 3.3f},
-                              {-4.5f, 1.2f, 3.3f},
-                              {-4.5f, 1.2f, 0},
-                              {-4.5f, 1.2f, 1.8f, 3.3f},
-                              {-4.5f, 1.2f, 1.8f, 0},
-                              {4.5f, 0, 1.8f, 3.3f},
-                              {0, 1.2f, 1.8f, 3.3f},
-                              {4.5f, 0, 1.8f, 3.3f},
-                              {0, 1.2f, 1.8f, 3.3f},
-                              {4.5f, 1.2f, 0, 3.3f},
-                              {4.5f, 1.2f, 0, 3.3f}};
+  float single_values[][4] = {
+      {4.5f, 1.2f, 1.8f, 3.3f},  {4.5f, -1.2f, 1.8f, 3.3f},
+      {4.5f, 1.2f, -1.8f, 3.3f}, {4.5f, -1.2f, -1.8f, 3.3f},
+      {-4.5f, 1.2f, 3.3f},       {-4.5f, 1.2f, 0},
+      {-4.5f, 1.2f, 1.8f, 3.3f}, {-4.5f, 1.2f, 1.8f, 0},
+      {4.5f, 0, 1.8f, 3.3f},     {0, 1.2f, 1.8f, 3.3f},
+      {4.5f, 0, 1.8f, 3.3f},     {0, 1.2f, 1.8f, 3.3f},
+      {4.5f, 1.2f, 0, 3.3f},     {4.5f, 1.2f, 0, 3.3f}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(single_values); ++i) {
     Vector3dF v(single_values[i][0], single_values[i][1], single_values[i][2]);
@@ -166,13 +159,13 @@ TEST(Vector3dTest, DotProduct) {
     Vector3dF input1;
     Vector3dF input2;
   } tests[] = {
-        {0, Vector3dF(1, 0, 0), Vector3dF(0, 1, 1)},
-        {0, Vector3dF(0, 1, 0), Vector3dF(1, 0, 1)},
-        {0, Vector3dF(0, 0, 1), Vector3dF(1, 1, 0)},
-        {3, Vector3dF(1, 1, 1), Vector3dF(1, 1, 1)},
-        {1.2f, Vector3dF(1.2f, -1.2f, 1.2f), Vector3dF(1, 1, 1)},
-        {1.2f, Vector3dF(1, 1, 1), Vector3dF(1.2f, -1.2f, 1.2f)},
-        {38.72f, Vector3dF(1.1f, 2.2f, 3.3f), Vector3dF(4.4f, 5.5f, 6.6f)}};
+      {0, Vector3dF(1, 0, 0), Vector3dF(0, 1, 1)},
+      {0, Vector3dF(0, 1, 0), Vector3dF(1, 0, 1)},
+      {0, Vector3dF(0, 0, 1), Vector3dF(1, 1, 0)},
+      {3, Vector3dF(1, 1, 1), Vector3dF(1, 1, 1)},
+      {1.2f, Vector3dF(1.2f, -1.2f, 1.2f), Vector3dF(1, 1, 1)},
+      {1.2f, Vector3dF(1, 1, 1), Vector3dF(1.2f, -1.2f, 1.2f)},
+      {38.72f, Vector3dF(1.1f, 2.2f, 3.3f), Vector3dF(4.4f, 5.5f, 6.6f)}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     float actual = DotProduct(tests[i].input1, tests[i].input2);
