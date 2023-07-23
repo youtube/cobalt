@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/captions/system_caption_settings.h"
+
 #include <string>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/captions/caption_character_edge_style.h"
@@ -25,9 +26,7 @@
 #include "cobalt/dom/captions/caption_font_size_percentage.h"
 #include "cobalt/dom/captions/caption_opacity_percentage.h"
 #include "cobalt/dom/captions/caption_state.h"
-#include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/web/event_target.h"
-
 #include "starboard/accessibility.h"
 #include "starboard/memory.h"
 

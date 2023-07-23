@@ -59,4 +59,3 @@ function InitializeFernLayer(layerElement) {
   AppendFern(fernContainer, 0.28);
   layerElement.appendChild(fernContainer);
 }
-

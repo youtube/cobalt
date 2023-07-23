@@ -55,4 +55,3 @@ Thread-safely runs `init_routine` only once.
 ```
 bool SbOnce(SbOnceControl *once_control, SbOnceInitRoutine init_routine)
 ```
-

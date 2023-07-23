@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "base/logging.h"
-
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/interface_with_any_dictionary.h"
 #include "testing/gmock/include/gmock/gmock.h"

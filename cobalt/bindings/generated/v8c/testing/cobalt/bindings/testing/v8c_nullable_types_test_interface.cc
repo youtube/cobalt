@@ -125,7 +125,7 @@ void nullableBooleanPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NullableTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->nullable_boolean_property(),
               &result_value);
@@ -166,7 +166,7 @@ void nullableNumericPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NullableTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->nullable_numeric_property(),
               &result_value);
@@ -207,7 +207,7 @@ void nullableStringPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NullableTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->nullable_string_property(),
               &result_value);
@@ -248,7 +248,7 @@ void nullableDictionaryPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NullableTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->nullable_dictionary_property(),
               &result_value);
@@ -289,7 +289,7 @@ void nullableObjectPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NullableTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->nullable_object_property(),
               &result_value);
@@ -1209,5 +1209,3 @@ v8::Local<v8::FunctionTemplate> V8cNullableTypesTestInterface::GetTemplate(v8::I
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

@@ -369,5 +369,3 @@ v8::Local<v8::FunctionTemplate> V8cInterfaceWithDate::GetTemplate(v8::Isolate* i
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

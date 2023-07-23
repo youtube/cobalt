@@ -16,7 +16,6 @@
 #define COBALT_BINDINGS_TESTING_INTERFACE_WITH_ANY_DICTIONARY_H_
 
 #include "base/compiler_specific.h"
-
 #include "cobalt/bindings/testing/test_dictionary.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"

@@ -223,5 +223,3 @@ v8::Local<v8::FunctionTemplate> V8cNoConstructorInterface::GetTemplate(v8::Isola
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

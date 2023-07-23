@@ -123,7 +123,7 @@ void enabledAttributeAttributeGetter(
                     [](v8::Isolate* isolate, ConditionalInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->enabled_attribute(),
               &result_value);
@@ -166,7 +166,7 @@ void disabledAttributeAttributeGetter(
                     [](v8::Isolate* isolate, ConditionalInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->disabled_attribute(),
               &result_value);

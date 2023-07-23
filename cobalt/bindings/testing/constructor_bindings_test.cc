@@ -96,10 +96,10 @@ TEST_F(ConstructorBindingsTest, NamedConstructorHasCorrectName) {
 
 TEST_F(ConstructorBindingsTest, NamedConstructorHasCorrectPrototype) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript(
-      "Object.getPrototypeOf(SomeNamedConstructor) === "
-      "Object.getPrototypeOf(NamedConstructorInterface);",
-      &result));
+  EXPECT_TRUE(
+      EvaluateScript("Object.getPrototypeOf(SomeNamedConstructor) === "
+                     "Object.getPrototypeOf(NamedConstructorInterface);",
+                     &result));
   EXPECT_STREQ("true", result.c_str());
 }
 

@@ -15,7 +15,6 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/no_interface_object_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::Return;
@@ -36,16 +35,16 @@ typedef InterfaceBindingsTest<NoInterfaceObjectInterface> NoInterfaceObjectTest;
 // Interface object for non-callback interface is a global property.
 TEST_F(InterfaceObjectTest, InterfaceObjectIsGlobalProperty) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript(
-      "this.hasOwnProperty(\"ArbitraryInterface\");", &result));
+  EXPECT_TRUE(
+      EvaluateScript("this.hasOwnProperty(\"ArbitraryInterface\");", &result));
   EXPECT_STREQ("true", result.c_str());
 }
 
 // Interface object for non-callback interface is a function object.
 TEST_F(InterfaceObjectTest, InterfaceObjectIsFunctionObject) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript(
-      "ArbitraryInterface instanceof Function;", &result));
+  EXPECT_TRUE(
+      EvaluateScript("ArbitraryInterface instanceof Function;", &result));
   EXPECT_STREQ("true", result.c_str());
 }
 
@@ -58,8 +57,7 @@ TEST_F(InterfaceObjectTest, PrototypePropertyIsSet) {
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_TRUE(EvaluateScript(
-      "ArbitraryInterface.prototype == Object.getPrototypeOf(test);",
-      &result));
+      "ArbitraryInterface.prototype == Object.getPrototypeOf(test);", &result));
   EXPECT_STREQ("true", result.c_str());
 }
 

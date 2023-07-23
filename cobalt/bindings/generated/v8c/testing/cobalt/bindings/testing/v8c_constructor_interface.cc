@@ -301,5 +301,3 @@ v8::Local<v8::FunctionTemplate> V8cConstructorInterface::GetTemplate(v8::Isolate
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

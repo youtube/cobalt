@@ -138,4 +138,3 @@ result.
 ```
 SbConditionVariableResult SbConditionVariableWaitTimed(SbConditionVariable *condition, SbMutex *mutex, SbTime timeout_duration)
 ```
-

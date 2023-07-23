@@ -130,7 +130,7 @@ void baseAttributeAttributeGetter(
                     [](v8::Isolate* isolate, BaseInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->base_attribute(),
               &result_value);
@@ -331,5 +331,3 @@ v8::Local<v8::FunctionTemplate> V8cBaseInterface::GetTemplate(v8::Isolate* isola
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

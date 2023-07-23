@@ -307,5 +307,3 @@ v8::Local<v8::FunctionTemplate> V8cConvertSimpleObjectInterface::GetTemplate(v8:
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

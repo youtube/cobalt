@@ -73,4 +73,3 @@ value for which the byte order will be swapped.
 ```
 uint64_t SbByteSwapU64(uint64_t value)
 ```
-

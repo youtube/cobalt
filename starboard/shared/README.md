@@ -27,4 +27,3 @@ All source locations are specified relative to `src/starboard/`.
  * `shared/starboard/` - Implementations of Starboard API functions that only
    rely on other Starboard API functions. Code in here should be reusable on any
    platform that implements the needed APIs.
-

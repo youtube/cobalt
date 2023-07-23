@@ -7,4 +7,3 @@ code in a safe manner.
 
 The only code that we currently support optionally including is test targets.
 The test targets can be retrieved in formats friendly to both Python and GYP.
-

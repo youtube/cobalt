@@ -173,7 +173,7 @@ void longArgAttributeGetter(
                     [](v8::Isolate* isolate, ConstructorWithArgumentsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->long_arg(),
               &result_value);
@@ -193,7 +193,7 @@ void booleanArgAttributeGetter(
                     [](v8::Isolate* isolate, ConstructorWithArgumentsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->boolean_arg(),
               &result_value);
@@ -213,7 +213,7 @@ void stringArgAttributeGetter(
                     [](v8::Isolate* isolate, ConstructorWithArgumentsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->string_arg(),
               &result_value);
@@ -398,5 +398,3 @@ v8::Local<v8::FunctionTemplate> V8cConstructorWithArgumentsInterface::GetTemplat
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

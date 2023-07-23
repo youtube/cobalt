@@ -14,7 +14,6 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/target_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::Return;

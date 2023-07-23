@@ -5,5 +5,3 @@ class provides RAII-style mechanism to manage resources.
 
 ## Intended Use
 The library is intended to be used by both Starboard and Cobalt layers.
-
-

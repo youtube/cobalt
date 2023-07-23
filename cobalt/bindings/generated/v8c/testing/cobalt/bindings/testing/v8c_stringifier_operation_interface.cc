@@ -305,5 +305,3 @@ v8::Local<v8::FunctionTemplate> V8cStringifierOperationInterface::GetTemplate(v8
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

@@ -119,7 +119,7 @@ void bytePropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->byte_property(),
               &result_value);
@@ -160,7 +160,7 @@ void byteClampPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->byte_clamp_property(),
               &result_value);
@@ -201,7 +201,7 @@ void octetPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->octet_property(),
               &result_value);
@@ -242,7 +242,7 @@ void octetClampPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->octet_clamp_property(),
               &result_value);
@@ -283,7 +283,7 @@ void shortPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->short_property(),
               &result_value);
@@ -324,7 +324,7 @@ void shortClampPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->short_clamp_property(),
               &result_value);
@@ -365,7 +365,7 @@ void unsignedShortPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->unsigned_short_property(),
               &result_value);
@@ -406,7 +406,7 @@ void unsignedShortClampPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->unsigned_short_clamp_property(),
               &result_value);
@@ -447,7 +447,7 @@ void longPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->long_property(),
               &result_value);
@@ -488,7 +488,7 @@ void longClampPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->long_clamp_property(),
               &result_value);
@@ -529,7 +529,7 @@ void unsignedLongPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->unsigned_long_property(),
               &result_value);
@@ -570,7 +570,7 @@ void unsignedLongClampPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->unsigned_long_clamp_property(),
               &result_value);
@@ -611,7 +611,7 @@ void longLongPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->long_long_property(),
               &result_value);
@@ -652,7 +652,7 @@ void longLongClampPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->long_long_clamp_property(),
               &result_value);
@@ -693,7 +693,7 @@ void unsignedLongLongPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->unsigned_long_long_property(),
               &result_value);
@@ -734,7 +734,7 @@ void unsignedLongLongClampPropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->unsigned_long_long_clamp_property(),
               &result_value);
@@ -775,7 +775,7 @@ void doublePropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->double_property(),
               &result_value);
@@ -816,7 +816,7 @@ void unrestrictedDoublePropertyAttributeGetter(
                     [](v8::Isolate* isolate, NumericTypesTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->unrestricted_double_property(),
               &result_value);
@@ -2679,5 +2679,3 @@ v8::Local<v8::FunctionTemplate> V8cNumericTypesTestInterface::GetTemplate(v8::Is
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

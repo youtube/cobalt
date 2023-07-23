@@ -243,5 +243,3 @@ v8::Local<v8::FunctionTemplate> V8cStringifierAnonymousOperationInterface::GetTe
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

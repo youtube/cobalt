@@ -322,7 +322,7 @@ void lengthAttributeGetter(
                     [](v8::Isolate* isolate, NamedIndexedGetterInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->length(),
               &result_value);
@@ -342,7 +342,7 @@ void propertyOnBaseClassAttributeGetter(
                     [](v8::Isolate* isolate, NamedIndexedGetterInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->property_on_base_class(),
               &result_value);
@@ -927,5 +927,3 @@ v8::Local<v8::FunctionTemplate> V8cNamedIndexedGetterInterface::GetTemplate(v8::
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

@@ -119,7 +119,7 @@ void supportedAttributeAttributeGetter(
                     [](v8::Isolate* isolate, InterfaceWithUnsupportedProperties* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->supported_attribute(),
               &result_value);
@@ -263,5 +263,3 @@ v8::Local<v8::FunctionTemplate> V8cInterfaceWithUnsupportedProperties::GetTempla
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

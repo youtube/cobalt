@@ -328,4 +328,3 @@ hidden.
 ```
 void SbWindowUpdateOnScreenKeyboardSuggestions(SbWindow window, const char *suggestions[], int num_suggestions, int ticket)
 ```
-

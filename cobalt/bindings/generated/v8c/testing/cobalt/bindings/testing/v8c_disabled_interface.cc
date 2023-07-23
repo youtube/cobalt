@@ -122,7 +122,7 @@ void disabledPropertyAttributeGetter(
                     [](v8::Isolate* isolate, DisabledInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->disabled_property(),
               &result_value);
