@@ -94,8 +94,10 @@ class ErrorDialog extends Dialog {
     setContentView(R.layout.coat_error_dialog);
 
     ImageView imageView = (ImageView) findViewById(R.id.image);
-    Drawable drawable = getContext().getResources().getDrawable(
-        R.drawable.lb_ic_sad_cloud, getContext().getTheme());
+    Drawable drawable =
+        getContext()
+            .getResources()
+            .getDrawable(R.drawable.lb_ic_sad_cloud, getContext().getTheme());
     imageView.setImageDrawable(drawable);
 
     TextView messageView = (TextView) findViewById(R.id.message);
@@ -111,15 +113,15 @@ class ErrorDialog extends Dialog {
       button.setVisibility(View.VISIBLE);
 
       final int buttonId = params.buttonIds[i];
-      button.setOnClickListener(new View.OnClickListener() {
-        @Override
-        public void onClick(View v) {
-          params.buttonClickListener.onClick(ErrorDialog.this, buttonId);
-        }
-      });
+      button.setOnClickListener(
+          new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+              params.buttonClickListener.onClick(ErrorDialog.this, buttonId);
+            }
+          });
     }
 
     setOnDismissListener(params.dismissListener);
   }
-
 }

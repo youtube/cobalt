@@ -33,6 +33,7 @@ public class AdvertisingId {
 
   @GuardedBy("advertisingIdInfoLock")
   private volatile AdvertisingIdClient.Info advertisingIdInfo;
+
   // Controls access to advertisingIdInfo
   private final Object advertisingIdInfoLock = new Object();
 

@@ -21,11 +21,13 @@ import java.lang.reflect.Method;
 /** Utility class for accessing system properties via reflection. */
 public class SystemPropertiesHelper {
   private static Method getStringMethod;
+
   static {
     try {
-      getStringMethod = ClassLoader.getSystemClassLoader()
-          .loadClass("android.os.SystemProperties")
-          .getMethod("get", String.class);
+      getStringMethod =
+          ClassLoader.getSystemClassLoader()
+              .loadClass("android.os.SystemProperties")
+              .getMethod("get", String.class);
       if (getStringMethod == null) {
         Log.e(TAG, "Couldn't load system properties getString");
       }
@@ -39,7 +41,7 @@ public class SystemPropertiesHelper {
   public static String getString(String property) {
     if (getStringMethod != null) {
       try {
-        return (String) getStringMethod.invoke(null, new Object[] { property });
+        return (String) getStringMethod.invoke(null, new Object[] {property});
       } catch (Exception exception) {
         Log.e(TAG, "Exception getting system property: ", exception);
       }
