@@ -98,15 +98,15 @@ class EnduranceTest(TestCase):
       self.last_media_time_update_time = current_running_time
 
     # Update written audio timestamp.
-    if (self.last_written_audio_timestamp !=
-        pipeline_state.last_written_audio_timestamp):
+    if (self.last_written_audio_timestamp
+        != pipeline_state.last_written_audio_timestamp):
       self.last_written_audio_timestamp = (
           pipeline_state.last_written_audio_timestamp)
       self.last_written_audio_update_time = current_running_time
 
     # Update written video timestamp.
-    if (self.last_written_video_timestamp !=
-        pipeline_state.last_written_video_timestamp):
+    if (self.last_written_video_timestamp
+        != pipeline_state.last_written_video_timestamp):
       self.last_written_video_timestamp = (
           pipeline_state.last_written_video_timestamp)
       self.last_written_video_update_time = current_running_time
@@ -192,8 +192,8 @@ class EnduranceTest(TestCase):
         if not app.player_state_handler.IsPlayerPlaying():
           # TODO: identify network problem
           self.assertTrue(
-              current_running_time - self.last_state_check_time <
-              PLAYER_INITIALIZATION_WAITING_TIMEOUT,
+              current_running_time - self.last_state_check_time
+              < PLAYER_INITIALIZATION_WAITING_TIMEOUT,
               self.GenerateErrorString(
                   'Timed out waiting for player initialization (waited: '
                   f'{current_running_time - self.last_state_check_time}).'))
@@ -201,8 +201,8 @@ class EnduranceTest(TestCase):
         self.last_state_check_time = current_running_time
         # Skip to next playback if it has been played for long time.
         if (self.playback_start_time != -1 and
-            current_running_time - self.playback_start_time >
-            SINGLE_PLAYBACK_WATCH_TIME_MAXIMUM):
+            current_running_time - self.playback_start_time
+            > SINGLE_PLAYBACK_WATCH_TIME_MAXIMUM):
           app.PlayNext()
           # Set start time to -1 here to avoid send same command in next loop.
           self.playback_start_time = -1
@@ -239,16 +239,16 @@ class EnduranceTest(TestCase):
           if (self.audio_eos_written_time > 0 and
               self.video_eos_written_time > 0 and self.playback_end_time > 0):
             self.assertTrue(
-                current_running_time - self.playback_end_time <
-                PLAYBACK_END_WAITING_TIMEOUT,
+                current_running_time - self.playback_end_time
+                < PLAYBACK_END_WAITING_TIMEOUT,
                 self.GenerateErrorString(
                     'Timed out waiting for playback to end (waited: '
                     f'{current_running_time - self.playback_end_time}).'))
 
         # Send random actions.
         if (self.needs_random_action and
-            current_running_time - self.last_action_time >
-            self.random_action_interval):
+            current_running_time - self.last_action_time
+            > self.random_action_interval):
           self.SendRandomAction(app)
           self.last_action_time = current_running_time
 
