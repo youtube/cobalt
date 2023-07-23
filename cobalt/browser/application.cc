@@ -50,9 +50,7 @@
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/base/startup_timer.h"
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/version_compatibility.h"
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/window_on_offline_event.h"
 #include "cobalt/base/window_on_online_event.h"
 #include "cobalt/base/window_size_changed_event.h"
@@ -749,7 +747,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
   constexpr int kDefaultMinCompatibilityVersion = 1;
   int minimum_version = kDefaultMinCompatibilityVersion;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -762,7 +759,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(minimum_version);
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
   base::Optional<std::string> partition_key;
   if (command_line->HasSwitch(browser::switches::kLocalStoragePartitionUrl)) {

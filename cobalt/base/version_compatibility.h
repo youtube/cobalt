@@ -15,8 +15,6 @@
 #ifndef COBALT_BASE_VERSION_COMPATIBILITY_H_
 #define COBALT_BASE_VERSION_COMPATIBILITY_H_
 
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
-
 #include <string>
 
 #include "base/atomicops.h"
@@ -56,7 +54,5 @@ class VersionCompatibility {
 };
 
 }  // namespace base
-
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
 #endif  // COBALT_BASE_VERSION_COMPATIBILITY_H_
