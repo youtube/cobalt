@@ -47,6 +47,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/typed_arrays.h"
+#include "cobalt/script/union_type.h"
 #include "cobalt/script/value_handle.h"
 {% for include in includes %}
 #include "{{include}}"
