@@ -142,6 +142,15 @@ std::unique_ptr<dom::PossibleScrollTargets> FindPossibleScrollTargets(
   return possible_scroll_targets;
 }
 
+bool HasAnyScrollTarget(
+    const dom::PossibleScrollTargets* possible_scroll_targets) {
+  if (!possible_scroll_targets) {
+    return false;
+  }
+  return possible_scroll_targets->left || possible_scroll_targets->right ||
+         possible_scroll_targets->up || possible_scroll_targets->down;
+}
+
 scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
     dom::PossibleScrollTargets* possible_scroll_targets,
     ui_navigation::scroll_engine::ScrollType major_scroll_axis,
@@ -280,15 +289,6 @@ void SendStateChangeLeaveEvents(
   }
 }
 
-void SendStateChangeLeaveEvents(
-    bool is_pointer_event, scoped_refptr<dom::HTMLElement> previous_element,
-    dom::PointerEventInit* event_init) {
-  scoped_refptr<dom::HTMLElement> target_element = nullptr;
-  scoped_refptr<dom::Element> nearest_common_ancestor = nullptr;
-  SendStateChangeLeaveEvents(is_pointer_event, previous_element, target_element,
-                             nearest_common_ancestor, event_init);
-}
-
 void SendStateChangeEnterEvents(
     bool is_pointer_event, scoped_refptr<dom::HTMLElement> previous_element,
     scoped_refptr<dom::HTMLElement> target_element,
@@ -420,7 +420,10 @@ void DispatchPointerEventsForScrollStart(
       new dom::PointerEvent(base::Tokens::pointercancel(), web::Event::kBubbles,
                             web::Event::kNotCancelable, view, *event_init));
   bool is_pointer_event = true;
-  SendStateChangeLeaveEvents(is_pointer_event, element, event_init);
+  scoped_refptr<dom::HTMLElement> target_element = nullptr;
+  scoped_refptr<dom::Element> nearest_common_ancestor = nullptr;
+  SendStateChangeLeaveEvents(is_pointer_event, element, target_element,
+                             nearest_common_ancestor, event_init);
 }
 
 math::Matrix3F GetCompleteTransformMatrix(dom::Element* element) {
@@ -563,6 +566,10 @@ void TopmostEventTarget::HandleScrollState(
         FindPossibleScrollTargets(target_element);
     pointer_state->SetPossibleScrollTargets(
         pointer_id, std::move(initial_possible_scroll_targets));
+    if (HasAnyScrollTarget(initial_possible_scroll_targets.get())) {
+      pointer_state->SetPendingPointerCaptureTargetOverride(pointer_id,
+                                                            target_element);
+    }
 
     auto transform_matrix = GetCompleteTransformMatrix(target_element.get());
     pointer_state->SetClientTransformMatrix(pointer_id, transform_matrix);
@@ -598,8 +605,11 @@ void TopmostEventTarget::HandleScrollState(
         return;
       }
 
+      scoped_refptr<dom::HTMLElement> previous_html_element(
+          previous_html_element_weak_);
       DispatchPointerEventsForScrollStart(target_element, event_init);
       pointer_state->SetWasCancelled(pointer_id);
+      pointer_state->ClearPendingPointerCaptureTargetOverride(pointer_id);
 
       should_clear_pointer_state = true;
       scroll_engine_->thread()->message_loop()->task_runner()->PostTask(
@@ -694,6 +704,12 @@ void TopmostEventTarget::MaybeSendPointerEvents(
                       &event_init);
   }
 
+  bool event_was_cancelled = pointer_event && pointer_state->GetWasCancelled(
+                                                  pointer_event->pointer_id());
+  if (pointer_event && pointer_event->type() == base::Tokens::pointerup()) {
+    pointer_state->ClearWasCancelled(pointer_event->pointer_id());
+  }
+
   scoped_refptr<dom::HTMLElement> previous_html_element(
       previous_html_element_weak_);
 
@@ -702,14 +718,10 @@ void TopmostEventTarget::MaybeSendPointerEvents(
   scoped_refptr<dom::Element> nearest_common_ancestor(
       GetNearestCommonAncestor(previous_html_element, target_element));
 
-  SendStateChangeLeaveEvents(pointer_event, previous_html_element,
-                             target_element, nearest_common_ancestor,
-                             &event_init);
-
-  bool event_was_cancelled = pointer_event && pointer_state->GetWasCancelled(
-                                                  pointer_event->pointer_id());
-  if (pointer_event && pointer_event->type() == base::Tokens::pointerup()) {
-    pointer_state->ClearWasCancelled(pointer_event->pointer_id());
+  if (!event_was_cancelled) {
+    SendStateChangeLeaveEvents(pointer_event, previous_html_element,
+                               target_element, nearest_common_ancestor,
+                               &event_init);
   }
 
   if (target_element) {
