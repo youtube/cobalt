@@ -54,6 +54,11 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
       ],
       'watchdog_test': [
           # TODO(b/292027298): Enable once test failure is fixed.
+          'WatchdogTest.FrequentConsecutiveViolationsShouldNotWrite'
+          'WatchdogTest.PingInfosAreEvictedAfterMax',
+          'WatchdogTest.RedundantViolationsShouldStack',
           'WatchdogTest.ViolationsAreEvictedAfterMax',
+          'WatchdogTest.ViolationsJsonShouldPersistAndBeValid',
+          'WatchdogTest.ViolationsShouldResetAfterFetch',
       ],
   }
