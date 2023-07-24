@@ -46,5 +46,12 @@ proto_library("metrics_proto") {
     generate_python = false
 
     sources += [ "cobalt_uma_event.proto" ]
+    # Currently unused protos removed to save on binary size. See b/290819695.
+    sources -= [
+      "memory_leak_report.proto",
+      "omnibox_event.proto",
+      "omnibox_input_type.proto",
+      "sampled_profile.proto",
+    ]
   }
 }

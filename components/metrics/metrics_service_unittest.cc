@@ -244,7 +244,10 @@ TEST_F(MetricsServiceTest, InitialStabilityLogAtProviderRequest) {
   EXPECT_TRUE(uma_log.has_session_id());
   EXPECT_TRUE(uma_log.has_system_profile());
   EXPECT_EQ(0, uma_log.user_action_event_size());
+  // Omnibox proto removed for binary size reasons: b/290819695.
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   EXPECT_EQ(0, uma_log.omnibox_event_size());
+#endif
   EXPECT_EQ(0, uma_log.perf_data_size());
   CheckForNonStabilityHistograms(uma_log);
 
@@ -311,7 +314,10 @@ TEST_F(MetricsServiceTest, InitialStabilityLogAfterCrash) {
   EXPECT_TRUE(uma_log.has_session_id());
   EXPECT_TRUE(uma_log.has_system_profile());
   EXPECT_EQ(0, uma_log.user_action_event_size());
+  // Omnibox proto removed for binary size reasons: b/290819695.
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   EXPECT_EQ(0, uma_log.omnibox_event_size());
+#endif
   EXPECT_EQ(0, uma_log.perf_data_size());
   CheckForNonStabilityHistograms(uma_log);
 
