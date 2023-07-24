@@ -346,7 +346,7 @@ TEST_F(MetricsLogTest, TruncateEvents) {
     log.RecordUserAction("BasicAction");
     EXPECT_EQ(i + 1, log.uma_proto().user_action_event_size());
   }
-  // Omnibox proto removed for binary size reasons: b/290819695.
+// Omnibox proto removed for binary size reasons: b/290819695.
 #if !defined(USE_COBALT_CUSTOMIZATIONS)
   for (int i = 0; i < internal::kOmniboxEventLimit * 2; ++i) {
     // Add an empty omnibox event. Not fully realistic since these are normally
