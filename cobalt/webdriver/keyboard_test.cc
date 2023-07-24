@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/webdriver/keyboard.h"
+
 #include <algorithm>
 #include <vector>
 
@@ -19,7 +21,6 @@
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
-#include "cobalt/webdriver/keyboard.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

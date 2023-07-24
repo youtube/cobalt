@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/webdriver/protocol/button.h"
+
+#include <memory>
 
 namespace cobalt {
 namespace webdriver {

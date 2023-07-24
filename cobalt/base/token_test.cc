@@ -17,10 +17,9 @@
 #include <algorithm>
 #include <vector>
 
-#include "testing/gtest/include/gtest/gtest.h"
-
 #include "base/logging.h"
 #include "starboard/common/string.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 namespace {

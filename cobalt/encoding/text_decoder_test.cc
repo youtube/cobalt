@@ -27,7 +27,6 @@
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/script/typed_arrays.h"
 #include "cobalt/web/testing/stub_web_context.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;

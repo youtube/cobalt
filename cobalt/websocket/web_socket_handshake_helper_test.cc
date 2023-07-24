@@ -82,11 +82,10 @@ TEST_F(WebSocketHandshakeHelperTest, null_key) {
 
   handshake_helper_.GenerateSecWebSocketKey();
   std::string null_key(SecWebSocketKey::kKeySizeInBytes, '\0');
-  EXPECT_EQ(
-      memcmp(null_key.data(),
-             handshake_helper_.sec_websocket_key_.GetRawKeyBytes(),
-             SecWebSocketKey::kKeySizeInBytes),
-      0);
+  EXPECT_EQ(memcmp(null_key.data(),
+                   handshake_helper_.sec_websocket_key_.GetRawKeyBytes(),
+                   SecWebSocketKey::kKeySizeInBytes),
+            0);
 }
 
 TEST_F(WebSocketHandshakeHelperTest, HandshakeInfo) {

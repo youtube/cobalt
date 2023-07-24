@@ -36,9 +36,8 @@ namespace cobalt {
 namespace webdriver {
 
 // ScriptExecutor
-class ScriptExecutor :
-    public base::SupportsWeakPtr<ScriptExecutor>,
-    public script::Wrappable {
+class ScriptExecutor : public base::SupportsWeakPtr<ScriptExecutor>,
+                       public script::Wrappable {
  public:
   typedef script::CallbackFunction<void(
       const scoped_refptr<ScriptExecutorParams>&,

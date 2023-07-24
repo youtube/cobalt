@@ -16,6 +16,7 @@
 #define COBALT_BASE_MESSAGE_QUEUE_H_
 
 #include <queue>
+
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"

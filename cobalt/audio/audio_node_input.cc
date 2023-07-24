@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/audio/audio_node_input.h"
+
+#include <memory>
 
 #include "base/logging.h"
 #include "cobalt/audio/audio_context.h"
@@ -101,16 +101,36 @@ void MixAudioBuffer(const AudioNodeChannelInterpretation& interpretation,
     // output.R = R + 0.7071 * (input.C + input.SR)
     const float kFivePointOneToStereoMatrixSpeaker[] = {
         // 1.0 * L + 0.0 * R + 0.7071 * C + 0.0 * LFE + 0.7071 * SL + 0.0 * SR
-        1.0f, 0.0f, 0.7071f, 0.0f, 0.7071f, 0.0f,
+        1.0f,
+        0.0f,
+        0.7071f,
+        0.0f,
+        0.7071f,
+        0.0f,
         // 0.0 * L + 1.0 * R + 0.7071 * C + 0.0 * LFE + 0.0 * SL + 0.7071 * SR
-        0.0f, 1.0f, 0.7071f, 0.0f, 0.0f, 0.7071f,
+        0.0f,
+        1.0f,
+        0.7071f,
+        0.0f,
+        0.0f,
+        0.7071f,
     };
 
     const float kFivePointOneToStereoMatrixDiscrete[] = {
         // 1.0 * L + 0.0 * R + 0.0 * C + 0.0 * LFE + 0.0 * SL + 0.0 * SR
-        1.f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        1.f,
+        0.0f,
+        0.0f,
+        0.0f,
+        0.0f,
+        0.0f,
         // 0.0 * L + 1.0 * R + 0.0 * C + 0.0 * LFE + 0.0 * SL + 0.0 * SR
-        0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f,
+        1.0f,
+        0.0f,
+        0.0f,
+        0.0f,
+        0.0f,
     };
 
     MixAudioBufferBasedOnInterpretation(
@@ -137,12 +157,18 @@ void MixAudioBuffer(const AudioNodeChannelInterpretation& interpretation,
     // output = 0.25 * (input.L + input.R + input.SL + input.SR);
     const float kQuadToMonoSpeaker[] = {
         // 0.25 * L + 0.25 * R + 0.25 * SL + 0.25 * SR
-        0.25f, 0.25f, 0.25f, 0.25f,
+        0.25f,
+        0.25f,
+        0.25f,
+        0.25f,
     };
 
     const float kQuadToMonoDiscrete[] = {
         // 1.0 * L + 0.0 * R + 0.0 * SL + 0.0 * SR
-        1.0f, 0.0f, 0.0f, 0.0f,
+        1.0f,
+        0.0f,
+        0.0f,
+        0.0f,
     };
 
     MixAudioBufferBasedOnInterpretation(kQuadToMonoSpeaker, kQuadToMonoDiscrete,

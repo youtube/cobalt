@@ -122,8 +122,12 @@ repos:
         exclude: |
             (?x)^(
                 .pre-commit-config.yaml$|
+                cobalt/base/unicode/|
+                cobalt/math/|
                 cobalt/media/|
                 cobalt/layout_tests/testdata/|
+                cobalt/webdriver/screencast/|
+                cobalt/websocket/|
                 nb/|
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$|
                 starboard/shared/starboard/player/filter/decoded_audio_queue.cc$|

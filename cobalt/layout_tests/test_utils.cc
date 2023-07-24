@@ -21,7 +21,7 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "url/gurl.h"
 
-    namespace cobalt {
+namespace cobalt {
 namespace layout_tests {
 
 namespace {

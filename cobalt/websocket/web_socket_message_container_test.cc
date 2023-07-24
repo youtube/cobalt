@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/websocket/web_socket_message_container.h"
+
+#include <memory>
 
 #include "testing/gtest/include/gtest/gtest.h"
 

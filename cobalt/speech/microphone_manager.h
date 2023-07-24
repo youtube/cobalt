@@ -18,14 +18,13 @@
 #include <memory>
 #include <string>
 
-#include "cobalt/speech/speech_configuration.h"
-
 #include "base/callback.h"
 #include "base/optional.h"
 #include "base/threading/thread.h"
 #include "base/timer/timer.h"
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/speech/microphone.h"
+#include "cobalt/speech/speech_configuration.h"
 #include "cobalt/web/event.h"
 
 namespace cobalt {

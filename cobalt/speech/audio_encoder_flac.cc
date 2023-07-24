@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/speech/audio_encoder_flac.h"
+
+#include <memory>
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"

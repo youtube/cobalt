@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/speech/url_fetcher_fake.h"
+
+#include <memory>
 
 #if defined(ENABLE_FAKE_MICROPHONE)
 
@@ -49,27 +49,33 @@ const RecognitionAlternative kAlternatives_3[] = {
 };
 
 const RecognitionAlternative kAlternatives_4[] = {
-    {" or not to be", 0.0f}, {"to be", 0.0f},
+    {" or not to be", 0.0f},
+    {"to be", 0.0f},
 };
 
 const RecognitionAlternative kAlternatives_5[] = {
-    {"to be or not to be", 0.728f}, {"2 B or not to be", 0.0f},
+    {"to be or not to be", 0.728f},
+    {"2 B or not to be", 0.0f},
 };
 
 const RecognitionAlternative kAlternatives_6[] = {
-    {"that", 0.0f}, {"is the", 0.0f},
+    {"that", 0.0f},
+    {"is the", 0.0f},
 };
 
 const RecognitionAlternative kAlternatives_7[] = {
-    {"that", 0.0f}, {"is the question", 0.0f},
+    {"that", 0.0f},
+    {"is the question", 0.0f},
 };
 
 const RecognitionAlternative kAlternatives_8[] = {
-    {"that is", 0.0f}, {"the question", 0.0f},
+    {"that is", 0.0f},
+    {"the question", 0.0f},
 };
 
 const RecognitionAlternative kAlternatives_9[] = {
-    {"that is the question", 0.8577f}, {"that is a question", 0.0f},
+    {"that is the question", 0.8577f},
+    {"that is a question", 0.0f},
 };
 
 struct RecognitionResult {

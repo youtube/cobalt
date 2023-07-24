@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/h5vcc/dial/dial_http_response.h"
+
 #include <memory>
 #include <utility>
-
-#include "cobalt/h5vcc/dial/dial_http_response.h"
 
 #include "base/strings/stringprintf.h"
 #include "net/server/http_server_response_info.h"

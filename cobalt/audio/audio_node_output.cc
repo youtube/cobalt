@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/audio/audio_node_output.h"
+
+#include <memory>
 
 #include "base/logging.h"
 #include "cobalt/audio/audio_context.h"

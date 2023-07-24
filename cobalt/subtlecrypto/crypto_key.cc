@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/subtlecrypto/crypto_key.h"
+
 #include <algorithm>
 
 namespace cobalt {

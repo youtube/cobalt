@@ -29,10 +29,10 @@
 #include "cobalt/web/testing/mock_event_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using cobalt::web::EventListener;
-using cobalt::web::testing::MockEventListener;
 using cobalt::script::testing::FakeScriptValue;
 using cobalt::script::testing::MockExceptionState;
+using cobalt::web::EventListener;
+using cobalt::web::testing::MockEventListener;
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::Pointee;

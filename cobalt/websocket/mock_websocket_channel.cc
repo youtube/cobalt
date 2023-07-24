@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "cobalt/websocket/mock_websocket_channel.h"
+
 #include "cobalt/websocket/cobalt_web_socket_event_handler.h"
 
 // Generated constructors and destructors for GMock objects are very large. By

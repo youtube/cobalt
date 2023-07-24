@@ -20,7 +20,6 @@
 
 #include "cobalt/script/union_type.h"
 #include "cobalt/script/value_handle.h"
-
 #include "cobalt/subtlecrypto/algorithm.h"
 #include "cobalt/subtlecrypto/key_type.h"
 #include "cobalt/subtlecrypto/key_usage.h"

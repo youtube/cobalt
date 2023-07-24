@@ -27,4 +27,3 @@ interface CloseEvent : Event {
                       unsigned short code,
                       DOMString reason);
 };
-

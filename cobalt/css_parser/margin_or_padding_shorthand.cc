@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/css_parser/margin_or_padding_shorthand.h"
+
+#include <memory>
 
 namespace cobalt {
 namespace css_parser {
