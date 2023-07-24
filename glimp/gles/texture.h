@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,20 +20,20 @@
 
 #include <GLES3/gl3.h>
 
+#include <memory>
 #include "glimp/egl/surface.h"
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/pixel_format.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/texture_impl.h"
 #include "nb/ref_counted.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {
 
 class Texture : public nb::RefCountedThreadSafe<Texture> {
  public:
-  explicit Texture(nb::scoped_ptr<TextureImpl> impl);
+  explicit Texture(std::unique_ptr<TextureImpl> impl);
 
   void Initialize(GLint level,
                   PixelFormat pixel_format,
@@ -108,7 +109,7 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
   friend class nb::RefCountedThreadSafe<Texture>;
   ~Texture() {}
 
-  nb::scoped_ptr<TextureImpl> impl_;
+  std::unique_ptr<TextureImpl> impl_;
 
   // True if underlying texture data has been allocated yet or not (e.g.
   // will be true after glTexImage2D() is called.)

@@ -21,11 +21,11 @@
 
 #include <set>
 
+#include <memory>
 #include "glimp/egl/attrib_map.h"
 #include "glimp/egl/config.h"
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {
@@ -52,7 +52,7 @@ class DisplayImpl {
   static bool IsValidNativeDisplayType(EGLNativeDisplayType display_id);
   // Creates and returns a new DisplayImpl object.
   // To be implemented by each implementing platform.
-  static nb::scoped_ptr<DisplayImpl> Create(EGLNativeDisplayType display_id);
+  static std::unique_ptr<DisplayImpl> Create(EGLNativeDisplayType display_id);
   // Submit done call.
   static void CallSubmitDone();
 
@@ -70,7 +70,7 @@ class DisplayImpl {
   // window and is compatible with this DisplayImpl object.  This will be called
   // when eglCreateWindowSurface() is called.
   //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglCreateWindowSurface.xhtml
-  virtual nb::scoped_ptr<SurfaceImpl> CreateWindowSurface(
+  virtual std::unique_ptr<SurfaceImpl> CreateWindowSurface(
       const Config* config,
       EGLNativeWindowType win,
       const AttribMap& attributes) = 0;
@@ -79,15 +79,16 @@ class DisplayImpl {
   // Pbuffer and is compatible with this DisplayImpl object.  This will be
   // called when eglCreatePbufferSurface() is called.
   //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglCreatePbufferSurface.xhtml
-  virtual nb::scoped_ptr<SurfaceImpl> CreatePbufferSurface(
+  virtual std::unique_ptr<SurfaceImpl> CreatePbufferSurface(
       const Config* config,
       const AttribMap& attributes) = 0;
 
   // Creates and returns a gles::ContextImpl object that contains the platform
   // specific implementation of a GL ES Context, of the specified version that
   // is compatible with the specified config.
-  virtual nb::scoped_ptr<gles::ContextImpl> CreateContext(const Config* config,
-                                                          int gles_version) = 0;
+  virtual std::unique_ptr<gles::ContextImpl> CreateContext(
+      const Config* config,
+      int gles_version) = 0;
 
   // Sets the swap behavior for this display.  This will be called when
   // eglSwapInterval() is called.  Returns true on success and false on failure.

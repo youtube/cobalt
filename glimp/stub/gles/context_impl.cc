@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,30 +68,30 @@ int ContextImplStub::GetMaxRenderbufferSize() const {
 }
 
 int ContextImplStub::GetMaxFragmentUniformVectors() const {
-  // GL ES rquires that it is at least 16, so we will return that.
+  // GL ES requires that it is at least 16, so we will return that.
   return ProgramImplStub::kMaxUniformsPerShader;
 }
 
-nb::scoped_ptr<ProgramImpl> ContextImplStub::CreateProgram() {
-  return nb::scoped_ptr<ProgramImpl>(new ProgramImplStub());
+std::unique_ptr<ProgramImpl> ContextImplStub::CreateProgram() {
+  return std::unique_ptr<ProgramImpl>(new ProgramImplStub());
 }
 
-nb::scoped_ptr<ShaderImpl> ContextImplStub::CreateVertexShader() {
-  return nb::scoped_ptr<ShaderImpl>(
+std::unique_ptr<ShaderImpl> ContextImplStub::CreateVertexShader() {
+  return std::unique_ptr<ShaderImpl>(
       new ShaderImplStub(ShaderImplStub::kVertex));
 }
 
-nb::scoped_ptr<ShaderImpl> ContextImplStub::CreateFragmentShader() {
-  return nb::scoped_ptr<ShaderImpl>(
+std::unique_ptr<ShaderImpl> ContextImplStub::CreateFragmentShader() {
+  return std::unique_ptr<ShaderImpl>(
       new ShaderImplStub(ShaderImplStub::kFragment));
 }
 
-nb::scoped_ptr<BufferImpl> ContextImplStub::CreateBuffer() {
-  return nb::scoped_ptr<BufferImpl>(new BufferImplStub());
+std::unique_ptr<BufferImpl> ContextImplStub::CreateBuffer() {
+  return std::unique_ptr<BufferImpl>(new BufferImplStub());
 }
 
-nb::scoped_ptr<TextureImpl> ContextImplStub::CreateTexture() {
-  return nb::scoped_ptr<TextureImpl>(new TextureImplStub());
+std::unique_ptr<TextureImpl> ContextImplStub::CreateTexture() {
+  return std::unique_ptr<TextureImpl>(new TextureImplStub());
 }
 
 void ContextImplStub::Flush() {

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +18,12 @@
 #ifndef GLIMP_STUB_GLES_CONTEXT_IMPL_H_
 #define GLIMP_STUB_GLES_CONTEXT_IMPL_H_
 
+#include <memory>
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
 #include "glimp/gles/draw_state.h"
 #include "glimp/gles/index_data_type.h"
 #include "glimp/shaders/glsl_shader_map_helpers.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {
@@ -41,14 +42,14 @@ class ContextImplStub : public ContextImpl {
   int GetMaxFragmentUniformVectors() const override;
   int GetMaxVertexTextureImageUnits() const override { return 0; }
 
-  nb::scoped_ptr<ProgramImpl> CreateProgram() override;
+  std::unique_ptr<ProgramImpl> CreateProgram() override;
 
-  nb::scoped_ptr<ShaderImpl> CreateVertexShader() override;
-  nb::scoped_ptr<ShaderImpl> CreateFragmentShader() override;
+  std::unique_ptr<ShaderImpl> CreateVertexShader() override;
+  std::unique_ptr<ShaderImpl> CreateFragmentShader() override;
 
-  nb::scoped_ptr<BufferImpl> CreateBuffer() override;
+  std::unique_ptr<BufferImpl> CreateBuffer() override;
 
-  nb::scoped_ptr<TextureImpl> CreateTexture() override;
+  std::unique_ptr<TextureImpl> CreateTexture() override;
 
   void Flush() override;
   void Finish() override;

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,11 +24,11 @@
 #include <string>
 #include <vector>
 
+#include <memory>
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/shader.h"
 #include "glimp/gles/uniform_info.h"
 #include "nb/ref_counted.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {
@@ -45,7 +46,7 @@ class Program : public nb::RefCountedThreadSafe<Program> {
     void* data;
   };
 
-  explicit Program(nb::scoped_ptr<ProgramImpl> impl);
+  explicit Program(std::unique_ptr<ProgramImpl> impl);
 
   // Attaches the specified shader to either this program's vertex or fragment
   // shader slot, depending on the shader type.  If a shader of the given
@@ -97,7 +98,7 @@ class Program : public nb::RefCountedThreadSafe<Program> {
                        const void* v,
                        UniformInfo::Type type);
 
-  nb::scoped_ptr<ProgramImpl> impl_;
+  std::unique_ptr<ProgramImpl> impl_;
 
   nb::scoped_refptr<Shader> vertex_shader_;
   nb::scoped_refptr<Shader> fragment_shader_;

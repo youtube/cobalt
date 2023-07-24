@@ -17,6 +17,7 @@
 #include "glimp/egl/display.h"
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "glimp/egl/config.h"
@@ -56,8 +57,8 @@ void Display::RepeatSubmitDoneDuringSuspend() {
   }
 }
 
-Display::Display(nb::scoped_ptr<DisplayImpl> display_impl)
-    : impl_(display_impl.Pass()) {}
+Display::Display(std::unique_ptr<DisplayImpl> display_impl)
+    : impl_(std::move(display_impl)) {}
 
 Display::~Display() {
   SB_DCHECK(active_surfaces_.empty());
@@ -134,13 +135,13 @@ EGLSurface Display::CreateWindowSurface(EGLConfig config,
     return EGL_NO_SURFACE;
   }
 
-  nb::scoped_ptr<SurfaceImpl> surface_impl = impl_->CreateWindowSurface(
+  std::unique_ptr<SurfaceImpl> surface_impl = impl_->CreateWindowSurface(
       reinterpret_cast<Config*>(config), win, attribs);
   if (!surface_impl) {
     return EGL_NO_SURFACE;
   }
 
-  Surface* surface = new Surface(surface_impl.Pass());
+  Surface* surface = new Surface(std::move(surface_impl));
   active_surfaces_.insert(surface);
 
   return ToEGLSurface(surface);
@@ -167,13 +168,13 @@ EGLSurface Display::CreatePbufferSurface(EGLConfig config,
     return EGL_NO_SURFACE;
   }
 
-  nb::scoped_ptr<SurfaceImpl> surface_impl =
+  std::unique_ptr<SurfaceImpl> surface_impl =
       impl_->CreatePbufferSurface(reinterpret_cast<Config*>(config), attribs);
   if (!surface_impl) {
     return EGL_NO_SURFACE;
   }
 
-  Surface* surface = new Surface(surface_impl.Pass());
+  Surface* surface = new Surface(std::move(surface_impl));
   active_surfaces_.insert(surface);
 
   return ToEGLSurface(surface);
@@ -245,13 +246,13 @@ EGLContext Display::CreateContext(EGLConfig config,
     share = reinterpret_cast<gles::Context*>(share_context);
   }
 
-  nb::scoped_ptr<gles::ContextImpl> context_impl =
+  std::unique_ptr<gles::ContextImpl> context_impl =
       impl_->CreateContext(reinterpret_cast<Config*>(config), context_version);
   if (!context_impl) {
     return EGL_NO_CONTEXT;
   }
 
-  gles::Context* context = new gles::Context(context_impl.Pass(), share);
+  gles::Context* context = new gles::Context(std::move(context_impl), share);
   active_contexts_.insert(context);
 
   return reinterpret_cast<EGLContext>(context);

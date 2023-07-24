@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include <memory>
 #include "glimp/egl/surface.h"
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/buffer_impl.h"
@@ -33,7 +35,6 @@
 #include "glimp/gles/shader_impl.h"
 #include "glimp/gles/texture_impl.h"
 #include "glimp/gles/vertex_attribute.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {
@@ -98,31 +99,31 @@ class ContextImpl {
   // ProgramImpl implementation.  If a NULL scoped_ptr is returned, it is
   // treated as an error.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCreateProgram.xml
-  virtual nb::scoped_ptr<ProgramImpl> CreateProgram() = 0;
+  virtual std::unique_ptr<ProgramImpl> CreateProgram() = 0;
 
   // Called via glCreateShader(GL_VERTEX_SHADER).  Must create a
   // platform-specific ShaderImpl object representing a vertex shader.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCreateShader.xml
-  virtual nb::scoped_ptr<ShaderImpl> CreateVertexShader() = 0;
+  virtual std::unique_ptr<ShaderImpl> CreateVertexShader() = 0;
 
   // Called via glCreateShader(GL_FRAGMENT_SHADER).  Must create a
   // platform-specific ShaderImpl object representing a fragment shader.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCreateShader.xml
-  virtual nb::scoped_ptr<ShaderImpl> CreateFragmentShader() = 0;
+  virtual std::unique_ptr<ShaderImpl> CreateFragmentShader() = 0;
 
   // Called via glGenBuffers().  Must create a platform-specific BufferImpl
   // object representing a buffer.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGenBuffers.xml
-  virtual nb::scoped_ptr<BufferImpl> CreateBuffer() = 0;
+  virtual std::unique_ptr<BufferImpl> CreateBuffer() = 0;
 
   // Called via glGenBuffersForVideoFrame(). Must create a platform-specific
   // BufferImpl object representing a buffer for compressed textures.
-  virtual nb::scoped_ptr<BufferImpl> CreateBufferForVideoFrame() = 0;
+  virtual std::unique_ptr<BufferImpl> CreateBufferForVideoFrame() = 0;
 
   // Called via glGenTextures().  Must create a platform-specific TextureImpl
   // object representing a texture.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGenTextures.xml
-  virtual nb::scoped_ptr<TextureImpl> CreateTexture() = 0;
+  virtual std::unique_ptr<TextureImpl> CreateTexture() = 0;
 
   // Called when glFlush() is called.  After this method is called, client
   // code may assume that all previously issued graphics commands will

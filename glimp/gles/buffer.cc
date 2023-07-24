@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +16,8 @@
  */
 
 #include "glimp/gles/buffer.h"
+
+#include <utility>
 
 namespace glimp {
 namespace gles {
@@ -37,8 +40,8 @@ BufferImpl::Usage GLUsageEnumToUsage(GLenum usage) {
 
 }  // namespace
 
-Buffer::Buffer(nb::scoped_ptr<BufferImpl> impl)
-    : impl_(impl.Pass()), size_in_bytes_(0) {}
+Buffer::Buffer(std::unique_ptr<BufferImpl> impl)
+    : impl_(std::move(impl)), size_in_bytes_(0) {}
 
 bool Buffer::Allocate(GLenum usage, size_t size) {
   size_in_bytes_ = size;

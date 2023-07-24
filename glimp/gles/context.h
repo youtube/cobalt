@@ -25,6 +25,7 @@
 #include <string>
 #include <utility>
 
+#include <memory>
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
 #include "glimp/gles/draw_state.h"
@@ -33,7 +34,6 @@
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/vertex_attribute.h"
 #include "nb/ref_counted.h"
-#include "nb/scoped_ptr.h"
 #include "starboard/atomic.h"
 #include "starboard/thread.h"
 
@@ -42,7 +42,7 @@ namespace gles {
 
 class Context {
  public:
-  Context(nb::scoped_ptr<ContextImpl> context_impl, Context* share_context);
+  Context(std::unique_ptr<ContextImpl> context_impl, Context* share_context);
 
   ~Context() { SbAtomicRelease_Store(&has_swapped_buffers_, 0); }
 
@@ -304,7 +304,7 @@ class Context {
   int GetPitchForTextureData(int width, PixelFormat pixel_format) const;
 
   // A reference to the platform-specific implementation aspects of the context.
-  nb::scoped_ptr<ContextImpl> impl_;
+  std::unique_ptr<ContextImpl> impl_;
 
   // The unique id of context instance. It might be queried from different
   // threads.
@@ -327,7 +327,7 @@ class Context {
   GLenum active_texture_;
 
   // The set of sampler units, of which |active_texture_| indexes.
-  nb::scoped_array<nb::scoped_refptr<Texture> > texture_units_;
+  std::unique_ptr<nb::scoped_refptr<Texture>[]> texture_units_;
   bool enabled_textures_dirty_;
 
   // A mapping from an integer index (specified by the index parameter of

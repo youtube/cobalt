@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,16 +20,16 @@
 
 #include <GLES3/gl3.h>
 
+#include <memory>
 #include "glimp/gles/buffer_impl.h"
 #include "nb/ref_counted.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {
 
 class Buffer : public nb::RefCountedThreadSafe<Buffer> {
  public:
-  explicit Buffer(nb::scoped_ptr<BufferImpl> impl);
+  explicit Buffer(std::unique_ptr<BufferImpl> impl);
 
   // Allocates memory within this Buffer object.  Returns false if there
   // was an allocation failure.
@@ -54,7 +55,7 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
   friend class nb::RefCountedThreadSafe<Buffer>;
   ~Buffer() {}
 
-  nb::scoped_ptr<BufferImpl> impl_;
+  std::unique_ptr<BufferImpl> impl_;
 
   // The size of the allocated memory used by this buffer.
   GLsizeiptr size_in_bytes_;

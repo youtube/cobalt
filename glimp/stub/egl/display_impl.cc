@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +17,10 @@
 
 #include "glimp/stub/egl/display_impl.h"
 
+#include <memory>
 #include "glimp/stub/egl/pbuffer_surface_impl.h"
 #include "glimp/stub/egl/window_surface_impl.h"
 #include "glimp/stub/gles/context_impl.h"
-#include "nb/scoped_ptr.h"
 #include "starboard/common/log.h"
 #include "starboard/once.h"
 #include "starboard/types.h"
@@ -43,10 +44,10 @@ bool DisplayImpl::IsValidNativeDisplayType(
   return native_display == EGL_DEFAULT_DISPLAY;
 }
 
-nb::scoped_ptr<DisplayImpl> DisplayImpl::Create(
+std::unique_ptr<DisplayImpl> DisplayImpl::Create(
     EGLNativeDisplayType native_display) {
   SB_CHECK(IsValidNativeDisplayType(native_display));
-  return nb::scoped_ptr<DisplayImpl>(new DisplayImplStub());
+  return std::unique_ptr<DisplayImpl>(new DisplayImplStub());
 }
 
 DisplayImpl::VersionInfo DisplayImplStub::GetVersionInfo() {
@@ -74,13 +75,13 @@ void DisplayImplStub::InitializeSupportedConfigs() {
   supported_configs_.insert(config);
 }
 
-nb::scoped_ptr<gles::ContextImpl> DisplayImplStub::CreateContext(
+std::unique_ptr<gles::ContextImpl> DisplayImplStub::CreateContext(
     const Config* config,
     int gles_version) {
   if (gles_version == 2 || gles_version == 3) {
-    return nb::scoped_ptr<gles::ContextImpl>(new gles::ContextImplStub());
+    return std::unique_ptr<gles::ContextImpl>(new gles::ContextImplStub());
   } else {
-    return nb::scoped_ptr<gles::ContextImpl>();
+    return std::unique_ptr<gles::ContextImpl>();
   }
 }
 

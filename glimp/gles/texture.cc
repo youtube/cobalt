@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +17,18 @@
 
 #include "glimp/gles/texture.h"
 
+#include <utility>
+
 #include "nb/pointer_arithmetic.h"
 #include "nb/rect.h"
 
 namespace glimp {
 namespace gles {
 
-Texture::Texture(nb::scoped_ptr<TextureImpl> impl)
-    : impl_(impl.Pass()), texture_allocated_(false), bound_to_surface_(NULL) {}
+Texture::Texture(std::unique_ptr<TextureImpl> impl)
+    : impl_(std::move(impl)),
+      texture_allocated_(false),
+      bound_to_surface_(NULL) {}
 
 void Texture::Initialize(GLint level,
                          PixelFormat pixel_format,

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,16 +22,16 @@
 
 #include <map>
 
+#include <memory>
 #include "glimp/egl/attrib_map.h"
 #include "glimp/egl/surface_impl.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {
 
 class Surface {
  public:
-  explicit Surface(nb::scoped_ptr<SurfaceImpl> surface_impl);
+  explicit Surface(std::unique_ptr<SurfaceImpl> surface_impl);
 
   int GetWidth() const;
   int GetHeight() const;
@@ -47,7 +48,7 @@ class Surface {
   SurfaceImpl* impl() const { return surface_impl_.get(); }
 
  private:
-  nb::scoped_ptr<SurfaceImpl> surface_impl_;
+  std::unique_ptr<SurfaceImpl> surface_impl_;
 
   // True if this surface is currently bound to a GL ES texture via
   // eglBindTexImage().
