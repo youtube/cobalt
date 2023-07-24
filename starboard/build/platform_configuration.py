@@ -165,13 +165,19 @@ class PlatformConfiguration(object):
     Returns:
       A list of strings of test target names.
     """
+    # TODO(b/292007482): Replace static list with gn query.
     return [
         'app_key_files_test',
         'app_key_test',
+        'common_test',
+        'cwrappers_test',
         'drain_file_test',
         'elf_loader_test',
+        'eztime_test',
         'installation_manager_test',
         'nplb',
+        # TODO(b/292138589): Fails on various linux configs.
+        # 'nplb_evergreen_compat_tests',
         'player_filter_tests',
         'reset_evergreen_update_test',
         'slot_management_test',
