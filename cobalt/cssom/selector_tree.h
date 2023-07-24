@@ -202,11 +202,9 @@ class SelectorTree {
   // Used by unit tests only.
   const OwnedNodes& children(const Node* node, CombinatorType combinator);
 
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
   // Validates the selector tree's compatibility against pre-selected versions
   // of Cobalt. Returns true if there are no version compatibility violations.
   bool ValidateVersionCompatibility() const;
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
  private:
   // Gets or creates node for complex selector, starting from root.
