@@ -145,6 +145,16 @@ class AnimatedImage : public Image {
     image_node_builder->destination_rect = destination_rect;
     image_node_builder->local_transform = local_transform;
   }
+
+  // Frame counters for decoding.
+  struct AnimatedImageDecodingStats {
+    unsigned int frames_decoded = 0;
+    unsigned int frames_underrun = 0;
+    unsigned int frames_overrun = 0;
+  };
+
+  // Returns decoded frame stats since the last call, as a delta.
+  virtual AnimatedImageDecodingStats GetFrameDeltaStats() = 0;
 };
 
 }  // namespace image

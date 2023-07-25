@@ -148,6 +148,8 @@ void AnimatedWebPImage::PlayInternal() {
     return;
   }
   is_playing_ = true;
+  current_stats.frames_underrun = 0;
+  current_stats.frames_overrun = 0;
 
   if (received_first_frame_) {
     StartDecoding();
@@ -171,7 +173,8 @@ void AnimatedWebPImage::StopInternal() {
 void AnimatedWebPImage::StartDecoding() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::StartDecoding()");
   lock_.AssertAcquired();
-  current_frame_time_ = base::TimeTicks::Now();
+  decoding_start_time_ = current_frame_time_ = base::TimeTicks::Now();
+  current_stats.frames_decoded = 0;
   if (task_runner_->BelongsToCurrentThread()) {
     DecodeFrames();
   } else {
@@ -269,6 +272,7 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
       LOG(ERROR) << "Failed to decode WebP image frame.";
       return false;
     }
+    current_stats.frames_decoded++;
   }
 
   // Alpha blend the current frame on top of the buffer.
@@ -354,6 +358,7 @@ bool AnimatedWebPImage::AdvanceFrame() {
   // Always wait for a consumer to consume the previous frame before moving
   // forward with decoding the next frame.
   if (!frame_provider_->FrameConsumed()) {
+    current_stats.frames_overrun++;
     return false;
   }
 
@@ -386,6 +391,7 @@ bool AnimatedWebPImage::AdvanceFrame() {
   if (next_frame_time_ < current_time) {
     // Don't let the animation fall back for more than a frame.
     next_frame_time_ = current_time;
+    current_stats.frames_underrun++;
   }
 
   return true;
@@ -429,6 +435,25 @@ scoped_refptr<render_tree::Image> AnimatedWebPImage::GetFrameForDebugging(
   current_canvas_ = nullptr;
 
   return target_canvas;
+}
+
+AnimatedImage::AnimatedImageDecodingStats
+AnimatedWebPImage::GetFrameDeltaStats() {
+  AnimatedImageDecodingStats result;
+  if (current_stats.frames_decoded >= last_stats.frames_decoded) {
+    result.frames_decoded =
+        current_stats.frames_decoded - last_stats.frames_decoded;
+    result.frames_underrun =
+        current_stats.frames_underrun - last_stats.frames_underrun;
+    result.frames_overrun =
+        current_stats.frames_overrun - last_stats.frames_overrun;
+  } else {
+    // There was a reset somewhere
+    // Simply return total, this discards any overflow data we might have had.
+    result = current_stats;
+  }
+  last_stats = current_stats;
+  return result;
 }
 
 }  // namespace image
