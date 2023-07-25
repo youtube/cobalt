@@ -20,6 +20,7 @@
 
 #include "base/containers/small_map.h"
 #include "base/threading/thread.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/base/unused.h"
 #include "cobalt/loader/image/image.h"
 #include "url/gurl.h"
@@ -33,7 +34,8 @@ namespace image {
 // playing status is updated hence decoding is turned on / off for it.
 class AnimatedImageTracker {
  public:
-  explicit AnimatedImageTracker(
+  AnimatedImageTracker(
+      const char* name,
       base::ThreadPriority animated_image_decode_thread_priority);
   ~AnimatedImageTracker();
 
@@ -54,6 +56,9 @@ class AnimatedImageTracker {
   // animations.
   void Reset();
 
+  // Called from WebModule to compute image animation related stats.
+  void OnRenderTreeRasterized();
+
  private:
   void OnDisplayStart(loader::image::AnimatedImage* image);
   void OnDisplayEnd(loader::image::AnimatedImage* image);
@@ -71,6 +76,15 @@ class AnimatedImageTracker {
   URLToIntMap previous_url_counts_;
   URLToIntMap current_url_counts_;
   URLSet playing_urls_;
+
+  // The name of the WebModule this AnimatedImage tracker belongs to, for CVals.
+  const std::string name_;
+
+  // Animated image counters
+  base::CVal<int, base::CValPublic> count_animated_images_active;
+  base::CVal<int, base::CValPublic> count_animated_frames_decoded;
+  base::CVal<int, base::CValPublic> count_animated_frames_decoding_underrun;
+  base::CVal<int, base::CValPublic> count_animated_frames_decoding_overrun;
 
   // Used to ensure that all AnimatedImageTracker methods are called on the
   // same thread (*not* |animated_image_decode_thread_|), the thread that we
