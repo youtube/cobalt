@@ -177,3 +177,11 @@ class PlatformConfiguration(object):
         'slot_management_test',
         'starboard_platform_tests',
     ]
+
+  def GetTestBlackBoxTargets(self):
+    """Gets all tests to be run in a black box test run.
+
+    Returns:
+      A list of strings of black box test target names.
+    """
+    return []
