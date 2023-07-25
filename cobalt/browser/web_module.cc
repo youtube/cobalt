@@ -537,6 +537,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       data.options.loader_thread_priority));
 
   animated_image_tracker_.reset(new loader::image::AnimatedImageTracker(
+      web_context_->name().c_str(),
       data.options.animated_image_decode_thread_priority));
 
   DCHECK_LE(0, data.options.image_cache_capacity);
@@ -975,6 +976,7 @@ void WebModule::Impl::ProcessOnRenderTreeRasterized(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   web_module_stat_tracker_->OnRenderTreeRasterized(produced_time,
                                                    rasterized_time);
+  animated_image_tracker_->OnRenderTreeRasterized();
   if (produced_time >= last_render_tree_produced_time_) {
     is_render_tree_rasterization_pending_ = false;
   }
