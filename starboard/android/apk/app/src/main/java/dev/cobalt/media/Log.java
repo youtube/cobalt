@@ -14,9 +14,7 @@
 
 package dev.cobalt.media;
 
-/**
- * Common definitions for logging in the media package.
- */
+/** Common definitions for logging in the media package. */
 public class Log {
   public static final String TAG = "starboard_media";
 

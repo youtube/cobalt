@@ -106,14 +106,14 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
         new Runnable() {
           @Override
           public void run() {
-            sendEventForVirtualView(
-                CENTER_VIEW_ID, AccessibilityEvent.TYPE_VIEW_FOCUSED);
+            sendEventForVirtualView(CENTER_VIEW_ID, AccessibilityEvent.TYPE_VIEW_FOCUSED);
           }
-        }, INPUT_FOCUS_CHANGE_DELAY);
+        },
+        INPUT_FOCUS_CHANGE_DELAY);
   }
 
   private void maybeInjectEvent(int currentFocusedViewId) {
-    if (!unhandledInput) { 
+    if (!unhandledInput) {
       return;
     }
     switch (currentFocusedViewId) {
@@ -142,7 +142,9 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
   }
 
   /**
-   * <p>Fake number grid:
+   *
+   *
+   * <pre>Fake number grid:
    *   |+-+-+-+
    *   ||1|2|3|
    *   |+-+-+-|
@@ -150,12 +152,11 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
    *   |+-+-+-|
    *   ||7|8|9|
    *   |+-+-+-+
+   * </pre>
    *
-   * <p>The focus always starts from the middle number 5. When user changes
-   * focus, the focus is then moved to either 2, 4, 6 or 8 and we can capture
-   * the movement this way. The focus is then quickly switched back to the
-   * center 5 to be ready for the next movement.
-   *
+   * <p>The focus always starts from the middle number 5. When user changes focus, the focus is then
+   * moved to either 2, 4, 6 or 8 and we can capture the movement this way. The focus is then
+   * quickly switched back to the center 5 to be ready for the next movement.
    */
   @Override
   protected void onPopulateNodeForVirtualView(int virtualViewId, AccessibilityNodeInfoCompat node) {
@@ -181,11 +182,12 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
 
     // Note that the specific bounds here are arbitrary. The importance
     // is the relative bounds to each other.
-    node.setBoundsInParent(new Rect(
-        x * FAKE_VIEW_WIDTH,
-        y * FAKE_VIEW_HEIGHT,
-        x * FAKE_VIEW_WIDTH + FAKE_VIEW_WIDTH,
-        y * FAKE_VIEW_HEIGHT + FAKE_VIEW_HEIGHT));
+    node.setBoundsInParent(
+        new Rect(
+            x * FAKE_VIEW_WIDTH,
+            y * FAKE_VIEW_HEIGHT,
+            x * FAKE_VIEW_WIDTH + FAKE_VIEW_WIDTH,
+            y * FAKE_VIEW_HEIGHT + FAKE_VIEW_HEIGHT));
     node.setText("");
 
     if (virtualViewId >= 1 || virtualViewId <= 9) {

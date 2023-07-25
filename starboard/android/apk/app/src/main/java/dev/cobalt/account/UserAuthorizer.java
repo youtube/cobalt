@@ -17,19 +17,13 @@ package dev.cobalt.account;
 import android.content.Intent;
 import dev.cobalt.util.UsedByNative;
 
-/**
- * Java side implementation for starboard::android::shared::cobalt::AndroidUserAuthorizer.
- */
+/** Java side implementation for starboard::android::shared::cobalt::AndroidUserAuthorizer. */
 public interface UserAuthorizer {
 
-  /**
-   * Cleans up at the end of the object's lifecycle.
-   */
+  /** Cleans up at the end of the object's lifecycle. */
   void shutdown();
 
-  /**
-   * Unblocks any pending request.
-   */
+  /** Unblocks any pending request. */
   @SuppressWarnings("unused")
   @UsedByNative
   void interrupt();
@@ -38,9 +32,9 @@ public interface UserAuthorizer {
    * Prompts the user as necessary to choose an account, then gets an auth token for the selected
    * account. I.e., pairs the web app to be signed-in as a selected account.
    *
-   * This method blocks until finished, and must be called off the UI thread.
+   * <p>This method blocks until finished, and must be called off the UI thread.
    *
-   * Implementations must annotate this method with @UsedByNative so Proguard doesn't remove it.
+   * <p>Implementations must annotate this method with @UsedByNative so Proguard doesn't remove it.
    */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -50,9 +44,9 @@ public interface UserAuthorizer {
    * Prompts the user as necessary to stop using an account. i.e., unpairs the web app to be
    * signed-out.
    *
-   * This method blocks until finished, and must be called off the UI thread.
+   * <p>This method blocks until finished, and must be called off the UI thread.
    *
-   * Implementations must annotate this method with @UsedByNative so Proguard doesn't remove it.
+   * <p>Implementations must annotate this method with @UsedByNative so Proguard doesn't remove it.
    */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -61,14 +55,14 @@ public interface UserAuthorizer {
   /**
    * Gets a new auth token for the account most recently authorized.
    *
-   * No UI will be shown if there is already a current account restored at construction or selected
-   * in authorizeUser(). If there is no current account, or the restored account has been deleted,
-   * the account picker may be shown to let the user specify which account should become the current
-   * account.
+   * <p>No UI will be shown if there is already a current account restored at construction or
+   * selected in authorizeUser(). If there is no current account, or the restored account has been
+   * deleted, the account picker may be shown to let the user specify which account should become
+   * the current account.
    *
-   * This method blocks until finished, and must be called off the UI thread.
+   * <p>This method blocks until finished, and must be called off the UI thread.
    *
-   * Implementations must annotate this method with @UsedByNative so Proguard doesn't remove it.
+   * <p>Implementations must annotate this method with @UsedByNative so Proguard doesn't remove it.
    */
   @SuppressWarnings("unused")
   @UsedByNative
