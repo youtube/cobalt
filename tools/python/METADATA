@@ -1,0 +1,16 @@
+name: "python"
+description:
+  "Filtered subtree at tools/python."
+
+third_party {
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/src"
+  }
+  version: "114.0.5735.330"
+  last_upgrade_date {
+    year: 2023
+    month: 8
+    day: 10
+  }
+}
