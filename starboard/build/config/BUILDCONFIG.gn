@@ -90,6 +90,9 @@ import("//starboard/build/platform_path.gni")
 # TODO(b/272790873): Set host_cpu to x86 for 32 bit builds.
 if (target_cpu == "x86" || target_cpu == "arm") {
   _host_toolchain_cpu = "x86"
+} else if (target_cpu == "arm64") {
+  # TODO(b/292107465): Set host_cpu to x64 for arm64 builds.
+  _host_toolchain_cpu = "x64"
 } else {
   _host_toolchain_cpu = host_cpu
 }
