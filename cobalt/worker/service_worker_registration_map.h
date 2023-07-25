@@ -81,6 +81,8 @@ class ServiceWorkerRegistrationMap {
 
   void ReadPersistentSettings();
 
+  void RemovePersistentSettings();
+
  private:
   // ThreadChecker for use by the methods operating on the registration map.
   THREAD_CHECKER(thread_checker_);

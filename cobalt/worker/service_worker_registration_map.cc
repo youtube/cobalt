@@ -61,14 +61,16 @@ ServiceWorkerRegistrationMap::ServiceWorkerRegistrationMap(
       new ServiceWorkerPersistentSettings(options));
   DCHECK(service_worker_persistent_settings_);
 
-  // TODO(b/259731731) For now do not read from persisted settings until
-  // activation of persisted registrations works.
   ReadPersistentSettings();
 }
 
 void ServiceWorkerRegistrationMap::ReadPersistentSettings() {
   service_worker_persistent_settings_->ReadServiceWorkerRegistrationMapSettings(
       registration_map_);
+}
+
+void ServiceWorkerRegistrationMap::RemovePersistentSettings() {
+  service_worker_persistent_settings_->RemoveAll();
 }
 
 scoped_refptr<ServiceWorkerRegistrationObject>

@@ -539,6 +539,17 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   // https://fetch.spec.whatwg.org/commit-snapshots/8f8ab504da6ca9681db5c7f8aa3d1f4b6bf8840c/#http-fetch
   bool can_start_service_worker = url.SchemeIsHTTPOrHTTPS();
   auto service_worker_started_event = std::make_unique<base::WaitableEvent>();
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) {
+    bool has_previous_violation =
+        watchdog->GetServiceWorkerWatchdogViolations();
+    if (has_previous_violation) {
+      can_start_service_worker = false;
+      service_worker_registry_->service_worker_context()
+          ->registration_map()
+          ->RemovePersistentSettings();
+    }
+  }
   if (can_start_service_worker) {
     service_worker_registry_->EnsureServiceWorkerStarted(
         url::Origin::Create(url), url, service_worker_started_event.get());

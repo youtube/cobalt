@@ -37,6 +37,9 @@ namespace {
 
 // The Watchdog violations json filename.
 const char kWatchdogViolationsJson[] = "watchdog.json";
+// The Watchdog violations json filename for service worker.
+const char kWatchdogServiceWorkerViolationsJson[] =
+    "service_worker_watchdog.json";
 // The frequency in microseconds of monitor loops.
 const int64_t kWatchdogMonitorFrequency = 500000;
 // The maximum number of Watchdog violations.
@@ -133,13 +136,21 @@ void Watchdog::Uninitialize() {
   SbThreadJoin(watchdog_thread_, nullptr);
 }
 
-std::string Watchdog::GetWatchdogFilePath() {
+std::string Watchdog::GetWatchdogFilePath(bool is_service_worker) {
   // Gets the Watchdog violations file path with lazy initialization.
+  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
+  SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                  kSbFileMaxPath);
+  if (is_service_worker) {
+    std::string service_worker_watchdog_file_name =
+        std::string(cache_dir.data()) + kSbFileSepString +
+        std::string(kWatchdogServiceWorkerViolationsJson);
+    SB_LOG(INFO) << "[Watchdog] Violations Service worker filepath: "
+                 << service_worker_watchdog_file_name;
+    return service_worker_watchdog_file_name;
+  }
   if (watchdog_file_path_ == "") {
     // Sets Watchdog violations file path.
-    std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
-    SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
-                    kSbFileMaxPath);
     watchdog_file_path_ =
         std::string(cache_dir.data()) + kSbFileSepString + watchdog_file_name_;
     SB_LOG(INFO) << "[Watchdog] Violations filepath: " << watchdog_file_path_;
@@ -156,6 +167,21 @@ void Watchdog::WriteWatchdogViolations() {
                                       kSbFileCreateAlways | kSbFileWrite);
   watchdog_file.WriteAll(watchdog_json.c_str(),
                          static_cast<int>(watchdog_json.size()));
+
+  // If any service worker violation is detected, write to a different json
+  // file.
+  base::Value* violations = violations_map_->FindKey("service worker registry");
+  if (violations != nullptr) {
+    std::string service_worker_watchdog_json;
+    base::JSONWriter::Write(*violations, &service_worker_watchdog_json);
+    SB_LOG(INFO) << "[Watchdog] Writing Service Worker violations to JSON:\n"
+                 << service_worker_watchdog_json;
+    starboard::ScopedFile service_worker_watchdog_file(
+        GetWatchdogFilePath(true).c_str(), kSbFileCreateAlways | kSbFileWrite);
+    service_worker_watchdog_file.WriteAll(
+        service_worker_watchdog_json.c_str(),
+        static_cast<int>(service_worker_watchdog_json.size()));
+  }
   pending_write_ = false;
   time_last_written_microseconds_ = SbTimeGetMonotonicNow();
 }
@@ -551,6 +577,25 @@ std::string Watchdog::GetWatchdogViolations(bool clear) {
     SB_LOG(INFO) << "[Watchdog] No violations.";
   }
   return watchdog_json;
+}
+
+bool Watchdog::GetServiceWorkerWatchdogViolations() {
+  std::string watchdog_json = "";
+  starboard::ScopedFile read_file(GetWatchdogFilePath(true).c_str(),
+                                  kSbFileOpenOnly | kSbFileRead);
+  if (read_file.IsValid()) {
+    int64_t kFileSize = read_file.GetSize();
+    std::vector<char> buffer(kFileSize + 1, 0);
+    read_file.ReadAll(buffer.data(), kFileSize);
+    watchdog_json = std::string(buffer.data());
+    // Removes all Watchdog violations.
+    starboard::SbFileDeleteRecursive(GetWatchdogFilePath(true).c_str(), true);
+    SB_LOG(INFO) << "[Watchdog] Reading violations:\n" << watchdog_json;
+    return true;
+  } else {
+    SB_LOG(INFO) << "[Watchdog] No Service Worker violations in previous run.";
+    return false;
+  }
 }
 
 bool Watchdog::GetPersistentSettingWatchdogEnable() {

@@ -80,7 +80,7 @@ class Watchdog : public Singleton<Watchdog> {
       std::string watchdog_file_name, int64_t watchdog_monitor_frequency);
   bool InitializeStub();
   void Uninitialize();
-  std::string GetWatchdogFilePath();
+  std::string GetWatchdogFilePath(bool is_service_worker = false);
   void UpdateState(base::ApplicationState state);
   bool Register(std::string name, std::string description,
                 base::ApplicationState monitor_state,
@@ -90,6 +90,7 @@ class Watchdog : public Singleton<Watchdog> {
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
   std::string GetWatchdogViolations(bool clear = true);
+  bool GetServiceWorkerWatchdogViolations();
   bool GetPersistentSettingWatchdogEnable();
   void SetPersistentSettingWatchdogEnable(bool enable_watchdog);
   bool GetPersistentSettingWatchdogCrash();
