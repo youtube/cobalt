@@ -18,6 +18,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/media_settings.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/math/size_f.h"
@@ -29,6 +30,15 @@ using media::DecodeTargetProvider;
 using media::WebMediaPlayer;
 
 const char HTMLVideoElement::kTagName[] = "video";
+
+const MediaSettings& GetMediaSettings(web::EnvironmentSettings* settings) {
+  DCHECK(settings);
+  DCHECK(settings->context());
+  DCHECK(settings->context()->web_settings());
+
+  const auto& web_settings = settings->context()->web_settings();
+  return web_settings->media_settings();
+}
 
 HTMLVideoElement::HTMLVideoElement(Document* document)
     : HTMLMediaElement(document, base::Token(kTagName)) {}
@@ -98,9 +108,15 @@ scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality(
   }
 }
 
-scoped_refptr<DecodeTargetProvider>
-HTMLVideoElement::GetDecodeTargetProvider() {
+scoped_refptr<DecodeTargetProvider> HTMLVideoElement::GetDecodeTargetProvider(
+    bool* paint_to_black) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(paint_to_black);
+
+  *paint_to_black = GetMediaSettings(environment_settings())
+                        .IsPaintingVideoBackgroundToBlack()
+                        .value_or(false);
+
   return player() ? player()->GetDecodeTargetProvider() : NULL;
 }
 
