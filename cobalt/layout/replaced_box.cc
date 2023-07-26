@@ -316,9 +316,14 @@ void ReplacedBox::RenderAndAnimateContent(
     return;
   }
 
-  if (replaced_box_mode_ == base::nullopt) {
-    // If we don't have a data stream associated with this video [yet], then
-    // we don't yet know if it is punched out or not, and so render black.
+  if (!replaced_box_mode_.has_value()) {
+    // Don't render anything, so any background color or image will be visible.
+    return;
+  }
+
+  if (replaced_box_mode_ == ReplacedBoxMode::kPaintToBlack) {
+    // Explicitly render black if we don't have a data stream associated with
+    // this video [yet], this is the same as the previous behavior.
     border_node_builder->AddChild(new RectNode(
         math::RectF(content_box_size()),
         std::unique_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
@@ -327,7 +332,7 @@ void ReplacedBox::RenderAndAnimateContent(
     return;
   }
 
-  if (*replaced_box_mode_ == ReplacedBox::ReplacedBoxMode::kLottie) {
+  if (*replaced_box_mode_ == ReplacedBoxMode::kLottie) {
     AnimateNode::Builder animate_node_builder;
     scoped_refptr<LottieNode> lottie_node =
         new LottieNode(nullptr, math::RectF());
@@ -347,7 +352,7 @@ void ReplacedBox::RenderAndAnimateContent(
   // Map-to-mesh is only supported with decode-to-texture videos.
   const bool supports_mtm =
       replaced_box_mode_ &&
-      *replaced_box_mode_ == ReplacedBox::ReplacedBoxMode::kVideo;
+      *replaced_box_mode_ == ReplacedBoxMode::kDecodeToTextureVideo;
 
   if (supports_mtm && mtm_filter_function &&
       mtm_filter_function->mesh_spec().mesh_type() !=
@@ -759,7 +764,7 @@ void ReplacedBox::RenderAndAnimateContentWithLetterboxing(
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
 
-  if (*replaced_box_mode_ == ReplacedBox::ReplacedBoxMode::kPunchOutVideo) {
+  if (*replaced_box_mode_ == ReplacedBoxMode::kPunchOutVideo) {
     LetterboxDimensions letterbox_dims =
         GetLetterboxDimensions(content_size_, content_box_size());
     AddLetterboxedPunchThroughVideoNodeToRenderTree(
