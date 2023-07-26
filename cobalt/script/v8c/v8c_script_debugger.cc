@@ -138,8 +138,6 @@ V8cScriptDebugger::V8cScriptDebugger(
                                sizeof(kContextName) - 1)));
 }
 
-V8cScriptDebugger::~V8cScriptDebugger() {}
-
 void V8cScriptDebugger::Attach(const std::string& state) {
   DCHECK(!inspector_session_);
   inspector_session_ =

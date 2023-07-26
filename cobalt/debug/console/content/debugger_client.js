@@ -16,6 +16,7 @@ function DebuggerClient() {
   this.DEBUGGER_DETACHED = 0;
   this.DEBUGGER_ATTACHING = 1;
   this.DEBUGGER_ATTACHED = 2;
+  this.DEBUGGER_DISABLED = 3;
   this.scripts = [];
   this.attachState = this.DEBUGGER_DETACHED;
   this.onAttachCallback = this.onAttach.bind(this);
@@ -25,11 +26,11 @@ function DebuggerClient() {
 
 // Attaches to the debugger and listens for debug events.
 // Enables the domains we care about here.
-DebuggerClient.prototype.attach = function() {
+DebuggerClient.prototype.attach = function () {
   if (this.attachState == this.DEBUGGER_DETACHED) {
     this.attachState = this.DEBUGGER_ATTACHING;
     printToMessageLog(MessageLog.INTERACTIVE,
-                      'Attempting to attach to debugger...');
+      'Attempting to attach to debugger...');
     this.scripts = [];
     debugHub.onEvent.addListener(this.onEventCallback);
     debugHub.attach(this.onAttachCallback);
@@ -38,14 +39,14 @@ DebuggerClient.prototype.attach = function() {
     this.sendCommand('Runtime.enable');
   } else if (this.attachState == this.DEBUGGER_ATTACHING) {
     printToMessageLog(MessageLog.INTERACTIVE,
-                      'Still attempting to attach to debugger...');
+      'Still attempting to attach to debugger...');
   }
 }
 
-// Local method to list the parsed scripts the client has been notifed of
+// Local method to list the parsed scripts the client has been notified of
 // via the |Debugger.scriptParsed| event. Maps the possibly very long script id
 // from the debug dispatcher to a more human-readable 0-based index.
-DebuggerClient.prototype.getScripts = function(scriptId) {
+DebuggerClient.prototype.getScripts = function (scriptId) {
   for (var i in this.scripts) {
     var index = this.pad(i, 3);
     var scriptUrl = this.scripts[i].url;
@@ -57,7 +58,7 @@ DebuggerClient.prototype.getScripts = function(scriptId) {
 
 // Each debugger command has an associated callback to get the result.
 
-DebuggerClient.prototype.getScriptSource = function(scriptId) {
+DebuggerClient.prototype.getScriptSource = function (scriptId) {
   // If the id looks like an index into the local script array, look it up there.
   if (scriptId >= 0 && scriptId < this.scripts.length) {
     scriptId = this.scripts[scriptId].scriptId;
@@ -69,7 +70,7 @@ DebuggerClient.prototype.getScriptSource = function(scriptId) {
   this.sendCommand(method, params, callback);
 }
 
-DebuggerClient.prototype.getScriptSourceCallback = function(result) {
+DebuggerClient.prototype.getScriptSourceCallback = function (result) {
   var scriptSource = result.scriptSource;
   var lines = scriptSource.split('\n');
   for (var i = 0; i < lines.length; i++) {
@@ -78,7 +79,7 @@ DebuggerClient.prototype.getScriptSourceCallback = function(result) {
   }
 }
 
-DebuggerClient.prototype.evaluate = function(expression, callback) {
+DebuggerClient.prototype.evaluate = function (expression, callback) {
   var method = 'Runtime.evaluate';
   var params = {};
   params.contextId = this.executionContext;
@@ -92,8 +93,8 @@ DebuggerClient.prototype.evaluate = function(expression, callback) {
 
 // All debugger commands are routed through this method. Converts the command
 // parameters into a JSON string to pass to the debug dispatcher.
-DebuggerClient.prototype.sendCommand = function(method, commandParams,
-                                                callback) {
+DebuggerClient.prototype.sendCommand = function (method, commandParams,
+  callback) {
   var jsonParams = JSON.stringify(commandParams);
   var responseCallback = this.responseCallback.bind(this, method, callback);
   debugHub.sendCommand(method, jsonParams, responseCallback);
@@ -102,15 +103,15 @@ DebuggerClient.prototype.sendCommand = function(method, commandParams,
 // All command responses are routed through this method. Parses the JSON
 // response from the debug dispatcher, checks for errors and passes on to the
 // command-specific callback to handle the result.
-DebuggerClient.prototype.responseCallback = function(method, callback,
-                                                     responseString) {
+DebuggerClient.prototype.responseCallback = function (method, callback,
+  responseString) {
   var response = JSON.parse(responseString);
 
   if (response && response.error) {
     printToMessageLog(
-        MessageLog.ERROR,
-        '[ERROR(' + response.error.code + '):' + method + '] ' +
-            response.error.message);
+      MessageLog.ERROR,
+      '[ERROR(' + response.error.code + '):' + method + '] ' +
+      response.error.message);
   } else if (callback) {
     if (response) {
       callback(response.result);
@@ -122,10 +123,10 @@ DebuggerClient.prototype.responseCallback = function(method, callback,
 
 //-- Events.
 
-DebuggerClient.prototype.onAttach = function() {
+DebuggerClient.prototype.onAttach = function () {
   if (debugHub.lastError) {
     printToMessageLog(MessageLog.WARNING, 'Could not attach to debugger.');
-    this.attachState = this.DEBUGGER_DETACHED;
+    this.attachState = this.DEBUGGER_DISABLED;
   } else {
     printToMessageLog(MessageLog.INTERACTIVE, 'Debugger attached.');
     this.attachState = this.DEBUGGER_ATTACHED;
@@ -135,7 +136,7 @@ DebuggerClient.prototype.onAttach = function() {
 // All events generated by the debug dispatcher are routed through this method.
 // Parses the JSON string and passes on to the appropriate handler according to
 // the method name.
-DebuggerClient.prototype.onEvent = function(method, paramString) {
+DebuggerClient.prototype.onEvent = function (method, paramString) {
   var params = JSON.parse(paramString);
   if (method == 'Console.messageAdded') {
     this.onConsoleMessageAdded(params)
@@ -152,32 +153,32 @@ DebuggerClient.prototype.onEvent = function(method, paramString) {
   }
 }
 
-DebuggerClient.prototype.onDetached = function() {
+DebuggerClient.prototype.onDetached = function () {
   printToMessageLog(MessageLog.INTERACTIVE, 'Debugger detached.');
   this.attachState = this.DEBUGGER_DETACHED;
 }
 
-DebuggerClient.prototype.onExecutionContextCreated = function(params) {
+DebuggerClient.prototype.onExecutionContextCreated = function (params) {
   this.executionContext = params.context.id;
   printToMessageLog(MessageLog.INFO,
-                    'Execution context created: ' + this.executionContext);
+    'Execution context created: ' + this.executionContext);
 }
 
-DebuggerClient.prototype.onLogEntryAdded = function(params) {
+DebuggerClient.prototype.onLogEntryAdded = function (params) {
   printToMessageLog(params.entry.level, params.entry.text);
 }
 
 
-DebuggerClient.prototype.onConsoleMessageAdded = function(params) {
+DebuggerClient.prototype.onConsoleMessageAdded = function (params) {
   // Translate Console.messageAdded params to Runtime.consoleAPICalled params.
   var consoleApiParams = {
     type: params.message.level,
-    args: [ { type: 'string', value: params.message.text } ]
+    args: [{ type: 'string', value: params.message.text }]
   };
   this.onConsoleApiCalled(consoleApiParams);
 }
 
-DebuggerClient.prototype.onConsoleApiCalled = function(params) {
+DebuggerClient.prototype.onConsoleApiCalled = function (params) {
   var severity = params.type;
   if (severity === "assert") {
     severity = MessageLog.ERROR;
@@ -200,13 +201,13 @@ DebuggerClient.prototype.onConsoleApiCalled = function(params) {
   printToMessageLog(MessageLog.CONSOLE + severity, message);
 }
 
-DebuggerClient.prototype.onScriptParsed = function(params) {
+DebuggerClient.prototype.onScriptParsed = function (params) {
   this.scripts.push(params);
 }
 
 //--- Utils.
 
-DebuggerClient.prototype.pad = function(number, minLength) {
+DebuggerClient.prototype.pad = function (number, minLength) {
   var result = number.toString();
   while (result.length < minLength) {
     result = ' ' + result;
