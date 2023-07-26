@@ -17,4 +17,3 @@
 interface PluginArray {
   readonly attribute long length;
 };
-

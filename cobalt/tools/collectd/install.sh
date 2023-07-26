@@ -66,4 +66,3 @@ service lighttpd restart
 print_msg "Cobalt DevTools do not currently listen on 'localhost' or 127.0.0.1"
 print_msg "Please manually edit target IP address to your adapter IP address in " ${COLLECTD_CONF_DIR}/cobalt.conf
 ifconfig | egrep "inet " | sed -E "s/.*inet (.*) netmask.*/\1/" | egrep -v "127.0.0.1"
-

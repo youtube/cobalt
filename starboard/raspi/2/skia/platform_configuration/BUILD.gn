@@ -13,7 +13,5 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  configs = [
-    "//starboard/raspi/2/platform_configuration",
-  ]
+  configs = [ "//starboard/raspi/2/platform_configuration" ]
 }

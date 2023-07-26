@@ -6,4 +6,3 @@
 3-simple-animation
 canceled_animation_should_not_get_animationend_event
 removed_animation_from_other_animationend_event_handler_should_still_get_animationend_event
-
