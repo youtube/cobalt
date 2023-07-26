@@ -15,6 +15,7 @@
 #include "cobalt/trace_event/json_file_outputter.h"
 
 #include <string>
+#include <utility>
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "base/command_line.h"
@@ -27,7 +28,6 @@
 #endif
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
-
 #include "starboard/common/string.h"
 
 namespace cobalt {

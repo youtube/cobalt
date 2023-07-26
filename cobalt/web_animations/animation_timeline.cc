@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/web_animations/animation_timeline.h"
+
 #include <memory>
 
 #include "cobalt/web_animations/animation.h"
 #include "cobalt/web_animations/animation_set.h"
-#include "cobalt/web_animations/animation_timeline.h"
 
 namespace cobalt {
 namespace web_animations {

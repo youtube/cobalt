@@ -34,11 +34,11 @@ class EmptyDocument {
   EmptyDocument()
       : css_parser_(css_parser::Parser::Create()),
         dom_stat_tracker_(new dom::DomStatTracker("EmptyDocument")),
-        html_element_context_(
-            &environment_settings_, NULL, NULL, css_parser_.get(), NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL,
-            NULL),
+        html_element_context_(&environment_settings_, NULL, NULL,
+                              css_parser_.get(), NULL, NULL, NULL, NULL, NULL,
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                              dom_stat_tracker_.get(), "",
+                              base::kApplicationStateStarted, NULL, NULL),
         document_(new dom::Document(&html_element_context_)) {}
 
   dom::Document* document() { return document_.get(); }

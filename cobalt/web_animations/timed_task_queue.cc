@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/web_animations/timed_task_queue.h"
+
 #include <memory>
+#include <utility>
 
 #include "base/memory/ptr_util.h"
-#include "cobalt/web_animations/timed_task_queue.h"
 
 namespace cobalt {
 namespace web_animations {

@@ -23,9 +23,7 @@ static_assert(sizeof(size_t) >= kHeaderLength,
 namespace content {
 
 ChunkedByteBuffer::ChunkedByteBuffer()
-    : partial_chunk_(new Chunk()),
-      total_bytes_stored_(0) {
-}
+    : partial_chunk_(new Chunk()), total_bytes_stored_(0) {}
 
 ChunkedByteBuffer::~ChunkedByteBuffer() {
   Clear();
@@ -62,8 +60,7 @@ void ChunkedByteBuffer::Append(const uint8_t* start, size_t length) {
     DCHECK_GT(insert_length, 0U);
     DCHECK_LE(insert_length, remaining_bytes);
     DCHECK_LE(next_data + insert_length, start + length);
-    insert_target->insert(insert_target->end(),
-                          next_data,
+    insert_target->insert(insert_target->end(), next_data,
                           next_data + insert_length);
     next_data += insert_length;
     remaining_bytes -= insert_length;
@@ -117,8 +114,7 @@ void ChunkedByteBuffer::Clear() {
 
 ChunkedByteBuffer::Chunk::Chunk() : content(new std::vector<uint8_t>()) {}
 
-ChunkedByteBuffer::Chunk::~Chunk() {
-}
+ChunkedByteBuffer::Chunk::~Chunk() {}
 
 size_t ChunkedByteBuffer::Chunk::ExpectedContentLength() const {
   DCHECK_EQ(header.size(), kHeaderLength);

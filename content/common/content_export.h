@@ -14,7 +14,7 @@
 #define CONTENT_EXPORT __declspec(dllimport)
 #endif  // defined(CONTENT_IMPLEMENTATION)
 
-#else // defined(WIN32)
+#else  // defined(WIN32)
 #if defined(CONTENT_IMPLEMENTATION)
 #define CONTENT_EXPORT __attribute__((visibility("default")))
 #else
@@ -22,7 +22,7 @@
 #endif
 #endif
 
-#else // defined(COMPONENT_BUILD)
+#else  // defined(COMPONENT_BUILD)
 #define CONTENT_EXPORT
 #endif
 

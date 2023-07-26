@@ -15,14 +15,13 @@
 #ifndef COBALT_WEB_ANIMATIONS_ANIMATION_SET_H_
 #define COBALT_WEB_ANIMATIONS_ANIMATION_SET_H_
 
-#include "cobalt/web_animations/animation_set.h"
-
 #include <set>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/web_animations/animation.h"
+#include "cobalt/web_animations/animation_set.h"
 
 namespace cobalt {
 namespace web_animations {

@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/loader/image/image_encoder.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/test/jpeg_utils/jpeg_encode.h"

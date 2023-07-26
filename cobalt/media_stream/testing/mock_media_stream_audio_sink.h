@@ -16,7 +16,6 @@
 #define COBALT_MEDIA_STREAM_TESTING_MOCK_MEDIA_STREAM_AUDIO_SINK_H_
 
 #include "cobalt/media_stream/media_stream_audio_sink.h"
-
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {

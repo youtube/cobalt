@@ -29,9 +29,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
+using ::testing::Eq;
 using ::testing::InvokeWithoutArgs;
 using ::testing::NotNull;
-using ::testing::Eq;
 
 namespace cobalt {
 namespace storage {

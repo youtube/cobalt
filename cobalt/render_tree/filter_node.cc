@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/render_tree/filter_node.h"
+
 #include "cobalt/render_tree/node_visitor.h"
 
 namespace cobalt {

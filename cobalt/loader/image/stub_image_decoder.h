@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/compiler_specific.h"
 #include "cobalt/loader/image/image.h"
@@ -37,9 +38,7 @@ class StubImageDecoder : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const override { return "StubImageDecoder"; }
 
-  static bool IsValidSignature(const uint8* header) {
-    return true;
-  }
+  static bool IsValidSignature(const uint8* header) { return true; }
 
  private:
   // From ImageDataDecoder

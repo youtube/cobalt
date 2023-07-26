@@ -26,10 +26,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::InSequence;
 using ::testing::StrictMock;
-using ::testing::_;
 
 namespace cobalt {
 namespace loader {

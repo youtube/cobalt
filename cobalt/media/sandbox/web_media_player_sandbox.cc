@@ -415,6 +415,8 @@ void SbEventHandle(const SbEvent* event) {
       break;
     }
 
-    default: { break; }
+    default: {
+      break;
+    }
   }
 }

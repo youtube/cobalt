@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/loader/mesh/mesh_decoder.h"
+
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "base/bits.h"
 #include "base/memory/ptr_util.h"
-#include "cobalt/loader/mesh/mesh_decoder.h"
 #include "cobalt/loader/mesh/projection_codec/projection_decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -253,7 +255,7 @@ void MeshDecoder::Finish() {
     mesh_available_callback_.Run(mesh_projection);
     load_complete_callback_.Run(base::nullopt);
   } else {
-    // Error must have occured in MeshDecoderSink::Decode.
+    // Error must have occurred in MeshDecoderSink::Decode.
     load_complete_callback_.Run(
         std::string("MeshDecoder passed an invalid mesh projection box."));
   }

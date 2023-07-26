@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/web/csp_violation_reporter.h"
+
 #include <memory>
 #include <utility>
-
-#include "cobalt/web/csp_violation_reporter.h"
 
 #include "base/hash.h"
 #include "base/json/json_writer.h"

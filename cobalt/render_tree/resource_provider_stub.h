@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/memory/aligned_memory.h"
@@ -257,13 +258,9 @@ class ResourceProviderStub : public ResourceProvider {
 
   void Finish() override {}
 
-  bool PixelFormatSupported(PixelFormat pixel_format) override {
-    return true;
-  }
+  bool PixelFormatSupported(PixelFormat pixel_format) override { return true; }
 
-  bool AlphaFormatSupported(AlphaFormat alpha_format) override {
-    return true;
-  }
+  bool AlphaFormatSupported(AlphaFormat alpha_format) override { return true; }
 
   std::unique_ptr<ImageData> AllocateImageData(
       const math::Size& size, PixelFormat pixel_format,

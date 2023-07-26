@@ -38,9 +38,9 @@ namespace {
 
 using base::Bind;
 using ::media::BindToCurrentLoop;
+using ::media::ChunkDemuxer;
 using ::media::DecoderBuffer;
 using ::media::DemuxerStream;
-using ::media::ChunkDemuxer;
 
 typedef base::Callback<void(::media::DecoderBuffer*)> AppendBufferCB;
 
@@ -109,16 +109,12 @@ class Loader : public ::media::DemuxerHost {
   const ::media::VideoDecoderConfig& config() const { return config_; }
 
  private:
-  void SetTotalBytes(int64 total_bytes) override {
-  }
-  void AddBufferedByteRange(int64 start, int64 end) override {
-  }
+  void SetTotalBytes(int64 total_bytes) override {}
+  void AddBufferedByteRange(int64 start, int64 end) override {}
   void AddBufferedTimeRange(base::TimeDelta start,
-                            base::TimeDelta end) override {
-  }
+                            base::TimeDelta end) override {}
 
-  void SetDuration(base::TimeDelta duration) override {
-  }
+  void SetDuration(base::TimeDelta duration) override {}
   void OnDemuxerError(::media::PipelineStatus error) override {
     valid_ = false;
   }

@@ -162,8 +162,7 @@ class ChildIterator<FilterNode> {
   explicit ChildIterator(
       FilterNode* filter,
       ChildIteratorDirection direction = kChildIteratorDirectionForwards)
-      : filter_node_(filter), source_(filter->data().source.get()) {
-  }
+      : filter_node_(filter), source_(filter->data().source.get()) {}
 
   Node* GetCurrent() const { return source_; }
   void Next() { source_ = NULL; }
@@ -196,8 +195,7 @@ class ChildIterator<MatrixTransform3DNode> {
       MatrixTransform3DNode* matrix_transform_3d,
       ChildIteratorDirection direction = kChildIteratorDirectionForwards)
       : matrix_transform_3d_node_(matrix_transform_3d),
-        source_(matrix_transform_3d->data().source.get()) {
-  }
+        source_(matrix_transform_3d->data().source.get()) {}
 
   Node* GetCurrent() const { return source_; }
   void Next() { source_ = NULL; }
@@ -230,8 +228,7 @@ class ChildIterator<MatrixTransformNode> {
       MatrixTransformNode* matrix_transform,
       ChildIteratorDirection direction = kChildIteratorDirectionForwards)
       : matrix_transform_node_(matrix_transform),
-        source_(matrix_transform->data().source.get()) {
-  }
+        source_(matrix_transform->data().source.get()) {}
 
   Node* GetCurrent() const { return source_; }
   void Next() { source_ = NULL; }

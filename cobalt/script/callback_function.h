@@ -86,8 +86,7 @@ class CallbackFunction<R(void)> {
   typedef R Signature(void);
   typedef CallbackResult<R> ReturnValue;
 
-  virtual CallbackResult<R> Run()
-      const = 0;
+  virtual CallbackResult<R> Run() const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
@@ -147,7 +146,7 @@ class CallbackFunction<R(A1, A2, A3, A4)> {
   virtual ~CallbackFunction() {}
 };
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename A5>
+          typename A5>
 class CallbackFunction<R(A1, A2, A3, A4, A5)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5);
@@ -164,7 +163,7 @@ class CallbackFunction<R(A1, A2, A3, A4, A5)> {
   virtual ~CallbackFunction() {}
 };
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename A5, typename A6>
+          typename A5, typename A6>
 class CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5, A6);
@@ -182,7 +181,7 @@ class CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
   virtual ~CallbackFunction() {}
 };
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename A5, typename A6, typename A7>
+          typename A5, typename A6, typename A7>
 class CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5, A6, A7);

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/cobalt_platform.h"
 
+#include <memory>
+
 #include "base/logging.h"
+#include "cobalt/base/polymorphic_downcast.h"
 
 namespace cobalt {
 namespace script {
@@ -47,13 +47,14 @@ void CobaltPlatform::CobaltV8TaskRunner::PostDelayedTask(
   }
 }
 
-// Since we put these v8 tasks direclty on the message loop, all the tasks are
+// Since we put these v8 tasks directly on the message loop, all the tasks are
 // "NonNestable".
-void CobaltPlatform::CobaltV8TaskRunner::PostNonNestableTask(std::unique_ptr<v8::Task> task) {
+void CobaltPlatform::CobaltV8TaskRunner::PostNonNestableTask(
+    std::unique_ptr<v8::Task> task) {
   return PostTask(std::move(task));
 }
-void CobaltPlatform::CobaltV8TaskRunner::PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
-                                    double delay_in_seconds) {
+void CobaltPlatform::CobaltV8TaskRunner::PostNonNestableDelayedTask(
+    std::unique_ptr<v8::Task> task, double delay_in_seconds) {
   return PostDelayedTask(std::move(task), 0);
 }
 

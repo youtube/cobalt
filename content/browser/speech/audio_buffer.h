@@ -18,8 +18,8 @@
 namespace content {
 
 // Models a chunk derived from an AudioBuffer.
-class CONTENT_EXPORT AudioChunk :
-    public base::RefCountedThreadSafe<AudioChunk> {
+class CONTENT_EXPORT AudioChunk
+    : public base::RefCountedThreadSafe<AudioChunk> {
  public:
   explicit AudioChunk(int bytes_per_sample);
   // Creates a chunk of |length| bytes, initialized to zeros.
