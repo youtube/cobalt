@@ -66,6 +66,8 @@ class AnimatedWebPImage : public AnimatedImage {
   // Returns the render image of the frame for debugging
   scoped_refptr<render_tree::Image> GetFrameForDebugging(int target_frame);
 
+  AnimatedImageDecodingStats GetFrameDeltaStats() override;
+
  private:
   ~AnimatedWebPImage() override;
 
@@ -119,11 +121,16 @@ class AnimatedWebPImage : public AnimatedImage {
   base::CancelableClosure decode_closure_;
   base::TimeTicks current_frame_time_;
   base::Optional<base::TimeTicks> next_frame_time_;
+
   // The original encoded data.
   std::vector<uint8> data_buffer_;
   scoped_refptr<render_tree::Image> current_canvas_;
   scoped_refptr<FrameProvider> frame_provider_;
   base::Lock lock_;
+
+  base::TimeTicks decoding_start_time_;
+  AnimatedImageDecodingStats current_stats;
+  AnimatedImageDecodingStats last_stats;
 
   // Makes sure that the thread that sets the task_runner is always consistent.
   // This is the thread sending Play()/Stop() calls, and is not necessarily
