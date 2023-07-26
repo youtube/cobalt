@@ -62,7 +62,7 @@ Chromium, FireFox, and IE:
   * **Heterogeneous Development Environments.** This is slowly evening out, but
     all CE devices run on custom hardware, often with proprietary methods of
     building, packaging, deploying, and running programs. Sometimes the
-    toolchain doesn't support contemporary C++17 features. Sometimes the OS
+    toolchain doesn't support latest C++ language features. Sometimes the OS
     does not support POSIX, or it is only partially implemented.
     Sometimes the program entry point is in another language or architecture
     that requires a "trampoline" over to native binary code.
@@ -71,10 +71,6 @@ Chromium, FireFox, and IE:
     provides poor user feedback, not to mention a jarring transition. Instead,
     one loads data from an XMLHttpRequest (XHR), and then updates one's DOM to
     reflect the new data. AJAX! Web 2.0!!
-  * **No scrolling.** Well, full-screen, 10-foot UI SPA apps might scroll, but
-    not like traditional web pages, with scroll bars and a mouse
-    wheel. Scrolling is generally built into the app very carefully, with
-    support for a Directional Pad and a focus cursor.
 
 
 ## Architecture
@@ -96,7 +92,7 @@ application to a low-level platform order:
   * **JavaScript Engine** - We have, perhaps surprisingly, *not* written our own
     JavaScript Engine from scratch. Cobalt is running on [Chromiums V8](https://v8.dev)
     JavaScript engine. V8 supports all of our target platforms, including very
-    restricted ones where write-and-execute memory pages ( needed for JIT ) are
+    restricted ones where write-and-execute memory pages (needed for JIT) are
     not available.
   * **Layout Engine** - The Layout Engine takes an annotated DOM Document
     produced by the Web Implementation and JavaScript Engine working together,
