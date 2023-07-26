@@ -15,7 +15,7 @@ if (Test-Path $folderPath) {
 $start = Get-Date
 
 # Run the command
-$command = "python .\cobalt\build\gn.py .\out\win32_test -p win-win32 -C devel ; ninja -C $folderpath eztime_test"
+$command = "python .\cobalt\build\gn.py $folderPath -p win-win32 -C devel ; ninja -C $folderpath eztime_test"
 Invoke-Expression $command
 
 # Get the end time
@@ -23,11 +23,11 @@ $end = Get-Date
 
 # Calculate the execution time
 $executionTime = $end - $start
-$executionTimeinSecs = $executionTime.seconds
+$executionTimeinSecs = $executionTime.TotalSeconds
 Write-Output "Execution time in secs is $executionTimeinSecs"
 
 # Check if the execution time is greater than the timeout value
-if ($executionTime.seconds -gt $timeout) {
+if ($executionTimeinSecs -gt $timeout) {
     # Check b/291665088 for more discussion.
     throw "The command took more than $timeout seconds to run."
 }
