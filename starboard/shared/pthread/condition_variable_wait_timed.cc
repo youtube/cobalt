@@ -40,7 +40,7 @@ SbConditionVariableResult SbConditionVariableWaitTimed(
 
 #if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   SbTime timeout_time = SbTimeGetMonotonicNow() + timeout;
-#else  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+#else   // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   int64_t timeout_time = SbTimeToPosix(SbTimeGetNow()) + timeout;
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
 

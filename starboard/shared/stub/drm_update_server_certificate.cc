@@ -17,5 +17,4 @@
 void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                   int ticket,
                                   const void* certificate,
-                                  int certificate_size) {
-}
+                                  int certificate_size) {}

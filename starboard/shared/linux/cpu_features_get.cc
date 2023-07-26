@@ -117,9 +117,9 @@ void x86_cpuid(int cpuid_info[4], int info_type) {
 
 #endif  // SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 
-using starboard::shared::SetX86FeaturesInvalid;
 using starboard::shared::SetArmFeaturesInvalid;
 using starboard::shared::SetGeneralFeaturesInvalid;
+using starboard::shared::SetX86FeaturesInvalid;
 
 // Class that holds the information in system file /proc/cpuinfo.
 class ProcCpuInfo {

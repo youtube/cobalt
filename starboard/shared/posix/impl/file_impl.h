@@ -23,7 +23,7 @@
 #include "starboard/shared/internal_only.h"
 
 // Ensure SbFile is typedef'd to a SbFilePrivate* that has a descriptor field.
-SB_COMPILE_ASSERT(sizeof(((SbFile)0)->descriptor), \
+SB_COMPILE_ASSERT(sizeof(((SbFile)0)->descriptor),
                   SbFilePrivate_must_have_descriptor);
 
 #endif  // STARBOARD_SHARED_POSIX_IMPL_FILE_IMPL_H_

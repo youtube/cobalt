@@ -122,8 +122,8 @@ bool PopulateNetmask(const IP_ADAPTER_UNICAST_ADDRESS& unicast_address,
 bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
                                    SbSocketAddress* out_netmask) {
   std::unique_ptr<char[]> adapter_info_memory_block;
-  if (!sbwin32::GetAdapters(
-      interface_address.type, &adapter_info_memory_block)) {
+  if (!sbwin32::GetAdapters(interface_address.type,
+                            &adapter_info_memory_block)) {
     return false;
   }
   const void* const interface_address_buffer =

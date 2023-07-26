@@ -17,16 +17,16 @@
 // These audits are here so they are only displayed once every build.
 
 #if SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION
-#pragma message( \
-    "Your platform's SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION. " \
-    "You are implementing the Experimental version of Starboard at your " \
-    "own risk!  We don't recommend this for third parties.")
+#pragma message(                                                              \
+        "Your platform's SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION. "     \
+        "You are implementing the Experimental version of Starboard at your " \
+        "own risk!  We don't recommend this for third parties.")
 #endif
 
-#if defined(SB_RELEASE_CANDIDATE_API_VERSION) && \
+#if defined(SB_RELEASE_CANDIDATE_API_VERSION) &&          \
     SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION && \
     SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
-#pragma message( \
-    "Your platform's SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION. " \
-    "Note that the RC version of Starboard is still subject to change.")
+#pragma message(                                                               \
+        "Your platform's SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION. " \
+        "Note that the RC version of Starboard is still subject to change.")
 #endif

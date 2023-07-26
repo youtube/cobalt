@@ -27,8 +27,8 @@
 
 typedef std::function<void()> DialogCallback;
 
-using starboard::shared::win32::DebugLogWinError;
 using starboard::shared::win32::CStringToWString;
+using starboard::shared::win32::DebugLogWinError;
 
 namespace {
 HWND g_current_dialog_handle = nullptr;
