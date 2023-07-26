@@ -12,4 +12,3 @@ To suppress the warning the following annotation should be added
 to the StorageProto class:
 
 @SuppressWarnings("unchecked")
-
