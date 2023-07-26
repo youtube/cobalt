@@ -16,4 +16,3 @@ target_platform = "xb1"
 target_os = "winuwp"
 target_cpu = "x64"
 is_clang = false
-is_internal_build = false
