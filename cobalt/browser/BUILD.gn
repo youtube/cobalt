@@ -201,6 +201,7 @@ static_library("browser") {
     "//nb",
     "//net",
     "//starboard",
+    "//starboard/common",
     "//third_party/icu:icui18n",
     "//third_party/protobuf:protobuf_lite",
     "//url",
