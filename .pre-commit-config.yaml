@@ -129,6 +129,7 @@ repos:
                 cobalt/layout_tests/testdata/|
                 cobalt/webdriver/screencast/|
                 cobalt/websocket/|
+                content/|
                 nb/|
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$|
                 starboard/shared/starboard/player/filter/decoded_audio_queue.cc$|

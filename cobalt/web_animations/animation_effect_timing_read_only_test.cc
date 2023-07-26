@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/web_animations/animation_effect_timing_read_only.h"
+
 #include <limits>
 
-#include "cobalt/web_animations/animation_effect_timing_read_only.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

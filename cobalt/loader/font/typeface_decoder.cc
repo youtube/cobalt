@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/loader/font/typeface_decoder.h"
+
 #include <memory>
+#include <utility>
 
 #include "base/memory/ptr_util.h"
-#include "cobalt/loader/font/typeface_decoder.h"
 
 namespace cobalt {
 namespace loader {

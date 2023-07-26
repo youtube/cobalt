@@ -57,8 +57,8 @@ struct UnionTypeTraits : UnionTypeDefaultTraits<T> {
 };
 
 template <typename T>
-struct UnionTypeTraits<scoped_refptr<T> >
-    : UnionTypeDefaultTraits<scoped_refptr<T> > {
+struct UnionTypeTraits<scoped_refptr<T>>
+    : UnionTypeDefaultTraits<scoped_refptr<T>> {
   static base::TypeId GetTypeID() { return base::GetTypeId<T>(); }
   static const bool is_interface_type = true;
 };

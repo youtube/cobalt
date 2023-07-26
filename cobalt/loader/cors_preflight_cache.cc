@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+#include "cobalt/loader/cors_preflight_cache.h"
+
 #include <algorithm>
+#include <utility>
 
 #include "base/message_loop/message_loop.h"
 #include "base/strings/string_util.h"
-#include "cobalt/loader/cors_preflight_cache.h"
 
 namespace {
 bool MethodNameToRequestType(const std::string& method,

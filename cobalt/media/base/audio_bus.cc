@@ -33,7 +33,7 @@ inline void ConvertSample(AudioBus::SampleType src_type, const uint8* src_ptr,
                           AudioBus::SampleType dest_type, uint8* dest_ptr) {
   if (src_type == dest_type) {
     memcpy(dest_ptr, src_ptr,
-                 src_type == AudioBus::kInt16 ? sizeof(int16) : sizeof(float));
+           src_type == AudioBus::kInt16 ? sizeof(int16) : sizeof(float));
   } else if (src_type == AudioBus::kFloat32) {
     float sample_in_float = *reinterpret_cast<const float*>(src_ptr);
     int32 sample_in_int32 =
@@ -189,11 +189,11 @@ void AudioBus::ZeroFrames(size_t start_frame, size_t end_frame) {
   }
   if (storage_type_ == kInterleaved) {
     memset(GetSamplePtr(0, start_frame), 0,
-                GetSampleSizeInBytes() * (end_frame - start_frame) * channels_);
+           GetSampleSizeInBytes() * (end_frame - start_frame) * channels_);
   } else {
     for (size_t channel = 0; channel < channels_; ++channel) {
       memset(GetSamplePtr(channel, start_frame), 0,
-                  GetSampleSizeInBytes() * (end_frame - start_frame));
+             GetSampleSizeInBytes() * (end_frame - start_frame));
     }
   }
 }
@@ -210,11 +210,11 @@ void AudioBus::Assign(const AudioBus& source) {
     size_t frames = std::min(frames_, source.frames_);
     if (storage_type_ == kInterleaved) {
       memcpy(GetSamplePtr(0, 0), source.GetSamplePtr(0, 0),
-                   GetSampleSizeInBytes() * frames * channels_);
+             GetSampleSizeInBytes() * frames * channels_);
     } else {
       for (size_t channel = 0; channel < channels_; ++channel) {
         memcpy(GetSamplePtr(channel, 0), source.GetSamplePtr(channel, 0),
-                     GetSampleSizeInBytes() * frames);
+               GetSampleSizeInBytes() * frames);
       }
     }
     return;

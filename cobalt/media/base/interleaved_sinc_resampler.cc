@@ -49,6 +49,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "base/logging.h"
 #include "starboard/memory.h"
@@ -149,7 +150,7 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
             r1_ + kBufferSize * channel_count_);
 
   memset(kernel_storage_.get(), 0,
-              sizeof(*kernel_storage_.get()) * kKernelStorageSize);
+         sizeof(*kernel_storage_.get()) * kKernelStorageSize);
   memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
 
   InitializeKernel();

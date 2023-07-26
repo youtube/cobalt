@@ -45,8 +45,7 @@ class V8cUserObjectHolder
   V8cUserObjectHolder(v8::Isolate* isolate, v8::Local<v8::Value> value)
       : isolate_(isolate),
         handle_(isolate, value),
-        prevent_garbage_collection_count_(0) {
-  }
+        prevent_garbage_collection_count_(0) {}
   V8cUserObjectHolder(const V8cUserObjectHolder&) = delete;
   V8cUserObjectHolder& operator=(const V8cUserObjectHolder&) = delete;
   V8cUserObjectHolder(V8cUserObjectHolder&& other)

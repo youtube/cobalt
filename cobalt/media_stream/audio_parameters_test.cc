@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/media_stream/audio_parameters.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

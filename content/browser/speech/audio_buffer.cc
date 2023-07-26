@@ -9,8 +9,7 @@
 namespace content {
 
 AudioChunk::AudioChunk(int bytes_per_sample)
-    : bytes_per_sample_(bytes_per_sample) {
-}
+    : bytes_per_sample_(bytes_per_sample) {}
 
 AudioChunk::AudioChunk(size_t length, int bytes_per_sample)
     : data_string_(length, '\0'), bytes_per_sample_(bytes_per_sample) {
@@ -46,8 +45,7 @@ const int16_t* AudioChunk::SamplesData16() const {
 
 AudioBuffer::AudioBuffer(int bytes_per_sample)
     : bytes_per_sample_(bytes_per_sample) {
-  DCHECK(bytes_per_sample == 1 ||
-         bytes_per_sample == 2 ||
+  DCHECK(bytes_per_sample == 1 || bytes_per_sample == 2 ||
          bytes_per_sample == 4);
 }
 
@@ -69,7 +67,7 @@ scoped_refptr<AudioChunk> AudioBuffer::DequeueSingleChunk() {
 scoped_refptr<AudioChunk> AudioBuffer::DequeueAll() {
   size_t resulting_length = 0;
   ChunksContainer::const_iterator it;
-  // In order to improve performance, calulate in advance the total length
+  // In order to improve performance, calculate in advance the total length
   // and then copy the chunks.
   for (it = chunks_.begin(); it != chunks_.end(); ++it) {
     resulting_length += (*it)->AsString().length();

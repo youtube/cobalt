@@ -16,6 +16,7 @@
 #define COBALT_SCRIPT_WRAPPABLE_H_
 
 #include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/logging.h"
@@ -77,7 +78,7 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
   virtual JSObjectType GetJSObjectType() { return JSObjectType::kObject; }
 
  protected:
-  virtual ~Wrappable() { }
+  virtual ~Wrappable() {}
 
  private:
   // A cached weak reference to the interface's corresponding wrapper object.

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/storage/savegame.h"
-
 #include <algorithm>
 #include <memory>
 
@@ -22,6 +20,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/optional.h"
 #include "base/path_service.h"
+#include "cobalt/storage/savegame.h"
 #include "starboard/common/storage.h"
 #include "starboard/user.h"
 

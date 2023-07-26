@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/web/crypto.h"
+
+#include <memory>
 
 #include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"

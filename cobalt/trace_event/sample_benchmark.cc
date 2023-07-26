@@ -23,9 +23,8 @@
 
 // A sample simple benchmark that tracks only a single event, in this case,
 // "LoopIteration".
-TRACE_EVENT_BENCHMARK1(
-    SampleTestBenchmarkWithOneTrackedEvent,
-    "LoopIteration", cobalt::trace_event::IN_SCOPE_DURATION) {
+TRACE_EVENT_BENCHMARK1(SampleTestBenchmarkWithOneTrackedEvent, "LoopIteration",
+                       cobalt::trace_event::IN_SCOPE_DURATION) {
   const int kRenderIterationCount = 40;
   for (int i = 0; i < kRenderIterationCount; ++i) {
     TRACE_EVENT0("SampleBenchmark", "LoopIteration");
@@ -44,12 +43,12 @@ TRACE_EVENT_BENCHMARK1(
 // above, however it tracks 3 events instead of 1.  For one of those 3 events,
 // "SubEventA", we track both its in-scope duration as well as the time between
 // subsequent event instance start times.
-TRACE_EVENT_BENCHMARK4(
-    SampleTestBenchmarkWithThreeTrackedEvents,
-    "LoopIteration", cobalt::trace_event::IN_SCOPE_DURATION,
-    "SubEventA", cobalt::trace_event::IN_SCOPE_DURATION,
-    "SubEventA", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS,
-    "SubEventB", cobalt::trace_event::IN_SCOPE_DURATION) {
+TRACE_EVENT_BENCHMARK4(SampleTestBenchmarkWithThreeTrackedEvents,
+                       "LoopIteration", cobalt::trace_event::IN_SCOPE_DURATION,
+                       "SubEventA", cobalt::trace_event::IN_SCOPE_DURATION,
+                       "SubEventA",
+                       cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS,
+                       "SubEventB", cobalt::trace_event::IN_SCOPE_DURATION) {
   const int kRenderIterationCount = 40;
   for (int i = 0; i < kRenderIterationCount; ++i) {
     TRACE_EVENT0("SampleBenchmark", "LoopIteration");
@@ -77,12 +76,11 @@ void HandleTask() {
   usleep(10000);
 }
 
-TRACE_EVENT_BENCHMARK4(
-    FlowExample,
-    "FlowInitiator", cobalt::trace_event::IN_SCOPE_DURATION,
-    "FlowInitiator", cobalt::trace_event::FLOW_DURATION,
-    "FlowInitiator", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS,
-    "HandleTask()", cobalt::trace_event::FLOW_DURATION) {
+TRACE_EVENT_BENCHMARK4(FlowExample, "FlowInitiator",
+                       cobalt::trace_event::IN_SCOPE_DURATION, "FlowInitiator",
+                       cobalt::trace_event::FLOW_DURATION, "FlowInitiator",
+                       cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS,
+                       "HandleTask()", cobalt::trace_event::FLOW_DURATION) {
   base::Thread thread("Worker");
   thread.Start();
 

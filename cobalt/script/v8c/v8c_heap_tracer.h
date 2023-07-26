@@ -70,9 +70,7 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
 
   // Used during shutdown to ask V8cHeapTracer do nothing so that V8 can
   // GC every embedder-created object.
-  void DisableForShutdown() {
-    disabled_ = true;
-  }
+  void DisableForShutdown() { disabled_ = true; }
 
  private:
   void MaybeAddToFrontier(Traceable* traceable);

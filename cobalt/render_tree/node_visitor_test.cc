@@ -37,11 +37,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using cobalt::render_tree::animations::AnimateNode;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::BrushVisitor;
-using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::ClearRectNode;
+using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
 using cobalt::render_tree::Font;
@@ -58,6 +57,7 @@ using cobalt::render_tree::PunchThroughVideoNode;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::RectShadowNode;
 using cobalt::render_tree::TextNode;
+using cobalt::render_tree::animations::AnimateNode;
 
 class MockNodeVisitor : public NodeVisitor {
  public:

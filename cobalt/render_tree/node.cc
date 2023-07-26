@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/render_tree/node.h"
+
 #include "starboard/atomic.h"
 
 namespace cobalt {

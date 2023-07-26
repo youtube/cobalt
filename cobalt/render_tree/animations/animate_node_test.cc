@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/render_tree/animations/animate_node.h"
+
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
-#include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -32,15 +34,14 @@
 #include "cobalt/render_tree/node_visitor.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace render_tree {
 namespace animations {
 
-using ::cobalt::math::SizeF;
 using ::cobalt::math::RectF;
+using ::cobalt::math::SizeF;
 
 // Helper function to create an animation set for a render tree that consists
 // of only one animation targeting only one node in the render tree.

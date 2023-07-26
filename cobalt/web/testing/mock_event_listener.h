@@ -18,13 +18,12 @@
 #include <memory>
 #include <string>
 
-#include "cobalt/web/event_listener.h"
-
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_listener.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {

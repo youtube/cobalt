@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/storage/store/memory_store.h"
+
+#include <memory>
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/storage/storage_constants.h"

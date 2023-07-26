@@ -13,7 +13,7 @@
 // defers decisions re onset and offset times until these
 // specifications have been met.  Three basic intervals are tested: an
 // onset window, a speech-on window, and an offset window.  We require
-// super-threshold to exceed some mimimum total durations in the onset
+// super-threshold to exceed some minimum total durations in the onset
 // and speech-on windows before declaring the speech onset time, and
 // we specify a required sub-threshold residency in the offset window
 // before declaring speech offset. As the various residency requirements are
@@ -24,7 +24,7 @@
 // important that the background noise level be estimated initially for
 // robustness in noisy conditions. The first frames are assumed to be background
 // noise and a fast update rate is used for the noise level. The duration for
-// fast update is controlled by the fast_update_dur_ paramter.
+// fast update is controlled by the fast_update_dur_ parameter.
 //
 // If used in noisy conditions, the endpointer should be started and run in the
 // EnvironmentEstimation mode, for at least 200ms, before switching to
@@ -91,9 +91,7 @@ class CONTENT_EXPORT EnergyEndpointer {
   // corresponding to the most recently computed frame.
   EpStatus Status(int64_t* status_time_us) const;
 
-  bool estimating_environment() const {
-    return estimating_environment_;
-  }
+  bool estimating_environment() const { return estimating_environment_; }
 
   // Returns estimated noise level in dB.
   float GetNoiseLevelDb() const;
@@ -113,7 +111,7 @@ class CONTENT_EXPORT EnergyEndpointer {
   // the 'time' (in seconds).
   int TimeToFrame(float time) const;
 
-  EpStatus status_;  // The current state of this instance.
+  EpStatus status_;               // The current state of this instance.
   float offset_confirm_dur_sec_;  // max on time allowed to confirm POST_SPEECH
   int64_t
       endpointer_time_us_;  // Time of the most recently received audio frame.
@@ -122,7 +120,7 @@ class CONTENT_EXPORT EnergyEndpointer {
   int64_t
       frame_counter_;     // Number of frames seen. Used for initial adaptation.
   float max_window_dur_;  // Largest search window size (seconds)
-  float sample_rate_;  // Sampling rate.
+  float sample_rate_;     // Sampling rate.
 
   // Ring buffers to hold the speech activity history.
   std::unique_ptr<HistoryRing> history_;

@@ -17,14 +17,13 @@
 
 #include <memory>
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
-
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/font/typeface_decoder.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/loader_factory.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
 namespace cobalt {

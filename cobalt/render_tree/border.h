@@ -37,9 +37,7 @@ struct BorderSide {
   bool operator==(const BorderSide& rhs) const {
     return style == rhs.style && color == rhs.color && width == rhs.width;
   }
-  bool operator!=(const BorderSide& rhs) const {
-    return !(*this == rhs);
-  }
+  bool operator!=(const BorderSide& rhs) const { return !(*this == rhs); }
 
   float width;
   BorderStyle style;

@@ -14,9 +14,9 @@
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
 
-#include <memory>
-
 #include "cobalt/storage/savegame_fake.h"
+
+#include <memory>
 
 namespace cobalt {
 namespace storage {

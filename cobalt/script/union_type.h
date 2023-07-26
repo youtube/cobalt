@@ -67,9 +67,7 @@ class UnionType2 {
     new (storage_.void_data()) T2(arg);
   }
 
-  UnionType2(const UnionType2& other) {
-    ConstructFromOther(other);
-  }
+  UnionType2(const UnionType2& other) { ConstructFromOther(other); }
 
   UnionType2& operator=(const UnionType2& other) {
     if (&other != this) {
@@ -79,9 +77,7 @@ class UnionType2 {
     return *this;
   }
 
-  ~UnionType2() {
-    Destruct();
-  }
+  ~UnionType2() { Destruct(); }
 
   // Forward these checks to the UnionTypeCheck helper class, which works around
   // being unable to do template specializations in class scope.
@@ -116,12 +112,12 @@ class UnionType2 {
     static bool IsType(const UnionType2<T1, T2>* union_value) {
       return union_value->specific_type_ == kTypeT1;
     }
-    static typename internal::UnionTypeTraits<T1>::ReturnType
-        AsType(UnionType2<T1, T2>* union_value) {
+    static typename internal::UnionTypeTraits<T1>::ReturnType AsType(
+        UnionType2<T1, T2>* union_value) {
       return *(union_value->storage_.template data_as<T1>());
     }
-    static typename internal::UnionTypeTraits<T1>::ConstReturnType
-        AsType(const UnionType2<T1, T2>* union_value) {
+    static typename internal::UnionTypeTraits<T1>::ConstReturnType AsType(
+        const UnionType2<T1, T2>* union_value) {
       return *(union_value->storage_.template data_as<T1>());
     }
     friend class UnionType2<T1, T2>;
@@ -132,12 +128,12 @@ class UnionType2 {
     static bool IsType(const UnionType2<T1, T2>* union_value) {
       return union_value->specific_type_ == kTypeT2;
     }
-    static typename internal::UnionTypeTraits<T2>::ReturnType
-        AsType(UnionType2<T1, T2>* union_value) {
+    static typename internal::UnionTypeTraits<T2>::ReturnType AsType(
+        UnionType2<T1, T2>* union_value) {
       return *(union_value->storage_.template data_as<T2>());
     }
-    static typename internal::UnionTypeTraits<T2>::ConstReturnType
-        AsType(const UnionType2<T1, T2>* union_value) {
+    static typename internal::UnionTypeTraits<T2>::ConstReturnType AsType(
+        const UnionType2<T1, T2>* union_value) {
       return *(union_value->storage_.template data_as<T2>());
     }
     friend class UnionType2<T1, T2>;
@@ -199,9 +195,8 @@ class UnionType2 {
 
 // Needed to instantiate base::Optional<UnionTypeN>
 template <typename T1, typename T2>
-inline std::ostream& operator<<(
-    std::ostream& stream, const UnionType2<T1, T2>& union_value) {
-
+inline std::ostream& operator<<(std::ostream& stream,
+                                const UnionType2<T1, T2>& union_value) {
   if (union_value.template IsType<T1>()) {
     stream << union_value.template AsType<T1>();
   } else if (union_value.template IsType<T2>()) {
@@ -232,9 +227,7 @@ class UnionType3 {
     new (storage_.void_data()) T3(arg);
   }
 
-  UnionType3(const UnionType3& other) {
-    ConstructFromOther(other);
-  }
+  UnionType3(const UnionType3& other) { ConstructFromOther(other); }
 
   UnionType3& operator=(const UnionType3& other) {
     if (&other != this) {
@@ -244,9 +237,7 @@ class UnionType3 {
     return *this;
   }
 
-  ~UnionType3() {
-    Destruct();
-  }
+  ~UnionType3() { Destruct(); }
 
   // Forward these checks to the UnionTypeCheck helper class, which works around
   // being unable to do template specializations in class scope.
@@ -281,12 +272,12 @@ class UnionType3 {
     static bool IsType(const UnionType3<T1, T2, T3>* union_value) {
       return union_value->specific_type_ == kTypeT1;
     }
-    static typename internal::UnionTypeTraits<T1>::ReturnType
-        AsType(UnionType3<T1, T2, T3>* union_value) {
+    static typename internal::UnionTypeTraits<T1>::ReturnType AsType(
+        UnionType3<T1, T2, T3>* union_value) {
       return *(union_value->storage_.template data_as<T1>());
     }
-    static typename internal::UnionTypeTraits<T1>::ConstReturnType
-        AsType(const UnionType3<T1, T2, T3>* union_value) {
+    static typename internal::UnionTypeTraits<T1>::ConstReturnType AsType(
+        const UnionType3<T1, T2, T3>* union_value) {
       return *(union_value->storage_.template data_as<T1>());
     }
     friend class UnionType3<T1, T2, T3>;
@@ -297,12 +288,12 @@ class UnionType3 {
     static bool IsType(const UnionType3<T1, T2, T3>* union_value) {
       return union_value->specific_type_ == kTypeT2;
     }
-    static typename internal::UnionTypeTraits<T2>::ReturnType
-        AsType(UnionType3<T1, T2, T3>* union_value) {
+    static typename internal::UnionTypeTraits<T2>::ReturnType AsType(
+        UnionType3<T1, T2, T3>* union_value) {
       return *(union_value->storage_.template data_as<T2>());
     }
-    static typename internal::UnionTypeTraits<T2>::ConstReturnType
-        AsType(const UnionType3<T1, T2, T3>* union_value) {
+    static typename internal::UnionTypeTraits<T2>::ConstReturnType AsType(
+        const UnionType3<T1, T2, T3>* union_value) {
       return *(union_value->storage_.template data_as<T2>());
     }
     friend class UnionType3<T1, T2, T3>;
@@ -313,12 +304,12 @@ class UnionType3 {
     static bool IsType(const UnionType3<T1, T2, T3>* union_value) {
       return union_value->specific_type_ == kTypeT3;
     }
-    static typename internal::UnionTypeTraits<T3>::ReturnType
-        AsType(UnionType3<T1, T2, T3>* union_value) {
+    static typename internal::UnionTypeTraits<T3>::ReturnType AsType(
+        UnionType3<T1, T2, T3>* union_value) {
       return *(union_value->storage_.template data_as<T3>());
     }
-    static typename internal::UnionTypeTraits<T3>::ConstReturnType
-        AsType(const UnionType3<T1, T2, T3>* union_value) {
+    static typename internal::UnionTypeTraits<T3>::ConstReturnType AsType(
+        const UnionType3<T1, T2, T3>* union_value) {
       return *(union_value->storage_.template data_as<T3>());
     }
     friend class UnionType3<T1, T2, T3>;
@@ -389,9 +380,8 @@ class UnionType3 {
 
 // Needed to instantiate base::Optional<UnionTypeN>
 template <typename T1, typename T2, typename T3>
-inline std::ostream& operator<<(
-    std::ostream& stream, const UnionType3<T1, T2, T3>& union_value) {
-
+inline std::ostream& operator<<(std::ostream& stream,
+                                const UnionType3<T1, T2, T3>& union_value) {
   if (union_value.template IsType<T1>()) {
     stream << union_value.template AsType<T1>();
   } else if (union_value.template IsType<T2>()) {
@@ -428,9 +418,7 @@ class UnionType4 {
     new (storage_.void_data()) T4(arg);
   }
 
-  UnionType4(const UnionType4& other) {
-    ConstructFromOther(other);
-  }
+  UnionType4(const UnionType4& other) { ConstructFromOther(other); }
 
   UnionType4& operator=(const UnionType4& other) {
     if (&other != this) {
@@ -440,9 +428,7 @@ class UnionType4 {
     return *this;
   }
 
-  ~UnionType4() {
-    Destruct();
-  }
+  ~UnionType4() { Destruct(); }
 
   // Forward these checks to the UnionTypeCheck helper class, which works around
   // being unable to do template specializations in class scope.
@@ -477,12 +463,12 @@ class UnionType4 {
     static bool IsType(const UnionType4<T1, T2, T3, T4>* union_value) {
       return union_value->specific_type_ == kTypeT1;
     }
-    static typename internal::UnionTypeTraits<T1>::ReturnType
-        AsType(UnionType4<T1, T2, T3, T4>* union_value) {
+    static typename internal::UnionTypeTraits<T1>::ReturnType AsType(
+        UnionType4<T1, T2, T3, T4>* union_value) {
       return *(union_value->storage_.template data_as<T1>());
     }
-    static typename internal::UnionTypeTraits<T1>::ConstReturnType
-        AsType(const UnionType4<T1, T2, T3, T4>* union_value) {
+    static typename internal::UnionTypeTraits<T1>::ConstReturnType AsType(
+        const UnionType4<T1, T2, T3, T4>* union_value) {
       return *(union_value->storage_.template data_as<T1>());
     }
     friend class UnionType4<T1, T2, T3, T4>;
@@ -493,12 +479,12 @@ class UnionType4 {
     static bool IsType(const UnionType4<T1, T2, T3, T4>* union_value) {
       return union_value->specific_type_ == kTypeT2;
     }
-    static typename internal::UnionTypeTraits<T2>::ReturnType
-        AsType(UnionType4<T1, T2, T3, T4>* union_value) {
+    static typename internal::UnionTypeTraits<T2>::ReturnType AsType(
+        UnionType4<T1, T2, T3, T4>* union_value) {
       return *(union_value->storage_.template data_as<T2>());
     }
-    static typename internal::UnionTypeTraits<T2>::ConstReturnType
-        AsType(const UnionType4<T1, T2, T3, T4>* union_value) {
+    static typename internal::UnionTypeTraits<T2>::ConstReturnType AsType(
+        const UnionType4<T1, T2, T3, T4>* union_value) {
       return *(union_value->storage_.template data_as<T2>());
     }
     friend class UnionType4<T1, T2, T3, T4>;
@@ -509,12 +495,12 @@ class UnionType4 {
     static bool IsType(const UnionType4<T1, T2, T3, T4>* union_value) {
       return union_value->specific_type_ == kTypeT3;
     }
-    static typename internal::UnionTypeTraits<T3>::ReturnType
-        AsType(UnionType4<T1, T2, T3, T4>* union_value) {
+    static typename internal::UnionTypeTraits<T3>::ReturnType AsType(
+        UnionType4<T1, T2, T3, T4>* union_value) {
       return *(union_value->storage_.template data_as<T3>());
     }
-    static typename internal::UnionTypeTraits<T3>::ConstReturnType
-        AsType(const UnionType4<T1, T2, T3, T4>* union_value) {
+    static typename internal::UnionTypeTraits<T3>::ConstReturnType AsType(
+        const UnionType4<T1, T2, T3, T4>* union_value) {
       return *(union_value->storage_.template data_as<T3>());
     }
     friend class UnionType4<T1, T2, T3, T4>;
@@ -525,12 +511,12 @@ class UnionType4 {
     static bool IsType(const UnionType4<T1, T2, T3, T4>* union_value) {
       return union_value->specific_type_ == kTypeT4;
     }
-    static typename internal::UnionTypeTraits<T4>::ReturnType
-        AsType(UnionType4<T1, T2, T3, T4>* union_value) {
+    static typename internal::UnionTypeTraits<T4>::ReturnType AsType(
+        UnionType4<T1, T2, T3, T4>* union_value) {
       return *(union_value->storage_.template data_as<T4>());
     }
-    static typename internal::UnionTypeTraits<T4>::ConstReturnType
-        AsType(const UnionType4<T1, T2, T3, T4>* union_value) {
+    static typename internal::UnionTypeTraits<T4>::ConstReturnType AsType(
+        const UnionType4<T1, T2, T3, T4>* union_value) {
       return *(union_value->storage_.template data_as<T4>());
     }
     friend class UnionType4<T1, T2, T3, T4>;
@@ -610,9 +596,8 @@ class UnionType4 {
 
 // Needed to instantiate base::Optional<UnionTypeN>
 template <typename T1, typename T2, typename T3, typename T4>
-inline std::ostream& operator<<(
-    std::ostream& stream, const UnionType4<T1, T2, T3, T4>& union_value) {
-
+inline std::ostream& operator<<(std::ostream& stream,
+                                const UnionType4<T1, T2, T3, T4>& union_value) {
   if (union_value.template IsType<T1>()) {
     stream << union_value.template AsType<T1>();
   } else if (union_value.template IsType<T2>()) {

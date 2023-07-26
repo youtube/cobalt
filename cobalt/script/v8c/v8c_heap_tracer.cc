@@ -92,7 +92,8 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
           wrapper_factory->MaybeGetWrapperPrivate(
               static_cast<Wrappable*>(traceable));
       if (maybe_wrapper_private) {
-        RegisterEmbedderReference(maybe_wrapper_private->traced_global().As<v8::Data>());
+        RegisterEmbedderReference(
+            maybe_wrapper_private->traced_global().As<v8::Data>());
       }
     }
 

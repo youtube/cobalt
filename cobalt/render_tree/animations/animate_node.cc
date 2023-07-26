@@ -15,6 +15,7 @@
 #include "cobalt/render_tree/animations/animate_node.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/enable_if.h"
@@ -375,8 +376,7 @@ AnimateNode::TraverseListEntry AnimateNode::BoundsVisitor::AdvanceIterator(
   return *(iterator_++);
 }
 
-void AnimateNode::BoundsVisitor::ApplyTransform(Node* node) {
-}
+void AnimateNode::BoundsVisitor::ApplyTransform(Node* node) {}
 
 void AnimateNode::BoundsVisitor::ApplyTransform(CompositionNode* node) {
   transform_ = transform_ * math::TranslateMatrix(node->data().offset().x(),
