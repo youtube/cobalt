@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/renderer/submission_queue.h"
+
 #include "base/time/time.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/renderer/submission.h"

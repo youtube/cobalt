@@ -16,7 +16,6 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_GLYPH_BUFFER_H_
 
 #include "cobalt/render_tree/glyph_buffer.h"
-
 #include "third_party/skia/include/core/SkTextBlob.h"
 
 namespace cobalt {

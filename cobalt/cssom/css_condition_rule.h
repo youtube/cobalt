@@ -41,9 +41,7 @@ class CSSConditionRule : public CSSGroupingRule {
   // Custom, not in any spec.
   //
   // From CSSRule.
-  void Accept(CSSRuleVisitor* visitor) override {
-    NOTREACHED();
-  }
+  void Accept(CSSRuleVisitor* visitor) override { NOTREACHED(); }
 
   // Returns the cached result of evaluating the condition.
   bool condition_value() { return cached_condition_value_; }

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/renderer/pipeline.h"
+
 #include <cmath>
 #include <memory>
 
@@ -19,16 +21,15 @@
 #include "base/threading/platform_thread.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
-#include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/submission.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::Between;
-using ::testing::_;
 using cobalt::renderer::Pipeline;
 using cobalt::renderer::rasterizer::Rasterizer;
+using ::testing::_;
+using ::testing::Between;
 
 namespace {
 // We explicitly state here how long our mock rasterizer will take to complete
@@ -39,7 +40,7 @@ const base::TimeDelta kRasterizeDelay =
 
 class MockResourceProvider : public cobalt::render_tree::ResourceProviderStub {
  public:
-  MockResourceProvider() : fonts_loaded_(false){};
+  MockResourceProvider() : fonts_loaded_(false) {}
   ~MockResourceProvider() override {}
   void LoadAdditionalFonts() override { fonts_loaded_ = true; }
   bool fonts_loaded_;

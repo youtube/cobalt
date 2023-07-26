@@ -11,7 +11,6 @@
 #include "SkTFitsIn.h"
 #include "SkTemplates.h"
 #include "SkTypes.h"
-
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/optional.h"

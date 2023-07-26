@@ -18,7 +18,6 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-
 #include "starboard/event.h"
 
 namespace cobalt {
@@ -50,7 +49,7 @@ void OnScreenKeyboardStarboardBridge::Blur(int ticket) {
 
 void OnScreenKeyboardStarboardBridge::UpdateSuggestions(
     const script::Sequence<std::string>& suggestions, int ticket) {
-  std::unique_ptr<const char* []> suggestions_data(
+  std::unique_ptr<const char*[]> suggestions_data(
       new const char*[suggestions.size()]);
   for (script::Sequence<std::string>::size_type i = 0; i < suggestions.size();
        ++i) {

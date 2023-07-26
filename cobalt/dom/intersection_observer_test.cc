@@ -27,8 +27,8 @@
 using cobalt::cssom::PercentageValue;
 using cobalt::cssom::PropertyListValue;
 using cobalt::dom::testing::MockLayoutBoxes;
-using ::testing::NiceMock;
 using ::testing::_;
+using ::testing::NiceMock;
 using ::testing::Return;
 
 namespace cobalt {

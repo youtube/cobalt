@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "cobalt/dom/performance_navigation_timing.h"
-#include "cobalt/dom/performance.h"
 
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/performance.h"
 
 namespace cobalt {
 namespace dom {

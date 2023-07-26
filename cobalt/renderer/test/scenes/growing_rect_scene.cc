@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/renderer/test/scenes/growing_rect_scene.h"
+
+#include <memory>
 
 #include "base/bind.h"
 #include "cobalt/math/size_f.h"
@@ -27,15 +27,15 @@ using cobalt::math::Matrix3F;
 using cobalt::math::ScaleMatrix;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
-using cobalt::render_tree::animations::AnimateNode;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::SolidColorBrush;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
 
 namespace cobalt {
 namespace renderer {

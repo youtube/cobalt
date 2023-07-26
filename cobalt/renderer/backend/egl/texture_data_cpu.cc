@@ -15,6 +15,7 @@
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 
 #include <memory>
+
 #include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/utils.h"

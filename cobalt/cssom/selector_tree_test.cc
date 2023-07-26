@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/cssom/selector_tree.h"
+
+#include <memory>
 
 #include "cobalt/base/version_compatibility.h"
 #include "cobalt/css_parser/parser.h"

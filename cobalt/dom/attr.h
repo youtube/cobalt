@@ -34,8 +34,7 @@ class NamedNodeMap;
 //
 // This class is designed to proxy the actual attribute value which is stored
 // in the Element and be created only on demand.
-class Attr : public script::Wrappable,
-             public base::SupportsWeakPtr<Attr> {
+class Attr : public script::Wrappable, public base::SupportsWeakPtr<Attr> {
  public:
   // If container is NULL, the Attr will be created in a detached state.
   Attr(const std::string& name, const std::string& value,

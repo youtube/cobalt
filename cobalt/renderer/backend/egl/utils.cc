@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/backend/egl/utils.h"
 
 #include "cobalt/renderer/egl_and_gles.h"
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {
@@ -26,7 +25,9 @@ EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
                               EGLContext share_context) {
   // Create an OpenGL ES 3.0 context.
   EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE,
+      EGL_CONTEXT_CLIENT_VERSION,
+      3,
+      EGL_NONE,
   };
   EGLContext context = EGL_CALL_SIMPLE(
       eglCreateContext(display, config, share_context, context_attrib_list));
@@ -38,7 +39,9 @@ EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
     // as EGL_CONTEXT_CLIENT_VERSION.  Thus, this fallback code exists to
     // facilitate those platforms.
     EGLint context_attrib_list_gles2[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
+        EGL_CONTEXT_CLIENT_VERSION,
+        2,
+        EGL_NONE,
     };
     context = EGL_CALL_SIMPLE(eglCreateContext(display, config, share_context,
                                                context_attrib_list_gles2));

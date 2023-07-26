@@ -35,9 +35,10 @@ void ResolutionValue::Accept(PropertyValueVisitor* visitor) {
 }
 
 std::string ResolutionValue::ToString() const {
-  return base::StringPrintf(
-      "%.7g%s", value_,
-      unit_ == kDPIUnit ? "dpi" : unit_ == kDPCMUnit ? "dpcm" : "");
+  return base::StringPrintf("%.7g%s", value_,
+                            unit_ == kDPIUnit    ? "dpi"
+                            : unit_ == kDPCMUnit ? "dpcm"
+                                                 : "");
 }
 
 }  // namespace cssom

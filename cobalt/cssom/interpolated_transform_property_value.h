@@ -38,8 +38,8 @@ class InterpolatedTransformPropertyValue : public TransformPropertyValue {
   }
 
   math::Matrix3F ToMatrix(const math::SizeF& used_size,
-      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
-      const override;
+                          const scoped_refptr<ui_navigation::NavItem>&
+                              used_ui_nav_focus) const override;
 
   bool operator==(const InterpolatedTransformPropertyValue& other) const {
     return progress_ == other.progress_ &&

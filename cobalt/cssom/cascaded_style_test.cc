@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/cssom/cascaded_style.h"
+
+#include <memory>
+#include <utility>
 
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/cascade_precedence.h"
@@ -46,44 +47,47 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   // rule 2 > rule 3 > rule 1.
 
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
-      css_parser->ParseRule(
-                    "div {"
-                    "  left: 100px !important;"
-                    "  right: 100px;"
-                    "  width: 100px;"
-                    "  height: 100px;"
-                    "}",
-                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+      css_parser
+          ->ParseRule(
+              "div {"
+              "  left: 100px !important;"
+              "  right: 100px;"
+              "  width: 100px;"
+              "  height: 100px;"
+              "}",
+              base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
   CascadePrecedence cascade_precedence_1(kNormalUserAgent);
   rules_with_cascade_precedence.push_back(
       std::make_pair(css_style_rule_1, cascade_precedence_1));
 
   scoped_refptr<CSSStyleRule> css_style_rule_2 =
-      css_parser->ParseRule(
-                    "div {"
-                    "  left: 200px;"
-                    "  right: 200px !important;"
-                    "  width: 200px;"
-                    "  height: 200px;"
-                    "  vertical-align: top !important;"
-                    "  text-align: center !important;"
-                    "}",
-                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+      css_parser
+          ->ParseRule(
+              "div {"
+              "  left: 200px;"
+              "  right: 200px !important;"
+              "  width: 200px;"
+              "  height: 200px;"
+              "  vertical-align: top !important;"
+              "  text-align: center !important;"
+              "}",
+              base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
   CascadePrecedence cascade_precedence_2(kNormalOverride);
   rules_with_cascade_precedence.push_back(
       std::make_pair(css_style_rule_2, cascade_precedence_2));
 
   scoped_refptr<CSSStyleRule> css_style_rule_3 =
-      css_parser->ParseRule(
-                    "div {"
-                    "  left: 300px;"
-                    "  right: 300px;"
-                    "  width: 300px !important;"
-                    "  height: 300px;"
-                    "}",
-                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+      css_parser
+          ->ParseRule(
+              "div {"
+              "  left: 300px;"
+              "  right: 300px;"
+              "  width: 300px !important;"
+              "  height: 300px;"
+              "}",
+              base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
   CascadePrecedence cascade_precedence_3(kNormalAuthor);
   rules_with_cascade_precedence.push_back(
@@ -121,25 +125,27 @@ TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
   // rule 2 > rule 1.
 
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
-      css_parser->ParseRule(
-                    "div {"
-                    "  left: 100px !important;"
-                    "  right: 100px;"
-                    "}",
-                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+      css_parser
+          ->ParseRule(
+              "div {"
+              "  left: 100px !important;"
+              "  right: 100px;"
+              "}",
+              base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
   CascadePrecedence cascade_precedence_1(kNormalUserAgent);
   rules_with_cascade_precedence.push_back(
       std::make_pair(css_style_rule_1, cascade_precedence_1));
 
   scoped_refptr<CSSStyleRule> css_style_rule_2 =
-      css_parser->ParseRule(
-                    "div {"
-                    "  left: 200px;"
-                    "  right: 200px !important;"
-                    "  background-image: url(foo.png);"
-                    "}",
-                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+      css_parser
+          ->ParseRule(
+              "div {"
+              "  left: 200px;"
+              "  right: 200px !important;"
+              "  background-image: url(foo.png);"
+              "}",
+              base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
   CascadePrecedence cascade_precedence_2(kNormalOverride);
   rules_with_cascade_precedence.push_back(
@@ -177,13 +183,14 @@ TEST(CascadedStyleTest,
       GURL("https://www.youtube.com/tv/img");
 
   scoped_refptr<CSSStyleRule> css_style_rule =
-      css_parser->ParseRule(
-                    "div {"
-                    "  left: 200px;"
-                    "  right: 200px !important;"
-                    "  background-image: url(foo.png);"
-                    "}",
-                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+      css_parser
+          ->ParseRule(
+              "div {"
+              "  left: 200px;"
+              "  right: 200px !important;"
+              "  background-image: url(foo.png);"
+              "}",
+              base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
   CascadePrecedence cascade_precedence(kNormalOverride);
   rules_with_cascade_precedence.push_back(
@@ -221,12 +228,13 @@ TEST(CascadedStyleTest,
   // rule 2 > rule 1.
 
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
-      css_parser->ParseRule(
-                    "div {"
-                    "  right: 100px;"
-                    "  background-image: url(bar.png) !important;"
-                    "}",
-                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+      css_parser
+          ->ParseRule(
+              "div {"
+              "  right: 100px;"
+              "  background-image: url(bar.png) !important;"
+              "}",
+              base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
   CascadePrecedence cascade_precedence_1(kNormalUserAgent);
   rules_with_cascade_precedence.push_back(
@@ -238,12 +246,13 @@ TEST(CascadedStyleTest,
   css_style_rule_1->set_parent_style_sheet(parent_style_sheet_1.get());
 
   scoped_refptr<CSSStyleRule> css_style_rule_2 =
-      css_parser->ParseRule(
-                    "div {"
-                    "  right: 200px !important;"
-                    "  background-image: url(foo.png);"
-                    "}",
-                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+      css_parser
+          ->ParseRule(
+              "div {"
+              "  right: 200px !important;"
+              "  background-image: url(foo.png);"
+              "}",
+              base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
   CascadePrecedence cascade_precedence_2(kNormalOverride);
   rules_with_cascade_precedence.push_back(

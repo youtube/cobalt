@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/test/scenes/all_scenes_combined_scene.h"
 
+#include <utility>
+
 #include "base/trace_event/trace_event.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/size_f.h"
@@ -37,8 +39,7 @@ namespace scenes {
 scoped_refptr<render_tree::Node> CreateAllScenesCombinedScene(
     ResourceProvider* resource_provider, const SizeF& output_dimensions,
     base::TimeDelta start_time) {
-  TRACE_EVENT0("cobalt::renderer_sandbox",
-               "CreateAllScenesCombinedScene()");
+  TRACE_EVENT0("cobalt::renderer_sandbox", "CreateAllScenesCombinedScene()");
   CompositionNode::Builder all_scenes_combined_scene_builder;
 
   // Compose all the render trees representing the sub-scenes through a

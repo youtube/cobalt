@@ -21,9 +21,7 @@ AbortController::AbortController(script::EnvironmentSettings* settings) {
   abort_signal_ = new AbortSignal(settings);
 }
 
-void AbortController::Abort() {
-  abort_signal_->SignalAbort();
-}
+void AbortController::Abort() { abort_signal_->SignalAbort(); }
 
 void AbortController::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(abort_signal_);

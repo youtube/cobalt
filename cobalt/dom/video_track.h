@@ -60,12 +60,9 @@ class VideoTrack : public TrackBase {
   //
   static bool IsValidKind(const char* kind) {
     // https://www.w3.org/TR/html51/semantics-embedded-content.html#dom-videotrack-videotrackkind
-    return strcmp(kind, "alternative") == 0 ||
-           strcmp(kind, "captions") == 0 ||
-           strcmp(kind, "main") == 0 ||
-           strcmp(kind, "sign") == 0 ||
-           strcmp(kind, "subtitles") == 0 ||
-           strcmp(kind, "commentary") == 0 ||
+    return strcmp(kind, "alternative") == 0 || strcmp(kind, "captions") == 0 ||
+           strcmp(kind, "main") == 0 || strcmp(kind, "sign") == 0 ||
+           strcmp(kind, "subtitles") == 0 || strcmp(kind, "commentary") == 0 ||
            strlen(kind) == 0;
   }
 

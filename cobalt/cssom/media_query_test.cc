@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/cssom/media_query.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/length_value.h"

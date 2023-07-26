@@ -19,7 +19,6 @@
 
 #include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
-
 #include "cobalt/script/wrappable.h"
 #include "net/base/load_timing_info.h"
 

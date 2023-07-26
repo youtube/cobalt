@@ -26,9 +26,9 @@
 namespace cobalt {
 namespace cssom {
 
+using dom::testing::FakeExceptionState;
 using ::testing::_;
 using ::testing::Return;
-using dom::testing::FakeExceptionState;
 
 TEST(CSSComputedStyleDeclarationTest, CSSTextSetterRaisesException) {
   scoped_refptr<CSSComputedStyleDeclaration> style =

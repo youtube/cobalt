@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/cssom/time_list_value.h"
+
 #include <inttypes.h>
 
 #include "base/strings/stringprintf.h"
-#include "cobalt/cssom/time_list_value.h"
 
 namespace cobalt {
 namespace cssom {

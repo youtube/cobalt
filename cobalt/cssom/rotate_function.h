@@ -47,8 +47,8 @@ class RotateFunction : public TransformFunction {
   }
 
   math::Matrix3F ToMatrix(const math::SizeF& used_size,
-      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
-      const override;
+                          const scoped_refptr<ui_navigation::NavItem>&
+                              used_ui_nav_focus) const override;
 
   bool operator==(const RotateFunction& other) const {
     return clockwise_angle_in_radians_ == other.clockwise_angle_in_radians_;

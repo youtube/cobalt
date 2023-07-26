@@ -24,10 +24,10 @@ namespace common {
 using math::Matrix3F;
 using math::Rect;
 using math::RectF;
+using math::ScaleMatrix;
+using math::TranslateMatrix;
 using math::Vector2dF;
 using math::Vector3dF;
-using math::TranslateMatrix;
-using math::ScaleMatrix;
 
 namespace {
 float GetFractionalComponent(float value) { return value - std::floor(value); }

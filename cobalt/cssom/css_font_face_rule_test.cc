@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/cssom/css_font_face_rule.h"
+
+#include <memory>
+#include <utility>
 
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"

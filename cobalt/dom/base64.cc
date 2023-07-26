@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
-
 #include "cobalt/dom/base64.h"
+
+#include <algorithm>
 
 #include "base/base64.h"
 

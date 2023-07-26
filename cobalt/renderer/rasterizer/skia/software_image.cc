@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"

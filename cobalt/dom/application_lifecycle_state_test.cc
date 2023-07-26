@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/application_lifecycle_state.h"
+
+#include <memory>
 
 #include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/dom/visibility_state.h"
-
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -42,6 +41,7 @@ class MockApplicationLifecycleStateObserver
   MOCK_METHOD1(OnVisibilityStateChanged,
                void(VisibilityState visibility_state));
   MOCK_METHOD1(OnFrozennessChanged, void(bool is_frozen));
+
  protected:
   MockApplicationLifecycleStateObserver() {}
 };

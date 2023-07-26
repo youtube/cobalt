@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/dom/performance.h"
+
 #include "cobalt/dom/performance_high_resolution_time.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"

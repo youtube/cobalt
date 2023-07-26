@@ -152,7 +152,8 @@ bool CSSDeclaredStyleData::operator==(const CSSDeclaredStyleData& that) const {
        property_value_iterator != declared_property_values_.end();
        ++property_value_iterator) {
     if (!property_value_iterator->second->Equals(
-            *that.declared_property_values_.find(property_value_iterator->first)
+            *that.declared_property_values_
+                 .find(property_value_iterator->first)
                  ->second)) {
       return false;
     }

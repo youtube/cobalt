@@ -14,8 +14,6 @@
 
 #include <memory>
 
-#include "cobalt/cssom/property_value.h"
-
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
 #include "cobalt/cssom/absolute_url_value.h"
@@ -36,6 +34,7 @@
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
+#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/radial_gradient_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"

@@ -14,15 +14,15 @@
 
 #include "cobalt/cssom/transform_function_list_value.h"
 
+#include <utility>
+
 namespace cobalt {
 namespace cssom {
 
-TransformFunctionListValue::Builder::Builder()
-    : traits_(0) {}
+TransformFunctionListValue::Builder::Builder() : traits_(0) {}
 
 TransformFunctionListValue::Builder::Builder(Builder&& other)
-    : functions_(std::move(other.functions_)),
-      traits_(other.traits_) {}
+    : functions_(std::move(other.functions_)), traits_(other.traits_) {}
 
 void TransformFunctionListValue::Builder::emplace_back(
     TransformFunction* function) {

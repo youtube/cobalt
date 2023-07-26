@@ -15,9 +15,8 @@
 #ifndef COBALT_DOM_TESTING_FAKE_EXCEPTION_STATE_H_
 #define COBALT_DOM_TESTING_FAKE_EXCEPTION_STATE_H_
 
-#include "cobalt/script/exception_state.h"
-
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/web/dom_exception.h"
 
 namespace cobalt {

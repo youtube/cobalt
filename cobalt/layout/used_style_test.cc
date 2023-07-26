@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/layout/used_style.h"
+
+#include <memory>
+#include <utility>
 
 #include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/keyword_value.h"

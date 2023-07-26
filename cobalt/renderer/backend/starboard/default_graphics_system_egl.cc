@@ -15,7 +15,6 @@
 #include <memory>
 
 #include "cobalt/renderer/backend/default_graphics_system.h"
-
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/system_window/system_window.h"
 

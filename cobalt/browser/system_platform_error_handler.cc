@@ -23,7 +23,7 @@ void SystemPlatformErrorHandler::RaiseSystemPlatformError(
     const SystemPlatformErrorOptions& options) {
   DCHECK(!options.callback.is_null());
 
-  CallbackData* callback_data = new CallbackData{ &mutex_, options.callback };
+  CallbackData* callback_data = new CallbackData{&mutex_, options.callback};
 
   if (!SbSystemRaisePlatformError(
           options.error_type,

@@ -30,7 +30,6 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

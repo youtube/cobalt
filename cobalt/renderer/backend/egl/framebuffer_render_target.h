@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_BACKEND_EGL_FRAMEBUFFER_RENDER_TARGET_H_
 
 #include <memory>
+
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/framebuffer.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
@@ -49,9 +50,7 @@ class FramebufferRenderTargetEGL : public RenderTargetEGL {
   }
 
   // Get the color texture attachment of the framebuffer.
-  TextureEGL* GetColorTexture() const {
-    return framebuffer_.GetColorTexture();
-  }
+  TextureEGL* GetColorTexture() const { return framebuffer_.GetColorTexture(); }
 
   bool CreationError() override { return framebuffer_.CreationError(); }
 

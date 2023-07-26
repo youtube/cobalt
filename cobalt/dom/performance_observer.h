@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_PERFORMANCE_OBSERVER_H_
 #define COBALT_DOM_PERFORMANCE_OBSERVER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/weak_ptr.h"
@@ -22,8 +23,8 @@
 #include "cobalt/dom/performance_observer_init.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/script/sequence.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -39,9 +40,12 @@ class PerformanceObserver : public script::Wrappable {
   // https://www.w3.org/TR/2019/WD-performance-timeline-2-20191024/#dom-performanceobservercallback
   typedef script::CallbackFunction<void(
       const scoped_refptr<PerformanceObserverEntryList>& entries,
-      const scoped_refptr<PerformanceObserver>& observer)> PerformanceObserverCallback;
-  typedef script::ScriptValue<PerformanceObserverCallback> PerformanceObserverCallbackArg;
-  typedef PerformanceObserverCallbackArg::Reference PerformanceObserverCallbackReference;
+      const scoped_refptr<PerformanceObserver>& observer)>
+      PerformanceObserverCallback;
+  typedef script::ScriptValue<PerformanceObserverCallback>
+      PerformanceObserverCallbackArg;
+  typedef PerformanceObserverCallbackArg::Reference
+      PerformanceObserverCallbackReference;
 
   typedef base::Callback<void(
       const scoped_refptr<PerformanceObserverEntryList>& entries,
@@ -69,17 +73,18 @@ class PerformanceObserver : public script::Wrappable {
 
   void EnqueuePerformanceEntry(const scoped_refptr<PerformanceEntry>& entry);
 
-  // Internal helper class to allow creation of a PerformanceObserver with either a
-  // native or script callback. Must be public so it can be inherited from in
-  // the .cc file.
+  // Internal helper class to allow creation of a PerformanceObserver with
+  // either a native or script callback. Must be public so it can be inherited
+  // from in the .cc file.
   class CallbackInternal {
    public:
-    virtual bool RunCallback(const scoped_refptr<PerformanceObserverEntryList>& entries,
-                             const scoped_refptr<PerformanceObserver>& observer) = 0;
+    virtual bool RunCallback(
+        const scoped_refptr<PerformanceObserverEntryList>& entries,
+        const scoped_refptr<PerformanceObserver>& observer) = 0;
     virtual ~CallbackInternal() {}
   };
 
-  void EmptyObserverBuffer() { observer_buffer_.clear();}
+  void EmptyObserverBuffer() { observer_buffer_.clear(); }
   PerformanceEntryList GetObserverBuffer() { return observer_buffer_; }
   std::unique_ptr<CallbackInternal>& GetPerformanceObserverCallback() {
     return callback_;

@@ -22,7 +22,6 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
-
 #include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkFontMetrics.h"
 #include "third_party/skia/include/core/SkRefCnt.h"

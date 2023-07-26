@@ -19,8 +19,8 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "cobalt/script/wrappable.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
