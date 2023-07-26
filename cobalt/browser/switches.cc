@@ -36,6 +36,9 @@ const char kDevServersListenIpHelp[] =
     "IPv4), and to listen to LOOPBACK use \"::1\" (\"127.0.0.1\" for IPv4)";
 
 #if defined(ENABLE_DEBUGGER)
+const char kDisableWebDebugger[] = "disable_web_debugger";
+const char kDisableWebDebuggerHelp[] = "Disable support for the web debugger";
+
 const char kRemoteDebuggingPort[] = "remote_debugging_port";
 const char kRemoteDebuggingPortHelp[] =
     "Remote web debugger is served from the specified port. If 0, then the "
@@ -439,8 +442,9 @@ std::string HelpMessage() {
     {kDebugConsoleMode, kDebugConsoleModeHelp},
         {kDevServersListenIp, kDevServersListenIpHelp},
 #if defined(ENABLE_DEBUGGER)
-        {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
+        {kDisableWebDebugger, kDisableWebDebuggerHelp},
         {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
+        {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
 #endif  // ENABLE_DEBUGGER
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
         {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
