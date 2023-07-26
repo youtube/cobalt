@@ -19,10 +19,25 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/common/log.h"
 #include "starboard/file.h"
 
 namespace base {
+
+namespace {
+
+void RecordFileWriteStat(int write_file_result) {
+  auto& stats_tracker = starboard::StatsTrackerContainer::GetInstance()->stats_tracker();
+  if (write_file_result <= 0) {
+    stats_tracker.FileWriteFail();
+  } else {
+    stats_tracker.FileWriteSuccess();
+    stats_tracker.FileWriteBytesWritten(/*bytes_written=*/write_file_result);
+  }
+}
+
+}  // namespace
 
 // Make sure our Whence mappings match the system headers.
 static_assert(
@@ -181,8 +196,9 @@ int File::WriteAtCurrentPos(const char* data, int size) {
     return -1;
 
   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPos", size);
-
-  return SbFileWriteAll(file_.get(), data, size);
+  int write_result = SbFileWriteAll(file_.get(), data, size);
+  RecordFileWriteStat(write_result);
+  return write_result;
 }
 
 int File::WriteAtCurrentPosNoBestEffort(const char* data, int size) {
@@ -192,7 +208,9 @@ int File::WriteAtCurrentPosNoBestEffort(const char* data, int size) {
     return -1;
 
   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPosNoBestEffort", size);
-  return SbFileWrite(file_.get(), data, size);
+  int write_result = SbFileWrite(file_.get(), data, size);
+  RecordFileWriteStat(write_result);
+  return write_result;
 }
 
 int64_t File::GetLength() {

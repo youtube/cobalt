@@ -21,8 +21,8 @@
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "cobalt/storage/savegame.h"
+#include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/common/storage.h"
-#include "starboard/user.h"
 
 namespace cobalt {
 namespace storage {
@@ -76,8 +76,14 @@ bool WriteRecord(const std::unique_ptr<starboard::StorageRecord>& record,
   int64_t byte_count = static_cast<int64_t>(bytes.size());
   bool success =
       record->Write(reinterpret_cast<const char*>(bytes.data()), byte_count);
+  auto& stats_tracker =
+      starboard::StatsTrackerContainer::GetInstance()->stats_tracker();
   if (success) {
     DLOG(INFO) << "Successfully wrote storage record.";
+    stats_tracker.StorageWriteRecordSuccess();
+    stats_tracker.StorageWriteRecordBytesWritten(/*bytes_written=*/byte_count);
+  } else {
+    stats_tracker.StorageWriteRecordFail();
   }
   return success;
 }

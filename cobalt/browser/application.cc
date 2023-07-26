@@ -49,6 +49,7 @@
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
+#include "cobalt/base/starboard_stats_tracker.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/version_compatibility.h"
 #include "cobalt/base/window_on_offline_event.h"
@@ -75,6 +76,7 @@
 #include "cobalt/watchdog/watchdog.h"
 #include "components/metrics/metrics_service.h"
 #include "starboard/common/device_type.h"
+#include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/common/system_property.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
@@ -671,6 +673,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
   base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
+
+  starboard::StatsTrackerContainer::GetInstance()->set_stats_tracker(
+      std::make_unique<StarboardStatsTracker>());
 
   // Initializes persistent settings.
   persistent_settings_ =
