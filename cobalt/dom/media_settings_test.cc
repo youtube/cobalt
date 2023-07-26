@@ -31,6 +31,7 @@ TEST(MediaSettingsImplTest, Empty) {
   EXPECT_FALSE(impl.GetMaxSizeForImmediateJob());
   EXPECT_FALSE(impl.GetMaxSourceBufferAppendSizeInBytes());
   EXPECT_FALSE(impl.GetMediaElementTimeupdateEventIntervalInMilliseconds());
+  EXPECT_FALSE(impl.IsPaintingVideoBackgroundToBlack());
 }
 
 TEST(MediaSettingsImplTest, SunnyDay) {
@@ -46,6 +47,7 @@ TEST(MediaSettingsImplTest, SunnyDay) {
   ASSERT_TRUE(impl.Set("MediaSource.MaxSourceBufferAppendSizeInBytes", 100000));
   ASSERT_TRUE(
       impl.Set("MediaElement.TimeupdateEventIntervalInMilliseconds", 100001));
+  ASSERT_TRUE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 1));
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 100);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 101);
@@ -56,6 +58,7 @@ TEST(MediaSettingsImplTest, SunnyDay) {
   EXPECT_EQ(impl.GetMaxSourceBufferAppendSizeInBytes().value(), 100000);
   EXPECT_EQ(impl.GetMediaElementTimeupdateEventIntervalInMilliseconds().value(),
             100001);
+  EXPECT_TRUE(impl.IsPaintingVideoBackgroundToBlack().value());
 }
 
 TEST(MediaSettingsImplTest, RainyDay) {
@@ -71,6 +74,7 @@ TEST(MediaSettingsImplTest, RainyDay) {
   ASSERT_FALSE(impl.Set("MediaSource.MaxSourceBufferAppendSizeInBytes", 0));
   ASSERT_FALSE(
       impl.Set("MediaElement.TimeupdateEventIntervalInMilliseconds", 0));
+  ASSERT_FALSE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 2));
 
   EXPECT_FALSE(impl.GetSourceBufferEvictExtraInBytes());
   EXPECT_FALSE(impl.GetMinimumProcessorCountToOffloadAlgorithm());
@@ -80,6 +84,7 @@ TEST(MediaSettingsImplTest, RainyDay) {
   EXPECT_FALSE(impl.GetMaxSizeForImmediateJob());
   EXPECT_FALSE(impl.GetMaxSourceBufferAppendSizeInBytes());
   EXPECT_FALSE(impl.GetMediaElementTimeupdateEventIntervalInMilliseconds());
+  EXPECT_FALSE(impl.IsPaintingVideoBackgroundToBlack());
 }
 
 TEST(MediaSettingsImplTest, ZeroValuesWork) {
@@ -95,6 +100,7 @@ TEST(MediaSettingsImplTest, ZeroValuesWork) {
   // O is an invalid value for "MediaSource.MaxSourceBufferAppendSizeInBytes".
   // O is an invalid value for
   // "MediaElement.TimeupdateEventIntervalInMilliseconds".
+  ASSERT_TRUE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 0));
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 0);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 0);
@@ -102,6 +108,7 @@ TEST(MediaSettingsImplTest, ZeroValuesWork) {
   EXPECT_FALSE(impl.IsAvoidCopyingArrayBufferEnabled().value());
   EXPECT_FALSE(impl.IsCallingEndedWhenClosedEnabled().value());
   EXPECT_EQ(impl.GetMaxSizeForImmediateJob().value(), 0);
+  EXPECT_FALSE(impl.IsPaintingVideoBackgroundToBlack().value());
 }
 
 TEST(MediaSettingsImplTest, Updatable) {
@@ -117,6 +124,7 @@ TEST(MediaSettingsImplTest, Updatable) {
   ASSERT_TRUE(impl.Set("MediaSource.MaxSourceBufferAppendSizeInBytes", 1));
   ASSERT_TRUE(
       impl.Set("MediaElement.TimeupdateEventIntervalInMilliseconds", 1));
+  ASSERT_TRUE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 0));
 
   ASSERT_TRUE(impl.Set("MediaSource.SourceBufferEvictExtraInBytes", 1));
   ASSERT_TRUE(
@@ -128,6 +136,7 @@ TEST(MediaSettingsImplTest, Updatable) {
   ASSERT_TRUE(impl.Set("MediaSource.MaxSourceBufferAppendSizeInBytes", 2));
   ASSERT_TRUE(
       impl.Set("MediaElement.TimeupdateEventIntervalInMilliseconds", 2));
+  ASSERT_TRUE(impl.Set("MediaElement.PaintingVideoBackgroundToBlack", 1));
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 1);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 1);
@@ -138,6 +147,7 @@ TEST(MediaSettingsImplTest, Updatable) {
   EXPECT_EQ(impl.GetMaxSourceBufferAppendSizeInBytes().value(), 2);
   EXPECT_EQ(impl.GetMediaElementTimeupdateEventIntervalInMilliseconds().value(),
             2);
+  EXPECT_TRUE(impl.IsPaintingVideoBackgroundToBlack().value());
 }
 
 TEST(MediaSettingsImplTest, InvalidSettingNames) {
