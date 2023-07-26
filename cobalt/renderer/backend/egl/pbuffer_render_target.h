@@ -27,8 +27,8 @@ namespace backend {
 // (Pixel Buffer Object) which can be used as an offscreen rendering target.
 class PBufferRenderTargetEGL : public RenderTargetEGL {
  public:
-  PBufferRenderTargetEGL(
-      EGLDisplay display, EGLConfig config, const math::Size& dimensions);
+  PBufferRenderTargetEGL(EGLDisplay display, EGLConfig config,
+                         const math::Size& dimensions);
 
   const math::Size& GetSize() const override;
 

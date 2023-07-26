@@ -39,10 +39,10 @@ class FontWeightValue : public PropertyValue {
     kLightAka300,
     kNormalAka400,
     kMediumAka500,
-    kSemiBoldAka600,    // same as Demi Bold
+    kSemiBoldAka600,  // same as Demi Bold
     kBoldAka700,
-    kExtraBoldAka800,   // same as Ultra Bold
-    kBlackAka900,       // same as Heavy
+    kExtraBoldAka800,  // same as Ultra Bold
+    kBlackAka900,      // same as Heavy
   };
 
   // For the sake of saving memory an explicit instantiation of this class

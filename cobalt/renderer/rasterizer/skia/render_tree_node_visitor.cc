@@ -1637,7 +1637,9 @@ void DrawInsetRectShadowNode(render_tree::RectShadowNode* node,
                        shadow_bounds.right(), shadow_bounds.bottom());
 
   SkRect* draw_rects[] = {
-      &left_shadow_rect, &top_shadow_rect, &right_shadow_rect,
+      &left_shadow_rect,
+      &top_shadow_rect,
+      &right_shadow_rect,
       &bottom_shadow_rect,
   };
 

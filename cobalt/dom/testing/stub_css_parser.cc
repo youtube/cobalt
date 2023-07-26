@@ -51,8 +51,7 @@ scoped_refptr<cssom::PropertyValue> StubCSSParser::ParsePropertyValue(
 void StubCSSParser::ParsePropertyIntoDeclarationData(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location,
-    cssom::CSSDeclarationData* declaration_data) {
-}
+    cssom::CSSDeclarationData* declaration_data) {}
 
 scoped_refptr<cssom::MediaList> StubCSSParser::ParseMediaList(
     const std::string& media_list, const base::SourceLocation& input_location) {

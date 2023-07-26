@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/mutation_reporter.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/containers/hash_tables.h"
 #include "base/trace_event/trace_event.h"

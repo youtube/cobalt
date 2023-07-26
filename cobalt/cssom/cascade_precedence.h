@@ -79,7 +79,7 @@ class CascadePrecedence {
  public:
   explicit CascadePrecedence(Origin origin) : origin_(origin) {}
   CascadePrecedence(Origin origin, const Specificity& specificity,
-                  const Appearance& appearance)
+                    const Appearance& appearance)
       : origin_(origin), specificity_(specificity), appearance_(appearance) {}
 
   Origin origin() const { return origin_; }

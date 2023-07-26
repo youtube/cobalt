@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/logging.h"
 #include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 #include "cobalt/renderer/renderer_module.h"
-
-#include "base/logging.h"
 
 namespace cobalt {
 namespace renderer {

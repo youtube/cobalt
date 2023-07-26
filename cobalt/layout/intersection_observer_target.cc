@@ -257,8 +257,9 @@ void IntersectionObserverTarget::UpdateIntersectionObservationsForTarget(
   // If targetArea is non-zero, let intersectionRatio be intersectionArea
   // divided by targetArea. Otherwise, let intersectionRatio be 1 if
   // isIntersecting is true, or 0 if isIntersecting is false.
-  float intersection_ratio = target_area > 0 ? intersection_area / target_area
-                                             : is_intersecting ? 1.0f : 0.0f;
+  float intersection_ratio = target_area > 0   ? intersection_area / target_area
+                             : is_intersecting ? 1.0f
+                                               : 0.0f;
 
   // Let thresholdIndex be the index of the first entry in observer.thresholds
   // whose value is greater than intersectionRatio, or the length of

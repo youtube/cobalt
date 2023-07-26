@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/trace_event/benchmark.h"
+
 #include <memory>
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -24,23 +26,22 @@
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/test/scenes/all_scenes_combined_scene.h"
 #include "cobalt/system_window/system_window.h"
-#include "cobalt/trace_event/benchmark.h"
 
 using cobalt::math::Size;
 using cobalt::math::SizeF;
 using cobalt::render_tree::AlphaFormat;
-using cobalt::render_tree::animations::AnimateNode;
 using cobalt::render_tree::ImageData;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::PixelFormat;
 using cobalt::render_tree::ResourceProvider;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::renderer::RendererModule;
 using cobalt::renderer::backend::Display;
 using cobalt::renderer::backend::GraphicsContext;
 using cobalt::renderer::backend::GraphicsSystem;
 using cobalt::renderer::backend::RenderTarget;
 using cobalt::renderer::backend::SurfaceInfo;
 using cobalt::renderer::rasterizer::Rasterizer;
-using cobalt::renderer::RendererModule;
 using cobalt::renderer::test::scenes::AddBlankBackgroundToScene;
 using cobalt::renderer::test::scenes::CreateAllScenesCombinedScene;
 using cobalt::system_window::SystemWindow;

@@ -22,7 +22,6 @@
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/typeface.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
-
 #include "third_party/skia/include/core/SkPaint.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 

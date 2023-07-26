@@ -13,11 +13,9 @@
 // limitations under the License.
 
 #include "cobalt/cssom/css_computed_style_data.h"
-
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

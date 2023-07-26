@@ -24,7 +24,6 @@
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/line_wrapping.h"
 #include "cobalt/render_tree/font.h"
-
 #include "third_party/icu/source/common/unicode/brkiter.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/unistr.h"

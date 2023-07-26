@@ -61,12 +61,9 @@ class AudioTrack : public TrackBase {
   static bool IsValidKind(const char* kind) {
     // https://www.w3.org/TR/html51/semantics-embedded-content.html#dom-audiotrack-audiotrackkind
     return strcmp(kind, "alternative") == 0 ||
-           strcmp(kind, "descriptions") == 0 ||
-           strcmp(kind, "main") == 0 ||
-           strcmp(kind, "main-desc") == 0 ||
-           strcmp(kind, "translation") == 0 ||
-           strcmp(kind, "commentary") == 0 ||
-           strlen(kind) == 0;
+           strcmp(kind, "descriptions") == 0 || strcmp(kind, "main") == 0 ||
+           strcmp(kind, "main-desc") == 0 || strcmp(kind, "translation") == 0 ||
+           strcmp(kind, "commentary") == 0 || strlen(kind) == 0;
   }
 
   DEFINE_WRAPPABLE_TYPE(AudioTrack);

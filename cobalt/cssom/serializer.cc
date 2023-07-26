@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/cssom/serializer.h"
+
 #include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/attribute_selector.h"

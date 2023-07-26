@@ -16,7 +16,6 @@
 
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_definitions.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

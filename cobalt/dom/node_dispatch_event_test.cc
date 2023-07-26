@@ -14,16 +14,16 @@
 
 #include <memory>
 
-#include "cobalt/dom/node.h"
-
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/node.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/testing/mock_event_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::IgnoreResult;
@@ -31,7 +31,6 @@ using ::testing::InSequence;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Pointee;
 using ::testing::Property;
-using ::testing::_;
 
 namespace cobalt {
 namespace dom {

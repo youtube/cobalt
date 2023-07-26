@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/browser/screen_shot_writer.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/bind.h"

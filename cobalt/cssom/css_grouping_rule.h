@@ -49,9 +49,7 @@ class CSSGroupingRule : public CSSRule {
   // Custom, not in any spec.
   //
   // From CSSRule.
-  void Accept(CSSRuleVisitor* visitor) override {
-    NOTREACHED();
-  }
+  void Accept(CSSRuleVisitor* visitor) override { NOTREACHED(); }
 
   void SetIndex(int index) override;
   int IndexWidth() const override;

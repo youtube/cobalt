@@ -31,14 +31,14 @@ PerformanceEntryList PerformanceObserverEntryList::GetEntries() {
 
 PerformanceEntryList PerformanceObserverEntryList::GetEntriesByType(
     const std::string& entry_type) {
-  return PerformanceEntryListImpl::GetEntriesByType(
-      observer_buffer_, entry_type);
+  return PerformanceEntryListImpl::GetEntriesByType(observer_buffer_,
+                                                    entry_type);
 }
 
 PerformanceEntryList PerformanceObserverEntryList::GetEntriesByName(
     const std::string& name, const base::StringPiece& type) {
-  return PerformanceEntryListImpl::GetEntriesByName(
-      observer_buffer_, name, type);
+  return PerformanceEntryListImpl::GetEntriesByName(observer_buffer_, name,
+                                                    type);
 }
 
 }  // namespace dom

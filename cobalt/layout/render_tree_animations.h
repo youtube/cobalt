@@ -52,7 +52,8 @@ class ApplyStyleToRenderTreeNode {
  public:
   typedef base::Callback<void(
       const scoped_refptr<const cssom::CSSComputedStyleData>&,
-      typename T::Builder*)> Function;
+      typename T::Builder*)>
+      Function;
 };
 
 // Helper function that applies an animation set to a base style to produce

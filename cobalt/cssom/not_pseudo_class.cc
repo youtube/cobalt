@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/cssom/not_pseudo_class.h"
+
+#include <memory>
+#include <utility>
 
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/selector_visitor.h"

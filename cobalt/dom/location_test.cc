@@ -19,9 +19,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+using ::testing::_;
 using ::testing::Return;
 using ::testing::StrictMock;
-using ::testing::_;
 
 namespace cobalt {
 namespace dom {

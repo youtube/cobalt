@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/font_cache.h"
+
 #include <memory>
 #include <vector>
 
-#include "cobalt/dom/font_cache.h"
 #include "cobalt/dom/global_stats.h"
 
 namespace cobalt {

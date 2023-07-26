@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/intersection_observer.h"
+
 #include <algorithm>
 #include <string>
-
-#include "cobalt/dom/intersection_observer.h"
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"

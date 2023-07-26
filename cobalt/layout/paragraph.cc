@@ -16,7 +16,6 @@
 
 #include "base/i18n/char_iterator.h"
 #include "cobalt/base/unicode/character_values.h"
-
 #include "third_party/icu/source/common/unicode/char16ptr.h"
 #include "third_party/icu/source/common/unicode/ubidi.h"
 

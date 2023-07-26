@@ -51,7 +51,8 @@ class TransformFunction : public base::PolymorphicEquatable {
 
   virtual std::string ToString() const = 0;
 
-  virtual math::Matrix3F ToMatrix(const math::SizeF& used_size,
+  virtual math::Matrix3F ToMatrix(
+      const math::SizeF& used_size,
       const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const = 0;
 
   virtual ~TransformFunction() {}

@@ -38,7 +38,6 @@ scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
 scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
     base::Optional<std::string> namespace_name,
     const std::string& qualified_name, scoped_refptr<DocumentType> doctype) {
-
   // 1. Let document be a new XMLDocument.
   scoped_refptr<XMLDocument> document = new XMLDocument(html_element_context_);
 

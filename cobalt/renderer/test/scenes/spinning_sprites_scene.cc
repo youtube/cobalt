@@ -15,6 +15,7 @@
 #include "cobalt/renderer/test/scenes/spinning_sprites_scene.h"
 
 #include <cmath>
+#include <utility>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -38,15 +39,15 @@ using cobalt::math::RotateMatrix;
 using cobalt::math::ScaleMatrix;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
-using cobalt::render_tree::animations::AnimateNode;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::ResourceProvider;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
 using cobalt::renderer::test::png_utils::DecodePNGToRenderTreeImage;
 
 namespace cobalt {

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/cssom/timing_function.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

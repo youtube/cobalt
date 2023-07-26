@@ -32,15 +32,15 @@
 
 using cobalt::math::Matrix3F;
 using cobalt::math::SizeF;
-using cobalt::render_tree::animations::AnimateNode;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::ResourceProvider;
+using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
 using cobalt::renderer::test::png_utils::DecodePNGToRenderTreeImage;
 
 namespace cobalt {
@@ -59,9 +59,9 @@ void AnimateImage(base::TimeDelta start_time,
   const float kScalePeriodInSeconds = 1.5f;
   const float kScaleAmplitude = 0.4f;
   const float kScalePhaseShift = 0.55f;
-  float scale =
-      kScalePhaseShift + kScaleAmplitude *
-      sin(2 * M_PI * elapsed_time_in_seconds / kScalePeriodInSeconds);
+  float scale = kScalePhaseShift +
+                kScaleAmplitude * sin(2 * M_PI * elapsed_time_in_seconds /
+                                      kScalePeriodInSeconds);
 
   // Determine the rotation of the local transform given the current time.
   const float kRotationPeriod = 3.0f;
@@ -69,9 +69,9 @@ void AnimateImage(base::TimeDelta start_time,
 
   // Combine the scale and rotation together, translating to the center to
   // use that as the origin.
-  composition_node->local_transform =
-      math::TranslateMatrix(0.5f, 0.5f) *
-      math::ScaleMatrix(scale) * math::RotateMatrix(rotation);
+  composition_node->local_transform = math::TranslateMatrix(0.5f, 0.5f) *
+                                      math::ScaleMatrix(scale) *
+                                      math::RotateMatrix(rotation);
 }
 
 scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {

@@ -70,8 +70,8 @@ class TranslateFunction : public TransformFunction {
   std::string ToString() const override;
 
   math::Matrix3F ToMatrix(const math::SizeF& used_size,
-      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
-      const override;
+                          const scoped_refptr<ui_navigation::NavItem>&
+                              used_ui_nav_focus) const override;
 
   bool operator==(const TranslateFunction& other) const {
     return offset_->Equals(*other.offset_) && axis_ == other.axis_;

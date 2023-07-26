@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/dom/performance_resource_timing.h"
+
 #include "cobalt/dom/performance.h"
 
 namespace cobalt {

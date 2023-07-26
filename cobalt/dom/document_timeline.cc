@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/document_timeline.h"
+
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/window.h"
 
@@ -26,11 +27,11 @@ namespace {
 
 scoped_refptr<base::BasicClock> CreateOffsetClock(Document* document,
                                                   double origin_time) {
-  return document->navigation_start_clock() ?
-      new base::OffsetClock(
-        document->navigation_start_clock(),
-        base::TimeDelta::FromMillisecondsD(origin_time)) :
-      NULL;
+  return document->navigation_start_clock()
+             ? new base::OffsetClock(
+                   document->navigation_start_clock(),
+                   base::TimeDelta::FromMillisecondsD(origin_time))
+             : NULL;
 }
 }  // namespace
 

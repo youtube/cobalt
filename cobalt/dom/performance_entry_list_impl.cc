@@ -24,8 +24,7 @@ namespace dom {
 namespace {
 
 PerformanceEntryList FilterBufferByNameAndType(
-    PerformanceEntryList performance_entry_buffer,
-    const std::string& name,
+    PerformanceEntryList performance_entry_buffer, const std::string& name,
     const base::StringPiece& entry_type) {
   // Algorithm for filtering buffers.
   //   https://www.w3.org/TR/2019/WD-performance-timeline-2-20191024/#filter-buffer-by-name-and-type
@@ -45,8 +44,8 @@ PerformanceEntryList FilterBufferByNameAndType(
     // match type in a case-sensitive manner, go to next entryObject.
     const PerformanceEntry::EntryType type =
         PerformanceEntry::ToEntryTypeEnum(entry_type.as_string());
-    bool is_entry_type_not_valid = type != PerformanceEntry::kInvalid &&
-        type != entry->EntryTypeEnum();
+    bool is_entry_type_not_valid =
+        type != PerformanceEntry::kInvalid && type != entry->EntryTypeEnum();
     if (is_entry_type_not_valid) {
       continue;
     }
@@ -63,14 +62,14 @@ PerformanceEntryList FilterBufferByNameAndType(
   return buffer;
 }
 
-}
+}  // namespace
 
 // static
 PerformanceEntryList PerformanceEntryListImpl::GetEntries(
     PerformanceEntryList performance_entry_buffer) {
   std::string empty_name_type;
-  return FilterBufferByNameAndType(
-      performance_entry_buffer, empty_name_type, empty_name_type);
+  return FilterBufferByNameAndType(performance_entry_buffer, empty_name_type,
+                                   empty_name_type);
 }
 
 // static
@@ -78,19 +77,18 @@ PerformanceEntryList PerformanceEntryListImpl::GetEntriesByType(
     PerformanceEntryList performance_entry_buffer,
     const std::string& entry_type) {
   std::string empty_name;
-  return FilterBufferByNameAndType(
-      performance_entry_buffer, empty_name, entry_type);
+  return FilterBufferByNameAndType(performance_entry_buffer, empty_name,
+                                   entry_type);
 }
 
 // static
 PerformanceEntryList PerformanceEntryListImpl::GetEntriesByName(
-    PerformanceEntryList performance_entry_buffer,
-    const std::string& name,
+    PerformanceEntryList performance_entry_buffer, const std::string& name,
     const base::StringPiece& type) {
   if (!type.data()) {
     std::string empty_type;
-    return FilterBufferByNameAndType(
-        performance_entry_buffer, name, empty_type);
+    return FilterBufferByNameAndType(performance_entry_buffer, name,
+                                     empty_type);
   }
   return FilterBufferByNameAndType(performance_entry_buffer, name, type);
 }

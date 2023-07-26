@@ -15,9 +15,8 @@
 #ifndef COBALT_LAYOUT_LAYOUT_UNIT_H_
 #define COBALT_LAYOUT_LAYOUT_UNIT_H_
 
-#include <cmath>
-
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <utility>
 

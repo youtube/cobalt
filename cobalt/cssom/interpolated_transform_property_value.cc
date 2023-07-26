@@ -23,9 +23,7 @@ namespace cssom {
 InterpolatedTransformPropertyValue::InterpolatedTransformPropertyValue(
     TransformPropertyValue* start_value, TransformPropertyValue* end_value,
     float progress)
-    : start_value_(start_value),
-      end_value_(end_value),
-      progress_(progress) {
+    : start_value_(start_value), end_value_(end_value), progress_(progress) {
   DCHECK(start_value);
   DCHECK(end_value);
 }
@@ -44,8 +42,7 @@ math::Matrix3F InterpolatedTransformPropertyValue::ToMatrix(
     const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   return math::InterpolateMatrices(
       start_value_->ToMatrix(used_size, used_ui_nav_focus),
-      end_value_->ToMatrix(used_size, used_ui_nav_focus),
-      progress_);
+      end_value_->ToMatrix(used_size, used_ui_nav_focus), progress_);
 }
 
 }  // namespace cssom

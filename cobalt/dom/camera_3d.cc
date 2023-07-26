@@ -16,11 +16,10 @@
 
 #include "cobalt/dom/camera_3d.h"
 
-#include "third_party/glm/glm/gtx/euler_angles.hpp"
-
 #include "base/basictypes.h"
 #include "base/time/time.h"
 #include "cobalt/dom/device_orientation_event.h"
+#include "third_party/glm/glm/gtx/euler_angles.hpp"
 
 namespace cobalt {
 namespace dom {

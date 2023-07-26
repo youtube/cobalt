@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/cssom/css_transition_set.h"
+
 #include <memory>
+#include <utility>
 
 #include "base/time/time.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_transition.h"
-#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
@@ -28,7 +30,6 @@
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function.h"
 #include "cobalt/cssom/timing_function_list_value.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

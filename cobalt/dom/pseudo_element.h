@@ -16,6 +16,7 @@
 #define COBALT_DOM_PSEUDO_ELEMENT_H_
 
 #include <memory>
+#include <utility>
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
@@ -25,6 +26,7 @@
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/dom/css_animations_adapter.h"
 #include "cobalt/dom/css_transitions_adapter.h"
+#include "cobalt/dom/layout_boxes.h"
 
 namespace cobalt {
 namespace dom {

@@ -47,8 +47,8 @@ bool CSSFontFaceDeclarationData::IsSupportedPropertyKey(PropertyKey key) const {
 scoped_refptr<PropertyValue> CSSFontFaceDeclarationData::GetPropertyValue(
     PropertyKey key) const {
   scoped_refptr<PropertyValue>* property_value_reference =
-      const_cast<CSSFontFaceDeclarationData*>(this)
-          ->GetPropertyValueReference(key);
+      const_cast<CSSFontFaceDeclarationData*>(this)->GetPropertyValueReference(
+          key);
   return property_value_reference ? *property_value_reference : NULL;
 }
 

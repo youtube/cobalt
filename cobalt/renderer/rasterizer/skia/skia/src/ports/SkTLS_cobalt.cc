@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "SkTLS.h"
-
 #include "base/lazy_instance.h"
 #include "base/threading/thread_local_storage.h"
 

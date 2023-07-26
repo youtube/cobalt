@@ -364,7 +364,9 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
         case AlternateRgbaFormat_UYVY: {
           result.type = egl::TexturedMeshRenderer::Image::YUV_UYVY_422_BT709;
         } break;
-        default: { NOTREACHED(); }
+        default: {
+          NOTREACHED();
+        }
       }
     }
 

@@ -53,8 +53,8 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
 
   void SetApplicationState(base::ApplicationState state,
                            SbTimeMonotonic timestamp);
-  void SetApplicationStartOrPreloadTimestamp(
-      bool is_preload, SbTimeMonotonic timestamp);
+  void SetApplicationStartOrPreloadTimestamp(bool is_preload,
+                                             SbTimeMonotonic timestamp);
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
 
   DEFINE_WRAPPABLE_TYPE(PerformanceLifecycleTiming);
@@ -64,22 +64,20 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
   DOMHighResTimeStamp ReportDOMHighResTimeStamp(
       SbTimeMonotonic timestamp) const;
   base::ApplicationState GetCurrentState() const;
- struct LifecycleTimingInfo {
-  SbTimeMonotonic app_preload = 0;
-  SbTimeMonotonic app_start = 0;
-  SbTimeMonotonic app_blur = 0;
-  SbTimeMonotonic app_conceal = 0;
-  SbTimeMonotonic app_focus = 0;
-  SbTimeMonotonic app_reveal = 0;
-  SbTimeMonotonic app_freeze = 0;
-  SbTimeMonotonic app_unfreeze = 0;
-  SbTimeMonotonic app_deeplink = 0;
+  struct LifecycleTimingInfo {
+    SbTimeMonotonic app_preload = 0;
+    SbTimeMonotonic app_start = 0;
+    SbTimeMonotonic app_blur = 0;
+    SbTimeMonotonic app_conceal = 0;
+    SbTimeMonotonic app_focus = 0;
+    SbTimeMonotonic app_reveal = 0;
+    SbTimeMonotonic app_freeze = 0;
+    SbTimeMonotonic app_unfreeze = 0;
+    SbTimeMonotonic app_deeplink = 0;
 
-  base::ApplicationState current_state =
-      base::kApplicationStateStopped;
-  base::ApplicationState last_state =
-      base::kApplicationStateStopped;
- };
+    base::ApplicationState current_state = base::kApplicationStateStopped;
+    base::ApplicationState last_state = base::kApplicationStateStopped;
+  };
 
   LifecycleTimingInfo lifecycle_timing_info_;
 

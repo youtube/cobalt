@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/layout/block_container_box.h"
+
+#include <memory>
 
 #include "cobalt/layout/formatting_context.h"
 #include "cobalt/layout/used_style.h"
@@ -36,9 +36,8 @@ BlockContainerBox::~BlockContainerBox() {}
 // Updates used values of "width" and "margin" properties based on
 // https://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins.
 void BlockContainerBox::UpdateContentWidthAndMargins(
-    BaseDirection containing_block_direction,
-    LayoutUnit containing_block_width, bool shrink_to_fit_width_forced,
-    bool width_depends_on_containing_block,
+    BaseDirection containing_block_direction, LayoutUnit containing_block_width,
+    bool shrink_to_fit_width_forced, bool width_depends_on_containing_block,
     const base::Optional<LayoutUnit>& maybe_left,
     const base::Optional<LayoutUnit>& maybe_right,
     const base::Optional<LayoutUnit>& maybe_margin_left,
@@ -47,9 +46,9 @@ void BlockContainerBox::UpdateContentWidthAndMargins(
     const base::Optional<LayoutUnit>& maybe_height) {
   if (IsAbsolutelyPositioned()) {
     UpdateWidthAssumingAbsolutelyPositionedBox(
-        containing_block_direction, containing_block_width,
-        maybe_left, maybe_right, maybe_width,
-        maybe_margin_left, maybe_margin_right, maybe_height);
+        containing_block_direction, containing_block_width, maybe_left,
+        maybe_right, maybe_width, maybe_margin_left, maybe_margin_right,
+        maybe_height);
   } else {
     base::Optional<LayoutUnit> maybe_nulled_width = maybe_width;
     Level forced_level = GetLevel();
@@ -346,8 +345,7 @@ void BlockContainerBox::DumpProperties(std::ostream* stream) const {
 //     + "padding-right" + "border-right-width" + "margin-right" + "right"
 //     = width of containing block
 void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
-    BaseDirection containing_block_direction,
-    LayoutUnit containing_block_width,
+    BaseDirection containing_block_direction, LayoutUnit containing_block_width,
     const base::Optional<LayoutUnit>& maybe_left,
     const base::Optional<LayoutUnit>& maybe_right,
     const base::Optional<LayoutUnit>& maybe_width,
@@ -626,8 +624,7 @@ void BlockContainerBox::UpdateHeightAssumingAbsolutelyPositionedBox(
 //     + "padding-right" + "border-right-width" + "margin-right"
 //     = width of containing block
 void BlockContainerBox::UpdateWidthAssumingBlockLevelInFlowBox(
-    BaseDirection containing_block_direction,
-    LayoutUnit containing_block_width,
+    BaseDirection containing_block_direction, LayoutUnit containing_block_width,
     const base::Optional<LayoutUnit>& maybe_width,
     const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
     const base::Optional<LayoutUnit>& possibly_overconstrained_margin_right) {

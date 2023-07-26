@@ -16,7 +16,6 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/size.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
