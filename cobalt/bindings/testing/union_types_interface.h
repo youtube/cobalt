@@ -32,9 +32,9 @@ namespace testing {
 class UnionTypesInterface : public script::Wrappable {
  public:
   typedef script::UnionType4<std::string, bool,
-                             scoped_refptr<ArbitraryInterface>,
-                             int32_t> UnionPropertyType;
-  typedef base::Optional<script::UnionType2<double, std::string> >
+                             scoped_refptr<ArbitraryInterface>, int32_t>
+      UnionPropertyType;
+  typedef base::Optional<script::UnionType2<double, std::string>>
       NullableUnionPropertyType;
   typedef script::UnionType2<scoped_refptr<BaseInterface>, std::string>
       UnionBasePropertyType;
@@ -45,19 +45,19 @@ class UnionTypesInterface : public script::Wrappable {
       script::UnionType2<DerivedDictionary, scoped_refptr<ArbitraryInterface>>;
 
   MOCK_METHOD0(union_property, UnionPropertyType());
-  MOCK_METHOD1(set_union_property, void(const UnionPropertyType&));
+  MOCK_METHOD1(set_union_property, void(const UnionPropertyType &));
 
   MOCK_METHOD0(union_with_nullable_member_property,
                NullableUnionPropertyType());
   MOCK_METHOD1(set_union_with_nullable_member_property,
-               void(const NullableUnionPropertyType&));
+               void(const NullableUnionPropertyType &));
 
   MOCK_METHOD0(nullable_union_property, NullableUnionPropertyType());
   MOCK_METHOD1(set_nullable_union_property,
-               void(const NullableUnionPropertyType&));
+               void(const NullableUnionPropertyType &));
 
   MOCK_METHOD0(union_base_property, UnionBasePropertyType());
-  MOCK_METHOD1(set_union_base_property, void(const UnionBasePropertyType&));
+  MOCK_METHOD1(set_union_base_property, void(const UnionBasePropertyType &));
 
   MOCK_METHOD0(union_with_dictionary_property, UnionDictPropertyType());
   MOCK_METHOD1(set_union_with_dictionary_property,

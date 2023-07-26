@@ -120,10 +120,10 @@ TEST_F(PlatformObjectBindingsTest, DerivedProto) {
   EXPECT_CALL(test_mock(), derived_interface());
 
   std::string result;
-  EXPECT_TRUE(EvaluateScript(
-      "Object.getPrototypeOf(test.derivedInterface) === "
-      "DerivedInterface.prototype;",
-      &result));
+  EXPECT_TRUE(
+      EvaluateScript("Object.getPrototypeOf(test.derivedInterface) === "
+                     "DerivedInterface.prototype;",
+                     &result));
   EXPECT_STREQ("true", result.c_str());
 }
 

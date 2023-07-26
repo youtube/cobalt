@@ -119,7 +119,7 @@ void propertyAttributeGetter(
                     [](v8::Isolate* isolate, DOMStringTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->property(),
               &result_value);
@@ -160,7 +160,7 @@ void readOnlyPropertyAttributeGetter(
                     [](v8::Isolate* isolate, DOMStringTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->read_only_property(),
               &result_value);
@@ -180,7 +180,7 @@ void readOnlyTokenPropertyAttributeGetter(
                     [](v8::Isolate* isolate, DOMStringTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->read_only_token_property(),
               &result_value);
@@ -200,7 +200,7 @@ void nullIsEmptyPropertyAttributeGetter(
                     [](v8::Isolate* isolate, DOMStringTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->null_is_empty_property(),
               &result_value);
@@ -241,7 +241,7 @@ void undefinedIsEmptyPropertyAttributeGetter(
                     [](v8::Isolate* isolate, DOMStringTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->undefined_is_empty_property(),
               &result_value);
@@ -282,7 +282,7 @@ void nullableUndefinedIsEmptyPropertyAttributeGetter(
                     [](v8::Isolate* isolate, DOMStringTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->nullable_undefined_is_empty_property(),
               &result_value);
@@ -551,5 +551,3 @@ v8::Local<v8::FunctionTemplate> V8cDOMStringTestInterface::GetTemplate(v8::Isola
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

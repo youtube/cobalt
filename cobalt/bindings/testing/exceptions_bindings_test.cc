@@ -22,8 +22,8 @@ using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Invoke;
-using ::testing::Return;
 using ::testing::NiceMock;
+using ::testing::Return;
 using ::testing::WithArg;
 
 #define EXPECT_SUBSTRING(needle, haystack) \
@@ -75,8 +75,9 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromConstructor) {
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromOperation) {
   SimpleExceptionSetter exception_setter(script::kSimpleTypeError);
-  EXPECT_CALL(test_mock(), FunctionThrowsException(_)).WillOnce(
-      Invoke(&exception_setter, &SimpleExceptionSetter::FireException));
+  EXPECT_CALL(test_mock(), FunctionThrowsException(_))
+      .WillOnce(
+          Invoke(&exception_setter, &SimpleExceptionSetter::FireException));
 
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.functionThrowsException();", &result));
@@ -85,9 +86,10 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromOperation) {
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromGetter) {
   SimpleExceptionSetter exception_setter(script::kSimpleRangeError);
-  EXPECT_CALL(test_mock(), attribute_throws_exception(_)).WillOnce(
-      DoAll(Invoke(&exception_setter, &SimpleExceptionSetter::FireException),
-            Return(false)));
+  EXPECT_CALL(test_mock(), attribute_throws_exception(_))
+      .WillOnce(DoAll(
+          Invoke(&exception_setter, &SimpleExceptionSetter::FireException),
+          Return(false)));
 
   std::string result;
   EXPECT_FALSE(
@@ -113,13 +115,14 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
   ExceptionObjectSetter exception_setter(exception_object);
 
   InSequence in_sequence_dummy;
-  EXPECT_CALL(test_mock(), FunctionThrowsException(_)).WillOnce(
-      Invoke(&exception_setter, &ExceptionObjectSetter::FireException));
-  EXPECT_TRUE(EvaluateScript(
-      "var error = null;"
-      "try { test.functionThrowsException(); }"
-      "catch(e) { error = e; }",
-      NULL));
+  EXPECT_CALL(test_mock(), FunctionThrowsException(_))
+      .WillOnce(
+          Invoke(&exception_setter, &ExceptionObjectSetter::FireException));
+  EXPECT_TRUE(
+      EvaluateScript("var error = null;"
+                     "try { test.functionThrowsException(); }"
+                     "catch(e) { error = e; }",
+                     NULL));
 
   std::string result;
   EXPECT_TRUE(EvaluateScript("error instanceof Error;", &result));

@@ -131,7 +131,7 @@ void arbitraryObjectAttributeGetter(
                     [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->arbitrary_object(),
               &result_value);
@@ -172,7 +172,7 @@ void baseInterfaceAttributeGetter(
                     [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->base_interface(),
               &result_value);
@@ -192,7 +192,7 @@ void derivedInterfaceAttributeGetter(
                     [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->derived_interface(),
               &result_value);
@@ -233,7 +233,7 @@ void objectPropertyAttributeGetter(
                     [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->object_property(),
               &result_value);
@@ -461,5 +461,3 @@ v8::Local<v8::FunctionTemplate> V8cObjectTypeBindingsInterface::GetTemplate(v8::
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

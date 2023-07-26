@@ -14,7 +14,6 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/static_properties_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -79,7 +78,8 @@ TEST_F(StaticPropertiesBindingsTest, StaticOverloadedOperationByType) {
 TEST_F(StaticPropertiesBindingsTest, GetStaticAttribute) {
   std::string result;
   EXPECT_CALL(StaticPropertiesInterface::static_methods_mock.Get(),
-              static_attribute()).WillOnce(Return("test_string"));
+              static_attribute())
+      .WillOnce(Return("test_string"));
   EXPECT_TRUE(
       EvaluateScript("StaticPropertiesInterface.staticAttribute;", &result));
   EXPECT_STREQ("test_string", result.c_str());

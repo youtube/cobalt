@@ -123,7 +123,7 @@ void staticAttributeAttributeGetter(
                     [](v8::Isolate* isolate, StaticPropertiesInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               StaticPropertiesInterface::static_attribute(),
               &result_value);
@@ -554,5 +554,3 @@ v8::Local<v8::FunctionTemplate> V8cStaticPropertiesInterface::GetTemplate(v8::Is
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

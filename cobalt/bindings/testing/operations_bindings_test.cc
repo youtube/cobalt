@@ -15,7 +15,6 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/operations_test_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -144,11 +143,11 @@ TEST_F(OperationsBindingsTest, OverloadedOperationByNumberOfArguments) {
 TEST_F(OperationsBindingsTest, OverloadedOperationInvalidNumberOfArguments) {
   InSequence in_sequence_dummy;
 
-  EXPECT_TRUE(EvaluateScript(
-      "var error = null;"
-      "try { test.overloadedFunction(1, 2); }"
-      "catch(e) { error = e; }",
-      NULL));
+  EXPECT_TRUE(
+      EvaluateScript("var error = null;"
+                     "try { test.overloadedFunction(1, 2); }"
+                     "catch(e) { error = e; }",
+                     NULL));
   std::string result;
   EXPECT_TRUE(EvaluateScript(
       "Object.getPrototypeOf(error) === TypeError.prototype;", &result));

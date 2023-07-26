@@ -14,7 +14,6 @@
 
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

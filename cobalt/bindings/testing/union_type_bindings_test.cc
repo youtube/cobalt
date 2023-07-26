@@ -14,14 +14,13 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/union_types_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::ContainsRegex;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SaveArg;
-using ::testing::_;
 
 namespace cobalt {
 namespace bindings {
@@ -35,8 +34,9 @@ TEST_F(UnionTypesBindingsTest, ConvertToJS) {
   InSequence dummy;
 
   std::string result;
-  EXPECT_CALL(test_mock(), union_property()).WillOnce(
-      Return(UnionTypesInterface::UnionPropertyType(std::string("foo"))));
+  EXPECT_CALL(test_mock(), union_property())
+      .WillOnce(
+          Return(UnionTypesInterface::UnionPropertyType(std::string("foo"))));
   EXPECT_TRUE(
       EvaluateScript("typeof test.unionProperty == \"string\";", &result));
   EXPECT_STREQ("true", result.c_str());
@@ -44,10 +44,10 @@ TEST_F(UnionTypesBindingsTest, ConvertToJS) {
   EXPECT_CALL(test_mock(), union_property())
       .WillOnce(Return(UnionTypesInterface::UnionPropertyType(
           base::WrapRefCounted(new ArbitraryInterface()))));
-  EXPECT_TRUE(EvaluateScript(
-      "Object.getPrototypeOf(test.unionProperty) === "
-      "ArbitraryInterface.prototype;",
-      &result));
+  EXPECT_TRUE(
+      EvaluateScript("Object.getPrototypeOf(test.unionProperty) === "
+                     "ArbitraryInterface.prototype;",
+                     &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), union_property())

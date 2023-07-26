@@ -56,6 +56,7 @@ repos:
                 (internal/)?starboard/[^/]+/i18n/|
                 cobalt/content/licenses/|
                 cobalt/fetch/embedded_scripts|
+                cobalt/streams/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
                 internal/cobalt/browser/splash_screen/youtube_splash_screen.html|
                 internal/starboard/shared/playstation/storage_internal.cc|

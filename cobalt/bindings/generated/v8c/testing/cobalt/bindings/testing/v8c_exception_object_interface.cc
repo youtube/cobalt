@@ -119,7 +119,7 @@ void errorAttributeGetter(
                     [](v8::Isolate* isolate, ExceptionObjectInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->error(),
               &result_value);
@@ -139,7 +139,7 @@ void messageAttributeGetter(
                     [](v8::Isolate* isolate, ExceptionObjectInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->message(),
               &result_value);
@@ -309,5 +309,3 @@ v8::Local<v8::FunctionTemplate> V8cExceptionObjectInterface::GetTemplate(v8::Iso
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

@@ -45,4 +45,3 @@ name such as "Pacific Standard Time".
 ```
 const char* SbTimeZoneGetName()
 ```
-

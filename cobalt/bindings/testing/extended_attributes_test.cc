@@ -17,7 +17,6 @@
 #include "base/strings/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/extended_idl_attributes_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::Return;

@@ -49,4 +49,3 @@ when the previous utterances are complete.
 ```
 void SbSpeechSynthesisSpeak(const char *text)
 ```
-

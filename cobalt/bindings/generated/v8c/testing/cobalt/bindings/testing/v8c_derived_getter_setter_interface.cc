@@ -326,7 +326,7 @@ void lengthAttributeGetter(
                     [](v8::Isolate* isolate, DerivedGetterSetterInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->length(),
               &result_value);
@@ -346,7 +346,7 @@ void propertyOnDerivedClassAttributeGetter(
                     [](v8::Isolate* isolate, DerivedGetterSetterInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->property_on_derived_class(),
               &result_value);
@@ -786,5 +786,3 @@ v8::Local<v8::FunctionTemplate> V8cDerivedGetterSetterInterface::GetTemplate(v8:
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

@@ -134,7 +134,7 @@ void previousAttributeGetter(
                     [](v8::Isolate* isolate, GarbageCollectionTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->previous(),
               &result_value);
@@ -175,7 +175,7 @@ void nextAttributeGetter(
                     [](v8::Isolate* isolate, GarbageCollectionTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->next(),
               &result_value);
@@ -363,5 +363,3 @@ v8::Local<v8::FunctionTemplate> V8cGarbageCollectionTestInterface::GetTemplate(v
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

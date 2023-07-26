@@ -369,5 +369,3 @@ v8::Local<v8::FunctionTemplate> V8cInterfaceWithAny::GetTemplate(v8::Isolate* is
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

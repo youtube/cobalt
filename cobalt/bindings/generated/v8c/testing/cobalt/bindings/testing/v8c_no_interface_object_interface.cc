@@ -223,5 +223,3 @@ v8::Local<v8::FunctionTemplate> V8cNoInterfaceObjectInterface::GetTemplate(v8::I
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

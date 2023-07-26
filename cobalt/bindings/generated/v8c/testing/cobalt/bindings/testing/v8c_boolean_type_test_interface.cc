@@ -119,7 +119,7 @@ void booleanPropertyAttributeGetter(
                     [](v8::Isolate* isolate, BooleanTypeTestInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->boolean_property(),
               &result_value);
@@ -419,5 +419,3 @@ v8::Local<v8::FunctionTemplate> V8cBooleanTypeTestInterface::GetTemplate(v8::Iso
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

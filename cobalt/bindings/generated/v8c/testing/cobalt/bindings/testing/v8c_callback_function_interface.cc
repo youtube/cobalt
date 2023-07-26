@@ -123,7 +123,7 @@ void callbackAttributeAttributeGetter(
                     [](v8::Isolate* isolate, CallbackFunctionInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->callback_attribute(),
               &result_value);
@@ -164,7 +164,7 @@ void nullableCallbackAttributeAttributeGetter(
                     [](v8::Isolate* isolate, CallbackFunctionInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->nullable_callback_attribute(),
               &result_value);
@@ -711,5 +711,3 @@ v8::Local<v8::FunctionTemplate> V8cCallbackFunctionInterface::GetTemplate(v8::Is
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

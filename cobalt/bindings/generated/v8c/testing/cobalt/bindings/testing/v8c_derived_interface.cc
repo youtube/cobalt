@@ -134,7 +134,7 @@ void derivedAttributeAttributeGetter(
                     [](v8::Isolate* isolate, DerivedInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->derived_attribute(),
               &result_value);
@@ -350,5 +350,3 @@ v8::Local<v8::FunctionTemplate> V8cDerivedInterface::GetTemplate(v8::Isolate* is
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

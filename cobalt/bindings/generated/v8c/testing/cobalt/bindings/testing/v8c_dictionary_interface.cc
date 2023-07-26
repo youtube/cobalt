@@ -125,7 +125,7 @@ void dictionarySequenceAttributeGetter(
                     [](v8::Isolate* isolate, DictionaryInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->dictionary_sequence(),
               &result_value);
@@ -507,5 +507,3 @@ v8::Local<v8::FunctionTemplate> V8cDictionaryInterface::GetTemplate(v8::Isolate*
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

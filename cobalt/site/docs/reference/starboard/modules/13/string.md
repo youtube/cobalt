@@ -172,4 +172,3 @@ Values matching `pattern` that were extracted from `buffer`.
 ```
 static int SbStringScanF(const char *buffer, const char *pattern,...)
 ```
-

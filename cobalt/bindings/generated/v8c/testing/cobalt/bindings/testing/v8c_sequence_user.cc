@@ -1177,5 +1177,3 @@ v8::Local<v8::FunctionTemplate> V8cSequenceUser::GetTemplate(v8::Isolate* isolat
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

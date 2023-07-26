@@ -20,10 +20,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::ContainsRegex;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::_;
 
 namespace cobalt {
 namespace bindings {

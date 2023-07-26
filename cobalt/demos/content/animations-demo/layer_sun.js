@@ -69,4 +69,3 @@ function InitializeSunLayer(layerElement) {
   }
   layerElement.appendChild(sunBladeLayerContainerElement);
 }
-
