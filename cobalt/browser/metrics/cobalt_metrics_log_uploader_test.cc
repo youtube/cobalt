@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/base64url.h"
 #include "base/test/mock_callback.h"
 #include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/h5vcc_metrics.h"
@@ -82,9 +83,13 @@ TEST_F(CobaltMetricsLogUploaderTest, TriggersUploadHandler) {
 
   std::string compressed_message;
   compression::GzipCompress(uma_log.SerializeAsString(), &compressed_message);
+  std::string base64_encoded_proto;
+  base::Base64UrlEncode(cobalt_event.SerializeAsString(),
+                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
+                        &base64_encoded_proto);
   EXPECT_CALL(mock_upload_handler,
               Run(Eq(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma),
-                  StrEq(cobalt_event.SerializeAsString())))
+                  StrEq(base64_encoded_proto)))
       .Times(1);
   uploader_->UploadLog(compressed_message, "fake_hash", dummy_reporting_info);
   ASSERT_EQ(callback_count_, 1);
@@ -99,9 +104,13 @@ TEST_F(CobaltMetricsLogUploaderTest, TriggersUploadHandler) {
   cobalt_event2.mutable_reporting_info()->CopyFrom(dummy_reporting_info);
   std::string compressed_message2;
   compression::GzipCompress(uma_log2.SerializeAsString(), &compressed_message2);
+  std::string base64_encoded_proto2;
+  base::Base64UrlEncode(cobalt_event2.SerializeAsString(),
+                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
+                        &base64_encoded_proto2);
   EXPECT_CALL(mock_upload_handler,
               Run(Eq(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma),
-                  StrEq(cobalt_event2.SerializeAsString())))
+                  StrEq(base64_encoded_proto2)))
       .Times(1);
   uploader_->UploadLog(compressed_message2, "fake_hash", dummy_reporting_info);
   ASSERT_EQ(callback_count_, 2);
