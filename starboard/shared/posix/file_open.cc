@@ -20,6 +20,6 @@ SbFile SbFileOpen(const char* path,
                   int flags,
                   bool* out_created,
                   SbFileError* out_error) {
-  return ::starboard::shared::posix::impl::FileOpen(path, flags, out_created,
-                                                    out_error);
+  return ::starboard::shared::posix::impl::FileOpen(
+      path, flags, out_created, out_error);
 }

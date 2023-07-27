@@ -28,7 +28,7 @@ const socklen_t kAddressStructLengthIpv4 =
     static_cast<socklen_t>(sizeof(struct sockaddr_in));
 const socklen_t kAddressStructLengthIpv6 =
     static_cast<socklen_t>(sizeof(struct sockaddr_in6));
-}  // namespace
+}
 
 SbSocketError TranslateSocketErrorStatus(int error) {
   switch (error) {
@@ -142,7 +142,7 @@ bool SockAddr::ToSbSocketAddress(SbSocketAddress* out_address) const {
     return false;
   }
 
-  // Check that we have been properly initialized.
+// Check that we have been properly initialized.
   SB_DCHECK(length == kAddressStructLengthIpv4 ||
             length == kAddressStructLengthIpv6);
 

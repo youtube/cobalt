@@ -14,4 +14,5 @@
 
 #include "starboard/thread.h"
 
-void SbThreadYield() {}
+void SbThreadYield() {
+}

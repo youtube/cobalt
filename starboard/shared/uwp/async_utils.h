@@ -29,24 +29,22 @@ namespace shared {
 namespace uwp {
 
 template <typename TResult>
-TResult WaitForResult(IAsyncOperation<TResult> ^ operation) {
+TResult WaitForResult(IAsyncOperation<TResult>^ operation) {
   using concurrency::task_continuation_context;
   HANDLE event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
   concurrency::create_task(operation,
                            task_continuation_context::use_arbitrary())
-      .then(
-          [&event](TResult result) {
-            BOOL success = SetEvent(event);
-            SB_DCHECK(success);
-          },
-          task_continuation_context::use_arbitrary());
+      .then([&event](TResult result) {
+        BOOL success = SetEvent(event);
+        SB_DCHECK(success);
+      }, task_continuation_context::use_arbitrary());
   DWORD return_value = WaitForSingleObject(event, INFINITE);
   SB_DCHECK(return_value == WAIT_OBJECT_0);
   CloseHandle(event);
   return operation->GetResults();
 }
 
-inline void WaitForComplete(IAsyncAction ^ action) {
+inline void WaitForComplete(IAsyncAction^ action) {
   using concurrency::task_continuation_context;
   HANDLE event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
   concurrency::create_task(action, task_continuation_context::use_arbitrary())

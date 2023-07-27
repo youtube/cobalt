@@ -34,7 +34,7 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
       hints.ai_family = AF_INET;
     }
   } else if (filters & kSbSocketResolveFilterIpv6) {
-    hints.ai_family = AF_INET6;
+      hints.ai_family = AF_INET6;
   } else {
     hints.ai_family = AF_UNSPEC;
   }
@@ -60,7 +60,7 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
   bool* parsed = new bool[address_count];
   int index = 0;
   int skip = 0;
-  for (const struct addrinfo* i = ai; i != NULL; i = i->ai_next, ++index) {
+  for (const struct addrinfo *i = ai; i != NULL; i = i->ai_next, ++index) {
     // Skip over any addresses we can't parse.
     parsed[index] = sock_addrs[index].FromSockaddr(i->ai_addr);
     if (!parsed[index]) {

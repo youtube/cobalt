@@ -41,16 +41,14 @@ inline std::wstring CStringToWString(const char* str) {
 }
 
 #if defined(__cplusplus_winrt)
-inline std::string platformStringToString(Platform::String ^ to_convert) {
+inline std::string platformStringToString(Platform::String^ to_convert) {
   std::wstring ws(to_convert->Begin(), to_convert->End());
   return wchar_tToUTF8(ws.data(), ws.size());
 }
 
-inline Platform::String ^
-    stringToPlatformString(const std::string& to_convert) {
-      return ref new Platform::String(
-          CStringToWString(to_convert.c_str()).c_str());
-    }
+inline Platform::String^ stringToPlatformString(const std::string& to_convert) {
+  return ref new Platform::String(CStringToWString(to_convert.c_str()).c_str());
+}
 #endif
 
 }  // namespace win32

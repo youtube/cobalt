@@ -80,9 +80,7 @@ void OpenMaxComponent::Flush() {
   SendCommandAndWaitForCompletion(OMX_CommandFlush, output_port_);
 }
 
-int OpenMaxComponent::WriteData(const void* data,
-                                int size,
-                                DataType type,
+int OpenMaxComponent::WriteData(const void* data, int size, DataType type,
                                 SbTime timestamp) {
   int offset = 0;
 
@@ -220,8 +218,8 @@ OpenMaxComponent::~OpenMaxComponent() {
 void OpenMaxComponent::OnErrorEvent(OMX_U32 data1,
                                     OMX_U32 data2,
                                     OMX_PTR event_data) {
-  SB_NOTREACHED() << "OMX_EventError received with " << std::hex << data1 << " "
-                  << data2;
+  SB_NOTREACHED() << "OMX_EventError received with " << std::hex << data1
+                  << " " << data2;
 }
 
 OMX_BUFFERHEADERTYPE* OpenMaxComponent::AllocateBuffer(int port,
@@ -330,10 +328,10 @@ void OpenMaxComponent::EnableOutputTunnelling(
   OMX_ERRORTYPE error =
       OMX_SetupTunnel(handle_, output_port_, output_component_->handle_,
                       output_component_->input_port_);
-  SB_DCHECK(error == OMX_ErrorNone)
-      << "OMX_SetupTunnel " << output_port_ << " to "
-      << output_component_->input_port_ << " failed with error " << std::hex
-      << error;
+  SB_DCHECK(error == OMX_ErrorNone) << "OMX_SetupTunnel " << output_port_
+                                    << " to " << output_component_->input_port_
+                                    << " failed with error " << std::hex
+                                    << error;
 
   // Enable the tunnel. This takes place of output_component_->Start(), but
   // the component will still need to be put into the executing state when

@@ -33,8 +33,8 @@ namespace open_max {
 // manages the disposition of Dispmanx resource.
 class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
  public:
-  using OpenMaxComponent::Flush;
   using OpenMaxComponent::Start;
+  using OpenMaxComponent::Flush;
   using OpenMaxComponent::WriteData;
   using OpenMaxComponent::WriteEOS;
 

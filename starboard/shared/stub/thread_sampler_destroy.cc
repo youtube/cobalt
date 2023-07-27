@@ -14,4 +14,5 @@
 
 #include "starboard/thread.h"
 
-void SbThreadSamplerDestroy(SbThreadSampler sampler) {}
+void SbThreadSamplerDestroy(SbThreadSampler sampler) {
+}

@@ -68,7 +68,11 @@ void WaitUntilReadableOrConnectionReset(SbSocket sock) {
     }
   };
 
-  SbSocketWaiterAdd(waiter, sock, NULL, &F::WakeUp, kSbSocketWaiterInterestRead,
+  SbSocketWaiterAdd(waiter,
+                    sock,
+                    NULL,
+                    &F::WakeUp,
+                    kSbSocketWaiterInterestRead,
                     false);  // false means one shot.
 
   SbSocketWaiterWait(waiter);
@@ -78,9 +82,10 @@ void WaitUntilReadableOrConnectionReset(SbSocket sock) {
 
 scoped_ptr<Socket> WaitForClientConnection(Socket* listen_sock,
                                            SbTime timeout) {
-  SbTimeMonotonic expire_time = (timeout >= 0) && (timeout < kSbTimeMax)
-                                    ? SbTimeGetMonotonicNow() + timeout
-                                    : kSbTimeMax;
+  SbTimeMonotonic expire_time =
+      (timeout >= 0) && (timeout < kSbTimeMax)?
+      SbTimeGetMonotonicNow() + timeout :
+      kSbTimeMax;
   while (true) {
     scoped_ptr<Socket> client_connection(listen_sock->Accept());
     if (client_connection) {

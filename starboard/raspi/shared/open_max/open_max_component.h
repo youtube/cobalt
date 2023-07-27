@@ -32,8 +32,8 @@ namespace open_max {
 class OpenMaxComponent : protected OpenMaxComponentBase {
  public:
   enum DataType {
-    kDataNonEOS,  // Do not flag any buffer as end of stream.
-    kDataEOS,     // Flag the last buffer written as end of stream.
+    kDataNonEOS,    // Do not flag any buffer as end of stream.
+    kDataEOS,       // Flag the last buffer written as end of stream.
   };
 
   explicit OpenMaxComponent(const char* name);
@@ -69,7 +69,8 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   void DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer);
 
   // Callbacks available to children.
-  void OnErrorEvent(OMX_U32 data1, OMX_U32 data2, OMX_PTR event_data) override;
+  void OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
+                    OMX_PTR event_data) override;
   virtual bool OnEnableInputPort(OMXParamPortDefinition* port_definition) {
     return false;
   }
