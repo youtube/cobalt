@@ -22,7 +22,7 @@ namespace starboard {
 namespace shared {
 namespace uwp {
 
-void OpenLogFileUWP(Windows::Storage::StorageFolder ^ folder,
+void OpenLogFileUWP(Windows::Storage::StorageFolder^ folder,
                     const char* filename);
 
 void OpenLogFileWin32(const char* path);

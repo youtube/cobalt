@@ -87,8 +87,8 @@ HANDLE OpenFileOrDirectory(const char* path,
   // are other handles open for read/write. This is necessary for the
   // Async file tests which, due to system timing, will sometimes have
   // outstanding handles open and fail to delete, failing the test.
-  const DWORD share_mode =
-      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+  const DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE |
+                           FILE_SHARE_DELETE;
 
   DWORD creation_disposition = 0;
   if (flags & kSbFileCreateOnly) {

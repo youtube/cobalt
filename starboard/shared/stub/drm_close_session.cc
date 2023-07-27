@@ -16,4 +16,5 @@
 
 void SbDrmCloseSession(SbDrmSystem drm_system,
                        const void* session_id,
-                       int session_id_size) {}
+                       int session_id_size) {
+}

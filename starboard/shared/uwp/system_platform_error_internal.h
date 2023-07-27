@@ -25,24 +25,21 @@ struct SbSystemPlatformErrorPrivate {
   typedef starboard::shared::uwp::ApplicationUwp ApplicationUwp;
 
   SbSystemPlatformErrorPrivate(const SbSystemPlatformErrorPrivate&) = delete;
-  SbSystemPlatformErrorPrivate& operator=(const SbSystemPlatformErrorPrivate&) =
-      delete;
+  SbSystemPlatformErrorPrivate& operator=(const SbSystemPlatformErrorPrivate&)
+      = delete;
 
   SbSystemPlatformErrorPrivate(ApplicationUwp* app,
-                               SbSystemPlatformErrorType type,
-                               SbSystemPlatformErrorCallback callback,
-                               void* user_data);
+      SbSystemPlatformErrorType type, SbSystemPlatformErrorCallback callback,
+      void* user_data);
   bool IsValid() const;
   void ClearAndDelete();
 
  private:
   typedef Windows::UI::Popups::IUICommand IUICommand;
-  typedef Windows::Foundation::IAsyncOperation<IUICommand ^> DialogOperation;
+  typedef Windows::Foundation::IAsyncOperation<IUICommand^> DialogOperation;
 
-  IUICommand ^ MakeUICommand(ApplicationUwp* app,
-                             const char* id,
-                             const char* fallback,
-                             SbSystemPlatformErrorResponse response);
+  IUICommand^ MakeUICommand(ApplicationUwp* app, const char* id,
+      const char* fallback, SbSystemPlatformErrorResponse response);
 
   SbSystemPlatformErrorCallback callback_;
   void* user_data_;

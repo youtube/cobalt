@@ -40,7 +40,7 @@ class LocaleString {
     } else {
       SB_LOG(ERROR) << "Error retrieving GetUserDefaultLocaleName";
       DebugLogWinError();
-      value_ = "en-US";
+      value_ ="en-US";
     }
   }
   std::string value_;

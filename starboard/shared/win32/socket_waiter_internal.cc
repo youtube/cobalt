@@ -17,7 +17,6 @@
 #include <windows.h>
 
 #include <algorithm>
-#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/common/optional.h"
@@ -112,8 +111,8 @@ void EraseIndexFromVector(T* collection_pointer, std::size_t index) {
   collection.resize(new_size);
 }
 
-SbSocketWaiterInterest CombineInterests(SbSocketWaiterInterest a,
-                                        SbSocketWaiterInterest b) {
+SbSocketWaiterInterest CombineInterests(
+    SbSocketWaiterInterest a, SbSocketWaiterInterest b) {
   int a_int = static_cast<int>(a);
   int b_int = static_cast<int>(b);
   return static_cast<SbSocketWaiterInterest>(a_int | b_int);
@@ -325,12 +324,12 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
     }
 
     bool has_writable = (maybe_writable_socket != kSbSocketInvalid);
-    DWORD return_value =
-        WSAWaitForMultipleEvents(number_events, waitees_.GetHandleArray(),
-                                 false, has_writable ? 0 : millis, false);
+    DWORD return_value = WSAWaitForMultipleEvents(
+        number_events, waitees_.GetHandleArray(),
+        false, has_writable ? 0 : millis, false);
 
     if (has_writable || ((return_value >= WSA_WAIT_EVENT_0) &&
-                         (return_value < (WSA_WAIT_EVENT_0 + number_events)))) {
+        (return_value < (WSA_WAIT_EVENT_0 + number_events)))) {
       int64_t socket_index;
       if (has_writable) {
         socket_index = waitees_.GetIndex(maybe_writable_socket).value();
@@ -371,7 +370,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
             DiscoverNetworkEventInterests(socket->socket_handle);
 
         if ((waitee->interests & kSbSocketWaiterInterestWrite) &&
-            socket->writable.load()) {
+              socket->writable.load()) {
           interests = CombineInterests(interests, kSbSocketWaiterInterestWrite);
         } else if (interests & kSbSocketWaiterInterestWrite) {
           socket->writable.store(true);
@@ -427,8 +426,8 @@ SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::WaiteeRegistry::GetWaitee(
   return waitees_[token.value()].get();
 }
 
-starboard::optional<int64_t> SbSocketWaiterPrivate::WaiteeRegistry::GetIndex(
-    SbSocket socket) {
+starboard::optional<int64_t>
+SbSocketWaiterPrivate::WaiteeRegistry::GetIndex(SbSocket socket) {
   auto iterator = socket_to_index_map_.find(socket);
   if (iterator == socket_to_index_map_.end()) {
     return starboard::nullopt;

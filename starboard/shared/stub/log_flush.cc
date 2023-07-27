@@ -14,4 +14,5 @@
 
 #include "starboard/common/log.h"
 
-void SbLogFlush() {}
+void SbLogFlush() {
+}

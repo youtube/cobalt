@@ -14,8 +14,8 @@
 
 #include "starboard/directory.h"
 
-#include <windows.h>
 #include <vector>
+#include <windows.h>
 
 #include "starboard/shared/win32/directory_internal.h"
 #include "starboard/shared/win32/file_internal.h"

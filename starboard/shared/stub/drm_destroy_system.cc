@@ -14,4 +14,5 @@
 
 #include "starboard/drm.h"
 
-void SbDrmDestroySystem(SbDrmSystem drm_system) {}
+void SbDrmDestroySystem(SbDrmSystem drm_system) {
+}

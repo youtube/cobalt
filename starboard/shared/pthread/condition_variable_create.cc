@@ -63,8 +63,8 @@ bool SbConditionVariableCreate(SbConditionVariable* out_condition,
   // Always use CLOCK_MONOTONIC so that SbConditionVariableWaitTimed() will
   // not be based off of the system clock (which can lead to erroneous
   // behavior if the system clock is changed while a process is running).
-  if (!IsSuccess(pthread_condattr_setclock(attributes.attributes(),
-                                           CLOCK_MONOTONIC))) {
+  if (!IsSuccess(pthread_condattr_setclock(
+           attributes.attributes(), CLOCK_MONOTONIC))) {
     SB_DLOG(ERROR) << "Failed to call pthread_condattr_setclock().";
     return false;
   }

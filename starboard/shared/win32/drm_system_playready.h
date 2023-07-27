@@ -88,7 +88,8 @@ class DrmSystemPlayready : public SbDrmSystemPrivate {
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
-                               int certificate_size) override {}
+                               int certificate_size) override {
+  }
 
   const void* GetMetrics(int* size) override { return NULL; }
 

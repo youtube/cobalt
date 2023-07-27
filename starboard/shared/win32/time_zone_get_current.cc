@@ -23,14 +23,14 @@ SbTimeZone SbTimeZoneGetCurrent() {
   DWORD zone_id = GetDynamicTimeZoneInformation(&time_zone_info);
 
   switch (zone_id) {
-    case TIME_ZONE_ID_UNKNOWN:
-      return time_zone_info.Bias;
-    case TIME_ZONE_ID_STANDARD:
-      return time_zone_info.Bias + time_zone_info.StandardBias;
-    case TIME_ZONE_ID_DAYLIGHT:
-      return time_zone_info.Bias + time_zone_info.DaylightBias;
-    default:
-      SB_NOTREACHED();
-      return 0;
+  case TIME_ZONE_ID_UNKNOWN:
+    return time_zone_info.Bias;
+  case TIME_ZONE_ID_STANDARD:
+    return time_zone_info.Bias + time_zone_info.StandardBias;
+  case TIME_ZONE_ID_DAYLIGHT:
+    return time_zone_info.Bias + time_zone_info.DaylightBias;
+  default:
+    SB_NOTREACHED();
+    return 0;
   }
 }

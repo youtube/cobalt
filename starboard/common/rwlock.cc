@@ -20,7 +20,9 @@ namespace starboard {
 
 // Write-preferring lock.
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
-RWLock::RWLock() : readers_(0), writing_(false) {
+RWLock::RWLock()
+    : readers_(0),
+      writing_(false) {
   SB_CHECK(SbMutexCreate(&mutex_));
   SB_CHECK(SbConditionVariableCreate(&condition_, &mutex_));
 }
