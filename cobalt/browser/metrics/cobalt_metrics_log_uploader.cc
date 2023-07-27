@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 
+#include "base/base64url.h"
 #include "base/logging.h"
 #include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
@@ -59,9 +60,15 @@ void CobaltMetricsLogUploader::UploadLog(
       PopulateCobaltUmaEvent(uma_event, reporting_info, cobalt_uma_event);
       LOG(INFO) << "Publishing Cobalt metrics upload event. Type: "
                 << h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma;
-      // Publish the trimmed Cobalt UMA proto.
+      std::string base64_encoded_proto;
+      // Base64 encode the payload as web client's can't consume it without
+      // corrupting the data (see b/293431381). Also, use a URL/web safe
+      // encoding so it can be safely included in any web network request.
+      base::Base64UrlEncode(cobalt_uma_event.SerializeAsString(),
+                            base::Base64UrlEncodePolicy::INCLUDE_PADDING,
+                            &base64_encoded_proto);
       upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma,
-                           cobalt_uma_event.SerializeAsString());
+                           base64_encoded_proto);
     }
   }
 
