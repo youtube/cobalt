@@ -47,8 +47,7 @@ void OutputToDebugConsole(const char* message) {
 
 void SbLogRaw(const char* message) {
   fprintf(stderr, "%s", message);
-  sbuwp::WriteToLogFile(
-      message, static_cast<int>(strlen(message)));
+  sbuwp::WriteToLogFile(message, static_cast<int>(strlen(message)));
   OutputToDebugConsole(message);
   starboard::shared::starboard::NetLogWrite(message);
 }

@@ -22,7 +22,7 @@
 
 // Ensure SbDirectory is typedef'd to a SbDirectoryPrivate* that has a directory
 // field.
-SB_COMPILE_ASSERT(sizeof(((SbDirectory)0)->directory), \
+SB_COMPILE_ASSERT(sizeof(((SbDirectory)0)->directory),
                   SbDirectoryPrivate_must_have_directory);
 
 #endif  // STARBOARD_SHARED_ISO_IMPL_DIRECTORY_IMPL_H_

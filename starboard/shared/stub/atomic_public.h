@@ -60,16 +60,13 @@ SbAtomicRelease_CompareAndSwap(volatile SbAtomic32* ptr,
 SB_C_FORCE_INLINE void SbAtomicMemoryBarrier() {}
 
 SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store(volatile SbAtomic32* ptr,
-                                               SbAtomic32 value) {
-}
+                                               SbAtomic32 value) {}
 
 SB_C_FORCE_INLINE void SbAtomicAcquire_Store(volatile SbAtomic32* ptr,
-                                             SbAtomic32 value) {
-}
+                                             SbAtomic32 value) {}
 
 SB_C_FORCE_INLINE void SbAtomicRelease_Store(volatile SbAtomic32* ptr,
-                                             SbAtomic32 value) {
-}
+                                             SbAtomic32 value) {}
 
 SB_C_FORCE_INLINE SbAtomic32
 SbAtomicNoBarrier_Load(volatile const SbAtomic32* ptr) {
@@ -88,14 +85,13 @@ SbAtomicRelease_Load(volatile const SbAtomic32* ptr) {
 
 SB_C_FORCE_INLINE SbAtomic8
 SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
-                               SbAtomic8 old_value,
-                               SbAtomic8 new_value) {
+                                SbAtomic8 old_value,
+                                SbAtomic8 new_value) {
   return 0;
 }
 
-SB_C_FORCE_INLINE void
-SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr, SbAtomic8 value) {
-}
+SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr,
+                                                SbAtomic8 value) {}
 
 SB_C_FORCE_INLINE SbAtomic8
 SbAtomicNoBarrier_Load8(volatile const SbAtomic8* ptr) {
@@ -141,16 +137,13 @@ SbAtomicRelease_CompareAndSwap64(volatile SbAtomic64* ptr,
 }
 
 SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store64(volatile SbAtomic64* ptr,
-                                                 SbAtomic64 value) {
-}
+                                                 SbAtomic64 value) {}
 
 SB_C_FORCE_INLINE void SbAtomicAcquire_Store64(volatile SbAtomic64* ptr,
-                                               SbAtomic64 value) {
-}
+                                               SbAtomic64 value) {}
 
 SB_C_FORCE_INLINE void SbAtomicRelease_Store64(volatile SbAtomic64* ptr,
-                                               SbAtomic64 value) {
-}
+                                               SbAtomic64 value) {}
 
 SB_C_FORCE_INLINE SbAtomic64
 SbAtomicNoBarrier_Load64(volatile const SbAtomic64* ptr) {

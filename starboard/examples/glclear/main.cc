@@ -153,7 +153,9 @@ Application::Application() {
   // Create the GLES2 or GLEX3 Context.
   context_ = SB_EGL_NO_CONTEXT;
   SbEglInt32 context_attrib_list[] = {
-      SB_EGL_CONTEXT_CLIENT_VERSION, 3, SB_EGL_NONE,
+      SB_EGL_CONTEXT_CLIENT_VERSION,
+      3,
+      SB_EGL_NONE,
   };
 
   if (context_ == SB_EGL_NO_CONTEXT) {
@@ -242,6 +244,7 @@ void SbEventHandle(const SbEvent* event) {
       delete s_application;
     } break;
 
-    default: {}
+    default: {
+    }
   }
 }

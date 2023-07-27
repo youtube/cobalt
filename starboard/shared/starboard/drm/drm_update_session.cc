@@ -28,7 +28,5 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
     return;
   }
 
-  drm_system->UpdateSession(
-      ticket,
-      key, key_size, session_id, session_id_size);
+  drm_system->UpdateSession(ticket, key, key_size, session_id, session_id_size);
 }

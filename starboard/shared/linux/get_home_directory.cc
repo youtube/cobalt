@@ -46,8 +46,8 @@ bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
   int result =
       getpwuid_r(getuid(), &passwd, buffer.data(), kBufferSize, &pw_result);
   if (result != 0) {
-    SB_DLOG(ERROR) << "getpwuid_r failed for uid " << getuid() << ": result = "
-                   << result;
+    SB_DLOG(ERROR) << "getpwuid_r failed for uid " << getuid()
+                   << ": result = " << result;
     return false;
   }
 

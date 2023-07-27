@@ -39,19 +39,16 @@ class WatchDogThread : public Thread {
     Start();
   }
 
-  ~WatchDogThread() {
-    Join();
-  }
+  ~WatchDogThread() { Join(); }
 
   void Run() override {
     static const SbTime kSleepTime = kSbTimeMillisecond * 250;
     int counter = 0;
     bool created_ok = false;
     SbFileError out_error = kSbFileOk;
-    SbFile file_handle = SbFileOpen(file_path_.c_str(),
-                                    kSbFileCreateAlways | kSbFileWrite,
-                                    &created_ok,
-                                    &out_error);
+    SbFile file_handle =
+        SbFileOpen(file_path_.c_str(), kSbFileCreateAlways | kSbFileWrite,
+                   &created_ok, &out_error);
     if (!created_ok) {
       SB_LOG(ERROR) << "Could not create watchdog file " << file_path_;
       return;
