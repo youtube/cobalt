@@ -123,8 +123,8 @@ DrmSystemPlayready::~DrmSystemPlayready() {
 
   ScopedLock lock(GetActiveDrmSystems()->mutex_);
   auto& active_systems = GetActiveDrmSystems()->active_systems_;
-  active_systems.erase(
-      std::remove(active_systems.begin(), active_systems.end(), this));
+  active_systems.erase(std::remove(
+      active_systems.begin(), active_systems.end(), this));
 }
 
 bool DrmSystemPlayready::IsKeySystemSupported(const char* key_system) {
@@ -332,9 +332,9 @@ void DrmSystemPlayready::ReportKeyStatusChanged_Locked(
   memcpy(&(drm_key_id.identifier), &key_id, sizeof(key_id));
   drm_key_id.identifier_size = sizeof(key_id);
 
-  key_statuses_changed_callback_(this, context_, session_id.data(),
-                                 static_cast<int>(session_id.size()), 1,
-                                 &drm_key_id, &(item.status_));
+  key_statuses_changed_callback_(this, context_,
+      session_id.data(), static_cast<int>(session_id.size()),
+      1, &drm_key_id, &(item.status_));
 }
 
 scoped_refptr<DrmSystemPlayready::License> DrmSystemPlayready::GetLicense(
@@ -359,8 +359,8 @@ scoped_refptr<DrmSystemPlayready::License> DrmSystemPlayready::GetLicense(
 
 void DrmSystemPlayready::OnUwpResume() {
   for (auto& item : successful_requests_) {
-    session_closed_callback_(this, context_, item.first.data(),
-                             static_cast<int>(item.first.size()));
+    session_closed_callback_(this, context_,
+        item.first.data(), static_cast<int>(item.first.size()));
   }
 }
 

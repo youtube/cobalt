@@ -28,7 +28,8 @@ class ThreadChecker {
  public:
   enum Type { kSetThreadIdOnCreation, kSetThreadIdOnFirstCheck };
 
-  explicit ThreadChecker(Type type = kSetThreadIdOnCreation) {}
+  explicit ThreadChecker(Type type = kSetThreadIdOnCreation) {
+  }
 
   void Detach() {}
 

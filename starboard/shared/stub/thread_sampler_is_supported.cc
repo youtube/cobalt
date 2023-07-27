@@ -14,6 +14,4 @@
 
 #include "starboard/thread.h"
 
-bool SbThreadSamplerIsSupported() {
-  return false;
-}
+bool SbThreadSamplerIsSupported() { return false; }

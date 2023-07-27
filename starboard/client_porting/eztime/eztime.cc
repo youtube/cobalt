@@ -42,9 +42,7 @@ SbOnceControl g_initialization_once = SB_ONCE_INITIALIZER;
 // The timezone names in ASCII (UTF8-compatible) literals. This must match the
 // order of the EzTimeZone enum.
 const char* kTimeZoneNames[] = {
-    "America/Los_Angeles",
-    "Etc/GMT",
-    "",
+    "America/Los_Angeles", "Etc/GMT", "",
 };
 
 SB_COMPILE_ASSERT(SB_ARRAY_SIZE(kTimeZoneNames) == kEzTimeZoneCount,

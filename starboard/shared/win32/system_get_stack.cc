@@ -18,7 +18,7 @@
 
 __declspec(noinline) int SbSystemGetStack(void** out_stack, int stack_size) {
   ULONG frames_to_skip = 1;
-  int num_captured =
-      CaptureStackBackTrace(frames_to_skip, stack_size, out_stack, nullptr);
+  int num_captured = CaptureStackBackTrace(frames_to_skip, stack_size,
+                                           out_stack, nullptr);
   return num_captured;
 }

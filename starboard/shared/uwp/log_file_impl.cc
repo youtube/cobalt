@@ -36,7 +36,7 @@ class LogFileImpl {
  public:
   static LogFileImpl* GetInstance();
 
-  void OpenUWP(StorageFolder ^ folder, const char* filename) {
+  void OpenUWP(StorageFolder^ folder, const char* filename) {
     ScopedLock lock(mutex_);
     impl_.reset();
     impl_ = CreateLogWriterUWP(folder, filename);
@@ -74,7 +74,7 @@ void CloseLogFile() {
   LogFileImpl::GetInstance()->Close();
 }
 
-void OpenLogFileUWP(StorageFolder ^ folder, const char* filename) {
+void OpenLogFileUWP(StorageFolder^ folder, const char* filename) {
   LogFileImpl::GetInstance()->OpenUWP(folder, filename);
 }
 

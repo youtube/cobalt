@@ -14,9 +14,9 @@
 
 #include "starboard/common/socket.h"
 
-#include <winsock2.h>
 #include <sstream>
 #include <string>
+#include <winsock2.h>
 
 #include "starboard/common/log.h"
 #include "starboard/shared/win32/socket_internal.h"
