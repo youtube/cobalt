@@ -81,7 +81,9 @@ SB_EXPORT bool SbOnce(SbOnceControl* once_control,
     static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER; \
     static Type* s_singleton = NULL;                        \
     struct Local {                                          \
-      static void Init() { s_singleton = new Type(); }      \
+      static void Init() {                                  \
+        s_singleton = new Type();                           \
+      }                                                     \
     };                                                      \
     SbOnce(&s_once_flag, Local::Init);                      \
     return s_singleton;                                     \

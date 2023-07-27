@@ -1,3 +1,5 @@
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/system.h"
 
 namespace starboard {
 namespace android {
@@ -19,8 +21,8 @@ namespace shared {
 
 bool IsSystemNetworkConnected() {
   JniEnvExt* env = JniEnvExt::Get();
-  jboolean j_is_connected = env->CallStarboardBooleanMethodOrAbort(
-      "isNetworkConnected", "()Z");
+  jboolean j_is_connected =
+      env->CallStarboardBooleanMethodOrAbort("isNetworkConnected", "()Z");
   return j_is_connected;
 }
 

@@ -21,15 +21,12 @@
 // libraries. To make the linker pick the strong replacements for those
 // functions from this module, we explicitly force its inclusion by passing
 // -Wl,-u_sanitizer_options_link_helper
-extern "C" void _sanitizer_options_link_helper() { }
+extern "C" void _sanitizer_options_link_helper() {}
 
-#define SANITIZER_HOOK_ATTRIBUTE          \
-  extern "C"                              \
-  __attribute__((no_sanitize_address))    \
-  __attribute__((no_sanitize_memory))     \
-  __attribute__((no_sanitize_thread))     \
-  __attribute__((visibility("default")))  \
-  __attribute__((weak))                   \
+#define SANITIZER_HOOK_ATTRIBUTE                                          \
+  extern "C" __attribute__((no_sanitize_address))                         \
+  __attribute__((no_sanitize_memory)) __attribute__((no_sanitize_thread)) \
+  __attribute__((visibility("default"))) __attribute__((weak))            \
   __attribute__((used))
 
 // Newline separated list of issues to suppress, see

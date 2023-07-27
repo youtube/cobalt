@@ -40,8 +40,8 @@ TEST(SbThreadSleepTest, SunnyDayAtLeastDelay) {
     SbTimeMonotonic start = SbTimeGetMonotonicNow();
     SbThreadSleep(kDelay);
     SbTimeMonotonic end = SbTimeGetMonotonicNow();
-    EXPECT_LE(start + kDelay, end + kPrecision) << "Trial " << trial
-                                                << ", kDelay=" << kDelay;
+    EXPECT_LE(start + kDelay, end + kPrecision)
+        << "Trial " << trial << ", kDelay=" << kDelay;
   }
 }
 
@@ -50,8 +50,8 @@ TEST(SbThreadSleepTest, RainyDayNegativeDuration) {
   for (int trial = 0; trial < kTrials; ++trial) {
     SbTimeMonotonic start = SbTimeGetMonotonicNow();
     SbThreadSleep(-kSbTimeSecond);
-    EXPECT_GT(kSbTimeSecond / 5, SbTimeGetMonotonicNow() - start) << "Trial "
-                                                                  << trial;
+    EXPECT_GT(kSbTimeSecond / 5, SbTimeGetMonotonicNow() - start)
+        << "Trial " << trial;
   }
 }
 

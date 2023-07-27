@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
 #include <sys/prctl.h>
+#include "starboard/thread.h"
 
 void SbThreadGetName(char* buffer, int buffer_size) {
   prctl(PR_GET_NAME, buffer, 0L, 0L, 0L);

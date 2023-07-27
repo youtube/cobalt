@@ -36,7 +36,7 @@ void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
 
   const SbTime kDelay = kSbTimeMillisecond * 10;
   // Allow two-millisecond-level precision.
-  const SbTime kPrecision = kSbTimeMillisecond*2;
+  const SbTime kPrecision = kSbTimeMillisecond * 2;
 
   // We know the thread hasn't signaled the condition variable yet, and won't
   // unless we tell it, so it should wait at least the whole delay time.

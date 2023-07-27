@@ -43,24 +43,24 @@ extern "C" {
 
 // The following type definitions were adapted from the types declared in
 // https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h.
-typedef uint8_t  SbGlBoolean;
+typedef uint8_t SbGlBoolean;
 typedef uint32_t SbGlBitfield;
-typedef char     SbGlChar;
-typedef float    SbGlClampf;
+typedef char SbGlChar;
+typedef float SbGlClampf;
 typedef uint32_t SbGlEnum;
-typedef int32_t  SbGlFixed;
-typedef float    SbGlFloat;
-typedef int8_t   SbGlInt8;
-typedef int16_t  SbGlInt16;
-typedef int32_t  SbGlInt32;
-typedef int64_t  SbGlInt64;
-typedef int32_t  SbGlSizei;
+typedef int32_t SbGlFixed;
+typedef float SbGlFloat;
+typedef int8_t SbGlInt8;
+typedef int16_t SbGlInt16;
+typedef int32_t SbGlInt32;
+typedef int64_t SbGlInt64;
+typedef int32_t SbGlSizei;
 typedef struct __GLsync* SbGlSync;
-typedef uint8_t  SbGlUInt8;
+typedef uint8_t SbGlUInt8;
 typedef uint16_t SbGlUInt16;
 typedef uint32_t SbGlUInt32;
 typedef uint64_t SbGlUInt64;
-typedef void     SbGlVoid;
+typedef void SbGlVoid;
 
 // Some compilers will transform the intptr_t to an int transparently behind the
 // scenes, which is not equivalent to a long int, or long long int, as far as
@@ -68,10 +68,10 @@ typedef void     SbGlVoid;
 // types to those exact types used by OpenGL ES 2.0
 // (https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h).
 #if (SB_SIZE_OF(POINTER) == 8) && (SB_SIZE_OF(LONG) == 4)
-typedef long long int SbGlIntPtr;  // NOLINT
+typedef long long int SbGlIntPtr;    // NOLINT
 typedef long long int SbGlSizeiPtr;  // NOLINT
 #else   // (SB_SIZE_OF(POINTER) != 8) || (SB_SIZE_OF(LONG) != 4)
-typedef long int SbGlIntPtr;  // NOLINT
+typedef long int SbGlIntPtr;    // NOLINT
 typedef long int SbGlSizeiPtr;  // NOLINT
 #endif  // (SB_SIZE_OF(POINTER) == 8) && (SB_SIZE_OF(LONG) == 4)
 
