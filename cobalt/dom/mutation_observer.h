@@ -44,7 +44,7 @@ class Node;
 // https://www.w3.org/TR/dom/#mutationobserver
 class MutationObserver : public script::Wrappable {
  public:
-  typedef script::Sequence<scoped_refptr<MutationRecord> >
+  typedef script::Sequence<scoped_refptr<MutationRecord>>
       MutationRecordSequence;
 
   typedef script::CallbackFunction<void(const MutationRecordSequence&,
@@ -108,8 +108,8 @@ class MutationObserver : public script::Wrappable {
                        script::ExceptionState* exception_state);
 
   std::unique_ptr<CallbackInternal> callback_;
-  typedef std::vector<base::WeakPtr<dom::Node> > WeakNodeVector;
-  WeakNodeVector observed_nodes_;
+  typedef std::vector<scoped_refptr<dom::Node>> NodeVector;
+  NodeVector observed_nodes_;
   MutationRecordSequence record_queue_;
   MutationObserverTaskManager* task_manager_;
   const base::DebuggerHooks& debugger_hooks_;

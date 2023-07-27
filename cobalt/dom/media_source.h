@@ -165,7 +165,7 @@ class MediaSource : public web::EventTarget {
   ChunkDemuxer* chunk_demuxer_;
   MediaSourceReadyState ready_state_;
   EventQueue event_queue_;
-  base::WeakPtr<HTMLMediaElement> attached_element_;
+  scoped_refptr<HTMLMediaElement> attached_element_;
 
   scoped_refptr<SourceBufferList> source_buffers_;
   scoped_refptr<SourceBufferList> active_source_buffers_;

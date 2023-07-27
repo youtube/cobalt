@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/intersection_observer.h"
+
 #include <algorithm>
 #include <string>
-
-#include "cobalt/dom/intersection_observer.h"
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -246,9 +246,9 @@ void IntersectionObserver::InitIntersectionObserverInternal(
   // https://www.w3.org/TR/intersection-observer/#intersection-observer-interface
   // Set this.root to options.root. If not provided, set to the implicit root.
   if (options.root()) {
-    root_ = base::AsWeakPtr(options.root().get());
+    root_ = options.root();
   } else {
-    root_ = base::AsWeakPtr(document->document_element().get());
+    root_ = document->document_element();
   }
 
   // Attempt to parse a root margin from options.rootMargin. If a list is
@@ -324,7 +324,7 @@ void IntersectionObserver::TrackObservationTarget(
     }
     ++it;
   }
-  observation_targets_.push_back(base::AsWeakPtr(target.get()));
+  observation_targets_.push_back(target);
 }
 
 void IntersectionObserver::UntrackObservationTarget(

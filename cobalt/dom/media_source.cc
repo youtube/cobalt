@@ -407,7 +407,7 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
   DCHECK(IsClosed());
   DCHECK(!algorithm_process_thread_);
 
-  attached_element_ = base::AsWeakPtr(media_element);
+  attached_element_ = media_element;
   has_max_video_capabilities_ = media_element->HasMaxVideoCapabilities();
 
   if (algorithm_offload_enabled_) {

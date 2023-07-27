@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_INTERSECTION_OBSERVER_H_
 #define COBALT_DOM_INTERSECTION_OBSERVER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -87,7 +88,7 @@ class IntersectionObserver : public base::SupportsWeakPtr<IntersectionObserver>,
                        script::ExceptionState* exception_state);
   ~IntersectionObserver();
 
-  const base::WeakPtr<Element>& root() const { return root_; }
+  const scoped_refptr<Element>& root() const { return root_; }
   void set_layout_root(
       const scoped_refptr<layout::IntersectionObserverRoot>& layout_root);
   const scoped_refptr<layout::IntersectionObserverRoot>& layout_root() const {
@@ -142,12 +143,12 @@ class IntersectionObserver : public base::SupportsWeakPtr<IntersectionObserver>,
   void UntrackObservationTarget(const scoped_refptr<Element>& target);
 
   std::unique_ptr<CallbackInternal> callback_;
-  base::WeakPtr<Element> root_;
+  scoped_refptr<Element> root_;
   scoped_refptr<layout::IntersectionObserverRoot> layout_root_;
   std::string root_margin_;
   scoped_refptr<cssom::PropertyListValue> root_margin_property_value_;
   std::vector<double> thresholds_;
-  typedef std::vector<base::WeakPtr<Element>> ElementVector;
+  typedef std::vector<scoped_refptr<Element>> ElementVector;
   ElementVector observation_targets_;
   IntersectionObserverEntrySequence queued_entries_;
   scoped_refptr<IntersectionObserverTaskManager>

@@ -201,15 +201,15 @@ void Worker::SendErrorEventToOutside(const std::string& message) {
   options_.outside_context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(
-          [](base::WeakPtr<web::EventTarget> event_target,
-             const std::string& message, const std::string& filename) {
+          [](web::EventTarget* event_target, const std::string& message,
+             const std::string& filename) {
             web::ErrorEventInit error;
             error.set_message(message);
             error.set_filename(filename);
             event_target->DispatchEvent(new web::ErrorEvent(
                 event_target->environment_settings(), error));
           },
-          base::AsWeakPtr(options_.outside_event_target), message,
+          base::Unretained(options_.outside_event_target), message,
           web_context_->environment_settings()->creation_url().spec()));
 }
 

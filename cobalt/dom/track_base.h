@@ -36,7 +36,7 @@ class TrackBase : public script::Wrappable {
   const std::string& language() const { return language_; }
 
   void SetMediaElement(HTMLMediaElement* media_element) {
-    media_element_ = base::AsWeakPtr(media_element);
+    media_element_ = media_element;
   }
   SourceBuffer* source_buffer() const { return source_buffer_; }
 
@@ -56,7 +56,7 @@ class TrackBase : public script::Wrappable {
   std::string kind_;
   std::string label_;
   std::string language_;
-  base::WeakPtr<HTMLMediaElement> media_element_;
+  scoped_refptr<HTMLMediaElement> media_element_;
   SourceBuffer* source_buffer_;
 };
 

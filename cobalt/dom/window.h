@@ -186,7 +186,10 @@ class Window : public web::WindowOrWorkerGlobalScope,
   // Web API: Window
   //
   scoped_refptr<Window> window() { return this; }
-  scoped_refptr<Window> self() { return this; }
+  scoped_refptr<Window> self() {
+    LOG(WARNING) << "window ptr: " << this;
+    return this;
+  }
   const scoped_refptr<Document>& document() const;
   const scoped_refptr<Location>& location() const;
   const scoped_refptr<History>& history() const;
@@ -386,6 +389,8 @@ class Window : public web::WindowOrWorkerGlobalScope,
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
+  friend class base::RefCountedThreadSafe<Window>;
+
   void StartDocumentLoad(
       loader::FetcherFactory* fetcher_factory, const GURL& url,
       Parser* dom_parser,

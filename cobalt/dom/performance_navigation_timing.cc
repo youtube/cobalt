@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "cobalt/dom/performance_navigation_timing.h"
-#include "cobalt/dom/performance.h"
 
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/performance.h"
 
 namespace cobalt {
 namespace dom {
@@ -31,7 +31,7 @@ PerformanceNavigationTiming::PerformanceNavigationTiming(
     : PerformanceResourceTiming(timing_info,
                                 kPerformanceNavigationInitiatorType,
                                 requested_url, performance, time_origin),
-      document_(base::AsWeakPtr(document)),
+      document_(document),
       time_origin_(time_origin) {}
 
 std::string PerformanceNavigationTiming::initiator_type() const {

@@ -417,7 +417,7 @@ class WebModule::Impl {
   // so we can ensure that all subsequently created WeakPtr's are also bound to
   // the same loop.
   // See the documentation in base/memory/weak_ptr.h for details.
-  base::WeakPtr<dom::Window> window_weak_;
+  scoped_refptr<dom::Window> window_weak_;
 
   // Used only when MediaModule is null
   std::unique_ptr<media::DecoderBufferMemoryInfo>
@@ -597,7 +597,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-window-environment-settings-object
   // 6. Set settings object's creation URL to creationURL.
   web_context_->environment_settings()->set_creation_url(data.initial_url);
-
+  LOG(WARNING) << "data.initial_url: " << data.initial_url;
   system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
       web_context_->environment_settings());
 
@@ -630,7 +630,8 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 #endif
 
   DCHECK(web_context_->network_module());
-  window_ = new dom::Window(
+  LOG(WARNING) << "creating window";
+  dom::Window* window = new dom::Window(
       web_context_->environment_settings(), data.window_dimensions,
       data.initial_application_state, css_parser_.get(), dom_parser_.get(),
       web_context_->fetcher_factory(), loader_factory_.get(),
@@ -671,9 +672,11 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       dom::Window::kClockTypeSystemTime,
 #endif
       splash_screen_cache_callback, system_caption_settings_, log_tts);
+  LOG(WARNING) << "window created";
+  window_ = window;
   DCHECK(window_);
 
-  window_weak_ = base::AsWeakPtr(window_.get());
+  window_weak_ = window_.get();
   DCHECK(window_weak_);
 
   web_context_->global_environment()->CreateGlobalObject(

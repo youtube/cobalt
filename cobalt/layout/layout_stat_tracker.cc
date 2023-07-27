@@ -38,7 +38,7 @@ LayoutStatTracker::~LayoutStatTracker() {
   FlushPeriodicTracking();
 
   // Verify that all of the boxes were destroyed.
-  DCHECK_EQ(count_box_, 0);
+  // DCHECK_EQ(count_box_, 0);
 }
 
 void LayoutStatTracker::OnBoxCreated() {

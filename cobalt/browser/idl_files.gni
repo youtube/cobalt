@@ -80,6 +80,7 @@ source_idl_files = [
   "//cobalt/dom/html_head_element.idl",
   "//cobalt/dom/html_heading_element.idl",
   "//cobalt/dom/html_html_element.idl",
+  "//cobalt/dom/html_iframe_element.idl",
   "//cobalt/dom/html_image_element.idl",
   "//cobalt/dom/html_link_element.idl",
   "//cobalt/dom/html_media_element.idl",
@@ -143,6 +144,7 @@ source_idl_files = [
   "//cobalt/dom/video_track_list.idl",
   "//cobalt/dom/wheel_event.idl",
   "//cobalt/dom/window.idl",
+  "//cobalt/dom/window_proxy.idl",
   "//cobalt/dom/xml_document.idl",
   "//cobalt/dom/xml_serializer.idl",
 

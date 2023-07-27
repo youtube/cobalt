@@ -520,6 +520,7 @@ WindowOrWorkerGlobalScope* Impl::GetWindowOrWorkerGlobalScope() {
   script::Wrappable* global_wrappable =
       global_environment_ ? global_environment_->global_wrappable() : nullptr;
   if (!global_wrappable) {
+    LOG(WARNING) << "no global_wrappable";
     return nullptr;
   }
   DCHECK(global_wrappable->IsWrappable());
@@ -534,14 +535,17 @@ WindowOrWorkerGlobalScope* Impl::GetWindowOrWorkerGlobalScope() {
 void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
 }  // namespace
 
-void Agent::WillDestroyCurrentMessageLoop() { context_.reset(); }
+void Agent::WillDestroyCurrentMessageLoop() {
+  LOG(WARNING) << "WillDestroyCurrentMessageLoop agent";
+  context_.reset();
+}
 
 Agent::Agent(const std::string& name) : thread_(name) {}
 
 void Agent::Stop() {
   DCHECK(message_loop());
   DCHECK(thread_.IsRunning());
-
+  LOG(WARNING) << "stopping agent";
   if (context() && context()->service_worker_context()) {
     context()->service_worker_context()->UnregisterWebContext(context());
   }
@@ -624,6 +628,7 @@ void Agent::Run(const Options& options, InitializeCallback initialize_callback,
 void Agent::InitializeTaskInThread(const Options& options,
                                    InitializeCallback initialize_callback) {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  LOG(WARNING) << "thread_.thread_name(): " << thread_.thread_name();
   context_.reset(
       CreateContext(thread_.thread_name(), options, thread_.message_loop()));
   initialize_callback.Run(context_.get());

@@ -16,11 +16,10 @@
 
 #include "cobalt/dom/camera_3d.h"
 
-#include "third_party/glm/glm/gtx/euler_angles.hpp"
-
 #include "base/basictypes.h"
 #include "base/time/time.h"
 #include "cobalt/dom/device_orientation_event.h"
+#include "third_party/glm/glm/gtx/euler_angles.hpp"
 
 namespace cobalt {
 namespace dom {
@@ -42,8 +41,7 @@ void Camera3D::ClearAllKeyMappings() { impl_->ClearAllKeyMappings(); }
 
 void Camera3D::Reset() { impl_->Reset(); }
 
-void Camera3D::StartOrientationEvents(
-    const base::WeakPtr<web::EventTarget>& target) {
+void Camera3D::StartOrientationEvents(web::EventTarget* target) {
   if (!impl()) {
     return;
   }
@@ -51,7 +49,7 @@ void Camera3D::StartOrientationEvents(
       FROM_HERE,
       base::TimeDelta::FromSecondsD(1.0 / ORIENTATION_POLL_FREQUENCY_HZ),
       base::Bind(&Camera3D::FireOrientationEvent, base::Unretained(this),
-                 target));
+                 base::Unretained(target)));
 }
 
 void Camera3D::StopOrientationEvents() { orientation_event_timer_.Stop(); }
@@ -71,7 +69,7 @@ static void QuaternionToIntrinsicZXY(const glm::dquat& q, double* intrinsic_z,
 
 }  // namespace
 
-void Camera3D::FireOrientationEvent(base::WeakPtr<web::EventTarget> target) {
+void Camera3D::FireOrientationEvent(web::EventTarget* target) {
   glm::dquat quaternion = glm::normalize(
       glm::dquat(impl()->GetOrientation()) *
       // The API assumes a different initial orientation (straight down instead

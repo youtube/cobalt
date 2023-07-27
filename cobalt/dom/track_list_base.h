@@ -40,7 +40,7 @@ class TrackListBase : public web::EventTarget {
                 HTMLMediaElement* media_element)
       : web::EventTarget(settings) {
     DCHECK(media_element);
-    media_element_ = base::AsWeakPtr(media_element);
+    media_element_ = media_element;
   }
 
   uint32 length() const { return static_cast<uint32>(tracks_.size()); }
@@ -98,7 +98,7 @@ class TrackListBase : public web::EventTarget {
     media_element_->ScheduleEvent(event);
   }
 
-  base::WeakPtr<HTMLMediaElement> media_element_;
+  scoped_refptr<HTMLMediaElement> media_element_;
   std::vector<scoped_refptr<TrackType> > tracks_;
 };
 

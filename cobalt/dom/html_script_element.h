@@ -151,7 +151,7 @@ class HTMLScriptElement : public HTMLElement {
   // thread that it is created in.
   THREAD_CHECKER(thread_checker_);
   // Weak reference to the document at the time Prepare() started.
-  base::WeakPtr<Document> document_;
+  scoped_refptr<Document> document_;
   // The loader that is used for asynchronous loads.
   std::unique_ptr<loader::Loader> loader_;
   // Resolved URL of the script.

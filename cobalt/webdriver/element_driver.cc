@@ -84,7 +84,7 @@ protocol::Rect GetRect(dom::Element* element) {
 
 ElementDriver::ElementDriver(
     const protocol::ElementId& element_id,
-    const base::WeakPtr<dom::Element>& element, ElementMapping* element_mapping,
+    const scoped_refptr<dom::Element>& element, ElementMapping* element_mapping,
     KeyboardEventInjector keyboard_event_injector,
     PointerEventInjector pointer_event_injector,
     const scoped_refptr<base::SingleThreadTaskRunner>& message_loop)
@@ -351,7 +351,7 @@ util::CommandResult<bool> ElementDriver::EqualsInternal(
     const ElementDriver* other_element_driver) {
   DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
   typedef util::CommandResult<bool> CommandResult;
-  base::WeakPtr<dom::Element> other_element = other_element_driver->element_;
+  scoped_refptr<dom::Element> other_element = other_element_driver->element_;
   if (!element_ || !other_element) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }

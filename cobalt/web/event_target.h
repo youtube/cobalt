@@ -47,8 +47,7 @@ namespace web {
 // This interface describes methods and properties common to all kinds of
 // EventTarget.
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#eventtarget
-class EventTarget : public script::Wrappable,
-                    public base::SupportsWeakPtr<EventTarget> {
+class EventTarget : public script::Wrappable {
  public:
   // Helper enum to decide whether or not onerror event parameters should be
   // unpacked or not (e.g. in the special case of the |window| object).

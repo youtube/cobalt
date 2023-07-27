@@ -48,6 +48,7 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/html_iframe_element.h"
 #include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/html_link_element.h"
 #include "cobalt/dom/html_meta_element.h"
@@ -887,6 +888,10 @@ scoped_refptr<HTMLHeadingElement> HTMLElement::AsHTMLHeadingElement() {
 }
 
 scoped_refptr<HTMLHtmlElement> HTMLElement::AsHTMLHtmlElement() { return NULL; }
+
+scoped_refptr<HTMLIframeElement> HTMLElement::AsHTMLIframeElement() {
+  return NULL;
+}
 
 scoped_refptr<HTMLImageElement> HTMLElement::AsHTMLImageElement() {
   return NULL;
@@ -2222,13 +2227,13 @@ void HTMLElement::UpdateUiNavigation() {
         *ui_nav_item_type,
         base::Bind(
             &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
-            base::Bind(&HTMLElement::OnUiNavBlur, base::AsWeakPtr(this))),
+            base::Bind(&HTMLElement::OnUiNavBlur, base::Unretained(this))),
         base::Bind(
             &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
-            base::Bind(&HTMLElement::OnUiNavFocus, base::AsWeakPtr(this))),
+            base::Bind(&HTMLElement::OnUiNavFocus, base::Unretained(this))),
         base::Bind(
             &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
-            base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
+            base::Bind(&HTMLElement::OnUiNavScroll, base::Unretained(this))));
     ui_nav_item_->SetDir(ui_nav_item_dir);
     if (ui_nav_focus_duration_) {
       ui_nav_item_->SetFocusDuration(*ui_nav_focus_duration_);

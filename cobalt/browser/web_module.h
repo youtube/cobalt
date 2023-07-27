@@ -402,6 +402,8 @@ class WebModule : public base::MessageLoop::DestructionObserver,
   void SetUnloadEventTimingInfo(base::TimeTicks start_time,
                                 base::TimeTicks end_time);
 
+  web::Agent* web_agent() const { return web_agent_.get(); }
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |InitializeTaskInThread|.
@@ -486,8 +488,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
 
   // Private implementation object.
   std::unique_ptr<Impl> impl_;
-
-  web::Agent* web_agent() const { return web_agent_.get(); }
 
   // The Web Agent.
   std::unique_ptr<web::Agent> web_agent_;

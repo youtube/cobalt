@@ -120,8 +120,8 @@ class PointerState {
 
   // This stores the elements with target overrides
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#pointer-capture
-  std::map<int32_t, base::WeakPtr<Element>> target_override_;
-  std::map<int32_t, base::WeakPtr<Element>> pending_target_override_;
+  std::map<int32_t, scoped_refptr<Element>> target_override_;
+  std::map<int32_t, scoped_refptr<Element>> pending_target_override_;
 
   // Store the set of active pointers.
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#dfn-active-pointer

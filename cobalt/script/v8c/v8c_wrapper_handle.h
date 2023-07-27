@@ -51,10 +51,10 @@ struct V8cWrapperHandle : public Wrappable::WeakWrapperHandle {
 
   explicit V8cWrapperHandle(WrapperPrivate* wrapper_private) {
     DCHECK(wrapper_private);
-    weak_wrapper_private_ = wrapper_private->AsWeakPtr();
+    weak_wrapper_private_ = wrapper_private;
   }
 
-  base::WeakPtr<WrapperPrivate> weak_wrapper_private_;
+  WrapperPrivate* weak_wrapper_private_;
 };
 
 }  // namespace v8c

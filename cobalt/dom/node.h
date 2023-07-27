@@ -310,7 +310,7 @@ class Node : public web::EventTarget {
   virtual void OnMutation() {}
 
   // Weak reference to the node document.
-  base::WeakPtr<Document> node_document_;
+  scoped_refptr<Document> node_document_;
   // Weak references to parent, previous sibling and last child.
   Node* parent_;
   Node* previous_sibling_;

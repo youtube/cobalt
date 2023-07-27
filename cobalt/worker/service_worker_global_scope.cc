@@ -42,6 +42,7 @@ ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
     : WorkerGlobalScope(settings, options),
       clients_(new Clients(settings)),
       service_worker_object_(base::AsWeakPtr(service_worker)) {
+  LOG(WARNING) << "Adding SW intercept";
   loader::FetchInterceptorCoordinator::GetInstance()->Add(this);
 }
 

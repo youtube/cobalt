@@ -61,7 +61,7 @@ class ElementDriver {
 
   ElementDriver(
       const protocol::ElementId& element_id,
-      const base::WeakPtr<dom::Element>& element,
+      const scoped_refptr<dom::Element>& element,
       ElementMapping* element_mapping,
       KeyboardEventInjector keyboard_event_injector,
       PointerEventInjector pointer_event_injector,
@@ -114,7 +114,7 @@ class ElementDriver {
   protocol::ElementId element_id_;
 
   // These should only be accessed from |element_task_runner_|.
-  base::WeakPtr<dom::Element> element_;
+  scoped_refptr<dom::Element> element_;
   ElementMapping* element_mapping_;
   KeyboardEventInjector keyboard_event_injector_;
   PointerEventInjector pointer_event_injector_;

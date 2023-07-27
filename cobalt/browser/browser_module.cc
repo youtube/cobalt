@@ -41,6 +41,7 @@
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"
+#include "cobalt/dom/html_iframe_element.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
@@ -423,6 +424,13 @@ BrowserModule::BrowserModule(const GURL& url,
 
   // Set the fallback splash screen url to the default fallback url.
   fallback_splash_screen_url_ = options.fallback_splash_screen_url;
+
+  cobalt::dom::FrameFactory::GetInstance()->set_create_agent_callback(
+      base::BindRepeating(&BrowserModule::CreateIframeAgent,
+                          base::Unretained(this)));
+  cobalt::dom::FrameFactory::GetInstance()->set_get_parent_window_callback(
+      base::BindRepeating(&BrowserModule::GetParentWindow,
+                          base::Unretained(this)));
 
   // Synchronously construct our WebModule object.
   Navigate(url);
@@ -1309,7 +1317,8 @@ bool BrowserModule::FilterKeyEventForHotkeys(
       debug_console_->CycleMode();
     }
     return false;
-  } else if (event.key_code() == dom::keycode::kF5) {
+  } else if (event.key_code() == dom::keycode::kF5 ||
+             (event.ctrl_key() && event.key_code() == dom::keycode::kR)) {
     if (type == base::Tokens::keydown()) {
       // F5 reloads the page.
       Reload();
@@ -2122,6 +2131,66 @@ void BrowserModule::ValidateCacheBackendSettings() {
   if (cache_backend) {
     cache_backend->ValidatePersistentSettings();
   }
+}
+
+void BrowserModule::IframeOnRenderTreeProduced(
+    const browser::WebModule::LayoutResults& layout_results) {
+  LOG(WARNING) << "IframeOnRenderTreeProduced";
+  auto* window = iframe_web_module_->web_agent()
+                     ->context()
+                     ->GetWindowOrWorkerGlobalScope()
+                     ->AsWindow();
+  window->DispatchEvent(new web::Event("load"));
+}
+void IframeOnError(const GURL& url, const std::string& error) {
+  LOG(WARNING) << "IframeOnError: " << url << " " << error;
+}
+void IframeOnWindowClose(base::TimeDelta close_time) {}
+
+web::Agent* BrowserModule::CreateIframeAgent(const std::string& name,
+                                             const GURL& url,
+                                             base::Closure on_loaded_callback) {
+  WebModule::Options options;
+  //   options.navigation_callback =
+  //       base::Bind(&BrowserModule::Navigate, base::Unretained(this));
+  //   options.loaded_callbacks.push_back(
+  //       base::Bind(&BrowserModule::OnLoad, base::Unretained(this)));
+  //   options.web_options.web_settings = &web_settings_;
+  options.web_options.network_module = network_module_;
+  options.web_options.service_worker_context =
+      service_worker_registry_->service_worker_context();
+  LOG(WARNING) << "CSP: "
+               << (options_.web_module_options.csp_header_policy ==
+                           csp::kCSPRequired
+                       ? "required"
+                       : "optional");
+  options.csp_header_policy = options_.web_module_options.csp_header_policy;
+  //   options.web_options.platform_info = platform_info_.get();
+  // Support multiple
+  iframe_web_module_.reset(new WebModule(name));
+  iframe_web_module_->Run(
+      url, application_state_, nullptr,
+      base::Bind(
+          [](base::Closure callback,
+             const browser::WebModule::LayoutResults& layout_results) {
+            LOG(WARNING) << "IframeOnRenderTreeProduced";
+            std::move(callback).Run();
+          },
+          std::move(on_loaded_callback)),
+      base::Bind(IframeOnError), base::Bind(IframeOnWindowClose),
+      /*window_minimize_callback=*/base::Closure(),
+      /*can_play_type_handler=*/nullptr, /*media_module=*/nullptr,
+      ViewportSize(100, 100), GetResourceProvider(),
+      kLayoutMaxRefreshFrequencyInHz, options);
+
+  return iframe_web_module_->web_agent();
+}
+
+dom::Window* BrowserModule::GetParentWindow() {
+  return web_module_->web_agent()
+      ->context()
+      ->GetWindowOrWorkerGlobalScope()
+      ->AsWindow();
 }
 
 }  // namespace browser

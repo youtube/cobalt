@@ -576,9 +576,9 @@ class Document : public Node,
   std::unique_ptr<FontCache> font_cache_;
 
   // Weak reference to the active element.
-  base::WeakPtr<Element> active_element_;
+  scoped_refptr<Element> active_element_;
   // Weak reference to the indicated element.
-  base::WeakPtr<HTMLElement> indicated_element_;
+  scoped_refptr<HTMLElement> indicated_element_;
   // List of document observers.
   base::ObserverList<DocumentObserver> observers_;
   // Selector Tree.

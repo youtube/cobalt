@@ -535,7 +535,7 @@ scoped_refptr<HTMLHtmlElement> Document::html() const {
 
 void Document::SetActiveElement(Element* active_element) {
   if (active_element) {
-    active_element_ = base::AsWeakPtr(active_element);
+    active_element_ = active_element;
     if (active_element != ui_nav_focus_element_) {
       // Call UpdateUiNavigationFocus() after UI navigation items have been
       // updated. This happens during render tree generation from layout.
@@ -559,7 +559,7 @@ void Document::SetIndicatedElement(HTMLElement* indicated_element) {
       indicated_element_->OnCSSMutation();
     }
     if (indicated_element) {
-      indicated_element_ = base::AsWeakPtr(indicated_element);
+      indicated_element_ = indicated_element;
       // Clear the rule matching state on this element and its ancestors, as
       // their hover state may be changing.
       indicated_element_->ClearRuleMatchingStateOnElementAndAncestors(
@@ -603,8 +603,8 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
     should_dispatch_load_event_ = false;
 
     base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
-                              base::AsWeakPtr<Document>(this)));
+        FROM_HERE,
+        base::Bind(&Document::DispatchOnLoadEvent, base::Unretained(this)));
 
     HTMLBodyElement* body_element = body().get();
     if (body_element) {
@@ -947,7 +947,7 @@ Document::~Document() {
   // Ensure that all outstanding weak ptrs become invalid.
   // Some objects that will be released while this destructor runs may
   // have weak ptrs to |this|.
-  InvalidateWeakPtrs();
+  // InvalidateWeakPtrs();
 }
 
 void Document::UpdateSelectorTree() {

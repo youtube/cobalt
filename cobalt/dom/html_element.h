@@ -60,6 +60,7 @@ class HTMLElementContext;
 class HTMLHeadElement;
 class HTMLHeadingElement;
 class HTMLHtmlElement;
+class HTMLIframeElement;
 class HTMLImageElement;
 class HTMLLinkElement;
 class HTMLMediaElement;
@@ -220,6 +221,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   virtual scoped_refptr<HTMLHeadElement> AsHTMLHeadElement();
   virtual scoped_refptr<HTMLHeadingElement> AsHTMLHeadingElement();
   virtual scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement();
+  virtual scoped_refptr<HTMLIframeElement> AsHTMLIframeElement();
   virtual scoped_refptr<HTMLImageElement> AsHTMLImageElement();
   virtual scoped_refptr<HTMLLinkElement> AsHTMLLinkElement();
   virtual scoped_refptr<HTMLMetaElement> AsHTMLMetaElement();

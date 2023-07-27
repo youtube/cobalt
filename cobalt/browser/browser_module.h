@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/observer_list.h"
@@ -473,6 +474,13 @@ class BrowserModule {
   // Validates the PersistentSettings for cache backend, if in use.
   void ValidateCacheBackendSettings();
 
+  web::Agent* CreateIframeAgent(const std::string& name, const GURL& url,
+                                base::Closure on_loaded_callback);
+  dom::Window* GetParentWindow();
+
+  void IframeOnRenderTreeProduced(
+      const browser::WebModule::LayoutResults& layout_results);
+
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
   //     own where it can ensure that its tasks are all resolved when it is
@@ -584,6 +592,8 @@ class BrowserModule {
   // web module will ultimately produce a render tree that can be passed
   // into the renderer module.
   std::unique_ptr<WebModule> web_module_;
+
+  std::unique_ptr<WebModule> iframe_web_module_;
 
   // Will be signalled when the WebModule's Window.onload event is fired.
   base::WaitableEvent web_module_loaded_;

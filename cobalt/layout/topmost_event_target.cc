@@ -772,7 +772,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
         document->SetIndicatedElement(target_element);
       }
     }
-    previous_html_element_weak_ = base::AsWeakPtr(target_element.get());
+    previous_html_element_weak_ = target_element;
   } else {
     previous_html_element_weak_.reset();
   }

@@ -41,8 +41,9 @@ void WrapperFactory::RegisterWrappableType(
 v8::Local<v8::Object> WrapperFactory::GetWrapper(
     const scoped_refptr<Wrappable>& wrappable) {
   v8::Local<v8::Object> wrapper;
-  v8::MaybeLocal<v8::Object> maybe_wrapper = V8cWrapperHandle::MaybeGetObject(
-      isolate_, GetCachedWrapper(wrappable.get()));
+  v8::MaybeLocal<v8::Object> maybe_wrapper;
+  // = V8cWrapperHandle::MaybeGetObject(
+  //     isolate_, GetCachedWrapper(wrappable.get()));
   if (!maybe_wrapper.ToLocal(&wrapper)) {
     std::unique_ptr<Wrappable::WeakWrapperHandle> object_handle =
         CreateWrapper(wrappable);

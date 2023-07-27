@@ -44,7 +44,7 @@ class DocumentTimeline : public web_animations::AnimationTimeline {
  private:
   ~DocumentTimeline() override;
 
-  base::WeakPtr<Document> document_;
+  scoped_refptr<Document> document_;
 
   DISALLOW_COPY_AND_ASSIGN(DocumentTimeline);
 };

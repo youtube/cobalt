@@ -47,9 +47,9 @@ MediaKeySession::MediaKeySession(
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
           base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,
-                     base::AsWeakPtr(this)),
+                     base::Unretained(this)),
           base::Bind(&MediaKeySession::OnSessionClosed,
-                     base::AsWeakPtr(this)))),
+                     base::Unretained(this)))),
       script_value_factory_(script_value_factory),
       uninitialized_(true),
       callable_(false),
@@ -142,11 +142,11 @@ script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
   drm_system_session_->GenerateUpdateRequest(
       init_data_type, init_data_buffer, init_data_buffer_size,
       base::Bind(&MediaKeySession::OnSessionUpdateRequestGenerated,
-                 base::AsWeakPtr(this), settings,
+                 base::Unretained(this), settings,
                  base::Owned(new VoidPromiseValue::Reference(global_wrappable,
                                                              promise))),
       base::Bind(&MediaKeySession::OnSessionUpdateRequestDidNotGenerate,
-                 base::AsWeakPtr(this),
+                 base::Unretained(this),
                  base::Owned(new VoidPromiseValue::Reference(global_wrappable,
                                                              promise))));
 
@@ -191,10 +191,11 @@ script::Handle<script::Promise<void>> MediaKeySession::Update(
   auto* global_wrappable = web::get_global_wrappable(environment_settings);
   drm_system_session_->Update(
       response_buffer, response_buffer_size,
-      base::Bind(&MediaKeySession::OnSessionUpdated, base::AsWeakPtr(this),
+      base::Bind(&MediaKeySession::OnSessionUpdated, base::Unretained(this),
                  base::Owned(new VoidPromiseValue::Reference(global_wrappable,
                                                              promise))),
-      base::Bind(&MediaKeySession::OnSessionDidNotUpdate, base::AsWeakPtr(this),
+      base::Bind(&MediaKeySession::OnSessionDidNotUpdate,
+                 base::Unretained(this),
                  base::Owned(new VoidPromiseValue::Reference(global_wrappable,
                                                              promise))));
 

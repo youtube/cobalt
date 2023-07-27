@@ -155,7 +155,7 @@ DebugConsole::DebugConsole(
                    web_module_options);
 }
 
-DebugConsole::~DebugConsole() {}
+DebugConsole::~DebugConsole() { LOG(WARNING) << "deleting kDebugConsoleMode"; }
 
 bool DebugConsole::ShouldInjectInputEvents() {
   switch (GetMode()) {

@@ -22,7 +22,6 @@
 #include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
 #include "cobalt/dom/performance_resource_timing.h"
-
 #include "cobalt/script/wrappable.h"
 #include "net/base/load_timing_info.h"
 
@@ -67,7 +66,7 @@ class PerformanceNavigationTiming : public PerformanceResourceTiming {
   DEFINE_WRAPPABLE_TYPE(PerformanceNavigationTiming);
 
  private:
-  base::WeakPtr<Document> document_;
+  scoped_refptr<Document> document_;
   base::TimeTicks time_origin_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceNavigationTiming);
