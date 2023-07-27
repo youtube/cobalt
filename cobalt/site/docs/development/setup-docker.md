@@ -47,6 +47,15 @@ Note that Docker runs processes as root user by default, hence
 output files in `src/out/<platform>` directory have `root` as file owner.
 </aside>
 
+#### Windows Builds
+
+We have a separate docker compose file for windows. Use the -f or --file flags
+to specify a configuration file to use.
+
+```
+docker-compose -f docker-compose-windows.yml run win-win32
+```
+
 ### Customization
 
 To parametrize base operating system images used for the build, pass
