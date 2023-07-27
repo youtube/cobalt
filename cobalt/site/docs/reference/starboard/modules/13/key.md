@@ -290,4 +290,3 @@ Bit-mask of key modifiers.
 *   `kSbKeyModifiersPointerButtonMiddle`
 *   `kSbKeyModifiersPointerButtonBack`
 *   `kSbKeyModifiersPointerButtonForward`
-

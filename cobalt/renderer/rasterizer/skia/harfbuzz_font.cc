@@ -24,7 +24,6 @@
 
 #include "base/lazy_instance.h"
 #include "cobalt/render_tree/glyph.h"
-
 #include "third_party/skia/include/core/SkPaint.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/web_animations/animation.h"
+
+#include <memory>
 
 #include "base/logging.h"
 #include "cobalt/web_animations/animation_set.h"

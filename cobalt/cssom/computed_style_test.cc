@@ -15,6 +15,7 @@
 #include "cobalt/cssom/computed_style.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -1172,7 +1173,8 @@ TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
   DCHECK_EQ(2u, box_shadow_list->value().size());
 
   float expected_length_value[2][3] = {
-      {100.0f, 30.0f, 150.0f}, {100.0f, 40.0f, 0.0f},
+      {100.0f, 30.0f, 150.0f},
+      {100.0f, 40.0f, 0.0f},
   };
   float expected_color[2] = {0x0047ABFF, 0x000080FF};
   bool expected_has_inset[2] = {true, false};
@@ -1829,7 +1831,8 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
   DCHECK_EQ(2u, text_shadow_list->value().size());
 
   float expected_length_value[2][3] = {
-      {100.0f, 30.0f, 150.0f}, {100.0f, 40.0f, 0.0f},
+      {100.0f, 30.0f, 150.0f},
+      {100.0f, 40.0f, 0.0f},
   };
   float expected_color[2] = {0x0047ABFF, 0x000080FF};
 

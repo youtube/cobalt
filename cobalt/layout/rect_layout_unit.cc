@@ -1,3 +1,4 @@
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -20,8 +21,8 @@ namespace cobalt {
 namespace layout {
 
 typedef class math::RectBase<RectLayoutUnit, PointLayoutUnit, SizeLayoutUnit,
-                             InsetsLayoutUnit, Vector2dLayoutUnit,
-                             LayoutUnit> RectBaseT;
+                             InsetsLayoutUnit, Vector2dLayoutUnit, LayoutUnit>
+    RectBaseT;
 
 bool RectLayoutUnit::IsExpressibleAsRect() const {
   return math::IsExpressibleAsInt(x().toFloat()) &&

@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/renderer/test/png_utils/png_decode.h"
+
 #include <memory>
 
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
-#include "cobalt/renderer/test/png_utils/png_decode.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::renderer::test::png_utils::DecodePNGToPremultipliedAlphaRGBA;

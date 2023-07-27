@@ -20,7 +20,6 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/rgba_color_value.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

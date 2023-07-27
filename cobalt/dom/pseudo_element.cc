@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/pseudo_element.h"
+
 #include "base/logging.h"
 #include "cobalt/dom/dom_animatable.h"
-#include "cobalt/dom/pseudo_element.h"
 
 namespace cobalt {
 namespace dom {

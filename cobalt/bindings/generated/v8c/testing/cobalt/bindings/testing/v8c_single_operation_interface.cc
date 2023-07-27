@@ -105,4 +105,3 @@ done:
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-

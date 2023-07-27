@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/dom/html_anchor_element.h"
+
 #include "cobalt/dom/document.h"
 
 namespace cobalt {

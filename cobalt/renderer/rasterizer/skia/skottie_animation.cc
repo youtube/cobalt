@@ -132,7 +132,7 @@ void SkottieAnimation::SetAnimationTimeInternal(
 }
 
 void SkottieAnimation::UpdateRenderCache(SkCanvas* render_target,
-    const math::SizeF& size) {
+                                         const math::SizeF& size) {
   DCHECK(render_target);
   if (cached_animation_time_ == last_updated_animation_time_) {
     // The render cache is already up-to-date.

@@ -43,7 +43,12 @@ class ReplacedBox : public Box {
   typedef base::Callback<scoped_refptr<render_tree::Image>()> ReplaceImageCB;
   typedef render_tree::PunchThroughVideoNode::SetBoundsCB SetBoundsCB;
 
-  enum class ReplacedBoxMode { kVideo, kPunchOutVideo, kLottie };
+  enum class ReplacedBoxMode {
+    kPaintToBlack,  // Paint a black rectangle
+    kDecodeToTextureVideo,
+    kPunchOutVideo,
+    kLottie
+  };
 
   ReplacedBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                   css_computed_style_declaration,

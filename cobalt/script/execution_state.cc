@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/script/execution_state.h"
+
+#include <memory>
 
 #include "cobalt/script/global_environment.h"
 

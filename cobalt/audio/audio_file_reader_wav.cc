@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/audio/audio_file_reader_wav.h"
+
 #include <memory>
 #include <sstream>
 #include <string>
-
-#include "cobalt/audio/audio_file_reader_wav.h"
 
 #include "base/basictypes.h"
 #include "base/logging.h"

@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_BACKEND_EGL_TEXTURE_H_
 
 #include <memory>
+
 #include "base/callback.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"

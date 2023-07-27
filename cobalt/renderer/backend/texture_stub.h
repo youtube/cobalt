@@ -29,8 +29,8 @@ namespace backend {
 // Maintains a scoped array of texture data.
 class TextureDataStub : public TextureData {
  public:
-  explicit TextureDataStub(const SurfaceInfo& surface_info) :
-      pixel_data_(new PixelDataStub(surface_info)) {}
+  explicit TextureDataStub(const SurfaceInfo& surface_info)
+      : pixel_data_(new PixelDataStub(surface_info)) {}
 
   const SurfaceInfo& GetSurfaceInfo() const override {
     return pixel_data_->surface_info();
@@ -95,9 +95,7 @@ class TextureStub : public Texture {
     return pixel_data_->surface_info();
   }
 
-  const scoped_refptr<PixelDataStub>& pixel_data() const {
-    return pixel_data_;
-  }
+  const scoped_refptr<PixelDataStub>& pixel_data() const { return pixel_data_; }
 
   Origin GetOrigin() const override { return kBottomLeft; }
 

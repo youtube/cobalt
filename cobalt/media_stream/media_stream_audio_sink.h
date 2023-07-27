@@ -16,9 +16,7 @@
 #define COBALT_MEDIA_STREAM_MEDIA_STREAM_AUDIO_SINK_H_
 
 #include "cobalt/media/base/audio_bus.h"
-
 #include "cobalt/media_stream/audio_parameters.h"
-
 #include "cobalt/media_stream/media_stream_source.h"
 #include "cobalt/media_stream/media_stream_track.h"
 
@@ -38,8 +36,7 @@ class MediaStreamAudioSink {
                       base::TimeTicks reference_time) = 0;
   virtual void OnSetFormat(const media_stream::AudioParameters& params) = 0;
   virtual void OnReadyStateChanged(
-      media_stream::MediaStreamTrack::ReadyState new_state) {
-  }
+      media_stream::MediaStreamTrack::ReadyState new_state) {}
 
  private:
   MediaStreamAudioSink(const MediaStreamAudioSink&) = delete;

@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/csp/content_security_policy.h"
+
 #include <memory>
 
-#include "cobalt/csp/content_security_policy.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 

@@ -65,10 +65,11 @@ TEST_F(EnumerationBindingsTest, SetInvalidValue) {
   InSequence dummy;
 
   std::string result;
-  EXPECT_TRUE(EvaluateScript(
-      "var caught_exception = null; "
-      "try { test.enumProperty = \"invalid\"; } "
-      "catch (e) { caught_exception = e }", NULL));
+  EXPECT_TRUE(
+      EvaluateScript("var caught_exception = null; "
+                     "try { test.enumProperty = \"invalid\"; } "
+                     "catch (e) { caught_exception = e }",
+                     NULL));
   EXPECT_TRUE(
       EvaluateScript("caught_exception.constructor === TypeError;", &result));
   EXPECT_STREQ("true", result.c_str());

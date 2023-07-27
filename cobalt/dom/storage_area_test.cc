@@ -17,8 +17,8 @@
 #include <set>
 #include <vector>
 
-#include "cobalt/dom/storage.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/storage.h"
 #include "cobalt/storage/store/memory_store.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,9 +33,9 @@ namespace {
 class MockStorage : public Storage {
  public:
   MockStorage() : Storage(NULL, kSessionStorage, NULL) {
-      ON_CALL(*this, origin()).WillByDefault(
-          Return(GURL("https://www.example.com")));
-      EXPECT_CALL(*this, origin()).Times(1);
+    ON_CALL(*this, origin())
+        .WillByDefault(Return(GURL("https://www.example.com")));
+    EXPECT_CALL(*this, origin()).Times(1);
   }
   MOCK_METHOD3(DispatchEvent, bool(const base::Optional<std::string>&,
                                    const base::Optional<std::string>&,

@@ -61,7 +61,14 @@ group("gn_all") {
     deps += [ "//third_party/lz4_lib:lz4" ]
 
     if (sb_is_evergreen_compatible) {
-      deps += [ "//third_party/crashpad/client" ]
+      deps += [
+        "//third_party/crashpad/client",
+
+        # TODO(b/270858365): remove this dependency on the Starboard-based
+        # target (from the target toolchain) once Buildbot has been updated to
+        # use the native target (from native_target toolchain).
+        "//third_party/crashpad/handler",
+      ]
       data_deps = [
         "//starboard/loader_app",
         "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",

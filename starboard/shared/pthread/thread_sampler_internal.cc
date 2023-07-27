@@ -107,16 +107,19 @@ SbThreadContext SignalHandler::Freeze(SbThreadSampler sampler) {
 bool SignalHandler::Thaw(SbThreadSampler sampler) {
   starboard::ScopedLock lock(GetMutex());
   SB_DCHECK(frozen_sampler_ == sampler) << "SbThreadSampler didn't freeze.";
-  if (frozen_sampler_ != sampler) return false;
+  if (frozen_sampler_ != sampler)
+    return false;
   sb_context_ = SbThreadContextPrivate();
   sem_post(&thaw_semaphore_);
   frozen_sampler_ = kSbThreadSamplerInvalid;
   return true;
 }
 
-void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
+void SignalHandler::HandleProfilerSignal(int signal,
+                                         siginfo_t* info,
                                          void* context) {
-  if (signal != SIGPROF) return;
+  if (signal != SIGPROF)
+    return;
   sb_context_ = SbThreadContextPrivate(reinterpret_cast<ucontext_t*>(context));
   // |Freeze| can return the context now.
   sem_post(&freeze_semaphore_);
@@ -139,4 +142,6 @@ SbThreadContext SbThreadSamplerPrivate::Freeze() {
   return SignalHandler::Freeze(this);
 }
 
-bool SbThreadSamplerPrivate::Thaw() { return SignalHandler::Thaw(this); }
+bool SbThreadSamplerPrivate::Thaw() {
+  return SignalHandler::Thaw(this);
+}

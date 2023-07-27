@@ -58,22 +58,22 @@ void RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
 
 template <typename Class, typename PointClass, typename SizeClass,
           typename InsetsClass, typename VectorClass, typename Type>
-void RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass, Type>::
-operator+=(const VectorClass& offset) {
+void RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
+              Type>::operator+=(const VectorClass& offset) {
   origin_ += offset;
 }
 
 template <typename Class, typename PointClass, typename SizeClass,
           typename InsetsClass, typename VectorClass, typename Type>
-void RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass, Type>::
-operator-=(const VectorClass& offset) {
+void RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
+              Type>::operator-=(const VectorClass& offset) {
   origin_ -= offset;
 }
 
 template <typename Class, typename PointClass, typename SizeClass,
           typename InsetsClass, typename VectorClass, typename Type>
-bool RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass, Type>::
-operator<(const Class& other) const {
+bool RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
+              Type>::operator<(const Class& other) const {
   if (origin_ == other.origin_) {
     if (width() == other.width()) {
       return height() < other.height();
@@ -253,8 +253,8 @@ Type RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
   c.Union(rect);
 
   const Type kEpsilon = std::numeric_limits<Type>::is_integer
-                                   ? Type(1)
-                                   : std::numeric_limits<Type>::epsilon();
+                            ? Type(1)
+                            : std::numeric_limits<Type>::epsilon();
 
   Type x =
       std::max<Type>(Type(0), c.width() - width() - rect.width() + kEpsilon);

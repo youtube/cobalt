@@ -376,5 +376,3 @@ v8::Local<v8::FunctionTemplate> V8cAnonymousNamedGetterInterface::GetTemplate(v8
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

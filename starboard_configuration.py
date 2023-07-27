@@ -16,12 +16,8 @@ from cobalt.build import cobalt_configuration
 # List of paths to directories in which Starboard ports are located. Each path
 # should be represented as a list of directory names whose locations are
 # relative to the location of this file.
-PORT_ROOTS = [
-    ["starboard"],
-    ["starboard", "contrib"],
-    ["starboard", "port"],
-    ["third_party", "starboard"]
-]
+PORT_ROOTS = [["starboard"], ["starboard", "contrib"], ["starboard", "port"],
+              ["third_party", "starboard"]]
 
 # A Mapping of application names to cross-platform ApplicationConfiguration
 # subclasses (or factory functions).

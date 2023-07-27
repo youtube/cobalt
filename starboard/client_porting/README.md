@@ -42,4 +42,3 @@ EzTime can be used directly by including
 `starboard/client_porting/eztime/eztime.h`, or you can include
 `starboard/client_porting/poem/eztime_poem.h` in your implementation file to
 automatically simulate POSIXy time functions.
-

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/web/url.h"
-
 #include "base/guid.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -21,6 +19,7 @@
 #include "cobalt/dom/media_source.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/url.h"
 #include "url/gurl.h"
 
 namespace cobalt {

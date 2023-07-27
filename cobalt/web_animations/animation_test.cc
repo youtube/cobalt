@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/web_animations/animation.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

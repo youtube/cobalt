@@ -37,7 +37,8 @@ class TransformPropertyValue : public PropertyValue {
   // Returns whether the transform has any functions with the specified trait.
   virtual bool HasTrait(TransformFunction::Trait trait) const = 0;
 
-  virtual math::Matrix3F ToMatrix(const math::SizeF& used_size,
+  virtual math::Matrix3F ToMatrix(
+      const math::SizeF& used_size,
       const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const = 0;
 };
 

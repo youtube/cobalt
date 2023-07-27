@@ -17,9 +17,7 @@ package dev.cobalt.media;
 import android.view.accessibility.CaptioningManager;
 import dev.cobalt.util.UsedByNative;
 
-/**
- * Captures the system Caption style in properties as needed by the Starboard implementation.
- */
+/** Captures the system Caption style in properties as needed by the Starboard implementation. */
 public class CaptionSettings {
 
   @UsedByNative public final boolean isEnabled;

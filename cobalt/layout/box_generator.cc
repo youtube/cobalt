@@ -339,22 +339,31 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // If the optional is disengaged, then we don't know if punch out is enabled
   // or not.
   base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode;
-  if (video_element->GetDecodeTargetProvider()) {
+  bool paint_to_black = false;
+  auto decode_target_provider =
+      video_element->GetDecodeTargetProvider(&paint_to_black);
+  if (decode_target_provider) {
     DecodeTargetProvider::OutputMode output_mode =
-        video_element->GetDecodeTargetProvider()->GetOutputMode();
-    if (output_mode != DecodeTargetProvider::kOutputModeInvalid) {
+        decode_target_provider->GetOutputMode();
+    if (output_mode == DecodeTargetProvider::kOutputModeInvalid) {
+      if (paint_to_black) {
+        replaced_box_mode = ReplacedBox::ReplacedBoxMode::kPaintToBlack;
+      }
+    } else {
       replaced_box_mode =
           (output_mode == DecodeTargetProvider::kOutputModePunchOut)
               ? ReplacedBox::ReplacedBoxMode::kPunchOutVideo
-              : ReplacedBox::ReplacedBoxMode::kVideo;
+              : ReplacedBox::ReplacedBoxMode::kDecodeToTextureVideo;
     }
+  } else {
+    // ReplacedBox won't paint anything when |decode_target_provider| is
+    // nullptr, as |replace_image_cb_| is also null in this case.
   }
 
   ReplacedBoxGenerator replaced_box_generator(
       video_element->css_computed_style_declaration(),
-      video_element->GetDecodeTargetProvider()
-          ? base::Bind(GetVideoFrame, video_element->GetDecodeTargetProvider(),
-                       resource_provider)
+      decode_target_provider
+          ? base::Bind(GetVideoFrame, decode_target_provider, resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
       base::nullopt, base::nullopt, base::nullopt, context_, replaced_box_mode,

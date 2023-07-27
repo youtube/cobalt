@@ -29,9 +29,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
-/**
- * A class to load Cobalt storage from the file system.
- */
+/** A class to load Cobalt storage from the file system. */
 public class CobaltStorageLoader {
 
   private final File filesDir;
@@ -146,9 +144,7 @@ public class CobaltStorageLoader {
     fileObserver.setStorageObserver(storageObserver);
   }
 
-  /**
-   * Observer that is called when Cobalt storage changes.
-   */
+  /** Observer that is called when Cobalt storage changes. */
   public interface CobaltStorageObserver {
 
     /**
@@ -168,9 +164,7 @@ public class CobaltStorageLoader {
     private final File filesDir;
     private CobaltStorageObserver storageObserver = null;
 
-    /**
-     * Factory method to differentiate which constructor to use.
-     */
+    /** Factory method to differentiate which constructor to use. */
     static StorageFileObserver create(File filesDir) {
       if (Build.VERSION.SDK_INT >= 29) {
         return new StorageFileObserver(filesDir);

@@ -58,7 +58,7 @@ bool InlineContainerBox::TryAddChild(const scoped_refptr<Box>& child_box) {
         // container box.
         return false;
       }
-    // Fall through if out-of-flow.
+      // Fall through if out-of-flow.
 
     case kInlineLevel:
       // If the inline container box already contains a line break, then no

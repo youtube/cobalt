@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/renderer/backend/default_graphics_system.h"
+
 #include <memory>
 #include <string>
-
-#include "cobalt/renderer/backend/default_graphics_system.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"

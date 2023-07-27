@@ -25,7 +25,8 @@ namespace shared {
 namespace uwp {
 
 starboard::scoped_ptr<ILogWriter> CreateLogWriterUWP(
-    Windows::Storage::StorageFolder^ folder, const char* filename);
+    Windows::Storage::StorageFolder ^ folder,
+    const char* filename);
 
 }  // namespace uwp
 }  // namespace shared

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "base/logging.h"
-
 #include "base/time/time.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/interface_with_date.h"

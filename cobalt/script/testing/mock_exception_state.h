@@ -15,9 +15,8 @@
 #ifndef COBALT_SCRIPT_TESTING_MOCK_EXCEPTION_STATE_H_
 #define COBALT_SCRIPT_TESTING_MOCK_EXCEPTION_STATE_H_
 
-#include "cobalt/script/exception_state.h"
-
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/exception_state.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {

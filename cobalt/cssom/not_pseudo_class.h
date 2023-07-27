@@ -35,8 +35,7 @@ class SelectorVisitor;
 //   https://www.w3.org/TR/selectors4/#negation-pseudo
 class NotPseudoClass : public PseudoClass {
  public:
-  NotPseudoClass()
-      : PseudoClass(base::Tokens::not_pseudo_class_selector()) {}
+  NotPseudoClass() : PseudoClass(base::Tokens::not_pseudo_class_selector()) {}
   ~NotPseudoClass() override {}
 
   // From Selector.

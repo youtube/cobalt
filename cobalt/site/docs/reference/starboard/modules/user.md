@@ -131,4 +131,3 @@ Returns whether the given user handle is valid.
 ```
 static bool SbUserIsValid(SbUser user)
 ```
-

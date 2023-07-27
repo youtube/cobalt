@@ -52,7 +52,8 @@ public class NetworkStatus {
     public void onAvailable(Network network) {
       this.networkStatus.sendStatusChange(true);
     }
-  };
+  }
+  ;
 
   public void sendStatusChange(final boolean online) {
     this.mainHandler.post(

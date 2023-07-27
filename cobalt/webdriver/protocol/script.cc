@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/webdriver/protocol/script.h"
+
+#include <memory>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -26,7 +26,7 @@ namespace protocol {
 namespace {
 const char kScriptKey[] = "script";
 const char kArgsKey[] = "args";
-}
+}  // namespace
 
 base::Optional<Script> Script::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;

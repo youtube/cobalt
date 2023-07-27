@@ -16,9 +16,7 @@
 
 #include <set>
 
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/version_compatibility.h"
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -76,7 +74,6 @@ const SelectorTree::OwnedNodes& SelectorTree::children(
   return owned_nodes_map_[std::make_pair(node, combinator)];
 }
 
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 namespace {
 
 // This uses the old CompoundSelector compare logic that had a bug where 'not'
@@ -178,7 +175,6 @@ bool HasNotPseudoClassCompatibilityViolations(
 bool SelectorTree::ValidateVersionCompatibility() const {
   return !HasNotPseudoClassCompatibilityViolations(owned_nodes_map_);
 }
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
 SelectorTree::Node* SelectorTree::GetOrCreateNodeForComplexSelector(
     ComplexSelector* complex_selector) {

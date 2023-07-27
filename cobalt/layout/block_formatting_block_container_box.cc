@@ -50,7 +50,7 @@ void BlockFormattingBlockContainerBox::AddChild(
         PushBackDirectChild(child_box);
         break;
       }
-    // Fall through if child is out-of-flow.
+      // Fall through if child is out-of-flow.
 
     case kInlineLevel:
       // An inline formatting context required,

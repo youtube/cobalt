@@ -132,7 +132,7 @@ void enumPropertyAttributeGetter(
                     [](v8::Isolate* isolate, EnumerationInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->enum_property(),
               &result_value);
@@ -372,5 +372,3 @@ v8::Local<v8::FunctionTemplate> V8cEnumerationInterface::GetTemplate(v8::Isolate
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

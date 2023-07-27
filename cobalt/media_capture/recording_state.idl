@@ -20,4 +20,3 @@ enum RecordingState {
   "recording",
   "paused"
 };
-

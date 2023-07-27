@@ -25,11 +25,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::Invoke;
+using ::testing::_;
 using ::testing::InSequence;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::_;
 
 namespace cobalt {
 namespace bindings {

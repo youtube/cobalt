@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/media/sandbox/media_sandbox.h"
+
+#include <memory>
 
 #include "base/command_line.h"
 #include "base/logging.h"

@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/webdriver/screencast/screencast_module.h"
+
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/base64.h"
 #include "base/bind.h"
@@ -23,8 +26,6 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
 
-#include "cobalt/webdriver/screencast/screencast_module.h"
-
 namespace cobalt {
 namespace webdriver {
 namespace screencast {
@@ -33,7 +34,7 @@ namespace {
 const char kJpegContentType[] = "image/jpeg";
 // Add screencast frame rate as 30 fps.
 const int kScreencastFramesPerSecond = 30;
-}
+}  // namespace
 
 ScreencastModule::ScreencastModule(
     int server_port, const std::string& listen_ip,
@@ -88,10 +89,10 @@ void ScreencastModule::StartServer(int server_port,
 
   const base::Closure screenshot_event =
       base::Bind(&ScreencastModule::TakeScreenshot, base::Unretained(this));
-  screenshot_timer_->Start(FROM_HERE,
-                           base::TimeDelta::FromMilliseconds(
-                               1000.0f / kScreencastFramesPerSecond),
-                           screenshot_event);
+  screenshot_timer_->Start(
+      FROM_HERE,
+      base::TimeDelta::FromMilliseconds(1000.0f / kScreencastFramesPerSecond),
+      screenshot_event);
 }
 
 void ScreencastModule::StopTimer() {

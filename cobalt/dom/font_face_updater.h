@@ -30,7 +30,7 @@ namespace cssom {
 class CSSStyleSheet;
 class StyleSheetList;
 
-}  // cssom
+}  // namespace cssom
 
 namespace dom {
 

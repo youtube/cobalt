@@ -77,6 +77,12 @@ bool MediaSettingsImpl::Set(const std::string& name, int value) {
       LOG(INFO) << name << ": set to " << value;
       return true;
     }
+  } else if (name == "MediaElement.PaintingVideoBackgroundToBlack") {
+    if (value == 0 || value == 1) {
+      is_painting_video_background_to_black_ = value != 0;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
   } else {
     LOG(WARNING) << "Ignore unknown setting with name \"" << name << "\"";
     return false;

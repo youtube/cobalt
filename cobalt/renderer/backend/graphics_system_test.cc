@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/renderer/backend/graphics_system.h"
+
 #include <algorithm>
 #include <memory>
 
 #include "base/optional.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
-#include "cobalt/renderer/backend/graphics_system.h"
 #include "starboard/log.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -91,8 +92,8 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
     graphics_context.reset();
     graphics_system.reset();
   }
-  SbTimeMonotonic time_per_initialization = kSbTimeMillisecond +
-      (SbTimeGetMonotonicNow() - start) / kReferenceCount;
+  SbTimeMonotonic time_per_initialization =
+      kSbTimeMillisecond + (SbTimeGetMonotonicNow() - start) / kReferenceCount;
   SB_LOG(INFO) << "Measured duration "
                << time_per_initialization / kSbTimeMillisecond
                << "ms per initialization.";

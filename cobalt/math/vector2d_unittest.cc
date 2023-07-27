@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 
 #include "cobalt/math/vector2d.h"
-#include "cobalt/math/vector2d_f.h"
 
 #include <cmath>
 #include <limits>
 
 #include "base/basictypes.h"
+#include "cobalt/math/vector2d_f.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -90,15 +90,12 @@ TEST(Vector2dTest, Negative) {
 }
 
 TEST(Vector2dTest, Scale) {
-  float double_values[][4] = {{4.5f, 1.2f, 3.3f, 5.6f},
-                              {4.5f, -1.2f, 3.3f, 5.6f},
-                              {4.5f, 1.2f, 3.3f, -5.6f},
-                              {4.5f, 1.2f, -3.3f, -5.6f},
-                              {-4.5f, 1.2f, 3.3f, 5.6f},
-                              {-4.5f, 1.2f, 0, 5.6f},
-                              {-4.5f, 1.2f, 3.3f, 0},
-                              {4.5f, 0, 3.3f, 5.6f},
-                              {0, 1.2f, 3.3f, 5.6f}};
+  float double_values[][4] = {
+      {4.5f, 1.2f, 3.3f, 5.6f},  {4.5f, -1.2f, 3.3f, 5.6f},
+      {4.5f, 1.2f, 3.3f, -5.6f}, {4.5f, 1.2f, -3.3f, -5.6f},
+      {-4.5f, 1.2f, 3.3f, 5.6f}, {-4.5f, 1.2f, 0, 5.6f},
+      {-4.5f, 1.2f, 3.3f, 0},    {4.5f, 0, 3.3f, 5.6f},
+      {0, 1.2f, 3.3f, 5.6f}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(double_values); ++i) {
     Vector2dF v(double_values[i][0], double_values[i][1]);
@@ -113,15 +110,10 @@ TEST(Vector2dTest, Scale) {
     EXPECT_EQ(double_values[i][1] * double_values[i][3], v2.y());
   }
 
-  float single_values[][3] = {{4.5f, 1.2f, 3.3f},
-                              {4.5f, -1.2f, 3.3f},
-                              {4.5f, 1.2f, 3.3f},
-                              {4.5f, 1.2f, -3.3f},
-                              {-4.5f, 1.2f, 3.3f},
-                              {-4.5f, 1.2f, 0},
-                              {-4.5f, 1.2f, 3.3f},
-                              {4.5f, 0, 3.3f},
-                              {0, 1.2f, 3.3f}};
+  float single_values[][3] = {
+      {4.5f, 1.2f, 3.3f},  {4.5f, -1.2f, 3.3f}, {4.5f, 1.2f, 3.3f},
+      {4.5f, 1.2f, -3.3f}, {-4.5f, 1.2f, 3.3f}, {-4.5f, 1.2f, 0},
+      {-4.5f, 1.2f, 3.3f}, {4.5f, 0, 3.3f},     {0, 1.2f, 3.3f}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(single_values); ++i) {
     Vector2dF v(single_values[i][0], single_values[i][1]);

@@ -25,7 +25,6 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/storage/savegame_fake.h"
 #include "cobalt/storage/storage_manager.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

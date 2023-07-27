@@ -1748,5 +1748,3 @@ v8::Local<v8::FunctionTemplate> V8cOperationsTestInterface::GetTemplate(v8::Isol
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

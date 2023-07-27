@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/storage/savegame.h"
+
 #include <memory>
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
-#include "cobalt/storage/savegame.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 static size_t kMaxSaveGameSizeBytes = 4 * 1024 * 1024;

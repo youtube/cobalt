@@ -123,7 +123,7 @@ void forwardingAttributeAttributeGetter(
                     [](v8::Isolate* isolate, PutForwardsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->forwarding_attribute(),
               &result_value);
@@ -175,7 +175,7 @@ void staticForwardingAttributeAttributeGetter(
                     [](v8::Isolate* isolate, PutForwardsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               PutForwardsInterface::static_forwarding_attribute(),
               &result_value);
@@ -373,5 +373,3 @@ v8::Local<v8::FunctionTemplate> V8cPutForwardsInterface::GetTemplate(v8::Isolate
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

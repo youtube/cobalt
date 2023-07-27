@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/layout/anonymous_block_box.h"
+
+#include <memory>
 
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/inline_formatting_context.h"

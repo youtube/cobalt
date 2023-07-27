@@ -25,7 +25,7 @@ namespace cobalt {
 namespace cssom {
 
 TranslateFunction::TranslateFunction(Axis axis,
-    const scoped_refptr<PropertyValue>& offset)
+                                     const scoped_refptr<PropertyValue>& offset)
     : axis_(axis), offset_(offset) {
   DCHECK(offset);
   if (offset_type() == kLength && offset_as_length()->IsUnitRelative()) {
@@ -124,16 +124,16 @@ math::Matrix3F TranslateFunction::ToMatrix(
     const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   switch (axis_) {
     case kXAxis:
-      return math::TranslateMatrix(length_component_in_pixels() +
-                                   percentage_component() * used_size.width(),
-                                   0.0f);
+      return math::TranslateMatrix(
+          length_component_in_pixels() +
+              percentage_component() * used_size.width(),
+          0.0f);
     case kYAxis:
-      return math::TranslateMatrix(0.0f,
-                                   length_component_in_pixels() +
-                                   percentage_component() * used_size.height());
+      return math::TranslateMatrix(
+          0.0f, length_component_in_pixels() +
+                    percentage_component() * used_size.height());
     case kZAxis:
-      if (length_component_in_pixels() != 0 ||
-          percentage_component() != 0) {
+      if (length_component_in_pixels() != 0 || percentage_component() != 0) {
         LOG(ERROR) << "translateZ is currently a noop in Cobalt.";
       }
       break;

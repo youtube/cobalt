@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "performance_entry.h"
+#include "cobalt/dom/performance_entry.h"
 
 #include "base/atomic_sequence_num.h"
 #include "base/strings/string_util.h"
@@ -31,17 +31,13 @@ PerformanceEntry::PerformanceEntry(const std::string& name,
                                    DOMHighResTimeStamp start_time,
                                    DOMHighResTimeStamp finish_time)
     : duration_(finish_time - start_time),
-    name_(name),
-    start_time_(start_time),
-    index_(index_seq.GetNext()) {}
+      name_(name),
+      start_time_(start_time),
+      index_(index_seq.GetNext()) {}
 
-DOMHighResTimeStamp PerformanceEntry::start_time() const {
-  return start_time_;
-}
+DOMHighResTimeStamp PerformanceEntry::start_time() const { return start_time_; }
 
-DOMHighResTimeStamp PerformanceEntry::duration() const {
-  return duration_;
-}
+DOMHighResTimeStamp PerformanceEntry::duration() const { return duration_; }
 
 PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
     const std::string& entry_type) {
@@ -49,7 +45,7 @@ PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
 
   for (size_t i = 0; i < arraysize(PerformanceEntry::kEntryTypeString); ++i) {
     if (base::LowerCaseEqualsASCII(entry_type,
-        PerformanceEntry::kEntryTypeString[i])) {
+                                   PerformanceEntry::kEntryTypeString[i])) {
       return static_cast<PerformanceEntry::EntryType>(i);
     }
   }
@@ -60,8 +56,7 @@ PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
 bool PerformanceEntry::StartTimeCompareLessThan(
     const scoped_refptr<PerformanceEntry>& a,
     const scoped_refptr<PerformanceEntry>& b) {
-  if (a->start_time() == b->start_time())
-    return a->index_ < b->index_;
+  if (a->start_time() == b->start_time()) return a->index_ < b->index_;
   return a->start_time() < b->start_time();
 }
 

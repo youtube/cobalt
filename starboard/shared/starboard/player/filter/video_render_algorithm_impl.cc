@@ -189,8 +189,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     cadence_pattern_generator_.UpdateFrameRate(frame_rate * playback_rate);
     SB_DCHECK(cadence_pattern_generator_.has_cadence());
 
-    auto frame_duration =
-        static_cast<SbTime>(kSbTimeSecond / refresh_rate);
+    auto frame_duration = static_cast<SbTime>(kSbTimeSecond / refresh_rate);
 
     if (current_frame_rendered_times_ >=
         cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()) {
@@ -200,8 +199,8 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
       frames->pop_front();
       cadence_pattern_generator_.AdvanceToNextFrame();
       current_frame_rendered_times_ = 0;
-      if (cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()
-          == 0) {
+      if (cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays() ==
+          0) {
         continue;
       }
       if (frames->front()->timestamp() <= media_time - frame_duration) {

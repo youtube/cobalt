@@ -279,5 +279,3 @@ v8::Local<v8::FunctionTemplate> V8cGlobalInterfaceParent::GetTemplate(v8::Isolat
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

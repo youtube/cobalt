@@ -160,19 +160,21 @@ bool AnimationSet::Update(const base::TimeDelta& current_time,
 
     // Create the animation and insert it into our map of currently active
     // animations.
-    InternalAnimationMap::iterator inserted = animations_.insert(
-        std::make_pair(
-            name_string,
-            AnimationEntry(Animation(name_string, keyframes, current_time,
-                GetTimeValue(i, style.animation_delay().get()),
-                GetTimeValue(i, style.animation_duration().get()),
-                GetFillMode(i, style.animation_fill_mode().get()),
-                GetIterationCount(
-                    i, style.animation_iteration_count().get()),
-                GetDirection(i, style.animation_direction().get()),
-                GetTimingFunction(
-                    i, style.animation_timing_function().get())))))
-        .first;
+    InternalAnimationMap::iterator inserted =
+        animations_
+            .insert(std::make_pair(
+                name_string,
+                AnimationEntry(Animation(
+                    name_string, keyframes, current_time,
+                    GetTimeValue(i, style.animation_delay().get()),
+                    GetTimeValue(i, style.animation_duration().get()),
+                    GetFillMode(i, style.animation_fill_mode().get()),
+                    GetIterationCount(i,
+                                      style.animation_iteration_count().get()),
+                    GetDirection(i, style.animation_direction().get()),
+                    GetTimingFunction(
+                        i, style.animation_timing_function().get())))))
+            .first;
     if (event_handler_) {
       event_handler_->OnAnimationStarted(inserted->second.animation, this);
     }
@@ -187,8 +189,8 @@ bool AnimationSet::Update(const base::TimeDelta& current_time,
     // If the animation is playing, but the current time is past the end time,
     // then we should signal to the event handler that it has ended.
     bool animation_has_ended =
-        current_time >= iter->second.animation.start_time() +
-                        iter->second.animation.duration();
+        current_time >=
+        iter->second.animation.start_time() + iter->second.animation.duration();
     if (animation_has_ended && !iter->second.ended) {
       iter->second.ended = true;
       if (event_handler_) {

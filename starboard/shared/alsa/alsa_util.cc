@@ -18,15 +18,14 @@
 
 #include "starboard/common/log.h"
 
-#define ALSA_CHECK(error, alsa_function, failure_return)      \
-  do {                                                        \
-    if (error < 0) {                                          \
-      SB_LOG(ERROR) << __FUNCTION__ << ": " << #alsa_function \
-                    << "() failed with error "                \
-                    << snd_strerror(error)                    \
-                    << " (" << error << ")";                  \
-      return (failure_return);                                \
-    }                                                         \
+#define ALSA_CHECK(error, alsa_function, failure_return)                      \
+  do {                                                                        \
+    if (error < 0) {                                                          \
+      SB_LOG(ERROR) << __FUNCTION__ << ": " << #alsa_function                 \
+                    << "() failed with error " << snd_strerror(error) << " (" \
+                    << error << ")";                                          \
+      return (failure_return);                                                \
+    }                                                                         \
   } while (false)
 
 #if defined(ADDRESS_SANITIZER)

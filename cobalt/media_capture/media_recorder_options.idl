@@ -16,4 +16,3 @@
 dictionary MediaRecorderOptions {
   DOMString mimeType;
 };
-

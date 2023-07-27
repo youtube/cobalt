@@ -119,7 +119,7 @@ void theStringifierAttributeAttributeGetter(
                     [](v8::Isolate* isolate, StringifierAttributeInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->the_stringifier_attribute(),
               &result_value);
@@ -305,5 +305,3 @@ v8::Local<v8::FunctionTemplate> V8cStringifierAttributeInterface::GetTemplate(v8
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

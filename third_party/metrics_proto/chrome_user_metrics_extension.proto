@@ -13,12 +13,14 @@ package metrics;
 
 import "cast_logs.proto";
 import "histogram_event.proto";
-import "memory_leak_report.proto";
-import "omnibox_event.proto";
+// Cobalt-only change to reduce compiled binary byte size. See b/290819695.
+//import "memory_leak_report.proto";
+//import "omnibox_event.proto";
 import "perf_data.proto";
 import "printer_event.proto";
 import "reporting_info.proto";
-import "sampled_profile.proto";
+// Cobalt-only change to reduce compiled binary byte size. See b/290819695.
+//import "sampled_profile.proto";
 import "system_profile.proto";
 import "translate_event.proto";
 import "user_action_event.proto";
@@ -66,7 +68,8 @@ message ChromeUserMetricsExtension {
 
   // This message will log one or more of the following event types:
   repeated UserActionEventProto user_action_event = 4;
-  repeated OmniboxEventProto omnibox_event = 5;
+  // Cobalt-only change to reduce compiled binary byte size. See b/290819695.
+  //repeated OmniboxEventProto omnibox_event = 5;
   repeated HistogramEventProto histogram_event = 6;
   repeated TranslateEventProto translate_event = 15;
   repeated PrinterEventProto printer_event = 16;
@@ -74,14 +77,16 @@ message ChromeUserMetricsExtension {
   // Deprecated: use |sampled_profile| instead.
   repeated PerfDataProto perf_data = 8 [deprecated = true];
 
+  // Cobalt-only change to reduce compiled binary byte size. See b/290819695.
   // A list of all collected sample-based profiles since the last UMA upload.
-  repeated SampledProfile sampled_profile = 11;
+  //repeated SampledProfile sampled_profile = 11;
 
   // Additional data related with Cast-enabled devices.
   optional CastLogsProto cast_logs = 12;
 
+  // Cobalt-only change to reduce compiled binary byte size. See b/290819695.
   // Memory leak reports generated since the last UMA upload.
-  repeated MemoryLeakReportProto memory_leak_report = 13;
+  //repeated MemoryLeakReportProto memory_leak_report = 13;
 
   // The ReportingInfo message sent in the X-Chrome-UMA-ReportingInfo header.
   // Copied in by the receiving server.

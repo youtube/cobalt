@@ -19,7 +19,7 @@
 namespace content {
 
 // Models a chunk-oriented byte buffer. The term chunk is herein defined as an
-// arbitrary sequence of bytes that is preceeded by N header bytes, indicating
+// arbitrary sequence of bytes that is preceded by N header bytes, indicating
 // its size. Data may be appended to the buffer with no particular respect of
 // chunks boundaries. However, chunks can be extracted (FIFO) only when their
 // content (according to their header) is fully available in the buffer.
@@ -71,7 +71,6 @@ class CONTENT_EXPORT ChunkedByteBuffer {
 
   DISALLOW_COPY_AND_ASSIGN(ChunkedByteBuffer);
 };
-
 
 }  // namespace content
 

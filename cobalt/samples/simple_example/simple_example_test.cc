@@ -79,7 +79,9 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
   ASSERT_TRUE(base::PathExists(data_dir));
 
   const char* kCaseFiles[] = {
-      "case1.txt", "case2.txt", "case3.txt",
+      "case1.txt",
+      "case2.txt",
+      "case3.txt",
   };
   const int kNumInputArgs = 3;
 

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/base/path_provider.h"
+
+#include <memory>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"

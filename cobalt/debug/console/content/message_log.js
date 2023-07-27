@@ -224,4 +224,3 @@ MessageLog.prototype.toTail = function() {
   this.displayPos = 0;
   this.displayMessages();
 }
-

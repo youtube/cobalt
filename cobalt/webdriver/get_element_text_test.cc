@@ -47,12 +47,11 @@ class GetElementTextTest : public ::testing::Test {
   GetElementTextTest()
       : css_parser_(css_parser::Parser::Create()),
         dom_stat_tracker_(new dom::DomStatTracker("GetElementTextTest")),
-        html_element_context_(
-            &environment_settings_, NULL, NULL, css_parser_.get(), NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL,
-            NULL) {
-  }
+        html_element_context_(&environment_settings_, NULL, NULL,
+                              css_parser_.get(), NULL, NULL, NULL, NULL, NULL,
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                              dom_stat_tracker_.get(), "",
+                              base::kApplicationStateStarted, NULL, NULL) {}
 
   void SetUp() override {
     dom::Document::Options options;
@@ -99,8 +98,8 @@ TEST_F(GetElementTextTest, ZeroSpaceWidthIsRemoved) {
 }
 
 TEST_F(GetElementTextTest, NewLinesAreConvertedToSpaces) {
-  AppendText("a\r\nb\rc\nd");
-  EXPECT_STREQ("a b c d", algorithms::GetElementText(div_.get()).c_str());
+  AppendText("a\r\nb\rc\ne");
+  EXPECT_STREQ("a b c e", algorithms::GetElementText(div_.get()).c_str());
 }
 
 TEST_F(GetElementTextTest, NoWrapStyle) {

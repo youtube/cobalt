@@ -18,12 +18,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::ContainsRegex;
-using ::testing::Invoke;
 using ::testing::InSequence;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SaveArg;
-using ::testing::_;
 
 namespace cobalt {
 namespace bindings {
@@ -117,10 +117,10 @@ TEST_F(CallbackFunctionTest, CallbackWithOneParameter) {
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), TakesFunctionWithOneParameter(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
-  EXPECT_TRUE(EvaluateScript(
-      "test.takesFunctionWithOneParameter(function(value) { "
-      "callback_value = value });",
-      NULL));
+  EXPECT_TRUE(
+      EvaluateScript("test.takesFunctionWithOneParameter(function(value) { "
+                     "callback_value = value });",
+                     NULL));
   ASSERT_TRUE(function_owner.IsSet());
 
   // Run the callback, and check that the value was passed through to script.
@@ -142,11 +142,11 @@ TEST_F(CallbackFunctionTest, CallbackWithSeveralParameters) {
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), TakesFunctionWithSeveralParameters(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
-  EXPECT_TRUE(EvaluateScript(
-      "test.takesFunctionWithSeveralParameters("
-      "function(param1, param2, param3) { "
-      "value1 = param1; value2 = param2; value3 = param3; });",
-      NULL));
+  EXPECT_TRUE(
+      EvaluateScript("test.takesFunctionWithSeveralParameters("
+                     "function(param1, param2, param3) { "
+                     "value1 = param1; value2 = param2; value3 = param3; });",
+                     NULL));
   ASSERT_TRUE(function_owner.IsSet());
 
   // Execute the callback
@@ -180,11 +180,11 @@ TEST_F(CallbackFunctionTest, CallbackWithNullableParameters) {
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), TakesFunctionWithNullableParameters(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
-  EXPECT_TRUE(EvaluateScript(
-      "test.takesFunctionWithNullableParameters("
-      "function(param1, param2, param3) { "
-      "value1 = param1; value2 = param2; value3 = param3; });",
-      NULL));
+  EXPECT_TRUE(
+      EvaluateScript("test.takesFunctionWithNullableParameters("
+                     "function(param1, param2, param3) { "
+                     "value1 = param1; value2 = param2; value3 = param3; });",
+                     NULL));
   ASSERT_TRUE(function_owner.IsSet());
 
   // Execute the callback

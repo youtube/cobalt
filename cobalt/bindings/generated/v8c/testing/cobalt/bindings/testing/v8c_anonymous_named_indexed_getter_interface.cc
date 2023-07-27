@@ -322,7 +322,7 @@ void lengthAttributeGetter(
                     [](v8::Isolate* isolate, AnonymousNamedIndexedGetterInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->length(),
               &result_value);
@@ -489,5 +489,3 @@ v8::Local<v8::FunctionTemplate> V8cAnonymousNamedIndexedGetterInterface::GetTemp
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

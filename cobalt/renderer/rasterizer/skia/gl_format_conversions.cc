@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 
 #include "cobalt/renderer/egl_and_gles.h"
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {
@@ -39,7 +38,9 @@ GLenum ConvertRenderTreeFormatToGL(render_tree::PixelFormat pixel_format) {
       return GL_ALPHA;
     case render_tree::kPixelFormatUV8:
       return GL_LUMINANCE_ALPHA;
-    default: { NOTREACHED() << "Unknown format."; }
+    default: {
+      NOTREACHED() << "Unknown format.";
+    }
   }
   return GL_RGBA;
 }
@@ -64,7 +65,9 @@ GrColorType ConvertGLFormatToGrColorType(GLenum gl_format) {
     case GL_RG_EXT:
 #endif
       return GrColorType::kRGBA_8888;
-    default: { NOTREACHED() << "Unsupported GL format."; }
+    default: {
+      NOTREACHED() << "Unsupported GL format.";
+    }
   }
   return GrColorType::kRGBA_8888;
 }
@@ -91,7 +94,9 @@ GLenum ConvertBaseGLFormatToSizedInternalFormat(GLenum gl_format) {
     case GL_RG_EXT:
 #endif
       return GL_RGBA8_OES;
-    default: { NOTREACHED() << "Unsupported GL format."; }
+    default: {
+      NOTREACHED() << "Unsupported GL format.";
+    }
   }
   return GL_RGBA8_OES;
 }

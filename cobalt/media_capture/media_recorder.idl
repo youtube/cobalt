@@ -32,4 +32,3 @@ interface MediaRecorder : EventTarget {
 
   static boolean isTypeSupported(DOMString type);
 };
-

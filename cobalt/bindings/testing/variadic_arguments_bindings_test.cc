@@ -15,13 +15,12 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/operations_test_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SaveArg;
-using ::testing::_;
 
 namespace cobalt {
 namespace bindings {
@@ -61,14 +60,16 @@ TEST_F(VariadicArgumentsBindingsTest,
       "test.variadicStringArgumentsAfterOptionalArgument();", NULL));
 
   std::vector<std::string> string_args;
-  EXPECT_CALL(test_mock(), VariadicStringArgumentsAfterOptionalArgument(
-                               true, _)).WillOnce(SaveArg<1>(&string_args));
+  EXPECT_CALL(test_mock(),
+              VariadicStringArgumentsAfterOptionalArgument(true, _))
+      .WillOnce(SaveArg<1>(&string_args));
   EXPECT_TRUE(EvaluateScript(
       "test.variadicStringArgumentsAfterOptionalArgument(true);", NULL));
   EXPECT_EQ(0, string_args.size());
 
-  EXPECT_CALL(test_mock(), VariadicStringArgumentsAfterOptionalArgument(
-                               false, _)).WillOnce(SaveArg<1>(&string_args));
+  EXPECT_CALL(test_mock(),
+              VariadicStringArgumentsAfterOptionalArgument(false, _))
+      .WillOnce(SaveArg<1>(&string_args));
   EXPECT_TRUE(EvaluateScript(
       "test.variadicStringArgumentsAfterOptionalArgument(false, \"zero\", "
       "\"one\");",

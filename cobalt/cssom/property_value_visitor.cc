@@ -70,8 +70,7 @@ void DefaultingPropertyValueVisitor::VisitFontWeight(
   VisitDefault(font_weight_value);
 }
 
-void DefaultingPropertyValueVisitor::VisitInteger(
-    IntegerValue* integer_value) {
+void DefaultingPropertyValueVisitor::VisitInteger(IntegerValue* integer_value) {
   VisitDefault(integer_value);
 }
 

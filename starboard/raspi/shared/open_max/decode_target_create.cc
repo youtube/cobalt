@@ -98,8 +98,8 @@ SbDecodeTarget DecodeTargetCreate(
   params.egl_context = provider->egl_context;
   params.decode_target_out = kSbDecodeTargetInvalid;
 
-  SbDecodeTargetRunInGlesContext(
-      provider, &CreateWithContextRunner, static_cast<void*>(&params));
+  SbDecodeTargetRunInGlesContext(provider, &CreateWithContextRunner,
+                                 static_cast<void*>(&params));
 
   return params.decode_target_out;
 }

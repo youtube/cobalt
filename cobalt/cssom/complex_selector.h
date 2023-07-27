@@ -52,9 +52,7 @@ class ComplexSelector : public Selector {
   CompoundSelector* first_selector() { return first_selector_.get(); }
   CompoundSelector* last_selector() { return last_selector_; }
 
-  int combinator_count() {
-    return combinator_count_;
-  }
+  int combinator_count() { return combinator_count_; }
 
   // For a chain of compound selectors separated by combinators, AppendSelector
   // should be first called with the left most compound selector, then

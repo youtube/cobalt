@@ -1,3 +1,4 @@
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -27,8 +28,7 @@ class InsetsLayoutUnit : public math::InsetsBase<InsetsLayoutUnit, LayoutUnit> {
 
 inline InsetsLayoutUnit operator+(const InsetsLayoutUnit& lhs,
                                   const InsetsLayoutUnit& rhs) {
-  return InsetsLayoutUnit(lhs.left() + rhs.left(),
-                          lhs.top() + rhs.top(),
+  return InsetsLayoutUnit(lhs.left() + rhs.left(), lhs.top() + rhs.top(),
                           lhs.right() + rhs.right(),
                           lhs.bottom() + rhs.bottom());
 }

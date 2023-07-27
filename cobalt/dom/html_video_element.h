@@ -52,7 +52,10 @@ class HTMLVideoElement : public HTMLMediaElement {
   // From HTMLElement
   scoped_refptr<HTMLVideoElement> AsHTMLVideoElement() override { return this; }
 
-  scoped_refptr<DecodeTargetProvider> GetDecodeTargetProvider();
+  // When the return value is nullptr, and |paint_to_black| is set to true, the
+  // caller is expected to paint the area covered by the video to black.
+  scoped_refptr<DecodeTargetProvider> GetDecodeTargetProvider(
+      bool* paint_to_black);
 
   WebMediaPlayer::SetBoundsCB GetSetBoundsCB();
 

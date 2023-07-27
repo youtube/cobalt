@@ -15,6 +15,7 @@
 #include "cobalt/cssom/property_value_visitor.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "cobalt/cssom/absolute_url_value.h"
@@ -261,7 +262,7 @@ TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
 
 TEST(PropertyValueVisitorTest, VisitsShadowValue) {
   scoped_refptr<ShadowValue> shadow_value =
-      new ShadowValue(std::vector<scoped_refptr<LengthValue> >(),
+      new ShadowValue(std::vector<scoped_refptr<LengthValue>>(),
                       new RGBAColorValue(0x0047abff), false);
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitShadow(shadow_value.get()));
@@ -322,8 +323,8 @@ TEST(PropertyValueVisitorTest, VisitsTransformPropertyValueInterpolated) {
   scoped_refptr<InterpolatedTransformPropertyValue> interpolated_value(
       new InterpolatedTransformPropertyValue(start_value, end_value, 0.5f));
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitTransformPropertyValue(
-      interpolated_value.get()));
+  EXPECT_CALL(mock_visitor,
+              VisitTransformPropertyValue(interpolated_value.get()));
   interpolated_value->Accept(&mock_visitor);
 }
 

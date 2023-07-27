@@ -56,6 +56,7 @@ repos:
                 (internal/)?starboard/[^/]+/i18n/|
                 cobalt/content/licenses/|
                 cobalt/fetch/embedded_scripts|
+                cobalt/streams/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
                 internal/cobalt/browser/splash_screen/youtube_splash_screen.html|
                 internal/starboard/shared/playstation/storage_internal.cc|
@@ -122,8 +123,13 @@ repos:
         exclude: |
             (?x)^(
                 .pre-commit-config.yaml$|
+                cobalt/base/unicode/|
+                cobalt/math/|
                 cobalt/media/|
                 cobalt/layout_tests/testdata/|
+                cobalt/webdriver/screencast/|
+                cobalt/websocket/|
+                content/|
                 nb/|
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$|
                 starboard/shared/starboard/player/filter/decoded_audio_queue.cc$|

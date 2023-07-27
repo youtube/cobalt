@@ -49,10 +49,9 @@
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
+#include "cobalt/base/starboard_stats_tracker.h"
 #include "cobalt/base/startup_timer.h"
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/version_compatibility.h"
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/window_on_offline_event.h"
 #include "cobalt/base/window_on_online_event.h"
 #include "cobalt/base/window_size_changed_event.h"
@@ -77,6 +76,7 @@
 #include "cobalt/watchdog/watchdog.h"
 #include "components/metrics/metrics_service.h"
 #include "starboard/common/device_type.h"
+#include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/common/system_property.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
@@ -674,6 +674,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // URLRequestContext;
   base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
 
+  starboard::StatsTrackerContainer::GetInstance()->set_stats_tracker(
+      std::make_unique<StarboardStatsTracker>());
+
   // Initializes persistent settings.
   persistent_settings_ =
       std::make_unique<persistent_storage::PersistentSettings>(
@@ -749,7 +752,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
   constexpr int kDefaultMinCompatibilityVersion = 1;
   int minimum_version = kDefaultMinCompatibilityVersion;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -762,7 +764,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(minimum_version);
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
   base::Optional<std::string> partition_key;
   if (command_line->HasSwitch(browser::switches::kLocalStoragePartitionUrl)) {
@@ -989,15 +990,20 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif  // ENABLE_WEBDRIVER
 
 #if defined(ENABLE_DEBUGGER)
-  int remote_debugging_port = GetRemoteDebuggingPort();
-  if (remote_debugging_port == 0) {
-    DLOG(INFO) << "Remote web debugger disabled because "
-               << switches::kRemoteDebuggingPort << " is 0.";
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableWebDebugger)) {
+    LOG(INFO) << "Remote web debugger disabled.";
   } else {
-    debug_web_server_.reset(new debug::remote::DebugWebServer(
-        remote_debugging_port, GetDevServersListenIp(),
-        base::Bind(&BrowserModule::CreateDebugClient,
-                   base::Unretained(browser_module_.get()))));
+    int remote_debugging_port = GetRemoteDebuggingPort();
+    if (remote_debugging_port == 0) {
+      LOG(INFO) << "Remote web debugger disabled because "
+                << switches::kRemoteDebuggingPort << " is 0.";
+    } else {
+      debug_web_server_.reset(new debug::remote::DebugWebServer(
+          remote_debugging_port, GetDevServersListenIp(),
+          base::Bind(&BrowserModule::CreateDebugClient,
+                     base::Unretained(browser_module_.get()))));
+    }
   }
 #endif  // ENABLE_DEBUGGER
 

@@ -130,7 +130,7 @@ void arbitraryPropertyAttributeGetter(
                     [](v8::Isolate* isolate, ArbitraryInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->arbitrary_property(),
               &result_value);
@@ -353,5 +353,3 @@ v8::Local<v8::FunctionTemplate> V8cArbitraryInterface::GetTemplate(v8::Isolate* 
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

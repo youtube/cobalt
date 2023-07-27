@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/renderer/smoothed_value.h"
+
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

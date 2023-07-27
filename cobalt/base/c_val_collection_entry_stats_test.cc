@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/base/c_val_collection_entry_stats.h"
+
 #include <string>
 
-#include "cobalt/base/c_val_collection_entry_stats.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SaveArg;
-using ::testing::_;
 
 namespace base {
 

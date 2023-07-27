@@ -14,6 +14,7 @@
 
 
 #include "cobalt/dom/performance_lifecycle_timing.h"
+
 #include "cobalt/dom/performance.h"
 
 namespace cobalt {

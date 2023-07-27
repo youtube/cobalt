@@ -13,10 +13,9 @@
 
 #include <memory>
 // limitations under the License.
-#include "cobalt/webdriver/protocol/capabilities.h"
-
 #include "base/values.h"
 #include "cobalt/version.h"
+#include "cobalt/webdriver/protocol/capabilities.h"
 
 namespace cobalt {
 namespace webdriver {

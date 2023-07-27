@@ -19,14 +19,26 @@
 
 #include <byteswap.h>
 
-int16_t SbByteSwapS16(int16_t value) { return bswap_16(value); }
+int16_t SbByteSwapS16(int16_t value) {
+  return bswap_16(value);
+}
 
-uint16_t SbByteSwapU16(uint16_t value) { return bswap_16(value); }
+uint16_t SbByteSwapU16(uint16_t value) {
+  return bswap_16(value);
+}
 
-int32_t SbByteSwapS32(int32_t value) { return bswap_32(value); }
+int32_t SbByteSwapS32(int32_t value) {
+  return bswap_32(value);
+}
 
-uint32_t SbByteSwapU32(uint32_t value) { return bswap_32(value); }
+uint32_t SbByteSwapU32(uint32_t value) {
+  return bswap_32(value);
+}
 
-int64_t SbByteSwapS64(int64_t value) { return bswap_64(value); }
+int64_t SbByteSwapS64(int64_t value) {
+  return bswap_64(value);
+}
 
-uint64_t SbByteSwapU64(uint64_t value) { return bswap_64(value); }
+uint64_t SbByteSwapU64(uint64_t value) {
+  return bswap_64(value);
+}

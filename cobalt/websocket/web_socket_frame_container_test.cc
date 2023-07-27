@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/websocket/web_socket_frame_container.h"
+
+#include <memory>
 
 #include "base/memory/ref_counted.h"
 #include "net/base/io_buffer.h"

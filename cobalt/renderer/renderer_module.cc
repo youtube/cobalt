@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/renderer/renderer_module.h"
+
 #include <memory>
 #include <string>
-
-#include "cobalt/renderer/renderer_module.h"
 
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/trace_event.h"

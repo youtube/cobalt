@@ -13,7 +13,7 @@
 # limitations under the License.
 
 config("base_config") {
-  defines = [ "COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS" ]
+  defines = []
 
   if (is_debug || is_devel) {
     defines += [
@@ -70,6 +70,7 @@ static_library("base") {
     "ref_counted_lock.h",
     "source_location.cc",
     "source_location.h",
+    "starboard_stats_tracker.h",
     "startup_timer.cc",
     "startup_timer.h",
     "statistics.h",

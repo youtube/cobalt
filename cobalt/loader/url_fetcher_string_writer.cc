@@ -1,3 +1,4 @@
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 // Copyright 2019 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@
 #include "base/logging.h"
 #include "net/base/net_errors.h"
 
-    namespace cobalt {
+namespace cobalt {
 namespace loader {
 
 // URLFetcherStringWriter::URLFetcherStringWriter(OnWriteCallback

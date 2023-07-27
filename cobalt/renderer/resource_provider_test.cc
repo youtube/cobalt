@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
+#include "cobalt/render_tree/resource_provider.h"
 
-#include "base/threading/simple_thread.h"
+#include <memory>
 
 #include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
-#include "cobalt/render_tree/resource_provider.h"
+#include "base/threading/simple_thread.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::render_tree::ResourceProvider;

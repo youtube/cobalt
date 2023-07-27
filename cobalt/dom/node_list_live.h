@@ -15,9 +15,8 @@
 #ifndef COBALT_DOM_NODE_LIST_LIVE_H_
 #define COBALT_DOM_NODE_LIST_LIVE_H_
 
-#include "cobalt/dom/node_list.h"
-
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/node_list.h"
 
 namespace cobalt {
 namespace dom {

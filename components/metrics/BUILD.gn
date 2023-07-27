@@ -120,6 +120,11 @@ static_library("metrics") {
 
   if (use_cobalt_customizations) {
     sources -= [
+      # Allows removal of unused sampled_profile.proto, which adds ~200KB to
+      # the binary. See b/290819695.
+      "call_stack_profile_metrics_provider.cc",
+      "call_stack_profile_metrics_provider.h",
+
       # All code should be OS agnostic above SB.
       "drive_metrics_provider_android.cc",
       "drive_metrics_provider_ios.mm",

@@ -41,6 +41,7 @@ class MediaSettings {
 
   virtual base::Optional<int>
   GetMediaElementTimeupdateEventIntervalInMilliseconds() const = 0;
+  virtual base::Optional<bool> IsPaintingVideoBackgroundToBlack() const = 0;
 
  protected:
   MediaSettings() = default;
@@ -89,6 +90,9 @@ class MediaSettingsImpl : public MediaSettings {
       const override {
     return media_element_timeupdate_event_interval_in_milliseconds_;
   }
+  base::Optional<bool> IsPaintingVideoBackgroundToBlack() const override {
+    return is_painting_video_background_to_black_;
+  }
 
   // Returns true when the setting associated with `name` is set to `value`.
   // Returns false when `name` is not associated with any settings, or if
@@ -106,6 +110,8 @@ class MediaSettingsImpl : public MediaSettings {
   base::Optional<int> max_source_buffer_append_size_in_bytes_;
 
   base::Optional<int> media_element_timeupdate_event_interval_in_milliseconds_;
+
+  base::Optional<bool> is_painting_video_background_to_black_;
 };
 
 }  // namespace dom

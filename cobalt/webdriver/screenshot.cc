@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #include "cobalt/webdriver/screenshot.h"
+
 #include "base/base64.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"

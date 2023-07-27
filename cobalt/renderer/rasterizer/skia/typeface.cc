@@ -15,7 +15,6 @@
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 
 #include "cobalt/renderer/rasterizer/skia/font.h"
-
 #include "third_party/skia/include/core/SkPaint.h"
 
 namespace cobalt {

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "base/logging.h"
-
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/base_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"

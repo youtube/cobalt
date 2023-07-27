@@ -100,9 +100,8 @@ base::Optional<std::string> TryConvertPropertyNameToAttributeName(
 
     // If property name contains a "-" (U+002D) character followed by
     // a lowercase ASCII letter, abort these steps.
-    if (preceded_by_hyphen &&
-        base::ToUpperASCII(property_name_character) !=
-            property_name_character) {
+    if (preceded_by_hyphen && base::ToUpperASCII(property_name_character) !=
+                                  property_name_character) {
       return base::nullopt;
     }
 

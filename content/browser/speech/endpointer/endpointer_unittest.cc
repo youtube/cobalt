@@ -3,20 +3,22 @@
 // found in the LICENSE file.
 
 #include <stdint.h>
+#include <memory>
+#include <utility>
 
 #include "content/browser/speech/audio_buffer.h"
 #include "content/browser/speech/endpointer/endpointer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
-const int kFrameRate = 50;  // 20 ms long frames for AMR encoding.
+const int kFrameRate = 50;     // 20 ms long frames for AMR encoding.
 const int kSampleRate = 8000;  // 8 k samples per second for AMR encoding.
 
-// At 8 sample per second a 20 ms frame is 160 samples, which corrsponds
+// At 8 sample per second a 20 ms frame is 160 samples, which corresponds
 // to the AMR codec.
 const int kFrameSize = kSampleRate / kFrameRate;  // 160 samples.
 static_assert(kFrameSize == 160, "invalid frame size");
-}
+}  // namespace
 
 namespace content {
 
@@ -50,7 +52,7 @@ void RunEndpointerEventsTest(FrameProcessor* processor) {
     // Create random samples.
     for (int i = 0; i < kFrameSize; ++i) {
       float randNum = static_cast<float>(rand() - (RAND_MAX / 2)) /
-          static_cast<float>(RAND_MAX);
+                      static_cast<float>(RAND_MAX);
       samples[i] = static_cast<int16_t>(gain * randNum);
     }
 
@@ -91,7 +93,7 @@ class EnergyEndpointerFrameProcessor : public FrameProcessor {
 
 TEST(EndpointerTest, TestEnergyEndpointerEvents) {
   // Initialize endpointer and configure it. We specify the parameters
-  // here for a 20ms window, and a 20ms step size, which corrsponds to
+  // here for a 20ms window, and a 20ms step size, which corresponds to
   // the narrow band AMR codec.
   EnergyEndpointerParams ep_config;
   ep_config.set_frame_period(1.0f / static_cast<float>(kFrameRate));
@@ -114,7 +116,7 @@ TEST(EndpointerTest, TestEnergyEndpointerEvents) {
   RunEndpointerEventsTest(&frame_processor);
 
   endpointer.EndSession();
-};
+}
 
 // Test endpointer wrapper class.
 class EndpointerFrameProcessor : public FrameProcessor {

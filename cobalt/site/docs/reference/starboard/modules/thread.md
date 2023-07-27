@@ -531,4 +531,3 @@ Yields the currently executing thread, so another thread has a chance to run.
 ```
 void SbThreadYield()
 ```
-

@@ -16,6 +16,7 @@
 #define COBALT_CSSOM_RADIAL_GRADIENT_VALUE_H_
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
@@ -80,9 +81,7 @@ class RadialGradientValue : public PropertyValue {
 
   const scoped_refptr<PropertyListValue>& position() const { return position_; }
 
-  const ColorStopList& color_stop_list() const {
-    return color_stop_list_;
-  }
+  const ColorStopList& color_stop_list() const { return color_stop_list_; }
 
   std::string ToString() const override;
 

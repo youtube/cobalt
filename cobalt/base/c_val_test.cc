@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/base/c_val.h"
+
 #include <limits>
 #include <utility>
 
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/simple_thread.h"
 #include "base/time/time.h"
-#include "cobalt/base/c_val.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SaveArg;
-using ::testing::_;
 
 namespace base {
 
@@ -662,7 +663,7 @@ class CreateDestroyCValThread : public base::SimpleThread {
 
 // Tests that we can create and destroy cvals no problem while simultaneously
 // reading from them.  The test creates two threads, a reader thread and a
-// creater/destroyer (and writer) thread.  These both attempt to access the same
+// creator/destroyer (and writer) thread.  These both attempt to access the same
 // cval as fast as possible.
 TEST(CValTest, RemoveAndRead) {
   const char* kTestCValName = "TestCVal";

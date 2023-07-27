@@ -33,7 +33,7 @@ namespace backend {
 // TracingAgent doesn't use AgentBase.
 //
 // https://chromedevtools.github.io/devtools-protocol/tot/Tracing
-class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
+class TracingAgent : public script::ScriptDebugger::TraceDelegate {
  public:
   explicit TracingAgent(DebugDispatcher* dispatcher,
                         script::ScriptDebugger* script_debugger);

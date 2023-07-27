@@ -16,9 +16,7 @@ package dev.cobalt.account;
 
 import dev.cobalt.util.UsedByNative;
 
-/**
- * POJO holding the token for a signed-in user.
- */
+/** POJO holding the token for a signed-in user. */
 public class AccessToken {
 
   private final String tokenValue;
@@ -29,18 +27,14 @@ public class AccessToken {
     this.expirySeconds = expirySeconds;
   }
 
-  /**
-   * Returns the token value.
-   */
+  /** Returns the token value. */
   @SuppressWarnings("unused")
   @UsedByNative
   public String getTokenValue() {
     return tokenValue;
   }
 
-  /**
-   * Returns number of seconds since epoch when this token expires, or 0 if it doesn't expire.
-   */
+  /** Returns number of seconds since epoch when this token expires, or 0 if it doesn't expire. */
   @SuppressWarnings("unused")
   @UsedByNative
   public long getExpirySeconds() {

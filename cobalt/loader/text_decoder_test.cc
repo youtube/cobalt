@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/loader/text_decoder.h"
+
+#include <memory>
 
 #include "base/bind.h"
 #include "testing/gmock/include/gmock/gmock.h"

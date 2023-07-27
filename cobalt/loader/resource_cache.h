@@ -17,7 +17,9 @@
 
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -94,9 +96,7 @@ class CachedResourceBase
   // Whether not the resource located at |url_| is finished loading.
   bool IsLoadingComplete();
 
-  net::LoadTimingInfo GetLoadTimingInfo() {
-    return load_timing_info_;
-  }
+  net::LoadTimingInfo GetLoadTimingInfo() { return load_timing_info_; }
 
   bool get_resource_timing_created_flag() {
     return is_resource_timing_created_flag_;

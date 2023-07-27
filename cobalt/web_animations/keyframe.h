@@ -17,6 +17,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -97,9 +98,7 @@ class Keyframe : public script::Wrappable {
     NOTIMPLEMENTED();
     return std::string("linear");
   }
-  void set_easing(const std::string& easing) {
-    NOTIMPLEMENTED();
-  }
+  void set_easing(const std::string& easing) { NOTIMPLEMENTED(); }
 
   // Custom, not in any spec.
   const Data& data() const { return data_; }

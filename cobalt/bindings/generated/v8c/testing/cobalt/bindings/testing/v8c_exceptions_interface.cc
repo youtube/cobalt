@@ -134,7 +134,7 @@ void attributeThrowsExceptionAttributeGetter(
                     [](v8::Isolate* isolate, ExceptionsInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->attribute_throws_exception(&exception_state),
               &result_value);
@@ -357,5 +357,3 @@ v8::Local<v8::FunctionTemplate> V8cExceptionsInterface::GetTemplate(v8::Isolate*
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

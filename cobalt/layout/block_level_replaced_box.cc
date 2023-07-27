@@ -43,16 +43,16 @@ BlockLevelReplacedBox::BlockLevelReplacedBox(
 Box::Level BlockLevelReplacedBox::GetLevel() const { return kBlockLevel; }
 
 void BlockLevelReplacedBox::UpdateHorizontalMargins(
-    BaseDirection containing_block_direction,
-    LayoutUnit containing_block_width, LayoutUnit border_box_width,
+    BaseDirection containing_block_direction, LayoutUnit containing_block_width,
+    LayoutUnit border_box_width,
     const base::Optional<LayoutUnit>& maybe_margin_left,
     const base::Optional<LayoutUnit>& maybe_margin_right) {
-  // Calculate the horizonal margins for block-level, replaced elements in
+  // Calculate the horizontal margins for block-level, replaced elements in
   // normal flow.
   //   https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
   UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
-      containing_block_direction, containing_block_width,
-      border_box_width, maybe_margin_left, maybe_margin_right);
+      containing_block_direction, containing_block_width, border_box_width,
+      maybe_margin_left, maybe_margin_right);
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED

@@ -35,8 +35,7 @@ class PerformanceEntryListImpl {
       PerformanceEntryList performance_entry_buffer,
       const std::string& entry_type);
   static PerformanceEntryList GetEntriesByName(
-      PerformanceEntryList performance_entry_buffer,
-      const std::string& name,
+      PerformanceEntryList performance_entry_buffer, const std::string& name,
       const base::StringPiece& type);
 };
 

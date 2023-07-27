@@ -27,13 +27,12 @@
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/submission.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
-using cobalt::render_tree::animations::AnimateNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::ResourceProvider;
+using cobalt::render_tree::animations::AnimateNode;
 
 namespace cobalt {
 namespace renderer {

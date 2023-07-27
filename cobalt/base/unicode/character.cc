@@ -26,9 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <algorithm>
-
 #include "cobalt/base/unicode/character.h"
+
+#include <algorithm>
 
 namespace base {
 namespace unicode {
@@ -36,7 +36,7 @@ namespace {
 
 // Takes a flattened list of closed intervals
 template <class T, size_t size>
-bool ValueInIntervalList(const T(&intervalList)[size], const T& value) {
+bool ValueInIntervalList(const T (&intervalList)[size], const T& value) {
   const T* bound =
       std::upper_bound(&intervalList[0], &intervalList[size], value);
   if ((bound - intervalList) % 2 == 1) return true;

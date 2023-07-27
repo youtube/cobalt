@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "cobalt/loader/image/image_decoder.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

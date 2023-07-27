@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/audio/audio_device.h"
+
 #include <algorithm>
 #include <memory>
 
-#include "cobalt/audio/audio_device.h"
-
-#include "starboard/configuration.h"
-
 #include "base/trace_event/trace_event.h"
 #include "cobalt/audio/audio_helpers.h"
-
 #include "starboard/audio_sink.h"
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace audio {

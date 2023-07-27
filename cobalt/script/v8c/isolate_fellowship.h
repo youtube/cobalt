@@ -15,6 +15,8 @@
 #ifndef COBALT_SCRIPT_V8C_ISOLATE_FELLOWSHIP_H_
 #define COBALT_SCRIPT_V8C_ISOLATE_FELLOWSHIP_H_
 
+#include <memory>
+
 #include "base/memory/singleton.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/script/v8c/cobalt_platform.h"
@@ -46,7 +48,6 @@ struct IsolateFellowship {
  private:
   IsolateFellowship();
   ~IsolateFellowship();
-
 };
 
 }  // namespace v8c

@@ -41,7 +41,8 @@ class NetPoster {
 };
 
 typedef base::Callback<void(const GURL& url, const std::string& content_type,
-                            const std::string& data)> PostSender;
+                            const std::string& data)>
+    PostSender;
 
 }  // namespace network_bridge
 }  // namespace cobalt

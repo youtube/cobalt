@@ -14,8 +14,8 @@
 
 #include "starboard/time_zone.h"
 
-#include <string>
 #include <Windows.h>
+#include <string>
 
 #include "starboard/common/log.h"
 #include "starboard/once.h"

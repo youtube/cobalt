@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBSOCKETS_MOCK_WEBSOCKET_CHANNEL_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBSOCKETS_MOCK_WEBSOCKET_CHANNEL_H_
+#ifndef COBALT_WEBSOCKET_MOCK_WEBSOCKET_CHANNEL_H_
+#define COBALT_WEBSOCKET_MOCK_WEBSOCKET_CHANNEL_H_
 
 #include <memory>
+#include <utility>
 
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
@@ -55,4 +56,4 @@ class MockWebSocketChannel : public net::WebSocketChannel {
 }  // namespace websocket
 }  // namespace cobalt
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_WEBSOCKETS_MOCK_WEBSOCKET_CHANNEL_H_
+#endif  // COBALT_WEBSOCKET_MOCK_WEBSOCKET_CHANNEL_H_

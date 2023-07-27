@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/network/net_log_constants.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/version.h"
-#include "cobalt_build_id.h"  // NOLINT(build/include)
+#include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
 #include "net/base/address_family.h"
 #include "net/base/load_states.h"
 #include "net/log/net_log.h"
@@ -31,7 +32,7 @@ namespace network {
 namespace {
 // Same log format as in M25.
 const int kLogFormatVersion = 1;
-}
+}  // namespace
 
 std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
   // This function is based on the implementation of

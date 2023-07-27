@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/dom/html_link_element.h"
+
 #include "base/message_loop/message_loop.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"  // nogncheck
 #include "cobalt/dom/document.h"

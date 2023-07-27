@@ -28,7 +28,6 @@
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/typeface.h"
-
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -493,5 +493,3 @@ v8::Local<v8::FunctionTemplate> V8cInterfaceWithAnyDictionary::GetTemplate(v8::I
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

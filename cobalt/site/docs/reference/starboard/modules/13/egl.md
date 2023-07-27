@@ -144,4 +144,3 @@ typedef int32_t SbEglInt32
     config, void *native_pixmap, const SbEglAttrib *attrib_list)`
 *   `SbEglBoolean(*eglWaitSync)(SbEglDisplay dpy, SbEglSync sync, SbEglInt32
     flags)`
-

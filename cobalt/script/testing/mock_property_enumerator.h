@@ -18,7 +18,6 @@
 #include <string>
 
 #include "cobalt/script/property_enumerator.h"
-
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {

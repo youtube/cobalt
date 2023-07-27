@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/render_tree/rect_node.h"
+
+#include <memory>
+#include <utility>
 
 #include "cobalt/render_tree/brush_visitor.h"
 #include "cobalt/render_tree/node_visitor.h"

@@ -23,7 +23,6 @@
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/typed_arrays.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 

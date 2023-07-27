@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_CONVERSIONS_H_
 
 #include <vector>
+
 #include "third_party/skia/include/core/SkColor.h"
 
 namespace cobalt {

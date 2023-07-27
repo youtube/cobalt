@@ -15,7 +15,6 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/operations_test_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::Return;

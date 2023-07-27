@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <wrl/client.h>
 #include <Mfobjects.h>
+#include <wrl/client.h>
 
 #include <string>
 

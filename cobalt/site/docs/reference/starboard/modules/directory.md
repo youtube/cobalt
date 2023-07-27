@@ -115,4 +115,3 @@ that the directory could not be opened.
 ```
 SbDirectory SbDirectoryOpen(const char *path, SbFileError *out_error)
 ```
-

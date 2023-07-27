@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
-
 #include "cobalt/base/version_compatibility.h"
 
 #include "base/logging.h"
@@ -49,5 +47,3 @@ void VersionCompatibility::ReportViolation(
 }
 
 }  // namespace base
-
-#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)

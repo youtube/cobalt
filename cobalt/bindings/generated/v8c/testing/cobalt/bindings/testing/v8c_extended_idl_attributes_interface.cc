@@ -119,7 +119,7 @@ void defaultAttributeGetter(
                     [](v8::Isolate* isolate, ExtendedIDLAttributesInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->attribute_default(),
               &result_value);
@@ -414,5 +414,3 @@ v8::Local<v8::FunctionTemplate> V8cExtendedIDLAttributesInterface::GetTemplate(v
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

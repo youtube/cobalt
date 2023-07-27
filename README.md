@@ -43,14 +43,13 @@ Chromium, FireFox, and IE:
 
   * **Limited Memory.** All except the very latest, expensive CE devices have a
     very small amount of memory available for applications. This usually is
-    somewhere in the ballpark of 200MB-500MB, including graphics and media
+    somewhere in the ballpark of 500MB, including graphics and media
     memory, as opposed to multiple gigabytes of CPU memory (and more gigabytes
     of GPU memory) in modern desktop and laptop computers, and mobile devices.
   * **Slow CPUs.** Most CE devices have much slower CPUs than what is available
     on even a budget desktop computer. Minor performance concerns can be greatly
-    exaggerated, which seriously affects priorities.
-  * **Fewer cores.** CE System-on-a-Chip (SoC) processors often do not have as
-    many processor cores as we are used to in modern computers.
+    exaggerated, which seriously affects priorities. Cobalt currently expects a
+    4-core 32-bit ARMv7 CPU as a baseline.
   * **Minimal GPU.** Not all CE devices have a monster GPU to throw shaders at
     to offload CPU work. As CE devices now have a standard GPU (though not
     nearly as powerful as even a laptop), OpenGL ES 2.0 is now required
@@ -62,10 +61,9 @@ Chromium, FireFox, and IE:
     no ability to JIT.
   * **Heterogeneous Development Environments.** This is slowly evening out, but
     all CE devices run on custom hardware, often with proprietary methods of
-    building, packaging, deploying, and running programs. Almost all CE devices
-    have ARM processors instead of the more familiar x86. Sometimes the
-    toolchain doesn't support contemporary C++11/14 features. Sometimes the OS
-    isn't POSIX, or it tries to be, but it is only partially implemented.
+    building, packaging, deploying, and running programs. Sometimes the
+    toolchain doesn't support latest C++ language features. Sometimes the OS
+    does not support POSIX, or it is only partially implemented.
     Sometimes the program entry point is in another language or architecture
     that requires a "trampoline" over to native binary code.
   * **No navigation.** The point of a Single-Page Application is that you don't
@@ -73,10 +71,6 @@ Chromium, FireFox, and IE:
     provides poor user feedback, not to mention a jarring transition. Instead,
     one loads data from an XMLHttpRequest (XHR), and then updates one's DOM to
     reflect the new data. AJAX! Web 2.0!!
-  * **No scrolling.** Well, full-screen, 10-foot UI SPA apps might scroll, but
-    not like traditional web pages, with scroll bars and a mouse
-    wheel. Scrolling is generally built into the app very carefully, with
-    support for a Directional Pad and a focus cursor.
 
 
 ## Architecture
@@ -92,19 +86,21 @@ application to a low-level platform order:
 
   * **Web Implementation** - This is where the W3C standards are implemented,
     ultimately producing an annotated DOM tree that can be passed into the
-    Layout Engine to produce a Render Tree.
+    Layout Engine to produce a Render Tree. Cobalt uses a forked copy of
+    [Chrome Blink's Web IDL compiler](https://www.chromium.org/blink/webidl/) to
+    turn JavaScript IDLs to generated C++ bindings code.
   * **JavaScript Engine** - We have, perhaps surprisingly, *not* written our own
-    JavaScript Engine from scratch. Because of the JITing constraint, we have to
-    be flexible with which engine(s) we work with. We have a bindings layer that
-    interfaces with the JS Engine so that application script can interface with
-    natively-backed objects (like DOM elements).
+    JavaScript Engine from scratch. Cobalt is running on [Chromiums V8](https://v8.dev)
+    JavaScript engine. V8 supports all of our target platforms, including very
+    restricted ones where write-and-execute memory pages (needed for JIT) are
+    not available.
   * **Layout Engine** - The Layout Engine takes an annotated DOM Document
     produced by the Web Implementation and JavaScript Engine working together,
     and calculates a tree of rendering commands to send to the renderer (i.e. a
     Render Tree). It caches intermediate layout artifacts so that subsequent
     incremental layouts can be sped up.
   * **Renderer/Skia** - The Renderer walks a Render Tree produced by the Layout
-    Engine, rasterizes it using the third-party graphics library Skia, and swaps
+    Engine, rasterizes it using the [Chromium graphics library Skia](https://skia.org/), and swaps
     it to the front buffer. This is accomplished using Hardware Skia on OpenGL
     ES 2.0. Note that the renderer runs in a different thread from the Layout
     Engine, and can interpolate animations that do not require re-layout. This
@@ -122,7 +118,7 @@ application to a low-level platform order:
     software. Mostly format decoders and parsers (e.g. libpng, libxml2,
     zlib). We fork these from Chromium, as we want them to be the most
     battle-tested versions of these libraries.
-  * **Starboard/Glimp/ANGLE** - **Starboard** is the Cobalt porting
+  * **Starboard** - **Starboard** is the Cobalt porting
     interface. One major difference between Cobalt and Chromium is that we have
     created a hard straight-C porting layer, and ported ALL of the compiled
     code, including Base and all third-party libraries, to use it instead of
@@ -130,10 +126,12 @@ application to a low-level platform order:
     modern systems (see Android, Windows, MacOS X, and iOS). Additionally,
     Starboard includes APIs that haven't been effectively standardized across
     platforms, such as display Window creation, Input events, and Media
-    playback. **Glimp** is an OpenGL ES 2.0 implementation framework, built by
-    the Cobalt team directly on Starboard, designed to adapt proprietary 3D APIs
-    to GLES2. **ANGLE** Is a third-party library that adapts DirectX to GLES2,
-    similar to Glimp, but only for DirectX.
+    playback. A good overview of which OS interfaces are abstracted by Starboard
+    can be found in the [reference documentation.](https://cobalt.dev/reference/starboard/modules/configuration.html)
+  * **ANGLE and Glimp** [**ANGLE** is a Chromium library](https://angleproject.org/)
+    that adapts OpenGL ES 2.0 graphics to various other platform-native graphics APIs.
+    Cobalt uses it on Windows platforms to run on DirectX. Glimp is a similar
+    custom adapter layer that translatest from GL ES2.0 to PlayStation native graphics.
 
 ## The Cobalt Subset
 

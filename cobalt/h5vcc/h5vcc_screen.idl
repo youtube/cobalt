@@ -19,4 +19,3 @@ interface H5vccScreen {
   // screen diagonal is.
   [CallWith=EnvironmentSettings] static float GetDiagonal();
 };
-

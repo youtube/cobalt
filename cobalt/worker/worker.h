@@ -63,13 +63,13 @@ class Worker : public base::MessageLoop::DestructionObserver {
     base::SourceLocation construction_location;
 
     // True if worker is a SharedWorker object, and false otherwise.
-    bool is_shared;
+    bool is_shared = false;
 
     // Parameters from 'Run a worker' step 9.1 in the spec.
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
     GURL url;
     web::Context* outside_context = nullptr;
-    web::EventTarget* outside_event_target;
+    web::EventTarget* outside_event_target = nullptr;
     web::MessagePort* outside_port = nullptr;
     WorkerOptions options;
   };

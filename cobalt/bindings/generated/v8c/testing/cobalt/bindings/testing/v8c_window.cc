@@ -331,7 +331,7 @@ void windowPropertyAttributeGetter(
                     [](v8::Isolate* isolate, Window* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->window_property(),
               &result_value);
@@ -372,7 +372,7 @@ void windowAttributeGetter(
                     [](v8::Isolate* isolate, Window* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->window(),
               &result_value);
@@ -392,7 +392,7 @@ void onEventAttributeGetter(
                     [](v8::Isolate* isolate, Window* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->on_event(),
               &result_value);
@@ -1091,5 +1091,3 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
 
 }  // namespace script
 }  // namespace cobalt
-
-

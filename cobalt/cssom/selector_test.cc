@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/cssom/selector.h"
+
+#include <memory>
+#include <utility>
 
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
@@ -123,8 +124,7 @@ TEST(SelectorTest, ComplexSelectorAppendCallLimit) {
     complex_selector->AppendSelector(
         std::unique_ptr<CompoundSelector>(new CompoundSelector()));
 
-    for (int i = 0; i < ComplexSelector::kCombinatorLimit;
-         i++) {
+    for (int i = 0; i < ComplexSelector::kCombinatorLimit; i++) {
       std::unique_ptr<CompoundSelector> compound_selector(
           new CompoundSelector());
       std::unique_ptr<ChildCombinator> child_combinator(new ChildCombinator());
@@ -142,9 +142,7 @@ TEST(SelectorTest, ComplexSelectorAppendCallLimit) {
     complex_selector->AppendSelector(
         std::unique_ptr<CompoundSelector>(new CompoundSelector()));
 
-    for (int i = 0;
-         i < 2 * ComplexSelector::kCombinatorLimit + 1;
-         i++) {
+    for (int i = 0; i < 2 * ComplexSelector::kCombinatorLimit + 1; i++) {
       std::unique_ptr<CompoundSelector> compound_selector(
           new CompoundSelector());
       std::unique_ptr<ChildCombinator> child_combinator(new ChildCombinator());

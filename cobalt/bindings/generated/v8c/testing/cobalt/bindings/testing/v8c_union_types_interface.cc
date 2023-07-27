@@ -131,7 +131,7 @@ void unionPropertyAttributeGetter(
                     [](v8::Isolate* isolate, UnionTypesInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->union_property(),
               &result_value);
@@ -172,7 +172,7 @@ void unionWithNullableMemberPropertyAttributeGetter(
                     [](v8::Isolate* isolate, UnionTypesInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->union_with_nullable_member_property(),
               &result_value);
@@ -213,7 +213,7 @@ void nullableUnionPropertyAttributeGetter(
                     [](v8::Isolate* isolate, UnionTypesInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->nullable_union_property(),
               &result_value);
@@ -254,7 +254,7 @@ void unionBasePropertyAttributeGetter(
                     [](v8::Isolate* isolate, UnionTypesInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->union_base_property(),
               &result_value);
@@ -295,7 +295,7 @@ void unionWithDictionaryPropertyAttributeGetter(
                     [](v8::Isolate* isolate, UnionTypesInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->union_with_dictionary_property(),
               &result_value);
@@ -336,7 +336,7 @@ void unionDictsObjectsPropertyAttributeGetter(
                     [](v8::Isolate* isolate, UnionTypesInterface* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-  
+
       ToJSValue(isolate,
               impl->union_dicts_objects_property(),
               &result_value);
@@ -607,5 +607,3 @@ v8::Local<v8::FunctionTemplate> V8cUnionTypesInterface::GetTemplate(v8::Isolate*
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
-
-

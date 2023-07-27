@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/math/matrix_interpolation.h"
+
 #include <cmath>
 
-#include "cobalt/math/matrix_interpolation.h"
 #include "cobalt/math/transform_2d.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

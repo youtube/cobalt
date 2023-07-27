@@ -67,11 +67,10 @@ bool InlineLevelReplacedBox::IsHiddenByEllipsis() const {
 }
 
 void InlineLevelReplacedBox::UpdateHorizontalMargins(
-    BaseDirection containing_block_direction,
-    LayoutUnit containing_block_width, LayoutUnit border_box_width,
+    BaseDirection containing_block_direction, LayoutUnit containing_block_width,
+    LayoutUnit border_box_width,
     const base::Optional<LayoutUnit>& maybe_margin_left,
     const base::Optional<LayoutUnit>& maybe_margin_right) {
-
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".
   //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width

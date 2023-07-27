@@ -18,7 +18,6 @@
 #include <map>
 
 #include "cobalt/renderer/rasterizer/skia/font.h"
-
 #include "third_party/harfbuzz-ng/src/hb.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 

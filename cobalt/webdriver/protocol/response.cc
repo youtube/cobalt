@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/webdriver/protocol/response.h"
+
+#include <memory>
+#include <utility>
 
 namespace cobalt {
 namespace webdriver {
