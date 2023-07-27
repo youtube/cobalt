@@ -61,7 +61,8 @@ interface H5vccMetrics {
 };
 
 // Callback invoked when a new metric payload is ready to be published. The
-// payload is a serialized protobuf and the metric type should give the consumer
-// a hint on how to deserialize it. See h5vcc_metric_type.idl for more info.
+// payload is a base64 encoded serialized protobuf and the metric type should
+// give the consumer a hint on how to deserialize it. See h5vcc_metric_type.idl
+// for more info.
 callback H5vccMetricEventHandler =
     void(H5vccMetricType metricType, DOMString metricPayload);

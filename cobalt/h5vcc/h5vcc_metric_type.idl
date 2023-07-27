@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // The various metric types we support to be published through the H5vccMetrics
-// API.
+// API. The proto will be serialized and then base64 encoded.
 enum H5vccMetricType {
   // //third_party/metrics_proto/chrome_user_metrics_extension.proto
   // ChromeUserMetricsExtension proto.
