@@ -69,27 +69,27 @@ class OpenMaxComponentBase {
   void GetInputPortParam(ParamType* param) const {
     param->nPortIndex = input_port_;
     OMX_ERRORTYPE error = OMX_GetParameter(handle_, ParamType::Index, param);
-    SB_DCHECK(error == OMX_ErrorNone) << std::hex << "OMX_GetParameter("
-                                      << ParamType::Index
-                                      << ") failed with error " << error;
+    SB_DCHECK(error == OMX_ErrorNone)
+        << std::hex << "OMX_GetParameter(" << ParamType::Index
+        << ") failed with error " << error;
   }
 
   template <typename ParamType>
   void GetOutputPortParam(ParamType* param) const {
     param->nPortIndex = output_port_;
     OMX_ERRORTYPE error = OMX_GetParameter(handle_, ParamType::Index, param);
-    SB_DCHECK(error == OMX_ErrorNone) << std::hex << "OMX_GetParameter("
-                                      << ParamType::Index
-                                      << ") failed with error " << error;
+    SB_DCHECK(error == OMX_ErrorNone)
+        << std::hex << "OMX_GetParameter(" << ParamType::Index
+        << ") failed with error " << error;
   }
 
   template <typename ParamType>
   void SetPortParam(const ParamType& param) const {
     OMX_ERRORTYPE error = OMX_SetParameter(handle_, ParamType::Index,
                                            const_cast<ParamType*>(&param));
-    SB_DCHECK(error == OMX_ErrorNone) << std::hex << "OMX_SetParameter("
-                                      << ParamType::Index
-                                      << ") failed with error " << error;
+    SB_DCHECK(error == OMX_ErrorNone)
+        << std::hex << "OMX_SetParameter(" << ParamType::Index
+        << ") failed with error " << error;
   }
 
   void SendCommand(OMX_COMMANDTYPE command, int param);
@@ -101,7 +101,8 @@ class OpenMaxComponentBase {
                         OMX_U32 data2,
                         OMX_PTR event_data);
 
-  virtual void OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
+  virtual void OnErrorEvent(OMX_U32 data1,
+                            OMX_U32 data2,
                             OMX_PTR event_data) = 0;
   virtual void OnOutputSettingChanged() = 0;
   virtual OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer) = 0;

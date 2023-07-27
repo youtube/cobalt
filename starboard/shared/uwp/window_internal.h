@@ -36,7 +36,7 @@ struct SbWindowPrivate {
   int height;
 
  private:
-  Windows::Foundation::Collections::PropertySet^ angle_property_set;
+  Windows::Foundation::Collections::PropertySet ^ angle_property_set;
 };
 
 #endif  // STARBOARD_SHARED_UWP_WINDOW_INTERNAL_H_

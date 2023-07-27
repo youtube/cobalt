@@ -22,8 +22,7 @@
 using Windows::UI::Core::CoreWindow;
 
 SbWindowPrivate::SbWindowPrivate(int width, int height)
-    : width(width),
-      height(height) {
+    : width(width), height(height) {
   angle_property_set = ref new Windows::Foundation::Collections::PropertySet();
   angle_property_set->Insert(
       ref new Platform::String(EGLNativeWindowTypeProperty),

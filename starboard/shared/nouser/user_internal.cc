@@ -21,7 +21,8 @@ namespace shared {
 namespace nouser {
 // The one instance of the signed-in user.
 SbUserPrivate g_user = {
-    "user", "user",
+    "user",
+    "user",
 };
 }  // namespace nouser
 }  // namespace shared

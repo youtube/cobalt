@@ -14,8 +14,8 @@
 
 #include "starboard/common/socket.h"
 
-#include <winsock2.h>
 #include <mswsock.h>
+#include <winsock2.h>
 
 #include "starboard/common/log.h"
 #include "starboard/shared/win32/set_non_blocking_internal.h"

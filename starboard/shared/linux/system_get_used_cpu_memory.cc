@@ -43,8 +43,7 @@
 // Searches for a specific value we're interested in and return it.  Will
 // modify |buffer| in order to do so quickly and easily.  Returns the memory
 // value in bytes (not kilobytes as it is presented in /proc/self/status).
-int64_t SearchForMemoryValue(
-    const char* search_key, const char* buffer) {
+int64_t SearchForMemoryValue(const char* search_key, const char* buffer) {
   const char* found = strstr(buffer, search_key);
   if (!found) {
     SB_LOG(ERROR) << "Could not find '" << search_key << "' in "

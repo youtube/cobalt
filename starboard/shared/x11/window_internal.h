@@ -15,8 +15,8 @@
 #ifndef STARBOARD_SHARED_X11_WINDOW_INTERNAL_H_
 #define STARBOARD_SHARED_X11_WINDOW_INTERNAL_H_
 
-#include <X11/extensions/Xrender.h>
 #include <X11/Xlib.h>
+#include <X11/extensions/Xrender.h>
 
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"

@@ -70,7 +70,7 @@ bool IsAnyAddress(const SbSocketAddress& address) {
 
 template <typename T, int source_size>
 void CopyIntoObjectFromArray(T* out_destination,
-                             const unsigned char(&source)[source_size]) {
+                             const unsigned char (&source)[source_size]) {
   SB_COMPILE_ASSERT(sizeof(T) <= source_size, destination_is_too_small);
   memcpy(out_destination, source, sizeof(T));
 }
@@ -128,8 +128,7 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
     if (!GetPotentialMatch(interface->ifa_addr, &potential_match))
       continue;
 
-    if (memcmp(&to_match, potential_match, sizeof(in_addr_type)) !=
-        0) {
+    if (memcmp(&to_match, potential_match, sizeof(in_addr_type)) != 0) {
       continue;
     }
 

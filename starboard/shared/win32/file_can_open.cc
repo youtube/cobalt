@@ -43,7 +43,8 @@ bool SbFileCanOpen(const char* path, int flags) {
   bool can_open = true;
 
   if (((find_data.dwFileAttributes & FILE_ATTRIBUTE_READONLY) && can_write) ||
-      !starboard::shared::win32::PathEndsWith(path_wstring, find_data.cFileName)) {
+      !starboard::shared::win32::PathEndsWith(path_wstring,
+                                              find_data.cFileName)) {
     can_open = false;
   }
 

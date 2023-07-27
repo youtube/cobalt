@@ -14,5 +14,4 @@
 
 #include "starboard/system.h"
 
-void SbSystemClearLastError() {
-}
+void SbSystemClearLastError() {}

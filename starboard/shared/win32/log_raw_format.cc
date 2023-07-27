@@ -25,7 +25,7 @@ namespace sbwin32 = starboard::shared::win32;
 
 void SbLogRawFormat(const char* format, va_list arguments) {
   char log_buffer[kMaxLogLineChars] = {0};
-  int result = vsprintf_s(log_buffer, kMaxLogLineChars-1, format, arguments);
+  int result = vsprintf_s(log_buffer, kMaxLogLineChars - 1, format, arguments);
   if (result > 0) {
     SbLogRaw(log_buffer);
   } else {

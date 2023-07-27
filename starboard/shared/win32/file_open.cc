@@ -30,8 +30,8 @@ SbFile SbFileOpen(const char* path,
     return kSbFileInvalid;
   }
 
-  HANDLE file_handle =
-      starboard::shared::win32::OpenFileOrDirectory(path, flags, out_created, out_error);
+  HANDLE file_handle = starboard::shared::win32::OpenFileOrDirectory(
+      path, flags, out_created, out_error);
 
   if (!starboard::shared::win32::IsValidHandle(file_handle)) {
     return kSbFileInvalid;

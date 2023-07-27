@@ -1,3 +1,4 @@
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -44,9 +45,7 @@ class CommandLine {
         begin_args_(other.begin_args_) {}
 
   // Move constructor
-  CommandLine(CommandLine&& other) {
-    swap(*this, other);
-  }
+  CommandLine(CommandLine&& other) { swap(*this, other); }
 
   ~CommandLine();
 
@@ -78,8 +77,7 @@ class CommandLine {
 
   // Append a switch [with optional value] to the command line.
   // Note: Switches will precede arguments regardless of appending order.
-  void AppendSwitch(const std::string& switch_string,
-                    const StringType& value);
+  void AppendSwitch(const std::string& switch_string, const StringType& value);
 
   // Returns the value associated with the given switch. If the switch has no
   // value or isn't present, this method returns the empty string.

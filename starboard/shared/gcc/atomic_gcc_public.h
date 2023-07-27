@@ -41,8 +41,7 @@ SbAtomicNoBarrier_Increment(volatile SbAtomic32* ptr, SbAtomic32 increment) {
 }
 
 static SB_C_FORCE_INLINE SbAtomic32
-SbAtomicBarrier_Increment(volatile SbAtomic32* ptr,
-                          SbAtomic32 increment) {
+SbAtomicBarrier_Increment(volatile SbAtomic32* ptr, SbAtomic32 increment) {
   return increment + __atomic_fetch_add(ptr, increment, __ATOMIC_SEQ_CST);
 }
 
@@ -103,16 +102,16 @@ SbAtomicRelease_Load(volatile const SbAtomic32* ptr) {
 // 8-bit atomic operations.
 static SB_C_FORCE_INLINE SbAtomic8
 SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
-                               SbAtomic8 old_value,
-                               SbAtomic8 new_value) {
+                                SbAtomic8 old_value,
+                                SbAtomic8 new_value) {
   bool result = __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
-                              __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+                                            __ATOMIC_RELEASE, __ATOMIC_RELAXED);
   SB_UNREFERENCED_PARAMETER(result);  // Make gcc compiler happy.
   return old_value;
 }
 
-static SB_C_FORCE_INLINE void
-SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr, SbAtomic8 value) {
+static SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr,
+                                                       SbAtomic8 value) {
   __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
 }
 
@@ -165,9 +164,9 @@ SbAtomicRelease_CompareAndSwap64(volatile SbAtomic64* ptr,
   return old_value;
 }
 
-static SB_C_FORCE_INLINE void
-SbAtomicNoBarrier_Store64(volatile SbAtomic64* ptr,
-                          SbAtomic64 value) {
+static SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store64(
+    volatile SbAtomic64* ptr,
+    SbAtomic64 value) {
   __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
 }
 
