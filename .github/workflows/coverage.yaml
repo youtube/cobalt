@@ -1,11 +1,12 @@
-name: linux
+name: coverage
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
-    branches:
-      - main
-      - feature/*
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
   push:
     branches:
       - main
