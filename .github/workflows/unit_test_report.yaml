@@ -54,14 +54,17 @@ jobs:
             }
       - name: Extract Archived Unit Test Results
         run: unzip unit-test-results.zip -d unit-test-results
-      - name: Install node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
       - name: Get Datadog CLI
         shell: bash
-        # TODO: pin version (with checksum?)
-        run: npm install -g @datadog/datadog-ci
+        env:
+          DD_VERSION: 'v2.18.0'
+          DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
+        run: |
+          set -e
+          download_url="https://github.com/DataDog/datadog-ci/releases/download/${DD_VERSION}/datadog-ci_linux-x64"
+          curl -L --fail $download_url --output datadog-ci
+          echo ${DD_SHA256SUM} | sha256sum --check
+          chmod +x datadog-ci
       - name: Upload to Datadog
         # Unit test results are archived on the following format:
         # ├── <platform>
@@ -94,9 +97,7 @@ jobs:
           # Loop over each platform, extract the tags and upload xml results.
           for dir in unit-test-results/*/; do
             echo "Uploading $dir test report"
-
             export DD_TAGS=`cat ${dir}TAGS`
-
-            datadog-ci junit upload \
+            ./datadog-ci junit upload \
                       $dir/**/*.xml
           done
