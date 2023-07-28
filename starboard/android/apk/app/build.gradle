@@ -178,6 +178,7 @@ android {
             // set, and complains if they have different values. To be safe, both are set for now.
             useLegacyPackaging "${evergreenCompatible}" == "true" ? true : false
         }
+        doNotStrip '**/*.so'
     }
 }
 
