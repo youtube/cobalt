@@ -92,6 +92,9 @@ static_library("console_command_manager") {
       "console/command_manager.cc",
       "console/command_manager.h",
     ]
-    deps = [ "//cobalt/base" ]
+    deps = [
+      "//cobalt/base",
+      "//starboard:starboard_headers_only",
+    ]
   }
 }
