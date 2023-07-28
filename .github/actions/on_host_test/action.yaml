@@ -63,9 +63,12 @@ runs:
         echo "COVERAGE_DIR=${GITHUB_WORKSPACE}/coverage" >> $GITHUB_ENV
         echo "TEST_REPORT_FILE=${GITHUB_WORKSPACE}/${{matrix.platform}}-${{matrix.shard}}" >> $GITHUB_ENV
     - name: Run Tests
+      id: run-tests
       shell: bash
       run: |
         set -x
+        test_type=""
+
         # Starboard toolchains are downloaded to a different dir on github. Create a symlink to reassure our tooling that everything is fine.
         if [ -d /root/starboard-toolchains ]; then
           ln -s /root/starboard-toolchains /github/home/starboard-toolchains
@@ -87,14 +90,16 @@ runs:
         elif [[ "${{matrix.shard}}" == 'coverage' ]]; then
           xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR} --coverage_dir=${COVERAGE_DIR} --coverage_report
         else
+          test_type=unit_tests
           if [[ "${{inputs.os}}" == 'windows' ]]; then
             python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
           else
             xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR}
           fi
         fi
+        echo "test_type=$test_type" >> $GITHUB_OUTPUT
     - name: Process unit test results
-      if: failure()
+      if: ${{ steps.run-tests.outputs.test_type == 'unit_tests' }}
       shell: bash
       run: |
         set -x
@@ -102,7 +107,7 @@ runs:
         python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_report_parser.py ${TEST_RESULTS_DIR} > ${TEST_REPORT_FILE}
     - name: Upload unit test report
       uses: actions/upload-artifact@v3
-      if: failure()
+      if: ${{ steps.run-tests.outputs.test_type == 'unit_tests' }}
       with:
         name: unit-test-reports
         path: ${{env.TEST_REPORT_FILE}}
