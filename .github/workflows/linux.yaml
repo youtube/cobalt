@@ -56,17 +56,3 @@ jobs:
       platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
       modular: true
-  linux-coverage:
-    # Run on main branch for pushes, PRs and manual invocations.
-    if: |
-     ${{ github.ref == 'refs/heads/main' &&
-         (github.event_name == 'push' ||
-         github.event_name == 'pull_request' ||
-         (github.event_name == 'workflow_dispatch' && inputs.nightly == 'false')) }}
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: linux-coverage
-      nightly: ${{ github.event.inputs.nightly }}
