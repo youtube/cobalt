@@ -60,8 +60,8 @@ runs:
       run: |
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
         echo "TEST_RESULTS_DIR=${GITHUB_WORKSPACE}/unit-test-results" >> $GITHUB_ENV
+        echo "XML_FILES_DIR=${GITHUB_WORKSPACE}/unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}" >> $GITHUB_ENV
         echo "COVERAGE_DIR=${GITHUB_WORKSPACE}/coverage" >> $GITHUB_ENV
-        echo "TEST_REPORT_FILE=${GITHUB_WORKSPACE}/${{matrix.platform}}-${{matrix.shard}}" >> $GITHUB_ENV
     - name: Run Tests
       id: run-tests
       shell: bash
@@ -88,30 +88,31 @@ runs:
         elif [[ "${{matrix.shard}}" == 'evergreen-as-blackbox' ]]; then
           xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args} --test_set evergreen
         elif [[ "${{matrix.shard}}" == 'coverage' ]]; then
-          xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR} --coverage_dir=${COVERAGE_DIR} --coverage_report
+          xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -r ${loader_args} --xml_output_dir=${XML_FILES_DIR} --coverage_dir=${COVERAGE_DIR} --coverage_report
         else
           test_type=unit_tests
           if [[ "${{inputs.os}}" == 'windows' ]]; then
-            python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
+            python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r --xml_output_dir=${XML_FILES_DIR}
           else
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR}
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${XML_FILES_DIR}
           fi
         fi
         echo "test_type=$test_type" >> $GITHUB_OUTPUT
-    - name: Process unit test results
+    - name: Populate TAGS for unit test report
       if: ${{ steps.run-tests.outputs.test_type == 'unit_tests' }}
       shell: bash
       run: |
-        set -x
-        echo "Saving unit test report to ${TEST_REPORT_FILE}"
-        python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_report_parser.py ${TEST_RESULTS_DIR} > ${TEST_REPORT_FILE}
-    - name: Upload unit test report
+        # Set tags for test differentiation.
+        tags="platform:${{ matrix.platform }}"
+        tags="${tags},os:${{ inputs.os }}"
+        echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
+    - name: Archive unit test results
       uses: actions/upload-artifact@v3
       if: ${{ steps.run-tests.outputs.test_type == 'unit_tests' }}
       with:
-        name: unit-test-reports
-        path: ${{env.TEST_REPORT_FILE}}
-    - name: Upload coverage html report
+        name: unit-test-results
+        path: ${{env.TEST_RESULTS_DIR}}/
+    - name: Archive coverage html report
       if: success() && matrix.shard == 'coverage'
       uses: actions/upload-artifact@v3
       with:
