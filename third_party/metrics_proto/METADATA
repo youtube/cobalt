@@ -7,11 +7,11 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "70.0.3538.124"
+  version: "114.0.5735.284"
   last_upgrade_date {
-    year: 2018
-    month: 8
-    day: 30
+    year: 2023
+    month: 7
+    day: 28
   }
   license_type: NOTICE
 }

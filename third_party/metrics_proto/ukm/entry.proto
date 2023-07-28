@@ -1,10 +1,11 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 syntax = "proto2";
 
 option optimize_for = LITE_RUNTIME;
+option java_package = "org.chromium.components.metrics";
 
 package ukm;
 
@@ -12,12 +13,12 @@ package ukm;
 message Entry {
   // Unique identifier for an Event. This is used to provide hierarchical
   // structure for Events.
-  optional int32 id = 1;
+  optional int32 DEPRECATED_id = 1 [deprecated = true];
 
   // Parent id, which is associated with an id for another Event. This is set
   // only if the Event has another Event which can be considered a parent.
   // This is to provide hierarchies for Events.
-  optional int32 parent_id = 2;
+  optional int32 DEPRECATED_parent_id = 2 [deprecated = true];
 
   // The id of the Source this Event is associated with.
   optional int64 source_id = 3;
@@ -26,7 +27,7 @@ message Entry {
   optional fixed64 event_hash = 4;
 
   // For each Event, we have a list of possible metrics included. It's possible
-  // for a single metric name to be repeated. There is also no guarentee that
+  // for a single metric name to be repeated. There is also no guarantee that
   // all metrics that are available for a given event will be provided for a
   // single Entry.
   message Metric {
