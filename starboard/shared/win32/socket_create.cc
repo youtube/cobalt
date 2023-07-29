@@ -14,8 +14,11 @@
 
 #include "starboard/common/socket.h"
 
-#include <mswsock.h>
+// WinSock includes need to be in particular order
+// clang-format off
 #include <winsock2.h>
+#include <mswsock.h>
+// clang-format on
 
 #include "starboard/common/log.h"
 #include "starboard/shared/win32/set_non_blocking_internal.h"
