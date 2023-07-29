@@ -72,45 +72,46 @@ static_library("libevent") {
     cflags_c = [ "-Wno-unused-function" ]
     public_deps = [ "//starboard/common" ]
   } else {
-    if (is_mac || is_ios) {
-      sources += [
-        "kqueue.c",
-        "mac/config.h",
-        "mac/event-config.h",
-      ]
-      include_dirs = [ "mac" ]
-    } else if (is_linux) {
-      sources += [
-        "epoll.c",
-        "linux/config.h",
-        "linux/event-config.h",
-      ]
-      include_dirs = [ "linux" ]
-    } else if (is_android) {
-      sources += [
-        "android/config.h",
-        "android/event-config.h",
-        "epoll.c",
-      ]
-      include_dirs = [ "android" ]
-    } else if (is_nacl_nonsfi) {
-      sources -= [
-        "evdns.c",
-        "event_tagging.c",
-        "evrpc.c",
-        "http.c",
-        "select.c",
-        "signal.c",
-      ]
-      sources += [
-        "nacl_nonsfi/config.h",
-        "nacl_nonsfi/event-config.h",
-        "nacl_nonsfi/random.c",
-        "nacl_nonsfi/signal_stub.c",
-      ]
-      include_dirs = [ "nacl_nonsfi" ]
-    }
-    configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_mac || is_ios) {
+    sources += [
+      "kqueue.c",
+      "mac/config.h",
+      "mac/event-config.h",
+    ]
+    include_dirs = [ "mac" ]
+  } else if (is_linux) {
+    sources += [
+      "epoll.c",
+      "linux/config.h",
+      "linux/event-config.h",
+    ]
+    include_dirs = [ "linux" ]
+  } else if (is_android) {
+    sources += [
+      "android/config.h",
+      "android/event-config.h",
+      "epoll.c",
+    ]
+    include_dirs = [ "android" ]
+  } else if (is_nacl_nonsfi) {
+    sources -= [
+      "evdns.c",
+      "event_tagging.c",
+      "evrpc.c",
+      "http.c",
+      "select.c",
+      "signal.c",
+    ]
+    sources += [
+      "nacl_nonsfi/config.h",
+      "nacl_nonsfi/event-config.h",
+      "nacl_nonsfi/random.c",
+      "nacl_nonsfi/signal_stub.c",
+    ]
+    include_dirs = [ "nacl_nonsfi" ]
+  }
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
   }
 
   configs += [ "//build/config/compiler:no_chromium_code" ]
