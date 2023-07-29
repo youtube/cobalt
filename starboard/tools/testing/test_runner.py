@@ -477,7 +477,7 @@ class TestRunner(object):
       logging.info(("Xml results for this test will "
                     "be logged to '%s'."), test_result_xml_path)
     elif self.xml_output_dir:
-      xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
+      xml_output_subdir = os.path.join(self.xml_output_dir)
       try:
         os.makedirs(xml_output_subdir)
       except OSError as ose:
