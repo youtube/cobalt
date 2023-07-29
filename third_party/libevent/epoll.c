@@ -55,9 +55,8 @@
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
-#include <signal.h>
 #include <sys/epoll.h>
-#include <sys/resource.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
