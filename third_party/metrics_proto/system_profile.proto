@@ -960,6 +960,7 @@ message SystemProfileProto {
     RTANALYTICS_LIGHT = 21;
     RTANALYTICS_FULL = 22;
     CELLULAR = 23;
+    DEMO_MODE_RESOURCES = 24;
   }
 
   // Information about what Chrome components are registered and at which
