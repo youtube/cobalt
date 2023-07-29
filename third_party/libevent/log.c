@@ -74,6 +74,7 @@
 #endif  // STARBOARD
 
 #include "event.h"
+
 #include "log.h"
 #include "evutil.h"
 
