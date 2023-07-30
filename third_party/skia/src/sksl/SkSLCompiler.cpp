@@ -95,7 +95,11 @@ static void grab_intrinsics(std::vector<std::unique_ptr<ProgramElement>>* src,
                 break;
             }
             default:
+#if defined(STARBOARD)
+                SbLogRaw("unsupported include file element\n");
+#else
                 printf("unsupported include file element\n");
+#endif  // defined(STARBOARD)
                 SkASSERT(false);
         }
     }
