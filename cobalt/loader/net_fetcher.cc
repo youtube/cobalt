@@ -102,6 +102,7 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
       security_callback_(security_callback),
       ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
           base::Bind(&NetFetcher::Start, base::Unretained(this)))),
+      cors_policy_(network_module->network_delegate()->cors_policy()),
       request_cross_origin_(false),
       origin_(origin),
       request_script_(options.resource_type == disk_cache::kUncompiledScript),
@@ -225,7 +226,8 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   if (request_cross_origin_ &&
       (!source->GetResponseHeaders() ||
        !CORSPreflight::CORSCheck(*source->GetResponseHeaders(),
-                                 origin_.SerializedOrigin(), false))) {
+                                 origin_.SerializedOrigin(), false,
+                                 cors_policy_))) {
     std::string msg(base::StringPrintf(
         "Cross origin request to %s was rejected by Same-Origin-Policy",
         source->GetURL().spec().c_str()));

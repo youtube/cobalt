@@ -113,6 +113,7 @@ class NetFetcher : public Fetcher,
   // after being constructed, but before Start() runs.
   base::CancelableClosure start_callback_;
 
+  network::CORSPolicy cors_policy_;
   // True if request mode is CORS and request URL's origin is different from
   // request's origin.
   bool request_cross_origin_;
