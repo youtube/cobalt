@@ -17,12 +17,14 @@
 #include <memory>
 
 #include "base/callback_forward.h"
+#include "base/command_line.h"
 #include "base/metrics/field_trial.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_service_client.h"
 #include "components/metrics/metrics_state_manager.h"
+#include "components/metrics/metrics_switches.h"
 #include "components/metrics_services_manager/metrics_services_manager_client.h"
 #include "components/prefs/in_memory_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -57,12 +59,13 @@ bool CobaltMetricsServicesManagerClient::IsMetricsConsentGiven() {
   return enabled_state_provider_->IsConsentGiven();
 }
 
-// If the user has forced metrics collection on via the override flag.
+// If the user has forced metrics collection on via the override flag. This
+// switch being set trumps/overrides any other mechanism to enable telemetry
+// (e.g., through the h5vcc_metrics API).
 bool CobaltMetricsServicesManagerClient::IsMetricsReportingForceEnabled() {
-  // TODO(b/286091096): Add support for metrics logging forcing.
-  return false;
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      ::metrics::switches::kForceEnableMetricsReporting);
 }
-
 
 void StoreMetricsClientInfo(const ::metrics::ClientInfo& client_info) {
   // ClientInfo is a way to get data into the metrics component, but goes unused
