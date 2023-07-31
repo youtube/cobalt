@@ -86,7 +86,11 @@ public class StarboardBridge {
   static {
     // Even though NativeActivity already loads our library from C++,
     // we still have to load it from Java to make JNI calls into it.
-    System.loadLibrary("coat");
+
+    // GameActivity has code to load the libcobalt.so as well.
+    // It reads the library name from the meta data field "android.app.lib_name" in the
+    // AndroidManifest.xml
+    System.loadLibrary("cobalt");
   }
 
   private final Context appContext;
