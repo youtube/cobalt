@@ -31,7 +31,6 @@ static_library("nb") {
       "ref_counted.h",
       "reuse_allocator_base.cc",
       "reuse_allocator_base.h",
-      "scoped_ptr.h",
       "starboard_aligned_memory_deleter.h",
       "starboard_memory_allocator.h",
       "thread_collision_warner.cc",
