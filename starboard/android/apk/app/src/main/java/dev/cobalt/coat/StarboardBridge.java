@@ -86,7 +86,14 @@ public class StarboardBridge {
   static {
     // Even though NativeActivity already loads our library from C++,
     // we still have to load it from Java to make JNI calls into it.
-    System.loadLibrary("coat");
+
+    // TODO: (b/202789728) remove load coat after all dependencies
+    // are using cobalt.
+    try {
+      System.loadLibrary("cobalt");
+    } catch (UnsatisfiedLinkError e) {
+      System.loadLibrary("coat");
+    }
   }
 
   private final Context appContext;
