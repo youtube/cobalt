@@ -79,6 +79,7 @@ _TESTS_NO_SIGNAL = [
     'h5vcc_storage_write_verify_test',
     'http_cache',
     'persistent_cookie',
+    'scroll',
     'service_worker_add_to_cache_test',
     'service_worker_cache_keys_test',
     'service_worker_controller_activation_test',
