@@ -14,13 +14,22 @@
 
 #include "cobalt/debug/backend/log_agent.h"
 
+#include "base/bind.h"
 #include "base/logging.h"
+#include "cobalt/debug/console/command_manager.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
 
 namespace {
+const char kDebugLogCommand[] = "debug_log";
+const char kDebugLogCommandShortHelp[] =
+    "Turns browser debug logging on or off.";
+const char kDebugLogCommandLongHelp[] =
+    "When turned on, browser logs are sent in such a way that they are visible "
+    "in devtools.";
+
 // Error levels:
 constexpr char kInfoLevel[] = "info";
 constexpr char kWarningLevel[] = "warning";
@@ -42,7 +51,21 @@ const char* GetLogLevelFromSeverity(int severity) {
 }
 }  // namespace
 
-LogAgent::LogAgent(DebugDispatcher* dispatcher) : AgentBase("Log", dispatcher) {
+void LogAgent::OnDebugLog(const std::string& message) {
+  SetDebugLog(console::ConsoleCommandManager::CommandHandler::IsOnEnableOrTrue(
+      message));
+}
+void LogAgent::SetDebugLog(bool enable) {
+  event_method_ = domain_ + (enable ? ".entryAdded" : ".browserEntryAdded");
+}
+
+LogAgent::LogAgent(DebugDispatcher* dispatcher)
+    : AgentBase("Log", dispatcher),
+      debug_log_command_handler_(
+          kDebugLogCommand,
+          base::Bind(&LogAgent::OnDebugLog, base::Unretained(this)),
+          kDebugLogCommandShortHelp, kDebugLogCommandLongHelp) {
+  SetDebugLog(false);
   // Get log output while still making it available elsewhere.
   log_message_handler_callback_id_ =
       base::LogMessageHandler::GetInstance()->AddCallback(
@@ -63,9 +86,10 @@ bool LogAgent::OnLogMessage(int severity, const char* file, int line,
     // except it only shows up in the debug console and not in remote devtools.
     // TODO: Flesh out the rest of LogEntry properties (source, timestamp)
     JSONObject params(new base::DictionaryValue());
+    params->SetString("entry.source", "other");
     params->SetString("entry.text", str);
     params->SetString("entry.level", GetLogLevelFromSeverity(severity));
-    dispatcher_->SendEvent(domain_ + ".browserEntryAdded", params);
+    dispatcher_->SendEvent(event_method_, params);
   }
 
   // Don't suppress the log message.
