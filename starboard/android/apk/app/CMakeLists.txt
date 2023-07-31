@@ -72,7 +72,7 @@ add_custom_command(OUTPUT coat_lib
             ${skip_ninja_arg} -C ${COBALT_PRODUCT_DIR} ${COBALT_TARGET}
     COMMAND ${CMAKE_COMMAND} -E copy
             ${COBALT_LIBRARY_DIR}/lib${COBALT_TARGET}.so
-            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcoat.so
+            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcobalt.so
 )
 
 if(EVERGREEN_COMPATIBLE)
@@ -113,7 +113,7 @@ add_custom_target(external_cobalt_build DEPENDS coat_lib cobalt_content)
 # However, Android Studio will build it as an "IMPORTED" library.
 add_library(coat SHARED IMPORTED)
 set_target_properties(coat PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcoat.so
+    IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcobalt.so
 )
 
 if(EVERGREEN_COMPATIBLE)
