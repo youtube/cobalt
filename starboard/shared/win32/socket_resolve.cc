@@ -66,7 +66,7 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
 
   int index = 0;
   int skip = 0;
-  for (const auto *i = ai; i != nullptr; i = i->ai_next, ++index) {
+  for (const auto* i = ai; i != nullptr; i = i->ai_next, ++index) {
     // Skip over any addresses we can't parse.
     parsed[index] = sock_addrs[index].FromSockaddr(i->ai_addr);
     if (!parsed[index]) {

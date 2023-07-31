@@ -24,7 +24,7 @@ bool IsValidId(const char* posix_id) {
   return !((posix_id == NULL) || (strncmp("C", posix_id, 1) == 0) ||
            (strncmp("POSIX", posix_id, 5) == 0));
 }
-}
+}  // namespace
 
 const char* SbSystemGetLocaleId() {
   // Adapted from ICU's putil.c:uprv_getPOSIXIDForCategory.

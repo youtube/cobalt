@@ -159,7 +159,7 @@ TEST_F(JobQueueTest, JobsAreMovedAndNotCopied) {
 
   std::atomic_bool moved = {false}, copied = {false};
   MoveMe move_me;
-  auto job = [ move_me = std::move(move_me), &moved, &copied ]() {
+  auto job = [move_me = std::move(move_me), &moved, &copied]() {
     moved = move_me.moved;
     copied = move_me.copied;
   };
