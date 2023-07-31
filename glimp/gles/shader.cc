@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,13 +16,16 @@
  */
 
 #include "glimp/gles/shader.h"
+
+#include <utility>
+
 #include "starboard/common/string.h"
 
 namespace glimp {
 namespace gles {
 
-Shader::Shader(nb::scoped_ptr<ShaderImpl> impl, GLenum type)
-    : impl_(impl.Pass()), type_(type), compile_results_(false) {}
+Shader::Shader(std::unique_ptr<ShaderImpl> impl, GLenum type)
+    : impl_(std::move(impl)), type_(type), compile_results_(false) {}
 
 void Shader::ShaderSource(GLsizei count,
                           const GLchar* const* string,
@@ -70,8 +74,8 @@ GLenum Shader::GetShaderiv(GLenum pname, GLint* params) {
 void Shader::GetShaderInfoLog(GLsizei bufsize,
                               GLsizei* length,
                               GLchar* infolog) {
-  *length = starboard::strlcpy(infolog, compile_results_.info_log.c_str(),
-                               bufsize);
+  *length =
+      starboard::strlcpy(infolog, compile_results_.info_log.c_str(), bufsize);
 }
 
 }  // namespace gles

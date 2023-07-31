@@ -52,9 +52,9 @@ SbThreadLocalKey GetThreadLocalKey() {
 
 }  // namespace
 
-Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
+Context::Context(std::unique_ptr<ContextImpl> context_impl,
                  Context* share_context)
-    : impl_(context_impl.Pass()),
+    : impl_(std::move(context_impl)),
       context_id_(s_context_id_counter_++),
       current_thread_(kSbThreadInvalid),
       has_been_current_(false),
@@ -498,10 +498,10 @@ void Context::CullFace(GLenum mode) {
 
 GLuint Context::CreateProgram() {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
-  nb::scoped_ptr<ProgramImpl> program_impl = impl_->CreateProgram();
+  std::unique_ptr<ProgramImpl> program_impl = impl_->CreateProgram();
   SB_DCHECK(program_impl);
 
-  nb::scoped_refptr<Program> program(new Program(program_impl.Pass()));
+  nb::scoped_refptr<Program> program(new Program(std::move(program_impl)));
 
   return resource_manager_->RegisterProgram(program);
 }
@@ -618,7 +618,7 @@ void Context::UseProgram(GLuint program) {
 
 GLuint Context::CreateShader(GLenum type) {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
-  nb::scoped_ptr<ShaderImpl> shader_impl;
+  std::unique_ptr<ShaderImpl> shader_impl;
   if (type == GL_VERTEX_SHADER) {
     shader_impl = impl_->CreateVertexShader();
   } else if (type == GL_FRAGMENT_SHADER) {
@@ -629,7 +629,7 @@ GLuint Context::CreateShader(GLenum type) {
   }
   SB_DCHECK(shader_impl);
 
-  nb::scoped_refptr<Shader> shader(new Shader(shader_impl.Pass(), type));
+  nb::scoped_refptr<Shader> shader(new Shader(std::move(shader_impl), type));
 
   return resource_manager_->RegisterShader(shader);
 }
@@ -693,10 +693,10 @@ void Context::GenBuffers(GLsizei n, GLuint* buffers) {
   }
 
   for (GLsizei i = 0; i < n; ++i) {
-    nb::scoped_ptr<BufferImpl> buffer_impl = impl_->CreateBuffer();
+    std::unique_ptr<BufferImpl> buffer_impl = impl_->CreateBuffer();
     SB_DCHECK(buffer_impl);
 
-    nb::scoped_refptr<Buffer> buffer(new Buffer(buffer_impl.Pass()));
+    nb::scoped_refptr<Buffer> buffer(new Buffer(std::move(buffer_impl)));
 
     buffers[i] = resource_manager_->RegisterBuffer(buffer);
   }
@@ -710,11 +710,12 @@ void Context::GenBuffersForVideoFrame(GLsizei n, GLuint* buffers) {
   }
 
   for (GLsizei i = 0; i < n; ++i) {
-    nb::scoped_ptr<BufferImpl> buffer_impl = impl_->CreateBufferForVideoFrame();
+    std::unique_ptr<BufferImpl> buffer_impl =
+        impl_->CreateBufferForVideoFrame();
     SB_DCHECK(buffer_impl);
 
     buffers[i] = resource_manager_->RegisterBuffer(
-        nb::make_scoped_refptr(new Buffer(buffer_impl.Pass())));
+        nb::make_scoped_refptr(new Buffer(std::move(buffer_impl))));
   }
 }
 
@@ -1134,10 +1135,10 @@ void Context::GenTextures(GLsizei n, GLuint* textures) {
   }
 
   for (GLsizei i = 0; i < n; ++i) {
-    nb::scoped_ptr<TextureImpl> texture_impl = impl_->CreateTexture();
+    std::unique_ptr<TextureImpl> texture_impl = impl_->CreateTexture();
     SB_DCHECK(texture_impl);
 
-    nb::scoped_refptr<Texture> texture(new Texture(texture_impl.Pass()));
+    nb::scoped_refptr<Texture> texture(new Texture(std::move(texture_impl)));
 
     textures[i] = resource_manager_->RegisterTexture(texture);
   }
@@ -1823,7 +1824,7 @@ void Context::FramebufferRenderbuffer(GLenum target,
     return;
   }
 
-  nb::scoped_refptr<Renderbuffer> renderbuffer_object = NULL;
+  nb::scoped_refptr<Renderbuffer> renderbuffer_object = nullptr;
 
   // Resolve the actual render buffer object to bind if we are not binding
   // render buffer 0, in which case we leave the value to set as NULL.

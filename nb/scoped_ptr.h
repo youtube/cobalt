@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// IMPORTANT: This class is deprecated. Please use std::unique_ptr instead.
+// TODO: b/291356560 is tracking removal
+
 // Scopers help you manage ownership of a pointer, helping you easily manage the
 // a pointer within a scope, and automatically destroying the pointer at the
 // end of a scope.  There are two main classes you will use, which correspond
@@ -9,14 +12,14 @@
 //
 // Example usage (scoped_ptr):
 //   {
-//     scoped_ptr<Foo> foo(new Foo("wee"));
+//     scoped_ptr<Foo> foo(new Foo("whee"));
 //   }  // foo goes out of scope, releasing the pointer with it.
 //
 //   {
 //     scoped_ptr<Foo> foo;          // No pointer managed.
-//     foo.reset(new Foo("wee"));    // Now a pointer is managed.
-//     foo.reset(new Foo("wee2"));   // Foo("wee") was destroyed.
-//     foo.reset(new Foo("wee3"));   // Foo("wee2") was destroyed.
+//     foo.reset(new Foo("whee"));    // Now a pointer is managed.
+//     foo.reset(new Foo("whee2"));   // Foo("whee") was destroyed.
+//     foo.reset(new Foo("whee3"));   // Foo("whee2") was destroyed.
 //     foo->Method();                // Foo::Method() called.
 //     foo.get()->Method();          // Foo::Method() called.
 //     SomeFunc(foo.release());      // SomeFunc takes ownership, foo no longer
@@ -96,8 +99,7 @@
 #include <stdlib.h>
 
 #include <algorithm>
-
-#include "nb/move.h"
+#include <utility>
 
 namespace nb {
 
@@ -112,7 +114,8 @@ namespace nb {
 // sizeof(scoped_ptr<C>) == sizeof(C*)
 template <class C>
 class scoped_ptr {
-  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr, RValue)
+  scoped_ptr(const scoped_ptr&) = delete;
+  scoped_ptr& operator=(const scoped_ptr&) = delete;
 
  public:
   // The element type
@@ -129,12 +132,13 @@ class scoped_ptr {
   // Constructor.  Allows construction from a scoped_ptr rvalue for a
   // convertible type.
   template <typename U>
-  scoped_ptr(scoped_ptr<U> other)
+  scoped_ptr(scoped_ptr<U> other)  // NOLINT(runtime/explicit)
       : ptr_(other.release()) {}
 #endif
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr(RValue rvalue) : ptr_(rvalue.object->release()) {}
+  scoped_ptr(scoped_ptr&& rvalue)  // NOLINT(runtime/explicit)
+      : ptr_(rvalue.object->release()) {}
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -152,7 +156,7 @@ class scoped_ptr {
   }
 
   // operator=.  Move operator= for C++03 move emulation of this type.
-  scoped_ptr& operator=(RValue rhs) {
+  scoped_ptr& operator=(scoped_ptr&& rhs) {
     swap(*rhs->object);
     return *this;
   }
@@ -253,7 +257,8 @@ bool operator!=(C* p1, const scoped_ptr<C>& p2) {
 // Size: sizeof(scoped_array<C>) == sizeof(C*)
 template <class C>
 class scoped_array {
-  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_array, RValue)
+  scoped_array(const scoped_array&) = delete;
+  scoped_array& operator=(const scoped_array&) = delete;
 
  public:
   // The element type
@@ -265,7 +270,8 @@ class scoped_array {
   explicit scoped_array(C* p = NULL) : array_(p) {}
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_array(RValue rvalue) : array_(rvalue.object->release()) {}
+  scoped_array(scoped_array&& rvalue)  // NOLINT(runtime/explicit)
+      : array_(rvalue.object->release()) {}
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -275,7 +281,7 @@ class scoped_array {
   }
 
   // operator=.  Move operator= for C++03 move emulation of this type.
-  scoped_array& operator=(RValue rhs) {
+  scoped_array& operator=(scoped_array&& rhs) {
     swap(*rhs.object);
     return *this;
   }
@@ -370,7 +376,8 @@ class ScopedPtrMallocFree {
 
 template <class C, class FreeProc = ScopedPtrMallocFree>
 class scoped_ptr_malloc {
-  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr_malloc, RValue)
+  scoped_ptr_malloc(const scoped_ptr_malloc&) = delete;
+  scoped_ptr_malloc& operator=(const scoped_ptr_malloc&) = delete;
 
  public:
   // The element type
@@ -384,13 +391,14 @@ class scoped_ptr_malloc {
   explicit scoped_ptr_malloc(C* p = NULL) : ptr_(p) {}
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr_malloc(RValue rvalue) : ptr_(rvalue.object->release()) {}
+  scoped_ptr_malloc(scoped_ptr_malloc&& rvalue)  // NOLINT(runtime/explicit)
+      : ptr_(rvalue.object->release()) {}
 
   // Destructor.  If there is a C object, call the Free functor.
   ~scoped_ptr_malloc() { reset(); }
 
   // operator=.  Move operator= for C++03 move emulation of this type.
-  scoped_ptr_malloc& operator=(RValue rhs) {
+  scoped_ptr_malloc& operator=(scoped_ptr_malloc&& rhs) {
     swap(*rhs.object);
     return *this;
   }

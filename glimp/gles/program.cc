@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,14 +16,17 @@
  */
 
 #include "glimp/gles/program.h"
+
+#include <utility>
+
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 
 namespace glimp {
 namespace gles {
 
-Program::Program(nb::scoped_ptr<ProgramImpl> impl)
-    : impl_(impl.Pass()), link_results_(false) {}
+Program::Program(std::unique_ptr<ProgramImpl> impl)
+    : impl_(std::move(impl)), link_results_(false) {}
 
 bool Program::AttachShader(const nb::scoped_refptr<Shader>& shader) {
   if (shader->type() == GL_VERTEX_SHADER) {
@@ -104,8 +108,8 @@ GLenum Program::GetProgramiv(GLenum pname, GLint* params) {
 void Program::GetProgramInfoLog(GLsizei bufsize,
                                 GLsizei* length,
                                 GLchar* infolog) {
-  *length = starboard::strlcpy(infolog, link_results_.info_log.c_str(),
-                               bufsize);
+  *length =
+      starboard::strlcpy(infolog, link_results_.info_log.c_str(), bufsize);
 }
 
 GLint Program::GetUniformLocation(const GLchar* name) {

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +21,9 @@
 #include <map>
 #include <set>
 
+#include <memory>
 #include "glimp/egl/config.h"
 #include "glimp/egl/display_impl.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {
@@ -38,17 +39,17 @@ class DisplayImplStub : public DisplayImpl {
     return supported_configs_;
   }
 
-  nb::scoped_ptr<SurfaceImpl> CreateWindowSurface(
+  std::unique_ptr<SurfaceImpl> CreateWindowSurface(
       const Config* config,
       EGLNativeWindowType win,
       const AttribMap& attributes) override;
 
-  nb::scoped_ptr<SurfaceImpl> CreatePbufferSurface(
+  std::unique_ptr<SurfaceImpl> CreatePbufferSurface(
       const Config* config,
       const AttribMap& attributes) override;
 
-  nb::scoped_ptr<gles::ContextImpl> CreateContext(const Config* config,
-                                                  int gles_version) override;
+  std::unique_ptr<gles::ContextImpl> CreateContext(const Config* config,
+                                                   int gles_version) override;
 
   bool SetSwapInterval(int interval) override { return true; }
 

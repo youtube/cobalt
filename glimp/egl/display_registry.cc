@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +16,9 @@
  */
 
 #include "glimp/egl/display_registry.h"
+
+#include <memory>
+#include <utility>
 
 #include "glimp/egl/display_impl.h"
 #include "glimp/egl/error.h"
@@ -54,7 +58,7 @@ bool DisplayRegistry::InitializeDisplay(EGLDisplay display) {
   SB_DCHECK(Valid(display));
   Connection* connection = reinterpret_cast<Connection*>(display);
   if (!connection->display) {
-    nb::scoped_ptr<DisplayImpl> display_impl =
+    std::unique_ptr<DisplayImpl> display_impl =
         DisplayImpl::Create(connection->native_display);
     // If the platform-specific glimp implementation rejected the native
     // display, then we return false to indicate failure.
@@ -62,7 +66,7 @@ bool DisplayRegistry::InitializeDisplay(EGLDisplay display) {
       return false;
     }
 
-    connection->display = new Display(display_impl.Pass());
+    connection->display = new Display(std::move(display_impl));
   }
 
   return true;

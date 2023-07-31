@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,16 +22,16 @@
 
 #include <string>
 
+#include <memory>
 #include "glimp/gles/shader_impl.h"
 #include "nb/ref_counted.h"
-#include "nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {
 
 class Shader : public nb::RefCountedThreadSafe<Shader> {
  public:
-  Shader(nb::scoped_ptr<ShaderImpl> impl, GLenum type);
+  Shader(std::unique_ptr<ShaderImpl> impl, GLenum type);
 
   GLenum type() const { return type_; }
 
@@ -58,7 +59,7 @@ class Shader : public nb::RefCountedThreadSafe<Shader> {
   friend class nb::RefCountedThreadSafe<Shader>;
   ~Shader() {}
 
-  nb::scoped_ptr<ShaderImpl> impl_;
+  std::unique_ptr<ShaderImpl> impl_;
 
   GLenum type_;
 

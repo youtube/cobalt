@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +17,8 @@
 
 #include "glimp/egl/surface.h"
 
+#include <utility>
+
 #include "glimp/egl/error.h"
 #include "glimp/gles/context.h"
 #include "starboard/common/log.h"
@@ -23,8 +26,8 @@
 namespace glimp {
 namespace egl {
 
-Surface::Surface(nb::scoped_ptr<SurfaceImpl> surface_impl)
-    : surface_impl_(surface_impl.Pass()), is_bound_to_texture_(false) {}
+Surface::Surface(std::unique_ptr<SurfaceImpl> surface_impl)
+    : surface_impl_(std::move(surface_impl)), is_bound_to_texture_(false) {}
 
 int Surface::GetWidth() const {
   return surface_impl_->GetWidth();
