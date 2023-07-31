@@ -205,7 +205,14 @@ bool DebugConsole::FilterOnScreenKeyboardInputEvent(
 
 void DebugConsole::CycleMode() {
   base::AutoLock lock(mode_mutex_);
-  mode_ = (mode_ + 1) % debug::console::kDebugConsoleModeCount;
+  int number_of_modes = debug::console::kDebugConsoleModeCount;
+#if defined(ENABLE_DEBUGGER)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableWebDebugger)) {
+    number_of_modes = (debug::console::kDebugConsoleModeHud + 1);
+  }
+#endif
+  mode_ = (mode_ + 1) % number_of_modes;
 }
 
 debug::console::DebugConsoleMode DebugConsole::GetMode() {
