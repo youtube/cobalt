@@ -26,15 +26,10 @@ static_library("nb") {
       "fixed_no_free_allocator.cc",
       "fixed_no_free_allocator.h",
       "pointer_arithmetic.h",
-      "rect.h",
-      "ref_counted.cc",
-      "ref_counted.h",
       "reuse_allocator_base.cc",
       "reuse_allocator_base.h",
       "starboard_aligned_memory_deleter.h",
       "starboard_memory_allocator.h",
-      "thread_collision_warner.cc",
-      "thread_collision_warner.h",
     ]
 
     deps = [

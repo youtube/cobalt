@@ -26,7 +26,7 @@
 #include "glimp/gles/pixel_format.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/texture_impl.h"
-#include "nb/ref_counted.h"
+#include "glimp/ref_counted.h"
 
 namespace glimp {
 namespace gles {

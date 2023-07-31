@@ -19,8 +19,8 @@
 
 #include <utility>
 
+#include "glimp/rect.h"
 #include "nb/pointer_arithmetic.h"
-#include "nb/rect.h"
 
 namespace glimp {
 namespace gles {

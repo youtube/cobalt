@@ -102,9 +102,15 @@ source_set("glimp_common_sources") {
     "gles/unique_id_generator.cc",
     "gles/unique_id_generator.h",
     "gles/vertex_attribute.h",
+    "polymorphic_downcast.h",
+    "rect.h",
+    "ref_counted.cc",
+    "ref_counted.h",
     "shaders/glsl_shader_map_helpers.h",
     "shaders/hash_glsl_source.cc",
     "shaders/hash_glsl_source.h",
+    "thread_collision_warner.cc",
+    "thread_collision_warner.h",
   ]
   public_configs = [ ":glimp_common_sources_public_config" ]
   deps = [

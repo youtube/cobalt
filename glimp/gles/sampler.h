@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@
 #ifndef GLIMP_GLES_SAMPLER_H_
 #define GLIMP_GLES_SAMPLER_H_
 
-#include "nb/ref_counted.h"
+#include "glimp/ref_counted.h"
 
 namespace glimp {
 namespace gles {

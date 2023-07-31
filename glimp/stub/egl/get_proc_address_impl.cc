@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +19,8 @@
 
 #include "glimp/egl/display_registry.h"
 #include "glimp/egl/scoped_egl_lock.h"
+#include "glimp/polymorphic_downcast.h"
 #include "glimp/stub/egl/display_impl.h"
-#include "nb/polymorphic_downcast.h"
 #include "starboard/common/string.h"
 
 namespace glimp {

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +15,8 @@
  * limitations under the License.
  */
 
-#ifndef NB_RECT_H_
-#define NB_RECT_H_
+#ifndef GLIMP_RECT_H_
+#define GLIMP_RECT_H_
 
 namespace nb {
 
@@ -41,4 +42,4 @@ struct Rect {
 
 }  // namespace nb
 
-#endif  // NB_RECT_H_
+#endif  // GLIMP_RECT_H_
