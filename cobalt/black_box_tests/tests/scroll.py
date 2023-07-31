@@ -19,10 +19,11 @@ import traceback
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common import keys
 
 # Time to sleep after a mouse move to give the device time to process it and
 # to avoid collapsing with subsequent move events.
-_SLEEP_AFTER_MOVE_TIME = 0.0
+_SLEEP_AFTER_MOVE_TIME = 0.5
 
 
 def find_element_by_id(runner, id_selector):
@@ -51,8 +52,9 @@ class PointerTest(black_box_tests.BlackBoxTestCase):
           actions = ActionChains(runner.webdriver)
           actions.click_and_hold(row).pause(_SLEEP_AFTER_MOVE_TIME)
           actions.move_by_offset(-100, 0)
-          # actions.release()
+          actions.release()
           actions.perform()
+          runner.SendKeys(keys.Keys.NUMPAD0)
           self.assertTrue(runner.JSTestsSucceeded())
     except:  # pylint: disable=bare-except
       traceback.print_exc()

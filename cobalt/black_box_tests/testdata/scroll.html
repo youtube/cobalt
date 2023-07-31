@@ -40,16 +40,20 @@
   </div>
 </body>
 <script>
-  function endTestOnScroll() {
+  function checkEndState() {
     const scroll_container = document.getElementById("row");
-    scroll_container.addEventListener("scroll", () => {
-      onTestEnd();
-    });
+    assertTrue(scroll_container.scrollLeft > 0);
+    onEndTest();
   }
 
   window.onload = () => {
     setupFinished();
-    endTestOnScroll();
+  }
+
+  window.onkeydown = (event) => {
+    if (event.key == 0) {
+      checkEndState();
+    }
   }
 </script>
 
