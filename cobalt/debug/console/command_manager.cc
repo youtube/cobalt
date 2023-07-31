@@ -15,6 +15,7 @@
 #include "cobalt/debug/console/command_manager.h"
 
 #include "base/logging.h"
+#include "starboard/string.h"
 
 namespace cobalt {
 namespace debug {
@@ -44,6 +45,16 @@ ConsoleCommandManager::CommandHandler::~CommandHandler() {
   DCHECK(manager);
   manager->UnregisterCommandHandler(this);
 }
+
+// Returns true if the message is 'on', 'enable', or 'true'.
+// static
+bool ConsoleCommandManager::CommandHandler::IsOnEnableOrTrue(
+    const std::string& message) {
+  return (SbStringCompareNoCase("on", message.c_str()) == 0) ||
+         (SbStringCompareNoCase("enable", message.c_str()) == 0) ||
+         (SbStringCompareNoCase("true", message.c_str()) == 0);
+}
+
 
 void ConsoleCommandManager::HandleCommand(const std::string& command,
                                           const std::string& message) const {
