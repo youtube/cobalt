@@ -48,7 +48,7 @@ if (is_android || is_chromeos) {
 
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
-    default_min_sdk_version = 21
+    default_min_sdk_version = 24
 
     # [WIP] Allows devs to achieve much faster edit-build-install cycles.
     # Currently only works for ChromeModern apks due to incremental install.
@@ -62,8 +62,8 @@ if (is_android || is_chromeos) {
     android32_ndk_api_level = default_min_sdk_version
 
     # Android API level for 64 bits platforms
-    if (default_min_sdk_version < 21) {
-      android64_ndk_api_level = 21
+    if (default_min_sdk_version < 24) {
+      android64_ndk_api_level = 24
     } else {
       android64_ndk_api_level = default_min_sdk_version
     }
@@ -81,8 +81,8 @@ if (is_android || is_chromeos) {
 
   if (!defined(default_android_ndk_root)) {
     default_android_ndk_root = "//third_party/android_ndk"
-    default_android_ndk_version = "r22"
-    default_android_ndk_major_version = 22
+    default_android_ndk_version = "r25"
+    default_android_ndk_major_version = 25
   } else {
     assert(defined(default_android_ndk_version))
     assert(defined(default_android_ndk_major_version))
