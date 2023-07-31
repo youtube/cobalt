@@ -81,6 +81,24 @@ bool HasRemoteAudioOutputs(
 }
 #endif  // SB_API_VERSION >= 15
 
+// The function adjusts audio write duration proportionally to the playback
+// rate, when the playback rate is greater than 1.0.
+//
+// Having the right write duration is important:
+// 1. Too small of it causes audio underflow.
+// 2. Too large of it causes excessive audio switch latency.
+// When playback rate is 2x, an 0.5 seconds of write duration effectively only
+// lasts for 0.25 seconds and causes audio underflow, and the function will
+// adjust it to 1 second in this case.
+SbTime AdjustWriteDurationForPlaybackRate(SbTime write_duration,
+                                          float playback_rate) {
+  if (playback_rate <= 1.0) {
+    return write_duration;
+  }
+
+  return static_cast<SbTime>(write_duration * playback_rate);
+}
+
 }  // namespace
 
 SbPlayerPipeline::SbPlayerPipeline(
@@ -1060,13 +1078,15 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
     // account that our estimate of playback time might be behind by
     // |kMediaTimeCheckInterval|.
     if (timestamp_of_last_written_audio_ - seek_time_.ToSbTime() >
-        audio_write_duration_for_preroll_) {
+        AdjustWriteDurationForPlaybackRate(audio_write_duration_for_preroll_,
+                                           playback_rate_)) {
       // The estimated time ahead of playback may be negative if no audio has
       // been written.
       SbTime time_ahead_of_playback =
           timestamp_of_last_written_audio_ - last_media_time_;
-      if (time_ahead_of_playback >
-          (audio_write_duration_ + kMediaTimeCheckInterval)) {
+      if (time_ahead_of_playback > (AdjustWriteDurationForPlaybackRate(
+                                        audio_write_duration_, playback_rate_) +
+                                    kMediaTimeCheckInterval)) {
         task_runner_->PostDelayedTask(
             FROM_HERE,
             base::Bind(&SbPlayerPipeline::DelayedNeedData, this, max_buffers),
