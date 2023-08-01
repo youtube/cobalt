@@ -28,7 +28,6 @@ group("starboard_platform") {
 static_library("starboard_platform_sources") {
   check_includes = false
   sources = [
-    "//starboard/linux/x64x11/sanitizer_options.cc",
     "//starboard/linux/x64x11/system_get_property.cc",
     "//starboard/linux/x64x11/system_get_property_impl.cc",
     "//starboard/shared/libjpeg/image_decode.cc",
@@ -45,6 +44,10 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/x11/window_get_size.cc",
     "//starboard/shared/x11/window_internal.cc",
   ]
+
+  if (!build_with_separate_cobalt_toolchain) {
+    sources += [ "//starboard/linux/x64x11/sanitizer_options.cc" ]
+  }
 
   if (is_internal_build) {
     sources += [ "//starboard/keyboxes/linux/system_properties.cc" ]

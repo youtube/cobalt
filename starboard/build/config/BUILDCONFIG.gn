@@ -489,6 +489,10 @@ template("shared_library") {
         forward_variables_from(invoker, [ "testonly" ])
         sources = [ "//$starboard_path/starboard_loader.cc" ]
 
+        if (use_asan) {
+          sources += [ "//$starboard_path/sanitizer_options.cc" ]
+        }
+
         out_dir = rebase_path(root_build_dir)
         defines = [
           "SB_LOADER_MODULE=\"$actual_target_name\"",
