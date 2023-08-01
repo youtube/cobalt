@@ -71,3 +71,11 @@ class ApplicationConfiguration(object):
       A list of strings of test target names.
     """
     return []
+
+  def GetTestVirtualTargets(self):
+    """Gets all tests to be run in a unit test run.
+
+    Returns:
+      A list of strings of virtual test target names.
+    """
+    return []

@@ -183,3 +183,11 @@ class PlatformConfiguration(object):
         'slot_management_test',
         'starboard_platform_tests',
     ]
+
+  def GetTestVirtualTargets(self):
+    """Gets all tests to be run in a black box test run.
+
+    Returns:
+      A list of strings of virtual test target names.
+    """
+    return []

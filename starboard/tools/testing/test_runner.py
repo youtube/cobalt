@@ -86,13 +86,14 @@ def _FilterTests(target_list, filters, config_name):
 def _VerifyConfig(config, filters):
   """Ensures a platform or app config is self-consistent."""
   targets = config.GetTestTargets()
+  virtual_targets = config.GetTestVirtualTargets()
   filter_targets = [
       f.target_name for f in filters if f != test_filter.DISABLE_TESTING
   ]
 
   # Filters must be defined in the same config as the targets they're filtering,
   # platform filters in platform config, and app filters in app config.
-  unknown_targets = set(filter_targets) - set(targets)
+  unknown_targets = set(filter_targets) - set(targets) - set(virtual_targets)
   if unknown_targets:
     raise ValueError("Unknown filter targets in {} config ({}): {}".format(
         config.GetName(), config.__class__.__name__, sorted(unknown_targets)))
