@@ -47,7 +47,7 @@ TEST_PATTERNS = [
     '*.apk',
     'ds_archive.zip',
     'app_launcher.zip',
-    'crashpad_handler',
+    'native_target/crashpad_handler',
     'elf_loader_sandbox'
 ]
 
