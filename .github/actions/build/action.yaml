@@ -25,7 +25,7 @@ runs:
           fi
         else
           BUILD_PLATFORM=${COBALT_BOOTLOADER}
-          BUILD_TARGET='loader_app_install elf_loader_sandbox_install crashpad_handler_install'
+          BUILD_TARGET='loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
         fi
         # GitHub Runners have home set to /github/home.
         if [ -d /root/starboard-toolchains ]; then
