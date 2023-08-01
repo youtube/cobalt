@@ -22,22 +22,18 @@ namespace nplb {
 namespace {
 
 const SbDecodeTargetFormat kDecodeTargetFormats[] = {
-  kSbDecodeTargetFormat1PlaneRGBA,
-  kSbDecodeTargetFormat1PlaneBGRA,
-  kSbDecodeTargetFormat2PlaneYUVNV12,
-  kSbDecodeTargetFormat3PlaneYUVI420,
-  kSbDecodeTargetFormat3Plane10BitYUVI420,
-  kSbDecodeTargetFormat1PlaneUYVY,
-  kSbDecodeTargetFormatInvalid,
+    kSbDecodeTargetFormat1PlaneRGBA,
+    kSbDecodeTargetFormat1PlaneBGRA,
+    kSbDecodeTargetFormat2PlaneYUVNV12,
+    kSbDecodeTargetFormat3PlaneYUVI420,
+    kSbDecodeTargetFormat3Plane10BitYUVI420,
+    kSbDecodeTargetFormat1PlaneUYVY,
+    kSbDecodeTargetFormatInvalid,
 };
 
 const char* kMimeTypes[] = {
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "application/json",
-  "image/webp",
-  "invalid",
+    "image/jpeg",       "image/png",  "image/gif",
+    "application/json", "image/webp", "invalid",
 };
 
 // Verify SbImageIsDecodeSupported() can be called with any parameter values.

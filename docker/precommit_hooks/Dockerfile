@@ -19,6 +19,7 @@ RUN apt update -qqy \
         git python2 python3 python3-pip \
         python3-setuptools python3-wheel \
         libncurses5 curl unzip \
+        gcc python3-dev \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
@@ -41,6 +42,8 @@ WORKDIR /code
 
 ENV PRE_COMMIT_COLOR=always
 ENV SKIP=test-download-from-gcs-helper,check-bug-in-commit-message,run-py2-tests,check-if-starboard-interface-changed
+
+RUN git config --global --add safe.directory /code
 
 CMD pre-commit install -t pre-push -t pre-commit && \
     (pre-commit run --from-ref ${FROM_REF} --to-ref ${TO_REF} --hook-stage commit; \

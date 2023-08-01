@@ -22,8 +22,8 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-extern "C" SB_EXPORT_PLATFORM
-void Java_dev_cobalt_coat_CobaltTextToSpeechHelper_nativeSendTTSChangedEvent(
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_CobaltTextToSpeechHelper_nativeSendTTSChangedEvent(
     JniEnvExt* env,
     jobject unused_this) {
   ApplicationAndroid::Get()->SendTTSChangedEvent();

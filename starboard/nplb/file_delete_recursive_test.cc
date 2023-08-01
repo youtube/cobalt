@@ -32,11 +32,15 @@ const size_t kFileCount = 3;
 const char kRoot[] = {"SbFileDeleteRecursiveTest"};
 
 const char* kDirectories[kDirectoryCount] = {
-    "", "test1", "test2",
+    "",
+    "test1",
+    "test2",
 };
 
 const char* kFiles[kFileCount] = {
-    "file1", "test1/file2", "test2/file3",
+    "file1",
+    "test1/file2",
+    "test2/file3",
 };
 
 TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
@@ -96,8 +100,8 @@ TEST(SbFileDeleteRecursiveTest, RainyDayDeleteFileIgnoresPreserveRoot) {
   SbFileError err = kSbFileOk;
   SbFile file = kSbFileInvalid;
 
-  file = SbFileOpen(path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL,
-                    &err);
+  file =
+      SbFileOpen(path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, &err);
 
   EXPECT_EQ(kSbFileOk, err);
   EXPECT_TRUE(SbFileClose(file));

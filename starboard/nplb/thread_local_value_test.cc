@@ -144,9 +144,7 @@ TEST(SbThreadLocalValueTest, NoDestructorsForNullValue) {
       kSbThreadNoPriority,  // Signals default priority.
       kSbThreadNoAffinity,  // Signals default affinity.
       true,                 // joinable thread.
-      "TestThread",
-      LocalStatic::ThreadEntryPoint,
-      static_cast<void*>(&key));
+      "TestThread", LocalStatic::ThreadEntryPoint, static_cast<void*>(&key));
 
   ASSERT_NE(kSbThreadInvalid, thread) << "Thread creation not successful";
   // 2nd param is return value from ThreadEntryPoint, which is always NULL.

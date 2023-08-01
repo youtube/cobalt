@@ -55,25 +55,22 @@ void SbFileAndroidInitialize() {
 
   SB_DCHECK(g_java_asset_manager == NULL);
   SB_DCHECK(g_asset_manager == NULL);
-  ScopedLocalJavaRef<jstring> j_app(
-      env->CallStarboardObjectMethodOrAbort(
-          "getApplicationContext", "()Landroid/content/Context;"));
-  g_java_asset_manager = env->ConvertLocalRefToGlobalRef(
-      env->CallObjectMethodOrAbort(j_app.Get(),
-          "getAssets", "()Landroid/content/res/AssetManager;"));
+  ScopedLocalJavaRef<jstring> j_app(env->CallStarboardObjectMethodOrAbort(
+      "getApplicationContext", "()Landroid/content/Context;"));
+  g_java_asset_manager =
+      env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
+          j_app.Get(), "getAssets", "()Landroid/content/res/AssetManager;"));
   g_asset_manager = AAssetManager_fromJava(env, g_java_asset_manager);
 
   SB_DCHECK(g_app_files_dir == NULL);
-  ScopedLocalJavaRef<jstring> j_string(
-      env->CallStarboardObjectMethodOrAbort("getFilesAbsolutePath",
-                                           "()Ljava/lang/String;"));
+  ScopedLocalJavaRef<jstring> j_string(env->CallStarboardObjectMethodOrAbort(
+      "getFilesAbsolutePath", "()Ljava/lang/String;"));
   g_app_files_dir = DuplicateJavaString(env, j_string.Get());
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
   SB_DCHECK(g_app_cache_dir == NULL);
-  j_string.Reset(
-      env->CallStarboardObjectMethodOrAbort("getCacheAbsolutePath",
-                                           "()Ljava/lang/String;"));
+  j_string.Reset(env->CallStarboardObjectMethodOrAbort("getCacheAbsolutePath",
+                                                       "()Ljava/lang/String;"));
   g_app_cache_dir = DuplicateJavaString(env, j_string.Get());
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 
@@ -81,8 +78,8 @@ void SbFileAndroidInitialize() {
   ScopedLocalJavaRef<jobject> j_app_info(
       env->CallObjectMethodOrAbort(j_app.Get(), "getApplicationInfo",
                                    "()Landroid/content/pm/ApplicationInfo;"));
-  j_string.Reset(env->GetStringFieldOrAbort(j_app_info.Get(),
-                                            "nativeLibraryDir"));
+  j_string.Reset(
+      env->GetStringFieldOrAbort(j_app_info.Get(), "nativeLibraryDir"));
   g_app_lib_dir = DuplicateJavaString(env, j_string.Get());
   SB_DLOG(INFO) << "Lib dir: " << g_app_lib_dir;
 }
@@ -109,9 +106,8 @@ void SbFileAndroidTeardown() {
 
 bool IsAndroidAssetPath(const char* path) {
   size_t prefix_len = strlen(g_app_assets_dir);
-  return path != NULL
-      && strncmp(g_app_assets_dir, path, prefix_len) == 0
-      && (path[prefix_len] == '/' || path[prefix_len] == '\0');
+  return path != NULL && strncmp(g_app_assets_dir, path, prefix_len) == 0 &&
+         (path[prefix_len] == '/' || path[prefix_len] == '\0');
 }
 
 AAsset* OpenAndroidAsset(const char* path) {

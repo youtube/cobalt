@@ -12,8 +12,9 @@ exclude: |
             build|
             buildtools|
             components/crash/core/common|
-            components/metrics|
             components/metrics_services_manager|
+            components/metrics|
+            components/prefs|
             components/ukm|
             components/variations|
             components/version_info|

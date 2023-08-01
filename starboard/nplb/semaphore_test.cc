@@ -65,7 +65,9 @@ TEST(Semaphore, ThreadTakes) {
 class ThreadTakesWaitSemaphore : public AbstractTestThread {
  public:
   explicit ThreadTakesWaitSemaphore(SbTime wait_us)
-      : thread_started_(false), wait_us_(wait_us), result_signaled_(false),
+      : thread_started_(false),
+        wait_us_(wait_us),
+        result_signaled_(false),
         result_wait_time_(0) {}
   void Run() override {
     thread_started_ = true;

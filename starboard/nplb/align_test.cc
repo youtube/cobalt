@@ -20,11 +20,11 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-bool IsAligned(void *pointer, size_t alignment) {
+bool IsAligned(void* pointer, size_t alignment) {
   return (reinterpret_cast<uintptr_t>(pointer) % alignment) == 0;
 }
 
-size_t GetAlignment(void *pointer) {
+size_t GetAlignment(void* pointer) {
   for (size_t alignment = static_cast<size_t>(1) << ((sizeof(size_t) * 8) - 1);
        alignment != 0; alignment /= 2) {
     if (IsAligned(pointer, alignment)) {

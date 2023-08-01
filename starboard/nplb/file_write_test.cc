@@ -62,9 +62,9 @@ TYPED_TEST(SbFileWriteTest, BasicWriting) {
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(),
-                           kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(),
+                 kSbFileCreateAlways | kSbFileWrite | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   // Create a bigger buffer than necessary, so we can test the memory around
@@ -85,8 +85,8 @@ TYPED_TEST(SbFileWriteTest, BasicWriting) {
 
     int remaining = kFileSize - total;
     int to_write = remaining < kBufferLength ? remaining : kBufferLength;
-    int bytes_written = TypeParam::Write(
-        file, buffer + (total % kBufferLength), to_write);
+    int bytes_written =
+        TypeParam::Write(file, buffer + (total % kBufferLength), to_write);
 
     // Check that we didn't write more than the buffer size.
     EXPECT_GE(to_write, bytes_written);
