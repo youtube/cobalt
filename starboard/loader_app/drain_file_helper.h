@@ -29,7 +29,8 @@ namespace loader_app {
 // that it allows you to choose where to create the file.
 class ScopedDrainFile {
  public:
-  ScopedDrainFile(const std::string& dir, const std::string& app_key,
+  ScopedDrainFile(const std::string& dir,
+                  const std::string& app_key,
                   SbTime timestamp);
   ~ScopedDrainFile();
 

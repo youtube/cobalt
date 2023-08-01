@@ -138,8 +138,7 @@ SbDecodeTarget DecodeTargetCreate(
   params.format = format;
   params.decode_target_out = kSbDecodeTargetInvalid;
 
-  SbDecodeTargetRunInGlesContext(
-      provider, &CreateWithContextRunner, &params);
+  SbDecodeTargetRunInGlesContext(provider, &CreateWithContextRunner, &params);
   return params.decode_target_out;
 }
 

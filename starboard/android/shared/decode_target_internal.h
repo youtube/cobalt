@@ -15,8 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_DECODE_TARGET_INTERNAL_H_
 #define STARBOARD_ANDROID_SHARED_DECODE_TARGET_INTERNAL_H_
 
-#include <android/native_window.h>
 #include <GLES2/gl2.h>
+#include <android/native_window.h>
 #include <jni.h>
 
 #include "starboard/common/ref_counted.h"

@@ -49,8 +49,8 @@ TEST(JniEnvExtTest, NewStringStandardUTF) {
 
   EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
   const jchar* u16_chars = env->GetStringChars(j_str, NULL);
-  std::u16string u16_string(
-      reinterpret_cast<const char16_t*>(u16_chars), kU16Length);
+  std::u16string u16_string(reinterpret_cast<const char16_t*>(u16_chars),
+                            kU16Length);
   EXPECT_EQ(std::u16string(kU16), u16_string);
   env->ReleaseStringChars(j_str, u16_chars);
 }
@@ -61,8 +61,8 @@ TEST(JniEnvExtTest, NewStringModifiedUTF) {
 
   EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
   const jchar* u16_chars = env->GetStringChars(j_str, NULL);
-  std::u16string u16_string(
-      reinterpret_cast<const char16_t*>(u16_chars), kU16Length);
+  std::u16string u16_string(reinterpret_cast<const char16_t*>(u16_chars),
+                            kU16Length);
   EXPECT_EQ(std::u16string(kU16), u16_string);
   env->ReleaseStringChars(j_str, u16_chars);
 }

@@ -17,5 +17,4 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void SbLogFlush() {
-}
+void SbLogFlush() {}

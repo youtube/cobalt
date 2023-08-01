@@ -75,9 +75,9 @@ Java_dev_cobalt_coat_PlatformError_nativeSendResponse(JNIEnv* env,
     SB_DCHECK(*send_response_callback)
         << "send_response_callback should never be an empty function";
     SbSystemPlatformErrorResponse error_response =
-        jni_response < 0 ? kSbSystemPlatformErrorResponseNegative :
-        jni_response > 0 ? kSbSystemPlatformErrorResponsePositive :
-        kSbSystemPlatformErrorResponseCancel;
+        jni_response < 0   ? kSbSystemPlatformErrorResponseNegative
+        : jni_response > 0 ? kSbSystemPlatformErrorResponsePositive
+                           : kSbSystemPlatformErrorResponseCancel;
     (*send_response_callback)(error_response);
     delete send_response_callback;
   }

@@ -421,11 +421,13 @@ TEST_F(InstallationManagerTest, RollForwardMatrix20) {
   }
   int max_num_installations = 2;
   int setup_priorities[2][2] = {
-      {0, 1}, {1, 0},
+      {0, 1},
+      {1, 0},
   };
 
   int expected_priorities[2][2] = {
-      {0, 1}, {0, 1},
+      {0, 1},
+      {0, 1},
   };
 
   for (int i = 0; i < 2; i++) {
@@ -440,11 +442,13 @@ TEST_F(InstallationManagerTest, RollForwardMatrix21) {
   }
   int max_num_installations = 2;
   int setup_priorities[2][2] = {
-      {0, 1}, {1, 0},
+      {0, 1},
+      {1, 0},
   };
 
   int expected_priorities[2][2] = {
-      {1, 0}, {1, 0},
+      {1, 0},
+      {1, 0},
   };
 
   for (int i = 0; i < 2; i++) {
@@ -517,17 +521,26 @@ TEST_F(InstallationManagerTest, RevertMatrix2) {
   // List of 2 index pairs of (priority, is_success) for which the revert would
   // fail.
   int priority_success_pairs1[4][2][2] = {
-      {{0, 1}, {1, 0}}, {{0, 0}, {1, 0}}, {{1, 0}, {0, 1}}, {{1, 0}, {0, 0}},
+      {{0, 1}, {1, 0}},
+      {{0, 0}, {1, 0}},
+      {{1, 0}, {0, 1}},
+      {{1, 0}, {0, 0}},
   };
 
   // List of 2 index pairs of (priority, is_success) for which the revert would
   // succeed.
   int priority_success_pairs2[4][2][2] = {
-      {{0, 0}, {1, 1}}, {{1, 1}, {0, 0}}, {{0, 1}, {1, 1}}, {{1, 1}, {0, 1}},
+      {{0, 0}, {1, 1}},
+      {{1, 1}, {0, 0}},
+      {{0, 1}, {1, 1}},
+      {{1, 1}, {0, 1}},
   };
 
   int expected_priorities[4][2] = {
-      {1, 0}, {0, 1}, {1, 0}, {0, 1},
+      {1, 0},
+      {0, 1},
+      {1, 0},
+      {0, 1},
   };
 
   for (int i = 0; i < 4; i++) {

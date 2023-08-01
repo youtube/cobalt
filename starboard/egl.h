@@ -42,24 +42,24 @@ extern "C" {
 
 // The following type definitions were adapted from the types declared in
 // https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h.
-typedef int32_t  SbEglInt32;
+typedef int32_t SbEglInt32;
 typedef intptr_t SbEglNativeDisplayType;
 typedef intptr_t SbEglNativePixmapType;
 typedef intptr_t SbEglNativeWindowType;
 
 // The following type definitions were adapted from the types declared in
 // https://www.khronos.org/registry/EGL/api/EGL/egl.h.
-typedef void   (*SbEglCastsToProperFunctionPointerType)(void);
-typedef int64_t  SbEglAttrib;
+typedef void (*SbEglCastsToProperFunctionPointerType)(void);
+typedef int64_t SbEglAttrib;
 typedef uint32_t SbEglBoolean;
-typedef void*    SbEglClientBuffer;
-typedef void*    SbEglConfig;
-typedef void*    SbEglContext;
-typedef void*    SbEglDisplay;
+typedef void* SbEglClientBuffer;
+typedef void* SbEglConfig;
+typedef void* SbEglContext;
+typedef void* SbEglDisplay;
 typedef uint32_t SbEglEnum;
-typedef void*    SbEglImage;
-typedef void*    SbEglSurface;
-typedef void*    SbEglSync;
+typedef void* SbEglImage;
+typedef void* SbEglSurface;
+typedef void* SbEglSync;
 typedef uint64_t SbEglTime;
 
 typedef struct SbEglInterface {

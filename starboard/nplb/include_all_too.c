@@ -16,4 +16,3 @@
 // no duplicate symbols.
 
 #include "starboard/nplb/include_all.c"
-
