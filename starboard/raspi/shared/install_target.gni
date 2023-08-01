@@ -49,8 +49,8 @@ template("install_target") {
     args = [
       rebase_path(strip_executable, root_build_dir),
       "-o",
-      rebase_path(outputs[0], root_out_dir),
-      rebase_path("$root_out_dir/$source_name", root_out_dir),
+      rebase_path(outputs[0], root_build_dir),
+      rebase_path("$root_out_dir/$source_name", root_build_dir),
     ]
   }
 }

@@ -27,8 +27,10 @@ config("platform_configuration") {
     ":sabi_flags",
     "//starboard/evergreen/arm/shared/platform_configuration",
   ]
-  ldflags = [
-    "-Wl,-m",
-    "-Wl,armelf",
-  ]
+  if (!build_with_separate_cobalt_toolchain) {
+    ldflags = [
+      "-Wl,-m",
+      "-Wl,armelf",
+    ]
+  }
 }

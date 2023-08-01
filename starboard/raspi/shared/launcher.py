@@ -138,10 +138,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # used.
     test_dir = os.path.join(self.out_directory, 'install', self.target_name)
     test_file = self.target_name
+    if IS_MODULAR_BUILD:
+      test_dir += '_loader'
+      test_file += '_loader'
 
     test_path = os.path.join(test_dir, test_file)
-    if IS_MODULAR_BUILD:
-      test_path += '_loader'
 
     if not os.path.isfile(test_path):
       raise ValueError(f'TargetPath ({test_path}) must be a file.')

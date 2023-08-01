@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
+
 if (current_toolchain == default_toolchain &&
     build_with_separate_cobalt_toolchain) {
   import(
@@ -48,3 +50,5 @@ if (current_toolchain == default_toolchain &&
 
   is_raspi = true
 }
+
+native_linker_path = gcc_toolchain_cxx

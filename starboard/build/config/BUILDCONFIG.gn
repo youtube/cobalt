@@ -484,6 +484,7 @@ template("shared_library") {
       deps = [
         ":${actual_target_name}_loader($starboard_toolchain)",
         ":${actual_target_name}_loader_copy($starboard_toolchain)",
+        ":${actual_target_name}_loader_install($starboard_toolchain)",
       ]
     }
     if (current_toolchain == starboard_toolchain) {
@@ -504,13 +505,17 @@ template("shared_library") {
         configs += [ "//starboard/build/config:starboard_implementation" ]
 
         ldflags = [
-          "-Wl,-rpath=" + rebase_path("$root_build_dir/starboard"),
-          "-Wl,-rpath=" + rebase_path("$root_build_dir"),
+          # "-Wl,-rpath=" + rebase_path("$root_build_dir/starboard"),
+          # "-Wl,-rpath=" + rebase_path("$root_build_dir"),
+          "-Wl,-rpath=\$ORIGIN/../lib/starboard_platform_group",
+          "-Wl,-rpath=\$ORIGIN/../lib",
+          "-Wl,-rpath=\$ORIGIN",
         ]
 
         deps = [
           ":$original_target_name($cobalt_toolchain)",
           "//starboard:starboard_platform_group($starboard_toolchain)",
+          "//starboard:starboard_platform_group_install($starboard_toolchain)",
         ]
       }
       copy("${actual_target_name}_loader_copy") {
