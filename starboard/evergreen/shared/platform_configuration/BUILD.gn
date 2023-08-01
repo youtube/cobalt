@@ -25,10 +25,12 @@ config("platform_configuration") {
     "-Wl,-L$clang_base_path",
     "-Wl,-L/usr/lib",
     "-Wl,-L/lib",
-    "-Wl,-nostdlib",
     "-Wl,-u GetEvergreenSabiString",
   ]
 
+  if (!build_with_separate_cobalt_toolchain) {
+    ldflags += [ "-nostdlib" ]
+  }
   cflags = [
     "-ffunction-sections",
     "-fdata-sections",
@@ -104,7 +106,6 @@ config("platform_configuration") {
   }
 
   if (is_clang) {
-    ldflags += [ "-nostdlib" ]
     cflags += [
       "-fcolor-diagnostics",
 
