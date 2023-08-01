@@ -65,8 +65,9 @@ group("gn_all") {
         "//third_party/crashpad/client",
 
         # TODO(b/270858365): remove this dependency on the Starboard-based
-        # target (from the target toolchain) once Buildbot has been updated to
-        # use the native target (from native_target toolchain).
+        # target (from the target toolchain) once Buildbot is using the native
+        # target (from native_target toolchain) and no longer declares the
+        # Starboard-based one as a build target.
         "//third_party/crashpad/handler",
       ]
       data_deps = [
