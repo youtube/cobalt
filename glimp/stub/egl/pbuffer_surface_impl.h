@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +20,8 @@
 
 #include <KHR/khrplatform.h>
 
+#include "glimp/ref_counted.h"
 #include "glimp/stub/egl/surface_impl.h"
-#include "nb/ref_counted.h"
 
 namespace glimp {
 namespace egl {

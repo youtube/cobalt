@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,9 +20,9 @@
 #include <algorithm>
 
 #include "glimp/gles/convert_pixel_data.h"
+#include "glimp/polymorphic_downcast.h"
 #include "glimp/stub/egl/pbuffer_surface_impl.h"
 #include "glimp/stub/gles/buffer_impl.h"
-#include "nb/polymorphic_downcast.h"
 #include "starboard/memory.h"
 
 namespace glimp {

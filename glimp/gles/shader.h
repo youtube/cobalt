@@ -24,7 +24,7 @@
 
 #include <memory>
 #include "glimp/gles/shader_impl.h"
-#include "nb/ref_counted.h"
+#include "glimp/ref_counted.h"
 
 namespace glimp {
 namespace gles {

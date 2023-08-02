@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,8 +17,8 @@
 
 #include "glimp/stub/gles/program_impl.h"
 
+#include "glimp/polymorphic_downcast.h"
 #include "glimp/stub/gles/shader_impl.h"
-#include "nb/polymorphic_downcast.h"
 #include "starboard/common/log.h"
 
 namespace glimp {

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2014 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +15,8 @@
  * limitations under the License.
  */
 
-#ifndef NB_POLYMORPHIC_DOWNCAST_H_
-#define NB_POLYMORPHIC_DOWNCAST_H_
+#ifndef GLIMP_POLYMORPHIC_DOWNCAST_H_
+#define GLIMP_POLYMORPHIC_DOWNCAST_H_
 
 #include "starboard/common/log.h"
 
@@ -34,4 +35,4 @@ Derived polymorphic_downcast(Base base) {
 
 }  // namespace nb
 
-#endif  // NB_POLYMORPHIC_DOWNCAST_H_
+#endif  // GLIMP_POLYMORPHIC_DOWNCAST_H_

@@ -33,7 +33,7 @@
 #include "glimp/gles/resource_manager.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/vertex_attribute.h"
-#include "nb/ref_counted.h"
+#include "glimp/ref_counted.h"
 #include "starboard/atomic.h"
 #include "starboard/thread.h"
 
