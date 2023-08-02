@@ -90,38 +90,46 @@ Evergreen](resources/cobalt_evergreen_overview_vs_non_evergreen.png)
 
 ### Building Cobalt Evergreen Components
 
-Cobalt Evergreen requires that there are two separate build(`gyp`)
-configurations used due to the separation of the Cobalt core(`libcobalt.so`) and
-the platform-specific Starboard layer(`loader_app`). As a result, you will have
-to initiate a separate gyp process for each. This is required since the Cobalt
-core binary is built with the Google toolchain settings and the
-platform-specific Starboard layer is built with partner toolchain
-configurations.
+Because of its separation of the Cobalt core (`libcobalt.so`) and platform-
+specific Starboard layers, Cobalt Evergreen requires two build configurations.
+This means there are two relevant GN platforms defined in the build code, and
+that `gn gen` must be run twice to generate ninja files for two separate
+platforms.
 
-Cobalt Evergreen is built by a separate gyp platform using the Google toolchain:
+#### Configuring your port for Evergreen
+
+The Evergreen platforms for the different supported architectures, which are
+used to build Cobalt core (`libcobalt.so`), are maintained by Google. So, no
+changes are needed by the partner here.
+
+However, a few small changes are needed in the partner's port, which is used to
+build the partner-built components, to make it compatible with Evergreen.
+
+First, partners should set `sb_is_evergreen_compatible = true` in the platform's
+`platform_configuration/configuration.gni` file. (Please DO NOT set
+`sb_is_evergreen` to `true`, as this should only be set in the Evergreen
+platforms that are maintained by Google and used to build Cobalt core.)
+
+Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
+"target" toolchain to add a "native_target" toolchain that is identical except
+that it sets `is_starboard = false` and `is_native_target_build = true`.
+
+For example:
 
 ```
-$ cobalt/build/gn.py -p evergreen-arm-softfp -c qa
-$ ninja -C out/evergreen-arm-softfp_qa cobalt
+gcc_toolchain("target") {
+  ...
+}
+
+gcc_toolchain("native_target") {
+  ...
+  is_starboard = false
+  is_native_target_build = true
+}
 ```
 
-Which produces a shared library `libcobalt.so` targeted for specific
-architecture, ABI and Starboard version.
-
-The gyp variable `sb_evergreen` is set to 1 when building `libcobalt.so`.
-
-The partner port of Starboard is built with the partner’s toolchain and is
-linked into the `loader_app` which knows how to dynamically load
-`libcobalt.so`, and the `crashpad_handler` which handles crashes.
-
-```
-$ cobalt/build/gn.py -p <partner_port_name> -c qa
-$ ninja -C out/<partner_port_name>_qa loader_app crashpad_handler
-```
-
-Partners should set `sb_evergreen_compatible` to 1 in their gyp platform config.
-DO NOT set the `sb_evergreen` to 1 in your platform-specific configuration as it
-is used only by Cobalt when building with the Google toolchain.
+This "native_target" toolchain is required in order to build the
+`crashpad_handler` binary, which should NOT use the Starboard porting layer.
 
 Additionally, partners should install crash handlers as instructed in the
 [Installing Crash Handlers for Cobalt guide](../crash_handlers.md).
@@ -152,7 +160,36 @@ your platform unless it is not one of our supported architectures:
 If your target architecture falls outside the support list above, please reach
 out to us for guidance.
 
-#### Adding Crash Handlers to Evergreen
+#### Build commands
+
+As mentioned, the Google-maintained Evergreen toolchain is used to build Cobalt
+core (`libcobalt.so`). For example:
+
+```
+$ gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-hardfp\" build_type=\"qa\" target_cpu=\"arm\" target_os=\"linux\" sb_api_version=15"
+$ ninja -C out/evergreen-arm-softfp_qa cobalt_install
+```
+
+This produces a `libcobalt.so` shared library targeted for a specific
+architecture, ABI, and Starboard version.
+
+Note: `sb_api_version` defaults to the latest supported Starboard version in the
+current branch.
+
+
+The partner port of Starboard is built with the partner’s "target" toolchain and
+is linked into the `loader_app`, which knows how to dynamically load
+`libcobalt.so`. And the `crashpad_handler` binary is built with the partner's
+"native_target" toolchain. For example:
+
+```
+$ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa" sb_api_version=15'
+$ ninja -C out/<partner_port_name>_qa loader_app
+$ ninja -C out/<partner_port_name>_qa native_target/crashpad_handler
+```
+
+Note that when building `crashpad_handler`, a special prefix is used to have
+Ninja compile the target in the non-default, "native_target" toolchain.
 
 ### What is an example for how this would help me?
 
