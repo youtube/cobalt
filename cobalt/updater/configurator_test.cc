@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/updater/configurator.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

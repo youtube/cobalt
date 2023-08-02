@@ -24,7 +24,7 @@ namespace starboard {
 
 // A loopback-only server that listens to receive null-terminated strings that
 // will be dispatched to the Link() method on the passed in |application|. This
-// will result in kSbEventTypeLink events beind dispatched on the main Starboard
+// will result in kSbEventTypeLink events being dispatched on the main Starboard
 // dispatch thread.
 //
 // This server Runs on its own thread, joining it on destruction. It must be

@@ -72,7 +72,7 @@ class BakedAnimationSet {
              cssom::MutableCSSComputedStyleData* in_out_style) const;
 
   // Returns the timeline time at which point all animations in the set are
-  // ended, or base::TimeDelta::Max() if at leats one animation will never end.
+  // ended, or base::TimeDelta::Max() if at least one animation will never end.
   base::TimeDelta end_time() const;
 
  private:

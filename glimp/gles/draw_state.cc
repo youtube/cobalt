@@ -22,9 +22,8 @@ namespace gles {
 DirtyUniforms::DirtyUniforms() : all_dirty_(true) {}
 
 bool DirtyUniforms::IsDirty(int location) const {
-  return all_dirty_ ||
-         std::find(uniforms_dirty_.begin(), uniforms_dirty_.end(), location) !=
-             uniforms_dirty_.end();
+  return all_dirty_ || std::find(uniforms_dirty_.begin(), uniforms_dirty_.end(),
+                                 location) != uniforms_dirty_.end();
 }
 
 bool DirtyUniforms::AnyDirty() const {

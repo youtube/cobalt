@@ -81,9 +81,9 @@ class QuadF {
     return RectF(rl, rt, rr - rl, rb - rt);
   }
 
-  // Add a vector to the quad, offseting each point in the quad by the vector.
+  // Add a vector to the quad, offsetting each point in the quad by the vector.
   void operator+=(const Vector2dF& rhs);
-  // Subtract a vector from the quad, offseting each point in the quad by the
+  // Subtract a vector from the quad, offsetting each point in the quad by the
   // inverse of the vector.
   void operator-=(const Vector2dF& rhs);
 
@@ -112,9 +112,9 @@ inline bool operator!=(const QuadF& lhs, const QuadF& rhs) {
   return !(lhs == rhs);
 }
 
-// Add a vector to a quad, offseting each point in the quad by the vector.
+// Add a vector to a quad, offsetting each point in the quad by the vector.
 QuadF operator+(const QuadF& lhs, const Vector2dF& rhs);
-// Subtract a vector from a quad, offseting each point in the quad by the
+// Subtract a vector from a quad, offsetting each point in the quad by the
 // inverse of the vector.
 QuadF operator-(const QuadF& lhs, const Vector2dF& rhs);
 

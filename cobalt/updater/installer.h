@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_UPDATER_INSTALLER_H_
+#ifndef CHROME_UPDATER_INSTALLER_H_  // NOLINT(build/header_guard)
 #define CHROME_UPDATER_INSTALLER_H_
 
 #include <stdint.h>
@@ -53,8 +53,7 @@ class Installer final : public update_client::CrxInstaller {
 
   // Overrides from update_client::CrxInstaller.
   void OnUpdateError(int error) override;
-  void Install(const base::FilePath& unpack_path,
-               const std::string& public_key,
+  void Install(const base::FilePath& unpack_path, const std::string& public_key,
                Callback callback) override;
   bool GetInstalledFile(const std::string& file,
                         base::FilePath* installed_file) override;

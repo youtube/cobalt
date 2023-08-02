@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/updater/installer.h"
+#include "chrome/updater/installer.h"  // NOLINT(build/include)
 
 #include <utility>
 
@@ -78,8 +78,7 @@ void Installer::FindInstallOfApp() {
     const base::Version version(path.BaseName().MaybeAsASCII());
 
     // Ignore folders that don't have valid version names.
-    if (!version.IsValid())
-      continue;
+    if (!version.IsValid()) continue;
 
     // The |version| not newer than the latest found version is marked for
     // removal. |kNullVersion| is also removed.
@@ -89,8 +88,7 @@ void Installer::FindInstallOfApp() {
     }
 
     // New valid |version| folder found.
-    if (!latest_path.empty())
-      older_paths.push_back(latest_path);
+    if (!latest_path.empty()) older_paths.push_back(latest_path);
 
     latest_version = version;
     latest_path = path;
@@ -102,14 +100,12 @@ void Installer::FindInstallOfApp() {
   base::ReadFileToString(latest_path.AppendASCII("manifest.fingerprint"),
                          &install_info_->fingerprint);
 
-  for (const auto& older_path : older_paths)
-    base::DeleteFile(older_path, true);
+  for (const auto& older_path : older_paths) base::DeleteFile(older_path, true);
 }
 
 Installer::Result Installer::InstallHelper(const base::FilePath& unpack_path) {
   auto local_manifest = update_client::ReadManifest(unpack_path);
-  if (!local_manifest)
-    return Result(update_client::InstallError::BAD_MANIFEST);
+  if (!local_manifest) return Result(update_client::InstallError::BAD_MANIFEST);
 
   std::string version_ascii;
   local_manifest->GetStringASCII("version", &version_ascii);
@@ -166,8 +162,7 @@ void Installer::OnUpdateError(int error) {
 }
 
 void Installer::Install(const base::FilePath& unpack_path,
-                        const std::string& public_key,
-                        Callback callback) {
+                        const std::string& public_key, Callback callback) {
   std::unique_ptr<base::DictionaryValue> manifest;
   base::Version version;
   base::FilePath install_path;
@@ -182,8 +177,6 @@ bool Installer::GetInstalledFile(const std::string& file,
   return false;
 }
 
-bool Installer::Uninstall() {
-  return false;
-}
+bool Installer::Uninstall() { return false; }
 
 }  // namespace updater

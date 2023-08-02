@@ -371,28 +371,28 @@ void VideoRendererImpl::CheckBufferingState() {
   }
   auto now = SbTimeGetMonotonicNow();
   if (!end_of_stream_written_.load()) {
-    auto elasped = now - last_buffering_state_update_;
-    if (elasped > kDelayBeforeWarning) {
+    auto elapsed = now - last_buffering_state_update_;
+    if (elapsed > kDelayBeforeWarning) {
       switch (buffering_state_) {
         case kWaitForBuffer:
-          SB_LOG(ERROR) << "Haven't received input buffer for " << elasped
+          SB_LOG(ERROR) << "Haven't received input buffer for " << elapsed
                         << " microseconds.";
           break;
         case kWaitForConsumption:
-          SB_LOG(ERROR) << "Haven't consumed input buffer for " << elasped
+          SB_LOG(ERROR) << "Haven't consumed input buffer for " << elapsed
                         << " microseconds.";
           break;
       }
     }
-    elasped = now - last_can_accept_more_data;
-    SB_LOG_IF(ERROR, elasped > kDelayBeforeWarning)
-        << "Haven't ready for input for " << elasped << " microseconds. "
+    elapsed = now - last_can_accept_more_data;
+    SB_LOG_IF(ERROR, elapsed > kDelayBeforeWarning)
+        << "Haven't ready for input for " << elapsed << " microseconds. "
         << "Frame backlog/max frames: " << number_of_frames_.load() << "/"
         << decoder_->GetMaxNumberOfCachedFrames();
   }
-  auto elasped = now - last_output_;
-  SB_LOG_IF(ERROR, elasped > kDelayBeforeWarning)
-      << "Haven't received any output for " << elasped << " microseconds.";
+  auto elapsed = now - last_output_;
+  SB_LOG_IF(ERROR, elapsed > kDelayBeforeWarning)
+      << "Haven't received any output for " << elapsed << " microseconds.";
   Schedule(std::bind(&VideoRendererImpl::CheckBufferingState, this),
            kCheckBufferingStateInterval);
 }

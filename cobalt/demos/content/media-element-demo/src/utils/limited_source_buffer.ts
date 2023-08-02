@@ -5,7 +5,7 @@ const UNPLAYED_BUFFER_MAX_SIZE = 10;  // Only buffer 10 seconds maximum.
 
 /**
  * A source buffer wrapper that limits the array buffers that can be added to
- * the source buffer. If the bufferred length exceeds the limit, it will
+ * the source buffer. If the buffered length exceeds the limit, it will
  * automatically pauses and waits until the remaining playback time is below the
  * limit.
  */

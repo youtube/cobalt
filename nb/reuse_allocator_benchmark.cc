@@ -228,7 +228,9 @@ void MemoryPlaybackTest(const std::string& filename) {
 
 int BenchmarkMain(int argc, char** argv) {
   const char* kBenchmarks[] = {
-      "mem_history_cobalt.txt", "mem_history_gpu.txt", "mem_history_main.txt",
+      "mem_history_cobalt.txt",
+      "mem_history_gpu.txt",
+      "mem_history_main.txt",
   };
 
   for (std::size_t i = 0; i < SB_ARRAY_SIZE(kBenchmarks); ++i) {

@@ -35,7 +35,7 @@ class KeyEventHandler {
  public:
   // Called to handle a key event. The base class implementation just calls
   // DispatchKeyboardEvent. Overridden versions of this function may modify the
-  // incoming event and/or generate new events. Overriden versions should call
+  // incoming event and/or generate new events. Overridden versions should call
   // DispatchKeyboardEvent for each event filtered/produced.
   virtual void HandleKeyboardEvent(base::Token type,
                                    const dom::KeyboardEventInit& event);
