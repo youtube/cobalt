@@ -16,6 +16,7 @@ runs:
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set env vars
       env:
+        GCS_PATH: gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}
         WORKFLOW: ${{ github.workflow }}
       run: |
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
@@ -41,6 +42,7 @@ runs:
           echo "SHARD_NAME=unit_test_${{ matrix.shard }}" >> $GITHUB_ENV
           echo "TEST_TYPE=unit_test" >> $GITHUB_ENV
           echo "USE_SHARDING=1" >> $GITHUB_ENV
+          echo "GCS_RESULTS=${GCS_PATH}/results.zip" >> $GITHUB_ENV
         fi
       shell: bash
     - name: Run ${{ env.SHARD_NAME }} Tests on ${{ matrix.platform }} Platform
@@ -77,7 +79,8 @@ runs:
           ${DIMENSION:+"--dimension" "$DIMENSION"} \
           ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
-          --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+          --archive_path ${GCS_PATH}/artifacts.tar \
+          --gcs_xml_result_path=${GCS_RESULTS}
           --label github \
           --label ${GITHUB_EVENT_NAME} \
           --label ${WORKFLOW} \
@@ -89,3 +92,22 @@ runs:
           --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}
       shell: bash
+    - name: Download ${{ matrix.platform }} Test Results
+      if: env.TEST_TYPE == 'unit_test'
+      run: |
+        set -eux
+        gsutil -d cp "${GCS_RESULTS_PATH}" results.zip
+        if [[ $? -ne 0 ]]; then
+          warn="Unable to download results from ${GCS_RESULTS_PATH}"
+          echo "::warning title=No unit test results::$warn"
+          exit 0
+        fi
+        mkdir -p unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}/
+        unzip results.zip -d unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}/
+      shell: bash
+    - name: Archive Unit Test Results
+      uses: actions/upload-artifact@v3
+      if: env.TEST_TYPE == 'unit_test'
+      with:
+        name: unit-test-results
+        path: unit-test-results/
