@@ -4,7 +4,7 @@ description: Runs on-device tests.
 runs:
   using: "composite"
   steps:
-    - name: Install requirements
+    - name: Install Requirements
       run: |
         pip3 install grpcio==1.38.0 grpcio-tools==1.38.0
       shell: bash
@@ -12,7 +12,7 @@ runs:
       run: |
         python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/on_device_tests_gateway.proto
       shell: bash
-    - name: Set up Cloud SDK
+    - name: Set Up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set env vars
       run: |
@@ -42,7 +42,7 @@ runs:
           echo "USE_SHARDING=1" >> $GITHUB_ENV
         fi
       shell: bash
-    - name: run ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
+    - name: Run ${{ env.SHARD_NAME }} Tests on ${{ matrix.platform }} Platform
       env:
         GCS_PATH: gs://${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}_${{ matrix.config }}
         GITHUB_SHA: ${{ github.sha }}
