@@ -16,7 +16,7 @@ namespace crdtp {
 namespace json {
 namespace platform {
 bool StrToD(const char* str, double* result) {
-#if SB_IS(EVERGREEN)
+#if SB_IS(MODULAR)
 #error "The std::locale::classic() is not supported for Evergreen. Please use base::StringToDouble()."
 #endif
   std::istringstream is(str);
@@ -26,7 +26,8 @@ bool StrToD(const char* str, double* result) {
 }
 
 std::string DToStr(double value) {
-#if SB_IS(EVERGREEN)
+  //Ask Kaido/Yavor if this is needed.
+#if SB_IS(MODULAR)
 #error "The std::locale::classic() is not supported for Evergreen. Please use base::NumberToString()."
 #endif
   std::stringstream ss;

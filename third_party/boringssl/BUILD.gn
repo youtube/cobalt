@@ -102,7 +102,7 @@ static_library("crypto") {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
 
-    if (sb_is_evergreen) {
+    if (sb_is_modular) {
       calling_convention = sabi_variables.calling_convention
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
            calling_convention != "sysv" && calling_convention != "windows") ||

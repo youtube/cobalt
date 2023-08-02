@@ -16,11 +16,11 @@
 #include <thread>
 #include <vector>
 
-#if !SB_IS(EVERGREEN)
+#if !SB_IS(MODULAR)
 #if __has_include(<unistd.h>)
 # include <unistd.h> // for sysconf
 #endif
-#endif // !SB_IS(EVERGREEN)
+#endif // !SB_IS(MODULAR)
 
 #if defined(__NetBSD__)
 #pragma weak pthread_create // Do not create libpthread dependency

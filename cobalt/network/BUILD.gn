@@ -80,7 +80,7 @@ static_library("network") {
     defines = [ "ENABLE_NETWORK_LOGGING" ]
   }
 
-  if (!sb_is_evergreen) {
+  if (!sb_is_modular) {
     deps += cobalt_platform_dependencies
   }
 }
