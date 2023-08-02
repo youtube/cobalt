@@ -43,6 +43,7 @@ namespace filter {
 namespace testing {
 namespace {
 
+using std::deque;
 using std::string;
 using std::vector;
 using ::testing::Bool;
@@ -112,9 +113,11 @@ class AdaptiveAudioDecoderTest
     ASSERT_LT(buffer_index, dmp_reader->number_of_audio_buffers());
 
     can_accept_more_input_ = false;
+    scoped_refptr<InputBuffer> input =
+        GetAudioInputBuffer(dmp_reader, buffer_index);
+    written_inputs_.push_back(input);
     audio_decoder_->Decode(
-        {GetAudioInputBuffer(dmp_reader, buffer_index)},
-        std::bind(&AdaptiveAudioDecoderTest::OnConsumed, this));
+        {input}, std::bind(&AdaptiveAudioDecoderTest::OnConsumed, this));
   }
 
   void WriteMultipleInputs(VideoDmpReader* dmp_reader,
@@ -191,6 +194,7 @@ class AdaptiveAudioDecoderTest
 
   vector<std::unique_ptr<VideoDmpReader>> dmp_readers_;
   scoped_refptr<DecodedAudio> last_decoded_audio_;
+  deque<scoped_refptr<InputBuffer>> written_inputs_;
   int num_of_output_frames_ = 0;
   int output_sample_rate_;
   bool first_output_received_ = false;
@@ -244,11 +248,23 @@ class AdaptiveAudioDecoderTest
       last_decoded_audio_ = decoded_audio;
       return;
     }
-    // TODO: fix resampler timestamp issue.
-    // if (last_decoded_audio_) {
-    //   ASSERT_LT(last_decoded_audio_->timestamp(),
-    //             decoded_audio->timestamp());
-    // }
+
+    // Stub decoder doesn't produce outputs with right timestamp.
+    if (!using_stub_decoder_) {
+      ASSERT_EQ(decoded_audio->timestamp(),
+                written_inputs_.front()->timestamp());
+      written_inputs_.pop_front();
+
+      // TODO: The timestamps of inputs are not monotonic increasing, so
+      // that we can't get monotonic increasing output timestamps here. We
+      // can enable the check below once we make the input timestamps monotonic
+      // increasing.
+      if (last_decoded_audio_) {
+        // ASSERT_LE(last_decoded_audio_->timestamp(),
+        // decoded_audio->timestamp());
+      }
+    }
+
     last_decoded_audio_ = decoded_audio;
     num_of_output_frames_ += last_decoded_audio_->frames();
   }

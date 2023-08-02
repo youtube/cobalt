@@ -224,10 +224,7 @@ class AudioDecoderTest
     ASSERT_EQ(decoded_audio_sample_type_, local_decoded_audio->sample_type());
     ASSERT_EQ(decoded_audio_sample_rate_, decoded_sample_rate);
 
-    // TODO: Adaptive audio decoder may set output timestamp to 0, so we don't
-    //       verify audio timestamp if it's 0.  Consider enabling it after we
-    //       fix timestamp issues.
-    if (local_decoded_audio->timestamp() != 0 && !decoded_audios_.empty()) {
+    if (!decoded_audios_.empty()) {
       ASSERT_LT(decoded_audios_.back()->timestamp(),
                 local_decoded_audio->timestamp());
     }
