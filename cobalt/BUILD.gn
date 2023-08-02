@@ -66,22 +66,27 @@ group("default") {
     "//third_party/brotli:dec_no_dictionary_data",
   ]
 
-  if (sb_is_evergreen) {
+  if (sb_is_modular) {
     deps += [
       "//base/util/values:values_util",
-      "//cobalt/updater",
-      "//cobalt/updater:crash_sandbox",
-      "//cobalt/updater:noop_sandbox",
-      "//cobalt/updater:one_app_only_sandbox",
-      "//components/client_update_protocol",
-      "//components/crx_file",
-      "//components/prefs",
-      "//components/update_client",
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/llvm-project/libcxx:cxx",
       "//third_party/llvm-project/libcxxabi:cxxabi",
       "//third_party/musl:c",
     ]
+    if (sb_is_evergreen) {
+      deps += [
+        # TODO(b/294247612): Remove unnecessary dependencies.
+        "//cobalt/updater",
+        "//cobalt/updater:crash_sandbox",
+        "//cobalt/updater:noop_sandbox",
+        "//cobalt/updater:one_app_only_sandbox",
+        "//components/client_update_protocol",
+        "//components/crx_file",
+        "//components/prefs",
+        "//components/update_client",
+      ]
+    }
     if (!build_with_separate_cobalt_toolchain) {
       deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
     }

@@ -26,7 +26,7 @@ int InitAndRunAllTests(int argc, char** argv) {
 
 // When we are building Evergreen we need to export SbEventHandle so that the
 // ELF loader can find and invoke it.
-#if SB_IS(EVERGREEN)
+#if SB_IS(MODULAR)
 SB_EXPORT
-#endif  // SB_IS(EVERGREEN)
+#endif  // SB_IS(MODULAR)
 STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);

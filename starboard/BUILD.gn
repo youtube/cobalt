@@ -57,6 +57,11 @@ group("gn_all") {
     deps += [ "//starboard/benchmark" ]
   }
 
+  if (build_with_separate_cobalt_toolchain && is_cobalt_toolchain) {
+    assert(sb_is_modular,
+           "sb_is_modular should be set when building with cobalt_toolchain")
+  }
+
   if (!sb_is_evergreen) {
     deps += [ "//third_party/lz4_lib:lz4" ]
 
@@ -92,14 +97,16 @@ group("starboard") {
     "//starboard/client_porting/eztime",
   ]
 
-  if (sb_is_evergreen) {
+  if (sb_is_modular) {
     public_deps += [
-      "//starboard/elf_loader:sabi_string",
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/llvm-project/libcxx:cxx",
       "//third_party/llvm-project/libcxxabi:cxxabi",
       "//third_party/musl:c",
     ]
+    if (sb_is_evergreen) {
+      public_deps += [ "//starboard/elf_loader:sabi_string" ]
+    }
     if (build_with_separate_cobalt_toolchain) {
       data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
     } else {
@@ -193,7 +200,7 @@ if (current_toolchain == starboard_toolchain) {
     } else {
       public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
     }
-    if (!sb_is_evergreen) {
+    if (!sb_is_modular) {
       public_deps += [ "//$starboard_path:starboard_platform" ]
     }
   }

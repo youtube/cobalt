@@ -58,7 +58,7 @@ target(final_executable_type, "web_media_player_sandbox") {
     "//url",
   ]
 
-  if (!sb_is_evergreen) {
+  if (!sb_is_modular) {
     deps += cobalt_platform_dependencies
   }
 }
