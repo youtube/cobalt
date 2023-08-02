@@ -42,7 +42,7 @@ class ScannerTest : public ::testing::Test,
       return;
     }
 
-#if SB_IS(EVERGREEN)
+#if SB_IS(MODULAR)
     // We don't support changing locale for Evergreen so run only
     // if the default/empty local is passed in the param.
     locale_okay_ = (GetParam()[0] == 0);
@@ -60,7 +60,7 @@ class ScannerTest : public ::testing::Test,
   }
 
   virtual void TearDown() {
-#if !SB_IS(EVERGREEN)
+#if !SB_IS(MODULAR)
     if (!old_locale_.empty()) setlocale(LC_NUMERIC, old_locale_.c_str());
 #endif
   }

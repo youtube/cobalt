@@ -1582,7 +1582,7 @@ component("base") {
     # TODO(b/206642994): see if we can remove this condition. It's added for now
     # because linking atomic leads to linker errors for evergreen on arm-hardfp,
     # and it's apparently not really needed (i.e., we can build without it).
-    if (!is_starboard || !sb_is_evergreen) {
+    if (!is_starboard || !sb_is_modular) {
       libs += [ "atomic" ]
     }
   }

@@ -215,7 +215,7 @@ template <class charT> class messages_byname;
 // NOLINTBEGIN(libcpp-robust-against-adl)
 
 #include "starboard/configuration.h"
-#if !SB_IS(EVERGREEN)
+#if !SB_IS(MODULAR)
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 // Most unix variants have catopen.  These are the specific ones that don't.
 #  if !defined(__BIONIC__) && !defined(_NEWLIB_VERSION) && !defined(__EMSCRIPTEN__)
@@ -223,7 +223,7 @@ template <class charT> class messages_byname;
 #    include <nl_types.h>
 #  endif
 #endif
-#endif // !SB_IS(EVERGREEN)
+#endif // !SB_IS(MODULAR)
 
 #ifdef _LIBCPP_LOCALE__L_EXTENSIONS
 #include <__bsd_locale_defaults.h>

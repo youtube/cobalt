@@ -14,7 +14,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_IS(EVERGREEN)
+#if SB_IS(MODULAR)
 
 #include <inttypes.h>
 #include <limits.h>
@@ -194,4 +194,4 @@ SB_COMPILE_ASSERT(sizeof(wchar_t) == SB_SIZE_OF_INT,
                   SB_SIZE_OF_INT_is_inconsistent_with_sizeof_wchar_t);
 #endif  // SB_IS(ARCH_X86)
 
-#endif  // SB_IS(EVERGREEN)
+#endif  // SB_IS(MODULAR)
