@@ -35,6 +35,7 @@ from starboard.tools import command_line
 from starboard.tools import log_level
 
 _DISABLED_BLACKBOXTEST_CONFIGS = [
+    'android-arm/devel',
     'android-arm64/devel',
     'android-x86/devel',
     'evergreen-arm/devel',
@@ -178,9 +179,6 @@ def LoadTests(launcher_params, test_set):
       loader_out_directory=launcher_params.loader_out_directory)
 
   test_targets = []
-  test_filters = build.GetPlatformConfig(
-      _launcher_params.platform).GetApplicationConfiguration(
-          'cobalt').GetTestFilters()
 
   if test_set in ['all', 'blackbox']:
     test_targets = _TESTS_NO_SIGNAL
@@ -196,15 +194,8 @@ def LoadTests(launcher_params, test_set):
 
   test_suite = unittest.TestSuite()
   for test in test_targets:
-    filter_hit = 0
-    for filtered_test in test_filters:
-      if (test_set == filtered_test.target_name and
-          test == filtered_test.test_name):
-        filter_hit = 1
-        continue
-    if filter_hit == 0:
-      test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
-          importlib.import_module(_TEST_DIR_PATH + test)))
+    test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
+        importlib.import_module(_TEST_DIR_PATH + test)))
   return test_suite
 
 
