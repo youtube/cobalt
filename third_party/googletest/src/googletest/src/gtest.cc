@@ -3865,6 +3865,7 @@ void BriefUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
   }
 }
 
+#if !GTEST_OS_STARBOARD
 void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                     int /*iteration*/) {
   ColoredPrintf(GTestColor::kGreen, "[==========] ");
@@ -3896,6 +3897,62 @@ void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   // Ensure that Google Test output is printed before, e.g., heapchecker output.
   internal::posix::Flush();
 }
+#else  // !GTEST_OS_STARBOARD
+void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
+                                                    int /*iteration*/) {
+  // Due to the test processes relying on regex-parsing of GTEST test result
+  // summary output, we modify this step to atomically output the logs to stdout
+  // to avoid other external SbLogRaw calls from being inserted between calls to
+  // posix:PrintF().
+  // This batching guarantees that the output is well-formatted s.t. the test
+  // runner scripts received expected output despite reentrant logging.
+  // See b/251827741
+  std::stringstream out_stream;
+  out_stream << "[==========] ";
+
+  out_stream << FormatTestCount(unit_test.test_to_run_count()).c_str()
+             << " from "
+             << FormatTestSuiteCount(unit_test.test_suite_to_run_count()).c_str()
+             << " ran.";
+
+  if (GTEST_FLAG_GET(print_time)) {
+    out_stream << " ("
+               << internal::StreamableToString(unit_test.elapsed_time()).c_str()
+               << " ms total)";
+  }
+
+  out_stream << std::endl;
+
+  out_stream << "[  PASSED  ] "
+             << FormatTestCount(unit_test.successful_test_count()).c_str()
+             << "."
+             << std::endl;
+
+  const int skipped_test_count = unit_test.skipped_test_count();
+  if (skipped_test_count > 0) {
+    out_stream << "[  SKIPPED ] ";
+    out_stream << FormatTestCount(skipped_test_count).c_str()
+               << "."
+               << std::endl;
+  }
+
+  const int num_disabled = unit_test.reportable_disabled_test_count();
+  if (num_disabled && !GTEST_FLAG_GET(also_run_disabled_tests)) {
+    if (unit_test.Passed()) {
+      out_stream << std::endl;  // Add a spacer if no FAILURE banner is displayed.
+    }
+    out_stream << "  YOU HAVE "
+               << num_disabled
+               << " DISABLED "
+               << (num_disabled == 1 ? "TEST" : "TESTS")
+               << std::endl
+               << std::endl;
+  }
+  // Ensure that Google Test output is printed before, e.g., heapchecker output.
+  internal::posix::PrintF("%s", out_stream.str().c_str());
+  internal::posix::Flush();
+}
+#endif  // !GTEST_OS_STARBOARD
 
 // End BriefUnitTestResultPrinter
 
