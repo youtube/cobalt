@@ -58,7 +58,6 @@ static_library("script") {
   deps = [
     "//cobalt/base",
     "//cobalt/loader:origin",
-    "//nb",
     "//starboard:starboard_headers_only",
     "//third_party/v8",
     "//third_party/v8:v8_libplatform",

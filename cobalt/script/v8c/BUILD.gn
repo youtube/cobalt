@@ -131,7 +131,6 @@ static_library("engine") {
     "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/script",
-    "//nb",
     "//third_party/v8",
     "//third_party/v8:v8_libplatform",
     "//third_party/v8/third_party/inspector_protocol:crdtp",

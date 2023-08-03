@@ -24,7 +24,6 @@ static_library("memory_store") {
     "//cobalt/base",
     "//cobalt/loader:origin",
     "//cobalt/storage:storage_constants",
-    "//nb",
     "//net",
     "//third_party/protobuf:protobuf_lite",
     "//url",

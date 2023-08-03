@@ -115,7 +115,6 @@ static_library("loader") {
     "//cobalt/render_tree",
     "//cobalt/renderer/test/png_utils",
     "//cobalt/web",
-    "//nb",
     "//net",
     "//third_party/libjpeg-turbo:libjpeg",
     "//third_party/libpng",

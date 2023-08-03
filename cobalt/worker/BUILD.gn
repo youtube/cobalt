@@ -115,7 +115,6 @@ target(gtest_target_type, "worker_test") {
     "//cobalt/test:run_all_unittests",
     "//cobalt/web/testing:web_testing",
     "//cobalt/worker/testing:worker_testing",
-    "//nb",
     "//net:test_support",
     "//testing/gmock",
     "//testing/gtest",
