@@ -64,6 +64,7 @@ config("compiler_flags") {
       "-Wno-unused-parameter",
     ]
     if (build_with_separate_cobalt_toolchain) {
+      print("fvisibility=default")
       # If we're building modularly, we need visibility.
       cflags += [ "-fvisibility=default" ]
     } else {

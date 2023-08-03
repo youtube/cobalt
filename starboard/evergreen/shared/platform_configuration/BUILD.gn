@@ -14,18 +14,18 @@
 
 config("platform_configuration") {
   ldflags = [
-    "-fuse-ld=lld",
-    "-Wl,--build-id",
-    "-Wl,--gc-sections",
-    "-Wl,-X",
-    "-Wl,-v",
-    "-Wl,-eh-frame-hdr",
-    "-Wl,--fini=__cxa_finalize",
-    "-Wl,-shared",
-    "-Wl,-L$clang_base_path",
-    "-Wl,-L/usr/lib",
-    "-Wl,-L/lib",
-    "-Wl,-u GetEvergreenSabiString",
+    # "-fuse-ld=lld",
+    # "-Wl,--build-id",
+    # "-Wl,--gc-sections",
+    # "-Wl,-X",
+    # "-Wl,-v",
+    # "-Wl,-eh-frame-hdr",
+    # "-Wl,--fini=__cxa_finalize",
+    # "-Wl,-shared",
+    # "-Wl,-L$clang_base_path",
+    # "-Wl,-L/usr/lib",
+    # "-Wl,-L/lib",
+    # "-Wl,-u GetEvergreenSabiString",
   ]
 
   if (!build_with_separate_cobalt_toolchain) {

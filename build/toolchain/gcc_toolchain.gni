@@ -116,8 +116,9 @@ if (enable_resource_allowlist_generation) {
 #      that the snarl tool will accept.
 template("gcc_toolchain") {
   toolchain(target_name) {
-    is_starboard_toolchain = target_name == "starboard"
-    if (!build_with_separate_cobalt_toolchain) {
+    print(target_name, "target name")
+    is_starboard_toolchain = (target_name == "starboard")
+    if (build_with_separate_cobalt_toolchain) {
       not_needed(["is_starboard_toolchain"])
     }
     assert(defined(invoker.ar), "gcc_toolchain() must specify a \"ar\" value")

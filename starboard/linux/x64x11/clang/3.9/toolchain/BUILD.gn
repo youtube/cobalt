@@ -27,3 +27,27 @@ overridable_gcc_toolchain("target") {
     is_clang = true
   }
 }
+
+overridable_gcc_toolchain("starboard") {
+  cc = "${_target_llvm_3_9_bin_dir}/clang"
+  cxx = "${_target_llvm_3_9_bin_dir}/clang++"
+  ld = cxx
+  ar = "ar"
+
+  toolchain_args = {
+    is_clang = true
+  }
+}
+
+prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+overridable_gcc_toolchain("cobalt") {
+  cc = "$prefix/clang"
+  cxx = "$prefix/clang++"
+  ld = "${_target_llvm_3_9_bin_dir}/clang++"
+  ar = "ar"
+  nm = "nm"
+
+  toolchain_args = {
+    is_clang = true
+  }
+}

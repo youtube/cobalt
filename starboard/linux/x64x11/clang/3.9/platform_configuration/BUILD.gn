@@ -180,10 +180,16 @@ config("no_pedantic_warnings") {
 }
 
 config("platform_configuration") {
+  if (current_toolchain == default_toolchain &&
+      build_with_separate_cobalt_toolchain) {
+        print(current_toolchain)
+    configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+  } else {
   configs = [
     "//starboard/linux/shared/platform_configuration",
     "//starboard/linux/x64x11/shared/platform_configuration:libraries",
     "//starboard/build/config/sabi",
     ":compiler_flags",
   ]
+}
 }

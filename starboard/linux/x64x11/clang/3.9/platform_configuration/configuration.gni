@@ -11,9 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+if (current_toolchain == default_toolchain &&
+    build_with_separate_cobalt_toolchain) {
+  import("//starboard/evergreen/x64/platform_configuration/configuration.gni")
+  platform_tests_path =
+      "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
+  cobalt_font_package = "standard"
+  using_old_compiler = false
+} else {
 import("//starboard/build/config/base_configuration.gni")
-
+using_old_compiler = true
 nasm_exists = true
 
 sb_static_contents_output_data_dir = "$root_out_dir/content"
@@ -33,7 +40,7 @@ no_pedantic_warnings_config_path = "//starboard/linux/x64x11/clang/3.9/platform_
 
 sb_widevine_platform = "linux"
 
-platform_tests_path = "//starboard/linux/shared:starboard_platform_tests"
+platform_tests_path = "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
 
 enable_in_app_dial = true
 
@@ -47,3 +54,4 @@ cobalt_v8_emit_builtins_as_inline_asm = true
 sb_enable_cpp17_audit = false
 
 v8_enable_webassembly = false
+}
