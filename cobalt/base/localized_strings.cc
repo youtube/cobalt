@@ -16,7 +16,10 @@
 
 #include <algorithm>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/optional.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
@@ -26,64 +29,19 @@ namespace base {
 
 namespace {
 
-std::string GetFilenameForLanguage(const std::string& language) {
+base::Optional<base::FilePath> GetFilenameForLanguage(
+    const std::string& language) {
   const int kBufferSize = 256;
   char buffer[kBufferSize];
   bool got_path =
       SbSystemGetPath(kSbSystemPathContentDirectory, buffer, kBufferSize);
   if (!got_path) {
     DLOG(ERROR) << "Cannot get content path for i18n files.";
-    return std::string();
+    return base::nullopt;
   }
 
-  return std::string(buffer).append("/i18n/").append(language).append(".csv");
-}
-
-bool ReadFile(const std::string& filename, std::string* out_result) {
-  DCHECK_GT(filename.length(), 0);
-  DCHECK(out_result);
-
-  starboard::ScopedFile file(filename.c_str(), kSbFileOpenOnly | kSbFileRead);
-  if (!file.IsValid()) {
-    DLOG(WARNING) << "Cannot open i18n file: " << filename;
-    return false;
-  }
-
-  SbFileInfo file_info = {0};
-  bool got_info = file.GetInfo(&file_info);
-  if (!got_info) {
-    DLOG(ERROR) << "Cannot get information for i18n file.";
-    return false;
-  }
-  DCHECK_GT(file_info.size, 0);
-
-  const int kMaxBufferSize = 16 * 1024;
-  if (file_info.size > kMaxBufferSize) {
-    DLOG(ERROR) << "i18n file exceeds maximum size: " << file_info.size << " ("
-                << kMaxBufferSize << ")";
-    return false;
-  }
-
-  char* buffer = new char[file_info.size];
-  DCHECK(buffer);
-  int64_t bytes_to_read = file_info.size;
-  char* buffer_pos = buffer;
-  while (bytes_to_read > 0) {
-    int max_bytes_to_read = static_cast<int>(
-        std::min(static_cast<int64_t>(kSbInt32Max), bytes_to_read));
-    int bytes_read = file.Read(buffer_pos, max_bytes_to_read);
-    if (bytes_read < 0) {
-      DLOG(ERROR) << "Read from i18n file failed.";
-      delete[] buffer;
-      return false;
-    }
-    bytes_to_read -= bytes_read;
-    buffer_pos += bytes_read;
-  }
-
-  *out_result = std::string(buffer, file_info.size);
-  delete[] buffer;
-  return true;
+  return base::FilePath(buffer).Append("i18n").Append(language).AddExtension(
+      "csv");
 }
 
 }  // namespace
@@ -123,9 +81,13 @@ std::string LocalizedStrings::GetString(const std::string& id,
 }
 
 bool LocalizedStrings::LoadStrings(const std::string& language) {
-  const std::string filename = GetFilenameForLanguage(language);
+  auto opt_file_path = GetFilenameForLanguage(language);
+  if (!opt_file_path) {
+    return false;
+  }
+  auto file_path = opt_file_path.value();
   std::string file_contents;
-  if (!ReadFile(filename, &file_contents)) {
+  if (!base::ReadFileToString(file_path, &file_contents)) {
     DLOG_ONCE(ERROR) << "Error reading i18n file.";
     return false;
   }

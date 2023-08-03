@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -36,6 +37,16 @@ bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
 }
 
 }  // namespace
+
+void RecordFileWriteStat(int write_file_result) {
+  auto& stats_tracker = StatsTrackerContainer::GetInstance()->stats_tracker();
+  if (write_file_result <= 0) {
+    stats_tracker.FileWriteFail();
+  } else {
+    stats_tracker.FileWriteSuccess();
+    stats_tracker.FileWriteBytesWritten(/*bytes_written=*/write_file_result);
+  }
+}
 
 bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   if (!SbFileExists(path)) {

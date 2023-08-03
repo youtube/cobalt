@@ -20,6 +20,7 @@
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "base/command_line.h"
 #endif
+#include "base/files/file_starboard.h"
 #include "base/files/platform_file.h"
 #include "base/logging.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -135,6 +136,7 @@ void JSONFileOutputter::Write(const char* buffer, int length) {
   }
 
   int count = SbFileWrite(file_, buffer, length);
+  base::RecordFileWriteStat(count);
   if (count < 0) {
     Close();
   }

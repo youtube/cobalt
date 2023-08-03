@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
@@ -107,6 +108,7 @@ void WriteToLogFile(const char* text, const int text_length) {
   }
 
   int bytes_written = SbFileWriteAll(log_file, text, text_length);
+  RecordFileWriteStat(bytes_written);
   SB_DCHECK(text_length == bytes_written);
 
   SbFileFlush(log_file);

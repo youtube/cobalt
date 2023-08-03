@@ -10,6 +10,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
+#include "base/files/file_starboard.h"
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -939,6 +940,7 @@ LogMessage::~LogMessage() {
       while (written < str_newline.length()) {
         int result = SbFileWrite(g_log_file, &(str_newline.c_str()[written]),
                                  str_newline.length() - written);
+        base::RecordFileWriteStat(result);
         if (result < 0) {
           break;
         }

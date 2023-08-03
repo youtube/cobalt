@@ -18,6 +18,7 @@
 #include <sstream>
 #include <string>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
@@ -187,7 +188,9 @@ void VideoDmpWriter::DumpAccessUnit(
 }
 
 int VideoDmpWriter::WriteToFile(const void* buffer, int size) {
-  return SbFileWrite(file_, static_cast<const char*>(buffer), size);
+  int result = SbFileWrite(file_, static_cast<const char*>(buffer), size);
+  RecordFileWriteStat(result);
+  return result;
 }
 
 }  // namespace video_dmp
