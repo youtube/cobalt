@@ -21,7 +21,8 @@ from starboard.tools import abstract_launcher
 from starboard.tools import paths
 
 _BASE_STAGING_DIRECTORY = 'evergreen_staging'
-_CRASHPAD_TARGET = 'crashpad_handler'
+_NATIVE_TARGET_TOOLCHAIN = 'native_target'
+_CRASHPAD_EXECUTABLE = 'crashpad_handler'
 _DEFAULT_LOADER_TARGET = 'elf_loader_sandbox'
 
 
@@ -193,9 +194,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     loader_target_dst = os.path.join(self.staging_directory, self.loader_target)
     shutil.copy(loader_target_src, loader_target_dst)
 
-    crashpad_target_src = os.path.join(loader_install_path, 'bin',
-                                       _CRASHPAD_TARGET)
-    crashpad_target_dst = os.path.join(self.staging_directory, _CRASHPAD_TARGET)
+    crashpad_target_src = os.path.join(self.loader_out_directory,
+                                       _NATIVE_TARGET_TOOLCHAIN,
+                                       _CRASHPAD_EXECUTABLE)
+    crashpad_target_dst = os.path.join(self.staging_directory,
+                                       _CRASHPAD_EXECUTABLE)
     shutil.copy(crashpad_target_src, crashpad_target_dst)
 
     # Copy target content and binary
@@ -242,10 +245,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
                                      self.loader_target)
     shutil.copy(loader_target_src, loader_target_dst)
 
-    crashpad_target_src = os.path.join(loader_binary_src, _CRASHPAD_TARGET,
-                                       _CRASHPAD_TARGET)
+    crashpad_target_src = os.path.join(self.loader_out_directory,
+                                       _NATIVE_TARGET_TOOLCHAIN,
+                                       _CRASHPAD_EXECUTABLE)
     crashpad_target_dst = os.path.join(staging_directory_loader,
-                                       _CRASHPAD_TARGET)
+                                       _CRASHPAD_EXECUTABLE)
     shutil.copy(crashpad_target_src, crashpad_target_dst)
 
     # Copy target content and binary

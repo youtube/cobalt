@@ -16,10 +16,12 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/user_metrics.h"
 #include "base/test/test_simple_task_runner.h"
 #include "components/metrics/metrics_service_client.h"
+#include "components/metrics/metrics_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -58,9 +60,16 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   EXPECT_FALSE(client_->IsMetricsReportingEnabled());
 }
 
-TEST_F(CobaltMetricsServicesManagerClientTest, ForceEnabledStateIsCorrect) {
-  // TODO(b/286091096): Add tests for force enabling on the command-line.
+TEST_F(CobaltMetricsServicesManagerClientTest,
+       ForceEnabledStateIsCorrectWithoutFlag) {
   EXPECT_FALSE(client_->IsMetricsReportingForceEnabled());
+}
+
+TEST_F(CobaltMetricsServicesManagerClientTest,
+       ForceEnabledStateIsCorrectWithFlag) {
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      ::metrics::switches::kForceEnableMetricsReporting);
+  EXPECT_TRUE(client_->IsMetricsReportingForceEnabled());
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,

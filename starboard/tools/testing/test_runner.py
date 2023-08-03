@@ -46,8 +46,7 @@ _TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
 _TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
 _SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")
 
-_CRASHPAD_TARGET = "crashpad_handler"
-_NATIVE_CRASHPARD_TARGET = "native_target/crashpad_handler"
+_NATIVE_CRASHPAD_TARGET = "native_target/crashpad_handler"
 _LOADER_TARGET = "elf_loader_sandbox"
 
 
@@ -778,11 +777,7 @@ class TestRunner(object):
       # The loader is not built with the same platform configuration as our
       # tests so we need to build it separately.
       if self.loader_platform:
-        target_list = [_LOADER_TARGET]
-        if self.loader_platform.startswith("android"):
-          target_list.append(_NATIVE_CRASHPARD_TARGET)
-        else:
-          target_list.append(_CRASHPAD_TARGET)
+        target_list = [_LOADER_TARGET, _NATIVE_CRASHPAD_TARGET]
         build_tests.BuildTargets(
             target_list, self.loader_out_directory, self.dry_run,
             extra_flags + [os.getenv("TEST_RUNNER_PLATFORM_BUILD_FLAGS", "")])

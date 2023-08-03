@@ -30,6 +30,8 @@ extern const char kDevServersListenIp[];
 extern const char kDevServersListenIpHelp[];
 
 #if defined(ENABLE_DEBUGGER)
+extern const char kDisableWebDebugger[];
+extern const char kDisableWebDebuggerHelp[];
 extern const char kRemoteDebuggingPort[];
 extern const char kRemoteDebuggingPortHelp[];
 extern const char kWaitForWebDebugger[];

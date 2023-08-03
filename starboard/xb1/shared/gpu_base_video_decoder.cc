@@ -124,9 +124,9 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
           image->is_compacted() ? tex_desc.Width * 3 : tex_desc.Width;
       plane->height = tex_desc.Height;
       plane->content_region.left = image->texture_corner_left(i);
-      plane->content_region.top = plane->height;
-      plane->content_region.bottom = plane->height - height;
-      plane->content_region.right = image->texture_corner_left(i) + width;
+      plane->content_region.top = plane->height - image->texture_corner_top(i);
+      plane->content_region.bottom = plane->content_region.top - height;
+      plane->content_region.right = plane->content_region.left + width;
       plane->texture = gl_textures_yuv[i];
       plane->gl_texture_target = GL_TEXTURE_2D;
       plane->gl_texture_format = GL_RED_EXT;

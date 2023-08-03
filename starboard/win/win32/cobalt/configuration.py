@@ -52,13 +52,4 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
           # Flaky test to be re-enabled after b/271006511 is fixed.
           'CookieMonsterTest.PredicateSeesAllCookies',
       ],
-      'watchdog_test': [
-          # TODO(b/292027298): Enable once test failure is fixed.
-          'WatchdogTest.FrequentConsecutiveViolationsShouldNotWrite'
-          'WatchdogTest.PingInfosAreEvictedAfterMax',
-          'WatchdogTest.RedundantViolationsShouldStack',
-          'WatchdogTest.ViolationsAreEvictedAfterMax',
-          'WatchdogTest.ViolationsJsonShouldPersistAndBeValid',
-          'WatchdogTest.ViolationsShouldResetAfterFetch',
-      ],
   }

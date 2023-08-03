@@ -15,8 +15,8 @@ android {
     compileSdkVersion 26
     defaultConfig {
         applicationId "org.skia.skqp"
-        minSdkVersion 19
-        targetSdkVersion 19
+        minSdkVersion 24
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0"
         signingConfig signingConfigs.debug

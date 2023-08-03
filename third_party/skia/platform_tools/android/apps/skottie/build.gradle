@@ -20,8 +20,8 @@ android {
     flavorDimensions "tier"
     defaultConfig {
         applicationId "org.skia.skottie"
-        minSdkVersion 23
-        targetSdkVersion 23
+        minSdkVersion 24
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0"
         signingConfig signingConfigs.debug

@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
-#include <iostream>
-
 #include <errno.h>
 #include <string.h>
 
+#include <iostream>
+
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/system.h"
 
 int SbSystemGetErrorString(SbSystemError error,
                            char* out_string,
                            int string_length) {
   char buffer[256];
 
-#if defined(__GLIBC__)
+#if defined(__GLIBC__) || defined(_GNU_SOURCE)
   char* result = strerror_r(error, buffer, SB_ARRAY_SIZE(buffer));
 #else
   char* result = buffer;

@@ -160,7 +160,7 @@ message CastLogsProto {
   repeated CastConnectionInfo cast_connection_info = 2;
 
   // Stores Cast-enabled device specific events with a various context data.
-  // Next tag: 18
+  // Next tag: 19
   message CastEventProto {
     // The name of the action, hashed by same logic used to hash user action
     // event and histogram.
@@ -202,6 +202,8 @@ message CastLogsProto {
     optional string event_id = 13;
 
     optional string aogh_request_id = 16;
+
+    optional int64 aogh_local_agent_id = 18;
 
     // Optional value associated with the event. For example, may be used for
     // error codes.
