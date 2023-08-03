@@ -14,6 +14,8 @@
 
 #include "cobalt/worker/worker_global_scope.h"
 
+#include <stdatomic.h>
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -36,7 +38,6 @@
 #include "cobalt/worker/worker_location.h"
 #include "cobalt/worker/worker_navigator.h"
 #include "net/base/mime_util.h"
-#include "starboard/atomic.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -151,7 +152,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
     if (error) {
       output_error->reset(new std::string(std::move(error.value())));
     }
-    if (!SbAtomicNoBarrier_Increment(&number_of_loads_, -1)) {
+    if (!atomic_fetch_add(&number_of_loads_, -1)) {
       // Clear the loader factory after this callback
       // completes.
       base::ThreadTaskRunnerHandle::Get()->PostTask(
@@ -206,7 +207,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
 
   std::unique_ptr<loader::ScriptLoaderFactory> script_loader_factory_;
 
-  volatile SbAtomic32 number_of_loads_;
+  volatile atomic_int_least32_t number_of_loads_;
 
   std::vector<std::unique_ptr<std::string>> contents_;
   std::vector<std::unique_ptr<std::string>> errors_;

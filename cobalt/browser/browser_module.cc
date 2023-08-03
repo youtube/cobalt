@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/browser_module.h"
 
+#include <stdatomic.h>
+
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -55,7 +57,6 @@
 #include "cobalt/ui_navigation/scroll_engine/scroll_engine.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
-#include "starboard/atomic.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
@@ -75,20 +76,20 @@ namespace cobalt {
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
 namespace timestamp {
 // This is a temporary workaround.
-extern SbAtomic64 g_last_render_timestamp;
+extern atomic_int_least64_t g_last_render_timestamp;
 }  // namespace timestamp
 
 namespace {
 struct NonTrivialGlobalVariables {
   NonTrivialGlobalVariables();
 
-  SbAtomic64* last_render_timestamp;
+  atomic_int_least64_t* last_render_timestamp;
 };
 
 NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   last_render_timestamp = &cobalt::timestamp::g_last_render_timestamp;
-  SbAtomicNoBarrier_Exchange64(last_render_timestamp,
-                               static_cast<SbAtomic64>(SbTimeGetNow()));
+  atomic_exchange(last_render_timestamp,
+                  static_cast<atomic_int_least64_t>(SbTimeGetNow()));
 }
 
 base::LazyInstance<NonTrivialGlobalVariables>::DestructorAtExit
@@ -1563,8 +1564,8 @@ void BrowserModule::OnWebModuleRendererSubmissionRasterized() {
 
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
 void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
-  SbTime last_render_timestamp = static_cast<SbTime>(SbAtomicAcquire_Load64(
-      non_trivial_global_variables.Get().last_render_timestamp));
+  SbTime last_render_timestamp = static_cast<SbTime>(
+      atomic_load(non_trivial_global_variables.Get().last_render_timestamp));
   base::Time last_render = base::Time::FromSbTime(last_render_timestamp);
   bool timeout_expiration = base::Time::Now() - base::TimeDelta::FromSeconds(
                                                     kLastRenderTimeoutSeconds) >
@@ -1585,9 +1586,8 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
     timeout_response_trigger_count_++;
 #endif
-    SbAtomicNoBarrier_Exchange64(
-        non_trivial_global_variables.Get().last_render_timestamp,
-        static_cast<SbAtomic64>(kSbTimeMax));
+    atomic_exchange(non_trivial_global_variables.Get().last_render_timestamp,
+                    static_cast<atomic_int_least64_t>(kSbTimeMax));
     if (SbSystemGetRandomUInt64() <
         kRenderTimeoutErrorPercentage * (UINT64_MAX / 100)) {
       OnError(url, std::string("Rendering Timeout"));
