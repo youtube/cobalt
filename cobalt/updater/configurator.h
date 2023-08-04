@@ -102,7 +102,8 @@ class Configurator : public update_client::Configurator {
   bool GetUseCompressedUpdates() const override;
   void SetUseCompressedUpdates(bool use_compressed_updates) override;
   // Added for testing purposes.
-  static std::string GetAppGuidHelper(const std::string&);
+  static std::string GetAppGuidHelper(const std::string& updater_channel,
+                                      const std::string& version);
 
  private:
   friend class base::RefCountedThreadSafe<Configurator>;

@@ -232,7 +232,7 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
     script::EnvironmentSettings* settings, const std::string& type,
     script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "MediaSource::AddSourceBuffer()", "type", type);
-  DLOG(INFO) << "add SourceBuffer with type " << type;
+  LOG(INFO) << "add SourceBuffer with type " << type;
 
   if (type.empty()) {
     web::DOMException::Raise(web::DOMException::kInvalidAccessErr,
