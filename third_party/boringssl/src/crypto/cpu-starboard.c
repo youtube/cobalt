@@ -113,7 +113,7 @@ static bool starboard_cpuid_setup_arm(void) { return true; }
 void OPENSSL_cpuid_setup_starboard(void) {
     if (!starboard_cpuid_setup_arm() ||
         !starboard_cpuid_setup_x86() ) {
-#if !SB_IS(EVERGREEN)
+#if !SB_IS(MODULAR)
             // Fall back on original implementation if the platform
             // does not yet support Starboard CPU detection
             OPENSSL_cpuid_setup();
