@@ -1081,7 +1081,7 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       // returned from the platform may be inconsistent.
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
       // avoid terminating the app in production.
-      SB_CHECK(frame_sizes_.size() > 1)
+      SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
           << frame_size.texture_width << "x" << frame_size.texture_height
           << " - (" << content_region.left << ", " << content_region.top << ", "
           << content_region.right << ", " << content_region.bottom << "), ("
