@@ -364,7 +364,8 @@ void ServiceWorkerContext::EnsureServiceWorkerStarted(
       done_event));
   base::TimeTicks start = base::TimeTicks::Now();
   auto registration =
-      scope_to_registration_map_->GetRegistration(storage_key, client_url);
+      scope_to_registration_map_->MatchServiceWorkerRegistration(storage_key,
+                                                                 client_url);
   if (!registration) {
     return;
   }
