@@ -34,6 +34,8 @@ namespace {
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
 const char kDefaultUpdaterChannel[] = "prod";
+const char kOmahaCobaltLTSNightlyAppID[] =
+    "{26CD2F67-091F-4680-A9A9-2229635B65A5}";
 const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
 const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
 
@@ -63,8 +65,7 @@ Configurator::Configurator(network::NetworkModule* network_module)
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
       patch_factory_(base::MakeRefCounted<PatcherFactory>()) {
   LOG(INFO) << "Configurator::Configurator";
-  const std::string persisted_channel =
-      persisted_data_->GetUpdaterChannel(GetAppGuid());
+  const std::string persisted_channel = persisted_data_->GetLatestChannel();
   if (persisted_channel.empty()) {
     SetChannel(kDefaultUpdaterChannel);
   } else {
@@ -224,7 +225,11 @@ bool Configurator::IsPerUserInstall() const { return true; }
 
 std::vector<uint8_t> Configurator::GetRunActionKeyHash() const { return {}; }
 
-std::string Configurator::GetAppGuidHelper(const std::string& version) {
+std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
+                                           const std::string& version) {
+  if (updater_channel == "ltsnightly") {
+    return kOmahaCobaltLTSNightlyAppID;
+  }
   if (version.find(".lts.") != std::string::npos &&
       version.find(".master.") == std::string::npos) {
     return kOmahaCobaltAppID;
@@ -234,7 +239,7 @@ std::string Configurator::GetAppGuidHelper(const std::string& version) {
 
 std::string Configurator::GetAppGuid() const {
   const std::string version(COBALT_VERSION);
-  return GetAppGuidHelper(version);
+  return GetAppGuidHelper(updater_channel_, version);
 }
 
 std::unique_ptr<update_client::ProtocolHandlerFactory>

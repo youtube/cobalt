@@ -709,6 +709,10 @@ void Component::StateChecking::UpdateCheckComplete() {
         FROM_HERE, base::BindOnce(&PersistedData::SetUpdaterChannel,
                                   base::Unretained(metadata), component.id_,
                                   config->GetChannel()));
+    base::ThreadTaskRunnerHandle::Get()->PostTask(
+        FROM_HERE, base::BindOnce(&PersistedData::SetLatestChannel,
+                                  base::Unretained(metadata),
+                                  config->GetChannel()));
   } else {
     LOG(WARNING) << "Failed to get the persisted data store to write the "
                        "updater channel.";
