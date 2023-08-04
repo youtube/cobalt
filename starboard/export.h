@@ -24,12 +24,12 @@
 // COMPONENT_BUILD is defined when generating shared libraries for each project,
 // rather than static libraries. This means we need to be careful about
 // EXPORT/IMPORT.
-//
-// SB_IS_EVERGREEN is defined when the binaries generated will be composed
+
+// SB_IS_MODULAR is defined when the binaries generated will be composed
 // entirely of the Starboard implementation and will provide the Starboard API,
 // with all client applications being built separately.
 
-#if defined(COMPONENT_BUILD) || SB_IS(EVERGREEN)
+#if defined(COMPONENT_BUILD) || SB_IS(MODULAR)
 
 // STARBOARD_IMPLEMENTATION is defined when building the Starboard library
 // sources, and shouldn't be defined when building sources that are clients of
@@ -54,7 +54,7 @@
 #define SB_EXPORT_PRIVATE SB_IMPORT_PLATFORM
 #define SB_IMPORT SB_EXPORT_PLATFORM
 #endif
-#else  // defined(COMPONENT_BUILD) || SB_IS(EVERGREEN)
+#else  // defined(COMPONENT_BUILD) || SB_IS(MODULAR)
 #define SB_EXPORT
 #define SB_EXPORT_PRIVATE
 #define SB_IMPORT

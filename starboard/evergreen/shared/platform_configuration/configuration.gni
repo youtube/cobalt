@@ -14,6 +14,8 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
+sb_is_modular = true
+
 sb_is_evergreen = true
 
 cobalt_font_package = "empty"

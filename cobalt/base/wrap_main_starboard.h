@@ -24,7 +24,7 @@
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
-#if SB_IS(EVERGREEN)
+#if SB_IS(MODULAR)
 #include "third_party/musl/src/starboard/internal/hwcap_impl.h"
 #endif
 
@@ -45,7 +45,7 @@ void BaseEventHandler(const SbEvent* event) {
       DCHECK(!g_started);
       DCHECK(!g_at_exit);
       g_at_exit = new base::AtExitManager();
-#if SB_IS(EVERGREEN)
+#if SB_IS(MODULAR)
       init_musl_hwcap();
 #endif
       InitCobalt(data->argument_count, data->argument_values, data->link);
@@ -64,7 +64,7 @@ void BaseEventHandler(const SbEvent* event) {
       if (!g_started) {
         DCHECK(!g_at_exit);
         g_at_exit = new base::AtExitManager();
-#if SB_IS(EVERGREEN)
+#if SB_IS(MODULAR)
         init_musl_hwcap();
 #endif
         InitCobalt(data->argument_count, data->argument_values, data->link);

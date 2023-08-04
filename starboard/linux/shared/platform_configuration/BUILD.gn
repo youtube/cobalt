@@ -143,7 +143,7 @@ config("platform_configuration") {
     "rt",
   ]
 
-  if (!sb_is_evergreen) {
+  if (!sb_is_modular) {
     ldflags += [ "-static-libstdc++" ]
   }
 
