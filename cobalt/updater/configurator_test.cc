@@ -13,9 +13,12 @@
 // limitations under the License.
 
 #include "cobalt/updater/configurator.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
+const char kOmahaCobaltLTSNightlyAppID[] =
+    "{26CD2F67-091F-4680-A9A9-2229635B65A5}";
 const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
 const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
 }  // namespace
@@ -30,28 +33,47 @@ class ConfiguratorTest : public testing::Test {
 };
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithVersionMaster) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("23.master.0"),
-           kOmahaCobaltTrunkAppID);
+  CHECK_EQ(
+      cobalt::updater::Configurator::GetAppGuidHelper("prod", "23.master.0"),
+      kOmahaCobaltTrunkAppID);
+}
+
+TEST_F(ConfiguratorTest, GetAppGuidReturnsLtsIdWithVersionMaster) {
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("ltsnightly",
+                                                           "23.master.0"),
+           kOmahaCobaltLTSNightlyAppID);
+}
+
+TEST_F(ConfiguratorTest, GetAppGuidReturnsLtsIdWithVersionLts) {
+  CHECK_EQ(
+      cobalt::updater::Configurator::GetAppGuidHelper("ltsnightly", "23.lts.0"),
+      kOmahaCobaltLTSNightlyAppID);
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithVersionMain) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("23.main.0"),
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("prod", "23.main.0"),
            kOmahaCobaltTrunkAppID);
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsProdIdWithVersionLts) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("23.lts.0"),
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("prod", "23.lts.0"),
+           kOmahaCobaltAppID);
+}
+
+TEST_F(ConfiguratorTest, GetAppGuidReturnsProdIdWithChannelEmpty) {
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("", "23.lts.0"),
            kOmahaCobaltAppID);
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithVersionEmpty) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper(""),
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("", ""),
            kOmahaCobaltTrunkAppID);
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithVersionMasterLts) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("23.master.lts.0"),
-           kOmahaCobaltTrunkAppID);
+  CHECK_EQ(
+      cobalt::updater::Configurator::GetAppGuidHelper("", "23.master.lts.0"),
+      kOmahaCobaltTrunkAppID);
 }
 
 }  // namespace updater
