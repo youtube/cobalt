@@ -59,6 +59,9 @@ class PersistedData {
   // Returns the updater channel that is set for the specified |id|. ""
   // indicates that there is no recorded updater channel value for the |id|.
   std::string GetUpdaterChannel(const std::string& id) const;
+
+  // Returns the updater channel for the previous app startup.
+  std::string GetLatestChannel() const;
 #endif
 
   // Returns the PingFreshness (a random token that is written into the profile
@@ -89,6 +92,9 @@ class PersistedData {
 
   // Records the updater channel that is set for the specified |id|.
   void SetUpdaterChannel(const std::string& id, const std::string& channel);
+
+  // Records the latest channel the app is on.
+  void SetLatestChannel(const std::string& channel);
 #endif
 
   // This is called only via update_client's RegisterUpdateClientPreferences.
