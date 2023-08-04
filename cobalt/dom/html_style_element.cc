@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include "base/metrics/histogram_macros.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
@@ -23,6 +25,14 @@
 
 namespace cobalt {
 namespace dom {
+
+// Constants for parse time histogram. Do not modify these. If you need to
+// change these, create a new histogram and new constants.
+constexpr size_t kNumParseTimeHistogramBuckets = 100;
+constexpr base::TimeDelta kParseTimeHistogramMinTime =
+    base::TimeDelta::FromMicroseconds(1);
+constexpr base::TimeDelta kParseTimeHistogramMaxTime =
+    base::TimeDelta::FromMilliseconds(10);
 
 // static
 const char HTMLStyleElement::kTagName[] = "style";
@@ -81,9 +91,24 @@ void HTMLStyleElement::Process() {
   const std::string& text = content.value_or(base::EmptyString());
   if (bypass_csp || csp_delegate->AllowInline(web::CspDelegate::kStyle,
                                               inline_style_location_, text)) {
+    auto before_parse_micros = SbTimeGetMonotonicNow();
     scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
         document->html_element_context()->css_parser()->ParseStyleSheet(
             text, inline_style_location_);
+    auto after_parse_micros = SbTimeGetMonotonicNow();
+    auto css_kb = text.length() / 1000;
+    // Only measure non-trivial css sizes and inlined HTML style elements.
+    if (css_kb > 0 &&
+        inline_style_location_.file_path == "[object HTMLStyleElement]") {
+      // Get parse time normalized by byte size, see:
+      // go/cobalt-js-css-parsing-metrics.
+      auto micros_per_kb = (after_parse_micros - before_parse_micros) / css_kb;
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.DOM.CSS.Style.ParseTimeMicrosPerKB",
+          base::TimeDelta::FromMicroseconds(micros_per_kb),
+          kParseTimeHistogramMinTime, kParseTimeHistogramMaxTime,
+          kNumParseTimeHistogramBuckets);
+    }
     css_style_sheet->SetLocationUrl(GURL(inline_style_location_.file_path));
     css_style_sheet->SetOriginClean(true);
     style_sheet_ = css_style_sheet;
