@@ -186,10 +186,73 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     return maxChannels;
   }
 
+  /** Stores info from AudioDeviceInfo to be passed to the native app. */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public static class OutputDeviceInfo {
+    @UsedByNative public int type;
+    @UsedByNative public int channels;
+
+    @UsedByNative
+    public int getType() {
+      return type;
+    }
+
+    @UsedByNative
+    public int getChannels() {
+      return channels;
+    }
+  }
+
+  /** Returns output device info. */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  boolean getOutputDeviceInfo(int index, OutputDeviceInfo outDeviceInfo) {
+    if (index < 0) {
+      return false;
+    }
+
+    if (Build.VERSION.SDK_INT >= 23) {
+      return getOutputDeviceInfoV23(index, outDeviceInfo);
+    }
+
+    if (index == 0) {
+      outDeviceInfo.type = AudioDeviceInfo.TYPE_HDMI;
+      outDeviceInfo.channels = getMaxChannels();
+      return true;
+    }
+
+    return false;
+  }
+
+  /** Returns output device info for API 23 and above. */
+  @RequiresApi(23)
+  private boolean getOutputDeviceInfoV23(int index, OutputDeviceInfo outDeviceInfo) {
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+
+    if (index >= 0 && index < deviceInfos.length) {
+      outDeviceInfo.type = deviceInfos[index].getType();
+      outDeviceInfo.channels = 2;
+
+      int[] channelCounts = deviceInfos[index].getChannelCounts();
+      if (channelCounts.length == 0) {
+        outDeviceInfo.channels = 8;
+      } else {
+        for (int count : channelCounts) {
+          outDeviceInfo.channels = Math.max(outDeviceInfo.channels, count);
+        }
+      }
+      return true;
+    }
+
+    return false;
+  }
+
   /** Convert AudioDeviceInfo.TYPE_* to name in String */
   @RequiresApi(23)
-  private static String getDeviceTypeNameV23(int device_type) {
-    switch (device_type) {
+  private static String getDeviceTypeNameV23(int deviceType) {
+    switch (deviceType) {
       case AudioDeviceInfo.TYPE_AUX_LINE:
         return "TYPE_AUX_LINE";
       case AudioDeviceInfo.TYPE_BLUETOOTH_A2DP:
@@ -236,57 +299,57 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         return "TYPE_WIRED_HEADSET";
       default:
         // This may include constants introduced after API 23.
-        return String.format(Locale.US, "TYPE_UNKNOWN (%d)", device_type);
+        return String.format(Locale.US, "TYPE_UNKNOWN (%d)", deviceType);
     }
   }
 
   /** Convert audio encodings in int[] to common separated values in String */
   @RequiresApi(23)
   private static String getEncodingNames(final int[] encodings) {
-    StringBuffer encodings_in_string = new StringBuffer("[");
+    StringBuffer encodingsInString = new StringBuffer("[");
     for (int i = 0; i < encodings.length; ++i) {
       switch (encodings[i]) {
         case AudioFormat.ENCODING_DEFAULT:
-          encodings_in_string.append("DEFAULT");
+          encodingsInString.append("DEFAULT");
           break;
         case AudioFormat.ENCODING_PCM_8BIT:
-          encodings_in_string.append("PCM_8BIT");
+          encodingsInString.append("PCM_8BIT");
           break;
         case AudioFormat.ENCODING_PCM_16BIT:
-          encodings_in_string.append("PCM_16BIT");
+          encodingsInString.append("PCM_16BIT");
           break;
         case AudioFormat.ENCODING_PCM_FLOAT:
-          encodings_in_string.append("PCM_FLOAT");
+          encodingsInString.append("PCM_FLOAT");
           break;
         case AudioFormat.ENCODING_DTS:
-          encodings_in_string.append("DTS");
+          encodingsInString.append("DTS");
           break;
         case AudioFormat.ENCODING_DTS_HD:
-          encodings_in_string.append("DTS_HD");
+          encodingsInString.append("DTS_HD");
           break;
         case AudioFormat.ENCODING_AC3:
-          encodings_in_string.append("AC3");
+          encodingsInString.append("AC3");
           break;
         case AudioFormat.ENCODING_E_AC3:
-          encodings_in_string.append("E_AC3");
+          encodingsInString.append("E_AC3");
           break;
         case AudioFormat.ENCODING_IEC61937:
-          encodings_in_string.append("IEC61937");
+          encodingsInString.append("IEC61937");
           break;
         case AudioFormat.ENCODING_INVALID:
-          encodings_in_string.append("INVALID");
+          encodingsInString.append("INVALID");
           break;
         default:
           // This may include constants introduced after API 23.
-          encodings_in_string.append(String.format(Locale.US, "UNKNOWN (%d)", encodings[i]));
+          encodingsInString.append(String.format(Locale.US, "UNKNOWN (%d)", encodings[i]));
           break;
       }
       if (i != encodings.length - 1) {
-        encodings_in_string.append(", ");
+        encodingsInString.append(", ");
       }
     }
-    encodings_in_string.append(']');
-    return encodings_in_string.toString();
+    encodingsInString.append(']');
+    return encodingsInString.toString();
   }
 
   /** Dump all audio output devices. */
