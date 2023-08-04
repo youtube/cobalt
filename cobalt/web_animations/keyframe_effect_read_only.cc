@@ -233,7 +233,7 @@ ComputeIntervalEndpoints(
                            target_property),
         target_property);
   } else {
-    // Find the keyframe immediately preceeding the iteration_progress and set
+    // Find the keyframe immediately preceding the iteration_progress and set
     // that to the first endpoint, and set the next keyframe as the second
     // endpoint.
     KeyframeEffectReadOnly::Data::KeyframeSequence::const_iterator prev_iter =

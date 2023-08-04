@@ -140,7 +140,7 @@ TEST_F(StressTest, VeryLargeFramebuffer) {
 }
 
 namespace {
-// Creates a composition of |cascade_amount| render trees layed out in a
+// Creates a composition of |cascade_amount| render trees laid out in a
 // cascade on top of each other.
 scoped_refptr<Node> CreateCascadedRenderTrees(Node* node, int cascade_amount,
                                               float offset_amount) {

@@ -1050,8 +1050,8 @@
     let method;
     try {
       method = O[P];
-    } catch (methodE) {
-      return Promise_reject(methodE);
+    } catch (methodError) {
+      return Promise_reject(methodError);
     }
 
     if (method === undefined) {

@@ -96,7 +96,7 @@ def UpdateClang(target_dir, revision):
     pass
 
   if os.getenv('IS_CI', '') == '1':
-    raise Exception('Dynamic toolchain downloads are disabled in CI')
+    raise RuntimeError('Dynamic toolchain downloads are disabled in CI')
 
   if os.path.exists(target_dir):
     shutil.rmtree(target_dir)

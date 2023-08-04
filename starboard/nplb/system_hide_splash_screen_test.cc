@@ -30,7 +30,7 @@ void* ThreadFunc(void* context) {
 
 TEST(SbSystemHideSplashScreenTest, SunnyDay) {
   // Function returns no result, and correct execution cannot be determined
-  // programatically, but we should at least be able to call it twice without
+  // programmatically, but we should at least be able to call it twice without
   // crashing.
   SbSystemHideSplashScreen();
   SbSystemHideSplashScreen();

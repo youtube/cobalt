@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDER_TREE_IMAGE_NODE_H_
 #define COBALT_RENDER_TREE_IMAGE_NODE_H_
 
+#include <utility>
+
 #include "base/compiler_specific.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
@@ -53,7 +55,7 @@ class ImageNode : public Node {
              local_transform == other.local_transform;
     }
 
-    // A source of pixels. May be smaller or larger than layed out image.
+    // A source of pixels. May be smaller or larger than laid out image.
     // The class does not own the image, it merely refers it from a resource
     // pool.
     scoped_refptr<Image> source;
@@ -72,7 +74,8 @@ class ImageNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
-  ImageNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
+  ImageNode(Args&&... args)  // NOLINT(runtime/explicit)
+      : data_(std::forward<Args>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

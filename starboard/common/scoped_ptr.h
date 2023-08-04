@@ -1,3 +1,4 @@
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -9,20 +10,20 @@
 //
 // Example usage (scoped_ptr):
 //   {
-//     scoped_ptr<Foo> foo(new Foo("wee"));
+//     scoped_ptr<Foo> foo(new Foo("whee"));
 //   }  // foo goes out of scope, releasing the pointer with it.
 //
 //   {
 //     scoped_ptr<Foo> foo;          // No pointer managed.
-//     foo.reset(new Foo("wee"));    // Now a pointer is managed.
-//     foo.reset(new Foo("wee2"));   // Foo("wee") was destroyed.
-//     foo.reset(new Foo("wee3"));   // Foo("wee2") was destroyed.
+//     foo.reset(new Foo("whee"));   // Now a pointer is managed.
+//     foo.reset(new Foo("whee2"));  // Foo("whee") was destroyed.
+//     foo.reset(new Foo("whee3"));  // Foo("whee2") was destroyed.
 //     foo->Method();                // Foo::Method() called.
 //     foo.get()->Method();          // Foo::Method() called.
 //     SomeFunc(foo.release());      // SomeFunc takes ownership, foo no longer
 //                                   // manages a pointer.
-//     foo.reset(new Foo("wee4"));   // foo manages a pointer again.
-//     foo.reset();                  // Foo("wee4") destroyed, foo no longer
+//     foo.reset(new Foo("whee4"));  // foo manages a pointer again.
+//     foo.reset();                  // Foo("whee4") destroyed, foo no longer
 //                                   // manages a pointer.
 //   }  // foo wasn't managing a pointer, so nothing was destroyed.
 //
@@ -92,6 +93,7 @@
 // scoped_array, scoped_ptr_malloc.
 
 #include <algorithm>
+#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/common/move.h"
@@ -128,12 +130,13 @@ class scoped_ptr {
   // Constructor.  Allows construction from a scoped_ptr rvalue for a
   // convertible type.
   template <typename U>
-  scoped_ptr(scoped_ptr<U> other)
+  scoped_ptr(scoped_ptr<U> other)  // NOLINT(runtime/explicit)
       : ptr_(other.release()) {}
 #endif
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr(RValue rvalue) : ptr_(rvalue.object->release()) {}
+  scoped_ptr(RValue rvalue)  // NOLINT(runtime/explicit)
+      : ptr_(rvalue.object->release()) {}
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -264,7 +267,8 @@ class scoped_array {
   explicit scoped_array(C* p = NULL) : array_(p) {}
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_array(RValue rvalue) : array_(rvalue.object->release()) {}
+  scoped_array(RValue rvalue)  // NOLINT(runtime/explicit)
+      : array_(rvalue.object->release()) {}
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -390,7 +394,8 @@ class scoped_ptr_malloc {
   explicit scoped_ptr_malloc(C* p = NULL) : ptr_(p) {}
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr_malloc(RValue rvalue) : ptr_(rvalue.object->release()) {}
+  scoped_ptr_malloc(RValue rvalue)  // NOLINT(runtime/explicit)
+      : ptr_(rvalue.object->release()) {}
 
   // Destructor.  If there is a C object, call the Free functor.
   ~scoped_ptr_malloc() { reset(); }

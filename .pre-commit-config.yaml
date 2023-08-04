@@ -11,6 +11,7 @@ exclude: |
             base|
             build|
             buildtools|
+            cobalt/updater/win|
             components/crash/core/common|
             components/metrics_services_manager|
             components/metrics|
@@ -20,6 +21,7 @@ exclude: |
             components/version_info|
             crypto|
             extensions/buildflags|
+            glimp/include|
             net|
             internal/starboard/shared/playstation/glimp/shaders|
             testing|
@@ -30,6 +32,10 @@ exclude: |
         |
         components/update_client/((?!cobalt).)*$
         |
+        .*\.pb\.cc$ |
+        .*\.pb\.h$ |
+        .*\.patch$ |
+        .*Proto.java$|
         .*\.sig$
     )
 
@@ -51,16 +57,20 @@ repos:
                # The --ignore-words-list argument has a bug where it needs to
                # be lowercase, see
                # https://github.com/codespell-project/codespell/issues/1390
-               --ignore-words-list, atleast]
+               --ignore-words-list, "atleast,varius,ridiculus,statics",
+               ]
         exclude: |
             (?x)^(
                 (internal/)?starboard/[^/]+/i18n/|
                 cobalt/content/licenses/|
+                cobalt/content/ssl/|
                 cobalt/fetch/embedded_scripts|
                 cobalt/streams/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
                 internal/cobalt/browser/splash_screen/youtube_splash_screen.html|
                 internal/starboard/shared/playstation/storage_internal.cc|
+                starboard/loader_app/app_key_test.cc|
+                starboard/shared/starboard/player/testdata|
                 starboard/shared/win32/media_transform.cc
             )
 
@@ -123,18 +133,24 @@ repos:
         stages: [push]
         exclude: |
             (?x)^(
+                .pylintrc$|
                 .pre-commit-config.yaml$|
                 cobalt/base/unicode/|
+                cobalt/demos/content/|
+                cobalt/layout_tests/testdata/|
                 cobalt/math/|
                 cobalt/media/|
-                cobalt/layout_tests/testdata/|
+                cobalt/streams/|
+                cobalt/updater/|
                 cobalt/webdriver/screencast/|
                 cobalt/websocket/|
                 content/|
+                glimp/|
                 nb/|
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$|
                 starboard/shared/starboard/player/filter/decoded_audio_queue.cc$|
                 starboard/shared/starboard/player/filter/decoded_audio_queue.h$|
+                starboard/shared/starboard/player/testdata/licences/|
                 starboard/shared/starboard/player/filter/wsola_internal.cc$
             )
         exclude_types: [markdown]

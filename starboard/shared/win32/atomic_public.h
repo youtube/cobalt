@@ -25,49 +25,34 @@ extern "C" {
 // Defined here to avoid including Windows headers
 // See https://msdn.microsoft.com/en-us/library/w5405h95.aspx
 
-long _InterlockedCompareExchange(
-  long volatile * Destination,
-  long Exchange,
-  long Comparand
-);
+long _InterlockedCompareExchange(  // NOLINT(runtime/int)
+    long volatile* Destination,    // NOLINT(runtime/int)
+    long Exchange,                 // NOLINT(runtime/int)
+    long Comparand);               // NOLINT(runtime/int)
 #pragma intrinsic(_InterlockedCompareExchange)
 
-__int64 _InterlockedCompareExchange64(
-  __int64 volatile * Destination,
-  __int64 Exchange,
-  __int64 Comparand
-);
+__int64 _InterlockedCompareExchange64(__int64 volatile* Destination,
+                                      __int64 Exchange,
+                                      __int64 Comparand);
 #pragma intrinsic(_InterlockedCompareExchange64)
 
-char _InterlockedCompareExchange8(
-  char volatile * Destination,
-  char Exchange,
-  char Comparand
-);
+char _InterlockedCompareExchange8(char volatile* Destination,
+                                  char Exchange,
+                                  char Comparand);
 #pragma intrinsic(_InterlockedCompareExchange8)
 
-long _InterlockedExchange(
-  long volatile * Target,
-  long Value
-);
+long _InterlockedExchange(long volatile* Target,  // NOLINT(runtime/int)
+                          long Value);            // NOLINT(runtime/int)
 #pragma intrinsic(_InterlockedExchange)
 
-__int64 _InterlockedExchange64(
-  __int64 volatile * Target,
-  __int64 Value
-);
+__int64 _InterlockedExchange64(__int64 volatile* Target, __int64 Value);
 #pragma intrinsic(_InterlockedExchange64)
 
-long _InterlockedExchangeAdd(
-  long volatile * Addend,
-  long Value
-);
+long _InterlockedExchangeAdd(long volatile* Addend,  // NOLINT(runtime/int)
+                             long Value);            // NOLINT(runtime/int)
 #pragma intrinsic(_InterlockedExchangeAdd)
 
-__int64 _InterlockedExchangeAdd64(
-  __int64 volatile * Addend,
-  __int64 Value
-);
+__int64 _InterlockedExchangeAdd64(__int64 volatile* Addend, __int64 Value);
 #pragma intrinsic(_InterlockedExchangeAdd64)
 
 void _ReadWriteBarrier(void);
@@ -79,13 +64,16 @@ SbAtomicNoBarrier_CompareAndSwap(volatile SbAtomic32* ptr,
                                  SbAtomic32 new_value) {
   // Note this does a full memory barrier
   return _InterlockedCompareExchange(
-      (volatile long*) ptr, (long) new_value, (long) old_value);
+      (volatile long*)ptr,  // NOLINT(runtime/int)
+      (long)new_value,      // NOLINT(runtime/int)
+      (long)old_value);     // NOLINT(runtime/int)
 }
 
 SB_C_FORCE_INLINE SbAtomic32
 SbAtomicNoBarrier_Exchange(volatile SbAtomic32* ptr, SbAtomic32 new_value) {
   // Note this does a full memory barrier
-  return _InterlockedExchange((volatile long*)ptr, (long)new_value);
+  return _InterlockedExchange((volatile long*)ptr,  // NOLINT(runtime/int)
+                              (long)new_value);     // NOLINT(runtime/int)
 }
 
 SB_C_FORCE_INLINE SbAtomic32
@@ -96,8 +84,9 @@ SbAtomicNoBarrier_Increment(volatile SbAtomic32* ptr, SbAtomic32 increment) {
 SB_C_FORCE_INLINE SbAtomic32 SbAtomicBarrier_Increment(volatile SbAtomic32* ptr,
                                                        SbAtomic32 increment) {
   // Note InterlockedExchangeAdd does a full memory barrier
-  return increment + _InterlockedExchangeAdd(
-      (volatile long *)ptr, (long)increment);
+  return increment +
+         _InterlockedExchangeAdd((volatile long*)ptr,  // NOLINT(runtime/int)
+                                 (long)increment);     // NOLINT(runtime/int)
 }
 
 SB_C_FORCE_INLINE SbAtomic32
@@ -106,7 +95,9 @@ SbAtomicAcquire_CompareAndSwap(volatile SbAtomic32* ptr,
                                SbAtomic32 new_value) {
   // Note this does a full memory barrier
   return _InterlockedCompareExchange(
-      (volatile long*) ptr, (long) new_value, (long) old_value);
+      (volatile long*)ptr,  // NOLINT(runtime/int)
+      (long)new_value,      // NOLINT(runtime/int)
+      (long)old_value);     // NOLINT(runtime/int)
 }
 
 SB_C_FORCE_INLINE SbAtomic32
@@ -115,7 +106,9 @@ SbAtomicRelease_CompareAndSwap(volatile SbAtomic32* ptr,
                                SbAtomic32 new_value) {
   // Note this does a full memory barrier
   return _InterlockedCompareExchange(
-      (volatile long*) ptr, (long) new_value, (long) old_value);
+      (volatile long*)ptr,  // NOLINT(runtime/int)
+      (long)new_value,      // NOLINT(runtime/int)
+      (long)old_value);     // NOLINT(runtime/int)
 }
 
 // NOTE: https://msdn.microsoft.com/en-us/library/f20w0x5e.aspx
@@ -163,14 +156,15 @@ SbAtomicRelease_Load(volatile const SbAtomic32* ptr) {
 
 SB_C_FORCE_INLINE SbAtomic8
 SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
-                               SbAtomic8 old_value,
-                               SbAtomic8 new_value) {
+                                SbAtomic8 old_value,
+                                SbAtomic8 new_value) {
   // Note this does a full memory barrier
-  return _InterlockedCompareExchange8((volatile char*)ptr, new_value, old_value);
+  return _InterlockedCompareExchange8((volatile char*)ptr, new_value,
+                                      old_value);
 }
 
-SB_C_FORCE_INLINE void
-SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr, SbAtomic8 value) {
+SB_C_FORCE_INLINE void SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr,
+                                                SbAtomic8 value) {
   *ptr = value;
 }
 

@@ -220,7 +220,7 @@
 {# If no variadic arguments have been set, we still call the function with
    signature that has the variadic argument and pass an empty vector. There is
    no such function signature that takes the optional parameter immediately
-   preceeding the variadic argument but does not take the variadic arguments. #}
+   preceding the variadic argument but does not take the variadic arguments. #}
 {% if loop.last or not operation.arguments[num_arguments].is_variadic %}
 {% set function_arguments =
       operation.arguments[0:num_arguments]|map(attribute='name')|list %}

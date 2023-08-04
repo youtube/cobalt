@@ -15,6 +15,7 @@
 #ifndef COBALT_WEBSOCKET_WEB_SOCKET_EVENT_INTERFACE_H_
 #define COBALT_WEBSOCKET_WEB_SOCKET_EVENT_INTERFACE_H_
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -68,7 +69,7 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
   void OnClosingHandshake() override;
 
   // Called when the channel has been dropped, either due to a network close, a
-  // network error, or a protocol error. This may or may not be preceeded by a
+  // network error, or a protocol error. This may or may not be preceded by a
   // call to OnClosingHandshake().
   //
   // Warning: Both the |code| and |reason| are passed through to Javascript, so

@@ -35,7 +35,7 @@ function isComponentCtor<Props>(
 
 /**
  * Renders a component to the container element.
- * @param CtorOrFunc Can be either a component contructor or a component
+ * @param CtorOrFunc Can be either a component constructor or a component
  *     function. The component function is easier to write but does not keep
  *     track of internal states.
  * @param props Component props.
