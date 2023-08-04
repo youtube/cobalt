@@ -94,7 +94,6 @@ static_library("css_parser") {
     ":css_grammar",
     "//cobalt/base",
     "//cobalt/cssom",
-    "//nb",
     "//starboard/common",
   ]
 

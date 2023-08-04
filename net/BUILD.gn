@@ -1737,7 +1737,6 @@ component("net") {
     "//base:i18n",
     "//base/third_party/dynamic_annotations",
     "//crypto",
-    "//nb",
     "//starboard",
     "//third_party/boringssl:crypto",
     "//third_party/brotli:dec",
