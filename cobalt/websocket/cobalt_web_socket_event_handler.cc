@@ -14,6 +14,7 @@
 
 #include "cobalt/websocket/cobalt_web_socket_event_handler.h"
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -115,7 +116,7 @@ void CobaltWebSocketEventHandler::OnSSLCertificateError(
     const GURL& url, const net::SSLInfo& ssl_info, bool fatal) {
   // TODO: determine if there are circumstances we want to continue
   // the request.
-  DLOG(WARNING) << "SSL cert failure occured, cancelling connection";
+  DLOG(WARNING) << "SSL cert failure occurred, cancelling connection";
   ssl_error_callbacks->CancelSSLRequest(net::ERR_BAD_SSL_CLIENT_AUTH_CERT,
                                         nullptr);
 }

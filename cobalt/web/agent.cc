@@ -588,8 +588,7 @@ void Agent::Run(const Options& options, InitializeCallback initialize_callback,
                        base::kApplicationStateStarted, kWatchdogTimeInterval,
                        kWatchdogTimeWait, watchdog::PING);
     message_loop()->task_runner()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&Agent::PingWatchdog, base::Unretained(this), watchdog),
+        FROM_HERE, base::Bind(&Agent::PingWatchdog, base::Unretained(this)),
         base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
   }
 
@@ -662,15 +661,16 @@ void Agent::RequestJavaScriptHeapStatistics(
 }
 
 // Ping watchdog every 5 second, otherwise a violation will be triggered.
-void Agent::PingWatchdog(watchdog::Watchdog* watchdog) {
+void Agent::PingWatchdog() {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
-  // If watchdog is already unregistered, stop ping watchdog.
-  if (!watchdog_registered_) return;
+
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  // If watchdog is already unregistered or shut down, stop ping watchdog.
+  if (!watchdog_registered_ || !watchdog) return;
 
   watchdog->Ping(watchdog_name_);
   message_loop()->task_runner()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&Agent::PingWatchdog, base::Unretained(this), watchdog),
+      FROM_HERE, base::Bind(&Agent::PingWatchdog, base::Unretained(this)),
       base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
 }
 

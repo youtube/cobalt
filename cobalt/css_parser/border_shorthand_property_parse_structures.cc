@@ -40,7 +40,7 @@ void BorderShorthandToLonghand::Assign4BordersBasedOnPropertyList(
       break;
     }
     case 2: {
-      // If left is mising, it is the same as right; If bottom is missing, it is
+      // If left is missing, it is the same as right; If bottom is missing, it's
       // the same as top.
       border_top = list->value()[0];
       border_right = list->value()[1];

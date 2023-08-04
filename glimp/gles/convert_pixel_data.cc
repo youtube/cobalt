@@ -38,8 +38,8 @@ void CopyPixelData(uint8_t* destination,
   } else {
     // If the pitches are not equal, we must memcpy each row separately.
     for (int i = 0; i < num_rows; ++i) {
-      memcpy(destination + i * destination_pitch,
-                   source + i * source_pitch, bytes_per_row);
+      memcpy(destination + i * destination_pitch, source + i * source_pitch,
+             bytes_per_row);
     }
   }
 }

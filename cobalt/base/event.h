@@ -20,7 +20,7 @@
 namespace base {
 
 // Event is an abstract, generic class representing some system event that
-// occured.  Event producers like a SystemWindow will produce these events
+// occurred.  Event producers like a SystemWindow will produce these events
 // and dispatch them to the registered callbacks.
 // Derived classes should add the BASE_EVENT_SUBCLASS() macro to their public
 // attributes.

@@ -66,8 +66,8 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
                        kWatchdogTimeWait, watchdog::PING);
     message_loop()->task_runner()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this),
-                   watchdog),
+        base::Bind(&ServiceWorkerRegistry::PingWatchdog,
+                   base::Unretained(this)),
         base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
   }
 
@@ -113,16 +113,17 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
 }
 
 // Ping watchdog every 5 second, otherwise a violation will be triggered.
-void ServiceWorkerRegistry::PingWatchdog(watchdog::Watchdog* watchdog) {
+void ServiceWorkerRegistry::PingWatchdog() {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
-  // If watchdog is already unregistered, stop ping watchdog.
-  if (!watchdog_registered_) return;
+
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  // If watchdog is already unregistered or shut down, stop ping watchdog.
+  if (!watchdog_registered_ || !watchdog) return;
 
   watchdog->Ping(kWatchdogName);
   message_loop()->task_runner()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this),
-                 watchdog),
+      base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this)),
       base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
 }
 

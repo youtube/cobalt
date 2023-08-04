@@ -167,7 +167,8 @@ def main():
       requests.post(
           _ENDPOINT_QA if args.qa else _ENDPOINT,
           data=json.dumps(_REQUEST),
-          headers=_HEADERS).text)
+          headers=_HEADERS,
+          timeout=60).text)
 
   return 0
 

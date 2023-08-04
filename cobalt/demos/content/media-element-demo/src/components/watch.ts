@@ -25,7 +25,7 @@ export class Watch extends Component<Props> {
 
   /**
    * Listens to any key event and displays a message. Bootstraps the page once
-   * user interacts with the docuemnt.
+   * user interacts with the document.
    */
   private waitForInteraction() {
     const messageEl = document.createElement('h1');

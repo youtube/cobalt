@@ -119,7 +119,7 @@ class CONTENT_EXPORT Endpointer {
 
   // The speechInputPossiblyComplete event signals that silence/noise has been
   // detected for a *short* amount of time after some speech has been detected.
-  // This proporty specifies the time period.
+  // This property specifies the time period.
   int64_t speech_input_possibly_complete_silence_length_us_;
 
   // The speechInputComplete event signals that silence/noise has been

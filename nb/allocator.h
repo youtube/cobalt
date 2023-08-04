@@ -52,7 +52,7 @@ class Allocator {
   // as a free block. |size| will be set to the actual size allocated on
   // successful allocations. Will return NULL if the allocation fails. In the
   // case that the underlying block size is inconvenient or impossible to be
-  // retreived, the |size| can remain unchanged for a successful allocation. The
+  // retrieved, the |size| can remain unchanged for a successful allocation. The
   // user may lose the ability to combine two adjacent allocations in this case.
   // Note that the coding style recommends that in/out parameters to be placed
   // after input parameters but |size| is kept in the left for consistency.

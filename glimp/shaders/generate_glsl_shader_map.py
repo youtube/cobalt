@@ -213,8 +213,8 @@ def AssociateGLSLFilesWithPlatformFiles(all_shaders):
     if IsGLSL(item):
       basename = GetBasename(item)
       if basename in basename_to_glsl_file:
-        raise Exception('Multiple GLSL files match the same basename (' +
-                        basename + ')')
+        raise RuntimeError('Multiple GLSL files match the same basename (' +
+                           basename + ')')
       basename_to_glsl_file[basename] = item
 
   # Now iterate through again linking keys to values to create the map that we
@@ -224,11 +224,11 @@ def AssociateGLSLFilesWithPlatformFiles(all_shaders):
     if not IsGLSL(item):
       basename = GetBasename(item)
       if not basename in basename_to_glsl_file:
-        raise Exception('Platform-specific file ' + item +
-                        ' has no GLSL match.')
+        raise RuntimeError('Platform-specific file ' + item +
+                           ' has no GLSL match.')
       glsl_file = basename_to_glsl_file[basename]
       if glsl_file in mapped_files:
-        raise Exception(
+        raise RuntimeError(
             'Multiple platform-specific files match the same GLSL ' +
             'file with basename ' + basename)
       mapped_files[glsl_file] = item
@@ -288,8 +288,8 @@ def CreateHashToShaderMap(glsl_to_shader_map):
   for k, v in glsl_to_shader_map.items():
     hashed_glsl = HashGLSLShaderFile(k)
     if hashed_glsl in hash_shader_map:
-      raise Exception('Hash collision between GLSL files ' + k + ' and ' +
-                      hash_to_glsl_map[hashed_glsl] + '.')
+      raise RuntimeError('Hash collision between GLSL files ' + k + ' and ' +
+                         hash_to_glsl_map[hashed_glsl] + '.')
     hash_to_glsl_map[hashed_glsl] = k
     hash_shader_map[hashed_glsl] = v
   return hash_shader_map

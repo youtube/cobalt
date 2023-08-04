@@ -52,16 +52,16 @@ TEST(SbConditionVariableCreateTest, SunnyDayALot) {
 }
 
 TEST(SbConditionVariableCreateTest, SunnyDayABunchAtOnce) {
-  SbMutex mutices[kABunch];
+  SbMutex mutexes[kABunch];
   SbConditionVariable conditions[kABunch];
   for (int i = 0; i < kABunch; ++i) {
-    EXPECT_TRUE(SbMutexCreate(&mutices[i]));
-    EXPECT_TRUE(SbConditionVariableCreate(&conditions[i], &mutices[i]));
+    EXPECT_TRUE(SbMutexCreate(&mutexes[i]));
+    EXPECT_TRUE(SbConditionVariableCreate(&conditions[i], &mutexes[i]));
   }
 
   for (int i = 0; i < kABunch; ++i) {
     EXPECT_TRUE(SbConditionVariableDestroy(&conditions[i]));
-    EXPECT_TRUE(SbMutexDestroy(&mutices[i]));
+    EXPECT_TRUE(SbMutexDestroy(&mutexes[i]));
   }
 }
 

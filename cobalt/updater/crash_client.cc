@@ -21,6 +21,7 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
+
 #include "base/win/wrapped_window_proc.h"
 #endif
 
@@ -73,8 +74,7 @@ bool CrashClient::InitializeDatabaseOnly() {
 bool CrashClient::InitializeCrashReporting() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!InitializeDatabaseOnly())
-    return false;
+  if (!InitializeDatabaseOnly()) return false;
 
 #if defined(OS_WIN)
   // Catch exceptions thrown from a window procedure.

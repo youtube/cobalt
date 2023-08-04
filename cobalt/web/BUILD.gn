@@ -37,7 +37,6 @@ static_library("web_events") {
     "//cobalt/script",
     "//cobalt/script:engine",
     "//cobalt/script/v8c:engine",
-    "//nb",
     "//url",
   ]
 
@@ -146,7 +145,6 @@ static_library("window_timers") {
     ":web_events",
     "//cobalt/base",
     "//cobalt/script",
-    "//nb",
   ]
 }
 
@@ -209,7 +207,6 @@ target(gtest_target_type, "web_test") {
     "//cobalt/script/v8c:engine",
     "//cobalt/test:run_all_unittests",
     "//cobalt/web/testing:web_testing",
-    "//nb",
     "//net:test_support",
     "//testing/gmock",
     "//testing/gtest",

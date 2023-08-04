@@ -24,7 +24,7 @@
 namespace cobalt {
 namespace input {
 
-// This input fuzzer will continously generate random input events.  It is a
+// This input fuzzer will continuously generate random input events.  It is a
 // debug tool that can be used in place of a platform-specific
 // InputDeviceManager that generates input events from an external controller
 // device.

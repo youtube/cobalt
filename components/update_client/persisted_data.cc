@@ -87,6 +87,16 @@ std::string PersistedData::GetLastInstalledVersion(const std::string& id) const 
 std::string PersistedData::GetUpdaterChannel(const std::string& id) const {
   return GetString(id, "updaterchannel");
 }
+std::string PersistedData::GetLatestChannel() const {
+  const base::DictionaryValue* dict =
+      pref_service_->GetDictionary(kPersistedDataPreference);
+  if (!dict)
+    return std::string();
+  std::string result;
+  return dict->GetString("latestchannel", &result)
+             ? result
+             : std::string();
+}
 #endif
 
 std::string PersistedData::GetCohort(const std::string& id) const {
@@ -152,6 +162,13 @@ void PersistedData::SetLastInstalledVersion(const std::string& id,
 void PersistedData::SetUpdaterChannel(const std::string& id,
                                       const std::string& channel) {
   SetString(id, "updaterchannel", channel);
+}
+void PersistedData::SetLatestChannel(const std::string& channel) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!pref_service_)
+    return;
+  DictionaryPrefUpdate update(pref_service_, kPersistedDataPreference);
+  update->SetString("latestchannel", channel);
 }
 #endif
 

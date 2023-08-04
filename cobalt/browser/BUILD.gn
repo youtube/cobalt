@@ -198,7 +198,6 @@ static_library("browser") {
     "//components/metrics",
     "//components/metrics_services_manager",
     "//crypto",
-    "//nb",
     "//net",
     "//starboard",
     "//starboard/common",
@@ -259,7 +258,6 @@ target(gtest_target_type, "browser_test") {
     "//cobalt/speech",
     "//cobalt/storage",
     "//cobalt/test:run_all_unittests",
-    "//nb",
     "//testing/gmock",
     "//testing/gtest",
   ]

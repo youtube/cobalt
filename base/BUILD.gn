@@ -1560,7 +1560,6 @@ component("base") {
     ]
     public_configs = [ ":base_public_defines" ]
     deps += [
-      "//nb",
       "//starboard/common",
       "//starboard",
       "//starboard/client_porting/eztime",

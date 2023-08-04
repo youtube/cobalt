@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "base/lazy_instance.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -139,7 +140,7 @@ Transition CreateTransitionOverOldTransition(
   scoped_refptr<PropertyValue> current_value_within_old_transition =
       old_transition.Evaluate(current_time);
 
-  // If the new transition is a reversal fo the old transition, we need to
+  // If the new transition is a reversal of the old transition, we need to
   // setup reversing_adjusted_start_value and reversing_shortening_factor so
   // that they can be used to reduce the new transition's duration.
   scoped_refptr<PropertyValue> new_reversing_adjusted_start_value;

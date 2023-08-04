@@ -5,6 +5,7 @@
 #include "cobalt/updater/patcher.h"
 
 #include <utility>
+
 #include "base/callback.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"

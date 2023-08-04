@@ -40,8 +40,9 @@ class PreloadFontTest(black_box_tests.BlackBoxTestCase):
         start_time = time.time()
         while runner.IsInPreload():
           if time.time() - start_time > _MAX_RESUME_WAIT_SECONDS:
-            raise Exception('Cobalt can not exit preload mode after receiving'
-                            'resume signal')
+            raise RuntimeError(
+                'Cobalt can not exit preload mode after receiving'
+                'resume signal')
           time.sleep(.1)
         # At this point, Cobalt is in started mode.
         self.assertTrue(runner.JSTestsSucceeded())
