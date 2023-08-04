@@ -7,6 +7,7 @@
 #include <limits.h>
 
 #include "base/macros.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
@@ -723,6 +724,8 @@ LogMessage::~LogMessage() {
 #endif
   stream_ << std::endl;
   std::string str_newline(stream_.str());
+  TRACE_EVENT_INSTANT1("log", "LogMessage", TRACE_EVENT_SCOPE_THREAD, "message",
+                       str_newline);
 
   // Give any log message handler first dibs on the message.
   if (log_message_handler &&
