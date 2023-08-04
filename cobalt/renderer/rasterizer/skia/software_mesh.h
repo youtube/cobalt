@@ -18,6 +18,7 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_SOFTWARE_MESH_H_
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "cobalt/render_tree/mesh.h"

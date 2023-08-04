@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/length_value.h"

@@ -15,6 +15,7 @@
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/files/file_util.h"

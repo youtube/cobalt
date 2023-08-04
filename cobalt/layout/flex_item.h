@@ -15,6 +15,7 @@
 #ifndef COBALT_LAYOUT_FLEX_ITEM_H_
 #define COBALT_LAYOUT_FLEX_ITEM_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/logging.h"

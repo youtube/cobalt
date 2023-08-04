@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2014 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +18,8 @@
 #include "cobalt/base/circular_buffer_shell.h"
 
 #include <string.h>
+
+#include <memory>
 
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -144,6 +144,7 @@ repos:
                 cobalt/updater/|
                 cobalt/webdriver/screencast/|
                 cobalt/websocket/|
+                components/crx_file/|
                 content/|
                 glimp/|
                 nb/|

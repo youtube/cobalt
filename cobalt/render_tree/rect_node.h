@@ -16,6 +16,7 @@
 #define COBALT_RENDER_TREE_RECT_NODE_H_
 
 #include <memory>
+#include <utility>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -73,7 +74,8 @@ class RectNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
-  RectNode(Args&&... args) : data_(std::forward<Args>(args)...) {
+  RectNode(Args&&... args)  // NOLINT(runtime/explicit)
+      : data_(std::forward<Args>(args)...) {
     if (DCHECK_IS_ON()) {
       AssertValid();
     }

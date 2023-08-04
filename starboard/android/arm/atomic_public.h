@@ -12,4 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STARBOARD_ANDROID_ARM_ATOMIC_PUBLIC_H_
+#define STARBOARD_ANDROID_ARM_ATOMIC_PUBLIC_H_
+
 #include "starboard/android/shared/atomic_public.h"
+
+#endif  // STARBOARD_ANDROID_ARM_ATOMIC_PUBLIC_H_

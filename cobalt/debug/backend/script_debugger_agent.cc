@@ -15,6 +15,7 @@
 #include "cobalt/debug/backend/script_debugger_agent.h"
 
 #include <string>
+#include <utility>
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/debug/json_object.h"

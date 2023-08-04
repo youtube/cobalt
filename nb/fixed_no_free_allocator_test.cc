@@ -16,6 +16,8 @@
 
 #include "nb/fixed_no_free_allocator.h"
 
+#include <memory>
+
 #include "nb/pointer_arithmetic.h"
 #include "nb/starboard_aligned_memory_deleter.h"
 #include "testing/gtest/include/gtest/gtest.h"

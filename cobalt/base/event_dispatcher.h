@@ -48,7 +48,7 @@ class EventDispatcher {
   void RemoveEventCallback(TypeId type, const EventCallback& cb);
 
  private:
-  typedef hash_map<TypeId, std::vector<EventCallback> > CallbackMap;
+  typedef base::hash_map<TypeId, std::vector<EventCallback> > CallbackMap;
   CallbackMap event_callbacks_;
   // Lock to protect access to the callback map.
   mutable base::Lock lock_;

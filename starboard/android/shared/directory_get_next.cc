@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/string.h"
-#include "starboard/directory.h"
+#include <string.h>
 
 #include <android/asset_manager.h>
-#include <string.h>
+
+#include "starboard/common/string.h"
+#include "starboard/directory.h"
 
 #include "starboard/android/shared/directory_internal.h"
 #include "starboard/configuration_constants.h"

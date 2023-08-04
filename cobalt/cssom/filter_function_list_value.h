@@ -16,6 +16,7 @@
 #define COBALT_CSSOM_FILTER_FUNCTION_LIST_VALUE_H_
 
 #include <string>
+#include <utility>
 
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"

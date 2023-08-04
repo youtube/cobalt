@@ -16,6 +16,7 @@
 
 #include <list>
 #include <memory>
+#include <utility>
 
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
@@ -36,9 +37,9 @@ class RBSPStreamTest : public testing::Test {
     bool is_negative = (num < 0);
     uint32 unum = 0;
     if (is_negative) {
-      unum = (uint32)(num * -1);
+      unum = static_cast<uint32>(num * -1);
     } else {
-      unum = (uint32)num;
+      unum = static_cast<uint32>(num);
     }
     // multiply unsigned value by 2
     unum = unum << 1;

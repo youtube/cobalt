@@ -18,6 +18,6 @@
 #include "starboard/event.h"
 
 void SbEventHandle(const SbEvent* event) {
-  volatile int* a = (int*)(NULL);
+  volatile int* a = reinterpret_cast<int*>(NULL);
   *a = 1;
 }

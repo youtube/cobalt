@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_INTERSECTION_OBSERVER_H_
 #define COBALT_DOM_INTERSECTION_OBSERVER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 

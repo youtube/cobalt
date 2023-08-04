@@ -16,6 +16,7 @@
 #define COBALT_RENDER_TREE_COMPOSITION_NODE_H_
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"

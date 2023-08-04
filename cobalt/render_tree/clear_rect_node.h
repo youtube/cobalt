@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDER_TREE_CLEAR_RECT_NODE_H_
 #define COBALT_RENDER_TREE_CLEAR_RECT_NODE_H_
 
+#include <utility>
+
 #include "base/compiler_specific.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
@@ -47,7 +49,8 @@ class ClearRectNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Us>
-  ClearRectNode(Us&&... args) : data_(std::forward<Us>(args)...) {}
+  ClearRectNode(Us&&... args)  // NOLINT(runtime/explicit)
+      : data_(std::forward<Us>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override { return data_.rect; }

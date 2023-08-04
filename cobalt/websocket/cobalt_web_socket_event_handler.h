@@ -15,6 +15,7 @@
 #ifndef COBALT_WEBSOCKET_COBALT_WEB_SOCKET_EVENT_HANDLER_H_
 #define COBALT_WEBSOCKET_COBALT_WEB_SOCKET_EVENT_HANDLER_H_
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
