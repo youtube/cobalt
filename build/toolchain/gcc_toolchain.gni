@@ -391,7 +391,7 @@ template("gcc_toolchain") {
       # TODO(b/206642994): see if we can remove this condition. It's needed for
       # now to add cflags for evergreen platforms but we haven't yet decided
       # whether cflags should be added here for all platforms.
-      if (is_starboard && sb_is_modular && !is_starboard_toolchain) {
+      if (!is_starboard_toolchain && is_starboard && sb_is_modular) {
         command = "$asm -MMD -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{cflags}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
       } else {
         command = "$asm -MMD -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
