@@ -29,15 +29,7 @@ bool SbPlayerGetAudioConfiguration(
   SB_DCHECK(index >= 0);
   SB_DCHECK(out_audio_configuration);
 
-  if (index > 0) {
-    // We assume that |player| only uses the primary (index 0) audio output.
-    // For playbacks using more than one audio outputs, or using audio outputs
-    // other than the primary one, the platform should have its own
-    // `SbPlayerGetAudioConfiguration()` implementation.
-    return false;
-  }
-
-  return SbMediaGetAudioConfiguration(index, out_audio_configuration);
+  return player->GetAudioConfiguration(index, out_audio_configuration);
 }
 
 #endif  // SB_API_VERSION >= 15
