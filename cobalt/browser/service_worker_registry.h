@@ -58,7 +58,7 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
                   network::NetworkModule* network_module,
                   web::UserAgentPlatformInfo* platform_info, const GURL& url);
 
-  void PingWatchdog(watchdog::Watchdog* watchdog);
+  void PingWatchdog();
 
   bool watchdog_registered_ = false;
 

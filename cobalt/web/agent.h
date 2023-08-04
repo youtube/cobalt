@@ -120,7 +120,7 @@ class Agent : public base::MessageLoop::DestructionObserver {
   void InitializeTaskInThread(const Options& options,
                               InitializeCallback initialize_callback);
 
-  void PingWatchdog(watchdog::Watchdog* watchdog);
+  void PingWatchdog();
 
   // The thread created and owned by this Web Agent.
   // All sub-objects of this object are created on this thread, and all public
