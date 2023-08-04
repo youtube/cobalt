@@ -18,6 +18,8 @@
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/media.h"
+#include "starboard/time.h"
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
@@ -170,4 +172,56 @@ void SbPlayerPrivate::UpdateMediaInfo(SbTime media_time,
 
 SbDecodeTarget SbPlayerPrivate::GetCurrentDecodeTarget() {
   return worker_->GetCurrentDecodeTarget();
+}
+
+bool SbPlayerPrivate::GetAudioConfiguration(
+    int index,
+    SbMediaAudioConfiguration* out_audio_configuration) {
+  SB_DCHECK(index >= 0);
+  SB_DCHECK(out_audio_configuration);
+
+  starboard::ScopedLock lock(audio_configurations_mutex_);
+  if (audio_configurations_.empty()) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+    SbTime start = SbTimeGetMonotonicNow();
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+    for (int i = 0; i < 32; ++i) {
+      SbMediaAudioConfiguration audio_configuration;
+      if (SbMediaGetAudioConfiguration(i, &audio_configuration)) {
+        audio_configurations_.push_back(audio_configuration);
+      } else {
+        break;
+      }
+    }
+    if (!audio_configurations_.empty() &&
+        audio_configurations_[0].connector != kSbMediaAudioConnectorHdmi) {
+      // Move the HDMI connector to the very beginning to be backwards
+      // compatible.
+      for (size_t i = 1; i < audio_configurations_.size(); ++i) {
+        if (audio_configurations_[i].connector == kSbMediaAudioConnectorHdmi) {
+          std::swap(audio_configurations_[i], audio_configurations_[0]);
+          break;
+        }
+      }
+    }
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+    SbTime elapsed = SbTimeGetMonotonicNow() - start;
+    SB_LOG(INFO)
+        << "GetAudioConfiguration(): Updating audio configurations takes "
+        << elapsed << " microseconds.";
+    for (auto&& audio_configuration : audio_configurations_) {
+      SB_LOG(INFO) << "Found audio configuration "
+                   << starboard::GetMediaAudioConnectorName(
+                          audio_configuration.connector)
+                   << ", channels " << audio_configuration.number_of_channels;
+    }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+  }
+
+  if (index < static_cast<int>(audio_configurations_.size())) {
+    *out_audio_configuration = audio_configurations_[index];
+    return true;
+  }
+
+  return false;
 }
