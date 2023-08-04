@@ -166,7 +166,7 @@ As mentioned, the Google-maintained Evergreen toolchain is used to build Cobalt
 core (`libcobalt.so`). For example:
 
 ```
-$ gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-hardfp\" build_type=\"qa\" target_cpu=\"arm\" target_os=\"linux\" sb_api_version=15"
+$ gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-softfp\" build_type=\"qa\" target_cpu=\"arm\" target_os=\"linux\" sb_api_version=15"
 $ ninja -C out/evergreen-arm-softfp_qa cobalt_install
 ```
 
