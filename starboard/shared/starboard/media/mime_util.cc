@@ -104,7 +104,7 @@ bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
       }
       break;
     case kSbMediaAudioCodecFlac:
-      if (mime_type.subtype() != "ogg") {
+      if (mime_type.subtype() != "ogg" && mime_type.subtype() != "flac") {
         return false;
       }
       break;
