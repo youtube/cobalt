@@ -56,6 +56,11 @@ def remove_directory_path(path: str, directory: str) -> str:
 
 
 def normalize_if_pathlike(path: str, directory: str) -> str:
+
+  # Fixes an issue on windows where paths are parsed incorrectly.
+  if path == 'nul':
+    return path
+
   absolute_path = make_path_absolute(path, directory)
   if os.path.exists(absolute_path):
     return remove_directory_path(absolute_path, directory)
