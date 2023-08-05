@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/logging.h"
@@ -314,7 +315,7 @@ bool SkFileMemoryChunkStream::seek(size_t position) {
   return true;
 }
 
-bool SkFileMemoryChunkStream::move(long offset) {
+bool SkFileMemoryChunkStream::move(long offset) {  // NOLINT(runtime/int)
   // Rewind back to the start of the stream if the offset would move it to a
   // negative position.
   if (offset < 0 && std::abs(offset) > stream_position_) {

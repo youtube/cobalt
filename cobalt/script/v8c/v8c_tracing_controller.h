@@ -15,6 +15,7 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_TRACING_CONTROLLER_H_
 #define COBALT_SCRIPT_V8C_V8C_TRACING_CONTROLLER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 

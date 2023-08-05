@@ -16,6 +16,7 @@
 #define COBALT_CSSOM_SELECTOR_H_
 
 #include <memory>
+#include <vector>
 
 #include "cobalt/cssom/specificity.h"
 

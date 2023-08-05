@@ -14,6 +14,9 @@
 
 #include "cobalt/debug/backend/overlay_agent.h"
 
+#include <memory>
+#include <utility>
+
 #include "cobalt/math/clamp.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/brush.h"

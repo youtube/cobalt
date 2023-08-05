@@ -1,9 +1,10 @@
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 // Copyright (c) 2014 Google Inc. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_CIRCULAR_BUFFER_SHELL_H_
-#define BASE_CIRCULAR_BUFFER_SHELL_H_
+#ifndef COBALT_BASE_CIRCULAR_BUFFER_SHELL_H_
+#define COBALT_BASE_CIRCULAR_BUFFER_SHELL_H_
 
 #include "base/base_export.h"
 #include "base/synchronization/lock.h"
@@ -101,4 +102,4 @@ class BASE_EXPORT CircularBufferShell {
 
 }  // namespace base
 
-#endif  // BASE_CIRCULAR_BUFFER_SHELL_H_
+#endif  // COBALT_BASE_CIRCULAR_BUFFER_SHELL_H_

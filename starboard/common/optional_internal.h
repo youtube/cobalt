@@ -18,6 +18,9 @@
 // limitations under the License.
 //
 
+#ifndef STARBOARD_COMMON_OPTIONAL_INTERNAL_H_
+#define STARBOARD_COMMON_OPTIONAL_INTERNAL_H_
+
 // clang-format off
 // Begin forwarding constructor definitions ////////////////////////////////////
   explicit optional(in_place_t) {
@@ -178,3 +181,5 @@
   }
 // End emplace(...) definitions ////////////////////////////////////////////////
 // clang-format on
+
+#endif  // STARBOARD_COMMON_OPTIONAL_INTERNAL_H_

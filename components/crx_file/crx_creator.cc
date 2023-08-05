@@ -4,6 +4,9 @@
 
 #include "components/crx_file/crx_creator.h"
 
+#include <string>
+#include <vector>
+
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/stl_util.h"

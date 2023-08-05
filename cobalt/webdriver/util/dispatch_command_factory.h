@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -28,7 +29,7 @@ namespace cobalt {
 namespace webdriver {
 namespace util {
 namespace internal {
-namespace {
+namespace {  // NOLINT(build/namespaces_headers)
 template <typename T>
 struct ForwardType {
   typedef const T& value;

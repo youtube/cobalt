@@ -14,6 +14,8 @@
 #ifndef COBALT_DEBUG_BACKEND_OVERLAY_AGENT_H_
 #define COBALT_DEBUG_BACKEND_OVERLAY_AGENT_H_
 
+#include <memory>
+
 #include "cobalt/debug/backend/agent_base.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/backend/render_layer.h"

@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDER_TREE_LOTTIE_NODE_H_
 #define COBALT_RENDER_TREE_LOTTIE_NODE_H_
 
+#include <utility>
+
 #include "base/compiler_specific.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
@@ -51,7 +53,8 @@ class LottieNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
-  LottieNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
+  LottieNode(Args&&... args)  // NOLINT(runtime/explicit)
+      : data_(std::forward<Args>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

@@ -16,6 +16,7 @@
 #define COBALT_SPEECH_SPEECH_RECOGNITION_ALTERNATIVE_H_
 
 #include <string>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "cobalt/script/wrappable.h"

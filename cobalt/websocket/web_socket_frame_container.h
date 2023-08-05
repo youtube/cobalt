@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <deque>
 #include <memory>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "net/base/io_buffer.h"

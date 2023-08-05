@@ -15,6 +15,7 @@
 #include "cobalt/layout/flex_item.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"

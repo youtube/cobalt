@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstring>
+
 #include "starboard/memory.h"
 
 #include "third_party/google_benchmark/include/benchmark/benchmark.h"
-
-#include <cstring>
 
 namespace starboard {
 namespace benchmark {

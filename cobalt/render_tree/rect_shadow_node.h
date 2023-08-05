@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDER_TREE_RECT_SHADOW_NODE_H_
 #define COBALT_RENDER_TREE_RECT_SHADOW_NODE_H_
 
+#include <utility>
+
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/optional.h"
@@ -69,7 +71,8 @@ class RectShadowNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
-  RectShadowNode(Args&&... args) : data_(std::forward<Args>(args)...) {
+  RectShadowNode(Args&&... args)  // NOLINT(runtime/explicit)
+      : data_(std::forward<Args>(args)...) {
     if (DCHECK_IS_ON()) {
       AssertValid();
     }

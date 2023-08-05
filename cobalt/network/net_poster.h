@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "cobalt/network_bridge/net_poster.h"
 #include "net/url_request/url_fetcher.h"

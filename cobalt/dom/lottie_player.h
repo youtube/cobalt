@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_LOTTIE_PLAYER_H_
 #define COBALT_DOM_LOTTIE_PLAYER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/message_loop/message_loop.h"

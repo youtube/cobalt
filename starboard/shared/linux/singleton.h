@@ -17,8 +17,8 @@
 // Onces represent initializations that should only ever happen once per
 // process, in a thread-safe way.
 
-#ifndef STARBOARD_NXSWITCH_SINGLETON_H_
-#define STARBOARD_NXSWITCH_SINGLETON_H_
+#ifndef STARBOARD_SHARED_LINUX_SINGLETON_H_
+#define STARBOARD_SHARED_LINUX_SINGLETON_H_
 
 #include "starboard/once.h"
 #include "starboard/shared/internal_only.h"
@@ -63,4 +63,4 @@ class Singleton {
 
 }  // namespace starboard
 
-#endif  // STARBOARD_NXSWITCH_SINGLETON_H_
+#endif  // STARBOARD_SHARED_LINUX_SINGLETON_H_

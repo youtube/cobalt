@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_COBALT_ANDROID_USER_AUTHORIZER_H_
 #define STARBOARD_ANDROID_SHARED_COBALT_ANDROID_USER_AUTHORIZER_H_
 
+#include <memory>
+
 #include "cobalt/account/user_authorizer.h"
 
 #include "starboard/android/shared/jni_env_ext.h"

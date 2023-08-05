@@ -14,6 +14,8 @@
 
 #include "cobalt/debug/backend/tracing_agent.h"
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/values.h"
 #include "cobalt/script/script_debugger.h"

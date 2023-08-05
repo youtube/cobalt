@@ -19,4 +19,9 @@
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
 
+#ifndef STARBOARD_ANDROID_X86_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_ANDROID_X86_CONFIGURATION_PUBLIC_H_
+
 #include "starboard/android/shared/configuration_public.h"
+
+#endif  // STARBOARD_ANDROID_X86_CONFIGURATION_PUBLIC_H_

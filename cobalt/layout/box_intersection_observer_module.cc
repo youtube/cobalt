@@ -14,6 +14,8 @@
 
 #include "cobalt/layout/box_intersection_observer_module.h"
 
+#include <utility>
+
 #include "base/trace_event/trace_event.h"
 #include "cobalt/layout/box.h"
 

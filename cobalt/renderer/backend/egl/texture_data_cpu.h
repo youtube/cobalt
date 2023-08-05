@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_TEXTURE_DATA_CPU_H_
 #define COBALT_RENDERER_BACKEND_EGL_TEXTURE_DATA_CPU_H_
 
+#include <memory>
+
 #include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/utils.h"

@@ -18,6 +18,7 @@
 #define COBALT_LOADER_MESH_MESH_PROJECTION_H_
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/basictypes.h"

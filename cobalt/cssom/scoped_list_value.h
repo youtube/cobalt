@@ -16,6 +16,8 @@
 #define COBALT_CSSOM_SCOPED_LIST_VALUE_H_
 
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

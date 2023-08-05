@@ -16,6 +16,7 @@
 #define COBALT_RENDER_TREE_MATRIX_TRANSFORM_NODE_H_
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -49,7 +50,8 @@ class MatrixTransformNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
-  MatrixTransformNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
+  MatrixTransformNode(Args&&... args)  // NOLINT(runtime/explicit)
+      : data_(std::forward<Args>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;
