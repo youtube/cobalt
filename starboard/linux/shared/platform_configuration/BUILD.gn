@@ -106,7 +106,7 @@ config("compiler_flags") {
     # C11 features that are not supported on some platforms' compilers.
     "-std=c99",
   ]
-  cflags_cc = [ "-std=gnu++17" ]
+  cflags_cc = [ "-std=gnu++14" ]
 
   if (use_asan) {
     cflags += [
