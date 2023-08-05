@@ -94,6 +94,9 @@ _FILTERED_TESTS = {
 
         # TODO: b/292409536 Make this test fork on lab devices consistently.
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudioDiscardAll/*',
+
+        # TODO: b/280432564 Make this test work on lab devices consistently.
+        'SbAudioSinkTest.ContinuousAppend',
     ],
 }
 # pylint: enable=line-too-long
