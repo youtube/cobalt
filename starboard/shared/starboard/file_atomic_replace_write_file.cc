@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/file.h"
 
@@ -43,6 +44,7 @@ bool SbFileAtomicReplaceWriteFile(const char* path,
     const int to_write_max =
         static_cast<int>(std::min(to_write, static_cast<int64_t>(kSbInt32Max)));
     const int bytes_written = SbFileWrite(temp_file, source, to_write_max);
+    RecordFileWriteStat(bytes_written);
 
     if (bytes_written < 0) {
       SbFileClose(temp_file);

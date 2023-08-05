@@ -14,8 +14,9 @@
 
 // Adapted from platform_file_posix.cc
 
-#include "base/files/file.h"
+#include "base/files/file_starboard.h"
 
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
@@ -24,8 +25,6 @@
 #include "starboard/file.h"
 
 namespace base {
-
-namespace {
 
 void RecordFileWriteStat(int write_file_result) {
   auto& stats_tracker = starboard::StatsTrackerContainer::GetInstance()->stats_tracker();
@@ -36,8 +35,6 @@ void RecordFileWriteStat(int write_file_result) {
     stats_tracker.FileWriteBytesWritten(/*bytes_written=*/write_file_result);
   }
 }
-
-}  // namespace
 
 // Make sure our Whence mappings match the system headers.
 static_assert(

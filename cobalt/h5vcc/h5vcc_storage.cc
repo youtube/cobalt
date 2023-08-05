@@ -31,7 +31,6 @@
 #include "net/disk_cache/cobalt/resource_type.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_transaction_factory.h"
-#include "starboard/common/file.h"
 #include "starboard/common/string.h"
 
 namespace cobalt {
@@ -69,6 +68,11 @@ H5vccStorageSetQuotaResponse SetQuotaResponse(std::string error = "",
   return response;
 }
 
+void ClearDirectory(const base::FilePath& file_path) {
+  base::DeleteFile(file_path, /*recursive=*/true);
+  base::CreateDirectory(file_path);
+}
+
 void DeleteCacheResourceTypeDirectory(disk_cache::ResourceType type) {
   auto metadata = disk_cache::kTypeMetadata[type];
   std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
@@ -77,7 +81,7 @@ void DeleteCacheResourceTypeDirectory(disk_cache::ResourceType type) {
   base::FilePath cache_type_dir =
       base::FilePath(cache_dir.data())
           .Append(FILE_PATH_LITERAL(metadata.directory));
-  starboard::SbFileDeleteRecursive(cache_type_dir.value().data(), true);
+  ClearDirectory(cache_type_dir);
 }
 
 void ClearCacheHelper(disk_cache::Backend* backend) {
@@ -150,21 +154,17 @@ H5vccStorageWriteTestResponse H5vccStorage::WriteTest(uint32 test_size,
   SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
                   kSbFileMaxPath);
 
-  // Delete the contents of cache_dir.
-  starboard::SbFileDeleteRecursive(cache_dir.data(), true);
+  ClearDirectory(base::FilePath(cache_dir.data()));
 
   // Try to Create the test_file.
-  std::string test_file_path =
-      std::string(cache_dir.data()) + kSbFileSepString + kTestFileName;
-  SbFileError test_file_error;
-  starboard::ScopedFile test_file(test_file_path.c_str(),
-                                  kSbFileOpenAlways | kSbFileWrite, NULL,
-                                  &test_file_error);
+  base::FilePath test_file_path =
+      base::FilePath(cache_dir.data()).Append(kTestFileName);
+  base::File test_file(test_file_path,
+                       base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_WRITE);
 
-  if (test_file_error != kSbFileOk) {
-    return WriteTestResponse(
-        starboard::FormatString("SbFileError: %d while opening ScopedFile: %s",
-                                test_file_error, test_file_path.c_str()));
+  if (!test_file.IsValid()) {
+    return WriteTestResponse(starboard::FormatString(
+        "Error while opening ScopedFile: %s", test_file_path.value().c_str()));
   }
 
   // Repeatedly write test_string to test_size bytes of write_buffer.
@@ -180,11 +180,11 @@ H5vccStorageWriteTestResponse H5vccStorage::WriteTest(uint32 test_size,
   uint32 total_bytes_written = 0;
 
   do {
-    auto bytes_written =
-        test_file.Write(write_buf.data() + total_bytes_written,
-                        std::min(kBufferSize, test_size - total_bytes_written));
+    auto bytes_written = test_file.WriteAtCurrentPosNoBestEffort(
+        write_buf.data() + total_bytes_written,
+        std::min(kBufferSize, test_size - total_bytes_written));
     if (bytes_written <= 0) {
-      SbFileDelete(test_file_path.c_str());
+      base::DeleteFile(test_file_path, /*recursive=*/false);
       return WriteTestResponse("SbWrite -1 return value error");
     }
     total_bytes_written += bytes_written;
@@ -201,17 +201,13 @@ H5vccStorageVerifyTestResponse H5vccStorage::VerifyTest(
   SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
                   kSbFileMaxPath);
 
-  std::string test_file_path =
-      std::string(cache_dir.data()) + kSbFileSepString + kTestFileName;
-  SbFileError test_file_error;
-  starboard::ScopedFile test_file(test_file_path.c_str(),
-                                  kSbFileOpenOnly | kSbFileRead, NULL,
-                                  &test_file_error);
-
-  if (test_file_error != kSbFileOk) {
-    return VerifyTestResponse(
-        starboard::FormatString("SbFileError: %d while opening ScopedFile: %s",
-                                test_file_error, test_file_path.c_str()));
+  base::FilePath test_file_path =
+      base::FilePath(cache_dir.data()).Append(kTestFileName);
+  base::File test_file(test_file_path,
+                       base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!test_file.IsValid()) {
+    return VerifyTestResponse(starboard::FormatString(
+        "Error while opening ScopedFile: %s", test_file_path.value().c_str()));
   }
 
   // Incremental Reads of test_data, copies SbReadAll, using a maximum
@@ -220,10 +216,10 @@ H5vccStorageVerifyTestResponse H5vccStorage::VerifyTest(
 
   do {
     auto read_buffer = std::make_unique<char[]>(kBufferSize);
-    auto bytes_read = test_file.Read(
+    auto bytes_read = test_file.ReadAtCurrentPosNoBestEffort(
         read_buffer.get(), std::min(kBufferSize, test_size - total_bytes_read));
     if (bytes_read <= 0) {
-      SbFileDelete(test_file_path.c_str());
+      base::DeleteFile(test_file_path, /*recursive=*/false);
       return VerifyTestResponse("SbRead -1 return value error");
     }
 
@@ -240,12 +236,12 @@ H5vccStorageVerifyTestResponse H5vccStorage::VerifyTest(
   } while (total_bytes_read < test_size);
 
   if (total_bytes_read != test_size) {
-    SbFileDelete(test_file_path.c_str());
+    base::DeleteFile(test_file_path, /*recursive=*/false);
     return VerifyTestResponse(
         "File test data size does not match kTestDataSize");
   }
 
-  SbFileDelete(test_file_path.c_str());
+  base::DeleteFile(test_file_path, /*recursive=*/false);
   return VerifyTestResponse("", true, total_bytes_read);
 }
 
@@ -421,10 +417,10 @@ void H5vccStorage::ClearServiceWorkerCache() {
   std::vector<char> storage_dir(kSbFileMaxPath, 0);
   SbSystemGetPath(kSbSystemPathCacheDirectory, storage_dir.data(),
                   kSbFileMaxPath);
-  std::string service_worker_file_path =
-      std::string(storage_dir.data()) + kSbFileSepString +
-      worker::ServiceWorkerConsts::kSettingsJson;
-  SbFileDelete(service_worker_file_path.c_str());
+  base::FilePath service_worker_file_path =
+      base::FilePath(storage_dir.data())
+          .Append(worker::ServiceWorkerConsts::kSettingsJson);
+  base::DeleteFile(service_worker_file_path, /*recursive=*/false);
 }
 
 bool H5vccStorage::ValidatedCacheBackend() {

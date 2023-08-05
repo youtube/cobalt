@@ -23,7 +23,6 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "starboard/common/file.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #endif
@@ -62,18 +61,16 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   // doing anything smart with text formatting.
 #ifdef STARBOARD
   // std::ifstream doesn't work on all our platforms.
-  starboard::ScopedFile file1(filename1.value().c_str(),
-                              kSbFileOpenOnly | kSbFileRead);
-  starboard::ScopedFile file2(filename2.value().c_str(),
-                              kSbFileOpenOnly | kSbFileRead);
-  auto file1_length = file1.GetSize();
-  if (file1_length != file2.GetSize()) {
+  base::File file1(filename1, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  base::File file2(filename2, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  auto file1_length = file1.GetLength();
+  if (file1_length != file2.GetLength()) {
     return false;
   }
   std::unique_ptr<char[]> file1_content(new char[file1_length]());
   std::unique_ptr<char[]> file2_content(new char[file1_length]());
-  if (file1.ReadAll(file1_content.get(), file1_length) != file1_length ||
-      file2.ReadAll(file2_content.get(), file1_length) != file1_length) {
+  if (file1.ReadAtCurrentPos(file1_content.get(), file1_length) != file1_length ||
+      file2.ReadAtCurrentPos(file2_content.get(), file1_length) != file1_length) {
     return false;
   }
 
