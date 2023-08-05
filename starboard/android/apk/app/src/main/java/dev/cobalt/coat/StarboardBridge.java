@@ -40,7 +40,6 @@ import android.view.InputDevice;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import dev.cobalt.account.UserAuthorizer;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.CaptionSettings;
@@ -529,23 +528,12 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public boolean isMicrophoneDisconnected() {
-    if (Build.VERSION.SDK_INT >= 23) {
-      return !isMicrophoneConnectedV23();
-    } else {
-      // There is no way of checking for a connected microphone/device before API 23, so cannot
-      // guarantee that no microphone is connected.
-      return false;
-    }
-  }
-
-  @RequiresApi(23)
-  private boolean isMicrophoneConnectedV23() {
     // A check specifically for microphones is not available before API 28, so it is assumed that a
     // connected input audio device is a microphone.
     AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
     AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_INPUTS);
     if (devices.length > 0) {
-      return true;
+      return false;
     }
 
     // fallback to check for BT voice capable RCU
@@ -555,10 +543,10 @@ public class StarboardBridge {
       final InputDevice inputDevice = inputManager.getInputDevice(inputDeviceId);
       final boolean hasMicrophone = inputDevice.hasMicrophone();
       if (hasMicrophone) {
-        return true;
+        return false;
       }
     }
-    return false;
+    return true;
   }
 
   /**
@@ -579,34 +567,6 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   boolean isCurrentNetworkWireless() {
-    if (Build.VERSION.SDK_INT >= 23) {
-      return isCurrentNetworkWirelessV23();
-    } else {
-      return isCurrentNetworkWirelessDeprecated();
-    }
-  }
-
-  @SuppressWarnings("deprecation")
-  private boolean isCurrentNetworkWirelessDeprecated() {
-    ConnectivityManager connMgr =
-        (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
-    android.net.NetworkInfo activeInfo = connMgr.getActiveNetworkInfo();
-    if (activeInfo == null) {
-      return false;
-    }
-    switch (activeInfo.getType()) {
-      case ConnectivityManager.TYPE_ETHERNET:
-        return false;
-      default:
-        // Consider anything that's not definitely wired to be wireless.
-        // For example, TYPE_VPN is ambiguous, but it's highly likely to be
-        // over wifi.
-        return true;
-    }
-  }
-
-  @RequiresApi(23)
-  private boolean isCurrentNetworkWirelessV23() {
     ConnectivityManager connMgr =
         (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
     Network activeNetwork = connMgr.getActiveNetwork();
@@ -744,7 +704,6 @@ public class StarboardBridge {
   }
 
   /** Return supported hdr types. */
-  @RequiresApi(24)
   @SuppressWarnings("unused")
   @UsedByNative
   public int[] getSupportedHdrTypes() {

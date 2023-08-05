@@ -524,7 +524,7 @@ class MediaCodecBridge {
     mMediaCodec.setCallback(mCallback);
 
     // TODO: support OnFrameRenderedListener for non tunnel mode
-    if (tunnelModeAudioSessionId != -1 && Build.VERSION.SDK_INT >= 23) {
+    if (tunnelModeAudioSessionId != -1) {
       mTunnelModeFrameRendererListener =
           new MediaCodec.OnFrameRenderedListener() {
             @Override
@@ -995,7 +995,7 @@ class MediaCodecBridge {
       cryptoInfo.set(
           numSubSamples, numBytesOfClearData, numBytesOfEncryptedData, keyId, iv, cipherMode);
 
-      if (Build.VERSION.SDK_INT >= 24 && cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC) {
+      if (cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC) {
         cryptoInfo.setPattern(new Pattern(blocksToEncrypt, blocksToSkip));
       } else if (blocksToEncrypt != 0 || blocksToSkip != 0) {
         Log.e(TAG, "Pattern encryption only supported for 'cbcs' scheme (CBC mode).");
@@ -1013,13 +1013,7 @@ class MediaCodecBridge {
             TAG,
             "Failed to queue secure input buffer: "
                 + "CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION");
-        // Note that in Android OS version before 23, the MediaDrm class doesn't expose the current
-        // key ids it holds.  In such case the Starboard media stack is unable to notify Cobalt of
-        // the error via key statuses so MEDIA_CODEC_ERROR is returned instead to signal a general
-        // media codec error.
-        return Build.VERSION.SDK_INT >= 23
-            ? MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION
-            : MEDIA_CODEC_ERROR;
+        return MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION;
       }
       Log.e(
           TAG,
@@ -1304,11 +1298,7 @@ class MediaCodecBridge {
       case 6:
         return AudioFormat.CHANNEL_OUT_5POINT1;
       case 8:
-        if (Build.VERSION.SDK_INT >= 23) {
-          return AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
-        } else {
-          return AudioFormat.CHANNEL_OUT_7POINT1;
-        }
+        return AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
       default:
         return AudioFormat.CHANNEL_OUT_DEFAULT;
     }

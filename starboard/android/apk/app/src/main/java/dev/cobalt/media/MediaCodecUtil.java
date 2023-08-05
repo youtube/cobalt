@@ -52,10 +52,10 @@ public class MediaCodecUtil {
   private static final String AV1_MIME_TYPE = "video/av01";
 
   static {
-    if (Build.VERSION.SDK_INT >= 24 && Build.BRAND.equals("google")) {
+    if (Build.BRAND.equals("google")) {
       videoCodecDenyList.add("OMX.Nvidia.vp9.decode");
     }
-    if (Build.VERSION.SDK_INT >= 24 && Build.BRAND.equals("LGE")) {
+    if (Build.BRAND.equals("LGE")) {
       videoCodecDenyList.add("OMX.qcom.video.decoder.vp9");
     }
     if (Build.VERSION.RELEASE.startsWith("6.0.1")) {
@@ -469,11 +469,6 @@ public class MediaCodecUtil {
   /** Determine whether codecCapabilities is capable of playing HDR. */
   public static boolean isHdrCapableVideoDecoder(
       String mimeType, CodecCapabilities codecCapabilities) {
-    // VP9Profile* values were not added until API level 24.  See
-    // https://developer.android.com/reference/android/media/MediaCodecInfo.CodecProfileLevel.html.
-    if (Build.VERSION.SDK_INT < 24) {
-      return false;
-    }
     // AV1ProfileMain10HDR10 value was not added until API level 29.  See
     // https://developer.android.com/reference/android/media/MediaCodecInfo.CodecProfileLevel.html.
     if (mimeType.equals(AV1_MIME_TYPE) && Build.VERSION.SDK_INT < 29) {
@@ -645,15 +640,6 @@ public class MediaCodecUtil {
                 supportsTunneledPlayback,
                 requiresTunneledPlayback);
         Log.v(TAG, message);
-        continue;
-      }
-
-      // VideoCapabilities is not implemented correctly on this device.
-      if (Build.VERSION.SDK_INT < 23
-          && Build.MODEL.equals("MIBOX3")
-          && name.equals("OMX.amlogic.vp9.decoder.awesome")
-          && (frameWidth > 1920 || frameHeight > 1080)) {
-        Log.v(TAG, "Skipping >1080p OMX.amlogic.vp9.decoder.awesome on mibox.");
         continue;
       }
 

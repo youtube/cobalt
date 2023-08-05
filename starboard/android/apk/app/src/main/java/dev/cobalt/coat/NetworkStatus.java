@@ -21,7 +21,6 @@ import android.net.ConnectivityManager;
 import android.net.ConnectivityManager.NetworkCallback;
 import android.net.Network;
 import android.net.NetworkCapabilities;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import dev.cobalt.util.Log;
@@ -74,32 +73,26 @@ public class NetworkStatus {
         (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
     Log.i(TAG, "Opening NetworkStatus");
     networkCallback = new CobaltNetworkCallback(this, mainHandler);
-    if (Build.VERSION.SDK_INT >= 24) {
+    connectivityManager.registerDefaultNetworkCallback(networkCallback);
+    callbackAdded = true;
+  }
+
+  public void beforeStartOrResume() {
+    if (connectivityManager != null && !callbackAdded) {
       connectivityManager.registerDefaultNetworkCallback(networkCallback);
       callbackAdded = true;
     }
   }
 
-  public void beforeStartOrResume() {
-    if (connectivityManager != null && !callbackAdded) {
-      if (Build.VERSION.SDK_INT >= 24) {
-        connectivityManager.registerDefaultNetworkCallback(networkCallback);
-        callbackAdded = true;
-      }
-    }
-  }
-
   public void beforeSuspend() {
     if (connectivityManager != null && callbackAdded) {
-      if (Build.VERSION.SDK_INT >= 24) {
-        connectivityManager.unregisterNetworkCallback(networkCallback);
-        callbackAdded = false;
-      }
+      connectivityManager.unregisterNetworkCallback(networkCallback);
+      callbackAdded = false;
     }
   }
 
   public boolean isConnected() {
-    if (connectivityManager != null && Build.VERSION.SDK_INT >= 24) {
+    if (connectivityManager != null) {
       // Return the current network bandwidth when client pings the NetworkStatus service.
       NetworkCapabilities cap =
           connectivityManager.getNetworkCapabilities(connectivityManager.getActiveNetwork());
