@@ -12,6 +12,7 @@
 #include "SkTemplates.h"
 #include "SkTypes.h"
 #include "base/files/file_path.h"
+#include "base/files/file_starboard.h"
 #include "base/files/file_util.h"
 #include "base/optional.h"
 #include "base/path_service.h"
@@ -85,7 +86,10 @@ size_t sk_fgetsize(SkFile* sk_file) {
 size_t sk_fwrite(const void* buffer, size_t byteCount, SkFile* sk_file) {
   SkASSERT(sk_file);
   SbFile file = ToSbFile(sk_file);
-  return SbFileWrite(file, reinterpret_cast<const char*>(buffer), byteCount);
+  int result =
+      SbFileWrite(file, reinterpret_cast<const char*>(buffer), byteCount);
+  base::RecordFileWriteStat(result);
+  return result;
 }
 
 void sk_fflush(SkFile* sk_file) {

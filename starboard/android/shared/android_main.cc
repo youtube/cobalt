@@ -17,6 +17,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
+#include "starboard/common/file.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -137,6 +138,7 @@ bool CopyDirContents(const std::string& src_dir_path,
       return false;
     }
     int wrote = SbFileWriteAll(dst_file, file_contents.c_str(), file_size);
+    RecordFileWriteStat(wrote);
     if (wrote == -1) {
       SB_LOG(WARNING) << "SbFileWriteAll failed for file=" << path_to_dst_file;
       return false;
