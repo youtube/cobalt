@@ -15,8 +15,10 @@
 #include "cobalt/renderer/test/png_utils/png_encode.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
+#include "base/files/file_starboard.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
@@ -58,6 +60,7 @@ void EncodeRGBAToPNG(const base::FilePath& png_file_path,
   DCHECK_NE(file, kSbFileInvalid);
   int bytes_written =
       SbFileWrite(file, reinterpret_cast<char*>(buffer.get()), size);
+  base::RecordFileWriteStat(bytes_written);
   SbFileClose(file);
   DLOG_IF(ERROR, bytes_written != size) << "Error writing PNG to file.";
 }

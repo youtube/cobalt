@@ -19,12 +19,13 @@
 #include <vector>
 
 #include "base/base64.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/hash.h"
 #include "base/optional.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/get_application_key.h"
-#include "starboard/common/file.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
@@ -85,13 +86,8 @@ bool SplashScreenCache::CacheSplashScreen(
   if (!CreateDirsForKey(key.value())) {
     return false;
   }
-  std::string full_path =
-      std::string(path.data()) + kSbFileSepString + key.value();
-  starboard::ScopedFile cache_file(
-      full_path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
-
-  return cache_file.WriteAll(content.c_str(),
-                             static_cast<int>(content.size())) > 0;
+  base::FilePath file_path = base::FilePath(path.data()).Append(key.value());
+  return base::WriteFile(file_path, content.c_str(), content.size()) > 0;
 }
 
 bool SplashScreenCache::IsSplashScreenCached() const {
@@ -120,18 +116,18 @@ int SplashScreenCache::ReadCachedSplashScreen(
     result->reset();
     return 0;
   }
-  std::string full_path = std::string(path.data()) + kSbFileSepString + key;
-  starboard::ScopedFile cache_file(full_path.c_str(),
-                                   kSbFileOpenOnly | kSbFileRead, NULL, NULL);
-  SbFileInfo info;
-  bool success = SbFileGetPathInfo(full_path.c_str(), &info);
-  if (!success) {
+  base::FilePath file_path = base::FilePath(path.data()).Append(key);
+  int64_t file_size;
+  if (!base::GetFileSize(file_path, &file_size)) {
     result->reset();
     return 0;
   }
-  const int kFileSize = static_cast<int>(info.size);
-  result->reset(new char[kFileSize]);
-  int result_size = cache_file.ReadAll(result->get(), kFileSize);
+  result->reset(new char[file_size]);
+  int result_size = base::ReadFile(file_path, result->get(), file_size);
+  if (result_size <= 0) {
+    result->reset();
+    return 0;
+  }
   last_page_hash_ = base::Hash(result->get(), result_size);
   return result_size;
 }

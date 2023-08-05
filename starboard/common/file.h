@@ -24,6 +24,8 @@
 
 namespace starboard {
 
+void RecordFileWriteStat(int write_file_result);
+
 // Deletes the file, symlink or directory at |path|. When |path| is a directory,
 // the function will recursively delete the entire tree; however, when
 // |preserve_root| is |true| the root directory is not removed. On some
@@ -75,11 +77,15 @@ class ScopedFile {
   }
 
   int Write(const char* data, int size) const {
-    return SbFileWrite(file_, data, size);
+    int result = SbFileWrite(file_, data, size);
+    RecordFileWriteStat(result);
+    return result;
   }
 
   int WriteAll(const char* data, int size) const {
-    return SbFileWriteAll(file_, data, size);
+    int result = SbFileWriteAll(file_, data, size);
+    RecordFileWriteStat(result);
+    return result;
   }
 
   bool Truncate(int64_t length) const { return SbFileTruncate(file_, length); }
