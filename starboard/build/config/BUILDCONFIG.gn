@@ -99,7 +99,13 @@ if (target_cpu == "x86" || target_cpu == "arm") {
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
 
 if (build_with_separate_cobalt_toolchain) {
-  cobalt_toolchain = "//starboard/build/toolchain:clang"
+  # TODO(b/294450490): decide a way to set cobalt_toolchain for modular builds for all platforms.
+  # we'll need more conditionals for other platforms.
+  if (host_os == "win") {
+    cobalt_toolchain = "//$starboard_path/toolchain:cobalt"
+  } else {
+    cobalt_toolchain = "//starboard/build/toolchain:clang"
+  }
   starboard_toolchain = "//$starboard_path/toolchain:starboard"
 } else {
   cobalt_toolchain = "//$starboard_path/toolchain:target"
