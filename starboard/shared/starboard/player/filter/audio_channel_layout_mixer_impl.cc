@@ -388,12 +388,13 @@ AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
 }  // namespace
 
 // static
-scoped_ptr<AudioChannelLayoutMixer> AudioChannelLayoutMixer::Create(
+std::unique_ptr<AudioChannelLayoutMixer> AudioChannelLayoutMixer::Create(
     SbMediaAudioSampleType sample_type,
     SbMediaAudioFrameStorageType storage_type,
     int output_channels) {
-  return scoped_ptr<AudioChannelLayoutMixer>(new AudioChannelLayoutMixerImpl(
-      sample_type, storage_type, output_channels));
+  return std::unique_ptr<AudioChannelLayoutMixer>(
+      new AudioChannelLayoutMixerImpl(sample_type, storage_type,
+                                      output_channels));
 }
 
 }  // namespace filter

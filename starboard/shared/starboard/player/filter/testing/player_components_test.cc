@@ -19,7 +19,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -82,7 +81,7 @@ class PlayerComponentsTest
           video_filename_.c_str(), VideoDmpReader::kEnableReadOnDemand));
     }
 
-    scoped_ptr<PlayerComponents::Factory> factory =
+    std::unique_ptr<PlayerComponents::Factory> factory =
         PlayerComponents::Factory::Create();
     string error_message;
     if (audio_reader_ && video_reader_) {
@@ -473,9 +472,9 @@ class PlayerComponentsTest
   const SbPlayerOutputMode output_mode_;
   JobQueue job_queue_;
   FakeGraphicsContextProvider fake_graphics_context_provider_;
-  unique_ptr<VideoDmpReader> audio_reader_;
-  unique_ptr<VideoDmpReader> video_reader_;
-  scoped_ptr<PlayerComponents> player_components_;
+  std::unique_ptr<VideoDmpReader> audio_reader_;
+  std::unique_ptr<VideoDmpReader> video_reader_;
+  std::unique_ptr<PlayerComponents> player_components_;
   double playback_rate_ = 1.0;
   int audio_index_ = 0;
   int video_index_ = 0;

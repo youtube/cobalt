@@ -15,6 +15,7 @@
 #include "starboard/shared/win32/video_decoder.h"
 
 #include <functional>
+#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
@@ -94,22 +95,23 @@ DEFINE_GUID(DXVA_ModeVP9_VLD_10bit_Profile2,
             0x5f,
             0xf7);
 
-scoped_ptr<MediaTransform> CreateVideoTransform(
+std::unique_ptr<MediaTransform> CreateVideoTransform(
     const GUID& decoder_guid,
     const GUID& input_guid,
     const GUID& output_guid,
     const IMFDXGIDeviceManager* device_manager) {
-  scoped_ptr<MediaTransform> media_transform(new MediaTransform(decoder_guid));
+  std::unique_ptr<MediaTransform> media_transform(
+      new MediaTransform(decoder_guid));
   if (!media_transform->HasValidTransform()) {
     // Decoder Transform setup failed
-    return scoped_ptr<MediaTransform>().Pass();
+    return std::unique_ptr<MediaTransform>();
   }
   media_transform->EnableInputThrottle(true);
 
   ComPtr<IMFAttributes> attributes = media_transform->GetAttributes();
   if (!attributes) {
     // Decoder Transform setup failed
-    return scoped_ptr<MediaTransform>().Pass();
+    return std::unique_ptr<MediaTransform>();
   }
 
   UINT32 is_d3d_aware_attribute = false;
@@ -124,7 +126,7 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
       hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_H264, FALSE);
       if (FAILED(hr)) {
         SB_LOG(WARNING) << "Unable to disable DXVA.";
-        return scoped_ptr<MediaTransform>().Pass();
+        return std::unique_ptr<MediaTransform>();
       }
     } else {
       hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_H264, TRUE);
@@ -139,12 +141,12 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
   // Tell the decoder to allocate resources for the maximum resolution in
   // order to minimize glitching on resolution changes.
   if (FAILED(attributes->SetUINT32(MF_MT_DECODER_USE_MAX_RESOLUTION, 1))) {
-    return scoped_ptr<MediaTransform>().Pass();
+    return std::unique_ptr<MediaTransform>();
   }
 
   ComPtr<IMFMediaType> input_type;
   if (FAILED(MFCreateMediaType(&input_type)) || !input_type) {
-    return scoped_ptr<MediaTransform>().Pass();
+    return std::unique_ptr<MediaTransform>();
   }
   CheckResult(input_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video));
   CheckResult(input_type->SetGUID(MF_MT_SUBTYPE, input_guid));
@@ -162,7 +164,7 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
 
   media_transform->SetOutputTypeBySubType(output_guid);
 
-  return media_transform.Pass();
+  return media_transform;
 }
 
 class VideoFrameImpl : public VideoFrame {
@@ -418,7 +420,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 }
 
 void VideoDecoder::InitializeCodec() {
-  scoped_ptr<MediaTransform> media_transform;
+  std::unique_ptr<MediaTransform> media_transform;
 
   // If this is updated then media_is_video_supported.cc also needs to be
   // updated.
@@ -464,7 +466,7 @@ void VideoDecoder::InitializeCodec() {
   }
 
   decoder_.reset(
-      new DecryptingDecoder("video", media_transform.Pass(), drm_system_));
+      new DecryptingDecoder("video", std::move(media_transform), drm_system_));
   MediaTransform* transform = decoder_->GetDecoder();
 
   DWORD input_stream_count = 0;

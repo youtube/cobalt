@@ -61,7 +61,7 @@ struct ThreadParam {
 PlayerWorker* PlayerWorker::CreateInstance(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
-    scoped_ptr<Handler> handler,
+    std::unique_ptr<Handler> handler,
     UpdateMediaInfoCB update_media_info_cb,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -69,7 +69,7 @@ PlayerWorker* PlayerWorker::CreateInstance(
     SbPlayer player,
     void* context) {
   PlayerWorker* ret =
-      new PlayerWorker(audio_codec, video_codec, handler.Pass(),
+      new PlayerWorker(audio_codec, video_codec, std::move(handler),
                        update_media_info_cb, decoder_status_func,
                        player_status_func, player_error_func, player, context);
 
@@ -96,7 +96,7 @@ PlayerWorker::~PlayerWorker() {
 
 PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec,
-                           scoped_ptr<Handler> handler,
+                           std::unique_ptr<Handler> handler,
                            UpdateMediaInfoCB update_media_info_cb,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
@@ -106,7 +106,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
     : thread_(kSbThreadInvalid),
       audio_codec_(audio_codec),
       video_codec_(video_codec),
-      handler_(handler.Pass()),
+      handler_(std::move(handler)),
       update_media_info_cb_(update_media_info_cb),
       decoder_status_func_(decoder_status_func),
       player_status_func_(player_status_func),

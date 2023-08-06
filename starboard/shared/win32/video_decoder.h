@@ -24,7 +24,6 @@
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -132,7 +131,7 @@ class VideoDecoder
   ComPtr<ID3D11VideoProcessorEnumerator> video_enumerator_;
   ComPtr<ID3D11VideoProcessor> video_processor_;
 
-  scoped_ptr<DecryptingDecoder> decoder_;
+  std::unique_ptr<DecryptingDecoder> decoder_;
   RECT video_area_;
 
   SbThread decoder_thread_ = kSbThreadInvalid;

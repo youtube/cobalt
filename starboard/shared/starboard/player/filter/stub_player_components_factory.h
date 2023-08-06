@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_FACTORY_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_FACTORY_H_
 
+#include <memory>
 #include <string>
 
 #include "starboard/common/log.h"
@@ -28,14 +29,14 @@ namespace filter {
 
 class StubPlayerComponentsFactory : public PlayerComponents::Factory {
  public:
-  static scoped_ptr<PlayerComponents::Factory> Create();
+  static std::unique_ptr<PlayerComponents::Factory> Create();
 
   bool CreateSubComponents(
       const CreationParameters& creation_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      std::unique_ptr<AudioDecoder>* audio_decoder,
+      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
+      std::unique_ptr<VideoDecoder>* video_decoder,
+      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);

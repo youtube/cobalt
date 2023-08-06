@@ -15,10 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CPU_VIDEO_FRAME_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CPU_VIDEO_FRAME_H_
 
+#include <memory>
 #include <vector>
 
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -84,7 +84,7 @@ class CpuVideoFrame : public VideoFrame {
 
   // The following two variables are valid when the frame contains pixel data.
   std::vector<Plane> planes_;
-  scoped_array<uint8_t> pixel_buffer_;
+  std::unique_ptr<uint8_t[]> pixel_buffer_;
 };
 
 }  // namespace filter

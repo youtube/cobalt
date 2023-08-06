@@ -205,11 +205,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
     }
   }
 
-  starboard::scoped_ptr<PlayerWorker::Handler> handler(
+  std::unique_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context, handler.Pass());
+      player_status_func, player_error_func, context, std::move(handler));
 
   if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
     // TODO: accomplish this through more direct means.
