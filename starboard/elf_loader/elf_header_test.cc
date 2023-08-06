@@ -16,7 +16,6 @@
 
 #include <string>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/elf_loader/file.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -79,9 +78,9 @@ class ElfHeaderTest : public ::testing::Test {
   }
   ~ElfHeaderTest() {}
 
-  scoped_ptr<ElfHeader> elf_header_;
+  std::unique_ptr<ElfHeader> elf_header_;
   Ehdr ehdr_data_;
-  scoped_ptr<DummyFile> dummy_file_;
+  std::unique_ptr<DummyFile> dummy_file_;
 };
 
 TEST_F(ElfHeaderTest, Initialize) {

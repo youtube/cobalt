@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/loader_app/memory_tracker_thread.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace loader_app {

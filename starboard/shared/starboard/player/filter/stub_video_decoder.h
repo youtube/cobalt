@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_VIDEO_DECODER_H_
 
+#include <memory>
 #include <set>
 
 #include "starboard/shared/internal_only.h"
@@ -55,7 +56,7 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   DecoderStatusCB decoder_status_cb_;
   media::VideoStreamInfo video_stream_info_;
 
-  scoped_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
   // std::set<> keeps frame timestamps sorted in ascending order.
   std::set<SbTime> output_frame_timestamps_;
   // Used to determine when to send kBufferFull in DecodeOneBuffer().

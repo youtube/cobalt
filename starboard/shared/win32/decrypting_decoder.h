@@ -21,11 +21,11 @@
 #include <mfidl.h>
 #include <wrl\client.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/win32/drm_system_playready.h"
@@ -43,7 +43,7 @@ namespace win32 {
 class DecryptingDecoder {
  public:
   DecryptingDecoder(const std::string& type,
-                    scoped_ptr<MediaTransform> decoder,
+                    std::unique_ptr<MediaTransform> decoder,
                     SbDrmSystem drm_system);
   ~DecryptingDecoder();
 
@@ -70,8 +70,8 @@ class DecryptingDecoder {
   const std::string type_;  // For debugging purpose.
   DrmSystemPlayready* drm_system_;
 
-  scoped_ptr<MediaTransform> decryptor_;
-  scoped_ptr<MediaTransform> decoder_;
+  std::unique_ptr<MediaTransform> decryptor_;
+  std::unique_ptr<MediaTransform> decoder_;
 
   scoped_refptr<InputBuffer> last_input_buffer_;
   ComPtr<IMFSample> last_input_sample_;

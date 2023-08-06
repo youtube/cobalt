@@ -15,8 +15,6 @@
 #ifndef STARBOARD_ELF_LOADER_ELF_LOADER_SYS_IMPL_H_
 #define STARBOARD_ELF_LOADER_ELF_LOADER_SYS_IMPL_H_
 
-#include "starboard/common/scoped_ptr.h"
-
 namespace starboard {
 namespace elf_loader {
 

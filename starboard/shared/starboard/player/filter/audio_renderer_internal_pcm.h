@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -67,8 +67,8 @@ class AudioRendererPcm : public AudioRenderer,
   //    longer accept more data.
   // |min_frames_per_append| is the min number of frames that the audio renderer
   // tries to append to the sink buffer at once.
-  AudioRendererPcm(scoped_ptr<AudioDecoder> decoder,
-                   scoped_ptr<AudioRendererSink> audio_renderer_sink,
+  AudioRendererPcm(std::unique_ptr<AudioDecoder> decoder,
+                   std::unique_ptr<AudioRendererSink> audio_renderer_sink,
                    const media::AudioStreamInfo& audio_stream_info,
                    int max_cached_frames,
                    int min_frames_per_append);
@@ -129,7 +129,7 @@ class AudioRendererPcm : public AudioRenderer,
   int64_t total_frames_consumed_by_sink_ = 0;
   int32_t frames_consumed_by_sink_since_last_get_current_time_;
 
-  scoped_ptr<AudioDecoder> decoder_;
+  std::unique_ptr<AudioDecoder> decoder_;
 
   int64_t frames_consumed_set_at_;
   double playback_rate_ = 1.0;
@@ -161,7 +161,7 @@ class AudioRendererPcm : public AudioRenderer,
   const SbMediaAudioSampleType sink_sample_type_;
   const int bytes_per_frame_;
 
-  scoped_ptr<AudioResampler> resampler_;
+  std::unique_ptr<AudioResampler> resampler_;
   optional<int> decoder_sample_rate_;
   AudioTimeStretcher time_stretcher_;
 
@@ -181,7 +181,7 @@ class AudioRendererPcm : public AudioRenderer,
   // and can thus avoid doing a full reset.
   bool first_input_written_ = false;
 
-  scoped_ptr<AudioRendererSink> audio_renderer_sink_;
+  std::unique_ptr<AudioRendererSink> audio_renderer_sink_;
   bool is_eos_reached_on_sink_thread_ = false;
   bool is_playing_on_sink_thread_ = false;
   int64_t frames_in_buffer_on_sink_thread_ = 0;

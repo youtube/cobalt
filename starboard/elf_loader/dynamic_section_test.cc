@@ -14,7 +14,6 @@
 
 #include "starboard/elf_loader/dynamic_section.h"
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

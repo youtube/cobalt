@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <deque>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -204,7 +205,7 @@ class MediaDecoder
 
   // Working thread to avoid lengthy decoding work block the player thread.
   SbThread decoder_thread_ = kSbThreadInvalid;
-  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
+  std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
 }  // namespace shared

@@ -29,7 +29,6 @@
 #include <iomanip>
 
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
@@ -1163,7 +1162,7 @@ shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
     paste_buffer_pending_characters_.pop();
   }
 
-  scoped_ptr<SbInputData> data(new SbInputData());
+  std::unique_ptr<SbInputData> data(new SbInputData());
   memset(data.get(), 0, sizeof(*data));
   data->window = windows_[0];
   SB_DCHECK(SbWindowIsValid(data->window));
@@ -1240,7 +1239,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
         return NULL;
       }
 
-      scoped_ptr<SbInputData> data(new SbInputData());
+      std::unique_ptr<SbInputData> data(new SbInputData());
       memset(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_key_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
@@ -1265,7 +1264,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
         // unpress events from the wheel are discarded.
         return NULL;
       }
-      scoped_ptr<SbInputData> data(new SbInputData());
+      std::unique_ptr<SbInputData> data(new SbInputData());
       memset(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_button_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
@@ -1290,7 +1289,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     }
     case MotionNotify: {
       XMotionEvent* x_motion_event = reinterpret_cast<XMotionEvent*>(x_event);
-      scoped_ptr<SbInputData> data(new SbInputData());
+      std::unique_ptr<SbInputData> data(new SbInputData());
       memset(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
@@ -1323,7 +1322,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     case ConfigureNotify: {
       XConfigureEvent* x_configure_event =
           reinterpret_cast<XConfigureEvent*>(x_event);
-      scoped_ptr<SbEventWindowSizeChangedData> data(
+      std::unique_ptr<SbEventWindowSizeChangedData> data(
           new SbEventWindowSizeChangedData());
       data->window = FindWindow(x_configure_event->window);
       bool unhandled_resize = data->window->unhandled_resize;

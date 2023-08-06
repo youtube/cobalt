@@ -75,7 +75,7 @@ class VideoDecoder
   ~VideoDecoder() override;
 
   scoped_refptr<VideoRendererSink> GetSink();
-  scoped_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();
+  std::unique_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
@@ -157,8 +157,8 @@ class VideoDecoder
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
-  scoped_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
-  scoped_ptr<VideoFrameTracker> video_frame_tracker_;
+  std::unique_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
+  std::unique_ptr<VideoFrameTracker> video_frame_tracker_;
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   atomic_bool tunnel_mode_prerolling_{true};
   atomic_bool tunnel_mode_frame_rendered_;
@@ -185,7 +185,7 @@ class VideoDecoder
   // The last enqueued |SbMediaColorMetadata|.
   optional<SbMediaColorMetadata> color_metadata_;
 
-  scoped_ptr<MediaDecoder> media_decoder_;
+  std::unique_ptr<MediaDecoder> media_decoder_;
 
   atomic_int32_t number_of_frames_being_decoded_;
   scoped_refptr<Sink> sink_;

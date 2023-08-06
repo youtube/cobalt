@@ -14,7 +14,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/gles.h"
 #include "starboard/media.h"
@@ -54,10 +53,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
   bool CreateSubComponents(
       const CreationParameters& creation_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      std::unique_ptr<AudioDecoder>* audio_decoder,
+      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
+      std::unique_ptr<VideoDecoder>* video_decoder,
+      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
@@ -74,26 +73,27 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                                 SbDrmSystem drm_system) {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
+          std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
               new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl.PassAs<AudioDecoder>();
+            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac &&
                    audio_stream_info.number_of_channels <=
                        FdkAacAudioDecoder::kMaxChannels &&
                    libfdkaac::LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
-          return scoped_ptr<AudioDecoder>(new FdkAacAudioDecoder());
+          return std::unique_ptr<AudioDecoder>(new FdkAacAudioDecoder());
         } else {
-          scoped_ptr<FfmpegAudioDecoder> audio_decoder_impl(
+          std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
               FfmpegAudioDecoder::Create(audio_stream_info));
           if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
-            return audio_decoder_impl.PassAs<AudioDecoder>();
+            // return audio_decoder_impl.PassAs<AudioDecoder>();
+            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
           }
         }
-        return scoped_ptr<AudioDecoder>();
+        return std::unique_ptr<AudioDecoder>();
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
@@ -144,7 +144,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider()));
       } else {
-        scoped_ptr<FfmpegVideoDecoderImpl> ffmpeg_video_decoder(
+        std::unique_ptr<FfmpegVideoDecoderImpl> ffmpeg_video_decoder(
             FfmpegVideoDecoderImpl::Create(
                 creation_parameters.video_codec(),
                 creation_parameters.output_mode(),
@@ -181,9 +181,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 }  // namespace
 
 // static
-scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return make_scoped_ptr<PlayerComponents::Factory>(
-      new PlayerComponentsFactory);
+std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return std::unique_ptr<PlayerComponents::Factory>(
+      new PlayerComponentsFactory());
 }
 
 // static

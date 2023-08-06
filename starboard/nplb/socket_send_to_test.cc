@@ -123,7 +123,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketUntilBlocking) {
   // 1GB limit for sending data.
   static const uint64_t kMaxTransferLimit = 1024 * 1024 * 1024;
 
-  scoped_ptr<ConnectedTrioWrapped> trio =
+  std::unique_ptr<ConnectedTrioWrapped> trio =
       CreateAndConnectWrapped(GetServerAddressType(), GetClientAddressType(),
                               GetPortNumberForTests(), kSocketTimeout);
   ASSERT_TRUE(trio);
@@ -155,7 +155,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketUntilBlocking) {
 TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
   static const int kChunkSize = 1024;
 
-  scoped_ptr<ConnectedTrioWrapped> trio =
+  std::unique_ptr<ConnectedTrioWrapped> trio =
       CreateAndConnectWrapped(GetServerAddressType(), GetClientAddressType(),
                               GetPortNumberForTests(), kSocketTimeout);
   ASSERT_TRUE(trio);

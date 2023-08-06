@@ -28,7 +28,6 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -178,7 +177,8 @@ class GpuVideoDecoderBase
   void* egl_display_ = nullptr;
   DecodeTargetContextRunner decode_target_context_runner_;
 
-  scoped_ptr<starboard::shared::starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<starboard::shared::starboard::player::JobThread>
+      decoder_thread_;
 
   // |pending_inputs_| is shared between player main thread and decoder thread.
   Mutex pending_inputs_mutex_;

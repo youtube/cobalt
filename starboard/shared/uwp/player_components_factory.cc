@@ -21,7 +21,6 @@
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/system_property.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -73,8 +72,8 @@ class PlayerComponentsPassthrough
     : public ::starboard::shared::starboard::player::filter::PlayerComponents {
  public:
   PlayerComponentsPassthrough(
-      scoped_ptr<AudioRendererPassthrough> audio_renderer,
-      scoped_ptr<VideoRenderer> video_renderer)
+      std::unique_ptr<AudioRendererPassthrough> audio_renderer,
+      std::unique_ptr<VideoRenderer> video_renderer)
       : audio_renderer_(audio_renderer.Pass()),
         video_renderer_(video_renderer.Pass()) {}
 
@@ -86,14 +85,14 @@ class PlayerComponentsPassthrough
   AudioRenderer* GetAudioRenderer() override { return audio_renderer_.get(); }
   VideoRenderer* GetVideoRenderer() override { return video_renderer_.get(); }
 
-  scoped_ptr<AudioRendererPassthrough> audio_renderer_;
-  scoped_ptr<VideoRenderer> video_renderer_;
+  std::unique_ptr<AudioRendererPassthrough> audio_renderer_;
+  std::unique_ptr<VideoRenderer> video_renderer_;
 };
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
   using AudioRendererPassthrough =
       ::starboard::shared::uwp::AudioRendererPassthrough;
-  scoped_ptr<PlayerComponents> CreateComponents(
+  std::unique_ptr<PlayerComponents> CreateComponents(
       const CreationParameters& creation_parameters,
       std::string* error_message) override {
     SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
@@ -109,22 +108,22 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     SB_LOG(INFO) << "Creating pass-through components.";
 
-    scoped_ptr<AudioDecoder> audio_decoder;
-    scoped_ptr<AudioRendererPassthrough> audio_renderer;
-    scoped_ptr<AudioRendererSink> audio_renderer_sink;
-    scoped_ptr<VideoDecoder> video_decoder;
-    scoped_ptr<VideoRenderAlgorithm> video_render_algorithm;
+    std::unique_ptr<AudioDecoder> audio_decoder;
+    std::unique_ptr<AudioRendererPassthrough> audio_renderer;
+    std::unique_ptr<AudioRendererSink> audio_renderer_sink;
+    std::unique_ptr<VideoDecoder> video_decoder;
+    std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
     scoped_refptr<VideoRendererSink> video_renderer_sink;
-    scoped_ptr<VideoRendererImpl> video_renderer;
+    std::unique_ptr<VideoRendererImpl> video_renderer;
 
     if (!CreateSubComponents(creation_parameters, &audio_decoder,
                              &audio_renderer_sink, &video_decoder,
                              &video_render_algorithm, &video_renderer_sink,
                              error_message)) {
-      return scoped_ptr<PlayerComponents>();
+      return std::unique_ptr<PlayerComponents>();
     }
     audio_renderer =
-        scoped_ptr<AudioRendererPassthrough>(new AudioRendererPassthrough(
+        std::unique_ptr<AudioRendererPassthrough>(new AudioRendererPassthrough(
             audio_decoder.Pass(), creation_parameters.audio_stream_info()));
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       SB_DCHECK(video_decoder);
@@ -136,16 +135,16 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           video_render_algorithm.Pass(), video_renderer_sink));
     }
 
-    return scoped_ptr<PlayerComponents>(new PlayerComponentsPassthrough(
+    return std::unique_ptr<PlayerComponents>(new PlayerComponentsPassthrough(
         audio_renderer.Pass(), video_renderer.Pass()));
   }
 
   bool CreateSubComponents(
       const CreationParameters& creation_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      std::unique_ptr<AudioDecoder>* audio_decoder,
+      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
+      std::unique_ptr<VideoDecoder>* video_decoder,
+      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
@@ -160,10 +159,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         using OpusAudioDecoder = ::starboard::shared::opus::OpusAudioDecoder;
 
         if (audio_stream_info.codec == kSbMediaAudioCodecAac) {
-          return scoped_ptr<AudioDecoder>(
+          return std::unique_ptr<AudioDecoder>(
               new AacAudioDecoder(audio_stream_info, drm_system));
         } else if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
+          std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
               new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoder>();
@@ -171,7 +170,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         } else {
           SB_NOTREACHED();
         }
-        return scoped_ptr<AudioDecoder>();
+        return std::unique_ptr<AudioDecoder>();
       };
 
       auto audio_codec = creation_parameters.audio_stream_info().codec;
@@ -286,8 +285,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 }  // namespace
 
 // static
-scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return make_scoped_ptr<PlayerComponents::Factory>(
+std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return make_std::unique_ptr<PlayerComponents::Factory>(
       new PlayerComponentsFactory);
 }
 

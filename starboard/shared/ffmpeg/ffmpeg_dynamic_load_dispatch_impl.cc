@@ -20,7 +20,6 @@
 #include <map>
 
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/once.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"

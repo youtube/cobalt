@@ -22,7 +22,6 @@
 #include <string>
 
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -95,7 +94,7 @@ class AdaptiveAudioDecoderTest
       ASSERT_GT(dmp_reader->number_of_audio_buffers(), 0);
     }
 
-    scoped_ptr<AudioRendererSink> audio_renderer_sink;
+    std::unique_ptr<AudioRendererSink> audio_renderer_sink;
     ASSERT_TRUE(CreateAudioComponents(using_stub_decoder_,
                                       dmp_readers_[0]->audio_stream_info(),
                                       &audio_decoder_, &audio_renderer_sink));
@@ -261,7 +260,7 @@ class AdaptiveAudioDecoderTest
   bool using_stub_decoder_;
 
   JobQueue job_queue_;
-  scoped_ptr<AudioDecoder> audio_decoder_;
+  std::unique_ptr<AudioDecoder> audio_decoder_;
 
   Mutex event_queue_mutex_;
   std::deque<Event> event_queue_;

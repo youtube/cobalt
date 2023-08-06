@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 
 #include "starboard/audio_sink.h"
@@ -215,10 +217,11 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
   return test_params;
 }
 
-bool CreateAudioComponents(bool using_stub_decoder,
-                           const media::AudioStreamInfo& audio_stream_info,
-                           scoped_ptr<AudioDecoder>* audio_decoder,
-                           scoped_ptr<AudioRendererSink>* audio_renderer_sink) {
+bool CreateAudioComponents(
+    bool using_stub_decoder,
+    const media::AudioStreamInfo& audio_stream_info,
+    std::unique_ptr<AudioDecoder>* audio_decoder,
+    std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
   SB_CHECK(audio_decoder);
   SB_CHECK(audio_renderer_sink);
 
@@ -228,7 +231,7 @@ bool CreateAudioComponents(bool using_stub_decoder,
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info);
 
-  scoped_ptr<PlayerComponents::Factory> factory;
+  std::unique_ptr<PlayerComponents::Factory> factory;
   if (using_stub_decoder) {
     factory = StubPlayerComponentsFactory::Create();
   } else {

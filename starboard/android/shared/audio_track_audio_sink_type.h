@@ -28,7 +28,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
