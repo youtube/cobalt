@@ -19,6 +19,7 @@
 #include <queue>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -35,7 +36,7 @@ namespace filter {
 
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  typedef std::function<std::unique_ptr<filter::AudioDecoder>(
+  typedef std::function<scoped_ptr<filter::AudioDecoder>(
       const media::AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system)>
       AudioDecoderCreator;
@@ -78,9 +79,9 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   OutputCB output_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;
 
-  std::unique_ptr<filter::AudioDecoder> audio_decoder_;
-  std::unique_ptr<filter::AudioResampler> resampler_;
-  std::unique_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
+  scoped_ptr<filter::AudioDecoder> audio_decoder_;
+  scoped_ptr<filter::AudioResampler> resampler_;
+  scoped_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
   InputBuffers pending_input_buffers_;
   ConsumedCB pending_consumed_cb_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;

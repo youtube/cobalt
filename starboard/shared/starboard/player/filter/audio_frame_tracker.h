@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/thread_checker.h"

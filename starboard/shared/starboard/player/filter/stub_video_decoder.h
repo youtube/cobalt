@@ -17,7 +17,6 @@
 
 #include <set>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"

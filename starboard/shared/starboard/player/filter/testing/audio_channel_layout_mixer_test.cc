@@ -20,6 +20,7 @@
 #include <string>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -175,7 +176,7 @@ std::string GetAudioChannelLayoutMixerTestConfigName(
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToMono) {
-  std::unique_ptr<AudioChannelLayoutMixer> mixer =
+  scoped_ptr<AudioChannelLayoutMixer> mixer =
       AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 1);
   ASSERT_TRUE(mixer);
 
@@ -214,7 +215,7 @@ TEST_P(AudioChannelLayoutMixerTest, MixToMono) {
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToStereo) {
-  std::unique_ptr<AudioChannelLayoutMixer> mixer =
+  scoped_ptr<AudioChannelLayoutMixer> mixer =
       AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 2);
   ASSERT_TRUE(mixer);
 
@@ -253,7 +254,7 @@ TEST_P(AudioChannelLayoutMixerTest, MixToStereo) {
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToQuad) {
-  std::unique_ptr<AudioChannelLayoutMixer> mixer =
+  scoped_ptr<AudioChannelLayoutMixer> mixer =
       AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 4);
   ASSERT_TRUE(mixer);
 
@@ -297,7 +298,7 @@ TEST_P(AudioChannelLayoutMixerTest, MixToQuad) {
 }
 
 TEST_P(AudioChannelLayoutMixerTest, MixToFivePointOne) {
-  std::unique_ptr<AudioChannelLayoutMixer> mixer =
+  scoped_ptr<AudioChannelLayoutMixer> mixer =
       AudioChannelLayoutMixer::Create(sample_type_, storage_type_, 6);
   ASSERT_TRUE(mixer);
 

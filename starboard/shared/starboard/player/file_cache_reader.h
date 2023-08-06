@@ -15,11 +15,11 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILE_CACHE_READER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILE_CACHE_READER_H_
 
-#include <memory>
 #include <string>
 #include <vector>
 
 #include "starboard/common/file.h"
+#include "starboard/common/scoped_ptr.h"
 
 namespace starboard {
 namespace shared {
@@ -52,7 +52,7 @@ class FileCacheReader {
   const std::string absolute_path_;
   const int default_file_cache_size_;
 
-  std::unique_ptr<ScopedFile> file_;
+  scoped_ptr<ScopedFile> file_;
 
   // Maximum size of the buffered file.
   int max_file_cache_size_ = 0;

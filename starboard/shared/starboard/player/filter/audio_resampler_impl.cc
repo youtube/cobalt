@@ -65,7 +65,7 @@ class AudioResamplerImpl : public AudioResampler {
 }  // namespace
 
 // static
-std::unique_ptr<AudioResampler> AudioResampler::Create(
+scoped_ptr<AudioResampler> AudioResampler::Create(
     SbMediaAudioSampleType source_sample_type,
     SbMediaAudioFrameStorageType source_storage_type,
     int source_sample_rate,
@@ -73,7 +73,7 @@ std::unique_ptr<AudioResampler> AudioResampler::Create(
     SbMediaAudioFrameStorageType destination_storage_type,
     int destination_sample_rate,
     int channels) {
-  return std::unique_ptr<AudioResampler>(new AudioResamplerImpl(
+  return scoped_ptr<AudioResampler>(new AudioResamplerImpl(
       source_sample_type, source_storage_type, source_sample_rate,
       destination_sample_type, destination_storage_type,
       destination_sample_rate, channels));

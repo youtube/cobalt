@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <string>
-#include <utility>
 
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -67,8 +66,8 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 }  // namespace
 
 AudioRendererPcm::AudioRendererPcm(
-    std::unique_ptr<AudioDecoder> decoder,
-    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
+    scoped_ptr<AudioDecoder> decoder,
+    scoped_ptr<AudioRendererSink> audio_renderer_sink,
     const media::AudioStreamInfo& audio_stream_info,
     int max_cached_frames,
     int min_frames_per_append)
@@ -79,10 +78,10 @@ AudioRendererPcm::AudioRendererPcm(
       bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       frames_consumed_set_at_(SbTimeGetMonotonicNow()),
-      decoder_(std::move(decoder)),
+      decoder_(decoder.Pass()),
       process_audio_data_job_(
           std::bind(&AudioRendererPcm::ProcessAudioData, this)),
-      audio_renderer_sink_(std::move(audio_renderer_sink)) {
+      audio_renderer_sink_(audio_renderer_sink.Pass()) {
   SB_DLOG(INFO) << "Creating AudioRendererPcm with " << channels_
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "

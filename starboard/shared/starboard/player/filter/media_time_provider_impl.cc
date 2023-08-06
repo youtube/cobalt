@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <utility>
-
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 
 #include "starboard/common/log.h"
@@ -25,8 +23,8 @@ namespace player {
 namespace filter {
 
 MediaTimeProviderImpl::MediaTimeProviderImpl(
-    std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider)
-    : system_time_provider_(std::move(system_time_provider)) {
+    scoped_ptr<MonotonicSystemTimeProvider> system_time_provider)
+    : system_time_provider_(system_time_provider.Pass()) {
   SB_DCHECK(system_time_provider_);
 }
 

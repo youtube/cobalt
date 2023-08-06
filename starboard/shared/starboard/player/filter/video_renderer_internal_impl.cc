@@ -16,8 +16,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <memory>
-#include <utility>
 
 namespace starboard {
 namespace shared {
@@ -34,15 +32,14 @@ const SbTime kSeekTimeoutRetryInterval = 25 * kSbTimeMillisecond;
 
 }  // namespace
 
-VideoRendererImpl::VideoRendererImpl(
-    std::unique_ptr<VideoDecoder> decoder,
-    MediaTimeProvider* media_time_provider,
-    std::unique_ptr<VideoRenderAlgorithm> algorithm,
-    scoped_refptr<VideoRendererSink> sink)
+VideoRendererImpl::VideoRendererImpl(scoped_ptr<VideoDecoder> decoder,
+                                     MediaTimeProvider* media_time_provider,
+                                     scoped_ptr<VideoRenderAlgorithm> algorithm,
+                                     scoped_refptr<VideoRendererSink> sink)
     : media_time_provider_(media_time_provider),
-      algorithm_(std::move(algorithm)),
+      algorithm_(algorithm.Pass()),
       sink_(sink),
-      decoder_(std::move(decoder)),
+      decoder_(decoder.Pass()),
       end_of_stream_written_(false),
       ended_cb_called_(false),
       need_more_input_(true),

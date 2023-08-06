@@ -25,6 +25,7 @@
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
@@ -88,7 +89,7 @@ void VideoDecoderTestFixture::Initialize() {
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
       fake_graphics_context_provider_->decoder_target_provider(), nullptr);
 
-  std::unique_ptr<PlayerComponents::Factory> factory;
+  scoped_ptr<PlayerComponents::Factory> factory;
   if (using_stub_decoder_) {
     factory = StubPlayerComponentsFactory::Create();
   } else {

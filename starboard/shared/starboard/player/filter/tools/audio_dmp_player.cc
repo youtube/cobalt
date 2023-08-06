@@ -15,6 +15,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/event.h"
 #include "starboard/player.h"
@@ -27,13 +28,13 @@
 
 namespace {
 
+using starboard::scoped_ptr;
 using starboard::shared::starboard::player::InputBuffer;
 using starboard::shared::starboard::player::InputBuffers;
 using starboard::shared::starboard::player::JobThread;
 using starboard::shared::starboard::player::filter::AudioRenderer;
 using starboard::shared::starboard::player::filter::PlayerComponents;
 using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
-using std::unique_ptr;
 
 #ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kJobThreadStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
@@ -41,10 +42,10 @@ const int kJobThreadStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
 const int kJobThreadStackSize = 0;
 #endif  // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 
-std::unique_ptr<VideoDmpReader> s_video_dmp_reader;
-std::unique_ptr<PlayerComponents> s_player_components;
+scoped_ptr<VideoDmpReader> s_video_dmp_reader;
+scoped_ptr<PlayerComponents> s_player_components;
 int s_audio_sample_index;
-std::unique_ptr<JobThread> s_job_thread;
+scoped_ptr<JobThread> s_job_thread;
 SbTime s_duration;
 
 static void DeallocateSampleFunc(SbPlayer player,
@@ -100,7 +101,7 @@ void EndedCB() {
 void Start(const char* filename) {
   SB_LOG(INFO) << "Loading " << filename;
   s_video_dmp_reader.reset(new VideoDmpReader(filename));
-  std::unique_ptr<PlayerComponents::Factory> factory =
+  scoped_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
   PlayerComponents::Factory::CreationParameters creation_parameters(
       s_video_dmp_reader->audio_stream_info());

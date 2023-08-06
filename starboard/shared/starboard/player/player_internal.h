@@ -15,10 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
 
-#include <memory>
 #include <utility>
 #include <vector>
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/decode_target.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
@@ -46,7 +46,7 @@ struct SbPlayerPrivate {
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
       void* context,
-      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
+      starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
   void Seek(SbTime seek_to_time, int ticket);
   template <typename PlayerSampleInfo>
@@ -76,14 +76,15 @@ struct SbPlayerPrivate {
   }
 
  private:
-  SbPlayerPrivate(SbMediaAudioCodec audio_codec,
-                  SbMediaVideoCodec video_codec,
-                  SbPlayerDeallocateSampleFunc sample_deallocate_func,
-                  SbPlayerDecoderStatusFunc decoder_status_func,
-                  SbPlayerStatusFunc player_status_func,
-                  SbPlayerErrorFunc player_error_func,
-                  void* context,
-                  std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
+  SbPlayerPrivate(
+      SbMediaAudioCodec audio_codec,
+      SbMediaVideoCodec video_codec,
+      SbPlayerDeallocateSampleFunc sample_deallocate_func,
+      SbPlayerDecoderStatusFunc decoder_status_func,
+      SbPlayerStatusFunc player_status_func,
+      SbPlayerErrorFunc player_error_func,
+      void* context,
+      starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
   SbPlayerPrivate(const SbPlayerPrivate&) = delete;
   SbPlayerPrivate& operator=(const SbPlayerPrivate&) = delete;
@@ -111,7 +112,7 @@ struct SbPlayerPrivate {
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;
 
-  std::unique_ptr<PlayerWorker> worker_;
+  starboard::scoped_ptr<PlayerWorker> worker_;
 
   starboard::Mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;

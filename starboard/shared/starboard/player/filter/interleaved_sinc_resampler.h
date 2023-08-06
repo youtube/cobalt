@@ -21,12 +21,10 @@
 
 #include <math.h>
 
-#include <cstring>
-#include <memory>
 #include <queue>
-#include <utility>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -74,8 +72,8 @@ class InterleavedSincResampler {
       data_.reset(new float[frames * channel_count]);
       memcpy(data_.get(), data, frames * channel_count * sizeof(float));
     }
-    Buffer(std::unique_ptr<float[]> data, int frames)
-        : data_(std::move(data)), frames_(frames) {}
+    Buffer(scoped_array<float> data, int frames)
+        : data_(data.Pass()), frames_(frames) {}
 
     const float* GetData() const { return data_.get(); }
 
@@ -85,7 +83,7 @@ class InterleavedSincResampler {
 
    private:
     friend class ::starboard::RefCountedThreadSafe<Buffer>;
-    std::unique_ptr<float[]> data_;
+    scoped_array<float> data_;
     int frames_ = 0;
 
     Buffer(const Buffer&) = delete;
