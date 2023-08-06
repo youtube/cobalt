@@ -78,7 +78,7 @@ void WaitUntilReadableOrConnectionReset(SbSocket sock) {
 }
 
 std::unique_ptr<Socket> WaitForClientConnection(Socket* listen_sock,
-                                           SbTime timeout) {
+                                                SbTime timeout) {
   SbTimeMonotonic expire_time = (timeout >= 0) && (timeout < kSbTimeMax)
                                     ? SbTimeGetMonotonicNow() + timeout
                                     : kSbTimeMax;
