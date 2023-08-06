@@ -100,6 +100,20 @@ static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 // --- Standard Type Audits ----------------------------------------------------
 
 #if SB_IS(WCHAR_T_UTF16)
+// For windows based platform modular builds compiling c files, size of wchar_t is 4 bytes.
+// wchar_t is defined as an int in third_party/musl/arch/x86_64/bits/alltypes.h.
+// To avoid the above scenario, we set wchar_t as unsigned short and assert it's 2 bytes.
+#ifndef __cplusplus
+#pragma message "yaaaaaay"
+#if defined(__NEED_wchar_t) && !defined(__DEFINED_wchar_t)
+#if SB_IS_WCHAR_T_SIGNED
+typedef short wchar_t;
+#else // SB_IS(WCHAR_T_UNSIGNED)
+typedef unsigned short wchar_t;
+#endif // SB_IS(WCHAR_T_SIGNED)
+#define __DEFINED_wchar_t
+#endif // SB_IS(MODULAR) && defined(__NEED_wchar_t) && !defined(__DEFINED_wchar_t)
+#endif // __cplusplus
 SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
                   SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
 #endif

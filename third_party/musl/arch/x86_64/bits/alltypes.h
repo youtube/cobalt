@@ -7,7 +7,11 @@
 
 #ifndef __cplusplus
 #if defined(__NEED_wchar_t) && !defined(__DEFINED_wchar_t)
+#if defined(STARBOARD)
+#include "starboard/types.h"
+#else 
 typedef int wchar_t;
+#endif // defined(STARBOARD)
 #define __DEFINED_wchar_t
 #endif
 
