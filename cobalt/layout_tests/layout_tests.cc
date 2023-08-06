@@ -361,13 +361,11 @@ INSTANTIATE_TEST_CASE_P(
     LottiePlayerLayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("lottie-player")), GetTestName());
 
-// Disable on Windows until network stack is implemented.
-#if !defined(COBALT_WIN)
-// Content Security Policy test cases.
-INSTANTIATE_TEST_CASE_P(ContentSecurityPolicyTests, Layout,
+// Content Security Policy test cases
+// TODO(b/145689263): Move to blackbox tests to be hermetic
+INSTANTIATE_TEST_CASE_P(DISABLED_ContentSecurityPolicyTests, Layout,
                         ::testing::ValuesIn(EnumerateLayoutTests("csp")),
                         GetTestName());
-#endif  // !defined(COBALT_WIN)
 
 // Pixel-perfect tests.
 INSTANTIATE_TEST_CASE_P(
