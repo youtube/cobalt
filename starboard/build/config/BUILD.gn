@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/compiler/compiler.gni")
+import("//starboard/build/config/modular/helper_variables.gni")
 
 config("base") {
   defines = [ "USE_COBALT_CUSTOMIZATIONS" ]
@@ -92,7 +93,7 @@ config("host") {
 config("target") {
   if (current_toolchain != host_toolchain) {
     if (final_executable_type == "shared_library") {
-      if (!build_with_separate_cobalt_toolchain) {
+      if (!sb_is_modular || sb_is_evergreen) {
         # Rewrite main() functions into StarboardMain. TODO: This is a
         # hack, it would be better to be more surgical, here.
         defines = [ "main=StarboardMain" ]
@@ -229,7 +230,8 @@ config("warnings_as_errors") {
 # override flags specified in a platform's "platform_configuration" config,
 # which is where these particular flags would otherwise naturally fit.
 config("default_compiler_flags") {
-  if (is_starboardized_toolchain && sb_is_modular && target_cpu == "arm") {
+  if (is_starboardized_toolchain && sb_is_modular &&
+      current_toolchain == cobalt_toolchain && target_cpu == "arm") {
     cflags = [ "-mfpu=vfpv3" ]
     asmflags = cflags
   }

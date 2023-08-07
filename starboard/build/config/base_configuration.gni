@@ -20,7 +20,7 @@ import("//starboard/build/config/enable_vr.gni")
 # All build arguments in this file must have documentation.
 # Please follow the formatting in this file when adding new ones.
 
-if (build_with_separate_cobalt_toolchain) {
+if (is_modular_toolchain) {
   default_target_type = "shared_library"
 } else {
   default_target_type = "executable"
@@ -43,9 +43,6 @@ declare_args() {
 
   # Directory path to static contents' data.
   sb_static_contents_output_data_dir = "$root_out_dir/content/data"
-
-  # Whether this is a modular build.
-  sb_is_modular = false
 
   # Whether this is an Evergreen build.
   sb_is_evergreen = false
@@ -175,8 +172,7 @@ declare_args() {
   v8_enable_webassembly = false
 }
 
-if (current_toolchain == starboard_toolchain &&
-    build_with_separate_cobalt_toolchain) {
+if (current_toolchain == starboard_toolchain && is_modular_toolchain) {
   declare_args() {
     # Target-specific configurations for executable targets.
     executable_configs =

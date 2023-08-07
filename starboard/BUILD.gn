@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/modular/helper_variables.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 
 group("gn_all") {
@@ -57,11 +58,6 @@ group("gn_all") {
     deps += [ "//starboard/benchmark" ]
   }
 
-  if (build_with_separate_cobalt_toolchain && is_cobalt_toolchain) {
-    assert(sb_is_modular,
-           "sb_is_modular should be set when building with cobalt_toolchain")
-  }
-
   if (!sb_is_evergreen) {
     deps += [ "//third_party/lz4_lib:lz4" ]
 
@@ -89,7 +85,7 @@ group("starboard") {
     "//starboard/client_porting/eztime",
   ]
 
-  if (sb_is_modular) {
+  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
     public_deps += [
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/llvm-project/libcxx:cxx",
@@ -99,7 +95,7 @@ group("starboard") {
     if (sb_is_evergreen) {
       public_deps += [ "//starboard/elf_loader:sabi_string" ]
     }
-    if (build_with_separate_cobalt_toolchain) {
+    if (sb_is_modular && !sb_is_evergreen) {
       data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
     } else {
       public_deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
@@ -110,7 +106,7 @@ group("starboard") {
       "//starboard/common",
     ]
 
-    if (!build_with_separate_cobalt_toolchain) {
+    if (!sb_is_modular || sb_is_evergreen) {
       if (sb_is_evergreen_compatible) {
         public_deps += [ "//third_party/crashpad/wrapper" ]
       } else {
@@ -192,7 +188,7 @@ if (current_toolchain == starboard_toolchain) {
     } else {
       public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
     }
-    if (!sb_is_modular) {
+    if (!(sb_is_modular && current_toolchain == cobalt_toolchain)) {
       public_deps += [ "//$starboard_path:starboard_platform" ]
     }
   }
@@ -215,7 +211,7 @@ if (current_toolchain == starboard_toolchain) {
 
   group("starboard_with_main") {
     public_deps = [ ":starboard" ]
-    if (build_with_separate_cobalt_toolchain) {
+    if (sb_is_modular && !sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform_with_main" ]
     }
   }

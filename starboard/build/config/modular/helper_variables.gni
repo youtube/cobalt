@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,22 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/modular/helper_variables.gni")
-target(gtest_target_type, "extension_test") {
-  testonly = true
-  has_pedantic_warnings = true
-  sources = [
-    "enhanced_audio_test.cc",
-    "extension_test.cc",
-  ]
-  deps = [
-    "//cobalt/base",
-    "//cobalt/test:run_all_unittests",
-    "//starboard",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
-    deps += cobalt_platform_dependencies
-  }
-}
+sb_is_modular = sb_is_evergreen || is_modular_toolchain

@@ -5,6 +5,7 @@
 # Do not use the targets in this file unless you need a certain libjpeg
 # implementation. Use the meta target //third_party:jpeg instead.
 
+import("//starboard/build/config/modular/helper_variables.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
@@ -205,7 +206,7 @@ static_library("simd") {
     }
     configs += [ "//build/config/compiler:optimize_speed" ]
 
-    if (is_starboard && sb_is_modular && current_cpu == "arm") {
+    if (is_starboard && sb_is_modular && current_toolchain == cobalt_toolchain && current_cpu == "arm") {
       configs += [ ":simd_arm_config" ]
     }
   } else {
@@ -316,7 +317,7 @@ static_library("libjpeg") {
   # TODO(b/236258535): Enable neon instructions once the code is updated
   # to use SbCPUFeatures() at runtime.
   if ((is_msan && (current_cpu == "x86" || current_cpu == "x64")) ||
-      (is_starboard && sb_is_modular)) {
+      (is_starboard && sb_is_modular && current_toolchain == cobalt_toolchain)) {
     sources += [ "jsimd_none.c" ]
   } else {
     public_deps += [ ":simd" ]

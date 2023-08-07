@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//starboard/build/config/modular/helper_variables.gni")
+
 import("//build/config/compiler/compiler.gni")
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
@@ -25,7 +27,7 @@ if (current_cpu == "arm" || current_cpu == "arm64") {
 # TODO(b/206642994): look into whether we should condition on the
 # floating_point_fpu SABI variable, rather than sb_is_modular, here as we did
 # in third_party/zlib/zlib.gyp.
-if (is_starboard && sb_is_modular && target_cpu == "arm" &&
+if (is_starboard && sb_is_modular && current_toolchain == cobalt_toolchain && target_cpu == "arm" &&
     use_arm_neon_optimizations) {
   config("zlib_neon_fpu_config") {
     cflags = [ "-mfpu=neon" ]
@@ -80,7 +82,7 @@ source_set("zlib_adler32_simd") {
     configs += [ "//starboard/build/config:speed" ]
   }
 
-  if (is_starboard && sb_is_modular && target_cpu == "arm" &&
+  if (is_starboard && sb_is_modular && current_toolchain == cobalt_toolchain && target_cpu == "arm" &&
       use_arm_neon_optimizations) {
     configs += [ ":zlib_neon_fpu_config" ]
   }
@@ -161,7 +163,7 @@ if (use_arm_neon_optimizations) {
       deps = [ "//starboard:starboard_headers_only" ]
     }
 
-    if (is_starboard && sb_is_modular && target_cpu == "arm" &&
+    if (is_starboard && sb_is_modular && current_toolchain == cobalt_toolchain && target_cpu == "arm" &&
         use_arm_neon_optimizations) {
       configs += [ ":zlib_neon_fpu_config" ]
     }
@@ -236,7 +238,7 @@ source_set("zlib_inflate_chunk_simd") {
     configs += [ "//starboard/build/config:speed" ]
   }
 
-  if (is_starboard && sb_is_modular && target_cpu == "arm" &&
+  if (is_starboard && sb_is_modular && current_toolchain == cobalt_toolchain && target_cpu == "arm" &&
       use_arm_neon_optimizations) {
     configs += [ ":zlib_neon_fpu_config" ]
   }

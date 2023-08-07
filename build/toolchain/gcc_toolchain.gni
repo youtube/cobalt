@@ -11,6 +11,7 @@ import("//build/toolchain/cc_wrapper.gni")
 import("//build/toolchain/goma.gni")
 import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
+import("//starboard/build/config/modular/helper_variables.gni")
 
 if (is_nacl) {
   # To keep NaCl variables out of builds that don't include NaCl, all
@@ -117,7 +118,7 @@ if (enable_resource_allowlist_generation) {
 template("gcc_toolchain") {
   toolchain(target_name) {
     is_starboard_toolchain = target_name == "starboard"
-    if (!build_with_separate_cobalt_toolchain) {
+    if (!sb_is_modular || sb_is_evergreen) {
       not_needed(["is_starboard_toolchain"])
     }
     assert(defined(invoker.ar), "gcc_toolchain() must specify a \"ar\" value")
@@ -149,7 +150,6 @@ template("gcc_toolchain") {
     toolchain_args = {
       # Populate toolchain args from the invoker.
       forward_variables_from(invoker_toolchain_args, "*")
-      build_with_separate_cobalt_toolchain = build_with_separate_cobalt_toolchain
 
       # The host toolchain value computed by the default toolchain's setup
       # needs to be passed through unchanged to all secondary toolchains to

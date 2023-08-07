@@ -12,9 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/modular/helper_variables.gni")
+
 config("platform_configuration") {
+  # TODO(b/294230277): Remove evergreen configs from linux modular builds
   if (current_toolchain == default_toolchain &&
-      build_with_separate_cobalt_toolchain) {
+      (sb_is_modular && !sb_is_evergreen)) {
     configs = [ "//starboard/evergreen/x64/platform_configuration" ]
   } else {
     configs = [
@@ -28,7 +31,9 @@ config("platform_configuration") {
 
 config("libraries") {
   configs = [ "//starboard/linux/shared/platform_configuration:libraries" ]
-  if (build_with_separate_cobalt_toolchain) {
+
+  # TODO(b/294230277): Remove evergreen configs from linux modular builds
+  if (sb_is_modular && !sb_is_evergreen) {
     libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.so.6" ]
     ldflags = [ "-Wl,-rpath=" + rebase_path("//") +
                 "/third_party/libvpx/platforms/linux-x64/" ]

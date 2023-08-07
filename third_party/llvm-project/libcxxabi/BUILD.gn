@@ -90,7 +90,7 @@ static_library("cxxabi") {
   all_dependent_configs = [ ":cxxabi_dependents_config" ]
 
   deps = [ "//third_party/musl:c" ]
-  if (!build_with_separate_cobalt_toolchain) {
+  if (!sb_is_modular || sb_is_evergreen) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
   }
 }

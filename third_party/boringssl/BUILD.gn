@@ -1,5 +1,6 @@
 import("//starboard/sabi/sabi.gni")
 import("//third_party/boringssl/buildfiles.gni")
+import("//starboard/build/config/modular/helper_variables.gni")
 
 declare_args() {
   asm_target_arch = target_cpu
@@ -102,7 +103,7 @@ static_library("crypto") {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
 
-    if (sb_is_modular) {
+    if (sb_is_modular && current_toolchain == cobalt_toolchain) {
       calling_convention = sabi_variables.calling_convention
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
            calling_convention != "sysv" && calling_convention != "windows") ||

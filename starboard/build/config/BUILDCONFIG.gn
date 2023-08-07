@@ -34,7 +34,7 @@ declare_args() {
 
   using_old_compiler = false
 
-  build_with_separate_cobalt_toolchain = false
+  is_modular_toolchain = false
 }
 
 assert(!(is_starboard && is_native_target_build),
@@ -98,7 +98,7 @@ if (target_cpu == "x86" || target_cpu == "arm") {
 }
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
 
-if (build_with_separate_cobalt_toolchain) {
+if (is_modular_toolchain) {
   # TODO(b/294450490): decide a way to set cobalt_toolchain for modular builds for all platforms.
   # we'll need more conditionals for other platforms.
   if (host_os == "win") {
@@ -116,6 +116,7 @@ import("//starboard/build/config/toolchain_variables.gni")
 
 import("//$starboard_path/platform_configuration/configuration.gni")
 import("//starboard/build/config/build_assertions.gni")
+import("//starboard/build/config/modular/helper_variables.gni")
 
 declare_args() {
   use_tsan = getenv("USE_TSAN") == 1
@@ -123,8 +124,7 @@ declare_args() {
 
 _use_asan_default =
     (is_debug || is_devel) && (is_linux || is_mac) && is_clang &&
-    (!sb_is_evergreen || build_with_separate_cobalt_toolchain) &&
-    !using_old_compiler
+    (sb_is_modular && !sb_is_evergreen) && !using_old_compiler
 
 declare_args() {
   use_asan = (_use_asan_default || getenv("USE_ASAN") == 1) && !use_tsan
@@ -465,7 +465,7 @@ template("shared_library") {
   if (defined(invoker.build_loader) && invoker.build_loader == false) {
     build_loader = false
   } else {
-    build_loader = build_with_separate_cobalt_toolchain
+    build_loader = sb_is_modular && !sb_is_evergreen
   }
 
   if (build_loader) {
