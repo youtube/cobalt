@@ -271,12 +271,7 @@ public class AudioTrackBridge {
       return writeWithAvSync(audioData, sizeInBytes, presentationTimeInMicroseconds);
     }
 
-    if (Build.VERSION.SDK_INT >= 23) {
-      return audioTrack.write(audioData, 0, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
-    } else {
-      ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
-      return audioTrack.write(byteBuffer, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
-    }
+    return audioTrack.write(audioData, 0, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
   }
 
   private int writeWithAvSync(
@@ -297,7 +292,7 @@ public class AudioTrackBridge {
     // Set the following constant to |false| to test manual sync header writing in API level 23 or
     // later.  Note that the code to write sync header manually only supports v1 sync header.
     final boolean useAutoSyncHeaderWrite = true;
-    if (useAutoSyncHeaderWrite && Build.VERSION.SDK_INT >= 23) {
+    if (useAutoSyncHeaderWrite) {
       ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
       return audioTrack.write(
           byteBuffer, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING, presentationTimeInNanoseconds);
@@ -392,15 +387,6 @@ public class AudioTrackBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   private int getUnderrunCount() {
-    if (Build.VERSION.SDK_INT >= 24) {
-      return getUnderrunCountV24();
-    }
-    // The function getUnderrunCount() is added in API level 24.
-    return 0;
-  }
-
-  @RequiresApi(24)
-  private int getUnderrunCountV24() {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");
       return 0;
