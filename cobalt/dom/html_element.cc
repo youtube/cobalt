@@ -63,6 +63,7 @@
 #include "cobalt/dom/text.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/resource_cache.h"
+#include "cobalt/math/clamp.h"
 #include "cobalt/web/csp_delegate.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
@@ -584,6 +585,10 @@ void HTMLElement::set_scroll_left(float x) {
   node_document()->window()->CancelScroll(ui_nav_item_);
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
+
+  float throwaway, min = x, max = x;
+  ui_nav_item_->GetBounds(&throwaway, &min, &throwaway, &max);
+  x = math::Clamp(x, min, max);
   ui_nav_item_->SetContentOffset(x, top);
 }
 
@@ -638,6 +643,10 @@ void HTMLElement::set_scroll_top(float y) {
   node_document()->window()->CancelScroll(ui_nav_item_);
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
+
+  float throwaway, min = y, max = y;
+  ui_nav_item_->GetBounds(&min, &throwaway, &max, &throwaway);
+  y = math::Clamp(y, min, max);
   ui_nav_item_->SetContentOffset(left, y);
 }
 
