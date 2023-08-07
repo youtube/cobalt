@@ -63,6 +63,7 @@
 #include "cobalt/dom/text.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/resource_cache.h"
+#include "cobalt/math/clamp.h"
 #include "cobalt/web/csp_delegate.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
@@ -584,6 +585,11 @@ void HTMLElement::set_scroll_left(float x) {
   node_document()->window()->CancelScroll(ui_nav_item_);
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
+
+  float throwaway, min = x, max = x;
+  ui_nav_item_->GetBounds(&throwaway, &min, &throwaway, &max);
+  LOG(INFO) << "min: " << min << ", max: " << max;
+  x = math::Clamp(x, min, max);
   ui_nav_item_->SetContentOffset(x, top);
 }
 
@@ -638,6 +644,10 @@ void HTMLElement::set_scroll_top(float y) {
   node_document()->window()->CancelScroll(ui_nav_item_);
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
+
+  float throwaway, min = y, max = y;
+  ui_nav_item_->GetBounds(&min, &throwaway, &max, &throwaway);
+  y = math::Clamp(y, min, max);
   ui_nav_item_->SetContentOffset(left, y);
 }
 
@@ -1481,13 +1491,22 @@ void HTMLElement::SetUiNavItemBounds() {
   if (!ui_nav_item_->IsContainer()) {
     return;
   }
+
+  DirState dir = GetUsedDirState();
+  if (dir == DirState::kDirNotDefined) {
+    Document* document = node_document();
+    if (document && document->html()) {
+      dir = document->html()->GetUsedDirState();
+    }
+  }
+
   float scrollable_width = scroll_width() - client_width();
   float scroll_top_lower_bound = 0.0f;
   float scroll_left_lower_bound =
-      GetUsedDirState() == DirState::kDirRightToLeft ? -scrollable_width : 0.0f;
+      dir == DirState::kDirRightToLeft ? -scrollable_width : 0.0f;
   float scroll_top_upper_bound = scroll_height() - client_height();
   float scroll_left_upper_bound =
-      GetUsedDirState() == DirState::kDirRightToLeft ? 0.0f : scrollable_width;
+      dir == DirState::kDirRightToLeft ? 0.0f : scrollable_width;
   ui_nav_item_->SetBounds(scroll_top_lower_bound, scroll_left_lower_bound,
                           scroll_top_upper_bound, scroll_left_upper_bound);
 }
