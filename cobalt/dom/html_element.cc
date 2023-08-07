@@ -588,6 +588,7 @@ void HTMLElement::set_scroll_left(float x) {
 
   float throwaway, min = x, max = x;
   ui_nav_item_->GetBounds(&throwaway, &min, &throwaway, &max);
+  LOG(INFO) << "min: " << min << ", max: " << max;
   x = math::Clamp(x, min, max);
   ui_nav_item_->SetContentOffset(x, top);
 }
@@ -1490,13 +1491,22 @@ void HTMLElement::SetUiNavItemBounds() {
   if (!ui_nav_item_->IsContainer()) {
     return;
   }
+
+  DirState dir = GetUsedDirState();
+  if (dir == DirState::kDirNotDefined) {
+    Document* document = node_document();
+    if (document && document->html()) {
+      dir = document->html()->GetUsedDirState();
+    }
+  }
+
   float scrollable_width = scroll_width() - client_width();
   float scroll_top_lower_bound = 0.0f;
   float scroll_left_lower_bound =
-      GetUsedDirState() == DirState::kDirRightToLeft ? -scrollable_width : 0.0f;
+      dir == DirState::kDirRightToLeft ? -scrollable_width : 0.0f;
   float scroll_top_upper_bound = scroll_height() - client_height();
   float scroll_left_upper_bound =
-      GetUsedDirState() == DirState::kDirRightToLeft ? 0.0f : scrollable_width;
+      dir == DirState::kDirRightToLeft ? 0.0f : scrollable_width;
   ui_nav_item_->SetBounds(scroll_top_lower_bound, scroll_left_lower_bound,
                           scroll_top_upper_bound, scroll_left_upper_bound);
 }
