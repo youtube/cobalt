@@ -26,6 +26,7 @@ class CastStarboardApiTest : public ::testing::Test {
     decltype(SbGetEglInterface)* SbGetEglInterface;
     decltype(SbGetGlesInterface)* SbGetGlesInterface;
     decltype(SbWindowCreate)* SbWindowCreate;
+    decltype(SbWindowDestroy)* SbWindowDestroy;
     decltype(SbWindowGetPlatformHandle)* SbWindowGetPlatformHandle;
     decltype(SbSystemRequestStop)* SbSystemRequestStop;
   };
@@ -120,6 +121,7 @@ CastStarboardApiTest::CastStarboardApiTest() {
   DlSym(g_lib, "SbGetEglInterface", &api_.SbGetEglInterface);
   DlSym(g_lib, "SbGetGlesInterface", &api_.SbGetGlesInterface);
   DlSym(g_lib, "SbWindowCreate", &api_.SbWindowCreate);
+  DlSym(g_lib, "SbWindowDestroy", &api_.SbWindowDestroy);
   DlSym(g_lib, "SbWindowGetPlatformHandle", &api_.SbWindowGetPlatformHandle);
   DlSym(g_lib, "SbSystemRequestStop", &api_.SbSystemRequestStop);
 
@@ -251,16 +253,16 @@ TEST_F(CastStarboardApiTest, EventLoop_CastWindowSurface) {
   EXPECT_GT(version.length(), prefix.length() + 1);
 
   char actual_version = version.at(prefix.length());
-  if (actual_version == '2' || actual_version == '3') {
+  if (!(actual_version == '2' || actual_version == '3')) {
     // Normally we could check whether gles->glGetStringi (or other OpenGL 3+
     // functions) are non-null, but various Starboard implementations actually
     // report the underlying version even if OpenGL 3+ functions are not
     // exposed. Cast will automatically treat any valid OpenGL 2+ version as
     // OpenGL ES 2.0.
-    return;
+    FAIL() << "Expected OpenGL ES 2 or 3.";
   }
 
-  FAIL() << "Expected OpenGL ES 2 or 3.";
+  api().SbWindowDestroy(window);
 }
 
 }  // namespace

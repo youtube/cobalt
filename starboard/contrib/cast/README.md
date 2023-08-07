@@ -21,7 +21,7 @@ The `cast_starboard_api/samples/` directory contains the reference target
 target:
 
 ```
-gn gen out/linux-x64x11_devel --args="target_platform=\"linux-x64x11\" build_with_separate_cobalt_toolchain=true build_type=\"devel\" use_asan=false"
+gn gen out/linux-x64x11_devel --args="target_platform=\"linux-x64x11\" build_with_separate_cobalt_toolchain=true build_type=\"devel\""
 ```
 
 To build the target:
@@ -50,5 +50,4 @@ To run the test suite:
 
 ### Known Issues
 
-- When `build_type=\"devel\"`, `use_asan=false` should also be specified.
 - When `build_type=\"devel\"`, some systems may SB_DCHECK in `NetworkNotifier`.
