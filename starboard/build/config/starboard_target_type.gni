@@ -23,3 +23,26 @@ if (starboard_target_type == "") {
     starboard_target_type = "group"
   }
 }
+
+template("starboard_platform_target") {
+  target(starboard_target_type, target_name) {
+    forward_variables_from(invoker, [ "ldflags" ])
+    if (starboard_target_type == "shared_library") {
+      build_loader = false
+    }
+    public_deps = [
+      "//starboard/client_porting/cwrappers",
+      "//starboard/client_porting/eztime",
+      "//starboard/common",
+      "//starboard/egl_and_gles",
+    ]
+    if (sb_is_evergreen_compatible) {
+      public_deps += [ "//third_party/crashpad/wrapper" ]
+    } else {
+      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
+    if (!sb_is_evergreen) {
+      public_deps += [ "//$starboard_path:starboard_platform" ]
+    }
+  }
+}

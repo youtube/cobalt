@@ -31,6 +31,7 @@ group("gn_all") {
     "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
+    "//starboard/contrib/cast/cast_starboard_api/samples:cast"
   ]
 
   if (gl_type != "none") {
@@ -175,25 +176,8 @@ source_set("starboard_headers_only") {
 }
 
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_target_type, "starboard_platform_group") {
-    if (starboard_target_type == "shared_library") {
-      build_loader = false
-    }
-    public_deps = [
-      "//starboard/client_porting/cwrappers",
-      "//starboard/client_porting/eztime",
-      "//starboard/common",
-      "//starboard/egl_and_gles",
-    ]
-    if (sb_is_evergreen_compatible) {
-      public_deps += [ "//third_party/crashpad/wrapper" ]
-    } else {
-      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
-    }
-    if (!sb_is_evergreen) {
-      public_deps += [ "//$starboard_path:starboard_platform" ]
-    }
-  }
+  # This is the default 'starboard_platform_target'; use default properties
+  starboard_platform_target("starboard_platform_group") {}
 
   if (platform_tests_path == "") {
     # If 'starboard_platform_tests' is not defined by the platform, then an
