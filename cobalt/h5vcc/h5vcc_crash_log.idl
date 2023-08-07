@@ -84,7 +84,7 @@ interface H5vccCrashLog {
   //     ]
   //   }
   // }
-  DOMString getWatchdogViolations();
+  DOMString getWatchdogViolations(optional sequence<DOMString> clients);
 
   // Gets a persistent Watchdog setting that determines whether or not Watchdog
   // is enabled. When disabled, Watchdog behaves like a stub except that

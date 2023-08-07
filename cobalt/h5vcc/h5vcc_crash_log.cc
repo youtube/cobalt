@@ -15,7 +15,9 @@
 #include "cobalt/h5vcc/h5vcc_crash_log.h"
 
 #include <map>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "base/atomicops.h"
 #include "base/memory/singleton.h"
@@ -171,9 +173,21 @@ bool H5vccCrashLog::Ping(const std::string& name,
   return false;
 }
 
-std::string H5vccCrashLog::GetWatchdogViolations() {
+std::string H5vccCrashLog::GetWatchdogViolations(
+    const script::Sequence<std::string>& clients) {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) return watchdog->GetWatchdogViolations();
+  if (watchdog) {
+    // If not clients name is given, return all clients' data.
+    if (clients.size() == 0) {
+      return watchdog->GetWatchdogViolations();
+    }
+    std::vector<std::string> client_names;
+    for (script::Sequence<std::string>::size_type i = 0; i < clients.size();
+         ++i) {
+      client_names.push_back(clients.at(i).c_str());
+    }
+    return watchdog->GetWatchdogViolations();
+  }
   return "";
 }
 
