@@ -920,7 +920,7 @@ ApplicationX11::WaitForSystemEventWithTimeout(SbTime time) {
   }
 
   // In modular builds, |CreateWindow| is not always called before the event
-  // loop is running. 
+  // loop is running.
   if (!dev_input_) {
     return nullptr;
   }

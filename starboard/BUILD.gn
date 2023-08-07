@@ -25,13 +25,13 @@ group("gn_all") {
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
     "//starboard/client_porting/poem:poem_unittests",
+    "//starboard/contrib/cast/cast_starboard_api/samples:cast",
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
     "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
-    "//starboard/contrib/cast/cast_starboard_api/samples:cast"
   ]
 
   if (gl_type != "none") {
@@ -177,7 +177,8 @@ source_set("starboard_headers_only") {
 
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
-  starboard_platform_target("starboard_platform_group") {}
+  starboard_platform_target("starboard_platform_group") {
+  }
 
   if (platform_tests_path == "") {
     # If 'starboard_platform_tests' is not defined by the platform, then an

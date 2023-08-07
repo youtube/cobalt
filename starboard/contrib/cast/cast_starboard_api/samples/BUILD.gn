@@ -3,9 +3,7 @@ import("//starboard/build/config/starboard_target_type.gni")
 
 group("cast") {
   if (build_with_separate_cobalt_toolchain) {
-    public_deps = [
-      ":cast_starboard_api($starboard_toolchain)"
-    ]
+    public_deps = [ ":cast_starboard_api($starboard_toolchain)" ]
   }
 }
 
@@ -14,8 +12,8 @@ if (build_with_separate_cobalt_toolchain) {
     starboard_platform_target("cast_starboard_api") {
       ldflags = [
         # Hide unwanted symbols, which also shrinks the resulting binary.
-        "-Wl,--version-script=" + rebase_path("./cast_starboard_api.lds",
-          root_build_dir)
+        "-Wl,--version-script=" +
+            rebase_path("./cast_starboard_api.lds", root_build_dir),
       ]
 
       if (!use_asan) {
@@ -29,14 +27,12 @@ if (build_with_separate_cobalt_toolchain) {
 
     copy("cast_starboard_api_test_data") {
       install_content = true
-      sources = ["$root_out_dir/libcast_starboard_api.so"]
+      sources = [ "$root_out_dir/libcast_starboard_api.so" ]
 
       # This artifact is consumed by a test built outside of the
       # starboard_toolchain; move from `starboard/content/` to `content/`.
       outputs = [ "$sb_static_contents_output_data_dir/../../content/{{source_file_part}}" ]
-      deps = [
-        ":cast_starboard_api"
-      ]
+      deps = [ ":cast_starboard_api" ]
     }
   }
   target(gtest_target_type, "cast_starboard_api_test") {
@@ -45,13 +41,11 @@ if (build_with_separate_cobalt_toolchain) {
       "//starboard/common/test_main.cc",
       "cast_starboard_api_test.cc",
     ]
-    data_deps = [
-      ":cast_starboard_api_test_data($starboard_toolchain)",
-    ]
+    data_deps = [ ":cast_starboard_api_test_data($starboard_toolchain)" ]
     deps = [
       "//starboard",
-      "//testing/gtest",
       "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
+      "//testing/gtest",
     ]
   }
 }

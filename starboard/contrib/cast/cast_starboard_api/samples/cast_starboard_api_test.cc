@@ -5,6 +5,7 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/thread.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
@@ -12,7 +13,6 @@
 #include "starboard/system.h"
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "starboard/common/thread.h"
 
 namespace {
 
@@ -51,12 +51,13 @@ class CastStarboardApiTest : public ::testing::Test {
 
  private:
   class CastStarboardApiThread : public starboard::Thread {
-  public:
-    CastStarboardApiThread(CastStarboardApi* api) : starboard::Thread("cast_thread"), api_(api) {}
+   public:
+    explicit CastStarboardApiThread(CastStarboardApi* api)
+        : starboard::Thread("cast_thread"), api_(api) {}
 
     void Run() override;
 
-  private:
+   private:
     CastStarboardApi* api_;
   };
 
@@ -100,8 +101,10 @@ void EventCallbackStatic(void* context) {
 
 CastStarboardApiTest::CastStarboardApiTest() {
   g_test_instance = this;
-  started_cond_ = std::make_unique<starboard::ConditionVariable>(started_mutex_);
-  received_cond_ = std::make_unique<starboard::ConditionVariable>(received_mutex_);
+  started_cond_ =
+      std::make_unique<starboard::ConditionVariable>(started_mutex_);
+  received_cond_ =
+      std::make_unique<starboard::ConditionVariable>(received_mutex_);
 
   // Ensure libcast_starboard_api.so has been opened.
   if (!g_lib) {
@@ -145,11 +148,11 @@ CastStarboardApiTest::~CastStarboardApiTest() {
 
 void CastStarboardApiTest::EventHandleInternal(const SbEvent* event) {
   switch (event->type) {
-  case kSbEventTypeStart:
-    started_cond_->Signal();
-    break;
-  default:
-    break;
+    case kSbEventTypeStart:
+      started_cond_->Signal();
+      break;
+    default:
+      break;
   }
 
   received_.push_back(event->type);
@@ -165,8 +168,8 @@ void CastStarboardApiTest::WaitForEventCallback() {
   received_mutex_.Release();
 }
 
-void CastStarboardApiTest::CastStarboardApiThread::Run()  {
-      api_->SbRunStarboardMain(0, nullptr, &EventHandleStatic);
+void CastStarboardApiTest::CastStarboardApiThread::Run() {
+  api_->SbRunStarboardMain(0, nullptr, &EventHandleStatic);
 }
 
 // The default Application only be started once in the lifetime of the

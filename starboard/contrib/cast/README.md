@@ -1,7 +1,7 @@
 ## Cast Starboard API
 
 The Cast Starboard API is a shared library which contains the portion of
-Starboard required to run Cast. 
+Starboard required to run Cast.
 
 ### Customizations
 
@@ -45,7 +45,7 @@ ninja -C out/linux-x64x11_devel/ cast_starboard_api_test
 To run the test suite:
 
 ```
-./out/linux-x64x11_devel/cast_starboard_api_test_loader 
+./out/linux-x64x11_devel/cast_starboard_api_test_loader
 ```
 
 ### Known Issues
