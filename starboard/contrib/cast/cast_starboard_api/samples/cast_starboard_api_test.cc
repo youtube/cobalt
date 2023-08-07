@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC. All rights reserved.
+// Copyright 2023 The Cobalt Authors. All rights reserved.
 
 #include <dlfcn.h>
 
