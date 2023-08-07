@@ -462,6 +462,9 @@ template("shared_library") {
     build_loader = build_with_separate_cobalt_toolchain
   }
 
+  if (build_with_separate_cobalt_toolchain) {
+    defines += [ "SB_IS_MODULAR=1" ]
+  }
   if (build_loader) {
     original_target_name = "${target_name}_original_target"
   } else {

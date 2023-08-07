@@ -149,10 +149,6 @@ config("starboard") {
       defines += [ "SB_IS_LIBRARY=1" ]
     }
 
-    if (sb_is_modular) {
-      defines += [ "SB_IS_MODULAR=1" ]
-    }
-
     if (sb_is_evergreen) {
       defines += [ "SB_IS_EVERGREEN=1" ]
     }
