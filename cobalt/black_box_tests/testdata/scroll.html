@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <title>Cobalt scroll test</title>
+  <script src='black_box_js_test_utils.js'></script>
+  <style>
+    .app {
+      position: absolute;
+      width: 80rem;
+      height: 45rem;
+      overflow: hidden;
+      padding: 20px;
+      z-index: 1;
+    }
+
+    .row {
+      /* pointer-events: auto; */
+      position: relative;
+      overflow: auto;
+      height: 20rem;
+      width: 80rem;
+    }
+
+    .tile {
+      position: absolute;
+      height: 10rem;
+      width: 200rem;
+      background: linear-gradient(0.25turn, #f4aca9, #ebf8e1, #bce6f3);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app" style="overflow:auto;">
+    <div id="row" class="row" style="height: 20rem;">
+      <div id="top_one" class="tile">One</div>
+    </div>
+  </div>
+</body>
+<script>
+  function checkEndState() {
+    const scroll_container = document.getElementById("row");
+    assertTrue(scroll_container.scrollLeft > 0);
+    onEndTest();
+  }
+
+  window.onload = () => {
+    setupFinished();
+  }
+
+  window.onkeydown = (event) => {
+    if (event.key == 0) {
+      checkEndState();
+    }
+  }
+</script>
+
+</html>
