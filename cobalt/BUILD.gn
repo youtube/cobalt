@@ -67,13 +67,7 @@ group("default") {
   ]
 
   if (sb_is_modular) {
-    deps += [
-      "//base/util/values:values_util",
-      "//third_party/llvm-project/compiler-rt:compiler_rt",
-      "//third_party/llvm-project/libcxx:cxx",
-      "//third_party/llvm-project/libcxxabi:cxxabi",
-      "//third_party/musl:c",
-    ]
+    deps += [ "//base/util/values:values_util" ]
     if (sb_is_evergreen) {
       deps += [
         # TODO(b/294247612): Remove unnecessary dependencies.
