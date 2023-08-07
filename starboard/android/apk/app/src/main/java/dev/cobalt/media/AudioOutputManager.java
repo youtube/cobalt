@@ -80,9 +80,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     audioTrackBridgeList.add(audioTrackBridge);
     hasAudioDeviceChanged.set(false);
 
-    if (Build.VERSION.SDK_INT < 23
-        || hasRegisteredAudioDeviceCallback
-        || !enableAudioDeviceCallback) {
+    if (hasRegisteredAudioDeviceCallback || !enableAudioDeviceCallback) {
       return audioTrackBridge;
     }
 
@@ -106,7 +104,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
                     TAG,
                     "Setting |hasAudioDeviceChanged| to true for audio device %s, %s.",
                     info.getProductName(),
-                    getDeviceTypeNameV23(info.getType()));
+                    getDeviceTypeName(info.getType()));
                 hasAudioDeviceChanged.set(true);
                 break;
               }
@@ -158,15 +156,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       return 2;
     }
 
-    if (Build.VERSION.SDK_INT >= 23) {
-      return getMaxChannelsV23();
-    }
-    return 2;
-  }
-
-  /** Returns the maximum number of HDMI channels for API 23 and above. */
-  @RequiresApi(23)
-  private int getMaxChannelsV23() {
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
     int maxChannels = 2;
@@ -212,22 +201,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       return false;
     }
 
-    if (Build.VERSION.SDK_INT >= 23) {
-      return getOutputDeviceInfoV23(index, outDeviceInfo);
-    }
-
-    if (index == 0) {
-      outDeviceInfo.type = AudioDeviceInfo.TYPE_HDMI;
-      outDeviceInfo.channels = getMaxChannels();
-      return true;
-    }
-
-    return false;
-  }
-
-  /** Returns output device info for API 23 and above. */
-  @RequiresApi(23)
-  private boolean getOutputDeviceInfoV23(int index, OutputDeviceInfo outDeviceInfo) {
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
@@ -250,8 +223,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   }
 
   /** Convert AudioDeviceInfo.TYPE_* to name in String */
-  @RequiresApi(23)
-  private static String getDeviceTypeNameV23(int deviceType) {
+  private static String getDeviceTypeName(int deviceType) {
     switch (deviceType) {
       case AudioDeviceInfo.TYPE_AUX_LINE:
         return "TYPE_AUX_LINE";
@@ -304,7 +276,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   }
 
   /** Convert audio encodings in int[] to common separated values in String */
-  @RequiresApi(23)
   private static String getEncodingNames(final int[] encodings) {
     StringBuffer encodingsInString = new StringBuffer("[");
     for (int i = 0; i < encodings.length; ++i) {
@@ -354,11 +325,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
 
   /** Dump all audio output devices. */
   public void dumpAllOutputDevices() {
-    if (Build.VERSION.SDK_INT < 23) {
-      Log.i(TAG, "dumpAllOutputDevices() is only supported in API level 23 or above.");
-      return;
-    }
-
     Log.i(TAG, "Dumping all audio output devices:");
 
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
@@ -368,7 +334,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       Log.i(
           TAG,
           "  Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
-          getDeviceTypeNameV23(info.getType()),
+          getDeviceTypeName(info.getType()),
           Arrays.toString(info.getChannelCounts()),
           Arrays.toString(info.getSampleRates()),
           getEncodingNames(info.getEncodings()));
@@ -426,16 +392,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   @SuppressWarnings("unused")
   @UsedByNative
   boolean hasPassthroughSupportFor(int encoding) {
-    if (Build.VERSION.SDK_INT < 23) {
-      Log.i(
-          TAG,
-          "Passthrough on encoding %d is rejected on api %d, as passthrough is only"
-              + " supported on api 23 or later.",
-          encoding,
-          Build.VERSION.SDK_INT);
-      return false;
-    }
-
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
@@ -517,7 +473,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   }
 
   /** Returns whether passthrough on `encoding` is supported for API 23 and above. */
-  @RequiresApi(23)
   private boolean hasPassthroughSupportForV23(final AudioDeviceInfo[] deviceInfos, int encoding) {
     for (AudioDeviceInfo info : deviceInfos) {
       final int type = info.getType();
@@ -536,7 +491,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             "Passthrough on encoding %d is supported on %s, because getEncodings() returns"
                 + " an empty array.",
             encoding,
-            getDeviceTypeNameV23(type));
+            getDeviceTypeName(type));
         return true;
       }
       for (int i = 0; i < encodings.length; ++i) {
@@ -545,7 +500,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
               TAG,
               "Passthrough on encoding %d is supported on %s.",
               encoding,
-              getDeviceTypeNameV23(type));
+              getDeviceTypeName(type));
           return true;
         }
       }
@@ -553,7 +508,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
           TAG,
           "Passthrough on encoding %d is not supported on %s.",
           encoding,
-          getDeviceTypeNameV23(type));
+          getDeviceTypeName(type));
     }
     Log.i(TAG, "Passthrough on encoding %d is not supported on any devices.", encoding);
     return false;

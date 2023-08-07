@@ -81,8 +81,7 @@ public class MediaDrmBridge {
   private static final int MEDIA_DRM_EVENT_PROVISION_REQUIRED = MediaDrm.EVENT_PROVISION_REQUIRED;
 
   // Added in API 23.
-  private static final int MEDIA_DRM_EVENT_SESSION_RECLAIMED =
-      Build.VERSION.SDK_INT >= 23 ? MediaDrm.EVENT_SESSION_RECLAIMED : 5;
+  private static final int MEDIA_DRM_EVENT_SESSION_RECLAIMED = MediaDrm.EVENT_SESSION_RECLAIMED;
 
   private MediaDrm mMediaDrm;
   private long mNativeMediaDrmBridge;
@@ -286,10 +285,6 @@ public class MediaDrmBridge {
       }
       Log.d(
           TAG, String.format("Key successfully added for session %s", bytesToHexString(sessionId)));
-      if (Build.VERSION.SDK_INT < 23) {
-        // Pass null to indicate that KeyStatus isn't supported.
-        nativeOnKeyStatusChange(mNativeMediaDrmBridge, sessionId, null);
-      }
       return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
@@ -444,20 +439,6 @@ public class MediaDrmBridge {
           }
         });
 
-    if (Build.VERSION.SDK_INT >= 23) {
-      setOnKeyStatusChangeListenerV23();
-    }
-
-    mMediaDrm.setPropertyString("privacyMode", "enable");
-    mMediaDrm.setPropertyString("sessionSharing", "enable");
-    if (keySystem.equals("com.youtube.widevine.l3")
-        && mMediaDrm.getPropertyString("securityLevel") != "L3") {
-      mMediaDrm.setPropertyString("securityLevel", "L3");
-    }
-  }
-
-  @RequiresApi(23)
-  private void setOnKeyStatusChangeListenerV23() {
     mMediaDrm.setOnKeyStatusChangeListener(
         new MediaDrm.OnKeyStatusChangeListener() {
           @Override
@@ -473,6 +454,13 @@ public class MediaDrmBridge {
           }
         },
         null);
+
+    mMediaDrm.setPropertyString("privacyMode", "enable");
+    mMediaDrm.setPropertyString("sessionSharing", "enable");
+    if (keySystem.equals("com.youtube.widevine.l3")
+        && mMediaDrm.getPropertyString("securityLevel") != "L3") {
+      mMediaDrm.setPropertyString("securityLevel", "L3");
+    }
   }
 
   /** Convert byte array to hex string for logging. */
@@ -491,17 +479,7 @@ public class MediaDrmBridge {
       return;
     }
 
-    int requestType = MediaDrm.KeyRequest.REQUEST_TYPE_INITIAL;
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      requestType = request.getRequestType();
-    } else {
-      // Prior to M, getRequestType() is not supported. Do our best guess here: Assume
-      // requests with a URL are renewals and all others are initial requests.
-      requestType =
-          request.getDefaultUrl().isEmpty()
-              ? MediaDrm.KeyRequest.REQUEST_TYPE_INITIAL
-              : MediaDrm.KeyRequest.REQUEST_TYPE_RENEWAL;
-    }
+    int requestType = request.getRequestType();
 
     nativeOnSessionMessage(
         mNativeMediaDrmBridge, ticket, sessionId, requestType, request.getData());
@@ -532,8 +510,7 @@ public class MediaDrmBridge {
           mMediaDrm.getKeyRequest(
               sessionId, data, mime, MediaDrm.KEY_TYPE_STREAMING, optionalParameters);
     } catch (IllegalStateException e) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
-          && e instanceof android.media.MediaDrm.MediaDrmStateException) {
+      if (e instanceof android.media.MediaDrm.MediaDrmStateException) {
         Log.e(TAG, "MediaDrmStateException fired during getKeyRequest().", e);
       }
     }
