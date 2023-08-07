@@ -607,7 +607,7 @@ void TopmostEventTarget::HandleScrollState(
 
       scoped_refptr<dom::HTMLElement> previous_html_element(
           previous_html_element_weak_);
-      DispatchPointerEventsForScrollStart(target_element, event_init);
+      DispatchPointerEventsForScrollStart(previous_html_element, event_init);
       pointer_state->SetWasCancelled(pointer_id);
       pointer_state->ClearPendingPointerCaptureTargetOverride(pointer_id);
 
