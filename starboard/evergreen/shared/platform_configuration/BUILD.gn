@@ -205,7 +205,7 @@ config("speed") {
 
 config("size") {
   cflags = [ "-Os" ]
-  if (is_qa || is_gold) {
+  if (!build_with_separate_cobalt_toolchain && (is_qa || is_gold)) {
     ldflags = [ "-Wl,--icf=safe" ]
   }
 }
