@@ -1,0 +1,68 @@
+#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
+
+#include "starboard/media.h"
+#include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/job_queue.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
+namespace shared {
+namespace ffmpeg {
+namespace {
+
+using ::starboard::shared::starboard::media::AudioStreamInfo;
+using ::testing::NotNull;
+
+AudioStreamInfo CreateStreamInfoForCodec(SbMediaAudioCodec codec) {
+  AudioStreamInfo stream_info;
+  stream_info.codec = codec;
+  stream_info.number_of_channels = 2;
+  stream_info.samples_per_second = 44100;
+  stream_info.bits_per_sample = 8;
+  return stream_info;
+}
+
+class FFmpegAudioDecoderTest
+    : public ::testing::Test,
+      public ::starboard::shared::starboard::player::JobQueue::JobOwner {
+ protected:
+  FFmpegAudioDecoderTest() : JobOwner(kDetached) { AttachToCurrentThread(); }
+
+  ~FFmpegAudioDecoderTest() override = default;
+
+  // Create a JobQueue for use on the current thread.
+  ::starboard::shared::starboard::player::JobQueue job_queue_;
+};
+
+TEST_F(FFmpegAudioDecoderTest, SupportsMp3Codec) {
+  AudioStreamInfo stream_info = CreateStreamInfoForCodec(kSbMediaAudioCodecMp3);
+  auto* decoder = AudioDecoder::Create(stream_info);
+  ASSERT_THAT(decoder, NotNull());
+  EXPECT_TRUE(decoder->is_valid());
+  delete decoder;
+}
+
+TEST_F(FFmpegAudioDecoderTest, SupportsFlacCodecFor16BitAudio) {
+  AudioStreamInfo stream_info =
+      CreateStreamInfoForCodec(kSbMediaAudioCodecFlac);
+  stream_info.bits_per_sample = 16;
+  auto* decoder = AudioDecoder::Create(stream_info);
+  ASSERT_THAT(decoder, NotNull());
+  EXPECT_TRUE(decoder->is_valid());
+  delete decoder;
+}
+
+TEST_F(FFmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
+  AudioStreamInfo stream_info = CreateStreamInfoForCodec(kSbMediaAudioCodecPcm);
+  stream_info.bits_per_sample = 16;
+  auto* decoder = AudioDecoder::Create(stream_info);
+  ASSERT_THAT(decoder, NotNull());
+  EXPECT_TRUE(decoder->is_valid());
+  delete decoder;
+}
+
+}  // namespace
+}  // namespace ffmpeg
+}  // namespace shared
+}  // namespace starboard
