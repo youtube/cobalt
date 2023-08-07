@@ -44,22 +44,6 @@ void Initialize() {
   data_path += kSbFileSepString;
   data_path += "icu";
 
-#if SB_IS(EVERGREEN)
-  // If the icu tables are not under the content directory, use the
-  // storage directory. This minimizes Evergreen's storage usage
-  // on the device, as it can share the tables under
-  // storage between all the installations, but still has the option
-  // to use its own tables under content.
-  if (!SbFileExists(data_path.c_str())) {
-    bool result = SbSystemGetPath(kSbSystemPathStorageDirectory,
-                                  base_path.data(), base_path.size());
-    SB_DCHECK(result);
-    data_path = base_path.data();
-    data_path += kSbFileSepString;
-    data_path += "icu";
-    SbLogFormatF("Using icu tables from: %s\n", data_path.c_str());
-  }
-#endif
   // set this as the data directory.
   u_setDataDirectory(data_path.c_str());
 
