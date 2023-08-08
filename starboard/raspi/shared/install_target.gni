@@ -21,7 +21,7 @@ template("install_target") {
   # subdir and install content subdir.
   if (invoker.type == "executable") {
     # install_subdir = "bin"
-    install_subdir = ""
+    install_subdir = installable_target_name
     source_name = installable_target_name
   } else if (invoker.type == "shared_library") {
     install_subdir = "lib"
@@ -44,7 +44,7 @@ template("install_target") {
     deps = invoker.deps
     deps += [ invoker.installable_target_dep ]
 
-    outputs = [ "$sb_install_output_dir/$install_subdir/$installable_target_name/$source_name" ]
+    outputs = [ "$sb_install_output_dir/$install_subdir/$source_name" ]
 
     args = [
       rebase_path(strip_executable, root_build_dir),
