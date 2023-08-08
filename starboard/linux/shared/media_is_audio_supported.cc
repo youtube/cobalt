@@ -49,6 +49,12 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   if (audio_codec == kSbMediaAudioCodecMp3) {
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
+  if (audio_codec == kSbMediaAudioCodecPcm) {
+    return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
+  }
+  if (audio_codec == kSbMediaAudioCodecFlac) {
+    return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
+  }
 #endif  // SB_API_VERSION >= 14
 
   return false;

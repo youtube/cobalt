@@ -20,6 +20,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -36,7 +37,10 @@ SbMediaAudioSampleType GetSupportedSampleType() {
   return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
-AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
+AVCodecID GetFfmpegCodecIdByMediaCodec(
+    starboard::media::AudioStreamInfo stream_info) {
+  SbMediaAudioCodec audio_codec = stream_info.codec;
+
   switch (audio_codec) {
     case kSbMediaAudioCodecAac:
       return AV_CODEC_ID_AAC;
@@ -57,6 +61,24 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
 #if SB_API_VERSION >= 14
     case kSbMediaAudioCodecMp3:
       return AV_CODEC_ID_MP3;
+    case kSbMediaAudioCodecPcm:
+      if (stream_info.bits_per_sample == 16) {
+        return AV_CODEC_ID_PCM_S16LE;
+      } else {
+        SB_LOG(ERROR) << "PCM is only supported for 16-bit audio ("
+                      << stream_info.bits_per_sample
+                      << " bits per sample was requested)";
+        return AV_CODEC_ID_NONE;
+      }
+    case kSbMediaAudioCodecFlac:
+      if (stream_info.bits_per_sample == 16) {
+        return AV_CODEC_ID_FLAC;
+      } else {
+        SB_LOG(ERROR) << "FLAC is only supported for 16-bit audio ("
+                      << stream_info.bits_per_sample
+                      << " bits per sample was requested)";
+        return AV_CODEC_ID_NONE;
+      }
 #endif  // SB_API_VERSION >= 14
     default:
       return AV_CODEC_ID_NONE;
@@ -78,7 +100,7 @@ AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
       stream_ended_(false),
       audio_stream_info_(audio_stream_info) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
-  SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_stream_info_.codec) !=
+  SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_stream_info_) !=
             AV_CODEC_ID_NONE)
       << "Unsupported audio codec " << audio_stream_info_.codec;
   ffmpeg_ = FFMPEGDispatch::GetInstance();
@@ -277,10 +299,16 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
   }
 
   codec_context_->codec_type = AVMEDIA_TYPE_AUDIO;
-  codec_context_->codec_id =
-      GetFfmpegCodecIdByMediaCodec(audio_stream_info_.codec);
+  codec_context_->codec_id = GetFfmpegCodecIdByMediaCodec(audio_stream_info_);
   // Request_sample_fmt is set by us, but sample_fmt is set by the decoder.
-  if (GetSupportedSampleType() == kSbMediaAudioSampleTypeInt16Deprecated) {
+  if (GetSupportedSampleType() == kSbMediaAudioSampleTypeInt16Deprecated
+#if SB_API_VERSION >= 14
+      // If we request FLT for 16-bit FLAC, FFmpeg will pick S32 as the closest
+      // option. Since the rest of this pipeline doesn't support S32, we should
+      // use S16 as the desired format.
+      || audio_stream_info_.codec == kSbMediaAudioCodecFlac
+#endif  // SB_API_VERSION >= 14
+  ) {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
   } else {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
