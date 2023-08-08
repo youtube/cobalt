@@ -7,22 +7,25 @@ group("cast") {
   }
 }
 
+config("default") {
+  ldflags = [
+    # Hide unwanted symbols, which also shrinks the resulting binary.
+    "-Wl,--version-script=" +
+        rebase_path("./cast_starboard_api.lds", root_build_dir),
+  ]
+
+  if (!use_asan) {
+    ldflags += [
+      # Prevent unresolved symbols, which would require the consumer of
+      # `cast_starboard_api` to be aware of transitive dependences at runtime.
+      "-Wl,-z,defs",
+    ]
+  }
+}
 if (build_with_separate_cobalt_toolchain) {
   if (current_toolchain == starboard_toolchain) {
     starboard_platform_target("cast_starboard_api") {
-      ldflags = [
-        # Hide unwanted symbols, which also shrinks the resulting binary.
-        "-Wl,--version-script=" +
-            rebase_path("./cast_starboard_api.lds", root_build_dir),
-      ]
-
-      if (!use_asan) {
-        ldflags += [
-          # Prevent unresolved symbols, which would require the consumer of
-          # `cast_starboard_api` to be aware of transitive dependences at runtime.
-          "-Wl,-z,defs",
-        ]
-      }
+      extra_configs = [ ":default" ]
     }
 
     copy("cast_starboard_api_test_data") {

@@ -25,7 +25,6 @@ group("gn_all") {
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
     "//starboard/client_porting/poem:poem_unittests",
-    "//starboard/contrib/cast/cast_starboard_api/samples:cast",
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
@@ -57,6 +56,15 @@ group("gn_all") {
 
   if (sb_enable_benchmark) {
     deps += [ "//starboard/benchmark" ]
+  }
+
+  if (build_with_separate_cobalt_toolchain) {
+    if (is_cobalt_toolchain) {
+      assert(sb_is_modular,
+             "sb_is_modular should be set when building with cobalt_toolchain")
+    }
+
+    deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
   }
 
   if (!sb_is_evergreen) {
