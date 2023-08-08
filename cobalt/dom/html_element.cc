@@ -588,7 +588,6 @@ void HTMLElement::set_scroll_left(float x) {
 
   float throwaway, min = x, max = x;
   ui_nav_item_->GetBounds(&throwaway, &min, &throwaway, &max);
-  LOG(INFO) << "min: " << min << ", max: " << max;
   x = math::Clamp(x, min, max);
   ui_nav_item_->SetContentOffset(x, top);
 }
