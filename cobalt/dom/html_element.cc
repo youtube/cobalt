@@ -1167,6 +1167,19 @@ void HTMLElement::InvalidateLayoutBoxesOfNodeAndDescendants() {
 }
 
 void HTMLElement::InvalidateLayoutBoxSizes() {
+  for (Node* ancestor_node = parent_node(); ancestor_node;
+       ancestor_node = ancestor_node->parent_node()) {
+    Element* ancestor_element = ancestor_node->AsElement();
+    if (!ancestor_element) {
+      continue;
+    }
+    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
+    if (!ancestor_html_element) {
+      continue;
+    }
+    if (ancestor_html_element->layout_boxes())
+      ancestor_html_element->layout_boxes()->scroll_area_cache().reset();
+  }
   if (layout_boxes_) {
     layout_boxes_->InvalidateSizes();
 
