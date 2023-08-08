@@ -103,8 +103,8 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
   if (strcmp(codec, "flac") == 0) {
     return kSbMediaAudioCodecFlac;
   }
-  // For WAV, the "codecs" field of a MIME type refers to the WAVE format ID,
-  // where 1 represents PCM: https://datatracker.ietf.org/doc/html/rfc2361
+  // For WAV, the "codecs" parameter of a MIME type refers to the WAVE format
+  // ID, where 1 represents PCM: https://datatracker.ietf.org/doc/html/rfc2361
   if (strcmp(codec, "1") == 0) {
     return kSbMediaAudioCodecPcm;
   }

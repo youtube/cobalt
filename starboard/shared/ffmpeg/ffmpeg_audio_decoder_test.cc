@@ -14,6 +14,8 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 
+#include <memory>
+
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -53,29 +55,26 @@ class FFmpegAudioDecoderTest
 
 TEST_F(FFmpegAudioDecoderTest, SupportsMp3Codec) {
   AudioStreamInfo stream_info = CreateStreamInfoForCodec(kSbMediaAudioCodecMp3);
-  auto* decoder = AudioDecoder::Create(stream_info);
+  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
-  delete decoder;
 }
 
 TEST_F(FFmpegAudioDecoderTest, SupportsFlacCodecFor16BitAudio) {
   AudioStreamInfo stream_info =
       CreateStreamInfoForCodec(kSbMediaAudioCodecFlac);
   stream_info.bits_per_sample = 16;
-  auto* decoder = AudioDecoder::Create(stream_info);
+  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
-  delete decoder;
 }
 
 TEST_F(FFmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
   AudioStreamInfo stream_info = CreateStreamInfoForCodec(kSbMediaAudioCodecPcm);
   stream_info.bits_per_sample = 16;
-  auto* decoder = AudioDecoder::Create(stream_info);
+  std::unique_ptr<AudioDecoder> decoder(AudioDecoder::Create(stream_info));
   ASSERT_THAT(decoder, NotNull());
   EXPECT_TRUE(decoder->is_valid());
-  delete decoder;
 }
 #endif  // SB_API_VERSION >= 14
 
