@@ -67,7 +67,6 @@ runs:
       shell: bash
       run: |
         set -x
-        test_type=""
 
         # Starboard toolchains are downloaded to a different dir on github. Create a symlink to reassure our tooling that everything is fine.
         if [ -d /root/starboard-toolchains ]; then
@@ -90,16 +89,16 @@ runs:
         elif [[ "${{matrix.shard}}" == 'coverage' ]]; then
           xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -r ${loader_args} --xml_output_dir=${XML_FILES_DIR} --coverage_dir=${COVERAGE_DIR} --coverage_report
         else
-          test_type=unit_tests
+          # Set 'test_type' output to unit_tests for the upload steps below.
+          echo "test_type=unit_tests" >> $GITHUB_OUTPUT
           if [[ "${{inputs.os}}" == 'windows' ]]; then
             python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r --xml_output_dir=${XML_FILES_DIR}
           else
             xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${XML_FILES_DIR}
           fi
         fi
-        echo "test_type=$test_type" >> $GITHUB_OUTPUT
     - name: Populate TAGS for unit test report
-      if: ${{ steps.run-tests.outputs.test_type == 'unit_tests' }}
+      if: (success() || failure()) && steps.run-tests.outputs.test_type == 'unit_tests'
       shell: bash
       run: |
         # Set tags for test differentiation.
@@ -108,7 +107,7 @@ runs:
         echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
     - name: Archive unit test results
       uses: actions/upload-artifact@v3
-      if: ${{ steps.run-tests.outputs.test_type == 'unit_tests' }}
+      if: (success() || failure()) && steps.run-tests.outputs.test_type == 'unit_tests'
       with:
         name: unit-test-results
         path: ${{env.TEST_RESULTS_DIR}}/
