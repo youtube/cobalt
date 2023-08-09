@@ -146,6 +146,14 @@ std::string Watchdog::GetWatchdogFilePath() {
   return watchdog_file_path_;
 }
 
+std::vector<std::string> Watchdog::GetWatchdogClientNames() {
+  std::vector<std::string> names;
+  for (auto& it : client_map_) {
+    names.push_back(it.first);
+  }
+  return names;
+}
+
 void Watchdog::WriteWatchdogViolations() {
   // Writes Watchdog violations to persistent storage as a json file.
   std::string watchdog_json;

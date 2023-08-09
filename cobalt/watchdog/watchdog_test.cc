@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+<<<<<<< HEAD
+=======
+#include "cobalt/watchdog/watchdog.h"
+
+#include <set>
+>>>>>>> 0e3e107f839 ([watchdog] Add a function to get all watchdog client names (#1190))
 #include <vector>
 
 #include "base/json/json_reader.h"
@@ -485,6 +491,26 @@ TEST_F(WatchdogTest, FrequentConsecutiveViolationsShouldNotWrite) {
   ASSERT_EQ(write_json, no_write_json);
   std::string json = watchdog_->GetWatchdogViolations();
   ASSERT_NE(write_json, json);
+}
+
+TEST_F(WatchdogTest, GetRegisteredClientNames) {
+  ASSERT_TRUE(watchdog_->Register("test-name-1", "test-desc-1",
+                                  base::kApplicationStateStarted,
+                                  kWatchdogMonitorFrequency));
+  ASSERT_TRUE(watchdog_->Register("test-name-2", "test-desc-2",
+                                  base::kApplicationStateStarted,
+                                  kWatchdogMonitorFrequency));
+  std::vector<std::string> names = watchdog_->GetWatchdogClientNames();
+  std::set<std::string> expected_names = {"test-name-1", "test-name-2"};
+  for (std::vector<std::string>::const_iterator it = names.begin();
+       it != names.end(); ++it) {
+    const std::string name = *it;
+    ASSERT_TRUE((expected_names.find(name) != expected_names.end()));
+  }
+  ASSERT_TRUE(watchdog_->Unregister("test-name-1"));
+  ASSERT_TRUE(watchdog_->Unregister("test-name-2"));
+  names = watchdog_->GetWatchdogClientNames();
+  ASSERT_EQ(names.size(), 0);
 }
 
 TEST_F(WatchdogTest, GetPartialViolationsByClients) {
