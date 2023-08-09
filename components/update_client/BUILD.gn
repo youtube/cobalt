@@ -248,8 +248,6 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//testing/gtest",
   ]
   if (sb_is_evergreen) {
-    data_deps = [ "//starboard/loader_app($starboard_toolchain)" ]
-  } else {
     deps += [ "//starboard/loader_app" ]
   }
 }

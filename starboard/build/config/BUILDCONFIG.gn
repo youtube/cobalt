@@ -34,7 +34,7 @@ declare_args() {
 
   using_old_compiler = false
 
-  is_modular_toolchain = false
+  build_with_separate_cobalt_toolchain = false
 }
 
 assert(!(is_starboard && is_native_target_build),
@@ -98,7 +98,7 @@ if (target_cpu == "x86" || target_cpu == "arm") {
 }
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
 
-if (is_modular_toolchain) {
+if (build_with_separate_cobalt_toolchain) {
   # TODO(b/294450490): decide a way to set cobalt_toolchain for modular builds for all platforms.
   # we'll need more conditionals for other platforms.
   if (host_os == "win") {

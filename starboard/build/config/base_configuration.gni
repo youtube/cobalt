@@ -20,7 +20,7 @@ import("//starboard/build/config/enable_vr.gni")
 # All build arguments in this file must have documentation.
 # Please follow the formatting in this file when adding new ones.
 
-if (is_modular_toolchain) {
+if (build_with_separate_cobalt_toolchain) {
   default_target_type = "shared_library"
 } else {
   default_target_type = "executable"
@@ -172,7 +172,8 @@ declare_args() {
   v8_enable_webassembly = false
 }
 
-if (current_toolchain == starboard_toolchain && is_modular_toolchain) {
+if (current_toolchain == starboard_toolchain &&
+    build_with_separate_cobalt_toolchain) {
   declare_args() {
     # Target-specific configurations for executable targets.
     executable_configs =

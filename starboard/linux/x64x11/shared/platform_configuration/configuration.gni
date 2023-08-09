@@ -13,7 +13,8 @@
 # limitations under the License.
 
 # TODO(b/294230277): Remove evergreen configs from linux modular builds
-if (current_toolchain == default_toolchain && is_modular_toolchain) {
+if (current_toolchain == default_toolchain &&
+    build_with_separate_cobalt_toolchain) {
   import("//starboard/evergreen/x64/platform_configuration/configuration.gni")
   platform_tests_path =
       "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"

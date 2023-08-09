@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-sb_is_modular = sb_is_evergreen || is_modular_toolchain
+sb_is_modular = sb_is_evergreen || build_with_separate_cobalt_toolchain
