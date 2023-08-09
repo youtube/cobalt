@@ -235,7 +235,7 @@ TEST_F(WatchdogTest, RedundantViolationsShouldStack) {
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
   SbThreadSleep(kWatchdogSleepDuration);
-  std::string json = watchdog_->GetWatchdogViolations(false);
+  std::string json = watchdog_->GetWatchdogViolations({}, false);
   ASSERT_NE(json, "");
   std::unique_ptr<base::Value> uncleared_violations_map =
       base::JSONReader::Read(json);
@@ -252,7 +252,7 @@ TEST_F(WatchdogTest, RedundantViolationsShouldStack) {
                      .FindKey("violationDurationMilliseconds")
                      ->GetString());
   SbThreadSleep(kWatchdogSleepDuration);
-  json = watchdog_->GetWatchdogViolations(false);
+  json = watchdog_->GetWatchdogViolations({}, false);
   ASSERT_NE(json, "");
   std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
   ASSERT_NE(violations_map, nullptr);
@@ -332,7 +332,7 @@ TEST_F(WatchdogTest, ViolationsAreEvictedAfterMax) {
                                   kWatchdogMonitorFrequency));
   SbThreadSleep(kWatchdogSleepDuration);
 
-  json = watchdog_->GetWatchdogViolations(false);
+  json = watchdog_->GetWatchdogViolations({}, false);
   ASSERT_NE(json, "");
   std::unique_ptr<base::Value> uncleared_violations_map =
       base::JSONReader::Read(json);
@@ -485,6 +485,70 @@ TEST_F(WatchdogTest, FrequentConsecutiveViolationsShouldNotWrite) {
   ASSERT_EQ(write_json, no_write_json);
   std::string json = watchdog_->GetWatchdogViolations();
   ASSERT_NE(write_json, json);
+}
+
+TEST_F(WatchdogTest, GetPartialViolationsByClients) {
+  ASSERT_TRUE(watchdog_->Register("test-name-1", "test-desc-1",
+                                  base::kApplicationStateStarted,
+                                  kWatchdogMonitorFrequency));
+  ASSERT_TRUE(watchdog_->Register("test-name-2", "test-desc-2",
+                                  base::kApplicationStateStarted,
+                                  kWatchdogMonitorFrequency));
+  ASSERT_TRUE(watchdog_->Register("test-name-3", "test-desc-3",
+                                  base::kApplicationStateStarted,
+                                  kWatchdogMonitorFrequency));
+  SbThreadSleep(kWatchdogSleepDuration);
+  ASSERT_TRUE(watchdog_->Unregister("test-name-1"));
+  ASSERT_TRUE(watchdog_->Unregister("test-name-2"));
+  ASSERT_TRUE(watchdog_->Unregister("test-name-3"));
+  const std::vector<std::string> clients = {"test-name-1"};
+  std::string json = watchdog_->GetWatchdogViolations(clients);
+  ASSERT_NE(json, "");
+  std::unique_ptr<base::Value> violations_map = base::JSONReader::Read(json);
+  ASSERT_NE(violations_map, nullptr);
+  base::Value* violation_dict = violations_map->FindKey("test-name-1");
+  ASSERT_NE(violation_dict, nullptr);
+  violation_dict = violations_map->FindKey("test-name-2");
+  ASSERT_EQ(violation_dict, nullptr);
+  violation_dict = violations_map->FindKey("test-name-3");
+  ASSERT_EQ(violation_dict, nullptr);
+
+  std::string file_json = "";
+  starboard::ScopedFile read_file(watchdog_->GetWatchdogFilePath().c_str(),
+                                  kSbFileOpenOnly | kSbFileRead);
+  if (read_file.IsValid()) {
+    int64_t kFileSize = read_file.GetSize();
+    std::vector<char> buffer(kFileSize + 1, 0);
+    read_file.ReadAll(buffer.data(), kFileSize);
+    file_json = std::string(buffer.data());
+  }
+  ASSERT_NE(file_json, "");
+  violations_map = base::JSONReader::Read(file_json);
+  ASSERT_NE(violations_map, nullptr);
+  violation_dict = violations_map->FindKey("test-name-2");
+  ASSERT_NE(violation_dict, nullptr);
+  violation_dict = violations_map->FindKey("test-name-3");
+  ASSERT_NE(violation_dict, nullptr);
+  violation_dict = violations_map->FindKey("test-name-1");
+  ASSERT_EQ(violation_dict, nullptr);
+
+  json = watchdog_->GetWatchdogViolations(clients);
+  ASSERT_EQ(json, "");
+
+  const std::vector<std::string> clients2 = {"test-name-2", "test-name-3"};
+  json = watchdog_->GetWatchdogViolations(clients2);
+  ASSERT_NE(json, "");
+  violations_map = base::JSONReader::Read(json);
+  ASSERT_NE(violations_map, nullptr);
+  violation_dict = violations_map->FindKey("test-name-1");
+  ASSERT_EQ(violation_dict, nullptr);
+  violation_dict = violations_map->FindKey("test-name-2");
+  ASSERT_NE(violation_dict, nullptr);
+  violation_dict = violations_map->FindKey("test-name-3");
+  ASSERT_NE(violation_dict, nullptr);
+  starboard::ScopedFile read_file_again(
+      watchdog_->GetWatchdogFilePath().c_str(), kSbFileOpenOnly | kSbFileRead);
+  ASSERT_EQ(read_file_again.IsValid(), false);
 }
 
 }  // namespace watchdog
