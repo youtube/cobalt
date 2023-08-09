@@ -23,6 +23,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/watchdog/watchdog.h"
+#include "cobalt/worker/service_worker_consts.h"
 
 namespace cobalt {
 namespace browser {
@@ -31,8 +32,6 @@ namespace {
 // Signals the given WaitableEvent.
 void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
 
-// The watchdog client name used to represent service worker registry thread.
-const char kWatchdogName[] = "service worker registry";
 // The watchdog time interval in microseconds allowed between pings before
 // triggering violations.
 const int64_t kWatchdogTimeInterval = 15000000;
@@ -61,9 +60,11 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
   // Registers service worker thread as a watchdog client.
   if (watchdog) {
     watchdog_registered_ = true;
-    watchdog->Register(kWatchdogName, kWatchdogName,
-                       base::kApplicationStateStarted, kWatchdogTimeInterval,
-                       kWatchdogTimeWait, watchdog::PING);
+    watchdog->Register(
+        worker::ServiceWorkerConsts::kServiceWorkerRegistryWatchdogName,
+        worker::ServiceWorkerConsts::kServiceWorkerRegistryWatchdogName,
+        base::kApplicationStateStarted, kWatchdogTimeInterval,
+        kWatchdogTimeWait, watchdog::PING);
     message_loop()->task_runner()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&ServiceWorkerRegistry::PingWatchdog,
@@ -101,7 +102,8 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) {
     watchdog_registered_ = false;
-    watchdog->Unregister(kWatchdogName);
+    watchdog->Unregister(
+        worker::ServiceWorkerConsts::kServiceWorkerRegistryWatchdogName);
   }
 
   // Ensure that the destruction observer got added before stopping the thread.
@@ -120,7 +122,8 @@ void ServiceWorkerRegistry::PingWatchdog() {
   // If watchdog is already unregistered or shut down, stop ping watchdog.
   if (!watchdog_registered_ || !watchdog) return;
 
-  watchdog->Ping(kWatchdogName);
+  watchdog->Ping(
+      worker::ServiceWorkerConsts::kServiceWorkerRegistryWatchdogName);
   message_loop()->task_runner()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this)),

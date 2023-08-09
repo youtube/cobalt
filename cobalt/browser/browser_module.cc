@@ -539,6 +539,26 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   // https://fetch.spec.whatwg.org/commit-snapshots/8f8ab504da6ca9681db5c7f8aa3d1f4b6bf8840c/#http-fetch
   bool can_start_service_worker = url.SchemeIsHTTPOrHTTPS();
   auto service_worker_started_event = std::make_unique<base::WaitableEvent>();
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) {
+    std::vector<std::string> all_clients = watchdog->GetWatchdogClientNames();
+    std::vector<std::string> service_worker_clients;
+    for (std::string client : all_clients) {
+      if (client.find("ServiceWorker") != std::string::npos ||
+          client.find(worker::ServiceWorkerConsts::
+                          kServiceWorkerRegistryWatchdogName) !=
+              std::string::npos) {
+        service_worker_clients.push_back(client);
+      }
+    }
+    if (!service_worker_clients.empty() &&
+        watchdog->GetWatchdogViolations(service_worker_clients, false) != "") {
+      can_start_service_worker = false;
+      service_worker_registry_->service_worker_context()
+          ->registration_map()
+          ->RemovePersistentSettings();
+    }
+  }
   if (can_start_service_worker) {
     service_worker_registry_->EnsureServiceWorkerStarted(
         url::Origin::Create(url), url, service_worker_started_event.get());

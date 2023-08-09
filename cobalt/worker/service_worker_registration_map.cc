@@ -71,6 +71,10 @@ void ServiceWorkerRegistrationMap::ReadPersistentSettings() {
       registration_map_);
 }
 
+void ServiceWorkerRegistrationMap::RemovePersistentSettings() {
+  service_worker_persistent_settings_->RemoveAll();
+}
+
 scoped_refptr<ServiceWorkerRegistrationObject>
 ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
     const url::Origin& storage_key, const GURL& client_url) {

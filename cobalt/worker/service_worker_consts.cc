@@ -63,5 +63,10 @@ const char* const ServiceWorkerConsts::kJavaScriptMimeTypes[16] = {
     "text/livescript",
     "text/x-ecmascript",
     "text/x-javascript"};
+
+// The watchdog client name used to represent service worker registry thread.
+const char ServiceWorkerConsts::kServiceWorkerRegistryWatchdogName[] =
+    "service worker registry";
+
 }  // namespace worker
 }  // namespace cobalt
