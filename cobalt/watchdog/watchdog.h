@@ -82,6 +82,7 @@ class Watchdog : public Singleton<Watchdog> {
   bool InitializeStub();
   void Uninitialize();
   std::string GetWatchdogFilePath();
+  std::vector<std::string> GetWatchdogClientNames();
   void UpdateState(base::ApplicationState state);
   bool Register(std::string name, std::string description,
                 base::ApplicationState monitor_state,
