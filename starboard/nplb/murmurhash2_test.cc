@@ -15,7 +15,6 @@
 // Thread joining is mostly tested in the other tests.
 
 #include "starboard/common/murmurhash2.h"
-#include "starboard/common/byte_swap.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

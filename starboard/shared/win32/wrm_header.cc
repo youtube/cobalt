@@ -16,10 +16,10 @@
 
 #include <guiddef.h>
 #include <initguid.h>
+#include <stdlib.h>
 
 #include <algorithm>
 
-#include "starboard/common/byte_swap.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 
@@ -275,9 +275,9 @@ GUID ParseKeyIdFromWrmHeader(const std::vector<uint8_t>& wrm_header) {
 
   GUID key_id = *reinterpret_cast<const GUID*>(key_id_in_string.data());
 
-  key_id.Data1 = SbByteSwap(key_id.Data1);
-  key_id.Data2 = SbByteSwap(key_id.Data2);
-  key_id.Data3 = SbByteSwap(key_id.Data3);
+  key_id.Data1 = _byteswap_ulong(key_id.Data1);
+  key_id.Data2 = _byteswap_ushort(key_id.Data2);
+  key_id.Data3 = _byteswap_ushort(key_id.Data3);
 
   return key_id;
 }

@@ -14,6 +14,12 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+## Version 16
+
+### Removed SbByteSwapS16, SbByteSwapS32, SbByteSwapS64, SbByteSwapU16, SbByteSwapU32, and SbByteSwapU64
+The APIs defined in `starboard/byte_swap.h` are no longer used and have been
+deprecated.
+
 ## Version 15
 
 ### SbMemoryReporter is no longer used

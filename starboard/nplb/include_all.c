@@ -17,7 +17,9 @@
 #include "starboard/accessibility.h"
 #include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
+#if SB_API_VERSION < 16
 #include "starboard/byte_swap.h"
+#endif
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
