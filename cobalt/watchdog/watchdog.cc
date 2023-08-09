@@ -518,39 +518,87 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
   return client_exists;
 }
 
-std::string Watchdog::GetWatchdogViolations(bool clear) {
+std::string Watchdog::GetWatchdogViolations(
+    const std::vector<std::string>& clients, bool clear) {
   // Gets a json string containing the Watchdog violations since the last
   // call (up to the kWatchdogMaxViolations limit).
-
   if (is_disabled_) return "";
 
   std::string watchdog_json = "";
+  std::string watchdog_json_fetched = "";
 
   starboard::ScopedLock scoped_lock(mutex_);
 
   if (pending_write_) WriteWatchdogViolations();
 
-  starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(),
-                                  kSbFileOpenOnly | kSbFileRead);
-  if (read_file.IsValid()) {
-    int64_t kFileSize = read_file.GetSize();
+  starboard::ScopedFile file(GetWatchdogFilePath().c_str(),
+                             kSbFileOpenOnly | kSbFileRead | kSbFileWrite);
+  if (file.IsValid()) {
+    int64_t kFileSize = file.GetSize();
     std::vector<char> buffer(kFileSize + 1, 0);
-    read_file.ReadAll(buffer.data(), kFileSize);
+    file.ReadAll(buffer.data(), kFileSize);
     watchdog_json = std::string(buffer.data());
 
-    // Removes all Watchdog violations.
-    if (clear) {
-      if (violations_map_) {
-        static_cast<base::DictionaryValue*>(violations_map_.get())->Clear();
-        violations_count_ = 0;
+    // If clients is empty we will fetch all clients.
+    if (clients.empty()) {
+      if (clear) {
+        if (violations_map_) {
+          static_cast<base::DictionaryValue*>(violations_map_.get())->Clear();
+          violations_count_ = 0;
+        }
+        starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
       }
-      starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
+      watchdog_json_fetched = watchdog_json;
+    } else {
+      std::string watchdog_json_not_read = "";
+      std::unique_ptr<base::Value> violations_map =
+          base::JSONReader::Read(watchdog_json);
+      base::Value filtered_client_data(base::Value::Type::DICTIONARY);
+      for (int i = 0; i < clients.size(); i++) {
+        base::Value* violation_dict = violations_map->FindKey(clients[i]);
+        if (violation_dict != nullptr) {
+          filtered_client_data.SetKey(clients[i], (*violation_dict).Clone());
+          if (clear) {
+            base::Value* violations = violation_dict->FindKey("violations");
+            int violations_count = violations->GetList().size();
+            violations_map->RemoveKey(clients[i]);
+            if (violations_map_) {
+              bool result =
+                  static_cast<base::DictionaryValue*>(violations_map_.get())
+                      ->RemoveKey(clients[i]);
+              if (result) {
+                violations_count_ -= violations_count;
+              }
+              if (violations_count_ == 0) {
+                static_cast<base::DictionaryValue*>(violations_map_.get())
+                    ->Clear();
+              }
+            }
+          }
+        }
+      }
+      if (!filtered_client_data.DictEmpty()) {
+        base::JSONWriter::Write(filtered_client_data, &watchdog_json_fetched);
+      }
+      if (clear) {
+        // If all data is fetched, delete the violation file.
+        if (violations_map->DictEmpty()) {
+          starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
+        } else {
+          base::JSONWriter::Write(*violations_map, &watchdog_json_not_read);
+          file.Seek(kSbFileFromBegin, 0);
+          file.WriteAll(watchdog_json_not_read.c_str(),
+                        static_cast<int>(watchdog_json_not_read.size()));
+          file.Truncate(static_cast<int>(watchdog_json_not_read.size()));
+          time_last_written_microseconds_ = SbTimeGetMonotonicNow();
+        }
+      }
     }
-    SB_LOG(INFO) << "[Watchdog] Reading violations:\n" << watchdog_json;
+    SB_LOG(INFO) << "[Watchdog] Reading violations:\n" << watchdog_json_fetched;
   } else {
     SB_LOG(INFO) << "[Watchdog] No violations.";
   }
-  return watchdog_json;
+  return watchdog_json_fetched;
 }
 
 bool Watchdog::GetPersistentSettingWatchdogEnable() {
