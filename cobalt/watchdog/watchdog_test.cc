@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-<<<<<<< HEAD
-=======
 #include "cobalt/watchdog/watchdog.h"
 
 #include <set>
->>>>>>> 0e3e107f839 ([watchdog] Add a function to get all watchdog client names (#1190))
 #include <vector>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
-#include "cobalt/watchdog/watchdog.h"
 #include "starboard/common/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
