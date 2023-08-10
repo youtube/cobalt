@@ -28,10 +28,7 @@ namespace cobalt {
 
 using ::cobalt::account::AccessToken;
 
-// Android implementation of UserAuthorizer, using the single 'nouser' SbUser to
-// represent the Android platform running our app.  Unlike game consoles which
-// launch the app as a particular platform user, Android always launches the app
-// as the same platform "user" no matter what accounts may be on the device.
+// Android implementation of UserAuthorizer.
 //
 // Signing-in is a higher-level concept that is implemented by the Android app
 // using the Android AccountManager and/or Google Play Services to select an
@@ -44,9 +41,9 @@ class AndroidUserAuthorizer : public ::cobalt::account::UserAuthorizer {
   AndroidUserAuthorizer();
   ~AndroidUserAuthorizer() override;
 
-  std::unique_ptr<AccessToken> AuthorizeUser(SbUser user) override;
-  bool DeauthorizeUser(SbUser user) override;
-  std::unique_ptr<AccessToken> RefreshAuthorization(SbUser user) override;
+  std::unique_ptr<AccessToken> AuthorizeUser() override;
+  bool DeauthorizeUser() override;
+  std::unique_ptr<AccessToken> RefreshAuthorization() override;
   void Shutdown() override;
 
  private:
