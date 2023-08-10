@@ -69,9 +69,6 @@ const char kUnknownModelYear[] = "2020";
 // Chipset for unidentified device forms.
 const char kUnknownChipset[] = "UwpUnknown";
 
-// XOR key for certification secret.
-const char kRandomKey[] = "27539";
-
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
@@ -91,15 +88,6 @@ bool CopyStringAndTestIfSuccess(char* out_value,
                                                      from_value_str);
   delete from_value_str;
   return result;
-}
-
-bool StartsWith(const std::string& str, const char* prefix) {
-  size_t len = strlen(prefix);
-  if (str.size() < len) {
-    return false;
-  }
-
-  return 0 == str.compare(0, len, prefix);
 }
 
 const std::size_t kOsVersionSize = 128;
@@ -267,15 +255,6 @@ bool GetAppXVersion(char* out_value, int value_length) {
                  << version.Build << '.' << version.Revision;
   return CopyStringAndTestIfSuccess(out_value, value_length,
                                     version_string.str().c_str());
-}
-
-size_t XorString(char* dest, const char* src) {
-  size_t keyLen = strlen(kRandomKey);
-  size_t ret = strlen(src);
-  for (size_t i = 0; i < ret; i++) {
-    dest[i] = src[i] ^ (kRandomKey[i % keyLen]);
-  }
-  return ret;
 }
 
 std::string GetAdvertisingId() {
