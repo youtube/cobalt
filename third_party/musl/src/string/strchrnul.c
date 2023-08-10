@@ -7,6 +7,11 @@
 #define HIGHS (ONES * (UCHAR_MAX/2+1))
 #define HASZERO(x) ((x)-ONES & ~(x) & HIGHS)
 
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+#ifdef __GNUC__
+__attribute__((no_sanitize("address")))
+#endif  // __GNUC__
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 char *__strchrnul(const char *s, int c)
 {
 	c = (unsigned char)c;
