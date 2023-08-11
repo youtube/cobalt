@@ -22,7 +22,6 @@
 #include "cobalt/dom/c_val_view.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/h5vcc/h5vcc_accessibility.h"
-#include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
 #include "cobalt/h5vcc/h5vcc_crash_log.h"
 #include "cobalt/h5vcc/h5vcc_metrics.h"
@@ -73,9 +72,6 @@ class H5vcc : public script::Wrappable {
   const scoped_refptr<H5vccAccessibility>& accessibility() const {
     return accessibility_;
   }
-  const scoped_refptr<H5vccAccountInfo>& account_info() const {
-    return account_info_;
-  }
   const scoped_refptr<H5vccAudioConfigArray>& audio_config() {
     return audio_config_array_;
   }
@@ -98,7 +94,6 @@ class H5vcc : public script::Wrappable {
 
  private:
   scoped_refptr<H5vccAccessibility> accessibility_;
-  scoped_refptr<H5vccAccountInfo> account_info_;
   scoped_refptr<H5vccAudioConfigArray> audio_config_array_;
   scoped_refptr<dom::CValView> c_val_;
   scoped_refptr<H5vccCrashLog> crash_log_;
