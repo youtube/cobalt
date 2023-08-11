@@ -15,6 +15,8 @@
 // Not breaking these functions up because however one is implemented, the
 // others should be implemented similarly.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/common/byte_swap.h"
 
 int16_t SbByteSwapS16(int16_t value) {
@@ -40,3 +42,5 @@ int64_t SbByteSwapS64(int64_t value) {
 uint64_t SbByteSwapU64(uint64_t value) {
   return 0;
 }
+
+#endif

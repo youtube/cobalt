@@ -18,7 +18,7 @@
 #define STARBOARD_CLIENT_PORTING_POEM_INET_POEM_H_
 
 #if defined(STARBOARD)
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 
 #undef htonl
 #define htonl(x) SB_HOST_TO_NET_U32(x)

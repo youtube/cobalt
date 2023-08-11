@@ -12,10 +12,6 @@
 #ifndef WEBP_UTILS_ENDIAN_INL_UTILS_H_
 #define WEBP_UTILS_ENDIAN_INL_UTILS_H_
 
-#if defined(STARBOARD)
-#include "starboard/byte_swap.h"
-#endif
-
 #ifdef HAVE_CONFIG_H
 #include "src/webp/config.h"
 #endif
@@ -44,9 +40,6 @@
 #endif  // !HAVE_CONFIG_H
 
 static WEBP_INLINE uint16_t BSwap16(uint16_t x) {
-#if defined(STARBOARD)
-  return SbByteSwapU16(x);
-#else
 #if defined(HAVE_BUILTIN_BSWAP16)
   return __builtin_bswap16(x);
 #elif defined(_MSC_VER)
@@ -55,13 +48,9 @@ static WEBP_INLINE uint16_t BSwap16(uint16_t x) {
   // gcc will recognize a 'rorw $8, ...' here:
   return (x >> 8) | ((x & 0xff) << 8);
 #endif  // HAVE_BUILTIN_BSWAP16
-#endif  // defined(STARBOARD)
 }
 
 static WEBP_INLINE uint32_t BSwap32(uint32_t x) {
-#if defined(STARBOARD)
-  return SbByteSwapU32(x);
-#else
 #if defined(WEBP_USE_MIPS32_R2)
   uint32_t ret;
   __asm__ volatile (
@@ -82,13 +71,9 @@ static WEBP_INLINE uint32_t BSwap32(uint32_t x) {
 #else
   return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
 #endif  // HAVE_BUILTIN_BSWAP32
-#endif  // defined(STARBOARD)
 }
 
 static WEBP_INLINE uint64_t BSwap64(uint64_t x) {
-#if defined(STARBOARD)
-  return SbByteSwapU64(x);
-#else
 #if defined(HAVE_BUILTIN_BSWAP64)
   return __builtin_bswap64(x);
 #elif defined(__x86_64__)
@@ -103,7 +88,6 @@ static WEBP_INLINE uint64_t BSwap64(uint64_t x) {
   x = ((x & 0xff00ff00ff00ff00ull) >>  8) | ((x & 0x00ff00ff00ff00ffull) <<  8);
   return x;
 #endif  // HAVE_BUILTIN_BSWAP64
-#endif  // defined(STARBOARD)
 }
 
 #endif  // WEBP_UTILS_ENDIAN_INL_UTILS_H_

@@ -12,58 +12,69 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Byte Swap module C++ convenience layer
+// Module Overview: Starboard Byte Swap macros
 //
-// Implements convenient templated wrappers around the core Starboard Byte Swap
-// module. These functions are used to deal with endianness when performing I/O.
+// Specifies macros for swapping byte order. These functions are used to
+// deal with endianness when performing I/O.
 
 #ifndef STARBOARD_COMMON_BYTE_SWAP_H_
 #define STARBOARD_COMMON_BYTE_SWAP_H_
 
-#include <algorithm>
+#if SB_API_VERSION < 16
 
 #include "starboard/byte_swap.h"
+
+#else  // SB_API_VERSION < 16
+
+#include "starboard/configuration.h"
 #include "starboard/types.h"
 
-namespace starboard {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-template <typename T>
-T SbByteSwap(T value) {
-  std::reverse(reinterpret_cast<uint8_t*>(&value),
-               reinterpret_cast<uint8_t*>(&value + 1));
-  return value;
+// TODO: b/295440998 - Consider using compiler builtins.
+
+static __inline uint16_t __sb_bswap_16(uint16_t __x) {
+  return ((uint16_t)(__x << 8)) | __x >> 8;
 }
 
-template <>
-inline int16_t SbByteSwap(int16_t value) {
-  return SbByteSwapS16(value);
+static __inline uint32_t __sb_bswap_32(uint32_t __x) {
+  return __x >> 24 | (__x >> 8 & 0xff00) | ((uint32_t)(__x << 8 & 0xff0000)) |
+         ((uint32_t)(__x << 24));
 }
 
-template <>
-inline uint16_t SbByteSwap(uint16_t value) {
-  return SbByteSwapU16(value);
+static __inline uint64_t __sb_bswap_64(uint64_t __x) {
+  return (__sb_bswap_32((uint32_t)__x) + 0ULL) << 32 | __sb_bswap_32(__x >> 32);
 }
 
-template <>
-inline int32_t SbByteSwap(int32_t value) {
-  return SbByteSwapS32(value);
-}
+#if SB_IS(BIG_ENDIAN)
+#define SB_HOST_TO_NET_S16(x) (x)
+#define SB_HOST_TO_NET_U16(x) (x)
+#define SB_HOST_TO_NET_S32(x) (x)
+#define SB_HOST_TO_NET_U32(x) (x)
+#define SB_HOST_TO_NET_S64(x) (x)
+#define SB_HOST_TO_NET_U64(x) (x)
+#else
+#define SB_HOST_TO_NET_S16(x) __sb_bswap_16(x)
+#define SB_HOST_TO_NET_U16(x) __sb_bswap_16(x)
+#define SB_HOST_TO_NET_S32(x) __sb_bswap_32(x)
+#define SB_HOST_TO_NET_U32(x) __sb_bswap_32(x)
+#define SB_HOST_TO_NET_S64(x) __sb_bswap_64(x)
+#define SB_HOST_TO_NET_U64(x) __sb_bswap_64(x)
+#endif
 
-template <>
-inline uint32_t SbByteSwap(uint32_t value) {
-  return SbByteSwapU32(value);
-}
+#define SB_NET_TO_HOST_S16(x) SB_HOST_TO_NET_S16(x)
+#define SB_NET_TO_HOST_U16(x) SB_HOST_TO_NET_U16(x)
+#define SB_NET_TO_HOST_S32(x) SB_HOST_TO_NET_S32(x)
+#define SB_NET_TO_HOST_U32(x) SB_HOST_TO_NET_U32(x)
+#define SB_NET_TO_HOST_S64(x) SB_HOST_TO_NET_S64(x)
+#define SB_NET_TO_HOST_U64(x) SB_HOST_TO_NET_U64(x)
 
-template <>
-inline int64_t SbByteSwap(int64_t value) {
-  return SbByteSwapS64(value);
-}
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
-template <>
-inline uint64_t SbByteSwap(uint64_t value) {
-  return SbByteSwapU64(value);
-}
-
-}  // namespace starboard
+#endif  // SB_API_VERSION < 16
 
 #endif  // STARBOARD_COMMON_BYTE_SWAP_H_

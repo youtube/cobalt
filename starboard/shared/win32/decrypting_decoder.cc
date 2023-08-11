@@ -14,10 +14,11 @@
 
 #include "starboard/shared/win32/decrypting_decoder.h"
 
+#include <stdlib.h>
+
 #include <algorithm>
 #include <numeric>
 
-#include "starboard/common/byte_swap.h"
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
 #include "starboard/common/ref_counted.h"
@@ -80,9 +81,9 @@ void AttachDrmDataToSample(ComPtr<IMFSample> sample,
   SB_DCHECK(key_id_size == sizeof(GUID));
   GUID guid = *reinterpret_cast<const GUID*>(key_id);
 
-  guid.Data1 = SbByteSwapU32(guid.Data1);
-  guid.Data2 = SbByteSwapU16(guid.Data2);
-  guid.Data3 = SbByteSwapU16(guid.Data3);
+  guid.Data1 = _byteswap_ulong(guid.Data1);
+  guid.Data2 = _byteswap_ushort(guid.Data2);
+  guid.Data3 = _byteswap_ushort(guid.Data3);
 
   sample->SetGUID(MFSampleExtension_Content_KeyID, guid);
 

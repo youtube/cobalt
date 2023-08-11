@@ -16,7 +16,9 @@
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
+#if SB_API_VERSION < 16
 #include "starboard/byte_swap.h"
+#endif
 #include "starboard/common/log.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
@@ -98,12 +100,14 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbAudioSinkIsAudioFrameStorageTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsAudioSampleTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsValid);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbByteSwapS16);
   REGISTER_SYMBOL(SbByteSwapS32);
   REGISTER_SYMBOL(SbByteSwapS64);
   REGISTER_SYMBOL(SbByteSwapU16);
   REGISTER_SYMBOL(SbByteSwapU32);
   REGISTER_SYMBOL(SbByteSwapU64);
+#endif
   REGISTER_SYMBOL(SbConditionVariableBroadcast);
   REGISTER_SYMBOL(SbConditionVariableCreate);
   REGISTER_SYMBOL(SbConditionVariableDestroy);
