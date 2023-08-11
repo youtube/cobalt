@@ -13,8 +13,8 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  if (current_toolchain == default_toolchain &&
-      build_with_separate_cobalt_toolchain) {
+  if (current_toolchain == default_toolchain && sb_is_modular &&
+      !sb_is_evergreen) {
     configs = [ "//starboard/evergreen/x64/platform_configuration" ]
   } else {
     configs = [
@@ -28,7 +28,7 @@ config("platform_configuration") {
 
 config("libraries") {
   configs = [ "//starboard/linux/shared/platform_configuration:libraries" ]
-  if (build_with_separate_cobalt_toolchain) {
+  if (sb_is_modular && !sb_is_evergreen) {
     libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.so.6" ]
     ldflags = [ "-Wl,-rpath=" + rebase_path("//") +
                 "/third_party/libvpx/platforms/linux-x64/" ]

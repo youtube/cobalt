@@ -246,10 +246,6 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//starboard/loader_app:installation_manager",
     "//testing/gmock",
     "//testing/gtest",
+    "//starboard/loader_app"
   ]
-  if (build_with_separate_cobalt_toolchain) {
-    data_deps = [ "//starboard/loader_app($starboard_toolchain)" ]
-  } else {
-    deps += [ "//starboard/loader_app" ]
-  }
 }
