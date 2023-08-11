@@ -21,7 +21,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/export.h"
 #include "starboard/memory.h"
 
 namespace starboard {
@@ -89,7 +88,7 @@ struct in_place_t {
 extern const in_place_t in_place;
 
 template <typename T>
-class SB_EXPORT optional {
+class optional {
  public:
   // Construction via the default constructor results in an optional that is
   // not engaged.
