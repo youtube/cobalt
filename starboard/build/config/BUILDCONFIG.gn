@@ -117,6 +117,9 @@ import("//starboard/build/config/toolchain_variables.gni")
 import("//$starboard_path/platform_configuration/configuration.gni")
 import("//starboard/build/config/build_assertions.gni")
 
+# TODO(b/295399926) Clean up flag by moving to modular/helper_var.gni
+sb_is_modular = sb_is_evergreen || build_with_separate_cobalt_toolchain
+
 declare_args() {
   use_tsan = getenv("USE_TSAN") == 1
 }
