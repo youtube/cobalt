@@ -21,6 +21,12 @@ static_library("starboard_platform") {
     "//starboard/linux/x64x11/skia/configuration.h",
     "//starboard/linux/x64x11/skia/system_get_extensions.cc",
   ]
+<<<<<<< HEAD
+=======
+  if (!sb_is_modular || sb_is_evergreen) {
+    sources += [ "//starboard/linux/x64x11/main.cc" ]
+  }
+>>>>>>> 0778d0c94eb (Set sb_is_modular, sb_is_evergreen appropriately. (#1207))
 
   public_deps = [
     "//starboard/linux/x64x11/shared:starboard_platform",

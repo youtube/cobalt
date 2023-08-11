@@ -15,7 +15,14 @@
 static_library("starboard_platform") {
   check_includes = false
 
+<<<<<<< HEAD
   sources = [ "//starboard/linux/x64x11/main.cc" ]
+=======
+  sources = [ "//starboard/linux/x64x11/run_starboard_main.cc" ]
+  if (!sb_is_modular || sb_is_evergreen) {
+    sources += [ "//starboard/linux/x64x11/main.cc" ]
+  }
+>>>>>>> 0778d0c94eb (Set sb_is_modular, sb_is_evergreen appropriately. (#1207))
 
   public_deps = [
     "//starboard/linux/x64x11/shared:starboard_platform",
