@@ -20,7 +20,6 @@
 
 #include "base/optional.h"
 #include "base/time/time.h"
-#include "starboard/user.h"
 
 namespace cobalt {
 namespace account {
@@ -35,7 +34,7 @@ struct AccessToken {
 
 // Platform-specific mechanism to authorize a user to access protected resources
 // in a web app running in Cobalt. Manages getting, refreshing, and discarding
-// an access token associated with a platform user identified by a |SbUser|.
+// an access token associated with a platform user.
 class UserAuthorizer {
  public:
   UserAuthorizer() {}
@@ -51,7 +50,7 @@ class UserAuthorizer {
   // including an invalid |user|, or user cancellation of the authorization
   // process.
   // On success, a std::unique_ptr holding a valid AccessToken is returned.
-  virtual std::unique_ptr<AccessToken> AuthorizeUser(SbUser user) = 0;
+  virtual std::unique_ptr<AccessToken> AuthorizeUser() = 0;
 
   // Remove authorization for |user| to use application resources (i.e.
   // sign-out).  This call will block until the linking process is complete,
@@ -62,7 +61,7 @@ class UserAuthorizer {
   // succeeded.
   // Returns false if the process failed for any reason including an invalid
   // |user|, or user cancellation.
-  virtual bool DeauthorizeUser(SbUser user) = 0;
+  virtual bool DeauthorizeUser() = 0;
 
   // Requests a new access token to extend authorization for |user| to continue
   // using application resources.
@@ -71,7 +70,7 @@ class UserAuthorizer {
   // including an invalid |user|, or |user| not already being authorized (in
   // which case AuthorizeUser should be called).
   // On success, a std::unique_ptr holding a valid AccessToken is returned.
-  virtual std::unique_ptr<AccessToken> RefreshAuthorization(SbUser user) = 0;
+  virtual std::unique_ptr<AccessToken> RefreshAuthorization() = 0;
 
   // Signals that the account manager is shutting down, and unblocks any pending
   // request. Calling other methods after |Shutdown| may have no effect.

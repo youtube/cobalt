@@ -20,7 +20,6 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/web/environment_settings_helper.h"
-#include "starboard/user.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -104,25 +103,22 @@ void H5vccAccountManagerInternal::RequestOperationInternal(
     return;
   }
 
-  SbUser current_user = SbUserGetCurrent();
-  DCHECK(SbUserIsValid(current_user));
-
   std::unique_ptr<account::AccessToken> access_token(nullptr);
 
   switch (operation) {
     case kPairing:
-      access_token = user_authorizer->AuthorizeUser(current_user);
+      access_token = user_authorizer->AuthorizeUser();
       DLOG_IF(INFO, !access_token) << "User authorization request failed.";
       break;
     case kUnpairing:
-      if (user_authorizer->DeauthorizeUser(current_user)) {
+      if (user_authorizer->DeauthorizeUser()) {
         break;
       }
       // The user canceled the flow, or there was some error. Fall into the next
       // case to get an access token if available and return that.
       DLOG(INFO) << "User deauthorization request failed. Try to get token.";
     case kGetToken:
-      access_token = user_authorizer->RefreshAuthorization(current_user);
+      access_token = user_authorizer->RefreshAuthorization();
       DLOG_IF(INFO, !access_token) << "Authorization refresh request failed.";
       break;
   }

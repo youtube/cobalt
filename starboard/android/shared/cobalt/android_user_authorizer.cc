@@ -21,11 +21,6 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
-// We're in starboard source, but compiled with Cobalt.
-#define STARBOARD_IMPLEMENTATION
-#include "starboard/shared/nouser/user_internal.h"
-#undef STARBOARD_IMPLEMENTATION
-
 namespace starboard {
 namespace android {
 namespace shared {
@@ -60,8 +55,7 @@ void AndroidUserAuthorizer::Shutdown() {
   env->CallVoidMethodOrAbort(j_user_authorizer_, "interrupt", "()V");
 }
 
-std::unique_ptr<AccessToken> AndroidUserAuthorizer::AuthorizeUser(SbUser user) {
-  SB_DCHECK(user == &::starboard::shared::nouser::g_user);
+std::unique_ptr<AccessToken> AndroidUserAuthorizer::AuthorizeUser() {
   if (shutdown_) {
     DLOG(WARNING) << "No-op AuthorizeUser after shutdown";
     return std::unique_ptr<AccessToken>();
@@ -73,8 +67,7 @@ std::unique_ptr<AccessToken> AndroidUserAuthorizer::AuthorizeUser(SbUser user) {
   return CreateAccessToken(j_token.Get());
 }
 
-bool AndroidUserAuthorizer::DeauthorizeUser(SbUser user) {
-  SB_DCHECK(user == &::starboard::shared::nouser::g_user);
+bool AndroidUserAuthorizer::DeauthorizeUser() {
   if (shutdown_) {
     DLOG(WARNING) << "No-op DeauthorizeUser after shutdown";
     return false;
@@ -84,9 +77,7 @@ bool AndroidUserAuthorizer::DeauthorizeUser(SbUser user) {
                                        "()Z");
 }
 
-std::unique_ptr<AccessToken> AndroidUserAuthorizer::RefreshAuthorization(
-    SbUser user) {
-  SB_DCHECK(user == &::starboard::shared::nouser::g_user);
+std::unique_ptr<AccessToken> AndroidUserAuthorizer::RefreshAuthorization() {
   if (shutdown_) {
     DLOG(WARNING) << "No-op RefreshAuthorization after shutdown";
     return std::unique_ptr<AccessToken>();
