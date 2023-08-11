@@ -229,7 +229,8 @@ config("warnings_as_errors") {
 # override flags specified in a platform's "platform_configuration" config,
 # which is where these particular flags would otherwise naturally fit.
 config("default_compiler_flags") {
-  if (is_starboardized_toolchain && sb_is_modular && target_cpu == "arm") {
+  if (is_starboardized_toolchain && sb_is_modular &&
+      current_toolchain == cobalt_toolchain && target_cpu == "arm") {
     cflags = [ "-mfpu=vfpv3" ]
     asmflags = cflags
   }
