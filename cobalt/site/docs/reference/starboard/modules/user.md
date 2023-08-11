@@ -104,24 +104,6 @@ The property for which the data is requested.
 int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id)
 ```
 
-### SbUserGetSignedIn ###
-
-Gets a list of up to `users_size` signed-in users and places the results in
-`out_users`. The return value identifies the actual number of signed-in users,
-which may be greater or less than `users_size`.
-
-It is expected that there will be a unique `SbUser` per signed-in user and that
-the referenced objects will persist for the lifetime of the app.
-
-`out_users`: Handles for the retrieved users. `users_size`: The maximum number
-of signed-in users to retrieve.
-
-#### Declaration ####
-
-```
-int SbUserGetSignedIn(SbUser *out_users, int users_size)
-```
-
 ### SbUserIsValid ###
 
 Returns whether the given user handle is valid.
