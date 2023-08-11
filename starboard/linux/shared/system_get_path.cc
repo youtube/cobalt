@@ -168,7 +168,10 @@ bool GetContentDirectory(char* out_path, int path_size) {
   if (!GetExecutableDirectory(out_path, path_size)) {
     return false;
   }
-  if (starboard::strlcat(out_path, "/content", path_size) >= path_size) {
+#ifndef CONTENT_DIR
+#define CONTENT_DIR "/content"
+#endif
+  if (starboard::strlcat(out_path, CONTENT_DIR, path_size) >= path_size) {
     return false;
   }
   return true;
