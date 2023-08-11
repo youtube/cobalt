@@ -111,7 +111,8 @@ _TESTS_NEEDING_DEEP_LINK = [
 ]
 # These tests can only run on Evergreen-compatible platforms.
 _TESTS_EVERGREEN_END_TO_END = [
-    'evergreen_verify_qa_channel_update_test',
+    # Temporary disable test to publish new SB 16 changes b/149243810
+    #'evergreen_verify_qa_channel_update_test',
 ]
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
