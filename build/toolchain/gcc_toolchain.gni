@@ -117,7 +117,7 @@ if (enable_resource_allowlist_generation) {
 template("gcc_toolchain") {
   toolchain(target_name) {
     is_starboard_toolchain = target_name == "starboard"
-    if (!build_with_separate_cobalt_toolchain) {
+    if (!sb_is_modular || sb_is_evergreen) {
       not_needed(["is_starboard_toolchain"])
     }
     assert(defined(invoker.ar), "gcc_toolchain() must specify a \"ar\" value")

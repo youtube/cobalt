@@ -81,8 +81,5 @@ group("default") {
         "//components/update_client",
       ]
     }
-    if (!build_with_separate_cobalt_toolchain) {
-      deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
-    }
   }
 }
