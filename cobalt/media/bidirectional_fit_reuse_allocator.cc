@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nb/bidirectional_fit_reuse_allocator.h"
+#include "cobalt/media/bidirectional_fit_reuse_allocator.h"
 
 #include <algorithm>
 
@@ -20,22 +20,19 @@
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
-namespace nb {
+namespace cobalt {
+namespace media {
 
 BidirectionalFitReuseAllocator::BidirectionalFitReuseAllocator(
-    Allocator* fallback_allocator,
-    std::size_t initial_capacity,
+    Allocator* fallback_allocator, std::size_t initial_capacity,
     std::size_t small_allocation_threshold,
-    std::size_t allocation_increment /*= 0*/,
-    std::size_t max_capacity /* =0 */
+    std::size_t allocation_increment /*= 0*/, std::size_t max_capacity /* =0 */
     )
-    : ReuseAllocatorBase(fallback_allocator,
-                         initial_capacity,
-                         allocation_increment,
-                         max_capacity),
+    : ReuseAllocatorBase(fallback_allocator, initial_capacity,
+                         allocation_increment, max_capacity),
       small_allocation_threshold_(small_allocation_threshold) {}
 
-ReuseAllocatorBase::FreeBlockSet::iterator
+nb::ReuseAllocatorBase::FreeBlockSet::iterator
 BidirectionalFitReuseAllocator::FindFreeBlock(std::size_t size,
                                               std::size_t alignment,
                                               FreeBlockSet::iterator begin,
@@ -66,4 +63,5 @@ BidirectionalFitReuseAllocator::FindFreeBlock(std::size_t size,
   return end;
 }
 
-}  // namespace nb
+}  // namespace media
+}  // namespace cobalt
