@@ -19,8 +19,12 @@
 #include <memory>
 
 #include "nb/pointer_arithmetic.h"
-#include "nb/starboard_aligned_memory_deleter.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+struct AlignedMemoryDeleter {
+  void operator()(uint8_t* p) { SbMemoryDeallocateAligned(p); }
+};
 
 class FixedNoFreeAllocatorTest : public ::testing::Test {
  public:
@@ -32,7 +36,7 @@ class FixedNoFreeAllocatorTest : public ::testing::Test {
   static const std::size_t kMaxAllocations = 64;
   static const std::size_t kBufferSize = kAllocationSize * kMaxAllocations;
 
-  std::unique_ptr<uint8_t, nb::AlignedMemoryDeleter> buffer_;
+  std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
   nb::FixedNoFreeAllocator allocator_;
 };
 

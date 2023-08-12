@@ -82,6 +82,7 @@ component("media") {
     "progressive/progressive_parser.h",
     "progressive/rbsp_stream.cc",
     "progressive/rbsp_stream.h",
+    "starboard_memory_allocator.h",
     "url_fetcher_data_source.cc",
     "url_fetcher_data_source.h",
   ]
