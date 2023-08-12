@@ -37,7 +37,9 @@ static_library("nb") {
       "//starboard/common",
     ]
 
-    if (defined(has_nb_platform) && has_nb_platform) {
+    # TODO: b/295615064 Remove nb platform specific dependency.
+    if (defined(has_nb_platform) && has_nb_platform &&
+        current_toolchain == starboard_toolchain) {
       deps += [ "//$starboard_path/nb:nb_platform" ]
     }
   }
