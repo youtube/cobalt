@@ -20,12 +20,16 @@
 
 #include "nb/fixed_no_free_allocator.h"
 #include "nb/pointer_arithmetic.h"
-#include "nb/starboard_aligned_memory_deleter.h"
 #include "starboard/configuration.h"
+#include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
+
+struct AlignedMemoryDeleter {
+  void operator()(uint8_t* p) { SbMemoryDeallocateAligned(p); }
+};
 
 class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
  public:
@@ -49,7 +53,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     fallback_allocator_.swap(fallback_allocator);
   }
 
-  std::unique_ptr<uint8_t, nb::AlignedMemoryDeleter> buffer_;
+  std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
   std::unique_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
   std::unique_ptr<cobalt::media::BidirectionalFitReuseAllocator> allocator_;
 };

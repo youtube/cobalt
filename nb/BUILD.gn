@@ -26,8 +26,6 @@ static_library("nb") {
       "pointer_arithmetic.h",
       "reuse_allocator_base.cc",
       "reuse_allocator_base.h",
-      "starboard_aligned_memory_deleter.h",
-      "starboard_memory_allocator.h",
     ]
 
     deps = [

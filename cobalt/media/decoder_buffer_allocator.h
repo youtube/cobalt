@@ -20,7 +20,7 @@
 #include "base/compiler_specific.h"
 #include "cobalt/media/bidirectional_fit_reuse_allocator.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
-#include "nb/starboard_memory_allocator.h"
+#include "cobalt/media/starboard_memory_allocator.h"
 #include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
@@ -68,7 +68,7 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   const int allocation_unit_;
 
   starboard::Mutex mutex_;
-  nb::StarboardMemoryAllocator fallback_allocator_;
+  StarboardMemoryAllocator fallback_allocator_;
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_;
 
   int max_buffer_capacity_ = 0;

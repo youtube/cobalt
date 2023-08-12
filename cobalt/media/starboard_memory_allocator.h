@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NB_STARBOARD_MEMORY_ALLOCATOR_H_
-#define NB_STARBOARD_MEMORY_ALLOCATOR_H_
+#ifndef COBALT_MEDIA_STARBOARD_MEMORY_ALLOCATOR_H_
+#define COBALT_MEDIA_STARBOARD_MEMORY_ALLOCATOR_H_
 
 #include <algorithm>
 
@@ -21,12 +21,13 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
-namespace nb {
+namespace cobalt {
+namespace media {
 
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
 // using SbMemoryAllocateAligned() and SbMemoryDeallocate() in
 // starboard/memory.h.
-class StarboardMemoryAllocator : public Allocator {
+class StarboardMemoryAllocator : public nb::Allocator {
  public:
   void* Allocate(std::size_t size) override { return Allocate(size, 1); }
 
@@ -50,6 +51,7 @@ class StarboardMemoryAllocator : public Allocator {
   void PrintAllocations() const override {}
 };
 
-}  // namespace nb
+}  // namespace media
+}  // namespace cobalt
 
-#endif  // NB_STARBOARD_MEMORY_ALLOCATOR_H_
+#endif  // COBALT_MEDIA_STARBOARD_MEMORY_ALLOCATOR_H_
