@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nb/allocator.h"
+#include "starboard/common/allocator.h"
 
-namespace nb {
+namespace starboard {
+namespace common {
 
 const size_t Allocator::kMinAlignment = 16;
 
-}  // namespace nb
+}  // namespace common
+}  // namespace starboard

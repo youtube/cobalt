@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NB_REUSE_ALLOCATOR_BASE_H_
-#define NB_REUSE_ALLOCATOR_BASE_H_
+#ifndef STARBOARD_COMMON_REUSE_ALLOCATOR_BASE_H_
+#define STARBOARD_COMMON_REUSE_ALLOCATOR_BASE_H_
 
 #include <algorithm>
 #include <map>
 #include <set>
 #include <vector>
 
-#include "nb/allocator.h"
+#include "starboard/common/allocator.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
-namespace nb {
+namespace starboard {
+namespace common {
 
 // The base class of allocators designed to accommodate cases where the memory
 // allocated may not be efficient or safe to access via the CPU.  It solves
@@ -150,6 +151,7 @@ class ReuseAllocatorBase : public Allocator {
   std::size_t total_allocated_;
 };
 
-}  // namespace nb
+}  // namespace common
+}  // namespace starboard
 
-#endif  // NB_REUSE_ALLOCATOR_BASE_H_
+#endif  // STARBOARD_COMMON_REUSE_ALLOCATOR_BASE_H_

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2014 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,14 @@
  * limitations under the License.
  */
 
-#ifndef NB_ALLOCATOR_H_
-#define NB_ALLOCATOR_H_
+#ifndef STARBOARD_COMMON_ALLOCATOR_H_
+#define STARBOARD_COMMON_ALLOCATOR_H_
 
 #include <cstddef>
 #include <vector>
 
-namespace nb {
+namespace starboard {
+namespace common {
 
 // The Allocator interface offers a standard and consistent way of allocating
 // and freeing memory.  The interface makes no assumption on how the memory
@@ -83,6 +85,7 @@ class Allocator {
   virtual void PrintAllocations() const = 0;
 };
 
-}  // namespace nb
+}  // namespace common
+}  // namespace starboard
 
-#endif  // NB_ALLOCATOR_H_
+#endif  // STARBOARD_COMMON_ALLOCATOR_H_

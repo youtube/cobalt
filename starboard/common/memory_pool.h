@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2014 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +15,15 @@
  * limitations under the License.
  */
 
-#ifndef NB_MEMORY_POOL_H_
-#define NB_MEMORY_POOL_H_
+#ifndef STARBOARD_COMMON_MEMORY_POOL_H_
+#define STARBOARD_COMMON_MEMORY_POOL_H_
 
-#include "nb/allocator.h"
-#include "nb/first_fit_reuse_allocator.h"
-#include "nb/fixed_no_free_allocator.h"
+#include "starboard/common/allocator.h"
+#include "starboard/common/fixed_no_free_allocator.h"
 #include "starboard/common/log.h"
 
-namespace nb {
+namespace starboard {
+namespace common {
 
 // The MemoryPool class can be used to wrap a range of memory with allocators
 // such that the memory can be allocated out of and free'd memory re-used as
@@ -69,8 +70,7 @@ class MemoryPool : public Allocator {
   ReuseAllocator reuse_allocator_;
 };
 
-typedef MemoryPool<FirstFitReuseAllocator> FirstFitMemoryPool;
+}  // namespace common
+}  // namespace starboard
 
-}  // namespace nb
-
-#endif  // NB_MEMORY_POOL_H_
+#endif  // STARBOARD_COMMON_MEMORY_POOL_H_

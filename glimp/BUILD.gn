@@ -115,7 +115,6 @@ source_set("glimp_common_sources") {
   public_configs = [ ":glimp_common_sources_public_config" ]
   deps = [
     "//glimp/tracing",
-    "//nb",
     "//starboard:starboard_headers_only",
   ]
 }

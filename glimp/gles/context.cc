@@ -27,8 +27,8 @@
 #include "glimp/gles/index_data_type.h"
 #include "glimp/gles/pixel_format.h"
 #include "glimp/tracing/tracing.h"
-#include "nb/pointer_arithmetic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
 
@@ -1499,7 +1499,8 @@ void Context::TexImage2D(GLenum target,
 
   // The incoming pixel data should be aligned as the client has specified
   // that it will be.
-  SB_DCHECK(nb::IsAligned(pixels, static_cast<size_t>(unpack_alignment_)));
+  SB_DCHECK(starboard::common::IsAligned(
+      pixels, static_cast<size_t>(unpack_alignment_)));
 
   // Determine pitch taking into account glPixelStorei() settings.
   int pitch_in_bytes = GetPitchForTextureData(width, pixel_format);
@@ -1515,7 +1516,7 @@ void Context::TexImage2D(GLenum target,
 
     texture_object->UpdateDataFromBuffer(
         level, 0, 0, width, height, pitch_in_bytes, bound_pixel_unpack_buffer_,
-        nb::AsInteger(pixels));
+        starboard::common::AsInteger(pixels));
   } else if (pixels) {
     if (!texture_object->UpdateData(level, 0, 0, width, height, pitch_in_bytes,
                                     pixels)) {
@@ -1581,7 +1582,8 @@ void Context::TexSubImage2D(GLenum target,
 
   // The incoming pixel data should be aligned as the client has specified
   // that it will be.
-  SB_DCHECK(nb::IsAligned(pixels, static_cast<size_t>(unpack_alignment_)));
+  SB_DCHECK(starboard::common::IsAligned(
+      pixels, static_cast<size_t>(unpack_alignment_)));
 
   // Determine pitch taking into account glPixelStorei() settings.
   int pitch_in_bytes = GetPitchForTextureData(width, pixel_format);
@@ -1595,7 +1597,7 @@ void Context::TexSubImage2D(GLenum target,
 
     texture_object->UpdateDataFromBuffer(
         level, xoffset, yoffset, width, height, pitch_in_bytes,
-        bound_pixel_unpack_buffer_, nb::AsInteger(pixels));
+        bound_pixel_unpack_buffer_, starboard::common::AsInteger(pixels));
   } else {
     if (!texture_object->UpdateData(level, xoffset, yoffset, width, height,
                                     pitch_in_bytes, pixels)) {
@@ -2537,7 +2539,7 @@ int Context::GetPitchForTextureData(int width, PixelFormat pixel_format) const {
   if (s >= a) {
     return n * len;
   } else {
-    return nb::AlignUp(s * n * len, a) / s;
+    return starboard::common::AlignUp(s * n * len, a) / s;
   }
 }
 

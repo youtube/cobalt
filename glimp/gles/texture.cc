@@ -20,7 +20,7 @@
 #include <utility>
 
 #include "glimp/rect.h"
-#include "nb/pointer_arithmetic.h"
+#include "starboard/common/pointer_arithmetic.h"
 
 namespace glimp {
 namespace gles {

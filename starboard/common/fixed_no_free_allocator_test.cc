@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2014 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,11 +15,11 @@
  * limitations under the License.
  */
 
-#include "nb/fixed_no_free_allocator.h"
+#include "starboard/common/fixed_no_free_allocator.h"
 
 #include <memory>
 
-#include "nb/pointer_arithmetic.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -37,12 +38,13 @@ class FixedNoFreeAllocatorTest : public ::testing::Test {
   static const std::size_t kBufferSize = kAllocationSize * kMaxAllocations;
 
   std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
-  nb::FixedNoFreeAllocator allocator_;
+  starboard::common::FixedNoFreeAllocator allocator_;
 };
 
 FixedNoFreeAllocatorTest::FixedNoFreeAllocatorTest()
     : buffer_(static_cast<uint8_t*>(
-          SbMemoryAllocateAligned(nb::Allocator::kMinAlignment, kBufferSize))),
+          SbMemoryAllocateAligned(starboard::common::Allocator::kMinAlignment,
+                                  kBufferSize))),
       allocator_(buffer_.get(), kBufferSize) {}
 
 TEST_F(FixedNoFreeAllocatorTest, CanDoSimpleAllocations) {
@@ -67,11 +69,11 @@ TEST_F(FixedNoFreeAllocatorTest, CanDoMultipleAllocationsProperly) {
     for (int j = 0; j < i; ++j) {
       EXPECT_NE(buffers[j], buffers[i]);
       if (buffers[j] < buffers[i]) {
-        EXPECT_LE(nb::AsInteger(buffers[j]) + kAllocationSize,
-                  nb::AsInteger(buffers[i]));
+        EXPECT_LE(starboard::common::AsInteger(buffers[j]) + kAllocationSize,
+                  starboard::common::AsInteger(buffers[i]));
       } else {
-        EXPECT_LE(nb::AsInteger(buffers[i]) + kAllocationSize,
-                  nb::AsInteger(buffers[j]));
+        EXPECT_LE(starboard::common::AsInteger(buffers[i]) + kAllocationSize,
+                  starboard::common::AsInteger(buffers[j]));
       }
     }
   }

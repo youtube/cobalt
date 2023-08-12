@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2014 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +15,13 @@
  * limitations under the License.
  */
 
-#ifndef NB_FIXED_NO_FREE_ALLOCATOR_H_
-#define NB_FIXED_NO_FREE_ALLOCATOR_H_
+#ifndef STARBOARD_COMMON_FIXED_NO_FREE_ALLOCATOR_H_
+#define STARBOARD_COMMON_FIXED_NO_FREE_ALLOCATOR_H_
 
-#include "nb/allocator.h"
+#include "starboard/common/allocator.h"
 
-namespace nb {
+namespace starboard {
+namespace common {
 
 // FixedNoFreeAllocator is an allocator that allocates memory but cannot reuse
 // previously allocated memory.  Specifying that the allocator will not reuse
@@ -36,7 +38,7 @@ namespace nb {
 // memory and we would like to wrap it in an allocator.
 class FixedNoFreeAllocator : public Allocator {
  public:
-  // Requires aligned memory to at least |nb::kMinAlignment|.
+  // Requires aligned memory to at least |starboard::common::kMinAlignment|.
   FixedNoFreeAllocator(void* memory_start, std::size_t memory_size);
   void* Allocate(std::size_t size) { return Allocate(&size, 1, true); }
 
@@ -65,6 +67,7 @@ class FixedNoFreeAllocator : public Allocator {
   void* next_memory_;
 };
 
-}  // namespace nb
+}  // namespace common
+}  // namespace starboard
 
-#endif  // NB_FIXED_NO_FREE_ALLOCATOR_H_
+#endif  // STARBOARD_COMMON_FIXED_NO_FREE_ALLOCATOR_H_

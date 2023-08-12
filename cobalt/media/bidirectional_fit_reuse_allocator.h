@@ -17,7 +17,7 @@
 #ifndef COBALT_MEDIA_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
 #define COBALT_MEDIA_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
 
-#include "nb/reuse_allocator_base.h"
+#include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
 
 namespace cobalt {
@@ -32,7 +32,8 @@ namespace media {
 // Note that when using this class a significant |initial_capacity| should be
 // set as otherwise new allocations will almost always allocate from the front
 // of the fallback allocator.
-class BidirectionalFitReuseAllocator : public nb::ReuseAllocatorBase {
+class BidirectionalFitReuseAllocator
+    : public starboard::common::ReuseAllocatorBase {
  public:
   BidirectionalFitReuseAllocator(Allocator* fallback_allocator,
                                  std::size_t initial_capacity,
