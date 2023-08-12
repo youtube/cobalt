@@ -7,11 +7,12 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/angle/angle"
   }
-  version: "c1776c61e5c3722cb2de95aac1119289ff822469"
+  version: "362168eb695d0ac0a2bee85dd356232c9c20d0ef"
+  # from https://chromium.googlesource.com/chromium/src/+/80.0.3987.165/DEPS#188
   last_upgrade_date {
-    year: 2019
-    month: 11
-    day: 20
+    year: 2020
+    month: 2
+    day: 18
   }
   license_type: NOTICE
 }
