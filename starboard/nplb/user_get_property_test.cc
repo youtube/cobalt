@@ -53,7 +53,9 @@ TEST(SbUserGetPropertyTest, SunnyDay) {
 
   TestProperty(current, kSbUserPropertyUserName);
   TestProperty(current, kSbUserPropertyUserId);
+#if SB_API_VERSION < 16
   TestProperty(current, kSbUserPropertyAvatarUrl);
+#endif
 }
 
 TEST(SbUserGetPropertyTest, MultipleTimes) {
@@ -69,8 +71,10 @@ TEST(SbUserGetPropertyTest, MultipleTimes) {
   TestProperty(current, kSbUserPropertyUserId);
   TestProperty(current, kSbUserPropertyUserId);
 
+#if SB_API_VERSION < 16
   TestProperty(current, kSbUserPropertyAvatarUrl);
   TestProperty(current, kSbUserPropertyAvatarUrl);
+#endif
 }
 
 }  // namespace
