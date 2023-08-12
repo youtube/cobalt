@@ -48,11 +48,13 @@
 #define _LIBUNWIND_SUPPORT_TBTAB_UNWIND 1
 #else
   // Assume an ELF system with a dl_iterate_phdr function.
+#if !defined(STARBOARD_IMPLEMENTATION)
   #define _LIBUNWIND_USE_DL_ITERATE_PHDR 1
   #if !defined(_LIBUNWIND_ARM_EHABI)
     #define _LIBUNWIND_SUPPORT_DWARF_UNWIND 1
     #define _LIBUNWIND_SUPPORT_DWARF_INDEX 1
   #endif
+#endif // !defined(STARBOARD_IMPLEMENTATION)
 #endif
 
 #if defined(_LIBUNWIND_HIDE_SYMBOLS)
