@@ -19,8 +19,6 @@ static_library("nb") {
     sources = [
       "allocator.cc",
       "allocator.h",
-      "bidirectional_fit_reuse_allocator.cc",
-      "bidirectional_fit_reuse_allocator.h",
       "first_fit_reuse_allocator.cc",
       "first_fit_reuse_allocator.h",
       "fixed_no_free_allocator.cc",
@@ -50,7 +48,6 @@ target(gtest_target_type, "nb_test") {
 
   if (is_starboard) {
     sources = [
-      "bidirectional_fit_reuse_allocator_test.cc",
       "first_fit_reuse_allocator_test.cc",
       "fixed_no_free_allocator_test.cc",
       "run_all_unittests.cc",

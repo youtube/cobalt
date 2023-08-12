@@ -224,7 +224,7 @@ void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
     return;
   }
 
-  reuse_allocator_.reset(new nb::BidirectionalFitReuseAllocator(
+  reuse_allocator_.reset(new BidirectionalFitReuseAllocator(
       &fallback_allocator_, initial_capacity_, kSmallAllocationThreshold,
       allocation_unit_, 0));
   DLOG(INFO) << "Allocated " << initial_capacity_

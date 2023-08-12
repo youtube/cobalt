@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "nb/bidirectional_fit_reuse_allocator.h"
+#include "cobalt/media/bidirectional_fit_reuse_allocator.h"
 
 #include <memory>
 
@@ -42,7 +42,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
 
     std::unique_ptr<nb::FixedNoFreeAllocator> fallback_allocator(
         new nb::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
-    allocator_.reset(new nb::BidirectionalFitReuseAllocator(
+    allocator_.reset(new cobalt::media::BidirectionalFitReuseAllocator(
         fallback_allocator.get(), initial_capacity, small_allocation_threshold,
         allocation_increment));
 
@@ -51,7 +51,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
 
   std::unique_ptr<uint8_t, nb::AlignedMemoryDeleter> buffer_;
   std::unique_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
-  std::unique_ptr<nb::BidirectionalFitReuseAllocator> allocator_;
+  std::unique_ptr<cobalt::media::BidirectionalFitReuseAllocator> allocator_;
 };
 
 }  // namespace

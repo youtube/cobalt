@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef NB_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
-#define NB_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#ifndef COBALT_MEDIA_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#define COBALT_MEDIA_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
 
 #include "nb/reuse_allocator_base.h"
 #include "starboard/configuration.h"
 
-namespace nb {
+namespace cobalt {
+namespace media {
 
 // This class uses first-fit allocation strategy to allocate memory block whose
 // size is greater than the |small_allocation_threshold|.  It uses last-fit
@@ -31,7 +32,7 @@ namespace nb {
 // Note that when using this class a significant |initial_capacity| should be
 // set as otherwise new allocations will almost always allocate from the front
 // of the fallback allocator.
-class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
+class BidirectionalFitReuseAllocator : public nb::ReuseAllocatorBase {
  public:
   BidirectionalFitReuseAllocator(Allocator* fallback_allocator,
                                  std::size_t initial_capacity,
@@ -39,8 +40,7 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
                                  std::size_t allocation_increment = 0,
                                  std::size_t max_capacity = 0);
 
-  FreeBlockSet::iterator FindFreeBlock(std::size_t size,
-                                       std::size_t alignment,
+  FreeBlockSet::iterator FindFreeBlock(std::size_t size, std::size_t alignment,
                                        FreeBlockSet::iterator begin,
                                        FreeBlockSet::iterator end,
                                        bool* allocate_from_front) override;
@@ -49,6 +49,7 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
   std::size_t small_allocation_threshold_;
 };
 
-}  // namespace nb
+}  // namespace media
+}  // namespace cobalt
 
-#endif  // NB_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#endif  // COBALT_MEDIA_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_

@@ -18,7 +18,6 @@
 #define NB_MEMORY_POOL_H_
 
 #include "nb/allocator.h"
-#include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/first_fit_reuse_allocator.h"
 #include "nb/fixed_no_free_allocator.h"
 #include "starboard/common/log.h"
@@ -70,7 +69,6 @@ class MemoryPool : public Allocator {
   ReuseAllocator reuse_allocator_;
 };
 
-typedef MemoryPool<BidirectionalFitReuseAllocator> BidirectionalFitMemoryPool;
 typedef MemoryPool<FirstFitReuseAllocator> FirstFitMemoryPool;
 
 }  // namespace nb
