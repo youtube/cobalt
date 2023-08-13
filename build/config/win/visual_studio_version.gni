@@ -39,6 +39,8 @@ if (is_starboard) {
 
   declare_args() {
     msvc_path = "$visual_studio_path/VC/Tools/MSVC/$visual_studio_version"
+
+    llvm_clang_path = "$visual_studio_path/VC/Tools/Llvm/x64/bin"
   }
 } else {
   declare_args() {

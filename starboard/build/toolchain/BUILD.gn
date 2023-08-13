@@ -13,8 +13,59 @@
 # limitations under the License.
 
 import("//build/config/clang/clang.gni")
+import("//build/config/win/visual_studio_version.gni")
 import("//build/toolchain/gcc_toolchain.gni")
+import("//starboard/build/config/os_definitions.gni")
 
-clang_toolchain("clang") {
-  clang_base_path = clang_base_path
+# Use this toolchain for linux-x64 platforms.
+if (is_linux && !using_old_compiler && target_cpu == "x64") {
+  clang_toolchain("clang") {
+    clang_base_path = clang_base_path
+  }
+} else {
+  import("//$starboard_path/toolchain/variables.gni")
+  assert(
+      defined(native_linker_path),
+      "native_linker_path should be defined in $starboard_path/toolchain/variables.gni")
+}
+
+# Use this toolchain for raspi platforms, old linux compiler platforms.
+if ((is_linux && target_cpu == "arm") || using_old_compiler) {
+  gcc_toolchain("clang") {
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cc = "$prefix/clang"
+    cxx = "$prefix/clang++"
+    ld = native_linker_path
+    readelf = "readelf"
+    ar = "${prefix}/llvm-ar"
+    nm = "nm"
+    toolchain_args = {
+      is_clang = true
+    }
+  }
+}
+
+# Use this toolchain for Windows based platforms.
+if (is_win) {
+  gcc_toolchain("clang") {
+    prefix = llvm_clang_path
+    cc = "$prefix/clang.exe"
+    cxx = "$prefix/clang++.exe"
+    ld = native_linker_path
+    readelf = "$prefix/llvm-readobj.exe"
+    ar = "${prefix}/llvm-ar.exe"
+    nm = "${prefix}/llvm-nm.exe"
+    toolchain_args = {
+      is_clang = true
+    }
+
+    executable_extension = native_executable_extension
+    shlib_extension = native_shlib_extension
+    if (defined(native_snarl_linker)) {
+      using_snarl_linker = true
+    }
+    toolchain_args = {
+      is_clang = true
+    }
+  }
 }
