@@ -113,6 +113,19 @@ bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
 }
 #endif
 
+bool GetParentDirectory(char* out_path) {
+  if (!out_path) {
+    return false;
+  }
+  char* last_slash = const_cast<char*>(strrchr(out_path, '/'));
+  if (!last_slash) {
+    return false;
+  }
+
+  *last_slash = '\0';
+  return true;
+}
+
 // Places up to |path_size| - 1 characters of the path to the directory
 // containing the current executable in |out_path|, ensuring it is
 // NULL-terminated. Returns success status. The result being greater than
@@ -122,14 +135,7 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
   if (!GetExecutablePath(out_path, path_size)) {
     return false;
   }
-
-  char* last_slash = const_cast<char*>(strrchr(out_path, '/'));
-  if (!last_slash) {
-    return false;
-  }
-
-  *last_slash = '\0';
-  return true;
+  return GetParentDirectory(out_path);
 }
 
 // Gets only the name portion of the current executable.
@@ -168,10 +174,12 @@ bool GetContentDirectory(char* out_path, int path_size) {
   if (!GetExecutableDirectory(out_path, path_size)) {
     return false;
   }
-#ifndef CONTENT_DIR
-#define CONTENT_DIR "/content"
+#ifdef USE_COMMON_CONTENT_DIR
+  if (!GetParentDirectory(out_path)) {
+    return false;
+  }
 #endif
-  if (starboard::strlcat(out_path, CONTENT_DIR, path_size) >= path_size) {
+  if (starboard::strlcat(out_path, "/content", path_size) >= path_size) {
     return false;
   }
   return true;

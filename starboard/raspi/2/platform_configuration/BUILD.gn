@@ -28,6 +28,6 @@ config("platform_configuration") {
     ]
   }
   if (build_with_separate_cobalt_toolchain) {
-    defines = [ "CONTENT_DIR=\"/../content\"" ]
+    defines = [ "USE_COMMON_CONTENT_DIR" ]
   }
 }

@@ -110,7 +110,7 @@ group("starboard") {
     }
   } else {
     public_deps += [
-      ":starboard_platform_group($starboard_toolchain)",
+      ":starboard_platform_group_static($starboard_toolchain)",
       "//starboard/common",
     ]
 
@@ -183,6 +183,23 @@ source_set("starboard_headers_only") {
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
   starboard_platform_target("starboard_platform_group") {
+  }
+
+  target("static_library", "starboard_platform_group_static") {
+    public_deps = [
+      "//starboard/client_porting/cwrappers",
+      "//starboard/client_porting/eztime",
+      "//starboard/common",
+      "//starboard/egl_and_gles",
+    ]
+    if (sb_is_evergreen_compatible) {
+      public_deps += [ "//third_party/crashpad/wrapper" ]
+    } else {
+      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
+    if (!sb_is_evergreen) {
+      public_deps += [ "//$starboard_path:starboard_platform" ]
+    }
   }
 
   if (platform_tests_path == "") {
