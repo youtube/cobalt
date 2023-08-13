@@ -89,6 +89,7 @@ group("starboard") {
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/llvm-project/libcxx:cxx",
       "//third_party/llvm-project/libcxxabi:cxxabi",
+      "//third_party/llvm-project/libunwind:unwind_evergreen",
       "//third_party/musl:c",
     ]
     if (sb_is_evergreen) {
@@ -96,7 +97,8 @@ group("starboard") {
     }
     if (sb_is_modular && !sb_is_evergreen) {
       data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
-    } else {
+    }
+    if (sb_is_evergreen_compatible) {
       public_deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
     }
   } else {

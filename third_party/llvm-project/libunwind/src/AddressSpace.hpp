@@ -25,8 +25,13 @@
 
 #if defined(STARBOARD_IMPLEMENTATION)
 #include "starboard/memory.h"
+#if defined(STARBOARD_IMPLEMENTATION) && (defined(SB_IS_EVERGREEN) || defined(SB_IS_EVERGREEN_COMPATIBLE))
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
-#endif
+#elif defined(STARBOARD_IMPLEMENTATION) && defined(SB_IS_MODULAR) && !defined(SB_IS_EVRGREEN_COMPATIBLE)
+// This gives an error on windows complaining about missing <dlfcn.h>
+#define _LIBUNWIND_USE_DLADDR 0
+#endif // defined(SB_IS_EVERGREEN)
+#endif // defined(STARBOARD_IMPLEMENTATION)
 
 #ifndef _LIBUNWIND_USE_DLADDR
   #if !(defined(_LIBUNWIND_IS_BAREMETAL) || defined(_WIN32) || defined(_AIX))
@@ -487,7 +492,7 @@ static int findUnwindSectionsByPhdr(struct dl_phdr_info *pinfo,
 
 #endif  // defined(_LIBUNWIND_USE_DL_ITERATE_PHDR)
 
-#if defined(STARBOARD_IMPLEMENTATION)
+#if defined(STARBOARD_IMPLEMENTATION) && (defined(SB_IS_EVERGREEN) || defined(SB_IS_EVERGREEN_COMPATIBLE))
 int evergreen_dl_iterate_phdr(
                  int (*callback) (struct dl_phdr_info *info,
                                   size_t size, void *data),
@@ -505,7 +510,8 @@ int evergreen_dl_iterate_phdr(
 
   return ret || ::dl_iterate_phdr(callback, data);
 }
-#endif
+#endif // defined(STARBOARD_IMPLEMENTATION) && (defined(SB_IS_EVERGREEN) || defined(SB_IS_EVERGREEN_COMPATIBLE))
+
 
 inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
                                                   UnwindInfoSections &info) {
