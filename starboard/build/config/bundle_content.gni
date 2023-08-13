@@ -33,11 +33,7 @@ template("bundle_content") {
 
     deps = []
     foreach(dep, bundle_deps) {
-      spl = []
-      spl = string_split(dep, "(")
-      if ([ spl[0] ] == spl) {
-        deps += [ "${dep}_install_content" ]
-      }
+      deps += [ "${dep}_install_content" ]
     }
 
     output_conversion = file_format
