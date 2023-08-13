@@ -26,7 +26,6 @@ bool StrToD(const char* str, double* result) {
 }
 
 std::string DToStr(double value) {
-  //Ask Kaido/Yavor if this is needed.
 #if SB_IS(MODULAR)
 #error "The std::locale::classic() is not supported for Evergreen. Please use base::NumberToString()."
 #endif
