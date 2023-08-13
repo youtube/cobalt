@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "cobalt/math/size.h"
-#include "nb/allocator.h"
+#include "starboard/common/allocator.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"

@@ -17,7 +17,7 @@
 
 #include <algorithm>
 
-#include "nb/allocator.h"
+#include "starboard/common/allocator.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
@@ -27,7 +27,7 @@ namespace media {
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
 // using SbMemoryAllocateAligned() and SbMemoryDeallocate() in
 // starboard/memory.h.
-class StarboardMemoryAllocator : public nb::Allocator {
+class StarboardMemoryAllocator : public starboard::common::Allocator {
  public:
   void* Allocate(std::size_t size) override { return Allocate(size, 1); }
 

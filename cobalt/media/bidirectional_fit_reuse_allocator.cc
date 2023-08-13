@@ -16,8 +16,8 @@
 
 #include <algorithm>
 
-#include "nb/pointer_arithmetic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -32,7 +32,7 @@ BidirectionalFitReuseAllocator::BidirectionalFitReuseAllocator(
                          allocation_increment, max_capacity),
       small_allocation_threshold_(small_allocation_threshold) {}
 
-nb::ReuseAllocatorBase::FreeBlockSet::iterator
+starboard::common::ReuseAllocatorBase::FreeBlockSet::iterator
 BidirectionalFitReuseAllocator::FindFreeBlock(std::size_t size,
                                               std::size_t alignment,
                                               FreeBlockSet::iterator begin,

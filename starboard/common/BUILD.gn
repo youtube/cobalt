@@ -34,6 +34,8 @@ static_library("common") {
   sources = [
     "//starboard/shared/media_session/playback_state.cc",
     "//starboard/shared/media_session/playback_state.h",
+    "allocator.cc",
+    "allocator.h",
     "byte_swap.h",
     "common.cc",
     "condition_variable.cc",
@@ -46,6 +48,8 @@ static_library("common") {
     "experimental/concurrency_debug.h",
     "file.cc",
     "file.h",
+    "fixed_no_free_allocator.cc",
+    "fixed_no_free_allocator.h",
     "flat_map.h",
     "locked_ptr.h",
     "log.cc",
@@ -65,12 +69,15 @@ static_library("common") {
     "paths.h",
     "player.cc",
     "player.h",
+    "pointer_arithmetic.h",
     "queue.h",
     "recursive_mutex.cc",
     "recursive_mutex.h",
     "ref_counted.cc",
     "ref_counted.h",
     "reset_and_return.h",
+    "reuse_allocator_base.cc",
+    "reuse_allocator_base.h",
     "rwlock.cc",
     "rwlock.h",
     "scoped_ptr.h",
@@ -96,6 +103,7 @@ static_library("common") {
 target(gtest_target_type, "common_test") {
   testonly = true
   sources = [
+    "fixed_no_free_allocator_test.cc",
     "media_test.cc",
     "memory_test.cc",
     "player_test.cc",

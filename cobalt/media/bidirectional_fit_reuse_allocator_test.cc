@@ -18,8 +18,8 @@
 
 #include <memory>
 
-#include "nb/fixed_no_free_allocator.h"
-#include "nb/pointer_arithmetic.h"
+#include "starboard/common/fixed_no_free_allocator.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
@@ -41,11 +41,12 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
   void ResetAllocator(std::size_t initial_capacity = 0,
                       std::size_t small_allocation_threshold = 0,
                       std::size_t allocation_increment = 0) {
-    buffer_.reset(static_cast<uint8_t*>(
-        SbMemoryAllocateAligned(nb::Allocator::kMinAlignment, kBufferSize)));
+    buffer_.reset(static_cast<uint8_t*>(SbMemoryAllocateAligned(
+        starboard::common::Allocator::kMinAlignment, kBufferSize)));
 
-    std::unique_ptr<nb::FixedNoFreeAllocator> fallback_allocator(
-        new nb::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
+    std::unique_ptr<starboard::common::FixedNoFreeAllocator> fallback_allocator(
+        new starboard::common::FixedNoFreeAllocator(buffer_.get(),
+                                                    kBufferSize));
     allocator_.reset(new cobalt::media::BidirectionalFitReuseAllocator(
         fallback_allocator.get(), initial_capacity, small_allocation_threshold,
         allocation_increment));
@@ -54,7 +55,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
   }
 
   std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
-  std::unique_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
+  std::unique_ptr<starboard::common::FixedNoFreeAllocator> fallback_allocator_;
   std::unique_ptr<cobalt::media::BidirectionalFitReuseAllocator> allocator_;
 };
 
@@ -67,7 +68,7 @@ TEST_F(BidirectionalFitReuseAllocatorTest, AlignmentCheck) {
     for (int j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
       void* p = allocator_->Allocate(kBlockSizes[j], kAlignments[i]);
       EXPECT_TRUE(p != NULL);
-      EXPECT_EQ(nb::IsAligned(p, kAlignments[i]), true);
+      EXPECT_EQ(starboard::common::IsAligned(p, kAlignments[i]), true);
       allocator_->Free(p);
     }
   }

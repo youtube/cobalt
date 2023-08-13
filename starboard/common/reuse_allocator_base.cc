@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nb/reuse_allocator_base.h"
+#include "starboard/common/reuse_allocator_base.h"
 
 #include <algorithm>
 
-#include "nb/pointer_arithmetic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/types.h"
 
-namespace nb {
+namespace starboard {
+namespace common {
 
 namespace {
 
@@ -391,4 +392,5 @@ void ReuseAllocatorBase::RemoveFreeBlock(FreeBlockSet::iterator it) {
   free_blocks_.erase(it);
 }
 
-}  // namespace nb
+}  // namespace common
+}  // namespace starboard

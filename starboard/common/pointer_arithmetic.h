@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 The Cobalt Authors. All Rights Reserved.
  * Copyright 2014 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +15,13 @@
  * limitations under the License.
  */
 
-#ifndef NB_POINTER_ARITHMETIC_H_
-#define NB_POINTER_ARITHMETIC_H_
+#ifndef STARBOARD_COMMON_POINTER_ARITHMETIC_H_
+#define STARBOARD_COMMON_POINTER_ARITHMETIC_H_
 
 #include "starboard/types.h"
 
-namespace nb {
+namespace starboard {
+namespace common {
 
 // Helper method to cast the passed in void* pointer to a integer type.
 inline uintptr_t AsInteger(const void* memory_value) {
@@ -65,6 +67,7 @@ static bool IsAligned(T value, size_t alignment) {
   return AsInteger(value) % alignment == 0;
 }
 
-}  // namespace nb
+}  // namespace common
+}  // namespace starboard
 
-#endif  // NB_POINTER_ARITHMETIC_H_
+#endif  // STARBOARD_COMMON_POINTER_ARITHMETIC_H_
