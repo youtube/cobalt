@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 
 group("gn_all") {
@@ -98,10 +99,18 @@ group("starboard") {
     ]
     if (sb_is_evergreen) {
       public_deps += [ "//starboard/elf_loader:sabi_string" ]
+<<<<<<< HEAD
     }
     if (build_with_separate_cobalt_toolchain) {
       data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
+=======
+>>>>>>> 05a5375706e (Include libunwind for windows based platform modular builds (#1226))
     } else {
+      data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
+    }
+
+    # TODO: b/295702296 Fix libunwind for modular builds.
+    if (sb_is_evergreen || is_host_os_win) {
       public_deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
     }
   } else {
