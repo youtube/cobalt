@@ -8,7 +8,6 @@
 //
 
 #include "compiler/translator/FunctionLookup.h"
-
 #include "compiler/translator/ImmutableStringBuilder.h"
 
 namespace sh

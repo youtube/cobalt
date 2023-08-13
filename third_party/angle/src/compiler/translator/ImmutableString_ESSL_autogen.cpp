@@ -18,7 +18,7 @@ std::ostream &operator<<(std::ostream &os, const sh::ImmutableString &str)
 }
 
 #if defined(_MSC_VER)
-#pragma warning(disable : 4309)  // truncation of constant value
+#    pragma warning(disable : 4309)  // truncation of constant value
 #endif
 
 namespace
@@ -200,7 +200,8 @@ int UnmangledPerfectHash(const char *key)
 
     return (UnmangledHashG(key, unmangledkT1) + UnmangledHashG(key, unmangledkT2)) % 287;
 }
-}
+
+}  // namespace
 
 namespace sh
 {
