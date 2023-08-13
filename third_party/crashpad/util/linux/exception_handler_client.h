@@ -18,7 +18,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "base/macros.h"
 #include "util/linux/exception_handler_protocol.h"
 
 #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
@@ -36,6 +35,9 @@ class ExceptionHandlerClient {
   //! \param[in] multiple_clients `true` if this socket may be used by multiple
   //!     clients.
   ExceptionHandlerClient(int sock, bool multiple_clients);
+
+  ExceptionHandlerClient(const ExceptionHandlerClient&) = delete;
+  ExceptionHandlerClient& operator=(const ExceptionHandlerClient&) = delete;
 
   ~ExceptionHandlerClient();
 
@@ -104,8 +106,6 @@ class ExceptionHandlerClient {
   pid_t ptracer_;
   bool can_set_ptracer_;
   bool multiple_clients_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExceptionHandlerClient);
 };
 
 }  // namespace crashpad

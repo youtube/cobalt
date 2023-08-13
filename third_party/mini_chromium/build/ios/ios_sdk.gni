@@ -20,7 +20,7 @@ declare_args() {
   # The iOS Code signing identity to use
   ios_enable_code_signing = true
   ios_code_signing_identity = ""
-  ios_code_signing_identity_description = "iPhone Developer"
+  ios_code_signing_identity_description = "Apple Development"
 }
 
 use_ios_simulator = current_cpu == "x86" || current_cpu == "x64"

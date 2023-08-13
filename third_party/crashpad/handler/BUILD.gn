@@ -18,12 +18,8 @@ static_library("handler") {
   check_includes = false
 
   sources = [
-    "crash_report_upload_thread.cc",
-    "crash_report_upload_thread.h",
     "handler_main.cc",
     "handler_main.h",
-    "minidump_to_upload_parameters.cc",
-    "minidump_to_upload_parameters.h",
     "prune_crash_reports_thread.cc",
     "prune_crash_reports_thread.h",
     "user_stream_data_source.cc",
@@ -36,8 +32,6 @@ static_library("handler") {
       "mac/crash_report_exception_handler.h",
       "mac/exception_handler_server.cc",
       "mac/exception_handler_server.h",
-      "mac/file_limit_annotation.cc",
-      "mac/file_limit_annotation.h",
     ]
   }
 
@@ -67,26 +61,20 @@ static_library("handler") {
     ]
   }
 
-  if (crashpad_is_fuchsia) {
-    sources += [
-      "fuchsia/crash_report_exception_handler.cc",
-      "fuchsia/crash_report_exception_handler.h",
-      "fuchsia/exception_handler_server.cc",
-      "fuchsia/exception_handler_server.h",
-    ]
-  }
-
   public_configs = [ "..:crashpad_config" ]
 
   public_deps = [
+    ":common",
     "../client",
     "../third_party/mini_chromium:base",
     "../util",
   ]
 
   deps = [
+    ":common",
     "../minidump",
     "../snapshot",
+    "../third_party/mini_chromium:chromeos_buildflags",
     "../tools:tool_support",
   ]
 
@@ -98,10 +86,6 @@ static_library("handler") {
 
   if (crashpad_is_win) {
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
-  }
-
-  if (crashpad_is_fuchsia) {
-    deps += [ "../third_party/fuchsia" ]
   }
 
   if (crashpad_is_in_starboard) {
@@ -116,6 +100,34 @@ if (crashpad_is_android) {
     sources = [ "crashpad_handler_main.cc" ]
 
     deps = [ ":handler" ]
+  }
+}
+
+static_library("common") {
+  sources = [
+    "crash_report_upload_thread.cc",
+    "crash_report_upload_thread.h",
+    "minidump_to_upload_parameters.cc",
+    "minidump_to_upload_parameters.h",
+  ]
+  if (crashpad_is_mac || crashpad_is_ios) {
+    sources += [
+      "mac/file_limit_annotation.cc",
+      "mac/file_limit_annotation.h",
+    ]
+  }
+  public_configs = [ "..:crashpad_config" ]
+  public_deps = [
+    "../third_party/mini_chromium:base",
+    "../util",
+  ]
+  deps = [
+    "../client:common",
+    "../snapshot",
+    "../util",
+  ]
+  if (crashpad_is_win) {
+    cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
   }
 }
 
@@ -140,12 +152,14 @@ source_set("handler_test") {
     "../snapshot",
     "../snapshot:test_support",
     "../test",
-    "../third_party/gtest:gtest",
+    "../third_party/googletest:googletest",
     "../third_party/mini_chromium:base",
     "../util",
   ]
 
   if (crashpad_is_win) {
+    deps += [ "../minidump:test_support" ]
+
     data_deps = [
       ":crashpad_handler_test_extended_handler",
       ":fake_handler_that_crashes_at_startup",
@@ -191,6 +205,7 @@ if (!crashpad_is_ios) {
       "../build:default_exe_manifest_win",
       "../compat",
       "../third_party/mini_chromium:base",
+      "../tools:tool_support",
     ]
 
     configs = []
@@ -198,11 +213,18 @@ if (!crashpad_is_ios) {
       if (crashpad_is_in_chromium || crashpad_is_in_dart) {
         remove_configs = [ "//build/config/win:console" ]
         configs = [ "//build/config/win:windowed" ]
-      } else {
+      } else if (crashpad_is_external) {
         remove_configs =
-            [ "//third_party/mini_chromium/mini_chromium/build:win_console" ]
+            [ "//../../mini_chromium/mini_chromium/build/config:win_console" ]
         configs =
-            [ "//third_party/mini_chromium/mini_chromium/build:win_windowed" ]
+            [ "//../../mini_chromium/mini_chromium/build/config:win_windowed" ]
+      } else {
+        remove_configs = [
+          "//third_party/mini_chromium/mini_chromium/build/config:win_console",
+        ]
+        configs = [
+          "//third_party/mini_chromium/mini_chromium/build/config:win_windowed",
+        ]
       }
     }
 
@@ -213,6 +235,10 @@ if (!crashpad_is_ios) {
 
     if (crashpad_is_in_native_target_build) {
       configs += [ ":crashpad_handler_native_target_config" ]
+    }
+
+    if (crashpad_is_linux) {
+      deps += [ "../client:pthread_create" ]
     }
   }
 }
@@ -237,10 +263,14 @@ if (crashpad_is_android &&
 
     sources = [ "linux/handler_trampoline.cc" ]
 
-    ldflags = [ "-llog" ]
+    deps = [ "../util:no_cfi_icall" ]
+
+    libs = [ "log" ]
 
     if (crashpad_is_in_chromium) {
       no_default_deps = true
+      remove_configs =
+          [ "//build/config/android:default_orderfile_instrumentation" ]
     }
   }
 }
@@ -277,6 +307,7 @@ if (crashpad_is_win) {
       "../build:default_exe_manifest_win",
       "../compat",
       "../third_party/mini_chromium:base",
+      "../tools:tool_support",
     ]
   }
 
@@ -294,7 +325,7 @@ if (crashpad_is_win) {
     deps = [
       "../client",
       "../test",
-      "../third_party/gtest:gtest",
+      "../third_party/googletest:googletest",
       "../third_party/mini_chromium:base",
     ]
   }

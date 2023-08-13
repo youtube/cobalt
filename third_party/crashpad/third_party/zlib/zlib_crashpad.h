@@ -21,8 +21,9 @@
 
 #if defined(STARBOARD)
 #include "third_party/zlib/zlib.h"
-#elif defined(CRASHPAD_ZLIB_SOURCE_SYSTEM) || \
-    defined(CRASHPAD_ZLIB_SOURCE_EXTERNAL)
+#elif defined(CRASHPAD_ZLIB_SOURCE_SYSTEM) ||   \
+    defined(CRASHPAD_ZLIB_SOURCE_EXTERNAL) || \
+    defined(CRASHPAD_ZLIB_SOURCE_EXTERNAL_WITH_EMBEDDED_BUILD)
 #include <zlib.h>
 #elif defined(CRASHPAD_ZLIB_SOURCE_EMBEDDED)
 #include "third_party/zlib/zlib/zlib.h"

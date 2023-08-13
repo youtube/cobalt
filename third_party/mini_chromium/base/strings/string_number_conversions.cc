@@ -182,7 +182,7 @@ class BaseIteratorRangeToNumberTraits {
   static value_type max() {
     return std::numeric_limits<value_type>::max();
   }
-  static const int kBase = BASE;
+  static constexpr int kBase = BASE;
 };
 
 typedef BaseIteratorRangeToNumberTraits<StringPiece::const_iterator, int, 10>
@@ -266,7 +266,7 @@ bool HexStringToBytes(const std::string& input, std::vector<uint8_t>* output) {
         !CharToDigit<16>(input[i + 1], &lsb)) {
       return false;
     }
-    output->push_back((msb << 4) | lsb);
+    output->push_back(static_cast<uint8_t>((msb << 4) | lsb));
   }
   return true;
 }

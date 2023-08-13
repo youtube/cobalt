@@ -13,7 +13,7 @@ config("xctest_config") {
   cflags = common_flags
   ldflags = common_flags
 
-  libs = [
+  frameworks = [
     "Foundation.framework",
     "XCTest.framework",
   ]
