@@ -138,8 +138,7 @@ config("compiler_flags") {
 
 config("platform_configuration") {
   configs = [ ":common_flags" ]
-  if (current_toolchain == default_toolchain &&
-      build_with_separate_cobalt_toolchain) {
+  if (current_toolchain == default_toolchain && sb_is_modular) {
     configs += [ "//starboard/evergreen/arm/hardfp/platform_configuration" ]
   } else {
     configs +=

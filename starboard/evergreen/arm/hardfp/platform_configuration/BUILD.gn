@@ -27,7 +27,7 @@ config("platform_configuration") {
     ":sabi_flags",
     "//starboard/evergreen/arm/shared/platform_configuration",
   ]
-  if (!build_with_separate_cobalt_toolchain) {
+  if (sb_is_evergreen) {
     ldflags = [
       "-Wl,-m",
       "-Wl,armelf",

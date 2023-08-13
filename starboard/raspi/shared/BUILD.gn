@@ -337,7 +337,7 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
-  if (!build_with_separate_cobalt_toolchain) {
+  if (!sb_is_modular) {
     sources += [ "//starboard/raspi/shared/main.cc" ]
   }
 
