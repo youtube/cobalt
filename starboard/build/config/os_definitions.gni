@@ -31,3 +31,8 @@ is_win = current_os == "win" || current_os == "winuwp"
 
 is_apple = is_ios || is_mac
 is_posix = !is_win && !is_fuchsia
+<<<<<<< HEAD
+=======
+
+is_host_win = host_os == "win" || host_os == "winuwp"
+>>>>>>> 530cbac5558 (Consolidate cobalt toolchains for all platforms (#1235))

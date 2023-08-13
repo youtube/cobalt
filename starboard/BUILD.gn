@@ -99,9 +99,15 @@ group("starboard") {
     if (sb_is_evergreen) {
       public_deps += [ "//starboard/elf_loader:sabi_string" ]
     }
+<<<<<<< HEAD
     if (build_with_separate_cobalt_toolchain) {
       data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
     } else {
+=======
+
+    # TODO: b/295702296 Fix libunwind for modular builds.
+    if (sb_is_evergreen || is_host_win) {
+>>>>>>> 530cbac5558 (Consolidate cobalt toolchains for all platforms (#1235))
       public_deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
     }
   } else {
