@@ -13,14 +13,24 @@
 # limitations under the License.
 
 import("//build/config/clang/clang.gni")
+import("//starboard/linux/x64x11/clang/3.9/toolchain/variables.gni")
 import("//starboard/shared/toolchain/overridable_gcc_toolchain.gni")
 
-_target_llvm_3_9_bin_dir = "/usr/lib/llvm-3.9/bin"
-
 overridable_gcc_toolchain("target") {
-  cc = "${_target_llvm_3_9_bin_dir}/clang"
-  cxx = "${_target_llvm_3_9_bin_dir}/clang++"
-  ld = cxx
+  cc = "${target_llvm_3_9_bin_dir}/clang"
+  cxx = "${target_llvm_3_9_bin_dir}/clang++"
+  ld = native_linker_path
+  ar = "ar"
+
+  toolchain_args = {
+    is_clang = true
+  }
+}
+
+overridable_gcc_toolchain("starboard") {
+  cc = "${target_llvm_3_9_bin_dir}/clang"
+  cxx = "${target_llvm_3_9_bin_dir}/clang++"
+  ld = native_linker_path
   ar = "ar"
 
   toolchain_args = {

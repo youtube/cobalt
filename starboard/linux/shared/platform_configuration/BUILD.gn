@@ -63,14 +63,9 @@ config("compiler_flags") {
       # Do not warn about unused function params.
       "-Wno-unused-parameter",
     ]
-    if (sb_is_modular && !sb_is_evergreen) {
-      # If we're building with cobalt toolchain and native linker, we need visibility.
-      cflags += [ "-fvisibility=default" ]
-    } else {
-      # Default visibility to hidden, to enable dead stripping.
-      cflags += [ "-fvisibility=hidden" ]
-    }
 
+    # Default visibility to hidden, to enable dead stripping.
+    cflags += [ "-fvisibility=hidden" ]
     if (is_gold) {
       cflags += [
         # Don't generate an eh_frame and eh_frame_hdr section.
@@ -134,6 +129,7 @@ config("compiler_flags") {
 }
 
 config("platform_configuration") {
+  configs = []
   defines = []
   ldflags = []
   libs = [
@@ -147,6 +143,9 @@ config("platform_configuration") {
     ldflags += [ "-static-libstdc++" ]
   }
 
+  if (sb_is_modular && !sb_is_evergreen) {
+    configs += [ ":native_linker_modular" ]
+  }
   defines += [
     # Defined to get format macro constants from <inttypes.h>.
     "__STDC_FORMAT_MACROS",
@@ -161,13 +160,13 @@ config("platform_configuration") {
       "_GLIBCXX_DEBUG",
       "_LIBCPP_DEBUG=1",
     ]
-    configs = [ "//build/config/compiler:rtti" ]
+    configs += [ "//build/config/compiler:rtti" ]
   } else if (is_devel) {
     defines += [
       "_GLIBCXX_DEBUG",
       "_LIBCPP_DEBUG=0",
     ]
-    configs = [ "//build/config/compiler:rtti" ]
+    configs += [ "//build/config/compiler:rtti" ]
   }
 }
 
@@ -230,4 +229,20 @@ config("no_pedantic_warnings") {
     "-Wno-bitfield-width",
     "-Wno-undefined-var-template",
   ]
+}
+
+# TODO b/294267479 move this config to modular configs after confirming this applies to all platforms.
+if (sb_is_modular && !sb_is_evergreen) {
+  config("native_linker_modular") {
+    assert(
+        sb_is_modular && !sb_is_evergreen,
+        "Configuration should only be included only for native linker modular builds.")
+    starboard_syms_path =
+        rebase_path("//starboard/starboard.syms", root_build_dir)
+    ldflags = [
+      "-Wl,--dynamic-list=$starboard_syms_path",
+      "-ldl",
+      "-shared",
+    ]
+  }
 }

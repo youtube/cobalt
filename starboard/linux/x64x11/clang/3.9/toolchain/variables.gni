@@ -1,0 +1,2 @@
+target_llvm_3_9_bin_dir = "/usr/lib/llvm-3.9/bin"
+native_linker_path = "$target_llvm_3_9_bin_dir/clang++"
