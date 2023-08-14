@@ -629,6 +629,34 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   } else {
     start_timestamp_ = timestamp;
   }
+
+  const char* path = "/github/home/starboard-toolchains";
+  SB_LOG(INFO) << "path=" << path << " exists=" << SbFileExists(path);
+
+  path = "/root/starboard-toolchains";
+  SB_LOG(INFO) << "path=" << path << " exists=" << SbFileExists(path);
+
+  path = "/github/home/starboard-toolchains/x86_64-linux-gnu-clang-chromium-16-init-17653-g39da55e8-2/bin/llvm-symbolizer";
+  SB_LOG(INFO) << "path=" << path << " exists=" << SbFileExists(path);
+
+  path = "/root/starboard-toolchains/x86_64-linux-gnu-clang-chromium-16-init-17653-g39da55e8-2/bin/llvm-symbolizer";
+  SB_LOG(INFO) << "path=" << path << " exists=" << SbFileExists(path);
+
+  path = "/github/home/starboard-toolchains/x86_64-linux-gnu-clang-chromium-16-init-17653-g39da55e8-2";
+  SB_LOG(INFO) << "path=" << path << " exists=" << SbFileExists(path);
+
+  path = "/root/starboard-toolchains/x86_64-linux-gnu-clang-chromium-16-init-17653-g39da55e8-2";
+  SB_LOG(INFO) << "path=" << path << " exists=" << SbFileExists(path);
+
+  path = "/github/home/starboard-toolchains/x86_64-linux-gnu-clang-chromium-16-init-17653-g39da55e8-2/bin";
+  SB_LOG(INFO) << "path=" << path << " exists=" << SbFileExists(path);
+
+  path = "/root/starboard-toolchains/x86_64-linux-gnu-clang-chromium-16-init-17653-g39da55e8-2/bin";
+  SB_LOG(INFO) << "path=" << path << " exists=" << SbFileExists(path);
+
+  void * p = SbMemoryAllocate(1024);
+  p = nullptr;
+  SB_LOG(INFO) << "address=" << p;
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
