@@ -350,7 +350,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbUserGetCurrent);
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbUserGetSignedIn);
+#endif
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);

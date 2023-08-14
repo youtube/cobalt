@@ -73,7 +73,9 @@ static SB_C_INLINE bool SbUserIsValid(SbUser user) {
 //
 // |out_users|: Handles for the retrieved users.
 // |users_size|: The maximum number of signed-in users to retrieve.
+#if SB_API_VERSION < 16
 SB_EXPORT int SbUserGetSignedIn(SbUser* out_users, int users_size);
+#endif
 
 // Gets the current primary user, if one exists. This is the user that is
 // determined, in a platform-specific way, to be the primary user controlling

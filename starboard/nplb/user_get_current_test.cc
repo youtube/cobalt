@@ -19,6 +19,8 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION < 16
+
 TEST(SbUserGetCurrentTest, SunnyDay) {
   SbUser users[10] = {0};
   int result = SbUserGetSignedIn(users, SB_ARRAY_SIZE_INT(users));
@@ -31,6 +33,15 @@ TEST(SbUserGetCurrentTest, SunnyDay) {
     EXPECT_EQ(kSbUserInvalid, current);
   }
 }
+
+#else
+
+TEST(SbUserGetCurrentTest, SunnyDay) {
+  SbUser current = SbUserGetCurrent();
+  EXPECT_NE(kSbUserInvalid, current);
+}
+
+#endif
 
 }  // namespace
 }  // namespace nplb
