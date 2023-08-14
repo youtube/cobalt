@@ -83,15 +83,3 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }
-
-#if SB_API_VERSION >= 15
-int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
-  starboard::shared::x11::ApplicationX11 application(callback);
-  int result = 0;
-  {
-    starboard::shared::starboard::LinkReceiver receiver(&application);
-    result = application.Run(argc, argv);
-  }
-  return result;
-}
-#endif  // SB_API_VERSION >= 15

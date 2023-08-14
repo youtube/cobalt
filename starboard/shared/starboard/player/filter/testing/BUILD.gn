@@ -38,6 +38,7 @@ if (current_toolchain == starboard_toolchain) {
 
     public_deps = [
       ":test_util",
+      "//starboard:starboard_with_main",
       "//starboard/shared/starboard/media:media_util",
       "//testing/gmock",
     ]

@@ -15,7 +15,10 @@
 static_library("starboard_platform") {
   check_includes = false
 
-  sources = [ "//starboard/linux/x64x11/main.cc" ]
+  sources = [ "//starboard/linux/x64x11/run_starboard_main.cc" ]
+  if (!build_with_separate_cobalt_toolchain) {
+    sources += [ "//starboard/linux/x64x11/main.cc" ]
+  }
 
   public_deps = [
     "//starboard/linux/x64x11/shared:starboard_platform",
@@ -23,4 +26,13 @@ static_library("starboard_platform") {
   ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
+}
+
+if (build_with_separate_cobalt_toolchain) {
+  static_library("starboard_platform_with_main") {
+    check_includes = false
+    sources = [ "//starboard/linux/x64x11/main.cc" ]
+    configs += [ "//starboard/build/config:starboard_implementation" ]
+    public_deps = [ ":starboard_platform" ]
+  }
 }
