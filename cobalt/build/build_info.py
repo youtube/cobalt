@@ -56,7 +56,7 @@ def get_build_id_and_git_rev_from_commits(cwd):
 def get_build_id_from_commit_count(cwd):
   output = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'],
                                    cwd=cwd)
-  build_id = int(output.strip().decode()) + COMMIT_COUNT_BUILD_ID_OFFSET
+  build_id = str(int(output.strip().decode()) + COMMIT_COUNT_BUILD_ID_OFFSET)
   return build_id
 
 
