@@ -171,11 +171,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # test command setup
     test_base_command = raspi_test_path + ' ' + escaped_flags
-    test_success_output = (f' && echo {self.test_complete_tag}'
+    test_success_output = (f' && echo {self.test_complete_tag} '
                            f'{self.test_success_tag}')
-    test_failure_output = (f' || echo {self.test_complete_tag}'
+    test_failure_output = (f' || echo {self.test_complete_tag} '
                            f'{self.test_failure_tag}')
-    self.test_command = (f'{test_base_command} {test_success_output}'
+    self.test_command = (f'{test_base_command} {test_success_output} '
                          f'{test_failure_output}')
 
   # pylint: disable=no-method-argument
