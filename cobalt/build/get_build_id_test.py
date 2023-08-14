@@ -87,8 +87,9 @@ class GetBuildIdTest(unittest.TestCase):
       self.make_commit()
     build_number = build_info.get_build_id_from_commit_count(
         cwd=self.test_dir.name)
-    self.assertEqual(build_number,
-                     num_commits + build_info.COMMIT_COUNT_BUILD_ID_OFFSET)
+    self.assertEqual(
+        int(build_number),
+        num_commits + build_info.COMMIT_COUNT_BUILD_ID_OFFSET)
 
   def testCommitsOutrankCommitCount(self):
     self.make_commit()
@@ -102,8 +103,9 @@ class GetBuildIdTest(unittest.TestCase):
     for _ in range(num_commits):
       self.make_commit()
     build_number = get_build_id.main(cwd=self.test_dir.name)
-    self.assertEqual(build_number,
-                     num_commits + build_info.COMMIT_COUNT_BUILD_ID_OFFSET)
+    self.assertEqual(
+        int(build_number),
+        num_commits + build_info.COMMIT_COUNT_BUILD_ID_OFFSET)
 
 
 if __name__ == '__main__':
