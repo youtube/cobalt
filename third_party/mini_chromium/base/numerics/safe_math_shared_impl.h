@@ -213,9 +213,9 @@ struct ResultType {
   template <typename L, typename R,                                            \
             typename std::enable_if<Is##CLASS##Op<L, R>::value>::type* =       \
                 nullptr>                                                       \
-  constexpr                                                                    \
-      CLASS##Numeric<typename MathWrapper<CLASS##OP_NAME##Op, L, R>::type>     \
-      operator OP(const L lhs, const R rhs) {                                  \
+  constexpr CLASS##Numeric<                                                    \
+      typename MathWrapper<CLASS##OP_NAME##Op, L, R>::type>                    \
+  operator OP(const L lhs, const R rhs) {                                      \
     return decltype(lhs OP rhs)::template MathOp<CLASS##OP_NAME##Op>(lhs,      \
                                                                      rhs);     \
   }                                                                            \
