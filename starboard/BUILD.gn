@@ -14,6 +14,7 @@
 
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
+import("//starboard/contrib/cast/cast.gni")
 
 group("gn_all") {
   testonly = true
@@ -64,7 +65,9 @@ group("gn_all") {
              "sb_is_modular should be set when building with cobalt_toolchain")
     }
 
-    deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
+    if (use_contrib_cast) {
+      deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
+    }
   }
 
   if (!sb_is_evergreen) {

@@ -16,12 +16,12 @@ Starboard APIs. Reference the `Cast TV Integration Guide` for details.
 ### Reference Implementation
 
 The `cast_starboard_api/samples/` directory contains the reference target
-`cast_starboard_api` which can be built when
-`build_with_separate_cobalt_toolchain=true` is specified. To generate the
-target:
+`cast_starboard_api` which can be built when both
+`build_with_separate_cobalt_toolchain=true` and `use_contrib_cast=true` are
+specified. To generate the target:
 
 ```
-gn gen out/linux-x64x11_devel --args="target_platform=\"linux-x64x11\" build_with_separate_cobalt_toolchain=true build_type=\"devel\""
+gn gen out/linux-x64x11_devel --args="target_platform=\"linux-x64x11\" build_with_separate_cobalt_toolchain=true use_contrib_cast=true build_type=\"devel\""
 ```
 
 To build the target:
