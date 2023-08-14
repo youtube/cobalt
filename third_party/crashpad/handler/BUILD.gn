@@ -120,38 +120,38 @@ if (crashpad_is_android) {
 }
 
 if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build) {
-  source_set("handler_test") {
-    testonly = true
+source_set("handler_test") {
+  testonly = true
 
-    sources = [ "minidump_to_upload_parameters_test.cc" ]
+  sources = [ "minidump_to_upload_parameters_test.cc" ]
 
-    if (crashpad_is_linux || crashpad_is_android) {
-      sources += [ "linux/exception_handler_server_test.cc" ]
-    }
-
-    if (crashpad_is_win) {
-      sources += [ "crashpad_handler_test.cc" ]
-    }
-
-    deps = [
-      ":handler",
-      "../client",
-      "../compat",
-      "../snapshot",
-      "../snapshot:test_support",
-      "../test",
-      "../third_party/gtest:gtest",
-      "../third_party/mini_chromium:base",
-      "../util",
-    ]
-
-    if (crashpad_is_win) {
-      data_deps = [
-        ":crashpad_handler_test_extended_handler",
-        ":fake_handler_that_crashes_at_startup",
-      ]
-    }
+  if (crashpad_is_linux || crashpad_is_android) {
+    sources += [ "linux/exception_handler_server_test.cc" ]
   }
+
+  if (crashpad_is_win) {
+    sources += [ "crashpad_handler_test.cc" ]
+  }
+
+  deps = [
+    ":handler",
+    "../client",
+    "../compat",
+    "../snapshot",
+    "../snapshot:test_support",
+    "../test",
+    "../third_party/gtest:gtest",
+    "../third_party/mini_chromium:base",
+    "../util",
+  ]
+
+  if (crashpad_is_win) {
+    data_deps = [
+      ":crashpad_handler_test_extended_handler",
+      ":fake_handler_that_crashes_at_startup",
+    ]
+  }
+}
 }
 
 if (!crashpad_is_ios) {
@@ -197,11 +197,11 @@ if (!crashpad_is_ios) {
     if (crashpad_is_win) {
       if (crashpad_is_in_chromium || crashpad_is_in_dart) {
         remove_configs = [ "//build/config/win:console" ]
-        configs += [ "//build/config/win:windowed" ]
+        configs = [ "//build/config/win:windowed" ]
       } else {
         remove_configs =
             [ "//third_party/mini_chromium/mini_chromium/build:win_console" ]
-        configs +=
+        configs =
             [ "//third_party/mini_chromium/mini_chromium/build:win_windowed" ]
       }
     }

@@ -20,8 +20,7 @@ ExceptionHandlerProtocol::ClientInformation::ClientInformation()
     : exception_information_address(0),
       sanitization_information_address(0)
 #if defined(OS_LINUX)
-      ,
-      crash_loop_before_time(0)
+      , crash_loop_before_time(0)
 #endif  // OS_LINUX
 #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
       ,
@@ -30,8 +29,7 @@ ExceptionHandlerProtocol::ClientInformation::ClientInformation()
       serialized_annotations_size(0),
       handler_start_type(kStartAtLaunch)
 #endif
-{
-}
+{}
 
 ExceptionHandlerProtocol::ClientToServerMessage::ClientToServerMessage()
     : version(kVersion),

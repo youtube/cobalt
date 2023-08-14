@@ -45,13 +45,12 @@
 
 namespace crashpad {
 
-CrashReportUploadThread::CrashReportUploadThread(
-    CrashReportDatabase* database,
-    const std::string& url,
+CrashReportUploadThread::CrashReportUploadThread(CrashReportDatabase* database,
+                                                 const std::string& url,
 #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
     const std::string& ca_certificates_path,
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-    const Options& options)
+                                                 const Options& options)
     : options_(options),
       url_(url),
 #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
