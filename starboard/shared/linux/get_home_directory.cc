@@ -21,20 +21,16 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/shared/nouser/user_internal.h"
+#include "starboard/shared/starboard/get_home_directory.h"
 
 namespace starboard {
 namespace shared {
-namespace nouser {
+namespace starboard {
 
-bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
-  if (user != SbUserGetCurrent()) {
-    return false;
-  }
-
+bool GetHomeDirectory(char* out_path, int path_size) {
   const char* home_directory = getenv("HOME");
   if (home_directory) {
-    starboard::strlcpy(out_path, home_directory, path_size);
+    ::starboard::strlcpy(out_path, home_directory, path_size);
     return true;
   }
 
@@ -51,10 +47,10 @@ bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
     return false;
   }
 
-  starboard::strlcpy(out_path, passwd.pw_dir, path_size);
+  ::starboard::strlcpy(out_path, passwd.pw_dir, path_size);
   return true;
 }
 
-}  // namespace nouser
+}  // namespace starboard
 }  // namespace shared
 }  // namespace starboard

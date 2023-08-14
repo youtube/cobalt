@@ -16,7 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/nouser/user_internal.h"
+#include "starboard/shared/starboard/get_home_directory.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/system.h"
 
@@ -26,17 +26,14 @@ namespace sbwin32 = starboard::shared::win32;
 
 namespace starboard {
 namespace shared {
-namespace nouser {
+namespace starboard {
 
-bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
-  if (user != SbUserGetCurrent()) {
-    return false;
-  }
+bool GetHomeDirectory(char* out_path, int path_size) {
   std::string home_directory = sbwin32::platformStringToString(
       ApplicationData::Current->LocalFolder->Path);
-  return starboard::strlcpy(out_path, home_directory.c_str(), path_size);
+  return ::starboard::strlcpy(out_path, home_directory.c_str(), path_size);
 }
 
-}  // namespace nouser
+}  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
