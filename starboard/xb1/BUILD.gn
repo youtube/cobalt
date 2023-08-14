@@ -231,6 +231,8 @@ static_library("starboard_platform") {
       "//starboard/shared/widevine/widevine_timer.h",
     ]
     deps += [
+      "//base:base",
+      "//crypto:crypto",
       "//starboard/shared/widevine:oemcrypto",
       "//third_party/internal/ce_cdm/cdm:widevine_cdm_core",
       "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
