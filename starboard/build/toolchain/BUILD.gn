@@ -30,7 +30,7 @@ if (is_linux && !using_old_compiler && target_cpu == "x64") {
 }
 
 # Use this toolchain for raspi platforms, old linux compiler platforms.
-if ((is_linux && target_cpu == "arm") || using_old_compiler) {
+if ((is_linux && target_cpu == "arm") || (using_old_compiler && !is_host_win)) {
   gcc_toolchain("clang") {
     prefix = rebase_path("$clang_base_path/bin", root_build_dir)
     cc = "$prefix/clang"
@@ -46,7 +46,7 @@ if ((is_linux && target_cpu == "arm") || using_old_compiler) {
 }
 
 # Use this toolchain for Windows based platforms.
-if (is_win) {
+if (is_host_win) {
   gcc_toolchain("clang") {
     prefix = llvm_clang_path
     cc = "$prefix/clang.exe"
