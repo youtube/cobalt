@@ -181,7 +181,12 @@ void Worker::Obtain() {
   loader::Origin origin = loader::Origin(url.GetOrigin());
 
   DCHECK(options_.outside_context);
-  DCHECK(options_.outside_context->GetWindowOrWorkerGlobalScope());
+
+  // Window thread may remove its global object before destroying worker.
+  if (!options_.outside_context->GetWindowOrWorkerGlobalScope()) {
+    return;
+  }
+
   csp::SecurityCallback csp_callback = base::Bind(
       &web::CspDelegate::CanLoad,
       base::Unretained(options_.outside_context->GetWindowOrWorkerGlobalScope()
