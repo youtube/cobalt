@@ -60,6 +60,7 @@ x-shared-unittest-definitions: &shared-unittest-definitions
     dockerfile: unittest/Dockerfile
     args:
       - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
+      - CLANG_16_VER=${CLANG_16_VER:-16-init-17653-g39da55e8-2}
   image: cobalt-linux-x64x11-unittest
   environment:
     - PLATFORM=${PLATFORM:-linux-x64x11}
@@ -122,6 +123,7 @@ services:
       args:
         # Should match version pinned by Starboard
         - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
+        - CLANG_16_VER=${CLANG_16_VER:-16-init-17653-g39da55e8-2}
     image: cobalt-build-base
     depends_on:
       - base
@@ -134,6 +136,7 @@ services:
       args:
         - FROM_IMAGE=base-bionic
         - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
+        - CLANG_16_VER=${CLANG_16_VER:-16-init-17653-g39da55e8-2}
     image: build-base-bionic
     depends_on:
       - base-bionic
