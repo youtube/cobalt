@@ -30,9 +30,6 @@ namespace shared {
 namespace nouser {
 // The one instance of the signed-in user.
 extern SbUserPrivate g_user;
-
-// A platform implementation of getting the home directory for a user.
-bool GetHomeDirectory(SbUser user, char* out_path, int path_size);
 }  // namespace nouser
 }  // namespace shared
 }  // namespace starboard

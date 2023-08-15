@@ -32,17 +32,6 @@ int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
     case kSbUserPropertyUserId:
       return static_cast<int>(strlen(user->id) + 1);
 
-    case kSbUserPropertyHomeDirectory: {
-      std::vector<char> path(kSbFileMaxPath);
-      const int path_size = static_cast<int>(path.size());
-      if (!starboard::shared::nouser::GetHomeDirectory(user, path.data(),
-                                                       path_size)) {
-        return 0;
-      }
-      return static_cast<int>(strlen(path.data()));
-    }
-
-    case kSbUserPropertyAvatarUrl:
     default:
       return 0;
   }
@@ -58,10 +47,6 @@ bool SbUserGetProperty(SbUser user,
   }
 
   switch (property_id) {
-    case kSbUserPropertyHomeDirectory:
-      return starboard::shared::nouser::GetHomeDirectory(user, out_value,
-                                                         value_size);
-
     case kSbUserPropertyUserName:
       starboard::strlcpy(out_value, user->name, value_size);
       return true;
@@ -70,7 +55,6 @@ bool SbUserGetProperty(SbUser user,
       starboard::strlcpy(out_value, user->id, value_size);
       return true;
 
-    case kSbUserPropertyAvatarUrl:
     default:
       return false;
   }

@@ -22,6 +22,7 @@
 #include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/get_home_directory.h"
 #include "starboard/user.h"
 
 #if SB_HAS_QUIRK(HASH_FILE_NAME)
@@ -47,8 +48,7 @@ static SB_C_INLINE bool GetUserStorageFilePath(SbUser user,
                                                const char* name,
                                                char* out_path,
                                                int path_size) {
-  bool success = SbUserGetProperty(user, kSbUserPropertyHomeDirectory, out_path,
-                                   path_size);
+  bool success = GetHomeDirectory(out_path, path_size);
   if (!success) {
     return false;
   }

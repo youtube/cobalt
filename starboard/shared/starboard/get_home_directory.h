@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pwd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <unistd.h>
+#ifndef STARBOARD_SHARED_STARBOARD_GET_HOME_DIRECTORY_H_
+#define STARBOARD_SHARED_STARBOARD_GET_HOME_DIRECTORY_H_
 
-#include "starboard/android/shared/file_internal.h"
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
-#include "starboard/shared/starboard/get_home_directory.h"
-
-using ::starboard::android::shared::g_app_files_dir;
+#include "starboard/shared/internal_only.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 
-bool GetHomeDirectory(char* out_path, int path_size) {
-  int len = ::starboard::strlcpy(out_path, g_app_files_dir, path_size);
-  return len < path_size;
-}
+// A platform implementation of getting the home directory. A return value of
+// false indicates that the platform doesn't have a concept of a home directory
+// and that custom logic may be needed in |SbSystemGetPath| to determine
+// appropriate system paths that may normally be stored under a home directory.
+bool GetHomeDirectory(char* out_path, int path_size);
 
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // STARBOARD_SHARED_STARBOARD_GET_HOME_DIRECTORY_H_

@@ -29,16 +29,16 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
-#include "starboard/user.h"
+#include "starboard/shared/starboard/get_home_directory.h"
 
 namespace {
 const int kMaxPathSize = kSbFileMaxPath;
 
-// Gets the path to the cache directory, using the user's home directory.
+// Gets the path to the cache directory, using the home directory.
 bool GetCacheDirectory(char* out_path, int path_size) {
   std::vector<char> home_path(kMaxPathSize + 1);
-  if (!SbUserGetProperty(SbUserGetCurrent(), kSbUserPropertyHomeDirectory,
-                         home_path.data(), kMaxPathSize)) {
+  if (!starboard::shared::starboard::GetHomeDirectory(home_path.data(),
+                                                      kMaxPathSize)) {
     return false;
   }
   int result =
@@ -50,11 +50,11 @@ bool GetCacheDirectory(char* out_path, int path_size) {
   return SbDirectoryCreate(out_path);
 }
 
-// Gets the path to the storage directory, using the user's home directory.
+// Gets the path to the storage directory, using the home directory.
 bool GetStorageDirectory(char* out_path, int path_size) {
   std::vector<char> home_path(kMaxPathSize + 1);
-  if (!SbUserGetProperty(SbUserGetCurrent(), kSbUserPropertyHomeDirectory,
-                         home_path.data(), kMaxPathSize)) {
+  if (!starboard::shared::starboard::GetHomeDirectory(home_path.data(),
+                                                      kMaxPathSize)) {
     return false;
   }
   int result = SbStringFormatF(out_path, path_size, "%s/.cobalt_storage",

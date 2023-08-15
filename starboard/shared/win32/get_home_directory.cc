@@ -27,9 +27,9 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/nouser/user_internal.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/starboard/get_home_directory.h"
 #include "starboard/shared/win32/application_win32.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
@@ -41,13 +41,9 @@ using starboard::shared::starboard::CommandLine;
 
 namespace starboard {
 namespace shared {
-namespace nouser {
+namespace starboard {
 
-bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
-  if (user != SbUserGetCurrent()) {
-    return false;
-  }
-
+bool GetHomeDirectory(char* out_path, int path_size) {
   PWSTR local_app_data_path = nullptr;
 
   if (S_OK == SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr,
@@ -91,6 +87,6 @@ bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
   return false;
 }
 
-}  // namespace nouser
+}  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
