@@ -16,7 +16,7 @@ import("//starboard/build/config/starboard_target_type.gni")
 
 group("gn_all") {
   testonly = true
-
+  print(current_toolchain, "tc")
   deps = [
     ":default",
     "//starboard/client_porting/cwrappers:cwrappers_test",
