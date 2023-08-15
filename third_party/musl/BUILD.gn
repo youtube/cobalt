@@ -520,9 +520,7 @@ static_library("c_internal") {
   ]
 }
 
-target(gtest_target_type, "musl_unittests") {
-  build_loader = false
-  testonly = true
+static_library("musl_unittests") {
   sources = [ "test/type_size_test.cc" ]
   deps = [
     ":c",
