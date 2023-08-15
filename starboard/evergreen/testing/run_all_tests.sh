@@ -24,8 +24,7 @@ AUTH_METHOD="public-key"
 USE_COMPRESSED_SYSTEM_IMAGE="false"
 SYSTEM_IMAGE_EXTENSION=".so"
 
-# Temporary disable test to publish new SB 16 changes b/149243810
-DISABLE_TESTS="true"
+DISABLE_TESTS="false"
 
 while getopts "d:a:c" o; do
     case "${o}" in
