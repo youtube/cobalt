@@ -147,10 +147,17 @@ std::string Watchdog::GetWatchdogFilePath() {
   return watchdog_file_path_;
 }
 
-std::vector<std::string> Watchdog::GetWatchdogClientNames() {
+std::vector<std::string> Watchdog::GetWatchdogViolationClientNames() {
+  if (pending_write_) WriteWatchdogViolations();
+
+  std::string watchdog_json = ReadViolationFile(GetWatchdogFilePath().c_str());
   std::vector<std::string> names;
-  for (auto& it : client_map_) {
-    names.push_back(it.first);
+  if (watchdog_json != "") {
+    std::unique_ptr<base::Value> violations_map =
+        base::JSONReader::Read(watchdog_json);
+    for (const auto& it : violations_map->DictItems()) {
+      names.push_back(it.first);
+    }
   }
   return names;
 }
@@ -318,19 +325,26 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
   static_cast<Watchdog*>(context)->pending_write_ = true;
 }
 
+std::string Watchdog::ReadViolationFile(const char* file_path) {
+  starboard::ScopedFile read_file(file_path, kSbFileOpenOnly | kSbFileRead);
+  if (read_file.IsValid()) {
+    int64_t kFileSize = read_file.GetSize();
+    std::vector<char> buffer(kFileSize + 1, 0);
+    read_file.ReadAll(buffer.data(), kFileSize);
+    return std::string(buffer.data());
+  }
+  return "";
+}
+
 void Watchdog::InitializeViolationsMap(void* context) {
   // Loads the previous Watchdog violations file containing violations before
   // app start, if it exists, to populate violations_map_.
   static_cast<Watchdog*>(context)->violations_count_ = 0;
 
-  starboard::ScopedFile read_file(
-      (static_cast<Watchdog*>(context)->GetWatchdogFilePath()).c_str(),
-      kSbFileOpenOnly | kSbFileRead);
-  if (read_file.IsValid()) {
-    int64_t kFileSize = read_file.GetSize();
-    std::vector<char> buffer(kFileSize + 1, 0);
-    read_file.ReadAll(buffer.data(), kFileSize);
-    std::string watchdog_json = std::string(buffer.data());
+  std::string watchdog_json =
+      static_cast<Watchdog*>(context)->ReadViolationFile(
+          (static_cast<Watchdog*>(context)->GetWatchdogFilePath()).c_str());
+  if (watchdog_json != "") {
     static_cast<Watchdog*>(context)->violations_map_ =
         base::JSONReader::Read(watchdog_json);
   }
