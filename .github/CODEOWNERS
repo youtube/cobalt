@@ -1,0 +1,11 @@
+# Code owners are automatically requested for review when someone opens a pull
+# request that modifies code that they own. Code owners are not automatically
+# requested to review draft pull requests.
+#
+# For the full docs on CODEOWNERS, see:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Metrics owners
+/cobalt/browser/metrics/ @joeltine
+/components/metrics/ @joeltine
+/tools/metrics/ @joeltine
