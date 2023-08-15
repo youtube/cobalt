@@ -190,8 +190,13 @@ SB_COMPILE_ASSERT(sizeof(wchar_t) == SB_SIZE_OF_LONG,
 // TODO: Decide if we should, and how, verify that __WCHAR_TYPE__ is the
 //       expected size.
 #else   // !SB_IS(ARCH_X86)
+#if SB_IS(WCHAR_T_UTF16)
+SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
+                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
+#else
 SB_COMPILE_ASSERT(sizeof(wchar_t) == SB_SIZE_OF_INT,
                   SB_SIZE_OF_INT_is_inconsistent_with_sizeof_wchar_t);
+#endif // SB_IS(WCHAR_T_UTF16)
 #endif  // SB_IS(ARCH_X86)
 
 #endif  // SB_IS(MODULAR)
