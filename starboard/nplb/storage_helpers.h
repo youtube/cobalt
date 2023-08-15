@@ -26,27 +26,42 @@ const int64_t kStorageOffset = 100;
 const int64_t kStorageSize = 1025;
 const int64_t kStorageSize2 = kStorageSize * 2 + kStorageOffset;
 
-// Deletes the storage for the current user.
+// Deletes the storage.
 static SB_C_INLINE void ClearStorageRecord() {
+#if SB_API_VERSION < 16
   SbStorageDeleteRecord(SbUserGetCurrent(), NULL);
+#else
+  SbStorageDeleteRecord(NULL);
+#endif
 }
 
-// Deletes the named storage record for the current user.
+// Deletes the named storage record.
 static SB_C_INLINE void ClearStorageRecord(const char* name) {
+#if SB_API_VERSION < 16
   SbStorageDeleteRecord(SbUserGetCurrent(), name);
+#else
+  SbStorageDeleteRecord(name);
+#endif
 }
 
-// Opens the storage record for the current user, validating that it is valid.
+// Opens the storage record, validating that it is valid.
 static SB_C_INLINE SbStorageRecord OpenStorageRecord() {
+#if SB_API_VERSION < 16
   SbStorageRecord record = SbStorageOpenRecord(SbUserGetCurrent(), NULL);
+#else
+  SbStorageRecord record = SbStorageOpenRecord(NULL);
+#endif
   EXPECT_TRUE(SbStorageIsValidRecord(record));
   return record;
 }
 
-// Opens the named storage record for the current user, validating that it is
-// valid.
+// Opens the named storage record, validating that it is valid.
 static SB_C_INLINE SbStorageRecord OpenStorageRecord(const char* name) {
+#if SB_API_VERSION < 16
   SbStorageRecord record = SbStorageOpenRecord(SbUserGetCurrent(), name);
+#else
+  SbStorageRecord record = SbStorageOpenRecord(name);
+#endif
   EXPECT_TRUE(SbStorageIsValidRecord(record));
   return record;
 }
@@ -65,7 +80,7 @@ static SB_C_INLINE void WriteStorageRecord(SbStorageRecord record,
   delete[] data;
 }
 
-// Ensures that the storage record for the current user is initialized with the
+// Ensures that the storage record is initialized with the
 // standard pattern for exactly |length| bytes.
 
 static SB_C_INLINE void InitializeStorageRecord(int64_t length) {
