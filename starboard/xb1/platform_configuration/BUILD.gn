@@ -57,8 +57,9 @@ config("target") {
       "vcruntime.lib",
       "ucrt.lib",
     ]
-    ldflags += [ "/DEBUG:FASTLINK" ]
   }
+
+  ldflags += [ "/DEBUG:FASTLINK" ]
 
   ldflags += [ "/NODEFAULTLIB" ]
   arflags += [ "/NODEFAULTLIB" ]
