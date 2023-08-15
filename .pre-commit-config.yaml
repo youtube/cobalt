@@ -27,6 +27,8 @@ exclude: |
             testing|
             third_party|
             tools/gyp|
+            tools/metrics|
+            tools/python|
             url
         )/
         |

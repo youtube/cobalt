@@ -1,0 +1,1107 @@
+<!--
+Copyright 2020 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!--
+This file is used to generate a comprehensive list of Browser histograms
+along with a detailed description for each histogram.
+
+For best practices on writing histogram descriptions, see
+https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md
+
+Please follow the instructions in the OWNERS file in this directory to find a
+reviewer. If no OWNERS file exists, please consider signing up at
+go/reviewing-metrics (Googlers only), as all subdirectories are expected to
+have an OWNERS file. As a last resort you can send the CL to
+chromium-metrics-reviews@google.com.
+-->
+
+<histogram-configuration>
+
+<histograms>
+
+<variants name="SidePanelEntry">
+  <variant name="AboutThisSite"/>
+  <variant name="Assistant"/>
+  <variant name="Bookmarks"/>
+  <variant name="Companion"/>
+  <variant name="CustomizeChrome"/>
+  <variant name="Extension"/>
+  <variant name="Feed"/>
+  <variant name="HistoryClusters"/>
+  <variant name="Lens"/>
+  <variant name="ReadAnything"/>
+  <variant name="ReadingList"/>
+  <variant name="SideSearch"/>
+  <variant name="UserNotes"/>
+  <variant name="WebView"/>
+</variants>
+
+<variants name="TabSwitchingType">
+  <variant name="" summary="Aggregation of all tab states."/>
+  <variant name=".NoSavedFrames_Loaded"
+      summary="Tab has no saved frame in the cache but is already loaded."/>
+  <variant name=".NoSavedFrames_NotLoaded"
+      summary="Tab has no saved frame in the cache and is not loaded."/>
+  <variant name=".WithSavedFrames"
+      summary="Tab has a saved frame in the cache."/>
+</variants>
+
+<histogram name="Browser.BitmapFetcher.Decode" units="ms"
+    expires_after="2022-09-18">
+  <obsolete>
+    3/2022; feature launched.
+  </obsolete>
+  <owner>manukh@chromium.org</owner>
+  <owner>jdonnelly@chromium.org</owner>
+  <owner>chrome-omnibox-team@google.com</owner>
+  <summary>The time elapsed decoding an image using BitmapFetcher.</summary>
+</histogram>
+
+<histogram name="Browser.BitmapFetcher.Fetch" units="ms"
+    expires_after="2022-03-06">
+  <obsolete>
+    3/2022; feature launched.
+  </obsolete>
+  <owner>manukh@chromium.org</owner>
+  <owner>jdonnelly@chromium.org</owner>
+  <owner>chrome-omnibox-team@google.com</owner>
+  <summary>
+    The time elapsed fetching an image from a URL using BitmapFetcher.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ChromeOS.HatsSatisfaction{Survey}" units="score"
+    expires_after="2023-01-01">
+  <obsolete>
+    M109; Replaced by &quot;ChromeOS.HaTS.*&quot;.
+  </obsolete>
+  <owner>aalsum@chromium.org</owner>
+  <owner>jackshira@google.org</owner>
+  <owner>cros-telemetry@google.com</owner>
+  <summary>
+    Records the overall satisfaction score for HaTS, to be analyzed against
+    other OS metrics like performance or number of crashes. There is one score
+    per survey type. Emitted when a user answers the first question on a HaTS
+    survey.
+  </summary>
+  <token key="Survey">
+    <variant name=".ArcGames"/>
+    <variant name=".Audio"/>
+    <variant name=".CameraApp"/>
+    <variant name=".Ent"/>
+    <variant name=".General"/>
+    <variant name=".GeneralCamera"/>
+    <variant name=".MediaAppPdf"/>
+    <variant name=".OnboardingExperience"/>
+    <variant name=".Performance"/>
+    <variant name=".PersonalizationAvatar"/>
+    <variant name=".PersonalizationScreensaver"/>
+    <variant name=".PersonalizationWallpaper"/>
+    <variant name=".PhotosExperience"/>
+    <variant name=".SmartLock"/>
+    <variant name=".Stability"/>
+    <variant name=".Unlock"/>
+  </token>
+</histogram>
+
+<histogram name="Browser.ChromeOS.HatsStatus" enum="HatsStatus"
+    expires_after="2023-08-27">
+  <owner>aalsum@chromium.org</owner>
+  <owner>cros-telemetry@google.com</owner>
+  <summary>
+    Records the stage up to which the user interacted with the HaTS Chrome OS
+    survey. This is needed in addition to the Hats metrics data since Chrome OS
+    relies on client side logic to roll the dice for device selection. This is
+    recorded when the Hats pipeline ends processing, which is usually when the
+    controller is destroyed.
+  </summary>
+</histogram>
+
+<histogram name="Browser.DarkModeStatus" enum="DarkModeStatus"
+    expires_after="2023-09-10">
+  <owner>lgrey@chromium.org</owner>
+  <owner>robliao@chromium.org</owner>
+  <summary>
+    Whether the user's system is in dark mode, light mode, or if this choice is
+    unavailable due to lack of system support. Updated every UMA upload.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ERP.EventEnqueueResult"
+    enum="EnterpriseCloudReportingStatusCode" expires_after="2023-11-17">
+  <owner>lbaraz@chromium.org</owner>
+  <owner>xuhong@chromium.org</owner>
+  <owner>src/components/reporting/OWNERS</owner>
+  <summary>
+    Recorded when ReportQueue::Enqueue is called to post an event to ERP. It
+    counts occurrences of the call returning success or each possible error
+    Status.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ERP.EventUploadSizeAdjustment.{Param}" units="bytes"
+    expires_after="2023-06-30">
+  <owner>xuhong@chromium.org</owner>
+  <owner>lbaraz@chromium.org</owner>
+  <owner>cros-reporting-team@google.com</owner>
+  <summary>
+    {Param} informed by the Missive daemon. Updated every time the Missive
+    daemon requests uploading.
+  </summary>
+  <token key="Param">
+    <variant name="MaxUploadSize"
+        summary="The maximum upload size computed based on new events rate
+                 and remaining storage capacity"/>
+    <variant name="NewEventsRate"
+        summary="The size of events enqueued every second"/>
+    <variant name="RemainingStorageCapacity"
+        summary="The remaining storage capacity"/>
+  </token>
+</histogram>
+
+<histogram name="Browser.ERP.RecordsPerUpload" units="records"
+    expires_after="2024-01-31">
+  <owner>jrhilke@chromium.org</owner>
+  <owner>lbaraz@chromium.org</owner>
+  <owner>cros-reporting-team@google.com</owner>
+  <summary>
+    Recorded when uploading records to the reporting server. Counts the number
+    of records batched into a single upload request.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ERP.ResponsePayloadSize" units="bytes"
+    expires_after="2023-11-17">
+  <owner>xuhong@chromium.org</owner>
+  <owner>lbaraz@chromium.org</owner>
+  <owner>cros-reporting-team@google.com</owner>
+  <summary>
+    The size of ERP's response payload as a JSON string when upload is
+    successful. Updated every time when an upload succeeds AND at least one hour
+    has passed since the last update AND 9 more uploads have succeeded since the
+    last update.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ERP.SingleRequestPayloadSize" units="bytes"
+    expires_after="2024-02-10">
+  <owner>xuhong@chromium.org</owner>
+  <owner>lbaraz@chromium.org</owner>
+  <owner>cros-reporting-team@google.com</owner>
+  <summary>
+    The size of ERP's request payload as a JSON string when upload is
+    successful. Updated every time when an upload succeeds.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ERP.StorageQueueGenerationIdReset" enum="Boolean"
+    expires_after="2024-01-31">
+  <owner>vshenvi@google.com</owner>
+  <owner>cros-reporting-team@google.com</owner>
+  <summary>
+    Would only be true. Recorded whenever the generation id is reset in the
+    storage queue. The generation id is set up once during storage queue
+    initialization using the metadata file that matches the last sequencing id
+    used to track, deduplicate and confirm delivery by the server. The
+    generation id is reset when this file is missing or corrupted and the
+    sequencing is irreparably broken.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ERP.UnusualEnqueueTimestamp" enum="Boolean"
+    expires_after="2024-01-30">
+  <owner>xuhong@chromium.org</owner>
+  <owner>lbaraz@chromium.org</owner>
+  <owner>cros-reporting-team@google.com</owner>
+  <summary>
+    Would only be true. Recorded whenever an unusual timestamp is encountered
+    when enqueuing a record, which will be rejected.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ERP.UploadEncryptedReport"
+    enum="EnterpriseDMServerRequestSuccess" expires_after="2024-03-01">
+  <owner>anasr@google.com</owner>
+  <owner>cros-reporting-team@google.com</owner>
+  <summary>
+    Status of a completed ERP upload request, either successful, with a failure
+    or with a server error.
+  </summary>
+</histogram>
+
+<histogram name="Browser.ERP.{Param}PayloadSizePerHour" units="KiB"
+    expires_after="2023-11-17">
+  <owner>xuhong@chromium.org</owner>
+  <owner>lbaraz@chromium.org</owner>
+  <owner>cros-reporting-team@google.com</owner>
+  <summary>
+    The accumulated size per hour of ERP's {Param} payload as JSON strings when
+    upload is successful. Updated every hour.
+  </summary>
+  <token key="Param">
+    <variant name="Request" summary="request"/>
+    <variant name="Response" summary="response"/>
+  </token>
+</histogram>
+
+<histogram name="Browser.MainThreadsCongestion{Phase}" units="janks"
+    expires_after="never">
+<!-- expires-never: guiding metric (internal: go/chrome-browser-guiding-metrics) -->
+
+  <owner>etienneb@chromium.org</owner>
+  <owner>gab@chromium.org</owner>
+  <owner>chrome-analysis-team@google.com</owner>
+  <summary>
+    This metric is emitted every 30 seconds after main message loop start, when
+    there is user activity. Each 30 second duration is divided into 100ms
+    intervals. This metric counts the number of these intervals that were
+    &quot;congested&quot;. An interval is congested if during it the UI or IO
+    thread executes an &quot;important&quot; task that was queued more than 100
+    ms ago, or a non-important task or a native event handler that started
+    executing more than 100 ms ago. See
+    https://docs.google.com/document/d/1vDSGFvJblh7yJ3U3RVB_7qZLubyfTbQdQjuN1GoUNkc/edit
+    for more details.
+
+    This metrics graduated from
+    Browser.Responsiveness.JankyIntervalsPerThirtySeconds(1,2,3) and their
+    history might be useful to understand how we got here.
+
+    Suffixed phases can be useful as diagnosis metrics. This phase represents:
+    {Phase}
+
+    This histogram is of special interest to the chrome-analysis-team@. Do not
+    change its semantics or retire it without talking to them first.
+  </summary>
+  <token key="Phase">
+    <variant name=""
+        summary="Default view, includes all congested intervals after
+                 OnFirstIdle()."/>
+    <variant name=".Initial" summary="The first interval after OnFirstIdle()."/>
+    <variant name=".Periodic" summary="All intervals but .Initial"/>
+    <variant name=".RunningOnly"
+        summary="Diagnostic metric which ignores queuing congestion."/>
+    <variant name=".RunningOnly.Initial"
+        summary="The first interval, before first idle and ignoring queuing
+                 congestion."/>
+    <variant name=".RunningOnly.Periodic"
+        summary="All RunningOnly intervals but the first one."/>
+  </token>
+</histogram>
+
+<histogram name="Browser.PaintPreview.Capture.CompressedOnDiskSize" units="KB"
+    expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the size of a compressed on-disk capture for the paint preview after
+    a proto is written to disk if compressed.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.Capture.NumberOfFramesCaptured"
+    units="units" expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the number of frames captured by a paint preview if it succeeded.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.Capture.Success" enum="BooleanSuccess"
+    expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records a boolean indicating whether a capture attempt was successful.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.Capture.TotalCaptureDuration" units="ms"
+    expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the total time spent capturing a paint preview of a page. This
+    includes capture and serialization of all frames and IPC time.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.Player.CompositorProcessStartedCorrectly"
+    enum="BooleanSuccess" expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records if the paint preview compositor process started correctly.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.Player.CompositorProcessStartupTime"
+    units="ms" expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the time it took to start the paint preview compositor process.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.Player.LinkClicked" enum="BooleanSuccess"
+    expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>Records when a link is clicked in the paint preview player.</summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.Player.TimeToFirstBitmap" units="ms"
+    expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the time taken to from the request to start the compositor process
+    to the first bitmap being loaded.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.TabbedPlayer.CompositorFailureReason"
+    enum="TabbedPaintPreviewCompositorFailureReason" expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the the reason for exiting the compositor process for the
+    TabbedPaintPreviewPlayer. Recorded when the compositor returns an error or
+    disconnects.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.TabbedPlayer.ExitCause"
+    enum="TabbedPaintPreviewExitCause" expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the the reason for exiting TabbedPaintPreviewPlayer. Recorded when
+    paint preview is removed.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.TabbedPlayer.FirstPaintBeforeTabLoad"
+    enum="Boolean" expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records whether paint preview was drawn before the tab finished loading.
+    Recorded when tab has finished loading.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.TabbedPlayer.HadCapture" enum="Boolean"
+    expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records whether a paint preview exists. Recorded when attempting to show a
+    preview on startup. This in conjuction with CompositorFailureReason gives
+    the total number of failures to show a paint preview.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.TabbedPlayer.SnackbarCount" units="units"
+    expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the number of times that the upgrade snackbar was shown in a session
+    of TabbedPaintPreviewPlayer. Recorded when paint preview is removed.
+  </summary>
+</histogram>
+
+<histogram name="Browser.PaintPreview.TabbedPlayer.TimeToFirstBitmap"
+    units="ms" expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the time taken to from actvity creation to the first bitmap being
+    shown. Recorded on first paint preview paint event.
+  </summary>
+</histogram>
+
+<histogram
+    name="Browser.PaintPreview.TabbedPlayer.UpTime{TabbedPaintPreviewPlayerUptime}"
+    units="ms" expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <owner>chrome-fdt@google.com</owner>
+  <summary>
+    Records the length of the time that a session of TabbedPaintPreviewPlayer
+    lasts. Recorded when paint preview is removed.
+    {TabbedPaintPreviewPlayerUptime}
+  </summary>
+  <token key="TabbedPaintPreviewPlayerUptime">
+    <variant name=".RemovedByCompositorFailure"
+        summary="Removed by compositor failure"/>
+    <variant name=".RemovedByLinkClick" summary="Removed by link click"/>
+    <variant name=".RemovedByNavigation" summary="Removed by navigation"/>
+    <variant name=".RemovedByPullToRefresh"
+        summary="Removed by pull to refresh"/>
+    <variant name=".RemovedBySnackBar" summary="Removed by SnackBar"/>
+    <variant name=".RemovedOnAccessibilityNotSupported"
+        summary="Removed on accessibility not supported"/>
+    <variant name=".RemovedOnLoad" summary="Removed on load"/>
+    <variant name=".RemovedOnOfflineAvailable"
+        summary="Removed on offline page available"/>
+    <variant name=".RemovedOnTabDestroy" summary="Removed on tab destroy"/>
+  </token>
+</histogram>
+
+<histogram name="Browser.PaintPreview.TabService.DiskUsageAtStartup" units="KB"
+    expires_after="2023-11-27">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>fredmello@chromium.org</owner>
+  <summary>
+    Records the total disk usage by the Paint Preview Tab Service at startup of
+    the profile keyed service.
+  </summary>
+</histogram>
+
+<histogram name="Browser.Responsiveness.IOJanksTotalPerMinute" units="janks"
+    expires_after="2023-08-27">
+  <owner>gab@chromium.org</owner>
+  <owner>olivierli@chromium.org</owner>
+  <summary>
+    Similar to Browser.Responsiveness.IOJankyIntervalsPerMinute but sums janky
+    events across all foreground threads over the monitored minute rather than
+    considering each interval a boolean. This aims to cover a blind spot of
+    IOJankyIntervalsPerMinute as it cannot see an improvement where we unblock
+    19/20 threads performing I/O. Not reported across system sleep. More details
+    @ https://bit.ly/chrome-io-jank-metric
+  </summary>
+</histogram>
+
+<histogram name="Browser.Responsiveness.IOJankyIntervalsPerMinute"
+    units="janks" expires_after="2023-08-27">
+  <owner>gab@chromium.org</owner>
+  <owner>olivierli@chromium.org</owner>
+  <summary>
+    This metric is emitted every minute. It reports a number between 0 and 60
+    which corresponds to the number of 1 second intervals during the monitored
+    minute to which a stalled foreground thread
+    ScopedBlockingCall(BlockingType::MAY_BLOCK) was attributed. A stalled call
+    is first attributed to the interval in which it began, and is attributed to
+    a number of intervals equal to the length of the call, rounded to the
+    nearest second. (Before http://crrev.com/c/2314873, the length was truncated
+    rather than rounded.) This aims to capture moments where the main thread is
+    responsive but the application is not (because things aren't loading). Not
+    reported across system sleep. More details @
+    https://bit.ly/chrome-io-jank-metric
+  </summary>
+</histogram>
+
+<histogram name="Browser.Tabs.SelectionToVisibilityRequestTime"
+    units="microseconds" expires_after="2023-09-10">
+  <owner>jonross@chromium.org</owner>
+  <owner>sky@chromium.org</owner>
+  <summary>
+    The time it takes for the browser to request a tab to be visible. Note that
+    this only measures the time from the browser deciding to make the tab
+    visible (after a click, or keyboard-shortcut to switch tabs), until the tab
+    is requested to become visible. The time it takes to actually make the tab
+    visible and show on screen is measured in a separate metric, in
+    Browser.Tabs.TotalSwitchDuration3.
+
+    This metric uses UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES so only users with
+    high resolution clocks will report this metric.
+  </summary>
+</histogram>
+
+<histogram name="Browser.Tabs.TabSwitchResult3{TabSwitchingType}"
+    enum="TabSwitchResult2" expires_after="2024-01-26">
+  <owner>fdoray@chromium.org</owner>
+  <owner>joenotcharles@google.com</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Whether a frame was presented after a tab switch event. Recorded based on
+    the destination tab state when the tab switch starts: {TabSwitchingType}
+  </summary>
+  <token key="TabSwitchingType" variants="TabSwitchingType"/>
+</histogram>
+
+<histogram name="Browser.Tabs.TotalIncompleteSwitchDuration3{TabSwitchingType}"
+    units="ms" expires_after="2024-01-26">
+  <owner>fdoray@chromium.org</owner>
+  <owner>jonross@chromium.org</owner>
+  <owner>joenotcharles@google.com</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The time between a tab switch input event timestamp and when the tab is
+    hidden, if no frame is presented in the meantime. Recorded based on the
+    destination tab state when the tab switch starts: {TabSwitchingType}
+  </summary>
+  <token key="TabSwitchingType" variants="TabSwitchingType"/>
+</histogram>
+
+<histogram name="Browser.Tabs.TotalSwitchDuration3{TabSwitchingType}"
+    units="ms" expires_after="2024-01-26">
+  <owner>jonross@chromium.org</owner>
+  <owner>joenotcharles@google.com</owner>
+  <owner>catan-team@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    The time between the input event timestamp and the frame presentation time
+    on a tab switch. Recorded based on the destination tab state when the tab
+    switch starts: {TabSwitchingType}
+  </summary>
+  <token key="TabSwitchingType" variants="TabSwitchingType"/>
+</histogram>
+
+<histogram name="Browser.ThemeService.WritePackToDisk" enum="BooleanSuccess"
+    expires_after="2022-12-25">
+  <owner>etienneb@chromium.org</owner>
+  <owner>sky@chromium.org</owner>
+  <summary>
+    For each attempt to write a theme pack on disk, counts whether the attempt
+    succeeded.
+  </summary>
+</histogram>
+
+<histogram name="Browser.WindowCount.Guest" units="units"
+    expires_after="2023-09-03">
+  <owner>rhalavati@chromium.org</owner>
+  <owner>chrome-privacy-core@google.com</owner>
+  <summary>
+    Number of open guest windows at the same time. Recorded when a new guest
+    window is created. Please note that this metric double counts the lower
+    numbers, meaning that if user opens three windows (without closing any in
+    between), then buckets 1, 2, and 3 will all be incremented in turn.
+  </summary>
+</histogram>
+
+<histogram name="Browser.WindowCount.Incognito" units="units"
+    expires_after="2023-09-03">
+  <owner>rhalavati@chromium.org</owner>
+  <owner>chrome-privacy-core@google.com</owner>
+  <summary>
+    Number of open incognito windows at the same time. Recorded when a new
+    incognito window is created. Please note that this metric double counts the
+    lower numbers, meaning that if user opens three windows (without closing any
+    in between), then buckets 1, 2, and 3 will all be incremented in turn.
+  </summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.ChildCodeIntegrityFailures"
+    enum="RendererType" expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    Count of renderer process terminations due to a code integrity failure,
+    grouped by type. This is only reported on Windows.
+  </summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.ChildCrashes" enum="RendererType"
+    expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>Count of renderer process crashes grouped by type.</summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.ChildKills" enum="RendererType"
+    expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>Count of renderer process kills grouped by type.</summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.ChildKills.OOM" enum="RendererType"
+    expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>oshima@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    Out of BrowserRenderProcessHost.ChildKills, numer of kills due to SIGKILL,
+    which is a strong signal of out of memory on Chrome OS, grouped by renderer
+    type.
+  </summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.ChildLaunchFailureCodes"
+    enum="LaunchErrorCodes" expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    The launch error codes for failed renderer process launches.
+  </summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.ChildLaunchFailures"
+    enum="RendererType" expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>Count of renderer process launch failures grouped by type.</summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.DisconnectedAlive"
+    enum="RendererType" expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    Count of renderer process crashes that we miscounted because we took the
+    exit code too early. Grouped by type.
+  </summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.LabeledInTaskManager"
+    enum="BooleanLabeledRendererTask" expires_after="2023-06-04">
+  <owner>creis@chromium.org</owner>
+  <owner>avi@chromium.org</owner>
+  <summary>
+    Reports false each time the Task Manager displays an unlabeled renderer
+    process using the fallback task provider, indicating that a type of renderer
+    process is missing a task provider, which is a bug. For comparison, this
+    reports true when renderer processes are properly labeled by a primary task
+    provider. These values are only reported when the Task Manager is open. This
+    can be removed when no unlabeled cases remain, per https://crbug.com/739782.
+  </summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.RoutingIDSpaceUsed"
+    units="% of routing ID space used for browser-allocated routing IDs"
+    expires_after="2023-04-16">
+  <obsolete>
+    4/2023; the data has been collected, verifying that less than 1% of routing
+    ID space is used in practice.
+  </obsolete>
+  <owner>alexmos@chromium.org</owner>
+  <owner>dcheng@chromium.org</owner>
+  <summary>
+    Record the percentage of routing IDs ever used by a RenderProcessHost when
+    the C++ object is destroyed. The denominator is the range of all potentially
+    usable routing IDs—usually std::numeric_limits&lt;int32_t&gt;::max()—but may
+    be smaller (e.g. half that range).
+
+    This histogram does not record data if the routing ID overflows; that event
+    is captured as a browser crash instead.
+  </summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.SpareProcessMaybeTakeAction"
+    enum="SpareProcessMaybeTakeAction" expires_after="2023-12-15">
+  <owner>alexmos@chromium.org</owner>
+  <owner>lukasza@chromium.org</owner>
+  <summary>
+    Records what happens when an attempt is made to use a spare
+    RenderProcessHost - logs that either the attempt succeeded or why it failed.
+  </summary>
+</histogram>
+
+<histogram
+    name="BrowserRenderProcessHost.SuspendedChild.KernelExecutionRecorded"
+    enum="BooleanRecorded" expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    Whether or not kernel-mode execution was recorded for a suspended renderer
+    process. This is recorded after process creation but before process
+    resumption. This is recorded for every sandboxed Renderer process launched
+    on Windows only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserRenderProcessHost.SuspendedChild.UserExecutionRecorded"
+    enum="BooleanRecorded" expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    Whether or not user-mode execution was recorded for a suspended renderer
+    process. This is recorded after process creation but before process
+    resumption. This is recorded for every sandboxed Renderer process launched
+    on Windows only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserServices.TwaOpenTime.V2" units="ms"
+    expires_after="M120">
+  <owner>peconn@chromium.org</owner>
+  <owner>peter@chromium.org</owner>
+  <summary>
+    Triggered when a TrustedWebActivity is paused, recording the time since it
+    had been resumed.
+  </summary>
+</histogram>
+
+<histogram name="BrowserServices.VerificationResult"
+    enum="BrowserServicesVerificationResult" expires_after="M114">
+  <owner>peconn@chromium.org</owner>
+  <owner>peter@chromium.org</owner>
+  <summary>
+    The result of Digital Asset Link verification performed when starting a
+    Trusted Web Activity.
+  </summary>
+</histogram>
+
+<histogram name="BrowserServices.VerificationTime.Offline" units="ms"
+    expires_after="M114">
+  <owner>peconn@chromium.org</owner>
+  <owner>peter@chromium.org</owner>
+  <summary>
+    Triggered when Trusted Web Activity verification completes. Records how long
+    it takes the device to realise it is offline and fall back to the cached
+    result.
+  </summary>
+</histogram>
+
+<histogram name="BrowserServices.VerificationTime.Online" units="ms"
+    expires_after="2023-09-17">
+  <owner>peconn@chromium.org</owner>
+  <owner>peter@chromium.org</owner>
+  <summary>
+    Triggered when Trusted Web Activity verification completes. Records how long
+    verification took when online.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.AlternativeBrowser" enum="BrowserType"
+    expires_after="2023-10-22">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Records which browser the Legacy Browser Support feature is configured to
+    open (which defaults to IE). Recorded on browser startup, and when the value
+    changes. Only measured when Legacy Browser Support is enabled via the
+    BrowserSwitcher* policies. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.CacheFile.MkDirSuccess" enum="BooleanSuccess"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Records whether the &quot;AppData/Local/Google/BrowserSwitcher&quot;
+    directory was successfully created. Windows only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.CacheFile.MkTempSuccess" enum="BooleanSuccess"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Records whether a temp file in
+    &quot;AppData/Local/Google/BrowserSwitcher&quot; the directory was
+    successfully created. Windows only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.CacheFile.MoveSuccess" enum="BooleanSuccess"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Records whether the temp file in
+    &quot;AppData/Local/Google/BrowserSwitcher&quot; directory was successfully
+    moved to its final destination (&quot;cache.dat&quot;) after writing its
+    contents. Windows only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.Decision" enum="BooleanBrowserSwitch"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    On navigation and redirect, whether to switch browsers or not. Only measured
+    when Legacy Browser Support is enabled via the BrowserSwitcher* policies.
+    When this is true, Chrome attempts to launch an alternative browser
+    (typically IE) with the navigation URL. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.DecisionTime" units="ms"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    On navigation and redirect, records how long it took to compute a decision
+    (stay in Chrome/open in IE). Only measured when Legacy Browser Support is
+    enabled via the BrowserSwitcher* policies. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.ExternalGreylistSize" units="rules"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Number of rules that come from an external greylist XML file. Measured when
+    the sitelist is loaded during browser startup. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.ExternalSitelistSize" units="rules"
+    expires_after="2023-08-20">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Number of rules that come from an external sitelist XML file. Measured when
+    the sitelist is loaded during browser startup. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.GreylistSize" units="rules"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Number of rules in the BrowserSwitcherUrlGreylist policy. Measured when the
+    policy is loaded. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.GreylistWildcard" enum="BooleanPresent"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Whether there is a wildcard (&quot;*&quot;) rule in the
+    BrowserSwitcherUrlGreylist policy. Measured when the
+    BrowserSwitcherUrlGreylist policy gets updated. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.IeemSitelistSize" units="rules"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Number of rules that come from Internet Explorer Enterprise Mode's sitelist.
+    Measured when the sitelist is loaded during browser startup. Windows only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.LaunchSuccess" enum="BooleanSuccess"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Records whether an attempt to launch an alternate browser failed or
+    succeeded. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.LaunchTime" units="ms"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Records how long it took to launch an alternate browser (regardless of
+    whether it failed or succeeded). Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.UrlListSize" units="rules"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Number of rules in the BrowserSwitcherUrlList policy. Measured when the
+    policy gets updated. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="BrowserSwitcher.UrlListWildcard" enum="BooleanPresent"
+    expires_after="2023-10-16">
+  <owner>nicolaso@chromium.org</owner>
+  <owner>pastarmovj@chromium.org</owner>
+  <summary>
+    Whether there is a wildcard (&quot;*&quot;) rule in the
+    BrowserSwitcherUrlList policy. Measured when the BrowserSwitcherUrlList
+    policy gets updated. Desktop Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="DigitalAssetLinks.NumFingerprints" units="NumFingerprints"
+    expires_after="M116">
+  <owner>swestphal@chromium.org</owner>
+  <owner>rayankans@chromium.org</owner>
+  <summary>
+    Records the number of fingerprints in assetlinks.json for every performed
+    Digital Asset Link validation with a valid `sha256_cert_fingerprints`-entry.
+  </summary>
+</histogram>
+
+<histogram name="InfoBar.Shown" enum="InfoBarIdentifier" expires_after="never">
+<!-- expires-never: Required as long as infobars exist. -->
+
+  <owner>rkaplow@chromium.org</owner>
+  <owner>src/components/infobars/OWNERS</owner>
+  <summary>
+    Records how many times a particular infobar was shown to the user. On
+    Android, the infobar may be partially hidden due to stacking. On desktop, a
+    tab with a visible infobar will increment this histogram every time the user
+    switches away from the tab and back to it with the infobar still visible.
+  </summary>
+</histogram>
+
+<histogram name="InfoBar.Shown.Hidden" enum="InfoBarIdentifier"
+    expires_after="never">
+<!-- expires-never: Required as long as infobars exist. -->
+
+  <owner>mdjones@chromium.org</owner>
+  <summary>
+    Records how many times a particular infobar was displayed in a hidden state
+    due to at least one other infobar existing. If there are no existing
+    infobars, but the user scrolls at the exact moment a new infobar is added,
+    the infobar may be hidden, but not recorded in this metric. Reliably
+    triggering and detecting this combination is tricky so it isn't done. Only
+    recorded on Android.
+  </summary>
+</histogram>
+
+<histogram name="InfoBar.Shown.Hiding" enum="InfoBarIdentifier"
+    expires_after="never">
+<!-- expires-never: Required as long as infobars exist. -->
+
+  <owner>mdjones@chromium.org</owner>
+  <summary>
+    Records how many times a particular infobar was visible and hiding a new
+    infobar behind it. Only recorded on Android.
+  </summary>
+</histogram>
+
+<histogram name="InfoBar.Shown.Visible" enum="InfoBarIdentifier"
+    expires_after="never">
+<!-- expires-never: Required as long as infobars exist. -->
+
+  <owner>mdjones@chromium.org</owner>
+  <summary>
+    Records how many times a particular infobar was displayed in a visible state
+    due to no other infobars existing. If there are no existing infobars, but
+    the user scrolls at the exact moment a new infobar is added, the infobar may
+    be hidden, but recorded here as visible. Reliably triggering and detecting
+    this combination is tricky so it isn't done. Only recorded on Android.
+  </summary>
+</histogram>
+
+<histogram name="SidePanel.OpenDuration" units="ms" expires_after="2023-10-08">
+  <owner>corising@chromium.org</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <summary>
+    Records how long the side panel was open for (capped at 1 hour) starting
+    when the side panel is triggered to be opened. Note this might be different
+    than when the side panel becomes visible due to delays for loading content.
+    Recorded when the side panel is closed.
+  </summary>
+</histogram>
+
+<histogram name="SidePanel.OpenTrigger" enum="SidePanelOpenTrigger"
+    expires_after="2023-10-08">
+  <owner>corising@chromium.org</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <summary>
+    Logs the UI location from which the side panel is triggered to be opened.
+    Recorded when the side panel is shown and a trigger is provided.
+  </summary>
+</histogram>
+
+<histogram name="SidePanel.ResizedWidth" units="px" expires_after="2024-02-01">
+  <owner>emshack@chromium.org</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <summary>
+    Records the width of the side panel contents after the side panel was
+    resized.
+  </summary>
+</histogram>
+
+<histogram name="SidePanel.ResizedWidthPercentage" units="% of window width"
+    expires_after="2024-02-01">
+  <owner>emshack@chromium.org</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <summary>
+    Records the width of the side panel contents as a percentage of the browser
+    window width after the side panel was resized.
+  </summary>
+</histogram>
+
+<histogram name="SidePanel.{SidePanelEntry}.ResizedWidth" units="px"
+    expires_after="2024-02-01">
+  <owner>emshack@chromium.org</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <summary>
+    Records the width of the side panel contents after the side panel was
+    resized, while the {SidePanelEntry} side panel entry was displayed.
+  </summary>
+  <token key="SidePanelEntry" variants="SidePanelEntry"/>
+</histogram>
+
+<histogram name="SidePanel.{SidePanelEntry}.ResizedWidthPercentage"
+    units="% of window width" expires_after="2024-02-01">
+  <owner>emshack@chromium.org</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <summary>
+    Records the width of the side panel contents as a percentage of the browser
+    window width after the side panel was resized, while the {SidePanelEntry}
+    side panel entry was displayed.
+  </summary>
+  <token key="SidePanelEntry" variants="SidePanelEntry"/>
+</histogram>
+
+<histogram name="SidePanel.{SidePanelEntry}.ShownDuration" units="ms"
+    expires_after="2024-02-01">
+  <owner>corising@chromium.org</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <summary>
+    Records how long the {SidePanelEntry} side panel entry was open for (capped
+    at 1 hour). This is recorded in SidePanelEntry::OnEntryHidden when the entry
+    is hidden (ie. switching entries or the side panel closing).
+  </summary>
+  <token key="SidePanelEntry" variants="SidePanelEntry"/>
+</histogram>
+
+<histogram name="SidePanel.{SidePanelEntry}.ShowTriggered"
+    enum="SidePanelOpenTrigger" expires_after="2024-02-01">
+  <owner>corising@chromium.org</owner>
+  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <summary>
+    Records how a side panel entry is triggered to be shown. (i.e. by toolbar
+    button, by commbobox selection). This is recorded when a new side panel
+    entry is triggered to be shown regardless any side panel entry is currently
+    open.
+  </summary>
+  <token key="SidePanelEntry" variants="SidePanelEntry"/>
+</histogram>
+
+</histograms>
+
+</histogram-configuration>
