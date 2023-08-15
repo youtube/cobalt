@@ -919,7 +919,12 @@ ApplicationX11::WaitForSystemEventWithTimeout(SbTime time) {
     return pending_event;
   }
 
-  SB_DCHECK(dev_input_);
+  // In modular builds, |CreateWindow| is not always called before the event
+  // loop is running.
+  if (!dev_input_) {
+    return nullptr;
+  }
+
   shared::starboard::Application::Event* evdev_event =
       dev_input_->WaitForSystemEventWithTimeout(time);
 
