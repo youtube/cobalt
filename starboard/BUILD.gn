@@ -105,7 +105,7 @@ group("starboard") {
 
     # TODO: b/295702296 Fix libunwind for modular builds.
     if (sb_is_evergreen || is_host_win) {
-      public_deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
+      public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
     }
   } else {
     public_deps += [
