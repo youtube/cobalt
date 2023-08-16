@@ -38,14 +38,36 @@ RUN apt update -qqy \
 COPY ./unittest/requirements.txt /opt/requirements.txt
 RUN python3 -m pip install --require-hashes --no-deps -r /opt/requirements.txt
 
-# === Install Clang 16 toolchain coverage tools.
+# === Install Clang toolchain for llvm-symbolization.
+ARG CLANG_VER
+
 ARG TC_ROOT=${HOME}/starboard-toolchains/
-ARG CLANG_16_VER=16-init-17653-g39da55e8-2
+ARG TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_VER}
+ARG BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
+
+RUN cd /tmp \
+    && mkdir -p ${TC_HOME} \
+    && curl --silent -O -J \
+        ${BASE_URL}/Linux_x64/clang-${CLANG_VER}.tgz \
+    && tar xf clang-${CLANG_VER}.tgz -C ${TC_HOME} \
+    && echo ${CLANG_VER} >> ${TC_HOME}/cr_build_revision \
+    && rm clang-${CLANG_VER}.tgz
+
+# === Install Clang 16 toolchain for llvm-symbolization.
+ARG CLANG_16_VER
+
 ARG CLANG_16_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_16_VER}
 ARG CLANG_16_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
 
-RUN echo ${CLANG_16_BASE_URL}/Linux_x64/llvm-code-coverage-llvmorg-${CLANG_VERSION}.tgz
+RUN cd /tmp \
+    && mkdir -p ${CLANG_16_TC_HOME} \
+    && curl --silent -O -J \
+        ${CLANG_16_BASE_URL}/Linux_x64/clang-llvmorg-${CLANG_16_VER}.tgz \
+    && tar xf clang-llvmorg-${CLANG_16_VER}.tgz -C ${CLANG_16_TC_HOME} \
+    && echo ${CLANG_16_VER} >> ${CLANG_16_TC_HOME}/cr_build_revision \
+    && rm clang-llvmorg-${CLANG_16_VER}.tgz
 
+# === Install Clang 16 toolchain coverage tools.
 RUN cd /tmp \
     && mkdir -p ${CLANG_16_TC_HOME} \
     && curl --silent -O -J \
