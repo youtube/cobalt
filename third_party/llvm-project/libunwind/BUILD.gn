@@ -55,8 +55,14 @@ config("common_unwind_dependents_config") {
 # dependencies from spilling over to gn check when run for non-evergreen
 # platforms (e.g., raspi-2_gn_devel). It can and should be removed once the gn
 # check errors have been resolved for evergreen.
+<<<<<<< HEAD
 if (sb_is_evergreen) {
   config("unwind_evergreen_config") {
+=======
+# TODO: b/295702296 Fix libunwind for modular  builds.
+if (sb_is_evergreen || (sb_is_modular && is_host_win)) {
+  config("unwind_config") {
+>>>>>>> 64e4b38741c (Rename unwind_evergreen to unwind (#1281))
     configs = [ ":common_unwind_dependents_config" ]
 
     cflags = [
@@ -90,10 +96,10 @@ if (sb_is_evergreen) {
     ]
   }
 
-  static_library("unwind_evergreen") {
+  static_library("unwind") {
     sources = common_sources
 
-    configs += [ ":unwind_evergreen_config" ]
+    configs += [ ":unwind_config" ]
     all_dependent_configs = [ ":common_unwind_dependents_config" ]
 
     deps = [

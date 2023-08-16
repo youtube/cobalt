@@ -99,10 +99,17 @@ group("starboard") {
     if (sb_is_evergreen) {
       public_deps += [ "//starboard/elf_loader:sabi_string" ]
     }
+<<<<<<< HEAD
     if (build_with_separate_cobalt_toolchain) {
       data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
     } else {
       public_deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
+=======
+
+    # TODO: b/295702296 Fix libunwind for modular builds.
+    if (sb_is_evergreen || is_host_win) {
+      public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
+>>>>>>> 64e4b38741c (Rename unwind_evergreen to unwind (#1281))
     }
   } else {
     public_deps += [
