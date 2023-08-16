@@ -40,6 +40,7 @@ typedef struct SbUserPrivate SbUserPrivate;
 typedef SbUserPrivate* SbUser;
 
 // A set of string properties that can be queried on a user.
+#if SB_API_VERSION < 16
 typedef enum SbUserPropertyId {
   // The URL to the avatar for a user. Avatars are not provided on all
   // platforms.
@@ -55,6 +56,7 @@ typedef enum SbUserPropertyId {
   // A unique user ID of a user.
   kSbUserPropertyUserId,
 } SbUserPropertyId;
+#endif
 
 // Well-defined value for an invalid user.
 #define kSbUserInvalid (SbUser) NULL
@@ -63,19 +65,6 @@ typedef enum SbUserPropertyId {
 static SB_C_INLINE bool SbUserIsValid(SbUser user) {
   return user != kSbUserInvalid;
 }
-
-// Gets a list of up to |users_size| signed-in users and places the results in
-// |out_users|. The return value identifies the actual number of signed-in
-// users, which may be greater or less than |users_size|.
-//
-// It is expected that there will be a unique |SbUser| per signed-in user and
-// that the referenced objects will persist for the lifetime of the app.
-//
-// |out_users|: Handles for the retrieved users.
-// |users_size|: The maximum number of signed-in users to retrieve.
-#if SB_API_VERSION < 16
-SB_EXPORT int SbUserGetSignedIn(SbUser* out_users, int users_size);
-#endif
 
 // Gets the current primary user, if one exists. This is the user that is
 // determined, in a platform-specific way, to be the primary user controlling
@@ -86,6 +75,19 @@ SB_EXPORT int SbUserGetSignedIn(SbUser* out_users, int users_size);
 // It is expected that there will be a unique SbUser per signed-in user, and
 // that the referenced objects will persist for the lifetime of the app.
 SB_EXPORT SbUser SbUserGetCurrent();
+
+#if SB_API_VERSION < 16
+
+// Gets a list of up to |users_size| signed-in users and places the results in
+// |out_users|. The return value identifies the actual number of signed-in
+// users, which may be greater or less than |users_size|.
+//
+// It is expected that there will be a unique |SbUser| per signed-in user and
+// that the referenced objects will persist for the lifetime of the app.
+//
+// |out_users|: Handles for the retrieved users.
+// |users_size|: The maximum number of signed-in users to retrieve.
+SB_EXPORT int SbUserGetSignedIn(SbUser* out_users, int users_size);
 
 // Returns the size of the value of |property_id| for |user|, INCLUDING the
 // terminating null character. The function returns |0| if |user| is invalid
@@ -109,6 +111,9 @@ SB_EXPORT bool SbUserGetProperty(SbUser user,
                                  SbUserPropertyId property_id,
                                  char* out_value,
                                  int value_size);
+
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

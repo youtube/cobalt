@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/user.h"
 
 int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
@@ -24,3 +26,5 @@ bool SbUserGetProperty(SbUser user,
                        int value_size) {
   return false;
 }
+
+#endif
