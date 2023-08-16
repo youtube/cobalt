@@ -21,8 +21,9 @@ The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
 `starboard/storage.h` no longer have a parameter for `SbUser` as the APIs are
 user-agnostic.
 
-### Removed SbUserGetSignedIn
-The API is no longer used and has been deprecated.
+### Removed SbUserGetSignedIn, SbUserGetProperty, and SbUserGetPropertySize
+The APIs defined in `starboard/user.h` are no longer used and have been
+deprecated.
 
 ### Removed SbByteSwapS16, SbByteSwapS32, SbByteSwapS64, SbByteSwapU16, SbByteSwapU32, and SbByteSwapU64
 The APIs defined in `starboard/byte_swap.h` are no longer used and have been

@@ -349,9 +349,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbUiNavGetInterface);
   REGISTER_SYMBOL(SbUserGetCurrent);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbUserGetSignedIn);
 #endif
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);

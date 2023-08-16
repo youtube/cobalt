@@ -16,28 +16,6 @@ thread, or perform proper synchronization around all calls.
 
 Well-defined value for an invalid user.
 
-## Enums ##
-
-### SbUserPropertyId ###
-
-A set of string properties that can be queried on a user.
-
-#### Values ####
-
-*   `kSbUserPropertyAvatarUrl`
-
-    The URL to the avatar for a user. Avatars are not provided on all platforms.
-*   `kSbUserPropertyHomeDirectory`
-
-    The path to a user's home directory, if supported on this platform.
-*   `kSbUserPropertyUserName`
-
-    The username of a user, which may be the same as the User ID, or it may be
-    friendlier.
-*   `kSbUserPropertyUserId`
-
-    A unique user ID of a user.
-
 ## Typedefs ##
 
 ### SbUser ###
@@ -67,41 +45,6 @@ the referenced objects will persist for the lifetime of the app.
 
 ```
 SbUser SbUserGetCurrent()
-```
-
-### SbUserGetProperty ###
-
-Retrieves the value of `property_id` for `user` and places it in `out_value`.
-The function returns:
-
-*   `true` if the property value is retrieved successfully
-
-*   `false` if `user` is invalid; if `property_id` isn't recognized, supported,
-    or set for `user`; or if `value_size` is too small.
-
-`user`: The user for which property size data is being retrieved. `property_id`:
-The property for which the data is requested. `out_value`: The retrieved
-property value. `value_size`: The size of the retrieved property value.
-
-#### Declaration ####
-
-```
-bool SbUserGetProperty(SbUser user, SbUserPropertyId property_id, char *out_value, int value_size)
-```
-
-### SbUserGetPropertySize ###
-
-Returns the size of the value of `property_id` for `user`, INCLUDING the
-terminating null character. The function returns `0` if `user` is invalid or if
-`property_id` is not recognized, supported, or set for the user.
-
-`user`: The user for which property size data is being retrieved. `property_id`:
-The property for which the data is requested.
-
-#### Declaration ####
-
-```
-int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id)
 ```
 
 ### SbUserIsValid ###

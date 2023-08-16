@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/memory.h"
 #include "starboard/user.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -80,3 +82,5 @@ TEST(SbUserGetPropertyTest, MultipleTimes) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif
