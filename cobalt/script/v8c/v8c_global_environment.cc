@@ -378,7 +378,7 @@ V8cGlobalEnvironment::ModifyCodeGenerationFromStringsCallback(
   V8cGlobalEnvironment* global_environment =
       V8cGlobalEnvironment::GetFromIsolate(context->GetIsolate());
   DCHECK(global_environment);
-  if (!global_environment->report_eval_.is_null()) {
+  if (global_environment && !global_environment->report_eval_.is_null()) {
     global_environment->report_eval_.Run();
   }
   // This callback should only be called while code generation from strings is
@@ -396,7 +396,8 @@ void V8cGlobalEnvironment::MessageHandler(v8::Local<v8::Message> message,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   V8cGlobalEnvironment* global_environment =
       V8cGlobalEnvironment::GetFromIsolate(isolate);
-  if (isolate->GetEnteredOrMicrotaskContext().IsEmpty()) {
+  if (!global_environment ||
+      isolate->GetEnteredOrMicrotaskContext().IsEmpty()) {
     return;
   }
   if (message->ErrorLevel() != v8::Isolate::kMessageError) {

@@ -70,6 +70,7 @@ void V8cExceptionState::SetException(
 
   V8cGlobalEnvironment* global_environment =
       V8cGlobalEnvironment::GetFromIsolate(isolate_);
+  if (!global_environment) return;
   v8::Local<v8::Object> wrapper =
       global_environment->wrapper_factory()->GetWrapper(exception);
 
