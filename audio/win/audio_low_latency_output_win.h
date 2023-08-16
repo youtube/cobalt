@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -95,6 +95,7 @@
 
 #include <Audioclient.h>
 #include <MMDeviceAPI.h>
+#include <audiopolicy.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <wrl/client.h>
@@ -103,14 +104,16 @@
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
+#include "base/time/time.h"
 #include "base/win/scoped_co_mem.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_handle.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/system_glitch_reporter.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/media_export.h"
@@ -119,10 +122,11 @@ namespace media {
 
 class AudioManagerWin;
 class AudioSessionEventListener;
+class AmplitudePeakDetector;
 
 // AudioOutputStream implementation using Windows Core Audio APIs.
-class MEDIA_EXPORT WASAPIAudioOutputStream :
-      public AudioOutputStream,
+class MEDIA_EXPORT WASAPIAudioOutputStream
+    : public AudioOutputStream,
       public base::DelegateSimpleThread::Delegate {
  public:
   // The ctor takes all the usual parameters, plus |manager| which is the
@@ -183,6 +187,13 @@ class MEDIA_EXPORT WASAPIAudioOutputStream :
   // Reports audio stream glitch stats and resets them to their initial values.
   void ReportAndResetStats();
 
+  // Start or stop listening for Windows audio session disconnected events. Uses
+  // `audio_session_control_` to call
+  // IAudioSessionControl::Register/UnregisterAudioSessionNotification() with
+  // `session_listener_` as the event target.
+  void StartAudioSessionEventListener();
+  void StopAudioSessionEventListener();
+
   // Called by AudioSessionEventListener() when a device change occurs.
   void OnDeviceChanged();
 
@@ -190,7 +201,13 @@ class MEDIA_EXPORT WASAPIAudioOutputStream :
   const base::PlatformThreadId creating_thread_id_;
 
   // Our creator, the audio manager needs to be notified when we close.
-  AudioManagerWin* const manager_;
+  const raw_ptr<AudioManagerWin> manager_;
+
+  // Used to aggregate and report glitch metrics to UMA (periodically) and to
+  // text logs (when a stream ends).
+  SystemGlitchReporter glitch_reporter_;
+
+  std::unique_ptr<AmplitudePeakDetector> peak_detector_;
 
   // Rendering is driven by this thread (which has no message loop).
   // All OnMoreData() callbacks will be called from this thread.
@@ -200,6 +217,9 @@ class MEDIA_EXPORT WASAPIAudioOutputStream :
   // Extended PCM waveform format structure based on WAVEFORMATEXTENSIBLE.
   // Use this for multiple channel and hi-resolution PCM data.
   WAVEFORMATPCMEX format_;
+
+  // AudioParameters from the constructor.
+  const AudioParameters params_;
 
   // Set to true when stream is successfully opened.
   bool opened_;
@@ -242,17 +262,8 @@ class MEDIA_EXPORT WASAPIAudioOutputStream :
   // The performance counter read during the last call to RenderAudioFromSource
   UINT64 last_qpc_position_ = 0;
 
-  // The number of glitches detected while this stream was active.
-  int num_glitches_detected_ = 0;
-
-  // The approximate amount of audio lost due to glitches.
-  base::TimeDelta cumulative_audio_lost_;
-
-  // The largest single glitch recorded.
-  base::TimeDelta largest_glitch_;
-
   // Pointer to the client that will deliver audio samples to be played out.
-  AudioSourceCallback* source_;
+  raw_ptr<AudioSourceCallback> source_;
 
   // Callback to send log messages to registered clients.
   AudioManager::LogCallback log_callback_;
@@ -278,7 +289,10 @@ class MEDIA_EXPORT WASAPIAudioOutputStream :
   Microsoft::WRL::ComPtr<IAudioClock> audio_clock_;
 
   bool device_changed_ = false;
-  std::unique_ptr<AudioSessionEventListener> session_listener_;
+
+  // Generates Windows audio session events for `session_listener_` to handle.
+  Microsoft::WRL::ComPtr<IAudioSessionControl> audio_session_control_;
+  Microsoft::WRL::ComPtr<AudioSessionEventListener> session_listener_;
 
   // Since AudioSessionEventListener needs to posts tasks back to the audio
   // thread, it's possible to end up in a state where that task would execute

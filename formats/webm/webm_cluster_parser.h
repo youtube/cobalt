@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,8 @@
 #include <string>
 
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media_export.h"
 #include "media/base/media_log.h"
@@ -47,6 +48,10 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // to the duration of each frame of the packet in microseconds. See
   // https://tools.ietf.org/html/rfc6716#page-14
   static const uint16_t kOpusFrameDurationsMu[];
+
+  WebMClusterParser() = delete;
+  WebMClusterParser(const WebMClusterParser&) = delete;
+  WebMClusterParser& operator=(const WebMClusterParser&) = delete;
 
  private:
   typedef StreamParserBuffer::Type TrackType;
@@ -143,7 +148,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
     // on estimated durations. See http://crbug.com/396634.
     base::TimeDelta max_frame_duration_;
 
-    MediaLog* media_log_;
+    raw_ptr<MediaLog> media_log_;
   };
 
   typedef std::map<int, Track> TextTrackMap;
@@ -246,7 +251,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // bound.)
   // Parse() or Reset() must be called between calls to UpdateReadyBuffers() to
   // clear each track's ready buffers and to reset |ready_buffer_upper_bound_|
-  // to kNoDecodeTimestamp().
+  // to kNoDecodeTimestamp.
   void UpdateReadyBuffers();
 
   // Search for the indicated track_num among the text tracks.  Returns NULL
@@ -314,16 +319,14 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   TextBufferQueueMap text_buffers_map_;
 
   // Limits the range of buffers returned by Get{Audio,Video,Text}Buffers() to
-  // this exclusive upper bound. Set to kNoDecodeTimestamp(), meaning not yet
-  // calculated, by Reset() and Parse(). If kNoDecodeTimestamp(), then
+  // this exclusive upper bound. Set to kNoDecodeTimestamp, meaning not yet
+  // calculated, by Reset() and Parse(). If kNoDecodeTimestamp, then
   // Get{Audio,Video,Text}Buffers() will calculate it to be the minimum (decode)
   // timestamp across all tracks' |last_buffer_missing_duration_|, or
   // kInfiniteDuration if no buffers are currently missing duration.
   DecodeTimestamp ready_buffer_upper_bound_;
 
-  MediaLog* media_log_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WebMClusterParser);
+  raw_ptr<MediaLog> media_log_;
 };
 
 }  // namespace media

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,12 +10,11 @@
 #include <map>
 #include <memory>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
-#include "media/base/bind_to_current_loop.h"
+#include "base/task/bind_post_task.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 
 namespace media {
@@ -71,8 +70,13 @@ class DeferredDestroyUniqueReceiverSet {
 
   DeferredDestroyUniqueReceiverSet() {}
 
-  void AddReceiver(std::unique_ptr<DeferredDestroy<Interface>> impl,
-                   mojo::PendingReceiver<Interface> receiver) {
+  DeferredDestroyUniqueReceiverSet(const DeferredDestroyUniqueReceiverSet&) =
+      delete;
+  DeferredDestroyUniqueReceiverSet& operator=(
+      const DeferredDestroyUniqueReceiverSet&) = delete;
+
+  void Add(std::unique_ptr<DeferredDestroy<Interface>> impl,
+           mojo::PendingReceiver<Interface> receiver) {
     // Wrap the pointer into a unique_ptr with a deleter.
     Deleter deleter(base::BindRepeating(
         &DeferredDestroyUniqueReceiverSet::OnReceiverRemoved,
@@ -110,10 +114,10 @@ class DeferredDestroyUniqueReceiverSet {
     // callback could be called synchronously.
     unbound_impls_[id_] = std::move(ptr);
 
-    // Use BindToCurrentLoop() to force post the destroy callback. This is
-    // needed because the callback may be called directly in the same stack
-    // where the implemenation is being destroyed.
-    impl_ptr->OnDestroyPending(BindToCurrentLoop(
+    // Use base::BindPostTaskToCurrentDefault() to force post the destroy
+    // callback. This is needed because the callback may be called directly in
+    // the same stack where the implementation is being destroyed.
+    impl_ptr->OnDestroyPending(base::BindPostTaskToCurrentDefault(
         base::BindOnce(&DeferredDestroyUniqueReceiverSet::OnDestroyable,
                        weak_factory_.GetWeakPtr(), id_)));
   }
@@ -130,8 +134,6 @@ class DeferredDestroyUniqueReceiverSet {
   // Note: This should remain the last member so it'll be destroyed and
   // invalidate its weak pointers before any other members are destroyed.
   base::WeakPtrFactory<DeferredDestroyUniqueReceiverSet> weak_factory_{this};
-
-  DISALLOW_COPY_AND_ASSIGN(DeferredDestroyUniqueReceiverSet);
 };
 
 }  // namespace media

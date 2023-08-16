@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,8 +16,9 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/queue.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "media/capture/video/chromeos/camera_device_context.h"
 #include "media/capture/video/chromeos/camera_device_delegate.h"
 #include "media/capture/video/chromeos/mojom/camera3.mojom.h"
@@ -50,10 +51,16 @@ class CAPTURE_EXPORT StreamBufferManager final {
  public:
   using Buffer = VideoCaptureDevice::Client::Buffer;
 
+  StreamBufferManager() = delete;
+
   StreamBufferManager(
       CameraDeviceContext* device_context,
       bool video_capture_use_gmb,
       std::unique_ptr<CameraBufferFactory> camera_buffer_factory);
+
+  StreamBufferManager(const StreamBufferManager&) = delete;
+  StreamBufferManager& operator=(const StreamBufferManager&) = delete;
+
   ~StreamBufferManager();
 
   void ReserveBuffer(StreamType stream_type);
@@ -155,6 +162,7 @@ class CAPTURE_EXPORT StreamBufferManager final {
 
   static int GetBufferKey(uint64_t buffer_ipc_id);
 
+  bool CanReserveBufferFromPool(StreamType stream_type);
   void ReserveBufferFromFactory(StreamType stream_type);
   void ReserveBufferFromPool(StreamType stream_type);
   // Destroy current streams and unmap mapped buffers.
@@ -164,7 +172,7 @@ class CAPTURE_EXPORT StreamBufferManager final {
   std::unordered_map<StreamType, std::unique_ptr<StreamContext>>
       stream_context_;
 
-  CameraDeviceContext* device_context_;
+  raw_ptr<CameraDeviceContext, ExperimentalAsh> device_context_;
 
   bool video_capture_use_gmb_;
 
@@ -173,8 +181,6 @@ class CAPTURE_EXPORT StreamBufferManager final {
   std::unique_ptr<CameraBufferFactory> camera_buffer_factory_;
 
   base::WeakPtrFactory<StreamBufferManager> weak_ptr_factory_{this};
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StreamBufferManager);
 };
 
 }  // namespace media

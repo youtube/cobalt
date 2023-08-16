@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,6 @@ constexpr char kMic[] = "MIC";
 constexpr char kInternalMic[] = "INTERNAL_MIC";
 constexpr char kFrontMic[] = "FRONT_MIC";
 constexpr char kRearMic[] = "REAR_MIC";
-constexpr char kKeyBoardMic[] = "KEYBOARD_MIC";
 constexpr char kBluetoothNBMic[] = "BLUETOOTH_NB_MIC";
 constexpr char kUSB[] = "USB";
 constexpr char kBluetooth[] = "BLUETOOTH";
@@ -41,7 +40,7 @@ constexpr char kAlsaLoopback[] = "ALSA_LOOPBACK";
 // One special case is ALSA loopback device, which will only exist under
 // testing. We want it visible to users for e2e tests.
 bool IsForSimpleUsage(std::string type) {
-  return type == kInternalMic || type == kHeadphone || type == kHDMI ||
+  return type == kInternalSpeaker || type == kHeadphone || type == kHDMI ||
          type == kLineout || type == kMic || type == kInternalMic ||
          type == kFrontMic || type == kRearMic || type == kBluetoothNBMic ||
          type == kUSB || type == kBluetooth || type == kAlsaLoopback;
@@ -130,11 +129,38 @@ CrasDevice::CrasDevice(struct libcras_node_info* node, DeviceType type)
     device_name = nullptr;
   }
 
+  rc = libcras_node_info_get_max_supported_channels(node,
+                                                    &max_supported_channels);
+  if (rc) {
+    LOG(ERROR) << "Failed to get max supported channels: " << rc;
+    max_supported_channels = 0;
+  }
+
   name = std::string(node_name);
-  if (name.empty() || name == "(default)")
+  if (name.empty() || name == "(default)") {
     name = device_name;
+  }
   dev_name = device_name;
 }
+
+CrasDevice::CrasDevice(DeviceType type,
+                       uint64_t id,
+                       uint32_t dev_idx,
+                       uint32_t max_supported_channels,
+                       bool plugged,
+                       bool active,
+                       std::string node_type,
+                       std::string name,
+                       std::string dev_name)
+    : type(type),
+      id(id),
+      dev_idx(dev_idx),
+      max_supported_channels(max_supported_channels),
+      plugged(plugged),
+      active(active),
+      node_type(node_type),
+      name(name),
+      dev_name(dev_name) {}
 
 void mergeDevices(CrasDevice& old_dev, CrasDevice& new_dev) {
   if (old_dev.node_type == kLineout || new_dev.node_type == kLineout) {
@@ -154,12 +180,48 @@ void mergeDevices(CrasDevice& old_dev, CrasDevice& new_dev) {
   old_dev.active |= new_dev.active;
 }
 
-std::vector<CrasDevice> CrasGetAudioDevices(DeviceType type) {
+CrasUtil::CrasUtil() = default;
+
+CrasUtil::~CrasUtil() = default;
+
+bool CrasUtil::CacheEffects() {
+  libcras_client* client = CrasConnect();
+  if (!client) {
+    LOG(ERROR) << "Failed to cache effects";
+    return false;
+  }
+  if (libcras_client_get_aec_supported(client, &aec_supported_) < 0) {
+    LOG(ERROR) << "Fail to query AEC supported";
+    aec_supported_ = false;
+  }
+  if (libcras_client_get_agc_supported(client, &agc_supported_) < 0) {
+    LOG(ERROR) << "Fail to query AGC supported";
+    agc_supported_ = false;
+  }
+  if (libcras_client_get_ns_supported(client, &ns_supported_) < 0) {
+    LOG(ERROR) << "Fail to query NS supported";
+    ns_supported_ = false;
+  }
+  if (libcras_client_get_aec_group_id(client, &aec_group_id_) < 0) {
+    LOG(ERROR) << "Fail to query AEC group ID";
+    aec_group_id_ = -1;  // The default group ID is -1
+  }
+  if (libcras_client_get_default_output_buffer_size(
+          client, &default_output_buffer_size_) < 0) {
+    LOG(ERROR) << "Fail to query default output buffer size";
+    default_output_buffer_size_ = 0;
+  }
+  CrasDisconnect(&client);
+  return true;
+}
+
+std::vector<CrasDevice> CrasUtil::CrasGetAudioDevices(DeviceType type) {
   std::vector<CrasDevice> devices;
 
   libcras_client* client = CrasConnect();
-  if (!client)
+  if (!client) {
     return devices;
+  }
 
   int rc;
 
@@ -182,8 +244,9 @@ std::vector<CrasDevice> CrasGetAudioDevices(DeviceType type) {
 
   for (size_t i = 0; i < num_nodes; i++) {
     auto new_dev = CrasDevice(nodes[i], type);
-    if (!new_dev.plugged || !IsForSimpleUsage(new_dev.node_type))
+    if (!new_dev.plugged || !IsForSimpleUsage(new_dev.node_type)) {
       continue;
+    }
     bool added = false;
     for (auto& dev : devices) {
       if (dev.dev_idx == new_dev.dev_idx) {
@@ -192,8 +255,9 @@ std::vector<CrasDevice> CrasGetAudioDevices(DeviceType type) {
         break;
       }
     }
-    if (!added)
+    if (!added) {
       devices.emplace_back(new_dev);
+    }
   }
 
   libcras_node_info_array_destroy(nodes, num_nodes);
@@ -202,69 +266,39 @@ std::vector<CrasDevice> CrasGetAudioDevices(DeviceType type) {
   return devices;
 }
 
-bool CrasHasKeyboardMic() {
-  libcras_client* client = CrasConnect();
-  if (!client)
-    return false;
-
-  struct libcras_node_info** nodes;
-  size_t num_nodes;
-  int rc =
-      libcras_client_get_nodes(client, CRAS_STREAM_INPUT, &nodes, &num_nodes);
-  int ret = false;
-
-  if (rc < 0) {
-    LOG(ERROR) << "Failed to get devices: " << std::strerror(rc);
-    CrasDisconnect(&client);
-    return false;
+int CrasUtil::CrasGetAecSupported() {
+  if (!cras_effects_cached_) {
+    cras_effects_cached_ = CacheEffects();
   }
+  return aec_supported_;
+}
 
-  for (size_t i = 0; i < num_nodes; i++) {
-    auto device = CrasDevice(nodes[i], DeviceType::kInput);
-    if (device.node_type == kKeyBoardMic)
-      ret = true;
+int CrasUtil::CrasGetAgcSupported() {
+  if (!cras_effects_cached_) {
+    cras_effects_cached_ = CacheEffects();
   }
-
-  libcras_node_info_array_destroy(nodes, num_nodes);
-
-  CrasDisconnect(&client);
-  return ret;
+  return agc_supported_;
 }
 
-int CrasGetAecSupported() {
-  libcras_client* client = CrasConnect();
-  if (!client)
-    return 0;
-
-  int supported;
-  libcras_client_get_aec_supported(client, &supported);
-  CrasDisconnect(&client);
-
-  return supported;
+int CrasUtil::CrasGetNsSupported() {
+  if (!cras_effects_cached_) {
+    cras_effects_cached_ = CacheEffects();
+  }
+  return ns_supported_;
 }
 
-int CrasGetAecGroupId() {
-  libcras_client* client = CrasConnect();
-  if (!client)
-    return -1;
-
-  int id;
-  int rc = libcras_client_get_aec_group_id(client, &id);
-  CrasDisconnect(&client);
-
-  return rc < 0 ? rc : id;
+int CrasUtil::CrasGetAecGroupId() {
+  if (!cras_effects_cached_) {
+    cras_effects_cached_ = CacheEffects();
+  }
+  return aec_group_id_;
 }
 
-int CrasGetDefaultOutputBufferSize() {
-  libcras_client* client = CrasConnect();
-  if (!client)
-    return -1;
-
-  int size;
-  int rc = libcras_client_get_default_output_buffer_size(client, &size);
-  CrasDisconnect(&client);
-
-  return rc < 0 ? rc : size;
+int CrasUtil::CrasGetDefaultOutputBufferSize() {
+  if (!cras_effects_cached_) {
+    cras_effects_cached_ = CacheEffects();
+  }
+  return default_output_buffer_size_;
 }
 
 }  // namespace media

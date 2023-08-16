@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,9 @@
 #include <memory>
 #include <utility>
 
-#include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media_export.h"
@@ -70,7 +70,7 @@ class MEDIA_EXPORT EsParserMpeg1Audio : public EsParser {
 
   void SkipMpeg1AudioFrame(const Mpeg1AudioFrame& mpeg1audio_frame);
 
-  MediaLog* media_log_;
+  raw_ptr<MediaLog> media_log_;
 
   size_t mp3_parse_error_limit_ = 0;
 

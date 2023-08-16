@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,17 +11,18 @@
 #include <utility>
 #include <vector>
 
-#include "base/bind.h"
 #include "base/containers/circular_deque.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/rand_util.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/default_tick_clock.h"
+#include "base/time/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
@@ -351,6 +352,9 @@ class InterruptedPoissonProcess::InternalBuffer : public PacketPipe {
   InternalBuffer(base::WeakPtr<InterruptedPoissonProcess> ipp, size_t size)
       : ipp_(ipp), stored_size_(0), stored_limit_(size), clock_(nullptr) {}
 
+  InternalBuffer(const InternalBuffer&) = delete;
+  InternalBuffer& operator=(const InternalBuffer&) = delete;
+
   void Send(std::unique_ptr<Packet> packet) final {
     // Drop if buffer is full.
     if (stored_size_ >= stored_limit_)
@@ -399,10 +403,8 @@ class InterruptedPoissonProcess::InternalBuffer : public PacketPipe {
   const size_t stored_limit_;
   base::circular_deque<std::unique_ptr<Packet>> buffer_;
   base::circular_deque<base::TimeTicks> buffer_time_;
-  const base::TickClock* clock_;
+  raw_ptr<const base::TickClock> clock_;
   base::WeakPtrFactory<InternalBuffer> weak_factory_{this};
-
-  DISALLOW_COPY_AND_ASSIGN(InternalBuffer);
 };
 
 InterruptedPoissonProcess::InterruptedPoissonProcess(
@@ -544,8 +546,8 @@ class PacketSender : public PacketPipe {
   void AppendToPipe(std::unique_ptr<PacketPipe> pipe) final { NOTREACHED(); }
 
  private:
-  UDPProxyImpl* udp_proxy_;
-  const net::IPEndPoint* destination_;  // not owned
+  raw_ptr<UDPProxyImpl> udp_proxy_;
+  raw_ptr<const net::IPEndPoint> destination_;  // not owned
 };
 
 namespace {
@@ -746,10 +748,12 @@ class UDPProxyImpl final : public UDPProxy {
         std::make_unique<net::UDPServerSocket>(net_log, net::NetLogSource());
     BuildPipe(&to_dest_pipe_, new PacketSender(this, &destination_));
     BuildPipe(&from_dest_pipe_, new PacketSender(this, &return_address_));
-    to_dest_pipe_->InitOnIOThread(base::ThreadTaskRunnerHandle::Get(),
-                                  base::DefaultTickClock::GetInstance());
-    from_dest_pipe_->InitOnIOThread(base::ThreadTaskRunnerHandle::Get(),
-                                    base::DefaultTickClock::GetInstance());
+    to_dest_pipe_->InitOnIOThread(
+        base::SingleThreadTaskRunner::GetCurrentDefault(),
+        base::DefaultTickClock::GetInstance());
+    from_dest_pipe_->InitOnIOThread(
+        base::SingleThreadTaskRunner::GetCurrentDefault(),
+        base::DefaultTickClock::GetInstance());
 
     VLOG(0) << "From:" << local_port_.ToString();
     if (!destination_is_mutable_)

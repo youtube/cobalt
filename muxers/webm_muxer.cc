@@ -1,22 +1,36 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/muxers/webm_muxer.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <string>
 
-#include "base/bind.h"
 #include "base/check.h"
+#include "base/containers/circular_deque.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_math.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
-#include "base/time/time_override.h"
+#include "base/timer/elapsed_timer.h"
+#include "base/trace_event/trace_event.h"
+#include "media/base/audio_codecs.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/limits.h"
+#include "media/base/video_codecs.h"
 #include "media/base/video_frame.h"
 #include "media/formats/common/opus_constants.h"
+#include "media/muxers/muxer.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/libwebm/source/mkvmuxer.hpp"
+#include "ui/gfx/color_space.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace media {
 
@@ -56,7 +70,7 @@ constexpr uint8_t codec_private[4] = {
 constexpr base::TimeDelta kMinimumForcedClusterDuration =
     base::Milliseconds(100);
 
-void WriteOpusHeader(const media::AudioParameters& params, uint8_t* header) {
+void WriteOpusHeader(const AudioParameters& params, uint8_t* header) {
   // See https://wiki.xiph.org/OggOpus#ID_Header.
   // Set magic signature.
   std::string label = "OpusHead";
@@ -80,13 +94,13 @@ void WriteOpusHeader(const media::AudioParameters& params, uint8_t* header) {
   header[OPUS_EXTRADATA_CHANNEL_MAPPING_OFFSET] = 0;
 }
 
-static double GetFrameRate(const WebmMuxer::VideoParameters& params) {
+static double GetFrameRate(const Muxer::VideoParameters& params) {
   const double kZeroFrameRate = 0.0;
   const double kDefaultFrameRate = 30.0;
 
   double frame_rate = params.frame_rate;
   if (frame_rate <= kZeroFrameRate ||
-      frame_rate > media::limits::kMaxFramesPerSecond) {
+      frame_rate > limits::kMaxFramesPerSecond) {
     frame_rate = kDefaultFrameRate;
   }
   return frame_rate;
@@ -148,10 +162,10 @@ absl::optional<mkvmuxer::Colour> ColorFromColorSpace(
     case TransferID::BT709:
       transfer_characteristics = Colour::kIturBt709Tc;
       break;
-    case TransferID::IEC61966_2_1:
+    case TransferID::SRGB:
       transfer_characteristics = Colour::kIec6196621;
       break;
-    case TransferID::SMPTEST2084:
+    case TransferID::PQ:
       transfer_characteristics = Colour::kSmpteSt2084;
       break;
     default:
@@ -198,30 +212,6 @@ mkvmuxer::int32 WebmMuxer::Delegate::Write(const void* buf,
 }
 
 // -----------------------------------------------------------------------------
-// WebmMuxer::VideoParameters:
-
-WebmMuxer::VideoParameters::VideoParameters(
-    scoped_refptr<media::VideoFrame> frame)
-    : visible_rect_size(frame->visible_rect().size()),
-      frame_rate(frame->metadata().frame_rate.value_or(0.0)),
-      codec(VideoCodec::kUnknown),
-      color_space(frame->ColorSpace()) {}
-
-WebmMuxer::VideoParameters::VideoParameters(
-    gfx::Size visible_rect_size,
-    double frame_rate,
-    VideoCodec codec,
-    absl::optional<gfx::ColorSpace> color_space)
-    : visible_rect_size(visible_rect_size),
-      frame_rate(frame_rate),
-      codec(codec),
-      color_space(color_space) {}
-
-WebmMuxer::VideoParameters::VideoParameters(const VideoParameters&) = default;
-
-WebmMuxer::VideoParameters::~VideoParameters() = default;
-
-// -----------------------------------------------------------------------------
 // WebmMuxer:
 
 WebmMuxer::WebmMuxer(AudioCodec audio_codec,
@@ -254,6 +244,32 @@ WebmMuxer::WebmMuxer(AudioCodec audio_codec,
 WebmMuxer::~WebmMuxer() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   Flush();
+
+  if (has_audio_ && !has_video_) {
+    base::UmaHistogramBoolean(
+        "Media.WebmMuxer.DidAdjustTimestamp.AudioOnly.Muxer",
+        did_adjust_muxer_timestamp_);
+    base::UmaHistogramBoolean(
+        "Media.WebmMuxer.DidAdjustTimestamp.AudioOnly.Audio",
+        did_adjust_audio_timestamp_);
+  } else if (!has_audio_ && has_video_) {
+    base::UmaHistogramBoolean(
+        "Media.WebmMuxer.DidAdjustTimestamp.VideoOnly.Muxer",
+        did_adjust_muxer_timestamp_);
+    base::UmaHistogramBoolean(
+        "Media.WebmMuxer.DidAdjustTimestamp.VideoOnly.Video",
+        did_adjust_video_timestamp_);
+  } else {
+    base::UmaHistogramBoolean(
+        "Media.WebmMuxer.DidAdjustTimestamp.AudioVideo.Muxer",
+        did_adjust_muxer_timestamp_);
+    base::UmaHistogramBoolean(
+        "Media.WebmMuxer.DidAdjustTimestamp.AudioVideo.Audio",
+        did_adjust_audio_timestamp_);
+    base::UmaHistogramBoolean(
+        "Media.WebmMuxer.DidAdjustTimestamp.AudioVideo.Video",
+        did_adjust_video_timestamp_);
+  }
 }
 
 void WebmMuxer::SetMaximumDurationToForceDataOutput(base::TimeDelta interval) {
@@ -266,7 +282,9 @@ bool WebmMuxer::OnEncodedVideo(const VideoParameters& params,
                                std::string encoded_alpha,
                                base::TimeTicks timestamp,
                                bool is_key_frame) {
-  DVLOG(2) << __func__ << " - " << encoded_data.size() << "B";
+  TRACE_EVENT2("media", __func__, "timestamp", timestamp - base::TimeTicks(),
+               "is_key_frame", is_key_frame);
+  DVLOG(2) << __func__ << " - " << encoded_data.size() << "B ts " << timestamp;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(params.codec == VideoCodec::kVP8 || params.codec == VideoCodec::kVP9 ||
          params.codec == VideoCodec::kH264 || params.codec == VideoCodec::kAV1)
@@ -286,11 +304,7 @@ bool WebmMuxer::OnEncodedVideo(const VideoParameters& params,
     video_codec_ = params.codec;
     AddVideoTrack(params.visible_rect_size, GetFrameRate(params),
                   params.color_space);
-    if (first_frame_timestamp_video_.is_null()) {
-      // Compensate for time in pause spent before the first frame.
-      first_frame_timestamp_video_ = timestamp - total_time_in_pause_;
-      last_frame_timestamp_video_ = first_frame_timestamp_video_;
-    }
+
     // Add codec private for AV1.
     if (params.codec == VideoCodec::kAV1 &&
         !segment_.GetTrackByNumber(video_track_index_)
@@ -304,36 +318,42 @@ bool WebmMuxer::OnEncodedVideo(const VideoParameters& params,
     if (is_key_frame)  // Upon Key frame reception, empty the encoded queue.
       video_frames_.clear();
   }
-  const base::TimeTicks recorded_timestamp =
-      UpdateLastTimestampMonotonically(timestamp, &last_frame_timestamp_video_);
+
+  // Compensate for time in pause spent before the first frame.
+  auto timestamp_minus_paused = timestamp - total_time_in_pause_;
+  if (!video_timestamp_source_.has_value()) {
+    video_timestamp_source_.emplace(timestamp_minus_paused,
+                                    did_adjust_video_timestamp_);
+  }
   video_frames_.push_back(EncodedFrame{
       std::move(encoded_data), std::move(encoded_alpha),
-      recorded_timestamp - first_frame_timestamp_video_, is_key_frame});
+      video_timestamp_source_->UpdateAndGetNext(timestamp_minus_paused),
+      is_key_frame});
   return PartiallyFlushQueues();
 }
 
-bool WebmMuxer::OnEncodedAudio(const media::AudioParameters& params,
+bool WebmMuxer::OnEncodedAudio(const AudioParameters& params,
                                std::string encoded_data,
                                base::TimeTicks timestamp) {
-  DVLOG(2) << __func__ << " - " << encoded_data.size() << "B";
+  TRACE_EVENT1("media", __func__, "timestamp", timestamp - base::TimeTicks());
+  DVLOG(2) << __func__ << " - " << encoded_data.size() << "B ts " << timestamp;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   MaybeForceNewCluster();
   if (!audio_track_index_) {
     AddAudioTrack(params);
-    if (first_frame_timestamp_audio_.is_null()) {
-      // Compensate for time in pause spent before the first frame.
-      first_frame_timestamp_audio_ = timestamp - total_time_in_pause_;
-      last_frame_timestamp_audio_ = first_frame_timestamp_audio_;
-    }
   }
 
-  const base::TimeTicks recorded_timestamp =
-      UpdateLastTimestampMonotonically(timestamp, &last_frame_timestamp_audio_);
-  audio_frames_.push_back(
-      EncodedFrame{encoded_data, std::string(),
-                   recorded_timestamp - first_frame_timestamp_audio_,
-                   /*is_keyframe=*/true});
+  // Compensate for time in pause spent before the first frame.
+  auto timestamp_minus_paused = timestamp - total_time_in_pause_;
+  if (!audio_timestamp_source_.has_value()) {
+    audio_timestamp_source_.emplace(timestamp_minus_paused,
+                                    did_adjust_audio_timestamp_);
+  }
+  audio_frames_.push_back(EncodedFrame{
+      encoded_data, std::string(),
+      audio_timestamp_source_->UpdateAndGetNext(timestamp_minus_paused),
+      /*is_keyframe=*/true});
   return PartiallyFlushQueues();
 }
 
@@ -352,7 +372,7 @@ void WebmMuxer::Pause() {
   DVLOG(1) << __func__;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!elapsed_time_in_pause_)
-    elapsed_time_in_pause_ = std::make_unique<base::ElapsedTimer>();
+    elapsed_time_in_pause_.emplace();
 }
 
 void WebmMuxer::Resume() {
@@ -420,7 +440,7 @@ void WebmMuxer::AddVideoTrack(
   video_track->set_max_block_additional_id(1);
 }
 
-void WebmMuxer::AddAudioTrack(const media::AudioParameters& params) {
+void WebmMuxer::AddAudioTrack(const AudioParameters& params) {
   DVLOG(1) << __func__ << " " << params.AsHumanReadableString();
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_EQ(0u, audio_track_index_)
@@ -495,20 +515,27 @@ bool WebmMuxer::PartiallyFlushQueues() {
 
 bool WebmMuxer::FlushNextFrame() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  base::TimeDelta min_timestamp = base::TimeDelta::Max();
+  base::TimeTicks min_timestamp = base::TimeTicks::Max();
   base::circular_deque<EncodedFrame>* queue = &video_frames_;
   uint8_t track_index = video_track_index_;
   if (!video_frames_.empty())
-    min_timestamp = video_frames_.front().relative_timestamp;
+    min_timestamp = video_frames_.front().timestamp_minus_paused_;
 
   if (!audio_frames_.empty() &&
-      audio_frames_.front().relative_timestamp < min_timestamp) {
+      audio_frames_.front().timestamp_minus_paused_ < min_timestamp) {
     queue = &audio_frames_;
     track_index = audio_track_index_;
   }
 
   EncodedFrame frame = std::move(queue->front());
   queue->pop_front();
+
+  // Update the first timestamp if necessary so we can write relative timestamps
+  // into the muxer.
+  if (first_timestamp_.is_null()) {
+    first_timestamp_ = frame.timestamp_minus_paused_;
+  }
+
   // The logic tracking live-and-enabled that temporarily relaxes the strict
   // timestamp sorting allows for draining a track's queue completely in the
   // presence of the other track being muted. When the muted track becomes
@@ -516,10 +543,15 @@ bool WebmMuxer::FlushNextFrame() {
   // data before live-and-enabled transitions to true. This can lead to us
   // emitting non-monotonic timestamps to the muxer, which results in an error
   // return. Fix this by enforcing monotonicity by rewriting timestamps.
-  base::TimeDelta relative_timestamp = frame.relative_timestamp;
+  // TODO(crbug.com/1145203): If this causes audio glitches in the field,
+  // reconsider this solution. For example, consider auto-marking a track
+  // live-and-enabled when media appears and remove this catch-all.
+  base::TimeDelta relative_timestamp =
+      frame.timestamp_minus_paused_ - first_timestamp_;
   DLOG_IF(WARNING, relative_timestamp < last_timestamp_written_)
       << "Enforced a monotonically increasing timestamp. Last written "
       << last_timestamp_written_ << " new " << relative_timestamp;
+  did_adjust_muxer_timestamp_ |= (relative_timestamp < last_timestamp_written_);
   relative_timestamp = std::max(relative_timestamp, last_timestamp_written_);
   last_timestamp_written_ = relative_timestamp;
   auto recorded_timestamp = relative_timestamp.InMicroseconds() *
@@ -532,6 +564,8 @@ bool WebmMuxer::FlushNextFrame() {
   }
 
   DCHECK(frame.data.data());
+  TRACE_EVENT2("media", __func__, "is_video", queue == &video_frames_,
+               "recorded_timestamp", recorded_timestamp);
   bool result =
       frame.alpha_data.empty()
           ? segment_.AddFrame(
@@ -547,20 +581,6 @@ bool WebmMuxer::FlushNextFrame() {
   return result;
 }
 
-base::TimeTicks WebmMuxer::UpdateLastTimestampMonotonically(
-    base::TimeTicks timestamp,
-    base::TimeTicks* last_timestamp) {
-  base::TimeTicks compensated_timestamp = timestamp - total_time_in_pause_;
-  // In theory, time increases monotonically. In practice, it does not.
-  // See http://crbug/618407.
-  DLOG_IF(WARNING, compensated_timestamp < *last_timestamp)
-      << "Encountered a non-monotonically increasing timestamp. Was: "
-      << *last_timestamp << ", compensated: " << compensated_timestamp
-      << ", uncompensated: " << timestamp;
-  *last_timestamp = std::max(*last_timestamp, compensated_timestamp);
-  return *last_timestamp;
-}
-
 void WebmMuxer::MaybeForceNewCluster() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -569,10 +589,32 @@ void WebmMuxer::MaybeForceNewCluster() {
     return;
   }
 
+  // TODO(crbug.com/1381323): consider if cluster output should be based on
+  // media timestamps
   if (base::TimeTicks::Now() - delegate_->last_data_output_timestamp() >=
       max_data_output_interval_) {
+    TRACE_EVENT0("media", "ForceNewClusterOnNextFrame");
     segment_.ForceNewClusterOnNextFrame();
   }
+}
+
+WebmMuxer::MonotonicTimestampSequence::MonotonicTimestampSequence(
+    base::TimeTicks first_timestamp,
+    bool& did_adjust_timestamp)
+    : last_timestamp_(first_timestamp),
+      did_adjust_timestamp_(did_adjust_timestamp) {}
+
+base::TimeTicks WebmMuxer::MonotonicTimestampSequence::UpdateAndGetNext(
+    base::TimeTicks timestamp) {
+  DVLOG(3) << __func__ << " ts " << timestamp << " last " << last_timestamp_;
+  // In theory, time increases monotonically. In practice, it does not.
+  // See http://crbug/618407.
+  DLOG_IF(WARNING, timestamp < last_timestamp_)
+      << "Encountered a non-monotonically increasing timestamp. Was: "
+      << last_timestamp_ << ", timestamp: " << timestamp;
+  *did_adjust_timestamp_ |= (timestamp < last_timestamp_);
+  last_timestamp_ = std::max(last_timestamp_, timestamp);
+  return last_timestamp_;
 }
 
 }  // namespace media

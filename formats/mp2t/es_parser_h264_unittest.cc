@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "base/bind.h"
 #include "base/check.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "media/base/stream_parser_buffer.h"
@@ -29,6 +28,9 @@ class EsParserH264Test : public EsParserTestBase,
                          public testing::Test {
  public:
   EsParserH264Test() {}
+
+  EsParserH264Test(const EsParserH264Test&) = delete;
+  EsParserH264Test& operator=(const EsParserH264Test&) = delete;
 
  protected:
   void LoadH264Stream(const char* filename);
@@ -49,8 +51,6 @@ class EsParserH264Test : public EsParserTestBase,
   // Insert an AUD before each access unit.
   // Update |stream_| and |access_units_| accordingly.
   void InsertAUD();
-
-  DISALLOW_COPY_AND_ASSIGN(EsParserH264Test);
 };
 
 void EsParserH264Test::LoadH264Stream(const char* filename) {

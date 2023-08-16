@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 
 #include <stddef.h>
 
-#include "base/cxx17_backports.h"
 #include "base/strings/stringprintf.h"
 #include "media/base/channel_mixer.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,7 +21,7 @@ TEST(ChannelMixingMatrixTest, ConstructAllPossibleLayouts) {
          output_layout <= CHANNEL_LAYOUT_MAX;
          output_layout = static_cast<ChannelLayout>(output_layout + 1)) {
       // DISCRETE, BITSTREAM can't be tested here based on the current approach.
-      // CHANNEL_LAYOUT_STEREO_AND_KEYBOARD_MIC is not mixable.
+      // CHANNEL_LAYOUT_STEREO_AND_KEYBOARD_MIC is deprecated.
       // Stereo down mix should never be the output layout.
       if (input_layout == CHANNEL_LAYOUT_BITSTREAM ||
           input_layout == CHANNEL_LAYOUT_DISCRETE ||
@@ -34,14 +33,12 @@ TEST(ChannelMixingMatrixTest, ConstructAllPossibleLayouts) {
         continue;
       }
 
-      SCOPED_TRACE(base::StringPrintf(
-          "Input Layout: %d, Output Layout: %d", input_layout, output_layout));
-      ChannelMixingMatrix matrix_builder(
-          input_layout,
-          ChannelLayoutToChannelCount(input_layout),
-          output_layout,
-          ChannelLayoutToChannelCount(output_layout));
+      SCOPED_TRACE(base::StringPrintf("Input Layout: %d, Output Layout: %d",
+                                      input_layout, output_layout));
       std::vector<std::vector<float>> matrix;
+      ChannelMixingMatrix matrix_builder(
+          input_layout, ChannelLayoutToChannelCount(input_layout),
+          output_layout, ChannelLayoutToChannelCount(output_layout));
       matrix_builder.CreateTransformationMatrix(&matrix);
     }
   }
@@ -51,12 +48,10 @@ TEST(ChannelMixingMatrixTest, ConstructAllPossibleLayouts) {
 TEST(ChannelMixingMatrixTest, StereoToMono) {
   ChannelLayout input_layout = CHANNEL_LAYOUT_STEREO;
   ChannelLayout output_layout = CHANNEL_LAYOUT_MONO;
-  ChannelMixingMatrix matrix_builder(
-      input_layout,
-      ChannelLayoutToChannelCount(input_layout),
-      output_layout,
-      ChannelLayoutToChannelCount(output_layout));
   std::vector<std::vector<float>> matrix;
+  ChannelMixingMatrix matrix_builder(
+      input_layout, ChannelLayoutToChannelCount(input_layout), output_layout,
+      ChannelLayoutToChannelCount(output_layout));
   bool remapping = matrix_builder.CreateTransformationMatrix(&matrix);
 
   //                      Input: stereo
@@ -73,12 +68,10 @@ TEST(ChannelMixingMatrixTest, StereoToMono) {
 TEST(ChannelMixingMatrixTest, MonoToStereo) {
   ChannelLayout input_layout = CHANNEL_LAYOUT_MONO;
   ChannelLayout output_layout = CHANNEL_LAYOUT_STEREO;
-  ChannelMixingMatrix matrix_builder(
-      input_layout,
-      ChannelLayoutToChannelCount(input_layout),
-      output_layout,
-      ChannelLayoutToChannelCount(output_layout));
   std::vector<std::vector<float>> matrix;
+  ChannelMixingMatrix matrix_builder(
+      input_layout, ChannelLayoutToChannelCount(input_layout), output_layout,
+      ChannelLayoutToChannelCount(output_layout));
   bool remapping = matrix_builder.CreateTransformationMatrix(&matrix);
 
   //                       Input: mono
@@ -97,10 +90,10 @@ TEST(ChannelMixingMatrixTest, MonoToStereo) {
 TEST(ChannelMixingMatrixTest, MonoToSurround) {
   ChannelLayout input_layout = CHANNEL_LAYOUT_MONO;
   ChannelLayout output_layout = CHANNEL_LAYOUT_5_1;
+  std::vector<std::vector<float>> matrix;
   ChannelMixingMatrix matrix_builder(
       input_layout, ChannelLayoutToChannelCount(input_layout), output_layout,
       ChannelLayoutToChannelCount(output_layout));
-  std::vector<std::vector<float>> matrix;
   bool remapping = matrix_builder.CreateTransformationMatrix(&matrix);
 
   //                       Input: mono
@@ -127,12 +120,10 @@ TEST(ChannelMixingMatrixTest, MonoToSurround) {
 TEST(ChannelMixingMatrixTest, FiveOneToMono) {
   ChannelLayout input_layout = CHANNEL_LAYOUT_5_1;
   ChannelLayout output_layout = CHANNEL_LAYOUT_MONO;
-  ChannelMixingMatrix matrix_builder(
-      input_layout,
-      ChannelLayoutToChannelCount(input_layout),
-      output_layout,
-      ChannelLayoutToChannelCount(output_layout));
   std::vector<std::vector<float>> matrix;
+  ChannelMixingMatrix matrix_builder(
+      input_layout, ChannelLayoutToChannelCount(input_layout), output_layout,
+      ChannelLayoutToChannelCount(output_layout));
   bool remapping = matrix_builder.CreateTransformationMatrix(&matrix);
 
   // Note: 1/sqrt(2) is shown as 0.707.
@@ -161,14 +152,13 @@ TEST(ChannelMixingMatrixTest, DiscreteToDiscrete) {
     {2, 2}, {2, 5}, {5, 2},
   };
 
-  for (size_t n = 0; n < base::size(test_case); n++) {
+  for (size_t n = 0; n < std::size(test_case); n++) {
     int input_channels = test_case[n].input_channels;
     int output_channels = test_case[n].output_channels;
-    ChannelMixingMatrix matrix_builder(CHANNEL_LAYOUT_DISCRETE,
-                                       input_channels,
+    std::vector<std::vector<float>> matrix;
+    ChannelMixingMatrix matrix_builder(CHANNEL_LAYOUT_DISCRETE, input_channels,
                                        CHANNEL_LAYOUT_DISCRETE,
                                        output_channels);
-    std::vector<std::vector<float>> matrix;
     bool remapping = matrix_builder.CreateTransformationMatrix(&matrix);
     EXPECT_TRUE(remapping);
     EXPECT_EQ(static_cast<size_t>(output_channels), matrix.size());

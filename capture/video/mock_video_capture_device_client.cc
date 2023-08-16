@@ -1,9 +1,12 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/capture/video/mock_video_capture_device_client.h"
 
+#include <utility>
+
+#include "base/memory/raw_ptr.h"
 #include "media/base/video_frame.h"
 
 using testing::_;
@@ -24,14 +27,14 @@ class StubBufferHandle : public VideoCaptureBufferHandle {
 
  private:
   const size_t mapped_size_;
-  uint8_t* const data_;
+  const raw_ptr<uint8_t> data_;
 };
 
 class StubBufferHandleProvider
     : public VideoCaptureDevice::Client::Buffer::HandleProvider {
  public:
-  StubBufferHandleProvider(size_t mapped_size, uint8_t* data)
-      : mapped_size_(mapped_size), data_(data) {}
+  StubBufferHandleProvider(size_t mapped_size, std::unique_ptr<uint8_t[]> data)
+      : mapped_size_(mapped_size), data_(std::move(data)) {}
 
   ~StubBufferHandleProvider() override = default;
 
@@ -40,14 +43,9 @@ class StubBufferHandleProvider
     return {};
   }
 
-  mojo::ScopedSharedBufferHandle DuplicateAsMojoBuffer() override {
-    NOTREACHED();
-    return mojo::ScopedSharedBufferHandle();
-  }
-
   std::unique_ptr<VideoCaptureBufferHandle> GetHandleForInProcessAccess()
       override {
-    return std::make_unique<StubBufferHandle>(mapped_size_, data_);
+    return std::make_unique<StubBufferHandle>(mapped_size_, data_.get());
   }
 
   gfx::GpuMemoryBufferHandle GetGpuMemoryBufferHandle() override {
@@ -56,27 +54,29 @@ class StubBufferHandleProvider
 
  private:
   const size_t mapped_size_;
-  uint8_t* const data_;
+  const std::unique_ptr<uint8_t[]> data_;
 };
 
 class StubReadWritePermission
     : public VideoCaptureDevice::Client::Buffer::ScopedAccessPermission {
  public:
   StubReadWritePermission(uint8_t* data) : data_(data) {}
-  ~StubReadWritePermission() override { delete[] data_; }
+  ~StubReadWritePermission() override = default;
 
  private:
-  uint8_t* const data_;
+  const raw_ptr<uint8_t> data_;
 };
 
 VideoCaptureDevice::Client::Buffer CreateStubBuffer(int buffer_id,
                                                     size_t mapped_size) {
-  auto* buffer = new uint8_t[mapped_size];
   const int arbitrary_frame_feedback_id = 0;
+  auto buffer = std::make_unique<uint8_t[]>(mapped_size);
+  auto* unowned_buffer = buffer.get();
   return VideoCaptureDevice::Client::Buffer(
       buffer_id, arbitrary_frame_feedback_id,
-      std::make_unique<StubBufferHandleProvider>(mapped_size, buffer),
-      std::make_unique<StubReadWritePermission>(buffer));
+      std::make_unique<StubBufferHandleProvider>(mapped_size,
+                                                 std::move(buffer)),
+      std::make_unique<StubReadWritePermission>(unowned_buffer));
 }
 
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -117,7 +117,7 @@ void AudioRendererMixer::SetPauseDelayForTesting(base::TimeDelta delay) {
 
 int AudioRendererMixer::Render(base::TimeDelta delay,
                                base::TimeTicks delay_timestamp,
-                               int prior_frames_skipped,
+                               const AudioGlitchInfo& glitch_info,
                                AudioBus* audio_bus) {
   TRACE_EVENT0("audio", "AudioRendererMixer::Render");
   base::AutoLock auto_lock(lock_);
@@ -135,12 +135,12 @@ int AudioRendererMixer::Render(base::TimeDelta delay,
 
   // Since AudioConverter uses uint32_t for delay calculations, we must drop
   // negative delay values (which are incorrect anyways).
-  if (delay < base::TimeDelta())
+  if (delay.is_negative())
     delay = base::TimeDelta();
 
   uint32_t frames_delayed =
       AudioTimestampHelper::TimeToFrames(delay, output_params_.sample_rate());
-  aggregate_converter_.ConvertWithDelay(frames_delayed, audio_bus);
+  aggregate_converter_.ConvertWithInfo(frames_delayed, glitch_info, audio_bus);
   return audio_bus->frames();
 }
 

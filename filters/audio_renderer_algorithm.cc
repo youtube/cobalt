@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,13 @@
 #include <algorithm>
 #include <cmath>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "cc/base/math_util.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 #include "media/filters/wsola_internals.h"
 
 namespace media {
@@ -65,13 +66,16 @@ constexpr base::TimeDelta kStartingCapacity = base::Milliseconds(200);
 // encrypted playback is always worse than clear playback, due to decryption and
 // potentially IPC overhead. For the context, see https://crbug.com/403462,
 // https://crbug.com/718161 and https://crbug.com/879970.
-constexpr base::TimeDelta kStartingCapacityForEncrypted =
+constexpr base::TimeDelta kMinStartingCapacityForEncrypted =
     base::Milliseconds(500);
 
 AudioRendererAlgorithm::AudioRendererAlgorithm(MediaLog* media_log)
     : AudioRendererAlgorithm(
           media_log,
-          {kMaxCapacity, kStartingCapacity, kStartingCapacityForEncrypted}) {}
+          {kMaxCapacity, kStartingCapacity,
+           std::max(
+               kMinStartingCapacityForEncrypted,
+               kAudioRendererAlgorithmStartingCapacityForEncrypted.Get())}) {}
 
 AudioRendererAlgorithm::AudioRendererAlgorithm(
     MediaLog* media_log,

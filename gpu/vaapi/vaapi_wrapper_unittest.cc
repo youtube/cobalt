@@ -1,4 +1,4 @@
-// Copyright 2021 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,7 @@ VaapiWrapper::VABufferDescriptor CreateVABufferDescriptor() {
 
 class MockVaapiWrapper : public VaapiWrapper {
  public:
-  MockVaapiWrapper() : VaapiWrapper(kVideoProcess) {}
+  MockVaapiWrapper() : VaapiWrapper(VADisplayStateHandle(), kVideoProcess) {}
   MOCK_METHOD1(SubmitBuffer_Locked, bool(const VABufferDescriptor&));
   MOCK_METHOD0(DestroyPendingBuffers_Locked, void());
 

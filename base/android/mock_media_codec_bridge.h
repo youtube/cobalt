@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,6 +34,12 @@ class MockMediaCodecBridge : public MediaCodecBridge,
   MOCK_METHOD1(GetOutputSize, MediaCodecStatus(gfx::Size* size));
   MOCK_METHOD1(GetOutputSamplingRate, MediaCodecStatus(int* sampling_rate));
   MOCK_METHOD1(GetOutputChannelCount, MediaCodecStatus(int* channel_count));
+  MOCK_METHOD1(GetOutputColorSpace,
+               MediaCodecStatus(gfx::ColorSpace* color_space));
+  MOCK_METHOD3(GetInputFormat,
+               MediaCodecStatus(int* stride,
+                                int* slice_height,
+                                gfx::Size* encoded_size));
   MOCK_METHOD4(QueueInputBuffer,
                MediaCodecStatus(int index,
                                 const uint8_t* data,

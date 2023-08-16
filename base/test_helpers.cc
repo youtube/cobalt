@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,17 +8,16 @@
 
 #include <memory>
 
-#include "base/bind.h"
 #include "base/check_op.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/pickle.h"
 #include "base/run_loop.h"
+#include "base/task/bind_post_task.h"
 #include "base/test/test_timeouts.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "media/base/audio_buffer.h"
-#include "media/base/bind_to_current_loop.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
@@ -33,6 +32,10 @@ namespace media {
 class MockCallback : public base::RefCountedThreadSafe<MockCallback> {
  public:
   MockCallback();
+
+  MockCallback(const MockCallback&) = delete;
+  MockCallback& operator=(const MockCallback&) = delete;
+
   MOCK_METHOD0(Run, void());
   MOCK_METHOD1(RunWithBool, void(bool));
   MOCK_METHOD1(RunWithStatus, void(PipelineStatus));
@@ -40,9 +43,6 @@ class MockCallback : public base::RefCountedThreadSafe<MockCallback> {
  protected:
   friend class base::RefCountedThreadSafe<MockCallback>;
   virtual ~MockCallback();
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockCallback);
 };
 
 MockCallback::MockCallback() = default;
@@ -78,14 +78,15 @@ WaitableMessageLoopEvent::~WaitableMessageLoopEvent() {
 
 base::OnceClosure WaitableMessageLoopEvent::GetClosure() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return BindToCurrentLoop(base::BindOnce(&WaitableMessageLoopEvent::OnCallback,
-                                          base::Unretained(this), PIPELINE_OK));
+  return base::BindPostTaskToCurrentDefault(
+      base::BindOnce(&WaitableMessageLoopEvent::OnCallback,
+                     base::Unretained(this), PIPELINE_OK));
 }
 
 PipelineStatusCallback WaitableMessageLoopEvent::GetPipelineStatusCB() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return BindToCurrentLoop(base::BindOnce(&WaitableMessageLoopEvent::OnCallback,
-                                          base::Unretained(this)));
+  return base::BindPostTaskToCurrentDefault(base::BindOnce(
+      &WaitableMessageLoopEvent::OnCallback, base::Unretained(this)));
 }
 
 void WaitableMessageLoopEvent::RunAndWait() {
@@ -308,7 +309,7 @@ int TestAudioConfig::HighSampleRateValue() {
 // static
 AudioParameters TestAudioParameters::Normal() {
   return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                         CHANNEL_LAYOUT_STEREO, 48000, 2048);
+                         ChannelLayoutConfig::Stereo(), 48000, 2048);
 }
 
 template <class T>
@@ -468,6 +469,20 @@ scoped_refptr<DecoderBuffer> CreateFakeVideoBufferForTest(
   buffer->set_is_key_frame(true);
 
   return buffer;
+}
+
+scoped_refptr<DecoderBuffer> CreateMismatchedBufferForTest() {
+  std::vector<uint8_t> data = {42, 22, 26, 13, 7, 16, 8, 2};
+  std::vector<uint8_t> kFakeData = {36, 23, 36};
+  scoped_refptr<media::DecoderBuffer> mismatched_encrypted_buffer =
+      media::DecoderBuffer::CopyFrom(data.data(), data.size());
+  mismatched_encrypted_buffer->set_timestamp(base::Seconds(42));
+  mismatched_encrypted_buffer->set_duration(base::Seconds(64));
+  mismatched_encrypted_buffer->set_decrypt_config(
+      media::DecryptConfig::CreateCencConfig("fake_key_id", "fake_iv_16_bytes",
+                                             {{1, 1}, {2, 2}, {3, 3}}));
+
+  return mismatched_encrypted_buffer;
 }
 
 bool VerifyFakeVideoBufferForTest(const DecoderBuffer& buffer,

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,12 @@
 #include <memory>
 #include <vector>
 
-#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/containers/circular_deque.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "gpu/config/gpu_info.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
@@ -47,6 +48,11 @@ class GpuVideoDecodeAccelerator
       const scoped_refptr<base::SingleThreadTaskRunner>& io_task_runner,
       const AndroidOverlayMojoFactoryCB& factory);
 
+  GpuVideoDecodeAccelerator() = delete;
+  GpuVideoDecodeAccelerator(const GpuVideoDecodeAccelerator&) = delete;
+  GpuVideoDecodeAccelerator& operator=(const GpuVideoDecodeAccelerator&) =
+      delete;
+
   // Static query for the capabilities, which includes the supported profiles.
   // This query calls the appropriate platform-specific version.  The returned
   // capabilities will not contain duplicate supported profile entries.
@@ -55,7 +61,7 @@ class GpuVideoDecodeAccelerator
       const gpu::GpuDriverBugWorkarounds& workarounds);
 
   // VideoDecodeAccelerator::Client implementation.
-  void NotifyInitializationComplete(Status status) override;
+  void NotifyInitializationComplete(DecoderStatus status) override;
   void ProvidePictureBuffers(uint32_t requested_num_of_buffers,
                              VideoPixelFormat format,
                              uint32_t textures_per_buffer,
@@ -107,9 +113,9 @@ class GpuVideoDecodeAccelerator
   GpuVideoDecodeGLClient gl_client_;
 
   // Unowned pointer to the underlying gpu::CommandBufferStub.  |this| is
-  // registered as a DestuctionObserver of |stub_| and will self-delete when
+  // registered as a DestructionObserver of |stub_| and will self-delete when
   // |stub_| is destroyed.
-  gpu::CommandBufferStub* const stub_;
+  const raw_ptr<gpu::CommandBufferStub> stub_;
 
   // The underlying VideoDecodeAccelerator.
   std::unique_ptr<VideoDecodeAccelerator> video_decode_accelerator_;
@@ -159,8 +165,6 @@ class GpuVideoDecodeAccelerator
   // cleared.
   std::map<int32_t, std::vector<scoped_refptr<gpu::gles2::TextureRef>>>
       uncleared_textures_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(GpuVideoDecodeAccelerator);
 };
 
 }  // namespace media

@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "base/android/scoped_hardware_buffer_fence_sync.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "gpu/command_buffer/service/gles2_cmd_decoder.h"
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"

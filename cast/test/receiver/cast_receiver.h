@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,8 +10,8 @@
 
 #include <memory>
 
-#include "base/callback.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "media/base/audio_bus.h"
 #include "media/cast/cast_config.h"
@@ -33,7 +33,6 @@ using AudioFrameDecodedCallback =
     base::RepeatingCallback<void(std::unique_ptr<AudioBus> audio_bus,
                                  base::TimeTicks playout_time,
                                  bool is_continuous)>;
-// TODO(miu): |video_frame| includes a timestamp, so use that instead.
 using VideoFrameDecodedCallback =
     base::RepeatingCallback<void(scoped_refptr<media::VideoFrame> video_frame,
                                  base::TimeTicks playout_time,

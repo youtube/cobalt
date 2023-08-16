@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/threading/thread.h"
@@ -96,10 +95,14 @@ class MIDI_EXPORT MidiManagerAlsa final : public MidiManager {
              const std::string& manufacturer,
              const std::string& version,
              Type type);
+
+    MidiPort(const MidiPort&) = delete;
+    MidiPort& operator=(const MidiPort&) = delete;
+
     ~MidiPort();
 
     // Gets a Value representation of this object, suitable for serialization.
-    std::unique_ptr<base::Value> Value() const;
+    std::unique_ptr<base::Value::Dict> Value() const;
 
     // Gets a string version of Value in JSON format.
     std::string JSONValue() const;
@@ -177,8 +180,6 @@ class MIDI_EXPORT MidiManagerAlsa final : public MidiManager {
 
     // Port is present in the ALSA system.
     bool connected_ = true;
-
-    DISALLOW_COPY_AND_ASSIGN(MidiPort);
   };
 
   class MidiPortStateBase {

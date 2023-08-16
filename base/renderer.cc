@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,35 @@
 #include "base/logging.h"
 
 namespace media {
+
+// WARNING: The returned names are used as part of UMA names. Do NOT change
+// existing return names.
+std::string GetRendererName(RendererType renderer_type) {
+  switch (renderer_type) {
+    case RendererType::kRendererImpl:
+      return "RendererImpl";
+    case RendererType::kMojo:
+      return "MojoRenderer";
+    case RendererType::kMediaPlayer:
+      return "MediaPlayerRenderer";
+    case RendererType::kCourier:
+      return "CourierRenderer";
+    case RendererType::kFlinging:
+      return "FlingingRenderer";
+    case RendererType::kCast:
+      return "CastRenderer";
+    case RendererType::kMediaFoundation:
+      return "MediaFoundationRenderer";
+    case RendererType::kRemoting:
+      return "RemotingRenderer";  // media::remoting::Receiver
+    case RendererType::kCastStreaming:
+      return "CastStreamingRenderer";
+    case RendererType::kContentEmbedderDefined:
+      return "EmbedderDefined";
+    case RendererType::kTest:
+      return "Media Renderer Implementation For Testing";
+  }
+}
 
 Renderer::Renderer() = default;
 
@@ -34,8 +63,13 @@ void Renderer::SetPreservesPitch(bool preserves_pitch) {
   // Not supported by most renderers.
 }
 
-void Renderer::SetAutoplayInitiated(bool autoplay_initiated) {
+void Renderer::SetWasPlayedWithUserActivation(
+    bool was_played_with_user_activation) {
   // Not supported by most renderers.
+}
+
+void Renderer::OnExternalVideoFrameRequest() {
+  // Default implementation of OnExternalVideoFrameRequest is to no-op.
 }
 
 }  // namespace media

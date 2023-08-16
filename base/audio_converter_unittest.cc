@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 #include <memory>
 #include <tuple>
 
-#include "base/macros.h"
 #include "base/strings/string_number_conversions.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/fake_audio_render_callback.h"
@@ -23,7 +22,7 @@ static const int kConvertInputs = 8;
 static const int kConvertCycles = 3;
 
 // Parameters used for testing.
-static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
+static constexpr ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
 static const int kHighLatencyBufferSize = 2048;
 static const int kLowLatencyBufferSize = 256;
 static const int kSampleRate = 48000;
@@ -31,15 +30,17 @@ static const int kSampleRate = 48000;
 // Number of full sine wave cycles for each Render() call.
 static const int kSineCycles = 4;
 
-// Tuple of <input rate, output rate, output channel layout, epsilon>.
-typedef std::tuple<int, int, ChannelLayout, double> AudioConverterTestData;
+// Tuple of <input rate, output rate, output channel layout config, epsilon>.
+typedef std::tuple<int, int, ChannelLayoutConfig, double>
+    AudioConverterTestData;
 class AudioConverterTest
     : public testing::TestWithParam<AudioConverterTestData> {
  public:
   AudioConverterTest() : epsilon_(std::get<3>(GetParam())) {
     // Create input and output parameters based on test parameters.
     input_parameters_ =
-        AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
+        AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
+                        ChannelLayoutConfig::FromLayout<kChannelLayout>(),
                         std::get<0>(GetParam()), kHighLatencyBufferSize);
     output_parameters_ = AudioParameters(
         AudioParameters::AUDIO_PCM_LOW_LATENCY, std::get<2>(GetParam()),
@@ -57,6 +58,9 @@ class AudioConverterTest
     expected_callback_ =
         std::make_unique<FakeAudioRenderCallback>(step, kSampleRate);
   }
+
+  AudioConverterTest(const AudioConverterTest&) = delete;
+  AudioConverterTest& operator=(const AudioConverterTest&) = delete;
 
   // Creates |count| input callbacks to be used for conversion testing.
   void InitializeInputs(int count) {
@@ -112,7 +116,7 @@ class AudioConverterTest
     converter_->Convert(audio_bus_.get());
 
     // Render expected audio data.
-    expected_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), 0,
+    expected_callback_->Render(base::TimeDelta(), base::TimeTicks::Now(), {},
                                expected_audio_bus_.get());
 
     // Zero out unused channels in the expected AudioBus just as AudioConverter
@@ -191,8 +195,6 @@ class AudioConverterTest
   // Epsilon value with which to perform comparisons between |audio_bus_| and
   // |expected_audio_bus_|.
   double epsilon_;
-
-  DISALLOW_COPY_AND_ASSIGN(AudioConverterTest);
 };
 
 // Ensure the buffer delay provided by AudioConverter is accurate.
@@ -200,13 +202,11 @@ TEST(AudioConverterTest, AudioDelayAndDiscreteChannelCount) {
   // Choose input and output parameters such that the transform must make
   // multiple calls to fill the buffer.
   AudioParameters input_parameters(AudioParameters::AUDIO_PCM_LINEAR,
-                                   CHANNEL_LAYOUT_DISCRETE, kSampleRate,
+                                   {CHANNEL_LAYOUT_DISCRETE, 10}, kSampleRate,
                                    kLowLatencyBufferSize);
-  input_parameters.set_channels_for_discrete(10);
   AudioParameters output_parameters(AudioParameters::AUDIO_PCM_LINEAR,
-                                    CHANNEL_LAYOUT_DISCRETE, kSampleRate * 2,
-                                    kHighLatencyBufferSize);
-  output_parameters.set_channels_for_discrete(5);
+                                    {CHANNEL_LAYOUT_DISCRETE, 5},
+                                    kSampleRate * 2, kHighLatencyBufferSize);
 
   AudioConverter converter(input_parameters, output_parameters, false);
   FakeAudioRenderCallback callback(0.2, kSampleRate);
@@ -222,14 +222,51 @@ TEST(AudioConverterTest, AudioDelayAndDiscreteChannelCount) {
   //
   // This magic number is the accumulated MultiChannelResampler delay after
   // |fill_count| (4) callbacks to provide input. The number of frames delayed
-  // is an implementation detail of the SincResampler chunk size (480 for the
+  // is an implementation detail of the SincResampler chunk size (448 for the
   // first two callbacks, 512 for the last two callbacks). See
   // SincResampler.ChunkSize().
-  int kExpectedDelay = 992;
+  int kExpectedDelay = 960;
   auto expected_delay =
       AudioTimestampHelper::FramesToTime(kExpectedDelay, kSampleRate);
   EXPECT_EQ(expected_delay, callback.last_delay());
   EXPECT_EQ(input_parameters.channels(), callback.last_channel_count());
+}
+
+// Ensure that glitch info is propagated to all callbacks.
+TEST(AudioConverterTest, PropagatesGlitchInfo) {
+  // Choose input and output parameters such that the transform must make
+  // multiple calls to fill the buffer.
+  AudioParameters input_parameters(AudioParameters::AUDIO_PCM_LINEAR,
+                                   ChannelLayoutConfig::Stereo(), kSampleRate,
+                                   kLowLatencyBufferSize);
+  AudioParameters output_parameters(AudioParameters::AUDIO_PCM_LINEAR,
+                                    ChannelLayoutConfig::Stereo(),
+                                    kSampleRate * 2, kHighLatencyBufferSize);
+  AudioGlitchInfo glitch_info{.duration = base::Seconds(5), .count = 123};
+
+  AudioConverter converter(input_parameters, output_parameters, false);
+  FakeAudioRenderCallback callback1(0.2, kSampleRate);
+  FakeAudioRenderCallback callback2(0.2, kSampleRate);
+  std::unique_ptr<AudioBus> audio_bus = AudioBus::Create(output_parameters);
+  converter.AddInput(&callback1);
+  converter.AddInput(&callback2);
+
+  // Send no glitches, so the cumulative glitches should remain at 0.
+  converter.ConvertWithInfo(0, {}, audio_bus.get());
+  EXPECT_EQ(callback1.cumulative_glitch_info(), AudioGlitchInfo());
+  EXPECT_EQ(callback2.cumulative_glitch_info(), AudioGlitchInfo());
+
+  // Send glitches, and expect them to be forwarded to the callbacks. The
+  // callbacks will be called several times due to their differing buffer sizes,
+  // but the glitch info should only be passed on once.
+  converter.ConvertWithInfo(0, glitch_info, audio_bus.get());
+  EXPECT_EQ(callback1.cumulative_glitch_info(), glitch_info);
+  EXPECT_EQ(callback2.cumulative_glitch_info(), glitch_info);
+
+  // Send no glitches, so the cumulative glitches should remain unchanged.
+  converter.ConvertWithInfo(0, {}, audio_bus.get());
+  EXPECT_EQ(callback1.cumulative_glitch_info(), glitch_info);
+  EXPECT_EQ(callback2.cumulative_glitch_info(), glitch_info);
 }
 
 TEST_P(AudioConverterTest, ArbitraryOutputRequestSize) {
@@ -257,12 +294,18 @@ INSTANTIATE_TEST_SUITE_P(
     AudioConverterTest,
     testing::Values(
         // No resampling. No channel mixing.
-        std::make_tuple(44100, 44100, CHANNEL_LAYOUT_STEREO, 0.00000048),
+        std::make_tuple(44100,
+                        44100,
+                        ChannelLayoutConfig::Stereo(),
+                        0.00000048),
 
         // Upsampling. Channel upmixing.
-        std::make_tuple(44100, 48000, CHANNEL_LAYOUT_QUAD, 0.033),
+        std::make_tuple(44100,
+                        48000,
+                        ChannelLayoutConfig::FromLayout<CHANNEL_LAYOUT_QUAD>(),
+                        0.033),
 
         // Downsampling. Channel downmixing.
-        std::make_tuple(48000, 41000, CHANNEL_LAYOUT_MONO, 0.042)));
+        std::make_tuple(48000, 41000, ChannelLayoutConfig::Mono(), 0.042)));
 
 }  // namespace media

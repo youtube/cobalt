@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/callback.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/media_log.h"
@@ -44,10 +44,6 @@
 #include "media/filters/vpx_video_decoder.h"
 #endif
 
-#if BUILDFLAG(ENABLE_LIBGAV1_DECODER)
-#include "media/filters/gav1_video_decoder.h"
-#endif
-
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
@@ -74,18 +70,10 @@ static std::vector<std::unique_ptr<VideoDecoder>> CreateVideoDecodersForTest(
   video_decoders.push_back(std::make_unique<OffloadingVpxVideoDecoder>());
 #endif
 
-#if BUILDFLAG(ENABLE_LIBGAV1_DECODER)
-  if (base::FeatureList::IsEnabled(kGav1VideoDecoder)) {
-    video_decoders.push_back(
-        std::make_unique<OffloadingGav1VideoDecoder>(media_log));
-  } else
-#endif  // BUILDFLAG(ENABLE_LIBGAV1_DECODER)
-  {
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
-    video_decoders.push_back(
-        std::make_unique<OffloadingDav1dVideoDecoder>(media_log));
+  video_decoders.push_back(
+      std::make_unique<OffloadingDav1dVideoDecoder>(media_log));
 #endif
-  }
 
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
   video_decoders.push_back(std::make_unique<FFmpegVideoDecoder>(media_log));
@@ -119,7 +107,7 @@ PipelineIntegrationTestBase::PipelineIntegrationTestBase()
 // Use a UI type message loop on macOS, because it doesn't seem to schedule
 // callbacks with enough precision to drive our fake audio output. See
 // https://crbug.com/1014646 for more details.
-#if defined(OS_MAC)
+#if BUILDFLAG(IS_MAC)
       task_environment_(base::test::TaskEnvironment::MainThreadType::UI),
 #endif
       hashing_enabled_(false),
@@ -231,11 +219,15 @@ PipelineStatus PipelineIntegrationTestBase::WaitUntilEndedOrError() {
 }
 
 void PipelineIntegrationTestBase::OnError(PipelineStatus status) {
-  DCHECK_NE(status, PIPELINE_OK);
+  DCHECK(status != PIPELINE_OK);
   pipeline_status_ = status;
   pipeline_->Stop();
   if (on_error_closure_)
     std::move(on_error_closure_).Run();
+}
+
+void PipelineIntegrationTestBase::OnFallback(PipelineStatus status) {
+  DCHECK(status != PIPELINE_OK);
 }
 
 void PipelineIntegrationTestBase::SetCreateRendererCB(
@@ -406,7 +398,7 @@ void PipelineIntegrationTestBase::Stop() {
 }
 
 void PipelineIntegrationTestBase::FailTest(PipelineStatus status) {
-  DCHECK_NE(PIPELINE_OK, status);
+  DCHECK(status != PIPELINE_OK);
   OnError(status);
 }
 
@@ -467,12 +459,12 @@ std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateRenderer(
   if (create_renderer_cb_)
     return create_renderer_cb_.Run(renderer_type);
 
-  return CreateDefaultRenderer(renderer_type);
+  return CreateRendererImpl(renderer_type);
 }
 
-std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateDefaultRenderer(
+std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateRendererImpl(
     absl::optional<RendererType> renderer_type) {
-  if (renderer_type && *renderer_type != RendererType::kDefault) {
+  if (renderer_type && *renderer_type != RendererType::kRendererImpl) {
     DVLOG(1) << __func__ << ": renderer_type not supported";
     return nullptr;
   }
@@ -485,11 +477,11 @@ std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateDefaultRenderer(
       task_environment_.GetMainThreadTaskRunner());
 
   // Disable frame dropping if hashing is enabled.
-  std::unique_ptr<VideoRenderer> video_renderer(new VideoRendererImpl(
+  auto video_renderer = std::make_unique<VideoRendererImpl>(
       task_environment_.GetMainThreadTaskRunner(), video_sink_.get(),
       base::BindRepeating(&CreateVideoDecodersForTest, &media_log_,
                           prepend_video_decoders_cb_),
-      false, &media_log_, nullptr));
+      false, &media_log_, nullptr, 0);
 
   if (!clockless_playback_) {
     DCHECK(!mono_output_) << " NullAudioSink doesn't specify output parameters";
@@ -497,13 +489,14 @@ std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateDefaultRenderer(
     audio_sink_ =
         new NullAudioSink(task_environment_.GetMainThreadTaskRunner());
   } else {
-    ChannelLayout output_layout =
-        mono_output_ ? CHANNEL_LAYOUT_MONO : CHANNEL_LAYOUT_STEREO;
+    ChannelLayoutConfig output_layout_config =
+        mono_output_ ? ChannelLayoutConfig::Mono()
+                     : ChannelLayoutConfig::Stereo();
 
     clockless_audio_sink_ = new ClocklessAudioSink(
         OutputDeviceInfo("", OUTPUT_DEVICE_STATUS_OK,
                          AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                                         output_layout, 44100, 512)));
+                                         output_layout_config, 44100, 512)));
 
     // Say "not optimized for hardware parameters" to disallow renderer
     // resampling. Hashed tests need this avoid platform dependent floating
@@ -514,7 +507,7 @@ std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateDefaultRenderer(
     }
   }
 
-  std::unique_ptr<AudioRenderer> audio_renderer(new AudioRendererImpl(
+  auto audio_renderer = std::make_unique<AudioRendererImpl>(
       task_environment_.GetMainThreadTaskRunner(),
       (clockless_playback_)
           ? static_cast<AudioRendererSink*>(clockless_audio_sink_.get())
@@ -522,7 +515,7 @@ std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateDefaultRenderer(
       base::BindRepeating(&CreateAudioDecodersForTest, &media_log_,
                           task_environment_.GetMainThreadTaskRunner(),
                           prepend_audio_decoders_cb_),
-      &media_log_, nullptr));
+      &media_log_, 0, nullptr);
   if (hashing_enabled_) {
     if (clockless_playback_)
       clockless_audio_sink_->StartAudioHashForTesting();
@@ -533,9 +526,9 @@ std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateDefaultRenderer(
   static_cast<AudioRendererImpl*>(audio_renderer.get())
       ->SetPlayDelayCBForTesting(std::move(audio_play_delay_cb_));
 
-  std::unique_ptr<RendererImpl> renderer_impl(
-      new RendererImpl(task_environment_.GetMainThreadTaskRunner(),
-                       std::move(audio_renderer), std::move(video_renderer)));
+  std::unique_ptr<RendererImpl> renderer_impl = std::make_unique<RendererImpl>(
+      task_environment_.GetMainThreadTaskRunner(), std::move(audio_renderer),
+      std::move(video_renderer));
 
   // Prevent non-deterministic buffering state callbacks from firing (e.g., slow
   // machine, valgrind).
@@ -582,7 +575,7 @@ std::string PipelineIntegrationTestBase::GetVideoHash() {
   return base::MD5DigestToBase16(digest);
 }
 
-std::string PipelineIntegrationTestBase::GetAudioHash() {
+const AudioHash& PipelineIntegrationTestBase::GetAudioHash() const {
   DCHECK(hashing_enabled_);
 
   if (clockless_playback_)
@@ -604,6 +597,14 @@ PipelineStatus PipelineIntegrationTestBase::StartPipelineWithEncryptedMedia(
     TestMediaSource* source,
     FakeEncryptedMedia* encrypted_media) {
   return StartPipelineWithMediaSource(source, kNormal, encrypted_media);
+}
+
+PipelineStatus PipelineIntegrationTestBase::StartPipelineWithMediaSource(
+    TestMediaSource* source,
+    uint8_t test_type,
+    CreateAudioDecodersCB prepend_audio_decoders_cb) {
+  prepend_audio_decoders_cb_ = prepend_audio_decoders_cb;
+  return StartPipelineWithMediaSource(source, test_type, nullptr);
 }
 
 PipelineStatus PipelineIntegrationTestBase::StartPipelineWithMediaSource(
@@ -653,8 +654,26 @@ PipelineStatus PipelineIntegrationTestBase::StartPipelineWithMediaSource(
         encrypted_media->GetCdmContext(),
         base::BindOnce(&PipelineIntegrationTestBase::DecryptorAttached,
                        base::Unretained(this)));
+  } else if (fuzzing_) {
+    // Encrypted content is not expected unless the fuzzer generates a stream
+    // that appears to be encrypted. The fuzzer handles any encrypted media
+    // init data callbacks, but could timeout if there is no such data but the
+    // media is determined by the parser to be encrypted (as can occur in MSE
+    // mp2t fuzzing of some kinds of encrypted media). To prevent such fuzzer
+    // timeout, post a task to the main thread to fail the test if the pipeline
+    // transitions to waiting for a CDM.
+    EXPECT_CALL(*this, OnWaiting(WaitingReason::kNoCdm))
+        .Times(AnyNumber())
+        .WillRepeatedly([this]() {
+          task_environment_.GetMainThreadTaskRunner()->PostTask(
+              FROM_HERE,
+              base::BindOnce(&PipelineIntegrationTestBase::FailTest,
+                             base::Unretained(this),
+                             media::PIPELINE_ERROR_INITIALIZATION_FAILED));
+        });
   } else {
-    // Encrypted content not used, so this is never called.
+    // We are neither fuzzing, nor expecting encrypted media, so we must not
+    // receive notification of waiting for a decryption key.
     EXPECT_CALL(*this, OnWaiting(WaitingReason::kNoDecryptionKey)).Times(0);
   }
 

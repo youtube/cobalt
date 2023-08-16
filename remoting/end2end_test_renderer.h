@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,8 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/renderer.h"
@@ -15,6 +17,9 @@
 #include "third_party/openscreen/src/cast/streaming/rpc_messenger.h"
 
 namespace media {
+
+class DecoderBuffer;
+
 namespace remoting {
 
 class RendererController;
@@ -39,6 +44,7 @@ class End2EndTestRenderer final : public Renderer {
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(float volume) override;
   base::TimeDelta GetMediaTime() override;
+  RendererType GetRendererType() override;
 
   void OnSelectedVideoTracksChanged(
       const std::vector<DemuxerStream*>& enabled_tracks,
@@ -58,7 +64,7 @@ class End2EndTestRenderer final : public Renderer {
 
   // Called to send frame data to |receiver_|.
   void SendFrameToSink(uint32_t frame_count,
-                       const std::vector<uint8_t>& data,
+                       scoped_refptr<media::DecoderBuffer> decoder_buffer,
                        DemuxerStream::Type type);
 
   // Called when receives RPC messages from |receiver_|.
@@ -66,7 +72,7 @@ class End2EndTestRenderer final : public Renderer {
 
   void InitializeReceiverRenderer(PipelineStatus status);
   void OnCourierRendererInitialized(PipelineStatus status);
-  void OnReceiverInitalized(PipelineStatus status);
+  void OnReceiverInitialized(PipelineStatus status);
   void CompleteInitialize();
 
   // Callback function when RPC message is received.
@@ -85,10 +91,10 @@ class End2EndTestRenderer final : public Renderer {
 
   // Receiver components.
   std::unique_ptr<TestRemotee> media_remotee_;
-  ReceiverController* receiver_controller_;
+  raw_ptr<ReceiverController> receiver_controller_;
   std::unique_ptr<Receiver> receiver_;
   std::unique_ptr<StreamProvider> stream_provider_;
-  openscreen::cast::RpcMessenger* receiver_rpc_messenger_;
+  raw_ptr<openscreen::cast::RpcMessenger> receiver_rpc_messenger_;
 
   // Handle of |receiver_|
   int receiver_renderer_handle_ =

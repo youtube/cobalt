@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,7 @@
 
 #include <memory>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/cast/cast_environment.h"
 #include "media/cast/common/rtp_time.h"
 #include "media/cast/net/pacing/paced_sender.h"
@@ -21,6 +20,7 @@ namespace media {
 namespace cast {
 
 class AudioDecoder;
+struct EncodedFrame;
 class VideoDecoder;
 
 // This is a pure owner class that groups all required receiver-related objects

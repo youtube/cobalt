@@ -1,12 +1,14 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_BASE_DEMUXER_STREAM_H_
 #define MEDIA_BASE_DEMUXER_STREAM_H_
 
-#include "base/callback.h"
-#include "base/memory/ref_counted.h"
+#include <vector>
+
+#include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 #include "media/base/media_export.h"
 #include "media/base/video_transformation.h"
 
@@ -15,6 +17,15 @@ namespace media {
 class AudioDecoderConfig;
 class DecoderBuffer;
 class VideoDecoderConfig;
+
+enum class StreamLiveness {
+  kUnknown,
+  kRecorded,
+  kLive,
+  kMaxValue = kLive,
+};
+
+MEDIA_EXPORT std::string GetStreamLivenessName(StreamLiveness liveness);
 
 class MEDIA_EXPORT DemuxerStream {
  public:
@@ -28,13 +39,6 @@ class MEDIA_EXPORT DemuxerStream {
 
   // Returns a string representation of |type|.
   static const char* GetTypeName(Type type);
-
-  enum Liveness {
-    LIVENESS_UNKNOWN,
-    LIVENESS_RECORDED,
-    LIVENESS_LIVE,
-    LIVENESS_MAX = LIVENESS_LIVE,
-  };
 
   // Status returned in the Read() callback.
   //  kOk : Indicates the second parameter is Non-NULL and contains media data
@@ -64,13 +68,15 @@ class MEDIA_EXPORT DemuxerStream {
 
   static const char* GetStatusName(Status status);
 
-  // Request a buffer to returned via the provided callback.
-  //
-  // The first parameter indicates the status of the read.
-  // The second parameter is non-NULL and contains media data
-  // or the end of the stream if the first parameter is kOk. NULL otherwise.
-  typedef base::OnceCallback<void(Status, scoped_refptr<DecoderBuffer>)> ReadCB;
-  virtual void Read(ReadCB read_cb) = 0;
+  using DecoderBufferVector = std::vector<scoped_refptr<DecoderBuffer>>;
+  using ReadCB = base::OnceCallback<void(Status, DecoderBufferVector)>;
+
+  // Request buffers to be returned via the provided callback.
+  // The first parameter indicates the status of the read request.
+  // If the status is kAborted, kConfigChanged or kError, the vector must be
+  // empty. If the status is kOk, the size of vector should be 1<=n<=N, where
+  // N is the requested count. The last buffer of the vector could be EOS.
+  virtual void Read(uint32_t count, ReadCB read_cb) = 0;
 
   // Returns the audio/video decoder configuration. It is an error to call the
   // audio method on a video stream and vice versa. After |kConfigChanged| is
@@ -83,7 +89,7 @@ class MEDIA_EXPORT DemuxerStream {
   virtual Type type() const = 0;
 
   // Returns liveness of the streams provided, i.e. whether recorded or live.
-  virtual Liveness liveness() const;
+  virtual StreamLiveness liveness() const;
 
   virtual void EnableBitstreamConverter();
 

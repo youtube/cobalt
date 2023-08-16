@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "base/run_loop.h"
+#include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "media/capture/video/chromeos/mock_camera_module.h"
@@ -38,22 +39,27 @@ namespace media {
 
 class CameraHalDelegateTest : public ::testing::Test {
  public:
-  CameraHalDelegateTest() : hal_delegate_thread_("HalDelegateThread") {}
+  CameraHalDelegateTest() {}
+
+  CameraHalDelegateTest(const CameraHalDelegateTest&) = delete;
+  CameraHalDelegateTest& operator=(const CameraHalDelegateTest&) = delete;
 
   void SetUp() override {
     VideoCaptureDeviceFactoryChromeOS::SetGpuBufferManager(
         &mock_gpu_memory_buffer_manager_);
-    hal_delegate_thread_.Start();
-    camera_hal_delegate_ =
-        new CameraHalDelegate(hal_delegate_thread_.task_runner());
+    camera_hal_delegate_ = std::make_unique<CameraHalDelegate>(
+        base::ThreadPool::CreateSingleThreadTaskRunner(
+            {}, base::SingleThreadTaskRunnerThreadMode::DEDICATED));
+    if (!camera_hal_delegate_->Init()) {
+      LOG(ERROR) << "Failed to initialize CameraHalDelegate";
+      camera_hal_delegate_.reset();
+      return;
+    }
     camera_hal_delegate_->SetCameraModule(
         mock_camera_module_.GetPendingRemote());
   }
 
-  void TearDown() override {
-    camera_hal_delegate_->Reset();
-    hal_delegate_thread_.Stop();
-  }
+  void TearDown() override { camera_hal_delegate_->Reset(); }
 
   void Wait() {
     run_loop_ = std::make_unique<base::RunLoop>();
@@ -62,15 +68,13 @@ class CameraHalDelegateTest : public ::testing::Test {
 
  protected:
   base::test::TaskEnvironment task_environment_;
-  scoped_refptr<CameraHalDelegate> camera_hal_delegate_;
+  std::unique_ptr<CameraHalDelegate> camera_hal_delegate_;
   testing::StrictMock<unittest_internal::MockCameraModule> mock_camera_module_;
   testing::StrictMock<unittest_internal::MockVendorTagOps> mock_vendor_tag_ops_;
   unittest_internal::MockGpuMemoryBufferManager mock_gpu_memory_buffer_manager_;
 
  private:
-  base::Thread hal_delegate_thread_;
   std::unique_ptr<base::RunLoop> run_loop_;
-  DISALLOW_COPY_AND_ASSIGN(CameraHalDelegateTest);
 };
 
 TEST_F(CameraHalDelegateTest, GetBuiltinCameraInfo) {

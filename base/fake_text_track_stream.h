@@ -1,11 +1,10 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_
 #define MEDIA_BASE_FAKE_TEXT_TRACK_STREAM_H_
 
-#include "base/macros.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_decoder_config.h"
@@ -29,7 +28,7 @@ class FakeTextTrackStream : public DemuxerStream {
   ~FakeTextTrackStream() override;
 
   // DemuxerStream implementation.
-  void Read(ReadCB) override;
+  void Read(uint32_t count, ReadCB) override;
   MOCK_METHOD0(audio_decoder_config, AudioDecoderConfig());
   MOCK_METHOD0(video_decoder_config, VideoDecoderConfig());
   Type type() const override;

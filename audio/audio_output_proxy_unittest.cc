@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,11 +8,10 @@
 #include <string>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_manager_base.h"
@@ -99,6 +98,30 @@ class MockAudioOutputStream : public AudioOutputStream {
   std::unique_ptr<AudioOutputStream> fake_output_stream_;
 };
 
+class CallbackExposingMockOutputStream : public AudioOutputStream {
+ public:
+  CallbackExposingMockOutputStream() = default;
+
+  void Start(AudioSourceCallback* callback) override { callback_ = callback; }
+
+  void Stop() override { callback_.reset(); }
+
+  ~CallbackExposingMockOutputStream() override = default;
+
+  MOCK_METHOD0(Open, bool());
+  MOCK_METHOD1(SetVolume, void(double volume));
+  MOCK_METHOD1(GetVolume, void(double* volume));
+  MOCK_METHOD0(Close, void());
+  MOCK_METHOD0(Flush, void());
+
+  absl::optional<AudioOutputStream::AudioSourceCallback*> GetCallback() {
+    return callback_;
+  }
+
+ private:
+  absl::optional<AudioOutputStream::AudioSourceCallback*> callback_;
+};
+
 class MockAudioManager : public AudioManagerBase {
  public:
   MockAudioManager()
@@ -154,12 +177,20 @@ class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
   int OnMoreData(base::TimeDelta /* delay */,
                  base::TimeTicks /* delay_timestamp */,
-                 int /* prior_frames_skipped */,
+                 const media::AudioGlitchInfo& glitch_info,
                  AudioBus* dest) override {
+    cumulative_glitch_info_ += glitch_info;
     dest->Zero();
     return dest->frames();
   }
   MOCK_METHOD1(OnError, void(ErrorType));
+
+  media::AudioGlitchInfo cumulative_glitch_info() {
+    return cumulative_glitch_info_;
+  }
+
+ private:
+  media::AudioGlitchInfo cumulative_glitch_info_;
 };
 
 }  // namespace
@@ -173,7 +204,7 @@ class AudioOutputProxyTest : public testing::Test {
     // FakeAudioOutputStream will keep the message loop busy indefinitely; i.e.,
     // RunUntilIdle() will never terminate.
     params_ = AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
-                              CHANNEL_LAYOUT_STEREO, 8000, 2048);
+                              ChannelLayoutConfig::Stereo(), 8000, 2048);
     InitDispatcher(base::Milliseconds(kTestCloseDelayMs));
   }
 
@@ -501,8 +532,9 @@ class AudioOutputResamplerTest : public AudioOutputProxyTest {
     // Use a low sample rate and large buffer size when testing otherwise the
     // FakeAudioOutputStream will keep the message loop busy indefinitely; i.e.,
     // RunUntilIdle() will never terminate.
-    resampler_params_ = AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                                        CHANNEL_LAYOUT_STEREO, 16000, 1024);
+    resampler_params_ =
+        AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                        ChannelLayoutConfig::Stereo(), 16000, 1024);
     resampler_ = std::make_unique<AudioOutputResampler>(
         &manager(), params_, resampler_params_, std::string(), close_delay,
         base::BindRepeating(&RegisterDebugRecording));
@@ -709,7 +741,7 @@ TEST_F(AudioOutputResamplerTest, HighLatencyFallbackFailed) {
 
 // Only Windows has a high latency output driver that is not the same as the low
 // latency path.
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   static const int kFallbackCount = 2;
 #else
   static const int kFallbackCount = 1;
@@ -745,7 +777,7 @@ TEST_F(AudioOutputResamplerTest, HighLatencyFallbackFailed) {
 TEST_F(AudioOutputResamplerTest, AllFallbackFailed) {
 // Only Windows has a high latency output driver that is not the same as the low
 // latency path.
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   static const int kFallbackCount = 3;
 #else
   static const int kFallbackCount = 2;
@@ -823,7 +855,7 @@ TEST_F(AudioOutputResamplerTest, FallbackRecovery) {
   MockAudioOutputStream fake_stream(&manager_, params_);
 
   // Trigger the fallback mechanism until a fake output stream is created.
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   static const int kFallbackCount = 2;
 #else
   static const int kFallbackCount = 1;
@@ -868,6 +900,41 @@ TEST_F(AudioOutputResamplerTest, FallbackRecovery) {
   proxy = resampler_->CreateStreamProxy();
   EXPECT_TRUE(proxy->Open());
   CloseAndWaitForCloseTimer(proxy, &real_stream);
+}
+
+TEST_F(AudioOutputResamplerTest, PropagatesGlitchInfo) {
+  CallbackExposingMockOutputStream stream;
+
+  EXPECT_CALL(manager(), MakeAudioOutputStream(_, _, _))
+      .WillOnce(Return(&stream));
+  EXPECT_CALL(stream, Open()).WillOnce(Return(true));
+  EXPECT_CALL(stream, SetVolume(_)).Times(1);
+  AudioOutputProxy* proxy = resampler_->CreateStreamProxy();
+  EXPECT_TRUE(proxy->Open());
+  proxy->Start(&callback_);
+
+  // Get the callback created by the resampler and send glitch info through it.
+  CHECK(stream.GetCallback());
+  AudioOutputStream::AudioSourceCallback* inner_callback =
+      stream.GetCallback().value();
+  media::AudioGlitchInfo glitch_info{.duration = base::Seconds(0.1),
+                                     .count = 123};
+  auto dest = AudioBus::Create(resampler_params_);
+
+  inner_callback->OnMoreData(base::TimeDelta(), base::TimeTicks(), glitch_info,
+                             dest.get());
+  EXPECT_EQ(callback_.cumulative_glitch_info(), glitch_info);
+  inner_callback->OnMoreData(base::TimeDelta(), base::TimeTicks(), {},
+                             dest.get());
+  EXPECT_EQ(callback_.cumulative_glitch_info(), glitch_info);
+
+  proxy->Stop();
+  proxy->Close();
+  Mock::VerifyAndClearExpectations(&stream);
+  base::RunLoop run_loop;
+  EXPECT_CALL(stream, Close())
+      .WillOnce(testing::InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+  run_loop.Run();
 }
 
 }  // namespace media

@@ -1,12 +1,12 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_BASE_FAKE_DEMUXER_STREAM_H_
 #define MEDIA_BASE_FAKE_DEMUXER_STREAM_H_
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/time/time.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_resource.h"
@@ -46,7 +46,7 @@ class FakeDemuxerStream : public DemuxerStream {
   ~FakeDemuxerStream() override;
 
   // DemuxerStream implementation.
-  void Read(ReadCB read_cb) override;
+  void Read(uint32_t count, ReadCB read_cb) override;
   AudioDecoderConfig audio_decoder_config() override;
   VideoDecoderConfig video_decoder_config() override;
   Type type() const override;

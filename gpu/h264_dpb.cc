@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,15 +82,15 @@ void H264DPB::UpdatePicPositions() {
   }
 }
 
-void H264DPB::DeleteByPOC(int poc) {
+void H264DPB::Delete(scoped_refptr<H264Picture> pic) {
   for (auto it = pics_.begin(); it != pics_.end(); ++it) {
-    if ((*it)->pic_order_cnt == poc) {
+    if ((*it) == pic) {
       pics_.erase(it);
       UpdatePicPositions();
       return;
     }
   }
-  NOTREACHED() << "Missing POC: " << poc;
+  NOTREACHED() << "Missing pic with POC: " << pic->pic_order_cnt;
 }
 
 void H264DPB::DeleteUnused() {
@@ -142,6 +142,16 @@ scoped_refptr<H264Picture> H264DPB::GetLongRefPicByLongTermPicNum(int pic_num) {
   }
 
   DVLOG(1) << "Missing long term pic num: " << pic_num;
+  return nullptr;
+}
+
+scoped_refptr<H264Picture> H264DPB::GetLongRefPicByLongTermIdx(int idx) {
+  for (const auto& pic : pics_) {
+    if (pic->ref && pic->long_term && pic->long_term_frame_idx == idx) {
+      return pic;
+    }
+  }
+
   return nullptr;
 }
 

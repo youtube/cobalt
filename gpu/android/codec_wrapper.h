@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,8 +11,9 @@
 #include <memory>
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/android/media_codec_bridge.h"
 #include "media/base/decoder_buffer.h"
 #include "media/gpu/android/codec_surface_bundle.h"
@@ -51,6 +52,9 @@ class MEDIA_GPU_EXPORT CodecOutputBuffer {
     render_cb_ = std::move(render_cb);
   }
 
+  // Color space of the image.
+  const gfx::ColorSpace& color_space() const { return color_space_; }
+
   // Note that you can't use the first ctor, since CodecWrapperImpl isn't
   // defined here.  Use the second, and it'll be nullptr.
   template <typename... Args>
@@ -65,16 +69,20 @@ class MEDIA_GPU_EXPORT CodecOutputBuffer {
   friend class CodecWrapperImpl;
   CodecOutputBuffer(scoped_refptr<CodecWrapperImpl> codec,
                     int64_t id,
-                    const gfx::Size& size);
+                    const gfx::Size& size,
+                    const gfx::ColorSpace& color_space);
 
   // For testing, since CodecWrapperImpl isn't available.  Uses nullptr.
-  CodecOutputBuffer(int64_t id, const gfx::Size& size);
+  CodecOutputBuffer(int64_t id,
+                    const gfx::Size& size,
+                    const gfx::ColorSpace& color_space);
 
   scoped_refptr<CodecWrapperImpl> codec_;
   int64_t id_;
   bool was_rendered_ = false;
   gfx::Size size_;
   base::OnceClosure render_cb_;
+  gfx::ColorSpace color_space_;
 };
 
 // This wraps a MediaCodecBridge and provides higher level features and tracks
@@ -100,7 +108,8 @@ class MEDIA_GPU_EXPORT CodecWrapper {
   using OutputReleasedCB = base::RepeatingCallback<void(bool)>;
   CodecWrapper(CodecSurfacePair codec_surface_pair,
                OutputReleasedCB output_buffer_release_cb,
-               scoped_refptr<base::SequencedTaskRunner> release_task_runner);
+               scoped_refptr<base::SequencedTaskRunner> release_task_runner,
+               const gfx::Size& initial_expected_size);
 
   CodecWrapper(const CodecWrapper&) = delete;
   CodecWrapper& operator=(const CodecWrapper&) = delete;

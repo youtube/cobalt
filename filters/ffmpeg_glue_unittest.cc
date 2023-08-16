@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "base/check.h"
-#include "base/macros.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/chromeos_buildflags.h"
 #include "media/base/container_names.h"
@@ -47,8 +46,7 @@ class MockProtocol : public FFmpegURLProtocol {
 
 class FFmpegGlueTest : public ::testing::Test {
  public:
-  FFmpegGlueTest()
-      : protocol_(new StrictMock<MockProtocol>()) {
+  FFmpegGlueTest() : protocol_(std::make_unique<StrictMock<MockProtocol>>()) {
     // IsStreaming() is called when opening.
     EXPECT_CALL(*protocol_.get(), IsStreaming()).WillOnce(Return(true));
     glue_ = std::make_unique<FFmpegGlue>(protocol_.get());
@@ -326,11 +324,6 @@ TEST_F(FFmpegGlueContainerTest, AAC) {
 TEST_F(FFmpegGlueContainerTest, AVI) {
   InitializeAndOpen("bear.avi");
   ExpectContainer(container_names::CONTAINER_AVI);
-}
-
-TEST_F(FFmpegGlueContainerTest, AMR) {
-  InitializeAndOpen("bear.amr");
-  ExpectContainer(container_names::CONTAINER_AMR);
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)

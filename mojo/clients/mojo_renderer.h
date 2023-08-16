@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,8 @@
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/default_tick_clock.h"
 #include "base/unguessable_token.h"
 #include "media/base/demuxer_stream.h"
@@ -21,10 +22,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-
-namespace base {
-class SingleThreadTaskRunner;
-}
 
 namespace media {
 
@@ -45,7 +42,7 @@ class VideoRendererSink;
 // which can be called on any thread.
 class MojoRenderer : public Renderer, public mojom::RendererClient {
  public:
-  MojoRenderer(const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+  MojoRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
                VideoRendererSink* video_renderer_sink,
                mojo::PendingRemote<mojom::Renderer> remote_renderer);
@@ -66,6 +63,7 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(float volume) override;
   base::TimeDelta GetMediaTime() override;
+  RendererType GetRendererType() override;
 
  private:
   // mojom::RendererClient implementation, dispatched on the |task_runner_|.
@@ -75,7 +73,7 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   void OnBufferingStateChange(BufferingState state,
                               BufferingStateChangeReason reason) override;
   void OnEnded() override;
-  void OnError(const Status& status) override;
+  void OnError(const PipelineStatus& status) override;
   void OnAudioConfigChange(const AudioDecoderConfig& config) override;
   void OnVideoConfigChange(const VideoDecoderConfig& config) override;
   void OnVideoNaturalSizeChange(const gfx::Size& size) override;
@@ -112,7 +110,7 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
 
   // |task_runner| on which all methods are invoked, except for GetMediaTime(),
   // which can be called on any thread.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // Overlay factory used to create overlays for video frames rendered
   // by the remote renderer.
@@ -120,14 +118,14 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
 
   // Video frame overlays are rendered onto this sink.
   // Rendering of a new overlay is only needed when video natural size changes.
-  VideoRendererSink* video_renderer_sink_ = nullptr;
+  raw_ptr<VideoRendererSink> video_renderer_sink_ = nullptr;
 
   // Provider of audio/video DemuxerStreams. Must be valid throughout the
   // lifetime of |this|.
-  MediaResource* media_resource_ = nullptr;
+  raw_ptr<MediaResource> media_resource_ = nullptr;
 
   // Client of |this| renderer passed in Initialize.
-  media::RendererClient* client_ = nullptr;
+  raw_ptr<media::RendererClient> client_ = nullptr;
 
   // Mojo demuxer streams.
   // Owned by MojoRenderer instead of remote mojom::Renderer

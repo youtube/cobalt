@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -86,10 +86,12 @@ void AudioInputStreamDataInterceptor::SetOutputDeviceForAec(
   return stream_->SetOutputDeviceForAec(output_device_id);
 }
 
-void AudioInputStreamDataInterceptor::OnData(const AudioBus* source,
-                                             base::TimeTicks capture_time,
-                                             double volume) {
-  callback_->OnData(source, capture_time, volume);
+void AudioInputStreamDataInterceptor::OnData(
+    const AudioBus* source,
+    base::TimeTicks capture_time,
+    double volume,
+    const AudioGlitchInfo& audio_glitch_info) {
+  callback_->OnData(source, capture_time, volume, audio_glitch_info);
   debug_recorder_->OnData(source);
 }
 

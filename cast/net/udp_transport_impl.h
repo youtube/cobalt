@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,10 @@
 
 #include <memory>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "media/cast/cast_environment.h"
@@ -78,13 +79,13 @@ class UdpTransportImpl final : public PacketTransport, public UdpTransport {
   //   "disable_non_blocking_io" (value ignored)
   //       - Windows only.  Turns off non-blocking IO for the socket.
   //         Note: Non-blocking IO is, by default, enabled on all platforms.
-  void SetUdpOptions(const base::DictionaryValue& options);
+  void SetUdpOptions(const base::Value::Dict& options);
 
   // This has to be called before |StartReceiving()| to change the
   // |send_buffer_size_|. Calling |SetUdpOptions()| will automatically call it.
   void SetSendBufferSize(int32_t send_buffer_size);
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   // Switch to use non-blocking IO. Must be called before StartReceiving().
   void UseNonBlockingIO();
 #endif
@@ -132,7 +133,7 @@ class UdpTransportImpl final : public PacketTransport, public UdpTransport {
   int bytes_sent_;
 
   // TODO(xjz): Replace this with a mojo ptr.
-  UdpTransportReceiver* mojo_packet_receiver_ = nullptr;
+  raw_ptr<UdpTransportReceiver> mojo_packet_receiver_ = nullptr;
 
   // Used to read packets from the data pipe. Created when StartSending() is
   // called.
