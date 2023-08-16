@@ -75,7 +75,6 @@ class Cache : public script::Wrappable {
     int response_code() const { return response_code_; }
     const std::string& status_text() const { return status_text_; }
     base::ListValue headers() { return std::move(headers_); }
-    base::Lock* lock() const { return &lock_; }
     std::vector<uint8_t> BufferToVector() const;
     std::string BufferToString() const;
 
@@ -95,7 +94,6 @@ class Cache : public script::Wrappable {
     int response_code_;
     base::ListValue headers_;
     std::string status_text_;
-    mutable base::Lock lock_;
   };
 
   void PerformAdd(
@@ -106,6 +104,7 @@ class Cache : public script::Wrappable {
   void OnFetchCompletedMainThread(uint32_t key, bool success);
 
   std::map<uint32_t, std::unique_ptr<Fetcher>> fetchers_;
+  mutable base::Lock fetcher_lock_;
   std::map<uint32_t, std::pair<std::vector<std::unique_ptr<
                                    script::ValuePromiseVoid::Reference>>,
                                script::EnvironmentSettings*>>

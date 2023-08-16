@@ -198,13 +198,13 @@ void Cache::PerformAdd(
     script::EnvironmentSettings* environment_settings,
     std::unique_ptr<script::ValueHandleHolder::Reference> request_reference,
     std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
+  base::AutoLock auto_lock(fetcher_lock_);
   auto* global_environment = get_global_environment(environment_settings);
   auto* isolate = global_environment->isolate();
   script::v8c::EntryScope entry_scope(isolate);
   uint32_t key = cache_utils::GetKey(environment_settings->base_url(),
                                      request_reference->referenced_value());
   if (fetchers_.find(key) != fetchers_.end()) {
-    base::AutoLock auto_lock(*(fetchers_[key]->lock()));
     auto* promises = &(fetch_contexts_[key].first);
     promises->push_back(std::move(promise_reference));
     return;
@@ -402,6 +402,7 @@ script::HandlePromiseAny Cache::Keys(
 }
 
 void Cache::OnFetchCompleted(uint32_t key, bool success) {
+  base::AutoLock auto_lock(fetcher_lock_);
   auto* environment_settings = fetch_contexts_[key].second;
   auto* context = get_context(environment_settings);
   context->message_loop()->task_runner()->PostTask(
@@ -410,17 +411,15 @@ void Cache::OnFetchCompleted(uint32_t key, bool success) {
 }
 
 void Cache::OnFetchCompletedMainThread(uint32_t key, bool success) {
+  base::AutoLock auto_lock(fetcher_lock_);
   auto* fetcher = fetchers_[key].get();
   auto* promises = &(fetch_contexts_[key].first);
   int status = fetcher->response_code();
   // |status| of 200-299 excluding 206 "Partial Content" should be cached.
   if (!success || status == 206 || status < 200 || status > 299) {
-    {
-      base::AutoLock auto_lock(*fetcher->lock());
-      while (promises->size() > 0) {
-        promises->back()->value().Reject();
-        promises->pop_back();
-      }
+    while (promises->size() > 0) {
+      promises->back()->value().Reject();
+      promises->pop_back();
     }
     fetchers_.erase(key);
     fetch_contexts_.erase(key);
@@ -447,12 +446,9 @@ void Cache::OnFetchCompletedMainThread(uint32_t key, bool success) {
     global_environment->Compile(script::SourceCode::CreateSourceCode(
         fetcher->BufferToString(), base::SourceLocation(__FILE__, 1, 1)));
   }
-  {
-    base::AutoLock auto_lock(*fetcher->lock());
-    while (promises->size() > 0) {
-      promises->back()->value().Resolve();
-      promises->pop_back();
-    }
+  while (promises->size() > 0) {
+    promises->back()->value().Resolve();
+    promises->pop_back();
   }
   fetchers_.erase(key);
   fetch_contexts_.erase(key);
