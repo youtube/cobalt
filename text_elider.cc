@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -21,7 +21,8 @@
 #include "base/i18n/break_iterator.h"
 #include "base/i18n/char_iterator.h"
 #include "base/i18n/rtl.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -44,7 +45,7 @@ namespace gfx {
 
 namespace {
 
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
 // The returned string will have at least one character besides the ellipsis
 // on either side of '@'; if that's impossible, a single ellipsis is returned.
 // If possible, only the username is elided. Otherwise, the domain is elided
@@ -136,7 +137,7 @@ StringSlicer::StringSlicer(const std::u16string& text,
 std::u16string StringSlicer::CutString(size_t length,
                                        bool insert_ellipsis) const {
   const std::u16string ellipsis_text =
-      insert_ellipsis ? ellipsis_ : std::u16string();
+      insert_ellipsis ? *ellipsis_ : std::u16string();
 
   // For visual consistency, when eliding at either end of the string, excess
   // space should be trimmed from the text to return "Foo bar..." instead of
@@ -144,13 +145,13 @@ std::u16string StringSlicer::CutString(size_t length,
 
   if (elide_at_beginning_) {
     return ellipsis_text +
-           text_.substr(FindValidBoundaryAfter(text_, text_.length() - length,
-                                               elide_whitespace_));
+           text_->substr(FindValidBoundaryAfter(
+               *text_, text_->length() - length, elide_whitespace_));
   }
 
   if (!elide_in_middle_) {
-    return text_.substr(
-               0, FindValidBoundaryBefore(text_, length, elide_whitespace_)) +
+    return text_->substr(
+               0, FindValidBoundaryBefore(*text_, length, elide_whitespace_)) +
            ellipsis_text;
   }
 
@@ -162,22 +163,22 @@ std::u16string StringSlicer::CutString(size_t length,
   // less line up; eliminating space would make the text look more ragged.
   const size_t half_length = length / 2;
   const size_t prefix_length =
-      FindValidBoundaryBefore(text_, length - half_length, elide_whitespace_);
+      FindValidBoundaryBefore(*text_, length - half_length, elide_whitespace_);
   const size_t suffix_start = FindValidBoundaryAfter(
-      text_, text_.length() - half_length, elide_whitespace_);
-  return text_.substr(0, prefix_length) + ellipsis_text +
-         text_.substr(suffix_start);
+      *text_, text_->length() - half_length, elide_whitespace_);
+  return text_->substr(0, prefix_length) + ellipsis_text +
+         text_->substr(suffix_start);
 }
 
 std::u16string ElideFilename(const base::FilePath& filename,
                              const FontList& font_list,
                              float available_pixel_width) {
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   std::u16string filename_utf16 = WideToUTF16(filename.value());
   std::u16string extension = WideToUTF16(filename.Extension());
   std::u16string rootname =
       WideToUTF16(filename.BaseName().RemoveExtension().value());
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   std::u16string filename_utf16 =
       WideToUTF16(base::SysNativeMBToWide(filename.value()));
   std::u16string extension =
@@ -222,7 +223,7 @@ std::u16string ElideText(const std::u16string& text,
                          const FontList& font_list,
                          float available_pixel_width,
                          ElideBehavior behavior) {
-#if !defined(OS_IOS)
+#if !BUILDFLAG(IS_IOS)
   DCHECK_NE(behavior, FADE_TAIL);
   std::unique_ptr<RenderText> render_text = RenderText::CreateRenderText();
   render_text->SetCursorEnabled(false);
@@ -397,7 +398,7 @@ class RectangleString {
   bool suppressed_;
 
   // String onto which the output is accumulated.
-  std::u16string* output_;
+  raw_ptr<std::u16string> output_;
 };
 
 void RectangleString::AddString(const std::u16string& input) {
@@ -544,7 +545,7 @@ class RectangleText {
   bool NewLine();
 
   // The font list used for measuring text width.
-  const FontList& font_list_;
+  const raw_ref<const FontList> font_list_;
 
   // The height of each line of text.
   const int line_height_;
@@ -571,7 +572,7 @@ class RectangleText {
   bool last_line_ended_in_lf_ = false;
 
   // The output vector of lines.
-  std::vector<std::u16string>* lines_;
+  raw_ptr<std::vector<std::u16string>> lines_;
 
   // Indicates whether a word was so long that it had to be truncated or elided
   // to fit the available width.
@@ -619,7 +620,7 @@ int RectangleText::Finalize() {
 }
 
 void RectangleText::AddLine(const std::u16string& line) {
-  const float line_width = GetStringWidthF(line, font_list_);
+  const float line_width = GetStringWidthF(line, *font_list_);
   if (line_width <= available_pixel_width_) {
     AddToCurrentLineWithWidth(line, line_width);
   } else {
@@ -661,7 +662,7 @@ int RectangleText::WrapWord(const std::u16string& word) {
   bool first_fragment = true;
   while (!insufficient_height_ && !text.empty()) {
     std::u16string fragment =
-        ElideText(text, font_list_, available_pixel_width_, TRUNCATE);
+        ElideText(text, *font_list_, available_pixel_width_, TRUNCATE);
     // At least one character has to be added at every line, even if the
     // available space is too small.
     if (fragment.empty())
@@ -696,7 +697,7 @@ int RectangleText::AddWordOverflow(const std::u16string& word) {
     const ElideBehavior elide_behavior =
         (wrap_behavior_ == ELIDE_LONG_WORDS ? ELIDE_TAIL : TRUNCATE);
     const std::u16string elided_word =
-        ElideText(word, font_list_, available_pixel_width_, elide_behavior);
+        ElideText(word, *font_list_, available_pixel_width_, elide_behavior);
     AddToCurrentLine(elided_word);
     insufficient_width_ = true;
   }
@@ -708,7 +709,7 @@ int RectangleText::AddWord(const std::u16string& word) {
   int lines_added = 0;
   std::u16string trimmed;
   base::TrimWhitespace(word, base::TRIM_TRAILING, &trimmed);
-  const float trimmed_width = GetStringWidthF(trimmed, font_list_);
+  const float trimmed_width = GetStringWidthF(trimmed, *font_list_);
   if (trimmed_width <= available_pixel_width_) {
     // Word can be made to fit, no need to fragment it.
     if ((current_width_ + trimmed_width > available_pixel_width_) && NewLine())
@@ -723,7 +724,7 @@ int RectangleText::AddWord(const std::u16string& word) {
 }
 
 void RectangleText::AddToCurrentLine(const std::u16string& text) {
-  AddToCurrentLineWithWidth(text, GetStringWidthF(text, font_list_));
+  AddToCurrentLineWithWidth(text, GetStringWidthF(text, *font_list_));
 }
 
 void RectangleText::AddToCurrentLineWithWidth(const std::u16string& text,

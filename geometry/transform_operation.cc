@@ -1,11 +1,12 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ui/gfx/geometry/transform_operation.h"
+
+#include <algorithm>
 #include <limits>
 #include <utility>
-
-#include "ui/gfx/geometry/transform_operation.h"
 
 #include "base/check_op.h"
 #include "base/notreached.h"
@@ -24,6 +25,13 @@ const SkScalar kAngleEpsilon = 1e-4f;
 namespace gfx {
 
 bool TransformOperation::IsIdentity() const {
+  if (type == TRANSFORM_OPERATION_ROTATE) {
+    // We can't use matrix.IsIdentity() because rotate(n*360) is not identity,
+    // but the matrix is identity.
+    return rotate.angle == 0 ||
+           // Rotation with zero length axis is treated as identity.
+           (rotate.axis.x == 0 && rotate.axis.y == 0 && rotate.axis.z == 0);
+  }
   return matrix.IsIdentity();
 }
 
@@ -32,15 +40,18 @@ static bool IsOperationIdentity(const TransformOperation* operation) {
 }
 
 static bool ShareSameAxis(const TransformOperation* from,
+                          bool is_identity_from,
                           const TransformOperation* to,
+                          bool is_identity_to,
                           SkScalar* axis_x,
                           SkScalar* axis_y,
                           SkScalar* axis_z,
                           SkScalar* angle_from) {
-  if (IsOperationIdentity(from) && IsOperationIdentity(to))
-    return false;
+  DCHECK_EQ(is_identity_from, IsOperationIdentity(from));
+  DCHECK_EQ(is_identity_to, IsOperationIdentity(to));
+  DCHECK(!is_identity_from || !is_identity_to);
 
-  if (IsOperationIdentity(from) && !IsOperationIdentity(to)) {
+  if (is_identity_from && !is_identity_to) {
     *axis_x = to->rotate.axis.x;
     *axis_y = to->rotate.axis.y;
     *axis_z = to->rotate.axis.z;
@@ -48,7 +59,7 @@ static bool ShareSameAxis(const TransformOperation* from,
     return true;
   }
 
-  if (!IsOperationIdentity(from) && IsOperationIdentity(to)) {
+  if (!is_identity_from && is_identity_to) {
     *axis_x = from->rotate.axis.x;
     *axis_y = from->rotate.axis.y;
     *axis_z = from->rotate.axis.z;
@@ -106,9 +117,12 @@ void TransformOperation::Bake() {
     case TransformOperation::TRANSFORM_OPERATION_SKEW:
       matrix.Skew(skew.x, skew.y);
       break;
-    case TransformOperation::TRANSFORM_OPERATION_PERSPECTIVE:
-      matrix.ApplyPerspectiveDepth(perspective_depth);
+    case TransformOperation::TRANSFORM_OPERATION_PERSPECTIVE: {
+      Transform m;
+      m.set_rc(3, 2, perspective_m43);
+      matrix.PreConcat(m);
       break;
+    }
     case TransformOperation::TRANSFORM_OPERATION_MATRIX:
     case TransformOperation::TRANSFORM_OPERATION_IDENTITY:
       break;
@@ -147,18 +161,10 @@ bool TransformOperation::ApproximatelyEqual(const TransformOperation& other,
       return base::IsApproximatelyEqual(skew.x, other.skew.x, tolerance) &&
              base::IsApproximatelyEqual(skew.y, other.skew.y, tolerance);
     case TransformOperation::TRANSFORM_OPERATION_PERSPECTIVE:
-      return base::IsApproximatelyEqual(perspective_depth,
-                                        other.perspective_depth, tolerance);
+      return base::IsApproximatelyEqual(perspective_m43, other.perspective_m43,
+                                        tolerance);
     case TransformOperation::TRANSFORM_OPERATION_MATRIX:
-      // TODO(vollick): we could expose a tolerance on gfx::Transform, but it's
-      // complex since we need a different tolerance per component. Driving this
-      // with a single tolerance will take some care. For now, we will check
-      // exact equality where the tolerance is 0.0f, otherwise we will use the
-      // unparameterized version of gfx::Transform::ApproximatelyEqual.
-      if (tolerance == 0.0f)
-        return matrix == other.matrix;
-      else
-        return matrix.ApproximatelyEqual(other.matrix);
+      return matrix.ApproximatelyEqual(other.matrix, tolerance);
     case TransformOperation::TRANSFORM_OPERATION_IDENTITY:
       return other.matrix.IsIdentity();
   }
@@ -171,12 +177,14 @@ bool TransformOperation::BlendTransformOperations(
     const TransformOperation* to,
     SkScalar progress,
     TransformOperation* result) {
-  if (IsOperationIdentity(from) && IsOperationIdentity(to))
+  bool is_identity_from = IsOperationIdentity(from);
+  bool is_identity_to = IsOperationIdentity(to);
+  if (is_identity_from && is_identity_to)
     return true;
 
   TransformOperation::Type interpolation_type =
       TransformOperation::TRANSFORM_OPERATION_IDENTITY;
-  if (IsOperationIdentity(to))
+  if (is_identity_to)
     interpolation_type = from->type;
   else
     interpolation_type = to->type;
@@ -184,12 +192,12 @@ bool TransformOperation::BlendTransformOperations(
 
   switch (interpolation_type) {
     case TransformOperation::TRANSFORM_OPERATION_TRANSLATE: {
-      SkScalar from_x = IsOperationIdentity(from) ? 0 : from->translate.x;
-      SkScalar from_y = IsOperationIdentity(from) ? 0 : from->translate.y;
-      SkScalar from_z = IsOperationIdentity(from) ? 0 : from->translate.z;
-      SkScalar to_x = IsOperationIdentity(to) ? 0 : to->translate.x;
-      SkScalar to_y = IsOperationIdentity(to) ? 0 : to->translate.y;
-      SkScalar to_z = IsOperationIdentity(to) ? 0 : to->translate.z;
+      SkScalar from_x = is_identity_from ? 0 : from->translate.x;
+      SkScalar from_y = is_identity_from ? 0 : from->translate.y;
+      SkScalar from_z = is_identity_from ? 0 : from->translate.z;
+      SkScalar to_x = is_identity_to ? 0 : to->translate.x;
+      SkScalar to_y = is_identity_to ? 0 : to->translate.y;
+      SkScalar to_z = is_identity_to ? 0 : to->translate.z;
       result->translate.x = BlendSkScalars(from_x, to_x, progress),
       result->translate.y = BlendSkScalars(from_y, to_y, progress),
       result->translate.z = BlendSkScalars(from_z, to_z, progress),
@@ -201,18 +209,19 @@ bool TransformOperation::BlendTransformOperations(
       SkScalar axis_y = 0;
       SkScalar axis_z = 1;
       SkScalar from_angle = 0;
-      SkScalar to_angle = IsOperationIdentity(to) ? 0 : to->rotate.angle;
-      if (ShareSameAxis(from, to, &axis_x, &axis_y, &axis_z, &from_angle)) {
+      SkScalar to_angle = is_identity_to ? 0 : to->rotate.angle;
+      if (ShareSameAxis(from, is_identity_from, to, is_identity_to, &axis_x,
+                        &axis_y, &axis_z, &from_angle)) {
         result->rotate.axis.x = axis_x;
         result->rotate.axis.y = axis_y;
         result->rotate.axis.z = axis_z;
         result->rotate.angle = BlendSkScalars(from_angle, to_angle, progress);
         result->Bake();
       } else {
-        if (!IsOperationIdentity(to))
+        if (!is_identity_to)
           result->matrix = to->matrix;
         gfx::Transform from_matrix;
-        if (!IsOperationIdentity(from))
+        if (!is_identity_from)
           from_matrix = from->matrix;
         if (!result->matrix.Blend(from_matrix, progress))
           return false;
@@ -220,12 +229,12 @@ bool TransformOperation::BlendTransformOperations(
       break;
     }
     case TransformOperation::TRANSFORM_OPERATION_SCALE: {
-      SkScalar from_x = IsOperationIdentity(from) ? 1 : from->scale.x;
-      SkScalar from_y = IsOperationIdentity(from) ? 1 : from->scale.y;
-      SkScalar from_z = IsOperationIdentity(from) ? 1 : from->scale.z;
-      SkScalar to_x = IsOperationIdentity(to) ? 1 : to->scale.x;
-      SkScalar to_y = IsOperationIdentity(to) ? 1 : to->scale.y;
-      SkScalar to_z = IsOperationIdentity(to) ? 1 : to->scale.z;
+      SkScalar from_x = is_identity_from ? 1 : from->scale.x;
+      SkScalar from_y = is_identity_from ? 1 : from->scale.y;
+      SkScalar from_z = is_identity_from ? 1 : from->scale.z;
+      SkScalar to_x = is_identity_to ? 1 : to->scale.x;
+      SkScalar to_y = is_identity_to ? 1 : to->scale.y;
+      SkScalar to_z = is_identity_to ? 1 : to->scale.z;
       result->scale.x = BlendSkScalars(from_x, to_x, progress);
       result->scale.y = BlendSkScalars(from_y, to_y, progress);
       result->scale.z = BlendSkScalars(from_z, to_z, progress);
@@ -235,40 +244,44 @@ bool TransformOperation::BlendTransformOperations(
     case TransformOperation::TRANSFORM_OPERATION_SKEWX:
     case TransformOperation::TRANSFORM_OPERATION_SKEWY:
     case TransformOperation::TRANSFORM_OPERATION_SKEW: {
-      SkScalar from_x = IsOperationIdentity(from) ? 0 : from->skew.x;
-      SkScalar from_y = IsOperationIdentity(from) ? 0 : from->skew.y;
-      SkScalar to_x = IsOperationIdentity(to) ? 0 : to->skew.x;
-      SkScalar to_y = IsOperationIdentity(to) ? 0 : to->skew.y;
+      SkScalar from_x = is_identity_from ? 0 : from->skew.x;
+      SkScalar from_y = is_identity_from ? 0 : from->skew.y;
+      SkScalar to_x = is_identity_to ? 0 : to->skew.x;
+      SkScalar to_y = is_identity_to ? 0 : to->skew.y;
       result->skew.x = BlendSkScalars(from_x, to_x, progress);
       result->skew.y = BlendSkScalars(from_y, to_y, progress);
       result->Bake();
       break;
     }
     case TransformOperation::TRANSFORM_OPERATION_PERSPECTIVE: {
-      SkScalar from_perspective_depth =
-          IsOperationIdentity(from) ? std::numeric_limits<SkScalar>::max()
-                                    : from->perspective_depth;
-      SkScalar to_perspective_depth = IsOperationIdentity(to)
-                                          ? std::numeric_limits<SkScalar>::max()
-                                          : to->perspective_depth;
-      if (from_perspective_depth == 0.f || to_perspective_depth == 0.f)
-        return false;
+      SkScalar from_perspective_m43;
+      if (is_identity_from) {
+        from_perspective_m43 = 0.f;
+      } else {
+        DCHECK_LE(from->perspective_m43, 0.0f);
+        DCHECK_GE(from->perspective_m43, -1.0f);
+        from_perspective_m43 = from->perspective_m43;
+      }
+      SkScalar to_perspective_m43;
+      if (is_identity_to) {
+        to_perspective_m43 = 0.f;
+      } else {
+        DCHECK_LE(to->perspective_m43, 0.0f);
+        DCHECK_GE(to->perspective_m43, -1.0f);
+        to_perspective_m43 = to->perspective_m43;
+      }
 
-      SkScalar blended_perspective_depth = BlendSkScalars(
-          1.f / from_perspective_depth, 1.f / to_perspective_depth, progress);
-
-      if (blended_perspective_depth == 0.f)
-        return false;
-
-      result->perspective_depth = 1.f / blended_perspective_depth;
+      result->perspective_m43 = std::clamp(
+          BlendSkScalars(from_perspective_m43, to_perspective_m43, progress),
+          -1.0f, 0.0f);
       result->Bake();
       break;
     }
     case TransformOperation::TRANSFORM_OPERATION_MATRIX: {
-      if (!IsOperationIdentity(to))
+      if (!is_identity_to)
         result->matrix = to->matrix;
       gfx::Transform from_matrix;
-      if (!IsOperationIdentity(from))
+      if (!is_identity_from)
         from_matrix = from->matrix;
       if (!result->matrix.Blend(from_matrix, progress))
         return false;
@@ -352,10 +365,8 @@ static void BoundingBoxForArc(const gfx::Point3F& point,
 
   *box = gfx::BoxF();
 
-  gfx::Point3F point_rotated_from = point;
-  from_transform.TransformPoint(&point_rotated_from);
-  gfx::Point3F point_rotated_to = point;
-  to_transform.TransformPoint(&point_rotated_to);
+  gfx::Point3F point_rotated_from = from_transform.MapPoint(point);
+  gfx::Point3F point_rotated_to = to_transform.MapPoint(point);
 
   box->set_origin(point_rotated_from);
   box->ExpandTo(point_rotated_to);
@@ -371,7 +382,7 @@ static void BoundingBoxForArc(const gfx::Point3F& point,
                           &num_candidates);
   } else {
     gfx::Vector3dF normal = axis;
-    normal.Scale(1.f / normal.Length());
+    normal.InvScale(normal.Length());
 
     // First, find center of rotation.
     gfx::Point3F origin;
@@ -386,7 +397,7 @@ static void BoundingBoxForArc(const gfx::Point3F& point,
     if (v1_length == 0.f)
       return;
 
-    v1.Scale(1.f / v1_length);
+    v1.InvScale(v1_length);
     gfx::Vector3dF v2 = gfx::CrossProduct(normal, v1);
     // v1 is the basis vector in the direction of the point.
     // i.e. with a rotation of 0, v1 is our +x vector.
@@ -427,8 +438,7 @@ static void BoundingBoxForArc(const gfx::Point3F& point,
 
     gfx::Transform rotation;
     rotation.RotateAbout(axis, gfx::RadToDeg(radians));
-    gfx::Point3F rotated = point;
-    rotation.TransformPoint(&rotated);
+    gfx::Point3F rotated = rotation.MapPoint(point);
 
     box->ExpandTo(rotated);
   }
@@ -470,11 +480,9 @@ bool TransformOperation::BlendedBoundsForBox(const gfx::BoxF& box,
           !BlendTransformOperations(from, to, max_progress, &to_operation))
         return false;
 
-      *bounds = box;
-      from_operation.matrix.TransformBox(bounds);
+      *bounds = from_operation.matrix.MapBox(box);
 
-      gfx::BoxF to_box = box;
-      to_operation.matrix.TransformBox(&to_box);
+      BoxF to_box = to_operation.matrix.MapBox(box);
       bounds->ExpandTo(to_box);
 
       return true;
@@ -484,8 +492,10 @@ bool TransformOperation::BlendedBoundsForBox(const gfx::BoxF& box,
       SkScalar axis_y = 0;
       SkScalar axis_z = 1;
       SkScalar from_angle = 0;
-      if (!ShareSameAxis(from, to, &axis_x, &axis_y, &axis_z, &from_angle))
+      if (!ShareSameAxis(from, is_identity_from, to, is_identity_to, &axis_x,
+                         &axis_y, &axis_z, &from_angle)) {
         return false;
+      }
 
       bool first_point = true;
       for (int i = 0; i < 8; ++i) {

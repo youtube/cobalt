@@ -1,14 +1,13 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "ui/gfx/win/rendering_window_manager.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
-#include "base/single_thread_task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 
 namespace gfx {
 
@@ -73,7 +72,7 @@ bool RenderingWindowManager::HasValidChildWindow(HWND parent) {
 }
 
 RenderingWindowManager::RenderingWindowManager()
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()) {}
+    : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()) {}
 
 RenderingWindowManager::~RenderingWindowManager() = default;
 

@@ -1,11 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_ANIMATION_THROB_ANIMATION_H_
 #define UI_GFX_ANIMATION_THROB_ANIMATION_H_
 
-#include "base/macros.h"
 #include "ui/gfx/animation/slide_animation.h"
 
 namespace gfx {
