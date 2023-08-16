@@ -17,17 +17,27 @@
 namespace starboard {
 
 StorageRecord::StorageRecord()
-    : user_(SbUserGetCurrent()), record_(kSbStorageInvalidRecord) {
-  Initialize();
-}
-
-StorageRecord::StorageRecord(SbUser user)
-    : user_(user), record_(kSbStorageInvalidRecord) {
+    :
+#if SB_API_VERSION < 16
+      user_(SbUserGetCurrent()),
+#endif  // SB_API_VERSION < 16
+      record_(kSbStorageInvalidRecord) {
   Initialize();
 }
 
 StorageRecord::StorageRecord(const char* name)
-    : user_(SbUserGetCurrent()), name_(name), record_(kSbStorageInvalidRecord) {
+    :
+#if SB_API_VERSION < 16
+      user_(SbUserGetCurrent()),
+#endif  // SB_API_VERSION < 16
+      name_(name),
+      record_(kSbStorageInvalidRecord) {
+  Initialize();
+}
+
+#if SB_API_VERSION < 16
+StorageRecord::StorageRecord(SbUser user)
+    : user_(user), record_(kSbStorageInvalidRecord) {
   Initialize();
 }
 
@@ -35,6 +45,7 @@ StorageRecord::StorageRecord(SbUser user, const char* name)
     : user_(user), name_(name), record_(kSbStorageInvalidRecord) {
   Initialize();
 }
+#endif  // SB_API_VERSION < 16
 
 StorageRecord::~StorageRecord() {
   Close();
@@ -67,21 +78,21 @@ bool StorageRecord::Close() {
 
 bool StorageRecord::Delete() {
   Close();
-  if (!name_.empty()) {
-    return SbStorageDeleteRecord(user_, name_.c_str());
-  } else {
-    return SbStorageDeleteRecord(user_, NULL);
-  }
+#if SB_API_VERSION < 16
+  return SbStorageDeleteRecord(user_, name_.empty() ? NULL : name_.c_str());
+#else
+  return SbStorageDeleteRecord(name_.empty() ? NULL : name_.c_str());
+#endif  // SB_API_VERSION < 16
 }
 
 void StorageRecord::Initialize() {
+#if SB_API_VERSION < 16
   if (SbUserIsValid(user_)) {
-    if (!name_.empty()) {
-      record_ = SbStorageOpenRecord(user_, name_.c_str());
-    } else {
-      record_ = SbStorageOpenRecord(user_, NULL);
-    }
+    record_ = SbStorageOpenRecord(user_, name_.empty() ? NULL : name_.c_str());
   }
+#else
+  record_ = SbStorageOpenRecord(name_.empty() ? NULL : name_.c_str());
+#endif  // SB_API_VERSION < 16
 }
 
 }  // namespace starboard

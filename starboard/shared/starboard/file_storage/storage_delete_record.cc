@@ -19,16 +19,16 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
+
+#if SB_API_VERSION < 16
 #include "starboard/user.h"
-
 bool SbStorageDeleteRecord(SbUser user, const char* name) {
-  if (!SbUserIsValid(user)) {
-    return false;
-  }
-
+#else
+bool SbStorageDeleteRecord(const char* name) {
+#endif  // SB_API_VERSION < 16
   std::vector<char> path(kSbFileMaxPath);
-  bool success = starboard::shared::starboard::GetUserStorageFilePath(
-      user, name, path.data(), static_cast<int>(path.size()));
+  bool success = starboard::shared::starboard::GetStorageFilePath(
+      name, path.data(), static_cast<int>(path.size()));
   if (!success) {
     return false;
   }

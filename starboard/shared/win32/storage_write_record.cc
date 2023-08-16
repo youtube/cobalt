@@ -38,8 +38,8 @@ bool SbStorageWriteRecord(SbStorageRecord record,
 
   const char* name = record->name.c_str();
   std::vector<char> original_file_path(kSbFileMaxPath);
-  if (!starboard::shared::starboard::GetUserStorageFilePath(
-          record->user, name, original_file_path.data(), kSbFileMaxPath)) {
+  if (!starboard::shared::starboard::GetStorageFilePath(
+          name, original_file_path.data(), kSbFileMaxPath)) {
     return false;
   }
 

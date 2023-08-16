@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// An implementation of storage that just uses the filesystem. The User
-// implementation must implement a way to get the user's home directory.
+// An implementation of storage that just uses the filesystem.
 
 #ifndef STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
@@ -23,7 +22,6 @@
 #include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/get_home_directory.h"
-#include "starboard/user.h"
 
 #if SB_HAS_QUIRK(HASH_FILE_NAME)
 #include <ios>
@@ -35,7 +33,7 @@
 #endif
 
 struct SbStorageRecordPrivate {
-  SbUser user;
+  void* unused_user;  // deprecated in SB 16
   SbFile file;
   std::string name;
 };
@@ -43,11 +41,10 @@ struct SbStorageRecordPrivate {
 namespace starboard {
 namespace shared {
 namespace starboard {
-// Gets the path to the storage file for the given user.
-static SB_C_INLINE bool GetUserStorageFilePath(SbUser user,
-                                               const char* name,
-                                               char* out_path,
-                                               int path_size) {
+// Gets the path to the storage file.
+static SB_C_INLINE bool GetStorageFilePath(const char* name,
+                                           char* out_path,
+                                           int path_size) {
   bool success = GetHomeDirectory(out_path, path_size);
   if (!success) {
     return false;

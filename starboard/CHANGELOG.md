@@ -16,6 +16,11 @@ can be found in the comments of the "Experimental Feature Defines" section of
 
 ## Version 16
 
+### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
+The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
+`starboard/storage.h` no longer have a parameter for `SbUser` as the APIs are
+user-agnostic.
+
 ### Removed SbUserGetSignedIn
 The API is no longer used and has been deprecated.
 

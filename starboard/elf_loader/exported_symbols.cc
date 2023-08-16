@@ -47,6 +47,7 @@
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"
 #include "starboard/ui_navigation.h"
+#include "starboard/user.h"
 #include "starboard/window.h"
 
 #define REGISTER_SYMBOL(s)                        \

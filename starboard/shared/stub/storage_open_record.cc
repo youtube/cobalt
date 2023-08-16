@@ -14,6 +14,10 @@
 
 #include "starboard/common/storage.h"
 
+#if SB_API_VERSION < 16
 SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
+#else
+SbStorageRecord SbStorageOpenRecord(const char* name) {
+#endif
   return kSbStorageInvalidRecord;
 }

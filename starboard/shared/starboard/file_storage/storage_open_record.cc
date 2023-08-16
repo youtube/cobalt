@@ -20,16 +20,16 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
+
+#if SB_API_VERSION < 16
 #include "starboard/user.h"
-
 SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
-  if (!SbUserIsValid(user)) {
-    return kSbStorageInvalidRecord;
-  }
-
+#else
+SbStorageRecord SbStorageOpenRecord(const char* name) {
+#endif  // SB_API_VERSION < 16
   std::vector<char> path(kSbFileMaxPath);
-  bool success = starboard::shared::starboard::GetUserStorageFilePath(
-      user, name, path.data(), static_cast<int>(path.size()));
+  bool success = starboard::shared::starboard::GetStorageFilePath(
+      name, path.data(), static_cast<int>(path.size()));
   if (!success) {
     return kSbStorageInvalidRecord;
   }
@@ -44,7 +44,6 @@ SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
 
   SbStorageRecord result = new SbStorageRecordPrivate();
   SB_DCHECK(SbStorageIsValidRecord(result));
-  result->user = user;
   result->file = file;
   if (name) {
     result->name = name;
