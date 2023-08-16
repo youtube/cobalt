@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -36,6 +37,18 @@ NET_EXPORT int LookupStringInFixedSet(const unsigned char* graph,
                                       size_t length,
                                       const char* key,
                                       size_t key_length);
+
+// Looks up the longest matching suffix for |host| with length |length| in a
+// reversed DAFSA. Partial matches must begin at a new component, i.e. host
+// itself could match or a host part starting after a dot could match.
+// If no match was found a value of 0 is written to |suffix_length| and the
+// value kDafsaNotFound is returned, otherwise the length of the longest match
+// is written to |suffix_length| and the type of the longest match is returned.
+int LookupSuffixInReversedSet(const unsigned char* graph,
+                              size_t length,
+                              bool include_private,
+                              base::StringPiece host,
+                              size_t* suffix_length);
 
 // FixedSetIncrementalLookup provides efficient membership and prefix queries
 // against a fixed set of strings. The set of strings must be known at compile
@@ -139,7 +152,7 @@ class NET_EXPORT FixedSetIncrementalLookup {
   // Contains the current decoder state. If true, |pos_| points to a label
   // character or a return code. If false, |pos_| points to a sequence of
   // offsets that indicate the child nodes of the current state.
-  bool pos_is_label_character_;
+  bool pos_is_label_character_ = false;
 };
 
 }  // namespace net

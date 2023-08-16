@@ -1,19 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <iostream>
 
 #include "base/build_time.h"
+#include "base/functional/bind.h"
 #include "base/test/launcher/unit_test_launcher.h"
 #include "build/build_config.h"
-#include "crypto/nss_util.h"
-#include "net/socket/client_socket_pool_base.h"
+#include "net/socket/transport_client_socket_pool.h"
 #include "net/test/net_test_suite.h"
-#include "url/url_features.h"
-#include "mojo/core/embedder/embedder.h"  // nogncheck
-
-using net::internal::ClientSocketPoolBaseHelper;
+#include "url/buildflags.h"
 
 namespace {
 
@@ -23,7 +20,7 @@ bool VerifyBuildIsTimely() {
   // days old. Moreover, operating on the assumption that tests are run against
   // recently compiled builds, this also serves as a sanity check for the
   // system clock, which should be close to the build date.
-  base::TimeDelta kMaxAge = base::TimeDelta::FromDays(70);
+  base::TimeDelta kMaxAge = base::Days(70);
 
   base::Time build_time = base::GetBuildTime();
   base::Time now = base::Time::Now();
@@ -52,11 +49,9 @@ int main(int argc, char** argv) {
     return 1;
 
   NetTestSuite test_suite(argc, argv);
-  ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
-
-  mojo::core::Init();
+  net::TransportClientSocketPool::set_connect_backup_jobs_enabled(false);
 
   return base::LaunchUnitTests(
-      argc, argv, base::Bind(&NetTestSuite::Run,
-                             base::Unretained(&test_suite)));
+      argc, argv,
+      base::BindOnce(&NetTestSuite::Run, base::Unretained(&test_suite)));
 }

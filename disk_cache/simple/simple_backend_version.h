@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,7 @@ namespace disk_cache {
 //   * Dropping cache data on disk or some of its parts can be a valid way to
 //     Upgrade.
 const uint32_t kLastCompatSparseVersion = 7;
-const uint32_t kSimpleVersion = 8;
+const uint32_t kSimpleVersion = 9;
 
 // The version of the entry file(s) as written to disk. Must be updated iff the
 // entry format changes with the overall backend version update.

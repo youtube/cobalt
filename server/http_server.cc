@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,14 @@
 
 #include <utility>
 
-#include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/sys_byteorder.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "net/base/net_errors.h"
 #include "net/server/http_connection.h"
@@ -54,16 +53,13 @@ constexpr NetworkTrafficAnnotationTag
 
 HttpServer::HttpServer(std::unique_ptr<ServerSocket> server_socket,
                        HttpServer::Delegate* delegate)
-    : server_socket_(std::move(server_socket)),
-      delegate_(delegate),
-      last_id_(0),
-      weak_ptr_factory_(this) {
+    : server_socket_(std::move(server_socket)), delegate_(delegate) {
   DCHECK(server_socket_);
   // Start accepting connections in next run loop in case when delegate is not
   // ready to get callbacks.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE,
-      base::Bind(&HttpServer::DoAcceptLoop, weak_ptr_factory_.GetWeakPtr()));
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&HttpServer::DoAcceptLoop,
+                                weak_ptr_factory_.GetWeakPtr()));
 }
 
 HttpServer::~HttpServer() = default;
@@ -73,7 +69,7 @@ void HttpServer::AcceptWebSocket(
     const HttpServerRequestInfo& request,
     NetworkTrafficAnnotationTag traffic_annotation) {
   HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
+  if (connection == nullptr)
     return;
   DCHECK(connection->web_socket());
   connection->web_socket()->Accept(request, traffic_annotation);
@@ -81,20 +77,21 @@ void HttpServer::AcceptWebSocket(
 
 void HttpServer::SendOverWebSocket(
     int connection_id,
-    const std::string& data,
+    base::StringPiece data,
     NetworkTrafficAnnotationTag traffic_annotation) {
   HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
+  if (connection == nullptr)
     return;
   DCHECK(connection->web_socket());
-  connection->web_socket()->Send(data, traffic_annotation);
+  connection->web_socket()->Send(
+      data, WebSocketFrameHeader::OpCodeEnum::kOpCodeText, traffic_annotation);
 }
 
 void HttpServer::SendRaw(int connection_id,
                          const std::string& data,
                          NetworkTrafficAnnotationTag traffic_annotation) {
   HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
+  if (connection == nullptr)
     return;
 
   bool writing_in_progress = !connection->write_buf()->IsEmpty();
@@ -152,8 +149,8 @@ void HttpServer::Close(int connection_id) {
   // connection. Instead of referencing connection with ID all the time,
   // destroys the connection in next run loop to make sure any pending
   // callbacks in the call stack return.
-  base::ThreadTaskRunnerHandle::Get()->DeleteSoon(FROM_HERE,
-                                                  connection.release());
+  base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+      FROM_HERE, connection.release());
 }
 
 int HttpServer::GetLocalAddress(IPEndPoint* address) {
@@ -176,8 +173,8 @@ void HttpServer::DoAcceptLoop() {
   int rv;
   do {
     rv = server_socket_->Accept(&accepted_socket_,
-                                base::Bind(&HttpServer::OnAcceptCompleted,
-                                           weak_ptr_factory_.GetWeakPtr()));
+                                base::BindOnce(&HttpServer::OnAcceptCompleted,
+                                               weak_ptr_factory_.GetWeakPtr()));
     if (rv == ERR_IO_PENDING)
       return;
     rv = HandleAcceptResult(rv);
@@ -216,10 +213,9 @@ void HttpServer::DoReadLoop(HttpConnection* connection) {
     }
 
     rv = connection->socket()->Read(
-        read_buf,
-        read_buf->RemainingCapacity(),
-        base::Bind(&HttpServer::OnReadCompleted,
-                   weak_ptr_factory_.GetWeakPtr(), connection->id()));
+        read_buf, read_buf->RemainingCapacity(),
+        base::BindOnce(&HttpServer::OnReadCompleted,
+                       weak_ptr_factory_.GetWeakPtr(), connection->id()));
     if (rv == ERR_IO_PENDING)
       return;
     rv = HandleReadResult(connection, rv);
@@ -257,7 +253,8 @@ int HttpServer::HandleReadResult(HttpConnection* connection, int rv) {
         Close(connection->id());
         return ERR_CONNECTION_CLOSED;
       }
-      delegate_->OnWebSocketMessage(connection->id(), message);
+      if (result == WebSocket::FRAME_OK_FINAL)
+        delegate_->OnWebSocketMessage(connection->id(), std::move(message));
       if (HasClosedConnection(connection))
         return ERR_CONNECTION_CLOSED;
       continue;
@@ -280,7 +277,8 @@ int HttpServer::HandleReadResult(HttpConnection* connection, int rv) {
     // Sets peer address if exists.
     connection->socket()->GetPeerAddress(&request.peer);
 
-    if (request.HasHeaderValue("connection", "upgrade")) {
+    if (request.HasHeaderValue("connection", "upgrade") &&
+        request.HasHeaderValue("upgrade", "websocket")) {
       connection->SetWebSocket(std::make_unique<WebSocket>(this, connection));
       read_buf->DidConsume(pos);
       delegate_->OnWebSocketRequest(connection->id(), request);
@@ -326,9 +324,9 @@ void HttpServer::DoWriteLoop(HttpConnection* connection,
   while (rv == OK && write_buf->GetSizeToWrite() > 0) {
     rv = connection->socket()->Write(
         write_buf, write_buf->GetSizeToWrite(),
-        base::Bind(&HttpServer::OnWriteCompleted,
-                   weak_ptr_factory_.GetWeakPtr(), connection->id(),
-                   traffic_annotation),
+        base::BindOnce(&HttpServer::OnWriteCompleted,
+                       weak_ptr_factory_.GetWeakPtr(), connection->id(),
+                       traffic_annotation),
         traffic_annotation);
     if (rv == ERR_IO_PENDING || rv == OK)
       return;

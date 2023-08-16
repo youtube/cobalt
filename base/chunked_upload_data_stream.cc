@@ -1,10 +1,10 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/chunked_upload_data_stream.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/memory/ptr_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -26,13 +26,9 @@ ChunkedUploadDataStream::Writer::Writer(
     base::WeakPtr<ChunkedUploadDataStream> upload_data_stream)
     : upload_data_stream_(upload_data_stream) {}
 
-ChunkedUploadDataStream::ChunkedUploadDataStream(int64_t identifier)
-    : UploadDataStream(true, identifier),
-      read_index_(0),
-      read_offset_(0),
-      all_data_appended_(false),
-      read_buffer_len_(0),
-      weak_factory_(this) {}
+ChunkedUploadDataStream::ChunkedUploadDataStream(int64_t identifier,
+                                                 bool has_null_source)
+    : UploadDataStream(/*is_chunked=*/true, has_null_source, identifier) {}
 
 ChunkedUploadDataStream::~ChunkedUploadDataStream() = default;
 
@@ -58,7 +54,7 @@ void ChunkedUploadDataStream::AppendData(
   int result = ReadChunk(read_buffer_.get(), read_buffer_len_);
   // Shouldn't get an error or ERR_IO_PENDING.
   DCHECK_GE(result, 0);
-  read_buffer_ = NULL;
+  read_buffer_ = nullptr;
   read_buffer_len_ = 0;
   OnReadCompleted(result);
 }
@@ -84,7 +80,7 @@ int ChunkedUploadDataStream::ReadInternal(IOBuffer* buf, int buf_len) {
 }
 
 void ChunkedUploadDataStream::ResetInternal() {
-  read_buffer_ = NULL;
+  read_buffer_ = nullptr;
   read_buffer_len_ = 0;
   read_index_ = 0;
   read_offset_ = 0;

@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,9 @@
 #include "base/time/time.h"
 #include "net/der/parse_values.h"
 
-namespace net {
+#include "third_party/boringssl/src/include/openssl/time.h"
 
-namespace der {
+namespace net::der {
 
 namespace {
 
@@ -52,6 +52,69 @@ bool EncodeTimeAsGeneralizedTime(const base::Time& time,
   return true;
 }
 
+bool EncodePosixTimeAsGeneralizedTime(int64_t posix_time,
+                                      GeneralizedTime* generalized_time) {
+  struct tm tmp_tm;
+  if (!OPENSSL_posix_to_tm(posix_time, &tmp_tm)) {
+    return false;
+  }
+
+  generalized_time->year = tmp_tm.tm_year + 1900;
+  generalized_time->month = tmp_tm.tm_mon + 1;
+  generalized_time->day = tmp_tm.tm_mday;
+  generalized_time->hours = tmp_tm.tm_hour;
+  generalized_time->minutes = tmp_tm.tm_min;
+  generalized_time->seconds = tmp_tm.tm_sec;
+  return true;
+}
+
+bool GeneralizedTimeToTime(const der::GeneralizedTime& generalized,
+                           base::Time* result) {
+  base::Time::Exploded exploded = {0};
+  exploded.year = generalized.year;
+  exploded.month = generalized.month;
+  exploded.day_of_month = generalized.day;
+  exploded.hour = generalized.hours;
+  exploded.minute = generalized.minutes;
+  exploded.second = generalized.seconds;
+
+  if (base::Time::FromUTCExploded(exploded, result))
+    return true;
+
+  // Fail on obviously bad dates.
+  if (!exploded.HasValidValues())
+    return false;
+
+  // TODO(mattm): consider consolidating this with
+  // SaturatedTimeFromUTCExploded from cookie_util.cc
+  if (static_cast<int>(generalized.year) > base::Time::kExplodedMaxYear) {
+    *result = base::Time::Max();
+    return true;
+  }
+  if (static_cast<int>(generalized.year) < base::Time::kExplodedMinYear) {
+    *result = base::Time::Min();
+    return true;
+  }
+  return false;
+}
+
+bool GeneralizedTimeToPosixTime(const der::GeneralizedTime& generalized,
+                                int64_t* result) {
+  struct tm tmp_tm;
+  tmp_tm.tm_year = generalized.year - 1900;
+  tmp_tm.tm_mon = generalized.month - 1;
+  tmp_tm.tm_mday = generalized.day;
+  tmp_tm.tm_hour = generalized.hours;
+  tmp_tm.tm_min = generalized.minutes;
+  tmp_tm.tm_sec = generalized.seconds;
+  // BoringSSL POSIX time, like POSIX itself, does not support leap seconds.
+  // Collapse to previous second.
+  if (tmp_tm.tm_sec == 60) {
+    tmp_tm.tm_sec = 59;
+  }
+  return OPENSSL_tm_to_posix(&tmp_tm, result);
+}
+
 bool EncodeGeneralizedTime(const GeneralizedTime& time,
                            uint8_t out[kGeneralizedTimeLength]) {
   if (!WriteFourDigit(time.year, out) || !WriteTwoDigit(time.month, out + 4) ||
@@ -84,6 +147,4 @@ bool EncodeUTCTime(const GeneralizedTime& time, uint8_t out[kUTCTimeLength]) {
   return true;
 }
 
-}  // namespace der
-
-}  // namespace net
+}  // namespace net::der

@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,10 @@
 #include "build/build_config.h"
 #include "net/base/net_errors.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#include <ws2tcpip.h>
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
@@ -20,9 +21,9 @@
 namespace net {
 
 int SetTCPNoDelay(SocketDescriptor fd, bool no_delay) {
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   BOOL on = no_delay ? TRUE : FALSE;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   int on = no_delay ? 1 : 0;
 #endif
   int rv = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
@@ -44,9 +45,9 @@ int SetReuseAddr(SocketDescriptor fd, bool reuse) {
 // provided on Linux prior to 3.9.
 //
 // SO_REUSEPORT is provided in MacOS X and iOS.
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   BOOL boolean_value = reuse ? TRUE : FALSE;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   int boolean_value = reuse ? 1 : 0;
 #endif
   int rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
@@ -58,27 +59,42 @@ int SetReuseAddr(SocketDescriptor fd, bool reuse) {
 int SetSocketReceiveBufferSize(SocketDescriptor fd, int32_t size) {
   int rv = setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   int os_error = WSAGetLastError();
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   int os_error = errno;
 #endif
   int net_error = (rv == -1) ? MapSystemError(os_error) : OK;
-  DCHECK(!rv) << "Could not set socket receive buffer size: " << net_error;
+  if (net_error != OK) {
+    DLOG(ERROR) << "Could not set socket receive buffer size: " << net_error;
+  }
   return net_error;
 }
 
 int SetSocketSendBufferSize(SocketDescriptor fd, int32_t size) {
   int rv = setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   int os_error = WSAGetLastError();
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   int os_error = errno;
 #endif
   int net_error = (rv == -1) ? MapSystemError(os_error) : OK;
-  DCHECK(!rv) << "Could not set socket receive buffer size: " << net_error;
+  if (net_error != OK) {
+    DLOG(ERROR) << "Could not set socket send buffer size: " << net_error;
+  }
   return net_error;
+}
+
+int SetIPv6Only(SocketDescriptor fd, bool ipv6_only) {
+#if BUILDFLAG(IS_WIN)
+  DWORD on = ipv6_only ? 1 : 0;
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+  int on = ipv6_only ? 1 : 0;
+#endif
+  int rv = setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
+                      reinterpret_cast<const char*>(&on), sizeof(on));
+  return rv == -1 ? MapSystemError(errno) : OK;
 }
 
 }  // namespace net

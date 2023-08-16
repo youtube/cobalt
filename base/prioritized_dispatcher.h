@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 
 #include <vector>
 
-#include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/base/priority_queue.h"
 
@@ -57,7 +56,7 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   class Job {
    public:
     // Note: PrioritizedDispatcher will never delete a Job.
-    virtual ~Job() {}
+    virtual ~Job() = default;
     // Called when the dispatcher starts the job. Once the job finishes, it must
     // call OnJobFinished.
     virtual void Start() = 0;
@@ -70,6 +69,8 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   // Creates a dispatcher enforcing |limits| on number of running jobs.
   explicit PrioritizedDispatcher(const Limits& limits);
 
+  PrioritizedDispatcher(const PrioritizedDispatcher&) = delete;
+  PrioritizedDispatcher& operator=(const PrioritizedDispatcher&) = delete;
   ~PrioritizedDispatcher();
 
   size_t num_running_jobs() const { return num_running_jobs_; }
@@ -132,9 +133,7 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   // another job cannot be started.
   std::vector<size_t> max_running_jobs_;
   // Total number of running jobs.
-  size_t num_running_jobs_;
-
-  DISALLOW_COPY_AND_ASSIGN(PrioritizedDispatcher);
+  size_t num_running_jobs_ = 0;
 };
 
 }  // namespace net

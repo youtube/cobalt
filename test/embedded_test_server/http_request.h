@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,10 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
+#include "net/ssl/ssl_info.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -35,12 +36,15 @@ enum HttpMethod {
   METHOD_OPTIONS,
 };
 
-// Represents a HTTP request. Since it can be big, use scoped_ptr to pass it
-// instead of copying. However, the struct is copyable so tests can save and
+// Represents a HTTP request. Since it can be big, `use std::unique_ptr` to pass
+// it instead of copying. However, the struct is copyable so tests can save and
 // examine a HTTP request.
 struct HttpRequest {
   struct CaseInsensitiveStringComparator {
-    bool operator()(const std::string& left, const std::string& right) const {
+    // Allow using StringPiece instead of string for `find()`.
+    using is_transparent = void;
+
+    bool operator()(base::StringPiece left, base::StringPiece right) const {
       return base::CompareCaseInsensitiveASCII(left, right) < 0;
     }
   };
@@ -55,14 +59,21 @@ struct HttpRequest {
   // Returns a GURL as a convenience to extract the path and query strings.
   GURL GetURL() const;
 
-  std::string relative_url;  // Starts with '/'. Example: "/test?query=foo"
+  // The request target. For most methods, this will start with '/', e.g.,
+  // "/test?query=foo". If `method` is `METHOD_OPTIONS`, it may also be "*". If
+  // `method` is `METHOD_CONNECT`, it will instead be a string like
+  // "example.com:443".
+  std::string relative_url;
   GURL base_url;
-  HttpMethod method;
+  // The HTTP method. If unknown, this will be `METHOD_UNKNOWN` and the actual
+  // method will be in `method_string`.
+  HttpMethod method = METHOD_UNKNOWN;
   std::string method_string;
   std::string all_headers;
   HeaderMap headers;
   std::string content;
-  bool has_content;
+  bool has_content = false;
+  absl::optional<SSLInfo> ssl_info;
 };
 
 // Parses the input data and produces a valid HttpRequest object. If there is
@@ -92,10 +103,14 @@ class HttpRequestParser {
   };
 
   HttpRequestParser();
+
+  HttpRequestParser(const HttpRequestParser&) = delete;
+  HttpRequestParser& operator=(const HttpRequestParser&) = delete;
+
   ~HttpRequestParser();
 
   // Adds chunk of data into the internal buffer.
-  void ProcessChunk(const base::StringPiece& data);
+  void ProcessChunk(base::StringPiece data);
 
   // Parses the http request (including data - if provided).
   // If returns ACCEPTED, then it means that the whole request has been found
@@ -108,9 +123,11 @@ class HttpRequestParser {
   // another request.
   std::unique_ptr<HttpRequest> GetRequest();
 
- private:
-  HttpMethod GetMethodType(const std::string& token) const;
+  // Returns `METHOD_UNKNOWN` if `token` is not a recognized method. Methods are
+  // case-sensitive.
+  static HttpMethod GetMethodType(base::StringPiece token);
 
+ private:
   // Parses headers and returns ACCEPTED if whole request was parsed. Otherwise
   // returns WAITING.
   ParseResult ParseHeaders();
@@ -126,14 +143,12 @@ class HttpRequestParser {
 
   std::unique_ptr<HttpRequest> http_request_;
   std::string buffer_;
-  size_t buffer_position_;  // Current position in the internal buffer.
-  State state_;
+  size_t buffer_position_ = 0;  // Current position in the internal buffer.
+  State state_ = STATE_HEADERS;
   // Content length of the request currently being parsed.
-  size_t declared_content_length_;
+  size_t declared_content_length_ = 0;
 
   std::unique_ptr<HttpChunkedDecoder> chunked_decoder_;
-
-  DISALLOW_COPY_AND_ASSIGN(HttpRequestParser);
 };
 
 }  // namespace test_server

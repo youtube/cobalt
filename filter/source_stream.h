@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,7 @@
 
 #include <string>
 
-#include "base/callback.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
@@ -22,15 +20,18 @@ class IOBuffer;
 class NET_EXPORT_PRIVATE SourceStream {
  public:
   enum SourceType {
-#define SOURCE_STREAM_TYPE(label) TYPE_##label,
-#include "net/filter/source_stream_type_list.h"
-#undef SOURCE_STREAM_TYPE
-    // Used for UMA.
-    TYPE_MAX,
+    TYPE_BROTLI,
+    TYPE_DEFLATE,
+    TYPE_GZIP,
+    TYPE_UNKNOWN,
+    TYPE_NONE,
   };
 
   // |type| is the type of the SourceStream.
   explicit SourceStream(SourceType type);
+
+  SourceStream(const SourceStream&) = delete;
+  SourceStream& operator=(const SourceStream&) = delete;
 
   virtual ~SourceStream();
 
@@ -54,12 +55,16 @@ class NET_EXPORT_PRIVATE SourceStream {
   // logging.
   virtual std::string Description() const = 0;
 
+  // Returns true if there may be more bytes to read in this source stream.
+  // This is not a guarantee that there are more bytes (in the case that
+  // the stream doesn't know).  However, if this returns false, then the stream
+  // is guaranteed to be complete.
+  virtual bool MayHaveMoreBytes() const = 0;
+
   SourceType type() const { return type_; }
 
  private:
   SourceType type_;
-
-  DISALLOW_COPY_AND_ASSIGN(SourceStream);
 };
 
 }  // namespace net

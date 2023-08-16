@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,26 +7,29 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+
+#include <memory>
 #include <utility>
 
-#include "base/callback_helpers.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop_current.h"
 #include "base/posix/eintr_wrapper.h"
-#include "base/trace_event/trace_event.h"
+#include "base/task/current_thread.h"
 #include "build/build_config.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/sockaddr_storage.h"
 #include "net/base/trace_constants.h"
+#include "net/base/tracing.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
-#if defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA)
 #include <poll.h>
 #include <sys/ioctl.h>
-#endif  // OS_FUCHSIA
+#endif  // BUILDFLAG(IS_FUCHSIA)
 
 namespace net {
 
@@ -69,10 +72,7 @@ SocketPosix::SocketPosix()
     : socket_fd_(kInvalidSocket),
       accept_socket_watcher_(FROM_HERE),
       read_socket_watcher_(FROM_HERE),
-      read_buf_len_(0),
-      write_socket_watcher_(FROM_HERE),
-      write_buf_len_(0),
-      waiting_connect_(false) {}
+      write_socket_watcher_(FROM_HERE) {}
 
 SocketPosix::~SocketPosix() {
   Close();
@@ -90,7 +90,7 @@ int SocketPosix::Open(int address_family) {
       SOCK_STREAM,
       address_family == AF_UNIX ? 0 : IPPROTO_TCP);
   if (socket_fd_ < 0) {
-    PLOG(ERROR) << "CreatePlatformSocket() returned an error, errno=" << errno;
+    PLOG(ERROR) << "CreatePlatformSocket() failed";
     return MapSystemError(errno);
   }
 
@@ -129,7 +129,10 @@ int SocketPosix::AdoptUnconnectedSocket(SocketDescriptor socket) {
 }
 
 SocketDescriptor SocketPosix::ReleaseConnectedSocket() {
-  StopWatchingAndCleanUp();
+  // It's not safe to release a socket with a pending write.
+  DCHECK(!write_buf_);
+
+  StopWatchingAndCleanUp(false /* close_socket */);
   SocketDescriptor socket_fd = socket_fd_;
   socket_fd_ = kInvalidSocket;
   return socket_fd;
@@ -141,7 +144,7 @@ int SocketPosix::Bind(const SockaddrStorage& address) {
 
   int rv = bind(socket_fd_, address.addr, address.addr_len);
   if (rv < 0) {
-    PLOG(ERROR) << "bind() returned an error, errno=" << errno;
+    PLOG(ERROR) << "bind() failed";
     return MapSystemError(errno);
   }
 
@@ -155,7 +158,7 @@ int SocketPosix::Listen(int backlog) {
 
   int rv = listen(socket_fd_, backlog);
   if (rv < 0) {
-    PLOG(ERROR) << "listen() returned an error, errno=" << errno;
+    PLOG(ERROR) << "listen() failed";
     return MapSystemError(errno);
   }
 
@@ -174,10 +177,10 @@ int SocketPosix::Accept(std::unique_ptr<SocketPosix>* socket,
   if (rv != ERR_IO_PENDING)
     return rv;
 
-  if (!base::MessageLoopCurrentForIO::Get()->WatchFileDescriptor(
+  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_READ,
           &accept_socket_watcher_, this)) {
-    PLOG(ERROR) << "WatchFileDescriptor failed on accept, errno " << errno;
+    PLOG(ERROR) << "WatchFileDescriptor failed on accept";
     return MapSystemError(errno);
   }
 
@@ -199,10 +202,10 @@ int SocketPosix::Connect(const SockaddrStorage& address,
   if (rv != ERR_IO_PENDING)
     return rv;
 
-  if (!base::MessageLoopCurrentForIO::Get()->WatchFileDescriptor(
+  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_WRITE,
           &write_socket_watcher_, this)) {
-    PLOG(ERROR) << "WatchFileDescriptor failed on connect, errno " << errno;
+    PLOG(ERROR) << "WatchFileDescriptor failed on connect";
     return MapSystemError(errno);
   }
 
@@ -236,7 +239,6 @@ bool SocketPosix::IsConnected() const {
   if (socket_fd_ == kInvalidSocket || waiting_connect_)
     return false;
 
-#if !defined(OS_FUCHSIA)
   // Checks if connection is alive.
   char c;
   int rv = HANDLE_EINTR(recv(socket_fd_, &c, 1, MSG_PEEK));
@@ -246,31 +248,6 @@ bool SocketPosix::IsConnected() const {
     return false;
 
   return true;
-
-#else   // OS_FUCHSIA
-  // Fuchsia currently doesn't support MSG_PEEK flag in recv(), so the code
-  // above doesn't work on Fuchsia. IsConnected() must return true if the
-  // connection is alive or if it was terminated but there is still data pending
-  // in the incoming buffer.
-  //   1. Check if the connection is alive using poll(POLLRDHUP).
-  //   2. If closed, then use ioctl(FIONREAD) to check if there is data to be
-  //   read.
-  // TODO(crbug.com/887587): Remove once MSG_PEEK is implemented on Fuchsia.
-  struct pollfd pollfd;
-  pollfd.fd = socket_fd_;
-  pollfd.events = POLLRDHUP;
-  pollfd.revents = 0;
-  const int poll_result = HANDLE_EINTR(poll(&pollfd, 1, 0));
-
-  if (poll_result == 1) {
-    int bytes_available;
-    int ioctl_result =
-        HANDLE_EINTR(ioctl(socket_fd_, FIONREAD, &bytes_available));
-    return ioctl_result == 0 && bytes_available > 0;
-  }
-
-  return poll_result == 0;
-#endif  // OS_FUCHSIA
 }
 
 bool SocketPosix::IsConnectedAndIdle() const {
@@ -279,7 +256,6 @@ bool SocketPosix::IsConnectedAndIdle() const {
   if (socket_fd_ == kInvalidSocket || waiting_connect_)
     return false;
 
-#if !defined(OS_FUCHSIA)
   // Check if connection is alive and we haven't received any data
   // unexpectedly.
   char c;
@@ -290,21 +266,6 @@ bool SocketPosix::IsConnectedAndIdle() const {
     return false;
 
   return true;
-
-#else   // OS_FUCHSIA
-  // Fuchsia currently doesn't support MSG_PEEK flag in recv(), so the code
-  // above doesn't work on Fuchsia. Use poll(POLLIN) to check state of the
-  // socket. POLLIN is signaled if the socket is readable or if it was closed by
-  // the peer, i.e. the socket is connected and idle if and only if POLLIN is
-  // not signaled.
-  // TODO(crbug.com/887587): Remove once MSG_PEEK is implemented.
-  struct pollfd pollfd;
-  pollfd.fd = socket_fd_;
-  pollfd.events = POLLIN;
-  pollfd.revents = 0;
-  const int poll_result = HANDLE_EINTR(poll(&pollfd, 1, 0));
-  return poll_result == 0;
-#endif  // OS_FUCHSIA
 }
 
 int SocketPosix::Read(IOBuffer* buf,
@@ -312,9 +273,9 @@ int SocketPosix::Read(IOBuffer* buf,
                       CompletionOnceCallback callback) {
   // Use base::Unretained() is safe here because OnFileCanReadWithoutBlocking()
   // won't be called if |this| is gone.
-  int rv =
-      ReadIfReady(buf, buf_len,
-                  base::Bind(&SocketPosix::RetryRead, base::Unretained(this)));
+  int rv = ReadIfReady(
+      buf, buf_len,
+      base::BindOnce(&SocketPosix::RetryRead, base::Unretained(this)));
   if (rv == ERR_IO_PENDING) {
     read_buf_ = buf;
     read_buf_len_ = buf_len;
@@ -337,10 +298,10 @@ int SocketPosix::ReadIfReady(IOBuffer* buf,
   if (rv != ERR_IO_PENDING)
     return rv;
 
-  if (!base::MessageLoopCurrentForIO::Get()->WatchFileDescriptor(
+  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_READ,
           &read_socket_watcher_, this)) {
-    PLOG(ERROR) << "WatchFileDescriptor failed on read, errno " << errno;
+    PLOG(ERROR) << "WatchFileDescriptor failed on read";
     return MapSystemError(errno);
   }
 
@@ -387,10 +348,10 @@ int SocketPosix::WaitForWrite(IOBuffer* buf,
   DCHECK(!callback.is_null());
   DCHECK_LT(0, buf_len);
 
-  if (!base::MessageLoopCurrentForIO::Get()->WatchFileDescriptor(
+  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_WRITE,
           &write_socket_watcher_, this)) {
-    PLOG(ERROR) << "WatchFileDescriptor failed on write, errno " << errno;
+    PLOG(ERROR) << "WatchFileDescriptor failed on write";
     return MapSystemError(errno);
   }
 
@@ -422,7 +383,7 @@ int SocketPosix::GetPeerAddress(SockaddrStorage* address) const {
 
 void SocketPosix::SetPeerAddress(const SockaddrStorage& address) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  // |peer_address_| will be non-NULL if Connect() has been called. Unless
+  // |peer_address_| will be non-nullptr if Connect() has been called. Unless
   // Close() is called to reset the internal state, a second call to Connect()
   // is not allowed.
   // Please note that we don't allow a second Connect() even if the previous
@@ -430,24 +391,18 @@ void SocketPosix::SetPeerAddress(const SockaddrStorage& address) {
   // connection attempt failed results in unspecified behavior according to
   // POSIX.
   DCHECK(!peer_address_);
-  peer_address_.reset(new SockaddrStorage(address));
+  peer_address_ = std::make_unique<SockaddrStorage>(address);
 }
 
 bool SocketPosix::HasPeerAddress() const {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return peer_address_ != NULL;
+  return peer_address_ != nullptr;
 }
 
 void SocketPosix::Close() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  StopWatchingAndCleanUp();
-
-  if (socket_fd_ != kInvalidSocket) {
-    if (IGNORE_EINTR(close(socket_fd_)) < 0)
-      PLOG(ERROR) << "close() returned an error, errno=" << errno;
-    socket_fd_ = kInvalidSocket;
-  }
+  StopWatchingAndCleanUp(true /* close_socket */);
 }
 
 void SocketPosix::DetachFromThread() {
@@ -455,7 +410,7 @@ void SocketPosix::DetachFromThread() {
 }
 
 void SocketPosix::OnFileCanReadWithoutBlocking(int fd) {
-  TRACE_EVENT0(kNetTracingCategory,
+  TRACE_EVENT0(NetTracingCategory(),
                "SocketPosix::OnFileCanReadWithoutBlocking");
   if (!accept_callback_.is_null()) {
     AcceptCompleted();
@@ -482,7 +437,7 @@ int SocketPosix::DoAccept(std::unique_ptr<SocketPosix>* socket) {
   if (new_socket < 0)
     return MapAcceptError(errno);
 
-  std::unique_ptr<SocketPosix> accepted_socket(new SocketPosix);
+  auto accepted_socket = std::make_unique<SocketPosix>();
   int rv = accepted_socket->AdoptConnectedSocket(new_socket, new_peer_address);
   if (rv != OK)
     return rv;
@@ -499,7 +454,7 @@ void SocketPosix::AcceptCompleted() {
 
   bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
-  accept_socket_ = NULL;
+  accept_socket_ = nullptr;
   std::move(accept_callback_).Run(rv);
 }
 
@@ -543,7 +498,7 @@ void SocketPosix::RetryRead(int rv) {
   if (rv == OK) {
     rv = ReadIfReady(
         read_buf_.get(), read_buf_len_,
-        base::Bind(&SocketPosix::RetryRead, base::Unretained(this)));
+        base::BindOnce(&SocketPosix::RetryRead, base::Unretained(this)));
     if (rv == ERR_IO_PENDING)
       return;
   }
@@ -561,7 +516,7 @@ void SocketPosix::ReadCompleted() {
 }
 
 int SocketPosix::DoWrite(IOBuffer* buf, int buf_len) {
-#if defined(OS_LINUX) || defined(OS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   // Disable SIGPIPE for this write. Although Chromium globally disables
   // SIGPIPE, the net stack may be used in other consumers which do not do
   // this. MSG_NOSIGNAL is a Linux-only API. On OS X, this is a setsockopt on
@@ -580,12 +535,12 @@ void SocketPosix::WriteCompleted() {
 
   bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
-  write_buf_ = NULL;
+  write_buf_.reset();
   write_buf_len_ = 0;
   std::move(write_callback_).Run(rv);
 }
 
-void SocketPosix::StopWatchingAndCleanUp() {
+void SocketPosix::StopWatchingAndCleanUp(bool close_socket) {
   bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
   ok = read_socket_watcher_.StopWatchingFileDescriptor();
@@ -593,13 +548,23 @@ void SocketPosix::StopWatchingAndCleanUp() {
   ok = write_socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
 
+  // These needs to be done after the StopWatchingFileDescriptor() calls, but
+  // before deleting the write buffer.
+  if (close_socket) {
+    if (socket_fd_ != kInvalidSocket) {
+      if (IGNORE_EINTR(close(socket_fd_)) < 0)
+        DPLOG(ERROR) << "close() failed";
+      socket_fd_ = kInvalidSocket;
+    }
+  }
+
   if (!accept_callback_.is_null()) {
-    accept_socket_ = NULL;
+    accept_socket_ = nullptr;
     accept_callback_.Reset();
   }
 
   if (!read_callback_.is_null()) {
-    read_buf_ = NULL;
+    read_buf_.reset();
     read_buf_len_ = 0;
     read_callback_.Reset();
   }
@@ -607,7 +572,7 @@ void SocketPosix::StopWatchingAndCleanUp() {
   read_if_ready_callback_.Reset();
 
   if (!write_callback_.is_null()) {
-    write_buf_ = NULL;
+    write_buf_.reset();
     write_buf_len_ = 0;
     write_callback_.Reset();
   }

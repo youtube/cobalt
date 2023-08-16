@@ -1,16 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/websockets/websocket_frame.h"
 
 #include <stddef.h>
-#include <algorithm>
+#include <string.h>
 
 #include "base/big_endian.h"
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/rand_util.h"
-#include "net/base/io_buffer.h"
+#include "base/ranges/algorithm.h"
+#include "build/build_config.h"
 #include "net/base/net_errors.h"
 
 namespace net {
@@ -20,9 +21,8 @@ namespace {
 // GCC (and Clang) can transparently use vector ops. Only try to do this on
 // architectures where we know it works, otherwise gcc will attempt to emulate
 // the vector ops, which is unlikely to be efficient.
-#if defined(COMPILER_GCC) &&                                          \
-    (defined(ARCH_CPU_X86_FAMILY) || defined(ARCH_CPU_ARM_FAMILY)) && \
-    !defined(OS_NACL)
+#if defined(COMPILER_GCC) && \
+    (defined(ARCH_CPU_X86_FAMILY) || defined(ARCH_CPU_ARM_FAMILY))
 
 using PackedMaskType = uint32_t __attribute__((vector_size(16)));
 
@@ -31,8 +31,7 @@ using PackedMaskType = uint32_t __attribute__((vector_size(16)));
 using PackedMaskType = size_t;
 
 #endif  // defined(COMPILER_GCC) &&
-        // (defined(ARCH_CPU_X86_FAMILY) || defined(ARCH_CPU_ARM_FAMILY)) &&
-        // !defined(OS_NACL)
+        // (defined(ARCH_CPU_X86_FAMILY) || defined(ARCH_CPU_ARM_FAMILY))
 
 const uint8_t kFinalBit = 0x80;
 const uint8_t kReserved1Bit = 0x40;
@@ -70,6 +69,7 @@ void WebSocketFrameHeader::CopyFrom(const WebSocketFrameHeader& source) {
   reserved3 = source.reserved3;
   opcode = source.opcode;
   masked = source.masked;
+  masking_key = source.masking_key;
   payload_length = source.payload_length;
 }
 
@@ -78,7 +78,7 @@ WebSocketFrame::WebSocketFrame(WebSocketFrameHeader::OpCode opcode)
 
 WebSocketFrame::~WebSocketFrame() = default;
 
-WebSocketFrameChunk::WebSocketFrameChunk() : final_chunk(false) {}
+WebSocketFrameChunk::WebSocketFrameChunk() = default;
 
 WebSocketFrameChunk::~WebSocketFrameChunk() = default;
 
@@ -157,9 +157,7 @@ int WriteWebSocketFrameHeader(const WebSocketFrameHeader& header,
   // Writes "masking key" field, if needed.
   if (header.masked) {
     DCHECK(masking_key);
-    std::copy(masking_key->key,
-              masking_key->key + WebSocketFrameHeader::kMaskingKeyLength,
-              buffer + buffer_index);
+    base::ranges::copy(masking_key->key, buffer + buffer_index);
     buffer_index += WebSocketFrameHeader::kMaskingKeyLength;
   } else {
     DCHECK(!masking_key);

@@ -1,11 +1,10 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/websocket_endpoint_lock_manager.h"
 
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/check.h"
 #include "base/run_loop.h"
 #include "base/time/time.h"
 #include "net/base/ip_address.h"
@@ -13,9 +12,8 @@
 #include "net/log/net_log_with_source.h"
 #include "net/socket/next_proto.h"
 #include "net/socket/socket_test_util.h"
-#include "net/socket/stream_socket.h"
 #include "net/test/gtest_util.h"
-#include "net/test/test_with_scoped_task_environment.h"
+#include "net/test/test_with_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,78 +24,9 @@ namespace net {
 
 namespace {
 
-// A StreamSocket implementation with no functionality at all.
-// TODO(ricea): If you need to use this in another file, please move it to
-// socket_test_util.h.
-class FakeStreamSocket : public StreamSocket {
- public:
-  FakeStreamSocket() = default;
-
-  // StreamSocket implementation
-  int Connect(CompletionOnceCallback callback) override { return ERR_FAILED; }
-
-  void Disconnect() override { return; }
-
-  bool IsConnected() const override { return false; }
-
-  bool IsConnectedAndIdle() const override { return false; }
-
-  int GetPeerAddress(IPEndPoint* address) const override { return ERR_FAILED; }
-
-  int GetLocalAddress(IPEndPoint* address) const override { return ERR_FAILED; }
-
-  const NetLogWithSource& NetLog() const override { return net_log_; }
-
-  bool WasEverUsed() const override { return false; }
-
-  bool WasAlpnNegotiated() const override { return false; }
-
-  NextProto GetNegotiatedProtocol() const override { return kProtoUnknown; }
-
-  bool GetSSLInfo(SSLInfo* ssl_info) override { return false; }
-
-  void GetConnectionAttempts(ConnectionAttempts* out) const override {
-    out->clear();
-  }
-
-  void ClearConnectionAttempts() override {}
-
-  void AddConnectionAttempts(const ConnectionAttempts& attempts) override {}
-
-  int64_t GetTotalReceivedBytes() const override {
-    NOTIMPLEMENTED();
-    return 0;
-  }
-
-  void ApplySocketTag(const SocketTag& tag) override {}
-
-  // Socket implementation
-  int Read(IOBuffer* buf,
-           int buf_len,
-           CompletionOnceCallback callback) override {
-    return ERR_FAILED;
-  }
-
-  int Write(IOBuffer* buf,
-            int buf_len,
-            CompletionOnceCallback callback,
-            const NetworkTrafficAnnotationTag& traffic_annotation) override {
-    return ERR_FAILED;
-  }
-
-  int SetReceiveBufferSize(int32_t size) override { return ERR_FAILED; }
-
-  int SetSendBufferSize(int32_t size) override { return ERR_FAILED; }
-
- private:
-  NetLogWithSource net_log_;
-
-  DISALLOW_COPY_AND_ASSIGN(FakeStreamSocket);
-};
-
 class FakeWaiter : public WebSocketEndpointLockManager::Waiter {
  public:
-  FakeWaiter() : called_(false) {}
+  FakeWaiter() = default;
 
   void GotEndpointLock() override {
     CHECK(!called_);
@@ -107,7 +36,7 @@ class FakeWaiter : public WebSocketEndpointLockManager::Waiter {
   bool called() const { return called_; }
 
  private:
-  bool called_;
+  bool called_ = false;
 };
 
 class BlockingWaiter : public FakeWaiter {
@@ -127,7 +56,7 @@ class BlockingWaiter : public FakeWaiter {
   base::RunLoop run_loop_;
 };
 
-class WebSocketEndpointLockManagerTest : public TestWithScopedTaskEnvironment {
+class WebSocketEndpointLockManagerTest : public TestWithTaskEnvironment {
  protected:
   WebSocketEndpointLockManagerTest() {
     websocket_endpoint_lock_manager_.SetUnlockDelayForTesting(
@@ -230,67 +159,64 @@ TEST_F(WebSocketEndpointLockManagerTest,
   UnlockDummyEndpoint(1);
 }
 
-TEST_F(WebSocketEndpointLockManagerTest, RememberSocketWorks) {
+TEST_F(WebSocketEndpointLockManagerTest, LockReleaserWorks) {
   FakeWaiter waiters[2];
-  FakeStreamSocket dummy_socket;
   EXPECT_THAT(websocket_endpoint_lock_manager_.LockEndpoint(DummyEndpoint(),
                                                             &waiters[0]),
               IsOk());
   EXPECT_EQ(ERR_IO_PENDING, websocket_endpoint_lock_manager_.LockEndpoint(
                                 DummyEndpoint(), &waiters[1]));
 
-  websocket_endpoint_lock_manager_.RememberSocket(&dummy_socket,
-                                                  DummyEndpoint());
-  websocket_endpoint_lock_manager_.UnlockSocket(&dummy_socket);
+  {
+    WebSocketEndpointLockManager::LockReleaser releaser(
+        &websocket_endpoint_lock_manager_, DummyEndpoint());
+  }
   RunUntilIdle();
   EXPECT_TRUE(waiters[1].called());
 
   UnlockDummyEndpoint(1);
 }
 
-// UnlockEndpoint() should cause any sockets remembered for this endpoint
-// to be forgotten.
-TEST_F(WebSocketEndpointLockManagerTest, SocketAssociationForgottenOnUnlock) {
+// UnlockEndpoint() should cause any LockReleasers for this endpoint to be
+// unregistered.
+TEST_F(WebSocketEndpointLockManagerTest, LockReleaserForgottenOnUnlock) {
   FakeWaiter waiter;
-  FakeStreamSocket dummy_socket;
 
   EXPECT_THAT(
       websocket_endpoint_lock_manager_.LockEndpoint(DummyEndpoint(), &waiter),
       IsOk());
-  websocket_endpoint_lock_manager_.RememberSocket(&dummy_socket,
-                                                  DummyEndpoint());
+  WebSocketEndpointLockManager::LockReleaser releaser(
+      &websocket_endpoint_lock_manager_, DummyEndpoint());
   websocket_endpoint_lock_manager_.UnlockEndpoint(DummyEndpoint());
   RunUntilIdle();
   EXPECT_TRUE(websocket_endpoint_lock_manager_.IsEmpty());
 }
 
 // When ownership of the endpoint is passed to a new waiter, the new waiter can
-// call RememberSocket() again.
-TEST_F(WebSocketEndpointLockManagerTest, NextWaiterCanCallRememberSocketAgain) {
+// construct another LockReleaser.
+TEST_F(WebSocketEndpointLockManagerTest, NextWaiterCanCreateLockReleaserAgain) {
   FakeWaiter waiters[2];
-  FakeStreamSocket dummy_sockets[2];
   EXPECT_THAT(websocket_endpoint_lock_manager_.LockEndpoint(DummyEndpoint(),
                                                             &waiters[0]),
               IsOk());
   EXPECT_EQ(ERR_IO_PENDING, websocket_endpoint_lock_manager_.LockEndpoint(
                                 DummyEndpoint(), &waiters[1]));
 
-  websocket_endpoint_lock_manager_.RememberSocket(&dummy_sockets[0],
-                                                  DummyEndpoint());
+  WebSocketEndpointLockManager::LockReleaser releaser1(
+      &websocket_endpoint_lock_manager_, DummyEndpoint());
   websocket_endpoint_lock_manager_.UnlockEndpoint(DummyEndpoint());
   RunUntilIdle();
   EXPECT_TRUE(waiters[1].called());
-  websocket_endpoint_lock_manager_.RememberSocket(&dummy_sockets[1],
-                                                  DummyEndpoint());
+  WebSocketEndpointLockManager::LockReleaser releaser2(
+      &websocket_endpoint_lock_manager_, DummyEndpoint());
 
   UnlockDummyEndpoint(1);
 }
 
-// Calling UnlockSocket() after UnlockEndpoint() does nothing.
+// Destroying LockReleaser after UnlockEndpoint() does nothing.
 TEST_F(WebSocketEndpointLockManagerTest,
-       UnlockSocketAfterUnlockEndpointDoesNothing) {
+       DestroyLockReleaserAfterUnlockEndpointDoesNothing) {
   FakeWaiter waiters[3];
-  FakeStreamSocket dummy_socket;
 
   EXPECT_THAT(websocket_endpoint_lock_manager_.LockEndpoint(DummyEndpoint(),
                                                             &waiters[0]),
@@ -299,10 +225,11 @@ TEST_F(WebSocketEndpointLockManagerTest,
                                 DummyEndpoint(), &waiters[1]));
   EXPECT_EQ(ERR_IO_PENDING, websocket_endpoint_lock_manager_.LockEndpoint(
                                 DummyEndpoint(), &waiters[2]));
-  websocket_endpoint_lock_manager_.RememberSocket(&dummy_socket,
-                                                  DummyEndpoint());
-  websocket_endpoint_lock_manager_.UnlockEndpoint(DummyEndpoint());
-  websocket_endpoint_lock_manager_.UnlockSocket(&dummy_socket);
+  {
+    WebSocketEndpointLockManager::LockReleaser releaser(
+        &websocket_endpoint_lock_manager_, DummyEndpoint());
+    websocket_endpoint_lock_manager_.UnlockEndpoint(DummyEndpoint());
+  }
   RunUntilIdle();
   EXPECT_TRUE(waiters[1].called());
   EXPECT_FALSE(waiters[2].called());
@@ -338,7 +265,7 @@ TEST_F(WebSocketEndpointLockManagerTest, UnlockEndpointIsDelayed) {
   // applied. Instead it just verifies that the whole thing took >=1ms. 1ms is
   // easily enough for normal compiles even on Android, so the fact that there
   // is a delay is still checked on every platform.
-  const base::TimeDelta unlock_delay = base::TimeDelta::FromMilliseconds(1);
+  const base::TimeDelta unlock_delay = base::Milliseconds(1);
   websocket_endpoint_lock_manager_.SetUnlockDelayForTesting(unlock_delay);
   FakeWaiter fake_waiter;
   BlockingWaiter blocking_waiter;

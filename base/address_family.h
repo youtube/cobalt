@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,8 +29,9 @@ enum {
   HOST_RESOLVER_LOOPBACK_ONLY = 1 << 1,
   // Indicate the address family was set because no IPv6 support was detected.
   HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6 = 1 << 2,
-  // The resolver should only invoke getaddrinfo, not DnsClient.
-  HOST_RESOLVER_SYSTEM_ONLY = 1 << 3
+  // The resolver should avoid resolving using multicast protocols (LLMNR or
+  // mDNS).
+  HOST_RESOLVER_AVOID_MULTICAST = 1 << 3
 };
 typedef int HostResolverFlags;
 
@@ -39,6 +40,9 @@ NET_EXPORT AddressFamily GetAddressFamily(const IPAddress& address);
 
 // Maps the given AddressFamily to either AF_INET, AF_INET6 or AF_UNSPEC.
 NET_EXPORT int ConvertAddressFamily(AddressFamily address_family);
+
+// Maps AF_INET, AF_INET6 or AF_UNSPEC to an AddressFamily.
+NET_EXPORT AddressFamily ToAddressFamily(int family);
 
 }  // namespace net
 

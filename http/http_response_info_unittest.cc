@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "net/test/cert_test_util.h"
 #include "net/test/ct_test_util.h"
 #include "net/test/test_data_directory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -21,7 +22,7 @@ namespace {
 class HttpResponseInfoTest : public testing::Test {
  protected:
   void SetUp() override {
-    response_info_.headers = new HttpResponseHeaders("");
+    response_info_.headers = base::MakeRefCounted<HttpResponseHeaders>("");
   }
 
   void PickleAndRestore(const HttpResponseInfo& response_info,
@@ -184,6 +185,35 @@ TEST_F(HttpResponseInfoTest, LegacyKeyExchangeInfoUnknown) {
   EXPECT_EQ(0, restored_response_info.ssl_info.key_exchange_group);
 }
 
+// Test that peer_signature_algorithm is preserved.
+TEST_F(HttpResponseInfoTest, PeerSignatureAlgorithm) {
+  response_info_.ssl_info.cert =
+      ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem");
+  response_info_.ssl_info.peer_signature_algorithm =
+      0x0804;  // rsa_pss_rsae_sha256
+  net::HttpResponseInfo restored_response_info;
+  PickleAndRestore(response_info_, &restored_response_info);
+  EXPECT_EQ(0x0804, restored_response_info.ssl_info.peer_signature_algorithm);
+}
+
+// Test that encrypted_client_hello is preserved.
+TEST_F(HttpResponseInfoTest, EncryptedClientHello) {
+  response_info_.ssl_info.cert =
+      ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem");
+  {
+    net::HttpResponseInfo restored_response_info;
+    PickleAndRestore(response_info_, &restored_response_info);
+    EXPECT_FALSE(restored_response_info.ssl_info.encrypted_client_hello);
+  }
+
+  response_info_.ssl_info.encrypted_client_hello = true;
+  {
+    net::HttpResponseInfo restored_response_info;
+    PickleAndRestore(response_info_, &restored_response_info);
+    EXPECT_TRUE(restored_response_info.ssl_info.encrypted_client_hello);
+  }
+}
+
 // Tests that cache entries loaded over SSLv3 (no longer supported) are dropped.
 TEST_F(HttpResponseInfoTest, FailsInitFromPickleWithSSLV3) {
   // A valid certificate is needed for ssl_info.is_valid() to be true.
@@ -212,6 +242,39 @@ TEST_F(HttpResponseInfoTest, FailsInitFromPickleWithSSLV3) {
   net::HttpResponseInfo restored_ssl3_response_info;
   EXPECT_FALSE(
       restored_ssl3_response_info.InitFromPickle(ssl3_pickle, &truncated));
+}
+
+// Test that `dns_aliases` is preserved.
+TEST_F(HttpResponseInfoTest, DnsAliases) {
+  response_info_.dns_aliases = {"alias1", "alias2", "alias3"};
+  net::HttpResponseInfo restored_response_info;
+  PickleAndRestore(response_info_, &restored_response_info);
+  EXPECT_THAT(restored_response_info.dns_aliases,
+              testing::ElementsAre("alias1", "alias2", "alias3"));
+}
+
+// Test that an empty `dns_aliases` is preserved and doesn't throw an error.
+TEST_F(HttpResponseInfoTest, EmptyDnsAliases) {
+  response_info_.dns_aliases = {};
+  net::HttpResponseInfo restored_response_info;
+  PickleAndRestore(response_info_, &restored_response_info);
+  EXPECT_TRUE(restored_response_info.dns_aliases.empty());
+}
+
+// Test that `browser_run_id` is preserved.
+TEST_F(HttpResponseInfoTest, BrowserRunId) {
+  response_info_.browser_run_id = 1;
+  net::HttpResponseInfo restored_response_info;
+  PickleAndRestore(response_info_, &restored_response_info);
+  EXPECT_EQ(1, restored_response_info.browser_run_id);
+}
+
+// Test that an empty `browser_run_id` is preserved and doesn't throw an error.
+TEST_F(HttpResponseInfoTest, EmptyBrowserRunId) {
+  response_info_.browser_run_id = absl::nullopt;
+  net::HttpResponseInfo restored_response_info;
+  PickleAndRestore(response_info_, &restored_response_info);
+  EXPECT_FALSE(restored_response_info.browser_run_id.has_value());
 }
 
 }  // namespace

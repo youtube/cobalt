@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -56,6 +56,10 @@ int SetSocketReceiveBufferSize(SocketDescriptor fd, int32_t size);
 // SetSocketSendBufferSize() sets the SO_SNDBUF socket option. On error
 // returns a net error code, on success returns OK.
 int SetSocketSendBufferSize(SocketDescriptor fd, int32_t size);
+
+// SetIPv6Only() sets the IPV6_V6ONLY socket option. On error
+// returns a net error code, on success returns OK.
+int SetIPv6Only(SocketDescriptor fd, bool ipv6_only);
 
 }  // namespace net
 

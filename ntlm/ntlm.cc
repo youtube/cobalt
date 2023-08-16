@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include <string.h>
 
+#include "base/check_op.h"
 #include "base/containers/span.h"
-#include "base/logging.h"
-#include "base/md5.h"
+#include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "net/base/net_string_util.h"
 #include "net/ntlm/ntlm_buffer_writer.h"
@@ -18,8 +18,7 @@
 #include "third_party/boringssl/src/include/openssl/md4.h"
 #include "third_party/boringssl/src/include/openssl/md5.h"
 
-namespace net {
-namespace ntlm {
+namespace net::ntlm {
 
 namespace {
 
@@ -106,7 +105,7 @@ void UpdateTargetInfoAvPairs(bool is_mic_enabled,
                            std::move(channel_bindings_hash));
 
     // Convert the SPN to little endian unicode.
-    base::string16 spn16 = base::UTF8ToUTF16(spn);
+    std::u16string spn16 = base::UTF8ToUTF16(spn);
     NtlmBufferWriter spn_writer(spn16.length() * 2);
     bool spn_writer_result =
         spn_writer.WriteUtf16String(spn16) && spn_writer.IsEndOfBuffer();
@@ -171,7 +170,7 @@ void Create3DesKeysFromNtlmHash(
   memset(keys.data() + 19, 0, 5);
 }
 
-void GenerateNtlmHashV1(const base::string16& password,
+void GenerateNtlmHashV1(const std::u16string& password,
                         base::span<uint8_t, kNtlmHashLen> hash) {
   size_t length = password.length() * 2;
   NtlmBufferWriter writer(length);
@@ -216,7 +215,7 @@ void GenerateResponseDesl(base::span<const uint8_t, kNtlmHashLen> hash,
 }
 
 void GenerateNtlmResponseV1(
-    const base::string16& password,
+    const std::u16string& password,
     base::span<const uint8_t, kChallengeLen> server_challenge,
     base::span<uint8_t, kResponseLenV1> ntlm_response) {
   uint8_t ntlm_hash[kNtlmHashLen];
@@ -225,7 +224,7 @@ void GenerateNtlmResponseV1(
 }
 
 void GenerateResponsesV1(
-    const base::string16& password,
+    const std::u16string& password,
     base::span<const uint8_t, kChallengeLen> server_challenge,
     base::span<uint8_t, kResponseLenV1> lm_response,
     base::span<uint8_t, kResponseLenV1> ntlm_response) {
@@ -257,7 +256,7 @@ void GenerateSessionHashV1WithSessionSecurity(
 }
 
 void GenerateNtlmResponseV1WithSessionSecurity(
-    const base::string16& password,
+    const std::u16string& password,
     base::span<const uint8_t, kChallengeLen> server_challenge,
     base::span<const uint8_t, kChallengeLen> client_challenge,
     base::span<uint8_t, kResponseLenV1> ntlm_response) {
@@ -276,7 +275,7 @@ void GenerateNtlmResponseV1WithSessionSecurity(
 }
 
 void GenerateResponsesV1WithSessionSecurity(
-    const base::string16& password,
+    const std::u16string& password,
     base::span<const uint8_t, kChallengeLen> server_challenge,
     base::span<const uint8_t, kChallengeLen> client_challenge,
     base::span<uint8_t, kResponseLenV1> lm_response,
@@ -286,13 +285,18 @@ void GenerateResponsesV1WithSessionSecurity(
                                             client_challenge, ntlm_response);
 }
 
-void GenerateNtlmHashV2(const base::string16& domain,
-                        const base::string16& username,
-                        const base::string16& password,
+void GenerateNtlmHashV2(const std::u16string& domain,
+                        const std::u16string& username,
+                        const std::u16string& password,
                         base::span<uint8_t, kNtlmHashLen> v2_hash) {
   // NOTE: According to [MS-NLMP] Section 3.3.2 only the username and not the
   // domain is uppercased.
-  base::string16 upper_username;
+
+  // TODO(https://crbug.com/1051924): Using a locale-sensitive upper casing
+  // algorithm is problematic. A more predictable approach would be to only
+  // uppercase ASCII characters, so the hash does not change depending on the
+  // user's locale.
+  std::u16string upper_username;
   bool result = ToUpper(username, &upper_username);
   DCHECK(result);
 
@@ -333,7 +337,7 @@ void GenerateNtlmProofV2(
     base::span<const uint8_t> target_info,
     base::span<uint8_t, kNtlmProofLenV2> v2_proof) {
   bssl::ScopedHMAC_CTX ctx;
-  HMAC_Init_ex(ctx.get(), v2_hash.data(), kNtlmHashLen, EVP_md5(), NULL);
+  HMAC_Init_ex(ctx.get(), v2_hash.data(), kNtlmHashLen, EVP_md5(), nullptr);
   DCHECK_EQ(kNtlmProofLenV2, HMAC_size(ctx.get()));
   HMAC_Update(ctx.get(), server_challenge.data(), kChallengeLen);
   HMAC_Update(ctx.get(), v2_input.data(), kProofInputLenV2);
@@ -379,7 +383,7 @@ void GenerateMicV2(base::span<const uint8_t, kSessionKeyLenV2> session_key,
                    base::span<uint8_t, kMicLenV2> mic) {
   bssl::ScopedHMAC_CTX ctx;
   HMAC_Init_ex(ctx.get(), session_key.data(), kSessionKeyLenV2, EVP_md5(),
-               NULL);
+               nullptr);
   DCHECK_EQ(kMicLenV2, HMAC_size(ctx.get()));
   HMAC_Update(ctx.get(), negotiate_msg.data(), negotiate_msg.size());
   HMAC_Update(ctx.get(), challenge_msg.data(), challenge_msg.size());
@@ -402,5 +406,4 @@ NET_EXPORT_PRIVATE std::vector<uint8_t> GenerateUpdatedTargetInfo(
   return WriteUpdatedTargetInfo(updated_av_pairs, updated_target_info_len);
 }
 
-}  // namespace ntlm
-}  // namespace net
+}  // namespace net::ntlm

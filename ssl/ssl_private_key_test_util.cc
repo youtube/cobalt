@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 
 #include <vector>
 
-#include "base/bind.h"
 #include "base/containers/span.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/run_loop.h"
 #include "crypto/openssl_util.h"
@@ -87,10 +87,6 @@ void TestSSLPrivateKeyMatches(SSLPrivateKey* key, const std::string& pkcs8) {
 
   // Test all supported algorithms.
   std::vector<uint16_t> preferences = key->GetAlgorithmPreferences();
-
-  // To support TLS 1.1 and earlier, RSA keys must implicitly support MD5-SHA1,
-  // despite not being advertised.
-  preferences.push_back(SSL_SIGN_RSA_PKCS1_MD5_SHA1);
 
   for (uint16_t algorithm : preferences) {
     SCOPED_TRACE(

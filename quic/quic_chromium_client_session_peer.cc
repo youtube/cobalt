@@ -1,14 +1,13 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/quic/quic_chromium_client_session_peer.h"
 
-#include "net/quic/quic_chromium_client_session.h"
+#include "net/dns/public/secure_dns_policy.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 
-namespace net {
-namespace test {
+namespace net::test {
 // static
 void QuicChromiumClientSessionPeer::SetHostname(
     QuicChromiumClientSession* session,
@@ -16,7 +15,9 @@ void QuicChromiumClientSessionPeer::SetHostname(
   quic::QuicServerId server_id(hostname,
                                session->session_key_.server_id().port(),
                                session->session_key_.privacy_mode());
-  session->session_key_ = QuicSessionKey(server_id, SocketTag());
+  session->session_key_ =
+      QuicSessionKey(server_id, SocketTag(), NetworkAnonymizationKey(),
+                     SecureDnsPolicy::kAllow, /*require_dns_https_alpn=*/false);
 }
 
 // static
@@ -32,14 +33,24 @@ uint64_t QuicChromiumClientSessionPeer::GetPushedAndUnclaimedBytesCount(
 }
 
 // static
-QuicChromiumClientStream*
-QuicChromiumClientSessionPeer::CreateOutgoingDynamicStream(
+QuicChromiumClientStream* QuicChromiumClientSessionPeer::CreateOutgoingStream(
     QuicChromiumClientSession* session) {
-  return session->ShouldCreateOutgoingDynamicStream()
+  return session->ShouldCreateOutgoingBidirectionalStream()
              ? session->CreateOutgoingReliableStreamImpl(
                    TRAFFIC_ANNOTATION_FOR_TESTS)
              : nullptr;
 }
 
-}  // namespace test
-}  // namespace net
+// static
+bool QuicChromiumClientSessionPeer::GetSessionGoingAway(
+    QuicChromiumClientSession* session) {
+  return session->going_away_;
+}
+
+// static
+MigrationCause QuicChromiumClientSessionPeer::GetCurrentMigrationCause(
+    QuicChromiumClientSession* session) {
+  return session->current_migration_cause_;
+}
+
+}  // namespace net::test

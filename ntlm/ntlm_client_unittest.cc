@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 #include <string>
 
 #include "base/containers/span.h"
-#include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "net/ntlm/ntlm.h"
@@ -16,8 +15,7 @@
 #include "net/ntlm/ntlm_test_data.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-namespace ntlm {
+namespace net::ntlm {
 
 namespace {
 
@@ -25,8 +23,8 @@ std::vector<uint8_t> GenerateAuthMsg(const NtlmClient& client,
                                      base::span<const uint8_t> challenge_msg) {
   return client.GenerateAuthenticateMessage(
       test::kNtlmDomain, test::kUser, test::kPassword, test::kHostnameAscii,
-      test::kChannelBindings, test::kNtlmSpn, test::kClientTimestamp,
-      test::kClientChallenge, challenge_msg);
+      reinterpret_cast<const char*>(test::kChannelBindings), test::kNtlmSpn,
+      test::kClientTimestamp, test::kClientChallenge, challenge_msg);
 }
 
 std::vector<uint8_t> GenerateAuthMsg(const NtlmClient& client,
@@ -66,7 +64,7 @@ bool ReadStringPayload(NtlmBufferReader* reader, std::string* str) {
 // Reads bytes from a payload and assigns them to a string16. This makes
 // no assumptions about the underlying encoding. This will fail if there
 // are an odd number of bytes in the payload.
-bool ReadString16Payload(NtlmBufferReader* reader, base::string16* str) {
+bool ReadString16Payload(NtlmBufferReader* reader, std::u16string* str) {
   SecurityBuffer sec_buf;
   if (!reader->ReadSecurityBuffer(&sec_buf) || (sec_buf.length % 2 != 0))
     return false;
@@ -81,9 +79,34 @@ bool ReadString16Payload(NtlmBufferReader* reader, base::string16* str) {
   }
 #endif
 
-  str->assign(reinterpret_cast<const base::char16*>(raw.data()),
-              raw.size() / 2);
+  str->assign(reinterpret_cast<const char16_t*>(raw.data()), raw.size() / 2);
   return true;
+}
+
+void MakeV2ChallengeMessage(size_t target_info_len, std::vector<uint8_t>* out) {
+  static const size_t kChallengeV2HeaderLen = 56;
+
+  // Leave room for the AV_PAIR header and the EOL pair.
+  size_t server_name_len = target_info_len - kAvPairHeaderLen * 2;
+
+  // See [MS-NLP] Section 2.2.1.2.
+  NtlmBufferWriter challenge(kChallengeV2HeaderLen + target_info_len);
+  ASSERT_TRUE(challenge.WriteMessageHeader(MessageType::kChallenge));
+  ASSERT_TRUE(
+      challenge.WriteSecurityBuffer(SecurityBuffer(0, 0)));  // target name
+  ASSERT_TRUE(challenge.WriteFlags(NegotiateFlags::kTargetInfo));
+  ASSERT_TRUE(challenge.WriteZeros(kChallengeLen));  // server challenge
+  ASSERT_TRUE(challenge.WriteZeros(8));              // reserved
+  ASSERT_TRUE(challenge.WriteSecurityBuffer(
+      SecurityBuffer(kChallengeV2HeaderLen, target_info_len)));  // target info
+  ASSERT_TRUE(challenge.WriteZeros(8));                          // version
+  ASSERT_EQ(kChallengeV2HeaderLen, challenge.GetCursor());
+  ASSERT_TRUE(challenge.WriteAvPair(
+      AvPair(TargetInfoAvId::kServerName,
+             std::vector<uint8_t>(server_name_len, 'a'))));
+  ASSERT_TRUE(challenge.WriteAvPairTerminator());
+  ASSERT_TRUE(challenge.IsEndOfBuffer());
+  *out = challenge.Pass();
 }
 
 }  // namespace
@@ -278,7 +301,7 @@ TEST(NtlmClientTest, Type3UnicodeWithSessionSecuritySpecTest) {
   std::vector<uint8_t> result = GenerateAuthMsg(client, test::kChallengeMsgV1);
 
   ASSERT_FALSE(result.empty());
-  ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgSpecResponseV1),
+  ASSERT_EQ(std::size(test::kExpectedAuthenticateMsgSpecResponseV1),
             result.size());
   ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgSpecResponseV1,
                       result.data(), result.size()));
@@ -354,9 +377,9 @@ TEST(NtlmClientTest, ClientDoesNotDowngradeSessionSecurity) {
   ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseWithV1SS, actual_ntlm_response,
                       kResponseLenV1));
 
-  base::string16 domain;
-  base::string16 username;
-  base::string16 hostname;
+  std::u16string domain;
+  std::u16string username;
+  std::u16string hostname;
   ASSERT_TRUE(ReadString16Payload(&reader, &domain));
   ASSERT_EQ(test::kNtlmDomain, domain);
   ASSERT_TRUE(ReadString16Payload(&reader, &username));
@@ -393,7 +416,7 @@ TEST(NtlmClientTest, VerifyNegotiateMessageV2) {
 
   std::vector<uint8_t> result = client.GetNegotiateMessage();
   ASSERT_FALSE(result.empty());
-  ASSERT_EQ(base::size(test::kExpectedNegotiateMsg), result.size());
+  ASSERT_EQ(std::size(test::kExpectedNegotiateMsg), result.size());
   ASSERT_EQ(0,
             memcmp(test::kExpectedNegotiateMsg, result.data(), result.size()));
 }
@@ -405,7 +428,7 @@ TEST(NtlmClientTest, VerifyAuthenticateMessageV2) {
   std::vector<uint8_t> result =
       GenerateAuthMsg(client, test::kChallengeMsgFromSpecV2);
   ASSERT_FALSE(result.empty());
-  ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgSpecResponseV2),
+  ASSERT_EQ(std::size(test::kExpectedAuthenticateMsgSpecResponseV2),
             result.size());
   ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgSpecResponseV2,
                       result.data(), result.size()));
@@ -422,11 +445,27 @@ TEST(NtlmClientTest,
   std::vector<uint8_t> result = GenerateAuthMsg(client, test::kChallengeMsgV1);
   ASSERT_FALSE(result.empty());
 
-  ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgToOldV1ChallegeV2),
+  ASSERT_EQ(std::size(test::kExpectedAuthenticateMsgToOldV1ChallegeV2),
             result.size());
   ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgToOldV1ChallegeV2,
                       result.data(), result.size()));
 }
 
-}  // namespace ntlm
-}  // namespace net
+// When the challenge message's target info is maximum size, adding new AV_PAIRs
+// to the response will overflow SecurityBuffer. Test that we handle this.
+TEST(NtlmClientTest, AvPairsOverflow) {
+  {
+    NtlmClient client(NtlmFeatures(/*enable_NTLMv2=*/true));
+    std::vector<uint8_t> short_challenge;
+    ASSERT_NO_FATAL_FAILURE(MakeV2ChallengeMessage(0xfff, &short_challenge));
+    EXPECT_FALSE(GenerateAuthMsg(client, short_challenge).empty());
+  }
+  {
+    NtlmClient client(NtlmFeatures(/*enable_NTLMv2=*/true));
+    std::vector<uint8_t> long_challenge;
+    ASSERT_NO_FATAL_FAILURE(MakeV2ChallengeMessage(0xffff, &long_challenge));
+    EXPECT_TRUE(GenerateAuthMsg(client, long_challenge).empty());
+  }
+}
+
+}  // namespace net::ntlm

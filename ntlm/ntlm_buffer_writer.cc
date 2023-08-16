@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,15 +8,14 @@
 
 #include <limits>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 
-namespace net {
-namespace ntlm {
+namespace net::ntlm {
 
 NtlmBufferWriter::NtlmBufferWriter(size_t buffer_len)
-    : buffer_(buffer_len, 0), cursor_(0) {}
+    : buffer_(buffer_len, 0) {}
 
 NtlmBufferWriter::~NtlmBufferWriter() = default;
 
@@ -108,17 +107,17 @@ bool NtlmBufferWriter::WriteUtf8String(const std::string& str) {
   return WriteBytes(base::as_bytes(base::make_span(str)));
 }
 
-bool NtlmBufferWriter::WriteUtf16AsUtf8String(const base::string16& str) {
+bool NtlmBufferWriter::WriteUtf16AsUtf8String(const std::u16string& str) {
   std::string utf8 = base::UTF16ToUTF8(str);
   return WriteUtf8String(utf8);
 }
 
 bool NtlmBufferWriter::WriteUtf8AsUtf16String(const std::string& str) {
-  base::string16 unicode = base::UTF8ToUTF16(str);
+  std::u16string unicode = base::UTF8ToUTF16(str);
   return WriteUtf16String(unicode);
 }
 
-bool NtlmBufferWriter::WriteUtf16String(const base::string16& str) {
+bool NtlmBufferWriter::WriteUtf16String(const std::u16string& str) {
   if (str.size() > std::numeric_limits<size_t>::max() / 2)
     return false;
 
@@ -179,5 +178,4 @@ void NtlmBufferWriter::SetCursor(size_t cursor) {
   cursor_ = cursor;
 }
 
-}  // namespace ntlm
-}  // namespace net
+}  // namespace net::ntlm

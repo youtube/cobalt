@@ -1,16 +1,17 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_SOCKADDR_STORAGE_H_
 #define NET_BASE_SOCKADDR_STORAGE_H_
 
+#include "base/memory/raw_ptr_exclusion.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <sys/socket.h>
 #include <sys/types.h>
 #endif
@@ -27,7 +28,9 @@ struct NET_EXPORT SockaddrStorage {
 
   struct sockaddr_storage addr_storage;
   socklen_t addr_len;
-  struct sockaddr* const addr;
+  // This field is not a raw_ptr<> because of a rewriter issue not adding .get()
+  // in reinterpret_cast.
+  RAW_PTR_EXCLUSION struct sockaddr* const addr;
 };
 
 }  // namespace net

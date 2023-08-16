@@ -1,15 +1,24 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/dns/dns_hosts.h"
 
+#include <string>
+#include <utility>
+
+#include "base/check.h"
+#include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/logging.h"
-#include "base/macros.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
+#include "base/trace_event/memory_usage_estimator.h"
+#include "build/build_config.h"
+#include "net/base/cronet_buildflags.h"
+#include "net/base/url_util.h"
 #include "net/dns/dns_util.h"
+#include "url/url_canon.h"
 
 using base::StringPiece;
 
@@ -26,9 +35,10 @@ class HostsParser {
       : text_(text),
         data_(text.data()),
         end_(text.size()),
-        pos_(0),
-        token_is_ip_(false),
         comma_mode_(comma_mode) {}
+
+  HostsParser(const HostsParser&) = delete;
+  HostsParser& operator=(const HostsParser&) = delete;
 
   // Advances to the next token (IP or hostname).  Returns whether another
   // token was available.  |token_is_ip| and |token| can be used to find out
@@ -59,7 +69,7 @@ class HostsParser {
           }
 
           // If comma_mode_ is COMMA_IS_TOKEN, fall through:
-          FALLTHROUGH;
+          [[fallthrough]];
 
         default: {
           size_t token_start = pos_;
@@ -80,9 +90,7 @@ class HostsParser {
   // Fast-forwards the parser to the next line.  Should be called if an IP
   // address doesn't parse, to avoid wasting time tokenizing hostnames that
   // will be ignored.
-  void SkipRestOfLine() {
-    pos_ = text_.find("\n", pos_);
-  }
+  void SkipRestOfLine() { pos_ = text_.find("\n", pos_); }
 
   // Returns whether the last-parsed token is an IP address (true) or a
   // hostname (false).
@@ -121,13 +129,11 @@ class HostsParser {
   const char* data_;
   const size_t end_;
 
-  size_t pos_;
+  size_t pos_ = 0;
   StringPiece token_;
-  bool token_is_ip_;
+  bool token_is_ip_ = false;
 
   const ParseHostsCommaMode comma_mode_;
-
-  DISALLOW_COPY_AND_ASSIGN(HostsParser);
 };
 
 void ParseHostsWithCommaMode(const std::string& contents,
@@ -156,10 +162,18 @@ void ParseHostsWithCommaMode(const std::string& contents,
         }
       }
     } else {
-      DnsHostsKey key(parser.token().as_string(), family);
-      if (!IsValidDNSDomain(key.first))
+      url::CanonHostInfo canonicalization_info;
+      std::string canonicalized_host =
+          CanonicalizeHost(parser.token(), &canonicalization_info);
+
+      // Skip if token is invalid for host canonicalization, or if it
+      // canonicalizes as an IP address.
+      if (canonicalization_info.family != url::CanonHostInfo::NEUTRAL)
         continue;
-      key.first = base::ToLowerASCII(key.first);
+
+      DnsHostsKey key(std::move(canonicalized_host), family);
+      if (!IsCanonicalizedHostCompliant(key.first))
+        continue;
       IPAddress* mapped_ip = &(*dns_hosts)[key];
       if (mapped_ip->empty())
         *mapped_ip = ip;
@@ -178,7 +192,7 @@ void ParseHostsWithCommaModeForTesting(const std::string& contents,
 
 void ParseHosts(const std::string& contents, DnsHosts* dns_hosts) {
   ParseHostsCommaMode comma_mode;
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
   // Mac OS X allows commas to separate hostnames.
   comma_mode = PARSE_HOSTS_COMMA_IS_WHITESPACE;
 #else
@@ -187,31 +201,52 @@ void ParseHosts(const std::string& contents, DnsHosts* dns_hosts) {
 #endif
 
   ParseHostsWithCommaMode(contents, dns_hosts, comma_mode);
+
+  // TODO(crbug.com/1377305): Remove this when we have enough data.
+  base::UmaHistogramCounts100000("Net.DNS.DnsHosts.Count", dns_hosts->size());
+
+#if !BUILDFLAG(CRONET_BUILD)
+  // Cronet disables tracing and doesn't provide an implementation of
+  // base::trace_event::EstimateMemoryUsage for DnsHosts. Having this
+  // conditional is preferred over a fake implementation to avoid reporting fake
+  // metrics.
+  base::UmaHistogramMemoryKB(
+      "Net.DNS.DnsHosts.EstimateMemoryUsage",
+      base::trace_event::EstimateMemoryUsage(*dns_hosts));
+#endif  // !BUILDFLAG(CRONET_BUILD)
 }
 
-bool ParseHostsFile(const base::FilePath& path, DnsHosts* dns_hosts) {
+DnsHostsParser::~DnsHostsParser() = default;
+
+DnsHostsFileParser::DnsHostsFileParser(base::FilePath hosts_file_path)
+    : hosts_file_path_(std::move(hosts_file_path)) {}
+
+DnsHostsFileParser::~DnsHostsFileParser() = default;
+
+bool DnsHostsFileParser::ParseHosts(DnsHosts* dns_hosts) const {
   dns_hosts->clear();
   // Missing file indicates empty HOSTS.
-  if (!base::PathExists(path))
+  if (!base::PathExists(hosts_file_path_))
     return true;
 
   int64_t size;
-  if (!base::GetFileSize(path, &size))
+  if (!base::GetFileSize(hosts_file_path_, &size))
     return false;
-
-  UMA_HISTOGRAM_COUNTS_1M("AsyncDNS.HostsSize",
-                          static_cast<base::HistogramBase::Sample>(size));
 
   // Reject HOSTS files larger than |kMaxHostsSize| bytes.
   const int64_t kMaxHostsSize = 1 << 25;  // 32MB
+
+  // TODO(crbug.com/1377305): Remove this when we have enough data.
+  base::UmaHistogramCustomCounts("Net.DNS.DnsHosts.FileSize", size, 1,
+                                 kMaxHostsSize * 2, 50);
   if (size > kMaxHostsSize)
     return false;
 
   std::string contents;
-  if (!base::ReadFileToString(path, &contents))
+  if (!base::ReadFileToString(hosts_file_path_, &contents))
     return false;
 
-  ParseHosts(contents, dns_hosts);
+  net::ParseHosts(contents, dns_hosts);
   return true;
 }
 

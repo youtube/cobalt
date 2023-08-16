@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.os.Environment;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
+
+import androidx.annotation.GuardedBy;
 
 import org.junit.Assert;
 
@@ -22,25 +23,29 @@ import org.chromium.net.test.util.CertTestUtil;
 
 import java.io.File;
 
-/** A simple file server for java tests.
+/**
+ * A simple file server for java tests.
  *
  * An example use:
- *   EmbeddedTestServer s = EmbeddedTestServer.createAndStartServer(context);
+ * <pre>
+ * EmbeddedTestServer s = EmbeddedTestServer.createAndStartServer(context);
  *
- *   // serve requests...
- *   s.getURL("/foo/bar.txt");
+ * // serve requests...
+ * s.getURL("/foo/bar.txt");
  *
- *   s.stopAndDestroyServer();
+ * s.stopAndDestroyServer();
+ * </pre>
  *
  * Note that this runs net::test_server::EmbeddedTestServer in a service in a separate APK.
  */
 public class EmbeddedTestServer {
-    private static final String TAG = "cr_TestServer";
+    private static final String TAG = "TestServer";
 
     private static final String EMBEDDED_TEST_SERVER_SERVICE =
             "org.chromium.net.test.EMBEDDED_TEST_SERVER_SERVICE";
     private static final long SERVICE_CONNECTION_WAIT_INTERVAL_MS = 5000;
 
+    @GuardedBy("mImplMonitor")
     private IEmbeddedTestServerImpl mImpl;
     private ServiceConnection mConn = new ServiceConnection() {
         @Override
@@ -135,8 +140,7 @@ public class EmbeddedTestServer {
      *          the service at server destruction time.
      *  @param httpsSetting Whether the server should use HTTPS.
      */
-    public void initializeNative(Context context, ServerHTTPSSetting httpsSetting)
-            throws InterruptedException {
+    public void initializeNative(Context context, ServerHTTPSSetting httpsSetting) {
         mContext = context;
 
         Intent intent = new Intent(EMBEDDED_TEST_SERVER_SERVICE);
@@ -148,7 +152,11 @@ public class EmbeddedTestServer {
         synchronized (mImplMonitor) {
             Log.i(TAG, "Waiting for EmbeddedTestServer service connection.");
             while (mImpl == null) {
-                mImplMonitor.wait(SERVICE_CONNECTION_WAIT_INTERVAL_MS);
+                try {
+                    mImplMonitor.wait(SERVICE_CONNECTION_WAIT_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                    // Ignore the InterruptedException. Rely on the outer while loop to re-run.
+                }
                 Log.i(TAG, "Still waiting for EmbeddedTestServer service connection.");
             }
             Log.i(TAG, "EmbeddedTestServer service connected.");
@@ -218,7 +226,7 @@ public class EmbeddedTestServer {
      *
      * @param serverCertificate The type of certificate the server should use.
      */
-    public void setSSLConfig(int serverCertificate) {
+    public void setSSLConfig(@ServerCertificate int serverCertificate) {
         try {
             synchronized (mImplMonitor) {
                 checkServiceLocked();
@@ -271,6 +279,7 @@ public class EmbeddedTestServer {
         }
     }
 
+    @GuardedBy("mImplMonitor")
     private void checkServiceLocked() {
         if (mImpl == null) {
             throw new EmbeddedTestServerFailure("Service disconnected.");
@@ -308,25 +317,6 @@ public class EmbeddedTestServer {
         }
     }
 
-    /** Create and initialize a server that serves files from the provided directory.
-     *
-     *  This handles native object initialization, server configuration, and server initialization.
-     *  On returning, the server is ready for use.
-     *
-     *  @param context The context in which the server will run.
-     *  @param directory The directory from which files should be served. This must be
-     *      Environment.getExternalStorageDirectory().
-     *  @return The created server.
-     */
-    public static EmbeddedTestServer createAndStartFileServer(Context context, File directory)
-            throws InterruptedException {
-        // TODO(jbudorick): Update all callers to use createAndStartServer() directly.
-        if (!directory.equals(Environment.getExternalStorageDirectory())) {
-            throw new IllegalArgumentException("Expected directory to be ExternalStorageDirectory");
-        }
-        return createAndStartServer(context);
-    }
-
     /** Create and initialize a server with the default handlers.
      *
      *  This handles native object initialization, server configuration, and server initialization.
@@ -335,22 +325,7 @@ public class EmbeddedTestServer {
      *  @param context The context in which the server will run.
      *  @return The created server.
      */
-    public static EmbeddedTestServer createAndStartDefaultServer(Context context)
-            throws InterruptedException {
-        // TODO(pkotwicz): Update all callers to use createAndStartServer() directly.
-        return createAndStartServer(context);
-    }
-
-    /** Create and initialize a server with the default handlers.
-     *
-     *  This handles native object initialization, server configuration, and server initialization.
-     *  On returning, the server is ready for use.
-     *
-     *  @param context The context in which the server will run.
-     *  @return The created server.
-     */
-    public static EmbeddedTestServer createAndStartServer(Context context)
-            throws InterruptedException {
+    public static EmbeddedTestServer createAndStartServer(Context context) {
         return createAndStartServerWithPort(context, 0);
     }
 
@@ -363,8 +338,7 @@ public class EmbeddedTestServer {
      *  @param port The port to use for the server, 0 to auto-select an unused port.
      *  @return The created server.
      */
-    public static EmbeddedTestServer createAndStartServerWithPort(Context context, int port)
-            throws InterruptedException {
+    public static EmbeddedTestServer createAndStartServerWithPort(Context context, int port) {
         Assert.assertNotEquals("EmbeddedTestServer should not be created on UiThread, "
                 + "the instantiation will hang forever waiting for tasks to post to UI thread",
                 Looper.getMainLooper(), Looper.myLooper());
@@ -382,7 +356,7 @@ public class EmbeddedTestServer {
      *  @return The created server.
      */
     public static EmbeddedTestServer createAndStartHTTPSServer(
-            Context context, int serverCertificate) throws InterruptedException {
+            Context context, @ServerCertificate int serverCertificate) {
         return createAndStartHTTPSServerWithPort(context, serverCertificate, 0 /* port */);
     }
 
@@ -397,7 +371,7 @@ public class EmbeddedTestServer {
      *  @return The created server.
      */
     public static EmbeddedTestServer createAndStartHTTPSServerWithPort(
-            Context context, int serverCertificate, int port) throws InterruptedException {
+            Context context, @ServerCertificate int serverCertificate, int port) {
         Assert.assertNotEquals("EmbeddedTestServer should not be created on UiThread, "
                         + "the instantiation will hang forever waiting for tasks"
                         + " to post to UI thread",
@@ -417,7 +391,7 @@ public class EmbeddedTestServer {
      *  @return The created server.
      */
     public static <T extends EmbeddedTestServer> T initializeAndStartServer(
-            T server, Context context, int port) throws InterruptedException {
+            T server, Context context, int port) {
         server.initializeNative(context, ServerHTTPSSetting.USE_HTTP);
         server.addDefaultHandlers("");
         if (!server.start(port)) {
@@ -438,8 +412,8 @@ public class EmbeddedTestServer {
      *  @param port The port to use for the server.
      *  @return The created server.
      */
-    public static <T extends EmbeddedTestServer> T initializeAndStartHTTPSServer(T server,
-            Context context, int serverCertificate, int port) throws InterruptedException {
+    public static <T extends EmbeddedTestServer> T initializeAndStartHTTPSServer(
+            T server, Context context, @ServerCertificate int serverCertificate, int port) {
         server.initializeNative(context, ServerHTTPSSetting.USE_HTTPS);
         server.addDefaultHandlers("");
         server.setSSLConfig(serverCertificate);
@@ -520,6 +494,7 @@ public class EmbeddedTestServer {
             synchronized (mImplMonitor) {
                 checkServiceLocked();
                 mImpl.destroy();
+                mImpl = null;
             }
         } catch (RemoteException e) {
             throw new EmbeddedTestServerFailure("Failed to destroy native server.", e);
