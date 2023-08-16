@@ -33,7 +33,11 @@ env:
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
 
 concurrency:
+<<<<<<< HEAD
   group: '${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.sha }}'
+=======
+  group: '${{ github.workflow }}-${{ github.event_name }}-${{ github.event.action }}-${{ inputs.platform }} @ ${{ github.event.pull_request.number || github.sha }}'
+>>>>>>> bdfebab3b15 (Add github.event.action to GA workflow concurrency. (#1280))
   cancel-in-progress: true
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
