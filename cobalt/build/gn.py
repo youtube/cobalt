@@ -68,7 +68,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '-p',
       '--platform',
-      required=True,
+      default='linux-x64x11',
       choices=list(PLATFORMS),
       help='The platform to build.')
   parser.add_argument(
