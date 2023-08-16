@@ -1,13 +1,11 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/sequence_token.h"
 
 #include "base/atomic_sequence_num.h"
-#include "base/lazy_instance.h"
-#include "base/logging.h"
-#include "base/threading/thread_local.h"
+#include "third_party/abseil-cpp/absl/base/attributes.h"
 
 namespace base {
 
@@ -17,11 +15,8 @@ base::AtomicSequenceNumber g_sequence_token_generator;
 
 base::AtomicSequenceNumber g_task_token_generator;
 
-LazyInstance<ThreadLocalPointer<const SequenceToken>>::Leaky
-    tls_current_sequence_token = LAZY_INSTANCE_INITIALIZER;
-
-LazyInstance<ThreadLocalPointer<const TaskToken>>::Leaky
-    tls_current_task_token = LAZY_INSTANCE_INITIALIZER;
+ABSL_CONST_INIT thread_local SequenceToken current_sequence_token;
+ABSL_CONST_INIT thread_local TaskToken current_task_token;
 
 }  // namespace
 
@@ -46,9 +41,7 @@ SequenceToken SequenceToken::Create() {
 }
 
 SequenceToken SequenceToken::GetForCurrentThread() {
-  const SequenceToken* current_sequence_token =
-      tls_current_sequence_token.Get().Get();
-  return current_sequence_token ? *current_sequence_token : SequenceToken();
+  return current_sequence_token;
 }
 
 bool TaskToken::operator==(const TaskToken& other) const {
@@ -68,25 +61,25 @@ TaskToken TaskToken::Create() {
 }
 
 TaskToken TaskToken::GetForCurrentThread() {
-  const TaskToken* current_task_token = tls_current_task_token.Get().Get();
-  return current_task_token ? *current_task_token : TaskToken();
+  return current_task_token;
 }
 
 ScopedSetSequenceTokenForCurrentThread::ScopedSetSequenceTokenForCurrentThread(
     const SequenceToken& sequence_token)
-    : sequence_token_(sequence_token), task_token_(TaskToken::Create()) {
-  DCHECK(!tls_current_sequence_token.Get().Get());
-  DCHECK(!tls_current_task_token.Get().Get());
-  tls_current_sequence_token.Get().Set(&sequence_token_);
-  tls_current_task_token.Get().Set(&task_token_);
-}
+    // The lambdas here exist because invalid tokens don't compare equal, so
+    // passing invalid sequence/task tokens as the third args to AutoReset
+    // constructors doesn't work.
+    : sequence_token_resetter_(&current_sequence_token,
+                               [&sequence_token]() {
+                                 DCHECK(!current_sequence_token.IsValid());
+                                 return sequence_token;
+                               }()),
+      task_token_resetter_(&current_task_token, [] {
+        DCHECK(!current_task_token.IsValid());
+        return TaskToken::Create();
+      }()) {}
 
 ScopedSetSequenceTokenForCurrentThread::
-    ~ScopedSetSequenceTokenForCurrentThread() {
-  DCHECK_EQ(tls_current_sequence_token.Get().Get(), &sequence_token_);
-  DCHECK_EQ(tls_current_task_token.Get().Get(), &task_token_);
-  tls_current_sequence_token.Get().Set(nullptr);
-  tls_current_task_token.Get().Set(nullptr);
-}
+    ~ScopedSetSequenceTokenForCurrentThread() = default;
 
 }  // namespace base

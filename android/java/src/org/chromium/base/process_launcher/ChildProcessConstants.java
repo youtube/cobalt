@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,4 +24,8 @@ public interface ChildProcessConstants {
 
     // Key for the file descriptors that should be mapped in the child process.
     public static final String EXTRA_FILES = "org.chromium.base.process_launcher.extra.extraFiles";
+
+    // Key for the browser package name.
+    public static final String EXTRA_BROWSER_PACKAGE_NAME =
+            "org.chromium.base.process_launcher.extra.browser_package_name";
 }

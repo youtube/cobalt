@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,11 +7,10 @@
 
 #include <utility>
 
+#include "base/check.h"
 #include "base/location.h"
-#include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 
 namespace base {
 
@@ -33,19 +32,22 @@ namespace base {
 template <class T>
 class RefCountedDeleteOnSequence : public subtle::RefCountedThreadSafeBase {
  public:
-  static constexpr subtle::StartRefCountFromZeroTag kRefCountPreference =
-      subtle::kStartRefCountFromZeroTag;
+  using RefCountPreferenceTag = subtle::StartRefCountFromZeroTag;
 
   // A SequencedTaskRunner for the current sequence can be acquired by calling
-  // SequencedTaskRunnerHandle::Get().
-  RefCountedDeleteOnSequence(
+  // SequencedTaskRunner::GetCurrentDefault().
+  explicit RefCountedDeleteOnSequence(
       scoped_refptr<SequencedTaskRunner> owning_task_runner)
-      : subtle::RefCountedThreadSafeBase(T::kRefCountPreference),
+      : subtle::RefCountedThreadSafeBase(subtle::GetRefCountPreference<T>()),
         owning_task_runner_(std::move(owning_task_runner)) {
     DCHECK(owning_task_runner_);
   }
 
-  void AddRef() const { AddRefImpl(T::kRefCountPreference); }
+  RefCountedDeleteOnSequence(const RefCountedDeleteOnSequence&) = delete;
+  RefCountedDeleteOnSequence& operator=(const RefCountedDeleteOnSequence&) =
+      delete;
+
+  void AddRef() const { AddRefImpl(subtle::GetRefCountPreference<T>()); }
 
   void Release() const {
     if (subtle::RefCountedThreadSafeBase::Release())
@@ -81,8 +83,6 @@ class RefCountedDeleteOnSequence : public subtle::RefCountedThreadSafeBase {
   }
 
   const scoped_refptr<SequencedTaskRunner> owning_task_runner_;
-
-  DISALLOW_COPY_AND_ASSIGN(RefCountedDeleteOnSequence);
 };
 
 }  // namespace base

@@ -1,17 +1,16 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_TRACE_EVENT_MEMORY_DUMP_SCHEDULER_H
-#define BASE_TRACE_EVENT_MEMORY_DUMP_SCHEDULER_H
+#ifndef BASE_TRACE_EVENT_MEMORY_DUMP_SCHEDULER_H_
+#define BASE_TRACE_EVENT_MEMORY_DUMP_SCHEDULER_H_
 
 #include <stdint.h>
 
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/callback.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback.h"
 #include "base/trace_event/memory_dump_request_args.h"
 
 namespace base {
@@ -43,6 +42,9 @@ class BASE_EXPORT MemoryDumpScheduler {
 
   static MemoryDumpScheduler* GetInstance();
 
+  MemoryDumpScheduler(const MemoryDumpScheduler&) = delete;
+  MemoryDumpScheduler& operator=(const MemoryDumpScheduler&) = delete;
+
   void Start(Config, scoped_refptr<SequencedTaskRunner> task_runner);
   void Stop();
   bool is_enabled_for_testing() const { return bool(task_runner_); }
@@ -60,17 +62,16 @@ class BASE_EXPORT MemoryDumpScheduler {
   scoped_refptr<SequencedTaskRunner> task_runner_;
 
   // These fields instead are only accessed from within the task runner.
-  uint32_t period_ms_;   // 0 == disabled.
-  uint32_t generation_;  // Used to invalidate outstanding tasks after Stop().
+  uint32_t period_ms_ = 0;  // 0 == disabled.
+  // Used to invalidate outstanding tasks after Stop().
+  uint32_t generation_ = 0;
   uint32_t tick_count_;
   uint32_t light_dump_rate_;
   uint32_t heavy_dump_rate_;
   PeriodicCallback callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(MemoryDumpScheduler);
 };
 
 }  // namespace trace_event
 }  // namespace base
 
-#endif  // BASE_TRACE_EVENT_MEMORY_DUMP_SCHEDULER_H
+#endif  // BASE_TRACE_EVENT_MEMORY_DUMP_SCHEDULER_H_

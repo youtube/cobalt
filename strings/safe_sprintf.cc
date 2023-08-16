@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <limits>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 
 #if !defined(NDEBUG)
@@ -35,7 +35,7 @@
 //        errno = 13 (Access denied)
 //      In most of the anticipated use cases, that's probably the preferred
 //      behavior.
-#include "base/logging.h"
+#include "base/check.h"
 #define DEBUG_CHECK RAW_CHECK
 #else
 #define DEBUG_CHECK(x) do { if (x) { } } while (0)
@@ -117,7 +117,7 @@ class Buffer {
 // MSVS2013's standard library doesn't mark max() as constexpr yet. cl.exe
 // supports static_cast but doesn't really implement constexpr yet so it doesn't
 // complain, but clang does.
-#if __cplusplus >= 201103 && !(defined(__clang__) && defined(OS_WIN))
+#if __cplusplus >= 201103 && !(defined(__clang__) && BUILDFLAG(IS_WIN))
     static_assert(kSSizeMaxConst ==
                       static_cast<size_t>(std::numeric_limits<ssize_t>::max()),
                   "kSSizeMaxConst should be the max value of an ssize_t");
@@ -125,6 +125,9 @@ class Buffer {
     DEBUG_CHECK(size > 0);
     DEBUG_CHECK(size <= kSSizeMax);
   }
+
+  Buffer(const Buffer&) = delete;
+  Buffer& operator=(const Buffer&) = delete;
 
   ~Buffer() {
     // The code calling the constructor guaranteed that there was enough space
@@ -174,7 +177,7 @@ class Buffer {
   // |count_| will also be incremented by the number of bytes that were meant
   // to be emitted. The |pad| character is typically either a ' ' space
   // or a '0' zero, but other non-NUL values are legal.
-  // Returns "false", iff the the |buffer_| filled up (i.e. |count_|
+  // Returns "false", iff the |buffer_| filled up (i.e. |count_|
   // overflowed |size_|) at any time during padding.
   inline bool Pad(char pad, size_t padding, size_t len) {
     DEBUG_CHECK(pad);
@@ -220,8 +223,13 @@ class Buffer {
   // if |pad| is ' '.
   //
   // Returns "false", if the |buffer_| overflowed at any time.
-  bool IToASCII(bool sign, bool upcase, int64_t i, int base,
-                char pad, size_t padding, const char* prefix);
+  bool IToASCII(bool sign,
+                bool upcase,
+                int64_t i,
+                size_t base,
+                char pad,
+                size_t padding,
+                const char* prefix);
 
  private:
   // Increments |count_| by |inc| unless this would cause |count_| to
@@ -260,7 +268,7 @@ class Buffer {
   }
 
   // User-provided buffer that will receive the fully formatted output string.
-  char* buffer_;
+  raw_ptr<char, AllowPtrArithmetic> buffer_;
 
   // Number of bytes that are available in the buffer excluding the trailing
   // NUL byte that will be added by the destructor.
@@ -270,13 +278,15 @@ class Buffer {
   // was sufficiently big. This number always excludes the trailing NUL byte
   // and it is guaranteed to never grow bigger than kSSizeMax-1.
   size_t count_;
-
-  DISALLOW_COPY_AND_ASSIGN(Buffer);
 };
 
-
-bool Buffer::IToASCII(bool sign, bool upcase, int64_t i, int base,
-                      char pad, size_t padding, const char* prefix) {
+bool Buffer::IToASCII(bool sign,
+                      bool upcase,
+                      int64_t i,
+                      size_t base,
+                      char pad,
+                      size_t padding,
+                      const char* prefix) {
   // Sanity check for parameters. None of these should ever fail, but see
   // above for the rationale why we can't call CHECK().
   DEBUG_CHECK(base >= 2);
@@ -294,7 +304,7 @@ bool Buffer::IToASCII(bool sign, bool upcase, int64_t i, int base,
   //   if (sign && i < 0)
   //     prefix = "-";
   //   num = abs(i);
-  int minint = 0;
+  size_t minint = 0;
   uint64_t num;
   if (sign && i < 0) {
     prefix = "-";
@@ -334,7 +344,7 @@ bool Buffer::IToASCII(bool sign, bool upcase, int64_t i, int base,
     }
   } else
     prefix = nullptr;
-  const size_t prefix_length = reverse_prefix - prefix;
+  const size_t prefix_length = static_cast<size_t>(reverse_prefix - prefix);
 
   // Loop until we have converted the entire number. Output at least one
   // character (i.e. '0').
@@ -383,7 +393,8 @@ bool Buffer::IToASCII(bool sign, bool upcase, int64_t i, int base,
       }
     } else {
       started = true;
-      Out((upcase ? kUpCaseHexDigits : kDownCaseHexDigits)[num%base + minint]);
+      Out((upcase ? kUpCaseHexDigits
+                  : kDownCaseHexDigits)[num % base + minint]);
     }
 
     minint = 0;
@@ -407,18 +418,19 @@ bool Buffer::IToASCII(bool sign, bool upcase, int64_t i, int base,
     }
   } while (num || padding || (reverse_prefix > prefix));
 
-  // Conversion to ASCII actually resulted in the digits being in reverse
-  // order. We can't easily generate them in forward order, as we can't tell
-  // the number of characters needed until we are done converting.
-  // So, now, we reverse the string (except for the possible '-' sign).
-  char* front = buffer_ + start;
-  char* back = GetInsertionPoint();
-  while (--back > front) {
-    char ch = *back;
-    *back = *front;
-    *front++ = ch;
+  if (start < size_) {
+    // Conversion to ASCII actually resulted in the digits being in reverse
+    // order. We can't easily generate them in forward order, as we can't tell
+    // the number of characters needed until we are done converting.
+    // So, now, we reverse the string (except for the possible '-' sign).
+    char* front = buffer_ + start;
+    char* back = GetInsertionPoint();
+    while (--back > front) {
+      char ch = *back;
+      *back = *front;
+      *front++ = ch;
+    }
   }
-
   IncrementCount(discarded);
   return !discarded;
 }
@@ -456,13 +468,14 @@ ssize_t SafeSNPrintf(char* buf, size_t sz, const char* fmt, const Arg* args,
         // character from a space ' ' to a zero '0'.
         pad = ch == '0' ? '0' : ' ';
         for (;;) {
+          const size_t digit = static_cast<size_t>(ch - '0');
           // The maximum allowed padding fills all the available address
           // space and leaves just enough space to insert the trailing NUL.
           const size_t max_padding = kSSizeMax - 1;
-          if (padding > max_padding/10 ||
-              10*padding > max_padding - (ch - '0')) {
-            DEBUG_CHECK(padding <= max_padding/10 &&
-                        10*padding <= max_padding - (ch - '0'));
+          if (padding > max_padding / 10 ||
+              10 * padding > max_padding - digit) {
+            DEBUG_CHECK(padding <= max_padding / 10 &&
+                        10 * padding <= max_padding - digit);
             // Integer overflow detected. Skip the rest of the width until
             // we find the format character, then do the normal error handling.
           padding_overflow:
@@ -474,7 +487,7 @@ ssize_t SafeSNPrintf(char* buf, size_t sz, const char* fmt, const Arg* args,
             }
             goto fail_to_expand;
           }
-          padding = 10*padding + ch - '0';
+          padding = 10 * padding + digit;
           if (padding > max_padding) {
             // This doesn't happen for "sane" values of kSSizeMax. But once
             // kSSizeMax gets smaller than about 10, our earlier range checks
@@ -490,7 +503,6 @@ ssize_t SafeSNPrintf(char* buf, size_t sz, const char* fmt, const Arg* args,
             goto format_character_found;
           }
         }
-        break;
       case 'c': {  // Output an ASCII character.
         // Check that there are arguments left to be inserted.
         if (cur_arg >= max_args) {
@@ -552,9 +564,9 @@ ssize_t SafeSNPrintf(char* buf, size_t sz, const char* fmt, const Arg* args,
         } else {
           // Pointer values require an actual pointer or a string.
           if (arg.type == Arg::POINTER) {
-            i = reinterpret_cast<uintptr_t>(arg.ptr);
+            i = static_cast<int64_t>(reinterpret_cast<uintptr_t>(arg.ptr));
           } else if (arg.type == Arg::STRING) {
-            i = reinterpret_cast<uintptr_t>(arg.str);
+            i = static_cast<int64_t>(reinterpret_cast<uintptr_t>(arg.str));
           } else if (arg.type == Arg::INT &&
                      arg.integer.width == sizeof(NULL) &&
                      arg.integer.i == 0) {  // Allow C++'s version of NULL

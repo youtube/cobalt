@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,105 +7,100 @@
 
 #include <memory>
 
+#include "base/base_export.h"
 #include "base/cancelable_callback.h"
-#include "base/debug/task_annotator.h"
-#include "base/macros.h"
+#include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
-#include "base/single_thread_task_runner.h"
-#include "base/task/sequence_manager/associated_thread_id.h"
+#include "base/task/common/task_annotator.h"
 #include "base/task/sequence_manager/thread_controller.h"
+#include "base/task/sequence_manager/work_deduplicator.h"
+#include "base/task/single_thread_task_runner.h"
+#include "build/build_config.h"
 
 namespace base {
-
-// TODO(kraynov): https://crbug.com/828835
-// Consider going away from using MessageLoop in the renderer process.
-class MessageLoop;
-
 namespace sequence_manager {
 namespace internal {
+class SequenceManagerImpl;
 
-// TODO(kraynov): Rename to ThreadControllerWithMessageLoopImpl.
+// This is the interface between a SequenceManager which sits on top of an
+// underlying SequenceManagerImpl or SingleThreadTaskRunner. Currently it's only
+// used for workers in blink although we'd intend to migrate those to
+// ThreadControllerWithMessagePumpImpl (https://crbug.com/948051). Long term we
+// intend to use this for sequence funneling.
 class BASE_EXPORT ThreadControllerImpl : public ThreadController,
                                          public RunLoop::NestingObserver {
  public:
+  ThreadControllerImpl(const ThreadControllerImpl&) = delete;
+  ThreadControllerImpl& operator=(const ThreadControllerImpl&) = delete;
   ~ThreadControllerImpl() override;
 
+  // TODO(https://crbug.com/948051): replace |funneled_sequence_manager| with
+  // |funneled_task_runner| when we sort out the workers
   static std::unique_ptr<ThreadControllerImpl> Create(
-      MessageLoop* message_loop,
+      SequenceManagerImpl* funneled_sequence_manager,
       const TickClock* time_source);
 
   // ThreadController:
   void SetWorkBatchSize(int work_batch_size) override;
   void WillQueueTask(PendingTask* pending_task) override;
   void ScheduleWork() override;
-  void SetMessageLoop(MessageLoop* message_loop) override;
-  void SetNextDelayedDoWork(LazyNow* lazy_now, TimeTicks run_time) override;
+  void BindToCurrentThread(std::unique_ptr<MessagePump> message_pump) override;
+  void SetNextDelayedDoWork(LazyNow* lazy_now,
+                            absl::optional<WakeUp> wake_up) override;
   void SetSequencedTaskSource(SequencedTaskSource* sequence) override;
   void SetTimerSlack(TimerSlack timer_slack) override;
   bool RunsTasksInCurrentSequence() override;
-  const TickClock* GetClock() override;
   void SetDefaultTaskRunner(scoped_refptr<SingleThreadTaskRunner>) override;
+  scoped_refptr<SingleThreadTaskRunner> GetDefaultTaskRunner() override;
   void RestoreDefaultTaskRunner() override;
   void AddNestingObserver(RunLoop::NestingObserver* observer) override;
   void RemoveNestingObserver(RunLoop::NestingObserver* observer) override;
-  const scoped_refptr<AssociatedThreadId>& GetAssociatedThread() const override;
+  void SetTaskExecutionAllowed(bool allowed) override;
+  bool IsTaskExecutionAllowed() const override;
+  MessagePump* GetBoundMessagePump() const override;
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+  void AttachToMessagePump() override;
+#endif
+#if BUILDFLAG(IS_IOS)
+  void DetachFromMessagePump() override;
+#endif
+  void PrioritizeYieldingToNative(base::TimeTicks prioritize_until) override;
+  bool ShouldQuitRunLoopWhenIdle() override;
 
   // RunLoop::NestingObserver:
   void OnBeginNestedRunLoop() override;
   void OnExitNestedRunLoop() override;
 
  protected:
-  ThreadControllerImpl(MessageLoop* message_loop,
+  ThreadControllerImpl(SequenceManagerImpl* sequence_manager,
                        scoped_refptr<SingleThreadTaskRunner> task_runner,
                        const TickClock* time_source);
 
   // TODO(altimin): Make these const. Blocked on removing
   // lazy initialisation support.
-  MessageLoop* message_loop_;
+  raw_ptr<SequenceManagerImpl> funneled_sequence_manager_;
   scoped_refptr<SingleThreadTaskRunner> task_runner_;
 
-  RunLoop::NestingObserver* nesting_observer_ = nullptr;
+  raw_ptr<RunLoop::NestingObserver> nesting_observer_ = nullptr;
 
  private:
   enum class WorkType { kImmediate, kDelayed };
 
   void DoWork(WorkType work_type);
 
-  struct AnySequence {
-    AnySequence();
-    ~AnySequence();
-
-    int do_work_running_count = 0;
-    int nesting_depth = 0;
-    bool immediate_do_work_posted = false;
-  };
-
-  mutable Lock any_sequence_lock_;
-  AnySequence any_sequence_;
-
-  struct AnySequence& any_sequence() {
-    any_sequence_lock_.AssertAcquired();
-    return any_sequence_;
-  }
-  const struct AnySequence& any_sequence() const {
-    any_sequence_lock_.AssertAcquired();
-    return any_sequence_;
-  }
-
+  // TODO(scheduler-dev): Maybe fold this into the main class and use
+  // thread annotations.
   struct MainSequenceOnly {
     MainSequenceOnly();
     ~MainSequenceOnly();
 
-    int do_work_running_count = 0;
-    int nesting_depth = 0;
     int work_batch_size_ = 1;
 
     TimeTicks next_delayed_do_work = TimeTicks::Max();
   };
-
-  scoped_refptr<AssociatedThreadId> associated_thread_;
 
   MainSequenceOnly main_sequence_only_;
   MainSequenceOnly& main_sequence_only() {
@@ -118,20 +113,18 @@ class BASE_EXPORT ThreadControllerImpl : public ThreadController,
   }
 
   scoped_refptr<SingleThreadTaskRunner> message_loop_task_runner_;
-  const TickClock* time_source_;
   RepeatingClosure immediate_do_work_closure_;
   RepeatingClosure delayed_do_work_closure_;
-  CancelableClosure cancelable_delayed_do_work_closure_;
-  SequencedTaskSource* sequence_ = nullptr;  // Not owned.
-  debug::TaskAnnotator task_annotator_;
+  CancelableRepeatingClosure cancelable_delayed_do_work_closure_;
+  raw_ptr<SequencedTaskSource> sequence_ = nullptr;  // Not owned.
+  TaskAnnotator task_annotator_;
+  WorkDeduplicator work_deduplicator_;
 
 #if DCHECK_IS_ON()
   bool default_task_runner_set_ = false;
 #endif
 
-  WeakPtrFactory<ThreadControllerImpl> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(ThreadControllerImpl);
+  WeakPtrFactory<ThreadControllerImpl> weak_factory_{this};
 };
 
 }  // namespace internal

@@ -65,13 +65,16 @@
  * Unit tests are in base/time/pr_time_unittest.cc.
  */
 
-#include <limits.h>
-
-#include "base/logging.h"
 #include "base/third_party/nspr/prtime.h"
+
+#include "base/check.h"
 #include "build/build_config.h"
 
+#include <ctype.h>
 #include <errno.h>  /* for EINVAL */
+#include <limits.h>
+#include <stddef.h>
+#include <string.h>
 #include <time.h>
 
 /*
@@ -94,7 +97,7 @@
 #define DAYS_BETWEEN_YEARS(A, B) (COUNT_DAYS(B) - COUNT_DAYS(A))
 
 /* Implements the Unix localtime_r() function for windows */
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 static void localtime_r(const time_t* secs, struct tm* time) {
   (void) localtime_s(time, secs);
 }
@@ -788,7 +791,7 @@ PR_ParseTimeString(
                                           tmp_usec = tmp_usec * 10 + *end - '0';
                                         end++;
                                       }
-                                    int ndigits = end - rest;
+                                    ptrdiff_t ndigits = end - rest;
                                     while (ndigits++ < 6)
                                       tmp_usec *= 10;
                                     rest = end;
@@ -1018,7 +1021,7 @@ PR_ParseTimeString(
 
           /* "-" is ignored at the beginning of a token if we have not yet
                  parsed a year (e.g., the second "-" in "30-AUG-1966"), or if
-                 the character after the dash is not a digit. */         
+                 the character after the dash is not a digit. */
           if (*rest == '-' && ((rest > string &&
               isalpha((unsigned char)rest[-1]) && year < 0) ||
               rest[1] < '0' || rest[1] > '9'))
@@ -1139,7 +1142,7 @@ PR_ParseTimeString(
                   /*
                    * mktime will return (time_t) -1 if the input is a date
                    * after 23:59:59, December 31, 3000, US Pacific Time (not
-                   * UTC as documented): 
+                   * UTC as documented):
                    * http://msdn.microsoft.com/en-us/library/d1y53h2a(VS.80).aspx
                    * But if the year is 3001, mktime also invokes the invalid
                    * parameter handler, causing the application to crash.  This
@@ -1162,12 +1165,12 @@ PR_ParseTimeString(
 #endif
                   if (secs != (time_t) -1)
                     {
-                      *result_imploded = (PRInt64)secs * PR_USEC_PER_SEC;
-                      *result_imploded += result->tm_usec;
-                      return PR_SUCCESS;
+                    *result_imploded = secs * (PRTime)PR_USEC_PER_SEC;
+                    *result_imploded += result->tm_usec;
+                    return PR_SUCCESS;
                     }
                 }
-                
+
                 /* So mktime() can't handle this case.  We assume the
                    zone_offset for the date we are parsing is the same as
                    the zone offset on 00:00:00 2 Jan 1970 GMT. */

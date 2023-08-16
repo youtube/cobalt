@@ -1,33 +1,37 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TASK_SCOPED_SET_TASK_PRIORITY_FOR_CURRENT_THREAD_H_
 #define BASE_TASK_SCOPED_SET_TASK_PRIORITY_FOR_CURRENT_THREAD_H_
 
+#include "base/auto_reset.h"
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/task/task_traits.h"
 
 namespace base {
 namespace internal {
 
-class BASE_EXPORT ScopedSetTaskPriorityForCurrentThread {
+class BASE_EXPORT
+    [[maybe_unused, nodiscard]] ScopedSetTaskPriorityForCurrentThread {
  public:
   // Within the scope of this object, GetTaskPriorityForCurrentThread() will
   // return |priority|.
-  ScopedSetTaskPriorityForCurrentThread(TaskPriority priority);
+  explicit ScopedSetTaskPriorityForCurrentThread(TaskPriority priority);
+
+  ScopedSetTaskPriorityForCurrentThread(
+      const ScopedSetTaskPriorityForCurrentThread&) = delete;
+  ScopedSetTaskPriorityForCurrentThread& operator=(
+      const ScopedSetTaskPriorityForCurrentThread&) = delete;
+
   ~ScopedSetTaskPriorityForCurrentThread();
 
  private:
-  const TaskPriority priority_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedSetTaskPriorityForCurrentThread);
+  const AutoReset<TaskPriority> resetter_;
 };
 
-// Returns the priority of the TaskScheduler task running on the current thread,
-// or TaskPriority::USER_VISIBLE if no TaskScheduler task is running on the
-// current thread.
+// Returns the priority of the task running on the current thread,
+// or TaskPriority::USER_BLOCKING by default if none.
 BASE_EXPORT TaskPriority GetTaskPriorityForCurrentThread();
 
 }  // namespace internal

@@ -1,55 +1,52 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Unit tests for event trace controller.
 
 #include <objbase.h>
-#include <initguid.h>
+
+#include <initguid.h>  // NOLINT - has to be last
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/process/process_handle.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/sys_info.h"
+#include "base/system/sys_info.h"
 #include "base/win/event_trace_controller.h"
 #include "base/win/event_trace_provider.h"
 #include "base/win/scoped_handle.h"
-#include "base/win/windows_version.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
-namespace win {
+namespace base::win {
 
 namespace {
 
-DEFINE_GUID(kGuidNull,
-    0x0000000, 0x0000, 0x0000, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0);
-
 const ULONG kTestProviderFlags = 0xCAFEBABE;
 
-class TestingProvider: public EtwTraceProvider {
+class TestingProvider : public EtwTraceProvider {
  public:
   explicit TestingProvider(const GUID& provider_name)
       : EtwTraceProvider(provider_name) {
-    callback_event_.Set(::CreateEvent(NULL, TRUE, FALSE, NULL));
+    callback_event_.Set(::CreateEvent(nullptr, TRUE, FALSE, nullptr));
   }
 
+  TestingProvider(const TestingProvider&) = delete;
+  TestingProvider& operator=(const TestingProvider&) = delete;
+
   void WaitForCallback() {
-    ::WaitForSingleObject(callback_event_.Get(), INFINITE);
-    ::ResetEvent(callback_event_.Get());
+    ::WaitForSingleObject(callback_event_.get(), INFINITE);
+    ::ResetEvent(callback_event_.get());
   }
 
  private:
-  void OnEventsEnabled() override { ::SetEvent(callback_event_.Get()); }
-  void PostEventsDisabled() override { ::SetEvent(callback_event_.Get()); }
+  void OnEventsEnabled() override { ::SetEvent(callback_event_.get()); }
+  void PostEventsDisabled() override { ::SetEvent(callback_event_.get()); }
 
   ScopedHandle callback_event_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestingProvider);
 };
 
 }  // namespace
@@ -62,7 +59,7 @@ TEST(EtwTracePropertiesTest, Initialization) {
   EXPECT_EQ(0u, p->Wnode.ProviderId);
   EXPECT_EQ(0u, p->Wnode.HistoricalContext);
 
-  EXPECT_TRUE(kGuidNull == p->Wnode.Guid);
+  EXPECT_TRUE(GUID_NULL == p->Wnode.Guid);
   EXPECT_EQ(0u, p->Wnode.ClientContext);
   EXPECT_EQ(static_cast<ULONG>(WNODE_FLAG_TRACED_GUID), p->Wnode.Flags);
 
@@ -81,7 +78,7 @@ TEST(EtwTracePropertiesTest, Initialization) {
   EXPECT_EQ(0u, p->BuffersWritten);
   EXPECT_EQ(0u, p->LogBuffersLost);
   EXPECT_EQ(0u, p->RealTimeBuffersLost);
-  EXPECT_EQ(0u, p->LoggerThreadId);
+  EXPECT_EQ(nullptr, p->LoggerThreadId);
   EXPECT_NE(0u, p->LogFileNameOffset);
   EXPECT_NE(0u, p->LoggerNameOffset);
 }
@@ -108,8 +105,7 @@ namespace {
 class EtwTraceControllerTest : public testing::Test {
  public:
   EtwTraceControllerTest()
-      : session_name_(StringPrintf(L"TestSession-%d", GetCurrentProcId())) {
-  }
+      : session_name_(StringPrintf(L"TestSession-%d", GetCurrentProcId())) {}
 
   void SetUp() override {
     EtwTraceProperties ignore;
@@ -138,12 +134,10 @@ TEST_F(EtwTraceControllerTest, Initialize) {
   EXPECT_STREQ(L"", controller.session_name());
 }
 
-
 TEST_F(EtwTraceControllerTest, StartRealTimeSession) {
   EtwTraceController controller;
 
-  HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(),
-                                               100 * 1024);
+  HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(), 1024);
   if (hr == E_ACCESSDENIED) {
     VLOG(1) << "You must be an administrator to run this test on Vista";
     return;
@@ -152,7 +146,7 @@ TEST_F(EtwTraceControllerTest, StartRealTimeSession) {
   EXPECT_NE(0u, controller.session());
   EXPECT_STREQ(session_name_.c_str(), controller.session_name());
 
-  EXPECT_HRESULT_SUCCEEDED(controller.Stop(NULL));
+  EXPECT_HRESULT_SUCCEEDED(controller.Stop(nullptr));
   EXPECT_EQ(0u, controller.session());
   EXPECT_STREQ(L"", controller.session_name());
 }
@@ -161,24 +155,24 @@ TEST_F(EtwTraceControllerTest, StartFileSession) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath temp;
-  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_dir.GetPath(), &temp));
+  ASSERT_TRUE(CreateTemporaryFileInDir(temp_dir.GetPath(), &temp));
 
   EtwTraceController controller;
-  HRESULT hr = controller.StartFileSession(session_name_.c_str(),
-                                           temp.value().c_str());
+  HRESULT hr =
+      controller.StartFileSession(session_name_.c_str(), temp.value().c_str());
   if (hr == E_ACCESSDENIED) {
     VLOG(1) << "You must be an administrator to run this test on Vista";
-    base::DeleteFile(temp, false);
+    DeleteFile(temp);
     return;
   }
 
   EXPECT_NE(0u, controller.session());
   EXPECT_STREQ(session_name_.c_str(), controller.session_name());
 
-  EXPECT_HRESULT_SUCCEEDED(controller.Stop(NULL));
+  EXPECT_HRESULT_SUCCEEDED(controller.Stop(nullptr));
   EXPECT_EQ(0u, controller.session());
   EXPECT_STREQ(L"", controller.session_name());
-  base::DeleteFile(temp, false);
+  DeleteFile(temp);
 }
 
 // This test is flaky for unclear reasons. See bugs 525297 and 534184
@@ -189,15 +183,14 @@ TEST_F(EtwTraceControllerTest, DISABLED_EnableDisable) {
   EXPECT_EQ(0u, provider.session_handle());
 
   EtwTraceController controller;
-  HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(),
-                                               100 * 1024);
+  HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(), 1024);
   if (hr == E_ACCESSDENIED) {
     VLOG(1) << "You must be an administrator to run this test on Vista";
     return;
   }
 
-  EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(test_provider_,
-                           TRACE_LEVEL_VERBOSE, kTestProviderFlags));
+  EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(
+      test_provider_, TRACE_LEVEL_VERBOSE, kTestProviderFlags));
 
   provider.WaitForCallback();
 
@@ -214,8 +207,8 @@ TEST_F(EtwTraceControllerTest, DISABLED_EnableDisable) {
   EXPECT_EQ(static_cast<DWORD>(ERROR_SUCCESS), provider.Unregister());
 
   // Enable the provider again, before registering.
-  EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(test_provider_,
-                           TRACE_LEVEL_VERBOSE, kTestProviderFlags));
+  EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(
+      test_provider_, TRACE_LEVEL_VERBOSE, kTestProviderFlags));
 
   // Register the provider again, the settings above
   // should take immediate effect.
@@ -227,18 +220,13 @@ TEST_F(EtwTraceControllerTest, DISABLED_EnableDisable) {
   // Consume the callback event of the previous controller.EnableProvider().
   provider.WaitForCallback();
 
-  EXPECT_HRESULT_SUCCEEDED(controller.Stop(NULL));
+  EXPECT_HRESULT_SUCCEEDED(controller.Stop(nullptr));
 
-  // Windows 7 does not call the callback when Stop() is called so we
-  // can't wait, and enable_level and enable_flags are not zeroed.
-  if (base::win::GetVersion() >= VERSION_WIN8) {
-    provider.WaitForCallback();
+  provider.WaitForCallback();
 
-    // Session should have wound down.
-    EXPECT_EQ(0, provider.enable_level());
-    EXPECT_EQ(0u, provider.enable_flags());
-  }
+  // Session should have wound down.
+  EXPECT_EQ(0, provider.enable_level());
+  EXPECT_EQ(0u, provider.enable_flags());
 }
 
-}  // namespace win
-}  // namespace base
+}  // namespace base::win

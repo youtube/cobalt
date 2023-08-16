@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,30 +8,36 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <vector>
+
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/mac/bundle_locations.h"
 #include "base/mac/mac_logging.h"
-#include "base/macros.h"
+#include "base/notreached.h"
+#include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/sys_string_conversions.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 
-#if !defined(OS_IOS)
+#if !BUILDFLAG(IS_IOS)
 #import <AppKit/AppKit.h>
 #endif
 
 extern "C" {
 CFTypeID SecKeyGetTypeID();
-#if !defined(OS_IOS)
-CFTypeID SecACLGetTypeID();
-CFTypeID SecTrustedApplicationGetTypeID();
+#if !BUILDFLAG(IS_IOS)
+// The NSFont/CTFont toll-free bridging is broken before 10.15.
+// https://openradar.appspot.com/15341349
+//
+// TODO(https://crbug.com/1076527): This is fixed in 10.15. When 10.15 is the
+// minimum OS for Chromium, remove this SPI declaration.
 Boolean _CFIsObjC(CFTypeID typeID, CFTypeRef obj);
 #endif
 }  // extern "C"
 
-namespace base {
-namespace mac {
+namespace base::mac {
 
 namespace {
 
@@ -41,7 +47,7 @@ bool g_override_am_i_bundled = false;
 bool g_override_am_i_bundled_value = false;
 
 bool UncachedAmIBundled() {
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
   // All apps are bundled on iOS.
   return true;
 #else
@@ -71,7 +77,7 @@ bool AmIBundled() {
 }
 
 void SetOverrideAmIBundled(bool value) {
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
   // It doesn't make sense not to be bundled on iOS.
   if (!value)
     NOTREACHED();
@@ -92,11 +98,11 @@ bool IsBackgroundOnlyProcess() {
   return [info_dictionary[@"LSUIElement"] boolValue] != NO;
 }
 
-FilePath PathForFrameworkBundleResource(CFStringRef resourceName) {
+FilePath PathForFrameworkBundleResource(const char* resource_name) {
   NSBundle* bundle = base::mac::FrameworkBundle();
-  NSString* resourcePath = [bundle pathForResource:(NSString*)resourceName
-                                            ofType:nil];
-  return NSStringToFilePath(resourcePath);
+  NSURL* resource_url = [bundle URLForResource:@(resource_name)
+                                 withExtension:nil];
+  return NSURLToFilePath(resource_url);
 }
 
 OSType CreatorCodeForCFBundleRef(CFBundleRef bundle) {
@@ -142,6 +148,14 @@ FilePath GetUserLibraryPath() {
   return user_library_path;
 }
 
+FilePath GetUserDocumentPath() {
+  FilePath user_document_path;
+  if (!GetUserDirectory(NSDocumentDirectory, &user_document_path)) {
+    DLOG(WARNING) << "Could not get user document path";
+  }
+  return user_document_path;
+}
+
 // Takes a path to an (executable) binary and tries to provide the path to an
 // application bundle containing it. It takes the outermost bundle that it can
 // find (so for "/Foo/Bar.app/.../Baz.app/..." it produces "/Foo/Bar.app").
@@ -149,11 +163,10 @@ FilePath GetUserLibraryPath() {
 //   returns - path to the application bundle, or empty on error
 FilePath GetAppBundlePath(const FilePath& exec_name) {
   const char kExt[] = ".app";
-  const size_t kExtLength = arraysize(kExt) - 1;
+  const size_t kExtLength = std::size(kExt) - 1;
 
   // Split the path into components.
-  std::vector<std::string> components;
-  exec_name.GetComponents(&components);
+  std::vector<std::string> components = exec_name.GetComponents();
 
   // It's an error if we don't get any components.
   if (components.empty())
@@ -196,51 +209,32 @@ std::string TypeNameForCFType(TypeCF##Ref) { \
   return #TypeCF; \
 }
 
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFArray);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFBag);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFBoolean);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFData);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFDate);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFDictionary);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFNull);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFNumber);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFSet);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFString);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFURL);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CFUUID);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFArray)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFBag)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFBoolean)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFData)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFDate)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFDictionary)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFNull)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFNumber)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFSet)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFString)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFURL)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFUUID)
 
-TYPE_NAME_FOR_CF_TYPE_DEFN(CGColor);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CGColor)
 
-TYPE_NAME_FOR_CF_TYPE_DEFN(CTFont);
-TYPE_NAME_FOR_CF_TYPE_DEFN(CTRun);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CTFont)
+TYPE_NAME_FOR_CF_TYPE_DEFN(CTRun)
 
-#if !defined(OS_IOS)
-TYPE_NAME_FOR_CF_TYPE_DEFN(SecKey);
-TYPE_NAME_FOR_CF_TYPE_DEFN(SecPolicy);
+#if !BUILDFLAG(IS_IOS)
+TYPE_NAME_FOR_CF_TYPE_DEFN(SecAccessControl)
+TYPE_NAME_FOR_CF_TYPE_DEFN(SecCertificate)
+TYPE_NAME_FOR_CF_TYPE_DEFN(SecKey)
+TYPE_NAME_FOR_CF_TYPE_DEFN(SecPolicy)
 #endif
 
 #undef TYPE_NAME_FOR_CF_TYPE_DEFN
-
-void NSObjectRetain(void* obj) {
-  id<NSObject> nsobj = static_cast<id<NSObject> >(obj);
-  [nsobj retain];
-}
-
-void NSObjectRelease(void* obj) {
-  id<NSObject> nsobj = static_cast<id<NSObject> >(obj);
-  [nsobj release];
-}
-
-void* CFTypeRefToNSObjectAutorelease(CFTypeRef cf_object) {
-  // When GC is on, NSMakeCollectable marks cf_object for GC and autorelease
-  // is a no-op.
-  //
-  // In the traditional GC-less environment, NSMakeCollectable is a no-op,
-  // and cf_object is autoreleased, balancing out the caller's ownership claim.
-  //
-  // NSMakeCollectable returns nil when used on a NULL object.
-  return [NSMakeCollectable(cf_object) autorelease];
-}
 
 static const char* base_bundle_id;
 
@@ -249,7 +243,7 @@ const char* BaseBundleID() {
     return base_bundle_id;
   }
 
-#if defined(GOOGLE_CHROME_BUILD)
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   return "com.google.Chrome";
 #else
   return "org.chromium.Chromium";
@@ -296,30 +290,34 @@ CFMutable##name##Ref NSToCFCast(NSMutable##name* ns_val) { \
   return cf_val; \
 }
 
-CF_TO_NS_MUTABLE_CAST_DEFN(Array);
-CF_TO_NS_MUTABLE_CAST_DEFN(AttributedString);
-CF_TO_NS_CAST_DEFN(CFCalendar, NSCalendar);
-CF_TO_NS_MUTABLE_CAST_DEFN(CharacterSet);
-CF_TO_NS_MUTABLE_CAST_DEFN(Data);
-CF_TO_NS_CAST_DEFN(CFDate, NSDate);
-CF_TO_NS_MUTABLE_CAST_DEFN(Dictionary);
-CF_TO_NS_CAST_DEFN(CFError, NSError);
-CF_TO_NS_CAST_DEFN(CFLocale, NSLocale);
-CF_TO_NS_CAST_DEFN(CFNumber, NSNumber);
-CF_TO_NS_CAST_DEFN(CFRunLoopTimer, NSTimer);
-CF_TO_NS_CAST_DEFN(CFTimeZone, NSTimeZone);
-CF_TO_NS_MUTABLE_CAST_DEFN(Set);
-CF_TO_NS_CAST_DEFN(CFReadStream, NSInputStream);
-CF_TO_NS_CAST_DEFN(CFWriteStream, NSOutputStream);
-CF_TO_NS_MUTABLE_CAST_DEFN(String);
-CF_TO_NS_CAST_DEFN(CFURL, NSURL);
+CF_TO_NS_MUTABLE_CAST_DEFN(Array)
+CF_TO_NS_MUTABLE_CAST_DEFN(AttributedString)
+CF_TO_NS_CAST_DEFN(CFCalendar, NSCalendar)
+CF_TO_NS_MUTABLE_CAST_DEFN(CharacterSet)
+CF_TO_NS_MUTABLE_CAST_DEFN(Data)
+CF_TO_NS_CAST_DEFN(CFDate, NSDate)
+CF_TO_NS_MUTABLE_CAST_DEFN(Dictionary)
+CF_TO_NS_CAST_DEFN(CFError, NSError)
+CF_TO_NS_CAST_DEFN(CFLocale, NSLocale)
+CF_TO_NS_CAST_DEFN(CFNumber, NSNumber)
+CF_TO_NS_CAST_DEFN(CFRunLoopTimer, NSTimer)
+CF_TO_NS_CAST_DEFN(CFTimeZone, NSTimeZone)
+CF_TO_NS_MUTABLE_CAST_DEFN(Set)
+CF_TO_NS_CAST_DEFN(CFReadStream, NSInputStream)
+CF_TO_NS_CAST_DEFN(CFWriteStream, NSOutputStream)
+CF_TO_NS_MUTABLE_CAST_DEFN(String)
+CF_TO_NS_CAST_DEFN(CFURL, NSURL)
 
-#if defined(OS_IOS)
-CF_TO_NS_CAST_DEFN(CTFont, UIFont);
+#if BUILDFLAG(IS_IOS)
+CF_TO_NS_CAST_DEFN(CTFont, UIFont)
 #else
-// The NSFont/CTFont toll-free bridging is broken when it comes to type
-// checking, so do some special-casing.
-// http://www.openradar.me/15341349 rdar://15341349
+// The NSFont/CTFont toll-free bridging is broken before 10.15.
+// https://openradar.appspot.com/15341349
+//
+// TODO(https://crbug.com/1076527): This is fixed in 10.15. When 10.15 is the
+// minimum OS for Chromium, remove this specialization and replace it with just:
+//
+// CF_TO_NS_CAST_DEFN(CTFont, NSFont)
 NSFont* CFToNSCast(CTFontRef cf_val) {
   NSFont* ns_val =
       const_cast<NSFont*>(reinterpret_cast<const NSFont*>(cf_val));
@@ -361,30 +359,35 @@ CFCastStrict<TypeCF##Ref>(const CFTypeRef& cf_val) { \
   return rv; \
 }
 
-CF_CAST_DEFN(CFArray);
-CF_CAST_DEFN(CFBag);
-CF_CAST_DEFN(CFBoolean);
-CF_CAST_DEFN(CFData);
-CF_CAST_DEFN(CFDate);
-CF_CAST_DEFN(CFDictionary);
-CF_CAST_DEFN(CFNull);
-CF_CAST_DEFN(CFNumber);
-CF_CAST_DEFN(CFSet);
-CF_CAST_DEFN(CFString);
-CF_CAST_DEFN(CFURL);
-CF_CAST_DEFN(CFUUID);
+CF_CAST_DEFN(CFArray)
+CF_CAST_DEFN(CFBag)
+CF_CAST_DEFN(CFBoolean)
+CF_CAST_DEFN(CFData)
+CF_CAST_DEFN(CFDate)
+CF_CAST_DEFN(CFDictionary)
+CF_CAST_DEFN(CFNull)
+CF_CAST_DEFN(CFNumber)
+CF_CAST_DEFN(CFSet)
+CF_CAST_DEFN(CFString)
+CF_CAST_DEFN(CFURL)
+CF_CAST_DEFN(CFUUID)
 
-CF_CAST_DEFN(CGColor);
+CF_CAST_DEFN(CGColor)
 
-CF_CAST_DEFN(CTFontDescriptor);
-CF_CAST_DEFN(CTRun);
+CF_CAST_DEFN(CTFontDescriptor)
+CF_CAST_DEFN(CTRun)
 
-#if defined(OS_IOS)
-CF_CAST_DEFN(CTFont);
+CF_CAST_DEFN(SecCertificate)
+
+#if BUILDFLAG(IS_IOS)
+CF_CAST_DEFN(CTFont)
 #else
-// The NSFont/CTFont toll-free bridging is broken when it comes to type
-// checking, so do some special-casing.
-// http://www.openradar.me/15341349 rdar://15341349
+// The NSFont/CTFont toll-free bridging is broken before 10.15.
+// https://openradar.appspot.com/15341349
+//
+// TODO(https://crbug.com/1076527): This is fixed in 10.15. When 10.15 is the
+// minimum OS for Chromium, remove this specialization and the #if IOS above,
+// and rely just on the one CF_CAST_DEFN(CTFont).
 template<> CTFontRef
 CFCast<CTFontRef>(const CFTypeRef& cf_val) {
   if (cf_val == NULL) {
@@ -412,11 +415,10 @@ CFCastStrict<CTFontRef>(const CFTypeRef& cf_val) {
 }
 #endif
 
-#if !defined(OS_IOS)
-CF_CAST_DEFN(SecACL);
-CF_CAST_DEFN(SecKey);
-CF_CAST_DEFN(SecPolicy);
-CF_CAST_DEFN(SecTrustedApplication);
+#if !BUILDFLAG(IS_IOS)
+CF_CAST_DEFN(SecAccessControl)
+CF_CAST_DEFN(SecKey)
+CF_CAST_DEFN(SecPolicy)
 #endif
 
 #undef CF_CAST_DEFN
@@ -434,6 +436,12 @@ std::string GetValueFromDictionaryErrorMessage(
       " instead";
 }
 
+NSURL* FilePathToNSURL(const FilePath& path) {
+  if (NSString* path_string = FilePathToNSString(path))
+    return [NSURL fileURLWithPath:path_string];
+  return nil;
+}
+
 NSString* FilePathToNSString(const FilePath& path) {
   if (path.empty())
     return nil;
@@ -446,21 +454,45 @@ FilePath NSStringToFilePath(NSString* str) {
   return FilePath([str fileSystemRepresentation]);
 }
 
+FilePath NSURLToFilePath(NSURL* url) {
+  if (![url isFileURL])
+    return FilePath();
+  return NSStringToFilePath([url path]);
+}
+
+base::ScopedCFTypeRef<CFURLRef> FilePathToCFURL(const FilePath& path) {
+  DCHECK(!path.empty());
+
+  // The function's docs promise that it does not require an NSAutoreleasePool.
+  // A straightforward way to accomplish this is to use *Create* functions,
+  // combined with base::ScopedCFTypeRef.
+  const std::string& path_string = path.value();
+  base::ScopedCFTypeRef<CFStringRef> path_cfstring(CFStringCreateWithBytes(
+      kCFAllocatorDefault, reinterpret_cast<const UInt8*>(path_string.data()),
+      checked_cast<CFIndex>(path_string.length()), kCFStringEncodingUTF8,
+      /*isExternalRepresentation=*/FALSE));
+  if (!path_cfstring)
+    return base::ScopedCFTypeRef<CFURLRef>();
+
+  return base::ScopedCFTypeRef<CFURLRef>(CFURLCreateWithFileSystemPath(
+      kCFAllocatorDefault, path_cfstring, kCFURLPOSIXPathStyle,
+      /*isDirectory=*/FALSE));
+}
+
 bool CFRangeToNSRange(CFRange range, NSRange* range_out) {
-  if (base::IsValueInRangeForNumericType<decltype(range_out->location)>(
-          range.location) &&
-      base::IsValueInRangeForNumericType<decltype(range_out->length)>(
-          range.length) &&
-      base::IsValueInRangeForNumericType<decltype(range_out->location)>(
-          range.location + range.length)) {
-    *range_out = NSMakeRange(range.location, range.length);
+  NSUInteger end;
+  if (base::IsValueInRangeForNumericType<NSUInteger>(range.location) &&
+      base::IsValueInRangeForNumericType<NSUInteger>(range.length) &&
+      base::CheckAdd(range.location, range.length).AssignIfValid(&end) &&
+      base::IsValueInRangeForNumericType<NSUInteger>(end)) {
+    *range_out = NSMakeRange(static_cast<NSUInteger>(range.location),
+                             static_cast<NSUInteger>(range.length));
     return true;
   }
   return false;
 }
 
-}  // namespace mac
-}  // namespace base
+}  // namespace base::mac
 
 std::ostream& operator<<(std::ostream& o, const CFStringRef string) {
   return o << base::SysCFStringRefToUTF8(string);
@@ -482,3 +514,33 @@ std::ostream& operator<<(std::ostream& o, const CFErrorRef err) {
   }
   return o;
 }
+
+std::ostream& operator<<(std::ostream& o, CFRange range) {
+  return o << NSStringFromRange(
+             NSMakeRange(static_cast<NSUInteger>(range.location),
+                         static_cast<NSUInteger>(range.length)));
+}
+
+std::ostream& operator<<(std::ostream& o, id obj) {
+  return obj ? o << [obj description].UTF8String : o << "(nil)";
+}
+
+std::ostream& operator<<(std::ostream& o, NSRange range) {
+  return o << NSStringFromRange(range);
+}
+
+std::ostream& operator<<(std::ostream& o, SEL selector) {
+  return o << NSStringFromSelector(selector);
+}
+
+#if !BUILDFLAG(IS_IOS)
+std::ostream& operator<<(std::ostream& o, NSPoint point) {
+  return o << NSStringFromPoint(point);
+}
+std::ostream& operator<<(std::ostream& o, NSRect rect) {
+  return o << NSStringFromRect(rect);
+}
+std::ostream& operator<<(std::ostream& o, NSSize size) {
+  return o << NSStringFromSize(size);
+}
+#endif

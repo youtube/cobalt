@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,15 +9,9 @@
 
 #include "build/build_config.h"
 
-namespace base {
-namespace mac {
+namespace base::mac {
 
-#if defined(OS_IOS)
-// No iOS assembly implementation exists, so just call the block directly.
-void CallWithEHFrame(void (^block)(void)) {
-  block();
-}
-#else  // OS_MACOSX
+#if defined(__x86_64__) || defined(__aarch64__)
 extern "C" _Unwind_Reason_Code __gxx_personality_v0(int,
                                                     _Unwind_Action,
                                                     uint64_t,
@@ -48,7 +42,10 @@ _Unwind_Reason_Code CxxPersonalityRoutine(
   return __gxx_personality_v0(version, actions, exception_class,
                               exception_object, context);
 }
-#endif  // defined(OS_IOS)
-
-}  // namespace mac
-}  // namespace base
+#else  // !defined(__x86_64__) && !defined(__aarch64__)
+// No implementation exists, so just call the block directly.
+void CallWithEHFrame(void (^block)(void)) {
+  block();
+}
+#endif  // defined(__x86_64__) || defined(__aarch64__)
+}  // namespace base::mac

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,11 +8,11 @@
 
 #include <memory>
 
+#include "base/check.h"
 #include "base/format_macros.h"
 #include "base/i18n/message_formatter.h"
 #include "base/i18n/unicodestring.h"
 #include "base/lazy_instance.h"
-#include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -50,7 +50,7 @@ LazyInstance<NumberFormatWrapper>::DestructorAtExit g_number_format_float =
 
 }  // namespace
 
-string16 FormatNumber(int64_t number) {
+std::u16string FormatNumber(int64_t number) {
   icu::NumberFormat* number_format =
       g_number_format_int.Get().number_format.get();
 
@@ -64,7 +64,7 @@ string16 FormatNumber(int64_t number) {
   return i18n::UnicodeStringToString16(ustr);
 }
 
-string16 FormatDouble(double number, int fractional_digits) {
+std::u16string FormatDouble(double number, int fractional_digits) {
   icu::NumberFormat* number_format =
       g_number_format_float.Get().number_format.get();
 
@@ -80,18 +80,14 @@ string16 FormatDouble(double number, int fractional_digits) {
   return i18n::UnicodeStringToString16(ustr);
 }
 
-string16 FormatPercent(int number) {
+std::u16string FormatPercent(int number) {
   return i18n::MessageFormatter::FormatWithNumberedArgs(
-      ASCIIToUTF16("{0,number,percent}"), static_cast<double>(number) / 100.0);
+      u"{0,number,percent}", static_cast<double>(number) / 100.0);
 }
 
-namespace testing {
-
-void ResetFormatters() {
+void ResetFormattersForTesting() {
   g_number_format_int.Get().Reset();
   g_number_format_float.Get().Reset();
 }
-
-}  // namespace testing
 
 }  // namespace base

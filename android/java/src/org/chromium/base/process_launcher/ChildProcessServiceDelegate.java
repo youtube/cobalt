@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,27 +33,27 @@ public interface ChildProcessServiceDelegate {
     void onConnectionSetup(Bundle connectionBundle, List<IBinder> clientInterfaces);
 
     /**
-     * Called when the service gets destroyed.
-     * Note that the system might kill the process hosting the service without this method being
-     * called.
-     */
-    void onDestroy();
-
-    /**
      * Called when the delegate should load the native library.
      * @param hostContext The host context the library should be loaded with (i.e. Chrome).
-     * @return true if the library was loaded successfully, false otherwise in which case the
-     * service stops.
      */
-    boolean loadNativeLibrary(Context hostContext);
+    void loadNativeLibrary(Context hostContext);
 
     /**
      * Called when the delegate should preload the native library.
      * Preloading is automatically done during library loading, but can also be called explicitly
-     * to speed up the loading. See {@link LibraryLoader.preloadNow}.
-     * @param hostContext The host context the library should be preloaded with (i.e. Chrome).
+     * to speed up the loading. See {@link LibraryLoader#preloadNow()}.
+     * @param packageName The package name the library should be preloaded with (i.e.
+     * org.chromium.chrome).
      */
-    void preloadNativeLibrary(Context hostContext);
+    void preloadNativeLibrary(String packageName);
+
+    /**
+     * Takes the shared memory region containing read-only relocations, to save memory after loading
+     * the native library in the child process.
+     * @param bundle potentially holds the description of the shared memory region transferred
+     * between processes from one {@link org.chromium.base.library_loader.Linker} to another.
+     */
+    void consumeRelroBundle(Bundle bundle);
 
     /**
      * Should return a map that associatesfile descriptors' IDs to keys.

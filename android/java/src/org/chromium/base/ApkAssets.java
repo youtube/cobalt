@@ -1,11 +1,13 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
+import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
+import android.text.TextUtils;
 import android.util.Log;
 
 import org.chromium.base.annotations.CalledByNative;
@@ -23,10 +25,14 @@ public class ApkAssets {
     private static final String LOGTAG = "ApkAssets";
 
     @CalledByNative
-    public static long[] open(String fileName) {
+    public static long[] open(String fileName, String splitName) {
         AssetFileDescriptor afd = null;
         try {
-            AssetManager manager = ContextUtils.getApplicationContext().getAssets();
+            Context context = ContextUtils.getApplicationContext();
+            if (!TextUtils.isEmpty(splitName) && BundleUtils.isIsolatedSplitInstalled(splitName)) {
+                context = BundleUtils.createIsolatedSplitContext(context, splitName);
+            }
+            AssetManager manager = context.getAssets();
             afd = manager.openNonAssetFd(fileName);
             return new long[] {afd.getParcelFileDescriptor().detachFd(), afd.getStartOffset(),
                     afd.getLength()};

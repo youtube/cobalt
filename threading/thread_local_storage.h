@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,27 +7,18 @@
 
 #include <stdint.h>
 
-#include "base/atomicops.h"
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <pthread.h>
 #endif
 
-namespace heap_profiling {
-class ScopedAllowAlloc;
-class ScopedAllowRealloc;
-}  // namespace heap_profiling
-
-namespace ui {
-class TLSDestructionCheckerForX11;
-}
-
 namespace base {
+
+class SamplingHeapProfiler;
 
 namespace debug {
 class GlobalActivityTracker;
@@ -44,16 +35,14 @@ class ThreadLocalStorageTestInternal;
 // WARNING: You should *NOT* use this class directly.
 // PlatformThreadLocalStorage is a low-level abstraction of the OS's TLS
 // interface. Instead, you should use one of the following:
-// * ThreadLocalBoolean (from thread_local.h) for booleans.
-// * ThreadLocalPointer (from thread_local.h) for pointers.
+// * ThreadLocalOwnedPointer (from thread_local.h) for unique_ptrs.
 // * ThreadLocalStorage::StaticSlot/Slot for more direct control of the slot.
 class BASE_EXPORT PlatformThreadLocalStorage {
  public:
-
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   typedef unsigned long TLSKey;
   enum : unsigned { TLS_KEY_OUT_OF_INDEXES = TLS_OUT_OF_INDEXES };
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   typedef pthread_key_t TLSKey;
   // The following is a "reserved key" which is used in our generic Chromium
   // ThreadLocalStorage implementation.  We expect that an OS will not return
@@ -76,9 +65,9 @@ class BASE_EXPORT PlatformThreadLocalStorage {
   static void FreeTLS(TLSKey key);
   static void SetTLSValue(TLSKey key, void* value);
   static void* GetTLSValue(TLSKey key) {
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     return TlsGetValue(key);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     return pthread_getspecific(key);
 #endif
   }
@@ -91,11 +80,11 @@ class BASE_EXPORT PlatformThreadLocalStorage {
   // Destructors may end up being called multiple times on a terminating
   // thread, as other destructors may re-set slots that were previously
   // destroyed.
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   // Since Windows which doesn't support TLS destructor, the implementation
   // should use GetTLSValue() to retrieve the value of TLS slot.
   static void OnThreadExit();
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // |Value| is the data stored in TLS slot, The implementation can't use
   // GetTLSValue() to retrieve the value of slot as it has already been reset
   // in Posix.
@@ -128,6 +117,10 @@ class BASE_EXPORT ThreadLocalStorage {
     // |destructor| is a pointer to a function to perform per-thread cleanup of
     // this object.  If set to nullptr, no cleanup is done for this TLS slot.
     explicit Slot(TLSDestructorFunc destructor = nullptr);
+
+    Slot(const Slot&) = delete;
+    Slot& operator=(const Slot&) = delete;
+
     // If a destructor was set for this slot, removes the destructor so that
     // remaining threads exiting will not free data.
     ~Slot();
@@ -144,31 +137,31 @@ class BASE_EXPORT ThreadLocalStorage {
     void Initialize(TLSDestructorFunc destructor);
     void Free();
 
-    static constexpr int kInvalidSlotValue = -1;
-    int slot_ = kInvalidSlotValue;
+    static constexpr size_t kInvalidSlotValue = static_cast<size_t>(-1);
+    size_t slot_ = kInvalidSlotValue;
     uint32_t version_ = 0;
-
-    DISALLOW_COPY_AND_ASSIGN(Slot);
   };
+
+  ThreadLocalStorage(const ThreadLocalStorage&) = delete;
+  ThreadLocalStorage& operator=(const ThreadLocalStorage&) = delete;
 
  private:
   // In most cases, most callers should not need access to HasBeenDestroyed().
   // If you are working in code that runs during thread destruction, contact the
   // base OWNERs for advice and then make a friend request.
   //
-  // Returns |true| if Chrome's implementation of TLS has been destroyed during
-  // thread destruction. Attempting to call Slot::Get() during destruction is
-  // disallowed and will hit a DCHECK. Any code that relies on TLS during thread
-  // destruction must first check this method before calling Slot::Get().
-  friend class base::internal::ThreadLocalStorageTestInternal;
-  friend class base::trace_event::MallocDumpProvider;
+  // Returns |true| if Chrome's implementation of TLS is being or has been
+  // destroyed during thread destruction. Attempting to call Slot::Get() during
+  // destruction is disallowed and will hit a DCHECK. Any code that relies on
+  // TLS during thread destruction must first check this method before calling
+  // Slot::Get().
+  friend class SequenceCheckerImpl;
+  friend class SamplingHeapProfiler;
+  friend class ThreadCheckerImpl;
+  friend class internal::ThreadLocalStorageTestInternal;
+  friend class trace_event::MallocDumpProvider;
   friend class debug::GlobalActivityTracker;
-  friend class heap_profiling::ScopedAllowAlloc;
-  friend class heap_profiling::ScopedAllowRealloc;
-  friend class ui::TLSDestructionCheckerForX11;
   static bool HasBeenDestroyed();
-
-  DISALLOW_COPY_AND_ASSIGN(ThreadLocalStorage);
 };
 
 }  // namespace base

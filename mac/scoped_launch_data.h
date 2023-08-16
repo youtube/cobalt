@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,12 @@
 
 #include "base/scoped_generic.h"
 
-namespace base {
-namespace mac {
+// This file uses launch_data_t and related APIs, which are deprecated with no
+// replacement.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
+namespace base::mac {
 
 namespace internal {
 
@@ -25,7 +29,8 @@ struct ScopedLaunchDataTraits {
 using ScopedLaunchData =
     ScopedGeneric<launch_data_t, internal::ScopedLaunchDataTraits>;
 
-}  // namespace mac
-}  // namespace base
+}  // namespace base::mac
+
+#pragma clang diagnostic pop  // -Wdeprecated-declarations
 
 #endif  // BASE_MAC_SCOPED_LAUNCH_DATA_H_

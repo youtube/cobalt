@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,8 +12,7 @@
 #include "base/strings/string_piece.h"
 #include "base/values.h"
 
-namespace base {
-namespace trace_event {
+namespace base::trace_event {
 
 // Configuration of categories enabled and disabled in TraceConfig.
 class BASE_EXPORT TraceConfigCategoryFilter {
@@ -31,7 +30,7 @@ class BASE_EXPORT TraceConfigCategoryFilter {
   void InitializeFromString(const StringPiece& category_filter_string);
 
   // Initializes TraceConfigCategoryFilter object from the config dictionary.
-  void InitializeFromConfigDict(const DictionaryValue& dict);
+  void InitializeFromConfigDict(const Value::Dict& dict);
 
   // Merges this with category filter config.
   void Merge(const TraceConfigCategoryFilter& config);
@@ -48,7 +47,7 @@ class BASE_EXPORT TraceConfigCategoryFilter {
   // category is enabled from the tracing runtime's perspective.
   bool IsCategoryEnabled(const StringPiece& category_name) const;
 
-  void ToDict(DictionaryValue* dict) const;
+  void ToDict(Value::Dict& dict) const;
 
   std::string ToFilterString() const;
 
@@ -57,14 +56,15 @@ class BASE_EXPORT TraceConfigCategoryFilter {
 
   const StringList& included_categories() const { return included_categories_; }
   const StringList& excluded_categories() const { return excluded_categories_; }
+  const StringList& disabled_categories() const { return disabled_categories_; }
 
  private:
-  void SetCategoriesFromIncludedList(const ListValue& included_list);
-  void SetCategoriesFromExcludedList(const ListValue& excluded_list);
+  void SetCategoriesFromIncludedList(const Value::List& included_list);
+  void SetCategoriesFromExcludedList(const Value::List& excluded_list);
 
   void AddCategoriesToDict(const StringList& categories,
                            const char* param,
-                           DictionaryValue* dict) const;
+                           Value::Dict& dict) const;
 
   void WriteCategoryFilterString(const StringList& values,
                                  std::string* out,
@@ -75,7 +75,6 @@ class BASE_EXPORT TraceConfigCategoryFilter {
   StringList excluded_categories_;
 };
 
-}  // namespace trace_event
-}  // namespace base
+}  // namespace base::trace_event
 
 #endif  // BASE_TRACE_EVENT_TRACE_CONFIG_CATEGORY_FILTER_H_

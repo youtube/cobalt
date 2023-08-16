@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,12 @@
 
 #include <atomic>
 #include <map>
-#include <string>
+#include <memory>
 #include <vector>
 
+#include "base/base_export.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
 
 namespace base {
@@ -31,17 +32,32 @@ class HistogramFlattener;
 class BASE_EXPORT HistogramSnapshotManager final {
  public:
   explicit HistogramSnapshotManager(HistogramFlattener* histogram_flattener);
+
+  HistogramSnapshotManager(const HistogramSnapshotManager&) = delete;
+  HistogramSnapshotManager& operator=(const HistogramSnapshotManager&) = delete;
+
   ~HistogramSnapshotManager();
 
-  // Snapshot all histograms, and ask |histogram_flattener_| to record the
+  // Snapshots all histograms and asks |histogram_flattener_| to record the
   // delta. |flags_to_set| is used to set flags for each histogram.
-  // |required_flags| is used to select histograms to be recorded.
-  // Only histograms that have all the flags specified by the argument will be
-  // chosen. If all histograms should be recorded, set it to
-  // |Histogram::kNoFlags|.
+  // |required_flags| is used to select which histograms to record. Only
+  // histograms with all of the required flags are selected. If all histograms
+  // should be recorded, use |Histogram::kNoFlags| as the required flag.
   void PrepareDeltas(const std::vector<HistogramBase*>& histograms,
                      HistogramBase::Flags flags_to_set,
                      HistogramBase::Flags required_flags);
+
+  // Same as PrepareDeltas() above, but the samples obtained from the histograms
+  // are not immediately marked as logged. Instead, they are stored internally
+  // in |histograms_and_snapshots_|, and a call to MarkUnloggedSamplesAsLogged()
+  // should be made subsequently in order to mark them as logged.
+  void SnapshotUnloggedSamples(const std::vector<HistogramBase*>& histograms,
+                               HistogramBase::Flags required_flags);
+
+  // Marks the unlogged samples obtained from SnapshotUnloggedSamples() as
+  // logged. For each call to this function, there should be a corresponding
+  // call to SnapshotUnloggedSamples() before it.
+  void MarkUnloggedSamplesAsLogged();
 
   // When the collection is not so simple as can be done using a single
   // iterator, the steps can be performed separately. Call PerpareDelta()
@@ -54,35 +70,28 @@ class BASE_EXPORT HistogramSnapshotManager final {
  private:
   FRIEND_TEST_ALL_PREFIXES(HistogramSnapshotManagerTest, CheckMerge);
 
-  // During a snapshot, samples are acquired and aggregated. This structure
-  // contains all the information for a given histogram that persists between
-  // collections.
-  struct SampleInfo {
-    // The set of inconsistencies (flags) already seen for the histogram.
-    // See HistogramBase::Inconsistency for values.
-    uint32_t inconsistencies = 0;
-  };
+  using HistogramSnapshotPair =
+      std::pair<HistogramBase*, std::unique_ptr<HistogramSamples>>;
 
   // Capture and hold samples from a histogram. This does all the heavy
-  // lifting for PrepareDelta() and PrepareAbsolute().
+  // lifting for PrepareDelta() and PrepareFinalDelta().
   void PrepareSamples(const HistogramBase* histogram,
-                      std::unique_ptr<HistogramSamples> samples);
+                      const HistogramSamples& samples);
+
+  // A list of histograms and snapshots of unlogged samples. Filled when calling
+  // SnapshotUnloggedSamples(). They are marked as logged when calling
+  // MarkUnloggedSamplesAsLogged().
+  std::vector<HistogramSnapshotPair> histograms_and_snapshots_;
+
+  // Keeps track of whether SnapshotUnloggedSamples() has been called. This
+  // resets back to false after calling MarkUnloggedSamplesAsLogged(), so that
+  // the same HistogramSnapshotManager instance can be used to take multiple
+  // snapshots if needed.
+  bool unlogged_samples_snapshot_taken_ = false;
 
   // |histogram_flattener_| handles the logistics of recording the histogram
   // deltas.
-  HistogramFlattener* const histogram_flattener_;  // Weak.
-
-  // For histograms, track what has been previously seen, indexed
-  // by the hash of the histogram name.
-  std::map<uint64_t, SampleInfo> known_histograms_;
-
-  // A flag indicating if a thread is currently doing an operation. This is
-  // used to check against concurrent access which is not supported. A Thread-
-  // Checker is not sufficient because it may be guarded by at outside lock
-  // (as is the case with cronet).
-  std::atomic<bool> is_active_;
-
-  DISALLOW_COPY_AND_ASSIGN(HistogramSnapshotManager);
+  const raw_ptr<HistogramFlattener> histogram_flattener_;  // Weak.
 };
 
 }  // namespace base

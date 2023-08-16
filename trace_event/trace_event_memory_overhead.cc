@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,14 +8,14 @@
 
 #include "base/bits.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "base/values.h"
 
-namespace base {
-namespace trace_event {
+namespace base::trace_event {
 
 namespace {
 
@@ -103,38 +103,28 @@ void TraceEventMemoryOverhead::AddValue(const Value& value) {
       Add(kBaseValue, sizeof(Value));
       break;
 
-    case Value::Type::STRING: {
-      const Value* string_value = nullptr;
-      value.GetAsString(&string_value);
+    case Value::Type::STRING:
       Add(kBaseValue, sizeof(Value));
-      AddString(string_value->GetString());
-    } break;
+      AddString(value.GetString());
+      break;
 
-    case Value::Type::BINARY: {
+    case Value::Type::BINARY:
       Add(kBaseValue, sizeof(Value) + value.GetBlob().size());
-    } break;
+      break;
 
-    case Value::Type::DICTIONARY: {
-      const DictionaryValue* dictionary_value = nullptr;
-      value.GetAsDictionary(&dictionary_value);
-      Add(kBaseValue, sizeof(DictionaryValue));
-      for (DictionaryValue::Iterator it(*dictionary_value); !it.IsAtEnd();
-           it.Advance()) {
-        AddString(it.key());
-        AddValue(it.value());
+    case Value::Type::DICT:
+      Add(kBaseValue, sizeof(Value));
+      for (const auto pair : value.GetDict()) {
+        AddString(pair.first);
+        AddValue(pair.second);
       }
-    } break;
+      break;
 
-    case Value::Type::LIST: {
-      const ListValue* list_value = nullptr;
-      value.GetAsList(&list_value);
-      Add(kBaseValue, sizeof(ListValue));
-      for (const auto& v : *list_value)
+    case Value::Type::LIST:
+      Add(kBaseValue, sizeof(Value));
+      for (const auto& v : value.GetList())
         AddValue(v);
-    } break;
-
-    default:
-      NOTREACHED();
+      break;
   }
 }
 
@@ -175,5 +165,4 @@ void TraceEventMemoryOverhead::DumpInto(const char* base_name,
   }
 }
 
-}  // namespace trace_event
-}  // namespace base
+}  // namespace base::trace_event

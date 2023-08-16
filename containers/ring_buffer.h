@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,8 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/check.h"
+#include "base/memory/raw_ref.h"
 
 namespace base {
 
@@ -25,6 +25,8 @@ template <typename T, size_t kSize>
 class RingBuffer {
  public:
   RingBuffer() : current_index_(0) {}
+  RingBuffer(const RingBuffer&) = delete;
+  RingBuffer& operator=(const RingBuffer&) = delete;
 
   size_t BufferSize() const { return kSize; }
 
@@ -63,8 +65,8 @@ class RingBuffer {
    public:
     size_t index() const { return index_; }
 
-    const T* operator->() const { return &buffer_.ReadBuffer(index_); }
-    const T* operator*() const { return &buffer_.ReadBuffer(index_); }
+    const T* operator->() const { return &buffer_->ReadBuffer(index_); }
+    const T* operator*() const { return &buffer_->ReadBuffer(index_); }
 
     Iterator& operator++() {
       index_++;
@@ -81,14 +83,14 @@ class RingBuffer {
     }
 
     operator bool() const {
-      return !out_of_range_ && buffer_.IsFilledIndex(index_);
+      return !out_of_range_ && buffer_->IsFilledIndex(index_);
     }
 
    private:
     Iterator(const RingBuffer<T, kSize>& buffer, size_t index)
         : buffer_(buffer), index_(index), out_of_range_(false) {}
 
-    const RingBuffer<T, kSize>& buffer_;
+    const raw_ref<const RingBuffer<T, kSize>> buffer_;
     size_t index_;
     bool out_of_range_;
 
@@ -124,8 +126,6 @@ class RingBuffer {
 
   T buffer_[kSize];
   size_t current_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(RingBuffer);
 };
 
 }  // namespace base

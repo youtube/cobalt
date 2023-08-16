@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -21,13 +21,14 @@
 #define BASE_WIN_EVENT_TRACE_CONTROLLER_H_
 
 #include <windows.h>
-#include <wmistr.h>
+
 #include <evntrace.h>
 #include <stddef.h>
+#include <wmistr.h>
+
 #include <string>
 
 #include "base/base_export.h"
-#include "base/macros.h"
 
 namespace base {
 namespace win {
@@ -39,16 +40,17 @@ class BASE_EXPORT EtwTraceProperties {
  public:
   EtwTraceProperties();
 
-  EVENT_TRACE_PROPERTIES* get() {
-    return &properties_;
-  }
+  EtwTraceProperties(const EtwTraceProperties&) = delete;
+  EtwTraceProperties& operator=(const EtwTraceProperties&) = delete;
+
+  EVENT_TRACE_PROPERTIES* get() { return &properties_; }
 
   const EVENT_TRACE_PROPERTIES* get() const {
     return reinterpret_cast<const EVENT_TRACE_PROPERTIES*>(&properties_);
   }
 
   const wchar_t* GetLoggerName() const {
-    return reinterpret_cast<const wchar_t *>(buffer_ + get()->LoggerNameOffset);
+    return reinterpret_cast<const wchar_t*>(buffer_ + get()->LoggerNameOffset);
   }
 
   // Copies logger_name to the properties structure.
@@ -64,22 +66,19 @@ class BASE_EXPORT EtwTraceProperties {
   static const size_t kMaxStringLen = 1024;
   // Properties buffer allocates space for header and for
   // max length for name and session name.
-  static const size_t kBufSize = sizeof(EVENT_TRACE_PROPERTIES)
-      + 2 * sizeof(wchar_t) * (kMaxStringLen);
+  static const size_t kBufSize =
+      sizeof(EVENT_TRACE_PROPERTIES) + 2 * sizeof(wchar_t) * (kMaxStringLen);
 
  private:
   // The EVENT_TRACE_PROPERTIES structure needs to be overlaid on a
   // larger buffer to allow storing the logger name and logger file
   // name contiguously with the structure.
   union {
-   public:
     // Our properties header.
     EVENT_TRACE_PROPERTIES properties_;
     // The actual size of the buffer is forced by this member.
     char buffer_[kBufSize];
   };
-
-  DISALLOW_COPY_AND_ASSIGN(EtwTraceProperties);
 };
 
 // This class implements an ETW controller, which knows how to start and
@@ -88,6 +87,10 @@ class BASE_EXPORT EtwTraceProperties {
 class BASE_EXPORT EtwTraceController {
  public:
   EtwTraceController();
+
+  EtwTraceController(const EtwTraceController&) = delete;
+  EtwTraceController& operator=(const EtwTraceController&) = delete;
+
   ~EtwTraceController();
 
   // Start a session with given name and properties.
@@ -98,14 +101,15 @@ class BASE_EXPORT EtwTraceController {
                            const wchar_t* logfile_path,
                            bool realtime = false);
 
-  // Starts a realtime session with some default properties.
-  HRESULT StartRealtimeSession(const wchar_t* session_name,
-                               size_t buffer_size);
+  // Starts a realtime session with some default properties.  |buffer_size| is
+  // in KB.  A default value for |buffer_size| is used if 0 is passed in.
+  HRESULT StartRealtimeSession(const wchar_t* session_name, size_t buffer_size);
 
   // Enables "provider" at "level" for this session.
   // This will cause all providers registered with the GUID
   // "provider" to start tracing at the new level, systemwide.
-  HRESULT EnableProvider(const GUID& provider, UCHAR level,
+  HRESULT EnableProvider(const GUID& provider,
+                         UCHAR level,
                          ULONG flags = 0xFFFFFFFF);
   // Disables "provider".
   HRESULT DisableProvider(const GUID& provider);
@@ -141,9 +145,7 @@ class BASE_EXPORT EtwTraceController {
 
  private:
   std::wstring session_name_;
-  TRACEHANDLE session_;
-
-  DISALLOW_COPY_AND_ASSIGN(EtwTraceController);
+  TRACEHANDLE session_ = NULL;
 };
 
 }  // namespace win
