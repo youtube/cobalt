@@ -34,6 +34,9 @@ struct ServiceWorkerConsts {
   // Array of JavaScript mime types, according to the MIME Sniffinc spec:
   //   https://mimesniff.spec.whatwg.org/#javascript-mime-type
   static const char* const kJavaScriptMimeTypes[16];
+
+  // The name of a Service Worker thread.
+  static const char kServiceWorker[];
 };
 
 }  // namespace worker

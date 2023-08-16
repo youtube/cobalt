@@ -63,5 +63,7 @@ const char* const ServiceWorkerConsts::kJavaScriptMimeTypes[16] = {
     "text/livescript",
     "text/x-ecmascript",
     "text/x-javascript"};
+
+const char ServiceWorkerConsts::kServiceWorker[] = "ServiceWorker";
 }  // namespace worker
 }  // namespace cobalt

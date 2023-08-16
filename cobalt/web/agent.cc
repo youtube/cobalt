@@ -39,6 +39,7 @@
 #include "cobalt/web/url.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_consts.h"
 #include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -547,7 +548,7 @@ void Agent::Stop() {
   }
 
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) {
+  if (watchdog && watchdog_registered_) {
     watchdog_registered_ = false;
     watchdog->Unregister(watchdog_name_);
   }
@@ -577,19 +578,20 @@ void Agent::Run(const Options& options, InitializeCallback initialize_callback,
   if (!thread_.StartWithOptions(thread_options)) return;
   DCHECK(message_loop());
 
-  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-
   // Registers service worker thread as a watchdog client.
-  if (watchdog) {
-    watchdog_name_ =
-        thread_.thread_name() + std::to_string(thread_.GetThreadId());
-    watchdog_registered_ = true;
-    watchdog->Register(watchdog_name_, watchdog_name_,
-                       base::kApplicationStateStarted, kWatchdogTimeInterval,
-                       kWatchdogTimeWait, watchdog::PING);
-    message_loop()->task_runner()->PostDelayedTask(
-        FROM_HERE, base::Bind(&Agent::PingWatchdog, base::Unretained(this)),
-        base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
+  if (thread_.thread_name() == worker::ServiceWorkerConsts::kServiceWorker) {
+    watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+
+    if (watchdog) {
+      watchdog_name_ = worker::ServiceWorkerConsts::kServiceWorker;
+      watchdog_registered_ = true;
+      watchdog->Register(watchdog_name_, watchdog_name_,
+                         base::kApplicationStateStarted, kWatchdogTimeInterval,
+                         kWatchdogTimeWait, watchdog::PING);
+      message_loop()->task_runner()->PostDelayedTask(
+          FROM_HERE, base::Bind(&Agent::PingWatchdog, base::Unretained(this)),
+          base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
+    }
   }
 
   message_loop()->task_runner()->PostTask(

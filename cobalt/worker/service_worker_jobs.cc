@@ -722,7 +722,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
 
   // 11. Let worker be a new service worker.
   ServiceWorkerObject::Options options(
-      "ServiceWorker", state->job->client->web_settings(),
+      ServiceWorkerConsts::kServiceWorker, state->job->client->web_settings(),
       state->job->client->network_module(), state->registration);
   options.web_options.platform_info = state->job->client->platform_info();
   options.web_options.service_worker_context =
