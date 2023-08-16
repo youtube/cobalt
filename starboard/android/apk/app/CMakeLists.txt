@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Since libcoat.so is an "IMPORTED" library in CMake, in order to debug in
+# Since libcobalt.so is an "IMPORTED" library in CMake, in order to debug in
 # Android Studio you have to manually set the debugger type so that LLDB will
 # be started:
 # Run -> Edit Configurations -> "app" -> Debugger -> Debug Type = Dual
@@ -65,18 +65,18 @@ if(COBALT_PLATFORM_DEPLOY)
   set(skip_ninja_arg -n)
 endif()
 
-# Run Cobalt ninja, and copy the result as our "IMPORTED" libcoat.so.
+# Run Cobalt ninja, and copy the result as our "IMPORTED" libcobalt.so.
 # ("coat_lib" never gets created, so this runs every time.)
 add_custom_command(OUTPUT coat_lib
     COMMAND ${CMAKE_CURRENT_LIST_DIR}/cobalt-ninja.sh
             ${skip_ninja_arg} -C ${COBALT_PRODUCT_DIR} ${COBALT_TARGET}
     COMMAND ${CMAKE_COMMAND} -E copy
             ${COBALT_LIBRARY_DIR}/lib${COBALT_TARGET}.so
-            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcoat.so
+            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcobalt.so
 )
 
 if(EVERGREEN_COMPATIBLE)
-  # Follow the pattern used to import libcoat.so, above.
+  # Follow the pattern used to import libcobalt.so, above.
   add_custom_command(OUTPUT crashpad_handler_lib
       COMMAND ${CMAKE_CURRENT_LIST_DIR}/cobalt-ninja.sh
               ${skip_ninja_arg} -C ${COBALT_PRODUCT_DIR} crashpad_handler
@@ -109,15 +109,15 @@ add_custom_command(OUTPUT cobalt_content
 # We need a target (not a file) for the phony native dependency below.
 add_custom_target(external_cobalt_build DEPENDS coat_lib cobalt_content)
 
-# Declare libcoat.so as a shared library that needs to be included in the APK.
+# Declare libcobalt.so as a shared library that needs to be included in the APK.
 # However, Android Studio will build it as an "IMPORTED" library.
 add_library(coat SHARED IMPORTED)
 set_target_properties(coat PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcoat.so
+    IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcobalt.so
 )
 
 if(EVERGREEN_COMPATIBLE)
-  # Follow the pattern used to include libcoat.so, above.
+  # Follow the pattern used to include libcobalt.so, above.
   add_library(crashpadhandler SHARED IMPORTED)
   set_target_properties(crashpadhandler PROPERTIES
       IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcrashpad_handler.so
