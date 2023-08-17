@@ -25,6 +25,8 @@
 #ifndef STARBOARD_USER_H_
 #define STARBOARD_USER_H_
 
+#if SB_API_VERSION < 16
+
 #include "starboard/export.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -76,8 +78,6 @@ static SB_C_INLINE bool SbUserIsValid(SbUser user) {
 // that the referenced objects will persist for the lifetime of the app.
 SB_EXPORT SbUser SbUserGetCurrent();
 
-#if SB_API_VERSION < 16
-
 // Gets a list of up to |users_size| signed-in users and places the results in
 // |out_users|. The return value identifies the actual number of signed-in
 // users, which may be greater or less than |users_size|.
@@ -112,10 +112,14 @@ SB_EXPORT bool SbUserGetProperty(SbUser user,
                                  char* out_value,
                                  int value_size);
 
-#endif
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#else  // SB_API_VERSION < 16
+
+#error This file is deprecated with SB_API_VERSION 16.
+
+#endif  // SB_API_VERSION < 16
 
 #endif  // STARBOARD_USER_H_
