@@ -25,6 +25,7 @@ import java.net.URL;
 
 /** Helper class that implements an HTTP POST function used by DRM one-time provisioning. */
 public class CobaltHttpHelper {
+  private static final int HTTP_TIMEOUT_MILLIS = 500;
   private static final int RETRY_SLEEP_MILLIS = 250;
   private static final int MAX_ATTEMPTS = 3;
 
@@ -72,6 +73,8 @@ public class CobaltHttpHelper {
   private byte[] internalPerformHttpPost(String url) throws IOException, TransientFailure {
     HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
     try {
+      conn.setConnectTimeout(HTTP_TIMEOUT_MILLIS);
+      conn.setReadTimeout(HTTP_TIMEOUT_MILLIS);
       conn.setRequestMethod("POST");
       conn.setDoOutput(false);
       conn.setDoInput(true);
