@@ -40,11 +40,11 @@ from starboard.tools.util import SetupDefaultLoggingConfig
 # pylint: disable=consider-using-f-string
 
 _FLAKY_RETRY_LIMIT = 4
-_TOTAL_TESTS_REGEX = re.compile(r"^\[==========\] (.*) tests? from .*"
+_TOTAL_TESTS_REGEX = re.compile(r"\[==========\] (.*) tests? from .*"
                                 r"test suites? ran. \(.* ms total\)")
-_TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
-_TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
-_SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")
+_TESTS_PASSED_REGEX = re.compile(r"\[  PASSED  \] (.*) tests?")
+_TESTS_FAILED_REGEX = re.compile(r"\[  FAILED  \] (.*) tests?, listed below:")
+_SINGLE_TEST_FAILED_REGEX = re.compile(r"\[  FAILED  \] (.*)")
 
 _NATIVE_CRASHPAD_TARGET = "native_target/crashpad_handler"
 _LOADER_TARGET = "elf_loader_sandbox"
@@ -265,7 +265,8 @@ class TestRunner(object):
     _VerifyConfig(self._platform_config,
                   self._platform_test_filters.GetTestFilters())
 
-    if self.loader_platform:
+    if self.loader_platform and self.loader_platform.find("rdk") == -1:
+      print("  self.loader_platform = ", self.loader_platform)
       _EnsureBuildDirectoryExists(self.loader_out_directory)
       _VerifyConfig(self._loader_platform_config,
                     self._loader_platform_test_filters.GetTestFilters())
@@ -786,7 +787,7 @@ class TestRunner(object):
 
       # The loader is not built with the same platform configuration as our
       # tests so we need to build it separately.
-      if self.loader_platform:
+      if self.loader_platform and self.loader_platform.find("rdk") == -1:
         target_list = [_LOADER_TARGET, _NATIVE_CRASHPAD_TARGET]
         build_tests.BuildTargets(
             target_list, self.loader_out_directory, self.dry_run,

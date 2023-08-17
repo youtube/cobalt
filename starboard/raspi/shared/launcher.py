@@ -57,11 +57,17 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   _STARTUP_TIMEOUT_SECONDS = 1800
 
+  #RASPI-2 specific parameters
   _RASPI_USERNAME = 'pi'
   _RASPI_PASSWORD = 'raspberry'
+  _RASPI_PROMPT = 'pi@raspberrypi:'
+  #RDK specific parameters
+  _RDK_USERNAME = 'root'
+  _RDK_PASSWORD = ''
+  _RDK_PROMPT = 'root@AmlogicFirebolt:'
+
   _SSH_LOGIN_SIGNAL = 'cobalt-launcher-login-success'
   _SSH_SLEEP_SIGNAL = 'cobalt-launcher-done-sleeping'
-  _RASPI_PROMPT = 'pi@raspberrypi:'
 
   # pexpect times out each second to allow Kill to quickly stop a test run
   _PEXPECT_TIMEOUT = 1
@@ -101,6 +107,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     env = os.environ.copy()
     env.update(self.env_variables)
     self.full_env = env
+    self.platform = platform
 
     if not self.device_id:
       self.device_id = self.full_env.get('RASPI_ADDR')
@@ -112,7 +119,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.startup_timeout_seconds = Launcher._STARTUP_TIMEOUT_SECONDS
 
     self.pexpect_process = None
-    self._InitPexpectCommands()
+
+    if 'rdk' in platform:
+      self._InitPexpectCommandsRdk()
+    else:
+      self._InitPexpectCommands()
 
     self.run_inactive = threading.Event()
     self.run_inactive.set()
@@ -178,6 +189,47 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.test_command = (f'{test_base_command} {test_success_output} '
                          f'{test_failure_output}')
 
+  def _InitPexpectCommandsRdk(self):
+    """Initializes all of the pexpect commands needed for running the test."""
+
+    # Ensure no trailing slashes
+    self.out_directory = self.out_directory.rstrip('/')
+
+    rdk_user_hostname = Launcher._RDK_USERNAME + '@' + self.device_id
+    rdk_test_dir = '/usr/share/content/data/app'
+
+    # scp command setup
+    options = '-rOCq '
+    rsa_options = '-o \"LogLevel ERROR\" \
+        -o \"UserKnownHostsFile=/dev/null\" -o StrictHostKeyChecking=no '
+
+    source = os.path.join(self.out_directory, 'content', 'app', 'cobalt')
+    destination = f'{rdk_user_hostname}:{rdk_test_dir}/'
+    self.scp_command = 'scp ' + options + rsa_options + \
+        ' ' + source + ' ' + destination
+
+    # ssh command setup
+    self.ssh_command = 'ssh -t ' + rsa_options + rdk_user_hostname + \
+        ' TERM=dumb bash -l'
+
+    # test output tags
+    self.test_complete_tag = 'test suites ran.'
+    self.test_failure_tag = 'tests, listed below'
+    self.test_failure_list_tag = 'FAILED TESTS'
+
+    # test command setup
+    # note: If RDK has ResidentApp feature turned on (default), the log
+    #       goes to a buffer that can be retrieved by command
+    #           journalctl -f -u dobby
+    #       Otherwise, the container is off, and the log is dumped into
+    #       file /opt/logs/wpeframework.log.
+    #           tail -f /opt/logs/wpeframework.log
+    self.test_command = 'curl -X POST http://127.0.0.1:9998/jsonrpc -d \
+                          \'{\"jsonrpc\":\"2.0\", \"id\":3, \
+                          \"method\":\"org.rdk.RDKShell.1.launch\", \
+                          \"params\":{\"callsign\":\"YouTube\"}}\'; \
+                          tail -f /opt/logs/wpeframework.log'
+
   # pylint: disable=no-method-argument
   def _CommandBackoff():
     time.sleep(Launcher._INTER_COMMAND_DELAY_SECONDS)
@@ -230,6 +282,46 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     _inner()
 
+  def _PexpectSpawnAndConnectRdk(self, command):
+    """Spawns a process with pexpect and connect to the RDK.
+
+    Args:
+       command: The command to use when spawning the pexpect process.
+    """
+
+    logging.info('executing: %s', command)
+    kwargs = {} if six.PY2 else {'encoding': 'utf-8'}
+    self.pexpect_process = pexpect.spawn(
+        command, timeout=Launcher._PEXPECT_TIMEOUT, **kwargs)
+    # Let pexpect output directly to our output stream
+    self.pexpect_process.logfile_read = self.output_file
+    expected_prompts = [
+        r'.*Are\syou\ssure.*',  # Fingerprint verification
+        r'.* password:',  # Password prompt
+        '.*[a-zA-Z]+.*',  # Any other text input
+    ]
+
+    # pylint: disable=unnecessary-lambda
+    @retry.retry(
+        exceptions=Launcher._RETRY_EXCEPTIONS,
+        retries=Launcher._PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES,
+        backoff=lambda: self._ShutdownBackoff(),
+        wrap_exceptions=False)
+    def _inner():
+      i = self.pexpect_process.expect(expected_prompts)
+      if i == 0:
+        self._PexpectSendLine('yes')
+      elif i == 1:
+        self._PexpectSendLine(Launcher._RDK_PASSWORD)
+      else:
+        # If any other input comes in, maybe we've logged in with rsa key or
+        # raspi does not have password. Check if we've logged in by echoing
+        # a special sentence and expect it back.
+        self._PexpectSendLine('echo ' + Launcher._SSH_LOGIN_SIGNAL)
+        i = self.pexpect_process.expect([Launcher._SSH_LOGIN_SIGNAL])
+
+    _inner()
+
   @retry.retry(
       exceptions=_RETRY_EXCEPTIONS,
       retries=_PEXPECT_SENDLINE_RETRIES,
@@ -261,6 +353,34 @@ class Launcher(abstract_launcher.AbstractLauncher):
         if line.startswith(self.test_complete_tag):
           if line.find(self.test_success_tag) != -1:
             self.return_value = 0
+          return
+
+    _readloop()
+
+  def _PexpectReadLinesRdk(self):
+    """Reads all lines from the pexpect process."""
+    # pylint: disable=unnecessary-lambda
+    @retry.retry(
+        exceptions=Launcher._RETRY_EXCEPTIONS,
+        retries=Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES,
+        backoff=lambda: self.shutdown_initiated.is_set(),
+        wrap_exceptions=False)
+    def _readloop():
+      test_completed = 0
+      while True:
+        # Sanitize the line to remove ansi color codes.
+        line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub(
+            '', self.pexpect_process.readline())
+        self.output_file.flush()
+        if not line:
+          return
+        # Check for the test complete tag. It will be followed by either a
+        # success or failure tag.
+        if line.find(self.test_complete_tag) != -1:
+          test_completed = 1
+        if test_completed and line.find(self.test_failure_tag) != -1:
+          self.return_value = 1
+        if self.return_value and line.find(self.test_failure_list_tag) != -1:
           return
 
     _readloop()
@@ -347,15 +467,21 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # Notify other threads that the run is now active
       self.run_inactive.clear()
 
-      # rsync the test files to the raspi
+      # rsync the test files to the raspi / RDK
       if not self.shutdown_initiated.is_set():
-        self._PexpectSpawnAndConnect(self.rsync_command)
+        if 'rdk' in self.platform:
+          self._PexpectSpawnAndConnectRdk(self.scp_command)
+        else:
+          self._PexpectSpawnAndConnect(self.rsync_command)
       if not self.shutdown_initiated.is_set():
         self._PexpectReadLines()
 
-      # ssh into the raspi and run the test
+      # ssh into the raspi/RDK and run the test
       if not self.shutdown_initiated.is_set():
-        self._PexpectSpawnAndConnect(self.ssh_command)
+        if 'rdk' in self.platform:
+          self._PexpectSpawnAndConnectRdk(self.ssh_command)
+        else:
+          self._PexpectSpawnAndConnect(self.ssh_command)
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
       # Execute debugging commands on the first run
       first_run_commands = []
@@ -383,7 +509,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       if not self.shutdown_initiated.is_set():
         self._PexpectSendLine(self.test_command)
-        self._PexpectReadLines()
+        if 'rdk' in self.platform:
+          self._PexpectReadLinesRdk()
+        else:
+          self._PexpectReadLines()
 
     except retry.RetriesExceeded:
       logging.exception('Command retry exceeded (cmd: %s)',
