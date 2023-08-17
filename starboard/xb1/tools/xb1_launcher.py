@@ -90,14 +90,11 @@ _STARBOARD_ARGUMENTS_FILE = 'starboard_arguments.txt'
 _DEFAULT_PACKAGE_NAME = 'GoogleInc.YouTube'
 _DEFAULT_APPX_NAME = 'cobalt.appx'
 _DEFAULT_STAGING_APP_NAME = 'appx'
-_WIN_SDK_DIR = os.path.normpath(
-    os.environ.get(
-        'WINDOWSSDKDIR',
-        os.path.expandvars('%ProgramFiles(x86)%'
-                           '\\Windows Kits\\10')))
-_DEBUG_VC_LIBS_PATH = os.path.join(_WIN_SDK_DIR, 'ExtensionSDKs',
-                                   'Microsoft.VCLibs', '14.0', 'Appx', 'Debug',
-                                   'x64',
+_EXTENSION_SDK_DIR = os.path.normpath(
+    os.path.expandvars('%ProgramFiles(x86)%\\Microsoft SDKs'
+                       '\\Windows Kits\\10\\ExtensionSDKs'))
+_DEBUG_VC_LIBS_PATH = os.path.join(_EXTENSION_SDK_DIR, 'Microsoft.VCLibs',
+                                   '14.0', 'Appx', 'Debug', 'x64',
                                    'Microsoft.VCLibs.x64.Debug.14.00.appx')
 _XB1_LOG_FILE_PARAM = 'xb1_log_file'
 _XB1_PORT = 11443
@@ -437,7 +434,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     try:
       self._LogLn('Installing appx file ' + appx_package_file)
       self.WinAppDeployCmd(
-          f'install -file {appx_package_file} -d {_DEBUG_VC_LIBS_PATH}')
+          f'install -file {appx_package_file} -dependency {_DEBUG_VC_LIBS_PATH}'
+      )
     except subprocess.CalledProcessError:
       # Install exited with non-zero status code, clear everything out, restart,
       # and attempt another install.
@@ -445,7 +443,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self.UninstallSubPackages()
       self.RestartDevkit()
       self.WinAppDeployCmd(
-          f'install -file {appx_package_file} -d {_DEBUG_VC_LIBS_PATH}')
+          f'install -file {appx_package_file} -dependency {_DEBUG_VC_LIBS_PATH}'
+      )
 
     # Cleanup starboard arguments file.
     self.InstallStarboardArgument(None)
