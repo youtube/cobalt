@@ -26,6 +26,6 @@ jobs:
       pull-requests: write
     with:
       platform: stub
-      nightly: 'false'
+      nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
       leak_manifest_filename: "gn_built_docker_debian10_manifest"
