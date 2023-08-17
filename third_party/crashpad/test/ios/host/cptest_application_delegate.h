@@ -12,22 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import "test/ios/host/crash_view_controller.h"
+#ifndef CRASHPAD_TEST_IOS_HOST_CPTEST_APPLICATION_DELEGATE_H_
+#define CRASHPAD_TEST_IOS_HOST_CPTEST_APPLICATION_DELEGATE_H_
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import <UIKit/UIKit.h>
 
-@implementation CrashViewController
-
-- (void)loadView {
-  self.view = [[UIView alloc] init];
-}
-
-- (void)viewDidLoad {
-  [super viewDidLoad];
-
-  self.view.backgroundColor = UIColor.redColor;
-}
-
+@interface CPTestApplicationDelegate : UIResponder <UIApplicationDelegate>
 @end
+
+#endif  // CRASHPAD_TEST_IOS_HOST_CPTEST_APPLICATION_DELEGATE_H_

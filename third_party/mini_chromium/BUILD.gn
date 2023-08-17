@@ -3,7 +3,5 @@
 # found in the LICENSE file.
 
 group("mini_chromium") {
-  deps = [
-    "//base",
-  ]
+  deps = [ "//base" ]
 }
