@@ -72,6 +72,21 @@ DeviceType GetDeviceType() {
   return kDeviceTypeFHD;
 }
 
+testing::AssertionResult IsMimeAndKeySystemSupported(std::string param,
+                                                     std::string key_system) {
+  SbMediaSupportType support_type =
+      SbMediaCanPlayMimeAndKeySystem(param.c_str(), key_system.c_str());
+  if (support_type == kSbMediaSupportTypeProbably) {
+    return testing::AssertionSuccess();
+  }
+
+  return testing::AssertionFailure()
+         << "SbMediaCanPlayMimeAndKeySystem(\"" << param << "\", \""
+         << key_system << "\") returns " << support_type
+         << ". It should return kSbMediaSupportTypeProbably ("
+         << kSbMediaSupportTypeProbably << ").";
+}
+
 TEST(SbMediaCanPlayMimeAndKeySystem, SunnyDay) {
   // Vp9
   SbMediaCanPlayMimeAndKeySystem(
@@ -292,20 +307,20 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       mime_params = params_fhd;
   }
 
+  const char* key_system = "";
   for (auto& param : mime_params) {
-    SbMediaSupportType support = SbMediaCanPlayMimeAndKeySystem(param, "");
-    EXPECT_TRUE(support == kSbMediaSupportTypeProbably);
+    EXPECT_TRUE(IsMimeAndKeySystemSupported(param, key_system));
   }
 
   // AAC-LC
-  SbMediaSupportType result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"mp4a.40.2\"; channels=2; bitrate=256000;", "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+  ASSERT_TRUE(IsMimeAndKeySystemSupported(
+      "audio/mp4; codecs=\"mp4a.40.2\"; channels=2; bitrate=256000",
+      key_system));
 
   // HE-AAC
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"mp4a.40.5\"; channels=2; bitrate=48000;", "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+  ASSERT_TRUE(IsMimeAndKeySystemSupported(
+      "audio/mp4; codecs=\"mp4a.40.5\"; channels=2; bitrate=48000",
+      key_system));
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, AnySupportedKeySystems) {
