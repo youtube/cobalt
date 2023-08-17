@@ -12,41 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/worker/service_worker_consts.h"
+#include "cobalt/worker/worker_consts.h"
 
 namespace cobalt {
 namespace worker {
-const char ServiceWorkerConsts::kServiceWorkerRegisterBadMIMEError[] =
+const char WorkerConsts::kServiceWorkerRegisterBadMIMEError[] =
     "Service Worker Register failed: The script has an unsupported MIME type "
     "('%s').";
 
-const char ServiceWorkerConsts::kServiceWorkerRegisterNoMIMEError[] =
+const char WorkerConsts::kServiceWorkerRegisterNoMIMEError[] =
     "Service Worker Register failed: The script does not have a MIME type.";
 
-const char
-    ServiceWorkerConsts::kServiceWorkerRegisterScriptOriginNotSameError[] =
-        "Service Worker Register failed: Script URL ('%s') and referrer ('%s') "
-        "origin are not the same.";
+const char WorkerConsts::kServiceWorkerRegisterScriptOriginNotSameError[] =
+    "Service Worker Register failed: Script URL ('%s') and referrer ('%s') "
+    "origin are not the same.";
 
-const char
-    ServiceWorkerConsts::kServiceWorkerRegisterScopeOriginNotSameError[] =
-        "Service Worker Register failed: Scope URL ('%s') and referrer ('%s') "
-        "origin are not the same.";
+const char WorkerConsts::kServiceWorkerRegisterScopeOriginNotSameError[] =
+    "Service Worker Register failed: Scope URL ('%s') and referrer ('%s') "
+    "origin are not the same.";
 
-const char ServiceWorkerConsts::kServiceWorkerRegisterBadScopeError[] =
+const char WorkerConsts::kServiceWorkerRegisterBadScopeError[] =
     "Service Worker Register failed: Scope ('%s') is not allowed.";
 
-const char
-    ServiceWorkerConsts::kServiceWorkerUnregisterScopeOriginNotSameError[] =
-        "Service Worker Unregister failed: Scope origin does not match.";
+const char WorkerConsts::kServiceWorkerUnregisterScopeOriginNotSameError[] =
+    "Service Worker Unregister failed: Scope origin does not match.";
 
-const char ServiceWorkerConsts::kServiceWorkerAllowed[] =
-    "Service-Worker-Allowed";
+const char WorkerConsts::kServiceWorkerAllowed[] = "Service-Worker-Allowed";
 
-const char ServiceWorkerConsts::kSettingsJson[] =
-    "service_worker_settings.json";
+const char WorkerConsts::kSettingsJson[] = "service_worker_settings.json";
 
-const char* const ServiceWorkerConsts::kJavaScriptMimeTypes[16] = {
+const char* const WorkerConsts::kJavaScriptMimeTypes[16] = {
     "application/ecmascript",
     "application/javascript",
     "application/x-ecmascript",
@@ -64,6 +59,8 @@ const char* const ServiceWorkerConsts::kJavaScriptMimeTypes[16] = {
     "text/x-ecmascript",
     "text/x-javascript"};
 
-const char ServiceWorkerConsts::kServiceWorker[] = "ServiceWorker";
+const char WorkerConsts::kServiceWorkerName[] = "ServiceWorker";
+
+const char WorkerConsts::kDedicatedWorkerName[] = "DedicatedWorker";
 }  // namespace worker
 }  // namespace cobalt

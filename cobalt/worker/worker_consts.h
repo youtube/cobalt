@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_WORKER_SERVICE_WORKER_CONSTS_H_
-#define COBALT_WORKER_SERVICE_WORKER_CONSTS_H_
+#ifndef COBALT_WORKER_WORKER_CONSTS_H_
+#define COBALT_WORKER_WORKER_CONSTS_H_
 
 namespace cobalt {
 namespace worker {
 
-struct ServiceWorkerConsts {
+struct WorkerConsts {
   // Constants for error messages.
   static const char kServiceWorkerRegisterBadMIMEError[];
   static const char kServiceWorkerRegisterNoMIMEError[];
@@ -36,10 +36,13 @@ struct ServiceWorkerConsts {
   static const char* const kJavaScriptMimeTypes[16];
 
   // The name of a Service Worker thread.
-  static const char kServiceWorker[];
+  static const char kServiceWorkerName[];
+
+  // The name of a Dedicated Worker thread.
+  static const char kDedicatedWorkerName[];
 };
 
 }  // namespace worker
 }  // namespace cobalt
 
-#endif  // COBALT_WORKER_SERVICE_WORKER_CONSTS_H_
+#endif  // COBALT_WORKER_WORKER_CONSTS_H_
