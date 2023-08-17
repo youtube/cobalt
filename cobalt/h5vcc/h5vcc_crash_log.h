@@ -81,6 +81,8 @@ class H5vccCrashLog : public script::Wrappable {
   std::string GetWatchdogViolations(
       const script::Sequence<std::string>& clients = {});
 
+  script::Sequence<std::string> GetWatchdogViolationClients();
+
   bool GetPersistentSettingWatchdogEnable();
 
   void SetPersistentSettingWatchdogEnable(bool enable_watchdog);
