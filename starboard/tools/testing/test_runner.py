@@ -25,6 +25,7 @@ import subprocess
 import sys
 import threading
 import traceback
+import warnings
 
 from six.moves import cStringIO as StringIO
 from starboard.tools import abstract_launcher
@@ -40,11 +41,11 @@ from starboard.tools.util import SetupDefaultLoggingConfig
 # pylint: disable=consider-using-f-string
 
 _FLAKY_RETRY_LIMIT = 4
-_TOTAL_TESTS_REGEX = re.compile(r"^\[==========\] (.*) tests? from .*"
+_TOTAL_TESTS_REGEX = re.compile(r"\[==========\] (.*) tests? from .*"
                                 r"test suites? ran. \(.* ms total\)")
-_TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
-_TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
-_SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")
+_TESTS_PASSED_REGEX = re.compile(r"\[  PASSED  \] (.*) tests?")
+_TESTS_FAILED_REGEX = re.compile(r"\[  FAILED  \] (.*) tests?, listed below:")
+_SINGLE_TEST_FAILED_REGEX = re.compile(r"\[  FAILED  \] (.*)")
 
 _NATIVE_CRASHPAD_TARGET = "native_target/crashpad_handler"
 _LOADER_TARGET = "elf_loader_sandbox"
@@ -52,7 +53,7 @@ _LOADER_TARGET = "elf_loader_sandbox"
 
 def _EnsureBuildDirectoryExists(path):
   if not os.path.exists(path):
-    raise ValueError(f"'{path}' does not exist.")
+    warnings.warn(f"'{path}' does not exist.")
 
 
 def _FilterTests(target_list, filters, config_name):

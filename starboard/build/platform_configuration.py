@@ -169,6 +169,7 @@ class PlatformConfiguration(object):
     return [
         'app_key_files_test',
         'app_key_test',
+        'base_unittests',
         'common_test',
         'cwrappers_test',
         'drain_file_test',

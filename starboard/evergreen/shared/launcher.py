@@ -175,8 +175,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # TODO(b/267568637): Make the Linux launcher run from the install_directory.
     if 'linux' in self.loader_platform:
       self._StageTargetsAndContentsLinux()
-    else:
+    elif 'raspi' in self.loader_platform:
       self._StageTargetsAndContentsRaspi()
+    elif 'rdk' in self.loader_platform:
+      self._StageTargetsAndContentsRdk()
+    else:
+      raise ValueError(f"'{self.loader_platform}' is not recognized")
 
   def _StageTargetsAndContentsLinux(self):
     """Stage targets and their contents for GN builds for Linux platforms."""
@@ -268,6 +272,32 @@ class Launcher(abstract_launcher.AbstractLauncher):
     shlib_name += '.lz4' if self.use_compressed_library else '.so'
     target_binary_src = os.path.join(target_install_path, 'lib', shlib_name)
     target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
+    os.makedirs(os.path.join(target_staging_dir, 'lib'))
+    shutil.copy(target_binary_src, target_binary_dst)
+
+  def _StageTargetsAndContentsRdk(self):
+    """Stage targets and their contents for GN builds for RDK platforms."""
+    content_subdir = os.path.join('usr', 'share', 'cobalt')
+
+    # The rdk loader always loads libcobalt.so. Hard code target_name to match.
+    target_name = 'cobalt'
+
+    # Copy target content and binary.
+    target_install_path = os.path.join(self.out_directory, 'install')
+    target_staging_dir = os.path.join(self.staging_directory, 'content', 'app',
+                                      target_name)
+    os.makedirs(target_staging_dir)
+
+    # TODO(b/218889313): Reset the content path for the evergreen artifacts.
+    content_subdir = os.path.join('usr', 'share', 'cobalt')
+    target_content_src = os.path.join(target_install_path, content_subdir)
+    target_content_dst = os.path.join(target_staging_dir, 'content')
+    shutil.copytree(target_content_src, target_content_dst)
+    shlib_name = f'lib{self.target_name}.so'
+
+    target_binary_src = os.path.join(self.out_directory, shlib_name)
+    target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
+
     os.makedirs(os.path.join(target_staging_dir, 'lib'))
     shutil.copy(target_binary_src, target_binary_dst)
 
