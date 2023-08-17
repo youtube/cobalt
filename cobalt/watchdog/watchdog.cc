@@ -109,6 +109,7 @@ bool Watchdog::InitializeCustom(
 
   // Starts monitor thread.
   is_monitoring_.store(true);
+  InitializeViolationsMap(this);
   SB_DCHECK(!SbThreadIsValid(watchdog_thread_));
   watchdog_thread_ = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
                                     true, "Watchdog", &Watchdog::Monitor, this);
@@ -228,8 +229,6 @@ void* Watchdog::Monitor(void* context) {
 void Watchdog::UpdateViolationsMap(void* context, Client* client,
                                    SbTimeMonotonic time_delta) {
   // Gets violation dictionary with key client name from violations_map_.
-  if (static_cast<Watchdog*>(context)->violations_map_ == nullptr)
-    InitializeViolationsMap(context);
   base::Value* violation_dict =
       (static_cast<Watchdog*>(context)->violations_map_)->FindKey(client->name);
 
@@ -538,67 +537,43 @@ std::string Watchdog::GetWatchdogViolations(
 
   if (pending_write_) WriteWatchdogViolations();
 
-  starboard::ScopedFile file(GetWatchdogFilePath().c_str(),
-                             kSbFileOpenOnly | kSbFileRead | kSbFileWrite);
-  if (file.IsValid()) {
-    int64_t kFileSize = file.GetSize();
-    std::vector<char> buffer(kFileSize + 1, 0);
-    file.ReadAll(buffer.data(), kFileSize);
-    watchdog_json = std::string(buffer.data());
-
-    // If clients is empty we will fetch all clients.
+  if (!static_cast<base::DictionaryValue*>(violations_map_.get())->empty()) {
+    // Get all Watchdog violations if clients is given.
     if (clients.empty()) {
+      // Removes all Watchdog violations.
+      base::JSONWriter::Write(*violations_map_, &watchdog_json_fetched);
       if (clear) {
-        if (violations_map_) {
-          static_cast<base::DictionaryValue*>(violations_map_.get())->Clear();
-          violations_count_ = 0;
-        }
+        static_cast<base::DictionaryValue*>(violations_map_.get())->Clear();
+        violations_count_ = 0;
         starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
       }
-      watchdog_json_fetched = watchdog_json;
     } else {
-      std::string watchdog_json_not_read = "";
-      std::unique_ptr<base::Value> violations_map =
-          base::JSONReader::Read(watchdog_json);
       base::Value filtered_client_data(base::Value::Type::DICTIONARY);
       for (int i = 0; i < clients.size(); i++) {
-        base::Value* violation_dict = violations_map->FindKey(clients[i]);
+        base::Value* violation_dict =
+            static_cast<base::DictionaryValue*>(violations_map_.get())
+                ->FindKey(clients[i]);
         if (violation_dict != nullptr) {
           filtered_client_data.SetKey(clients[i], (*violation_dict).Clone());
           if (clear) {
             base::Value* violations = violation_dict->FindKey("violations");
             int violations_count = violations->GetList().size();
-            violations_map->RemoveKey(clients[i]);
-            if (violations_map_) {
-              bool result =
-                  static_cast<base::DictionaryValue*>(violations_map_.get())
-                      ->RemoveKey(clients[i]);
-              if (result) {
-                violations_count_ -= violations_count;
-              }
-              if (violations_count_ == 0) {
-                static_cast<base::DictionaryValue*>(violations_map_.get())
-                    ->Clear();
-              }
+
+            static_cast<base::DictionaryValue*>(violations_map_.get())
+                ->RemoveKey(clients[i]);
+            violations_count_ -= violations_count;
+            if (!static_cast<base::DictionaryValue*>(violations_map_.get())
+                     ->empty()) {
+              WriteWatchdogViolations();
+            } else {
+              starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(),
+                                               true);
             }
           }
         }
       }
       if (!filtered_client_data.DictEmpty()) {
         base::JSONWriter::Write(filtered_client_data, &watchdog_json_fetched);
-      }
-      if (clear) {
-        // If all data is fetched, delete the violation file.
-        if (violations_map->DictEmpty()) {
-          starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
-        } else {
-          base::JSONWriter::Write(*violations_map, &watchdog_json_not_read);
-          file.Seek(kSbFileFromBegin, 0);
-          file.WriteAll(watchdog_json_not_read.c_str(),
-                        static_cast<int>(watchdog_json_not_read.size()));
-          file.Truncate(static_cast<int>(watchdog_json_not_read.size()));
-          time_last_written_microseconds_ = SbTimeGetMonotonicNow();
-        }
       }
     }
     SB_LOG(INFO) << "[Watchdog] Reading violations:\n" << watchdog_json_fetched;

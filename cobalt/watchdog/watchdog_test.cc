@@ -325,7 +325,10 @@ TEST_F(WatchdogTest, ViolationsAreEvictedAfterMax) {
   starboard::ScopedFile file(watchdog_->GetWatchdogFilePath().c_str(),
                              kSbFileCreateAlways | kSbFileWrite);
   file.WriteAll(json.c_str(), static_cast<int>(json.size()));
-
+  TearDown();
+  watchdog_ = new watchdog::Watchdog();
+  watchdog_->InitializeCustom(nullptr, std::string(kWatchdogViolationsJson),
+                              kWatchdogMonitorFrequency);
   ASSERT_TRUE(watchdog_->Register("test-name-3", "test-desc-3",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
