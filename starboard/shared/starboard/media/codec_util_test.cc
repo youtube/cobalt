@@ -16,6 +16,7 @@
 
 #include <vector>
 
+#include "starboard/media.h"
 #include "starboard/shared/starboard/media/avc_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -213,6 +214,31 @@ TEST(VideoConfigTest, H264VsVp9) {
   EXPECT_TRUE(config_h264 != config_vp9);
   EXPECT_FALSE(config_h264 == config_vp9);
 }
+
+#if SB_API_VERSION >= 14
+TEST(CodecUtilTest, ParsesMp3Codecs) {
+  EXPECT_EQ(GetAudioCodecFromString("mp3", ""), kSbMediaAudioCodecMp3);
+  EXPECT_EQ(GetAudioCodecFromString("mp4a.69", ""), kSbMediaAudioCodecMp3);
+  EXPECT_EQ(GetAudioCodecFromString("mp4a.6B", ""), kSbMediaAudioCodecMp3);
+}
+
+TEST(CodecUtilTest, ParsesFlacCodec) {
+  EXPECT_EQ(GetAudioCodecFromString("flac", ""), kSbMediaAudioCodecFlac);
+}
+
+TEST(CodecUtilTest, ParsesPcmCodecForWav) {
+  EXPECT_EQ(GetAudioCodecFromString("1", "wav"), kSbMediaAudioCodecPcm);
+  EXPECT_EQ(GetAudioCodecFromString("1", "wave"), kSbMediaAudioCodecPcm);
+}
+
+TEST(CodecUtilTest, DoesNotParse1AsPcmForNonWavSubtypes) {
+  EXPECT_EQ(GetAudioCodecFromString("1", ""), kSbMediaAudioCodecNone);
+  EXPECT_EQ(GetAudioCodecFromString("1", "mp4"), kSbMediaAudioCodecNone);
+  EXPECT_EQ(GetAudioCodecFromString("1", "mp3"), kSbMediaAudioCodecNone);
+  EXPECT_EQ(GetAudioCodecFromString("1", "mpeg"), kSbMediaAudioCodecNone);
+  EXPECT_EQ(GetAudioCodecFromString("1", "webm"), kSbMediaAudioCodecNone);
+}
+#endif  // SB_API_VERSION >= 14
 
 }  // namespace
 }  // namespace media
