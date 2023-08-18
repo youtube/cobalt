@@ -185,7 +185,7 @@ if (current_toolchain == starboard_toolchain) {
   starboard_platform_target("starboard_platform_group") {
   }
 
-  target("static_library", "starboard_platform_group_static") {
+  group("starboard_platform_group_static") {
     public_deps = [
       "//starboard/client_porting/cwrappers",
       "//starboard/client_porting/eztime",
