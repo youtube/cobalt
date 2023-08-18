@@ -191,6 +191,19 @@ std::string H5vccCrashLog::GetWatchdogViolations(
   return "";
 }
 
+script::Sequence<std::string> H5vccCrashLog::GetWatchdogViolationClients() {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  script::Sequence<std::string> client_names;
+  if (watchdog) {
+    std::vector<std::string> client_string_names =
+        watchdog->GetWatchdogViolationClientNames();
+    for (std::size_t i = 0; i < client_string_names.size(); ++i) {
+      client_names.push_back(client_string_names[i]);
+    }
+  }
+  return client_names;
+}
+
 bool H5vccCrashLog::GetPersistentSettingWatchdogEnable() {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) return watchdog->GetPersistentSettingWatchdogEnable();
