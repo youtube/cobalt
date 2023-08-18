@@ -49,7 +49,6 @@ int main(int argc, char** argv) {
           : starboard::common::GetCACertificatesPath(evergreen_content_path);
   if (ca_certificates_path.empty()) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
-    return 1;
   }
 
   bool start_handler_at_crash =
