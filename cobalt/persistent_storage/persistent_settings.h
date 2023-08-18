@@ -39,7 +39,10 @@ namespace persistent_storage {
 // PersistentSettings uses JsonPrefStore for most of its functionality.
 // JsonPrefStore maintains thread safety by requiring that all access occurs on
 // the Sequence that created it.
-class PersistentSettings : public base::MessageLoop::DestructionObserver {
+#include "cobalt/export.h"
+
+class COBALT_EXPORT PersistentSettings
+    : public base::MessageLoop::DestructionObserver {
  public:
   explicit PersistentSettings(const std::string& file_name);
   ~PersistentSettings();

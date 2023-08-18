@@ -54,8 +54,9 @@ target(gtest_target_type, "storage_test") {
   deps = [
     ":storage",
     "//cobalt/base",
+    "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/test:run_all_unittests",
-    "//net",
+    "//net:http_server",
     "//testing/gmock",
     "//testing/gtest",
     "//url",

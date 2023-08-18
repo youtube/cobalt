@@ -14,27 +14,27 @@
 
 #ifndef COBALT_EXPORT_H_
 #define COBALT_EXPORT_H_
+#include "starboard/configuration.h"
 
-#if defined(COMPONENT_BUILD)
-
+#if defined(COMPONENT_BUILD) || SB_IS(MODULAR)
+#if defined(WIN32)
 #if defined(COBALT_IMPLEMENTATION)
 #define COBALT_EXPORT __declspec(dllexport)
-#define COBALT_EXPORT_PRIVATE __declspec(dllexport)
 #else
 #define COBALT_EXPORT __declspec(dllimport)
-#define COBALT_EXPORT_PRIVATE __declspec(dllimport)
 #endif  // defined(COBALT_IMPLEMENTATION)
 
-#else  // defined(COMPONENT_BUILD)
-
-#define COBALT_EXPORT
-#define COBALT_EXPORT_PRIVATE
-#endif
-
-// Macro for importing data, either via extern or dllimport.
-#if defined(COMPONENT_BUILD)
-#define COBALT_EXTERN COBALT_EXPORT extern
 #else
-#define COBALT_EXTERN extern
-#endif
+#if defined(COBALT_IMPLEMENTATION)
+#define COBALT_EXPORT __attribute__((visibility("default")))
+#else
+#define COBALT_EXPORT
+#endif  // defined(COBALT_IMPLEMENTATION)
+#endif  // defined(WIN32)
+
+#else
+#define COBALT_EXPORT
+#endif  // #if defined(COMPONENT_BUILD) || SB_IS(MODULAR)
+
+
 #endif  // COBALT_EXPORT_H_

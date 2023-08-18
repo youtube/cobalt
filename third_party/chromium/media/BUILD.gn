@@ -269,5 +269,7 @@ target(gtest_target_type, "chromium_media_test") {
     "//base/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//net:http_server",
+    "//cobalt/persistent_storage:persistent_settings",
   ]
 }

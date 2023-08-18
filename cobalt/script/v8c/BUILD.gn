@@ -145,8 +145,10 @@ target(final_executable_type, "v8c") {
   deps = [
     ":engine",
     "//cobalt/base",
+    "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/script:script",
     "//cobalt/script:standalone_javascript_runner",
+    "//net:http_server",
     "//third_party/v8",
     "//third_party/v8:v8_libplatform",
   ]

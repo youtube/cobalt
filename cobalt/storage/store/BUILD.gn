@@ -23,8 +23,9 @@ static_library("memory_store") {
   deps = [
     "//cobalt/base",
     "//cobalt/loader:origin",
+    "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/storage:storage_constants",
-    "//net",
+    "//net:http_server",
     "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
