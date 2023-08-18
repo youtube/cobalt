@@ -39,7 +39,6 @@
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/time.h"
-#include "starboard/user.h"
 
 using concurrency::task_continuation_context;
 using Microsoft::WRL::ComPtr;
