@@ -158,3 +158,8 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'xhr_test',
         'zip_unittests',
     ]
+
+  def GetTestBlackBoxTargets(self):
+    return [
+        'blackbox',
+    ]
