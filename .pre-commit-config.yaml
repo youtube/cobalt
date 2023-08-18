@@ -185,6 +185,12 @@ repos:
         language: python
         types: [python]
         verbose: true
+    -   id: message-discipline
+        name: Check Commit Message
+        entry: python precommit_hooks/message_discipline.py
+        language: python
+        verbose: true  # This hook always passes; occasional output is its whole function.
+        stages: [commit-msg]
     -   id: check-bug-in-commit-message
         name: Check Bug In Commit Message
         description: Checks for a tracking bug in a commit message
