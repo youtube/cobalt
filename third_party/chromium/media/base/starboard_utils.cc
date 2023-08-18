@@ -405,7 +405,7 @@ int GetSbMediaVideoBufferBudgetMaximum() {
     return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 7680, 4320, 12);
   }
   if (SbMediaCanPlayMimeAndKeySystem(kVp9_4k_mime, "") == kSbMediaSupportTypeProbably) {
-    return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 7680, 4320, 12);
+    return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 3840, 2160, 12);
   }
   return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecH264, 1920, 1080, 8);
 }
