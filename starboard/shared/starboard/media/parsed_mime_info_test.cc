@@ -23,6 +23,7 @@ namespace starboard {
 namespace media {
 namespace {
 
+#if SB_API_VERSION >= 14
 TEST(ParsedMimeInfoTest, ParsesMp3Codec) {
   ParsedMimeInfo mime_info("audio/mpeg; codecs=\"mp3\"");
   ASSERT_TRUE(mime_info.has_audio_info());
@@ -40,6 +41,7 @@ TEST(ParsedMimeInfoTest, ParsesPcmCodec) {
   ASSERT_TRUE(mime_info.has_audio_info());
   EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecPcm);
 }
+#endif  // SB_API_VERSION >= 14
 
 }  // namespace
 }  // namespace media
