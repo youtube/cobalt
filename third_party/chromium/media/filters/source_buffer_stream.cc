@@ -2086,7 +2086,9 @@ base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
 }
 
 void SourceBufferStream::EnableVideoBufferBudgetOverride() {
-  memory_limit_ = GetSbMediaVideoBufferBudgetMaximum();
+  memory_limit_ = std::max(
+      memory_limit_,
+      static_cast<size_t>(GetSbMediaVideoBufferBudgetMaximum()));
 }
 
 #endif  // defined (STARBOARD)
