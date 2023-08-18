@@ -18,7 +18,7 @@
 #include "starboard/audio_sink.h"
 #if SB_API_VERSION < 16
 #include "starboard/byte_swap.h"
-#endif
+#endif  // SB_API_VERSION < 16
 #include "starboard/common/log.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
@@ -47,7 +47,9 @@
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"
 #include "starboard/ui_navigation.h"
+#if SB_API_VERSION < 16
 #include "starboard/user.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/window.h"
 
 #define REGISTER_SYMBOL(s)                        \
@@ -88,7 +90,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbPathSepChar);
   REGISTER_SYMBOL(kSbPathSepString);
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
@@ -108,7 +112,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbByteSwapU16);
   REGISTER_SYMBOL(SbByteSwapU32);
   REGISTER_SYMBOL(SbByteSwapU64);
-#endif
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbConditionVariableBroadcast);
   REGISTER_SYMBOL(SbConditionVariableCreate);
   REGISTER_SYMBOL(SbConditionVariableDestroy);
@@ -348,12 +352,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbUiNavGetInterface);
-  REGISTER_SYMBOL(SbUserGetCurrent);
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbUserGetCurrent);
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
   REGISTER_SYMBOL(SbUserGetSignedIn);
-#endif
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);

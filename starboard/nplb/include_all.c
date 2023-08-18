@@ -19,7 +19,7 @@
 #include "starboard/audio_sink.h"
 #if SB_API_VERSION < 16
 #include "starboard/byte_swap.h"
-#endif
+#endif  // SB_API_VERSION < 16
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
@@ -53,7 +53,9 @@
 #include "starboard/time_zone.h"
 #include "starboard/types.h"
 #include "starboard/ui_navigation.h"
+#if SB_API_VERSION < 16
 #include "starboard/user.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/window.h"
 
 // This doesn't really belong here, but ensures that SB_COMPILE_ASSERT works in

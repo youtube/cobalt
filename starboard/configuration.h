@@ -584,13 +584,6 @@ struct CompileAssert {};
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if defined(SB_USER_MAX_SIGNED_IN)
-#error \
-    "SB_USER_MAX_SIGNED_IN should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbUserMaxSignedIn in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
 #if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."

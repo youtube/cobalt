@@ -142,8 +142,10 @@ extern const char kSbPathSepChar;
 // The string form of SB_PATH_SEP_CHAR.
 extern const char* kSbPathSepString;
 
+#if SB_API_VERSION < 16
 // The maximum number of users that can be signed in at the same time.
 extern const uint32_t kSbUserMaxSignedIn;
+#endif  // SB_API_VERSION < 16
 
 #if SB_API_VERSION >= 14
 // The maximum size the cache directory is allowed to use in bytes.
