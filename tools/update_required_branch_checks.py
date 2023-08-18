@@ -69,7 +69,7 @@ def initialize_repo_connection():
 
 def get_checks_for_branch(repo, branch: str) -> None:
   prs = repo.get_pulls(
-      state='closed', sort='updated', base=branch, direction='desc')
+      state='closed', sort='merged', base=branch, direction='desc')
 
   latest_pr = None
   for pr in prs:
