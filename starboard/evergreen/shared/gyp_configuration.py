@@ -42,3 +42,7 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
       'elf_loader_test',
       'installation_manager_test',
   ]
+
+  def GetTestBlackBoxTargets(self):
+    tests = super().GetTestBlackBoxTargets()
+    return [test for test in tests if test not in self.__FORBIDDEN_TESTS]
