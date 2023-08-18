@@ -7,13 +7,17 @@ description:
 third_party {
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/crashpad/crashpad"
+    value: "https://chromium.googlesource.com/chromium/src"
+    # Chromium in turn references https://chromium.googlesource.com/crashpad/crashpad:
+    # https://chromium.googlesource.com/chromium/src/+/96.0.4664.153/third_party/crashpad/README.chromium#14
   }
-  version: "af62d7fcf61da5a8a6bb9336f0b5ee22547d36a7"
+  version: "96.0.4664.153"
+  # Chromium references Crashpad commit 413dedd90fbefd377417d7c5947a1d11c09220ae:
+  # https://chromium.googlesource.com/chromium/src/+/96.0.4664.153/third_party/crashpad/README.chromium#5
   last_upgrade_date {
-    year: 2020
-    month: 3
-    day: 26
+    year: 2023
+    month: 8
+    day: 13
   }
   license_type: NOTICE
 }

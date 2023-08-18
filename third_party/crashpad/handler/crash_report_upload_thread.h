@@ -18,7 +18,6 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "client/crash_report_database.h"
 #include "util/misc/uuid.h"
 #include "util/stdlib/thread_safe_vector.h"
@@ -77,6 +76,10 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
                           const std::string& ca_certificates_path,
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
                           const Options& options);
+
+  CrashReportUploadThread(const CrashReportUploadThread&) = delete;
+  CrashReportUploadThread& operator=(const CrashReportUploadThread&) = delete;
+
   ~CrashReportUploadThread();
 
   //! \brief Informs the upload thread that a new pending report has been added
@@ -182,8 +185,6 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   WorkerThread thread_;
   ThreadSafeVector<UUID> known_pending_report_uuids_;
   CrashReportDatabase* database_;  // weak
-
-  DISALLOW_COPY_AND_ASSIGN(CrashReportUploadThread);
 };
 
 }  // namespace crashpad

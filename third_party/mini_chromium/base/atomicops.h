@@ -173,7 +173,7 @@ extern struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures;
 
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.
-#if defined(OS_MACOSX) || defined(OS_OPENBSD)
+#if defined(OS_APPLE) || defined(OS_OPENBSD)
 #include "base/atomicops_internals_atomicword_compat.h"
 #endif
 

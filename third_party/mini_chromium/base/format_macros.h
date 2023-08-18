@@ -50,7 +50,7 @@
 // architectures and Apple does not provides standard format macros and
 // recommends casting. This has many drawbacks, so instead define macros
 // for formatting those types.
-#if defined(OS_MACOSX)
+#if defined(OS_APPLE)
 #if defined(ARCH_CPU_64_BITS)
 #if !defined(PRIdNS)
 #define PRIdNS "ld"
@@ -72,7 +72,7 @@
 #define PRIxNS "x"
 #endif
 #endif
-#endif  // defined(OS_MACOSX)
+#endif  // defined(OS_APPLE)
 
 #else  // OS_WIN
 

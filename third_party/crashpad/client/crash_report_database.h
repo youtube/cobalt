@@ -24,7 +24,6 @@
 #include <vector>
 
 #include "base/files/file_path.h"
-#include "base/macros.h"
 #include "util/file/file_io.h"
 #include "util/file/file_reader.h"
 #include "util/file/file_writer.h"
@@ -111,6 +110,10 @@ class CrashReportDatabase {
   class NewReport {
    public:
     NewReport();
+
+    NewReport(const NewReport&) = delete;
+    NewReport& operator=(const NewReport&) = delete;
+
     ~NewReport();
 
     //! \brief An open FileWriter with which to write the report.
@@ -126,7 +129,7 @@ class CrashReportDatabase {
 
     //! \brief Adds an attachment to the report.
     //!
-    //! \note This function is not yet implemented on macOS or Windows.
+    //! \note This function is not yet implemented on macOS.
     //!
     //! \param[in] name The key and name for the attachment, which will be
     //!     included in the http upload. The attachment will not appear in the
@@ -152,8 +155,6 @@ class CrashReportDatabase {
     std::vector<ScopedRemoveFile> attachment_removers_;
     UUID uuid_;
     CrashReportDatabase* database_;
-
-    DISALLOW_COPY_AND_ASSIGN(NewReport);
   };
 
   //! \brief A crash report that is in the process of being uploaded.
@@ -162,6 +163,10 @@ class CrashReportDatabase {
   class UploadReport : public Report {
    public:
     UploadReport();
+
+    UploadReport(const UploadReport&) = delete;
+    UploadReport& operator=(const UploadReport&) = delete;
+
     virtual ~UploadReport();
 
     //! \brief An open FileReader with which to read the report.
@@ -170,7 +175,7 @@ class CrashReportDatabase {
     //! \brief Obtains a mapping of names to file readers for any attachments
     //!     for the report.
     //!
-    //! This is not implemented on macOS or Windows.
+    //! This is not implemented on macOS.
     std::map<std::string, FileReader*> GetAttachments() const {
       return attachment_map_;
     }
@@ -181,7 +186,7 @@ class CrashReportDatabase {
     friend class CrashReportDatabaseMac;
     friend class CrashReportDatabaseWin;
 
-    bool Initialize(const base::FilePath path, CrashReportDatabase* database);
+    bool Initialize(const base::FilePath& path, CrashReportDatabase* database);
     void InitializeAttachments();
 
     std::unique_ptr<FileReader> reader_;
@@ -189,8 +194,6 @@ class CrashReportDatabase {
     std::vector<std::unique_ptr<FileReader>> attachment_readers_;
     std::map<std::string, FileReader*> attachment_map_;
     bool report_metrics_;
-
-    DISALLOW_COPY_AND_ASSIGN(UploadReport);
   };
 
   //! \brief The result code for operations performed on a database.
@@ -232,6 +235,9 @@ class CrashReportDatabase {
     //!     been uploaded.
     kCannotRequestUpload,
   };
+
+  CrashReportDatabase(const CrashReportDatabase&) = delete;
+  CrashReportDatabase& operator=(const CrashReportDatabase&) = delete;
 
   virtual ~CrashReportDatabase() {}
 
@@ -396,8 +402,7 @@ class CrashReportDatabase {
   //! \brief Cleans the database of expired lockfiles, metadata without report
   //!     files, and report files without metadata.
   //!
-  //! This method does nothing on the macOS and Windows implementations of the
-  //! database.
+  //! This method does nothing on the macOS implementations of the database.
   //!
   //! \param[in] lockfile_ttl The number of seconds at which lockfiles or new
   //!     report files are considered expired.
@@ -432,8 +437,6 @@ class CrashReportDatabase {
   virtual OperationStatus RecordUploadAttempt(UploadReport* report,
                                               bool successful,
                                               const std::string& id) = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(CrashReportDatabase);
 };
 
 }  // namespace crashpad

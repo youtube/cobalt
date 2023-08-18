@@ -14,7 +14,6 @@
 
 #include "client/crash_report_database.h"
 
-#include "base/logging.h"
 #include "build/build_config.h"
 
 namespace crashpad {
@@ -51,7 +50,7 @@ bool CrashReportDatabase::NewReport::Initialize(
   }
 
 #if defined(OS_WIN)
-  const std::wstring uuid_string = uuid_.ToString16();
+  const std::wstring uuid_string = uuid_.ToWString();
 #else
   const std::string uuid_string = uuid_.ToString();
 #endif
@@ -88,7 +87,7 @@ CrashReportDatabase::UploadReport::~UploadReport() {
   }
 }
 
-bool CrashReportDatabase::UploadReport::Initialize(const base::FilePath path,
+bool CrashReportDatabase::UploadReport::Initialize(const base::FilePath& path,
                                                    CrashReportDatabase* db) {
   database_ = db;
   InitializeAttachments();

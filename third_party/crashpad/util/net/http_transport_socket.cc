@@ -17,16 +17,16 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <poll.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include <vector>
 
+#include "base/cxx17_backports.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/scoped_generic.h"
-#include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "util/file/file_io.h"
@@ -48,12 +48,13 @@ constexpr const char kCRLFTerminator[] = "\r\n";
 class HTTPTransportSocket final : public HTTPTransport {
  public:
   HTTPTransportSocket() = default;
+
+  HTTPTransportSocket(const HTTPTransportSocket&) = delete;
+  HTTPTransportSocket& operator=(const HTTPTransportSocket&) = delete;
+
   ~HTTPTransportSocket() override = default;
 
   bool ExecuteSynchronously(std::string* response_body) override;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(HTTPTransportSocket);
 };
 
 struct ScopedAddrinfoTraits {
@@ -75,6 +76,9 @@ class FdStream : public Stream {
  public:
   explicit FdStream(int fd) : fd_(fd) { CHECK(fd_ >= 0); }
 
+  FdStream(const FdStream&) = delete;
+  FdStream& operator=(const FdStream&) = delete;
+
   bool LoggingWrite(const void* data, size_t size) override {
     return LoggingWriteFile(fd_, data, size);
   }
@@ -89,14 +93,15 @@ class FdStream : public Stream {
 
  private:
   int fd_;
-
-  DISALLOW_COPY_AND_ASSIGN(FdStream);
 };
 
 #if defined(CRASHPAD_USE_BORINGSSL)
 class SSLStream : public Stream {
  public:
   SSLStream() = default;
+
+  SSLStream(const SSLStream&) = delete;
+  SSLStream& operator=(const SSLStream&) = delete;
 
 #if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   bool Initialize(const std::string& root_cert_directory_path,
@@ -135,7 +140,7 @@ class SSLStream : public Stream {
         return false;
       }
     } else {
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_CHROMEOS)
       if (SSL_CTX_load_verify_locations(
               ctx_.get(), nullptr, "/etc/ssl/certs") <= 0) {
         LOG(ERROR) << "SSL_CTX_load_verify_locations";
@@ -223,8 +228,6 @@ class SSLStream : public Stream {
 
   ScopedSSLCTX ctx_;
   ScopedSSL ssl_;
-
-  DISALLOW_COPY_AND_ASSIGN(SSLStream);
 };
 #endif
 
@@ -275,6 +278,9 @@ class ScopedSetNonblocking {
     }
   }
 
+  ScopedSetNonblocking(const ScopedSetNonblocking&) = delete;
+  ScopedSetNonblocking& operator=(const ScopedSetNonblocking&) = delete;
+
   ~ScopedSetNonblocking() {
     if (sock_ >= 0) {
       int flags = fcntl(sock_, F_GETFL, 0);
@@ -291,8 +297,6 @@ class ScopedSetNonblocking {
 
  private:
   int sock_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedSetNonblocking);
 };
 
 base::ScopedFD CreateSocket(const std::string& hostname,
@@ -428,7 +432,7 @@ bool WriteRequest(Stream* stream,
         }
       }
 
-      write_start = buf.crlf - size_len;
+      write_start = static_cast<char*>(buf.crlf) - size_len;
       write_size = size_len + sizeof(buf.crlf) + data_bytes + kCRLFSize;
     } else {
       // When not using chunked encoding, only use buf.data.

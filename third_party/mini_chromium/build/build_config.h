@@ -6,7 +6,7 @@
 #define MINI_CHROMIUM_BUILD_BUILD_CONFIG_H_
 
 #if defined(__APPLE__)
-#define OS_MACOSX 1
+#define OS_APPLE 1
 #elif defined(__ANDROID__)
 #define OS_ANDROID 1
 #elif defined(__linux__)
@@ -19,20 +19,16 @@
 #error Please add support for your platform in build/build_config.h
 #endif
 
-#if defined(OS_MACOSX)
+#if defined(OS_APPLE)
 #include <TargetConditionals.h>
-#if defined(TARGET_OS_IOS)
-#if TARGET_OS_IOS
+#if defined(TARGET_OS_OSX) && TARGET_OS_OSX
+#define OS_MAC 1
+#elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #define OS_IOS 1
-#endif
-#elif defined(TARGET_OS_IPHONE)
-#if TARGET_OS_IPHONE
-#define OS_IOS 1
-#endif
-#endif
-#endif
+#endif  // TARGET_OS_*
+#endif  // defined(OS_APPLE)
 
-#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_ANDROID) || \
+#if defined(OS_APPLE) || defined(OS_LINUX) || defined(OS_ANDROID) || \
     defined(OS_FUCHSIA)
 #define OS_POSIX 1
 #endif

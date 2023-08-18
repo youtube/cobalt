@@ -24,7 +24,7 @@ source_set("tool_support") {
 
   public_configs = [ "..:crashpad_config" ]
 
-  deps = [ "../third_party/mini_chromium:base" ]
+  deps = [ "$mini_chromium_source_parent:base" ]
 
   if (crashpad_is_in_native_target_build) {
     configs -= [ "//build/config/compiler:default_include_dirs" ]
@@ -44,7 +44,7 @@ if (!crashpad_is_ios && !crashpad_is_android) {
       "../build:default_exe_manifest_win",
       "../client",
       "../compat",
-      "../third_party/mini_chromium:base",
+      "$mini_chromium_source_parent:base",
       "../util",
     ]
 
@@ -63,7 +63,7 @@ if (!crashpad_is_ios && !crashpad_is_android) {
       ":tool_support",
       "../build:default_exe_manifest_win",
       "../compat",
-      "../third_party/mini_chromium:base",
+      "$mini_chromium_source_parent:base",
       "../util",
     ]
   }
@@ -76,7 +76,7 @@ crashpad_executable("base94_encoder") {
   deps = [
     ":tool_support",
     "../build:default_exe_manifest_win",
-    "../third_party/mini_chromium:base",
+    "$mini_chromium_source_parent:base",
     "../util",
   ]
 }
@@ -93,7 +93,7 @@ if (!crashpad_is_fuchsia && !crashpad_is_ios && !crashpad_is_in_starboard
       "../compat",
       "../minidump",
       "../snapshot",
-      "../third_party/mini_chromium:base",
+      "$mini_chromium_source_parent:base",
       "../util",
     ]
 
@@ -125,7 +125,7 @@ if (crashpad_is_mac || crashpad_is_fuchsia) {
       ":tool_support",
       "../client",
       "../compat",
-      "../third_party/mini_chromium:base",
+      "$mini_chromium_source_parent:base",
       "../util",
     ]
   }
@@ -138,7 +138,7 @@ if (crashpad_is_mac) {
     deps = [
       ":tool_support",
       "../compat",
-      "../third_party/mini_chromium:base",
+      "$mini_chromium_source_parent:base",
       "../util",
     ]
   }
@@ -159,7 +159,7 @@ if (crashpad_is_mac) {
     deps = [
       ":tool_support",
       "../compat",
-      "../third_party/mini_chromium:base",
+      "$mini_chromium_source_parent:base",
       "../util",
     ]
   }
@@ -167,7 +167,7 @@ if (crashpad_is_mac) {
   crashpad_executable("on_demand_service_tool") {
     sources = [ "mac/on_demand_service_tool.mm" ]
 
-    libs = [
+    frameworks = [
       "CoreFoundation.framework",
       "Foundation.framework",
     ]
@@ -175,7 +175,7 @@ if (crashpad_is_mac) {
     deps = [
       ":tool_support",
       "../compat",
-      "../third_party/mini_chromium:base",
+      "$mini_chromium_source_parent:base",
       "../util",
     ]
   }

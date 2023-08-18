@@ -9,11 +9,12 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/chromium/mini_chromium"
   }
-  version: "731e08f0695801347a26d2b204d5c18f51c98282"
+  version: "14b219d5d503e305a6d853e64de201659cfcbe2d"
+  # from https://chromium.googlesource.com/chromium/src/+/96.0.4664.153/third_party/crashpad/crashpad/DEPS#42
   last_upgrade_date {
-    year: 2020
-    month: 3
-    day: 31
+    year: 2023
+    month: 8
+    day: 13
   }
   license_type: NOTICE
 }

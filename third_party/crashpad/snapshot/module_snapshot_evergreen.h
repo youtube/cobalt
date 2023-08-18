@@ -100,8 +100,6 @@ class ModuleSnapshotEvergreen final : public ModuleSnapshot {
 
   // Too const-y: https://crashpad.chromium.org/bug/9.
   mutable std::vector<std::unique_ptr<const UserMinidumpStream>> streams_;
-
-  DISALLOW_COPY_AND_ASSIGN(ModuleSnapshotEvergreen);
 };
 
 }  // namespace internal

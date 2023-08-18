@@ -5,15 +5,15 @@
 #ifndef MINI_CHROMIUM_BASE_MAC_SCOPED_NSAUTORELEASE_POOL_H_
 #define MINI_CHROMIUM_BASE_MAC_SCOPED_NSAUTORELEASE_POOL_H_
 
-#include "base/macros.h"
+#include "build/build_config.h"
 
-#if defined(OS_MACOSX)
+#if defined(OS_APPLE)
 #if defined(__OBJC__)
 @class NSAutoreleasePool;
 #else  // __OBJC__
 class NSAutoreleasePool;
 #endif  // __OBJC__
-#endif  // OS_MACOSX
+#endif  // OS_APPLE
 
 namespace base {
 namespace mac {
@@ -28,11 +28,15 @@ namespace mac {
 // ugly #ifdefs.
 class ScopedNSAutoreleasePool {
  public:
-#if !defined(OS_MACOSX)
+#if !defined(OS_APPLE)
   ScopedNSAutoreleasePool() {}
   void Recycle() { }
-#else  // OS_MACOSX
+#else  // OS_APPLE
   ScopedNSAutoreleasePool();
+
+  ScopedNSAutoreleasePool(const ScopedNSAutoreleasePool&) = delete;
+  ScopedNSAutoreleasePool& operator=(const ScopedNSAutoreleasePool&) = delete;
+
   ~ScopedNSAutoreleasePool();
 
   // Clear out the pool in case its position on the stack causes it to be
@@ -42,10 +46,7 @@ class ScopedNSAutoreleasePool {
   void Recycle();
  private:
   NSAutoreleasePool* autorelease_pool_;
-#endif  // OS_MACOSX
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ScopedNSAutoreleasePool);
+#endif  // OS_APPLE
 };
 
 }  // namespace mac

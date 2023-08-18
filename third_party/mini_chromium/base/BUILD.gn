@@ -4,22 +4,17 @@
 
 import("../build/platform.gni")
 
-config("base_public_config") {
-  include_dirs = [ ".." ]
-  if (use_cobalt_customizations) {
-    cflags = [ "-isystem" + rebase_path("../../..", root_build_dir) ]
-  }
-}
-
 static_library("base") {
   sources = [
-    "../build/build_config.h",
     "atomicops.h",
     "atomicops_internals_atomicword_compat.h",
     "atomicops_internals_portable.h",
     "auto_reset.h",
     "bit_cast.h",
+    "check.h",
+    "check_op.h",
     "compiler_specific.h",
+    "cxx17_backports.h",
     "debug/alias.cc",
     "debug/alias.h",
     "files/file_path.cc",
@@ -32,10 +27,12 @@ static_library("base") {
     "logging.h",
     "macros.h",
     "memory/free_deleter.h",
+    "memory/page_size.h",
     "memory/scoped_policy.h",
     "metrics/histogram_functions.h",
     "metrics/histogram_macros.h",
     "metrics/persistent_histogram_allocator.h",
+    "notreached.h",
     "numerics/checked_math.h",
     "numerics/checked_math_impl.h",
     "numerics/clamped_math.h",
@@ -49,14 +46,10 @@ static_library("base") {
     "numerics/safe_math_shared_impl.h",
     "process/memory.cc",
     "process/memory.h",
-    "process/process_metrics.h",
     "rand_util.cc",
     "rand_util.h",
-    "scoped_clear_errno.h",
+    "scoped_clear_last_error.h",
     "scoped_generic.h",
-    "stl_util.h",
-    "strings/string16.cc",
-    "strings/string16.h",
     "strings/string_number_conversions.cc",
     "strings/string_number_conversions.h",
     "strings/string_piece.h",
@@ -83,10 +76,10 @@ static_library("base") {
   if (mini_chromium_is_posix || mini_chromium_is_fuchsia) {
     sources += [
       "files/file_util_posix.cc",
+      "memory/page_size_posix.cc",
       "posix/eintr_wrapper.h",
       "posix/safe_strerror.cc",
       "posix/safe_strerror.h",
-      "process/process_metrics_posix.cc",
       "strings/string_util_posix.h",
       "synchronization/condition_variable_posix.cc",
       "synchronization/lock_impl_posix.cc",
@@ -114,7 +107,7 @@ static_library("base") {
       "mac/scoped_typeref.h",
       "strings/sys_string_conversions_mac.mm",
     ]
-    libs = [
+    frameworks = [
       "ApplicationServices.framework",
       "CoreFoundation.framework",
       "Foundation.framework",
@@ -138,7 +131,7 @@ static_library("base") {
       "mac/scoped_typeref.h",
       "strings/sys_string_conversions_mac.mm",
     ]
-    libs = [
+    frameworks = [
       "CoreFoundation.framework",
       "CoreGraphics.framework",
       "CoreText.framework",
@@ -147,7 +140,8 @@ static_library("base") {
     ]
   } else if (mini_chromium_is_win) {
     sources += [
-      "process/process_metrics_win.cc",
+      "memory/page_size_win.cc",
+      "scoped_clear_last_error_win.cc",
       "strings/string_util_win.cc",
       "strings/string_util_win.h",
       "synchronization/lock_impl_win.cc",
@@ -160,11 +154,21 @@ static_library("base") {
       "fuchsia/fuchsia_logging.h",
     ]
 
-    libs = [ "zircon" ]
+    if (defined(is_fuchsia_tree) && is_fuchsia_tree) {
+      deps = [ "//zircon/system/ulib/syslog" ]
+    } else {
+      deps = [ "//third_party/fuchsia/sdk/$host_os-amd64/pkg/syslog" ]
+    }
   }
 
-  public_configs = [ ":base_public_config" ]
+  public_configs = [ "../build:mini_chromium_config" ]
   if (use_cobalt_customizations) {
     configs -= [ "//build/config/compiler:default_include_dirs" ]
+  }
+
+  public_deps = [ "../build" ]
+
+  if (mini_chromium_is_android) {
+    libs = [ "log" ]
   }
 }
