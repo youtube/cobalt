@@ -35,7 +35,7 @@
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/web/window_timers.h"
-#include "cobalt/worker/service_worker_consts.h"
+#include "cobalt/worker/worker_consts.h"
 #include "cobalt/worker/worker_location.h"
 #include "cobalt/worker/worker_navigator.h"
 #include "net/http/http_response_headers.h"

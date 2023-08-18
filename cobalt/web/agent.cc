@@ -43,6 +43,7 @@
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_registration_object.h"
+#include "cobalt/worker/worker_consts.h"
 
 namespace cobalt {
 namespace web {
@@ -547,7 +548,7 @@ void Agent::Stop() {
   }
 
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) {
+  if (watchdog && watchdog_registered_) {
     watchdog_registered_ = false;
     watchdog->Unregister(watchdog_name_);
   }
@@ -577,12 +578,15 @@ void Agent::Run(const Options& options, InitializeCallback initialize_callback,
   if (!thread_.StartWithOptions(thread_options)) return;
   DCHECK(message_loop());
 
+  // Registers service worker thread as a watchdog client.
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
 
-  // Registers service worker thread as a watchdog client.
   if (watchdog) {
-    watchdog_name_ =
-        thread_.thread_name() + std::to_string(thread_.GetThreadId());
+    watchdog_name_ = thread_.thread_name();
+    if (watchdog_name_ == worker::WorkerConsts::kServiceWorkerName ||
+        watchdog_name_ == worker::WorkerConsts::kDedicatedWorkerName) {
+      watchdog_name_ += std::to_string(thread_.GetThreadId());
+    }
     watchdog_registered_ = true;
     watchdog->Register(watchdog_name_, watchdog_name_,
                        base::kApplicationStateStarted, kWatchdogTimeInterval,
