@@ -68,6 +68,7 @@ class MEDIA_EXPORT SourceBufferStream {
   SourceBufferStream(const std::string& mime_type,
                      const VideoDecoderConfig& video_config,
                      MediaLog* media_log);
+  void EnableVideoBufferBudgetOverride();
 #else  // defined (STARBOARD)
   SourceBufferStream(const AudioDecoderConfig& audio_config,
                      MediaLog* media_log);
@@ -405,6 +406,7 @@ class MEDIA_EXPORT SourceBufferStream {
   base::TimeDelta GetBufferedDurationForGarbageCollection() const;
 
   const std::string mime_type_;
+
 #endif  // defined (STARBOARD)
 
   // Used to report log messages that can help the web developer figure out what

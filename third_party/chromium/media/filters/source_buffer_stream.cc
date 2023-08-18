@@ -16,6 +16,7 @@
 #include "base/trace_event/trace_event.h"
 #if defined(STARBOARD)
 #include "media/base/decoder_buffer.h"
+#include "media/base/starboard_utils.h"
 #endif  // defined(STARBOARD)
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/media_switches.h"
@@ -270,6 +271,7 @@ void SourceBufferStream::OnStartOfCodedFrameGroup(
              << "intervening remove makes discontinuity";
   }
 }
+
 
 void SourceBufferStream::Append(const BufferQueue& buffers) {
   TRACE_EVENT2("media", "SourceBufferStream::Append",
@@ -2081,6 +2083,10 @@ base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
     duration += range->GetEndTimestamp() - range->GetStartTimestamp();
   }
   return duration;
+}
+
+void SourceBufferStream::EnableVideoBufferBudgetOverride() {
+  memory_limit_ = GetSbMediaVideoBufferBudgetMaximum();
 }
 
 #endif  // defined (STARBOARD)

@@ -198,6 +198,11 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " media metrics collection.";
     return true;
+  } else if (name == "EnableVideoBufferBudgetOverride") {
+    is_video_buffer_budget_override_enabled_ = value;
+    LOG(INFO) << (value ? "Enabling" : "Disabling")
+              << " video buffer budget override.";
+    return true;
 #if SB_API_VERSION >= 15
   } else if (name == "AudioWriteDurationLocal" && value > 0) {
     audio_write_duration_local_ = value;
@@ -222,7 +227,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
     window = system_window_->GetSbWindow();
   }
 
-  return std::unique_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
+  auto player = std::make_unique<media::WebMediaPlayerImpl>(
       sbplayer_interface_.get(), window,
       base::Bind(&MediaModule::GetSbDecodeTargetGraphicsContextProvider,
                  base::Unretained(this)),
@@ -231,7 +236,11 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 #if SB_API_VERSION >= 15
       audio_write_duration_local_, audio_write_duration_remote_,
 #endif  // SB_API_VERSION >= 15
-      &media_log_));
+      &media_log_);
+
+  if (is_video_buffer_budget_override_enabled_) player->EnableVideoBufferBudgetOverride();
+
+  return player;
 }
 
 void MediaModule::Suspend() {

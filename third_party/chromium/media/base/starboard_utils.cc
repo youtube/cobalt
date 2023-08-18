@@ -51,6 +51,9 @@ int GetBitsPerPixel(const std::string& mime_type) {
   return 8;
 }
 
+const char* kVp9_8k_mime = "video/webm; codecs=\"vp9\"; width=7680; height=4320";
+const char* kVp9_4k_mime = "video/webm; codecs=\"vp9\"; width=3840; height=2160";
+
 }  // namespace
 
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
@@ -396,6 +399,17 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 
   return sb_media_color_metadata;
 }
+
+int GetSbMediaVideoBufferBudgetMaximum() {
+  if (SbMediaCanPlayMimeAndKeySystem(kVp9_8k_mime, "") == kSbMediaSupportTypeProbably) {
+    return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 7680, 4320, 12);
+  }
+  if (SbMediaCanPlayMimeAndKeySystem(kVp9_4k_mime, "") == kSbMediaSupportTypeProbably) {
+    return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 7680, 4320, 12);
+  }
+  return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecH264, 1920, 1080, 8);
+}
+
 int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
                                 const std::string& mime_type) {
   if (!video_config) {

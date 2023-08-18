@@ -268,6 +268,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
       BIND_TO_RENDER_LOOP(
           &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper),
       media_log_));
+  if (is_video_buffer_budget_override_enabled_) chunk_demuxer_->EnableVideoBufferBudgetOverride();
 
   state_.is_media_source = true;
   StartPipeline(chunk_demuxer_.get());

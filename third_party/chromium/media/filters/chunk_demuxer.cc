@@ -342,6 +342,7 @@ bool ChunkDemuxerStream::UpdateVideoConfig(const VideoDecoderConfig& config,
     DCHECK_EQ(state_, UNINITIALIZED);
 #if defined(STARBOARD)
     stream_ = std::make_unique<SourceBufferStream>(mime_type_, config, media_log);
+    if (is_video_buffer_budget_override_enabled_) stream_->EnableVideoBufferBudgetOverride();
 #else  // defined (STARBOARD)
     stream_ = std::make_unique<SourceBufferStream>(config, media_log);
 #endif  // defined (STARBOARD)
@@ -1657,6 +1658,7 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
   DCHECK(iter != id_to_mime_map_.end());
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(iter->second, type, media_track_id);
+  if (type == DemuxerStream::VIDEO && is_video_buffer_budget_override_enabled_) stream->EnableVideoBufferBudgetOverride();
 #else  // defined(STARBOARD)
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(type, media_track_id);

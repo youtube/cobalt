@@ -199,6 +199,13 @@ class WebMediaPlayer {
   // |drm_system| must not be NULL. The method can only be called once.
   virtual void SetDrmSystem(
       const scoped_refptr<media::DrmSystem>& drm_system) = 0;
+
+  // Enable to use maximum video buffer budget available.
+  void EnableVideoBufferBudgetOverride() {
+    is_video_buffer_budget_override_enabled_ = true;
+  }
+
+  bool is_video_buffer_budget_override_enabled_ = false;
 };
 
 // TODO: Add prefix "On" to all methods that handle events, such
