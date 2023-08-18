@@ -325,8 +325,7 @@ void ServiceWorkerJobs::Register(Job* job) {
         PromiseErrorData(
             web::DOMException::kSecurityErr,
             base::StringPrintf(
-                ServiceWorkerConsts::
-                    kServiceWorkerRegisterScriptOriginNotSameError,
+                WorkerConsts::kServiceWorkerRegisterScriptOriginNotSameError,
                 job->script_url.spec().c_str(), job->referrer.spec().c_str())));
     // 2.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
@@ -343,8 +342,7 @@ void ServiceWorkerJobs::Register(Job* job) {
         PromiseErrorData(
             web::DOMException::kSecurityErr,
             base::StringPrintf(
-                ServiceWorkerConsts::
-                    kServiceWorkerRegisterScopeOriginNotSameError,
+                WorkerConsts::kServiceWorkerRegisterScopeOriginNotSameError,
                 job->scope_url.spec().c_str(), job->referrer.spec().c_str())));
 
     // 3.2. Invoke Finish Job with job and abort these steps.
@@ -491,12 +489,11 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
     if (content_type.empty()) {
       RejectJobPromise(
           state->job,
-          PromiseErrorData(
-              web::DOMException::kSecurityErr,
-              ServiceWorkerConsts::kServiceWorkerRegisterNoMIMEError));
+          PromiseErrorData(web::DOMException::kSecurityErr,
+                           WorkerConsts::kServiceWorkerRegisterNoMIMEError));
       return true;
     }
-    for (auto mime_type : ServiceWorkerConsts::kJavaScriptMimeTypes) {
+    for (auto mime_type : WorkerConsts::kJavaScriptMimeTypes) {
       if (net::MatchesMimeType(mime_type, content_type)) {
         mime_type_is_javascript = true;
         break;
@@ -511,16 +508,15 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
         state->job,
         PromiseErrorData(
             web::DOMException::kSecurityErr,
-            base::StringPrintf(
-                ServiceWorkerConsts::kServiceWorkerRegisterBadMIMEError,
-                content_type.c_str())));
+            base::StringPrintf(WorkerConsts::kServiceWorkerRegisterBadMIMEError,
+                               content_type.c_str())));
     return true;
   }
   //   8.8.  Let serviceWorkerAllowed be the result of extracting header list
   //         values given `Service-Worker-Allowed` and response’s header list.
   std::string service_worker_allowed;
   bool service_worker_allowed_exists = headers->GetNormalizedHeader(
-      ServiceWorkerConsts::kServiceWorkerAllowed, &service_worker_allowed);
+      WorkerConsts::kServiceWorkerAllowed, &service_worker_allowed);
   //   8.9.  Set policyContainer to the result of creating a policy container
   //         from a fetch response given response.
   state->script_headers = headers;
@@ -564,11 +560,10 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
     //   8.16.2. Asynchronously complete these steps with a network error.
     RejectJobPromise(
         state->job,
-        PromiseErrorData(
-            web::DOMException::kSecurityErr,
-            base::StringPrintf(
-                ServiceWorkerConsts::kServiceWorkerRegisterBadScopeError,
-                scope_string.c_str())));
+        PromiseErrorData(web::DOMException::kSecurityErr,
+                         base::StringPrintf(
+                             WorkerConsts::kServiceWorkerRegisterBadScopeError,
+                             scope_string.c_str())));
     return true;
   }
   return true;
@@ -722,7 +717,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
 
   // 11. Let worker be a new service worker.
   ServiceWorkerObject::Options options(
-      "ServiceWorker", state->job->client->web_settings(),
+      WorkerConsts::kServiceWorkerName, state->job->client->web_settings(),
       state->job->client->network_module(), state->registration);
   options.web_options.platform_info = state->job->client->platform_info();
   options.web_options.service_worker_context =
@@ -1014,9 +1009,9 @@ void ServiceWorkerJobs::Unregister(Job* job) {
     // 1.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(
         job,
-        PromiseErrorData(web::DOMException::kSecurityErr,
-                         ServiceWorkerConsts::
-                             kServiceWorkerUnregisterScopeOriginNotSameError));
+        PromiseErrorData(
+            web::DOMException::kSecurityErr,
+            WorkerConsts::kServiceWorkerUnregisterScopeOriginNotSameError));
 
     // 1.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
