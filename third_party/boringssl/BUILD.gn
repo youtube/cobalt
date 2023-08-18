@@ -176,26 +176,3 @@ static_library("crypto_full") {
     configs += [ "//starboard/build/config:speed" ]
   }
 }
-
-target(final_executable_type, "crypto_tool") {
-  sources = [
-    "src/tool/args.cc",
-    "src/tool/ciphers.cc",
-    "src/tool/const.cc",
-    "src/tool/digest.cc",
-    "src/tool/file.cc",
-    "src/tool/generate_ed25519.cc",
-    "src/tool/genrsa.cc",
-    "src/tool/pkcs12.cc",
-    "src/tool/rand.cc",
-    "src/tool/sign.cc",
-    "src/tool/speed.cc",
-    "src/tool/tool.cc",
-  ]
-  include_dirs = [ "src/include" ]
-  defines = [ "OPENSSL_NO_SOCK" ]
-  deps = [ ":crypto" ]
-  if (is_starboard) {
-    deps += [ "//starboard" ]
-  }
-}
