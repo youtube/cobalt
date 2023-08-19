@@ -93,27 +93,32 @@ CobaltBackendImpl::CobaltBackendImpl(
     int64_t max_bytes,
     net::CacheType cache_type,
     net::NetLog* net_log)
-    : weak_factory_(this) {
+    : path_(path), cleanup_tracker_(cleanup_tracker),max_bytes_(max_bytes), net_log_(net_log),
+      weak_factory_(this) {
+    DCHECK(cache_type == net::CacheType::DISK_CACHE);
+}
+
+void CobaltBackendImpl::DeferredConstruct() {
   persistent_settings_ =
       std::make_unique<cobalt::persistent_storage::PersistentSettings>(
           kPersistentSettingsJson);
-  ReadDiskCacheSize(persistent_settings_.get(), max_bytes);
+  ReadDiskCacheSize(persistent_settings_.get(), max_bytes_);
 
   // Initialize disk backend for each resource type.
   int64_t total_size = 0;
   for (int i = 0; i < kTypeCount; i++) {
     auto metadata = kTypeMetadata[i];
-    base::FilePath dir = path.Append(FILE_PATH_LITERAL(metadata.directory));
+    base::FilePath dir = path_.Append(FILE_PATH_LITERAL(metadata.directory));
     int64_t bucket_size = metadata.max_size_bytes;
     total_size += bucket_size;
     SimpleBackendImpl* simple_backend = new SimpleBackendImpl(
-        dir, cleanup_tracker, /* file_tracker = */ nullptr, bucket_size,
-        cache_type, net_log);
+        dir, cleanup_tracker_, /* file_tracker = */ nullptr, bucket_size,
+        net::CacheType::DISK_CACHE, net_log_);
     simple_backend_map_[(ResourceType)i] = simple_backend;
   }
 
   // Must be at least enough space for each backend.
-  DCHECK(total_size <= max_bytes);
+  DCHECK(total_size <= max_bytes_);
 }
 
 CobaltBackendImpl::~CobaltBackendImpl() {
@@ -123,9 +128,9 @@ CobaltBackendImpl::~CobaltBackendImpl() {
   simple_backend_map_.clear();
 }
 
-void CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
+bool CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
   if (bytes == disk_cache::kTypeMetadata[type].max_size_bytes)
-    return;
+    return false;
 
   // Static cast value to double since base::Value cannot be a long.
   persistent_settings_->SetPersistentSetting(
@@ -135,6 +140,7 @@ void CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
   disk_cache::kTypeMetadata[type].max_size_bytes = bytes;
   SimpleBackendImpl* simple_backend = simple_backend_map_[type];
   simple_backend->SetMaxSize(bytes);
+  return true;
 }
 
 uint32_t CobaltBackendImpl::GetQuota(ResourceType type) {
@@ -146,6 +152,8 @@ void CobaltBackendImpl::ValidatePersistentSettings() {
 }
 
 net::Error CobaltBackendImpl::Init(CompletionOnceCallback completion_callback) {
+  DeferredConstruct();
+
   auto closure_runner =
       base::MakeRefCounted<RefCountedRunner>(std::move(completion_callback));
   for (auto const& backend : simple_backend_map_) {

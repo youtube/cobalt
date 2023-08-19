@@ -49,7 +49,7 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   ~CobaltBackendImpl() override;
 
   net::Error Init(CompletionOnceCallback completion_callback);
-  void UpdateSizes(ResourceType type, uint32_t bytes);
+  bool UpdateSizes(ResourceType type, uint32_t bytes);
   uint32_t GetQuota(ResourceType type);
   void ValidatePersistentSettings();
 
@@ -111,6 +111,8 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   };
 
  private:
+  void DeferredConstruct();
+
   class CobaltIterator;
   friend class CobaltIterator;
 
@@ -121,6 +123,12 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   // Json PrefStore used for persistent settings.
   std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
       persistent_settings_;
+
+    const base::FilePath & path_;
+    scoped_refptr<BackendCleanupTracker> cleanup_tracker_;
+    int64_t max_bytes_;
+    net::NetLog* net_log_;
+
 };
 
 }  // namespace disk_cache

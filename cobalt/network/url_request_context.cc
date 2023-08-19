@@ -189,13 +189,13 @@ URLRequestContext::URLRequestContext(
     // is less than 1 mb and subtract this from the max_cache_bytes.
     max_cache_bytes -= (1 << 20);
 
+    auto backend = std::make_unique<net::HttpCache::DefaultBackend>(
+        net::DISK_CACHE, net::CACHE_BACKEND_DEFAULT,
+        base::FilePath(std::string(path.data())),
+        /* max_bytes */ max_cache_bytes);
+
     auto http_cache = std::make_unique<net::HttpCache>(
-        storage_.http_network_session(),
-        std::make_unique<net::HttpCache::DefaultBackend>(
-            net::DISK_CACHE, net::CACHE_BACKEND_COBALT,
-            base::FilePath(std::string(path.data())),
-            /* max_bytes */ max_cache_bytes),
-        true);
+        storage_.http_network_session(), std::move(backend), true);
     if (persistent_settings != nullptr) {
       auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(
           disk_cache::kCacheEnabledPersistentSettingsKey, true);
