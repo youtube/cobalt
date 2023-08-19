@@ -29,6 +29,12 @@ import pexpect
 from starboard.tools import abstract_launcher
 from starboard.raspi.shared import retry
 
+# IS_MODULAR_BUILD = os.getenv('MODULAR_BUILD', '0') == '1'
+
+
+class TargetPathError(ValueError):
+  pass
+
 
 # pylint: disable=unused-argument
 def _sigint_or_sigterm_handler(signum, frame):
@@ -126,31 +132,44 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     self.last_run_pexpect_cmd = ''
 
+  def _GetAndCheckTestFile(self, target_name):
+    # TODO(b/218889313): This should reference the bin/ subdir when that's
+    # used.
+    test_dir = os.path.join(self.out_directory, 'install', target_name)
+    test_file = target_name
+    test_path = os.path.join(test_dir, test_file)
+
+    if not os.path.isfile(test_path):
+      raise TargetPathError(f'TargetPath ({test_path}) must be a file.')
+    return test_file
+
+  def _GetAndCheckTestFileWithFallback(self):
+    return self._GetAndCheckTestFile(self.target_name)
+    # try:
+    #   return self._GetAndCheckTestFile(self.target_name + '_loader')
+    # except TargetPathError as e:
+    #   if IS_MODULAR_BUILD:
+    #     raise e
+    #   return self._GetAndCheckTestFile(self.target_name)
+
   def _InitPexpectCommands(self):
     """Initializes all of the pexpect commands needed for running the test."""
 
     # Ensure no trailing slashes
     self.out_directory = self.out_directory.rstrip('/')
 
-    # TODO(b/218889313): This should reference the bin/ subdir when that's
-    # used.
-    test_dir = os.path.join(self.out_directory, 'install', self.target_name)
-    test_file = self.target_name
-
-    test_path = os.path.join(test_dir, test_file)
-    if not os.path.isfile(test_path):
-      raise ValueError(f'TargetPath ({test_path}) must be a file.')
+    test_file = self._GetAndCheckTestFileWithFallback()
 
     raspi_user_hostname = Launcher._RASPI_USERNAME + '@' + self.device_id
 
     # Use the basename of the out directory as a common directory on the device
     # so content can be reused for several targets w/o re-syncing for each one.
     raspi_test_dir = os.path.basename(self.out_directory)
-    raspi_test_path = os.path.join(raspi_test_dir, test_file)
+    raspi_test_path = os.path.join(raspi_test_dir, test_file, test_file)
 
     # rsync command setup
     options = '-avzLhc'
-    source = test_dir + '/'
+    source = os.path.join(self.out_directory, 'install') + '/'
     destination = f'{raspi_user_hostname}:~/{raspi_test_dir}/'
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
 
