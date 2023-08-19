@@ -16,7 +16,8 @@ config("platform_configuration") {
   ldflags = [
     "-fuse-ld=lld",
     "-Wl,--build-id",
-    "-Wl,--gc-sections",
+
+    # "-Wl,--gc-sections",
     "-Wl,-X",
     "-Wl,-v",
     "-Wl,-eh-frame-hdr",
@@ -26,14 +27,15 @@ config("platform_configuration") {
     "-Wl,-L/usr/lib",
     "-Wl,-L/lib",
     "-Wl,-u GetEvergreenSabiString",
+    "-Wl,--no-undefined",
   ]
 
   if (sb_is_evergreen) {
     ldflags += [ "-nostdlib" ]
   }
   cflags = [
-    "-ffunction-sections",
-    "-fdata-sections",
+    # "-ffunction-sections",
+    # "-fdata-sections",
     "-fPIC",
     "-nostdlibinc",
     "-isystem" + rebase_path("//third_party/llvm-project/libcxxabi/include",
