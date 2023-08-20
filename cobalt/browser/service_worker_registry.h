@@ -49,6 +49,8 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
                                   const GURL& client_url,
                                   base::WaitableEvent* done_event);
 
+  void EraseRegistrationMap();
+
   worker::ServiceWorkerContext* service_worker_context();
 
  private:

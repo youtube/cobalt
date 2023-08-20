@@ -150,6 +150,8 @@ class ServiceWorkerContext {
                                   const GURL& client_url,
                                   base::WaitableEvent* done_event);
 
+  void EraseRegistrationMap();
+
   ServiceWorkerJobs* jobs() { return jobs_.get(); }
   ServiceWorkerRegistrationMap* registration_map() {
     return scope_to_registration_map_.get();

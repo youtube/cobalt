@@ -38,6 +38,9 @@ struct WorkerConsts {
   // The name of a Service Worker thread.
   static const char kServiceWorkerName[];
 
+  // The name of a Service Worker Registry thread.
+  static const char kServiceWorkerRegistryName[];
+
   // The name of a Dedicated Worker thread.
   static const char kDedicatedWorkerName[];
 };
