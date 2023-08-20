@@ -35,6 +35,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define OPUS_BUILD            1
 
+/* Don't let EXPORT to be redefined by later config code. */
+#define OPUS_EXPORT
+
 #if defined(_M_IX86) || defined(_M_X64)
 /* Can always compile SSE intrinsics (no special compiler flags necessary) */
 #define OPUS_X86_MAY_HAVE_SSE
