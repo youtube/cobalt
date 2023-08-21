@@ -535,37 +535,6 @@ public class MediaDrmBridge {
     if (mMediaDrm == null) {
       throw new IllegalStateException("Cannot create media crypto with null mMediaDrm.");
     }
-    if (mMediaCryptoSession != null) {
-      throw new IllegalStateException(
-          "Cannot create media crypto with non-null mMediaCryptoSession.");
-    }
-    // TODO: Cannot do this during provisioning pending.
-
-    // Open media crypto session.
-    try {
-      mMediaCryptoSession = openSession();
-    } catch (NotProvisionedException e) {
-      Log.d(TAG, "Device not provisioned", e);
-      if (!attemptProvisioning()) {
-        Log.e(TAG, "Failed to provision device during MediaCrypto creation.");
-        return false;
-      }
-      try {
-        mMediaCryptoSession = openSession();
-      } catch (NotProvisionedException e2) {
-        Log.e(TAG, "Device still not provisioned after supposedly successful provisioning", e2);
-        return false;
-      }
-    }
-
-    if (mMediaCryptoSession == null) {
-      Log.e(TAG, "Cannot create MediaCrypto Session.");
-      return false;
-    }
-    Log.d(
-        TAG,
-        String.format("MediaCrypto Session created: %s", bytesToHexString(mMediaCryptoSession)));
-
     // Create MediaCrypto object.
     try {
       if (MediaCrypto.isCryptoSchemeSupported(mSchemeUUID)) {
@@ -619,6 +588,52 @@ public class MediaDrmBridge {
       release();
       return null;
     }
+  }
+
+  @UsedByNative
+  boolean createMediaCryptoSession() {
+    if (mMediaCryptoSession != null) {
+      return true;
+    }
+    Log.w(TAG, "MediaDrmBridge createMediaCryptoSession");
+    if (mMediaCrypto == null) {
+      throw new IllegalStateException("Cannot create media crypto session with null mMediaCrypto.");
+    }
+
+    // Open media crypto session.
+    try {
+      mMediaCryptoSession = openSession();
+      mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
+    } catch (MediaCryptoException e) {
+      Log.e(TAG, "Unable to set media drm session", e);
+      return false;
+    } catch (NotProvisionedException e) {
+      Log.w(TAG, "Device not provisioned", e);
+      if (!attemptProvisioning()) {
+        Log.e(TAG, "Failed to provision device during MediaCrypto creation.");
+        return false;
+      }
+      try {
+        mMediaCryptoSession = openSession();
+        mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
+      } catch (MediaCryptoException e2) {
+        Log.e(TAG, "Unable to set media drm session", e2);
+        return false;
+      } catch (NotProvisionedException e2) {
+        Log.e(TAG, "Device still not provisioned after supposedly successful provisioning", e2);
+        return false;
+      }
+    }
+
+    if (mMediaCryptoSession == null) {
+      Log.e(TAG, "Cannot create MediaCrypto Session.");
+      return false;
+    }
+    Log.d(
+        TAG,
+        String.format("MediaCrypto Session created: %s", bytesToHexString(mMediaCryptoSession)));
+
+    return true;
   }
 
   /**

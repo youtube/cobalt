@@ -387,6 +387,18 @@ class atomic_bool {
     return SbAtomicNoBarrier_Exchange(volatile_ptr(), new_val);
   }
 
+  bool compare_exchange_strong(bool* expected_value, bool new_value) {
+    bool prev_value = *expected_value;
+    SbAtomicMemoryBarrier();
+    bool value_written =
+        SbAtomicRelease_CompareAndSwap(volatile_ptr(), prev_value, new_value);
+    const bool write_ok = (prev_value == value_written);
+    if (!write_ok) {
+      *expected_value = value_written;
+    }
+    return write_ok;
+  }
+
   bool load() const { return SbAtomicAcquire_Load(volatile_const_ptr()) != 0; }
 
   void store(bool val) { SbAtomicRelease_Store(volatile_ptr(), val); }
