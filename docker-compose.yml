@@ -496,10 +496,9 @@ services:
     entrypoint: ["python3", "/unittest_docker_launcher.py", "3"]
 
   xvfb:
-    image: xvfb
+    image: cobalt-xvfb
     ports:
       - "99:99"
-    image: cobalt-xvfb
     build:
       context: ./docker/linux/
       dockerfile: xvfb/Dockerfile
