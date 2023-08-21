@@ -34,6 +34,7 @@ EXCLUDED_CHECK_PATTERNS = [
     'feedback/copybara',
     'prepare_branch_list',
     'cherry_pick',
+    'assign-reviewer',
 
     # Excludes coverage and test reports.
     'linux-coverage',
@@ -45,9 +46,6 @@ EXCLUDED_CHECK_PATTERNS = [
 
     # Excludes evergreen as blackbox test.
     'evergreen-as-blackbox_test',
-
-    # Excludes long running evergreen_test.
-    '_evergreen_test',
 
     # Excludes templated check names.
     '${{'
