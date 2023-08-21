@@ -376,6 +376,16 @@ void ServiceWorkerContext::EnsureServiceWorkerStarted(
   service_worker_object->ObtainWebAgentAndWaitUntilDone();
 }
 
+void ServiceWorkerContext::EraseRegistrationMap() {
+  if (message_loop() != base::MessageLoop::current()) {
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(&ServiceWorkerContext::EraseRegistrationMap,
+                                  base::Unretained(this)));
+    return;
+  }
+  scope_to_registration_map_->DeletePersistentSettings();
+}
+
 std::string* ServiceWorkerContext::RunServiceWorker(ServiceWorkerObject* worker,
                                                     bool force_bypass_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::RunServiceWorker()");
