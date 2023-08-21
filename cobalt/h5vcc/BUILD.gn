@@ -28,12 +28,6 @@ static_library("h5vcc") {
   has_pedantic_warnings = true
 
   sources = [
-    "dial/dial_http_request.cc",
-    "dial/dial_http_request.h",
-    "dial/dial_http_response.cc",
-    "dial/dial_http_response.h",
-    "dial/dial_server.cc",
-    "dial/dial_server.h",
     "h5vcc.cc",
     "h5vcc.h",
     "h5vcc_accessibility.cc",
@@ -91,10 +85,23 @@ static_library("h5vcc") {
     "//cobalt/web:dom_exception",
     "//cobalt/worker",
     "//net",
-    "//net:http_server",
     "//starboard",
     "//third_party/protobuf:protobuf_lite",
   ]
+  if (enable_in_app_dial) {
+    sources += [
+      "dial/dial_http_request.cc",
+      "dial/dial_http_request.h",
+      "dial/dial_http_response.cc",
+      "dial/dial_http_response.h",
+      "dial/dial_server.cc",
+      "dial/dial_server.h",
+    ]
+    deps += [
+      "//net:cobalt_dial_server",
+      "//net:http_server",
+    ]
+  }
 
   if (enable_account_manager) {
     sources += [
