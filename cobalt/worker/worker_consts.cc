@@ -61,6 +61,8 @@ const char* const WorkerConsts::kJavaScriptMimeTypes[16] = {
 
 const char WorkerConsts::kServiceWorkerName[] = "ServiceWorker";
 
+const char WorkerConsts::kServiceWorkerRegistryName[] = "ServiceWorkerRegistry";
+
 const char WorkerConsts::kDedicatedWorkerName[] = "DedicatedWorker";
 }  // namespace worker
 }  // namespace cobalt

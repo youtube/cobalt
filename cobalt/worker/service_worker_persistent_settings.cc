@@ -461,5 +461,9 @@ void ServiceWorkerPersistentSettings::RemoveAll() {
   }
 }
 
+void ServiceWorkerPersistentSettings::DeleteAll(base::OnceClosure closure) {
+  persistent_settings_->DeletePersistentSettings(std::move(closure));
+}
+
 }  // namespace worker
 }  // namespace cobalt
