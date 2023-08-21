@@ -33,7 +33,7 @@ bool SetString(const char* key, const char* value) {
   return false;
 #else
   return third_party::crashpad::wrapper::InsertCrashpadAnnotation(key, value);
-#endif
+#endif  // SB_IS(MODULAR)
 }
 
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {

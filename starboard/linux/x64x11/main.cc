@@ -61,7 +61,7 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
           starboard::shared::starboard::kStartHandlerAtLaunch);
   third_party::crashpad::wrapper::InstallCrashpadHandler(start_handler_at_crash,
                                                          ca_certificates_path);
-#endif
+#endif  // !SB_IS(MODULAR)
 #endif
 
 #if SB_HAS_QUIRK(BACKTRACE_DLOPEN_BUG)
