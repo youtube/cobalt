@@ -18,6 +18,7 @@
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/css_parser/switches.h"
 #include "cobalt/version.h"
 
 namespace {
@@ -41,6 +42,7 @@ bool CheckForAndExecuteHelpSwitch() {
           cobalt::browser::switches::kHelp)) {
     SbLogRaw("Options: \n");
     SbLogRaw(cobalt::browser::switches::HelpMessage().c_str());
+    SbLogRaw(cobalt::css_parser::switches::HelpMessage().c_str());
     return true;
   }
   return false;
