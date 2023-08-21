@@ -55,7 +55,6 @@ target(gtest_target_type, "storage_test") {
     ":storage",
     "//cobalt/base",
     "//cobalt/test:run_all_unittests",
-    "//net",
     "//testing/gmock",
     "//testing/gtest",
     "//url",
