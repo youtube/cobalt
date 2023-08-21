@@ -51,6 +51,53 @@ class GpuVideoDecoderBase
 
   ~GpuVideoDecoderBase() override;
 
+  class GpuFrameBuffer : public RefCountedThreadSafe<GpuFrameBuffer> {
+   public:
+    GpuFrameBuffer(uint16_t width,
+                   uint16_t height,
+                   DXGI_FORMAT dxgi_format,
+                   Microsoft::WRL::ComPtr<ID3D11Device1> d3d11_device,
+                   Microsoft::WRL::ComPtr<ID3D12Device> d3d12_device);
+
+    HRESULT CreateTextures();
+
+    const Microsoft::WRL::ComPtr<ID3D12Resource>& resource(int index) const {
+      SB_DCHECK(index < kNumberOfPlanes);
+      SB_DCHECK(d3d12_resources_[index] != nullptr);
+      return d3d12_resources_[index];
+    }
+
+    const Microsoft::WRL::ComPtr<ID3D11Texture2D>& texture(int index) const {
+      SB_DCHECK(index < kNumberOfPlanes);
+      SB_DCHECK(d3d11_textures_[index] != nullptr);
+      return d3d11_textures_[index];
+    }
+
+    uint16_t width() const { return width_; }
+    uint16_t height() const { return height_; }
+    const Microsoft::WRL::ComPtr<ID3D11Device1>& device11() {
+      return d3d11_device_;
+    }
+    const Microsoft::WRL::ComPtr<ID3D12Device>& device12() {
+      return d3d12_device_;
+    }
+
+   private:
+    uint16_t width_ = 0;
+    uint16_t height_ = 0;
+    D3D12_RESOURCE_DESC texture_desc_ = {0};
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> d3d12_resources_[kNumberOfPlanes];
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11_textures_[kNumberOfPlanes];
+
+    const Microsoft::WRL::ComPtr<ID3D11Device1> d3d11_device_;
+    const Microsoft::WRL::ComPtr<ID3D12Device> d3d12_device_;
+  };
+  void ReleaseFrameBuffer(GpuFrameBuffer* frame_buffer);
+  int GetWidth() { return frame_width_; }
+  int GetHeight() { return frame_height_; }
+  bool IsHdrVideo() { return is_hdr_video_; }
+
  protected:
   typedef ::starboard::shared::starboard::media::VideoStreamInfo
       VideoStreamInfo;
@@ -116,16 +163,20 @@ class GpuVideoDecoderBase
     kEndingStream
   };
 
-  GpuVideoDecoderBase(SbDecodeTargetGraphicsContextProvider*
-                          decode_target_graphics_context_provider,
-                      const VideoStreamInfo& video_stream_info,
-                      bool is_hdr_video,
-                      const Microsoft::WRL::ComPtr<ID3D12Device>& d3d12_device,
-                      void* d3d12_queue);
+  GpuVideoDecoderBase(
+      SbDecodeTargetGraphicsContextProvider*
+          decode_target_graphics_context_provider,
+      const VideoStreamInfo& video_stream_info,
+      bool is_hdr_video,
+      bool is_10x3_preferred,
+      const Microsoft::WRL::ComPtr<ID3D12Device>& d3d12_device,
+      const Microsoft::WRL::ComPtr<ID3D12Heap> d3d12OutputPoolBufferHeap,
+      void* d3d12_queue);
 
   // VideoDecoder methods
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) final;
+  size_t GetPrerollFrameCount() const final;
   SbTime GetPrerollTimeout() const final { return kSbTimeMax; }
   size_t GetMaxNumberOfCachedFrames() const override;
 
@@ -135,19 +186,23 @@ class GpuVideoDecoderBase
   SbDecodeTarget GetCurrentDecodeTarget() final;
 
   // Methods for inherited classes to implement.
-  virtual size_t GetMaxNumberOfCachedFramesInternal() const = 0;
   virtual void InitializeCodecIfNeededInternal() = 0;
   virtual void DecodeInternal(
       const scoped_refptr<InputBuffer>& input_buffer) = 0;
   virtual void DrainDecoderInternal() = 0;
+  virtual size_t GetMaxNumberOfCachedFramesInternal() const = 0;
 
   bool BelongsToDecoderThread() const;
-  void OnOutputRetrieved(const scoped_refptr<DecodedImage>& image);
   void OnDecoderDrained();
   void ClearCachedImages();
   void ReportError(const SbPlayerError error, const std::string& error_message);
+  int OnOutputRetrieved(const scoped_refptr<DecodedImage>& image);
+  HRESULT AllocateFrameBuffers(uint16_t width, uint16_t height);
+  GpuVideoDecoderBase::GpuFrameBuffer* GetAvailableFrameBuffer(uint16_t width,
+                                                               uint16_t height);
 
   const bool is_hdr_video_;
+  const bool is_10x3_preferred_;
   int frame_width_;
   int frame_height_;
   atomic_integral<RetrievingBehavior> decoder_behavior_{kDecodingStopped};
@@ -156,12 +211,16 @@ class GpuVideoDecoderBase
   // These are platform-specific objects required to create and use a codec.
   Microsoft::WRL::ComPtr<ID3D11Device1> d3d11_device_;
   Microsoft::WRL::ComPtr<ID3D12Device> d3d12_device_;
+  Microsoft::WRL::ComPtr<ID3D12Heap>
+      d3d12FrameBuffersHeap_;  // output buffers queue memory
   void* d3d12_queue_ = nullptr;
 
+  Mutex frame_buffers_mutex_;
+  ConditionVariable frame_buffers_condition_;
+  // static std::vector<scoped_refptr<GpuFrameBuffer>> s_frame_buffers_;
  private:
   class GPUDecodeTargetPrivate;
 
-  bool IsCacheFull();
   void DecodeOneBuffer();
   void DecodeEndOfStream();
   void DrainDecoder();
@@ -183,7 +242,9 @@ class GpuVideoDecoderBase
   // |pending_inputs_| is shared between player main thread and decoder thread.
   Mutex pending_inputs_mutex_;
   std::deque<scoped_refptr<InputBuffer>> pending_inputs_;
-  // |written_inputs_| is only accessed on decoder thread.
+  // |written_inputs_| is shared between decoder thread and underlying decoder
+  // output thread.
+  Mutex written_inputs_mutex_;
   std::vector<scoped_refptr<InputBuffer>> written_inputs_;
   // |output_queue_| is shared between decoder thread and render thread.
   Mutex output_queue_mutex_;
@@ -195,6 +256,7 @@ class GpuVideoDecoderBase
   SbMediaColorMetadata last_presented_color_metadata_ = {};
 
   bool is_drain_decoder_called_ = false;
+  bool is_waiting_frame_after_drain_ = false;
 
   bool needs_hdr_metadata_update_ = true;
 };
