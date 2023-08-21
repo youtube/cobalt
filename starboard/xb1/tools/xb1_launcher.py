@@ -433,18 +433,16 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     try:
       self._LogLn('Installing appx file ' + appx_package_file)
-      self.WinAppDeployCmd(
-          f'install -file {appx_package_file} -dependency {_DEBUG_VC_LIBS_PATH}'
-      )
+      self.WinAppDeployCmd(f'install -file "{appx_package_file}" '
+                           f'-dependency "{_DEBUG_VC_LIBS_PATH}"')
     except subprocess.CalledProcessError:
       # Install exited with non-zero status code, clear everything out, restart,
       # and attempt another install.
       self._LogLn('Error installing appx. Attempting a clean install...')
       self.UninstallSubPackages()
       self.RestartDevkit()
-      self.WinAppDeployCmd(
-          f'install -file {appx_package_file} -dependency {_DEBUG_VC_LIBS_PATH}'
-      )
+      self.WinAppDeployCmd(f'install -file "{appx_package_file}" '
+                           f'-dependency "{_DEBUG_VC_LIBS_PATH}"')
 
     # Cleanup starboard arguments file.
     self.InstallStarboardArgument(None)
@@ -535,11 +533,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._LogLn('\n***** Application ' + target_name +
                     ' crashed! *****\nDump file: ' + f)
         crashes_detected = True
-        data = self._network_api.FetchPackageFile(
-            _DEFAULT_PACKAGE_NAME,
-            'AC/' + f,
-            raise_on_failure=True,
-            is_text=False)
+        data = self._network_api.FetchPackageFile(_DEFAULT_PACKAGE_NAME,
+                                                  'AC/' + f,
+                                                  raise_on_failure=True,
+                                                  is_text=False)
         # Ensure that directory exists.
         dump_dir_path = os.path.join(os.environ['LOCALAPPDATA'], 'CrashDumps',
                                      'xbox_remote')
