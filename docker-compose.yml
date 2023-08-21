@@ -29,8 +29,9 @@ x-build-volumes: &build-volumes
     - ${CCACHE_DIR:-container-ccache}:/root/ccache
 
 x-build-common-definitions: &build-common-definitions
-  <<: *common-definitions
-  <<: *build-volumes
+  <<:
+    - *common-definitions
+    - *build-volumes
   depends_on:
     - build-base
 
@@ -200,8 +201,9 @@ services:
       TARGET: ${TARGET:-cobalt_install}
 
   linux-x64x11-bionic:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
@@ -213,8 +215,9 @@ services:
     scale: 0
 
   linux-x64x11-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
@@ -227,8 +230,9 @@ services:
       - linux-x64x11-bionic
 
   build-linux-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
@@ -237,8 +241,9 @@ services:
       - linux-x64x11-bionic
 
   linux-x64x11-clang-3-9:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
@@ -251,8 +256,9 @@ services:
       - linux-x64x11-bionic
 
   build-linux-clang-3-9:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
