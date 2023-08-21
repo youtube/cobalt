@@ -33,4 +33,4 @@ RUN apt update -qqy \
         curl xz-utils \
     && /opt/clean-after-apt.sh
 
-CMD ["/usr/bin/python","--version"]
+CMD ["/usr/bin/python3","--version"]
