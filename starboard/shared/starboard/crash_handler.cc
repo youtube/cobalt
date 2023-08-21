@@ -29,7 +29,11 @@ bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
 }
 
 bool SetString(const char* key, const char* value) {
+#if SB_IS(MODULAR)
+  return false;
+#else
   return third_party::crashpad::wrapper::InsertCrashpadAnnotation(key, value);
+#endif  // SB_IS(MODULAR)
 }
 
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {
