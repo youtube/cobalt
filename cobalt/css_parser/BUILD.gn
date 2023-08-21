@@ -76,6 +76,8 @@ static_library("css_parser") {
     "shadow_property_parse_structures.cc",
     "shadow_property_parse_structures.h",
     "string_pool.h",
+    "switches.cc",
+    "switches.h",
     "text_decoration_shorthand_property_parse_structures.cc",
     "text_decoration_shorthand_property_parse_structures.h",
     "transition_shorthand_property_parse_structures.cc",
@@ -92,6 +94,7 @@ static_library("css_parser") {
 
   deps = [
     ":css_grammar",
+    "//base",
     "//cobalt/base",
     "//cobalt/cssom",
     "//nb",
