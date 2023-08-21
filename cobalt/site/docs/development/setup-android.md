@@ -26,12 +26,16 @@ return and complete the following steps.
     Where 4 is the number of parallel threads. You can adjust the number of
     parallel threads according to how your workstation performs.
 
-1.  Run `cobalt/build/gn.py -p android-x86` to configure the Cobalt build,
-    which also installs the SDK and NDK. (This step will have to be repeated
-    with 'android-arm' or 'android-arm64' to target those architectures.) The
-    SDK and NDK will be downloaded and installed into a `starboard-toolchains`
-    directory as needed. If prompted, read and accept the license agreement to
-    proceed forward.
+1.  Run `starboard/android/shared/download_sdk.sh` to download the SDK and NDK.
+    The SDK and NDK will be downloaded and installed into
+    `~/starboard-toolchains`. If you wish to customize the download location
+    you must set the relevant environment variables accordingly.
+
+    If prompted, read and accept the license agreement.
+
+1.  Run `cobalt/build/gn.py -p android-x86` to configure the Cobalt build.
+    (This step will have to be repeated with 'android-arm' or 'android-arm64'
+    to target those architectures.)
 
     **Note:** If you have trouble building with an error referencing the
     `debug.keystore` you may need to set one up on your system:
