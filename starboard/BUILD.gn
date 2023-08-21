@@ -69,7 +69,7 @@ group("gn_all") {
     if (sb_is_evergreen_compatible) {
       deps += [ "//third_party/crashpad/client" ]
       data_deps = [
-        "//starboard/loader_app",
+        "//starboard/loader_app($starboard_toolchain)",
         "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
       ]
     }
