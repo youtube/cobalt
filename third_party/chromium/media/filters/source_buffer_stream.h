@@ -69,6 +69,10 @@ class MEDIA_EXPORT SourceBufferStream {
                      const VideoDecoderConfig& video_config,
                      MediaLog* media_log);
   void EnableVideoBufferBudgetOverride();
+  size_t GetMemoryLimit() const {
+    return memory_limit_;
+  }
+
 #else  // defined (STARBOARD)
   SourceBufferStream(const AudioDecoderConfig& audio_config,
                      MediaLog* media_log);

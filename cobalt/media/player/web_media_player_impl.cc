@@ -993,5 +993,12 @@ void WebMediaPlayerImpl::OnContentSizeChanged() {
   GetClient()->ContentSizeChanged();
 }
 
+void WebMediaPlayerImpl::EnableVideoBufferBudgetOverride() {
+  LOG(INFO) << "YO BUDGET! WEB MEDIA PLAYER IMPL EMNABLE!";
+    is_video_buffer_budget_override_enabled_ = true;
+    chunk_demuxer_->EnableVideoBufferBudgetOverride();
+  }
+
+
 }  // namespace media
 }  // namespace cobalt

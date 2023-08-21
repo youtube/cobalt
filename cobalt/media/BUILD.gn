@@ -128,6 +128,8 @@ target(gtest_target_type, "media_test") {
     "progressive/mock_data_source_reader.h",
     "progressive/mp4_map_unittest.cc",
     "progressive/rbsp_stream_unittest.cc",
+    "player/web_media_player_unittest.cc",
+
   ]
 
   configs -= [ "//starboard/build/config:size" ]

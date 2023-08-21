@@ -121,8 +121,8 @@ bool IsStringNone(const std::string& str) {
 
 #if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
 std::string GetDevServersListenIp() {
-  bool ip_v6;
-  ip_v6 = SbSocketIsIpv6Supported();
+  bool ip_v6 = false;
+  // ip_v6 = SbSocketIsIpv6Supported();
   // Default to INADDR_ANY
   std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
 

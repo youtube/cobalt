@@ -202,6 +202,11 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     is_video_buffer_budget_override_enabled_ = value;
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " video buffer budget override.";
+    if (value) {
+      for (const auto &wp : players_) {
+        wp.first->EnableVideoBufferBudgetOverride();
+      }
+    }
     return true;
 #if SB_API_VERSION >= 15
   } else if (name == "AudioWriteDurationLocal" && value > 0) {

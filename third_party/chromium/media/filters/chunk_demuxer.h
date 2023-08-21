@@ -82,9 +82,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 #if defined(STARBOARD)
   base::TimeDelta GetWriteHead() const;
 
-  void EnableVideoBufferBudgetOverride() {
-    is_video_buffer_budget_override_enabled_ = true;
-  }
+  void EnableVideoBufferBudgetOverride();
 #endif  // defined(STARBOARD)
 
   void OnMemoryPressure(
@@ -298,9 +296,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Special version of AddId() that retains the |mime_type| from the web app.
   Status AddId(const std::string& id, const std::string& mime_type)
       WARN_UNUSED_RESULT;
-  void EnableVideoBufferBudgetOverride() {
-    is_video_buffer_budget_override_enabled_ = true;
-  }
+  void EnableVideoBufferBudgetOverride();
 #endif  // defined (STARBOARD)
 
   // Notifies a caller via |tracks_updated_cb| that the set of media tracks
