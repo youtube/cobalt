@@ -34,6 +34,7 @@ EXCLUDED_CHECK_PATTERNS = [
     'feedback/copybara',
     'prepare_branch_list',
     'cherry_pick',
+    'assign-reviewer',
 
     # Excludes coverage and test reports.
     'linux-coverage',
@@ -68,8 +69,12 @@ def initialize_repo_connection():
 
 
 def get_checks_for_branch(repo, branch: str) -> None:
+  # The 'merged' sort order is not listed in public docs but still works.
+  # If this functionality is removed the alternative is to loop through all
+  # PRs and use the 'merged_at' property to determine which is the latest one.
+  # https://docs.github.com/en/rest/pulls/pulls#list-pull-requests
   prs = repo.get_pulls(
-      state='closed', sort='updated', base=branch, direction='desc')
+      state='closed', sort='merged', base=branch, direction='desc')
 
   latest_pr = None
   for pr in prs:
@@ -105,14 +110,19 @@ def print_checks(repo, branch_name: str, new_checks: List[str]) -> None:
       print(check_name)
     print()
 
-  print(f'Required checks to be ADDED for {branch_name}:')
-  print_check_list(set(new_checks) - set(current_checks))
+  added_checks = set(new_checks) - set(current_checks)
+  if added_checks:
+    print(f'Required checks to be ADDED for {branch_name}:')
+    print_check_list(added_checks)
 
-  print(f'Required checks to be REMOVED for {branch_name}:')
-  print_check_list(set(current_checks) - set(new_checks))
+  removed_checks = set(current_checks) - set(new_checks)
+  if removed_checks:
+    print(f'Required checks to be REMOVED for {branch_name}:')
+    print_check_list(removed_checks)
 
+  unchanged_checks = set(current_checks).intersection(set(new_checks))
   print(f'Required checks that will REMAIN for {branch_name}:')
-  print_check_list(set(current_checks).intersection(set(new_checks)))
+  print_check_list(unchanged_checks)
 
 
 def update_protection_for_branch(repo, branch: str,
@@ -130,10 +140,10 @@ def parse_args() -> None:
       help='Branch to update. Can be repeated to update multiple branches.'
       ' Defaults to all protected branches.')
   parser.add_argument(
-      '--dry_run',
+      '--apply',
       action='store_true',
       default=False,
-      help='Only print protection updates.')
+      help='Apply required checks updates.')
   args = parser.parse_args()
 
   if not args.branch:
@@ -147,10 +157,10 @@ def main() -> None:
   repo = initialize_repo_connection()
   for branch in args.branch:
     required_checks = get_required_checks_for_branch(repo, branch)
-    if args.dry_run:
-      print_checks(repo, branch, required_checks)
-    else:
+    if args.apply:
       update_protection_for_branch(repo, branch, required_checks)
+    else:
+      print_checks(repo, branch, required_checks)
 
 
 if __name__ == '__main__':
