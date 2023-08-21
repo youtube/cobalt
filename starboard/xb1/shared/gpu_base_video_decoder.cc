@@ -16,7 +16,9 @@
 
 #include <d3d11_1.h>
 #include <wrl/client.h>
+#include <algorithm>
 
+#include "starboard/once.h"
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/decoder_utils.h"
@@ -52,11 +54,76 @@ using Windows::Graphics::Display::Core::HdmiDisplayInformation;
 // Limit the number of pending buffers.
 constexpr int kMaxNumberOfPendingBuffers = 8;
 // Limit the cached presenting images.
-constexpr int kNumberOfCachedPresentingImage = 3;
+constexpr int kNumberOfCachedPresentingImage = 2;
+// The number of frame buffers in decoder
+constexpr int kNumOutputFrameBuffers = 7;
 
 const char kDecoderThreadName[] = "gpu_video_decoder_thread";
-
 }  // namespace
+
+class GpuFrameBufferPool {
+ public:
+  HRESULT AllocateFrameBuffers(
+      uint16_t width,
+      uint16_t height,
+      DXGI_FORMAT dxgi_format,
+      Microsoft::WRL::ComPtr<ID3D11Device1> d3d11_device,
+      Microsoft::WRL::ComPtr<ID3D12Device> d3d12_device) {
+    HRESULT hr;
+    uint16_t number_of_buffers = kNumOutputFrameBuffers;
+    if (!frame_buffers_.empty()) {
+      auto& buffer = frame_buffers_.front();
+      D3D11_TEXTURE2D_DESC desc;
+      buffer->texture(0)->GetDesc(&desc);
+      if (desc.Format != dxgi_format || buffer->width() < width ||
+          buffer->height() < height ||
+          d3d11_device.Get() != buffer->device11().Get() ||
+          d3d12_device.Get() != buffer->device12().Get()) {
+        frame_buffers_.clear();
+      }
+    }
+    if (frame_buffers_.empty()) {
+      frame_buffers_.reserve(number_of_buffers);
+      while (number_of_buffers--) {
+        GpuVideoDecoderBase::GpuFrameBuffer* gpu_fb =
+            new GpuVideoDecoderBase::GpuFrameBuffer(width, height, dxgi_format,
+                                                    d3d11_device, d3d12_device);
+        hr = gpu_fb->CreateTextures();
+        if (FAILED(hr)) {
+          frame_buffers_.clear();
+          return hr;
+        }
+        frame_buffers_.emplace_back(gpu_fb);
+      }
+    }
+    return S_OK;
+  }
+
+  GpuVideoDecoderBase::GpuFrameBuffer* GetFreeBuffer() {
+    SB_DCHECK(!frame_buffers_.empty());
+    auto iter = std::find_if(
+        frame_buffers_.begin(), frame_buffers_.end(),
+        [](const auto& frame_buffer) { return frame_buffer->HasOneRef(); });
+    if (iter == frame_buffers_.end())
+      return nullptr;
+    else
+      return iter->get();
+  }
+
+  bool CheckIfAllBuffersAreReleased() {
+    for (auto&& frame_buffer : frame_buffers_) {
+      if (!frame_buffer->HasOneRef())
+        return false;
+    }
+    return true;
+  }
+
+ private:
+  std::vector<scoped_refptr<GpuVideoDecoderBase::GpuFrameBuffer>>
+      frame_buffers_;
+};
+
+SB_ONCE_INITIALIZE_FUNCTION(GpuFrameBufferPool, GetGpuFrameBufferPool);
 
 class GpuVideoDecoderBase::GPUDecodeTargetPrivate
     : public SbDecodeTargetPrivate {
@@ -85,7 +152,6 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
     info.is_opaque = true;
     info.width = image->width();
     info.height = image->height();
-
     GLuint gl_textures_yuv[kNumberOfPlanes] = {};
     glGenTextures(kNumberOfPlanes, gl_textures_yuv);
     SB_DCHECK(glGetError() == GL_NO_ERROR);
@@ -160,19 +226,109 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
   void* egl_config_;
 };
 
+GpuVideoDecoderBase::GpuFrameBuffer::GpuFrameBuffer(
+    uint16_t width,
+    uint16_t height,
+    DXGI_FORMAT dxgi_format,
+    Microsoft::WRL::ComPtr<ID3D11Device1> d3d11_device,
+    Microsoft::WRL::ComPtr<ID3D12Device> d3d12_device)
+    : d3d11_device_(d3d11_device), d3d12_device_(d3d12_device) {
+  SB_DCHECK(d3d11_device_);
+  SB_DCHECK(d3d12_device_);
+
+  texture_desc_.Format = dxgi_format;
+  texture_desc_.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+  texture_desc_.DepthOrArraySize = 1;
+  texture_desc_.MipLevels = 1;
+  texture_desc_.SampleDesc.Count = 1;
+  texture_desc_.SampleDesc.Quality = 0;
+  texture_desc_.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+  texture_desc_.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
+
+  width_ = width;
+  height_ = height;
+}
+
+HRESULT GpuVideoDecoderBase::GpuFrameBuffer::CreateTextures() {
+  const D3D12_HEAP_PROPERTIES kHeapPropertyTypeDefault = {
+      D3D12_HEAP_TYPE_DEFAULT, D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+      D3D12_MEMORY_POOL_UNKNOWN, 1, 1};
+  HRESULT hr = E_FAIL;
+  for (unsigned int i = 0; i < kNumberOfPlanes; i++) {
+    const int subsampling = i > 0;
+    const int plane_width =
+        (texture_desc_.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
+            ? (((width_ + subsampling) >> subsampling) + 2) / 3
+            : ((width_ + subsampling) >> subsampling);
+    const int plane_height = (height_ + subsampling) >> subsampling;
+
+    // Create interop resources.
+    texture_desc_.Width = plane_width;
+    texture_desc_.Height = plane_height;
+    hr = d3d12_device_->CreateCommittedResource(
+        &kHeapPropertyTypeDefault, D3D12_HEAP_FLAG_SHARED, &texture_desc_,
+        D3D12_RESOURCE_STATE_RENDER_TARGET, 0,
+        IID_PPV_ARGS(&d3d12_resources_[i]));
+    SB_DCHECK(SUCCEEDED(hr));
+    if (FAILED(hr)) {
+      return hr;
+    }
+
+    // Lowering the priority of texture reduces the amount of texture
+    // thrashing when the Xbox attempts to transfer textures to faster
+    // memory as it become more reluctant to be moved.
+    Microsoft::WRL::ComPtr<ID3D12Device1> d3d12_device1;
+    if (SUCCEEDED(d3d12_device_.As(&d3d12_device1)) && d3d12_device1) {
+      Microsoft::WRL::ComPtr<ID3D12Pageable> d3d12_pageable;
+      if (SUCCEEDED(d3d12_resources_[i].As(&d3d12_pageable)) &&
+          d3d12_pageable) {
+        D3D12_RESIDENCY_PRIORITY priority = D3D12_RESIDENCY_PRIORITY_LOW;
+        hr = d3d12_device1->SetResidencyPriority(
+            1, d3d12_pageable.GetAddressOf(), &priority);
+        SB_DCHECK(SUCCEEDED(hr));
+        if (FAILED(hr)) {
+          return hr;
+        }
+      }
+    }
+
+    HANDLE interop_handle = 0;
+    hr = d3d12_device_->CreateSharedHandle(d3d12_resources_[i].Get(), 0,
+                                           GENERIC_ALL, NULL, &interop_handle);
+    SB_DCHECK(SUCCEEDED(hr));
+    if (FAILED(hr)) {
+      return hr;
+    }
+    hr = d3d11_device_->OpenSharedResource1(interop_handle,
+                                            IID_PPV_ARGS(&d3d11_textures_[i]));
+    SB_DCHECK(SUCCEEDED(hr));
+    if (FAILED(hr)) {
+      return hr;
+    }
+    CloseHandle(interop_handle);
+  }
+  return S_OK;
+}
+
 GpuVideoDecoderBase::GpuVideoDecoderBase(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     const VideoStreamInfo& video_stream_info,
     bool is_hdr_video,
+    bool is_10x3_preferred,
     const ComPtr<ID3D12Device>& d3d12_device,
+    const ComPtr<ID3D12Heap> d3d12OutputPoolBufferHeap,
     void* d3d12_queue)
     : decode_target_context_runner_(decode_target_graphics_context_provider),
       is_hdr_video_(is_hdr_video),
+      is_10x3_preferred_(is_10x3_preferred),
       d3d12_device_(d3d12_device),
-      d3d12_queue_(d3d12_queue) {
+      d3d12_queue_(d3d12_queue),
+      d3d12FrameBuffersHeap_(d3d12OutputPoolBufferHeap),
+      frame_buffers_condition_(frame_buffers_mutex_) {
   SB_DCHECK(d3d12_device_);
   SB_DCHECK(d3d12_queue_);
+  SB_DCHECK(d3d12FrameBuffersHeap_);
 
   egl_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   EGLint attribute_list[] = {EGL_SURFACE_TYPE,  // this must be first
@@ -215,6 +371,7 @@ GpuVideoDecoderBase::~GpuVideoDecoderBase() {
   SB_DCHECK(written_inputs_.empty());
   SB_DCHECK(output_queue_.empty());
   SB_DCHECK(decoder_behavior_.load() == kDecodingStopped);
+  SB_DCHECK(GetGpuFrameBufferPool()->CheckIfAllBuffersAreReleased());
   // All presenting decode targets should be released.
   SB_DCHECK(presenting_decode_targets_.empty());
 
@@ -236,9 +393,18 @@ void GpuVideoDecoderBase::Initialize(const DecoderStatusCB& decoder_status_cb,
   error_cb_ = error_cb;
 }
 
+size_t GpuVideoDecoderBase::GetPrerollFrameCount() const {
+  // The underlying decoder has its own output queue. We notify the underlying
+  // decoder to preroll frames once we receive first needed frame. Then the
+  // underlying decoder will delay outputs until it has enough prerolled frames.
+  // When we receive the second output frame, the underlying decoder should
+  // already have enough prerolled frames in its own output queue. So, we always
+  // return 2 here.
+  return 2;
+}
+
 size_t GpuVideoDecoderBase::GetMaxNumberOfCachedFrames() const {
-  return GetMaxNumberOfCachedFramesInternal() -
-         number_of_presenting_decode_targets_;
+  return GetMaxNumberOfCachedFramesInternal() + kNumOutputFrameBuffers;
 }
 
 void GpuVideoDecoderBase::WriteInputBuffers(const InputBuffers& input_buffers) {
@@ -265,6 +431,7 @@ void GpuVideoDecoderBase::WriteInputBuffers(const InputBuffers& input_buffers) {
   {
     ScopedLock pending_inputs_lock(pending_inputs_mutex_);
     pending_inputs_.push_back(input_buffer);
+
     needs_more_input = pending_inputs_.size() < kMaxNumberOfPendingBuffers;
   }
   decoder_behavior_.store(kDecodingFrames);
@@ -307,9 +474,13 @@ void GpuVideoDecoderBase::Reset() {
     decoder_thread_->job_queue()->Schedule(
         std::bind(&GpuVideoDecoderBase::DrainDecoder, this));
     decoder_thread_.reset();
+    SB_DCHECK(decoder_behavior_.load() == kDecodingStopped);
   }
   pending_inputs_.clear();
-  written_inputs_.clear();
+  {
+    ScopedLock input_queue_lock(written_inputs_mutex_);
+    written_inputs_.clear();
+  }
   // Release all frames after decoder thread is destroyed.
   decoder_status_cb_(kReleaseAllFrames, nullptr);
   {
@@ -369,30 +540,26 @@ bool GpuVideoDecoderBase::BelongsToDecoderThread() const {
   return decoder_thread_->job_queue()->BelongsToCurrentThread();
 }
 
-void GpuVideoDecoderBase::OnOutputRetrieved(
+int GpuVideoDecoderBase::OnOutputRetrieved(
     const scoped_refptr<DecodedImage>& image) {
   SB_DCHECK(decoder_thread_);
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK(image);
 
   if (decoder_behavior_.load() == kResettingDecoder || error_occured_) {
-    return;
-  }
-
-  if (!BelongsToDecoderThread()) {
-    decoder_thread_->job_queue()->Schedule(
-        std::bind(&GpuVideoDecoderBase::OnOutputRetrieved, this, image));
-    return;
+    return 0;
   }
 
   SbTime timestamp = image->timestamp();
-  const auto iter = FindByTimestamp(written_inputs_, timestamp);
-  SB_DCHECK(iter != written_inputs_.cend());
-  if (is_hdr_video_) {
-    image->AttachColorMetadata((*iter)->video_stream_info().color_metadata);
+  {
+    ScopedLock input_queue_lock(written_inputs_mutex_);
+    const auto iter = FindByTimestamp(written_inputs_, timestamp);
+    SB_DCHECK(iter != written_inputs_.cend());
+    if (is_hdr_video_) {
+      image->AttachColorMetadata((*iter)->video_stream_info().color_metadata);
+    }
+    written_inputs_.erase(iter);
   }
-  written_inputs_.erase(iter);
-
   scoped_refptr<VideoFrameImpl> frame(new VideoFrameImpl(
       timestamp, std::bind(&GpuVideoDecoderBase::DeleteVideoFrame, this,
                            std::placeholders::_1)));
@@ -400,10 +567,21 @@ void GpuVideoDecoderBase::OnOutputRetrieved(
       decoder_behavior_.load() == kEndingStream ? kBufferFull : kNeedMoreInput,
       frame);
 
+  // The underlying decoder relies on the return value of OnOutputRetrieved() to
+  // determine stream preroll status. The underlying decoder will start
+  // prorolling at the first time it receives 1 from OnOutputRetrieved(). In
+  // other words, if OnOutputRetrieved() returns 1, the underlying decoder will
+  // delay next output until it has enough prerolled frames inside the
+  // underlying decoder.
   if (!frame->HasOneRef()) {
     ScopedLock output_queue_lock(output_queue_mutex_);
     output_queue_.push_back(image);
+    if (is_waiting_frame_after_drain_) {
+      is_waiting_frame_after_drain_ = false;
+      return 1;
+    }
   }
+  return 0;
 }
 
 void GpuVideoDecoderBase::OnDecoderDrained() {
@@ -412,6 +590,7 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
   SB_DCHECK(decoder_behavior_.load() == kEndingStream ||
             decoder_behavior_.load() == kResettingDecoder);
 
+  is_waiting_frame_after_drain_ = true;
   if (decoder_behavior_.load() == kResettingDecoder || error_occured_) {
     return;
   }
@@ -445,16 +624,6 @@ void GpuVideoDecoderBase::ReportError(const SbPlayerError error,
   }
 }
 
-bool GpuVideoDecoderBase::IsCacheFull() {
-  SB_DCHECK(decoder_thread_);
-  SB_DCHECK(BelongsToDecoderThread());
-
-  ScopedLock output_queue_lock(output_queue_mutex_);
-  return written_inputs_.size() + output_queue_.size() +
-             number_of_presenting_decode_targets_ >=
-         GetMaxNumberOfCachedFramesInternal();
-}
-
 void GpuVideoDecoderBase::DecodeOneBuffer() {
   SB_DCHECK(decoder_thread_);
   SB_DCHECK(BelongsToDecoderThread());
@@ -463,20 +632,28 @@ void GpuVideoDecoderBase::DecodeOneBuffer() {
     return;
   }
 
-  if (IsCacheFull()) {
-    decoder_thread_->job_queue()->Schedule(
-        std::bind(&GpuVideoDecoderBase::DecodeOneBuffer, this),
-        kSbTimeMillisecond);
-    return;
-  }
-
+  // Both decoders av1 & vp9 return decoded frames in separate thread,
+  // so there isn't danger of deadlock in DecodeOneBuffer() and there isn't
+  // necessity of IsCacheFull call
+  scoped_refptr<InputBuffer> input = 0;
+  bool needs_more_input = false;
   {
     ScopedLock pending_inputs_lock(pending_inputs_mutex_);
     SB_DCHECK(!pending_inputs_.empty());
-    written_inputs_.push_back(pending_inputs_.front());
+    input = pending_inputs_.front();
     pending_inputs_.pop_front();
+    if (pending_inputs_.size() < kMaxNumberOfPendingBuffers) {
+      needs_more_input = true;
+    }
   }
-  DecodeInternal(written_inputs_.back());
+  {
+    ScopedLock input_queue_lock(written_inputs_mutex_);
+    written_inputs_.push_back(input);
+  }
+  if (needs_more_input) {
+    decoder_status_cb_(kNeedMoreInput, nullptr);
+  }
+  DecodeInternal(input);
 }
 
 void GpuVideoDecoderBase::DecodeEndOfStream() {
@@ -558,6 +735,58 @@ void GpuVideoDecoderBase::ClearPresentingDecodeTargets() {
   number_of_presenting_decode_targets_ = 0;
 }
 
+HRESULT GpuVideoDecoderBase::AllocateFrameBuffers(uint16_t width,
+                                                  uint16_t height) {
+  HRESULT hr = S_OK;
+  DXGI_FORMAT dxgi_format =
+      is_hdr_video_ ? (is_10x3_preferred_ ? DXGI_FORMAT_R10G10B10A2_UNORM
+                                          : DXGI_FORMAT_R16_UNORM)
+                    : DXGI_FORMAT_R8_UNORM;
+  return GetGpuFrameBufferPool()->AllocateFrameBuffers(
+      width, height, dxgi_format, d3d11_device_, d3d12_device_);
+}
+
+void GpuVideoDecoderBase::ReleaseFrameBuffer(GpuFrameBuffer* frame_buffer) {
+  SB_DCHECK(frame_buffer);
+  ScopedLock lock(frame_buffers_mutex_);
+  frame_buffer->Release();
+  SB_DCHECK(frame_buffer->HasOneRef());
+  frame_buffers_condition_.Signal();
+}
+
+GpuVideoDecoderBase::GpuFrameBuffer*
+GpuVideoDecoderBase::GetAvailableFrameBuffer(uint16_t width, uint16_t height) {
+  if (decoder_behavior_.load() == kResettingDecoder) {
+    return nullptr;
+  }
+
+  GpuFrameBuffer* frame_buffer = nullptr;
+  bool is_resetting = false;
+  while (!frame_buffer) {
+    ScopedLock lock(frame_buffers_mutex_);
+    frame_buffer = GetGpuFrameBufferPool()->GetFreeBuffer();
+    // Wait until we get next free frame buffer.
+    if (!frame_buffer) {
+      if (is_resetting) {
+        // We should have enough free frame buffers during resetting. If that
+        // error happens it means that the frames are not released properly by
+        // either GpuVideoDecoderBase or VideoRenderer.
+        SB_NOTREACHED();
+        ReportError(kSbPlayerErrorDecode,
+                    "Timed out on waiting for available frame buffer.");
+        return nullptr;
+      }
+      is_resetting = decoder_behavior_.load() == kResettingDecoder;
+      frame_buffers_condition_.WaitTimed(50 * kSbTimeMillisecond);
+      continue;
+    }
+  }
+
+  // Increment the refcount for |frame_buffer| so that its data buffer
+  // persists until ReleaseFrameBuffer is called.
+  frame_buffer->AddRef();
+  return frame_buffer;
+}
 }  // namespace shared
 }  // namespace xb1
 }  // namespace starboard
