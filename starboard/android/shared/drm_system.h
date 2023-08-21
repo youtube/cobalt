@@ -36,7 +36,7 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-class DrmSystem : public Thread, public ::SbDrmSystemPrivate {
+class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
  public:
   DrmSystem(const char* key_system,
             void* context,
@@ -85,9 +85,6 @@ class DrmSystem : public Thread, public ::SbDrmSystemPrivate {
     return IsWidevineL1(key_system_.c_str());
   }
 
-  // From Thread.
-  void Run() override;
-
   // Return true when the drm system is ready for secure input buffers.
   bool IsReady() { return created_media_crypto_session_.load(); }
 
@@ -107,6 +104,9 @@ class DrmSystem : public Thread, public ::SbDrmSystemPrivate {
   };
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
+
+  // From Thread.
+  void Run() override;
 
   const std::string key_system_;
   void* context_;

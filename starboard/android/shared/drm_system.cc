@@ -238,6 +238,7 @@ void DrmSystem::Run() {
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
   have_deferred_session_update_request_.store(false);
+  Join();
 
   JniEnvExt* env = JniEnvExt::Get();
   if (j_media_crypto_) {
