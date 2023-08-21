@@ -79,7 +79,7 @@ runs:
           echo "need_to_build=false" >> $GITHUB_ENV
         fi
       shell: bash
-    - name: Build containers with docker-compose
+    - name: Build containers with Docker Compose
       id: build-image
       if: env.need_to_build == 'true'
       env:

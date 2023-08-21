@@ -89,11 +89,11 @@ You can find documentation about it at https://pre-commit.com/.
 
 #### Running unit tests
 
-First, ensure Docker and docker-compose are installed on your system. Then,
+First, ensure Docker and Docker Compose are installed on your system. Then,
 you can run unit tests for our linux reference implementation using:
 
 ```bash
-$ docker-compose up --build --no-start linux-x64x11-unittest
-$ PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker-compose run linux-x64x11
-$ PLATFORM=linux-x64x11 CONFIG=devel docker-compose run linux-x64x11-unittest
+$ docker compose up --build --no-start linux-x64x11-unittest
+$ PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker compose run linux-x64x11
+$ PLATFORM=linux-x64x11 CONFIG=devel docker compose run linux-x64x11-unittest
 ```

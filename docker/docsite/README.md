@@ -12,6 +12,6 @@ output the site content in the directory `out/deploy/www` at the root of the
 Cobalt directory, and copy the app.yaml deployable into `out/deploy`.
 
 # How To Run
-docker-compose build --no-cache --build-arg USER=defaultuser --build-arg UID=$(id -u) --build-arg GID=$(id -g) SERVICE
+docker compose build --no-cache --build-arg USER=defaultuser --build-arg UID=$(id -u) --build-arg GID=$(id -g) SERVICE
 
-docker-compose up SERVICE
+docker compose up SERVICE

@@ -9,18 +9,18 @@ definitions for simplifying managing build environments.
 
 The instructions below assume Docker is installed and is able to run basic
 [`hello-world` verification](https://docs.docker.com/get-started/#test-docker-installation).
-`docker-compose` command is expected to be available as well.
+`docker compose` command is expected to be available as well.
 
 ## Usage
 
 The simplest usage is:
 
-  `docker-compose run <platform>`
+  `docker compose run <platform>`
 
 By default, a debug build will be built, with `cobalt` as a target.
 You can override this with an environment variable, e.g.
 
-  `docker-compose run -e CONFIG=devel -e TARGET=nplb <platform>`
+  `docker compose run -e CONFIG=devel -e TARGET=nplb <platform>`
 
 where config is one of the four optimization levels, debug, devel, qa and gold,
 and target is the build target passed to `ninja`
@@ -36,9 +36,9 @@ files in `src/out/<platform>` directory have `root` as file owner.
 ## Customization
 
 To parametrize base operating system images used for the build, pass BASE_OS
-as an argument to docker-compose as follows:
+as an argument to docker compose as follows:
 
-  `docker-compose build --build-arg BASE_OS="ubuntu:bionic" base`
+  `docker compose build --build-arg BASE_OS="ubuntu:bionic" base`
 
 This parameter is defined in `docker/linux/base/Dockerfile` and is passed to
 Docker `FROM ...` statement.
@@ -77,6 +77,6 @@ docker pull ghcr.io/youtube/cobalt/cobalt-build-evergreen:23.lts
 To debug build issues, enter the shell of the corresponding build container by
 launching the bash shell, i.e.
 
-  `docker-compose run linux-x64x11 /bin/bash`
+  `docker compose run linux-x64x11 /bin/bash`
 
 and try to build cobalt [with the usual `gn / ninja` flow](../../README.md#building-and-running-the-code).

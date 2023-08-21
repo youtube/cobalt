@@ -461,11 +461,11 @@ services:
 
   # Example usage of unittest:
   # 1. Build the containers for which you want to unittest
-  # docker-compose up --build --no-start linux-x64x11-unittest
+  # docker compose up --build --no-start linux-x64x11-unittest
   # 2. Build the 'all' target for the platform you want to test
-  # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker-compose run linux-x64x11
+  # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker compose run linux-x64x11
   # 3. Run the unittests for that target.
-  # PLATFORM=linux-x64x11 CONFIG=devel docker-compose run linux-x64x11-unittest
+  # PLATFORM=linux-x64x11 CONFIG=devel docker compose run linux-x64x11-unittest
   linux-x64x11-unittest:
     <<: *shared-unittest-definitions
 

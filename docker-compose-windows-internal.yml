@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # This file should be combined with docker-compose-windows.yml by specifying
-# docker-compose -f docker-compose-windows.yml -f docker-compose-windows-internal.yml ...
+# docker compose -f docker-compose-windows.yml -f docker-compose-windows-internal.yml ...
 # on the command line.
 
 version: '2.4'
