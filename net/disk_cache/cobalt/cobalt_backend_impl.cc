@@ -30,8 +30,6 @@ namespace disk_cache {
 
 namespace {
 
-const char kPersistentSettingsJson[] = "cache_settings.json";
-
 void CompletionOnceCallbackHandler(
     scoped_refptr<CobaltBackendImpl::RefCountedRunner> runner,
     int result) {
@@ -53,38 +51,6 @@ ResourceType GetType(const std::string& key) {
   return kOther;
 }
 
-void ReadDiskCacheSize(
-    cobalt::persistent_storage::PersistentSettings* settings,
-    int64_t max_bytes) {
-  auto total_size = 0;
-  disk_cache::ResourceTypeMetadata kTypeMetadataNew[disk_cache::kTypeCount];
-
-  for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = disk_cache::kTypeMetadata[i];
-    uint32_t bucket_size =
-        static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
-            metadata.directory, metadata.max_size_bytes));
-    kTypeMetadataNew[i] = {metadata.directory, bucket_size};
-
-    total_size += bucket_size;
-  }
-
-  // Check if PersistentSettings values are valid and can replace the disk_cache::kTypeMetadata.
-  if (total_size <= max_bytes) {
-    std::copy(std::begin(kTypeMetadataNew), std::end(kTypeMetadataNew), std::begin(disk_cache::kTypeMetadata));
-    return;
-  }
-
-  // PersistentSettings values are invalid and will be replaced by the default values in
-  // disk_cache::kTypeMetadata.
-  for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = disk_cache::kTypeMetadata[i];
-    settings->SetPersistentSetting(
-            metadata.directory,
-            std::make_unique<base::Value>(static_cast<double>(metadata.max_size_bytes)));
-  }
-}
-
 }  // namespace
 
 CobaltBackendImpl::CobaltBackendImpl(
@@ -94,12 +60,9 @@ CobaltBackendImpl::CobaltBackendImpl(
     net::CacheType cache_type,
     net::NetLog* net_log)
     : weak_factory_(this) {
-  persistent_settings_ =
-      std::make_unique<cobalt::persistent_storage::PersistentSettings>(
-          kPersistentSettingsJson);
-  ReadDiskCacheSize(persistent_settings_.get(), max_bytes);
 
   // Initialize disk backend for each resource type.
+  // Note: kTypeMetadata is refreshed from settings before this constructor runs
   int64_t total_size = 0;
   for (int i = 0; i < kTypeCount; i++) {
     auto metadata = kTypeMetadata[i];
@@ -123,26 +86,18 @@ CobaltBackendImpl::~CobaltBackendImpl() {
   simple_backend_map_.clear();
 }
 
-void CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
+bool CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
   if (bytes == disk_cache::kTypeMetadata[type].max_size_bytes)
-    return;
-
-  // Static cast value to double since base::Value cannot be a long.
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[type].directory,
-      std::make_unique<base::Value>(static_cast<double>(bytes)));
+    return false;
 
   disk_cache::kTypeMetadata[type].max_size_bytes = bytes;
   SimpleBackendImpl* simple_backend = simple_backend_map_[type];
   simple_backend->SetMaxSize(bytes);
+  return true;
 }
 
 uint32_t CobaltBackendImpl::GetQuota(ResourceType type) {
   return disk_cache::kTypeMetadata[type].max_size_bytes;
-}
-
-void CobaltBackendImpl::ValidatePersistentSettings() {
-  persistent_settings_->ValidatePersistentSettings();
 }
 
 net::Error CobaltBackendImpl::Init(CompletionOnceCallback completion_callback) {

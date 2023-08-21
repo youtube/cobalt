@@ -14,6 +14,7 @@
 
 #include "cobalt/network/url_request_context.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -47,6 +48,45 @@
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/url_request/data_protocol_handler.h"
 #include "net/url_request/url_request_job_factory_impl.h"
+
+namespace {
+
+const char kPersistentSettingsJson[] = "cache_settings.json";
+
+
+void ReadDiskCacheSize(cobalt::persistent_storage::PersistentSettings* settings,
+                       int64_t max_bytes) {
+  auto total_size = 0;
+  disk_cache::ResourceTypeMetadata kTypeMetadataNew[disk_cache::kTypeCount];
+
+  for (int i = 0; i < disk_cache::kTypeCount; i++) {
+    auto metadata = disk_cache::kTypeMetadata[i];
+    uint32_t bucket_size =
+        static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
+            metadata.directory, metadata.max_size_bytes));
+    kTypeMetadataNew[i] = {metadata.directory, bucket_size};
+
+    total_size += bucket_size;
+  }
+
+  // Check if PersistentSettings values are valid and can replace the
+  // disk_cache::kTypeMetadata.
+  if (total_size <= max_bytes) {
+    std::copy(std::begin(kTypeMetadataNew), std::end(kTypeMetadataNew),
+              std::begin(disk_cache::kTypeMetadata));
+    return;
+  }
+
+  // PersistentSettings values are invalid and will be replaced by the default
+  // values in disk_cache::kTypeMetadata.
+  for (int i = 0; i < disk_cache::kTypeCount; i++) {
+    auto metadata = disk_cache::kTypeMetadata[i];
+    settings->SetPersistentSetting(
+        metadata.directory, std::make_unique<base::Value>(
+                                static_cast<double>(metadata.max_size_bytes)));
+  }
+}
+}  // namespace
 
 namespace cobalt {
 namespace network {
@@ -189,10 +229,16 @@ URLRequestContext::URLRequestContext(
     // is less than 1 mb and subtract this from the max_cache_bytes.
     max_cache_bytes -= (1 << 20);
 
+    // Initialize and read caching persistent settings
+    cache_persistent_settings_ =
+        std::make_unique<cobalt::persistent_storage::PersistentSettings>(
+            kPersistentSettingsJson);
+    ReadDiskCacheSize(cache_persistent_settings_.get(), max_cache_bytes);
+
     auto http_cache = std::make_unique<net::HttpCache>(
         storage_.http_network_session(),
         std::make_unique<net::HttpCache::DefaultBackend>(
-            net::DISK_CACHE, net::CACHE_BACKEND_COBALT,
+            net::DISK_CACHE, net::CACHE_BACKEND_DEFAULT,
             base::FilePath(std::string(path.data())),
             /* max_bytes */ max_cache_bytes),
         true);
@@ -242,6 +288,18 @@ void URLRequestContext::OnQuicToggle(const std::string& message) {
   storage_.http_network_session()->ToggleQuic();
 }
 #endif  // defined(ENABLE_DEBUGGER)
+
+void URLRequestContext::UpdateCacheSizeSetting(disk_cache::ResourceType type,
+                                               uint32_t bytes) {
+  CHECK(cache_persistent_settings_);
+  cache_persistent_settings_->SetPersistentSetting(
+      disk_cache::kTypeMetadata[type].directory,
+      std::make_unique<base::Value>(static_cast<double>(bytes)));
+}
+
+void URLRequestContext::ValidateCachePersistentSettings() {
+  cache_persistent_settings_->ValidatePersistentSettings();
+}
 
 }  // namespace network
 }  // namespace cobalt

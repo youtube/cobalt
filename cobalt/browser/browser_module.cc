@@ -2234,11 +2234,7 @@ void BrowserModule::ValidateCacheBackendSettings() {
   auto url_request_context = network_module_->url_request_context();
   auto http_cache = url_request_context->http_transaction_factory()->GetCache();
   if (!http_cache) return;
-  auto cache_backend = static_cast<disk_cache::CobaltBackendImpl*>(
-      http_cache->GetCurrentBackend());
-  if (cache_backend) {
-    cache_backend->ValidatePersistentSettings();
-  }
+  network_module_->url_request_context()->ValidateCachePersistentSettings();
 }
 
 }  // namespace browser
