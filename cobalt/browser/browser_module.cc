@@ -492,33 +492,51 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 
   // First try any registered handlers. If one of these handles the URL, we
   // don't use the web module.
-  if (TryURLHandlers(url)) {
+  if (NavigateTryURLHandlers(url)) {
     return;
   }
 
   // Clear error handling once we're told to navigate, either because it's the
   // retry from the error or something decided we should navigate elsewhere.
-  on_error_retry_timer_.Stop();
-  waiting_for_error_retry_ = false;
+  NavigateResetErrorHandling();
 
   // Navigations aren't allowed if the app is frozen. If this is the case,
   // simply set the pending navigate url, which will cause the navigation to
   // occur when Cobalt resumes, and return.
-  if (application_state_ == base::kApplicationStateFrozen) {
-    pending_navigate_url_ = url;
+  if (NavigateHandleStateFrozen(url)) {
     return;
   }
 
-  // Now that we know the navigation is occurring, clear out
-  // |pending_navigate_url_|.
-  pending_navigate_url_ = GURL::EmptyGURL();
+  // Destroys the old WebModule, increments the navigation generation
+  // number, and resets the main WebModule layer
+  NavigateResetWebModule();
 
+  // checks whether a service worker should be started for the given URL
+  auto service_worker_started_event = std::make_unique<base::WaitableEvent>();
+  bool can_start_service_worker =
+      NavigateServiceWorkerSetups(url, service_worker_started_event.get());
+
+  // Wait until after the old WebModule is destroyed before setting the navigate
+  // time so that it won't be included in the time taken to load the URL.
+  navigate_time_ = base::TimeTicks::Now().ToInternalValue();
+
+  const ViewportSize viewport_size = GetViewportSize();
+
+  // Show a splash screen while we're waiting for the web page to load.
+  NavigateSetupSplashScreen(url, viewport_size);
+
+  NavigateSetupScrollEngine();
+
+  NavigateCreateWebModule(url, can_start_service_worker,
+                          service_worker_started_event.get(), viewport_size);
+}
+
+void BrowserModule::NavigateResetWebModule() {
 #if defined(ENABLE_DEBUGGER)
   if (web_module_) {
     web_module_->FreezeDebugger(&debugger_state_);
   }
 #endif  // defined(ENABLE_DEBUGGER)
-
   // Destroy old WebModule first, so we don't get a memory high-watermark after
   // the second WebModule's constructor runs, but before
   // std::unique_ptr::reset() is run.
@@ -534,11 +552,30 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   current_main_web_module_timeline_id_ = next_timeline_id_++;
 
   main_web_module_layer_->Reset();
+}
 
+void BrowserModule::NavigateResetErrorHandling() {
+  on_error_retry_timer_.Stop();
+  waiting_for_error_retry_ = false;
+}
+
+bool BrowserModule::NavigateHandleStateFrozen(const GURL& url) {
+  if (application_state_ == base::kApplicationStateFrozen) {
+    pending_navigate_url_ = url;
+    return true;
+  }
+
+  // Now that we know the navigation is occurring, clear out
+  // |pending_navigate_url_|.
+  pending_navigate_url_ = GURL::EmptyGURL();
+  return false;
+}
+
+bool BrowserModule::NavigateServiceWorkerSetups(
+    const GURL& url, base::WaitableEvent* service_worker_started_event) {
   // Service worker should only start for HTTP or HTTPS fetches.
   // https://fetch.spec.whatwg.org/commit-snapshots/8f8ab504da6ca9681db5c7f8aa3d1f4b6bf8840c/#http-fetch
   bool can_start_service_worker = url.SchemeIsHTTPOrHTTPS();
-  auto service_worker_started_event = std::make_unique<base::WaitableEvent>();
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) {
     std::vector<std::string> service_worker_clients = {
@@ -558,16 +595,13 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   }
   if (can_start_service_worker) {
     service_worker_registry_->EnsureServiceWorkerStarted(
-        url::Origin::Create(url), url, service_worker_started_event.get());
+        url::Origin::Create(url), url, service_worker_started_event);
   }
+  return can_start_service_worker;
+}
 
-  // Wait until after the old WebModule is destroyed before setting the navigate
-  // time so that it won't be included in the time taken to load the URL.
-  navigate_time_ = base::TimeTicks::Now().ToInternalValue();
-
-  // Show a splash screen while we're waiting for the web page to load.
-  const ViewportSize viewport_size = GetViewportSize();
-
+void BrowserModule::NavigateSetupSplashScreen(
+    const GURL& url, const ViewportSize viewport_size) {
   DestroySplashScreen();
   if (options_.enable_splash_screen_on_reloads ||
       main_web_module_generation_ == 1) {
@@ -588,10 +622,17 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       lifecycle_observers_.AddObserver(splash_screen_.get());
     }
   }
+}
 
+void BrowserModule::NavigateSetupScrollEngine() {
   scroll_engine_.reset(new ui_navigation::scroll_engine::ScrollEngine());
   scroll_engine_->thread()->Start();
+}
 
+void BrowserModule::NavigateCreateWebModule(
+    const GURL& url, bool can_start_service_worker,
+    base::WaitableEvent* service_worker_started_event,
+    const ViewportSize viewport_size) {
 // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
   options_.web_module_options.csp_insecure_allowed_token =
@@ -1362,7 +1403,7 @@ void BrowserModule::RemoveURLHandler(
   }
 }
 
-bool BrowserModule::TryURLHandlers(const GURL& url) {
+bool BrowserModule::NavigateTryURLHandlers(const GURL& url) {
   for (URLHandlerCollection::const_iterator iter = url_handlers_.begin();
        iter != url_handlers_.end(); ++iter) {
     if (iter->Run(url)) {
