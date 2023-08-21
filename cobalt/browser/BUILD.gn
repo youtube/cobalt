@@ -55,6 +55,7 @@ target(final_executable_type, "cobalt") {
     ":browser",
     ":browser_switches",
     "//cobalt/base",
+    "//cobalt/css_parser",
     "//net",
   ]
   data_deps = [
