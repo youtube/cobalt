@@ -167,7 +167,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     raspi_test_path = os.path.join(raspi_test_dir, test_file, test_file)
 
     # rsync command setup
-    options = '-avzLhc'
+    options = '-avzLh'
     source = os.path.join(self.out_directory, 'install') + '/'
     destination = f'{raspi_user_hostname}:~/{raspi_test_dir}/'
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
