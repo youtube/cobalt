@@ -24,7 +24,7 @@ namespace {
 using ::testing::NotNull;
 
 #if SB_API_VERSION >= 14
-TEST(MediaSourceTest, DoesNotSupportMp3Adaptive) {
+TEST(MediaModuleTest, DoesNotSupportMp3Adaptive) {
   std::unique_ptr<CanPlayTypeHandler> handler =
       MediaModule::CreateCanPlayTypeHandler();
   ASSERT_THAT(handler, NotNull());
@@ -33,7 +33,7 @@ TEST(MediaSourceTest, DoesNotSupportMp3Adaptive) {
   EXPECT_FALSE(handler->CanPlayAdaptive("audio/mpeg", /*key_system=*/""));
 }
 
-TEST(MediaSourceTest, DoesNotSupportMp3Progressive) {
+TEST(MediaModuleTest, DoesNotSupportMp3Progressive) {
   std::unique_ptr<CanPlayTypeHandler> handler =
       MediaModule::CreateCanPlayTypeHandler();
   ASSERT_THAT(handler, NotNull());
@@ -41,7 +41,7 @@ TEST(MediaSourceTest, DoesNotSupportMp3Progressive) {
   EXPECT_FALSE(handler->CanPlayProgressive("audio/mpeg"));
 }
 
-TEST(MediaSourceTest, DoesNotSupportFlacAdaptive) {
+TEST(MediaModuleTest, DoesNotSupportFlacAdaptive) {
   std::unique_ptr<CanPlayTypeHandler> handler =
       MediaModule::CreateCanPlayTypeHandler();
   ASSERT_THAT(handler, NotNull());
@@ -51,7 +51,7 @@ TEST(MediaSourceTest, DoesNotSupportFlacAdaptive) {
                                         /*key_system=*/""));
 }
 
-TEST(MediaSourceTest, DoesNotSupportFlacProgressive) {
+TEST(MediaModuleTest, DoesNotSupportFlacProgressive) {
   std::unique_ptr<CanPlayTypeHandler> handler =
       MediaModule::CreateCanPlayTypeHandler();
   ASSERT_THAT(handler, NotNull());
@@ -59,7 +59,7 @@ TEST(MediaSourceTest, DoesNotSupportFlacProgressive) {
   EXPECT_FALSE(handler->CanPlayProgressive("audio/flac; codecs=\"flac\""));
 }
 
-TEST(MediaSourceTest, DoesNotSupportPcmAdaptive) {
+TEST(MediaModuleTest, DoesNotSupportPcmAdaptive) {
   std::unique_ptr<CanPlayTypeHandler> handler =
       MediaModule::CreateCanPlayTypeHandler();
   ASSERT_THAT(handler, NotNull());
@@ -67,7 +67,7 @@ TEST(MediaSourceTest, DoesNotSupportPcmAdaptive) {
                                         /*key_system=*/""));
 }
 
-TEST(MediaSourceTest, DoesNotSupportPcmProgressive) {
+TEST(MediaModuleTest, DoesNotSupportPcmProgressive) {
   std::unique_ptr<CanPlayTypeHandler> handler =
       MediaModule::CreateCanPlayTypeHandler();
   ASSERT_THAT(handler, NotNull());
