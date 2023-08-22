@@ -178,8 +178,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
     }
     if (content_type.empty()) {
       error->reset(new std::string(
-          base::StringPrintf(WorkerConsts::kServiceWorkerRegisterNoMIMEError,
-                             content_type.c_str())));
+          base::StringPrintf(WorkerConsts::kServiceWorkerRegisterNoMIMEError)));
     } else if (!mime_type_is_javascript) {
       error->reset(new std::string(
           base::StringPrintf(WorkerConsts::kServiceWorkerRegisterBadMIMEError,

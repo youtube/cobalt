@@ -58,7 +58,6 @@ static_library("worker") {
     "window_client.h",
     "worker.cc",
     "worker.h",
-    "worker_consts.cc",
     "worker_consts.h",
     "worker_global_scope.cc",
     "worker_global_scope.h",
