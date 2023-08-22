@@ -123,6 +123,7 @@ target(gtest_target_type, "css_parser_test") {
     ":css_parser",
     "//base",
     "//cobalt/cssom",
+    "//cobalt/dom",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",
