@@ -96,11 +96,15 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                          const void* initialization_data,
                          int initialization_data_size);
     ~SessionUpdateRequest();
+
+    void ConvertLocalRefToGlobalRef();
     void Generate(jobject j_media_drm_bridge) const;
 
-    jint j_ticket;
-    jobject j_init_data;
-    jobject j_mime;
+   private:
+    bool references_are_global_ = false;
+    jint j_ticket_;
+    jobject j_init_data_;
+    jobject j_mime_;
   };
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();

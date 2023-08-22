@@ -259,27 +259,40 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     const void* initialization_data,
     int initialization_data_size) {
   JniEnvExt* env = JniEnvExt::Get();
-  j_ticket = static_cast<jint>(ticket);
-  j_init_data = env->ConvertLocalRefToGlobalRef(
-      ByteArrayFromRaw(initialization_data, initialization_data_size));
-  j_mime =
-      env->ConvertLocalRefToGlobalRef(env->NewStringStandardUTFOrAbort(type));
+  j_ticket_ = static_cast<jint>(ticket);
+  j_init_data_ =
+      ByteArrayFromRaw(initialization_data, initialization_data_size);
+  j_mime_ = env->NewStringStandardUTFOrAbort(type);
+}
+
+void DrmSystem::SessionUpdateRequest::ConvertLocalRefToGlobalRef() {
+  if (!references_are_global_) {
+    JniEnvExt* env = JniEnvExt::Get();
+    j_init_data_ = env->ConvertLocalRefToGlobalRef(j_init_data_);
+    j_mime_ = env->ConvertLocalRefToGlobalRef(j_mime_);
+    references_are_global_ = true;
+  }
 }
 
 DrmSystem::SessionUpdateRequest::~SessionUpdateRequest() {
   JniEnvExt* env = JniEnvExt::Get();
-  env->DeleteGlobalRef(j_init_data);
-  j_init_data = nullptr;
-  env->DeleteGlobalRef(j_mime);
-  j_mime = nullptr;
+  if (references_are_global_) {
+    env->DeleteGlobalRef(j_init_data_);
+    env->DeleteGlobalRef(j_mime_);
+  } else {
+    env->DeleteLocalRef(j_init_data_);
+    env->DeleteLocalRef(j_mime_);
+  }
+  j_init_data_ = nullptr;
+  j_mime_ = nullptr;
 }
 
 void DrmSystem::SessionUpdateRequest::Generate(
     jobject j_media_drm_bridge) const {
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(j_media_drm_bridge, "createSession",
-                             "(I[BLjava/lang/String;)V", j_ticket, j_init_data,
-                             j_mime);
+                             "(I[BLjava/lang/String;)V", j_ticket_,
+                             j_init_data_, j_mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
@@ -293,6 +306,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
     session_update_request->Generate(j_media_drm_bridge_);
   } else {
     // Defer generating the update request.
+    session_update_request->ConvertLocalRefToGlobalRef();
     ScopedLock scoped_lock(mutex_);
     deferred_session_update_requests_.push_back(
         std::move(session_update_request));
