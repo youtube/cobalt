@@ -246,12 +246,7 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//starboard/loader_app:installation_manager",
     "//testing/gmock",
     "//testing/gtest",
-<<<<<<< HEAD
-
     # TODO: b/296919440 - Make this a data dep 
     "//starboard/loader_app($starboard_toolchain)",
-=======
-    "//starboard/loader_app"
->>>>>>> 0778d0c94eb (Set sb_is_modular, sb_is_evergreen appropriately. (#1207))
   ]
 }
