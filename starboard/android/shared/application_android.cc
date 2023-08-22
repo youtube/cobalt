@@ -143,6 +143,7 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
+  // The application is exiting.
   // Release the global reference.
   if (resource_overlay_) {
     JniEnvExt* env = JniEnvExt::Get();
@@ -156,6 +157,12 @@ ApplicationAndroid::~ApplicationAndroid() {
   ALooper_removeFd(looper_, keyboard_inject_readfd_);
   close(keyboard_inject_readfd_);
   close(keyboard_inject_writefd_);
+
+  {
+    // Signal for any potentially waiting window creation or destroy commands.
+    ScopedLock lock(android_command_mutex_);
+    android_command_condition_.Signal();
+  }
 }
 
 void ApplicationAndroid::Initialize() {
@@ -251,7 +258,10 @@ void ApplicationAndroid::ProcessAndroidCommand() {
   JniEnvExt* env = JniEnvExt::Get();
   AndroidCommand cmd;
   int err = read(android_command_readfd_, &cmd, sizeof(cmd));
-  SB_DCHECK(err >= 0) << "Command read failed. errno=" << errno;
+  if (err < 0) {
+    SB_DCHECK(err >= 0) << "Command read failed. errno=" << errno;
+    return;
+  }
 
   SB_LOG(INFO) << "Android command: " << AndroidCommandName(cmd.type);
 
@@ -394,7 +404,10 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
   SB_LOG(INFO) << "Send Android command: " << AndroidCommandName(type);
   AndroidCommand cmd{type, data};
   ScopedLock lock(android_command_mutex_);
-  write(android_command_writefd_, &cmd, sizeof(cmd));
+  if (write(android_command_writefd_, &cmd, sizeof(cmd)) == -1) {
+    SB_LOG(ERROR) << "Writing Android command failed";
+    return;
+  }
   // Synchronization only necessary when managing resources.
   switch (type) {
     case AndroidCommand::kNativeWindowCreated:
