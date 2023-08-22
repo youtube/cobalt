@@ -58,14 +58,15 @@ group("gn_all") {
     deps += [ "//starboard/benchmark" ]
   }
 
-<<<<<<< HEAD
-  if (build_with_separate_cobalt_toolchain && is_cobalt_toolchain) {
-    assert(sb_is_modular,
-           "sb_is_modular should be set when building with cobalt_toolchain")
-=======
-  if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
-    deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
->>>>>>> 4d48a86e923 (Introduce `cast_starboard_api`. (#1177))
+  if (build_with_separate_cobalt_toolchain) {
+    if (is_cobalt_toolchain) {
+      assert(sb_is_modular,
+             "sb_is_modular should be set when building with cobalt_toolchain")
+    }
+
+    if (use_contrib_cast) {
+      deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
+    }
   }
 
   if (!sb_is_evergreen) {
