@@ -18,9 +18,15 @@ ffmpeg_specialization_sources = [
   "ffmpeg_common.h",
   "ffmpeg_demuxer_impl.cc",
   "ffmpeg_demuxer_impl.h",
-  "ffmpeg_video_decoder_impl.cc",
-  "ffmpeg_video_decoder_impl.h",
 ]
+
+if (!defined(is_raspi)) {
+  ffmpeg_specialization_sources += [
+    # TODO(b/291783511): This code is unimplemented on certain platforms.
+    "ffmpeg_video_decoder_impl.cc",
+    "ffmpeg_video_decoder_impl.h",
+  ]
+}
 
 static_library("ffmpeg_dynamic_load") {
   check_includes = false
@@ -28,8 +34,13 @@ static_library("ffmpeg_dynamic_load") {
     "ffmpeg_dynamic_load_audio_decoder_impl.cc",
     "ffmpeg_dynamic_load_demuxer_impl.cc",
     "ffmpeg_dynamic_load_dispatch_impl.cc",
-    "ffmpeg_dynamic_load_video_decoder_impl.cc",
   ]
+  if (!defined(is_raspi)) {
+    sources += [
+      # TODO(b/291783511): This code is unimplemented on certain platforms.
+      "ffmpeg_dynamic_load_video_decoder_impl.cc",
+    ]
+  }
   public_deps = [
     ":ffmpeg.57.107.100",
     ":ffmpeg.58.35.100",

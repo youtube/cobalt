@@ -16,7 +16,7 @@ declare_args() {
   # Top-level directory for staging deploy build output. Platform install
   # actions should use ${sb_install_output_dir} defined in this file to place
   # artifacts for each deploy target in its own subdirectoy.
-  sb_install_output_dir = "$root_out_dir/install"
+  sb_install_output_dir = "$root_build_dir/install"
 
   # Sub-directory for install content.
   sb_install_content_subdir = ""

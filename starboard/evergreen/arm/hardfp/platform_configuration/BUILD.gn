@@ -27,8 +27,10 @@ config("platform_configuration") {
     ":sabi_flags",
     "//starboard/evergreen/arm/shared/platform_configuration",
   ]
-  ldflags = [
-    "-Wl,-m",
-    "-Wl,armelf",
-  ]
+  if (sb_is_evergreen) {
+    ldflags = [
+      "-Wl,-m",
+      "-Wl,armelf",
+    ]
+  }
 }
