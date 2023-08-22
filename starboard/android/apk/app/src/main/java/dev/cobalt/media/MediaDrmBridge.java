@@ -538,7 +538,7 @@ public class MediaDrmBridge {
     // Create MediaCrypto object.
     try {
       if (MediaCrypto.isCryptoSchemeSupported(mSchemeUUID)) {
-        MediaCrypto mediaCrypto = new MediaCrypto(mSchemeUUID, mMediaCryptoSession);
+        MediaCrypto mediaCrypto = new MediaCrypto(mSchemeUUID, new byte[0]);
         Log.d(TAG, "MediaCrypto successfully created!");
         mMediaCrypto = mediaCrypto;
         return true;
@@ -548,14 +548,6 @@ public class MediaDrmBridge {
     } catch (MediaCryptoException e) {
       Log.e(TAG, "Cannot create MediaCrypto", e);
     }
-
-    try {
-      // Some implementations let this method throw exceptions.
-      mMediaDrm.closeSession(mMediaCryptoSession);
-    } catch (Exception e) {
-      Log.e(TAG, "closeSession failed: ", e);
-    }
-    mMediaCryptoSession = null;
 
     return false;
   }
@@ -603,10 +595,6 @@ public class MediaDrmBridge {
     // Open media crypto session.
     try {
       mMediaCryptoSession = openSession();
-      mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
-    } catch (MediaCryptoException e) {
-      Log.e(TAG, "Unable to set media drm session", e);
-      return false;
     } catch (NotProvisionedException e) {
       Log.w(TAG, "Device not provisioned", e);
       if (!attemptProvisioning()) {
@@ -615,14 +603,24 @@ public class MediaDrmBridge {
       }
       try {
         mMediaCryptoSession = openSession();
-        mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
-      } catch (MediaCryptoException e2) {
-        Log.e(TAG, "Unable to set media drm session", e2);
-        return false;
       } catch (NotProvisionedException e2) {
         Log.e(TAG, "Device still not provisioned after supposedly successful provisioning", e2);
         return false;
       }
+    }
+
+    try {
+      mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
+    } catch (MediaCryptoException e3) {
+      Log.e(TAG, "Unable to set media drm session", e3);
+      try {
+        // Some implementations let this method throw exceptions.
+        mMediaDrm.closeSession(mMediaCryptoSession);
+      } catch (Exception e) {
+        Log.e(TAG, "closeSession failed: ", e);
+      }
+      mMediaCryptoSession = null;
+      return false;
     }
 
     if (mMediaCryptoSession == null) {
