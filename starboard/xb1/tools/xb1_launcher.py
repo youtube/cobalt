@@ -88,6 +88,7 @@ from starboard.xb1.tools import xb1_network_api
 _ARGS_DIRECTORY = 'content/data/arguments'
 _STARBOARD_ARGUMENTS_FILE = 'starboard_arguments.txt'
 _DEFAULT_PACKAGE_NAME = 'GoogleInc.YouTube'
+_DEBUG_VC_LIBS_PACKAGE_NAME = 'Microsoft.VCLibs.140.00.Debug'
 _DEFAULT_APPX_NAME = 'cobalt.appx'
 _DEFAULT_STAGING_APP_NAME = 'appx'
 _EXTENSION_SDK_DIR = os.path.normpath(
@@ -423,35 +424,36 @@ class Launcher(abstract_launcher.AbstractLauncher):
       raise IOError('Packaged appx not found in package directory. Perhaps '
                     'package_cobalt script did not complete successfully.')
 
-    existing_package = self.CheckPackageIsDeployed()
+    existing_package = self.CheckPackageIsDeployed(_DEFAULT_PACKAGE_NAME)
     if existing_package:
       self._LogLn('Existing YouTube app found on device. Uninstalling.')
       self.WinAppDeployCmd('uninstall -package ' + existing_package)
+
+    if not self.CheckPackageIsDeployed(_DEBUG_VC_LIBS_PACKAGE_NAME):
+      self._LogLn('Required dependency missing. Attempting to install.')
+      self.WinAppDeployCmd(f'install -file "{_DEBUG_VC_LIBS_PATH}"')
 
     self._LogLn('Deleting temporary files')
     self._network_api.ClearTempFiles()
 
     try:
-      self._LogLn('Installing appx file ' + appx_package_file)
-      self.WinAppDeployCmd(f'install -file "{appx_package_file}" '
-                           f'-dependency "{_DEBUG_VC_LIBS_PATH}"')
+      self.WinAppDeployCmd(f'install -file "{appx_package_file}"')
     except subprocess.CalledProcessError:
       # Install exited with non-zero status code, clear everything out, restart,
       # and attempt another install.
       self._LogLn('Error installing appx. Attempting a clean install...')
       self.UninstallSubPackages()
       self.RestartDevkit()
-      self.WinAppDeployCmd(f'install -file "{appx_package_file}" '
-                           f'-dependency "{_DEBUG_VC_LIBS_PATH}"')
+      self.WinAppDeployCmd(f'install -file "{appx_package_file}"')
 
     # Cleanup starboard arguments file.
     self.InstallStarboardArgument(None)
 
   # Validate that app was installed correctly by checking to make sure
   # that the full package name can now be found.
-  def CheckPackageIsDeployed(self):
+  def CheckPackageIsDeployed(self, package_name):
     package_list = self.WinAppDeployCmd('list')
-    package_index = package_list.find(_DEFAULT_PACKAGE_NAME)
+    package_index = package_list.find(package_name)
     if package_index == -1:
       return False
     return package_list[package_index:].split('\n')[0].strip()
@@ -471,7 +473,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       else:
         self._LogLn('Skipping deploy step.')
 
-      if not self.CheckPackageIsDeployed():
+      if not self.CheckPackageIsDeployed(_DEFAULT_PACKAGE_NAME):
         raise IOError('Could not resolve ' + _DEFAULT_PACKAGE_NAME + ' to\n' +
                       'it\'s full package name after install! This means that' +
                       '\n the package is not deployed correctly!\n\n')
