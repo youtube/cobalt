@@ -53,6 +53,7 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
     return 1;
   }
 
+#if !SB_IS(MODULAR)
   bool start_handler_at_crash =
       command_line.HasSwitch(
           starboard::shared::starboard::kStartHandlerAtCrash) ||
@@ -60,6 +61,7 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
           starboard::shared::starboard::kStartHandlerAtLaunch);
   third_party::crashpad::wrapper::InstallCrashpadHandler(start_handler_at_crash,
                                                          ca_certificates_path);
+#endif  // !SB_IS(MODULAR)
 #endif
 
 #if SB_HAS_QUIRK(BACKTRACE_DLOPEN_BUG)
