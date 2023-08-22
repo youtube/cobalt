@@ -321,6 +321,7 @@ target(gtest_target_type, "cssom_test") {
     "//cobalt/base",
     "//cobalt/css_parser",
     "//cobalt/cssom",
+    "//cobalt/dom",
     "//cobalt/math",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
