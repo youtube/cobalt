@@ -21,6 +21,7 @@ class TaskRunner;
 
 namespace net {
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 // This class provides an API for asynchronously listing the contents of a
 // directory on the filesystem.  It runs a task on a background thread, and
 // enumerates all files in the specified directory on that thread.  Destroying
@@ -135,6 +136,37 @@ class NET_EXPORT DirectoryLister  {
   DISALLOW_COPY_AND_ASSIGN(DirectoryLister);
 };
 
+#else
+
+// TODO b/296715826 Fix stubbed out class.
+class NET_EXPORT DirectoryLister  {
+ public:
+  struct DirectoryListerData {
+    base::FileEnumerator::FileInfo info;
+    base::FilePath path;
+    base::FilePath absolute_path;
+  };
+  class DirectoryListerDelegate {
+   public:
+    virtual void OnListFile(const DirectoryListerData& data) = 0;
+
+    virtual void OnListDone(int error) = 0;
+
+   protected:
+    virtual ~DirectoryListerDelegate() {}
+  };
+  enum ListingType {};
+  DirectoryLister(const base::FilePath& dir,
+                  DirectoryListerDelegate* delegate){};
+  DirectoryLister(const base::FilePath& dir,
+                  ListingType type,
+                  DirectoryListerDelegate* delegate){};
+  ~DirectoryLister(){};
+  void Start() {};
+  void Cancel() {};
+};
+
+#endif // !defined(USE_COBALT_CUSTOMIZATIONS)
 }  // namespace net
 
 #endif  // NET_BASE_DIRECTORY_LISTER_H_
