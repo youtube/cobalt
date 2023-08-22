@@ -48,41 +48,41 @@ if (current_toolchain == starboard_toolchain) {
     data_deps =
         [ "//starboard/shared/starboard/player:player_download_test_data" ]
   }
-}
 
-if (host_os != "win" && current_toolchain == starboard_toolchain) {
-  target(final_executable_type, "player_filter_benchmarks") {
+  if (host_os != "win") {
+    target(final_executable_type, "player_filter_benchmarks") {
+      testonly = true
+
+      sources = [
+        "//starboard/common/benchmark_main.cc",
+        "audio_decoder_benchmark.cc",
+      ]
+
+      public_deps = [
+        ":test_util",
+        "//third_party/google_benchmark",
+      ]
+
+      deps = cobalt_platform_dependencies
+    }
+  }
+
+  static_library("test_util") {
     testonly = true
 
     sources = [
-      "//starboard/common/benchmark_main.cc",
-      "audio_decoder_benchmark.cc",
+      "test_util.cc",
+      "test_util.h",
     ]
+
+    public_configs = [ "//starboard/build/config:starboard_implementation" ]
 
     public_deps = [
-      ":test_util",
-      "//third_party/google_benchmark",
+      "//starboard",
+      "//starboard/shared/starboard/media:media_util",
+      "//starboard/shared/starboard/player:player_download_test_data",
+      "//starboard/shared/starboard/player:video_dmp",
+      "//testing/gtest",
     ]
-
-    deps = cobalt_platform_dependencies
   }
-}
-
-static_library("test_util") {
-  testonly = true
-
-  sources = [
-    "test_util.cc",
-    "test_util.h",
-  ]
-
-  public_configs = [ "//starboard/build/config:starboard_implementation" ]
-
-  public_deps = [
-    "//starboard",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:player_download_test_data",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//testing/gtest",
-  ]
 }

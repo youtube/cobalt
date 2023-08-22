@@ -16,6 +16,7 @@ config("platform_configuration") {
   if (current_toolchain == default_toolchain &&
       build_with_separate_cobalt_toolchain) {
     configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+    ldflags = [ "-Wl,--gc-sections" ]
   } else {
     configs = [
       ":libraries",

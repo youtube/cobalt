@@ -49,6 +49,7 @@ group("gn_all") {
   if (sb_filter_based_player) {
     deps += [
       "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
+      "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
       "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
     ]
   }
@@ -106,7 +107,7 @@ group("starboard") {
     }
   } else {
     public_deps += [
-      ":starboard_platform_group($starboard_toolchain)",
+      ":starboard_platform_group_static($starboard_toolchain)",
       "//starboard/common",
     ]
 
@@ -195,6 +196,10 @@ if (current_toolchain == starboard_toolchain) {
     if (!sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform" ]
     }
+  }
+
+  starboard_platform_target("starboard_platform_group_static") {
+    target_type = "group"
   }
 
   if (platform_tests_path == "") {
