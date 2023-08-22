@@ -26,7 +26,7 @@ target(gtest_target_type, "extension_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  if (sb_is_modular) {
+  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
     deps += cobalt_platform_dependencies
   }
 }
