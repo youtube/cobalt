@@ -118,7 +118,6 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   jobject j_media_drm_bridge_;
   jobject j_media_crypto_;
 
-  atomic_bool have_deferred_session_update_request_;
   std::unique_ptr<SessionUpdateRequest> deferred_session_update_request_;
 
   Mutex mutex_;

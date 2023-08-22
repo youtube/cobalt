@@ -228,16 +228,14 @@ void DrmSystem::Run() {
   }
 
   ScopedLock scoped_lock(mutex_);
-  bool update_expected = true;
-  if (have_deferred_session_update_request_.compare_exchange_strong(
-          &update_expected, false)) {
+  if (deferred_session_update_request_) {
     deferred_session_update_request_->Generate(j_media_drm_bridge_);
+    deferred_session_update_request_.reset();
   }
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
-  have_deferred_session_update_request_.store(false);
   Join();
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -293,7 +291,6 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
     // Defer generating the update request.
     ScopedLock scoped_lock(mutex_);
     deferred_session_update_request_.reset(session_update_request.release());
-    have_deferred_session_update_request_.store(true);
   }
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
