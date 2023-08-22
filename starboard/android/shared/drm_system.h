@@ -96,7 +96,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                          const void* initialization_data,
                          int initialization_data_size);
     ~SessionUpdateRequest();
-    void Generate(jobject j_media_drm_bridge);
+    void Generate(jobject j_media_drm_bridge) const;
 
     jint j_ticket;
     jobject j_init_data;
@@ -118,10 +118,11 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   jobject j_media_drm_bridge_;
   jobject j_media_crypto_;
 
-  std::unique_ptr<SessionUpdateRequest> deferred_session_update_request_;
+  std::vector<std::unique_ptr<SessionUpdateRequest>>
+      deferred_session_update_requests_;
 
   Mutex mutex_;
-  std::unordered_map<std::string, std::vector<SbDrmKeyId> > cached_drm_key_ids_;
+  std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
   atomic_bool created_media_crypto_session_;
 

@@ -15,6 +15,7 @@
 #include "starboard/android/shared/drm_system.h"
 
 #include <memory>
+#include <utility>
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -228,9 +229,11 @@ void DrmSystem::Run() {
   }
 
   ScopedLock scoped_lock(mutex_);
-  if (deferred_session_update_request_) {
-    deferred_session_update_request_->Generate(j_media_drm_bridge_);
-    deferred_session_update_request_.reset();
+  if (!deferred_session_update_requests_.empty()) {
+    for (const auto& update_request : deferred_session_update_requests_) {
+      update_request->Generate(j_media_drm_bridge_);
+    }
+    deferred_session_update_requests_.clear();
   }
 }
 
@@ -271,7 +274,8 @@ DrmSystem::SessionUpdateRequest::~SessionUpdateRequest() {
   j_mime = nullptr;
 }
 
-void DrmSystem::SessionUpdateRequest::Generate(jobject j_media_drm_bridge) {
+void DrmSystem::SessionUpdateRequest::Generate(
+    jobject j_media_drm_bridge) const {
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(j_media_drm_bridge, "createSession",
                              "(I[BLjava/lang/String;)V", j_ticket, j_init_data,
@@ -290,7 +294,8 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
   } else {
     // Defer generating the update request.
     ScopedLock scoped_lock(mutex_);
-    deferred_session_update_request_.reset(session_update_request.release());
+    deferred_session_update_requests_.push_back(
+        std::move(session_update_request));
   }
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
