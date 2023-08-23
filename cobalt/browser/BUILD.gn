@@ -415,3 +415,10 @@ cache_lex_tables("cached_lex_yacc_tables") {
 cache_templates("cached_jinja_templates") {
   output_dir = _bindings_scripts_output_dir
 }
+
+group("test_dependencies_on_browser") {
+  testonly = true
+
+  # TODO: 297087147 - Depend on smaller targets than browser.
+  deps = [ "//cobalt/browser" ]
+}

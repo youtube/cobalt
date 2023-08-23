@@ -18,10 +18,12 @@
 # This target will build a sandbox application that allows for easy
 # experimentation with the ImageDecoder on any platform.
 target(final_executable_type, "image_decoder_sandbox") {
+  testonly = true
   sources = [ "image_decoder_sandbox.cc" ]
 
   deps = [
     "//cobalt/base",
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/loader",
     "//cobalt/loader:copy_loader_test_data",
     "//cobalt/math",

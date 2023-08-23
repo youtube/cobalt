@@ -16,9 +16,11 @@
 # media/renderer interface.
 
 target(final_executable_type, "media_sandbox") {
+  testonly = true
   sources = [ "media2_sandbox.cc" ]
 
   deps = [
+    "//cobalt//browser:test_dependencies_on_browser",
     "//cobalt/base",
     "//cobalt/math",
     "//cobalt/media",
@@ -28,6 +30,7 @@ target(final_executable_type, "media_sandbox") {
 }
 
 target(final_executable_type, "web_media_player_sandbox") {
+  testonly = true
   sources = [
     "format_guesstimator.cc",
     "format_guesstimator.h",
@@ -42,6 +45,7 @@ target(final_executable_type, "web_media_player_sandbox") {
     "//cobalt/base",
 
     # Use test data from demos to avoid keeping two copies of video files.
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/demos/content:demos_testdata",
     "//cobalt/loader",
     "//cobalt/math",

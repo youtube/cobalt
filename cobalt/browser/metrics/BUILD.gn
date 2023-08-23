@@ -51,6 +51,7 @@ target(gtest_target_type, "metrics_test") {
   deps = [
     ":metrics",
     "//base",
+    "//cobalt//browser:test_dependencies_on_browser",
     "//cobalt/browser:generated_types",
     "//cobalt/h5vcc",
     "//cobalt/h5vcc:metric_event_handler_wrapper",
