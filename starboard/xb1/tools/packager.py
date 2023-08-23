@@ -260,6 +260,9 @@ class Package(package.PackageBase):
         print('\n\n*** ERROR CAUSED BY LOW DISK SPACE!! ***\n\n')
       raise  # Rethrow original error with original stack trace.
 
+    #TODO: temporary to grant a signal as to when the signing step is complete.
+    os.makedirs(os.path.join(self.output_dir, 'PACKAGE_SIGNED'))
+
     return self.appx_location
 
 
