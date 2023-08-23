@@ -52,8 +52,12 @@ group("gn_all") {
     deps += [
       "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
       "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
-      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
     ]
+
+    # TODO: b/296715826 - Fix build error for windows modular builds.
+    if (!(sb_is_modular && is_host_win)) {
+      deps += [ "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)" ]
+    }
   }
 
   if (sb_enable_benchmark) {
