@@ -4443,7 +4443,7 @@ static_library("test_support") {
   ]
 
   if(use_cobalt_customizations) {
-    # TODO b/296715826 - Fix unused symbols which cause linker errors for windows platform modular builds.
+    # TODO: b/296715826 - Fix unused symbols which cause linker errors for windows platform modular builds.
     sources -= [
       "test/quic_simple_test_server.cc",
       "test/quic_simple_test_server.h",
