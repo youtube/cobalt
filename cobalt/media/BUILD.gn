@@ -134,6 +134,7 @@ target(gtest_target_type, "media_test") {
   deps = [
     ":media",
     "//base/test:test_support",
+    "//cobalt//browser:test_dependencies_on_browser",
     "//cobalt/base",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
