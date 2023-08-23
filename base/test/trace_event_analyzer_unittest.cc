@@ -5,7 +5,6 @@
 #include "base/test/trace_event_analyzer.h"
 
 #include "base/bind.h"
-#include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
@@ -101,7 +100,7 @@ TEST_F(TraceEventAnalyzerTest, TraceEvent) {
   event.arg_numbers["int"] = static_cast<double>(int_num);
   event.arg_numbers["double"] = double_num;
   event.arg_strings["string"] = str;
-  event.arg_values["dict"] = WrapUnique(new base::DictionaryValue());
+  event.arg_values["dict"] = std::make_unique<base::DictionaryValue>();
 
   ASSERT_TRUE(event.HasNumberArg("false"));
   ASSERT_TRUE(event.HasNumberArg("true"));

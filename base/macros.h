@@ -81,6 +81,9 @@ namespace base {
 //   static base::NoDestructor<Factory> instance;
 //   return *instance;
 // }
+//
+// Removal of this macro is tracked in https://crbug.com/893317.
+//
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
   static type& name = *new type arguments

@@ -360,10 +360,4 @@ BASE_EXPORT extern NSString* const NSAppearanceNameDarkAqua;
 // ----------------------------------------------------------------------------
 BASE_EXPORT extern "C" NSString* const kCWSSIDDidChangeNotification;
 
-// Once Chrome is built with at least the macOS 10.13 SDK, everything within
-// this preprocessor block can be removed.
-#if !defined(MAC_OS_X_VERSION_10_13)
-typedef NSString* NSTextCheckingOptionKey;
-#endif
-
 #endif  // BASE_MAC_SDK_FORWARD_DECLARATIONS_H_

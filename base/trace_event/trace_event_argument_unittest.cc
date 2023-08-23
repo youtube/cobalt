@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/memory/ptr_util.h"
 #include "base/values.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -100,14 +99,14 @@ TEST(TraceEventArgumentTest, PassBaseValue) {
   Value bool_value(true);
   Value double_value(42.0f);
 
-  auto dict_value = WrapUnique(new DictionaryValue);
+  auto dict_value = std::make_unique<DictionaryValue>();
   dict_value->SetBoolean("bool", true);
   dict_value->SetInteger("int", 42);
   dict_value->SetDouble("double", 42.0f);
   dict_value->SetString("string", std::string("a") + "b");
   dict_value->SetString("string", std::string("a") + "b");
 
-  auto list_value = WrapUnique(new ListValue);
+  auto list_value = std::make_unique<ListValue>();
   list_value->AppendBoolean(false);
   list_value->AppendInteger(1);
   list_value->AppendString("in_list");
