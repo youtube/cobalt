@@ -226,6 +226,7 @@ void DrmSystem::Run() {
   if (!result && j_media_crypto_) {
     env->DeleteGlobalRef(j_media_crypto_);
     j_media_crypto_ = NULL;
+    return;
   }
 
   ScopedLock scoped_lock(mutex_);

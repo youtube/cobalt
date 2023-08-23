@@ -609,6 +609,11 @@ public class MediaDrmBridge {
       }
     }
 
+    if (mMediaCryptoSession == null) {
+      Log.e(TAG, "Cannot create MediaCrypto Session.");
+      return false;
+    }
+
     try {
       mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
     } catch (MediaCryptoException e3) {
@@ -623,10 +628,6 @@ public class MediaDrmBridge {
       return false;
     }
 
-    if (mMediaCryptoSession == null) {
-      Log.e(TAG, "Cannot create MediaCrypto Session.");
-      return false;
-    }
     Log.d(
         TAG,
         String.format("MediaCrypto Session created: %s", bytesToHexString(mMediaCryptoSession)));
