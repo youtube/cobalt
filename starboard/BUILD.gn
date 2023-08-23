@@ -50,11 +50,6 @@ group("gn_all") {
   if (sb_filter_based_player) {
     deps += [
       "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
-<<<<<<< HEAD
-      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
-=======
-      "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
->>>>>>> d6ce7fce2c4 (Disable audio_dmp_player for windows modular builds (#1375))
     ]
 
     # TODO: b/296715826 - Fix build error for windows modular builds.
