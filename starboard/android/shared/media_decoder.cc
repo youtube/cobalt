@@ -464,7 +464,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
 
   jint status;
   if (event.type == Event::kWriteCodecConfig) {
-    if (drm_system_ && drm_system_->IsReady()) {
+    if (!drm_system_ || (drm_system_ && drm_system_->IsReady())) {
       status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                      kNoOffset, size, kNoPts,
                                                      BUFFER_FLAG_CODEC_CONFIG);
