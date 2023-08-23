@@ -4238,7 +4238,7 @@ target(gtest_target_type, "net_unittests") {
   }
 
   if(use_cobalt_customizations) {
-    # TODO b/296715826 - Fix unused symbols which cause linker errors for windows platform modular builds.
+    # TODO: b/296715826 - Fix unused symbols which cause linker errors for windows platform modular builds.
     sources -= [
       "http/http_stream_factory_job_controller_unittest.cc",
       "http/http_stream_factory_unittest.cc",
