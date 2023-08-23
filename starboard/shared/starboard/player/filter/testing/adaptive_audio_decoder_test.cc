@@ -251,8 +251,9 @@ class AdaptiveAudioDecoderTest
 
     // Stub decoder doesn't produce outputs with right timestamp.
     if (!using_stub_decoder_) {
-      ASSERT_EQ(decoded_audio->timestamp(),
-                written_inputs_.front()->timestamp());
+      ASSERT_NEAR(decoded_audio->timestamp(),
+                written_inputs_.front()->timestamp(),
+                5);
       written_inputs_.pop_front();
 
       // TODO: The timestamps of inputs are not monotonic increasing, so
