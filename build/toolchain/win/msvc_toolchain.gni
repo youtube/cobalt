@@ -51,7 +51,7 @@ template("msvc_toolchain") {
 
   nul = "$0x00"
   env_block = string_join(nul, environment_key_value_pairs) + nul
-  write_file("$root_build_dir/environment.$target_cpu", env_block)
+  write_file("$root_out_dir/environment.$target_cpu", env_block)
 
   toolchain(target_name) {
     # When invoking this toolchain not as the default one, these args will be
