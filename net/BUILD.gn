@@ -4236,6 +4236,33 @@ target(gtest_target_type, "net_unittests") {
       "//third_party/icu:icudata",
     ]
   }
+
+  if(use_cobalt_customizations) {
+    # TODO: b/296715826 - Fix unused symbols which cause linker errors for windows platform modular builds.
+    sources -= [
+      "http/http_stream_factory_job_controller_unittest.cc",
+      "http/http_stream_factory_unittest.cc",
+      "http/http_stream_parser_unittest.cc",
+      "quic/bidirectional_stream_quic_impl_unittest.cc",
+      "quic/crypto/proof_verifier_chromium_test.cc",
+      "quic/network_connection_unittest.cc",
+      "quic/properties_based_quic_server_info_test.cc",
+      "quic/quic_address_mismatch_test.cc",
+      "quic/quic_chromium_alarm_factory_test.cc",
+      "quic/quic_chromium_client_session_test.cc",
+      "quic/quic_chromium_client_stream_test.cc",
+      "quic/quic_chromium_connection_helper_test.cc",
+      "quic/quic_clock_skew_detector_test.cc",
+      "quic/quic_connectivity_probing_manager_test.cc",
+      "quic/quic_end_to_end_unittest.cc",
+      "quic/quic_http_stream_test.cc",
+      "quic/quic_network_transaction_unittest.cc",
+      "quic/quic_proxy_client_socket_unittest.cc",
+      "quic/quic_stream_factory_test.cc",
+      "quic/quic_utils_chromium_test.cc",
+    ]
+
+  }
 }
 
 static_library("test_support") {
@@ -4415,6 +4442,16 @@ static_library("test_support") {
     "//third_party/zlib",
     "//url",
   ]
+
+  if(use_cobalt_customizations) {
+    # TODO: b/296715826 - Fix unused symbols which cause linker errors for windows platform modular builds.
+    sources -= [
+      "test/quic_simple_test_server.cc",
+      "test/quic_simple_test_server.h",
+      "quic/quic_test_packet_maker.cc",
+      "quic/quic_test_packet_maker.h",
+    ]
+  }
 }
 
 static_library("quic_test_tools") {
