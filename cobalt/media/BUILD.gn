@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/os_definitions.gni")
+
 config("media_config") {
   if (!is_win) {
     cflags_cc = [
@@ -137,4 +139,9 @@ target(gtest_target_type, "media_test") {
   ]
 
   data_deps = [ "//cobalt/media/testing:cobalt_media_download_test_data" ]
+
+  # TODO: b/296715826 - Fix symbol resolution in cval_stats_test.cc.
+  if (sb_is_modular && is_host_win) {
+    sources -= [ "base/cval_stats_test.cc" ]
+  }
 }
