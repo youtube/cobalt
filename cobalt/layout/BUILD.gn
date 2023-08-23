@@ -140,6 +140,7 @@ target(gtest_target_type, "layout_test") {
   deps = [
     ":layout",
     "//base",
+    "//cobalt//browser:test_dependencies_on_browser",
     "//cobalt/base",
     "//cobalt/css_parser",
     "//cobalt/cssom",

@@ -104,6 +104,7 @@ target(gtest_target_type, "worker_test") {
     "//cobalt/browser:browser",
     "//cobalt/browser:generated_bindings",
     "//cobalt/browser:generated_types",
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/css_parser",
     "//cobalt/cssom",
     "//cobalt/dom/testing:dom_testing",

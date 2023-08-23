@@ -195,6 +195,7 @@ target(gtest_target_type, "loader_test") {
   deps = [
     ":loader",
     "//cobalt/base:base",
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/dom",
     "//cobalt/dom_parser",
     "//cobalt/math:math",

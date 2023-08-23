@@ -20,10 +20,12 @@
 # also be useful for visually inspecting the output that the Cobalt
 # renderer is producing.
 target(final_executable_type, "renderer_sandbox") {
+  testonly = true
   sources = [ "renderer_sandbox_main.cc" ]
 
   deps = [
     "//cobalt/base",
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/math",
     "//cobalt/renderer",
     "//cobalt/renderer/test/scenes",
@@ -39,10 +41,12 @@ target(final_executable_type, "renderer_sandbox") {
 # is constantly animating, which for many implementations can be a
 # performance problem.
 target(final_executable_type, "scaling_text_sandbox") {
+  testonly = true
   sources = [ "scaling_text_sandbox_main.cc" ]
 
   deps = [
     "//cobalt/base",
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/math",
     "//cobalt/renderer",
     "//cobalt/renderer/test/scenes",

@@ -319,6 +319,7 @@ target(gtest_target_type, "cssom_test") {
 
   deps = [
     "//cobalt/base",
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/css_parser",
     "//cobalt/cssom",
     "//cobalt/dom",
