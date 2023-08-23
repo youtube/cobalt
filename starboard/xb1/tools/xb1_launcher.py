@@ -88,6 +88,7 @@ from starboard.xb1.tools import xb1_network_api
 _ARGS_DIRECTORY = 'content/data/arguments'
 _STARBOARD_ARGUMENTS_FILE = 'starboard_arguments.txt'
 _DEFAULT_PACKAGE_NAME = 'GoogleInc.YouTube'
+_STUB_PACKAGE_NAME = 'Microsoft.Title.StubApp'
 _DEBUG_VC_LIBS_PACKAGE_NAME = 'Microsoft.VCLibs.140.00.Debug'
 _DEFAULT_APPX_NAME = 'cobalt.appx'
 _DEFAULT_STAGING_APP_NAME = 'appx'
@@ -401,7 +402,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     for package in packages:
       try:
         package_full_name = package['PackageFullName']
-        if package_full_name.find(_DEFAULT_PACKAGE_NAME) != -1:
+        if package_full_name.find(
+            _DEFAULT_PACKAGE_NAME) != -1 or package_full_name.find(
+                _STUB_PACKAGE_NAME) != -1:
           if package_full_name not in uninstalled_packages:
             self._LogLn('Existing YouTube app found on device. Uninstalling: ' +
                         package_full_name)
@@ -412,6 +415,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
         pass
       except subprocess.CalledProcessError as err:
         self._LogLn(err.output)
+
+  def DeleteLooseApps(self):
+    self._network_api.ClearLooseAppsFiles()
 
   def Deploy(self):
     # starboard_arguments.txt is packaged with the appx. It instructs the app
@@ -443,6 +449,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # and attempt another install.
       self._LogLn('Error installing appx. Attempting a clean install...')
       self.UninstallSubPackages()
+      self.DeleteLooseApps()
       self.RestartDevkit()
       self.WinAppDeployCmd(f'install -file "{appx_package_file}"')
 
