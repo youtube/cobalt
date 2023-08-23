@@ -4250,6 +4250,7 @@ static_library("test_support") {
     # "disk_cache/disk_cache_test_util.cc",
     # "disk_cache/disk_cache_test_util.h",
 
+    "base/directory_lister.h",
     "base/test_data_stream.cc",
     "base/test_data_stream.h",
     "quic/quic_test_packet_maker.cc",
