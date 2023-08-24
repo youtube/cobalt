@@ -29,8 +29,9 @@ x-build-volumes: &build-volumes
     - ${CCACHE_DIR:-container-ccache}:/root/ccache
 
 x-build-common-definitions: &build-common-definitions
-  <<: *common-definitions
-  <<: *build-volumes
+  <<:
+    - *common-definitions
+    - *build-volumes
   depends_on:
     - build-base
 
@@ -200,8 +201,9 @@ services:
       TARGET: ${TARGET:-cobalt_install}
 
   linux-x64x11-bionic:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
@@ -213,8 +215,9 @@ services:
     scale: 0
 
   linux-x64x11-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
@@ -227,8 +230,9 @@ services:
       - linux-x64x11-bionic
 
   build-linux-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
@@ -237,8 +241,9 @@ services:
       - linux-x64x11-bionic
 
   linux-x64x11-clang-3-9:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
@@ -251,8 +256,9 @@ services:
       - linux-x64x11-bionic
 
   build-linux-clang-3-9:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
@@ -455,11 +461,11 @@ services:
 
   # Example usage of unittest:
   # 1. Build the containers for which you want to unittest
-  # docker-compose up --build --no-start linux-x64x11-unittest
+  # docker compose up --build --no-start linux-x64x11-unittest
   # 2. Build the 'all' target for the platform you want to test
-  # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker-compose run linux-x64x11
+  # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker compose run linux-x64x11
   # 3. Run the unittests for that target.
-  # PLATFORM=linux-x64x11 CONFIG=devel docker-compose run linux-x64x11-unittest
+  # PLATFORM=linux-x64x11 CONFIG=devel docker compose run linux-x64x11-unittest
   linux-x64x11-unittest:
     <<: *shared-unittest-definitions
 
@@ -490,10 +496,9 @@ services:
     entrypoint: ["python3", "/unittest_docker_launcher.py", "3"]
 
   xvfb:
-    image: xvfb
+    image: cobalt-xvfb
     ports:
       - "99:99"
-    image: cobalt-xvfb
     build:
       context: ./docker/linux/
       dockerfile: xvfb/Dockerfile

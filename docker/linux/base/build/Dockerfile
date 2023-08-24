@@ -114,4 +114,4 @@ RUN cd /tmp \
 RUN git config --global --add safe.directory /code
 
 WORKDIR /code
-CMD ["/usr/bin/python","--version"]
+CMD ["/usr/bin/python3","--version"]
