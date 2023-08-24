@@ -15,9 +15,6 @@
 static_library("media_stream") {
   has_pedantic_warnings = true
 
-  # Creates cycle with //cobalt/dom
-  check_includes = false
-
   sources = [
     "audio_parameters.cc",
     "audio_parameters.h",
@@ -47,6 +44,7 @@ static_library("media_stream") {
     "//cobalt/media",
     "//cobalt/script",
     "//cobalt/speech",
+    "//cobalt/web:web_events",
     "//starboard",
   ]
 }
