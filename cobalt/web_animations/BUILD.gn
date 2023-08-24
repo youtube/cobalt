@@ -53,8 +53,10 @@ target(gtest_target_type, "web_animations_test") {
 
   deps = [
     ":web_animations",
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/css_parser",
     "//cobalt/cssom",
+    "//cobalt/dom",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",

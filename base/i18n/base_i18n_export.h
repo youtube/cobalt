@@ -5,7 +5,11 @@
 #ifndef BASE_I18N_BASE_I18N_EXPORT_H_
 #define BASE_I18N_BASE_I18N_EXPORT_H_
 
-#if defined(COMPONENT_BUILD)
+#ifdef USE_COBALT_CUSTOMIZATIONS
+#include "starboard/configuration.h"
+#endif // USE_COBALT_CUSTOMIZATIONS
+
+#if defined(COMPONENT_BUILD) || SB_IS(MODULAR) && !SB_IS(EVERGREEN)
 #if defined(WIN32)
 
 #if defined(BASE_I18N_IMPLEMENTATION)
@@ -22,7 +26,7 @@
 #endif
 #endif
 
-#else  // defined(COMPONENT_BUILD)
+#else  // defined(COMPONENT_BUILD) || SB_IS(MODULAR) && !SB_IS(EVERGREEN)
 #define BASE_I18N_EXPORT
 #endif
 

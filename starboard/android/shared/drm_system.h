@@ -18,21 +18,25 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 #include <jni.h>
+#include <memory>
 
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/thread.h"
 #include "starboard/types.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-class DrmSystem : public ::SbDrmSystemPrivate {
+class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
  public:
   DrmSystem(const char* key_system,
             void* context,
@@ -81,8 +85,32 @@ class DrmSystem : public ::SbDrmSystemPrivate {
     return IsWidevineL1(key_system_.c_str());
   }
 
+  // Return true when the drm system is ready for secure input buffers.
+  bool IsReady() { return created_media_crypto_session_.load(); }
+
  private:
+  class SessionUpdateRequest {
+   public:
+    SessionUpdateRequest(int ticket,
+                         const char* type,
+                         const void* initialization_data,
+                         int initialization_data_size);
+    ~SessionUpdateRequest();
+
+    void ConvertLocalRefToGlobalRef();
+    void Generate(jobject j_media_drm_bridge) const;
+
+   private:
+    bool references_are_global_ = false;
+    jint j_ticket_;
+    jobject j_init_data_;
+    jobject j_mime_;
+  };
+
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
+
+  // From Thread.
+  void Run() override;
 
   const std::string key_system_;
   void* context_;
@@ -94,9 +122,13 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   jobject j_media_drm_bridge_;
   jobject j_media_crypto_;
 
+  std::vector<std::unique_ptr<SessionUpdateRequest>>
+      deferred_session_update_requests_;
+
   Mutex mutex_;
-  std::unordered_map<std::string, std::vector<SbDrmKeyId> > cached_drm_key_ids_;
+  std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
+  atomic_bool created_media_crypto_session_;
 
   std::vector<uint8_t> metrics_;
 };

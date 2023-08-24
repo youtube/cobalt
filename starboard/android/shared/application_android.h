@@ -56,8 +56,8 @@ class ApplicationAndroid
       kDeepLink,
     } CommandType;
 
-    CommandType type;
-    void* data;
+    CommandType type = kUndefined;
+    void* data = nullptr;
   };
 
 #if SB_API_VERSION >= 15

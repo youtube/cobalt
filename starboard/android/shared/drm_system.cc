@@ -14,10 +14,15 @@
 
 #include "starboard/android/shared/drm_system.h"
 
+#include <memory>
+#include <utility>
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/instance_counter.h"
+#include "starboard/common/thread.h"
 
 namespace {
 
@@ -177,7 +182,8 @@ DrmSystem::DrmSystem(
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback)
-    : key_system_(key_system),
+    : Thread("DrmSystemThread"),
+      key_system_(key_system),
       context_(context),
       update_request_callback_(update_request_callback),
       session_updated_callback_(session_updated_callback),
@@ -206,10 +212,35 @@ DrmSystem::DrmSystem(
     return;
   }
   j_media_crypto_ = env->ConvertLocalRefToGlobalRef(j_media_crypto_);
+
+  Start();
+}
+
+void DrmSystem::Run() {
+  JniEnvExt* env = JniEnvExt::Get();
+  bool result = env->CallBooleanMethodOrAbort(
+      j_media_drm_bridge_, "createMediaCryptoSession", "()Z");
+  if (result) {
+    created_media_crypto_session_.store(true);
+  }
+  if (!result && j_media_crypto_) {
+    env->DeleteGlobalRef(j_media_crypto_);
+    j_media_crypto_ = NULL;
+    return;
+  }
+
+  ScopedLock scoped_lock(mutex_);
+  if (!deferred_session_update_requests_.empty()) {
+    for (const auto& update_request : deferred_session_update_requests_) {
+      update_request->Generate(j_media_drm_bridge_);
+    }
+    deferred_session_update_requests_.clear();
+  }
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
+  Join();
 
   JniEnvExt* env = JniEnvExt::Get();
   if (j_media_crypto_) {
@@ -223,17 +254,64 @@ DrmSystem::~DrmSystem() {
   }
 }
 
+DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
+    int ticket,
+    const char* type,
+    const void* initialization_data,
+    int initialization_data_size) {
+  JniEnvExt* env = JniEnvExt::Get();
+  j_ticket_ = static_cast<jint>(ticket);
+  j_init_data_ =
+      ByteArrayFromRaw(initialization_data, initialization_data_size);
+  j_mime_ = env->NewStringStandardUTFOrAbort(type);
+}
+
+void DrmSystem::SessionUpdateRequest::ConvertLocalRefToGlobalRef() {
+  if (!references_are_global_) {
+    JniEnvExt* env = JniEnvExt::Get();
+    j_init_data_ = env->ConvertLocalRefToGlobalRef(j_init_data_);
+    j_mime_ = env->ConvertLocalRefToGlobalRef(j_mime_);
+    references_are_global_ = true;
+  }
+}
+
+DrmSystem::SessionUpdateRequest::~SessionUpdateRequest() {
+  JniEnvExt* env = JniEnvExt::Get();
+  if (references_are_global_) {
+    env->DeleteGlobalRef(j_init_data_);
+    env->DeleteGlobalRef(j_mime_);
+  } else {
+    env->DeleteLocalRef(j_init_data_);
+    env->DeleteLocalRef(j_mime_);
+  }
+  j_init_data_ = nullptr;
+  j_mime_ = nullptr;
+}
+
+void DrmSystem::SessionUpdateRequest::Generate(
+    jobject j_media_drm_bridge) const {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallVoidMethodOrAbort(j_media_drm_bridge, "createSession",
+                             "(I[BLjava/lang/String;)V", j_ticket_,
+                             j_init_data_, j_mime_);
+}
+
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
                                              const char* type,
                                              const void* initialization_data,
                                              int initialization_data_size) {
-  ScopedLocalJavaRef<jbyteArray> j_init_data(
-      ByteArrayFromRaw(initialization_data, initialization_data_size));
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(type));
-  env->CallVoidMethodOrAbort(
-      j_media_drm_bridge_, "createSession", "(I[BLjava/lang/String;)V",
-      static_cast<jint>(ticket), j_init_data.Get(), j_mime.Get());
+  std::unique_ptr<SessionUpdateRequest> session_update_request(
+      new SessionUpdateRequest(ticket, type, initialization_data,
+                               initialization_data_size));
+  if (created_media_crypto_session_.load()) {
+    session_update_request->Generate(j_media_drm_bridge_);
+  } else {
+    // Defer generating the update request.
+    session_update_request->ConvertLocalRefToGlobalRef();
+    ScopedLock scoped_lock(mutex_);
+    deferred_session_update_requests_.push_back(
+        std::move(session_update_request));
+  }
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
 }

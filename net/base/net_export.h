@@ -4,12 +4,16 @@
 
 #ifndef NET_BASE_NET_EXPORT_H_
 #define NET_BASE_NET_EXPORT_H_
-
 // Defines NET_EXPORT so that functionality implemented by the net module can
 // be exported to consumers, and NET_EXPORT_PRIVATE that allows unit tests to
 // access features not intended to be used directly by real consumers.
 
-#if defined(COMPONENT_BUILD)
+#ifdef USE_COBALT_CUSTOMIZATIONS
+#include "starboard/configuration.h"
+#endif // USE_COBALT_CUSTOMIZATIONS
+
+#if defined(COMPONENT_BUILD) || SB_IS(MODULAR) && !SB_IS(EVERGREEN)
+
 #if defined(WIN32)
 
 #if defined(NET_IMPLEMENTATION)
@@ -30,7 +34,7 @@
 #endif
 #endif
 
-#else  /// defined(COMPONENT_BUILD)
+#else  // defined(COMPONENT_BUILD) || SB_IS(MODULAR) && !SB_IS(EVERGREEN)
 #define NET_EXPORT
 #define NET_EXPORT_PRIVATE
 #endif
