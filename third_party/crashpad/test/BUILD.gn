@@ -16,7 +16,6 @@ import("../build/crashpad_buildconfig.gni")
 
 static_library("test") {
   testonly = true
-  check_includes = false
 
   sources = [
     "errors.cc",
@@ -237,8 +236,6 @@ if (!crashpad_is_ios) {
 
 static_library("gmock_main") {
   testonly = true
-  check_includes = false
-
   sources = [ "gtest_main.cc" ]
   configs += [ "../build:crashpad_is_in_chromium" ]
   defines = [ "CRASHPAD_TEST_LAUNCHER_GMOCK" ]
@@ -256,8 +253,6 @@ static_library("gmock_main") {
 
 static_library("gtest_main") {
   testonly = true
-  check_includes = false
-
   sources = [ "gtest_main.cc" ]
   configs += [ "../build:crashpad_is_in_chromium" ]
   defines = [ "CRASHPAD_TEST_LAUNCHER_GTEST" ]

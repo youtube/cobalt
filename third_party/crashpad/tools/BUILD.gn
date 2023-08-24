@@ -15,8 +15,6 @@
 import("../build/crashpad_buildconfig.gni")
 
 source_set("tool_support") {
-  check_includes = false
-
   sources = [
     "tool_support.cc",
     "tool_support.h",

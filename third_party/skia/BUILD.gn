@@ -92,14 +92,12 @@ template("opts") {
   visibility = [ ":*" ]
   if (invoker.enabled) {
     source_set(target_name) {
-      check_includes = false
       forward_variables_from(invoker, "*")
       configs += skia_library_configs
     }
   } else {
     # If not enabled, a phony empty target that swallows all otherwise unused variables.
     source_set(target_name) {
-      check_includes = false
       forward_variables_from(invoker,
                              "*",
                              [
@@ -209,7 +207,6 @@ template("optional") {
       }
     }
     source_set(target_name) {
-      check_includes = false
       forward_variables_from(invoker,
                              "*",
                              [
@@ -1014,7 +1011,6 @@ if (target_cpu == "wasm") {
 }
 
 static_library("pathkit") {
-  check_includes = false
   public_configs = [ ":skia_public" ]
   configs += skia_library_configs
 
@@ -1140,7 +1136,6 @@ if (skia_enable_tools) {
 
   if (target_cpu == "x64") {
     executable("fiddle") {
-      check_includes = false
       libs = []
       sources = [
         "tools/fiddle/draw.cpp",
@@ -1196,7 +1191,6 @@ if (skia_enable_tools) {
     }
     source_set(target_name) {
       forward_variables_from(invoker, "*", [])
-      check_includes = false
       public_configs = [
         ":" + target_name + "_config",
         ":skia_private",
@@ -1242,7 +1236,6 @@ if (skia_enable_tools) {
       } else {
         _executable = target_name
         executable(_executable) {
-          check_includes = false
           forward_variables_from(invoker, "*", [ "is_shared_library" ])
           configs += [ ":skia_private" ]
           testonly = true
