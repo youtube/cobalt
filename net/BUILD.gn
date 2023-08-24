@@ -28,8 +28,6 @@ config("net_public_defines") {
 }
 
 component("net") {
-  check_includes = false
-
   sources = [
     "base/address_family.cc",
     "base/address_family.h",
@@ -4267,7 +4265,6 @@ target(gtest_target_type, "net_unittests") {
 
 static_library("test_support") {
   testonly = true
-  check_includes = false
 
   sources = [
     # "disk_cache/disk_cache_test_base.cc",

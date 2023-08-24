@@ -19,7 +19,6 @@ if (skia_enable_skshaper) {
   }
 
   component("skshaper") {
-    check_includes = false
     import("skshaper.gni")
     public_configs = [ ":public_config" ]
     public = skia_shaper_public
