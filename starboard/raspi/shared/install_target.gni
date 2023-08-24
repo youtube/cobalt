@@ -29,28 +29,37 @@ template("install_target") {
   } else {
     assert(false, "You can only install an executable or shared library.")
   }
+  output = "$sb_install_output_dir/$install_subdir/$source_name"
+  input = "$root_out_dir/$source_name"
 
-  action(target_name) {
-    forward_variables_from(invoker, [ "testonly" ])
+  if (is_gold) {
+    action(target_name) {
+      forward_variables_from(invoker, [ "testonly" ])
 
-    script = "//starboard/build/run_bash.py"
+      script = "//starboard/build/run_bash.py"
 
-    strip_executable = gcc_toolchain_strip
-    inputs = [
-      strip_executable,
-      "$root_out_dir/$source_name",
-    ]
+      strip_executable = gcc_toolchain_strip
+      inputs = [ input ]
 
-    deps = invoker.deps
-    deps += [ invoker.installable_target_dep ]
+      deps = invoker.deps
+      deps += [ invoker.installable_target_dep ]
 
-    outputs = [ "$sb_install_output_dir/$install_subdir/$source_name" ]
+      outputs = [ output ]
 
-    args = [
-      rebase_path(strip_executable, root_build_dir),
-      "-o",
-      rebase_path(outputs[0], root_build_dir),
-      rebase_path("$root_out_dir/$source_name", root_build_dir),
-    ]
+      args = [
+        rebase_path(strip_executable, root_build_dir),
+        "-o",
+        rebase_path(outputs[0], root_build_dir),
+        rebase_path(inputs[0], root_build_dir),
+      ]
+    }
+  } else {
+    copy(target_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      sources = [ input ]
+      outputs = [ output ]
+      deps = invoker.deps
+      deps += [ invoker.installable_target_dep ]
+    }
   }
 }
