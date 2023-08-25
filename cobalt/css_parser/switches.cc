@@ -20,18 +20,21 @@ namespace cobalt {
 namespace css_parser {
 namespace switches {
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 const char kOnCssError[] = "on_css_error";
 const char kOnCssErrorHelp[] =
     "If set to \"crash\", crashes on CSS error even when recoverable.";
 
 const char kOnCssWarning[] = "on_css_warning";
 const char kOnCssWarningHelp[] = "If set to \"crash\", crashes on CSS warning.";
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 std::string HelpMessage() {
   std::string help_message;
-  std::map<std::string, const char*> help_map{
-      {kOnCssError, kOnCssErrorHelp},
-      {kOnCssWarning, kOnCssWarningHelp},
+  std::map<std::string, const char*> help_map {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+    {kOnCssError, kOnCssErrorHelp}, {kOnCssWarning, kOnCssWarningHelp},
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
   };
 
   for (const auto& switch_message : help_map) {
