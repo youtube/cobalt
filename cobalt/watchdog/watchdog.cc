@@ -111,13 +111,32 @@ bool Watchdog::InitializeCustom(
 #endif  // defined(_DEBUG)
 
   // Starts monitor thread.
+  InitializeViolationsMap();
   is_monitoring_.store(true);
-  InitializeViolationsMap(this);
   SB_DCHECK(!SbThreadIsValid(watchdog_thread_));
   watchdog_thread_ = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
                                     true, "Watchdog", &Watchdog::Monitor, this);
   SB_DCHECK(SbThreadIsValid(watchdog_thread_));
   return true;
+}
+
+void Watchdog::InitializeViolationsMap() {
+  // Loads the previous Watchdog violations file containing violations before
+  // app start, if it exists, to populate violations_map_.
+  starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(),
+                                  kSbFileOpenOnly | kSbFileRead);
+  if (read_file.IsValid()) {
+    int64_t kFileSize = read_file.GetSize();
+    std::vector<char> buffer(kFileSize + 1, 0);
+    read_file.ReadAll(buffer.data(), kFileSize);
+    violations_map_ = base::JSONReader::Read(std::string(buffer.data()));
+  }
+
+  if (violations_map_ == nullptr) {
+    SB_LOG(INFO) << "[Watchdog] No previous violations JSON.";
+    violations_map_ =
+        std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
+  }
 }
 
 bool Watchdog::InitializeStub() {
@@ -151,19 +170,22 @@ std::string Watchdog::GetWatchdogFilePath() {
 }
 
 std::vector<std::string> Watchdog::GetWatchdogViolationClientNames() {
-  starboard::ScopedLock scoped_lock(mutex_);
-  if (pending_write_) WriteWatchdogViolations();
-
-  std::string watchdog_json = ReadViolationFile(GetWatchdogFilePath().c_str());
   std::vector<std::string> names;
-  if (watchdog_json != "") {
-    std::unique_ptr<base::Value> violations_map =
-        base::JSONReader::Read(watchdog_json);
-    for (const auto& it : violations_map->DictItems()) {
-      names.push_back(it.first);
-    }
+
+  if (is_disabled_) return names;
+
+  starboard::ScopedLock scoped_lock(mutex_);
+  for (const auto& it : violations_map_->DictItems()) {
+    names.push_back(it.first);
   }
   return names;
+}
+
+void Watchdog::UpdateState(base::ApplicationState state) {
+  if (is_disabled_) return;
+
+  starboard::ScopedLock scoped_lock(mutex_);
+  state_ = state;
 }
 
 void Watchdog::WriteWatchdogViolations() {
@@ -177,13 +199,6 @@ void Watchdog::WriteWatchdogViolations() {
                          static_cast<int>(watchdog_json.size()));
   pending_write_ = false;
   time_last_written_microseconds_ = SbTimeGetMonotonicNow();
-}
-
-void Watchdog::UpdateState(base::ApplicationState state) {
-  if (is_disabled_) return;
-
-  starboard::ScopedLock scoped_lock(mutex_);
-  state_ = state;
 }
 
 void* Watchdog::Monitor(void* context) {
@@ -305,7 +320,6 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
       base::Value* violations = violation_dict->FindKey("violations");
       violations->GetList().emplace_back(violation.Clone());
     }
-    static_cast<Watchdog*>(context)->violations_count_++;
   } else {
     // Consecutive non-unique violation, updates violation in violations_map_.
     base::Value* violations = violation_dict->FindKey("violations");
@@ -320,48 +334,15 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
   }
   static_cast<Watchdog*>(context)->pending_write_ = true;
 
-  if (static_cast<Watchdog*>(context)->violations_count_ >
-      kWatchdogMaxViolations) {
+  int violations_count = 0;
+  for (const auto& it :
+       (static_cast<Watchdog*>(context)->violations_map_)->DictItems()) {
+    base::Value& violation_dict = it.second;
+    base::Value* violations = violation_dict.FindKey("violations");
+    violations_count += violations->GetList().size();
+  }
+  if (violations_count > kWatchdogMaxViolations) {
     EvictWatchdogViolation(context);
-  }
-}
-
-std::string Watchdog::ReadViolationFile(const char* file_path) {
-  starboard::ScopedFile read_file(file_path, kSbFileOpenOnly | kSbFileRead);
-  if (read_file.IsValid()) {
-    int64_t kFileSize = read_file.GetSize();
-    std::vector<char> buffer(kFileSize + 1, 0);
-    read_file.ReadAll(buffer.data(), kFileSize);
-    return std::string(buffer.data());
-  }
-  return "";
-}
-
-void Watchdog::InitializeViolationsMap(void* context) {
-  // Loads the previous Watchdog violations file containing violations before
-  // app start, if it exists, to populate violations_map_.
-  static_cast<Watchdog*>(context)->violations_count_ = 0;
-
-  std::string watchdog_json =
-      static_cast<Watchdog*>(context)->ReadViolationFile(
-          (static_cast<Watchdog*>(context)->GetWatchdogFilePath()).c_str());
-  if (watchdog_json != "") {
-    static_cast<Watchdog*>(context)->violations_map_ =
-        base::JSONReader::Read(watchdog_json);
-  }
-
-  if (static_cast<Watchdog*>(context)->violations_map_ == nullptr) {
-    SB_LOG(INFO) << "[Watchdog] No previous violations JSON.";
-    static_cast<Watchdog*>(context)->violations_map_ =
-        std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
-  } else {
-    for (const auto& it :
-         (static_cast<Watchdog*>(context)->violations_map_)->DictItems()) {
-      base::Value& violation_dict = it.second;
-      base::Value* violations = violation_dict.FindKey("violations");
-      static_cast<Watchdog*>(context)->violations_count_ +=
-          violations->GetList().size();
-    }
   }
 }
 
@@ -399,7 +380,6 @@ void Watchdog::EvictWatchdogViolation(void* context) {
   if (violation_dict != nullptr) {
     base::Value* violations = violation_dict->FindKey("violations");
     violations->GetList().erase(violations->GetList().begin());
-    static_cast<Watchdog*>(context)->violations_count_--;
     static_cast<Watchdog*>(context)->pending_write_ = true;
 
     // Removes empty violations.
@@ -407,9 +387,7 @@ void Watchdog::EvictWatchdogViolation(void* context) {
       (static_cast<Watchdog*>(context)->violations_map_)
           ->RemoveKey(evicted_name);
     }
-    if (static_cast<base::DictionaryValue*>(
-            static_cast<Watchdog*>(context)->violations_map_.get())
-            ->empty()) {
+    if (static_cast<Watchdog*>(context)->violations_map_->DictEmpty()) {
       starboard::SbFileDeleteRecursive(
           static_cast<Watchdog*>(context)->GetWatchdogFilePath().c_str(), true);
       static_cast<Watchdog*>(context)->pending_write_ = false;
@@ -569,31 +547,23 @@ std::string Watchdog::GetWatchdogViolations(
 
   starboard::ScopedLock scoped_lock(mutex_);
 
-  if (!static_cast<base::DictionaryValue*>(violations_map_.get())->empty()) {
+  if (!violations_map_->DictEmpty()) {
     if (clients.empty()) {
       // Gets all Watchdog violations if no clients are given.
       base::JSONWriter::Write(*violations_map_, &fetched_violations_json);
       if (clear) {
         static_cast<base::DictionaryValue*>(violations_map_.get())->Clear();
-        violations_count_ = 0;
         starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
       }
     } else {
       // Gets all Watchdog violations of the given clients.
       base::Value fetched_violations(base::Value::Type::DICTIONARY);
       for (std::string name : clients) {
-        base::Value* violation_dict =
-            static_cast<base::DictionaryValue*>(violations_map_.get())
-                ->FindKey(name);
+        base::Value* violation_dict = violations_map_->FindKey(name);
         if (violation_dict != nullptr) {
           fetched_violations.SetKey(name, (*violation_dict).Clone());
           if (clear) {
-            base::Value* violations = violation_dict->FindKey("violations");
-            int violations_count = violations->GetList().size();
-
-            static_cast<base::DictionaryValue*>(violations_map_.get())
-                ->RemoveKey(name);
-            violations_count_ -= violations_count;
+            violations_map_->RemoveKey(name);
             pending_write_ = true;
           }
         }
@@ -631,7 +601,6 @@ void Watchdog::EvictOldWatchdogViolations() {
 
       if (violation_timestamp_millis < cutoff_timestamp_millis) {
         list_it = violations->GetList().erase(list_it);
-        violations_count_--;
         pending_write_ = true;
       } else {
         list_it++;
@@ -646,7 +615,7 @@ void Watchdog::EvictOldWatchdogViolations() {
   for (std::string name : empty_violations) {
     violations_map_->RemoveKey(name);
   }
-  if (static_cast<base::DictionaryValue*>(violations_map_.get())->empty()) {
+  if (violations_map_->DictEmpty()) {
     starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
     pending_write_ = false;
   }
