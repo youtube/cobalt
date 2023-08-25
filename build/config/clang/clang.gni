@@ -5,7 +5,7 @@
 import("//build/toolchain/toolchain.gni")
 
 if (!use_cobalt_customizations) {
-  default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
+default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
 }
 
 declare_args() {
@@ -16,7 +16,7 @@ declare_args() {
       is_clang && !is_nacl && !use_xcode_clang &&
       default_toolchain != "//build/toolchain/cros:target"
 
-  if (!use_cobalt_customizations) {
-    clang_base_path = default_clang_base_path
-  }
+if (!use_cobalt_customizations) {
+  clang_base_path = default_clang_base_path
+}
 }
