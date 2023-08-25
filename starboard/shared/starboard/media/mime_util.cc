@@ -37,12 +37,15 @@ namespace {
 // Use SbMediaGetAudioConfiguration() to check if the platform can support
 // |channels|.
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {
+  // TODO(b/284140486, b/297426689): Consider removing the call to
+  // `SbMediaGetAudioOutputCount()` completely as the loop will be terminated
+  // once `SbMediaGetAudioConfiguration()` returns false.
   int count = SbMediaGetAudioOutputCount();
 
   for (int output_index = 0; output_index < count; ++output_index) {
     SbMediaAudioConfiguration configuration;
     if (!SbMediaGetAudioConfiguration(output_index, &configuration)) {
-      continue;
+      break;
     }
 
     if (configuration.coding_type == coding_type &&

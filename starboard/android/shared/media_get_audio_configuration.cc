@@ -17,6 +17,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/common/media.h"
 
 // Constants for output types from
 // https://developer.android.com/reference/android/media/AudioDeviceInfo.
@@ -129,11 +130,19 @@ SbMediaAudioConnector GetConnectorFromAndroidOutputType(
 bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
+  using starboard::GetMediaAudioConnectorName;
   using starboard::android::shared::JniEnvExt;
   using starboard::android::shared::MediaCapabilitiesCache;
   using starboard::android::shared::ScopedLocalJavaRef;
 
-  if (output_index < 0 || out_configuration == NULL) {
+  if (output_index < 0) {
+    SB_LOG(WARNING) << "output_index is " << output_index
+                    << ", which cannot be negative.";
+    return false;
+  }
+
+  if (out_configuration == nullptr) {
+    SB_LOG(WARNING) << "out_configuration cannot be nullptr.";
     return false;
   }
 
@@ -152,6 +161,8 @@ bool SbMediaGetAudioConfiguration(
       output_index, j_output_device_info.Get());
 
   if (!succeeded) {
+    SB_LOG(WARNING)
+        << "Call to AudioOutputManager.getOutputDeviceInfo() failed.";
     return false;
   }
 
@@ -171,9 +182,8 @@ bool SbMediaGetAudioConfiguration(
     int channels =
         MediaCapabilitiesCache::GetInstance()->GetMaxAudioOutputChannels();
     if (channels < 2) {
-      SB_LOG(WARNING)
-          << "The supported channels from output device is smaller than 2. "
-             "Fallback to 2 channels";
+      SB_LOG(WARNING) << "The supported channels from output device is "
+                      << channels << ", set to 2 channels instead.";
       out_configuration->number_of_channels = 2;
     } else {
       out_configuration->number_of_channels = channels;
@@ -181,6 +191,11 @@ bool SbMediaGetAudioConfiguration(
   } else {
     out_configuration->number_of_channels = 2;
   }
+
+  SB_LOG(INFO) << "Audio connector type for index " << output_index << " is "
+               << GetMediaAudioConnectorName(out_configuration->connector)
+               << " and it has " << out_configuration->number_of_channels
+               << " channels.";
 
   return true;
 }
