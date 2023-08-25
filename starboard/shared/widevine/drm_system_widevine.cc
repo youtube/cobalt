@@ -157,9 +157,10 @@ SbDrmStatus CdmStatusToSbDrmStatus(const wv3cdm::Status status) {
 SB_ONCE_INITIALIZE_FUNCTION(Mutex, GetInitializationMutex);
 
 void EnsureWidevineCdmIsInitialized(const std::string& company_name,
-                                    const std::string& model_name) {
+                                    const std::string& model_name,
+                                    WidevineStorage* storage) {
+  SB_DCHECK(storage) << "|storage| is NULL.";
   static WidevineClock s_clock;
-  static WidevineStorage s_storage(GetWidevineStoragePath());
   static WidevineTimer s_timer;
   static bool s_initialized = false;
 
@@ -190,7 +191,7 @@ void EnsureWidevineCdmIsInitialized(const std::string& company_name,
   log_level = wv3cdm::kSilent;
 #endif  // COBALT_BUILD_TYPE_GOLD
   wv3cdm::Status status =
-      wv3cdm::initialize(wv3cdm::kNoSecureOutput, client_info, &s_storage,
+      wv3cdm::initialize(wv3cdm::kNoSecureOutput, client_info, storage,
                          &s_clock, &s_timer, log_level);
   SB_DCHECK(status == wv3cdm::kSuccess);
   s_initialized = true;
@@ -235,9 +236,10 @@ DrmSystemWidevine::DrmSystemWidevine(
   }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-  EnsureWidevineCdmIsInitialized(company_name, model_name);
+  static WidevineStorage s_storage(GetWidevineStoragePath());
+  EnsureWidevineCdmIsInitialized(company_name, model_name, &s_storage);
   const bool kEnablePrivacyMode = true;
-  cdm_.reset(wv3cdm::create(this, NULL, kEnablePrivacyMode));
+  cdm_.reset(wv3cdm::create(this, &s_storage, kEnablePrivacyMode));
   SB_DCHECK(cdm_);
 
   // Get cert scope and pass to widevine.
