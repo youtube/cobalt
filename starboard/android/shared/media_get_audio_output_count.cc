@@ -15,6 +15,9 @@
 #include "starboard/media.h"
 
 int SbMediaGetAudioOutputCount() {
-  // Only supports one HDMI output.
-  return 1;
+  // TODO(b/284140486, b/297426689): Tentatively returns 16 to ensure that all
+  // audio output devices are checked in `IsAudioOutputSupported()`.  We should
+  // revisit this, and probably remove `SbMediaGetAudioOutputCount()` completely
+  // from Starboard.
+  return 16;
 }
