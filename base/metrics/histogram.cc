@@ -158,8 +158,6 @@ class Histogram::Factory {
 
 HistogramBase* Histogram::Factory::Build() {
   HistogramBase* histogram = StatisticsRecorder::FindHistogram(name_);
-  const bool found = (histogram != nullptr);
-  debug::Alias(&found);
   if (!histogram) {
     // TODO(gayane): |HashMetricName()| is called again in Histogram
     // constructor. Refactor code to avoid the additional call.
@@ -169,98 +167,9 @@ HistogramBase* Histogram::Factory::Build() {
       return DummyHistogram::GetInstance();
     // To avoid racy destruction at shutdown, the following will be leaked.
     const BucketRanges* created_ranges = CreateRanges();
-    CHECK(created_ranges->HasValidChecksum()) << name_;
-
-// Temporary check for https://crbug.com/836238
-#if defined(OS_WIN)  // Only Windows has a debugger that makes this useful.
-    if (bucket_count_ > 0 &&
-        maximum_ != created_ranges->range(bucket_count_ - 1)) {
-      // Create local copies of the parameters to be sure they'll be available
-      // in the crash dump for the debugger to see.
-      DEBUG_ALIAS_FOR_CSTR(h_name, name_.c_str(), 100);
-      HistogramType h_type = histogram_type_;
-      Sample h_min = minimum_;
-      Sample h_max = maximum_;
-      uint32_t h_count = bucket_count_;
-      debug::Alias(&h_type);
-      debug::Alias(&h_min);
-      debug::Alias(&h_max);
-      debug::Alias(&h_count);
-      uint32_t ranges_min = created_ranges->range(1);
-      uint32_t ranges_max = created_ranges->range(bucket_count_ - 1);
-      debug::Alias(&ranges_min);
-      debug::Alias(&ranges_max);
-      CHECK(false) << name_;
-    }
-#endif
-
-// Temporary check for https://crbug.com/836238
-#if defined(OS_WIN)  // Only Windows has a debugger that makes this useful.
-    std::unique_ptr<const BucketRanges> recreated_ranges(CreateRanges());
-    for (uint32_t i = 0; i < bucket_count_; ++i) {
-      uint32_t created_range = created_ranges->range(i);
-      uint32_t recreated_range = recreated_ranges->range(i);
-      debug::Alias(&created_range);
-      debug::Alias(&recreated_range);
-      if (created_range != recreated_range) {
-        // Create local copies of the parameters to be sure they'll be available
-        // in the crash dump for the debugger to see.
-        DEBUG_ALIAS_FOR_CSTR(h_name, name_.c_str(), 100);
-        HistogramType h_type = histogram_type_;
-        uint32_t b_count = bucket_count_;
-        size_t c_count = created_ranges->size() - 1;
-        size_t r_count = recreated_ranges->size() - 1;
-        bool c_valid = created_ranges->HasValidChecksum();
-        bool r_valid = recreated_ranges->HasValidChecksum();
-        CHECK(recreated_ranges->Equals(created_ranges)) << name_;
-        debug::Alias(&h_type);
-        debug::Alias(&b_count);
-        debug::Alias(&c_count);
-        debug::Alias(&r_count);
-        debug::Alias(&c_valid);
-        debug::Alias(&r_valid);
-        CHECK(false) << name_;
-      }
-    }
-    CHECK(recreated_ranges->Equals(created_ranges));
-#endif
 
     const BucketRanges* registered_ranges =
         StatisticsRecorder::RegisterOrDeleteDuplicateRanges(created_ranges);
-
-// Temporary check for https://crbug.com/836238
-#if defined(OS_WIN)  // Only Windows has a debugger that makes this useful.
-    bool using_created_ranges = (registered_ranges == created_ranges);
-    bool equal_ranges = registered_ranges->Equals(recreated_ranges.get());
-    debug::Alias(&using_created_ranges);
-    debug::Alias(&equal_ranges);
-    for (uint32_t i = 0; i < bucket_count_; ++i) {
-      uint32_t created_range = recreated_ranges->range(i);
-      uint32_t registered_range = registered_ranges->range(i);
-      debug::Alias(&created_range);
-      debug::Alias(&registered_range);
-      if (created_range != registered_range) {
-        // Create local copies of the parameters to be sure they'll be available
-        // in the crash dump for the debugger to see.
-        DEBUG_ALIAS_FOR_CSTR(h_name, name_.c_str(), 100);
-        HistogramType h_type = histogram_type_;
-        uint32_t b_count = bucket_count_;
-        size_t c_count = recreated_ranges->size() - 1;
-        size_t r_count = registered_ranges->size() - 1;
-        bool c_valid = recreated_ranges->HasValidChecksum();
-        bool r_valid = registered_ranges->HasValidChecksum();
-        CHECK(recreated_ranges->Equals(registered_ranges)) << name_;
-        debug::Alias(&h_type);
-        debug::Alias(&b_count);
-        debug::Alias(&c_count);
-        debug::Alias(&r_count);
-        debug::Alias(&c_valid);
-        debug::Alias(&r_valid);
-        CHECK(false) << name_;
-      }
-    }
-    CHECK(recreated_ranges->Equals(registered_ranges));
-#endif
 
     // In most cases, the bucket-count, minimum, and maximum values are known
     // when the code is written and so are passed in explicitly. In other
@@ -333,43 +242,6 @@ HistogramBase* Histogram::Factory::Build() {
                        static_cast<Sample>(HashMetricName(name_)));
     DLOG(ERROR) << "Histogram " << name_
                 << " has mismatched construction arguments";
-
-// crbug.com/836238: Temporarily create crashes for this condition in order
-// to find out why it is happening for many metrics that are hard-coded and
-// thus should never have a mismatch.
-// TODO(bcwhite): Revert this once some crashes have been collected.
-#if defined(OS_WIN)  // Only Windows has a debugger that makes this useful.
-    // Don't crash for linear histograms as these have never shown an error
-    // but mismitches still occur because of extensions that have different
-    // enumeration lists than what is inside Chrome. Continue to return the
-    // "dummy" histogram (below) instead.
-    if (histogram_type_ != LINEAR_HISTOGRAM) {
-      // Create local copies of the parameters to be sure they'll be available
-      // in the crash dump for the debugger to see.
-      const Histogram* h = static_cast<Histogram*>(histogram);
-      Sample hash_32 = static_cast<Sample>(HashMetricName(name_));
-      debug::Alias(&hash_32);
-      DEBUG_ALIAS_FOR_CSTR(new_name, name_.c_str(), 100);
-      HistogramType new_type = histogram_type_;
-      Sample new_min = minimum_;
-      Sample new_max = maximum_;
-      uint32_t new_count = bucket_count_;
-      debug::Alias(&new_type);
-      debug::Alias(&new_min);
-      debug::Alias(&new_max);
-      debug::Alias(&new_count);
-      DEBUG_ALIAS_FOR_CSTR(old_name, h->histogram_name(), 100);
-      HistogramType old_type = h->GetHistogramType();
-      Sample old_min = h->declared_min();
-      Sample old_max = h->declared_max();
-      uint32_t old_count = h->bucket_count();
-      debug::Alias(&old_type);
-      debug::Alias(&old_min);
-      debug::Alias(&old_max);
-      debug::Alias(&old_count);
-      CHECK(false) << name_;
-    }
-#endif
     return DummyHistogram::GetInstance();
   }
   return histogram;
@@ -467,15 +339,6 @@ void Histogram::InitializeBucketRanges(Sample minimum,
   ranges->set_range(bucket_index, current);
   size_t bucket_count = ranges->bucket_count();
 
-  // Temporary for https://crbug.com/836238
-  uint32_t checksum = static_cast<uint32_t>(bucket_count + 1);
-  checksum = Crc32(checksum, 0);
-  checksum = Crc32(checksum, current);
-  debug::Alias(&minimum);
-  debug::Alias(&maximum);
-  debug::Alias(&bucket_count);
-  debug::Alias(&checksum);
-
   while (bucket_count > ++bucket_index) {
     double log_current;
     log_current = log(static_cast<double>(current));
@@ -490,12 +353,9 @@ void Histogram::InitializeBucketRanges(Sample minimum,
     else
       ++current;  // Just do a narrow bucket, and keep trying.
     ranges->set_range(bucket_index, current);
-    checksum = Crc32(checksum, current);
   }
   ranges->set_range(ranges->bucket_count(), HistogramBase::kSampleType_MAX);
   ranges->ResetChecksum();
-  checksum = Crc32(checksum, HistogramBase::kSampleType_MAX);
-  CHECK_EQ(checksum, ranges->checksum());
 }
 
 // static
@@ -1126,32 +986,14 @@ void LinearHistogram::InitializeBucketRanges(Sample minimum,
   double max = maximum;
   size_t bucket_count = ranges->bucket_count();
 
-  // Temporary for https://crbug.com/836238
-  bool is_enum = (minimum == 1 &&
-                  static_cast<Sample>(bucket_count) == maximum - minimum + 2);
-  uint32_t checksum = static_cast<uint32_t>(bucket_count + 1);
-  checksum = Crc32(checksum, 0);
-  debug::Alias(&minimum);
-  debug::Alias(&maximum);
-  debug::Alias(&min);
-  debug::Alias(&max);
-  debug::Alias(&bucket_count);
-  debug::Alias(&checksum);
-  debug::Alias(&is_enum);
-
   for (size_t i = 1; i < bucket_count; ++i) {
     double linear_range =
         (min * (bucket_count - 1 - i) + max * (i - 1)) / (bucket_count - 2);
     uint32_t range = static_cast<Sample>(linear_range + 0.5);
-    if (is_enum)
-      CHECK_EQ(static_cast<uint32_t>(i), range);
     ranges->set_range(i, range);
-    checksum = Crc32(checksum, range);
   }
   ranges->set_range(ranges->bucket_count(), HistogramBase::kSampleType_MAX);
   ranges->ResetChecksum();
-  checksum = Crc32(checksum, HistogramBase::kSampleType_MAX);
-  CHECK_EQ(checksum, ranges->checksum());
 }
 
 // static
