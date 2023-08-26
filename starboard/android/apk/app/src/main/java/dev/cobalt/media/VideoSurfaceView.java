@@ -17,7 +17,10 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.PixelFormat;
+import android.graphics.PorterDuff;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.view.Surface;
@@ -73,6 +76,19 @@ public class VideoSurfaceView extends SurfaceView {
     // TODO: Avoid recreating the surface when the player bounds change.
     // Recreating the surface is time-consuming and complicates synchronizing
     // punch-out video when the position / size is animated.
+  }
+
+  public void clearSurface() {
+    if (getHolder().getSurface().isValid()) {
+      Canvas canvas = getHolder().lockCanvas();
+      if (canvas != null) {
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+        getHolder().unlockCanvasAndPost(canvas);
+      }
+      // Trigger a surface changed event to prevent 'already connected'.
+      getHolder().setFormat(PixelFormat.TRANSPARENT);
+      getHolder().setFormat(PixelFormat.OPAQUE);
+    }
   }
 
   private static native void nativeOnVideoSurfaceChanged(Surface surface);

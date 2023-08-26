@@ -328,6 +328,16 @@ public abstract class CobaltActivity extends GameActivity {
     getStarboardBridge().onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
+  public void clearVideoSurface() {
+    runOnUiThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (videoSurfaceView != null) videoSurfaceView.clearSurface();
+          }
+        });
+  }
+
   public void resetVideoSurface() {
     runOnUiThread(
         new Runnable() {
