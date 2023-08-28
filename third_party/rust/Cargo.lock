@@ -10,14 +10,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anstyle"
-version = "1.0.4"
-
-[[package]]
-name = "anyhow"
-version = "1.0.70"
-
-[[package]]
 name = "autocfg"
 version = "1.1.0"
 
@@ -82,6 +74,7 @@ name = "clap_builder"
 version = "4.4.6"
 dependencies = [
  "anstyle",
+ "bitflags",
  "clap_lex",
  "strsim",
 ]
@@ -149,6 +142,10 @@ version = "0.4.1"
 
 [[package]]
 name = "itoa"
+version = "0.4.8"
+
+[[package]]
+name = "itoa"
 version = "1.0.1"
 
 [[package]]
@@ -184,6 +181,10 @@ dependencies = [
 [[package]]
 name = "ppv-lite86"
 version = "0.2.17"
+
+[[package]]
+name = "os_str_bytes"
+version = "6.0.0"
 
 [[package]]
 name = "proc-macro2"
@@ -366,15 +367,6 @@ version = "1.1.0"
 [[package]]
 name = "strsim"
 version = "0.10.0"
-
-[[package]]
-name = "syn"
-version = "1.0.99"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-ident",
-]
 
 [[package]]
 name = "syn"
