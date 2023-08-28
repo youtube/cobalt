@@ -82,7 +82,7 @@ public class VideoSurfaceView extends SurfaceView {
     if (getHolder().getSurface().isValid()) {
       Canvas canvas = getHolder().lockCanvas();
       if (canvas != null) {
-        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+        canvas.drawColor(Color.BLACK, PorterDuff.Mode.CLEAR);
         getHolder().unlockCanvasAndPost(canvas);
       }
       // Trigger a surface changed event to prevent 'already connected'.
