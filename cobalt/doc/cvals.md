@@ -443,3 +443,17 @@ query):
     stopped playing animations.
 *   **Time.Renderer.Rasterize.NewRenderTree** - Time when the most recent render
     tree was first rasterized.
+
+### Starboard
+
+#### PublicCVals
+
+*   **Starboard.FileWrite.Success** - Count of successful file writes.
+*   **Starboard.FileWrite.Fail** - Count of failed file writes.
+*   **Starboard.FileWrite.BytesWritten** - Bytes written to file.
+*   **Starboard.StorageWriteRecord.Success** - Count of successful storage
+    record writes.
+*   **Starboard.StorageWriteRecord.Fail** - Count of failed storage record
+    writes.
+*   **Starboard.StorageWriteRecord.BytesWritten** - Bytes written to storage
+    record.
