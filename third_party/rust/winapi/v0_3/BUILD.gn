@@ -30,8 +30,6 @@ cargo_crate("lib") {
     "consoleapi",
     "errhandlingapi",
     "fileapi",
-    "handleapi",
-    "minwinbase",
     "minwindef",
     "processenv",
     "std",
