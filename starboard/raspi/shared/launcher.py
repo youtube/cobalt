@@ -69,8 +69,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
   _SSH_SLEEP_SIGNAL = 'cobalt-launcher-done-sleeping'
   _RASPI_PROMPT = 'pi@raspberrypi:'
 
-  # pexpect times out each second to allow Kill to quickly stop a test run
-  _PEXPECT_TIMEOUT = 1
+  # pexpect times out each 5 seconds to allow Kill to quickly stop a test run
+  _PEXPECT_TIMEOUT = 5
 
   # SSH shell command retries
   _PEXPECT_SPAWN_RETRIES = 20
