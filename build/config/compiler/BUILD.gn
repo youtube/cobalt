@@ -2361,14 +2361,14 @@ config("symbols") {
     if (is_clang) {
       cflags = [ "/Z7" ]  # Debug information in the .obj files.
     } else {
-      cflags = [ "/Zi" ]  # Produce PDB file, no edit and continue.
+      cflags = [ "/Z7" ]  # Produce PDB file, no edit and continue.    
     }
 
     if (is_clang && use_lld && use_ghash) {
       cflags += [ "-gcodeview-ghash" ]
       ldflags = [ "/DEBUG:GHASH" ]
     } else {
-      ldflags = [ "/DEBUG" ]
+      ldflags = []
     }
 
     # All configs using /DEBUG should include this:
