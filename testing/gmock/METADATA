@@ -1,13 +1,13 @@
 name: "testing/gmock"
 description:
-  "Copy of testing/gmock from Chromium branch-heads/5735"
+  "Copy of testing/gmock from Chromium"
 
 third_party {
   url {
     type: GIT
     value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "5cd6a34d059463d2bf7c2090d1904e527c3428b2"
+  version: "114.0.5735.330"
   last_upgrade_date {
     year: 2023
     month: 6
