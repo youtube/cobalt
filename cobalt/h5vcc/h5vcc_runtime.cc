@@ -25,6 +25,7 @@ namespace h5vcc {
 H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher)
     : event_dispatcher_(event_dispatcher),
       task_runner_(base::ThreadTaskRunnerHandle::Get()) {
+  DCHECK(task_runner_);
   on_deep_link_ = new H5vccDeepLinkEventTarget(
       base::Bind(&H5vccRuntime::GetUnconsumedDeepLink, base::Unretained(this)));
   on_pause_ = new H5vccRuntimeEventTarget;
@@ -87,6 +88,7 @@ void H5vccRuntime::TraceMembers(script::Tracer* tracer) {
 void H5vccRuntime::OnEventForDeepLink(const base::Event* event) {
   std::unique_ptr<base::DeepLinkEvent> deep_link_event(
       new base::DeepLinkEvent(event));
+  if (!task_runner_) return;
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
