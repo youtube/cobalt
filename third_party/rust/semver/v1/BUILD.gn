@@ -39,6 +39,7 @@ cargo_crate("lib") {
   library_configs += [ "//build/config/compiler:no_chromium_code" ]
   executable_configs -= [ "//build/config/compiler:chromium_code" ]
   executable_configs += [ "//build/config/compiler:no_chromium_code" ]
+<<<<<<< HEAD
   proc_macro_configs -= [ "//build/config/compiler:chromium_code" ]
   proc_macro_configs += [ "//build/config/compiler:no_chromium_code" ]
   features = [ "std" ]
@@ -55,4 +56,9 @@ cargo_crate("lib") {
   # it from first-party code.
   visibility = [ "//third_party/rust/*" ]
   testonly = true
+=======
+  features = [ "std" ]
+  build_root = "crate/build.rs"
+  build_sources = [ "crate/build.rs" ]
+>>>>>>> fbb02b6e81b (Remove third_party/rust gnrt dependencies)
 }
