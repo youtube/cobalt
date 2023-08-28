@@ -106,6 +106,7 @@ struct CodecProfileLevel {
 };
 
 std::string MEDIA_EXPORT GetCodecName(VideoCodec codec);
+std::string MEDIA_EXPORT GetCodecNameForUMA(VideoCodec codec);
 std::string MEDIA_EXPORT GetProfileName(VideoCodecProfile profile);
 std::string MEDIA_EXPORT BuildH264MimeSuffix(VideoCodecProfile profile,
                                              uint8_t level);
