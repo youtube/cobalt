@@ -89,8 +89,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
   _PROMPT_WAIT_MAX_RETRIES = 5
   # Wait up to 10 seconds for the password prompt from the raspi
   _PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES = 10
-  # Wait up to 900 seconds for new output from the raspi
-  _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 900
+  # Wait up to 1200 seconds for new output from the raspi
+  _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 1200
   # Delay between subsequent SSH commands
   _INTER_COMMAND_DELAY_SECONDS = 1.5
 
