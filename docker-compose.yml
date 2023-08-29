@@ -177,6 +177,7 @@ services:
       <<: *shared-build-env
       PLATFORM: stub
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   build-linux:
     <<: *build-common-definitions
@@ -200,6 +201,7 @@ services:
       PLATFORM: linux-x64x11
       CONFIG: ${CONFIG:-debug}
       TARGET: ${TARGET:-cobalt_install}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   linux-x64x11-bionic:
     <<:
@@ -227,6 +229,7 @@ services:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-gcc-6-3
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
     depends_on:
       - linux-x64x11-bionic
 
@@ -253,6 +256,7 @@ services:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-clang-3-9
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
     depends_on:
       - linux-x64x11-bionic
 
@@ -285,6 +289,7 @@ services:
       PLATFORM: android-x86
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-x86}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   android-arm:
     <<: *build-common-definitions
@@ -295,6 +300,7 @@ services:
       PLATFORM: android-arm
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   android-arm64:
     <<: *build-common-definitions
@@ -305,6 +311,7 @@ services:
       PLATFORM: android-arm64
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm64}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   build-raspi:
     <<: *build-common-definitions
@@ -325,6 +332,7 @@ services:
       <<: *shared-build-env
       PLATFORM: ${PLATFORM:-raspi-2}
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   # Define common build container for Evergreen
   build-evergreen:
@@ -345,16 +353,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-x64
       TARGET_CPU: ${TARGET_CPU:-x64}
-
-  evergreen-x64-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-x64-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-x64}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   evergreen-x86:
     <<: *build-common-definitions
@@ -364,16 +363,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-x86
       TARGET_CPU: ${TARGET_CPU:-x86}
-
-  evergreen-x86-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-x86-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-x86}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   evergreen-arm64:
     <<: *build-common-definitions
@@ -383,16 +373,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-arm64
       TARGET_CPU: ${TARGET_CPU:-arm64}
-
-  evergreen-arm64-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-arm64-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-arm64}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   evergreen-arm-hardfp:
     <<: *build-common-definitions
@@ -402,16 +383,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-hardfp
       TARGET_CPU: ${TARGET_CPU:-arm}
-
-  evergreen-arm-hardfp-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-arm-hardfp-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-arm}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   evergreen-arm-softfp:
     <<: *build-common-definitions
@@ -421,16 +393,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-softfp
       TARGET_CPU: ${TARGET_CPU:-arm}
-
-  evergreen-arm-softfp-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-arm-softfp-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-arm}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   # Defined common build image for linux-evergreen
   build-linux-evergreen:
@@ -445,6 +408,22 @@ services:
     environment:
       <<: *shared-build-env
 
+  linux-x64x11-evergreen:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-evergreen
+    image: cobalt-build-linux-x64x11-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      <<: *shared-build-env
+      PLATFORM: linux-x64x11
+      CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
+
+  # TODO(b/289252639): Remove this service after updating GCB.
   linux-x64x11-sbversion12-evergreen:
     <<: *build-common-definitions
     build:
@@ -456,9 +435,9 @@ services:
     depends_on: [ build-evergreen ]
     environment:
       <<: *shared-build-env
-      PLATFORM: linux-x64x11-sbversion-12
+      PLATFORM: linux-x64x11
       CONFIG: ${CONFIG:-debug}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   # Example usage of unittest:
   # 1. Build the containers for which you want to unittest
