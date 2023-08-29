@@ -31,6 +31,21 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<!-- The names should match media::GetCodecNameForUMA(). -->
+
+<variants name="VideoCodec">
+  <variant name="AV1"/>
+  <variant name="DolbyVision"/>
+  <variant name="H264"/>
+  <variant name="HEVC"/>
+  <variant name="MPEG2"/>
+  <variant name="MPEG4"/>
+  <variant name="Theora"/>
+  <variant name="VC1"/>
+  <variant name="VP8"/>
+  <variant name="VP9"/>
+</variants>
+
 <histogram name="Cobalt.DOM.CSS.Link.ParseTimeMicrosPerKB" units="microseconds"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of CSS parse performance. -->
@@ -53,6 +68,32 @@ Always run the pretty print utility on this file after editing:
     sample for HTMLStyleElements with CSS greater than 1KB. See
     go/cobalt-js-css-parsing-metrics for the full design.
   </summary>
+</histogram>
+
+<histogram name="Media.PipelineStatus.AudioVideo.{VideoCodec}.{Pipeline}"
+    enum="PipelineStatus" expires_after="never">
+<!-- expires-never: Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for audio-video
+    streams with {VideoCodec} video codec using {Pipeline}.
+  </summary>
+  <token key="VideoCodec" variants="VideoCodec"/>
+  <token key="Pipeline">
+    <variant name="DDS.HW"
+        summary="RendererImpl with hardware decoder and
+                 DecryptingDemuxerStream"/>
+    <variant name="DDS.SW"
+        summary="RendererImpl with software decoder and
+                 DecryptingDemuxerStream"/>
+    <variant name="DVD" summary="RendererImpl with DecryptingVideoDecoder"/>
+    <variant name="HW" summary="RendererImpl with hardware decoder"/>
+    <variant name="MediaFoundationRenderer"/>
+    <variant name="SW" summary="RendererImpl with software decoder"/>
+    <variant name="UnknownRenderer" summary="an unknown Renderer"/>
+  </token>
 </histogram>
 
 </histograms>

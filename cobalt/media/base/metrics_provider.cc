@@ -13,24 +13,19 @@
 // limitations under the License.
 
 #include "cobalt/media/base/metrics_provider.h"
-#include "base/logging.h"
 
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 
 
 namespace cobalt {
 namespace media {
 
-MediaMetricsProvider::MediaMetricsProvider() {
-  LOG(INFO) << "YO THOR - MEDIA METRICS PROVIDER CONSTRTRR!";
-}
+using starboard::ScopedLock;
 
 
 MediaMetricsProvider::~MediaMetricsProvider() {
-  LOG(INFO) << "YO THOR - MEDIA METRICS PROVIDER DDDDDEEEE-STRTRR!";
-  if (!IsInitialized())
-    return;
-
+  if (!IsInitialized()) return;
   ReportPipelineUMA();
 }
 
@@ -61,7 +56,7 @@ std::string MediaMetricsProvider::GetUMANameForAVStream(
 }
 
 void MediaMetricsProvider::ReportPipelineUMA() {
-  LOG(INFO) << "YO THOR - MEDIA METRICS PROVIDER REPORT PIPELINE UMA!";
+  ScopedLock scoped_lock(mutex_);
   if (uma_info_.has_video && uma_info_.has_audio) {
     base::UmaHistogramExactLinear(GetUMANameForAVStream(uma_info_),
                                   uma_info_.last_pipeline_status,
@@ -96,28 +91,32 @@ void MediaMetricsProvider::ReportPipelineUMA() {
   // effectiveness of efforts to reduce loaded-but-never-used players.
   if (uma_info_.has_reached_have_enough)
     base::UmaHistogramBoolean("Media.HasEverPlayed", uma_info_.has_ever_played);
-
 }
 
 void MediaMetricsProvider::SetHasPlayed() {
+  ScopedLock scoped_lock(mutex_);
   uma_info_.has_ever_played = true;
 }
 
 void MediaMetricsProvider::SetHasAudio(AudioCodec audio_codec) {
+  ScopedLock scoped_lock(mutex_);
   uma_info_.audio_codec = audio_codec;
   uma_info_.has_audio = true;
 }
 
 void MediaMetricsProvider::SetHasVideo(VideoCodec video_codec) {
+  ScopedLock scoped_lock(mutex_);
   uma_info_.video_codec = video_codec;
   uma_info_.has_video = true;
 }
 
 void MediaMetricsProvider::SetHaveEnough() {
+  ScopedLock scoped_lock(mutex_);
   uma_info_.has_reached_have_enough = true;
 }
 
 void MediaMetricsProvider::SetVideoPipelineInfo(const VideoPipelineInfo& info) {
+  ScopedLock scoped_lock(mutex_);
   auto old_decoder = uma_info_.video_pipeline_info.decoder_type;
   if (old_decoder != VideoDecoderType::kUnknown &&
       old_decoder != info.decoder_type)
@@ -126,37 +125,33 @@ void MediaMetricsProvider::SetVideoPipelineInfo(const VideoPipelineInfo& info) {
 }
 
 void MediaMetricsProvider::SetAudioPipelineInfo(const AudioPipelineInfo& info) {
+  ScopedLock scoped_lock(mutex_);
   uma_info_.audio_pipeline_info = info;
 }
 
-//void MediaMetricsProvider::Initialize(
-//    bool is_mse,
-//    mojom::MediaURLScheme url_scheme,
-//    mojom::MediaStreamType media_stream_type) {
-void MediaMetricsProvider::Initialize( bool is_mse) {
+void MediaMetricsProvider::Initialize(bool is_mse) {
   if (IsInitialized()) {
     return;
   }
 
-  media_info_.emplace(MediaInfo{
-      .is_mse = is_mse,
-    //  .url_scheme = url_scheme,
-    //  .media_stream_type = media_stream_type,
-  });
-  DCHECK(IsInitialized());
+  ScopedLock scoped_lock(mutex_);
+  media_info_.emplace(MediaInfo(is_mse));
 }
 
 void MediaMetricsProvider::OnError(const ::media::PipelineStatus& status) {
   DCHECK(IsInitialized());
+  ScopedLock scoped_lock(mutex_);
   uma_info_.last_pipeline_status = status;
 }
 
 void MediaMetricsProvider::SetIsEME() {
+  ScopedLock scoped_lock(mutex_);
   // This may be called before Initialize().
   uma_info_.is_eme = true;
 }
 
 bool MediaMetricsProvider::IsInitialized() const {
+  ScopedLock scoped_lock(mutex_);
   return media_info_.has_value();
 }
 

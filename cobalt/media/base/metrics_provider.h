@@ -15,11 +15,14 @@
 #ifndef COBALT_MEDIA_BASE_METRICS_PROVIDER_H_
 #define COBALT_MEDIA_BASE_METRICS_PROVIDER_H_
 
+#include <string>
+
+#include "starboard/common/mutex.h"
+#include "third_party/chromium/media/base/audio_codecs.h"
 #include "third_party/chromium/media/base/container_names.h"
 #include "third_party/chromium/media/base/pipeline_status.h"
-#include "third_party/chromium/media/base/audio_codecs.h"
-#include "third_party/chromium/media/base/video_codecs.h"
 #include "third_party/chromium/media/base/timestamp_constants.h"
+#include "third_party/chromium/media/base/video_codecs.h"
 
 namespace cobalt {
 namespace media {
@@ -33,10 +36,8 @@ using PipelineStatus = ::media::PipelineStatus;
 using VideoDecoderType = ::media::VideoDecoderType;
 
 class MediaMetricsProvider {
-
  public:
-
-  MediaMetricsProvider();
+  MediaMetricsProvider() = default;
   ~MediaMetricsProvider();
 
  private:
@@ -53,21 +54,19 @@ class MediaMetricsProvider {
     ::media::VideoCodec video_codec;
     ::media::VideoPipelineInfo video_pipeline_info;
     ::media::AudioPipelineInfo audio_pipeline_info;
-    ::media::PipelineStatus last_pipeline_status = ::media::PipelineStatus::PIPELINE_OK;
+    ::media::PipelineStatus last_pipeline_status =
+        ::media::PipelineStatus::PIPELINE_OK;
   };
 
   struct MediaInfo {
+    explicit MediaInfo(bool is_mse) : is_mse{is_mse} {};
     const bool is_mse;
-    // const mojom::MediaURLScheme url_scheme;
-    // const mojom::MediaStreamType media_stream_type;
   };
 
 
+ public:
   // based on mojom::MediaMetricsProvider
   void Initialize(bool is_mse);
-  //void Initialize(bool is_mse,
-                  //mojom::MediaURLScheme url_scheme,
-                  //mojom::MediaStreamType media_stream_type);
   void OnError(const ::media::PipelineStatus& status);
   void SetAudioPipelineInfo(const ::media::AudioPipelineInfo& info);
   void SetVideoPipelineInfo(const ::media::VideoPipelineInfo& info);
@@ -92,6 +91,7 @@ class MediaMetricsProvider {
   // The values below are only set if `Initialize` has been called.
   absl::optional<MediaInfo> media_info_;
 
+  starboard::Mutex mutex_;
 };
 
 }  // namespace media
