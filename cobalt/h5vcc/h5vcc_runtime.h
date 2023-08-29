@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/event_dispatcher.h"
@@ -63,9 +64,9 @@ class H5vccRuntime : public script::Wrappable {
   base::EventCallback deep_link_event_callback_;
   base::OnceClosure consumed_callback_;
 
-  // Track the message loop that created this object so deep link events are
-  // handled from the same thread.
-  base::MessageLoop* message_loop_;
+  // Track the task runner from where this object is created so deep link events
+  // are handled from the same task runner.
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.
