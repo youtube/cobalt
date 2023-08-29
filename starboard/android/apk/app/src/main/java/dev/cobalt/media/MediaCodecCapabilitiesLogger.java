@@ -16,14 +16,18 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
+import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
+import android.os.Build;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 
 /** Utility class to log MediaCodec capabilities. */
 public class MediaCodecCapabilitiesLogger {
@@ -45,7 +49,7 @@ public class MediaCodecCapabilitiesLogger {
   }
 
   /** Returns a string detailing SDR and HDR capabilities of a decoder. */
-  public static String getSupportedResolutionsAndFrameRates(
+  private static String getSupportedResolutionsAndFrameRates(
       VideoCapabilities videoCapabilities, boolean isHdrCapable) {
     ArrayList<ArrayList<Integer>> resolutionList =
         new ArrayList<>(
@@ -89,7 +93,7 @@ public class MediaCodecCapabilitiesLogger {
    * Like getSupportedResolutionsAndFrameRates(), but returns the full information for each frame
    * rate and resolution combination.
    */
-  public static String getLongFormSupportedResolutionsAndFrameRates(
+  private static String getLongFormSupportedResolutionsAndFrameRates(
       ArrayList<ArrayList<Integer>> resolutionList,
       ArrayList<Double> frameRateList,
       VideoCapabilities videoCapabilities,
@@ -108,10 +112,10 @@ public class MediaCodecCapabilitiesLogger {
   }
 
   /** Convert a list of ResolutionAndFrameRate to a human readable string. */
-  public static String convertResolutionAndFrameRatesToString(
+  private static String convertResolutionAndFrameRatesToString(
       ArrayList<ResolutionAndFrameRate> supported, boolean isHdrCapable) {
     if (supported.isEmpty()) {
-      return "None. ";
+      return "None.";
     }
     String frameRateAndResolutionString = "";
     for (ResolutionAndFrameRate resolutionAndFrameRate : supported) {
@@ -123,8 +127,109 @@ public class MediaCodecCapabilitiesLogger {
               resolutionAndFrameRate.height,
               resolutionAndFrameRate.frameRate);
     }
-    frameRateAndResolutionString += isHdrCapable ? "hdr/sdr, " : "sdr, ";
+    frameRateAndResolutionString += isHdrCapable ? "hdr/sdr" : "sdr";
     return frameRateAndResolutionString;
+  }
+
+  private interface CodecFeatureSupported {
+    boolean isSupported(String name, CodecCapabilities codecCapabilities);
+  }
+
+  static TreeMap<String, CodecFeatureSupported> featureMap;
+
+  private static void ensurefeatureMapInitialized() {
+    if (featureMap != null) {
+      return;
+    }
+    featureMap = new TreeMap<>();
+    featureMap.put(
+        "AdaptivePlayback",
+        (name, codecCapabilities) -> {
+          return codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
+        });
+    featureMap.put(
+        "FrameParsing",
+        (name, codecCapabilities) -> {
+          return codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_FrameParsing);
+        });
+    featureMap.put(
+        "LowLatency",
+        (name, codecCapabilities) -> {
+          return codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency);
+        });
+    featureMap.put(
+        "MultipleFrames",
+        (name, codecCapabilities) -> {
+          return codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_MultipleFrames);
+        });
+    featureMap.put(
+        "PartialFrame",
+        (name, codecCapabilities) -> {
+          return codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_PartialFrame);
+        });
+    featureMap.put(
+        "LinearBlockCopyFree",
+        (name, codecCapabilities) -> {
+          if (Build.VERSION.SDK_INT < 30) {
+            // MediaCodec.LinearBlock is introduced in api level 30.
+            return false;
+          }
+          VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
+          if (videoCapabilities == null) {
+            return false;
+          }
+          try {
+            String canonicalName = MediaCodec.createByCodecName(name).getName();
+            String[] codecNames = new String[] {canonicalName};
+            return MediaCodec.LinearBlock.isCodecCopyFreeCompatible(codecNames);
+          } catch (Exception e) {
+            Log.e(
+                TAG,
+                "Failed to create MediaCodec or call isCodecCopyFreeCompatible() on codec name"
+                    + " \"%s\" with error %s",
+                name,
+                e);
+            return false;
+          }
+        });
+    featureMap.put(
+        "SecurePlayback",
+        (name, codecCapabilities) -> {
+          return codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
+        });
+    featureMap.put(
+        "TunneledPlayback",
+        (name, codecCapabilities) -> {
+          return codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
+        });
+  }
+
+  private static String getAllFeatureNames() {
+    ensurefeatureMapInitialized();
+    return featureMap.keySet().toString();
+  }
+
+  private static String getSupportedFeaturesAsString(
+      String name, CodecCapabilities codecCapabilities) {
+    StringBuilder featuresAsString = new StringBuilder();
+
+    ensurefeatureMapInitialized();
+    for (Map.Entry<String, CodecFeatureSupported> entry : featureMap.entrySet()) {
+      if (entry.getValue().isSupported(name, codecCapabilities)) {
+        if (featuresAsString.length() > 0) {
+          featuresAsString.append(", ");
+        }
+        featuresAsString.append(entry.getKey());
+      }
+    }
+    return featuresAsString.toString();
   }
 
   /**
@@ -132,20 +237,20 @@ public class MediaCodecCapabilitiesLogger {
    * particular system.
    */
   public static void dumpAllDecoders() {
-    String decoderDumpString = "";
+    StringBuilder decoderDumpString = new StringBuilder();
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
       if (info.isEncoder()) {
         continue;
       }
       for (String supportedType : info.getSupportedTypes()) {
         String name = info.getName();
-        decoderDumpString +=
+        decoderDumpString.append(
             String.format(
                 Locale.US,
-                "name: %s (%s, %s): ",
+                "name: %s (%s, %s):",
                 name,
                 supportedType,
-                MediaCodecUtil.isCodecDenyListed(name) ? "denylisted" : "not denylisted");
+                MediaCodecUtil.isCodecDenyListed(name) ? "denylisted" : "not denylisted"));
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
         String resultName =
@@ -160,10 +265,10 @@ public class MediaCodecCapabilitiesLogger {
         if (videoCapabilities != null) {
           String frameRateAndResolutionString =
               getSupportedResolutionsAndFrameRates(videoCapabilities, isHdrCapable);
-          decoderDumpString +=
+          decoderDumpString.append(
               String.format(
                   Locale.US,
-                  "\n\t\t"
+                  "\n\t"
                       + "widths: %s, "
                       + "heights: %s, "
                       + "bitrates: %s, "
@@ -173,44 +278,26 @@ public class MediaCodecCapabilitiesLogger {
                   videoCapabilities.getSupportedHeights().toString(),
                   videoCapabilities.getBitrateRange().toString(),
                   videoCapabilities.getSupportedFrameRates().toString(),
-                  frameRateAndResolutionString);
+                  frameRateAndResolutionString));
         }
-        boolean isAdaptivePlaybackSupported =
-            codecCapabilities.isFeatureSupported(
-                MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
-        boolean isSecurePlaybackSupported =
-            codecCapabilities.isFeatureSupported(
-                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
-        boolean isTunneledPlaybackSupported =
-            codecCapabilities.isFeatureSupported(
-                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
-        if (isAdaptivePlaybackSupported
-            || isSecurePlaybackSupported
-            || isTunneledPlaybackSupported) {
-          decoderDumpString +=
-              String.format(
-                  Locale.US,
-                  "(%s%s%s",
-                  isAdaptivePlaybackSupported ? "AdaptivePlayback, " : "",
-                  isSecurePlaybackSupported ? "SecurePlayback, " : "",
-                  isTunneledPlaybackSupported ? "TunneledPlayback, " : "");
-          // Remove trailing space and comma
-          decoderDumpString = decoderDumpString.substring(0, decoderDumpString.length() - 2);
-          decoderDumpString += ")";
+        String featuresAsString = getSupportedFeaturesAsString(name, codecCapabilities);
+        if (featuresAsString.isEmpty()) {
+          decoderDumpString.append(" No extra features supported");
         } else {
-          decoderDumpString += " No extra features supported";
+          decoderDumpString.append("\n\tsupported features: ");
+          decoderDumpString.append(featuresAsString);
         }
-        decoderDumpString += "\n";
+        decoderDumpString.append("\n");
       }
     }
     Log.v(
         TAG,
-        " \n"
+        "\n"
             + "==================================================\n"
-            + "Full list of decoder features: [AdaptivePlayback, SecurePlayback,"
-            + " TunneledPlayback]\n"
-            + "Unsupported features for each codec are not listed\n"
-            + decoderDumpString
+            + "Full list of decoder features: "
+            + getAllFeatureNames()
+            + "\nUnsupported features for each codec are not listed\n"
+            + decoderDumpString.toString()
             + "==================================================");
   }
 }
