@@ -706,7 +706,6 @@ public class MediaDrmBridge {
           String.format("Successfully closed session (%s)", bytesToHexString(sessionId.array())));
     }
     mSessionIds.clear();
-    mSessionIds = null;
 
     // Close mMediaCryptoSession if it's open.
     if (mMediaCryptoSession != null) {

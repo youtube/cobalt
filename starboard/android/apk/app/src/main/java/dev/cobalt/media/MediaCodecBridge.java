@@ -796,7 +796,7 @@ class MediaCodecBridge {
       String codecName = mMediaCodec.getName();
       Log.w(TAG, "calling MediaCodec.release() on " + codecName);
       mMediaCodec.release();
-    } catch (IllegalStateException e) {
+    } catch (Exception e) {
       // The MediaCodec is stuck in a wrong state, possibly due to losing
       // the surface.
       Log.e(TAG, "Cannot release media codec", e);
@@ -875,7 +875,7 @@ class MediaCodecBridge {
     }
     try {
       mMediaCodec.stop();
-    } catch (IllegalStateException e) {
+    } catch (Exception e) {
       Log.e(TAG, "Failed to stop MediaCodec", e);
     }
   }
