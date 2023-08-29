@@ -31,7 +31,6 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Build;
-import android.os.Build.VERSION;
 import android.util.Pair;
 import android.util.Size;
 import android.util.SizeF;
@@ -188,43 +187,44 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void startMediaPlaybackService() {
-    if (cobaltMediaSession == null || !cobaltMediaSession.isActive()) {
-      Log.w(TAG, "Do not start a MediaPlaybackService when the MediSsession is null or inactive.");
-      return;
-    }
+    // if (cobaltMediaSession == null || !cobaltMediaSession.isActive()) {
+    //   Log.w(TAG, "Do not start a MediaPlaybackService when the MediSsession is null or
+    // inactive.");
+    //   return;
+    // }
 
-    Service service = serviceHolder.get();
-    if (service == null) {
-      if (appContext == null) {
-        Log.w(TAG, "Activiy already destroyed.");
-        return;
-      }
-      Log.i(TAG, "Cold start - Instantiating a MediaPlaybackService.");
-      Intent intent = new Intent(appContext, MediaPlaybackService.class);
-      try {
-        if (VERSION.SDK_INT >= 26) {
-          appContext.startForegroundService(intent);
-        } else {
-          appContext.startService(intent);
-        }
-      } catch (SecurityException e) {
-        Log.e(TAG, "Failed to start MediaPlaybackService with intent.", e);
-        return;
-      }
-    } else {
-      Log.i(TAG, "Warm start - Restarting the MediaPlaybackService.");
-      ((MediaPlaybackService) service).startService();
-    }
+    // Service service = serviceHolder.get();
+    // if (service == null) {
+    //   if (appContext == null) {
+    //     Log.w(TAG, "Activiy already destroyed.");
+    //     return;
+    //   }
+    //   Log.i(TAG, "Cold start - Instantiating a MediaPlaybackService.");
+    //   Intent intent = new Intent(appContext, MediaPlaybackService.class);
+    //   try {
+    //     if (VERSION.SDK_INT >= 26) {
+    //       appContext.startForegroundService(intent);
+    //     } else {
+    //       appContext.startService(intent);
+    //     }
+    //   } catch (SecurityException e) {
+    //     Log.e(TAG, "Failed to start MediaPlaybackService with intent.", e);
+    //     return;
+    //   }
+    // } else {
+    //   Log.i(TAG, "Warm start - Restarting the MediaPlaybackService.");
+    //   ((MediaPlaybackService) service).startService();
+    // }
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   protected void stopMediaPlaybackService() {
-    Service service = serviceHolder.get();
-    if (service != null) {
-      Log.i(TAG, "Stopping the MediaPlaybackService.");
-      ((MediaPlaybackService) service).stopService();
-    }
+    // Service service = serviceHolder.get();
+    // if (service != null) {
+    //   Log.i(TAG, "Stopping the MediaPlaybackService.");
+    //   ((MediaPlaybackService) service).stopService();
+    // }
   }
 
   @SuppressWarnings("unused")
@@ -254,6 +254,15 @@ public class StarboardBridge {
       for (CobaltService service : cobaltServices.values()) {
         service.beforeSuspend();
       }
+      // QUESTION:
+      // Inside android_main.cc StopMediaPlaybackService() is called in OnResume(), when the app is
+      // about to be in foreground,
+      // StartMediaPlaybackService() is called in OnPause(), when the app is about to be in
+      // background,
+      // why here stopMediaPlaybackService() is called in beforeSuspend()? when the app is about to
+      // be
+      // in background. This is conflicted with the logic in android_main.cc.
+
       // We need to stop MediaPlaybackService before suspending so that this foreground service
       // would not prevent releasing activity's memory consumption.
       stopMediaPlaybackService();

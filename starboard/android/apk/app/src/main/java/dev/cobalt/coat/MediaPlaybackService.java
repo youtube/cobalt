@@ -47,6 +47,11 @@ public class MediaPlaybackService extends Service {
     Log.i(TAG, "Creating a Media playback foreground service.");
     super.onCreate();
     getStarboardBridge().onServiceStart(this);
+    // QUESTION: should we move this line into startService()?
+    // I see code examples here https://androidwave.com/foreground-service-android-example/, that
+    // createNotificationChannel() is called before startForeground()
+    // Will the channel be recycled by the Android OS, should we recreate it before we run
+    // startForeground() to send the notification?
     createNotificationChannel();
   }
 
@@ -77,6 +82,17 @@ public class MediaPlaybackService extends Service {
 
   public void startService() {
     try {
+      // QUESTION: would this work for VERSION.SDK_INT < 26?
+      // 1. StarboardBridge run startService() for VERSION.SDK_INT < 26, and run
+      // startForegroundService() for
+      // VERSION.SDK_INT >= 26.
+      // For VERSION.SDK_INT < 26, when startService() is called, should we still call
+      // startForeground()?
+      // 2. createNotificationChannel() only created the channel with NOTIFICATION_CHANNEL_ID when
+      // VERSION.SDK_INT >= 26.
+      // NOTIFICATION_CHANNEL_ID is set in the Notification returned by buildNotification(), for
+      // VERSION.SDK_INT < 26, when the channel for NOTIFICATION_CHANNEL_ID is not created, would it
+      // fail here?
       startForeground(NOTIFICATION_ID, buildNotification());
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to start Foreground Service", e);
@@ -85,6 +101,7 @@ public class MediaPlaybackService extends Service {
 
   public void stopService() {
     // Let service itself handle notification deletion.
+    // QUESTION: Same as startForeground()
     stopForeground(true);
     stopSelf();
   }
@@ -94,6 +111,7 @@ public class MediaPlaybackService extends Service {
       try {
         createNotificationChannelInternalV26();
       } catch (RemoteException e) {
+        // QUESTION: When this fails, the channel is not created, should we still run startService()
         Log.e(TAG, "Failed to create Notification Channel.", e);
       }
     }
