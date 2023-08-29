@@ -329,13 +329,7 @@ public abstract class CobaltActivity extends GameActivity {
   }
 
   public void clearVideoSurface() {
-    runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            if (videoSurfaceView != null) videoSurfaceView.clearSurface();
-          }
-        });
+    if (videoSurfaceView != null) videoSurfaceView.clearSurface();
   }
 
   public void resetVideoSurface() {
