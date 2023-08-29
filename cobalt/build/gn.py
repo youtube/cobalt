@@ -85,15 +85,23 @@ if __name__ == '__main__':
       help='Whether or not to overwrite an existing args.gn file if one exists '
       'in the out directory. In general, if the file exists, you should run '
       '`gn args <out_directory>` to edit it instead.')
-  known_args, unknown_args = parser.parse_known_args()
+  parser.add_argument(
+      '--no-check',
+      default=False,
+      action='store_true',
+      help='Pass this flag to disable the header dependency gn check.')
+  script_args, gen_args = parser.parse_known_args()
 
-  if known_args.out_directory:
-    builds_out_directory = known_args.out_directory
+  if not script_args.no_check:
+    gen_args.append('--check')
+
+  if script_args.out_directory:
+    builds_out_directory = script_args.out_directory
   else:
     builds_directory = os.getenv('COBALT_BUILDS_DIRECTORY',
-                                 known_args.builds_directory or 'out')
+                                 script_args.builds_directory or 'out')
     builds_out_directory = os.path.join(
-        builds_directory, f'{known_args.platform}_{known_args.build_type}')
+        builds_directory, f'{script_args.platform}_{script_args.build_type}')
 
-  main(builds_out_directory, known_args.platform, known_args.build_type,
-       known_args.overwrite_args, unknown_args)
+  main(builds_out_directory, script_args.platform, script_args.build_type,
+       script_args.overwrite_args, gen_args)
