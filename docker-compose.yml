@@ -87,6 +87,11 @@ services:
 
   crashpad-symbolize:
     build:
+      args:
+        - GITHUB_TAG=${GITHUB_TAG:-23.lts.5}
+        - ARCHITECTURE=${ARCHITECTURE:-x64}
+        - SB_API_VERSION=${SB_API_VERSION:-14}
+        - CONFIG=${CONFIG:-qa}
       context: ./docker/crashpad_symbolize
       dockerfile: Dockerfile
     image: crashpad-symbolize
