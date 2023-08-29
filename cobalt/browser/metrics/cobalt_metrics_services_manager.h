@@ -59,6 +59,14 @@ class CobaltMetricsServicesManager
   static void SetOnUploadHandler(
       const CobaltMetricsUploaderCallback* uploader_callback);
 
+  // Attempts to clean up the passed reference to CobaltMetricsUploaderCallback,
+  // IFF it matches the current callback reference in
+  // CobaltMetricsServiceManager. This is to avoid situations where two clients
+  // are competing to override the upload handler and prevent one from
+  // inadvertently clobbering another.
+  static void RemoveOnUploadHandler(
+      const CobaltMetricsUploaderCallback* uploader_callback);
+
   // Toggles whether metric reporting is enabled via
   // CobaltMetricsServicesManager.
   static void ToggleMetricsEnabled(bool is_enabled);
@@ -69,6 +77,9 @@ class CobaltMetricsServicesManager
 
  private:
   void SetOnUploadHandlerInternal(
+      const CobaltMetricsUploaderCallback* uploader_callback);
+
+  void RemoveOnUploadHandlerInternal(
       const CobaltMetricsUploaderCallback* uploader_callback);
 
   void ToggleMetricsEnabledInternal(bool is_enabled);
