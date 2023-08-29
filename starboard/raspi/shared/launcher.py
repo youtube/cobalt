@@ -260,21 +260,16 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _PexpectReadLines(self):
     """Reads all lines from the pexpect process."""
-
-    def _readline():
-      # Sanitize the line to remove ansi color codes.
-      return Launcher._PEXPECT_SANITIZE_LINE_RE.sub(
-          '', self.pexpect_process.readline())
-
     while True:
       # pylint: disable=unnecessary-lambda
       line = retry.with_retry(
-          _readline,
+          self.pexpect_process.readline,
           exceptions=Launcher._RETRY_EXCEPTIONS,
           retries=Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES,
           backoff=lambda: self.shutdown_initiated.is_set(),
           wrap_exceptions=False)
-
+      # Sanitize the line to remove ansi color codes.
+      line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub('', line)
       self.output_file.flush()
       if not line:
         return
