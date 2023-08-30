@@ -41,19 +41,6 @@ x-shared-build-env: &shared-build-env
   IS_DOCKER: 1
   PYTHONPATH: /code
 
-x-shared-docsite-definitions: &shared-docsite-definitions
-  build:
-    context: ./internal/docker/docsite
-    dockerfile: Dockerfile
-    args:
-      - USER=root
-      - UID=2000
-      - GID=2000
-  environment:
-    - PYTHONPATH=/code
-  volumes:
-    - ${COBALT_SRC:-.}:/code
-
 x-shared-unittest-definitions: &shared-unittest-definitions
   stdin_open: true
   tty: true
@@ -143,18 +130,6 @@ services:
     depends_on:
       - base-bionic
     scale: 0
-
-  docsite:
-    <<: *shared-docsite-definitions
-    image: cobalt-build-docsite
-    ports:
-      # The docsite webapp runs on port 4000.
-      - "4000:4000"
-
-  docsite-deploy:
-    <<: *shared-docsite-definitions
-    image: cobalt-build-docsite-deploy
-    entrypoint: ["/code/third_party/internal/repo-publishing-toolkit-local/preview-site.sh", "deploy"]
 
   build-linux-stub:
     <<: *build-common-definitions
