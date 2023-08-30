@@ -423,22 +423,6 @@ services:
       CONFIG: ${CONFIG:-debug}
       SB_API_VERSION: ${SB_API_VERSION}
 
-  # TODO(b/289252639): Remove this service after updating GCB.
-  linux-x64x11-sbversion12-evergreen:
-    <<: *build-common-definitions
-    build:
-      context: ./docker/linux
-      dockerfile: linux-x64x11/Dockerfile
-      args:
-        - FROM_IMAGE=cobalt-build-evergreen
-    image: cobalt-build-linux-x64x11-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: linux-x64x11
-      CONFIG: ${CONFIG:-debug}
-      SB_API_VERSION: ${SB_API_VERSION}
-
   # Example usage of unittest:
   # 1. Build the containers for which you want to unittest
   # docker compose up --build --no-start linux-x64x11-unittest
