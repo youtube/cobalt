@@ -44,9 +44,6 @@ declare_args() {
   # Directory path to static contents' data.
   sb_static_contents_output_data_dir = "$root_out_dir/content/data"
 
-  # Whether this is a modular build.
-  sb_is_modular = false
-
   # Whether this is an Evergreen build.
   sb_is_evergreen = false
 
