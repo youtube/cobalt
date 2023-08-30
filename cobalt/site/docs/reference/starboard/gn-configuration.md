@@ -35,7 +35,6 @@ title: "Starboard: configuration.gni Reference Guide"
 | **`sb_filter_based_player`**<br><br> Used to indicate that the player is filter based.<br><br>The default value is `true`. |
 | **`sb_is_evergreen`**<br><br> Whether this is an Evergreen build.<br><br>The default value is `false`. |
 | **`sb_is_evergreen_compatible`**<br><br> Whether this is an Evergreen compatible platform. A compatible platform can run the elf_loader and launch the Evergreen build.<br><br>The default value is `false`. |
-| **`sb_is_modular`**<br><br> Whether this is a modular build.<br><br>The default value is `false`. |
 | **`sb_libevent_method`**<br><br> The event polling mechanism available on this platform to support libevent. Platforms may redefine to 'poll' if necessary. Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.<br><br>The default value is `"epoll"`. |
 | **`sb_static_contents_output_data_dir`**<br><br> Directory path to static contents' data.<br><br>The default value is `"/project_out_dir/content/data"`. |
 | **`sb_use_no_rtti`**<br><br> Whether or not to disable run-time type information (adding no_rtti flag).<br><br>The default value is `false`. |
