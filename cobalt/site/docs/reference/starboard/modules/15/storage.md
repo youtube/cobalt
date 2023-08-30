@@ -3,14 +3,14 @@ layout: doc
 title: "Starboard Module Reference: storage.h"
 ---
 
-Defines a user-based Storage API. This is a simple, all-at-once BLOB storage and
-retrieval API that is intended for robust long-term, per-user storage. Some
-platforms have different mechanisms for this kind of storage, so this API exists
-to allow a client application to access this kind of storage.
+Defines a Storage API. This is a simple, all-at-once BLOB storage and retrieval
+API that is intended for robust long-term storage. Some platforms have different
+mechanisms for this kind of storage, so this API exists to allow a client
+application to access this kind of storage.
 
-Note that there can be only one storage record per user and, thus, a maximum of
-one open storage record can exist for each user. Attempting to open a second
-record for a user will result in undefined behavior.
+Note that there can be only one storage record and, thus, a maximum of one open
+storage record can exist. Attempting to open a second record will result in
+undefined behavior.
 
 These APIs are NOT expected to be thread-safe, so either call them from a single
 thread, or perform proper synchronization around all calls.

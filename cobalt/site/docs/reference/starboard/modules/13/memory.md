@@ -125,8 +125,7 @@ void* SbMemoryAllocateChecked(size_t size)
 
 ### SbMemoryAllocateNoReport ###
 
-Same as SbMemoryAllocate() but will not report memory to the tracker. Avoid
-using this unless absolutely necessary.
+DEPRECATED: Same as SbMemoryAllocate().
 
 #### Declaration ####
 
@@ -185,8 +184,7 @@ void SbMemoryDeallocateAligned(void *memory)
 
 ### SbMemoryDeallocateNoReport ###
 
-Same as SbMemoryDeallocate() but will not report memory deallocation to the
-tracker. This function must be matched with SbMemoryAllocateNoReport().
+DEPRECATED: Same as SbMemoryDeallocate()
 
 #### Declaration ####
 

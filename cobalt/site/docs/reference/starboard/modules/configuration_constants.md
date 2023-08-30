@@ -139,3 +139,7 @@ The string form of SB_PATH_SEP_CHAR.
 Specifies the preferred byte order of color channels in a pixel. Refer to
 starboard/configuration.h for the possible values. EGL/GLES platforms should
 generally prefer a byte order of RGBA, regardless of endianness.
+
+### kSbUserMaxSignedIn ###
+
+The maximum number of users that can be signed in at the same time.

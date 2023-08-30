@@ -159,8 +159,7 @@ the type of the value pointed to by that data argument, if any.
 *   `kSbEventTypeUser`
 
     A user change event, which means a new user signed-in or signed-out, or the
-    current user changed. No data argument, call SbUserGetSignedIn() and
-    SbUserGetCurrent() to get the latest changes.
+    current user changed. No data argument.
 *   `kSbEventTypeLink`
 
     A navigational link has come from the system, and the application should
