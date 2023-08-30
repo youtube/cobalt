@@ -208,39 +208,24 @@ void* Watchdog::Monitor(void* context) {
   starboard::ScopedLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
   while (1) {
     SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
-
-    // Iterates through client map to monitor all registered clients.
     bool watchdog_violation = false;
+
+    // Iterates through client map to monitor all name registered clients.
     for (auto& it : static_cast<Watchdog*>(context)->client_map_) {
       Client* client = it.second.get();
-      // Ignores and resets clients in idle states, clients whose monitor_state
-      // is below the current application state. Resets time_wait_microseconds
-      // and time_interval_microseconds start values.
-      if (static_cast<Watchdog*>(context)->state_ > client->monitor_state) {
-        client->time_registered_monotonic_microseconds = current_monotonic_time;
-        client->time_last_updated_monotonic_microseconds =
-            current_monotonic_time;
-        continue;
-      }
-
-      SbTimeMonotonic time_delta =
-          current_monotonic_time -
-          client->time_last_updated_monotonic_microseconds;
-      SbTimeMonotonic time_wait =
-          current_monotonic_time -
-          client->time_registered_monotonic_microseconds;
-
-      // Watchdog violation
-      if (time_delta > client->time_interval_microseconds &&
-          time_wait > client->time_wait_microseconds) {
+      if (MonitorClient(context, client, current_monotonic_time)) {
         watchdog_violation = true;
-        UpdateViolationsMap(context, client, time_delta);
-
-        // Resets time last updated.
-        client->time_last_updated_monotonic_microseconds =
-            current_monotonic_time;
       }
     }
+
+    // Iterates through client list to monitor all client registered clients.
+    for (auto& it : static_cast<Watchdog*>(context)->client_list_) {
+      Client* client = it.get();
+      if (MonitorClient(context, client, current_monotonic_time)) {
+        watchdog_violation = true;
+      }
+    }
+
     if (static_cast<Watchdog*>(context)->pending_write_)
       MaybeWriteWatchdogViolations(context);
     if (watchdog_violation) MaybeTriggerCrash(context);
@@ -253,6 +238,33 @@ void* Watchdog::Monitor(void* context) {
     if (!(static_cast<Watchdog*>(context)->is_monitoring_.load())) break;
   }
   return nullptr;
+}
+
+bool Watchdog::MonitorClient(void* context, Client* client,
+                             SbTimeMonotonic current_monotonic_time) {
+  // Ignores and resets clients in idle states, clients whose monitor_state
+  // is below the current application state. Resets time_wait_microseconds
+  // and time_interval_microseconds start values.
+  if (static_cast<Watchdog*>(context)->state_ > client->monitor_state) {
+    client->time_registered_monotonic_microseconds = current_monotonic_time;
+    client->time_last_updated_monotonic_microseconds = current_monotonic_time;
+    return false;
+  }
+
+  SbTimeMonotonic time_delta =
+      current_monotonic_time - client->time_last_updated_monotonic_microseconds;
+  SbTimeMonotonic time_wait =
+      current_monotonic_time - client->time_registered_monotonic_microseconds;
+
+  // Watchdog violation
+  if (time_delta > client->time_interval_microseconds &&
+      time_wait > client->time_wait_microseconds) {
+    UpdateViolationsMap(context, client, time_delta);
+    // Resets time last updated.
+    client->time_last_updated_monotonic_microseconds = current_monotonic_time;
+    return true;
+  }
+  return false;
 }
 
 void Watchdog::UpdateViolationsMap(void* context, Client* client,
@@ -308,6 +320,9 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
     base::Value registered_clients(base::Value::Type::LIST);
     for (auto& it : static_cast<Watchdog*>(context)->client_map_) {
       registered_clients.GetList().emplace_back(base::Value(it.first));
+    }
+    for (auto& it : static_cast<Watchdog*>(context)->client_list_) {
+      registered_clients.GetList().emplace_back(base::Value(it->name));
     }
     violation.SetKey("registeredClients", registered_clients.Clone());
 
@@ -423,19 +438,6 @@ bool Watchdog::Register(std::string name, std::string description,
                         int64_t time_wait_microseconds, Replace replace) {
   if (is_disabled_) return true;
 
-  // Validates parameters.
-  if (time_interval_microseconds < watchdog_monitor_frequency_ ||
-      time_wait_microseconds < 0) {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
-    if (time_interval_microseconds < watchdog_monitor_frequency_) {
-      SB_DLOG(ERROR) << "[Watchdog] Time interval less than min: "
-                     << watchdog_monitor_frequency_;
-    } else {
-      SB_DLOG(ERROR) << "[Watchdog] Time wait is negative.";
-    }
-    return false;
-  }
-
   starboard::ScopedLock scoped_lock(mutex_);
 
   int64_t current_time = SbTimeToPosix(SbTimeGetNow());
@@ -457,6 +459,65 @@ bool Watchdog::Register(std::string name, std::string description,
     }
   }
 
+  // Creates new client.
+  std::unique_ptr<Client> client = CreateClient(
+      name, description, monitor_state, time_interval_microseconds,
+      time_wait_microseconds, current_time, current_monotonic_time);
+  if (client == nullptr) return false;
+
+  // Registers.
+  auto result = client_map_.emplace(name, std::move(client));
+
+  if (result.second) {
+    SB_DLOG(INFO) << "[Watchdog] Registered: " << name;
+  } else {
+    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
+  }
+  return result.second;
+}
+
+std::shared_ptr<Client> Watchdog::RegisterByClient(
+    std::string name, std::string description,
+    base::ApplicationState monitor_state, int64_t time_interval_microseconds,
+    int64_t time_wait_microseconds) {
+  if (is_disabled_) return nullptr;
+
+  starboard::ScopedLock scoped_lock(mutex_);
+
+  int64_t current_time = SbTimeToPosix(SbTimeGetNow());
+  SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
+
+  // Creates new client.
+  std::shared_ptr<Client> client = CreateClient(
+      name, description, monitor_state, time_interval_microseconds,
+      time_wait_microseconds, current_time, current_monotonic_time);
+  if (client == nullptr) return nullptr;
+
+  // Registers.
+  client_list_.emplace_back(client);
+
+  SB_DLOG(INFO) << "[Watchdog] Registered: " << name;
+  return client;
+}
+
+std::unique_ptr<Client> Watchdog::CreateClient(
+    std::string name, std::string description,
+    base::ApplicationState monitor_state, int64_t time_interval_microseconds,
+    int64_t time_wait_microseconds, int64_t current_time,
+    SbTimeMonotonic current_monotonic_time) {
+  // Validates parameters.
+  if (time_interval_microseconds < watchdog_monitor_frequency_ ||
+      time_wait_microseconds < 0) {
+    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
+    if (time_interval_microseconds < watchdog_monitor_frequency_) {
+      SB_DLOG(ERROR) << "[Watchdog] Time interval less than min: "
+                     << watchdog_monitor_frequency_;
+    } else {
+      SB_DLOG(ERROR) << "[Watchdog] Time wait is negative.";
+    }
+    return nullptr;
+  }
+
   // Creates new Client.
   std::unique_ptr<Client> client(new Client);
   client->name = name;
@@ -470,15 +531,7 @@ bool Watchdog::Register(std::string name, std::string description,
   client->time_last_pinged_microseconds = current_time;
   client->time_last_updated_monotonic_microseconds = current_monotonic_time;
 
-  // Registers.
-  auto result = client_map_.emplace(name, std::move(client));
-
-  if (result.second) {
-    SB_DLOG(INFO) << "[Watchdog] Registered: " << name;
-  } else {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
-  }
-  return result.second;
+  return std::move(client);
 }
 
 bool Watchdog::Unregister(const std::string& name, bool lock) {
@@ -497,11 +550,68 @@ bool Watchdog::Unregister(const std::string& name, bool lock) {
   return result;
 }
 
+bool Watchdog::UnregisterByClient(std::shared_ptr<Client> client) {
+  if (is_disabled_) return true;
+
+  starboard::ScopedLock scoped_lock(mutex_);
+
+  std::string name = "";
+  if (client) name = client->name;
+
+  // Unregisters.
+  for (auto it = client_list_.begin(); it != client_list_.end(); it++) {
+    if (client == *it) {
+      client_list_.erase(it);
+      SB_DLOG(INFO) << "[Watchdog] Unregistered: " << name;
+      return true;
+    }
+  }
+  SB_DLOG(ERROR) << "[Watchdog] Unable to Unregister: " << name;
+  return false;
+}
+
 bool Watchdog::Ping(const std::string& name) { return Ping(name, ""); }
 
 bool Watchdog::Ping(const std::string& name, const std::string& info) {
   if (is_disabled_) return true;
 
+  starboard::ScopedLock scoped_lock(mutex_);
+
+  auto it = client_map_.find(name);
+  bool client_exists = it != client_map_.end();
+
+  if (client_exists) {
+    Client* client = it->second.get();
+    return PingHelper(client, name, info);
+  }
+  SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+  return false;
+}
+
+bool Watchdog::PingByClient(std::shared_ptr<Client> client) {
+  return PingByClient(client, "");
+}
+
+bool Watchdog::PingByClient(std::shared_ptr<Client> client,
+                            const std::string& info) {
+  if (is_disabled_) return true;
+
+  std::string name = "";
+  if (client) name = client->name;
+
+  starboard::ScopedLock scoped_lock(mutex_);
+
+  for (auto it = client_list_.begin(); it != client_list_.end(); it++) {
+    if (client == *it) {
+      return PingHelper(client.get(), name, info);
+    }
+  }
+  SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+  return false;
+}
+
+bool Watchdog::PingHelper(Client* client, const std::string& name,
+                          const std::string& info) {
   // Validates parameters.
   if (info.length() > kWatchdogMaxPingInfoLength) {
     SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
@@ -510,36 +620,25 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
     return false;
   }
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  int64_t current_time = SbTimeToPosix(SbTimeGetNow());
+  SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
 
-  auto it = client_map_.find(name);
-  bool client_exists = it != client_map_.end();
+  // Updates last ping.
+  client->time_last_pinged_microseconds = current_time;
+  client->time_last_updated_monotonic_microseconds = current_monotonic_time;
 
-  if (client_exists) {
-    int64_t current_time = SbTimeToPosix(SbTimeGetNow());
-    SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
+  if (info != "") {
+    // Creates new ping_info.
+    base::Value ping_info(base::Value::Type::DICTIONARY);
+    ping_info.SetKey("timestampMilliseconds",
+                     base::Value(std::to_string(current_time / 1000)));
+    ping_info.SetKey("info", base::Value(info));
 
-    Client* client = it->second.get();
-    // Updates last ping.
-    client->time_last_pinged_microseconds = current_time;
-    client->time_last_updated_monotonic_microseconds = current_monotonic_time;
-
-    if (info != "") {
-      // Creates new ping_info.
-      base::Value ping_info(base::Value::Type::DICTIONARY);
-      ping_info.SetKey("timestampMilliseconds",
-                       base::Value(std::to_string(current_time / 1000)));
-      ping_info.SetKey("info", base::Value(info));
-
-      client->ping_infos.GetList().emplace_back(ping_info.Clone());
-      if (client->ping_infos.GetList().size() > kWatchdogMaxPingInfos)
-        client->ping_infos.GetList().erase(
-            client->ping_infos.GetList().begin());
-    }
-  } else {
-    SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+    client->ping_infos.GetList().emplace_back(ping_info.Clone());
+    if (client->ping_infos.GetList().size() > kWatchdogMaxPingInfos)
+      client->ping_infos.GetList().erase(client->ping_infos.GetList().begin());
   }
-  return client_exists;
+  return true;
 }
 
 std::string Watchdog::GetWatchdogViolations(
