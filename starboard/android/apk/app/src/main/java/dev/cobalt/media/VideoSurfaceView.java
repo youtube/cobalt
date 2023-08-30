@@ -37,6 +37,7 @@ import java.util.Set;
 public class VideoSurfaceView extends SurfaceView {
 
   private static Surface currentSurface = null;
+  private SurfaceHolder.Callback mSurfaceHolderCallback = null;
 
   private static final Set<String> needResetSurfaceList = new HashSet<>();
 
@@ -71,7 +72,8 @@ public class VideoSurfaceView extends SurfaceView {
 
   private void initialize(Context context) {
     setBackgroundColor(Color.TRANSPARENT);
-    getHolder().addCallback(new SurfaceHolderCallback());
+    mSurfaceHolderCallback = new SurfaceHolderCallback();
+    getHolder().addCallback(mSurfaceHolderCallback);
 
     // TODO: Avoid recreating the surface when the player bounds change.
     // Recreating the surface is time-consuming and complicates synchronizing
@@ -79,19 +81,36 @@ public class VideoSurfaceView extends SurfaceView {
   }
 
   public void clearSurface() {
-    if (getHolder().getSurface().isValid()) {
-      Canvas canvas = getHolder().lockCanvas();
+    SurfaceHolder holder = getHolder();
+    if (holder == null) {
+      return;
+    }
+    Surface surface = holder.getSurface();
+    if ((surface != null) && surface.isValid()) {
+      Canvas canvas = holder.lockCanvas();
       if (canvas != null) {
         canvas.drawColor(Color.BLACK, PorterDuff.Mode.CLEAR);
-        getHolder().unlockCanvasAndPost(canvas);
+        holder.unlockCanvasAndPost(canvas);
       }
-      // Trigger a surface changed event to prevent 'already connected'.
-      getHolder().setFormat(PixelFormat.TRANSPARENT);
-      getHolder().setFormat(PixelFormat.OPAQUE);
+    }
+    // Trigger a surface changed event to prevent 'already connected'.
+    // But disable the callback to prevent it from making calls to the locking
+    // nativeOnVideoSurfaceChanged because we already are holding the same lock.
+    if (mSurfaceHolderCallback != null) {
+      holder.removeCallback(mSurfaceHolderCallback);
+    }
+    holder.setFormat(PixelFormat.TRANSPARENT);
+    holder.setFormat(PixelFormat.OPAQUE);
+    currentSurface = holder.getSurface();
+    nativeOnVideoSurfaceChangedLocked(currentSurface);
+    if (mSurfaceHolderCallback != null) {
+      holder.addCallback(mSurfaceHolderCallback);
     }
   }
 
   private static native void nativeOnVideoSurfaceChanged(Surface surface);
+
+  private static native void nativeOnVideoSurfaceChangedLocked(Surface surface);
 
   private static native void nativeSetNeedResetSurface();
 
