@@ -135,6 +135,7 @@ OPENSSL_EXPORT int BIO_vsnprintf(char *buf, size_t n, const char *format,
                                  va_list args)
     OPENSSL_PRINTF_FORMAT_FUNC(3, 0);
 
+
 // Deprecated functions.
 
 #define CRYPTO_malloc OPENSSL_malloc

@@ -109,6 +109,11 @@
 #include <openssl/err.h>
 
 #include <assert.h>
+#if defined(OPENSSL_SYS_STARBOARD)
+#include "starboard/log.h"
+#else  // !defined(OPENSSL_SYS_STARBOARD)
+#include <errno.h>
+#endif  // defined(OPENSSL_SYS_STARBOARD
 #include <inttypes.h>
 #include <string.h>
 
@@ -123,12 +128,6 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
 
 #include "../internal.h"
 #include "./internal.h"
-
-#if defined(OPENSSL_SYS_STARBOARD)
-#include "starboard/log.h"
-#else  // !defined(OPENSSL_SYS_STARBOARD)
-#include <errno.h>
-#endif  // defined(OPENSSL_SYS_STARBOARD
 
 
 struct err_error_st {

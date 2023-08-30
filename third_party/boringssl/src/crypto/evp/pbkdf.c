@@ -53,12 +53,13 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/opensslconf.h>
+#include <openssl/evp.h>
+
 #if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
 #include <openssl/mem.h>
-#include <openssl/evp.h>
+
 #include <openssl/hmac.h>
 
 #include "../internal.h"

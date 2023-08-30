@@ -67,7 +67,6 @@
 #include <openssl/x509v3.h>
 
 #include "ext_dat.h"
-
 static STACK_OF(X509V3_EXT_METHOD) *ext_list = NULL;
 
 static void ext_list_free(X509V3_EXT_METHOD *ext);

@@ -106,7 +106,7 @@ extern "C" {
 #define PEM_TYPE_ENCRYPTED      10
 #define PEM_TYPE_MIC_ONLY       20
 #define PEM_TYPE_MIC_CLEAR      30
-#define PEM_TYPE_CLEAR          40
+#define PEM_TYPE_CLEAR		40
 
 /* These macros make the PEM_read/PEM_write functions easier to maintain and
  * write. Now they are all implemented with either:
@@ -127,7 +127,7 @@ extern "C" {
 OPENSSL_EXPORT type *PEM_read_##name(FILE *fp, type **x, pem_password_cb *cb, void *u)\
 { \
 return (type *)PEM_ASN1_read((d2i_of_void *)d2i_##asn1, str,fp,(void **)x,cb,u); \
-}
+} 
 
 #define IMPLEMENT_PEM_write_fp(name, type, str, asn1) \
 OPENSSL_EXPORT int PEM_write_##name(FILE *fp, type *x) \

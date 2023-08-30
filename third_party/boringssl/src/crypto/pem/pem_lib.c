@@ -55,7 +55,6 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/opensslconf.h>
 #if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
 #include <ctype.h>

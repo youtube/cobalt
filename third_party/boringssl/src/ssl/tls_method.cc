@@ -54,13 +54,13 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/opensslconf.h>
+#include <openssl/ssl.h>
+
 #if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
 #include <string.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
 
-#include <openssl/ssl.h>
 #include <openssl/buf.h>
 
 #include "../crypto/internal.h"

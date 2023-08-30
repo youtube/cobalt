@@ -821,6 +821,7 @@ out:
   BUF_MEM_free(buf);
   return ret;
 }
+
 #ifndef OPENSSL_NO_FP_API
 PKCS12* d2i_PKCS12_fp(FILE *fp, PKCS12 **out_p12) {
   BIO *bio;

@@ -37,7 +37,6 @@ static_assert((SSL3_ALIGN_PAYLOAD & (SSL3_ALIGN_PAYLOAD - 1)) == 0,
               "SSL3_ALIGN_PAYLOAD must be a power of 2");
 
 void SSLBuffer::Clear() {
-
   OPENSSL_port_free(buf_);  // Allocated with malloc().
   buf_ = nullptr;
   offset_ = 0;

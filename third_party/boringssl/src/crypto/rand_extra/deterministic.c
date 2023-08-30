@@ -16,11 +16,10 @@
 
 #if defined(BORINGSSL_UNSAFE_DETERMINISTIC_MODE)
 
-#include <openssl/opensslconf.h>
 #if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/mem.h>
+
 #include <openssl/chacha.h>
 
 #include "../internal.h"
