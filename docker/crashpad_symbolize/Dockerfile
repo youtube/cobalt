@@ -51,4 +51,5 @@ RUN libcobalt_path=$(find /tmp/cobalt-evergreen-snapshot/ -name "libcobalt.so") 
   && mkdir -p /tmp/symbols/libcobalt.so/$debug_id/ \
   && mv /tmp/libcobalt.so.sym /tmp/symbols/libcobalt.so/$debug_id/
 
+ARG MINIDUMP_PATH
 CMD breakpad/src/src/processor/minidump_stackwalk ${MINIDUMP_PATH} /tmp/symbols

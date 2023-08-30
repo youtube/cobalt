@@ -88,6 +88,7 @@ services:
   crashpad-symbolize:
     build:
       args:
+        - MINIDUMP_PATH
         - GITHUB_TAG=${GITHUB_TAG:-23.lts.5}
         - ARCHITECTURE=${ARCHITECTURE:-x64}
         - SB_API_VERSION=${SB_API_VERSION:-14}
