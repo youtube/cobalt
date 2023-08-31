@@ -21,10 +21,13 @@ import os
 import shutil
 import stat
 import tempfile
+import time
 try:
   import urllib.request as urllib
 except ImportError:
   import urllib2 as urllib
+
+from starboard.tools import retry
 
 # ssl.SSLContext (and thus ssl.create_default_context) was introduced in
 # python 2.7.9. depot_tools provides python 2.7.6, so we wrap this import.
@@ -35,6 +38,8 @@ except ImportError:
 
 _BASE_GCS_URL = 'https://storage.googleapis.com'
 _BUFFER_SIZE = 2 * 1024 * 1024
+_DOWNLOAD_BACKOFF = 1.5
+_DOWNLOAD_RETRIES = 3
 
 
 def AddExecutableBits(filename):
@@ -52,6 +57,8 @@ def ExtractSha1(filename):
   return sha1.hexdigest()
 
 
+@retry.retry(
+    retries=_DOWNLOAD_RETRIES, backoff=lambda: time.sleep(_DOWNLOAD_BACKOFF))
 def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = f'{_BASE_GCS_URL}/{bucket}/{sha1}'
   context = create_default_context()
