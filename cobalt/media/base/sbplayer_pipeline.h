@@ -307,6 +307,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::CVal<bool> ended_;
   base::CVal<SbPlayerState> player_state_;
 
+  MediaMetricsProvider* media_metrics_provider_;
+
   DecodeTargetProvider* decode_target_provider_;
 
 #if SB_API_VERSION >= 15
@@ -348,8 +350,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   SbTimeMonotonic last_resume_time_ = -1;
 
   SbTimeMonotonic set_drm_system_ready_cb_time_ = -1;
-
-  MediaMetricsProvider* media_metrics_provider_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };

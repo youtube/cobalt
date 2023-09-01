@@ -307,7 +307,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   ::media::MediaLog* const media_log_;
 
-  std::unique_ptr<MediaMetricsProvider> media_metrics_provider_;
+  MediaMetricsProvider media_metrics_provider_;
 
   bool is_local_source_;
 

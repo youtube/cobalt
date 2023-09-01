@@ -27,11 +27,8 @@
 namespace cobalt {
 namespace media {
 
-using VideoPipelineInfo = ::media::VideoPipelineInfo;
 using AudioCodec = ::media::AudioCodec;
 using VideoCodec = ::media::VideoCodec;
-using VideoPipelineInfo = ::media::VideoPipelineInfo;
-using AudioPipelineInfo = ::media::AudioPipelineInfo;
 using PipelineStatus = ::media::PipelineStatus;
 using VideoDecoderType = ::media::VideoDecoderType;
 
@@ -52,8 +49,6 @@ class MediaMetricsProvider {
     bool video_decoder_changed = false;
     ::media::AudioCodec audio_codec;
     ::media::VideoCodec video_codec;
-    ::media::VideoPipelineInfo video_pipeline_info;
-    ::media::AudioPipelineInfo audio_pipeline_info;
     ::media::PipelineStatus last_pipeline_status =
         ::media::PipelineStatus::PIPELINE_OK;
   };
@@ -67,10 +62,7 @@ class MediaMetricsProvider {
  public:
   // based on mojom::MediaMetricsProvider
   void Initialize(bool is_mse);
-  void OnError(const ::media::PipelineStatus& status);
-  void SetAudioPipelineInfo(const ::media::AudioPipelineInfo& info);
-  void SetVideoPipelineInfo(const ::media::VideoPipelineInfo& info);
-
+  void OnError(const ::media::PipelineStatus status);
   void SetHasAudio(::media::AudioCodec audio_codec);
   void SetHasVideo(::media::VideoCodec video_codec);
   void SetHasPlayed();
@@ -79,10 +71,9 @@ class MediaMetricsProvider {
 
   void ReportPipelineUMA();
 
-  std::string GetUMANameForAVStream(const PipelineInfo& player_info);
-
+ private:
+  std::string GetUMANameForAVStream(const PipelineInfo& player_info) const;
   bool IsInitialized() const;
-
 
  private:
   // UMA pipeline packaged data
