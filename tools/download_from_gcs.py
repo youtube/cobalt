@@ -19,12 +19,11 @@ import hashlib
 import logging
 import os
 import shutil
+import ssl
 import stat
 import tempfile
 import time
 import urllib.request
-
-from ssl import create_default_context, _create_unverified_context
 
 _BASE_GCS_URL = 'https://storage.googleapis.com'
 _BUFFER_SIZE = 2 * 1024 * 1024
@@ -51,19 +50,9 @@ def ExtractSha1(filename):
 
 def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = f'{_BASE_GCS_URL}/{bucket}/{sha1}'
-  try:
-    # pylint: disable=consider-using-with
-    res = urllib.request.urlopen(url, context=create_default_context())
-  except urllib.error.URLError:
-    # Retry without ssl verification.
-    # pylint: disable=consider-using-with
-    res = urllib.request.urlopen(url, context=_create_unverified_context())
-
-  if not res:
-    raise GcsDownloadException('Could not reach ' + url)
-
-  with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-    shutil.copyfileobj(res, tmp_file)
+  with urllib.request.urlopen(url, context=ssl.create_default_context()) as res:
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+      shutil.copyfileobj(res, tmp_file)
 
   if ExtractSha1(tmp_file.name) != sha1:
     raise GcsDownloadException(
