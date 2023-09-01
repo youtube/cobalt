@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/test/scoped_task_environment.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/player/web_media_player_impl.h"
-
-#include "base/test/scoped_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 SbDecodeTargetGraphicsContextProvider*
-  MockGetSbDecodeTargetGraphicsContextProvider() {
-    return NULL;
-  }
+MockGetSbDecodeTargetGraphicsContextProvider() {
+  return NULL;
 }
+}  // namespace
 
 class WebMediaPlayerTest : public ::testing::Test,
                            private cobalt::media::WebMediaPlayerClient,
@@ -37,13 +36,13 @@ class WebMediaPlayerTest : public ::testing::Test,
 
   WebMediaPlayerTest() : sbplayer_interface_(new DefaultSbPlayerInterface) {
     player_ = std::unique_ptr<WebMediaPlayer>(new WebMediaPlayerImpl(
-                                              sbplayer_interface_.get(),
-                                              nullptr, base::Bind(MockGetSbDecodeTargetGraphicsContextProvider),
-                                              this, this, true, false, true,
+        sbplayer_interface_.get(), nullptr,
+        base::Bind(MockGetSbDecodeTargetGraphicsContextProvider), this, this,
+        true, false, true,
 #if SB_API_VERSION >= 15
-                                              10, 10,
+        10, 10,
 #endif  // SB_API_VERSION >= 15
-                                              nullptr));
+        nullptr));
   }
 
  protected:
@@ -55,35 +54,33 @@ class WebMediaPlayerTest : public ::testing::Test,
 
  private:
   // WebMediaPlayerClient methods
-  void NetworkStateChanged() override {};
-  void NetworkError(const std::string& message) override {};
+  void NetworkStateChanged() override{};
+  void NetworkError(const std::string& message) override{};
   void ReadyStateChanged() override {}
   void TimeChanged(bool eos_played) override {}
   void DurationChanged() override {}
   void OutputModeChanged() override {}
   void ContentSizeChanged() override {}
   void PlaybackStateChanged() override {}
-  float Volume() const override { return 0.;}
-  void SourceOpened(ChunkDemuxer* chunk_demuxer) override {};
-  std::string SourceURL() const override {return "";}
-  std::string MaxVideoCapabilities() const override {return "";}
-  bool PreferDecodeToTexture() override { return true;}
+  float Volume() const override { return 0.; }
+  void SourceOpened(ChunkDemuxer* chunk_demuxer) override{};
+  std::string SourceURL() const override { return ""; }
+  std::string MaxVideoCapabilities() const override { return ""; }
+  bool PreferDecodeToTexture() override { return true; }
   void EncryptedMediaInitDataEncountered(
       const char* init_data_type, const unsigned char* init_data,
-      unsigned int init_data_length) override {};
+      unsigned int init_data_length) override{};
   // WebMediaPlayerDelegate methods
   void RegisterPlayer(WebMediaPlayer* player) override {}
   void UnregisterPlayer(WebMediaPlayer* player) override {}
 };
 
-TEST_F(WebMediaPlayerTest, Wurks) {
-  EXPECT_TRUE(true);
-}
+TEST_F(WebMediaPlayerTest, Wurks) { EXPECT_TRUE(true); }
 
 TEST_F(WebMediaPlayerTest, OverrideVideoBufferBudget) {
   player_->EnableVideoBufferBudgetOverride();
   // chunkDemuxer = ;
   // chunkDemuxerStream = ;
   // sourceBufferStream = ;
-  //EXPECT_TRUE(source_buffer_stream->is_video_buffer_budget_override_enabled_);
+  // EXPECT_TRUE(source_buffer_stream->is_video_buffer_budget_override_enabled_);
 }

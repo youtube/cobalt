@@ -203,7 +203,7 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " video buffer budget override.";
     if (value) {
-      for (const auto &wp : players_) {
+      for (const auto& wp : players_) {
         wp.first->EnableVideoBufferBudgetOverride();
       }
     }
@@ -243,7 +243,8 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 #endif  // SB_API_VERSION >= 15
       &media_log_);
 
-  if (is_video_buffer_budget_override_enabled_) player->EnableVideoBufferBudgetOverride();
+  if (is_video_buffer_budget_override_enabled_)
+    player->EnableVideoBufferBudgetOverride();
 
   return player;
 }

@@ -203,7 +203,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
   void OnDemuxerOpened();
 
-   void EnableVideoBufferBudgetOverride() override;
+  void EnableVideoBufferBudgetOverride() override;
 
  private:
   // Called when the data source is downloading or paused.

@@ -81,7 +81,7 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   }
 
   if (name.rfind(kMediaPrefix, 0) == 0) {
-  LOG(INFO) << "YO H5VCC SETTTING SSET! STARTX SWITH MEDIA";
+    LOG(INFO) << "YO H5VCC SETTTING SSET! STARTX SWITH MEDIA";
     return media_module_ ? media_module_->SetConfiguration(
                                name.substr(strlen(kMediaPrefix)), value)
                          : false;
