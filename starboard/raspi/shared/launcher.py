@@ -27,7 +27,7 @@ import contextlib
 
 import pexpect
 from starboard.tools import abstract_launcher
-from starboard.raspi.shared import retry
+from starboard.tools import retry
 
 IS_MODULAR_BUILD = os.getenv('MODULAR_BUILD', '0') == '1'
 

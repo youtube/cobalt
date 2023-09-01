@@ -15,7 +15,7 @@
 """Tests for `retry` module"""
 
 import unittest
-from starboard.raspi.shared import retry
+from starboard.tools import retry
 import argparse
 import logging
 import sys
