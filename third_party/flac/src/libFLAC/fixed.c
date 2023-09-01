@@ -33,7 +33,7 @@
 #  include <config.h>
 #endif
 
-#include <math.h> /* for log() */
+#include <math.h>
 
 #ifndef STARBOARD
 #include <string.h>
