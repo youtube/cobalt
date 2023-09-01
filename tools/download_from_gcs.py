@@ -21,20 +21,17 @@ import os
 import shutil
 import stat
 import tempfile
-try:
-  import urllib.request as urllib
-except ImportError:
-  import urllib2 as urllib
+import time
+import urllib.request
 
-# ssl.SSLContext (and thus ssl.create_default_context) was introduced in
-# python 2.7.9. depot_tools provides python 2.7.6, so we wrap this import.
-try:
-  from ssl import create_default_context
-except ImportError:
-  create_default_context = lambda: None  #pylint: disable=unnecessary-lambda-assignment
+from ssl import create_default_context, _create_unverified_context
 
 _BASE_GCS_URL = 'https://storage.googleapis.com'
 _BUFFER_SIZE = 2 * 1024 * 1024
+
+
+class GcsDownloadException(Exception):
+  pass
 
 
 def AddExecutableBits(filename):
@@ -54,27 +51,23 @@ def ExtractSha1(filename):
 
 def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = f'{_BASE_GCS_URL}/{bucket}/{sha1}'
-  context = create_default_context()
-
   try:
-    res = urllib.urlopen(
-        url, context=context) if context else urllib.urlopen(url)
-  except urllib.URLError:
-    from ssl import _create_unverified_context  # pylint:disable=import-outside-toplevel
-    context = _create_unverified_context()
-    res = urllib.urlopen(
-        url, context=context) if context else urllib.urlopen(url)
+    # pylint: disable=consider-using-with
+    res = urllib.request.urlopen(url, context=create_default_context())
+  except urllib.error.URLError:
+    # Retry without ssl verification.
+    # pylint: disable=consider-using-with
+    res = urllib.request.urlopen(url, context=_create_unverified_context())
 
   if not res:
-    logging.error('Could not reach %s', url)
-    return None
+    raise GcsDownloadException('Could not reach ' + url)
 
   with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
     shutil.copyfileobj(res, tmp_file)
 
   if ExtractSha1(tmp_file.name) != sha1:
-    logging.error('Local and remote sha1s do not match. Skipping download.')
-    return None
+    raise GcsDownloadException(
+        'Local and remote sha1s do not match. Skipping download.')
 
   return tmp_file
 
@@ -102,9 +95,12 @@ def MaybeDownloadFileFromGcs(bucket, sha1_file, output_file, force=False):
                       output_file)
         return False
 
-  tmp_file = _DownloadFromGcsAndCheckSha1(bucket, sha1)
-  if not tmp_file:
-    return False
+  try:
+    tmp_file = _DownloadFromGcsAndCheckSha1(bucket, sha1)
+  except (urllib.error.URLError, GcsDownloadException) as e:
+    logging.error('Download failed: \'%s\', retrying', str(e))
+    time.sleep(1)
+    tmp_file = _DownloadFromGcsAndCheckSha1(bucket, sha1)
 
   output_dir = os.path.dirname(output_file)
   if not os.path.exists(output_dir):
@@ -130,7 +126,7 @@ def MaybeDownloadDirectoryFromGcs(bucket,
   return res
 
 
-if __name__ == '__main__':
+def main():
   logging_format = '[%(levelname)s:%(filename)s:%(lineno)s] %(message)s'
   logging.basicConfig(
       level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
@@ -170,3 +166,7 @@ if __name__ == '__main__':
   if args.stamp_file:
     with open(args.stamp_file, 'w', encoding='utf-8'):
       pass
+
+
+if __name__ == '__main__':
+  main()
