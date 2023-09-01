@@ -127,10 +127,6 @@ def MaybeDownloadDirectoryFromGcs(bucket,
 
 
 def main():
-  logging_format = '[%(levelname)s:%(filename)s:%(lineno)s] %(message)s'
-  logging.basicConfig(
-      level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
-
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '-b',
@@ -169,4 +165,8 @@ def main():
 
 
 if __name__ == '__main__':
+  logging.basicConfig(
+      level=logging.INFO,
+      format='[%(levelname)s:%(filename)s:%(lineno)s] %(message)s',
+      datefmt='%H:%M:%S')
   main()
