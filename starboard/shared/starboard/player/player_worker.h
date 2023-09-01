@@ -76,25 +76,33 @@ class PlayerWorker {
                                const std::string& error_message)>
         UpdatePlayerErrorCB;
 
+    // Stores the success status of Handler operations. If |success| is false,
+    // |error_message| may be set with details of the error.
+    typedef struct HandlerResult {
+      bool success;
+      std::string error_message;
+    } HandlerResult;
+
     Handler() = default;
     virtual ~Handler() {}
 
-    // All the following functions return false to signal a fatal error.  The
-    // event processing loop in PlayerWorker will terminate in this case.
-    virtual bool Init(SbPlayer player,
-                      UpdateMediaInfoCB update_media_info_cb,
-                      GetPlayerStateCB get_player_state_cb,
-                      UpdatePlayerStateCB update_player_state_cb,
-                      UpdatePlayerErrorCB update_player_error_cb) = 0;
-    virtual bool Seek(SbTime seek_to_time, int ticket) = 0;
-    virtual bool WriteSamples(const InputBuffers& input_buffers,
-                              int* samples_written) = 0;
-    virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
-    virtual bool SetPause(bool pause) = 0;
-    virtual bool SetPlaybackRate(double playback_rate) = 0;
+    // All the following functions set |HandlerResult.success| to false to
+    // signal a fatal error. The event processing loop in PlayerWorker will
+    // terminate in this case.
+    virtual HandlerResult Init(SbPlayer player,
+                               UpdateMediaInfoCB update_media_info_cb,
+                               GetPlayerStateCB get_player_state_cb,
+                               UpdatePlayerStateCB update_player_state_cb,
+                               UpdatePlayerErrorCB update_player_error_cb) = 0;
+    virtual HandlerResult Seek(SbTime seek_to_time, int ticket) = 0;
+    virtual HandlerResult WriteSamples(const InputBuffers& input_buffers,
+                                       int* samples_written) = 0;
+    virtual HandlerResult WriteEndOfStream(SbMediaType sample_type) = 0;
+    virtual HandlerResult SetPause(bool pause) = 0;
+    virtual HandlerResult SetPlaybackRate(double playback_rate) = 0;
     virtual void SetVolume(double volume) = 0;
 
-    virtual bool SetBounds(const Bounds& bounds) = 0;
+    virtual HandlerResult SetBounds(const Bounds& bounds) = 0;
 
     // Once this function returns, all processing on the Handler and related
     // objects has to be stopped.  The JobQueue will be destroyed immediately
