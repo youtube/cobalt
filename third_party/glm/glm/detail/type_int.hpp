@@ -4,10 +4,8 @@
 #pragma once
 
 #include "setup.hpp"
-
 #if defined(STARBOARD)
 #include "starboard/types.h"
-
 #else  // defined(STARBOARD)
 #if GLM_HAS_MAKE_SIGNED
 #	include <type_traits>
