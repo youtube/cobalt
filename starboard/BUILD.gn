@@ -106,7 +106,11 @@ group("starboard") {
     if (sb_is_evergreen) {
       public_deps += [ "//starboard/elf_loader:sabi_string" ]
     } else {
-      data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
+      if (is_linux || !sb_is_modular) {
+        deps = [ ":starboard_platform_group($starboard_toolchain)" ]
+      } else {
+        data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
+      }
     }
 
     # TODO: b/295702296 Fix libunwind for modular builds.
