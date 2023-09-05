@@ -21,6 +21,11 @@ namespace client_porting {
 namespace eztime {
 namespace {
 
+TEST(EzTimeTFromSbTime, SometimesFails) {
+  SbTime sb_time = SbTimeGetNow();
+  EXPECT_EQ(SbTimeGetNow() % 2, 0);
+}
+
 TEST(EzTimeTFromSbTime, IsTransitive) {
   SbTime sb_time = EzTimeTToSbTime(kTestTimePositive);
   EzTimeT ez_time = EzTimeTFromSbTime(sb_time);
