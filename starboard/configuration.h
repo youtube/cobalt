@@ -41,32 +41,6 @@
 // inclusive.
 #define SB_MAXIMUM_API_VERSION 16
 
-// The API version that is currently open for changes, and therefore is not
-// stable or frozen. Production-oriented ports should avoid declaring that they
-// implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 16
-
-// The next API version to be frozen, but is still subject to emergency
-// changes. It is reasonable to base a port on the Release Candidate API
-// version, but be aware that small incompatible changes may still be made to
-// it.
-// The following will be uncommented when an API version is a release candidate.
-// #define SB_RELEASE_CANDIDATE_API_VERSION 13
-
-// --- Experimental Feature Defines ------------------------------------------
-
-// Note that experimental feature comments will be moved into
-// starboard/CHANGELOG.md when released.  Thus, you can find examples of the
-// format your feature comments should take by checking that file.
-
-// EXAMPLE:
-//   // Introduce new experimental feature.
-//   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
-//   //   exposes functionality for my new feature.
-//   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// --- Release Candidate Feature Defines -------------------------------------
-
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
