@@ -97,6 +97,7 @@ class GpuVideoDecoderBase
   int GetWidth() { return frame_width_; }
   int GetHeight() { return frame_height_; }
   bool IsHdrVideo() { return is_hdr_video_; }
+  static void ClearFrameBuffersPool();
 
  protected:
   typedef ::starboard::shared::starboard::media::VideoStreamInfo
