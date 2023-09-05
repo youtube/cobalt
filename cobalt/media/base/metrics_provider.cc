@@ -73,24 +73,24 @@ void MediaMetricsProvider::SetIsEME() {
 void MediaMetricsProvider::ReportPipelineUMA() {
   ScopedLock scoped_lock(mutex_);
   if (uma_info_.has_video && uma_info_.has_audio) {
-    base::UmaHistogramExactLinear(GetUMANameForAVStream(uma_info_),
+    base::UmaHistogramEnumeration(GetUMANameForAVStream(uma_info_),
                                   uma_info_.last_pipeline_status,
-                                  ::media::PIPELINE_STATUS_MAX + 1);
+                                  PipelineStatus::PIPELINE_STATUS_MAX);
   } else if (uma_info_.has_audio) {
-    base::UmaHistogramExactLinear("Cobalt.Media.PipelineStatus.AudioOnly",
+    base::UmaHistogramEnumeration("Cobalt.Media.PipelineStatus.AudioOnly",
                                   uma_info_.last_pipeline_status,
-                                  ::media::PIPELINE_STATUS_MAX + 1);
+                                  PipelineStatus::PIPELINE_STATUS_MAX);
   } else if (uma_info_.has_video) {
-    base::UmaHistogramExactLinear("Cobalt.Media.PipelineStatus.VideoOnly",
+    base::UmaHistogramEnumeration("Cobalt.Media.PipelineStatus.VideoOnly",
                                   uma_info_.last_pipeline_status,
-                                  ::media::PIPELINE_STATUS_MAX + 1);
+                                  PipelineStatus::PIPELINE_STATUS_MAX);
   } else {
     // Note: This metric can be recorded as a result of normal operation with
     // Media Source Extensions. If a site creates a MediaSource object but never
     // creates a source buffer or appends data, PIPELINE_OK will be recorded.
-    base::UmaHistogramExactLinear("Cobalt.Media.PipelineStatus.Unsupported",
+    base::UmaHistogramEnumeration("Cobalt.Media.PipelineStatus.Unsupported",
                                   uma_info_.last_pipeline_status,
-                                  ::media::PIPELINE_STATUS_MAX + 1);
+                                  PipelineStatus::PIPELINE_STATUS_MAX);
   }
 
   // Report whether this player ever saw a playback event. Used to measure the
