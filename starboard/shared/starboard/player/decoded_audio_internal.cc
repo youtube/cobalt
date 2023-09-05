@@ -88,7 +88,6 @@ DecodedAudio::DecodedAudio(int channels,
       size_in_bytes_(size_in_bytes) {
   SB_DCHECK(channels_ > 0);
   SB_DCHECK(size_in_bytes_ >= 0);
-  // TODO(b/275199195): Enable the SB_DCHECK below.
   SB_DCHECK(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_) ==
             0);
 }
