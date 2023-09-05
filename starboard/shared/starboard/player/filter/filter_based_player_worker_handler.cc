@@ -351,7 +351,7 @@ bool FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   } else {
     media_time_provider_->Play();
   }
-
+  Update();
   return true;
 }
 
@@ -369,6 +369,7 @@ bool FilterBasedPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
   }
 
   media_time_provider_->SetPlaybackRate(playback_rate_);
+  Update();
   return true;
 }
 
@@ -500,6 +501,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
     update_media_info_cb_(media_time, dropped_frames, !is_underflow);
   }
 
+  RemoveJobByToken(update_job_token_);
   update_job_token_ = Schedule(update_job_, kUpdateInterval);
 }
 
