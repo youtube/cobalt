@@ -73,6 +73,26 @@ DecodedAudio::DecodedAudio(int channels,
   //           0);
 }
 
+DecodedAudio::DecodedAudio(int channels,
+                           SbMediaAudioSampleType sample_type,
+                           SbMediaAudioFrameStorageType storage_type,
+                           SbTime timestamp,
+                           int size_in_bytes,
+                           Buffer&& storage)
+    : channels_(channels),
+      sample_type_(sample_type),
+      storage_type_(storage_type),
+      timestamp_(timestamp),
+      storage_(std::move(storage)),
+      offset_in_bytes_(0),
+      size_in_bytes_(size_in_bytes) {
+  SB_DCHECK(channels_ > 0);
+  SB_DCHECK(size_in_bytes_ >= 0);
+  // TODO(b/275199195): Enable the SB_DCHECK below.
+  SB_DCHECK(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_) ==
+            0);
+}
+
 int DecodedAudio::frames() const {
   int bytes_per_sample = GetBytesPerSample(sample_type_);
   SB_DCHECK(size_in_bytes_ % (bytes_per_sample * channels_) == 0);
