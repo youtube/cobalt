@@ -19,6 +19,8 @@
 #ifndef STARBOARD_MEMORY_REPORTER_H_
 #define STARBOARD_MEMORY_REPORTER_H_
 
+#if SB_API_VERSION < 15
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/types.h"
@@ -107,4 +109,5 @@ SB_EXPORT bool SbMemorySetReporter(struct SbMemoryReporter* tracker);
 }  // extern "C"
 #endif
 
+#endif  // SB_API_VERSION < 15
 #endif  // STARBOARD_MEMORY_REPORTER_H_
