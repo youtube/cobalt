@@ -4,7 +4,7 @@ description: Runs on-device tests.
 runs:
   using: "composite"
   steps:
-    - name: Install requirements
+    - name: Install Requirements
       run: |
         pip3 install grpcio==1.38.0 grpcio-tools==1.38.0
       shell: bash
@@ -12,7 +12,7 @@ runs:
       run: |
         python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/on_device_tests_gateway.proto
       shell: bash
-    - name: Set up Cloud SDK
+    - name: Set Up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set env vars
       env:
@@ -43,7 +43,7 @@ runs:
           echo "USE_SHARDING=1" >> $GITHUB_ENV
         fi
       shell: bash
-    - name: trigger ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
+    - name: Trigger ${{ env.SHARD_NAME }} Tests on ${{ matrix.platform }} Platform
       env:
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
@@ -89,7 +89,7 @@ runs:
         )
         echo "SESSION_ID=$SESSION_ID" >> $GITHUB_ENV
       shell: bash
-    - name: watch ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
+    - name: Watch ${{ env.SHARD_NAME }} Tests on ${{ matrix.platform }} Platform
       env:
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_SHA: ${{ github.sha }}
@@ -100,3 +100,25 @@ runs:
           --change_id "${GITHUB_SHA}" \
           watch ${{ env.SESSION_ID }}
       shell: bash
+    - name: Download ${{ matrix.platform }} Test Results
+      shell: bash
+      env:
+        GCS_PATH: gs://cobalt-unittest-storage/results
+      run: |
+        set -eux
+        gsutil -d cp "${GCS_PATH}/${SESSION_ID}.zip" .
+        if [[ $? -ne 0 ]]; then
+          warn="Unable to download results from ${GCS_PATH}/${SESSION_ID}.zip"
+          echo "::warning title=No unit test results::$warn"
+          exit 0
+        fi
+
+        mkdir -p unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}/
+        unzip ${SESSION_ID}.zip -d unit-test-results/${{ matrix.platform }}/${{ matrix.shard }}/
+    - name: Archive Unit Test Results
+      uses: actions/upload-artifact@v3
+      # TODO: Should only run for unit-tests
+      if: always()
+      with:
+        name: unit-test-results
+        path: unit-test-results/
