@@ -14,17 +14,17 @@
 
 #include "cobalt/render_tree/node.h"
 
-#include "starboard/atomic.h"
+#include <stdatomic.h>
 
 namespace cobalt {
 namespace render_tree {
 
 namespace {
-SbAtomic32 id_counter_(0);
+atomic_int_least32_t id_counter_(0);
 }
 
 Node::Node() {
-  node_id_ = (int64_t(SbAtomicNoBarrier_Increment(&id_counter_, 1)) << 32) |
+  node_id_ = (int64_t(atomic_fetch_add(&id_counter_, 1)) << 32) |
              (intptr_t(this) & 0xffffffff);
 }
 

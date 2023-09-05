@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_RENDER_TARGET_H_
 #define COBALT_RENDERER_BACKEND_RENDER_TARGET_H_
 
+#include <stdatomic.h>
+
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/size.h"
 
@@ -55,7 +57,7 @@ class RenderTarget : public base::RefCountedThreadSafe<RenderTarget> {
   friend class base::RefCountedThreadSafe<RenderTarget>;
   virtual ~RenderTarget() {}
 
-  static SbAtomic32 serial_counter_;
+  static atomic_int_least32_t serial_counter_;
   int32_t serial_number_;
 };
 

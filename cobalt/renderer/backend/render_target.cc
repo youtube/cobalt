@@ -14,16 +14,16 @@
 
 #include "cobalt/renderer/backend/render_target.h"
 
-#include "starboard/atomic.h"
+#include <stdatomic.h>
 
 namespace cobalt {
 namespace renderer {
 namespace backend {
 
-SbAtomic32 RenderTarget::serial_counter_ = 1;
+atomic_int_least32_t RenderTarget::serial_counter_ = 1;
 
 RenderTarget::RenderTarget() {
-  serial_number_ = SbAtomicBarrier_Increment(&serial_counter_, 1);
+  serial_number_ = atomic_fetch_add(&serial_counter_, 1);
 }
 
 }  // namespace backend
