@@ -24,11 +24,25 @@ exclude: |
             testing|
             third_party|
             tools/gyp|
+<<<<<<< HEAD
+=======
+            tools/python|
+>>>>>>> a7958f37c35 (Add check-xml pre-commit (#1498))
             url
         )/
         |
         components/update_client/((?!cobalt).)*$
         |
+<<<<<<< HEAD
+=======
+        # Ignore everything under tools/metrics _except_ xml files. We need
+        # those validated to keep the telemetry/metrics pipeline working.
+        tools/metrics/(.*\.(?!xml$)[^/]*|[^/.]+)$|
+        .*\.pb\.cc$ |
+        .*\.pb\.h$ |
+        .*\.patch$ |
+        .*Proto.java$|
+>>>>>>> a7958f37c35 (Add check-xml pre-commit (#1498))
         .*\.sig$
     )
 
@@ -40,6 +54,7 @@ repos:
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
     -   id: mixed-line-ending
+    -   id: check-xml
 
 -   repo: https://cobalt.googlesource.com/codespell
     rev: 67c489d36dd4c52cbb9e4755d90c35c6231842ef  # v2.0.0
