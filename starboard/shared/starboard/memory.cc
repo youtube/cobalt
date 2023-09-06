@@ -15,8 +15,14 @@
 #include "starboard/memory.h"
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+
+#if SB_API_VERSION < 15
 #include "starboard/memory_reporter.h"
+<<<<<<< HEAD
 #include "starboard/shared/starboard/memory_reporter_internal.h"
+=======
+#endif
+>>>>>>> 5e67ace366d (Add missing SB_API_VERSION guard for SbMemoryReport. (#1477))
 
 namespace {
 
@@ -30,6 +36,7 @@ SbMemoryReporter* s_memory_reporter = NULL;
 
 }  // namespace
 
+<<<<<<< HEAD
 bool SbMemorySetReporter(SbMemoryReporter* reporter) {
   // TODO: We should run a runtime test here with a test memory
   // reporter that determines whether global operator new/delete are properly
@@ -48,9 +55,14 @@ bool SbMemorySetReporter(SbMemoryReporter* reporter) {
   SbAtomicMemoryBarrier();
   s_memory_reporter = reporter;
 
+=======
+#if SB_API_VERSION < 15
+bool SbMemorySetReporter(SbMemoryReporter* _unused) {
+>>>>>>> 5e67ace366d (Add missing SB_API_VERSION guard for SbMemoryReport. (#1477))
   // Memory reporting is removed
   return false;
 }
+#endif
 
 void* SbMemoryAllocate(size_t size) {
   void* memory = SbMemoryAllocateImpl(size);
