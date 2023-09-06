@@ -200,7 +200,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryProtect);
   REGISTER_SYMBOL(SbMemoryReallocate);
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
+#if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMemorySetReporter);
+#endif
   REGISTER_SYMBOL(SbMemoryUnmap);
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
