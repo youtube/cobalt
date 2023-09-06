@@ -522,8 +522,10 @@ template("shared_library") {
         deps = [
           ":$original_target_name($cobalt_toolchain)",
           "//starboard:starboard_platform_group($starboard_toolchain)",
-          "//starboard:starboard_platform_group_install($starboard_toolchain)",
         ]
+        if (!separate_install_targets_for_bundling) {
+          deps += [ "//starboard:starboard_platform_group_install($starboard_toolchain)" ]
+        }
       }
       copy("${actual_target_name}_loader_copy") {
         forward_variables_from(invoker, [ "testonly" ])

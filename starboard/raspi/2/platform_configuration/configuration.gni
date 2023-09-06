@@ -19,6 +19,8 @@ if (current_toolchain != default_toolchain ||
 
   sb_evergreen_compatible_use_libunwind = true
   sb_is_evergreen_compatible = true
+}
 
+if (!build_with_separate_cobalt_toolchain) {
   separate_install_targets_for_bundling = true
 }
