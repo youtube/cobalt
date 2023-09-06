@@ -27,7 +27,11 @@
     const unregisterAll = () => navigator.serviceWorker.getRegistrations().then(registrations =>
         Promise.all(registrations.map(r => r.unregister())));
     const fail = msg => {
-      if (msg) {
+      if (msg instanceof DOMException) {
+        console.error(`[DOMException (code=${msg.code})] ${msg.name}: ${msg.message}`);
+      } else if (msg instanceof Error) {
+        console.error(`[Error] ${msg.name}: ${msg.message}`);
+      } else if (msg) {
         console.error(msg);
       }
       unregisterAll().then(notReached);
@@ -49,9 +53,9 @@
       registration.active.postMessage('start-test');
     });
 
-    unregisterAll().then(() => {
-      navigator.serviceWorker.register('service_worker_add_to_cache_test.js').catch(fail);
-    });
+    unregisterAll()
+      .then(() => navigator.serviceWorker.register('service_worker_add_to_cache_test.js'))
+      .catch(fail);
 
     setupFinished();
   </script>
