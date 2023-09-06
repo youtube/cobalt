@@ -24,17 +24,12 @@ exclude: |
             testing|
             third_party|
             tools/gyp|
-<<<<<<< HEAD
-=======
             tools/python|
->>>>>>> a7958f37c35 (Add check-xml pre-commit (#1498))
             url
         )/
         |
         components/update_client/((?!cobalt).)*$
         |
-<<<<<<< HEAD
-=======
         # Ignore everything under tools/metrics _except_ xml files. We need
         # those validated to keep the telemetry/metrics pipeline working.
         tools/metrics/(.*\.(?!xml$)[^/]*|[^/.]+)$|
@@ -42,7 +37,6 @@ exclude: |
         .*\.pb\.h$ |
         .*\.patch$ |
         .*Proto.java$|
->>>>>>> a7958f37c35 (Add check-xml pre-commit (#1498))
         .*\.sig$
     )
 
