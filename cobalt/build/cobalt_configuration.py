@@ -133,8 +133,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'media_capture_test',
         'media_session_test',
         'media_stream_test',
-        # TODO(b/292030213): Crashes on evergreen
-        # 'media_test',
+        'media_test',
         'memory_store_test',
         'metrics_test',
         'net_unittests',
