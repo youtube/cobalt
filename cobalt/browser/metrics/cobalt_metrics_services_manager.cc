@@ -41,14 +41,40 @@ CobaltMetricsServicesManager* CobaltMetricsServicesManager::GetInstance() {
   return instance_;
 }
 
-void CobaltMetricsServicesManager::DeleteInstance() { delete instance_; }
+void CobaltMetricsServicesManager::DeleteInstance() {
+  delete instance_;
+  instance_ = nullptr;
+}
+
+void CobaltMetricsServicesManager::RemoveOnUploadHandler(
+    const CobaltMetricsUploaderCallback* uploader_callback) {
+  if (instance_ != nullptr) {
+    instance_->task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&CobaltMetricsServicesManager::RemoveOnUploadHandlerInternal,
+                   base::Unretained(instance_), uploader_callback));
+  }
+}
+
+void CobaltMetricsServicesManager::RemoveOnUploadHandlerInternal(
+    const CobaltMetricsUploaderCallback* uploader_callback) {
+  CobaltMetricsServiceClient* client =
+      static_cast<CobaltMetricsServiceClient*>(GetMetricsServiceClient());
+  DCHECK(client);
+  client->RemoveOnUploadHandler(uploader_callback);
+}
 
 void CobaltMetricsServicesManager::SetOnUploadHandler(
     const CobaltMetricsUploaderCallback* uploader_callback) {
-  instance_->task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&CobaltMetricsServicesManager::SetOnUploadHandlerInternal,
-                 base::Unretained(instance_), uploader_callback));
+  // H5vccMetrics calls this on destruction when the WebModule is torn down. On
+  // shutdown, CobaltMetricsServicesManager can be destructed before
+  // H5vccMetrics, so we make sure we have a valid instance here.
+  if (instance_ != nullptr) {
+    instance_->task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&CobaltMetricsServicesManager::SetOnUploadHandlerInternal,
+                   base::Unretained(instance_), uploader_callback));
+  }
 }
 
 void CobaltMetricsServicesManager::SetOnUploadHandlerInternal(
