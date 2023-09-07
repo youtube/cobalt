@@ -402,16 +402,19 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 
 int GetSbMediaVideoBufferBudgetMaximum() {
   LOG(INFO) << "Checking for maximum video buffer budget.";
+  auto budget = SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecH264, 1920, 1080, 8);
   if (SbMediaCanPlayMimeAndKeySystem(kVp9_8k_mime, "") == kSbMediaSupportTypeProbably) {
-    LOG(INFO) << "Device supports 8k - setting budget to 300MB";
-    return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 7680, 4320, 12);
+    budget = SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 7680, 4320, 12);
+    LOG(INFO) << "Device supports 8k.";
   }
-  if (SbMediaCanPlayMimeAndKeySystem(kVp9_4k_mime, "") == kSbMediaSupportTypeProbably) {
-    LOG(INFO) << "Device supports 4k - setting budget to 160MB";
-    return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 3840, 2160, 12);
+  else if (SbMediaCanPlayMimeAndKeySystem(kVp9_4k_mime, "") == kSbMediaSupportTypeProbably) {
+    LOG(INFO) << "Device supports 4k.";
+    budget = SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 3840, 2160, 12);
+  } else {
+    LOG(INFO) << "Device only supports 1080p.";
   }
-  LOG(INFO) << "Device only supports 1080p - setting budget to 30MB";
-  return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecH264, 1920, 1080, 8);
+  LOG(INFO) << "Max budget is now " << budget;
+  return budget;
 }
 
 int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,

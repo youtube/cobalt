@@ -207,6 +207,7 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
+  LOG(INFO) << "SourceBufferStream created with video buffer budget of " << memory_limit_;
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
@@ -2086,11 +2087,11 @@ base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
 }
 
 void SourceBufferStream::EnableVideoBufferBudgetOverride() {
-  LOG(INFO) << "Enabling Video Buffer Budget Override. Current memory_limit_ is" << memory_limit_;
+  LOG(INFO) << "Enabling Video Buffer Budget Override. Current memory_limit_ is " << memory_limit_;
   memory_limit_ = std::max(
       memory_limit_,
       static_cast<size_t>(GetSbMediaVideoBufferBudgetMaximum()));
-  LOG(INFO) << "Now Video Buffer Budget Override is" << memory_limit_;
+  LOG(INFO) << "Now Video Buffer Budget Override is " << memory_limit_;
 }
 
 #endif  // defined (STARBOARD)

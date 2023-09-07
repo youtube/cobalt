@@ -124,7 +124,6 @@ target(gtest_target_type, "media_test") {
     "base/decoder_buffer_cache_test.cc",
     "bidirectional_fit_reuse_allocator_test.cc",
     "file_data_source_test.cc",
-    "player/web_media_player_unittest.cc",
     "progressive/demuxer_extension_wrapper_test.cc",
     "progressive/mock_data_source_reader.h",
     "progressive/mp4_map_unittest.cc",
