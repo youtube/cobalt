@@ -33,9 +33,9 @@ exclude: |
         |
         components/update_client/((?!cobalt).)*$
         |
-        # Ignore everything under tools/metrics _except_ xml files. We need
-        # those validated to keep the telemetry/metrics pipeline working.
-        tools/metrics/(.*\.(?!xml$)[^/]*|[^/.]+)$|
+        # Ignore everything under tools/metrics _except_ Cobalt files. We
+        # need those validated to keep the telemetry/metrics pipeline working.
+        tools/metrics/((?!cobalt\/).)*$|
         .*\.pb\.cc$ |
         .*\.pb\.h$ |
         .*\.patch$ |
