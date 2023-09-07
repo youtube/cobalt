@@ -58,6 +58,17 @@ void CobaltMetricsServiceClient::SetOnUploadHandler(
   }
 }
 
+void CobaltMetricsServiceClient::RemoveOnUploadHandler(
+    const CobaltMetricsUploaderCallback* uploader_callback) {
+  // Only remove the upload handler if our current reference matches that which
+  // is passed in. Avoids issues with race conditions with two threads trying to
+  // override the handler.
+  if (upload_handler_ == uploader_callback) {
+    LOG(INFO) << "Upload handler removed.";
+    upload_handler_ = nullptr;
+  }
+}
+
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     ::metrics::MetricsStateManager* state_manager, PrefService* local_state)
     : metrics_state_manager_(state_manager) {
