@@ -14,9 +14,19 @@
 
 import("//starboard/raspi/shared/platform_configuration/configuration.gni")
 
+<<<<<<< HEAD
 arm_float_abi = "hard"
 
 sb_evergreen_compatible_use_libunwind = true
 sb_is_evergreen_compatible = true
 
 separate_install_targets_for_bundling = true
+=======
+  sb_evergreen_compatible_use_libunwind = true
+  sb_is_evergreen_compatible = true
+}
+
+if (!build_with_separate_cobalt_toolchain) {
+  separate_install_targets_for_bundling = true
+}
+>>>>>>> ccede65d576 (Don't use starboard_platform_group install target for bundled platforms (#1489))
