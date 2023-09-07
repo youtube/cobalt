@@ -51,6 +51,11 @@ def main(out_directory: str, platform: str, build_type: str,
 
 
 if __name__ == '__main__':
+  current_working_dir = os.getcwd()
+  python_env_var = os.getenv('PYTHONPATH')
+  assert current_working_dir in python_env_var, 'env variable PYTHONPATH \
+  should be set to current repo root directory.'
+
   parser = argparse.ArgumentParser()
 
   builds_directory_group = parser.add_mutually_exclusive_group()
