@@ -15,6 +15,7 @@
 #include "starboard/shared/uwp/audio_renderer_passthrough.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include "starboard/common/log.h"
@@ -41,7 +42,7 @@ int CodecToIecSampleRate(SbMediaAudioCodec codec) {
 }  // namespace
 
 AudioRendererPassthrough::AudioRendererPassthrough(
-    scoped_ptr<AudioDecoder> audio_decoder,
+    std::unique_ptr<AudioDecoder> audio_decoder,
     const AudioStreamInfo& audio_stream_info)
     : channels_(audio_stream_info.number_of_channels),
       codec_(audio_stream_info.codec),

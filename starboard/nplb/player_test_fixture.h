@@ -17,12 +17,12 @@
 
 #include <atomic>
 #include <deque>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "starboard/common/queue.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/drm.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
@@ -91,8 +91,8 @@ class SbPlayerTestFixture {
   void SetAudioWriteDuration(SbTime duration);
 
   SbPlayer GetPlayer() const { return player_; }
-  bool HasAudio() const { return audio_dmp_reader_; }
-  bool HasVideo() const { return video_dmp_reader_; }
+  bool HasAudio() const { return !!audio_dmp_reader_; }
+  bool HasVideo() const { return !!video_dmp_reader_; }
 
   SbTime GetAudioSampleTimestamp(int index) const;
   int ConvertDurationToAudioBufferCount(SbTime duration) const;
@@ -199,8 +199,8 @@ class SbPlayerTestFixture {
   const SbPlayerOutputMode output_mode_;
   std::string key_system_;
   std::string max_video_capabilities_;
-  scoped_ptr<VideoDmpReader> audio_dmp_reader_;
-  scoped_ptr<VideoDmpReader> video_dmp_reader_;
+  std::unique_ptr<VideoDmpReader> audio_dmp_reader_;
+  std::unique_ptr<VideoDmpReader> video_dmp_reader_;
   testing::FakeGraphicsContextProvider* fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;

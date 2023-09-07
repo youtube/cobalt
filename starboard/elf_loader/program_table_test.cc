@@ -14,10 +14,10 @@
 
 #include "starboard/elf_loader/program_table.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/elf_loader/file.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -88,7 +88,7 @@ class ProgramTableTest : public ::testing::Test {
   void HelperMethod() {}
 
  protected:
-  scoped_ptr<ProgramTable> program_table_;
+  std::unique_ptr<ProgramTable> program_table_;
 };
 
 TEST_F(ProgramTableTest, LoadSegments) {

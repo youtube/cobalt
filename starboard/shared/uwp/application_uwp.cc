@@ -1115,7 +1115,7 @@ void ApplicationUwp::OnJoystickUpdate(SbKey key, SbInputVector input_vector) {
   if (!SbWindowIsValid(window_)) {
     return;
   }
-  scoped_ptr<SbInputData> data(new SbInputData());
+  std::unique_ptr<SbInputData> data(new SbInputData());
   memset(data.get(), 0, sizeof(*data));
   data->window = window_;
   data->type = kSbInputEventTypeMove;

@@ -191,19 +191,24 @@
 //
 // The workaround is to explicitly declare your copy constructor.
 
-#define MOVE_ONLY_TYPE_FOR_CPP_03(type, rvalue_type)   \
- private:                                              \
-  struct rvalue_type {                                 \
-    rvalue_type(type* object) : object(object) {}      \
-    type* object;                                      \
-  };                                                   \
-  type(type&);                                         \
-  void operator=(type&);                               \
-                                                       \
- public:                                               \
-  operator rvalue_type() { return rvalue_type(this); } \
-  type Pass() { return type(rvalue_type(this)); }      \
-                                                       \
+#define MOVE_ONLY_TYPE_FOR_CPP_03(type, rvalue_type) \
+ private:                                            \
+  struct rvalue_type {                               \
+    rvalue_type(type* object)                        \
+        : object(object) {}                          \
+    type* object;                                    \
+  };                                                 \
+  type(type&);                                       \
+  void operator=(type&);                             \
+                                                     \
+ public:                                             \
+  operator rvalue_type() {                           \
+    return rvalue_type(this);                        \
+  }                                                  \
+  type Pass() {                                      \
+    return type(rvalue_type(this));                  \
+  }                                                  \
+                                                     \
  private:
 
 #endif  // STARBOARD_COMMON_MOVE_H_

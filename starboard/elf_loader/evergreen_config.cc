@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "starboard/elf_loader/evergreen_config.h"
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -24,7 +25,7 @@ namespace starboard {
 namespace elf_loader {
 
 static starboard::Mutex g_evergreen_config_mutex;
-static scoped_ptr<EvergreenConfig> g_evergreen_config;
+static std::unique_ptr<EvergreenConfig> g_evergreen_config;
 
 void EvergreenConfig::Create(
     const char* library_path,

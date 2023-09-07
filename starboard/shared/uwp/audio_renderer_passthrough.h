@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_UWP_AUDIO_RENDERER_PASSTHROUGH_H_
 
 #include <functional>
+#include <memory>
 #include <queue>
 
 #include "starboard/atomic.h"
@@ -50,7 +51,7 @@ class AudioRendererPassthrough : public AudioRenderer,
  public:
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
 
-  AudioRendererPassthrough(scoped_ptr<AudioDecoder> audio_decoder,
+  AudioRendererPassthrough(std::unique_ptr<AudioDecoder> audio_decoder,
                            const AudioStreamInfo& audio_stream_info);
   ~AudioRendererPassthrough() override;
 
@@ -122,8 +123,8 @@ class AudioRendererPassthrough : public AudioRenderer,
 
   const int channels_;
   const SbMediaAudioCodec codec_ = kSbMediaAudioCodecNone;
-  scoped_ptr<AudioDecoder> decoder_;
-  scoped_ptr<WASAPIAudioSink> sink_;
+  std::unique_ptr<AudioDecoder> decoder_;
+  std::unique_ptr<WASAPIAudioSink> sink_;
 
   // |iec_sample_rate_| is the sample rate of the stream when stored in an IEC
   // 61937 format. This may be different from the decoded sample rate.

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstring>
+#include <memory>
+
 #include "starboard/common/murmurhash2.h"
 
 namespace starboard {
@@ -28,7 +31,7 @@ uint32_t MurmurHash2_32(const void* src, uint32_t size, uint32_t prev_hash) {
       memcpy(aligned_src, src, size);
       return MurmurHash2_32_Aligned(aligned_src, size, prev_hash);
     } else {
-      scoped_array<char> aligned_src(new char[size]);
+      std::unique_ptr<char[]> aligned_src(new char[size]);
       memcpy(aligned_src.get(), src, size);
       return MurmurHash2_32_Aligned(aligned_src.get(), size, prev_hash);
     }

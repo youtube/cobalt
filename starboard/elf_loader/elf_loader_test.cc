@@ -14,7 +14,6 @@
 
 #include "starboard/elf_loader/elf_loader_impl.h"
 
-#include "starboard/common/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)

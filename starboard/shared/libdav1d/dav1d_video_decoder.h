@@ -17,6 +17,7 @@
 
 #include "third_party/libdav1d/include/dav1d/dav1d.h"
 
+#include <memory>
 #include <queue>
 #include <string>
 
@@ -92,7 +93,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   bool stream_ended_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  scoped_ptr<starboard::player::JobThread> decoder_thread_;
+  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
 
   // Decode-to-texture related state.
   const SbPlayerOutputMode output_mode_;

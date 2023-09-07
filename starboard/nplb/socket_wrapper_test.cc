@@ -35,7 +35,7 @@ TEST_P(PairSbSocketWrapperTest, SunnyDay) {
   const int kBufSize = 256 * 1024;
   const int kSockBufSize = kBufSize / 8;
 
-  scoped_ptr<ConnectedTrioWrapped> trio =
+  std::unique_ptr<ConnectedTrioWrapped> trio =
       CreateAndConnectWrapped(GetServerAddressType(), GetClientAddressType(),
                               GetPortNumberForTests(), kSocketTimeout);
   ASSERT_TRUE(trio);
@@ -50,9 +50,9 @@ TEST_P(PairSbSocketWrapperTest, SunnyDay) {
 
   // Create the buffers and fill the send buffer with a pattern, the receive
   // buffer with zeros.
-  scoped_array<char> pattern(new char[kBufSize]);
-  scoped_array<char> send_buf(new char[kBufSize]);
-  scoped_array<char> receive_buf(new char[kBufSize]);
+  std::unique_ptr<char[]> pattern(new char[kBufSize]);
+  std::unique_ptr<char[]> send_buf(new char[kBufSize]);
+  std::unique_ptr<char[]> receive_buf(new char[kBufSize]);
   for (int i = 0; i < kBufSize; ++i) {
     pattern[i] = static_cast<char>(i);
     send_buf[i] = static_cast<char>(i);
