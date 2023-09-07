@@ -43,6 +43,8 @@ component("media") {
     "base/format_support_query_metrics.h",
     "base/interleaved_sinc_resampler.cc",
     "base/interleaved_sinc_resampler.h",
+    "base/metrics_provider.cc",
+    "base/metrics_provider.h",
     "base/playback_statistics.cc",
     "base/playback_statistics.h",
     "base/sbplayer_bridge.cc",
