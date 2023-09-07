@@ -63,8 +63,6 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kClientHintHeaders[] = "ClientHintHeaders";
   const char kQUIC[] = "QUIC";
 
-  LOG(INFO) << "YO BUDGET H5VCC SETTTING SSET!";
-
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
 #endif
@@ -81,7 +79,6 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   }
 
   if (name.rfind(kMediaPrefix, 0) == 0) {
-    LOG(INFO) << "YO H5VCC SETTTING SSET! STARTX SWITH MEDIA";
     return media_module_ ? media_module_->SetConfiguration(
                                name.substr(strlen(kMediaPrefix)), value)
                          : false;

@@ -401,16 +401,16 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 }
 
 int GetSbMediaVideoBufferBudgetMaximum() {
-  LOG(INFO) << "YO BUDGET! GET MAXIMUM!";
+  LOG(INFO) << "Checking for maximum video buffer budget.";
   if (SbMediaCanPlayMimeAndKeySystem(kVp9_8k_mime, "") == kSbMediaSupportTypeProbably) {
-    LOG(INFO) << "YO BUDGET _ 8k!";
+    LOG(INFO) << "Device supports 8k - setting budget to 300MB";
     return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 7680, 4320, 12);
   }
   if (SbMediaCanPlayMimeAndKeySystem(kVp9_4k_mime, "") == kSbMediaSupportTypeProbably) {
-    LOG(INFO) << "YO BUDGET _ 4k!";
+    LOG(INFO) << "Device supports 4k - setting budget to 160MB";
     return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 3840, 2160, 12);
   }
-    LOG(INFO) << "YO LOW BUDGET _FDR!";
+  LOG(INFO) << "Device only supports 1080p - setting budget to 30MB";
   return SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecH264, 1920, 1080, 8);
 }
 
