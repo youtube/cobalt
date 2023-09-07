@@ -156,7 +156,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 #if SB_API_VERSION >= 15
       audio_write_duration_local, audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
-      media_log_, decode_target_provider_.get());
+      media_log_, &media_metrics_provider_, decode_target_provider_.get());
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);
@@ -244,6 +244,7 @@ void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
   StartPipeline(url);
+  media_metrics_provider_.Initialize(false);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -270,6 +271,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
   state_.is_media_source = true;
   StartPipeline(chunk_demuxer_.get());
+  media_metrics_provider_.Initialize(true);
 }
 
 void WebMediaPlayerImpl::LoadProgressive(
@@ -309,6 +311,7 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   state_.is_progressive = true;
   StartPipeline(progressive_demuxer_.get());
+  media_metrics_provider_.Initialize(false);
 }
 
 void WebMediaPlayerImpl::CancelLoad() {
@@ -324,6 +327,7 @@ void WebMediaPlayerImpl::Play() {
   pipeline_->SetPlaybackRate(state_.playback_rate);
 
   media_log_->AddEvent<::media::MediaLogEvent::kPlay>();
+  media_metrics_provider_.SetHasPlayed();
 }
 
 void WebMediaPlayerImpl::Pause() {
@@ -653,6 +657,7 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
   if (suppress_destruction_errors_) return;
 
   media_log_->NotifyError(error);
+  media_metrics_provider_.OnError(error);
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) {
     // Any error that occurs before reaching ReadyStateHaveMetadata should
@@ -785,6 +790,7 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
       break;
     case Pipeline::kPrerollCompleted:
       SetReadyState(WebMediaPlayer::kReadyStateHaveEnoughData);
+      media_metrics_provider_.SetHaveEnough();
       break;
   }
 }
@@ -963,6 +969,7 @@ void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper(
       NOTREACHED();
       break;
   }
+  media_metrics_provider_.SetIsEME();
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {

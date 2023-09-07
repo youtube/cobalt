@@ -60,6 +60,7 @@
 #include "base/time/time.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/decode_target_provider.h"
+#include "cobalt/media/base/metrics_provider.h"
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/player/web_media_player.h"
@@ -305,6 +306,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
   ::media::MediaLog* const media_log_;
+
+  MediaMetricsProvider media_metrics_provider_;
 
   bool is_local_source_;
 
