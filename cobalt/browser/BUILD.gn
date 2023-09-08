@@ -57,10 +57,10 @@ target(final_executable_type, "cobalt") {
     "//cobalt/base",
     "//cobalt/css_parser",
     "//net",
+    "//third_party/icu:icudata",
   ]
   data_deps = [
     "//cobalt/network:copy_ssl_certificates",
-    "//third_party/icu:icudata",
   ]
   if (cobalt_font_package == "empty") {
     data_deps += [ "//cobalt/content/fonts:copy_font_data" ]

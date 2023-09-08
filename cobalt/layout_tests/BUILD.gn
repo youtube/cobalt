@@ -61,13 +61,13 @@ target(gtest_target_type, "layout_tests") {
     "//cobalt/script",
     "//cobalt/test:run_all_unittests",
     "//testing/gtest",
+    "//third_party/icu:icudata",
     "//url",
   ]
 
   data_deps = [
     "//cobalt/layout_tests/testdata:layout_copy_test_data",
     "//cobalt/network:copy_ssl_certificates",
-    "//third_party/icu:icudata",
   ]
   if (cobalt_font_package == "empty") {
     data_deps += [ "//cobalt/content/fonts:copy_font_data" ]

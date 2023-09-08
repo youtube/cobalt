@@ -170,6 +170,9 @@ declare_args() {
 
   # Enable WASM and install WebAssembly global.
   v8_enable_webassembly = false
+
+  # Build ICU data file into binary.
+  icu_use_data_file = false
 }
 
 if (current_toolchain == starboard_toolchain &&
