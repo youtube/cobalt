@@ -29,6 +29,16 @@ exclude: |
         |
         components/update_client/((?!cobalt).)*$
         |
+<<<<<<< HEAD
+=======
+        # Ignore everything under tools/metrics _except_ Cobalt files. We
+        # need those validated to keep the telemetry/metrics pipeline working.
+        tools/metrics/((?!cobalt\/).)*$|
+        .*\.pb\.cc$ |
+        .*\.pb\.h$ |
+        .*\.patch$ |
+        .*Proto.java$|
+>>>>>>> 879921004f1 (Fix xml regex (#1509))
         .*\.sig$
     )
 
