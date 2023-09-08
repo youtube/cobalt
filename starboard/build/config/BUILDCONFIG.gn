@@ -409,9 +409,11 @@ template("shared_library") {
       forward_variables_from(invoker, [ "testonly" ])
       deps = [
         ":${actual_target_name}_loader($starboard_toolchain)",
-        ":${actual_target_name}_loader_copy($starboard_toolchain)",
         ":${actual_target_name}_loader_install($starboard_toolchain)",
       ]
+      if (!is_host_win) {
+        deps += [ ":${actual_target_name}_loader_copy($starboard_toolchain)" ]
+      }
     }
     if (current_toolchain == starboard_toolchain) {
       executable("${actual_target_name}_loader") {
@@ -445,11 +447,13 @@ template("shared_library") {
           deps += [ "//starboard:starboard_platform_group_install($starboard_toolchain)" ]
         }
       }
-      copy("${actual_target_name}_loader_copy") {
-        forward_variables_from(invoker, [ "testonly" ])
-        sources = [ "$root_out_dir/${actual_target_name}_loader" ]
-        outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
-        deps = [ ":${actual_target_name}_loader" ]
+      if (!is_host_win) {
+        copy("${actual_target_name}_loader_copy") {
+          forward_variables_from(invoker, [ "testonly" ])
+          sources = [ "$root_out_dir/${actual_target_name}_loader" ]
+          outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
+          deps = [ ":${actual_target_name}_loader" ]
+        }
       }
     }
   }
