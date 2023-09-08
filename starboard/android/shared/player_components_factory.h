@@ -215,13 +215,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
       if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
         return scoped_ptr<PlayerComponents>();
       }
 
-      enable_audio_device_callback =
-          audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
+      enable_audio_device_callback = true;
       SB_LOG(INFO) << "AudioDeviceCallback is "
                    << (enable_audio_device_callback ? "enabled." : "disabled.");
 
@@ -304,7 +302,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     if (!audio_mime.empty()) {
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("tunnelmode") ||
-          !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
           !audio_mime_type.ValidateBoolParameter("enablepcmcontenttypemovie")) {
         *error_message =
             "Invalid audio MIME: '" + std::string(audio_mime) + "'";
@@ -424,8 +421,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator));
 
-      bool enable_audio_device_callback =
-          audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
+      bool enable_audio_device_callback = true;
       SB_LOG(INFO) << "AudioDeviceCallback is "
                    << (enable_audio_device_callback ? "enabled." : "disabled.");
       bool enable_pcm_content_type_movie =
