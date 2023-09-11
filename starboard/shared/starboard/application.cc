@@ -410,6 +410,10 @@ bool Application::DispatchAndDelete(Application::Event* event) {
 }
 
 bool Application::HandleEventAndUpdateState(Application::Event* event) {
+  // Don't accept any events in kStateStopped state
+  if (state_ == kStateStopped)
+    return true;
+
   // Ensure the event is deleted unless it is released.
   scoped_ptr<Event> scoped_event(event);
 

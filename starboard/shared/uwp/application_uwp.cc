@@ -1029,8 +1029,9 @@ void ApplicationUwp::Inject(Application::Event* event) {
   RunInMainThreadAsync([this, event]() {
     bool result = DispatchAndDelete(event);
     if (!result) {
-      NetLogFlushThenClose();
-      CoreApplication::Exit();
+      // Release ExtendedResourcesManager. This lets
+      // ApplicationUwp::InternalMain() to return
+      ExtendedResourcesManager::GetInstance()->Quit();
     }
   });
 }
@@ -1332,7 +1333,6 @@ int InternalMain() {
   extended_resources_manager.Run();
 
   NetLogFlushThenClose();
-  CoreApplication::Exit();
 
   MFShutdown();
   WSACleanup();
