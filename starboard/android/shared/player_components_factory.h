@@ -74,8 +74,7 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(bool enable_pcm_content_type_movie,
-                                    int tunnel_mode_audio_session_id = -1)
+  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
             [=](SbTime start_media_time,
                 int channels,
@@ -96,8 +95,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                   audio_frame_storage_type, frame_buffers,
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
-                  tunnel_mode_audio_session_id, enable_pcm_content_type_movie,
-                  false, /* is_web_audio */
+                  tunnel_mode_audio_session_id, false, /* is_web_audio */
                   context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
@@ -294,8 +292,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     MimeType audio_mime_type(audio_mime);
     if (!audio_mime.empty()) {
       if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("tunnelmode") ||
-          !audio_mime_type.ValidateBoolParameter("enablepcmcontenttypemovie")) {
+          !audio_mime_type.ValidateBoolParameter("tunnelmode")) {
         *error_message =
             "Invalid audio MIME: '" + std::string(audio_mime) + "'";
         return false;
@@ -414,12 +411,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator));
 
-      bool enable_pcm_content_type_movie =
-          audio_mime_type.GetParamBoolValue("enablepcmcontenttypemovie", true);
-      SB_LOG(INFO) << "AudioAttributes::CONTENT_TYPE_MOVIE is "
-                   << (enable_pcm_content_type_movie ? "enabled" : "disabled")
-                   << " for non-tunneled PCM audio playback.";
-
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
             tunnel_mode_audio_session_id, creation_parameters);
@@ -428,8 +419,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         }
       }
       if (!*audio_renderer_sink) {
-        audio_renderer_sink->reset(
-            new AudioRendererSinkAndroid(enable_pcm_content_type_movie));
+        audio_renderer_sink->reset(new AudioRendererSinkAndroid());
       }
     }
 
@@ -616,7 +606,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       int tunnel_mode_audio_session_id,
       const CreationParameters& creation_parameters) {
     scoped_ptr<AudioRendererSink> audio_sink(
-        new AudioRendererSinkAndroid(true, tunnel_mode_audio_session_id));
+        new AudioRendererSinkAndroid(tunnel_mode_audio_session_id));
     // We need to double check if the audio sink can actually be created.
     int max_cached_frames, min_frames_per_append;
     GetAudioRendererParams(creation_parameters, &max_cached_frames,
