@@ -27,13 +27,15 @@ exclude: |
             testing|
             third_party|
             tools/gyp|
-            tools/metrics|
             tools/python|
             url
         )/
         |
         components/update_client/((?!cobalt).)*$
         |
+        # Ignore everything under tools/metrics _except_ Cobalt files. We
+        # need those validated to keep the telemetry/metrics pipeline working.
+        tools/metrics/((?!cobalt\/).)*$|
         .*\.pb\.cc$ |
         .*\.pb\.h$ |
         .*\.patch$ |
@@ -49,6 +51,7 @@ repos:
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
     -   id: mixed-line-ending
+    -   id: check-xml
 
 -   repo: https://cobalt.googlesource.com/codespell
     rev: 67c489d36dd4c52cbb9e4755d90c35c6231842ef  # v2.0.0

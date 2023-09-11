@@ -58,6 +58,17 @@ void CobaltMetricsServiceClient::SetOnUploadHandler(
   }
 }
 
+void CobaltMetricsServiceClient::RemoveOnUploadHandler(
+    const CobaltMetricsUploaderCallback* uploader_callback) {
+  // Only remove the upload handler if our current reference matches that which
+  // is passed in. Avoids issues with race conditions with two threads trying to
+  // override the handler.
+  if (upload_handler_ == uploader_callback) {
+    LOG(INFO) << "Upload handler removed.";
+    upload_handler_ = nullptr;
+  }
+}
+
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     ::metrics::MetricsStateManager* state_manager, PrefService* local_state)
     : metrics_state_manager_(state_manager) {
@@ -77,7 +88,8 @@ ukm::UkmService* CobaltMetricsServiceClient::GetUkmService() {
 
 void CobaltMetricsServiceClient::SetMetricsClientId(
     const std::string& client_id) {
-  // TODO(b/286066035): What to do with client id here?
+  // ClientId is unnecessary within Cobalt. We expect the web client responsible
+  // for uploading these to have its own concept of device/client identifiers.
 }
 
 // TODO(b/286884542): Audit all stub implementations in this class and reaffirm

@@ -100,6 +100,7 @@
 #error U_COMMON_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see https://unicode-org.github.io/icu/userguide/howtouseicu
 #endif
 
+
 /* include system headers */
 #if (U_PLATFORM == U_STARBOARD)
 #   include "starboard/system.h"
@@ -1347,12 +1348,12 @@ u_setDataDirectory(const char *directory) {
 
     if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
         {
-                char *p;
-                while((p = uprv_strchr(newDataDir, U_FILE_ALT_SEP_CHAR)) != NULL) {
-                    *p = U_FILE_SEP_CHAR;
-                }
+            char *p;
+            while((p = uprv_strchr(newDataDir, U_FILE_ALT_SEP_CHAR)) != NULL) {
+                *p = U_FILE_SEP_CHAR;
             }
         }
+    }
     }
 
     if (gDataDirectory && *gDataDirectory) {
@@ -1374,9 +1375,9 @@ uprv_pathIsAbsolute(const char *path)
   }
 
   if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
-    if (*path == U_FILE_ALT_SEP_CHAR) {
-      return TRUE;
-    }
+  if(*path == U_FILE_ALT_SEP_CHAR) {
+    return TRUE;
+  }
   }
 
 #if U_PLATFORM_USES_ONLY_WIN32_API
@@ -1521,10 +1522,10 @@ static void setTimeZoneFilesDir(const char *path, UErrorCode &status) {
     gTimeZoneFilesDirectory->clear();
     gTimeZoneFilesDirectory->append(path, status);
     if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
-        char *p = gTimeZoneFilesDirectory->data();
-        while ((p = uprv_strchr(p, U_FILE_ALT_SEP_CHAR)) != NULL) {
-            *p = U_FILE_SEP_CHAR;
-        }
+    char *p = gTimeZoneFilesDirectory->data();
+    while ((p = uprv_strchr(p, U_FILE_ALT_SEP_CHAR)) != NULL) {
+        *p = U_FILE_SEP_CHAR;
+    }
     }
 }
 

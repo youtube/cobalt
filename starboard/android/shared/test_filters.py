@@ -83,14 +83,8 @@ _FILTERED_TESTS = {
         # TODO: Filter this test on a per-device basis.
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
 
-        # TODO: b/289281412 Make this test work on lab devices consistently.
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudio/*',
-
         # TODO: b/292319097 Make this test work on lab devices consistently.
         'SbPlayerTest.MaxVideoCapabilities',
-
-        # TODO: b/292409536 Make this test fork on lab devices consistently.
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudioDiscardAll/*',
 
         # TODO: b/280432564 Make this test work on lab devices consistently.
         'SbAudioSinkTest.ContinuousAppend',

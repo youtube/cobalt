@@ -74,10 +74,8 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
 
 AudioRendererPassthrough::AudioRendererPassthrough(
     const AudioStreamInfo& audio_stream_info,
-    SbDrmSystem drm_system,
-    bool enable_audio_device_callback)
-    : audio_stream_info_(audio_stream_info),
-      enable_audio_device_callback_(enable_audio_device_callback) {
+    SbDrmSystem drm_system)
+    : audio_stream_info_(audio_stream_info) {
   SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
             audio_stream_info_.codec == kSbMediaAudioCodecEac3);
   if (SbDrmSystemIsValid(drm_system)) {
@@ -401,8 +399,8 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       optional<SbMediaAudioSampleType>(),  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
       audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      enable_audio_device_callback_, false /* enable_pcm_content_type_movie */,
-      kTunnelModeAudioSessionId, false /* is_web_audio */));
+      false /* enable_pcm_content_type_movie */, kTunnelModeAudioSessionId,
+      false /* is_web_audio */));
 
   if (!audio_track_bridge->is_valid()) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");
@@ -456,8 +454,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   SB_DCHECK(error_cb_);
   SB_DCHECK(audio_track_bridge_);
 
-  if (enable_audio_device_callback_ &&
-      audio_track_bridge_->GetAndResetHasAudioDeviceChanged()) {
+  if (audio_track_bridge_->GetAndResetHasAudioDeviceChanged()) {
     SB_LOG(INFO) << "Audio device changed, raising a capability changed error "
                     "to restart playback.";
     error_cb_(kSbPlayerErrorCapabilityChanged,

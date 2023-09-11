@@ -88,9 +88,9 @@ main(int argc, char* argv[]) {
     /* Get the name of tool. */
     pname = uprv_strrchr(*argv, U_FILE_SEP_CHAR);
     if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
-      if (!pname) {
+    if (!pname) {
         pname = uprv_strrchr(*argv, U_FILE_ALT_SEP_CHAR);
-      }
+    }
     }
     if (!pname) {
         pname = *argv;
@@ -217,9 +217,9 @@ main(int argc, char* argv[]) {
             } else {
                 const char *q = uprv_strrchr(arg, U_FILE_SEP_CHAR);
                 if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
-                  if (q == NULL) {
+                if (q == NULL) {
                     q = uprv_strrchr(arg, U_FILE_ALT_SEP_CHAR);
-                  }
+                }
                 }
                 infile.append(inputDir, status);
                 if(q != NULL) {

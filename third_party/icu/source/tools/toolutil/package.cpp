@@ -269,7 +269,7 @@ makeFullFilename(const char *path, const char *name,
     strcpy(s, name);
     if (U_TREE_ENTRY_SEP_CHAR != U_FILE_SEP_CHAR ||
         U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
-      treeToPath(s);
+    treeToPath(s);
     }
 }
 
@@ -1042,7 +1042,7 @@ Package::addItem(const char *name, uint8_t *data, int32_t length, UBool isDataOw
         strcpy(items[idx].name, name);
         if (U_TREE_ENTRY_SEP_CHAR != U_FILE_SEP_CHAR ||
             U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
-          pathToTree(items[idx].name);
+        pathToTree(items[idx].name);
         }
     } else {
         // same-name item found, replace it

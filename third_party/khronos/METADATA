@@ -12,6 +12,7 @@ third_party {
     value: "https://chromium.googlesource.com/chromium/src/third_party/khronos"
   }
   version: "7425fd090088b0408ec4176d3dfc5568a480cb10"
+  # corresponds to https://chromium.googlesource.com/chromium/src/+/66.0.3359.203/third_party/khronos
   last_upgrade_date {
     year: 2017
     month: 12

@@ -852,7 +852,8 @@ void ServiceWorkerJobs::Install(
   ServiceWorkerObject* installing_worker = registration->installing_worker();
   // 11. If the result of running the Should Skip Event algorithm with
   //     installingWorker and "install" is false, then:
-  if (!installing_worker->ShouldSkipEvent(base::Tokens::install())) {
+  if (installing_worker &&
+      !installing_worker->ShouldSkipEvent(base::Tokens::install())) {
     // 11.1. Let forceBypassCache be true if job’s force bypass cache flag is
     //       set, and false otherwise.
     bool force_bypass_cache = job->force_bypass_cache_flag;

@@ -19,8 +19,8 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#include <math.h>
 #include <cstdlib>
+#include <math.h>
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)

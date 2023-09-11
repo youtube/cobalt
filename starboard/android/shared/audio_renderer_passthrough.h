@@ -54,8 +54,7 @@ class AudioRendererPassthrough
       AudioStreamInfo;
 
   AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system,
-                           bool enable_audio_device_callback);
+                           SbDrmSystem drm_system);
   ~AudioRendererPassthrough() override;
 
   bool is_valid() const { return decoder_ != nullptr; }
@@ -102,9 +101,8 @@ class AudioRendererPassthrough
   void OnDecoderConsumed();
   void OnDecoderOutput();
 
-  // The following three variables are set in the ctor.
+  // The following two variables are set in the ctor.
   const AudioStreamInfo audio_stream_info_;
-  const bool enable_audio_device_callback_;
   // The AudioDecoder is used as a decryptor when the stream is encrypted.
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate
   //       instead.  This would need to turn SbDrmSystemPrivate::Decrypt() into

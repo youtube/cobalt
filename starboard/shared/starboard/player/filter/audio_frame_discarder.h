@@ -17,6 +17,7 @@
 
 #include <queue>
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -35,8 +36,6 @@ namespace filter {
 // corresponding InputBuffer object isn't available at the time.
 // This class assumes that there is exact one DecodedAudio object produced for
 // one InputBuffer object, which may not always be the case.
-// TODO(b/274021285): Ensure that the class works when there isn't a 1:1
-//                    relationship between DecodedAudio and InputBuffer.
 class AudioFrameDiscarder {
  public:
   void OnInputBuffers(const InputBuffers& input_buffers);
@@ -55,6 +54,7 @@ class AudioFrameDiscarder {
 
   static constexpr size_t kMaxNumberOfPendingInputBufferInfos = 128;
 
+  Mutex mutex_;
   std::queue<InputBufferInfo> input_buffer_infos_;
 };
 

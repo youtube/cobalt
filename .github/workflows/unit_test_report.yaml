@@ -9,11 +9,12 @@ on:
     types:
       - completed
 
+# TODO(b/293508740): Report failed workflow runs back to triggering PR.
+
 jobs:
   unit-test-report:
-    permissions: {}
-      # TODO(b/293508740): Report failed workflow runs back to triggering PR.
-      # pull-requests: write
+    permissions:
+      pull-requests: write
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
     name: Upload Unit Test Reports

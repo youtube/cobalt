@@ -47,6 +47,8 @@ class H5vccMetrics : public script::Wrappable {
       : task_runner_(base::ThreadTaskRunnerHandle::Get()),
         persistent_settings_(persistent_settings) {}
 
+  ~H5vccMetrics();
+
   H5vccMetrics(const H5vccMetrics&) = delete;
   H5vccMetrics& operator=(const H5vccMetrics&) = delete;
 
