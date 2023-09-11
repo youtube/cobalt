@@ -51,7 +51,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // can play decode-to-texture video just as well as normal video.
 
   bool must_support_tunnel_mode = false;
-  bool force_improved_support_check = true;
   int decoder_cache_ttl_ms = -1;
   if (mime_type) {
     if (!mime_type->is_valid()) {
@@ -78,14 +77,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
             "allowed|disallowed|preferred|unpreferred|required")) {
       return false;
     }
-
-    // Forces the use of specific Android APIs (isSizeSupported() and
-    // areSizeAndRateSupported()) to determine format support.
-    if (!mime_type->ValidateBoolParameter("forceimprovedsupportcheck")) {
-      return false;
-    }
-    force_improved_support_check =
-        mime_type->GetParamBoolValue("forceimprovedsupportcheck", true);
 
     decoder_cache_ttl_ms =
         mime_type->GetParamIntValue("decoder_cache_ttl_ms", -1);
@@ -126,5 +117,5 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
       mime, require_secure_playback, must_support_hdr, must_support_tunnel_mode,
-      force_improved_support_check, frame_width, frame_height, bitrate, fps);
+      frame_width, frame_height, bitrate, fps);
 }
