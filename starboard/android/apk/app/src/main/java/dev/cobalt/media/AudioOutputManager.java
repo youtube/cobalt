@@ -60,8 +60,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
-      boolean enableAudioDeviceCallback,
-      boolean enablePcmContentTypeMovie,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
     AudioTrackBridge audioTrackBridge =
@@ -70,7 +68,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             sampleRate,
             channelCount,
             preferredBufferSizeInBytes,
-            enablePcmContentTypeMovie,
             tunnelModeAudioSessionId,
             isWebAudio);
     if (!audioTrackBridge.isAudioTrackValid()) {
@@ -80,7 +77,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     audioTrackBridgeList.add(audioTrackBridge);
     hasAudioDeviceChanged.set(false);
 
-    if (hasRegisteredAudioDeviceCallback || !enableAudioDeviceCallback) {
+    if (hasRegisteredAudioDeviceCallback || isWebAudio) {
       return audioTrackBridge;
     }
 
