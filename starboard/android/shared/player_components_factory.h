@@ -207,20 +207,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                                          error_message);
     }
 
-    if (!creation_parameters.audio_mime().empty()) {
-      MimeType audio_mime_type(creation_parameters.audio_mime());
-      if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
-        return scoped_ptr<PlayerComponents>();
-      }
-
-      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
-        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
-                        "false. Passthrough is disabled.";
-        return scoped_ptr<PlayerComponents>();
-      }
-    }
-
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
     scoped_ptr<AudioRendererPassthrough> audio_renderer;

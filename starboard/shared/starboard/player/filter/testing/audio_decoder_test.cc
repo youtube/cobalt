@@ -835,9 +835,7 @@ TEST_P(AudioDecoderTest, PartialAudio) {
 INSTANTIATE_TEST_CASE_P(
     AudioDecoderTests,
     AudioDecoderTest,
-    Combine(ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaac,
-                                                6,
-                                                "audiopassthrough=false")),
+    Combine(ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaacExcludeSintel, 6)),
             Bool()),
     GetAudioDecoderTestConfigName);
 

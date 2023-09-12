@@ -72,7 +72,7 @@ std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
 }
 
 std::vector<const char*> GetSupportedAudioTestFiles(
-    HeaacOption heaac_option,
+    DmpFileOption dmp_file_option,
     int max_channels,
     const char* extra_mime_attributes) {
   // beneath_the_canopy_aac_stereo.dmp
@@ -95,6 +95,7 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     int num_channels;
     int64_t bitrate;
     bool is_heaac;
+    bool is_sintel;
   };
 
   const char* kFilenames[] = {"beneath_the_canopy_aac_stereo.dmp",
@@ -119,7 +120,8 @@ std::vector<const char*> GetSupportedAudioTestFiles(
       audio_file_info_cache.push_back(
           {filename, dmp_reader.audio_codec(),
            dmp_reader.audio_stream_info().number_of_channels,
-           dmp_reader.audio_bitrate(), strstr(filename, "heaac") != nullptr});
+           dmp_reader.audio_bitrate(), strstr(filename, "heaac") != nullptr,
+           strstr(filename, "sintel") != nullptr});
     }
   }
 
@@ -129,8 +131,19 @@ std::vector<const char*> GetSupportedAudioTestFiles(
       continue;
     }
 
-    // Filter heaac files when |heaac_option| == kExcludeHeaac.
-    if (heaac_option == kExcludeHeaac && audio_file_info.is_heaac) {
+    // Filter heaac files when |dmp_file_option| == kExcludeHeaac ||
+    // kExcludeHeaacExcludeSintel.
+    if ((dmp_file_option == kExcludeHeaac ||
+         dmp_file_option == kExcludeHeaacExcludeSintel) &&
+        audio_file_info.is_heaac) {
+      continue;
+    }
+
+    // Filter sintel files when |dmp_file_option| == kIncludeHeaacExcludeSintel
+    // || kExcludeHeaacExcludeSintel.
+    if ((dmp_file_option == kIncludeHeaacExcludeSintel ||
+         dmp_file_option == kExcludeHeaacExcludeSintel) &&
+        audio_file_info.is_sintel) {
       continue;
     }
 

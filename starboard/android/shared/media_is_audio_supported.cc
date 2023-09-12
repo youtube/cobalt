@@ -41,7 +41,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   }
 
   bool enable_tunnel_mode = false;
-  bool enable_audio_passthrough = true;
   if (mime_type) {
     if (!mime_type->is_valid()) {
       return false;
@@ -53,13 +52,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
       return false;
     }
     enable_tunnel_mode = mime_type->GetParamBoolValue("tunnelmode", false);
-
-    // Enables audio passthrough if the codec supports it.
-    if (!mime_type->ValidateBoolParameter("audiopassthrough")) {
-      return false;
-    }
-    enable_audio_passthrough =
-        mime_type->GetParamBoolValue("audiopassthrough", true);
   }
 
   if (enable_tunnel_mode && !SbAudioSinkIsAudioSampleTypeSupported(
@@ -86,12 +78,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 
   if (!is_passthrough) {
     return true;
-  }
-
-  if (!enable_audio_passthrough) {
-    SB_LOG(INFO) << "Passthrough codec is rejected because passthrough is "
-                    "disabled through mime param.";
-    return false;
   }
 
   return MediaCapabilitiesCache::GetInstance()->IsPassthroughSupported(
