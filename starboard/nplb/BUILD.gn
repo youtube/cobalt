@@ -231,11 +231,7 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
-  configs += [
-    "//build/config/compiler:exceptions",
-    "//starboard/build/config:starboard_implementation",
-  ]
-  configs -= [ "//build/config/compiler:no_exceptions" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
     "//starboard",
