@@ -1,23 +1,9 @@
-# About src/base:
-#
-# Chromium is a very mature project, most things that are generally useful are
-# already here, and that things not here aren't generally useful.
-#
-# Base is pulled into many projects. For example, various ChromeOS daemons. So
-# the bar for adding stuff is that it must have demonstrated wide
-# applicability. Prefer to add things closer to where they're used (i.e. "not
-# base"), and pull into base only when needed.  In a project our size,
-# sometimes even duplication is OK and inevitable.
-#
-# Adding a new logging macro DPVELOG_NE is not more clear than just
-# writing the stuff you want to log in a regular logging statement, even
-# if it makes your calling code longer. Just add it to your own code.
-#
-# If the code in question does not need to be used inside base, but will have
-# multiple consumers across the codebase, consider placing it in a new directory
-# under components/ instead.
+# See //base/README.md to find qualification for being an owner.
 
-ajwong@chromium.org
+set noparent
+# NOTE: keep this in sync with lsc-owners-override@chromium.org owners
+# by emailing lsc-policy@chromium.org when this list changes.
+altimin@chromium.org
 danakj@chromium.org
 dcheng@chromium.org
 fdoray@chromium.org
@@ -26,30 +12,40 @@ kylechar@chromium.org
 mark@chromium.org
 thakis@chromium.org
 thestig@chromium.org
+wez@chromium.org
+# NOTE: keep this in sync with lsc-owners-override@chromium.org owners
+# by emailing lsc-policy@chromium.org when this list changes.
 
-# For Bind/Callback:
-per-file bind*=tzik@chromium.org
-per-file callback*=tzik@chromium.org
+# per-file rules:
+# These are for the common case of adding or renaming files. If you're doing
+# structural changes, please get a review from a reviewer in this file.
+per-file BUILD.gn=*
 
 # For Android-specific changes:
-per-file *android*=file://base/android/OWNERS
-per-file BUILD.gn=file://base/android/OWNERS
+per-file ..._android*=file://base/android/OWNERS
 
 # For Fuchsia-specific changes:
-per-file *_fuchsia*=file://build/fuchsia/OWNERS
+per-file ..._fuchsia*=file://build/fuchsia/OWNERS
 
-# For FeatureList API:
+# For Windows-specific changes:
+per-file ..._win*=file://base/win/OWNERS
+
+per-file callback_list*=pkasting@chromium.org
 per-file feature_list*=asvitkine@chromium.org
 per-file feature_list*=isherman@chromium.org
+
+# Logging-related changes:
+per-file check*=olivierli@chromium.org
+per-file check*=pbos@chromium.org
+per-file dcheck*=olivierli@chromium.org
+per-file dcheck*=pbos@chromium.org
+per-file logging*=olivierli@chromium.org
+per-file logging*=pbos@chromium.org
+per-file notreached.h=olivierli@chromium.org
+per-file notreached.h=pbos@chromium.org
 
 # Restricted since rand_util.h also backs the cryptographically secure RNG.
 per-file rand_util*=set noparent
 per-file rand_util*=file://ipc/SECURITY_OWNERS
 
-# For TCMalloc tests:
-per-file security_unittest.cc=jln@chromium.org
-
-# For Value:
-per-file values*=jdoerrie@chromium.org
-
-# COMPONENT: Internals>Core
+per-file safe_numerics_unittest.cc=file://base/numerics/OWNERS

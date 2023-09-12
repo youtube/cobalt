@@ -1,12 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
 #include <vector>
 
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_base.h"
-#include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/sample_vector.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/metrics/statistics_recorder.h"
@@ -16,16 +16,18 @@
 namespace base {
 
 class HistogramBaseTest : public testing::Test {
- protected:
+ public:
   HistogramBaseTest() {
     // Each test will have a clean state (no Histogram / BucketRanges
     // registered).
     ResetStatisticsRecorder();
-    GlobalHistogramAllocator::ReleaseForTesting();
   }
 
+  HistogramBaseTest(const HistogramBaseTest&) = delete;
+  HistogramBaseTest& operator=(const HistogramBaseTest&) = delete;
   ~HistogramBaseTest() override = default;
 
+ protected:
   void ResetStatisticsRecorder() {
     // It is necessary to fully destruct any existing StatisticsRecorder
     // before creating a new one.
@@ -35,8 +37,6 @@ class HistogramBaseTest : public testing::Test {
 
  private:
   std::unique_ptr<StatisticsRecorder> statistics_recorder_;
-
-  DISALLOW_COPY_AND_ASSIGN(HistogramBaseTest);
 };
 
 TEST_F(HistogramBaseTest, DeserializeHistogram) {
@@ -201,8 +201,7 @@ TEST_F(HistogramBaseTest, AddTimeMillisecondsGranularityOverflow) {
   while (large_positive > std::numeric_limits<HistogramBase::Sample>::max()) {
     // Add the TimeDelta corresponding to |large_positive| milliseconds to the
     // histogram.
-    histogram->AddTimeMillisecondsGranularity(
-        TimeDelta::FromMilliseconds(large_positive));
+    histogram->AddTimeMillisecondsGranularity(Milliseconds(large_positive));
     ++add_count;
     // Reduce the value of |large_positive|. The choice of 7 here is
     // arbitrary.
@@ -219,8 +218,7 @@ TEST_F(HistogramBaseTest, AddTimeMillisecondsGranularityOverflow) {
   int64_t large_negative = std::numeric_limits<int64_t>::min();
   add_count = 0;
   while (large_negative < std::numeric_limits<HistogramBase::Sample>::min()) {
-    histogram->AddTimeMillisecondsGranularity(
-        TimeDelta::FromMilliseconds(large_negative));
+    histogram->AddTimeMillisecondsGranularity(Milliseconds(large_negative));
     ++add_count;
     large_negative /= 7;
   }
@@ -246,8 +244,7 @@ TEST_F(HistogramBaseTest, AddTimeMicrosecondsGranularityOverflow) {
   while (large_positive > std::numeric_limits<HistogramBase::Sample>::max()) {
     // Add the TimeDelta corresponding to |large_positive| microseconds to the
     // histogram.
-    histogram->AddTimeMicrosecondsGranularity(
-        TimeDelta::FromMicroseconds(large_positive));
+    histogram->AddTimeMicrosecondsGranularity(Microseconds(large_positive));
     ++add_count;
     // Reduce the value of |large_positive|. The choice of 7 here is
     // arbitrary.
@@ -264,8 +261,7 @@ TEST_F(HistogramBaseTest, AddTimeMicrosecondsGranularityOverflow) {
   int64_t large_negative = std::numeric_limits<int64_t>::min();
   add_count = 0;
   while (large_negative < std::numeric_limits<HistogramBase::Sample>::min()) {
-    histogram->AddTimeMicrosecondsGranularity(
-        TimeDelta::FromMicroseconds(large_negative));
+    histogram->AddTimeMicrosecondsGranularity(Microseconds(large_negative));
     ++add_count;
     large_negative /= 7;
   }

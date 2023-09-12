@@ -1,31 +1,26 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/strings/safe_sprintf.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <limits>
 #include <memory>
 
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/allocator/partition_allocator/partition_alloc_config.h"
+#include "base/check_op.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/common/string.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
-#endif
 
 // Death tests on Android are currently very flaky. No need to add more flaky
 // tests, as they just make it hard to spot real problems.
 // TODO(markus): See if the restrictions on Android can eventually be lifted.
-#if defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
+#if defined(GTEST_HAS_DEATH_TEST) && !BUILDFLAG(IS_ANDROID)
 #define ALLOW_DEATH_TEST
 #endif
 
@@ -84,7 +79,7 @@ TEST(SafeSPrintfTest, NoArguments) {
   // A one-byte buffer should always print a single NUL byte.
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSNPrintf(buf, 1, text));
   EXPECT_EQ(0, buf[0]);
-  EXPECT_TRUE(!memcmp(buf + 1, ref + 1, sizeof(buf) - 1));
+  EXPECT_TRUE(!memcmp(buf+1, ref+1, sizeof(buf)-1));
   memcpy(buf, ref, sizeof(buf));
 
   // A larger (but limited) buffer should always leave the trailing bytes
@@ -92,7 +87,7 @@ TEST(SafeSPrintfTest, NoArguments) {
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSNPrintf(buf, 2, text));
   EXPECT_EQ(text[0], buf[0]);
   EXPECT_EQ(0, buf[1]);
-  EXPECT_TRUE(!memcmp(buf + 2, ref + 2, sizeof(buf) - 2));
+  EXPECT_TRUE(!memcmp(buf+2, ref+2, sizeof(buf)-2));
   memcpy(buf, ref, sizeof(buf));
 
   // A unrestricted buffer length should always leave the trailing bytes
@@ -101,14 +96,14 @@ TEST(SafeSPrintfTest, NoArguments) {
             SafeSNPrintf(buf, sizeof(buf), text));
   EXPECT_EQ(std::string(text), std::string(buf));
   EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
-                               sizeof(buf) - sizeof(text)));
+                      sizeof(buf) - sizeof(text)));
   memcpy(buf, ref, sizeof(buf));
 
   // The same test using SafeSPrintf() instead of SafeSNPrintf().
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSPrintf(buf, text));
   EXPECT_EQ(std::string(text), std::string(buf));
   EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
-                               sizeof(buf) - sizeof(text)));
+                      sizeof(buf) - sizeof(text)));
   memcpy(buf, ref, sizeof(buf));
 
   // Check for deduplication of '%' percent characters.
@@ -149,7 +144,7 @@ TEST(SafeSPrintfTest, OneArgument) {
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1,
             SafeSNPrintf(buf, 1, fmt, ' '));
   EXPECT_EQ(0, buf[0]);
-  EXPECT_TRUE(!memcmp(buf + 1, ref + 1, sizeof(buf) - 1));
+  EXPECT_TRUE(!memcmp(buf+1, ref+1, sizeof(buf)-1));
   memcpy(buf, ref, sizeof(buf));
 
   // A larger (but limited) buffer should always leave the trailing bytes
@@ -158,7 +153,7 @@ TEST(SafeSPrintfTest, OneArgument) {
             SafeSNPrintf(buf, 2, fmt, ' '));
   EXPECT_EQ(text[0], buf[0]);
   EXPECT_EQ(0, buf[1]);
-  EXPECT_TRUE(!memcmp(buf + 2, ref + 2, sizeof(buf) - 2));
+  EXPECT_TRUE(!memcmp(buf+2, ref+2, sizeof(buf)-2));
   memcpy(buf, ref, sizeof(buf));
 
   // A unrestricted buffer length should always leave the trailing bytes
@@ -167,14 +162,14 @@ TEST(SafeSPrintfTest, OneArgument) {
             SafeSNPrintf(buf, sizeof(buf), fmt, ' '));
   EXPECT_EQ(std::string(text), std::string(buf));
   EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
-                               sizeof(buf) - sizeof(text)));
+                      sizeof(buf) - sizeof(text)));
   memcpy(buf, ref, sizeof(buf));
 
   // The same test using SafeSPrintf() instead of SafeSNPrintf().
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSPrintf(buf, fmt, ' '));
   EXPECT_EQ(std::string(text), std::string(buf));
   EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
-                               sizeof(buf) - sizeof(text)));
+                      sizeof(buf) - sizeof(text)));
   memcpy(buf, ref, sizeof(buf));
 
   // Check for deduplication of '%' percent characters.
@@ -343,27 +338,26 @@ TEST(SafeSPrintfTest, DataTypes) {
 
   // Pointer
   char addr[20];
-  sprintf(addr, "0x%llX", (unsigned long long)(uintptr_t)buf);
+  snprintf(addr, sizeof(addr), "0x%llX", (unsigned long long)(uintptr_t)buf);
   SafeSPrintf(buf, "%p", buf);
   EXPECT_EQ(std::string(addr), std::string(buf));
   SafeSPrintf(buf, "%p", (const char *)buf);
   EXPECT_EQ(std::string(addr), std::string(buf));
-  sprintf(addr, "0x%llX", (unsigned long long)(uintptr_t)sprintf);
-  SafeSPrintf(buf, "%p", sprintf);
+  snprintf(addr, sizeof(addr), "0x%llX",
+           (unsigned long long)(uintptr_t)snprintf);
+  SafeSPrintf(buf, "%p", snprintf);
   EXPECT_EQ(std::string(addr), std::string(buf));
 
   // Padding for pointers is a little more complicated because of the "0x"
   // prefix. Padding with '0' zeros is relatively straight-forward, but
   // padding with ' ' spaces requires more effort.
-  sprintf(addr, "0x%017llX", (unsigned long long)(uintptr_t)buf);
+  snprintf(addr, sizeof(addr), "0x%017llX", (unsigned long long)(uintptr_t)buf);
   SafeSPrintf(buf, "%019p", buf);
   EXPECT_EQ(std::string(addr), std::string(buf));
-  sprintf(addr, "0x%llX", (unsigned long long)(uintptr_t)buf);
-  memset(
-      addr, ' ',
-      (char*)memmove(addr + sizeof(addr) - strlen(addr) - 1,
-                          addr, strlen(addr) + 1) -
-          addr);
+  snprintf(addr, sizeof(addr), "0x%llX", (unsigned long long)(uintptr_t)buf);
+  memset(addr, ' ',
+         (char*)memmove(addr + sizeof(addr) - strlen(addr) - 1,
+                        addr, strlen(addr)+1) - addr);
   SafeSPrintf(buf, "%19p", buf);
   EXPECT_EQ(std::string(addr), std::string(buf));
 }
@@ -377,7 +371,7 @@ void PrintLongString(char* buf, size_t sz) {
   // Allocate slightly more space, so that we can verify that SafeSPrintf()
   // never writes past the end of the buffer.
   std::unique_ptr<char[]> tmp(new char[sz + 2]);
-  memset(tmp.get(), 'X', sz + 2);
+  memset(tmp.get(), 'X', sz+2);
 
   // Use SafeSPrintf() to output a complex list of arguments:
   // - test padding and truncating %c single characters.
@@ -435,8 +429,8 @@ void PrintLongString(char* buf, size_t sz) {
     EXPECT_EQ('X', tmp[i]);
 
   // The text that was generated by SafeSPrintf() should always match the
-  // equivalent text generated by sprintf(). Please note that the format
-  // string for sprintf() is not complicated, as it does not have the
+  // equivalent text generated by snprintf(). Please note that the format
+  // string for snprintf() is not complicated, as it does not have the
   // benefit of getting type information from the C++ compiler.
   //
   // N.B.: It would be so much cleaner to use snprintf(). But unfortunately,
@@ -444,10 +438,10 @@ void PrintLongString(char* buf, size_t sz) {
   //       are all really awkward.
   char ref[256];
   CHECK_LE(sz, sizeof(ref));
-  sprintf(ref, "A long string: %%d 00DEADBEEF %lld 0x%llX <NULL>",
-          static_cast<long long>(std::numeric_limits<intptr_t>::min()),
-          static_cast<unsigned long long>(
-            reinterpret_cast<uintptr_t>(PrintLongString)));
+  snprintf(ref, sizeof(ref), "A long string: %%d 00DEADBEEF %lld 0x%llX <NULL>",
+           static_cast<long long>(std::numeric_limits<intptr_t>::min()),
+           static_cast<unsigned long long>(
+               reinterpret_cast<uintptr_t>(PrintLongString)));
   ref[sz-1] = '\000';
 
 #if defined(NDEBUG)
@@ -456,13 +450,13 @@ void PrintLongString(char* buf, size_t sz) {
   const size_t kSSizeMax = internal::GetSafeSPrintfSSizeMaxForTest();
 #endif
 
-  // Compare the output from SafeSPrintf() to the one from sprintf().
+  // Compare the output from SafeSPrintf() to the one from snprintf().
   EXPECT_EQ(std::string(ref).substr(0, kSSizeMax-1), std::string(tmp.get()));
 
   // We allocated a slightly larger buffer, so that we could perform some
   // extra sanity checks. Now that the tests have all passed, we copy the
   // data to the output buffer that the caller provided.
-  memcpy(buf, tmp.get(), len + 1);
+  memcpy(buf, tmp.get(), len+1);
 }
 
 #if !defined(NDEBUG)
@@ -473,14 +467,17 @@ class ScopedSafeSPrintfSSizeMaxSetter {
     internal::SetSafeSPrintfSSizeMaxForTest(sz);
   }
 
+  ScopedSafeSPrintfSSizeMaxSetter(const ScopedSafeSPrintfSSizeMaxSetter&) =
+      delete;
+  ScopedSafeSPrintfSSizeMaxSetter& operator=(
+      const ScopedSafeSPrintfSSizeMaxSetter&) = delete;
+
   ~ScopedSafeSPrintfSSizeMaxSetter() {
     internal::SetSafeSPrintfSSizeMaxForTest(old_ssize_max_);
   }
 
  private:
   size_t old_ssize_max_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedSafeSPrintfSSizeMaxSetter);
 };
 #endif
 
@@ -493,7 +490,7 @@ TEST(SafeSPrintfTest, Truncation) {
   // happen in a lot of different states.
   char ref[256];
   PrintLongString(ref, sizeof(ref));
-  for (size_t i = strlen(ref) + 1; i; --i) {
+  for (size_t i = strlen(ref)+1; i; --i) {
     char buf[sizeof(ref)];
     PrintLongString(buf, i);
     EXPECT_EQ(std::string(ref, i - 1), std::string(buf));
@@ -506,7 +503,7 @@ TEST(SafeSPrintfTest, Truncation) {
   // Repeat the truncation test and verify that this other code path in
   // SafeSPrintf() works correctly, too.
 #if !defined(NDEBUG)
-  for (size_t i = strlen(ref) + 1; i > 1; --i) {
+  for (size_t i = strlen(ref)+1; i > 1; --i) {
     ScopedSafeSPrintfSSizeMaxSetter ssize_max_setter(i);
     char buf[sizeof(ref)];
     PrintLongString(buf, sizeof(buf));
@@ -753,8 +750,6 @@ TEST(SafeSPrintfTest, EmitNULL) {
 #endif
 }
 
-// MSVC emits C4312 error when assigning 32 bit int to 64 pointer.
-#if !SB_IS(COMPILER_MSVC)
 TEST(SafeSPrintfTest, PointerSize) {
   // The internal data representation is a 64bit value, independent of the
   // native word size. We want to perform sign-extension for signed integers,
@@ -769,7 +764,6 @@ TEST(SafeSPrintfTest, PointerSize) {
   EXPECT_EQ(10, SafeSPrintf(buf, "%p", ptr));
   EXPECT_EQ("0x80000000", std::string(buf));
 }
-#endif
 
 }  // namespace strings
 }  // namespace base

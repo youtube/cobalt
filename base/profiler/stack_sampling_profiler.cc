@@ -1,30 +1,51 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/profiler/stack_sampling_profiler.h"
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <utility>
 
 #include "base/atomic_sequence_num.h"
 #include "base/atomicops.h"
-#include "base/bind.h"
-#include "base/bind_helpers.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
-#include "base/profiler/native_stack_sampler.h"
+#include "base/profiler/profiler_buildflags.h"
+#include "base/profiler/stack_buffer.h"
+#include "base/profiler/stack_sampler.h"
+#include "base/profiler/unwinder.h"
 #include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/thread_annotations.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/threading/thread_task_runner_handle.h"
-#include "base/timer/elapsed_timer.h"
+#include "base/time/time.h"
+#include "base/trace_event/base_tracing.h"
+#include "build/build_config.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "base/win/static_constants.h"
+#endif
+
+#if BUILDFLAG(IS_APPLE)
+#include "base/mac/mac_util.h"
+#endif
 
 namespace base {
+
+// Allows StackSamplingProfiler to recall a thread which should already pretty
+// much be dead (thus it should be a fast Join()).
+class ScopedAllowThreadRecallForStackSamplingProfiler
+    : public ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {};
 
 namespace {
 
@@ -38,15 +59,36 @@ constexpr WaitableEvent::ResetPolicy kResetPolicy =
 // for referencing the active collection to the SamplingThread.
 const int kNullProfilerId = -1;
 
+TimeTicks GetNextSampleTimeImpl(TimeTicks scheduled_current_sample_time,
+                                TimeDelta sampling_interval,
+                                TimeTicks now) {
+  // Schedule the next sample at the next sampling_interval-aligned time in
+  // the future that's sufficiently far enough from the current sample. In the
+  // general case this will be one sampling_interval from the current
+  // sample. In cases where sample tasks were unable to be executed, such as
+  // during system suspend or bad system-wide jank, we may have missed some
+  // samples. The right thing to do for those cases is to skip the missed
+  // samples since the rest of the systems also wasn't executing.
+
+  // Ensure that the next sample time is at least half a sampling interval
+  // away. This causes the second sample after resume to be taken between 0.5
+  // and 1.5 samples after the first, or 1 sample interval on average. The delay
+  // also serves to provide a grace period in the normal sampling case where the
+  // current sample may be taken slightly later than its scheduled time.
+  const TimeTicks earliest_next_sample_time = now + sampling_interval / 2;
+
+  const TimeDelta minimum_time_delta_to_next_sample =
+      earliest_next_sample_time - scheduled_current_sample_time;
+
+  // The minimum number of sampling intervals required to get from the scheduled
+  // current sample time to the earliest next sample time.
+  const int64_t required_sampling_intervals = static_cast<int64_t>(
+      std::ceil(minimum_time_delta_to_next_sample / sampling_interval));
+  return scheduled_current_sample_time +
+         required_sampling_intervals * sampling_interval;
+}
+
 }  // namespace
-
-// StackSamplingProfiler::Frame -------------------------------------
-
-StackSamplingProfiler::Frame::Frame(uintptr_t instruction_pointer,
-                                    ModuleCache::Module module)
-    : instruction_pointer(instruction_pointer), module(std::move(module)) {}
-
-StackSamplingProfiler::Frame::~Frame() = default;
 
 // StackSamplingProfiler::SamplingThread --------------------------------------
 
@@ -78,38 +120,39 @@ class StackSamplingProfiler::SamplingThread : public Thread {
   };
 
   struct CollectionContext {
-    CollectionContext(PlatformThreadId target,
+    CollectionContext(PlatformThreadId thread_id,
                       const SamplingParams& params,
                       WaitableEvent* finished,
-                      std::unique_ptr<NativeStackSampler> sampler,
+                      std::unique_ptr<StackSampler> sampler,
                       std::unique_ptr<ProfileBuilder> profile_builder)
         : collection_id(next_collection_id.GetNext()),
-          target(target),
+          thread_id(thread_id),
           params(params),
           finished(finished),
-          native_sampler(std::move(sampler)),
-          profile_builder(std::move(profile_builder)) {}
+          profile_builder(std::move(profile_builder)),
+          sampler(std::move(sampler)) {}
     ~CollectionContext() = default;
 
     // An identifier for this collection, used to uniquely identify the
     // collection to outside interests.
     const int collection_id;
+    const PlatformThreadId thread_id;  // Thread id of the sampled thread.
 
-    const PlatformThreadId target;  // ID of The thread being sampled.
     const SamplingParams params;    // Information about how to sample.
-    WaitableEvent* const finished;  // Signaled when all sampling complete.
-
-    // Platform-specific module that does the actual sampling.
-    std::unique_ptr<NativeStackSampler> native_sampler;
+    const raw_ptr<WaitableEvent>
+        finished;  // Signaled when all sampling complete.
 
     // Receives the sampling data and builds a CallStackProfile.
     std::unique_ptr<ProfileBuilder> profile_builder;
 
+    // Platform-specific module that does the actual sampling.
+    std::unique_ptr<StackSampler> sampler;
+
     // The absolute time for the next sample.
-    Time next_sample_time;
+    TimeTicks next_sample_time;
 
     // The time that a profile was started, for calculating the total duration.
-    Time profile_start_time;
+    TimeTicks profile_start_time;
 
     // Counter that indicates the current sample position along the acquisition.
     int sample_count = 0;
@@ -121,10 +164,32 @@ class StackSamplingProfiler::SamplingThread : public Thread {
   // Gets the single instance of this class.
   static SamplingThread* GetInstance();
 
+  SamplingThread(const SamplingThread&) = delete;
+  SamplingThread& operator=(const SamplingThread&) = delete;
+
   // Adds a new CollectionContext to the thread. This can be called externally
   // from any thread. This returns a collection id that can later be used to
   // stop the sampling.
   int Add(std::unique_ptr<CollectionContext> collection);
+
+  // Adds an auxiliary unwinder to be used for the collection, to handle
+  // additional, non-native-code unwind scenarios.
+  void AddAuxUnwinder(int collection_id, std::unique_ptr<Unwinder> unwinder);
+
+  // Applies the metadata to already recorded samples in all collections.
+  void ApplyMetadataToPastSamples(base::TimeTicks period_start,
+                                  base::TimeTicks period_end,
+                                  uint64_t name_hash,
+                                  absl::optional<int64_t> key,
+                                  int64_t value,
+                                  absl::optional<PlatformThreadId> thread_id);
+
+  // Adds the metadata as profile metadata. Profile metadata stores metadata
+  // global to the profile.
+  void AddProfileMetadata(uint64_t name_hash,
+                          absl::optional<int64_t> key,
+                          int64_t value,
+                          absl::optional<PlatformThreadId> thread_id);
 
   // Removes an active collection based on its collection id, forcing it to run
   // its callback if any data has been collected. This can be called externally
@@ -168,13 +233,26 @@ class StackSamplingProfiler::SamplingThread : public Thread {
   // signalled. The |collection| should already have been removed from
   // |active_collections_| by the caller, as this is needed to avoid flakiness
   // in unit tests.
-  void FinishCollection(CollectionContext* collection);
+  void FinishCollection(std::unique_ptr<CollectionContext> collection);
 
   // Check if the sampling thread is idle and begin a shutdown if it is.
   void ScheduleShutdownIfIdle();
 
   // These methods are tasks that get posted to the internal message queue.
   void AddCollectionTask(std::unique_ptr<CollectionContext> collection);
+  void AddAuxUnwinderTask(int collection_id,
+                          std::unique_ptr<Unwinder> unwinder);
+  void ApplyMetadataToPastSamplesTask(
+      base::TimeTicks period_start,
+      base::TimeTicks period_end,
+      uint64_t name_hash,
+      absl::optional<int64_t> key,
+      int64_t value,
+      absl::optional<PlatformThreadId> thread_id);
+  void AddProfileMetadataTask(uint64_t name_hash,
+                              absl::optional<int64_t> key,
+                              int64_t value,
+                              absl::optional<PlatformThreadId> thread_id);
   void RemoveCollectionTask(int collection_id);
   void RecordSampleTask(int collection_id);
   void ShutdownTask(int add_events);
@@ -182,10 +260,10 @@ class StackSamplingProfiler::SamplingThread : public Thread {
   // Thread:
   void CleanUp() override;
 
-  // A stack-buffer used by the native sampler for its work. This buffer can
-  // be re-used for multiple native sampler objects so long as the API calls
-  // that take it are not called concurrently.
-  std::unique_ptr<NativeStackSampler::StackBuffer> stack_buffer_;
+  // A stack-buffer used by the sampler for its work. This buffer is re-used
+  // across multiple sampler objects since their execution is serialized on the
+  // sampling thread.
+  std::unique_ptr<StackBuffer> stack_buffer_;
 
   // A map of collection ids to collection contexts. Because this class is a
   // singleton that is never destroyed, context objects will never be destructed
@@ -201,17 +279,19 @@ class StackSamplingProfiler::SamplingThread : public Thread {
   // Thread API (Start, Stop, StopSoon, & DetachFromSequence) so that
   // multiple threads may make those calls.
   Lock thread_execution_state_lock_;  // Protects all thread_execution_state_*
-  ThreadExecutionState thread_execution_state_ = NOT_STARTED;
-  scoped_refptr<SingleThreadTaskRunner> thread_execution_state_task_runner_;
-  bool thread_execution_state_disable_idle_shutdown_for_testing_ = false;
+  ThreadExecutionState thread_execution_state_
+      GUARDED_BY(thread_execution_state_lock_) = NOT_STARTED;
+  scoped_refptr<SingleThreadTaskRunner> thread_execution_state_task_runner_
+      GUARDED_BY(thread_execution_state_lock_);
+  bool thread_execution_state_disable_idle_shutdown_for_testing_
+      GUARDED_BY(thread_execution_state_lock_) = false;
 
   // A counter that notes adds of new collection requests. It is incremented
   // when changes occur so that delayed shutdown tasks are able to detect if
   // something new has happened while it was waiting. Like all "execution_state"
   // vars, this must be accessed while holding |thread_execution_state_lock_|.
-  int thread_execution_state_add_events_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(SamplingThread);
+  int thread_execution_state_add_events_
+      GUARDED_BY(thread_execution_state_lock_) = 0;
 };
 
 // static
@@ -297,7 +377,7 @@ AtomicSequenceNumber StackSamplingProfiler::SamplingThread::CollectionContext::
     next_collection_id;
 
 StackSamplingProfiler::SamplingThread::SamplingThread()
-    : Thread("StackSamplProfl") {}
+    : Thread("StackSamplingProfiler") {}
 
 StackSamplingProfiler::SamplingThread::~SamplingThread() = default;
 
@@ -319,6 +399,53 @@ int StackSamplingProfiler::SamplingThread::Add(
                           std::move(collection)));
 
   return collection_id;
+}
+
+void StackSamplingProfiler::SamplingThread::AddAuxUnwinder(
+    int collection_id,
+    std::unique_ptr<Unwinder> unwinder) {
+  ThreadExecutionState state;
+  scoped_refptr<SingleThreadTaskRunner> task_runner = GetTaskRunner(&state);
+  if (state != RUNNING)
+    return;
+  DCHECK(task_runner);
+  task_runner->PostTask(
+      FROM_HERE, BindOnce(&SamplingThread::AddAuxUnwinderTask, Unretained(this),
+                          collection_id, std::move(unwinder)));
+}
+
+void StackSamplingProfiler::SamplingThread::ApplyMetadataToPastSamples(
+    base::TimeTicks period_start,
+    base::TimeTicks period_end,
+    uint64_t name_hash,
+    absl::optional<int64_t> key,
+    int64_t value,
+    absl::optional<PlatformThreadId> thread_id) {
+  ThreadExecutionState state;
+  scoped_refptr<SingleThreadTaskRunner> task_runner = GetTaskRunner(&state);
+  if (state != RUNNING)
+    return;
+  DCHECK(task_runner);
+  task_runner->PostTask(
+      FROM_HERE, BindOnce(&SamplingThread::ApplyMetadataToPastSamplesTask,
+                          Unretained(this), period_start, period_end, name_hash,
+                          key, value, thread_id));
+}
+
+void StackSamplingProfiler::SamplingThread::AddProfileMetadata(
+    uint64_t name_hash,
+    absl::optional<int64_t> key,
+    int64_t value,
+    absl::optional<PlatformThreadId> thread_id) {
+  ThreadExecutionState state;
+  scoped_refptr<SingleThreadTaskRunner> task_runner = GetTaskRunner(&state);
+  if (state != RUNNING) {
+    return;
+  }
+  DCHECK(task_runner);
+  task_runner->PostTask(
+      FROM_HERE, BindOnce(&SamplingThread::AddProfileMetadataTask,
+                          Unretained(this), name_hash, key, value, thread_id));
 }
 
 void StackSamplingProfiler::SamplingThread::Remove(int collection_id) {
@@ -364,12 +491,12 @@ StackSamplingProfiler::SamplingThread::GetOrCreateTaskRunnerForAdd() {
     // happen a new profiling request would have to be made within the narrow
     // window between StopSoon() and thread exit following the end of the 60
     // second idle period.
-    ScopedAllowBlocking allow_blocking;
+    ScopedAllowThreadRecallForStackSamplingProfiler allow_thread_join;
     Stop();
   }
 
   DCHECK(!stack_buffer_);
-  stack_buffer_ = NativeStackSampler::CreateStackBuffer();
+  stack_buffer_ = StackSampler::CreateStackBuffer();
 
   // The thread is not running. Start it and get associated runner. The task-
   // runner has to be saved for future use because though it can be used from
@@ -416,18 +543,23 @@ StackSamplingProfiler::SamplingThread::GetTaskRunnerOnSamplingThread() {
 }
 
 void StackSamplingProfiler::SamplingThread::FinishCollection(
-    CollectionContext* collection) {
+    std::unique_ptr<CollectionContext> collection) {
   DCHECK_EQ(GetThreadId(), PlatformThread::CurrentId());
   DCHECK_EQ(0u, active_collections_.count(collection->collection_id));
 
-  TimeDelta profile_duration = Time::Now() - collection->profile_start_time +
+  TimeDelta profile_duration = TimeTicks::Now() -
+                               collection->profile_start_time +
                                collection->params.sampling_interval;
 
   collection->profile_builder->OnProfileCompleted(
       profile_duration, collection->params.sampling_interval);
 
   // Signal that this collection is finished.
-  collection->finished->Signal();
+  WaitableEvent* collection_finished = collection->finished;
+  // Ensure the collection is destroyed before signaling, so that it may
+  // not outlive StackSamplingProfiler.
+  collection.reset();
+  collection_finished->Signal();
 
   ScheduleShutdownIfIdle();
 }
@@ -437,6 +569,9 @@ void StackSamplingProfiler::SamplingThread::ScheduleShutdownIfIdle() {
 
   if (!active_collections_.empty())
     return;
+
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
+               "StackSamplingProfiler::SamplingThread::ScheduleShutdownIfIdle");
 
   int add_events;
   {
@@ -449,7 +584,51 @@ void StackSamplingProfiler::SamplingThread::ScheduleShutdownIfIdle() {
   GetTaskRunnerOnSamplingThread()->PostDelayedTask(
       FROM_HERE,
       BindOnce(&SamplingThread::ShutdownTask, Unretained(this), add_events),
-      TimeDelta::FromSeconds(60));
+      Seconds(60));
+}
+
+void StackSamplingProfiler::SamplingThread::AddAuxUnwinderTask(
+    int collection_id,
+    std::unique_ptr<Unwinder> unwinder) {
+  DCHECK_EQ(GetThreadId(), PlatformThread::CurrentId());
+
+  auto loc = active_collections_.find(collection_id);
+  if (loc == active_collections_.end())
+    return;
+
+  loc->second->sampler->AddAuxUnwinder(std::move(unwinder));
+}
+
+void StackSamplingProfiler::SamplingThread::ApplyMetadataToPastSamplesTask(
+    base::TimeTicks period_start,
+    base::TimeTicks period_end,
+    uint64_t name_hash,
+    absl::optional<int64_t> key,
+    int64_t value,
+    absl::optional<PlatformThreadId> thread_id) {
+  DCHECK_EQ(GetThreadId(), PlatformThread::CurrentId());
+  MetadataRecorder::Item item(name_hash, key, thread_id, value);
+  for (auto& id_collection_pair : active_collections_) {
+    if (thread_id && id_collection_pair.second->thread_id != thread_id)
+      continue;
+    id_collection_pair.second->profile_builder->ApplyMetadataRetrospectively(
+        period_start, period_end, item);
+  }
+}
+
+void StackSamplingProfiler::SamplingThread::AddProfileMetadataTask(
+    uint64_t name_hash,
+    absl::optional<int64_t> key,
+    int64_t value,
+    absl::optional<PlatformThreadId> thread_id) {
+  DCHECK_EQ(GetThreadId(), PlatformThread::CurrentId());
+  MetadataRecorder::Item item(name_hash, key, thread_id, value);
+  for (auto& id_collection_pair : active_collections_) {
+    if (thread_id && id_collection_pair.second->thread_id != thread_id) {
+      continue;
+    }
+    id_collection_pair.second->profile_builder->AddProfileMetadata(item);
+  }
 }
 
 void StackSamplingProfiler::SamplingThread::AddCollectionTask(
@@ -458,6 +637,8 @@ void StackSamplingProfiler::SamplingThread::AddCollectionTask(
 
   const int collection_id = collection->collection_id;
   const TimeDelta initial_delay = collection->params.initial_delay;
+
+  collection->sampler->Initialize();
 
   active_collections_.insert(
       std::make_pair(collection_id, std::move(collection)));
@@ -490,7 +671,7 @@ void StackSamplingProfiler::SamplingThread::RemoveCollectionTask(
   size_t count = active_collections_.erase(collection_id);
   DCHECK_EQ(1U, count);
 
-  FinishCollection(collection.get());
+  FinishCollection(std::move(collection));
 }
 
 void StackSamplingProfiler::SamplingThread::RecordSampleTask(
@@ -507,26 +688,25 @@ void StackSamplingProfiler::SamplingThread::RecordSampleTask(
 
   // If this is the first sample, the collection params need to be filled.
   if (collection->sample_count == 0) {
-    collection->profile_start_time = Time::Now();
-    collection->next_sample_time = Time::Now();
-    collection->native_sampler->ProfileRecordingStarting();
+    collection->profile_start_time = TimeTicks::Now();
+    collection->next_sample_time = TimeTicks::Now();
   }
 
   // Record a single sample.
-  collection->profile_builder->OnSampleCompleted(
-      collection->native_sampler->RecordStackFrames(
-          stack_buffer_.get(), collection->profile_builder.get()));
+  collection->sampler->RecordStackFrames(stack_buffer_.get(),
+                                         collection->profile_builder.get(),
+                                         collection->thread_id);
 
   // Schedule the next sample recording if there is one.
   if (++collection->sample_count < collection->params.samples_per_profile) {
-    if (!collection->params.keep_consistent_sampling_interval)
-      collection->next_sample_time = Time::Now();
-    collection->next_sample_time += collection->params.sampling_interval;
+    collection->next_sample_time = GetNextSampleTimeImpl(
+        collection->next_sample_time, collection->params.sampling_interval,
+        TimeTicks::Now());
     bool success = GetTaskRunnerOnSamplingThread()->PostDelayedTask(
         FROM_HERE,
         BindOnce(&SamplingThread::RecordSampleTask, Unretained(this),
                  collection_id),
-        std::max(collection->next_sample_time - Time::Now(), TimeDelta()));
+        std::max(collection->next_sample_time - TimeTicks::Now(), TimeDelta()));
     DCHECK(success);
     return;
   }
@@ -538,7 +718,7 @@ void StackSamplingProfiler::SamplingThread::RecordSampleTask(
   DCHECK_EQ(1U, count);
 
   // All capturing has completed so finish the collection.
-  FinishCollection(collection);
+  FinishCollection(std::move(owned_collection));
 }
 
 void StackSamplingProfiler::SamplingThread::ShutdownTask(int add_events) {
@@ -553,6 +733,9 @@ void StackSamplingProfiler::SamplingThread::ShutdownTask(int add_events) {
   // then other tasks have been created since this was posted. Abort shutdown.
   if (thread_execution_state_add_events_ != add_events)
     return;
+
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
+               "StackSamplingProfiler::SamplingThread::ShutdownTask");
 
   // There can be no new AddCollectionTasks at this point because creating
   // those always increments "add events". There may be other requests, like
@@ -608,47 +791,72 @@ void StackSamplingProfiler::TestPeer::PerformSamplingThreadIdleShutdown(
   SamplingThread::TestPeer::ShutdownAssumingIdle(simulate_intervening_start);
 }
 
-void StackSamplingProfiler::ProfileBuilder::RecordAnnotations() {}
+// static
+TimeTicks StackSamplingProfiler::TestPeer::GetNextSampleTime(
+    TimeTicks scheduled_current_sample_time,
+    TimeDelta sampling_interval,
+    TimeTicks now) {
+  return GetNextSampleTimeImpl(scheduled_current_sample_time, sampling_interval,
+                               now);
+}
+
+// static
+// The profiler is currently supported for Windows x64, macOS, iOS 64-bit,
+// Android ARM32, and Android ARM64.
+bool StackSamplingProfiler::IsSupportedForCurrentPlatform() {
+#if (BUILDFLAG(IS_WIN) && defined(ARCH_CPU_X86_64)) || BUILDFLAG(IS_MAC) || \
+    (BUILDFLAG(IS_IOS) && defined(ARCH_CPU_64_BITS)) ||                     \
+    (BUILDFLAG(IS_ANDROID) &&                                               \
+     ((defined(ARCH_CPU_ARMEL) && BUILDFLAG(ENABLE_ARM_CFI_TABLE)) ||       \
+      (defined(ARCH_CPU_ARM64) &&                                           \
+       BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)))) ||                      \
+    (BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_X86_64) &&                  \
+     BUILDFLAG(IS_CHROMEOS_DEVICE))
+#if BUILDFLAG(IS_WIN)
+  // Do not start the profiler when Application Verifier is in use; running them
+  // simultaneously can cause crashes and has no known use case.
+  if (GetModuleHandleA(base::win::kApplicationVerifierDllName))
+    return false;
+  // Checks if Trend Micro DLLs are loaded in process, so we can disable the
+  // profiler to avoid hitting their performance bug. See
+  // https://crbug.com/1018291 and https://crbug.com/1113832.
+  if (GetModuleHandleA("tmmon64.dll") || GetModuleHandleA("tmmonmgr64.dll"))
+    return false;
+#endif
+  return true;
+#else
+  return false;
+#endif
+}
 
 StackSamplingProfiler::StackSamplingProfiler(
+    SamplingProfilerThreadToken thread_token,
     const SamplingParams& params,
     std::unique_ptr<ProfileBuilder> profile_builder,
-    NativeStackSamplerTestDelegate* test_delegate)
-    : StackSamplingProfiler(PlatformThread::CurrentId(),
-                            params,
-                            std::move(profile_builder),
-                            test_delegate) {}
-
-StackSamplingProfiler::StackSamplingProfiler(
-    PlatformThreadId thread_id,
-    const SamplingParams& params,
-    std::unique_ptr<ProfileBuilder> profile_builder,
-    NativeStackSamplerTestDelegate* test_delegate)
-    : StackSamplingProfiler(thread_id,
-                            params,
-                            std::move(profile_builder),
-                            nullptr,
-                            test_delegate) {}
-
-StackSamplingProfiler::StackSamplingProfiler(
-    PlatformThreadId thread_id,
-    const SamplingParams& params,
-    std::unique_ptr<ProfileBuilder> profile_builder,
-    std::unique_ptr<NativeStackSampler> sampler,
-    NativeStackSamplerTestDelegate* test_delegate)
-    : thread_id_(thread_id),
+    UnwindersFactory core_unwinders_factory,
+    RepeatingClosure record_sample_callback,
+    StackSamplerTestDelegate* test_delegate)
+    : thread_token_(thread_token),
       params_(params),
       profile_builder_(std::move(profile_builder)),
-      native_sampler_(std::move(sampler)),
+      sampler_(StackSampler::Create(thread_token,
+                                    profile_builder_->GetModuleCache(),
+                                    std::move(core_unwinders_factory),
+                                    std::move(record_sample_callback),
+                                    test_delegate)),
       // The event starts "signaled" so code knows it's safe to start thread
       // and "manual" so that it can be waited in multiple places.
       profiling_inactive_(kResetPolicy, WaitableEvent::InitialState::SIGNALED),
-      profiler_id_(kNullProfilerId),
-      test_delegate_(test_delegate) {
+      profiler_id_(kNullProfilerId) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
+               "StackSamplingProfiler::StackSamplingProfiler");
   DCHECK(profile_builder_);
 }
 
 StackSamplingProfiler::~StackSamplingProfiler() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
+               "StackSamplingProfiler::~StackSamplingProfiler");
+
   // Stop returns immediately but the shutdown runs asynchronously. There is a
   // non-zero probability that one more sample will be taken after this call
   // returns.
@@ -663,20 +871,22 @@ StackSamplingProfiler::~StackSamplingProfiler() {
   //
   // The wait time should, at most, be only as long as it takes to collect one
   // sample (~200us) or none at all if sampling has already completed.
-  ThreadRestrictions::ScopedAllowWait allow_wait;
+  ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
   profiling_inactive_.Wait();
 }
 
 void StackSamplingProfiler::Start() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
+               "StackSamplingProfiler::Start");
+
   // Multiple calls to Start() for a single StackSamplingProfiler object is not
   // allowed. If profile_builder_ is nullptr, then Start() has been called
   // already.
   DCHECK(profile_builder_);
 
-  if (!native_sampler_)
-    native_sampler_ = NativeStackSampler::Create(thread_id_, test_delegate_);
-
-  if (!native_sampler_)
+  // |sampler_| will be null if sampling isn't supported on the current
+  // platform.
+  if (!sampler_)
     return;
 
   // The IsSignaled() check below requires that the WaitableEvent be manually
@@ -694,14 +904,55 @@ void StackSamplingProfiler::Start() {
   DCHECK_EQ(kNullProfilerId, profiler_id_);
   profiler_id_ = SamplingThread::GetInstance()->Add(
       std::make_unique<SamplingThread::CollectionContext>(
-          thread_id_, params_, &profiling_inactive_, std::move(native_sampler_),
+          thread_token_.id, params_, &profiling_inactive_, std::move(sampler_),
           std::move(profile_builder_)));
   DCHECK_NE(kNullProfilerId, profiler_id_);
+
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
+               "StackSamplingProfiler::Started", "profiler_id", profiler_id_);
 }
 
 void StackSamplingProfiler::Stop() {
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
+               "StackSamplingProfiler::Stop", "profiler_id", profiler_id_);
+
   SamplingThread::GetInstance()->Remove(profiler_id_);
   profiler_id_ = kNullProfilerId;
+}
+
+void StackSamplingProfiler::AddAuxUnwinder(std::unique_ptr<Unwinder> unwinder) {
+  if (profiler_id_ == kNullProfilerId) {
+    // We haven't started sampling, and so we can add |unwinder| to the sampler
+    // directly
+    if (sampler_)
+      sampler_->AddAuxUnwinder(std::move(unwinder));
+    return;
+  }
+
+  SamplingThread::GetInstance()->AddAuxUnwinder(profiler_id_,
+                                                std::move(unwinder));
+}
+
+// static
+void StackSamplingProfiler::ApplyMetadataToPastSamples(
+    base::TimeTicks period_start,
+    base::TimeTicks period_end,
+    uint64_t name_hash,
+    absl::optional<int64_t> key,
+    int64_t value,
+    absl::optional<PlatformThreadId> thread_id) {
+  SamplingThread::GetInstance()->ApplyMetadataToPastSamples(
+      period_start, period_end, name_hash, key, value, thread_id);
+}
+
+// static
+void StackSamplingProfiler::AddProfileMetadata(
+    uint64_t name_hash,
+    int64_t key,
+    int64_t value,
+    absl::optional<PlatformThreadId> thread_id) {
+  SamplingThread::GetInstance()->AddProfileMetadata(name_hash, key, value,
+                                                    thread_id);
 }
 
 }  // namespace base

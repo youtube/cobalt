@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,11 @@
 #include <utility>
 
 #include "base/auto_reset.h"
-#include "base/bind.h"
-#include "base/bind_helpers.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,7 +34,7 @@ class PostTaskAndReplyTaskRunner : public internal::PostTaskAndReplyImpl {
   }
 
   // Non-owning.
-  TaskRunner* const destination_;
+  const raw_ptr<TaskRunner> destination_;
 };
 
 class ObjectToDelete : public RefCounted<ObjectToDelete> {
@@ -43,24 +44,25 @@ class ObjectToDelete : public RefCounted<ObjectToDelete> {
     EXPECT_FALSE(*delete_flag_);
   }
 
+  ObjectToDelete(const ObjectToDelete&) = delete;
+  ObjectToDelete& operator=(const ObjectToDelete&) = delete;
+
  private:
   friend class RefCounted<ObjectToDelete>;
   ~ObjectToDelete() { *delete_flag_ = true; }
 
-  bool* const delete_flag_;
-
-  DISALLOW_COPY_AND_ASSIGN(ObjectToDelete);
+  const raw_ptr<bool> delete_flag_;
 };
 
 class MockObject {
  public:
   MockObject() = default;
 
+  MockObject(const MockObject&) = delete;
+  MockObject& operator=(const MockObject&) = delete;
+
   MOCK_METHOD1(Task, void(scoped_refptr<ObjectToDelete>));
   MOCK_METHOD1(Reply, void(scoped_refptr<ObjectToDelete>));
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockObject);
 };
 
 class MockRunsTasksInCurrentSequenceTaskRunner : public TestMockTimeTaskRunner {
@@ -69,6 +71,13 @@ class MockRunsTasksInCurrentSequenceTaskRunner : public TestMockTimeTaskRunner {
       TestMockTimeTaskRunner::Type type =
           TestMockTimeTaskRunner::Type::kStandalone)
       : TestMockTimeTaskRunner(type) {}
+
+  MockRunsTasksInCurrentSequenceTaskRunner(
+      const MockRunsTasksInCurrentSequenceTaskRunner&) = delete;
+  MockRunsTasksInCurrentSequenceTaskRunner& operator=(
+      const MockRunsTasksInCurrentSequenceTaskRunner&) = delete;
+
+  void StopAcceptingTasks() { accepts_tasks_ = false; }
 
   void RunUntilIdleWithRunsTasksInCurrentSequence() {
     AutoReset<bool> reset(&runs_tasks_in_current_sequence_, true);
@@ -85,28 +94,44 @@ class MockRunsTasksInCurrentSequenceTaskRunner : public TestMockTimeTaskRunner {
     return runs_tasks_in_current_sequence_;
   }
 
+  bool PostDelayedTask(const Location& from_here,
+                       OnceClosure task,
+                       TimeDelta delay) override {
+    if (!accepts_tasks_)
+      return false;
+
+    return TestMockTimeTaskRunner::PostDelayedTask(from_here, std::move(task),
+                                                   delay);
+  }
+
  private:
   ~MockRunsTasksInCurrentSequenceTaskRunner() override = default;
 
+  bool accepts_tasks_ = true;
   bool runs_tasks_in_current_sequence_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(MockRunsTasksInCurrentSequenceTaskRunner);
 };
 
 class PostTaskAndReplyImplTest : public testing::Test {
+ public:
+  PostTaskAndReplyImplTest(const PostTaskAndReplyImplTest&) = delete;
+  PostTaskAndReplyImplTest& operator=(const PostTaskAndReplyImplTest&) = delete;
+
  protected:
   PostTaskAndReplyImplTest() = default;
 
-  void PostTaskAndReplyToMockObject() {
+  bool PostTaskAndReplyToMockObject() {
+    return PostTaskAndReplyTaskRunner(post_runner_.get())
+        .PostTaskAndReply(
+            FROM_HERE,
+            BindOnce(&MockObject::Task, Unretained(&mock_object_),
+                     MakeRefCounted<ObjectToDelete>(&delete_task_flag_)),
+            BindOnce(&MockObject::Reply, Unretained(&mock_object_),
+                     MakeRefCounted<ObjectToDelete>(&delete_reply_flag_)));
+  }
+
+  void ExpectPostTaskAndReplyToMockObjectSucceeds() {
     // Expect the post to succeed.
-    EXPECT_TRUE(
-        PostTaskAndReplyTaskRunner(post_runner_.get())
-            .PostTaskAndReply(
-                FROM_HERE,
-                BindOnce(&MockObject::Task, Unretained(&mock_object_),
-                         MakeRefCounted<ObjectToDelete>(&delete_task_flag_)),
-                BindOnce(&MockObject::Reply, Unretained(&mock_object_),
-                         MakeRefCounted<ObjectToDelete>(&delete_reply_flag_))));
+    EXPECT_TRUE(PostTaskAndReplyToMockObject());
 
     // Expect the first task to be posted to |post_runner_|.
     EXPECT_TRUE(post_runner_->HasPendingTask());
@@ -123,15 +148,12 @@ class PostTaskAndReplyImplTest : public testing::Test {
   testing::StrictMock<MockObject> mock_object_;
   bool delete_task_flag_ = false;
   bool delete_reply_flag_ = false;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(PostTaskAndReplyImplTest);
 };
 
 }  // namespace
 
 TEST_F(PostTaskAndReplyImplTest, PostTaskAndReply) {
-  PostTaskAndReplyToMockObject();
+  ExpectPostTaskAndReplyToMockObjectSucceeds();
 
   EXPECT_CALL(mock_object_, Task(_));
   post_runner_->RunUntilIdleWithRunsTasksInCurrentSequence();
@@ -157,7 +179,7 @@ TEST_F(PostTaskAndReplyImplTest, PostTaskAndReply) {
 }
 
 TEST_F(PostTaskAndReplyImplTest, TaskDoesNotRun) {
-  PostTaskAndReplyToMockObject();
+  ExpectPostTaskAndReplyToMockObjectSucceeds();
 
   // Clear the |post_runner_|. Both callbacks should be scheduled for deletion
   // on the |reply_runner_|.
@@ -174,7 +196,7 @@ TEST_F(PostTaskAndReplyImplTest, TaskDoesNotRun) {
 }
 
 TEST_F(PostTaskAndReplyImplTest, ReplyDoesNotRun) {
-  PostTaskAndReplyToMockObject();
+  ExpectPostTaskAndReplyToMockObjectSucceeds();
 
   EXPECT_CALL(mock_object_, Task(_));
   post_runner_->RunUntilIdleWithRunsTasksInCurrentSequence();
@@ -190,6 +212,21 @@ TEST_F(PostTaskAndReplyImplTest, ReplyDoesNotRun) {
   // Clear the |reply_runner_| queue without running tasks. The reply callback
   // should be deleted.
   reply_runner_->ClearPendingTasksWithRunsTasksInCurrentSequence();
+  EXPECT_TRUE(delete_task_flag_);
+  EXPECT_TRUE(delete_reply_flag_);
+}
+
+// This is a regression test for crbug.com/922938.
+TEST_F(PostTaskAndReplyImplTest,
+       PostTaskToStoppedTaskRunnerWithoutSequencedContext) {
+  reply_runner_.reset();
+  EXPECT_FALSE(SequencedTaskRunner::HasCurrentDefault());
+  post_runner_->StopAcceptingTasks();
+
+  // Expect the post to return false, but not to crash.
+  EXPECT_FALSE(PostTaskAndReplyToMockObject());
+
+  // Expect all tasks to be deleted.
   EXPECT_TRUE(delete_task_flag_);
   EXPECT_TRUE(delete_reply_flag_);
 }

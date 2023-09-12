@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,17 +6,19 @@
 
 #include <stdint.h>
 
-#include "base/logging.h"
+#include "base/check.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/process/memory.h"
+#include "base/strings/string_util.h"
 
 namespace base {
 namespace win {
 
 namespace {
 
-BSTR AllocBstrOrDie(StringPiece16 non_bstr) {
-  BSTR result = ::SysAllocStringLen(non_bstr.data(), non_bstr.length());
+BSTR AllocBstrOrDie(WStringPiece non_bstr) {
+  BSTR result = ::SysAllocStringLen(non_bstr.data(),
+                                    checked_cast<UINT>(non_bstr.length()));
   if (!result) {
     base::TerminateBecauseOutOfMemory((non_bstr.length() + 1) *
                                       sizeof(wchar_t));
@@ -33,7 +35,7 @@ BSTR AllocBstrBytesOrDie(size_t bytes) {
 
 }  // namespace
 
-ScopedBstr::ScopedBstr(StringPiece16 non_bstr)
+ScopedBstr::ScopedBstr(WStringPiece non_bstr)
     : bstr_(AllocBstrOrDie(non_bstr)) {}
 
 ScopedBstr::~ScopedBstr() {
@@ -66,7 +68,7 @@ BSTR* ScopedBstr::Receive() {
   return &bstr_;
 }
 
-BSTR ScopedBstr::Allocate(StringPiece16 str) {
+BSTR ScopedBstr::Allocate(WStringPiece str) {
   Reset(AllocBstrOrDie(str));
   return bstr_;
 }

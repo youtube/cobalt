@@ -1,52 +1,66 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/process/process_metrics.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "starboard/types.h"
-
-#include "starboard/memory.h"
-
-#include "base/bind.h"
 #include "base/command_line.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/macros.h"
-#include "base/memory/shared_memory.h"
+#include "base/functional/bind.h"
+#include "base/memory/shared_memory_mapping.h"
+#include "base/memory/writable_shared_memory_region.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/sys_info.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/system/sys_info.h"
 #include "base/test/multiprocess_test.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
 #include <sys/mman.h>
+#endif
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#include "base/process/internal_linux.h"
 #endif
 
 namespace base {
 namespace debug {
 
-#if defined(OS_LINUX) || defined(OS_CHROMEOS) || defined(OS_WIN)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||      \
+    BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
+
 namespace {
 
 void BusyWork(std::vector<std::string>* vec) {
   int64_t test_value = 0;
   for (int i = 0; i < 100000; ++i) {
     ++test_value;
-    vec->push_back(Int64ToString(test_value));
+    vec->push_back(NumberToString(test_value));
   }
 }
 
 }  // namespace
-#endif  // defined(OS_LINUX) || defined(OS_CHROMEOS)
+
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_WIN) ||
+        // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
 
 // Tests for SystemMetrics.
 // Exists as a class so it can be a friend of SystemMetrics.
@@ -54,11 +68,11 @@ class SystemMetricsTest : public testing::Test {
  public:
   SystemMetricsTest() = default;
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(SystemMetricsTest);
+  SystemMetricsTest(const SystemMetricsTest&) = delete;
+  SystemMetricsTest& operator=(const SystemMetricsTest&) = delete;
 };
 
-#if defined(OS_LINUX) || defined(OS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 TEST_F(SystemMetricsTest, IsValidDiskName) {
   const char invalid_input1[] = "";
   const char invalid_input2[] = "s";
@@ -189,15 +203,15 @@ TEST_F(SystemMetricsTest, ParseMeminfo) {
   EXPECT_EQ(meminfo.swap_free, 3672368);
   EXPECT_EQ(meminfo.dirty, 184);
   EXPECT_EQ(meminfo.reclaimable, 30936);
-#if defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS)
   EXPECT_EQ(meminfo.shmem, 140204);
   EXPECT_EQ(meminfo.slab, 54212);
 #endif
-  EXPECT_EQ(355725,
+  EXPECT_EQ(355725u,
             base::SysInfo::AmountOfAvailablePhysicalMemory(meminfo) / 1024);
   // Simulate as if there is no MemAvailable.
   meminfo.available = 0;
-  EXPECT_EQ(374448,
+  EXPECT_EQ(374448u,
             base::SysInfo::AmountOfAvailablePhysicalMemory(meminfo) / 1024);
   meminfo = {};
   EXPECT_TRUE(ParseProcMeminfo(valid_input2, &meminfo));
@@ -209,109 +223,117 @@ TEST_F(SystemMetricsTest, ParseMeminfo) {
   EXPECT_EQ(meminfo.swap_total, 524280);
   EXPECT_EQ(meminfo.swap_free, 524200);
   EXPECT_EQ(meminfo.dirty, 4);
-  EXPECT_EQ(69936,
+  EXPECT_EQ(69936u,
             base::SysInfo::AmountOfAvailablePhysicalMemory(meminfo) / 1024);
 }
 
 TEST_F(SystemMetricsTest, ParseVmstat) {
   VmStatInfo vmstat;
-  // part of vmstat from a 3.2 kernel with numa enabled
+  // Part of vmstat from a 4.19 kernel.
   const char valid_input1[] =
-      "nr_free_pages 905104\n"
-      "nr_inactive_anon 142478"
-      "nr_active_anon 1520046\n"
-      "nr_inactive_file 4481001\n"
-      "nr_active_file 8313439\n"
-      "nr_unevictable 5044\n"
-      "nr_mlock 5044\n"
-      "nr_anon_pages 1633780\n"
-      "nr_mapped 104742\n"
-      "nr_file_pages 12828218\n"
-      "nr_dirty 245\n"
-      "nr_writeback 0\n"
-      "nr_slab_reclaimable 831609\n"
-      "nr_slab_unreclaimable 41164\n"
-      "nr_page_table_pages 31470\n"
-      "nr_kernel_stack 1735\n"
-      "nr_unstable 0\n"
-      "nr_bounce 0\n"
-      "nr_vmscan_write 406\n"
-      "nr_vmscan_immediate_reclaim 281\n"
-      "nr_writeback_temp 0\n"
-      "nr_isolated_anon 0\n"
-      "nr_isolated_file 0\n"
-      "nr_shmem 28820\n"
-      "nr_dirtied 84674644\n"
-      "nr_written 75307109\n"
-      "nr_anon_transparent_hugepages 0\n"
-      "nr_dirty_threshold 1536206\n"
-      "nr_dirty_background_threshold 768103\n"
-      "pgpgin 30777108\n"
-      "pgpgout 319023278\n"
-      "pswpin 179\n"
-      "pswpout 406\n"
-      "pgalloc_dma 0\n"
-      "pgalloc_dma32 20833399\n"
-      "pgalloc_normal 1622609290\n"
+      "pgpgin 2358216\n"
+      "pgpgout 296072\n"
+      "pswpin 345219\n"
+      "pswpout 2605828\n"
+      "pgalloc_dma32 8380235\n"
+      "pgalloc_normal 3384525\n"
       "pgalloc_movable 0\n"
-      "pgfree 1644355583\n"
-      "pgactivate 75391882\n"
-      "pgdeactivate 4121019\n"
-      "pgfault 2542879679\n"
-      "pgmajfault 487192\n";
+      "allocstall_dma32 0\n"
+      "allocstall_normal 2028\n"
+      "allocstall_movable 32559\n"
+      "pgskip_dma32 0\n"
+      "pgskip_normal 0\n"
+      "pgskip_movable 0\n"
+      "pgfree 11802722\n"
+      "pgactivate 894917\n"
+      "pgdeactivate 3255711\n"
+      "pglazyfree 48\n"
+      "pgfault 10043657\n"
+      "pgmajfault 358901\n"
+      "pgmajfault_s 2100\n"
+      "pgmajfault_a 343211\n"
+      "pgmajfault_f 13590\n"
+      "pglazyfreed 0\n"
+      "pgrefill 3429488\n"
+      "pgsteal_kswapd 1466893\n"
+      "pgsteal_direct 1771759\n"
+      "pgscan_kswapd 1907332\n"
+      "pgscan_direct 2118930\n"
+      "pgscan_direct_throttle 154\n"
+      "pginodesteal 3176\n"
+      "slabs_scanned 293804\n"
+      "kswapd_inodesteal 16753\n"
+      "kswapd_low_wmark_hit_quickly 10\n"
+      "kswapd_high_wmark_hit_quickly 423\n"
+      "pageoutrun 441\n"
+      "pgrotated 1636\n"
+      "drop_pagecache 0\n"
+      "drop_slab 0\n"
+      "oom_kill 18\n";
   const char valid_input2[] =
-      "nr_free_pages 180125\n"
-      "nr_inactive_anon 51\n"
-      "nr_active_anon 38832\n"
-      "nr_inactive_file 50171\n"
-      "nr_active_file 47510\n"
-      "nr_unevictable 0\n"
-      "nr_mlock 0\n"
-      "nr_anon_pages 38825\n"
-      "nr_mapped 24043\n"
-      "nr_file_pages 97733\n"
-      "nr_dirty 0\n"
-      "nr_writeback 0\n"
-      "nr_slab_reclaimable 4032\n"
-      "nr_slab_unreclaimable 2848\n"
-      "nr_page_table_pages 1505\n"
-      "nr_kernel_stack 626\n"
-      "nr_unstable 0\n"
-      "nr_bounce 0\n"
-      "nr_vmscan_write 0\n"
-      "nr_vmscan_immediate_reclaim 0\n"
-      "nr_writeback_temp 0\n"
-      "nr_isolated_anon 0\n"
-      "nr_isolated_file 0\n"
-      "nr_shmem 58\n"
-      "nr_dirtied 435358\n"
-      "nr_written 401258\n"
-      "nr_anon_transparent_hugepages 0\n"
-      "nr_dirty_threshold 18566\n"
-      "nr_dirty_background_threshold 4641\n"
-      "pgpgin 299464\n"
-      "pgpgout 2437788\n"
+      "pgpgin 2606135\n"
+      "pgpgout 1359128\n"
+      "pswpin 899959\n"
+      "pswpout 19761244\n"
+      "pgalloc_dma 31\n"
+      "pgalloc_dma32 18139339\n"
+      "pgalloc_normal 44085950\n"
+      "pgalloc_movable 0\n"
+      "allocstall_dma 0\n"
+      "allocstall_dma32 0\n"
+      "allocstall_normal 18881\n"
+      "allocstall_movable 169527\n"
+      "pgskip_dma 0\n"
+      "pgskip_dma32 0\n"
+      "pgskip_normal 0\n"
+      "pgskip_movable 0\n"
+      "pgfree 63060999\n"
+      "pgactivate 1703494\n"
+      "pgdeactivate 20537803\n"
+      "pglazyfree 163\n"
+      "pgfault 45201169\n"
+      "pgmajfault 609626\n"
+      "pgmajfault_s 7488\n"
+      "pgmajfault_a 591793\n"
+      "pgmajfault_f 10345\n"
+      "pglazyfreed 0\n"
+      "pgrefill 20673453\n"
+      "pgsteal_kswapd 11802772\n"
+      "pgsteal_direct 8618160\n"
+      "pgscan_kswapd 12640517\n"
+      "pgscan_direct 9092230\n"
+      "pgscan_direct_throttle 638\n"
+      "pginodesteal 1716\n"
+      "slabs_scanned 2594642\n"
+      "kswapd_inodesteal 67358\n"
+      "kswapd_low_wmark_hit_quickly 52\n"
+      "kswapd_high_wmark_hit_quickly 11\n"
+      "pageoutrun 83\n"
+      "pgrotated 977\n"
+      "drop_pagecache 1\n"
+      "drop_slab 1\n"
+      "oom_kill 1\n"
+      "pgmigrate_success 3202\n"
+      "pgmigrate_fail 795\n";
+  const char valid_input3[] =
       "pswpin 12\n"
       "pswpout 901\n"
-      "pgalloc_normal 144213030\n"
-      "pgalloc_high 164501274\n"
-      "pgalloc_movable 0\n"
-      "pgfree 308894908\n"
-      "pgactivate 239320\n"
-      "pgdeactivate 1\n"
-      "pgfault 716044601\n"
-      "pgmajfault 2023\n"
-      "pgrefill_normal 0\n"
-      "pgrefill_high 0\n"
-      "pgrefill_movable 0\n";
+      "pgmajfault 18881\n";
   EXPECT_TRUE(ParseProcVmstat(valid_input1, &vmstat));
-  EXPECT_EQ(179LU, vmstat.pswpin);
-  EXPECT_EQ(406LU, vmstat.pswpout);
-  EXPECT_EQ(487192LU, vmstat.pgmajfault);
+  EXPECT_EQ(345219LU, vmstat.pswpin);
+  EXPECT_EQ(2605828LU, vmstat.pswpout);
+  EXPECT_EQ(358901LU, vmstat.pgmajfault);
+  EXPECT_EQ(18LU, vmstat.oom_kill);
   EXPECT_TRUE(ParseProcVmstat(valid_input2, &vmstat));
+  EXPECT_EQ(899959LU, vmstat.pswpin);
+  EXPECT_EQ(19761244LU, vmstat.pswpout);
+  EXPECT_EQ(609626LU, vmstat.pgmajfault);
+  EXPECT_EQ(1LU, vmstat.oom_kill);
+  EXPECT_TRUE(ParseProcVmstat(valid_input3, &vmstat));
   EXPECT_EQ(12LU, vmstat.pswpin);
   EXPECT_EQ(901LU, vmstat.pswpout);
-  EXPECT_EQ(2023LU, vmstat.pgmajfault);
+  EXPECT_EQ(18881LU, vmstat.pgmajfault);
+  EXPECT_EQ(0LU, vmstat.oom_kill);
 
   const char missing_pgmajfault_input[] =
       "pswpin 12\n"
@@ -320,9 +342,12 @@ TEST_F(SystemMetricsTest, ParseVmstat) {
   const char empty_input[] = "";
   EXPECT_FALSE(ParseProcVmstat(empty_input, &vmstat));
 }
-#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_ANDROID)
 
-#if defined(OS_LINUX) || defined(OS_CHROMEOS) || defined(OS_WIN)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||      \
+    BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
 
 // Test that ProcessMetrics::GetPlatformIndependentCPUUsage() doesn't return
 // negative values when the number of threads running on the process decreases
@@ -375,9 +400,11 @@ TEST_F(SystemMetricsTest, TestNoNegativeCpuUsage) {
   EXPECT_GE(metrics->GetPlatformIndependentCPUUsage(), 0.0);
 }
 
-#endif  // defined(OS_LINUX) || defined(OS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_WIN) ||
+        // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
 
-#if defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(SystemMetricsTest, ParseZramMmStat) {
   SwapInfo swapinfo;
 
@@ -412,60 +439,58 @@ TEST_F(SystemMetricsTest, ParseZramStat) {
   EXPECT_EQ(299ULL, swapinfo.num_reads);
   EXPECT_EQ(1ULL, swapinfo.num_writes);
 }
-#endif  // defined(OS_CHROMEOS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_LINUX) || \
-    defined(OS_ANDROID)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 TEST(SystemMetrics2Test, GetSystemMemoryInfo) {
   SystemMemoryInfoKB info;
   EXPECT_TRUE(GetSystemMemoryInfo(&info));
 
   // Ensure each field received a value.
   EXPECT_GT(info.total, 0);
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   EXPECT_GT(info.avail_phys, 0);
 #else
   EXPECT_GT(info.free, 0);
 #endif
-#if defined(OS_LINUX) || defined(OS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   EXPECT_GT(info.buffers, 0);
   EXPECT_GT(info.cached, 0);
-  EXPECT_GT(info.active_anon, 0);
-  EXPECT_GT(info.inactive_anon, 0);
-  EXPECT_GT(info.active_file, 0);
-  EXPECT_GT(info.inactive_file, 0);
-#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
+  EXPECT_GT(info.active_anon + info.inactive_anon, 0);
+  EXPECT_GT(info.active_file + info.inactive_file, 0);
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_ANDROID)
 
   // All the values should be less than the total amount of memory.
-#if !defined(OS_WIN) && !defined(OS_IOS)
+#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_IOS)
   // TODO(crbug.com/711450): re-enable the following assertion on iOS.
   EXPECT_LT(info.free, info.total);
 #endif
-#if defined(OS_LINUX) || defined(OS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   EXPECT_LT(info.buffers, info.total);
   EXPECT_LT(info.cached, info.total);
   EXPECT_LT(info.active_anon, info.total);
   EXPECT_LT(info.inactive_anon, info.total);
   EXPECT_LT(info.active_file, info.total);
   EXPECT_LT(info.inactive_file, info.total);
-#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_ANDROID)
 
-#if defined(OS_MACOSX) || defined(OS_IOS)
+#if BUILDFLAG(IS_APPLE)
   EXPECT_GT(info.file_backed, 0);
 #endif
 
-#if defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS)
   // Chrome OS exposes shmem.
   EXPECT_GT(info.shmem, 0);
   EXPECT_LT(info.shmem, info.total);
-  // Chrome unit tests are not run on actual Chrome OS hardware, so gem_objects
-  // and gem_size cannot be tested here.
 #endif
 }
-#endif  // defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_LINUX) ||
-        // defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
-#if defined(OS_LINUX) || defined(OS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 TEST(ProcessMetricsTest, ParseProcStatCPU) {
   // /proc/self/stat for a process running "top".
   const char kTopStat[] = "960 (top) S 16230 960 16230 34818 960 "
@@ -496,21 +521,22 @@ TEST(ProcessMetricsTest, ParseProcStatCPU) {
       "140735857770737 140735857774557 0";
   EXPECT_EQ(5186 + 11, ParseProcStatCPU(kWeirdNameStat));
 }
-#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_ANDROID)
 
 // Disable on Android because base_unittests runs inside a Dalvik VM that
 // starts and stop threads (crbug.com/175563).
-#if defined(OS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 // http://crbug.com/396455
 TEST(ProcessMetricsTest, DISABLED_GetNumberOfThreads) {
   const ProcessHandle current = GetCurrentProcessHandle();
-  const int initial_threads = GetNumberOfThreads(current);
+  const int64_t initial_threads = GetNumberOfThreads(current);
   ASSERT_GT(initial_threads, 0);
   const int kNumAdditionalThreads = 10;
   {
     std::unique_ptr<Thread> my_threads[kNumAdditionalThreads];
     for (int i = 0; i < kNumAdditionalThreads; ++i) {
-      my_threads[i].reset(new Thread("GetNumberOfThreadsTest"));
+      my_threads[i] = std::make_unique<Thread>("GetNumberOfThreadsTest");
       my_threads[i]->Start();
       ASSERT_EQ(GetNumberOfThreads(current), initial_threads + 1 + i);
     }
@@ -518,9 +544,9 @@ TEST(ProcessMetricsTest, DISABLED_GetNumberOfThreads) {
   // The Thread destructor will stop them.
   ASSERT_EQ(initial_threads, GetNumberOfThreads(current));
 }
-#endif  // defined(OS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
-#if defined(OS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
 namespace {
 
 // Keep these in sync so the GetChildOpenFdCount test can refer to correct test
@@ -530,7 +556,14 @@ namespace {
 
 // Command line flag name and file name used for synchronization.
 const char kTempDirFlag[] = "temp-dir";
+
+const char kSignalReady[] = "ready";
+const char kSignalReadyAck[] = "ready-ack";
+const char kSignalOpened[] = "opened";
+const char kSignalOpenedAck[] = "opened-ack";
 const char kSignalClosed[] = "closed";
+
+const int kChildNumFilesToOpen = 100;
 
 bool SignalEvent(const FilePath& signal_dir, const char* signal_file) {
   File file(signal_dir.AppendASCII(signal_file),
@@ -548,7 +581,7 @@ bool CheckEvent(const FilePath& signal_dir, const char* signal_file) {
 // Busy-wait for an event to be signaled.
 void WaitForEvent(const FilePath& signal_dir, const char* signal_file) {
   while (!CheckEvent(signal_dir, signal_file))
-    PlatformThread::Sleep(TimeDelta::FromMilliseconds(10));
+    PlatformThread::Sleep(Milliseconds(10));
 }
 
 // Subprocess to test the number of open file descriptors.
@@ -557,15 +590,25 @@ MULTIPROCESS_TEST_MAIN(ChildMain) {
   const FilePath temp_path = command_line->GetSwitchValuePath(kTempDirFlag);
   CHECK(DirectoryExists(temp_path));
 
-  // Try to close all the file descriptors, so the open count goes to 0.
-  for (size_t i = 0; i < 1000; ++i)
-    close(i);
+  CHECK(SignalEvent(temp_path, kSignalReady));
+  WaitForEvent(temp_path, kSignalReadyAck);
+
+  std::vector<File> files;
+  for (int i = 0; i < kChildNumFilesToOpen; ++i) {
+    files.emplace_back(temp_path.AppendASCII(StringPrintf("file.%d", i)),
+                       File::FLAG_CREATE | File::FLAG_WRITE);
+  }
+
+  CHECK(SignalEvent(temp_path, kSignalOpened));
+  WaitForEvent(temp_path, kSignalOpenedAck);
+
+  files.clear();
+
   CHECK(SignalEvent(temp_path, kSignalClosed));
 
   // Wait to be terminated.
   while (true)
-    PlatformThread::Sleep(TimeDelta::FromSeconds(1));
-  return 0;
+    PlatformThread::Sleep(Seconds(1));
 }
 
 }  // namespace
@@ -579,29 +622,56 @@ TEST(ProcessMetricsTest, GetChildOpenFdCount) {
   Process child = SpawnMultiProcessTestChild(
       ChildMainString, child_command_line, LaunchOptions());
   ASSERT_TRUE(child.IsValid());
+
+  WaitForEvent(temp_path, kSignalReady);
+
+  std::unique_ptr<ProcessMetrics> metrics =
+#if BUILDFLAG(IS_APPLE)
+      ProcessMetrics::CreateProcessMetrics(child.Handle(), nullptr);
+#else
+      ProcessMetrics::CreateProcessMetrics(child.Handle());
+#endif  // BUILDFLAG(IS_APPLE)
+
+  const int fd_count = metrics->GetOpenFdCount();
+  EXPECT_GE(fd_count, 0);
+
+  ASSERT_TRUE(SignalEvent(temp_path, kSignalReadyAck));
+  WaitForEvent(temp_path, kSignalOpened);
+
+  EXPECT_EQ(fd_count + kChildNumFilesToOpen, metrics->GetOpenFdCount());
+  ASSERT_TRUE(SignalEvent(temp_path, kSignalOpenedAck));
+
   WaitForEvent(temp_path, kSignalClosed);
 
-  std::unique_ptr<ProcessMetrics> metrics(
-      ProcessMetrics::CreateProcessMetrics(child.Handle()));
-  EXPECT_EQ(0, metrics->GetOpenFdCount());
+  EXPECT_EQ(fd_count, metrics->GetOpenFdCount());
+
   ASSERT_TRUE(child.Terminate(0, true));
 }
-#endif  // defined(OS_LINUX)
-
-#if defined(OS_ANDROID) || defined(OS_LINUX)
 
 TEST(ProcessMetricsTest, GetOpenFdCount) {
-  std::unique_ptr<base::ProcessMetrics> metrics(
-      base::ProcessMetrics::CreateProcessMetrics(
-          base::GetCurrentProcessHandle()));
+  base::ProcessHandle process = base::GetCurrentProcessHandle();
+  std::unique_ptr<base::ProcessMetrics> metrics =
+#if BUILDFLAG(IS_APPLE)
+      ProcessMetrics::CreateProcessMetrics(process, nullptr);
+#else
+      ProcessMetrics::CreateProcessMetrics(process);
+#endif  // BUILDFLAG(IS_APPLE)
+
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
   int fd_count = metrics->GetOpenFdCount();
   EXPECT_GT(fd_count, 0);
-  ScopedFILE file(fopen("/proc/self/statm", "r"));
-  EXPECT_TRUE(file);
+  File file(temp_dir.GetPath().AppendASCII("file"),
+            File::FLAG_CREATE | File::FLAG_WRITE);
   int new_fd_count = metrics->GetOpenFdCount();
   EXPECT_GT(new_fd_count, 0);
   EXPECT_EQ(new_fd_count, fd_count + 1);
 }
+
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 TEST(ProcessMetricsTestLinux, GetPageFaultCounts) {
   std::unique_ptr<base::ProcessMetrics> process_metrics(
@@ -613,14 +683,19 @@ TEST(ProcessMetricsTestLinux, GetPageFaultCounts) {
   ASSERT_GT(counts.minor, 0);
   ASSERT_GE(counts.major, 0);
 
+  // Allocate and touch memory. Touching it is required to make sure that the
+  // page fault count goes up, as memory is typically mapped lazily.
   {
-    // Allocate and touch memory. Touching it is required to make sure that the
-    // page fault count goes up, as memory is typically mapped lazily.
-    const size_t kMappedSize = 4 * (1 << 20);
-    SharedMemory memory;
-    ASSERT_TRUE(memory.CreateAndMapAnonymous(kMappedSize));
-    memset(memory.memory(), 42, kMappedSize);
-    memory.Unmap();
+    const size_t kMappedSize = 4 << 20;  // 4 MiB.
+
+    WritableSharedMemoryRegion region =
+        WritableSharedMemoryRegion::Create(kMappedSize);
+    ASSERT_TRUE(region.IsValid());
+
+    WritableSharedMemoryMapping mapping = region.Map();
+    ASSERT_TRUE(mapping.IsValid());
+
+    memset(mapping.memory(), 42, kMappedSize);
   }
 
   PageFaultCounts counts_after;
@@ -628,30 +703,67 @@ TEST(ProcessMetricsTestLinux, GetPageFaultCounts) {
   ASSERT_GT(counts_after.minor, counts.minor);
   ASSERT_GE(counts_after.major, counts.major);
 }
-#endif  // defined(OS_ANDROID) || defined(OS_LINUX)
 
-#if defined(OS_WIN)
-TEST(ProcessMetricsTest, GetDiskUsageBytesPerSecond) {
-  ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  const FilePath temp_path = temp_dir.GetPath().AppendASCII("dummy");
-
+TEST(ProcessMetricsTestLinux, GetCumulativeCPUUsagePerThread) {
   ProcessHandle handle = GetCurrentProcessHandle();
   std::unique_ptr<ProcessMetrics> metrics(
       ProcessMetrics::CreateProcessMetrics(handle));
 
-  // First access is returning zero bytes.
-  EXPECT_EQ(metrics->GetDiskUsageBytesPerSecond(), 0U);
+  Thread thread1("thread1");
+  thread1.StartAndWaitForTesting();
+  ASSERT_TRUE(thread1.IsRunning());
 
-  // Write a megabyte on disk.
-  const int kMegabyte = 1024 * 1014;
-  std::string data(kMegabyte, 'x');
-  ASSERT_EQ(kMegabyte, base::WriteFile(temp_path, data.c_str(), data.size()));
+  std::vector<std::string> vec1;
+  thread1.task_runner()->PostTask(FROM_HERE, BindOnce(&BusyWork, &vec1));
 
-  // Validate that the counters move up.
-  EXPECT_GT(metrics->GetDiskUsageBytesPerSecond(), 0U);
+  ProcessMetrics::CPUUsagePerThread prev_thread_times;
+  EXPECT_TRUE(metrics->GetCumulativeCPUUsagePerThread(prev_thread_times));
+
+  // Should have at least the test runner thread and the thread spawned above.
+  EXPECT_GE(prev_thread_times.size(), 2u);
+  EXPECT_TRUE(ranges::any_of(
+      prev_thread_times,
+      [&thread1](const std::pair<PlatformThreadId, base::TimeDelta>& entry) {
+        return entry.first == thread1.GetThreadId();
+      }));
+  EXPECT_TRUE(ranges::any_of(
+      prev_thread_times,
+      [](const std::pair<PlatformThreadId, base::TimeDelta>& entry) {
+        return entry.first == base::PlatformThread::CurrentId();
+      }));
+
+  for (const auto& entry : prev_thread_times) {
+    EXPECT_GE(entry.second, base::TimeDelta());
+  }
+
+  thread1.Stop();
+
+  ProcessMetrics::CPUUsagePerThread current_thread_times;
+  EXPECT_TRUE(metrics->GetCumulativeCPUUsagePerThread(current_thread_times));
+
+  // The stopped thread may still be reported until the kernel cleans it up.
+  EXPECT_GE(prev_thread_times.size(), 1u);
+  EXPECT_TRUE(ranges::any_of(
+      current_thread_times,
+      [](const std::pair<PlatformThreadId, base::TimeDelta>& entry) {
+        return entry.first == base::PlatformThread::CurrentId();
+      }));
+
+  // Reported times should not decrease.
+  for (const auto& entry : current_thread_times) {
+    auto prev_it = ranges::find_if(
+        prev_thread_times,
+        [&entry](
+            const std::pair<PlatformThreadId, base::TimeDelta>& prev_entry) {
+          return entry.first == prev_entry.first;
+        });
+
+    if (prev_it != prev_thread_times.end())
+      EXPECT_GE(entry.second, prev_it->second);
+  }
 }
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace debug
 }  // namespace base

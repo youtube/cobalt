@@ -1,10 +1,10 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Set;
@@ -75,6 +75,20 @@ public class DiscardableReferencePool {
         DiscardableReference<T> reference = new DiscardableReference<>(payload);
         mPool.add(reference);
         return reference;
+    }
+
+    /**
+     * Remove this reference from the pool, allowing garbage collection to pick it up.
+     *
+     * @param ref The discardable reference to remove.
+     */
+    public void remove(DiscardableReference<?> ref) {
+        assert ref != null;
+        if (!mPool.contains(ref)) return;
+        assert ref.get() != null;
+
+        ref.discard();
+        mPool.remove(ref);
     }
 
     /**

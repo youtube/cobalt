@@ -1,32 +1,26 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/time/time.h"
 
+#include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
-#if defined(OS_ANDROID) && !defined(__LP64__)
-#include <time64.h>
-#endif
 #include <unistd.h>
-
 #include <limits>
 
+#include "base/no_destructor.h"
 #include "base/numerics/safe_math.h"
 #include "base/synchronization/lock.h"
 #include "build/build_config.h"
+#include "build/chromecast_buildflags.h"
 
-#if defined(OS_ANDROID)
-#include "base/os_compat_android.h"
-#elif defined(OS_NACL)
-#include "base/os_compat_nacl.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#if BUILDFLAG(IS_ANDROID) && !defined(__LP64__)
+#include <time64.h>
 #endif
-
-#if defined(OS_MACOSX)
-static_assert(sizeof(time_t) >= 8, "Y2038 problem!");
+#if BUILDFLAG(IS_NACL)
+#include "base/os_compat_nacl.h"
 #endif
 
 namespace {
@@ -34,14 +28,15 @@ namespace {
 // This prevents a crash on traversing the environment global and looking up
 // the 'TZ' variable in libc. See: crbug.com/390567.
 base::Lock* GetSysTimeToTimeStructLock() {
-  static auto* lock = new base::Lock();
-  return lock;
+  static base::NoDestructor<base::Lock> lock;
+  return lock.get();
 }
 
 // Define a system-specific SysTime that wraps either to a time_t or
 // a time64_t depending on the host system, and associated convertion.
 // See crbug.com/162007
-#if defined(OS_ANDROID) && !defined(__LP64__)
+#if BUILDFLAG(IS_ANDROID) && !defined(__LP64__)
+
 typedef time64_t SysTime;
 
 SysTime SysTimeFromTimeStruct(struct tm* timestruct, bool is_local) {
@@ -60,7 +55,7 @@ void SysTimeToTimeStruct(SysTime t, struct tm* timestruct, bool is_local) {
     gmtime64_r(&t, timestruct);
 }
 
-#elif defined(OS_AIX)
+#elif BUILDFLAG(IS_AIX)
 
 // The function timegm is not available on AIX.
 time_t aix_timegm(struct tm* tm) {
@@ -76,7 +71,7 @@ time_t aix_timegm(struct tm* tm) {
   ret = mktime(tm);
   if (tz) {
     setenv("TZ", tz, 1);
-    SbMemoryDeallocate(tz);
+    free(tz);
   } else {
     unsetenv("TZ");
   }
@@ -102,7 +97,8 @@ void SysTimeToTimeStruct(SysTime t, struct tm* timestruct, bool is_local) {
     gmtime_r(&t, timestruct);
 }
 
-#else   // OS_ANDROID && !__LP64__
+#else  // MacOS (and iOS 64-bit), Linux/ChromeOS, or any other POSIX-compliant.
+
 typedef time_t SysTime;
 
 SysTime SysTimeFromTimeStruct(struct tm* timestruct, bool is_local) {
@@ -117,36 +113,37 @@ void SysTimeToTimeStruct(SysTime t, struct tm* timestruct, bool is_local) {
   else
     gmtime_r(&t, timestruct);
 }
-#endif  // OS_ANDROID
+
+#endif  // BUILDFLAG(IS_ANDROID) && !defined(__LP64__)
 
 }  // namespace
 
 namespace base {
 
 void Time::Explode(bool is_local, Exploded* exploded) const {
-  // Time stores times with microsecond resolution, but Exploded only carries
-  // millisecond resolution, so begin by being lossy.  Adjust from Windows
-  // epoch (1601) to Unix epoch (1970);
-  int64_t microseconds = us_ - kTimeTToMicrosecondsOffset;
-  // The following values are all rounded towards -infinity.
-  int64_t milliseconds;  // Milliseconds since epoch.
-  SysTime seconds;       // Seconds since epoch.
-  int millisecond;       // Exploded millisecond value (0-999).
-  if (microseconds >= 0) {
-    // Rounding towards -infinity <=> rounding towards 0, in this case.
-    milliseconds = microseconds / kMicrosecondsPerMillisecond;
-    seconds = milliseconds / kMillisecondsPerSecond;
-    millisecond = milliseconds % kMillisecondsPerSecond;
-  } else {
-    // Round these *down* (towards -infinity).
-    milliseconds = (microseconds - kMicrosecondsPerMillisecond + 1) /
-                   kMicrosecondsPerMillisecond;
-    seconds =
-        (milliseconds - kMillisecondsPerSecond + 1) / kMillisecondsPerSecond;
-    // Make this nonnegative (and between 0 and 999 inclusive).
-    millisecond = milliseconds % kMillisecondsPerSecond;
-    if (millisecond < 0)
-      millisecond += kMillisecondsPerSecond;
+  const int64_t millis_since_unix_epoch =
+      ToRoundedDownMillisecondsSinceUnixEpoch();
+
+  // For systems with a Y2038 problem, use ICU as the Explode() implementation.
+  if (sizeof(SysTime) < 8) {
+// TODO(b/167763382) Find an alternate solution for Chromecast devices, since
+// adding the icui18n dep significantly increases the binary size.
+#if !BUILDFLAG(IS_CASTOS) && !BUILDFLAG(IS_CAST_ANDROID)
+    ExplodeUsingIcu(millis_since_unix_epoch, is_local, exploded);
+    return;
+#endif  // !BUILDFLAG(IS_CASTOS) && !BUILDFLAG(IS_CAST_ANDROID)
+  }
+
+  // Split the |millis_since_unix_epoch| into separate seconds and millisecond
+  // components because the platform calendar-explode operates at one-second
+  // granularity.
+  SysTime seconds = millis_since_unix_epoch / Time::kMillisecondsPerSecond;
+  int64_t millisecond = millis_since_unix_epoch % Time::kMillisecondsPerSecond;
+  if (millisecond < 0) {
+    // Make the the |millisecond| component positive, within the range [0,999],
+    // by transferring 1000 ms from |seconds|.
+    --seconds;
+    millisecond += Time::kMillisecondsPerSecond;
   }
 
   struct tm timestruct;
@@ -159,7 +156,7 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
   exploded->hour = timestruct.tm_hour;
   exploded->minute = timestruct.tm_min;
   exploded->second = timestruct.tm_sec;
-  exploded->millisecond = millisecond;
+  exploded->millisecond = static_cast<int>(millisecond);
 }
 
 // static
@@ -183,12 +180,12 @@ bool Time::FromExploded(bool is_local, const Exploded& exploded, Time* time) {
   timestruct.tm_wday = exploded.day_of_week;  // mktime/timegm ignore this
   timestruct.tm_yday = 0;                     // mktime/timegm ignore this
   timestruct.tm_isdst = -1;                   // attempt to figure it out
-#if !defined(OS_NACL) && !defined(OS_SOLARIS) && !defined(OS_AIX)
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_SOLARIS) && !BUILDFLAG(IS_AIX)
   timestruct.tm_gmtoff = 0;   // not a POSIX field, so mktime/timegm ignore
   timestruct.tm_zone = nullptr;  // not a POSIX field, so mktime/timegm ignore
 #endif
 
-  SysTime seconds;
+  int64_t seconds;
 
   // Certain exploded dates do not really exist due to daylight saving times,
   // and this causes mktime() to return implementation-defined values when
@@ -257,30 +254,26 @@ bool Time::FromExploded(bool is_local, const Exploded& exploded, Time* time) {
       milliseconds += (kMillisecondsPerSecond - 1);
     }
   } else {
-    base::CheckedNumeric<int64_t> checked_millis = seconds;
+    CheckedNumeric<int64_t> checked_millis = seconds;
     checked_millis *= kMillisecondsPerSecond;
     checked_millis += exploded.millisecond;
     if (!checked_millis.IsValid()) {
-      *time = base::Time(0);
+      *time = Time(0);
       return false;
     }
     milliseconds = checked_millis.ValueOrDie();
   }
 
-  // Adjust from Unix (1970) to Windows (1601) epoch avoiding overflows.
-  base::CheckedNumeric<int64_t> checked_microseconds_win_epoch = milliseconds;
-  checked_microseconds_win_epoch *= kMicrosecondsPerMillisecond;
-  checked_microseconds_win_epoch += kTimeTToMicrosecondsOffset;
-  if (!checked_microseconds_win_epoch.IsValid()) {
+  Time converted_time;
+  if (!FromMillisecondsSinceUnixEpoch(milliseconds, &converted_time)) {
     *time = base::Time(0);
     return false;
   }
-  base::Time converted_time(checked_microseconds_win_epoch.ValueOrDie());
 
   // If |exploded.day_of_month| is set to 31 on a 28-30 day month, it will
   // return the first day of the next month. Thus round-trip the time and
   // compare the initial |exploded| with |utc_to_exploded| time.
-  base::Time::Exploded to_exploded;
+  Time::Exploded to_exploded;
   if (!is_local)
     converted_time.UTCExplode(&to_exploded);
   else

@@ -1,15 +1,16 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/files/memory_mapped_file.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <utility>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -38,7 +39,7 @@ class MemoryMappedFileTest : public PlatformTest {
     CreateTemporaryFile(&temp_file_path_);
   }
 
-  void TearDown() override { EXPECT_TRUE(DeleteFile(temp_file_path_, false)); }
+  void TearDown() override { EXPECT_TRUE(DeleteFile(temp_file_path_)); }
 
   void CreateTemporaryTestFile(size_t size) {
     File file(temp_file_path_,

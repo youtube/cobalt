@@ -1,6 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+// IMPORTANT NOTE: deprecated. Use std::atomic instead.
+//
+// Rationale:
+// - Uniformity: most of the code uses std::atomic, and the underlying
+//   implementation is the same. Use the STL one.
+// - Clearer code: return values from some operations (e.g. CompareAndSwap)
+//   differ from the equivalent ones in std::atomic, leading to confusion.
+// - Richer semantics: can use actual types, rather than e.g. Atomic32 for a
+//   boolean flag, or AtomicWord for T*. Bitwise operations (e.g. fetch_or())
+//   are only in std::atomic.
+// - Harder to misuse: base::subtle::Atomic32 is just an int, making it possible
+//   to accidentally manipulate, not realizing that there are no atomic
+//   semantics attached to it. For instance, "Atomic32 a; a++;" is almost
+//   certainly incorrect.
 
 // For atomic operations on reference counts, see atomic_refcount.h.
 // For atomic operations on sequence numbers, see atomic_sequence_num.h.
@@ -36,34 +51,16 @@
 // - libstdc++: captures bits/c++config.h for __GLIBCXX__
 #include <cstddef>
 
-#include "base/base_export.h"
 #include "build/build_config.h"
-#include "starboard/atomic.h"
-
-#if defined(OS_WIN) && defined(ARCH_CPU_64_BITS)
-// windows.h #defines this (only on x64). This causes problems because the
-// public API also uses MemoryBarrier at the public name for this fence. So, on
-// X64, undef it, and call its documented
-// (http://msdn.microsoft.com/en-us/library/windows/desktop/ms684208.aspx)
-// implementation directly.
-#undef MemoryBarrier
-#endif
 
 namespace base {
 namespace subtle {
 
-#ifdef STARBOARD
-typedef SbAtomic32 Atomic32;
-#if SB_HAS(64_BIT_ATOMICS)
-typedef SbAtomic64 Atomic64;
-#endif
-typedef SbAtomicPtr AtomicWord;
-#else  // STARBOARD
 typedef int32_t Atomic32;
 #ifdef ARCH_CPU_64_BITS
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
-#if defined(__ILP32__) || defined(OS_NACL)
+#if defined(__ILP32__) || BUILDFLAG(IS_NACL)
 // NaCl's intptr_t is not actually 64-bits on 64-bit!
 // http://code.google.com/p/nativeclient/issues/detail?id=1162
 typedef int64_t Atomic64;
@@ -75,7 +72,6 @@ typedef intptr_t Atomic64;
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
 typedef intptr_t AtomicWord;
-#endif  // STARBOARD
 
 // Atomically execute:
 //      result = *ptr;
@@ -109,8 +105,7 @@ Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
 // ensure that no later memory access can be reordered ahead of the operation.
 // "Release" operations ensure that no previous memory access can be reordered
 // after the operation.  "Barrier" operations have both "Acquire" and "Release"
-// semantics.   A MemoryBarrier() has "Barrier" semantics, but does no memory
-// access.
+// semantics.
 Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
@@ -118,14 +113,11 @@ Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
 
-void MemoryBarrier();
 void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value);
-void Acquire_Store(volatile Atomic32* ptr, Atomic32 value);
 void Release_Store(volatile Atomic32* ptr, Atomic32 value);
 
 Atomic32 NoBarrier_Load(volatile const Atomic32* ptr);
 Atomic32 Acquire_Load(volatile const Atomic32* ptr);
-Atomic32 Release_Load(volatile const Atomic32* ptr);
 
 // 64-bit atomic operations (only available on 64-bit processors).
 #ifdef ARCH_CPU_64_BITS
@@ -143,32 +135,20 @@ Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
                                 Atomic64 old_value,
                                 Atomic64 new_value);
 void NoBarrier_Store(volatile Atomic64* ptr, Atomic64 value);
-void Acquire_Store(volatile Atomic64* ptr, Atomic64 value);
 void Release_Store(volatile Atomic64* ptr, Atomic64 value);
 Atomic64 NoBarrier_Load(volatile const Atomic64* ptr);
 Atomic64 Acquire_Load(volatile const Atomic64* ptr);
-Atomic64 Release_Load(volatile const Atomic64* ptr);
 #endif  // ARCH_CPU_64_BITS
 
 }  // namespace subtle
 }  // namespace base
 
-#if defined(STARBOARD)
-#include "base/atomicops_internals_starboard.h"
-#else
-#if defined(OS_WIN)
-// TODO(jfb): Try to use base/atomicops_internals_portable.h everywhere.
-// https://crbug.com/559247.
-#include "base/atomicops_internals_x86_msvc.h"
-#else
 #include "base/atomicops_internals_portable.h"
-#endif
 
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.
-#if defined(OS_MACOSX) || defined(OS_OPENBSD)
+#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_OPENBSD)
 #include "base/atomicops_internals_atomicword_compat.h"
 #endif
-#endif  // defined(STARBOARD)
 
 #endif  // BASE_ATOMICOPS_H_

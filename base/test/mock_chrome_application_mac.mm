@@ -1,11 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/mock_chrome_application_mac.h"
 
 #include "base/auto_reset.h"
-#include "base/logging.h"
+#include "base/check.h"
 
 @implementation MockCrApp
 
@@ -21,16 +21,16 @@
 }
 
 - (void)sendEvent:(NSEvent*)event {
-  base::AutoReset<BOOL> scoper(&handlingSendEvent_, YES);
+  base::AutoReset<BOOL> scoper(&_handlingSendEvent, YES);
   [super sendEvent:event];
 }
 
 - (void)setHandlingSendEvent:(BOOL)handlingSendEvent {
-  handlingSendEvent_ = handlingSendEvent;
+  _handlingSendEvent = handlingSendEvent;
 }
 
 - (BOOL)isHandlingSendEvent {
-  return handlingSendEvent_;
+  return _handlingSendEvent;
 }
 
 @end

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,11 +17,13 @@ public interface TaskRunner {
      *
      * @param task The task to be run immediately.
      */
-    public void postTask(Runnable task);
+    void postTask(Runnable task);
 
     /**
-     * Instructs the TaskRunner to initialize the native TaskRunner and migrate any tasks over to
-     * it.
+     * Posts a task to run after a specified delay.
+     *
+     * @param task The task to be run.
+     * @param delay The delay in milliseconds before the task can be run.
      */
-    void initNativeTaskRunner();
+    void postDelayedTask(Runnable task, long delay);
 }

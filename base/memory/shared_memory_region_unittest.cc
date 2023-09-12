@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,11 @@
 
 #include "base/memory/platform_shared_memory_region.h"
 #include "base/memory/read_only_shared_memory_region.h"
-#include "base/memory/shared_memory.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/memory/writable_shared_memory_region.h"
-#include "base/sys_info.h"
+#include "base/system/sys_info.h"
 #include "base/test/test_shared_memory_util.h"
 #include "build/build_config.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -51,7 +49,7 @@ typedef ::testing::Types<WritableSharedMemoryRegion,
                          UnsafeSharedMemoryRegion,
                          ReadOnlySharedMemoryRegion>
     AllRegionTypes;
-TYPED_TEST_CASE(SharedMemoryRegionTest, AllRegionTypes);
+TYPED_TEST_SUITE(SharedMemoryRegionTest, AllRegionTypes);
 
 TYPED_TEST(SharedMemoryRegionTest, NonValidRegion) {
   TypeParam region;
@@ -70,14 +68,12 @@ TYPED_TEST(SharedMemoryRegionTest, MoveRegion) {
   typename TypeParam::MappingType mapping = moved_region.Map();
   ASSERT_TRUE(mapping.IsValid());
   EXPECT_NE(this->rw_mapping_.memory(), mapping.memory());
-  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
-                   kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(), kRegionSize),
             0);
 
   // Verify that the second mapping reflects changes in the first.
   memset(this->rw_mapping_.memory(), '#', kRegionSize);
-  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
-                   kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(), kRegionSize),
             0);
 }
 
@@ -95,14 +91,12 @@ TYPED_TEST(SharedMemoryRegionTest, MapTwice) {
   typename TypeParam::MappingType mapping = this->region_.Map();
   ASSERT_TRUE(mapping.IsValid());
   EXPECT_NE(this->rw_mapping_.memory(), mapping.memory());
-  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
-                   kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(), kRegionSize),
             0);
 
   // Verify that the second mapping reflects changes in the first.
   memset(this->rw_mapping_.memory(), '#', kRegionSize);
-  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
-                   kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(), kRegionSize),
             0);
 
   // Close the region and unmap the first memory segment, verify the second
@@ -133,8 +127,7 @@ TYPED_TEST(SharedMemoryRegionTest, SerializeAndDeserialize) {
 
   // Verify that the second mapping reflects changes in the first.
   memset(this->rw_mapping_.memory(), '#', kRegionSize);
-  EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
-                            kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(), kRegionSize),
             0);
 }
 
@@ -164,9 +157,7 @@ TYPED_TEST(SharedMemoryRegionTest, MapAt) {
   const size_t kDataSize = kPageSize * 2;
   const size_t kCount = kDataSize / sizeof(uint32_t);
 
-  TypeParam region;
-  WritableSharedMemoryMapping rw_mapping;
-  std::tie(region, rw_mapping) = CreateMappedRegion<TypeParam>(kDataSize);
+  auto [region, rw_mapping] = CreateMappedRegion<TypeParam>(kDataSize);
   ASSERT_TRUE(region.IsValid());
   ASSERT_TRUE(rw_mapping.IsValid());
   uint32_t* ptr = static_cast<uint32_t*>(rw_mapping.memory());
@@ -175,30 +166,19 @@ TYPED_TEST(SharedMemoryRegionTest, MapAt) {
     ptr[i] = i;
 
   rw_mapping = WritableSharedMemoryMapping();
-  off_t bytes_offset = kPageSize;
-  typename TypeParam::MappingType mapping =
-      region.MapAt(bytes_offset, kDataSize - bytes_offset);
-  ASSERT_TRUE(mapping.IsValid());
 
-  off_t int_offset = bytes_offset / sizeof(uint32_t);
-  const uint32_t* ptr2 = static_cast<const uint32_t*>(mapping.memory());
-  for (size_t i = int_offset; i < kCount; ++i) {
-    EXPECT_EQ(ptr2[i - int_offset], i);
+  for (size_t bytes_offset = sizeof(uint32_t); bytes_offset <= kPageSize;
+       bytes_offset += sizeof(uint32_t)) {
+    typename TypeParam::MappingType mapping =
+        region.MapAt(bytes_offset, kDataSize - bytes_offset);
+    ASSERT_TRUE(mapping.IsValid());
+
+    size_t int_offset = bytes_offset / sizeof(uint32_t);
+    const uint32_t* ptr2 = static_cast<const uint32_t*>(mapping.memory());
+    for (size_t i = int_offset; i < kCount; ++i) {
+      EXPECT_EQ(ptr2[i - int_offset], i);
+    }
   }
-}
-
-TYPED_TEST(SharedMemoryRegionTest, MapAtNotAlignedOffsetFails) {
-  const size_t kDataSize = SysInfo::VMAllocationGranularity();
-
-  TypeParam region;
-  WritableSharedMemoryMapping rw_mapping;
-  std::tie(region, rw_mapping) = CreateMappedRegion<TypeParam>(kDataSize);
-  ASSERT_TRUE(region.IsValid());
-  ASSERT_TRUE(rw_mapping.IsValid());
-  off_t offset = kDataSize / 2;
-  typename TypeParam::MappingType mapping =
-      region.MapAt(offset, kDataSize - offset);
-  EXPECT_FALSE(mapping.IsValid());
 }
 
 TYPED_TEST(SharedMemoryRegionTest, MapZeroBytesFails) {
@@ -219,7 +199,7 @@ class DuplicatableSharedMemoryRegionTest
 
 typedef ::testing::Types<UnsafeSharedMemoryRegion, ReadOnlySharedMemoryRegion>
     DuplicatableRegionTypes;
-TYPED_TEST_CASE(DuplicatableSharedMemoryRegionTest, DuplicatableRegionTypes);
+TYPED_TEST_SUITE(DuplicatableSharedMemoryRegionTest, DuplicatableRegionTypes);
 
 TYPED_TEST(DuplicatableSharedMemoryRegionTest, Duplicate) {
   TypeParam dup_region = this->region_.Duplicate();
@@ -287,19 +267,6 @@ TEST_F(ReadOnlySharedMemoryRegionTest,
   ASSERT_TRUE(mapping.IsValid());
   void* memory_ptr = const_cast<void*>(mapping.memory());
   EXPECT_DEATH_IF_SUPPORTED(memset(memory_ptr, 'G', kRegionSize), "");
-}
-
-class UnsafeSharedMemoryRegionTest : public ::testing::Test {};
-
-TEST_F(UnsafeSharedMemoryRegionTest, CreateFromHandleTest) {
-  SharedMemory shm;
-
-  auto region = UnsafeSharedMemoryRegion::CreateFromHandle(shm.TakeHandle());
-  ASSERT_FALSE(region.IsValid());
-
-  shm.CreateAndMapAnonymous(10);
-  region = UnsafeSharedMemoryRegion::CreateFromHandle(shm.TakeHandle());
-  ASSERT_TRUE(region.IsValid());
 }
 
 }  // namespace base

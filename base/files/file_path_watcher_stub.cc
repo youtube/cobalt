@@ -1,14 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file exists for Unix systems which don't have the inotify headers, and
-// thus cannot build file_watcher_inotify.cc
+// This file exists for systems for which Chromium does not support watching
+// file paths. This includes Unix systems that don't have the inotify headers
+// and thus cannot build file_watcher_inotify.cc.
 
 #include "base/files/file_path_watcher.h"
 
-#include "base/macros.h"
-#include "base/memory/ptr_util.h"
+#include <memory>
+
+#include "base/notreached.h"
+#include "base/task/sequenced_task_runner.h"
 
 namespace base {
 
@@ -17,24 +20,26 @@ namespace {
 class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate {
  public:
   FilePathWatcherImpl() = default;
+  FilePathWatcherImpl(const FilePathWatcherImpl&) = delete;
+  FilePathWatcherImpl& operator=(const FilePathWatcherImpl&) = delete;
   ~FilePathWatcherImpl() override = default;
 
+  // FilePathWatcher::PlatformDelegate:
   bool Watch(const FilePath& path,
-             bool recursive,
+             Type type,
              const FilePathWatcher::Callback& callback) override {
+    DCHECK(!callback.is_null());
+
+    NOTIMPLEMENTED_LOG_ONCE();
     return false;
   }
-
-  void Cancel() override {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(FilePathWatcherImpl);
+  void Cancel() override { set_cancelled(); }
 };
 
 }  // namespace
 
 FilePathWatcher::FilePathWatcher() {
-  sequence_checker_.DetachFromSequence();
+  DETACH_FROM_SEQUENCE(sequence_checker_);
   impl_ = std::make_unique<FilePathWatcherImpl>();
 }
 

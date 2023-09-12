@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright 2009 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -44,10 +44,10 @@ class SampleClass {
 // Declare a mock for the class.
 class MockSampleClass : public SampleClass {
  public:
-  MOCK_METHOD0(ReturnSomething, int());
-  MOCK_CONST_METHOD0(ReturnNothingConstly, void());
-  MOCK_METHOD1(OutputParam, void(int* a));
-  MOCK_METHOD2(ReturnSecond, int(int a, int b));
+  MOCK_METHOD(int, ReturnSomething, ());
+  MOCK_METHOD(void, ReturnNothingConstly, (), (const));
+  MOCK_METHOD(void, OutputParam, (int* a));
+  MOCK_METHOD(int, ReturnSecond, (int a, int b));
 };
 
 // Create a couple of custom actions.  Custom actions can be used for adding

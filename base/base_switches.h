@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,21 +8,26 @@
 #define BASE_BASE_SWITCHES_H_
 
 #include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
 
 namespace switches {
 
-extern const char kDisableBackgroundTasks[];
+extern const char kDisableBestEffortTasks[];
 extern const char kDisableBreakpad[];
 extern const char kDisableFeatures[];
 extern const char kDisableLowEndDeviceMode[];
 extern const char kEnableCrashReporter[];
 extern const char kEnableFeatures[];
 extern const char kEnableLowEndDeviceMode[];
-extern const char kFontFormat[];
+extern const char kEnableBackgroundThreadPool[];
+extern const char kFieldTrialHandle[];
 extern const char kForceFieldTrials[];
 extern const char kFullMemoryCrashReport[];
+extern const char kLogBestEffortTasks[];
 extern const char kNoErrorDialogs[];
+extern const char kProfilingAtStart[];
 extern const char kProfilingFile[];
+extern const char kProfilingFlush[];
 extern const char kTestChildProcess[];
 extern const char kTestDoNotInitializeIcu[];
 extern const char kTraceToFile[];
@@ -31,20 +36,35 @@ extern const char kV[];
 extern const char kVModule[];
 extern const char kWaitForDebugger[];
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
+extern const char kDisableHighResTimer[];
 extern const char kDisableUsbKeyboardDetect[];
 #endif
 
-#if defined(OS_LINUX) && !defined(OS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX)
 extern const char kDisableDevShmUsage[];
 #endif
 
-#if defined(OS_POSIX)
+#if BUILDFLAG(IS_POSIX)
 extern const char kEnableCrashReporterForTesting[];
 #endif
 
-#if defined(OS_ANDROID)
-extern const char kOrderfileMemoryOptimization[];
+#if BUILDFLAG(IS_ANDROID)
+extern const char kEnableReachedCodeProfiler[];
+extern const char kReachedCodeSamplingIntervalUs[];
+extern const char kDefaultCountryCodeAtInstall[];
+extern const char kEnableIdleTracing[];
+extern const char kForceFieldTrialParams[];
+#endif
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/1176772): Remove kEnableCrashpad and IsCrashpadEnabled() when
+// Crashpad is fully enabled on Linux.
+extern const char kEnableCrashpad[];
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+extern const char kSchedulerBoostUrgent[];
 #endif
 
 }  // namespace switches

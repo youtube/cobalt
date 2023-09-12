@@ -1,35 +1,36 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/containers/stack_container.h"
 
-#include <algorithm>
+#include <stddef.h>
 
+#include "base/memory/aligned_memory.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/ranges/algorithm.h"
 #include "build/build_config.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
 namespace {
 
-class Dummy : public base::RefCounted<Dummy> {
+class Dummy : public RefCounted<Dummy> {
  public:
   explicit Dummy(int* alive) : alive_(alive) {
     ++*alive_;
   }
 
  private:
-  friend class base::RefCounted<Dummy>;
+  friend class RefCounted<Dummy>;
 
   ~Dummy() {
     --*alive_;
   }
 
-  int* const alive_;
+  const raw_ptr<int> alive_;
 };
 
 }  // namespace
@@ -69,7 +70,8 @@ TEST(StackContainer, Vector) {
   // Copying the small vector to another should use the same allocator and use
   // the now-unused stack buffer. GENERALLY CALLERS SHOULD NOT DO THIS since
   // they have to get the template types just right and it can cause errors.
-  std::vector<int, StackAllocator<int, stack_size> > other(vect.container());
+  std::vector<int, StackAllocator<int, stack_size, std::allocator<int>>> other(
+      vect.container());
   EXPECT_EQ(stack_buffer, &other.front());
   EXPECT_TRUE(vect.stack_data().used_stack_buffer_);
   for (int i = 0; i < stack_size; i++)
@@ -92,7 +94,7 @@ TEST(StackContainer, VectorDoubleDelete) {
   dummy = nullptr;
   EXPECT_EQ(alive, 1);
 
-  auto itr = std::find(vect->begin(), vect->end(), dummy_unref);
+  auto itr = ranges::find(vect, dummy_unref);
   EXPECT_EQ(itr->get(), dummy_unref);
   vect->erase(itr);
   EXPECT_EQ(alive, 0);
@@ -110,37 +112,103 @@ class AlignedData {
   alignas(alignment) char data_[alignment];
 };
 
-}  // anonymous namespace
-
-#define EXPECT_ALIGNED(ptr, align) \
-    EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) & (align - 1))
+}  // namespace
 
 TEST(StackContainer, BufferAlignment) {
   StackVector<wchar_t, 16> text;
   text->push_back(L'A');
-  EXPECT_ALIGNED(&text[0], alignof(wchar_t));
+  EXPECT_TRUE(IsAligned(&text[0], alignof(wchar_t)));
 
   StackVector<double, 1> doubles;
   doubles->push_back(0.0);
-  EXPECT_ALIGNED(&doubles[0], alignof(double));
+  EXPECT_TRUE(IsAligned(&doubles[0], alignof(double)));
 
   StackVector<AlignedData<16>, 1> aligned16;
   aligned16->push_back(AlignedData<16>());
-  EXPECT_ALIGNED(&aligned16[0], 16);
+  EXPECT_TRUE(IsAligned(&aligned16[0], 16));
 
-#ifndef STARBOARD
 #if !defined(__GNUC__) || defined(ARCH_CPU_X86_FAMILY)
   // It seems that non-X86 gcc doesn't respect greater than 16 byte alignment.
   // See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=33721 for details.
-  // TODO(sbc):re-enable this if GCC starts respecting higher alignments.
+  // TODO(sbc): Re-enable this if GCC starts respecting higher alignments.
   StackVector<AlignedData<256>, 1> aligned256;
   aligned256->push_back(AlignedData<256>());
-  EXPECT_ALIGNED(&aligned256[0], 256);
+  EXPECT_TRUE(IsAligned(&aligned256[0], 256));
 #endif
-#endif  // STARBOARD
 }
 
 template class StackVector<int, 2>;
 template class StackVector<scoped_refptr<Dummy>, 2>;
+
+template <typename T, size_t size>
+void CheckStackVectorElements(const StackVector<T, size>& vec,
+                              std::initializer_list<T> expected) {
+  auto expected_it = expected.begin();
+  EXPECT_EQ(vec->size(), expected.size());
+  for (T t : vec) {
+    EXPECT_NE(expected.end(), expected_it);
+    EXPECT_EQ(*expected_it, t);
+    ++expected_it;
+  }
+  EXPECT_EQ(expected.end(), expected_it);
+}
+
+TEST(StackContainer, Iteration) {
+  StackVector<int, 3> vect;
+  vect->push_back(7);
+  vect->push_back(11);
+
+  CheckStackVectorElements(vect, {7, 11});
+  for (int& i : vect) {
+    ++i;
+  }
+  CheckStackVectorElements(vect, {8, 12});
+  vect->push_back(13);
+  CheckStackVectorElements(vect, {8, 12, 13});
+  vect->resize(5);
+  CheckStackVectorElements(vect, {8, 12, 13, 0, 0});
+  vect->resize(1);
+  CheckStackVectorElements(vect, {8});
+}
+
+namespace {
+struct Allocator : std::allocator<int> {
+  using Base = std::allocator<int>;
+
+  int* allocate(size_t n) {
+    ++allocated;
+    return Base::allocate(n);
+  }
+  void deallocate(int* p, size_t n) {
+    ++deallocated;
+    Base::deallocate(p, n);
+  }
+
+  static int allocated;
+  static int deallocated;
+};
+
+int Allocator::allocated = 0;
+int Allocator::deallocated = 0;
+}  // namespace
+
+TEST(StackContainer, CustomAllocator) {
+  StackVector<int, 2, Allocator> v;
+
+  EXPECT_EQ(0, Allocator::allocated);
+  EXPECT_EQ(0, Allocator::deallocated);
+
+  v->push_back(1);
+  v->push_back(1);
+  EXPECT_EQ(0, Allocator::allocated);
+  v->push_back(1);
+  EXPECT_EQ(1, Allocator::allocated);
+
+  EXPECT_EQ(0, Allocator::deallocated);
+  v->clear();
+  // shrink_to_fit() makes sure to destroy empty backing store.
+  v->shrink_to_fit();
+  EXPECT_EQ(1, Allocator::deallocated);
+}
 
 }  // namespace base

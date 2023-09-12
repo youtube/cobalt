@@ -32,8 +32,6 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#include "starboard/types.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

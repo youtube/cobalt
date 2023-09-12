@@ -1,13 +1,14 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/rand_util.h"
 
 #include <nacl/nacl_random.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include "base/logging.h"
-#include "starboard/types.h"
+#include "base/check_op.h"
 
 namespace base {
 

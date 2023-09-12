@@ -1,16 +1,16 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/library_loader/library_loader_hooks.h"
+#include "base/base_jni_headers/ChildProcessService_jni.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/file_descriptor_store.h"
 #include "base/logging.h"
-#include "base/macros.h"
-#include "base/optional.h"
 #include "base/posix/global_descriptors.h"
-#include "jni/ChildProcessService_jni.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using base::android::JavaIntArrayToIntVector;
 using base::android::JavaParamRef;
@@ -20,20 +20,17 @@ namespace android {
 
 void JNI_ChildProcessService_RegisterFileDescriptors(
     JNIEnv* env,
-    const JavaParamRef<jclass>& clazz,
     const JavaParamRef<jobjectArray>& j_keys,
     const JavaParamRef<jintArray>& j_ids,
     const JavaParamRef<jintArray>& j_fds,
     const JavaParamRef<jlongArray>& j_offsets,
     const JavaParamRef<jlongArray>& j_sizes) {
-  std::vector<base::Optional<std::string>> keys;
-  jsize keys_size = env->GetArrayLength(j_keys);
-  keys.reserve(keys_size);
-  for (jsize i = 0; i < keys_size; i++) {
-    base::android::ScopedJavaLocalRef<jstring> str(
-        env, static_cast<jstring>(env->GetObjectArrayElement(j_keys, i)));
-    base::Optional<std::string> key;
-    if (!str.is_null()) {
+  std::vector<absl::optional<std::string>> keys;
+  JavaObjectArrayReader<jstring> keys_array(j_keys);
+  keys.reserve(checked_cast<size_t>(keys_array.size()));
+  for (auto str : keys_array) {
+    absl::optional<std::string> key;
+    if (str) {
       key = base::android::ConvertJavaStringToUTF8(env, str);
     }
     keys.push_back(std::move(key));
@@ -54,9 +51,10 @@ void JNI_ChildProcessService_RegisterFileDescriptors(
   DCHECK_EQ(offsets.size(), sizes.size());
 
   for (size_t i = 0; i < ids.size(); i++) {
-    base::MemoryMappedFile::Region region = {offsets.at(i), sizes.at(i)};
-    const base::Optional<std::string>& key = keys.at(i);
-    int id = ids.at(i);
+    base::MemoryMappedFile::Region region = {offsets.at(i),
+                                             static_cast<size_t>(sizes.at(i))};
+    const absl::optional<std::string>& key = keys.at(i);
+    const auto id = static_cast<GlobalDescriptors::Key>(ids.at(i));
     int fd = fds.at(i);
     if (key) {
       base::FileDescriptorStore::GetInstance().Set(*key, base::ScopedFD(fd),
@@ -67,12 +65,18 @@ void JNI_ChildProcessService_RegisterFileDescriptors(
   }
 }
 
-void JNI_ChildProcessService_ExitChildProcess(
-    JNIEnv* env,
-    const JavaParamRef<jclass>& clazz) {
+void JNI_ChildProcessService_ExitChildProcess(JNIEnv* env) {
   VLOG(0) << "ChildProcessService: Exiting child process.";
   base::android::LibraryLoaderExitHook();
   _exit(0);
+}
+
+// Make sure this isn't inlined so it shows up in stack traces.
+// the function body unique by adding a log line, so it doesn't get merged
+// with other functions by link time optimizations (ICF).
+NOINLINE void JNI_ChildProcessService_DumpProcessStack(JNIEnv* env) {
+  LOG(ERROR) << "Dumping as requested.";
+  base::debug::DumpWithoutCrashing();
 }
 
 }  // namespace android

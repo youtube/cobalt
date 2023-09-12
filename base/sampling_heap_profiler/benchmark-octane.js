@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,9 @@ const puppeteer = require('puppeteer');
 async function runOctane(samplingRate) {
   const args = ['--enable-devtools-experiments'];
   if (samplingRate)
-    args.push(`--sampling-heap-profiler=${samplingRate}`);
+    args.push(`--memlog=all`, `--memlog-sampling-rate=${samplingRate}`);
   while (true) {
-    let brower;
+    let browser;
     try {
       browser = await puppeteer.launch({
           executablePath: process.env.CHROME_PATH, args, headless: true});

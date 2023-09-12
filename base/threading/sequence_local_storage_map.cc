@@ -1,50 +1,43 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/threading/sequence_local_storage_map.h"
 
+#include <ostream>
 #include <utility>
 
-#include "base/lazy_instance.h"
-#include "base/logging.h"
-#include "base/threading/thread_local.h"
+#include "base/check_op.h"
+#include "third_party/abseil-cpp/absl/base/attributes.h"
 
 namespace base {
 namespace internal {
 
 namespace {
-LazyInstance<ThreadLocalPointer<SequenceLocalStorageMap>>::Leaky
-    tls_current_sequence_local_storage = LAZY_INSTANCE_INITIALIZER;
+
+ABSL_CONST_INIT thread_local SequenceLocalStorageMap*
+    current_sequence_local_storage = nullptr;
+
 }  // namespace
 
 SequenceLocalStorageMap::SequenceLocalStorageMap() = default;
 
 SequenceLocalStorageMap::~SequenceLocalStorageMap() = default;
 
-ScopedSetSequenceLocalStorageMapForCurrentThread::
-    ScopedSetSequenceLocalStorageMapForCurrentThread(
-        SequenceLocalStorageMap* sequence_local_storage) {
-  DCHECK(!tls_current_sequence_local_storage.Get().Get());
-  tls_current_sequence_local_storage.Get().Set(sequence_local_storage);
-}
-
-ScopedSetSequenceLocalStorageMapForCurrentThread::
-    ~ScopedSetSequenceLocalStorageMapForCurrentThread() {
-  tls_current_sequence_local_storage.Get().Set(nullptr);
-}
-
+// static
 SequenceLocalStorageMap& SequenceLocalStorageMap::GetForCurrentThread() {
-  SequenceLocalStorageMap* current_sequence_local_storage =
-      tls_current_sequence_local_storage.Get().Get();
-
-  DCHECK(current_sequence_local_storage)
+  DCHECK(IsSetForCurrentThread())
       << "SequenceLocalStorageSlot cannot be used because no "
          "SequenceLocalStorageMap was stored in TLS. Use "
          "ScopedSetSequenceLocalStorageMapForCurrentThread to store a "
          "SequenceLocalStorageMap object in TLS.";
 
   return *current_sequence_local_storage;
+}
+
+// static
+bool SequenceLocalStorageMap::IsSetForCurrentThread() {
+  return current_sequence_local_storage != nullptr;
 }
 
 void* SequenceLocalStorageMap::Get(int slot_id) {
@@ -100,6 +93,16 @@ SequenceLocalStorageMap::ValueDestructorPair::operator=(
 
   return *this;
 }
+
+ScopedSetSequenceLocalStorageMapForCurrentThread::
+    ScopedSetSequenceLocalStorageMapForCurrentThread(
+        SequenceLocalStorageMap* sequence_local_storage)
+    : resetter_(&current_sequence_local_storage,
+                sequence_local_storage,
+                nullptr) {}
+
+ScopedSetSequenceLocalStorageMapForCurrentThread::
+    ~ScopedSetSequenceLocalStorageMapForCurrentThread() = default;
 
 }  // namespace internal
 }  // namespace base

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright 2009 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,26 +21,25 @@
 //   printf("xyz: %" PRIuS, size);
 // The "u" in the macro corresponds to %u, and S is for "size".
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include "starboard/types.h"
-#endif
-
-#if (defined(OS_POSIX) || defined(OS_FUCHSIA)) && \
+#if (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)) && \
     (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
 #error "inttypes.h has already been included before this header file, but "
 #error "without __STDC_FORMAT_MACROS defined."
 #endif
 
-#if (defined(OS_POSIX) || defined(STARBOARD) || defined(OS_FUCHSIA)) && \
+#if (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)) && \
     !defined(__STDC_FORMAT_MACROS)
 #define __STDC_FORMAT_MACROS
 #endif
 
 #include <inttypes.h>
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 
 #if !defined(PRId64) || !defined(PRIu64) || !defined(PRIx64)
 #error "inttypes.h provided by win toolchain should define these."
@@ -54,7 +53,7 @@
 #define PRIuS "Iu"
 #endif
 
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 // GCC will concatenate wide and narrow strings correctly, so nothing needs to
 // be done here.
@@ -66,13 +65,13 @@
 #define PRIuS "zu"
 #endif
 
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 // The size of NSInteger and NSUInteger varies between 32-bit and 64-bit
 // architectures and Apple does not provides standard format macros and
 // recommends casting. This has many drawbacks, so instead define macros
 // for formatting those types.
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
 #if defined(ARCH_CPU_64_BITS)
 #if !defined(PRIdNS)
 #define PRIdNS "ld"
@@ -94,6 +93,6 @@
 #define PRIxNS "x"
 #endif
 #endif
-#endif  // defined(OS_MACOSX)
+#endif  // BUILDFLAG(IS_APPLE)
 
 #endif  // BASE_FORMAT_MACROS_H_

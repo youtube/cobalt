@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,9 +38,9 @@ int GlobalDescriptors::Get(Key key) const {
 }
 
 int GlobalDescriptors::MaybeGet(Key key) const {
-  for (auto i = descriptors_.begin(); i != descriptors_.end(); ++i) {
-    if (i->key == key)
-      return i->fd;
+  for (const auto& i : descriptors_) {
+    if (i.key == key)
+      return i.fd;
   }
 
   return -1;

@@ -1,16 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#import "base/test/test_support_ios.h"
+
 #import <UIKit/UIKit.h>
 
+#include "base/check.h"
+#include "base/command_line.h"
 #include "base/debug/debugger.h"
-#include "base/logging.h"
-#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/mac/scoped_nsobject.h"
-#include "base/message_loop/message_loop.h"
-#include "base/message_loop/message_pump_default.h"
+#include "base/message_loop/message_pump.h"
+#include "base/message_loop/message_pump_mac.h"
+#import "base/test/ios/google_test_runner_delegate.h"
 #include "base/test/test_suite.h"
+#include "base/test/test_switches.h"
+#include "build/blink_buildflags.h"
 #include "testing/coverage_util_ios.h"
 
 // Springboard will kill any iOS app that fails to check in after launch within
@@ -27,9 +32,31 @@
 // window displaying the app name. If a bunch of apps using MainHook are being
 // run in a row, this provides an indication of which one is currently running.
 
-static base::TestSuite* g_test_suite = NULL;
+static base::RunTestSuiteCallback g_test_suite_callback;
 static int g_argc;
 static char** g_argv;
+
+namespace {
+void PopulateUIWindow(UIWindow* window) {
+  [window setBackgroundColor:[UIColor whiteColor]];
+  [window makeKeyAndVisible];
+  CGRect bounds = [[UIScreen mainScreen] bounds];
+  // Add a label with the app name.
+  UILabel* label = [[[UILabel alloc] initWithFrame:bounds] autorelease];
+  label.text = [[NSProcessInfo processInfo] processName];
+  label.textAlignment = NSTextAlignmentCenter;
+  [window addSubview:label];
+
+  // An NSInternalInconsistencyException is thrown if the app doesn't have a
+  // root view controller. Set an empty one here.
+  [window setRootViewController:[[[UIViewController alloc] init] autorelease]];
+}
+
+bool IsSceneStartupEnabled() {
+  return [[NSBundle mainBundle].infoDictionary
+      objectForKey:@"UIApplicationSceneManifest"];
+}
+}
 
 @interface UIApplication (Testing)
 - (void)_terminateWithStatus:(int)status;
@@ -46,10 +73,38 @@ static char** g_argv;
 @end
 #endif  // TARGET_IPHONE_SIMULATOR
 
-@interface ChromeUnitTestDelegate : NSObject {
+// No-op scene delegate for unit tests. Note that this is created along with
+// the application delegate, so they need to be separate objects (the same
+// object can't be both the app and scene delegate, since new scene delegates
+// are created for each scene).
+@interface ChromeUnitTestSceneDelegate : NSObject <UIWindowSceneDelegate> {
+  base::scoped_nsobject<UIWindow> _window;
+}
+
+@end
+
+@interface ChromeUnitTestDelegate : NSObject <GoogleTestRunnerDelegate> {
   base::scoped_nsobject<UIWindow> _window;
 }
 - (void)runTests;
+@end
+
+@implementation ChromeUnitTestSceneDelegate
+
+- (void)scene:(UIScene*)scene
+    willConnectToSession:(UISceneSession*)session
+                 options:(UISceneConnectionOptions*)connectionOptions
+    API_AVAILABLE(ios(13)) {
+  // Yes, this is leaked, it's just to make what's running visible.
+  _window.reset([[UIWindow alloc]
+      initWithWindowScene:static_cast<UIWindowScene*>(scene)]);
+  PopulateUIWindow(_window);
+}
+
+- (void)sceneDidDisconnect:(UIScene*)scene API_AVAILABLE(ios(13)) {
+  _window.reset();
+}
+
 @end
 
 @implementation ChromeUnitTestDelegate
@@ -63,45 +118,46 @@ static char** g_argv;
   // calls override this behavior by ensuring that the software keyboard is
   // always shown.
   [[UIKeyboardImpl sharedInstance] setAutomaticMinimizationEnabled:NO];
-  [[UIKeyboardImpl sharedInstance] setSoftwareKeyboardShownByTouch:YES];
+  if (@available(iOS 15, *)) {
+  } else {
+    [[UIKeyboardImpl sharedInstance] setSoftwareKeyboardShownByTouch:YES];
+  }
 #endif  // TARGET_IPHONE_SIMULATOR
 
-  CGRect bounds = [[UIScreen mainScreen] bounds];
+  if (!IsSceneStartupEnabled()) {
+    CGRect bounds = [[UIScreen mainScreen] bounds];
 
-  // Yes, this is leaked, it's just to make what's running visible.
-  _window.reset([[UIWindow alloc] initWithFrame:bounds]);
-  [_window setBackgroundColor:[UIColor whiteColor]];
-  [_window makeKeyAndVisible];
-
-  // Add a label with the app name.
-  UILabel* label = [[[UILabel alloc] initWithFrame:bounds] autorelease];
-  label.text = [[NSProcessInfo processInfo] processName];
-  label.textAlignment = NSTextAlignmentCenter;
-  [_window addSubview:label];
-
-  // An NSInternalInconsistencyException is thrown if the app doesn't have a
-  // root view controller. Set an empty one here.
-  [_window setRootViewController:[[[UIViewController alloc] init] autorelease]];
+    // Yes, this is leaked, it's just to make what's running visible.
+    _window.reset([[UIWindow alloc] initWithFrame:bounds]);
+    PopulateUIWindow(_window);
+  }
 
   if ([self shouldRedirectOutputToFile])
     [self redirectOutput];
 
   // Queue up the test run.
-  [self performSelector:@selector(runTests)
-             withObject:nil
-             afterDelay:0.1];
+  if (!base::ShouldRunIOSUnittestsWithXCTest()) {
+    // When running in XCTest mode, XCTest will invoke |runGoogleTest| directly.
+    // Otherwise, schedule a call to |runTests|.
+    [self performSelector:@selector(runTests) withObject:nil afterDelay:0.1];
+  }
+
   return YES;
 }
 
 // Returns true if the gtest output should be redirected to a file, then sent
-// to NSLog when compleete. This redirection is used because gtest only writes
+// to NSLog when complete. This redirection is used because gtest only writes
 // output to stdout, but results must be written to NSLog in order to show up in
 // the device log that is retrieved from the device by the host.
 - (BOOL)shouldRedirectOutputToFile {
 #if !TARGET_IPHONE_SIMULATOR
-  return !base::debug::BeingDebugged();
-#endif  // TARGET_IPHONE_SIMULATOR
+  // Tests in XCTest mode don't need to redirect output to a file because the
+  // test result parser analyzes console output.
+  return !base::ShouldRunIOSUnittestsWithXCTest() &&
+         !base::debug::BeingDebugged();
+#else
   return NO;
+#endif  // TARGET_IPHONE_SIMULATOR
 }
 
 // Returns the path to the directory to store gtest output files.
@@ -151,19 +207,33 @@ static char** g_argv;
   }
 }
 
-- (void)runTests {
+- (BOOL)supportsRunningGoogleTests {
+  return base::ShouldRunIOSUnittestsWithXCTest();
+}
+
+- (int)runGoogleTests {
   coverage_util::ConfigureCoverageReportPath();
 
-  int exitStatus = g_test_suite->Run();
+  int exitStatus = std::move(g_test_suite_callback).Run();
 
   if ([self shouldRedirectOutputToFile])
     [self writeOutputToNSLog];
 
+  return exitStatus;
+}
+
+- (void)runTests {
+  DCHECK(!base::ShouldRunIOSUnittestsWithXCTest());
+
+  int exitStatus = [self runGoogleTests];
+
+  // The blink code path uses a spawning test launcher and this wait isn't
+  // really necessary for that code path.
+#if !BUILDFLAG(USE_BLINK)
   // If a test app is too fast, it will exit before Instruments has has a
   // a chance to initialize and no test results will be seen.
-  // TODO(crbug.com/137010): Figure out how much time is actually needed, and
-  // sleep only to make sure that much time has elapsed since launch.
   [NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:2.0]];
+#endif
   _window.reset();
 
   // Use the hidden selector to try and cleanly take down the app (otherwise
@@ -179,8 +249,8 @@ static char** g_argv;
 namespace {
 
 std::unique_ptr<base::MessagePump> CreateMessagePumpForUIForTests() {
-  // A default MessagePump will do quite nicely in tests.
-  return std::unique_ptr<base::MessagePump>(new base::MessagePumpDefault());
+  // A basic MessagePump will do quite nicely in tests.
+  return std::unique_ptr<base::MessagePump>(new base::MessagePumpCFRunLoop());
 }
 
 }  // namespace
@@ -188,32 +258,31 @@ std::unique_ptr<base::MessagePump> CreateMessagePumpForUIForTests() {
 namespace base {
 
 void InitIOSTestMessageLoop() {
-  MessageLoop::InitMessagePumpForUIFactory(&CreateMessagePumpForUIForTests);
+  MessagePump::OverrideMessagePumpForUIFactory(&CreateMessagePumpForUIForTests);
 }
 
-void InitIOSRunHook(TestSuite* suite, int argc, char* argv[]) {
-  g_test_suite = suite;
+void InitIOSRunHook(RunTestSuiteCallback callback) {
+  g_test_suite_callback = std::move(callback);
+}
+
+void InitIOSArgs(int argc, char* argv[]) {
   g_argc = argc;
   g_argv = argv;
 }
 
-void RunTestsFromIOSApp() {
-  // When TestSuite::Run is invoked it calls RunTestsFromIOSApp(). On the first
-  // invocation, this method fires up an iOS app via UIApplicationMain. Since
-  // UIApplicationMain does not return until the app exits, control does not
-  // return to the initial TestSuite::Run invocation, so the app invokes
-  // TestSuite::Run a second time and since |ran_hook| is true at this point,
-  // this method is a no-op and control returns to TestSuite:Run so that test
-  // are executed. Once the app exits, RunTestsFromIOSApp calls exit() so that
-  // control is not returned to the initial invocation of TestSuite::Run.
-  static bool ran_hook = false;
-  if (!ran_hook) {
-    ran_hook = true;
-    mac::ScopedNSAutoreleasePool pool;
-    int exit_status = UIApplicationMain(g_argc, g_argv, nil,
-                                        @"ChromeUnitTestDelegate");
-    exit(exit_status);
+int RunTestsFromIOSApp() {
+  // When LaunchUnitTests is invoked it calls RunTestsFromIOSApp(). On its
+  // invocation, this method fires up an iOS app via UIApplicationMain. The
+  // TestSuite::Run will have be passed via InitIOSRunHook which will execute
+  // the TestSuite once the UIApplication is ready.
+  @autoreleasepool {
+    return UIApplicationMain(g_argc, g_argv, nil, @"ChromeUnitTestDelegate");
   }
+}
+
+bool ShouldRunIOSUnittestsWithXCTest() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kEnableRunIOSUnittestsWithXCTest);
 }
 
 }  // namespace base

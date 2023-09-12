@@ -1,9 +1,9 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_CONTAINERS_VECTOR_BUFFERS_H_
-#define BASE_CONTAINERS_VECTOR_BUFFERS_H_
+#ifndef BASE_CONTAINERS_VECTOR_BUFFER_H_
+#define BASE_CONTAINERS_VECTOR_BUFFER_H_
 
 #include <stdlib.h>
 #include <string.h>
@@ -11,11 +11,11 @@
 #include <type_traits>
 #include <utility>
 
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/containers/util.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/numerics/checked_math.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace internal {
@@ -42,15 +42,14 @@ class VectorBuffer {
  public:
   constexpr VectorBuffer() = default;
 
-// Cobalt Clang 3.6 compiler does not support no_sanitize.
-#if defined(__clang__) && !defined(__native_client__) && (!defined(STARBOARD) || (__clang_major__ > 3))
+#if defined(__clang__) && !defined(__native_client__)
   // This constructor converts an uninitialized void* to a T* which triggers
   // clang Control Flow Integrity. Since this is as-designed, disable.
   __attribute__((no_sanitize("cfi-unrelated-cast", "vptr")))
 #endif
   VectorBuffer(size_t count)
       : buffer_(reinterpret_cast<T*>(
-            SbMemoryAllocate(CheckMul(sizeof(T), count).ValueOrDie()))),
+            malloc(CheckMul(sizeof(T), count).ValueOrDie()))),
         capacity_(count) {
   }
   VectorBuffer(VectorBuffer&& other) noexcept
@@ -59,10 +58,13 @@ class VectorBuffer {
     other.capacity_ = 0;
   }
 
-  ~VectorBuffer() { SbMemoryDeallocate(buffer_); }
+  VectorBuffer(const VectorBuffer&) = delete;
+  VectorBuffer& operator=(const VectorBuffer&) = delete;
+
+  ~VectorBuffer() { free(buffer_); }
 
   VectorBuffer& operator=(VectorBuffer&& other) {
-    SbMemoryDeallocate(buffer_);
+    free(buffer_);
     buffer_ = other.buffer_;
     capacity_ = other.capacity_;
 
@@ -97,7 +99,7 @@ class VectorBuffer {
   template <typename T2 = T,
             typename std::enable_if<std::is_trivially_destructible<T2>::value,
                                     int>::type = 0>
-  void DestructRange(T*, T*) {}
+  void DestructRange(T* begin, T* end) {}
 
   // Non-trivially destructible objects must have their destructors called
   // individually.
@@ -123,11 +125,12 @@ class VectorBuffer {
 
   // Trivially copyable types can use memcpy. trivially copyable implies
   // that there is a trivial destructor as we don't have to call it.
-  template <typename T2 = T,
-            typename std::enable_if<base::is_trivially_copyable<T2>::value,
-                                    int>::type = 0>
+  template <
+      typename T2 = T,
+      typename std::enable_if<std::is_trivially_copyable_v<T2>, int>::type = 0>
   static void MoveRange(T* from_begin, T* from_end, T* to) {
     CHECK(!RangesOverlap(from_begin, from_end, to));
+
     memcpy(
         to, from_begin,
         CheckSub(get_uintptr(from_end), get_uintptr(from_begin)).ValueOrDie());
@@ -137,7 +140,7 @@ class VectorBuffer {
   // destruct the original.
   template <typename T2 = T,
             typename std::enable_if<std::is_move_constructible<T2>::value &&
-                                        !base::is_trivially_copyable<T2>::value,
+                                        !std::is_trivially_copyable_v<T2>,
                                     int>::type = 0>
   static void MoveRange(T* from_begin, T* from_end, T* to) {
     CHECK(!RangesOverlap(from_begin, from_end, to));
@@ -153,7 +156,7 @@ class VectorBuffer {
   // destruct the original.
   template <typename T2 = T,
             typename std::enable_if<!std::is_move_constructible<T2>::value &&
-                                        !base::is_trivially_copyable<T2>::value,
+                                        !std::is_trivially_copyable_v<T2>,
                                     int>::type = 0>
   static void MoveRange(T* from_begin, T* from_end, T* to) {
     CHECK(!RangesOverlap(from_begin, from_end, to));
@@ -166,12 +169,6 @@ class VectorBuffer {
   }
 
  private:
-  // TODO(crbug.com/817982): What we really need is for checked_math.h to be
-  // able to do checked arithmetic on pointers.
-  static inline uintptr_t get_uintptr(const T* t) {
-    return reinterpret_cast<uintptr_t>(t);
-  }
-
   static bool RangesOverlap(const T* from_begin,
                             const T* from_end,
                             const T* to) {
@@ -184,13 +181,13 @@ class VectorBuffer {
                 .ValueOrDie() <= from_begin_uintptr);
   }
 
-  T* buffer_ = nullptr;
+  // `buffer_` is not a raw_ptr<...> for performance reasons (based on analysis
+  // of sampling profiler data and tab_search:top100:2020).
+  RAW_PTR_EXCLUSION T* buffer_ = nullptr;
   size_t capacity_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(VectorBuffer);
 };
 
 }  // namespace internal
 }  // namespace base
 
-#endif  // BASE_CONTAINERS_VECTOR_BUFFERS_H_
+#endif  // BASE_CONTAINERS_VECTOR_BUFFER_H_

@@ -1,15 +1,18 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/metrics/field_trial.h"
 
+#include <stddef.h>
+#include <utility>
+
 #include "base/base_switches.h"
 #include "base/build_time.h"
+#include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
+#include "base/metrics/field_trial_list_including_low_anonymity.h"
 #include "base/metrics/field_trial_param_associator.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
@@ -17,11 +20,27 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/gtest_util.h"
 #include "base/test/mock_entropy_provider.h"
+#include "base/test/multiprocess_test.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "base/test/test_shared_memory_util.h"
+#include "base/test/test_timeouts.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/multiprocess_func_list.h"
+
+#if !BUILDFLAG(IS_IOS)
+#include "base/process/launch.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/posix/global_descriptors.h"
+#endif
+
+#if BUILDFLAG(IS_MAC)
+#include "base/mac/mach_port_rendezvous.h"
+#endif
 
 namespace base {
 
@@ -30,45 +49,92 @@ namespace {
 // Default group name used by several tests.
 const char kDefaultGroupName[] = "DefaultGroup";
 
-// Call FieldTrialList::FactoryGetFieldTrial() with a future expiry date.
+// Call FieldTrialList::FactoryGetFieldTrial().
 scoped_refptr<FieldTrial> CreateFieldTrial(
     const std::string& trial_name,
     int total_probability,
     const std::string& default_group_name,
-    int* default_group_number) {
+    bool is_low_anonymity = false) {
+  MockEntropyProvider entropy_provider(0.9);
   return FieldTrialList::FactoryGetFieldTrial(
-      trial_name, total_probability, default_group_name,
-      FieldTrialList::kNoExpirationYear, 1, 1, FieldTrial::SESSION_RANDOMIZED,
-      default_group_number);
+      trial_name, total_probability, default_group_name, entropy_provider, 0,
+      is_low_anonymity);
 }
 
-int OneYearBeforeBuildTime() {
-  Time one_year_before_build_time = GetBuildTime() - TimeDelta::FromDays(365);
-  Time::Exploded exploded;
-  one_year_before_build_time.LocalExplode(&exploded);
-  return exploded.year;
-}
-
-// FieldTrialList::Observer implementation for testing.
+// A FieldTrialList::Observer implementation which stores the trial name and
+// group name received via OnFieldTrialGroupFinalized() for later inspection.
 class TestFieldTrialObserver : public FieldTrialList::Observer {
  public:
-  enum Type {
-    ASYNCHRONOUS,
-    SYNCHRONOUS,
-  };
+  TestFieldTrialObserver() { FieldTrialList::AddObserver(this); }
+  TestFieldTrialObserver(const TestFieldTrialObserver&) = delete;
+  TestFieldTrialObserver& operator=(const TestFieldTrialObserver&) = delete;
 
-  TestFieldTrialObserver(Type type) : type_(type) {
-    if (type == SYNCHRONOUS)
-      FieldTrialList::SetSynchronousObserver(this);
-    else
-      FieldTrialList::AddObserver(this);
+  ~TestFieldTrialObserver() override { FieldTrialList::RemoveObserver(this); }
+
+  void OnFieldTrialGroupFinalized(const std::string& trial,
+                                  const std::string& group) override {
+    trial_name_ = trial;
+    group_name_ = group;
   }
 
-  ~TestFieldTrialObserver() override {
-    if (type_ == SYNCHRONOUS)
-      FieldTrialList::RemoveSynchronousObserver(this);
-    else
-      FieldTrialList::RemoveObserver(this);
+  const std::string& trial_name() const { return trial_name_; }
+  const std::string& group_name() const { return group_name_; }
+
+ private:
+  std::string trial_name_;
+  std::string group_name_;
+};
+
+// A FieldTrialList::Observer implementation which accesses the group of a
+// FieldTrial from OnFieldTrialGroupFinalized(). Used to test reentrancy.
+class FieldTrialObserverAccessingGroup : public FieldTrialList::Observer {
+ public:
+  // |trial_to_access| is the FieldTrial on which to invoke Activate() when
+  // receiving an OnFieldTrialGroupFinalized() notification.
+  explicit FieldTrialObserverAccessingGroup(
+      scoped_refptr<FieldTrial> trial_to_access)
+      : trial_to_access_(trial_to_access) {
+    FieldTrialList::AddObserver(this);
+  }
+  FieldTrialObserverAccessingGroup(const FieldTrialObserverAccessingGroup&) =
+      delete;
+  FieldTrialObserverAccessingGroup& operator=(
+      const FieldTrialObserverAccessingGroup&) = delete;
+
+  ~FieldTrialObserverAccessingGroup() override {
+    FieldTrialList::RemoveObserver(this);
+  }
+
+  void OnFieldTrialGroupFinalized(const std::string& trial,
+                                  const std::string& group) override {
+    trial_to_access_->Activate();
+  }
+
+ private:
+  scoped_refptr<FieldTrial> trial_to_access_;
+};
+
+std::string MockEscapeQueryParamValue(const std::string& input) {
+  return input;
+}
+
+}  // namespace
+
+// Same as |TestFieldTrialObserver|, but registers for low anonymity field
+// trials too.
+class TestFieldTrialObserverIncludingLowAnonymity
+    : public FieldTrialList::Observer {
+ public:
+  TestFieldTrialObserverIncludingLowAnonymity() {
+    FieldTrialListIncludingLowAnonymity::AddObserver(this);
+  }
+  TestFieldTrialObserverIncludingLowAnonymity(
+      const TestFieldTrialObserverIncludingLowAnonymity&) = delete;
+  TestFieldTrialObserverIncludingLowAnonymity& operator=(
+      const TestFieldTrialObserverIncludingLowAnonymity&) = delete;
+
+  ~TestFieldTrialObserverIncludingLowAnonymity() override {
+    FieldTrialListIncludingLowAnonymity::RemoveObserver(this);
   }
 
   void OnFieldTrialGroupFinalized(const std::string& trial,
@@ -81,29 +147,31 @@ class TestFieldTrialObserver : public FieldTrialList::Observer {
   const std::string& group_name() const { return group_name_; }
 
  private:
-  const Type type_;
   std::string trial_name_;
   std::string group_name_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestFieldTrialObserver);
 };
-
-std::string MockEscapeQueryParamValue(const std::string& input) {
-  return input;
-}
-
-}  // namespace
 
 class FieldTrialTest : public ::testing::Test {
  public:
-  FieldTrialTest() : trial_list_(nullptr) {}
+  FieldTrialTest() {
+    // The test suite instantiates a FieldTrialList but for the purpose of these
+    // tests it's cleaner to start from scratch.
+    scoped_feature_list_.InitWithEmptyFeatureAndFieldTrialLists();
+  }
+  FieldTrialTest(const FieldTrialTest&) = delete;
+  FieldTrialTest& operator=(const FieldTrialTest&) = delete;
 
  private:
-  MessageLoop message_loop_;
-  FieldTrialList trial_list_;
-
-  DISALLOW_COPY_AND_ASSIGN(FieldTrialTest);
+  test::TaskEnvironment task_environment_;
+  test::ScopedFeatureList scoped_feature_list_;
 };
+
+MATCHER(CompareActiveGroupToFieldTrial, "") {
+  const base::FieldTrial::ActiveGroup& lhs = ::testing::get<0>(arg);
+  const base::FieldTrial* rhs = ::testing::get<1>(arg).get();
+  return lhs.trial_name == rhs->trial_name() &&
+         lhs.group_name == rhs->group_name_internal();
+}
 
 // Test registration, and also check that destructors are called for trials.
 TEST_F(FieldTrialTest, Registration) {
@@ -113,7 +181,7 @@ TEST_F(FieldTrialTest, Registration) {
   EXPECT_FALSE(FieldTrialList::Find(name2));
 
   scoped_refptr<FieldTrial> trial1 =
-      CreateFieldTrial(name1, 10, "default name 1 test", nullptr);
+      CreateFieldTrial(name1, 10, "default name 1 test");
   EXPECT_EQ(FieldTrial::kNotFinalized, trial1->group_);
   EXPECT_EQ(name1, trial1->trial_name());
   EXPECT_EQ("", trial1->group_name_internal());
@@ -124,7 +192,7 @@ TEST_F(FieldTrialTest, Registration) {
   EXPECT_FALSE(FieldTrialList::Find(name2));
 
   scoped_refptr<FieldTrial> trial2 =
-      CreateFieldTrial(name2, 10, "default name 2 test", nullptr);
+      CreateFieldTrial(name2, 10, "default name 2 test");
   EXPECT_EQ(FieldTrial::kNotFinalized, trial2->group_);
   EXPECT_EQ(name2, trial2->trial_name());
   EXPECT_EQ("", trial2->group_name_internal());
@@ -137,165 +205,75 @@ TEST_F(FieldTrialTest, Registration) {
 }
 
 TEST_F(FieldTrialTest, AbsoluteProbabilities) {
-  char always_true[] = " always true";
-  char default_always_true[] = " default always true";
-  char always_false[] = " always false";
-  char default_always_false[] = " default always false";
-  for (int i = 1; i < 250; ++i) {
-    // Try lots of names, by changing the first character of the name.
-    char c = static_cast<char>(i);
-    always_true[0] = c;
-    default_always_true[0] = c;
-    always_false[0] = c;
-    default_always_false[0] = c;
-
-    scoped_refptr<FieldTrial> trial_true =
-        CreateFieldTrial(always_true, 10, default_always_true, nullptr);
-    const std::string winner = "TheWinner";
-    int winner_group = trial_true->AppendGroup(winner, 10);
-
-    EXPECT_EQ(winner_group, trial_true->group());
-    EXPECT_EQ(winner, trial_true->group_name());
-
-    scoped_refptr<FieldTrial> trial_false =
-        CreateFieldTrial(always_false, 10, default_always_false, nullptr);
-    int loser_group = trial_false->AppendGroup("ALoser", 0);
-
-    EXPECT_NE(loser_group, trial_false->group());
-  }
+  MockEntropyProvider entropy_provider(0.51);
+  scoped_refptr<FieldTrial> trial = FieldTrialList::FactoryGetFieldTrial(
+      "trial name", 100, "Default", entropy_provider);
+  trial->AppendGroup("LoserA", 0);
+  trial->AppendGroup("Winner", 100);
+  trial->AppendGroup("LoserB", 0);
+  EXPECT_EQ(trial->group_name(), "Winner");
 }
 
-TEST_F(FieldTrialTest, RemainingProbability) {
-  // First create a test that hasn't had a winner yet.
-  const std::string winner = "Winner";
-  const std::string loser = "Loser";
-  scoped_refptr<FieldTrial> trial;
-  int counter = 0;
-  int default_group_number = -1;
-  do {
-    std::string name = StringPrintf("trial%d", ++counter);
-    trial = CreateFieldTrial(name, 10, winner, &default_group_number);
-    trial->AppendGroup(loser, 5);  // 50% chance of not being chosen.
-    // If a group is not assigned, group_ will be kNotFinalized.
-  } while (trial->group_ != FieldTrial::kNotFinalized);
-
-  // And that 'default' group (winner) should always win.
-  EXPECT_EQ(default_group_number, trial->group());
-
-  // And that winner should ALWAYS win.
-  EXPECT_EQ(winner, trial->group_name());
+TEST_F(FieldTrialTest, SmallProbabilities_49) {
+  MockEntropyProvider entropy_provider(0.49);
+  scoped_refptr<FieldTrial> trial = FieldTrialList::FactoryGetFieldTrial(
+      "trial name", 2, "Default", entropy_provider);
+  trial->AppendGroup("first", 1);
+  trial->AppendGroup("second", 1);
+  EXPECT_EQ(trial->group_name(), "first");
 }
 
-TEST_F(FieldTrialTest, FiftyFiftyProbability) {
-  // Check that even with small divisors, we have the proper probabilities, and
-  // all outcomes are possible.  Since this is a 50-50 test, it should get both
-  // outcomes in a few tries, but we'll try no more than 100 times (and be flaky
-  // with probability around 1 in 2^99).
-  bool first_winner = false;
-  bool second_winner = false;
-  int counter = 0;
-  do {
-    std::string name = StringPrintf("FiftyFifty%d", ++counter);
-    std::string default_group_name =
-        StringPrintf("Default FiftyFifty%d", ++counter);
-    scoped_refptr<FieldTrial> trial =
-        CreateFieldTrial(name, 2, default_group_name, nullptr);
-    trial->AppendGroup("first", 1);  // 50% chance of being chosen.
-    // If group_ is kNotFinalized, then a group assignement hasn't been done.
-    if (trial->group_ != FieldTrial::kNotFinalized) {
-      first_winner = true;
-      continue;
-    }
-    trial->AppendGroup("second", 1);  // Always chosen at this point.
-    EXPECT_NE(FieldTrial::kNotFinalized, trial->group());
-    second_winner = true;
-  } while ((!second_winner || !first_winner) && counter < 100);
-  EXPECT_TRUE(second_winner);
-  EXPECT_TRUE(first_winner);
+TEST_F(FieldTrialTest, SmallProbabilities_51) {
+  MockEntropyProvider entropy_provider(0.51);
+  scoped_refptr<FieldTrial> trial = FieldTrialList::FactoryGetFieldTrial(
+      "trial name", 2, "Default", entropy_provider);
+  trial->AppendGroup("first", 1);
+  trial->AppendGroup("second", 1);
+  EXPECT_EQ(trial->group_name(), "second");
 }
 
-TEST_F(FieldTrialTest, MiddleProbabilities) {
-  char name[] = " same name";
-  char default_group_name[] = " default same name";
-  bool false_event_seen = false;
-  bool true_event_seen = false;
-  for (int i = 1; i < 250; ++i) {
-    char c = static_cast<char>(i);
-    name[0] = c;
-    default_group_name[0] = c;
-    scoped_refptr<FieldTrial> trial =
-        CreateFieldTrial(name, 10, default_group_name, nullptr);
-    int might_win = trial->AppendGroup("MightWin", 5);
-
-    if (trial->group() == might_win) {
-      true_event_seen = true;
-    } else {
-      false_event_seen = true;
-    }
-    if (false_event_seen && true_event_seen)
-      return;  // Successful test!!!
-  }
-  // Very surprising to get here. Probability should be around 1 in 2 ** 250.
-  // One of the following will fail.
-  EXPECT_TRUE(false_event_seen);
-  EXPECT_TRUE(true_event_seen);
+TEST_F(FieldTrialTest, MiddleProbabilities_49) {
+  MockEntropyProvider entropy_provider(0.49);
+  scoped_refptr<FieldTrial> trial = FieldTrialList::FactoryGetFieldTrial(
+      "trial name", 10, "Default", entropy_provider);
+  trial->AppendGroup("NotDefault", 5);
+  EXPECT_EQ(trial->group_name(), "NotDefault");
 }
 
+TEST_F(FieldTrialTest, MiddleProbabilities_51) {
+  MockEntropyProvider entropy_provider(0.51);
+  scoped_refptr<FieldTrial> trial = FieldTrialList::FactoryGetFieldTrial(
+      "trial name", 10, "Default", entropy_provider);
+  trial->AppendGroup("NotDefault", 5);
+  EXPECT_EQ(trial->group_name(), "Default");
+}
+
+// AppendGroup after finalization should not change the winner.
 TEST_F(FieldTrialTest, OneWinner) {
-  char name[] = "Some name";
-  char default_group_name[] = "Default some name";
-  int group_count(10);
+  MockEntropyProvider entropy_provider(0.51);
+  scoped_refptr<FieldTrial> trial = FieldTrialList::FactoryGetFieldTrial(
+      "trial name", 10, "Default", entropy_provider);
 
-  int default_group_number = -1;
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(name, group_count, default_group_name, nullptr);
-  int winner_index(-2);
-  std::string winner_name;
-
-  for (int i = 1; i <= group_count; ++i) {
-    int might_win = trial->AppendGroup(std::string(), 1);
-
-    // Because we keep appending groups, we want to see if the last group that
-    // was added has been assigned or not.
-    if (trial->group_ == might_win) {
-      EXPECT_EQ(-2, winner_index);
-      winner_index = might_win;
-      StringAppendF(&winner_name, "%d", might_win);
-      EXPECT_EQ(winner_name, trial->group_name());
-    }
+  for (int i = 0; i < 5; ++i) {
+    trial->AppendGroup(StringPrintf("%d", i), 1);
   }
-  EXPECT_GE(winner_index, 0);
-  // Since all groups cover the total probability, we should not have
-  // chosen the default group.
-  EXPECT_NE(trial->group(), default_group_number);
-  EXPECT_EQ(trial->group(), winner_index);
-  EXPECT_EQ(trial->group_name(), winner_name);
-}
 
-TEST_F(FieldTrialTest, DisableProbability) {
-  const std::string default_group_name = "Default group";
-  const std::string loser = "Loser";
-  const std::string name = "Trial";
+  // Entropy 0.51 should assign to the 6th group.
+  // It should be declared the winner and stay that way.
+  trial->AppendGroup("Winner", 1);
+  EXPECT_EQ("Winner", trial->group_name());
 
-  // Create a field trail that has expired.
-  int default_group_number = -1;
-  FieldTrial* trial = FieldTrialList::FactoryGetFieldTrial(
-      name, 1000000000, default_group_name, OneYearBeforeBuildTime(), 1, 1,
-      FieldTrial::SESSION_RANDOMIZED,
-      &default_group_number);
-  trial->AppendGroup(loser, 999999999);  // 99.9999999% chance of being chosen.
-
-  // Because trial has expired, we should always be in the default group.
-  EXPECT_EQ(default_group_number, trial->group());
-
-  // And that default_group_name should ALWAYS win.
-  EXPECT_EQ(default_group_name, trial->group_name());
+  // Note: appending groups after calling group_name() is probably not really
+  // valid usage, since it will DCHECK if the default group won.
+  for (int i = 7; i < 10; ++i) {
+    trial->AppendGroup(StringPrintf("%d", i), 1);
+    EXPECT_EQ("Winner", trial->group_name());
+  }
 }
 
 TEST_F(FieldTrialTest, ActiveGroups) {
   std::string no_group("No Group");
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(no_group, 10, "Default", nullptr);
+  scoped_refptr<FieldTrial> trial = CreateFieldTrial(no_group, 10, "Default");
 
   // There is no winner yet, so no NameGroupId should be returned.
   FieldTrial::ActiveGroup active_group;
@@ -303,26 +281,24 @@ TEST_F(FieldTrialTest, ActiveGroups) {
 
   // Create a single winning group.
   std::string one_winner("One Winner");
-  trial = CreateFieldTrial(one_winner, 10, "Default", nullptr);
+  trial = CreateFieldTrial(one_winner, 10, "Default");
   std::string winner("Winner");
   trial->AppendGroup(winner, 10);
   EXPECT_FALSE(trial->GetActiveGroup(&active_group));
-  // Finalize the group selection by accessing the selected group.
-  trial->group();
+  trial->Activate();
   EXPECT_TRUE(trial->GetActiveGroup(&active_group));
   EXPECT_EQ(one_winner, active_group.trial_name);
   EXPECT_EQ(winner, active_group.group_name);
 
   std::string multi_group("MultiGroup");
   scoped_refptr<FieldTrial> multi_group_trial =
-      CreateFieldTrial(multi_group, 9, "Default", nullptr);
+      CreateFieldTrial(multi_group, 9, "Default");
 
   multi_group_trial->AppendGroup("Me", 3);
   multi_group_trial->AppendGroup("You", 3);
   multi_group_trial->AppendGroup("Them", 3);
   EXPECT_FALSE(multi_group_trial->GetActiveGroup(&active_group));
-  // Finalize the group selection by accessing the selected group.
-  multi_group_trial->group();
+  multi_group_trial->Activate();
   EXPECT_TRUE(multi_group_trial->GetActiveGroup(&active_group));
   EXPECT_EQ(multi_group, active_group.trial_name);
   EXPECT_EQ(multi_group_trial->group_name(), active_group.group_name);
@@ -356,12 +332,11 @@ TEST_F(FieldTrialTest, ActiveGroupsNotFinalized) {
   const char kTrialName[] = "TestTrial";
   const char kSecondaryGroupName[] = "SecondaryGroup";
 
-  int default_group = -1;
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
-  const int secondary_group = trial->AppendGroup(kSecondaryGroupName, 50);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
+  trial->AppendGroup(kSecondaryGroupName, 50);
 
-  // Before |group()| is called, |GetActiveGroup()| should return false.
+  // Before |Activate()| is called, |GetActiveGroup()| should return false.
   FieldTrial::ActiveGroup active_group;
   EXPECT_FALSE(trial->GetActiveGroup(&active_group));
 
@@ -370,16 +345,13 @@ TEST_F(FieldTrialTest, ActiveGroupsNotFinalized) {
   FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
   EXPECT_TRUE(active_groups.empty());
 
-  // After |group()| has been called, both APIs should succeed.
-  const int chosen_group = trial->group();
-  EXPECT_TRUE(chosen_group == default_group || chosen_group == secondary_group);
+  // After |Activate()| has been called, both APIs should succeed.
+  trial->Activate();
 
   EXPECT_TRUE(trial->GetActiveGroup(&active_group));
   EXPECT_EQ(kTrialName, active_group.trial_name);
-  if (chosen_group == default_group)
-    EXPECT_EQ(kDefaultGroupName, active_group.group_name);
-  else
-    EXPECT_EQ(kSecondaryGroupName, active_group.group_name);
+  EXPECT_TRUE(kDefaultGroupName == active_group.group_name ||
+              kSecondaryGroupName == active_group.group_name);
 
   FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
   ASSERT_EQ(1U, active_groups.size());
@@ -391,9 +363,8 @@ TEST_F(FieldTrialTest, GetGroupNameWithoutActivation) {
   const char kTrialName[] = "TestTrial";
   const char kSecondaryGroupName[] = "SecondaryGroup";
 
-  int default_group = -1;
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
   trial->AppendGroup(kSecondaryGroupName, 50);
 
   // The trial should start inactive.
@@ -409,117 +380,55 @@ TEST_F(FieldTrialTest, GetGroupNameWithoutActivation) {
   EXPECT_TRUE(FieldTrialList::IsTrialActive(kTrialName));
 }
 
-TEST_F(FieldTrialTest, Save) {
-  std::string save_string;
-
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial("Some name", 10, "Default some name", nullptr);
-  // There is no winner yet, so no textual group name is associated with trial.
-  // In this case, the trial should not be included.
-  EXPECT_EQ("", trial->group_name_internal());
-  FieldTrialList::StatesToString(&save_string);
-  EXPECT_EQ("", save_string);
-  save_string.clear();
-
-  // Create a winning group.
-  trial->AppendGroup("Winner", 10);
-  // Finalize the group selection by accessing the selected group.
-  trial->group();
-  FieldTrialList::StatesToString(&save_string);
-  EXPECT_EQ("Some name/Winner/", save_string);
-  save_string.clear();
-
-  // Create a second trial and winning group.
-  scoped_refptr<FieldTrial> trial2 =
-      CreateFieldTrial("xxx", 10, "Default xxx", nullptr);
-  trial2->AppendGroup("yyyy", 10);
-  // Finalize the group selection by accessing the selected group.
-  trial2->group();
-
-  FieldTrialList::StatesToString(&save_string);
-  // We assume names are alphabetized... though this is not critical.
-  EXPECT_EQ("Some name/Winner/xxx/yyyy/", save_string);
-  save_string.clear();
-
-  // Create a third trial with only the default group.
-  scoped_refptr<FieldTrial> trial3 =
-      CreateFieldTrial("zzz", 10, "default", nullptr);
-  // Finalize the group selection by accessing the selected group.
-  trial3->group();
-
-  FieldTrialList::StatesToString(&save_string);
-  EXPECT_EQ("Some name/Winner/xxx/yyyy/zzz/default/", save_string);
-}
-
 TEST_F(FieldTrialTest, SaveAll) {
   std::string save_string;
 
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial("Some name", 10, "Default some name", nullptr);
+      CreateFieldTrial("Some name", 10, "Default some name");
   EXPECT_EQ("", trial->group_name_internal());
-  FieldTrialList::AllStatesToString(&save_string, false);
+  FieldTrialList::AllStatesToString(&save_string);
   EXPECT_EQ("Some name/Default some name/", save_string);
   // Getting all states should have finalized the trial.
   EXPECT_EQ("Default some name", trial->group_name_internal());
   save_string.clear();
 
   // Create a winning group.
-  trial = CreateFieldTrial("trial2", 10, "Default some name", nullptr);
+  trial = CreateFieldTrial("trial2", 10, "Default some name");
   trial->AppendGroup("Winner", 10);
-  // Finalize the group selection by accessing the selected group.
-  trial->group();
-  FieldTrialList::AllStatesToString(&save_string, false);
+  trial->Activate();
+  FieldTrialList::AllStatesToString(&save_string);
   EXPECT_EQ("Some name/Default some name/*trial2/Winner/", save_string);
   save_string.clear();
 
   // Create a second trial and winning group.
-  scoped_refptr<FieldTrial> trial2 =
-      CreateFieldTrial("xxx", 10, "Default xxx", nullptr);
+  scoped_refptr<FieldTrial> trial2 = CreateFieldTrial("xxx", 10, "Default xxx");
   trial2->AppendGroup("yyyy", 10);
-  // Finalize the group selection by accessing the selected group.
-  trial2->group();
+  trial2->Activate();
 
-  FieldTrialList::AllStatesToString(&save_string, false);
+  FieldTrialList::AllStatesToString(&save_string);
   // We assume names are alphabetized... though this is not critical.
   EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy/",
             save_string);
   save_string.clear();
 
   // Create a third trial with only the default group.
-  scoped_refptr<FieldTrial> trial3 =
-      CreateFieldTrial("zzz", 10, "default", nullptr);
+  scoped_refptr<FieldTrial> trial3 = CreateFieldTrial("zzz", 10, "default");
 
-  FieldTrialList::AllStatesToString(&save_string, false);
+  FieldTrialList::AllStatesToString(&save_string);
   EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy/zzz/default/",
             save_string);
 
-  // Create expired study.
-  int default_group_number = -1;
-  scoped_refptr<FieldTrial> expired_trial =
-      FieldTrialList::FactoryGetFieldTrial(
-          "Expired trial name", 1000000000, "Default group",
-          OneYearBeforeBuildTime(), 1, 1, FieldTrial::SESSION_RANDOMIZED,
-          &default_group_number);
-  expired_trial->AppendGroup("Expired trial group name", 999999999);
-
   save_string.clear();
-  FieldTrialList::AllStatesToString(&save_string, false);
+  FieldTrialList::AllStatesToString(&save_string);
   EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy/zzz/default/",
             save_string);
-  save_string.clear();
-  FieldTrialList::AllStatesToString(&save_string, true);
-  EXPECT_EQ(
-      "Expired trial name/Default group/"
-      "Some name/Default some name/*trial2/Winner/*xxx/yyyy/zzz/default/",
-      save_string);
 }
 
 TEST_F(FieldTrialTest, Restore) {
   ASSERT_FALSE(FieldTrialList::TrialExists("Some_name"));
   ASSERT_FALSE(FieldTrialList::TrialExists("xxx"));
 
-  FieldTrialList::CreateTrialsFromString("Some_name/Winner/xxx/yyyy/",
-                                         std::set<std::string>());
+  FieldTrialList::CreateTrialsFromString("Some_name/Winner/xxx/yyyy/");
 
   FieldTrial* trial = FieldTrialList::Find("Some_name");
   ASSERT_NE(static_cast<FieldTrial*>(nullptr), trial);
@@ -533,8 +442,7 @@ TEST_F(FieldTrialTest, Restore) {
 }
 
 TEST_F(FieldTrialTest, RestoreNotEndingWithSlash) {
-  EXPECT_TRUE(FieldTrialList::CreateTrialsFromString("tname/gname",
-                                                     std::set<std::string>()));
+  EXPECT_TRUE(FieldTrialList::CreateTrialsFromString("tname/gname"));
 
   FieldTrial* trial = FieldTrialList::Find("tname");
   ASSERT_NE(static_cast<FieldTrial*>(nullptr), trial);
@@ -543,42 +451,34 @@ TEST_F(FieldTrialTest, RestoreNotEndingWithSlash) {
 }
 
 TEST_F(FieldTrialTest, BogusRestore) {
-  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("MissingSlash",
-                                                      std::set<std::string>()));
-  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("MissingGroupName/",
-                                                      std::set<std::string>()));
-  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("noname, only group/",
-                                                      std::set<std::string>()));
-  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("/emptyname",
-                                                      std::set<std::string>()));
-  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("*/emptyname",
-                                                      std::set<std::string>()));
+  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("MissingSlash"));
+  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("MissingGroupName/"));
+  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("noname, only group/"));
+  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("/emptyname"));
+  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("*/emptyname"));
 }
 
 TEST_F(FieldTrialTest, DuplicateRestore) {
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial("Some name", 10, "Default", nullptr);
+      CreateFieldTrial("Some name", 10, "Default");
   trial->AppendGroup("Winner", 10);
-  // Finalize the group selection by accessing the selected group.
-  trial->group();
+  trial->Activate();
   std::string save_string;
-  FieldTrialList::StatesToString(&save_string);
-  EXPECT_EQ("Some name/Winner/", save_string);
+  FieldTrialList::AllStatesToString(&save_string);
+  // * prefix since it is activated.
+  EXPECT_EQ("*Some name/Winner/", save_string);
 
   // It is OK if we redundantly specify a winner.
-  EXPECT_TRUE(FieldTrialList::CreateTrialsFromString(save_string,
-                                                     std::set<std::string>()));
+  EXPECT_TRUE(FieldTrialList::CreateTrialsFromString(save_string));
 
   // But it is an error to try to change to a different winner.
-  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("Some name/Loser/",
-                                                      std::set<std::string>()));
+  EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("Some name/Loser/"));
 }
 
 TEST_F(FieldTrialTest, CreateTrialsFromStringNotActive) {
   ASSERT_FALSE(FieldTrialList::TrialExists("Abc"));
   ASSERT_FALSE(FieldTrialList::TrialExists("Xyz"));
-  ASSERT_TRUE(FieldTrialList::CreateTrialsFromString("Abc/def/Xyz/zyx/",
-                                                     std::set<std::string>()));
+  ASSERT_TRUE(FieldTrialList::CreateTrialsFromString("Abc/def/Xyz/zyx/"));
 
   FieldTrial::ActiveGroups active_groups;
   FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
@@ -600,8 +500,8 @@ TEST_F(FieldTrialTest, CreateTrialsFromStringForceActivation) {
   ASSERT_FALSE(FieldTrialList::TrialExists("Abc"));
   ASSERT_FALSE(FieldTrialList::TrialExists("def"));
   ASSERT_FALSE(FieldTrialList::TrialExists("Xyz"));
-  ASSERT_TRUE(FieldTrialList::CreateTrialsFromString(
-      "*Abc/cba/def/fed/*Xyz/zyx/", std::set<std::string>()));
+  ASSERT_TRUE(
+      FieldTrialList::CreateTrialsFromString("*Abc/cba/def/fed/*Xyz/zyx/"));
 
   FieldTrial::ActiveGroups active_groups;
   FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
@@ -615,9 +515,8 @@ TEST_F(FieldTrialTest, CreateTrialsFromStringForceActivation) {
 TEST_F(FieldTrialTest, CreateTrialsFromStringNotActiveObserver) {
   ASSERT_FALSE(FieldTrialList::TrialExists("Abc"));
 
-  TestFieldTrialObserver observer(TestFieldTrialObserver::ASYNCHRONOUS);
-  ASSERT_TRUE(FieldTrialList::CreateTrialsFromString("Abc/def/",
-                                                     std::set<std::string>()));
+  TestFieldTrialObserver observer;
+  ASSERT_TRUE(FieldTrialList::CreateTrialsFromString("Abc/def/"));
   RunLoop().RunUntilIdle();
   // Observer shouldn't be notified.
   EXPECT_TRUE(observer.trial_name().empty());
@@ -625,50 +524,8 @@ TEST_F(FieldTrialTest, CreateTrialsFromStringNotActiveObserver) {
   // Check that the values still get returned and querying them activates them.
   EXPECT_EQ("def", FieldTrialList::FindFullName("Abc"));
 
-  RunLoop().RunUntilIdle();
   EXPECT_EQ("Abc", observer.trial_name());
   EXPECT_EQ("def", observer.group_name());
-}
-
-TEST_F(FieldTrialTest, CreateTrialsFromStringWithIgnoredFieldTrials) {
-  ASSERT_FALSE(FieldTrialList::TrialExists("Unaccepted1"));
-  ASSERT_FALSE(FieldTrialList::TrialExists("Foo"));
-  ASSERT_FALSE(FieldTrialList::TrialExists("Unaccepted2"));
-  ASSERT_FALSE(FieldTrialList::TrialExists("Bar"));
-  ASSERT_FALSE(FieldTrialList::TrialExists("Unaccepted3"));
-
-  std::set<std::string> ignored_trial_names;
-  ignored_trial_names.insert("Unaccepted1");
-  ignored_trial_names.insert("Unaccepted2");
-  ignored_trial_names.insert("Unaccepted3");
-
-  FieldTrialList::CreateTrialsFromString(
-      "Unaccepted1/Unaccepted1_name/"
-      "Foo/Foo_name/"
-      "Unaccepted2/Unaccepted2_name/"
-      "Bar/Bar_name/"
-      "Unaccepted3/Unaccepted3_name/",
-      ignored_trial_names);
-
-  EXPECT_FALSE(FieldTrialList::TrialExists("Unaccepted1"));
-  EXPECT_TRUE(FieldTrialList::TrialExists("Foo"));
-  EXPECT_FALSE(FieldTrialList::TrialExists("Unaccepted2"));
-  EXPECT_TRUE(FieldTrialList::TrialExists("Bar"));
-  EXPECT_FALSE(FieldTrialList::TrialExists("Unaccepted3"));
-
-  FieldTrial::ActiveGroups active_groups;
-  FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
-  EXPECT_TRUE(active_groups.empty());
-
-  FieldTrial* trial = FieldTrialList::Find("Foo");
-  ASSERT_NE(static_cast<FieldTrial*>(nullptr), trial);
-  EXPECT_EQ("Foo", trial->trial_name());
-  EXPECT_EQ("Foo_name", trial->group_name());
-
-  trial = FieldTrialList::Find("Bar");
-  ASSERT_NE(static_cast<FieldTrial*>(nullptr), trial);
-  EXPECT_EQ("Bar", trial->trial_name());
-  EXPECT_EQ("Bar_name", trial->group_name());
 }
 
 TEST_F(FieldTrialTest, CreateFieldTrial) {
@@ -695,7 +552,7 @@ TEST_F(FieldTrialTest, CreateFieldTrialIsNotActive) {
 
 TEST_F(FieldTrialTest, DuplicateFieldTrial) {
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial("Some_name", 10, "Default", nullptr);
+      CreateFieldTrial("Some_name", 10, "Default");
   trial->AppendGroup("Winner", 10);
 
   // It is OK if we redundantly specify a winner.
@@ -707,109 +564,77 @@ TEST_F(FieldTrialTest, DuplicateFieldTrial) {
   EXPECT_TRUE(trial2 == nullptr);
 }
 
-TEST_F(FieldTrialTest, DisableImmediately) {
-  int default_group_number = -1;
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial("trial", 100, "default", &default_group_number);
-  trial->Disable();
-  ASSERT_EQ("default", trial->group_name());
-  ASSERT_EQ(default_group_number, trial->group());
-}
-
-TEST_F(FieldTrialTest, DisableAfterInitialization) {
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial("trial", 100, "default", nullptr);
-  trial->AppendGroup("non_default", 100);
-  trial->Disable();
-  ASSERT_EQ("default", trial->group_name());
-}
-
 TEST_F(FieldTrialTest, ForcedFieldTrials) {
   // Validate we keep the forced choice.
   FieldTrial* forced_trial = FieldTrialList::CreateFieldTrial("Use the",
                                                               "Force");
   EXPECT_STREQ("Force", forced_trial->group_name().c_str());
 
-  int default_group_number = -1;
   scoped_refptr<FieldTrial> factory_trial =
-      CreateFieldTrial("Use the", 1000, "default", &default_group_number);
+      CreateFieldTrial("Use the", 1000, "default");
   EXPECT_EQ(factory_trial.get(), forced_trial);
 
-  int chosen_group = factory_trial->AppendGroup("Force", 100);
-  EXPECT_EQ(chosen_group, factory_trial->group());
-  int not_chosen_group = factory_trial->AppendGroup("Dark Side", 100);
-  EXPECT_NE(chosen_group, not_chosen_group);
-
-  // Since we didn't force the default group, we should not be returned the
-  // chosen group as the default group.
-  EXPECT_NE(default_group_number, chosen_group);
-  int new_group = factory_trial->AppendGroup("Duck Tape", 800);
-  EXPECT_NE(chosen_group, new_group);
-  // The new group should not be the default group either.
-  EXPECT_NE(default_group_number, new_group);
+  factory_trial->AppendGroup("Force", 100);
+  EXPECT_EQ("Force", factory_trial->group_name());
+  factory_trial->AppendGroup("Dark Side", 100);
+  EXPECT_EQ("Force", factory_trial->group_name());
+  factory_trial->AppendGroup("Duck Tape", 800);
+  EXPECT_EQ("Force", factory_trial->group_name());
 }
 
 TEST_F(FieldTrialTest, ForcedFieldTrialsDefaultGroup) {
   // Forcing the default should use the proper group ID.
-  FieldTrial* forced_trial = FieldTrialList::CreateFieldTrial("Trial Name",
-                                                              "Default");
-  int default_group_number = -1;
+  FieldTrial* forced_trial =
+      FieldTrialList::CreateFieldTrial("Trial Name", "Default");
   scoped_refptr<FieldTrial> factory_trial =
-      CreateFieldTrial("Trial Name", 1000, "Default", &default_group_number);
+      CreateFieldTrial("Trial Name", 1000, "Default");
   EXPECT_EQ(forced_trial, factory_trial.get());
 
-  int other_group = factory_trial->AppendGroup("Not Default", 100);
+  factory_trial->AppendGroup("Not Default", 100);
   EXPECT_STREQ("Default", factory_trial->group_name().c_str());
-  EXPECT_EQ(default_group_number, factory_trial->group());
-  EXPECT_NE(other_group, factory_trial->group());
 
-  int new_other_group = factory_trial->AppendGroup("Not Default Either", 800);
-  EXPECT_NE(new_other_group, factory_trial->group());
+  factory_trial->AppendGroup("Not Default Either", 800);
+  EXPECT_STREQ("Default", factory_trial->group_name().c_str());
 }
 
 TEST_F(FieldTrialTest, SetForced) {
   // Start by setting a trial for which we ensure a winner...
-  int default_group_number = -1;
   scoped_refptr<FieldTrial> forced_trial =
-      CreateFieldTrial("Use the", 1, "default", &default_group_number);
+      CreateFieldTrial("Use the", 1, "default");
   EXPECT_EQ(forced_trial, forced_trial);
 
-  int forced_group = forced_trial->AppendGroup("Force", 1);
-  EXPECT_EQ(forced_group, forced_trial->group());
+  forced_trial->AppendGroup("Force", 1);
+  EXPECT_EQ("Force", forced_trial->group_name());
 
   // Now force it.
   forced_trial->SetForced();
 
   // Now try to set it up differently as a hard coded registration would.
   scoped_refptr<FieldTrial> hard_coded_trial =
-      CreateFieldTrial("Use the", 1, "default", &default_group_number);
+      CreateFieldTrial("Use the", 1, "default");
   EXPECT_EQ(hard_coded_trial, forced_trial);
 
-  int would_lose_group = hard_coded_trial->AppendGroup("Force", 0);
-  EXPECT_EQ(forced_group, hard_coded_trial->group());
-  EXPECT_EQ(forced_group, would_lose_group);
+  hard_coded_trial->AppendGroup("Force", 0);
+  EXPECT_EQ("Force", hard_coded_trial->group_name());
 
   // Same thing if we would have done it to win again.
   scoped_refptr<FieldTrial> other_hard_coded_trial =
-      CreateFieldTrial("Use the", 1, "default", &default_group_number);
+      CreateFieldTrial("Use the", 1, "default");
   EXPECT_EQ(other_hard_coded_trial, forced_trial);
 
-  int would_win_group = other_hard_coded_trial->AppendGroup("Force", 1);
-  EXPECT_EQ(forced_group, other_hard_coded_trial->group());
-  EXPECT_EQ(forced_group, would_win_group);
+  other_hard_coded_trial->AppendGroup("Force", 1);
+  EXPECT_EQ("Force", other_hard_coded_trial->group_name());
 }
 
 TEST_F(FieldTrialTest, SetForcedDefaultOnly) {
   const char kTrialName[] = "SetForcedDefaultOnly";
   ASSERT_FALSE(FieldTrialList::TrialExists(kTrialName));
 
-  int default_group = -1;
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
   trial->SetForced();
 
-  trial = CreateFieldTrial(kTrialName, 100, kDefaultGroupName, nullptr);
-  EXPECT_EQ(default_group, trial->group());
+  trial = CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
   EXPECT_EQ(kDefaultGroupName, trial->group_name());
 }
 
@@ -817,15 +642,12 @@ TEST_F(FieldTrialTest, SetForcedDefaultWithExtraGroup) {
   const char kTrialName[] = "SetForcedDefaultWithExtraGroup";
   ASSERT_FALSE(FieldTrialList::TrialExists(kTrialName));
 
-  int default_group = -1;
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
   trial->SetForced();
 
-  trial = CreateFieldTrial(kTrialName, 100, kDefaultGroupName, nullptr);
-  const int extra_group = trial->AppendGroup("Extra", 100);
-  EXPECT_EQ(default_group, trial->group());
-  EXPECT_NE(extra_group, trial->group());
+  trial = CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
+  trial->AppendGroup("Extra", 100);
   EXPECT_EQ(kDefaultGroupName, trial->group_name());
 }
 
@@ -837,18 +659,16 @@ TEST_F(FieldTrialTest, SetForcedTurnFeatureOn) {
   // Simulate a server-side (forced) config that turns the feature on when the
   // original hard-coded config had it disabled.
   scoped_refptr<FieldTrial> forced_trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, nullptr);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
   forced_trial->AppendGroup(kExtraGroupName, 100);
   forced_trial->SetForced();
 
-  int default_group = -1;
   scoped_refptr<FieldTrial> client_trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
-  const int extra_group = client_trial->AppendGroup(kExtraGroupName, 0);
-  EXPECT_NE(default_group, extra_group);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
+  client_trial->AppendGroup(kExtraGroupName, 0);
 
   EXPECT_FALSE(client_trial->group_reported_);
-  EXPECT_EQ(extra_group, client_trial->group());
+  EXPECT_EQ(kExtraGroupName, client_trial->group_name());
   EXPECT_TRUE(client_trial->group_reported_);
   EXPECT_EQ(kExtraGroupName, client_trial->group_name());
 }
@@ -861,18 +681,16 @@ TEST_F(FieldTrialTest, SetForcedTurnFeatureOff) {
   // Simulate a server-side (forced) config that turns the feature off when the
   // original hard-coded config had it enabled.
   scoped_refptr<FieldTrial> forced_trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, nullptr);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
   forced_trial->AppendGroup(kExtraGroupName, 0);
   forced_trial->SetForced();
 
-  int default_group = -1;
   scoped_refptr<FieldTrial> client_trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
-  const int extra_group = client_trial->AppendGroup(kExtraGroupName, 100);
-  EXPECT_NE(default_group, extra_group);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
+  client_trial->AppendGroup(kExtraGroupName, 100);
 
   EXPECT_FALSE(client_trial->group_reported_);
-  EXPECT_EQ(default_group, client_trial->group());
+  EXPECT_EQ(kDefaultGroupName, client_trial->group_name());
   EXPECT_TRUE(client_trial->group_reported_);
   EXPECT_EQ(kDefaultGroupName, client_trial->group_name());
 }
@@ -886,18 +704,16 @@ TEST_F(FieldTrialTest, SetForcedChangeDefault_Default) {
   // Simulate a server-side (forced) config that switches which group is default
   // and ensures that the non-forced code receives the correct group numbers.
   scoped_refptr<FieldTrial> forced_trial =
-      CreateFieldTrial(kTrialName, 100, kGroupAName, nullptr);
+      CreateFieldTrial(kTrialName, 100, kGroupAName);
   forced_trial->AppendGroup(kGroupBName, 100);
   forced_trial->SetForced();
 
-  int default_group = -1;
   scoped_refptr<FieldTrial> client_trial =
-      CreateFieldTrial(kTrialName, 100, kGroupBName, &default_group);
-  const int extra_group = client_trial->AppendGroup(kGroupAName, 50);
-  EXPECT_NE(default_group, extra_group);
+      CreateFieldTrial(kTrialName, 100, kGroupBName);
+  client_trial->AppendGroup(kGroupAName, 50);
 
   EXPECT_FALSE(client_trial->group_reported_);
-  EXPECT_EQ(default_group, client_trial->group());
+  EXPECT_NE(kGroupAName, client_trial->group_name());
   EXPECT_TRUE(client_trial->group_reported_);
   EXPECT_EQ(kGroupBName, client_trial->group_name());
 }
@@ -911,18 +727,16 @@ TEST_F(FieldTrialTest, SetForcedChangeDefault_NonDefault) {
   // Simulate a server-side (forced) config that switches which group is default
   // and ensures that the non-forced code receives the correct group numbers.
   scoped_refptr<FieldTrial> forced_trial =
-      CreateFieldTrial(kTrialName, 100, kGroupAName, nullptr);
+      CreateFieldTrial(kTrialName, 100, kGroupAName);
   forced_trial->AppendGroup(kGroupBName, 0);
   forced_trial->SetForced();
 
-  int default_group = -1;
   scoped_refptr<FieldTrial> client_trial =
-      CreateFieldTrial(kTrialName, 100, kGroupBName, &default_group);
-  const int extra_group = client_trial->AppendGroup(kGroupAName, 50);
-  EXPECT_NE(default_group, extra_group);
+      CreateFieldTrial(kTrialName, 100, kGroupBName);
+  client_trial->AppendGroup(kGroupAName, 50);
 
   EXPECT_FALSE(client_trial->group_reported_);
-  EXPECT_EQ(extra_group, client_trial->group());
+  EXPECT_EQ(kGroupAName, client_trial->group_name());
   EXPECT_TRUE(client_trial->group_reported_);
   EXPECT_EQ(kGroupAName, client_trial->group_name());
 }
@@ -931,123 +745,54 @@ TEST_F(FieldTrialTest, Observe) {
   const char kTrialName[] = "TrialToObserve1";
   const char kSecondaryGroupName[] = "SecondaryGroup";
 
-  TestFieldTrialObserver observer(TestFieldTrialObserver::ASYNCHRONOUS);
-  int default_group = -1;
+  TestFieldTrialObserver observer;
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
-  const int secondary_group = trial->AppendGroup(kSecondaryGroupName, 50);
-  const int chosen_group = trial->group();
-  EXPECT_TRUE(chosen_group == default_group || chosen_group == secondary_group);
+      CreateFieldTrial(kTrialName, 100, kDefaultGroupName);
+  trial->AppendGroup(kSecondaryGroupName, 50);
+  const std::string chosen_group_name = trial->group_name();
+  EXPECT_TRUE(chosen_group_name == kDefaultGroupName ||
+              chosen_group_name == kSecondaryGroupName);
 
-  // Observers are called asynchronously.
-  EXPECT_TRUE(observer.trial_name().empty());
-  EXPECT_TRUE(observer.group_name().empty());
-  RunLoop().RunUntilIdle();
-
+  // The observer should be notified synchronously by the group_name() call.
   EXPECT_EQ(kTrialName, observer.trial_name());
-  if (chosen_group == default_group)
-    EXPECT_EQ(kDefaultGroupName, observer.group_name());
-  else
-    EXPECT_EQ(kSecondaryGroupName, observer.group_name());
+  EXPECT_EQ(chosen_group_name, observer.group_name());
 }
 
-TEST_F(FieldTrialTest, SynchronousObserver) {
-  const char kTrialName[] = "TrialToObserve1";
-  const char kSecondaryGroupName[] = "SecondaryGroup";
+// Verify that no hang occurs when a FieldTrial group is selected from a
+// FieldTrialList::Observer::OnFieldTrialGroupFinalized() notification. If the
+// FieldTrialList's lock is held when observers are notified, this test will
+// hang due to reentrant lock acquisition when selecting the FieldTrial group.
+TEST_F(FieldTrialTest, ObserveReentrancy) {
+  const char kTrialName1[] = "TrialToObserve1";
+  const char kTrialName2[] = "TrialToObserve2";
 
-  TestFieldTrialObserver observer(TestFieldTrialObserver::SYNCHRONOUS);
-  int default_group = -1;
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
-  const int secondary_group = trial->AppendGroup(kSecondaryGroupName, 50);
-  const int chosen_group = trial->group();
-  EXPECT_TRUE(chosen_group == default_group || chosen_group == secondary_group);
+  scoped_refptr<FieldTrial> trial_1 =
+      CreateFieldTrial(kTrialName1, 100, kDefaultGroupName);
 
-  // The observer should be notified synchronously by the group() call.
-  EXPECT_EQ(kTrialName, observer.trial_name());
-  if (chosen_group == default_group)
-    EXPECT_EQ(kDefaultGroupName, observer.group_name());
-  else
-    EXPECT_EQ(kSecondaryGroupName, observer.group_name());
+  FieldTrialObserverAccessingGroup observer(trial_1);
+
+  scoped_refptr<FieldTrial> trial_2 =
+      CreateFieldTrial(kTrialName2, 100, kDefaultGroupName);
+
+  // No group should be selected for |trial_1| yet.
+  EXPECT_EQ(FieldTrial::kNotFinalized, trial_1->group_);
+
+  // Force selection of a group for |trial_2|. This will notify |observer| which
+  // will force the selection of a group for |trial_1|. This should not hang.
+  trial_2->Activate();
+
+  // The above call should have selected a group for |trial_1|.
+  EXPECT_NE(FieldTrial::kNotFinalized, trial_1->group_);
 }
 
-TEST_F(FieldTrialTest, ObserveDisabled) {
-  const char kTrialName[] = "TrialToObserve2";
-
-  TestFieldTrialObserver observer(TestFieldTrialObserver::ASYNCHRONOUS);
-  int default_group = -1;
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
-  trial->AppendGroup("A", 25);
-  trial->AppendGroup("B", 25);
-  trial->AppendGroup("C", 25);
-  trial->Disable();
-
-  // Observer shouldn't be notified of a disabled trial.
-  RunLoop().RunUntilIdle();
-  EXPECT_TRUE(observer.trial_name().empty());
-  EXPECT_TRUE(observer.group_name().empty());
-
-  // Observer shouldn't be notified even after a |group()| call.
-  EXPECT_EQ(default_group, trial->group());
-  RunLoop().RunUntilIdle();
-  EXPECT_TRUE(observer.trial_name().empty());
-  EXPECT_TRUE(observer.group_name().empty());
-}
-
-TEST_F(FieldTrialTest, ObserveForcedDisabled) {
-  const char kTrialName[] = "TrialToObserve3";
-
-  TestFieldTrialObserver observer(TestFieldTrialObserver::ASYNCHRONOUS);
-  int default_group = -1;
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, &default_group);
-  trial->AppendGroup("A", 25);
-  trial->AppendGroup("B", 25);
-  trial->AppendGroup("C", 25);
-  trial->SetForced();
-  trial->Disable();
-
-  // Observer shouldn't be notified of a disabled trial, even when forced.
-  RunLoop().RunUntilIdle();
-  EXPECT_TRUE(observer.trial_name().empty());
-  EXPECT_TRUE(observer.group_name().empty());
-
-  // Observer shouldn't be notified even after a |group()| call.
-  EXPECT_EQ(default_group, trial->group());
-  RunLoop().RunUntilIdle();
-  EXPECT_TRUE(observer.trial_name().empty());
-  EXPECT_TRUE(observer.group_name().empty());
-}
-
-TEST_F(FieldTrialTest, DisabledTrialNotActive) {
-  const char kTrialName[] = "DisabledTrial";
-  ASSERT_FALSE(FieldTrialList::TrialExists(kTrialName));
-
-  scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, 100, kDefaultGroupName, nullptr);
-  trial->AppendGroup("X", 50);
-  trial->Disable();
-
-  // Ensure the trial is not listed as active.
-  FieldTrial::ActiveGroups active_groups;
-  FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
-  EXPECT_TRUE(active_groups.empty());
-
-  // Ensure the trial is not listed in the |StatesToString()| result.
-  std::string states;
-  FieldTrialList::StatesToString(&states);
-  EXPECT_TRUE(states.empty());
-}
-
-TEST_F(FieldTrialTest, ExpirationYearNotExpired) {
-  const char kTrialName[] = "NotExpired";
+TEST_F(FieldTrialTest, NotDisabled) {
+  const char kTrialName[] = "NotDisabled";
   const char kGroupName[] = "Group2";
   const int kProbability = 100;
   ASSERT_FALSE(FieldTrialList::TrialExists(kTrialName));
 
   scoped_refptr<FieldTrial> trial =
-      CreateFieldTrial(kTrialName, kProbability, kDefaultGroupName, nullptr);
+      CreateFieldTrial(kTrialName, kProbability, kDefaultGroupName);
   trial->AppendGroup(kGroupName, kProbability);
   EXPECT_EQ(kGroupName, trial->group_name());
 }
@@ -1059,12 +804,12 @@ TEST_F(FieldTrialTest, FloatBoundariesGiveEqualGroupSizes) {
   for (int i = 0; i < kBucketCount; ++i) {
     const double entropy = i / static_cast<double>(kBucketCount);
 
-    scoped_refptr<FieldTrial> trial(
-        new FieldTrial("test", kBucketCount, "default", entropy));
+    scoped_refptr<FieldTrial> trial(new FieldTrial(
+        "test", kBucketCount, "default", entropy, /*is_low_anonymity=*/false));
     for (int j = 0; j < kBucketCount; ++j)
-      trial->AppendGroup(IntToString(j), 1);
+      trial->AppendGroup(NumberToString(j), 1);
 
-    EXPECT_EQ(IntToString(i), trial->group_name());
+    EXPECT_EQ(NumberToString(i), trial->group_name());
   }
 }
 
@@ -1072,8 +817,8 @@ TEST_F(FieldTrialTest, DoesNotSurpassTotalProbability) {
   const double kEntropyValue = 1.0 - 1e-9;
   ASSERT_LT(kEntropyValue, 1.0);
 
-  scoped_refptr<FieldTrial> trial(
-      new FieldTrial("test", 2, "default", kEntropyValue));
+  scoped_refptr<FieldTrial> trial(new FieldTrial(
+      "test", 2, "default", kEntropyValue, /*is_low_anonymity=*/false));
   trial->AppendGroup("1", 1);
   trial->AppendGroup("2", 1);
 
@@ -1094,14 +839,13 @@ TEST_F(FieldTrialTest, CreateSimulatedFieldTrial) {
     { 0.95, kDefaultGroupName },
   };
 
-  for (size_t i = 0; i < arraysize(test_cases); ++i) {
-    TestFieldTrialObserver observer(TestFieldTrialObserver::ASYNCHRONOUS);
-    scoped_refptr<FieldTrial> trial(
-       FieldTrial::CreateSimulatedFieldTrial(kTrialName, 100, kDefaultGroupName,
-                                             test_cases[i].entropy_value));
+  for (auto& test_case : test_cases) {
+    TestFieldTrialObserver observer;
+    scoped_refptr<FieldTrial> trial(FieldTrial::CreateSimulatedFieldTrial(
+        kTrialName, 100, kDefaultGroupName, test_case.entropy_value));
     trial->AppendGroup("A", 80);
     trial->AppendGroup("B", 10);
-    EXPECT_EQ(test_cases[i].expected_group, trial->group_name());
+    EXPECT_EQ(test_case.expected_group, trial->group_name());
 
     // Field trial shouldn't have been registered with the list.
     EXPECT_FALSE(FieldTrialList::TrialExists(kTrialName));
@@ -1116,9 +860,9 @@ TEST_F(FieldTrialTest, CreateSimulatedFieldTrial) {
     FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
     EXPECT_TRUE(active_groups.empty());
 
-    // The trial shouldn't be listed in the |StatesToString()| result.
+    // The trial shouldn't be listed in the |AllStatesToString()| result.
     std::string states;
-    FieldTrialList::StatesToString(&states);
+    FieldTrialList::AllStatesToString(&states);
     EXPECT_TRUE(states.empty());
   }
 }
@@ -1126,28 +870,36 @@ TEST_F(FieldTrialTest, CreateSimulatedFieldTrial) {
 TEST(FieldTrialTestWithoutList, StatesStringFormat) {
   std::string save_string;
 
+  test::ScopedFeatureList scoped_feature_list;
+  // The test suite instantiates a FieldTrialList but for the purpose of these
+  // tests it's cleaner to start from scratch.
+  scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
+
   // Scoping the first FieldTrialList, as we need another one to test the
   // importing function.
   {
-    FieldTrialList field_trial_list(nullptr);
-    scoped_refptr<FieldTrial> trial =
-        CreateFieldTrial("Abc", 10, "Default some name", nullptr);
-    trial->AppendGroup("cba", 10);
-    trial->group();
-    scoped_refptr<FieldTrial> trial2 =
-        CreateFieldTrial("Xyz", 10, "Default xxx", nullptr);
-    trial2->AppendGroup("zyx", 10);
-    trial2->group();
-    scoped_refptr<FieldTrial> trial3 =
-        CreateFieldTrial("zzz", 10, "default", nullptr);
+    test::ScopedFeatureList scoped_feature_list1;
+    scoped_feature_list1.InitWithNullFeatureAndFieldTrialLists();
+    FieldTrialList field_trial_list;
 
-    FieldTrialList::AllStatesToString(&save_string, false);
+    scoped_refptr<FieldTrial> trial =
+        CreateFieldTrial("Abc", 10, "Default some name");
+    trial->AppendGroup("cba", 10);
+    trial->Activate();
+    scoped_refptr<FieldTrial> trial2 =
+        CreateFieldTrial("Xyz", 10, "Default xxx");
+    trial2->AppendGroup("zyx", 10);
+    trial2->Activate();
+    scoped_refptr<FieldTrial> trial3 = CreateFieldTrial("zzz", 10, "default");
+
+    FieldTrialList::AllStatesToString(&save_string);
   }
 
   // Starting with a new blank FieldTrialList.
-  FieldTrialList field_trial_list(nullptr);
-  ASSERT_TRUE(field_trial_list.CreateTrialsFromString(save_string,
-                                                      std::set<std::string>()));
+  test::ScopedFeatureList scoped_feature_list2;
+  scoped_feature_list2.InitWithNullFeatureAndFieldTrialLists();
+  FieldTrialList field_trial_list;
+  ASSERT_TRUE(field_trial_list.CreateTrialsFromString(save_string));
 
   FieldTrial::ActiveGroups active_groups;
   field_trial_list.GetActiveFieldTrialGroups(&active_groups);
@@ -1159,31 +911,23 @@ TEST(FieldTrialTestWithoutList, StatesStringFormat) {
   EXPECT_TRUE(field_trial_list.TrialExists("zzz"));
 }
 
-TEST(FieldTrialDeathTest, OneTimeRandomizedTrialWithoutFieldTrialList) {
-  // Trying to instantiate a one-time randomized field trial before the
-  // FieldTrialList is created should crash.
-  EXPECT_DEATH_IF_SUPPORTED(
-      FieldTrialList::FactoryGetFieldTrial(
-          "OneTimeRandomizedTrialWithoutFieldTrialList", 100, kDefaultGroupName,
-          FieldTrialList::kNoExpirationYear, 1, 1,
-          FieldTrial::ONE_TIME_RANDOMIZED, nullptr),
-      "");
-}
+class FieldTrialListTest : public ::testing::Test {
+ public:
+  FieldTrialListTest() {
+    // The test suite instantiates a FieldTrialList but for the purpose of these
+    // tests it's cleaner to start from scratch.
+    scoped_feature_list_.InitWithEmptyFeatureAndFieldTrialLists();
+  }
 
-#if defined(OS_FUCHSIA)
-// TODO(crbug.com/752368): This is flaky on Fuchsia.
-#define MAYBE_TestCopyFieldTrialStateToFlags \
-  DISABLED_TestCopyFieldTrialStateToFlags
-#else
-#define MAYBE_TestCopyFieldTrialStateToFlags TestCopyFieldTrialStateToFlags
-#endif
-TEST(FieldTrialListTest, MAYBE_TestCopyFieldTrialStateToFlags) {
-  constexpr char kFieldTrialHandleSwitch[] = "test-field-trial-handle";
-  constexpr char kEnableFeaturesSwitch[] = "test-enable-features";
-  constexpr char kDisableFeaturesSwitch[] = "test-disable-features";
+ private:
+  test::ScopedFeatureList scoped_feature_list_;
+};
 
-  FieldTrialList field_trial_list(std::make_unique<MockEntropyProvider>());
-
+#if !BUILDFLAG(IS_IOS)
+// LaunchOptions is not available on iOS.
+TEST_F(FieldTrialListTest, TestCopyFieldTrialStateToFlags) {
+  test::ScopedFeatureList scoped_feature_list1;
+  scoped_feature_list1.InitWithEmptyFeatureAndFieldTrialLists();
   std::unique_ptr<FeatureList> feature_list(new FeatureList);
   feature_list->InitializeFromCommandLine("A,B", "C");
 
@@ -1191,116 +935,118 @@ TEST(FieldTrialListTest, MAYBE_TestCopyFieldTrialStateToFlags) {
   feature_list->RegisterFieldTrialOverride(
       "MyFeature", FeatureList::OVERRIDE_ENABLE_FEATURE, trial);
 
-  test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+  test::ScopedFeatureList scoped_feature_list2;
+  scoped_feature_list2.InitWithFeatureList(std::move(feature_list));
 
   FilePath test_file_path = FilePath(FILE_PATH_LITERAL("Program"));
   CommandLine command_line = CommandLine(test_file_path);
+  LaunchOptions launch_options;
 
-  FieldTrialList::CopyFieldTrialStateToFlags(
-      kFieldTrialHandleSwitch, kEnableFeaturesSwitch, kDisableFeaturesSwitch,
-      &command_line);
-  EXPECT_TRUE(command_line.HasSwitch(kFieldTrialHandleSwitch));
+  FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(&command_line,
+                                                           &launch_options);
+  EXPECT_TRUE(command_line.HasSwitch(switches::kFieldTrialHandle));
 
-  // Explictly specified enabled/disabled features should be specified.
-  EXPECT_EQ("A,B", command_line.GetSwitchValueASCII(kEnableFeaturesSwitch));
-  EXPECT_EQ("C", command_line.GetSwitchValueASCII(kDisableFeaturesSwitch));
+  // Explicitly specified enabled/disabled features should be specified.
+  EXPECT_EQ("A,B", command_line.GetSwitchValueASCII(switches::kEnableFeatures));
+  EXPECT_EQ("C", command_line.GetSwitchValueASCII(switches::kDisableFeatures));
 }
+#endif  // !BUILDFLAG(IS_IOS)
 
-TEST(FieldTrialListTest, InstantiateAllocator) {
+TEST_F(FieldTrialListTest, InstantiateAllocator) {
   test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.Init();
+  scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
 
-  FieldTrialList field_trial_list(nullptr);
+  FieldTrialList* field_trial_list = FieldTrialList::GetInstance();
+
   FieldTrialList::CreateFieldTrial("Trial1", "Group1");
 
   FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded();
-  void* memory = field_trial_list.field_trial_allocator_->shared_memory();
-  size_t used = field_trial_list.field_trial_allocator_->used();
+  const void* memory = field_trial_list->field_trial_allocator_->data();
+  size_t used = field_trial_list->field_trial_allocator_->used();
 
   // Ensure that the function is idempotent.
   FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded();
-  void* new_memory = field_trial_list.field_trial_allocator_->shared_memory();
-  size_t new_used = field_trial_list.field_trial_allocator_->used();
+  const void* new_memory = field_trial_list->field_trial_allocator_->data();
+  size_t new_used = field_trial_list->field_trial_allocator_->used();
   EXPECT_EQ(memory, new_memory);
   EXPECT_EQ(used, new_used);
 }
 
-TEST(FieldTrialListTest, AddTrialsToAllocator) {
+TEST_F(FieldTrialListTest, AddTrialsToAllocator) {
   std::string save_string;
-  SharedMemoryHandle handle;
+  base::ReadOnlySharedMemoryRegion shm_region;
 
   // Scoping the first FieldTrialList, as we need another one to test that it
   // matches.
   {
-    test::ScopedFeatureList scoped_feature_list;
-    scoped_feature_list.Init();
+    test::ScopedFeatureList scoped_feature_list1;
+    scoped_feature_list1.InitWithEmptyFeatureAndFieldTrialLists();
 
-    FieldTrialList field_trial_list(nullptr);
     FieldTrialList::CreateFieldTrial("Trial1", "Group1");
     FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded();
-    FieldTrialList::AllStatesToString(&save_string, false);
-    handle = SharedMemory::DuplicateHandle(
-        field_trial_list.field_trial_allocator_->shared_memory()->handle());
+    FieldTrialList::AllStatesToString(&save_string);
+    shm_region = FieldTrialList::DuplicateFieldTrialSharedMemoryForTesting();
+    ASSERT_TRUE(shm_region.IsValid());
   }
 
-  FieldTrialList field_trial_list2(nullptr);
-  std::unique_ptr<SharedMemory> shm(new SharedMemory(handle, true));
+  test::ScopedFeatureList scoped_feature_list2;
+  scoped_feature_list2.InitWithEmptyFeatureAndFieldTrialLists();
+
   // 4 KiB is enough to hold the trials only created for this test.
-  shm.get()->Map(4 << 10);
-  FieldTrialList::CreateTrialsFromSharedMemory(std::move(shm));
+  base::ReadOnlySharedMemoryMapping shm_mapping = shm_region.MapAt(0, 4 << 10);
+  ASSERT_TRUE(shm_mapping.IsValid());
+  FieldTrialList::CreateTrialsFromSharedMemoryMapping(std::move(shm_mapping));
   std::string check_string;
-  FieldTrialList::AllStatesToString(&check_string, false);
+  FieldTrialList::AllStatesToString(&check_string);
   EXPECT_EQ(save_string, check_string);
 }
 
-TEST(FieldTrialListTest, DoNotAddSimulatedFieldTrialsToAllocator) {
+TEST_F(FieldTrialListTest, DoNotAddSimulatedFieldTrialsToAllocator) {
   constexpr char kTrialName[] = "trial";
-  SharedMemoryHandle handle;
+  base::ReadOnlySharedMemoryRegion shm_region;
   {
-    test::ScopedFeatureList scoped_feature_list;
-    scoped_feature_list.Init();
+    test::ScopedFeatureList scoped_feature_list1;
+    scoped_feature_list1.InitWithEmptyFeatureAndFieldTrialLists();
 
-    // Create a simulated trial and a real trial and call group() on them, which
-    // should only add the real trial to the field trial allocator.
-    FieldTrialList field_trial_list(nullptr);
+    // Create a simulated trial and a real trial and call Activate() on them,
+    // which should only add the real trial to the field trial allocator.
     FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded();
 
     // This shouldn't add to the allocator.
     scoped_refptr<FieldTrial> simulated_trial =
         FieldTrial::CreateSimulatedFieldTrial(kTrialName, 100, "Simulated",
                                               0.95);
-    simulated_trial->group();
+    simulated_trial->Activate();
 
     // This should add to the allocator.
     FieldTrial* real_trial =
         FieldTrialList::CreateFieldTrial(kTrialName, "Real");
-    real_trial->group();
+    real_trial->Activate();
 
-    handle = SharedMemory::DuplicateHandle(
-        field_trial_list.field_trial_allocator_->shared_memory()->handle());
+    shm_region = FieldTrialList::DuplicateFieldTrialSharedMemoryForTesting();
+    ASSERT_TRUE(shm_region.IsValid());
   }
 
   // Check that there's only one entry in the allocator.
-  FieldTrialList field_trial_list2(nullptr);
-  std::unique_ptr<SharedMemory> shm(new SharedMemory(handle, true));
+  test::ScopedFeatureList scoped_feature_list2;
+  scoped_feature_list2.InitWithEmptyFeatureAndFieldTrialLists();
   // 4 KiB is enough to hold the trials only created for this test.
-  shm.get()->Map(4 << 10);
-  FieldTrialList::CreateTrialsFromSharedMemory(std::move(shm));
+  base::ReadOnlySharedMemoryMapping shm_mapping = shm_region.MapAt(0, 4 << 10);
+  ASSERT_TRUE(shm_mapping.IsValid());
+  FieldTrialList::CreateTrialsFromSharedMemoryMapping(std::move(shm_mapping));
   std::string check_string;
-  FieldTrialList::AllStatesToString(&check_string, false);
+  FieldTrialList::AllStatesToString(&check_string);
   ASSERT_EQ(check_string.find("Simulated"), std::string::npos);
 }
 
-TEST(FieldTrialListTest, AssociateFieldTrialParams) {
+TEST_F(FieldTrialListTest, AssociateFieldTrialParams) {
   test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.Init();
+  scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
 
   std::string trial_name("Trial1");
   std::string group_name("Group1");
 
   // Create a field trial with some params.
-  FieldTrialList field_trial_list(nullptr);
   FieldTrialList::CreateFieldTrial(trial_name, group_name);
   std::map<std::string, std::string> params;
   params["key1"] = "value1";
@@ -1319,30 +1065,22 @@ TEST(FieldTrialListTest, AssociateFieldTrialParams) {
 
   // Check that we fetch the param from shared memory properly.
   std::map<std::string, std::string> new_params;
-  FieldTrialParamAssociator::GetInstance()->GetFieldTrialParams(trial_name,
-                                                                &new_params);
+  GetFieldTrialParams(trial_name, &new_params);
   EXPECT_EQ("value1", new_params["key1"]);
   EXPECT_EQ("value2", new_params["key2"]);
   EXPECT_EQ(2U, new_params.size());
 }
 
-#if defined(OS_FUCHSIA)
-// TODO(crbug.com/752368): This is flaky on Fuchsia.
-#define MAYBE_ClearParamsFromSharedMemory DISABLED_ClearParamsFromSharedMemory
-#else
-#define MAYBE_ClearParamsFromSharedMemory ClearParamsFromSharedMemory
-#endif
-TEST(FieldTrialListTest, MAYBE_ClearParamsFromSharedMemory) {
+TEST_F(FieldTrialListTest, ClearParamsFromSharedMemory) {
   std::string trial_name("Trial1");
   std::string group_name("Group1");
 
-  SharedMemoryHandle handle;
+  base::ReadOnlySharedMemoryRegion shm_region;
   {
-    test::ScopedFeatureList scoped_feature_list;
-    scoped_feature_list.Init();
+    test::ScopedFeatureList scoped_feature_list1;
+    scoped_feature_list1.InitWithEmptyFeatureAndFieldTrialLists();
 
     // Create a field trial with some params.
-    FieldTrialList field_trial_list(nullptr);
     FieldTrial* trial =
         FieldTrialList::CreateFieldTrial(trial_name, group_name);
     std::map<std::string, std::string> params;
@@ -1361,33 +1099,35 @@ TEST(FieldTrialListTest, MAYBE_ClearParamsFromSharedMemory) {
 
     // Check that there are no params associated with the field trial anymore.
     std::map<std::string, std::string> new_params;
-    FieldTrialParamAssociator::GetInstance()->GetFieldTrialParams(trial_name,
-                                                                  &new_params);
+    GetFieldTrialParams(trial_name, &new_params);
     EXPECT_EQ(0U, new_params.size());
 
     // Now duplicate the handle so we can easily check that the trial is still
     // in shared memory via AllStatesToString.
-    handle = SharedMemory::DuplicateHandle(
-        field_trial_list.field_trial_allocator_->shared_memory()->handle());
+    shm_region = FieldTrialList::DuplicateFieldTrialSharedMemoryForTesting();
+    ASSERT_TRUE(shm_region.IsValid());
   }
 
   // Check that we have the trial.
-  FieldTrialList field_trial_list2(nullptr);
-  std::unique_ptr<SharedMemory> shm(new SharedMemory(handle, true));
+  test::ScopedFeatureList scoped_feature_list2;
+  scoped_feature_list2.InitWithEmptyFeatureAndFieldTrialLists();
   // 4 KiB is enough to hold the trials only created for this test.
-  shm.get()->Map(4 << 10);
-  FieldTrialList::CreateTrialsFromSharedMemory(std::move(shm));
+  base::ReadOnlySharedMemoryMapping shm_mapping = shm_region.MapAt(0, 4 << 10);
+  ASSERT_TRUE(shm_mapping.IsValid());
+  FieldTrialList::CreateTrialsFromSharedMemoryMapping(std::move(shm_mapping));
   std::string check_string;
-  FieldTrialList::AllStatesToString(&check_string, false);
+  FieldTrialList::AllStatesToString(&check_string);
   EXPECT_EQ("*Trial1/Group1/", check_string);
 }
 
-TEST(FieldTrialListTest, DumpAndFetchFromSharedMemory) {
+TEST_F(FieldTrialListTest, DumpAndFetchFromSharedMemory) {
   std::string trial_name("Trial1");
   std::string group_name("Group1");
 
   // Create a field trial with some params.
-  FieldTrialList field_trial_list(nullptr);
+  test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
+
   FieldTrialList::CreateFieldTrial(trial_name, group_name);
   std::map<std::string, std::string> params;
   params["key1"] = "value1";
@@ -1395,11 +1135,13 @@ TEST(FieldTrialListTest, DumpAndFetchFromSharedMemory) {
   FieldTrialParamAssociator::GetInstance()->AssociateFieldTrialParams(
       trial_name, group_name, params);
 
-  std::unique_ptr<SharedMemory> shm(new SharedMemory());
   // 4 KiB is enough to hold the trials only created for this test.
-  shm.get()->CreateAndMapAnonymous(4 << 10);
+  base::MappedReadOnlyRegion shm =
+      base::ReadOnlySharedMemoryRegion::Create(4 << 10);
+  ASSERT_TRUE(shm.IsValid());
   // We _could_ use PersistentMemoryAllocator, this just has less params.
-  SharedPersistentMemoryAllocator allocator(std::move(shm), 1, "", false);
+  WritableSharedPersistentMemoryAllocator allocator(std::move(shm.mapping), 1,
+                                                    "");
 
   // Dump and subsequently retrieve the field trial to |allocator|.
   FieldTrialList::DumpAllFieldTrialsToPersistentAllocator(&allocator);
@@ -1425,48 +1167,130 @@ TEST(FieldTrialListTest, DumpAndFetchFromSharedMemory) {
   EXPECT_EQ("value2", shm_params["key2"]);
 }
 
-#if !defined(OS_NACL)
-TEST(FieldTrialListTest, SerializeSharedMemoryHandleMetadata) {
-  std::unique_ptr<SharedMemory> shm(new SharedMemory());
-  shm->CreateAndMapAnonymous(4 << 10);
-
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+MULTIPROCESS_TEST_MAIN(SerializeSharedMemoryRegionMetadata) {
   std::string serialized =
-      FieldTrialList::SerializeSharedMemoryHandleMetadata(shm->handle());
-#if defined(OS_WIN) || defined(OS_FUCHSIA)
-  SharedMemoryHandle deserialized =
-      FieldTrialList::DeserializeSharedMemoryHandleMetadata(serialized);
-#else
-  // Use a valid-looking arbitrary number for the file descriptor. It's not
-  // being used in this unittest, but needs to pass sanity checks in the
-  // handle's constructor.
-  SharedMemoryHandle deserialized =
-      FieldTrialList::DeserializeSharedMemoryHandleMetadata(42, serialized);
+      CommandLine::ForCurrentProcess()->GetSwitchValueASCII("field_trials");
+  std::string guid_string =
+      CommandLine::ForCurrentProcess()->GetSwitchValueASCII("guid");
+
+  int fd = 42;
+#if BUILDFLAG(IS_ANDROID)
+  fd = base::GlobalDescriptors::GetInstance()->MaybeGet(42);
+  CHECK_NE(fd, -1);
 #endif
-  EXPECT_EQ(deserialized.GetGUID(), shm->handle().GetGUID());
-  EXPECT_FALSE(deserialized.GetGUID().is_empty());
+
+  base::ReadOnlySharedMemoryRegion deserialized =
+      FieldTrialList::DeserializeSharedMemoryRegionMetadata(serialized, fd);
+  CHECK(deserialized.IsValid());
+  CHECK_EQ(deserialized.GetGUID().ToString(), guid_string);
+  CHECK(!deserialized.GetGUID().is_empty());
+
+  return 0;
 }
-#endif  // !defined(OS_NACL)
+
+TEST_F(FieldTrialListTest, SerializeSharedMemoryRegionMetadata) {
+  base::MappedReadOnlyRegion shm =
+      base::ReadOnlySharedMemoryRegion::Create(4 << 10);
+  ASSERT_TRUE(shm.IsValid());
+
+  LaunchOptions options;
+  std::string serialized =
+      FieldTrialList::SerializeSharedMemoryRegionMetadata(shm.region, &options);
+
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_ANDROID)
+  int shm_fd = shm.region.GetPlatformHandle();
+#else
+  int shm_fd = shm.region.GetPlatformHandle().fd;
+#endif  // BUILDFLAG(IS_ANDROID)
+  // Pick an arbitrary FD number to use for the shmem FD in the child.
+  options.fds_to_remap.emplace_back(std::make_pair(shm_fd, 42));
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
+
+  CommandLine cmd_line = GetMultiProcessTestChildBaseCommandLine();
+  cmd_line.AppendSwitchASCII("field_trials", serialized);
+  cmd_line.AppendSwitchASCII("guid", shm.region.GetGUID().ToString());
+
+  Process process = SpawnMultiProcessTestChild(
+      "SerializeSharedMemoryRegionMetadata", cmd_line, options);
+
+  int exit_code;
+  EXPECT_TRUE(WaitForMultiprocessTestChildExit(
+      process, TestTimeouts::action_timeout(), &exit_code));
+  EXPECT_EQ(0, exit_code);
+}
+#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
 
 // Verify that the field trial shared memory handle is really read-only, and
-// does not allow writable mappings. Test disabled on NaCl, Windows and Fuchsia
-// which don't support/implement GetFieldTrialHandle(). For Fuchsia, see
-// crbug.com/752368
-#if !defined(OS_NACL) && !defined(OS_WIN) && !defined(OS_FUCHSIA)
-TEST(FieldTrialListTest, CheckReadOnlySharedMemoryHandle) {
-  FieldTrialList field_trial_list(nullptr);
-  FieldTrialList::CreateFieldTrial("Trial1", "Group1");
-
+// does not allow writable mappings. Test disabled on NaCl, Fuchsia, and Mac,
+// which don't support/implement shared memory configuration.
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_MAC)
+TEST_F(FieldTrialListTest, CheckReadOnlySharedMemoryRegion) {
   test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.Init();
+  scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
+
+  FieldTrialList::CreateFieldTrial("Trial1", "Group1");
 
   FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded();
 
-  SharedMemoryHandle handle = FieldTrialList::GetFieldTrialHandle();
-  ASSERT_TRUE(handle.IsValid());
+  base::ReadOnlySharedMemoryRegion region =
+      FieldTrialList::DuplicateFieldTrialSharedMemoryForTesting();
+  ASSERT_TRUE(region.IsValid());
 
-  ASSERT_TRUE(CheckReadOnlySharedMemoryHandleForTesting(handle));
+  ASSERT_TRUE(CheckReadOnlyPlatformSharedMemoryRegionForTesting(
+      base::ReadOnlySharedMemoryRegion::TakeHandleForSerialization(
+          std::move(region))));
 }
-#endif  // !OS_NACL && !OS_WIN && !OS_FUCHSIA
+#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_MAC)
+
+TEST_F(FieldTrialListTest, TestGetRandomizedFieldTrialCount) {
+  EXPECT_EQ(0u, FieldTrialList::GetFieldTrialCount());
+  EXPECT_EQ(0u, FieldTrialList::GetRandomizedFieldTrialCount());
+
+  const char name1[] = "name 1 test";
+  const char name2[] = "name 2 test";
+  const char name3[] = "name 3 test";
+  const char group1[] = "group 1";
+
+  // Create a field trial with a single group.
+  scoped_refptr<FieldTrial> trial1 =
+      FieldTrialList::CreateFieldTrial(name1, group1);
+  EXPECT_NE(FieldTrial::kNotFinalized, trial1->group_);
+  EXPECT_EQ(group1, trial1->group_name_internal());
+
+  EXPECT_EQ(1u, FieldTrialList::GetFieldTrialCount());
+  EXPECT_EQ(0u, FieldTrialList::GetRandomizedFieldTrialCount());
+
+  // Create a randomized field trial.
+  scoped_refptr<FieldTrial> trial2 =
+      CreateFieldTrial(name2, 10, "default name 2 test");
+  EXPECT_EQ(FieldTrial::kNotFinalized, trial2->group_);
+  EXPECT_EQ(name2, trial2->trial_name());
+  EXPECT_EQ("", trial2->group_name_internal());
+
+  EXPECT_EQ(2u, FieldTrialList::GetFieldTrialCount());
+  EXPECT_EQ(1u, FieldTrialList::GetRandomizedFieldTrialCount());
+
+  // Append a first group to trial 2. This doesn't affect GetFieldTrialCount()
+  // and GetRandomizedFieldTrialCount().
+  trial2->AppendGroup("a first group", 7);
+
+  EXPECT_EQ(2u, FieldTrialList::GetFieldTrialCount());
+  EXPECT_EQ(1u, FieldTrialList::GetRandomizedFieldTrialCount());
+
+  // Create another randomized field trial.
+  scoped_refptr<FieldTrial> trial3 =
+      CreateFieldTrial(name3, 10, "default name 3 test");
+  EXPECT_EQ(FieldTrial::kNotFinalized, trial3->group_);
+  EXPECT_EQ(name3, trial3->trial_name());
+  EXPECT_EQ("", trial3->group_name_internal());
+
+  EXPECT_EQ(3u, FieldTrialList::GetFieldTrialCount());
+  EXPECT_EQ(2u, FieldTrialList::GetRandomizedFieldTrialCount());
+
+  // Note: FieldTrialList should delete the objects at shutdown.
+}
 
 TEST_F(FieldTrialTest, TestAllParamsToString) {
   std::string exptected_output = "t1.g1:p1/v1/p2/v2";
@@ -1477,27 +1301,73 @@ TEST_F(FieldTrialTest, TestAllParamsToString) {
   params["p2"] = "v2";
   FieldTrialParamAssociator::GetInstance()->AssociateFieldTrialParams(
       "t1", "g1", params);
-  EXPECT_EQ(
-      "", FieldTrialList::AllParamsToString(false, &MockEscapeQueryParamValue));
+  EXPECT_EQ("", FieldTrialList::AllParamsToString(&MockEscapeQueryParamValue));
 
-  scoped_refptr<FieldTrial> trial1 =
-      CreateFieldTrial("t1", 100, "Default", nullptr);
+  scoped_refptr<FieldTrial> trial1 = CreateFieldTrial("t1", 100, "Default");
   trial1->AppendGroup("g1", 100);
-  trial1->group();
-  EXPECT_EQ(exptected_output, FieldTrialList::AllParamsToString(
-                                  false, &MockEscapeQueryParamValue));
+  trial1->Activate();
+  EXPECT_EQ(exptected_output,
+            FieldTrialList::AllParamsToString(&MockEscapeQueryParamValue));
 
   // Create study with two groups and params that don't belog to the assigned
   // group. This should be in the output.
   FieldTrialParamAssociator::GetInstance()->AssociateFieldTrialParams(
       "t2", "g2", params);
-  scoped_refptr<FieldTrial> trial2 =
-      CreateFieldTrial("t2", 100, "Default", nullptr);
+  scoped_refptr<FieldTrial> trial2 = CreateFieldTrial("t2", 100, "Default");
   trial2->AppendGroup("g1", 100);
   trial2->AppendGroup("g2", 0);
-  trial2->group();
-  EXPECT_EQ(exptected_output, FieldTrialList::AllParamsToString(
-                                  false, &MockEscapeQueryParamValue));
+  trial2->Activate();
+  EXPECT_EQ(exptected_output,
+            FieldTrialList::AllParamsToString(&MockEscapeQueryParamValue));
+}
+
+TEST_F(FieldTrialTest, GetActiveFieldTrialGroups_LowAnonymity) {
+  // Create a field trial with a single winning group.
+  scoped_refptr<FieldTrial> trial_1 = CreateFieldTrial("Normal", 10, "Default");
+  trial_1->AppendGroup("Winner 1", 10);
+  trial_1->Activate();
+
+  // Create a second field trial with a single winning group, marked as
+  // low-anonymity.
+  scoped_refptr<FieldTrial> trial_2 = CreateFieldTrial(
+      "Low anonymity", 10, "Default", /*is_low_anonymity=*/true);
+  trial_2->AppendGroup("Winner 2", 10);
+  trial_2->Activate();
+
+  // Check that |FieldTrialList::GetActiveFieldTrialGroups()| does not include
+  // the low-anonymity trial.
+  FieldTrial::ActiveGroups active_groups_for_metrics;
+  FieldTrialList::GetActiveFieldTrialGroups(&active_groups_for_metrics);
+  EXPECT_THAT(
+      active_groups_for_metrics,
+      testing::UnorderedPointwise(CompareActiveGroupToFieldTrial(), {trial_1}));
+
+  // Check that
+  // |FieldTrialListIncludingLowAnonymity::GetActiveFieldTrialGroups()| includes
+  // both trials.
+  FieldTrial::ActiveGroups active_groups;
+  FieldTrialListIncludingLowAnonymity::GetActiveFieldTrialGroupsForTesting(
+      &active_groups);
+  EXPECT_THAT(active_groups,
+              testing::UnorderedPointwise(CompareActiveGroupToFieldTrial(),
+                                          {trial_1, trial_2}));
+}
+
+TEST_F(FieldTrialTest, ObserveIncludingLowAnonymity) {
+  TestFieldTrialObserver observer;
+  TestFieldTrialObserverIncludingLowAnonymity low_anonymity_observer;
+
+  // Create a low-anonymity trial with one active group.
+  const char kTrialName[] = "TrialToObserve1";
+  scoped_refptr<FieldTrial> trial = CreateFieldTrial(
+      kTrialName, 100, kDefaultGroupName, /*is_low_anonymity=*/true);
+  trial->Activate();
+
+  // Only the low_anonymity_observer should be notified.
+  EXPECT_EQ("", observer.trial_name());
+  EXPECT_EQ("", observer.group_name());
+  EXPECT_EQ(kTrialName, low_anonymity_observer.trial_name());
+  EXPECT_EQ(kDefaultGroupName, low_anonymity_observer.group_name());
 }
 
 }  // namespace base

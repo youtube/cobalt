@@ -1,63 +1,61 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/files/file.h"
+
+#include <utility>
+
+#include "base/check_op.h"
 #include "base/files/file_path.h"
 #include "base/files/file_tracing.h"
 #include "base/metrics/histogram.h"
+#include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/timer/elapsed_timer.h"
+#include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
-#endif
-
-#if defined(STARBOARD)
-#include "starboard/common/log.h"
-#include "starboard/types.h"
 #endif
 
 namespace base {
 
-File::Info::Info()
-    : size(0),
-      is_directory(false),
-      is_symbolic_link(false) {
-}
+File::Info::Info() = default;
 
 File::Info::~Info() = default;
 
-File::File()
-    : error_details_(FILE_ERROR_FAILED),
-      created_(false),
-      async_(false) {
-}
+File::File() = default;
 
-#if !defined(OS_NACL)
-File::File(const FilePath& path, uint32_t flags)
-    : error_details_(FILE_OK), created_(false), async_(false) {
+#if !BUILDFLAG(IS_NACL)
+File::File(const FilePath& path, uint32_t flags) : error_details_(FILE_OK) {
   Initialize(path, flags);
 }
 #endif
 
+File::File(ScopedPlatformFile platform_file)
+    : File(std::move(platform_file), false) {}
+
 File::File(PlatformFile platform_file) : File(platform_file, false) {}
+
+File::File(ScopedPlatformFile platform_file, bool async)
+    : file_(std::move(platform_file)), error_details_(FILE_OK), async_(async) {
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+  DCHECK_GE(file_.get(), -1);
+#endif
+}
 
 File::File(PlatformFile platform_file, bool async)
     : file_(platform_file),
       error_details_(FILE_OK),
-      created_(false),
       async_(async) {
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   DCHECK_GE(platform_file, -1);
 #endif
 }
 
-File::File(Error error_details)
-    : error_details_(error_details),
-      created_(false),
-      async_(false) {
-}
+File::File(Error error_details) : error_details_(error_details) {}
 
 File::File(File&& other)
     : file_(other.TakePlatformFile()),
@@ -81,20 +79,16 @@ File& File::operator=(File&& other) {
   return *this;
 }
 
-#if !defined(OS_NACL)
+#if !BUILDFLAG(IS_NACL)
 void File::Initialize(const FilePath& path, uint32_t flags) {
   if (path.ReferencesParent()) {
-#if defined(STARBOARD)
-
-#else
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     ::SetLastError(ERROR_ACCESS_DENIED);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     errno = EACCES;
 #else
 #error Unsupported platform
-#endif  // defined(OS_WIN)
-#endif  // defined(STARBOARD)
+#endif
     error_details_ = FILE_ERROR_ACCESS_DENIED;
     return;
   }
@@ -105,6 +99,29 @@ void File::Initialize(const FilePath& path, uint32_t flags) {
 }
 #endif
 
+bool File::ReadAndCheck(int64_t offset, span<uint8_t> data) {
+  int size = checked_cast<int>(data.size());
+  return Read(offset, reinterpret_cast<char*>(data.data()), size) == size;
+}
+
+bool File::ReadAtCurrentPosAndCheck(span<uint8_t> data) {
+  int size = checked_cast<int>(data.size());
+  return ReadAtCurrentPos(reinterpret_cast<char*>(data.data()), size) == size;
+}
+
+bool File::WriteAndCheck(int64_t offset, span<const uint8_t> data) {
+  int size = checked_cast<int>(data.size());
+  return Write(offset, reinterpret_cast<const char*>(data.data()), size) ==
+         size;
+}
+
+bool File::WriteAtCurrentPosAndCheck(span<const uint8_t> data) {
+  int size = checked_cast<int>(data.size());
+  return WriteAtCurrentPos(reinterpret_cast<const char*>(data.data()), size) ==
+         size;
+}
+
+// static
 std::string File::ErrorToString(Error error) {
   switch (error) {
     case FILE_OK:
@@ -147,6 +164,14 @@ std::string File::ErrorToString(Error error) {
 
   NOTREACHED();
   return "";
+}
+
+void File::WriteIntoTrace(perfetto::TracedValue context) const {
+  auto dict = std::move(context).WriteDictionary();
+  dict.Add("is_valid", IsValid());
+  dict.Add("created", created_);
+  dict.Add("async", async_);
+  dict.Add("error_details", ErrorToString(error_details_));
 }
 
 }  // namespace base

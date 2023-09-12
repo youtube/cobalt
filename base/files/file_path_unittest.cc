@@ -1,57 +1,67 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/files/file_path.h"
+
+#include <stddef.h>
+
 #include <sstream>
 
-#include "base/files/file_path.h"
-#include "base/macros.h"
+#include "base/files/safe_base_name.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+#include "third_party/perfetto/include/perfetto/test/traced_value_test_support.h"  // no-presubmit-check nogncheck
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "base/test/scoped_locale.h"
-#include "starboard/types.h"
 #endif
+
+// This macro helps test `FILE_PATH_LITERAL` macro expansion.
+#define TEST_FILE "TestFile"
 
 // This macro helps avoid wrapped lines in the test structs.
 #define FPL(x) FILE_PATH_LITERAL(x)
 
 // This macro constructs strings which can contain NULs.
-#define FPS(x) FilePath::StringType(FPL(x), arraysize(FPL(x)) - 1)
+#define FPS(x) FilePath::StringType(FPL(x), std::size(FPL(x)) - 1)
 
 namespace base {
 
 struct UnaryTestData {
-  const FilePath::CharType* input;
-  const FilePath::CharType* expected;
+  FilePath::StringPieceType input;
+  FilePath::StringPieceType expected;
 };
 
 struct UnaryBooleanTestData {
-  const FilePath::CharType* input;
+  FilePath::StringPieceType input;
   bool expected;
 };
 
 struct BinaryTestData {
-  const FilePath::CharType* inputs[2];
-  const FilePath::CharType* expected;
+  FilePath::StringPieceType inputs[2];
+  FilePath::StringPieceType expected;
 };
 
 struct BinaryBooleanTestData {
-  const FilePath::CharType* inputs[2];
+  FilePath::StringPieceType inputs[2];
   bool expected;
 };
 
 struct BinaryIntTestData {
-  const FilePath::CharType* inputs[2];
+  FilePath::StringPieceType inputs[2];
   int expected;
 };
 
 struct UTF8TestData {
-  const FilePath::CharType* native;
-  const char* utf8;
+  FilePath::StringPieceType native;
+  StringPiece utf8;
 };
 
 // file_util winds up using autoreleased objects on the Mac, so this needs
@@ -60,88 +70,93 @@ typedef PlatformTest FilePathTest;
 
 TEST_F(FilePathTest, DirName) {
   const struct UnaryTestData cases[] = {
-    { FPL(""),              FPL(".") },
-    { FPL("aa"),            FPL(".") },
-    { FPL("/aa/bb"),        FPL("/aa") },
-    { FPL("/aa/bb/"),       FPL("/aa") },
-    { FPL("/aa/bb//"),      FPL("/aa") },
-    { FPL("/aa/bb/ccc"),    FPL("/aa/bb") },
-    { FPL("/aa"),           FPL("/") },
-    { FPL("/aa/"),          FPL("/") },
-    { FPL("/"),             FPL("/") },
-    { FPL("//"),            FPL("//") },
-    { FPL("///"),           FPL("/") },
-    { FPL("aa/"),           FPL(".") },
-    { FPL("aa/bb"),         FPL("aa") },
-    { FPL("aa/bb/"),        FPL("aa") },
-    { FPL("aa/bb//"),       FPL("aa") },
-    { FPL("aa//bb//"),      FPL("aa") },
-    { FPL("aa//bb/"),       FPL("aa") },
-    { FPL("aa//bb"),        FPL("aa") },
-    { FPL("//aa/bb"),       FPL("//aa") },
-    { FPL("//aa/"),         FPL("//") },
-    { FPL("//aa"),          FPL("//") },
-    { FPL("0:"),            FPL(".") },
-    { FPL("@:"),            FPL(".") },
-    { FPL("[:"),            FPL(".") },
-    { FPL("`:"),            FPL(".") },
-    { FPL("{:"),            FPL(".") },
-    { FPL("\xB3:"),         FPL(".") },
-    { FPL("\xC5:"),         FPL(".") },
-    { FPL("/aa/../bb/cc"),  FPL("/aa/../bb")},
-#if defined(OS_WIN)
-    { FPL("\x0143:"),       FPL(".") },
-#endif  // OS_WIN
+    {FPL(""), FPL(".")},
+    {FPL("aa"), FPL(".")},
+    {FPL("/aa/bb"), FPL("/aa")},
+    {FPL("/aa/bb/"), FPL("/aa")},
+    {FPL("/aa/bb//"), FPL("/aa")},
+    {FPL("/aa/bb/ccc"), FPL("/aa/bb")},
+    {FPL("/aa"), FPL("/")},
+    {FPL("/aa/"), FPL("/")},
+    {FPL("/"), FPL("/")},
+    {FPL("//"), FPL("//")},
+    {FPL("///"), FPL("/")},
+    {FPL("aa/"), FPL(".")},
+    {FPL("aa/bb"), FPL("aa")},
+    {FPL("aa/bb/"), FPL("aa")},
+    {FPL("aa/bb//"), FPL("aa")},
+    {FPL("aa//bb//"), FPL("aa")},
+    {FPL("aa//bb/"), FPL("aa")},
+    {FPL("aa//bb"), FPL("aa")},
+    {FPL("//aa/bb"), FPL("//aa")},
+    {FPL("//aa/"), FPL("//")},
+    {FPL("//aa"), FPL("//")},
+#if BUILDFLAG(IS_POSIX)
+    {FPL("///aa/"), FPL("/")},
+    {FPL("///aa"), FPL("/")},
+    {FPL("///"), FPL("/")},
+#endif  // BUILDFLAG(IS_POSIX)
+    {FPL("0:"), FPL(".")},
+    {FPL("@:"), FPL(".")},
+    {FPL("[:"), FPL(".")},
+    {FPL("`:"), FPL(".")},
+    {FPL("{:"), FPL(".")},
+    {FPL("\xB3:"), FPL(".")},
+    {FPL("\xC5:"), FPL(".")},
+    {FPL("/aa/../bb/cc"), FPL("/aa/../bb")},
+#if BUILDFLAG(IS_WIN)
+    {FPL("\x0143:"), FPL(".")},
+#endif  // BUILDFLAG(IS_WIN)
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
-    { FPL("c:"),            FPL("c:") },
-    { FPL("C:"),            FPL("C:") },
-    { FPL("A:"),            FPL("A:") },
-    { FPL("Z:"),            FPL("Z:") },
-    { FPL("a:"),            FPL("a:") },
-    { FPL("z:"),            FPL("z:") },
-    { FPL("c:aa"),          FPL("c:") },
-    { FPL("c:/"),           FPL("c:/") },
-    { FPL("c://"),          FPL("c://") },
-    { FPL("c:///"),         FPL("c:/") },
-    { FPL("c:/aa"),         FPL("c:/") },
-    { FPL("c:/aa/"),        FPL("c:/") },
-    { FPL("c:/aa/bb"),      FPL("c:/aa") },
-    { FPL("c:aa/bb"),       FPL("c:aa") },
+    {FPL("c:"), FPL("c:")},
+    {FPL("C:"), FPL("C:")},
+    {FPL("A:"), FPL("A:")},
+    {FPL("Z:"), FPL("Z:")},
+    {FPL("a:"), FPL("a:")},
+    {FPL("z:"), FPL("z:")},
+    {FPL("c:aa"), FPL("c:")},
+    {FPL("c:/"), FPL("c:/")},
+    {FPL("c://"), FPL("c://")},
+    {FPL("c:///"), FPL("c:/")},
+    {FPL("c:/aa"), FPL("c:/")},
+    {FPL("c:/aa/"), FPL("c:/")},
+    {FPL("c:/aa/bb"), FPL("c:/aa")},
+    {FPL("c:aa/bb"), FPL("c:aa")},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
-    { FPL("\\aa\\bb"),      FPL("\\aa") },
-    { FPL("\\aa\\bb\\"),    FPL("\\aa") },
-    { FPL("\\aa\\bb\\\\"),  FPL("\\aa") },
-    { FPL("\\aa\\bb\\ccc"), FPL("\\aa\\bb") },
-    { FPL("\\aa"),          FPL("\\") },
-    { FPL("\\aa\\"),        FPL("\\") },
-    { FPL("\\"),            FPL("\\") },
-    { FPL("\\\\"),          FPL("\\\\") },
-    { FPL("\\\\\\"),        FPL("\\") },
-    { FPL("aa\\"),          FPL(".") },
-    { FPL("aa\\bb"),        FPL("aa") },
-    { FPL("aa\\bb\\"),      FPL("aa") },
-    { FPL("aa\\bb\\\\"),    FPL("aa") },
-    { FPL("aa\\\\bb\\\\"),  FPL("aa") },
-    { FPL("aa\\\\bb\\"),    FPL("aa") },
-    { FPL("aa\\\\bb"),      FPL("aa") },
-    { FPL("\\\\aa\\bb"),    FPL("\\\\aa") },
-    { FPL("\\\\aa\\"),      FPL("\\\\") },
-    { FPL("\\\\aa"),        FPL("\\\\") },
-    { FPL("aa\\..\\bb\\c"), FPL("aa\\..\\bb")},
+    {FPL("\\aa\\bb"), FPL("\\aa")},
+    {FPL("\\aa\\bb\\"), FPL("\\aa")},
+    {FPL("\\aa\\bb\\\\"), FPL("\\aa")},
+    {FPL("\\aa\\bb\\ccc"), FPL("\\aa\\bb")},
+    {FPL("\\aa"), FPL("\\")},
+    {FPL("\\aa\\"), FPL("\\")},
+    {FPL("\\"), FPL("\\")},
+    {FPL("\\\\"), FPL("\\\\")},
+    {FPL("\\\\\\"), FPL("\\")},
+    {FPL("aa\\"), FPL(".")},
+    {FPL("aa\\bb"), FPL("aa")},
+    {FPL("aa\\bb\\"), FPL("aa")},
+    {FPL("aa\\bb\\\\"), FPL("aa")},
+    {FPL("aa\\\\bb\\\\"), FPL("aa")},
+    {FPL("aa\\\\bb\\"), FPL("aa")},
+    {FPL("aa\\\\bb"), FPL("aa")},
+    {FPL("\\\\aa\\bb"), FPL("\\\\aa")},
+    {FPL("\\\\aa\\"), FPL("\\\\")},
+    {FPL("\\\\aa"), FPL("\\\\")},
+    {FPL("aa\\..\\bb\\c"), FPL("aa\\..\\bb")},
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
-    { FPL("c:\\"),          FPL("c:\\") },
-    { FPL("c:\\\\"),        FPL("c:\\\\") },
-    { FPL("c:\\\\\\"),      FPL("c:\\") },
-    { FPL("c:\\aa"),        FPL("c:\\") },
-    { FPL("c:\\aa\\"),      FPL("c:\\") },
-    { FPL("c:\\aa\\bb"),    FPL("c:\\aa") },
-    { FPL("c:aa\\bb"),      FPL("c:aa") },
+    {FPL("c:\\"), FPL("c:\\")},
+    {FPL("c:\\\\"), FPL("c:\\\\")},
+    {FPL("c:\\\\\\"), FPL("c:\\")},
+    {FPL("c:\\aa"), FPL("c:\\")},
+    {FPL("c:\\aa\\"), FPL("c:\\")},
+    {FPL("c:\\aa\\bb"), FPL("c:\\aa")},
+    {FPL("c:aa\\bb"), FPL("c:aa")},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);
     FilePath observed = input.DirName();
     EXPECT_EQ(FilePath::StringType(cases[i].expected), observed.value()) <<
@@ -151,84 +166,84 @@ TEST_F(FilePathTest, DirName) {
 
 TEST_F(FilePathTest, BaseName) {
   const struct UnaryTestData cases[] = {
-    { FPL(""),              FPL("") },
-    { FPL("aa"),            FPL("aa") },
-    { FPL("/aa/bb"),        FPL("bb") },
-    { FPL("/aa/bb/"),       FPL("bb") },
-    { FPL("/aa/bb//"),      FPL("bb") },
-    { FPL("/aa/bb/ccc"),    FPL("ccc") },
-    { FPL("/aa"),           FPL("aa") },
-    { FPL("/"),             FPL("/") },
-    { FPL("//"),            FPL("//") },
-    { FPL("///"),           FPL("/") },
-    { FPL("aa/"),           FPL("aa") },
-    { FPL("aa/bb"),         FPL("bb") },
-    { FPL("aa/bb/"),        FPL("bb") },
-    { FPL("aa/bb//"),       FPL("bb") },
-    { FPL("aa//bb//"),      FPL("bb") },
-    { FPL("aa//bb/"),       FPL("bb") },
-    { FPL("aa//bb"),        FPL("bb") },
-    { FPL("//aa/bb"),       FPL("bb") },
-    { FPL("//aa/"),         FPL("aa") },
-    { FPL("//aa"),          FPL("aa") },
-    { FPL("0:"),            FPL("0:") },
-    { FPL("@:"),            FPL("@:") },
-    { FPL("[:"),            FPL("[:") },
-    { FPL("`:"),            FPL("`:") },
-    { FPL("{:"),            FPL("{:") },
-    { FPL("\xB3:"),         FPL("\xB3:") },
-    { FPL("\xC5:"),         FPL("\xC5:") },
-#if defined(OS_WIN)
-    { FPL("\x0143:"),       FPL("\x0143:") },
-#endif  // OS_WIN
+    {FPL(""), FPL("")},
+    {FPL("aa"), FPL("aa")},
+    {FPL("/aa/bb"), FPL("bb")},
+    {FPL("/aa/bb/"), FPL("bb")},
+    {FPL("/aa/bb//"), FPL("bb")},
+    {FPL("/aa/bb/ccc"), FPL("ccc")},
+    {FPL("/aa"), FPL("aa")},
+    {FPL("/"), FPL("/")},
+    {FPL("//"), FPL("//")},
+    {FPL("///"), FPL("/")},
+    {FPL("aa/"), FPL("aa")},
+    {FPL("aa/bb"), FPL("bb")},
+    {FPL("aa/bb/"), FPL("bb")},
+    {FPL("aa/bb//"), FPL("bb")},
+    {FPL("aa//bb//"), FPL("bb")},
+    {FPL("aa//bb/"), FPL("bb")},
+    {FPL("aa//bb"), FPL("bb")},
+    {FPL("//aa/bb"), FPL("bb")},
+    {FPL("//aa/"), FPL("aa")},
+    {FPL("//aa"), FPL("aa")},
+    {FPL("0:"), FPL("0:")},
+    {FPL("@:"), FPL("@:")},
+    {FPL("[:"), FPL("[:")},
+    {FPL("`:"), FPL("`:")},
+    {FPL("{:"), FPL("{:")},
+    {FPL("\xB3:"), FPL("\xB3:")},
+    {FPL("\xC5:"), FPL("\xC5:")},
+#if BUILDFLAG(IS_WIN)
+    {FPL("\x0143:"), FPL("\x0143:")},
+#endif  // BUILDFLAG(IS_WIN)
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
-    { FPL("c:"),            FPL("") },
-    { FPL("C:"),            FPL("") },
-    { FPL("A:"),            FPL("") },
-    { FPL("Z:"),            FPL("") },
-    { FPL("a:"),            FPL("") },
-    { FPL("z:"),            FPL("") },
-    { FPL("c:aa"),          FPL("aa") },
-    { FPL("c:/"),           FPL("/") },
-    { FPL("c://"),          FPL("//") },
-    { FPL("c:///"),         FPL("/") },
-    { FPL("c:/aa"),         FPL("aa") },
-    { FPL("c:/aa/"),        FPL("aa") },
-    { FPL("c:/aa/bb"),      FPL("bb") },
-    { FPL("c:aa/bb"),       FPL("bb") },
+    {FPL("c:"), FPL("")},
+    {FPL("C:"), FPL("")},
+    {FPL("A:"), FPL("")},
+    {FPL("Z:"), FPL("")},
+    {FPL("a:"), FPL("")},
+    {FPL("z:"), FPL("")},
+    {FPL("c:aa"), FPL("aa")},
+    {FPL("c:/"), FPL("/")},
+    {FPL("c://"), FPL("//")},
+    {FPL("c:///"), FPL("/")},
+    {FPL("c:/aa"), FPL("aa")},
+    {FPL("c:/aa/"), FPL("aa")},
+    {FPL("c:/aa/bb"), FPL("bb")},
+    {FPL("c:aa/bb"), FPL("bb")},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
-    { FPL("\\aa\\bb"),      FPL("bb") },
-    { FPL("\\aa\\bb\\"),    FPL("bb") },
-    { FPL("\\aa\\bb\\\\"),  FPL("bb") },
-    { FPL("\\aa\\bb\\ccc"), FPL("ccc") },
-    { FPL("\\aa"),          FPL("aa") },
-    { FPL("\\"),            FPL("\\") },
-    { FPL("\\\\"),          FPL("\\\\") },
-    { FPL("\\\\\\"),        FPL("\\") },
-    { FPL("aa\\"),          FPL("aa") },
-    { FPL("aa\\bb"),        FPL("bb") },
-    { FPL("aa\\bb\\"),      FPL("bb") },
-    { FPL("aa\\bb\\\\"),    FPL("bb") },
-    { FPL("aa\\\\bb\\\\"),  FPL("bb") },
-    { FPL("aa\\\\bb\\"),    FPL("bb") },
-    { FPL("aa\\\\bb"),      FPL("bb") },
-    { FPL("\\\\aa\\bb"),    FPL("bb") },
-    { FPL("\\\\aa\\"),      FPL("aa") },
-    { FPL("\\\\aa"),        FPL("aa") },
+    {FPL("\\aa\\bb"), FPL("bb")},
+    {FPL("\\aa\\bb\\"), FPL("bb")},
+    {FPL("\\aa\\bb\\\\"), FPL("bb")},
+    {FPL("\\aa\\bb\\ccc"), FPL("ccc")},
+    {FPL("\\aa"), FPL("aa")},
+    {FPL("\\"), FPL("\\")},
+    {FPL("\\\\"), FPL("\\\\")},
+    {FPL("\\\\\\"), FPL("\\")},
+    {FPL("aa\\"), FPL("aa")},
+    {FPL("aa\\bb"), FPL("bb")},
+    {FPL("aa\\bb\\"), FPL("bb")},
+    {FPL("aa\\bb\\\\"), FPL("bb")},
+    {FPL("aa\\\\bb\\\\"), FPL("bb")},
+    {FPL("aa\\\\bb\\"), FPL("bb")},
+    {FPL("aa\\\\bb"), FPL("bb")},
+    {FPL("\\\\aa\\bb"), FPL("bb")},
+    {FPL("\\\\aa\\"), FPL("aa")},
+    {FPL("\\\\aa"), FPL("aa")},
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
-    { FPL("c:\\"),          FPL("\\") },
-    { FPL("c:\\\\"),        FPL("\\\\") },
-    { FPL("c:\\\\\\"),      FPL("\\") },
-    { FPL("c:\\aa"),        FPL("aa") },
-    { FPL("c:\\aa\\"),      FPL("aa") },
-    { FPL("c:\\aa\\bb"),    FPL("bb") },
-    { FPL("c:aa\\bb"),      FPL("bb") },
+    {FPL("c:\\"), FPL("\\")},
+    {FPL("c:\\\\"), FPL("\\\\")},
+    {FPL("c:\\\\\\"), FPL("\\")},
+    {FPL("c:\\aa"), FPL("aa")},
+    {FPL("c:\\aa\\"), FPL("aa")},
+    {FPL("c:\\aa\\bb"), FPL("bb")},
+    {FPL("c:aa\\bb"), FPL("bb")},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);
     FilePath observed = input.BaseName();
     EXPECT_EQ(FilePath::StringType(cases[i].expected), observed.value()) <<
@@ -306,7 +321,7 @@ TEST_F(FilePathTest, Append) {
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath root(cases[i].inputs[0]);
     FilePath::StringType leaf(cases[i].inputs[1]);
     FilePath observed_str = root.Append(leaf);
@@ -318,9 +333,9 @@ TEST_F(FilePathTest, Append) {
 
     // TODO(erikkay): It would be nice to have a unicode test append value to
     // handle the case when AppendASCII is passed UTF8
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     std::string ascii = WideToUTF8(leaf);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     std::string ascii = leaf;
 #endif
     observed_str = root.AppendASCII(ascii);
@@ -385,7 +400,7 @@ TEST_F(FilePathTest, StripTrailingSeparators) {
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);
     FilePath observed = input.StripTrailingSeparators();
     EXPECT_EQ(FilePath::StringType(cases[i].expected), observed.value()) <<
@@ -393,70 +408,77 @@ TEST_F(FilePathTest, StripTrailingSeparators) {
   }
 }
 
-TEST_F(FilePathTest, IsAbsolute) {
-  const struct UnaryBooleanTestData cases[] = {
-    { FPL(""),       false },
-    { FPL("a"),      false },
-    { FPL("c:"),     false },
-    { FPL("c:a"),    false },
-    { FPL("a/b"),    false },
-    { FPL("//"),     true },
-    { FPL("//a"),    true },
-    { FPL("c:a/b"),  false },
-    { FPL("?:/a"),   false },
+TEST_F(FilePathTest, IsAbsoluteOrNetwork) {
+  const struct {
+    FilePath::StringPieceType input;
+    bool expected_is_absolute;
+    bool expected_is_network;
+  } cases[] = {
+    { FPL(""),       false, false },
+    { FPL("a"),      false, false },
+    { FPL("c:"),     false, false },
+    { FPL("c:a"),    false, false },
+    { FPL("a/b"),    false, false },
+    { FPL("//"),     true,  true },
+    { FPL("//a"),    true,  true },
+    { FPL("c:a/b"),  false, false },
+    { FPL("?:/a"),   false, false },
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
-    { FPL("/"),      false },
-    { FPL("/a"),     false },
-    { FPL("/."),     false },
-    { FPL("/.."),    false },
-    { FPL("c:/"),    true },
-    { FPL("c:/a"),   true },
-    { FPL("c:/."),   true },
-    { FPL("c:/.."),  true },
-    { FPL("C:/a"),   true },
-    { FPL("d:/a"),   true },
+    { FPL("/"),      false, false },
+    { FPL("/a"),     false, false },
+    { FPL("/."),     false, false },
+    { FPL("/.."),    false, false },
+    { FPL("c:/"),    true,  false },
+    { FPL("c:/a"),   true,  false },
+    { FPL("c:/."),   true,  false },
+    { FPL("c:/.."),  true,  false },
+    { FPL("C:/a"),   true,  false },
+    { FPL("d:/a"),   true,  false },
 #else  // FILE_PATH_USES_DRIVE_LETTERS
-    { FPL("/"),      true },
-    { FPL("/a"),     true },
-    { FPL("/."),     true },
-    { FPL("/.."),    true },
-    { FPL("c:/"),    false },
+    { FPL("/"),      true,  false },
+    { FPL("/a"),     true,  false },
+    { FPL("/."),     true,  false },
+    { FPL("/.."),    true,  false },
+    { FPL("c:/"),    false, false },
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
-    { FPL("a\\b"),   false },
-    { FPL("\\\\"),   true },
-    { FPL("\\\\a"),  true },
-    { FPL("a\\b"),   false },
-    { FPL("\\\\"),   true },
-    { FPL("//a"),    true },
-    { FPL("c:a\\b"), false },
-    { FPL("?:\\a"),  false },
+    { FPL("a\\b"),   false, false },
+    { FPL("\\\\"),   true,  true },
+    { FPL("\\\\a"),  true,  true },
+    { FPL("a\\b"),   false, false },
+    { FPL("\\\\"),   true,  true },
+    { FPL("//a"),    true,  true },
+    { FPL("c:a\\b"), false, false },
+    { FPL("?:\\a"),  false, false },
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
-    { FPL("\\"),     false },
-    { FPL("\\a"),    false },
-    { FPL("\\."),    false },
-    { FPL("\\.."),   false },
-    { FPL("c:\\"),   true },
-    { FPL("c:\\"),   true },
-    { FPL("c:\\a"),  true },
-    { FPL("c:\\."),  true },
-    { FPL("c:\\.."), true },
-    { FPL("C:\\a"),  true },
-    { FPL("d:\\a"),  true },
+    { FPL("\\"),     false, false },
+    { FPL("\\a"),    false, false },
+    { FPL("\\."),    false, false },
+    { FPL("\\.."),   false, false },
+    { FPL("c:\\"),   true,  false },
+    { FPL("c:\\"),   true,  false },
+    { FPL("c:\\a"),  true,  false },
+    { FPL("c:\\."),  true,  false },
+    { FPL("c:\\.."), true,  false },
+    { FPL("C:\\a"),  true,  false },
+    { FPL("d:\\a"),  true,  false },
 #else  // FILE_PATH_USES_DRIVE_LETTERS
-    { FPL("\\"),     true },
-    { FPL("\\a"),    true },
-    { FPL("\\."),    true },
-    { FPL("\\.."),   true },
-    { FPL("c:\\"),   false },
+    { FPL("\\"),     true,  false },
+    { FPL("\\a"),    true,  false },
+    { FPL("\\."),    true,  false },
+    { FPL("\\.."),   true,  false },
+    { FPL("c:\\"),   false, false },
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);
-    bool observed = input.IsAbsolute();
-    EXPECT_EQ(cases[i].expected, observed) <<
+    bool observed_is_absolute = input.IsAbsolute();
+    EXPECT_EQ(cases[i].expected_is_absolute, observed_is_absolute) <<
+              "i: " << i << ", input: " << input.value();
+    bool observed_is_network = input.IsNetwork();
+    EXPECT_EQ(cases[i].expected_is_network, observed_is_network) <<
               "i: " << i << ", input: " << input.value();
   }
 }
@@ -465,6 +487,9 @@ TEST_F(FilePathTest, PathComponentsTest) {
   const struct UnaryTestData cases[] = {
     { FPL("//foo/bar/baz/"),          FPL("|//|foo|bar|baz")},
     { FPL("///"),                     FPL("|/")},
+#if BUILDFLAG(IS_POSIX)
+    {FPL("///foo//bar/baz"),          FPL("|/|foo|bar|baz")},
+#endif  // BUILDFLAG(IS_POSIX)
     { FPL("/foo//bar//baz/"),         FPL("|/|foo|bar|baz")},
     { FPL("/foo/bar/baz/"),           FPL("|/|foo|bar|baz")},
     { FPL("/foo/bar/baz//"),          FPL("|/|foo|bar|baz")},
@@ -499,15 +524,14 @@ TEST_F(FilePathTest, PathComponentsTest) {
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);
-    std::vector<FilePath::StringType> comps;
-    input.GetComponents(&comps);
+    std::vector<FilePath::StringType> comps = input.GetComponents();
 
     FilePath::StringType observed;
-    for (size_t j = 0; j < comps.size(); ++j) {
+    for (const auto& j : comps) {
       observed.append(FILE_PATH_LITERAL("|"), 1);
-      observed.append(comps[j]);
+      observed.append(j);
     }
     EXPECT_EQ(FilePath::StringType(cases[i].expected), observed) <<
               "i: " << i << ", input: " << input.value();
@@ -517,6 +541,7 @@ TEST_F(FilePathTest, PathComponentsTest) {
 TEST_F(FilePathTest, IsParentTest) {
   const struct BinaryBooleanTestData cases[] = {
     { { FPL("/"),             FPL("/foo/bar/baz") },      true},
+    { { FPL("/foo"),          FPL("/foo/bar/baz") },      true},
     { { FPL("/foo/bar"),      FPL("/foo/bar/baz") },      true},
     { { FPL("/foo/bar/"),     FPL("/foo/bar/baz") },      true},
     { { FPL("//foo/bar/"),    FPL("//foo/bar/baz") },     true},
@@ -525,6 +550,7 @@ TEST_F(FilePathTest, IsParentTest) {
     { { FPL("/foo/bar"),      FPL("/foo/bar2/baz") },     false},
     { { FPL("/foo/bar"),      FPL("/foo/bar") },          false},
     { { FPL("/foo/bar/baz"),  FPL("/foo/bar") },          false},
+    { { FPL("foo"),           FPL("foo/bar/baz") },       true},
     { { FPL("foo/bar"),       FPL("foo/bar/baz") },       true},
     { { FPL("foo/bar"),       FPL("foo2/bar/baz") },      false},
     { { FPL("foo/bar"),       FPL("foo/bar2/baz") },      false},
@@ -556,7 +582,7 @@ TEST_F(FilePathTest, IsParentTest) {
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath parent(cases[i].inputs[0]);
     FilePath child(cases[i].inputs[1]);
 
@@ -616,29 +642,47 @@ TEST_F(FilePathTest, AppendRelativePathTest) {
     { { FPL("\\foo\\bar"),    FPL("\\foo2\\bar\\baz") },  FPL("")},
     { { FPL("\\foo\\bar"),    FPL("\\foo\\bar2\\baz") },  FPL("")},
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
+
+    // For network paths, the hosts are compared ignoring case, while the rest
+    // of the path is compared using case.
+    { { FPL("//FOO/bar/"),    FPL("//foo/bar/baz") },     FPL("baz")},
+    { { FPL("//foo/BAR/"),    FPL("//foo/bar/baz") },     FPL("")},
+    // For non-network paths, the first component is not a host and should be
+    // compared using case.
+    { { FPL("/FOO/bar/"),     FPL("/foo/bar/baz") },      FPL("")},
+    // Degenerate case when parent has no hostname.
+    { { FPL("//"),            FPL("//foo") },             FPL("foo")},
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+    // Network path tests but using Windows path separators.
+    { { FPL("\\\\FOO\\bar"),  FPL("\\\\foo\\bar\\baz") }, FPL("baz")},
+    { { FPL("\\\\fOO\\Bar"),  FPL("\\\\foo\\bar\\baz") }, FPL("")},
+    { { FPL("\\FOO\\bar"),    FPL("\\foo\\bar\\baz") },   FPL("")},
+    { { FPL("\\\\"),          FPL("\\\\foo") },           FPL("foo")},
+#endif  // FILE_PATH_USES_WIN_SEPARATORS
+
   };
 
   const FilePath base(FPL("blah"));
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath parent(cases[i].inputs[0]);
     FilePath child(cases[i].inputs[1]);
     {
       FilePath result;
       bool success = parent.AppendRelativePath(child, &result);
-      EXPECT_EQ(cases[i].expected[0] != '\0', success) <<
-        "i: " << i << ", parent: " << parent.value() << ", child: " <<
-        child.value();
-      EXPECT_STREQ(cases[i].expected, result.value().c_str()) <<
-        "i: " << i << ", parent: " << parent.value() << ", child: " <<
-        child.value();
+      EXPECT_EQ(!cases[i].expected.empty(), success)
+          << "i: " << i << ", parent: " << parent.value()
+          << ", child: " << child.value();
+      EXPECT_EQ(cases[i].expected, result.value())
+          << "i: " << i << ", parent: " << parent.value()
+          << ", child: " << child.value();
     }
     {
       FilePath result(base);
       bool success = parent.AppendRelativePath(child, &result);
-      EXPECT_EQ(cases[i].expected[0] != '\0', success) <<
-        "i: " << i << ", parent: " << parent.value() << ", child: " <<
-        child.value();
+      EXPECT_EQ(!cases[i].expected.empty(), success)
+          << "i: " << i << ", parent: " << parent.value()
+          << ", child: " << child.value();
       EXPECT_EQ(base.Append(cases[i].expected).value(), result.value()) <<
         "i: " << i << ", parent: " << parent.value() << ", child: " <<
         child.value();
@@ -687,7 +731,7 @@ TEST_F(FilePathTest, EqualityTest) {
 #endif  // FILE_PATH_USES_WIN_SEPARATORS
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath a(cases[i].inputs[0]);
     FilePath b(cases[i].inputs[1]);
 
@@ -696,7 +740,7 @@ TEST_F(FilePathTest, EqualityTest) {
       b.value();
   }
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath a(cases[i].inputs[0]);
     FilePath b(cases[i].inputs[1]);
 
@@ -704,6 +748,10 @@ TEST_F(FilePathTest, EqualityTest) {
       "inequality i: " << i << ", a: " << a.value() << ", b: " <<
       b.value();
   }
+}
+
+TEST_F(FilePathTest, MacroExpansion) {
+  EXPECT_EQ(FILE_PATH_LITERAL(TEST_FILE), FILE_PATH_LITERAL("TestFile"));
 }
 
 TEST_F(FilePathTest, Extension) {
@@ -725,6 +773,7 @@ TEST_F(FilePathTest, Extension) {
 }
 
 TEST_F(FilePathTest, Extension2) {
+  // clang-format off
   const struct UnaryTestData cases[] = {
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
     { FPL("C:\\a\\b\\c.ext"),        FPL(".ext") },
@@ -737,6 +786,8 @@ TEST_F(FilePathTest, Extension2) {
     { FPL("C:\\foo.bar\\.."),        FPL("") },
     { FPL("C:\\foo.bar\\..\\\\"),    FPL("") },
 #endif
+    { FPL("/foo/bar/baz.EXT"),       FPL(".EXT") },
+    { FPL("/foo/bar/baz.Ext"),       FPL(".Ext") },
     { FPL("/foo/bar/baz.ext"),       FPL(".ext") },
     { FPL("/foo/bar/baz."),          FPL(".") },
     { FPL("/foo/bar/baz.."),         FPL(".") },
@@ -759,30 +810,46 @@ TEST_F(FilePathTest, Extension2) {
     { FPL("/user.js"),               FPL(".js") },
   };
   const struct UnaryTestData double_extension_cases[] = {
-    { FPL("/foo.tar.gz"),            FPL(".tar.gz") },
+    // `kCommonDoubleExtensionSuffixes` cases. Blah is not on that allow-list.
+    // Membership is (ASCII) case-insensitive: both ".Z" and ".z" match.
+    { FPL("/foo.TAR.bz2"),           FPL(".TAR.bz2") },
     { FPL("/foo.tar.Z"),             FPL(".tar.Z") },
+    { FPL("/foo.tar.blah"),          FPL(".blah") },
+    { FPL("/foo.tar.bz"),            FPL(".tar.bz") },
     { FPL("/foo.tar.bz2"),           FPL(".tar.bz2") },
+    { FPL("/foo.tar.gz"),            FPL(".tar.gz") },
+    { FPL("/foo.tar.lz"),            FPL(".tar.lz") },
+    { FPL("/foo.tar.lzma"),          FPL(".tar.lzma") },
+    { FPL("/foo.tar.lzo"),           FPL(".tar.lzo") },
+    { FPL("/foo.tar.xz"),            FPL(".tar.xz") },
+    { FPL("/foo.tar.z"),             FPL(".tar.z") },
+    { FPL("/foo.tar.zst"),           FPL(".tar.zst") },
+    // `kCommonDoubleExtensions` cases.
+    { FPL("/foo.1234.user.js"),      FPL(".user.js") },
+    { FPL("foo.user.js"),            FPL(".user.js") },
+    // Other cases.
     { FPL("/foo.1234.gz"),           FPL(".1234.gz") },
+    { FPL("/foo.1234.gz."),          FPL(".") },
     { FPL("/foo.1234.tar.gz"),       FPL(".tar.gz") },
     { FPL("/foo.tar.tar.gz"),        FPL(".tar.gz") },
     { FPL("/foo.tar.gz.gz"),         FPL(".gz.gz") },
-    { FPL("/foo.1234.user.js"),      FPL(".user.js") },
-    { FPL("foo.user.js"),            FPL(".user.js") },
-    { FPL("/foo.tar.bz"),            FPL(".tar.bz") },
   };
-  for (unsigned int i = 0; i < arraysize(cases); ++i) {
+  // clang-format on
+
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath path(cases[i].input);
     FilePath::StringType extension = path.Extension();
     FilePath::StringType final_extension = path.FinalExtension();
-    EXPECT_STREQ(cases[i].expected, extension.c_str())
+    EXPECT_EQ(cases[i].expected, extension)
         << "i: " << i << ", path: " << path.value();
-    EXPECT_STREQ(cases[i].expected, final_extension.c_str())
+    EXPECT_EQ(cases[i].expected, final_extension)
         << "i: " << i << ", path: " << path.value();
   }
-  for (unsigned int i = 0; i < arraysize(double_extension_cases); ++i) {
+
+  for (size_t i = 0; i < std::size(double_extension_cases); ++i) {
     FilePath path(double_extension_cases[i].input);
     FilePath::StringType extension = path.Extension();
-    EXPECT_STREQ(double_extension_cases[i].expected, extension.c_str())
+    EXPECT_EQ(double_extension_cases[i].expected, extension)
         << "i: " << i << ", path: " << path.value();
   }
 }
@@ -847,11 +914,12 @@ TEST_F(FilePathTest, InsertBeforeExtension) {
     { { FPL("/bar/baz/foo.exe"), FPL(" (1)") },   FPL("/bar/baz/foo (1).exe") },
     { { FPL("/bar/baz/..////"), FPL(" (1)") },    FPL("") },
   };
-  for (unsigned int i = 0; i < arraysize(cases); ++i) {
+  for (unsigned int i = 0; i < std::size(cases); ++i) {
     FilePath path(cases[i].inputs[0]);
     FilePath result = path.InsertBeforeExtension(cases[i].inputs[1]);
-    EXPECT_EQ(cases[i].expected, result.value()) << "i: " << i <<
-        ", path: " << path.value() << ", insert: " << cases[i].inputs[1];
+    EXPECT_EQ(cases[i].expected, result.value())
+        << "i: " << i << ", path: " << path.value()
+        << ", insert: " << cases[i].inputs[1];
   }
 }
 
@@ -874,7 +942,7 @@ TEST_F(FilePathTest, RemoveExtension) {
     { FPL("/foo.bar/foo"),        FPL("/foo.bar/foo") },
     { FPL("/foo.bar/..////"),     FPL("/foo.bar/..////") },
   };
-  for (unsigned int i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath path(cases[i].input);
     FilePath removed = path.RemoveExtension();
     FilePath removed_final = path.RemoveFinalExtension();
@@ -883,13 +951,18 @@ TEST_F(FilePathTest, RemoveExtension) {
     EXPECT_EQ(cases[i].expected, removed_final.value()) << "i: " << i <<
         ", path: " << path.value();
   }
-  {
+
+  const FilePath::StringPieceType tarballs[] = {
+      FPL("foo.tar.gz"), FPL("foo.tar.xz"), FPL("foo.tar.bz2"),
+      FPL("foo.tar.Z"), FPL("foo.tar.bz")};
+  for (size_t i = 0; i < std::size(tarballs); ++i) {
     FilePath path(FPL("foo.tar.gz"));
     FilePath removed = path.RemoveExtension();
     FilePath removed_final = path.RemoveFinalExtension();
-    EXPECT_EQ(FPL("foo"), removed.value()) << ", path: " << path.value();
-    EXPECT_EQ(FPL("foo.tar"), removed_final.value()) << ", path: "
-                                                     << path.value();
+    EXPECT_EQ(FPL("foo"), removed.value())
+        << "i: " << i << ", path: " << path.value();
+    EXPECT_EQ(FPL("foo.tar"), removed_final.value())
+        << "i: " << i << ", path: " << path.value();
   }
 }
 
@@ -923,7 +996,7 @@ TEST_F(FilePathTest, ReplaceExtension) {
     { { FPL("/foo.bar/foo"),        FPL("baz") }, FPL("/foo.bar/foo.baz") },
     { { FPL("/foo.bar/..////"),     FPL("baz") }, FPL("") },
   };
-  for (unsigned int i = 0; i < arraysize(cases); ++i) {
+  for (unsigned int i = 0; i < std::size(cases); ++i) {
     FilePath path(cases[i].inputs[0]);
     FilePath replaced = path.ReplaceExtension(cases[i].inputs[1]);
     EXPECT_EQ(cases[i].expected, replaced.value()) << "i: " << i <<
@@ -961,7 +1034,7 @@ TEST_F(FilePathTest, AddExtension) {
     { { FPL("/foo.bar/foo"),        FPL("baz") }, FPL("/foo.bar/foo.baz") },
     { { FPL("/foo.bar/..////"),     FPL("baz") }, FPL("") },
   };
-  for (unsigned int i = 0; i < arraysize(cases); ++i) {
+  for (unsigned int i = 0; i < std::size(cases); ++i) {
     FilePath path(cases[i].inputs[0]);
     FilePath added = path.AddExtension(cases[i].inputs[1]);
     EXPECT_EQ(cases[i].expected, added.value()) << "i: " << i <<
@@ -971,41 +1044,43 @@ TEST_F(FilePathTest, AddExtension) {
 
 TEST_F(FilePathTest, MatchesExtension) {
   const struct BinaryBooleanTestData cases[] = {
-    { { FPL("foo"),                     FPL("") },                    true},
-    { { FPL("foo"),                     FPL(".") },                   false},
-    { { FPL("foo."),                    FPL("") },                    false},
-    { { FPL("foo."),                    FPL(".") },                   true},
-    { { FPL("foo.txt"),                 FPL(".dll") },                false},
-    { { FPL("foo.txt"),                 FPL(".txt") },                true},
-    { { FPL("foo.txt.dll"),             FPL(".txt") },                false},
-    { { FPL("foo.txt.dll"),             FPL(".dll") },                true},
-    { { FPL("foo.TXT"),                 FPL(".txt") },                true},
-    { { FPL("foo.txt"),                 FPL(".TXT") },                true},
-    { { FPL("foo.tXt"),                 FPL(".txt") },                true},
-    { { FPL("foo.txt"),                 FPL(".tXt") },                true},
-    { { FPL("foo.tXt"),                 FPL(".TXT") },                true},
-    { { FPL("foo.tXt"),                 FPL(".tXt") },                true},
+    {{FPL("foo"), FPL("")}, true},
+    {{FPL("foo"), FPL(".")}, false},
+    {{FPL("foo."), FPL("")}, false},
+    {{FPL("foo."), FPL(".")}, true},
+    {{FPL("foo.txt"), FPL(".dll")}, false},
+    {{FPL("foo.txt"), FPL(".txt")}, true},
+    {{FPL("foo.txt.dll"), FPL(".txt")}, false},
+    {{FPL("foo.txt.dll"), FPL(".dll")}, true},
+    {{FPL("foo.tar.gz"), FPL(".gz")}, false},
+    {{FPL("foo.tar.lzma"), FPL(".tar.lzma")}, true},
+    {{FPL("foo.TXT"), FPL(".txt")}, true},
+    {{FPL("foo.txt"), FPL(".TXT")}, true},
+    {{FPL("foo.tXt"), FPL(".txt")}, true},
+    {{FPL("foo.txt"), FPL(".tXt")}, true},
+    {{FPL("foo.tXt"), FPL(".TXT")}, true},
+    {{FPL("foo.tXt"), FPL(".tXt")}, true},
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
-    { { FPL("c:/foo.txt.dll"),          FPL(".txt") },                false},
-    { { FPL("c:/foo.txt"),              FPL(".txt") },                true},
+    {{FPL("c:/foo.txt.dll"), FPL(".txt")}, false},
+    {{FPL("c:/foo.txt"), FPL(".txt")}, true},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
-    { { FPL("c:\\bar\\foo.txt.dll"),    FPL(".txt") },                false},
-    { { FPL("c:\\bar\\foo.txt"),        FPL(".txt") },                true},
+    {{FPL("c:\\bar\\foo.txt.dll"), FPL(".txt")}, false},
+    {{FPL("c:\\bar\\foo.txt"), FPL(".txt")}, true},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-    { { FPL("/bar/foo.txt.dll"),        FPL(".txt") },                false},
-    { { FPL("/bar/foo.txt"),            FPL(".txt") },                true},
-#if defined(OS_WIN) || defined(OS_MACOSX)
+    {{FPL("/bar/foo.txt.dll"), FPL(".txt")}, false},
+    {{FPL("/bar/foo.txt"), FPL(".txt")}, true},
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
     // Umlauts A, O, U: direct comparison, and upper case vs. lower case
-    { { FPL("foo.\u00E4\u00F6\u00FC"),  FPL(".\u00E4\u00F6\u00FC") }, true},
-    { { FPL("foo.\u00C4\u00D6\u00DC"),  FPL(".\u00E4\u00F6\u00FC") }, true},
+    {{FPL("foo.\u00E4\u00F6\u00FC"), FPL(".\u00E4\u00F6\u00FC")}, true},
+    {{FPL("foo.\u00C4\u00D6\u00DC"), FPL(".\u00E4\u00F6\u00FC")}, true},
     // C with circumflex: direct comparison, and upper case vs. lower case
-    { { FPL("foo.\u0109"),              FPL(".\u0109") },             true},
-    { { FPL("foo.\u0108"),              FPL(".\u0109") },             true},
+    {{FPL("foo.\u0109"), FPL(".\u0109")}, true},
+    {{FPL("foo.\u0108"), FPL(".\u0109")}, true},
 #endif
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath path(cases[i].inputs[0]);
     FilePath::StringType ext(cases[i].inputs[1]);
 
@@ -1014,82 +1089,131 @@ TEST_F(FilePathTest, MatchesExtension) {
   }
 }
 
+TEST_F(FilePathTest, MatchesFinalExtension) {
+  const struct BinaryBooleanTestData cases[] = {
+    {{FPL("foo"), FPL("")}, true},
+    {{FPL("foo"), FPL(".")}, false},
+    {{FPL("foo."), FPL("")}, false},
+    {{FPL("foo."), FPL(".")}, true},
+    {{FPL("foo.txt"), FPL(".dll")}, false},
+    {{FPL("foo.txt"), FPL(".txt")}, true},
+    {{FPL("foo.txt.dll"), FPL(".txt")}, false},
+    {{FPL("foo.txt.dll"), FPL(".dll")}, true},
+    {{FPL("foo.tar.gz"), FPL(".gz")}, true},
+    {{FPL("foo.tar.lzma"), FPL(".lzma")}, true},
+    {{FPL("foo.tar.lzma"), FPL(".tar.lzma")}, false},
+    {{FPL("foo.tlzma"), FPL(".tlzma")}, true},
+    {{FPL("foo.TXT"), FPL(".txt")}, true},
+    {{FPL("foo.txt"), FPL(".TXT")}, true},
+    {{FPL("foo.tXt"), FPL(".txt")}, true},
+    {{FPL("foo.txt"), FPL(".tXt")}, true},
+    {{FPL("foo.tXt"), FPL(".TXT")}, true},
+    {{FPL("foo.tXt"), FPL(".tXt")}, true},
+#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+    {{FPL("c:/foo.txt.dll"), FPL(".txt")}, false},
+    {{FPL("c:/foo.txt"), FPL(".txt")}, true},
+#endif  // FILE_PATH_USES_DRIVE_LETTERS
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+    {{FPL("c:\\bar\\foo.txt.dll"), FPL(".txt")}, false},
+    {{FPL("c:\\bar\\foo.txt"), FPL(".txt")}, true},
+#endif  // FILE_PATH_USES_DRIVE_LETTERS
+    {{FPL("/bar/foo.txt.dll"), FPL(".txt")}, false},
+    {{FPL("/bar/foo.txt"), FPL(".txt")}, true},
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
+    // Umlauts A, O, U: direct comparison, and upper case vs. lower case
+    {{FPL("foo.\u00E4\u00F6\u00FC"), FPL(".\u00E4\u00F6\u00FC")}, true},
+    {{FPL("foo.\u00C4\u00D6\u00DC"), FPL(".\u00E4\u00F6\u00FC")}, true},
+    // C with circumflex: direct comparison, and upper case vs. lower case
+    {{FPL("foo.\u0109"), FPL(".\u0109")}, true},
+    {{FPL("foo.\u0108"), FPL(".\u0109")}, true},
+#endif
+  };
+
+  for (size_t i = 0; i < std::size(cases); ++i) {
+    FilePath path(cases[i].inputs[0]);
+    FilePath::StringType ext(cases[i].inputs[1]);
+
+    EXPECT_EQ(cases[i].expected, path.MatchesFinalExtension(ext))
+        << "i: " << i << ", path: " << path.value() << ", ext: " << ext;
+  }
+}
+
 TEST_F(FilePathTest, CompareIgnoreCase) {
   const struct BinaryIntTestData cases[] = {
-    { { FPL("foo"),                          FPL("foo") },                  0},
-    { { FPL("FOO"),                          FPL("foo") },                  0},
-    { { FPL("foo.ext"),                      FPL("foo.ext") },              0},
-    { { FPL("FOO.EXT"),                      FPL("foo.ext") },              0},
-    { { FPL("Foo.Ext"),                      FPL("foo.ext") },              0},
-    { { FPL("foO"),                          FPL("foo") },                  0},
-    { { FPL("foo"),                          FPL("foO") },                  0},
-    { { FPL("fOo"),                          FPL("foo") },                  0},
-    { { FPL("foo"),                          FPL("fOo") },                  0},
-    { { FPL("bar"),                          FPL("foo") },                 -1},
-    { { FPL("foo"),                          FPL("bar") },                  1},
-    { { FPL("BAR"),                          FPL("foo") },                 -1},
-    { { FPL("FOO"),                          FPL("bar") },                  1},
-    { { FPL("bar"),                          FPL("FOO") },                 -1},
-    { { FPL("foo"),                          FPL("BAR") },                  1},
-    { { FPL("BAR"),                          FPL("FOO") },                 -1},
-    { { FPL("FOO"),                          FPL("BAR") },                  1},
+    {{FPL("foo"), FPL("foo")}, 0},
+    {{FPL("FOO"), FPL("foo")}, 0},
+    {{FPL("foo.ext"), FPL("foo.ext")}, 0},
+    {{FPL("FOO.EXT"), FPL("foo.ext")}, 0},
+    {{FPL("Foo.Ext"), FPL("foo.ext")}, 0},
+    {{FPL("foO"), FPL("foo")}, 0},
+    {{FPL("foo"), FPL("foO")}, 0},
+    {{FPL("fOo"), FPL("foo")}, 0},
+    {{FPL("foo"), FPL("fOo")}, 0},
+    {{FPL("bar"), FPL("foo")}, -1},
+    {{FPL("foo"), FPL("bar")}, 1},
+    {{FPL("BAR"), FPL("foo")}, -1},
+    {{FPL("FOO"), FPL("bar")}, 1},
+    {{FPL("bar"), FPL("FOO")}, -1},
+    {{FPL("foo"), FPL("BAR")}, 1},
+    {{FPL("BAR"), FPL("FOO")}, -1},
+    {{FPL("FOO"), FPL("BAR")}, 1},
     // German "Eszett" (lower case and the new-fangled upper case)
     // Note that uc(<lowercase eszett>) => "SS", NOT <uppercase eszett>!
     // However, neither Windows nor Mac OSX converts these.
     // (or even have glyphs for <uppercase eszett>)
-    { { FPL("\u00DF"),                       FPL("\u00DF") },               0},
-#if SB_IS_COMPILER_MSVC
-    { {FPL(u8"\u1E9E"),                      FPL(u8"\u1E9E")},              0},
-    { {FPL("\u00DF"),                        FPL(u8"\u1E9E")},             -1},
-    { {FPL("SS"),                            FPL("\u00DF")},               -1},
-    { {FPL("SS"),                            FPL(u8"\u1E9E")},             -1},
-#else
-    { {FPL("\u1E9E"),                        FPL("\u1E9E")},                0},
-    { {FPL("\u00DF"),                        FPL("\u1E9E")},               -1},
-    { {FPL("SS"),                            FPL("\u00DF")},               -1},
-    { {FPL("SS"),                            FPL("\u1E9E")},               -1},
-#endif
-#if defined(OS_WIN) || defined(OS_MACOSX)
+    {{FPL("\u00DF"), FPL("\u00DF")}, 0},
+    {{FPL("\u1E9E"), FPL("\u1E9E")}, 0},
+    {{FPL("\u00DF"), FPL("\u1E9E")}, -1},
+    {{FPL("SS"), FPL("\u00DF")}, -1},
+    {{FPL("SS"), FPL("\u1E9E")}, -1},
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
     // Umlauts A, O, U: direct comparison, and upper case vs. lower case
-    { { FPL("\u00E4\u00F6\u00FC"),           FPL("\u00E4\u00F6\u00FC") },   0},
-    { { FPL("\u00C4\u00D6\u00DC"),           FPL("\u00E4\u00F6\u00FC") },   0},
+    {{FPL("\u00E4\u00F6\u00FC"), FPL("\u00E4\u00F6\u00FC")}, 0},
+    {{FPL("\u00C4\u00D6\u00DC"), FPL("\u00E4\u00F6\u00FC")}, 0},
     // C with circumflex: direct comparison, and upper case vs. lower case
-    { { FPL("\u0109"),                       FPL("\u0109") },               0},
-    { { FPL("\u0108"),                       FPL("\u0109") },               0},
+    {{FPL("\u0109"), FPL("\u0109")}, 0},
+    {{FPL("\u0108"), FPL("\u0109")}, 0},
     // Cyrillic letter SHA: direct comparison, and upper case vs. lower case
-    { { FPL("\u0428"),                       FPL("\u0428") },               0},
-    { { FPL("\u0428"),                       FPL("\u0448") },               0},
+    {{FPL("\u0428"), FPL("\u0428")}, 0},
+    {{FPL("\u0428"), FPL("\u0448")}, 0},
     // Greek letter DELTA: direct comparison, and upper case vs. lower case
-    { { FPL("\u0394"),                       FPL("\u0394") },               0},
-    { { FPL("\u0394"),                       FPL("\u03B4") },               0},
+    {{FPL("\u0394"), FPL("\u0394")}, 0},
+    {{FPL("\u0394"), FPL("\u03B4")}, 0},
     // Japanese full-width A: direct comparison, and upper case vs. lower case
     // Note that full-width and standard characters are considered different.
-    { { FPL("\uFF21"),                       FPL("\uFF21") },               0},
-    { { FPL("\uFF21"),                       FPL("\uFF41") },               0},
-    { { FPL("A"),                            FPL("\uFF21") },              -1},
-    { { FPL("A"),                            FPL("\uFF41") },              -1},
-    { { FPL("a"),                            FPL("\uFF21") },              -1},
-    { { FPL("a"),                            FPL("\uFF41") },              -1},
+    {{FPL("\uFF21"), FPL("\uFF21")}, 0},
+    {{FPL("\uFF21"), FPL("\uFF41")}, 0},
+    {{FPL("A"), FPL("\uFF21")}, -1},
+    {{FPL("A"), FPL("\uFF41")}, -1},
+    {{FPL("a"), FPL("\uFF21")}, -1},
+    {{FPL("a"), FPL("\uFF41")}, -1},
 #endif
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
     // Codepoints > 0x1000
     // Georgian letter DON: direct comparison, and upper case vs. lower case
-    { { FPL("\u10A3"),                       FPL("\u10A3") },               0},
-    { { FPL("\u10A3"),                       FPL("\u10D3") },               0},
+    {{FPL("\u10A3"), FPL("\u10A3")}, 0},
+    {{FPL("\u10A3"), FPL("\u10D3")}, 0},
     // Combining characters vs. pre-composed characters, upper and lower case
-    { { FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("\u1E31\u1E77\u1E53n") },  0},
-    { { FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("kuon") },                 1},
-    { { FPL("kuon"), FPL("k\u0301u\u032Do\u0304\u0301n") },                -1},
-    { { FPL("K\u0301U\u032DO\u0304\u0301N"), FPL("KUON") },                 1},
-    { { FPL("KUON"), FPL("K\u0301U\u032DO\u0304\u0301N") },                -1},
-    { { FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("KUON") },                 1},
-    { { FPL("K\u0301U\u032DO\u0304\u0301N"), FPL("\u1E31\u1E77\u1E53n") },  0},
-    { { FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("\u1E30\u1E76\u1E52n") },  0},
-    { { FPL("k\u0301u\u032Do\u0304\u0302n"), FPL("\u1E30\u1E76\u1E52n") },  1},
+    {{FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("\u1E31\u1E77\u1E53n")}, 0},
+    {{FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("kuon")}, 1},
+    {{FPL("kuon"), FPL("k\u0301u\u032Do\u0304\u0301n")}, -1},
+    {{FPL("K\u0301U\u032DO\u0304\u0301N"), FPL("KUON")}, 1},
+    {{FPL("KUON"), FPL("K\u0301U\u032DO\u0304\u0301N")}, -1},
+    {{FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("KUON")}, 1},
+    {{FPL("K\u0301U\u032DO\u0304\u0301N"), FPL("\u1E31\u1E77\u1E53n")}, 0},
+    {{FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("\u1E30\u1E76\u1E52n")}, 0},
+    {{FPL("k\u0301u\u032Do\u0304\u0302n"), FPL("\u1E30\u1E76\u1E52n")}, 1},
+
+    // Codepoints > 0xFFFF
+    // Here, we compare the `Adlam Letter Shu` in its capital and small version.
+    {{FPL("\U0001E921"), FPL("\U0001E943")}, -1},
+    {{FPL("\U0001E943"), FPL("\U0001E921")}, 1},
+    {{FPL("\U0001E921"), FPL("\U0001E921")}, 0},
+    {{FPL("\U0001E943"), FPL("\U0001E943")}, 0},
 #endif
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath::StringType s1(cases[i].inputs[0]);
     FilePath::StringType s2(cases[i].inputs[1]);
     int result = FilePath::CompareIgnoreCase(s1, s2);
@@ -1124,7 +1248,7 @@ TEST_F(FilePathTest, ReferencesParent) {
     { FPL("a/b/c"),    false },
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);
     bool observed = input.ReferencesParent();
     EXPECT_EQ(cases[i].expected, observed) <<
@@ -1132,22 +1256,35 @@ TEST_F(FilePathTest, ReferencesParent) {
   }
 }
 
-TEST_F(FilePathTest, FromUTF8Unsafe_And_AsUTF8Unsafe) {
+TEST_F(FilePathTest, FromASCII) {
   const struct UTF8TestData cases[] = {
-    {FPL("foo.txt"), "foo.txt"},
-#if !defined(STARBOARD)
-    // "aeo" with accents. Use http://0xcc.net/jsescape/ to decode them.
-    {FPL("\u00E0\u00E8\u00F2.txt"), "\xC3\xA0\xC3\xA8\xC3\xB2.txt"},
-    // Full-width "ABC".
-    {FPL("\uFF21\uFF22\uFF23.txt"), "\xEF\xBC\xA1\xEF\xBC\xA2\xEF\xBC\xA3.txt"},
-#endif
+      {FPL("foo.txt"), "foo.txt"},
+      {FPL("!#$%&'()"), "!#$%&'()"},
   };
 
-#if !defined(SYSTEM_NATIVE_UTF8) && defined(OS_LINUX)
+  for (size_t i = 0; i < std::size(cases); ++i) {
+    FilePath from_ascii = FilePath::FromASCII(cases[i].utf8);
+    EXPECT_EQ(FilePath::StringType(cases[i].native), from_ascii.value())
+        << "i: " << i << ", input: " << cases[i].utf8;
+  }
+}
+
+TEST_F(FilePathTest, FromUTF8Unsafe_And_AsUTF8Unsafe) {
+  const struct UTF8TestData cases[] = {
+    { FPL("foo.txt"), "foo.txt" },
+    // "aeo" with accents. Use http://0xcc.net/jsescape/ to decode them.
+    { FPL("\u00E0\u00E8\u00F2.txt"), "\xC3\xA0\xC3\xA8\xC3\xB2.txt" },
+    // Full-width "ABC".
+    { FPL("\uFF21\uFF22\uFF23.txt"),
+      "\xEF\xBC\xA1\xEF\xBC\xA2\xEF\xBC\xA3.txt" },
+  };
+
+#if !defined(SYSTEM_NATIVE_UTF8) && \
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
   ScopedLocale locale("en_US.UTF-8");
 #endif
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     // Test FromUTF8Unsafe() works.
     FilePath from_utf8 = FilePath::FromUTF8Unsafe(cases[i].utf8);
     EXPECT_EQ(cases[i].native, from_utf8.value())
@@ -1183,6 +1320,18 @@ TEST_F(FilePathTest, AppendWithNUL) {
   EXPECT_EQ(FPL("a\\b"), path.value());
 #else
   EXPECT_EQ(FPL("a/b"), path.value());
+#endif
+}
+
+TEST_F(FilePathTest, AppendBaseName) {
+  FilePath dir(FPL("foo"));
+  auto file(SafeBaseName::Create(FPL("bar.txt")));
+  EXPECT_TRUE(file);
+
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+  EXPECT_EQ(dir.Append(*file), FilePath(FPL("foo\\bar.txt")));
+#else
+  EXPECT_EQ(dir.Append(*file), FilePath(FPL("foo/bar.txt")));
 #endif
 }
 
@@ -1230,7 +1379,7 @@ TEST_F(FilePathTest, NormalizePathSeparators) {
     { FPL("foo/\\bar/\\"), FPL("foo\\\\bar\\\\") },
     { FPL("/\\foo\\/bar"), FPL("\\\\foo\\\\bar") },
   };
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);
     FilePath observed = input.NormalizePathSeparators();
     EXPECT_EQ(FilePath::StringType(cases[i].expected), observed.value()) <<
@@ -1247,9 +1396,9 @@ TEST_F(FilePathTest, EndsWithSeparator) {
     { FPL("bar"), false },
     { FPL("/foo/bar"), false },
   };
-  for (size_t i = 0; i < arraysize(cases); ++i) {
-    FilePath input = FilePath(cases[i].input).NormalizePathSeparators();
-    EXPECT_EQ(cases[i].expected, input.EndsWithSeparator());
+  for (const auto& i : cases) {
+    FilePath input = FilePath(i.input).NormalizePathSeparators();
+    EXPECT_EQ(i.expected, input.EndsWithSeparator());
   }
 }
 
@@ -1260,14 +1409,14 @@ TEST_F(FilePathTest, AsEndingWithSeparator) {
     { FPL("foo"), FPL("foo/") },
     { FPL("foo/"), FPL("foo/") }
   };
-  for (size_t i = 0; i < arraysize(cases); ++i) {
-    FilePath input = FilePath(cases[i].input).NormalizePathSeparators();
-    FilePath expected = FilePath(cases[i].expected).NormalizePathSeparators();
+  for (const auto& i : cases) {
+    FilePath input = FilePath(i.input).NormalizePathSeparators();
+    FilePath expected = FilePath(i.expected).NormalizePathSeparators();
     EXPECT_EQ(expected.value(), input.AsEndingWithSeparator().value());
   }
 }
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 TEST_F(FilePathTest, ContentUriTest) {
   const struct UnaryBooleanTestData cases[] = {
     { FPL("content://foo.bar"),    true },
@@ -1287,7 +1436,7 @@ TEST_F(FilePathTest, ContentUriTest) {
     { FPL("content%2a%2f%2f"),     false },
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);
     bool observed = input.IsContentUri();
     EXPECT_EQ(cases[i].expected, observed) <<
@@ -1304,9 +1453,15 @@ TEST_F(FilePathTest, PrintToOstream) {
   EXPECT_EQ("foo", ss.str());
 }
 
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+TEST_F(FilePathTest, TracedValueSupport) {
+  EXPECT_EQ(perfetto::TracedValueToString(FilePath(FPL("foo"))), "foo");
+}
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+
 // Test GetHFSDecomposedForm should return empty result for invalid UTF-8
 // strings.
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
 TEST_F(FilePathTest, GetHFSDecomposedFormWithInvalidInput) {
   const FilePath::CharType* cases[] = {
     FPL("\xc3\x28"),
@@ -1319,6 +1474,17 @@ TEST_F(FilePathTest, GetHFSDecomposedFormWithInvalidInput) {
     FilePath::StringType observed = FilePath::GetHFSDecomposedForm(
         invalid_input);
     EXPECT_TRUE(observed.empty());
+  }
+}
+
+TEST_F(FilePathTest, CompareIgnoreCaseWithInvalidInput) {
+  const FilePath::CharType* cases[] = {
+      FPL("\xc3\x28"),         FPL("\xe2\x82\x28"),     FPL("\xe2\x28\xa1"),
+      FPL("\xf0\x28\x8c\xbc"), FPL("\xf0\x28\x8c\x28"),
+  };
+  for (auto* invalid_input : cases) {
+    // All example inputs will be greater than the string "fixed".
+    EXPECT_EQ(FilePath::CompareIgnoreCase(invalid_input, FPL("fixed")), 1);
   }
 }
 #endif

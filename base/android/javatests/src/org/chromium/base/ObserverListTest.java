@@ -1,10 +1,10 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import android.support.test.filters.SmallTest;
+import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -158,9 +158,9 @@ public class ObserverListTest {
 
         Iterator<Integer> it = observerList.iterator();
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(5 == it.next());
+        Assert.assertEquals(5, (int) it.next());
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(15 == it.next());
+        Assert.assertEquals(15, (int) it.next());
         Assert.assertFalse(it.hasNext());
 
         boolean removeExceptionThrown = false;
@@ -195,21 +195,21 @@ public class ObserverListTest {
 
         ObserverList.RewindableIterator<Integer> it = observerList.rewindableIterator();
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(5 == it.next());
+        Assert.assertEquals(5, (int) it.next());
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(10 == it.next());
+        Assert.assertEquals(10, (int) it.next());
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(15 == it.next());
+        Assert.assertEquals(15, (int) it.next());
         Assert.assertFalse(it.hasNext());
 
         it.rewind();
 
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(5 == it.next());
+        Assert.assertEquals(5, (int) it.next());
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(10 == it.next());
+        Assert.assertEquals(10, (int) it.next());
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(15 == it.next());
+        Assert.assertEquals(15, (int) it.next());
         Assert.assertEquals(5, (int) observerList.mObservers.get(0));
         observerList.removeObserver(5);
         Assert.assertEquals(null, observerList.mObservers.get(0));
@@ -218,9 +218,9 @@ public class ObserverListTest {
 
         Assert.assertEquals(10, (int) observerList.mObservers.get(0));
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(10 == it.next());
+        Assert.assertEquals(10, (int) it.next());
         Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(15 == it.next());
+        Assert.assertEquals(15, (int) it.next());
     }
 
     @Test

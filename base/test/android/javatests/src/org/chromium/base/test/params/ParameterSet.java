@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@ package org.chromium.base.test.params;
 import org.junit.Assert;
 
 import java.io.File;
-import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -79,8 +78,8 @@ public class ParameterSet {
                     throw new IllegalArgumentException("Type \"%s\" is not supported in"
                             + " parameterized testing at this time. Accepted types include"
                             + " all primitive types along with "
-                            + Arrays.toString(ACCEPTABLE_TYPES.toArray(
-                                      new String[ACCEPTABLE_TYPES.size()])));
+                            + Arrays.toString(
+                                    ACCEPTABLE_TYPES.toArray(new Class[ACCEPTABLE_TYPES.size()])));
                 }
             }
         }
@@ -121,7 +120,6 @@ public class ParameterSet {
         ret.add(Long.class);
         ret.add(Short.class);
         ret.add(String.class);
-        ret.add(URI.class);
         ret.add(URL.class);
         ret.add(Void.class);
         return ret;

@@ -31,9 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "starboard/memory.h"
-#include "starboard/types.h"
-
 /**
  * xdg_user_dir_lookup_with_fallback:
  * @type: a string specifying the type of directory
@@ -47,7 +44,7 @@
  * type the value returned is @fallback.
  *
  * The return value is newly allocated and must be freed with
- * SbMemoryDeallocate(). The return value is never NULL if @fallback != NULL, unless
+ * free(). The return value is never NULL if @fallback != NULL, unless
  * out of memory.
  **/
 static char *
@@ -190,7 +187,7 @@ error2:
  * to ~/Desktop.
  *
  * The return value is newly allocated and must be freed with
- * SbMemoryDeallocate().
+ * free().
  **/
 char *
 xdg_user_dir_lookup (const char *type)

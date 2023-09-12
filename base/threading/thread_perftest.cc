@@ -1,30 +1,30 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include <stddef.h>
 
 #include <memory>
 #include <vector>
 
-#include "starboard/types.h"
-
 #include "base/base_switches.h"
-#include "base/bind.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
-#include "base/single_thread_task_runner.h"
-#include "base/strings/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/current_thread.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/task_observer.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "testing/perf/perf_test.h"
+#include "testing/perf/perf_result_reporter.h"
 
-#if defined(OS_POSIX)
+#if BUILDFLAG(IS_POSIX)
 #include <pthread.h>
 #endif
 
@@ -33,6 +33,27 @@ namespace base {
 namespace {
 
 const int kNumRuns = 100000;
+
+constexpr char kMetricPrefixThread[] = "Thread.";
+constexpr char kMetricClockTimePerHop[] = "wall_time_per_hop";
+constexpr char kMetricCpuTimePerHop[] = "cpu_time_per_hop";
+constexpr char kStoryBaseTask[] = "task";
+constexpr char kStoryBaseTaskWithObserver[] = "task_with_observer";
+constexpr char kStoryBaseWaitableEvent[] = "waitable_event";
+constexpr char kStoryBaseCondVar[] = "condition_variable";
+constexpr char kStorySuffixOneThread[] = "_1_thread";
+constexpr char kStorySuffixFourThreads[] = "_4_threads";
+
+#if BUILDFLAG(IS_POSIX)
+constexpr char kStoryBasePthreadCondVar[] = "pthread_condition_variable";
+#endif  // BUILDFLAG(IS_POSIX)
+
+perf_test::PerfResultReporter SetUpReporter(const std::string& story_name) {
+  perf_test::PerfResultReporter reporter(kMetricPrefixThread, story_name);
+  reporter.RegisterImportantMetric(kMetricClockTimePerHop, "us");
+  reporter.RegisterImportantMetric(kMetricCpuTimePerHop, "us");
+  return reporter;
+}
 
 // Base class for a threading perf-test. This sets up some threads for the
 // test and measures the clock-time in addition to time spent on each thread.
@@ -68,7 +89,7 @@ class ThreadPerfTest : public testing::Test {
     return ticks;
   }
 
-  void RunPingPongTest(const std::string& name, unsigned num_threads) {
+  void RunPingPongTest(const std::string& story_name, unsigned num_threads) {
     // Create threads and collect starting cpu-time for each thread.
     std::vector<base::ThreadTicks> thread_starts;
     while (threads_.size() < num_threads) {
@@ -98,18 +119,16 @@ class ThreadPerfTest : public testing::Test {
 
     Reset();
 
-    double num_runs = static_cast<double>(kNumRuns);
-    double us_per_task_clock = (end - start).InMicroseconds() / num_runs;
-    double us_per_task_cpu = thread_time.InMicroseconds() / num_runs;
+    double us_per_task_clock = (end - start).InMicrosecondsF() / kNumRuns;
+    double us_per_task_cpu = thread_time.InMicrosecondsF() / kNumRuns;
 
+    auto reporter = SetUpReporter(story_name);
     // Clock time per task.
-    perf_test::PrintResult(
-        "task", "", name + "_time ", us_per_task_clock, "us/hop", true);
+    reporter.AddResult(kMetricClockTimePerHop, us_per_task_clock);
 
     // Total utilization across threads if available (likely higher).
     if (base::ThreadTicks::IsSupported()) {
-      perf_test::PrintResult(
-          "task", "", name + "_cpu ", us_per_task_cpu, "us/hop", true);
+      reporter.AddResult(kMetricCpuTimePerHop, us_per_task_cpu);
     }
   }
 
@@ -144,15 +163,16 @@ class TaskPerfTest : public ThreadPerfTest {
 // used to ensure the threads do yeild (with just two it might be possible for
 // both threads to stay awake if they can signal each other fast enough).
 TEST_F(TaskPerfTest, TaskPingPong) {
-  RunPingPongTest("1_Task_Threads", 1);
-  RunPingPongTest("4_Task_Threads", 4);
+  RunPingPongTest(std::string(kStoryBaseTask) + kStorySuffixOneThread, 1);
+  RunPingPongTest(std::string(kStoryBaseTask) + kStorySuffixFourThreads, 4);
 }
 
 
 // Same as above, but add observers to test their perf impact.
-class MessageLoopObserver : public base::MessageLoop::TaskObserver {
+class MessageLoopObserver : public base::TaskObserver {
  public:
-  void WillProcessTask(const base::PendingTask& pending_task) override {}
+  void WillProcessTask(const base::PendingTask& pending_task,
+                       bool was_blocked_or_low_priority) override {}
   void DidProcessTask(const base::PendingTask& pending_task) override {}
 };
 MessageLoopObserver message_loop_observer;
@@ -161,18 +181,22 @@ class TaskObserverPerfTest : public TaskPerfTest {
  public:
   void Init() override {
     TaskPerfTest::Init();
-    for (size_t i = 0; i < threads_.size(); i++) {
-      threads_[i]->message_loop()->task_runner()->PostTask(
-          FROM_HERE, BindOnce(&MessageLoop::AddTaskObserver,
-                              Unretained(threads_[i]->message_loop()),
-                              Unretained(&message_loop_observer)));
+    for (auto& i : threads_) {
+      i->task_runner()->PostTask(
+          FROM_HERE, BindOnce(
+                         [](MessageLoopObserver* observer) {
+                           CurrentThread::Get()->AddTaskObserver(observer);
+                         },
+                         Unretained(&message_loop_observer)));
     }
   }
 };
 
 TEST_F(TaskObserverPerfTest, TaskPingPong) {
-  RunPingPongTest("1_Task_Threads_With_Observer", 1);
-  RunPingPongTest("4_Task_Threads_With_Observer", 4);
+  RunPingPongTest(
+      std::string(kStoryBaseTaskWithObserver) + kStorySuffixOneThread, 1);
+  RunPingPongTest(
+      std::string(kStoryBaseTaskWithObserver) + kStorySuffixFourThreads, 4);
 }
 
 // Class to test our WaitableEvent performance by signaling back and fort.
@@ -226,7 +250,8 @@ class EventPerfTest : public ThreadPerfTest {
 // end up blocking because the event is already signalled).
 typedef EventPerfTest<base::WaitableEvent> WaitableEventThreadPerfTest;
 TEST_F(WaitableEventThreadPerfTest, EventPingPong) {
-  RunPingPongTest("4_WaitableEvent_Threads", 4);
+  RunPingPongTest(
+      std::string(kStoryBaseWaitableEvent) + kStorySuffixFourThreads, 4);
 }
 
 // Build a minimal event using ConditionVariable.
@@ -264,9 +289,9 @@ class ConditionVariableEvent {
 // using our own base synchronization code.
 typedef EventPerfTest<ConditionVariableEvent> ConditionVariablePerfTest;
 TEST_F(ConditionVariablePerfTest, EventPingPong) {
-  RunPingPongTest("4_ConditionVariable_Threads", 4);
+  RunPingPongTest(std::string(kStoryBaseCondVar) + kStorySuffixFourThreads, 4);
 }
-#if defined(OS_POSIX)
+#if BUILDFLAG(IS_POSIX)
 
 // Absolutely 100% minimal posix waitable event. If there is a better/faster
 // way to force a context switch, we should use that instead.
@@ -311,7 +336,8 @@ class PthreadEvent {
 // If there is any faster way to do this we should substitute it in.
 typedef EventPerfTest<PthreadEvent> PthreadEventPerfTest;
 TEST_F(PthreadEventPerfTest, EventPingPong) {
-  RunPingPongTest("4_PthreadCondVar_Threads", 4);
+  RunPingPongTest(
+      std::string(kStoryBasePthreadCondVar) + kStorySuffixFourThreads, 4);
 }
 
 #endif

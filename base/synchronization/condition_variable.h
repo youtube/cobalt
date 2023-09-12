@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -58,30 +58,23 @@
 // thread that has Wait()ed the longest is selected. The default policy
 // may improve performance, as the selected thread may have a greater chance of
 // having some of its stack data in various CPU caches.
-//
-// For a discussion of the many very subtle implementation details, see the FAQ
-// at the end of condition_variable_win.cc.
 
 #ifndef BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
 #define BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <pthread.h>
 #endif
 
 #include "base/base_export.h"
-#include "base/logging.h"
-#include "base/macros.h"
 #include "base/synchronization/lock.h"
-#include "build/build_config.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
-#include "starboard/types.h"
-#endif
-
-#if defined(STARBOARD)
-#include "starboard/condition_variable.h"
 #endif
 
 namespace base {
@@ -93,13 +86,16 @@ class BASE_EXPORT ConditionVariable {
   // Construct a cv for use with ONLY one user lock.
   explicit ConditionVariable(Lock* user_lock);
 
+  ConditionVariable(const ConditionVariable&) = delete;
+  ConditionVariable& operator=(const ConditionVariable&) = delete;
+
   ~ConditionVariable();
 
   // Wait() releases the caller's critical section atomically as it starts to
   // sleep, and the reacquires it when it is signaled. The wait functions are
   // susceptible to spurious wakeups. (See usage note 1 for more details.)
-  void Wait();
-  void TimedWait(const TimeDelta& max_time);
+  NOT_TAIL_CALLED void Wait();
+  NOT_TAIL_CALLED void TimedWait(const TimeDelta& max_time);
 
   // Broadcast() revives all waiting threads. (See usage note 2 for more
   // details.)
@@ -107,25 +103,33 @@ class BASE_EXPORT ConditionVariable {
   // Signal() revives one waiting thread.
   void Signal();
 
+  // Declares that this ConditionVariable will only ever be used by a thread
+  // that is idle at the bottom of its stack and waiting for work (in
+  // particular, it is not synchronously waiting on this ConditionVariable
+  // before resuming ongoing work). This is useful to avoid telling
+  // base-internals that this thread is "blocked" when it's merely idle and
+  // ready to do work. As such, this is only expected to be used by thread and
+  // thread pool impls.
+  void declare_only_used_while_idle() { waiting_is_blocking_ = false; }
+
  private:
-#if defined(STARBOARD)
-  SbConditionVariable condition_;
-  SbMutex* user_mutex_;
-#else
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   CHROME_CONDITION_VARIABLE cv_;
-  CHROME_SRWLOCK* const srwlock_;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+  const raw_ptr<CHROME_SRWLOCK> srwlock_;
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   pthread_cond_t condition_;
-  pthread_mutex_t* user_mutex_;
-#endif
+  raw_ptr<pthread_mutex_t> user_mutex_;
 #endif
 
 #if DCHECK_IS_ON()
-  base::Lock* const user_lock_;  // Needed to adjust shadow lock state on wait.
+  const raw_ptr<base::Lock>
+      user_lock_;  // Needed to adjust shadow lock state on wait.
 #endif
 
-  DISALLOW_COPY_AND_ASSIGN(ConditionVariable);
+  // Whether a thread invoking Wait() on this ConditionalVariable should be
+  // considered blocked as opposed to idle (and potentially replaced if part of
+  // a pool).
+  bool waiting_is_blocking_ = true;
 };
 
 }  // namespace base

@@ -1,14 +1,13 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base.test.util;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 
 import org.junit.runner.Description;
-
-import org.chromium.base.VisibleForTesting;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -192,7 +191,7 @@ public abstract class AnnotationProcessingUtils {
      * Abstraction to hide differences between Class, Method and Description with regards to their
      * annotations and what should be analyzed next.
      */
-    private static abstract class AnnotatedNode {
+    private abstract static class AnnotatedNode {
         @Nullable
         abstract AnnotatedNode getParent();
 

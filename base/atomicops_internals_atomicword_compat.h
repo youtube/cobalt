@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,9 @@
 #ifndef BASE_ATOMICOPS_INTERNALS_ATOMICWORD_COMPAT_H_
 #define BASE_ATOMICOPS_INTERNALS_ATOMICWORD_COMPAT_H_
 
+#include <stdint.h>
+
 #include "build/build_config.h"
-#include "starboard/types.h"
 
 // AtomicWord is a synonym for intptr_t, and Atomic32 is a synonym for int32_t,
 // which in turn means int. On some LP32 platforms, intptr_t is an int, but
@@ -70,11 +71,6 @@ inline void NoBarrier_Store(volatile AtomicWord *ptr, AtomicWord value) {
       reinterpret_cast<volatile Atomic32*>(ptr), value);
 }
 
-inline void Acquire_Store(volatile AtomicWord* ptr, AtomicWord value) {
-  return base::subtle::Acquire_Store(
-      reinterpret_cast<volatile Atomic32*>(ptr), value);
-}
-
 inline void Release_Store(volatile AtomicWord* ptr, AtomicWord value) {
   return base::subtle::Release_Store(
       reinterpret_cast<volatile Atomic32*>(ptr), value);
@@ -87,11 +83,6 @@ inline AtomicWord NoBarrier_Load(volatile const AtomicWord *ptr) {
 
 inline AtomicWord Acquire_Load(volatile const AtomicWord* ptr) {
   return base::subtle::Acquire_Load(
-      reinterpret_cast<volatile const Atomic32*>(ptr));
-}
-
-inline AtomicWord Release_Load(volatile const AtomicWord* ptr) {
-  return base::subtle::Release_Load(
       reinterpret_cast<volatile const Atomic32*>(ptr));
 }
 

@@ -1,15 +1,14 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/synchronization/lock_impl.h"
 
+#include <ostream>
 #include <string>
 
-#include "base/debug/activity_tracker.h"
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/posix/safe_strerror.h"
-#include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/synchronization_buildflags.h"
 #include "build/build_config.h"
@@ -41,6 +40,18 @@ std::string SystemErrorCodeToString(int error_code) {
 
 }  // namespace
 
+#if DCHECK_IS_ON()
+// These are out-of-line so that the .h file doesn't have to include ostream.
+void dcheck_trylock_result(int rv) {
+  DCHECK(rv == 0 || rv == EBUSY)
+      << ". " << base::internal::SystemErrorCodeToString(rv);
+}
+
+void dcheck_unlock_result(int rv) {
+  DCHECK_EQ(rv, 0) << ". " << strerror(rv);
+}
+#endif
+
 // Determines which platforms can consider using priority inheritance locks. Use
 // this define for platform code that may not compile if priority inheritance
 // locks aren't available. For this platform code,
@@ -48,7 +59,7 @@ std::string SystemErrorCodeToString(int error_code) {
 // Lock::PriorityInheritanceAvailable still must be checked as the code may
 // compile but the underlying platform still may not correctly support priority
 // inheritance locks.
-#if defined(OS_NACL) || defined(OS_ANDROID) || defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
 #define PRIORITY_INHERITANCE_LOCKS_POSSIBLE() 0
 #else
 #define PRIORITY_INHERITANCE_LOCKS_POSSIBLE() 1
@@ -80,25 +91,7 @@ LockImpl::~LockImpl() {
   DCHECK_EQ(rv, 0) << ". " << SystemErrorCodeToString(rv);
 }
 
-bool LockImpl::Try() {
-  int rv = pthread_mutex_trylock(&native_handle_);
-  DCHECK(rv == 0 || rv == EBUSY) << ". " << SystemErrorCodeToString(rv);
-  return rv == 0;
-}
-
-void LockImpl::Lock() {
-  // The ScopedLockAcquireActivity below is relatively expensive and so its
-  // actions can become significant due to the very large number of locks
-  // that tend to be used throughout the build. To avoid this cost in the
-  // vast majority of the calls, simply "try" the lock first and only do the
-  // (tracked) blocking call if that fails. Since "try" itself is a system
-  // call, and thus also somewhat expensive, don't bother with it unless
-  // tracking is actually enabled.
-  if (base::debug::GlobalActivityTracker::IsEnabled())
-    if (Try())
-      return;
-
-  base::debug::ScopedLockAcquireActivity lock_activity(this);
+void LockImpl::LockInternal() {
   int rv = pthread_mutex_lock(&native_handle_);
   DCHECK_EQ(rv, 0) << ". " << SystemErrorCodeToString(rv);
 }
@@ -107,7 +100,7 @@ void LockImpl::Lock() {
 bool LockImpl::PriorityInheritanceAvailable() {
 #if BUILDFLAG(ENABLE_MUTEX_PRIORITY_INHERITANCE)
   return true;
-#elif PRIORITY_INHERITANCE_LOCKS_POSSIBLE() && defined(OS_MACOSX)
+#elif PRIORITY_INHERITANCE_LOCKS_POSSIBLE() && BUILDFLAG(IS_APPLE)
   return true;
 #else
   // Security concerns prevent the use of priority inheritance mutexes on Linux.

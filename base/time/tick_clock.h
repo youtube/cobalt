@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,11 @@ namespace base {
 // A TickClock is an interface for objects that vend TimeTicks.  It is
 // intended to be able to test the behavior of classes with respect to
 // non-decreasing time.
+//
+// Note: Overriding Time/TimeTicks altogether via
+// TaskEnvironment::TimeSource::MOCK_TIME is now the preferred way of overriding
+// time in unit tests. As such, there shouldn't be many new use cases for
+// TickClock/DefaultTickClock anymore.
 //
 // See DefaultTickClock (base/time/default_tick_clock.h) for the default
 // implementation that simply uses TimeTicks::Now().

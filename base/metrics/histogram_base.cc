@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,14 +10,15 @@
 #include <set>
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/json/json_string_value_serializer.h"
-#include "base/lazy_instance.h"
-#include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/pickle.h"
 #include "base/process/process_handle.h"
@@ -25,7 +26,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/values.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -69,6 +69,19 @@ HistogramBase* DeserializeHistogramInfo(PickleIterator* iter) {
   }
 }
 
+HistogramBase::CountAndBucketData::CountAndBucketData(Count count,
+                                                      int64_t sum,
+                                                      Value::List buckets)
+    : count(count), sum(sum), buckets(std::move(buckets)) {}
+
+HistogramBase::CountAndBucketData::~CountAndBucketData() = default;
+
+HistogramBase::CountAndBucketData::CountAndBucketData(
+    CountAndBucketData&& other) = default;
+
+HistogramBase::CountAndBucketData& HistogramBase::CountAndBucketData::operator=(
+    CountAndBucketData&& other) = default;
+
 const HistogramBase::Sample HistogramBase::kSampleType_MAX = INT_MAX;
 
 HistogramBase::HistogramBase(const char* name)
@@ -77,30 +90,36 @@ HistogramBase::HistogramBase(const char* name)
 HistogramBase::~HistogramBase() = default;
 
 void HistogramBase::CheckName(const StringPiece& name) const {
-  DCHECK_EQ(StringPiece(histogram_name()), name);
+  DCHECK_EQ(StringPiece(histogram_name()), name)
+      << "Provided histogram name doesn't match instance name. Are you using a "
+         "dynamic string in a macro?";
 }
 
 void HistogramBase::SetFlags(int32_t flags) {
-  HistogramBase::Count old_flags = subtle::NoBarrier_Load(&flags_);
-  subtle::NoBarrier_Store(&flags_, old_flags | flags);
+  flags_.fetch_or(flags, std::memory_order_relaxed);
 }
 
 void HistogramBase::ClearFlags(int32_t flags) {
-  HistogramBase::Count old_flags = subtle::NoBarrier_Load(&flags_);
-  subtle::NoBarrier_Store(&flags_, old_flags & ~flags);
+  flags_.fetch_and(~flags, std::memory_order_relaxed);
+}
+
+bool HistogramBase::HasFlags(int32_t flags) const {
+  // Check this->flags() is a superset of |flags|, i.e. every flag in |flags| is
+  // included.
+  return (this->flags() & flags) == flags;
 }
 
 void HistogramBase::AddScaled(Sample value, int count, int scale) {
-  DCHECK_LT(0, scale);
+  DCHECK_GT(scale, 0);
 
   // Convert raw count and probabilistically round up/down if the remainder
   // is more than a random number [0, scale). This gives a more accurate
   // count when there are a large number of records. RandInt is "inclusive",
   // hence the -1 for the max value.
-  int64_t count_scaled = count / scale;
+  int count_scaled = count / scale;
   if (count - (count_scaled * scale) > base::RandInt(0, scale - 1))
-    count_scaled += 1;
-  if (count_scaled == 0)
+    ++count_scaled;
+  if (count_scaled <= 0)
     return;
 
   AddCount(value, count_scaled);
@@ -144,43 +163,68 @@ void HistogramBase::ValidateHistogramContents() const {}
 
 void HistogramBase::WriteJSON(std::string* output,
                               JSONVerbosityLevel verbosity_level) const {
-  Count count;
-  int64_t sum;
-  std::unique_ptr<ListValue> buckets(new ListValue());
-  GetCountAndBucketData(&count, &sum, buckets.get());
-  std::unique_ptr<DictionaryValue> parameters(new DictionaryValue());
-  GetParameters(parameters.get());
+  CountAndBucketData count_and_bucket_data = GetCountAndBucketData();
+  Value::Dict parameters = GetParameters();
 
   JSONStringValueSerializer serializer(output);
-  DictionaryValue root;
-  root.SetString("name", histogram_name());
-  root.SetInteger("count", count);
-  root.SetDouble("sum", static_cast<double>(sum));
-  root.SetInteger("flags", flags());
+  Value::Dict root;
+  root.Set("name", histogram_name());
+  root.Set("count", count_and_bucket_data.count);
+  root.Set("sum", static_cast<double>(count_and_bucket_data.sum));
+  root.Set("flags", flags());
   root.Set("params", std::move(parameters));
   if (verbosity_level != JSON_VERBOSITY_LEVEL_OMIT_BUCKETS)
-    root.Set("buckets", std::move(buckets));
-  root.SetInteger("pid", GetUniqueIdForProcess());
+    root.Set("buckets", std::move(count_and_bucket_data.buckets));
+  root.Set("pid", static_cast<int>(GetUniqueIdForProcess().GetUnsafeValue()));
   serializer.Serialize(root);
 }
 
-void HistogramBase::FindAndRunCallback(HistogramBase::Sample sample) const {
-  if ((flags() & kCallbackExists) == 0)
-    return;
+void HistogramBase::FindAndRunCallbacks(HistogramBase::Sample sample) const {
+  StatisticsRecorder::GlobalSampleCallback global_sample_callback =
+      StatisticsRecorder::global_sample_callback();
+  if (global_sample_callback)
+    global_sample_callback(histogram_name(), name_hash(), sample);
 
-  StatisticsRecorder::OnSampleCallback cb =
-      StatisticsRecorder::FindCallback(histogram_name());
-  if (!cb.is_null())
-    cb.Run(sample);
+  // We check the flag first since it is very cheap and we can avoid the
+  // function call and lock overhead of FindAndRunHistogramCallbacks().
+  if (!HasFlags(kCallbackExists)) {
+    return;
+  }
+
+  StatisticsRecorder::FindAndRunHistogramCallbacks(
+      base::PassKey<HistogramBase>(), histogram_name(), name_hash(), sample);
 }
 
-void HistogramBase::WriteAsciiBucketGraph(double current_size,
-                                          double max_size,
+HistogramBase::CountAndBucketData HistogramBase::GetCountAndBucketData() const {
+  std::unique_ptr<HistogramSamples> snapshot = SnapshotSamples();
+  Count count = snapshot->TotalCount();
+  int64_t sum = snapshot->sum();
+  std::unique_ptr<SampleCountIterator> it = snapshot->Iterator();
+
+  Value::List buckets;
+  while (!it->Done()) {
+    Sample bucket_min;
+    int64_t bucket_max;
+    Count bucket_count;
+    it->Get(&bucket_min, &bucket_max, &bucket_count);
+
+    Value::Dict bucket_value;
+    bucket_value.Set("low", bucket_min);
+    // TODO(crbug.com/1334256): Make base::Value able to hold int64_t and remove
+    // this cast.
+    bucket_value.Set("high", static_cast<int>(bucket_max));
+    bucket_value.Set("count", bucket_count);
+    buckets.Append(std::move(bucket_value));
+    it->Next();
+  }
+
+  return CountAndBucketData(count, sum, std::move(buckets));
+}
+
+void HistogramBase::WriteAsciiBucketGraph(double x_count,
+                                          int line_length,
                                           std::string* output) const {
-  const int k_line_length = 72;  // Maximal horizontal width of graph.
-  int x_count = static_cast<int>(k_line_length * (current_size / max_size)
-                                 + 0.5);
-  int x_remainder = k_line_length - x_count;
+  int x_remainder = line_length - x_count;
 
   while (0 < x_count--)
     output->append("-");
@@ -197,7 +241,14 @@ const std::string HistogramBase::GetSimpleAsciiBucketRange(
 void HistogramBase::WriteAsciiBucketValue(Count current,
                                           double scaled_sum,
                                           std::string* output) const {
-  StringAppendF(output, " (%d = %3.1f%%)", current, current/scaled_sum);
+  StringAppendF(output, " (%d = %3.1f%%)", current, current / scaled_sum);
+}
+
+void HistogramBase::WriteAscii(std::string* output) const {
+  base::Value::Dict graph_dict = ToGraphDict();
+  output->append(*graph_dict.FindString("header"));
+  output->append("\n");
+  output->append(*graph_dict.FindString("body"));
 }
 
 // static
@@ -205,11 +256,11 @@ char const* HistogramBase::GetPermanentName(const std::string& name) {
   // A set of histogram names that provides the "permanent" lifetime required
   // by histogram objects for those strings that are not already code constants
   // or held in persistent memory.
-  static LazyInstance<std::set<std::string>>::Leaky permanent_names;
-  static LazyInstance<Lock>::Leaky permanent_names_lock;
+  static base::NoDestructor<std::set<std::string>> permanent_names;
+  static base::NoDestructor<Lock> permanent_names_lock;
 
-  AutoLock lock(permanent_names_lock.Get());
-  auto result = permanent_names.Get().insert(name);
+  AutoLock lock(*permanent_names_lock);
+  auto result = permanent_names->insert(name);
   return result.first->c_str();
 }
 

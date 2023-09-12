@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace {
@@ -19,7 +20,8 @@ namespace {
 // Very simple messages.
 struct SimpleMessage {
   enum SimpleEnum {
-    FOO, BAR,
+    FOO,
+    BAR,
   };
   int foo;
   std::string bar;
@@ -48,13 +50,14 @@ struct SimpleMessage {
   }
 
   static bool GetValueString(const base::Value* value, std::string* result) {
-    const base::DictionaryValue* dict = nullptr;
-    if (!value->GetAsDictionary(&dict))
+    const Value::Dict* dict = value->GetIfDict();
+    if (!dict)
       return false;
-
-    if (!dict->GetString("val", result))
+    const std::string* str = dict->FindString("val");
+    if (!str)
       return false;
-
+    if (result)
+      *result = *str;
     return true;
   }
 
@@ -66,13 +69,10 @@ struct SimpleMessage {
     converter->RegisterCustomField<SimpleEnum>(
         "simple_enum", &SimpleMessage::simple_enum, &ParseSimpleEnum);
     converter->RegisterRepeatedInt("ints", &SimpleMessage::ints);
-    converter->RegisterCustomValueField<bool>("bstruct",
-                                              &SimpleMessage::bstruct,
-                                              &HasFieldPresent);
+    converter->RegisterCustomValueField<bool>(
+        "bstruct", &SimpleMessage::bstruct, &HasFieldPresent);
     converter->RegisterRepeatedCustomValue<std::string>(
-        "string_values",
-        &SimpleMessage::string_values,
-        &GetValueString);
+        "string_values", &SimpleMessage::string_values, &GetValueString);
   }
 };
 
@@ -106,10 +106,11 @@ TEST(JSONValueConverterTest, ParseSimpleMessage) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  std::unique_ptr<Value> value = base::JSONReader::Read(normal_data);
+  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
-  EXPECT_TRUE(converter.Convert(*value.get(), &message));
+  EXPECT_TRUE(converter.Convert(*value, &message));
 
   EXPECT_EQ(1, message.foo);
   EXPECT_EQ("bar", message.bar);
@@ -148,10 +149,11 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
       "  }]\n"
       "}\n";
 
-  std::unique_ptr<Value> value = base::JSONReader::Read(normal_data);
+  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  ASSERT_TRUE(value);
   NestedMessage message;
   base::JSONValueConverter<NestedMessage> converter;
-  EXPECT_TRUE(converter.Convert(*value.get(), &message));
+  EXPECT_TRUE(converter.Convert(*value, &message));
 
   EXPECT_EQ(1.0, message.foo);
   EXPECT_EQ(1, message.child.foo);
@@ -185,15 +187,16 @@ TEST(JSONValueConverterTest, ParseFailures) {
   const char normal_data[] =
       "{\n"
       "  \"foo\": 1,\n"
-      "  \"bar\": 2,\n" // "bar" is an integer here.
+      "  \"bar\": 2,\n"  // "bar" is an integer here.
       "  \"baz\": true,\n"
       "  \"ints\": [1, 2]"
       "}\n";
 
-  std::unique_ptr<Value> value = base::JSONReader::Read(normal_data);
+  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
-  EXPECT_FALSE(converter.Convert(*value.get(), &message));
+  EXPECT_FALSE(converter.Convert(*value, &message));
   // Do not check the values below.  |message| may be modified during
   // Convert() even it fails.
 }
@@ -206,11 +209,12 @@ TEST(JSONValueConverterTest, ParseWithMissingFields) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  std::unique_ptr<Value> value = base::JSONReader::Read(normal_data);
+  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
   // Convert() still succeeds even if the input doesn't have "bar" field.
-  EXPECT_TRUE(converter.Convert(*value.get(), &message));
+  EXPECT_TRUE(converter.Convert(*value, &message));
 
   EXPECT_EQ(1, message.foo);
   EXPECT_TRUE(message.baz);
@@ -229,10 +233,11 @@ TEST(JSONValueConverterTest, EnumParserFails) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  std::unique_ptr<Value> value = base::JSONReader::Read(normal_data);
+  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
-  EXPECT_FALSE(converter.Convert(*value.get(), &message));
+  EXPECT_FALSE(converter.Convert(*value, &message));
   // No check the values as mentioned above.
 }
 
@@ -246,10 +251,11 @@ TEST(JSONValueConverterTest, RepeatedValueErrorInTheMiddle) {
       "  \"ints\": [1, false]"
       "}\n";
 
-  std::unique_ptr<Value> value = base::JSONReader::Read(normal_data);
+  absl::optional<Value> value = base::JSONReader::Read(normal_data);
+  ASSERT_TRUE(value);
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
-  EXPECT_FALSE(converter.Convert(*value.get(), &message));
+  EXPECT_FALSE(converter.Convert(*value, &message));
   // No check the values as mentioned above.
 }
 

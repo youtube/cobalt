@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,9 @@
 #include <sys/types.h>
 
 #include "base/android/apk_assets.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "base/android/library_loader/anchor_functions.h"
+#include "build/build_config.h"
+#include "third_party/abseil-cpp/absl/base/attributes.h"
 
 #if !defined(ARCH_CPU_ARMEL)
 #error This file should not be built for this architecture.
@@ -65,10 +66,6 @@ extern "C" {
 // of the instruction in binary from PC.
 extern char __executable_start;
 
-// The address |_etext| gives the end of the .text section in the binary. This
-// value is more accurate than parsing the memory map since the mapped
-// regions are usualy larger than the .text section.
-extern char _etext;
 }
 
 namespace base {
@@ -111,15 +108,19 @@ struct CFIUnwindDataRow {
   uint16_t cfi_data;
 
   // Return the RA offset for the current unwind row.
-  size_t ra_offset() const { return (cfi_data & kRAMask) << kRAShift; }
+  uint16_t ra_offset() const {
+    return static_cast<uint16_t>((cfi_data & kRAMask) << kRAShift);
+  }
 
   // Returns the CFA offset for the current unwind row.
-  size_t cfa_offset() const { return cfi_data & kCFAMask; }
+  uint16_t cfa_offset() const { return cfi_data & kCFAMask; }
 };
 
 static_assert(
     sizeof(CFIUnwindDataRow) == 4,
     "The CFIUnwindDataRow struct must be exactly 4 bytes for searching.");
+
+ABSL_CONST_INIT thread_local CFIBacktraceAndroid::CFICache cfi_cache;
 
 }  // namespace
 
@@ -130,52 +131,52 @@ CFIBacktraceAndroid* CFIBacktraceAndroid::GetInitializedInstance() {
 }
 
 // static
+bool CFIBacktraceAndroid::is_chrome_address(uintptr_t pc) {
+  return pc >= base::android::kStartOfText && pc < executable_end_addr();
+}
+
+// static
 uintptr_t CFIBacktraceAndroid::executable_start_addr() {
   return reinterpret_cast<uintptr_t>(&__executable_start);
 }
 
 // static
 uintptr_t CFIBacktraceAndroid::executable_end_addr() {
-  return reinterpret_cast<uintptr_t>(&_etext);
+  return base::android::kEndOfText;
 }
 
-CFIBacktraceAndroid::CFIBacktraceAndroid()
-    : thread_local_cfi_cache_(
-          [](void* ptr) { delete static_cast<CFICache*>(ptr); }) {
-  Initialize();
-}
-
-CFIBacktraceAndroid::~CFIBacktraceAndroid() {}
-
-void CFIBacktraceAndroid::Initialize() {
+CFIBacktraceAndroid::CFIBacktraceAndroid() {
   // This file name is defined by extract_unwind_tables.gni.
   static constexpr char kCfiFileName[] = "assets/unwind_cfi_32";
+  static constexpr char kSplitName[] = "stack_unwinder";
+
   MemoryMappedFile::Region cfi_region;
-  int fd = base::android::OpenApkAsset(kCfiFileName, &cfi_region);
-  if (fd < 0)
+  int fd = base::android::OpenApkAsset(kCfiFileName, kSplitName, &cfi_region);
+  if (fd < 0) {
     return;
+  }
   cfi_mmap_ = std::make_unique<MemoryMappedFile>();
   // The CFI region starts at |cfi_region.offset|.
-  if (!cfi_mmap_->Initialize(base::File(fd), cfi_region))
+  if (!cfi_mmap_->Initialize(base::File(fd), cfi_region)) {
     return;
+  }
 
   ParseCFITables();
   can_unwind_stack_frames_ = true;
 }
 
+CFIBacktraceAndroid::~CFIBacktraceAndroid() = default;
+
 void CFIBacktraceAndroid::ParseCFITables() {
-  // The first 4 bytes in the file is the size of UNW_INDEX table.
-  static constexpr size_t kUnwIndexRowSize =
-      sizeof(*unw_index_function_col_) + sizeof(*unw_index_indices_col_);
+  // The first 4 bytes in the file is the number of entries in UNW_INDEX table.
   size_t unw_index_size = 0;
   memcpy(&unw_index_size, cfi_mmap_->data(), sizeof(unw_index_size));
-  DCHECK_EQ(0u, unw_index_size % kUnwIndexRowSize);
   // UNW_INDEX table starts after 4 bytes.
   unw_index_function_col_ =
       reinterpret_cast<const uintptr_t*>(cfi_mmap_->data()) + 1;
-  unw_index_row_count_ = unw_index_size / kUnwIndexRowSize;
+  unw_index_row_count_ = unw_index_size;
   unw_index_indices_col_ = reinterpret_cast<const uint16_t*>(
-      unw_index_function_col_ + unw_index_row_count_);
+      (unw_index_function_col_ + unw_index_row_count_).get());
 
   // The UNW_DATA table data is right after the end of UNW_INDEX table.
   // Interpret the UNW_DATA table as an array of 2 byte numbers since the
@@ -199,11 +200,12 @@ size_t CFIBacktraceAndroid::Unwind(const void** out_trace, size_t max_depth) {
   asm volatile("mov %0, pc" : "=r"(pc));
   asm volatile("mov %0, sp" : "=r"(sp));
 
-  return Unwind(pc, sp, out_trace, max_depth);
+  return Unwind(pc, sp, /*lr=*/0, out_trace, max_depth);
 }
 
 size_t CFIBacktraceAndroid::Unwind(uintptr_t pc,
                                    uintptr_t sp,
+                                   uintptr_t lr,
                                    const void** out_trace,
                                    size_t max_depth) {
   if (!can_unwind_stack_frames())
@@ -216,21 +218,28 @@ size_t CFIBacktraceAndroid::Unwind(uintptr_t pc,
     // The offset of function from the start of the chrome.so binary:
     uintptr_t func_addr = pc - executable_start_addr();
     CFIRow cfi{};
-    if (!FindCFIRowForPC(func_addr, &cfi))
+    if (!FindCFIRowForPC(func_addr, &cfi)) {
+      if (depth == 1 && lr != 0 && pc != lr) {
+        // If CFI data is not found for the frame, then we stopped in prolog of
+        // a function. The return address is stored in LR when in function
+        // prolog. So, update the PC with address in LR and do not update SP
+        // since SP was not updated by the prolog yet.
+        // TODO(ssid): Write tests / add info to detect if we are actually in
+        // function prolog. https://crbug.com/898276
+        pc = lr;
+        continue;
+      }
       break;
+    }
 
     // The rules for unwinding using the CFI information are:
     // SP_prev = SP_cur + cfa_offset and
     // PC_prev = * (SP_prev - ra_offset).
     sp = sp + cfi.cfa_offset;
     memcpy(&pc, reinterpret_cast<uintptr_t*>(sp - cfi.ra_offset),
-                 sizeof(uintptr_t));
+           sizeof(uintptr_t));
   }
   return depth;
-}
-
-void CFIBacktraceAndroid::AllocateCacheForCurrentThread() {
-  GetThreadLocalCFICache();
 }
 
 bool CFIBacktraceAndroid::FindCFIRowForPC(uintptr_t func_addr,
@@ -238,10 +247,10 @@ bool CFIBacktraceAndroid::FindCFIRowForPC(uintptr_t func_addr,
   if (!can_unwind_stack_frames())
     return false;
 
-  auto* cache = GetThreadLocalCFICache();
   *cfi = {0};
-  if (cache->Find(func_addr, cfi))
+  if (cfi_cache.Find(func_addr, cfi)) {
     return true;
+  }
 
   // Consider each column of UNW_INDEX table as arrays of uintptr_t (function
   // addresses) and uint16_t (indices). Define start and end iterator on the
@@ -249,8 +258,8 @@ bool CFIBacktraceAndroid::FindCFIRowForPC(uintptr_t func_addr,
   // on this array to find the required function address.
   static const uintptr_t* const unw_index_fn_end =
       unw_index_function_col_ + unw_index_row_count_;
-  const uintptr_t* found =
-      std::lower_bound(unw_index_function_col_, unw_index_fn_end, func_addr);
+  const uintptr_t* found = std::lower_bound(unw_index_function_col_.get(),
+                                            unw_index_fn_end, func_addr);
 
   // If found is start, then the given function is not in the table. If the
   // given pc is start of a function then we cannot unwind.
@@ -262,7 +271,7 @@ bool CFIBacktraceAndroid::FindCFIRowForPC(uintptr_t func_addr,
   // less than the value returned by std::lower_bound().
   --found;
   uintptr_t func_start_addr = *found;
-  size_t row_num = found - unw_index_function_col_;
+  size_t row_num = static_cast<size_t>(found - unw_index_function_col_);
   uint16_t index = unw_index_indices_col_[row_num];
   DCHECK_LE(func_start_addr, func_addr);
   // If the index is CANT_UNWIND then we do not have unwind infomation for the
@@ -312,17 +321,8 @@ bool CFIBacktraceAndroid::FindCFIRowForPC(uintptr_t func_addr,
   DCHECK(cfi->ra_offset);
 
   // safe to update since the cache is thread local.
-  cache->Add(func_addr, *cfi);
+  cfi_cache.Add(func_addr, *cfi);
   return true;
-}
-
-CFIBacktraceAndroid::CFICache* CFIBacktraceAndroid::GetThreadLocalCFICache() {
-  auto* cache = static_cast<CFICache*>(thread_local_cfi_cache_.Get());
-  if (!cache) {
-    cache = new CFICache();
-    thread_local_cfi_cache_.Set(cache);
-  }
-  return cache;
 }
 
 void CFIBacktraceAndroid::CFICache::Add(uintptr_t address, CFIRow cfi) {

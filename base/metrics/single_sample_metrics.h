@@ -1,14 +1,15 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_METRICS_SINGLE_SAMPLE_METRICS_H_
 #define BASE_METRICS_SINGLE_SAMPLE_METRICS_H_
 
+#include <memory>
 #include <string>
 
 #include "base/base_export.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
 
 namespace base {
@@ -64,6 +65,10 @@ class BASE_EXPORT DefaultSingleSampleMetricsFactory
     : public SingleSampleMetricsFactory {
  public:
   DefaultSingleSampleMetricsFactory() = default;
+  DefaultSingleSampleMetricsFactory(const DefaultSingleSampleMetricsFactory&) =
+      delete;
+  DefaultSingleSampleMetricsFactory& operator=(
+      const DefaultSingleSampleMetricsFactory&) = delete;
   ~DefaultSingleSampleMetricsFactory() override = default;
 
   // SingleSampleMetricsFactory:
@@ -72,9 +77,6 @@ class BASE_EXPORT DefaultSingleSampleMetricsFactory
       HistogramBase::Sample min,
       HistogramBase::Sample max,
       uint32_t bucket_count) override;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(DefaultSingleSampleMetricsFactory);
 };
 
 class BASE_EXPORT DefaultSingleSampleMetric : public SingleSampleMetric {
@@ -84,19 +86,22 @@ class BASE_EXPORT DefaultSingleSampleMetric : public SingleSampleMetric {
                             HistogramBase::Sample max,
                             uint32_t bucket_count,
                             int32_t flags);
+
+  DefaultSingleSampleMetric(const DefaultSingleSampleMetric&) = delete;
+  DefaultSingleSampleMetric& operator=(const DefaultSingleSampleMetric&) =
+      delete;
+
   ~DefaultSingleSampleMetric() override;
 
   // SingleSampleMetric:
   void SetSample(HistogramBase::Sample sample) override;
 
  private:
-  HistogramBase* const histogram_;
+  const raw_ptr<HistogramBase> histogram_;
 
   // The last sample provided to SetSample(). We use -1 as a sentinel value to
   // indicate no sample has been set.
   HistogramBase::Sample sample_ = -1;
-
-  DISALLOW_COPY_AND_ASSIGN(DefaultSingleSampleMetric);
 };
 
 }  // namespace base

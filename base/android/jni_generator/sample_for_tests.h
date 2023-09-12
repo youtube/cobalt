@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 #include <string>
 
 #include "base/android/jni_android.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace android {
@@ -49,10 +48,9 @@ namespace android {
 //      sources = [
 //        "java/src/org/chromium/example/jni_generator/SampleForTests.java",
 //      ]
-//      jni_package = "foo"
 //    }
 //    android_library("java") {
-//      java_files = [
+//      sources = [
 //        "java/src/org/chromium/example/jni_generator/SampleForTests.java",
 //        "java/src/org/chromium/example/jni_generator/NonJniFile.java",
 //      ]
@@ -66,16 +64,16 @@ namespace android {
 // - The Java class must be part of an android_apk target that depends on
 //   a generate_jni_registration target. This generate_jni_registration target
 //   automatically generates all necessary registration functions. The
-//   generated header file exposes two functions that should be called when a
-//   library is first loaded:
-//     1) RegisterMainDexNatives()
-//       - Registers all methods that are used outside the browser process
-//     2) RegisterNonMainDexNatives()
-//       - Registers all methods used in the browser process
+//   generated header file exposes RegisterNatives() which registers all
+//   methods.
 //
 class CPPClass {
  public:
   CPPClass();
+
+  CPPClass(const CPPClass&) = delete;
+  CPPClass& operator=(const CPPClass&) = delete;
+
   ~CPPClass();
 
   // Java @CalledByNative methods implicitly available to C++ via the _jni.h
@@ -105,8 +103,6 @@ class CPPClass {
 
  private:
   std::map<long, std::string> map_;
-
-  DISALLOW_COPY_AND_ASSIGN(CPPClass);
 };
 
 }  // namespace android

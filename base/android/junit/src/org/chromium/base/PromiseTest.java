@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,14 +12,18 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
+import org.robolectric.annotation.LooperMode;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Promise.UnhandledRejectionException;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
+import java.util.function.Function;
+
 /** Unit tests for {@link Promise}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+@LooperMode(LooperMode.Mode.LEGACY)
 public class PromiseTest {
     // We need a simple mutable reference type for testing.
     private static class Value {
@@ -39,12 +43,12 @@ public class PromiseTest {
     public void callback() {
         final Value value = new Value();
 
-        Promise<Integer> promise = new Promise<Integer>();
-        promise.then(PromiseTest.<Integer>setValue(value, 1));
+        Promise<Integer> promise = new Promise<>();
+        promise.then(PromiseTest.setValue(value, 1));
 
         assertEquals(value.get(), 0);
 
-        promise.fulfill(new Integer(1));
+        promise.fulfill(1);
         assertEquals(value.get(), 1);
     }
 
@@ -53,19 +57,16 @@ public class PromiseTest {
     public void multipleCallbacks() {
         final Value value = new Value();
 
-        Promise<Integer> promise = new Promise<Integer>();
-        Callback<Integer> callback = new Callback<Integer>() {
-            @Override
-            public void onResult(Integer result) {
-                value.set(value.get() + 1);
-            }
+        Promise<Integer> promise = new Promise<>();
+        Callback<Integer> callback = unusedArg -> {
+            value.set(value.get() + 1);
         };
         promise.then(callback);
         promise.then(callback);
 
         assertEquals(value.get(), 0);
 
-        promise.fulfill(new Integer(0));
+        promise.fulfill(0);
         assertEquals(value.get(), 2);
     }
 
@@ -74,10 +75,10 @@ public class PromiseTest {
     public void callbackOnFulfilled() {
         final Value value = new Value();
 
-        Promise<Integer> promise = Promise.fulfilled(new Integer(0));
+        Promise<Integer> promise = Promise.fulfilled(0);
         assertEquals(value.get(), 0);
 
-        promise.then(PromiseTest.<Integer>setValue(value, 1));
+        promise.then(PromiseTest.setValue(value, 1));
 
         assertEquals(value.get(), 1);
     }
@@ -85,27 +86,14 @@ public class PromiseTest {
     /** Tests that promises can chain synchronous functions correctly. */
     @Test
     public void promiseChaining() {
-        Promise<Integer> promise = new Promise<Integer>();
+        Promise<Integer> promise = new Promise<>();
         final Value value = new Value();
 
-        promise.then(new Promise.Function<Integer, String>(){
-                    @Override
-                    public String apply(Integer arg) {
-                        return arg.toString();
-                    }
-                }).then(new Promise.Function<String, String>(){
-                    @Override
-                    public String apply(String arg) {
-                        return arg + arg;
-                    }
-                }).then(new Callback<String>() {
-                    @Override
-                    public void onResult(String result) {
-                        value.set(result.length());
-                    }
-                });
+        promise.then((Integer arg) -> arg.toString())
+                .then((String arg) -> arg + arg)
+                .then(result -> { value.set(result.length()); });
 
-        promise.fulfill(new Integer(123));
+        promise.fulfill(123);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
         assertEquals(6, value.get());
     }
@@ -113,22 +101,12 @@ public class PromiseTest {
     /** Tests that promises can chain asynchronous functions correctly. */
     @Test
     public void promiseChainingAsyncFunctions() {
-        Promise<Integer> promise = new Promise<Integer>();
+        Promise<Integer> promise = new Promise<>();
         final Value value = new Value();
 
-        final Promise<String> innerPromise = new Promise<String>();
+        final Promise<String> innerPromise = new Promise<>();
 
-        promise.then(new Promise.AsyncFunction<Integer, String>() {
-                    @Override
-                    public Promise<String> apply(Integer arg) {
-                        return innerPromise;
-                    }
-                }).then(new Callback<String>(){
-                    @Override
-                    public void onResult(String result) {
-                        value.set(result.length());
-                    }
-                });
+        promise.then(arg -> innerPromise).then(result -> { value.set(result.length()); });
 
         assertEquals(0, value.get());
 
@@ -144,7 +122,7 @@ public class PromiseTest {
     /** Tests that a Promise that does not use its result does not throw on rejection. */
     @Test
     public void rejectPromiseNoCallbacks() {
-        Promise<Integer> promise = new Promise<Integer>();
+        Promise<Integer> promise = new Promise<>();
 
         boolean caught = false;
         try {
@@ -159,8 +137,8 @@ public class PromiseTest {
     /** Tests that a Promise that uses its result throws on rejection if it has no handler. */
     @Test
     public void rejectPromiseNoHandler() {
-        Promise<Integer> promise = new Promise<Integer>();
-        promise.then(PromiseTest.<Integer>identity()).then(PromiseTest.<Integer>pass());
+        Promise<Integer> promise = new Promise<>();
+        promise.then(PromiseTest.identity()).then(PromiseTest.pass());
 
         boolean caught = false;
         try {
@@ -175,9 +153,8 @@ public class PromiseTest {
     /** Tests that a Promise that handles rejection does not throw on rejection. */
     @Test
     public void rejectPromiseHandled() {
-        Promise<Integer> promise = new Promise<Integer>();
-        promise.then(PromiseTest.<Integer>identity())
-                .then(PromiseTest.<Integer>pass(), PromiseTest.<Exception>pass());
+        Promise<Integer> promise = new Promise<>();
+        promise.then(PromiseTest.identity()).then(PromiseTest.pass(), PromiseTest.pass());
 
         boolean caught = false;
         try {
@@ -192,8 +169,8 @@ public class PromiseTest {
     /** Tests that rejections carry the exception information. */
     @Test
     public void rejectionInformation() {
-        Promise<Integer> promise = new Promise<Integer>();
-        promise.then(PromiseTest.<Integer>pass());
+        Promise<Integer> promise = new Promise<>();
+        promise.then(PromiseTest.pass());
 
         String message = "Promise Test";
         try {
@@ -210,12 +187,11 @@ public class PromiseTest {
     @Test
     public void rejectionChaining() {
         final Value value = new Value();
-        Promise<Integer> promise = new Promise<Integer>();
+        Promise<Integer> promise = new Promise<>();
 
-        Promise<Integer> result =
-                promise.then(PromiseTest.<Integer>identity()).then(PromiseTest.<Integer>identity());
+        Promise<Integer> result = promise.then(PromiseTest.identity()).then(PromiseTest.identity());
 
-        result.then(PromiseTest.<Integer>pass(), PromiseTest.<Exception>setValue(value, 5));
+        result.then(PromiseTest.pass(), PromiseTest.setValue(value, 5));
 
         promise.reject(new Exception());
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
@@ -228,13 +204,9 @@ public class PromiseTest {
     @Test
     public void rejectOnThrow() {
         Value value = new Value();
-        Promise<Integer> promise = new Promise<Integer>();
-        promise.then(new Promise.Function<Integer, Integer>() {
-            @Override
-            public Integer apply(Integer argument) {
-                throw new IllegalArgumentException();
-            }
-        }).then(PromiseTest.<Integer>pass(), PromiseTest.<Exception>setValue(value, 5));
+        Promise<Integer> promise = new Promise<>();
+        promise.then((Function) (unusedArg -> { throw new IllegalArgumentException(); }))
+                .then(PromiseTest.pass(), PromiseTest.setValue(value, 5));
 
         promise.fulfill(0);
 
@@ -246,14 +218,12 @@ public class PromiseTest {
     @Test
     public void rejectOnAsyncThrow() {
         Value value = new Value();
-        Promise<Integer> promise = new Promise<Integer>();
+        Promise<Integer> promise = new Promise<>();
 
-        promise.then(new Promise.AsyncFunction<Integer, Integer>() {
-            @Override
-            public Promise<Integer> apply(Integer argument) {
-                throw new IllegalArgumentException();
-            }
-        }).then(PromiseTest.<Integer>pass(), PromiseTest.<Exception>setValue(value, 5));
+        promise.then((Promise.AsyncFunction) (unusedArg -> {
+                   throw new IllegalArgumentException();
+               }))
+                .then(PromiseTest.pass(), PromiseTest.setValue(value, 5));
 
         promise.fulfill(0);
 
@@ -265,15 +235,10 @@ public class PromiseTest {
     @Test
     public void rejectOnAsyncReject() {
         Value value = new Value();
-        Promise<Integer> promise = new Promise<Integer>();
-        final Promise<Integer> inner = new Promise<Integer>();
+        Promise<Integer> promise = new Promise<>();
+        final Promise<Integer> inner = new Promise<>();
 
-        promise.then(new Promise.AsyncFunction<Integer, Integer>() {
-            @Override
-            public Promise<Integer> apply(Integer argument) {
-                return inner;
-            }
-        }).then(PromiseTest.<Integer>pass(), PromiseTest.<Exception>setValue(value, 5));
+        promise.then(unusedArg -> inner).then(PromiseTest.pass(), PromiseTest.setValue(value, 5));
 
         promise.fulfill(0);
 
@@ -288,29 +253,18 @@ public class PromiseTest {
 
     /** Convenience method that returns a Callback that does nothing with its result. */
     private static <T> Callback<T> pass() {
-        return new Callback<T>() {
-            @Override
-            public void onResult(T result) {}
-        };
+        return unusedArg -> {};
     }
 
     /** Convenience method that returns a Function that just passes through its argument. */
-    private static <T> Promise.Function<T, T> identity() {
-        return new Promise.Function<T, T>() {
-            @Override
-            public T apply(T argument) {
-                return argument;
-            }
-        };
+    private static <T> Function<T, T> identity() {
+        return argument -> argument;
     }
 
     /** Convenience method that returns a Callback that sets the given Value on execution. */
     private static <T> Callback<T> setValue(final Value toSet, final int value) {
-        return new Callback<T>() {
-            @Override
-            public void onResult(T result) {
-                toSet.set(value);
-            }
+        return unusedArg -> {
+            toSet.set(value);
         };
     }
 }

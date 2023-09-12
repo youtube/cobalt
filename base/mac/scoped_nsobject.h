@@ -1,16 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MAC_SCOPED_NSOBJECT_H_
 #define BASE_MAC_SCOPED_NSOBJECT_H_
 
-#include <type_traits>
-
 // Include NSObject.h directly because Foundation.h pulls in many dependencies.
 // (Approx 100k lines of code versus 1.5k for NSObject.h). scoped_nsobject gets
 // singled out because it is most typically included from other header files.
 #import <Foundation/NSObject.h>
+
+#include <type_traits>
+#include <utility>
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
@@ -19,6 +20,21 @@
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 @class NSAutoreleasePool;
 #endif
+
+// Note that this uses the direct runtime interface to reference counting.
+// https://clang.llvm.org/docs/AutomaticReferenceCounting.html#runtime-support
+// This is so this can work when compiled for ARC. Annotations are used to lie
+// about the effects of these calls so that ARC will not insert any reference
+// count calls of its own and leave the maintenance of the reference count to
+// this class.
+
+extern "C" {
+id objc_retain(__unsafe_unretained id value)
+    __attribute__((ns_returns_not_retained));
+void objc_release(__unsafe_unretained id value);
+id objc_autorelease(__unsafe_unretained id value)
+    __attribute__((ns_returns_not_retained));
+}
 
 namespace base {
 
@@ -36,44 +52,25 @@ namespace base {
 // scoped_nsprotocol<> has the same behavior as scoped_nsobject, but can be used
 // with protocols.
 //
-// scoped_nsobject<> is not to be used for NSAutoreleasePools. For
-// NSAutoreleasePools use ScopedNSAutoreleasePool from
-// scoped_nsautorelease_pool.h instead.
-// We check for bad uses of scoped_nsobject and NSAutoreleasePool at compile
-// time with a template specialization (see below).
+// scoped_nsobject<> is not to be used for NSAutoreleasePools. For C++ code use
+// NSAutoreleasePool; for Objective-C(++) code use @autoreleasepool instead. We
+// check for bad uses of scoped_nsobject and NSAutoreleasePool at compile time
+// with a template specialization (see below).
 //
 // If Automatic Reference Counting (aka ARC) is enabled then the ownership
 // policy is not controllable by the user as ARC make it really difficult to
 // transfer ownership (the reference passed to scoped_nsobject constructor is
-// sunk by ARC and __attribute((ns_consumed)) appears to not work correctly
-// with Objective-C++ see https://llvm.org/bugs/show_bug.cgi?id=27887). Due to
+// sunk by ARC, and a design that a function will maybe consume an argument
+// based on a different argument isn't expressible with attributes). Due to
 // that, the policy is always to |RETAIN| when using ARC.
 
 namespace internal {
 
-BASE_EXPORT id ScopedNSProtocolTraitsRetain(__unsafe_unretained id obj)
-    __attribute((ns_returns_not_retained));
-BASE_EXPORT id ScopedNSProtocolTraitsAutoRelease(__unsafe_unretained id obj)
-    __attribute((ns_returns_not_retained));
-BASE_EXPORT void ScopedNSProtocolTraitsRelease(__unsafe_unretained id obj);
-
-// Traits for ScopedTypeRef<>. As this class may be compiled from file with
-// Automatic Reference Counting enable or not all methods have annotation to
-// enforce the same code generation in both case (in particular, the Retain
-// method uses ns_returns_not_retained to prevent ARC to insert a -release
-// call on the returned value and thus defeating the -retain).
 template <typename NST>
 struct ScopedNSProtocolTraits {
-  static NST InvalidValue() __attribute((ns_returns_not_retained)) {
-    return nil;
-  }
-  static NST Retain(__unsafe_unretained NST nst)
-      __attribute((ns_returns_not_retained)) {
-    return ScopedNSProtocolTraitsRetain(nst);
-  }
-  static void Release(__unsafe_unretained NST nst) {
-    ScopedNSProtocolTraitsRelease(nst);
-  }
+  static NST InvalidValue() { return nil; }
+  static NST Retain(__unsafe_unretained NST nst) { return objc_retain(nst); }
+  static void Release(__unsafe_unretained NST nst) { objc_release(nst); }
 };
 
 }  // namespace internal
@@ -109,6 +106,10 @@ class scoped_nsprotocol
     return *this;
   }
 
+  void reset(const scoped_nsprotocol<NST>& that) {
+    ScopedTypeRef<NST, Traits>::reset(that);
+  }
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
   void reset(NST object = Traits::InvalidValue(),
              base::scoped_policy::OwnershipPolicy policy =
@@ -122,8 +123,8 @@ class scoped_nsprotocol
 #endif
 
   // Shift reference to the autorelease pool to be released later.
-  NST autorelease() __attribute((ns_returns_not_retained)) {
-    return internal::ScopedNSProtocolTraitsAutoRelease(this->release());
+  NST autorelease() __attribute__((ns_returns_not_retained)) {
+    return objc_autorelease(this->release());
   }
 };
 
@@ -173,6 +174,10 @@ class scoped_nsobject : public scoped_nsprotocol<NST*> {
     return *this;
   }
 
+  void reset(const scoped_nsobject<NST>& that) {
+    scoped_nsprotocol<NST*>::reset(that);
+  }
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
   void reset(NST* object = Traits::InvalidValue(),
              base::scoped_policy::OwnershipPolicy policy =
@@ -187,7 +192,7 @@ class scoped_nsobject : public scoped_nsprotocol<NST*> {
 
 #if !defined(__has_feature) || !__has_feature(objc_arc)
   static_assert(std::is_same<NST, NSAutoreleasePool>::value == false,
-                "Use ScopedNSAutoreleasePool instead");
+                "Use @autoreleasepool instead");
 #endif
 };
 
@@ -207,8 +212,7 @@ class scoped_nsobject<id> : public scoped_nsprotocol<id> {
       : scoped_nsprotocol<id>(object) {}
 #endif
 
-  scoped_nsobject(const scoped_nsobject<id>& that)
-      : scoped_nsprotocol<id>(that) {}
+  scoped_nsobject(const scoped_nsobject<id>& that) = default;
 
   template <typename NSR>
   explicit scoped_nsobject(const scoped_nsobject<NSR>& that_as_subclass)
@@ -217,9 +221,10 @@ class scoped_nsobject<id> : public scoped_nsprotocol<id> {
   scoped_nsobject(scoped_nsobject<id>&& that)
       : scoped_nsprotocol<id>(std::move(that)) {}
 
-  scoped_nsobject& operator=(const scoped_nsobject<id>& that) {
-    scoped_nsprotocol<id>::operator=(that);
-    return *this;
+  scoped_nsobject& operator=(const scoped_nsobject<id>& that) = default;
+
+  void reset(const scoped_nsobject<id>& that) {
+    scoped_nsprotocol<id>::reset(that);
   }
 
 #if !defined(__has_feature) || !__has_feature(objc_arc)

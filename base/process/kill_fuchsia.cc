@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,20 +6,11 @@
 
 #include <zircon/syscalls.h>
 
+#include "base/logging.h"
 #include "base/process/process_iterator.h"
-#include "base/task/post_task.h"
 #include "base/threading/platform_thread.h"
-#include "starboard/types.h"
 
 namespace base {
-
-bool KillProcessGroup(ProcessHandle process_group_id) {
-  // |process_group_id| is really a job on Fuchsia.
-  zx_status_t status = zx_task_kill(process_group_id);
-  DLOG_IF(ERROR, status != ZX_OK)
-      << "unable to terminate job " << process_group_id;
-  return status == ZX_OK;
-}
 
 TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
   DCHECK(exit_code);
@@ -33,22 +24,31 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
     *exit_code = 0;
     return TERMINATION_STATUS_NORMAL_TERMINATION;
   }
-  if (!process_info.started) {
+  if ((process_info.flags & ZX_INFO_PROCESS_FLAG_STARTED) == 0) {
     *exit_code = 0;
     return TERMINATION_STATUS_LAUNCH_FAILED;
   }
-  if (!process_info.exited) {
+  if ((process_info.flags & ZX_INFO_PROCESS_FLAG_EXITED) == 0) {
     *exit_code = 0;
     return TERMINATION_STATUS_STILL_RUNNING;
   }
 
-  // TODO(fuchsia): Is there more information about types of crashes, OOM, etc.
-  // available? https://crbug.com/706592.
-
-  *exit_code = process_info.return_code;
-  return process_info.return_code == 0
-             ? TERMINATION_STATUS_NORMAL_TERMINATION
-             : TERMINATION_STATUS_ABNORMAL_TERMINATION;
+  *exit_code = static_cast<int>(process_info.return_code);
+  switch (process_info.return_code) {
+    case 0:
+      return TERMINATION_STATUS_NORMAL_TERMINATION;
+    case ZX_TASK_RETCODE_SYSCALL_KILL:
+    case ZX_TASK_RETCODE_CRITICAL_PROCESS_KILL:
+    case ZX_TASK_RETCODE_POLICY_KILL:
+    case ZX_TASK_RETCODE_VDSO_KILL:
+      return TERMINATION_STATUS_PROCESS_WAS_KILLED;
+    case ZX_TASK_RETCODE_OOM_KILL:
+      return TERMINATION_STATUS_OOM;
+    case ZX_TASK_RETCODE_EXCEPTION_KILL:
+      return TERMINATION_STATUS_PROCESS_CRASHED;
+    default:
+      return TERMINATION_STATUS_ABNORMAL_TERMINATION;
+  }
 }
 
 }  // namespace base

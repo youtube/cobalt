@@ -1,16 +1,20 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/i18n/time_formatting.h"
 
+#include <stddef.h>
+
 #include <memory>
 
 #include "base/i18n/unicodestring.h"
 #include "base/logging.h"
+#include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
-#include "starboard/types.h"
+#include "build/chromeos_buildflags.h"
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/i18n/unicode/datefmt.h"
 #include "third_party/icu/source/i18n/unicode/dtitvfmt.h"
@@ -22,8 +26,7 @@
 namespace base {
 namespace {
 
-string16 TimeFormat(const icu::DateFormat* formatter,
-                    const Time& time) {
+std::u16string TimeFormat(const icu::DateFormat* formatter, const Time& time) {
   DCHECK(formatter);
   icu::UnicodeString date_string;
 
@@ -31,8 +34,8 @@ string16 TimeFormat(const icu::DateFormat* formatter,
   return i18n::UnicodeStringToString16(date_string);
 }
 
-string16 TimeFormatWithoutAmPm(const icu::DateFormat* formatter,
-                               const Time& time) {
+std::u16string TimeFormatWithoutAmPm(const icu::DateFormat* formatter,
+                                     const Time& time) {
   DCHECK(formatter);
   icu::UnicodeString time_string;
 
@@ -94,7 +97,7 @@ const char* DateFormatToString(DateFormat format) {
 
 }  // namespace
 
-string16 TimeFormatTimeOfDay(const Time& time) {
+std::u16string TimeFormatTimeOfDay(const Time& time) {
   // We can omit the locale parameter because the default should match
   // Chrome's application locale.
   std::unique_ptr<icu::DateFormat> formatter(
@@ -102,14 +105,14 @@ string16 TimeFormatTimeOfDay(const Time& time) {
   return TimeFormat(formatter.get(), time);
 }
 
-string16 TimeFormatTimeOfDayWithMilliseconds(const Time& time) {
+std::u16string TimeFormatTimeOfDayWithMilliseconds(const Time& time) {
   icu::SimpleDateFormat formatter = CreateSimpleDateFormatter("HmsSSS");
   return TimeFormatWithoutAmPm(&formatter, time);
 }
 
-string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
-                                              HourClockType type,
-                                              AmPmClockType ampm) {
+std::u16string TimeFormatTimeOfDayWithHourClockType(const Time& time,
+                                                    HourClockType type,
+                                                    AmPmClockType ampm) {
   // Just redirect to the normal function if the default type matches the
   // given type.
   HourClockType default_type = GetHourClockType();
@@ -126,60 +129,71 @@ string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
   return TimeFormatWithoutAmPm(&formatter, time);
 }
 
-string16 TimeFormatShortDate(const Time& time) {
+std::u16string TimeFormatShortDate(const Time& time) {
   std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateInstance(icu::DateFormat::kMedium));
   return TimeFormat(formatter.get(), time);
 }
 
-string16 TimeFormatShortDateNumeric(const Time& time) {
+std::u16string TimeFormatShortDateNumeric(const Time& time) {
   std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateInstance(icu::DateFormat::kShort));
   return TimeFormat(formatter.get(), time);
 }
 
-string16 TimeFormatShortDateAndTime(const Time& time) {
+std::u16string TimeFormatShortDateAndTime(const Time& time) {
   std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateTimeInstance(icu::DateFormat::kShort));
   return TimeFormat(formatter.get(), time);
 }
 
-string16 TimeFormatShortDateAndTimeWithTimeZone(const Time& time) {
+std::u16string TimeFormatShortDateAndTimeWithTimeZone(const Time& time) {
   std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateTimeInstance(icu::DateFormat::kShort,
                                               icu::DateFormat::kLong));
   return TimeFormat(formatter.get(), time);
 }
 
-string16 TimeFormatMonthAndYear(const Time& time) {
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+std::u16string TimeFormatMonthAndYearForTimeZone(
+    const Time& time,
+    const icu::TimeZone* time_zone) {
+  icu::SimpleDateFormat formatter =
+      CreateSimpleDateFormatter(DateFormatToString(DATE_FORMAT_YEAR_MONTH));
+  formatter.setTimeZone(*time_zone);
+  return TimeFormat(&formatter, time);
+}
+#endif
+
+std::u16string TimeFormatMonthAndYear(const Time& time) {
   icu::SimpleDateFormat formatter =
       CreateSimpleDateFormatter(DateFormatToString(DATE_FORMAT_YEAR_MONTH));
   return TimeFormat(&formatter, time);
 }
 
-string16 TimeFormatFriendlyDateAndTime(const Time& time) {
+std::u16string TimeFormatFriendlyDateAndTime(const Time& time) {
   std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateTimeInstance(icu::DateFormat::kFull));
   return TimeFormat(formatter.get(), time);
 }
 
-string16 TimeFormatFriendlyDate(const Time& time) {
+std::u16string TimeFormatFriendlyDate(const Time& time) {
   std::unique_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateInstance(icu::DateFormat::kFull));
   return TimeFormat(formatter.get(), time);
 }
 
-string16 TimeFormatWithPattern(const Time& time, const char* pattern) {
+std::u16string TimeFormatWithPattern(const Time& time, const char* pattern) {
   icu::SimpleDateFormat formatter = CreateSimpleDateFormatter(pattern);
   return TimeFormat(&formatter, time);
 }
 
-bool TimeDurationFormat(const TimeDelta time,
-                        const DurationFormatWidth width,
-                        string16* out) {
+bool TimeDurationFormat(TimeDelta time,
+                        DurationFormatWidth width,
+                        std::u16string* out) {
   DCHECK(out);
   UErrorCode status = U_ZERO_ERROR;
-  const int total_minutes = static_cast<int>(time.InSecondsF() / 60 + 0.5);
+  const int total_minutes = ClampRound(time / base::Minutes(1));
   const int hours = total_minutes / 60;
   const int minutes = total_minutes % 60;
   UMeasureFormatWidth u_width = DurationWidthToMeasureWidth(width);
@@ -215,15 +229,17 @@ bool TimeDurationFormat(const TimeDelta time,
   return true;
 }
 
-bool TimeDurationFormatWithSeconds(const TimeDelta time,
-                                   const DurationFormatWidth width,
-                                   string16* out) {
+bool TimeDurationFormatWithSeconds(TimeDelta time,
+                                   DurationFormatWidth width,
+                                   std::u16string* out) {
   DCHECK(out);
   UErrorCode status = U_ZERO_ERROR;
-  const int64_t total_seconds = static_cast<int>(time.InSecondsF() + 0.5);
-  const int hours = total_seconds / 3600;
-  const int minutes = (total_seconds - hours * 3600) / 60;
-  const int seconds = total_seconds % 60;
+  const int64_t total_seconds = ClampRound<int64_t>(time.InSecondsF());
+  const int64_t hours = total_seconds / base::Time::kSecondsPerHour;
+  const int64_t minutes =
+      (total_seconds - hours * base::Time::kSecondsPerHour) /
+      base::Time::kSecondsPerMinute;
+  const int64_t seconds = total_seconds % base::Time::kSecondsPerMinute;
   UMeasureFormatWidth u_width = DurationWidthToMeasureWidth(width);
 
   const icu::Measure measures[] = {
@@ -235,12 +251,12 @@ bool TimeDurationFormatWithSeconds(const TimeDelta time,
   icu::FieldPosition ignore(icu::FieldPosition::DONT_CARE);
   measure_format.formatMeasures(measures, 3, formatted, ignore, status);
   *out = i18n::UnicodeStringToString16(formatted);
-  return U_SUCCESS(status) == true;
+  return U_SUCCESS(status);
 }
 
-string16 DateIntervalFormat(const Time& begin_time,
-                            const Time& end_time,
-                            DateFormat format) {
+std::u16string DateIntervalFormat(const Time& begin_time,
+                                  const Time& end_time,
+                                  DateFormat format) {
   UErrorCode status = U_ZERO_ERROR;
 
   std::unique_ptr<icu::DateIntervalFormat> formatter(

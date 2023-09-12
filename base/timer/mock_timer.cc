@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,11 +12,12 @@ namespace {
 
 void FlushPendingTasks(TestSimpleTaskRunner* task_runner) {
   // Do not use TestSimpleTaskRunner::RunPendingTasks() here. As RunPendingTasks
-  // overrides ThreadTaskRunnerHandle when it runs tasks, tasks posted by timer
-  // tasks to TTRH go to |test_task_runner_|, though they should be posted to
-  // the original task runner.
-  // Do not use TestSimpleTaskRunner::RunPendingTasks(), as its overridden
-  // ThreadTaskRunnerHandle causes unexpected side effects.
+  // overrides SingleThreadTaskRunner::CurrentDefaultHandle when it runs tasks,
+  // tasks posted by timer tasks to STTR::CDH go to |test_task_runner_|, though
+  // they should be posted to the original task runner.  Do not use
+  // TestSimpleTaskRunner::RunPendingTasks(), as its overridden
+  // SingleThreadTaskRunner::CurrentDefaultHandle causes unexpected side
+  // effects.
   for (TestPendingTask& task : task_runner->TakePendingTasks())
     std::move(task.task).Run();
 }

@@ -1,8 +1,10 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/value_iterators.h"
+
+#include "base/values.h"
 
 namespace base {
 
@@ -119,108 +121,6 @@ bool operator==(const const_dict_iterator& lhs,
 bool operator!=(const const_dict_iterator& lhs,
                 const const_dict_iterator& rhs) {
   return !(lhs == rhs);
-}
-
-// ----------------------------------------------------------------------------
-// dict_iterator_proxy.
-
-dict_iterator_proxy::dict_iterator_proxy(DictStorage* storage)
-    : storage_(storage) {}
-
-dict_iterator_proxy::iterator dict_iterator_proxy::begin() {
-  return iterator(storage_->begin());
-}
-
-dict_iterator_proxy::const_iterator dict_iterator_proxy::begin() const {
-  return const_iterator(storage_->begin());
-}
-
-dict_iterator_proxy::iterator dict_iterator_proxy::end() {
-  return iterator(storage_->end());
-}
-
-dict_iterator_proxy::const_iterator dict_iterator_proxy::end() const {
-  return const_iterator(storage_->end());
-}
-
-dict_iterator_proxy::reverse_iterator dict_iterator_proxy::rbegin() {
-  return reverse_iterator(end());
-}
-
-dict_iterator_proxy::const_reverse_iterator dict_iterator_proxy::rbegin()
-    const {
-  return const_reverse_iterator(end());
-}
-
-dict_iterator_proxy::reverse_iterator dict_iterator_proxy::rend() {
-  return reverse_iterator(begin());
-}
-
-dict_iterator_proxy::const_reverse_iterator dict_iterator_proxy::rend() const {
-  return const_reverse_iterator(begin());
-}
-
-dict_iterator_proxy::const_iterator dict_iterator_proxy::cbegin() const {
-  return const_iterator(begin());
-}
-
-dict_iterator_proxy::const_iterator dict_iterator_proxy::cend() const {
-  return const_iterator(end());
-}
-
-dict_iterator_proxy::const_reverse_iterator dict_iterator_proxy::crbegin()
-    const {
-  return const_reverse_iterator(rbegin());
-}
-
-dict_iterator_proxy::const_reverse_iterator dict_iterator_proxy::crend() const {
-  return const_reverse_iterator(rend());
-}
-
-// ----------------------------------------------------------------------------
-// const_dict_iterator_proxy.
-
-const_dict_iterator_proxy::const_dict_iterator_proxy(const DictStorage* storage)
-    : storage_(storage) {}
-
-const_dict_iterator_proxy::const_iterator const_dict_iterator_proxy::begin()
-    const {
-  return const_iterator(storage_->begin());
-}
-
-const_dict_iterator_proxy::const_iterator const_dict_iterator_proxy::end()
-    const {
-  return const_iterator(storage_->end());
-}
-
-const_dict_iterator_proxy::const_reverse_iterator
-const_dict_iterator_proxy::rbegin() const {
-  return const_reverse_iterator(end());
-}
-
-const_dict_iterator_proxy::const_reverse_iterator
-const_dict_iterator_proxy::rend() const {
-  return const_reverse_iterator(begin());
-}
-
-const_dict_iterator_proxy::const_iterator const_dict_iterator_proxy::cbegin()
-    const {
-  return const_iterator(begin());
-}
-
-const_dict_iterator_proxy::const_iterator const_dict_iterator_proxy::cend()
-    const {
-  return const_iterator(end());
-}
-
-const_dict_iterator_proxy::const_reverse_iterator
-const_dict_iterator_proxy::crbegin() const {
-  return const_reverse_iterator(rbegin());
-}
-
-const_dict_iterator_proxy::const_reverse_iterator
-const_dict_iterator_proxy::crend() const {
-  return const_reverse_iterator(rend());
 }
 
 }  // namespace detail

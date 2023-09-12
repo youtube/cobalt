@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,23 +7,23 @@
 #include <windows.h>  // Must be in front of other Windows header files.
 
 #include <psapi.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <winternl.h>
 
 #include <algorithm>
 
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/process/memory.h"
+#include "base/notreached.h"
 #include "base/process/process_metrics_iocounters.h"
-#include "base/sys_info.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "base/system/sys_info.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "base/values.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace {
-
-// System pagesize. This value remains constant on x86/64 architectures.
-const int PAGESIZE_KB = 4;
 
 // ntstatus.h conflicts with windows.h so define this locally.
 #define STATUS_SUCCESS ((NTSTATUS)0x00000000L)
@@ -122,11 +122,15 @@ struct SYSTEM_PERFORMANCE_INFORMATION {
 
 }  // namespace
 
-ProcessMetrics::~ProcessMetrics() { }
-
 size_t GetMaxFds() {
   // Windows is only limited by the amount of physical memory.
   return std::numeric_limits<size_t>::max();
+}
+
+size_t GetHandleLimit() {
+  // Rounded down from value reported here:
+  // http://blogs.technet.com/b/markrussinovich/archive/2009/09/29/3283844.aspx
+  return static_cast<size_t>(1 << 23);
 }
 
 // static
@@ -135,99 +139,20 @@ std::unique_ptr<ProcessMetrics> ProcessMetrics::CreateProcessMetrics(
   return WrapUnique(new ProcessMetrics(process));
 }
 
-namespace {
-
-class WorkingSetInformationBuffer {
- public:
-  WorkingSetInformationBuffer() {}
-  ~WorkingSetInformationBuffer() { Clear(); }
-
-  bool Reserve(size_t size) {
-    Clear();
-    // Use UncheckedMalloc here because this can be called from the code
-    // that handles low memory condition.
-    return UncheckedMalloc(size, reinterpret_cast<void**>(&buffer_));
-  }
-
-  const PSAPI_WORKING_SET_INFORMATION* operator ->() const { return buffer_; }
-
-  size_t GetPageEntryCount() const { return number_of_entries; }
-
-  // This function is used to get page entries for a process.
-  bool QueryPageEntries(const ProcessHandle& process) {
-    int retries = 5;
-    number_of_entries = 4096;  // Just a guess.
-
-    for (;;) {
-      size_t buffer_size =
-          sizeof(PSAPI_WORKING_SET_INFORMATION) +
-          (number_of_entries * sizeof(PSAPI_WORKING_SET_BLOCK));
-
-      if (!Reserve(buffer_size))
-        return false;
-
-      // On success, |buffer_| is populated with info about the working set of
-      // |process|. On ERROR_BAD_LENGTH failure, increase the size of the
-      // buffer and try again.
-      if (QueryWorkingSet(process, buffer_, buffer_size))
-        break;  // Success
-
-      if (GetLastError() != ERROR_BAD_LENGTH)
-        return false;
-
-      number_of_entries = buffer_->NumberOfEntries;
-
-      // Maybe some entries are being added right now. Increase the buffer to
-      // take that into account. Increasing by 10% should generally be enough,
-      // especially considering the potentially low memory condition during the
-      // call (when called from OomMemoryDetails) and the potentially high
-      // number of entries (300K was observed in crash dumps).
-      number_of_entries *= 1.1;
-
-      if (--retries == 0) {
-        // If we're looping, eventually fail.
-        return false;
-      }
-    }
-
-    // TODO(chengx): Remove the comment and the logic below. It is no longer
-    // needed since we don't have Win2000 support.
-    // On windows 2000 the function returns 1 even when the buffer is too small.
-    // The number of entries that we are going to parse is the minimum between
-    // the size we allocated and the real number of entries.
-    number_of_entries = std::min(number_of_entries,
-                                 static_cast<size_t>(buffer_->NumberOfEntries));
-
-    return true;
-  }
-
- private:
-  void Clear() {
-    SbMemoryDeallocate(buffer_);
-    buffer_ = nullptr;
-  }
-
-  PSAPI_WORKING_SET_INFORMATION* buffer_ = nullptr;
-
-  // Number of page entries.
-  size_t number_of_entries = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(WorkingSetInformationBuffer);
-};
-
-}  // namespace
-
 TimeDelta ProcessMetrics::GetCumulativeCPUUsage() {
   FILETIME creation_time;
   FILETIME exit_time;
   FILETIME kernel_time;
   FILETIME user_time;
 
-  if (!GetProcessTimes(process_.Get(), &creation_time, &exit_time, &kernel_time,
+  if (!process_.is_valid())
+    return TimeDelta();
+
+  if (!GetProcessTimes(process_.get(), &creation_time, &exit_time, &kernel_time,
                        &user_time)) {
-    // We don't assert here because in some cases (such as in the Task Manager)
-    // we may call this function on a process that has just exited but we have
-    // not yet received the notification.
+    // This should never fail because we duplicate the handle to guarantee it
+    // will remain valid.
+    DCHECK(false);
     return TimeDelta();
   }
 
@@ -235,8 +160,36 @@ TimeDelta ProcessMetrics::GetCumulativeCPUUsage() {
          TimeDelta::FromFileTime(user_time);
 }
 
+TimeDelta ProcessMetrics::GetPreciseCumulativeCPUUsage() {
+#if defined(ARCH_CPU_ARM64)
+  // Precise CPU usage is not available on Arm CPUs because they don't support
+  // constant rate TSC.
+  return GetCumulativeCPUUsage();
+#else   // !defined(ARCH_CPU_ARM64)
+  if (!time_internal::HasConstantRateTSC())
+    return GetCumulativeCPUUsage();
+
+  ULONG64 process_cycle_time = 0;
+  if (!QueryProcessCycleTime(process_.get(), &process_cycle_time)) {
+    NOTREACHED();
+    return TimeDelta();
+  }
+
+  const double tsc_ticks_per_second = time_internal::TSCTicksPerSecond();
+  if (tsc_ticks_per_second == 0) {
+    return TimeDelta();
+  }
+
+  const double process_time_seconds = process_cycle_time / tsc_ticks_per_second;
+  return Seconds(process_time_seconds);
+#endif  // !defined(ARCH_CPU_ARM64)
+}
+
 bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
-  return GetProcessIoCounters(process_.Get(), io_counters) != FALSE;
+  if (!process_.is_valid())
+    return false;
+
+  return GetProcessIoCounters(process_.get(), io_counters) != FALSE;
 }
 
 uint64_t ProcessMetrics::GetCumulativeDiskUsageInBytes() {
@@ -272,10 +225,6 @@ size_t GetSystemCommitCharge() {
   return (info.CommitTotal * system_info.dwPageSize) / 1024;
 }
 
-size_t GetPageSize() {
-  return PAGESIZE_KB * 1024;
-}
-
 // This function uses the following mapping between MEMORYSTATUSEX and
 // SystemMemoryInfoKB:
 //   ullTotalPhys ==> total
@@ -288,10 +237,10 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
   if (!::GlobalMemoryStatusEx(&mem_status))
     return false;
 
-  meminfo->total = mem_status.ullTotalPhys / 1024;
-  meminfo->avail_phys = mem_status.ullAvailPhys / 1024;
-  meminfo->swap_total = mem_status.ullTotalPageFile / 1024;
-  meminfo->swap_free = mem_status.ullAvailPageFile / 1024;
+  meminfo->total = saturated_cast<int>(mem_status.ullTotalPhys / 1024);
+  meminfo->avail_phys = saturated_cast<int>(mem_status.ullAvailPhys / 1024);
+  meminfo->swap_total = saturated_cast<int>(mem_status.ullTotalPageFile / 1024);
+  meminfo->swap_free = saturated_cast<int>(mem_status.ullAvailPageFile / 1024);
 
   return true;
 }
@@ -305,32 +254,30 @@ size_t ProcessMetrics::GetMallocUsage() {
 SystemPerformanceInfo::SystemPerformanceInfo() = default;
 SystemPerformanceInfo::SystemPerformanceInfo(
     const SystemPerformanceInfo& other) = default;
+SystemPerformanceInfo& SystemPerformanceInfo::operator=(
+    const SystemPerformanceInfo& other) = default;
 
-std::unique_ptr<Value> SystemPerformanceInfo::ToValue() const {
-  std::unique_ptr<DictionaryValue> result(new DictionaryValue());
+Value::Dict SystemPerformanceInfo::ToDict() const {
+  Value::Dict result;
 
   // Write out uint64_t variables as doubles.
   // Note: this may discard some precision, but for JS there's no other option.
-  result->SetDouble("idle_time", strict_cast<double>(idle_time));
-  result->SetDouble("read_transfer_count",
-                    strict_cast<double>(read_transfer_count));
-  result->SetDouble("write_transfer_count",
-                    strict_cast<double>(write_transfer_count));
-  result->SetDouble("other_transfer_count",
-                    strict_cast<double>(other_transfer_count));
-  result->SetDouble("read_operation_count",
-                    strict_cast<double>(read_operation_count));
-  result->SetDouble("write_operation_count",
-                    strict_cast<double>(write_operation_count));
-  result->SetDouble("other_operation_count",
-                    strict_cast<double>(other_operation_count));
-  result->SetDouble("pagefile_pages_written",
-                    strict_cast<double>(pagefile_pages_written));
-  result->SetDouble("pagefile_pages_write_ios",
-                    strict_cast<double>(pagefile_pages_write_ios));
-  result->SetDouble("available_pages", strict_cast<double>(available_pages));
-  result->SetDouble("pages_read", strict_cast<double>(pages_read));
-  result->SetDouble("page_read_ios", strict_cast<double>(page_read_ios));
+  result.Set("idle_time", strict_cast<double>(idle_time));
+  result.Set("read_transfer_count", strict_cast<double>(read_transfer_count));
+  result.Set("write_transfer_count", strict_cast<double>(write_transfer_count));
+  result.Set("other_transfer_count", strict_cast<double>(other_transfer_count));
+  result.Set("read_operation_count", strict_cast<double>(read_operation_count));
+  result.Set("write_operation_count",
+             strict_cast<double>(write_operation_count));
+  result.Set("other_operation_count",
+             strict_cast<double>(other_operation_count));
+  result.Set("pagefile_pages_written",
+             strict_cast<double>(pagefile_pages_written));
+  result.Set("pagefile_pages_write_ios",
+             strict_cast<double>(pagefile_pages_write_ios));
+  result.Set("available_pages", strict_cast<double>(available_pages));
+  result.Set("pages_read", strict_cast<double>(pages_read));
+  result.Set("page_read_ios", strict_cast<double>(page_read_ios));
 
   return result;
 }
@@ -338,24 +285,25 @@ std::unique_ptr<Value> SystemPerformanceInfo::ToValue() const {
 // Retrieves performance counters from the operating system.
 // Fills in the provided |info| structure. Returns true on success.
 BASE_EXPORT bool GetSystemPerformanceInfo(SystemPerformanceInfo* info) {
-  static const auto query_system_information_ptr =
-      reinterpret_cast<decltype(&::NtQuerySystemInformation)>(GetProcAddress(
-          GetModuleHandle(L"ntdll.dll"), "NtQuerySystemInformation"));
-  if (!query_system_information_ptr)
-    return false;
-
   SYSTEM_PERFORMANCE_INFORMATION counters = {};
-  const NTSTATUS status = query_system_information_ptr(
-      ::SystemPerformanceInformation, &counters,
-      sizeof(SYSTEM_PERFORMANCE_INFORMATION), nullptr);
+  {
+    // The call to NtQuerySystemInformation might block on a lock.
+    base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                  BlockingType::MAY_BLOCK);
+    if (::NtQuerySystemInformation(::SystemPerformanceInformation, &counters,
+                                   sizeof(SYSTEM_PERFORMANCE_INFORMATION),
+                                   nullptr) != STATUS_SUCCESS) {
+      return false;
+    }
+  }
 
-  if (status != STATUS_SUCCESS)
-    return false;
-
-  info->idle_time = counters.IdleTime.QuadPart;
-  info->read_transfer_count = counters.ReadTransferCount.QuadPart;
-  info->write_transfer_count = counters.WriteTransferCount.QuadPart;
-  info->other_transfer_count = counters.OtherTransferCount.QuadPart;
+  info->idle_time = static_cast<uint64_t>(counters.IdleTime.QuadPart);
+  info->read_transfer_count =
+      static_cast<uint64_t>(counters.ReadTransferCount.QuadPart);
+  info->write_transfer_count =
+      static_cast<uint64_t>(counters.WriteTransferCount.QuadPart);
+  info->other_transfer_count =
+      static_cast<uint64_t>(counters.OtherTransferCount.QuadPart);
   info->read_operation_count = counters.ReadOperationCount;
   info->write_operation_count = counters.WriteOperationCount;
   info->other_operation_count = counters.OtherOperationCount;

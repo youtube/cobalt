@@ -1,13 +1,11 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/process/memory.h"
 
+#include <stddef.h>
 #include <stdlib.h>
-
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -21,10 +19,6 @@ bool AdjustOOMScore(ProcessId process, int score) {
   return false;
 }
 
-void TerminateBecauseOutOfMemory(size_t size) {
-  abort();
-}
-
 // UncheckedMalloc and Calloc exist so that platforms making use of
 // EnableTerminationOnOutOfMemory have a way to allocate memory without
 // crashing. This _stubs.cc file is for platforms that do not support
@@ -34,13 +28,17 @@ void TerminateBecauseOutOfMemory(size_t size) {
 // failure to allocate.
 
 bool UncheckedMalloc(size_t size, void** result) {
-  *result = SbMemoryAllocate(size);
+  *result = malloc(size);
   return *result != nullptr;
 }
 
 bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
   *result = calloc(num_items, size);
   return *result != nullptr;
+}
+
+void UncheckedFree(void* ptr) {
+  free(ptr);
 }
 
 }  // namespace base

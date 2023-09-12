@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/metrics/statistics_recorder.h"
+#include "base/metrics/persistent_histogram_allocator.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -25,9 +25,14 @@ constexpr char kTestHistogramAllocatorName[] = "TestMetrics";
 }  // namespace
 
 class PersistentHistogramStorageTest : public testing::Test {
+ public:
+  PersistentHistogramStorageTest(const PersistentHistogramStorageTest&) =
+      delete;
+  PersistentHistogramStorageTest& operator=(
+      const PersistentHistogramStorageTest&) = delete;
+
  protected:
-  PersistentHistogramStorageTest() :
-    recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {}
+  PersistentHistogramStorageTest() = default;
   ~PersistentHistogramStorageTest() override = default;
 
   // Creates a unique temporary directory, and sets the test storage directory.
@@ -48,16 +53,9 @@ class PersistentHistogramStorageTest : public testing::Test {
 
   // The directory into which metrics files are written.
   FilePath test_storage_dir_;
-
-  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
-
-  DISALLOW_COPY_AND_ASSIGN(PersistentHistogramStorageTest);
 };
 
-// TODO(chengx): Re-enable the test on OS_IOS after issue 836789 is fixed.
-// PersistentHistogramStorage is only used on OS_WIN now, so disabling this
-// test on OS_IOS is fine.
-#if !defined(OS_NACL) && !defined(OS_IOS)
+#if !BUILDFLAG(IS_NACL)
 TEST_F(PersistentHistogramStorageTest, HistogramWriteTest) {
   auto persistent_histogram_storage =
       std::make_unique<PersistentHistogramStorage>(
@@ -76,7 +74,10 @@ TEST_F(PersistentHistogramStorageTest, HistogramWriteTest) {
   // destruction of the PersistentHistogramStorage instance.
   EXPECT_TRUE(DirectoryExists(test_storage_dir()));
   EXPECT_FALSE(IsDirectoryEmpty(test_storage_dir()));
+
+  // Clean up for subsequent tests.
+  GlobalHistogramAllocator::ReleaseForTesting();
 }
-#endif  // !defined(OS_NACL) && !defined(OS_IOS)
+#endif  // !BUILDFLAG(IS_NACL)
 
 }  // namespace base

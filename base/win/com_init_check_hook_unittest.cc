@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -72,7 +72,8 @@ TEST(ComInitCheckHook, UnexpectedHook) {
 
   uint32_t co_create_instance_padded_address =
       reinterpret_cast<uint32_t>(
-          GetProcAddress(ole32_library, "CoCreateInstance")) - 5;
+          GetProcAddress(ole32_library, "CoCreateInstance")) -
+      5;
   const unsigned char* co_create_instance_bytes =
       reinterpret_cast<const unsigned char*>(co_create_instance_padded_address);
   const unsigned char original_byte = co_create_instance_bytes[0];

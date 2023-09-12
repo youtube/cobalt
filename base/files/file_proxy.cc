@@ -1,20 +1,18 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/files/file_proxy.h"
 
+#include <memory>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/macros.h"
-#include "base/task_runner.h"
-#include "base/task_runner_util.h"
-#include "starboard/memory.h"
+#include "base/task/task_runner.h"
 
 namespace {
 
@@ -27,29 +25,28 @@ namespace base {
 
 class FileHelper {
  public:
-   FileHelper(FileProxy* proxy, File file)
+  FileHelper(FileProxy* proxy, File file)
       : file_(std::move(file)),
-        error_(File::FILE_ERROR_FAILED),
         task_runner_(proxy->task_runner()),
-        proxy_(AsWeakPtr(proxy)) {
-   }
+        proxy_(AsWeakPtr(proxy)) {}
+  FileHelper(const FileHelper&) = delete;
+  FileHelper& operator=(const FileHelper&) = delete;
 
-   void PassFile() {
-     if (proxy_)
-       proxy_->SetFile(std::move(file_));
-     else if (file_.IsValid())
-       task_runner_->PostTask(FROM_HERE,
-                              BindOnce(&FileDeleter, std::move(file_)));
-   }
+  void PassFile() {
+    if (proxy_)
+      proxy_->SetFile(std::move(file_));
+    else if (file_.IsValid())
+      task_runner_->PostTask(FROM_HERE,
+                             BindOnce(&FileDeleter, std::move(file_)));
+  }
 
  protected:
   File file_;
-  File::Error error_;
+  File::Error error_ = File::FILE_ERROR_FAILED;
 
  private:
   scoped_refptr<TaskRunner> task_runner_;
   WeakPtr<FileProxy> proxy_;
-  DISALLOW_COPY_AND_ASSIGN(FileHelper);
 };
 
 namespace {
@@ -59,6 +56,8 @@ class GenericFileHelper : public FileHelper {
   GenericFileHelper(FileProxy* proxy, File file)
       : FileHelper(proxy, std::move(file)) {
   }
+  GenericFileHelper(const GenericFileHelper&) = delete;
+  GenericFileHelper& operator=(const GenericFileHelper&) = delete;
 
   void Close() {
     file_.Close();
@@ -85,9 +84,6 @@ class GenericFileHelper : public FileHelper {
     if (!callback.is_null())
       std::move(callback).Run(error_);
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(GenericFileHelper);
 };
 
 class CreateOrOpenHelper : public FileHelper {
@@ -95,8 +91,10 @@ class CreateOrOpenHelper : public FileHelper {
   CreateOrOpenHelper(FileProxy* proxy, File file)
       : FileHelper(proxy, std::move(file)) {
   }
+  CreateOrOpenHelper(const CreateOrOpenHelper&) = delete;
+  CreateOrOpenHelper& operator=(const CreateOrOpenHelper&) = delete;
 
-  void RunWork(const FilePath& file_path, int file_flags) {
+  void RunWork(const FilePath& file_path, uint32_t file_flags) {
     file_.Initialize(file_path, file_flags);
     error_ = file_.IsValid() ? File::FILE_OK : file_.error_details();
   }
@@ -106,9 +104,6 @@ class CreateOrOpenHelper : public FileHelper {
     PassFile();
     std::move(callback).Run(error_);
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CreateOrOpenHelper);
 };
 
 class CreateTemporaryHelper : public FileHelper {
@@ -116,6 +111,8 @@ class CreateTemporaryHelper : public FileHelper {
   CreateTemporaryHelper(FileProxy* proxy, File file)
       : FileHelper(proxy, std::move(file)) {
   }
+  CreateTemporaryHelper(const CreateTemporaryHelper&) = delete;
+  CreateTemporaryHelper& operator=(const CreateTemporaryHelper&) = delete;
 
   void RunWork(uint32_t additional_file_flags) {
     // TODO(darin): file_util should have a variant of CreateTemporaryFile
@@ -127,7 +124,7 @@ class CreateTemporaryHelper : public FileHelper {
       return;
     }
 
-    uint32_t file_flags = File::FLAG_WRITE | File::FLAG_TEMPORARY |
+    uint32_t file_flags = File::FLAG_WRITE | File::FLAG_WIN_TEMPORARY |
                           File::FLAG_CREATE_ALWAYS | additional_file_flags;
 
     file_.Initialize(file_path_, file_flags);
@@ -135,7 +132,7 @@ class CreateTemporaryHelper : public FileHelper {
       error_ = File::FILE_OK;
     } else {
       error_ = file_.error_details();
-      DeleteFile(file_path_, false);
+      DeleteFile(file_path_);
       file_path_.clear();
     }
   }
@@ -148,7 +145,6 @@ class CreateTemporaryHelper : public FileHelper {
 
  private:
   FilePath file_path_;
-  DISALLOW_COPY_AND_ASSIGN(CreateTemporaryHelper);
 };
 
 class GetInfoHelper : public FileHelper {
@@ -156,6 +152,8 @@ class GetInfoHelper : public FileHelper {
   GetInfoHelper(FileProxy* proxy, File file)
       : FileHelper(proxy, std::move(file)) {
   }
+  GetInfoHelper(const GetInfoHelper&) = delete;
+  GetInfoHelper& operator=(const GetInfoHelper&) = delete;
 
   void RunWork() {
     if (file_.GetInfo(&file_info_))
@@ -170,17 +168,16 @@ class GetInfoHelper : public FileHelper {
 
  private:
   File::Info file_info_;
-  DISALLOW_COPY_AND_ASSIGN(GetInfoHelper);
 };
 
 class ReadHelper : public FileHelper {
  public:
   ReadHelper(FileProxy* proxy, File file, int bytes_to_read)
       : FileHelper(proxy, std::move(file)),
-        buffer_(new char[bytes_to_read]),
-        bytes_to_read_(bytes_to_read),
-        bytes_read_(0) {
-  }
+        buffer_(new char[static_cast<size_t>(bytes_to_read)]),
+        bytes_to_read_(bytes_to_read) {}
+  ReadHelper(const ReadHelper&) = delete;
+  ReadHelper& operator=(const ReadHelper&) = delete;
 
   void RunWork(int64_t offset) {
     bytes_read_ = file_.Read(offset, buffer_.get(), bytes_to_read_);
@@ -196,21 +193,22 @@ class ReadHelper : public FileHelper {
  private:
   std::unique_ptr<char[]> buffer_;
   int bytes_to_read_;
-  int bytes_read_;
-  DISALLOW_COPY_AND_ASSIGN(ReadHelper);
+  int bytes_read_ = 0;
 };
 
 class WriteHelper : public FileHelper {
  public:
   WriteHelper(FileProxy* proxy,
               File file,
-              const char* buffer, int bytes_to_write)
+              const char* buffer,
+              int bytes_to_write)
       : FileHelper(proxy, std::move(file)),
-        buffer_(new char[bytes_to_write]),
-        bytes_to_write_(bytes_to_write),
-        bytes_written_(0) {
-    memcpy(buffer_.get(), buffer, bytes_to_write);
+        buffer_(new char[static_cast<size_t>(bytes_to_write)]),
+        bytes_to_write_(bytes_to_write) {
+    memcpy(buffer_.get(), buffer, static_cast<size_t>(bytes_to_write));
   }
+  WriteHelper(const WriteHelper&) = delete;
+  WriteHelper& operator=(const WriteHelper&) = delete;
 
   void RunWork(int64_t offset) {
     bytes_written_ = file_.Write(offset, buffer_.get(), bytes_to_write_);
@@ -226,8 +224,7 @@ class WriteHelper : public FileHelper {
  private:
   std::unique_ptr<char[]> buffer_;
   int bytes_to_write_;
-  int bytes_written_;
-  DISALLOW_COPY_AND_ASSIGN(WriteHelper);
+  int bytes_written_ = 0;
 };
 
 }  // namespace
@@ -277,11 +274,9 @@ File FileProxy::TakeFile() {
   return std::move(file_);
 }
 
-#if !defined(STARBOARD)
 File FileProxy::DuplicateFile() {
   return file_.Duplicate();
 }
-#endif
 
 PlatformFile FileProxy::GetPlatformFile() const {
   return file_.GetPlatformFile();

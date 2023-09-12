@@ -1,25 +1,23 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_STRINGS_STRING_NUMBER_CONVERSIONS_H_
 #define BASE_STRINGS_STRING_NUMBER_CONVERSIONS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/strings/string16.h"
+#include "base/containers/span.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 
 // ----------------------------------------------------------------------------
 // IMPORTANT MESSAGE FROM YOUR SPONSOR
-//
-// This file contains no "wstring" variants. New code should use string16. If
-// you need to make old code work, use the UTF8 version and convert. Please do
-// not add wstring variants.
 //
 // Please do not add "convenience" functions for converting strings to integers
 // that return the value and ignore success/failure. That encourages people to
@@ -40,50 +38,19 @@ namespace base {
 
 // Ignores locale! see warning above.
 BASE_EXPORT std::string NumberToString(int value);
-BASE_EXPORT string16 NumberToString16(int value);
+BASE_EXPORT std::u16string NumberToString16(int value);
 BASE_EXPORT std::string NumberToString(unsigned int value);
-BASE_EXPORT string16 NumberToString16(unsigned int value);
+BASE_EXPORT std::u16string NumberToString16(unsigned int value);
 BASE_EXPORT std::string NumberToString(long value);
-BASE_EXPORT string16 NumberToString16(long value);
+BASE_EXPORT std::u16string NumberToString16(long value);
 BASE_EXPORT std::string NumberToString(unsigned long value);
-BASE_EXPORT string16 NumberToString16(unsigned long value);
+BASE_EXPORT std::u16string NumberToString16(unsigned long value);
 BASE_EXPORT std::string NumberToString(long long value);
-BASE_EXPORT string16 NumberToString16(long long value);
+BASE_EXPORT std::u16string NumberToString16(long long value);
 BASE_EXPORT std::string NumberToString(unsigned long long value);
-BASE_EXPORT string16 NumberToString16(unsigned long long value);
+BASE_EXPORT std::u16string NumberToString16(unsigned long long value);
 BASE_EXPORT std::string NumberToString(double value);
-BASE_EXPORT string16 NumberToString16(double value);
-
-// Type-specific naming for backwards compatibility.
-//
-// TODO(brettw) these should be removed and callers converted to the overloaded
-// "NumberToString" variant.
-inline std::string IntToString(int value) {
-  return NumberToString(value);
-}
-inline string16 IntToString16(int value) {
-  return NumberToString16(value);
-}
-inline std::string UintToString(unsigned value) {
-  return NumberToString(value);
-}
-inline string16 UintToString16(unsigned value) {
-  return NumberToString16(value);
-}
-#if defined(STARBOARD)
-inline std::string Int32ToString(int32_t value) {
-  return NumberToString(value);
-}
-inline std::string Uint64ToString(int64_t value) {
-  return NumberToString(value);
-}
-#endif
-inline std::string Int64ToString(int64_t value) {
-  return NumberToString(value);
-}
-inline string16 Int64ToString16(int64_t value) {
-  return NumberToString16(value);
-}
+BASE_EXPORT std::u16string NumberToString16(double value);
 
 // String -> number conversions ------------------------------------------------
 
@@ -112,11 +79,6 @@ BASE_EXPORT bool StringToUint(StringPiece16 input, unsigned* output);
 BASE_EXPORT bool StringToInt64(StringPiece input, int64_t* output);
 BASE_EXPORT bool StringToInt64(StringPiece16 input, int64_t* output);
 
-#if defined(STARBOARD)
-BASE_EXPORT bool StringToInt32(StringPiece input, int32_t* output);
-BASE_EXPORT bool StringToUint32(StringPiece input, uint32_t* output);
-#endif
-
 BASE_EXPORT bool StringToUint64(StringPiece input, uint64_t* output);
 BASE_EXPORT bool StringToUint64(StringPiece16 input, uint64_t* output);
 
@@ -131,7 +93,8 @@ BASE_EXPORT bool StringToSizeT(StringPiece16 input, size_t* output);
 // If your input is locale specific, use ICU to read the number.
 // WARNING: Will write to |output| even when returning false.
 //          Read the comments here and above StringToInt() carefully.
-BASE_EXPORT bool StringToDouble(const std::string& input, double* output);
+BASE_EXPORT bool StringToDouble(StringPiece input, double* output);
+BASE_EXPORT bool StringToDouble(StringPiece16 input, double* output);
 
 // Hex encoding ----------------------------------------------------------------
 
@@ -142,6 +105,7 @@ BASE_EXPORT bool StringToDouble(const std::string& input, double* output);
 // max size for |size| should be is
 //   std::numeric_limits<size_t>::max() / 2
 BASE_EXPORT std::string HexEncode(const void* bytes, size_t size);
+BASE_EXPORT std::string HexEncode(base::span<const uint8_t> bytes);
 
 // Best effort conversion, see StringToInt above for restrictions.
 // Will only successful parse hex values that will fit into |output|, i.e.
@@ -172,6 +136,21 @@ BASE_EXPORT bool HexStringToUInt64(StringPiece input, uint64_t* output);
 BASE_EXPORT bool HexStringToBytes(StringPiece input,
                                   std::vector<uint8_t>* output);
 
+// Same as HexStringToBytes, but for an std::string.
+BASE_EXPORT bool HexStringToString(StringPiece input, std::string* output);
+
+// Decodes the hex string |input| into a presized |output|. The output buffer
+// must be sized exactly to |input.size() / 2| or decoding will fail and no
+// bytes will be written to |output|. Decoding an empty input is also
+// considered a failure. When decoding fails due to encountering invalid input
+// characters, |output| will have been filled with the decoded bytes up until
+// the failure.
+BASE_EXPORT bool HexStringToSpan(StringPiece input, base::span<uint8_t> output);
+
 }  // namespace base
+
+#if BUILDFLAG(IS_WIN)
+#include "base/strings/string_number_conversions_win.h"
+#endif
 
 #endif  // BASE_STRINGS_STRING_NUMBER_CONVERSIONS_H_

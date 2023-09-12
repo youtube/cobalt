@@ -1,9 +1,10 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/i18n/message_formatter.h"
 
+#include "base/check.h"
 #include "base/i18n/unicodestring.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
@@ -36,7 +37,7 @@ MessageArg::MessageArg(StringPiece s)
 MessageArg::MessageArg(const std::string& s)
     : formattable(new icu::Formattable(UnicodeString::fromUTF8(s))) {}
 
-MessageArg::MessageArg(const string16& s)
+MessageArg::MessageArg(const std::u16string& s)
     : formattable(new icu::Formattable(UnicodeString(s.data(), s.size()))) {}
 
 MessageArg::MessageArg(int i) : formattable(new icu::Formattable(i)) {}
@@ -61,7 +62,7 @@ bool MessageArg::has_value(int *count) const {
 
 }  // namespace internal
 
-string16 MessageFormatter::FormatWithNumberedArgs(
+std::u16string MessageFormatter::FormatWithNumberedArgs(
     StringPiece16 msg,
     const internal::MessageArg& arg0,
     const internal::MessageArg& arg1,
@@ -88,27 +89,29 @@ string16 MessageFormatter::FormatWithNumberedArgs(
   icu::FieldPosition ignore(icu::FieldPosition::DONT_CARE);
   format.format(args, args_count, formatted, ignore, error);
   if (U_FAILURE(error)) {
-#if defined(STARBOARD)
-    // MSVC can not output wstring with << directly.
-    LOG(ERROR) << "MessageFormat(" << msg.as_string().c_str() << ") failed with "
-#else
-    LOG(ERROR) << "MessageFormat(" << msg.as_string() << ") failed with "
-#endif
+    LOG(ERROR) << "MessageFormat(" << msg << ") failed with "
                << u_errorName(error);
-    return string16();
+    return std::u16string();
   }
   return i18n::UnicodeStringToString16(formatted);
 }
 
-string16 MessageFormatter::FormatWithNamedArgs(
+std::u16string MessageFormatter::FormatWithNamedArgs(
     StringPiece16 msg,
-    StringPiece name0, const internal::MessageArg& arg0,
-    StringPiece name1, const internal::MessageArg& arg1,
-    StringPiece name2, const internal::MessageArg& arg2,
-    StringPiece name3, const internal::MessageArg& arg3,
-    StringPiece name4, const internal::MessageArg& arg4,
-    StringPiece name5, const internal::MessageArg& arg5,
-    StringPiece name6, const internal::MessageArg& arg6) {
+    StringPiece name0,
+    const internal::MessageArg& arg0,
+    StringPiece name1,
+    const internal::MessageArg& arg1,
+    StringPiece name2,
+    const internal::MessageArg& arg2,
+    StringPiece name3,
+    const internal::MessageArg& arg3,
+    StringPiece name4,
+    const internal::MessageArg& arg4,
+    StringPiece name5,
+    const internal::MessageArg& arg5,
+    StringPiece name6,
+    const internal::MessageArg& arg6) {
   icu::UnicodeString names[] = {
       UnicodeStringFromStringPiece(name0),
       UnicodeStringFromStringPiece(name1),
@@ -136,13 +139,9 @@ string16 MessageFormatter::FormatWithNamedArgs(
   icu::UnicodeString formatted;
   format.format(names, args, args_count, formatted, error);
   if (U_FAILURE(error)) {
-#if defined(STARBOARD)
-    LOG(ERROR) << "MessageFormat(" << msg.as_string().c_str() << ") failed with "
-#else
-    LOG(ERROR) << "MessageFormat(" << msg.as_string() << ") failed with "
-#endif
+    LOG(ERROR) << "MessageFormat(" << msg << ") failed with "
                << u_errorName(error);
-    return string16();
+    return std::u16string();
   }
   return i18n::UnicodeStringToString16(formatted);
 }

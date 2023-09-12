@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,15 +8,14 @@
 // This file defines the types and structs used to issue memory dump requests.
 // These are also used in the IPCs for coordinating inter-process memory dumps.
 
-#include <map>
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 
 #include "base/base_export.h"
-#include "base/callback.h"
-#include "base/optional.h"
+#include "base/functional/callback.h"
 #include "base/process/process_handle.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {
@@ -58,6 +57,12 @@ enum class MemoryDumpLevelOfDetail : uint32_t {
   LAST = DETAILED
 };
 
+// Tells the MemoryDumpProvider(s) if they should try to make the result
+// more deterministic by forcing garbage collection.
+// Keep this consistent with memory_instrumentation.mojo and
+// memory_instrumentation_struct_traits.{h,cc}
+enum class MemoryDumpDeterminism : uint32_t { NONE, FORCE_GC };
+
 // Keep this consistent with memory_instrumentation.mojo and
 // memory_instrumentation_struct_traits.{h,cc}
 struct BASE_EXPORT MemoryDumpRequestArgs {
@@ -68,6 +73,7 @@ struct BASE_EXPORT MemoryDumpRequestArgs {
 
   MemoryDumpType dump_type;
   MemoryDumpLevelOfDetail level_of_detail;
+  MemoryDumpDeterminism determinism;
 };
 
 // Args for ProcessMemoryDump and passed to OnMemoryDump calls for memory dump
@@ -75,6 +81,8 @@ struct BASE_EXPORT MemoryDumpRequestArgs {
 struct MemoryDumpArgs {
   // Specifies how detailed the dumps should be.
   MemoryDumpLevelOfDetail level_of_detail;
+  // Specifies whether the dumps should be more deterministic.
+  MemoryDumpDeterminism determinism;
 
   // Globally unique identifier. In multi-process dumps, all processes issue a
   // local dump with the same guid. This allows the trace importers to
@@ -82,7 +90,7 @@ struct MemoryDumpArgs {
   uint64_t dump_guid;
 };
 
-using ProcessMemoryDumpCallback = Callback<
+using ProcessMemoryDumpCallback = OnceCallback<
     void(bool success, uint64_t dump_guid, std::unique_ptr<ProcessMemoryDump>)>;
 
 BASE_EXPORT const char* MemoryDumpTypeToString(const MemoryDumpType& dump_type);

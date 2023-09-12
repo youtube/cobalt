@@ -1,22 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/threading/thread_local_storage.h"
 
-#if defined(OS_WIN)
-#include <windows.h>
-#include <process.h>
-#endif
-
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/threading/simple_thread.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
+#include <process.h>
 // Ignore warnings about ptr->int conversions that we use when
 // storing ints into ThreadLocalStorage.
 #pragma warning(disable : 4311 4312)
@@ -24,7 +21,7 @@
 
 namespace base {
 
-#if defined(OS_POSIX)
+#if BUILDFLAG(IS_POSIX)
 
 namespace internal {
 
@@ -38,7 +35,7 @@ class ThreadLocalStorageTestInternal {
 
 }  // namespace internal
 
-#endif  // defined(OS_POSIX)
+#endif  // BUILDFLAG(IS_POSIX)
 
 namespace {
 
@@ -60,6 +57,9 @@ class ThreadLocalStorageRunner : public DelegateSimpleThread::Delegate {
   explicit ThreadLocalStorageRunner(int* tls_value_ptr)
       : tls_value_ptr_(tls_value_ptr) {}
 
+  ThreadLocalStorageRunner(const ThreadLocalStorageRunner&) = delete;
+  ThreadLocalStorageRunner& operator=(const ThreadLocalStorageRunner&) = delete;
+
   ~ThreadLocalStorageRunner() override = default;
 
   void Run() override {
@@ -79,15 +79,14 @@ class ThreadLocalStorageRunner : public DelegateSimpleThread::Delegate {
   }
 
  private:
-  int* tls_value_ptr_;
-  DISALLOW_COPY_AND_ASSIGN(ThreadLocalStorageRunner);
+  raw_ptr<int> tls_value_ptr_;
 };
 
 
 void ThreadLocalStorageCleanup(void *value) {
-  int *ptr = reinterpret_cast<int*>(value);
+  int *ptr = static_cast<int*>(value);
   // Destructors should never be called with a NULL.
-  ASSERT_NE(reinterpret_cast<int*>(NULL), ptr);
+  ASSERT_NE(nullptr, ptr);
   if (*ptr == kFinalTlsValue)
     return;  // We've been called enough times.
   ASSERT_LT(kFinalTlsValue, *ptr);
@@ -97,7 +96,7 @@ void ThreadLocalStorageCleanup(void *value) {
   TLSSlot().Set(value);
 }
 
-#if defined(OS_POSIX)
+#if BUILDFLAG(IS_POSIX)
 constexpr intptr_t kDummyValue = 0xABCD;
 constexpr size_t kKeyCount = 20;
 
@@ -107,6 +106,10 @@ constexpr size_t kKeyCount = 20;
 class UseTLSDuringDestructionRunner {
  public:
   UseTLSDuringDestructionRunner() = default;
+
+  UseTLSDuringDestructionRunner(const UseTLSDuringDestructionRunner&) = delete;
+  UseTLSDuringDestructionRunner& operator=(
+      const UseTLSDuringDestructionRunner&) = delete;
 
   // The order in which pthread_key destructors are called is not well defined.
   // Hopefully, by creating 10 both before and after initializing TLS on the
@@ -135,7 +138,7 @@ class UseTLSDuringDestructionRunner {
  private:
   struct TLSState {
     pthread_key_t key;
-    bool* teardown_works_correctly;
+    raw_ptr<bool> teardown_works_correctly;
   };
 
   // The POSIX TLS destruction API takes as input a single C-function, which is
@@ -181,8 +184,6 @@ class UseTLSDuringDestructionRunner {
   static base::ThreadLocalStorage::Slot slot_;
   bool teardown_works_correctly_ = false;
   TLSState tls_states_[kKeyCount];
-
-  DISALLOW_COPY_AND_ASSIGN(UseTLSDuringDestructionRunner);
 };
 
 base::ThreadLocalStorage::Slot UseTLSDuringDestructionRunner::slot_;
@@ -194,7 +195,70 @@ void* UseTLSTestThreadRun(void* input) {
   return nullptr;
 }
 
-#endif  // defined(OS_POSIX)
+#endif  // BUILDFLAG(IS_POSIX)
+
+class TlsDestructionOrderRunner : public DelegateSimpleThread::Delegate {
+ public:
+  // The runner creates |n_slots| static slots that will be destroyed at
+  // thread exit, with |spacing| empty slots between them. This allows us to
+  // test that the destruction order is correct regardless of the actual slot
+  // indices in the global array.
+  TlsDestructionOrderRunner(int n_slots, int spacing)
+      : n_slots_(n_slots), spacing_(spacing) {}
+
+  void Run() override {
+    destructor_calls.clear();
+    for (int slot = 1; slot < n_slots_ + 1; ++slot) {
+      for (int i = 0; i < spacing_; ++i) {
+        ThreadLocalStorage::Slot empty_slot(nullptr);
+      }
+      NewStaticTLSSlot(slot);
+    }
+  }
+
+  static std::vector<int> destructor_calls;
+
+ private:
+  ThreadLocalStorage::Slot& NewStaticTLSSlot(int n) {
+    NoDestructor<ThreadLocalStorage::Slot> slot(
+        &TlsDestructionOrderRunner::Destructor);
+    slot->Set(reinterpret_cast<void*>(n));
+    return *slot;
+  }
+
+  static void Destructor(void* value) {
+    int n = reinterpret_cast<intptr_t>(value);
+    destructor_calls.push_back(n);
+  }
+
+  int n_slots_;
+  int spacing_;
+};
+std::vector<int> TlsDestructionOrderRunner::destructor_calls;
+
+class CreateDuringDestructionRunner : public DelegateSimpleThread::Delegate {
+ public:
+  void Run() override {
+    second_destructor_called = false;
+    NoDestructor<ThreadLocalStorage::Slot> slot(
+        &CreateDuringDestructionRunner::FirstDestructor);
+    slot->Set(reinterpret_cast<void*>(123));
+  }
+
+  static bool second_destructor_called;
+
+ private:
+  // The first destructor allocates another TLS slot, which should also be
+  // destroyed eventually.
+  static void FirstDestructor(void*) {
+    NoDestructor<ThreadLocalStorage::Slot> slot(
+        &CreateDuringDestructionRunner::SecondDestructor);
+    slot->Set(reinterpret_cast<void*>(234));
+  }
+
+  static void SecondDestructor(void*) { second_destructor_called = true; }
+};
+bool CreateDuringDestructionRunner::second_destructor_called = false;
 
 }  // namespace
 
@@ -205,16 +269,12 @@ TEST(ThreadLocalStorageTest, Basics) {
   EXPECT_EQ(value, 123);
 }
 
-#if defined(THREAD_SANITIZER) || \
-    (defined(OS_WIN) && defined(ARCH_CPU_X86_64) && !defined(NDEBUG))
+#if defined(THREAD_SANITIZER)
 // Do not run the test under ThreadSanitizer. Because this test iterates its
 // own TSD destructor for the maximum possible number of times, TSan can't jump
 // in after the last destructor invocation, therefore the destructor remains
 // unsynchronized with the following users of the same TSD slot. This results
 // in race reports between the destructor and functions in other tests.
-//
-// It is disabled on Win x64 with incremental linking (i.e. "Debug") pending
-// resolution of http://crbug.com/251251.
 #define MAYBE_TLSDestructors DISABLED_TLSDestructors
 #else
 #define MAYBE_TLSDestructors TLSDestructors
@@ -248,8 +308,6 @@ TEST(ThreadLocalStorageTest, MAYBE_TLSDestructors) {
   }
 }
 
-// MSVC doesn't allow casting 32bit address to pointer.
-#if !SB_IS(COMPILER_MSVC)
 TEST(ThreadLocalStorageTest, TLSReclaim) {
   // Creates and destroys many TLS slots and ensures they all zero-inited.
   for (int i = 0; i < 1000; ++i) {
@@ -259,9 +317,8 @@ TEST(ThreadLocalStorageTest, TLSReclaim) {
     EXPECT_EQ(reinterpret_cast<void*>(0xBAADF00D), slot.Get());
   }
 }
-#endif
 
-#if defined(OS_POSIX)
+#if BUILDFLAG(IS_POSIX)
 // Unlike POSIX, Windows does not iterate through the OS TLS to cleanup any
 // values there. Instead a per-module thread destruction function is called.
 // However, it is not possible to perform a check after this point (as the code
@@ -277,6 +334,33 @@ TEST(ThreadLocalStorageTest, UseTLSDuringDestruction) {
 
   EXPECT_TRUE(runner.teardown_works_correctly());
 }
-#endif  // defined(OS_POSIX)
+#endif  // BUILDFLAG(IS_POSIX)
+
+// Test that TLS slots are destroyed in the reverse order: the one that was
+// created first is destroyed last.
+TEST(ThreadLocalStorageTest, DestructionOrder) {
+  const size_t kNSlots = 5;
+  const size_t kSpacing = 100;
+  // The total number of slots is 256, so creating 5 slots with 100 space
+  // between them will place them in different parts of the slot array.
+  // This test checks that their destruction order depends only on their
+  // creation order and not on their index in the array.
+  TlsDestructionOrderRunner runner(kNSlots, kSpacing);
+  DelegateSimpleThread thread(&runner, "tls thread");
+  thread.Start();
+  thread.Join();
+  ASSERT_EQ(kNSlots, TlsDestructionOrderRunner::destructor_calls.size());
+  for (int call = 0, slot = kNSlots; slot > 0; --slot, ++call) {
+    EXPECT_EQ(slot, TlsDestructionOrderRunner::destructor_calls[call]);
+  }
+}
+
+TEST(ThreadLocalStorageTest, CreateDuringDestruction) {
+  CreateDuringDestructionRunner runner;
+  DelegateSimpleThread thread(&runner, "tls thread");
+  thread.Start();
+  thread.Join();
+  ASSERT_TRUE(CreateDuringDestructionRunner::second_destructor_called);
+}
 
 }  // namespace base

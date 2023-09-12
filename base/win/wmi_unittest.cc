@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright 2006-2008 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,7 @@ TEST_F(WMITest, TestLocalConnectionSecurityBlanket) {
   ComPtr<IWbemServices> wmi_services = nullptr;
   EXPECT_TRUE(CreateLocalWmiConnection(true, &wmi_services));
   ASSERT_NE(wmi_services.Get(), nullptr);
-  ULONG refs = wmi_services->Release();
+  ULONG refs = wmi_services.Reset();
   EXPECT_EQ(0u, refs);
 }
 
@@ -31,7 +31,7 @@ TEST_F(WMITest, TestLocalConnectionNoSecurityBlanket) {
   ComPtr<IWbemServices> wmi_services = nullptr;
   EXPECT_TRUE(CreateLocalWmiConnection(false, &wmi_services));
   ASSERT_NE(wmi_services.Get(), nullptr);
-  ULONG refs = wmi_services->Release();
+  ULONG refs = wmi_services.Reset();
   EXPECT_EQ(0u, refs);
 }
 
@@ -43,9 +43,9 @@ TEST_F(WMITest, TestCreateClassMethod) {
   EXPECT_TRUE(CreateWmiClassMethodObject(
       wmi_services.Get(), L"Win32_ShortcutFile", L"Rename", &class_method));
   ASSERT_NE(class_method.Get(), nullptr);
-  ULONG refs = class_method->Release();
+  ULONG refs = class_method.Reset();
   EXPECT_EQ(0u, refs);
-  refs = wmi_services->Release();
+  refs = wmi_services.Reset();
   EXPECT_EQ(0u, refs);
 }
 
@@ -59,8 +59,7 @@ TEST_F(WMITest, TestLaunchProcess) {
 
 TEST_F(WMITest, TestComputerSystemInfo) {
   WmiComputerSystemInfo info = WmiComputerSystemInfo::Get();
-  EXPECT_FALSE(info.manufacturer().empty());
-  EXPECT_FALSE(info.model().empty());
+  EXPECT_FALSE(info.serial_number().empty());
 }
 
 }  // namespace win

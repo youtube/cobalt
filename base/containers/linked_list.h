@@ -1,11 +1,12 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright 2009 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_CONTAINERS_LINKED_LIST_H_
 #define BASE_CONTAINERS_LINKED_LIST_H_
 
-#include "base/macros.h"
+#include "base/base_export.h"
+#include "base/memory/raw_ptr_exclusion.h"
 
 // Simple LinkedList type. (See the Q&A section to understand how this
 // differs from std::list).
@@ -30,7 +31,7 @@
 //
 //   list.Append(n1);
 //   list.Append(n3);
-//   n3->InsertBefore(n3);
+//   n2->InsertBefore(n3);
 //
 // Lastly, to iterate through the linked list forwards:
 //
@@ -81,60 +82,66 @@
 
 namespace base {
 
-template <typename T>
-class LinkNode {
+namespace internal {
+
+// Base class for LinkNode<T> type
+class BASE_EXPORT LinkNodeBase {
  public:
-  LinkNode() : previous_(nullptr), next_(nullptr) {}
+  void RemoveFromList();
+
+ protected:
+  LinkNodeBase();
+  LinkNodeBase(LinkNodeBase* previous, LinkNodeBase* next);
+  LinkNodeBase(LinkNodeBase&& rhs);
+  LinkNodeBase(const LinkNodeBase&) = delete;
+  ~LinkNodeBase() = default;
+
+  LinkNodeBase& operator=(const LinkNodeBase&) = delete;
+
+  // Calling these with |e| as a different LinkNode type as |this| is
+  // unsafe. These are protected and only called from LinkNode<T> to
+  // ensure safety.
+  void InsertBeforeBase(LinkNodeBase* e);
+  void InsertAfterBase(LinkNodeBase* e);
+
+  LinkNodeBase* previous_base() const { return previous_; }
+  LinkNodeBase* next_base() const { return next_; }
+
+ private:
+  // `previous_` and `next_` are not a raw_ptr<...> for performance reasons:
+  // on-stack pointer + a large number of non-PA pointees through WeakLinkNode +
+  // based on analysis of sampling profiler data and tab_search:top100:2020.
+  RAW_PTR_EXCLUSION LinkNodeBase* previous_ = nullptr;
+  RAW_PTR_EXCLUSION LinkNodeBase* next_ = nullptr;
+};
+
+}  // namespace internal
+
+template <typename T>
+class LinkNode : public internal::LinkNodeBase {
+ public:
+  LinkNode() = default;
   LinkNode(LinkNode<T>* previous, LinkNode<T>* next)
-      : previous_(previous), next_(next) {}
+      : internal::LinkNodeBase(previous, next) {}
 
-  LinkNode(LinkNode<T>&& rhs) {
-    next_ = rhs.next_;
-    rhs.next_ = nullptr;
-    previous_ = rhs.previous_;
-    rhs.previous_ = nullptr;
+  LinkNode(LinkNode<T>&&) = default;
 
-    // If the node belongs to a list, next_ and previous_ are both non-null.
-    // Otherwise, they are both null.
-    if (next_) {
-      next_->previous_ = this;
-      previous_->next_ = this;
-    }
-  }
+  LinkNode(const LinkNode&) = delete;
+  LinkNode& operator=(const LinkNode&) = delete;
 
-  // Insert |this| into the linked list, before |e|.
-  void InsertBefore(LinkNode<T>* e) {
-    this->next_ = e;
-    this->previous_ = e->previous_;
-    e->previous_->next_ = this;
-    e->previous_ = this;
-  }
+  // Insert |this| into the linked list, before |e|. |this| must not
+  // already be in a list.
+  void InsertBefore(LinkNode<T>* e) { InsertBeforeBase(e); }
 
-  // Insert |this| into the linked list, after |e|.
-  void InsertAfter(LinkNode<T>* e) {
-    this->next_ = e->next_;
-    this->previous_ = e;
-    e->next_->previous_ = this;
-    e->next_ = this;
-  }
-
-  // Remove |this| from the linked list.
-  void RemoveFromList() {
-    this->previous_->next_ = this->next_;
-    this->next_->previous_ = this->previous_;
-    // next() and previous() return non-null if and only this node is not in any
-    // list.
-    this->next_ = nullptr;
-    this->previous_ = nullptr;
-  }
+  // Insert |this| into the linked list, after |e|. |this| must not
+  // already be in a list.
+  void InsertAfter(LinkNode<T>* e) { InsertAfterBase(e); }
 
   LinkNode<T>* previous() const {
-    return previous_;
+    return static_cast<LinkNode<T>*>(previous_base());
   }
 
-  LinkNode<T>* next() const {
-    return next_;
-  }
+  LinkNode<T>* next() const { return static_cast<LinkNode<T>*>(next_base()); }
 
   // Cast from the node-type to the value type.
   const T* value() const {
@@ -144,12 +151,6 @@ class LinkNode {
   T* value() {
     return static_cast<T*>(this);
   }
-
- private:
-  LinkNode<T>* previous_;
-  LinkNode<T>* next_;
-
-  DISALLOW_COPY_AND_ASSIGN(LinkNode);
 };
 
 template <typename T>
@@ -159,6 +160,8 @@ class LinkedList {
   // list (root_.next() will point back to the start of the list,
   // and root_->previous() wraps around to the end of the list).
   LinkedList() : root_(&root_, &root_) {}
+  LinkedList(const LinkedList&) = delete;
+  LinkedList& operator=(const LinkedList&) = delete;
 
   // Appends |e| to the end of the linked list.
   void Append(LinkNode<T>* e) {
@@ -181,8 +184,6 @@ class LinkedList {
 
  private:
   LinkNode<T> root_;
-
-  DISALLOW_COPY_AND_ASSIGN(LinkedList);
 };
 
 }  // namespace base

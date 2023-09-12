@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,19 +9,39 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/feature_list.h"
+#include "base/logging.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/notreached.h"
+#include "base/time/time.h"
 
 namespace base {
 
-struct Feature;
+// Key-value mapping type for field trial parameters.
+typedef std::map<std::string, std::string> FieldTrialParams;
+
+// Param string decoding function for AssociateFieldTrialParamsFromString().
+typedef std::string (*FieldTrialParamsDecodeStringFunc)(const std::string& str);
+
+// Unescapes special characters from the given string. Used in
+// AssociateFieldTrialParamsFromString() as one of the feature params decoding
+// functions.
+BASE_EXPORT std::string UnescapeValue(const std::string& value);
 
 // Associates the specified set of key-value |params| with the field trial
 // specified by |trial_name| and |group_name|. Fails and returns false if the
 // specified field trial already has params associated with it or the trial
 // is already active (group() has been called on it). Thread safe.
-BASE_EXPORT bool AssociateFieldTrialParams(
-    const std::string& trial_name,
-    const std::string& group_name,
-    const std::map<std::string, std::string>& params);
+BASE_EXPORT bool AssociateFieldTrialParams(const std::string& trial_name,
+                                           const std::string& group_name,
+                                           const FieldTrialParams& params);
+
+// Provides a mechanism to associate multiple set of params to multiple groups
+// with a formatted string as returned by FieldTrialList::AllParamsToString().
+// |decode_data_func| allows specifying a custom decoding function.
+BASE_EXPORT bool AssociateFieldTrialParamsFromString(
+    const std::string& params_string,
+    FieldTrialParamsDecodeStringFunc decode_data_func);
 
 // Retrieves the set of key-value |params| for the specified field trial, based
 // on its selected group. If the field trial does not exist or its selected
@@ -29,9 +49,8 @@ BASE_EXPORT bool AssociateFieldTrialParams(
 // does not modify |params|. Calling this function will result in the field
 // trial being marked as active if found (i.e. group() will be called on it),
 // if it wasn't already. Thread safe.
-BASE_EXPORT bool GetFieldTrialParams(
-    const std::string& trial_name,
-    std::map<std::string, std::string>* params);
+BASE_EXPORT bool GetFieldTrialParams(const std::string& trial_name,
+                                     FieldTrialParams* params);
 
 // Retrieves the set of key-value |params| for the field trial associated with
 // the specified |feature|. A feature is associated with at most one field
@@ -40,9 +59,8 @@ BASE_EXPORT bool GetFieldTrialParams(
 // returns false and does not modify |params|. Calling this function will
 // result in the associated field trial being marked as active if found (i.e.
 // group() will be called on it), if it wasn't already. Thread safe.
-BASE_EXPORT bool GetFieldTrialParamsByFeature(
-    const base::Feature& feature,
-    std::map<std::string, std::string>* params);
+BASE_EXPORT bool GetFieldTrialParamsByFeature(const base::Feature& feature,
+                                              FieldTrialParams* params);
 
 // Retrieves a specific parameter value corresponding to |param_name| for the
 // specified field trial, based on its selected group. If the field trial does
@@ -99,9 +117,13 @@ BASE_EXPORT bool GetFieldTrialParamByFeatureAsBool(
 //   double
 //   std::string
 //   enum types
+//   base::TimeDelta
 //
 // See the individual definitions below for the appropriate interfaces.
 // Attempting to use it with any other type is a compile error.
+//
+// Getting a param value from a FeatureParam<T> will have the same semantics as
+// GetFieldTrialParamValueByFeature(), see that function's comments for details.
 template <typename T, bool IsEnum = std::is_enum<T>::value>
 struct FeatureParam {
   // Prevent use of FeatureParam<> with unsupported types (e.g. void*). Uses T
@@ -115,8 +137,8 @@ struct FeatureParam {
 //     constexpr FeatureParam<string> kAssistantName{
 //         &kAssistantFeature, "assistant_name", "HAL"};
 //
-// If the feature is not set, or set to the empty string, then Get() will return
-// the default value.
+// If the parameter is not set, or set to the empty string, then Get() will
+// return the default value.
 template <>
 struct FeatureParam<std::string> {
   constexpr FeatureParam(const Feature* feature,
@@ -124,9 +146,13 @@ struct FeatureParam<std::string> {
                          const char* default_value)
       : feature(feature), name(name), default_value(default_value) {}
 
+  // Calling Get() will activate the field trial associated with |feature|. See
+  // GetFieldTrialParamValueByFeature() for more details.
   BASE_EXPORT std::string Get() const;
 
-  const Feature* const feature;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const Feature* const feature;
   const char* const name;
   const char* const default_value;
 };
@@ -136,8 +162,8 @@ struct FeatureParam<std::string> {
 //     constexpr FeatureParam<double> kAssistantTriggerThreshold{
 //         &kAssistantFeature, "trigger_threshold", 0.10};
 //
-// If the feature is not set, or set to an invalid double value, then Get() will
-// return the default value.
+// If the parameter is not set, or set to an invalid double value, then Get()
+// will return the default value.
 template <>
 struct FeatureParam<double> {
   constexpr FeatureParam(const Feature* feature,
@@ -145,9 +171,13 @@ struct FeatureParam<double> {
                          double default_value)
       : feature(feature), name(name), default_value(default_value) {}
 
+  // Calling Get() will activate the field trial associated with |feature|. See
+  // GetFieldTrialParamValueByFeature() for more details.
   BASE_EXPORT double Get() const;
 
-  const Feature* const feature;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const Feature* const feature;
   const char* const name;
   const double default_value;
 };
@@ -157,7 +187,7 @@ struct FeatureParam<double> {
 //     constexpr FeatureParam<int> kAssistantParallelism{
 //         &kAssistantFeature, "parallelism", 4};
 //
-// If the feature is not set, or set to an invalid int value, then Get() will
+// If the parameter is not set, or set to an invalid int value, then Get() will
 // return the default value.
 template <>
 struct FeatureParam<int> {
@@ -166,9 +196,13 @@ struct FeatureParam<int> {
                          int default_value)
       : feature(feature), name(name), default_value(default_value) {}
 
+  // Calling Get() will activate the field trial associated with |feature|. See
+  // GetFieldTrialParamValueByFeature() for more details.
   BASE_EXPORT int Get() const;
 
-  const Feature* const feature;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const Feature* const feature;
   const char* const name;
   const int default_value;
 };
@@ -178,8 +212,8 @@ struct FeatureParam<int> {
 //     constexpr FeatureParam<int> kAssistantIsHelpful{
 //         &kAssistantFeature, "is_helpful", true};
 //
-// If the feature is not set, or set to value other than "true" or "false", then
-// Get() will return the default value.
+// If the parameter is not set, or set to value other than "true" or "false",
+// then Get() will return the default value.
 template <>
 struct FeatureParam<bool> {
   constexpr FeatureParam(const Feature* feature,
@@ -187,11 +221,40 @@ struct FeatureParam<bool> {
                          bool default_value)
       : feature(feature), name(name), default_value(default_value) {}
 
+  // Calling Get() will activate the field trial associated with |feature|. See
+  // GetFieldTrialParamValueByFeature() for more details.
   BASE_EXPORT bool Get() const;
 
-  const Feature* const feature;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const Feature* const feature;
   const char* const name;
   const bool default_value;
+};
+
+// Declares an TimeDelta-valued parameter. Example:
+//
+//     constexpr base::FeatureParam<base::TimeDelta> kPerAgentDelay{
+//         &kPerAgentSchedulingExperiments, "delay", base::TimeDelta()};
+//
+// If the parameter is not set, or set to an invalid value (as defined by
+// base::TimeDeltaFromString()), then Get() will return the default value.
+template <>
+struct FeatureParam<base::TimeDelta> {
+  constexpr FeatureParam(const Feature* feature,
+                         const char* name,
+                         base::TimeDelta default_value)
+      : feature(feature), name(name), default_value(default_value) {}
+
+  // Calling Get() will activate the field trial associated with |feature|. See
+  // GetFieldTrialParamValueByFeature() for more details.
+  BASE_EXPORT base::TimeDelta Get() const;
+
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const Feature* const feature;
+  const char* const name;
+  const base::TimeDelta default_value;
 };
 
 BASE_EXPORT void LogInvalidEnumValue(const Feature& feature,
@@ -201,7 +264,7 @@ BASE_EXPORT void LogInvalidEnumValue(const Feature& feature,
 
 // Feature param declaration for an enum, with associated options. Example:
 //
-//     constexpr FeatureParam<ShapeEnum>::Option[] kShapeParamOptions[] = {
+//     constexpr FeatureParam<ShapeEnum>::Option kShapeParamOptions[] = {
 //         {SHAPE_CIRCLE, "circle"},
 //         {SHAPE_CYLINDER, "cylinder"},
 //         {SHAPE_PAPERCLIP, "paperclip"}};
@@ -234,6 +297,8 @@ struct FeatureParam<Enum, true> {
     static_assert(option_count >= 1, "FeatureParam<enum> has no options");
   }
 
+  // Calling Get() will activate the field trial associated with |feature|. See
+  // GetFieldTrialParamValueByFeature() for more details.
   Enum Get() const {
     std::string value = GetFieldTrialParamValueByFeature(*feature, name);
     if (value.empty())
@@ -246,10 +311,24 @@ struct FeatureParam<Enum, true> {
     return default_value;
   }
 
-  const base::Feature* const feature;
+  // Returns the param-string for the given enum value.
+  std::string GetName(Enum value) const {
+    for (size_t i = 0; i < option_count; ++i) {
+      if (value == options[i].value)
+        return options[i].name;
+    }
+    NOTREACHED();
+    return "";
+  }
+
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const base::Feature* const feature;
   const char* const name;
   const Enum default_value;
-  const Option* const options;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #global-scope, #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION const Option* const options;
   const size_t option_count;
 };
 

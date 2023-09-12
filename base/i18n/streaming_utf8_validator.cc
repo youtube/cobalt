@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 
 #include "base/i18n/streaming_utf8_validator.h"
 
+#include "base/check_op.h"
 #include "base/i18n/utf8_validator_tables.h"
-#include "base/logging.h"
 
 namespace base {
 namespace {

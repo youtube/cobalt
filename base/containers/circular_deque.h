@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,10 +11,16 @@
 #include <type_traits>
 #include <utility>
 
+#include "base/check.h"
 #include "base/containers/vector_buffer.h"
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/ranges/algorithm.h"
 #include "base/template_util.h"
+
+#if DCHECK_IS_ON()
+#include <ostream>
+#endif
 
 // base::circular_deque is similar to std::deque. Unlike std::deque, the
 // storage is provided in a flat circular buffer conceptually similar to a
@@ -202,7 +208,8 @@ class circular_deque_const_iterator {
   friend std::ptrdiff_t operator-(const circular_deque_const_iterator& lhs,
                                   const circular_deque_const_iterator& rhs) {
     lhs.CheckComparable(rhs);
-    return lhs.OffsetFromBegin() - rhs.OffsetFromBegin();
+    return static_cast<std::ptrdiff_t>(lhs.OffsetFromBegin() -
+                                       rhs.OffsetFromBegin());
   }
 
   // Comparisons.
@@ -296,23 +303,28 @@ class circular_deque_const_iterator {
     // Since circular_deque doesn't guarantee stability, any attempt to
     // dereference this iterator after a mutation (i.e. the generation doesn't
     // match the original) in the container is illegal.
-    DCHECK_EQ(created_generation_, parent_deque_->generation_)
+    DCHECK(created_generation_ == parent_deque_->generation_)
         << "circular_deque iterator dereferenced after mutation.";
   }
   void CheckComparable(const circular_deque_const_iterator& other) const {
-    DCHECK_EQ(parent_deque_, other.parent_deque_);
+    DCHECK(parent_deque_ == other.parent_deque_);
     // Since circular_deque doesn't guarantee stability, two iterators that
     // are compared must have been generated without mutating the container.
     // If this fires, the container was mutated between generating the two
     // iterators being compared.
-    DCHECK_EQ(created_generation_, other.created_generation_);
+    DCHECK(created_generation_ == other.created_generation_);
   }
 #else
   inline void CheckUnstableUsage() const {}
   inline void CheckComparable(const circular_deque_const_iterator&) const {}
 #endif  // DCHECK_IS_ON()
 
-  const circular_deque<T>* parent_deque_;
+  // `parent_deque_` is not a raw_ptr<...> for performance reasons: Usually
+  // on-stack pointer, pointing back to the collection being iterated, owned by
+  // object that iterates over it.  Additionally this is supported by the
+  // analysis of sampling profiler data and tab_search:top100:2020.
+  RAW_PTR_EXCLUSION const circular_deque<T>* parent_deque_;
+
   size_t index_;
 
 #if DCHECK_IS_ON()
@@ -420,7 +432,7 @@ class circular_deque {
   constexpr circular_deque() = default;
 
   // Constructs with |count| copies of |value| or default constructed version.
-  circular_deque(size_type count) { resize(count); }
+  explicit circular_deque(size_type count) { resize(count); }
   circular_deque(size_type count, const T& value) { resize(count, value); }
 
   // Range constructor.
@@ -491,14 +503,8 @@ class circular_deque {
 
   // This variant should be enabled only when InputIterator is an iterator.
   template <typename InputIterator>
-#ifdef STARBOARD
-  typename std::enable_if<::base::internal::is_iterator<InputIterator>::value &&
-                              !std::is_same<InputIterator, int>::value,
-                          void>::type
-#else
   typename std::enable_if<::base::internal::is_iterator<InputIterator>::value,
                           void>::type
-#endif
   assign(InputIterator first, InputIterator last) {
     // Possible future enhancement, dispatch on iterator tag type. For forward
     // iterators we can use std::difference to preallocate the space required
@@ -527,14 +533,14 @@ class circular_deque {
     return buffer_[i - right_size];
   }
   value_type& at(size_type i) {
-    return const_cast<value_type&>(
-        const_cast<const circular_deque*>(this)->at(i));
+    return const_cast<value_type&>(std::as_const(*this).at(i));
   }
 
-  value_type& operator[](size_type i) { return at(i); }
-  const value_type& operator[](size_type i) const {
-    return const_cast<circular_deque*>(this)->at(i);
+  value_type& operator[](size_type i) {
+    return const_cast<value_type&>(std::as_const(*this)[i]);
   }
+
+  const value_type& operator[](size_type i) const { return at(i); }
 
   value_type& front() {
     DCHECK(!empty());
@@ -713,20 +719,17 @@ class circular_deque {
   // This enable_if keeps this call from getting confused with the (pos, count,
   // value) version when value is an integer.
   template <class InputIterator>
-#ifdef STARBOARD
-  typename std::enable_if<::base::internal::is_iterator<InputIterator>::value &&
-                              !std::is_same<InputIterator, int>::value,
-                          void>::type
-#else
   typename std::enable_if<::base::internal::is_iterator<InputIterator>::value,
                           void>::type
-#endif
   insert(const_iterator pos, InputIterator first, InputIterator last) {
     ValidateIterator(pos);
 
-    size_t inserted_items = std::distance(first, last);
-    if (inserted_items == 0)
+    const difference_type inserted_items_signed = std::distance(first, last);
+    if (inserted_items_signed == 0)
       return;  // Can divide by 0 when doing modulo below, so return early.
+    CHECK(inserted_items_signed > 0);
+    const size_type inserted_items =
+        static_cast<size_type>(inserted_items_signed);
 
     // Make a hole to copy the items into.
     iterator insert_cur;
@@ -1107,15 +1110,19 @@ class circular_deque {
 
 // Implementations of base::Erase[If] (see base/stl_util.h).
 template <class T, class Value>
-void Erase(circular_deque<T>& container, const Value& value) {
-  container.erase(std::remove(container.begin(), container.end(), value),
-                  container.end());
+size_t Erase(circular_deque<T>& container, const Value& value) {
+  auto it = ranges::remove(container, value);
+  size_t removed = std::distance(it, container.end());
+  container.erase(it, container.end());
+  return removed;
 }
 
 template <class T, class Predicate>
-void EraseIf(circular_deque<T>& container, Predicate pred) {
-  container.erase(std::remove_if(container.begin(), container.end(), pred),
-                  container.end());
+size_t EraseIf(circular_deque<T>& container, Predicate pred) {
+  auto it = ranges::remove_if(container, pred);
+  size_t removed = std::distance(it, container.end());
+  container.erase(it, container.end());
+  return removed;
 }
 
 }  // namespace base

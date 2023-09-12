@@ -1,74 +1,94 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/test_suite.h"
 
-#ifndef STARBOARD
 #include <signal.h>
-#endif
 
 #include <memory>
 
+#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/tagging.h"
 #include "base/at_exit.h"
 #include "base/base_paths.h"
 #include "base/base_switches.h"
-#include "base/bind.h"
 #include "base/command_line.h"
+#include "base/debug/asan_service.h"
 #include "base/debug/debugger.h"
 #include "base/debug/profiler.h"
 #include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/i18n/icu_util.h"
+#include "base/i18n/rtl.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/process/memory.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/process/process.h"
+#include "base/process/process_handle.h"
+#include "base/strings/string_piece.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/gtest_xml_unittest_result_printer.h"
 #include "base/test/gtest_xml_util.h"
 #include "base/test/icu_test_util.h"
 #include "base/test/launcher/unit_test_launcher.h"
+#include "base/test/mock_entropy_provider.h"
 #include "base/test/multiprocess_test.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/scoped_run_loop_timeout.h"
 #include "base/test/test_switches.h"
 #include "base/test/test_timeouts.h"
+#include "base/threading/platform_thread.h"
 #include "base/time/time.h"
+#include "base/tracing_buildflags.h"
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
 #include "base/mac/scoped_nsautorelease_pool.h"
-#if defined(OS_IOS)
-#include "base/test/test_listener_ios.h"
-#endif  // OS_IOS
-#endif  // OS_MACOSX
+#endif  // BUILDFLAG(IS_APPLE)
 
-#if !defined(OS_WIN)
-#include "base/i18n/rtl.h"
-#if !defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
+#include "base/test/test_listener_ios.h"
+#include "base/test/test_support_ios.h"
+#else
 #include "base/strings/string_util.h"
 #include "third_party/icu/source/common/unicode/uloc.h"
 #endif
-#endif
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "base/test/test_support_android.h"
 #endif
 
-#if defined(OS_IOS)
-#include "base/test/test_support_ios.h"
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include "third_party/test_fonts/fontconfig/fontconfig_util_linux.h"
 #endif
 
-#if defined(OS_LINUX)
-#include "base/test/fontconfig_util_linux.h"
-#include "starboard/types.h"
+#if BUILDFLAG(IS_FUCHSIA)
+#include "base/fuchsia/system_info.h"
 #endif
+
+#if BUILDFLAG(IS_WIN)
+#if defined(_DEBUG)
+#include <crtdbg.h>
+#endif  // _DEBUG
+#include <windows.h>
+
+#include "base/debug/handle_hooks_win.h"
+#endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(USE_PARTITION_ALLOC)
+#include "base/allocator/partition_alloc_support.h"
+#endif  // BUILDFLAG(USE_PARTITION_ALLOC)
 
 namespace base {
 
@@ -95,6 +115,10 @@ class ResetCommandLineBetweenTests : public testing::EmptyTestEventListener {
  public:
   ResetCommandLineBetweenTests() : old_command_line_(CommandLine::NO_PROGRAM) {}
 
+  ResetCommandLineBetweenTests(const ResetCommandLineBetweenTests&) = delete;
+  ResetCommandLineBetweenTests& operator=(const ResetCommandLineBetweenTests&) =
+      delete;
+
   void OnTestStart(const testing::TestInfo& test_info) override {
     old_command_line_ = *CommandLine::ForCurrentProcess();
   }
@@ -105,81 +129,178 @@ class ResetCommandLineBetweenTests : public testing::EmptyTestEventListener {
 
  private:
   CommandLine old_command_line_;
+};
 
-  DISALLOW_COPY_AND_ASSIGN(ResetCommandLineBetweenTests);
+// Initializes a base::test::ScopedFeatureList for each individual test, which
+// involves a FeatureList and a FieldTrialList, such that unit test don't need
+// to initialize them manually.
+class FeatureListScopedToEachTest : public testing::EmptyTestEventListener {
+ public:
+  FeatureListScopedToEachTest() = default;
+  ~FeatureListScopedToEachTest() override = default;
+
+  FeatureListScopedToEachTest(const FeatureListScopedToEachTest&) = delete;
+  FeatureListScopedToEachTest& operator=(const FeatureListScopedToEachTest&) =
+      delete;
+
+  void OnTestStart(const testing::TestInfo& test_info) override {
+    const CommandLine* command_line = CommandLine::ForCurrentProcess();
+
+    // We set up a FeatureList via ScopedFeatureList::InitFromCommandLine().
+    // This ensures that code using that API will not hit an error that it's
+    // not set. It will be cleared by ~ScopedFeatureList().
+
+    // TestFeatureForBrowserTest1 and TestFeatureForBrowserTest2 used in
+    // ContentBrowserTestScopedFeatureListTest to ensure ScopedFeatureList keeps
+    // features from command line.
+    std::string enabled =
+        command_line->GetSwitchValueASCII(switches::kEnableFeatures);
+    std::string disabled =
+        command_line->GetSwitchValueASCII(switches::kDisableFeatures);
+    enabled += ",TestFeatureForBrowserTest1";
+    disabled += ",TestFeatureForBrowserTest2";
+    scoped_feature_list_.InitFromCommandLine(enabled, disabled);
+
+    // The enable-features and disable-features flags were just slurped into a
+    // FeatureList, so remove them from the command line. Tests should enable
+    // and disable features via the ScopedFeatureList API rather than
+    // command-line flags.
+    CommandLine new_command_line(command_line->GetProgram());
+    CommandLine::SwitchMap switches = command_line->GetSwitches();
+
+    switches.erase(switches::kEnableFeatures);
+    switches.erase(switches::kDisableFeatures);
+
+    for (const auto& iter : switches)
+      new_command_line.AppendSwitchNative(iter.first, iter.second);
+
+    *CommandLine::ForCurrentProcess() = new_command_line;
+
+    // TODO(https://crbug.com/1400059): Enable dangling pointer detector.
+    // TODO(https://crbug.com/1413674): Enable PartitionAlloc in unittests with
+    // ASAN.
+#if BUILDFLAG(USE_PARTITION_ALLOC) && !defined(ADDRESS_SANITIZER)
+    allocator::PartitionAllocSupport::Get()->ReconfigureAfterFeatureListInit(
+        "", /*configure_dangling_pointer_detector=*/false);
+#endif
+  }
+
+  void OnTestEnd(const testing::TestInfo& test_info) override {
+    scoped_feature_list_.Reset();
+  }
+
+ private:
+  test::ScopedFeatureList scoped_feature_list_;
 };
 
 class CheckForLeakedGlobals : public testing::EmptyTestEventListener {
  public:
   CheckForLeakedGlobals() = default;
 
+  CheckForLeakedGlobals(const CheckForLeakedGlobals&) = delete;
+  CheckForLeakedGlobals& operator=(const CheckForLeakedGlobals&) = delete;
+
   // Check for leaks in individual tests.
   void OnTestStart(const testing::TestInfo& test) override {
-    scheduler_set_before_test_ = TaskScheduler::GetInstance();
+    feature_list_set_before_test_ = FeatureList::GetInstance();
+    thread_pool_set_before_test_ = ThreadPoolInstance::Get();
   }
   void OnTestEnd(const testing::TestInfo& test) override {
-    auto* task_scheduler = TaskScheduler::GetInstance();
-    DCHECK_EQ(scheduler_set_before_test_, task_scheduler)
+    DCHECK_EQ(feature_list_set_before_test_, FeatureList::GetInstance())
+        << " in test " << test.test_case_name() << "." << test.name();
+    DCHECK_EQ(thread_pool_set_before_test_, ThreadPoolInstance::Get())
         << " in test " << test.test_case_name() << "." << test.name();
   }
 
   // Check for leaks in test cases (consisting of one or more tests).
   void OnTestCaseStart(const testing::TestCase& test_case) override {
-    scheduler_set_before_case_ = TaskScheduler::GetInstance();
+    feature_list_set_before_case_ = FeatureList::GetInstance();
+    thread_pool_set_before_case_ = ThreadPoolInstance::Get();
   }
   void OnTestCaseEnd(const testing::TestCase& test_case) override {
-    DCHECK_EQ(scheduler_set_before_case_, TaskScheduler::GetInstance())
+    DCHECK_EQ(feature_list_set_before_case_, FeatureList::GetInstance())
+        << " in case " << test_case.name();
+    DCHECK_EQ(thread_pool_set_before_case_, ThreadPoolInstance::Get())
         << " in case " << test_case.name();
   }
 
  private:
-  TaskScheduler* scheduler_set_before_test_ = nullptr;
-  TaskScheduler* scheduler_set_before_case_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(CheckForLeakedGlobals);
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION FeatureList* feature_list_set_before_test_ = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION FeatureList* feature_list_set_before_case_ = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION ThreadPoolInstance* thread_pool_set_before_test_ = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION ThreadPoolInstance* thread_pool_set_before_case_ = nullptr;
 };
 
-std::string GetProfileName() {
-  static const char kDefaultProfileName[] = "test-profile-{pid}";
-  CR_DEFINE_STATIC_LOCAL(std::string, profile_name, ());
-  if (profile_name.empty()) {
-    const base::CommandLine& command_line =
-        *base::CommandLine::ForCurrentProcess();
-    if (command_line.HasSwitch(switches::kProfilingFile))
-      profile_name = command_line.GetSwitchValueASCII(switches::kProfilingFile);
-    else
-      profile_name = std::string(kDefaultProfileName);
+// iOS: base::Process is not available.
+// macOS: Tests may run at background priority locally (crbug.com/1358639#c6) or
+// on bots (crbug.com/931721#c7).
+#if !BUILDFLAG(IS_APPLE)
+class CheckProcessPriority : public testing::EmptyTestEventListener {
+ public:
+  CheckProcessPriority() { CHECK(!IsProcessBackgrounded()); }
+
+  CheckProcessPriority(const CheckProcessPriority&) = delete;
+  CheckProcessPriority& operator=(const CheckProcessPriority&) = delete;
+
+  void OnTestStart(const testing::TestInfo& test) override {
+    EXPECT_FALSE(IsProcessBackgrounded());
   }
-  return profile_name;
+  void OnTestEnd(const testing::TestInfo& test) override {
+    EXPECT_FALSE(IsProcessBackgrounded());
+  }
+
+ private:
+  bool IsProcessBackgrounded() const {
+    return Process::Current().IsProcessBackgrounded();
+  }
+};
+#endif  // !BUILDFLAG(IS_APPLE)
+
+const std::string& GetProfileName() {
+  static const NoDestructor<std::string> profile_name([]() {
+    const CommandLine& command_line = *CommandLine::ForCurrentProcess();
+    if (command_line.HasSwitch(switches::kProfilingFile))
+      return command_line.GetSwitchValueASCII(switches::kProfilingFile);
+    else
+      return std::string("test-profile-{pid}");
+  }());
+  return *profile_name;
 }
 
 void InitializeLogging() {
-#if defined(OS_ANDROID)
-  InitAndroidTestLogging();
+#if BUILDFLAG(IS_FUCHSIA)
+  constexpr auto kLoggingDest = logging::LOG_TO_STDERR;
 #else
-  FilePath exe;
-  PathService::Get(FILE_EXE, &exe);
-  FilePath log_filename = exe.ReplaceExtension(FILE_PATH_LITERAL("log"));
-  logging::LoggingSettings settings;
-  settings.logging_dest = logging::LOG_TO_ALL;
-  settings.log_file = log_filename.value().c_str();
-  settings.delete_old = logging::DELETE_OLD_LOG_FILE;
-  logging::InitLogging(settings);
+  constexpr auto kLoggingDest =
+      logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
+#endif
+  CHECK(logging::InitLogging({.logging_dest = kLoggingDest}));
+
   // We want process and thread IDs because we may have multiple processes.
-  // Note: temporarily enabled timestamps in an effort to catch bug 6361.
-  logging::SetLogItems(true, true, true, true);
-#endif  // !defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  // To view log output with IDs and timestamps use "adb logcat -v threadtime".
+  logging::SetLogItems(false, false, false, false);
+#else
+  // We want process and thread IDs because we may have multiple processes.
+  logging::SetLogItems(true, true, false, false);
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace
 
-#if !defined(STARBOARD)
-int RunUnitTestsUsingBaseTestSuite(int argc, char **argv) {
+int RunUnitTestsUsingBaseTestSuite(int argc, char** argv) {
   TestSuite test_suite(argc, argv);
   return LaunchUnitTests(argc, argv,
-                         Bind(&TestSuite::Run, Unretained(&test_suite)));
+                         BindOnce(&TestSuite::Run, Unretained(&test_suite)));
 }
-#endif
 
 TestSuite::TestSuite(int argc, char** argv) {
   PreInitialize();
@@ -189,7 +310,7 @@ TestSuite::TestSuite(int argc, char** argv) {
   InitializeLogging();
 }
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 TestSuite::TestSuite(int argc, wchar_t** argv) {
   PreInitialize();
   InitializeFromCommandLine(argc, argv);
@@ -197,12 +318,11 @@ TestSuite::TestSuite(int argc, wchar_t** argv) {
   // functions.
   InitializeLogging();
 }
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 TestSuite::~TestSuite() {
   if (initialized_command_line_)
     CommandLine::Reset();
-  logging::CloseLogFile();
 }
 
 void TestSuite::InitializeFromCommandLine(int argc, char** argv) {
@@ -210,40 +330,59 @@ void TestSuite::InitializeFromCommandLine(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   testing::InitGoogleMock(&argc, argv);
 
-#if defined(OS_IOS)
-  InitIOSRunHook(this, argc, argv);
+#if BUILDFLAG(IS_IOS)
+  InitIOSArgs(argc, argv);
 #endif
 }
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 void TestSuite::InitializeFromCommandLine(int argc, wchar_t** argv) {
   // Windows CommandLine::Init ignores argv anyway.
   initialized_command_line_ = CommandLine::Init(argc, NULL);
   testing::InitGoogleTest(&argc, argv);
   testing::InitGoogleMock(&argc, argv);
 }
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 void TestSuite::PreInitialize() {
   DCHECK(!is_initialized_);
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
+  base::debug::HandleHooks::PatchLoadedModules();
+#endif  // BUILDFLAG(IS_WIN)
+
+  // The default death_test_style of "fast" is a frequent source of subtle test
+  // flakiness. And on some platforms like macOS, use of system libraries after
+  // fork() but before exec() is unsafe. Using the threadsafe style by default
+  // alleviates these concerns.
+  //
+  // However, the threasafe style does not work reliably on Android, so that
+  // will keep the default of "fast". See https://crbug.com/815537,
+  // https://github.com/google/googletest/issues/1496, and
+  // https://github.com/google/googletest/issues/2093.
+  // TODO(danakj): Determine if all death tests should be skipped on Android
+  // (many already are, such as for DCHECK-death tests).
+#if !BUILDFLAG(IS_ANDROID)
+  testing::GTEST_FLAG(death_test_style) = "threadsafe";
+#endif
+
+#if BUILDFLAG(IS_WIN)
   testing::GTEST_FLAG(catch_exceptions) = false;
 #endif
   EnableTerminationOnHeapCorruption();
-#if defined(OS_LINUX) && defined(USE_AURA)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && defined(USE_AURA)
   // When calling native char conversion functions (e.g wrctomb) we need to
   // have the locale set. In the absence of such a call the "C" locale is the
   // default. In the gtk code (below) gtk_init() implicitly sets a locale.
   setlocale(LC_ALL, "");
-#endif  // defined(OS_LINUX) && defined(USE_AURA)
+  // We still need number to string conversions to be locale insensitive.
+  setlocale(LC_NUMERIC, "C");
+#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && defined(USE_AURA)
 
-// On Android, AtExitManager is created in
-// testing/android/native_test_wrapper.cc before main() is called.
-// For Cobalt, at_exit_manager some times need to be created earlier than the
-// start of test case.
-#if !defined(OS_ANDROID) && !defined(STARBOARD)
-  at_exit_manager_.reset(new AtExitManager);
+  // On Android, AtExitManager is created in
+  // testing/android/native_test_wrapper.cc before main() is called.
+#if !BUILDFLAG(IS_ANDROID)
+  at_exit_manager_ = std::make_unique<AtExitManager>();
 #endif
 
   // Don't add additional code to this function.  Instead add it to
@@ -269,7 +408,6 @@ void TestSuite::AddTestLauncherResultPrinter() {
     return;
   }
 
-#if !defined(STARBOARD)
   printer_ = new XmlUnitTestResultPrinter;
   CHECK(printer_->Initialize(output_path))
       << "Output path is " << output_path.AsUTF8Unsafe()
@@ -277,35 +415,55 @@ void TestSuite::AddTestLauncherResultPrinter() {
   testing::TestEventListeners& listeners =
       testing::UnitTest::GetInstance()->listeners();
   listeners.Append(printer_);
-#endif
 }
 
 // Don't add additional code to this method.  Instead add it to
 // Initialize().  See bug 6436.
 int TestSuite::Run() {
-#if defined(OS_IOS)
-  RunTestsFromIOSApp();
-#endif
-
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
   mac::ScopedNSAutoreleasePool scoped_pool;
 #endif
 
-  Initialize();
   std::string client_func =
       CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kTestChildProcess);
 
+#if BUILDFLAG(IS_FUCHSIA)
+  // Cache the system info so individual tests do not need to worry about it.
+  // Some ProcessUtilTest cases, which use kTestChildProcess, do not pass any
+  // services, so skip this if that switch was present.
+  // This must be called before Initialize() because, for example,
+  // content::ContentTestSuite::Initialize() may use the cached values.
+  if (client_func.empty())
+    CHECK(FetchAndCacheSystemInfo());
+#endif
+
+  Initialize();
+
   // Check to see if we are being run as a client process.
   if (!client_func.empty())
     return multi_process_function_list::InvokeChildProcessTest(client_func);
-#if defined(OS_IOS)
+
+#if BUILDFLAG(IS_IOS)
   test_listener_ios::RegisterTestEndListener();
+#endif
+
+#if BUILDFLAG(IS_LINUX)
+  // There's no standard way to opt processes into MTE on Linux just yet,
+  // so this call explicitly opts this test into synchronous MTE mode, where
+  // pointer mismatches are detected immediately.
+  ::partition_alloc::ChangeMemoryTaggingModeForCurrentThread(
+      ::partition_alloc::TagViolationReportingMode::kSynchronous);
+#elif BUILDFLAG(IS_ANDROID)
+    // On Android, the tests are opted into synchronous MTE mode by the
+    // memtagMode attribute in an AndroidManifest.xml file or via an `am compat`
+    // command, so and explicit call to ChangeMemoryTaggingModeForCurrentThread
+    // is not needed.
 #endif
 
   int result = RUN_ALL_TESTS();
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
   // This MUST happen before Shutdown() since Shutdown() tears down
   // objects (such as NotificationService::current()) that Cocoa
   // objects use to remove themselves as observers.
@@ -322,11 +480,16 @@ void TestSuite::DisableCheckForLeakedGlobals() {
   check_for_leaked_globals_ = false;
 }
 
+void TestSuite::DisableCheckForThreadAndProcessPriority() {
+  DCHECK(!is_initialized_);
+  check_for_thread_and_process_priority_ = false;
+}
+
 void TestSuite::UnitTestAssertHandler(const char* file,
                                       int line,
-                                      const base::StringPiece summary,
-                                      const base::StringPiece stack_trace) {
-#if defined(OS_ANDROID)
+                                      const StringPiece summary,
+                                      const StringPiece stack_trace) {
+#if BUILDFLAG(IS_ANDROID)
   // Correlating test stdio with logcat can be difficult, so we emit this
   // helpful little hint about what was running.  Only do this for Android
   // because other platforms don't separate out the relevant logs in the same
@@ -338,37 +501,32 @@ void TestSuite::UnitTestAssertHandler(const char* file,
                << test_info->name();
     fflush(stderr);
   }
-#endif  // defined(OS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
 
-#if !defined(STARBOARD)
   // XmlUnitTestResultPrinter inherits gtest format, where assert has summary
   // and message. In GTest, summary is just a logged text, and message is a
   // logged text, concatenated with stack trace of assert.
   // Concatenate summary and stack_trace here, to pass it as a message.
   if (printer_) {
-    const std::string summary_str = summary.as_string();
-    const std::string stack_trace_str = summary_str + stack_trace.as_string();
+    const std::string summary_str(summary);
+    const std::string stack_trace_str = summary_str + std::string(stack_trace);
     printer_->OnAssert(file, line, summary_str, stack_trace_str);
   }
-#endif
 
-#if defined(STARBOARD)
-  SbSystemRequestStop(1);
-#else
   // The logging system actually prints the message before calling the assert
   // handler. Just exit now to avoid printing too many stack traces.
   _exit(1);
-#endif
 }
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 namespace {
 
-// Disable optimizations to prevent function folding or other transformations
-// that will make the call stacks on failures more confusing.
-#pragma optimize("", off)
 // Handlers for invalid parameter, pure call, and abort. They generate a
 // breakpoint to ensure that we get a call stack on these failures.
+// These functions should be written to be unique in order to avoid confusing
+// call stacks from /OPT:ICF function folding. Printing a unique message or
+// returning a unique value will do this. Note that for best results they need
+// to be unique from *all* functions in Chrome.
 void InvalidParameter(const wchar_t* expression,
                       const wchar_t* function,
                       const wchar_t* file,
@@ -390,16 +548,14 @@ void AbortHandler(int signal) {
   fprintf(stderr, "\n");
   __debugbreak();
 }
-#pragma optimize("", on)
 
 }  // namespace
 #endif
 
 void TestSuite::SuppressErrorDialogs() {
-#if defined(OS_WIN)
-  UINT new_flags = SEM_FAILCRITICALERRORS |
-                   SEM_NOGPFAULTERRORBOX |
-                   SEM_NOOPENFILEERRORBOX;
+#if BUILDFLAG(IS_WIN)
+  UINT new_flags =
+      SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
 
   // Preserve existing error mode, as discussed at
   // http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx
@@ -420,63 +576,61 @@ void TestSuite::SuppressErrorDialogs() {
   _set_invalid_parameter_handler(InvalidParameter);
   _set_purecall_handler(PureCall);
   signal(SIGABRT, AbortHandler);
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 }
 
 void TestSuite::Initialize() {
   DCHECK(!is_initialized_);
 
+  // The AsanService causes ASAN errors to emit additional information. It is
+  // helpful on its own. It is also required by ASAN BackupRefPtr when
+  // reconfiguring PartitionAlloc below.
+#if defined(ADDRESS_SANITIZER)
+  base::debug::AsanService::GetInstance()->Initialize();
+#endif
+
+  // TODO(https://crbug.com/1400058): Enable BackupRefPtr in unittests on
+  // Android too. Same for ASAN.
+  // TODO(https://crbug.com/1413674): Enable PartitionAlloc in unittests with
+  // ASAN.
+#if BUILDFLAG(USE_PARTITION_ALLOC) && !defined(ADDRESS_SANITIZER)
+  allocator::PartitionAllocSupport::Get()->ReconfigureForTests();
+#endif  // BUILDFLAG(IS_WIN)
+
+  test::ScopedRunLoopTimeout::SetAddGTestFailureOnTimeout();
+
   const CommandLine* command_line = CommandLine::ForCurrentProcess();
-#if !defined(OS_IOS)
+#if !BUILDFLAG(IS_IOS)
   if (command_line->HasSwitch(switches::kWaitForDebugger)) {
     debug::WaitForDebugger(60, true);
   }
 #endif
-  // Set up a FeatureList instance, so that code using that API will not hit a
-  // an error that it's not set. It will be cleared automatically.
-  // TestFeatureForBrowserTest1 and TestFeatureForBrowserTest2 used in
-  // ContentBrowserTestScopedFeatureListTest to ensure ScopedFeatureList keeps
-  // features from command line.
-  std::string enabled =
-      command_line->GetSwitchValueASCII(switches::kEnableFeatures);
-  std::string disabled =
-      command_line->GetSwitchValueASCII(switches::kDisableFeatures);
-  enabled += ",TestFeatureForBrowserTest1";
-  disabled += ",TestFeatureForBrowserTest2";
-#if !defined(STARBOARD)
-  scoped_feature_list_.InitFromCommandLine(enabled, disabled);
-#endif
 
-  // The enable-features and disable-features flags were just slurped into a
-  // FeatureList, so remove them from the command line. Tests should enable and
-  // disable features via the ScopedFeatureList API rather than command-line
-  // flags.
-  CommandLine new_command_line(command_line->GetProgram());
-  CommandLine::SwitchMap switches = command_line->GetSwitches();
+#if BUILDFLAG(DCHECK_IS_CONFIGURABLE)
+  // Default the configurable DCHECK level to FATAL when running death tests'
+  // child process, so that they behave as expected.
+  // TODO(crbug.com/1057995): Remove this in favor of the codepath in
+  // FeatureList::SetInstance() when/if OnTestStart() TestEventListeners
+  // are fixed to be invoked in the child process as expected.
+  if (command_line->HasSwitch("gtest_internal_run_death_test"))
+    logging::LOGGING_DCHECK = logging::LOG_FATAL;
+#endif  // BUILDFLAG(DCHECK_IS_CONFIGURABLE)
 
-  switches.erase(switches::kEnableFeatures);
-  switches.erase(switches::kDisableFeatures);
-
-  for (const auto& iter : switches)
-    new_command_line.AppendSwitchNative(iter.first, iter.second);
-
-  *CommandLine::ForCurrentProcess() = new_command_line;
-
-#if defined(OS_IOS)
+#if BUILDFLAG(IS_IOS)
   InitIOSTestMessageLoop();
-#endif  // OS_IOS
+#endif  // BUILDFLAG(IS_IOS)
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   InitAndroidTestMessageLoop();
-#endif  // else defined(OS_ANDROID)
+#endif  // else BUILDFLAG(IS_ANDROID)
 
   CHECK(debug::EnableInProcessStackDumping());
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   RouteStdioToConsole(true);
   // Make sure we run with high resolution timer to minimize differences
   // between production code and test code.
   Time::EnableHighResolutionTimer(true);
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
   // In some cases, we do not want to see standard error dialogs.
   if (!debug::BeingDebugged() &&
@@ -484,32 +638,19 @@ void TestSuite::Initialize() {
     SuppressErrorDialogs();
     debug::SetSuppressDebugUI(true);
     assert_handler_ = std::make_unique<logging::ScopedLogAssertHandler>(
-        base::Bind(&TestSuite::UnitTestAssertHandler, base::Unretained(this)));
+        BindRepeating(&TestSuite::UnitTestAssertHandler, Unretained(this)));
   }
 
-  base::test::InitializeICUForTesting();
+  test::InitializeICUForTesting();
 
-  // On the Mac OS X command line, the default locale is *_POSIX. In Chromium,
-  // the locale is set via an OS X locale API and is never *_POSIX.
-  // Some tests (such as those involving word break iterator) will behave
-  // differently and fail if we use *POSIX locale. Setting it to en_US here
+  // A number of tests only work if the locale is en_US. This can be an issue
+  // on all platforms. To fix this we force the default locale to en_US. This
   // does not affect tests that explicitly overrides the locale for testing.
-  // This can be an issue on all platforms other than Windows.
   // TODO(jshin): Should we set the locale via an OS X locale API here?
-#if !defined(OS_WIN)
-#if defined(OS_IOS)
   i18n::SetICUDefaultLocale("en_US");
-#else
-  std::string default_locale(uloc_getDefault());
-  if (EndsWith(default_locale, "POSIX", CompareCase::INSENSITIVE_ASCII))
-    i18n::SetICUDefaultLocale("en_US");
-#endif
-#endif
 
-#if defined(OS_LINUX)
-  // TODO(thomasanderson): Call TearDownFontconfig() in Shutdown().  It would
-  // currently crash because of leaked FcFontSet's in font_fallback_linux.cc.
-  SetUpFontconfig();
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  test_fonts::SetUpFontconfig();
 #endif
 
   // Add TestEventListeners to enforce certain properties across tests.
@@ -517,23 +658,33 @@ void TestSuite::Initialize() {
       testing::UnitTest::GetInstance()->listeners();
   listeners.Append(new DisableMaybeTests);
   listeners.Append(new ResetCommandLineBetweenTests);
+  listeners.Append(new FeatureListScopedToEachTest);
   if (check_for_leaked_globals_)
     listeners.Append(new CheckForLeakedGlobals);
+  if (check_for_thread_and_process_priority_) {
+#if !BUILDFLAG(IS_APPLE)
+    listeners.Append(new CheckProcessPriority);
+#endif
+  }
 
   AddTestLauncherResultPrinter();
 
   TestTimeouts::Initialize();
 
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   trace_to_file_.BeginTracingFromCommandLineOptions();
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
-  base::debug::StartProfiling(GetProfileName());
+  debug::StartProfiling(GetProfileName());
+
+  debug::VerifyDebugger();
 
   is_initialized_ = true;
 }
 
 void TestSuite::Shutdown() {
   DCHECK(is_initialized_);
-  base::debug::StopProfiling();
+  debug::StopProfiling();
 }
 
 }  // namespace base

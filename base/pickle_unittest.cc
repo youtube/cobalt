@@ -1,19 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/pickle.h"
 
 #include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include <memory>
 #include <string>
+#include <tuple>
 
-#include "base/macros.h"
-#include "base/strings/string16.h"
 #include "base/strings/utf_string_conversions.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -22,22 +22,22 @@ namespace {
 
 const bool testbool1 = false;
 const bool testbool2 = true;
-const int testint = 2093847192;
-const long testlong = 1093847192;
+const int testint = 2'093'847'192;
+const long testlong = 1'093'847'192;
 const uint16_t testuint16 = 32123;
 const uint32_t testuint32 = 1593847192;
-const int64_t testint64 = -0x7E8CA9253104BDFCLL;
-const uint64_t testuint64 = 0xCE8CA9253104BDF7ULL;
+const int64_t testint64 = -0x7E8CA925'3104BDFCLL;
+const uint64_t testuint64 = 0xCE8CA925'3104BDF7ULL;
 const float testfloat = 3.1415926935f;
 const double testdouble = 2.71828182845904523;
 const std::string teststring("Hello world");  // note non-aligned string length
 const std::wstring testwstring(L"Hello, world");
-const string16 teststring16(ASCIIToUTF16("Hello, world"));
+const std::u16string teststring16(u"Hello, world");
 const char testrawstring[] = "Hello new world"; // Test raw string writing
-// Test raw char16 writing, assumes UTF16 encoding is ANSI for alpha chars.
-const char16 testrawstring16[] = {'A', 'l', 'o', 'h', 'a', 0};
+// Test raw char16_t writing, assumes UTF16 encoding is ANSI for alpha chars.
+const char16_t testrawstring16[] = {'A', 'l', 'o', 'h', 'a', 0};
 const char testdata[] = "AAA\0BBB\0";
-const int testdatalen = arraysize(testdata) - 1;
+const size_t testdatalen = std::size(testdata) - 1;
 
 // checks that the results can be read correctly from the Pickle
 void VerifyResult(const Pickle& pickle) {
@@ -85,7 +85,7 @@ void VerifyResult(const Pickle& pickle) {
   EXPECT_TRUE(iter.ReadString(&outstring));
   EXPECT_EQ(teststring, outstring);
 
-  string16 outstring16;
+  std::u16string outstring16;
   EXPECT_TRUE(iter.ReadString16(&outstring16));
   EXPECT_EQ(teststring16, outstring16);
 
@@ -98,7 +98,7 @@ void VerifyResult(const Pickle& pickle) {
   EXPECT_EQ(testrawstring16, outstringpiece16);
 
   const char* outdata;
-  int outdatalen;
+  size_t outdatalen;
   EXPECT_TRUE(iter.ReadData(&outdata, &outdatalen));
   EXPECT_EQ(testdatalen, outdatalen);
   EXPECT_EQ(memcmp(testdata, outdata, outdatalen), 0);
@@ -153,9 +153,7 @@ TEST(PickleTest, LongFrom64Bit) {
   if (sizeof(long) < sizeof(int64_t)) {
     // ReadLong() should return false when the original written value can't be
     // represented as a long.
-#if GTEST_HAS_DEATH_TEST
-    EXPECT_DEATH(ignore_result(iter.ReadLong(&outlong)), "");
-#endif
+    EXPECT_FALSE(iter.ReadLong(&outlong));
   } else {
     EXPECT_TRUE(iter.ReadLong(&outlong));
     EXPECT_EQ(testint64, outlong);
@@ -179,10 +177,52 @@ TEST(PickleTest, BigSize) {
   int buffer[] = { 0x56035200, 25, 40, 50 };
 
   Pickle pickle(reinterpret_cast<char*>(buffer), sizeof(buffer));
+  EXPECT_EQ(0U, pickle.size());
 
   PickleIterator iter(pickle);
   int data;
   EXPECT_FALSE(iter.ReadInt(&data));
+}
+
+// Tests that instances constructed with invalid parameter combinations can be
+// properly copied. Regression test for https://crbug.com/1271311.
+TEST(PickleTest, CopyWithInvalidHeader) {
+  // 1. Actual header size (calculated based on the input buffer) > passed in
+  // buffer size. Which results in Pickle's internal |header_| = null.
+  {
+    Pickle::Header header = {.payload_size = 100};
+    const char* data = reinterpret_cast<char*>(&header);
+    const Pickle pickle(data, sizeof(header));
+
+    EXPECT_EQ(0U, pickle.size());
+    EXPECT_FALSE(pickle.data());
+
+    Pickle copy_built_with_op = pickle;
+    EXPECT_EQ(0U, copy_built_with_op.size());
+    EXPECT_FALSE(copy_built_with_op.data());
+
+    Pickle copy_built_with_ctor(pickle);
+    EXPECT_EQ(0U, copy_built_with_ctor.size());
+    EXPECT_FALSE(copy_built_with_ctor.data());
+  }
+  // 2. Input buffer's size < sizeof(Pickle::Header). Which must also result in
+  // Pickle's internal |header_| = null.
+  {
+    const char data[2] = {0x00, 0x00};
+    const Pickle pickle(data, sizeof(data));
+    static_assert(sizeof(Pickle::Header) > sizeof(data));
+
+    EXPECT_EQ(0U, pickle.size());
+    EXPECT_FALSE(pickle.data());
+
+    Pickle copy_built_with_op = pickle;
+    EXPECT_EQ(0U, copy_built_with_op.size());
+    EXPECT_FALSE(copy_built_with_op.data());
+
+    Pickle copy_built_with_ctor(pickle);
+    EXPECT_EQ(0U, copy_built_with_ctor.size());
+    EXPECT_FALSE(copy_built_with_ctor.data());
+  }
 }
 
 TEST(PickleTest, UnalignedSize) {
@@ -207,7 +247,7 @@ TEST(PickleTest, ZeroLenStr) {
 
 TEST(PickleTest, ZeroLenStr16) {
   Pickle pickle;
-  pickle.WriteString16(string16());
+  pickle.WriteString16(std::u16string());
 
   PickleIterator iter(pickle);
   std::string outstr;
@@ -229,7 +269,7 @@ TEST(PickleTest, BadLenStr16) {
   pickle.WriteInt(-1);
 
   PickleIterator iter(pickle);
-  string16 outstr;
+  std::u16string outstr;
   EXPECT_FALSE(iter.ReadString16(&outstr));
 }
 
@@ -242,7 +282,7 @@ TEST(PickleTest, PeekNext) {
 
   pickle.WriteString("Goooooooooooogle");
 
-  const char* pickle_data = static_cast<const char*>(pickle.data());
+  const char* pickle_data = pickle.data_as_char();
 
   size_t pickle_size;
 
@@ -400,8 +440,7 @@ TEST(PickleTest, Resize) {
   // note that any data will have a 4-byte header indicating the size
   const size_t payload_size_after_header = unit - sizeof(uint32_t);
   Pickle pickle;
-  pickle.WriteData(
-      data_ptr, static_cast<int>(payload_size_after_header - sizeof(uint32_t)));
+  pickle.WriteData(data_ptr, payload_size_after_header - sizeof(uint32_t));
   size_t cur_payload = payload_size_after_header;
 
   // note: we assume 'unit' is a power of 2
@@ -409,7 +448,7 @@ TEST(PickleTest, Resize) {
   EXPECT_EQ(pickle.payload_size(), payload_size_after_header);
 
   // fill out a full page (noting data header)
-  pickle.WriteData(data_ptr, static_cast<int>(unit - sizeof(uint32_t)));
+  pickle.WriteData(data_ptr, unit - sizeof(uint32_t));
   cur_payload += unit;
   EXPECT_EQ(unit * 2, pickle.capacity_after_header());
   EXPECT_EQ(cur_payload, pickle.payload_size());
@@ -449,8 +488,7 @@ TEST(PickleTest, EqualsOperator) {
   Pickle source;
   source.WriteInt(1);
 
-  Pickle copy_refs_source_buffer(static_cast<const char*>(source.data()),
-                                 source.size());
+  Pickle copy_refs_source_buffer(source.data_as_char(), source.size());
   Pickle copy;
   copy = copy_refs_source_buffer;
   ASSERT_EQ(source.size(), copy.size());
@@ -463,7 +501,7 @@ TEST(PickleTest, EvilLengths) {
   // ReadString16 used to have its read buffer length calculation wrong leading
   // to out-of-bounds reading.
   PickleIterator iter(source);
-  string16 str16;
+  std::u16string str16;
   EXPECT_FALSE(iter.ReadString16(&str16));
 
   // And check we didn't break ReadString16.
@@ -475,7 +513,7 @@ TEST(PickleTest, EvilLengths) {
   EXPECT_EQ(1U, str16.length());
 
   // Check we don't fail in a length check with invalid String16 size.
-  // (1<<31) * sizeof(char16) == 0, so this is particularly evil.
+  // (1<<31) * sizeof(char16_t) == 0, so this is particularly evil.
   Pickle bad_len;
   bad_len.WriteInt(1 << 31);
   iter = PickleIterator(bad_len);
@@ -489,9 +527,9 @@ TEST(PickleTest, ZeroLength) {
 
   PickleIterator iter(pickle);
   const char* outdata;
-  int outdatalen;
+  size_t outdatalen;
   EXPECT_TRUE(iter.ReadData(&outdata, &outdatalen));
-  EXPECT_EQ(0, outdatalen);
+  EXPECT_EQ(0u, outdatalen);
   // We can't assert that outdata is NULL.
 }
 
@@ -568,6 +606,32 @@ TEST(PickleTest, ClaimBytes) {
   int out_value;
   EXPECT_TRUE(iter.ReadInt(&out_value));
   EXPECT_EQ(42, out_value);
+}
+
+TEST(PickleTest, ReachedEnd) {
+  Pickle pickle;
+  pickle.WriteInt(1);
+  pickle.WriteInt(2);
+  pickle.WriteInt(3);
+
+  PickleIterator iter(pickle);
+  int out;
+
+  EXPECT_FALSE(iter.ReachedEnd());
+  EXPECT_TRUE(iter.ReadInt(&out));
+  EXPECT_EQ(1, out);
+
+  EXPECT_FALSE(iter.ReachedEnd());
+  EXPECT_TRUE(iter.ReadInt(&out));
+  EXPECT_EQ(2, out);
+
+  EXPECT_FALSE(iter.ReachedEnd());
+  EXPECT_TRUE(iter.ReadInt(&out));
+  EXPECT_EQ(3, out);
+
+  EXPECT_TRUE(iter.ReachedEnd());
+  EXPECT_FALSE(iter.ReadInt(&out));
+  EXPECT_TRUE(iter.ReachedEnd());
 }
 
 }  // namespace base

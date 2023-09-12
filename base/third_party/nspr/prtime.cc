@@ -65,22 +65,17 @@
  * Unit tests are in base/time/pr_time_unittest.cc.
  */
 
-#include <limits.h>
-
-#include "base/logging.h"
 #include "base/third_party/nspr/prtime.h"
+
+#include "base/check.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#define PRTIME_USE_BASE_TIME
-#include "base/time/time.h"
-#else
+#include <ctype.h>
 #include <errno.h>  /* for EINVAL */
+#include <limits.h>
+#include <stddef.h>
+#include <string.h>
 #include <time.h>
-
-#include "starboard/memory.h"
-#include "starboard/types.h"
-#endif
 
 /*
  * The COUNT_LEAPS macro counts the number of leap years passed by
@@ -102,7 +97,7 @@
 #define DAYS_BETWEEN_YEARS(A, B) (COUNT_DAYS(B) - COUNT_DAYS(A))
 
 /* Implements the Unix localtime_r() function for windows */
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 static void localtime_r(const time_t* secs, struct tm* time) {
   (void) localtime_s(time, secs);
 }
@@ -131,42 +126,6 @@ static const PRInt8 nDays[2][12] = {
     {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 };
 
-#if defined(PRTIME_USE_BASE_TIME)
-// Implodes |exploded| using base::Time's implosion methods. |is_local| states
-// whether to ignore the time zone params and just interpret as a local time, as
-// opposed to treating like a UTC exploded time and then adjusting by the TZ
-// params.
-static PRTime BaseImplode(const PRExplodedTime* exploded, bool is_local) {
-  static const PRTime kSecondsToMicroseconds = static_cast<PRTime>(1000000);
-  base::Time::Exploded base_exploded;
-  base_exploded.year = exploded->tm_year;
-  base_exploded.month = exploded->tm_month + 1;
-  base_exploded.day_of_week = 0;
-  base_exploded.day_of_month = exploded->tm_mday;
-  base_exploded.hour = exploded->tm_hour;
-  base_exploded.minute = exploded->tm_min;
-  base_exploded.second = exploded->tm_sec;
-  base_exploded.millisecond = 0;
-  base::Time base_time;
-  if (is_local) {
-    bool result = base::Time::FromLocalExploded(base_exploded, &base_time);
-    DCHECK(result);
-  } else {
-    bool result = base::Time::FromUTCExploded(base_exploded, &base_time);
-    DCHECK(result);
-  }
-  PRTime result = static_cast<PRTime>(
-      (base_time - base::Time::UnixEpoch()).InMicroseconds());
-  if (!is_local) {
-    result -= (exploded->tm_params.tp_gmt_offset +
-               exploded->tm_params.tp_dst_offset) *
-              kSecondsToMicroseconds;
-  }
-  result += exploded->tm_usec;
-  return result;
-}
-#endif  // defined(PRTIME_USE_BASE_TIME)
-
 /*
  *------------------------------------------------------------------------
  *
@@ -180,9 +139,6 @@ static PRTime BaseImplode(const PRExplodedTime* exploded, bool is_local) {
 PRTime
 PR_ImplodeTime(const PRExplodedTime *exploded)
 {
-#if defined(PRTIME_USE_BASE_TIME)
-    return BaseImplode(exploded, false /*is_local*/);
-#else
   PRExplodedTime copy;
   PRTime retVal;
   PRInt64 secPerDay, usecPerSec;
@@ -218,7 +174,6 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
   LL_ADD(retVal, retVal, temp);
 
   return retVal;
-#endif  // defined(PRTIME_USE_BASE_TIME)
 }
 
 /*
@@ -836,7 +791,7 @@ PR_ParseTimeString(
                                           tmp_usec = tmp_usec * 10 + *end - '0';
                                         end++;
                                       }
-                                    int ndigits = end - rest;
+                                    ptrdiff_t ndigits = end - rest;
                                     while (ndigits++ < 6)
                                       tmp_usec *= 10;
                                     rest = end;
@@ -1066,7 +1021,7 @@ PR_ParseTimeString(
 
           /* "-" is ignored at the beginning of a token if we have not yet
                  parsed a year (e.g., the second "-" in "30-AUG-1966"), or if
-                 the character after the dash is not a digit. */         
+                 the character after the dash is not a digit. */
           if (*rest == '-' && ((rest > string &&
               isalpha((unsigned char)rest[-1]) && year < 0) ||
               rest[1] < '0' || rest[1] > '9'))
@@ -1145,13 +1100,10 @@ PR_ParseTimeString(
 
   if (zone_offset == -1)
          {
-
            /* no zone was specified, and we're to assume that everything
              is local. */
-#if !defined(PRTIME_USE_BASE_TIME)
           struct tm localTime;
           time_t secs;
-#endif
 
           PR_ASSERT(result->tm_month > -1 &&
                     result->tm_mday > 0 &&
@@ -1159,10 +1111,6 @@ PR_ParseTimeString(
                     result->tm_min > -1 &&
                     result->tm_sec > -1);
 
-#if defined(PRTIME_USE_BASE_TIME)
-          *result_imploded = BaseImplode(result, true /*is_local*/);
-          return PR_SUCCESS;
-#else  // defined(PRTIME_USE_BASE_TIME)
             /*
              * To obtain time_t from a tm structure representing the local
              * time, we call mktime().  However, we need to see if we are
@@ -1194,7 +1142,7 @@ PR_ParseTimeString(
                   /*
                    * mktime will return (time_t) -1 if the input is a date
                    * after 23:59:59, December 31, 3000, US Pacific Time (not
-                   * UTC as documented): 
+                   * UTC as documented):
                    * http://msdn.microsoft.com/en-us/library/d1y53h2a(VS.80).aspx
                    * But if the year is 3001, mktime also invokes the invalid
                    * parameter handler, causing the application to crash.  This
@@ -1217,12 +1165,12 @@ PR_ParseTimeString(
 #endif
                   if (secs != (time_t) -1)
                     {
-                      *result_imploded = (PRInt64)secs * PR_USEC_PER_SEC;
-                      *result_imploded += result->tm_usec;
-                      return PR_SUCCESS;
+                    *result_imploded = secs * (PRTime)PR_USEC_PER_SEC;
+                    *result_imploded += result->tm_usec;
+                    return PR_SUCCESS;
                     }
                 }
-                
+
                 /* So mktime() can't handle this case.  We assume the
                    zone_offset for the date we are parsing is the same as
                    the zone offset on 00:00:00 2 Jan 1970 GMT. */
@@ -1231,7 +1179,6 @@ PR_ParseTimeString(
                 zone_offset = localTime.tm_min
                               + 60 * localTime.tm_hour
                               + 1440 * (localTime.tm_mday - 2);
-#endif  // defined(PRTIME_USE_BASE_TIME)
         }
 
   result->tm_params.tp_gmt_offset = zone_offset * 60;

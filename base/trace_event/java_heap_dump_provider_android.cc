@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,19 +16,13 @@ JavaHeapDumpProvider* JavaHeapDumpProvider::GetInstance() {
                    LeakySingletonTraits<JavaHeapDumpProvider>>::get();
 }
 
-JavaHeapDumpProvider::JavaHeapDumpProvider() {
-}
-
-JavaHeapDumpProvider::~JavaHeapDumpProvider() {
-}
-
 // Called at trace dump point time. Creates a snapshot with the memory counters
 // for the current process.
 bool JavaHeapDumpProvider::OnMemoryDump(const MemoryDumpArgs& args,
                                         ProcessMemoryDump* pmd) {
   // These numbers come from java.lang.Runtime stats.
-  long total_heap_size = 0;
-  long free_heap_size = 0;
+  uint64_t total_heap_size = 0;
+  uint64_t free_heap_size = 0;
   android::JavaRuntime::GetMemoryUsage(&total_heap_size, &free_heap_size);
 
   MemoryAllocatorDump* outer_dump = pmd->CreateAllocatorDump("java_heap");

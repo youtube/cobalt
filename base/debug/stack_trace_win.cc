@@ -1,23 +1,26 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/debug/stack_trace.h"
 
 #include <windows.h>
+
 #include <dbghelp.h>
+#include <stddef.h>
 
 #include <algorithm>
 #include <iostream>
+#include <iterator>
 #include <memory>
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/singleton.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace debug {
@@ -30,6 +33,10 @@ LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
 
 bool g_initialized_symbols = false;
 DWORD g_init_error = ERROR_SUCCESS;
+// STATUS_INFO_LENGTH_MISMATCH is declared in <ntstatus.h>, but including that
+// header creates a conflict with base/win/windows_types.h, so re-declaring it
+// here.
+DWORD g_status_info_length_mismatch = 0xC0000004;
 
 // Prints the exception call stack.
 // This is the unit tests exception filter.
@@ -116,19 +123,61 @@ FilePath GetExePath() {
   return FilePath(system_buffer);
 }
 
+constexpr size_t kSymInitializeRetryCount = 3;
+
+// A wrapper for SymInitialize. SymInitialize seems to occasionally fail
+// because of an internal race condition. So  wrap it and retry a finite
+// number of times.
+// See crbug.com/1339753
+bool SymInitializeWrapper(HANDLE handle, BOOL invade_process) {
+  for (size_t i = 0; i < kSymInitializeRetryCount; ++i) {
+    if (SymInitialize(handle, nullptr, invade_process))
+      return true;
+
+    g_init_error = GetLastError();
+    if (g_init_error != g_status_info_length_mismatch)
+      return false;
+  }
+  DLOG(ERROR) << "SymInitialize failed repeatedly.";
+  return false;
+}
+
+bool SymInitializeCurrentProc() {
+  const HANDLE current_process = GetCurrentProcess();
+  if (SymInitializeWrapper(current_process, TRUE))
+    return true;
+
+  // g_init_error is updated by SymInitializeWrapper.
+  // No need to do "g_init_error = GetLastError()" here.
+  if (g_init_error != ERROR_INVALID_PARAMETER)
+    return false;
+
+  // SymInitialize() can fail with ERROR_INVALID_PARAMETER when something has
+  // already called SymInitialize() in this process. For example, when absl
+  // support for gtest is enabled, it results in absl calling SymInitialize()
+  // almost immediately after startup. In such a case, try to reinit to see if
+  // that succeeds.
+  SymCleanup(current_process);
+  if (SymInitializeWrapper(current_process, TRUE))
+    return true;
+
+  return false;
+}
+
 bool InitializeSymbols() {
-  if (g_initialized_symbols)
-    return g_init_error == ERROR_SUCCESS;
+  if (g_initialized_symbols) {
+    // Force a reinitialization. Will ensure any modules loaded after process
+    // startup also get symbolized.
+    SymCleanup(GetCurrentProcess());
+    g_initialized_symbols = false;
+  }
   g_initialized_symbols = true;
   // Defer symbol load until they're needed, use undecorated names, and get line
   // numbers.
   SymSetOptions(SYMOPT_DEFERRED_LOADS |
                 SYMOPT_UNDNAME |
                 SYMOPT_LOAD_LINES);
-  if (!SymInitialize(GetCurrentProcess(), NULL, TRUE)) {
-    g_init_error = GetLastError();
-    // TODO(awong): Handle error: SymInitialize can fail with
-    // ERROR_INVALID_PARAMETER.
+  if (!SymInitializeCurrentProc()) {
     // When it fails, we should not call debugbreak since it kills the current
     // process (prevents future tests from running or kills the browser
     // process).
@@ -140,21 +189,20 @@ bool InitializeSymbols() {
   // into the executable will get off. To still retrieve symbols correctly,
   // add the directory of the executable to symbol search path.
   // All following errors are non-fatal.
-  const size_t kSymbolsArraySize = 1024;
-  std::unique_ptr<wchar_t[]> symbols_path(new wchar_t[kSymbolsArraySize]);
+  static constexpr size_t kSymbolsArraySize = 1024;
+  wchar_t symbols_path[kSymbolsArraySize];
 
   // Note: The below function takes buffer size as number of characters,
   // not number of bytes!
-  if (!SymGetSearchPathW(GetCurrentProcess(),
-                         symbols_path.get(),
+  if (!SymGetSearchPathW(GetCurrentProcess(), symbols_path,
                          kSymbolsArraySize)) {
     g_init_error = GetLastError();
     DLOG(WARNING) << "SymGetSearchPath failed: " << g_init_error;
     return false;
   }
 
-  std::wstring new_path(std::wstring(symbols_path.get()) +
-                        L";" + GetExePath().DirName().value());
+  std::wstring new_path = StringPrintf(L"%ls;%ls", symbols_path,
+                                       GetExePath().DirName().value().c_str());
   if (!SymSetSearchPathW(GetCurrentProcess(), new_path.c_str())) {
     g_init_error = GetLastError();
     DLOG(WARNING) << "SymSetSearchPath failed." << g_init_error;
@@ -189,6 +237,9 @@ class SymbolContext {
       Singleton<SymbolContext, LeakySingletonTraits<SymbolContext> >::get();
   }
 
+  SymbolContext(const SymbolContext&) = delete;
+  SymbolContext& operator=(const SymbolContext&) = delete;
+
   // For the given trace, attempts to resolve the symbols, and output a trace
   // to the ostream os.  The format for each line of the backtrace is:
   //
@@ -202,7 +253,7 @@ class SymbolContext {
                            size_t count,
                            std::ostream* os,
                            const char* prefix_string) {
-    base::AutoLock lock(lock_);
+    AutoLock lock(lock_);
 
     for (size_t i = 0; (i < count) && os->good(); ++i) {
       const int kMaxNameLength = 256;
@@ -257,8 +308,7 @@ class SymbolContext {
     InitializeSymbols();
   }
 
-  base::Lock lock_;
-  DISALLOW_COPY_AND_ASSIGN(SymbolContext);
+  Lock lock_;
 };
 
 }  // namespace
@@ -274,25 +324,10 @@ bool EnableInProcessStackDumping() {
   return InitializeSymbols();
 }
 
-// Disable optimizations for the StackTrace::StackTrace function. It is
-// important to disable at least frame pointer optimization ("y"), since
-// that breaks CaptureStackBackTrace() and prevents StackTrace from working
-// in Release builds (it may still be janky if other frames are using FPO,
-// but at least it will make it further).
-#if defined(COMPILER_MSVC)
-#pragma optimize("", off)
-#endif
-
-StackTrace::StackTrace(size_t count) {
-  count = std::min(arraysize(trace_), count);
-
+NOINLINE size_t CollectStackTrace(void** trace, size_t count) {
   // When walking our own stack, use CaptureStackBackTrace().
-  count_ = CaptureStackBackTrace(0, count, trace_, NULL);
+  return CaptureStackBackTrace(0, count, trace, NULL);
 }
-
-#if defined(COMPILER_MSVC)
-#pragma optimize("", on)
-#endif
 
 StackTrace::StackTrace(EXCEPTION_POINTERS* exception_pointers) {
   InitTrace(exception_pointers->ContextRecord);
@@ -316,34 +351,35 @@ void StackTrace::InitTrace(const CONTEXT* context_record) {
   // Initialize stack walking.
   STACKFRAME64 stack_frame;
   memset(&stack_frame, 0, sizeof(stack_frame));
-#if defined(_WIN64)
-  int machine_type = IMAGE_FILE_MACHINE_AMD64;
+#if defined(ARCH_CPU_X86_64)
+  DWORD machine_type = IMAGE_FILE_MACHINE_AMD64;
   stack_frame.AddrPC.Offset = context_record->Rip;
   stack_frame.AddrFrame.Offset = context_record->Rbp;
   stack_frame.AddrStack.Offset = context_record->Rsp;
-#else
-  int machine_type = IMAGE_FILE_MACHINE_I386;
+#elif defined(ARCH_CPU_ARM64)
+  DWORD machine_type = IMAGE_FILE_MACHINE_ARM64;
+  stack_frame.AddrPC.Offset = context_record->Pc;
+  stack_frame.AddrFrame.Offset = context_record->Fp;
+  stack_frame.AddrStack.Offset = context_record->Sp;
+#elif defined(ARCH_CPU_X86)
+  DWORD machine_type = IMAGE_FILE_MACHINE_I386;
   stack_frame.AddrPC.Offset = context_record->Eip;
   stack_frame.AddrFrame.Offset = context_record->Ebp;
   stack_frame.AddrStack.Offset = context_record->Esp;
+#else
+#error Unsupported Windows Arch
 #endif
   stack_frame.AddrPC.Mode = AddrModeFlat;
   stack_frame.AddrFrame.Mode = AddrModeFlat;
   stack_frame.AddrStack.Mode = AddrModeFlat;
-  while (StackWalk64(machine_type,
-                     GetCurrentProcess(),
-                     GetCurrentThread(),
-                     &stack_frame,
-                     &context_copy,
-                     NULL,
-                     &SymFunctionTableAccess64,
-                     &SymGetModuleBase64,
-                     NULL) &&
-         count_ < arraysize(trace_)) {
+  while (StackWalk64(machine_type, GetCurrentProcess(), GetCurrentThread(),
+                     &stack_frame, &context_copy, NULL,
+                     &SymFunctionTableAccess64, &SymGetModuleBase64, NULL) &&
+         count_ < std::size(trace_)) {
     trace_[count_++] = reinterpret_cast<void*>(stack_frame.AddrPC.Offset);
   }
 
-  for (size_t i = count_; i < arraysize(trace_); ++i)
+  for (size_t i = count_; i < std::size(trace_); ++i)
     trace_[i] = NULL;
 }
 
