@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,25 +28,25 @@
 
 #include "net/disk_cache/blockfile/eviction.h"
 
+#include <stdint.h>
+
 #include <limits>
 
-#include "base/bind.h"
+#include "base/check_op.h"
 #include "base/compiler_specific.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/single_thread_task_runner.h"
+#include "base/notreached.h"
 #include "base/strings/string_util.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "net/base/tracing.h"
 #include "net/disk_cache/blockfile/backend_impl.h"
 #include "net/disk_cache/blockfile/disk_format.h"
 #include "net/disk_cache/blockfile/entry_impl.h"
 #include "net/disk_cache/blockfile/experiments.h"
 #include "net/disk_cache/blockfile/histogram_macros.h"
-#include "net/disk_cache/blockfile/trace.h"
-#include "net/disk_cache/blockfile/webfonts_histogram.h"
-#include "starboard/types.h"
 
 // Provide a BackendImpl object to macros from histogram_macros.h.
 #define CACHE_UMA_BACKEND_IMPL_OBJ backend_
@@ -78,11 +78,7 @@ namespace disk_cache {
 
 // The real initialization happens during Init(), init_ is the only member that
 // has to be initialized here.
-Eviction::Eviction()
-    : backend_(NULL),
-      init_(false),
-      ptr_factory_(this) {
-}
+Eviction::Eviction() = default;
 
 Eviction::~Eviction() = default;
 
@@ -117,6 +113,7 @@ void Eviction::Stop() {
 }
 
 void Eviction::TrimCache(bool empty) {
+  TRACE_EVENT0("disk_cache", "Eviction::TrimCache");
   if (backend_->disabled_ || trimming_)
     return;
 
@@ -126,7 +123,6 @@ void Eviction::TrimCache(bool empty) {
   if (new_eviction_)
     return TrimCacheV2(empty);
 
-  Trace("*** Trim Cache ***");
   trimming_ = true;
   TimeTicks start = TimeTicks::Now();
   Rankings::ScopedRankingsBlock node(rankings_);
@@ -152,9 +148,9 @@ void Eviction::TrimCache(bool empty) {
     }
     if (!empty && (deleted_entries > 20 ||
                    (TimeTicks::Now() - start).InMilliseconds() > 20)) {
-      base::ThreadTaskRunnerHandle::Get()->PostTask(
-          FROM_HERE,
-          base::Bind(&Eviction::TrimCache, ptr_factory_.GetWeakPtr(), false));
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(&Eviction::TrimCache,
+                                    ptr_factory_.GetWeakPtr(), false));
       break;
     }
   }
@@ -167,7 +163,6 @@ void Eviction::TrimCache(bool empty) {
   CACHE_UMA(COUNTS, "TrimItemsV1", 0, deleted_entries);
 
   trimming_ = false;
-  Trace("*** Trim Cache end ***");
   return;
 }
 
@@ -210,6 +205,8 @@ void Eviction::SetTestMode() {
 }
 
 void Eviction::TrimDeletedList(bool empty) {
+  TRACE_EVENT0("disk_cache", "Eviction::TrimDeletedList");
+
   DCHECK(test_mode_ && new_eviction_);
   TrimDeleted(empty);
 }
@@ -220,9 +217,10 @@ void Eviction::PostDelayedTrim() {
     return;
   delay_trim_ = true;
   trim_delays_++;
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
-      FROM_HERE, base::Bind(&Eviction::DelayedTrim, ptr_factory_.GetWeakPtr()),
-      base::TimeDelta::FromMilliseconds(1000));
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&Eviction::DelayedTrim, ptr_factory_.GetWeakPtr()),
+      base::Milliseconds(1000));
 }
 
 void Eviction::DelayedTrim() {
@@ -287,12 +285,9 @@ Rankings::List Eviction::GetListForEntry(EntryImpl* entry) {
 bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty,
                           Rankings::List list) {
   scoped_refptr<EntryImpl> entry = backend_->GetEnumeratedEntry(node, list);
-  if (!entry) {
-    Trace("NewEntry failed on Trim 0x%x", node->address().value());
+  if (!entry)
     return false;
-  }
 
-  web_fonts_histogram::RecordEviction(entry.get());
   ReportTrimTimes(entry.get());
   if (empty || !new_eviction_) {
     entry->DoomImpl();
@@ -315,7 +310,8 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty,
 // -----------------------------------------------------------------------
 
 void Eviction::TrimCacheV2(bool empty) {
-  Trace("*** Trim Cache ***");
+  TRACE_EVENT0("disk_cache", "Eviction::TrimCacheV2");
+
   trimming_ = true;
   TimeTicks start = TimeTicks::Now();
 
@@ -329,7 +325,7 @@ void Eviction::TrimCacheV2(bool empty) {
     next[i].set_rankings(rankings_);
     if (done)
       continue;
-    next[i].reset(rankings_->GetPrev(NULL, static_cast<Rankings::List>(i)));
+    next[i].reset(rankings_->GetPrev(nullptr, static_cast<Rankings::List>(i)));
     if (!empty && NodeIsOldEnough(next[i].get(), i)) {
       list = static_cast<Rankings::List>(i);
       done = true;
@@ -368,9 +364,9 @@ void Eviction::TrimCacheV2(bool empty) {
       }
       if (!empty && (deleted_entries > 20 ||
                      (TimeTicks::Now() - start).InMilliseconds() > 20)) {
-        base::ThreadTaskRunnerHandle::Get()->PostTask(
-            FROM_HERE,
-            base::Bind(&Eviction::TrimCache, ptr_factory_.GetWeakPtr(), false));
+        base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE, base::BindOnce(&Eviction::TrimCache,
+                                      ptr_factory_.GetWeakPtr(), false));
         break;
       }
     }
@@ -381,9 +377,9 @@ void Eviction::TrimCacheV2(bool empty) {
   if (empty) {
     TrimDeleted(true);
   } else if (ShouldTrimDeleted()) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE,
-        base::Bind(&Eviction::TrimDeleted, ptr_factory_.GetWeakPtr(), empty));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&Eviction::TrimDeleted,
+                                  ptr_factory_.GetWeakPtr(), empty));
   }
 
   if (empty) {
@@ -393,7 +389,6 @@ void Eviction::TrimCacheV2(bool empty) {
   }
   CACHE_UMA(COUNTS, "TrimItemsV2", 0, deleted_entries);
 
-  Trace("*** Trim Cache end ***");
   trimming_ = false;
   return;
 }
@@ -493,7 +488,8 @@ Rankings::List Eviction::GetListForEntryV2(EntryImpl* entry) {
 // This is a minimal implementation that just discards the oldest nodes.
 // TODO(rvargas): Do something better here.
 void Eviction::TrimDeleted(bool empty) {
-  Trace("*** Trim Deleted ***");
+  TRACE_EVENT0("disk_cache", "Eviction::TrimDeleted");
+
   if (backend_->disabled_)
     return;
 
@@ -514,24 +510,21 @@ void Eviction::TrimDeleted(bool empty) {
   }
 
   if (deleted_entries && !empty && ShouldTrimDeleted()) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE,
-        base::Bind(&Eviction::TrimDeleted, ptr_factory_.GetWeakPtr(), false));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&Eviction::TrimDeleted,
+                                  ptr_factory_.GetWeakPtr(), false));
   }
 
   CACHE_UMA(AGE_MS, "TotalTrimDeletedTime", 0, start);
   CACHE_UMA(COUNTS, "TrimDeletedItems", 0, deleted_entries);
-  Trace("*** Trim Deleted end ***");
   return;
 }
 
 bool Eviction::RemoveDeletedNode(CacheRankingsBlock* node) {
   scoped_refptr<EntryImpl> entry =
       backend_->GetEnumeratedEntry(node, Rankings::DELETED);
-  if (!entry) {
-    Trace("NewEntry failed on Trim 0x%x", node->address().value());
+  if (!entry)
     return false;
-  }
 
   bool doomed = (entry->entry()->Data()->state == ENTRY_DOOMED);
   entry->entry()->Data()->state = ENTRY_DOOMED;
@@ -575,14 +568,14 @@ void Eviction::ReportListStats() {
   if (!new_eviction_)
     return;
 
-  Rankings::ScopedRankingsBlock last1(rankings_,
-      rankings_->GetPrev(NULL, Rankings::NO_USE));
-  Rankings::ScopedRankingsBlock last2(rankings_,
-      rankings_->GetPrev(NULL, Rankings::LOW_USE));
-  Rankings::ScopedRankingsBlock last3(rankings_,
-      rankings_->GetPrev(NULL, Rankings::HIGH_USE));
-  Rankings::ScopedRankingsBlock last4(rankings_,
-      rankings_->GetPrev(NULL, Rankings::DELETED));
+  Rankings::ScopedRankingsBlock last1(
+      rankings_, rankings_->GetPrev(nullptr, Rankings::NO_USE));
+  Rankings::ScopedRankingsBlock last2(
+      rankings_, rankings_->GetPrev(nullptr, Rankings::LOW_USE));
+  Rankings::ScopedRankingsBlock last3(
+      rankings_, rankings_->GetPrev(nullptr, Rankings::HIGH_USE));
+  Rankings::ScopedRankingsBlock last4(
+      rankings_, rankings_->GetPrev(nullptr, Rankings::DELETED));
 
   if (last1.get())
     CACHE_UMA(AGE, "NoUseAge", 0,

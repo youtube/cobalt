@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,6 @@
 #include "base/values.h"
 #include "net/cert/ct_sct_to_string.h"
 #include "net/cert/signed_certificate_timestamp.h"
-#include "net/log/net_log_capture_mode.h"
 
 namespace net {
 
@@ -23,78 +22,75 @@ namespace {
 // description |key|.
 void SetBinaryData(const char* key,
                    base::StringPiece value,
-                   base::DictionaryValue* dict) {
+                   base::Value::Dict& dict) {
   std::string b64_value;
   base::Base64Encode(value, &b64_value);
 
-  dict->SetString(key, b64_value);
+  dict.Set(key, b64_value);
 }
 
 // Returns a dictionary where each key is a field of the SCT and its value
 // is this field's value in the SCT. This dictionary is meant to be used for
 // outputting a de-serialized SCT to the NetLog.
-std::unique_ptr<base::DictionaryValue> SCTToDictionary(
-    const ct::SignedCertificateTimestamp& sct,
-    ct::SCTVerifyStatus status) {
-  std::unique_ptr<base::DictionaryValue> out(new base::DictionaryValue());
+base::Value SCTToDictionary(const ct::SignedCertificateTimestamp& sct,
+                            ct::SCTVerifyStatus status) {
+  base::Value::Dict dict;
 
-  out->SetString("origin", OriginToString(sct.origin));
-  out->SetString("verification_status", StatusToString(status));
-  out->SetInteger("version", sct.version);
+  dict.Set("origin", OriginToString(sct.origin));
+  dict.Set("verification_status", StatusToString(status));
+  dict.Set("version", sct.version);
 
-  SetBinaryData("log_id", sct.log_id, out.get());
+  SetBinaryData("log_id", sct.log_id, dict);
   base::TimeDelta time_since_unix_epoch =
       sct.timestamp - base::Time::UnixEpoch();
-  out->SetString("timestamp",
-      base::Int64ToString(time_since_unix_epoch.InMilliseconds()));
-  SetBinaryData("extensions", sct.extensions, out.get());
+  dict.Set("timestamp",
+           base::NumberToString(time_since_unix_epoch.InMilliseconds()));
+  SetBinaryData("extensions", sct.extensions, dict);
 
-  out->SetString("hash_algorithm",
-                 HashAlgorithmToString(sct.signature.hash_algorithm));
-  out->SetString("signature_algorithm",
-                 SignatureAlgorithmToString(sct.signature.signature_algorithm));
-  SetBinaryData("signature_data", sct.signature.signature_data, out.get());
+  dict.Set("hash_algorithm",
+           HashAlgorithmToString(sct.signature.hash_algorithm));
+  dict.Set("signature_algorithm",
+           SignatureAlgorithmToString(sct.signature.signature_algorithm));
+  SetBinaryData("signature_data", sct.signature.signature_data, dict);
 
-  return out;
+  return base::Value(std::move(dict));
 }
 
-// Given a list of SCTs and their statuses, return a ListValue instance where
-// each item in the list is a dictionary created by SCTToDictionary.
-std::unique_ptr<base::ListValue> SCTListToPrintableValues(
+// Given a list of SCTs and their statuses, return a list Value where each item
+// is a dictionary created by SCTToDictionary.
+base::Value::List SCTListToPrintableValues(
     const SignedCertificateTimestampAndStatusList& sct_and_status_list) {
-  std::unique_ptr<base::ListValue> output_scts(new base::ListValue());
-  for (const auto& sct_and_status : sct_and_status_list)
-    output_scts->Append(
+  base::Value::List output_scts;
+  for (const auto& sct_and_status : sct_and_status_list) {
+    output_scts.Append(
         SCTToDictionary(*(sct_and_status.sct.get()), sct_and_status.status));
+  }
 
   return output_scts;
 }
 
 }  // namespace
 
-std::unique_ptr<base::Value> NetLogSignedCertificateTimestampCallback(
-    const SignedCertificateTimestampAndStatusList* scts,
-    NetLogCaptureMode capture_mode) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+base::Value::Dict NetLogSignedCertificateTimestampParams(
+    const SignedCertificateTimestampAndStatusList* scts) {
+  base::Value::Dict dict;
 
-  dict->Set("scts", SCTListToPrintableValues(*scts));
+  dict.Set("scts", SCTListToPrintableValues(*scts));
 
-  return std::move(dict);
+  return dict;
 }
 
-std::unique_ptr<base::Value> NetLogRawSignedCertificateTimestampCallback(
+base::Value::Dict NetLogRawSignedCertificateTimestampParams(
     base::StringPiece embedded_scts,
     base::StringPiece sct_list_from_ocsp,
-    base::StringPiece sct_list_from_tls_extension,
-    NetLogCaptureMode capture_mode) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
+    base::StringPiece sct_list_from_tls_extension) {
+  base::Value::Dict dict;
 
-  SetBinaryData("embedded_scts", embedded_scts, dict.get());
-  SetBinaryData("scts_from_ocsp_response", sct_list_from_ocsp, dict.get());
-  SetBinaryData("scts_from_tls_extension", sct_list_from_tls_extension,
-                dict.get());
+  SetBinaryData("embedded_scts", embedded_scts, dict);
+  SetBinaryData("scts_from_ocsp_response", sct_list_from_ocsp, dict);
+  SetBinaryData("scts_from_tls_extension", sct_list_from_tls_extension, dict);
 
-  return std::move(dict);
+  return dict;
 }
 
 }  // namespace net

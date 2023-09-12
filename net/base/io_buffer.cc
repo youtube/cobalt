@@ -1,44 +1,36 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/io_buffer.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/numerics/safe_math.h"
-#include "starboard/memory.h"
 
 namespace net {
-
-namespace {
 
 // TODO(eroman): IOBuffer is being converted to require buffer sizes and offsets
 // be specified as "size_t" rather than "int" (crbug.com/488553). To facilitate
 // this move (since LOTS of code needs to be updated), both "size_t" and "int
 // are being accepted. When using "size_t" this function ensures that it can be
 // safely converted to an "int" without truncation.
-void AssertValidBufferSize(size_t size) {
+void IOBuffer::AssertValidBufferSize(size_t size) {
   base::CheckedNumeric<int>(size).ValueOrDie();
 }
 
-void AssertValidBufferSize(int size) {
+void IOBuffer::AssertValidBufferSize(int size) {
   CHECK_GE(size, 0);
 }
 
-}  // namespace
-
-IOBuffer::IOBuffer()
-    : data_(NULL) {
-}
-
-IOBuffer::IOBuffer(int buffer_size) {
-  AssertValidBufferSize(buffer_size);
-  data_ = new char[buffer_size];
-}
+IOBuffer::IOBuffer() : data_(nullptr) {}
 
 IOBuffer::IOBuffer(size_t buffer_size) {
   AssertValidBufferSize(buffer_size);
   data_ = new char[buffer_size];
+#if BUILDFLAG(IS_IOS)
+  // TODO(crbug.com/1335423): Investigating crashes on iOS.
+  CHECK(data_);
+#endif  // BUILDFLAG(IS_IOS)
 }
 
 IOBuffer::IOBuffer(char* data)
@@ -46,24 +38,11 @@ IOBuffer::IOBuffer(char* data)
 }
 
 IOBuffer::~IOBuffer() {
-  delete[] data_;
-  data_ = NULL;
-}
-
-IOBufferWithSize::IOBufferWithSize(int size)
-    : IOBuffer(size),
-      size_(size) {
-  AssertValidBufferSize(size);
+  data_.ClearAndDeleteArray();
 }
 
 IOBufferWithSize::IOBufferWithSize(size_t size) : IOBuffer(size), size_(size) {
   // Note: Size check is done in superclass' constructor.
-}
-
-IOBufferWithSize::IOBufferWithSize(char* data, int size)
-    : IOBuffer(data),
-      size_(size) {
-  AssertValidBufferSize(size);
 }
 
 IOBufferWithSize::IOBufferWithSize(char* data, size_t size)
@@ -74,14 +53,13 @@ IOBufferWithSize::IOBufferWithSize(char* data, size_t size)
 IOBufferWithSize::~IOBufferWithSize() = default;
 
 StringIOBuffer::StringIOBuffer(const std::string& s)
-    : IOBuffer(static_cast<char*>(NULL)),
-      string_data_(s) {
+    : IOBuffer(static_cast<char*>(nullptr)), string_data_(s) {
   AssertValidBufferSize(s.size());
   data_ = const_cast<char*>(string_data_.data());
 }
 
 StringIOBuffer::StringIOBuffer(std::unique_ptr<std::string> s)
-    : IOBuffer(static_cast<char*>(NULL)) {
+    : IOBuffer(static_cast<char*>(nullptr)) {
   AssertValidBufferSize(s->size());
   string_data_.swap(*s.get());
   data_ = const_cast<char*>(string_data_.data());
@@ -90,16 +68,16 @@ StringIOBuffer::StringIOBuffer(std::unique_ptr<std::string> s)
 StringIOBuffer::~StringIOBuffer() {
   // We haven't allocated the buffer, so remove it before the base class
   // destructor tries to delete[] it.
-  data_ = NULL;
+  data_ = nullptr;
 }
 
 DrainableIOBuffer::DrainableIOBuffer(scoped_refptr<IOBuffer> base, int size)
-    : IOBuffer(base->data()), base_(std::move(base)), size_(size), used_(0) {
+    : IOBuffer(base->data()), base_(std::move(base)), size_(size) {
   AssertValidBufferSize(size);
 }
 
 DrainableIOBuffer::DrainableIOBuffer(scoped_refptr<IOBuffer> base, size_t size)
-    : IOBuffer(base->data()), base_(std::move(base)), size_(size), used_(0) {
+    : IOBuffer(base->data()), base_(std::move(base)), size_(size) {
   AssertValidBufferSize(size);
 }
 
@@ -125,28 +103,18 @@ void DrainableIOBuffer::SetOffset(int bytes) {
 
 DrainableIOBuffer::~DrainableIOBuffer() {
   // The buffer is owned by the |base_| instance.
-  data_ = NULL;
+  data_ = nullptr;
 }
 
-GrowableIOBuffer::GrowableIOBuffer()
-    : IOBuffer(),
-      capacity_(0),
-      offset_(0) {
-}
+GrowableIOBuffer::GrowableIOBuffer() = default;
 
 void GrowableIOBuffer::SetCapacity(int capacity) {
   DCHECK_GE(capacity, 0);
+  // this will get reset in `set_offset`.
+  data_ = nullptr;
   // realloc will crash if it fails.
-  // Calling reallocate with size 0 and a non-null pointer causes memory leaks
-  // on many platforms, since it may return nullptr while also not deallocating
-  // the previously allocated memory.
-  if (real_data_ && capacity == 0) {
-    SbMemoryDeallocate(real_data_.release());
-    real_data_.reset();
-  } else {
-    real_data_.reset(
-        static_cast<char*>(SbMemoryReallocate(real_data_.release(), capacity)));
-  }
+  real_data_.reset(static_cast<char*>(realloc(real_data_.release(), capacity)));
+
   capacity_ = capacity;
   if (offset_ > capacity)
     set_offset(capacity);
@@ -170,18 +138,18 @@ char* GrowableIOBuffer::StartOfBuffer() {
 }
 
 GrowableIOBuffer::~GrowableIOBuffer() {
-  data_ = NULL;
+  data_ = nullptr;
 }
 
 PickledIOBuffer::PickledIOBuffer() : IOBuffer() {
 }
 
 void PickledIOBuffer::Done() {
-  data_ = const_cast<char*>(static_cast<const char*>(pickle_.data()));
+  data_ = const_cast<char*>(pickle_.data_as_char());
 }
 
 PickledIOBuffer::~PickledIOBuffer() {
-  data_ = NULL;
+  data_ = nullptr;
 }
 
 WrappedIOBuffer::WrappedIOBuffer(const char* data)
@@ -189,7 +157,7 @@ WrappedIOBuffer::WrappedIOBuffer(const char* data)
 }
 
 WrappedIOBuffer::~WrappedIOBuffer() {
-  data_ = NULL;
+  data_ = nullptr;
 }
 
 }  // namespace net

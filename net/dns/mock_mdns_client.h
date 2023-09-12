@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@ namespace net {
 class MockMDnsTransaction : public MDnsTransaction {
  public:
   MockMDnsTransaction();
-  ~MockMDnsTransaction();
+  ~MockMDnsTransaction() override;
 
   MOCK_METHOD0(Start, bool());
   MOCK_CONST_METHOD0(GetName, const std::string&());
@@ -26,9 +26,8 @@ class MockMDnsTransaction : public MDnsTransaction {
 class MockMDnsClient : public MDnsClient {
  public:
   MockMDnsClient();
-  ~MockMDnsClient();
+  ~MockMDnsClient() override;
 
-#ifndef GMOCK_NO_MOVE_MOCK
   MOCK_METHOD3(CreateListener,
                std::unique_ptr<MDnsListener>(uint16_t,
                                              const std::string&,
@@ -39,8 +38,7 @@ class MockMDnsClient : public MDnsClient {
                                        const std::string&,
                                        int,
                                        const MDnsTransaction::ResultCallback&));
-#endif
-  MOCK_METHOD1(StartListening, bool(MDnsSocketFactory*));
+  MOCK_METHOD1(StartListening, int(MDnsSocketFactory*));
   MOCK_METHOD0(StopListening, void());
   MOCK_CONST_METHOD0(IsListening, bool());
 };

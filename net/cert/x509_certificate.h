@@ -1,23 +1,24 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_CERT_X509_CERTIFICATE_H_
 #define NET_CERT_X509_CERTIFICATE_H_
 
+#include <stddef.h>
 #include <string.h>
 
 #include <string>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
+#include "net/base/hash_value.h"
 #include "net/base/net_export.h"
 #include "net/cert/x509_cert_types.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace base {
@@ -31,10 +32,12 @@ class X509Certificate;
 
 typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 
-// X509Certificate represents a X.509 certificate, which is comprised a
-// particular identity or end-entity certificate, such as an SSL server
-// identity or an SSL client certificate, and zero or more intermediate
-// certificates that may be used to build a path to a root certificate.
+// A X.509 certificate represents a particular identity or end-entity
+// certificate, such as an SSL server identity or an SSL client certificate. An
+// X509Certificate contains this leaf certificate accessible via cert_buffer().
+// An X509Certificate may also contain 0 or more intermediary X.509 certificates
+// that are used to build a path to a root certificate. These are accessed via
+// intermediate_buffers().
 class NET_EXPORT X509Certificate
     : public base::RefCountedThreadSafe<X509Certificate> {
  public:
@@ -107,14 +110,13 @@ class NET_EXPORT X509Certificate
 
   // Create an X509Certificate from the DER-encoded representation.
   // Returns NULL on failure.
-  static scoped_refptr<X509Certificate> CreateFromBytes(const char* data,
-                                                        size_t length);
+  static scoped_refptr<X509Certificate> CreateFromBytes(
+      base::span<const uint8_t> data);
 
   // Create an X509Certificate with non-standard parsing options.
   // Do not use without consulting //net owners.
   static scoped_refptr<X509Certificate> CreateFromBytesUnsafeOptions(
-      const char* data,
-      size_t length,
+      base::span<const uint8_t> data,
       UnsafeCreateOptions options);
 
   // Create an X509Certificate from the representation stored in the given
@@ -135,9 +137,12 @@ class NET_EXPORT X509Certificate
   // bit-wise OR of Format, indicating the possible formats the
   // certificates may have been serialized as. If an error occurs, an empty
   // collection will be returned.
-  static CertificateList CreateCertificateListFromBytes(const char* data,
-                                                        size_t length,
-                                                        int format);
+  static CertificateList CreateCertificateListFromBytes(
+      base::span<const uint8_t> data,
+      int format);
+
+  X509Certificate(const X509Certificate&) = delete;
+  X509Certificate& operator=(const X509Certificate&) = delete;
 
   // Appends a representation of this object to the given pickle.
   // The Pickle contains the certificate and any certificates that were
@@ -145,7 +150,7 @@ class NET_EXPORT X509Certificate
   // The format is [int count], [data - this certificate],
   // [data - intermediate1], ... [data - intermediateN].
   // All certificates are stored in DER form.
-  void Persist(base::Pickle* pickle);
+  void Persist(base::Pickle* pickle) const;
 
   // The serial number, DER encoded, possibly including a leading 00 byte.
   const std::string& serial_number() const { return serial_number_; }
@@ -189,7 +194,7 @@ class NET_EXPORT X509Certificate
 
   // Do any of the given issuer names appear in this cert's chain of trust?
   // |valid_issuers| is a list of DER-encoded X.509 DistinguishedNames.
-  bool IsIssuedByEncoded(const std::vector<std::string>& valid_issuers);
+  bool IsIssuedByEncoded(const std::vector<std::string>& valid_issuers) const;
 
   // Verifies that |hostname| matches this certificate.
   // Does not verify that the certificate is valid, only that the certificate
@@ -236,18 +241,11 @@ class NET_EXPORT X509Certificate
     return intermediate_ca_certs_;
   }
 
-  // Creates a CRYPTO_BUFFER from the DER-encoded representation. Unlike
-  // creating a CRYPTO_BUFFER directly, this function does some minimal
-  // checking to reject obviously invalid inputs.
-  // Returns NULL on failure.
-  static bssl::UniquePtr<CRYPTO_BUFFER> CreateCertBufferFromBytes(
-      const char* data,
-      size_t length);
-
   // Creates all possible CRYPTO_BUFFERs from |data| encoded in a specific
   // |format|. Returns an empty collection on failure.
-  static std::vector<bssl::UniquePtr<CRYPTO_BUFFER>>
-  CreateCertBuffersFromBytes(const char* data, size_t length, Format format);
+  static std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> CreateCertBuffersFromBytes(
+      base::span<const uint8_t> data,
+      Format format);
 
   // Calculates the SHA-256 fingerprint of the certificate.  Returns an empty
   // (all zero) fingerprint on failure.
@@ -260,7 +258,7 @@ class NET_EXPORT X509Certificate
   SHA256HashValue CalculateChainFingerprint256() const;
 
   // Returns true if the certificate is self-signed.
-  static bool IsSelfSigned(const CRYPTO_BUFFER* cert_buffer);
+  static bool IsSelfSigned(CRYPTO_BUFFER* cert_buffer);
 
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
@@ -315,8 +313,6 @@ class NET_EXPORT X509Certificate
   // Untrusted intermediate certificates associated with this certificate
   // that may be needed for chain building.
   std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediate_ca_certs_;
-
-  DISALLOW_COPY_AND_ASSIGN(X509Certificate);
 };
 
 }  // namespace net

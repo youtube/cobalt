@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,138 +6,68 @@
 
 #include <errno.h>
 #include <limits.h>
+#include <stdint.h>
 
 #include <cstring>
-#include <set>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "base/big_endian.h"
+#include "base/check_op.h"
+#include "base/containers/contains.h"
+#include "base/feature_list.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
-#include "net/base/address_list.h"
-#include "net/base/url_util.h"
-#include "net/dns/dns_protocol.h"
+#include "net/dns/public/dns_protocol.h"
+#include "net/dns/public/doh_provider_entry.h"
+#include "net/dns/public/util.h"
 #include "net/third_party/uri_template/uri_template.h"
-#include "url/gurl.h"
-#include "url/url_canon.h"
 
-#include "starboard/memory.h"
-#include "starboard/types.h"
-
-namespace {
-
-// RFC 1035, section 2.3.4: labels 63 octets or less.
-// Section 3.1: Each label is represented as a one octet length field followed
-// by that number of octets.
-const int kMaxLabelLength = 63;
-
-}  // namespace
-
-#if defined(OS_POSIX)
-#include <netinet/in.h>
-#if !defined(OS_NACL)
+#if BUILDFLAG(IS_POSIX)
 #include <net/if.h>
-#if !defined(OS_ANDROID)
+#include <netinet/in.h>
+#if !BUILDFLAG(IS_ANDROID)
 #include <ifaddrs.h>
-#endif  // !defined(OS_ANDROID)
-#endif  // !defined(OS_NACL)
-#endif  // defined(OS_POSIX)
+#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_POSIX)
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "net/android/network_library.h"
 #endif
 
 namespace net {
+namespace {
 
-// Based on DJB's public domain code.
-bool DNSDomainFromDot(const base::StringPiece& dotted, std::string* out) {
-  const char* buf = dotted.data();
-  size_t n = dotted.size();
-  char label[kMaxLabelLength];
-  size_t labellen = 0; /* <= sizeof label */
-  char name[dns_protocol::kMaxNameLength];
-  size_t namelen = 0; /* <= sizeof name */
-  char ch;
+DohProviderEntry::List GetDohProviderEntriesFromNameservers(
+    const std::vector<IPEndPoint>& dns_servers) {
+  const DohProviderEntry::List& providers = DohProviderEntry::GetList();
+  DohProviderEntry::List entries;
 
-  for (;;) {
-    if (!n)
-      break;
-    ch = *buf++;
-    --n;
-    if (ch == '.') {
-      // Don't allow empty labels per http://crbug.com/456391.
-      if (!labellen)
-        return false;
-      if (namelen + labellen + 1 > sizeof name)
-        return false;
-      name[namelen++] = static_cast<char>(labellen);
-      memcpy(name + namelen, label, labellen);
-      namelen += labellen;
-      labellen = 0;
-      continue;
+  for (const auto& server : dns_servers) {
+    for (const auto* entry : providers) {
+      // DoH servers should only be added once.
+      // Note: Check whether the provider is enabled *after* we've determined
+      // that the IP addresses match so that if we are doing experimentation via
+      // Finch, the experiment only includes possible users of the
+      // corresponding DoH provider (since the client will be included in the
+      // experiment if the provider feature flag is checked).
+      if (base::Contains(entry->ip_addresses, server.address()) &&
+          base::FeatureList::IsEnabled(entry->feature) &&
+          !base::Contains(entries, entry)) {
+        entries.push_back(entry);
+      }
     }
-    if (labellen >= sizeof label)
-      return false;
-    if (!IsValidHostLabelCharacter(ch, labellen == 0)) {
-      return false;
-    }
-    label[labellen++] = ch;
   }
-
-  // Allow empty label at end of name to disable suffix search.
-  if (labellen) {
-    if (namelen + labellen + 1 > sizeof name)
-      return false;
-    name[namelen++] = static_cast<char>(labellen);
-    memcpy(name + namelen, label, labellen);
-    namelen += labellen;
-    labellen = 0;
-  }
-
-  if (namelen + 1 > sizeof name)
-    return false;
-  if (namelen == 0) // Empty names e.g. "", "." are not valid.
-    return false;
-  name[namelen++] = 0;  // This is the root label (of length 0).
-
-  *out = std::string(name, namelen);
-  return true;
+  return entries;
 }
 
-bool IsValidDNSDomain(const base::StringPiece& dotted) {
-  std::string dns_formatted;
-  return DNSDomainFromDot(dotted, &dns_formatted);
-}
-
-bool IsValidHostLabelCharacter(char c, bool is_first_char) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-         (c >= '0' && c <= '9') || (!is_first_char && c == '-') || c == '_';
-}
-
-std::string DNSDomainToString(const base::StringPiece& domain) {
-  std::string ret;
-
-  for (unsigned i = 0; i < domain.size() && domain[i]; i += domain[i] + 1) {
-#if CHAR_MIN < 0
-    if (domain[i] < 0)
-      return std::string();
-#endif
-    if (domain[i] > kMaxLabelLength)
-      return std::string();
-
-    if (i)
-      ret += ".";
-
-    if (static_cast<unsigned>(domain[i]) + i + 1 > domain.size())
-      return std::string();
-
-    domain.substr(i + 1, domain[i]).AppendToString(&ret);
-  }
-  return ret;
-}
+}  // namespace
 
 std::string GetURLFromTemplateWithoutParameters(const string& server_template) {
   std::string url_string;
@@ -146,44 +76,6 @@ std::string GetURLFromTemplateWithoutParameters(const string& server_template) {
   return url_string;
 }
 
-bool IsValidDoHTemplate(const string& server_template,
-                        const string& server_method) {
-  std::string url_string;
-  std::string test_query = "this_is_a_test_query";
-  std::unordered_map<std::string, std::string> template_params(
-      {{"dns", test_query}});
-  std::set<std::string> vars_found;
-  bool valid_template = uri_template::Expand(server_template, template_params,
-                                             &url_string, &vars_found);
-  if (!valid_template) {
-    // The URI template is malformed.
-    return false;
-  }
-  if (server_method != "POST" && vars_found.find("dns") == vars_found.end()) {
-    // GET requests require the template to have a dns variable.
-    return false;
-  }
-  GURL url(url_string);
-  if (!url.is_valid() || !url.SchemeIs("https")) {
-    // The expanded template must be a valid HTTPS URL.
-    return false;
-  }
-  if (url.host().find(test_query) != std::string::npos) {
-    // The dns variable may not be part of the hostname.
-    return false;
-  }
-  return true;
-}
-
-#if defined(STARBOARD)
-base::TimeDelta GetTimeDeltaForConnectionTypeFromFieldTrialOrDefault(
-    const char* field_trial,
-    base::TimeDelta default_delta,
-    NetworkChangeNotifier::ConnectionType type) {
-  return default_delta;
-}
-#else
-#if !defined(OS_NACL)
 namespace {
 
 bool GetTimeDeltaForConnectionTypeFromFieldTrial(
@@ -203,7 +95,7 @@ bool GetTimeDeltaForConnectionTypeFromFieldTrial(
   int64_t ms;
   if (!base::StringToInt64(group_parts[type_size], &ms))
     return false;
-  *out = base::TimeDelta::FromMilliseconds(ms);
+  *out = base::Milliseconds(ms);
   return true;
 }
 
@@ -218,38 +110,103 @@ base::TimeDelta GetTimeDeltaForConnectionTypeFromFieldTrialOrDefault(
     out = default_delta;
   return out;
 }
-#endif  // !defined(OS_NACL)
-#endif  // defined(STARBOARD)
 
-AddressListDeltaType FindAddressListDeltaType(const AddressList& a,
-                                              const AddressList& b) {
-  bool pairwise_mismatch = false;
-  bool any_match = false;
-  bool any_missing = false;
-  bool same_size = a.size() == b.size();
+std::string CreateNamePointer(uint16_t offset) {
+  DCHECK_EQ(offset & ~dns_protocol::kOffsetMask, 0);
+  char buf[2];
+  base::WriteBigEndian(buf, offset);
+  buf[0] |= dns_protocol::kLabelPointer;
+  return std::string(buf, sizeof(buf));
+}
 
-  for (size_t i = 0; i < a.size(); ++i) {
-    bool this_match = false;
-    for (size_t j = 0; j < b.size(); ++j) {
-      if (a[i] == b[j]) {
-        any_match = true;
-        this_match = true;
-      } else if (i == j) {
-        pairwise_mismatch = true;
-      }
-    }
-    if (!this_match)
-      any_missing = true;
+uint16_t DnsQueryTypeToQtype(DnsQueryType dns_query_type) {
+  switch (dns_query_type) {
+    case DnsQueryType::UNSPECIFIED:
+      NOTREACHED();
+      return 0;
+    case DnsQueryType::A:
+      return dns_protocol::kTypeA;
+    case DnsQueryType::AAAA:
+      return dns_protocol::kTypeAAAA;
+    case DnsQueryType::TXT:
+      return dns_protocol::kTypeTXT;
+    case DnsQueryType::PTR:
+      return dns_protocol::kTypePTR;
+    case DnsQueryType::SRV:
+      return dns_protocol::kTypeSRV;
+    case DnsQueryType::HTTPS:
+      return dns_protocol::kTypeHttps;
   }
+}
 
-  if (same_size && !pairwise_mismatch)
-    return DELTA_IDENTICAL;
-  else if (same_size && !any_missing)
-    return DELTA_REORDERED;
-  else if (any_match)
-    return DELTA_OVERLAP;
-  else
-    return DELTA_DISJOINT;
+DnsQueryType AddressFamilyToDnsQueryType(AddressFamily address_family) {
+  switch (address_family) {
+    case ADDRESS_FAMILY_UNSPECIFIED:
+      return DnsQueryType::UNSPECIFIED;
+    case ADDRESS_FAMILY_IPV4:
+      return DnsQueryType::A;
+    case ADDRESS_FAMILY_IPV6:
+      return DnsQueryType::AAAA;
+    default:
+      NOTREACHED();
+      return DnsQueryType::UNSPECIFIED;
+  }
+}
+
+std::vector<DnsOverHttpsServerConfig> GetDohUpgradeServersFromDotHostname(
+    const std::string& dot_server) {
+  std::vector<DnsOverHttpsServerConfig> doh_servers;
+
+  if (dot_server.empty())
+    return doh_servers;
+
+  for (const auto* entry : DohProviderEntry::GetList()) {
+    // Note: Check whether the provider is enabled *after* we've determined that
+    // the hostnames match so that if we are doing experimentation via Finch,
+    // the experiment only includes possible users of the corresponding DoH
+    // provider (since the client will be included in the experiment if the
+    // provider feature flag is checked).
+    if (base::Contains(entry->dns_over_tls_hostnames, dot_server) &&
+        base::FeatureList::IsEnabled(entry->feature)) {
+      doh_servers.push_back(entry->doh_server_config);
+    }
+  }
+  return doh_servers;
+}
+
+std::vector<DnsOverHttpsServerConfig> GetDohUpgradeServersFromNameservers(
+    const std::vector<IPEndPoint>& dns_servers) {
+  const auto entries = GetDohProviderEntriesFromNameservers(dns_servers);
+  std::vector<DnsOverHttpsServerConfig> doh_servers;
+  doh_servers.reserve(entries.size());
+  base::ranges::transform(entries, std::back_inserter(doh_servers),
+                          &DohProviderEntry::doh_server_config);
+  return doh_servers;
+}
+
+std::string GetDohProviderIdForHistogramFromServerConfig(
+    const DnsOverHttpsServerConfig& doh_server) {
+  const auto& entries = DohProviderEntry::GetList();
+  const auto it = base::ranges::find(entries, doh_server,
+                                     &DohProviderEntry::doh_server_config);
+  return it != entries.end() ? (*it)->provider : "Other";
+}
+
+std::string GetDohProviderIdForHistogramFromNameserver(
+    const IPEndPoint& nameserver) {
+  const auto entries = GetDohProviderEntriesFromNameservers({nameserver});
+  return entries.empty() ? "Other" : entries[0]->provider;
+}
+
+std::string SecureDnsModeToString(const SecureDnsMode secure_dns_mode) {
+  switch (secure_dns_mode) {
+    case SecureDnsMode::kOff:
+      return "Off";
+    case SecureDnsMode::kAutomatic:
+      return "Automatic";
+    case SecureDnsMode::kSecure:
+      return "Secure";
+  }
 }
 
 }  // namespace net

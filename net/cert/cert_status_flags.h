@@ -1,12 +1,13 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_CERT_CERT_STATUS_FLAGS_H_
 #define NET_CERT_CERT_STATUS_FLAGS_H_
 
+#include <stdint.h>
+
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -25,18 +26,18 @@ typedef uint32_t CertStatus;
 static const CertStatus CERT_STATUS_ALL_ERRORS = 0xFF00FFFF;
 
 // Returns true if the specified cert status has an error set.
-static inline bool IsCertStatusError(CertStatus status) {
+inline bool IsCertStatusError(CertStatus status) {
   return (CERT_STATUS_ALL_ERRORS & status) != 0;
 }
 
-// IsCertStatusMinorError returns true iff |cert_status| indicates a condition
-// that should typically be ignored by automated requests. (i.e. a revocation
-// check failure.)
-NET_EXPORT bool IsCertStatusMinorError(CertStatus cert_status);
-
-// Maps a network error code to the equivalent certificate status flag.  If
+// Maps a network error code to the equivalent certificate status flag. If
 // the error code is not a certificate error, it is mapped to 0.
-NET_EXPORT CertStatus MapNetErrorToCertStatus(int error);
+// Note: It is not safe to go net::CertStatus -> net::Error -> net::CertStatus,
+// as the CertStatus contains more information. Conversely, going from
+// net::Error -> net::CertStatus -> net::Error is not a lossy function, for the
+// same reason.
+// To avoid incorrect use, this is only exported for unittest helpers.
+NET_EXPORT_PRIVATE CertStatus MapNetErrorToCertStatus(int error);
 
 // Maps the most serious certificate error in the certificate status flags
 // to the equivalent network error code.

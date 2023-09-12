@@ -1,9 +1,12 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/ssl/client_cert_identity_mac.h"
 
+#include <Security/SecIdentity.h>
+
+#include "base/mac/mac_logging.h"
 #include "net/ssl/ssl_platform_key_mac.h"
 #include "net/ssl/ssl_private_key.h"
 
@@ -17,16 +20,21 @@ ClientCertIdentityMac::ClientCertIdentityMac(
 ClientCertIdentityMac::~ClientCertIdentityMac() = default;
 
 void ClientCertIdentityMac::AcquirePrivateKey(
-    const base::Callback<void(scoped_refptr<SSLPrivateKey>)>&
+    base::OnceCallback<void(scoped_refptr<SSLPrivateKey>)>
         private_key_callback) {
-  // This only adds a ref to and returns the private key from identity_ so it
+  // This only adds a ref to and returns the private key from `identity_`, so it
   // doesn't need to run on a worker thread.
-  private_key_callback.Run(
-      CreateSSLPrivateKeyForSecIdentity(certificate(), identity_.get()));
-}
+  base::ScopedCFTypeRef<SecKeyRef> key;
+  OSStatus status =
+      SecIdentityCopyPrivateKey(identity_.get(), key.InitializeInto());
+  if (status != noErr) {
+    OSSTATUS_LOG(WARNING, status);
+    std::move(private_key_callback).Run(nullptr);
+    return;
+  }
 
-SecIdentityRef ClientCertIdentityMac::sec_identity_ref() const {
-  return identity_.get();
+  std::move(private_key_callback)
+      .Run(CreateSSLPrivateKeyForSecKey(certificate(), key.get()));
 }
 
 }  // namespace net

@@ -1,21 +1,14 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/cert/cert_status_flags.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
+#include "base/notreached.h"
 #include "net/base/net_errors.h"
 
 namespace net {
-
-bool IsCertStatusMinorError(CertStatus cert_status) {
-  static const CertStatus kMinorErrors =
-      CERT_STATUS_UNABLE_TO_CHECK_REVOCATION |
-      CERT_STATUS_NO_REVOCATION_MECHANISM;
-  cert_status &= CERT_STATUS_ALL_ERRORS;
-  return cert_status != 0 && (cert_status & ~kMinorErrors) == 0;
-}
 
 CertStatus MapNetErrorToCertStatus(int error) {
   switch (error) {
@@ -38,7 +31,7 @@ CertStatus MapNetErrorToCertStatus(int error) {
     // We should not use ERR_CERT_CONTAINS_ERRORS in new code.
     case ERR_CERT_CONTAINS_ERRORS:
       NOTREACHED();
-      FALLTHROUGH;
+      [[fallthrough]];
     case ERR_CERT_INVALID:
       return CERT_STATUS_INVALID;
     case ERR_CERT_WEAK_SIGNATURE_ALGORITHM:
@@ -55,6 +48,8 @@ CertStatus MapNetErrorToCertStatus(int error) {
       return CERT_STATUS_VALIDITY_TOO_LONG;
     case ERR_CERT_SYMANTEC_LEGACY:
       return CERT_STATUS_SYMANTEC_LEGACY;
+    case ERR_CERT_KNOWN_INTERCEPTION_BLOCKED:
+      return (CERT_STATUS_KNOWN_INTERCEPTION_BLOCKED | CERT_STATUS_REVOKED);
     default:
       return 0;
   }
@@ -65,14 +60,16 @@ int MapCertStatusToNetError(CertStatus cert_status) {
   // serious error.
 
   // Unrecoverable errors
-  if (cert_status & CERT_STATUS_REVOKED)
-    return ERR_CERT_REVOKED;
   if (cert_status & CERT_STATUS_INVALID)
     return ERR_CERT_INVALID;
   if (cert_status & CERT_STATUS_PINNED_KEY_MISSING)
     return ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
 
-  // Recoverable errors
+  // Potentially recoverable errors
+  if (cert_status & CERT_STATUS_KNOWN_INTERCEPTION_BLOCKED)
+    return ERR_CERT_KNOWN_INTERCEPTION_BLOCKED;
+  if (cert_status & CERT_STATUS_REVOKED)
+    return ERR_CERT_REVOKED;
   if (cert_status & CERT_STATUS_AUTHORITY_INVALID)
     return ERR_CERT_AUTHORITY_INVALID;
   if (cert_status & CERT_STATUS_COMMON_NAME_INVALID)
@@ -93,13 +90,12 @@ int MapCertStatusToNetError(CertStatus cert_status) {
     return ERR_CERT_DATE_INVALID;
   if (cert_status & CERT_STATUS_VALIDITY_TOO_LONG)
     return ERR_CERT_VALIDITY_TOO_LONG;
-
-  // Unknown status.  Give it the benefit of the doubt.
   if (cert_status & CERT_STATUS_UNABLE_TO_CHECK_REVOCATION)
     return ERR_CERT_UNABLE_TO_CHECK_REVOCATION;
   if (cert_status & CERT_STATUS_NO_REVOCATION_MECHANISM)
     return ERR_CERT_NO_REVOCATION_MECHANISM;
 
+  // Unknown status. The assumption is 0 (an OK status) won't be used here.
   NOTREACHED();
   return ERR_UNEXPECTED;
 }

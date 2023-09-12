@@ -1,16 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SOCKET_UDP_SERVER_SOCKET_H_
 #define NET_SOCKET_UDP_SERVER_SOCKET_H_
 
-#include "base/macros.h"
+#include <stdint.h>
+
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/socket/datagram_server_socket.h"
 #include "net/socket/udp_socket.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -23,6 +23,10 @@ struct NetLogSource;
 class NET_EXPORT UDPServerSocket : public DatagramServerSocket {
  public:
   UDPServerSocket(net::NetLog* net_log, const net::NetLogSource& source);
+
+  UDPServerSocket(const UDPServerSocket&) = delete;
+  UDPServerSocket& operator=(const UDPServerSocket&) = delete;
+
   ~UDPServerSocket() override;
 
   // Implement DatagramServerSocket:
@@ -46,6 +50,7 @@ class NET_EXPORT UDPServerSocket : public DatagramServerSocket {
   const NetLogWithSource& NetLog() const override;
   void AllowAddressReuse() override;
   void AllowBroadcast() override;
+  void AllowAddressSharingForMulticast() override;
   int JoinGroup(const IPAddress& group_address) const override;
   int LeaveGroup(const IPAddress& group_address) const override;
   int SetMulticastInterface(uint32_t interface_index) override;
@@ -56,9 +61,9 @@ class NET_EXPORT UDPServerSocket : public DatagramServerSocket {
 
  private:
   UDPSocket socket_;
-  bool allow_address_reuse_;
-  bool allow_broadcast_;
-  DISALLOW_COPY_AND_ASSIGN(UDPServerSocket);
+  bool allow_address_reuse_ = false;
+  bool allow_broadcast_ = false;
+  bool allow_address_sharing_for_multicast_ = false;
 };
 
 }  // namespace net

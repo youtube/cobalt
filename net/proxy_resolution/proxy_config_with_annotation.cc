@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,9 +29,8 @@ constexpr NetworkTrafficAnnotationTag kDirectProxyTrafficAnnotation =
         "This isn't a real network request. A proxy can be selected in "
         "settings."
       policy_exception_justification:
-        "Using either of 'ProxyMode', 'ProxyServer', or 'ProxyPacUrl' policies "
-        "can set Chrome to use a specific proxy settings and avoid directly "
-        "connecting to the websites."
+        "Using 'ProxySettings' policy can set Chrome to use specific proxy "
+        "settings and avoid directly connecting to the websites."
     })");
 
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,12 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_STORAGE_BLOCK_H_
 #define NET_DISK_CACHE_BLOCKFILE_STORAGE_BLOCK_H_
 
-#include "base/macros.h"
+#include <stddef.h>
+#include <stdint.h>
+
+#include "base/memory/raw_ptr.h"
 #include "net/disk_cache/blockfile/addr.h"
 #include "net/disk_cache/blockfile/mapped_file.h"
-#include "starboard/types.h"
 
 namespace disk_cache {
 
@@ -33,7 +35,15 @@ template<typename T>
 class StorageBlock : public FileBlock {
  public:
   StorageBlock(MappedFile* file, Addr address);
-  virtual ~StorageBlock();
+
+  StorageBlock(const StorageBlock&) = delete;
+  StorageBlock& operator=(const StorageBlock&) = delete;
+
+  ~StorageBlock() override;
+
+  // Deeps copies from another block. Neither this nor |other| should be
+  // |modified|.
+  void CopyFrom(StorageBlock<T>* other);
 
   // FileBlock interface.
   void* buffer() const override;
@@ -84,14 +94,15 @@ class StorageBlock : public FileBlock {
   void DeleteData();
   uint32_t CalculateHash() const;
 
-  T* data_;
-  MappedFile* file_;
+  raw_ptr<T> data_ = nullptr;
+  // DanglingUntriaged is largely needed for when this class is owned by an
+  // EntryImpl that is deleted after the Backend.
+  raw_ptr<MappedFile, DanglingUntriaged> file_;
   Addr address_;
-  bool modified_;
-  bool own_data_;  // Is data_ owned by this object or shared with someone else.
-  bool extended_;  // Used to store an entry of more than one block.
-
-  DISALLOW_COPY_AND_ASSIGN(StorageBlock);
+  bool modified_ = false;
+  // Is data_ owned by this object or shared with someone else.
+  bool own_data_ = false;
+  bool extended_ = false;  // Used to store an entry of more than one block.
 };
 
 }  // namespace disk_cache

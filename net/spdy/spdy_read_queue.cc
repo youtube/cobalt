@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,12 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "net/spdy/spdy_buffer.h"
-#include "starboard/memory.h"
 
 namespace net {
 
-SpdyReadQueue::SpdyReadQueue() : total_size_(0) {}
+SpdyReadQueue::SpdyReadQueue() = default;
 
 SpdyReadQueue::~SpdyReadQueue() {
   Clear();

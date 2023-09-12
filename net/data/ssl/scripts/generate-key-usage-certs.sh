@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018 The Chromium Authors. All rights reserved.
+# Copyright 2018 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -12,8 +12,15 @@ try () {
 try rm -rf out
 try mkdir out
 
-try openssl genrsa -out out/key_usage_rsa.key 2048
-try openssl ecparam -genkey -name prime256v1 -noout -out out/key_usage_p256.key
+try openssl genrsa -out out/key_usage_rsa_raw.key 2048
+try openssl ecparam -genkey -name prime256v1 -noout \
+    -out out/key_usage_p256_raw.key
+
+# Convert the private keys to PKCS#8 format.
+try openssl pkcs8 -topk8 -nocrypt -in out/key_usage_rsa_raw.key \
+    -out out/key_usage_rsa.key
+try openssl pkcs8 -topk8 -nocrypt -in out/key_usage_p256_raw.key \
+    -out out/key_usage_p256.key
 
 certs=" \
   rsa_no_extension \
@@ -42,7 +49,8 @@ for cert in $certs; do
     -out "out/key_usage_${cert}.pem" \
     -text
 
-  try cp "out/key_usage_${cert}.pem" ../certificates
+  try /bin/sh -c "cat out/key_usage_${key}.key out/key_usage_${cert}.pem \
+      > ../certificates/key_usage_${cert}.pem"
 done
 
 try cp "out/key_usage_rsa.key" ../certificates

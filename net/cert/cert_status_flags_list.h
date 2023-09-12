@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 // inside a macro to generate enum values. The following line silences a
 // presubmit warning that would otherwise be triggered by this:
 // no-include-guard-because-multiply-included
+// NOLINT(build/header_guard)
 
 // This is the list of CertStatus flags and their values.
 //
@@ -37,7 +38,10 @@ CERT_STATUS_FLAG(REV_CHECKING_ENABLED, 1 << 17)
 // Bit 18 was CERT_STATUS_IS_DNSSEC
 CERT_STATUS_FLAG(SHA1_SIGNATURE_PRESENT, 1 << 19)
 CERT_STATUS_FLAG(CT_COMPLIANCE_FAILED, 1 << 20)
+CERT_STATUS_FLAG(KNOWN_INTERCEPTION_DETECTED, 1 << 21)
 
 // Bits 24 - 31 are for errors.
 CERT_STATUS_FLAG(CERTIFICATE_TRANSPARENCY_REQUIRED, 1 << 24)
 CERT_STATUS_FLAG(SYMANTEC_LEGACY, 1 << 25)
+CERT_STATUS_FLAG(KNOWN_INTERCEPTION_BLOCKED, 1 << 26)
+// Bit 27 was CERT_STATUS_LEGACY_TLS.

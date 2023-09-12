@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,8 @@ struct CTRequiredPolicy {
   // chains to or through one of the values contained in |roots|, which
   // contains the SHA-256 hash of the issuing CA's SubjectPublicKeyInfo,
   // the same format as HTTP Public Key Pinning.
-  const SHA256HashValue* roots;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for: #global-scope
+  RAW_PTR_EXCLUSION const SHA256HashValue* roots;
 
   // The number of entries in |roots|.
   size_t roots_length;
@@ -28,7 +29,8 @@ struct CTRequiredPolicy {
   // |exceptions|, which also contains the SHA-256 hashes of the
   // issuing CA's SubjectPublicKeyInfo, then even though it chained
   // through |roots|, it will be exempt from CT requirements.
-  const SHA256HashValue* exceptions;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for: #global-scope
+  RAW_PTR_EXCLUSION const SHA256HashValue* exceptions;
 
   // The number of entries in |exceptions|.
   size_t exceptions_length;
@@ -42,7 +44,7 @@ const CTRequiredPolicies& GetCTRequiredPolicies() {
       {
           kSymantecRoots, kSymantecRootsLength,
           // 1 June 2016, 00:00:00 GMT.
-          base::TimeDelta::FromSeconds(1464739200),
+          base::Seconds(1464739200),
           kSymantecExceptions, kSymantecExceptionsLength,
       },
       {

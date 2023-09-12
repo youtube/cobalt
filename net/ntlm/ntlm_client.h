@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,21 +11,22 @@
 // [3]
 // https://blogs.msdn.microsoft.com/openspecification/2013/03/26/ntlm-and-channel-binding-hash-aka-extended-protection-for-authentication/
 
-#ifndef NET_BASE_NTLM_CLIENT_H_
-#define NET_BASE_NTLM_CLIENT_H_
+#ifndef NET_NTLM_NTLM_CLIENT_H_
+#define NET_NTLM_NTLM_CLIENT_H_
+
+#include <stddef.h>
+#include <stdint.h>
 
 #include <memory>
 #include <string>
 
+#include "base/check.h"
 #include "base/containers/span.h"
-#include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/ntlm/ntlm_constants.h"
-#include "starboard/types.h"
 
-namespace net {
-namespace ntlm {
+namespace net::ntlm {
 
 // Provides an implementation of an NTLMv1 or NTLMv2 Client with support
 // for MIC and EPA [1]. This implementation does not support the key exchange,
@@ -40,6 +41,9 @@ class NET_EXPORT_PRIVATE NtlmClient {
   // features such as Extended Protection for Authentication (EPA) and Message
   // Integrity Check (MIC).
   explicit NtlmClient(NtlmFeatures features);
+
+  NtlmClient(const NtlmClient&) = delete;
+  NtlmClient& operator=(const NtlmClient&) = delete;
 
   ~NtlmClient();
 
@@ -63,7 +67,7 @@ class NET_EXPORT_PRIVATE NtlmClient {
   // optionally omit the '@domain.com' part.
   // |hostname| can be a short NetBIOS name or an FQDN, however the server will
   // only inspect this field if the default domain policy is to restrict NTLM.
-  // In this case the hostname will be compared to a whitelist stored in this
+  // In this case the hostname will be compared to an allowlist stored in this
   // group policy [1].
   // |channel_bindings| is a string supplied out of band (usually from a web
   // browser) and is a (21+sizeof(hash)) byte ASCII string, where 'hash' is
@@ -85,9 +89,9 @@ class NET_EXPORT_PRIVATE NtlmClient {
   //
   // [1] - https://technet.microsoft.com/en-us/library/jj852267(v=ws.11).aspx
   std::vector<uint8_t> GenerateAuthenticateMessage(
-      const base::string16& domain,
-      const base::string16& username,
-      const base::string16& password,
+      const std::u16string& domain,
+      const std::u16string& username,
+      const std::u16string& password,
       const std::string& hostname,
       const std::string& channel_bindings,
       const std::string& spn,
@@ -99,9 +103,9 @@ class NET_EXPORT_PRIVATE NtlmClient {
   // |spn|, or |client_time|. See |GenerateAuthenticateMessage| for more
   // details.
   std::vector<uint8_t> GenerateAuthenticateMessageV1(
-      const base::string16& domain,
-      const base::string16& username,
-      const base::string16& password,
+      const std::u16string& domain,
+      const std::u16string& username,
+      const std::u16string& password,
       const std::string& hostname,
       base::span<const uint8_t, 8> client_challenge,
       base::span<const uint8_t> server_challenge_message) const {
@@ -118,14 +122,14 @@ class NET_EXPORT_PRIVATE NtlmClient {
   // negotiated.
   size_t CalculateAuthenticateMessageLength(
       bool is_unicode,
-      const base::string16& domain,
-      const base::string16& username,
+      const std::u16string& domain,
+      const std::u16string& username,
       const std::string& hostname,
       size_t updated_target_info_len) const;
 
-  void CalculatePayloadLayout(bool is_unicode,
-                              const base::string16& domain,
-                              const base::string16& username,
+  bool CalculatePayloadLayout(bool is_unicode,
+                              const std::u16string& domain,
+                              const std::u16string& username,
                               const std::string& hostname,
                               size_t updated_target_info_len,
                               SecurityBuffer* lm_info,
@@ -146,14 +150,11 @@ class NET_EXPORT_PRIVATE NtlmClient {
   // |negotiate_message_|.
   void GenerateNegotiateMessage();
 
-  NtlmFeatures features_;
+  const NtlmFeatures features_;
   NegotiateFlags negotiate_flags_;
   std::vector<uint8_t> negotiate_message_;
-
-  DISALLOW_COPY_AND_ASSIGN(NtlmClient);
 };
 
-}  // namespace ntlm
-}  // namespace net
+}  // namespace net::ntlm
 
-#endif  // NET_BASE_NTLM_CLIENT_H_
+#endif  // NET_NTLM_NTLM_CLIENT_H_

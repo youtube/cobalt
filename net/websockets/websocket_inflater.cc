@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,8 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "net/base/io_buffer.h"
-#include "starboard/memory.h"
 #include "third_party/zlib/zlib.h"
 
 namespace net {
@@ -97,7 +96,7 @@ scoped_refptr<IOBufferWithSize> WebSocketInflater::GetOutput(size_t size) {
     num_bytes_copied += num_bytes_to_copy;
     int result = InflateChokedInput();
     if (result != Z_OK && result != Z_BUF_ERROR)
-      return NULL;
+      return nullptr;
   }
   buffer->Shrink(num_bytes_copied);
   return buffer;
@@ -145,7 +144,7 @@ int WebSocketInflater::Inflate(const char* next_in,
 
 int WebSocketInflater::InflateChokedInput() {
   if (input_queue_.IsEmpty())
-    return InflateWithFlush(NULL, 0);
+    return InflateWithFlush(nullptr, 0);
 
   int result = Z_BUF_ERROR;
   while (!input_queue_.IsEmpty()) {
@@ -167,9 +166,8 @@ int WebSocketInflater::InflateChokedInput() {
 
 WebSocketInflater::OutputBuffer::OutputBuffer(size_t capacity)
     : capacity_(capacity),
-      buffer_(capacity_ + 1),  // 1 for sentinel
-      head_(0),
-      tail_(0) {}
+      buffer_(capacity_ + 1)  // 1 for sentinel
+{}
 
 WebSocketInflater::OutputBuffer::~OutputBuffer() = default;
 
@@ -219,7 +217,7 @@ void WebSocketInflater::OutputBuffer::AdvanceTail(size_t advance) {
 }
 
 WebSocketInflater::InputQueue::InputQueue(size_t capacity)
-    : capacity_(capacity), head_of_first_buffer_(0), tail_of_last_buffer_(0) {}
+    : capacity_(capacity) {}
 
 WebSocketInflater::InputQueue::~InputQueue() = default;
 

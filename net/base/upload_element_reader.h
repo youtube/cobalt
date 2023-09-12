@@ -1,14 +1,14 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_UPLOAD_ELEMENT_READER_H_
 #define NET_BASE_UPLOAD_ELEMENT_READER_H_
 
-#include "base/macros.h"
+#include <stdint.h>
+
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -19,8 +19,10 @@ class UploadFileElementReader;
 // An interface to read an upload data element.
 class NET_EXPORT UploadElementReader {
  public:
-  UploadElementReader() {}
-  virtual ~UploadElementReader() {}
+  UploadElementReader() = default;
+  UploadElementReader(const UploadElementReader&) = delete;
+  UploadElementReader& operator=(const UploadElementReader&) = delete;
+  virtual ~UploadElementReader() = default;
 
   // Returns this instance's pointer as UploadBytesElementReader when possible,
   // otherwise returns NULL.
@@ -59,9 +61,6 @@ class NET_EXPORT UploadElementReader {
   virtual int Read(IOBuffer* buf,
                    int buf_length,
                    CompletionOnceCallback callback) = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(UploadElementReader);
 };
 
 }  // namespace net

@@ -1,13 +1,14 @@
-// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_LOGGING_NETWORK_CHANGE_OBSERVER_H_
 #define NET_BASE_LOGGING_NETWORK_CHANGE_OBSERVER_H_
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
+#include "net/base/network_handle.h"
 
 namespace net {
 
@@ -24,6 +25,9 @@ class NET_EXPORT LoggingNetworkChangeObserver
   // Note: |net_log| must remain valid throughout the lifetime of this
   // LoggingNetworkChangeObserver.
   explicit LoggingNetworkChangeObserver(NetLog* net_log);
+  LoggingNetworkChangeObserver(const LoggingNetworkChangeObserver&) = delete;
+  LoggingNetworkChangeObserver& operator=(const LoggingNetworkChangeObserver&) =
+      delete;
   ~LoggingNetworkChangeObserver() override;
 
  private:
@@ -38,18 +42,12 @@ class NET_EXPORT LoggingNetworkChangeObserver
   void OnNetworkChanged(NetworkChangeNotifier::ConnectionType type) override;
 
   // NetworkChangeNotifier::NetworkObserver implementation.
-  void OnNetworkConnected(
-      NetworkChangeNotifier::NetworkHandle network) override;
-  void OnNetworkDisconnected(
-      NetworkChangeNotifier::NetworkHandle network) override;
-  void OnNetworkSoonToDisconnect(
-      NetworkChangeNotifier::NetworkHandle network) override;
-  void OnNetworkMadeDefault(
-      NetworkChangeNotifier::NetworkHandle network) override;
+  void OnNetworkConnected(handles::NetworkHandle network) override;
+  void OnNetworkDisconnected(handles::NetworkHandle network) override;
+  void OnNetworkSoonToDisconnect(handles::NetworkHandle network) override;
+  void OnNetworkMadeDefault(handles::NetworkHandle network) override;
 
-  NetLog* net_log_;
-
-  DISALLOW_COPY_AND_ASSIGN(LoggingNetworkChangeObserver);
+  raw_ptr<NetLog> net_log_;
 };
 
 }  // namespace net

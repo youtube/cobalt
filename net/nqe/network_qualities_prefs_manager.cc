@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,12 @@
 #include <string>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/optional.h"
+#include "base/functional/bind.h"
+#include "base/metrics/histogram_macros_local.h"
 #include "base/rand_util.h"
-#include "base/sequenced_task_runner.h"
-#include "base/threading/thread_checker.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "net/nqe/network_quality_estimator.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -31,21 +30,18 @@ constexpr size_t kMaxCacheSize = 20u;
 
 // Parses |value| into a map of NetworkIDs and CachedNetworkQualities,
 // and returns the map.
-ParsedPrefs ConvertDictionaryValueToMap(const base::DictionaryValue* value) {
-  DCHECK_GE(kMaxCacheSize, value->size());
+ParsedPrefs ConvertDictionaryValueToMap(const base::Value::Dict& value) {
+  DCHECK_GE(kMaxCacheSize, value.size());
 
   ParsedPrefs read_prefs;
-  for (const auto& it : value->DictItems()) {
+  for (auto it : value) {
     nqe::internal::NetworkID network_id =
         nqe::internal::NetworkID::FromString(it.first);
 
-    std::string effective_connection_type_string;
-    const bool effective_connection_type_available =
-        it.second.GetAsString(&effective_connection_type_string);
-    DCHECK(effective_connection_type_available);
-
-    base::Optional<EffectiveConnectionType> effective_connection_type =
-        GetEffectiveConnectionTypeForName(effective_connection_type_string);
+    if (!it.second.is_string())
+      continue;
+    absl::optional<EffectiveConnectionType> effective_connection_type =
+        GetEffectiveConnectionTypeForName(it.second.GetString());
     DCHECK(effective_connection_type.has_value());
 
     nqe::internal::CachedNetworkQuality cached_network_quality(
@@ -60,32 +56,33 @@ ParsedPrefs ConvertDictionaryValueToMap(const base::DictionaryValue* value) {
 NetworkQualitiesPrefsManager::NetworkQualitiesPrefsManager(
     std::unique_ptr<PrefDelegate> pref_delegate)
     : pref_delegate_(std::move(pref_delegate)),
-      pref_task_runner_(base::ThreadTaskRunnerHandle::Get()),
-      prefs_(pref_delegate_->GetDictionaryValue()),
-      network_quality_estimator_(nullptr),
-      read_prefs_startup_(ConvertDictionaryValueToMap(prefs_.get())),
-      pref_weak_ptr_factory_(this) {
+      prefs_(pref_delegate_->GetDictionaryValue()) {
   DCHECK(pref_delegate_);
-  DCHECK(pref_task_runner_);
-  DCHECK_GE(kMaxCacheSize, prefs_->size());
-
-  pref_weak_ptr_ = pref_weak_ptr_factory_.GetWeakPtr();
+  DCHECK_GE(kMaxCacheSize, prefs_.size());
 }
 
 NetworkQualitiesPrefsManager::~NetworkQualitiesPrefsManager() {
-  if (!network_task_runner_)
-    return;
-  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  ShutdownOnPrefSequence();
+
   if (network_quality_estimator_)
     network_quality_estimator_->RemoveNetworkQualitiesCacheObserver(this);
 }
 
 void NetworkQualitiesPrefsManager::InitializeOnNetworkThread(
     NetworkQualityEstimator* network_quality_estimator) {
-  DCHECK(!network_task_runner_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(network_quality_estimator);
 
-  network_task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  // Read |prefs_| again since they have now been fully initialized. This
+  // overwrites any values that may have been added to |prefs_| since
+  // construction of |this| via OnChangeInCachedNetworkQuality(). However, it's
+  // expected that InitializeOnNetworkThread will be called soon after
+  // construction of |this|. So, any loss of values would be minimal.
+  prefs_ = pref_delegate_->GetDictionaryValue();
+  read_prefs_startup_ = ConvertDictionaryValueToMap(prefs_);
+
   network_quality_estimator_ = network_quality_estimator;
   network_quality_estimator_->AddNetworkQualitiesCacheObserver(this);
 
@@ -93,38 +90,25 @@ void NetworkQualitiesPrefsManager::InitializeOnNetworkThread(
   network_quality_estimator_->OnPrefsRead(read_prefs_startup_);
 }
 
-void NetworkQualitiesPrefsManager::OnChangeInCachedNetworkQuality(
-    const nqe::internal::NetworkID& network_id,
-    const nqe::internal::CachedNetworkQuality& cached_network_quality) {
-  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
-
-  // Notify |this| on the pref thread.
-  pref_task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&NetworkQualitiesPrefsManager::
-                     OnChangeInCachedNetworkQualityOnPrefSequence,
-                 pref_weak_ptr_, network_id, cached_network_quality));
-}
-
 void NetworkQualitiesPrefsManager::ShutdownOnPrefSequence() {
-  DCHECK(pref_task_runner_->RunsTasksInCurrentSequence());
-  pref_weak_ptr_factory_.InvalidateWeakPtrs();
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   pref_delegate_.reset();
 }
 
 void NetworkQualitiesPrefsManager::ClearPrefs() {
-  DCHECK(pref_task_runner_->RunsTasksInCurrentSequence());
-  prefs_->Clear();
-  DCHECK_EQ(0u, prefs_->size());
-  pref_delegate_->SetDictionaryValue(*prefs_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  LOCAL_HISTOGRAM_COUNTS_100("NQE.PrefsSizeOnClearing", prefs_.size());
+  prefs_.clear();
+  DCHECK_EQ(0u, prefs_.size());
+  pref_delegate_->SetDictionaryValue(prefs_);
 }
 
-void NetworkQualitiesPrefsManager::OnChangeInCachedNetworkQualityOnPrefSequence(
+void NetworkQualitiesPrefsManager::OnChangeInCachedNetworkQuality(
     const nqe::internal::NetworkID& network_id,
     const nqe::internal::CachedNetworkQuality& cached_network_quality) {
-  // The prefs can only be written on the pref thread.
-  DCHECK(pref_task_runner_->RunsTasksInCurrentSequence());
-  DCHECK_GE(kMaxCacheSize, prefs_->size());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK_GE(kMaxCacheSize, prefs_.size());
 
   std::string network_id_string = network_id.ToString();
 
@@ -133,43 +117,42 @@ void NetworkQualitiesPrefsManager::OnChangeInCachedNetworkQualityOnPrefSequence(
   if (network_id_string.find('.') != std::string::npos)
     return;
 
-  prefs_->SetString(network_id_string,
-                    GetNameForEffectiveConnectionType(
-                        cached_network_quality.effective_connection_type()));
+  prefs_.Set(network_id_string,
+             GetNameForEffectiveConnectionType(
+                 cached_network_quality.effective_connection_type()));
 
-  if (prefs_->size() > kMaxCacheSize) {
+  if (prefs_.size() > kMaxCacheSize) {
     // Delete one randomly selected value that has a key that is different from
     // |network_id|.
-    DCHECK_EQ(kMaxCacheSize + 1, prefs_->size());
+    DCHECK_EQ(kMaxCacheSize + 1, prefs_.size());
     // Generate a random number in the range [0, |kMaxCacheSize| - 1] since the
     // number of network IDs in |prefs_| other than |network_id| is
     // |kMaxCacheSize|.
     int index_to_delete = base::RandInt(0, kMaxCacheSize - 1);
 
-    for (const auto& it : prefs_->DictItems()) {
+    for (auto it : prefs_) {
       // Delete the kth element in the dictionary, not including the element
       // that represents the current network. k == |index_to_delete|.
       if (nqe::internal::NetworkID::FromString(it.first) == network_id)
         continue;
 
       if (index_to_delete == 0) {
-        prefs_->RemoveKey(it.first);
+        prefs_.Remove(it.first);
         break;
       }
       index_to_delete--;
     }
   }
-  DCHECK_GE(kMaxCacheSize, prefs_->size());
+  DCHECK_GE(kMaxCacheSize, prefs_.size());
 
   // Notify the pref delegate so that it updates the prefs on the disk.
-  pref_delegate_->SetDictionaryValue(*prefs_);
+  pref_delegate_->SetDictionaryValue(prefs_);
 }
 
 ParsedPrefs NetworkQualitiesPrefsManager::ForceReadPrefsForTesting() const {
-  DCHECK(pref_task_runner_->RunsTasksInCurrentSequence());
-  std::unique_ptr<base::DictionaryValue> value(
-      pref_delegate_->GetDictionaryValue());
-  return ConvertDictionaryValueToMap(value.get());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  base::Value::Dict value = pref_delegate_->GetDictionaryValue();
+  return ConvertDictionaryValueToMap(value);
 }
 
 }  // namespace net

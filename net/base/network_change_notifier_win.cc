@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,22 +7,20 @@
 #include <iphlpapi.h>
 #include <winsock2.h>
 
-#include "base/bind.h"
+#include <utility>
+
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/macros.h"
-#include "base/message_loop/message_loop.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/single_thread_task_runner.h"
-#include "base/task_runner_util.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/thread.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
-#include "net/dns/dns_config_service.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -31,49 +29,114 @@ namespace {
 // Time between NotifyAddrChange retries, on failure.
 const int kWatchForAddressChangeRetryIntervalMs = 500;
 
+HRESULT GetConnectionPoints(IUnknown* manager,
+                            REFIID IIDSyncInterface,
+                            IConnectionPoint** connection_point_raw) {
+  *connection_point_raw = nullptr;
+  Microsoft::WRL::ComPtr<IConnectionPointContainer> connection_point_container;
+  HRESULT hr =
+      manager->QueryInterface(IID_PPV_ARGS(&connection_point_container));
+  if (FAILED(hr))
+    return hr;
+
+  // Find the interface
+  Microsoft::WRL::ComPtr<IConnectionPoint> connection_point;
+  hr = connection_point_container->FindConnectionPoint(IIDSyncInterface,
+                                                       &connection_point);
+  if (FAILED(hr))
+    return hr;
+
+  *connection_point_raw = connection_point.Get();
+  (*connection_point_raw)->AddRef();
+
+  return hr;
+}
+
 }  // namespace
 
-// Thread on which we can run DnsConfigService, which requires AssertIOAllowed
-// to open registry keys and to handle FilePathWatcher updates.
-class NetworkChangeNotifierWin::DnsConfigServiceThread : public base::Thread {
+// This class is used as an event sink to register for notifications from the
+// INetworkCostManagerEvents interface. In particular, we are focused on getting
+// notified when the Connection Cost changes. This is only supported on Win10+.
+class NetworkCostManagerEventSink
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          INetworkCostManagerEvents> {
  public:
-  DnsConfigServiceThread() : base::Thread("DnsConfigService") {}
+  using CostChangedCallback = base::RepeatingCallback<void()>;
 
-  ~DnsConfigServiceThread() override { Stop(); }
+  NetworkCostManagerEventSink(INetworkCostManager* cost_manager,
+                              const CostChangedCallback& callback)
+      : network_cost_manager_(cost_manager), cost_changed_callback_(callback) {}
+  ~NetworkCostManagerEventSink() override = default;
 
-  void Init() override {
-    service_ = DnsConfigService::CreateSystemService();
-    service_->WatchConfig(base::Bind(&NetworkChangeNotifier::SetDnsConfig));
+  // INetworkCostManagerEvents members
+  IFACEMETHODIMP CostChanged(_In_ DWORD cost,
+                             _In_opt_ NLM_SOCKADDR* /*pSockAddr*/) override {
+    cost_changed_callback_.Run();
+    return S_OK;
   }
 
-  void CleanUp() override { service_.reset(); }
+  IFACEMETHODIMP DataPlanStatusChanged(
+      _In_opt_ NLM_SOCKADDR* /*pSockAddr*/) override {
+    return S_OK;
+  }
+
+  HRESULT RegisterForNotifications() {
+    Microsoft::WRL::ComPtr<IUnknown> unknown;
+    HRESULT hr = QueryInterface(IID_PPV_ARGS(&unknown));
+    if (hr != S_OK)
+      return hr;
+
+    hr = GetConnectionPoints(network_cost_manager_.Get(),
+                             IID_INetworkCostManagerEvents, &connection_point_);
+    if (hr != S_OK)
+      return hr;
+
+    hr = connection_point_->Advise(unknown.Get(), &cookie_);
+    return hr;
+  }
+
+  void UnRegisterForNotifications() {
+    if (connection_point_) {
+      connection_point_->Unadvise(cookie_);
+      connection_point_ = nullptr;
+      cookie_ = 0;
+    }
+  }
 
  private:
-  std::unique_ptr<DnsConfigService> service_;
-
-  DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceThread);
+  Microsoft::WRL::ComPtr<INetworkCostManager> network_cost_manager_;
+  Microsoft::WRL::ComPtr<IConnectionPoint> connection_point_;
+  DWORD cookie_ = 0;
+  CostChangedCallback cost_changed_callback_;
 };
 
 NetworkChangeNotifierWin::NetworkChangeNotifierWin()
     : NetworkChangeNotifier(NetworkChangeCalculatorParamsWin()),
-      is_watching_(false),
-      sequential_failures_(0),
-      dns_config_service_thread_(new DnsConfigServiceThread()),
+      blocking_task_runner_(
+          base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})),
       last_computed_connection_type_(RecomputeCurrentConnectionType()),
       last_announced_offline_(last_computed_connection_type_ ==
                               CONNECTION_NONE),
-      weak_factory_(this) {
+      sequence_runner_for_registration_(
+          base::SequencedTaskRunner::GetCurrentDefault()) {
   memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
   addr_overlapped_.hEvent = WSACreateEvent();
 }
 
 NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  ClearGlobalPointer();
   if (is_watching_) {
     CancelIPChangeNotify(&addr_overlapped_);
     addr_watcher_.StopWatching();
   }
   WSACloseEvent(addr_overlapped_.hEvent);
+
+  if (network_cost_manager_event_sink_) {
+    network_cost_manager_event_sink_->UnRegisterForNotifications();
+    network_cost_manager_event_sink_ = nullptr;
+  }
 }
 
 // static
@@ -82,11 +145,10 @@ NetworkChangeNotifierWin::NetworkChangeCalculatorParamsWin() {
   NetworkChangeCalculatorParams params;
   // Delay values arrived at by simple experimentation and adjusted so as to
   // produce a single signal when switching between network connections.
-  params.ip_address_offline_delay_ = base::TimeDelta::FromMilliseconds(1500);
-  params.ip_address_online_delay_ = base::TimeDelta::FromMilliseconds(1500);
-  params.connection_type_offline_delay_ =
-      base::TimeDelta::FromMilliseconds(1500);
-  params.connection_type_online_delay_ = base::TimeDelta::FromMilliseconds(500);
+  params.ip_address_offline_delay_ = base::Milliseconds(1500);
+  params.ip_address_online_delay_ = base::Milliseconds(1500);
+  params.connection_type_offline_delay_ = base::Milliseconds(1500);
+  params.connection_type_online_delay_ = base::Milliseconds(500);
   return params;
 }
 
@@ -138,8 +200,9 @@ NetworkChangeNotifierWin::NetworkChangeCalculatorParamsWin() {
 // experiments I ran... However none of them correctly returned "offline" when
 // executing 'ipconfig /release'.
 //
+// static
 NetworkChangeNotifier::ConnectionType
-NetworkChangeNotifierWin::RecomputeCurrentConnectionType() const {
+NetworkChangeNotifierWin::RecomputeCurrentConnectionType() {
   EnsureWinsockInit();
 
   // The following code was adapted from:
@@ -154,8 +217,7 @@ NetworkChangeNotifierWin::RecomputeCurrentConnectionType() const {
   query_set.dwNameSpace = NS_NLA;
   // Initiate a client query to iterate through the
   // currently connected networks.
-  if (0 != WSALookupServiceBegin(&query_set, LUP_RETURN_ALL,
-                                 &ws_handle)) {
+  if (0 != WSALookupServiceBegin(&query_set, LUP_RETURN_ALL, &ws_handle)) {
     LOG(ERROR) << "WSALookupServiceBegin failed with: " << WSAGetLastError();
     return NetworkChangeNotifier::CONNECTION_UNKNOWN;
   }
@@ -171,11 +233,9 @@ NetworkChangeNotifierWin::RecomputeCurrentConnectionType() const {
   DWORD length = sizeof(result_buffer);
   reinterpret_cast<WSAQUERYSET*>(&result_buffer[0])->dwSize =
       sizeof(WSAQUERYSET);
-  int result = WSALookupServiceNext(
-      ws_handle,
-      LUP_RETURN_NAME,
-      &length,
-      reinterpret_cast<WSAQUERYSET*>(&result_buffer[0]));
+  int result =
+      WSALookupServiceNext(ws_handle, LUP_RETURN_NAME, &length,
+                           reinterpret_cast<WSAQUERYSET*>(&result_buffer[0]));
 
   if (result == 0) {
     // Found a connection!
@@ -199,24 +259,125 @@ NetworkChangeNotifierWin::RecomputeCurrentConnectionType() const {
   }
 
   result = WSALookupServiceEnd(ws_handle);
-  LOG_IF(ERROR, result != 0)
-      << "WSALookupServiceEnd() failed with: " << result;
+  LOG_IF(ERROR, result != 0) << "WSALookupServiceEnd() failed with: " << result;
 
   // TODO(droger): Return something more detailed than CONNECTION_UNKNOWN.
   return found_connection ? ConnectionTypeFromInterfaces()
                           : NetworkChangeNotifier::CONNECTION_NONE;
 }
 
-void NetworkChangeNotifierWin::RecomputeCurrentConnectionTypeOnDnsThread(
-    base::Callback<void(ConnectionType)> reply_callback) const {
+void NetworkChangeNotifierWin::RecomputeCurrentConnectionTypeOnBlockingSequence(
+    base::OnceCallback<void(ConnectionType)> reply_callback) const {
   // Unretained is safe in this call because this object owns the thread and the
   // thread is stopped in this object's destructor.
-  base::PostTaskAndReplyWithResult(
-      dns_config_service_thread_->message_loop()->task_runner().get(),
+  blocking_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::Bind(&NetworkChangeNotifierWin::RecomputeCurrentConnectionType,
-                 base::Unretained(this)),
-      reply_callback);
+      base::BindOnce(&NetworkChangeNotifierWin::RecomputeCurrentConnectionType),
+      std::move(reply_callback));
+}
+
+NetworkChangeNotifier::ConnectionCost
+NetworkChangeNotifierWin::GetCurrentConnectionCost() {
+  InitializeConnectionCost();
+
+  // If we don't have the event sink we aren't registered for automatic updates.
+  // In that case, we need to update the value at the time it is requested.
+  if (!network_cost_manager_event_sink_)
+    UpdateConnectionCostFromCostManager();
+
+  return last_computed_connection_cost_;
+}
+
+bool NetworkChangeNotifierWin::InitializeConnectionCostOnce() {
+  HRESULT hr =
+      ::CoCreateInstance(CLSID_NetworkListManager, nullptr, CLSCTX_ALL,
+                         IID_INetworkCostManager, &network_cost_manager_);
+  if (FAILED(hr)) {
+    SetCurrentConnectionCost(CONNECTION_COST_UNKNOWN);
+    return true;
+  }
+
+  UpdateConnectionCostFromCostManager();
+
+  return true;
+}
+
+void NetworkChangeNotifierWin::InitializeConnectionCost() {
+  static bool g_connection_cost_initialized = InitializeConnectionCostOnce();
+  DCHECK(g_connection_cost_initialized);
+}
+
+HRESULT NetworkChangeNotifierWin::UpdateConnectionCostFromCostManager() {
+  if (!network_cost_manager_)
+    return E_ABORT;
+
+  DWORD cost = NLM_CONNECTION_COST_UNKNOWN;
+  HRESULT hr = network_cost_manager_->GetCost(&cost, nullptr);
+  if (FAILED(hr)) {
+    SetCurrentConnectionCost(CONNECTION_COST_UNKNOWN);
+  } else {
+    SetCurrentConnectionCost(
+        ConnectionCostFromNlmCost((NLM_CONNECTION_COST)cost));
+  }
+  return hr;
+}
+
+// static
+NetworkChangeNotifier::ConnectionCost
+NetworkChangeNotifierWin::ConnectionCostFromNlmCost(NLM_CONNECTION_COST cost) {
+  if (cost == NLM_CONNECTION_COST_UNKNOWN)
+    return CONNECTION_COST_UNKNOWN;
+  else if ((cost & NLM_CONNECTION_COST_UNRESTRICTED) != 0)
+    return CONNECTION_COST_UNMETERED;
+  else
+    return CONNECTION_COST_METERED;
+}
+
+void NetworkChangeNotifierWin::SetCurrentConnectionCost(
+    ConnectionCost connection_cost) {
+  last_computed_connection_cost_ = connection_cost;
+}
+
+void NetworkChangeNotifierWin::OnCostChanged() {
+  ConnectionCost old_cost = last_computed_connection_cost_;
+  // It is possible to get multiple notifications in a short period of time.
+  // Rather than worrying about whether this notification represents the latest,
+  // just get the current value from the CostManager so we know that we're
+  // actually getting the correct value.
+  UpdateConnectionCostFromCostManager();
+  // Only notify if there's actually a change.
+  if (old_cost != GetCurrentConnectionCost())
+    NotifyObserversOfConnectionCostChange();
+}
+
+void NetworkChangeNotifierWin::ConnectionCostObserverAdded() {
+  sequence_runner_for_registration_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&NetworkChangeNotifierWin::OnConnectionCostObserverAdded,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void NetworkChangeNotifierWin::OnConnectionCostObserverAdded() {
+  DCHECK(sequence_runner_for_registration_->RunsTasksInCurrentSequence());
+  InitializeConnectionCost();
+
+  // No need to register if we don't have a cost manager or if we're already
+  // registered.
+  if (!network_cost_manager_ || network_cost_manager_event_sink_)
+    return;
+
+  network_cost_manager_event_sink_ =
+      Microsoft::WRL::Make<net::NetworkCostManagerEventSink>(
+          network_cost_manager_.Get(),
+          base::BindRepeating(&NetworkChangeNotifierWin::OnCostChanged,
+                              weak_factory_.GetWeakPtr()));
+  HRESULT hr = network_cost_manager_event_sink_->RegisterForNotifications();
+  if (hr != S_OK) {
+    // If registration failed for any reason, just destroy the event sink. The
+    // observer will remain connected but will not receive any updates. If
+    // another observer gets added later, we can re-attempt registration.
+    network_cost_manager_event_sink_ = nullptr;
+  }
 }
 
 NetworkChangeNotifier::ConnectionType
@@ -232,19 +393,19 @@ void NetworkChangeNotifierWin::SetCurrentConnectionType(
 }
 
 void NetworkChangeNotifierWin::OnObjectSignaled(HANDLE object) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(is_watching_);
   is_watching_ = false;
 
   // Start watching for the next address change.
   WatchForAddressChange();
 
-  RecomputeCurrentConnectionTypeOnDnsThread(base::Bind(
+  RecomputeCurrentConnectionTypeOnBlockingSequence(base::BindOnce(
       &NetworkChangeNotifierWin::NotifyObservers, weak_factory_.GetWeakPtr()));
 }
 
 void NetworkChangeNotifierWin::NotifyObservers(ConnectionType connection_type) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SetCurrentConnectionType(connection_type);
   NotifyObserversOfIPAddressChange();
 
@@ -256,12 +417,12 @@ void NetworkChangeNotifierWin::NotifyObservers(ConnectionType connection_type) {
   // If after one second we determine we are still offline, we will
   // delay again.
   offline_polls_ = 0;
-  timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
+  timer_.Start(FROM_HERE, base::Seconds(1), this,
                &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange);
 }
 
 void NetworkChangeNotifierWin::WatchForAddressChange() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!is_watching_);
 
   // NotifyAddrChange occasionally fails with ERROR_OPEN_FAILED for unknown
@@ -270,19 +431,11 @@ void NetworkChangeNotifierWin::WatchForAddressChange() {
   if (!WatchForAddressChangeInternal()) {
     ++sequential_failures_;
 
-    // TODO(mmenke):  If the UMA histograms indicate that this fixes
-    // http://crbug.com/69198, remove this histogram and consider reducing the
-    // retry interval.
-    if (sequential_failures_ == 2000) {
-      UMA_HISTOGRAM_COUNTS_10000("Net.NotifyAddrChangeFailures",
-                                 sequential_failures_);
-    }
-
-    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
-        FROM_HERE, base::Bind(&NetworkChangeNotifierWin::WatchForAddressChange,
-                              weak_factory_.GetWeakPtr()),
-        base::TimeDelta::FromMilliseconds(
-            kWatchForAddressChangeRetryIntervalMs));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&NetworkChangeNotifierWin::WatchForAddressChange,
+                       weak_factory_.GetWeakPtr()),
+        base::Milliseconds(kWatchForAddressChangeRetryIntervalMs));
     return;
   }
 
@@ -290,14 +443,9 @@ void NetworkChangeNotifierWin::WatchForAddressChange() {
   // network change event, since network changes were not being observed in
   // that interval.
   if (sequential_failures_ > 0) {
-    RecomputeCurrentConnectionTypeOnDnsThread(
-        base::Bind(&NetworkChangeNotifierWin::NotifyObservers,
-                   weak_factory_.GetWeakPtr()));
-  }
-
-  if (sequential_failures_ < 2000) {
-    UMA_HISTOGRAM_COUNTS_10000("Net.NotifyAddrChangeFailures",
-                               sequential_failures_);
+    RecomputeCurrentConnectionTypeOnBlockingSequence(
+        base::BindOnce(&NetworkChangeNotifierWin::NotifyObservers,
+                       weak_factory_.GetWeakPtr()));
   }
 
   is_watching_ = true;
@@ -305,15 +453,10 @@ void NetworkChangeNotifierWin::WatchForAddressChange() {
 }
 
 bool NetworkChangeNotifierWin::WatchForAddressChangeInternal() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  if (!dns_config_service_thread_->IsRunning()) {
-    dns_config_service_thread_->StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
-  }
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   ResetEventIfSignaled(addr_overlapped_.hEvent);
-  HANDLE handle = NULL;
+  HANDLE handle = nullptr;
   DWORD ret = NotifyAddrChange(&handle, &addr_overlapped_);
   if (ret != ERROR_IO_PENDING)
     return false;
@@ -323,7 +466,7 @@ bool NetworkChangeNotifierWin::WatchForAddressChangeInternal() {
 }
 
 void NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange() {
-  RecomputeCurrentConnectionTypeOnDnsThread(base::Bind(
+  RecomputeCurrentConnectionTypeOnBlockingSequence(base::BindOnce(
       &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChangeImpl,
       weak_factory_.GetWeakPtr()));
 }
@@ -338,7 +481,7 @@ void NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChangeImpl(
   // we may not detect the transition to online state after 1 second but within
   // 20 seconds we generally do.
   if (last_announced_offline_ && current_offline && offline_polls_ <= 20) {
-    timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
+    timer_.Start(FROM_HERE, base::Seconds(1), this,
                  &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange);
     return;
   }

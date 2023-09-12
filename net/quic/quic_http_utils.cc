@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,19 +8,8 @@
 
 #include "base/metrics/histogram_macros.h"
 #include "net/spdy/spdy_log_util.h"
-#include "net/third_party/quic/platform/api/quic_endian.h"
 
 namespace net {
-
-namespace {
-
-enum AltSvcFormat { GOOGLE_FORMAT = 0, IETF_FORMAT = 1, ALTSVC_FORMAT_MAX };
-
-void RecordAltSvcFormat(AltSvcFormat format) {
-  UMA_HISTOGRAM_ENUMERATION("Net.QuicAltSvcFormat", format, ALTSVC_FORMAT_MAX);
-}
-
-}  // namespace
 
 spdy::SpdyPriority ConvertRequestPriorityToQuicPriority(
     const RequestPriority priority) {
@@ -36,48 +25,56 @@ RequestPriority ConvertQuicPriorityToRequestPriority(
                          : static_cast<RequestPriority>(HIGHEST - priority);
 }
 
-std::unique_ptr<base::Value> QuicRequestNetLogCallback(
-    quic::QuicStreamId stream_id,
-    const spdy::SpdyHeaderBlock* headers,
-    spdy::SpdyPriority priority,
-    NetLogCaptureMode capture_mode) {
-  std::unique_ptr<base::DictionaryValue> dict(
-      static_cast<base::DictionaryValue*>(
-          SpdyHeaderBlockNetLogCallback(headers, capture_mode).release()));
-  dict->SetInteger("quic_priority", static_cast<int>(priority));
-  dict->SetInteger("quic_stream_id", static_cast<int>(stream_id));
-  return std::move(dict);
-}
-
-quic::QuicTransportVersionVector FilterSupportedAltSvcVersions(
-    const spdy::SpdyAltSvcWireFormat::AlternativeService& quic_alt_svc,
-    const quic::QuicTransportVersionVector& supported_versions,
-    bool support_ietf_format_quic_altsvc) {
-  quic::QuicTransportVersionVector supported_alt_svc_versions;
-  if (support_ietf_format_quic_altsvc && quic_alt_svc.protocol_id == "hq") {
-    // Using IETF format for advertising QUIC. In this case,
-    // |alternative_service_entry.version| will store QUIC version labels.
-    for (uint32_t quic_version_label : quic_alt_svc.version) {
-      for (quic::QuicTransportVersion supported : supported_versions) {
-        quic::QuicVersionLabel supported_version_label_network_order =
-            QuicVersionToQuicVersionLabel(supported);
-        if (supported_version_label_network_order == quic_version_label) {
-          supported_alt_svc_versions.push_back(supported);
-          RecordAltSvcFormat(IETF_FORMAT);
-        }
-      }
+base::Value::Dict QuicRequestNetLogParams(quic::QuicStreamId stream_id,
+                                          const spdy::Http2HeaderBlock* headers,
+                                          quic::QuicStreamPriority priority,
+                                          NetLogCaptureMode capture_mode) {
+  base::Value::Dict dict = Http2HeaderBlockNetLogParams(headers, capture_mode);
+  switch (priority.type()) {
+    case quic::QuicPriorityType::kHttp: {
+      auto http_priority = priority.http();
+      dict.Set("quic_priority_type", "http");
+      dict.Set("quic_priority_urgency", http_priority.urgency);
+      dict.Set("quic_priority_incremental", http_priority.incremental);
+      break;
     }
-  } else if (quic_alt_svc.protocol_id == "quic") {
-    for (uint32_t quic_version : quic_alt_svc.version) {
-      for (quic::QuicTransportVersion supported : supported_versions) {
-        if (static_cast<uint32_t>(supported) == quic_version) {
-          supported_alt_svc_versions.push_back(supported);
-          RecordAltSvcFormat(GOOGLE_FORMAT);
-        }
+    case quic::QuicPriorityType::kWebTransport: {
+      auto web_transport_priority = priority.web_transport();
+      dict.Set("quic_priority_type", "web_transport");
+      const char* stream_type = "invalid";
+      switch (web_transport_priority.stream_type) {
+        case quic::WebTransportStreamPriority::StreamType::kData:
+          stream_type = "data";
+          break;
+        case quic::WebTransportStreamPriority::StreamType::kHttp:
+          stream_type = "http";
+          break;
+        case quic::WebTransportStreamPriority::StreamType::kStatic:
+          stream_type = "static";
+          break;
       }
+      dict.Set("web_transport_stream_type", stream_type);
+      // send_order is an int64_t, but base::Value doesn't support that type.
+      // Case to a double instead. As this is just for diagnostics, some loss of
+      // precision is acceptable.
+      dict.Set("web_transport_send_order",
+               static_cast<double>(web_transport_priority.send_order));
+      break;
     }
   }
-  return supported_alt_svc_versions;
+  dict.Set("quic_stream_id", static_cast<int>(stream_id));
+  return dict;
+}
+
+base::Value::Dict QuicResponseNetLogParams(
+    quic::QuicStreamId stream_id,
+    bool fin_received,
+    const spdy::Http2HeaderBlock* headers,
+    NetLogCaptureMode capture_mode) {
+  base::Value::Dict dict = Http2HeaderBlockNetLogParams(headers, capture_mode);
+  dict.Set("quic_stream_id", static_cast<int>(stream_id));
+  dict.Set("fin", fin_received);
+  return dict;
 }
 
 }  // namespace net

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,12 @@
 
 #include <memory>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/observer_list.h"
-#include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
-#include "base/task/post_task.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
 
 namespace net {
@@ -28,17 +27,13 @@ class PollingProxyConfigService::Core
        const NetworkTrafficAnnotationTag& traffic_annotation)
       : get_config_func_(get_config_func),
         poll_interval_(poll_interval),
-        traffic_annotation_(traffic_annotation),
-        have_initialized_origin_runner_(false),
-        has_config_(false),
-        poll_task_outstanding_(false),
-        poll_task_queued_(false) {}
+        traffic_annotation_(traffic_annotation) {}
 
   // Called when the parent PollingProxyConfigService is destroyed
   // (observers should not be called past this point).
   void Orphan() {
     base::AutoLock lock(lock_);
-    origin_task_runner_ = NULL;
+    origin_task_runner_ = nullptr;
   }
 
   bool GetLatestProxyConfig(ProxyConfigWithAnnotation* config) {
@@ -93,10 +88,10 @@ class PollingProxyConfigService::Core
     last_poll_time_ = base::TimeTicks::Now();
     poll_task_outstanding_ = true;
     poll_task_queued_ = false;
-    base::PostTaskWithTraits(
+    base::ThreadPool::PostTask(
         FROM_HERE,
         {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-        base::Bind(&Core::PollAsync, this, get_config_func_));
+        base::BindOnce(&Core::PollAsync, this, get_config_func_));
   }
 
  private:
@@ -110,7 +105,7 @@ class PollingProxyConfigService::Core
     base::AutoLock lock(lock_);
     if (origin_task_runner_.get()) {
       origin_task_runner_->PostTask(
-          FROM_HERE, base::Bind(&Core::GetConfigCompleted, this, config));
+          FROM_HERE, base::BindOnce(&Core::GetConfigCompleted, this, config));
     }
   }
 
@@ -143,7 +138,7 @@ class PollingProxyConfigService::Core
     //               can't cache the main thread for the purpose of DCHECKs
     //               until the first call is made.
     if (!have_initialized_origin_runner_) {
-      origin_task_runner_ = base::ThreadTaskRunnerHandle::Get();
+      origin_task_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
       have_initialized_origin_runner_ = true;
     }
   }
@@ -159,10 +154,10 @@ class PollingProxyConfigService::Core
   base::Lock lock_;
   scoped_refptr<base::SingleThreadTaskRunner> origin_task_runner_;
 
-  bool have_initialized_origin_runner_;
-  bool has_config_;
-  bool poll_task_outstanding_;
-  bool poll_task_queued_;
+  bool have_initialized_origin_runner_ = false;
+  bool has_config_ = false;
+  bool poll_task_outstanding_ = false;
+  bool poll_task_queued_ = false;
 };
 
 void PollingProxyConfigService::AddObserver(Observer* observer) {
@@ -183,11 +178,17 @@ void PollingProxyConfigService::OnLazyPoll() {
   core_->OnLazyPoll();
 }
 
+bool PollingProxyConfigService::UsesPolling() {
+  return true;
+}
+
 PollingProxyConfigService::PollingProxyConfigService(
     base::TimeDelta poll_interval,
     GetConfigFunction get_config_func,
     const NetworkTrafficAnnotationTag& traffic_annotation)
-    : core_(new Core(poll_interval, get_config_func, traffic_annotation)) {}
+    : core_(base::MakeRefCounted<Core>(poll_interval,
+                                       get_config_func,
+                                       traffic_annotation)) {}
 
 PollingProxyConfigService::~PollingProxyConfigService() {
   core_->Orphan();

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,13 +12,10 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 namespace net {
 
-HttpVaryData::HttpVaryData() : is_valid_(false) {
-}
+HttpVaryData::HttpVaryData() = default;
 
 bool HttpVaryData::Init(const HttpRequestInfo& request_info,
                         const HttpResponseHeaders& response_headers) {

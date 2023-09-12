@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,13 +11,14 @@
 #include <memory>
 #include <string>
 
-#include "base/bind.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
+#include "crypto/nss_util.h"
 #include "crypto/scoped_test_nss_db.h"
-#include "net/cert/pem_tokenizer.h"
+#include "net/cert/pem.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util_nss.h"
 #include "net/ssl/client_cert_identity_test_util.h"
@@ -26,7 +27,6 @@
 #include "net/ssl/ssl_private_key.h"
 #include "net/ssl/ssl_private_key_test_util.h"
 #include "net/test/cert_test_util.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
@@ -35,17 +35,17 @@ namespace net {
 namespace {
 
 void SaveIdentitiesAndQuitCallback(ClientCertIdentityList* out_identities,
-                                   base::Closure quit_closure,
+                                   base::OnceClosure quit_closure,
                                    ClientCertIdentityList in_identities) {
   *out_identities = std::move(in_identities);
-  quit_closure.Run();
+  std::move(quit_closure).Run();
 }
 
 void SavePrivateKeyAndQuitCallback(scoped_refptr<net::SSLPrivateKey>* out_key,
-                                   base::Closure quit_closure,
+                                   base::OnceClosure quit_closure,
                                    scoped_refptr<net::SSLPrivateKey> in_key) {
   *out_key = std::move(in_key);
-  quit_closure.Run();
+  std::move(quit_closure).Run();
 }
 
 }  // namespace
@@ -62,20 +62,21 @@ class ClientCertStoreNSSTestDelegate {
 
     // Filters |selected_identities| using the logic being used to filter the
     // system store when GetClientCerts() is called.
+    crypto::EnsureNSSInit();
     ClientCertStoreNSS::FilterCertsOnWorkerThread(selected_identities,
                                                   cert_request_info);
     return true;
   }
 };
 
-INSTANTIATE_TYPED_TEST_CASE_P(NSS,
-                              ClientCertStoreTest,
-                              ClientCertStoreNSSTestDelegate);
+INSTANTIATE_TYPED_TEST_SUITE_P(NSS,
+                               ClientCertStoreTest,
+                               ClientCertStoreNSSTestDelegate);
 
 // Tests that ClientCertStoreNSS attempts to build a certificate chain by
 // querying NSS before return a certificate.
 TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
-  base::test::ScopedTaskEnvironment scoped_task_environment;
+  base::test::TaskEnvironment task_environment;
 
   // Set up a test DB and import client_1.pem and client_1_ca.pem.
   crypto::ScopedTestNSSDB test_db;
@@ -90,8 +91,8 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
   ASSERT_TRUE(base::ReadFileToString(
       GetTestCertsDirectory().AppendASCII("client_1.pk8"), &pkcs8_key));
 
-  std::unique_ptr<ClientCertStoreNSS> store(
-      new ClientCertStoreNSS(ClientCertStoreNSS::PasswordDelegateFactory()));
+  auto store = std::make_unique<ClientCertStoreNSS>(
+      ClientCertStoreNSS::PasswordDelegateFactory());
 
   // These test keys are RSA keys.
   std::vector<uint16_t> expected = SSLPrivateKey::DefaultAlgorithmPreferences(
@@ -99,15 +100,16 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
 
   {
     // Request certificates matching B CA, |client_1|'s issuer.
-    scoped_refptr<SSLCertRequestInfo> request(new SSLCertRequestInfo);
-    request->cert_authorities.push_back(std::string(
-        reinterpret_cast<const char*>(kAuthority1DN), sizeof(kAuthority1DN)));
+    auto request = base::MakeRefCounted<SSLCertRequestInfo>();
+    request->cert_authorities.emplace_back(
+        reinterpret_cast<const char*>(kAuthority1DN), sizeof(kAuthority1DN));
 
     ClientCertIdentityList selected_identities;
     base::RunLoop loop;
-    store->GetClientCerts(*request.get(),
-                          base::Bind(SaveIdentitiesAndQuitCallback,
-                                     &selected_identities, loop.QuitClosure()));
+    store->GetClientCerts(
+        *request.get(),
+        base::BindOnce(SaveIdentitiesAndQuitCallback, &selected_identities,
+                       loop.QuitClosure()));
     loop.Run();
 
     // The result be |client_1| with no intermediates.
@@ -121,8 +123,8 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
     scoped_refptr<SSLPrivateKey> ssl_private_key;
     base::RunLoop key_loop;
     selected_identities[0]->AcquirePrivateKey(
-        base::Bind(SavePrivateKeyAndQuitCallback, &ssl_private_key,
-                   key_loop.QuitClosure()));
+        base::BindOnce(SavePrivateKeyAndQuitCallback, &ssl_private_key,
+                       key_loop.QuitClosure()));
     key_loop.Run();
 
     ASSERT_TRUE(ssl_private_key);
@@ -132,16 +134,17 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
 
   {
     // Request certificates matching C Root CA, |client_1_ca|'s issuer.
-    scoped_refptr<SSLCertRequestInfo> request(new SSLCertRequestInfo);
-    request->cert_authorities.push_back(
-        std::string(reinterpret_cast<const char*>(kAuthorityRootDN),
-                    sizeof(kAuthorityRootDN)));
+    auto request = base::MakeRefCounted<SSLCertRequestInfo>();
+    request->cert_authorities.emplace_back(
+        reinterpret_cast<const char*>(kAuthorityRootDN),
+        sizeof(kAuthorityRootDN));
 
     ClientCertIdentityList selected_identities;
     base::RunLoop loop;
-    store->GetClientCerts(*request.get(),
-                          base::Bind(SaveIdentitiesAndQuitCallback,
-                                     &selected_identities, loop.QuitClosure()));
+    store->GetClientCerts(
+        *request.get(),
+        base::BindOnce(SaveIdentitiesAndQuitCallback, &selected_identities,
+                       loop.QuitClosure()));
     loop.Run();
 
     // The result be |client_1| with |client_1_ca| as an intermediate.
@@ -158,8 +161,8 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
     scoped_refptr<SSLPrivateKey> ssl_private_key;
     base::RunLoop key_loop;
     selected_identities[0]->AcquirePrivateKey(
-        base::Bind(SavePrivateKeyAndQuitCallback, &ssl_private_key,
-                   key_loop.QuitClosure()));
+        base::BindOnce(SavePrivateKeyAndQuitCallback, &ssl_private_key,
+                       key_loop.QuitClosure()));
     key_loop.Run();
     ASSERT_TRUE(ssl_private_key);
     EXPECT_EQ(expected, ssl_private_key->GetAlgorithmPreferences());
@@ -168,7 +171,7 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
 }
 
 TEST(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
-  base::test::ScopedTaskEnvironment scoped_task_environment;
+  base::test::TaskEnvironment task_environment;
 
   crypto::ScopedTestNSSDB test_db;
   base::FilePath certs_dir =
@@ -197,8 +200,8 @@ TEST(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
 
   ASSERT_TRUE(ImportClientCertToSlot(cert.get(), test_db.slot()));
 
-  std::unique_ptr<ClientCertStoreNSS> store(
-      new ClientCertStoreNSS(ClientCertStoreNSS::PasswordDelegateFactory()));
+  auto store = std::make_unique<ClientCertStoreNSS>(
+      ClientCertStoreNSS::PasswordDelegateFactory());
 
   // These test keys are RSA keys.
   std::vector<uint16_t> expected = SSLPrivateKey::DefaultAlgorithmPreferences(
@@ -211,15 +214,15 @@ TEST(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
       0x31, 0x21, 0x30, 0x1f, 0x06, 0x03, 0x55, 0x04, 0x0a, 0x0c, 0x18, 0x49,
       0x6e, 0x74, 0x65, 0x72, 0x6e, 0x65, 0x74, 0x20, 0x57, 0x69, 0x64, 0x67,
       0x69, 0x74, 0x73, 0x20, 0x50, 0x74, 0x79, 0x20, 0x4c, 0x74, 0x64};
-  scoped_refptr<SSLCertRequestInfo> request(new SSLCertRequestInfo);
-  request->cert_authorities.push_back(std::string(
-      reinterpret_cast<const char*>(kAuthorityDN), sizeof(kAuthorityDN)));
+  auto request = base::MakeRefCounted<SSLCertRequestInfo>();
+  request->cert_authorities.emplace_back(
+      reinterpret_cast<const char*>(kAuthorityDN), sizeof(kAuthorityDN));
 
   ClientCertIdentityList selected_identities;
   base::RunLoop loop;
-  store->GetClientCerts(*request.get(),
-                        base::Bind(SaveIdentitiesAndQuitCallback,
-                                   &selected_identities, loop.QuitClosure()));
+  store->GetClientCerts(
+      *request.get(), base::BindOnce(SaveIdentitiesAndQuitCallback,
+                                     &selected_identities, loop.QuitClosure()));
   loop.Run();
 
   // The result be |cert| with no intermediates.
@@ -231,7 +234,7 @@ TEST(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
 
   scoped_refptr<SSLPrivateKey> ssl_private_key;
   base::RunLoop key_loop;
-  selected_identities[0]->AcquirePrivateKey(base::Bind(
+  selected_identities[0]->AcquirePrivateKey(base::BindOnce(
       SavePrivateKeyAndQuitCallback, &ssl_private_key, key_loop.QuitClosure()));
   key_loop.Run();
 

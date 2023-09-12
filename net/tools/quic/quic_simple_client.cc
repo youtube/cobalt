@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include <utility>
 
-#include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/run_loop.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
@@ -20,14 +20,14 @@
 #include "net/quic/quic_chromium_packet_writer.h"
 #include "net/socket/udp_client_socket.h"
 #include "net/spdy/spdy_http_utils.h"
-#include "net/third_party/quic/core/crypto/quic_random.h"
-#include "net/third_party/quic/core/http/spdy_utils.h"
-#include "net/third_party/quic/core/quic_connection.h"
-#include "net/third_party/quic/core/quic_packets.h"
-#include "net/third_party/quic/core/quic_server_id.h"
-#include "net/third_party/quic/platform/api/quic_flags.h"
-#include "net/third_party/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
+#include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quiche/quic/core/http/spdy_utils.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_packets.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_server_id.h"
+#include "net/third_party/quiche/src/quiche/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/quiche/quic/tools/quic_simple_client_session.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 
 using std::string;
 
@@ -37,18 +37,17 @@ QuicSimpleClient::QuicSimpleClient(
     quic::QuicSocketAddress server_address,
     const quic::QuicServerId& server_id,
     const quic::ParsedQuicVersionVector& supported_versions,
+    const quic::QuicConfig& config,
     std::unique_ptr<quic::ProofVerifier> proof_verifier)
     : quic::QuicSpdyClientBase(
           server_id,
           supported_versions,
-          quic::QuicConfig(),
+          config,
           CreateQuicConnectionHelper(),
           CreateQuicAlarmFactory(),
-          quic::QuicWrapUnique(
-              new QuicClientMessageLooplNetworkHelper(&clock_, this)),
-          std::move(proof_verifier)),
-      initialized_(false),
-      weak_factory_(this) {
+          std::make_unique<QuicClientMessageLooplNetworkHelper>(&clock_, this),
+          std::move(proof_verifier),
+          nullptr) {
   set_server_address(server_address);
 }
 
@@ -60,14 +59,23 @@ QuicSimpleClient::~QuicSimpleClient() {
   }
 }
 
+std::unique_ptr<quic::QuicSession> QuicSimpleClient::CreateQuicClientSession(
+    const quic::ParsedQuicVersionVector& supported_versions,
+    quic::QuicConnection* connection) {
+  return std::make_unique<quic::QuicSimpleClientSession>(
+      *config(), supported_versions, connection, network_helper(), server_id(),
+      crypto_config(), push_promise_index(), drop_response_body(),
+      /*enable_web_transport=*/false);
+}
+
 QuicChromiumConnectionHelper* QuicSimpleClient::CreateQuicConnectionHelper() {
   return new QuicChromiumConnectionHelper(&clock_,
                                           quic::QuicRandom::GetInstance());
 }
 
 QuicChromiumAlarmFactory* QuicSimpleClient::CreateQuicAlarmFactory() {
-  return new QuicChromiumAlarmFactory(base::ThreadTaskRunnerHandle::Get().get(),
-                                      &clock_);
+  return new QuicChromiumAlarmFactory(
+      base::SingleThreadTaskRunner::GetCurrentDefault().get(), &clock_);
 }
 
 }  // namespace net

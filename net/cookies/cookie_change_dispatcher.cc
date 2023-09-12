@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,6 +33,21 @@ const char* CookieChangeCauseToString(CookieChangeCause cause) {
   }
   return cause_string;
 }
+
+CookieChangeInfo::CookieChangeInfo() = default;
+
+CookieChangeInfo::CookieChangeInfo(const CanonicalCookie& cookie,
+                                   CookieAccessResult access_result,
+                                   CookieChangeCause cause)
+    : cookie(cookie), access_result(access_result), cause(cause) {
+  DCHECK(access_result.status.IsInclude());
+  if (CookieChangeCauseIsDeletion(cause)) {
+    DCHECK_EQ(access_result.effective_same_site,
+              CookieEffectiveSameSite::UNDEFINED);
+  }
+}
+
+CookieChangeInfo::~CookieChangeInfo() = default;
 
 bool CookieChangeCauseIsDeletion(CookieChangeCause cause) {
   return cause != CookieChangeCause::INSERTED;

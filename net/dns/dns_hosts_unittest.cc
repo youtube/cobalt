@@ -1,9 +1,13 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/dns/dns_hosts.h"
 
+#include "base/test/metrics/histogram_tester.h"
+#include "base/trace_event/memory_usage_estimator.h"
+#include "build/build_config.h"
+#include "net/base/cronet_buildflags.h"
 #include "net/base/ip_address.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,7 +36,7 @@ void PopulateExpectedHosts(const ExpectedHostsEntry* entries,
 
 TEST(DnsHostsTest, ParseHosts) {
   const std::string kContents =
-      "127.0.0.1       localhost\tlocalhost.localdomain # standard\n"
+      "127.0.0.1       localhost # standard\n"
       "\n"
       "1.0.0.1 localhost # ignored, first hit above\n"
       "fe00::x example company # ignored, malformed IPv6\n"
@@ -51,11 +55,13 @@ TEST(DnsHostsTest, ParseHosts) {
       "127.0.0.3 .foo # entries with leading dot are ignored\n"
       "127.0.0.3 . # just a dot is ignored\n"
       "127.0.0.4 bar. # trailing dot is allowed, for now\n"
-      "gibberish";
+      "gibberish\n"
+      "127.0.0.5 fóó.test # canonicalizes to 'xn--f-vgaa.test' due to RFC3490\n"
+      "127.0.0.6 127.0.0.1 # ignore IP host\n"
+      "2048::3 [::1] # ignore IP host";
 
   const ExpectedHostsEntry kEntries[] = {
       {"localhost", ADDRESS_FAMILY_IPV4, "127.0.0.1"},
-      {"localhost.localdomain", ADDRESS_FAMILY_IPV4, "127.0.0.1"},
       {"company", ADDRESS_FAMILY_IPV4, "1.0.0.1"},
       {"localhost", ADDRESS_FAMILY_IPV6, "::1"},
       {"ip6-localhost", ADDRESS_FAMILY_IPV6, "::1"},
@@ -68,12 +74,22 @@ TEST(DnsHostsTest, ParseHosts) {
       {"cache4", ADDRESS_FAMILY_IPV4, "127.0.0.1"},
       {"cache5", ADDRESS_FAMILY_IPV4, "127.0.0.2"},
       {"bar.", ADDRESS_FAMILY_IPV4, "127.0.0.4"},
+      {"xn--f-vgaa.test", ADDRESS_FAMILY_IPV4, "127.0.0.5"},
   };
 
   DnsHosts expected_hosts, actual_hosts;
-  PopulateExpectedHosts(kEntries, arraysize(kEntries), &expected_hosts);
+  PopulateExpectedHosts(kEntries, std::size(kEntries), &expected_hosts);
+
+  base::HistogramTester histograms;
   ParseHosts(kContents, &actual_hosts);
   ASSERT_EQ(expected_hosts, actual_hosts);
+  histograms.ExpectUniqueSample("Net.DNS.DnsHosts.Count", std::size(kEntries),
+                                1);
+#if !BUILDFLAG(CRONET_BUILD)
+  histograms.ExpectUniqueSample(
+      "Net.DNS.DnsHosts.EstimateMemoryUsage",
+      base::trace_event::EstimateMemoryUsage(actual_hosts), 1);
+#endif
 }
 
 TEST(DnsHostsTest, ParseHosts_CommaIsToken) {
@@ -84,7 +100,7 @@ TEST(DnsHostsTest, ParseHosts_CommaIsToken) {
   };
 
   DnsHosts expected_hosts, actual_hosts;
-  PopulateExpectedHosts(kEntries, arraysize(kEntries), &expected_hosts);
+  PopulateExpectedHosts(kEntries, std::size(kEntries), &expected_hosts);
   ParseHostsWithCommaModeForTesting(
       kContents, &actual_hosts, PARSE_HOSTS_COMMA_IS_TOKEN);
   ASSERT_EQ(0UL, actual_hosts.size());
@@ -99,7 +115,7 @@ TEST(DnsHostsTest, ParseHosts_CommaIsWhitespace) {
   };
 
   DnsHosts expected_hosts, actual_hosts;
-  PopulateExpectedHosts(kEntries, arraysize(kEntries), &expected_hosts);
+  PopulateExpectedHosts(kEntries, std::size(kEntries), &expected_hosts);
   ParseHostsWithCommaModeForTesting(
       kContents, &actual_hosts, PARSE_HOSTS_COMMA_IS_WHITESPACE);
   ASSERT_EQ(expected_hosts, actual_hosts);
@@ -111,13 +127,13 @@ TEST(DnsHostsTest, ParseHosts_CommaModeByPlatform) {
   DnsHosts actual_hosts;
   ParseHosts(kContents, &actual_hosts);
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
   const ExpectedHostsEntry kEntries[] = {
     { "comma1", ADDRESS_FAMILY_IPV4, "127.0.0.1" },
     { "comma2", ADDRESS_FAMILY_IPV4, "127.0.0.1" },
   };
   DnsHosts expected_hosts;
-  PopulateExpectedHosts(kEntries, arraysize(kEntries), &expected_hosts);
+  PopulateExpectedHosts(kEntries, std::size(kEntries), &expected_hosts);
   ASSERT_EQ(expected_hosts, actual_hosts);
 #else
   ASSERT_EQ(0UL, actual_hosts.size());

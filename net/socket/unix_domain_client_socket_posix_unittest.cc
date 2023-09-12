@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,20 +9,21 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
 #include "base/posix/eintr_wrapper.h"
+#include "build/build_config.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/sockaddr_storage.h"
+#include "net/base/sockaddr_util_posix.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/socket_posix.h"
 #include "net/socket/unix_domain_server_socket_posix.h"
 #include "net/test/gtest_util.h"
-#include "net/test/test_with_scoped_task_environment.h"
+#include "net/test/test_with_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
-#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -37,7 +38,7 @@ const char kSocketFilename[] = "socket_for_testing";
 bool UserCanConnectCallback(
     bool allow_user, const UnixDomainServerSocket::Credentials& credentials) {
   // Here peers are running in same process.
-#if defined(OS_LINUX) || defined(OS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   EXPECT_EQ(getpid(), credentials.process_id);
 #endif
   EXPECT_EQ(getuid(), credentials.user_id);
@@ -46,7 +47,7 @@ bool UserCanConnectCallback(
 }
 
 UnixDomainServerSocket::AuthCallback CreateAuthCallback(bool allow_user) {
-  return base::Bind(&UserCanConnectCallback, allow_user);
+  return base::BindRepeating(&UserCanConnectCallback, allow_user);
 }
 
 // Connects socket synchronously.
@@ -124,7 +125,7 @@ int WriteSynchronously(StreamSocket* socket,
   return write_buf->BytesConsumed();
 }
 
-class UnixDomainClientSocketTest : public TestWithScopedTaskEnvironment {
+class UnixDomainClientSocketTest : public TestWithTaskEnvironment {
  protected:
   UnixDomainClientSocketTest() {
     EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
@@ -192,8 +193,8 @@ TEST_F(UnixDomainClientSocketTest, ConnectWithSocketDescriptor) {
   // Now, re-wrap client_socket_fd in a UnixDomainClientSocket and try a read
   // to be sure it hasn't gotten accidentally closed.
   SockaddrStorage addr;
-  ASSERT_TRUE(UnixDomainClientSocket::FillAddress(socket_path_, false, &addr));
-  std::unique_ptr<SocketPosix> adopter(new SocketPosix);
+  ASSERT_TRUE(FillUnixAddress(socket_path_, false, &addr));
+  auto adopter = std::make_unique<SocketPosix>();
   adopter->AdoptConnectedSocket(client_socket_fd, addr);
   UnixDomainClientSocket rewrapped_socket(std::move(adopter));
   EXPECT_TRUE(rewrapped_socket.IsConnected());
@@ -216,7 +217,7 @@ TEST_F(UnixDomainClientSocketTest, ConnectWithAbstractNamespace) {
   UnixDomainClientSocket client_socket(socket_path_, kUseAbstractNamespace);
   EXPECT_FALSE(client_socket.IsConnected());
 
-#if defined(OS_ANDROID) || defined(OS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   UnixDomainServerSocket server_socket(CreateAuthCallback(true),
                                        kUseAbstractNamespace);
   EXPECT_THAT(server_socket.BindAndListen(socket_path_, /*backlog=*/1), IsOk());
@@ -258,7 +259,7 @@ TEST_F(UnixDomainClientSocketTest,
   EXPECT_FALSE(client_socket.IsConnected());
 
   TestCompletionCallback connect_callback;
-#if defined(OS_ANDROID) || defined(OS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   EXPECT_THAT(ConnectSynchronously(&client_socket),
               IsError(ERR_CONNECTION_REFUSED));
 #else

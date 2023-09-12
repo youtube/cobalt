@@ -1,21 +1,20 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_STREAM_FACTORY_H_
 #define NET_HTTP_HTTP_STREAM_FACTORY_H_
 
-#include <list>
+#include <stddef.h>
+
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 
+#include "base/containers/unique_ptr_adapters.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
-#include "base/strings/string16.h"
-#include "net/base/completion_callback.h"
+#include "base/memory/raw_ptr.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
@@ -24,7 +23,6 @@
 #include "net/base/request_priority.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_server_properties.h"
-#include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_request.h"
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_with_source.h"
@@ -33,17 +31,6 @@
 #include "net/spdy/spdy_session_key.h"
 #include "net/ssl/ssl_config.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
-#include "starboard/types.h"
-
-#ifdef QUIC_DISABLED_FOR_STARBOARD
-#include "net/third_party/quic/core/quic_types.h"
-#endif
-
-namespace base {
-namespace trace_event {
-class ProcessMemoryDump;
-}
-}
 
 namespace net {
 
@@ -58,17 +45,35 @@ class NET_EXPORT HttpStreamFactory {
   class NET_EXPORT_PRIVATE JobFactory;
 
   enum JobType {
+    // Job that will connect via HTTP/1 or HTTP/2. This may be paused for a
+    // while when ALTERNATIVE or DNS_ALPN_H3 job was created.
     MAIN,
+    // Job that will connect via HTTP/3 iff Chrome has received an Alt-Svc
+    // header from the origin.
     ALTERNATIVE,
+    // Job that will connect via HTTP/3 iff an "h3" value was found in the ALPN
+    // list of an HTTPS DNS record.
+    DNS_ALPN_H3,
+    // Job that will preconnect. This uses HTTP/3 iff Chrome has received an
+    // Alt-Svc header from the origin. Otherwise, it use HTTP/1 or HTTP/2.
     PRECONNECT,
+    // Job that will preconnect via HTTP/3 iff an "h3" value was found in the
+    // ALPN list of an HTTPS DNS record.
+    PRECONNECT_DNS_ALPN_H3,
   };
 
   explicit HttpStreamFactory(HttpNetworkSession* session);
+
+  HttpStreamFactory(const HttpStreamFactory&) = delete;
+  HttpStreamFactory& operator=(const HttpStreamFactory&) = delete;
+
   virtual ~HttpStreamFactory();
 
-  void ProcessAlternativeServices(HttpNetworkSession* session,
-                                  const HttpResponseHeaders* headers,
-                                  const url::SchemeHostPort& http_server);
+  void ProcessAlternativeServices(
+      HttpNetworkSession* session,
+      const net::NetworkAnonymizationKey& network_anonymization_key,
+      const HttpResponseHeaders* headers,
+      const url::SchemeHostPort& http_server);
 
   // Request a stream.
   // Will call delegate->OnStreamReady on successful completion.
@@ -112,37 +117,19 @@ class NET_EXPORT HttpStreamFactory {
       const NetLogWithSource& net_log);
 
   // Requests that enough connections for |num_streams| be opened.
-  void PreconnectStreams(int num_streams, const HttpRequestInfo& info);
+  void PreconnectStreams(int num_streams, HttpRequestInfo& info);
 
   const HostMappingRules* GetHostMappingRules() const;
-
-  // Dumps memory allocation stats. |parent_dump_absolute_name| is the name
-  // used by the parent MemoryAllocatorDump in the memory dump hierarchy.
-  void DumpMemoryStats(base::trace_event::ProcessMemoryDump* pmd,
-                       const std::string& parent_absolute_name) const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpStreamRequestTest, SetPriority);
 
   friend class HttpStreamFactoryPeer;
 
-  using JobControllerSet = std::set<std::unique_ptr<JobController>>;
+  using JobControllerSet =
+      std::set<std::unique_ptr<JobController>, base::UniquePtrComparator>;
 
   url::SchemeHostPort RewriteHost(const url::SchemeHostPort& server);
-
-  // |PreconnectingProxyServer| holds information of a connection to a single
-  // proxy server.
-  struct PreconnectingProxyServer {
-    PreconnectingProxyServer(ProxyServer proxy_server,
-                             PrivacyMode privacy_mode);
-
-    // Needed to be an element of std::set.
-    bool operator<(const PreconnectingProxyServer& other) const;
-    bool operator==(const PreconnectingProxyServer& other) const;
-
-    const ProxyServer proxy_server;
-    const PrivacyMode privacy_mode;
-  };
 
   // Values must not be changed or reused.  Keep in sync with identically named
   // enum in histograms.xml.
@@ -168,11 +155,6 @@ class NET_EXPORT HttpStreamFactory {
       bool enable_alternative_services,
       const NetLogWithSource& net_log);
 
-  // Called when the Job detects that the endpoint indicated by the
-  // Alternate-Protocol does not work. Lets the factory update
-  // HttpAlternateProtocols with the failure and resets the SPDY session key.
-  void OnBrokenAlternateProtocol(const Job*, const HostPortPair& origin);
-
   // Called when the Preconnect completes. Used for testing.
   virtual void OnPreconnectsCompleteInternal() {}
 
@@ -180,22 +162,7 @@ class NET_EXPORT HttpStreamFactory {
   // from |job_controller_set_|.
   void OnJobControllerComplete(JobController* controller);
 
-  // Returns true if a connection to the proxy server contained in |proxy_info|
-  // that has privacy mode |privacy_mode| can be skipped by a job controlled by
-  // |controller|.
-  bool OnInitConnection(const JobController& controller,
-                        const ProxyInfo& proxy_info,
-                        PrivacyMode privacy_mode);
-
-  // Notifies |this| that a stream to the proxy server contained in |proxy_info|
-  // with privacy mode |privacy_mode| is ready.
-  void OnStreamReady(const ProxyInfo& proxy_info, PrivacyMode privacy_mode);
-
-  // Returns true if |proxy_info| contains a proxy server that supports request
-  // priorities.
-  bool ProxyServerSupportsPriorities(const ProxyInfo& proxy_info) const;
-
-  HttpNetworkSession* const session_;
+  const raw_ptr<HttpNetworkSession> session_;
 
   // All Requests/Preconnects are assigned with a JobController to manage
   // serving Job(s). JobController might outlive Request when Request
@@ -206,12 +173,6 @@ class NET_EXPORT HttpStreamFactory {
 
   // Factory used by job controllers for creating jobs.
   std::unique_ptr<JobFactory> job_factory_;
-
-  // Set of proxy servers that support request priorities to which subsequent
-  // preconnects should be skipped.
-  std::set<PreconnectingProxyServer> preconnecting_proxy_servers_;
-
-  DISALLOW_COPY_AND_ASSIGN(HttpStreamFactory);
 };
 
 }  // namespace net

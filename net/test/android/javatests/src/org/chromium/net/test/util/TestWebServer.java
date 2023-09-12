@@ -1,4 +1,4 @@
-// Copyright 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,6 @@ import org.chromium.base.ApiCompatibilityUtils;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -69,10 +68,11 @@ public class TestWebServer extends WebServer {
      * Create and start a local HTTP server instance.
      * @param port Port number the server must use, or 0 to automatically choose a free port.
      * @param ssl True if the server should be using secure sockets.
+     * @param additional True if creating an additional server instance.
      * @throws Exception
      */
-    private TestWebServer(int port, boolean ssl) throws Exception {
-        super(port, ssl);
+    private TestWebServer(int port, boolean ssl, boolean additional) throws Exception {
+        super(port, ssl, additional);
         setRequestHandler(new Handler());
     }
 
@@ -91,20 +91,78 @@ public class TestWebServer extends WebServer {
         }
     }
 
+    /**
+     * Create and start a local HTTP server instance. This function must only
+     * be called if no other instances were created. You are responsible for
+     * calling shutdown() on each instance you create.
+     *
+     * @param port Port number the server must use, or 0 to automatically choose a free port.
+     */
     public static TestWebServer start(int port) throws Exception {
-        return new TestWebServer(port, false);
+        return new TestWebServer(port, false, false);
     }
 
+    /**
+     * Same as start(int) but chooses a free port.
+     */
     public static TestWebServer start() throws Exception {
         return start(0);
     }
 
-    public static TestWebServer startSsl(int port) throws Exception {
-        return new TestWebServer(port, true);
+    /**
+     * Create and start a local HTTP server instance. This function must only
+     * be called if you need more than one server instance and the first one
+     * was already created using start() or start(int). You are responsible for
+     * calling shutdown() on each instance you create.
+     *
+     * @param port Port number the server must use, or 0 to automatically choose a free port.
+     */
+    public static TestWebServer startAdditional(int port) throws Exception {
+        return new TestWebServer(port, false, true);
     }
 
+    /**
+     * Same as startAdditional(int) but chooses a free port.
+     */
+    public static TestWebServer startAdditional() throws Exception {
+        return startAdditional(0);
+    }
+
+    /**
+     * Create and start a local secure HTTP server instance. This function must
+     * only be called if no other secure instances were created. You are
+     * responsible for calling shutdown() on each instance you create.
+     *
+     * @param port Port number the server must use, or 0 to automatically choose a free port.
+     */
+    public static TestWebServer startSsl(int port) throws Exception {
+        return new TestWebServer(port, true, false);
+    }
+
+    /**
+     * Same as startSsl(int) but chooses a free port.
+     */
     public static TestWebServer startSsl() throws Exception {
         return startSsl(0);
+    }
+
+    /**
+     * Create and start a local secure HTTP server instance. This function must
+     * only be called if you need more than one secure server instance and the
+     * first one was already created using startSsl() or startSsl(int). You are
+     * responsible for calling shutdown() on each instance you create.
+     *
+     * @param port Port number the server must use, or 0 to automatically choose a free port.
+     */
+    public static TestWebServer startAdditionalSsl(int port) throws Exception {
+        return new TestWebServer(port, true, true);
+    }
+
+    /**
+     * Same as startAdditionalSsl(int) but chooses a free port.
+     */
+    public static TestWebServer startAdditionalSsl() throws Exception {
+        return startAdditionalSsl(0);
     }
 
     private static final int RESPONSE_STATUS_NORMAL = 0;
@@ -224,15 +282,29 @@ public class TestWebServer extends WebServer {
      * Sets a redirect.
      *
      * @param requestPath The path to respond to.
-     * @param targetPath The path to redirect to.
+     * @param targetLocation The path (or absolute URL) to redirect to.
      * @return The full URL including the path that should be requested to get the expected
      *         response.
      */
-    public String setRedirect(String requestPath, String targetPath) {
-        List<Pair<String, String>> responseHeaders = new ArrayList<Pair<String, String>>();
-        responseHeaders.add(Pair.create("Location", targetPath));
+    public String setRedirect(String requestPath, String targetLocation) {
+        return setRedirect(requestPath, targetLocation, new ArrayList<>());
+    }
 
-        return setResponseInternal(requestPath, ApiCompatibilityUtils.getBytesUtf8(targetPath),
+    /**
+     * Sets a redirect with optional headers.
+     *
+     * @param requestPath The path to respond to.
+     * @param targetLocation The path (or absolute URL) to redirect to.
+     * @param responseHeaders Any additional headers that should be returned along with the
+     *                        response (null is acceptable).
+     * @return The full URL including the path that should be requested to get the expected
+     *         response.
+     */
+    public String setRedirect(
+            String requestPath, String targetLocation, List<Pair<String, String>> responseHeaders) {
+        responseHeaders.add(Pair.create("Location", targetLocation));
+
+        return setResponseInternal(requestPath, ApiCompatibilityUtils.getBytesUtf8(targetLocation),
                 responseHeaders, null, RESPONSE_STATUS_MOVED_TEMPORARILY);
     }
 
@@ -294,8 +366,9 @@ public class TestWebServer extends WebServer {
      */
     public HTTPRequest getLastRequest(String requestPath) {
         synchronized (mLock) {
-            if (!mLastRequestMap.containsKey(requestPath))
+            if (!mLastRequestMap.containsKey(requestPath)) {
                 throw new IllegalArgumentException("Path not set: " + requestPath);
+            }
             return mLastRequestMap.get(requestPath);
         }
     }
@@ -334,12 +407,13 @@ public class TestWebServer extends WebServer {
         boolean copyBinaryBodyToResponse = false;
         boolean contentLengthAlreadyIncluded = false;
         boolean contentTypeAlreadyIncluded = false;
-        String path = URI.create(request.getURI()).getPath();
         StringBuilder textBody = new StringBuilder();
+
+        String requestURI = request.getURI();
 
         Response response;
         synchronized (mLock) {
-            response = mResponseMap.get(path);
+            response = mResponseMap.get(requestURI);
         }
 
         if (response == null || response.mIsNotFound) {
@@ -356,13 +430,13 @@ public class TestWebServer extends WebServer {
                 copyHeadersToResponse = false;
             }
         } else if (response.mIsNoContent) {
-            stream.println("HTTP/1.0 200 OK");
+            stream.println("HTTP/1.0 204 No Content");
             copyHeadersToResponse = false;
         } else if (response.mIsRedirect) {
             stream.println("HTTP/1.0 302 Found");
             textBody.append(String.format(bodyTemplate, "Found", "Found"));
         } else if (response.mIsEmptyResponse) {
-            stream.println("HTTP/1.0 403 Forbidden");
+            stream.println("HTTP/1.0 200 OK");
             copyHeadersToResponse = false;
         } else {
             if (response.mResponseAction != null) response.mResponseAction.run();
@@ -383,9 +457,9 @@ public class TestWebServer extends WebServer {
                 }
             }
             synchronized (mLock) {
-                mResponseCountMap.put(
-                        path, Integer.valueOf(mResponseCountMap.get(path).intValue() + 1));
-                mLastRequestMap.put(path, request);
+                mResponseCountMap.put(requestURI,
+                        Integer.valueOf(mResponseCountMap.get(requestURI).intValue() + 1));
+                mLastRequestMap.put(requestURI, request);
             }
         }
 
@@ -398,17 +472,18 @@ public class TestWebServer extends WebServer {
         stream.println();
 
         if (textBody.length() != 0) {
-            if (!contentTypeAlreadyIncluded && (path.endsWith(".html") || path.endsWith(".htm"))) {
+            if (!contentTypeAlreadyIncluded
+                    && (requestURI.endsWith(".html") || requestURI.endsWith(".htm"))) {
                 stream.println("Content-Type: text/html");
             }
             stream.println("Content-Length: " + textBody.length());
             stream.println();
             stream.print(textBody.toString());
         } else if (copyBinaryBodyToResponse) {
-            if (!contentTypeAlreadyIncluded && path.endsWith(".js")) {
+            if (!contentTypeAlreadyIncluded && requestURI.endsWith(".js")) {
                 stream.println("Content-Type: application/javascript");
             } else if (!contentTypeAlreadyIncluded
-                    && (path.endsWith(".html") || path.endsWith(".htm"))) {
+                    && (requestURI.endsWith(".html") || requestURI.endsWith(".htm"))) {
                 stream.println("Content-Type: text/html");
             }
             if (!contentLengthAlreadyIncluded) {

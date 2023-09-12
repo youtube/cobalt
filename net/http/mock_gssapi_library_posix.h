@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -113,7 +113,7 @@ class MockGSSAPILibrary : public GSSAPILibrary {
   // Initializes the library, including any necessary dynamic libraries.
   // This is done separately from construction (which happens at startup time)
   // in order to delay work until the class is actually needed.
-  bool Init() override;
+  bool Init(const NetLogWithSource& net_log) override;
 
   // These methods match the ones in the GSSAPI library.
   OM_uint32 import_name(OM_uint32* minor_status,
@@ -128,6 +128,28 @@ class MockGSSAPILibrary : public GSSAPILibrary {
                          const gss_name_t input_name,
                          gss_buffer_t output_name_buffer,
                          gss_OID* output_name_type) override;
+
+  // These special status values can be used to trigger specific behavior in
+  // |display_status()|.
+  enum class DisplayStatusSpecials : OM_uint32 {
+    // A multiline status message.
+    MultiLine = 128,
+
+    // Multiline, execept there's no ending message.
+    InfiniteLines,
+
+    // Causes |display_status()| to fail.
+    Fail,
+
+    // Returns an empty message.
+    EmptyMessage,
+
+    // Returns successfully without modifying |status_string|.
+    UninitalizedBuffer,
+
+    // Returns a message that's invalid UTF-8.
+    InvalidUtf8
+  };
   OM_uint32 display_status(OM_uint32* minor_status,
                            OM_uint32 status_value,
                            int status_type,
@@ -180,6 +202,8 @@ class MockGSSAPILibrary : public GSSAPILibrary {
 };
 
 }  // namespace test
+
+using MockAuthLibrary = test::MockGSSAPILibrary;
 
 }  // namespace net
 
