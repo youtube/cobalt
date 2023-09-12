@@ -51,10 +51,11 @@ def main(out_directory: str, platform: str, build_type: str,
 
 
 if __name__ == '__main__':
-  current_working_dir = os.getcwd()
-  python_env_var = os.getenv('PYTHONPATH')
+  current_working_dir = os.path.realpath(os.getcwd())
+  python_env_var = os.path.realpath(os.getenv('PYTHONPATH'))
   assert current_working_dir in python_env_var, 'env variable PYTHONPATH \
-  should be set to current repo root directory.'
+      should be set to current repo root directory. (CWD="{current_working_dir}" \
+      PYTHONPATH="{python_env_var}")'
 
   parser = argparse.ArgumentParser()
 
