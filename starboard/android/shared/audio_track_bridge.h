@@ -41,11 +41,6 @@ class AudioTrackBridge {
                    int channels,
                    int sampling_frequency_hz,
                    int preferred_buffer_size_in_bytes,
-<<<<<<< HEAD
-                   bool enable_audio_device_callback,
-                   bool enable_pcm_content_type_movie,
-=======
->>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
                    int tunnel_mode_audio_session_id,
                    bool is_web_audio);
   ~AudioTrackBridge();

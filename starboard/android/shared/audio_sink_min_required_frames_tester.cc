@@ -126,11 +126,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
-<<<<<<< HEAD
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, false, false, this);
-=======
         &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
->>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
     {
       ScopedLock scoped_lock(mutex_);
       wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);

@@ -69,11 +69,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ErrorFunc error_func,
       SbTime start_time,
       int tunnel_mode_audio_session_id,
-<<<<<<< HEAD
-      bool enable_audio_device_callback,
-      bool enable_pcm_content_type_movie,
-=======
->>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
       bool is_web_audio,
       void* context);
 
@@ -118,11 +113,6 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       SbAudioSinkPrivate::ErrorFunc error_func,
       SbTime start_media_time,
       int tunnel_mode_audio_session_id,
-<<<<<<< HEAD
-      bool enable_audio_device_callback,
-      bool enable_pcm_content_type_movie,
-=======
->>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
       bool is_web_audio,
       void* context);
   ~AudioTrackAudioSink() override;
