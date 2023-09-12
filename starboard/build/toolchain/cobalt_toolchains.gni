@@ -21,6 +21,7 @@ template("cobalt_clang_toolchain") {
                            [
                              "native_linker_path",
                              "executable_extension",
+                             "tail_lib_dependencies",
                              "shlib_extension",
                            ])
     assert(defined(native_linker_path),
