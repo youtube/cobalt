@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,12 @@
 
 #include <memory>
 
-#include "base/single_thread_task_runner.h"
+#include "base/task/sequence_manager/sequence_manager.h"
 #include "base/task/sequence_manager/sequence_manager_impl.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/tick_clock.h"
 
 namespace base {
-
-class MessageLoop;
 
 namespace sequence_manager {
 
@@ -25,13 +24,26 @@ class SequenceManagerForTest : public internal::SequenceManagerImpl {
   // the given arguments. ThreadControllerImpl is slightly overridden to skip
   // nesting observers registration if message loop is absent.
   static std::unique_ptr<SequenceManagerForTest> Create(
-      MessageLoop* message_loop,
+      SequenceManagerImpl* funneled_sequence_manager,
       scoped_refptr<SingleThreadTaskRunner> task_runner,
-      const TickClock* clock);
+      const TickClock* clock,
+      // Since most test calls are in Blink, randomised sampling is enabled
+      // by default in the test SequenceManager, as opposed to production code.
+      SequenceManager::Settings settings =
+          SequenceManager::Settings::Builder()
+              .SetRandomisedSamplingEnabled(true)
+              .Build());
 
   // Creates SequenceManagerForTest using the provided ThreadController.
   static std::unique_ptr<SequenceManagerForTest> Create(
-      std::unique_ptr<internal::ThreadController> thread_controller);
+      std::unique_ptr<internal::ThreadController> thread_controller,
+      SequenceManager::Settings settings =
+          SequenceManager::Settings::Builder()
+              .SetRandomisedSamplingEnabled(true)
+              .Build());
+
+  static std::unique_ptr<SequenceManagerForTest> CreateOnCurrentThread(
+      SequenceManager::Settings);
 
   size_t ActiveQueuesCount() const;
   bool HasImmediateWork() const;
@@ -39,12 +51,16 @@ class SequenceManagerForTest : public internal::SequenceManagerImpl {
   size_t QueuesToDeleteCount() const;
   size_t QueuesToShutdownCount();
 
+  using internal::SequenceManagerImpl::
+      CreateThreadControllerImplForCurrentThread;
   using internal::SequenceManagerImpl::GetNextSequenceNumber;
-  using internal::SequenceManagerImpl::WakeUpReadyDelayedQueues;
+  using internal::SequenceManagerImpl::MoveReadyDelayedTasksToWorkQueues;
+  using internal::SequenceManagerImpl::ReloadEmptyWorkQueues;
 
  private:
   explicit SequenceManagerForTest(
-      std::unique_ptr<internal::ThreadController> thread_controller);
+      std::unique_ptr<internal::ThreadController> thread_controller,
+      SequenceManager::Settings settings);
 };
 
 }  // namespace sequence_manager

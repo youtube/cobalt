@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,15 +12,15 @@
 
 #include "base/i18n/streaming_utf8_validator.h"
 
+#include <stddef.h>
+
 #include <string>
 
-#include "base/bind.h"
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/perf_time_logger.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -50,8 +50,8 @@ const size_t kTestLengths[] = {1, 32, 256, 32768, 1 << 20};
 // the results will not be meaningful with sequences containing
 // top-bit-set bytes.
 bool IsString7Bit(const std::string& s) {
-  for (std::string::const_iterator it = s.begin(); it != s.end(); ++it) {
-    if (*it & 0x80)
+  for (auto it : s) {
+    if (it & 0x80)
       return false;
   }
   return true;
@@ -150,11 +150,10 @@ const TestFunctionDescription kTestFunctions[] = {
 // is around 16MB.
 void RunSomeTests(
     const char format[],
-    base::Callback<std::string(size_t length)> construct_test_string,
+    base::RepeatingCallback<std::string(size_t length)> construct_test_string,
     const TestFunctionDescription* test_functions,
     size_t test_count) {
-  for (size_t i = 0; i < arraysize(kTestLengths); ++i) {
-    const size_t length = kTestLengths[i];
+  for (auto length : kTestLengths) {
     const std::string test_string = construct_test_string.Run(length);
     const int real_length = static_cast<int>(test_string.length());
     const int times = (1 << 24) / real_length;
@@ -171,68 +170,61 @@ void RunSomeTests(
 }
 
 TEST(StreamingUtf8ValidatorPerfTest, OneByteRepeated) {
-  RunSomeTests("%s: bytes=1 repeated length=%d repeat=%d",
-               base::Bind(ConstructRepeatedTestString, kOneByteSeqRangeStart),
-               kTestFunctions,
-               3);
+  RunSomeTests(
+      "%s: bytes=1 repeated length=%d repeat=%d",
+      base::BindRepeating(ConstructRepeatedTestString, kOneByteSeqRangeStart),
+      kTestFunctions, 3);
 }
 
 TEST(StreamingUtf8ValidatorPerfTest, OneByteRange) {
   RunSomeTests("%s: bytes=1 ranged length=%d repeat=%d",
-               base::Bind(ConstructRangedTestString,
-                          kOneByteSeqRangeStart,
-                          kOneByteSeqRangeEnd),
-               kTestFunctions,
-               3);
+               base::BindRepeating(ConstructRangedTestString,
+                                   kOneByteSeqRangeStart, kOneByteSeqRangeEnd),
+               kTestFunctions, 3);
 }
 
 TEST(StreamingUtf8ValidatorPerfTest, TwoByteRepeated) {
-  RunSomeTests("%s: bytes=2 repeated length=%d repeat=%d",
-               base::Bind(ConstructRepeatedTestString, kTwoByteSeqRangeStart),
-               kTestFunctions,
-               2);
+  RunSomeTests(
+      "%s: bytes=2 repeated length=%d repeat=%d",
+      base::BindRepeating(ConstructRepeatedTestString, kTwoByteSeqRangeStart),
+      kTestFunctions, 2);
 }
 
 TEST(StreamingUtf8ValidatorPerfTest, TwoByteRange) {
   RunSomeTests("%s: bytes=2 ranged length=%d repeat=%d",
-               base::Bind(ConstructRangedTestString,
-                          kTwoByteSeqRangeStart,
-                          kTwoByteSeqRangeEnd),
-               kTestFunctions,
-               2);
+               base::BindRepeating(ConstructRangedTestString,
+                                   kTwoByteSeqRangeStart, kTwoByteSeqRangeEnd),
+               kTestFunctions, 2);
 }
 
 TEST(StreamingUtf8ValidatorPerfTest, ThreeByteRepeated) {
   RunSomeTests(
       "%s: bytes=3 repeated length=%d repeat=%d",
-      base::Bind(ConstructRepeatedTestString, kThreeByteSeqRangeStart),
-      kTestFunctions,
-      2);
+      base::BindRepeating(ConstructRepeatedTestString, kThreeByteSeqRangeStart),
+      kTestFunctions, 2);
 }
 
 TEST(StreamingUtf8ValidatorPerfTest, ThreeByteRange) {
-  RunSomeTests("%s: bytes=3 ranged length=%d repeat=%d",
-               base::Bind(ConstructRangedTestString,
-                          kThreeByteSeqRangeStart,
+  RunSomeTests(
+      "%s: bytes=3 ranged length=%d repeat=%d",
+      base::BindRepeating(ConstructRangedTestString, kThreeByteSeqRangeStart,
                           kThreeByteSeqRangeEnd),
-               kTestFunctions,
-               2);
+      kTestFunctions, 2);
 }
 
 TEST(StreamingUtf8ValidatorPerfTest, FourByteRepeated) {
-  RunSomeTests("%s: bytes=4 repeated length=%d repeat=%d",
-               base::Bind(ConstructRepeatedTestString, kFourByteSeqRangeStart),
-               kTestFunctions,
-               2);
+  RunSomeTests(
+      "%s: bytes=4 repeated length=%d repeat=%d",
+      base::BindRepeating(ConstructRepeatedTestString, kFourByteSeqRangeStart),
+      kTestFunctions, 2);
 }
 
 TEST(StreamingUtf8ValidatorPerfTest, FourByteRange) {
-  RunSomeTests("%s: bytes=4 ranged length=%d repeat=%d",
-               base::Bind(ConstructRangedTestString,
-                          kFourByteSeqRangeStart,
+  RunSomeTests(
+      "%s: bytes=4 ranged length=%d repeat=%d",
+      base::BindRepeating(ConstructRangedTestString, kFourByteSeqRangeStart,
                           kFourByteSeqRangeEnd),
-               kTestFunctions,
-               2);
+      kTestFunctions, 2);
 }
 
 }  // namespace

@@ -1,11 +1,11 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/test_io_thread.h"
 
-#include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/check.h"
+#include "base/message_loop/message_pump_type.h"
 
 namespace base {
 
@@ -29,7 +29,7 @@ void TestIOThread::Start() {
   CHECK(!io_thread_started_);
   io_thread_started_ = true;
   CHECK(io_thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0)));
+      base::Thread::Options(base::MessagePumpType::IO, 0)));
 }
 
 void TestIOThread::Stop() {

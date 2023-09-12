@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,11 +8,10 @@
 #include "base/win/windows_types.h"
 
 #include "base/base_export.h"
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 
 namespace base {
 namespace win {
@@ -52,12 +51,13 @@ namespace win {
 // still called after (but not necessarily immediately after) watch is started.
 //
 // NOTE: Except for the constructor, all public methods of this class must be
-// called in sequence, in a scope where SequencedTaskRunnerHandle::IsSet().
+// called in sequence, in a scope where
+// SequencedTaskRunner::HasCurrentDefault().
 class BASE_EXPORT ObjectWatcher {
  public:
   class BASE_EXPORT Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
     // Called from the sequence that started the watch when a signaled object is
     // detected. To continue watching the object, StartWatching must be called
     // again.
@@ -65,20 +65,29 @@ class BASE_EXPORT ObjectWatcher {
   };
 
   ObjectWatcher();
+
+  ObjectWatcher(const ObjectWatcher&) = delete;
+  ObjectWatcher& operator=(const ObjectWatcher&) = delete;
+
   ~ObjectWatcher();
 
   // When the object is signaled, the given delegate is notified on the sequence
   // where StartWatchingOnce is called. The ObjectWatcher is not responsible for
   // deleting the delegate.
   // Returns whether watching was successfully initiated.
-  bool StartWatchingOnce(HANDLE object, Delegate* delegate);
+  bool StartWatchingOnce(HANDLE object,
+                         Delegate* delegate,
+                         const Location& from_here = Location::Current());
 
   // Notifies the delegate, on the sequence where this method is called, each
   // time the object is set. By definition, the handle must be an auto-reset
   // object. The caller must ensure that it (or any Windows system code) doesn't
   // reset the event or else the delegate won't be called.
   // Returns whether watching was successfully initiated.
-  bool StartWatchingMultipleTimes(HANDLE object, Delegate* delegate);
+  bool StartWatchingMultipleTimes(
+      HANDLE object,
+      Delegate* delegate,
+      const Location& from_here = Location::Current());
 
   // Stops watching.  Does nothing if the watch has already completed.  If the
   // watch is still active, then it is canceled, and the associated delegate is
@@ -98,16 +107,20 @@ class BASE_EXPORT ObjectWatcher {
   static void CALLBACK DoneWaiting(void* param, BOOLEAN timed_out);
 
   // Helper used by StartWatchingOnce and StartWatchingMultipleTimes.
-  bool StartWatchingInternal(HANDLE object, Delegate* delegate,
-                             bool execute_only_once);
+  bool StartWatchingInternal(HANDLE object,
+                             Delegate* delegate,
+                             bool execute_only_once,
+                             const Location& from_here);
 
   void Signal(Delegate* delegate);
 
   void Reset();
 
+  Location location_;
+
   // A callback pre-bound to Signal() that is posted to the caller's task runner
   // when the wait completes.
-  Closure callback_;
+  RepeatingClosure callback_;
 
   // The object being watched.
   HANDLE object_ = nullptr;
@@ -120,9 +133,7 @@ class BASE_EXPORT ObjectWatcher {
 
   bool run_once_ = true;
 
-  WeakPtrFactory<ObjectWatcher> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(ObjectWatcher);
+  WeakPtrFactory<ObjectWatcher> weak_factory_{this};
 };
 
 }  // namespace win

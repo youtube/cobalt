@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,8 +25,7 @@
 #include <media/NdkMediaError.h>
 
 #include <jni.h>
-
-#include "starboard/types.h"
+#include <stdint.h>
 
 // Use "C" linkage to match the original header file. This isn't strictly
 // required since the file is not declaring global functions, but the types
@@ -39,6 +38,13 @@ extern "C" {
 typedef struct AHardwareBuffer AHardwareBuffer;
 
 typedef struct AImage AImage;
+
+typedef struct AImageCropRect {
+  int32_t left;
+  int32_t top;
+  int32_t right;
+  int32_t bottom;
+} AImageCropRect;
 
 enum AIMAGE_FORMATS {
   AIMAGE_FORMAT_YUV_420_888 = 0x23,
@@ -57,6 +63,9 @@ using pAImage_getWidth = media_status_t (*)(const AImage* image,
 
 using pAImage_getHeight = media_status_t (*)(const AImage* image,
                                              int32_t* height);
+
+using pAImage_getCropRect = media_status_t (*)(const AImage* image,
+                                               AImageCropRect* rect);
 
 // For AImageReader
 
@@ -85,7 +94,15 @@ using pAImageReader_delete = void (*)(AImageReader* reader);
 using pAImageReader_getWindow = media_status_t (*)(AImageReader* reader,
                                                    ANativeWindow** window);
 
+using pAImageReader_getFormat = media_status_t (*)(const AImageReader* reader,
+                                                   int32_t* format);
+
 using pAImageReader_acquireLatestImageAsync =
+    media_status_t (*)(AImageReader* reader,
+                       AImage** image,
+                       int* acquireFenceFd);
+
+using pAImageReader_acquireNextImageAsync =
     media_status_t (*)(AImageReader* reader,
                        AImage** image,
                        int* acquireFenceFd);

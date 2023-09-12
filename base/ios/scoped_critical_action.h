@@ -1,16 +1,25 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_IOS_SCOPED_CRITICAL_ACTION_H_
 #define BASE_IOS_SCOPED_CRITICAL_ACTION_H_
 
-#include "base/macros.h"
+#include <map>
+#include <string>
+#include <utility>
+
+#include "base/feature_list.h"
 #include "base/memory/ref_counted.h"
+#include "base/strings/string_piece_forward.h"
 #include "base/synchronization/lock.h"
+#include "base/time/time.h"
 
 namespace base {
 namespace ios {
+
+// Feature exposed publicly for unit-testing purposes.
+BASE_DECLARE_FEATURE(kScopedCriticalActionReuseEnabled);
 
 // This class attempts to allow the application to continue to run for a period
 // of time after it transitions to the background. The construction of an
@@ -27,23 +36,40 @@ namespace ios {
 // save such data.
 class ScopedCriticalAction {
  public:
-  ScopedCriticalAction();
+  ScopedCriticalAction(StringPiece task_name);
+
+  ScopedCriticalAction(const ScopedCriticalAction&) = delete;
+  ScopedCriticalAction& operator=(const ScopedCriticalAction&) = delete;
+
   ~ScopedCriticalAction();
+
+  // Exposed for unit-testing.
+  static void ClearNumActiveBackgroundTasksForTest();
+  static int GetNumActiveBackgroundTasksForTest();
 
  private:
   // Core logic; ScopedCriticalAction should not be reference counted so
   // that it follows the normal pattern of stack-allocating ScopedFoo objects,
   // but the expiration handler needs to have a reference counted object to
-  // refer to.
+  // refer to. All functions are thread safe.
   class Core : public base::RefCountedThreadSafe<Core> {
    public:
     Core();
 
+    Core(const Core&) = delete;
+    Core& operator=(const Core&) = delete;
+
     // Informs the OS that the background task has started. This is a
     // static method to ensure that the instance has a non-zero refcount.
-    static void StartBackgroundTask(scoped_refptr<Core> core);
+    // |task_name| is used by the OS to log any leaked background tasks.
+    // Invoking this function more than once is allowed: all except the
+    // first successful call will be a no-op.
+    static void StartBackgroundTask(scoped_refptr<Core> core,
+                                    StringPiece task_name);
     // Informs the OS that the background task has completed. This is a
     // static method to ensure that the instance has a non-zero refcount.
+    // Invoking this function more than once is allowed: all except the
+    // first call will be a no-op.
     static void EndBackgroundTask(scoped_refptr<Core> core);
 
    private:
@@ -51,20 +77,65 @@ class ScopedCriticalAction {
     ~Core();
 
     // |UIBackgroundTaskIdentifier| returned by
-    // |beginBackgroundTaskWithExpirationHandler:| when marking the beginning of
-    // a long-running background task. It is defined as an |unsigned int|
+    // |beginBackgroundTaskWithName:expirationHandler:| when marking the
+    // beginning of a long-running background task. It is defined as a uint64_t
     // instead of a |UIBackgroundTaskIdentifier| so this class can be used in
     // .cc files.
-    unsigned int background_task_id_;
+    uint64_t background_task_id_ GUARDED_BY(background_task_id_lock_);
     Lock background_task_id_lock_;
-
-    DISALLOW_COPY_AND_ASSIGN(Core);
   };
 
-  // The instance of the core that drives the background task.
-  scoped_refptr<Core> core_;
+  // This class is thread safe.
+  class ActiveBackgroundTaskCache {
+   public:
+    // This struct should be considered internal to this class and opaque to
+    // callers.
+    struct InternalEntry {
+      InternalEntry();
+      InternalEntry(const InternalEntry&) = delete;
+      InternalEntry(InternalEntry&&);
+      ~InternalEntry();
 
-  DISALLOW_COPY_AND_ASSIGN(ScopedCriticalAction);
+      InternalEntry& operator=(const InternalEntry&) = delete;
+      InternalEntry& operator=(InternalEntry&&);
+
+      // The instance of the core that drives the background task.
+      scoped_refptr<Core> core;
+      // Refcounting for the number of ScopedCriticalAction instances that
+      // require the existence of this background task.
+      int num_active_handles = 0;
+    };
+
+    using NameAndTime = std::pair<std::string, base::TimeTicks>;
+    using InternalEntriesMap = std::map<NameAndTime, InternalEntry>;
+    // A handle should be treated as an opaque token by the caller.
+    using Handle = InternalEntriesMap::iterator;
+
+    // Returns a leaky singleton instance.
+    static ActiveBackgroundTaskCache* GetInstance();
+
+    ActiveBackgroundTaskCache();
+    ~ActiveBackgroundTaskCache();
+
+    // Starts a new background task if none existed with the same name. If a
+    // task already exists with the same name, its lifetime is effectively
+    // extended. Callers must invoke ReleaseHandle() once they no longer need to
+    // prevent background suspension.
+    Handle EnsureBackgroundTaskExistsWithName(StringPiece task_name);
+
+    // Indicates that a previous caller to EnsureBackgroundTaskExistsWithName()
+    // no longer needs to prevent background suspension.
+    void ReleaseHandle(Handle handle);
+
+   private:
+    InternalEntriesMap entries_map_ GUARDED_BY(entries_map_lock_);
+    Lock entries_map_lock_;
+  };
+
+  // Depepending on whether reuse is globally enabled upon construction, either
+  // a dedicated Core instance is used or a reusable one.
+  scoped_refptr<Core> core_;
+  ActiveBackgroundTaskCache::Handle task_handle_;
 };
 
 }  // namespace ios

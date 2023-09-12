@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,6 @@
 #define BASE_MEMORY_FREE_DELETER_H_
 
 #include <stdlib.h>
-
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -18,7 +15,9 @@ namespace base {
 // std::unique_ptr<int, base::FreeDeleter> foo_ptr(
 //     static_cast<int*>(malloc(sizeof(int))));
 struct FreeDeleter {
-  inline void operator()(void* ptr) const { SbMemoryDeallocate(ptr); }
+  inline void operator()(void* ptr) const {
+    free(ptr);
+  }
 };
 
 }  // namespace base

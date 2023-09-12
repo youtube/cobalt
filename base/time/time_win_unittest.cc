@@ -1,19 +1,24 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <windows.h>
+
 #include <mmsystem.h>
 #include <process.h>
+#include <stdint.h>
+#include <windows.foundation.h>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <vector>
 
+#include "base/strings/string_piece.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/win/registry.h"
-#include "starboard/types.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -22,7 +27,7 @@ namespace {
 // For TimeDelta::ConstexprInitialization
 constexpr int kExpectedDeltaInMilliseconds = 10;
 constexpr TimeDelta kConstexprTimeDelta =
-    TimeDelta::FromMilliseconds(kExpectedDeltaInMilliseconds);
+    Milliseconds(kExpectedDeltaInMilliseconds);
 
 class MockTimeTicks : public TimeTicks {
  public:
@@ -35,9 +40,7 @@ class MockTimeTicks : public TimeTicks {
     ticker_ = -5;
   }
 
-  static void UninstallTicker() {
-    SetMockTickFunction(old_tick_function_);
-  }
+  static void UninstallTicker() { SetMockTickFunction(old_tick_function_); }
 
  private:
   static volatile LONG ticker_;
@@ -65,6 +68,24 @@ unsigned __stdcall RolloverTestThreadMain(void* param) {
     last = now;
   }
   return 0;
+}
+
+#if defined(_M_ARM64) && defined(__clang__)
+#define ReadCycleCounter() _ReadStatusReg(ARM64_PMCCNTR_EL0)
+#else
+#define ReadCycleCounter() __rdtsc()
+#endif
+
+// Measure the performance of the CPU cycle counter so that we can compare it to
+// the overhead of QueryPerformanceCounter. A hard-coded frequency is used
+// because we don't care about the accuracy of the results, we just need to do
+// the work. The amount of work is not exactly the same as in TimeTicks::Now
+// (some steps are skipped) but that doesn't seem to materially affect the
+// results.
+TimeTicks GetTSC() {
+  // Using a fake cycle counter frequency for test purposes.
+  return TimeTicks() + Microseconds(ReadCycleCounter() *
+                                    Time::kMicrosecondsPerSecond / 10000000);
 }
 
 }  // namespace
@@ -101,9 +122,8 @@ TEST(TimeTicks, MAYBE_WinRollover) {
     for (int index = 0; index < kThreads; index++) {
       void* argument = reinterpret_cast<void*>(kChecks);
       unsigned thread_id;
-      threads[index] = reinterpret_cast<HANDLE>(
-        _beginthreadex(NULL, 0, RolloverTestThreadMain, argument, 0,
-          &thread_id));
+      threads[index] = reinterpret_cast<HANDLE>(_beginthreadex(
+          NULL, 0, RolloverTestThreadMain, argument, 0, &thread_id));
       EXPECT_NE((HANDLE)NULL, threads[index]);
     }
 
@@ -132,23 +152,19 @@ TEST(TimeTicks, SubMillisecondTimers) {
   if (!TimeTicks::IsHighResolution())
     return;
 
-  const int kRetries = 1000;
-  bool saw_submillisecond_timer = false;
-
   // Run kRetries attempts to see a sub-millisecond timer.
+  constexpr int kRetries = 1000;
   for (int index = 0; index < kRetries; index++) {
-    TimeTicks last_time = TimeTicks::Now();
+    const TimeTicks start_time = TimeTicks::Now();
     TimeDelta delta;
     // Spin until the clock has detected a change.
     do {
-      delta = TimeTicks::Now() - last_time;
-    } while (delta.InMicroseconds() == 0);
-    if (delta.InMicroseconds() < 1000) {
-      saw_submillisecond_timer = true;
-      break;
-    }
+      delta = TimeTicks::Now() - start_time;
+    } while (delta.is_zero());
+    if (!delta.InMilliseconds())
+      return;
   }
-  EXPECT_TRUE(saw_submillisecond_timer);
+  ADD_FAILURE() << "Never saw a sub-millisecond timer.";
 }
 
 TEST(TimeTicks, TimeGetTimeCaps) {
@@ -162,8 +178,7 @@ TEST(TimeTicks, TimeGetTimeCaps) {
   EXPECT_GT(static_cast<int>(caps.wPeriodMax), 1);
   EXPECT_GE(static_cast<int>(caps.wPeriodMin), 1);
   EXPECT_GT(static_cast<int>(caps.wPeriodMax), 1);
-  printf("timeGetTime range is %d to %dms\n", caps.wPeriodMin,
-    caps.wPeriodMax);
+  printf("timeGetTime range is %d to %dms\n", caps.wPeriodMin, caps.wPeriodMax);
 }
 
 TEST(TimeTicks, QueryPerformanceFrequency) {
@@ -174,18 +189,18 @@ TEST(TimeTicks, QueryPerformanceFrequency) {
   EXPECT_EQ(TRUE, rv);
   EXPECT_GT(frequency.QuadPart, 1000000);  // Expect at least 1MHz
   printf("QueryPerformanceFrequency is %5.2fMHz\n",
-    frequency.QuadPart / 1000000.0);
+         frequency.QuadPart / 1000000.0);
 }
 
 TEST(TimeTicks, TimerPerformance) {
   // Verify that various timer mechanisms can always complete quickly.
   // Note:  This is a somewhat arbitrary test.
-  const int kLoops = 10000;
+  const int kLoops = 500000;
 
   typedef TimeTicks (*TestFunc)();
   struct TestCase {
     TestFunc func;
-    const char *description;
+    const char* description;
   };
   // Cheating a bit here:  assumes sizeof(TimeTicks) == sizeof(Time)
   // in order to create a single test case list.
@@ -194,11 +209,22 @@ TEST(TimeTicks, TimerPerformance) {
   std::vector<TestCase> cases;
   cases.push_back({reinterpret_cast<TestFunc>(&Time::Now), "Time::Now"});
   cases.push_back({&TimeTicks::Now, "TimeTicks::Now"});
+  cases.push_back({&GetTSC, "CPUCycleCounter"});
 
   if (ThreadTicks::IsSupported()) {
     ThreadTicks::WaitUntilInitialized();
     cases.push_back(
         {reinterpret_cast<TestFunc>(&ThreadTicks::Now), "ThreadTicks::Now"});
+  }
+
+  // Warm up the CPU to its full clock rate so that we get accurate timing
+  // information.
+  DWORD start_tick = GetTickCount();
+  const DWORD kWarmupMs = 50;
+  for (;;) {
+    DWORD elapsed = GetTickCount() - start_tick;
+    if (elapsed > kWarmupMs)
+      break;
   }
 
   for (const auto& test_case : cases) {
@@ -212,15 +238,19 @@ TEST(TimeTicks, TimerPerformance) {
     // The reason to remove the check is because the tests run on many
     // buildbots, some of which are VMs.  These machines can run horribly
     // slow, and there is really no value for checking against a max timer.
-    //const int kMaxTime = 35;  // Maximum acceptible milliseconds for test.
-    //EXPECT_LT((stop - start).InMilliseconds(), kMaxTime);
+    // const int kMaxTime = 35;  // Maximum acceptible milliseconds for test.
+    // EXPECT_LT((stop - start).InMilliseconds(), kMaxTime);
     printf("%s: %1.2fus per call\n", test_case.description,
            (stop - start).InMillisecondsF() * 1000 / kLoops);
   }
 }
 
+#if !defined(ARCH_CPU_ARM64)
+// This test is disabled on Windows ARM64 systems because TSCTicksPerSecond is
+// only used in Chromium for QueryThreadCycleTime, and QueryThreadCycleTime
+// doesn't use a constant-rate timer on ARM64.
 TEST(TimeTicks, TSCTicksPerSecond) {
-  if (ThreadTicks::IsSupported()) {
+  if (time_internal::HasConstantRateTSC()) {
     ThreadTicks::WaitUntilInitialized();
 
     // Read the CPU frequency from the registry.
@@ -234,11 +264,12 @@ TEST(TimeTicks, TSCTicksPerSecond) {
 
     // Expect the measured TSC frequency to be similar to the processor
     // frequency from the registry (0.5% error).
-    double tsc_mhz_measured = ThreadTicks::TSCTicksPerSecond() / 1e6;
+    double tsc_mhz_measured = time_internal::TSCTicksPerSecond() / 1e6;
     EXPECT_NEAR(tsc_mhz_measured, processor_mhz_from_registry,
                 0.005 * processor_mhz_from_registry);
   }
 }
+#endif
 
 TEST(TimeTicks, FromQPCValue) {
   if (!TimeTicks::IsHighResolution())
@@ -255,25 +286,29 @@ TEST(TimeTicks, FromQPCValue) {
   // of possible QPC tick values.
   std::vector<int64_t> test_cases;
   test_cases.push_back(0);
-  const int kNumAdvancements = 100;
-  int64_t ticks = 0;
-  int64_t ticks_increment = 10;
-  for (int i = 0; i < kNumAdvancements; ++i) {
-    test_cases.push_back(ticks);
-    ticks += ticks_increment;
-    ticks_increment = ticks_increment * 6 / 5;
+
+  // Build the test cases.
+  {
+    const int kNumAdvancements = 100;
+    int64_t ticks = 0;
+    int64_t ticks_increment = 10;
+    for (int i = 0; i < kNumAdvancements; ++i) {
+      test_cases.push_back(ticks);
+      ticks += ticks_increment;
+      ticks_increment = ticks_increment * 6 / 5;
+    }
+    test_cases.push_back(Time::kQPCOverflowThreshold - 1);
+    test_cases.push_back(Time::kQPCOverflowThreshold);
+    test_cases.push_back(Time::kQPCOverflowThreshold + 1);
+    ticks = Time::kQPCOverflowThreshold + 10;
+    ticks_increment = 10;
+    for (int i = 0; i < kNumAdvancements; ++i) {
+      test_cases.push_back(ticks);
+      ticks += ticks_increment;
+      ticks_increment = ticks_increment * 6 / 5;
+    }
+    test_cases.push_back(std::numeric_limits<int64_t>::max());
   }
-  test_cases.push_back(Time::kQPCOverflowThreshold - 1);
-  test_cases.push_back(Time::kQPCOverflowThreshold);
-  test_cases.push_back(Time::kQPCOverflowThreshold + 1);
-  ticks = Time::kQPCOverflowThreshold + 10;
-  ticks_increment = 10;
-  for (int i = 0; i < kNumAdvancements; ++i) {
-    test_cases.push_back(ticks);
-    ticks += ticks_increment;
-    ticks_increment = ticks_increment * 6 / 5;
-  }
-  test_cases.push_back(std::numeric_limits<int64_t>::max());
 
   // Test that the conversions using FromQPCValue() match those computed here
   // using simple floating-point arithmetic.  The floating-point math provides
@@ -283,10 +318,10 @@ TEST(TimeTicks, FromQPCValue) {
   for (int64_t ticks : test_cases) {
     const double expected_microseconds_since_origin =
         (static_cast<double>(ticks) * Time::kMicrosecondsPerSecond) /
-            ticks_per_second;
+        ticks_per_second;
     const TimeTicks converted_value = TimeTicks::FromQPCValue(ticks);
     const double converted_microseconds_since_origin =
-        static_cast<double>((converted_value - TimeTicks()).InMicroseconds());
+        (converted_value - TimeTicks()).InMicrosecondsF();
     // When we test with very large numbers we end up in a range where adjacent
     // double values are far apart - 512.0 apart in one test failure. In that
     // situation it makes no sense for our epsilon to be 1.0 - it should be
@@ -300,9 +335,7 @@ TEST(TimeTicks, FromQPCValue) {
     // slightly larger than 1.0, even when the converted value is perfect. This
     // epsilon value was chosen because it is slightly larger than the error
     // seen in a test failure caused by the double rounding.
-    const double min_epsilon = 1.002;
-    if (epsilon < min_epsilon)
-      epsilon = min_epsilon;
+    epsilon = std::max(epsilon, 1.002);
     EXPECT_NEAR(expected_microseconds_since_origin,
                 converted_microseconds_since_origin, epsilon)
         << "ticks=" << ticks << ", to be converted via logic path: "
@@ -321,19 +354,66 @@ TEST(TimeDelta, FromFileTime) {
   ft.dwHighDateTime = 0;
 
   // 100100 ns ~= 100 us.
-  EXPECT_EQ(TimeDelta::FromMicroseconds(100), TimeDelta::FromFileTime(ft));
+  EXPECT_EQ(Microseconds(100), TimeDelta::FromFileTime(ft));
 
   ft.dwLowDateTime = 0;
   ft.dwHighDateTime = 1;
 
   // 2^32 * 100 ns ~= 2^32 * 10 us.
-  EXPECT_EQ(TimeDelta::FromMicroseconds((1ull << 32) / 10),
-            TimeDelta::FromFileTime(ft));
+  EXPECT_EQ(Microseconds((1ull << 32) / 10), TimeDelta::FromFileTime(ft));
+}
+
+TEST(TimeDelta, FromWinrtDateTime) {
+  ABI::Windows::Foundation::DateTime dt;
+  dt.UniversalTime = 0;
+
+  // 0 UniversalTime = no delta since epoch.
+  EXPECT_EQ(TimeDelta(), TimeDelta::FromWinrtDateTime(dt));
+
+  dt.UniversalTime = 101;
+
+  // 101 * 100 ns ~= 10.1 microseconds.
+  EXPECT_EQ(Microseconds(10.1), TimeDelta::FromWinrtDateTime(dt));
+}
+
+TEST(TimeDelta, ToWinrtDateTime) {
+  auto time_delta = Seconds(0);
+
+  // No delta since epoch = 0 DateTime.
+  EXPECT_EQ(0, time_delta.ToWinrtDateTime().UniversalTime);
+
+  time_delta = Microseconds(10);
+
+  // 10 microseconds = 100 * 100 ns.
+  EXPECT_EQ(100, time_delta.ToWinrtDateTime().UniversalTime);
+}
+
+TEST(TimeDelta, FromWinrtTimeSpan) {
+  ABI::Windows::Foundation::TimeSpan ts;
+  ts.Duration = 0;
+
+  // 0.
+  EXPECT_EQ(TimeDelta(), TimeDelta::FromWinrtTimeSpan(ts));
+
+  ts.Duration = 101;
+
+  // 101 * 100 ns ~= 10.1 microseconds.
+  EXPECT_EQ(Microseconds(10.1), TimeDelta::FromWinrtTimeSpan(ts));
+}
+
+TEST(TimeDelta, ToWinrtTimeSpan) {
+  auto time_delta = Seconds(0);
+
+  // 0.
+  EXPECT_EQ(0, time_delta.ToWinrtTimeSpan().Duration);
+
+  time_delta = Microseconds(10);
+
+  // 10 microseconds = 100 * 100 ns.
+  EXPECT_EQ(100, time_delta.ToWinrtTimeSpan().Duration);
 }
 
 TEST(HighResolutionTimer, GetUsage) {
-  EXPECT_EQ(0.0, Time::GetHighResolutionTimerUsage());
-
   Time::ResetHighResolutionTimerUsage();
 
   // 0% usage since the timer isn't activated regardless of how much time has

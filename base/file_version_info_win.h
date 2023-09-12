@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,50 +7,54 @@
 
 #include <windows.h>
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
 #include "base/file_version_info.h"
-#include "base/macros.h"
-#include "starboard/types.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
+#include "base/version.h"
 
 struct tagVS_FIXEDFILEINFO;
 typedef tagVS_FIXEDFILEINFO VS_FIXEDFILEINFO;
 
 class BASE_EXPORT FileVersionInfoWin : public FileVersionInfo {
  public:
+  FileVersionInfoWin(const FileVersionInfoWin&) = delete;
+  FileVersionInfoWin& operator=(const FileVersionInfoWin&) = delete;
   ~FileVersionInfoWin() override;
 
   // Accessors to the different version properties.
   // Returns an empty string if the property is not found.
-  base::string16 company_name() override;
-  base::string16 company_short_name() override;
-  base::string16 product_name() override;
-  base::string16 product_short_name() override;
-  base::string16 internal_name() override;
-  base::string16 product_version() override;
-  base::string16 private_build() override;
-  base::string16 special_build() override;
-  base::string16 comments() override;
-  base::string16 original_filename() override;
-  base::string16 file_description() override;
-  base::string16 file_version() override;
-  base::string16 legal_copyright() override;
-  base::string16 legal_trademarks() override;
-  base::string16 last_change() override;
-  bool is_official_build() override;
+  std::u16string company_name() override;
+  std::u16string company_short_name() override;
+  std::u16string product_name() override;
+  std::u16string product_short_name() override;
+  std::u16string internal_name() override;
+  std::u16string product_version() override;
+  std::u16string special_build() override;
+  std::u16string original_filename() override;
+  std::u16string file_description() override;
+  std::u16string file_version() override;
 
-  // Lets you access other properties not covered above.
-  bool GetValue(const wchar_t* name, std::wstring* value);
+  // Lets you access other properties not covered above. |value| is only
+  // modified if GetValue() returns true.
+  bool GetValue(const char16_t* name, std::u16string* value) const;
 
-  // Similar to GetValue but returns a wstring (empty string if the property
-  // does not exist).
-  std::wstring GetStringValue(const wchar_t* name);
+  // Similar to GetValue but returns a std::u16string (empty string if the
+  // property does not exist).
+  std::u16string GetStringValue(const char16_t* name) const;
 
-  // Get the fixed file info if it exists. Otherwise NULL
-  const VS_FIXEDFILEINFO* fixed_file_info() const { return fixed_file_info_; }
+  // Get file version number in dotted version format.
+  base::Version GetFileVersion() const;
+
+  // Behaves like CreateFileVersionInfo, but returns a FileVersionInfoWin.
+  static std::unique_ptr<FileVersionInfoWin> CreateFileVersionInfoWin(
+      const base::FilePath& file_path);
 
  private:
   friend FileVersionInfo;
@@ -63,14 +67,12 @@ class BASE_EXPORT FileVersionInfoWin : public FileVersionInfo {
   FileVersionInfoWin(void* data, WORD language, WORD code_page);
 
   const std::vector<uint8_t> owned_data_;
-  const void* const data_;
+  const raw_ptr<const void> data_;
   const WORD language_;
   const WORD code_page_;
 
-  // This is a pointer into |data_| if it exists. Otherwise nullptr.
-  const VS_FIXEDFILEINFO* const fixed_file_info_;
-
-  DISALLOW_COPY_AND_ASSIGN(FileVersionInfoWin);
+  // This is a reference for a portion of |data_|.
+  const raw_ref<const VS_FIXEDFILEINFO> fixed_file_info_;
 };
 
 #endif  // BASE_FILE_VERSION_INFO_WIN_H_

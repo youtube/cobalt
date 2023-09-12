@@ -1,14 +1,17 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/metrics/persistent_sample_map.h"
 
-#include "base/logging.h"
+#include "base/atomicops.h"
+#include "base/check_op.h"
+#include "base/containers/contains.h"
+#include "base/debug/crash_logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/persistent_histogram_allocator.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/stl_util.h"
 
 namespace base {
 
@@ -18,65 +21,84 @@ typedef HistogramBase::Sample Sample;
 namespace {
 
 // An iterator for going through a PersistentSampleMap. The logic here is
-// identical to that of SampleMapIterator but with different data structures.
-// Changes here likely need to be duplicated there.
-class PersistentSampleMapIterator : public SampleCountIterator {
+// identical to that of the iterator for SampleMap but with different data
+// structures. Changes here likely need to be duplicated there.
+template <typename T, typename I>
+class IteratorTemplate : public SampleCountIterator {
  public:
-  typedef std::map<HistogramBase::Sample, HistogramBase::Count*>
-      SampleToCountMap;
+  explicit IteratorTemplate(T& sample_counts)
+      : iter_(sample_counts.begin()), end_(sample_counts.end()) {
+    SkipEmptyBuckets();
+  }
 
-  explicit PersistentSampleMapIterator(const SampleToCountMap& sample_counts);
-  ~PersistentSampleMapIterator() override;
+  ~IteratorTemplate() override;
 
   // SampleCountIterator:
-  bool Done() const override;
-  void Next() override;
+  bool Done() const override { return iter_ == end_; }
+  void Next() override {
+    DCHECK(!Done());
+    ++iter_;
+    SkipEmptyBuckets();
+  }
   void Get(HistogramBase::Sample* min,
            int64_t* max,
-           HistogramBase::Count* count) const override;
+           HistogramBase::Count* count) override;
 
  private:
-  void SkipEmptyBuckets();
+  void SkipEmptyBuckets() {
+    while (!Done() && subtle::NoBarrier_Load(iter_->second) == 0) {
+      ++iter_;
+    }
+  }
 
-  SampleToCountMap::const_iterator iter_;
-  const SampleToCountMap::const_iterator end_;
+  I iter_;
+  const I end_;
 };
 
-PersistentSampleMapIterator::PersistentSampleMapIterator(
-    const SampleToCountMap& sample_counts)
-    : iter_(sample_counts.begin()),
-      end_(sample_counts.end()) {
-  SkipEmptyBuckets();
-}
+typedef std::map<HistogramBase::Sample, HistogramBase::Count*> SampleToCountMap;
+typedef IteratorTemplate<const SampleToCountMap,
+                         SampleToCountMap::const_iterator>
+    PersistentSampleMapIterator;
 
-PersistentSampleMapIterator::~PersistentSampleMapIterator() = default;
+template <>
+PersistentSampleMapIterator::~IteratorTemplate() = default;
 
-bool PersistentSampleMapIterator::Done() const {
-  return iter_ == end_;
-}
-
-void PersistentSampleMapIterator::Next() {
+// Get() for an iterator of a PersistentSampleMap.
+template <>
+void PersistentSampleMapIterator::Get(Sample* min, int64_t* max, Count* count) {
   DCHECK(!Done());
-  ++iter_;
-  SkipEmptyBuckets();
+  *min = iter_->first;
+  *max = strict_cast<int64_t>(iter_->first) + 1;
+  // We have to do the following atomically, because even if the caller is using
+  // a lock, a separate process (that is not aware of this lock) may
+  // concurrently modify the value (note that iter_->second is a pointer to a
+  // sample count, which may live in shared memory).
+  *count = subtle::NoBarrier_Load(iter_->second);
 }
 
-void PersistentSampleMapIterator::Get(Sample* min,
-                                      int64_t* max,
-                                      Count* count) const {
+typedef IteratorTemplate<SampleToCountMap, SampleToCountMap::iterator>
+    ExtractingPersistentSampleMapIterator;
+
+template <>
+ExtractingPersistentSampleMapIterator::~IteratorTemplate() {
+  // Ensure that the user has consumed all the samples in order to ensure no
+  // samples are lost.
+  DCHECK(Done());
+}
+
+// Get() for an extracting iterator of a PersistentSampleMap.
+template <>
+void ExtractingPersistentSampleMapIterator::Get(Sample* min,
+                                                int64_t* max,
+                                                Count* count) {
   DCHECK(!Done());
-  if (min)
-    *min = iter_->first;
-  if (max)
-    *max = strict_cast<int64_t>(iter_->first) + 1;
-  if (count)
-    *count = *iter_->second;
-}
-
-void PersistentSampleMapIterator::SkipEmptyBuckets() {
-  while (!Done() && *iter_->second == 0) {
-    ++iter_;
-  }
+  *min = iter_->first;
+  *max = strict_cast<int64_t>(iter_->first) + 1;
+  // We have to do the following atomically, because even if the caller is using
+  // a lock, a separate process (that is not aware of this lock) may
+  // concurrently modify the value (note that iter_->second is a pointer to a
+  // sample count, which may live in shared memory).
+  *count = subtle::NoBarrier_AtomicExchange(iter_->second, 0);
 }
 
 // This structure holds an entry for a PersistentSampleMap within a persistent
@@ -108,24 +130,11 @@ PersistentSampleMap::~PersistentSampleMap() {
 }
 
 void PersistentSampleMap::Accumulate(Sample value, Count count) {
-#if 0  // TODO(bcwhite) Re-enable efficient version after crbug.com/682680.
-  *GetOrCreateSampleCountStorage(value) += count;
-#else
-  Count* local_count_ptr = GetOrCreateSampleCountStorage(value);
-  if (count < 0) {
-    if (*local_count_ptr < -count)
-      RecordNegativeSample(SAMPLES_ACCUMULATE_WENT_NEGATIVE, -count);
-    else
-      RecordNegativeSample(SAMPLES_ACCUMULATE_NEGATIVE_COUNT, -count);
-    *local_count_ptr += count;
-  } else {
-    Sample old_value = *local_count_ptr;
-    Sample new_value = old_value + count;
-    *local_count_ptr = new_value;
-    if ((new_value >= 0) != (old_value >= 0))
-      RecordNegativeSample(SAMPLES_ACCUMULATE_OVERFLOW, count);
-  }
-#endif
+  // We have to do the following atomically, because even if the caller is using
+  // a lock, a separate process (that is not aware of this lock) may
+  // concurrently modify the value.
+  subtle::NoBarrier_AtomicIncrement(GetOrCreateSampleCountStorage(value),
+                                    count);
   IncreaseSumAndCount(strict_cast<int64_t>(count) * value, count);
 }
 
@@ -134,7 +143,7 @@ Count PersistentSampleMap::GetCount(Sample value) const {
   // being able to know what value to return.
   Count* count_pointer =
       const_cast<PersistentSampleMap*>(this)->GetSampleCountStorage(value);
-  return count_pointer ? *count_pointer : 0;
+  return count_pointer ? subtle::NoBarrier_Load(count_pointer) : 0;
 }
 
 Count PersistentSampleMap::TotalCount() const {
@@ -144,7 +153,7 @@ Count PersistentSampleMap::TotalCount() const {
 
   Count count = 0;
   for (const auto& entry : sample_counts_) {
-    count += *entry.second;
+    count += subtle::NoBarrier_Load(entry.second);
   }
   return count;
 }
@@ -154,6 +163,14 @@ std::unique_ptr<SampleCountIterator> PersistentSampleMap::Iterator() const {
   // loaded before trying to iterate over the map.
   const_cast<PersistentSampleMap*>(this)->ImportSamples(-1, true);
   return std::make_unique<PersistentSampleMapIterator>(sample_counts_);
+}
+
+std::unique_ptr<SampleCountIterator> PersistentSampleMap::ExtractingIterator() {
+  // Make sure all samples have been loaded before trying to iterate over the
+  // map.
+  ImportSamples(-1, true);
+  return std::make_unique<ExtractingPersistentSampleMapIterator>(
+      sample_counts_);
 }
 
 // static
@@ -177,6 +194,13 @@ PersistentSampleMap::CreatePersistentRecord(
     Sample value) {
   SampleRecord* record = allocator->New<SampleRecord>();
   if (!record) {
+#if !BUILDFLAG(IS_NACL)
+    // TODO(crbug/1432981): Remove these. They are used to investigate
+    // unexpected failures.
+    SCOPED_CRASH_KEY_BOOL("PersistentSampleMap", "full", allocator->IsFull());
+    SCOPED_CRASH_KEY_BOOL("PersistentSampleMap", "corrupted",
+                          allocator->IsCorrupt());
+#endif  // !BUILDFLAG(IS_NACL)
     NOTREACHED() << "full=" << allocator->IsFull()
                  << ", corrupt=" << allocator->IsCorrupt();
     return 0;
@@ -202,8 +226,13 @@ bool PersistentSampleMap::AddSubtractImpl(SampleCountIterator* iter,
       continue;
     if (strict_cast<int64_t>(min) + 1 != max)
       return false;  // SparseHistogram only supports bucket with size 1.
-    *GetOrCreateSampleCountStorage(min) +=
-        (op == HistogramSamples::ADD) ? count : -count;
+
+    // We have to do the following atomically, because even if the caller is
+    // using a lock, a separate process (that is not aware of this lock) may
+    // concurrently modify the value.
+    subtle::Barrier_AtomicIncrement(
+        GetOrCreateSampleCountStorage(min),
+        (op == HistogramSamples::ADD) ? count : -count);
   }
   return true;
 }
@@ -276,7 +305,7 @@ Count* PersistentSampleMap::ImportSamples(Sample until_value,
     DCHECK_EQ(id(), record->id);
 
     // Check if the record's value is already known.
-    if (!ContainsKey(sample_counts_, record->value)) {
+    if (!Contains(sample_counts_, record->value)) {
       // No: Add it to map of known values.
       sample_counts_[record->value] = &record->count;
     } else {

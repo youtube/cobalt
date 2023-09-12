@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include "base/bind.h"
-#include "base/single_thread_task_runner.h"
+#include "base/functional/bind.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -52,7 +52,8 @@ TEST_F(MemoryDumpSchedulerTest, SingleTrigger) {
   const uint32_t kTicks = 5;
   MemoryDumpScheduler::Config config;
   config.triggers.push_back({kLevelOfDetail, kPeriodMs});
-  config.callback = Bind(&CallbackWrapper::OnTick, Unretained(&on_tick_));
+  config.callback =
+      BindRepeating(&CallbackWrapper::OnTick, Unretained(&on_tick_));
 
   testing::InSequence sequence;
   EXPECT_CALL(on_tick_, OnTick(_)).Times(kTicks - 1);
@@ -87,7 +88,8 @@ TEST_F(MemoryDumpSchedulerTest, MultipleTriggers) {
   const MemoryDumpLevelOfDetail kDetailed = MemoryDumpLevelOfDetail::DETAILED;
   config.triggers.push_back({kLight, kPeriodLightMs});
   config.triggers.push_back({kDetailed, kPeriodDetailedMs});
-  config.callback = Bind(&CallbackWrapper::OnTick, Unretained(&on_tick_));
+  config.callback =
+      BindRepeating(&CallbackWrapper::OnTick, Unretained(&on_tick_));
 
   TimeTicks t1, t2, t3;
 
@@ -125,13 +127,14 @@ TEST_F(MemoryDumpSchedulerTest, StartStopQuickly) {
 
   MemoryDumpScheduler::Config light_config;
   light_config.triggers.push_back({MemoryDumpLevelOfDetail::LIGHT, kPeriodMs});
-  light_config.callback = Bind(&CallbackWrapper::OnTick, Unretained(&on_tick_));
+  light_config.callback =
+      BindRepeating(&CallbackWrapper::OnTick, Unretained(&on_tick_));
 
   MemoryDumpScheduler::Config detailed_config;
   detailed_config.triggers.push_back(
       {MemoryDumpLevelOfDetail::DETAILED, kPeriodMs});
   detailed_config.callback =
-      Bind(&CallbackWrapper::OnTick, Unretained(&on_tick_));
+      BindRepeating(&CallbackWrapper::OnTick, Unretained(&on_tick_));
 
   testing::InSequence sequence;
   EXPECT_CALL(on_tick_, OnTick(MemoryDumpLevelOfDetail::LIGHT))
@@ -163,9 +166,10 @@ TEST_F(MemoryDumpSchedulerTest, StopAndStartOnAnotherThread) {
   const uint32_t kTicks = 3;
   MemoryDumpScheduler::Config config;
   config.triggers.push_back({MemoryDumpLevelOfDetail::DETAILED, kPeriodMs});
-  config.callback = Bind(&CallbackWrapper::OnTick, Unretained(&on_tick_));
+  config.callback =
+      BindRepeating(&CallbackWrapper::OnTick, Unretained(&on_tick_));
 
-  scoped_refptr<TaskRunner> expected_task_runner = bg_thread_.task_runner();
+  auto expected_task_runner = bg_thread_.task_runner();
   testing::InSequence sequence;
   EXPECT_CALL(on_tick_, OnTick(_)).Times(kTicks - 1);
   EXPECT_CALL(on_tick_, OnTick(_))

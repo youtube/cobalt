@@ -1,22 +1,25 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_METRICS_HISTOGRAM_PERSISTENCE_H_
-#define BASE_METRICS_HISTOGRAM_PERSISTENCE_H_
+#ifndef BASE_METRICS_PERSISTENT_HISTOGRAM_ALLOCATOR_H_
+#define BASE_METRICS_PERSISTENT_HISTOGRAM_ALLOCATOR_H_
 
+#include <atomic>
 #include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
-#include "base/atomicops.h"
 #include "base/base_export.h"
-#include "base/feature_list.h"
-#include "base/memory/shared_memory.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/persistent_memory_allocator.h"
+#include "base/metrics/ranges_manager.h"
 #include "base/process/process_handle.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -24,10 +27,7 @@ class BucketRanges;
 class FilePath;
 class PersistentSampleMapRecords;
 class PersistentSparseHistogramDataManager;
-
-// Feature definition for enabling histogram persistence.
-BASE_EXPORT extern const Feature kPersistentHistogramsFeature;
-
+class WritableSharedMemoryRegion;
 
 // A data manager for sparse histograms so each instance of such doesn't have
 // to separately iterate over the entire memory segment. Though this class
@@ -43,6 +43,11 @@ class BASE_EXPORT PersistentSparseHistogramDataManager {
   // managers that reference it.
   explicit PersistentSparseHistogramDataManager(
       PersistentMemoryAllocator* allocator);
+
+  PersistentSparseHistogramDataManager(
+      const PersistentSparseHistogramDataManager&) = delete;
+  PersistentSparseHistogramDataManager& operator=(
+      const PersistentSparseHistogramDataManager&) = delete;
 
   ~PersistentSparseHistogramDataManager();
 
@@ -64,9 +69,9 @@ class BASE_EXPORT PersistentSparseHistogramDataManager {
  private:
   friend class PersistentSampleMapRecords;
 
-  // Gets the object holding records for a given sample-map id when |lock_|
-  // has already been acquired.
-  PersistentSampleMapRecords* GetSampleMapRecordsWhileLocked(uint64_t id);
+  // Gets the object holding records for a given sample-map id.
+  PersistentSampleMapRecords* GetSampleMapRecordsWhileLocked(uint64_t id)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Loads sample-map records looking for those belonging to the specified
   // |load_id|. Records found for other sample-maps are held for later use
@@ -77,19 +82,16 @@ class BASE_EXPORT PersistentSparseHistogramDataManager {
   bool LoadRecords(PersistentSampleMapRecords* sample_map_records);
 
   // Weak-pointer to the allocator used by the sparse histograms.
-  PersistentMemoryAllocator* allocator_;
+  raw_ptr<PersistentMemoryAllocator> allocator_;
 
   // Iterator within the allocator for finding sample records.
-  PersistentMemoryAllocator::Iterator record_iterator_;
+  PersistentMemoryAllocator::Iterator record_iterator_ GUARDED_BY(lock_);
 
   // Mapping of sample-map IDs to their sample records.
   std::map<uint64_t, std::unique_ptr<PersistentSampleMapRecords>>
-      sample_records_;
+      sample_records_ GUARDED_BY(lock_);
 
-  // A lock used for synchronizing changes to sample_records_.
   base::Lock lock_;
-
-  DISALLOW_COPY_AND_ASSIGN(PersistentSparseHistogramDataManager);
 };
 
 
@@ -106,6 +108,10 @@ class BASE_EXPORT PersistentSampleMapRecords {
   // manager instance.
   PersistentSampleMapRecords(PersistentSparseHistogramDataManager* data_manager,
                              uint64_t sample_map_id);
+
+  PersistentSampleMapRecords(const PersistentSampleMapRecords&) = delete;
+  PersistentSampleMapRecords& operator=(const PersistentSampleMapRecords&) =
+      delete;
 
   ~PersistentSampleMapRecords();
 
@@ -140,14 +146,14 @@ class BASE_EXPORT PersistentSampleMapRecords {
   friend PersistentSparseHistogramDataManager;
 
   // Weak-pointer to the parent data-manager object.
-  PersistentSparseHistogramDataManager* data_manager_;
+  raw_ptr<PersistentSparseHistogramDataManager> data_manager_;
 
   // ID of PersistentSampleMap to which these records apply.
   const uint64_t sample_map_id_;
 
   // The current user of this set of records. It is used to ensure that no
   // more than one object is using these records at a given time.
-  const void* user_ = nullptr;
+  raw_ptr<const void> user_ = nullptr;
 
   // This is the count of how many "records" have already been read by the
   // owning sample-map.
@@ -164,8 +170,6 @@ class BASE_EXPORT PersistentSampleMapRecords {
   // is appended in bulk to "records". Access to this vector can be done
   // only while holding the parent manager's lock.
   std::vector<PersistentMemoryAllocator::Reference> found_;
-
-  DISALLOW_COPY_AND_ASSIGN(PersistentSampleMapRecords);
 };
 
 
@@ -186,6 +190,9 @@ class BASE_EXPORT PersistentHistogramAllocator {
     // The allocator must live beyond the lifetime of the iterator.
     explicit Iterator(PersistentHistogramAllocator* allocator);
 
+    Iterator(const Iterator&) = delete;
+    Iterator& operator=(const Iterator&) = delete;
+
     // Gets the next histogram from persistent memory; returns null if there
     // are no more histograms to be found. This may still be called again
     // later to retrieve any new histograms added in the meantime.
@@ -197,19 +204,22 @@ class BASE_EXPORT PersistentHistogramAllocator {
 
    private:
     // Weak-pointer to histogram allocator being iterated over.
-    PersistentHistogramAllocator* allocator_;
+    raw_ptr<PersistentHistogramAllocator> allocator_;
 
     // The iterator used for stepping through objects in persistent memory.
     // It is lock-free and thread-safe which is why this class is also such.
     PersistentMemoryAllocator::Iterator memory_iter_;
-
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
   // A PersistentHistogramAllocator is constructed from a PersistentMemory-
   // Allocator object of which it takes ownership.
   explicit PersistentHistogramAllocator(
       std::unique_ptr<PersistentMemoryAllocator> memory);
+
+  PersistentHistogramAllocator(const PersistentHistogramAllocator&) = delete;
+  PersistentHistogramAllocator& operator=(const PersistentHistogramAllocator&) =
+      delete;
+
   virtual ~PersistentHistogramAllocator();
 
   // Direct access to underlying memory allocator. If the segment is shared
@@ -277,12 +287,16 @@ class BASE_EXPORT PersistentHistogramAllocator {
   // is done seperately from construction for situations such as when the
   // histograms will be backed by memory provided by this very allocator.
   //
-  // IMPORTANT: Callers must update tools/metrics/histograms/histograms.xml
-  // with the following histograms:
-  //    UMA.PersistentAllocator.name.Allocs
+  // IMPORTANT: tools/metrics/histograms/metadata/uma/histograms.xml must
+  // be updated with the following histograms for each |name| param:
+  //    UMA.PersistentAllocator.name.Errors
   //    UMA.PersistentAllocator.name.UsedPct
   void CreateTrackingHistograms(StringPiece name);
   void UpdateTrackingHistograms();
+
+  // Sets the internal |ranges_manager_|, which will be used by the allocator to
+  // register BucketRanges. Takes ownership of the passed |ranges_manager|.
+  void SetRangesManager(RangesManager* ranges_manager);
 
   // Clears the internal |last_created_| reference so testing can validate
   // operation without that optimization.
@@ -295,8 +309,8 @@ class BASE_EXPORT PersistentHistogramAllocator {
 
   // Gets the reference of the last histogram created, used to avoid
   // trying to import what was just created.
-  PersistentHistogramAllocator::Reference last_created() {
-    return subtle::NoBarrier_Load(&last_created_);
+  Reference last_created() {
+    return last_created_.load(std::memory_order_relaxed);
   }
 
   // Gets the next histogram in persistent data based on iterator while
@@ -318,15 +332,20 @@ class BASE_EXPORT PersistentHistogramAllocator {
   // The memory allocator that provides the actual histogram storage.
   std::unique_ptr<PersistentMemoryAllocator> memory_allocator_;
 
+  // The RangesManager that the allocator will register its BucketRanges with.
+  // If this is null (default), the BucketRanges will be registered with the
+  // global statistics recorder. Used when loading self-contained metrics coming
+  // from a previous session. Registering the BucketRanges with the global
+  // statistics recorder could create unnecessary contention, and a low amount
+  // of extra memory.
+  std::unique_ptr<base::RangesManager> ranges_manager_;
+
   // The data-manager used to improve performance of sparse histograms.
   PersistentSparseHistogramDataManager sparse_histogram_data_manager_;
 
   // A reference to the last-created histogram in the allocator, used to avoid
   // trying to import what was just created.
-  // TODO(bcwhite): Change this to std::atomic<PMA::Reference> when available.
-  subtle::Atomic32 last_created_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(PersistentHistogramAllocator);
+  std::atomic<Reference> last_created_ = 0;
 };
 
 
@@ -336,6 +355,9 @@ class BASE_EXPORT PersistentHistogramAllocator {
 class BASE_EXPORT GlobalHistogramAllocator
     : public PersistentHistogramAllocator {
  public:
+  GlobalHistogramAllocator(const GlobalHistogramAllocator&) = delete;
+  GlobalHistogramAllocator& operator=(const GlobalHistogramAllocator&) = delete;
+
   ~GlobalHistogramAllocator() override;
 
   // Create a global allocator using the passed-in memory |base|, |size|, and
@@ -350,16 +372,18 @@ class BASE_EXPORT GlobalHistogramAllocator
   // specified |size| taken from the heap.
   static void CreateWithLocalMemory(size_t size, uint64_t id, StringPiece name);
 
-#if !defined(OS_NACL) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_NACL)
   // Create a global allocator by memory-mapping a |file|. If the file does
   // not exist, it will be created with the specified |size|. If the file does
   // exist, the allocator will use and add to its contents, ignoring the passed
   // size in favor of the existing size. Returns whether the global allocator
-  // was set.
+  // was set. If |exclusive_write| is true, the file will be opened in a mode
+  // that disallows multiple concurrent writers (no effect on non-Windows).
   static bool CreateWithFile(const FilePath& file_path,
                              size_t size,
                              uint64_t id,
-                             StringPiece name);
+                             StringPiece name,
+                             bool exclusive_write = false);
 
   // Creates a new file at |active_path|. If it already exists, it will first be
   // moved to |base_path|. In all cases, any old file at |base_path| will be
@@ -385,11 +409,19 @@ class BASE_EXPORT GlobalHistogramAllocator
   // Constructs a filename using a name.
   static FilePath ConstructFilePath(const FilePath& dir, StringPiece name);
 
+  // Constructs a filename using a name for an "active" file.
+  static FilePath ConstructFilePathForActiveFile(const FilePath& dir,
+                                                 StringPiece name);
+
   // Like above but with timestamp and pid for use in upload directories.
   static FilePath ConstructFilePathForUploadDir(const FilePath& dir,
                                                 StringPiece name,
                                                 base::Time stamp,
                                                 ProcessId pid);
+
+  // Override that uses the current time stamp and current process id.
+  static FilePath ConstructFilePathForUploadDir(const FilePath& dir,
+                                                StringPiece name);
 
   // Parses a filename to extract name, timestamp, and pid.
   static bool ParseFilePath(const FilePath& path,
@@ -397,47 +429,17 @@ class BASE_EXPORT GlobalHistogramAllocator
                             Time* out_stamp,
                             ProcessId* out_pid);
 
-  // Constructs a set of names in |dir| based on name that can be used for a
-  // base + active persistent memory mapped location for CreateWithActiveFile().
-  // The spare path is a file that can be pre-created and moved to be active
-  // without any startup penalty that comes from constructing the file. |name|
-  // will be used as the basename of the file inside |dir|. |out_base_path|,
-  // |out_active_path|, or |out_spare_path| may be null if not needed.
-  static void ConstructFilePaths(const FilePath& dir,
-                                 StringPiece name,
-                                 FilePath* out_base_path,
-                                 FilePath* out_active_path,
-                                 FilePath* out_spare_path);
-
-  // As above but puts the base files in a different "upload" directory. This
-  // is useful when moving all completed files into a single directory for easy
-  // upload management.
-  static void ConstructFilePathsForUploadDir(const FilePath& active_dir,
-                                             const FilePath& upload_dir,
-                                             const std::string& name,
-                                             FilePath* out_upload_path,
-                                             FilePath* out_active_path,
-                                             FilePath* out_spare_path);
-
   // Create a "spare" file that can later be made the "active" file. This
   // should be done on a background thread if possible.
   static bool CreateSpareFile(const FilePath& spare_path, size_t size);
-
-  // Same as above but uses standard names. |name| is the name of the allocator
-  // and is also used to create the correct filename.
-  static bool CreateSpareFileInDir(const FilePath& dir_path,
-                                   size_t size,
-                                   StringPiece name);
 #endif
 
-#if !defined(STARBOARD)
   // Create a global allocator using a block of shared memory accessed
-  // through the given |handle| and |size|. The allocator takes ownership
-  // of the handle and closes it upon destruction, though the memory will
-  // continue to live if other processes have access to it.
-  static void CreateWithSharedMemoryHandle(const SharedMemoryHandle& handle,
-                                           size_t size);
-#endif
+  // through the given |region|. The allocator maps the shared memory into
+  // current process's virtual address space and frees it upon destruction.
+  // The memory will continue to live if other processes have access to it.
+  static void CreateWithSharedMemoryRegion(
+      const WritableSharedMemoryRegion& region);
 
   // Sets a GlobalHistogramAllocator for globally storing histograms in
   // a space that can be persisted or shared between processes. There is only
@@ -464,6 +466,14 @@ class BASE_EXPORT GlobalHistogramAllocator
   // Retrieves a previously set pathname to which the contents of this allocator
   // are to be saved.
   const FilePath& GetPersistentLocation() const;
+
+  // Returns whether the contents of this allocator are being saved to a
+  // persistent file on disk.
+  bool HasPersistentLocation() const;
+
+  // Moves the file being used to persist this allocator's data to the directory
+  // specified by |dir|. Returns whether the operation was successful.
+  bool MovePersistentFile(const FilePath& dir);
 
   // Writes the internal data to a previously set location. This is generally
   // called when a process is exiting from a section of code that may not know
@@ -499,10 +509,8 @@ class BASE_EXPORT GlobalHistogramAllocator
 
   // The location to which the data should be persisted.
   FilePath persistent_location_;
-
-  DISALLOW_COPY_AND_ASSIGN(GlobalHistogramAllocator);
 };
 
 }  // namespace base
 
-#endif  // BASE_METRICS_HISTOGRAM_PERSISTENCE_H_
+#endif  // BASE_METRICS_PERSISTENT_HISTOGRAM_ALLOCATOR_H__

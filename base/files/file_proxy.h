@@ -1,18 +1,17 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_FILES_FILE_PROXY_H_
 #define BASE_FILES_FILE_PROXY_H_
 
+#include <stdint.h>
+
 #include "base/base_export.h"
-#include "base/callback_forward.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -48,8 +47,9 @@ class BASE_EXPORT FileProxy : public SupportsWeakPtr<FileProxy> {
       OnceCallback<void(File::Error, const char* data, int bytes_read)>;
   using WriteCallback = OnceCallback<void(File::Error, int bytes_written)>;
 
-  FileProxy();
   explicit FileProxy(TaskRunner* task_runner);
+  FileProxy(const FileProxy&) = delete;
+  FileProxy& operator=(const FileProxy&) = delete;
   ~FileProxy();
 
   // Creates or opens a file with the given flags. It is invalid to pass a null
@@ -63,11 +63,11 @@ class BASE_EXPORT FileProxy : public SupportsWeakPtr<FileProxy> {
                     StatusCallback callback);
 
   // Creates a temporary file for writing. The path and an open file are
-  // returned. It is invalid to pass a null callback. The additional file flags
-  // will be added on top of the default file flags which are:
+  // returned. It is invalid to pass a null callback. These additional file
+  // flags will be added on top of the default file flags:
   //   File::FLAG_CREATE_ALWAYS
   //   File::FLAG_WRITE
-  //   File::FLAG_TEMPORARY.
+  //   File::FLAG_WIN_TEMPORARY.
   //
   // This returns false if task posting to |task_runner| has failed.
   bool CreateTemporary(uint32_t additional_file_flags,
@@ -86,11 +86,9 @@ class BASE_EXPORT FileProxy : public SupportsWeakPtr<FileProxy> {
 
   File TakeFile();
 
-#if !defined(STARBOARD)
   // Returns a new File object that is a duplicate of the underlying |file_|.
   // See the comment at File::Duplicate for caveats.
   File DuplicateFile();
-#endif
 
   PlatformFile GetPlatformFile() const;
 
@@ -135,7 +133,6 @@ class BASE_EXPORT FileProxy : public SupportsWeakPtr<FileProxy> {
 
   scoped_refptr<TaskRunner> task_runner_;
   File file_;
-  DISALLOW_COPY_AND_ASSIGN(FileProxy);
 };
 
 }  // namespace base

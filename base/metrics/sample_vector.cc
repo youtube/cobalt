@@ -1,14 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/metrics/sample_vector.h"
 
+#include <ostream>
+
+#include "base/check_op.h"
+#include "base/debug/crash_logging.h"
 #include "base/lazy_instance.h"
-#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/persistent_memory_allocator.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 
@@ -23,10 +28,115 @@ namespace base {
 typedef HistogramBase::Count Count;
 typedef HistogramBase::Sample Sample;
 
+namespace {
+
+// An iterator for sample vectors.
+template <typename T>
+class IteratorTemplate : public SampleCountIterator {
+ public:
+  IteratorTemplate(T* counts,
+                   size_t counts_size,
+                   const BucketRanges* bucket_ranges)
+      : counts_(counts),
+        counts_size_(counts_size),
+        bucket_ranges_(bucket_ranges) {
+    DCHECK_GE(bucket_ranges_->bucket_count(), counts_size_);
+    SkipEmptyBuckets();
+  }
+
+  ~IteratorTemplate() override;
+
+  // SampleCountIterator:
+  bool Done() const override { return index_ >= counts_size_; }
+  void Next() override {
+    DCHECK(!Done());
+    index_++;
+    SkipEmptyBuckets();
+  }
+  void Get(HistogramBase::Sample* min,
+           int64_t* max,
+           HistogramBase::Count* count) override;
+
+  // SampleVector uses predefined buckets, so iterator can return bucket index.
+  bool GetBucketIndex(size_t* index) const override {
+    DCHECK(!Done());
+    if (index != nullptr) {
+      *index = index_;
+    }
+    return true;
+  }
+
+ private:
+  void SkipEmptyBuckets() {
+    if (Done()) {
+      return;
+    }
+
+    while (index_ < counts_size_) {
+      if (subtle::NoBarrier_Load(&counts_[index_]) != 0) {
+        return;
+      }
+      index_++;
+    }
+  }
+
+  raw_ptr<T> counts_;
+  size_t counts_size_;
+  raw_ptr<const BucketRanges> bucket_ranges_;
+
+  size_t index_ = 0;
+};
+
+typedef IteratorTemplate<const HistogramBase::AtomicCount> SampleVectorIterator;
+
+template <>
+SampleVectorIterator::~IteratorTemplate() = default;
+
+// Get() for an iterator of a SampleVector.
+template <>
+void SampleVectorIterator::Get(HistogramBase::Sample* min,
+                               int64_t* max,
+                               HistogramBase::Count* count) {
+  DCHECK(!Done());
+  *min = bucket_ranges_->range(index_);
+  *max = strict_cast<int64_t>(bucket_ranges_->range(index_ + 1));
+  *count = subtle::NoBarrier_Load(&counts_[index_]);
+}
+
+typedef IteratorTemplate<HistogramBase::AtomicCount>
+    ExtractingSampleVectorIterator;
+
+template <>
+ExtractingSampleVectorIterator::~IteratorTemplate() {
+  // Ensure that the user has consumed all the samples in order to ensure no
+  // samples are lost.
+  DCHECK(Done());
+}
+
+// Get() for an extracting iterator of a SampleVector.
+template <>
+void ExtractingSampleVectorIterator::Get(HistogramBase::Sample* min,
+                                         int64_t* max,
+                                         HistogramBase::Count* count) {
+  DCHECK(!Done());
+  *min = bucket_ranges_->range(index_);
+  *max = strict_cast<int64_t>(bucket_ranges_->range(index_ + 1));
+  *count = subtle::NoBarrier_AtomicExchange(&counts_[index_], 0);
+}
+
+}  // namespace
+
 SampleVectorBase::SampleVectorBase(uint64_t id,
                                    Metadata* meta,
                                    const BucketRanges* bucket_ranges)
     : HistogramSamples(id, meta), bucket_ranges_(bucket_ranges) {
+  CHECK_GE(bucket_ranges_->bucket_count(), 1u);
+}
+
+SampleVectorBase::SampleVectorBase(uint64_t id,
+                                   std::unique_ptr<Metadata> meta,
+                                   const BucketRanges* bucket_ranges)
+    : HistogramSamples(id, std::move(meta)), bucket_ranges_(bucket_ranges) {
   CHECK_GE(bucket_ranges_->bucket_count(), 1u);
 }
 
@@ -112,7 +222,8 @@ std::unique_ptr<SampleCountIterator> SampleVectorBase::Iterator() const {
   if (sample.count != 0) {
     return std::make_unique<SingleSampleIterator>(
         bucket_ranges_->range(sample.bucket),
-        bucket_ranges_->range(sample.bucket + 1), sample.count, sample.bucket);
+        bucket_ranges_->range(sample.bucket + 1), sample.count, sample.bucket,
+        /*value_was_extracted=*/false);
   }
 
   // Handle the multi-sample case.
@@ -123,6 +234,36 @@ std::unique_ptr<SampleCountIterator> SampleVectorBase::Iterator() const {
 
   // And the no-value case.
   return std::make_unique<SampleVectorIterator>(nullptr, 0, bucket_ranges_);
+}
+
+std::unique_ptr<SampleCountIterator> SampleVectorBase::ExtractingIterator() {
+  // Handle the single-sample case.
+  SingleSample sample = single_sample().Extract();
+  if (sample.count != 0) {
+    // Note that we have already extracted the samples (i.e., reset the
+    // underlying data back to 0 samples), even before the iterator has been
+    // used. This means that the caller needs to ensure that this value is
+    // eventually consumed, otherwise the sample is lost. There is no iterator
+    // that simply points to the underlying SingleSample and extracts its value
+    // on-demand because there are tricky edge cases when the SingleSample is
+    // disabled between the creation of the iterator and the actual call to
+    // Get() (for example, due to histogram changing to use a vector to store
+    // its samples).
+    return std::make_unique<SingleSampleIterator>(
+        bucket_ranges_->range(sample.bucket),
+        bucket_ranges_->range(sample.bucket + 1), sample.count, sample.bucket,
+        /*value_was_extracted=*/true);
+  }
+
+  // Handle the multi-sample case.
+  if (counts() || MountExistingCountsStorage()) {
+    return std::make_unique<ExtractingSampleVectorIterator>(
+        counts(), counts_size(), bucket_ranges_);
+  }
+
+  // And the no-value case.
+  return std::make_unique<ExtractingSampleVectorIterator>(nullptr, 0,
+                                                          bucket_ranges_);
 }
 
 bool SampleVectorBase::AddSubtractImpl(SampleCountIterator* iter,
@@ -184,6 +325,16 @@ bool SampleVectorBase::AddSubtractImpl(SampleCountIterator* iter,
     // Ensure that the sample's min/max match the ranges min/max.
     if (min != bucket_ranges_->range(dest_index) ||
         max != bucket_ranges_->range(dest_index + 1)) {
+#if !BUILDFLAG(IS_NACL)
+      // TODO(crbug/1432981): Remove these. They are used to investigate
+      // unexpected failures.
+      SCOPED_CRASH_KEY_NUMBER("SampleVector", "min", min);
+      SCOPED_CRASH_KEY_NUMBER("SampleVector", "max", max);
+      SCOPED_CRASH_KEY_NUMBER("SampleVector", "range_min",
+                              bucket_ranges_->range(dest_index));
+      SCOPED_CRASH_KEY_NUMBER("SampleVector", "range_max",
+                              bucket_ranges_->range(dest_index + 1));
+#endif  // !BUILDFLAG(IS_NACL)
       NOTREACHED() << "sample=" << min << "," << max
                    << "; range=" << bucket_ranges_->range(dest_index) << ","
                    << bucket_ranges_->range(dest_index + 1);
@@ -212,13 +363,28 @@ bool SampleVectorBase::AddSubtractImpl(SampleCountIterator* iter,
   }
 }
 
-// Use simple binary search.  This is very general, but there are better
-// approaches if we knew that the buckets were linearly distributed.
+// Uses simple binary search or calculates the index directly if it's an "exact"
+// linear histogram. This is very general, but there are better approaches if we
+// knew that the buckets were linearly distributed.
 size_t SampleVectorBase::GetBucketIndex(Sample value) const {
   size_t bucket_count = bucket_ranges_->bucket_count();
   CHECK_GE(bucket_count, 1u);
   CHECK_GE(value, bucket_ranges_->range(0));
   CHECK_LT(value, bucket_ranges_->range(bucket_count));
+
+  // For "exact" linear histograms, e.g. bucket_count = maximum + 1, their
+  // minimum is 1 and bucket sizes are 1. Thus, we don't need to binary search
+  // the bucket index. The bucket index for bucket |value| is just the |value|.
+  Sample maximum = bucket_ranges_->range(bucket_count - 1);
+  if (maximum == static_cast<Sample>(bucket_count - 1)) {
+    // |value| is in the underflow bucket.
+    if (value < 1)
+      return 0;
+    // |value| is in the overflow bucket.
+    if (value > maximum)
+      return bucket_count - 1;
+    return static_cast<size_t>(value);
+  }
 
   size_t under = 0;
   size_t over = bucket_count;
@@ -243,12 +409,18 @@ void SampleVectorBase::MoveSingleSampleToCounts() {
   DCHECK(counts());
 
   // Disable the single-sample since there is now counts storage for the data.
-  SingleSample sample = single_sample().Extract(/*disable=*/true);
+  SingleSample sample = single_sample().ExtractAndDisable();
 
   // Stop here if there is no "count" as trying to find the bucket index of
   // an invalid (including zero) "value" will crash.
   if (sample.count == 0)
     return;
+
+  // Stop here if the sample bucket would be out of range for the AtomicCount
+  // array.
+  if (sample.bucket >= counts_size()) {
+    return;
+  }
 
   // Move the value into storage. Sum and redundant-count already account
   // for this entry so no need to call IncreaseSumAndCount().
@@ -262,9 +434,9 @@ void SampleVectorBase::MountCountsStorageAndMoveSingleSample() {
   // concurrent entry into the code below; access and updates to |counts_|
   // still requires atomic operations.
   static LazyInstance<Lock>::Leaky counts_lock = LAZY_INSTANCE_INITIALIZER;
-  if (subtle::NoBarrier_Load(&counts_) == 0) {
+  if (!counts_.load(std::memory_order_relaxed)) {
     AutoLock lock(counts_lock.Get());
-    if (subtle::NoBarrier_Load(&counts_) == 0) {
+    if (!counts_.load(std::memory_order_relaxed)) {
       // Create the actual counts storage while the above lock is acquired.
       HistogramBase::Count* counts = CreateCountsStorageWhileLocked();
       DCHECK(counts);
@@ -286,15 +458,106 @@ SampleVector::SampleVector(const BucketRanges* bucket_ranges)
     : SampleVector(0, bucket_ranges) {}
 
 SampleVector::SampleVector(uint64_t id, const BucketRanges* bucket_ranges)
-    : SampleVectorBase(id, new LocalMetadata(), bucket_ranges) {}
+    : SampleVectorBase(id, std::make_unique<LocalMetadata>(), bucket_ranges) {}
 
-SampleVector::~SampleVector() {
-  delete static_cast<LocalMetadata*>(meta());
-}
+SampleVector::~SampleVector() = default;
 
 bool SampleVector::MountExistingCountsStorage() const {
   // There is never any existing storage other than what is already in use.
   return counts() != nullptr;
+}
+
+std::string SampleVector::GetAsciiHeader(StringPiece histogram_name,
+                                         int32_t flags) const {
+  Count sample_count = TotalCount();
+  std::string output;
+  StringAppendF(&output, "Histogram: %.*s recorded %d samples",
+                static_cast<int>(histogram_name.size()), histogram_name.data(),
+                sample_count);
+  if (sample_count == 0) {
+    DCHECK_EQ(sum(), 0);
+  } else {
+    double mean = static_cast<float>(sum()) / sample_count;
+    StringAppendF(&output, ", mean = %.1f", mean);
+  }
+  if (flags)
+    StringAppendF(&output, " (flags = 0x%x)", flags);
+  return output;
+}
+
+std::string SampleVector::GetAsciiBody() const {
+  Count sample_count = TotalCount();
+
+  // Prepare to normalize graphical rendering of bucket contents.
+  double max_size = 0;
+  double scaling_factor = 1;
+  max_size = GetPeakBucketSize();
+  // Scale histogram bucket counts to take at most 72 characters.
+  // Note: Keep in sync w/ kLineLength histogram_samples.cc
+  const double kLineLength = 72;
+  if (max_size > kLineLength)
+    scaling_factor = kLineLength / max_size;
+
+  // Calculate largest print width needed for any of our bucket range displays.
+  size_t print_width = 1;
+  for (uint32_t i = 0; i < bucket_count(); ++i) {
+    if (GetCountAtIndex(i)) {
+      size_t width =
+          GetSimpleAsciiBucketRange(bucket_ranges()->range(i)).size() + 1;
+      if (width > print_width)
+        print_width = width;
+    }
+  }
+
+  int64_t remaining = sample_count;
+  int64_t past = 0;
+  std::string output;
+  // Output the actual histogram graph.
+  for (uint32_t i = 0; i < bucket_count(); ++i) {
+    Count current = GetCountAtIndex(i);
+    remaining -= current;
+    std::string range = GetSimpleAsciiBucketRange(bucket_ranges()->range(i));
+    output.append(range);
+    for (size_t j = 0; range.size() + j < print_width + 1; ++j)
+      output.push_back(' ');
+    if (0 == current && i < bucket_count() - 1 && 0 == GetCountAtIndex(i + 1)) {
+      while (i < bucket_count() - 1 && 0 == GetCountAtIndex(i + 1)) {
+        ++i;
+      }
+      output.append("... \n");
+      continue;  // No reason to plot emptiness.
+    }
+    Count current_size = round(current * scaling_factor);
+    WriteAsciiBucketGraph(current_size, kLineLength, &output);
+    WriteAsciiBucketContext(past, current, remaining, i, &output);
+    output.append("\n");
+    past += current;
+  }
+  DCHECK_EQ(sample_count, past);
+  return output;
+}
+
+double SampleVector::GetPeakBucketSize() const {
+  Count max = 0;
+  for (uint32_t i = 0; i < bucket_count(); ++i) {
+    Count current = GetCountAtIndex(i);
+    if (current > max)
+      max = current;
+  }
+  return max;
+}
+
+void SampleVector::WriteAsciiBucketContext(int64_t past,
+                                           Count current,
+                                           int64_t remaining,
+                                           uint32_t current_bucket_index,
+                                           std::string* output) const {
+  double scaled_sum = (past + current + remaining) / 100.0;
+  WriteAsciiBucketValue(current, scaled_sum, output);
+  if (0 < current_bucket_index) {
+    double percentage = past / scaled_sum;
+    StringAppendF(output, " {%3.1f%%}", percentage);
+  }
 }
 
 HistogramBase::AtomicCount* SampleVector::CreateCountsStorageWhileLocked() {
@@ -359,71 +622,6 @@ PersistentSampleVector::CreateCountsStorageWhileLocked() {
   }
 
   return static_cast<HistogramBase::AtomicCount*>(mem);
-}
-
-SampleVectorIterator::SampleVectorIterator(
-    const std::vector<HistogramBase::AtomicCount>* counts,
-    const BucketRanges* bucket_ranges)
-    : counts_(&(*counts)[0]),
-      counts_size_(counts->size()),
-      bucket_ranges_(bucket_ranges),
-      index_(0) {
-  DCHECK_GE(bucket_ranges_->bucket_count(), counts_size_);
-  SkipEmptyBuckets();
-}
-
-SampleVectorIterator::SampleVectorIterator(
-    const HistogramBase::AtomicCount* counts,
-    size_t counts_size,
-    const BucketRanges* bucket_ranges)
-    : counts_(counts),
-      counts_size_(counts_size),
-      bucket_ranges_(bucket_ranges),
-      index_(0) {
-  DCHECK_GE(bucket_ranges_->bucket_count(), counts_size_);
-  SkipEmptyBuckets();
-}
-
-SampleVectorIterator::~SampleVectorIterator() = default;
-
-bool SampleVectorIterator::Done() const {
-  return index_ >= counts_size_;
-}
-
-void SampleVectorIterator::Next() {
-  DCHECK(!Done());
-  index_++;
-  SkipEmptyBuckets();
-}
-
-void SampleVectorIterator::Get(HistogramBase::Sample* min,
-                               int64_t* max,
-                               HistogramBase::Count* count) const {
-  DCHECK(!Done());
-  if (min != nullptr)
-    *min = bucket_ranges_->range(index_);
-  if (max != nullptr)
-    *max = strict_cast<int64_t>(bucket_ranges_->range(index_ + 1));
-  if (count != nullptr)
-    *count = subtle::NoBarrier_Load(&counts_[index_]);
-}
-
-bool SampleVectorIterator::GetBucketIndex(size_t* index) const {
-  DCHECK(!Done());
-  if (index != nullptr)
-    *index = index_;
-  return true;
-}
-
-void SampleVectorIterator::SkipEmptyBuckets() {
-  if (Done())
-    return;
-
-  while (index_ < counts_size_) {
-    if (subtle::NoBarrier_Load(&counts_[index_]) != 0)
-      return;
-    index_++;
-  }
 }
 
 }  // namespace base

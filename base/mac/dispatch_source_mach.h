@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,6 @@
 
 #include "base/base_export.h"
 #include "base/mac/scoped_dispatch_object.h"
-#include "base/macros.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -33,6 +31,9 @@ class BASE_EXPORT DispatchSourceMach {
                      mach_port_t port,
                      void (^event_handler)());
 
+  DispatchSourceMach(const DispatchSourceMach&) = delete;
+  DispatchSourceMach& operator=(const DispatchSourceMach&) = delete;
+
   // Cancels the source and waits for it to become fully cancelled before
   // releasing the source.
   ~DispatchSourceMach();
@@ -40,6 +41,8 @@ class BASE_EXPORT DispatchSourceMach {
   // Resumes the source. This must be called before any Mach messages will
   // be received.
   void Resume();
+
+  dispatch_queue_t queue() const { return queue_.get(); }
 
  private:
   // The dispatch queue used to service the source_.
@@ -50,8 +53,6 @@ class BASE_EXPORT DispatchSourceMach {
 
   // Semaphore used to wait on the |source_|'s cancellation in the destructor.
   ScopedDispatchObject<dispatch_semaphore_t> source_canceled_;
-
-  DISALLOW_COPY_AND_ASSIGN(DispatchSourceMach);
 };
 
 }  // namespace base

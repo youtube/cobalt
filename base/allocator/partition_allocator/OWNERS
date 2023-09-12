@@ -1,8 +1,8 @@
-ajwong@chromium.org
+bartekn@chromium.org
 haraken@chromium.org
-palmer@chromium.org
-tsepez@chromium.org
+keishi@chromium.org
+lizeb@chromium.org
+tasak@google.com
 
-# TEAM: platform-architecture-dev@chromium.org
-#       Also: security-dev@chromium.org
-# COMPONENT: Blink>MemoryAllocator>Partition
+per-file pointers/raw_ptr*=file://base/memory/MIRACLE_PTR_OWNERS
+per-file pointers/raw_ref*=file://base/memory/MIRACLE_PTR_OWNERS

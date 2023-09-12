@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,15 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <utility>
 #include <vector>
 
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/debug/alias.h"
 #include "base/gtest_prod_util.h"
-#include "base/logging.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/time/time.h"
 
 namespace base {
@@ -32,7 +37,7 @@ namespace internal {
 // MaybeShrinkQueue to avoid unnecessary churn.
 //
 // NB this queue isn't by itself thread safe.
-template <typename T>
+template <typename T, TimeTicks (*now_source)() = TimeTicks::Now>
 class LazilyDeallocatedDeque {
  public:
   enum {
@@ -49,8 +54,9 @@ class LazilyDeallocatedDeque {
     kMinimumShrinkIntervalInSeconds = 5
   };
 
-  LazilyDeallocatedDeque() {}
-
+  LazilyDeallocatedDeque() = default;
+  LazilyDeallocatedDeque(const LazilyDeallocatedDeque&) = delete;
+  LazilyDeallocatedDeque& operator=(const LazilyDeallocatedDeque&) = delete;
   ~LazilyDeallocatedDeque() { clear(); }
 
   bool empty() const { return size_ == 0; }
@@ -86,6 +92,10 @@ class LazilyDeallocatedDeque {
 
     // Grow if needed, by the minimum amount.
     if (!head_->CanPush()) {
+      // TODO(alexclarke): Remove once we've understood the OOMs.
+      size_t size = size_;
+      base::debug::Alias(&size);
+
       std::unique_ptr<Ring> new_ring = std::make_unique<Ring>(kMinimumRingSize);
       new_ring->next_ = std::move(head_);
       head_ = std::move(new_ring);
@@ -105,7 +115,14 @@ class LazilyDeallocatedDeque {
 
     // Grow if needed.
     if (!tail_->CanPush()) {
-      tail_->next_ = std::make_unique<Ring>(tail_->capacity() * 2);
+      // TODO(alexclarke): Remove once we've understood the OOMs.
+      size_t size = size_;
+      base::debug::Alias(&size);
+
+      // Doubling the size is a common strategy, but one which can be wasteful
+      // so we use a (somewhat) slower growth curve.
+      tail_->next_ = std::make_unique<Ring>(2 + tail_->capacity() +
+                                            (tail_->capacity() / 2));
       tail_ = tail_->next_.get();
     }
 
@@ -165,7 +182,7 @@ class LazilyDeallocatedDeque {
     DCHECK_GE(max_size_, size_);
 
     // Rate limit how often we shrink the queue because it's somewhat expensive.
-    TimeTicks current_time = TimeTicks::Now();
+    TimeTicks current_time = now_source();
     if (current_time < next_resize_time_)
       return;
 
@@ -184,8 +201,7 @@ class LazilyDeallocatedDeque {
       return;
 
     SetCapacity(new_capacity);
-    next_resize_time_ =
-        current_time + TimeDelta::FromSeconds(kMinimumShrinkIntervalInSeconds);
+    next_resize_time_ = current_time + Seconds(kMinimumShrinkIntervalInSeconds);
   }
 
   void SetCapacity(size_t new_capacity) {
@@ -224,12 +240,17 @@ class LazilyDeallocatedDeque {
           next_(nullptr) {
       DCHECK_GE(capacity_, kMinimumRingSize);
     }
-
+    Ring(const Ring&) = delete;
+    Ring& operator=(const Ring&) = delete;
     ~Ring() {
       while (!empty()) {
         pop_front();
       }
-      delete[] reinterpret_cast<char*>(data_);
+      // Stop referencing the memory with the raw_ptr first, before releasing
+      // memory. This avoids the raw_ptr to be temporarily dangling.
+      char* memory = reinterpret_cast<char*>(data_.get());
+      data_ = nullptr;
+      delete[] memory;
     }
 
     bool empty() const { return back_index_ == front_index_; }
@@ -298,10 +319,8 @@ class LazilyDeallocatedDeque {
     size_t capacity_;
     size_t front_index_;
     size_t back_index_;
-    T* data_;
+    raw_ptr<T> data_;
     std::unique_ptr<Ring> next_;
-
-    DISALLOW_COPY_AND_ASSIGN(Ring);
   };
 
  public:
@@ -338,7 +357,7 @@ class LazilyDeallocatedDeque {
       index_ = ring_->CircularIncrement(ring->front_index_);
     }
 
-    const Ring* ring_;
+    raw_ptr<const Ring> ring_;
     size_t index_;
 
     friend class LazilyDeallocatedDeque;
@@ -352,13 +371,14 @@ class LazilyDeallocatedDeque {
   // We maintain a list of Ring buffers, to enable us to grow without copying,
   // but most of the time we aim to have only one active Ring.
   std::unique_ptr<Ring> head_;
-  Ring* tail_ = nullptr;
+
+  // `tail_` is not a raw_ptr<...> for performance reasons (based on analysis of
+  // sampling profiler data and tab_search:top100:2020).
+  RAW_PTR_EXCLUSION Ring* tail_ = nullptr;
 
   size_t size_ = 0;
   size_t max_size_ = 0;
   TimeTicks next_resize_time_;
-
-  DISALLOW_COPY_AND_ASSIGN(LazilyDeallocatedDeque);
 };
 
 }  // namespace internal

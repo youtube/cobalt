@@ -1,18 +1,23 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/process/process_iterator.h"
 
+#include <stddef.h>
+
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/process/internal_linux.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
-#include "starboard/types.h"
 
 namespace base {
+
+class ScopedAllowBlockingForProc : public ScopedAllowBlocking {};
 
 namespace {
 
@@ -32,7 +37,7 @@ std::string GetProcStatsFieldAsString(
     return proc_stats[field_num];
 
   NOTREACHED();
-  return nullptr;
+  return std::string();
 }
 
 // Reads /proc/<pid>/cmdline and populates |proc_cmd_line_args| with the command
@@ -42,7 +47,7 @@ std::string GetProcStatsFieldAsString(
 // delimiter.
 bool GetProcCmdline(pid_t pid, std::vector<std::string>* proc_cmd_line_args) {
   // Synchronously reading files in /proc is safe.
-  ThreadRestrictions::ScopedAllowIO allow_io;
+  ScopedAllowBlockingForProc allow_blocking;
 
   FilePath cmd_line_file = internal::GetProcPidDir(pid).Append("cmdline");
   std::string cmd_line;
@@ -58,8 +63,7 @@ bool GetProcCmdline(pid_t pid, std::vector<std::string>* proc_cmd_line_args) {
 }  // namespace
 
 ProcessIterator::ProcessIterator(const ProcessFilter* filter)
-    : filter_(filter) {
-  procfs_dir_ = opendir(internal::kProcDir);
+    : procfs_dir_(opendir(internal::kProcDir)), filter_(filter) {
   if (!procfs_dir_) {
     // On Android, SELinux may prevent reading /proc. See
     // https://crbug.com/581517 for details.
@@ -67,12 +71,7 @@ ProcessIterator::ProcessIterator(const ProcessFilter* filter)
   }
 }
 
-ProcessIterator::~ProcessIterator() {
-  if (procfs_dir_) {
-    closedir(procfs_dir_);
-    procfs_dir_ = nullptr;
-  }
-}
+ProcessIterator::~ProcessIterator() = default;
 
 bool ProcessIterator::CheckForNextProcess() {
   // TODO(port): skip processes owned by different UID
@@ -87,12 +86,8 @@ bool ProcessIterator::CheckForNextProcess() {
   std::string stats_data;
   std::vector<std::string> proc_stats;
 
-  // Arbitrarily guess that there will never be more than 200 non-process
-  // files in /proc.  Hardy has 53 and Lucid has 61.
-  int skipped = 0;
-  const int kSkipLimit = 200;
-  while (skipped < kSkipLimit) {
-    dirent* slot = readdir(procfs_dir_);
+  while (true) {
+    dirent* const slot = readdir(procfs_dir_.get());
     // all done looking through /proc?
     if (!slot)
       return false;
@@ -100,7 +95,6 @@ bool ProcessIterator::CheckForNextProcess() {
     // If not a process, keep looking for one.
     pid = internal::ProcDirSlotToPid(slot->d_name);
     if (!pid) {
-      skipped++;
       continue;
     }
 
@@ -128,14 +122,12 @@ bool ProcessIterator::CheckForNextProcess() {
     // (e.g. WaitForProcessesToExit doesn't clean up after dead children yet.)
     // There could be a lot of zombies, can't really decrement i here.
   }
-  if (skipped >= kSkipLimit) {
-    NOTREACHED();
-    return false;
-  }
 
   entry_.pid_ = pid;
-  entry_.ppid_ = GetProcStatsFieldAsInt64(proc_stats, internal::VM_PPID);
-  entry_.gid_ = GetProcStatsFieldAsInt64(proc_stats, internal::VM_PGRP);
+  entry_.ppid_ = checked_cast<ProcessId>(
+      GetProcStatsFieldAsInt64(proc_stats, internal::VM_PPID));
+  entry_.gid_ = checked_cast<ProcessId>(
+      GetProcStatsFieldAsInt64(proc_stats, internal::VM_PGRP));
   entry_.cmd_line_args_.assign(cmd_line_args.begin(), cmd_line_args.end());
   entry_.exe_file_ = GetProcessExecutablePath(pid).BaseName().value();
   return true;

@@ -118,18 +118,18 @@ void DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarSignalAll)(
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateHappensBefore)(
     const char *file, int line, const volatile void *obj)
-{DYNAMIC_ANNOTATIONS_IMPL};
+{DYNAMIC_ANNOTATIONS_IMPL}
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateHappensAfter)(
     const char *file, int line, const volatile void *obj)
-{DYNAMIC_ANNOTATIONS_IMPL};
+{DYNAMIC_ANNOTATIONS_IMPL}
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotatePublishMemoryRange)(
-    const char *file, int line, const volatile void *address, long size)
+    const char *file, int line, const volatile void *address, size_t size)
 {DYNAMIC_ANNOTATIONS_IMPL}
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateUnpublishMemoryRange)(
-    const char *file, int line, const volatile void *address, long size)
+    const char *file, int line, const volatile void *address, size_t size)
 {DYNAMIC_ANNOTATIONS_IMPL}
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQCreate)(
@@ -149,7 +149,7 @@ void DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQGet)(
 {DYNAMIC_ANNOTATIONS_IMPL}
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateNewMemory)(
-    const char *file, int line, const volatile void *mem, long size)
+    const char *file, int line, const volatile void *mem, size_t size)
 {DYNAMIC_ANNOTATIONS_IMPL}
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateExpectRace)(
@@ -167,7 +167,7 @@ void DYNAMIC_ANNOTATIONS_NAME(AnnotateBenignRace)(
 {DYNAMIC_ANNOTATIONS_IMPL}
 
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateBenignRaceSized)(
-    const char *file, int line, const volatile void *mem, long size,
+    const char *file, int line, const volatile void *mem, size_t size,
     const char *description)
 {DYNAMIC_ANNOTATIONS_IMPL}
 
@@ -233,9 +233,6 @@ static int GetRunningOnValgrind(void) {
   if (RUNNING_ON_VALGRIND) return 1;
 #endif
 
-#ifdef STARBOARD
-  return 0;
-#else
 #ifndef _MSC_VER
   char *running_on_valgrind_str = getenv("RUNNING_ON_VALGRIND");
   if (running_on_valgrind_str) {
@@ -254,7 +251,6 @@ static int GetRunningOnValgrind(void) {
   if (res > 0 && strcmp(value, "0") != 0)
     return 1;
 #endif
-#endif  // STARBOARD
   return 0;
 }
 

@@ -1,21 +1,25 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_I18N_BREAK_ITERATOR_H_
 #define BASE_I18N_BREAK_ITERATOR_H_
 
+#include <stddef.h>
+
+#include <memory>
+#include <string>
+
 #include "base/i18n/base_i18n_export.h"
-#include "base/macros.h"
-#include "base/strings/string16.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_piece.h"
-#include "starboard/types.h"
 
 // The BreakIterator class iterates through the words, word breaks, and
 // line breaks in a UTF-16 string.
 //
-// It provides several modes, BREAK_WORD, BREAK_LINE, and BREAK_NEWLINE,
-// which modify how characters are aggregated into the returned string.
+// It provides several modes, BREAK_WORD, BREAK_LINE, BREAK_NEWLINE, and
+// BREAK_SENTENCE which modify how characters are aggregated into the returned
+// string.
 //
 // Under BREAK_WORD mode, once a word is encountered any non-word
 // characters are not included in the returned string (e.g. in the
@@ -42,6 +46,12 @@
 // (eg. in the UTF-16 equivalent of the string "foo\nbar!\n\n", the line
 // breaks are at the periods in ".foo\n.bar\n.\n.").
 //
+// Under BREAK_SENTENCE mode, all characters are included in the returned
+// string, breaking only on sentence boundaries defined in "Unicode Standard
+// Annex #29: Text Segmentation." Whitespace immediately following the sentence
+// is also included. For example, in the UTF-16 equivalent of the string
+// "foo bar! baz qux?" the breaks are at the periods in ".foo bar! .baz quz?."
+//
 // To extract the words from a string, move a BREAK_WORD BreakIterator
 // through the string and test whether IsWord() is true. E.g.,
 //   BreakIterator iter(str, BreakIterator::BREAK_WORD);
@@ -54,8 +64,18 @@
 //     }
 //   }
 
+// ICU iterator type. It is forward declared to avoid including transitively the
+// full ICU headers toward every dependent files.
+struct UBreakIterator;
+
 namespace base {
 namespace i18n {
+
+struct UBreakIteratorDeleter {
+  void operator()(UBreakIterator*);
+};
+using UBreakIteratorPtr =
+    std::unique_ptr<UBreakIterator, UBreakIteratorDeleter>;
 
 class BASE_I18N_EXPORT BreakIterator {
  public:
@@ -70,6 +90,7 @@ class BASE_I18N_EXPORT BreakIterator {
     BREAK_CHARACTER,
     // But don't remove this one!
     RULE_BASED,
+    BREAK_SENTENCE,
   };
 
   enum WordBreakStatus {
@@ -85,13 +106,19 @@ class BASE_I18N_EXPORT BreakIterator {
     IS_LINE_OR_CHAR_BREAK
   };
 
+  static constexpr size_t npos = static_cast<size_t>(-1);
+
   // Requires |str| to live as long as the BreakIterator does.
-  BreakIterator(const StringPiece16& str, BreakType break_type);
+  BreakIterator(StringPiece16 str, BreakType break_type);
   // Make a rule-based iterator. BreakType == RULE_BASED is implied.
   // TODO(andrewhayden): This signature could easily be misinterpreted as
-  // "(const string16& str, const string16& locale)". We should do something
-  // better.
-  BreakIterator(const StringPiece16& str, const string16& rules);
+  // "(const std::u16string& str, const std::u16string& locale)". We should do
+  // something better.
+  BreakIterator(StringPiece16 str, const std::u16string& rules);
+
+  BreakIterator(const BreakIterator&) = delete;
+  BreakIterator& operator=(const BreakIterator&) = delete;
+
   ~BreakIterator();
 
   // Init() must be called before any of the iterators are valid.
@@ -107,7 +134,7 @@ class BASE_I18N_EXPORT BreakIterator {
   // Updates the text used by the iterator, resetting the iterator as if
   // if Init() had been called again. Any old state is lost. Returns true
   // unless there is an error setting the text.
-  bool SetText(const base::char16* text, const size_t length);
+  bool SetText(const char16_t* text, const size_t length);
 
   // Under BREAK_WORD mode, returns true if the break we just hit is the
   // end of a word. (Otherwise, the break iterator just skipped over e.g.
@@ -130,10 +157,15 @@ class BASE_I18N_EXPORT BreakIterator {
   BreakIterator::WordBreakStatus GetWordBreakStatus() const;
 
   // Under BREAK_WORD mode, returns true if |position| is at the end of word or
-  // at the start of word. It always returns false under BREAK_LINE and
-  // BREAK_NEWLINE modes.
+  // at the start of word. It always returns false under modes that are not
+  // BREAK_WORD or RULE_BASED.
   bool IsEndOfWord(size_t position) const;
   bool IsStartOfWord(size_t position) const;
+
+  // Under BREAK_SENTENCE mode, returns true if |position| is at a sentence
+  // boundary. It always returns false under modes that are not BREAK_SENTENCE
+  // or RULE_BASED.
+  bool IsSentenceBoundary(size_t position) const;
 
   // Under BREAK_CHARACTER mode, returns whether |position| is a Unicode
   // grapheme boundary.
@@ -142,7 +174,7 @@ class BASE_I18N_EXPORT BreakIterator {
   // Returns the string between prev() and pos().
   // Advance() must have been called successfully at least once for pos() to
   // have advanced to somewhere useful.
-  string16 GetString() const;
+  std::u16string GetString() const;
 
   StringPiece16 GetStringPiece() const;
 
@@ -154,25 +186,20 @@ class BASE_I18N_EXPORT BreakIterator {
   size_t pos() const { return pos_; }
 
  private:
-  // ICU iterator, avoiding ICU ubrk.h dependence.
-  // This is actually an ICU UBreakiterator* type, which turns out to be
-  // a typedef for a void* in the ICU headers. Using void* directly prevents
-  // callers from needing access to the ICU public headers directory.
-  void* iter_;
+  UBreakIteratorPtr iter_;
 
   // The string we're iterating over. Can be changed with SetText(...)
   StringPiece16 string_;
 
   // Rules for our iterator. Mutually exclusive with break_type_.
-  const string16 rules_;
+  const std::u16string rules_;
 
   // The breaking style (word/space/newline). Mutually exclusive with rules_
-  BreakType break_type_;
+  const BreakType break_type_;
 
   // Previous and current iterator positions.
-  size_t prev_, pos_;
-
-  DISALLOW_COPY_AND_ASSIGN(BreakIterator);
+  size_t prev_ = npos;
+  size_t pos_ = 0;
 };
 
 }  // namespace i18n

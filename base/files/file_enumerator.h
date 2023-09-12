@@ -1,31 +1,28 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_FILES_FILE_ENUMERATOR_H_
 #define BASE_FILES_FILE_ENUMERATOR_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <vector>
 
 #include "base/base_export.h"
 #include "base/containers/stack.h"
+#include "base/files/file.h"
 #include "base/files/file_path.h"
-#include "base/macros.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include "starboard/file.h"
-#else
-#if defined(OS_WIN)
-#include <windows.h>
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_types.h"
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_set>
-
-#include "starboard/types.h"
-#endif
 #endif
 
 namespace base {
@@ -37,9 +34,9 @@ namespace base {
 //
 // Example:
 //
-//   base::FileEnumerator enum(my_dir, false, base::FileEnumerator::FILES,
-//                             FILE_PATH_LITERAL("*.txt"));
-//   for (base::FilePath name = enum.Next(); !name.empty(); name = enum.Next())
+//   base::FileEnumerator e(my_dir, false, base::FileEnumerator::FILES,
+//                          FILE_PATH_LITERAL("*.txt"));
+//   for (base::FilePath name = e.Next(); !name.empty(); name = e.Next())
 //     ...
 class BASE_EXPORT FileEnumerator {
  public:
@@ -57,30 +54,29 @@ class BASE_EXPORT FileEnumerator {
     FilePath GetName() const;
 
     int64_t GetSize() const;
+
+    // On POSIX systems, this is rounded down to the second.
     Time GetLastModifiedTime() const;
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     // Note that the cAlternateFileName (used to hold the "short" 8.3 name)
     // of the WIN32_FIND_DATA will be empty. Since we don't use short file
     // names, we tell Windows to omit it which speeds up the query slightly.
-    const WIN32_FIND_DATA& find_data() const { return find_data_; }
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-    const struct stat& stat() const { return stat_; }
+    const WIN32_FIND_DATA& find_data() const {
+      return *ChromeToWindowsType(&find_data_);
+    }
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+    const stat_wrapper_t& stat() const { return stat_; }
 #endif
 
    private:
     friend class FileEnumerator;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_WIN)
+    CHROME_WIN32_FIND_DATA find_data_;
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+    stat_wrapper_t stat_;
     FilePath filename_;
-    SbFileInfo sb_info_;
-#else
-#if defined(OS_WIN)
-    WIN32_FIND_DATA find_data_;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-    struct stat stat_;
-    FilePath filename_;
-#endif
 #endif
   };
 
@@ -88,7 +84,15 @@ class BASE_EXPORT FileEnumerator {
     FILES = 1 << 0,
     DIRECTORIES = 1 << 1,
     INCLUDE_DOT_DOT = 1 << 2,
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+
+    // Report only the names of entries and not their type, size, or
+    // last-modified time. May only be used for non-recursive enumerations, and
+    // implicitly includes both files and directories (neither of which may be
+    // specified). When used, an enumerator's `GetInfo()` method must not be
+    // called.
+    NAMES_ONLY = 1 << 3,
+
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     SHOW_SYM_LINKS = 1 << 4,
 #endif
   };
@@ -102,6 +106,20 @@ class BASE_EXPORT FileEnumerator {
     // Recursive search will pass through every folder and perform pattern
     // matching inside each one.
     ALL,
+  };
+
+  // Determines how a FileEnumerator handles errors encountered during
+  // enumeration. When no ErrorPolicy is explicitly set, FileEnumerator defaults
+  // to IGNORE_ERRORS.
+  enum class ErrorPolicy {
+    // Errors are ignored if possible and FileEnumerator returns as many files
+    // as it is able to enumerate.
+    IGNORE_ERRORS,
+
+    // Any error encountered during enumeration will terminate the enumeration
+    // immediately. An error code indicating the nature of a failure can be
+    // retrieved from |GetError()|.
+    STOP_ENUMERATION,
   };
 
   // |root_path| is the starting directory to search for. It may or may not end
@@ -121,9 +139,7 @@ class BASE_EXPORT FileEnumerator {
   // since the underlying code uses OS-specific matching routines.  In general,
   // Windows matching is less featureful than others, so test there first.
   // If unspecified, this will match all files.
-  FileEnumerator(const FilePath& root_path,
-                 bool recursive,
-                 int file_type);
+  FileEnumerator(const FilePath& root_path, bool recursive, int file_type);
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
                  int file_type,
@@ -133,6 +149,14 @@ class BASE_EXPORT FileEnumerator {
                  int file_type,
                  const FilePath::StringType& pattern,
                  FolderSearchPolicy folder_search_policy);
+  FileEnumerator(const FilePath& root_path,
+                 bool recursive,
+                 int file_type,
+                 const FilePath::StringType& pattern,
+                 FolderSearchPolicy folder_search_policy,
+                 ErrorPolicy error_policy);
+  FileEnumerator(const FileEnumerator&) = delete;
+  FileEnumerator& operator=(const FileEnumerator&) = delete;
   ~FileEnumerator();
 
   // Returns the next file or an empty string if there are no more results.
@@ -142,8 +166,19 @@ class BASE_EXPORT FileEnumerator {
   // then so will be the result of Next().
   FilePath Next();
 
-  // Write the file info into |info|.
+  // Returns info about the file last returned by Next(). Note that on Windows
+  // and Fuchsia, GetInfo() does not play well with INCLUDE_DOT_DOT. In
+  // particular, the GetLastModifiedTime() for the .. directory is 1601-01-01
+  // on Fuchsia (https://crbug.com/1106172) and is equal to the last modified
+  // time of the current directory on Windows (https://crbug.com/1119546).
+  // Must not be used with FileType::NAMES_ONLY.
   FileInfo GetInfo() const;
+
+  // Once |Next()| returns an empty path, enumeration has been terminated. If
+  // termination was normal (i.e. no more results to enumerate) or ErrorPolicy
+  // is set to IGNORE_ERRORS, this returns FILE_OK. Otherwise it returns an
+  // error code reflecting why enumeration was stopped early.
+  File::Error GetError() const { return error_; }
 
  private:
   // Returns true if the given path should be skipped in enumeration.
@@ -153,44 +188,39 @@ class BASE_EXPORT FileEnumerator {
 
   bool IsPatternMatched(const FilePath& src) const;
 
-#if defined(STARBOARD)
-  std::vector<FileInfo> ReadDirectory(const FilePath& source);
+#if BUILDFLAG(IS_WIN)
+  const WIN32_FIND_DATA& find_data() const {
+    return *ChromeToWindowsType(&find_data_);
+  }
 
-  // The files in the current directory
-  std::vector<FileInfo> directory_entries_;
-
-  // The next entry to use from the directory_entries_ vector
-  size_t current_directory_entry_;
-#else
-#if defined(OS_WIN)
   // True when find_data_ is valid.
   bool has_find_data_ = false;
-  WIN32_FIND_DATA find_data_;
+  CHROME_WIN32_FIND_DATA find_data_;
   HANDLE find_handle_ = INVALID_HANDLE_VALUE;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // The files in the current directory
   std::vector<FileInfo> directory_entries_;
 
   // Set of visited directories. Used to prevent infinite looping along
   // circular symlinks.
-  std::unordered_set<ino_t> visited_directories_;
+  // The Android NDK (r23) does not declare `st_ino` as an `ino_t`, hence the
+  // need for the ugly decltype.
+  std::unordered_set<decltype(stat_wrapper_t::st_ino)> visited_directories_;
 
   // The next entry to use from the directory_entries_ vector
   size_t current_directory_entry_;
 #endif
-#endif
-
   FilePath root_path_;
   const bool recursive_;
-  const int file_type_;
+  int file_type_;
   FilePath::StringType pattern_;
   const FolderSearchPolicy folder_search_policy_;
+  const ErrorPolicy error_policy_;
+  File::Error error_ = File::FILE_OK;
 
   // A stack that keeps track of which subdirectories we still need to
   // enumerate in the breadth-first search.
   base::stack<FilePath> pending_paths_;
-
-  DISALLOW_COPY_AND_ASSIGN(FileEnumerator);
 };
 
 }  // namespace base

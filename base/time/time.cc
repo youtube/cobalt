@@ -1,100 +1,134 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/time/time.h"
 
+#include <atomic>
 #include <cmath>
-#include <ios>
 #include <limits>
 #include <ostream>
-#include <sstream>
+#include <tuple>
+#include <utility>
 
-#include "base/logging.h"
-#include "base/macros.h"
-#include "base/no_destructor.h"
+#include "base/check.h"
 #include "base/strings/stringprintf.h"
 #include "base/third_party/nspr/prtime.h"
 #include "base/time/time_override.h"
 #include "build/build_config.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
+namespace {
+
+const char kWeekdayName[7][4] = {"Sun", "Mon", "Tue", "Wed",
+                                 "Thu", "Fri", "Sat"};
+
+const char kMonthName[12][4] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+TimeTicks g_shared_time_ticks_at_unix_epoch;
+
+}  // namespace
+
 namespace internal {
 
-TimeNowFunction g_time_now_function = &subtle::TimeNowIgnoringOverride;
+std::atomic<TimeNowFunction> g_time_now_function{
+    &subtle::TimeNowIgnoringOverride};
 
-TimeNowFunction g_time_now_from_system_time_function =
-    &subtle::TimeNowFromSystemTimeIgnoringOverride;
+std::atomic<TimeNowFunction> g_time_now_from_system_time_function{
+    &subtle::TimeNowFromSystemTimeIgnoringOverride};
 
-TimeTicksNowFunction g_time_ticks_now_function =
-    &subtle::TimeTicksNowIgnoringOverride;
+std::atomic<TimeTicksNowFunction> g_time_ticks_now_function{
+    &subtle::TimeTicksNowIgnoringOverride};
 
-ThreadTicksNowFunction g_thread_ticks_now_function =
-    &subtle::ThreadTicksNowIgnoringOverride;
+std::atomic<ThreadTicksNowFunction> g_thread_ticks_now_function{
+    &subtle::ThreadTicksNowIgnoringOverride};
+
 }  // namespace internal
 
 // TimeDelta ------------------------------------------------------------------
 
-int64_t TimeDelta::InNanoseconds() const {
-  if (is_max()) {
-    // Preserve max to prevent overflow.
-    return std::numeric_limits<int64_t>::max();
-  }
-  return delta_ * Time::kNanosecondsPerMicrosecond;
+int TimeDelta::InDays() const {
+  if (!is_inf())
+    return static_cast<int>(delta_ / Time::kMicrosecondsPerDay);
+  return (delta_ < 0) ? std::numeric_limits<int>::min()
+                      : std::numeric_limits<int>::max();
 }
 
 int TimeDelta::InDaysFloored() const {
-  if (is_max()) {
-    // Preserve max to prevent overflow.
-    return std::numeric_limits<int>::max();
+  if (!is_inf()) {
+    const int result = delta_ / Time::kMicrosecondsPerDay;
+    // Convert |result| from truncating to flooring.
+    return (result * Time::kMicrosecondsPerDay > delta_) ? (result - 1)
+                                                         : result;
   }
-  int result = delta_ / Time::kMicrosecondsPerDay;
-  int64_t remainder = delta_ - (result * Time::kMicrosecondsPerDay);
-  if (remainder < 0) {
-    --result;  // Use floor(), not trunc() rounding behavior.
-  }
-  return result;
+  return (delta_ < 0) ? std::numeric_limits<int>::min()
+                      : std::numeric_limits<int>::max();
+}
+
+double TimeDelta::InMillisecondsF() const {
+  if (!is_inf())
+    return static_cast<double>(delta_) / Time::kMicrosecondsPerMillisecond;
+  return (delta_ < 0) ? -std::numeric_limits<double>::infinity()
+                      : std::numeric_limits<double>::infinity();
+}
+
+int64_t TimeDelta::InMilliseconds() const {
+  if (!is_inf())
+    return delta_ / Time::kMicrosecondsPerMillisecond;
+  return (delta_ < 0) ? std::numeric_limits<int64_t>::min()
+                      : std::numeric_limits<int64_t>::max();
 }
 
 int64_t TimeDelta::InMillisecondsRoundedUp() const {
-  if (is_max()) {
-    // Preserve max to prevent overflow.
-    return std::numeric_limits<int64_t>::max();
+  if (!is_inf()) {
+    const int64_t result = delta_ / Time::kMicrosecondsPerMillisecond;
+    // Convert |result| from truncating to ceiling.
+    return (delta_ > result * Time::kMicrosecondsPerMillisecond) ? (result + 1)
+                                                                 : result;
   }
-  int64_t result = delta_ / Time::kMicrosecondsPerMillisecond;
-  int64_t remainder = delta_ - (result * Time::kMicrosecondsPerMillisecond);
-  if (remainder > 0) {
-    ++result;  // Use ceil(), not trunc() rounding behavior.
+  return delta_;
+}
+
+double TimeDelta::InMicrosecondsF() const {
+  if (!is_inf())
+    return static_cast<double>(delta_);
+  return (delta_ < 0) ? -std::numeric_limits<double>::infinity()
+                      : std::numeric_limits<double>::infinity();
+}
+
+TimeDelta TimeDelta::CeilToMultiple(TimeDelta interval) const {
+  if (is_inf() || interval.is_zero())
+    return *this;
+  const TimeDelta remainder = *this % interval;
+  if (delta_ < 0)
+    return *this - remainder;
+  return remainder.is_zero() ? *this
+                             : (*this - remainder + interval.magnitude());
+}
+
+TimeDelta TimeDelta::FloorToMultiple(TimeDelta interval) const {
+  if (is_inf() || interval.is_zero())
+    return *this;
+  const TimeDelta remainder = *this % interval;
+  if (delta_ < 0) {
+    return remainder.is_zero() ? *this
+                               : (*this - remainder - interval.magnitude());
   }
-  return result;
+  return *this - remainder;
 }
 
-namespace time_internal {
-
-int64_t SaturatedAdd(TimeDelta delta, int64_t value) {
-  CheckedNumeric<int64_t> rv(delta.delta_);
-  rv += value;
-  if (rv.IsValid())
-    return rv.ValueOrDie();
-  // Positive RHS overflows. Negative RHS underflows.
-  if (value < 0)
-    return std::numeric_limits<int64_t>::min();
-  return std::numeric_limits<int64_t>::max();
+TimeDelta TimeDelta::RoundToMultiple(TimeDelta interval) const {
+  if (is_inf() || interval.is_zero())
+    return *this;
+  if (interval.is_inf())
+    return TimeDelta();
+  const TimeDelta half = interval.magnitude() / 2;
+  return (delta_ < 0) ? (*this - half).CeilToMultiple(interval)
+                      : (*this + half).FloorToMultiple(interval);
 }
-
-int64_t SaturatedSub(TimeDelta delta, int64_t value) {
-  CheckedNumeric<int64_t> rv(delta.delta_);
-  rv -= value;
-  if (rv.IsValid())
-    return rv.ValueOrDie();
-  // Negative RHS overflows. Positive RHS underflows.
-  if (value < 0)
-    return std::numeric_limits<int64_t>::max();
-  return std::numeric_limits<int64_t>::min();
-}
-
-}  // namespace time_internal
 
 std::ostream& operator<<(std::ostream& os, TimeDelta time_delta) {
   return os << time_delta.InSecondsF() << " s";
@@ -104,119 +138,82 @@ std::ostream& operator<<(std::ostream& os, TimeDelta time_delta) {
 
 // static
 Time Time::Now() {
-  return internal::g_time_now_function();
+  return internal::g_time_now_function.load(std::memory_order_relaxed)();
 }
 
 // static
 Time Time::NowFromSystemTime() {
   // Just use g_time_now_function because it returns the system time.
-  return internal::g_time_now_from_system_time_function();
-}
-
-// static
-Time Time::FromDeltaSinceWindowsEpoch(TimeDelta delta) {
-  return Time(delta.InMicroseconds());
-}
-
-TimeDelta Time::ToDeltaSinceWindowsEpoch() const {
-  return TimeDelta::FromMicroseconds(us_);
-}
-
-// static
-Time Time::FromTimeT(time_t tt) {
-  if (tt == 0)
-    return Time();  // Preserve 0 so we can tell it doesn't exist.
-  if (tt == std::numeric_limits<time_t>::max())
-    return Max();
-  return Time(kTimeTToMicrosecondsOffset) + TimeDelta::FromSeconds(tt);
+  return internal::g_time_now_from_system_time_function.load(
+      std::memory_order_relaxed)();
 }
 
 time_t Time::ToTimeT() const {
   if (is_null())
     return 0;  // Preserve 0 so we can tell it doesn't exist.
-  if (is_max()) {
-    // Preserve max without offset to prevent overflow.
-    return std::numeric_limits<time_t>::max();
+  if (!is_inf() && ((std::numeric_limits<int64_t>::max() -
+                     kTimeTToMicrosecondsOffset) > us_)) {
+    return static_cast<time_t>((*this - UnixEpoch()).InSeconds());
   }
-  if (std::numeric_limits<int64_t>::max() - kTimeTToMicrosecondsOffset <= us_) {
-    DLOG(WARNING) << "Overflow when converting base::Time with internal " <<
-                     "value " << us_ << " to time_t.";
-    return std::numeric_limits<time_t>::max();
-  }
-  return (us_ - kTimeTToMicrosecondsOffset) / kMicrosecondsPerSecond;
+  return (us_ < 0) ? std::numeric_limits<time_t>::min()
+                   : std::numeric_limits<time_t>::max();
 }
 
 // static
 Time Time::FromDoubleT(double dt) {
-  if (dt == 0 || std::isnan(dt))
-    return Time();  // Preserve 0 so we can tell it doesn't exist.
-  return Time(kTimeTToMicrosecondsOffset) + TimeDelta::FromSecondsD(dt);
+  // Preserve 0 so we can tell it doesn't exist.
+  return (dt == 0 || std::isnan(dt)) ? Time() : (UnixEpoch() + Seconds(dt));
 }
 
 double Time::ToDoubleT() const {
   if (is_null())
     return 0;  // Preserve 0 so we can tell it doesn't exist.
-  if (is_max()) {
-    // Preserve max without offset to prevent overflow.
-    return std::numeric_limits<double>::infinity();
-  }
-  return (static_cast<double>(us_ - kTimeTToMicrosecondsOffset) /
-          static_cast<double>(kMicrosecondsPerSecond));
+  if (!is_inf())
+    return (*this - UnixEpoch()).InSecondsF();
+  return (us_ < 0) ? -std::numeric_limits<double>::infinity()
+                   : std::numeric_limits<double>::infinity();
 }
 
-#if defined(OS_POSIX)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 // static
 Time Time::FromTimeSpec(const timespec& ts) {
   return FromDoubleT(ts.tv_sec +
-                     static_cast<double>(ts.tv_nsec) /
-                         base::Time::kNanosecondsPerSecond);
+                     static_cast<double>(ts.tv_nsec) / kNanosecondsPerSecond);
 }
 #endif
 
 // static
 Time Time::FromJsTime(double ms_since_epoch) {
-  // The epoch is a valid time, so this constructor doesn't interpret
-  // 0 as the null time.
-  return Time(kTimeTToMicrosecondsOffset) +
-         TimeDelta::FromMillisecondsD(ms_since_epoch);
+  // The epoch is a valid time, so this constructor doesn't interpret 0 as the
+  // null time.
+  return UnixEpoch() + Milliseconds(ms_since_epoch);
 }
 
 double Time::ToJsTime() const {
-  if (is_null()) {
-    // Preserve 0 so the invalid result doesn't depend on the platform.
-    return 0;
-  }
-  if (is_max()) {
-    // Preserve max without offset to prevent overflow.
-    return std::numeric_limits<double>::infinity();
-  }
-  return (static_cast<double>(us_ - kTimeTToMicrosecondsOffset) /
-          kMicrosecondsPerMillisecond);
+  // Preserve 0 so the invalid result doesn't depend on the platform.
+  return is_null() ? 0 : ToJsTimeIgnoringNull();
+}
+
+double Time::ToJsTimeIgnoringNull() const {
+  // Preserve max and min without offset to prevent over/underflow.
+  if (!is_inf())
+    return (*this - UnixEpoch()).InMillisecondsF();
+  return (us_ < 0) ? -std::numeric_limits<double>::infinity()
+                   : std::numeric_limits<double>::infinity();
 }
 
 Time Time::FromJavaTime(int64_t ms_since_epoch) {
-  return base::Time::UnixEpoch() +
-         base::TimeDelta::FromMilliseconds(ms_since_epoch);
+  return UnixEpoch() + Milliseconds(ms_since_epoch);
 }
 
 int64_t Time::ToJavaTime() const {
-  if (is_null()) {
-    // Preserve 0 so the invalid result doesn't depend on the platform.
+  // Preserve 0 so the invalid result doesn't depend on the platform.
+  if (is_null())
     return 0;
-  }
-  if (is_max()) {
-    // Preserve max without offset to prevent overflow.
-    return std::numeric_limits<int64_t>::max();
-  }
-  return ((us_ - kTimeTToMicrosecondsOffset) /
-          kMicrosecondsPerMillisecond);
-}
-
-// static
-Time Time::UnixEpoch() {
-  Time time;
-  time.us_ = kTimeTToMicrosecondsOffset;
-  return time;
+  if (!is_inf())
+    return (*this - UnixEpoch()).InMilliseconds();
+  return (us_ < 0) ? std::numeric_limits<int64_t>::min()
+                   : std::numeric_limits<int64_t>::max();
 }
 
 Time Time::Midnight(bool is_local) const {
@@ -229,16 +226,32 @@ Time Time::Midnight(bool is_local) const {
   Time out_time;
   if (FromExploded(is_local, exploded, &out_time))
     return out_time;
-  // This function must not fail.
-  NOTREACHED();
-  return Time();
+
+  // Reaching here means 00:00:00am of the current day does not exist (due to
+  // Daylight Saving Time in some countries where clocks are shifted at
+  // midnight). In this case, midnight should be defined as 01:00:00am.
+  DCHECK(is_local);
+  exploded.hour = 1;
+  [[maybe_unused]] const bool result =
+      FromExploded(is_local, exploded, &out_time);
+#if BUILDFLAG(IS_CHROMEOS_ASH) && defined(ARCH_CPU_ARM_FAMILY)
+  // TODO(crbug.com/1263873): DCHECKs have limited coverage during automated
+  // testing on CrOS and this check failed when tested on an experimental
+  // builder. Testing for ARCH_CPU_ARM_FAMILY prevents regressing coverage on
+  // x86_64, which is already enabled. See go/chrome-dcheck-on-cros or
+  // http://crbug.com/1113456 for more details.
+#else
+  DCHECK(result);  // This function must not fail.
+#endif
+  return out_time;
 }
 
 // static
 bool Time::FromStringInternal(const char* time_string,
                               bool is_local,
                               Time* parsed_time) {
-  DCHECK((time_string != nullptr) && (parsed_time != nullptr));
+  DCHECK(time_string);
+  DCHECK(parsed_time);
 
   if (time_string[0] == '\0')
     return false;
@@ -247,20 +260,48 @@ bool Time::FromStringInternal(const char* time_string,
   PRStatus result = PR_ParseTimeString(time_string,
                                        is_local ? PR_FALSE : PR_TRUE,
                                        &result_time);
-  if (PR_SUCCESS != result)
+  if (result != PR_SUCCESS)
     return false;
 
-  result_time += kTimeTToMicrosecondsOffset;
-  *parsed_time = Time(result_time);
+  *parsed_time = UnixEpoch() + Microseconds(result_time);
   return true;
 }
 
 // static
 bool Time::ExplodedMostlyEquals(const Exploded& lhs, const Exploded& rhs) {
-  return lhs.year == rhs.year && lhs.month == rhs.month &&
-         lhs.day_of_month == rhs.day_of_month && lhs.hour == rhs.hour &&
-         lhs.minute == rhs.minute && lhs.second == rhs.second &&
-         lhs.millisecond == rhs.millisecond;
+  return std::tie(lhs.year, lhs.month, lhs.day_of_month, lhs.hour, lhs.minute,
+                  lhs.second, lhs.millisecond) ==
+         std::tie(rhs.year, rhs.month, rhs.day_of_month, rhs.hour, rhs.minute,
+                  rhs.second, rhs.millisecond);
+}
+
+// static
+bool Time::FromMillisecondsSinceUnixEpoch(int64_t unix_milliseconds,
+                                          Time* time) {
+  // Adjust the provided time from milliseconds since the Unix epoch (1970) to
+  // microseconds since the Windows epoch (1601), avoiding overflows.
+  CheckedNumeric<int64_t> checked_microseconds_win_epoch = unix_milliseconds;
+  checked_microseconds_win_epoch *= kMicrosecondsPerMillisecond;
+  checked_microseconds_win_epoch += kTimeTToMicrosecondsOffset;
+  *time = Time(checked_microseconds_win_epoch.ValueOrDefault(0));
+  return checked_microseconds_win_epoch.IsValid();
+}
+
+int64_t Time::ToRoundedDownMillisecondsSinceUnixEpoch() const {
+  constexpr int64_t kEpochOffsetMillis =
+      kTimeTToMicrosecondsOffset / kMicrosecondsPerMillisecond;
+  static_assert(kTimeTToMicrosecondsOffset % kMicrosecondsPerMillisecond == 0,
+                "assumption: no epoch offset sub-milliseconds");
+
+  // Compute the milliseconds since UNIX epoch without the possibility of
+  // under/overflow. Round the result towards -infinity.
+  //
+  // If |us_| is negative and includes fractions of a millisecond, subtract one
+  // more to effect the round towards -infinity. C-style integer truncation
+  // takes care of all other cases.
+  const int64_t millis = us_ / kMicrosecondsPerMillisecond;
+  const int64_t submillis = us_ % kMicrosecondsPerMillisecond;
+  return millis - kEpochOffsetMillis - (submillis < 0);
 }
 
 std::ostream& operator<<(std::ostream& os, Time time) {
@@ -281,16 +322,36 @@ std::ostream& operator<<(std::ostream& os, Time time) {
 
 // static
 TimeTicks TimeTicks::Now() {
-  return internal::g_time_ticks_now_function();
+  return internal::g_time_ticks_now_function.load(std::memory_order_relaxed)();
+}
+
+// static
+// This method should be called once at process start and before
+// TimeTicks::UnixEpoch is accessed. It is intended to make the offset between
+// unix time and monotonic time consistent across processes.
+void TimeTicks::SetSharedUnixEpoch(TimeTicks ticks_at_epoch) {
+  DCHECK(g_shared_time_ticks_at_unix_epoch.is_null());
+  g_shared_time_ticks_at_unix_epoch = ticks_at_epoch;
 }
 
 // static
 TimeTicks TimeTicks::UnixEpoch() {
-  static const base::NoDestructor<base::TimeTicks> epoch([]() {
-    return subtle::TimeTicksNowIgnoringOverride() -
-           (subtle::TimeNowIgnoringOverride() - Time::UnixEpoch());
-  }());
-  return *epoch;
+  struct StaticUnixEpoch {
+    StaticUnixEpoch()
+        : epoch(
+              g_shared_time_ticks_at_unix_epoch.is_null()
+                  ? subtle::TimeTicksNowIgnoringOverride() -
+                        (subtle::TimeNowIgnoringOverride() - Time::UnixEpoch())
+                  : g_shared_time_ticks_at_unix_epoch) {
+      // Prevent future usage of `g_shared_time_ticks_at_unix_epoch`.
+      g_shared_time_ticks_at_unix_epoch = TimeTicks::Max();
+    }
+
+    const TimeTicks epoch;
+  };
+
+  static StaticUnixEpoch static_epoch;
+  return static_epoch.epoch;
 }
 
 TimeTicks TimeTicks::SnappedToNextTick(TimeTicks tick_phase,
@@ -320,9 +381,8 @@ std::ostream& operator<<(std::ostream& os, TimeTicks time_ticks) {
 
 // static
 ThreadTicks ThreadTicks::Now() {
-  if (SbTimeIsTimeThreadNowSupported())
-    return internal::g_thread_ticks_now_function();
-  return ThreadTicks();
+  return internal::g_thread_ticks_now_function.load(
+      std::memory_order_relaxed)();
 }
 
 std::ostream& operator<<(std::ostream& os, ThreadTicks thread_ticks) {
@@ -332,18 +392,25 @@ std::ostream& operator<<(std::ostream& os, ThreadTicks thread_ticks) {
 
 // Time::Exploded -------------------------------------------------------------
 
-inline bool is_in_range(int value, int lo, int hi) {
-  return lo <= value && value <= hi;
+bool Time::Exploded::HasValidValues() const {
+  // clang-format off
+  return (1 <= month) && (month <= 12) &&
+         (0 <= day_of_week) && (day_of_week <= 6) &&
+         (1 <= day_of_month) && (day_of_month <= 31) &&
+         (0 <= hour) && (hour <= 23) &&
+         (0 <= minute) && (minute <= 59) &&
+         (0 <= second) && (second <= 60) &&
+         (0 <= millisecond) && (millisecond <= 999);
+  // clang-format on
 }
 
-bool Time::Exploded::HasValidValues() const {
-  return is_in_range(month, 1, 12) &&
-         is_in_range(day_of_week, 0, 6) &&
-         is_in_range(day_of_month, 1, 31) &&
-         is_in_range(hour, 0, 23) &&
-         is_in_range(minute, 0, 59) &&
-         is_in_range(second, 0, 60) &&
-         is_in_range(millisecond, 0, 999);
+std::string TimeFormatHTTP(base::Time time) {
+  base::Time::Exploded exploded;
+  time.UTCExplode(&exploded);
+  return base::StringPrintf(
+      "%s, %02d %s %04d %02d:%02d:%02d GMT", kWeekdayName[exploded.day_of_week],
+      exploded.day_of_month, kMonthName[exploded.month - 1], exploded.year,
+      exploded.hour, exploded.minute, exploded.second);
 }
 
 }  // namespace base

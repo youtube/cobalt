@@ -1,10 +1,11 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
-import org.chromium.base.annotations.MainDex;
+import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.MainDex;
 
 /**
  * Helper to get field trial information.
@@ -20,7 +21,7 @@ public class FieldTrialList {
      *         not exist.
      */
     public static String findFullName(String trialName) {
-        return nativeFindFullName(trialName);
+        return FieldTrialListJni.get().findFullName(trialName);
     }
 
     /**
@@ -28,7 +29,7 @@ public class FieldTrialList {
      * @return Whether the trial exists or not.
      */
     public static boolean trialExists(String trialName) {
-        return nativeTrialExists(trialName);
+        return FieldTrialListJni.get().trialExists(trialName);
     }
 
     /**
@@ -37,10 +38,33 @@ public class FieldTrialList {
      * @return The value of the parameter or an empty string if not found.
      */
     public static String getVariationParameter(String trialName, String parameterKey) {
-        return nativeGetVariationParameter(trialName, parameterKey);
+        return FieldTrialListJni.get().getVariationParameter(trialName, parameterKey);
     }
 
-    private static native String nativeFindFullName(String trialName);
-    private static native boolean nativeTrialExists(String trialName);
-    private static native String nativeGetVariationParameter(String trialName, String parameterKey);
+    /**
+     * Print active trials and their group assignments to logcat, for debugging purposes. Continue
+     * printing new trials as they become active. This should be called at most once.
+     */
+    public static void logActiveTrials() {
+        FieldTrialListJni.get().logActiveTrials();
+    }
+
+    /**
+     * @param trialName The name of the trial to create.
+     * @param groupName The name of the group to set.
+     * @return True on success, false if there was already a field trial of the same name but with a
+     *         different finalized {@code groupName}.
+     */
+    public static boolean createFieldTrial(String trialName, String groupName) {
+        return FieldTrialListJni.get().createFieldTrial(trialName, groupName);
+    }
+
+    @NativeMethods
+    interface Natives {
+        String findFullName(String trialName);
+        boolean trialExists(String trialName);
+        String getVariationParameter(String trialName, String parameterKey);
+        void logActiveTrials();
+        boolean createFieldTrial(String trialName, String groupName);
+    }
 }

@@ -1,33 +1,23 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/power_monitor/power_monitor_device_source.h"
 
+#include "build/build_config.h"
+
 namespace base {
 
 PowerMonitorDeviceSource::PowerMonitorDeviceSource() {
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_WIN)
   PlatformInit();
-#endif
-
-#if defined(OS_WIN) || defined(OS_MACOSX)
-  // Provide the correct battery status if possible. Others platforms, such as
-  // Android and ChromeOS, will update their status once their backends are
-  // actually initialized.
-  SetInitialOnBatteryPowerState(IsOnBatteryPowerImpl());
 #endif
 }
 
 PowerMonitorDeviceSource::~PowerMonitorDeviceSource() {
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_WIN)
   PlatformDestroy();
 #endif
 }
-
-// PowerMonitorDeviceSource does not need to take any special action to ensure
-// that it doesn't callback into PowerMonitor after this phase of shutdown has
-// completed.
-void PowerMonitorDeviceSource::Shutdown() {}
 
 }  // namespace base

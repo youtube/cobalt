@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,14 @@
 #include <algorithm>
 
 #include <windows.h>
+
 #include <io.h>
+#include <stdint.h>
 
 #include "base/logging.h"
-#include "base/macros.h"
+#include "base/notreached.h"
 #include "base/process/memory.h"
 #include "base/process/process_iterator.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -43,7 +44,7 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
   if (tmp_exit_code == STILL_ACTIVE) {
     DWORD wait_result = WaitForSingleObject(handle, 0);
     if (wait_result == WAIT_TIMEOUT) {
-      *exit_code = wait_result;
+      *exit_code = static_cast<int>(wait_result);
       return TERMINATION_STATUS_STILL_RUNNING;
     }
 
@@ -59,8 +60,9 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
     return TERMINATION_STATUS_ABNORMAL_TERMINATION;
   }
 
-  *exit_code = tmp_exit_code;
+  *exit_code = static_cast<int>(tmp_exit_code);
 
+  // clang-format off
   switch (tmp_exit_code) {
     case win::kNormalTerminationExitCode:
       return TERMINATION_STATUS_NORMAL_TERMINATION;
@@ -74,10 +76,15 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
                                             // object memory limits.
     case win::kOomExceptionCode:            // Ran out of memory.
       return TERMINATION_STATUS_OOM;
+    // This exit code means the process failed an OS integrity check.
+    // This is tested in ProcessMitigationsTest.* in sandbox.
+    case win::kStatusInvalidImageHashExitCode:
+      return TERMINATION_STATUS_INTEGRITY_FAILURE;
     default:
       // All other exit codes indicate crashes.
       return TERMINATION_STATUS_PROCESS_CRASHED;
   }
+  // clang-format on
 }
 
 bool WaitForProcessesToExit(const FilePath::StringType& executable_name,

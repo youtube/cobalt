@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,15 +9,17 @@
 #ifndef BASE_METRICS_PERSISTENT_SAMPLE_MAP_H_
 #define BASE_METRICS_PERSISTENT_SAMPLE_MAP_H_
 
+#include <stdint.h>
+
 #include <map>
 #include <memory>
 
+#include "base/base_export.h"
 #include "base/compiler_specific.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/persistent_memory_allocator.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -34,6 +36,9 @@ class BASE_EXPORT PersistentSampleMap : public HistogramSamples {
                       PersistentHistogramAllocator* allocator,
                       Metadata* meta);
 
+  PersistentSampleMap(const PersistentSampleMap&) = delete;
+  PersistentSampleMap& operator=(const PersistentSampleMap&) = delete;
+
   ~PersistentSampleMap() override;
 
   // HistogramSamples:
@@ -42,6 +47,7 @@ class BASE_EXPORT PersistentSampleMap : public HistogramSamples {
   HistogramBase::Count GetCount(HistogramBase::Sample value) const override;
   HistogramBase::Count TotalCount() const override;
   std::unique_ptr<SampleCountIterator> Iterator() const override;
+  std::unique_ptr<SampleCountIterator> ExtractingIterator() override;
 
   // Uses a persistent-memory |iterator| to locate and return information about
   // the next record holding information for a PersistentSampleMap. The record
@@ -92,15 +98,13 @@ class BASE_EXPORT PersistentSampleMap : public HistogramSamples {
 
   // The allocator that manages histograms inside persistent memory. This is
   // owned externally and is expected to live beyond the life of this object.
-  PersistentHistogramAllocator* allocator_;
+  raw_ptr<PersistentHistogramAllocator> allocator_;
 
   // The object that manages sample records inside persistent memory. This is
   // owned by the |allocator_| object (above) and so, like it, is expected to
   // live beyond the life of this object. This value is lazily-initialized on
   // first use via the GetRecords() accessor method.
-  PersistentSampleMapRecords* records_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(PersistentSampleMap);
+  raw_ptr<PersistentSampleMapRecords> records_ = nullptr;
 };
 
 }  // namespace base

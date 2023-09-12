@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,12 +36,14 @@ import javax.annotation.concurrent.GuardedBy;
  */
 @JNINamespace("base::android")
 public final class MultiprocessTestClientLauncher {
-    private static final String TAG = "cr_MProcTCLauncher";
+    private static final String TAG = "MProcTCLauncher";
 
     private static final int CONNECTION_TIMEOUT_MS = 10 * 1000;
 
     private static final SparseArray<MultiprocessTestClientLauncher> sPidToLauncher =
             new SparseArray<>();
+
+    private static final SparseArray<Boolean> sPidToCleanExit = new SparseArray<>();
 
     private static final SparseArray<Integer> sPidToMainResult = new SparseArray<>();
 
@@ -105,6 +107,7 @@ public final class MultiprocessTestClientLauncher {
                     assert isRunningOnLauncherThread();
                     assert sPidToLauncher.get(connection.getPid())
                             == MultiprocessTestClientLauncher.this;
+                    sPidToCleanExit.put(connection.getPid(), connection.hasCleanExit());
                     sPidToLauncher.remove(connection.getPid());
                 }
             };
@@ -154,7 +157,7 @@ public final class MultiprocessTestClientLauncher {
                     return false;
                 }
                 try {
-                    mConnectedCondition.awaitNanos(timeoutNs);
+                    timeoutNs = mConnectedCondition.awaitNanos(timeoutNs);
                 } catch (InterruptedException ie) {
                     Log.e(TAG, "Interrupted while waiting for connection.");
                 }
@@ -197,6 +200,8 @@ public final class MultiprocessTestClientLauncher {
     @CalledByNative
     private static int launchClient(
             final String[] commandLine, final FileDescriptorInfo[] filesToMap) {
+        assert Looper.myLooper() != Looper.getMainLooper();
+
         initLauncherThread();
 
         final MultiprocessTestClientLauncher launcher =
@@ -267,6 +272,7 @@ public final class MultiprocessTestClientLauncher {
         // this gets called.
         if (launcher != null) {
             Integer mainResult = launcher.getMainReturnCode(timeoutMs);
+            launcher.mLauncher.stop();
             return mainResult == null ? MainReturnCodeResult.createTimeoutMainResult()
                                       : MainReturnCodeResult.createMainResult(mainResult);
         }
@@ -321,6 +327,26 @@ public final class MultiprocessTestClientLauncher {
         }
     }
 
+    @CalledByNative
+    private static boolean hasCleanExit(final int pid) {
+        return runOnLauncherAndGetResult(new Callable<Boolean>() {
+            @Override
+            public Boolean call() {
+                return hasCleanExitOnLauncherThread(pid);
+            }
+        });
+    }
+
+    private static boolean hasCleanExitOnLauncherThread(int pid) {
+        assert isRunningOnLauncherThread();
+
+        MultiprocessTestClientLauncher launcher = sPidToLauncher.get(pid);
+        if (launcher == null) {
+            return sPidToCleanExit.get(pid, false);
+        }
+        return launcher.mLauncher.getConnection().hasCleanExit();
+    }
+
     /** Does not take ownership of of fds. */
     @CalledByNative
     private static FileDescriptorInfo[] makeFdInfoArray(int[] keys, int[] fds) {
@@ -364,7 +390,7 @@ public final class MultiprocessTestClientLauncher {
         done.acquireUninterruptibly();
     }
 
-    private static <R> R runOnLauncherAndGetResult(Callable<R> callable) {
+    private static <RT> RT runOnLauncherAndGetResult(Callable<RT> callable) {
         if (isRunningOnLauncherThread()) {
             try {
                 return callable.call();
@@ -373,7 +399,7 @@ public final class MultiprocessTestClientLauncher {
             }
         }
         try {
-            FutureTask<R> task = new FutureTask<R>(callable);
+            FutureTask<RT> task = new FutureTask<RT>(callable);
             sLauncherHandler.post(task);
             return task.get();
         } catch (Exception e) {

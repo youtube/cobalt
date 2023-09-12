@@ -1,25 +1,22 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MEMORY_READ_ONLY_SHARED_MEMORY_REGION_H_
 #define BASE_MEMORY_READ_ONLY_SHARED_MEMORY_REGION_H_
 
-// Cobalt does not support multiple process and shared memory.
-#if !defined(STARBOARD)
-
-#include <utility>
-
-#include "base/macros.h"
+#include "base/base_export.h"
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/memory/platform_shared_memory_region.h"
 #include "base/memory/shared_memory_mapping.h"
+
+#include <stdint.h>
 
 namespace base {
 
 struct MappedReadOnlyRegion;
 
-// Starboard doesn't curretly support multiple processes or shared memory.
-#if !defined(STARBOARD)
 // Scoped move-only handle to a region of platform shared memory. The instance
 // owns the platform handle it wraps. Mappings created by this region are
 // read-only. These mappings remain valid even after the region handle is moved
@@ -37,13 +34,9 @@ class BASE_EXPORT ReadOnlySharedMemoryRegion {
   // This means that the caller's process is the only process that can modify
   // the region content. If you need to pass write access to another process,
   // consider using WritableSharedMemoryRegion or UnsafeSharedMemoryRegion.
-  //
-  // This call will fail if the process does not have sufficient permissions to
-  // create a shared memory region itself. See
-  // mojo::CreateReadOnlySharedMemoryRegion in
-  // mojo/public/cpp/base/shared_memory_utils.h for creating a shared memory
-  // region from a an unprivileged process where a broker must be used.
-  static MappedReadOnlyRegion Create(size_t size);
+  static MappedReadOnlyRegion Create(size_t size,
+                                     SharedMemoryMapper* mapper = nullptr);
+  using CreateFunction = decltype(Create);
 
   // Returns a ReadOnlySharedMemoryRegion built from a platform-specific handle
   // that was taken from another ReadOnlySharedMemoryRegion instance. Returns an
@@ -68,6 +61,10 @@ class BASE_EXPORT ReadOnlySharedMemoryRegion {
   ReadOnlySharedMemoryRegion(ReadOnlySharedMemoryRegion&&);
   ReadOnlySharedMemoryRegion& operator=(ReadOnlySharedMemoryRegion&&);
 
+  ReadOnlySharedMemoryRegion(const ReadOnlySharedMemoryRegion&) = delete;
+  ReadOnlySharedMemoryRegion& operator=(const ReadOnlySharedMemoryRegion&) =
+      delete;
+
   // Destructor closes shared memory region if valid.
   // All created mappings will remain valid.
   ~ReadOnlySharedMemoryRegion();
@@ -82,14 +79,23 @@ class BASE_EXPORT ReadOnlySharedMemoryRegion {
   // read-only access. The mapped address is guaranteed to have an alignment of
   // at least |subtle::PlatformSharedMemoryRegion::kMapMinimumAlignment|.
   // Returns a valid ReadOnlySharedMemoryMapping instance on success, invalid
-  // otherwise.
-  ReadOnlySharedMemoryMapping Map() const;
+  // otherwise. A custom |SharedMemoryMapper| for mapping (and later unmapping)
+  // the region can be provided using the optional |mapper| parameter.
+  ReadOnlySharedMemoryMapping Map(SharedMemoryMapper* mapper = nullptr) const;
 
-  // Same as above, but maps only |size| bytes of the shared memory region
-  // starting with the given |offset|. |offset| must be aligned to value of
-  // |SysInfo::VMAllocationGranularity()|. Returns an invalid mapping if
-  // requested bytes are out of the region limits.
-  ReadOnlySharedMemoryMapping MapAt(off_t offset, size_t size) const;
+  // Similar to `Map()`, but maps only `size` bytes of the shared memory block
+  // at byte `offset`. Returns an invalid mapping if requested bytes are out of
+  // the region limits.
+  //
+  // `offset` does not need to be aligned; if `offset` is not a multiple of
+  // `subtle::PlatformSharedMemoryRegion::kMapMinimumAlignment`, then the
+  // returned mapping will not respect alignment either. Internally, `offset`
+  // and `size` are still first adjusted to respect alignment when mapping in
+  // the shared memory region, but the returned mapping will be "unadjusted" to
+  // match the exact `offset` and `size` requested.
+  ReadOnlySharedMemoryMapping MapAt(uint64_t offset,
+                                    size_t size,
+                                    SharedMemoryMapper* mapper = nullptr) const;
 
   // Whether the underlying platform handle is valid.
   bool IsValid() const;
@@ -106,15 +112,25 @@ class BASE_EXPORT ReadOnlySharedMemoryRegion {
     return handle_.GetGUID();
   }
 
+  // Returns a platform shared memory handle. |this| remains the owner of the
+  // handle.
+  subtle::PlatformSharedMemoryHandle GetPlatformHandle() const {
+    DCHECK(IsValid());
+    return handle_.GetPlatformHandle();
+  }
+
  private:
+  friend class SharedMemoryHooks;
+
   explicit ReadOnlySharedMemoryRegion(
       subtle::PlatformSharedMemoryRegion handle);
 
-  subtle::PlatformSharedMemoryRegion handle_;
+  static void set_create_hook(CreateFunction* hook) { create_hook_ = hook; }
 
-  DISALLOW_COPY_AND_ASSIGN(ReadOnlySharedMemoryRegion);
+  static CreateFunction* create_hook_;
+
+  subtle::PlatformSharedMemoryRegion handle_;
 };
-#endif
 
 // Helper struct for return value of ReadOnlySharedMemoryRegion::Create().
 struct MappedReadOnlyRegion {
@@ -123,7 +139,7 @@ struct MappedReadOnlyRegion {
   // Helper function to check return value of
   // ReadOnlySharedMemoryRegion::Create(). |region| and |mapping| either both
   // valid or invalid.
-  bool IsValid() {
+  bool IsValid() const {
     DCHECK_EQ(region.IsValid(), mapping.IsValid());
     return region.IsValid() && mapping.IsValid();
   }
@@ -131,5 +147,4 @@ struct MappedReadOnlyRegion {
 
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_MEMORY_READ_ONLY_SHARED_MEMORY_REGION_H_

@@ -1,22 +1,22 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/i18n/icu_string_conversions.h"
+
 #include <math.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 #include <limits>
 #include <sstream>
 
+#include "base/check_op.h"
 #include "base/format_macros.h"
-#include "base/i18n/icu_string_conversions.h"
-#include "base/logging.h"
-#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -24,18 +24,18 @@ namespace base {
 namespace {
 
 // Given a null-terminated string of wchar_t with each wchar_t representing
-// a UTF-16 code unit, returns a string16 made up of wchar_t's in the input.
-// Each wchar_t should be <= 0xFFFF and a non-BMP character (> U+FFFF)
+// a UTF-16 code unit, returns a std::u16string made up of wchar_t's in the
+// input. Each wchar_t should be <= 0xFFFF and a non-BMP character (> U+FFFF)
 // should be represented as a surrogate pair (two UTF-16 units)
 // *even* where wchar_t is 32-bit (Linux and Mac).
 //
-// This is to help write tests for functions with string16 params until
+// This is to help write tests for functions with std::u16string params until
 // the C++ 0x UTF-16 literal is well-supported by compilers.
-string16 BuildString16(const wchar_t* s) {
+std::u16string BuildString16(const wchar_t* s) {
 #if defined(WCHAR_T_IS_UTF16)
-  return string16(s);
+  return WideToUTF16(s);
 #elif defined(WCHAR_T_IS_UTF32)
-  string16 u16;
+  std::u16string u16;
   while (*s != 0) {
     DCHECK_LE(static_cast<unsigned int>(*s), 0xFFFFu);
     u16.push_back(*s++);
@@ -162,20 +162,19 @@ static const struct {
      nullptr},
 };
 
-#if !defined(UCONFIG_NO_LEGACY_CONVERSION)
 TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
-  for (size_t i = 0; i < arraysize(kConvertCodepageCases); ++i) {
+  for (size_t i = 0; i < std::size(kConvertCodepageCases); ++i) {
     SCOPED_TRACE(base::StringPrintf(
                      "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
                      kConvertCodepageCases[i].encoded,
                      kConvertCodepageCases[i].codepage_name));
 
-    string16 utf16;
+    std::u16string utf16;
     bool success = CodepageToUTF16(kConvertCodepageCases[i].encoded,
                                    kConvertCodepageCases[i].codepage_name,
                                    kConvertCodepageCases[i].on_error,
                                    &utf16);
-    string16 utf16_expected;
+    std::u16string utf16_expected;
     if (kConvertCodepageCases[i].u16_wide == nullptr)
       utf16_expected = BuildString16(kConvertCodepageCases[i].wide);
     else
@@ -219,7 +218,7 @@ static const struct {
 };
 TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
   std::string result;
-  for (size_t i = 0; i < arraysize(kConvertAndNormalizeCases); ++i) {
+  for (size_t i = 0; i < std::size(kConvertAndNormalizeCases); ++i) {
     SCOPED_TRACE(base::StringPrintf(
                      "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
                      kConvertAndNormalizeCases[i].encoded,
@@ -232,6 +231,5 @@ TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
     EXPECT_EQ(kConvertAndNormalizeCases[i].expected_value, result);
   }
 }
-#endif  // !defined(UCONFIG_NO_LEGACY_CONVERSION)
 
 }  // namespace base

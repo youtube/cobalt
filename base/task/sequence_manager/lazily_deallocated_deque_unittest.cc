@@ -1,10 +1,9 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/task/sequence_manager/lazily_deallocated_deque.h"
 
-#include "base/logging.h"
 #include "base/test/scoped_mock_clock_override.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -96,7 +95,7 @@ TEST_F(LazilyDeallocatedDequeTest, MaybeShrinkQueueWithLargeSizeDrop) {
     d.push_back(i);
   }
   EXPECT_EQ(1000u, d.size());
-  EXPECT_EQ(1020u, d.capacity());
+  EXPECT_EQ(1305u, d.capacity());
   EXPECT_EQ(1000u, d.max_size());
 
   // Drop most elements.
@@ -104,13 +103,13 @@ TEST_F(LazilyDeallocatedDequeTest, MaybeShrinkQueueWithLargeSizeDrop) {
     d.pop_front();
   }
   EXPECT_EQ(10u, d.size());
-  EXPECT_EQ(512u, d.capacity());
+  EXPECT_EQ(450u, d.capacity());
   EXPECT_EQ(1000u, d.max_size());
 
   // This won't do anything since the max size is greater than the current
   // capacity.
   d.MaybeShrinkQueue();
-  EXPECT_EQ(512u, d.capacity());
+  EXPECT_EQ(450u, d.capacity());
   EXPECT_EQ(10u, d.max_size());
 
   // This will shrink because the max size is now much less than the current
@@ -126,25 +125,25 @@ TEST_F(LazilyDeallocatedDequeTest, MaybeShrinkQueueWithSmallSizeDrop) {
     d.push_back(i);
   }
   EXPECT_EQ(1010u, d.size());
-  EXPECT_EQ(1020u, d.capacity());
+  EXPECT_EQ(1305u, d.capacity());
   EXPECT_EQ(1010u, d.max_size());
 
   // Drop a couple of elements.
   d.pop_front();
   d.pop_front();
   EXPECT_EQ(1008u, d.size());
-  EXPECT_EQ(1020u, d.capacity());
+  EXPECT_EQ(1305u, d.capacity());
   EXPECT_EQ(1010u, d.max_size());
 
   // This won't do anything since the max size is only slightly lower than the
   // capacity.
-  EXPECT_EQ(1020u, d.capacity());
+  EXPECT_EQ(1305u, d.capacity());
   EXPECT_EQ(1010u, d.max_size());
 
   // Ditto. Nothing changed so no point shrinking.
   d.MaybeShrinkQueue();
   EXPECT_EQ(1008u, d.max_size());
-  EXPECT_EQ(1020u, d.capacity());
+  EXPECT_EQ(1011u, d.capacity());
 }
 
 TEST_F(LazilyDeallocatedDequeTest, MaybeShrinkQueueToEmpty) {
@@ -171,52 +170,52 @@ TEST_F(LazilyDeallocatedDequeTest, MaybeShrinkQueueRateLimiting) {
     d.push_back(i);
   }
   EXPECT_EQ(1000u, d.size());
-  EXPECT_EQ(1020u, d.capacity());
+  EXPECT_EQ(1305u, d.capacity());
   EXPECT_EQ(1000u, d.max_size());
 
   // Drop some elements.
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 400; i++) {
     d.pop_front();
   }
-  EXPECT_EQ(900u, d.size());
-  EXPECT_EQ(960u, d.capacity());
+  EXPECT_EQ(600u, d.size());
+  EXPECT_EQ(947u, d.capacity());
   EXPECT_EQ(1000u, d.max_size());
 
   // This won't do anything since the max size is greater than the current
   // capacity.
   d.MaybeShrinkQueue();
-  EXPECT_EQ(960u, d.capacity());
-  EXPECT_EQ(900u, d.max_size());
+  EXPECT_EQ(947u, d.capacity());
+  EXPECT_EQ(600u, d.max_size());
 
   // This will shrink to fit.
   d.MaybeShrinkQueue();
-  EXPECT_EQ(901u, d.capacity());
-  EXPECT_EQ(900u, d.max_size());
+  EXPECT_EQ(601u, d.capacity());
+  EXPECT_EQ(600u, d.max_size());
 
   // Drop some more elements.
   for (int i = 0; i < 100; i++) {
     d.pop_front();
   }
-  EXPECT_EQ(800u, d.size());
-  EXPECT_EQ(901u, d.capacity());
-  EXPECT_EQ(900u, d.max_size());
+  EXPECT_EQ(500u, d.size());
+  EXPECT_EQ(601u, d.capacity());
+  EXPECT_EQ(600u, d.max_size());
 
   // Not enough time has passed so max_size is untouched and not shrunk.
   d.MaybeShrinkQueue();
-  EXPECT_EQ(900u, d.max_size());
-  EXPECT_EQ(901u, d.capacity());
+  EXPECT_EQ(601u, d.capacity());
+  EXPECT_EQ(600u, d.max_size());
 
   // After time passes we re-sample max_size.
-  clock.Advance(TimeDelta::FromSeconds(
-      LazilyDeallocatedDeque<int>::kMinimumShrinkIntervalInSeconds));
+  clock.Advance(
+      Seconds(LazilyDeallocatedDeque<int>::kMinimumShrinkIntervalInSeconds));
   d.MaybeShrinkQueue();
-  EXPECT_EQ(800u, d.max_size());
-  EXPECT_EQ(901u, d.capacity());
+  EXPECT_EQ(601u, d.capacity());
+  EXPECT_EQ(500u, d.max_size());
 
   // And The next call to MaybeShrinkQueue actually shrinks the queue.
   d.MaybeShrinkQueue();
-  EXPECT_EQ(800u, d.max_size());
-  EXPECT_EQ(801u, d.capacity());
+  EXPECT_EQ(501u, d.capacity());
+  EXPECT_EQ(500u, d.max_size());
 }
 
 TEST_F(LazilyDeallocatedDequeTest, Iterators) {
@@ -261,7 +260,7 @@ TEST_F(LazilyDeallocatedDequeTest, PushBackThenSetCapacity) {
     d.push_back(i);
   }
 
-  EXPECT_EQ(1020u, d.capacity());
+  EXPECT_EQ(1305u, d.capacity());
 
   // We need 1 more spot than the size due to the way the Ring works.
   d.SetCapacity(1001);

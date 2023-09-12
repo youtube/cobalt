@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@
 // CoInitializeEx beforehand.
 //
 // For more information about WMI programming:
-// http://msdn2.microsoft.com/en-us/library/aa384642(VS.85).aspx
+// https://docs.microsoft.com/en-us/windows/win32/wmisdk
 
 #ifndef BASE_WIN_WMI_H_
 #define BASE_WIN_WMI_H_
@@ -24,11 +24,38 @@
 #include <wrl/client.h>
 
 #include "base/base_export.h"
-#include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace win {
+
+// Enumeration of errors that can arise when connecting to a WMI server and
+// running a query.
+// Do not change ordering. This enum is captured as `WmiQueryError` in
+// enums.xml.
+enum class WmiError {
+  kFailedToCreateInstance = 0,
+  kFailedToConnectToWMI = 1,
+  kFailedToSetSecurityBlanket = 2,
+  kFailedToExecWMIQuery = 3,
+  kMaxValue = kFailedToExecWMIQuery
+};
+
+// String used to connect to the CIMV2 WMI server.
+BASE_EXPORT extern const wchar_t kCimV2ServerName[];
+
+// String used to connect to the SecurityCenter2 WMI server.
+BASE_EXPORT extern const wchar_t kSecurityCenter2ServerName[];
+
+// Connects to a server named `server_name` on the local computer through COM
+// and run the given WQL `query`. Sets `enumerator` with the values returned by
+// that `query`. Will return a WmiError value if an error occurs, else returns
+// absl::nullopt.
+BASE_EXPORT absl::optional<WmiError> RunWmiQuery(
+    const std::wstring& server_name,
+    const std::wstring& query,
+    Microsoft::WRL::ComPtr<IEnumWbemClassObject>* enumerator);
 
 // Creates an instance of the WMI service connected to the local computer and
 // returns its COM interface. If |set_blanket| is set to true, the basic COM
@@ -40,6 +67,16 @@ BASE_EXPORT bool CreateLocalWmiConnection(
     bool set_blanket,
     Microsoft::WRL::ComPtr<IWbemServices>* wmi_services);
 
+// Creates an instance of the WMI service connected to the resource and
+// returns its COM interface. If |set_blanket| is set to true, the basic COM
+// security blanket is applied to the returned interface. This is almost
+// always desirable unless you set the parameter to false and apply a custom
+// COM security blanket.
+// Returns a valid ComPtr<IWbemServices> on success, nullptr on failure.
+BASE_EXPORT Microsoft::WRL::ComPtr<IWbemServices> CreateWmiConnection(
+    bool set_blanket,
+    const std::wstring& resource);
+
 // Creates a WMI method using from a WMI class named |class_name| that
 // contains a method named |method_name|. Only WMI classes that are CIM
 // classes can be created using this function.
@@ -47,16 +84,9 @@ BASE_EXPORT bool CreateLocalWmiConnection(
 // WMI method that you can fill with parameter values using SetParameter.
 BASE_EXPORT bool CreateWmiClassMethodObject(
     IWbemServices* wmi_services,
-    const StringPiece16& class_name,
-    const StringPiece16& method_name,
+    WStringPiece class_name,
+    WStringPiece method_name,
     Microsoft::WRL::ComPtr<IWbemClassObject>* class_instance);
-
-// Fills a single parameter given an instanced |class_method|. Returns true
-// if the operation succeeded. When all the parameters are set the method can
-// be executed using IWbemServices::ExecMethod().
-BASE_EXPORT bool SetWmiClassMethodParameter(IWbemClassObject* class_method,
-                                            const StringPiece16& parameter_name,
-                                            VARIANT* parameter);
 
 // Creates a new process from |command_line|. The advantage over CreateProcess
 // is that it allows you to always break out from a Job object that the caller
@@ -68,21 +98,27 @@ BASE_EXPORT bool SetWmiClassMethodParameter(IWbemClassObject* class_method,
 // Processes created this way are children of wmiprvse.exe and run with the
 // caller credentials.
 // More info: http://msdn2.microsoft.com/en-us/library/aa394372(VS.85).aspx
-BASE_EXPORT bool WmiLaunchProcess(const string16& command_line,
+BASE_EXPORT bool WmiLaunchProcess(const std::wstring& command_line,
                                   int* process_id);
 
-// This class contains functionality of the WMI class 'Win32_ComputerSystem'.
-// More info: http://msdn.microsoft.com/en-us/library/aa394102(VS.85).aspx
+// An encapsulation of information retrieved from the 'Win32_ComputerSystem' and
+// 'Win32_Bios' WMI classes; see :
+// https://docs.microsoft.com/en-us/windows/desktop/CIMWin32Prov/win32-computersystem
+// https://docs.microsoft.com/en-us/windows/desktop/CIMWin32Prov/win32-systembios
+// Note that while model and manufacturer can be obtained through WMI, it is
+// more efficient to obtain them via SysInfo::GetHardwareInfo() which uses the
+// registry.
 class BASE_EXPORT WmiComputerSystemInfo {
  public:
   static WmiComputerSystemInfo Get();
 
-  const string16& manufacturer() const { return manufacturer_; }
-  const string16& model() const { return model_; }
+  const std::wstring& serial_number() const { return serial_number_; }
 
  private:
-  string16 manufacturer_;
-  string16 model_;
+  void PopulateSerialNumber(
+      const Microsoft::WRL::ComPtr<IEnumWbemClassObject>& enumerator_bios);
+
+  std::wstring serial_number_;
 };
 
 }  // namespace win

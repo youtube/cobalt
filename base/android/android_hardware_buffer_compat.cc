@@ -1,36 +1,26 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/android/android_hardware_buffer_compat.h"
 
-#include "base/android/build_info.h"
-#include "base/lazy_instance.h"
-#include "base/logging.h"
-
 #include <dlfcn.h>
 
-#include "starboard/types.h"
+#include "base/android/build_info.h"
+#include "base/check.h"
 
 namespace base {
-
-namespace {
-
-static base::LazyInstance<AndroidHardwareBufferCompat>::Leaky g_compat =
-    LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
 
 AndroidHardwareBufferCompat::AndroidHardwareBufferCompat() {
   DCHECK(IsSupportAvailable());
 
-  // TODO(klausw): If the Chromium build requires __ANDROID_API__ >= 26 at some
-  // point in the future, we could directly use the global functions instead of
-  // dynamic loading. However, since this would be incompatible with pre-Oreo
-  // devices, this is unlikely to happen in the foreseeable future, so just
-  // unconditionally use dynamic loading.
+  // TODO(https://crbug.com/1382595): If the Chromium build requires
+  // __ANDROID_API__ >= 26 at some point in the future, we could directly use
+  // the global functions instead of dynamic loading. However, since this would
+  // be incompatible with pre-Oreo devices, this is unlikely to happen in the
+  // foreseeable future, so just unconditionally use dynamic loading.
 
-  // cf. base/android/linker/modern_linker_jni.cc
+  // cf. base/android/linker/linker_jni.cc
   void* main_dl_handle = dlopen(nullptr, RTLD_NOW);
 
   *reinterpret_cast<void**>(&allocate_) =
@@ -73,8 +63,9 @@ bool AndroidHardwareBufferCompat::IsSupportAvailable() {
 }
 
 // static
-AndroidHardwareBufferCompat AndroidHardwareBufferCompat::GetInstance() {
-  return g_compat.Get();
+AndroidHardwareBufferCompat& AndroidHardwareBufferCompat::GetInstance() {
+  static AndroidHardwareBufferCompat compat;
+  return compat;
 }
 
 void AndroidHardwareBufferCompat::Allocate(const AHardwareBuffer_Desc* desc,
@@ -85,6 +76,11 @@ void AndroidHardwareBufferCompat::Allocate(const AHardwareBuffer_Desc* desc,
 
 void AndroidHardwareBufferCompat::Acquire(AHardwareBuffer* buffer) {
   DCHECK(IsSupportAvailable());
+
+  // Null |buffer| is not allowed by |acquire_| and it fails somewhere in
+  // android framework code. Hence adding a DCHECK here for documenting this
+  // info and fail before.
+  DCHECK(buffer);
   acquire_(buffer);
 }
 

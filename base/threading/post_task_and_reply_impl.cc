@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,12 @@
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/check_op.h"
 #include "base/debug/leak_annotations.h"
-#include "base/logging.h"
+#include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
-#include "base/sequenced_task_runner.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 
 namespace base {
 
@@ -21,55 +21,82 @@ class PostTaskAndReplyRelay {
  public:
   PostTaskAndReplyRelay(const Location& from_here,
                         OnceClosure task,
-                        OnceClosure reply)
+                        OnceClosure reply,
+                        scoped_refptr<SequencedTaskRunner> reply_task_runner)
       : from_here_(from_here),
         task_(std::move(task)),
-        reply_(std::move(reply)) {}
+        reply_(std::move(reply)),
+        reply_task_runner_(std::move(reply_task_runner)) {}
   PostTaskAndReplyRelay(PostTaskAndReplyRelay&&) = default;
 
+  PostTaskAndReplyRelay(const PostTaskAndReplyRelay&) = delete;
+  PostTaskAndReplyRelay& operator=(const PostTaskAndReplyRelay&) = delete;
+
+  // It is important that |reply_| always be deleted on the origin sequence
+  // (|reply_task_runner_|) since its destructor can be affine to it. More
+  // sutbly, it is also important that |task_| be destroyed on the origin
+  // sequence when it fails to run. This is because |task_| can own state which
+  // is affine to |reply_task_runner_| and was intended to be handed to
+  // |reply_|, e.g. https://crbug.com/829122. Since |task_| already needs to
+  // support deletion on the origin sequence (since the initial PostTask can
+  // always fail), it's safer to delete it there when PostTask succeeds but
+  // |task_| is later prevented from running.
+  //
+  // PostTaskAndReplyRelay's move semantics along with logic in this destructor
+  // enforce the above semantics in all the following cases :
+  //  1) Posting |task_| fails right away on the origin sequence:
+  //    a) |reply_task_runner_| is null (i.e. during late shutdown);
+  //    b) |reply_task_runner_| is set.
+  //  2) ~PostTaskAndReplyRelay() runs on the destination sequence:
+  //    a) RunTaskAndPostReply() is cancelled before running;
+  //    b) RunTaskAndPostReply() is skipped on shutdown;
+  //    c) Posting RunReply() fails.
+  //  3) ~PostTaskAndReplyRelay() runs on the origin sequence:
+  //    a) RunReply() is cancelled before running;
+  //    b) RunReply() is skipped on shutdown;
+  //    c) The DeleteSoon() posted by (2) runs.
+  //  4) ~PostTaskAndReplyRelay() should no-op:
+  //    a) This relay was moved to another relay instance;
+  //    b) RunReply() ran and completed this relay's mandate.
   ~PostTaskAndReplyRelay() {
-    if (reply_) {
-      // This can run:
-      // 1) On origin sequence, when:
-      //    1a) Posting |task_| fails.
-      //    1b) |reply_| is cancelled before running.
-      //    1c) The DeleteSoon() below is scheduled.
-      // 2) On destination sequence, when:
-      //    2a) |task_| is cancelled before running.
-      //    2b) Posting |reply_| fails.
-
-      if (!reply_task_runner_->RunsTasksInCurrentSequence()) {
-        // Case 2a) or 2b).
-        //
-        // Destroy callbacks asynchronously on |reply_task_runner| since their
-        // destructors can rightfully be affine to it. As always, DeleteSoon()
-        // might leak its argument if the target execution environment is
-        // shutdown (e.g. MessageLoop deleted, TaskScheduler shutdown).
-        //
-        // Note: while it's obvious why |reply_| can be affine to
-        // |reply_task_runner|, the reason that |task_| can also be affine to it
-        // is that it if neither tasks ran, |task_| may still hold an object
-        // which was intended to be moved to |reply_| when |task_| ran (such an
-        // object's destruction can be affine to |reply_task_runner_| -- e.g.
-        // https://crbug.com/829122).
-        auto relay_to_delete =
-            std::make_unique<PostTaskAndReplyRelay>(std::move(*this));
-        ANNOTATE_LEAKING_OBJECT_PTR(relay_to_delete.get());
-        reply_task_runner_->DeleteSoon(from_here_, std::move(relay_to_delete));
-      }
-
-      // Case 1a), 1b), 1c).
-      //
-      // Callbacks will be destroyed synchronously at the end of this scope.
-    } else {
-      // This can run when both callbacks have run or have been moved to another
-      // PostTaskAndReplyRelay instance. If |reply_| is null, |task_| must be
-      // null too.
-      DCHECK(!task_);
+    // Case 1a and 4a:
+    if (!reply_task_runner_) {
+      DCHECK_EQ(task_.is_null(), reply_.is_null());
+      return;
     }
+
+    // Case 4b:
+    if (!reply_) {
+      DCHECK(!task_);
+      return;
+    }
+
+    // Case 2:
+    if (!reply_task_runner_->RunsTasksInCurrentSequence()) {
+      DCHECK(reply_);
+      // Allow this task to be leaked on shutdown even if `reply_task_runner_`
+      // has the TaskShutdownBehaviour::BLOCK_SHUTDOWN trait. Without `fizzler`,
+      // such a task runner would DCHECK when posting to `reply_task_runner_`
+      // after shutdown. Ignore this DCHECK as the poster isn't in control when
+      // its Callback is destroyed late into shutdown. Ref. crbug.com/1375270.
+      base::ThreadPoolInstance::ScopedFizzleBlockShutdownTasks fizzler;
+
+      SequencedTaskRunner* reply_task_runner_raw = reply_task_runner_.get();
+      auto relay_to_delete =
+          std::make_unique<PostTaskAndReplyRelay>(std::move(*this));
+      // In case 2c, posting the DeleteSoon will also fail and |relay_to_delete|
+      // will be leaked. This only happens during shutdown and leaking is better
+      // than thread-unsafe execution.
+      ANNOTATE_LEAKING_OBJECT_PTR(relay_to_delete.get());
+      reply_task_runner_raw->DeleteSoon(from_here_, std::move(relay_to_delete));
+      return;
+    }
+
+    // Case 1b and 3: Any remaining state will be destroyed synchronously at the
+    // end of this scope.
   }
 
-  // No assignment operator because of const members.
+  // No assignment operator because of const member.
   PostTaskAndReplyRelay& operator=(PostTaskAndReplyRelay&&) = delete;
 
   // Static function is used because it is not possible to bind a method call to
@@ -78,13 +105,13 @@ class PostTaskAndReplyRelay {
     DCHECK(relay.task_);
     std::move(relay.task_).Run();
 
-    // Keep a reference to the reply TaskRunner for the PostTask() call before
+    // Keep a pointer to the reply TaskRunner for the PostTask() call before
     // |relay| is moved into a callback.
-    scoped_refptr<SequencedTaskRunner> reply_task_runner =
-        relay.reply_task_runner_;
+    SequencedTaskRunner* reply_task_runner_raw = relay.reply_task_runner_.get();
 
-    reply_task_runner->PostTask(
-        relay.from_here_,
+    const Location from_here = relay.from_here_;
+    reply_task_runner_raw->PostTask(
+        from_here,
         BindOnce(&PostTaskAndReplyRelay::RunReply, std::move(relay)));
   }
 
@@ -100,10 +127,8 @@ class PostTaskAndReplyRelay {
   const Location from_here_;
   OnceClosure task_;
   OnceClosure reply_;
-  const scoped_refptr<SequencedTaskRunner> reply_task_runner_ =
-      SequencedTaskRunnerHandle::Get();
-
-  DISALLOW_COPY_AND_ASSIGN(PostTaskAndReplyRelay);
+  // Not const to allow moving.
+  scoped_refptr<SequencedTaskRunner> reply_task_runner_;
 };
 
 }  // namespace
@@ -116,10 +141,23 @@ bool PostTaskAndReplyImpl::PostTaskAndReply(const Location& from_here,
   DCHECK(task) << from_here.ToString();
   DCHECK(reply) << from_here.ToString();
 
-  return PostTask(from_here,
-                  BindOnce(&PostTaskAndReplyRelay::RunTaskAndPostReply,
-                           PostTaskAndReplyRelay(from_here, std::move(task),
-                                                 std::move(reply))));
+  const bool has_sequenced_context = SequencedTaskRunner::HasCurrentDefault();
+
+  const bool post_task_success = PostTask(
+      from_here, BindOnce(&PostTaskAndReplyRelay::RunTaskAndPostReply,
+                          PostTaskAndReplyRelay(
+                              from_here, std::move(task), std::move(reply),
+                              has_sequenced_context
+                                  ? SequencedTaskRunner::GetCurrentDefault()
+                                  : nullptr)));
+
+  // PostTaskAndReply() requires a SequencedTaskRunner::CurrentDefaultHandle to
+  // post the reply.  Having no SequencedTaskRunner::CurrentDefaultHandle is
+  // allowed when posting the task fails, to simplify calls during shutdown
+  // (https://crbug.com/922938).
+  CHECK(has_sequenced_context || !post_task_success);
+
+  return post_task_success;
 }
 
 }  // namespace internal

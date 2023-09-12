@@ -1,19 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_FILE_VERSION_INFO_H_
 #define BASE_FILE_VERSION_INFO_H_
 
+#include <memory>
 #include <string>
-
-#include "starboard/types.h"
 
 #include "build/build_config.h"
 #include "base/base_export.h"
-#include "base/strings/string16.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include <windows.h>
 #endif
 
@@ -34,42 +32,38 @@ class FilePath;
 class BASE_EXPORT FileVersionInfo {
  public:
   virtual ~FileVersionInfo() {}
-#if defined(OS_WIN) || defined(OS_MACOSX)
-  // Creates a FileVersionInfo for the specified path. Returns NULL if something
-  // goes wrong (typically the file does not exit or cannot be opened). The
-  // returned object should be deleted when you are done with it.
-  static FileVersionInfo* CreateFileVersionInfo(
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
+  // Creates a FileVersionInfo for the specified path. Returns nullptr if
+  // something goes wrong (typically the file does not exit or cannot be
+  // opened).
+  static std::unique_ptr<FileVersionInfo> CreateFileVersionInfo(
       const base::FilePath& file_path);
-#endif  // OS_WIN || OS_MACOSX
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
 
-#if defined(OS_WIN)
-  // Creates a FileVersionInfo for the specified module. Returns NULL in case
-  // of error. The returned object should be deleted when you are done with it.
-  static FileVersionInfo* CreateFileVersionInfoForModule(HMODULE module);
+#if BUILDFLAG(IS_WIN)
+  // Creates a FileVersionInfo for the specified module. Returns nullptr in
+  // case of error.
+  static std::unique_ptr<FileVersionInfo> CreateFileVersionInfoForModule(
+      HMODULE module);
 #else
-  // Creates a FileVersionInfo for the current module. Returns NULL in case
-  // of error. The returned object should be deleted when you are done with it.
-  static FileVersionInfo* CreateFileVersionInfoForCurrentModule();
-#endif  // OS_WIN
+  // Creates a FileVersionInfo for the current module. Returns nullptr in case
+  // of error.
+  static std::unique_ptr<FileVersionInfo>
+  CreateFileVersionInfoForCurrentModule();
+#endif  // BUILDFLAG(IS_WIN)
 
   // Accessors to the different version properties.
   // Returns an empty string if the property is not found.
-  virtual base::string16 company_name() = 0;
-  virtual base::string16 company_short_name() = 0;
-  virtual base::string16 product_name() = 0;
-  virtual base::string16 product_short_name() = 0;
-  virtual base::string16 internal_name() = 0;
-  virtual base::string16 product_version() = 0;
-  virtual base::string16 private_build() = 0;
-  virtual base::string16 special_build() = 0;
-  virtual base::string16 comments() = 0;
-  virtual base::string16 original_filename() = 0;
-  virtual base::string16 file_description() = 0;
-  virtual base::string16 file_version() = 0;
-  virtual base::string16 legal_copyright() = 0;
-  virtual base::string16 legal_trademarks() = 0;
-  virtual base::string16 last_change() = 0;
-  virtual bool is_official_build() = 0;
+  virtual std::u16string company_name() = 0;
+  virtual std::u16string company_short_name() = 0;
+  virtual std::u16string product_name() = 0;
+  virtual std::u16string product_short_name() = 0;
+  virtual std::u16string internal_name() = 0;
+  virtual std::u16string product_version() = 0;
+  virtual std::u16string special_build() = 0;
+  virtual std::u16string original_filename() = 0;
+  virtual std::u16string file_description() = 0;
+  virtual std::u16string file_version() = 0;
 };
 
 #endif  // BASE_FILE_VERSION_INFO_H_

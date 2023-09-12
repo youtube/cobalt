@@ -1,10 +1,8 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base.test.util;
-
-import junit.framework.TestCase;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -48,13 +46,6 @@ public class SkipCheckTest {
 
     private class ExtendsAnnotatedBaseClass extends AnnotatedBaseClass {
         public void anotherUnannotatedMethod() {}
-    }
-
-    private class ExtendsTestCaseClass extends TestCase {
-        public ExtendsTestCaseClass(String name) {
-            super(name);
-        }
-        public void testMethodA() {}
     }
 
     private class UnannotatedBaseClass {

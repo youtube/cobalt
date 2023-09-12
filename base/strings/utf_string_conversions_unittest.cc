@@ -1,16 +1,14 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/strings/utf_string_conversions.h"
-#include "base/logging.h"
-#include "base/macros.h"
+
+#include <stddef.h>
+
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
-#include "starboard/common/string.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -50,13 +48,13 @@ TEST(UTFStringConversionsTest, ConvertUTF8AndWide) {
   // we round-trip all the wide strings through UTF-8 to make sure everything
   // agrees on the conversion. This uses the stream operators to test them
   // simultaneously.
-  for (size_t i = 0; i < arraysize(kConvertRoundtripCases); ++i) {
+  for (auto* i : kConvertRoundtripCases) {
     std::ostringstream utf8;
-    utf8 << WideToUTF8(kConvertRoundtripCases[i]);
+    utf8 << WideToUTF8(i);
     std::wostringstream wide;
     wide << UTF8ToWide(utf8.str());
 
-    EXPECT_EQ(kConvertRoundtripCases[i], wide.str());
+    EXPECT_EQ(i, wide.str());
   }
 }
 
@@ -98,12 +96,10 @@ TEST(UTFStringConversionsTest, ConvertUTF8ToWide) {
 #endif
   };
 
-  for (size_t i = 0; i < arraysize(convert_cases); i++) {
+  for (const auto& i : convert_cases) {
     std::wstring converted;
-    EXPECT_EQ(convert_cases[i].success,
-              UTF8ToWide(convert_cases[i].utf8,
-                         strlen(convert_cases[i].utf8), &converted));
-    std::wstring expected(convert_cases[i].wide);
+    EXPECT_EQ(i.success, UTF8ToWide(i.utf8, strlen(i.utf8), &converted));
+    std::wstring expected(i.wide);
     EXPECT_EQ(expected, converted);
   }
 
@@ -184,27 +180,23 @@ TEST(UTFStringConversionsTest, ConvertUTF32ToUTF8) {
 #endif  // defined(WCHAR_T_IS_UTF32)
 
 TEST(UTFStringConversionsTest, ConvertMultiString) {
-  static char16 multi16[] = {
-    'f', 'o', 'o', '\0',
-    'b', 'a', 'r', '\0',
-    'b', 'a', 'z', '\0',
-    '\0'
-  };
+  static char16_t multi16[] = {'f',  'o', 'o', '\0', 'b',  'a', 'r',
+                               '\0', 'b', 'a', 'z',  '\0', '\0'};
   static char multi[] = {
     'f', 'o', 'o', '\0',
     'b', 'a', 'r', '\0',
     'b', 'a', 'z', '\0',
     '\0'
   };
-  string16 multistring16;
-  memcpy(WriteInto(&multistring16, arraysize(multi16)), multi16,
-               sizeof(multi16));
-  EXPECT_EQ(arraysize(multi16) - 1, multistring16.length());
+  std::u16string multistring16;
+  memcpy(WriteInto(&multistring16, std::size(multi16)), multi16,
+         sizeof(multi16));
+  EXPECT_EQ(std::size(multi16) - 1, multistring16.length());
   std::string expected;
-  memcpy(WriteInto(&expected, arraysize(multi)), multi, sizeof(multi));
-  EXPECT_EQ(arraysize(multi) - 1, expected.length());
+  memcpy(WriteInto(&expected, std::size(multi)), multi, sizeof(multi));
+  EXPECT_EQ(std::size(multi) - 1, expected.length());
   const std::string& converted = UTF16ToUTF8(multistring16);
-  EXPECT_EQ(arraysize(multi) - 1, converted.length());
+  EXPECT_EQ(std::size(multi) - 1, converted.length());
   EXPECT_EQ(expected, converted);
 }
 

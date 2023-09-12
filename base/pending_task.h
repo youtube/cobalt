@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,15 +8,14 @@
 #include <array>
 
 #include "base/base_export.h"
-#include "base/callback.h"
-#include "base/containers/queue.h"
+#include "base/functional/callback.h"
 #include "base/location.h"
-#include "base/optional.h"
+#include "base/task/delay_policy.h"
 #include "base/time/time.h"
 
 namespace base {
 
-enum class Nestable {
+enum class Nestable : uint8_t {
   kNonNestable,
   kNestable,
 };
@@ -24,17 +23,25 @@ enum class Nestable {
 // Contains data about a pending task. Stored in TaskQueue and DelayedTaskQueue
 // for use by classes that queue and execute tasks.
 struct BASE_EXPORT PendingTask {
+  PendingTask();
   PendingTask(const Location& posted_from,
               OnceClosure task,
+              TimeTicks queue_time = TimeTicks(),
               TimeTicks delayed_run_time = TimeTicks(),
-              Nestable nestable = Nestable::kNestable);
+              TimeDelta leeway = TimeDelta(),
+              subtle::DelayPolicy delay_policy =
+                  subtle::DelayPolicy::kFlexibleNoSooner);
   PendingTask(PendingTask&& other);
   ~PendingTask();
 
   PendingTask& operator=(PendingTask&& other);
 
-  // Used to support sorting.
-  bool operator<(const PendingTask& other) const;
+  // Returns the time at which this task should run. This is |delayed_run_time|
+  // for a delayed task, |queue_time| otherwise.
+  base::TimeTicks GetDesiredExecutionTime() const;
+
+  TimeTicks earliest_delayed_run_time() const;
+  TimeTicks latest_delayed_run_time() const;
 
   // The task to run.
   OnceClosure task;
@@ -42,31 +49,43 @@ struct BASE_EXPORT PendingTask {
   // The site this PendingTask was posted from.
   Location posted_from;
 
-  // The time when the task should be run.
+  // The time at which the task was queued, which happens at post time. For
+  // deferred non-nestable tasks, this is reset when the nested loop exits and
+  // the deferred tasks are pushed back at the front of the queue. This is not
+  // set for immediate SequenceManager tasks unless SetAddQueueTimeToTasks(true)
+  // was called. This defaults to a null TimeTicks if the task hasn't been
+  // inserted in a sequence yet.
+  TimeTicks queue_time;
+
+  // The time when the task should be run. This is null for an immediate task.
   base::TimeTicks delayed_run_time;
 
-  // The time at which the task was queued. Only set if the task was posted to a
-  // MessageLoop with SetAddQueueTimeToTasks(true).
-  Optional<TimeTicks> queue_time;
+  // |leeway| and |delay_policy| determine the preferred time range for running
+  // the delayed task. A larger leeway provides more freedom to run the task at
+  // an optimal time for power consumption. These fields are ignored for an
+  // immediate (non-delayed) task.
+  TimeDelta leeway;
+  subtle::DelayPolicy delay_policy = subtle::DelayPolicy::kFlexibleNoSooner;
 
-  // Chain of up-to-four symbols of the parent tasks which led to this one being
-  // posted.
-  std::array<const void*, 4> task_backtrace = {};
+  // Chain of symbols of the parent tasks which led to this one being posted.
+  static constexpr size_t kTaskBacktraceLength = 4;
+  std::array<const void*, kTaskBacktraceLength> task_backtrace = {};
+
+  // The context of the IPC message that was being handled when this task was
+  // posted. This is a hash of the IPC message name that is set within the scope
+  // of an IPC handler and when symbolized uniquely identifies the message being
+  // processed. This property is not propagated from one PendingTask to the
+  // next. For example, if pending task A was posted while handling an IPC,
+  // and pending task B was posted from within pending task A, then pending task
+  // B will not inherit the |ipc_hash| of pending task A.
+  uint32_t ipc_hash = 0;
+  const char* ipc_interface_name = nullptr;
 
   // Secondary sort key for run time.
   int sequence_num = 0;
 
-  // OK to dispatch from a nested loop.
-  Nestable nestable;
-
-  // Needs high resolution timers.
-  bool is_high_res = false;
+  bool task_backtrace_overflow = false;
 };
-
-using TaskQueue = base::queue<PendingTask>;
-
-// PendingTasks are sorted by their |delayed_run_time| property.
-using DelayedTaskQueue = std::priority_queue<base::PendingTask>;
 
 }  // namespace base
 

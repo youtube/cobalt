@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,6 @@
 #define BASE_ATOMIC_SEQUENCE_NUM_H_
 
 #include <atomic>
-
-#include "base/macros.h"
 
 namespace base {
 
@@ -17,6 +15,8 @@ namespace base {
 class AtomicSequenceNumber {
  public:
   constexpr AtomicSequenceNumber() = default;
+  AtomicSequenceNumber(const AtomicSequenceNumber&) = delete;
+  AtomicSequenceNumber& operator=(const AtomicSequenceNumber&) = delete;
 
   // Returns an increasing sequence number starts from 0 for each call.
   // This function can be called from any thread without data race.
@@ -24,8 +24,6 @@ class AtomicSequenceNumber {
 
  private:
   std::atomic_int seq_{0};
-
-  DISALLOW_COPY_AND_ASSIGN(AtomicSequenceNumber);
 };
 
 }  // namespace base

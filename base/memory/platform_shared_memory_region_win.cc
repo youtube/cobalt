@@ -1,34 +1,24 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/memory/platform_shared_memory_region.h"
 
 #include <aclapi.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "base/allocator/partition_allocator/page_allocator.h"
 #include "base/bits.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/process/process_handle.h"
-#include "base/rand_util.h"
-#include "base/strings/stringprintf.h"
-#include "base/win/windows_version.h"
-#include "starboard/types.h"
+#include "base/strings/string_util.h"
 
-namespace base {
-namespace subtle {
+namespace base::subtle {
 
 namespace {
-
-// Emits UMA metrics about encountered errors. Pass zero (0) for |winerror|
-// if there is no associated Windows error.
-void LogError(PlatformSharedMemoryRegion::CreateError error, DWORD winerror) {
-  UMA_HISTOGRAM_ENUMERATION("SharedMemory.CreateError", error);
-  static_assert(ERROR_SUCCESS == 0, "Windows error code changed!");
-  if (winerror != ERROR_SUCCESS)
-    UmaHistogramSparse("SharedMemory.CreateWinError", winerror);
-}
 
 typedef enum _SECTION_INFORMATION_CLASS {
   SectionBasicInformation,
@@ -46,16 +36,6 @@ typedef ULONG(__stdcall* NtQuerySectionType)(
     PVOID SectionInformation,
     ULONG SectionInformationLength,
     PULONG ResultLength);
-
-// Returns the length of the memory section starting at the supplied address.
-size_t GetMemorySectionSize(void* address) {
-  MEMORY_BASIC_INFORMATION memory_info;
-  if (!::VirtualQuery(address, &memory_info, sizeof(memory_info)))
-    return 0;
-  return memory_info.RegionSize -
-         (static_cast<char*>(address) -
-          static_cast<char*>(memory_info.AllocationBase));
-}
 
 // Checks if the section object is safe to map. At the moment this just means
 // it's not an image section.
@@ -93,9 +73,6 @@ HANDLE CreateFileMappingWithReducedPermissions(SECURITY_ATTRIBUTES* sa,
   HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, sa, PAGE_READWRITE, 0,
                                static_cast<DWORD>(rounded_size), name);
   if (!h) {
-    LogError(
-        PlatformSharedMemoryRegion::CreateError::CREATE_FILE_MAPPING_FAILURE,
-        GetLastError());
     return nullptr;
   }
 
@@ -108,9 +85,6 @@ HANDLE CreateFileMappingWithReducedPermissions(SECURITY_ATTRIBUTES* sa,
   DCHECK(rv);
 
   if (!success) {
-    LogError(
-        PlatformSharedMemoryRegion::CreateError::REDUCE_PERMISSIONS_FAILURE,
-        GetLastError());
     return nullptr;
   }
 
@@ -125,7 +99,7 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Take(
     Mode mode,
     size_t size,
     const UnguessableToken& guid) {
-  if (!handle.IsValid())
+  if (!handle.is_valid())
     return {};
 
   if (size == 0)
@@ -134,34 +108,21 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Take(
   if (size > static_cast<size_t>(std::numeric_limits<int>::max()))
     return {};
 
-  if (!IsSectionSafeToMap(handle.Get()))
+  if (!IsSectionSafeToMap(handle.get()))
     return {};
 
   CHECK(
-      CheckPlatformHandlePermissionsCorrespondToMode(handle.Get(), mode, size));
+      CheckPlatformHandlePermissionsCorrespondToMode(handle.get(), mode, size));
 
   return PlatformSharedMemoryRegion(std::move(handle), mode, size, guid);
 }
 
-// static
-PlatformSharedMemoryRegion
-PlatformSharedMemoryRegion::TakeFromSharedMemoryHandle(
-    const SharedMemoryHandle& handle,
-    Mode mode) {
-  CHECK(mode == Mode::kReadOnly || mode == Mode::kUnsafe);
-  if (!handle.IsValid())
-    return {};
-
-  return Take(base::win::ScopedHandle(handle.GetHandle()), mode,
-              handle.GetSize(), handle.GetGUID());
-}
-
 HANDLE PlatformSharedMemoryRegion::GetPlatformHandle() const {
-  return handle_.Get();
+  return handle_.get();
 }
 
 bool PlatformSharedMemoryRegion::IsValid() const {
-  return handle_.IsValid();
+  return handle_.is_valid();
 }
 
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Duplicate() const {
@@ -174,7 +135,7 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Duplicate() const {
   HANDLE duped_handle;
   ProcessHandle process = GetCurrentProcess();
   BOOL success =
-      ::DuplicateHandle(process, handle_.Get(), process, &duped_handle, 0,
+      ::DuplicateHandle(process, handle_.get(), process, &duped_handle, 0,
                         FALSE, DUPLICATE_SAME_ACCESS);
   if (!success)
     return {};
@@ -190,12 +151,12 @@ bool PlatformSharedMemoryRegion::ConvertToReadOnly() {
   CHECK_EQ(mode_, Mode::kWritable)
       << "Only writable shared memory region can be converted to read-only";
 
-  win::ScopedHandle handle_copy(handle_.Take());
+  win::ScopedHandle handle_copy(handle_.release());
 
   HANDLE duped_handle;
   ProcessHandle process = GetCurrentProcess();
   BOOL success =
-      ::DuplicateHandle(process, handle_copy.Get(), process, &duped_handle,
+      ::DuplicateHandle(process, handle_copy.get(), process, &duped_handle,
                         FILE_MAP_READ | SECTION_QUERY, FALSE, 0);
   if (!success)
     return false;
@@ -216,30 +177,6 @@ bool PlatformSharedMemoryRegion::ConvertToUnsafe() {
   return true;
 }
 
-bool PlatformSharedMemoryRegion::MapAtInternal(off_t offset,
-                                               size_t size,
-                                               void** memory,
-                                               size_t* mapped_size) const {
-  bool write_allowed = mode_ != Mode::kReadOnly;
-  // Try to map the shared memory. On the first failure, release any reserved
-  // address space for a single entry.
-  for (int i = 0; i < 2; ++i) {
-    *memory = MapViewOfFile(
-        handle_.Get(), FILE_MAP_READ | (write_allowed ? FILE_MAP_WRITE : 0),
-        static_cast<uint64_t>(offset) >> 32, static_cast<DWORD>(offset), size);
-    if (*memory)
-      break;
-    ReleaseReservation();
-  }
-  if (!*memory) {
-    DPLOG(ERROR) << "Failed executing MapViewOfFile";
-    return false;
-  }
-
-  *mapped_size = GetMemorySectionSize(*memory);
-  return true;
-}
-
 // static
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
                                                               size_t size) {
@@ -247,13 +184,13 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
   // per mapping on average.
   static const size_t kSectionSize = 65536;
   if (size == 0) {
-    LogError(CreateError::SIZE_ZERO, 0);
     return {};
   }
 
-  size_t rounded_size = bits::Align(size, kSectionSize);
-  if (rounded_size > static_cast<size_t>(std::numeric_limits<int>::max())) {
-    LogError(CreateError::SIZE_TOO_LARGE, 0);
+  // Aligning may overflow so check that the result doesn't decrease.
+  size_t rounded_size = bits::AlignUp(size, kSectionSize);
+  if (rounded_size < size ||
+      rounded_size > static_cast<size_t>(std::numeric_limits<int>::max())) {
     return {};
   }
 
@@ -264,36 +201,21 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
   ACL dacl;
   SECURITY_DESCRIPTOR sd;
   if (!InitializeAcl(&dacl, sizeof(dacl), ACL_REVISION)) {
-    LogError(CreateError::INITIALIZE_ACL_FAILURE, GetLastError());
     return {};
   }
   if (!InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION)) {
-    LogError(CreateError::INITIALIZE_SECURITY_DESC_FAILURE, GetLastError());
     return {};
   }
   if (!SetSecurityDescriptorDacl(&sd, TRUE, &dacl, FALSE)) {
-    LogError(CreateError::SET_SECURITY_DESC_FAILURE, GetLastError());
     return {};
   }
 
-  string16 name;
-  if (base::win::GetVersion() < base::win::VERSION_WIN8_1) {
-    // Windows < 8.1 ignores DACLs on certain unnamed objects (like shared
-    // sections). So, we generate a random name when we need to enforce
-    // read-only.
-    uint64_t rand_values[4];
-    RandBytes(&rand_values, sizeof(rand_values));
-    name = StringPrintf(L"CrSharedMem_%016llx%016llx%016llx%016llx",
-                        rand_values[0], rand_values[1], rand_values[2],
-                        rand_values[3]);
-    DCHECK(!name.empty());
-  }
-
+  std::u16string name;
   SECURITY_ATTRIBUTES sa = {sizeof(sa), &sd, FALSE};
   // Ask for the file mapping with reduced permisions to avoid passing the
   // access control permissions granted by default into unpriviledged process.
   HANDLE h = CreateFileMappingWithReducedPermissions(
-      &sa, rounded_size, name.empty() ? nullptr : name.c_str());
+      &sa, rounded_size, name.empty() ? nullptr : as_wcstr(name));
   if (h == nullptr) {
     // The error is logged within CreateFileMappingWithReducedPermissions().
     return {};
@@ -302,18 +224,16 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
   win::ScopedHandle scoped_h(h);
   // Check if the shared memory pre-exists.
   if (GetLastError() == ERROR_ALREADY_EXISTS) {
-    LogError(CreateError::ALREADY_EXISTS, ERROR_ALREADY_EXISTS);
     return {};
   }
 
-  LogError(CreateError::SUCCESS, ERROR_SUCCESS);
   return PlatformSharedMemoryRegion(std::move(scoped_h), mode, size,
                                     UnguessableToken::Create());
 }
 
 // static
 bool PlatformSharedMemoryRegion::CheckPlatformHandlePermissionsCorrespondToMode(
-    PlatformHandle handle,
+    PlatformSharedMemoryHandle handle,
     Mode mode,
     size_t size) {
   // Call ::DuplicateHandle() with FILE_MAP_WRITE as a desired access to check
@@ -347,5 +267,4 @@ PlatformSharedMemoryRegion::PlatformSharedMemoryRegion(
     const UnguessableToken& guid)
     : handle_(std::move(handle)), mode_(mode), size_(size), guid_(guid) {}
 
-}  // namespace subtle
-}  // namespace base
+}  // namespace base::subtle

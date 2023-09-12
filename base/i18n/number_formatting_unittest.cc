@@ -1,16 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include <stddef.h>
+#include <stdint.h>
 
 #include <limits>
 
 #include "base/i18n/number_formatting.h"
 #include "base/i18n/rtl.h"
-#include "base/macros.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/icu_test_util.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/i18n/unicode/usearch.h"
 
@@ -34,15 +35,13 @@ TEST(NumberFormattingTest, FormatNumber) {
 
   test::ScopedRestoreICUDefaultLocale restore_locale;
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (const auto& i : cases) {
     i18n::SetICUDefaultLocale("en");
-    testing::ResetFormatters();
-    EXPECT_EQ(cases[i].expected_english,
-              UTF16ToUTF8(FormatNumber(cases[i].number)));
+    ResetFormattersForTesting();
+    EXPECT_EQ(i.expected_english, UTF16ToUTF8(FormatNumber(i.number)));
     i18n::SetICUDefaultLocale("de");
-    testing::ResetFormatters();
-    EXPECT_EQ(cases[i].expected_german,
-              UTF16ToUTF8(FormatNumber(cases[i].number)));
+    ResetFormattersForTesting();
+    EXPECT_EQ(i.expected_german, UTF16ToUTF8(FormatNumber(i.number)));
   }
 }
 
@@ -52,10 +51,9 @@ TEST(NumberFormattingTest, FormatDouble) {
     int frac_digits;
     const char* expected_english;
     const char* expected_german;
-  }
-  cases[] = {
+  } cases[] = {
     {0.0, 0, "0", "0"},
-#if !defined(OS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
     // Bionic can't printf negative zero correctly.
     {-0.0, 4, "-0.0000", "-0,0000"},
 #endif
@@ -81,19 +79,18 @@ TEST(NumberFormattingTest, FormatDouble) {
   };
 
   test::ScopedRestoreICUDefaultLocale restore_locale;
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (const auto& i : cases) {
     i18n::SetICUDefaultLocale("en");
-    testing::ResetFormatters();
-    EXPECT_EQ(cases[i].expected_english,
-              UTF16ToUTF8(FormatDouble(cases[i].number, cases[i].frac_digits)));
+    ResetFormattersForTesting();
+    EXPECT_EQ(i.expected_english,
+              UTF16ToUTF8(FormatDouble(i.number, i.frac_digits)));
     i18n::SetICUDefaultLocale("de");
-    testing::ResetFormatters();
-    EXPECT_EQ(cases[i].expected_german,
-              UTF16ToUTF8(FormatDouble(cases[i].number, cases[i].frac_digits)));
+    ResetFormattersForTesting();
+    EXPECT_EQ(i.expected_german,
+              UTF16ToUTF8(FormatDouble(i.number, i.frac_digits)));
   }
 }
 
-#if !defined(STARBOARD)
 TEST(NumberFormattingTest, FormatPercent) {
   static const struct {
     int64_t number;
@@ -110,34 +107,28 @@ TEST(NumberFormattingTest, FormatPercent) {
     const char* expected_arabic;
     const char* expected_arabic_egypt;
   } cases[] = {
-      {0, "0%", u8"0\u00a0%", u8"\u06f0\u066a", u8"0\u200e%\u200e",
-       u8"\u0660\u066a\u061c"},
-      {42, "42%", "42\u00a0%", u8"\u06f4\u06f2\u066a", u8"42\u200e%\u200e",
+      {0, "0%", "0\u00a0%", "\u06f0\u066a", "0\u200e%\u200e",
+       "\u0660\u066a\u061c"},
+      {42, "42%", "42\u00a0%", "\u06f4\u06f2\u066a", "42\u200e%\u200e",
        "\u0664\u0662\u066a\u061c"},
-      {1024, "1,024%", "1.024\u00a0%", u8"\u06f1\u066c\u06f0\u06f2\u06f4\u066a",
+      {1024, "1,024%", "1.024\u00a0%", "\u06f1\u066c\u06f0\u06f2\u06f4\u066a",
        "1,024\u200e%\u200e", "\u0661\u066c\u0660\u0662\u0664\u066a\u061c"},
   };
 
   test::ScopedRestoreICUDefaultLocale restore_locale;
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (const auto& i : cases) {
     i18n::SetICUDefaultLocale("en");
-    EXPECT_EQ(ASCIIToUTF16(cases[i].expected_english),
-              FormatPercent(cases[i].number));
+    EXPECT_EQ(ASCIIToUTF16(i.expected_english), FormatPercent(i.number));
     i18n::SetICUDefaultLocale("de");
-    EXPECT_EQ(UTF8ToUTF16(cases[i].expected_german),
-              FormatPercent(cases[i].number));
+    EXPECT_EQ(UTF8ToUTF16(i.expected_german), FormatPercent(i.number));
     i18n::SetICUDefaultLocale("fa");
-    EXPECT_EQ(UTF8ToUTF16(cases[i].expected_persian),
-              FormatPercent(cases[i].number));
+    EXPECT_EQ(UTF8ToUTF16(i.expected_persian), FormatPercent(i.number));
     i18n::SetICUDefaultLocale("ar");
-    EXPECT_EQ(UTF8ToUTF16(cases[i].expected_arabic),
-              FormatPercent(cases[i].number));
+    EXPECT_EQ(UTF8ToUTF16(i.expected_arabic), FormatPercent(i.number));
     i18n::SetICUDefaultLocale("ar-EG");
-    EXPECT_EQ(UTF8ToUTF16(cases[i].expected_arabic_egypt),
-              FormatPercent(cases[i].number));
+    EXPECT_EQ(UTF8ToUTF16(i.expected_arabic_egypt), FormatPercent(i.number));
   }
 }
-#endif  // !defined(STARBOARD)
 
 }  // namespace
 }  // namespace base

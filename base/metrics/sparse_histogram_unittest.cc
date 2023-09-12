@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,10 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_samples.h"
@@ -17,6 +20,7 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/pickle.h"
 #include "base/strings/stringprintf.h"
+#include "base/values.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,16 +30,23 @@ namespace base {
 // for histogram allocation. False will allocate histograms from the process
 // heap.
 class SparseHistogramTest : public testing::TestWithParam<bool> {
+ public:
+  SparseHistogramTest() : use_persistent_histogram_allocator_(GetParam()) {}
+  SparseHistogramTest(const SparseHistogramTest&) = delete;
+  SparseHistogramTest& operator=(const SparseHistogramTest&) = delete;
+
  protected:
   const int32_t kAllocatorMemorySize = 8 << 20;  // 8 MiB
 
-  SparseHistogramTest()
-      : statistics_recorder_(StatisticsRecorder::CreateTemporaryForTesting()),
-        use_persistent_histogram_allocator_(GetParam()) {}
+  using CountAndBucketData = base::SparseHistogram::CountAndBucketData;
 
   void SetUp() override {
     if (use_persistent_histogram_allocator_)
       CreatePersistentMemoryAllocator();
+
+    // Each test will have a clean state (no Histogram / BucketRanges
+    // registered).
+    InitializeStatisticsRecorder();
   }
 
   void TearDown() override {
@@ -43,8 +54,16 @@ class SparseHistogramTest : public testing::TestWithParam<bool> {
       ASSERT_FALSE(allocator_->IsFull());
       ASSERT_FALSE(allocator_->IsCorrupt());
     }
+    UninitializeStatisticsRecorder();
     DestroyPersistentMemoryAllocator();
   }
+
+  void InitializeStatisticsRecorder() {
+    DCHECK(!statistics_recorder_);
+    statistics_recorder_ = StatisticsRecorder::CreateTemporaryForTesting();
+  }
+
+  void UninitializeStatisticsRecorder() { statistics_recorder_.reset(); }
 
   void CreatePersistentMemoryAllocator() {
     GlobalHistogramAllocator::CreateWithLocalMemory(
@@ -63,20 +82,22 @@ class SparseHistogramTest : public testing::TestWithParam<bool> {
     return std::unique_ptr<SparseHistogram>(new SparseHistogram(name));
   }
 
+  CountAndBucketData GetCountAndBucketData(SparseHistogram* histogram) {
+    // A simple wrapper around |GetCountAndBucketData| to make it visible for
+    // testing.
+    return histogram->GetCountAndBucketData();
+  }
+
   const bool use_persistent_histogram_allocator_;
 
   std::unique_ptr<StatisticsRecorder> statistics_recorder_;
-  PersistentMemoryAllocator* allocator_ = nullptr;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SparseHistogramTest);
+  raw_ptr<PersistentMemoryAllocator> allocator_ = nullptr;
 };
 
 // Run all HistogramTest cases with both heap and persistent memory.
-INSTANTIATE_TEST_CASE_P(HeapAndPersistent,
-                        SparseHistogramTest,
-                        testing::Bool());
-
+INSTANTIATE_TEST_SUITE_P(HeapAndPersistent,
+                         SparseHistogramTest,
+                         testing::Bool());
 
 TEST_P(SparseHistogramTest, BasicTest) {
   std::unique_ptr<SparseHistogram> histogram(NewSparseHistogram("Sparse"));
@@ -114,6 +135,64 @@ TEST_P(SparseHistogramTest, BasicTestAddCount) {
   EXPECT_EQ(55, snapshot2->TotalCount());
   EXPECT_EQ(30, snapshot2->GetCount(100));
   EXPECT_EQ(25, snapshot2->GetCount(101));
+}
+
+// Check that delta calculations work correctly with SnapshotUnloggedSamples()
+// and MarkSamplesAsLogged().
+TEST_P(SparseHistogramTest, UnloggedSamplesTest) {
+  std::unique_ptr<SparseHistogram> histogram(NewSparseHistogram("Sparse"));
+  histogram->AddCount(1, 1);
+  histogram->AddCount(2, 2);
+
+  std::unique_ptr<HistogramSamples> samples =
+      histogram->SnapshotUnloggedSamples();
+  EXPECT_EQ(3, samples->TotalCount());
+  EXPECT_EQ(1, samples->GetCount(1));
+  EXPECT_EQ(2, samples->GetCount(2));
+  EXPECT_EQ(samples->TotalCount(), samples->redundant_count());
+  EXPECT_EQ(5, samples->sum());
+
+  // Snapshot unlogged samples again, which would be the same as above.
+  samples = histogram->SnapshotUnloggedSamples();
+  EXPECT_EQ(3, samples->TotalCount());
+  EXPECT_EQ(1, samples->GetCount(1));
+  EXPECT_EQ(2, samples->GetCount(2));
+  EXPECT_EQ(samples->TotalCount(), samples->redundant_count());
+  EXPECT_EQ(5, samples->sum());
+
+  // Verify that marking the samples as logged works correctly, and that
+  // SnapshotDelta() will not pick up the samples.
+  histogram->MarkSamplesAsLogged(*samples);
+  samples = histogram->SnapshotUnloggedSamples();
+  EXPECT_EQ(0, samples->TotalCount());
+  EXPECT_EQ(samples->TotalCount(), samples->redundant_count());
+  EXPECT_EQ(0, samples->sum());
+  samples = histogram->SnapshotDelta();
+  EXPECT_EQ(0, samples->TotalCount());
+  EXPECT_EQ(samples->TotalCount(), samples->redundant_count());
+  EXPECT_EQ(0, samples->sum());
+
+  // Similarly, verify that SnapshotDelta() marks the samples as logged.
+  histogram->AddCount(1, 1);
+  histogram->AddCount(2, 2);
+  samples = histogram->SnapshotDelta();
+  EXPECT_EQ(3, samples->TotalCount());
+  EXPECT_EQ(1, samples->GetCount(1));
+  EXPECT_EQ(2, samples->GetCount(2));
+  EXPECT_EQ(samples->TotalCount(), samples->redundant_count());
+  EXPECT_EQ(5, samples->sum());
+  samples = histogram->SnapshotUnloggedSamples();
+  EXPECT_EQ(0, samples->TotalCount());
+  EXPECT_EQ(samples->TotalCount(), samples->redundant_count());
+  EXPECT_EQ(0, samples->sum());
+
+  // Verify that the logged samples contain everything emitted.
+  samples = histogram->SnapshotSamples();
+  EXPECT_EQ(6, samples->TotalCount());
+  EXPECT_EQ(samples->TotalCount(), samples->redundant_count());
+  EXPECT_EQ(2, samples->GetCount(1));
+  EXPECT_EQ(4, samples->GetCount(2));
+  EXPECT_EQ(10, samples->sum());
 }
 
 TEST_P(SparseHistogramTest, AddCount_LargeValuesDontOverflow) {
@@ -155,7 +234,6 @@ TEST_P(SparseHistogramTest, AddCount_LargeCountsDontOverflow) {
   }
 }
 
-#if !defined(STARBOARD)
 TEST_P(SparseHistogramTest, MacroBasicTest) {
   UmaHistogramSparse("Sparse", 100);
   UmaHistogramSparse("Sparse", 200);
@@ -195,8 +273,6 @@ TEST_P(SparseHistogramTest, MacroInLoopTest) {
   EXPECT_STREQ(histograms[0]->histogram_name(), "Sparse0");
   EXPECT_STREQ(histograms[1]->histogram_name(), "Sparse1");
 }
-
-#endif  // !defined(STARBOARD)
 
 TEST_P(SparseHistogramTest, Serialize) {
   std::unique_ptr<SparseHistogram> histogram(NewSparseHistogram("Sparse"));
@@ -292,8 +368,7 @@ TEST_P(SparseHistogramTest, FactoryTime) {
   int64_t create_ms = create_ticks.InMilliseconds();
 
   VLOG(1) << kTestCreateCount << " histogram creations took " << create_ms
-          << "ms or about "
-          << (create_ms * 1000000) / kTestCreateCount
+          << "ms or about " << (create_ms * 1000000) / kTestCreateCount
           << "ns each.";
 
   // Calculate cost of looking up existing histograms.
@@ -312,8 +387,7 @@ TEST_P(SparseHistogramTest, FactoryTime) {
   int64_t lookup_ms = lookup_ticks.InMilliseconds();
 
   VLOG(1) << kTestLookupCount << " histogram lookups took " << lookup_ms
-          << "ms or about "
-          << (lookup_ms * 1000000) / kTestLookupCount
+          << "ms or about " << (lookup_ms * 1000000) / kTestLookupCount
           << "ns each.";
 
   // Calculate cost of accessing histograms.
@@ -327,9 +401,7 @@ TEST_P(SparseHistogramTest, FactoryTime) {
   int64_t add_ms = add_ticks.InMilliseconds();
 
   VLOG(1) << kTestAddCount << " histogram adds took " << add_ms
-          << "ms or about "
-          << (add_ms * 1000000) / kTestAddCount
-          << "ns each.";
+          << "ms or about " << (add_ms * 1000000) / kTestAddCount << "ns each.";
 }
 
 TEST_P(SparseHistogramTest, ExtremeValues) {
@@ -345,7 +417,7 @@ TEST_P(SparseHistogramTest, ExtremeValues) {
       {2147483647, 2147483648LL},
   };
 
-  for (size_t i = 0; i < arraysize(cases); ++i) {
+  for (size_t i = 0; i < std::size(cases); ++i) {
     HistogramBase* histogram =
         SparseHistogram::FactoryGet(StringPrintf("ExtremeValues_%zu", i),
                                     HistogramBase::kUmaTargetedHistogramFlag);
@@ -374,6 +446,73 @@ TEST_P(SparseHistogramTest, HistogramNameHash) {
   HistogramBase* histogram = SparseHistogram::FactoryGet(
       kName, HistogramBase::kUmaTargetedHistogramFlag);
   EXPECT_EQ(histogram->name_hash(), HashMetricName(kName));
+}
+
+TEST_P(SparseHistogramTest, CheckGetCountAndBucketData) {
+  std::unique_ptr<SparseHistogram> histogram(NewSparseHistogram("Sparse"));
+  // Add samples in reverse order and make sure the output is in correct order.
+  histogram->AddCount(/*sample=*/200, /*count=*/15);
+  histogram->AddCount(/*sample=*/100, /*count=*/5);
+  // Add samples to the same bucket and make sure they'll be aggregated.
+  histogram->AddCount(/*sample=*/100, /*count=*/5);
+
+  const CountAndBucketData count_and_data_bucket =
+      GetCountAndBucketData(histogram.get());
+  EXPECT_EQ(25, count_and_data_bucket.count);
+  EXPECT_EQ(4000, count_and_data_bucket.sum);
+
+  const base::Value::List& buckets_list = count_and_data_bucket.buckets;
+  ASSERT_EQ(2u, buckets_list.size());
+
+  // Check the first bucket.
+  const base::Value::Dict* bucket1 = buckets_list[0].GetIfDict();
+  ASSERT_TRUE(bucket1 != nullptr);
+  EXPECT_EQ(bucket1->FindInt("low"), absl::optional<int>(100));
+  EXPECT_EQ(bucket1->FindInt("high"), absl::optional<int>(101));
+  EXPECT_EQ(bucket1->FindInt("count"), absl::optional<int>(10));
+
+  // Check the second bucket.
+  const base::Value::Dict* bucket2 = buckets_list[1].GetIfDict();
+  ASSERT_TRUE(bucket2 != nullptr);
+  EXPECT_EQ(bucket2->FindInt("low"), absl::optional<int>(200));
+  EXPECT_EQ(bucket2->FindInt("high"), absl::optional<int>(201));
+  EXPECT_EQ(bucket2->FindInt("count"), absl::optional<int>(15));
+}
+
+TEST_P(SparseHistogramTest, WriteAscii) {
+  HistogramBase* histogram =
+      SparseHistogram::FactoryGet("AsciiOut", HistogramBase::kNoFlags);
+  histogram->AddCount(/*sample=*/4, /*count=*/5);
+  histogram->AddCount(/*sample=*/10, /*count=*/15);
+
+  std::string output;
+  histogram->WriteAscii(&output);
+
+  const char kOutputFormatRe[] =
+      R"(Histogram: AsciiOut recorded 20 samples.*\n)"
+      R"(4   -+O +\(5 = 25.0%\)\n)"
+      R"(10  -+O +\(15 = 75.0%\)\n)";
+
+  EXPECT_THAT(output, testing::MatchesRegex(kOutputFormatRe));
+}
+
+TEST_P(SparseHistogramTest, ToGraphDict) {
+  HistogramBase* histogram =
+      SparseHistogram::FactoryGet("HTMLOut", HistogramBase::kNoFlags);
+  histogram->AddCount(/*sample=*/4, /*count=*/5);
+  histogram->AddCount(/*sample=*/10, /*count=*/15);
+
+  base::Value::Dict output = histogram->ToGraphDict();
+  std::string* header = output.FindString("header");
+  std::string* body = output.FindString("body");
+
+  const char kOutputHeaderFormatRe[] =
+      R"(Histogram: HTMLOut recorded 20 samples.*)";
+  const char kOutputBodyFormatRe[] = R"(4   -+O +\(5 = 25.0%\)\n)"
+                                     R"(10  -+O +\(15 = 75.0%\)\n)";
+
+  EXPECT_THAT(*header, testing::MatchesRegex(kOutputHeaderFormatRe));
+  EXPECT_THAT(*body, testing::MatchesRegex(kOutputBodyFormatRe));
 }
 
 }  // namespace base

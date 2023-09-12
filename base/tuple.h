@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,11 +25,11 @@
 #ifndef BASE_TUPLE_H_
 #define BASE_TUPLE_H_
 
+#include <stddef.h>
 #include <tuple>
 #include <utility>
 
 #include "build/build_config.h"
-#include "starboard/types.h"
 
 namespace base {
 

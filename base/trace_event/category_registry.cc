@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,52 +6,37 @@
 
 #include <string.h>
 
+#include <ostream>
 #include <type_traits>
 
-#include "base/atomicops.h"
+#include "base/check.h"
 #include "base/debug/leak_annotations.h"
-#include "base/logging.h"
+#include "base/notreached.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
-#include "base/trace_event/trace_category.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {
 
 namespace {
 
-constexpr size_t kMaxCategories = 200;
-const int kNumBuiltinCategories = 4;
-
-// |g_categories| might end up causing creating dynamic initializers if not POD.
+// |categories_| might end up causing creating dynamic initializers if not POD.
 static_assert(std::is_pod<TraceCategory>::value, "TraceCategory must be POD");
-
-// These entries must be kept consistent with the kCategory* consts below.
-TraceCategory g_categories[kMaxCategories] = {
-    {0, 0, "tracing categories exhausted; must increase kMaxCategories"},
-    {0, 0, "tracing already shutdown"},  // See kCategoryAlreadyShutdown below.
-    {0, 0, "__metadata"},                // See kCategoryMetadata below.
-    {0, 0, "toplevel"},                  // Warmup the toplevel category.
-};
-
-base::subtle::AtomicWord g_category_index = kNumBuiltinCategories;
-
-bool IsValidCategoryPtr(const TraceCategory* category) {
-  // If any of these are hit, something has cached a corrupt category pointer.
-  uintptr_t ptr = reinterpret_cast<uintptr_t>(category);
-  return ptr % sizeof(void*) == 0 &&
-         ptr >= reinterpret_cast<uintptr_t>(&g_categories[0]) &&
-         ptr <= reinterpret_cast<uintptr_t>(&g_categories[kMaxCategories - 1]);
-}
 
 }  // namespace
 
 // static
-TraceCategory* const CategoryRegistry::kCategoryExhausted = &g_categories[0];
+TraceCategory CategoryRegistry::categories_[kMaxCategories] = {
+    INTERNAL_TRACE_LIST_BUILTIN_CATEGORIES(INTERNAL_TRACE_INIT_CATEGORY)};
+
+// static
+std::atomic<size_t> CategoryRegistry::category_index_{
+    BuiltinCategories::Size()};
+
+// static
+TraceCategory* const CategoryRegistry::kCategoryExhausted = &categories_[0];
 TraceCategory* const CategoryRegistry::kCategoryAlreadyShutdown =
-    &g_categories[1];
-TraceCategory* const CategoryRegistry::kCategoryMetadata = &g_categories[2];
+    &categories_[1];
+TraceCategory* const CategoryRegistry::kCategoryMetadata = &categories_[2];
 
 // static
 void CategoryRegistry::Initialize() {
@@ -60,11 +45,11 @@ void CategoryRegistry::Initialize() {
   // traced or not, so we allow races on the enabled flag to keep the trace
   // macros fast.
   for (size_t i = 0; i < kMaxCategories; ++i) {
-    ANNOTATE_BENIGN_RACE(g_categories[i].state_ptr(),
+    ANNOTATE_BENIGN_RACE(categories_[i].state_ptr(),
                          "trace_event category enabled");
     // If this DCHECK is hit in a test it means that ResetForTesting() is not
     // called and the categories state leaks between test fixtures.
-    DCHECK(!g_categories[i].is_enabled());
+    DCHECK(!categories_[i].is_enabled());
   }
 }
 
@@ -74,7 +59,7 @@ void CategoryRegistry::ResetForTesting() {
   // categories themselves cannot be cleared up because the static pointers
   // injected by the macros still point to them and cannot be reset.
   for (size_t i = 0; i < kMaxCategories; ++i)
-    g_categories[i].reset_for_testing();
+    categories_[i].reset_for_testing();
 }
 
 // static
@@ -82,13 +67,13 @@ TraceCategory* CategoryRegistry::GetCategoryByName(const char* category_name) {
   DCHECK(!strchr(category_name, '"'))
       << "Category names may not contain double quote";
 
-  // The g_categories is append only, avoid using a lock for the fast path.
-  size_t category_index = base::subtle::Acquire_Load(&g_category_index);
+  // The categories_ is append only, avoid using a lock for the fast path.
+  size_t category_index = category_index_.load(std::memory_order_acquire);
 
   // Search for pre-existing category group.
   for (size_t i = 0; i < category_index; ++i) {
-    if (strcmp(g_categories[i].name(), category_name) == 0) {
-      return &g_categories[i];
+    if (strcmp(categories_[i].name(), category_name) == 0) {
+      return &categories_[i];
     }
   }
   return nullptr;
@@ -106,7 +91,7 @@ bool CategoryRegistry::GetOrCreateCategoryLocked(
     return false;
 
   // Create a new category.
-  size_t category_index = base::subtle::Acquire_Load(&g_category_index);
+  size_t category_index = category_index_.load(std::memory_order_acquire);
   if (category_index >= kMaxCategories) {
     NOTREACHED() << "must increase kMaxCategories";
     *category = kCategoryExhausted;
@@ -116,17 +101,17 @@ bool CategoryRegistry::GetOrCreateCategoryLocked(
   // TODO(primiano): this strdup should be removed. The only documented reason
   // for it was TraceWatchEvent, which is gone. However, something might have
   // ended up relying on this. Needs some auditing before removal.
-  const char* category_name_copy = SbStringDuplicate(category_name);
+  const char* category_name_copy = strdup(category_name);
   ANNOTATE_LEAKING_OBJECT_PTR(category_name_copy);
 
-  *category = &g_categories[category_index];
+  *category = &categories_[category_index];
   DCHECK(!(*category)->is_valid());
   DCHECK(!(*category)->is_enabled());
   (*category)->set_name(category_name_copy);
   category_initializer_fn(*category);
 
   // Update the max index now.
-  base::subtle::Release_Store(&g_category_index, category_index + 1);
+  category_index_.store(category_index + 1, std::memory_order_release);
   return true;
 }
 
@@ -139,19 +124,27 @@ const TraceCategory* CategoryRegistry::GetCategoryByStatePtr(
 }
 
 // static
-bool CategoryRegistry::IsBuiltinCategory(const TraceCategory* category) {
+bool CategoryRegistry::IsMetaCategory(const TraceCategory* category) {
   DCHECK(IsValidCategoryPtr(category));
-  return category < &g_categories[kNumBuiltinCategories];
+  return category <= kCategoryMetadata;
 }
 
 // static
 CategoryRegistry::Range CategoryRegistry::GetAllCategories() {
-  // The |g_categories| array is append only. We have to only guarantee to
+  // The |categories_| array is append only. We have to only guarantee to
   // not return an index to a category which is being initialized by
   // GetOrCreateCategoryByName().
-  size_t category_index = base::subtle::Acquire_Load(&g_category_index);
-  return CategoryRegistry::Range(&g_categories[0],
-                                 &g_categories[category_index]);
+  size_t category_index = category_index_.load(std::memory_order_acquire);
+  return CategoryRegistry::Range(&categories_[0], &categories_[category_index]);
+}
+
+// static
+bool CategoryRegistry::IsValidCategoryPtr(const TraceCategory* category) {
+  // If any of these are hit, something has cached a corrupt category pointer.
+  uintptr_t ptr = reinterpret_cast<uintptr_t>(category);
+  return ptr % sizeof(void*) == 0 &&
+         ptr >= reinterpret_cast<uintptr_t>(&categories_[0]) &&
+         ptr <= reinterpret_cast<uintptr_t>(&categories_[kMaxCategories - 1]);
 }
 
 }  // namespace trace_event

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,14 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/posix/eintr_wrapper.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 // See the comments in dir_reader_posix.h about this.
 
@@ -37,6 +37,9 @@ class DirReaderLinux {
     memset(buf_, 0, sizeof(buf_));
   }
 
+  DirReaderLinux(const DirReaderLinux&) = delete;
+  DirReaderLinux& operator=(const DirReaderLinux&) = delete;
+
   ~DirReaderLinux() {
     if (fd_ >= 0) {
       if (IGNORE_EINTR(close(fd_)))
@@ -58,14 +61,14 @@ class DirReaderLinux {
     if (offset_ != size_)
       return true;
 
-    const int r = syscall(__NR_getdents64, fd_, buf_, sizeof(buf_));
+    const long r = syscall(__NR_getdents64, fd_, buf_, sizeof(buf_));
     if (r == 0)
       return false;
-    if (r == -1) {
-      DPLOG(FATAL) << "getdents64 returned an error: " << errno;
+    if (r < 0) {
+      DPLOG(FATAL) << "getdents64 failed";
       return false;
     }
-    size_ = r;
+    size_ = static_cast<size_t>(r);
     offset_ = 0;
     return true;
   }
@@ -92,8 +95,6 @@ class DirReaderLinux {
   alignas(linux_dirent) unsigned char buf_[512];
   size_t offset_;
   size_t size_;
-
-  DISALLOW_COPY_AND_ASSIGN(DirReaderLinux);
 };
 
 }  // namespace base

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,30 +6,22 @@
 
 #include <utility>
 
-#include "base/memory/shared_memory.h"
+#include "base/check_op.h"
 
 namespace base {
 
+UnsafeSharedMemoryRegion::CreateFunction*
+    UnsafeSharedMemoryRegion::create_hook_ = nullptr;
+
 // static
 UnsafeSharedMemoryRegion UnsafeSharedMemoryRegion::Create(size_t size) {
+  if (create_hook_)
+    return create_hook_(size);
+
   subtle::PlatformSharedMemoryRegion handle =
       subtle::PlatformSharedMemoryRegion::CreateUnsafe(size);
 
   return UnsafeSharedMemoryRegion(std::move(handle));
-}
-
-// static
-UnsafeSharedMemoryRegion UnsafeSharedMemoryRegion::CreateFromHandle(
-    const SharedMemoryHandle& handle) {
-  if (!handle.IsValid())
-    return UnsafeSharedMemoryRegion();
-  auto platform_region =
-      subtle::PlatformSharedMemoryRegion::TakeFromSharedMemoryHandle(
-          handle, subtle::PlatformSharedMemoryRegion::Mode::kUnsafe);
-  if (!platform_region.IsValid()) {
-    return UnsafeSharedMemoryRegion();
-  }
-  return Deserialize(std::move(platform_region));
 }
 
 // static
@@ -56,22 +48,24 @@ UnsafeSharedMemoryRegion UnsafeSharedMemoryRegion::Duplicate() const {
   return UnsafeSharedMemoryRegion(handle_.Duplicate());
 }
 
-WritableSharedMemoryMapping UnsafeSharedMemoryRegion::Map() const {
-  return MapAt(0, handle_.GetSize());
+WritableSharedMemoryMapping UnsafeSharedMemoryRegion::Map(
+    SharedMemoryMapper* mapper) const {
+  return MapAt(0, handle_.GetSize(), mapper);
 }
 
-WritableSharedMemoryMapping UnsafeSharedMemoryRegion::MapAt(off_t offset,
-                                                            size_t size) const {
+WritableSharedMemoryMapping UnsafeSharedMemoryRegion::MapAt(
+    uint64_t offset,
+    size_t size,
+    SharedMemoryMapper* mapper) const {
   if (!IsValid())
     return {};
 
-  void* memory = nullptr;
-  size_t mapped_size = 0;
-  if (!handle_.MapAt(offset, size, &memory, &mapped_size))
+  auto result = handle_.MapAt(offset, size, mapper);
+  if (!result.has_value())
     return {};
 
-  return WritableSharedMemoryMapping(memory, size, mapped_size,
-                                     handle_.GetGUID());
+  return WritableSharedMemoryMapping(result.value(), size, handle_.GetGUID(),
+                                     mapper);
 }
 
 bool UnsafeSharedMemoryRegion::IsValid() const {

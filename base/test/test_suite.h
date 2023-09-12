@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,14 +10,21 @@
 // any gtest based tests that are linked into your executable.
 
 #include <memory>
-#include <string>
 
 #include "base/at_exit.h"
-#include "base/logging.h"
-#include "base/macros.h"
-#include "base/test/scoped_feature_list.h"
-#include "base/test/trace_to_file.h"
+#include "base/check.h"
+#include "base/memory/raw_ptr.h"
+#include "base/strings/string_piece.h"
+#include "base/tracing_buildflags.h"
 #include "build/build_config.h"
+
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+#include "base/test/trace_to_file.h"
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+
+namespace logging {
+class ScopedLogAssertHandler;
+}
 
 namespace testing {
 class TestInfo;
@@ -28,7 +35,7 @@ namespace base {
 class XmlUnitTestResultPrinter;
 
 // Instantiates TestSuite, runs it and returns exit code.
-int RunUnitTestsUsingBaseTestSuite(int argc, char **argv);
+int RunUnitTestsUsingBaseTestSuite(int argc, char** argv);
 
 class TestSuite {
  public:
@@ -36,12 +43,20 @@ class TestSuite {
   typedef bool (*TestMatch)(const testing::TestInfo&);
 
   TestSuite(int argc, char** argv);
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   TestSuite(int argc, wchar_t** argv);
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
+
+  TestSuite(const TestSuite&) = delete;
+  TestSuite& operator=(const TestSuite&) = delete;
+
   virtual ~TestSuite();
 
   int Run();
+
+  // Disables checks for thread and process priority at the beginning and end of
+  // each test. Most tests should not use this.
+  void DisableCheckForThreadAndProcessPriority();
 
   // Disables checks for certain global objects being leaked across tests.
   void DisableCheckForLeakedGlobals();
@@ -72,30 +87,26 @@ class TestSuite {
   void AddTestLauncherResultPrinter();
 
   void InitializeFromCommandLine(int argc, char** argv);
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   void InitializeFromCommandLine(int argc, wchar_t** argv);
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
   // Basic initialization for the test suite happens here.
   void PreInitialize();
 
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   test::TraceToFile trace_to_file_;
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
   bool initialized_command_line_ = false;
 
-#if !defined(STARBOARD)
-  test::ScopedFeatureList scoped_feature_list_;
-
-  XmlUnitTestResultPrinter* printer_ = nullptr;
-#endif  // !defined(STARBOARD)
+  raw_ptr<XmlUnitTestResultPrinter, DanglingUntriaged> printer_ = nullptr;
 
   std::unique_ptr<logging::ScopedLogAssertHandler> assert_handler_;
 
   bool check_for_leaked_globals_ = true;
-
+  bool check_for_thread_and_process_priority_ = true;
   bool is_initialized_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(TestSuite);
 };
 
 }  // namespace base

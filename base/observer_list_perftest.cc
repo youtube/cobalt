@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,11 @@
 
 #include <memory>
 
-#include "base/logging.h"
-#include "base/observer_list.h"
+#include "base/check_op.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "testing/perf/perf_test.h"
+#include "testing/perf/perf_result_reporter.h"
 
 // Ask the compiler not to use a register for this counter, in case it decides
 // to do magic optimizations like |counter += kLaps|.
@@ -19,14 +18,28 @@ volatile int g_observer_list_perf_test_counter;
 
 namespace base {
 
+constexpr char kMetricPrefixObserverList[] = "ObserverList.";
+constexpr char kMetricNotifyTimePerObserver[] = "notify_time_per_observer";
+
+namespace {
+
+perf_test::PerfResultReporter SetUpReporter(const std::string& story_name) {
+  perf_test::PerfResultReporter reporter(kMetricPrefixObserverList, story_name);
+  reporter.RegisterImportantMetric(kMetricNotifyTimePerObserver, "ns");
+  return reporter;
+}
+
+}  // namespace
+
 class ObserverInterface {
  public:
-  ObserverInterface() {}
-  virtual ~ObserverInterface() {}
-  virtual void Observe() const { ++g_observer_list_perf_test_counter; }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ObserverInterface);
+  ObserverInterface() = default;
+  ObserverInterface(const ObserverInterface&) = delete;
+  ObserverInterface& operator=(const ObserverInterface&) = delete;
+  virtual ~ObserverInterface() = default;
+  virtual void Observe() const {
+    g_observer_list_perf_test_counter = g_observer_list_perf_test_counter + 1;
+  }
 };
 
 class UnsafeObserver : public ObserverInterface {};
@@ -51,14 +64,13 @@ class ObserverListPerfTest : public ::testing::Test {
  public:
   using ObserverListType = typename Pick<ObserverType>::ObserverListType;
 
-  ObserverListPerfTest() {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ObserverListPerfTest);
+  ObserverListPerfTest() = default;
+  ObserverListPerfTest(const ObserverListPerfTest&) = delete;
+  ObserverListPerfTest& operator=(const ObserverListPerfTest&) = delete;
 };
 
 typedef ::testing::Types<UnsafeObserver, TestCheckedObserver> ObserverTypes;
-TYPED_TEST_CASE(ObserverListPerfTest, ObserverTypes);
+TYPED_TEST_SUITE(ObserverListPerfTest, ObserverTypes);
 
 // Performance test for base::ObserverList and Checked Observers.
 TYPED_TEST(ObserverListPerfTest, NotifyPerformance) {
@@ -95,24 +107,23 @@ TYPED_TEST(ObserverListPerfTest, NotifyPerformance) {
     }
     TimeDelta duration = TimeTicks::Now() - start;
 
-    const char* name = Pick<TypeParam>::GetName();
     observers.clear();
 
     EXPECT_EQ(observer_count * weighted_laps,
               g_observer_list_perf_test_counter);
-    EXPECT_TRUE(observer_count == 0 || list.might_have_observers());
+    EXPECT_TRUE(observer_count == 0 || !list.empty());
 
-    std::string prefix =
-        base::StringPrintf("ObserverListPerfTest_%d.", observer_count);
+    std::string story_name =
+        base::StringPrintf("%s_%d", Pick<TypeParam>::GetName(), observer_count);
 
     // A typical value is 3-20 nanoseconds per observe in Release, 1000-2000ns
     // in an optimized build with DCHECKs and 3000-6000ns in debug builds.
-    perf_test::PrintResult(
-        prefix, name, "NotifyPerformance",
+    auto reporter = SetUpReporter(story_name);
+    reporter.AddResult(
+        kMetricNotifyTimePerObserver,
         duration.InNanoseconds() /
             static_cast<double>(g_observer_list_perf_test_counter +
-                                weighted_laps),
-        "ns/observe", true);
+                                weighted_laps));
   }
 }
 

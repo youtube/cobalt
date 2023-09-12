@@ -1,34 +1,51 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TASK_SEQUENCE_MANAGER_TASK_QUEUE_SELECTOR_H_
 #define BASE_TASK_SEQUENCE_MANAGER_TASK_QUEUE_SELECTOR_H_
 
+#include <stddef.h>
+
+#include <atomic>
+#include <vector>
+
 #include "base/base_export.h"
-#include "base/macros.h"
+#include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr.h"
 #include "base/pending_task.h"
-#include "base/task/sequence_manager/task_queue_selector_logic.h"
+#include "base/task/sequence_manager/sequence_manager.h"
+#include "base/task/sequence_manager/sequenced_task_source.h"
+#include "base/task/sequence_manager/task_order.h"
 #include "base/task/sequence_manager/work_queue_sets.h"
-#include "starboard/types.h"
+#include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace sequence_manager {
 namespace internal {
 
-struct AssociatedThreadId;
+class AssociatedThreadId;
 
 // TaskQueueSelector is used by the SchedulerHelper to enable prioritization
 // of particular task queues.
-class BASE_EXPORT TaskQueueSelector {
+class BASE_EXPORT TaskQueueSelector : public WorkQueueSets::Observer {
  public:
-  explicit TaskQueueSelector(
-      scoped_refptr<AssociatedThreadId> associated_thread);
-  ~TaskQueueSelector();
+  using SelectTaskOption = SequencedTaskSource::SelectTaskOption;
+
+  TaskQueueSelector(scoped_refptr<const AssociatedThreadId> associated_thread,
+                    const SequenceManager::Settings& settings);
+
+  TaskQueueSelector(const TaskQueueSelector&) = delete;
+  TaskQueueSelector& operator=(const TaskQueueSelector&) = delete;
+  ~TaskQueueSelector() override;
+
+  static void InitializeFeatures();
 
   // Called to register a queue that can be selected. This function is called
   // on the main thread.
-  void AddQueue(internal::TaskQueueImpl* queue);
+  void AddQueue(internal::TaskQueueImpl* queue,
+                TaskQueue::QueuePriority priority);
 
   // The specified work will no longer be considered for selection. This
   // function is called on the main thread.
@@ -46,14 +63,13 @@ class BASE_EXPORT TaskQueueSelector {
                         TaskQueue::QueuePriority priority);
 
   // Called to choose the work queue from which the next task should be taken
-  // and run. Return true if |out_work_queue| indicates the queue to service or
-  // false to avoid running any task.
-  //
+  // and run. Return the queue to service if there is one or null otherwise.
   // This function is called on the main thread.
-  bool SelectWorkQueueToService(WorkQueue** out_work_queue);
+  WorkQueue* SelectWorkQueueToService(
+      SelectTaskOption option = SelectTaskOption::kDefault);
 
-  // Serialize the selector state for tracing.
-  void AsValueInto(trace_event::TracedValue* state) const;
+  // Serialize the selector state for tracing/debugging.
+  Value::Dict AsValue() const;
 
   class BASE_EXPORT Observer {
    public:
@@ -67,156 +83,179 @@ class BASE_EXPORT TaskQueueSelector {
   // on the main thread. If |observer| is null, then no callbacks will occur.
   void SetTaskQueueSelectorObserver(Observer* observer);
 
-  // Returns true if all the enabled work queues are empty. Returns false
-  // otherwise.
-  bool AllEnabledWorkQueuesAreEmpty() const;
+  // Returns the priority of the most important pending task if one exists.
+  // O(1).
+  absl::optional<TaskQueue::QueuePriority> GetHighestPendingPriority(
+      SelectTaskOption option = SelectTaskOption::kDefault) const;
+
+  // WorkQueueSets::Observer implementation:
+  void WorkQueueSetBecameEmpty(size_t set_index) override;
+  void WorkQueueSetBecameNonEmpty(size_t set_index) override;
+
+  // Populates |result| with tasks with lower priority than the first task from
+  // |selected_work_queue| which could otherwise run now.
+  void CollectSkippedOverLowerPriorityTasks(
+      const internal::WorkQueue* selected_work_queue,
+      std::vector<const Task*>* result) const;
 
  protected:
-  class BASE_EXPORT PrioritizingSelector {
-   public:
-    PrioritizingSelector(TaskQueueSelector* task_queue_selector,
-                         const char* name);
+  WorkQueueSets* delayed_work_queue_sets() { return &delayed_work_queue_sets_; }
 
-    void ChangeSetIndex(internal::TaskQueueImpl* queue,
-                        TaskQueue::QueuePriority priority);
-    void AddQueue(internal::TaskQueueImpl* queue,
-                  TaskQueue::QueuePriority priority);
-    void RemoveQueue(internal::TaskQueueImpl* queue);
-
-    bool SelectWorkQueueToService(TaskQueue::QueuePriority max_priority,
-                                  WorkQueue** out_work_queue,
-                                  bool* out_chose_delayed_over_immediate);
-
-    WorkQueueSets* delayed_work_queue_sets() {
-      return &delayed_work_queue_sets_;
-    }
-    WorkQueueSets* immediate_work_queue_sets() {
-      return &immediate_work_queue_sets_;
-    }
-
-    const WorkQueueSets* delayed_work_queue_sets() const {
-      return &delayed_work_queue_sets_;
-    }
-    const WorkQueueSets* immediate_work_queue_sets() const {
-      return &immediate_work_queue_sets_;
-    }
-
-    bool ChooseOldestWithPriority(TaskQueue::QueuePriority priority,
-                                  bool* out_chose_delayed_over_immediate,
-                                  WorkQueue** out_work_queue) const;
-
-#if DCHECK_IS_ON() || !defined(NDEBUG)
-    bool CheckContainsQueueForTest(const internal::TaskQueueImpl* queue) const;
-#endif
-
-   private:
-    bool ChooseOldestImmediateTaskWithPriority(
-        TaskQueue::QueuePriority priority,
-        WorkQueue** out_work_queue) const;
-
-    bool ChooseOldestDelayedTaskWithPriority(TaskQueue::QueuePriority priority,
-                                             WorkQueue** out_work_queue) const;
-
-    // Return true if |out_queue| contains the queue with the oldest pending
-    // task from the set of queues of |priority|, or false if all queues of that
-    // priority are empty. In addition |out_chose_delayed_over_immediate| is set
-    // to true iff we chose a delayed work queue in favour of an immediate work
-    // queue.
-    bool ChooseOldestImmediateOrDelayedTaskWithPriority(
-        TaskQueue::QueuePriority priority,
-        bool* out_chose_delayed_over_immediate,
-        WorkQueue** out_work_queue) const;
-
-    const TaskQueueSelector* task_queue_selector_;
-    WorkQueueSets delayed_work_queue_sets_;
-    WorkQueueSets immediate_work_queue_sets_;
-
-    DISALLOW_COPY_AND_ASSIGN(PrioritizingSelector);
-  };
-
-  // Return true if |out_queue| contains the queue with the oldest pending task
-  // from the set of queues of |priority|, or false if all queues of that
-  // priority are empty. In addition |out_chose_delayed_over_immediate| is set
-  // to true iff we chose a delayed work queue in favour of an immediate work
-  // queue.  This method will force select an immediate task if those are being
-  // starved by delayed tasks.
-  void SetImmediateStarvationCountForTest(size_t immediate_starvation_count);
-
-  PrioritizingSelector* prioritizing_selector_for_test() {
-    return &prioritizing_selector_;
+  WorkQueueSets* immediate_work_queue_sets() {
+    return &immediate_work_queue_sets_;
   }
 
-  // Maximum score to accumulate before high priority tasks are run even in
-  // the presence of highest priority tasks.
-  static const size_t kMaxHighPriorityStarvationScore = 3;
-
-  // Increment to be applied to the high priority starvation score when a task
-  // should have only a small effect on the score. E.g. A number of highest
-  // priority tasks must run before the high priority queue is considered
-  // starved.
-  static const size_t kSmallScoreIncrementForHighPriorityStarvation = 1;
-
-  // Maximum score to accumulate before normal priority tasks are run even in
-  // the presence of higher priority tasks i.e. highest and high priority tasks.
-  static const size_t kMaxNormalPriorityStarvationScore = 5;
-
-  // Increment to be applied to the normal priority starvation score when a task
-  // should have a large effect on the score. E.g Only a few high priority
-  // priority tasks must run before the normal priority queue is considered
-  // starved.
-  static const size_t kLargeScoreIncrementForNormalPriorityStarvation = 2;
-
-  // Increment to be applied to the normal priority starvation score when a task
-  // should have only a small effect on the score. E.g. A number of highest
-  // priority tasks must run before the normal priority queue is considered
-  // starved.
-  static const size_t kSmallScoreIncrementForNormalPriorityStarvation = 1;
-
-  // Maximum score to accumulate before low priority tasks are run even in the
-  // presence of highest, high, or normal priority tasks.
-  static const size_t kMaxLowPriorityStarvationScore = 25;
-
-  // Increment to be applied to the low priority starvation score when a task
-  // should have a large effect on the score. E.g. Only a few normal/high
-  // priority tasks must run before the low priority queue is considered
-  // starved.
-  static const size_t kLargeScoreIncrementForLowPriorityStarvation = 5;
-
-  // Increment to be applied to the low priority starvation score when a task
-  // should have only a small effect on the score. E.g. A lot of highest
-  // priority tasks must run before the low priority queue is considered
-  // starved.
-  static const size_t kSmallScoreIncrementForLowPriorityStarvation = 1;
+  // This method will force select an immediate task if those are being
+  // starved by delayed tasks.
+  void SetImmediateStarvationCountForTest(int immediate_starvation_count);
 
   // Maximum number of delayed tasks tasks which can be run while there's a
   // waiting non-delayed task.
-  static const size_t kMaxDelayedStarvationTasks = 3;
+  static const int kDefaultMaxDelayedStarvationTasks = 3;
+
+  // Tracks which priorities are currently active, meaning there are pending
+  // runnable tasks with that priority. Because there are only a handful of
+  // priorities, and because we always run tasks in order from highest to lowest
+  // priority, we can use a single integer to represent enabled priorities,
+  // using a bit per priority.
+  class BASE_EXPORT ActivePriorityTracker {
+   public:
+    ActivePriorityTracker();
+
+    bool HasActivePriority() const { return active_priorities_ != 0; }
+
+    bool IsActive(TaskQueue::QueuePriority priority) const {
+      return active_priorities_ & (size_t{1} << static_cast<size_t>(priority));
+    }
+
+    void SetActive(TaskQueue::QueuePriority priority, bool is_active);
+
+    TaskQueue::QueuePriority HighestActivePriority() const;
+
+   private:
+    static_assert(SequenceManager::PrioritySettings::kMaxPriorities <
+                      sizeof(size_t) * 8,
+                  "The number of priorities must be strictly less than the "
+                  "number of bits of |active_priorities_|!");
+    size_t active_priorities_ = 0;
+  };
+
+  /*
+   * SetOperation is used to configure ChooseWithPriority() and must have:
+   *
+   * static absl::optional<WorkQueueAndTaskOrder>
+   * GetWithPriority(const WorkQueueSets& sets,
+   *                 TaskQueue::QueuePriority priority);
+   */
+
+  // The default
+  struct SetOperationOldest {
+    static absl::optional<WorkQueueAndTaskOrder> GetWithPriority(
+        const WorkQueueSets& sets,
+        TaskQueue::QueuePriority priority) {
+      return sets.GetOldestQueueAndTaskOrderInSet(priority);
+    }
+  };
+
+#if DCHECK_IS_ON()
+  struct SetOperationRandom {
+    static absl::optional<WorkQueueAndTaskOrder> GetWithPriority(
+        const WorkQueueSets& sets,
+        TaskQueue::QueuePriority priority) {
+      return sets.GetRandomQueueAndTaskOrderInSet(priority);
+    }
+  };
+#endif  // DCHECK_IS_ON()
+
+  template <typename SetOperation>
+  WorkQueue* ChooseWithPriority(TaskQueue::QueuePriority priority) const {
+    // Select an immediate work queue if we are starving immediate tasks.
+    if (immediate_starvation_count_ >= g_max_delayed_starvation_tasks) {
+      WorkQueue* queue =
+          ChooseImmediateOnlyWithPriority<SetOperation>(priority);
+      if (queue)
+        return queue;
+      return ChooseDelayedOnlyWithPriority<SetOperation>(priority);
+    }
+    return ChooseImmediateOrDelayedTaskWithPriority<SetOperation>(priority);
+  }
+
+  template <typename SetOperation>
+  WorkQueue* ChooseImmediateOnlyWithPriority(
+      TaskQueue::QueuePriority priority) const {
+    if (auto queue_and_order = SetOperation::GetWithPriority(
+            immediate_work_queue_sets_, priority)) {
+      return queue_and_order->queue;
+    }
+    return nullptr;
+  }
+
+  template <typename SetOperation>
+  WorkQueue* ChooseDelayedOnlyWithPriority(
+      TaskQueue::QueuePriority priority) const {
+    if (auto queue_and_order =
+            SetOperation::GetWithPriority(delayed_work_queue_sets_, priority)) {
+      return queue_and_order->queue;
+    }
+    return nullptr;
+  }
 
  private:
-  // Returns the priority which is next after |priority|.
-  static TaskQueue::QueuePriority NextPriority(
-      TaskQueue::QueuePriority priority);
+  size_t priority_count() const { return non_empty_set_counts_.size(); }
 
-  bool SelectWorkQueueToServiceInternal(WorkQueue** out_work_queue);
+  void ChangeSetIndex(internal::TaskQueueImpl* queue,
+                      TaskQueue::QueuePriority priority);
+  void AddQueueImpl(internal::TaskQueueImpl* queue,
+                    TaskQueue::QueuePriority priority);
+  void RemoveQueueImpl(internal::TaskQueueImpl* queue);
 
-  // Called whenever the selector chooses a task queue for execution with the
-  // priority |priority|.
-  void DidSelectQueueWithPriority(TaskQueue::QueuePriority priority,
-                                  bool chose_delayed_over_immediate);
+#if DCHECK_IS_ON() || !defined(NDEBUG)
+  bool CheckContainsQueueForTest(const internal::TaskQueueImpl* queue) const;
+#endif
+
+  template <typename SetOperation>
+  WorkQueue* ChooseImmediateOrDelayedTaskWithPriority(
+      TaskQueue::QueuePriority priority) const {
+    if (auto immediate_queue_and_order = SetOperation::GetWithPriority(
+            immediate_work_queue_sets_, priority)) {
+      if (auto delayed_queue_and_order = SetOperation::GetWithPriority(
+              delayed_work_queue_sets_, priority)) {
+        return immediate_queue_and_order->order < delayed_queue_and_order->order
+                   ? immediate_queue_and_order->queue
+                   : delayed_queue_and_order->queue;
+      }
+      return immediate_queue_and_order->queue;
+    }
+    return ChooseDelayedOnlyWithPriority<SetOperation>(priority);
+  }
 
   // Returns true if there are pending tasks with priority |priority|.
-  bool HasTasksWithPriority(TaskQueue::QueuePriority priority);
+  bool HasTasksWithPriority(TaskQueue::QueuePriority priority) const;
 
-  scoped_refptr<AssociatedThreadId> associated_thread_;
+  const scoped_refptr<const AssociatedThreadId> associated_thread_;
 
-  PrioritizingSelector prioritizing_selector_;
-  size_t immediate_starvation_count_;
-  size_t high_priority_starvation_score_;
-  size_t normal_priority_starvation_score_;
-  size_t low_priority_starvation_score_;
+#if DCHECK_IS_ON()
+  const bool random_task_selection_ = false;
+#endif
 
-  Observer* task_queue_selector_observer_;  // Not owned.
-  DISALLOW_COPY_AND_ASSIGN(TaskQueueSelector);
+  // Count of the number of sets (delayed or immediate) for each priority.
+  // Should only contain 0, 1 or 2.
+  std::vector<int> non_empty_set_counts_;
+
+  static constexpr const int kMaxNonEmptySetCount = 2;
+  // An atomic is used here because InitializeFeatures() can race with
+  // SequenceManager reading this.
+  static std::atomic_int g_max_delayed_starvation_tasks;
+
+  // List of active priorities, which is used to work out which priority to run
+  // next.
+  ActivePriorityTracker active_priority_tracker_;
+
+  WorkQueueSets delayed_work_queue_sets_;
+  WorkQueueSets immediate_work_queue_sets_;
+  int immediate_starvation_count_ = 0;
+
+  raw_ptr<Observer> task_queue_selector_observer_ = nullptr;  // Not owned.
 };
 
 }  // namespace internal

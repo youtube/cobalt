@@ -1,10 +1,33 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// The FieldTrial class handles the lower level configuration of running A/B
+// tests.
+//
+// Most server-side experiments should be configured using Features which
+// have a simpler interface. See base/feature_list.h for details on
+// configurating a Feature for an experiment.
+
+// In certain cases you may still need to use FieldTrial directly. This is
+// generally for either:
+// - Client-configured experiments:
+//     The experiment is controlled directly in the code. For example, if the
+//     server controlled behavior is not yet available. See below documentation.
+// - Synthetic field trials:
+//     These act like field trials for reporting purposes, but the group
+//     placement is controlled directly. See RegisterSyntheticFieldTrial().
+
+// If you have access, see go/client-side-field-trials for additional context.
+
+//------------------------------------------------------------------------------
+// Details:
+
 // FieldTrial is a class for handling details of statistical experiments
 // performed by actual users in the field (i.e., in a shipped or beta product).
-// All code is called exclusively on the UI thread currently.
+// All code is called exclusively on the UI thread currently. It only handles
+// the lower level details, server-side experiments should use
+// generally use Features (see above).
 //
 // The simplest example is an experiment to see whether one of two options
 // produces "better" results across our user population.  In that scenario, UMA
@@ -21,42 +44,36 @@
 
 //------------------------------------------------------------------------------
 // Example:  Suppose we have an experiment involving memory, such as determining
-// the impact of some pruning algorithm.
-// We assume that we already have a histogram of memory usage, such as:
-
-//   UMA_HISTOGRAM_COUNTS_1M("Memory.RendererTotal", count);
-
-// Somewhere in main thread initialization code, we'd probably define an
-// instance of a FieldTrial, with code such as:
+// the impact of some pruning algorithm. Note that using this API directly is
+// not recommended, see above.
 
 // // FieldTrials are reference counted, and persist automagically until
 // // process teardown, courtesy of their automatic registration in
 // // FieldTrialList.
-// // Note: This field trial will run in Chrome instances compiled through
-// //       8 July, 2015, and after that all instances will be in "StandardMem".
 // scoped_refptr<base::FieldTrial> trial(
 //     base::FieldTrialList::FactoryGetFieldTrial(
-//         "MemoryExperiment", 1000, "StandardMem", 2015, 7, 8,
-//         base::FieldTrial::ONE_TIME_RANDOMIZED, NULL));
+//         "MemoryExperiment", 1000, "StandardMem", entropy_provider);
 //
-// const int high_mem_group =
-//     trial->AppendGroup("HighMem", 20);  // 2% in HighMem group.
-// const int low_mem_group =
-//     trial->AppendGroup("LowMem", 20);   // 2% in LowMem group.
+// trial->AppendGroup("HighMem", 20);  // 2% in HighMem group.
+// trial->AppendGroup("LowMem", 20);   // 2% in LowMem group.
 // // Take action depending of which group we randomly land in.
-// if (trial->group() == high_mem_group)
-//   SetPruningAlgorithm(kType1);  // Sample setting of browser state.
-// else if (trial->group() == low_mem_group)
-//   SetPruningAlgorithm(kType2);  // Sample alternate setting.
+// if (trial->group_name() == "HighMem")
+//   SetPruningAlgorithm(kType1);
+// else if (trial->group_name() == "LowMem")
+//   SetPruningAlgorithm(kType2);
 
 //------------------------------------------------------------------------------
 
 #ifndef BASE_METRICS_FIELD_TRIAL_H_
 #define BASE_METRICS_FIELD_TRIAL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
+#include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -64,49 +81,31 @@
 #include "base/base_export.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/files/file.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/shared_memory.h"
-#include "base/memory/shared_memory_handle.h"
+#include "base/memory/shared_memory_mapping.h"
 #include "base/metrics/persistent_memory_allocator.h"
-#include "base/observer_list_threadsafe.h"
 #include "base/pickle.h"
-#include "base/process/launch.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
-#include "base/time/time.h"
+#include "base/types/pass_key.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 
 namespace base {
 
+namespace test {
+class ScopedFeatureList;
+}  // namespace test
+
+class CompareActiveGroupToFieldTrialMatcher;
 class FieldTrialList;
+struct LaunchOptions;
 
 class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
  public:
   typedef int Probability;  // Probability type for being selected in a trial.
-
-#if !defined(STARBOARD)
-  // TODO(665129): Make private again after crash has been resolved.
-  typedef SharedPersistentMemoryAllocator::Reference FieldTrialRef;
-#else
-  // In Cobalt, we don't export SharedPersistentMemoryAllocator, use the
-  // underlying type "uint32_t" directly here.
-  typedef uint32_t FieldTrialRef;
-#endif
-
-  // Specifies the persistence of the field trial group choice.
-  enum RandomizationType {
-    // One time randomized trials will persist the group choice between
-    // restarts, which is recommended for most trials, especially those that
-    // change user visible behavior.
-    ONE_TIME_RANDOMIZED,
-    // Session randomized trials will roll the dice to select a group on every
-    // process restart.
-    SESSION_RANDOMIZED,
-  };
 
   // EntropyProvider is an interface for providing entropy for one-time
   // randomized (persistent) field trials.
@@ -119,8 +118,19 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
     // used in preference to |trial_name| for generating the entropy by entropy
     // providers that support it. A given instance should always return the same
     // value given the same input |trial_name| and |randomization_seed| values.
-    virtual double GetEntropyForTrial(const std::string& trial_name,
+    virtual double GetEntropyForTrial(StringPiece trial_name,
                                       uint32_t randomization_seed) const = 0;
+
+    // Returns a pseudorandom integer in [0, output_range).
+    // |salt| is a data parameter for the pseudorandom function.
+    uint32_t GetPseudorandomValue(uint32_t salt, uint32_t output_range) const;
+  };
+
+  // Separate type from FieldTrial::PickleState so that it can use StringPieces.
+  struct State {
+    StringPiece trial_name;
+    StringPiece group_name;
+    bool activated = false;
   };
 
   // A pair representing a Field Trial and its selected group.
@@ -133,14 +143,14 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // active. String members are pointers to the underlying strings owned by the
   // FieldTrial object. Does not use StringPiece to avoid conversions back to
   // std::string.
-  struct BASE_EXPORT State {
-    const std::string* trial_name = nullptr;
-    const std::string* group_name = nullptr;
+  struct BASE_EXPORT PickleState {
+    raw_ptr<const std::string, DanglingUntriaged> trial_name = nullptr;
+    raw_ptr<const std::string, DanglingUntriaged> group_name = nullptr;
     bool activated = false;
 
-    State();
-    State(const State& other);
-    ~State();
+    PickleState();
+    PickleState(const PickleState& other);
+    ~PickleState();
   };
 
   // We create one FieldTrialEntry per field trial in shared memory, via
@@ -148,10 +158,10 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // base::Pickle object that we unpickle and read from.
   struct BASE_EXPORT FieldTrialEntry {
     // SHA1(FieldTrialEntry): Increment this if structure changes!
-    static constexpr uint32_t kPersistentTypeId = 0xABA17E13 + 2;
+    static constexpr uint32_t kPersistentTypeId = 0xABA17E13 + 3;
 
     // Expected size for 32/64-bit check.
-    static constexpr size_t kExpectedInstanceSize = 8;
+    static constexpr size_t kExpectedInstanceSize = 16;
 
     // Whether or not this field trial is activated. This is really just a
     // boolean but using a 32 bit value for portability reasons. It should be
@@ -160,8 +170,14 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
     // thread is accessing the memory location.
     subtle::Atomic32 activated;
 
+    // On e.g. x86, alignof(uint64_t) is 4.  Ensure consistent size and
+    // alignment of `pickle_size` across platforms. This can be considered
+    // to be padding for the final 32 bit value (activated). If this struct
+    // gains or loses fields, consider if this padding is still needed.
+    uint32_t padding;
+
     // Size of the pickled structure, NOT the total size of this entry.
-    uint32_t pickle_size;
+    uint64_t pickle_size;
 
     // Calling this is only valid when the entry is initialized. That is, it
     // resides in shared memory and has a pickle containing the trial name and
@@ -191,30 +207,25 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // assignment (and hence is not yet participating in the trial).
   static const int kNotFinalized;
 
-  // Disables this trial, meaning it always determines the default group
-  // has been selected. May be called immediately after construction, or
-  // at any time after initialization (should not be interleaved with
-  // AppendGroup calls). Once disabled, there is no way to re-enable a
-  // trial.
-  // TODO(mad): http://code.google.com/p/chromium/issues/detail?id=121446
-  // This doesn't properly reset to Default when a group was forced.
-  void Disable();
+  FieldTrial(const FieldTrial&) = delete;
+  FieldTrial& operator=(const FieldTrial&) = delete;
 
-  // Establish the name and probability of the next group in this trial.
+  // Establishes the name and probability of the next group in this trial.
   // Sometimes, based on construction randomization, this call may cause the
   // provided group to be *THE* group selected for use in this instance.
-  // The return value is the group number of the new group.
-  int AppendGroup(const std::string& name, Probability group_probability);
+  // AppendGroup can be called after calls to group() but it should be avoided
+  // if possible. Doing so may be confusing since it won't change the group
+  // selection.
+  void AppendGroup(const std::string& name, Probability group_probability);
 
   // Return the name of the FieldTrial (excluding the group name).
   const std::string& trial_name() const { return trial_name_; }
 
-  // Return the randomly selected group number that was assigned, and notify
-  // any/all observers that this finalized group number has presumably been used
-  // (queried), and will never change. Note that this will force an instance to
+  // Finalizes the group assignment and notifies any/all observers. This is a
+  // no-op if the trial is already active. Note this will force an instance to
   // participate, and make it illegal to attempt to probabilistically add any
   // other groups to the trial.
-  int group();
+  void Activate();
 
   // If the group's name is empty, a string version containing the group number
   // is used as the group name. This causes a winner to be chosen if none was.
@@ -235,7 +246,7 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // be done from the UI thread.
   void SetForced();
 
-  // Enable benchmarking sets field trials to a common setting.
+  // Supports benchmarking by causing field trials' default groups to be chosen.
   static void EnableBenchmarking();
 
   // Creates a FieldTrial object with the specified parameters, to be used for
@@ -248,11 +259,16 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   //
   // The ownership of the returned FieldTrial is transfered to the caller which
   // is responsible for deref'ing it (e.g. by using scoped_refptr<FieldTrial>).
-  static FieldTrial* CreateSimulatedFieldTrial(
-      const std::string& trial_name,
-      Probability total_probability,
-      const std::string& default_group_name,
-      double entropy_value);
+  static FieldTrial* CreateSimulatedFieldTrial(StringPiece trial_name,
+                                               Probability total_probability,
+                                               StringPiece default_group_name,
+                                               double entropy_value);
+
+  // Whether this field trial is low anonymity or not (see
+  // |FieldTrialListIncludingLowAnonymity|).
+  // TODO(crbug.com/1431156): remove this once all call sites have been properly
+  // migrated to use an appropriate observer.
+  bool is_low_anonymity() { return is_low_anonymity_; }
 
  private:
   // Allow tests to access our innards for testing purposes.
@@ -273,15 +289,24 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, SetForcedTurnFeatureOn);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, SetForcedChangeDefault_Default);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, SetForcedChangeDefault_NonDefault);
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, ObserveReentrancy);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, FloatBoundariesGiveEqualGroupSizes);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, DoesNotSurpassTotalProbability);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest,
                            DoNotAddSimulatedFieldTrialsToAllocator);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest, ClearParamsFromSharedMemory);
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest,
+                           TestGetRandomizedFieldTrialCount);
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, SetLowAnonymity);
+
+  // MATCHER(CompareActiveGroupToFieldTrialMatcher, "")
+  friend class base::CompareActiveGroupToFieldTrialMatcher;
 
   friend class base::FieldTrialList;
 
   friend class RefCounted<FieldTrial>;
+
+  using FieldTrialRef = PersistentMemoryAllocator::Reference;
 
   // This is the group number of the 'default' group when a choice wasn't forced
   // by a call to FieldTrialList::CreateFieldTrial. It is kept private so that
@@ -290,14 +315,13 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
 
   // Creates a field trial with the specified parameters. Group assignment will
   // be done based on |entropy_value|, which must have a range of [0, 1).
-  FieldTrial(const std::string& trial_name,
+  FieldTrial(StringPiece trial_name,
              Probability total_probability,
-             const std::string& default_group_name,
-             double entropy_value);
-  virtual ~FieldTrial();
+             StringPiece default_group_name,
+             double entropy_value,
+             bool is_low_anonymity);
 
-  // Return the default group name of the FieldTrial.
-  std::string default_group_name() const { return default_group_name_; }
+  virtual ~FieldTrial();
 
   // Marks this trial as having been registered with the FieldTrialList. Must be
   // called no more than once and before any |group()| calls have occurred.
@@ -311,10 +335,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // status.
   void FinalizeGroupChoice();
 
-  // Implements FinalizeGroupChoice() with the added flexibility of being
-  // deadlock-free if |is_locked| is true and the caller is holding a lock.
-  void FinalizeGroupChoiceImpl(bool is_locked);
-
   // Returns the trial name and selected group name for this field trial via
   // the output parameter |active_group|, but only if the group has already
   // been chosen and has been externally observed via |group()| and the trial
@@ -324,16 +344,11 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   bool GetActiveGroup(ActiveGroup* active_group) const;
 
   // Returns the trial name and selected group name for this field trial via
-  // the output parameter |field_trial_state| for all the studies when
-  // |bool include_expired| is true. In case when |bool include_expired| is
-  // false, if the trial has not been disabled true is returned and
-  // |field_trial_state| is filled in; otherwise, the result is false and
-  // |field_trial_state| is left untouched.
-  // This function is deadlock-free if the caller is holding a lock.
-  bool GetStateWhileLocked(State* field_trial_state, bool include_expired);
+  // the output parameter |field_trial_state| for all the studies.
+  void GetStateWhileLocked(PickleState* field_trial_state);
 
   // Returns the group_name. A winner need not have been chosen.
-  std::string group_name_internal() const { return group_name_; }
+  const std::string& group_name_internal() const { return group_name_; }
 
   // The name of the field trial, as can be found via the FieldTrialList.
   const std::string trial_name_;
@@ -364,10 +379,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // has been called.
   std::string group_name_;
 
-  // When enable_field_trial_ is false, field trial reverts to the 'default'
-  // group.
-  bool enable_field_trial_;
-
   // When forced_ is true, we return the chosen group from AppendGroup when
   // appropriate.
   bool forced_;
@@ -382,34 +393,27 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Reference to related field trial struct and data in shared memory.
   FieldTrialRef ref_;
 
-  // When benchmarking is enabled, field trials all revert to the 'default'
-  // group.
+  // Denotes whether benchmarking is enabled. In this case, field trials all
+  // revert to the default group.
   static bool enable_benchmarking_;
 
-  DISALLOW_COPY_AND_ASSIGN(FieldTrial);
+  // Whether this field trial is potentially low anonymity (eg. only a small
+  // set of users are included).
+  const bool is_low_anonymity_ = false;
 };
 
 //------------------------------------------------------------------------------
 // Class with a list of all active field trials.  A trial is active if it has
-// been registered, which includes evaluating its state based on its probaility.
-// Only one instance of this class exists and outside of testing, will live for
-// the entire life time of the process.
+// been registered, which includes evaluating its state based on its
+// probability. Only one instance of this class exists and outside of testing,
+// will live for the entire life time of the process.
 class BASE_EXPORT FieldTrialList {
  public:
-#if !defined(STARBOARD)
-  typedef SharedPersistentMemoryAllocator FieldTrialAllocator;
-#else
-  // In Cobalt, we don't import any shared memory constructs.
-  typedef LocalPersistentMemoryAllocator FieldTrialAllocator;
-#endif
+  using FieldTrialAllocator = PersistentMemoryAllocator;
 
   // Type for function pointer passed to |AllParamsToString| used to escape
   // special characters from |input|.
   typedef std::string (*EscapeDataFunc)(const std::string& input);
-
-  // Year that is guaranteed to not be expired when instantiating a field trial
-  // via |FactoryGetFieldTrial()|.  Set to two years from the build date.
-  static int kNoExpirationYear;
 
   // Observer is notified when a FieldTrial's group is selected.
   class BASE_EXPORT Observer {
@@ -423,74 +427,49 @@ class BASE_EXPORT FieldTrialList {
   };
 
   // This singleton holds the global list of registered FieldTrials.
-  //
-  // To support one-time randomized field trials, specify a non-null
-  // |entropy_provider| which should be a source of uniformly distributed
-  // entropy values. If one time randomization is not desired, pass in null for
-  // |entropy_provider|.
-  explicit FieldTrialList(
-      std::unique_ptr<const FieldTrial::EntropyProvider> entropy_provider);
+  FieldTrialList();
+  FieldTrialList(const FieldTrialList&) = delete;
+  FieldTrialList& operator=(const FieldTrialList&) = delete;
 
   // Destructor Release()'s references to all registered FieldTrial instances.
   ~FieldTrialList();
 
-  // Get a FieldTrial instance from the factory.
+  // Gets a FieldTrial instance from the factory.
   //
-  // |name| is used to register the instance with the FieldTrialList class,
-  // and can be used to find the trial (only one trial can be present for each
-  // name). |default_group_name| is the name of the default group which will
-  // be chosen if none of the subsequent appended groups get to be chosen.
-  // |default_group_number| can receive the group number of the default group as
-  // AppendGroup returns the number of the subsequence groups. |trial_name| and
-  // |default_group_name| may not be empty but |default_group_number| can be
-  // NULL if the value is not needed.
+  // |trial_name| (a) is used to register the instance with the FieldTrialList
+  // class and (b) can be used to find the trial (only one trial can be present
+  // for each name). |default_group_name| is the name of the group that is
+  // chosen if none of the subsequent appended groups are chosen. Note that the
+  // default group is also chosen whenever |enable_benchmarking_| is true.
   //
   // Group probabilities that are later supplied must sum to less than or equal
-  // to the |total_probability|. Arguments |year|, |month| and |day_of_month|
-  // specify the expiration time. If the build time is after the expiration time
-  // then the field trial reverts to the 'default' group.
+  // to the |total_probability|.
   //
-  // Use this static method to get a startup-randomized FieldTrial or a
+  // The |entropy_provider| is used for randomizing group selection. The
+  // |randomization_seed| will be passed to the EntropyProvider in addition
+  // to the trial name, and it's handling is defined by the EntropyProvider.
+  // * SessionEntropyProvider requires it to be 0 by DCHECK.
+  // * SHA1 and NormalizedMurmurHash providers will use a non-zero value as a
+  //   salt _instead_ of using the trial name.
+  //
+  // Some field trials may be targeted in such way that a relatively small
+  // number of users are in a particular experiment group. Such trials should
+  // have |is_low_anonymity| set to true, and their visitbility is restricted
+  // to specific callers only, via |FieldTrialListIncludingLowAnonymity|.
+  //
+  // This static method can be used to get a startup-randomized FieldTrial or a
   // previously created forced FieldTrial.
   static FieldTrial* FactoryGetFieldTrial(
-      const std::string& trial_name,
+      StringPiece trial_name,
       FieldTrial::Probability total_probability,
-      const std::string& default_group_name,
-      const int year,
-      const int month,
-      const int day_of_month,
-      FieldTrial::RandomizationType randomization_type,
-      int* default_group_number);
-
-  // Same as FactoryGetFieldTrial(), but allows specifying a custom seed to be
-  // used on one-time randomized field trials (instead of a hash of the trial
-  // name, which is used otherwise or if |randomization_seed| has value 0). The
-  // |randomization_seed| value (other than 0) should never be the same for two
-  // trials, else this would result in correlated group assignments.  Note:
-  // Using a custom randomization seed is only supported by the
-  // PermutedEntropyProvider (which is used when UMA is not enabled). If
-  // |override_entropy_provider| is not null, then it will be used for
-  // randomization instead of the provider given when the FieldTrialList was
-  // instantiated.
-  static FieldTrial* FactoryGetFieldTrialWithRandomizationSeed(
-      const std::string& trial_name,
-      FieldTrial::Probability total_probability,
-      const std::string& default_group_name,
-      const int year,
-      const int month,
-      const int day_of_month,
-      FieldTrial::RandomizationType randomization_type,
-      uint32_t randomization_seed,
-      int* default_group_number,
-      const FieldTrial::EntropyProvider* override_entropy_provider);
+      StringPiece default_group_name,
+      const FieldTrial::EntropyProvider& entropy_provider,
+      uint32_t randomization_seed = 0,
+      bool is_low_anonymity = false);
 
   // The Find() method can be used to test to see if a named trial was already
   // registered, or to retrieve a pointer to it from the global map.
-  static FieldTrial* Find(const std::string& trial_name);
-
-  // Returns the group number chosen for the named trial, or
-  // FieldTrial::kNotFinalized if the trial does not exist.
-  static int FindValue(const std::string& trial_name);
+  static FieldTrial* Find(StringPiece trial_name);
 
   // Returns the group name chosen for the named trial, or the empty string if
   // the trial does not exist. The first call of this function on a given field
@@ -498,48 +477,41 @@ class BASE_EXPORT FieldTrialList {
   // metrics, crashes, etc.
   // Note: Direct use of this function and related FieldTrial functions is
   // generally discouraged - instead please use base::Feature when possible.
-  static std::string FindFullName(const std::string& trial_name);
+  static std::string FindFullName(StringPiece trial_name);
 
   // Returns true if the named trial has been registered.
-  static bool TrialExists(const std::string& trial_name);
+  static bool TrialExists(StringPiece trial_name);
 
   // Returns true if the named trial exists and has been activated.
-  static bool IsTrialActive(const std::string& trial_name);
-
-  // Creates a persistent representation of active FieldTrial instances for
-  // resurrection in another process. This allows randomization to be done in
-  // one process, and secondary processes can be synchronized on the result.
-  // The resulting string contains the name and group name pairs of all
-  // registered FieldTrials for which the group has been chosen and externally
-  // observed (via |group()|) and which have not been disabled, with "/" used
-  // to separate all names and to terminate the string. This string is parsed
-  // by |CreateTrialsFromString()|.
-  static void StatesToString(std::string* output);
+  static bool IsTrialActive(StringPiece trial_name);
 
   // Creates a persistent representation of all FieldTrial instances for
   // resurrection in another process. This allows randomization to be done in
   // one process, and secondary processes can be synchronized on the result.
   // The resulting string contains the name and group name pairs of all
-  // registered FieldTrials including disabled based on |include_expired|,
+  // registered FieldTrials,
   // with "/" used to separate all names and to terminate the string. All
   // activated trials have their name prefixed with "*". This string is parsed
   // by |CreateTrialsFromString()|.
-  static void AllStatesToString(std::string* output, bool include_expired);
+  static void AllStatesToString(std::string* output);
 
   // Creates a persistent representation of all FieldTrial params for
   // resurrection in another process. The returned string contains the trial
-  // name and group name pairs of all registered FieldTrials including disabled
-  // based on |include_expired| separated by '.'. The pair is followed by ':'
-  // separator and list of param name and values separated by '/'. It also takes
-  // |encode_data_func| function pointer for encodeing special charactors.
-  // This string is parsed by |AssociateParamsFromString()|.
-  static std::string AllParamsToString(bool include_expired,
-                                       EscapeDataFunc encode_data_func);
+  // name and group name pairs of all registered FieldTrials. The pair is
+  // followed by ':' separator and list of param name and values separated by
+  // '/'. It also takes |encode_data_func| function pointer for encodeing
+  // special characters. This string is parsed by
+  // |AssociateParamsFromString()|.
+  static std::string AllParamsToString(EscapeDataFunc encode_data_func);
 
   // Fills in the supplied vector |active_groups| (which must be empty when
   // called) with a snapshot of all registered FieldTrials for which the group
   // has been chosen and externally observed (via |group()|) and which have
   // not been disabled.
+  //
+  // This does not return low anonymity field trials. Callers who need access to
+  // low anonymity field trials should use
+  // |FieldTrialListIncludingLowAnonymity.GetActiveFieldTrialGroups()|.
   static void GetActiveFieldTrialGroups(
       FieldTrial::ActiveGroups* active_groups);
 
@@ -553,66 +525,54 @@ class BASE_EXPORT FieldTrialList {
   // holding field trial information.
   // Must be called only after a call to CreateTrialsFromCommandLine().
   static void GetInitiallyActiveFieldTrials(
-      const base::CommandLine& command_line,
+      const CommandLine& command_line,
       FieldTrial::ActiveGroups* active_groups);
 
-  // Use a state string (re: StatesToString()) to augment the current list of
+  // Use a state string (re: AllStatesToString()) to augment the current list of
   // field trials to include the supplied trials, and using a 100% probability
   // for each trial, force them to have the same group string. This is commonly
   // used in a non-browser process, to carry randomly selected state in a
   // browser process into this non-browser process, but could also be invoked
   // through a command line argument to the browser process. Created field
   // trials will be marked "used" for the purposes of active trial reporting
-  // if they are prefixed with |kActivationMarker|. Trial names in
-  // |ignored_trial_names| are ignored when parsing |trials_string|.
-  static bool CreateTrialsFromString(
-      const std::string& trials_string,
-      const std::set<std::string>& ignored_trial_names);
+  // if they are prefixed with |kActivationMarker|.
+  static bool CreateTrialsFromString(const std::string& trials_string);
 
   // Achieves the same thing as CreateTrialsFromString, except wraps the logic
   // by taking in the trials from the command line, either via shared memory
-  // handle or command line argument. A bit of a misnomer since on POSIX we
-  // simply get the trials from opening |fd_key| if using shared memory. On
-  // Windows, we expect the |cmd_line| switch for |field_trial_handle_switch| to
-  // contain the shared memory handle that contains the field trial allocator.
-  // We need the |field_trial_handle_switch| and |fd_key| arguments to be passed
-  // in since base/ can't depend on content/.
-  static void CreateTrialsFromCommandLine(const base::CommandLine& cmd_line,
-                                          const char* field_trial_handle_switch,
-                                          int fd_key);
+  // handle or command line argument.
+  // On non-Mac POSIX platforms, we simply get the trials from opening |fd_key|
+  // if using shared memory. The argument is needed here since //base can't
+  // depend on //content. |fd_key| is unused on other platforms.
+  // On other platforms, we expect the |cmd_line| switch for kFieldTrialHandle
+  // to contain the shared memory handle that contains the field trial
+  // allocator.
+  static void CreateTrialsFromCommandLine(const CommandLine& cmd_line,
+                                          uint32_t fd_key);
 
   // Creates base::Feature overrides from the command line by first trying to
   // use shared memory and then falling back to the command line if it fails.
-  static void CreateFeaturesFromCommandLine(
-      const base::CommandLine& command_line,
-      const char* enable_features_switch,
-      const char* disable_features_switch,
-      FeatureList* feature_list);
+  static void CreateFeaturesFromCommandLine(const CommandLine& command_line,
+                                            FeatureList* feature_list);
 
-#if defined(OS_WIN)
-  // On Windows, we need to explicitly pass down any handles to be inherited.
-  // This function adds the shared memory handle to field trial state to the
-  // list of handles to be inherited.
-  static void AppendFieldTrialHandleIfNeeded(
-      base::HandlesToInheritVector* handles);
-#elif defined(OS_FUCHSIA) || defined(STARBOARD)
-  // TODO(fuchsia): Implement shared-memory configuration (crbug.com/752368).
-#elif defined(OS_POSIX) && !defined(OS_NACL)
+#if !BUILDFLAG(IS_IOS)
+  // Populates |command_line| and |launch_options| with the handles and command
+  // line arguments necessary for a child process to inherit the shared-memory
+  // object containing the FieldTrial configuration.
+  static void PopulateLaunchOptionsWithFieldTrialState(
+      CommandLine* command_line,
+      LaunchOptions* launch_options);
+#endif  // !BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL)
   // On POSIX, we also need to explicitly pass down this file descriptor that
-  // should be shared with the child process. Returns an invalid handle if it
-  // was not initialized properly.
-  static base::SharedMemoryHandle GetFieldTrialHandle();
-#endif
+  // should be shared with the child process. Returns -1 if it was not
+  // initialized properly. The current process remains the onwer of the passed
+  // descriptor.
+  static int GetFieldTrialDescriptor();
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL)
 
-  // Adds a switch to the command line containing the field trial state as a
-  // string (if not using shared memory to share field trial state), or the
-  // shared memory handle + length.
-  // Needs the |field_trial_handle_switch| argument to be passed in since base/
-  // can't depend on content/.
-  static void CopyFieldTrialStateToFlags(const char* field_trial_handle_switch,
-                                         const char* enable_features_switch,
-                                         const char* disable_features_switch,
-                                         base::CommandLine* cmd_line);
+  static ReadOnlySharedMemoryRegion DuplicateFieldTrialSharedMemoryForTesting();
 
   // Create a FieldTrial with the given |name| and using 100% probability for
   // the FieldTrial, force FieldTrial to have the same group string as
@@ -620,41 +580,42 @@ class BASE_EXPORT FieldTrialList {
   // randomly selected state in a browser process into this non-browser process.
   // It returns NULL if there is a FieldTrial that is already registered with
   // the same |name| but has different finalized group string (|group_name|).
-  static FieldTrial* CreateFieldTrial(const std::string& name,
-                                      const std::string& group_name);
+  //
+  // Visibility of field trials with |is_low_anonymity| set to true is
+  // restricted to specific callers only, see
+  // |FieldTrialListIncludingLowAnonymity|.
+  static FieldTrial* CreateFieldTrial(StringPiece name,
+                                      StringPiece group_name,
+                                      bool is_low_anonymity = false);
 
   // Add an observer to be notified when a field trial is irrevocably committed
   // to being part of some specific field_group (and hence the group_name is
   // also finalized for that field_trial). Returns false and does nothing if
-  // there is no FieldTrialList singleton.
+  // there is no FieldTrialList singleton. The observer can be notified on any
+  // sequence; it must be thread-safe.
+  //
+  // Low anonymity field trials are not notified to this observer. Callers
+  // who need to be notified of low anonymity field trials should use
+  // |FieldTrialListIncludingLowAnonymity.AddObserver()|.
   static bool AddObserver(Observer* observer);
 
-  // Remove an observer.
+  // Remove an observer. This cannot be invoked concurrently with
+  // FieldTrial::group() (typically, this means that no other thread should be
+  // running when this is invoked).
+  //
+  // Removes observers added via the |AddObserver()| method of this class.
   static void RemoveObserver(Observer* observer);
-
-  // Similar to AddObserver(), but the passed observer will be notified
-  // synchronously when a field trial is activated and its group selected. It
-  // will be notified synchronously on the same thread where the activation and
-  // group selection happened. It is the responsibility of the observer to make
-  // sure that this is a safe operation and the operation must be fast, as this
-  // work is done synchronously as part of group() or related APIs. Only a
-  // single such observer is supported, exposed specifically for crash
-  // reporting. Must be called on the main thread before any other threads
-  // have been started.
-  static void SetSynchronousObserver(Observer* observer);
-
-  // Removes the single synchronous observer.
-  static void RemoveSynchronousObserver(Observer* observer);
-
-  // Grabs the lock if necessary and adds the field trial to the allocator. This
-  // should only be called from FinalizeGroupChoice().
-  static void OnGroupFinalized(bool is_locked, FieldTrial* field_trial);
 
   // Notify all observers that a group has been finalized for |field_trial|.
   static void NotifyFieldTrialGroupSelection(FieldTrial* field_trial);
 
   // Return the number of active field trials.
   static size_t GetFieldTrialCount();
+
+  // Return the number of active field trials registered as randomized trials.
+  // Trials created using the CreateFieldTrial() do not count towards this
+  // total.
+  static size_t GetRandomizedFieldTrialCount();
 
   // Gets the parameters for |field_trial| from shared memory and stores them in
   // |params|. This is only exposed for use by FieldTrialParamAssociator and
@@ -678,8 +639,37 @@ class BASE_EXPORT FieldTrialList {
   GetAllFieldTrialsFromPersistentAllocator(
       PersistentMemoryAllocator const& allocator);
 
-  // Returns true if a global field trial list is set. Only used for testing.
-  static bool IsGlobalSetForTesting();
+  // Returns a pointer to the global instance. This is exposed so that it can
+  // be used in a DCHECK in FeatureList and ScopedFeatureList test-only logic
+  // and is not intended to be used widely beyond those cases.
+  static FieldTrialList* GetInstance();
+
+  // For testing, sets the global instance to null and returns the previous one.
+  static FieldTrialList* BackupInstanceForTesting();
+
+  // For testing, sets the global instance to |instance|.
+  static void RestoreInstanceForTesting(FieldTrialList* instance);
+
+  // Creates a list of FieldTrial::State for all FieldTrial instances.
+  // StringPiece members are bound to the lifetime of the corresponding
+  // FieldTrial.
+  static std::vector<FieldTrial::State> GetAllFieldTrialStates(
+      PassKey<test::ScopedFeatureList>);
+
+  // Create FieldTrials from a list of FieldTrial::State. This method is only
+  // available to ScopedFeatureList for testing. The most typical usescase is:
+  // (1) AllStatesToFieldTrialStates(&field_trials);
+  // (2) backup_ = BackupInstanceForTesting();
+  //     // field_trials depends on backup_'s lifetype.
+  // (3) field_trial_list_ = new FieldTrialList();
+  // (4) CreateTrialsFromFieldTrialStates(field_trials);
+  //     // Copy backup_'s fieldtrials to the new field_trial_list_ while
+  //     // backup_ is alive.
+  // For resurrestion in another process, need to use AllStatesToString and
+  // CreateFieldTrialsFromString.
+  static bool CreateTrialsFromFieldTrialStates(
+      PassKey<test::ScopedFeatureList>,
+      const std::vector<FieldTrial::State>& entries);
 
  private:
   // Allow tests to access our innards for testing purposes.
@@ -690,52 +680,61 @@ class BASE_EXPORT FieldTrialList {
   FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest, AssociateFieldTrialParams);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest, ClearParamsFromSharedMemory);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest,
-                           SerializeSharedMemoryHandleMetadata);
-  FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest, CheckReadOnlySharedMemoryHandle);
+                           SerializeSharedMemoryRegionMetadata);
+  friend int SerializeSharedMemoryRegionMetadata();
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialListTest, CheckReadOnlySharedMemoryRegion);
 
-  // Serialization is used to pass information about the handle to child
-  // processes. It passes a reference to the relevant OS resource, and it passes
-  // a GUID. Serialization and deserialization doesn't actually transport the
-  // underlying OS resource - that must be done by the Process launcher.
-  static std::string SerializeSharedMemoryHandleMetadata(
-      const SharedMemoryHandle& shm);
-#if defined(OS_WIN) || defined(OS_FUCHSIA)
-  static SharedMemoryHandle DeserializeSharedMemoryHandleMetadata(
-      const std::string& switch_value);
-#elif defined(OS_POSIX) && !defined(OS_NACL)
-  static SharedMemoryHandle DeserializeSharedMemoryHandleMetadata(
-      int fd,
-      const std::string& switch_value);
-#endif
+  // Required so that |FieldTrialListIncludingLowAnonymity| can expose APIs from
+  // this class to its friends.
+  friend class FieldTrialListIncludingLowAnonymity;
 
-#if defined(OS_WIN) || defined(OS_FUCHSIA)
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+  // Serialization is used to pass information about the shared memory handle
+  // to child processes. This is achieved by passing a stringified reference to
+  // the relevant OS resources to the child process.
+  //
+  // Serialization populates |launch_options| with the relevant OS handles to
+  // transfer or copy to the child process and returns serialized information
+  // to be passed to the kFieldTrialHandle command-line switch.
+  // Note: On non-Mac POSIX platforms, it is necessary to pass down the file
+  // descriptor for the shared memory separately. It can be accessed via the
+  // GetFieldTrialDescriptor() API.
+  static std::string SerializeSharedMemoryRegionMetadata(
+      const ReadOnlySharedMemoryRegion& shm,
+      LaunchOptions* launch_options);
+
+  // Deserialization instantiates the shared memory region for FieldTrials from
+  // the serialized information contained in |switch_value|. Returns an invalid
+  // ReadOnlySharedMemoryRegion on failure.
+  // |fd| is used on non-Mac POSIX platforms to instantiate the shared memory
+  // region via a file descriptor.
+  static ReadOnlySharedMemoryRegion DeserializeSharedMemoryRegionMetadata(
+      const std::string& switch_value,
+      int fd);
+
   // Takes in |handle_switch| from the command line which represents the shared
   // memory handle for field trials, parses it, and creates the field trials.
   // Returns true on success, false on failure.
   // |switch_value| also contains the serialized GUID.
-  static bool CreateTrialsFromSwitchValue(const std::string& switch_value);
-#elif defined(OS_POSIX) && !defined(OS_NACL) && !defined(STARBOARD)
-  // On POSIX systems that use the zygote, we look up the correct fd that backs
-  // the shared memory segment containing the field trials by looking it up via
-  // an fd key in GlobalDescriptors. Returns true on success, false on failure.
-  // |switch_value| also contains the serialized GUID.
-  static bool CreateTrialsFromDescriptor(int fd_key,
-                                         const std::string& switch_value);
-#endif
+  // |fd_key| is used on non-Mac POSIX platforms as the file descriptor passed
+  // down to the child process for the shared memory region.
+  static bool CreateTrialsFromSwitchValue(const std::string& switch_value,
+                                          uint32_t fd_key);
+#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
 
-#if !defined(STARBOARD)
-  // Takes an unmapped SharedMemoryHandle, creates a SharedMemory object from
-  // it and maps it with the correct size.
-  static bool CreateTrialsFromSharedMemoryHandle(SharedMemoryHandle shm_handle);
+  // Takes an unmapped ReadOnlySharedMemoryRegion, maps it with the correct size
+  // and creates field trials via CreateTrialsFromSharedMemoryMapping(). Returns
+  // true if successful and false otherwise.
+  static bool CreateTrialsFromSharedMemoryRegion(
+      const ReadOnlySharedMemoryRegion& shm_region);
 
-  // Expects a mapped piece of shared memory |shm| that was created from the
-  // browser process's field_trial_allocator and shared via the command line.
-  // This function recreates the allocator, iterates through all the field
+  // Expects a mapped piece of shared memory |shm_mapping| that was created from
+  // the browser process's field_trial_allocator and shared via the command
+  // line. This function recreates the allocator, iterates through all the field
   // trials in it, and creates them via CreateFieldTrial(). Returns true if
   // successful and false otherwise.
-  static bool CreateTrialsFromSharedMemory(
-      std::unique_ptr<base::SharedMemory> shm);
-#endif
+  static bool CreateTrialsFromSharedMemoryMapping(
+      ReadOnlySharedMemoryMapping shm_mapping);
 
   // Instantiate the field trial allocator, add all existing field trials to it,
   // and duplicates its handle to a read-only handle, which gets stored in
@@ -751,63 +750,86 @@ class BASE_EXPORT FieldTrialList {
   static void ActivateFieldTrialEntryWhileLocked(FieldTrial* field_trial);
 
   // A map from FieldTrial names to the actual instances.
-  typedef std::map<std::string, FieldTrial*> RegistrationMap;
-
-  // If one-time randomization is enabled, returns a weak pointer to the
-  // corresponding EntropyProvider. Otherwise, returns NULL.
-  static const FieldTrial::EntropyProvider*
-      GetEntropyProviderForOneTimeRandomization();
+  typedef std::map<std::string, FieldTrial*, std::less<>> RegistrationMap;
 
   // Helper function should be called only while holding lock_.
-  FieldTrial* PreLockedFind(const std::string& name);
+  FieldTrial* PreLockedFind(StringPiece name) EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Register() stores a pointer to the given trial in a global map.
   // This method also AddRef's the indicated trial.
   // This should always be called after creating a new FieldTrial instance.
-  static void Register(FieldTrial* trial);
+  // If the caller wants to select the instance's group randomly,
+  // |is_randomized_trial| should be true to count the number of randomized
+  // trials correctly. Otherwise, false.
+  static void Register(FieldTrial* trial, bool is_randomized_trial);
 
   // Returns all the registered trials.
   static RegistrationMap GetRegisteredTrials();
 
+  // Create field trials from a list of FieldTrial::State.
+  // CreateTrialsFromString() and CreateTrialsFromFieldTrialStates() use this
+  // method internally.
+  static bool CreateTrialsFromFieldTrialStatesInternal(
+      const std::vector<FieldTrial::State>& entries);
+
+  // The same as |GetActiveFieldTrialGroups| but also gives access to low
+  // anonymity field trials.
+  // Restricted to specifically allowed friends - access via
+  // |FieldTrialListIncludingLowAnonymity::GetActiveFieldTrialGroups|.
+  static void GetActiveFieldTrialGroupsInternal(
+      FieldTrial::ActiveGroups* active_groups,
+      bool include_low_anonymity);
+
+  // The same as |AddObserver| but is notified for low anonymity field trials
+  // too.
+  // Restricted to specifically allowed friends - access via
+  // |FieldTrialListIncludingLowAnonymity::AddObserver|.
+  static bool AddObserverInternal(Observer* observer,
+                                  bool include_low_anonymity);
+
+  // The same as |RemoveObserver| but is notified for low anonymity field trials
+  // too.
+  // Restricted to specifically allowed friends - access via
+  // |FieldTrialListIncludingLowAnonymity::RemoveObserver|.
+  static void RemoveObserverInternal(Observer* observer,
+                                     bool include_low_anonymity);
+
   static FieldTrialList* global_;  // The singleton of this class.
 
-  // This will tell us if there is an attempt to register a field
-  // trial or check if one-time randomization is enabled without
-  // creating the FieldTrialList. This is not an error, unless a
-  // FieldTrialList is created after that.
-  static bool used_without_global_;
-
-  // Lock for access to registered_ and field_trial_allocator_.
+  // Lock for access to |registered_|, |observers_|,
+  // |observers_including_low_anonymity_|,
+  // |count_of_manually_created_field_trials_|.
   Lock lock_;
-  RegistrationMap registered_;
+  RegistrationMap registered_ GUARDED_BY(lock_);
 
-  std::map<std::string, std::string> seen_states_;
-
-  // Entropy provider to be used for one-time randomized field trials. If NULL,
-  // one-time randomization is not supported.
-  std::unique_ptr<const FieldTrial::EntropyProvider> entropy_provider_;
+  // Counts the number of field trials whose groups are selected randomly.
+  size_t num_registered_randomized_trials_ GUARDED_BY(lock_) = 0;
 
   // List of observers to be notified when a group is selected for a FieldTrial.
-  scoped_refptr<ObserverListThreadSafe<Observer> > observer_list_;
+  // Excludes low anonymity field trials.
+  std::vector<Observer*> observers_ GUARDED_BY(lock_);
 
-  // Single synchronous observer to be notified when a trial group is chosen.
-  Observer* synchronous_observer_ = nullptr;
+  // List of observers to be notified when a group is selected for a FieldTrial.
+  // Includes low anonymity field trials.
+  std::vector<Observer*> observers_including_low_anonymity_ GUARDED_BY(lock_);
+
+  // Counts the ongoing calls to
+  // FieldTrialList::NotifyFieldTrialGroupSelection(). Used to ensure that
+  // RemoveObserver() isn't called while notifying observers.
+  std::atomic_int num_ongoing_notify_field_trial_group_selection_calls_{0};
 
   // Allocator in shared memory containing field trial data. Used in both
   // browser and child processes, but readonly in the child.
   // In the future, we may want to move this to a more generic place if we want
   // to start passing more data other than field trials.
-  std::unique_ptr<FieldTrialAllocator> field_trial_allocator_ = nullptr;
+  std::unique_ptr<FieldTrialAllocator> field_trial_allocator_;
 
-  // Readonly copy of the handle to the allocator. Needs to be a member variable
-  // because it's needed from both CopyFieldTrialStateToFlags() and
-  // AppendFieldTrialHandleIfNeeded().
-  base::SharedMemoryHandle readonly_allocator_handle_;
+  // Readonly copy of the region to the allocator. Needs to be a member variable
+  // because it's needed from multiple methods.
+  ReadOnlySharedMemoryRegion readonly_allocator_region_;
 
   // Tracks whether CreateTrialsFromCommandLine() has been called.
   bool create_trials_from_command_line_called_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(FieldTrialList);
 };
 
 }  // namespace base

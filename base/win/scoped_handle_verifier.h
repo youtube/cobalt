@@ -1,37 +1,48 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_WIN_SCOPED_HANDLE_VERIFIER_H_
 #define BASE_WIN_SCOPED_HANDLE_VERIFIER_H_
 
-#include "base/win/windows_types.h"
-
+#include <memory>
 #include <unordered_map>
 
 #include "base/base_export.h"
 #include "base/debug/stack_trace.h"
-#include "base/hash.h"
+#include "base/hash/hash.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock_impl.h"
-#include "base/threading/thread_local.h"
+#include "base/win/windows_types.h"
 
 namespace base {
 namespace win {
+enum class HandleOperation;
 namespace internal {
 
 struct HandleHash {
   size_t operator()(const HANDLE& handle) const {
-    char buffer[sizeof(handle)];
-    memcpy(buffer, &handle, sizeof(handle));
-    return base::Hash(buffer, sizeof(buffer));
+    return base::FastHash(as_bytes(make_span(&handle, 1u)));
   }
 };
 
 struct ScopedHandleVerifierInfo {
-  const void* owner;
-  const void* pc1;
-  const void* pc2;
-  base::debug::StackTrace stack;
+  ScopedHandleVerifierInfo(const void* owner,
+                           const void* pc1,
+                           const void* pc2,
+                           std::unique_ptr<debug::StackTrace> stack,
+                           DWORD thread_id);
+  ~ScopedHandleVerifierInfo();
+
+  ScopedHandleVerifierInfo(const ScopedHandleVerifierInfo&) = delete;
+  ScopedHandleVerifierInfo& operator=(const ScopedHandleVerifierInfo&) = delete;
+  ScopedHandleVerifierInfo(ScopedHandleVerifierInfo&&) noexcept;
+  ScopedHandleVerifierInfo& operator=(ScopedHandleVerifierInfo&&) noexcept;
+
+  raw_ptr<const void> owner;
+  raw_ptr<const void> pc1;
+  raw_ptr<const void> pc2;
+  std::unique_ptr<debug::StackTrace> stack;
   DWORD thread_id;
 };
 
@@ -45,10 +56,11 @@ struct ScopedHandleVerifierInfo {
 // from emitting an unrecognized attribute warning.
 #pragma warning(push)
 #pragma warning(disable : 5030)
-class [[clang::lto_visibility_public]] ScopedHandleVerifier {
+class [[clang::lto_visibility_public, nodiscard]] ScopedHandleVerifier {
 #pragma warning(pop)
  public:
-  explicit ScopedHandleVerifier(bool enabled);
+  ScopedHandleVerifier(const ScopedHandleVerifier&) = delete;
+  ScopedHandleVerifier& operator=(const ScopedHandleVerifier&) = delete;
 
   // Retrieves the current verifier.
   static ScopedHandleVerifier* Get();
@@ -62,24 +74,31 @@ class [[clang::lto_visibility_public]] ScopedHandleVerifier {
   virtual void StopTracking(HANDLE handle, const void* owner, const void* pc1,
                             const void* pc2);
   virtual void Disable();
-  virtual void OnHandleBeingClosed(HANDLE handle);
+  virtual void OnHandleBeingClosed(HANDLE handle, HandleOperation operation);
   virtual HMODULE GetModule() const;
 
  private:
+  explicit ScopedHandleVerifier(bool enabled);
   ~ScopedHandleVerifier();  // Not implemented.
+
+  void StartTrackingImpl(HANDLE handle, const void* owner, const void* pc1,
+                         const void* pc2);
+  void StopTrackingImpl(HANDLE handle, const void* owner, const void* pc1,
+                        const void* pc2);
+  void OnHandleBeingClosedImpl(HANDLE handle, HandleOperation operation);
 
   static base::internal::LockImpl* GetLock();
   static void InstallVerifier();
+  static void ThreadSafeAssignOrCreateScopedHandleVerifier(
+      ScopedHandleVerifier * existing_verifier, bool enabled);
 
   base::debug::StackTrace creation_stack_;
   bool enabled_;
-  base::ThreadLocalBoolean closing_;
-  base::internal::LockImpl* lock_;
+  raw_ptr<base::internal::LockImpl> lock_;
   std::unordered_map<HANDLE, ScopedHandleVerifierInfo, HandleHash> map_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedHandleVerifier);
 };
 
-// This testing function returns the module that the ActiveVerifier concrete
+// This testing function returns the module that the HandleVerifier concrete
 // implementation was instantiated in.
 BASE_EXPORT HMODULE GetHandleVerifierModuleForTesting();
 

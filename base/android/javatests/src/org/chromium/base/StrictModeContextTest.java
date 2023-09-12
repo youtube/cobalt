@@ -1,11 +1,12 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.base;
 
 import android.os.StrictMode;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -100,7 +101,7 @@ public class StrictModeContextTest {
     @Test
     @SmallTest
     public void testAllowDiskWrites() {
-        try (StrictModeContext unused = StrictModeContext.allowDiskWrites()) {
+        try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
             writeToDisk();
         }
         assertWriteToDiskThrows();
@@ -109,7 +110,7 @@ public class StrictModeContextTest {
     @Test
     @SmallTest
     public void testAllowDiskReads() {
-        try (StrictModeContext unused = StrictModeContext.allowDiskReads()) {
+        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
             readFromDisk();
             assertWriteToDiskThrows();
         }

@@ -1,38 +1,41 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-// Cobalt does not support multiple process and shared memory.
-#if !defined(STARBOARD)
 
 #include "base/memory/read_only_shared_memory_region.h"
 
 #include <utility>
 
-#include "base/memory/shared_memory.h"
 #include "build/build_config.h"
 
 namespace base {
 
+ReadOnlySharedMemoryRegion::CreateFunction*
+    ReadOnlySharedMemoryRegion::create_hook_ = nullptr;
+
 // static
-MappedReadOnlyRegion ReadOnlySharedMemoryRegion::Create(size_t size) {
+MappedReadOnlyRegion ReadOnlySharedMemoryRegion::Create(
+    size_t size,
+    SharedMemoryMapper* mapper) {
+  if (create_hook_)
+    return create_hook_(size, mapper);
+
   subtle::PlatformSharedMemoryRegion handle =
       subtle::PlatformSharedMemoryRegion::CreateWritable(size);
   if (!handle.IsValid())
     return {};
 
-  void* memory_ptr = nullptr;
-  size_t mapped_size = 0;
-  if (!handle.MapAt(0, handle.GetSize(), &memory_ptr, &mapped_size))
+  auto result = handle.MapAt(0, handle.GetSize(), mapper);
+  if (!result.has_value())
     return {};
 
-  WritableSharedMemoryMapping mapping(memory_ptr, size, mapped_size,
-                                      handle.GetGUID());
-#if defined(OS_MACOSX) && !defined(OS_IOS)
-  handle.ConvertToReadOnly(memory_ptr);
+  WritableSharedMemoryMapping mapping(result.value(), size, handle.GetGUID(),
+                                      mapper);
+#if BUILDFLAG(IS_MAC)
+  handle.ConvertToReadOnly(mapping.memory());
 #else
   handle.ConvertToReadOnly();
-#endif  // defined(OS_MACOSX) && !defined(OS_IOS)
+#endif  // BUILDFLAG(IS_MAC)
   ReadOnlySharedMemoryRegion region(std::move(handle));
 
   if (!region.IsValid() || !mapping.IsValid())
@@ -65,23 +68,24 @@ ReadOnlySharedMemoryRegion ReadOnlySharedMemoryRegion::Duplicate() const {
   return ReadOnlySharedMemoryRegion(handle_.Duplicate());
 }
 
-ReadOnlySharedMemoryMapping ReadOnlySharedMemoryRegion::Map() const {
-  return MapAt(0, handle_.GetSize());
+ReadOnlySharedMemoryMapping ReadOnlySharedMemoryRegion::Map(
+    SharedMemoryMapper* mapper) const {
+  return MapAt(0, handle_.GetSize(), mapper);
 }
 
 ReadOnlySharedMemoryMapping ReadOnlySharedMemoryRegion::MapAt(
-    off_t offset,
-    size_t size) const {
+    uint64_t offset,
+    size_t size,
+    SharedMemoryMapper* mapper) const {
   if (!IsValid())
     return {};
 
-  void* memory = nullptr;
-  size_t mapped_size = 0;
-  if (!handle_.MapAt(offset, size, &memory, &mapped_size))
+  auto result = handle_.MapAt(offset, size, mapper);
+  if (!result.has_value())
     return {};
 
-  return ReadOnlySharedMemoryMapping(memory, size, mapped_size,
-                                     handle_.GetGUID());
+  return ReadOnlySharedMemoryMapping(result.value(), size, handle_.GetGUID(),
+                                     mapper);
 }
 
 bool ReadOnlySharedMemoryRegion::IsValid() const {
@@ -98,5 +102,3 @@ ReadOnlySharedMemoryRegion::ReadOnlySharedMemoryRegion(
 }
 
 }  // namespace base
-
-#endif  // !defined(STARBOARD)

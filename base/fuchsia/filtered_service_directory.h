@@ -1,51 +1,55 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_FUCHSIA_FILTERED_SERVICE_DIRECTORY_H_
 #define BASE_FUCHSIA_FILTERED_SERVICE_DIRECTORY_H_
 
-#include "base/fuchsia/service_directory.h"
-
+#include <fuchsia/io/cpp/fidl.h>
+#include <lib/fidl/cpp/interface_handle.h>
+#include <lib/sys/cpp/outgoing_directory.h>
+#include <lib/sys/cpp/service_directory.h>
 #include <lib/zx/channel.h>
+#include <memory>
 
-#include "base/macros.h"
-#include "starboard/types.h"
+#include "base/base_export.h"
+#include "base/strings/string_piece.h"
 
 namespace base {
-namespace fuchsia {
 
-class ComponentContext;
-
-// ServiceDirectory that uses the supplied ComponentContext to satisfy requests
-// for only a restricted set of services.
+// ServiceDirectory that uses the supplied sys::ServiceDirectory to satisfy
+// requests for only a restricted set of services.
 class BASE_EXPORT FilteredServiceDirectory {
  public:
-  // Creates proxy that proxies requests to the specified |component_context|,
-  // which must outlive the proxy.
-  explicit FilteredServiceDirectory(ComponentContext* component_context);
+  // Creates a directory that proxies requests to the specified service
+  // |directory|.
+  explicit FilteredServiceDirectory(
+      std::shared_ptr<sys::ServiceDirectory> directory);
+
+  FilteredServiceDirectory(const FilteredServiceDirectory&) = delete;
+  FilteredServiceDirectory& operator=(const FilteredServiceDirectory&) = delete;
+
   ~FilteredServiceDirectory();
 
-  // Adds the specified service to the list of whitelisted services.
-  void AddService(const char* service_name);
+  // Adds the specified service to the list of allowed services.
+  // Returns a status other than ZX_OK if the service cannot be added, e.g.
+  // because it is already in the list of allowed services.
+  [[nodiscard]] zx_status_t AddService(StringPiece service_name);
 
-  // Returns a client channel connected to the directory. The returned channel
-  // can be passed to a sandboxed process to be used for /svc namespace.
-  zx::channel ConnectClient();
+  // Connects a directory client. The directory can be passed to a sandboxed
+  // process to be used for /svc namespace.
+  [[nodiscard]] zx_status_t ConnectClient(
+      fidl::InterfaceRequest<::fuchsia::io::Directory> dir_request);
+
+  // Accessor for the OutgoingDirectory, used to add handlers for services
+  // in addition to those provided from |directory| via AddService().
+  sys::OutgoingDirectory* outgoing_directory() { return &outgoing_directory_; }
 
  private:
-  void HandleRequest(const char* service_name, zx::channel channel);
-
-  ComponentContext* const component_context_;
-  std::unique_ptr<ServiceDirectory> service_directory_;
-
-  // Client side of the channel used by |service_directory_|.
-  zx::channel directory_client_channel_;
-
-  DISALLOW_COPY_AND_ASSIGN(FilteredServiceDirectory);
+  const std::shared_ptr<sys::ServiceDirectory> directory_;
+  sys::OutgoingDirectory outgoing_directory_;
 };
 
-}  // namespace fuchsia
 }  // namespace base
 
 #endif  // BASE_FUCHSIA_FILTERED_SERVICE_DIRECTORY_H_

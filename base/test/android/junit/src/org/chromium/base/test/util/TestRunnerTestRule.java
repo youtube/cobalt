@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,9 @@ import static org.junit.Assert.fail;
 import android.app.Instrumentation;
 import android.content.Context;
 import android.os.Bundle;
-import android.support.test.InstrumentationRegistry;
+
+import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.Assert;
 import org.junit.rules.ExternalResource;
@@ -21,7 +23,6 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.BlockJUnit4ClassRunner;
 import org.junit.runners.model.InitializationError;
-import org.robolectric.RuntimeEnvironment;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -43,13 +44,13 @@ class TestRunnerTestRule extends ExternalResource {
     }
 
     @Override
-    protected void before() throws Throwable {
+    protected void before() {
         // Register a fake Instrumentation so that class runners for instrumentation tests
         // can be run even in Robolectric tests.
         Instrumentation instrumentation = new Instrumentation() {
             @Override
             public Context getTargetContext() {
-                return RuntimeEnvironment.application;
+                return ApplicationProvider.getApplicationContext();
             }
         };
         InstrumentationRegistry.registerInstance(instrumentation, new Bundle());
@@ -82,17 +83,17 @@ class TestRunnerTestRule extends ExternalResource {
         // TODO(bauerb): Using Mockito mock() or spy() throws a ClassCastException.
         RunListener runListener = new RunListener() {
             @Override
-            public void testStarted(Description description) throws Exception {
+            public void testStarted(Description description) {
                 testLog.runTests.add(description);
             }
 
             @Override
-            public void testFinished(Description description) throws Exception {
+            public void testFinished(Description description) {
                 Assert.assertThat(description, isIn(testLog.runTests));
             }
 
             @Override
-            public void testFailure(Failure failure) throws Exception {
+            public void testFailure(Failure failure) {
                 fail(failure.toString());
             }
 
@@ -102,7 +103,7 @@ class TestRunnerTestRule extends ExternalResource {
             }
 
             @Override
-            public void testIgnored(Description description) throws Exception {
+            public void testIgnored(Description description) {
                 testLog.skippedTests.add(description);
             }
         };

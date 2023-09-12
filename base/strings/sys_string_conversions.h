@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,75 +9,84 @@
 // necessary to not use ICU. Generally, you should not need this in Chrome,
 // but it is used in some shared code. Dependencies should be minimal.
 
+#include <stdint.h>
+
 #include <string>
 
-#include "starboard/types.h"
-
 #include "base/base_export.h"
-#include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
 #include <CoreFoundation/CoreFoundation.h>
+
+#include "base/mac/scoped_cftyperef.h"
+
 #ifdef __OBJC__
 @class NSString;
-#else
-class NSString;
 #endif
-#endif  // OS_MACOSX
+#endif  // BUILDFLAG(IS_APPLE)
 
 namespace base {
 
 // Converts between wide and UTF-8 representations of a string. On error, the
 // result is system-dependent.
-BASE_EXPORT std::string SysWideToUTF8(const std::wstring& wide);
-BASE_EXPORT std::wstring SysUTF8ToWide(StringPiece utf8);
+[[nodiscard]] BASE_EXPORT std::string SysWideToUTF8(const std::wstring& wide);
+[[nodiscard]] BASE_EXPORT std::wstring SysUTF8ToWide(StringPiece utf8);
 
 // Converts between wide and the system multi-byte representations of a string.
 // DANGER: This will lose information and can change (on Windows, this can
 // change between reboots).
-BASE_EXPORT std::string SysWideToNativeMB(const std::wstring& wide);
-BASE_EXPORT std::wstring SysNativeMBToWide(StringPiece native_mb);
+[[nodiscard]] BASE_EXPORT std::string SysWideToNativeMB(
+    const std::wstring& wide);
+[[nodiscard]] BASE_EXPORT std::wstring SysNativeMBToWide(StringPiece native_mb);
 
 // Windows-specific ------------------------------------------------------------
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 
 // Converts between 8-bit and wide strings, using the given code page. The
 // code page identifier is one accepted by the Windows function
 // MultiByteToWideChar().
-BASE_EXPORT std::wstring SysMultiByteToWide(StringPiece mb, uint32_t code_page);
-BASE_EXPORT std::string SysWideToMultiByte(const std::wstring& wide,
-                                           uint32_t code_page);
+[[nodiscard]] BASE_EXPORT std::wstring SysMultiByteToWide(StringPiece mb,
+                                                          uint32_t code_page);
+[[nodiscard]] BASE_EXPORT std::string SysWideToMultiByte(
+    const std::wstring& wide,
+    uint32_t code_page);
 
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 // Mac-specific ----------------------------------------------------------------
 
-#if defined(OS_MACOSX)
+#if BUILDFLAG(IS_APPLE)
 
-// Converts between STL strings and CFStringRefs/NSStrings.
+// Converts between strings and CFStringRefs/NSStrings.
 
-// Creates a string, and returns it with a refcount of 1. You are responsible
-// for releasing it. Returns NULL on failure.
-BASE_EXPORT CFStringRef SysUTF8ToCFStringRef(const std::string& utf8);
-BASE_EXPORT CFStringRef SysUTF16ToCFStringRef(const string16& utf16);
+// Converts a string to a CFStringRef. Returns null on failure.
+[[nodiscard]] BASE_EXPORT ScopedCFTypeRef<CFStringRef> SysUTF8ToCFStringRef(
+    StringPiece utf8);
+[[nodiscard]] BASE_EXPORT ScopedCFTypeRef<CFStringRef> SysUTF16ToCFStringRef(
+    StringPiece16 utf16);
 
-// Same, but returns an autoreleased NSString.
-BASE_EXPORT NSString* SysUTF8ToNSString(const std::string& utf8);
-BASE_EXPORT NSString* SysUTF16ToNSString(const string16& utf16);
+// Converts a CFStringRef to a string. Returns an empty string on failure. It is
+// not valid to call these with a null `ref`.
+[[nodiscard]] BASE_EXPORT std::string SysCFStringRefToUTF8(CFStringRef ref);
+[[nodiscard]] BASE_EXPORT std::u16string SysCFStringRefToUTF16(CFStringRef ref);
 
-// Converts a CFStringRef to an STL string. Returns an empty string on failure.
-BASE_EXPORT std::string SysCFStringRefToUTF8(CFStringRef ref);
-BASE_EXPORT string16 SysCFStringRefToUTF16(CFStringRef ref);
+#ifdef __OBJC__
 
-// Same, but accepts NSString input. Converts nil NSString* to the appropriate
-// string type of length 0.
-BASE_EXPORT std::string SysNSStringToUTF8(NSString* ref);
-BASE_EXPORT string16 SysNSStringToUTF16(NSString* ref);
+// Converts a string to an autoreleased NSString. Returns nil on failure.
+[[nodiscard]] BASE_EXPORT NSString* SysUTF8ToNSString(StringPiece utf8);
+[[nodiscard]] BASE_EXPORT NSString* SysUTF16ToNSString(StringPiece16 utf16);
 
-#endif  // defined(OS_MACOSX)
+// Converts an NSString to a string. Returns an empty string on failure or if
+// `ref` is nil.
+[[nodiscard]] BASE_EXPORT std::string SysNSStringToUTF8(NSString* ref);
+[[nodiscard]] BASE_EXPORT std::u16string SysNSStringToUTF16(NSString* ref);
+
+#endif  // __OBJC__
+
+#endif  // BUILDFLAG(IS_APPLE)
 
 }  // namespace base
 

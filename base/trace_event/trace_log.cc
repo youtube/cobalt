@@ -1,44 +1,48 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/trace_event/trace_log.h"
 
-#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 
+#include "base/auto_reset.h"
 #include "base/base_switches.h"
-#include "base/bind.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/debug/leak_annotations.h"
+#include "base/format_macros.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/macros.h"
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/message_loop/message_loop.h"
-#include "base/message_loop/message_loop_current.h"
 #include "base/no_destructor.h"
-#include "base/process/process_info.h"
+#include "base/notreached.h"
+#include "base/process/process.h"
 #include "base/process/process_metrics.h"
-#include "base/stl_util.h"
+#include "base/ranges/algorithm.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/stringprintf.h"
-#include "base/sys_info.h"
-#include "base/task/post_task.h"
+#include "base/system/sys_info.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/platform_thread.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/threading/thread_id_name_manager.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
-#include "base/trace_event/category_registry.h"
-#include "base/trace_event/event_name_filter.h"
 #include "base/trace_event/heap_profiler.h"
 #include "base/trace_event/heap_profiler_allocation_context_tracker.h"
-#include "base/trace_event/heap_profiler_event_filter.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/trace_event/process_memory_dump.h"
@@ -46,12 +50,26 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+#include "base/numerics/safe_conversions.h"
+#include "base/run_loop.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
+#include "base/tracing/perfetto_platform.h"
+#include "third_party/perfetto/include/perfetto/ext/trace_processor/export_json.h"  // nogncheck
+#include "third_party/perfetto/include/perfetto/trace_processor/trace_processor_storage.h"  // nogncheck
+#include "third_party/perfetto/include/perfetto/tracing/console_interceptor.h"
+#include "third_party/perfetto/protos/perfetto/config/chrome/chrome_config.gen.h"  // nogncheck
+#include "third_party/perfetto/protos/perfetto/config/interceptor_config.gen.h"  // nogncheck
+#include "third_party/perfetto/protos/perfetto/trace/track_event/process_descriptor.gen.h"  // nogncheck
+#include "third_party/perfetto/protos/perfetto/trace/track_event/thread_descriptor.gen.h"  // nogncheck
+#endif
+
+#if BUILDFLAG(IS_WIN)
 #include "base/trace_event/trace_event_etw_export_win.h"
 #endif
 
-#if defined(OS_ANDROID)
-#include "base/debug/elf_reader_linux.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/debug/elf_reader.h"
 
 // The linker assigns the virtual address of the start of current library to
 // this symbol.
@@ -82,17 +100,19 @@ const size_t kTraceEventRingBufferChunks = kTraceEventVectorBufferChunks / 4;
 const size_t kEchoToConsoleTraceEventBufferChunks = 256;
 
 const size_t kTraceEventBufferSizeInBytes = 100 * 1024;
-const int kThreadFlushTimeoutMs = 3000;
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+bool g_perfetto_initialized_by_tracelog = false;
+#else
+constexpr TimeDelta kThreadFlushTimeout = Seconds(3);
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 TraceLog* g_trace_log_for_testing = nullptr;
 
-#define MAX_TRACE_EVENT_FILTERS 32
-
-// List of TraceEventFilter objects from the most recent tracing session.
-std::vector<std::unique_ptr<TraceEventFilter>>& GetCategoryGroupFilters() {
-  static auto* filters = new std::vector<std::unique_ptr<TraceEventFilter>>();
-  return *filters;
-}
+ABSL_CONST_INIT thread_local TraceLog::ThreadLocalEventBuffer*
+    thread_local_event_buffer = nullptr;
+ABSL_CONST_INIT thread_local bool thread_blocks_message_loop = false;
+ABSL_CONST_INIT thread_local bool thread_is_in_trace_event = false;
 
 ThreadTicks ThreadNow() {
   return ThreadTicks::IsSupported()
@@ -102,48 +122,25 @@ ThreadTicks ThreadNow() {
 
 template <typename T>
 void InitializeMetadataEvent(TraceEvent* trace_event,
-                             int thread_id,
+                             PlatformThreadId thread_id,
                              const char* metadata_name,
                              const char* arg_name,
                              const T& value) {
   if (!trace_event)
     return;
 
-  int num_args = 1;
-  unsigned char arg_type;
-  unsigned long long arg_value;
-  ::trace_event_internal::SetTraceValue(value, &arg_type, &arg_value);
-  trace_event->Initialize(
-      thread_id,
-      TimeTicks(),
-      ThreadTicks(),
-      TRACE_EVENT_PHASE_METADATA,
-      CategoryRegistry::kCategoryMetadata->state_ptr(),
+  TraceArguments args(arg_name, value);
+  base::TimeTicks now = TRACE_TIME_TICKS_NOW();
+  ThreadTicks thread_now;
+  trace_event->Reset(
+      thread_id, now, thread_now, TRACE_EVENT_PHASE_METADATA,
+      TraceLog::GetInstance()->GetCategoryGroupEnabled("__metadata"),
       metadata_name,
       trace_event_internal::kGlobalScope,  // scope
-      trace_event_internal::kNoId,  // id
-      trace_event_internal::kNoId,  // bind_id
-      num_args,
-      &arg_name,
-      &arg_type,
-      &arg_value,
-      nullptr,
-      TRACE_EVENT_FLAG_NONE);
+      trace_event_internal::kNoId,         // id
+      trace_event_internal::kNoId,         // bind_id
+      &args, TRACE_EVENT_FLAG_NONE);
 }
-
-class AutoThreadLocalBoolean {
- public:
-  explicit AutoThreadLocalBoolean(ThreadLocalBoolean* thread_local_boolean)
-      : thread_local_boolean_(thread_local_boolean) {
-    DCHECK(!thread_local_boolean_->Get());
-    thread_local_boolean_->Set(true);
-  }
-  ~AutoThreadLocalBoolean() { thread_local_boolean_->Set(false); }
-
- private:
-  ThreadLocalBoolean* thread_local_boolean_;
-  DISALLOW_COPY_AND_ASSIGN(AutoThreadLocalBoolean);
-};
 
 // Use this function instead of TraceEventHandle constructor to keep the
 // overhead of ScopedTracer (trace_event.h) constructor minimum.
@@ -160,49 +157,312 @@ void MakeHandle(uint32_t chunk_seq,
   handle->event_index = static_cast<uint16_t>(event_index);
 }
 
-template <typename Function>
-void ForEachCategoryFilter(const unsigned char* category_group_enabled,
-                           Function filter_fn) {
-  const TraceCategory* category =
-      CategoryRegistry::GetCategoryByStatePtr(category_group_enabled);
-  uint32_t filter_bitmap = category->enabled_filters();
-  for (int index = 0; filter_bitmap != 0; filter_bitmap >>= 1, index++) {
-    if (filter_bitmap & 1 && GetCategoryGroupFilters()[index])
-      filter_fn(GetCategoryGroupFilters()[index].get());
+// The fallback arguments filtering function will filter away every argument.
+bool DefaultIsTraceEventArgsAllowlisted(
+    const char* category_group_name,
+    const char* event_name,
+    base::trace_event::ArgumentNameFilterPredicate* arg_name_filter) {
+  return false;
+}
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+class PerfettoProtoAppender
+    : public base::trace_event::ConvertableToTraceFormat::ProtoAppender {
+ public:
+  explicit PerfettoProtoAppender(
+      perfetto::protos::pbzero::DebugAnnotation* proto)
+      : annotation_proto_(proto) {}
+  ~PerfettoProtoAppender() override = default;
+
+  // ProtoAppender implementation
+  void AddBuffer(uint8_t* begin, uint8_t* end) override {
+    ranges_.emplace_back();
+    ranges_.back().begin = begin;
+    ranges_.back().end = end;
+  }
+
+  size_t Finalize(uint32_t field_id) override {
+    return annotation_proto_->AppendScatteredBytes(field_id, ranges_.data(),
+                                                   ranges_.size());
+  }
+
+ private:
+  std::vector<protozero::ContiguousMemoryRange> ranges_;
+  raw_ptr<perfetto::protos::pbzero::DebugAnnotation> annotation_proto_;
+};
+
+void AddConvertableToTraceFormat(
+    base::trace_event::ConvertableToTraceFormat* value,
+    perfetto::protos::pbzero::DebugAnnotation* annotation) {
+  PerfettoProtoAppender proto_appender(annotation);
+  if (value->AppendToProto(&proto_appender)) {
+    return;
+  }
+
+  std::string json;
+  value->AppendAsTraceFormat(&json);
+  annotation->set_legacy_json_value(json.c_str());
+}
+
+void WriteDebugAnnotations(base::trace_event::TraceEvent* trace_event,
+                           perfetto::protos::pbzero::TrackEvent* track_event) {
+  for (size_t i = 0; i < trace_event->arg_size() && trace_event->arg_name(i);
+       ++i) {
+    auto type = trace_event->arg_type(i);
+    auto* annotation = track_event->add_debug_annotations();
+
+    annotation->set_name(trace_event->arg_name(i));
+
+    if (type == TRACE_VALUE_TYPE_CONVERTABLE) {
+      AddConvertableToTraceFormat(trace_event->arg_convertible_value(i),
+                                  annotation);
+      continue;
+    }
+
+    auto& value = trace_event->arg_value(i);
+    switch (type) {
+      case TRACE_VALUE_TYPE_BOOL:
+        annotation->set_bool_value(value.as_bool);
+        break;
+      case TRACE_VALUE_TYPE_UINT:
+        annotation->set_uint_value(value.as_uint);
+        break;
+      case TRACE_VALUE_TYPE_INT:
+        annotation->set_int_value(value.as_int);
+        break;
+      case TRACE_VALUE_TYPE_DOUBLE:
+        annotation->set_double_value(value.as_double);
+        break;
+      case TRACE_VALUE_TYPE_POINTER:
+        annotation->set_pointer_value(static_cast<uint64_t>(
+            reinterpret_cast<uintptr_t>(value.as_pointer)));
+        break;
+      case TRACE_VALUE_TYPE_STRING:
+      case TRACE_VALUE_TYPE_COPY_STRING:
+        annotation->set_string_value(value.as_string ? value.as_string
+                                                     : "NULL");
+        break;
+      case TRACE_VALUE_TYPE_PROTO: {
+        auto data = value.as_proto->SerializeAsArray();
+        annotation->AppendRawProtoBytes(data.data(), data.size());
+      } break;
+
+      default:
+        NOTREACHED() << "Don't know how to serialize this value";
+        break;
+    }
   }
 }
 
+void OnAddLegacyTraceEvent(TraceEvent* trace_event,
+                           bool thread_will_flush,
+                           base::trace_event::TraceEventHandle* handle) {
+  perfetto::DynamicCategory category(
+      TraceLog::GetInstance()->GetCategoryGroupName(
+          trace_event->category_group_enabled()));
+  auto write_args = [trace_event](perfetto::EventContext ctx) {
+    WriteDebugAnnotations(trace_event, ctx.event());
+    uint32_t id_flags = trace_event->flags() & (TRACE_EVENT_FLAG_HAS_ID |
+                                                TRACE_EVENT_FLAG_HAS_LOCAL_ID |
+                                                TRACE_EVENT_FLAG_HAS_GLOBAL_ID);
+    if (!id_flags &&
+        perfetto::internal::TrackEventLegacy::PhaseToType(
+            trace_event->phase()) !=
+            perfetto::protos::pbzero::TrackEvent::TYPE_UNSPECIFIED) {
+      return;
+    }
+    auto* legacy_event = ctx.event()->set_legacy_event();
+    legacy_event->set_phase(trace_event->phase());
+    switch (id_flags) {
+      case TRACE_EVENT_FLAG_HAS_ID:
+        legacy_event->set_unscoped_id(trace_event->id());
+        break;
+      case TRACE_EVENT_FLAG_HAS_LOCAL_ID:
+        legacy_event->set_local_id(trace_event->id());
+        break;
+      case TRACE_EVENT_FLAG_HAS_GLOBAL_ID:
+        legacy_event->set_global_id(trace_event->id());
+        break;
+      default:
+        break;
+    }
+  };
+
+  auto phase = trace_event->phase();
+  auto flags = trace_event->flags();
+  base::TimeTicks timestamp = trace_event->timestamp().is_null()
+                                  ? TRACE_TIME_TICKS_NOW()
+                                  : trace_event->timestamp();
+  if (phase == TRACE_EVENT_PHASE_COMPLETE) {
+    phase = TRACE_EVENT_PHASE_BEGIN;
+  } else if (phase == TRACE_EVENT_PHASE_INSTANT) {
+    auto scope = flags & TRACE_EVENT_FLAG_SCOPE_MASK;
+    switch (scope) {
+      case TRACE_EVENT_SCOPE_GLOBAL:
+        PERFETTO_INTERNAL_LEGACY_EVENT_ON_TRACK(
+            phase, category, trace_event->name(), ::perfetto::Track::Global(0),
+            timestamp, write_args);
+        return;
+      case TRACE_EVENT_SCOPE_PROCESS:
+        PERFETTO_INTERNAL_LEGACY_EVENT_ON_TRACK(
+            phase, category, trace_event->name(),
+            ::perfetto::ProcessTrack::Current(), timestamp, write_args);
+        return;
+      default:
+      case TRACE_EVENT_SCOPE_THREAD: /* Fallthrough. */
+        break;
+    }
+  }
+  if (trace_event->thread_id() &&
+      trace_event->thread_id() != base::PlatformThread::CurrentId()) {
+    PERFETTO_INTERNAL_LEGACY_EVENT_ON_TRACK(
+        phase, category, trace_event->name(),
+        perfetto::ThreadTrack::ForThread(trace_event->thread_id()), timestamp,
+        write_args);
+    return;
+  }
+  PERFETTO_INTERNAL_LEGACY_EVENT_ON_TRACK(
+      phase, category, trace_event->name(),
+      perfetto::internal::TrackEventInternal::kDefaultTrack, timestamp,
+      write_args);
+}
+
+void OnUpdateLegacyTraceEventDuration(
+    const unsigned char* category_group_enabled,
+    const char* name,
+    TraceEventHandle handle,
+    PlatformThreadId thread_id,
+    bool explicit_timestamps,
+    const TimeTicks& now,
+    const ThreadTicks& thread_now) {
+  perfetto::DynamicCategory category(
+      TraceLog::GetInstance()->GetCategoryGroupName(category_group_enabled));
+  auto phase = TRACE_EVENT_PHASE_END;
+  base::TimeTicks timestamp =
+      explicit_timestamps ? now : TRACE_TIME_TICKS_NOW();
+  if (thread_id && thread_id != base::PlatformThread::CurrentId()) {
+    PERFETTO_INTERNAL_LEGACY_EVENT_ON_TRACK(
+        phase, category, name, perfetto::ThreadTrack::ForThread(thread_id),
+        timestamp);
+    return;
+  }
+  PERFETTO_INTERNAL_LEGACY_EVENT_ON_TRACK(
+      phase, category, name,
+      perfetto::internal::TrackEventInternal::kDefaultTrack, timestamp);
+}
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+
 }  // namespace
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+namespace {
+// Perfetto provides us with a fully formed JSON trace file, while
+// TraceResultBuffer wants individual JSON fragments without a containing
+// object. We therefore need to strip away the outer object, including the
+// metadata fields, from the JSON stream.
+static constexpr char kJsonPrefix[] = "{\"traceEvents\":[\n";
+static constexpr char kJsonJoiner[] = ",\n";
+static constexpr char kJsonSuffix[] = "],\"metadata\":";
+}  // namespace
+
+class JsonStringOutputWriter
+    : public perfetto::trace_processor::json::OutputWriter {
+ public:
+  JsonStringOutputWriter(scoped_refptr<SequencedTaskRunner> flush_task_runner,
+                         TraceLog::OutputCallback flush_callback)
+      : flush_task_runner_(flush_task_runner),
+        flush_callback_(std::move(flush_callback)) {
+    buffer_->data().reserve(kBufferReserveCapacity);
+  }
+
+  ~JsonStringOutputWriter() override { Flush(/*has_more=*/false); }
+
+  perfetto::trace_processor::util::Status AppendString(
+      const std::string& string) override {
+    if (!did_strip_prefix_) {
+      DCHECK_EQ(string, kJsonPrefix);
+      did_strip_prefix_ = true;
+      return perfetto::trace_processor::util::OkStatus();
+    } else if (buffer_->data().empty() &&
+               !strncmp(string.c_str(), kJsonJoiner, strlen(kJsonJoiner))) {
+      // We only remove the leading joiner comma for the first chunk in a buffer
+      // since the consumer is expected to insert commas between the buffers we
+      // provide.
+      buffer_->data() += string.substr(strlen(kJsonJoiner));
+    } else if (!strncmp(string.c_str(), kJsonSuffix, strlen(kJsonSuffix))) {
+      return perfetto::trace_processor::util::OkStatus();
+    } else {
+      buffer_->data() += string;
+    }
+    if (buffer_->data().size() > kBufferLimitInBytes) {
+      Flush(/*has_more=*/true);
+      // Reset the buffer_ after moving it above.
+      buffer_ = new RefCountedString();
+      buffer_->data().reserve(kBufferReserveCapacity);
+    }
+    return perfetto::trace_processor::util::OkStatus();
+  }
+
+ private:
+  void Flush(bool has_more) {
+    if (flush_task_runner_) {
+      flush_task_runner_->PostTask(
+          FROM_HERE,
+          base::BindOnce(flush_callback_, std::move(buffer_), has_more));
+    } else {
+      flush_callback_.Run(std::move(buffer_), has_more);
+    }
+  }
+
+  static constexpr size_t kBufferLimitInBytes = 100 * 1024;
+  // Since we write each string before checking the limit, we'll always go
+  // slightly over and hence we reserve some extra space to avoid most
+  // reallocs.
+  static constexpr size_t kBufferReserveCapacity = kBufferLimitInBytes * 5 / 4;
+
+  scoped_refptr<SequencedTaskRunner> flush_task_runner_;
+  TraceLog::OutputCallback flush_callback_;
+  scoped_refptr<RefCountedString> buffer_ = new RefCountedString();
+  bool did_strip_prefix_ = false;
+};
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
 
 // A helper class that allows the lock to be acquired in the middle of the scope
 // and unlocks at the end of scope if locked.
 class TraceLog::OptionalAutoLock {
  public:
-  explicit OptionalAutoLock(Lock* lock) : lock_(lock), locked_(false) {}
+  explicit OptionalAutoLock(Lock* lock) : lock_(lock) {}
+
+  OptionalAutoLock(const OptionalAutoLock&) = delete;
+  OptionalAutoLock& operator=(const OptionalAutoLock&) = delete;
 
   ~OptionalAutoLock() {
     if (locked_)
       lock_->Release();
   }
 
-  void EnsureAcquired() {
+  void EnsureAcquired() EXCLUSIVE_LOCK_FUNCTION(lock_) {
     if (!locked_) {
       lock_->Acquire();
       locked_ = true;
+    } else {
+      lock_->AssertAcquired();
     }
   }
 
  private:
-  Lock* lock_;
-  bool locked_;
-  DISALLOW_COPY_AND_ASSIGN(OptionalAutoLock);
+  // This field is not a raw_ptr<> because it is needed for lock annotations.
+  RAW_PTR_EXCLUSION Lock* lock_;
+  bool locked_ = false;
 };
 
 class TraceLog::ThreadLocalEventBuffer
-    : public MessageLoopCurrent::DestructionObserver,
+    : public CurrentThread::DestructionObserver,
       public MemoryDumpProvider {
  public:
   explicit ThreadLocalEventBuffer(TraceLog* trace_log);
+  ThreadLocalEventBuffer(const ThreadLocalEventBuffer&) = delete;
+  ThreadLocalEventBuffer& operator=(const ThreadLocalEventBuffer&) = delete;
   ~ThreadLocalEventBuffer() override;
 
   TraceEvent* AddTraceEvent(TraceEventHandle* handle);
@@ -219,7 +479,7 @@ class TraceLog::ThreadLocalEventBuffer
   int generation() const { return generation_; }
 
  private:
-  // MessageLoopCurrent::DestructionObserver
+  // CurrentThread::DestructionObserver
   void WillDestroyCurrentMessageLoop() override;
 
   // MemoryDumpProvider implementation.
@@ -229,52 +489,46 @@ class TraceLog::ThreadLocalEventBuffer
   void FlushWhileLocked();
 
   void CheckThisIsCurrentBuffer() const {
-    DCHECK(trace_log_->thread_local_event_buffer_.Get() == this);
+    DCHECK_EQ(thread_local_event_buffer, this);
   }
 
+  const AutoReset<ThreadLocalEventBuffer*> resetter_{&thread_local_event_buffer,
+                                                     this, nullptr};
   // Since TraceLog is a leaky singleton, trace_log_ will always be valid
   // as long as the thread exists.
-  TraceLog* trace_log_;
+  raw_ptr<TraceLog> trace_log_;
   std::unique_ptr<TraceBufferChunk> chunk_;
-  size_t chunk_index_;
+  size_t chunk_index_ = 0;
   int generation_;
-
-  DISALLOW_COPY_AND_ASSIGN(ThreadLocalEventBuffer);
 };
 
 TraceLog::ThreadLocalEventBuffer::ThreadLocalEventBuffer(TraceLog* trace_log)
     : trace_log_(trace_log),
-      chunk_index_(0),
       generation_(trace_log->generation()) {
   // ThreadLocalEventBuffer is created only if the thread has a message loop, so
   // the following message_loop won't be NULL.
-  MessageLoop* message_loop = MessageLoop::current();
-  message_loop->AddDestructionObserver(this);
+  CurrentThread::Get()->AddDestructionObserver(this);
 
-#if !defined(STARBOARD)
   // This is to report the local memory usage when memory-infra is enabled.
   MemoryDumpManager::GetInstance()->RegisterDumpProvider(
-      this, "ThreadLocalEventBuffer", ThreadTaskRunnerHandle::Get());
-#endif
+      this, "ThreadLocalEventBuffer",
+      SingleThreadTaskRunner::GetCurrentDefault());
+
+  auto thread_id = PlatformThread::CurrentId();
 
   AutoLock lock(trace_log->lock_);
-  trace_log->thread_message_loops_.insert(message_loop);
+  trace_log->thread_task_runners_[thread_id] =
+      SingleThreadTaskRunner::GetCurrentDefault();
 }
 
 TraceLog::ThreadLocalEventBuffer::~ThreadLocalEventBuffer() {
   CheckThisIsCurrentBuffer();
-  MessageLoop::current()->RemoveDestructionObserver(this);
-
-#if !defined(STARBOARD)
+  CurrentThread::Get()->RemoveDestructionObserver(this);
   MemoryDumpManager::GetInstance()->UnregisterDumpProvider(this);
-#endif
 
-  {
-    AutoLock lock(trace_log_->lock_);
-    FlushWhileLocked();
-    trace_log_->thread_message_loops_.erase(MessageLoop::current());
-  }
-  trace_log_->thread_local_event_buffer_.Set(nullptr);
+  AutoLock lock(trace_log_->lock_);
+  FlushWhileLocked();
+  trace_log_->thread_task_runners_.erase(PlatformThread::CurrentId());
 }
 
 TraceEvent* TraceLog::ThreadLocalEventBuffer::AddTraceEvent(
@@ -308,18 +562,14 @@ void TraceLog::ThreadLocalEventBuffer::WillDestroyCurrentMessageLoop() {
 
 bool TraceLog::ThreadLocalEventBuffer::OnMemoryDump(const MemoryDumpArgs& args,
                                                     ProcessMemoryDump* pmd) {
-#if defined(STARBOARD)
-  return true;
-#else
   if (!chunk_)
     return true;
-  std::string dump_base_name = StringPrintf(
-      "tracing/thread_%d", static_cast<int>(PlatformThread::CurrentId()));
+  std::string dump_base_name =
+      "tracing/thread_" + NumberToString(PlatformThread::CurrentId());
   TraceEventMemoryOverhead overhead;
   chunk_->EstimateTraceMemoryOverhead(&overhead);
   overhead.DumpInto(dump_base_name.c_str(), pmd);
   return true;
-#endif
 }
 
 void TraceLog::ThreadLocalEventBuffer::FlushWhileLocked() {
@@ -335,19 +585,19 @@ void TraceLog::ThreadLocalEventBuffer::FlushWhileLocked() {
   // find the generation mismatch and delete this buffer soon.
 }
 
-void TraceLog::SetAddTraceEventOverride(
-    const AddTraceEventOverrideCallback& override,
-    const OnFlushCallback& on_flush_callback) {
-  subtle::NoBarrier_Store(&trace_event_override_,
-                          reinterpret_cast<subtle::AtomicWord>(override));
-  subtle::NoBarrier_Store(
-      &on_flush_callback_,
-      reinterpret_cast<subtle::AtomicWord>(on_flush_callback));
+void TraceLog::SetAddTraceEventOverrides(
+    const AddTraceEventOverrideFunction& add_event_override,
+    const OnFlushFunction& on_flush_override,
+    const UpdateDurationFunction& update_duration_override) {
+  add_trace_event_override_.store(add_event_override);
+  on_flush_override_.store(on_flush_override);
+  update_duration_override_.store(update_duration_override);
 }
 
 struct TraceLog::RegisteredAsyncObserver {
   explicit RegisteredAsyncObserver(WeakPtr<AsyncEnabledStateObserver> observer)
-      : observer(observer), task_runner(ThreadTaskRunnerHandle::Get()) {}
+      : observer(observer),
+        task_runner(SingleThreadTaskRunner::GetCurrentDefault()) {}
   ~RegisteredAsyncObserver() = default;
 
   WeakPtr<AsyncEnabledStateObserver> observer;
@@ -360,92 +610,97 @@ TraceLogStatus::~TraceLogStatus() = default;
 
 // static
 TraceLog* TraceLog::GetInstance() {
-  static base::NoDestructor<TraceLog> instance;
+  static base::NoDestructor<TraceLog> instance(0);
   return instance.get();
 }
 
 // static
 void TraceLog::ResetForTesting() {
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  auto* self = GetInstance();
+  AutoLock lock(self->observers_lock_);
+  self->enabled_state_observers_.clear();
+  self->owned_enabled_state_observer_copy_.clear();
+  self->async_observers_.clear();
+  self->InitializePerfettoIfNeeded();
+#else   // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   if (!g_trace_log_for_testing)
     return;
   {
     AutoLock lock(g_trace_log_for_testing->lock_);
     CategoryRegistry::ResetForTesting();
   }
+  // Don't reset the generation value back to 0. TraceLog is normally
+  // supposed to be a singleton and the value of generation is never
+  // supposed to decrease.
+  const int generation = g_trace_log_for_testing->generation() + 1;
   g_trace_log_for_testing->~TraceLog();
-  new (g_trace_log_for_testing) TraceLog;
+  new (g_trace_log_for_testing) TraceLog(generation);
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 }
 
-TraceLog::TraceLog()
-    : enabled_modes_(0),
-      num_traces_recorded_(0),
-      process_sort_index_(0),
+TraceLog::TraceLog(int generation)
+    : process_sort_index_(0),
       process_id_hash_(0),
-      process_id_(0),
+      process_id_(base::kNullProcessId),
       trace_options_(kInternalRecordUntilFull),
       trace_config_(TraceConfig()),
       thread_shared_chunk_index_(0),
-      generation_(0),
-      use_worker_thread_(false),
-      trace_event_override_(0),
-      on_flush_callback_(0),
-      filter_factory_for_testing_(nullptr) {
+      generation_(generation),
+      use_worker_thread_(false) {
   CategoryRegistry::Initialize();
 
-#if !defined(STARBOARD)
-#if defined(OS_NACL)  // NaCl shouldn't expose the process id.
+#if BUILDFLAG(IS_NACL)  // NaCl shouldn't expose the process id.
   SetProcessID(0);
 #else
-  SetProcessID(static_cast<int>(GetCurrentProcId()));
-#endif
-#endif
-
-// Linux renderer processes and Android O processes are not allowed to read
-// "proc/stat" file, crbug.com/788870.
-#if defined(OS_WIN) || (defined(OS_MACOSX) && !defined(OS_IOS))
-  process_creation_time_ = CurrentProcessInfo::CreationTime();
-#else
-  // Use approximate time when creation time is not available.
-  process_creation_time_ = TRACE_TIME_NOW();
+  SetProcessID(GetCurrentProcId());
 #endif
 
   logged_events_.reset(CreateTraceBuffer());
 
-#if !defined(STARBOARD)
   MemoryDumpManager::GetInstance()->RegisterDumpProvider(this, "TraceLog",
                                                          nullptr);
-#endif
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  TrackEvent::AddSessionObserver(this);
+  // When using the Perfetto client library, TRACE_EVENT macros will bypass
+  // TraceLog entirely. However, trace event embedders which haven't been ported
+  // to Perfetto yet will still be using TRACE_EVENT_API_ADD_TRACE_EVENT, so we
+  // need to route these events to Perfetto using an override here. This
+  // override is also used to capture internal metadata events.
+  SetAddTraceEventOverrides(&OnAddLegacyTraceEvent, nullptr,
+                            &OnUpdateLegacyTraceEventDuration);
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   g_trace_log_for_testing = this;
 }
 
-TraceLog::~TraceLog() = default;
+TraceLog::~TraceLog() {
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  TrackEvent::RemoveSessionObserver(this);
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+}
 
 void TraceLog::InitializeThreadLocalEventBufferIfSupported() {
-  // A ThreadLocalEventBuffer needs the message loop
+  // A ThreadLocalEventBuffer needs the message loop with a task runner
   // - to know when the thread exits;
   // - to handle the final flush.
-  // For a thread without a message loop or the message loop may be blocked, the
-  // trace events will be added into the main buffer directly.
-  if (thread_blocks_message_loop_.Get() || !MessageLoopCurrent::IsSet())
+  // For a thread without a message loop or if the message loop may be blocked,
+  // the trace events will be added into the main buffer directly.
+  if (thread_blocks_message_loop || !CurrentThread::IsSet() ||
+      !SingleThreadTaskRunner::HasCurrentDefault()) {
     return;
+  }
   HEAP_PROFILER_SCOPED_IGNORE;
-  auto* thread_local_event_buffer = thread_local_event_buffer_.Get();
   if (thread_local_event_buffer &&
       !CheckGeneration(thread_local_event_buffer->generation())) {
     delete thread_local_event_buffer;
-    thread_local_event_buffer = nullptr;
   }
   if (!thread_local_event_buffer) {
     thread_local_event_buffer = new ThreadLocalEventBuffer(this);
-    thread_local_event_buffer_.Set(thread_local_event_buffer);
   }
 }
 
 bool TraceLog::OnMemoryDump(const MemoryDumpArgs& args,
                             ProcessMemoryDump* pmd) {
-#if defined(STARBOARD)
-  return true;
-#else
   // TODO(ssid): Use MemoryDumpArgs to create light dumps when requested
   // (crbug.com/499731).
   TraceEventMemoryOverhead overhead;
@@ -461,11 +716,13 @@ bool TraceLog::OnMemoryDump(const MemoryDumpArgs& args,
   overhead.AddSelf();
   overhead.DumpInto("tracing/main_trace_log", pmd);
   return true;
-#endif
 }
 
 const unsigned char* TraceLog::GetCategoryGroupEnabled(
     const char* category_group) {
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  return TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_group);
+#else   // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   TraceLog* tracelog = GetInstance();
   if (!tracelog) {
     DCHECK(!CategoryRegistry::kCategoryAlreadyShutdown->is_enabled());
@@ -485,111 +742,144 @@ const unsigned char* TraceLog::GetCategoryGroupEnabled(
   }
   DCHECK(category->state_ptr());
   return category->state_ptr();
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 }
 
 const char* TraceLog::GetCategoryGroupName(
     const unsigned char* category_group_enabled) {
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  return TRACE_EVENT_API_GET_CATEGORY_GROUP_NAME(category_group_enabled);
+#else   // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   return CategoryRegistry::GetCategoryByStatePtr(category_group_enabled)
       ->name();
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 }
 
 void TraceLog::UpdateCategoryState(TraceCategory* category) {
   lock_.AssertAcquired();
   DCHECK(category->is_valid());
   unsigned char state_flags = 0;
-  if (enabled_modes_ & RECORDING_MODE &&
-      trace_config_.IsCategoryGroupEnabled(category->name())) {
+  if (enabled_ && trace_config_.IsCategoryGroupEnabled(category->name())) {
     state_flags |= TraceCategory::ENABLED_FOR_RECORDING;
   }
 
   // TODO(primiano): this is a temporary workaround for catapult:#2341,
   // to guarantee that metadata events are always added even if the category
   // filter is "-*". See crbug.com/618054 for more details and long-term fix.
-  if (enabled_modes_ & RECORDING_MODE &&
-      category == CategoryRegistry::kCategoryMetadata) {
+  if (enabled_ && category == CategoryRegistry::kCategoryMetadata) {
     state_flags |= TraceCategory::ENABLED_FOR_RECORDING;
   }
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   if (base::trace_event::TraceEventETWExport::IsCategoryGroupEnabled(
           category->name())) {
     state_flags |= TraceCategory::ENABLED_FOR_ETW_EXPORT;
   }
 #endif
 
-  uint32_t enabled_filters_bitmap = 0;
-  int index = 0;
-  for (const auto& event_filter : enabled_event_filters_) {
-    if (event_filter.IsCategoryGroupEnabled(category->name())) {
-      state_flags |= TraceCategory::ENABLED_FOR_FILTERING;
-      DCHECK(GetCategoryGroupFilters()[index]);
-      enabled_filters_bitmap |= 1 << index;
-    }
-    if (index++ >= MAX_TRACE_EVENT_FILTERS) {
-      NOTREACHED();
-      break;
-    }
-  }
-  category->set_enabled_filters(enabled_filters_bitmap);
   category->set_state(state_flags);
 }
 
 void TraceLog::UpdateCategoryRegistry() {
   lock_.AssertAcquired();
-  CreateFiltersForTraceConfig();
   for (TraceCategory& category : CategoryRegistry::GetAllCategories()) {
     UpdateCategoryState(&category);
   }
 }
 
-void TraceLog::CreateFiltersForTraceConfig() {
-  if (!(enabled_modes_ & FILTERING_MODE))
-    return;
-
-  // Filters were already added and tracing could be enabled. Filters list
-  // cannot be changed when trace events are using them.
-  if (GetCategoryGroupFilters().size())
-    return;
-
-  for (auto& filter_config : enabled_event_filters_) {
-    if (GetCategoryGroupFilters().size() >= MAX_TRACE_EVENT_FILTERS) {
-      NOTREACHED()
-          << "Too many trace event filters installed in the current session";
-      break;
-    }
-
-    std::unique_ptr<TraceEventFilter> new_filter;
-    const std::string& predicate_name = filter_config.predicate_name();
-    if (predicate_name == EventNameFilter::kName) {
-      auto whitelist = std::make_unique<std::unordered_set<std::string>>();
-      CHECK(filter_config.GetArgAsSet("event_name_whitelist", &*whitelist));
-      new_filter = std::make_unique<EventNameFilter>(std::move(whitelist));
-    } else if (predicate_name == HeapProfilerEventFilter::kName) {
-      new_filter = std::make_unique<HeapProfilerEventFilter>();
-    } else {
-      if (filter_factory_for_testing_)
-        new_filter = filter_factory_for_testing_(predicate_name);
-      CHECK(new_filter) << "Unknown trace filter " << predicate_name;
-    }
-    GetCategoryGroupFilters().push_back(std::move(new_filter));
-  }
-}
-
-void TraceLog::GetKnownCategoryGroups(
-    std::vector<std::string>* category_groups) {
-  for (const auto& category : CategoryRegistry::GetAllCategories()) {
-    if (!CategoryRegistry::IsBuiltinCategory(&category))
-      category_groups->push_back(category.name());
-  }
-}
-
 void TraceLog::SetEnabled(const TraceConfig& trace_config,
                           uint8_t modes_to_enable) {
-#if !defined(TRACING_DISABLED)
+  // FILTERING_MODE is no longer supported.
+  DCHECK(modes_to_enable == RECORDING_MODE);
   DCHECK(trace_config.process_filter_config().IsEnabled(process_id_));
 
   AutoLock lock(lock_);
 
+  // Perfetto only supports basic wildcard filtering, so check that we're not
+  // trying to use more complex filters.
+  for (const auto& excluded :
+       trace_config.category_filter().excluded_categories()) {
+    DCHECK(excluded.find("?") == std::string::npos);
+    DCHECK(excluded.find("*") == std::string::npos ||
+           excluded.find("*") == excluded.size() - 1);
+  }
+  for (const auto& included :
+       trace_config.category_filter().included_categories()) {
+    DCHECK(included.find("?") == std::string::npos);
+    DCHECK(included.find("*") == std::string::npos ||
+           included.find("*") == included.size() - 1);
+  }
+  for (const auto& disabled :
+       trace_config.category_filter().disabled_categories()) {
+    DCHECK(disabled.find("?") == std::string::npos);
+    DCHECK(disabled.find("*") == std::string::npos ||
+           disabled.find("*") == disabled.size() - 1);
+  }
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  DCHECK(!trace_config.IsArgumentFilterEnabled());
+
+  // TODO(khokhlov): Avoid duplication between this code and
+  // services/tracing/public/cpp/perfetto/perfetto_config.cc.
+  perfetto::TraceConfig perfetto_config;
+  size_t size_limit = trace_config.GetTraceBufferSizeInKb();
+  if (size_limit == 0)
+    size_limit = 200 * 1024;
+  auto* buffer_config = perfetto_config.add_buffers();
+  buffer_config->set_size_kb(checked_cast<uint32_t>(size_limit));
+  switch (trace_config.GetTraceRecordMode()) {
+    case base::trace_event::RECORD_UNTIL_FULL:
+    case base::trace_event::RECORD_AS_MUCH_AS_POSSIBLE:
+      buffer_config->set_fill_policy(
+          perfetto::TraceConfig::BufferConfig::DISCARD);
+      break;
+    case base::trace_event::RECORD_CONTINUOUSLY:
+      buffer_config->set_fill_policy(
+          perfetto::TraceConfig::BufferConfig::RING_BUFFER);
+      break;
+    case base::trace_event::ECHO_TO_CONSOLE:
+      // Handled below.
+      break;
+  }
+
+  // Add the track event data source.
+  // TODO(skyostil): Configure kTraceClockId as the primary trace clock.
+  auto* data_source = perfetto_config.add_data_sources();
+  auto* source_config = data_source->mutable_config();
+  source_config->set_name("track_event");
+  source_config->set_target_buffer(0);
+  auto* source_chrome_config = source_config->mutable_chrome_config();
+  source_chrome_config->set_trace_config(trace_config.ToString());
+  source_chrome_config->set_convert_to_legacy_json(true);
+
+  if (trace_config.GetTraceRecordMode() == base::trace_event::ECHO_TO_CONSOLE) {
+    perfetto::ConsoleInterceptor::Register();
+    source_config->mutable_interceptor_config()->set_name("console");
+  }
+
+  source_config->set_track_event_config_raw(
+      trace_config.ToPerfettoTrackEventConfigRaw(
+          /*privacy_filtering_enabled = */ false));
+
+  if (trace_config.IsCategoryGroupEnabled("disabled-by-default-memory-infra")) {
+    data_source = perfetto_config.add_data_sources();
+    source_config = data_source->mutable_config();
+    source_config->set_name("org.chromium.memory_instrumentation");
+    source_config->set_target_buffer(0);
+    source_chrome_config = source_config->mutable_chrome_config();
+    source_chrome_config->set_trace_config(trace_config.ToString());
+    source_chrome_config->set_convert_to_legacy_json(true);
+  }
+
+  // Clear incremental state every 0.5 seconds, so that we lose at most the
+  // first 0.5 seconds of the trace (if we wrap around Perfetto's central
+  // buffer).
+  // This value strikes balance between minimizing interned data overhead, and
+  // reducing the risk of data loss in ring buffer mode.
+  perfetto_config.mutable_incremental_state_config()->set_clear_period_ms(500);
+
+  SetEnabledImpl(trace_config, perfetto_config);
+#else   // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   // Can't enable tracing when Flush() is in progress.
   DCHECK(!flush_task_runner_);
 
@@ -605,43 +895,20 @@ void TraceLog::SetEnabled(const TraceConfig& trace_config,
     return;
   }
 
-  // Clear all filters from previous tracing session. These filters are not
-  // cleared at the end of tracing because some threads which hit trace event
-  // when disabling, could try to use the filters.
-  if (!enabled_modes_)
-    GetCategoryGroupFilters().clear();
-
   // Update trace config for recording.
-  const bool already_recording = enabled_modes_ & RECORDING_MODE;
-  if (modes_to_enable & RECORDING_MODE) {
-    if (already_recording) {
-      // TODO(ssid): Stop supporting enabling of RECORDING_MODE when already
-      // enabled crbug.com/625170.
-      DCHECK_EQ(new_options, old_options) << "Attempting to re-enable "
-                                             "tracing with a different set "
-                                             "of options.";
-      trace_config_.Merge(trace_config);
-    } else {
-      trace_config_ = trace_config;
-    }
+  const bool already_recording = enabled_;
+  if (already_recording) {
+    trace_config_.Merge(trace_config);
+  } else {
+    trace_config_ = trace_config;
   }
 
-  // Update event filters only if filtering was not enabled.
-  if (modes_to_enable & FILTERING_MODE && enabled_event_filters_.empty()) {
-    DCHECK(!trace_config.event_filters().empty());
-    enabled_event_filters_ = trace_config.event_filters();
-  }
-  // Keep the |trace_config_| updated with only enabled filters in case anyone
-  // tries to read it using |GetCurrentTraceConfig| (even if filters are
-  // empty).
-  trace_config_.SetEventFilters(enabled_event_filters_);
-
-  enabled_modes_ |= modes_to_enable;
+  enabled_ = true;
   UpdateCategoryRegistry();
 
   // Do not notify observers or create trace buffer if only enabled for
   // filtering or if recording was already enabled.
-  if (!(modes_to_enable & RECORDING_MODE) || already_recording)
+  if (already_recording)
     return;
 
   // Discard events if new trace options are different. Reducing trace buffer
@@ -649,7 +916,7 @@ void TraceLog::SetEnabled(const TraceConfig& trace_config,
   // buffer if we were not already recording.
   if (new_options != old_options ||
       (trace_config_.GetTraceBufferSizeInEvents() && !already_recording)) {
-    subtle::NoBarrier_Store(&trace_options_, new_options);
+    trace_options_.store(new_options, std::memory_order_relaxed);
     UseNextTraceBuffer();
   }
 
@@ -672,15 +939,95 @@ void TraceLog::SetEnabled(const TraceConfig& trace_config,
     }
   }
   dispatching_to_observers_ = false;
-#endif  // !defined(TRACING_DISABLED)
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 }
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+perfetto::DataSourceConfig TraceLog::GetCurrentTrackEventDataSourceConfig()
+    const {
+  AutoLock lock(track_event_lock_);
+  return track_event_config_;
+}
+
+void TraceLog::InitializePerfettoIfNeeded() {
+  // When we're using the Perfetto client library, only tests should be
+  // recording traces directly through TraceLog. Production code should instead
+  // use perfetto::Tracing::NewTrace(). Let's make sure the tracing service
+  // didn't already initialize Perfetto in this process, because it's not safe
+  // to consume trace data from arbitrary processes through TraceLog as the JSON
+  // conversion here isn't sandboxed like with the real tracing service.
+  //
+  // Note that initializing Perfetto here requires the thread pool to be ready.
+  CHECK(!perfetto::Tracing::IsInitialized() ||
+        g_perfetto_initialized_by_tracelog)
+      << "Don't use TraceLog for recording traces from non-test code. Use "
+         "perfetto::Tracing::NewTrace() instead.";
+
+  if (perfetto::Tracing::IsInitialized())
+    return;
+  g_perfetto_initialized_by_tracelog = true;
+  auto* perfetto_platform = GetOrCreatePerfettoPlatform();
+  perfetto::TracingInitArgs init_args;
+  init_args.backends = perfetto::BackendType::kInProcessBackend;
+  init_args.platform = perfetto_platform;
+  init_args.disallow_merging_with_system_tracks = true;
+  perfetto::Tracing::Initialize(init_args);
+  TrackEvent::Register();
+}
+
+void TraceLog::SetEnabled(const TraceConfig& trace_config,
+                          const perfetto::TraceConfig& perfetto_config) {
+  AutoLock lock(lock_);
+  SetEnabledImpl(trace_config, perfetto_config);
+}
+
+void TraceLog::SetEnabledImpl(const TraceConfig& trace_config,
+                              const perfetto::TraceConfig& perfetto_config) {
+  DCHECK(!TrackEvent::IsEnabled());
+  lock_.AssertAcquired();
+  InitializePerfettoIfNeeded();
+  trace_config_ = trace_config;
+  perfetto_config_ = perfetto_config;
+  tracing_session_ = perfetto::Tracing::NewTrace();
+
+  AutoUnlock unlock(lock_);
+  tracing_session_->Setup(perfetto_config);
+  tracing_session_->StartBlocking();
+}
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 void TraceLog::SetArgumentFilterPredicate(
     const ArgumentFilterPredicate& argument_filter_predicate) {
   AutoLock lock(lock_);
   DCHECK(!argument_filter_predicate.is_null());
-  DCHECK(argument_filter_predicate_.is_null());
+  // Replace the existing argument filter.
   argument_filter_predicate_ = argument_filter_predicate;
+}
+
+ArgumentFilterPredicate TraceLog::GetArgumentFilterPredicate() const {
+  AutoLock lock(lock_);
+  return argument_filter_predicate_;
+}
+
+void TraceLog::SetMetadataFilterPredicate(
+    const MetadataFilterPredicate& metadata_filter_predicate) {
+  AutoLock lock(lock_);
+  DCHECK(!metadata_filter_predicate.is_null());
+  // Replace the existing argument filter.
+  metadata_filter_predicate_ = metadata_filter_predicate;
+}
+
+MetadataFilterPredicate TraceLog::GetMetadataFilterPredicate() const {
+  AutoLock lock(lock_);
+  return metadata_filter_predicate_;
+}
+
+void TraceLog::SetRecordHostAppPackageName(bool record_host_app_package_name) {
+  record_host_app_package_name_ = record_host_app_package_name;
+}
+
+bool TraceLog::ShouldRecordHostAppPackageName() const {
+  return record_host_app_package_name_;
 }
 
 TraceLog::InternalTraceOptions TraceLog::GetInternalOptionsFromTraceConfig(
@@ -703,8 +1050,14 @@ TraceLog::InternalTraceOptions TraceLog::GetInternalOptionsFromTraceConfig(
 }
 
 TraceConfig TraceLog::GetCurrentTraceConfig() const {
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  const auto chrome_config =
+      GetCurrentTrackEventDataSourceConfig().chrome_config();
+  return TraceConfig(chrome_config.trace_config());
+#else   // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   AutoLock lock(lock_);
   return trace_config_;
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 }
 
 void TraceLog::SetDisabled() {
@@ -718,10 +1071,31 @@ void TraceLog::SetDisabled(uint8_t modes_to_disable) {
 }
 
 void TraceLog::SetDisabledWhileLocked(uint8_t modes_to_disable) {
-  lock_.AssertAcquired();
-
-  if (!(enabled_modes_ & modes_to_disable))
+  DCHECK(modes_to_disable == RECORDING_MODE);
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  if (!tracing_session_)
     return;
+
+  AddMetadataEventsWhileLocked();
+  // Remove metadata events so they will not get added to a subsequent trace.
+  metadata_events_.clear();
+
+  TrackEvent::Flush();
+  // If the current thread has an active task runner, allow nested tasks to run
+  // while stopping the session. This is needed by some tests, e.g., to allow
+  // data sources to properly flush themselves.
+  if (SingleThreadTaskRunner::HasCurrentDefault()) {
+    RunLoop stop_loop(RunLoop::Type::kNestableTasksAllowed);
+    auto quit_closure = stop_loop.QuitClosure();
+    tracing_session_->SetOnStopCallback(
+        [&quit_closure] { quit_closure.Run(); });
+    tracing_session_->Stop();
+    AutoUnlock unlock(lock_);
+    stop_loop.Run();
+  } else {
+    tracing_session_->StopBlocking();
+  }
+#else   // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
   if (dispatching_to_observers_) {
     // TODO(ssid): Change to NOTREACHED after fixing crbug.com/625170.
@@ -730,22 +1104,9 @@ void TraceLog::SetDisabledWhileLocked(uint8_t modes_to_disable) {
     return;
   }
 
-  bool is_recording_mode_disabled =
-      (enabled_modes_ & RECORDING_MODE) && (modes_to_disable & RECORDING_MODE);
-  enabled_modes_ &= ~modes_to_disable;
-
-  if (modes_to_disable & FILTERING_MODE)
-    enabled_event_filters_.clear();
-
-  if (modes_to_disable & RECORDING_MODE)
-    trace_config_.Clear();
-
+  enabled_ = false;
+  trace_config_.Clear();
   UpdateCategoryRegistry();
-
-  // Add metadata events and notify observers only if recording mode was
-  // disabled now.
-  if (!is_recording_mode_disabled)
-    return;
 
   AddMetadataEventsWhileLocked();
 
@@ -766,11 +1127,12 @@ void TraceLog::SetDisabledWhileLocked(uint8_t modes_to_disable) {
     }
   }
   dispatching_to_observers_ = false;
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 }
 
 int TraceLog::GetNumTracesRecorded() {
   AutoLock lock(lock_);
-  return IsEnabled() ? num_traces_recorded_ : -1;
+  return enabled_ ? num_traces_recorded_ : -1;
 }
 
 void TraceLog::AddEnabledStateObserver(EnabledStateObserver* listener) {
@@ -781,8 +1143,7 @@ void TraceLog::AddEnabledStateObserver(EnabledStateObserver* listener) {
 void TraceLog::RemoveEnabledStateObserver(EnabledStateObserver* listener) {
   AutoLock lock(observers_lock_);
   enabled_state_observers_.erase(
-      std::remove(enabled_state_observers_.begin(),
-                  enabled_state_observers_.end(), listener),
+      ranges::remove(enabled_state_observers_, listener),
       enabled_state_observers_.end());
 }
 
@@ -795,7 +1156,7 @@ void TraceLog::AddOwnedEnabledStateObserver(
 
 bool TraceLog::HasEnabledStateObserver(EnabledStateObserver* listener) const {
   AutoLock lock(observers_lock_);
-  return ContainsValue(enabled_state_observers_, listener);
+  return Contains(enabled_state_observers_, listener);
 }
 
 void TraceLog::AddAsyncEnabledStateObserver(
@@ -813,7 +1174,26 @@ void TraceLog::RemoveAsyncEnabledStateObserver(
 bool TraceLog::HasAsyncEnabledStateObserver(
     AsyncEnabledStateObserver* listener) const {
   AutoLock lock(observers_lock_);
-  return ContainsKey(async_observers_, listener);
+  return Contains(async_observers_, listener);
+}
+
+void TraceLog::AddIncrementalStateObserver(IncrementalStateObserver* listener) {
+  AutoLock lock(observers_lock_);
+  incremental_state_observers_.push_back(listener);
+}
+
+void TraceLog::RemoveIncrementalStateObserver(
+    IncrementalStateObserver* listener) {
+  AutoLock lock(observers_lock_);
+  incremental_state_observers_.erase(
+      ranges::remove(incremental_state_observers_, listener),
+      incremental_state_observers_.end());
+}
+
+void TraceLog::OnIncrementalStateCleared() {
+  AutoLock lock(observers_lock_);
+  for (IncrementalStateObserver* observer : incremental_state_observers_)
+    observer->OnIncrementalStateCleared();
 }
 
 TraceLogStatus TraceLog::GetStatus() const {
@@ -824,16 +1204,16 @@ TraceLogStatus TraceLog::GetStatus() const {
   return result;
 }
 
+#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 bool TraceLog::BufferIsFull() const {
   AutoLock lock(lock_);
   return logged_events_->IsFull();
 }
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 TraceEvent* TraceLog::AddEventToThreadSharedChunkWhileLocked(
     TraceEventHandle* handle,
     bool check_buffer_is_full) {
-  lock_.AssertAcquired();
-
   if (thread_shared_chunk_ && thread_shared_chunk_->IsFull()) {
     logged_events_->ReturnChunk(thread_shared_chunk_index_,
                                 std::move(thread_shared_chunk_));
@@ -858,7 +1238,6 @@ TraceEvent* TraceLog::AddEventToThreadSharedChunkWhileLocked(
 }
 
 void TraceLog::CheckIfBufferIsFullWhileLocked() {
-  lock_.AssertAcquired();
   if (logged_events_->IsFull()) {
     if (buffer_limit_reached_timestamp_.is_null()) {
       buffer_limit_reached_timestamp_ = OffsetNow();
@@ -891,6 +1270,54 @@ void TraceLog::FlushInternal(const TraceLog::OutputCallback& cb,
                              bool use_worker_thread,
                              bool discard_events) {
   use_worker_thread_ = use_worker_thread;
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+  TrackEvent::Flush();
+
+  if (!tracing_session_ || discard_events) {
+    tracing_session_.reset();
+    scoped_refptr<RefCountedString> empty_result = new RefCountedString;
+    cb.Run(empty_result, /*has_more_events=*/false);
+    return;
+  }
+
+  bool convert_to_json = true;
+  for (const auto& data_source : perfetto_config_.data_sources()) {
+    if (data_source.config().has_chrome_config() &&
+        data_source.config().chrome_config().has_convert_to_legacy_json()) {
+      convert_to_json =
+          data_source.config().chrome_config().convert_to_legacy_json();
+      break;
+    }
+  }
+
+  if (convert_to_json) {
+    perfetto::trace_processor::Config processor_config;
+    trace_processor_ =
+        perfetto::trace_processor::TraceProcessorStorage::CreateInstance(
+            processor_config);
+    json_output_writer_.reset(new JsonStringOutputWriter(
+        use_worker_thread ? SingleThreadTaskRunner::GetCurrentDefault()
+                          : nullptr,
+        cb));
+  } else {
+    proto_output_callback_ = std::move(cb);
+  }
+
+  if (use_worker_thread) {
+    tracing_session_->ReadTrace(
+        [this](perfetto::TracingSession::ReadTraceCallbackArgs args) {
+          OnTraceData(args.data, args.size, args.has_more);
+        });
+  } else {
+    auto data = tracing_session_->ReadTraceBlocking();
+    OnTraceData(data.data(), data.size(), /*has_more=*/false);
+  }
+#elif BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && BUILDFLAG(IS_NACL)
+  // Trace processor isn't built on NaCL, so we can't convert the resulting
+  // trace into JSON.
+  CHECK(false) << "JSON tracing isn't supported on NaCL";
+#else
   if (IsEnabled()) {
     // Can't flush when tracing is enabled because otherwise PostTask would
     // - generate more trace events;
@@ -904,16 +1331,15 @@ void TraceLog::FlushInternal(const TraceLog::OutputCallback& cb,
   }
 
   int gen = generation();
-  // Copy of thread_message_loops_ to be used without locking.
-  std::vector<scoped_refptr<SingleThreadTaskRunner>>
-      thread_message_loop_task_runners;
+  // Copy of thread_task_runners_ to be used without locking.
+  std::vector<scoped_refptr<SingleThreadTaskRunner>> task_runners;
   {
     AutoLock lock(lock_);
     DCHECK(!flush_task_runner_);
-    flush_task_runner_ = SequencedTaskRunnerHandle::IsSet()
-                             ? SequencedTaskRunnerHandle::Get()
+    flush_task_runner_ = SequencedTaskRunner::HasCurrentDefault()
+                             ? SequencedTaskRunner::GetCurrentDefault()
                              : nullptr;
-    DCHECK(thread_message_loops_.empty() || flush_task_runner_);
+    DCHECK(thread_task_runners_.empty() || flush_task_runner_);
     flush_output_callback_ = cb;
 
     if (thread_shared_chunk_) {
@@ -921,12 +1347,12 @@ void TraceLog::FlushInternal(const TraceLog::OutputCallback& cb,
                                   std::move(thread_shared_chunk_));
     }
 
-    for (MessageLoop* loop : thread_message_loops_)
-      thread_message_loop_task_runners.push_back(loop->task_runner());
+    for (const auto& it : thread_task_runners_)
+      task_runners.push_back(it.second);
   }
 
-  if (!thread_message_loop_task_runners.empty()) {
-    for (auto& task_runner : thread_message_loop_task_runners) {
+  if (!task_runners.empty()) {
+    for (auto& task_runner : task_runners) {
       task_runner->PostTask(
           FROM_HERE, BindOnce(&TraceLog::FlushCurrentThread, Unretained(this),
                               gen, discard_events));
@@ -935,12 +1361,45 @@ void TraceLog::FlushInternal(const TraceLog::OutputCallback& cb,
         FROM_HERE,
         BindOnce(&TraceLog::OnFlushTimeout, Unretained(this), gen,
                  discard_events),
-        TimeDelta::FromMilliseconds(kThreadFlushTimeoutMs));
+        kThreadFlushTimeout);
     return;
   }
 
   FinishFlush(gen, discard_events);
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
 }
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+void TraceLog::OnTraceData(const char* data, size_t size, bool has_more) {
+  if (proto_output_callback_) {
+    scoped_refptr<RefCountedString> chunk = new RefCountedString();
+    if (size)
+      chunk->data().assign(data, size);
+    proto_output_callback_.Run(std::move(chunk), has_more);
+    if (!has_more) {
+      proto_output_callback_.Reset();
+      tracing_session_.reset();
+    }
+    return;
+  }
+  if (size) {
+    std::unique_ptr<uint8_t[]> data_copy(new uint8_t[size]);
+    memcpy(&data_copy[0], data, size);
+    auto status = trace_processor_->Parse(std::move(data_copy), size);
+    DCHECK(status.ok()) << status.message();
+  }
+  if (has_more)
+    return;
+  trace_processor_->NotifyEndOfFile();
+
+  auto status = perfetto::trace_processor::json::ExportJson(
+      trace_processor_.get(), json_output_writer_.get());
+  DCHECK(status.ok()) << status.message();
+  trace_processor_.reset();
+  tracing_session_.reset();
+  json_output_writer_.reset();
+}
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
 
 // Usually it runs on a different thread.
 void TraceLog::ConvertTraceEventsToTraceFormat(
@@ -986,15 +1445,21 @@ void TraceLog::FinishFlush(int generation, bool discard_events) {
 
     previous_logged_events.swap(logged_events_);
     UseNextTraceBuffer();
-    thread_message_loops_.clear();
+    thread_task_runners_.clear();
 
     flush_task_runner_ = nullptr;
     flush_output_callback = flush_output_callback_;
     flush_output_callback_.Reset();
 
     if (trace_options() & kInternalEnableArgumentFilter) {
-      CHECK(!argument_filter_predicate_.is_null());
-      argument_filter_predicate = argument_filter_predicate_;
+      // If argument filtering is activated and there is no filtering predicate,
+      // use the safe default filtering predicate.
+      if (argument_filter_predicate_.is_null()) {
+        argument_filter_predicate =
+            base::BindRepeating(&DefaultIsTraceEventArgsAllowlisted);
+      } else {
+        argument_filter_predicate = argument_filter_predicate_;
+      }
     }
   }
 
@@ -1007,7 +1472,7 @@ void TraceLog::FinishFlush(int generation, bool discard_events) {
   }
 
   if (use_worker_thread_) {
-    base::PostTaskWithTraits(
+    base::ThreadPool::PostTask(
         FROM_HERE,
         {MayBlock(), TaskPriority::BEST_EFFORT,
          TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
@@ -1033,12 +1498,11 @@ void TraceLog::FlushCurrentThread(int generation, bool discard_events) {
   }
 
   // This will flush the thread local buffer.
-  delete thread_local_event_buffer_.Get();
+  delete thread_local_event_buffer;
 
-  auto on_flush_callback = reinterpret_cast<OnFlushCallback>(
-      subtle::NoBarrier_Load(&on_flush_callback_));
-  if (on_flush_callback) {
-    on_flush_callback();
+  auto on_flush_override = on_flush_override_.load(std::memory_order_relaxed);
+  if (on_flush_override) {
+    on_flush_override();
   }
 
   // Scheduler uses TRACE_EVENT macros when posting a task, which can lead
@@ -1050,7 +1514,7 @@ void TraceLog::FlushCurrentThread(int generation, bool discard_events) {
     AutoLock lock(lock_);
     cached_flush_task_runner = flush_task_runner_;
     if (!CheckGeneration(generation) || !flush_task_runner_ ||
-        !thread_message_loops_.empty())
+        !thread_task_runners_.empty())
       return;
   }
   cached_flush_task_runner->PostTask(
@@ -1071,9 +1535,9 @@ void TraceLog::OnFlushTimeout(int generation, bool discard_events) {
            "If this happens stably for some thread, please call "
            "TraceLog::GetInstance()->SetCurrentThreadBlocksMessageLoop() from "
            "the thread to avoid its trace events from being lost.";
-    for (auto it = thread_message_loops_.begin();
-         it != thread_message_loops_.end(); ++it) {
-      LOG(WARNING) << "Thread: " << (*it)->GetThreadName();
+    for (const auto& it : thread_task_runners_) {
+      LOG(WARNING) << "Thread: "
+                   << ThreadIdNameManager::GetInstance()->GetName(it.first);
     }
   }
   FinishFlush(generation, discard_events);
@@ -1081,198 +1545,40 @@ void TraceLog::OnFlushTimeout(int generation, bool discard_events) {
 
 void TraceLog::UseNextTraceBuffer() {
   logged_events_.reset(CreateTraceBuffer());
-  subtle::NoBarrier_AtomicIncrement(&generation_, 1);
+  generation_.fetch_add(1, std::memory_order_relaxed);
   thread_shared_chunk_.reset();
   thread_shared_chunk_index_ = 0;
 }
 
-TraceEventHandle TraceLog::AddTraceEvent(
+bool TraceLog::ShouldAddAfterUpdatingState(
     char phase,
     const unsigned char* category_group_enabled,
     const char* name,
-    const char* scope,
-    unsigned long long id,
-    int num_args,
-    const char* const* arg_names,
-    const unsigned char* arg_types,
-    const unsigned long long* arg_values,
-    std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
-    unsigned int flags) {
-  int thread_id = static_cast<int>(base::PlatformThread::CurrentId());
-  base::TimeTicks now = TRACE_TIME_TICKS_NOW();
-  return AddTraceEventWithThreadIdAndTimestamp(
-      phase,
-      category_group_enabled,
-      name,
-      scope,
-      id,
-      trace_event_internal::kNoId,  // bind_id
-      thread_id,
-      now,
-      num_args,
-      arg_names,
-      arg_types,
-      arg_values,
-      convertable_values,
-      flags);
-}
-
-TraceEventHandle TraceLog::AddTraceEventWithBindId(
-    char phase,
-    const unsigned char* category_group_enabled,
-    const char* name,
-    const char* scope,
-    unsigned long long id,
-    unsigned long long bind_id,
-    int num_args,
-    const char* const* arg_names,
-    const unsigned char* arg_types,
-    const unsigned long long* arg_values,
-    std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
-    unsigned int flags) {
-  int thread_id = static_cast<int>(base::PlatformThread::CurrentId());
-  base::TimeTicks now = TRACE_TIME_TICKS_NOW();
-  return AddTraceEventWithThreadIdAndTimestamp(
-      phase,
-      category_group_enabled,
-      name,
-      scope,
-      id,
-      bind_id,
-      thread_id,
-      now,
-      num_args,
-      arg_names,
-      arg_types,
-      arg_values,
-      convertable_values,
-      flags | TRACE_EVENT_FLAG_HAS_CONTEXT_ID);
-}
-
-TraceEventHandle TraceLog::AddTraceEventWithProcessId(
-    char phase,
-    const unsigned char* category_group_enabled,
-    const char* name,
-    const char* scope,
-    unsigned long long id,
-    int process_id,
-    int num_args,
-    const char* const* arg_names,
-    const unsigned char* arg_types,
-    const unsigned long long* arg_values,
-    std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
-    unsigned int flags) {
-  base::TimeTicks now = TRACE_TIME_TICKS_NOW();
-  return AddTraceEventWithThreadIdAndTimestamp(
-      phase,
-      category_group_enabled,
-      name,
-      scope,
-      id,
-      trace_event_internal::kNoId,  // bind_id
-      process_id,
-      now,
-      num_args,
-      arg_names,
-      arg_types,
-      arg_values,
-      convertable_values,
-      flags | TRACE_EVENT_FLAG_HAS_PROCESS_ID);
-}
-
-// Handle legacy calls to AddTraceEventWithThreadIdAndTimestamp
-// with kNoId as bind_id
-TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamp(
-    char phase,
-    const unsigned char* category_group_enabled,
-    const char* name,
-    const char* scope,
-    unsigned long long id,
-    int thread_id,
-    const TimeTicks& timestamp,
-    int num_args,
-    const char* const* arg_names,
-    const unsigned char* arg_types,
-    const unsigned long long* arg_values,
-    std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
-    unsigned int flags) {
-  return AddTraceEventWithThreadIdAndTimestamp(
-      phase,
-      category_group_enabled,
-      name,
-      scope,
-      id,
-      trace_event_internal::kNoId,  // bind_id
-      thread_id,
-      timestamp,
-      num_args,
-      arg_names,
-      arg_types,
-      arg_values,
-      convertable_values,
-      flags);
-}
-
-TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamp(
-    char phase,
-    const unsigned char* category_group_enabled,
-    const char* name,
-    const char* scope,
-    unsigned long long id,
-    unsigned long long bind_id,
-    int thread_id,
-    const TimeTicks& timestamp,
-    int num_args,
-    const char* const* arg_names,
-    const unsigned char* arg_types,
-    const unsigned long long* arg_values,
-    std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
-    unsigned int flags) {
-  TraceEventHandle handle = {0, 0, 0};
+    uint64_t id,
+    PlatformThreadId thread_id,
+    TraceArguments* args) {
   if (!*category_group_enabled)
-    return handle;
+    return false;
 
   // Avoid re-entrance of AddTraceEvent. This may happen in GPU process when
   // ECHO_TO_CONSOLE is enabled: AddTraceEvent -> LOG(ERROR) ->
   // GpuProcessLogMessageHandler -> PostPendingTask -> TRACE_EVENT ...
-  if (thread_is_in_trace_event_.Get())
-    return handle;
-
-  AutoThreadLocalBoolean thread_is_in_trace_event(&thread_is_in_trace_event_);
-
-  DCHECK(name);
-  DCHECK(!timestamp.is_null());
-
-  if (flags & TRACE_EVENT_FLAG_MANGLE_ID) {
-    if ((flags & TRACE_EVENT_FLAG_FLOW_IN) ||
-        (flags & TRACE_EVENT_FLAG_FLOW_OUT))
-      bind_id = MangleEventId(bind_id);
-    id = MangleEventId(id);
-  }
-
-  TimeTicks offset_event_timestamp = OffsetTimestamp(timestamp);
-  ThreadTicks thread_now = ThreadNow();
-
-  ThreadLocalEventBuffer* thread_local_event_buffer = nullptr;
-  if (*category_group_enabled & RECORDING_MODE) {
-    // |thread_local_event_buffer_| can be null if the current thread doesn't
-    // have a message loop or the message loop is blocked.
-    InitializeThreadLocalEventBufferIfSupported();
-    thread_local_event_buffer = thread_local_event_buffer_.Get();
+  if (thread_is_in_trace_event) {
+    return false;
   }
 
   // Check and update the current thread name only if the event is for the
   // current thread to avoid locks in most cases.
-  if (thread_id == static_cast<int>(PlatformThread::CurrentId())) {
+  if (thread_id == PlatformThread::CurrentId()) {
     const char* new_name =
-        ThreadIdNameManager::GetInstance()->GetName(thread_id);
+        ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
     // Check if the thread name has been set or changed since the previous
     // call (if any), but don't bother if the new name is empty. Note this will
     // not detect a thread name change within the same char* buffer address: we
     // favor common case performance over corner case correctness.
-    static auto* current_thread_name = new ThreadLocalPointer<const char>();
-    if (new_name != current_thread_name->Get() && new_name && *new_name) {
-      current_thread_name->Set(new_name);
+    thread_local const char* current_thread_name = nullptr;
+    if (new_name != current_thread_name && new_name && *new_name) {
+      current_thread_name = new_name;
 
       AutoLock thread_info_lock(thread_info_lock_);
 
@@ -1286,93 +1592,194 @@ TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamp(
         std::vector<StringPiece> existing_names = base::SplitStringPiece(
             existing_name->second, ",", base::KEEP_WHITESPACE,
             base::SPLIT_WANT_NONEMPTY);
-        if (!ContainsValue(existing_names, new_name)) {
-          if (!existing_names.empty())
+        if (!Contains(existing_names, new_name)) {
+          if (!existing_names.empty()) {
             existing_name->second.push_back(',');
+          }
           existing_name->second.append(new_name);
         }
       }
     }
   }
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   // This is done sooner rather than later, to avoid creating the event and
   // acquiring the lock, which is not needed for ETW as it's already threadsafe.
-  if (*category_group_enabled & TraceCategory::ENABLED_FOR_ETW_EXPORT)
+  if (*category_group_enabled & TraceCategory::ENABLED_FOR_ETW_EXPORT) {
+    // ETW export expects non-null event names.
+    name = name ? name : "";
     TraceEventETWExport::AddEvent(phase, category_group_enabled, name, id,
-                                  num_args, arg_names, arg_types, arg_values,
-                                  convertable_values);
-#endif  // OS_WIN
+                                  args);
+  }
+#endif  // BUILDFLAG(IS_WIN)
+  return true;
+}
 
-  AddTraceEventOverrideCallback trace_event_override =
-      reinterpret_cast<AddTraceEventOverrideCallback>(
-          subtle::NoBarrier_Load(&trace_event_override_));
-  if (trace_event_override) {
-    TraceEvent new_trace_event;
-    // If we have an override in place for events, rather than sending
-    // them to the tracelog, we don't have a way of going back and updating
-    // the duration of _COMPLETE events. Instead, we emit separate _BEGIN
-    // and _END events.
-    if (phase == TRACE_EVENT_PHASE_COMPLETE)
-      phase = TRACE_EVENT_PHASE_BEGIN;
+TraceEventHandle TraceLog::AddTraceEvent(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    TraceArguments* args,
+    unsigned int flags) {
+  auto thread_id = base::PlatformThread::CurrentId();
+  base::TimeTicks now = TRACE_TIME_TICKS_NOW();
+  return AddTraceEventWithThreadIdAndTimestamp(
+      phase, category_group_enabled, name, scope, id,
+      trace_event_internal::kNoId,  // bind_id
+      thread_id, now, args, flags);
+}
 
-    new_trace_event.Initialize(thread_id, offset_event_timestamp, thread_now,
-                               phase, category_group_enabled, name, scope, id,
-                               bind_id, num_args, arg_names, arg_types,
-                               arg_values, convertable_values, flags);
+TraceEventHandle TraceLog::AddTraceEventWithBindId(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    uint64_t bind_id,
+    TraceArguments* args,
+    unsigned int flags) {
+  auto thread_id = base::PlatformThread::CurrentId();
+  base::TimeTicks now = TRACE_TIME_TICKS_NOW();
+  return AddTraceEventWithThreadIdAndTimestamp(
+      phase, category_group_enabled, name, scope, id, bind_id, thread_id, now,
+      args, flags | TRACE_EVENT_FLAG_HAS_CONTEXT_ID);
+}
 
-    trace_event_override(new_trace_event);
+TraceEventHandle TraceLog::AddTraceEventWithProcessId(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    ProcessId process_id,
+    TraceArguments* args,
+    unsigned int flags) {
+  base::TimeTicks now = TRACE_TIME_TICKS_NOW();
+  return AddTraceEventWithThreadIdAndTimestamp(
+      phase, category_group_enabled, name, scope, id,
+      trace_event_internal::kNoId,  // bind_id
+      static_cast<PlatformThreadId>(process_id), now, args,
+      flags | TRACE_EVENT_FLAG_HAS_PROCESS_ID);
+}
+
+// Handle legacy calls to AddTraceEventWithThreadIdAndTimestamp
+// with kNoId as bind_id
+TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamp(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    PlatformThreadId thread_id,
+    const TimeTicks& timestamp,
+    TraceArguments* args,
+    unsigned int flags) {
+  return AddTraceEventWithThreadIdAndTimestamp(
+      phase, category_group_enabled, name, scope, id,
+      trace_event_internal::kNoId,  // bind_id
+      thread_id, timestamp, args, flags);
+}
+
+TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamp(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    uint64_t bind_id,
+    PlatformThreadId thread_id,
+    const TimeTicks& timestamp,
+    TraceArguments* args,
+    unsigned int flags) {
+  ThreadTicks thread_now;
+  // If timestamp is provided explicitly, don't record thread time as it would
+  // be for the wrong timestamp. Similarly, if we record an event for another
+  // process or thread, we shouldn't report the current thread's thread time.
+  if (!(flags & TRACE_EVENT_FLAG_EXPLICIT_TIMESTAMP ||
+        flags & TRACE_EVENT_FLAG_HAS_PROCESS_ID ||
+        thread_id != PlatformThread::CurrentId())) {
+    thread_now = ThreadNow();
+  }
+  return AddTraceEventWithThreadIdAndTimestamps(
+      phase, category_group_enabled, name, scope, id, bind_id, thread_id,
+      timestamp, thread_now, args, flags);
+}
+
+TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamps(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    uint64_t bind_id,
+    PlatformThreadId thread_id,
+    const TimeTicks& timestamp,
+    const ThreadTicks& thread_timestamp,
+    TraceArguments* args,
+    unsigned int flags) NO_THREAD_SAFETY_ANALYSIS {
+  TraceEventHandle handle = {0, 0, 0};
+  if (!ShouldAddAfterUpdatingState(phase, category_group_enabled, name, id,
+                                   thread_id, args)) {
     return handle;
+  }
+  DCHECK(!timestamp.is_null());
+
+  const AutoReset<bool> resetter(&thread_is_in_trace_event, true, false);
+
+  // Flow bind_ids don't have scopes, so we need to mangle in-process ones to
+  // avoid collisions.
+  bool has_flow =
+      flags & (TRACE_EVENT_FLAG_FLOW_OUT | TRACE_EVENT_FLAG_FLOW_IN);
+  if (has_flow && (flags & TRACE_EVENT_FLAG_HAS_LOCAL_ID))
+    bind_id = MangleEventId(bind_id);
+
+  TimeTicks offset_event_timestamp = OffsetTimestamp(timestamp);
+
+  ThreadLocalEventBuffer* event_buffer = nullptr;
+  if (*category_group_enabled & RECORDING_MODE) {
+    // |thread_local_event_buffer| can be null if the current thread doesn't
+    // have a message loop or the message loop is blocked.
+    InitializeThreadLocalEventBufferIfSupported();
+    event_buffer = thread_local_event_buffer;
+  }
+
+  if (*category_group_enabled & RECORDING_MODE) {
+    auto trace_event_override =
+        add_trace_event_override_.load(std::memory_order_relaxed);
+    if (trace_event_override) {
+      TraceEvent new_trace_event(
+          thread_id, offset_event_timestamp, thread_timestamp, phase,
+          category_group_enabled, name, scope, id, bind_id, args, flags);
+
+      trace_event_override(&new_trace_event,
+                           /*thread_will_flush=*/event_buffer != nullptr,
+                           &handle);
+      return handle;
+    }
   }
 
   std::string console_message;
-  std::unique_ptr<TraceEvent> filtered_trace_event;
-  bool disabled_by_filters = false;
-  if (*category_group_enabled & TraceCategory::ENABLED_FOR_FILTERING) {
-    std::unique_ptr<TraceEvent> new_trace_event(new TraceEvent);
-    new_trace_event->Initialize(thread_id, offset_event_timestamp, thread_now,
-                                phase, category_group_enabled, name, scope, id,
-                                bind_id, num_args, arg_names, arg_types,
-                                arg_values, convertable_values, flags);
-
-    disabled_by_filters = true;
-    ForEachCategoryFilter(
-        category_group_enabled, [&new_trace_event, &disabled_by_filters](
-                                    TraceEventFilter* trace_event_filter) {
-          if (trace_event_filter->FilterTraceEvent(*new_trace_event))
-            disabled_by_filters = false;
-        });
-    if (!disabled_by_filters)
-      filtered_trace_event = std::move(new_trace_event);
-  }
 
   // If enabled for recording, the event should be added only if one of the
   // filters indicates or category is not enabled for filtering.
-  if ((*category_group_enabled & TraceCategory::ENABLED_FOR_RECORDING) &&
-      !disabled_by_filters) {
+  if ((*category_group_enabled & TraceCategory::ENABLED_FOR_RECORDING)) {
     OptionalAutoLock lock(&lock_);
 
     TraceEvent* trace_event = nullptr;
-    if (thread_local_event_buffer) {
-      trace_event = thread_local_event_buffer->AddTraceEvent(&handle);
+    if (event_buffer) {
+      trace_event = event_buffer->AddTraceEvent(&handle);
     } else {
       lock.EnsureAcquired();
       trace_event = AddEventToThreadSharedChunkWhileLocked(&handle, true);
     }
 
+    // NO_THREAD_SAFETY_ANALYSIS: Conditional locking above.
     if (trace_event) {
-      if (filtered_trace_event) {
-        trace_event->MoveFrom(std::move(filtered_trace_event));
-      } else {
-        trace_event->Initialize(thread_id, offset_event_timestamp, thread_now,
-                                phase, category_group_enabled, name, scope, id,
-                                bind_id, num_args, arg_names, arg_types,
-                                arg_values, convertable_values, flags);
-      }
-
-#if defined(OS_ANDROID)
-      trace_event->SendToATrace();
-#endif
+      trace_event->Reset(thread_id, offset_event_timestamp, thread_timestamp,
+                         phase, category_group_enabled, name, scope, id,
+                         bind_id, args, flags);
     }
 
     if (trace_options() & kInternalEchoToConsole) {
@@ -1388,34 +1795,28 @@ TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamp(
   return handle;
 }
 
-void TraceLog::AddMetadataEvent(
-    const unsigned char* category_group_enabled,
-    const char* name,
-    int num_args,
-    const char* const* arg_names,
-    const unsigned char* arg_types,
-    const unsigned long long* arg_values,
-    std::unique_ptr<ConvertableToTraceFormat>* convertable_values,
-    unsigned int flags) {
+void TraceLog::AddMetadataEvent(const unsigned char* category_group_enabled,
+                                const char* name,
+                                TraceArguments* args,
+                                unsigned int flags) {
   HEAP_PROFILER_SCOPED_IGNORE;
-  std::unique_ptr<TraceEvent> trace_event(new TraceEvent);
-  int thread_id = static_cast<int>(base::PlatformThread::CurrentId());
+  auto thread_id = base::PlatformThread::CurrentId();
   ThreadTicks thread_now = ThreadNow();
   TimeTicks now = OffsetNow();
   AutoLock lock(lock_);
-  trace_event->Initialize(
+  auto trace_event = std::make_unique<TraceEvent>(
       thread_id, now, thread_now, TRACE_EVENT_PHASE_METADATA,
       category_group_enabled, name,
       trace_event_internal::kGlobalScope,  // scope
       trace_event_internal::kNoId,         // id
       trace_event_internal::kNoId,         // bind_id
-      num_args, arg_names, arg_types, arg_values, convertable_values, flags);
+      args, flags);
   metadata_events_.push_back(std::move(trace_event));
 }
 
 // May be called when a COMPELETE event ends and the unfinished event has been
 // recycled (phase == TRACE_EVENT_PHASE_END and trace_event == NULL).
-std::string TraceLog::EventToConsoleMessage(unsigned char phase,
+std::string TraceLog::EventToConsoleMessage(char phase,
                                             const TimeTicks& timestamp,
                                             TraceEvent* trace_event) {
   HEAP_PROFILER_SCOPED_IGNORE;
@@ -1426,7 +1827,7 @@ std::string TraceLog::EventToConsoleMessage(unsigned char phase,
   DCHECK(phase != TRACE_EVENT_PHASE_COMPLETE);
 
   TimeDelta duration;
-  int thread_id =
+  auto thread_id =
       trace_event ? trace_event->thread_id() : PlatformThread::CurrentId();
   if (phase == TRACE_EVENT_PHASE_END) {
     duration = timestamp - thread_event_start_times_[thread_id].top();
@@ -1440,7 +1841,7 @@ std::string TraceLog::EventToConsoleMessage(unsigned char phase,
   }
 
   std::ostringstream log;
-  log << base::StringPrintf("%s: \x1b[0;3%dm", thread_name.c_str(),
+  log << base::StringPrintf("%s: \x1b[0;3%" PRIuS "m", thread_name.c_str(),
                             thread_colors_[thread_name]);
 
   size_t depth = 0;
@@ -1464,81 +1865,55 @@ std::string TraceLog::EventToConsoleMessage(unsigned char phase,
   return log.str();
 }
 
-void TraceLog::EndFilteredEvent(const unsigned char* category_group_enabled,
-                                const char* name,
-                                TraceEventHandle handle) {
-  const char* category_name = GetCategoryGroupName(category_group_enabled);
-  ForEachCategoryFilter(
-      category_group_enabled,
-      [name, category_name](TraceEventFilter* trace_event_filter) {
-        trace_event_filter->EndEvent(category_name, name);
-      });
-}
-
 void TraceLog::UpdateTraceEventDuration(
     const unsigned char* category_group_enabled,
     const char* name,
     TraceEventHandle handle) {
-  char category_group_enabled_local = *category_group_enabled;
-  if (!category_group_enabled_local)
+  if (!*category_group_enabled)
     return;
 
-  UpdateTraceEventDurationExplicit(category_group_enabled, name, handle,
-                                   OffsetNow(), ThreadNow());
+  UpdateTraceEventDurationExplicit(
+      category_group_enabled, name, handle, base::PlatformThread::CurrentId(),
+      /*explicit_timestamps=*/false, OffsetNow(), ThreadNow());
 }
 
 void TraceLog::UpdateTraceEventDurationExplicit(
     const unsigned char* category_group_enabled,
     const char* name,
     TraceEventHandle handle,
+    PlatformThreadId thread_id,
+    bool explicit_timestamps,
     const TimeTicks& now,
     const ThreadTicks& thread_now) {
-  char category_group_enabled_local = *category_group_enabled;
-  if (!category_group_enabled_local)
+  if (!*category_group_enabled)
     return;
 
   // Avoid re-entrance of AddTraceEvent. This may happen in GPU process when
   // ECHO_TO_CONSOLE is enabled: AddTraceEvent -> LOG(ERROR) ->
   // GpuProcessLogMessageHandler -> PostPendingTask -> TRACE_EVENT ...
-  if (thread_is_in_trace_event_.Get())
+  if (thread_is_in_trace_event) {
     return;
-  AutoThreadLocalBoolean thread_is_in_trace_event(&thread_is_in_trace_event_);
+  }
+  const AutoReset<bool> resetter(&thread_is_in_trace_event, true);
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   // Generate an ETW event that marks the end of a complete event.
-  if (category_group_enabled_local & TraceCategory::ENABLED_FOR_ETW_EXPORT)
-    TraceEventETWExport::AddCompleteEndEvent(name);
-#endif  // OS_WIN
+  if (*category_group_enabled & TraceCategory::ENABLED_FOR_ETW_EXPORT)
+    TraceEventETWExport::AddCompleteEndEvent(category_group_enabled, name);
+#endif  // BUILDFLAG(IS_WIN)
 
-  if (category_group_enabled_local & TraceCategory::ENABLED_FOR_RECORDING) {
-    AddTraceEventOverrideCallback trace_event_override =
-        reinterpret_cast<AddTraceEventOverrideCallback>(
-            subtle::NoBarrier_Load(&trace_event_override_));
-
-    // If we send events off to an override instead of the TraceBuffer,
-    // we don't have way of updating the prior event so we'll emit a
-    // separate _END event instead.
-    if (trace_event_override) {
-      TraceEvent new_trace_event;
-      new_trace_event.Initialize(
-          static_cast<int>(base::PlatformThread::CurrentId()), now, thread_now,
-          TRACE_EVENT_PHASE_END, category_group_enabled, name,
-          trace_event_internal::kGlobalScope,
-          trace_event_internal::kNoId /* id */,
-          trace_event_internal::kNoId /* bind_id */, 0, nullptr, nullptr,
-          nullptr, nullptr, TRACE_EVENT_FLAG_NONE);
-      trace_event_override(new_trace_event);
-
-#if defined(OS_ANDROID)
-      new_trace_event.SendToATrace();
-#endif
-
+  if (*category_group_enabled & TraceCategory::ENABLED_FOR_RECORDING) {
+    auto update_duration_override =
+        update_duration_override_.load(std::memory_order_relaxed);
+    if (update_duration_override) {
+      update_duration_override(category_group_enabled, name, handle, thread_id,
+                               explicit_timestamps, now, thread_now);
       return;
     }
   }
 
   std::string console_message;
-  if (category_group_enabled_local & TraceCategory::ENABLED_FOR_RECORDING) {
+  if (*category_group_enabled & TraceCategory::ENABLED_FOR_RECORDING) {
     OptionalAutoLock lock(&lock_);
 
     TraceEvent* trace_event = GetEventByHandleInternal(handle, &lock);
@@ -1546,9 +1921,6 @@ void TraceLog::UpdateTraceEventDurationExplicit(
       DCHECK(trace_event->phase() == TRACE_EVENT_PHASE_COMPLETE);
 
       trace_event->UpdateDuration(now, thread_now);
-#if defined(OS_ANDROID)
-      trace_event->SendToATrace();
-#endif
     }
 
     if (trace_options() & kInternalEchoToConsole) {
@@ -1559,9 +1931,6 @@ void TraceLog::UpdateTraceEventDurationExplicit(
 
   if (!console_message.empty())
     LOG(ERROR) << console_message;
-
-  if (category_group_enabled_local & TraceCategory::ENABLED_FOR_FILTERING)
-    EndFilteredEvent(category_group_enabled, name, handle);
 }
 
 uint64_t TraceLog::MangleEventId(uint64_t id) {
@@ -1569,17 +1938,17 @@ uint64_t TraceLog::MangleEventId(uint64_t id) {
 }
 
 template <typename T>
-void TraceLog::AddMetadataEventWhileLocked(int thread_id,
+void TraceLog::AddMetadataEventWhileLocked(PlatformThreadId thread_id,
                                            const char* metadata_name,
                                            const char* arg_name,
                                            const T& value) {
-  auto trace_event_override = reinterpret_cast<AddTraceEventOverrideCallback>(
-      subtle::NoBarrier_Load(&trace_event_override_));
+  auto trace_event_override =
+      add_trace_event_override_.load(std::memory_order_relaxed);
   if (trace_event_override) {
     TraceEvent trace_event;
     InitializeMetadataEvent(&trace_event, thread_id, metadata_name, arg_name,
                             value);
-    trace_event_override(trace_event);
+    trace_event_override(&trace_event, /*thread_will_flush=*/true, nullptr);
   } else {
     InitializeMetadataEvent(
         AddEventToThreadSharedChunkWhileLocked(nullptr, false), thread_id,
@@ -1588,55 +1957,46 @@ void TraceLog::AddMetadataEventWhileLocked(int thread_id,
 }
 
 void TraceLog::AddMetadataEventsWhileLocked() {
-  lock_.AssertAcquired();
-
-  auto trace_event_override = reinterpret_cast<AddTraceEventOverrideCallback>(
-      subtle::NoBarrier_Load(&trace_event_override_));
+  auto trace_event_override =
+      add_trace_event_override_.load(std::memory_order_relaxed);
 
   // Move metadata added by |AddMetadataEvent| into the trace log.
   if (trace_event_override) {
     while (!metadata_events_.empty()) {
-      trace_event_override(*metadata_events_.back());
+      trace_event_override(metadata_events_.back().get(),
+                           /*thread_will_flush=*/true, nullptr);
       metadata_events_.pop_back();
     }
   } else {
     while (!metadata_events_.empty()) {
       TraceEvent* event =
           AddEventToThreadSharedChunkWhileLocked(nullptr, false);
-      event->MoveFrom(std::move(metadata_events_.back()));
+      *event = std::move(*metadata_events_.back());
       metadata_events_.pop_back();
     }
   }
 
-#if !defined(OS_NACL)  // NaCl shouldn't expose the process id.
+#if !BUILDFLAG(IS_NACL)  // NaCl shouldn't expose the process id.
   AddMetadataEventWhileLocked(0, "num_cpus", "number",
                               base::SysInfo::NumberOfProcessors());
 #endif
 
-  int current_thread_id = static_cast<int>(base::PlatformThread::CurrentId());
+  auto current_thread_id = base::PlatformThread::CurrentId();
   if (process_sort_index_ != 0) {
     AddMetadataEventWhileLocked(current_thread_id, "process_sort_index",
                                 "sort_index", process_sort_index_);
   }
 
-  if (!process_name_.empty()) {
-    AddMetadataEventWhileLocked(current_thread_id, "process_name", "name",
-                                process_name_);
-  }
-
-  TimeDelta process_uptime = TRACE_TIME_NOW() - process_creation_time_;
-  AddMetadataEventWhileLocked(current_thread_id, "process_uptime_seconds",
-                              "uptime", process_uptime.InSeconds());
-
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   AddMetadataEventWhileLocked(current_thread_id, "chrome_library_address",
                               "start_address",
                               base::StringPrintf("%p", &__executable_start));
-  base::Optional<std::string> buildid =
-      base::debug::ReadElfBuildId(&__executable_start);
-  if (buildid) {
+  base::debug::ElfBuildIdBuffer build_id;
+  size_t build_id_length =
+      base::debug::ReadElfBuildId(&__executable_start, true, build_id);
+  if (build_id_length > 0) {
     AddMetadataEventWhileLocked(current_thread_id, "chrome_library_module",
-                                "id", buildid.value());
+                                "id", std::string(build_id));
   }
 #endif
 
@@ -1656,14 +2016,6 @@ void TraceLog::AddMetadataEventsWhileLocked() {
                                 it.second);
   }
 
-  // Thread names.
-  AutoLock thread_info_lock(thread_info_lock_);
-  for (const auto& it : thread_names_) {
-    if (it.second.empty())
-      continue;
-    AddMetadataEventWhileLocked(it.first, "thread_name", "name", it.second);
-  }
-
   // If buffer is full, add a metadata record to report this.
   if (!buffer_limit_reached_timestamp_.is_null()) {
     AddMetadataEventWhileLocked(current_thread_id, "trace_buffer_overflowed",
@@ -1677,7 +2029,8 @@ TraceEvent* TraceLog::GetEventByHandle(TraceEventHandle handle) {
 }
 
 TraceEvent* TraceLog::GetEventByHandleInternal(TraceEventHandle handle,
-                                               OptionalAutoLock* lock) {
+                                               OptionalAutoLock* lock)
+    NO_THREAD_SAFETY_ANALYSIS {
   if (!handle.chunk_seq)
     return nullptr;
 
@@ -1685,15 +2038,16 @@ TraceEvent* TraceLog::GetEventByHandleInternal(TraceEventHandle handle,
   DCHECK(handle.chunk_index <= TraceBufferChunk::kMaxChunkIndex);
   DCHECK(handle.event_index <= TraceBufferChunk::kTraceBufferChunkSize - 1);
 
-  if (thread_local_event_buffer_.Get()) {
+  if (thread_local_event_buffer) {
     TraceEvent* trace_event =
-        thread_local_event_buffer_.Get()->GetEventByHandle(handle);
+        thread_local_event_buffer->GetEventByHandle(handle);
     if (trace_event)
       return trace_event;
   }
 
   // The event has been out-of-control of the thread local buffer.
   // Try to get the event from the main buffer with a lock.
+  // NO_THREAD_SAFETY_ANALYSIS: runtime-dependent locking here.
   if (lock)
     lock->EnsureAcquired();
 
@@ -1707,13 +2061,13 @@ TraceEvent* TraceLog::GetEventByHandleInternal(TraceEventHandle handle,
   return logged_events_->GetEventByHandle(handle);
 }
 
-void TraceLog::SetProcessID(int process_id) {
+void TraceLog::SetProcessID(ProcessId process_id) {
   process_id_ = process_id;
   // Create a FNV hash from the process ID for XORing.
   // See http://isthe.com/chongo/tech/comp/fnv/ for algorithm details.
-  const unsigned long long kOffsetBasis = 14695981039346656037ull;
-  const unsigned long long kFnvPrime = 1099511628211ull;
-  const unsigned long long pid = static_cast<unsigned long long>(process_id_);
+  const uint64_t kOffsetBasis = 14695981039346656037ull;
+  const uint64_t kFnvPrime = 1099511628211ull;
+  const uint64_t pid = static_cast<uint64_t>(process_id_);
   process_id_hash_ = (kOffsetBasis ^ pid) * kFnvPrime;
 }
 
@@ -1722,10 +2076,31 @@ void TraceLog::SetProcessSortIndex(int sort_index) {
   process_sort_index_ = sort_index;
 }
 
+void TraceLog::OnSetProcessName(const std::string& process_name) {
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  if (perfetto::Tracing::IsInitialized()) {
+    auto track = perfetto::ProcessTrack::Current();
+    auto desc = track.Serialize();
+    desc.mutable_process()->set_process_name(process_name);
+    desc.mutable_process()->set_pid(static_cast<int>(process_id_));
+    TrackEvent::SetTrackDescriptor(track, std::move(desc));
+  }
+#endif
+}
+
 void TraceLog::UpdateProcessLabel(int label_id,
                                   const std::string& current_label) {
   if (!current_label.length())
     return RemoveProcessLabel(label_id);
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  if (perfetto::Tracing::IsInitialized()) {
+    auto track = perfetto::ProcessTrack::Current();
+    auto desc = track.Serialize();
+    desc.mutable_process()->add_process_labels(current_label);
+    TrackEvent::SetTrackDescriptor(track, std::move(desc));
+  }
+#endif
 
   AutoLock lock(lock_);
   process_labels_[label_id] = current_label;
@@ -1738,21 +2113,24 @@ void TraceLog::RemoveProcessLabel(int label_id) {
 
 void TraceLog::SetThreadSortIndex(PlatformThreadId thread_id, int sort_index) {
   AutoLock lock(lock_);
-  thread_sort_indices_[static_cast<int>(thread_id)] = sort_index;
+  thread_sort_indices_[thread_id] = sort_index;
 }
 
+#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 void TraceLog::SetTimeOffset(TimeDelta offset) {
   time_offset_ = offset;
 }
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 size_t TraceLog::GetObserverCountForTest() const {
+  AutoLock lock(observers_lock_);
   return enabled_state_observers_.size();
 }
 
 void TraceLog::SetCurrentThreadBlocksMessageLoop() {
-  thread_blocks_message_loop_.Set(true);
+  thread_blocks_message_loop = true;
   // This will flush the thread local buffer.
-  delete thread_local_event_buffer_.Get();
+  delete thread_local_event_buffer;
 }
 
 TraceBuffer* TraceLog::CreateTraceBuffer() {
@@ -1780,7 +2158,7 @@ TraceBuffer* TraceLog::CreateTraceBuffer() {
                                : kTraceEventVectorBufferChunks);
 }
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 void TraceLog::UpdateETWCategoryGroupEnabledFlags() {
   // Go through each category and set/clear the ETW bit depending on whether the
   // category is enabled.
@@ -1793,7 +2171,7 @@ void TraceLog::UpdateETWCategoryGroupEnabledFlags() {
     }
   }
 }
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 void TraceLog::SetTraceBufferForTesting(
     std::unique_ptr<TraceBuffer> trace_buffer) {
@@ -1801,19 +2179,185 @@ void TraceLog::SetTraceBufferForTesting(
   logged_events_ = std::move(trace_buffer);
 }
 
-#if !defined(STARBOARD)
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+tracing::PerfettoPlatform* TraceLog::GetOrCreatePerfettoPlatform() {
+  if (!perfetto_platform_) {
+    perfetto_platform_.reset(new tracing::PerfettoPlatform(
+        tracing::PerfettoPlatform::TaskRunnerType::kBuiltin));
+  }
+  return perfetto_platform_.get();
+}
+
+void TraceLog::OnSetup(const perfetto::DataSourceBase::SetupArgs& args) {
+  AutoLock lock(track_event_lock_);
+  track_event_config_ = *args.config;
+  track_event_enabled_ = true;
+}
+
+void TraceLog::OnStart(const perfetto::DataSourceBase::StartArgs&) {
+  AutoLock lock(observers_lock_);
+  for (EnabledStateObserver* observer : enabled_state_observers_)
+    observer->OnTraceLogEnabled();
+  for (const auto& it : async_observers_) {
+    it.second.task_runner->PostTask(
+        FROM_HERE, BindOnce(&AsyncEnabledStateObserver::OnTraceLogEnabled,
+                            it.second.observer));
+  }
+}
+
+void TraceLog::OnStop(const perfetto::DataSourceBase::StopArgs&) {
+  AutoLock lock(observers_lock_);
+  {
+    // We can't use |lock_| because OnStop() can be called from within
+    // SetDisabled(). We also can't use |observers_lock_|, because observers
+    // below can call into IsEnabled(), which needs to access
+    // |track_event_enabled_|. So we use a separate lock.
+    AutoLock track_event_lock(track_event_lock_);
+    track_event_enabled_ = false;
+  }
+  for (auto* it : enabled_state_observers_)
+    it->OnTraceLogDisabled();
+  for (const auto& it : async_observers_) {
+    it.second.task_runner->PostTask(
+        FROM_HERE, BindOnce(&AsyncEnabledStateObserver::OnTraceLogDisabled,
+                            it.second.observer));
+  }
+}
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+
 void ConvertableToTraceFormat::EstimateTraceMemoryOverhead(
     TraceEventMemoryOverhead* overhead) {
   overhead->Add(TraceEventMemoryOverhead::kConvertableToTraceFormat,
                 sizeof(*this));
 }
-#endif
 
 }  // namespace trace_event
 }  // namespace base
 
 namespace trace_event_internal {
 
+base::trace_event::TraceEventHandle AddTraceEvent(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    base::trace_event::TraceArguments* args,
+    unsigned int flags) {
+  return base::trace_event::TraceLog::GetInstance()->AddTraceEvent(
+      phase, category_group_enabled, name, scope, id, args, flags);
+}
+
+base::trace_event::TraceEventHandle AddTraceEventWithBindId(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    uint64_t bind_id,
+    base::trace_event::TraceArguments* args,
+    unsigned int flags) {
+  return base::trace_event::TraceLog::GetInstance()->AddTraceEventWithBindId(
+      phase, category_group_enabled, name, scope, id, bind_id, args, flags);
+}
+
+base::trace_event::TraceEventHandle AddTraceEventWithProcessId(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    base::ProcessId process_id,
+    base::trace_event::TraceArguments* args,
+    unsigned int flags) {
+  return base::trace_event::TraceLog::GetInstance()->AddTraceEventWithProcessId(
+      phase, category_group_enabled, name, scope, id, process_id, args, flags);
+}
+
+base::trace_event::TraceEventHandle AddTraceEventWithThreadIdAndTimestamp(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    base::PlatformThreadId thread_id,
+    const base::TimeTicks& timestamp,
+    base::trace_event::TraceArguments* args,
+    unsigned int flags) {
+  return base::trace_event::TraceLog::GetInstance()
+      ->AddTraceEventWithThreadIdAndTimestamp(phase, category_group_enabled,
+                                              name, scope, id, thread_id,
+                                              timestamp, args, flags);
+}
+
+base::trace_event::TraceEventHandle AddTraceEventWithThreadIdAndTimestamp(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    uint64_t bind_id,
+    base::PlatformThreadId thread_id,
+    const base::TimeTicks& timestamp,
+    base::trace_event::TraceArguments* args,
+    unsigned int flags) {
+  return base::trace_event::TraceLog::GetInstance()
+      ->AddTraceEventWithThreadIdAndTimestamp(
+          phase, category_group_enabled, name, scope, id, bind_id, thread_id,
+          timestamp, args, flags);
+}
+
+base::trace_event::TraceEventHandle AddTraceEventWithThreadIdAndTimestamps(
+    char phase,
+    const unsigned char* category_group_enabled,
+    const char* name,
+    const char* scope,
+    uint64_t id,
+    base::PlatformThreadId thread_id,
+    const base::TimeTicks& timestamp,
+    const base::ThreadTicks& thread_timestamp,
+    unsigned int flags) {
+  return base::trace_event::TraceLog::GetInstance()
+      ->AddTraceEventWithThreadIdAndTimestamps(
+          phase, category_group_enabled, name, scope, id,
+          /*bind_id=*/trace_event_internal::kNoId, thread_id, timestamp,
+          thread_timestamp, nullptr, flags);
+}
+
+void AddMetadataEvent(const unsigned char* category_group_enabled,
+                      const char* name,
+                      base::trace_event::TraceArguments* args,
+                      unsigned int flags) {
+  return base::trace_event::TraceLog::GetInstance()->AddMetadataEvent(
+      category_group_enabled, name, args, flags);
+}
+
+int GetNumTracesRecorded() {
+  return base::trace_event::TraceLog::GetInstance()->GetNumTracesRecorded();
+}
+
+void UpdateTraceEventDuration(const unsigned char* category_group_enabled,
+                              const char* name,
+                              base::trace_event::TraceEventHandle handle) {
+  return base::trace_event::TraceLog::GetInstance()->UpdateTraceEventDuration(
+      category_group_enabled, name, handle);
+}
+
+void UpdateTraceEventDurationExplicit(
+    const unsigned char* category_group_enabled,
+    const char* name,
+    base::trace_event::TraceEventHandle handle,
+    base::PlatformThreadId thread_id,
+    bool explicit_timestamps,
+    const base::TimeTicks& now,
+    const base::ThreadTicks& thread_now) {
+  return base::trace_event::TraceLog::GetInstance()
+      ->UpdateTraceEventDurationExplicit(category_group_enabled, name, handle,
+                                         thread_id, explicit_timestamps, now,
+                                         thread_now);
+}
+
+#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 ScopedTraceBinaryEfficient::ScopedTraceBinaryEfficient(
     const char* category_group,
     const char* name) {
@@ -1827,11 +2371,10 @@ ScopedTraceBinaryEfficient::ScopedTraceBinaryEfficient(
     event_handle_ =
         TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_THREAD_ID_AND_TIMESTAMP(
             TRACE_EVENT_PHASE_COMPLETE, category_group_enabled_, name,
-            trace_event_internal::kGlobalScope,                   // scope
-            trace_event_internal::kNoId,                          // id
-            static_cast<int>(base::PlatformThread::CurrentId()),  // thread_id
-            TRACE_TIME_TICKS_NOW(), trace_event_internal::kZeroNumArgs, nullptr,
-            nullptr, nullptr, nullptr, TRACE_EVENT_FLAG_NONE);
+            trace_event_internal::kGlobalScope,  // scope
+            trace_event_internal::kNoId,         // id
+            base::PlatformThread::CurrentId(),   // thread_id
+            TRACE_TIME_TICKS_NOW(), nullptr, TRACE_EVENT_FLAG_NONE);
   }
 }
 
@@ -1841,5 +2384,6 @@ ScopedTraceBinaryEfficient::~ScopedTraceBinaryEfficient() {
                                                 event_handle_);
   }
 }
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 }  // namespace trace_event_internal

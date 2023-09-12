@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,10 +9,9 @@
 
 #include "base/base_export.h"
 #include "base/scoped_generic.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace base {
-namespace mac {
+namespace base::mac {
 
 namespace internal {
 
@@ -62,7 +61,19 @@ using ScopedMachReceiveRight =
 // the receive rights that are members of the port set.
 using ScopedMachPortSet = ScopedGeneric<mach_port_t, internal::PortSetTraits>;
 
-}  // namespace mac
-}  // namespace base
+// Constructs a Mach port receive right and places the result in |receive|.
+// If |send| is non-null, a send right will be created as well and stored
+// there. If |queue_limit| is specified, the receive right will be constructed
+// with the specified mpo_qlmit. Returns true on success and false on failure.
+BASE_EXPORT bool CreateMachPort(
+    ScopedMachReceiveRight* receive,
+    ScopedMachSendRight* send,
+    absl::optional<mach_port_msgcount_t> queue_limit = absl::nullopt);
+
+// Increases the user reference count for MACH_PORT_RIGHT_SEND by 1 and returns
+// a new scoper to manage the additional right.
+BASE_EXPORT ScopedMachSendRight RetainMachSendRight(mach_port_t port);
+
+}  // namespace base::mac
 
 #endif  // BASE_MAC_SCOPED_MACH_PORT_H_

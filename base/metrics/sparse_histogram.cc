@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/dummy_histogram.h"
 #include "base/metrics/metrics_hashes.h"
@@ -13,9 +14,11 @@
 #include "base/metrics/persistent_sample_map.h"
 #include "base/metrics/sample_map.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/notreached.h"
 #include "base/pickle.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/lock.h"
+#include "base/values.h"
 
 namespace base {
 
@@ -30,7 +33,7 @@ HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
     // TODO(gayane): |HashMetricName| is called again in Histogram constructor.
     // Refactor code to avoid the additional call.
     bool should_record =
-        StatisticsRecorder::ShouldRecordHistogram(HashMetricName(name));
+        StatisticsRecorder::ShouldRecordHistogram(HashMetricNameAs32Bits(name));
     if (!should_record)
       return DummyHistogram::GetInstance();
     // Try to create the histogram using a "persistent" allocator. As of
@@ -81,8 +84,7 @@ std::unique_ptr<HistogramBase> SparseHistogram::PersistentCreate(
     const char* name,
     HistogramSamples::Metadata* meta,
     HistogramSamples::Metadata* logged_meta) {
-  return WrapUnique(
-      new SparseHistogram(allocator, name, meta, logged_meta));
+  return WrapUnique(new SparseHistogram(allocator, name, meta, logged_meta));
 }
 
 SparseHistogram::~SparseHistogram() = default;
@@ -98,7 +100,7 @@ HistogramType SparseHistogram::GetHistogramType() const {
 bool SparseHistogram::HasConstructionArguments(
     Sample expected_minimum,
     Sample expected_maximum,
-    uint32_t expected_bucket_count) const {
+    size_t expected_bucket_count) const {
   // SparseHistogram never has min/max/bucket_count limit.
   return false;
 }
@@ -117,7 +119,8 @@ void SparseHistogram::AddCount(Sample value, int count) {
     unlogged_samples_->Accumulate(value, count);
   }
 
-  FindAndRunCallback(value);
+  if (UNLIKELY(StatisticsRecorder::have_active_callbacks()))
+    FindAndRunCallbacks(value);
 }
 
 std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
@@ -129,14 +132,31 @@ std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
   return std::move(snapshot);
 }
 
-std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotDelta() {
-  DCHECK(!final_delta_created_);
-
+std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotUnloggedSamples()
+    const {
   std::unique_ptr<SampleMap> snapshot(new SampleMap(name_hash()));
+
   base::AutoLock auto_lock(lock_);
   snapshot->Add(*unlogged_samples_);
 
-  unlogged_samples_->Subtract(*snapshot);
+  return std::move(snapshot);
+}
+
+void SparseHistogram::MarkSamplesAsLogged(const HistogramSamples& samples) {
+  DCHECK(!final_delta_created_);
+
+  base::AutoLock auto_lock(lock_);
+  unlogged_samples_->Subtract(samples);
+  logged_samples_->Add(samples);
+}
+
+std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotDelta() {
+  DCHECK(!final_delta_created_);
+
+  std::unique_ptr<SampleMap> snapshot =
+      std::make_unique<SampleMap>(name_hash());
+  base::AutoLock auto_lock(lock_);
+  snapshot->Extract(*unlogged_samples_);
   logged_samples_->Add(*snapshot);
   return std::move(snapshot);
 }
@@ -162,14 +182,9 @@ bool SparseHistogram::AddSamplesFromPickle(PickleIterator* iter) {
   return unlogged_samples_->AddFromPickle(iter);
 }
 
-void SparseHistogram::WriteHTMLGraph(std::string* output) const {
-  output->append("<PRE>");
-  WriteAsciiImpl(true, "<br>", output);
-  output->append("</PRE>");
-}
-
-void SparseHistogram::WriteAscii(std::string* output) const {
-  WriteAsciiImpl(true, "\n", output);
+base::Value::Dict SparseHistogram::ToGraphDict() const {
+  std::unique_ptr<HistogramSamples> snapshot = SnapshotSamples();
+  return snapshot->ToGraphDict(histogram_name(), flags());
 }
 
 void SparseHistogram::SerializeInfoImpl(Pickle* pickle) const {
@@ -216,75 +231,12 @@ HistogramBase* SparseHistogram::DeserializeInfoImpl(PickleIterator* iter) {
   return SparseHistogram::FactoryGet(histogram_name, flags);
 }
 
-void SparseHistogram::GetParameters(DictionaryValue* params) const {
-  // TODO(kaiwang): Implement. (See HistogramBase::WriteJSON.)
-}
-
-void SparseHistogram::GetCountAndBucketData(Count* count,
-                                            int64_t* sum,
-                                            ListValue* buckets) const {
-  // TODO(kaiwang): Implement. (See HistogramBase::WriteJSON.)
-}
-
-void SparseHistogram::WriteAsciiImpl(bool graph_it,
-                                     const std::string& newline,
-                                     std::string* output) const {
-  // Get a local copy of the data so we are consistent.
-  std::unique_ptr<HistogramSamples> snapshot = SnapshotSamples();
-  Count total_count = snapshot->TotalCount();
-  double scaled_total_count = total_count / 100.0;
-
-  WriteAsciiHeader(total_count, output);
-  output->append(newline);
-
-  // Determine how wide the largest bucket range is (how many digits to print),
-  // so that we'll be able to right-align starts for the graphical bars.
-  // Determine which bucket has the largest sample count so that we can
-  // normalize the graphical bar-width relative to that sample count.
-  Count largest_count = 0;
-  Sample largest_sample = 0;
-  std::unique_ptr<SampleCountIterator> it = snapshot->Iterator();
-  while (!it->Done()) {
-    Sample min;
-    int64_t max;
-    Count count;
-    it->Get(&min, &max, &count);
-    if (min > largest_sample)
-      largest_sample = min;
-    if (count > largest_count)
-      largest_count = count;
-    it->Next();
-  }
-  size_t print_width = GetSimpleAsciiBucketRange(largest_sample).size() + 1;
-
-  // iterate over each item and display them
-  it = snapshot->Iterator();
-  while (!it->Done()) {
-    Sample min;
-    int64_t max;
-    Count count;
-    it->Get(&min, &max, &count);
-
-    // value is min, so display it
-    std::string range = GetSimpleAsciiBucketRange(min);
-    output->append(range);
-    for (size_t j = 0; range.size() + j < print_width + 1; ++j)
-      output->push_back(' ');
-
-    if (graph_it)
-      WriteAsciiBucketGraph(count, largest_count, output);
-    WriteAsciiBucketValue(count, scaled_total_count, output);
-    output->append(newline);
-    it->Next();
-  }
-}
-
-void SparseHistogram::WriteAsciiHeader(const Count total_count,
-                                       std::string* output) const {
-  StringAppendF(output, "Histogram: %s recorded %d samples", histogram_name(),
-                total_count);
-  if (flags())
-    StringAppendF(output, " (flags = 0x%x)", flags());
+Value::Dict SparseHistogram::GetParameters() const {
+  // Unlike Histogram::GetParameters, only set the type here, and no other
+  // params. The other params do not make sense for sparse histograms.
+  Value::Dict params;
+  params.Set("type", HistogramTypeToString(GetHistogramType()));
+  return params;
 }
 
 }  // namespace base

@@ -1,17 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/test_pending_task.h"
 
-#include "base/bind.h"
-#include "base/trace_event/trace_event.h"
+#include "base/functional/bind.h"
+#include "base/trace_event/base_tracing.h"
+#include "base/tracing_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest-spi.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
+#if BUILDFLAG(ENABLE_BASE_TRACING)
 TEST(TestPendingTaskTest, TraceSupport) {
   base::TestPendingTask task;
 
@@ -19,10 +21,11 @@ TEST(TestPendingTaskTest, TraceSupport) {
   TRACE_EVENT1("test", "TestPendingTask::TraceSupport", "task", task.AsValue());
 
   // Just a basic check that the trace output has *something* in it.
-  std::unique_ptr<base::trace_event::ConvertableToTraceFormat> task_value(
-      task.AsValue());
-  EXPECT_THAT(task_value->ToString(), ::testing::HasSubstr("post_time"));
+  base::trace_event::TracedValueJSON task_value;
+  task.AsValueInto(&task_value);
+  EXPECT_THAT(task_value.ToJSON(), ::testing::HasSubstr("post_time"));
 }
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 TEST(TestPendingTaskTest, ToString) {
   base::TestPendingTask task;
@@ -44,9 +47,9 @@ TEST(TestPendingTaskTest, GTestPrettyPrint) {
 
 TEST(TestPendingTaskTest, ShouldRunBefore) {
   base::TestPendingTask task_first;
-  task_first.delay = base::TimeDelta::FromMilliseconds(1);
+  task_first.delay = base::Milliseconds(1);
   base::TestPendingTask task_after;
-  task_after.delay = base::TimeDelta::FromMilliseconds(2);
+  task_after.delay = base::Milliseconds(2);
 
   EXPECT_FALSE(task_after.ShouldRunBefore(task_first))
       << task_after << ".ShouldRunBefore(" << task_first << ")\n";

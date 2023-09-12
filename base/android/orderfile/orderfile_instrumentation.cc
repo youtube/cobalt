@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include <atomic>
 #include <cstdio>
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -19,7 +20,6 @@
 #include "base/files/file.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 
@@ -28,15 +28,13 @@
 
 #include "base/command_line.h"
 #include "base/time/time.h"
-#include "base/trace_event/memory_dump_manager.h"
-#include "base/trace_event/memory_dump_provider.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "base/trace_event/memory_dump_manager.h"   // no-presubmit-check
+#include "base/trace_event/memory_dump_provider.h"  // no-presubmit-check
 #endif  // BUILDFLAG(DEVTOOLS_INSTRUMENTATION_DUMPING)
 
-#if !defined(ARCH_CPU_ARMEL)
-#error Only supported on ARM.
-#endif  // !defined(ARCH_CPU_ARMEL)
+#if !BUILDFLAG(SUPPORTS_CODE_ORDERING)
+#error Requires code ordering support (arm/arm64/x86/x86_64).
+#endif  // !BUILDFLAG(SUPPORTS_CODE_ORDERING)
 
 // Must be applied to all functions within this file.
 #define NO_INSTRUMENT_FUNCTION __attribute__((no_instrument_function))
@@ -72,6 +70,13 @@ struct LogData {
 
 LogData g_data[kPhases];
 std::atomic<int> g_data_index;
+
+// Number of unexpected addresses, that is addresses that are not within [start,
+// end) bounds for the executable code.
+//
+// This should be exactly 0, since the start and end of .text should be known
+// perfectly by the linker, but it does happen. See crbug.com/1186598.
+std::atomic<int> g_unexpected_addresses;
 
 #if BUILDFLAG(DEVTOOLS_INSTRUMENTATION_DUMPING)
 // Dump offsets when a memory dump is requested. Used only if
@@ -128,13 +133,29 @@ __attribute__((always_inline, no_instrument_function)) void RecordAddress(
   const size_t end =
       for_testing ? kEndOfTextForTesting : base::android::kEndOfText;
   if (UNLIKELY(address < start || address > end)) {
+    if (!AreAnchorsSane()) {
+      // Something is really wrong with the anchors, and this is likely to be
+      // triggered from within a static constructor, where logging is likely to
+      // deadlock.  By crashing immediately we at least have a chance to get a
+      // stack trace from the system to give some clue about the nature of the
+      // problem.
+      ImmediateCrash();
+    }
+
+    // We should really crash at the first instance, but it does happen on bots,
+    // for a mysterious reason. Give it some leeway. Note that since we don't
+    // remember the caller address, if a single function is misplaced but we get
+    // many calls to it, then we still crash. If this is the case, add
+    // deduplication.
+    //
+    // Bumped to 100 temporarily as part of crbug.com/1265928 investigation.
+    if (g_unexpected_addresses.fetch_add(1, std::memory_order_relaxed) < 100) {
+      return;
+    }
+
     Disable();
-    // If the start and end addresses are set incorrectly, this code path is
-    // likely happening during a static initializer. Logging at this time is
-    // prone to deadlock. By crashing immediately we at least have a chance to
-    // get a stack trace from the system to give some clue about the nature of
-    // the problem.
-    IMMEDIATE_CRASH();
+    LOG(FATAL) << "Too many unexpected addresses! start = " << std::hex << start
+               << " end = " << end << " address = " << address;
   }
 
   size_t offset = address - start;
@@ -225,10 +246,18 @@ NO_INSTRUMENT_FUNCTION void StopAndDumpToFile(int pid,
       LOG(ERROR) << "Problem with dump " << phase << " (" << tag << ")";
     }
   }
+
+  int unexpected_addresses =
+      g_unexpected_addresses.load(std::memory_order_relaxed);
+  if (unexpected_addresses != 0) {
+    LOG(WARNING) << "Got " << unexpected_addresses << " unexpected addresses!";
+  }
 }
 
 }  // namespace
 
+// After a call to Disable(), any function can be called, as reentrancy into the
+// instrumentation function will be mitigated.
 NO_INSTRUMENT_FUNCTION bool Disable() {
   auto old_phase = g_data_index.exchange(kPhases, std::memory_order_relaxed);
   std::atomic_thread_fence(std::memory_order_seq_cst);
@@ -294,11 +323,13 @@ NO_INSTRUMENT_FUNCTION void ResetForTesting() {
   g_data_index = 0;
   for (int i = 0; i < kPhases; i++) {
     memset(reinterpret_cast<uint32_t*>(g_data[i].offsets), 0,
-                sizeof(uint32_t) * kBitfieldSize);
+           sizeof(uint32_t) * kBitfieldSize);
     memset(reinterpret_cast<uint32_t*>(g_data[i].ordered_offsets), 0,
-                sizeof(uint32_t) * kMaxElements);
+           sizeof(uint32_t) * kMaxElements);
     g_data[i].index.store(0);
   }
+
+  g_unexpected_addresses.store(0, std::memory_order_relaxed);
 }
 
 NO_INSTRUMENT_FUNCTION void RecordAddressForTesting(size_t address) {

@@ -1,14 +1,16 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_CONTAINERS_ADAPTERS_H_
 #define BASE_CONTAINERS_ADAPTERS_H_
 
-#include <iterator>
+#include <stddef.h>
 
-#include "base/macros.h"
-#include "starboard/types.h"
+#include <iterator>
+#include <utility>
+
+#include "base/memory/raw_ref.h"
 
 namespace base {
 
@@ -18,37 +20,21 @@ namespace internal {
 template <typename T>
 class ReversedAdapter {
  public:
-  using Iterator = decltype(static_cast<T*>(nullptr)->rbegin());
+  using Iterator = decltype(std::rbegin(std::declval<T&>()));
 
   explicit ReversedAdapter(T& t) : t_(t) {}
   ReversedAdapter(const ReversedAdapter& ra) : t_(ra.t_) {}
+  ReversedAdapter& operator=(const ReversedAdapter&) = delete;
 
-  // TODO(mdempsky): Once we can use C++14 library features, use std::rbegin
-  // and std::rend instead, so we can remove the specialization below.
-  Iterator begin() const { return t_.rbegin(); }
-  Iterator end() const { return t_.rend(); }
-
- private:
-  T& t_;
-
-  DISALLOW_ASSIGN(ReversedAdapter);
-};
-
-template <typename T, size_t N>
-class ReversedAdapter<T[N]> {
- public:
-  using Iterator = std::reverse_iterator<T*>;
-
-  explicit ReversedAdapter(T (&t)[N]) : t_(t) {}
-  ReversedAdapter(const ReversedAdapter& ra) : t_(ra.t_) {}
-
-  Iterator begin() const { return Iterator(&t_[N]); }
-  Iterator end() const { return Iterator(&t_[0]); }
+  Iterator begin() const { return std::rbegin(*t_); }
+  Iterator end() const { return std::rend(*t_); }
 
  private:
-  T (&t_)[N];
-
-  DISALLOW_ASSIGN(ReversedAdapter);
+  // `ReversedAdapter` and therefore `t_` are only used inside for loops. The
+  // container being iterated over should be the one holding a raw_ref/raw_ptr
+  // ideally. This member's type was rewritten into `const raw_ref` since it
+  // didn't hurt binary size at the time of the rewrite.
+  const raw_ref<T> t_;
 };
 
 }  // namespace internal

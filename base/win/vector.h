@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,8 +15,10 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/check_op.h"
 #include "base/containers/flat_map.h"
-#include "base/logging.h"
+#include "base/ranges/algorithm.h"
+#include "base/win/winrt_foundation_helpers.h"
 
 namespace base {
 namespace win {
@@ -26,17 +28,88 @@ class Vector;
 
 namespace internal {
 
+// Template tricks needed to dispatch to the correct implementation.
+// See base/win/winrt_foundation_helpers.h for explanation.
+
 template <typename T>
-using Complex =
+using VectorComplex =
     typename ABI::Windows::Foundation::Collections::IVector<T>::T_complex;
 
 template <typename T>
-using Logical = typename ABI::Windows::Foundation::Internal::GetLogicalType<
-    Complex<T>>::type;
+using VectorLogical = LogicalType<VectorComplex<T>>;
 
 template <typename T>
-using Abi =
-    typename ABI::Windows::Foundation::Internal::GetAbiType<Complex<T>>::type;
+using VectorAbi = AbiType<VectorComplex<T>>;
+
+template <typename T>
+using VectorStorage = StorageType<VectorComplex<T>>;
+
+template <typename T>
+class VectorIterator
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<
+              Microsoft::WRL::WinRtClassicComMix |
+              Microsoft::WRL::InhibitRoOriginateError>,
+          ABI::Windows::Foundation::Collections::IIterator<VectorLogical<T>>> {
+ public:
+  using LogicalT = VectorLogical<T>;
+  using AbiT = VectorAbi<T>;
+
+  explicit VectorIterator(
+      Microsoft::WRL::ComPtr<
+          ABI::Windows::Foundation::Collections::IVectorView<LogicalT>> view)
+      : view_(std::move(view)) {}
+
+  // ABI::Windows::Foundation::Collections::IIterator:
+  IFACEMETHODIMP get_Current(AbiT* current) override {
+    return view_->GetAt(current_index_, current);
+  }
+
+  IFACEMETHODIMP get_HasCurrent(boolean* has_current) override {
+    *has_current = FALSE;
+    unsigned size;
+    HRESULT hr = view_->get_Size(&size);
+    if (SUCCEEDED(hr)) {
+      if (current_index_ < size) {
+        *has_current = TRUE;
+      }
+    }
+    return hr;
+  }
+
+  IFACEMETHODIMP MoveNext(boolean* has_current) override {
+    *has_current = FALSE;
+    unsigned size;
+    HRESULT hr = view_->get_Size(&size);
+    if (FAILED(hr))
+      return hr;
+
+    // Check if we're already past the last item.
+    if (current_index_ >= size)
+      return E_BOUNDS;
+
+    // Move to the next item.
+    current_index_++;
+
+    // Set |has_current| to TRUE if we're still on a valid item.
+    if (current_index_ < size)
+      *has_current = TRUE;
+
+    return hr;
+  }
+
+  IFACEMETHODIMP GetMany(unsigned capacity,
+                         AbiT* value,
+                         unsigned* actual) override {
+    return view_->GetMany(current_index_, capacity, value, actual);
+  }
+
+ private:
+  Microsoft::WRL::ComPtr<
+      ABI::Windows::Foundation::Collections::IVectorView<LogicalT>>
+      view_;
+  unsigned current_index_ = 0;
+};
 
 class BASE_EXPORT VectorChangedEventArgs
     : public Microsoft::WRL::RuntimeClass<
@@ -68,19 +141,19 @@ class VectorView
           Microsoft::WRL::RuntimeClassFlags<
               Microsoft::WRL::WinRtClassicComMix |
               Microsoft::WRL::InhibitRoOriginateError>,
-          ABI::Windows::Foundation::Collections::IVectorView<Logical<T>>,
+          ABI::Windows::Foundation::Collections::IVectorView<VectorLogical<T>>,
           ABI::Windows::Foundation::Collections::VectorChangedEventHandler<
-              Logical<T>>> {
+              VectorLogical<T>>> {
  public:
-  using LogicalT = Logical<T>;
-  using AbiT = Abi<T>;
+  using LogicalT = VectorLogical<T>;
+  using AbiT = VectorAbi<T>;
 
   explicit VectorView(Microsoft::WRL::ComPtr<Vector<LogicalT>> vector)
       : vector_(std::move(vector)) {
     vector_->add_VectorChanged(this, &vector_changed_token_);
   }
 
-  ~VectorView() {
+  ~VectorView() override {
     if (vector_)
       vector_->remove_VectorChanged(vector_changed_token_);
   }
@@ -124,45 +197,6 @@ class VectorView
   EventRegistrationToken vector_changed_token_;
 };
 
-template <typename T>
-HRESULT CopyTo(const T& value, T* ptr) {
-  *ptr = value;
-  return S_OK;
-}
-
-template <typename T>
-HRESULT CopyTo(const Microsoft::WRL::ComPtr<T>& com_ptr, T** ptr) {
-  return com_ptr.CopyTo(ptr);
-}
-
-template <typename T>
-HRESULT CopyN(typename std::vector<T>::const_iterator first,
-              unsigned count,
-              T* result) {
-  std::copy_n(first, count, result);
-  return S_OK;
-}
-
-template <typename T>
-HRESULT CopyN(
-    typename std::vector<Microsoft::WRL::ComPtr<T>>::const_iterator first,
-    unsigned count,
-    T** result) {
-  for (unsigned i = 0; i < count; ++i)
-    CopyTo(*first++, result++);
-  return S_OK;
-}
-
-template <typename T>
-bool IsEqual(const T& lhs, const T& rhs) {
-  return lhs == rhs;
-}
-
-template <typename T>
-bool IsEqual(const Microsoft::WRL::ComPtr<T>& com_ptr, const T* ptr) {
-  return com_ptr.Get() == ptr;
-}
-
 }  // namespace internal
 
 // This file provides an implementation of Windows::Foundation::IVector. It
@@ -179,28 +213,16 @@ class Vector
     : public Microsoft::WRL::RuntimeClass<
           Microsoft::WRL::RuntimeClassFlags<
               Microsoft::WRL::WinRt | Microsoft::WRL::InhibitRoOriginateError>,
-          ABI::Windows::Foundation::Collections::IVector<internal::Logical<T>>,
+          ABI::Windows::Foundation::Collections::IVector<
+              internal::VectorLogical<T>>,
           ABI::Windows::Foundation::Collections::IObservableVector<
-              internal::Logical<T>>> {
+              internal::VectorLogical<T>>,
+          ABI::Windows::Foundation::Collections::IIterable<
+              internal::VectorLogical<T>>> {
  public:
-  // windows.foundation.collections.h defines the following template and
-  // semantics in Windows::Foundation::Internal:
-  //
-  // template <class LogicalType, class AbiType>
-  // struct AggregateType;
-  //
-  //   LogicalType - the Windows Runtime type (eg, runtime class, interface
-  //                 group, etc) being provided as an argument to an _impl
-  //                 template, when that type cannot be represented at the ABI.
-  //   AbiType     - the type used for marshalling, ie "at the ABI", for the
-  //                 logical type.
-  using LogicalT = internal::Logical<T>;
-  using AbiT = internal::Abi<T>;
-
-  using StorageT =
-      std::conditional_t<std::is_convertible<AbiT, IUnknown*>::value,
-                         Microsoft::WRL::ComPtr<std::remove_pointer_t<AbiT>>,
-                         AbiT>;
+  using LogicalT = internal::VectorLogical<T>;
+  using AbiT = internal::VectorAbi<T>;
+  using StorageT = internal::VectorStorage<T>;
 
   Vector() = default;
   explicit Vector(const std::vector<StorageT>& vector) : vector_(vector) {}
@@ -227,10 +249,9 @@ class Vector
   }
 
   IFACEMETHODIMP IndexOf(AbiT value, unsigned* index, boolean* found) override {
-    auto iter = std::find_if(vector_.begin(), vector_.end(),
-                             [&value](const StorageT& elem) {
-                               return internal::IsEqual(elem, value);
-                             });
+    auto iter = base::ranges::find_if(vector_, [&value](const StorageT& elem) {
+      return internal::IsEqual(elem, value);
+    });
     *index = iter != vector_.end() ? std::distance(vector_.begin(), iter) : 0;
     *found = iter != vector_.end();
     return S_OK;
@@ -342,12 +363,28 @@ class Vector
       handler.second->Invoke(this, args.Get());
   }
 
+  // ABI::Windows::Foundation::Collections::IIterable:
+  IFACEMETHODIMP First(
+      ABI::Windows::Foundation::Collections::IIterator<LogicalT>** first)
+      override {
+    Microsoft::WRL::ComPtr<
+        ABI::Windows::Foundation::Collections::IVectorView<LogicalT>>
+        view;
+    HRESULT hr = GetView(&view);
+    if (SUCCEEDED(hr)) {
+      return Microsoft::WRL::Make<internal::VectorIterator<LogicalT>>(view)
+          .CopyTo(first);
+    } else {
+      return hr;
+    }
+  }
+
   const std::vector<AbiT>& vector_for_testing() { return vector_; }
 
  private:
   ~Vector() override {
     // Handlers should not outlive the Vector. Furthermore, they must ensure
-    // they are unregistered before the the handler is destroyed. This implies
+    // they are unregistered before the handler is destroyed. This implies
     // there should be no handlers left when the Vector is destructed.
     DCHECK(handlers_.empty());
   }

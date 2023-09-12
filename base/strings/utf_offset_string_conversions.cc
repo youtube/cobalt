@@ -1,16 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/strings/utf_offset_string_conversions.h"
 
+#include <stdint.h>
+
 #include <algorithm>
 #include <memory>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversion_utils.h"
-#include "starboard/types.h"
 
 namespace base {
 
@@ -27,9 +28,8 @@ void OffsetAdjuster::AdjustOffsets(const Adjustments& adjustments,
                                    std::vector<size_t>* offsets_for_adjustment,
                                    size_t limit) {
   DCHECK(offsets_for_adjustment);
-  for (auto i(offsets_for_adjustment->begin());
-       i != offsets_for_adjustment->end(); ++i)
-    AdjustOffset(adjustments, &(*i), limit);
+  for (auto& i : *offsets_for_adjustment)
+    AdjustOffset(adjustments, &i, limit);
 }
 
 // static
@@ -37,22 +37,24 @@ void OffsetAdjuster::AdjustOffset(const Adjustments& adjustments,
                                   size_t* offset,
                                   size_t limit) {
   DCHECK(offset);
-  if (*offset == string16::npos)
+  if (*offset == std::u16string::npos)
     return;
-  int adjustment = 0;
-  for (auto i = adjustments.begin(); i != adjustments.end(); ++i) {
-    if (*offset <= i->original_offset)
+  size_t original_lengths = 0;
+  size_t output_lengths = 0;
+  for (const auto& i : adjustments) {
+    if (*offset <= i.original_offset)
       break;
-    if (*offset < (i->original_offset + i->original_length)) {
-      *offset = string16::npos;
+    if (*offset < (i.original_offset + i.original_length)) {
+      *offset = std::u16string::npos;
       return;
     }
-    adjustment += static_cast<int>(i->original_length - i->output_length);
+    original_lengths += i.original_length;
+    output_lengths += i.output_length;
   }
-  *offset -= adjustment;
+  *offset += output_lengths - original_lengths;
 
   if (*offset > limit)
-    *offset = string16::npos;
+    *offset = std::u16string::npos;
 }
 
 // static
@@ -61,28 +63,29 @@ void OffsetAdjuster::UnadjustOffsets(
     std::vector<size_t>* offsets_for_unadjustment) {
   if (!offsets_for_unadjustment || adjustments.empty())
     return;
-  for (auto i(offsets_for_unadjustment->begin());
-       i != offsets_for_unadjustment->end(); ++i)
-    UnadjustOffset(adjustments, &(*i));
+  for (auto& i : *offsets_for_unadjustment)
+    UnadjustOffset(adjustments, &i);
 }
 
 // static
 void OffsetAdjuster::UnadjustOffset(const Adjustments& adjustments,
                                     size_t* offset) {
-  if (*offset == string16::npos)
+  if (*offset == std::u16string::npos)
     return;
-  int adjustment = 0;
-  for (auto i = adjustments.begin(); i != adjustments.end(); ++i) {
-    if (*offset + adjustment <= i->original_offset)
+  size_t original_lengths = 0;
+  size_t output_lengths = 0;
+  for (const auto& i : adjustments) {
+    if (*offset + original_lengths - output_lengths <= i.original_offset)
       break;
-    adjustment += static_cast<int>(i->original_length - i->output_length);
-    if ((*offset + adjustment) <
-        (i->original_offset + i->original_length)) {
-      *offset = string16::npos;
+    original_lengths += i.original_length;
+    output_lengths += i.output_length;
+    if ((*offset + original_lengths - output_lengths) <
+        (i.original_offset + i.original_length)) {
+      *offset = std::u16string::npos;
       return;
     }
   }
-  *offset += adjustment;
+  *offset += original_lengths - output_lengths;
 }
 
 // static
@@ -92,16 +95,22 @@ void OffsetAdjuster::MergeSequentialAdjustments(
   auto adjusted_iter = adjustments_on_adjusted_string->begin();
   auto first_iter = first_adjustments.begin();
   // Simultaneously iterate over all |adjustments_on_adjusted_string| and
-  // |first_adjustments|, adding adjustments to or correcting the adjustments
-  // in |adjustments_on_adjusted_string| as we go.  |shift| keeps track of the
-  // current number of characters collapsed by |first_adjustments| up to this
-  // point.  |currently_collapsing| keeps track of the number of characters
-  // collapsed by |first_adjustments| into the current |adjusted_iter|'s
-  // length.  These are characters that will change |shift| as soon as we're
-  // done processing the current |adjusted_iter|; they are not yet reflected in
-  // |shift|.
+  // |first_adjustments|, pushing adjustments at the end of
+  // |adjustments_builder| as we go.  |shift| keeps track of the current number
+  // of characters collapsed by |first_adjustments| up to this point.
+  // |currently_collapsing| keeps track of the number of characters collapsed by
+  // |first_adjustments| into the current |adjusted_iter|'s length.  These are
+  // characters that will change |shift| as soon as we're done processing the
+  // current |adjusted_iter|; they are not yet reflected in |shift|.
   size_t shift = 0;
   size_t currently_collapsing = 0;
+  // While we *could* update |adjustments_on_adjusted_string| in place by
+  // inserting new adjustments into the middle, we would be repeatedly calling
+  // |std::vector::insert|. That would cost O(n) time per insert, relative to
+  // distance from end of the string.  By instead allocating
+  // |adjustments_builder| and calling |std::vector::push_back|, we only pay
+  // amortized constant time per push. We are trading space for time.
+  Adjustments adjustments_builder;
   while (adjusted_iter != adjustments_on_adjusted_string->end()) {
     if ((first_iter == first_adjustments.end()) ||
         ((adjusted_iter->original_offset + shift +
@@ -114,6 +123,7 @@ void OffsetAdjuster::MergeSequentialAdjustments(
       adjusted_iter->original_offset += shift;
       shift += currently_collapsing;
       currently_collapsing = 0;
+      adjustments_builder.push_back(*adjusted_iter);
       ++adjusted_iter;
     } else if ((adjusted_iter->original_offset + shift) >
                first_iter->original_offset) {
@@ -129,15 +139,9 @@ void OffsetAdjuster::MergeSequentialAdjustments(
       DCHECK_LE(first_iter->original_offset + first_iter->output_length,
                 adjusted_iter->original_offset + shift);
 
-      // Add the |first_adjustment_iter| to the full set of adjustments while
-      // making sure |adjusted_iter| continues pointing to the same element.
-      // We do this by inserting the |first_adjustment_iter| right before
-      // |adjusted_iter|, then incrementing |adjusted_iter| so it points to
-      // the following element.
+      // Add the |first_iter| to the full set of adjustments.
       shift += first_iter->original_length - first_iter->output_length;
-      adjusted_iter = adjustments_on_adjusted_string->insert(
-          adjusted_iter, *first_iter);
-      ++adjusted_iter;
+      adjustments_builder.push_back(*first_iter);
       ++first_iter;
     } else {
       // The first adjustment adjusted something that then got further adjusted
@@ -150,15 +154,15 @@ void OffsetAdjuster::MergeSequentialAdjustments(
       //   <=
       //   adjusted_iter->original_offset + shift +
       //       adjusted_iter->original_length
-
       // Modify the current |adjusted_iter| to include whatever collapsing
       // happened in |first_iter|, then advance to the next |first_adjustments|
       // because we dealt with the current one.
-      const int collapse = static_cast<int>(first_iter->original_length) -
-          static_cast<int>(first_iter->output_length);
+
       // This function does not know how to deal with a string that expands and
       // then gets modified, only strings that collapse and then get modified.
-      DCHECK_GT(collapse, 0);
+      DCHECK_GT(first_iter->original_length, first_iter->output_length);
+      const size_t collapse =
+          first_iter->original_length - first_iter->output_length;
       adjusted_iter->original_length += collapse;
       currently_collapsing += collapse;
       ++first_iter;
@@ -170,10 +174,10 @@ void OffsetAdjuster::MergeSequentialAdjustments(
     // (Their offsets are already correct with respect to the original string.)
     // Append them all.
     DCHECK(adjusted_iter == adjustments_on_adjusted_string->end());
-    adjustments_on_adjusted_string->insert(
-        adjustments_on_adjusted_string->end(), first_iter,
-        first_adjustments.end());
+    adjustments_builder.insert(adjustments_builder.end(), first_iter,
+                               first_adjustments.end());
   }
+  *adjustments_on_adjusted_string = std::move(adjustments_builder);
 }
 
 // Converts the given source Unicode character type to the given destination
@@ -189,14 +193,12 @@ bool ConvertUnicode(const SrcChar* src,
                     OffsetAdjuster::Adjustments* adjustments) {
   if (adjustments)
     adjustments->clear();
-  // ICU requires 32-bit numbers.
   bool success = true;
-  int32_t src_len32 = static_cast<int32_t>(src_len);
-  for (int32_t i = 0; i < src_len32; i++) {
-    uint32_t code_point;
+  for (size_t i = 0; i < src_len; i++) {
+    base_icu::UChar32 code_point;
     size_t original_i = i;
     size_t chars_written = 0;
-    if (ReadUnicodeCharacter(src, src_len32, &i, &code_point)) {
+    if (ReadUnicodeCharacter(src, src_len, &i, &code_point)) {
       chars_written = WriteUnicodeCharacter(code_point, output);
     } else {
       chars_written = WriteUnicodeCharacter(0xFFFD, output);
@@ -220,29 +222,29 @@ bool ConvertUnicode(const SrcChar* src,
 bool UTF8ToUTF16WithAdjustments(
     const char* src,
     size_t src_len,
-    string16* output,
+    std::u16string* output,
     base::OffsetAdjuster::Adjustments* adjustments) {
   PrepareForUTF16Or32Output(src, src_len, output);
   return ConvertUnicode(src, src_len, output, adjustments);
 }
 
-string16 UTF8ToUTF16WithAdjustments(
+std::u16string UTF8ToUTF16WithAdjustments(
     const base::StringPiece& utf8,
     base::OffsetAdjuster::Adjustments* adjustments) {
-  string16 result;
+  std::u16string result;
   UTF8ToUTF16WithAdjustments(utf8.data(), utf8.length(), &result, adjustments);
   return result;
 }
 
-string16 UTF8ToUTF16AndAdjustOffsets(
+std::u16string UTF8ToUTF16AndAdjustOffsets(
     const base::StringPiece& utf8,
     std::vector<size_t>* offsets_for_adjustment) {
   for (size_t& offset : *offsets_for_adjustment) {
     if (offset > utf8.length())
-      offset = string16::npos;
+      offset = std::u16string::npos;
   }
   OffsetAdjuster::Adjustments adjustments;
-  string16 result = UTF8ToUTF16WithAdjustments(utf8, &adjustments);
+  std::u16string result = UTF8ToUTF16WithAdjustments(utf8, &adjustments);
   OffsetAdjuster::AdjustOffsets(adjustments, offsets_for_adjustment);
   return result;
 }
@@ -252,7 +254,7 @@ std::string UTF16ToUTF8AndAdjustOffsets(
     std::vector<size_t>* offsets_for_adjustment) {
   for (size_t& offset : *offsets_for_adjustment) {
     if (offset > utf16.length())
-      offset = string16::npos;
+      offset = std::u16string::npos;
   }
   std::string result;
   PrepareForUTF8Output(utf16.data(), utf16.length(), &result);

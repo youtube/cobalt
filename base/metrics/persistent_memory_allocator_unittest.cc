@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,10 @@
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/memory/shared_memory.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/read_only_shared_memory_region.h"
+#include "base/memory/shared_memory_mapping.h"
+#include "base/memory/writable_shared_memory_region.h"
 #include "base/metrics/histogram.h"
 #include "base/rand_util.h"
 #include "base/strings/safe_sprintf.h"
@@ -18,6 +21,7 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/simple_thread.h"
+#include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace base {
@@ -77,9 +81,9 @@ class PersistentMemoryAllocatorTest : public testing::Test {
   void SetUp() override {
     allocator_.reset();
     ::memset(mem_segment_.get(), 0, TEST_MEMORY_SIZE);
-    allocator_.reset(new PersistentMemoryAllocator(
-        mem_segment_.get(), TEST_MEMORY_SIZE, TEST_MEMORY_PAGE,
-        TEST_ID, TEST_NAME, false));
+    allocator_ = std::make_unique<PersistentMemoryAllocator>(
+        mem_segment_.get(), TEST_MEMORY_SIZE, TEST_MEMORY_PAGE, TEST_ID,
+        TEST_NAME, false);
   }
 
   void TearDown() override {
@@ -380,6 +384,9 @@ class CounterThread : public SimpleThread {
         count_(0),
         wake_up_(wake_up) {}
 
+  CounterThread(const CounterThread&) = delete;
+  CounterThread& operator=(const CounterThread&) = delete;
+
   void Run() override {
     // Wait so all threads can start at approximately the same time.
     // Best performance comes from releasing a single worker which then
@@ -408,13 +415,11 @@ class CounterThread : public SimpleThread {
   unsigned count() { return count_; }
 
  private:
-  PersistentMemoryAllocator::Iterator* iterator_;
-  Lock* lock_;
-  ConditionVariable* condition_;
+  raw_ptr<PersistentMemoryAllocator::Iterator> iterator_;
+  raw_ptr<Lock> lock_;
+  raw_ptr<ConditionVariable> condition_;
   unsigned count_;
-  bool* wake_up_;
-
-  DISALLOW_COPY_AND_ASSIGN(CounterThread);
+  raw_ptr<bool> wake_up_;
 };
 
 // Ensure that parallel iteration returns the same number of objects as
@@ -489,9 +494,9 @@ TEST_F(PersistentMemoryAllocatorTest, DelayedAllocationTest) {
   std::atomic<Reference> ref1, ref2;
   ref1.store(0, std::memory_order_relaxed);
   ref2.store(0, std::memory_order_relaxed);
-  DelayedPersistentAllocation da1(allocator_.get(), &ref1, 1001, 100, true);
-  DelayedPersistentAllocation da2a(allocator_.get(), &ref2, 2002, 200, 0, true);
-  DelayedPersistentAllocation da2b(allocator_.get(), &ref2, 2002, 200, 5, true);
+  DelayedPersistentAllocation da1(allocator_.get(), &ref1, 1001, 100);
+  DelayedPersistentAllocation da2a(allocator_.get(), &ref2, 2002, 200, 0);
+  DelayedPersistentAllocation da2b(allocator_.get(), &ref2, 2002, 200, 5);
 
   // Nothing should yet have been allocated.
   uint32_t type;
@@ -505,6 +510,7 @@ TEST_F(PersistentMemoryAllocatorTest, DelayedAllocationTest) {
   EXPECT_NE(0U, da1.reference());
   EXPECT_EQ(allocator_->GetAsReference(mem1, 1001),
             ref1.load(std::memory_order_relaxed));
+  allocator_->MakeIterable(da1.reference());
   EXPECT_NE(0U, iter.GetNext(&type));
   EXPECT_EQ(1001U, type);
   EXPECT_EQ(0U, iter.GetNext(&type));
@@ -514,6 +520,7 @@ TEST_F(PersistentMemoryAllocatorTest, DelayedAllocationTest) {
   ASSERT_TRUE(mem2a);
   EXPECT_EQ(allocator_->GetAsReference(mem2a, 2002),
             ref2.load(std::memory_order_relaxed));
+  allocator_->MakeIterable(da2a.reference());
   EXPECT_NE(0U, iter.GetNext(&type));
   EXPECT_EQ(2002U, type);
   EXPECT_EQ(0U, iter.GetNext(&type));
@@ -521,6 +528,7 @@ TEST_F(PersistentMemoryAllocatorTest, DelayedAllocationTest) {
   // Third allocation should just return offset into second allocation.
   void* mem2b = da2b.Get();
   ASSERT_TRUE(mem2b);
+  allocator_->MakeIterable(da2b.reference());
   EXPECT_EQ(0U, iter.GetNext(&type));
   EXPECT_EQ(reinterpret_cast<uintptr_t>(mem2a) + 5,
             reinterpret_cast<uintptr_t>(mem2b));
@@ -608,22 +616,20 @@ TEST(LocalPersistentMemoryAllocatorTest, CreationTest) {
   EXPECT_FALSE(allocator.IsCorrupt());
 }
 
-
-//----- SharedPersistentMemoryAllocator ----------------------------------------
-
-#if !defined(STARBOARD)
+//----- {Writable,ReadOnly}SharedPersistentMemoryAllocator ---------------------
 
 TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
-  SharedMemoryHandle shared_handle_1;
-  SharedMemoryHandle shared_handle_2;
+  base::WritableSharedMemoryRegion rw_region =
+      base::WritableSharedMemoryRegion::Create(TEST_MEMORY_SIZE);
+  ASSERT_TRUE(rw_region.IsValid());
 
   PersistentMemoryAllocator::MemoryInfo meminfo1;
   Reference r123, r456, r789;
   {
-    std::unique_ptr<SharedMemory> shmem1(new SharedMemory());
-    ASSERT_TRUE(shmem1->CreateAndMapAnonymous(TEST_MEMORY_SIZE));
-    SharedPersistentMemoryAllocator local(std::move(shmem1), TEST_ID, "",
-                                          false);
+    base::WritableSharedMemoryMapping mapping = rw_region.Map();
+    ASSERT_TRUE(mapping.IsValid());
+    WritableSharedPersistentMemoryAllocator local(std::move(mapping), TEST_ID,
+                                                  "");
     EXPECT_FALSE(local.IsReadonly());
     r123 = local.Allocate(123, 123);
     r456 = local.Allocate(456, 456);
@@ -634,19 +640,20 @@ TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
     local.GetMemoryInfo(&meminfo1);
     EXPECT_FALSE(local.IsFull());
     EXPECT_FALSE(local.IsCorrupt());
-
-    shared_handle_1 = local.shared_memory()->handle().Duplicate();
-    ASSERT_TRUE(shared_handle_1.IsValid());
-    shared_handle_2 = local.shared_memory()->handle().Duplicate();
-    ASSERT_TRUE(shared_handle_2.IsValid());
   }
 
-  // Read-only test.
-  std::unique_ptr<SharedMemory> shmem2(new SharedMemory(shared_handle_1,
-                                                        /*readonly=*/true));
-  ASSERT_TRUE(shmem2->Map(TEST_MEMORY_SIZE));
+  // Create writable and read-only mappings of the same region.
+  base::WritableSharedMemoryMapping rw_mapping = rw_region.Map();
+  ASSERT_TRUE(rw_mapping.IsValid());
+  base::ReadOnlySharedMemoryRegion ro_region =
+      base::WritableSharedMemoryRegion::ConvertToReadOnly(std::move(rw_region));
+  ASSERT_TRUE(ro_region.IsValid());
+  base::ReadOnlySharedMemoryMapping ro_mapping = ro_region.Map();
+  ASSERT_TRUE(ro_mapping.IsValid());
 
-  SharedPersistentMemoryAllocator shalloc2(std::move(shmem2), 0, "", true);
+  // Read-only test.
+  ReadOnlySharedPersistentMemoryAllocator shalloc2(std::move(ro_mapping), 0,
+                                                   "");
   EXPECT_TRUE(shalloc2.IsReadonly());
   EXPECT_EQ(TEST_ID, shalloc2.Id());
   EXPECT_FALSE(shalloc2.IsFull());
@@ -668,11 +675,8 @@ TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
   EXPECT_EQ(meminfo1.free, meminfo2.free);
 
   // Read/write test.
-  std::unique_ptr<SharedMemory> shmem3(new SharedMemory(shared_handle_2,
-                                                        /*readonly=*/false));
-  ASSERT_TRUE(shmem3->Map(TEST_MEMORY_SIZE));
-
-  SharedPersistentMemoryAllocator shalloc3(std::move(shmem3), 0, "", false);
+  WritableSharedPersistentMemoryAllocator shalloc3(std::move(rw_mapping), 0,
+                                                   "");
   EXPECT_FALSE(shalloc3.IsReadonly());
   EXPECT_EQ(TEST_ID, shalloc3.Id());
   EXPECT_FALSE(shalloc3.IsFull());
@@ -719,9 +723,7 @@ TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
   EXPECT_EQ(0, data[3]);
 }
 
-#endif  // !defined(STARBOARD)
-
-#if !defined(OS_NACL) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_NACL)
 //----- FilePersistentMemoryAllocator ------------------------------------------
 
 TEST(FilePersistentMemoryAllocatorTest, CreationTest) {
@@ -871,7 +873,7 @@ TEST(FilePersistentMemoryAllocatorTest, AcceptableTest) {
     const MemoryMappedFile::Access map_access =
         read_only ? MemoryMappedFile::READ_ONLY : MemoryMappedFile::READ_WRITE;
 
-    mmfile.reset(new MemoryMappedFile());
+    mmfile = std::make_unique<MemoryMappedFile>();
     ASSERT_TRUE(mmfile->Initialize(File(file_path, file_flags), map_access));
     EXPECT_EQ(filesize, mmfile->length());
     if (FilePersistentMemoryAllocator::IsFileAcceptable(*mmfile, read_only)) {
@@ -913,7 +915,7 @@ TEST(FilePersistentMemoryAllocatorTest, AcceptableTest) {
     }
     ASSERT_TRUE(PathExists(file_path));
 
-    mmfile.reset(new MemoryMappedFile());
+    mmfile = std::make_unique<MemoryMappedFile>();
     ASSERT_TRUE(mmfile->Initialize(File(file_path, file_flags), map_access));
     EXPECT_EQ(filesize, mmfile->length());
     if (FilePersistentMemoryAllocator::IsFileAcceptable(*mmfile, read_only)) {
@@ -999,6 +1001,6 @@ TEST_F(PersistentMemoryAllocatorTest, TruncateTest) {
   }
 }
 
-#endif  // !defined(OS_NACL)
+#endif  // !BUILDFLAG(IS_NACL)
 
 }  // namespace base

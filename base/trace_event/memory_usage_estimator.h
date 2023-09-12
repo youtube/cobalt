@@ -1,9 +1,11 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TRACE_EVENT_MEMORY_USAGE_ESTIMATOR_H_
 #define BASE_TRACE_EVENT_MEMORY_USAGE_ESTIMATOR_H_
+
+#include <stdint.h>
 
 #include <array>
 #include <deque>
@@ -24,17 +26,16 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/linked_list.h"
-#include "base/containers/mru_cache.h"
+#include "base/containers/lru_cache.h"
 #include "base/containers/queue.h"
+#include "base/memory/raw_ptr.h"
 #include "base/stl_util.h"
-#include "base/strings/string16.h"
 #include "base/template_util.h"
-#include "starboard/types.h"
 
 // Composable memory usage estimators.
 //
 // This file defines set of EstimateMemoryUsage(object) functions that return
-// approximate memory usage of their argument.
+// approximate dynamically allocated memory usage of their argument.
 //
 // The ultimate goal is to make memory usage estimation for a class simply a
 // matter of aggregating EstimateMemoryUsage() results over all fields.
@@ -54,10 +55,22 @@
 //
 // Here is an example implementation:
 //
-// size_t foo::bar::MyClass::EstimateMemoryUsage() const {
-//   return base::trace_event::EstimateMemoryUsage(name_) +
-//          base::trace_event::EstimateMemoryUsage(id_) +
-//          base::trace_event::EstimateMemoryUsage(items_);
+// class MyClass {
+//   ...
+//   ...
+//   size_t EstimateMemoryUsage() const {
+//     return base::trace_event::EstimateMemoryUsage(set_) +
+//            base::trace_event::EstimateMemoryUsage(name_) +
+//            base::trace_event::EstimateMemoryUsage(foo_);
+//   }
+//   ...
+//  private:
+//   ...
+//   std::set<int> set_;
+//   std::string name_;
+//   Foo foo_;
+//   int id_;
+//   bool success_;
 // }
 //
 // The approach is simple: first call EstimateMemoryUsage() on all members,
@@ -165,11 +178,17 @@ size_t EstimateMemoryUsage(const base::flat_set<T, C>& set);
 template <class K, class V, class C>
 size_t EstimateMemoryUsage(const base::flat_map<K, V, C>& map);
 
-template <class Key,
-          class Payload,
-          class HashOrComp,
-          template <typename, typename, typename> class Map>
-size_t EstimateMemoryUsage(const MRUCacheBase<Key, Payload, HashOrComp, Map>&);
+template <class K, class V, class C>
+size_t EstimateMemoryUsage(const base::LRUCache<K, V, C>& lru);
+
+template <class K, class V, class C>
+size_t EstimateMemoryUsage(const base::HashingLRUCache<K, V, C>& lru);
+
+template <class V, class C>
+size_t EstimateMemoryUsage(const base::LRUCacheSet<V, C>& lru);
+
+template <class V, class C>
+size_t EstimateMemoryUsage(const base::HashingLRUCacheSet<V, C>& lru);
 
 // TODO(dskiba):
 //   std::forward_list
@@ -210,12 +229,10 @@ template <class T, class X = void>
 struct EMUCaller {
   // std::is_same<> below makes static_assert depend on T, in order to
   // prevent it from asserting regardless instantiation.
-#if !defined(_GLIBCXX_DEBUG) && !defined(_LIBCPP_DEBUG)
   static_assert(std::is_same<T, std::false_type>::value,
                 "Neither global function 'size_t EstimateMemoryUsage(T)' "
                 "nor member function 'size_t T::EstimateMemoryUsage() const' "
                 "is defined for the type.");
-#endif
 
   static size_t Call(const T&) { return 0; }
 };
@@ -250,30 +267,6 @@ struct IsComplexIteratorForContainer<
   };
 };
 
-#if defined(STARBOARD)
-template <class I>
-struct IsComplexIteratorForContainer<
-    std::multiset,
-    I,
-    std::enable_if_t<!std::is_pointer<I>::value &&
-                     base::internal::is_iterator<I>::value>> {
-  using value_type = typename std::iterator_traits<I>::value_type;
-  using container_type = std::multiset<value_type, std::greater<value_type>>;
-
-  // We use enum instead of static constexpr bool, beause we don't have inline
-  // variables until c++17.
-  //
-  // The downside is - value is not of type bool.
-  enum : bool {
-    value =
-        std::is_same<typename container_type::iterator, I>::value ||
-        std::is_same<typename container_type::const_iterator, I>::value ||
-        std::is_same<typename container_type::reverse_iterator, I>::value ||
-        std::is_same<typename container_type::const_reverse_iterator, I>::value,
-  };
-};
-#endif
-
 template <class I, template <class...> class... Containers>
 constexpr bool OneOfContainersComplexIterators() {
   // We are forced to create a temporary variable to workaround a compilation
@@ -301,15 +294,6 @@ constexpr bool IsStandardContainerComplexIterator() {
       /*std::forward_list,*/ std::list, std::set, std::multiset>();
 }
 
-#if defined(STARBOARD)
-template <class T>
-struct EMUCaller<
-    T,
-    typename std::enable_if<!HasEMU<T>::value &&
-                            std::is_trivially_destructible<T>::value>::type> {
-  static size_t Call(const T& value) { return 0; }
-};
-#else   // defined(STARBOARD)
 // Work around MSVS bug. For some reason constexpr function doesn't work.
 // However variable template does.
 template <typename T>
@@ -323,7 +307,6 @@ struct EMUCaller<
     std::enable_if_t<!HasEMU<T>::value && IsKnownNonAllocatingType_v<T>>> {
   static size_t Call(const T& value) { return 0; }
 };
-#endif  // defined(STARBOARD)
 
 }  // namespace internal
 
@@ -373,7 +356,7 @@ size_t EstimateMemoryUsage(const std::basic_string<C, T, A>& string) {
 
 // Use explicit instantiations from the .cc file (reduces bloat).
 extern template BASE_EXPORT size_t EstimateMemoryUsage(const std::string&);
-extern template BASE_EXPORT size_t EstimateMemoryUsage(const string16&);
+extern template BASE_EXPORT size_t EstimateMemoryUsage(const std::u16string&);
 
 // Arrays
 
@@ -420,10 +403,10 @@ size_t EstimateMemoryUsage(const std::shared_ptr<T>& ptr) {
   // Model shared_ptr after libc++,
   // see __shared_ptr_pointer from include/memory
   struct SharedPointer {
-    void* vtbl;
+    raw_ptr<void> vtbl;
     long shared_owners;
     long shared_weak_owners;
-    T* value;
+    raw_ptr<T> value;
   };
   // If object of size S shared N > S times we prefer to (potentially)
   // overestimate than to return 0.
@@ -452,8 +435,8 @@ template <class T, class A>
 size_t EstimateMemoryUsage(const std::list<T, A>& list) {
   using value_type = typename std::list<T, A>::value_type;
   struct Node {
-    Node* prev;
-    Node* next;
+    raw_ptr<Node> prev;
+    raw_ptr<Node> next;
     value_type value;
   };
   return sizeof(Node) * list.size() +
@@ -479,9 +462,9 @@ size_t EstimateTreeMemoryUsage(size_t size) {
   // Tree containers are modeled after libc++
   // (__tree_node from include/__tree)
   struct Node {
-    Node* left;
-    Node* right;
-    Node* parent;
+    raw_ptr<Node> left;
+    raw_ptr<Node> right;
+    raw_ptr<Node> parent;
     bool is_black;
     V value;
   };
@@ -530,10 +513,10 @@ size_t HashMapBucketCountForTesting(size_t bucket_count) {
   return bucket_count;
 }
 
-template <class MruCacheType>
-size_t DoEstimateMemoryUsageForMruCache(const MruCacheType& mru_cache) {
-  return EstimateMemoryUsage(mru_cache.ordering_) +
-         EstimateMemoryUsage(mru_cache.index_);
+template <class LruCacheType>
+size_t DoEstimateMemoryUsageForLruCache(const LruCacheType& lru_cache) {
+  return EstimateMemoryUsage(lru_cache.ordering_) +
+         EstimateMemoryUsage(lru_cache.index_);
 }
 
 }  // namespace internal
@@ -543,7 +526,7 @@ size_t EstimateHashMapMemoryUsage(size_t bucket_count, size_t size) {
   // Hashtable containers are modeled after libc++
   // (__hash_node from include/__hash_table)
   struct Node {
-    void* next;
+    raw_ptr<void> next;
     size_t hash;
     V value;
   };
@@ -674,13 +657,24 @@ size_t EstimateMemoryUsage(const base::flat_map<K, V, C>& map) {
   return sizeof(value_type) * map.capacity() + EstimateIterableMemoryUsage(map);
 }
 
-template <class Key,
-          class Payload,
-          class HashOrComp,
-          template <typename, typename, typename> class Map>
-size_t EstimateMemoryUsage(
-    const MRUCacheBase<Key, Payload, HashOrComp, Map>& mru_cache) {
-  return internal::DoEstimateMemoryUsageForMruCache(mru_cache);
+template <class K, class V, class C>
+size_t EstimateMemoryUsage(const LRUCache<K, V, C>& lru_cache) {
+  return internal::DoEstimateMemoryUsageForLruCache(lru_cache);
+}
+
+template <class K, class V, class C>
+size_t EstimateMemoryUsage(const HashingLRUCache<K, V, C>& lru_cache) {
+  return internal::DoEstimateMemoryUsageForLruCache(lru_cache);
+}
+
+template <class V, class C>
+size_t EstimateMemoryUsage(const LRUCacheSet<V, C>& lru_cache) {
+  return internal::DoEstimateMemoryUsageForLruCache(lru_cache);
+}
+
+template <class V, class C>
+size_t EstimateMemoryUsage(const HashingLRUCacheSet<V, C>& lru_cache) {
+  return internal::DoEstimateMemoryUsageForLruCache(lru_cache);
 }
 
 }  // namespace trace_event

@@ -1,14 +1,19 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/win/com_init_check_hook.h"
 
 #include <windows.h>
+
 #include <objbase.h>
 #include <stdint.h>
 #include <string.h>
 
+#include <ostream>
+#include <string>
+
+#include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/win/com_init_util.h"
@@ -84,6 +89,10 @@ const unsigned char g_hotpatch_placeholder_nop[] = {0x90, 0x90, 0x90, 0x90,
 const unsigned char g_hotpatch_placeholder_int3[] = {0xcc, 0xcc, 0xcc, 0xcc,
                                                      0xcc, 0x8b, 0xff};
 
+// http://crbug.com/1312659: Unusable apphelp placeholder missing one byte.
+const unsigned char g_hotpatch_placeholder_apphelp[] = {0x00, 0xcc, 0xcc, 0xcc,
+                                                        0xcc, 0x8b, 0xff};
+
 class HookManager {
  public:
   static HookManager* GetInstance() {
@@ -91,21 +100,35 @@ class HookManager {
     return hook_manager;
   }
 
+  HookManager(const HookManager&) = delete;
+  HookManager& operator=(const HookManager&) = delete;
+
   void RegisterHook() {
     AutoLock auto_lock(lock_);
-    if (init_count_ == 0)
-      WriteHook();
-
     ++init_count_;
+    if (disabled_)
+      return;
+    if (init_count_ == 1)
+      WriteHook();
   }
 
   void UnregisterHook() {
     AutoLock auto_lock(lock_);
     DCHECK_NE(0U, init_count_);
-    if (init_count_ == 1)
-      RevertHook();
-
     --init_count_;
+    if (disabled_)
+      return;
+    if (init_count_ == 0)
+      RevertHook();
+  }
+
+  void DisableCOMChecksForProcess() {
+    AutoLock auto_lock(lock_);
+    if (disabled_)
+      return;
+    disabled_ = true;
+    if (init_count_ > 0)
+      RevertHook();
   }
 
  private:
@@ -116,6 +139,8 @@ class HookManager {
     INT3,
     // The hotpatch placeholder used nop's in the sled.
     NOP,
+    // The hotpatch placeholder is an unusable apphelp shim.
+    APPHELP_SHIM,
     // This function has already been patched by a different component.
     EXTERNALLY_PATCHED,
   };
@@ -134,7 +159,8 @@ class HookManager {
     // See banner comment above why this subtracts 5 bytes.
     co_create_instance_padded_address_ =
         reinterpret_cast<uint32_t>(
-            GetProcAddress(ole32_library_, "CoCreateInstance")) - 5;
+            GetProcAddress(ole32_library_, "CoCreateInstance")) -
+        5;
 
     // See banner comment above why this adds 7 bytes.
     original_co_create_instance_body_function_ =
@@ -144,8 +170,8 @@ class HookManager {
     uint32_t dchecked_co_create_instance_address =
         reinterpret_cast<uint32_t>(&HookManager::DCheckedCoCreateInstance);
     uint32_t jmp_offset_base_address = co_create_instance_padded_address_ + 5;
-    structured_hotpatch_.relative_address =
-        dchecked_co_create_instance_address - jmp_offset_base_address;
+    structured_hotpatch_.relative_address = static_cast<int32_t>(
+        dchecked_co_create_instance_address - jmp_offset_base_address);
 
     HotpatchPlaceholderFormat format = GetHotpatchPlaceholderFormat(
         reinterpret_cast<const void*>(co_create_instance_padded_address_));
@@ -163,6 +189,11 @@ class HookManager {
                    << FirstSevenBytesToString(
                           reinterpret_cast<uint32_t>(&structured_hotpatch_))
                    << ">";
+      return;
+    } else if (format == HotpatchPlaceholderFormat::APPHELP_SHIM) {
+      // The apphelp shim placeholder does not allocate enough bytes for a
+      // trampolined jump. In this case, we skip patching.
+      hotpatch_placeholder_format_ = format;
       return;
     }
 
@@ -197,6 +228,7 @@ class HookManager {
             sizeof(g_hotpatch_placeholder_nop));
         break;
       case HotpatchPlaceholderFormat::EXTERNALLY_PATCHED:
+      case HotpatchPlaceholderFormat::APPHELP_SHIM:
       case HotpatchPlaceholderFormat::UNKNOWN:
         break;
     }
@@ -225,6 +257,12 @@ class HookManager {
                  reinterpret_cast<const void*>(&g_hotpatch_placeholder_nop),
                  sizeof(g_hotpatch_placeholder_nop)) == 0) {
       return HotpatchPlaceholderFormat::NOP;
+    }
+
+    if (::memcmp(reinterpret_cast<void*>(co_create_instance_padded_address_),
+                 reinterpret_cast<const void*>(&g_hotpatch_placeholder_apphelp),
+                 sizeof(g_hotpatch_placeholder_apphelp)) == 0) {
+      return HotpatchPlaceholderFormat::APPHELP_SHIM;
     }
 
     const unsigned char* instruction_bytes =
@@ -256,23 +294,26 @@ class HookManager {
     return true;
   }
 
-  static HRESULT __stdcall DCheckedCoCreateInstance(const CLSID& rclsid,
-                                                    IUnknown* pUnkOuter,
-                                                    DWORD dwClsContext,
-                                                    REFIID riid,
-                                                    void** ppv) {
+  // Indirect call to original_co_create_instance_body_function_ triggers CFI
+  // so this function must have CFI disabled.
+  static DISABLE_CFI_ICALL HRESULT __stdcall DCheckedCoCreateInstance(
+      const CLSID& rclsid,
+      IUnknown* pUnkOuter,
+      DWORD dwClsContext,
+      REFIID riid,
+      void** ppv) {
     // Chromium COM callers need to make sure that their thread is configured to
     // process COM objects to avoid creating an implicit MTA or silently failing
     // STA object creation call due to the SUCCEEDED() pattern for COM calls.
     //
     // If you hit this assert as part of migrating to the Task Scheduler,
     // evaluate your threading guarantees and dispatch your work with
-    // base::CreateCOMSTATaskRunnerWithTraits().
+    // base::ThreadPool::CreateCOMSTATaskRunner().
     //
-    // If you need MTA support, ping //base/task/task_scheduler/OWNERS.
+    // If you need MTA support, ping //base/task/thread_pool/OWNERS.
     AssertComInitialized(
         "CoCreateInstance calls in Chromium require explicit COM "
-        "initialization via base::CreateCOMSTATaskRunnerWithTraits() or "
+        "initialization via base::ThreadPool::CreateCOMSTATaskRunner() or "
         "ScopedCOMInitializer. See the comment in DCheckedCoCreateInstance for "
         "more details.");
     return original_co_create_instance_body_function_(rclsid, pUnkOuter,
@@ -291,6 +332,7 @@ class HookManager {
   // Synchronizes everything in this class.
   base::Lock lock_;
   size_t init_count_ = 0;
+  bool disabled_ = false;
   HMODULE ole32_library_ = nullptr;
   uint32_t co_create_instance_padded_address_ = 0;
   HotpatchPlaceholderFormat hotpatch_placeholder_format_ =
@@ -298,8 +340,6 @@ class HookManager {
   StructuredHotpatch structured_hotpatch_;
   static decltype(
       ::CoCreateInstance)* original_co_create_instance_body_function_;
-
-  DISALLOW_COPY_AND_ASSIGN(HookManager);
 };
 
 decltype(::CoCreateInstance)*
@@ -319,6 +359,12 @@ ComInitCheckHook::~ComInitCheckHook() {
 #if defined(COM_INIT_CHECK_HOOK_ENABLED)
   HookManager::GetInstance()->UnregisterHook();
 #endif  // defined(COM_INIT_CHECK_HOOK_ENABLED)
+}
+
+void ComInitCheckHook::DisableCOMChecksForProcess() {
+#if defined(COM_INIT_CHECK_HOOK_ENABLED)
+  HookManager::GetInstance()->DisableCOMChecksForProcess();
+#endif
 }
 
 }  // namespace win

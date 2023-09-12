@@ -1,14 +1,15 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/android/library_loader/library_prefetcher.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include <sys/mman.h>
 #include "base/android/library_loader/anchor_functions_buildflags.h"
-#include "base/memory/shared_memory.h"
+#include "base/memory/writable_shared_memory_region.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(SUPPORTS_CODE_ORDERING)
@@ -21,11 +22,14 @@ namespace {
 const size_t kPageSize = 4096;
 }  // namespace
 
-TEST(NativeLibraryPrefetcherTest, TestPercentageOfResidentCode) {
+// https://crbug.com/1056021 - flaky on Nexus 5.
+TEST(NativeLibraryPrefetcherTest, DISABLED_TestPercentageOfResidentCode) {
   size_t length = 4 * kPageSize;
-  base::SharedMemory shared_mem;
-  ASSERT_TRUE(shared_mem.CreateAndMapAnonymous(length));
-  void* address = shared_mem.memory();
+  auto shared_region = base::WritableSharedMemoryRegion::Create(length);
+  ASSERT_TRUE(shared_region.IsValid());
+  auto mapping = shared_region.Map();
+  ASSERT_TRUE(mapping.IsValid());
+  void* address = mapping.memory();
   size_t start = reinterpret_cast<size_t>(address);
   size_t end = start + length;
 

@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,8 @@
 
 #include "base/base_export.h"
 #include "base/logging.h"
-#include "base/macros.h"
+#include "build/blink_buildflags.h"
 #include "build/build_config.h"
-#include "starboard/types.h"
 
 // Use the MACH_LOG family of macros along with a mach_error_t (kern_return_t)
 // containing a Mach error. The error value will be decoded so that logged
@@ -40,20 +39,22 @@ class BASE_EXPORT MachLogMessage : public logging::LogMessage {
                  int line,
                  LogSeverity severity,
                  mach_error_t mach_err);
-  ~MachLogMessage();
+
+  MachLogMessage(const MachLogMessage&) = delete;
+  MachLogMessage& operator=(const MachLogMessage&) = delete;
+
+  ~MachLogMessage() override;
 
  private:
   mach_error_t mach_err_;
-
-  DISALLOW_COPY_AND_ASSIGN(MachLogMessage);
 };
 
 }  // namespace logging
 
-#if defined(NDEBUG)
-#define MACH_DVLOG_IS_ON(verbose_level) 0
-#else
+#if DCHECK_IS_ON()
 #define MACH_DVLOG_IS_ON(verbose_level) VLOG_IS_ON(verbose_level)
+#else
+#define MACH_DVLOG_IS_ON(verbose_level) 0
 #endif
 
 #define MACH_LOG_STREAM(severity, mach_err) \
@@ -97,7 +98,7 @@ class BASE_EXPORT MachLogMessage : public logging::LogMessage {
               DCHECK_IS_ON() && !(condition))   \
       << "Check failed: " #condition << ". "
 
-#if !defined(OS_IOS)
+#if BUILDFLAG(USE_BLINK)
 
 namespace logging {
 
@@ -107,12 +108,14 @@ class BASE_EXPORT BootstrapLogMessage : public logging::LogMessage {
                       int line,
                       LogSeverity severity,
                       kern_return_t bootstrap_err);
-  ~BootstrapLogMessage();
+
+  BootstrapLogMessage(const BootstrapLogMessage&) = delete;
+  BootstrapLogMessage& operator=(const BootstrapLogMessage&) = delete;
+
+  ~BootstrapLogMessage() override;
 
  private:
   kern_return_t bootstrap_err_;
-
-  DISALLOW_COPY_AND_ASSIGN(BootstrapLogMessage);
 };
 
 }  // namespace logging
@@ -163,6 +166,6 @@ class BASE_EXPORT BootstrapLogMessage : public logging::LogMessage {
               DCHECK_IS_ON() && !(condition))             \
       << "Check failed: " #condition << ". "
 
-#endif  // !OS_IOS
+#endif  //  BUILDFLAG(USE_BLINK)
 
 #endif  // BASE_MAC_MACH_LOGGING_H_

@@ -1,14 +1,8 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/environment.h"
-
-#include <vector>
-
-#include "starboard/types.h"
-
-#include "starboard/memory.h"
 
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_piece.h"
@@ -16,9 +10,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include <windows.h>
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <stdlib.h>
 #endif
 
@@ -58,10 +52,7 @@ class EnvironmentImpl : public Environment {
 
  private:
   bool GetVarImpl(StringPiece variable_name, std::string* result) {
-#if defined(STARBOARD)
-    // Environment variables are not supported on Starboard.
-    return false;
-#elif defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     DWORD value_length =
         ::GetEnvironmentVariable(UTF8ToWide(variable_name).c_str(), nullptr, 0);
     if (value_length == 0)
@@ -73,7 +64,7 @@ class EnvironmentImpl : public Environment {
       *result = WideToUTF8(value.get());
     }
     return true;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     const char* env_value = getenv(variable_name.data());
     if (!env_value)
       return false;
@@ -85,55 +76,32 @@ class EnvironmentImpl : public Environment {
   }
 
   bool SetVarImpl(StringPiece variable_name, const std::string& new_value) {
-#if defined(STARBOARD)
-    return false;
-#elif defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     // On success, a nonzero value is returned.
     return !!SetEnvironmentVariable(UTF8ToWide(variable_name).c_str(),
                                     UTF8ToWide(new_value).c_str());
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     // On success, zero is returned.
     return !setenv(variable_name.data(), new_value.c_str(), 1);
 #endif
   }
 
   bool UnSetVarImpl(StringPiece variable_name) {
-#if defined(STARBOARD)
-    return false;
-#elif defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     // On success, a nonzero value is returned.
     return !!SetEnvironmentVariable(UTF8ToWide(variable_name).c_str(), nullptr);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     // On success, zero is returned.
     return !unsetenv(variable_name.data());
 #endif
   }
 };
 
-#if !defined(STARBOARD)
-// Parses a null-terminated input string of an environment block. The key is
-// placed into the given string, and the total length of the line, including
-// the terminating null, is returned.
-size_t ParseEnvLine(const NativeEnvironmentString::value_type* input,
-                    NativeEnvironmentString* key) {
-  // Skip to the equals or end of the string, this is the key.
-  size_t cur = 0;
-  while (input[cur] && input[cur] != '=')
-    cur++;
-  *key = NativeEnvironmentString(&input[0], cur);
-
-  // Now just skip to the end of the string.
-  while (input[cur])
-    cur++;
-  return cur + 1;
-}
-#endif
-
 }  // namespace
 
 namespace env_vars {
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 // On Posix systems, this variable contains the location of the user's home
 // directory. (e.g, /home/username/).
 const char kHome[] = "HOME";
@@ -151,98 +119,5 @@ std::unique_ptr<Environment> Environment::Create() {
 bool Environment::HasVar(StringPiece variable_name) {
   return GetVar(variable_name, nullptr);
 }
-
-#if defined(OS_WIN)
-
-string16 AlterEnvironment(const wchar_t* env,
-                          const EnvironmentMap& changes) {
-  string16 result;
-
-  // First copy all unmodified values to the output.
-  size_t cur_env = 0;
-  string16 key;
-  while (env[cur_env]) {
-    const wchar_t* line = &env[cur_env];
-    size_t line_length = ParseEnvLine(line, &key);
-
-    // Keep only values not specified in the change vector.
-    EnvironmentMap::const_iterator found_change = changes.find(key);
-    if (found_change == changes.end())
-      result.append(line, line_length);
-
-    cur_env += line_length;
-  }
-
-  // Now append all modified and new values.
-  for (EnvironmentMap::const_iterator i = changes.begin();
-       i != changes.end(); ++i) {
-    if (!i->second.empty()) {
-      result.append(i->first);
-      result.push_back('=');
-      result.append(i->second);
-      result.push_back(0);
-    }
-  }
-
-  // An additional null marks the end of the list. We always need a double-null
-  // in case nothing was added above.
-  if (result.empty())
-    result.push_back(0);
-  result.push_back(0);
-  return result;
-}
-
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-
-std::unique_ptr<char* []> AlterEnvironment(const char* const* const env,
-                                           const EnvironmentMap& changes) {
-  std::string value_storage;  // Holds concatenated null-terminated strings.
-  std::vector<size_t> result_indices;  // Line indices into value_storage.
-
-  // First build up all of the unchanged environment strings. These are
-  // null-terminated of the form "key=value".
-  std::string key;
-  for (size_t i = 0; env[i]; i++) {
-    size_t line_length = ParseEnvLine(env[i], &key);
-
-    // Keep only values not specified in the change vector.
-    auto found_change = changes.find(key);
-    if (found_change == changes.end()) {
-      result_indices.push_back(value_storage.size());
-      value_storage.append(env[i], line_length);
-    }
-  }
-
-  // Now append all modified and new values.
-  for (auto i = changes.begin(); i != changes.end(); ++i) {
-    if (!i->second.empty()) {
-      result_indices.push_back(value_storage.size());
-      value_storage.append(i->first);
-      value_storage.push_back('=');
-      value_storage.append(i->second);
-      value_storage.push_back(0);
-    }
-  }
-
-  size_t pointer_count_required =
-      result_indices.size() + 1 +  // Null-terminated array of pointers.
-      (value_storage.size() + sizeof(char*) - 1) / sizeof(char*);  // Buffer.
-  std::unique_ptr<char* []> result(new char*[pointer_count_required]);
-
-  // The string storage goes after the array of pointers.
-  char* storage_data = reinterpret_cast<char*>(
-      &result.get()[result_indices.size() + 1]);
-  if (!value_storage.empty())
-    memcpy(storage_data, value_storage.data(), value_storage.size());
-
-  // Fill array of pointers at the beginning of the result.
-  for (size_t i = 0; i < result_indices.size(); i++)
-    result[i] = &storage_data[result_indices[i]];
-  result[result_indices.size()] = 0;  // Null terminator.
-
-  return result;
-}
-
-#endif  // OS_WIN
 
 }  // namespace base

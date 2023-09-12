@@ -1,10 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/singleton.h"
+#include <stdint.h>
+
 #include "base/at_exit.h"
-#include "starboard/types.h"
+#include "base/memory/aligned_memory.h"
+#include "base/memory/singleton.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -155,9 +157,14 @@ void SingletonStatic(CallbackFunc CallOnQuit) {
 }
 
 CallbackFunc* GetStaticSingleton() {
-  return &CallbackSingletonWithStaticTrait::GetInstance()->callback_;
+  CallbackSingletonWithStaticTrait* instance =
+      CallbackSingletonWithStaticTrait::GetInstance();
+  if (instance == nullptr) {
+    return nullptr;
+  } else {
+    return &instance->callback_;
+  }
 }
-
 
 class SingletonTest : public testing::Test {
  public:
@@ -272,9 +279,6 @@ TEST_F(SingletonTest, Basic) {
   VerifiesCallbacksNotCalled();
 }
 
-#define EXPECT_ALIGNED(ptr, align) \
-    EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) & (align - 1))
-
 TEST_F(SingletonTest, Alignment) {
   // Create some static singletons with increasing sizes and alignment
   // requirements. By ordering this way, the linker will need to do some work to
@@ -283,22 +287,15 @@ TEST_F(SingletonTest, Alignment) {
       AlignedTestSingleton<int32_t>::GetInstance();
   AlignedTestSingleton<AlignedData<32>>* align32 =
       AlignedTestSingleton<AlignedData<32>>::GetInstance();
-#if !defined(STARBOARD)
   AlignedTestSingleton<AlignedData<128>>* align128 =
       AlignedTestSingleton<AlignedData<128>>::GetInstance();
   AlignedTestSingleton<AlignedData<4096>>* align4096 =
       AlignedTestSingleton<AlignedData<4096>>::GetInstance();
-#endif
 
-  EXPECT_ALIGNED(align4, 4);
-  EXPECT_ALIGNED(align32, 32);
-// At least on Raspi, alignas with big alignment numbers does not work and
-// that is compliant with C++ standard as the alignment is larger than
-// std::max_align_t.
-#if !defined(STARBOARD)
-  EXPECT_ALIGNED(align128, 128);
-  EXPECT_ALIGNED(align4096, 4096);
-#endif
+  EXPECT_TRUE(IsAligned(align4, 4));
+  EXPECT_TRUE(IsAligned(align32, 32));
+  EXPECT_TRUE(IsAligned(align128, 128));
+  EXPECT_TRUE(IsAligned(align4096, 4096));
 }
 
 }  // namespace

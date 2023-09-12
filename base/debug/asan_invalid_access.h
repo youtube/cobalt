@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,34 +10,35 @@
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "base/sanitizer_buildflags.h"
 #include "build/build_config.h"
 
 namespace base {
 namespace debug {
 
-#if defined(ADDRESS_SANITIZER)
+#if defined(ADDRESS_SANITIZER) || BUILDFLAG(IS_HWASAN)
 
 // Generates an heap buffer overflow.
-BASE_EXPORT NOINLINE void AsanHeapOverflow();
+NOINLINE BASE_EXPORT void AsanHeapOverflow();
 
 // Generates an heap buffer underflow.
-BASE_EXPORT NOINLINE void AsanHeapUnderflow();
+NOINLINE BASE_EXPORT void AsanHeapUnderflow();
 
 // Generates an use after free.
-BASE_EXPORT NOINLINE void AsanHeapUseAfterFree();
+NOINLINE BASE_EXPORT void AsanHeapUseAfterFree();
 
 // The "corrupt-block" and "corrupt-heap" classes of bugs is specific to
 // Windows.
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 // Corrupts a memory block and makes sure that the corruption gets detected when
 // we try to free this block.
-BASE_EXPORT NOINLINE void AsanCorruptHeapBlock();
+NOINLINE BASE_EXPORT void AsanCorruptHeapBlock();
 
 // Corrupts the heap and makes sure that the corruption gets detected when a
 // crash occur.
-BASE_EXPORT NOINLINE void AsanCorruptHeap();
+NOINLINE BASE_EXPORT void AsanCorruptHeap();
 
-#endif  // OS_WIN
+#endif  // BUILDFLAG(IS_WIN)
 #endif  // ADDRESS_SANITIZER
 
 }  // namespace debug

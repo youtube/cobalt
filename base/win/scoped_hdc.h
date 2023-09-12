@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,8 @@
 
 #include <windows.h>
 
+#include "base/check.h"
 #include "base/debug/gdi_debug_util_win.h"
-#include "base/logging.h"
-#include "base/macros.h"
 #include "base/win/scoped_handle.h"
 
 namespace base {
@@ -19,9 +18,7 @@ namespace win {
 // GetDC.
 class ScopedGetDC {
  public:
-  explicit ScopedGetDC(HWND hwnd)
-      : hwnd_(hwnd),
-        hdc_(GetDC(hwnd)) {
+  explicit ScopedGetDC(HWND hwnd) : hwnd_(hwnd), hdc_(GetDC(hwnd)) {
     if (hwnd_) {
       DCHECK(IsWindow(hwnd_));
       DCHECK(hdc_);
@@ -34,6 +31,9 @@ class ScopedGetDC {
     }
   }
 
+  ScopedGetDC(const ScopedGetDC&) = delete;
+  ScopedGetDC& operator=(const ScopedGetDC&) = delete;
+
   ~ScopedGetDC() {
     if (hdc_)
       ReleaseDC(hwnd_, hdc_);
@@ -44,8 +44,6 @@ class ScopedGetDC {
  private:
   HWND hwnd_;
   HDC hdc_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedGetDC);
 };
 
 // Like ScopedHandle but for HDC.  Only use this on HDCs returned from
@@ -54,20 +52,15 @@ class CreateDCTraits {
  public:
   typedef HDC Handle;
 
-  static bool CloseHandle(HDC handle) {
-    return ::DeleteDC(handle) != FALSE;
-  }
+  CreateDCTraits() = delete;
+  CreateDCTraits(const CreateDCTraits&) = delete;
+  CreateDCTraits& operator=(const CreateDCTraits&) = delete;
 
-  static bool IsHandleValid(HDC handle) {
-    return handle != NULL;
-  }
+  static bool CloseHandle(HDC handle) { return ::DeleteDC(handle) != FALSE; }
 
-  static HDC NullHandle() {
-    return NULL;
-  }
+  static bool IsHandleValid(HDC handle) { return handle != NULL; }
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CreateDCTraits);
+  static HDC NullHandle() { return NULL; }
 };
 
 typedef GenericScopedHandle<CreateDCTraits, DummyVerifierTraits> ScopedCreateDC;

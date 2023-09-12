@@ -1,11 +1,15 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/launcher/test_result.h"
 
-#include "base/logging.h"
-#include "starboard/types.h"
+#include <stddef.h>
+
+#include <ostream>
+
+#include "base/check_op.h"
+#include "base/notreached.h"
 
 namespace base {
 
@@ -26,6 +30,8 @@ bool TestResultPart::TypeFromString(const std::string& str, Type* type) {
     *type = kNonFatalFailure;
   else if (str == "fatal_failure")
     *type = kFatalFailure;
+  else if (str == "skip")
+    *type = kSkip;
   else
     return false;
   return true;
@@ -39,8 +45,8 @@ std::string TestResultPart::TypeAsString() const {
       return "failure";
     case kFatalFailure:
       return "fatal_failure";
-    default:
-      NOTREACHED();
+    case kSkip:
+      return "skip";
   }
   return "unknown";
 }
@@ -73,7 +79,9 @@ std::string TestResult::StatusAsString() const {
       return "SKIPPED";
     case TEST_EXCESSIVE_OUTPUT:
       return "EXCESSIVE_OUTPUT";
-     // Rely on compiler warnings to ensure all possible values are handled.
+    case TEST_NOT_RUN:
+      return "NOTRUN";
+      // Rely on compiler warnings to ensure all possible values are handled.
   }
 
   NOTREACHED();
@@ -90,6 +98,22 @@ std::string TestResult::GetTestCaseName() const {
   size_t dot_pos = full_name.find('.');
   CHECK_NE(dot_pos, std::string::npos);
   return full_name.substr(0, dot_pos);
+}
+
+void TestResult::AddLink(const std::string& name, const std::string& url) {
+  auto [it, inserted] = links.insert({name, url});
+  DCHECK(inserted) << name << " is already used as a link name. Ignoring...";
+}
+
+void TestResult::AddTag(const std::string& name, const std::string& value) {
+  tags[name].push_back(value);
+}
+
+void TestResult::AddProperty(const std::string& name,
+                             const std::string& value) {
+  auto [it, inserted] = properties.insert({name, value});
+  DCHECK(inserted) << name
+                   << " is already used as a property name. Ignoring...";
 }
 
 }  // namespace base

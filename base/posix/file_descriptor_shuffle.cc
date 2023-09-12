@@ -1,24 +1,21 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/posix/file_descriptor_shuffle.h"
 
 #include <unistd.h>
+#include <stddef.h>
 #include <ostream>
 
+#include "base/check.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
-#include "starboard/types.h"
 
 namespace base {
 
-bool PerformInjectiveMultimapDestructive(
-    InjectiveMultimap* m, InjectionDelegate* delegate) {
-  static const size_t kMaxExtraFDs = 16;
-  int extra_fds[kMaxExtraFDs];
-  unsigned next_extra_fd = 0;
-
+bool PerformInjectiveMultimapDestructive(InjectiveMultimap* m,
+                                         InjectionDelegate* delegate) {
   // DANGER: this function must not allocate or lock.
   // Cannot use STL iterators here, since debug iterators use locks.
 
@@ -38,19 +35,12 @@ bool PerformInjectiveMultimapDestructive(
     for (size_t j_index = i_index + 1; j_index < m->size(); ++j_index) {
       InjectiveMultimap::value_type* j = &(*m)[j_index];
       if (!is_identity && i->dest == j->source) {
-        if (temp_fd == -1) {
-          if (!delegate->Duplicate(&temp_fd, i->dest))
-            return false;
-          if (next_extra_fd < kMaxExtraFDs) {
-            extra_fds[next_extra_fd++] = temp_fd;
-          } else {
-            RAW_LOG(ERROR, "PerformInjectiveMultimapDestructive overflowed "
-                           "extra_fds. Leaking file descriptors!");
-          }
+        if (temp_fd == -1 && !delegate->Duplicate(&temp_fd, i->dest)) {
+          return false;
         }
 
         j->source = temp_fd;
-        j->close = false;
+        j->close = true;
       }
 
       if (i->close && i->source == j->dest)
@@ -70,9 +60,6 @@ bool PerformInjectiveMultimapDestructive(
     if (!is_identity && i->close)
       delegate->Close(i->source);
   }
-
-  for (unsigned i = 0; i < next_extra_fd; i++)
-    delegate->Close(extra_fds[i]);
 
   return true;
 }
