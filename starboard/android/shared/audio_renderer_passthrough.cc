@@ -401,7 +401,10 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       optional<SbMediaAudioSampleType>(),  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
       audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
+<<<<<<< HEAD
       enable_audio_device_callback_, false /* enable_pcm_content_type_movie */,
+=======
+>>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
       kTunnelModeAudioSessionId, false /* is_web_audio */));
 
   if (!audio_track_bridge->is_valid()) {

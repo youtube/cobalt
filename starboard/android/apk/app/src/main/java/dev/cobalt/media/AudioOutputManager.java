@@ -60,8 +60,11 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
+<<<<<<< HEAD
       boolean enableAudioDeviceCallback,
       boolean enablePcmContentTypeMovie,
+=======
+>>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
     AudioTrackBridge audioTrackBridge =
@@ -70,7 +73,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             sampleRate,
             channelCount,
             preferredBufferSizeInBytes,
-            enablePcmContentTypeMovie,
             tunnelModeAudioSessionId,
             isWebAudio);
     if (!audioTrackBridge.isAudioTrackValid()) {

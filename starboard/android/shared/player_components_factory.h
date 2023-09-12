@@ -74,9 +74,13 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
  public:
+<<<<<<< HEAD
   explicit AudioRendererSinkAndroid(bool enable_audio_device_callback,
                                     bool enable_pcm_content_type_movie,
                                     int tunnel_mode_audio_session_id = -1)
+=======
+  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
+>>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
       : AudioRendererSinkImpl(
             [=](SbTime start_media_time,
                 int channels,
@@ -97,8 +101,12 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                   audio_frame_storage_type, frame_buffers,
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
+<<<<<<< HEAD
                   tunnel_mode_audio_session_id, enable_audio_device_callback,
                   enable_pcm_content_type_movie, false, /* is_web_audio */
+=======
+                  tunnel_mode_audio_session_id, false, /* is_web_audio */
+>>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
                   context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
@@ -309,8 +317,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     MimeType audio_mime_type(audio_mime);
     if (!audio_mime.empty()) {
       if (!audio_mime_type.is_valid() ||
+<<<<<<< HEAD
           !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
           !audio_mime_type.ValidateBoolParameter("enablepcmcontenttypemovie")) {
+=======
+          !audio_mime_type.ValidateBoolParameter("tunnelmode")) {
+>>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
         *error_message =
             "Invalid audio MIME: '" + std::string(audio_mime) + "'";
         return false;
@@ -425,6 +437,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator));
 
+<<<<<<< HEAD
       bool enable_audio_device_callback =
           audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
       SB_LOG(INFO) << "AudioDeviceCallback is "
@@ -435,6 +448,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << (enable_pcm_content_type_movie ? "enabled" : "disabled")
                    << " for non-tunneled PCM audio playback.";
 
+=======
+>>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
             tunnel_mode_audio_session_id, creation_parameters,
@@ -444,8 +459,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         }
       }
       if (!*audio_renderer_sink) {
+<<<<<<< HEAD
         audio_renderer_sink->reset(new AudioRendererSinkAndroid(
             enable_audio_device_callback, enable_pcm_content_type_movie));
+=======
+        audio_renderer_sink->reset(new AudioRendererSinkAndroid());
+>>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
       }
     }
 
@@ -637,10 +656,16 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
   scoped_ptr<AudioRendererSink> TryToCreateTunnelModeAudioRendererSink(
       int tunnel_mode_audio_session_id,
+<<<<<<< HEAD
       const CreationParameters& creation_parameters,
       bool enable_audio_device_callback) {
     scoped_ptr<AudioRendererSink> audio_sink(new AudioRendererSinkAndroid(
         enable_audio_device_callback, true, tunnel_mode_audio_session_id));
+=======
+      const CreationParameters& creation_parameters) {
+    scoped_ptr<AudioRendererSink> audio_sink(
+        new AudioRendererSinkAndroid(tunnel_mode_audio_session_id));
+>>>>>>> d3f34bc0c91 (Cleanup mime attribute of enablepcmcontenttypemovie (#1526))
     // We need to double check if the audio sink can actually be created.
     int max_cached_frames, min_frames_per_append;
     GetAudioRendererParams(creation_parameters, &max_cached_frames,
