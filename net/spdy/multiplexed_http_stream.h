@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,10 +10,8 @@
 
 #include "net/http/http_stream.h"
 #include "net/spdy/multiplexed_session.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 
-namespace spdy {
-class SpdyHeaderBlock;
-}  // namespace spdy
 namespace net {
 
 // Base class for SPDY and QUIC HttpStream subclasses.
@@ -23,11 +21,11 @@ class NET_EXPORT_PRIVATE MultiplexedHttpStream : public HttpStream {
       std::unique_ptr<MultiplexedSessionHandle> session);
   ~MultiplexedHttpStream() override;
 
-  bool GetRemoteEndpoint(IPEndPoint* endpoint) override;
+  int GetRemoteEndpoint(IPEndPoint* endpoint) override;
   void GetSSLInfo(SSLInfo* ssl_info) override;
   void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) override;
   void Drain(HttpNetworkSession* session) override;
-  HttpStream* RenewStreamForAuth() override;
+  std::unique_ptr<HttpStream> RenewStreamForAuth() override;
   void SetConnectionReused() override;
   bool CanReuseConnection() const override;
 
@@ -37,7 +35,7 @@ class NET_EXPORT_PRIVATE MultiplexedHttpStream : public HttpStream {
 
  protected:
   void DispatchRequestHeadersCallback(
-      const spdy::SpdyHeaderBlock& spdy_headers);
+      const spdy::Http2HeaderBlock& spdy_headers);
 
   MultiplexedSessionHandle* session() { return session_.get(); }
   const MultiplexedSessionHandle* session() const { return session_.get(); }

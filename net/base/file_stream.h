@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,13 +10,13 @@
 #ifndef NET_BASE_FILE_STREAM_H_
 #define NET_BASE_FILE_STREAM_H_
 
+#include <stdint.h>
+
 #include <memory>
 
 #include "base/files/file.h"
-#include "base/macros.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace base {
 class FilePath;
@@ -39,6 +39,8 @@ class NET_EXPORT FileStream {
   FileStream(base::File file,
              const scoped_refptr<base::TaskRunner>& task_runner);
 
+  FileStream(const FileStream&) = delete;
+  FileStream& operator=(const FileStream&) = delete;
   // The underlying file is closed automatically.
   virtual ~FileStream();
 
@@ -164,8 +166,6 @@ class NET_EXPORT FileStream {
   // without explicitly calling Close, the file should be closed asynchronously
   // without delaying FileStream's destructor.
   std::unique_ptr<Context> context_;
-
-  DISALLOW_COPY_AND_ASSIGN(FileStream);
 };
 
 }  // namespace net

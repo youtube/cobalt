@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,124 +11,60 @@
 #include <type_traits>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
+#include "base/values.h"
 #include "net/base/net_export.h"
-#include "net/cert/cert_database.h"
 #include "net/http/http_network_session.h"
 #include "net/socket/client_socket_pool_manager.h"
-
-namespace base {
-namespace trace_event {
-class ProcessMemoryDump;
-}
-}
+#include "net/socket/connect_job.h"
 
 namespace net {
 
-class CertVerifier;
-class ChannelIDService;
-class ClientSocketFactory;
-class CTVerifier;
-class HttpProxyClientSocketPool;
-class HostResolver;
-class NetLog;
-class NetworkQualityProvider;
-class SocketPerformanceWatcherFactory;
-class SOCKSClientSocketPool;
-class SSLClientSocketPool;
-class SSLConfigService;
-class TransportClientSocketPool;
-class TransportSecurityState;
-class WebSocketEndpointLockManager;
+class ProxyServer;
+class ClientSocketPool;
 
 class NET_EXPORT_PRIVATE ClientSocketPoolManagerImpl
-    : public ClientSocketPoolManager,
-      public CertDatabase::Observer {
+    : public ClientSocketPoolManager {
  public:
+  // |websocket_common_connect_job_params| is only used for direct WebSocket
+  // connections (No proxy in use). It's never used if |pool_type| is not
+  // HttpNetworkSession::SocketPoolType::WEBSOCKET_SOCKET_POOL.
   ClientSocketPoolManagerImpl(
-      NetLog* net_log,
-      ClientSocketFactory* socket_factory,
-      SocketPerformanceWatcherFactory* socket_performance_watcher_factory,
-      NetworkQualityProvider* network_quality_provider,
-      HostResolver* host_resolver,
-      CertVerifier* cert_verifier,
-      ChannelIDService* channel_id_service,
-      TransportSecurityState* transport_security_state,
-      CTVerifier* cert_transparency_verifier,
-      CTPolicyEnforcer* ct_policy_enforcer,
-      const std::string& ssl_session_cache_shard,
-      SSLConfigService* ssl_config_service,
-      WebSocketEndpointLockManager* websocket_endpoint_lock_manager,
-      HttpNetworkSession::SocketPoolType pool_type);
+      const CommonConnectJobParams& common_connect_job_params,
+      const CommonConnectJobParams& websocket_common_connect_job_params,
+      HttpNetworkSession::SocketPoolType pool_type,
+      bool cleanup_on_ip_address_change = true);
+
+  ClientSocketPoolManagerImpl(const ClientSocketPoolManagerImpl&) = delete;
+  ClientSocketPoolManagerImpl& operator=(const ClientSocketPoolManagerImpl&) =
+      delete;
+
   ~ClientSocketPoolManagerImpl() override;
 
-  void FlushSocketPoolsWithError(int error) override;
-  void CloseIdleSockets() override;
+  void FlushSocketPoolsWithError(int net_error,
+                                 const char* net_log_reason_utf8) override;
+  void CloseIdleSockets(const char* net_log_reason_utf8) override;
 
-  TransportClientSocketPool* GetTransportSocketPool() override;
-
-  SSLClientSocketPool* GetSSLSocketPool() override;
-
-  SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
-      const HostPortPair& socks_proxy) override;
-
-  HttpProxyClientSocketPool* GetSocketPoolForHTTPProxy(
-      const HostPortPair& http_proxy) override;
-
-  SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
-      const HostPortPair& proxy_server) override;
+  ClientSocketPool* GetSocketPool(const ProxyServer& proxy_server) override;
 
   // Creates a Value summary of the state of the socket pools.
-  std::unique_ptr<base::Value> SocketPoolInfoToValue() const override;
-
-  // CertDatabase::Observer methods:
-  void OnCertDBChanged() override;
-
-  void DumpMemoryStats(
-      base::trace_event::ProcessMemoryDump* pmd,
-      const std::string& parent_dump_absolute_name) const override;
+  base::Value SocketPoolInfoToValue() const override;
 
  private:
-  using TransportSocketPoolMap =
-      std::map<HostPortPair, std::unique_ptr<TransportClientSocketPool>>;
-  using SOCKSSocketPoolMap =
-      std::map<HostPortPair, std::unique_ptr<SOCKSClientSocketPool>>;
-  using HTTPProxySocketPoolMap =
-      std::map<HostPortPair, std::unique_ptr<HttpProxyClientSocketPool>>;
-  using SSLSocketPoolMap =
-      std::map<HostPortPair, std::unique_ptr<SSLClientSocketPool>>;
+  using SocketPoolMap =
+      std::map<ProxyServer, std::unique_ptr<ClientSocketPool>>;
 
-  NetLog* const net_log_;
-  ClientSocketFactory* const socket_factory_;
-  SocketPerformanceWatcherFactory* socket_performance_watcher_factory_;
-  NetworkQualityProvider* network_quality_provider_;
-  HostResolver* const host_resolver_;
-  CertVerifier* const cert_verifier_;
-  ChannelIDService* const channel_id_service_;
-  TransportSecurityState* const transport_security_state_;
-  CTVerifier* const cert_transparency_verifier_;
-  CTPolicyEnforcer* const ct_policy_enforcer_;
-  const std::string ssl_session_cache_shard_;
-  SSLConfigService* const ssl_config_service_;
+  const CommonConnectJobParams common_connect_job_params_;
+  // Used only for direct WebSocket connections (i.e., no proxy in use).
+  const CommonConnectJobParams websocket_common_connect_job_params_;
+
   const HttpNetworkSession::SocketPoolType pool_type_;
 
-  // Note: this ordering is important.
+  const bool cleanup_on_ip_address_change_;
 
-  std::unique_ptr<TransportClientSocketPool> transport_socket_pool_;
-  std::unique_ptr<SSLClientSocketPool> ssl_socket_pool_;
-  TransportSocketPoolMap transport_socket_pools_for_socks_proxies_;
-  SOCKSSocketPoolMap socks_socket_pools_;
-  TransportSocketPoolMap transport_socket_pools_for_http_proxies_;
-  TransportSocketPoolMap transport_socket_pools_for_https_proxies_;
-  SSLSocketPoolMap ssl_socket_pools_for_https_proxies_;
-  HTTPProxySocketPoolMap http_proxy_socket_pools_;
-  SSLSocketPoolMap ssl_socket_pools_for_proxies_;
+  SocketPoolMap socket_pools_;
 
   THREAD_CHECKER(thread_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolManagerImpl);
 };
 
 }  // namespace net

@@ -1,11 +1,12 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_PARSE_NUMBER_H_
 #define NET_BASE_PARSE_NUMBER_H_
 
-#include "base/compiler_specific.h"
+#include <cstdint>
+
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 
@@ -53,8 +54,16 @@ enum class ParseIntFormat {
   // In other words, this accepts the same things as NON_NEGATIVE, and
   // additionally recognizes those numbers prefixed with a '-'.
   //
-  // Note that by this defintion "-0" IS a valid input.
-  OPTIONALLY_NEGATIVE
+  // Note that by this definition "-0" IS a valid input.
+  OPTIONALLY_NEGATIVE,
+
+  // Like NON_NEGATIVE, but rejects anything not in minimal encoding - that is,
+  // it rejects anything with leading 0's, except "0".
+  STRICT_NON_NEGATIVE,
+
+  // Like OPTIONALLY_NEGATIVE, but rejects anything not in minimal encoding -
+  // that is, it rejects "-0" and anything with leading 0's, except "0".
+  STRICT_OPTIONALLY_NEGATIVE,
 };
 
 // The specific reason why a ParseInt*() function failed.
@@ -82,31 +91,33 @@ enum class ParseIntError {
 // On failure, it is guaranteed that |*output| was not modified. If
 // |optional_error| was non-null, then it is filled with the reason for the
 // failure.
-NET_EXPORT bool ParseInt32(const base::StringPiece& input,
-                           ParseIntFormat format,
-                           int32_t* output,
-                           ParseIntError* optional_error = nullptr)
-    WARN_UNUSED_RESULT;
+[[nodiscard]] NET_EXPORT bool ParseInt32(
+    base::StringPiece input,
+    ParseIntFormat format,
+    int32_t* output,
+    ParseIntError* optional_error = nullptr);
 
-NET_EXPORT bool ParseInt64(const base::StringPiece& input,
-                           ParseIntFormat format,
-                           int64_t* output,
-                           ParseIntError* optional_error = nullptr)
-    WARN_UNUSED_RESULT;
+[[nodiscard]] NET_EXPORT bool ParseInt64(
+    base::StringPiece input,
+    ParseIntFormat format,
+    int64_t* output,
+    ParseIntError* optional_error = nullptr);
 
 // The ParseUint*() functions parse a string representing a number.
 //
-// These are equivalent to calling ParseInt*() with a format string of
-// ParseIntFormat::NON_NEGATIVE and unsigned output types.
-NET_EXPORT bool ParseUint32(const base::StringPiece& input,
-                            uint32_t* output,
-                            ParseIntError* optional_error = nullptr)
-    WARN_UNUSED_RESULT;
+// These are equivalent to calling ParseInt*(), except with unsigned output
+// types. ParseIntFormat may only be one of {NON_NEGATIVE, STRICT_NON_NEGATIVE}.
+[[nodiscard]] NET_EXPORT bool ParseUint32(
+    base::StringPiece input,
+    ParseIntFormat format,
+    uint32_t* output,
+    ParseIntError* optional_error = nullptr);
 
-NET_EXPORT bool ParseUint64(const base::StringPiece& input,
-                            uint64_t* output,
-                            ParseIntError* optional_error = nullptr)
-    WARN_UNUSED_RESULT;
+[[nodiscard]] NET_EXPORT bool ParseUint64(
+    base::StringPiece input,
+    ParseIntFormat format,
+    uint64_t* output,
+    ParseIntError* optional_error = nullptr);
 
 }  // namespace net
 

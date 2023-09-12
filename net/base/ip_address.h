@@ -1,18 +1,23 @@
-// Copyright (c) 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_IP_ADDRESS_H_
 #define NET_BASE_IP_ADDRESS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
+#include <algorithm>
 #include <array>
 #include <string>
 #include <vector>
 
-#include "base/compiler_specific.h"
+#include "base/check_op.h"
 #include "base/strings/string_piece.h"
+#include "base/values.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -84,6 +89,8 @@ class NET_EXPORT IPAddressBytes {
   bool operator!=(const IPAddressBytes& other) const;
   bool operator==(const IPAddressBytes& other) const;
 
+  size_t EstimateMemoryUsage() const;
+
  private:
   // Underlying sequence of bytes
   std::array<uint8_t, 16> bytes_;
@@ -97,6 +104,13 @@ class NET_EXPORT IPAddress {
  public:
   enum : size_t { kIPv4AddressSize = 4, kIPv6AddressSize = 16 };
 
+  // Nullopt if `value` is malformed to be deserialized to IPAddress.
+  static absl::optional<IPAddress> FromValue(const base::Value& value);
+
+  // Parses an IP address literal (either IPv4 or IPv6). Returns the resulting
+  // IPAddress on success, or nullopt on error.
+  static absl::optional<IPAddress> FromIPLiteral(base::StringPiece ip_literal);
+
   // Creates a zero-sized, invalid address.
   IPAddress();
 
@@ -108,8 +122,7 @@ class NET_EXPORT IPAddress {
   // Copies the input address to |ip_address_|. The input is expected to be in
   // network byte order.
   template <size_t N>
-  IPAddress(const uint8_t(&address)[N])
-      : IPAddress(address, N) {}
+  explicit IPAddress(const uint8_t (&address)[N]) : IPAddress(address, N) {}
 
   // Copies the input address to |ip_address_| taking an additional length
   // parameter. The input is expected to be in network byte order.
@@ -161,6 +174,13 @@ class NET_EXPORT IPAddress {
   // Returns true if |ip_address_| is an IPv4-mapped IPv6 address.
   bool IsIPv4MappedIPv6() const;
 
+  // Returns true if |ip_address_| is 127.0.0.1/8 or ::1/128
+  bool IsLoopback() const;
+
+  // Returns true if |ip_address_| is 169.254.0.0/16 or fe80::/10, or
+  // ::ffff:169.254.0.0/112 (IPv4 mapped IPv6 link-local).
+  bool IsLinkLocal() const;
+
   // The size in bytes of |ip_address_|.
   size_t size() const { return ip_address_.size(); }
 
@@ -177,11 +197,10 @@ class NET_EXPORT IPAddress {
   //
   // When parsing fails, the original value of |this| will be overwritten such
   // that |this->empty()| and |!this->IsValid()|.
-  bool AssignFromIPLiteral(const ::base::StringPiece& ip_literal)
-      WARN_UNUSED_RESULT;
+  [[nodiscard]] bool AssignFromIPLiteral(base::StringPiece ip_literal);
 
   // Returns the underlying bytes.
-  const IPAddressBytes& bytes() const { return ip_address_; };
+  const IPAddressBytes& bytes() const { return ip_address_; }
 
   // Copies the bytes to a new vector. Generally callers should be using
   // |bytes()| and the IPAddressBytes abstraction. This method is provided as a
@@ -207,6 +226,11 @@ class NET_EXPORT IPAddress {
   bool operator==(const IPAddress& that) const;
   bool operator!=(const IPAddress& that) const;
   bool operator<(const IPAddress& that) const;
+
+  // Must be a valid address (per IsValid()).
+  base::Value ToValue() const;
+
+  size_t EstimateMemoryUsage() const;
 
  private:
   IPAddressBytes ip_address_;
@@ -257,7 +281,7 @@ NET_EXPORT bool IPAddressMatchesPrefix(const IPAddress& ip_address,
 //    10.10.3.1/20
 //    a:b:c::/46
 //    ::1/128
-NET_EXPORT bool ParseCIDRBlock(const std::string& cidr_literal,
+NET_EXPORT bool ParseCIDRBlock(base::StringPiece cidr_literal,
                                IPAddress* ip_address,
                                size_t* prefix_length_in_bits);
 
@@ -266,16 +290,15 @@ NET_EXPORT bool ParseCIDRBlock(const std::string& cidr_literal,
 // In other words, |hostname| must be an IPv4 literal, or an IPv6 literal
 // surrounded by brackets as in [::1]. On failure |ip_address| may have been
 // overwritten and could contain an invalid IPAddress.
-NET_EXPORT bool ParseURLHostnameToAddress(const ::base::StringPiece& hostname,
-                                          IPAddress* ip_address)
-    WARN_UNUSED_RESULT;
+[[nodiscard]] NET_EXPORT bool ParseURLHostnameToAddress(
+    base::StringPiece hostname,
+    IPAddress* ip_address);
 
 // Returns number of matching initial bits between the addresses |a1| and |a2|.
-NET_EXPORT unsigned CommonPrefixLength(const IPAddress& a1,
-                                       const IPAddress& a2);
+NET_EXPORT size_t CommonPrefixLength(const IPAddress& a1, const IPAddress& a2);
 
 // Computes the number of leading 1-bits in |mask|.
-NET_EXPORT unsigned MaskPrefixLength(const IPAddress& mask);
+NET_EXPORT size_t MaskPrefixLength(const IPAddress& mask);
 
 // Checks whether |address| starts with |prefix|. This provides similar
 // functionality as IPAddressMatchesPrefix() but doesn't perform automatic IPv4
@@ -286,6 +309,53 @@ bool IPAddressStartsWith(const IPAddress& address, const uint8_t (&prefix)[N]) {
     return false;
   return std::equal(prefix, prefix + N, address.bytes().begin());
 }
+
+// According to RFC6052 Section 2.2 IPv4-Embedded IPv6 Address Format.
+// https://www.rfc-editor.org/rfc/rfc6052#section-2.2
+// +--+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+// |PL| 0-------------32--40--48--56--64--72--80--88--96--104---------|
+// +--+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+// |32|     prefix    |v4(32)         | u | suffix                    |
+// +--+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+// |40|     prefix        |v4(24)     | u |(8)| suffix                |
+// +--+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+// |48|     prefix            |v4(16) | u | (16)  | suffix            |
+// +--+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+// |56|     prefix                |(8)| u |  v4(24)   | suffix        |
+// +--+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+// |64|     prefix                    | u |   v4(32)      | suffix    |
+// +--+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+// |96|     prefix                                    |    v4(32)     |
+// +--+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+//
+// The NAT64/DNS64 translation prefixes has one of the following lengths.
+enum class Dns64PrefixLength {
+  k32bit,
+  k40bit,
+  k48bit,
+  k56bit,
+  k64bit,
+  k96bit,
+  kInvalid
+};
+
+// Extracts the NAT64 translation prefix from the IPv6 address using the well
+// known address ipv4only.arpa 192.0.0.170 and 192.0.0.171.
+// Returns prefix length on success, or Dns64PrefixLength::kInvalid on failure
+// (when the ipv4only.arpa IPv4 address is not found)
+NET_EXPORT Dns64PrefixLength
+ExtractPref64FromIpv4onlyArpaAAAA(const IPAddress& address);
+
+// Converts an IPv4 address to an IPv4-embedded IPv6 address using the given
+// prefix. For example 192.168.0.1 and 64:ff9b::/96 would be converted to
+// 64:ff9b::192.168.0.1
+// Returns converted IPv6 address when prefix_length is not
+// Dns64PrefixLength::kInvalid, and returns the original IPv4 address when
+// prefix_length is Dns64PrefixLength::kInvalid.
+NET_EXPORT IPAddress
+ConvertIPv4ToIPv4EmbeddedIPv6(const IPAddress& ipv4_address,
+                              const IPAddress& ipv6_address,
+                              Dns64PrefixLength prefix_length);
 
 }  // namespace net
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,8 +20,8 @@ class NET_EXPORT ProxyConfigServiceFixed : public ProxyConfigService {
   ~ProxyConfigServiceFixed() override;
 
   // ProxyConfigService methods:
-  void AddObserver(Observer*) override {}
-  void RemoveObserver(Observer*) override {}
+  void AddObserver(Observer* observer) override {}
+  void RemoveObserver(Observer* observer) override {}
   ConfigAvailability GetLatestProxyConfig(
       ProxyConfigWithAnnotation* config) override;
 

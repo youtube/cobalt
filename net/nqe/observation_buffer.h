@@ -1,9 +1,11 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_NQE_OBSERVATION_BUFFER_H_
 #define NET_NQE_OBSERVATION_BUFFER_H_
+
+#include <stdint.h>
 
 #include <map>
 #include <memory>
@@ -11,13 +13,13 @@
 #include <vector>
 
 #include "base/containers/circular_deque.h"
-#include "base/optional.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/tick_clock.h"
 #include "net/base/net_export.h"
 #include "net/nqe/network_quality_estimator_util.h"
 #include "net/nqe/network_quality_observation.h"
 #include "net/nqe/network_quality_observation_source.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -29,9 +31,7 @@ namespace net {
 
 class NetworkQualityEstimatorParams;
 
-namespace nqe {
-
-namespace internal {
+namespace nqe::internal {
 
 struct WeightedObservation;
 
@@ -48,6 +48,8 @@ class NET_EXPORT_PRIVATE ObservationBuffer {
   //  As such, this constructor should only be called before adding any
   //  observations to |other|.
   ObservationBuffer(const ObservationBuffer& other);
+
+  ObservationBuffer& operator=(const ObservationBuffer&) = delete;
 
   ~ObservationBuffer();
 
@@ -73,7 +75,7 @@ class NET_EXPORT_PRIVATE ObservationBuffer {
   // signal strength. |result| must not be null. If |observations_count| is not
   // null, then it is set to the number of observations that were available
   // in the observation buffer for computing the percentile.
-  base::Optional<int32_t> GetPercentile(base::TimeTicks begin_timestamp,
+  absl::optional<int32_t> GetPercentile(base::TimeTicks begin_timestamp,
                                         int32_t current_signal_strength,
                                         int percentile,
                                         size_t* observations_count) const;
@@ -81,19 +83,6 @@ class NET_EXPORT_PRIVATE ObservationBuffer {
   void SetTickClockForTesting(const base::TickClock* tick_clock) {
     tick_clock_ = tick_clock;
   }
-
-  // Computes percentiles separately for each host. Observations without
-  // a host tag are skipped. Only data from the hosts present in |host_filter|
-  // are considered. Observations before |begin_timestamp| are skipped. The
-  // percentile value for each host is returned in |host_keyed_percentiles|. The
-  // number of valid observations for each host used for the computation is
-  // returned in |host_keyed_counts|.
-  void GetPercentileForEachHostWithCounts(
-      base::TimeTicks begin_timestamp,
-      int percentile,
-      const base::Optional<std::set<IPHash>>& host_filter,
-      std::map<IPHash, int32_t>* host_keyed_percentiles,
-      std::map<IPHash, size_t>* host_keyed_counts) const;
 
   // Removes all observations from the buffer whose corresponding entry in
   // |deleted_observation_sources| is set to true. For example, if index 1 and
@@ -116,7 +105,7 @@ class NET_EXPORT_PRIVATE ObservationBuffer {
       std::vector<WeightedObservation>* weighted_observations,
       double* total_weight) const;
 
-  const NetworkQualityEstimatorParams* params_;
+  raw_ptr<const NetworkQualityEstimatorParams> params_;
 
   // Holds observations sorted by time, with the oldest observation at the
   // front of the queue.
@@ -137,14 +126,10 @@ class NET_EXPORT_PRIVATE ObservationBuffer {
   // |weight_multiplier_per_signal_level_| ^ 3.
   const double weight_multiplier_per_signal_level_;
 
-  const base::TickClock* tick_clock_;
-
-  DISALLOW_ASSIGN(ObservationBuffer);
+  raw_ptr<const base::TickClock> tick_clock_;
 };
 
-}  // namespace internal
-
-}  // namespace nqe
+}  // namespace nqe::internal
 
 }  // namespace net
 

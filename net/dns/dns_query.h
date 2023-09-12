@@ -1,17 +1,21 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DNS_DNS_QUERY_H_
 #define NET_DNS_DNS_QUERY_H_
 
-#include <memory>
+#include <stddef.h>
+#include <stdint.h>
 
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include <memory>
+#include <string>
+
+#include "base/containers/span.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace base {
 class BigEndianReader;
@@ -30,19 +34,35 @@ class IOBufferWithSize;
 // Represents on-the-wire DNS query message as an object.
 class NET_EXPORT_PRIVATE DnsQuery {
  public:
+  enum class PaddingStrategy {
+    // Query will not be padded. Recommended strategy when query will not be
+    // encrypted.
+    NONE,
+
+    // Query will be padded to the next multiple of 128 octets. Recommended
+    // strategy (per RFC 8467) when query will be encrypted, e.g. through
+    // DNS-over-HTTPS.
+    BLOCK_LENGTH_128,
+  };
+
   // Constructs a query message from |qname| which *MUST* be in a valid
   // DNS name format, and |qtype|. The qclass is set to IN.
-  // If opt_rdata is not null, an OPT record will be added to the "Additional"
+  // If |opt_rdata| is not null, an OPT record will be added to the "Additional"
   // section of the query.
   DnsQuery(uint16_t id,
-           const base::StringPiece& qname,
+           base::span<const uint8_t> qname,
            uint16_t qtype,
-           const OptRecordRdata* opt_rdata = nullptr);
+           const OptRecordRdata* opt_rdata = nullptr,
+           PaddingStrategy padding_strategy = PaddingStrategy::NONE);
 
   // Constructs an empty query from a raw packet in |buffer|. If the raw packet
   // represents a valid DNS query in the wire format (RFC 1035), Parse() will
   // populate the empty query.
-  DnsQuery(scoped_refptr<IOBufferWithSize> buffer);
+  explicit DnsQuery(scoped_refptr<IOBufferWithSize> buffer);
+
+  // Copies are constructed with an independent cloned, not mirrored, buffer.
+  DnsQuery(const DnsQuery& query);
+  DnsQuery& operator=(const DnsQuery& query);
 
   ~DnsQuery();
 
@@ -52,11 +72,17 @@ class NET_EXPORT_PRIVATE DnsQuery {
   // Returns true and populates the query if the internally stored raw packet
   // can be parsed. This should only be called when DnsQuery is constructed from
   // the raw buffer.
-  bool Parse();
+  // |valid_bytes| indicates the number of initialized bytes in the raw buffer.
+  // E.g. if the buffer holds a packet received from the network, the buffer may
+  // be allocated with the maximum size of a UDP packet, but |valid_bytes|
+  // indicates the number of bytes actually received from the network. If the
+  // parsing requires reading more than the number of initialized bytes, this
+  // method fails and returns false.
+  bool Parse(size_t valid_bytes);
 
   // DnsQuery field accessors.
   uint16_t id() const;
-  base::StringPiece qname() const;
+  base::span<const uint8_t> qname() const;
   uint16_t qtype() const;
 
   // Returns the Question section of the query.  Used when matching the
@@ -64,10 +90,7 @@ class NET_EXPORT_PRIVATE DnsQuery {
   base::StringPiece question() const;
 
   // Returns the size of the question section.
-  size_t question_size() const {
-    // QNAME + QTYPE + QCLASS
-    return qname_size_ + sizeof(uint16_t) + sizeof(uint16_t);
-  }
+  size_t question_size() const;
 
   // IOBuffer accessor to be used for writing out the query. The buffer has
   // the same byte layout as the DNS query wire format.
@@ -77,6 +100,7 @@ class NET_EXPORT_PRIVATE DnsQuery {
 
  private:
   DnsQuery(const DnsQuery& orig, uint16_t id);
+  void CopyFrom(const DnsQuery& orig);
 
   bool ReadHeader(base::BigEndianReader* reader, dns_protocol::Header* out);
   // After read, |out| is in the DNS format, e.g.
@@ -92,9 +116,9 @@ class NET_EXPORT_PRIVATE DnsQuery {
   scoped_refptr<IOBufferWithSize> io_buffer_;
 
   // Pointer to the dns header section.
-  dns_protocol::Header* header_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(DnsQuery);
+  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
+  // #union
+  RAW_PTR_EXCLUSION dns_protocol::Header* header_ = nullptr;
 };
 
 }  // namespace net

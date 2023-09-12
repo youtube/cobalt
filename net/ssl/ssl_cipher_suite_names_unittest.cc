@@ -1,13 +1,12 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/ssl/ssl_cipher_suite_names.h"
 
-#include "base/macros.h"
-#include "base/strings/stringprintf.h"
 #include "net/ssl/ssl_connection_status_flags.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 
 namespace net {
 
@@ -27,6 +26,9 @@ uint16_t kModernCipherObsoleteKeyExchange =
     0x9c; /* TLS_RSA_WITH_AES_128_GCM_SHA256 */
 uint16_t kModernCipherModernKeyExchange =
     0xc02f; /* TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 */
+
+uint16_t kObsoleteSignature = SSL_SIGN_RSA_PKCS1_SHA1;
+uint16_t kModernSignature = SSL_SIGN_RSA_PSS_RSAE_SHA256;
 
 int MakeConnectionStatus(int version, uint16_t cipher_suite) {
   int connection_status = 0;
@@ -122,67 +124,122 @@ TEST(CipherSuiteNamesTest, ParseSSLCipherStringFails) {
     "0xBEEFY",
   };
 
-  for (size_t i = 0; i < arraysize(cipher_strings); ++i) {
+  for (const auto* cipher_string : cipher_strings) {
     uint16_t cipher_suite = 0;
-    EXPECT_FALSE(ParseSSLCipherString(cipher_strings[i], &cipher_suite));
+    EXPECT_FALSE(ParseSSLCipherString(cipher_string, &cipher_suite));
   }
 }
 
 TEST(CipherSuiteNamesTest, ObsoleteSSLStatusProtocol) {
   // Obsolete
+  // Note all of these combinations are impossible; TLS 1.2 is necessary for
+  // kModernCipherSuite.
   EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL,
             ObsoleteSSLStatus(MakeConnectionStatus(SSL_CONNECTION_VERSION_SSL2,
-                                                   kModernCipherSuite)));
+                                                   kModernCipherSuite),
+                              kModernSignature));
   EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL,
             ObsoleteSSLStatus(MakeConnectionStatus(SSL_CONNECTION_VERSION_SSL3,
-                                                   kModernCipherSuite)));
+                                                   kModernCipherSuite),
+                              kModernSignature));
   EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL,
             ObsoleteSSLStatus(MakeConnectionStatus(SSL_CONNECTION_VERSION_TLS1,
-                                                   kModernCipherSuite)));
-  EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                SSL_CONNECTION_VERSION_TLS1_1, kModernCipherSuite)));
+                                                   kModernCipherSuite),
+                              kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_PROTOCOL,
+      ObsoleteSSLStatus(MakeConnectionStatus(SSL_CONNECTION_VERSION_TLS1_1,
+                                             kModernCipherSuite),
+                        kModernSignature));
 
   // Modern
-  EXPECT_EQ(OBSOLETE_SSL_NONE,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                SSL_CONNECTION_VERSION_TLS1_2, kModernCipherSuite)));
+  EXPECT_EQ(
+      OBSOLETE_SSL_NONE,
+      ObsoleteSSLStatus(MakeConnectionStatus(SSL_CONNECTION_VERSION_TLS1_2,
+                                             kModernCipherSuite),
+                        kModernSignature));
   EXPECT_EQ(OBSOLETE_SSL_NONE,
             ObsoleteSSLStatus(MakeConnectionStatus(SSL_CONNECTION_VERSION_QUIC,
-                                                   kModernCipherSuite)));
+                                                   kModernCipherSuite),
+                              kModernSignature));
 }
 
 TEST(CipherSuiteNamesTest, ObsoleteSSLStatusProtocolAndCipherSuite) {
   // Cartesian combos
   // As above, some of these combinations can't happen in practice.
   EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL | OBSOLETE_SSL_MASK_KEY_EXCHANGE |
+                OBSOLETE_SSL_MASK_CIPHER | OBSOLETE_SSL_MASK_SIGNATURE,
+            ObsoleteSSLStatus(
+                MakeConnectionStatus(kObsoleteVersion,
+                                     kObsoleteCipherObsoleteKeyExchange),
+                kObsoleteSignature));
+  EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL | OBSOLETE_SSL_MASK_KEY_EXCHANGE |
                 OBSOLETE_SSL_MASK_CIPHER,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                kObsoleteVersion, kObsoleteCipherObsoleteKeyExchange)));
-  EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL | OBSOLETE_SSL_MASK_KEY_EXCHANGE,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                kObsoleteVersion, kModernCipherObsoleteKeyExchange)));
-  EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL | OBSOLETE_SSL_MASK_CIPHER,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                kObsoleteVersion, kObsoleteCipherModernKeyExchange)));
-  EXPECT_EQ(OBSOLETE_SSL_MASK_PROTOCOL,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                kObsoleteVersion, kModernCipherModernKeyExchange)));
-  EXPECT_EQ(OBSOLETE_SSL_MASK_KEY_EXCHANGE | OBSOLETE_SSL_MASK_CIPHER,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                kModernVersion, kObsoleteCipherObsoleteKeyExchange)));
-  EXPECT_EQ(OBSOLETE_SSL_MASK_KEY_EXCHANGE,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                kModernVersion, kModernCipherObsoleteKeyExchange)));
-  EXPECT_EQ(OBSOLETE_SSL_MASK_CIPHER,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                kModernVersion, kObsoleteCipherModernKeyExchange)));
-  EXPECT_EQ(OBSOLETE_SSL_NONE,
-            ObsoleteSSLStatus(MakeConnectionStatus(
-                kModernVersion, kModernCipherModernKeyExchange)));
-  EXPECT_EQ(OBSOLETE_SSL_NONE, ObsoleteSSLStatus(MakeConnectionStatus(
-                                   SSL_CONNECTION_VERSION_TLS1_3,
-                                   0x1301 /* AES_128_GCM_SHA256 */)));
+            ObsoleteSSLStatus(
+                MakeConnectionStatus(kObsoleteVersion,
+                                     kObsoleteCipherObsoleteKeyExchange),
+                kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_PROTOCOL | OBSOLETE_SSL_MASK_KEY_EXCHANGE,
+      ObsoleteSSLStatus(MakeConnectionStatus(kObsoleteVersion,
+                                             kModernCipherObsoleteKeyExchange),
+                        kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_PROTOCOL | OBSOLETE_SSL_MASK_CIPHER,
+      ObsoleteSSLStatus(MakeConnectionStatus(kObsoleteVersion,
+                                             kObsoleteCipherModernKeyExchange),
+                        kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_PROTOCOL,
+      ObsoleteSSLStatus(MakeConnectionStatus(kObsoleteVersion,
+                                             kModernCipherModernKeyExchange),
+                        kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_KEY_EXCHANGE | OBSOLETE_SSL_MASK_CIPHER,
+      ObsoleteSSLStatus(MakeConnectionStatus(
+                            kModernVersion, kObsoleteCipherObsoleteKeyExchange),
+                        kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_KEY_EXCHANGE,
+      ObsoleteSSLStatus(MakeConnectionStatus(kModernVersion,
+                                             kModernCipherObsoleteKeyExchange),
+                        kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_CIPHER,
+      ObsoleteSSLStatus(MakeConnectionStatus(kModernVersion,
+                                             kObsoleteCipherModernKeyExchange),
+                        kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_NONE,
+      ObsoleteSSLStatus(
+          MakeConnectionStatus(kModernVersion, kModernCipherModernKeyExchange),
+          kModernSignature));
+  EXPECT_EQ(
+      OBSOLETE_SSL_NONE,
+      ObsoleteSSLStatus(MakeConnectionStatus(SSL_CONNECTION_VERSION_TLS1_3,
+                                             0x1301 /* AES_128_GCM_SHA256 */),
+                        kModernSignature));
+
+  // Don't flag the signature as obsolete if not present. It may be an old cache
+  // entry or a key exchange that doesn't involve a signature. (Though, in the
+  // latter case, we would always flag a bad key exchange.)
+  EXPECT_EQ(
+      OBSOLETE_SSL_NONE,
+      ObsoleteSSLStatus(
+          MakeConnectionStatus(kModernVersion, kModernCipherModernKeyExchange),
+          0));
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_KEY_EXCHANGE,
+      ObsoleteSSLStatus(MakeConnectionStatus(kModernVersion,
+                                             kModernCipherObsoleteKeyExchange),
+                        0));
+
+  // Flag obsolete signatures.
+  EXPECT_EQ(
+      OBSOLETE_SSL_MASK_SIGNATURE,
+      ObsoleteSSLStatus(
+          MakeConnectionStatus(kModernVersion, kModernCipherModernKeyExchange),
+          kObsoleteSignature));
 }
 
 TEST(CipherSuiteNamesTest, HTTP2CipherSuites) {

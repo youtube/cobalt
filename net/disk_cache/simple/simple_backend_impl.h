@@ -1,9 +1,11 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_BACKEND_IMPL_H_
+
+#include <stdint.h>
 
 #include <memory>
 #include <string>
@@ -11,26 +13,23 @@
 #include <utility>
 #include <vector>
 
-#include "base/callback_forward.h"
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
-#include "base/memory/ref_counted.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_split.h"
-#include "base/task_runner.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/task_traits.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "net/base/cache_type.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/disk_cache.h"
+#include "net/disk_cache/simple/post_doom_waiter.h"
 #include "net/disk_cache/simple/simple_entry_impl.h"
 #include "net/disk_cache/simple/simple_index_delegate.h"
-#include "starboard/types.h"
-
-namespace base {
-class SequencedTaskRunner;
-class TaskRunner;
-}  // namespace base
 
 namespace net {
 class PrioritizedTaskRunner;
@@ -40,17 +39,19 @@ namespace disk_cache {
 
 // SimpleBackendImpl is a new cache backend that stores entries in individual
 // files.
-// See http://www.chromium.org/developers/design-documents/network-stack/disk-cache/very-simple-backend
+// See
+// http://www.chromium.org/developers/design-documents/network-stack/disk-cache/very-simple-backend
 //
 // The SimpleBackendImpl provides safe iteration; mutating entries during
 // iteration cannot cause a crash. It is undefined whether entries created or
 // destroyed during the iteration will be included in any pre-existing
 // iterations.
 //
-// The non-static functions below must be called on the IO thread unless
-// otherwise stated.
+// The non-static functions below must be called on the sequence on which the
+// SimpleBackendImpl instance is created.
 
 class BackendCleanupTracker;
+class BackendFileOperationsFactory;
 class SimpleEntryImpl;
 class SimpleFileTracker;
 class SimpleIndex;
@@ -59,60 +60,56 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
     public SimpleIndexDelegate,
     public base::SupportsWeakPtr<SimpleBackendImpl> {
  public:
-  static const base::Feature kPrioritizedSimpleCacheTasks;
-
   // Note: only pass non-nullptr for |file_tracker| if you don't want the global
   // one (which things other than tests would want). |file_tracker| must outlive
   // the backend and all the entries, including their asynchronous close.
-  SimpleBackendImpl(const base::FilePath& path,
-                    scoped_refptr<BackendCleanupTracker> cleanup_tracker,
-                    SimpleFileTracker* file_tracker,
-                    int64_t max_bytes,
-                    net::CacheType cache_type,
-                    net::NetLog* net_log);
+  // |Init()| must be called to finish the initialization process.
+  SimpleBackendImpl(
+      scoped_refptr<BackendFileOperationsFactory> file_operations_factory,
+      const base::FilePath& path,
+      scoped_refptr<BackendCleanupTracker> cleanup_tracker,
+      SimpleFileTracker* file_tracker,
+      int64_t max_bytes,
+      net::CacheType cache_type,
+      net::NetLog* net_log);
 
   ~SimpleBackendImpl() override;
 
-  net::CacheType cache_type() const { return cache_type_; }
   SimpleIndex* index() { return index_.get(); }
 
-  void SetWorkerPoolForTesting(scoped_refptr<base::TaskRunner> task_runner);
+  void SetTaskRunnerForTesting(
+      scoped_refptr<base::SequencedTaskRunner> task_runner);
 
-  net::Error Init(CompletionOnceCallback completion_callback);
+  // Finishes initialization. Always asynchronous.
+  void Init(CompletionOnceCallback completion_callback);
 
   // Sets the maximum size for the total amount of data stored by this instance.
   bool SetMaxSize(int64_t max_bytes);
 
   // Returns the maximum file size permitted in this backend.
-  int GetMaxFileSize() const;
-
-  // Flush our SequencedWorkerPool.
-  static void FlushWorkerPoolForTesting();
+  int64_t MaxFileSize() const override;
 
   // The entry for |entry_hash| is being doomed; the backend will not attempt
   // run new operations for this |entry_hash| until the Doom is completed.
-  void OnDoomStart(uint64_t entry_hash);
-
-  // The entry for |entry_hash| has been successfully doomed, we can now allow
-  // operations on this entry, and we can run any operations enqueued while the
-  // doom completed.
-  void OnDoomComplete(uint64_t entry_hash);
+  //
+  // The return value should be used to call OnDoomComplete.
+  scoped_refptr<SimplePostDoomWaiterTable> OnDoomStart(uint64_t entry_hash);
 
   // SimpleIndexDelegate:
   void DoomEntries(std::vector<uint64_t>* entry_hashes,
                    CompletionOnceCallback callback) override;
 
   // Backend:
-  net::CacheType GetCacheType() const override;
   int32_t GetEntryCount() const override;
-  net::Error OpenEntry(const std::string& key,
-                       net::RequestPriority request_priority,
-                       Entry** entry,
-                       CompletionOnceCallback callback) override;
-  net::Error CreateEntry(const std::string& key,
-                         net::RequestPriority request_priority,
-                         Entry** entry,
-                         CompletionOnceCallback callback) override;
+  EntryResult OpenEntry(const std::string& key,
+                        net::RequestPriority request_priority,
+                        EntryResultCallback callback) override;
+  EntryResult CreateEntry(const std::string& key,
+                          net::RequestPriority request_priority,
+                          EntryResultCallback callback) override;
+  EntryResult OpenOrCreateEntry(const std::string& key,
+                                net::RequestPriority priority,
+                                EntryResultCallback callback) override;
   net::Error DoomEntry(const std::string& key,
                        net::RequestPriority priority,
                        CompletionOnceCallback callback) override;
@@ -131,9 +128,6 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
   std::unique_ptr<Iterator> CreateIterator() override;
   void GetStats(base::StringPairs* stats) override;
   void OnExternalCacheHit(const std::string& key) override;
-  size_t DumpMemoryStats(
-      base::trace_event::ProcessMemoryDump* pmd,
-      const std::string& parent_absolute_name) const override;
   uint8_t GetEntryInMemoryData(const std::string& key) override;
   void SetEntryInMemoryData(const std::string& key, uint8_t data) override;
 
@@ -141,7 +135,12 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
     return prioritized_task_runner_.get();
   }
 
-#if defined(OS_ANDROID)
+  static constexpr base::TaskTraits kWorkerPoolTaskTraits = {
+      base::MayBlock(), base::WithBaseSyncPrimitives(),
+      base::TaskPriority::USER_BLOCKING,
+      base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN};
+
+#if BUILDFLAG(IS_ANDROID)
   void set_app_status_listener(
       base::android::ApplicationStatusListener* app_status_listener) {
     app_status_listener_ = app_status_listener;
@@ -154,9 +153,6 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
 
   using EntryMap = std::unordered_map<uint64_t, SimpleEntryImpl*>;
 
-  using InitializeIndexCallback =
-      base::Callback<void(base::Time mtime, uint64_t max_size, int result)>;
-
   class ActiveEntryProxy;
   friend class ActiveEntryProxy;
 
@@ -166,18 +162,6 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
     uint64_t max_size;
     bool detected_magic_number_mismatch;
     int net_error;
-  };
-
-  struct PostDoomWaiter {
-    PostDoomWaiter();
-    // Also initializes |time_queued|.
-    explicit PostDoomWaiter(base::OnceClosure to_run_post_doom);
-    explicit PostDoomWaiter(PostDoomWaiter&& other);
-    ~PostDoomWaiter();
-    PostDoomWaiter& operator=(PostDoomWaiter&& other);
-
-    base::TimeTicks time_queued;
-    base::OnceClosure run_post_doom;
   };
 
   void InitializeIndex(CompletionOnceCallback callback,
@@ -201,11 +185,13 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
                                            Int64CompletionOnceCallback callback,
                                            int result);
 
-  // Try to create the directory if it doesn't exist. This must run on the IO
-  // thread.
-  static DiskStatResult InitCacheStructureOnDisk(const base::FilePath& path,
-                                                 uint64_t suggested_max_size,
-                                                 net::CacheType cache_type);
+  // Try to create the directory if it doesn't exist. This must run on the
+  // sequence on which SimpleIndexFile is running disk I/O.
+  static DiskStatResult InitCacheStructureOnDisk(
+      std::unique_ptr<BackendFileOperations> file_operations,
+      const base::FilePath& path,
+      uint64_t suggested_max_size,
+      net::CacheType cache_type);
 
   // Looks at current state of |entries_pending_doom_| and |active_entries_|
   // relevant to |entry_hash|, and, as appropriate, either returns a valid entry
@@ -217,15 +203,26 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
       uint64_t entry_hash,
       const std::string& key,
       net::RequestPriority request_priority,
-      std::vector<PostDoomWaiter>** post_doom);
+      std::vector<SimplePostDoomWaiter>** post_doom);
+
+  // If post-doom and settings indicates that optimistically succeeding a create
+  // due to being immediately after a doom is possible, sets up an entry for
+  // that, and returns a non-null pointer. (CreateEntry still needs to be called
+  // to actually do the creation operation). Otherwise returns nullptr.
+  //
+  // Pre-condition: |post_doom| is non-null.
+  scoped_refptr<SimpleEntryImpl> MaybeOptimisticCreateForPostDoom(
+      uint64_t entry_hash,
+      const std::string& key,
+      net::RequestPriority request_priority,
+      std::vector<SimplePostDoomWaiter>* post_doom);
 
   // Given a hash, will try to open the corresponding Entry. If we have an Entry
   // corresponding to |hash| in the map of active entries, opens it. Otherwise,
   // a new empty Entry will be created, opened and filled with information from
   // the disk.
-  net::Error OpenEntryFromHash(uint64_t entry_hash,
-                               Entry** entry,
-                               CompletionOnceCallback callback);
+  EntryResult OpenEntryFromHash(uint64_t entry_hash,
+                                EntryResultCallback callback);
 
   // Doom the entry corresponding to |entry_hash|, if it's active or currently
   // pending doom. This function does not block if there is an active entry,
@@ -238,10 +235,9 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
   // hash alone - this checks that a duplicate active entry was not created
   // using a key in the meantime.
   void OnEntryOpenedFromHash(uint64_t hash,
-                             Entry** entry,
                              const scoped_refptr<SimpleEntryImpl>& simple_entry,
-                             CompletionOnceCallback callback,
-                             int error_code);
+                             EntryResultCallback callback,
+                             EntryResult result);
 
   // Called when we tried to open an entry from key. When the entry has been
   // opened, a check for key mismatch is performed.
@@ -260,18 +256,15 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
   // Calculates and returns a new entry's worker pool priority.
   uint32_t GetNewEntryPriority(net::RequestPriority request_priority);
 
+  scoped_refptr<BackendFileOperationsFactory> file_operations_factory_;
+
   // We want this destroyed after every other field.
   scoped_refptr<BackendCleanupTracker> cleanup_tracker_;
 
-  SimpleFileTracker* const file_tracker_;
+  const raw_ptr<SimpleFileTracker> file_tracker_;
 
   const base::FilePath path_;
-  const net::CacheType cache_type_;
   std::unique_ptr<SimpleIndex> index_;
-
-  // This is only used for initial open (including potential format upgrade)
-  // and index load/save.
-  const scoped_refptr<base::SequencedTaskRunner> cache_runner_;
 
   // This is used for all the entry I/O.
   scoped_refptr<net::PrioritizedTaskRunner> prioritized_task_runner_;
@@ -283,17 +276,18 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl : public Backend,
 
   // The set of all entries which are currently being doomed. To avoid races,
   // these entries cannot have Doom/Create/Open operations run until the doom
-  // is complete. The base::Closure |PostDoomWaiter::run_post_doom| field is
-  // used to store deferred operations to be run at the completion of the Doom.
-  std::unordered_map<uint64_t, std::vector<PostDoomWaiter>>
-      entries_pending_doom_;
+  // is complete. The base::OnceClosure |SimplePostDoomWaiter::run_post_doom|
+  // field is used to store deferred operations to be run at the completion of
+  // the Doom.
+  scoped_refptr<SimplePostDoomWaiterTable> post_doom_waiting_;
 
-  net::NetLog* const net_log_;
+  const raw_ptr<net::NetLog> net_log_;
 
   uint32_t entry_count_ = 0;
 
-#if defined(OS_ANDROID)
-  base::android::ApplicationStatusListener* app_status_listener_ = nullptr;
+#if BUILDFLAG(IS_ANDROID)
+  raw_ptr<base::android::ApplicationStatusListener> app_status_listener_ =
+      nullptr;
 #endif
 };
 

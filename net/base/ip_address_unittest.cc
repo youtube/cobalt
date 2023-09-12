@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,13 @@
 #include <vector>
 
 #include "base/format_macros.h"
-#include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+
+using testing::Optional;
 
 namespace net {
 
@@ -22,7 +25,7 @@ std::string DumpIPAddress(const IPAddress& v) {
   for (size_t i = 0; i < v.bytes().size(); ++i) {
     if (i != 0)
       out.append(",");
-    out.append(base::UintToString(v.bytes()[i]));
+    out.append(base::NumberToString(v.bytes()[i]));
   }
   return out;
 }
@@ -34,29 +37,29 @@ TEST(IPAddressBytesTest, ConstructEmpty) {
 
 TEST(IPAddressBytesTest, ConstructIPv4) {
   uint8_t data[] = {192, 168, 1, 1};
-  IPAddressBytes bytes(data, base::size(data));
-  ASSERT_EQ(base::size(data), bytes.size());
+  IPAddressBytes bytes(data, std::size(data));
+  ASSERT_EQ(std::size(data), bytes.size());
   size_t i = 0;
   for (uint8_t byte : bytes)
     EXPECT_EQ(data[i++], byte);
-  ASSERT_EQ(base::size(data), i);
+  ASSERT_EQ(std::size(data), i);
 }
 
 TEST(IPAddressBytesTest, ConstructIPv6) {
   uint8_t data[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-  IPAddressBytes bytes(data, base::size(data));
-  ASSERT_EQ(base::size(data), bytes.size());
+  IPAddressBytes bytes(data, std::size(data));
+  ASSERT_EQ(std::size(data), bytes.size());
   size_t i = 0;
   for (uint8_t byte : bytes)
     EXPECT_EQ(data[i++], byte);
-  ASSERT_EQ(base::size(data), i);
+  ASSERT_EQ(std::size(data), i);
 }
 
 TEST(IPAddressBytesTest, Assign) {
   uint8_t data[] = {192, 168, 1, 1};
   IPAddressBytes copy;
-  copy.Assign(data, base::size(data));
-  EXPECT_EQ(IPAddressBytes(data, base::size(data)), copy);
+  copy.Assign(data, std::size(data));
+  EXPECT_EQ(IPAddressBytes(data, std::size(data)), copy);
 }
 
 TEST(IPAddressTest, ConstructIPv4) {
@@ -150,8 +153,8 @@ TEST(IPAddressTest, IsPubliclyRoutableIPv4) {
                {"172.32.0.0", NOT_RESERVED},
                {"191.255.255.255", NOT_RESERVED},
                // 192.0.0.0/24 (including sub ranges)
-               {"192.0.0.0", NOT_RESERVED},
-               {"192.0.0.255", NOT_RESERVED},
+               {"192.0.0.0", RESERVED},
+               {"192.0.0.255", RESERVED},
                // Unreserved block(s)
                {"192.0.1.0", NOT_RESERVED},
                {"192.0.1.255", NOT_RESERVED},
@@ -213,9 +216,8 @@ TEST(IPAddressTest, IsPubliclyRoutableIPv4) {
                {"224.0.0.0", RESERVED},
                {"255.255.255.255", RESERVED}};
 
-  IPAddress address;
-  IPAddress mapped_address;
   for (const auto& test : tests) {
+    IPAddress address;
     EXPECT_TRUE(address.AssignFromIPLiteral(test.address));
     ASSERT_TRUE(address.IsValid());
     EXPECT_EQ(!test.is_reserved, address.IsPubliclyRoutable());
@@ -648,6 +650,207 @@ TEST(IPAddressTest, IPAddressStartsWith) {
   uint8_t ipv6_prefix5[] = {42, 0, 20, 80, 64, 12, 12, 9, 0,
                             0,  0, 0,  0,  0,  0,  0,  10};
   EXPECT_FALSE(IPAddressStartsWith(ipv6_address, ipv6_prefix5));
+}
+
+TEST(IPAddressTest, IsLinkLocal) {
+  const char* kPositive[] = {
+      "169.254.0.0",
+      "169.254.100.1",
+      "169.254.100.1",
+      "::ffff:169.254.0.0",
+      "::ffff:169.254.100.1",
+      "fe80::1",
+      "fe81::1",
+  };
+
+  for (const char* literal : kPositive) {
+    IPAddress ip_address;
+    ASSERT_TRUE(ip_address.AssignFromIPLiteral(literal));
+    EXPECT_TRUE(ip_address.IsLinkLocal()) << literal;
+  }
+
+  const char* kNegative[] = {
+      "170.254.0.0",        "169.255.0.0",        "::169.254.0.0",
+      "::fffe:169.254.0.0", "::ffff:169.255.0.0", "fec0::1",
+  };
+
+  for (const char* literal : kNegative) {
+    IPAddress ip_address;
+    ASSERT_TRUE(ip_address.AssignFromIPLiteral(literal));
+    EXPECT_FALSE(ip_address.IsLinkLocal()) << literal;
+  }
+}
+
+// Tests extraction of the NAT64 translation prefix.
+TEST(IPAddressTest, ExtractPref64FromIpv4onlyArpaAAAA) {
+  // Well Known Prefix 64:ff9b::/96.
+  IPAddress ipv6_address_WKP_0(0, 100, 255, 155, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0,
+                               0, 170);
+  IPAddress ipv6_address_WKP_1(0, 100, 255, 155, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0,
+                               0, 171);
+  Dns64PrefixLength pref64_length_WKP_0 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_WKP_0);
+  Dns64PrefixLength pref64_length_WKP_1 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_WKP_1);
+  EXPECT_EQ(Dns64PrefixLength::k96bit, pref64_length_WKP_0);
+  EXPECT_EQ(Dns64PrefixLength::k96bit, pref64_length_WKP_1);
+
+  // Prefix length 96
+  IPAddress ipv6_address_96_0(32, 1, 13, 184, 1, 34, 3, 68, 0, 0, 0, 0, 192, 0,
+                              0, 170);
+  IPAddress ipv6_address_96_1(32, 1, 13, 184, 1, 34, 3, 68, 0, 0, 0, 0, 192, 0,
+                              0, 171);
+  Dns64PrefixLength pref64_length_96_0 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_96_0);
+  Dns64PrefixLength pref64_length_96_1 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_96_1);
+  EXPECT_EQ(Dns64PrefixLength::k96bit, pref64_length_96_0);
+  EXPECT_EQ(Dns64PrefixLength::k96bit, pref64_length_96_1);
+
+  // Prefix length 64
+  IPAddress ipv6_address_64_0(32, 1, 13, 184, 1, 34, 3, 68, 0, 192, 0, 0, 170,
+                              0, 0, 0);
+  IPAddress ipv6_address_64_1(32, 1, 13, 184, 1, 34, 3, 68, 0, 192, 0, 0, 171,
+                              0, 0, 0);
+  Dns64PrefixLength pref64_length_64_0 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_64_0);
+  Dns64PrefixLength pref64_length_64_1 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_64_1);
+  EXPECT_EQ(Dns64PrefixLength::k64bit, pref64_length_64_0);
+  EXPECT_EQ(Dns64PrefixLength::k64bit, pref64_length_64_1);
+
+  // Prefix length 56
+  IPAddress ipv6_address_56_0(32, 1, 13, 184, 1, 34, 3, 192, 0, 0, 0, 170, 0, 0,
+                              0, 0);
+  IPAddress ipv6_address_56_1(32, 1, 13, 184, 1, 34, 3, 192, 0, 0, 0, 171, 0, 0,
+                              0, 0);
+  Dns64PrefixLength pref64_length_56_0 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_56_0);
+  Dns64PrefixLength pref64_length_56_1 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_56_1);
+  EXPECT_EQ(Dns64PrefixLength::k56bit, pref64_length_56_0);
+  EXPECT_EQ(Dns64PrefixLength::k56bit, pref64_length_56_1);
+
+  // Prefix length 48
+  IPAddress ipv6_address_48_0(32, 1, 13, 184, 1, 34, 192, 0, 0, 0, 170, 0, 0, 0,
+                              0, 0);
+  IPAddress ipv6_address_48_1(32, 1, 13, 184, 1, 34, 192, 0, 0, 0, 171, 0, 0, 0,
+                              0, 0);
+  Dns64PrefixLength pref64_length_48_0 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_48_0);
+  Dns64PrefixLength pref64_length_48_1 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_48_1);
+  EXPECT_EQ(Dns64PrefixLength::k48bit, pref64_length_48_0);
+  EXPECT_EQ(Dns64PrefixLength::k48bit, pref64_length_48_1);
+
+  // Prefix length 40
+  IPAddress ipv6_address_40_0(32, 1, 13, 184, 1, 192, 0, 0, 0, 170, 0, 0, 0, 0,
+                              0, 0);
+  IPAddress ipv6_address_40_1(32, 1, 13, 184, 1, 192, 0, 0, 0, 171, 0, 0, 0, 0,
+                              0, 0);
+  Dns64PrefixLength pref64_length_40_0 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_40_0);
+  Dns64PrefixLength pref64_length_40_1 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_40_1);
+  EXPECT_EQ(Dns64PrefixLength::k40bit, pref64_length_40_0);
+  EXPECT_EQ(Dns64PrefixLength::k40bit, pref64_length_40_1);
+
+  // Prefix length 32
+  IPAddress ipv6_address_32_0(32, 1, 13, 184, 192, 0, 0, 170, 0, 0, 0, 0, 0, 0,
+                              0, 0);
+  IPAddress ipv6_address_32_1(32, 1, 13, 184, 192, 0, 0, 171, 0, 0, 0, 0, 0, 0,
+                              0, 0);
+  Dns64PrefixLength pref64_length_32_0 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_32_0);
+  Dns64PrefixLength pref64_length_32_1 =
+      ExtractPref64FromIpv4onlyArpaAAAA(ipv6_address_32_1);
+  EXPECT_EQ(Dns64PrefixLength::k32bit, pref64_length_32_0);
+  EXPECT_EQ(Dns64PrefixLength::k32bit, pref64_length_32_1);
+}
+
+// Tests mapping an IPv4 address to an IPv6 address.
+TEST(IPAddressTest, ConvertIPv4ToIPv4EmbeddedIPv6) {
+  IPAddress ipv4_address(192, 0, 2, 33);
+
+  // Well Known Prefix 64:ff9b::/96.
+  IPAddress ipv6_address_WKP(0, 100, 255, 155, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0,
+                             0, 170);
+  IPAddress converted_ipv6_address_WKP = ConvertIPv4ToIPv4EmbeddedIPv6(
+      ipv4_address, ipv6_address_WKP, Dns64PrefixLength::k96bit);
+  EXPECT_EQ("0,100,255,155,0,0,0,0,0,0,0,0,192,0,2,33",
+            DumpIPAddress(converted_ipv6_address_WKP));
+  EXPECT_EQ("64:ff9b::c000:221", converted_ipv6_address_WKP.ToString());
+
+  // Prefix length 96
+  IPAddress ipv6_address_96(32, 1, 13, 184, 1, 34, 3, 68, 0, 0, 0, 0, 0, 0, 0,
+                            0);
+  IPAddress converted_ipv6_address_96 = ConvertIPv4ToIPv4EmbeddedIPv6(
+      ipv4_address, ipv6_address_96, Dns64PrefixLength::k96bit);
+  EXPECT_EQ("32,1,13,184,1,34,3,68,0,0,0,0,192,0,2,33",
+            DumpIPAddress(converted_ipv6_address_96));
+  EXPECT_EQ("2001:db8:122:344::c000:221", converted_ipv6_address_96.ToString());
+
+  // Prefix length 64
+  IPAddress ipv6_address_64(32, 1, 13, 184, 1, 34, 3, 68, 0, 0, 0, 0, 0, 0, 0,
+                            0);
+  IPAddress converted_ipv6_address_64 = ConvertIPv4ToIPv4EmbeddedIPv6(
+      ipv4_address, ipv6_address_64, Dns64PrefixLength::k64bit);
+  EXPECT_EQ("32,1,13,184,1,34,3,68,0,192,0,2,33,0,0,0",
+            DumpIPAddress(converted_ipv6_address_64));
+  EXPECT_EQ("2001:db8:122:344:c0:2:2100:0",
+            converted_ipv6_address_64.ToString());
+
+  // Prefix length 56
+  IPAddress ipv6_address_56(32, 1, 13, 184, 1, 34, 3, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0);
+  IPAddress converted_ipv6_address_56 = ConvertIPv4ToIPv4EmbeddedIPv6(
+      ipv4_address, ipv6_address_56, Dns64PrefixLength::k56bit);
+  EXPECT_EQ("32,1,13,184,1,34,3,192,0,0,2,33,0,0,0,0",
+            DumpIPAddress(converted_ipv6_address_56));
+  EXPECT_EQ("2001:db8:122:3c0:0:221::", converted_ipv6_address_56.ToString());
+
+  // Prefix length 48
+  IPAddress ipv6_address_48(32, 1, 13, 184, 1, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0);
+  IPAddress converted_ipv6_address_48 = ConvertIPv4ToIPv4EmbeddedIPv6(
+      ipv4_address, ipv6_address_48, Dns64PrefixLength::k48bit);
+  EXPECT_EQ("32,1,13,184,1,34,192,0,0,2,33,0,0,0,0,0",
+            DumpIPAddress(converted_ipv6_address_48));
+  EXPECT_EQ("2001:db8:122:c000:2:2100::", converted_ipv6_address_48.ToString());
+
+  // Prefix length 40
+  IPAddress ipv6_address_40(32, 1, 13, 184, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  IPAddress converted_ipv6_address_40 = ConvertIPv4ToIPv4EmbeddedIPv6(
+      ipv4_address, ipv6_address_40, Dns64PrefixLength::k40bit);
+  EXPECT_EQ("32,1,13,184,1,192,0,2,0,33,0,0,0,0,0,0",
+            DumpIPAddress(converted_ipv6_address_40));
+  EXPECT_EQ("2001:db8:1c0:2:21::", converted_ipv6_address_40.ToString());
+
+  // Prefix length 32
+  IPAddress ipv6_address_32(32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  IPAddress converted_ipv6_address_32 = ConvertIPv4ToIPv4EmbeddedIPv6(
+      ipv4_address, ipv6_address_32, Dns64PrefixLength::k32bit);
+  EXPECT_EQ("32,1,13,184,192,0,2,33,0,0,0,0,0,0,0,0",
+            DumpIPAddress(converted_ipv6_address_32));
+  EXPECT_EQ("2001:db8:c000:221::", converted_ipv6_address_32.ToString());
+}
+
+TEST(IPAddressTest, RoundtripAddressThroughValue) {
+  IPAddress address(1, 2, 3, 4);
+  ASSERT_TRUE(address.IsValid());
+
+  base::Value value = address.ToValue();
+  EXPECT_THAT(IPAddress::FromValue(value), Optional(address));
+}
+
+TEST(IPAddressTest, FromGarbageValue) {
+  base::Value value(123);
+  EXPECT_FALSE(IPAddress::FromValue(value).has_value());
+}
+
+TEST(IPAddressTest, FromInvalidValue) {
+  base::Value value("1.2.3.4.5");
+  EXPECT_FALSE(IPAddress::FromValue(value).has_value());
 }
 
 }  // anonymous namespace

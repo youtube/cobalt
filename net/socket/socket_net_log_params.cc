@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,80 +6,51 @@
 
 #include <utility>
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/values.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
 #include "net/log/net_log_capture_mode.h"
+#include "net/log/net_log_with_source.h"
 
 namespace net {
 
-namespace {
-
-std::unique_ptr<base::Value> NetLogSocketErrorCallback(
-    int net_error,
-    int os_error,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetInteger("net_error", net_error);
-  dict->SetInteger("os_error", os_error);
-  return std::move(dict);
+base::Value::Dict NetLogSocketErrorParams(int net_error, int os_error) {
+  base::Value::Dict dict;
+  dict.Set("net_error", net_error);
+  dict.Set("os_error", os_error);
+  return dict;
 }
 
-std::unique_ptr<base::Value> NetLogHostPortPairCallback(
-    const HostPortPair* host_and_port,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetString("host_and_port", host_and_port->ToString());
-  return std::move(dict);
+void NetLogSocketError(const NetLogWithSource& net_log,
+                       NetLogEventType type,
+                       int net_error,
+                       int os_error) {
+  net_log.AddEvent(
+      type, [&] { return NetLogSocketErrorParams(net_error, os_error); });
 }
 
-std::unique_ptr<base::Value> NetLogIPEndPointCallback(
-    const IPEndPoint* address,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetString("address", address->ToString());
-  return std::move(dict);
-}
-
-#if !defined(STARBOARD)
-std::unique_ptr<base::Value> NetLogSourceAddressCallback(
-    const struct sockaddr* net_address,
-    socklen_t address_len,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  IPEndPoint ipe;
-  bool result = ipe.FromSockAddr(net_address, address_len);
-  DCHECK(result);
-  dict->SetString("source_address", ipe.ToString());
-  return std::move(dict);
-}
-#endif
-
-}  // namespace
-
-NetLogParametersCallback CreateNetLogSocketErrorCallback(int net_error,
-                                                         int os_error) {
-  return base::Bind(&NetLogSocketErrorCallback, net_error, os_error);
-}
-
-NetLogParametersCallback CreateNetLogHostPortPairCallback(
+base::Value::Dict CreateNetLogHostPortPairParams(
     const HostPortPair* host_and_port) {
-  return base::Bind(&NetLogHostPortPairCallback, host_and_port);
+  base::Value::Dict dict;
+  dict.Set("host_and_port", host_and_port->ToString());
+  return dict;
 }
 
-NetLogParametersCallback CreateNetLogIPEndPointCallback(
-    const IPEndPoint* address) {
-  return base::Bind(&NetLogIPEndPointCallback, address);
+base::Value::Dict CreateNetLogIPEndPointParams(const IPEndPoint* address) {
+  base::Value::Dict dict;
+  dict.Set("address", address->ToString());
+  return dict;
 }
 
-#if !defined(STARBOARD)
-NetLogParametersCallback CreateNetLogSourceAddressCallback(
-    const struct sockaddr* net_address,
-    socklen_t address_len) {
-  return base::Bind(&NetLogSourceAddressCallback, net_address, address_len);
+base::Value::Dict CreateNetLogAddressPairParams(
+    const net::IPEndPoint& local_address,
+    const net::IPEndPoint& remote_address) {
+  base::Value::Dict dict;
+  dict.Set("local_address", local_address.ToString());
+  dict.Set("remote_address", remote_address.ToString());
+  return dict;
 }
-#endif
 
 }  // namespace net

@@ -1,16 +1,15 @@
-// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/tools/huffman_trie/huffman/huffman_builder.h"
 
 #include <algorithm>
+#include <ostream>
 
-#include "base/logging.h"
+#include "base/check.h"
 
-namespace net {
-
-namespace huffman_trie {
+namespace net::huffman_trie {
 
 namespace {
 
@@ -148,8 +147,8 @@ std::unique_ptr<HuffmanNode> HuffmanBuilder::BuildTree() {
     uint32_t count_a = a->count();
     uint32_t count_b = b->count();
 
-    std::unique_ptr<HuffmanNode> parent(
-        new HuffmanNode(0, count_a + count_b, std::move(a), std::move(b)));
+    auto parent = std::make_unique<HuffmanNode>(0, count_a + count_b,
+                                                std::move(a), std::move(b));
 
     nodes.erase(nodes.begin());
     nodes[0] = std::move(parent);
@@ -160,6 +159,4 @@ std::unique_ptr<HuffmanNode> HuffmanBuilder::BuildTree() {
   return std::move(nodes[0]);
 }
 
-}  // namespace huffman_trie
-
-}  // namespace net
+}  // namespace net::huffman_trie

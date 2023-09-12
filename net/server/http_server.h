@@ -1,19 +1,22 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SERVER_HTTP_SERVER_H_
 #define NET_SERVER_HTTP_SERVER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/strings/string_piece.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -30,15 +33,14 @@ class HttpServer {
   // destroy the HttpServer in any of these callbacks.
   class Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     virtual void OnConnect(int connection_id) = 0;
     virtual void OnHttpRequest(int connection_id,
                                const HttpServerRequestInfo& info) = 0;
     virtual void OnWebSocketRequest(int connection_id,
                                     const HttpServerRequestInfo& info) = 0;
-    virtual void OnWebSocketMessage(int connection_id,
-                                    const std::string& data) = 0;
+    virtual void OnWebSocketMessage(int connection_id, std::string data) = 0;
     virtual void OnClose(int connection_id) = 0;
   };
 
@@ -48,13 +50,17 @@ class HttpServer {
   // callbacks yet.
   HttpServer(std::unique_ptr<ServerSocket> server_socket,
              HttpServer::Delegate* delegate);
+
+  HttpServer(const HttpServer&) = delete;
+  HttpServer& operator=(const HttpServer&) = delete;
+
   ~HttpServer();
 
   void AcceptWebSocket(int connection_id,
                        const HttpServerRequestInfo& request,
                        NetworkTrafficAnnotationTag traffic_annotation);
   void SendOverWebSocket(int connection_id,
-                         const std::string& data,
+                         base::StringPiece data,
                          NetworkTrafficAnnotationTag traffic_annotation);
   // Sends the provided data directly to the given connection. No validation is
   // performed that data constitutes a valid HTTP response. A valid HTTP
@@ -89,18 +95,6 @@ class HttpServer {
   // Copies the local address to |address|. Returns a network error code.
   int GetLocalAddress(IPEndPoint* address);
 
-#if defined(STARBOARD)
-  // Like GetLocalAddress(), but if listening to IPADDR_ANY returns the local
-  // address of an arbitrary interface (choosing IPv4 address over IPv6).
-  int GetLocalInterfaceAddress(IPEndPoint* address);
-
-  bool static ParseHeaders(const std::string& request,
-                           HttpServerRequestInfo* info) {
-    size_t pos = 0;
-    return ParseHeaders(request.c_str(), request.length(), info, &pos);
-  }
-#endif
-
  private:
   friend class HttpServerTest;
 
@@ -124,15 +118,10 @@ class HttpServer {
   // recv data. If all data has been consumed successfully, but the headers are
   // not fully parsed, *pos will be set to zero. Returns false if an error is
   // encountered while parsing, true otherwise.
-#if defined(STARBOARD)
-  // Cobalt at least needs it to be static in dial_udp_server.cc.
-  static bool ParseHeaders(const char* data,
-#else
   bool ParseHeaders(const char* data,
-#endif
-                           size_t data_len,
-                           HttpServerRequestInfo* info,
-                           size_t* pos);
+                    size_t data_len,
+                    HttpServerRequestInfo* info,
+                    size_t* pos);
 
   HttpConnection* FindConnection(int connection_id);
 
@@ -141,14 +130,12 @@ class HttpServer {
 
   const std::unique_ptr<ServerSocket> server_socket_;
   std::unique_ptr<StreamSocket> accepted_socket_;
-  HttpServer::Delegate* const delegate_;
+  const raw_ptr<HttpServer::Delegate> delegate_;
 
-  int last_id_;
+  int last_id_ = 0;
   std::map<int, std::unique_ptr<HttpConnection>> id_to_connection_;
 
-  base::WeakPtrFactory<HttpServer> weak_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(HttpServer);
+  base::WeakPtrFactory<HttpServer> weak_ptr_factory_{this};
 };
 
 }  // namespace net

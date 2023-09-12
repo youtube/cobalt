@@ -1,28 +1,27 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/proxy_resolution/mock_pac_file_fetcher.h"
 
-#include "base/callback_helpers.h"
-#include "base/logging.h"
+#include <string>
+#include <utility>
+
+#include "base/check.h"
 #include "base/run_loop.h"
-#include "base/strings/string16.h"
 #include "base/strings/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 
 namespace net {
 
-MockPacFileFetcher::MockPacFileFetcher()
-    : pending_request_text_(NULL),
-      is_shutdown_(false) {}
+MockPacFileFetcher::MockPacFileFetcher() = default;
 
 MockPacFileFetcher::~MockPacFileFetcher() = default;
 
 // PacFileFetcher implementation.
 int MockPacFileFetcher::Fetch(
     const GURL& url,
-    base::string16* text,
+    std::u16string* text,
     CompletionOnceCallback callback,
     const NetworkTrafficAnnotationTag traffic_annotation) {
   DCHECK(!has_pending_request());
@@ -45,7 +44,7 @@ void MockPacFileFetcher::NotifyFetchCompletion(int result,
                                                const std::string& ascii_text) {
   DCHECK(has_pending_request());
   *pending_request_text_ = base::ASCIIToUTF16(ascii_text);
-  base::ResetAndReturn(&pending_request_callback_).Run(result);
+  std::move(pending_request_callback_).Run(result);
 }
 
 void MockPacFileFetcher::Cancel() {
@@ -55,12 +54,12 @@ void MockPacFileFetcher::Cancel() {
 void MockPacFileFetcher::OnShutdown() {
   is_shutdown_ = true;
   if (pending_request_callback_) {
-    base::ResetAndReturn(&pending_request_callback_).Run(ERR_CONTEXT_SHUT_DOWN);
+    std::move(pending_request_callback_).Run(ERR_CONTEXT_SHUT_DOWN);
   }
 }
 
 URLRequestContext* MockPacFileFetcher::GetRequestContext() const {
-  return NULL;
+  return nullptr;
 }
 
 const GURL& MockPacFileFetcher::pending_request_url() const {

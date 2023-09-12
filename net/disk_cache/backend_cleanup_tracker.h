@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 #include <utility>
 #include <vector>
 
-#include "base/callback.h"
 #include "base/files/file_path.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
 #include "net/base/net_export.h"
@@ -34,6 +34,9 @@ class NET_EXPORT_PRIVATE BackendCleanupTracker
   static scoped_refptr<BackendCleanupTracker> TryCreate(
       const base::FilePath& path,
       base::OnceClosure retry_closure);
+
+  BackendCleanupTracker(const BackendCleanupTracker&) = delete;
+  BackendCleanupTracker& operator=(const BackendCleanupTracker&) = delete;
 
   // Register a callback to be posted after all the work of associated
   // context is complete (which will result in destruction of this context).
@@ -60,8 +63,6 @@ class NET_EXPORT_PRIVATE BackendCleanupTracker
   // We expect only TryMakeContext to be multithreaded, everything
   // else should be sequenced.
   SEQUENCE_CHECKER(seq_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(BackendCleanupTracker);
 };
 
 }  // namespace disk_cache

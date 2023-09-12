@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,35 +8,30 @@
 #include <memory>
 #include <utility>
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_with_source.h"
-#include "starboard/types.h"
 
-namespace net {
-
-namespace nqe {
-
-namespace internal {
+namespace net::nqe::internal {
 
 namespace {
 
-std::unique_ptr<base::Value> NetworkQualityChangedNetLogCallback(
+base::Value::Dict NetworkQualityChangedNetLogParams(
     base::TimeDelta http_rtt,
     base::TimeDelta transport_rtt,
     int32_t downstream_throughput_kbps,
-    EffectiveConnectionType effective_connection_type,
-    NetLogCaptureMode capture_mode) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetInteger("http_rtt_ms", http_rtt.InMilliseconds());
-  dict->SetInteger("transport_rtt_ms", transport_rtt.InMilliseconds());
-  dict->SetInteger("downstream_throughput_kbps", downstream_throughput_kbps);
-  dict->SetString("effective_connection_type",
-                  GetNameForEffectiveConnectionType(effective_connection_type));
-  return std::move(dict);
+    EffectiveConnectionType effective_connection_type) {
+  base::Value::Dict value;
+  value.Set("http_rtt_ms", static_cast<int>(http_rtt.InMilliseconds()));
+  value.Set("transport_rtt_ms",
+            static_cast<int>(transport_rtt.InMilliseconds()));
+  value.Set("downstream_throughput_kbps", downstream_throughput_kbps);
+  value.Set("effective_connection_type",
+            GetNameForEffectiveConnectionType(effective_connection_type));
+  return value;
 }
 
 bool MetricChangedMeaningfully(int32_t past_value, int32_t current_value) {
@@ -72,18 +67,16 @@ bool MetricChangedMeaningfully(int32_t past_value, int32_t current_value) {
 
 }  // namespace
 
-EventCreator::EventCreator(NetLogWithSource net_log)
-    : net_log_(net_log),
-      past_effective_connection_type_(EFFECTIVE_CONNECTION_TYPE_UNKNOWN) {}
+EventCreator::EventCreator(NetLogWithSource net_log) : net_log_(net_log) {}
 
 EventCreator::~EventCreator() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void EventCreator::MaybeAddNetworkQualityChangedEventToNetLog(
     EffectiveConnectionType effective_connection_type,
     const NetworkQuality& network_quality) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // Check if any of the network quality metrics changed meaningfully.
   bool effective_connection_type_changed =
@@ -108,16 +101,12 @@ void EventCreator::MaybeAddNetworkQualityChangedEventToNetLog(
   past_effective_connection_type_ = effective_connection_type;
   past_network_quality_ = network_quality;
 
-  net_log_.AddEvent(
-      NetLogEventType::NETWORK_QUALITY_CHANGED,
-      base::Bind(&NetworkQualityChangedNetLogCallback,
-                 network_quality.http_rtt(), network_quality.transport_rtt(),
-                 network_quality.downstream_throughput_kbps(),
-                 effective_connection_type));
+  net_log_.AddEvent(NetLogEventType::NETWORK_QUALITY_CHANGED, [&] {
+    return NetworkQualityChangedNetLogParams(
+        network_quality.http_rtt(), network_quality.transport_rtt(),
+        network_quality.downstream_throughput_kbps(),
+        effective_connection_type);
+  });
 }
 
-}  // namespace internal
-
-}  // namespace nqe
-
-}  // namespace net
+}  // namespace net::nqe::internal

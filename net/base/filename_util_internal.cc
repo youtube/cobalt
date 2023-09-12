@@ -1,18 +1,18 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/filename_util.h"
 
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/stl_util.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "net/base/escape.h"
 #include "net/base/filename_util_internal.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_string_util.h"
@@ -55,7 +55,7 @@ base::FilePath::StringType GetCorrectedExtensionUnsafe(
   // "foo.jpg" to "foo.jpeg".
   std::vector<base::FilePath::StringType> all_mime_extensions;
   GetExtensionsForMimeType(mime_type, &all_mime_extensions);
-  if (base::ContainsValue(all_mime_extensions, extension))
+  if (base::Contains(all_mime_extensions, extension))
     return extension;
 
   // Get the "final" extension. In most cases, this is the same as the
@@ -69,7 +69,7 @@ base::FilePath::StringType GetCorrectedExtensionUnsafe(
   // If there's a double extension, and the second extension is in the
   // list of valid extensions for the given type, keep the double extension.
   // This avoids renaming things like "foo.tar.gz" to "foo.gz".
-  if (base::ContainsValue(all_mime_extensions, final_extension))
+  if (base::Contains(all_mime_extensions, final_extension))
     return extension;
   return preferred_mime_extension;
 }
@@ -87,9 +87,9 @@ void SanitizeGeneratedFileName(base::FilePath::StringType* filename,
     size_t length = filename->size();
     size_t pos = filename->find_last_not_of(FILE_PATH_LITERAL(" ."));
     filename->resize((pos == std::string::npos) ? 0 : (pos + 1));
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     base::TrimWhitespace(*filename, base::TRIM_TRAILING, filename);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     base::TrimWhitespaceASCII(*filename, base::TRIM_TRAILING, filename);
 #else
 #error Unsupported platform
@@ -125,16 +125,15 @@ std::string GetFileNameFromURL(const GURL& url,
   if (!url.is_valid() || url.SchemeIs("about") || url.SchemeIs("data"))
     return std::string();
 
-  std::string unescaped_url_filename;
-  UnescapeBinaryURLComponent(url.ExtractFileName(), UnescapeRule::NORMAL,
-                             &unescaped_url_filename);
+  std::string unescaped_url_filename = base::UnescapeBinaryURLComponent(
+      url.ExtractFileName(), base::UnescapeRule::NORMAL);
 
   // The URL's path should be escaped UTF-8, but may not be.
   std::string decoded_filename = unescaped_url_filename;
   if (!base::IsStringUTF8(decoded_filename)) {
     // TODO(jshin): this is probably not robust enough. To be sure, we need
     // encoding detection.
-    base::string16 utf16_output;
+    std::u16string utf16_output;
     if (!referrer_charset.empty() &&
         ConvertToUTF16(unescaped_url_filename, referrer_charset.c_str(),
                        &utf16_output)) {
@@ -156,14 +155,15 @@ std::string GetFileNameFromURL(const GURL& url,
 bool IsShellIntegratedExtension(const base::FilePath::StringType& extension) {
   base::FilePath::StringType extension_lower = base::ToLowerASCII(extension);
 
-  // http://msdn.microsoft.com/en-us/library/ms811694.aspx
-  // Right-clicking on shortcuts can be magical.
+  // .lnk files may be used to execute arbitrary code (see
+  // https://nvd.nist.gov/vuln/detail/CVE-2010-2568). .local files are used by
+  // Windows to determine which DLLs to load for an application.
   if ((extension_lower == FILE_PATH_LITERAL("local")) ||
       (extension_lower == FILE_PATH_LITERAL("lnk")))
     return true;
 
-  // http://www.juniper.net/security/auto/vulnerabilities/vuln2612.html
-  // Files become magical if they end in a CLSID, so block such extensions.
+  // Setting a file's extension to a CLSID may conceal its actual file type on
+  // some Windows versions (see https://nvd.nist.gov/vuln/detail/CVE-2004-0420).
   if (!extension_lower.empty() &&
       (extension_lower.front() == FILE_PATH_LITERAL('{')) &&
       (extension_lower.back() == FILE_PATH_LITERAL('}')))
@@ -191,7 +191,7 @@ void EnsureSafeExtension(const std::string& mime_type,
   base::FilePath::StringType extension =
       GetCorrectedExtensionUnsafe(mime_type, ignore_extension, *file_name);
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   const base::FilePath::CharType kDefaultExtension[] =
       FILE_PATH_LITERAL("download");
 
@@ -205,24 +205,25 @@ void EnsureSafeExtension(const std::string& mime_type,
   *file_name = file_name->ReplaceExtension(extension);
 }
 
-bool FilePathToString16(const base::FilePath& path, base::string16* converted) {
-#if defined(OS_WIN)
-  *converted = path.value();
+bool FilePathToString16(const base::FilePath& path, std::u16string* converted) {
+#if BUILDFLAG(IS_WIN)
+  converted->assign(path.value().begin(), path.value().end());
   return true;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   std::string component8 = path.AsUTF8Unsafe();
   return !component8.empty() &&
          base::UTF8ToUTF16(component8.c_str(), component8.size(), converted);
 #endif
 }
 
-base::string16 GetSuggestedFilenameImpl(
+std::u16string GetSuggestedFilenameImpl(
     const GURL& url,
     const std::string& content_disposition,
     const std::string& referrer_charset,
     const std::string& suggested_name,
     const std::string& mime_type,
     const std::string& default_name,
+    bool should_replace_extension,
     ReplaceIllegalCharactersFunction replace_illegal_characters_function) {
   // TODO: this function to be updated to match the httpbis recommendations.
   // Talk to abarth for the latest news.
@@ -263,11 +264,11 @@ base::string16 GetSuggestedFilenameImpl(
 
   bool replace_trailing = false;
   base::FilePath::StringType result_str, default_name_str;
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   replace_trailing = true;
-  result_str = base::UTF8ToUTF16(filename);
-  default_name_str = base::UTF8ToUTF16(default_name);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+  result_str = base::UTF8ToWide(filename);
+  default_name_str = base::UTF8ToWide(default_name);
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   result_str = filename;
   default_name_str = default_name;
 #else
@@ -283,6 +284,7 @@ base::string16 GetSuggestedFilenameImpl(
   }
   replace_illegal_characters_function(&result_str, '_');
   base::FilePath result(result_str);
+  overwrite_extension |= should_replace_extension;
   // extension should not appended to filename derived from
   // content-disposition, if it does not have one.
   // Hence mimetype and overwrite_extension values are not used.
@@ -291,7 +293,7 @@ base::string16 GetSuggestedFilenameImpl(
   else
     GenerateSafeFileName(mime_type, overwrite_extension, &result);
 
-  base::string16 result16;
+  std::u16string result16;
   if (!FilePathToString16(result, &result16)) {
     result = base::FilePath(default_name_str);
     if (!FilePathToString16(result, &result16)) {
@@ -309,14 +311,16 @@ base::FilePath GenerateFileNameImpl(
     const std::string& suggested_name,
     const std::string& mime_type,
     const std::string& default_file_name,
+    bool should_replace_extension,
     ReplaceIllegalCharactersFunction replace_illegal_characters_function) {
-  base::string16 file_name = GetSuggestedFilenameImpl(
+  std::u16string file_name = GetSuggestedFilenameImpl(
       url, content_disposition, referrer_charset, suggested_name, mime_type,
-      default_file_name, replace_illegal_characters_function);
+      default_file_name, should_replace_extension,
+      replace_illegal_characters_function);
 
-#if defined(OS_WIN)
-  base::FilePath generated_name(file_name);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#if BUILDFLAG(IS_WIN)
+  base::FilePath generated_name(base::AsWStringPiece(file_name));
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   base::FilePath generated_name(
       base::SysWideToNativeMB(base::UTF16ToWide(file_name)));
 #endif

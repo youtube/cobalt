@@ -1,23 +1,22 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/disk_cache/blockfile/file.h"
 
 #include <limits.h>
+#include <stdint.h>
 
 #include <limits>
 #include <utility>
 
-#include "base/bind.h"
+#include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
-#include "base/macros.h"
-#include "base/task/post_task.h"
+#include "base/task/thread_pool.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/blockfile/in_flight_io.h"
 #include "net/disk_cache/disk_cache.h"
-#include "starboard/types.h"
 
 namespace {
 
@@ -36,6 +35,9 @@ class FileBackgroundIO : public disk_cache::BackgroundIO {
       : disk_cache::BackgroundIO(controller), callback_(callback), file_(file),
         buf_(buf), buf_len_(buf_len), offset_(offset) {
   }
+
+  FileBackgroundIO(const FileBackgroundIO&) = delete;
+  FileBackgroundIO& operator=(const FileBackgroundIO&) = delete;
 
   disk_cache::FileIOCallback* callback() {
     return callback_;
@@ -62,16 +64,18 @@ class FileBackgroundIO : public disk_cache::BackgroundIO {
   const void* buf_;
   size_t buf_len_;
   size_t offset_;
-
-  DISALLOW_COPY_AND_ASSIGN(FileBackgroundIO);
 };
 
 
 // The specialized controller that keeps track of current operations.
 class FileInFlightIO : public disk_cache::InFlightIO {
  public:
-  FileInFlightIO() {}
-  ~FileInFlightIO() override {}
+  FileInFlightIO() = default;
+
+  FileInFlightIO(const FileInFlightIO&) = delete;
+  FileInFlightIO& operator=(const FileInFlightIO&) = delete;
+
+  ~FileInFlightIO() override = default;
 
   // These methods start an asynchronous operation. The arguments have the same
   // semantics of the File asynchronous operations, with the exception that the
@@ -88,9 +92,6 @@ class FileInFlightIO : public disk_cache::InFlightIO {
   // the one performing the call.
   void OnOperationComplete(disk_cache::BackgroundIO* operation,
                            bool cancel) override;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(FileInFlightIO);
 };
 
 // ---------------------------------------------------------------------------
@@ -117,28 +118,28 @@ void FileBackgroundIO::Write() {
 
 void FileInFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
                           size_t offset, disk_cache::FileIOCallback *callback) {
-  scoped_refptr<FileBackgroundIO> operation(
-      new FileBackgroundIO(file, buf, buf_len, offset, callback, this));
+  auto operation = base::MakeRefCounted<FileBackgroundIO>(
+      file, buf, buf_len, offset, callback, this);
   file->AddRef();  // Balanced on OnOperationComplete()
 
-  base::PostTaskWithTraits(
+  base::ThreadPool::PostTask(
       FROM_HERE,
       {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::Bind(&FileBackgroundIO::Read, operation.get()));
+      base::BindOnce(&FileBackgroundIO::Read, operation.get()));
   OnOperationPosted(operation.get());
 }
 
 void FileInFlightIO::PostWrite(disk_cache::File* file, const void* buf,
                            size_t buf_len, size_t offset,
                            disk_cache::FileIOCallback* callback) {
-  scoped_refptr<FileBackgroundIO> operation(
-      new FileBackgroundIO(file, buf, buf_len, offset, callback, this));
+  auto operation = base::MakeRefCounted<FileBackgroundIO>(
+      file, buf, buf_len, offset, callback, this);
   file->AddRef();  // Balanced on OnOperationComplete()
 
-  base::PostTaskWithTraits(
+  base::ThreadPool::PostTask(
       FROM_HERE,
       {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::Bind(&FileBackgroundIO::Write, operation.get()));
+      base::BindOnce(&FileBackgroundIO::Write, operation.get()));
   OnOperationPosted(operation.get());
 }
 
@@ -156,7 +157,7 @@ void FileInFlightIO::OnOperationComplete(disk_cache::BackgroundIO* operation,
 }
 
 // A static object that will broker all async operations.
-FileInFlightIO* s_file_operations = NULL;
+FileInFlightIO* s_file_operations = nullptr;
 
 // Returns the current FileInFlightIO.
 FileInFlightIO* GetFileInFlightIO() {
@@ -170,7 +171,7 @@ FileInFlightIO* GetFileInFlightIO() {
 void DeleteFileInFlightIO() {
   DCHECK(s_file_operations);
   delete s_file_operations;
-  s_file_operations = NULL;
+  s_file_operations = nullptr;
 }
 
 }  // namespace
@@ -271,7 +272,7 @@ size_t File::GetLength() {
 }
 
 // Static.
-void File::WaitForPendingIO(int* num_pending_io) {
+void File::WaitForPendingIOForTesting(int* num_pending_io) {
   // We may be running unit tests so we should allow be able to reset the
   // message loop.
   GetFileInFlightIO()->WaitForPendingIO();
@@ -284,8 +285,7 @@ void File::DropPendingIO() {
   DeleteFileInFlightIO();
 }
 
-File::~File() {
-}
+File::~File() = default;
 
 base::PlatformFile File::platform_file() const {
   return base_file_.GetPlatformFile();

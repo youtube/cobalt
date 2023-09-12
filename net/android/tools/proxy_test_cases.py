@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Copyright 2012 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -311,7 +311,7 @@ class GenerateJava:
 
   def Generate(self):
     for test_case in test_cases:
-      if test_case.has_key("cpp-only"):
+      if "cpp-only" in test_case:
         continue
       if "description" in test_case:
         self._GenerateDescription(test_case["description"]);

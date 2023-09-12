@@ -1,11 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // This file intentionally does not have header guards, it's included
 // inside a macro to generate enum values. The following line silences a
-// presubmit warning that would otherwise be triggered by this:
+// presubmit and Tricium warning that would otherwise be triggered by this:
 // no-include-guard-because-multiply-included
+// NOLINT(build/header_guard)
 
 // This file contains the list of network errors.
 
@@ -89,17 +90,14 @@ NET_ERROR(BLOCKED_BY_CLIENT, -20)
 // The network changed.
 NET_ERROR(NETWORK_CHANGED, -21)
 
-// The request was blocked by the URL blacklist configured by the domain
+// The request was blocked by the URL block list configured by the domain
 // administrator.
 NET_ERROR(BLOCKED_BY_ADMINISTRATOR, -22)
 
 // The socket is already connected.
 NET_ERROR(SOCKET_IS_CONNECTED, -23)
 
-// The request was blocked because the forced reenrollment check is still
-// pending. This error can only occur on ChromeOS.
-// The error can be emitted by code in chrome/browser/policy/policy_helpers.cc.
-NET_ERROR(BLOCKED_ENROLLMENT_CHECK_PENDING, -24)
+// Error -24 was removed (BLOCKED_ENROLLMENT_CHECK_PENDING)
 
 // The upload failed because the upload stream needed to be re-read, due to a
 // retry or a redirect, but the upload stream doesn't support that operation.
@@ -111,16 +109,23 @@ NET_ERROR(CONTEXT_SHUT_DOWN, -26)
 
 // The request failed because the response was delivered along with requirements
 // which are not met ('X-Frame-Options' and 'Content-Security-Policy' ancestor
-// checks, for instance).
+// checks and 'Cross-Origin-Resource-Policy' for instance).
 NET_ERROR(BLOCKED_BY_RESPONSE, -27)
 
-// The request failed after the response was received, based on client-side
-// heuristics that point to the possiblility of a cross-site scripting attack.
-NET_ERROR(BLOCKED_BY_XSS_AUDITOR, -28)
+// Error -28 was removed (BLOCKED_BY_XSS_AUDITOR).
 
 // The request was blocked by system policy disallowing some or all cleartext
 // requests. Used for NetworkSecurityPolicy on Android.
 NET_ERROR(CLEARTEXT_NOT_PERMITTED, -29)
+
+// The request was blocked by a Content Security Policy
+NET_ERROR(BLOCKED_BY_CSP, -30)
+
+// The request was blocked because of no H/2 or QUIC session.
+NET_ERROR(H2_OR_QUIC_REQUIRED, -31)
+
+// The request was blocked by CORB or ORB.
+NET_ERROR(BLOCKED_BY_ORB, -32)
 
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
@@ -175,12 +180,7 @@ NET_ERROR(SSL_RENEGOTIATION_REQUESTED, -114)
 // unsupported method.
 NET_ERROR(PROXY_AUTH_UNSUPPORTED, -115)
 
-// During SSL renegotiation (rehandshake), the server sent a certificate with
-// an error.
-//
-// Note: this error is not in the -2xx range so that it won't be handled as a
-// certificate error.
-NET_ERROR(CERT_ERROR_IN_SSL_RENEGOTIATION, -116)
+// Error -116 was removed (CERT_ERROR_IN_SSL_RENEGOTIATION)
 
 // The SSL handshake failed because of a bad or missing client certificate.
 NET_ERROR(BAD_SSL_CLIENT_AUTH_CERT, -117)
@@ -221,8 +221,7 @@ NET_ERROR(SSL_BAD_RECORD_MAC_ALERT, -126)
 // The proxy requested authentication (for tunnel establishment).
 NET_ERROR(PROXY_AUTH_REQUESTED, -127)
 
-// The SSL server attempted to use a weak ephemeral Diffie-Hellman key.
-NET_ERROR(SSL_WEAK_SERVER_EPHEMERAL_DH_KEY, -129)
+// Error -129 was removed (SSL_WEAK_SERVER_EPHEMERAL_DH_KEY).
 
 // Could not create a connection to the proxy server. An error occurred
 // either in resolving its name, or in connecting a socket to it.
@@ -260,7 +259,6 @@ NET_ERROR(NETWORK_ACCESS_DENIED, -138)
 // The request throttler module cancelled this request to avoid DDOS.
 NET_ERROR(TEMPORARILY_THROTTLED, -139)
 
-// QUIC46
 // A request to create an SSL tunnel connection through the HTTPS proxy
 // received a 302 (temporary redirect) response.  The response body might
 // include a description of why the request failed.
@@ -282,8 +280,7 @@ NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
 // which exceeds size threshold).
 NET_ERROR(MSG_TOO_BIG, -142)
 
-// A SPDY session already exists, and should be used instead of this connection.
-NET_ERROR(SPDY_SESSION_ALREADY_EXISTS, -143)
+// Error -143 was removed (SPDY_SESSION_ALREADY_EXISTS)
 
 // Error -144 was removed (LIMIT_VIOLATION).
 
@@ -310,9 +307,7 @@ NET_ERROR(SSL_PINNED_KEY_NOT_IN_CERT_CHAIN, -150)
 // Server request for client certificate did not contain any types we support.
 NET_ERROR(CLIENT_AUTH_CERT_TYPE_UNSUPPORTED, -151)
 
-// Server requested one type of cert, then requested a different type while the
-// first was still being generated.
-NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH, -152)
+// Error -152 was removed (ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH)
 
 // An SSL peer sent us a fatal decrypt_error alert. This typically occurs when
 // a peer could not correctly verify a signature (in CertificateVerify or
@@ -396,19 +391,7 @@ NET_ERROR(WS_UPGRADE, -173)
 // visible, because the normal Read() method is used as a fallback.
 NET_ERROR(READ_IF_READY_NOT_IMPLEMENTED, -174)
 
-// This error is emitted if TLS 1.3 is enabled, connecting with it failed, but
-// retrying at a downgraded maximum version succeeded. This could mean:
-//
-// 1. This is a transient network error that will be resolved when the user
-//    reloads.
-//
-// 2. The user is behind a buggy network middlebox, firewall, or proxy which is
-//    interfering with TLS 1.3.
-//
-// 3. The server is buggy and does not implement TLS version negotiation
-//    correctly. TLS 1.3 was tweaked to avoid a common server bug here, so this
-//    is unlikely.
-NET_ERROR(SSL_VERSION_INTERFERENCE, -175)
+// Error -175 was removed (SSL_VERSION_INTERFERENCE).
 
 // No socket buffer space is available.
 NET_ERROR(NO_BUFFER_SPACE, -176)
@@ -437,6 +420,21 @@ NET_ERROR(WRONG_VERSION_ON_EARLY_DATA, -179)
 // TLS-terminating proxy which implemented TLS 1.2 incorrectly. (See
 // https://crbug.com/boringssl/226.)
 NET_ERROR(TLS13_DOWNGRADE_DETECTED, -180)
+
+// The server's certificate has a keyUsage extension incompatible with the
+// negotiated TLS key exchange method.
+NET_ERROR(SSL_KEY_USAGE_INCOMPATIBLE, -181)
+
+// The ECHConfigList fetched over DNS cannot be parsed.
+NET_ERROR(INVALID_ECH_CONFIG_LIST, -182)
+
+// ECH was enabled, but the server was unable to decrypt the encrypted
+// ClientHello.
+NET_ERROR(ECH_NOT_NEGOTIATED, -183)
+
+// ECH was enabled, the server was unable to decrypt the encrypted ClientHello,
+// and additionally did not present a certificate valid for the public name.
+NET_ERROR(ECH_FALLBACK_CERTIFICATE_INVALID, -184)
 
 // Certificate error codes
 //
@@ -526,7 +524,7 @@ NET_ERROR(CERT_INVALID, -207)
 // signature algorithm.
 NET_ERROR(CERT_WEAK_SIGNATURE_ALGORITHM, -208)
 
-// -209 is availible: was CERT_NOT_IN_DNS.
+// -209 is available: was CERT_NOT_IN_DNS.
 
 // The host name specified in the certificate is not unique.
 NET_ERROR(CERT_NON_UNIQUE_NAME, -210)
@@ -549,13 +547,23 @@ NET_ERROR(CERTIFICATE_TRANSPARENCY_REQUIRED, -214)
 // https://g.co/chrome/symantecpkicerts
 NET_ERROR(CERT_SYMANTEC_LEGACY, -215)
 
+// -216 was QUIC_CERT_ROOT_NOT_KNOWN which has been renumbered to not be in the
+// certificate error range.
+
+// The certificate is known to be used for interception by an entity other
+// the device owner.
+NET_ERROR(CERT_KNOWN_INTERCEPTION_BLOCKED, -217)
+
+// -218 was SSL_OBSOLETE_VERSION which is not longer used. TLS 1.0/1.1 instead
+// cause SSL_VERSION_OR_CIPHER_MISMATCH now.
+
 // Add new certificate error codes here.
 //
 // Update the value of CERT_END whenever you add a new certificate error
 // code.
 
 // The value immediately past the last certificate error code.
-NET_ERROR(CERT_END, -216)
+NET_ERROR(CERT_END, -219)
 
 // The URL is invalid.
 NET_ERROR(INVALID_URL, -300)
@@ -601,8 +609,7 @@ NET_ERROR(EMPTY_RESPONSE, -324)
 // The headers section of the response is too large.
 NET_ERROR(RESPONSE_HEADERS_TOO_BIG, -325)
 
-// The PAC requested by HTTP did not have a valid status code (non-200).
-NET_ERROR(PAC_STATUS_NOT_OK, -326)
+// Error -326 was removed (PAC_STATUS_NOT_OK)
 
 // The evaluation of the PAC script failed.
 NET_ERROR(PAC_SCRIPT_FAILED, -327)
@@ -636,8 +643,8 @@ NET_ERROR(UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT, -334)
 // There are no supported proxies in the provided list.
 NET_ERROR(NO_SUPPORTED_PROXIES, -336)
 
-// There is a SPDY protocol error.
-NET_ERROR(SPDY_PROTOCOL_ERROR, -337)
+// There is an HTTP/2 protocol error.
+NET_ERROR(HTTP2_PROTOCOL_ERROR, -337)
 
 // Credentials could not be established during HTTP Authentication.
 NET_ERROR(INVALID_AUTH_CREDENTIALS, -338)
@@ -668,9 +675,9 @@ NET_ERROR(RESPONSE_BODY_TOO_BIG_TO_DRAIN, -345)
 // The HTTP response contained multiple distinct Content-Length headers.
 NET_ERROR(RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH, -346)
 
-// SPDY Headers have been received, but not all of them - status or version
+// HTTP/2 headers have been received, but not all of them - status or version
 // headers are missing, so we're expecting additional frames to complete them.
-NET_ERROR(INCOMPLETE_SPDY_HEADERS, -347)
+NET_ERROR(INCOMPLETE_HTTP2_HEADERS, -347)
 
 // No PAC URL configuration could be retrieved from DHCP. This can indicate
 // either a failure to retrieve the DHCP configuration, or that there was no
@@ -688,10 +695,10 @@ NET_ERROR(RESPONSE_HEADERS_MULTIPLE_LOCATION, -350)
 // stream id corresponding to the request indicating that this request has not
 // been processed yet, or a RST_STREAM frame with error code REFUSED_STREAM.
 // Client MAY retry (on a different connection).  See RFC7540 Section 8.1.4.
-NET_ERROR(SPDY_SERVER_REFUSED_STREAM, -351)
+NET_ERROR(HTTP2_SERVER_REFUSED_STREAM, -351)
 
-// SPDY server didn't respond to the PING message.
-NET_ERROR(SPDY_PING_FAILED, -352)
+// HTTP/2 server didn't respond to the PING message.
+NET_ERROR(HTTP2_PING_FAILED, -352)
 
 // Obsolete.  Kept here to avoid reuse, as the old error can still appear on
 // histograms.
@@ -711,7 +718,7 @@ NET_ERROR(QUIC_PROTOCOL_ERROR, -356)
 // The HTTP headers were truncated by an EOF.
 NET_ERROR(RESPONSE_HEADERS_TRUNCATED, -357)
 
-// The QUIC crytpo handshake failed.  This means that the server was unable
+// The QUIC crypto handshake failed.  This means that the server was unable
 // to read any requests sent, so they may be resent.
 NET_ERROR(QUIC_HANDSHAKE_FAILED, -358)
 
@@ -719,17 +726,17 @@ NET_ERROR(QUIC_HANDSHAKE_FAILED, -358)
 // histograms.
 // NET_ERROR(REQUEST_FOR_SECURE_RESOURCE_OVER_INSECURE_QUIC, -359)
 
-// Transport security is inadequate for the SPDY version.
-NET_ERROR(SPDY_INADEQUATE_TRANSPORT_SECURITY, -360)
+// Transport security is inadequate for the HTTP/2 version.
+NET_ERROR(HTTP2_INADEQUATE_TRANSPORT_SECURITY, -360)
 
-// The peer violated SPDY flow control.
-NET_ERROR(SPDY_FLOW_CONTROL_ERROR, -361)
+// The peer violated HTTP/2 flow control.
+NET_ERROR(HTTP2_FLOW_CONTROL_ERROR, -361)
 
-// The peer sent an improperly sized SPDY frame.
-NET_ERROR(SPDY_FRAME_SIZE_ERROR, -362)
+// The peer sent an improperly sized HTTP/2 frame.
+NET_ERROR(HTTP2_FRAME_SIZE_ERROR, -362)
 
-// Decoding or encoding of compressed SPDY headers failed.
-NET_ERROR(SPDY_COMPRESSION_ERROR, -363)
+// Decoding or encoding of compressed HTTP/2 headers failed.
+NET_ERROR(HTTP2_COMPRESSION_ERROR, -363)
 
 // Proxy Auth Requested without a valid Client Socket Handle.
 NET_ERROR(PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION, -364)
@@ -758,14 +765,14 @@ NET_ERROR(CONTENT_DECODING_INIT_FAILED, -371)
 // Received HTTP/2 RST_STREAM frame with NO_ERROR error code.  This error should
 // be handled internally by HTTP/2 code, and should not make it above the
 // SpdyStream layer.
-NET_ERROR(SPDY_RST_STREAM_NO_ERROR_RECEIVED, -372)
+NET_ERROR(HTTP2_RST_STREAM_NO_ERROR_RECEIVED, -372)
 
 // The pushed stream claimed by the request is no longer available.
-NET_ERROR(SPDY_PUSHED_STREAM_NOT_AVAILABLE, -373)
+NET_ERROR(HTTP2_PUSHED_STREAM_NOT_AVAILABLE, -373)
 
 // A pushed stream was claimed and later reset by the server. When this happens,
 // the request should be retried.
-NET_ERROR(SPDY_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER, -374)
+NET_ERROR(HTTP2_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER, -374)
 
 // An HTTP transaction was retried too many times due for authentication or
 // invalid certificates. This may be due to a bug in the net stack that would
@@ -774,14 +781,42 @@ NET_ERROR(SPDY_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER, -374)
 NET_ERROR(TOO_MANY_RETRIES, -375)
 
 // Received an HTTP/2 frame on a closed stream.
-NET_ERROR(SPDY_STREAM_CLOSED, -376)
+NET_ERROR(HTTP2_STREAM_CLOSED, -376)
 
 // Client is refusing an HTTP/2 stream.
-NET_ERROR(SPDY_CLIENT_REFUSED_STREAM, -377)
+NET_ERROR(HTTP2_CLIENT_REFUSED_STREAM, -377)
 
 // A pushed HTTP/2 stream was claimed by a request based on matching URL and
 // request headers, but the pushed response headers do not match the request.
-NET_ERROR(SPDY_PUSHED_RESPONSE_DOES_NOT_MATCH, -378)
+NET_ERROR(HTTP2_PUSHED_RESPONSE_DOES_NOT_MATCH, -378)
+
+// The server returned a non-2xx HTTP response code.
+//
+// Not that this error is only used by certain APIs that interpret the HTTP
+// response itself. URLRequest for instance just passes most non-2xx
+// response back as success.
+NET_ERROR(HTTP_RESPONSE_CODE_FAILURE, -379)
+
+// The certificate presented on a QUIC connection does not chain to a known root
+// and the origin connected to is not on a list of domains where unknown roots
+// are allowed.
+NET_ERROR(QUIC_CERT_ROOT_NOT_KNOWN, -380)
+
+// A GOAWAY frame has been received indicating that the request has not been
+// processed and is therefore safe to retry on a different connection.
+NET_ERROR(QUIC_GOAWAY_REQUEST_CAN_BE_RETRIED, -381)
+
+// The ACCEPT_CH restart has been triggered too many times
+NET_ERROR(TOO_MANY_ACCEPT_CH_RESTARTS, -382)
+
+// The IP address space of the remote endpoint differed from the previous
+// observed value during the same request. Any cache entry for the affected
+// request should be invalidated.
+NET_ERROR(INCONSISTENT_IP_ADDRESS_SPACE, -383)
+
+// The IP address space of the cached remote endpoint is blocked by local
+// network access check.
+NET_ERROR(CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_LOCAL_NETWORK_ACCESS_POLICY, -384)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
@@ -826,9 +861,15 @@ NET_ERROR(CACHE_LOCK_TIMEOUT, -409)
 NET_ERROR(CACHE_AUTH_FAILURE_AFTER_READ, -410)
 
 // Internal not-quite error code for the HTTP cache. In-memory hints suggest
-// that the cache entry would not have been useable with the transaction's
+// that the cache entry would not have been usable with the transaction's
 // current configuration (e.g. load flags, mode, etc.)
 NET_ERROR(CACHE_ENTRY_NOT_SUITABLE, -411)
+
+// The disk cache is unable to doom this entry.
+NET_ERROR(CACHE_DOOM_FAILURE, -412)
+
+// The disk cache is unable to open or create this entry.
+NET_ERROR(CACHE_OPEN_OR_CREATE_FAILURE, -413)
 
 // The server's response was insecure (e.g. there was a cert error).
 NET_ERROR(INSECURE_RESPONSE, -501)
@@ -842,6 +883,20 @@ NET_ERROR(ADD_USER_CERT_FAILED, -503)
 
 // An error occurred while handling a signed exchange.
 NET_ERROR(INVALID_SIGNED_EXCHANGE, -504)
+
+// An error occurred while handling a Web Bundle source.
+NET_ERROR(INVALID_WEB_BUNDLE, -505)
+
+// A Trust Tokens protocol operation-executing request failed for one of a
+// number of reasons (precondition failure, internal error, bad response).
+NET_ERROR(TRUST_TOKEN_OPERATION_FAILED, -506)
+
+// When handling a Trust Tokens protocol operation-executing request, the system
+// was able to execute the request's Trust Tokens operation without sending the
+// request to its destination: for instance, the results could have been present
+// in a local cache (for redemption) or the operation could have been diverted
+// to a local provider (for "platform-provided" issuance).
+NET_ERROR(TRUST_TOKEN_OPERATION_SUCCESS_WITHOUT_SENDING_REQUEST, -507)
 
 // *** Code -600 is reserved (was FTP_PASV_COMMAND_FAILED). ***
 
@@ -921,6 +976,9 @@ NET_ERROR(CERT_DATABASE_CHANGED, -714)
 
 // Error -715 was removed (CHANNEL_ID_IMPORT_FAILED)
 
+// The certificate verifier configuration changed in some way.
+NET_ERROR(CERT_VERIFIER_CHANGED, -716)
+
 // DNS error codes.
 
 // DNS resolver received a malformed response.
@@ -943,7 +1001,10 @@ NET_ERROR(DNS_SERVER_FAILED, -802)
 // DNS transaction timed out.
 NET_ERROR(DNS_TIMED_OUT, -803)
 
-// The entry was not found in cache, for cache-only lookups.
+// The entry was not found in cache or other local sources, for lookups where
+// only local sources were queried.
+// TODO(ericorth): Consider renaming to DNS_LOCAL_MISS or something like that as
+// the cache is not necessarily queried either.
 NET_ERROR(DNS_CACHE_MISS, -804)
 
 // Suffix search list rules prevent resolution of the given host name.
@@ -952,5 +1013,19 @@ NET_ERROR(DNS_SEARCH_EMPTY, -805)
 // Failed to sort addresses according to RFC3484.
 NET_ERROR(DNS_SORT_ERROR, -806)
 
-// Failed to resolve over HTTP, fallback to legacy
-NET_ERROR(DNS_HTTP_FAILED, -807)
+// Error -807 was removed (DNS_HTTP_FAILED)
+
+// Failed to resolve the hostname of a DNS-over-HTTPS server.
+NET_ERROR(DNS_SECURE_RESOLVER_HOSTNAME_RESOLUTION_FAILED, -808)
+
+// DNS identified the request as disallowed for insecure connection (http/ws).
+// Error should be handled as if an HTTP redirect was received to redirect to
+// https or wss.
+NET_ERROR(DNS_NAME_HTTPS_ONLY, -809)
+
+// All DNS requests associated with this job have been cancelled.
+NET_ERROR(DNS_REQUEST_CANCELLED, -810)
+
+// The hostname resolution of HTTPS record was expected to be resolved with
+// alpn values of supported protocols, but did not.
+NET_ERROR(DNS_NO_MATCHING_SUPPORTED_ALPN, -811)

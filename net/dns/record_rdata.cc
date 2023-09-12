@@ -1,22 +1,30 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/dns/record_rdata.h"
 
+#include <algorithm>
 #include <numeric>
+#include <utility>
 
 #include "base/big_endian.h"
-#include "net/dns/dns_protocol.h"
+#include "base/logging.h"
+#include "base/memory/ptr_util.h"
+#include "base/rand_util.h"
+#include "base/strings/string_piece.h"
+#include "net/base/ip_address.h"
 #include "net/dns/dns_response.h"
+#include "net/dns/public/dns_protocol.h"
 
 namespace net {
 
 static const size_t kSrvRecordMinimumSize = 6;
 
-RecordRdata::RecordRdata() = default;
+// Minimal HTTPS rdata is 2 octets priority + 1 octet empty name.
+static constexpr size_t kHttpsRdataMinimumSize = 3;
 
-bool RecordRdata::HasValidSize(const base::StringPiece& data, uint16_t type) {
+bool RecordRdata::HasValidSize(base::StringPiece data, uint16_t type) {
   switch (type) {
     case dns_protocol::kTypeSRV:
       return data.size() >= kSrvRecordMinimumSize;
@@ -24,33 +32,35 @@ bool RecordRdata::HasValidSize(const base::StringPiece& data, uint16_t type) {
       return data.size() == IPAddress::kIPv4AddressSize;
     case dns_protocol::kTypeAAAA:
       return data.size() == IPAddress::kIPv6AddressSize;
+    case dns_protocol::kTypeHttps:
+      return data.size() >= kHttpsRdataMinimumSize;
     case dns_protocol::kTypeCNAME:
     case dns_protocol::kTypePTR:
     case dns_protocol::kTypeTXT:
     case dns_protocol::kTypeNSEC:
     case dns_protocol::kTypeOPT:
+    case dns_protocol::kTypeSOA:
       return true;
     default:
-      VLOG(1) << "Unsupported RDATA type.";
-      return false;
+      VLOG(1) << "Unrecognized RDATA type.";
+      return true;
   }
 }
 
-SrvRecordRdata::SrvRecordRdata() : priority_(0), weight_(0), port_(0) {
-}
+SrvRecordRdata::SrvRecordRdata() = default;
 
 SrvRecordRdata::~SrvRecordRdata() = default;
 
 // static
 std::unique_ptr<SrvRecordRdata> SrvRecordRdata::Create(
-    const base::StringPiece& data,
+    base::StringPiece data,
     const DnsRecordParser& parser) {
   if (!HasValidSize(data, kType))
-    return std::unique_ptr<SrvRecordRdata>();
+    return nullptr;
 
-  std::unique_ptr<SrvRecordRdata> rdata(new SrvRecordRdata);
+  auto rdata = base::WrapUnique(new SrvRecordRdata());
 
-  base::BigEndianReader reader(data.data(), data.size());
+  auto reader = base::BigEndianReader::FromStringPiece(data);
   // 2 bytes for priority, 2 bytes for weight, 2 bytes for port.
   reader.ReadU16(&rdata->priority_);
   reader.ReadU16(&rdata->weight_);
@@ -58,7 +68,7 @@ std::unique_ptr<SrvRecordRdata> SrvRecordRdata::Create(
 
   if (!parser.ReadName(data.substr(kSrvRecordMinimumSize).begin(),
                        &rdata->target_))
-    return std::unique_ptr<SrvRecordRdata>();
+    return nullptr;
 
   return rdata;
 }
@@ -82,12 +92,12 @@ ARecordRdata::~ARecordRdata() = default;
 
 // static
 std::unique_ptr<ARecordRdata> ARecordRdata::Create(
-    const base::StringPiece& data,
+    base::StringPiece data,
     const DnsRecordParser& parser) {
   if (!HasValidSize(data, kType))
-    return std::unique_ptr<ARecordRdata>();
+    return nullptr;
 
-  std::unique_ptr<ARecordRdata> rdata(new ARecordRdata);
+  auto rdata = base::WrapUnique(new ARecordRdata());
   rdata->address_ =
       IPAddress(reinterpret_cast<const uint8_t*>(data.data()), data.length());
   return rdata;
@@ -109,12 +119,12 @@ AAAARecordRdata::~AAAARecordRdata() = default;
 
 // static
 std::unique_ptr<AAAARecordRdata> AAAARecordRdata::Create(
-    const base::StringPiece& data,
+    base::StringPiece data,
     const DnsRecordParser& parser) {
   if (!HasValidSize(data, kType))
-    return std::unique_ptr<AAAARecordRdata>();
+    return nullptr;
 
-  std::unique_ptr<AAAARecordRdata> rdata(new AAAARecordRdata);
+  auto rdata = base::WrapUnique(new AAAARecordRdata());
   rdata->address_ =
       IPAddress(reinterpret_cast<const uint8_t*>(data.data()), data.length());
   return rdata;
@@ -136,12 +146,12 @@ CnameRecordRdata::~CnameRecordRdata() = default;
 
 // static
 std::unique_ptr<CnameRecordRdata> CnameRecordRdata::Create(
-    const base::StringPiece& data,
+    base::StringPiece data,
     const DnsRecordParser& parser) {
-  std::unique_ptr<CnameRecordRdata> rdata(new CnameRecordRdata);
+  auto rdata = base::WrapUnique(new CnameRecordRdata());
 
   if (!parser.ReadName(data.begin(), &rdata->cname_))
-    return std::unique_ptr<CnameRecordRdata>();
+    return nullptr;
 
   return rdata;
 }
@@ -163,12 +173,12 @@ PtrRecordRdata::~PtrRecordRdata() = default;
 
 // static
 std::unique_ptr<PtrRecordRdata> PtrRecordRdata::Create(
-    const base::StringPiece& data,
+    base::StringPiece data,
     const DnsRecordParser& parser) {
-  std::unique_ptr<PtrRecordRdata> rdata(new PtrRecordRdata);
+  auto rdata = base::WrapUnique(new PtrRecordRdata());
 
   if (!parser.ReadName(data.begin(), &rdata->ptrdomain_))
-    return std::unique_ptr<PtrRecordRdata>();
+    return nullptr;
 
   return rdata;
 }
@@ -189,17 +199,17 @@ TxtRecordRdata::~TxtRecordRdata() = default;
 
 // static
 std::unique_ptr<TxtRecordRdata> TxtRecordRdata::Create(
-    const base::StringPiece& data,
+    base::StringPiece data,
     const DnsRecordParser& parser) {
-  std::unique_ptr<TxtRecordRdata> rdata(new TxtRecordRdata);
+  auto rdata = base::WrapUnique(new TxtRecordRdata());
 
   for (size_t i = 0; i < data.size(); ) {
     uint8_t length = data[i];
 
     if (i + length >= data.size())
-      return std::unique_ptr<TxtRecordRdata>();
+      return nullptr;
 
-    rdata->texts_.push_back(data.substr(i + 1, length).as_string());
+    rdata->texts_.push_back(std::string(data.substr(i + 1, length)));
 
     // Move to the next string.
     i += length + 1;
@@ -224,18 +234,18 @@ NsecRecordRdata::~NsecRecordRdata() = default;
 
 // static
 std::unique_ptr<NsecRecordRdata> NsecRecordRdata::Create(
-    const base::StringPiece& data,
+    base::StringPiece data,
     const DnsRecordParser& parser) {
-  std::unique_ptr<NsecRecordRdata> rdata(new NsecRecordRdata);
+  auto rdata = base::WrapUnique(new NsecRecordRdata());
 
   // Read the "next domain". This part for the NSEC record format is
   // ignored for mDNS, since it has no semantic meaning.
-  unsigned next_domain_length = parser.ReadName(data.data(), NULL);
+  unsigned next_domain_length = parser.ReadName(data.data(), nullptr);
 
   // If we did not succeed in getting the next domain or the data length
   // is too short for reading the bitmap header, return.
   if (next_domain_length == 0 || data.length() < next_domain_length + 2)
-    return std::unique_ptr<NsecRecordRdata>();
+    return nullptr;
 
   struct BitmapHeader {
     uint8_t block_number;  // The block number should be zero.
@@ -248,14 +258,14 @@ std::unique_ptr<NsecRecordRdata> NsecRecordRdata::Create(
   // The block number must be zero in mDns-specific NSEC records. The bitmap
   // length must be between 1 and 32.
   if (header->block_number != 0 || header->length == 0 || header->length > 32)
-    return std::unique_ptr<NsecRecordRdata>();
+    return nullptr;
 
   base::StringPiece bitmap_data = data.substr(next_domain_length + 2);
 
   // Since we may only have one block, the data length must be exactly equal to
   // the domain length plus bitmap size.
   if (bitmap_data.length() != header->length)
-    return std::unique_ptr<NsecRecordRdata>();
+    return nullptr;
 
   rdata->bitmap_.insert(rdata->bitmap_.begin(),
                         bitmap_data.begin(),
@@ -283,68 +293,6 @@ bool NsecRecordRdata::GetBit(unsigned i) const {
 
   unsigned bit_num = 7 - i % 8;
   return (bitmap_[byte_num] & (1 << bit_num)) != 0;
-}
-
-OptRecordRdata::OptRecordRdata() = default;
-
-OptRecordRdata::~OptRecordRdata() = default;
-
-// static
-std::unique_ptr<OptRecordRdata> OptRecordRdata::Create(
-    const base::StringPiece& data,
-    const DnsRecordParser& parser) {
-  std::unique_ptr<OptRecordRdata> rdata(new OptRecordRdata);
-  rdata->buf_.assign(data.begin(), data.end());
-
-  base::BigEndianReader reader(data.data(), data.size());
-  while (reader.remaining() > 0) {
-    uint16_t opt_code, opt_data_size;
-    base::StringPiece opt_data;
-
-    if (!(reader.ReadU16(&opt_code) && reader.ReadU16(&opt_data_size) &&
-          reader.ReadPiece(&opt_data, opt_data_size))) {
-      return std::unique_ptr<OptRecordRdata>();
-    }
-    rdata->opts_.push_back(Opt(opt_code, opt_data));
-  }
-
-  return rdata;
-}
-
-uint16_t OptRecordRdata::Type() const {
-  return OptRecordRdata::kType;
-}
-
-bool OptRecordRdata::IsEqual(const RecordRdata* other) const {
-  if (other->Type() != Type())
-    return false;
-  const OptRecordRdata* opt_other = static_cast<const OptRecordRdata*>(other);
-  return opt_other->opts_ == opts_;
-}
-
-void OptRecordRdata::AddOpt(const Opt& opt) {
-  base::StringPiece opt_data = opt.data();
-
-  // Resize buffer to accommodate new OPT.
-  const size_t orig_rdata_size = buf_.size();
-  buf_.resize(orig_rdata_size + Opt::kHeaderSize + opt_data.size());
-
-  // Start writing from the end of the existing rdata.
-  base::BigEndianWriter writer(buf_.data() + orig_rdata_size, buf_.size());
-  bool success = writer.WriteU16(opt.code()) &&
-                 writer.WriteU16(opt_data.size()) &&
-                 writer.WriteBytes(opt_data.data(), opt_data.size());
-  DCHECK(success);
-
-  opts_.push_back(opt);
-}
-
-OptRecordRdata::Opt::Opt(uint16_t code, base::StringPiece data) : code_(code) {
-  data.CopyToString(&data_);
-}
-
-bool OptRecordRdata::Opt::operator==(const OptRecordRdata::Opt& other) const {
-  return code_ == other.code_ && data_ == other.data_;
 }
 
 }  // namespace net

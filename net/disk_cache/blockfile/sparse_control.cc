@@ -1,18 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/disk_cache/blockfile/sparse_control.h"
 
-#include "base/bind.h"
+#include <stdint.h>
+
 #include "base/format_macros.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/macros.h"
-#include "base/single_thread_task_runner.h"
+#include "base/numerics/checked_math.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "net/base/interval.h"
 #include "net/base/io_buffer.h"
@@ -24,8 +25,6 @@
 #include "net/log/net_log.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_with_source.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 using base::Time;
 
@@ -42,6 +41,10 @@ const int kMaxMapSize = 8 * 1024;
 
 // The maximum number of bytes that a child can store.
 const int kMaxEntrySize = 0x100000;
+
+// How much we can address. 8 KiB bitmap (kMaxMapSize above) gives us offsets
+// up to 64 GiB.
+const int64_t kMaxEndOffset = 8ll * kMaxMapSize * kMaxEntrySize;
 
 // The size of each data block (tracked by the child allocation bitmap).
 const int kBlockSize = 1024;
@@ -64,13 +67,16 @@ class ChildrenDeleter
       public disk_cache::FileIOCallback {
  public:
   ChildrenDeleter(disk_cache::BackendImpl* backend, const std::string& name)
-      : backend_(backend->GetWeakPtr()), name_(name), signature_(0) {}
+      : backend_(backend->GetWeakPtr()), name_(name) {}
+
+  ChildrenDeleter(const ChildrenDeleter&) = delete;
+  ChildrenDeleter& operator=(const ChildrenDeleter&) = delete;
 
   void OnFileIOComplete(int bytes_copied) override;
 
   // Two ways of deleting the children: if we have the children map, use Start()
   // directly, otherwise pass the data address to ReadData().
-  void Start(char* buffer, int len);
+  void Start(std::unique_ptr<char[]> buffer, int len);
   void ReadData(disk_cache::Addr address, int len);
 
  private:
@@ -82,26 +88,24 @@ class ChildrenDeleter
   base::WeakPtr<disk_cache::BackendImpl> backend_;
   std::string name_;
   disk_cache::Bitmap children_map_;
-  int64_t signature_;
+  int64_t signature_ = 0;
   std::unique_ptr<char[]> buffer_;
-  DISALLOW_COPY_AND_ASSIGN(ChildrenDeleter);
 };
 
 // This is the callback of the file operation.
 void ChildrenDeleter::OnFileIOComplete(int bytes_copied) {
-  char* buffer = buffer_.release();
-  Start(buffer, bytes_copied);
+  Start(std::move(buffer_), bytes_copied);
 }
 
-void ChildrenDeleter::Start(char* buffer, int len) {
-  buffer_.reset(buffer);
+void ChildrenDeleter::Start(std::unique_ptr<char[]> buffer, int len) {
+  buffer_ = std::move(buffer);
   if (len < static_cast<int>(sizeof(disk_cache::SparseData)))
     return Release();
 
   // Just copy the information from |buffer|, delete |buffer| and start deleting
   // the child entries.
   disk_cache::SparseData* data =
-      reinterpret_cast<disk_cache::SparseData*>(buffer);
+      reinterpret_cast<disk_cache::SparseData*>(buffer_.get());
   signature_ = data->header.signature;
 
   int num_bits = (len - sizeof(disk_cache::SparseHeader)) * 8;
@@ -124,7 +128,7 @@ void ChildrenDeleter::ReadData(disk_cache::Addr address, int len) {
   size_t file_offset = address.start_block() * address.BlockSize() +
                        disk_cache::kBlockHeaderSize;
 
-  buffer_.reset(new char[len]);
+  buffer_ = std::make_unique<char[]>(len);
   bool completed;
   if (!file->Read(buffer_.get(), len, file_offset, this, &completed))
     return Release();
@@ -146,8 +150,8 @@ void ChildrenDeleter::DeleteChildren() {
   children_map_.Set(child_id, false);
 
   // Post a task to delete the next child.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE, base::Bind(&ChildrenDeleter::DeleteChildren, this));
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&ChildrenDeleter::DeleteChildren, this));
 }
 
 // Returns the NetLog event type corresponding to a SparseOperation.
@@ -196,19 +200,7 @@ namespace disk_cache {
 
 SparseControl::SparseControl(EntryImpl* entry)
     : entry_(entry),
-      child_(NULL),
-      operation_(kNoOperation),
-      pending_(false),
-      finished_(false),
-      init_(false),
-      range_found_(false),
-      abort_(false),
-      child_map_(child_data_.bitmap, kNumSparseBits, kNumSparseBits / 32),
-      offset_(0),
-      buf_len_(0),
-      child_offset_(0),
-      child_len_(0),
-      result_(0) {
+      child_map_(child_data_.bitmap, kNumSparseBits, kNumSparseBits / 32) {
   memset(&sparse_header_, 0, sizeof(sparse_header_));
   memset(&child_data_, 0, sizeof(child_data_));
 }
@@ -264,11 +256,37 @@ int SparseControl::StartIO(SparseOperation op,
   if (offset < 0 || buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
 
-  // We only support up to 64 GB.
-  if (static_cast<uint64_t>(offset) + static_cast<unsigned int>(buf_len) >=
-      UINT64_C(0x1000000000)) {
-    return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
+  int64_t end_offset = 0;  // non-inclusive.
+  if (!base::CheckAdd(offset, buf_len).AssignIfValid(&end_offset)) {
+    // Writes aren't permitted to try to cross the end of address space;
+    // read/GetAvailableRange clip.
+    if (op == kWriteOperation)
+      return net::ERR_INVALID_ARGUMENT;
+    else
+      end_offset = std::numeric_limits<int64_t>::max();
   }
+
+  if (offset >= kMaxEndOffset) {
+    // Interval is within valid offset space, but completely outside backend
+    // supported range. Permit GetAvailableRange to say "nothing here", actual
+    // I/O fails.
+    if (op == kGetRangeOperation)
+      return 0;
+    else
+      return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
+  }
+
+  if (end_offset > kMaxEndOffset) {
+    // Interval is partially what the backend can handle. Fail writes, clip
+    // reads.
+    if (op == kWriteOperation)
+      return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
+    else
+      end_offset = kMaxEndOffset;
+  }
+
+  DCHECK_GE(end_offset, offset);
+  buf_len = end_offset - offset;
 
   DCHECK(!user_buf_.get());
   DCHECK(user_callback_.is_null());
@@ -279,8 +297,8 @@ int SparseControl::StartIO(SparseOperation op,
   // Copy the operation parameters.
   operation_ = op;
   offset_ = offset;
-  user_buf_ =
-      buf ? base::MakeRefCounted<net::DrainableIOBuffer>(buf, buf_len) : NULL;
+  user_buf_ = buf ? base::MakeRefCounted<net::DrainableIOBuffer>(buf, buf_len)
+                  : nullptr;
   buf_len_ = buf_len;
   user_callback_ = std::move(callback);
 
@@ -290,16 +308,15 @@ int SparseControl::StartIO(SparseOperation op,
   abort_ = false;
 
   if (entry_->net_log().IsCapturing()) {
-    entry_->net_log().BeginEvent(
-        GetSparseEventType(operation_),
-        CreateNetLogSparseOperationCallback(offset_, buf_len_));
+    NetLogSparseOperation(entry_->net_log(), GetSparseEventType(operation_),
+                          net::NetLogEventPhase::BEGIN, offset_, buf_len_);
   }
   DoChildrenIO();
 
   if (!pending_) {
     // Everything was done synchronously.
     operation_ = kNoOperation;
-    user_buf_ = NULL;
+    user_buf_ = nullptr;
     user_callback_.Reset();
     return result_;
   }
@@ -307,25 +324,23 @@ int SparseControl::StartIO(SparseOperation op,
   return net::ERR_IO_PENDING;
 }
 
-int SparseControl::GetAvailableRange(int64_t offset, int len, int64_t* start) {
+RangeResult SparseControl::GetAvailableRange(int64_t offset, int len) {
   DCHECK(init_);
   // We don't support simultaneous IO for sparse data.
   if (operation_ != kNoOperation)
-    return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
-
-  DCHECK(start);
+    return RangeResult(net::ERR_CACHE_OPERATION_NOT_SUPPORTED);
 
   range_found_ = false;
-  int result =
-      StartIO(kGetRangeOperation, offset, NULL, len, CompletionOnceCallback());
-  if (range_found_) {
-    *start = offset_;
-    return result;
-  }
+  int result = StartIO(kGetRangeOperation, offset, nullptr, len,
+                       CompletionOnceCallback());
+  if (range_found_)
+    return RangeResult(offset_, result);
 
-  // This is a failure. We want to return a valid start value in any case.
-  *start = offset;
-  return result < 0 ? result : 0;  // Don't mask error codes to the caller.
+  // This is a failure. We want to return a valid start value if it's just an
+  // empty range, though.
+  if (result < 0)
+    return RangeResult(static_cast<net::Error>(result));
+  return RangeResult(offset, 0);
 }
 
 void SparseControl::CancelIO() {
@@ -358,7 +373,7 @@ void SparseControl::DeleteChildren(EntryImpl* entry) {
   if (map_len > kMaxMapSize || map_len % 4)
     return;
 
-  char* buffer;
+  std::unique_ptr<char[]> buffer;
   Addr address;
   entry->GetData(kSparseIndex, &buffer, &address);
   if (!buffer && !address.is_initialized())
@@ -373,13 +388,13 @@ void SparseControl::DeleteChildren(EntryImpl* entry) {
   deleter->AddRef();
 
   if (buffer) {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE,
-        base::Bind(&ChildrenDeleter::Start, deleter, buffer, data_len));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&ChildrenDeleter::Start, deleter,
+                                  std::move(buffer), data_len));
   } else {
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
-        base::Bind(&ChildrenDeleter::ReadData, deleter, address, data_len));
+        base::BindOnce(&ChildrenDeleter::ReadData, deleter, address, data_len));
   }
 }
 
@@ -421,7 +436,7 @@ int SparseControl::OpenSparseEntry(int data_len) {
   if (!(PARENT_ENTRY & entry_->GetEntryFlags()))
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
 
-  // Dont't go over board with the bitmap. 8 KB gives us offsets up to 64 GB.
+  // Don't go over board with the bitmap.
   int map_len = data_len - sizeof(sparse_header_);
   if (map_len > kMaxMapSize || map_len % 4)
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
@@ -515,7 +530,7 @@ void SparseControl::CloseChild() {
                              CompletionOnceCallback(), false);
   if (rv != sizeof(child_data_))
     DLOG(ERROR) << "Failed to save child data";
-  child_ = NULL;
+  child_ = nullptr;
 }
 
 std::string SparseControl::GenerateChildKey() {
@@ -527,7 +542,7 @@ std::string SparseControl::GenerateChildKey() {
 bool SparseControl::KillChildAndContinue(const std::string& key, bool fatal) {
   SetChildBit(false);
   child_->DoomImpl();
-  child_ = NULL;
+  child_ = nullptr;
   if (fatal) {
     result_ = net::ERR_CACHE_READ_FAILURE;
     return false;
@@ -547,7 +562,7 @@ bool SparseControl::ContinueWithoutChild(const std::string& key) {
 
   child_ = entry_->backend_->CreateEntryImpl(key);
   if (!child_) {
-    child_ = NULL;
+    child_ = nullptr;
     result_ = net::ERR_CACHE_READ_FAILURE;
     return false;
   }
@@ -690,9 +705,10 @@ void SparseControl::DoChildrenIO() {
   // Range operations are finished synchronously, often without setting
   // |finished_| to true.
   if (kGetRangeOperation == operation_ && entry_->net_log().IsCapturing()) {
-    entry_->net_log().EndEvent(
-        net::NetLogEventType::SPARSE_GET_RANGE,
-        CreateNetLogGetAvailableRangeResultCallback(offset_, result_));
+    entry_->net_log().EndEvent(net::NetLogEventType::SPARSE_GET_RANGE, [&] {
+      return CreateNetLogGetAvailableRangeResultParams(
+          RangeResult(offset_, result_));
+    });
   }
   if (finished_) {
     if (kGetRangeOperation != operation_ && entry_->net_log().IsCapturing()) {
@@ -726,20 +742,20 @@ bool SparseControl::DoChildIO() {
   switch (operation_) {
     case kReadOperation:
       if (entry_->net_log().IsCapturing()) {
-        entry_->net_log().BeginEvent(
-            net::NetLogEventType::SPARSE_READ_CHILD_DATA,
-            CreateNetLogSparseReadWriteCallback(child_->net_log().source(),
-                                                child_len_));
+        NetLogSparseReadWrite(entry_->net_log(),
+                              net::NetLogEventType::SPARSE_READ_CHILD_DATA,
+                              net::NetLogEventPhase::BEGIN,
+                              child_->net_log().source(), child_len_);
       }
       rv = child_->ReadDataImpl(kSparseData, child_offset_, user_buf_.get(),
                                 child_len_, std::move(callback));
       break;
     case kWriteOperation:
       if (entry_->net_log().IsCapturing()) {
-        entry_->net_log().BeginEvent(
-            net::NetLogEventType::SPARSE_WRITE_CHILD_DATA,
-            CreateNetLogSparseReadWriteCallback(child_->net_log().source(),
-                                                child_len_));
+        NetLogSparseReadWrite(entry_->net_log(),
+                              net::NetLogEventType::SPARSE_WRITE_CHILD_DATA,
+                              net::NetLogEventPhase::BEGIN,
+                              child_->net_log().source(), child_len_);
       }
       rv = child_->WriteDataImpl(kSparseData, child_offset_, user_buf_.get(),
                                  child_len_, std::move(callback), false);
@@ -901,7 +917,7 @@ void SparseControl::OnChildIOCompleted(int result) {
 void SparseControl::DoUserCallback() {
   DCHECK(!user_callback_.is_null());
   CompletionOnceCallback cb = std::move(user_callback_);
-  user_buf_ = NULL;
+  user_buf_ = nullptr;
   pending_ = false;
   operation_ = kNoOperation;
   int rv = result_;

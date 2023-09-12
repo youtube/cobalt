@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,8 @@ namespace net {
 SSLConfigServiceDefaults::SSLConfigServiceDefaults() = default;
 SSLConfigServiceDefaults::~SSLConfigServiceDefaults() = default;
 
-void SSLConfigServiceDefaults::GetSSLConfig(SSLConfig* config) {
-  *config = default_config_;
+SSLContextConfig SSLConfigServiceDefaults::GetSSLContextConfig() {
+  return default_config_;
 }
 
 bool SSLConfigServiceDefaults::CanShareConnectionWithClientCerts(

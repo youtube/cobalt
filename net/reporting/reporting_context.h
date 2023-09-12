@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,11 +7,12 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
-#include "base/time/time.h"
 #include "net/base/backoff_entry.h"
 #include "net/base/net_export.h"
 #include "net/base/rand_callback.h"
+#include "net/reporting/reporting_cache.h"
 #include "net/reporting/reporting_policy.h"
 
 namespace base {
@@ -21,14 +22,11 @@ class TickClock;
 
 namespace net {
 
-class JSONParserDelegate;
-class ReportingCache;
+class ReportingCacheObserver;
 class ReportingDelegate;
 class ReportingDeliveryAgent;
-class ReportingEndpointManager;
 class ReportingGarbageCollector;
 class ReportingNetworkChangeObserver;
-class ReportingObserver;
 class ReportingUploader;
 class URLRequestContext;
 
@@ -36,34 +34,46 @@ class URLRequestContext;
 // Wrapped by ReportingService, which provides the external interface.
 class NET_EXPORT ReportingContext {
  public:
+  // |request_context| and |store| should outlive the ReportingContext.
   static std::unique_ptr<ReportingContext> Create(
       const ReportingPolicy& policy,
-      std::unique_ptr<JSONParserDelegate> json_parser,
-      URLRequestContext* request_context);
+      URLRequestContext* request_context,
+      ReportingCache::PersistentReportingStore* store);
+
+  ReportingContext(const ReportingContext&) = delete;
+  ReportingContext& operator=(const ReportingContext&) = delete;
 
   ~ReportingContext();
 
-  const ReportingPolicy& policy() { return policy_; }
+  const ReportingPolicy& policy() const { return policy_; }
 
-  base::Clock* clock() { return clock_; }
-  const base::TickClock* tick_clock() { return tick_clock_; }
+  const base::Clock& clock() const { return *clock_; }
+  const base::TickClock& tick_clock() const { return *tick_clock_; }
   ReportingUploader* uploader() { return uploader_.get(); }
-
-  JSONParserDelegate* json_parser() { return json_parser_.get(); }
   ReportingDelegate* delegate() { return delegate_.get(); }
   ReportingCache* cache() { return cache_.get(); }
-  ReportingEndpointManager* endpoint_manager() {
-    return endpoint_manager_.get();
-  }
+  ReportingCache::PersistentReportingStore* store() { return store_; }
   ReportingDeliveryAgent* delivery_agent() { return delivery_agent_.get(); }
   ReportingGarbageCollector* garbage_collector() {
     return garbage_collector_.get();
   }
 
-  void AddObserver(ReportingObserver* observer);
-  void RemoveObserver(ReportingObserver* observer);
+  void AddCacheObserver(ReportingCacheObserver* observer);
+  void RemoveCacheObserver(ReportingCacheObserver* observer);
 
-  void NotifyCacheUpdated();
+  void NotifyCachedReportsUpdated();
+  void NotifyReportAdded(const ReportingReport* report);
+  void NotifyReportUpdated(const ReportingReport* report);
+  void NotifyCachedClientsUpdated();
+  void NotifyEndpointsUpdatedForOrigin(
+      const std::vector<ReportingEndpoint>& endpoints);
+
+  // Returns whether the data in the cache is persisted across restarts in the
+  // PersistentReportingStore.
+  bool IsReportDataPersisted() const;
+  bool IsClientDataPersisted() const;
+
+  void OnShutdown();
 
  protected:
   ReportingContext(const ReportingPolicy& policy,
@@ -71,29 +81,27 @@ class NET_EXPORT ReportingContext {
                    const base::TickClock* tick_clock,
                    const RandIntCallback& rand_callback,
                    std::unique_ptr<ReportingUploader> uploader,
-                   std::unique_ptr<JSONParserDelegate> json_parser,
-                   std::unique_ptr<ReportingDelegate> delegate);
+                   std::unique_ptr<ReportingDelegate> delegate,
+                   ReportingCache::PersistentReportingStore* store);
 
  private:
   ReportingPolicy policy_;
 
-  base::Clock* clock_;
-  const base::TickClock* tick_clock_;
+  raw_ptr<base::Clock> clock_;
+  raw_ptr<const base::TickClock> tick_clock_;
   std::unique_ptr<ReportingUploader> uploader_;
 
-  base::ObserverList<ReportingObserver, /* check_empty= */ true>::Unchecked
-      observers_;
+  base::ObserverList<ReportingCacheObserver, /* check_empty= */ true>::Unchecked
+      cache_observers_;
 
-  std::unique_ptr<JSONParserDelegate> json_parser_;
   std::unique_ptr<ReportingDelegate> delegate_;
 
   std::unique_ptr<ReportingCache> cache_;
 
-  // |endpoint_manager_| must come after |tick_clock_| and |cache_|.
-  std::unique_ptr<ReportingEndpointManager> endpoint_manager_;
+  const raw_ptr<ReportingCache::PersistentReportingStore> store_;
 
   // |delivery_agent_| must come after |tick_clock_|, |delegate_|, |uploader_|,
-  // |cache_|, and |endpoint_manager_|.
+  // and |cache_|.
   std::unique_ptr<ReportingDeliveryAgent> delivery_agent_;
 
   // |garbage_collector_| must come after |tick_clock_| and |cache_|.
@@ -101,8 +109,6 @@ class NET_EXPORT ReportingContext {
 
   // |network_change_observer_| must come after |cache_|.
   std::unique_ptr<ReportingNetworkChangeObserver> network_change_observer_;
-
-  DISALLOW_COPY_AND_ASSIGN(ReportingContext);
 };
 
 }  // namespace net

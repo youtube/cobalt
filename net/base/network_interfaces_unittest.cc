@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,18 +8,20 @@
 #include <string>
 #include <unordered_set>
 
-#include "starboard/types.h"
-
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "net/base/ip_endpoint.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_POSIX) && !defined(OS_ANDROID)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
 #include <net/if.h>
-#elif defined(OS_WIN)
+#elif BUILDFLAG(IS_WIN)
+#include <windows.h>
+
 #include <iphlpapi.h>
 #include <objbase.h>
+#include "base/strings/string_util.h"
+#include "base/win/win_util.h"
 #endif
 
 namespace net {
@@ -42,7 +44,7 @@ TEST(NetworkInterfacesTest, GetNetworkList) {
     EXPECT_GT(it->prefix_length, 1u);
     EXPECT_LE(it->prefix_length, it->address.size() * 8);
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
     // On Windows |name| is NET_LUID.
     NET_LUID luid;
     EXPECT_EQ(static_cast<DWORD>(NO_ERROR),
@@ -50,15 +52,13 @@ TEST(NetworkInterfacesTest, GetNetworkList) {
     GUID guid;
     EXPECT_EQ(static_cast<DWORD>(NO_ERROR),
               ConvertInterfaceLuidToGuid(&luid, &guid));
-    LPOLESTR name;
-    StringFromCLSID(guid, &name);
-    EXPECT_STREQ(base::UTF8ToWide(it->name).c_str(), name);
-    CoTaskMemFree(name);
+    auto name = base::win::WStringFromGUID(guid);
+    EXPECT_EQ(base::UTF8ToWide(it->name), name);
 
     if (it->type == NetworkChangeNotifier::CONNECTION_WIFI) {
       EXPECT_NE(WIFI_PHY_LAYER_PROTOCOL_NONE, GetWifiPHYLayerProtocol());
     }
-#elif defined(OS_POSIX) && !defined(OS_ANDROID)
+#elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
     char name[IF_NAMESIZE];
     EXPECT_TRUE(if_indextoname(it->interface_index, name));
     EXPECT_STREQ(it->name.c_str(), name);
@@ -70,7 +70,7 @@ TEST(NetworkInterfacesTest, GetWifiSSID) {
   // We can't check the result of GetWifiSSID() directly, since the result
   // will differ across machines. Simply exercise the code path and hope that it
   // doesn't crash.
-  EXPECT_NE((const char*)NULL, GetWifiSSID().c_str());
+  EXPECT_NE((const char*)nullptr, GetWifiSSID().c_str());
 }
 
 TEST(NetworkInterfacesTest, GetHostName) {

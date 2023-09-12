@@ -1,39 +1,37 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SOCKET_SOCKET_NET_LOG_PARAMS_H_
 #define NET_SOCKET_SOCKET_NET_LOG_PARAMS_H_
 
-#include "net/base/sys_addrinfo.h"
-#include "net/log/net_log_parameters_callback.h"
+#include "base/values.h"
+#include "net/log/net_log_event_type.h"
 
 namespace net {
 
+class NetLogWithSource;
 class HostPortPair;
 class IPEndPoint;
 
-// Creates a NetLog callback for socket error events.
-NetLogParametersCallback CreateNetLogSocketErrorCallback(int net_error,
-                                                         int os_error);
+// Emits an event to NetLog with socket error parameters.
+void NetLogSocketError(const NetLogWithSource& net_log,
+                       NetLogEventType type,
+                       int net_error,
+                       int os_error);
 
-// Creates a NetLog callback for a HostPortPair.
-// |host_and_port| must remain valid for the lifetime of the returned callback.
-NetLogParametersCallback CreateNetLogHostPortPairCallback(
+// Creates a NetLog parameters for a HostPortPair.
+base::Value::Dict CreateNetLogHostPortPairParams(
     const HostPortPair* host_and_port);
 
-// Creates a NetLog callback for an IPEndPoint.
-// |address| must remain valid for the lifetime of the returned callback.
-NetLogParametersCallback CreateNetLogIPEndPointCallback(
-    const IPEndPoint* address);
+// Creates a NetLog parameters for an IPEndPoint.
+base::Value::Dict CreateNetLogIPEndPointParams(const IPEndPoint* address);
 
-#if !defined(STARBOARD)
-// Creates a NetLog callback for the source sockaddr on connect events.
-// |net_address| must remain valid for the lifetime of the returned callback.
-NetLogParametersCallback CreateNetLogSourceAddressCallback(
-    const struct sockaddr* net_address,
-    socklen_t address_len);
-#endif
+// Creates a NetLog parameters for the local and remote IPEndPoints on connect
+// events.
+base::Value::Dict CreateNetLogAddressPairParams(
+    const net::IPEndPoint& local_address,
+    const net::IPEndPoint& remote_address);
 
 }  // namespace net
 

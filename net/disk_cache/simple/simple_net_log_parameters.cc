@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,10 @@
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/format_macros.h"
-#include "base/logging.h"
+#include "base/functional/bind.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
@@ -18,43 +18,46 @@
 
 namespace {
 
-std::unique_ptr<base::Value> NetLogSimpleEntryConstructionCallback(
-    const disk_cache::SimpleEntryImpl* entry,
-    net::NetLogCaptureMode capture_mode) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetString("entry_hash",
-                  base::StringPrintf("%#016" PRIx64, entry->entry_hash()));
-  return std::move(dict);
+base::Value::Dict NetLogSimpleEntryConstructionParams(
+    const disk_cache::SimpleEntryImpl* entry) {
+  base::Value::Dict dict;
+  dict.Set("entry_hash",
+           base::StringPrintf("%#016" PRIx64, entry->entry_hash()));
+  return dict;
 }
 
-std::unique_ptr<base::Value> NetLogSimpleEntryCreationCallback(
+base::Value::Dict NetLogSimpleEntryCreationParams(
     const disk_cache::SimpleEntryImpl* entry,
-    int net_error,
-    net::NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetInteger("net_error", net_error);
+    int net_error) {
+  base::Value::Dict dict;
+  dict.Set("net_error", net_error);
   if (net_error == net::OK)
-    dict->SetString("key", entry->key());
-  return std::move(dict);
+    dict.Set("key", entry->key());
+  return dict;
 }
 
 }  // namespace
 
 namespace disk_cache {
 
-net::NetLogParametersCallback CreateNetLogSimpleEntryConstructionCallback(
-    const SimpleEntryImpl* entry) {
+void NetLogSimpleEntryConstruction(const net::NetLogWithSource& net_log,
+                                   net::NetLogEventType type,
+                                   net::NetLogEventPhase phase,
+                                   const SimpleEntryImpl* entry) {
   DCHECK(entry);
-  return base::Bind(&NetLogSimpleEntryConstructionCallback,
-                    base::Unretained(entry));
+  net_log.AddEntry(type, phase,
+                   [&] { return NetLogSimpleEntryConstructionParams(entry); });
 }
 
-net::NetLogParametersCallback CreateNetLogSimpleEntryCreationCallback(
-    const SimpleEntryImpl* entry,
-    int net_error) {
+void NetLogSimpleEntryCreation(const net::NetLogWithSource& net_log,
+                               net::NetLogEventType type,
+                               net::NetLogEventPhase phase,
+                               const SimpleEntryImpl* entry,
+                               int net_error) {
   DCHECK(entry);
-  return base::Bind(&NetLogSimpleEntryCreationCallback, base::Unretained(entry),
-                    net_error);
+  net_log.AddEntry(type, phase, [&] {
+    return NetLogSimpleEntryCreationParams(entry, net_error);
+  });
 }
 
 }  // namespace disk_cache

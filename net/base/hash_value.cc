@@ -1,19 +1,20 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/hash_value.h"
 
 #include <stdlib.h>
+
 #include <algorithm>
+#include <ostream>
 
 #include "base/base64.h"
-#include "base/logging.h"
+#include "base/check_op.h"
+#include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "crypto/sha2.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -44,7 +45,7 @@ HashValue::HashValue(const SHA256HashValue& hash)
 
 bool HashValue::FromString(const base::StringPiece value) {
   base::StringPiece base64_str;
-  if (value.starts_with("sha256/")) {
+  if (base::StartsWith(value, "sha256/")) {
     tag_ = HASH_VALUE_SHA256;
     base64_str = value.substr(7);
   } else {
@@ -146,21 +147,6 @@ bool IsSHA256HashInSortedArray(const HashValue& hash,
   return std::binary_search(array.begin(), array.end(), hash,
                             SHA256ToHashValueComparator());
 }
-
-#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
-// MSVC can not implicitly convert HashValueVector to span<HashValue>.
-bool IsAnySHA256HashInSortedArray(const HashValueVector& hashes,
-                                  base::span<const SHA256HashValue> array) {
-  for (const auto& hash : hashes) {
-    if (hash.tag() != HASH_VALUE_SHA256)
-      continue;
-
-    if (IsSHA256HashInSortedArray(hash, array))
-      return true;
-  }
-  return false;
-}
-#endif
 
 bool IsAnySHA256HashInSortedArray(base::span<const HashValue> hashes,
                                   base::span<const SHA256HashValue> array) {

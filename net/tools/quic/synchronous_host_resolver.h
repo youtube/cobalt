@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,12 +9,14 @@
 
 #include "net/base/address_list.h"
 #include "net/dns/host_resolver.h"
+#include "url/scheme_host_port.h"
 
 namespace net {
 
 class SynchronousHostResolver {
  public:
-  static int Resolve(const std::string& host, AddressList* addresses);
+  static int Resolve(url::SchemeHostPort scheme_host_port,
+                     AddressList* addresses);
 };
 
 }  // namespace net

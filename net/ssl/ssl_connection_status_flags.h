@@ -1,13 +1,13 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SSL_SSL_CONNECTION_STATUS_FLAGS_H_
 #define NET_SSL_SSL_CONNECTION_STATUS_FLAGS_H_
 
-#include "base/logging.h"
-#include "base/macros.h"
-#include "starboard/types.h"
+#include <stdint.h>
+
+#include "base/check_op.h"
 
 namespace net {
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,12 +20,6 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
  public:
   TestBufferedSpdyVisitor()
       : buffered_spdy_framer_(kMaxHeaderListSizeForTest, NetLogWithSource()),
-        error_count_(0),
-        setting_count_(0),
-        headers_frame_count_(0),
-        push_promise_frame_count_(0),
-        goaway_count_(0),
-        altsvc_count_(0),
         header_stream_id_(static_cast<spdy::SpdyStreamId>(-1)),
         promised_stream_id_(static_cast<spdy::SpdyStreamId>(-1)) {}
 
@@ -48,7 +42,8 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
                  spdy::SpdyStreamId parent_stream_id,
                  bool exclusive,
                  bool fin,
-                 spdy::SpdyHeaderBlock headers) override {
+                 spdy::Http2HeaderBlock headers,
+                 base::TimeTicks recv_first_byte_time) override {
     header_stream_id_ = stream_id;
     headers_frame_count_++;
     headers_ = std::move(headers);
@@ -110,7 +105,7 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
 
   void OnPushPromise(spdy::SpdyStreamId stream_id,
                      spdy::SpdyStreamId promised_stream_id,
-                     spdy::SpdyHeaderBlock headers) override {
+                     spdy::Http2HeaderBlock headers) override {
     header_stream_id_ = stream_id;
     push_promise_frame_count_++;
     promised_stream_id_ = promised_stream_id;
@@ -123,7 +118,7 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
                     altsvc_vector) override {
     altsvc_count_++;
     altsvc_stream_id_ = stream_id;
-    origin.CopyToString(&altsvc_origin_);
+    altsvc_origin_.assign(origin.data(), origin.size());
     altsvc_vector_ = altsvc_vector;
   }
 
@@ -156,19 +151,19 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
   BufferedSpdyFramer buffered_spdy_framer_;
 
   // Counters from the visitor callbacks.
-  int error_count_;
-  int setting_count_;
-  int headers_frame_count_;
-  int push_promise_frame_count_;
-  int goaway_count_;
-  int altsvc_count_;
+  int error_count_ = 0;
+  int setting_count_ = 0;
+  int headers_frame_count_ = 0;
+  int push_promise_frame_count_ = 0;
+  int goaway_count_ = 0;
+  int altsvc_count_ = 0;
 
   // Header block streaming state:
   spdy::SpdyStreamId header_stream_id_;
   spdy::SpdyStreamId promised_stream_id_;
 
   // Headers from OnHeaders and OnPushPromise for verification.
-  spdy::SpdyHeaderBlock headers_;
+  spdy::Http2HeaderBlock headers_;
 
   // OnGoAway parameters.
   spdy::SpdyStreamId goaway_last_accepted_stream_id_;
@@ -200,7 +195,7 @@ TEST_F(BufferedSpdyFramerTest, OnSetting) {
 }
 
 TEST_F(BufferedSpdyFramerTest, HeaderListTooLarge) {
-  spdy::SpdyHeaderBlock headers;
+  spdy::Http2HeaderBlock headers;
   std::string long_header_value(256 * 1024, 'x');
   headers["foo"] = long_header_value;
   spdy::SpdyHeadersIR headers_ir(/*stream_id=*/1, std::move(headers));
@@ -215,14 +210,14 @@ TEST_F(BufferedSpdyFramerTest, HeaderListTooLarge) {
   EXPECT_EQ(1, visitor.error_count_);
   EXPECT_EQ(0, visitor.headers_frame_count_);
   EXPECT_EQ(0, visitor.push_promise_frame_count_);
-  EXPECT_EQ(spdy::SpdyHeaderBlock(), visitor.headers_);
+  EXPECT_EQ(spdy::Http2HeaderBlock(), visitor.headers_);
 }
 
 TEST_F(BufferedSpdyFramerTest, ValidHeadersAfterInvalidHeaders) {
-  spdy::SpdyHeaderBlock headers;
+  spdy::Http2HeaderBlock headers;
   headers["invalid"] = "\r\n\r\n";
 
-  spdy::SpdyHeaderBlock headers2;
+  spdy::Http2HeaderBlock headers2;
   headers["alpha"] = "beta";
 
   SpdyTestUtil spdy_test_util;
@@ -242,7 +237,7 @@ TEST_F(BufferedSpdyFramerTest, ValidHeadersAfterInvalidHeaders) {
 }
 
 TEST_F(BufferedSpdyFramerTest, ReadHeadersHeaderBlock) {
-  spdy::SpdyHeaderBlock headers;
+  spdy::Http2HeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "delta";
   spdy::SpdyHeadersIR headers_ir(/*stream_id=*/1, headers.Clone());
@@ -260,7 +255,7 @@ TEST_F(BufferedSpdyFramerTest, ReadHeadersHeaderBlock) {
 }
 
 TEST_F(BufferedSpdyFramerTest, ReadPushPromiseHeaderBlock) {
-  spdy::SpdyHeaderBlock headers;
+  spdy::Http2HeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "delta";
   NetLogWithSource net_log;
@@ -281,7 +276,7 @@ TEST_F(BufferedSpdyFramerTest, ReadPushPromiseHeaderBlock) {
 }
 
 TEST_F(BufferedSpdyFramerTest, GoAwayDebugData) {
-  spdy::SpdyGoAwayIR go_ir(/*last_accepted_stream_id=*/2,
+  spdy::SpdyGoAwayIR go_ir(/*last_good_stream_id=*/2,
                            spdy::ERROR_CODE_FRAME_SIZE_ERROR, "foo");
   NetLogWithSource net_log;
   BufferedSpdyFramer framer(kMaxHeaderListSizeForTest, net_log);

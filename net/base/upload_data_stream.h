@@ -1,19 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_UPLOAD_DATA_STREAM_H_
 #define NET_BASE_UPLOAD_DATA_STREAM_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_progress.h"
 #include "net/log/net_log_with_source.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -28,6 +28,10 @@ class NET_EXPORT UploadDataStream {
   // cache to formulate a cache key. This value should be unique across browser
   // sessions. A value of 0 is used to indicate an unspecified identifier.
   UploadDataStream(bool is_chunked, int64_t identifier);
+  UploadDataStream(bool is_chunked, bool has_null_source, int64_t identifier);
+
+  UploadDataStream(const UploadDataStream&) = delete;
+  UploadDataStream& operator=(const UploadDataStream&) = delete;
 
   virtual ~UploadDataStream();
 
@@ -70,6 +74,10 @@ class NET_EXPORT UploadDataStream {
 
   bool is_chunked() const { return is_chunked_; }
 
+  // Returns true if the stream has a null source which is defined at
+  // https://fetch.spec.whatwg.org/#concept-body-source.
+  bool has_null_source() const { return has_null_source_; }
+
   // Returns true if all data has been consumed from this upload data
   // stream. For chunked uploads, returns false until the first read attempt.
   // This makes some state machines a little simpler.
@@ -93,6 +101,10 @@ class NET_EXPORT UploadDataStream {
   // successfully, or has been reset and not yet re-initialized, returns an
   // empty UploadProgress.
   virtual UploadProgress GetUploadProgress() const;
+
+  // Indicates whether fetch upload streaming is allowed/rejected over H/1.
+  // Even if this is false but there is a QUIC/H2 stream, the upload is allowed.
+  virtual bool AllowHTTP1() const;
 
  protected:
   // Must be called by subclasses when InitInternal and ReadInternal complete
@@ -126,23 +138,22 @@ class NET_EXPORT UploadDataStream {
   // at least once before every call to InitInternal.
   virtual void ResetInternal() = 0;
 
-  uint64_t total_size_;
-  uint64_t current_position_;
+  uint64_t total_size_ = 0;
+  uint64_t current_position_ = 0;
 
   const int64_t identifier_;
 
   const bool is_chunked_;
+  const bool has_null_source_;
 
   // True if the initialization was successful.
-  bool initialized_successfully_;
+  bool initialized_successfully_ = false;
 
-  bool is_eof_;
+  bool is_eof_ = false;
 
   CompletionOnceCallback callback_;
 
   NetLogWithSource net_log_;
-
-  DISALLOW_COPY_AND_ASSIGN(UploadDataStream);
 };
 
 }  // namespace net

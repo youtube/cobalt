@@ -19,7 +19,7 @@ policies:
 
 * [HTTP Strict Transport Security (HSTS)](https://tools.ietf.org/html/rfc6797)
 * [Public Key Pinning Extension for HTTP](https://tools.ietf.org/html/rfc7469)
-* [Expect-CT Extension for HTTP](http://httpwg.org/http-extensions/expect-ct.html)
+k
 
 Chromium and most other browsers ship the preloaded configurations inside their
 binary. Chromium uses a custom data structure for this.
@@ -129,9 +129,10 @@ dispatch-table     = prefix-part         ; a common prefix for the node and its 
                      1*value-part        ; 1 or more values or pointers to children
                      end-of-table-value  ; signals the end of the table
 
-prefix-part        = *%b1               ; 0 or more 1 bits indicating the prefix length
-                     %b0                ; 0 bit to indicate the end of the length encoding
+prefix-part        = prefix-length      ; a prefix code encoding of the number
+of characters in the prefix
                      prefix-characters  ; the actual prefix characters
+prefix-length      = 1*BIT  ; See net::extras::PreloadDecoder::DecodeSize for the format
 value-part         = huffman-character node-value
                      ; table with the node value and pointers to children
 
@@ -168,7 +169,7 @@ The binary format for an entry is defined by the following ABNF.
 
 ```abnf
 preloaded-entry    = BIT                   ; simple entry flag
-                     [hsts-part hpkp-part expect-ct-part]
+                     [hsts-part hpkp-part]
                                            ; policy specific parts are only
                                            ; present when the simple entry flag
                                            ; is set to 0 and omitted otherwise
@@ -184,9 +185,6 @@ hpkp-part          = BIT                   ; whether to enable pinning
 
 hpkp-pinset-id     = array-index
 
-expect-ct-part     = BIT              ; whether to enable Expect-CT
-                     [report-uri-id]  ; only present when Expect-CT is enabled
-
 report-uri-id      = array-index
 include-subdomains = BIT
 array-index        = 4BIT             ; a 4 bit number
@@ -195,7 +193,6 @@ array-index        = 4BIT             ; a 4 bit number
 The **array-index** values are indices in the associated arrays:
 
 *  `net::TransportSecurityStateSource::pinsets` for **pinset-id**
-*  `net::TransportSecurityStateSource::expect_ct_report_uris` for Expect-CT's
 **report-uri-id**
 
 #### Simple entries

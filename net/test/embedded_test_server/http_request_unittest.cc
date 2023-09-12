@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-namespace test_server {
+namespace net::test_server {
 
 TEST(HttpRequestTest, ParseRequest) {
   HttpRequestParser parser;
@@ -145,6 +144,20 @@ TEST(HttpRequestTest, ParseGet) {
   EXPECT_FALSE(request->has_content);
 }
 
+TEST(HttpRequestTest, ParseConnect) {
+  HttpRequestParser parser;
+
+  parser.ProcessChunk("CONNECT example.com:443 HTTP/1.1\r\n\r\n");
+  ASSERT_EQ(HttpRequestParser::ACCEPTED, parser.ParseRequest());
+
+  std::unique_ptr<HttpRequest> request = parser.GetRequest();
+  EXPECT_EQ("example.com:443", request->relative_url);
+  EXPECT_EQ("CONNECT", request->method_string);
+  EXPECT_EQ(METHOD_CONNECT, request->method);
+  EXPECT_EQ("", request->content);
+  EXPECT_FALSE(request->has_content);
+}
+
 TEST(HttpRequestTest, GetURL) {
   HttpRequest request;
   request.relative_url = "/foobar.html?q=foo";
@@ -159,5 +172,4 @@ TEST(HttpRequestTest, GetURLFallback) {
   EXPECT_EQ("http://localhost/foobar.html?q=foo", request.GetURL().spec());
 }
 
-}  // namespace test_server
-}  // namespace net
+}  // namespace net::test_server

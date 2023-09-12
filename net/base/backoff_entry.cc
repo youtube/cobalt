@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,16 +8,11 @@
 #include <cmath>
 #include <limits>
 
-#include "base/logging.h"
+#include "base/check_op.h"
+#include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_math.h"
 #include "base/rand_util.h"
 #include "base/time/tick_clock.h"
-
-#include "starboard/client_porting/cwrappers/pow_wrapper.h"
-
-#if defined(STARBOARD)
-#include "starboard/types.h"
-#endif
 
 namespace net {
 
@@ -61,9 +56,9 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
     // failures.
     base::TimeDelta delay;
     if (policy_->always_use_initial_delay)
-      delay = base::TimeDelta::FromMilliseconds(policy_->initial_delay_ms);
-    exponential_backoff_release_time_ =
-        std::max(GetTimeTicksNow() + delay, exponential_backoff_release_time_);
+      delay = base::Milliseconds(policy_->initial_delay_ms);
+    exponential_backoff_release_time_ = std::max(
+        GetTimeTicksNow() + delay, exponential_backoff_release_time_);
   }
 }
 
@@ -102,8 +97,8 @@ bool BackoffEntry::CanDiscard() const {
   if (failure_count_ > 0) {
     // Need to keep track of failures until maximum back-off period
     // has passed (since further failures can add to back-off).
-    return unused_since_ms >=
-           std::max(policy_->maximum_backoff_ms, policy_->entry_lifetime_ms);
+    return unused_since_ms >= std::max(policy_->maximum_backoff_ms,
+                                       policy_->entry_lifetime_ms);
   }
 
   // Otherwise, consider the entry is outdated if it hasn't been used for the
@@ -125,8 +120,8 @@ base::TimeTicks BackoffEntry::GetTimeTicksNow() const {
 }
 
 base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
-  int effective_failure_count =
-      std::max(0, failure_count_ - policy_->num_errors_to_ignore);
+  base::ClampedNumeric<int> effective_failure_count =
+      base::ClampSub(failure_count_, policy_->num_errors_to_ignore).Max(0);
 
   // If always_use_initial_delay is true, it's equivalent to
   // the effective_failure_count always being one greater than when it's false.
@@ -153,8 +148,8 @@ base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
   // Do overflow checking in microseconds, the internal unit of TimeTicks.
   base::internal::CheckedNumeric<int64_t> backoff_duration_us = delay_ms + 0.5;
   backoff_duration_us *= base::Time::kMicrosecondsPerMillisecond;
-  base::TimeDelta backoff_duration = base::TimeDelta::FromMicroseconds(
-      backoff_duration_us.ValueOrDefault(std::numeric_limits<int64_t>::max()));
+  base::TimeDelta backoff_duration = base::Microseconds(int64_t{
+      backoff_duration_us.ValueOrDefault(std::numeric_limits<int64_t>::max())});
   base::TimeTicks release_time = BackoffDurationToReleaseTime(backoff_duration);
 
   // Never reduce previously set release horizon, e.g. due to Retry-After
@@ -186,7 +181,7 @@ base::TimeTicks BackoffEntry::BackoffDurationToReleaseTime(
                                      maximum_release_time_us.ValueOrDefault(
                                          std::numeric_limits<int64_t>::max()));
 
-  return base::TimeTicks() + base::TimeDelta::FromMicroseconds(release_time_us);
+  return base::TimeTicks() + base::Microseconds(release_time_us);
 }
 
 }  // namespace net

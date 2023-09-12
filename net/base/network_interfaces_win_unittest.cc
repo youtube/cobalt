@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,10 +11,10 @@
 #include <string>
 #include <unordered_set>
 
+#include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "net/base/ip_endpoint.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -52,6 +52,14 @@ bool FillAdapterAddress(IP_ADAPTER_ADDRESSES* adapter_address,
   adapter_address->FirstUnicastAddress->SuffixOrigin = IpSuffixOriginOther;
   adapter_address->FirstUnicastAddress->PreferredLifetime = 100;
   adapter_address->FirstUnicastAddress->ValidLifetime = 1000;
+
+  DCHECK(sizeof(adapter_address->PhysicalAddress) > 5);
+  // Generate 06:05:04:03:02:01
+  adapter_address->PhysicalAddressLength = 6;
+  for (unsigned long i = 0; i < adapter_address->PhysicalAddressLength; i++) {
+    adapter_address->PhysicalAddress[i] =
+        adapter_address->PhysicalAddressLength - i;
+  }
 
   socklen_t sock_len = sizeof(sockaddr_storage);
 
@@ -188,6 +196,54 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingWindows) {
   results.clear();
 }
 
+TEST(NetworkInterfacesTest, NetworkListExtractMacAddress) {
+  IPAddress ipv6_local_address(kIPv6LocalAddr);
+  IPAddress ipv6_address(kIPv6Addr);
+  IPAddress ipv6_prefix(kIPv6AddrPrefix);
+
+  NetworkInterfaceList results;
+  sockaddr_storage addresses[2];
+  IP_ADAPTER_ADDRESSES adapter_address = {};
+  IP_ADAPTER_UNICAST_ADDRESS address = {};
+  IP_ADAPTER_PREFIX adapter_prefix = {};
+  adapter_address.FirstUnicastAddress = &address;
+  adapter_address.FirstPrefix = &adapter_prefix;
+
+  ASSERT_TRUE(FillAdapterAddress(&adapter_address, kIfnameEm1, ipv6_address,
+                                 ipv6_prefix, addresses));
+
+  Eui48MacAddress expected_mac_address = {0x6, 0x5, 0x4, 0x3, 0x2, 0x1};
+
+  EXPECT_TRUE(internal::GetNetworkListImpl(
+      &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, &adapter_address));
+  ASSERT_EQ(results.size(), 1ul);
+  ASSERT_EQ(results[0].mac_address, expected_mac_address);
+}
+
+TEST(NetworkInterfacesTest, NetworkListExtractMacAddressInvalidLength) {
+  IPAddress ipv6_local_address(kIPv6LocalAddr);
+  IPAddress ipv6_address(kIPv6Addr);
+  IPAddress ipv6_prefix(kIPv6AddrPrefix);
+
+  NetworkInterfaceList results;
+  sockaddr_storage addresses[2];
+  IP_ADAPTER_ADDRESSES adapter_address = {};
+  IP_ADAPTER_UNICAST_ADDRESS address = {};
+  IP_ADAPTER_PREFIX adapter_prefix = {};
+  adapter_address.FirstUnicastAddress = &address;
+  adapter_address.FirstPrefix = &adapter_prefix;
+
+  ASSERT_TRUE(FillAdapterAddress(&adapter_address, kIfnameEm1, ipv6_address,
+                                 ipv6_prefix, addresses));
+  // Not EUI-48 Mac address, so it is not extracted.
+  adapter_address.PhysicalAddressLength = 8;
+
+  EXPECT_TRUE(internal::GetNetworkListImpl(
+      &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, &adapter_address));
+  ASSERT_EQ(results.size(), 1ul);
+  EXPECT_FALSE(results[0].mac_address.has_value());
+}
+
 bool read_int_or_bool(DWORD data_size, PVOID data) {
   switch (data_size) {
     case 1:
@@ -212,9 +268,9 @@ int GetWifiOptions() {
   if (result != ERROR_SUCCESS)
     return -1;
 
-  WLAN_INTERFACE_INFO_LIST* interface_list_ptr = NULL;
+  WLAN_INTERFACE_INFO_LIST* interface_list_ptr = nullptr;
   result =
-      wlanapi.enum_interfaces_func(client.Get(), NULL, &interface_list_ptr);
+      wlanapi.enum_interfaces_func(client.Get(), nullptr, &interface_list_ptr);
   if (result != ERROR_SUCCESS)
     return -1;
   std::unique_ptr<WLAN_INTERFACE_INFO_LIST, internal::WlanApiDeleter>
@@ -228,7 +284,7 @@ int GetWifiOptions() {
     result =
         wlanapi.query_interface_func(client.Get(), &info->InterfaceGuid,
                                      wlan_intf_opcode_background_scan_enabled,
-                                     NULL, &data_size, &data, NULL);
+                                     nullptr, &data_size, &data, nullptr);
     if (result != ERROR_SUCCESS)
       continue;
     if (!read_int_or_bool(data_size, data)) {
@@ -238,7 +294,7 @@ int GetWifiOptions() {
 
     result = wlanapi.query_interface_func(client.Get(), &info->InterfaceGuid,
                                           wlan_intf_opcode_media_streaming_mode,
-                                          NULL, &data_size, &data, NULL);
+                                          nullptr, &data_size, &data, nullptr);
     if (result != ERROR_SUCCESS)
       continue;
     if (read_int_or_bool(data_size, data)) {
@@ -263,8 +319,14 @@ void TryChangeWifiOptions(int options) {
   EXPECT_EQ(previous_options, GetWifiOptions());
 }
 
+// Test fails on Win Arm64 bots. TODO(https://crbug.com/1425465): Fix on bot.
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
+#define MAYBE_SetWifiOptions DISABLED_SetWifiOptions
+#else
+#define MAYBE_SetWifiOptions SetWifiOptions
+#endif
 // Test SetWifiOptions().
-TEST(NetworkInterfacesTest, SetWifiOptions) {
+TEST(NetworkInterfacesTest, MAYBE_SetWifiOptions) {
   TryChangeWifiOptions(0);
   TryChangeWifiOptions(WIFI_OPTIONS_DISABLE_SCAN);
   TryChangeWifiOptions(WIFI_OPTIONS_MEDIA_STREAMING_MODE);

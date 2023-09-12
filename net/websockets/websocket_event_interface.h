@@ -1,21 +1,21 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_WEBSOCKETS_WEBSOCKET_EVENT_INTERFACE_H_
 #define NET_WEBSOCKETS_WEBSOCKET_EVENT_INTERFACE_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "base/callback_forward.h"
-#include "base/compiler_specific.h"  // for WARN_UNUSED_RESULT
-#include "base/macros.h"
+#include "base/containers/span.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/optional.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -23,9 +23,8 @@ namespace net {
 
 class AuthChallengeInfo;
 class AuthCredentials;
-class HostPortPair;
+class IPEndPoint;
 class HttpResponseHeaders;
-class IOBuffer;
 class SSLInfo;
 class URLRequest;
 struct WebSocketHandshakeRequestInfo;
@@ -37,27 +36,37 @@ class NET_EXPORT WebSocketEventInterface {
  public:
   typedef int WebSocketMessageType;
 
-  virtual ~WebSocketEventInterface() {}
+  WebSocketEventInterface(const WebSocketEventInterface&) = delete;
+  WebSocketEventInterface& operator=(const WebSocketEventInterface&) = delete;
+
+  virtual ~WebSocketEventInterface() = default;
 
   // Called when a URLRequest is created for handshaking.
   virtual void OnCreateURLRequest(URLRequest* request) = 0;
 
   // Called in response to an AddChannelRequest. This means that a response has
   // been received from the remote server.
-  virtual void OnAddChannelResponse(const std::string& selected_subprotocol,
-                                    const std::string& extensions) = 0;
+  virtual void OnAddChannelResponse(
+      std::unique_ptr<WebSocketHandshakeResponseInfo> response,
+      const std::string& selected_subprotocol,
+      const std::string& extensions) = 0;
 
   // Called when a data frame has been received from the remote host and needs
   // to be forwarded to the renderer process.
+  // |payload| stays valid as long as both
+  // - the associated WebSocketChannel is valid.
+  // - no further ReadFrames() is called on the associated WebSocketChannel.
   virtual void OnDataFrame(bool fin,
                            WebSocketMessageType type,
-                           scoped_refptr<IOBuffer> buffer,
-                           size_t buffer_size) = 0;
+                           base::span<const char> payload) = 0;
 
-  // Called to provide more send quota for this channel to the renderer
-  // process. Currently the quota units are always bytes of message body
-  // data. In future it might depend on the type of multiplexing in use.
-  virtual void OnFlowControl(int64_t quota) = 0;
+  // Returns true if data pipe is full and waiting the renderer process read
+  // out. The network service should not read more from network until that.
+  virtual bool HasPendingDataFrames() = 0;
+
+  // Called once for each call to SendFrame() once the frame has been passed to
+  // the OS.
+  virtual void OnSendDataFrameDone() = 0;
 
   // Called when the remote server has Started the WebSocket Closing
   // Handshake. The client should not attempt to send any more messages after
@@ -66,7 +75,7 @@ class NET_EXPORT WebSocketEventInterface {
   virtual void OnClosingHandshake() = 0;
 
   // Called when the channel has been dropped, either due to a network close, a
-  // network error, or a protocol error. This may or may not be preceded by a
+  // network error, or a protocol error. This may or may not be preceeded by a
   // call to OnClosingHandshake().
   //
   // Warning: Both the |code| and |reason| are passed through to Javascript, so
@@ -88,23 +97,27 @@ class NET_EXPORT WebSocketEventInterface {
   // The channel should not be used again after OnFailChannel() has been
   // called.
   //
+  // |message| is a human readable string describing the failure. (It may be
+  // empty.) |net_error| contains the network error code for the failure, which
+  // may be |OK| if the failure was at a higher level. |response_code| contains
+  // the HTTP status code that caused the failure, or |absl::nullopt| if the
+  // attempt didn't get that far.
+  //
   // This function deletes the Channel.
-  virtual void OnFailChannel(const std::string& message) = 0;
+  virtual void OnFailChannel(const std::string& message,
+                             int net_error,
+                             absl::optional<int> response_code) = 0;
 
   // Called when the browser starts the WebSocket Opening Handshake.
   virtual void OnStartOpeningHandshake(
       std::unique_ptr<WebSocketHandshakeRequestInfo> request) = 0;
-
-  // Called when the browser finishes the WebSocket Opening Handshake.
-  virtual void OnFinishOpeningHandshake(
-      std::unique_ptr<WebSocketHandshakeResponseInfo> response) = 0;
 
   // Callbacks to be used in response to a call to OnSSLCertificateError. Very
   // similar to content::SSLErrorHandler::Delegate (which we can't use directly
   // due to layering constraints).
   class NET_EXPORT SSLErrorCallbacks {
    public:
-    virtual ~SSLErrorCallbacks() {}
+    virtual ~SSLErrorCallbacks() = default;
 
     // Cancels the SSL response in response to the error.
     virtual void CancelSSLRequest(int error, const SSLInfo* ssl_info) = 0;
@@ -122,6 +135,7 @@ class NET_EXPORT WebSocketEventInterface {
   virtual void OnSSLCertificateError(
       std::unique_ptr<SSLErrorCallbacks> ssl_error_callbacks,
       const GURL& url,
+      int net_error,
       const SSLInfo& ssl_info,
       bool fatal) = 0;
 
@@ -135,26 +149,14 @@ class NET_EXPORT WebSocketEventInterface {
   // async case) cancels authentication. Otherwise the new credentials are set
   // and the opening handshake will be retried with the credentials.
   virtual int OnAuthRequired(
-      scoped_refptr<AuthChallengeInfo> auth_info,
+      const AuthChallengeInfo& auth_info,
       scoped_refptr<HttpResponseHeaders> response_headers,
-      const HostPortPair& host_port_pair,
+      const IPEndPoint& socket_address,
       base::OnceCallback<void(const AuthCredentials*)> callback,
-      base::Optional<AuthCredentials>* credentials) = 0;
-
-#if defined(STARBOARD)
-  // Added so that Cobalt's websocket implementation can reduce its count for
-  // bufferdAmount of send data.
-
-  // Called when a write completes, and |bytes_written| indicates how many bytes
-  // were written.
-  virtual void OnWriteDone(uint64_t bytes_written) = 0;
-#endif  // defined(STARBOARD)
+      absl::optional<AuthCredentials>* credentials) = 0;
 
  protected:
-  WebSocketEventInterface() {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WebSocketEventInterface);
+  WebSocketEventInterface() = default;
 };
 
 }  // namespace net

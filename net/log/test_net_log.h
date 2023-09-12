@@ -1,89 +1,79 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_LOG_TEST_NET_LOG_H_
 #define NET_LOG_TEST_NET_LOG_H_
 
-#include <string>
+#include <stddef.h>
+
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "net/log/net_log.h"
-#include "net/log/net_log_with_source.h"
-#include "net/log/test_net_log_entry.h"
-#include "starboard/types.h"
+#include "net/log/net_log_event_type.h"
 
 namespace net {
 
-class NetLogCaptureMode;
 struct NetLogSource;
 
-// TestNetLog is NetLog subclass which records all NetLog events that occur and
-// their parameters.  It is intended for testing only, and is part of the
-// net_test_support project.
-class TestNetLog : public NetLog {
- public:
-  TestNetLog();
-  ~TestNetLog() override;
-
-  void SetCaptureMode(NetLogCaptureMode capture_mode);
-
-  // Below methods are forwarded to test_net_log_observer_.
-  void GetEntries(TestNetLogEntry::List* entry_list) const;
-  void GetEntriesForSource(NetLogSource source,
-                           TestNetLogEntry::List* entry_list) const;
-  size_t GetSize() const;
-  void Clear();
-
-  // Returns a NetLog observer that will write entries to the TestNetLog's event
-  // store. For testing code that bypasses NetLogs and adds events directly to
-  // an observer.
-  NetLog::ThreadSafeObserver* GetObserver() const;
-
- private:
-  // The underlying observer class that does all the work.
-  class Observer;
-
-  std::unique_ptr<Observer> observer_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestNetLog);
-};
-
-// Helper class that exposes a similar API as NetLogWithSource, but uses a
-// TestNetLog rather than the more generic NetLog.
+// NetLog observer that record NetLogs events and their parameters into an
+// in-memory buffer.
 //
-// A BoundTestNetLog can easily be converted to a NetLogWithSource using the
-// bound() method.
-class BoundTestNetLog {
+// This class is for testing only.
+class RecordingNetLogObserver : public NetLog::ThreadSafeObserver {
  public:
-  BoundTestNetLog();
-  ~BoundTestNetLog();
+  // Observe the global singleton netlog with kIncludeSensitive capture mode.
+  RecordingNetLogObserver();
 
-  // The returned NetLogWithSource is only valid while |this| is alive.
-  NetLogWithSource bound() const { return net_log_; }
+  // Observe the global singleton netlog with |capture_mode|.
+  explicit RecordingNetLogObserver(NetLogCaptureMode capture_mode);
 
-  // Fills |entry_list| with all entries in the log.
-  void GetEntries(TestNetLogEntry::List* entry_list) const;
+  // Observe the specified |net_log| object with |capture_mode|.
+  RecordingNetLogObserver(NetLog* net_log, NetLogCaptureMode capture_mode);
 
-  // Fills |entry_list| with all entries in the log from the specified Source.
-  void GetEntriesForSource(NetLogSource source,
-                           TestNetLogEntry::List* entry_list) const;
+  RecordingNetLogObserver(const RecordingNetLogObserver&) = delete;
+  RecordingNetLogObserver& operator=(const RecordingNetLogObserver&) = delete;
 
-  // Returns number of entries in the log.
+  ~RecordingNetLogObserver() override;
+
+  // Change the |capture_mode|.
+  void SetObserverCaptureMode(NetLogCaptureMode capture_mode);
+
+  // |add_entry_callback| may be called on any thread.
+  void SetThreadsafeAddEntryCallback(base::RepeatingClosure add_entry_callback);
+
+  // ThreadSafeObserver implementation:
+  void OnAddEntry(const NetLogEntry& entry) override;
+
+  // Returns the list of all observed NetLog entries.
+  std::vector<NetLogEntry> GetEntries() const;
+
+  // Returns all entries in the log from the specified Source.
+  std::vector<NetLogEntry> GetEntriesForSource(NetLogSource source) const;
+
+  // Returns all captured entries with the specified type.
+  std::vector<NetLogEntry> GetEntriesWithType(NetLogEventType type) const;
+
+  // Returns all captured entries with the specified values.
+  std::vector<NetLogEntry> GetEntriesForSourceWithType(
+      NetLogSource source,
+      NetLogEventType type,
+      NetLogEventPhase phase) const;
+
+  // Returns the number of entries in the log.
   size_t GetSize() const;
 
+  // Clears the captured entry list.
   void Clear();
 
-  // Sets the capture mode of the underlying TestNetLog.
-  void SetCaptureMode(NetLogCaptureMode capture_mode);
-
  private:
-  TestNetLog test_net_log_;
-  const NetLogWithSource net_log_;
-
-  DISALLOW_COPY_AND_ASSIGN(BoundTestNetLog);
+  mutable base::Lock lock_;
+  std::vector<NetLogEntry> entry_list_;
+  const raw_ptr<NetLog> net_log_;
+  base::RepeatingClosure add_entry_callback_;
 };
 
 }  // namespace net

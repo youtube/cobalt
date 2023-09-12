@@ -1,13 +1,13 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/proxy_resolution/network_delegate_error_observer.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/macros.h"
-#include "base/single_thread_task_runner.h"
+#include "base/memory/raw_ptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_delegate.h"
 
@@ -21,7 +21,10 @@ class NetworkDelegateErrorObserver::Core
   Core(NetworkDelegate* network_delegate,
        base::SingleThreadTaskRunner* origin_runner);
 
-  void NotifyPACScriptError(int line_number, const base::string16& error);
+  Core(const Core&) = delete;
+  Core& operator=(const Core&) = delete;
+
+  void NotifyPACScriptError(int line_number, const std::u16string& error);
 
   void Shutdown();
 
@@ -30,10 +33,8 @@ class NetworkDelegateErrorObserver::Core
 
   virtual ~Core();
 
-  NetworkDelegate* network_delegate_;
+  raw_ptr<NetworkDelegate> network_delegate_;
   scoped_refptr<base::SingleThreadTaskRunner> origin_runner_;
-
-  DISALLOW_COPY_AND_ASSIGN(Core);
 };
 
 NetworkDelegateErrorObserver::Core::Core(
@@ -47,10 +48,11 @@ NetworkDelegateErrorObserver::Core::~Core() = default;
 
 void NetworkDelegateErrorObserver::Core::NotifyPACScriptError(
     int line_number,
-    const base::string16& error) {
+    const std::u16string& error) {
   if (!origin_runner_->BelongsToCurrentThread()) {
-    origin_runner_->PostTask(FROM_HERE, base::Bind(&Core::NotifyPACScriptError,
-                                                   this, line_number, error));
+    origin_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&Core::NotifyPACScriptError, this, line_number, error));
     return;
   }
   if (network_delegate_)
@@ -59,7 +61,7 @@ void NetworkDelegateErrorObserver::Core::NotifyPACScriptError(
 
 void NetworkDelegateErrorObserver::Core::Shutdown() {
   CHECK(origin_runner_->BelongsToCurrentThread());
-  network_delegate_ = NULL;
+  network_delegate_ = nullptr;
 }
 
 // NetworkDelegateErrorObserver -----------------------------------------------
@@ -67,8 +69,7 @@ void NetworkDelegateErrorObserver::Core::Shutdown() {
 NetworkDelegateErrorObserver::NetworkDelegateErrorObserver(
     NetworkDelegate* network_delegate,
     base::SingleThreadTaskRunner* origin_runner)
-    : core_(new Core(network_delegate, origin_runner)) {
-}
+    : core_(base::MakeRefCounted<Core>(network_delegate, origin_runner)) {}
 
 NetworkDelegateErrorObserver::~NetworkDelegateErrorObserver() {
   core_->Shutdown();
@@ -85,7 +86,7 @@ NetworkDelegateErrorObserver::Create(
 
 void NetworkDelegateErrorObserver::OnPACScriptError(
     int line_number,
-    const base::string16& error) {
+    const std::u16string& error) {
   core_->NotifyPACScriptError(line_number, error);
 }
 

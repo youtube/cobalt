@@ -1,27 +1,36 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_HTTP_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_HTTP_JOB_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
+#include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "net/base/auth.h"
-#include "net/base/completion_callback.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_error_details.h"
 #include "net/base/net_export.h"
+#include "net/base/privacy_mode.h"
+#include "net/cookies/cookie_inclusion_status.h"
+#include "net/cookies/cookie_partition_key.h"
+#include "net/first_party_sets/first_party_set_metadata.h"
+#include "net/first_party_sets/first_party_sets_cache_filter.h"
 #include "net/http/http_request_info.h"
-#include "net/net_buildflags.h"
 #include "net/socket/connection_attempts.h"
 #include "net/url_request/url_request_job.h"
 #include "net/url_request/url_request_throttler_entry_interface.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -30,24 +39,30 @@ class HttpResponseHeaders;
 class HttpResponseInfo;
 class HttpTransaction;
 class HttpUserAgentSettings;
-class ProxyInfo;
 class SSLPrivateKey;
+struct TransportInfo;
 class UploadDataStream;
 
 // A URLRequestJob subclass that is built on top of HttpTransaction. It
 // provides an implementation for both HTTP and HTTPS.
 class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
  public:
-  static URLRequestJob* Factory(URLRequest* request,
-                                NetworkDelegate* network_delegate,
-                                const std::string& scheme);
+  // Creates URLRequestJob for the specified HTTP, HTTPS, WS, or WSS URL.
+  // Returns a job that returns a redirect in the case of HSTS, and returns a
+  // job that fails for unencrypted requests if current settings dont allow
+  // them. Never returns nullptr.
+  static std::unique_ptr<URLRequestJob> Create(URLRequest* request);
+
+  URLRequestHttpJob(const URLRequestHttpJob&) = delete;
+  URLRequestHttpJob& operator=(const URLRequestHttpJob&) = delete;
 
   void SetRequestHeadersCallback(RequestHeadersCallback callback) override;
+  void SetEarlyResponseHeadersCallback(
+      ResponseHeadersCallback callback) override;
   void SetResponseHeadersCallback(ResponseHeadersCallback callback) override;
 
  protected:
   URLRequestHttpJob(URLRequest* request,
-                    NetworkDelegate* network_delegate,
                     const HttpUserAgentSettings* http_user_agent_settings);
 
   ~URLRequestHttpJob() override;
@@ -56,7 +71,8 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
   void SetPriority(RequestPriority priority) override;
   void Start() override;
   void Kill() override;
-  void GetConnectionAttempts(ConnectionAttempts* out) const override;
+  ConnectionAttempts GetConnectionAttempts() const override;
+  void CloseConnectionOnDestruction() override;
   std::unique_ptr<SourceStream> SetUpSourceStream() override;
 
   RequestPriority priority() const {
@@ -64,9 +80,31 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
   }
 
  private:
+  // For CookieRequestScheme histogram enum.
+  FRIEND_TEST_ALL_PREFIXES(URLRequestHttpJobTest,
+                           CookieSchemeRequestSchemeHistogram);
+
   enum CompletionCause {
     ABORTED,
     FINISHED
+  };
+
+  // Used to indicate which kind of cookies are sent on which kind of requests,
+  // for use in histograms. A (non)secure set cookie means that the cookie was
+  // originally set by a (non)secure url. A (non)secure request means that the
+  // request url is (non)secure. An unset cookie scheme means that the cookie's
+  // source scheme was marked as "Unset" and thus cannot be compared  with the
+  // request.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class CookieRequestScheme {
+    kUnsetCookieScheme = 0,
+    kNonsecureSetNonsecureRequest,
+    kSecureSetSecureRequest,
+    kNonsecureSetSecureRequest,
+    kSecureSetNonsecureRequest,
+
+    kMaxValue = kSecureSetNonsecureRequest  // Keep as the last value.
   };
 
   typedef base::RefCountedData<bool> SharedBoolean;
@@ -76,39 +114,32 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
 
   void DestroyTransaction();
 
+  // Computes the PrivacyMode that should be associated with this leg of the
+  // request. Must be recomputed on redirects.
+  PrivacyMode DeterminePrivacyMode() const;
+
   void AddExtraHeaders();
   void AddCookieHeaderAndStart();
+  void AnnotateAndMoveUserBlockedCookies(
+      CookieAccessResultList& maybe_included_cookies,
+      CookieAccessResultList& excluded_cookies) const;
   void SaveCookiesAndNotifyHeadersComplete(int result);
 
   // Processes the Strict-Transport-Security header, if one exists.
   void ProcessStrictTransportSecurityHeader();
 
-  // Processes the Public-Key-Pins header, if one exists.
-  void ProcessPublicKeyPinsHeader();
-
-  // Processes the Expect-CT header, if one exists. This header
-  // indicates that the server wants the user agent to send a report
-  // when a connection violates the Expect CT policy.
-  void ProcessExpectCTHeader();
-
-#if BUILDFLAG(ENABLE_REPORTING)
-  // Processes the Report-To header, if one exists. This header configures where
-  // the Reporting API (in //net/reporting) will send reports for the origin.
-  void ProcessReportToHeader();
-
-  // Processes the NEL header, if one exists. This header configures whether
-  // network errors will be reported to a specified group of endpoints using the
-  // Reporting API.
-  void ProcessNetworkErrorLoggingHeader();
-#endif  // BUILDFLAG(ENABLE_REPORTING)
-
   // |result| should be OK, or the request is canceled.
   void OnHeadersReceivedCallback(int result);
   void OnStartCompleted(int result);
   void OnReadCompleted(int result);
-  void NotifyBeforeStartTransactionCallback(int result);
-  void NotifyBeforeSendHeadersCallback(const ProxyInfo& proxy_info,
-                                       HttpRequestHeaders* request_headers);
+  void NotifyBeforeStartTransactionCallback(
+      int result,
+      const absl::optional<HttpRequestHeaders>& headers);
+  // This just forwards the call to URLRequestJob::NotifyConnected().
+  // We need it because that method is protected and cannot be bound in a
+  // callback in this class.
+  int NotifyConnectedCallback(const TransportInfo& info,
+                              CompletionOnceCallback callback);
 
   void RestartTransactionWithAuth(const AuthCredentials& credentials);
 
@@ -120,13 +151,13 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
   bool GetCharset(std::string* charset) override;
   void GetResponseInfo(HttpResponseInfo* info) override;
   void GetLoadTimingInfo(LoadTimingInfo* load_timing_info) const override;
-  bool GetRemoteEndpoint(IPEndPoint* endpoint) const override;
+  bool GetTransactionRemoteEndpoint(IPEndPoint* endpoint) const override;
   int GetResponseCode() const override;
   void PopulateNetErrorDetails(NetErrorDetails* details) const override;
   bool CopyFragmentOnRedirect(const GURL& location) const override;
   bool IsSafeRedirect(const GURL& location) override;
   bool NeedsAuth() override;
-  void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*) override;
+  std::unique_ptr<AuthChallengeInfo> GetAuthChallengeInfo() override;
   void SetAuth(const AuthCredentials& credentials) override;
   void CancelAuth() override;
   void ContinueWithCertificate(
@@ -134,20 +165,16 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
       scoped_refptr<SSLPrivateKey> client_private_key) override;
   void ContinueDespiteLastError() override;
   int ReadRawData(IOBuffer* buf, int buf_size) override;
-  void StopCaching() override;
-  bool GetFullRequestHeaders(HttpRequestHeaders* headers) const override;
   int64_t GetTotalReceivedBytes() const override;
   int64_t GetTotalSentBytes() const override;
   void DoneReading() override;
   void DoneReadingRedirectResponse() override;
 
-  HostPortPair GetSocketAddress() const override;
+  IPEndPoint GetResponseRemoteEndpoint() const override;
   void NotifyURLRequestDestroyed() override;
 
   void RecordTimer();
   void ResetTimer();
-
-  void UpdatePacketReadTimes() override;
 
   // Starts the transaction if extensions using the webrequest API do not
   // object.
@@ -157,11 +184,21 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
   void MaybeStartTransactionInternal(int result);
   void StartTransactionInternal();
 
-  void RecordPerfHistograms(CompletionCause reason);
+  void RecordCompletionHistograms(CompletionCause reason);
   void DoneWithRequest(CompletionCause reason);
 
   // Callback functions for Cookie Monster
-  void SetCookieHeaderAndStart(const CookieList& cookie_list);
+  void SetCookieHeaderAndStart(const CookieOptions& options,
+                               const CookieAccessResultList& cookie_list,
+                               const CookieAccessResultList& excluded_list);
+
+  // Another Cookie Monster callback
+  void OnSetCookieResult(const CookieOptions& options,
+                         absl::optional<CanonicalCookie> cookie,
+                         std::string cookie_string,
+                         CookieAccessResult access_result);
+  int num_cookie_lines_left_ = 0;
+  CookieAndLineAccessResultList set_cookie_access_result_list_;
 
   // Some servers send the body compressed, but specify the content length as
   // the uncompressed size. If this is the case, we return true in order
@@ -171,56 +208,60 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
   bool ShouldFixMismatchedContentLength(int rv) const;
 
   // Returns the effective response headers, considering that they may be
-  // overridden by |override_response_headers_|.
+  // overridden by `override_response_headers_` or
+  // `override_response_info_::headers`.
   HttpResponseHeaders* GetResponseHeaders() const;
 
-  RequestPriority priority_;
+  // Called after getting the FirstPartySetMetadata during Start for this job.
+  void OnGotFirstPartySetMetadata(
+      FirstPartySetMetadata first_party_set_metadata);
+
+  // Called after getting the FirstPartySetsCacheFilter match info during Start
+  // for this job.
+  void OnGotFirstPartySetCacheFilterMatchInfo(
+      FirstPartySetsCacheFilter::MatchInfo match_info);
+
+  // Returns true iff this request leg should include the Cookie header. Note
+  // that cookies may still be eventually blocked by the CookieAccessDelegate
+  // even if this method returns true.
+  bool ShouldAddCookieHeader() const;
+
+  // Returns true if partitioned cookies are enabled and can be accessed and/or
+  // set.
+  bool IsPartitionedCookiesEnabled() const;
+
+  RequestPriority priority_ = DEFAULT_PRIORITY;
 
   HttpRequestInfo request_info_;
-  const HttpResponseInfo* response_info_;
+
+  // Used for any logic, e.g. DNS-based scheme upgrade, that needs to synthesize
+  // response info to override the real response info. Transaction should be
+  // cleared before setting.
+  std::unique_ptr<HttpResponseInfo> override_response_info_;
 
   // Auth states for proxy and origin server.
-  AuthState proxy_auth_state_;
-  AuthState server_auth_state_;
+  AuthState proxy_auth_state_ = AUTH_STATE_DONT_NEED_AUTH;
+  AuthState server_auth_state_ = AUTH_STATE_DONT_NEED_AUTH;
   AuthCredentials auth_credentials_;
 
-  bool read_in_progress_;
+  bool read_in_progress_ = false;
 
   std::unique_ptr<HttpTransaction> transaction_;
+
+  // This needs to be declared after `transaction_` and
+  // `override_response_info_` because `response_info_` holds a pointer that's
+  // itself owned by one of those, so `response_info_` needs to be destroyed
+  // first.
+  raw_ptr<const HttpResponseInfo> response_info_ = nullptr;
 
   // This is used to supervise traffic and enforce exponential
   // back-off. May be NULL.
   scoped_refptr<URLRequestThrottlerEntryInterface> throttling_entry_;
 
-  // For recording of stats, we need to remember if this is cached content.
-  bool is_cached_content_;
-
   base::Time request_creation_time_;
 
-  // Data used for statistics gathering. This data is only used for histograms
-  // and is not required. It is only gathered if packet_timing_enabled_ == true.
-  //
-  // TODO(jar): improve the quality of the gathered info by gathering most times
-  // at a lower point in the network stack, assuring we have actual packet
-  // boundaries, rather than approximations. Also note that input byte count
-  // as gathered here is post-SSL, and post-cache-fetch, and does not reflect
-  // true packet arrival times in such cases.
-
-  // Enable recording of packet arrival times for histogramming.
-  bool packet_timing_enabled_;
-  bool done_;  // True when we are done doing work.
-
-  // The number of bytes that have been accounted for in packets (where some of
-  // those packets may possibly have had their time of arrival recorded).
-  int64_t bytes_observed_in_packets_;
-
-  // The request time may not be available when we are being destroyed, so we
-  // snapshot it early on.
-  base::Time request_time_snapshot_;
-
-  // Since we don't save all packet times in packet_times_, we save the
-  // last time for use in histograms.
-  base::Time final_packet_time_;
+  // True when we are done doing work.
+  bool done_ = false;
 
   // The start time for the job, ignoring re-starts.
   base::TimeTicks start_time_;
@@ -233,33 +274,53 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
   // layers of the network stack.
   scoped_refptr<HttpResponseHeaders> override_response_headers_;
 
-  // The network delegate can mark a URL as safe for redirection.
-  // The reference fragment of the original URL is not appended to the redirect
-  // URL when the redirect URL is equal to |allowed_unsafe_redirect_url_|.
-  GURL allowed_unsafe_redirect_url_;
+  // Ordinarily the original URL's fragment is copied during redirects, unless
+  // the destination URL already has one. However, the NetworkDelegate can
+  // override this behavior by setting |preserve_fragment_on_redirect_url_|:
+  // * If set to absl::nullopt, the default behavior is used.
+  // * If the final URL in the redirect chain matches
+  //     |preserve_fragment_on_redirect_url_|, its fragment unchanged. So this
+  //     is basically a way for the embedder to force a redirect not to copy the
+  //     original URL's fragment when the original URL had one.
+  absl::optional<GURL> preserve_fragment_on_redirect_url_;
 
   // Flag used to verify that |this| is not deleted while we are awaiting
   // a callback from the NetworkDelegate. Used as a fail-fast mechanism.
   // True if we are waiting a callback and
   // NetworkDelegate::NotifyURLRequestDestroyed has not been called, yet,
   // to inform the NetworkDelegate that it may not call back.
-  bool awaiting_callback_;
+  bool awaiting_callback_ = false;
 
-  const HttpUserAgentSettings* http_user_agent_settings_;
+  raw_ptr<const HttpUserAgentSettings> http_user_agent_settings_;
 
   // Keeps track of total received bytes over the network from transactions used
   // by this job that have already been destroyed.
-  int64_t total_received_bytes_from_previous_transactions_;
+  int64_t total_received_bytes_from_previous_transactions_ = 0;
   // Keeps track of total sent bytes over the network from transactions used by
   // this job that have already been destroyed.
-  int64_t total_sent_bytes_from_previous_transactions_;
+  int64_t total_sent_bytes_from_previous_transactions_ = 0;
 
   RequestHeadersCallback request_headers_callback_;
+  ResponseHeadersCallback early_response_headers_callback_;
   ResponseHeadersCallback response_headers_callback_;
 
-  base::WeakPtrFactory<URLRequestHttpJob> weak_factory_;
+  // The First-Party Set metadata associated with this job. Set when the job is
+  // started.
+  FirstPartySetMetadata first_party_set_metadata_;
 
-  DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
+  // The cookie partition key for the request. Partitioned cookies should be set
+  // using this key and only partitioned cookies with this partition key should
+  // be sent. The cookie partition key is optional(nullopt) if cookie
+  // partitioning is not enabled, or if the NIK has no top-frame site.
+  //
+  // Unpartitioned cookies are unaffected by this field.
+  //
+  // The two layers of `optional` are because the `cookie_partition_key_` is
+  // lazily computed, and might be "nothing". We want to be able to distinguish
+  // "uncomputed" from "nothing".
+  absl::optional<absl::optional<CookiePartitionKey>> cookie_partition_key_;
+
+  base::WeakPtrFactory<URLRequestHttpJob> weak_factory_{this};
 };
 
 }  // namespace net

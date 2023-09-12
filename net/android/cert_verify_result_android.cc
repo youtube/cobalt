@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,14 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
-#include "jni/AndroidCertVerifyResult_jni.h"
+#include "net/net_jni_headers/AndroidCertVerifyResult_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::JavaArrayOfByteArrayToStringVector;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
-namespace net {
-namespace android {
+namespace net::android {
 
 void ExtractCertVerifyResult(const JavaRef<jobject>& result,
                              CertVerifyStatusAndroid* status,
@@ -30,9 +29,7 @@ void ExtractCertVerifyResult(const JavaRef<jobject>& result,
 
   ScopedJavaLocalRef<jobjectArray> chain_byte_array =
       Java_AndroidCertVerifyResult_getCertificateChainEncoded(env, result);
-  JavaArrayOfByteArrayToStringVector(
-      env, chain_byte_array.obj(), verified_chain);
+  JavaArrayOfByteArrayToStringVector(env, chain_byte_array, verified_chain);
 }
 
-}  // namespace android
-}  // namespace net
+}  // namespace net::android

@@ -1,14 +1,18 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/filter/fuzzed_source_stream.h"
 
+#include <fuzzer/FuzzedDataProvider.h>
+
 #include <algorithm>
+#include <string>
 #include <utility>
 
-#include "base/test/fuzzed_data_provider.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/functional/bind.h"
+#include "base/ranges/algorithm.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
@@ -21,11 +25,8 @@ const Error kReadErrors[] = {OK, ERR_FAILED, ERR_CONTENT_DECODING_FAILED};
 
 }  // namespace
 
-FuzzedSourceStream::FuzzedSourceStream(base::FuzzedDataProvider* data_provider)
-    : SourceStream(SourceStream::TYPE_NONE),
-      data_provider_(data_provider),
-      read_pending_(false),
-      end_returned_(false) {}
+FuzzedSourceStream::FuzzedSourceStream(FuzzedDataProvider* data_provider)
+    : SourceStream(SourceStream::TYPE_NONE), data_provider_(data_provider) {}
 
 FuzzedSourceStream::~FuzzedSourceStream() {
   DCHECK(!read_pending_);
@@ -39,8 +40,8 @@ int FuzzedSourceStream::Read(IOBuffer* buf,
   DCHECK_LE(0, buf_len);
 
   bool sync = data_provider_->ConsumeBool();
-  int result = data_provider_->ConsumeUint32InRange(0, buf_len);
-  std::string data = data_provider_->ConsumeBytes(result);
+  int result = data_provider_->ConsumeIntegralInRange(0, buf_len);
+  std::string data = data_provider_->ConsumeBytesAsString(result);
   result = data.size();
 
   if (result <= 0)
@@ -48,7 +49,7 @@ int FuzzedSourceStream::Read(IOBuffer* buf,
 
   if (sync) {
     if (result > 0) {
-      std::copy(data.data(), data.data() + result, buf->data());
+      base::ranges::copy(data, buf->data());
     } else {
       end_returned_ = true;
     }
@@ -59,7 +60,7 @@ int FuzzedSourceStream::Read(IOBuffer* buf,
 
   read_pending_ = true;
   // |this| is owned by the caller so use base::Unretained is safe.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&FuzzedSourceStream::OnReadComplete,
                                 base::Unretained(this), std::move(callback),
                                 data, pending_read_buf, result));
@@ -68,6 +69,10 @@ int FuzzedSourceStream::Read(IOBuffer* buf,
 
 std::string FuzzedSourceStream::Description() const {
   return "";
+}
+
+bool FuzzedSourceStream::MayHaveMoreBytes() const {
+  return !end_returned_;
 }
 
 void FuzzedSourceStream::OnReadComplete(CompletionOnceCallback callback,

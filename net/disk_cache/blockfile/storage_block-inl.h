@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,26 +7,39 @@
 
 #include "net/disk_cache/blockfile/storage_block.h"
 
-#include "base/hash.h"
+#include <stddef.h>
+#include <stdint.h>
+
+#include "base/hash/hash.h"
 #include "base/logging.h"
-#include "net/disk_cache/blockfile/trace.h"
-#include "starboard/types.h"
+#include "base/notreached.h"
 
 namespace disk_cache {
 
-template<typename T> StorageBlock<T>::StorageBlock(MappedFile* file,
-                                                   Addr address)
-    : data_(NULL), file_(file), address_(address), modified_(false),
-      own_data_(false), extended_(false) {
+template <typename T>
+StorageBlock<T>::StorageBlock(MappedFile* file, Addr address)
+    : file_(file), address_(address) {
   if (address.num_blocks() > 1)
     extended_ = true;
-  DCHECK(!address.is_initialized() || sizeof(*data_) == address.BlockSize());
+  DCHECK(!address.is_initialized() || sizeof(*data_) == address.BlockSize())
+      << address.value();
 }
 
 template<typename T> StorageBlock<T>::~StorageBlock() {
   if (modified_)
     Store();
   DeleteData();
+}
+
+template <typename T>
+void StorageBlock<T>::CopyFrom(StorageBlock<T>* other) {
+  DCHECK(!modified_);
+  DCHECK(!other->modified_);
+  Discard();
+  *Data() = *other->Data();
+  file_ = other->file_;
+  address_ = other->address_;
+  extended_ = other->extended_;
 }
 
 template<typename T> void* StorageBlock<T>::buffer() const {
@@ -72,7 +85,7 @@ template<typename T> void  StorageBlock<T>::Discard() {
     return;
   }
   DeleteData();
-  data_ = NULL;
+  data_ = nullptr;
   modified_ = false;
   extended_ = false;
 }
@@ -81,7 +94,7 @@ template<typename T> void  StorageBlock<T>::StopSharingData() {
   if (!data_ || own_data_)
     return;
   DCHECK(!modified_);
-  data_ = NULL;
+  data_ = nullptr;
 }
 
 template<typename T> void StorageBlock<T>::set_modified() {
@@ -100,7 +113,7 @@ template<typename T> T* StorageBlock<T>::Data() {
 }
 
 template<typename T> bool StorageBlock<T>::HasData() const {
-  return (NULL != data_);
+  return (nullptr != data_);
 }
 
 template<typename T> bool StorageBlock<T>::VerifyHash() const {
@@ -127,7 +140,6 @@ template<typename T> bool StorageBlock<T>::Load() {
     }
   }
   LOG(WARNING) << "Failed data load.";
-  Trace("Failed data load.");
   return false;
 }
 
@@ -140,7 +152,6 @@ template<typename T> bool StorageBlock<T>::Store() {
     }
   }
   LOG(ERROR) << "Failed data store.";
-  Trace("Failed data store.");
   return false;
 }
 
@@ -156,7 +167,6 @@ template<typename T> bool StorageBlock<T>::Load(FileIOCallback* callback,
     }
   }
   LOG(WARNING) << "Failed data load.";
-  Trace("Failed data load.");
   return false;
 }
 
@@ -170,7 +180,6 @@ template<typename T> bool StorageBlock<T>::Store(FileIOCallback* callback,
     }
   }
   LOG(ERROR) << "Failed data store.";
-  Trace("Failed data store.");
   return false;
 }
 
@@ -188,10 +197,10 @@ template<typename T> void StorageBlock<T>::AllocateData() {
 template<typename T> void StorageBlock<T>::DeleteData() {
   if (own_data_) {
     if (!extended_) {
-      delete data_;
+      data_.ClearAndDelete();
     } else {
       data_->~T();
-      delete[] reinterpret_cast<char*>(data_);
+      delete[] reinterpret_cast<char*>(data_.ExtractAsDangling().get());
     }
     own_data_ = false;
   }
@@ -199,7 +208,7 @@ template<typename T> void StorageBlock<T>::DeleteData() {
 
 template <typename T>
 uint32_t StorageBlock<T>::CalculateHash() const {
-  return base::Hash(data_, offsetof(T, self_hash));
+  return base::PersistentHash(data_, offsetof(T, self_hash));
 }
 
 }  // namespace disk_cache

@@ -17,7 +17,7 @@ The Google Chrome browser, which lives in `//chrome`, is the most important
 features that are not intended with or not compatible with the needs of
 the Google Chrome browser will have a very high bar for acceptance in `//net`.
 
-The feature matrix 
+The feature matrix
 
   * **Supported Platforms**: Windows, macOS, Linux, Chromium OS, iOS, Android
   * **Release Frequency**: ~6 weeks between releases
@@ -73,22 +73,25 @@ For official Android devices, WebView has the following capabilities.
   * **Automatic Updates**: Varies. Updates are made available on the Android
     App Store, but users must explicitly choose to update. As such, the
     rate of update varies much more than for the Chromium browser.
-  * **Command-line Flags**: No
-  * **Field Trials (Finch)**: No
-  * **Enterprise Policy**: No
-  * **User Metrics (UMA)**: No
+  * **Command-line Flags**: No for production devices, [yes for userdebug
+    devices](https://chromium.googlesource.com/chromium/src/+/HEAD/android_webview/docs/commandline-flags.md)
+  * **Field Trials (Finch)**: Yes, [with
+    caveats](https://g3doc.corp.google.com/analysis/uma/g3doc/finch/platforms.md?cl=head)
+  * **Enterprise Policy**: Yes, with caveats (TODO(rsleevi): document caveats)
+  * **User Metrics (UMA)**: Yes, [with caveats](http://go/clank-webview/uma)
   * **Component Updater**: No
 
 ## `//content` Embedders
 
 In addition to Chromium, there are a number of other of embedders of
-`//content`, such as projects like [Chromium Embedded Framework](https://bitbucket.org/chromiumembedded/cef)
-or [Electron](http://electron.atom.io/). While `//net` does not directly
-support these consumers, it does support the `//content` embedding API that
-these projects use. Note that this excludes the
+`//content`, such as projects like [Chromium Embedded Framework](https://bitbucket.org/chromiumembedded/cef),
+[Electron](http://electron.atom.io/) or Fuchsia's [WebEngine](https://chromium.googlesource.com/chromium/src/+/HEAD/fuchsia_web/webengine/).
+While `//net` does not directly support these consumers, it does support the
+`//content` embedding API that these projects use. Note that this excludes the
 [content_shell](../../content/shell) test framework.
 
-  * **Supported Platforms**: Windows, macOS, Linux, Chromium OS, iOS, Android
+  * **Supported Platforms**: Windows, macOS, Linux, Chromium OS, iOS, Android,
+    Fuchsia
   * **Release Frequency**: Varies by consumer; Officially ~6 weeks
   * **Command-line Flags**: Varies by consumer
   * **Field Trials (Finch)**: No

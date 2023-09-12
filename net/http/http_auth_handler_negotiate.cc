@@ -1,89 +1,112 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_auth_handler_negotiate.h"
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
-#include "base/callback_helpers.h"
+#include <utility>
+
+#include "base/check_op.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
+#include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
 #include "net/base/address_family.h"
+#include "net/base/address_list.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/net_errors.h"
 #include "net/cert/x509_util.h"
 #include "net/dns/host_resolver.h"
+#include "net/http/http_auth.h"
 #include "net/http/http_auth_filter.h"
 #include "net/http/http_auth_preferences.h"
 #include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_with_source.h"
 #include "net/ssl/ssl_info.h"
+#include "url/scheme_host_port.h"
 
 namespace net {
 
+using DelegationType = HttpAuth::DelegationType;
+
 namespace {
 
-std::unique_ptr<base::Value> NetLogParameterChannelBindings(
+base::Value::Dict NetLogParameterChannelBindings(
     const std::string& channel_binding_token,
     NetLogCaptureMode capture_mode) {
-  std::unique_ptr<base::DictionaryValue> dict;
-  if (!capture_mode.include_socket_bytes())
-    return std::move(dict);
+  base::Value::Dict dict;
+  if (!NetLogCaptureIncludesSocketBytes(capture_mode))
+    return dict;
 
-  dict.reset(new base::DictionaryValue());
-  dict->SetString("token", base::HexEncode(channel_binding_token.data(),
-                                           channel_binding_token.size()));
-  return std::move(dict);
+  dict.Set("token", base::HexEncode(channel_binding_token.data(),
+                                    channel_binding_token.size()));
+  return dict;
+}
+
+// Uses |negotiate_auth_system_factory| to create the auth system, otherwise
+// creates the default auth system for each platform.
+std::unique_ptr<HttpAuthMechanism> CreateAuthSystem(
+#if !BUILDFLAG(IS_ANDROID)
+    HttpAuthHandlerNegotiate::AuthLibrary* auth_library,
+#endif
+    const HttpAuthPreferences* prefs,
+    HttpAuthMechanismFactory negotiate_auth_system_factory) {
+  if (negotiate_auth_system_factory)
+    return negotiate_auth_system_factory.Run(prefs);
+#if BUILDFLAG(IS_ANDROID)
+  return std::make_unique<net::android::HttpAuthNegotiateAndroid>(prefs);
+#elif BUILDFLAG(IS_WIN)
+  return std::make_unique<HttpAuthSSPI>(auth_library,
+                                        HttpAuth::AUTH_SCHEME_NEGOTIATE);
+#elif BUILDFLAG(IS_POSIX)
+  return std::make_unique<HttpAuthGSSAPI>(auth_library,
+                                          CHROME_GSS_SPNEGO_MECH_OID_DESC);
+#endif
 }
 
 }  // namespace
 
-HttpAuthHandlerNegotiate::Factory::Factory() {}
+HttpAuthHandlerNegotiate::Factory::Factory(
+    HttpAuthMechanismFactory negotiate_auth_system_factory)
+    : negotiate_auth_system_factory_(negotiate_auth_system_factory) {}
 
 HttpAuthHandlerNegotiate::Factory::~Factory() = default;
 
-void HttpAuthHandlerNegotiate::Factory::set_host_resolver(
-    HostResolver* resolver) {
-  resolver_ = resolver;
-}
-
-#if !defined(OS_ANDROID) && defined(OS_POSIX)
+#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_POSIX)
 const std::string& HttpAuthHandlerNegotiate::Factory::GetLibraryNameForTesting()
     const {
   return auth_library_->GetLibraryNameForTesting();
 }
-#endif  // !defined(OS_ANDROID) && defined(OS_POSIX)
+#endif  // !BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_POSIX)
 
 int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
     HttpAuthChallengeTokenizer* challenge,
     HttpAuth::Target target,
     const SSLInfo& ssl_info,
-    const GURL& origin,
+    const NetworkAnonymizationKey& network_anonymization_key,
+    const url::SchemeHostPort& scheme_host_port,
     CreateReason reason,
     int digest_nonce_count,
     const NetLogWithSource& net_log,
+    HostResolver* host_resolver,
     std::unique_ptr<HttpAuthHandler>* handler) {
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   if (is_unsupported_ || reason == CREATE_PREEMPTIVE)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
-  if (max_token_length_ == 0) {
-    int rv = DetermineMaxTokenLength(auth_library_.get(), NEGOSSP_NAME,
-                                     &max_token_length_);
-    if (rv == ERR_UNSUPPORTED_AUTH_SCHEME)
-      is_unsupported_ = true;
-    if (rv != OK)
-      return rv;
-  }
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   std::unique_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNegotiate(auth_library_.get(), max_token_length_,
-                                   http_auth_preferences(), resolver_));
-#elif defined(OS_ANDROID)
+      std::make_unique<HttpAuthHandlerNegotiate>(
+          CreateAuthSystem(auth_library_.get(), http_auth_preferences(),
+                           negotiate_auth_system_factory_),
+          http_auth_preferences(), host_resolver));
+#elif BUILDFLAG(IS_ANDROID)
   if (is_unsupported_ || !http_auth_preferences() ||
       http_auth_preferences()->AuthAndroidNegotiateAccountType().empty() ||
       reason == CREATE_PREEMPTIVE)
@@ -91,54 +114,148 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   std::unique_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNegotiate(http_auth_preferences(), resolver_));
-#elif defined(OS_POSIX) || defined(STARBOARD)
-  if (is_unsupported_ || !allow_gssapi_library_load_)
+      std::make_unique<HttpAuthHandlerNegotiate>(
+          CreateAuthSystem(http_auth_preferences(),
+                           negotiate_auth_system_factory_),
+          http_auth_preferences(), host_resolver));
+#elif BUILDFLAG(IS_POSIX)
+  if (is_unsupported_)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
-  if (!auth_library_->Init()) {
+#if BUILDFLAG(IS_CHROMEOS)
+  // Note: Don't set is_unsupported_ = true here. AllowGssapiLibraryLoad()
+  // might change to true during a session.
+  if (!http_auth_preferences() ||
+      !http_auth_preferences()->AllowGssapiLibraryLoad()) {
+    return ERR_UNSUPPORTED_AUTH_SCHEME;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  if (!auth_library_->Init(net_log)) {
     is_unsupported_ = true;
     return ERR_UNSUPPORTED_AUTH_SCHEME;
   }
   // TODO(ahendrickson): Move towards model of parsing in the factory
   //                     method and only constructing when valid.
-  std::unique_ptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerNegotiate(
-      auth_library_.get(), http_auth_preferences(), resolver_));
+  std::unique_ptr<HttpAuthHandler> tmp_handler(
+      std::make_unique<HttpAuthHandlerNegotiate>(
+          CreateAuthSystem(auth_library_.get(), http_auth_preferences(),
+                           negotiate_auth_system_factory_),
+          http_auth_preferences(), host_resolver));
 #endif
-  if (!tmp_handler->InitFromChallenge(challenge, target, ssl_info, origin,
-                                      net_log))
+  if (!tmp_handler->InitFromChallenge(challenge, target, ssl_info,
+                                      network_anonymization_key,
+                                      scheme_host_port, net_log)) {
     return ERR_INVALID_RESPONSE;
+  }
   handler->swap(tmp_handler);
   return OK;
 }
 
 HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
-#if !defined(OS_ANDROID)
-    AuthLibrary* auth_library,
-#endif
-#if defined(OS_WIN)
-    ULONG max_token_length,
-#endif
+    std::unique_ptr<HttpAuthMechanism> auth_system,
     const HttpAuthPreferences* prefs,
     HostResolver* resolver)
-#if defined(OS_ANDROID)
-    : auth_system_(prefs),
-#elif defined(OS_WIN)
-    : auth_system_(auth_library, "Negotiate", NEGOSSP_NAME, max_token_length),
-#elif defined(OS_POSIX) || defined(STARBOARD)
-    : auth_system_(auth_library, "Negotiate", CHROME_GSS_SPNEGO_MECH_OID_DESC),
-#endif
+    : auth_system_(std::move(auth_system)),
       resolver_(resolver),
-      already_called_(false),
-      has_credentials_(false),
-      auth_token_(NULL),
-      next_state_(STATE_NONE),
-      http_auth_preferences_(prefs) {
-}
+      http_auth_preferences_(prefs) {}
 
 HttpAuthHandlerNegotiate::~HttpAuthHandlerNegotiate() = default;
 
-std::string HttpAuthHandlerNegotiate::CreateSPN(const AddressList& address_list,
-                                                const GURL& origin) {
+// Require identity on first pass instead of second.
+bool HttpAuthHandlerNegotiate::NeedsIdentity() {
+  return auth_system_->NeedsIdentity();
+}
+
+bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
+  if (target_ == HttpAuth::AUTH_PROXY)
+    return true;
+  if (!http_auth_preferences_)
+    return false;
+  return http_auth_preferences_->CanUseDefaultCredentials(scheme_host_port_);
+}
+
+bool HttpAuthHandlerNegotiate::AllowsExplicitCredentials() {
+  return auth_system_->AllowsExplicitCredentials();
+}
+
+// The Negotiate challenge header looks like:
+//   WWW-Authenticate: NEGOTIATE auth-data
+bool HttpAuthHandlerNegotiate::Init(
+    HttpAuthChallengeTokenizer* challenge,
+    const SSLInfo& ssl_info,
+    const NetworkAnonymizationKey& network_anonymization_key) {
+  network_anonymization_key_ = network_anonymization_key;
+#if BUILDFLAG(IS_POSIX)
+  if (!auth_system_->Init(net_log())) {
+    VLOG(1) << "can't initialize GSSAPI library";
+    return false;
+  }
+  // GSSAPI does not provide a way to enter username/password to obtain a TGT,
+  // however ChromesOS provides the user an opportunity to enter their
+  // credentials and generate a new TGT on OS level (see b/260522530). If the
+  // default credentials are not allowed for a particular site
+  // (based on allowlist), fall back to a different scheme.
+  if (!AllowsDefaultCredentials()) {
+    return false;
+  }
+#endif
+  auth_system_->SetDelegation(GetDelegationType());
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_NEGOTIATE;
+  score_ = 4;
+  properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
+
+  HttpAuth::AuthorizationResult auth_result =
+      auth_system_->ParseChallenge(challenge);
+  if (auth_result != HttpAuth::AUTHORIZATION_RESULT_ACCEPT)
+    return false;
+
+  // Try to extract channel bindings.
+  if (ssl_info.is_valid())
+    x509_util::GetTLSServerEndPointChannelBinding(*ssl_info.cert,
+                                                  &channel_bindings_);
+  if (!channel_bindings_.empty())
+    net_log().AddEvent(NetLogEventType::AUTH_CHANNEL_BINDINGS,
+                       [&](NetLogCaptureMode capture_mode) {
+                         return NetLogParameterChannelBindings(
+                             channel_bindings_, capture_mode);
+                       });
+  return true;
+}
+
+int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
+    const AuthCredentials* credentials,
+    const HttpRequestInfo* request,
+    CompletionOnceCallback callback,
+    std::string* auth_token) {
+  DCHECK(callback_.is_null());
+  DCHECK(auth_token_ == nullptr);
+  auth_token_ = auth_token;
+  if (already_called_) {
+    DCHECK((!has_credentials_ && credentials == nullptr) ||
+           (has_credentials_ && credentials->Equals(credentials_)));
+    next_state_ = STATE_GENERATE_AUTH_TOKEN;
+  } else {
+    already_called_ = true;
+    if (credentials) {
+      has_credentials_ = true;
+      credentials_ = *credentials;
+    }
+    next_state_ = STATE_RESOLVE_CANONICAL_NAME;
+  }
+  int rv = DoLoop(OK);
+  if (rv == ERR_IO_PENDING)
+    callback_ = std::move(callback);
+  return rv;
+}
+
+HttpAuth::AuthorizationResult
+HttpAuthHandlerNegotiate::HandleAnotherChallengeImpl(
+    HttpAuthChallengeTokenizer* challenge) {
+  return auth_system_->ParseChallenge(challenge);
+}
+
+std::string HttpAuthHandlerNegotiate::CreateSPN(
+    const std::string& server,
+    const url::SchemeHostPort& scheme_host_port) {
   // Kerberos Web Server SPNs are in the form HTTP/<host>:<port> through SSPI,
   // and in the form HTTP@<host>:<port> through GSSAPI
   //   http://msdn.microsoft.com/en-us/library/ms677601%28VS.85%29.aspx
@@ -168,13 +285,10 @@ std::string HttpAuthHandlerNegotiate::CreateSPN(const AddressList& address_list,
   // Without any command-line flags, Chrome matches the behavior of Firefox
   // and IE. Users can override the behavior so aliases are allowed and
   // non-standard ports are included.
-  int port = origin.EffectiveIntPort();
-  std::string server = address_list.canonical_name();
-  if (server.empty())
-    server = origin.host();
-#if defined(OS_WIN) || defined(_WIN32)
+  int port = scheme_host_port.port();
+#if BUILDFLAG(IS_WIN)
   static const char kSpnSeparator = '/';
-#elif defined(OS_POSIX) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX)
   static const char kSpnSeparator = '@';
 #endif
   if (port != 80 && port != 443 &&
@@ -187,92 +301,6 @@ std::string HttpAuthHandlerNegotiate::CreateSPN(const AddressList& address_list,
   }
 }
 
-HttpAuth::AuthorizationResult HttpAuthHandlerNegotiate::HandleAnotherChallenge(
-    HttpAuthChallengeTokenizer* challenge) {
-  return auth_system_.ParseChallenge(challenge);
-}
-
-// Require identity on first pass instead of second.
-bool HttpAuthHandlerNegotiate::NeedsIdentity() {
-  return auth_system_.NeedsIdentity();
-}
-
-bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
-  if (target_ == HttpAuth::AUTH_PROXY)
-    return true;
-  if (!http_auth_preferences_)
-    return false;
-  return http_auth_preferences_->CanUseDefaultCredentials(origin_);
-}
-
-bool HttpAuthHandlerNegotiate::AllowsExplicitCredentials() {
-  return auth_system_.AllowsExplicitCredentials();
-}
-
-// The Negotiate challenge header looks like:
-//   WWW-Authenticate: NEGOTIATE auth-data
-bool HttpAuthHandlerNegotiate::Init(HttpAuthChallengeTokenizer* challenge,
-                                    const SSLInfo& ssl_info) {
-#if defined(OS_POSIX)
-  if (!auth_system_.Init()) {
-    VLOG(1) << "can't initialize GSSAPI library";
-    return false;
-  }
-  // GSSAPI does not provide a way to enter username/password to
-  // obtain a TGT. If the default credentials are not allowed for
-  // a particular site (based on whitelist), fall back to a
-  // different scheme.
-  if (!AllowsDefaultCredentials())
-    return false;
-#endif
-  if (CanDelegate())
-    auth_system_.Delegate();
-  auth_scheme_ = HttpAuth::AUTH_SCHEME_NEGOTIATE;
-  score_ = 4;
-  properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
-
-  HttpAuth::AuthorizationResult auth_result =
-      auth_system_.ParseChallenge(challenge);
-  if (auth_result != HttpAuth::AUTHORIZATION_RESULT_ACCEPT)
-    return false;
-
-  // Try to extract channel bindings.
-  if (ssl_info.is_valid())
-    x509_util::GetTLSServerEndPointChannelBinding(*ssl_info.cert,
-                                                  &channel_bindings_);
-  if (!channel_bindings_.empty())
-    net_log_.AddEvent(
-        NetLogEventType::AUTH_CHANNEL_BINDINGS,
-        base::Bind(&NetLogParameterChannelBindings, channel_bindings_));
-  return true;
-}
-
-int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
-    const AuthCredentials* credentials,
-    const HttpRequestInfo* request,
-    CompletionOnceCallback callback,
-    std::string* auth_token) {
-  DCHECK(callback_.is_null());
-  DCHECK(auth_token_ == NULL);
-  auth_token_ = auth_token;
-  if (already_called_) {
-    DCHECK((!has_credentials_ && credentials == NULL) ||
-           (has_credentials_ && credentials->Equals(credentials_)));
-    next_state_ = STATE_GENERATE_AUTH_TOKEN;
-  } else {
-    already_called_ = true;
-    if (credentials) {
-      has_credentials_ = true;
-      credentials_ = *credentials;
-    }
-    next_state_ = STATE_RESOLVE_CANONICAL_NAME;
-  }
-  int rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
-    callback_ = std::move(callback);
-  return rv;
-}
-
 void HttpAuthHandlerNegotiate::OnIOComplete(int result) {
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING)
@@ -282,7 +310,7 @@ void HttpAuthHandlerNegotiate::OnIOComplete(int result) {
 void HttpAuthHandlerNegotiate::DoCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
   DCHECK(!callback_.is_null());
-  base::ResetAndReturn(&callback_).Run(rv);
+  std::move(callback_).Run(rv);
 }
 
 int HttpAuthHandlerNegotiate::DoLoop(int result) {
@@ -325,52 +353,67 @@ int HttpAuthHandlerNegotiate::DoResolveCanonicalName() {
     return OK;
 
   // TODO(cbentzel): Add reverse DNS lookup for numeric addresses.
-  HostResolver::RequestInfo info(HostPortPair(origin_.host(), 0));
-  info.set_host_resolver_flags(HOST_RESOLVER_CANONNAME);
-  return resolver_->Resolve(info, DEFAULT_PRIORITY, &address_list_,
-                            base::Bind(&HttpAuthHandlerNegotiate::OnIOComplete,
-                                       base::Unretained(this)),
-                            &request_, net_log_);
+  HostResolver::ResolveHostParameters parameters;
+  parameters.include_canonical_name = true;
+  resolve_host_request_ = resolver_->CreateRequest(
+      scheme_host_port_, network_anonymization_key_, net_log(), parameters);
+  return resolve_host_request_->Start(base::BindOnce(
+      &HttpAuthHandlerNegotiate::OnIOComplete, base::Unretained(this)));
 }
 
 int HttpAuthHandlerNegotiate::DoResolveCanonicalNameComplete(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
-  if (rv != OK) {
-    // Even in the error case, try to use origin_.host instead of
-    // passing the failure on to the caller.
-    VLOG(1) << "Problem finding canonical name for SPN for host "
-            << origin_.host() << ": " << ErrorToString(rv);
-    rv = OK;
+  std::string server = scheme_host_port_.host();
+  if (resolve_host_request_) {
+    if (rv == OK) {
+      // Expect at most a single DNS alias representing the canonical name
+      // because the `HostResolver` request was made with
+      // `include_canonical_name`.
+      DCHECK(resolve_host_request_->GetDnsAliasResults());
+      DCHECK_LE(resolve_host_request_->GetDnsAliasResults()->size(), 1u);
+      if (!resolve_host_request_->GetDnsAliasResults()->empty()) {
+        server = *resolve_host_request_->GetDnsAliasResults()->begin();
+        DCHECK(!server.empty());
+      }
+    } else {
+      // Even in the error case, try to use origin_.host instead of
+      // passing the failure on to the caller.
+      VLOG(1) << "Problem finding canonical name for SPN for host "
+              << scheme_host_port_.host() << ": " << ErrorToString(rv);
+      rv = OK;
+    }
   }
 
   next_state_ = STATE_GENERATE_AUTH_TOKEN;
-  spn_ = CreateSPN(address_list_, origin_);
-  address_list_ = AddressList();
+  spn_ = CreateSPN(server, scheme_host_port_);
+  resolve_host_request_ = nullptr;
   return rv;
 }
 
 int HttpAuthHandlerNegotiate::DoGenerateAuthToken() {
   next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
-  AuthCredentials* credentials = has_credentials_ ? &credentials_ : NULL;
-  return auth_system_.GenerateAuthToken(
-      credentials, spn_, channel_bindings_, auth_token_,
+  AuthCredentials* credentials = has_credentials_ ? &credentials_ : nullptr;
+  return auth_system_->GenerateAuthToken(
+      credentials, spn_, channel_bindings_, auth_token_, net_log(),
       base::BindOnce(&HttpAuthHandlerNegotiate::OnIOComplete,
                      base::Unretained(this)));
 }
 
 int HttpAuthHandlerNegotiate::DoGenerateAuthTokenComplete(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
-  auth_token_ = NULL;
+  auth_token_ = nullptr;
   return rv;
 }
 
-bool HttpAuthHandlerNegotiate::CanDelegate() const {
+DelegationType HttpAuthHandlerNegotiate::GetDelegationType() const {
+  if (!http_auth_preferences_)
+    return DelegationType::kNone;
+
   // TODO(cbentzel): Should delegation be allowed on proxies?
   if (target_ == HttpAuth::AUTH_PROXY)
-    return false;
-  if (!http_auth_preferences_)
-    return false;
-  return http_auth_preferences_->CanDelegate(origin_);
+    return DelegationType::kNone;
+
+  return http_auth_preferences_->GetDelegationType(scheme_host_port_);
 }
 
 }  // namespace net

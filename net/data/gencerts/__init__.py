@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# Copyright (c) 2015 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python
+# Copyright 2015 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -17,7 +17,7 @@ import shutil
 import subprocess
 import sys
 
-import openssl_conf
+from . import openssl_conf
 
 # Enum for the "type" of certificate that is to be created. This is used to
 # select sane defaults for the .cnf file and command line flags, but they can
@@ -40,11 +40,11 @@ SEPTEMBER_1_2015_UTC = '150901120000Z'
 # January 1st, 2016 12:00 UTC
 JANUARY_1_2016_UTC = '160101120000Z'
 
-# March 10, 2018 12:00 UTC
-MARCH_10_2018_UTC = '180310120000Z'
+# October 5th, 2021 12:00 UTC
+OCTOBER_5_2021_UTC = '211005120000Z'
 
-# January 1st, 2021 12:00 UTC
-JANUARY_1_2021_UTC = '210101120000Z'
+# October 5th, 2022 12:00 UTC
+OCTOBER_5_2022_UTC = '221005120000Z'
 
 KEY_PURPOSE_ANY = 'anyExtendedKeyUsage'
 KEY_PURPOSE_SERVER_AUTH = 'serverAuth'
@@ -64,9 +64,11 @@ g_tmp_dir = None
 g_invoking_script_path = None
 
 # The default validity range of generated certificates. Can be modified with
-# set_default_validity_range().
-g_default_start_date = MARCH_10_2018_UTC
-g_default_end_date = JANUARY_1_2021_UTC
+# set_default_validity_range(). This range is intentionally already expired to
+# avoid tests being added which depend on the certs being valid at the current
+# time rather than specifying the time as an input of the test.
+g_default_start_date = OCTOBER_5_2021_UTC
+g_default_end_date = OCTOBER_5_2022_UTC
 
 
 def set_default_validity_range(start_date, end_date):
@@ -121,7 +123,7 @@ def get_or_generate_key(generation_arguments, path):
   # If the file doesn't already exist, generate a new key using the generation
   # parameters.
   if not os.path.isfile(path):
-    key_contents = subprocess.check_output(generation_arguments)
+    key_contents = subprocess.check_output(generation_arguments, text=True)
 
     # Prepend the generation parameters to the key file.
     write_string_to_file(generation_arguments_str + '\n' + key_contents,
@@ -317,20 +319,20 @@ class Certificate(object):
     # "verify_certificate_chain_unittest/my_test/generate_chains.py"
     script_path = os.path.realpath(g_invoking_script_path)
     script_path = "/".join(script_path.split(os.sep)[-3:])
-    m.update(script_path)
+    m.update(script_path.encode('utf-8'))
 
     # Mix in the path_id, which corresponds to a unique path for the
     # certificate under out/ (and accounts for non-unique certificate names).
-    m.update(self.path_id)
+    m.update(self.path_id.encode('utf-8'))
 
-    serial_bytes = m.digest()
+    serial_bytes = bytearray(m.digest())
 
     # SHA1 digest is 20 bytes long, which is appropriate for a serial number.
     # However, need to also make sure the most significant bit is 0 so it is
     # not a "negative" number.
-    serial_bytes = chr(ord(serial_bytes[0]) & 0x7F) + serial_bytes[1:]
+    serial_bytes[0] = serial_bytes[0] & 0x7F
 
-    return serial_bytes.encode("hex")
+    return serial_bytes.hex()
 
 
   def get_csr_path(self):
@@ -498,8 +500,10 @@ class Certificate(object):
 
 
 def text_data_to_pem(block_header, text_data):
-  return '%s\n-----BEGIN %s-----\n%s\n-----END %s-----\n' % (text_data,
-          block_header, base64.b64encode(text_data), block_header)
+  # b64encode takes in bytes and returns bytes.
+  pem_data = base64.b64encode(text_data.encode('utf8')).decode('utf8')
+  return '%s\n-----BEGIN %s-----\n%s\n-----END %s-----\n' % (
+      text_data, block_header, pem_data, block_header)
 
 
 def write_chain(description, chain, out_pem):
@@ -562,6 +566,10 @@ def create_self_signed_root_certificate(name):
 
 def create_intermediate_certificate(name, issuer):
   return Certificate(name, TYPE_CA, issuer)
+
+
+def create_self_signed_end_entity_certificate(name):
+  return Certificate(name, TYPE_END_ENTITY, None)
 
 
 def create_end_entity_certificate(name, issuer):

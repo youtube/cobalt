@@ -1,4 +1,4 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,11 @@
 
 #include <memory>
 
-#if !defined(OS_ANDROID)
+#include "build/build_config.h"
+
+#if !BUILDFLAG(IS_ANDROID)
 #include <linux/ethtool.h>
-#endif  // !defined(OS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 #include <linux/if.h>
 #include <linux/sockios.h>
 #include <linux/wireless.h>
@@ -16,24 +18,29 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_file.h"
-#include "base/logging.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
+#include "build/build_config.h"
+#include "net/base/address_map_linux.h"
 #include "net/base/address_tracker_linux.h"
-#include "net/base/escape.h"
+#include "net/base/features.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_interfaces_posix.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
+#include "base/strings/string_piece.h"
 #include "net/android/network_library.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
+#include "net/base/network_interfaces_getifaddrs.h"
 #endif
 
 namespace net {
@@ -52,9 +59,9 @@ bool TryConvertNativeToNetIPAttributes(int native_attributes,
   // and shouldn't be used by the application layer until DAD process
   // is completed.
   if (native_attributes & (
-#if !defined(OS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
                               IFA_F_OPTIMISTIC | IFA_F_DADFAILED |
-#endif  // !OS_ANDROID
+#endif  // !BUILDFLAG(IS_ANDROID)
                               IFA_F_TENTATIVE)) {
     return false;
   }
@@ -88,7 +95,7 @@ NetworkChangeNotifier::ConnectionType GetInterfaceConnectionType(
   if (ioctl(s.get(), SIOCGIWNAME, &pwrq) != -1)
     return NetworkChangeNotifier::CONNECTION_WIFI;
 
-#if !defined(OS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
   // Test ethtool for CONNECTION_ETHERNET
   struct ethtool_cmd ecmd = {};
   ecmd.cmd = ETHTOOL_GSET;
@@ -97,7 +104,7 @@ NetworkChangeNotifier::ConnectionType GetInterfaceConnectionType(
   strncpy(ifr.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
   if (ioctl(s.get(), SIOCETHTOOL, &ifr) != -1)
     return NetworkChangeNotifier::CONNECTION_ETHERNET;
-#endif  // !defined(OS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   return NetworkChangeNotifier::CONNECTION_UNKNOWN;
 }
@@ -125,16 +132,16 @@ bool GetNetworkListImpl(
     GetInterfaceNameFunction get_interface_name) {
   std::map<int, std::string> ifnames;
 
-  for (auto it = address_map.begin(); it != address_map.end(); ++it) {
+  for (const auto& it : address_map) {
     // Ignore addresses whose links are not online.
-    if (online_links.find(it->second.ifa_index) == online_links.end())
+    if (online_links.find(it.second.ifa_index) == online_links.end())
       continue;
 
     sockaddr_storage sock_addr;
     socklen_t sock_len = sizeof(sockaddr_storage);
 
     // Convert to sockaddr for next check.
-    if (!IPEndPoint(it->first, 0)
+    if (!IPEndPoint(it.first, 0)
              .ToSockAddr(reinterpret_cast<sockaddr*>(&sock_addr), &sock_len)) {
       continue;
     }
@@ -145,25 +152,25 @@ bool GetNetworkListImpl(
 
     int ip_attributes = IP_ADDRESS_ATTRIBUTE_NONE;
 
-    if (it->second.ifa_family == AF_INET6) {
+    if (it.second.ifa_family == AF_INET6) {
       // Ignore addresses whose attributes are not actionable by
       // the application layer.
-      if (!TryConvertNativeToNetIPAttributes(it->second.ifa_flags,
+      if (!TryConvertNativeToNetIPAttributes(it.second.ifa_flags,
                                              &ip_attributes))
         continue;
     }
 
     // Find the name of this link.
     std::map<int, std::string>::const_iterator itname =
-        ifnames.find(it->second.ifa_index);
+        ifnames.find(it.second.ifa_index);
     std::string ifname;
     if (itname == ifnames.end()) {
       char buffer[IFNAMSIZ] = {0};
-      ifname.assign(get_interface_name(it->second.ifa_index, buffer));
+      ifname.assign(get_interface_name(it.second.ifa_index, buffer));
       // Ignore addresses whose interface name can't be retrieved.
       if (ifname.empty())
         continue;
-      ifnames[it->second.ifa_index] = ifname;
+      ifnames[it.second.ifa_index] = ifname;
     } else {
       ifname = itname->second;
     }
@@ -177,8 +184,8 @@ bool GetNetworkListImpl(
         GetInterfaceConnectionType(ifname);
 
     networks->push_back(
-        NetworkInterface(ifname, ifname, it->second.ifa_index, type, it->first,
-                         it->second.ifa_prefixlen, ip_attributes));
+        NetworkInterface(ifname, ifname, it.second.ifa_index, type, it.first,
+                         it.second.ifa_prefixlen, ip_attributes));
   }
 
   return true;
@@ -211,28 +218,66 @@ base::ScopedFD GetSocketForIoctl() {
 }  // namespace internal
 
 bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
-  if (networks == NULL)
+  if (networks == nullptr)
     return false;
 
-  internal::AddressTrackerLinux tracker;
-  tracker.Init();
+#if BUILDFLAG(IS_ANDROID)
+  // On Android 11 RTM_GETLINK (used by AddressTrackerLinux) no longer works as
+  // per https://developer.android.com/preview/privacy/mac-address so instead
+  // use getifaddrs() which is supported since Android N.
+  base::android::BuildInfo* build_info =
+      base::android::BuildInfo::GetInstance();
+  if (build_info->sdk_int() >= base::android::SDK_VERSION_NOUGAT) {
+    // Some Samsung devices with MediaTek processors are with
+    // a buggy getifaddrs() implementation,
+    // so use a Chromium's own implementation to workaround.
+    // See https://crbug.com/1240237 for more context.
+    bool use_alternative_getifaddrs =
+        base::StringPiece(build_info->brand()) == "samsung" &&
+        base::StartsWith(build_info->hardware(), "mt");
+    bool ret = internal::GetNetworkListUsingGetifaddrs(
+        networks, policy, use_alternative_getifaddrs);
+    // Use GetInterfaceConnectionType() to sharpen up interface types.
+    for (NetworkInterface& network : *networks)
+      network.type = internal::GetInterfaceConnectionType(network.name);
+    return ret;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  const AddressMapOwnerLinux* map_owner = nullptr;
+  absl::optional<internal::AddressTrackerLinux> temp_tracker;
+#if BUILDFLAG(IS_LINUX)
+  // If NetworkChangeNotifier already maintains a map owner in this process, use
+  // it.
+  if (base::FeatureList::IsEnabled(features::kAddressTrackerLinuxIsProxied)) {
+    map_owner = NetworkChangeNotifier::GetAddressMapOwner();
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+  if (!map_owner) {
+    // If there is no existing map_owner, create an AdressTrackerLinux and
+    // initialize it.
+    temp_tracker.emplace();
+    temp_tracker->Init();
+    map_owner = &temp_tracker.value();
+  }
 
   return internal::GetNetworkListImpl(
-      networks, policy, tracker.GetOnlineLinks(), tracker.GetAddressMap(),
+      networks, policy, map_owner->GetOnlineLinks(), map_owner->GetAddressMap(),
       &internal::AddressTrackerLinux::GetInterfaceName);
 }
 
 std::string GetWifiSSID() {
 // On Android, obtain the SSID using the Android-specific APIs.
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   return android::GetWifiSSID();
-#endif
+#else
   NetworkInterfaceList networks;
   if (GetNetworkList(&networks, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES)) {
     return internal::GetWifiSSIDFromInterfaceListInternal(
         networks, internal::GetInterfaceSSID);
   }
   return std::string();
+#endif
 }
 
 }  // namespace net

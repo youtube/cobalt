@@ -1,41 +1,39 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_network_layer.h"
 
-#include "base/logging.h"
+#include <memory>
+
+#include "base/check_op.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "build/build_config.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
-#include "net/http/http_server_properties_impl.h"
+#include "net/http/http_server_properties.h"
 #include "net/http/http_stream_factory_job.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/spdy_framer.h"
 
 namespace net {
 
 HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
-    : session_(session),
-      suspended_(false) {
+    : session_(session) {
   DCHECK(session_);
-#if defined(OS_WIN)
-  base::PowerMonitor* power_monitor = base::PowerMonitor::Get();
-  if (power_monitor)
-    power_monitor->AddObserver(this);
+#if BUILDFLAG(IS_WIN)
+  base::PowerMonitor::AddPowerSuspendObserver(this);
 #endif
 }
 
 HttpNetworkLayer::~HttpNetworkLayer() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if defined(OS_WIN)
-  base::PowerMonitor* power_monitor = base::PowerMonitor::Get();
-  if (power_monitor)
-    power_monitor->RemoveObserver(this);
+#if BUILDFLAG(IS_WIN)
+  base::PowerMonitor::RemovePowerSuspendObserver(this);
 #endif
 }
 
@@ -45,12 +43,12 @@ int HttpNetworkLayer::CreateTransaction(
   if (suspended_)
     return ERR_NETWORK_IO_SUSPENDED;
 
-  trans->reset(new HttpNetworkTransaction(priority, GetSession()));
+  *trans = std::make_unique<HttpNetworkTransaction>(priority, GetSession());
   return OK;
 }
 
 HttpCache* HttpNetworkLayer::GetCache() {
-  return NULL;
+  return nullptr;
 }
 
 HttpNetworkSession* HttpNetworkLayer::GetSession() {
@@ -59,7 +57,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 
 void HttpNetworkLayer::OnSuspend() {
   suspended_ = true;
-  session_->CloseIdleConnections();
+  session_->CloseIdleConnections("Entering suspend mode");
 }
 
 void HttpNetworkLayer::OnResume() {

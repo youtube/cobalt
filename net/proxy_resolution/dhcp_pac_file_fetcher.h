@@ -1,13 +1,13 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_PROXY_DHCP_PAC_FILE_FETCHER_H_
-#define NET_PROXY_DHCP_PAC_FILE_FETCHER_H_
+#ifndef NET_PROXY_RESOLUTION_DHCP_PAC_FILE_FETCHER_H_
+#define NET_PROXY_RESOLUTION_DHCP_PAC_FILE_FETCHER_H_
+
+#include <string>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
-#include "base/strings/string16.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/proxy_resolution/pac_file_fetcher.h"
@@ -28,6 +28,9 @@ class NetLogWithSource;
 // which PAC script to use if one or more are available.
 class NET_EXPORT_PRIVATE DhcpPacFileFetcher {
  public:
+  DhcpPacFileFetcher(const DhcpPacFileFetcher&) = delete;
+  DhcpPacFileFetcher& operator=(const DhcpPacFileFetcher&) = delete;
+
   // Destruction should cancel any outstanding requests.
   virtual ~DhcpPacFileFetcher();
 
@@ -52,14 +55,15 @@ class NET_EXPORT_PRIVATE DhcpPacFileFetcher {
   //
   //      ERR_TIMED_OUT         -- fetch took too long to complete.
   //      ERR_FILE_TOO_BIG      -- response body was too large.
-  //      ERR_PAC_STATUS_NOT_OK -- script failed to download.
+  //      ERR_HTTP_RESPONSE_CODE_FAILURE -- script downloaded but returned a
+  //                                        non-200 HTTP response.
   //      ERR_NOT_IMPLEMENTED   -- script required authentication.
   //
   // If the request is cancelled (either using the "Cancel()" method or by
   // deleting |this|), then no callback is invoked.
   //
   // Only one fetch is allowed to be outstanding at a time.
-  virtual int Fetch(base::string16* utf16_text,
+  virtual int Fetch(std::u16string* utf16_text,
                     CompletionOnceCallback callback,
                     const NetLogWithSource& net_log,
                     const NetworkTrafficAnnotationTag traffic_annotation) = 0;
@@ -67,9 +71,9 @@ class NET_EXPORT_PRIVATE DhcpPacFileFetcher {
   // Aborts the in-progress fetch (if any).
   virtual void Cancel() = 0;
 
-  // Fails the in-progress fetch (if any) and future requests will fail
-  // immediately. Must be called before the URLRequestContext the fetcher was
-  // created with is torn down.
+  // Cancels the in-progress fetch (if any), without invoking its callback.
+  // Future requests will fail immediately. Must be called before the
+  // URLRequestContext the fetcher was created with is torn down.
   virtual void OnShutdown() = 0;
 
   // After successful completion of |Fetch()|, this will return the URL
@@ -82,9 +86,6 @@ class NET_EXPORT_PRIVATE DhcpPacFileFetcher {
 
  protected:
   DhcpPacFileFetcher();
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(DhcpPacFileFetcher);
 };
 
 // A do-nothing retriever, always returns synchronously with
@@ -93,9 +94,14 @@ class NET_EXPORT_PRIVATE DoNothingDhcpPacFileFetcher
     : public DhcpPacFileFetcher {
  public:
   DoNothingDhcpPacFileFetcher();
+
+  DoNothingDhcpPacFileFetcher(const DoNothingDhcpPacFileFetcher&) = delete;
+  DoNothingDhcpPacFileFetcher& operator=(const DoNothingDhcpPacFileFetcher&) =
+      delete;
+
   ~DoNothingDhcpPacFileFetcher() override;
 
-  int Fetch(base::string16* utf16_text,
+  int Fetch(std::u16string* utf16_text,
             CompletionOnceCallback callback,
             const NetLogWithSource& net_log,
             const NetworkTrafficAnnotationTag traffic_annotation) override;
@@ -106,9 +112,8 @@ class NET_EXPORT_PRIVATE DoNothingDhcpPacFileFetcher
 
  private:
   GURL gurl_;
-  DISALLOW_COPY_AND_ASSIGN(DoNothingDhcpPacFileFetcher);
 };
 
 }  // namespace net
 
-#endif  // NET_PROXY_DHCP_PAC_FILE_FETCHER_H_
+#endif  // NET_PROXY_RESOLUTION_DHCP_PAC_FILE_FETCHER_H_

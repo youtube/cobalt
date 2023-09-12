@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,31 +10,31 @@
 #include <unistd.h>
 
 #include <map>
+#include <memory>
 #include <utility>
 
-#include "starboard/types.h"
-
-#include "starboard/common/string.h"
-
-#include "base/bind.h"
 #include "base/files/file_descriptor_watcher_posix.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/nix/xdg_util.h"
-#include "base/sequenced_task_runner.h"
-#include "base/single_thread_task_runner.h"
+#include "base/observer_list.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
-#include "base/task/post_task.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/timer/timer.h"
 #include "net/base/proxy_server.h"
+#include "net/base/proxy_string_util.h"
 
 #if defined(USE_GIO)
 #include <gio/gio.h>
@@ -42,7 +42,26 @@
 
 namespace net {
 
+class ScopedAllowBlockingForSettingGetter : public base::ScopedAllowBlocking {};
+
 namespace {
+
+// This turns all rules with a hostname into wildcard matches, which will
+// match not just the indicated hostname but also any hostname that ends with
+// it.
+void RewriteRulesForSuffixMatching(ProxyBypassRules* out) {
+  // Prepend a wildcard (*) to any hostname based rules, provided it isn't an IP
+  // address.
+  for (size_t i = 0; i < out->rules().size(); ++i) {
+    if (!out->rules()[i]->IsHostnamePatternRule())
+      continue;
+
+    const SchemeHostPortMatcherHostnamePatternRule* prev_rule =
+        static_cast<const SchemeHostPortMatcherHostnamePatternRule*>(
+            out->rules()[i].get());
+    out->ReplaceRule(i, prev_rule->GenerateSuffixMatchingRule());
+  }
+}
 
 // Given a proxy hostname from a setting, returns that hostname with
 // an appropriate proxy server scheme prefix.
@@ -87,7 +106,7 @@ std::string FixupProxyHostScheme(ProxyServer::Scheme scheme,
 }
 
 ProxyConfigWithAnnotation GetConfigOrDirect(
-    const base::Optional<ProxyConfigWithAnnotation>& optional_config) {
+    const absl::optional<ProxyConfigWithAnnotation>& optional_config) {
   if (optional_config)
     return optional_config.value();
 
@@ -112,7 +131,7 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromEnvVarForScheme(
 
   env_value = FixupProxyHostScheme(scheme, env_value);
   ProxyServer proxy_server =
-      ProxyServer::FromURI(env_value, ProxyServer::SCHEME_HTTP);
+      ProxyUriToProxyServer(env_value, ProxyServer::SCHEME_HTTP);
   if (proxy_server.is_valid() && !proxy_server.is_direct()) {
     *result_server = proxy_server;
     return true;
@@ -128,7 +147,7 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromEnvVar(
                                      result_server);
 }
 
-base::Optional<ProxyConfigWithAnnotation>
+absl::optional<ProxyConfigWithAnnotation>
 ProxyConfigServiceLinux::Delegate::GetConfigFromEnv() {
   ProxyConfig config;
 
@@ -199,12 +218,13 @@ ProxyConfigServiceLinux::Delegate::GetConfigFromEnv() {
     return !no_proxy.empty()
                ? ProxyConfigWithAnnotation(
                      config, NetworkTrafficAnnotationTag(traffic_annotation_))
-               : base::Optional<ProxyConfigWithAnnotation>();
+               : absl::optional<ProxyConfigWithAnnotation>();
   }
   // Note that this uses "suffix" matching. So a bypass of "google.com"
   // is understood to mean a bypass of "*google.com".
-  config.proxy_rules().bypass_rules.ParseFromStringUsingSuffixMatching(
-      no_proxy);
+  config.proxy_rules().bypass_rules.ParseFromString(no_proxy);
+  RewriteRulesForSuffixMatching(&config.proxy_rules().bypass_rules);
+
   return ProxyConfigWithAnnotation(
       config, NetworkTrafficAnnotationTag(traffic_annotation_));
 }
@@ -221,13 +241,11 @@ class SettingGetterImplGSettings
     : public ProxyConfigServiceLinux::SettingGetter {
  public:
   SettingGetterImplGSettings()
-      : client_(nullptr),
-        http_client_(nullptr),
-        https_client_(nullptr),
-        ftp_client_(nullptr),
-        socks_client_(nullptr),
-        notify_delegate_(nullptr),
-        debounce_timer_(new base::OneShotTimer()) {}
+      : debounce_timer_(std::make_unique<base::OneShotTimer>()) {}
+
+  SettingGetterImplGSettings(const SettingGetterImplGSettings&) = delete;
+  SettingGetterImplGSettings& operator=(const SettingGetterImplGSettings&) =
+      delete;
 
   ~SettingGetterImplGSettings() override {
     // client_ should have been released before now, from
@@ -260,7 +278,7 @@ class SettingGetterImplGSettings
     DCHECK(!task_runner_.get());
 
     if (!g_settings_schema_source_lookup(g_settings_schema_source_get_default(),
-                                         kProxyGSettingsSchema, FALSE) ||
+                                         kProxyGSettingsSchema, TRUE) ||
         !(client_ = g_settings_new(kProxyGSettingsSchema))) {
       // It's not clear whether/when this can return NULL.
       LOG(ERROR) << "Unable to create a gsettings client";
@@ -300,15 +318,15 @@ class SettingGetterImplGSettings
     // We could watch for the change-event signal instead of changed, but
     // since we have to watch more than one object, we'd still have to
     // debounce change notifications. This is conceptually simpler.
-    g_signal_connect(G_OBJECT(client_), "changed",
+    g_signal_connect(G_OBJECT(client_.get()), "changed",
                      G_CALLBACK(OnGSettingsChangeNotification), this);
-    g_signal_connect(G_OBJECT(http_client_), "changed",
+    g_signal_connect(G_OBJECT(http_client_.get()), "changed",
                      G_CALLBACK(OnGSettingsChangeNotification), this);
-    g_signal_connect(G_OBJECT(https_client_), "changed",
+    g_signal_connect(G_OBJECT(https_client_.get()), "changed",
                      G_CALLBACK(OnGSettingsChangeNotification), this);
-    g_signal_connect(G_OBJECT(ftp_client_), "changed",
+    g_signal_connect(G_OBJECT(ftp_client_.get()), "changed",
                      G_CALLBACK(OnGSettingsChangeNotification), this);
-    g_signal_connect(G_OBJECT(socks_client_), "changed",
+    g_signal_connect(G_OBJECT(socks_client_.get()), "changed",
                      G_CALLBACK(OnGSettingsChangeNotification), this);
     // Simulate a change to avoid possibly losing updates before this point.
     OnChangeNotification();
@@ -385,7 +403,7 @@ class SettingGetterImplGSettings
     return false;
   }
 
-  bool MatchHostsUsingSuffixMatching() override { return false; }
+  bool UseSuffixMatching() override { return false; }
 
  private:
   bool GetStringByPath(GSettings* client,
@@ -436,9 +454,9 @@ class SettingGetterImplGSettings
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_->Stop();
-    debounce_timer_->Start(FROM_HERE,
-        base::TimeDelta::FromMilliseconds(kDebounceTimeoutMilliseconds),
-        this, &SettingGetterImplGSettings::OnDebouncedNotification);
+    debounce_timer_->Start(
+        FROM_HERE, base::Milliseconds(kDebounceTimeoutMilliseconds), this,
+        &SettingGetterImplGSettings::OnDebouncedNotification);
   }
 
   // gsettings notification callback, dispatched on the default glib main loop.
@@ -451,20 +469,18 @@ class SettingGetterImplGSettings
     setting_getter->OnChangeNotification();
   }
 
-  GSettings* client_;
-  GSettings* http_client_;
-  GSettings* https_client_;
-  GSettings* ftp_client_;
-  GSettings* socks_client_;
-  ProxyConfigServiceLinux::Delegate* notify_delegate_;
+  raw_ptr<GSettings> client_ = nullptr;
+  raw_ptr<GSettings> http_client_ = nullptr;
+  raw_ptr<GSettings> https_client_ = nullptr;
+  raw_ptr<GSettings> ftp_client_ = nullptr;
+  raw_ptr<GSettings> socks_client_ = nullptr;
+  raw_ptr<ProxyConfigServiceLinux::Delegate> notify_delegate_ = nullptr;
   std::unique_ptr<base::OneShotTimer> debounce_timer_;
 
   // Task runner for the thread that we make gsettings calls on. It should
   // be the UI thread and all our methods should be called on this
   // thread. Only for assertions.
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
-
-  DISALLOW_COPY_AND_ASSIGN(SettingGetterImplGSettings);
 };
 
 bool SettingGetterImplGSettings::CheckVersion(
@@ -474,7 +490,7 @@ bool SettingGetterImplGSettings::CheckVersion(
 
   GSettings* client = nullptr;
   if (g_settings_schema_source_lookup(g_settings_schema_source_get_default(),
-                                      kProxyGSettingsSchema, FALSE)) {
+                                      kProxyGSettingsSchema, TRUE)) {
     client = g_settings_new(kProxyGSettingsSchema);
   }
   if (!client) {
@@ -503,35 +519,28 @@ int StringToIntOrDefault(base::StringPiece value, int default_value) {
 class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
  public:
   explicit SettingGetterImplKDE(base::Environment* env_var_getter)
-      : inotify_fd_(-1),
-        notify_delegate_(nullptr),
-        debounce_timer_(new base::OneShotTimer()),
-        indirect_manual_(false),
-        auto_no_pac_(false),
-        reversed_bypass_list_(false),
-        env_var_getter_(env_var_getter),
-        file_task_runner_(nullptr) {
+      : debounce_timer_(std::make_unique<base::OneShotTimer>()),
+        env_var_getter_(env_var_getter) {
     // This has to be called on the UI thread (http://crbug.com/69057).
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    ScopedAllowBlockingForSettingGetter allow_blocking;
 
-    // Derive the location of the kde config dir from the environment.
+    // Derive the location(s) of the kde config dir from the environment.
     std::string home;
     if (env_var_getter->GetVar("KDEHOME", &home) && !home.empty()) {
       // $KDEHOME is set. Use it unconditionally.
-      kde_config_dir_ = KDEHomeToConfigPath(base::FilePath(home));
+      kde_config_dirs_.emplace_back(KDEHomeToConfigPath(base::FilePath(home)));
     } else {
       // $KDEHOME is unset. Try to figure out what to use. This seems to be
       // the common case on most distributions.
       if (!env_var_getter->GetVar(base::env_vars::kHome, &home))
         // User has no $HOME? Give up. Later we'll report the failure.
         return;
-      if (base::nix::GetDesktopEnvironment(env_var_getter) ==
-          base::nix::DESKTOP_ENVIRONMENT_KDE3) {
+      auto desktop = base::nix::GetDesktopEnvironment(env_var_getter);
+      if (desktop == base::nix::DESKTOP_ENVIRONMENT_KDE3) {
         // KDE3 always uses .kde for its configuration.
         base::FilePath kde_path = base::FilePath(home).Append(".kde");
-        kde_config_dir_ = KDEHomeToConfigPath(kde_path);
-      } else if (base::nix::GetDesktopEnvironment(env_var_getter) ==
-                 base::nix::DESKTOP_ENVIRONMENT_KDE4) {
+        kde_config_dirs_.emplace_back(KDEHomeToConfigPath(kde_path));
+      } else if (desktop == base::nix::DESKTOP_ENVIRONMENT_KDE4) {
         // Some distributions patch KDE4 to use .kde4 instead of .kde, so that
         // both can be installed side-by-side. Sadly they don't all do this, and
         // they don't always do this: some distributions have started switching
@@ -559,16 +568,34 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
           }
         }
         if (use_kde4) {
-          kde_config_dir_ = KDEHomeToConfigPath(kde4_path);
+          kde_config_dirs_.emplace_back(KDEHomeToConfigPath(kde4_path));
         } else {
-          kde_config_dir_ = KDEHomeToConfigPath(kde3_path);
+          kde_config_dirs_.emplace_back(KDEHomeToConfigPath(kde3_path));
         }
-      } else {
+      } else if (desktop == base::nix::DESKTOP_ENVIRONMENT_KDE5 ||
+                 desktop == base::nix::DESKTOP_ENVIRONMENT_KDE6) {
         // KDE 5 migrated to ~/.config for storing kioslaverc.
-        kde_config_dir_ = base::FilePath(home).Append(".config");
+        kde_config_dirs_.emplace_back(base::FilePath(home).Append(".config"));
+
+        // kioslaverc also can be stored in any of XDG_CONFIG_DIRS
+        std::string config_dirs;
+        if (env_var_getter_->GetVar("XDG_CONFIG_DIRS", &config_dirs)) {
+          auto dirs = base::SplitString(config_dirs, ":", base::KEEP_WHITESPACE,
+                                        base::SPLIT_WANT_NONEMPTY);
+          for (const auto& dir : dirs) {
+            kde_config_dirs_.emplace_back(dir);
+          }
+        }
+
+        // Reverses the order of paths to store them in ascending order of
+        // priority
+        std::reverse(kde_config_dirs_.begin(), kde_config_dirs_.end());
       }
     }
   }
+
+  SettingGetterImplKDE(const SettingGetterImplKDE&) = delete;
+  SettingGetterImplKDE& operator=(const SettingGetterImplKDE&) = delete;
 
   ~SettingGetterImplKDE() override {
     // inotify_fd_ should have been closed before now, from
@@ -586,7 +613,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
   bool Init(const scoped_refptr<base::SingleThreadTaskRunner>& glib_task_runner)
       override {
     // This has to be called on the UI thread (http://crbug.com/69057).
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    ScopedAllowBlockingForSettingGetter allow_blocking;
     DCHECK_LT(inotify_fd_, 0);
     inotify_fd_ = inotify_init();
     if (inotify_fd_ < 0) {
@@ -602,7 +629,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
 
     constexpr base::TaskTraits kTraits = {base::TaskPriority::USER_VISIBLE,
                                           base::MayBlock()};
-    file_task_runner_ = base::CreateSequencedTaskRunnerWithTraits(kTraits);
+    file_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(kTraits);
 
     // The initial read is done on the current thread, not
     // |file_task_runner_|, since we will need to have it for
@@ -631,14 +658,22 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
     // the first change, and it will never change again). So, we watch the
     // directory instead. We then act only on changes to the kioslaverc entry.
     // TODO(eroman): What if the file is deleted? (handle with IN_DELETE).
-    if (inotify_add_watch(inotify_fd_, kde_config_dir_.value().c_str(),
-                          IN_MODIFY | IN_MOVED_TO) < 0) {
+    size_t failed_dirs = 0;
+    for (const auto& kde_config_dir : kde_config_dirs_) {
+      if (inotify_add_watch(inotify_fd_, kde_config_dir.value().c_str(),
+                            IN_MODIFY | IN_MOVED_TO) < 0) {
+        ++failed_dirs;
+      }
+    }
+    // Fail if inotify_add_watch failed with every directory
+    if (failed_dirs == kde_config_dirs_.size()) {
       return false;
     }
     notify_delegate_ = delegate;
     inotify_watcher_ = base::FileDescriptorWatcher::WatchReadable(
-        inotify_fd_, base::Bind(&SettingGetterImplKDE::OnChangeNotification,
-                                base::Unretained(this)));
+        inotify_fd_,
+        base::BindRepeating(&SettingGetterImplKDE::OnChangeNotification,
+                            base::Unretained(this)));
     // Simulate a change to avoid possibly losing updates before this point.
     OnChangeNotification();
     return true;
@@ -675,7 +710,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
 
   bool BypassListIsReversed() override { return reversed_bypass_list_; }
 
-  bool MatchHostsUsingSuffixMatching() override { return true; }
+  bool UseSuffixMatching() override { return true; }
 
  private:
   void ResetCachedSettings() {
@@ -809,6 +844,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       ResolveIndirect(PROXY_HTTP_HOST);
       ResolveIndirect(PROXY_HTTPS_HOST);
       ResolveIndirect(PROXY_FTP_HOST);
+      ResolveIndirect(PROXY_SOCKS_HOST);
       ResolveIndirectList(PROXY_IGNORE_HOSTS);
     }
     if (auto_no_pac_) {
@@ -817,81 +853,93 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
     }
   }
 
-  // Reads kioslaverc one line at a time and calls AddKDESetting() to add
-  // each relevant name-value pair to the appropriate value table.
+  // Reads kioslaverc from all paths one line at a time and calls
+  // AddKDESetting() to add each relevant name-value pair to the appropriate
+  // value table. Each value can be overwritten by values from configs from
+  // the following paths.
   void UpdateCachedSettings() {
-    base::FilePath kioslaverc = kde_config_dir_.Append("kioslaverc");
-    base::ScopedFILE input(base::OpenFile(kioslaverc, "r"));
-    if (!input.get())
-      return;
-    ResetCachedSettings();
-    bool in_proxy_settings = false;
-    bool line_too_long = false;
-    char line[BUFFER_SIZE];
-    // fgets() will return NULL on EOF or error.
-    while (fgets(line, sizeof(line), input.get())) {
-      // fgets() guarantees the line will be properly terminated.
-      size_t length = strlen(line);
-      if (!length)
+    bool at_least_one_kioslaverc_opened = false;
+    for (const auto& kde_config_dir : kde_config_dirs_) {
+      base::FilePath kioslaverc = kde_config_dir.Append("kioslaverc");
+      base::ScopedFILE input(base::OpenFile(kioslaverc, "r"));
+      if (!input.get())
         continue;
-      // This should be true even with CRLF endings.
-      if (line[length - 1] != '\n') {
-        line_too_long = true;
-        continue;
+
+      // Reset cached settings once only if some config was successfully opened
+      if (!at_least_one_kioslaverc_opened) {
+        ResetCachedSettings();
       }
-      if (line_too_long) {
-        // The previous line had no line ending, but this done does. This is
-        // the end of the line that was too long, so warn here and skip it.
-        LOG(WARNING) << "skipped very long line in " << kioslaverc.value();
-        line_too_long = false;
-        continue;
-      }
-      // Remove the LF at the end, and the CR if there is one.
-      line[--length] = '\0';
-      if (length && line[length - 1] == '\r')
+      at_least_one_kioslaverc_opened = true;
+      bool in_proxy_settings = false;
+      bool line_too_long = false;
+      char line[BUFFER_SIZE];
+      // fgets() will return NULL on EOF or error.
+      while (fgets(line, sizeof(line), input.get())) {
+        // fgets() guarantees the line will be properly terminated.
+        size_t length = strlen(line);
+        if (!length)
+          continue;
+        // This should be true even with CRLF endings.
+        if (line[length - 1] != '\n') {
+          line_too_long = true;
+          continue;
+        }
+        if (line_too_long) {
+          // The previous line had no line ending, but this one does. This is
+          // the end of the line that was too long, so warn here and skip it.
+          LOG(WARNING) << "skipped very long line in " << kioslaverc.value();
+          line_too_long = false;
+          continue;
+        }
+        // Remove the LF at the end, and the CR if there is one.
         line[--length] = '\0';
-      // Now parse the line.
-      if (line[0] == '[') {
-        // Switching sections. All we care about is whether this is
-        // the (a?) proxy settings section, for both KDE3 and KDE4.
-        in_proxy_settings = !strncmp(line, "[Proxy Settings]", 16);
-      } else if (in_proxy_settings) {
-        // A regular line, in the (a?) proxy settings section.
-        char* split = strchr(line, '=');
-        // Skip this line if it does not contain an = sign.
-        if (!split)
-          continue;
-        // Split the line on the = and advance |split|.
-        *(split++) = 0;
-        std::string key = line;
-        std::string value = split;
-        base::TrimWhitespaceASCII(key, base::TRIM_ALL, &key);
-        base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
-        // Skip this line if the key name is empty.
-        if (key.empty())
-          continue;
-        // Is the value name localized?
-        if (key[key.length() - 1] == ']') {
-          // Find the matching bracket.
-          length = key.rfind('[');
-          // Skip this line if the localization indicator is malformed.
-          if (length == std::string::npos)
+        if (length && line[length - 1] == '\r')
+          line[--length] = '\0';
+        // Now parse the line.
+        if (line[0] == '[') {
+          // Switching sections. All we care about is whether this is
+          // the (a?) proxy settings section, for both KDE3 and KDE4.
+          in_proxy_settings = !strncmp(line, "[Proxy Settings]", 16);
+        } else if (in_proxy_settings) {
+          // A regular line, in the (a?) proxy settings section.
+          char* split = strchr(line, '=');
+          // Skip this line if it does not contain an = sign.
+          if (!split)
             continue;
-          // Trim the localization indicator off.
-          key.resize(length);
-          // Remove any resulting trailing whitespace.
-          base::TrimWhitespaceASCII(key, base::TRIM_TRAILING, &key);
-          // Skip this line if the key name is now empty.
+          // Split the line on the = and advance |split|.
+          *(split++) = 0;
+          std::string key = line;
+          std::string value = split;
+          base::TrimWhitespaceASCII(key, base::TRIM_ALL, &key);
+          base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
+          // Skip this line if the key name is empty.
           if (key.empty())
             continue;
+          // Is the value name localized?
+          if (key[key.length() - 1] == ']') {
+            // Find the matching bracket.
+            length = key.rfind('[');
+            // Skip this line if the localization indicator is malformed.
+            if (length == std::string::npos)
+              continue;
+            // Trim the localization indicator off.
+            key.resize(length);
+            // Remove any resulting trailing whitespace.
+            base::TrimWhitespaceASCII(key, base::TRIM_TRAILING, &key);
+            // Skip this line if the key name is now empty.
+            if (key.empty())
+              continue;
+          }
+          // Now fill in the tables.
+          AddKDESetting(key, value);
         }
-        // Now fill in the tables.
-        AddKDESetting(key, value);
       }
+      if (ferror(input.get()))
+        LOG(ERROR) << "error reading " << kioslaverc.value();
     }
-    if (ferror(input.get()))
-      LOG(ERROR) << "error reading " << kioslaverc.value();
-    ResolveModeEffects();
+    if (at_least_one_kioslaverc_opened) {
+      ResolveModeEffects();
+    }
   }
 
   // This is the callback from the debounce timer.
@@ -953,8 +1001,8 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       // We don't use Reset() because the timer may not yet be running.
       // (In that case Stop() is a no-op.)
       debounce_timer_->Stop();
-      debounce_timer_->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(
-          kDebounceTimeoutMilliseconds), this,
+      debounce_timer_->Start(
+          FROM_HERE, base::Milliseconds(kDebounceTimeoutMilliseconds), this,
           &SettingGetterImplKDE::OnDebouncedNotification);
     }
   }
@@ -963,18 +1011,18 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
   typedef std::map<StringListSetting,
                    std::vector<std::string> > strings_map_type;
 
-  int inotify_fd_;
+  int inotify_fd_ = -1;
   std::unique_ptr<base::FileDescriptorWatcher::Controller> inotify_watcher_;
-  ProxyConfigServiceLinux::Delegate* notify_delegate_;
+  raw_ptr<ProxyConfigServiceLinux::Delegate> notify_delegate_ = nullptr;
   std::unique_ptr<base::OneShotTimer> debounce_timer_;
-  base::FilePath kde_config_dir_;
-  bool indirect_manual_;
-  bool auto_no_pac_;
-  bool reversed_bypass_list_;
+  std::vector<base::FilePath> kde_config_dirs_;
+  bool indirect_manual_ = false;
+  bool auto_no_pac_ = false;
+  bool reversed_bypass_list_ = false;
   // We don't own |env_var_getter_|.  It's safe to hold a pointer to it, since
   // both it and us are owned by ProxyConfigServiceLinux::Delegate, and have the
   // same lifetime.
-  base::Environment* env_var_getter_;
+  raw_ptr<base::Environment> env_var_getter_;
 
   // We cache these settings whenever we re-read the kioslaverc file.
   string_map_type string_table_;
@@ -983,8 +1031,6 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
   // Task runner for doing blocking file IO on, as well as handling inotify
   // events on.
   scoped_refptr<base::SequencedTaskRunner> file_task_runner_;
-
-  DISALLOW_COPY_AND_ASSIGN(SettingGetterImplKDE);
 };
 
 }  // namespace
@@ -1004,7 +1050,7 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromSettings(
   setting_getter_->GetInt(port_key, &port);
   if (port != 0) {
     // If a port is set and non-zero:
-    host += ":" + base::IntToString(port);
+    host += ":" + base::NumberToString(port);
   }
 
   // gsettings settings do not appear to distinguish between SOCKS version. We
@@ -1013,8 +1059,8 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromSettings(
   ProxyServer::Scheme scheme = (host_key == SettingGetter::PROXY_SOCKS_HOST) ?
       ProxyServer::SCHEME_SOCKS5 : ProxyServer::SCHEME_HTTP;
   host = FixupProxyHostScheme(scheme, host);
-  ProxyServer proxy_server = ProxyServer::FromURI(host,
-                                                  ProxyServer::SCHEME_HTTP);
+  ProxyServer proxy_server =
+      ProxyUriToProxyServer(host, ProxyServer::SCHEME_HTTP);
   if (proxy_server.is_valid()) {
     *result_server = proxy_server;
     return true;
@@ -1022,15 +1068,16 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromSettings(
   return false;
 }
 
-base::Optional<ProxyConfigWithAnnotation>
+absl::optional<ProxyConfigWithAnnotation>
 ProxyConfigServiceLinux::Delegate::GetConfigFromSettings() {
   ProxyConfig config;
+  config.set_from_system(true);
 
   std::string mode;
   if (!setting_getter_->GetString(SettingGetter::PROXY_MODE, &mode)) {
     // We expect this to always be set, so if we don't see it then we probably
     // have a gsettings problem, and so we don't have a valid proxy config.
-    return base::nullopt;
+    return absl::nullopt;
   }
   if (mode == "none") {
     // Specifically specifies no proxy.
@@ -1049,7 +1096,7 @@ ProxyConfigServiceLinux::Delegate::GetConfigFromSettings() {
           pac_url_str = "file://" + pac_url_str;
         GURL pac_url(pac_url_str);
         if (!pac_url.is_valid())
-          return base::nullopt;
+          return absl::nullopt;
         config.set_pac_url(pac_url);
         return ProxyConfigWithAnnotation(
             config, NetworkTrafficAnnotationTag(traffic_annotation_));
@@ -1062,7 +1109,7 @@ ProxyConfigServiceLinux::Delegate::GetConfigFromSettings() {
 
   if (mode != "manual") {
     // Mode is unrecognized.
-    return base::nullopt;
+    return absl::nullopt;
   }
   bool use_http_proxy;
   if (setting_getter_->GetBool(SettingGetter::PROXY_USE_HTTP_PROXY,
@@ -1126,7 +1173,7 @@ ProxyConfigServiceLinux::Delegate::GetConfigFromSettings() {
 
   if (config.proxy_rules().empty()) {
     // Manual mode but we couldn't parse any rules.
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   // Check for authentication, just so we can warn.
@@ -1145,16 +1192,15 @@ ProxyConfigServiceLinux::Delegate::GetConfigFromSettings() {
   config.proxy_rules().bypass_rules.Clear();
   if (setting_getter_->GetStringList(SettingGetter::PROXY_IGNORE_HOSTS,
                                      &ignore_hosts_list)) {
-    std::vector<std::string>::const_iterator it(ignore_hosts_list.begin());
-    for (; it != ignore_hosts_list.end(); ++it) {
-      if (setting_getter_->MatchHostsUsingSuffixMatching()) {
-        config.proxy_rules().bypass_rules.AddRuleFromStringUsingSuffixMatching(
-            *it);
-      } else {
-        config.proxy_rules().bypass_rules.AddRuleFromString(*it);
-      }
+    for (const auto& rule : ignore_hosts_list) {
+      config.proxy_rules().bypass_rules.AddRuleFromString(rule);
     }
   }
+
+  if (setting_getter_->UseSuffixMatching()) {
+    RewriteRulesForSuffixMatching(&config.proxy_rules().bypass_rules);
+  }
+
   // Note that there are no settings with semantics corresponding to
   // bypass of local names in GNOME. In KDE, "<local>" is supported
   // as a hostname rule.
@@ -1168,8 +1214,8 @@ ProxyConfigServiceLinux::Delegate::GetConfigFromSettings() {
 
 ProxyConfigServiceLinux::Delegate::Delegate(
     std::unique_ptr<base::Environment> env_var_getter,
-    base::Optional<std::unique_ptr<SettingGetter>> setting_getter,
-    base::Optional<NetworkTrafficAnnotationTag> traffic_annotation)
+    absl::optional<std::unique_ptr<SettingGetter>> setting_getter,
+    absl::optional<NetworkTrafficAnnotationTag> traffic_annotation)
     : env_var_getter_(std::move(env_var_getter)) {
   if (traffic_annotation) {
     traffic_annotation_ =
@@ -1184,13 +1230,14 @@ ProxyConfigServiceLinux::Delegate::Delegate(
   // Figure out which SettingGetterImpl to use, if any.
   switch (base::nix::GetDesktopEnvironment(env_var_getter_.get())) {
     case base::nix::DESKTOP_ENVIRONMENT_CINNAMON:
+    case base::nix::DESKTOP_ENVIRONMENT_DEEPIN:
     case base::nix::DESKTOP_ENVIRONMENT_GNOME:
     case base::nix::DESKTOP_ENVIRONMENT_PANTHEON:
+    case base::nix::DESKTOP_ENVIRONMENT_UKUI:
     case base::nix::DESKTOP_ENVIRONMENT_UNITY:
 #if defined(USE_GIO)
       {
-      std::unique_ptr<SettingGetterImplGSettings> gs_getter(
-          new SettingGetterImplGSettings());
+      auto gs_getter = std::make_unique<SettingGetterImplGSettings>();
       // We have to load symbols and check the GNOME version in use to decide
       // if we should use the gsettings getter. See CheckVersion().
       if (gs_getter->CheckVersion(env_var_getter_.get()))
@@ -1201,9 +1248,12 @@ ProxyConfigServiceLinux::Delegate::Delegate(
     case base::nix::DESKTOP_ENVIRONMENT_KDE3:
     case base::nix::DESKTOP_ENVIRONMENT_KDE4:
     case base::nix::DESKTOP_ENVIRONMENT_KDE5:
-      setting_getter_.reset(new SettingGetterImplKDE(env_var_getter_.get()));
+    case base::nix::DESKTOP_ENVIRONMENT_KDE6:
+      setting_getter_ =
+          std::make_unique<SettingGetterImplKDE>(env_var_getter_.get());
       break;
     case base::nix::DESKTOP_ENVIRONMENT_XFCE:
+    case base::nix::DESKTOP_ENVIRONMENT_LXQT:
     case base::nix::DESKTOP_ENVIRONMENT_OTHER:
       break;
   }
@@ -1231,7 +1281,7 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
   // cached_config_, where GetLatestProxyConfig() running on the main TaskRunner
   // will expect to find it. This is safe to do because we return
   // before this ProxyConfigServiceLinux is passed on to
-  // the ProxyResolutionService.
+  // the ConfiguredProxyResolutionService.
 
   // Note: It would be nice to prioritize environment variables
   // and only fall back to gsettings if env vars were unset. But
@@ -1239,7 +1289,7 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
   // does so even if the proxy mode is set to auto, which would
   // mislead us.
 
-  cached_config_ = base::nullopt;
+  cached_config_ = absl::nullopt;
   if (setting_getter_ && setting_getter_->Init(glib_task_runner)) {
     cached_config_ = GetConfigFromSettings();
   }
@@ -1272,8 +1322,10 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
         SetUpNotifications();
       } else {
         // Post a task to set up notifications. We don't wait for success.
-        required_loop->PostTask(FROM_HERE, base::Bind(
-            &ProxyConfigServiceLinux::Delegate::SetUpNotifications, this));
+        required_loop->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                &ProxyConfigServiceLinux::Delegate::SetUpNotifications, this));
       }
     }
   }
@@ -1333,7 +1385,7 @@ void ProxyConfigServiceLinux::Delegate::OnCheckProxyConfigSettings() {
   scoped_refptr<base::SequencedTaskRunner> required_loop =
       setting_getter_->GetNotificationTaskRunner();
   DCHECK(!required_loop.get() || required_loop->RunsTasksInCurrentSequence());
-  base::Optional<ProxyConfigWithAnnotation> new_config =
+  absl::optional<ProxyConfigWithAnnotation> new_config =
       GetConfigFromSettings();
 
   // See if it is different from what we had before.
@@ -1344,8 +1396,8 @@ void ProxyConfigServiceLinux::Delegate::OnCheckProxyConfigSettings() {
     // update |cached_config_|.
     main_task_runner_->PostTask(
         FROM_HERE,
-        base::Bind(&ProxyConfigServiceLinux::Delegate::SetNewProxyConfig, this,
-                   new_config));
+        base::BindOnce(&ProxyConfigServiceLinux::Delegate::SetNewProxyConfig,
+                       this, new_config));
     // Update the thread-private copy in |reference_config_| as well.
     reference_config_ = new_config;
   } else {
@@ -1354,7 +1406,7 @@ void ProxyConfigServiceLinux::Delegate::OnCheckProxyConfigSettings() {
 }
 
 void ProxyConfigServiceLinux::Delegate::SetNewProxyConfig(
-    const base::Optional<ProxyConfigWithAnnotation>& new_config) {
+    const absl::optional<ProxyConfigWithAnnotation>& new_config) {
   DCHECK(main_task_runner_->RunsTasksInCurrentSequence());
   VLOG(1) << "Proxy configuration changed";
   cached_config_ = new_config;
@@ -1377,8 +1429,9 @@ void ProxyConfigServiceLinux::Delegate::PostDestroyTask() {
   } else {
     // Post to shutdown thread. Note that on browser shutdown, we may quit
     // this MessageLoop and exit the program before ever running this.
-    shutdown_loop->PostTask(FROM_HERE, base::Bind(
-        &ProxyConfigServiceLinux::Delegate::OnDestroy, this));
+    shutdown_loop->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ProxyConfigServiceLinux::Delegate::OnDestroy, this));
   }
 }
 void ProxyConfigServiceLinux::Delegate::OnDestroy() {
@@ -1389,9 +1442,9 @@ void ProxyConfigServiceLinux::Delegate::OnDestroy() {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux()
-    : delegate_(new Delegate(base::Environment::Create(),
-                             base::nullopt,
-                             base::nullopt)) {}
+    : delegate_(base::MakeRefCounted<Delegate>(base::Environment::Create(),
+                                               absl::nullopt,
+                                               absl::nullopt)) {}
 
 ProxyConfigServiceLinux::~ProxyConfigServiceLinux() {
   delegate_->PostDestroyTask();
@@ -1400,17 +1453,17 @@ ProxyConfigServiceLinux::~ProxyConfigServiceLinux() {
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
     std::unique_ptr<base::Environment> env_var_getter,
     const NetworkTrafficAnnotationTag& traffic_annotation)
-    : delegate_(new Delegate(std::move(env_var_getter),
-                             base::nullopt,
-                             traffic_annotation)) {}
+    : delegate_(base::MakeRefCounted<Delegate>(std::move(env_var_getter),
+                                               absl::nullopt,
+                                               traffic_annotation)) {}
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
     std::unique_ptr<base::Environment> env_var_getter,
-    SettingGetter* setting_getter,
+    std::unique_ptr<SettingGetter> setting_getter,
     const NetworkTrafficAnnotationTag& traffic_annotation)
-    : delegate_(new Delegate(std::move(env_var_getter),
-                             base::WrapUnique(setting_getter),
-                             traffic_annotation)) {}
+    : delegate_(base::MakeRefCounted<Delegate>(std::move(env_var_getter),
+                                               std::move(setting_getter),
+                                               traffic_annotation)) {}
 
 void ProxyConfigServiceLinux::AddObserver(Observer* observer) {
   delegate_->AddObserver(observer);
