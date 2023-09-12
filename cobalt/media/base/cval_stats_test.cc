@@ -12,16 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef _WIN32
-#include <Windows.h>
-#else
-#include <unistd.h>
-#endif
+#include "cobalt/media/base/cval_stats.h"
 
 #include <set>
 #include <string>
 
-#include "cobalt/media/base/cval_stats.h"
+#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 
@@ -33,20 +29,10 @@ const char kCValnameMinimum[] = "Media.SbPlayerCreateTime.Minimum";
 
 const char kPipelineIdentifier[] = "test_pipeline";
 
-constexpr int kSleepTimeMs = 50;
+constexpr SbTime kSleepTime = 50;  // 50 microseconds
 
 namespace cobalt {
 namespace media {
-
-namespace {
-void sleep_ms(int ms) {
-#ifdef _WIN32
-  Sleep(ms);
-#else
-  usleep(ms);
-#endif
-}
-}  // namespace
 
 TEST(MediaCValStatsTest, InitiallyEmpty) {
   base::CValManager* cvm = base::CValManager::GetInstance();
@@ -71,7 +57,8 @@ TEST(MediaCValStatsTest, NothingRecorded) {
   CValStats cval_stats_;
 
   cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-  sleep_ms(kSleepTimeMs);
+  SbThreadSleep(kSleepTime);
+
   cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
 
   base::Optional<std::string> result =
@@ -88,7 +75,7 @@ TEST(MediaCValStatsTest, EnableRecording) {
   cval_stats_.Enable(true);
 
   cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-  sleep_ms(kSleepTimeMs);
+  SbThreadSleep(kSleepTime);
   cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
 
   base::Optional<std::string> result =
@@ -114,7 +101,7 @@ TEST(MediaCValStatsTest, DontGenerateHistoricalData) {
 
   for (int i = 0; i < kMediaDefaultMaxSamplesBeforeCalculation - 1; i++) {
     cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-    sleep_ms(kSleepTimeMs);
+    SbThreadSleep(kSleepTime);
     cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
   }
 
@@ -141,7 +128,7 @@ TEST(MediaCValStatsTest, GenerateHistoricalData) {
 
   for (int i = 0; i < kMediaDefaultMaxSamplesBeforeCalculation; i++) {
     cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-    sleep_ms(kSleepTimeMs);
+    SbThreadSleep(kSleepTime);
     cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
   }
 

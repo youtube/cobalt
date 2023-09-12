@@ -25,6 +25,17 @@
 namespace cobalt {
 namespace h5vcc {
 
+H5vccMetrics::~H5vccMetrics() {
+  if (browser::metrics::CobaltMetricsServicesManager::GetInstance() !=
+          nullptr &&
+      run_event_handler_callback_) {
+    // We need to let the metrics manager know not to call the upload callback
+    // any longer, otherwise it could crash.
+    browser::metrics::CobaltMetricsServicesManager::GetInstance()
+        ->RemoveOnUploadHandler(run_event_handler_callback_.get());
+  }
+}
+
 void H5vccMetrics::OnMetricEvent(
     const h5vcc::MetricEventHandlerWrapper::ScriptValue& event_handler) {
   if (!uploader_callback_) {
@@ -43,16 +54,20 @@ void H5vccMetrics::OnMetricEvent(
 void H5vccMetrics::RunEventHandler(
     const cobalt::h5vcc::H5vccMetricType& metric_type,
     const std::string& serialized_proto) {
-  task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&H5vccMetrics::RunEventHandlerInternal, base::Unretained(this),
-                 metric_type, serialized_proto));
+  if (task_runner_ && task_runner_->HasAtLeastOneRef()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&H5vccMetrics::RunEventHandlerInternal,
+                   base::Unretained(this), metric_type, serialized_proto));
+  }
 }
 
 void H5vccMetrics::RunEventHandlerInternal(
     const cobalt::h5vcc::H5vccMetricType& metric_type,
     const std::string& serialized_proto) {
-  uploader_callback_->callback.value().Run(metric_type, serialized_proto);
+  if (uploader_callback_ != nullptr && uploader_callback_->HasAtLeastOneRef()) {
+    uploader_callback_->callback.value().Run(metric_type, serialized_proto);
+  }
 }
 
 void H5vccMetrics::Enable() { ToggleMetricsEnabled(true); }

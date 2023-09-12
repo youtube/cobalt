@@ -13,7 +13,6 @@
 #include <cstdarg>
 #include <cstddef>
 
-#include <cstring>
 #define MEMCPY_OTS std::memcpy
 
 #if defined(STARBOARD)
@@ -41,6 +40,7 @@ typedef unsigned __int64 uint64_t;
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <map>
 

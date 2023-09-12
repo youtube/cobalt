@@ -32,11 +32,10 @@
 
 #include <ctype.h>
 #include <jinclude.h>
-
-#include <setjmp.h>
 #define JPEG_INTERNALS
 #include <jpeglib.h>
 #include <jerror.h>
+#include <setjmp.h>
 #include <errno.h>
 #include "./turbojpeg.h"
 #include "./tjutil.h"

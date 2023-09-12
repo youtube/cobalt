@@ -67,8 +67,13 @@ void CobaltMetricsLogUploader::UploadLog(
       base::Base64UrlEncode(cobalt_uma_event.SerializeAsString(),
                             base::Base64UrlEncodePolicy::INCLUDE_PADDING,
                             &base64_encoded_proto);
-      upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma,
-                           base64_encoded_proto);
+      // Check again that the upload handler is still valid. Was seeing race
+      // conditions where it was being destroyed while the proto encoding was
+      // happening above.
+      if (upload_handler_ != nullptr) {
+        upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma,
+                             base64_encoded_proto);
+      }
     }
   }
 

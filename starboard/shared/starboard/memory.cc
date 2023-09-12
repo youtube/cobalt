@@ -15,7 +15,10 @@
 #include "starboard/memory.h"
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+
+#if SB_API_VERSION < 15
 #include "starboard/memory_reporter.h"
+#endif
 
 namespace {
 
@@ -25,10 +28,12 @@ inline void* SbMemoryReallocateImpl(void* memory, size_t size);
 
 }  // namespace
 
+#if SB_API_VERSION < 15
 bool SbMemorySetReporter(SbMemoryReporter* _unused) {
   // Memory reporting is removed
   return false;
 }
+#endif
 
 void* SbMemoryAllocate(size_t size) {
   void* memory = SbMemoryAllocateImpl(size);
