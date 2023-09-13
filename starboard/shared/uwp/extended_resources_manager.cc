@@ -26,7 +26,7 @@
 #include "starboard/time.h"
 #include "starboard/xb1/shared/internal_shims.h"
 #if defined(INTERNAL_BUILD)
-#include "internal/starboard/xb1/av1_video_decoder.h"
+#include "internal/starboard/xb1/dav1d_video_decoder.h"
 #include "internal/starboard/xb1/vpx_video_decoder.h"
 #include "third_party/internal/libvpx_xb1/libvpx/d3dx12.h"
 #endif  // defined(INTERNAL_BUILD)
@@ -41,7 +41,7 @@ using Microsoft::WRL::ComPtr;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 using Windows::Foundation::Metadata::ApiInformation;
 #if defined(INTERNAL_BUILD)
-using ::starboard::xb1::shared::Av1VideoDecoder;
+using ::starboard::xb1::shared::Dav1dVideoDecoder;
 using ::starboard::xb1::shared::GpuVideoDecoderBase;
 using ::starboard::xb1::shared::VpxVideoDecoder;
 #endif  // defined(INTERNAL_BUILD)
@@ -392,8 +392,7 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
                          "shader compile.";
       return;
     }
-    if (Av1VideoDecoder::CompileShaders(d3d12device_, d3d12FrameBuffersHeap_,
-                                        d3d12queue_.Get())) {
+    if (Dav1dVideoDecoder::CompileShaders(d3d12device_)) {
       is_av1_shader_compiled_ = true;
       SB_LOG(INFO) << "Gpu based AV1 decoder finished compiling its shaders.";
     } else {
@@ -465,7 +464,7 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
           SB_LOG(INFO) << "CreateEvent() failed with " << GetLastError();
         }
 #if defined(INTERNAL_BUILD)
-        Av1VideoDecoder::ReleaseShaders();
+        Dav1dVideoDecoder::ReleaseShaders();
         VpxVideoDecoder::ReleaseShaders();
 #endif  // #if defined(INTERNAL_BUILD)
         is_av1_shader_compiled_ = false;
