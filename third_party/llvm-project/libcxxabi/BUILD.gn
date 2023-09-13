@@ -23,6 +23,7 @@ config("cxxabi_config") {
     "-std=c++17",
     "-nostdinc++",
     "-fPIC",
+    "-fexceptions",
     "-frtti",
     "-Werror=return-type",
     "-fvisibility-inlines-hidden",
@@ -64,19 +65,11 @@ static_library("cxxabi") {
     "src/cxa_aux_runtime.cpp",
     "src/cxa_default_handlers.cpp",
     "src/cxa_demangle.cpp",
-
-    # Requires exception support
-    #"src/cxa_exception.cpp",
-
+    "src/cxa_exception.cpp",
     "src/cxa_exception_storage.cpp",
-
     "src/cxa_guard.cpp",
     "src/cxa_handlers.cpp",
-    "src/cxa_noexception.cpp",
-
-    # Requires exception support
-    #"src/cxa_personality.cpp",
-
+    "src/cxa_personality.cpp",
     "src/cxa_vector.cpp",
     "src/cxa_virtual.cpp",
     "src/fallback_malloc.cpp",
@@ -85,6 +78,9 @@ static_library("cxxabi") {
     "src/stdlib_new_delete.cpp",
     "src/stdlib_stdexcept.cpp",
     "src/stdlib_typeinfo.cpp",
+
+    # src/cxa_noexception.cpp is omitted because this file breaks the build and
+    # we utilize exception handling.
 
     # src/cxa_thread_atexit.cpp is unneeded. It introduces
     # "__cxa_thread_atexit_impl" as an API leak.

@@ -37,6 +37,9 @@ if (current_toolchain == default_toolchain &&
   speed_config_path = "//starboard/raspi/shared/platform_configuration:speed"
   size_config_path = "//starboard/raspi/shared/platform_configuration:size"
 
+  # TODO(b/219073252): Enable -fno-exceptions and don't mix it with -fexceptions.
+  enable_exceptions_override = true
+
   v8_enable_webassembly = true
 
   is_raspi = true
