@@ -39,7 +39,7 @@ declare_args() {
 
 _has_starboard = exec_script("//build/util/has_starboard.py", [], "json")
 assert(!is_starboard || _has_starboard,
-       "The `starboard` module is not on the PYTHONPATH.")
+       "The current repo is not first on the PYTHONPATH.")
 
 assert(!(is_starboard && is_native_target_build),
        "Targets should be built for Starboard or natively, but not both")
