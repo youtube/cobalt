@@ -15,7 +15,6 @@
 """Script for checking if the current repo on the path."""
 
 import os
-import sys
 
 SRC_DIR = os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.pardir, os.pardir))
@@ -23,7 +22,7 @@ SRC_DIR = os.path.abspath(os.path.join(
 def main():
   abs_path_to_me = os.path.abspath(__file__)
   rel_path_to_me = os.path.relpath(__file__, start=SRC_DIR)
-  for path in sys.path:
+  for path in os.getenv('PYTHONPATH').split(os.pathsep):
     path_to_check = os.path.abspath(os.path.join(path, rel_path_to_me))
     if os.path.exists(path_to_check):
       # The file exists, check if it's this repo or another one.
