@@ -200,7 +200,7 @@ class WebMediaPlayer {
   virtual void SetDrmSystem(
       const scoped_refptr<media::DrmSystem>& drm_system) = 0;
 
-  // Enable to use maximum video buffer budget available.
+  // Set this value in bytes to override the default video buffer budger
   virtual void EnableVideoBufferBudgetOverride(size_t budget) {}
 
   size_t video_buffer_budget_override_ = 0;

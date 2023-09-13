@@ -202,11 +202,9 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     video_buffer_budget_override_ = value;
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " video buffer budget override. Set to " << value;
-    if (value) {
-      starboard::ScopedLock scoped_lock(players_lock_);
-      for (const auto& wp : players_) {
-        wp.first->EnableVideoBufferBudgetOverride(value);
-      }
+    starboard::ScopedLock scoped_lock(players_lock_);
+    for (const auto& wp : players_) {
+      wp.first->EnableVideoBufferBudgetOverride(value);
     }
     return true;
 #if SB_API_VERSION >= 15

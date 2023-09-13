@@ -329,8 +329,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   bool is_resuming_from_background_mode_ = false;
 
-  size_t video_buffer_budget_override_ = 0;
-
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };
 
