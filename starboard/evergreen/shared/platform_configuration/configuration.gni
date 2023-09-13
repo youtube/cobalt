@@ -29,13 +29,13 @@ gtest_target_type = "shared_library"
 starboard_level_final_executable_type = "shared_library"
 starboard_level_gtest_target_type = "shared_library"
 
-speed_config_path = "//starboard/evergreen/shared/platform_configuration:speed"
+speed_config_path = "//starboard/build/config/modular/shared:speed"
 size_config_path = "//starboard/evergreen/shared/platform_configuration:size"
 
 pedantic_warnings_config_path =
-    "//starboard/evergreen/shared/platform_configuration:pedantic_warnings"
+    "//starboard/build/config/modular/shared:pedantic_warnings"
 no_pedantic_warnings_config_path =
-    "//starboard/evergreen/shared/platform_configuration:no_pedantic_warnings"
+    "//starboard/build/config/modular/shared:no_pedantic_warnings"
 
 cobalt_licenses_platform = "evergreen"
 
