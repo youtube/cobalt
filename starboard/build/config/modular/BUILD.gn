@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/os_definitions.gni")
-
-config("modular_config") {
+config("modular") {
   cflags = [
     "-ffunction-sections",
     "-fdata-sections",
@@ -162,13 +160,6 @@ config("modular_config") {
       "-fno-omit-frame-pointer",
     ]
 
-    ldflags = [
-      "-fsanitize=address",
-
-      # Force linking of the helpers in sanitizer_options.cc
-      "-Wl,-u_sanitizer_options_link_helper",
-    ]
-
     defines += [ "ADDRESS_SANITIZER" ]
 
     if (asan_symbolizer_path != "") {
@@ -179,8 +170,6 @@ config("modular_config") {
       "-fsanitize=thread",
       "-fno-omit-frame-pointer",
     ]
-
-    ldflags = [ "-fsanitize=thread" ]
 
     defines += [ "THREAD_SANITIZER" ]
   }

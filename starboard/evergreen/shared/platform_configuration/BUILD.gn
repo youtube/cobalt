@@ -13,6 +13,7 @@
 # limitations under the License.
 
 config("platform_configuration") {
+  configs = [ "//starboard/build/config/modular" ]
   ldflags = []
   if (sb_is_evergreen) {
     ldflags += [
@@ -35,8 +36,6 @@ config("platform_configuration") {
     ldflags += [ "-nostdlib" ]
   }
 
-  configs = [ "//starboard/build/config/modular/shared:modular_config" ]
-
   defines = [
     # During Evergreen updates the CRX package is kept in-memory, instead of
     # on the file system, before getting unpacked.
@@ -49,10 +48,21 @@ config("platform_configuration") {
     # references, and remove this macro.
     "IN_MEMORY_UPDATES",
   ]
+
+  if (use_asan) {
+    ldflags += [
+      "-fsanitize=address",
+
+      # Force linking of the helpers in sanitizer_options.cc
+      "-Wl,-u_sanitizer_options_link_helper",
+    ]
+  } else if (use_tsan) {
+    ldflags += [ "-fsanitize=thread" ]
+  }
 }
 
 config("size") {
-  configs = [ "//starboard/build/config/modular/shared:size" ]
+  configs = [ "//starboard/build/config/modular:size" ]
   if (sb_is_evergreen && (is_qa || is_gold)) {
     ldflags = [ "-Wl,--icf=safe" ]
   }
