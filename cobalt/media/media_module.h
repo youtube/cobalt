@@ -132,11 +132,9 @@ class MediaModule : public WebMediaPlayerFactory,
   // previous behavior.
   bool force_punch_out_by_default_ = false;
 
-  // When set to 'true' this will enable maximum buffer budget supported for
-  // all stream resolution. (Currently we use a different memory budget based on
-  // resolution, meaning for lower res videos, we artificially restrict
-  // available memory.)
-  bool is_video_buffer_budget_override_enabled_ = false;
+  // When set to a value above zero this will override the default video buffer
+  // budget.
+  size_t video_buffer_budget_override_ = 0;
 
 #if SB_API_VERSION >= 15
   SbTime audio_write_duration_local_ = kSbPlayerWriteDurationLocal;

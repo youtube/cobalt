@@ -201,9 +201,9 @@ class WebMediaPlayer {
       const scoped_refptr<media::DrmSystem>& drm_system) = 0;
 
   // Enable to use maximum video buffer budget available.
-  virtual void EnableVideoBufferBudgetOverride() {}
+  virtual void EnableVideoBufferBudgetOverride(size_t budget) {}
 
-  bool is_video_buffer_budget_override_enabled_ = false;
+  size_t video_buffer_budget_override_ = 0;
 };
 
 // TODO: Add prefix "On" to all methods that handle events, such

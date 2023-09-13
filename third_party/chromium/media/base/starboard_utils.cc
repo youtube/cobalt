@@ -31,6 +31,9 @@ using base::TimeDelta;
 namespace media {
 namespace {
 
+const char* kAv1_8k_mime = "video/webm; codecs=\"av1\"; width=7680; height=4320";
+const char* kVp9_4k_mime = "video/webm; codecs=\"vp9\"; width=3840; height=2160";
+
 int GetBitsPerPixel(const std::string& mime_type) {
   auto codecs = ExtractCodecs(mime_type);
   SbMediaVideoCodec codec;
@@ -50,9 +53,6 @@ int GetBitsPerPixel(const std::string& mime_type) {
   // Assume SDR when there isn't enough information to determine the bit depth.
   return 8;
 }
-
-const char* kVp9_8k_mime = "video/webm; codecs=\"vp9\"; width=7680; height=4320";
-const char* kVp9_4k_mime = "video/webm; codecs=\"vp9\"; width=3840; height=2160";
 
 }  // namespace
 
@@ -401,19 +401,17 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 }
 
 int GetSbMediaVideoBufferBudgetMaximum() {
-  LOG(INFO) << "Checking for maximum video buffer budget.";
   auto budget = SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecH264, 1920, 1080, 8);
-  if (SbMediaCanPlayMimeAndKeySystem(kVp9_8k_mime, "") == kSbMediaSupportTypeProbably) {
-    budget = SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 7680, 4320, 12);
-    LOG(INFO) << "Device supports 8k.";
+  if (SbMediaCanPlayMimeAndKeySystem(kAv1_8k_mime, "") == kSbMediaSupportTypeProbably) {
+    budget = DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(kSbMediaVideoCodecVp9, 7680, 4320, 12);
+    LOG(INFO) << "Device supports 8k, using video budget " << budget;
   }
   else if (SbMediaCanPlayMimeAndKeySystem(kVp9_4k_mime, "") == kSbMediaSupportTypeProbably) {
-    LOG(INFO) << "Device supports 4k.";
-    budget = SbMediaGetVideoBufferBudget(SbMediaVideoCodec::kSbMediaVideoCodecVp9, 3840, 2160, 12);
+    budget = DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(kSbMediaVideoCodecVp9, 3840, 2160, 12);
+    LOG(INFO) << "Device supports 4k, using video budget " << budget;
   } else {
-    LOG(INFO) << "Device only supports 1080p.";
+    LOG(INFO) << "Device only supports 1080p, using video budget " << budget;
   }
-  LOG(INFO) << "Max budget is now " << budget;
   return budget;
 }
 

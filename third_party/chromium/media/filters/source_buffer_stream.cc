@@ -186,7 +186,7 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
 #if defined(STARBOARD)
 SourceBufferStream::SourceBufferStream(const std::string& mime_type,
                                        const VideoDecoderConfig& video_config,
-                                       MediaLog* media_log)
+                                       MediaLog* media_log, size_t budget_override)
     : mime_type_(mime_type),
       media_log_(media_log),
 #else  // defined (STARBOARD)
@@ -200,10 +200,17 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
+#if defined(STARBOARD)
+      memory_limit_(std::max(budget_override,
+          GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+                                           &video_config,
+                                           mime_type_))) {
+#else  // defined (STARBOARD)
       memory_limit_(
           GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
                                            &video_config,
                                            mime_type_)) {
+#endif  // defined (STARBOARD)
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
@@ -272,7 +279,6 @@ void SourceBufferStream::OnStartOfCodedFrameGroup(
              << "intervening remove makes discontinuity";
   }
 }
-
 
 void SourceBufferStream::Append(const BufferQueue& buffers) {
   TRACE_EVENT2("media", "SourceBufferStream::Append",

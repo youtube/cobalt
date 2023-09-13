@@ -203,7 +203,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
   void OnDemuxerOpened();
 
-  void EnableVideoBufferBudgetOverride() override;
+  void EnableVideoBufferBudgetOverride(size_t budget) override;
 
  private:
   // Called when the data source is downloading or paused.
@@ -329,7 +329,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   bool is_resuming_from_background_mode_ = false;
 
-  bool is_video_buffer_budget_override_enabled_ = false;
+  size_t video_buffer_budget_override_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };

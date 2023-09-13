@@ -235,10 +235,9 @@ base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
   return write_head_;
 }
 
-void ChunkDemuxerStream::EnableVideoBufferBudgetOverride() {
+void ChunkDemuxerStream::EnableVideoBufferBudgetOverride(size_t budget) {
   base::AutoLock auto_lock(lock_);
-  is_video_buffer_budget_override_enabled_ = true;
-  if (stream_) stream_->EnableVideoBufferBudgetOverride();
+  video_buffer_budget_override_ = budget;
 }
 
 #endif  // defined(STARBOARD)
@@ -347,9 +346,7 @@ bool ChunkDemuxerStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   if (!stream_) {
     DCHECK_EQ(state_, UNINITIALIZED);
 #if defined(STARBOARD)
-    stream_ = std::make_unique<SourceBufferStream>(mime_type_, config, media_log);
-    if (is_video_buffer_budget_override_enabled_) stream_->EnableVideoBufferBudgetOverride();
-    LOG(INFO) << "SourceBufferStream created with video buffer budget of:" << stream_->GetMemoryLimit();
+    stream_ = std::make_unique<SourceBufferStream>(mime_type_, config, media_log, video_buffer_budget_override_);
 #else  // defined (STARBOARD)
     stream_ = std::make_unique<SourceBufferStream>(config, media_log);
 #endif  // defined (STARBOARD)
@@ -1118,11 +1115,11 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
   return iter->second[0]->GetWriteHead();
 }
 
-void ChunkDemuxer::EnableVideoBufferBudgetOverride() {
+void ChunkDemuxer::EnableVideoBufferBudgetOverride(size_t budget) {
   base::AutoLock auto_lock(lock_);
-  is_video_buffer_budget_override_enabled_ = true;
+  video_buffer_budget_override_ = budget;
   for (const auto &stream : video_streams_) {
-    stream->EnableVideoBufferBudgetOverride();
+    stream->EnableVideoBufferBudgetOverride(budget);
   }
 }
 
@@ -1673,8 +1670,8 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
   DCHECK(iter != id_to_mime_map_.end());
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(iter->second, type, media_track_id);
-  if (type == DemuxerStream::VIDEO && is_video_buffer_budget_override_enabled_) {
-    stream->EnableVideoBufferBudgetOverride();
+  if (type == DemuxerStream::VIDEO && video_buffer_budget_override_> 0) {
+    stream->EnableVideoBufferBudgetOverride(video_buffer_budget_override_);
   }
 #else  // defined(STARBOARD)
   std::unique_ptr<ChunkDemuxerStream> stream =

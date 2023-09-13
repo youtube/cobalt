@@ -268,8 +268,9 @@ void WebMediaPlayerImpl::LoadMediaSource() {
       BIND_TO_RENDER_LOOP(
           &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper),
       media_log_));
-  if (is_video_buffer_budget_override_enabled_) {
-    chunk_demuxer_->EnableVideoBufferBudgetOverride();
+  if (video_buffer_budget_override_ > 0) {
+    chunk_demuxer_->EnableVideoBufferBudgetOverride(
+        video_buffer_budget_override_);
   }
 
   state_.is_media_source = true;
@@ -995,9 +996,9 @@ void WebMediaPlayerImpl::OnContentSizeChanged() {
   GetClient()->ContentSizeChanged();
 }
 
-void WebMediaPlayerImpl::EnableVideoBufferBudgetOverride() {
-  is_video_buffer_budget_override_enabled_ = true;
-  if (chunk_demuxer_) chunk_demuxer_->EnableVideoBufferBudgetOverride();
+void WebMediaPlayerImpl::EnableVideoBufferBudgetOverride(size_t budget) {
+  video_buffer_budget_override_ = budget;
+  if (chunk_demuxer_) chunk_demuxer_->EnableVideoBufferBudgetOverride(budget);
 }
 
 
