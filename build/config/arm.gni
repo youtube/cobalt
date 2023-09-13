@@ -1,12 +1,9 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/v8_target_cpu.gni")
-
-if (is_starboard) {
-  import("//starboard/sabi/sabi.gni")
-}
 
 # These are primarily relevant in current_cpu == "arm" contexts, where
 # ARM code is being compiled.  But they can also be relevant in the
@@ -42,19 +39,20 @@ if (current_cpu == "arm" || v8_current_cpu == "arm") {
     arm_use_thumb = true
   }
 
-  if (is_starboard) {
-    arm_float_abi = sabi_variables.floating_point_abi
-    arm_fpu = sabi_variables.floating_point_fpu
+  # For lacros build, we use ARM v8 by default.
+  if (is_chromeos_lacros && arm_arch == "") {
+    arm_version = 8
+    arm_arch = "armv8-a+crc"
+  }
+
+  if (current_os == "android" || target_os == "android") {
+    arm_float_abi = "softfp"
   } else {
-    if (current_os == "android" || target_os == "android") {
-      arm_float_abi = "softfp"
-    } else {
     declare_args() {
       # The ARM floating point mode. This is either the string "hard", "soft",
       # or "softfp". An empty string means to use the default one for the
       # arm_version.
       arm_float_abi = ""
-    }
     }
   }
   assert(arm_float_abi == "" || arm_float_abi == "hard" ||
@@ -71,7 +69,8 @@ if (current_cpu == "arm" || v8_current_cpu == "arm") {
 
   if (arm_version == 6) {
     if (arm_arch == "") {
-      arm_arch = "armv6"
+      # v8 can still with version 6 but only with the armv6k extension.
+      arm_arch = "armv6k"
     }
     if (arm_tune != "") {
       arm_tune = ""
@@ -87,9 +86,6 @@ if (current_cpu == "arm" || v8_current_cpu == "arm") {
   } else if (arm_version == 7) {
     if (arm_arch == "") {
       arm_arch = "armv7-a"
-    }
-    if (arm_tune == "") {
-      arm_tune = "generic-armv7-a"
     }
 
     if (arm_float_abi == "") {
@@ -132,4 +128,23 @@ if (current_cpu == "arm" || v8_current_cpu == "arm") {
   # arm64 supports only "hard".
   arm_float_abi = "hard"
   arm_use_neon = true
+  declare_args() {
+    # Enables the new Armv8 branch protection features. Valid strings are:
+    # - "pac": Enables Pointer Authentication Code (PAC, featured in Armv8.3)
+    # - "standard": Enables both PAC and Branch Target Identification (Armv8.5).
+    # - "none": No branch protection.
+    arm_control_flow_integrity = "none"
+
+    if ((is_android || is_linux) && target_cpu == "arm64") {
+      # Enable PAC and BTI on AArch64 Linux/Android systems.
+      # target_cpu == "arm64" filters out some cases (e.g. the ChromeOS x64
+      # MSAN build) where the target platform is x64, but V8 is configured to
+      # use the arm64 simulator.
+      arm_control_flow_integrity = "standard"
+    }
+  }
+  assert(arm_control_flow_integrity == "none" ||
+             arm_control_flow_integrity == "standard" ||
+             arm_control_flow_integrity == "pac",
+         "Invalid branch protection option")
 }
