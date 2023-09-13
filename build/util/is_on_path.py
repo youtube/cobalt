@@ -14,22 +14,13 @@
 # limitations under the License.
 """Script for checking if the current repo on the path."""
 
-import os
-
-SRC_DIR = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), os.pardir, os.pardir))
-
 def main():
-  abs_path_to_me = os.path.abspath(__file__)
-  rel_path_to_me = os.path.relpath(__file__, start=SRC_DIR)
-  for path in os.getenv('PYTHONPATH').split(os.pathsep):
-    path_to_check = os.path.abspath(os.path.join(path, rel_path_to_me))
-    if os.path.exists(path_to_check):
-      # The file exists, check if it's this repo or another one.
-      print(str(path_to_check == abs_path_to_me).lower())
-      return
-  # No repos were found on the path.
-  print('false')
+  try:
+    # Try to import this file and compare its path to the current file.
+    import build.util.is_on_path # pylint: disable=import-outside-toplevel
+    print(str(__file__ == build.util.is_on_path.__file__).lower())
+  except ImportError:
+    print('false')
 
 
 if __name__ == '__main__':
