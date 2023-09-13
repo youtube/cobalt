@@ -37,6 +37,10 @@ declare_args() {
   build_with_separate_cobalt_toolchain = false
 }
 
+_is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
+assert(!is_starboard || _is_on_pythonpath,
+       "The current repo is not first on the PYTHONPATH.")
+
 assert(!(is_starboard && is_native_target_build),
        "Targets should be built for Starboard or natively, but not both")
 
