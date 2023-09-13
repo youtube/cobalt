@@ -119,12 +119,6 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
     url::Origin storage_key =
         url::Origin::Create(GURL(dict[kSettingsStorageKeyKey]->GetString()));
 
-    // Only add persisted workers to the registration_map
-    // if their storage_key matches the origin of the initial_url.
-    if (!storage_key.IsSameOriginWith(url::Origin::Create(options_.url))) {
-      continue;
-    }
-
     if (!CheckPersistentValue(key_string, kSettingsScopeUrlKey, dict,
                               base::Value::Type::STRING))
       continue;
