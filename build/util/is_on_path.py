@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Script for checking if we have the starboard python modules on the path."""
+"""Script for checking if the current repo on the path."""
 
 import os
 import sys
