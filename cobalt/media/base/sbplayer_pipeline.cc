@@ -565,6 +565,13 @@ std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
 
   std::vector<std::string> connectors;
 
+#if SB_HAS(PLAYER_WITH_URL)
+  // Url based player does not support audio connectors.
+  if (is_url_based_) {
+    return connectors;
+  }
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
   auto configurations = player_bridge_->GetAudioConfigurations();
   for (auto&& configuration : configurations) {
     connectors.push_back(GetMediaAudioConnectorName(configuration.connector));
@@ -1159,6 +1166,14 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         playback_statistics_.OnPresenting(
             video_stream_->video_decoder_config());
       }
+
+#if SB_HAS(PLAYER_WITH_URL)
+      // Url based player does not support |audio_write_duration_for_preroll_|.
+      if (is_url_based_) {
+        break;
+      }
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 #if SB_API_VERSION >= 15
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
