@@ -288,6 +288,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Clear logcat
     self._CheckCallAdb('logcat', '-c')
 
+    # Remove the old package if it exists
+    self.CallAdb('uninstall', _APP_PACKAGE_NAME)
+
     # Install the APK, unless "noinstall" was specified.
     if abstract_launcher.ARG_NOINSTALL not in self.launcher_args:
       install_timer = StepTimer('install')
