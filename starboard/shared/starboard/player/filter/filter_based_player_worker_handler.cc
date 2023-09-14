@@ -132,7 +132,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
       std::string error_message =
           FormatString("Required channel %d is greater than maximum channel %d",
                        required_audio_channels, supported_audio_channels);
-      return {false, std::move(error_message.c_str())};
+      return {false, error_message};
     }
   }
 
@@ -149,7 +149,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
       std::string error_message =
           FormatString("Failed to create player components with error: %s.",
                        components_error_message.c_str());
-      return {false, std::move(error_message.c_str())};
+      return {false, error_message};
     }
     media_time_provider_ = player_components_->GetMediaTimeProvider();
     audio_renderer_ = player_components_->GetAudioRenderer();
@@ -425,9 +425,10 @@ void FilterBasedPlayerWorkerHandler::OnError(SbPlayerError error,
   }
 
   if (update_player_error_cb_) {
-    update_player_error_cb_(error, error_message.empty()
-                                       ? "FilterBasedPlayerWorkerHandler error."
-                                       : error_message);
+    update_player_error_cb_(error, {false},
+                            error_message.empty()
+                                ? "FilterBasedPlayerWorkerHandler error."
+                                : error_message);
   }
 }
 
