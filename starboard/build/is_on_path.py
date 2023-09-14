@@ -16,6 +16,7 @@
 
 import os
 
+
 def main():
   try:
     # Try to import this file and compare its path to the current file.
