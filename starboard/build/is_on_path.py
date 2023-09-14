@@ -14,6 +14,7 @@
 # limitations under the License.
 """Script for checking if the current repo on the path."""
 
+import os
 
 def main():
   try:
