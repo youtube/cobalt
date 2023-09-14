@@ -8,9 +8,8 @@
 
 #include "./glyph.h"
 
-#include <limits>
 #include <stdlib.h>
-
+#include <limits>
 #include "./buffer.h"
 #include "./store_bytes.h"
 

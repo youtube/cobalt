@@ -8,6 +8,7 @@
 
 #include <woff2/decode.h>
 
+#include <stdlib.h>
 #include <algorithm>
 #include <complex>
 #include <cstring>
@@ -16,7 +17,6 @@
 #include <vector>
 #include <map>
 #include <memory>
-#include <stdlib.h>
 #include <utility>
 
 #include <brotli/decode.h>
