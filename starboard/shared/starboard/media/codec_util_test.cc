@@ -215,6 +215,35 @@ TEST(VideoConfigTest, H264VsVp9) {
   EXPECT_FALSE(config_h264 == config_vp9);
 }
 
+TEST(CodecUtilTest, ParsesAacCodecs) {
+  EXPECT_EQ(GetAudioCodecFromString("mp4a.40.2", ""), kSbMediaAudioCodecAac);
+  EXPECT_EQ(GetAudioCodecFromString("mp4a.40.5", ""), kSbMediaAudioCodecAac);
+}
+
+#if SB_API_VERSION < 15
+const bool kCheckAc3Audio = kSbHasAc3Audio;
+#else
+const bool kCheckAc3Audio = true;
+#endif  // SB_API_VERSION < 15
+
+TEST(CodecUtilTest, ParsesAc3CodecIfEnabled) {
+  EXPECT_EQ(GetAudioCodecFromString("ac-3", ""),
+            kCheckAc3Audio ? kSbMediaAudioCodecAc3 : kSbMediaAudioCodecNone);
+}
+
+TEST(CodecUtilTest, ParsesEac3CodecIfEnabled) {
+  EXPECT_EQ(GetAudioCodecFromString("ec-3", ""),
+            kCheckAc3Audio ? kSbMediaAudioCodecEac3 : kSbMediaAudioCodecNone);
+}
+
+TEST(CodecUtilTest, ParsesOpusCodec) {
+  EXPECT_EQ(GetAudioCodecFromString("opus", ""), kSbMediaAudioCodecOpus);
+}
+
+TEST(CodecUtilTest, ParsesVorbisCodec) {
+  EXPECT_EQ(GetAudioCodecFromString("vorbis", ""), kSbMediaAudioCodecVorbis);
+}
+
 #if SB_API_VERSION >= 14
 TEST(CodecUtilTest, ParsesMp3Codecs) {
   EXPECT_EQ(GetAudioCodecFromString("mp3", ""), kSbMediaAudioCodecMp3);

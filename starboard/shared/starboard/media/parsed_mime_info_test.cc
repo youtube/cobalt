@@ -23,6 +23,54 @@ namespace starboard {
 namespace media {
 namespace {
 
+#if SB_API_VERSION < 15
+const bool kCheckAc3Audio = kSbHasAc3Audio;
+#else
+const bool kCheckAc3Audio = true;
+#endif  // SB_API_VERSION < 15
+
+TEST(ParsedMimeInfoTest, ParsesAacLowComplexityCodec) {
+  ParsedMimeInfo mime_info("audio/mp4; codecs=\"mp4a.40.2\"");
+  ASSERT_TRUE(mime_info.has_audio_info());
+  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecAac);
+}
+
+TEST(ParsedMimeInfoTest, ParsesAacHighEfficiencyCodec) {
+  ParsedMimeInfo mime_info("audio/mp4; codecs=\"mp4a.40.5\"");
+  ASSERT_TRUE(mime_info.has_audio_info());
+  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecAac);
+}
+
+TEST(ParsedMimeInfoTest, ParsesAc3Codec) {
+  ParsedMimeInfo mime_info("audio/mp4; codecs=\"ac-3\"");
+  ASSERT_EQ(mime_info.has_audio_info(), kCheckAc3Audio);
+
+  if (kCheckAc3Audio) {
+    EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecAc3);
+  }
+}
+
+TEST(ParsedMimeInfoTest, ParsesEac3Codec) {
+  ParsedMimeInfo mime_info("audio/mp4; codecs=\"ec-3\"");
+  ASSERT_EQ(mime_info.has_audio_info(), kCheckAc3Audio);
+
+  if (kCheckAc3Audio) {
+    EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecEac3);
+  }
+}
+
+TEST(ParsedMimeInfoTest, ParsesOpusCodec) {
+  ParsedMimeInfo mime_info("audio/webm; codecs=\"opus\"");
+  ASSERT_TRUE(mime_info.has_audio_info());
+  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecOpus);
+}
+
+TEST(ParsedMimeInfoTest, ParsesVorbisCodec) {
+  ParsedMimeInfo mime_info("audio/webm; codecs=\"vorbis\"");
+  ASSERT_TRUE(mime_info.has_audio_info());
+  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecVorbis);
+}
+
 #if SB_API_VERSION >= 14
 TEST(ParsedMimeInfoTest, ParsesMp3Codec) {
   ParsedMimeInfo mime_info("audio/mpeg; codecs=\"mp3\"");
