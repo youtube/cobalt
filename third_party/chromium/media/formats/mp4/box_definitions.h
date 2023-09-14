@@ -378,6 +378,29 @@ struct MEDIA_EXPORT OpusSpecificBox : Box {
   uint32_t sample_rate;
 };
 
+#if defined(STARBOARD)
+struct MEDIA_EXPORT IamfSpecificBox : Box {
+  DECLARE_BOX_METHODS(IamfSpecificBox);
+
+
+  // Magic box OBU fields.
+  uint32_t ia_code;
+  uint8_t version;
+  uint8_t profile_version;
+
+  // Codec config OBU fields.
+  uint32_t channel_count;
+  uint32_t sample_rate;
+  std::vector<uint8_t> extra_data;
+
+  // Audio element OBU fields.
+
+  // Mix presentation OBU fields.
+
+  // Sync OBU fields.
+};
+#endif
+
 struct MEDIA_EXPORT AudioSampleEntry : Box {
   DECLARE_BOX_METHODS(AudioSampleEntry);
 
@@ -391,6 +414,9 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   ElementaryStreamDescriptor esds;
   FlacSpecificBox dfla;
   OpusSpecificBox dops;
+#if defined(STARBOARD)
+  IamfSpecificBox iamd;
+#endif
 };
 
 struct MEDIA_EXPORT SampleDescription : Box {

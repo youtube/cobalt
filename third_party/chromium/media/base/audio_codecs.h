@@ -33,13 +33,20 @@ enum class AudioCodec {
   kALAC = 15,
   kAC3 = 16,
   kMpegHAudio = 17,
+#if defined (STARBOARD)
+  kIamf = 18,
+#endif
   // DO NOT ADD RANDOM AUDIO CODECS!
   //
   // The only acceptable time to add a new codec is if there is production code
   // that uses said codec in the same CL.
 
   // Must always be equal to the largest entry ever logged.
+#if defined (STARBOARD)
+  kMaxValue = kIamf,
+#else
   kMaxValue = kMpegHAudio,
+#endif
 };
 
 enum class AudioCodecProfile {

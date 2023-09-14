@@ -338,6 +338,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
           audio_format != FOURCC_MHM1 && audio_format != FOURCC_MHA1 &&
 #endif
+#if defined(STARBOARD)
+          audio_format != FOURCC_IAMF &&
+#endif
           audio_format != FOURCC_MP4A) {
         MEDIA_LOG(ERROR, media_log_)
             << "Unsupported audio format 0x" << std::hex << entry.format
@@ -385,6 +388,16 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         channel_layout = CHANNEL_LAYOUT_BITSTREAM;
         sample_per_second = entry.samplerate;
         extra_data = entry.dfla.stream_info;
+#endif
+#if defined (STARBOARD)
+      } else if (audio_format == FOURCC_IAMF) {
+        MEDIA_LOG(INFO, media_log_) << "FORMAT IS IAMF";
+        codec = AudioCodec::kIamf;
+        // Storing fake info
+        channel_layout = CHANNEL_LAYOUT_STEREO;
+        sample_per_second = 48000;
+        std::vector<uint8_t> arr = {0xde, 0xad, 0xbe, 0xef};
+        extra_data = arr;
 #endif
       } else {
         uint8_t audio_type = entry.esds.object_type;

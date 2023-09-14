@@ -37,6 +37,10 @@ std::string GetCodecName(AudioCodec codec) {
       return "gsm_ms";
     case AudioCodec::kOpus:
       return "opus";
+#if defined (STARBOARD)
+    case AudioCodec::kIamf:
+      return "iamf";
+#endif
     case AudioCodec::kPCM_ALAW:
       return "pcm_alaw";
     case AudioCodec::kEAC3:
@@ -82,6 +86,10 @@ AudioCodec StringToAudioCodec(const std::string& codec_id) {
     return AudioCodec::kVorbis;
   if (base::StartsWith(codec_id, "mp4a.40.", base::CompareCase::SENSITIVE))
     return AudioCodec::kAAC;
+#if defined(STARBOARD)
+  if (codec_id == "iamf")
+    return AudioCodec::kIamf;
+#endif
   return AudioCodec::kUnknown;
 }
 

@@ -1438,6 +1438,88 @@ bool OpusSpecificBox::Parse(BoxReader* reader) {
   return true;
 }
 
+#if defined(STARBOARD)
+IamfSpecificBox::IamfSpecificBox() {}
+
+IamfSpecificBox::IamfSpecificBox(const IamfSpecificBox& other) = default;
+
+IamfSpecificBox::~IamfSpecificBox() = default;
+
+FourCC IamfSpecificBox::BoxType() const {
+  MEDIA_LOG(INFO, reader->media_log()) << "CALLED BOX TYPE IAMD";
+  return FOURCC_IAMD;
+}
+
+bool IamfSpecificBox::Parse(BoxReader* reader) {
+  MEDIA_LOG(INFO, reader->media_log()) << "PARSING IAMD";
+
+  // Parsing OBU header
+  uint32_t obu_type;
+  uint32_t check_obu_type;
+  RCHECK(reader->Read4(&obu_type));
+  MEDIA_LOG(INFO, reader->media_log()) << "OBU type " << obu_type;
+  check_obu_type = obu_type & 0x0000001f;
+  MEDIA_LOG(INFO, reader->media_log()) << "check OBU type " << check_obu_type;
+  // Parsing Magic Code OBU.
+  RCHECK(reader->Read4(&ia_code));
+  RCHECK(reader->Read1(&version));
+  RCHECK(reader->Read1(&profile_version));
+
+  MEDIA_LOG(INFO, reader->media_log()) << "ia code: " << ia_code << ", version"
+    " " << std::hex << version << ", profile version " << std::hex << profile_version;
+
+  // if (version > 0xf) {
+  //   MEDIA_LOG(INFO, reader->media_log()) << "version " << std::hex << version << " is unsupported";
+  //   return false;
+  // }
+
+  // if (profile_version > 0x1f) {
+  //   MEDIA_LOG(INFO, reader->media_log()) << "profile version " << std::hex << profile_version << " is unsupported";
+  //   return false;
+  // }
+
+  // Extradata must start with "OpusHead" magic.
+//   extradata.insert(extradata.end(),
+//                    {0x4f, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64});
+
+//   // The opus specific box must be present and at least OPUS_EXTRADATA_SIZE - 8
+//   // bytes in length. The -8 is for the missing "OpusHead" magic signature that
+//   // is required at the start of the extradata we give to the codec.
+//   const size_t headerless_extradata_size = reader->box_size() - reader->pos();
+//   RCHECK(headerless_extradata_size >= OPUS_EXTRADATA_SIZE - extradata.size());
+//   extradata.resize(extradata.size() + headerless_extradata_size);
+
+//   int16_t gain_db;
+
+//   RCHECK(reader->Read1(&extradata[OPUS_EXTRADATA_VERSION_OFFSET]));
+//   RCHECK(reader->Read1(&extradata[OPUS_EXTRADATA_CHANNELS_OFFSET]));
+//   RCHECK(reader->Read2(&codec_delay_in_frames /* PreSkip */));
+//   RCHECK(reader->Read4(&sample_rate));
+//   RCHECK(reader->Read2s(&gain_db));
+
+// #if !defined(ARCH_CPU_LITTLE_ENDIAN)
+// #error The code below assumes little-endianness.
+// #endif
+
+//   memcpy(&extradata[OPUS_EXTRADATA_SKIP_SAMPLES_OFFSET], &codec_delay_in_frames,
+//          sizeof(codec_delay_in_frames));
+//   memcpy(&extradata[OPUS_EXTRADATA_SAMPLE_RATE_OFFSET], &sample_rate,
+//          sizeof(sample_rate));
+//   memcpy(&extradata[OPUS_EXTRADATA_GAIN_OFFSET], &gain_db, sizeof(gain_db));
+
+//   channel_count = extradata[OPUS_EXTRADATA_CHANNELS_OFFSET];
+
+//   // Any remaining data is 1-byte data, so copy it over as is, there should
+//   // only be a handful of these entries, so reading byte by byte is okay.
+//   for (size_t i = OPUS_EXTRADATA_CHANNEL_MAPPING_OFFSET; i < extradata.size();
+//        ++i) {
+//     RCHECK(reader->Read1(&extradata[i]));
+//   }
+
+  return true;
+}
+#endif
+
 AudioSampleEntry::AudioSampleEntry()
     : format(FOURCC_NULL),
       data_reference_index(0),
@@ -1519,6 +1601,13 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
                         "AudioSampleEntry or CENC AudioSampleEntry wrapping "
                         "FLAC");
   }
+
+#if defined(STARBOARD)
+  if(format == FOURCC_IAMF) {
+    RCHECK_MEDIA_LOGGED(reader->ReadChild(&iamd), reader->media_log(),
+                        "Failure parsing IamfSpecificBox (iamd)");
+  }
+#endif
 
   // ESDS is not valid in case of EAC3.
   RCHECK(reader->MaybeReadChild(&esds));
