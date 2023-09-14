@@ -147,7 +147,7 @@ config("modular") {
     ]
   }
 
-  if (is_clang_16) {
+  if (is_clang_16 || is_host_win) {
     cflags += [
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
