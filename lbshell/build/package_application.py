@@ -16,11 +16,25 @@
 """Compatibility layer for buildbot."""
 
 import os
+<<<<<<< HEAD:lbshell/build/package_application.py
 import sys
 
 _HERE = os.path.realpath(os.path.dirname(__file__))
 _REPOSITORY_ROOT = os.path.realpath(os.path.join(_HERE, os.pardir, os.pardir))
 sys.path.append(_REPOSITORY_ROOT)
+=======
+
+
+def main():
+  try:
+    # Try to import this file and compare its path to the current file.
+    import starboard.build.is_on_path  # pylint: disable=import-outside-toplevel
+    this_file = os.path.abspath(__file__)
+    imported_file = os.path.abspath(starboard.build.is_on_path.__file__)
+    print(str(this_file == imported_file).lower())
+  except ImportError:
+    print('false')
+>>>>>>> a8bd2c377c4 (Modify pythonpath GN check to compare full paths (#1556)):starboard/build/is_on_path.py
 
 from internal.lbshell.build.package_application import main  # pylint: disable=wrong-import-position
 
