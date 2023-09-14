@@ -96,8 +96,7 @@ class VideoCodecCapability : public CodecCapability {
   // VideoCapabilities.areSizeAndRateSupported() or
   // VideoCapabilities.isSizeSupported() will be used to check the
   // supportability.
-  bool AreResolutionAndRateSupported(bool force_improved_support_check,
-                                     int frame_width,
+  bool AreResolutionAndRateSupported(int frame_width,
                                      int frame_height,
                                      int fps);
 
@@ -134,7 +133,6 @@ class MediaCapabilitiesCache {
                           bool must_support_secure,
                           bool must_support_hdr,
                           bool must_support_tunnel_mode,
-                          bool force_improved_support_check,
                           int frame_width,
                           int frame_height,
                           int bitrate,
@@ -147,7 +145,6 @@ class MediaCapabilitiesCache {
                                bool must_support_hdr,
                                bool require_software_codec,
                                bool must_support_tunnel_mode,
-                               bool force_improved_support_check,
                                int frame_width,
                                int frame_height,
                                int bitrate,
