@@ -363,10 +363,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._network_api.SetXboxLiveSignedInUserState(users[0]['EmailAddress'],
                                                    True)
 
-  def WinAppDeployCmd(self, command):
+  def WinAppDeployCmd(self, command: str):
     try:
-      out = subprocess.check_output('WinAppDeployCmd ' + command + ' -ip ' +
-                                    self.GetDeviceIp()).decode()
+      exe_path = os.path.join(packager.GetWinToolsPath(), 'WinAppDeployCmd.exe')
+      command_str = f'{exe_path} {command} -ip {self.GetDeviceIp()}'
+      self._Log('Running: ' + command_str)
+      out = subprocess.check_output(command_str).decode()
     except subprocess.CalledProcessError as e:
       self._LogLn(e.output)
       raise e
