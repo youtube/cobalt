@@ -34,7 +34,7 @@ declare_args() {
 
   using_old_compiler = false
 
-  build_with_separate_cobalt_toolchain = false
+  build_with_separate_cobalt_toolchain = true
 }
 
 _is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
