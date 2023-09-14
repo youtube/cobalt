@@ -64,7 +64,7 @@ class MEDIA_EXPORT SourceBufferStream {
 #if defined(STARBOARD)
   SourceBufferStream(const std::string& mime_type,
                      const AudioDecoderConfig& audio_config,
-                     MediaLog* media_log);
+                     MediaLog* media_log, size_t budget_override = 0);
   SourceBufferStream(const std::string& mime_type,
                      const VideoDecoderConfig& video_config,
                      MediaLog* media_log, size_t budget_override = 0);

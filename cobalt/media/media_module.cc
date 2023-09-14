@@ -198,6 +198,15 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " media metrics collection.";
     return true;
+  } else if (name == "EnableAudioBufferBudgetOverride") {
+    audio_buffer_budget_override_ = value;
+    LOG(INFO) << (value ? "Enabling" : "Disabling")
+              << " audio buffer budget override. Set to " << value;
+    starboard::ScopedLock scoped_lock(players_lock_);
+    for (const auto& wp : players_) {
+      wp.first->EnableAudioBufferBudgetOverride(value);
+    }
+    return true;
   } else if (name == "EnableVideoBufferBudgetOverride") {
     video_buffer_budget_override_ = value;
     LOG(INFO) << (value ? "Enabling" : "Disabling")
@@ -244,6 +253,9 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 
   if (video_buffer_budget_override_) {
     player->EnableVideoBufferBudgetOverride(video_buffer_budget_override_);
+  }
+  if (audio_buffer_budget_override_) {
+    player->EnableAudioBufferBudgetOverride(audio_buffer_budget_override_);
   }
 
   return player;

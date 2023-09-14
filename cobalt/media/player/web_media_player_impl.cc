@@ -268,6 +268,10 @@ void WebMediaPlayerImpl::LoadMediaSource() {
       BIND_TO_RENDER_LOOP(
           &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper),
       media_log_));
+  if (audio_buffer_budget_override_ > 0) {
+    chunk_demuxer_->EnableAudioBufferBudgetOverride(
+        audio_buffer_budget_override_);
+  }
   if (video_buffer_budget_override_ > 0) {
     chunk_demuxer_->EnableVideoBufferBudgetOverride(
         video_buffer_budget_override_);
@@ -996,11 +1000,15 @@ void WebMediaPlayerImpl::OnContentSizeChanged() {
   GetClient()->ContentSizeChanged();
 }
 
+void WebMediaPlayerImpl::EnableAudioBufferBudgetOverride(size_t budget) {
+  audio_buffer_budget_override_ = budget;
+  if (chunk_demuxer_) chunk_demuxer_->EnableAudioBufferBudgetOverride(budget);
+}
+
 void WebMediaPlayerImpl::EnableVideoBufferBudgetOverride(size_t budget) {
   video_buffer_budget_override_ = budget;
   if (chunk_demuxer_) chunk_demuxer_->EnableVideoBufferBudgetOverride(budget);
 }
-
 
 }  // namespace media
 }  // namespace cobalt

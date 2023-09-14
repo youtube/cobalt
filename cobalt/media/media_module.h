@@ -132,8 +132,8 @@ class MediaModule : public WebMediaPlayerFactory,
   // previous behavior.
   bool force_punch_out_by_default_ = false;
 
-  // When set to a value above zero this will override the default video buffer
-  // budget.
+  // When set to val above 0 these will override the default buffer budgets.
+  size_t audio_buffer_budget_override_ = 0;
   size_t video_buffer_budget_override_ = 0;
 
 #if SB_API_VERSION >= 15

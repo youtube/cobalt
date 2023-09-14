@@ -162,7 +162,7 @@ SourceBufferRange::GapPolicy TypeToGapPolicy(SourceBufferStreamType type) {
 #if defined(STARBOARD)
 SourceBufferStream::SourceBufferStream(const std::string& mime_type,
                                        const AudioDecoderConfig& audio_config,
-                                       MediaLog* media_log)
+                                       MediaLog* media_log, size_t budget_override)
     : mime_type_(mime_type),
       media_log_(media_log),
 #else  // defined (STARBOARD)
@@ -176,10 +176,16 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
+#if defined(STARBOARD)
+      memory_limit_(std::max(budget_override,
+          GetDemuxerStreamAudioMemoryLimit(&audio_config))) {
+#else  // defined (STARBOARD)
       memory_limit_(GetDemuxerStreamAudioMemoryLimit(&audio_config)) {
+#endif  // defined (STARBOARD)
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
   DVLOG(2) << __func__ << ": audio_buffer_size= " << memory_limit_;
+  LOG(INFO) << "SourceBufferStream created with audio buffer budget of " << memory_limit_;
 }
 
 #if defined(STARBOARD)

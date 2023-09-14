@@ -200,9 +200,13 @@ class WebMediaPlayer {
   virtual void SetDrmSystem(
       const scoped_refptr<media::DrmSystem>& drm_system) = 0;
 
+  // Set this value in bytes to override the default audio buffer budger
+  virtual void EnableAudioBufferBudgetOverride(size_t budget) {}
+
   // Set this value in bytes to override the default video buffer budger
   virtual void EnableVideoBufferBudgetOverride(size_t budget) {}
 
+  size_t audio_buffer_budget_override_ = 0;
   size_t video_buffer_budget_override_ = 0;
 };
 
