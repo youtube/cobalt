@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "url/url_canon_icu.h"
 #include "base/macros.h"
 #include "starboard/common/string.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 #include "url/url_canon.h"
+#include "url/url_canon_icu.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_test_utils.h"
 
