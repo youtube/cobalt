@@ -22,7 +22,20 @@ _HERE = os.path.realpath(os.path.dirname(__file__))
 _REPOSITORY_ROOT = os.path.realpath(os.path.join(_HERE, os.pardir, os.pardir))
 sys.path.append(_REPOSITORY_ROOT)
 
+<<<<<<< HEAD:lbshell/build/package_application.py
 from internal.lbshell.build.package_application import main  # pylint: disable=wrong-import-position
+=======
+def main():
+  try:
+    # Try to import this file and compare its path to the current file.
+    import starboard.build.is_on_path  # pylint: disable=import-outside-toplevel
+    this_file = os.path.realpath(__file__)
+    imported_file = os.path.realpath(starboard.build.is_on_path.__file__)
+    print(str(this_file == imported_file).lower())
+  except ImportError:
+    print('false')
+
+>>>>>>> feaaba19f6d (Fix invoking gn.py within Docker containers (#1562)):starboard/build/is_on_path.py
 
 if __name__ == '__main__':
   sys.exit(main())
