@@ -21,8 +21,8 @@ def main():
   try:
     # Try to import this file and compare its path to the current file.
     import starboard.build.is_on_path  # pylint: disable=import-outside-toplevel
-    this_file = os.path.abspath(__file__)
-    imported_file = os.path.abspath(starboard.build.is_on_path.__file__)
+    this_file = os.path.realpath(__file__)
+    imported_file = os.path.realpath(starboard.build.is_on_path.__file__)
     print(str(this_file == imported_file).lower())
   except ImportError:
     print('false')
