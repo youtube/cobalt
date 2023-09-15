@@ -91,6 +91,9 @@ config("compiler_flags") {
     # types or number of subparts.
     "-flax-vector-conversions",
 
+    # Need for stack unwinding
+    "-funwind-tables",
+
     # To support large files
     "-D_FILE_OFFSET_BITS=64",
 
