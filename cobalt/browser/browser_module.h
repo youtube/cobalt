@@ -362,6 +362,8 @@ class BrowserModule {
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen(base::TimeDelta close_time = base::TimeDelta());
 
+  void DestroyScrollEngine();
+
   // Called when web module has received window.close().
   void OnWindowClose(base::TimeDelta close_time);
 

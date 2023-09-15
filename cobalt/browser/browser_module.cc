@@ -475,7 +475,9 @@ BrowserModule::~BrowserModule() {
   }
   debug_console_.reset();
 #endif
+
   DestroySplashScreen();
+  DestroyScrollEngine();
   // Make sure the WebModule is destroyed before the ServiceWorkerRegistry
   if (web_module_) {
     lifecycle_observers_.RemoveObserver(web_module_.get());
@@ -650,7 +652,9 @@ void BrowserModule::NavigateSetupSplashScreen(
 }
 
 void BrowserModule::NavigateSetupScrollEngine() {
+  DestroyScrollEngine();
   scroll_engine_.reset(new ui_navigation::scroll_engine::ScrollEngine());
+  lifecycle_observers_.AddObserver(scroll_engine_.get());
   scroll_engine_->thread()->Start();
 }
 
@@ -1467,6 +1471,20 @@ void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
     SubmitCurrentRenderTreeToRenderer();
     splash_screen_.reset();
   }
+}
+
+void BrowserModule::DestroyScrollEngine() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::DestroyScrollEngine()");
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::DestroyScrollEngine, weak_this_));
+    return;
+  }
+  if (scroll_engine_ &&
+      lifecycle_observers_.HasObserver(scroll_engine_.get())) {
+    lifecycle_observers_.RemoveObserver(scroll_engine_.get());
+  }
+  scroll_engine_.reset();
 }
 
 #if defined(ENABLE_WEBDRIVER)
