@@ -58,6 +58,7 @@ _SOCKET_SUCCESS = 0
 # These tests can only be run on platforms whose app launcher can send suspend/
 # resume signals.
 _TESTS_NEEDING_SYSTEM_SIGNAL = [
+    'cancel_scroll_when_suspended',
     'cancel_sync_loads_when_suspended',
     'pointer_test',
     'preload_font',
