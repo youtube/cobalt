@@ -92,6 +92,7 @@ repos:
         entry: clang-format
         language: python
         types: [c++]
+        exclude_types: [objective-c++]
         args: [-i, -style=file]
         additional_dependencies: ['clang-format']
     -   id: cpplint
