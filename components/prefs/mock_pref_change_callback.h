@@ -41,7 +41,8 @@ class MockPrefChangeCallback {
 
   MOCK_METHOD1(OnPreferenceChanged, void(const std::string&));
 
-  void Expect(const std::string& pref_name, const base::Value* value);
+  void Expect(const std::string& pref_name,
+              const base::Value* value);
 
  private:
   PrefService* prefs_;
