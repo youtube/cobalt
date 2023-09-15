@@ -163,6 +163,7 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 void PlayerWorker::UpdatePlayerError(SbPlayerError error,
                                      HandlerResult result,
                                      const std::string& error_message) {
+  SB_DCHECK(!result.success);
   std::string complete_error_message = error_message;
   if (!result.error_message.empty()) {
     complete_error_message += " Error: " + result.error_message;
