@@ -1,0 +1,7 @@
+third_party {
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/src"
+  }
+  version: "80.0.3987.162"
+}

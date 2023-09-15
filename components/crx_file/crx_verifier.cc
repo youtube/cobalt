@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,12 +28,6 @@
 namespace crx_file {
 
 namespace {
-
-// The maximum size the Crx2 parser will tolerate for a public key.
-constexpr uint32_t kMaxPublicKeySize = 1 << 16;
-
-// The maximum size the Crx2 parser will tolerate for a signature.
-constexpr uint32_t kMaxSignatureSize = 1 << 16;
 
 // The maximum size the Crx3 parser will tolerate for a header.
 constexpr uint32_t kMaxHeaderSize = 1 << 18;
@@ -386,53 +380,6 @@ VerifierResult VerifyCrx3FromString(
 }
 #endif
 
-VerifierResult VerifyCrx2(
-    base::File* file,
-    crypto::SecureHash* hash,
-    const std::vector<std::vector<uint8_t>>& required_key_hashes,
-    std::string* public_key,
-    std::string* crx_id) {
-  const uint32_t key_size = ReadAndHashLittleEndianUInt32(file, hash);
-  if (key_size > kMaxPublicKeySize)
-    return VerifierResult::ERROR_HEADER_INVALID;
-  const uint32_t sig_size = ReadAndHashLittleEndianUInt32(file, hash);
-  if (sig_size > kMaxSignatureSize)
-    return VerifierResult::ERROR_HEADER_INVALID;
-  std::vector<uint8_t> key(key_size);
-  if (ReadAndHashBuffer(key.data(), key_size, file, hash) !=
-      static_cast<int>(key_size))
-    return VerifierResult::ERROR_HEADER_INVALID;
-  for (const auto& expected_hash : required_key_hashes) {
-    // In practice we expect zero or one key_hashes_ for Crx2 files.
-    std::vector<uint8_t> hash(crypto::kSHA256Length);
-    std::unique_ptr<crypto::SecureHash> sha256 =
-        crypto::SecureHash::Create(crypto::SecureHash::SHA256);
-    sha256->Update(key.data(), key.size());
-    sha256->Finish(hash.data(), hash.size());
-    if (hash != expected_hash)
-      return VerifierResult::ERROR_REQUIRED_PROOF_MISSING;
-  }
-
-  std::vector<uint8_t> sig(sig_size);
-  if (ReadAndHashBuffer(sig.data(), sig_size, file, hash) !=
-      static_cast<int>(sig_size))
-    return VerifierResult::ERROR_HEADER_INVALID;
-  std::vector<std::unique_ptr<crypto::SignatureVerifier>> verifiers;
-  verifiers.push_back(std::make_unique<crypto::SignatureVerifier>());
-  if (!verifiers[0]->VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1, sig,
-                                key)) {
-    return VerifierResult::ERROR_SIGNATURE_INITIALIZATION_FAILED;
-  }
-
-  if (!ReadHashAndVerifyArchive(file, hash, verifiers))
-    return VerifierResult::ERROR_SIGNATURE_VERIFICATION_FAILED;
-
-  const std::string public_key_bytes(key.begin(), key.end());
-  base::Base64Encode(public_key_bytes, public_key);
-  *crx_id = id_util::GenerateId(public_key_bytes);
-  return VerifierResult::OK_FULL;
-}
-
 #if defined(IN_MEMORY_UPDATES)
 VerifierResult VerifyCrx2FromString(
     const std::string& crx_str,
@@ -517,15 +464,7 @@ VerifierResult Verify(
   const uint32_t version =
       ReadAndHashLittleEndianUInt32(&file, file_hash.get());
   VerifierResult result;
-  if (version == 2)
-    LOG(WARNING) << "File '" << crx_path
-                 << "' is in CRX2 format, which is deprecated and will not be "
-                    "supported in M78+";
-  if (format == VerifierFormat::CRX2_OR_CRX3 &&
-      (version == 2 || (diff && version == 0))) {
-    result = VerifyCrx2(&file, file_hash.get(), required_key_hashes,
-                        &public_key_local, &crx_id_local);
-  } else if (version == 3) {
+  if (version == 3) {
     bool require_publisher_key =
         format == VerifierFormat::CRX3_WITH_PUBLISHER_PROOF ||
         format == VerifierFormat::CRX3_WITH_TEST_PUBLISHER_PROOF;

@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -66,19 +66,6 @@ namespace crx_file {
 
 using CrxVerifierTest = testing::Test;
 
-TEST_F(CrxVerifierTest, ValidFullCrx2) {
-  const std::vector<std::vector<uint8_t>> keys;
-  const std::vector<uint8_t> hash;
-  std::string public_key;
-  std::string crx_id;
-
-  EXPECT_EQ(VerifierResult::OK_FULL,
-            Verify(TestFile("valid.crx2"), VerifierFormat::CRX2_OR_CRX3, keys,
-                   hash, &public_key, &crx_id));
-  EXPECT_EQ(std::string(kOjjHash), crx_id);
-  EXPECT_EQ(std::string(kOjjKey), public_key);
-}
-
 #if defined(IN_MEMORY_UPDATES)
 TEST_F(CrxVerifierTest, ValidFullCrx2FromString) {
   const std::vector<std::vector<uint8_t>> keys;
@@ -102,9 +89,9 @@ TEST_F(CrxVerifierTest, ValidFullCrx3) {
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
 
-  EXPECT_EQ(VerifierResult::OK_FULL, Verify(TestFile("valid_no_publisher.crx3"),
-                                            VerifierFormat::CRX2_OR_CRX3, keys,
-                                            hash, &public_key, &crx_id));
+  EXPECT_EQ(VerifierResult::OK_FULL,
+            Verify(TestFile("valid_no_publisher.crx3"), VerifierFormat::CRX3,
+                   keys, hash, &public_key, &crx_id));
   EXPECT_EQ(std::string(kOjjHash), crx_id);
   EXPECT_EQ(std::string(kOjjKey), public_key);
 
@@ -180,9 +167,9 @@ TEST_F(CrxVerifierTest, VerifiesFileHash) {
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
 
-  EXPECT_EQ(VerifierResult::OK_FULL, Verify(TestFile("valid_no_publisher.crx3"),
-                                            VerifierFormat::CRX2_OR_CRX3, keys,
-                                            hash, &public_key, &crx_id));
+  EXPECT_EQ(VerifierResult::OK_FULL,
+            Verify(TestFile("valid_no_publisher.crx3"), VerifierFormat::CRX3,
+                   keys, hash, &public_key, &crx_id));
   EXPECT_EQ(std::string(kOjjHash), crx_id);
   EXPECT_EQ(std::string(kOjjKey), public_key);
 
@@ -259,10 +246,9 @@ TEST_F(CrxVerifierTest, ChecksRequiredKeyHashes) {
   const std::vector<std::vector<uint8_t>> good_keys = {good_key};
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
-  EXPECT_EQ(
-      VerifierResult::OK_FULL,
-      Verify(TestFile("valid_no_publisher.crx3"), VerifierFormat::CRX2_OR_CRX3,
-             good_keys, hash, &public_key, &crx_id));
+  EXPECT_EQ(VerifierResult::OK_FULL,
+            Verify(TestFile("valid_no_publisher.crx3"), VerifierFormat::CRX3,
+                   good_keys, hash, &public_key, &crx_id));
   EXPECT_EQ(std::string(kOjjHash), crx_id);
   EXPECT_EQ(std::string(kOjjKey), public_key);
 
@@ -487,8 +473,8 @@ TEST_F(CrxVerifierTest, RequiresDeveloperKey) {
   std::string public_key = "UNSET";
   std::string crx_id = "UNSET";
   EXPECT_EQ(VerifierResult::ERROR_REQUIRED_PROOF_MISSING,
-            Verify(TestFile("unsigned.crx3"), VerifierFormat::CRX2_OR_CRX3,
-                   keys, hash, &public_key, &crx_id));
+            Verify(TestFile("unsigned.crx3"), VerifierFormat::CRX3, keys, hash,
+                   &public_key, &crx_id));
   EXPECT_EQ("UNSET", crx_id);
   EXPECT_EQ("UNSET", public_key);
 }

@@ -32,6 +32,7 @@ static_library("crx_file") {
     "id_util.cc",
     "id_util.h",
   ]
+
   deps = [
     "//base",
     "//crypto",
