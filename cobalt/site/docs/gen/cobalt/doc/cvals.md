@@ -123,6 +123,18 @@ Here are examples of its usage:
     compatibility violations encountered.
 *   **Count.XHR** - The total number of xhr::XMLHttpRequest in existence
     globally.
+*   **Count.MainWebModule.AnimatedImage.Active** - The total number of currently
+    active animated image decoders. Same image from a single URL source rendered
+    multiple times across the content counts as one decoder.
+*   **Count.MainWebModule.AnimatedImage.DecodedFrames** - Total number of decoded
+    frames across all active image decoders. This number resets only when
+    WebModule gets re-created - e.g. page reload, navigation.
+*   **Count.MainWebModule.AnimatedImage.DecodingUnderruns** - Total number of
+    frames when animated image decoding has fallen behind real-time, as defined
+    by image frame exposure times. This indicates a CPU bottleneck.
+*   **Count.MainWebModule.AnimatedImage.DecodingOverruns** - Total number of
+    frames when animated image decoding has been attempted too early, before
+    next frame exposure time. This indicates a timing issue in platform.
 
 ### Event
 
@@ -435,3 +447,17 @@ query):
     stopped playing animations.
 *   **Time.Renderer.Rasterize.NewRenderTree** - Time when the most recent render
     tree was first rasterized.
+
+### Starboard
+
+#### PublicCVals
+
+*   **Starboard.FileWrite.Success** - Count of successful file writes.
+*   **Starboard.FileWrite.Fail** - Count of failed file writes.
+*   **Starboard.FileWrite.BytesWritten** - Bytes written to file.
+*   **Starboard.StorageWriteRecord.Success** - Count of successful storage
+    record writes.
+*   **Starboard.StorageWriteRecord.Fail** - Count of failed storage record
+    writes.
+*   **Starboard.StorageWriteRecord.BytesWritten** - Bytes written to storage
+    record.

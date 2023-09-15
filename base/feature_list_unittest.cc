@@ -9,7 +9,6 @@
 
 #include "base/format_macros.h"
 #include "base/macros.h"
-#include "base/memory/ptr_util.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/strings/string_piece.h"
@@ -44,7 +43,7 @@ std::string SortFeatureListString(const std::string& feature_list) {
 class FeatureListTest : public testing::Test {
  public:
   FeatureListTest() : feature_list_(nullptr) {
-    RegisterFeatureListInstance(WrapUnique(new FeatureList));
+    RegisterFeatureListInstance(std::make_unique<FeatureList>());
   }
   ~FeatureListTest() override { ClearFeatureListInstance(); }
 

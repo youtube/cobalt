@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/user.h"
 
 #include "starboard/shared/nouser/user_internal.h"
@@ -21,3 +23,5 @@
 SbUser SbUserGetCurrent() {
   return &starboard::shared::nouser::g_user;
 }
+
+#endif  // SB_API_VERSION < 16

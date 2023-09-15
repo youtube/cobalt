@@ -147,15 +147,16 @@
  * OTHERWISE.
  */
 
-#include <openssl/opensslconf.h>
+#include <openssl/ssl.h>
+
 #if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/base.h>
 
-#include <openssl/ssl.h>
+#include <utility>
+
 #include <openssl/aead.h>
 #include <openssl/bn.h>
 #include <openssl/buf.h>
@@ -167,8 +168,6 @@
 #include <openssl/md5.h>
 #include <openssl/mem.h>
 #include <openssl/rand.h>
-
-#include <utility>
 
 #include "../crypto/internal.h"
 #include "internal.h"

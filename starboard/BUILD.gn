@@ -51,8 +51,13 @@ group("gn_all") {
   if (sb_filter_based_player) {
     deps += [
       "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
-      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
+      "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
     ]
+
+    # TODO: b/296715826 - Fix build error for windows modular builds.
+    if (!(sb_is_modular && is_host_win)) {
+      deps += [ "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)" ]
+    }
   }
 
   if (sb_enable_benchmark) {
@@ -69,7 +74,7 @@ group("gn_all") {
     if (sb_is_evergreen_compatible) {
       deps += [ "//third_party/crashpad/client" ]
       data_deps = [
-        "//starboard/loader_app",
+        "//starboard/loader_app($starboard_toolchain)",
         "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
       ]
     }
@@ -105,11 +110,11 @@ group("starboard") {
 
     # TODO: b/295702296 Fix libunwind for modular builds.
     if (sb_is_evergreen || is_host_win) {
-      public_deps += [ "//third_party/llvm-project/libunwind:unwind_evergreen" ]
+      public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
     }
   } else {
     public_deps += [
-      ":starboard_platform_group($starboard_toolchain)",
+      ":starboard_platform_group_static($starboard_toolchain)",
       "//starboard/common",
     ]
 
@@ -182,6 +187,10 @@ source_set("starboard_headers_only") {
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
   starboard_platform_target("starboard_platform_group") {
+  }
+
+  starboard_platform_target("starboard_platform_group_static") {
+    target_type = "group"
   }
 
   if (platform_tests_path == "") {

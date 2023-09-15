@@ -188,8 +188,8 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
   assert(CBS_len(&extensions) == 0);
 
   // Sort the extensions and make sure there are no duplicates.
-  qsort(extension_types.data(), extension_types.size(),
-                     sizeof(uint16_t), compare_uint16_t);
+  qsort(extension_types.data(), extension_types.size(), sizeof(uint16_t),
+        compare_uint16_t);
   for (size_t i = 1; i < num_extensions; i++) {
     if (extension_types[i - 1] == extension_types[i]) {
       return false;
@@ -371,9 +371,8 @@ bool tls1_set_curves_list(Array<uint16_t> *out_group_ids, const char *curves) {
   ptr = curves;
   do {
     col = strchr(ptr, ':');
-    if (!ssl_name_to_group_id(
-            &group_ids[i++], ptr,
-            col ? (size_t)(col - ptr) : strlen(ptr))) {
+    if (!ssl_name_to_group_id(&group_ids[i++], ptr,
+                              col ? (size_t)(col - ptr) : strlen(ptr))) {
       return false;
     }
     if (col) {
@@ -2749,8 +2748,8 @@ static bool cert_compression_parse_clienthello(SSL_HANDSHAKE *hs,
     }
   }
 
-  qsort(given_alg_ids.data(), given_alg_ids.size(),
-                     sizeof(uint16_t), compare_uint16_t);
+  qsort(given_alg_ids.data(), given_alg_ids.size(), sizeof(uint16_t),
+        compare_uint16_t);
   for (size_t i = 1; i < num_given_alg_ids; i++) {
     if (given_alg_ids[i - 1] == given_alg_ids[i]) {
       return false;

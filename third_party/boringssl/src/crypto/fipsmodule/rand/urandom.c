@@ -297,6 +297,6 @@ void CRYPTO_sysrand(uint8_t *out, size_t requested) {
 #endif
 }
 
-#endif /* !OPENSSL_WINDOWS && !defined(OPENSSL_FUCHSIA) &&           \
-          !BORINGSSL_UNSAFE_DETERMINISTIC_MODE && !OPENSSL_TRUSTY && \
-          !defined(STARBOARD) */
+#endif /* !OPENSSL_WINDOWS && !defined(OPENSSL_FUCHSIA) && \
+          !defined(STARBOARD) && \
+          !BORINGSSL_UNSAFE_DETERMINISTIC_MODE && !OPENSSL_TRUSTY */

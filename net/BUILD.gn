@@ -28,8 +28,6 @@ config("net_public_defines") {
 }
 
 component("net") {
-  check_includes = false
-
   sources = [
     "base/address_family.cc",
     "base/address_family.h",
@@ -198,7 +196,6 @@ component("net") {
     "der/tag.cc",
     "der/tag.h",
 
-    # dial is a legacy Chromium component with heavy Cobalt modifications.
     "base/arena.cc",
     "base/arena.h",
     "base/backoff_entry.cc",
@@ -344,18 +341,6 @@ component("net") {
     "cookies/cookie_util.h",
     "cookies/parsed_cookie.cc",
     "cookies/parsed_cookie.h",
-    "dial/dial_http_server.cc",
-    "dial/dial_http_server.h",
-    "dial/dial_service.cc",
-    "dial/dial_service.h",
-    "dial/dial_service_handler.h",
-    "dial/dial_system_config.cc",
-    "dial/dial_system_config.h",
-    "dial/dial_system_config_starboard.cc",
-    "dial/dial_udp_server.cc",
-    "dial/dial_udp_server.h",
-    "dial/dial_udp_socket_factory.cc",
-    "dial/dial_udp_socket_factory.h",
     "dns/address_sorter.h",
     "dns/address_sorter.h",
     "dns/address_sorter_starboard.cc",
@@ -3629,12 +3614,6 @@ target(gtest_target_type, "net_unittests") {
     "dns/record_rdata_unittest.cc",
     "dns/serial_worker_unittest.cc",
 
-    # dial is a legacy component we kept from old Chromium net.
-    "dial/dial_http_server_unittest.cc",
-    "dial/dial_service_unittest.cc",
-    "dial/dial_test_helpers.h",
-    "dial/dial_udp_server_unittests.cc",
-
     # disk_cache component is disabled because only http cache depends on
     # it and Cobalt does not support http cache yet.
     # "disk_cache/backend_cleanup_tracker_unittest.cc",
@@ -4193,6 +4172,17 @@ target(gtest_target_type, "net_unittests") {
     ]
   }
 
+  if (enable_in_app_dial) {
+    sources += [
+    # DIAL server is Cobalt custom implementation. This is the wrong place for
+    # it and it should be moved to cobalt/network in the future.
+    "dial/dial_http_server_unittest.cc",
+    "dial/dial_service_unittest.cc",
+    "dial/dial_test_helpers.h",
+    "dial/dial_udp_server_unittests.cc",
+    ]
+  }
+
   # Avoid compiler errors due to conversion from "0x00" to char.
   if (is_win) {
     if (!is_starboard) {
@@ -4224,7 +4214,6 @@ target(gtest_target_type, "net_unittests") {
     "//base:i18n",
     "//base/test:test_support",
     "//base/third_party/dynamic_annotations",
-    "//cobalt/persistent_storage:persistent_settings",
     "//crypto",
     "//testing/gmock",
     "//testing/gtest",
@@ -4233,6 +4222,9 @@ target(gtest_target_type, "net_unittests") {
     "//url",
     "//url:url_features",
   ]
+  if (enable_in_app_dial) {
+    deps += [ ":cobalt_dial_server" ]
+  }
 
   if (is_starboard) {
     data_deps = [
@@ -4242,11 +4234,37 @@ target(gtest_target_type, "net_unittests") {
       "//third_party/icu:icudata",
     ]
   }
+
+  if(use_cobalt_customizations) {
+    # TODO: b/296715826 - Fix unused symbols which cause linker errors for windows platform modular builds.
+    sources -= [
+      "http/http_stream_factory_job_controller_unittest.cc",
+      "http/http_stream_factory_unittest.cc",
+      "http/http_stream_parser_unittest.cc",
+      "quic/bidirectional_stream_quic_impl_unittest.cc",
+      "quic/crypto/proof_verifier_chromium_test.cc",
+      "quic/network_connection_unittest.cc",
+      "quic/properties_based_quic_server_info_test.cc",
+      "quic/quic_address_mismatch_test.cc",
+      "quic/quic_chromium_alarm_factory_test.cc",
+      "quic/quic_chromium_client_session_test.cc",
+      "quic/quic_chromium_client_stream_test.cc",
+      "quic/quic_chromium_connection_helper_test.cc",
+      "quic/quic_clock_skew_detector_test.cc",
+      "quic/quic_connectivity_probing_manager_test.cc",
+      "quic/quic_end_to_end_unittest.cc",
+      "quic/quic_http_stream_test.cc",
+      "quic/quic_network_transaction_unittest.cc",
+      "quic/quic_proxy_client_socket_unittest.cc",
+      "quic/quic_stream_factory_test.cc",
+      "quic/quic_utils_chromium_test.cc",
+    ]
+
+  }
 }
 
 static_library("test_support") {
   testonly = true
-  check_includes = false
 
   sources = [
     # "disk_cache/disk_cache_test_base.cc",
@@ -4254,6 +4272,7 @@ static_library("test_support") {
     # "disk_cache/disk_cache_test_util.cc",
     # "disk_cache/disk_cache_test_util.h",
 
+    "base/directory_lister.h",
     "base/test_data_stream.cc",
     "base/test_data_stream.h",
     "quic/quic_test_packet_maker.cc",
@@ -4420,6 +4439,16 @@ static_library("test_support") {
     "//third_party/zlib",
     "//url",
   ]
+
+  if(use_cobalt_customizations) {
+    # TODO: b/296715826 - Fix unused symbols which cause linker errors for windows platform modular builds.
+    sources -= [
+      "test/quic_simple_test_server.cc",
+      "test/quic_simple_test_server.h",
+      "quic/quic_test_packet_maker.cc",
+      "quic/quic_test_packet_maker.h",
+    ]
+  }
 }
 
 static_library("quic_test_tools") {
@@ -4657,4 +4686,29 @@ static_library("http_server") {
     "//base",
     "//starboard/common",
   ]
+}
+
+if (enable_in_app_dial) {
+static_library("cobalt_dial_server") {
+  sources = [
+    "dial/dial_http_server.cc",
+    "dial/dial_http_server.h",
+    "dial/dial_service.cc",
+    "dial/dial_service.h",
+    "dial/dial_service_handler.h",
+    "dial/dial_system_config.cc",
+    "dial/dial_system_config.h",
+    "dial/dial_system_config_starboard.cc",
+    "dial/dial_udp_server.cc",
+    "dial/dial_udp_server.h",
+    "dial/dial_udp_socket_factory.cc",
+    "dial/dial_udp_socket_factory.h",
+  ]
+  deps = [
+      ":http_server",
+      ":net",
+      "//base:base",
+      "//starboard/common",
+    ]
+  }
 }

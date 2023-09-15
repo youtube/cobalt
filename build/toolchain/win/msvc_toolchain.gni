@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+assert(use_cobalt_customizations)
+
 import("//build/toolchain/cc_wrapper.gni")
 import("//build/toolchain/toolchain.gni")
 
@@ -19,15 +21,19 @@ tool_wrapper_path = rebase_path("tool_wrapper.py", root_build_dir)
 
 template("msvc_toolchain") {
   # Write the environment variables file in the out directory.
-  required_environment_variables = ["SYSTEMROOT", "TEMP", "TMP"]
+  required_environment_variables = [
+    "SYSTEMROOT",
+    "TEMP",
+    "TMP",
+  ]
   optional_environment_variables = [
     "INCLUDE",
     "LIB",
     "PATH",
     "PATHEXT",
-    "XEDK", # TODO: What does this do?
-    "IS_DOCKER", # needed for ninja to invoke docker-specific logic
-    "IS_CI",     # needed for ninja to exclude some logic on GKE
+    "XEDK",  # TODO: What does this do?
+    "IS_DOCKER",  # needed for ninja to invoke docker-specific logic
+    "IS_CI",  # needed for ninja to exclude some logic on GKE
 
     # The remaining variables should be explicitly enumerated.
     # "cell_.*",
@@ -51,7 +57,11 @@ template("msvc_toolchain") {
 
   nul = "$0x00"
   env_block = string_join(nul, environment_key_value_pairs) + nul
-  write_file("$root_build_dir/environment.$target_cpu", env_block)
+
+  # If the default toolchain shares its name with another toolchain,
+  # there could be a deadlock where both toolchains try to write to the same environment file.
+  # See b/297227714 for more context.
+  write_file("$root_build_dir/$target_name/environment.$target_cpu", env_block)
 
   toolchain(target_name) {
     # When invoking this toolchain not as the default one, these args will be
@@ -70,8 +80,7 @@ template("msvc_toolchain") {
     # Object files go in this directory.
     object_subdir = "{{target_out_dir}}/{{label_name}}"
 
-    env = "environment.$target_cpu"
-
+    env = "$target_name/environment.$target_cpu"
     cl = invoker.cl
     lib = invoker.lib
     link = invoker.link
@@ -119,7 +128,7 @@ template("msvc_toolchain") {
     tool("asm") {
       description = "ASM {{output}}"
       outputs = [ "$object_subdir/{{source_name_part}}.obj" ]
-      command ="$env_wrapper$asm /nologo /Fo{{output}} /c {{defines}} {{include_dirs}} {{asmflags}} {{source}}"
+      command = "$env_wrapper$asm /nologo /Fo{{output}} /c {{defines}} {{include_dirs}} {{asmflags}} {{source}}"
     }
 
     sys_lib_flags = "${invoker.sys_lib_flags} "  # Note trailing space.
@@ -163,9 +172,7 @@ template("msvc_toolchain") {
       ]
       link_output = libname
       depend_output = libname
-      runtime_outputs = [
-        dllname,
-      ]
+      runtime_outputs = [ dllname ]
 
       # Since the above commands only updates the .lib file when it changes, ask
       # Ninja to check if the timestamp actually changed to know if downstream
@@ -189,9 +196,7 @@ template("msvc_toolchain") {
       default_output_extension = ".dll"
       default_output_dir = "{{root_out_dir}}"
       description = "LINK_MODULE(DLL) {{output}}"
-      outputs = [
-        dllname,
-      ]
+      outputs = [ dllname ]
       runtime_outputs = outputs
 
       # The use of inputs_newline is to work around a fixed per-line buffer
@@ -210,9 +215,7 @@ template("msvc_toolchain") {
       default_output_extension = ".exe"
       default_output_dir = "{{root_out_dir}}"
       description = "LINK {{output}}"
-      outputs = [
-        exename,
-      ]
+      outputs = [ exename ]
       runtime_outputs = outputs
 
       # The use of inputs_newline is to work around a fixed per-line buffer

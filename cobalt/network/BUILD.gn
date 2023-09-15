@@ -63,10 +63,7 @@ static_library("network") {
   }
 
   if (enable_in_app_dial) {
-    deps += [
-      # DialService depends on http server.
-      "//net:http_server",
-    ]
+    deps += [ "//net:cobalt_dial_server" ]
   }
 
   # Enable network logging on all but gold builds.

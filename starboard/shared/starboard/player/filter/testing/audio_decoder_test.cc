@@ -185,6 +185,7 @@ class AudioDecoderTest
 
     last_input_buffer_ = GetAudioInputBuffer(index);
     audio_decoder_->Decode({last_input_buffer_}, consumed_cb());
+    written_inputs_.push_back(last_input_buffer_);
   }
 
   void WriteSingleInput(size_t index,
@@ -200,6 +201,7 @@ class AudioDecoderTest
     last_input_buffer_ = GetAudioInputBuffer(
         index, discarded_duration_from_front, discarded_duration_from_back);
     audio_decoder_->Decode({last_input_buffer_}, consumed_cb());
+    written_inputs_.push_back(last_input_buffer_);
   }
 
   // This has to be called when OnOutput() is called.
@@ -224,12 +226,14 @@ class AudioDecoderTest
     ASSERT_EQ(decoded_audio_sample_type_, local_decoded_audio->sample_type());
     ASSERT_EQ(decoded_audio_sample_rate_, decoded_sample_rate);
 
-    // TODO: Adaptive audio decoder may set output timestamp to 0, so we don't
-    //       verify audio timestamp if it's 0.  Consider enabling it after we
-    //       fix timestamp issues.
-    if (local_decoded_audio->timestamp() != 0 && !decoded_audios_.empty()) {
+    if (!decoded_audios_.empty()) {
       ASSERT_LT(decoded_audios_.back()->timestamp(),
                 local_decoded_audio->timestamp());
+    }
+    if (!using_stub_decoder_ && invalid_inputs_.empty()) {
+      ASSERT_NEAR(local_decoded_audio->timestamp(),
+                  written_inputs_.front()->timestamp(), 5);
+      written_inputs_.pop_front();
     }
     decoded_audios_.push_back(local_decoded_audio);
     *decoded_audio = local_decoded_audio;
@@ -431,6 +435,7 @@ class AudioDecoderTest
 
   bool can_accept_more_input_ = true;
   scoped_refptr<InputBuffer> last_input_buffer_;
+  std::deque<scoped_refptr<InputBuffer>> written_inputs_;
   std::vector<scoped_refptr<DecodedAudio>> decoded_audios_;
 
   bool eos_written_ = false;

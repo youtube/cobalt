@@ -65,7 +65,6 @@ public class AudioTrackBridge {
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
-      boolean enablePcmContentTypeMovie,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
 
@@ -119,7 +118,7 @@ public class AudioTrackBridge {
       // TODO: Support ENCODING_E_AC3_JOC for api level 28 or later.
       final boolean isSurround =
           sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3;
-      final boolean useContentTypeMovie = isSurround || (!isWebAudio && enablePcmContentTypeMovie);
+      final boolean useContentTypeMovie = isSurround || !isWebAudio;
       attributes =
           new AudioAttributes.Builder()
               .setContentType(

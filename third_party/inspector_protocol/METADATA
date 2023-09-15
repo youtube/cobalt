@@ -8,6 +8,8 @@ third_party {
     value: "https://chromium.googlesource.com/deps/inspector_protocol"
   }
   version: "8170c7d7cdcfc77e245518de364ff3f6988cb425"
+  # apparently corresponds to
+  # https://chromium.googlesource.com/chromium/src/+log/80.0.3987.162/third_party/inspector_protocol
   last_upgrade_date {
     year: 2019
     month: 11

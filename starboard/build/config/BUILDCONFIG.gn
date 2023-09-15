@@ -37,6 +37,10 @@ declare_args() {
   build_with_separate_cobalt_toolchain = false
 }
 
+_is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
+assert(!is_starboard || _is_on_pythonpath,
+       "The current repo is not first on the PYTHONPATH.")
+
 assert(!(is_starboard && is_native_target_build),
        "Targets should be built for Starboard or natively, but not both")
 
@@ -99,7 +103,7 @@ if (target_cpu == "x86" || target_cpu == "arm") {
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
 
 if (build_with_separate_cobalt_toolchain) {
-  cobalt_toolchain = "//starboard/build/toolchain:clang"
+  cobalt_toolchain = "//$starboard_path/toolchain:cobalt"
   starboard_toolchain = "//$starboard_path/toolchain:starboard"
 } else {
   cobalt_toolchain = "//$starboard_path/toolchain:target"
@@ -253,7 +257,8 @@ template("install_content") {
     }
   }
 
-  if (defined(invoker.install_content) && invoker.install_content) {
+  if (defined(invoker.install_content) && invoker.install_content &&
+      current_toolchain == default_toolchain) {
     # We're using a custom script to copy the files here because rebase_path
     # can't be used with {{}} expansions in the outputs of a copy target.
     action("${target_name}_install_content") {
@@ -293,6 +298,13 @@ template("install_content") {
         "--files_list",
         rebase_path(files_list, root_build_dir),
       ]
+    }
+  } else if (current_toolchain == starboard_toolchain &&
+             build_with_separate_cobalt_toolchain) {
+    outer_target_name = target_name
+    group("${target_name}_install_content") {
+      forward_variables_from(invoker, [ "testonly" ])
+      deps = [ ":${outer_target_name}_install_content($default_toolchain)" ]
     }
   }
 }
@@ -483,8 +495,11 @@ template("shared_library") {
       forward_variables_from(invoker, [ "testonly" ])
       deps = [
         ":${actual_target_name}_loader($starboard_toolchain)",
-        ":${actual_target_name}_loader_copy($starboard_toolchain)",
+        ":${actual_target_name}_loader_install($starboard_toolchain)",
       ]
+      if (!is_host_win) {
+        deps += [ ":${actual_target_name}_loader_copy($starboard_toolchain)" ]
+      }
     }
     if (current_toolchain == starboard_toolchain) {
       executable("${actual_target_name}_loader") {
@@ -506,18 +521,25 @@ template("shared_library") {
         ldflags = [
           "-Wl,-rpath=" + rebase_path("$root_build_dir/starboard"),
           "-Wl,-rpath=" + rebase_path("$root_build_dir"),
+          "-Wl,-rpath=\$ORIGIN/../lib",
+          "-Wl,-rpath=\$ORIGIN",
         ]
 
         deps = [
           ":$original_target_name($cobalt_toolchain)",
           "//starboard:starboard_platform_group($starboard_toolchain)",
         ]
+        if (!separate_install_targets_for_bundling) {
+          deps += [ "//starboard:starboard_platform_group_install($starboard_toolchain)" ]
+        }
       }
-      copy("${actual_target_name}_loader_copy") {
-        forward_variables_from(invoker, [ "testonly" ])
-        sources = [ "$root_out_dir/${actual_target_name}_loader" ]
-        outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
-        deps = [ ":${actual_target_name}_loader" ]
+      if (!is_host_win) {
+        copy("${actual_target_name}_loader_copy") {
+          forward_variables_from(invoker, [ "testonly" ])
+          sources = [ "$root_out_dir/${actual_target_name}_loader" ]
+          outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
+          deps = [ ":${actual_target_name}_loader" ]
+        }
       }
     }
   }

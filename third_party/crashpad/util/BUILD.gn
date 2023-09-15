@@ -89,7 +89,6 @@ if (crashpad_is_mac) {
 }
 
 static_library("util") {
-  check_includes = false
   sources = [
     "file/delimited_file_reader.cc",
     "file/delimited_file_reader.h",

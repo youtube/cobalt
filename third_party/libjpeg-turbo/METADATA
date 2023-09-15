@@ -8,8 +8,8 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo/"
   }
-  # Version 2.1.0
-  version: "b201838d8b5f2f80c9f86ec8405a62a002232b2c"
+  version: "ed683925e4897a84b3bffc5c1414c85b97a129a3"
+  # from https://chromium.googlesource.com/chromium/src/+/108.0.5359.240/DEPS#1507
   last_upgrade_date {
     year: 2021
     month: 7

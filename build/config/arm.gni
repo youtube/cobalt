@@ -49,12 +49,12 @@ if (current_cpu == "arm" || v8_current_cpu == "arm") {
     if (current_os == "android" || target_os == "android") {
       arm_float_abi = "softfp"
     } else {
-      declare_args() {
-        # The ARM floating point mode. This is either the string "hard", "soft",
-        # or "softfp". An empty string means to use the default one for the
-        # arm_version.
-        arm_float_abi = ""
-      }
+    declare_args() {
+      # The ARM floating point mode. This is either the string "hard", "soft",
+      # or "softfp". An empty string means to use the default one for the
+      # arm_version.
+      arm_float_abi = ""
+    }
     }
   }
   assert(arm_float_abi == "" || arm_float_abi == "hard" ||

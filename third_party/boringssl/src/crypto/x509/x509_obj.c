@@ -55,7 +55,6 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/opensslconf.h>
 #if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
@@ -102,7 +101,7 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
     if (a == NULL) {
         if (b) {
             buf = b->data;
-          OPENSSL_free(b);
+            OPENSSL_free(b);
         }
         BUF_strlcpy(buf, "NO X509_NAME", len);
         return buf;
@@ -187,7 +186,7 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
     }
     if (b != NULL) {
         p = b->data;
-      OPENSSL_free(b);
+        OPENSSL_free(b);
     } else
         p = buf;
     if (i == 0)

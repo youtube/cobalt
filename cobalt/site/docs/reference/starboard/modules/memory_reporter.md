@@ -3,7 +3,7 @@ layout: doc
 title: "Starboard Module Reference: memory_reporter.h"
 ---
 
-Provides an interface for memory reporting.
+DEPRECATED: Provides an interface for memory reporting.
 
 ## Typedefs ##
 
@@ -83,6 +83,9 @@ context };
 
 Sets the MemoryReporter. Any previous memory reporter is unset. No lifetime
 management is done internally on input pointer.
+
+NOTE: This module is unused starting with Starboard 15 and will be removed in
+the future.
 
 Returns true if the memory reporter was set with no errors. If an error was
 reported then check the log for why it failed.

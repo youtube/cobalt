@@ -30,11 +30,11 @@
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/cache_utils.h"
-#include "cobalt/worker/service_worker_consts.h"
 #include "cobalt/worker/service_worker_context.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
+#include "cobalt/worker/worker_consts.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "net/base/completion_once_callback.h"
 #include "net/disk_cache/cobalt/resource_type.h"
@@ -88,7 +88,7 @@ ServiceWorkerPersistentSettings::ServiceWorkerPersistentSettings(
     const Options& options)
     : options_(options) {
   persistent_settings_.reset(new cobalt::persistent_storage::PersistentSettings(
-      ServiceWorkerConsts::kSettingsJson));
+      WorkerConsts::kSettingsJson));
   persistent_settings_->ValidatePersistentSettings();
   DCHECK(persistent_settings_);
 }
@@ -110,7 +110,7 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
         persistent_settings_->GetPersistentSettingAsDictionary(key_string);
     if (dict.empty()) {
       DLOG(INFO) << "Key: " << key_string << " does not exist in "
-                 << ServiceWorkerConsts::kSettingsJson;
+                 << WorkerConsts::kSettingsJson;
       continue;
     }
     if (!CheckPersistentValue(key_string, kSettingsStorageKeyKey, dict,
@@ -118,12 +118,6 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
       continue;
     url::Origin storage_key =
         url::Origin::Create(GURL(dict[kSettingsStorageKeyKey]->GetString()));
-
-    // Only add persisted workers to the registration_map
-    // if their storage_key matches the origin of the initial_url.
-    if (!storage_key.IsSameOriginWith(url::Origin::Create(options_.url))) {
-      continue;
-    }
 
     if (!CheckPersistentValue(key_string, kSettingsScopeUrlKey, dict,
                               base::Value::Type::STRING))
@@ -459,6 +453,10 @@ void ServiceWorkerPersistentSettings::RemoveAll() {
   for (auto& key : key_set_) {
     persistent_settings_->RemovePersistentSetting(key);
   }
+}
+
+void ServiceWorkerPersistentSettings::DeleteAll(base::OnceClosure closure) {
+  persistent_settings_->DeletePersistentSettings(std::move(closure));
 }
 
 }  // namespace worker

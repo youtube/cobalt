@@ -39,11 +39,11 @@ typedef unsigned __int64 uint64_t;
 #define woff2_htons(x) htons (x)
 #endif
 
-#include <cstring>
 #define MEMCPY_BUFFER std::memcpy
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 
 namespace woff2 {

@@ -51,7 +51,7 @@ class ServiceWorkerContext {
   ServiceWorkerContext(web::WebSettings* web_settings,
                        network::NetworkModule* network_module,
                        web::UserAgentPlatformInfo* platform_info,
-                       base::MessageLoop* message_loop, const GURL& url);
+                       base::MessageLoop* message_loop);
   ~ServiceWorkerContext();
 
   base::MessageLoop* message_loop() { return message_loop_; }
@@ -149,6 +149,8 @@ class ServiceWorkerContext {
   void EnsureServiceWorkerStarted(const url::Origin& storage_key,
                                   const GURL& client_url,
                                   base::WaitableEvent* done_event);
+
+  void EraseRegistrationMap();
 
   ServiceWorkerJobs* jobs() { return jobs_.get(); }
   ServiceWorkerRegistrationMap* registration_map() {

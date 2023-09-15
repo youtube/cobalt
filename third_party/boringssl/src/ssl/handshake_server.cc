@@ -791,10 +791,9 @@ static enum ssl_hs_wait_t do_send_server_certificate(SSL_HANDSHAKE *hs) {
 
     // PSK ciphers begin with an identity hint.
     if (alg_a & SSL_aPSK) {
-      size_t len =
-          hs->config->psk_identity_hint == nullptr
-              ? 0
-              : strlen(hs->config->psk_identity_hint.get());
+      size_t len = hs->config->psk_identity_hint == nullptr
+                       ? 0
+                       : strlen(hs->config->psk_identity_hint.get());
       if (!CBB_add_u16_length_prefixed(cbb.get(), &child) ||
           !CBB_add_bytes(&child,
                          (const uint8_t *)hs->config->psk_identity_hint.get(),

@@ -42,6 +42,13 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
                SbTime timestamp,
                int size_in_bytes);
 
+  DecodedAudio(int channels,
+               SbMediaAudioSampleType sample_type,
+               SbMediaAudioFrameStorageType storage_type,
+               SbTime timestamp,
+               int size_in_bytes,
+               Buffer&& storage);
+
   int channels() const { return channels_; }
   SbMediaAudioSampleType sample_type() const { return sample_type_; }
   SbMediaAudioFrameStorageType storage_type() const { return storage_type_; }

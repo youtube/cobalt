@@ -26,6 +26,8 @@ ARG_NOINSTALL = "noinstall"
 ARG_SYSTOOLS = "systools"
 ARG_DRYRUN = "dryrun"
 
+IS_MODULAR_BUILD = os.getenv("MODULAR_BUILD", "0") == "1"
+
 
 def _GetLauncherForPlatform(platform_name):
   """Gets the module containing a platform's concrete launcher implementation.

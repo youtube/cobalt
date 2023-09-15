@@ -55,6 +55,102 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.HasEverPlayed" enum="PipelineStatus"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for audio-video
+    streams with an unknown video codec.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.PipelineStatus.AudioOnly" enum="PipelineStatus"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for audio only
+    streams.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.PipelineStatus.AudioVideo.AV1"
+    enum="PipelineStatus" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for audio-video
+    streams with AV1 video codec.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.PipelineStatus.AudioVideo.H264"
+    enum="PipelineStatus" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for audio-video
+    streams with H264 video codec.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.PipelineStatus.AudioVideo.Other"
+    enum="PipelineStatus" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for audio-video
+    streams with an unknown video codec.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.PipelineStatus.AudioVideo.VP9"
+    enum="PipelineStatus" expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for audio-video
+    streams with VP9 video codec.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.PipelineStatus.Unsupported" enum="PipelineStatus"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for audio-video
+    streams with an unknown video codec.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.PipelineStatus.VideoOnly" enum="PipelineStatus"
+    expires_after="never">
+<!-- expires-never: Needed for baseline Media pipeline health metric. -->
+
+  <owner>sideboard@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Status of the media pipeline at the end of its lifecycle for video only
+    streams.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>

@@ -35,6 +35,9 @@ const jlong kNoPts = 0;
 const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
 
+// Delay to use after a retryable error has been encountered.
+const SbTime kErrorRetryDelay = 50 * kSbTimeMillisecond;
+
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
     case MEDIA_CODEC_OK:
@@ -115,7 +118,6 @@ MediaDecoder::MediaDecoder(Host* host,
                            const FrameRenderedCB& frame_rendered_cb,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
-                           bool force_improved_support_check,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -133,8 +135,7 @@ MediaDecoder::MediaDecoder(Host* host,
       video_codec, width_hint, height_hint, fps, max_width, max_height, this,
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, force_improved_support_check,
-      error_message);
+      force_big_endian_hdr_metadata, error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
@@ -461,15 +462,23 @@ bool MediaDecoder::ProcessOneInputBuffer(
 
   jint status;
   if (event.type == Event::kWriteCodecConfig) {
-    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                   kNoOffset, size, kNoPts,
-                                                   BUFFER_FLAG_CODEC_CONFIG);
+    if (!drm_system_ || (drm_system_ && drm_system_->IsReady())) {
+      status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
+                                                     kNoOffset, size, kNoPts,
+                                                     BUFFER_FLAG_CODEC_CONFIG);
+    } else {
+      status = MEDIA_CODEC_NO_KEY;
+    }
   } else if (event.type == Event::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
-      status = media_codec_bridge_->QueueSecureInputBuffer(
-          dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-          pts_us);
+      if (drm_system_->IsReady()) {
+        status = media_codec_bridge_->QueueSecureInputBuffer(
+            dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
+            pts_us);
+      } else {
+        status = MEDIA_CODEC_NO_KEY;
+      }
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
           dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
@@ -534,6 +543,7 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
     SB_LOG(INFO) << "|" << action_name << "| failed with status: "
                  << GetNameForMediaCodecStatus(status)
                  << ", will try again after a delay.";
+    SbThreadYield();
   } else {
     SB_LOG(ERROR) << "|" << action_name << "| failed with status: "
                   << GetNameForMediaCodecStatus(status) << ".";

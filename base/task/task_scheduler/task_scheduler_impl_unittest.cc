@@ -14,7 +14,6 @@
 #include "base/cfi_buildflags.h"
 #include "base/debug/stack_trace.h"
 #include "base/macros.h"
-#include "base/memory/ptr_util.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/statistics_recorder.h"
@@ -465,9 +464,9 @@ TEST_F(TaskSchedulerImplTest, MultipleTraitsExecutionModePairs) {
   StartTaskScheduler();
   std::vector<std::unique_ptr<ThreadPostingTasks>> threads_posting_tasks;
   for (const auto& traits_execution_mode_pair : GetTraitsExecutionModePairs()) {
-    threads_posting_tasks.push_back(WrapUnique(
-        new ThreadPostingTasks(&scheduler_, traits_execution_mode_pair.traits,
-                               traits_execution_mode_pair.execution_mode)));
+    threads_posting_tasks.push_back(std::make_unique<ThreadPostingTasks>(
+        &scheduler_, traits_execution_mode_pair.traits,
+        traits_execution_mode_pair.execution_mode));
     threads_posting_tasks.back()->Start();
   }
 

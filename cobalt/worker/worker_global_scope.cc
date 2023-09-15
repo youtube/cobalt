@@ -31,8 +31,8 @@
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/web/window_timers.h"
-#include "cobalt/worker/service_worker_consts.h"
 #include "cobalt/worker/service_worker_object.h"
+#include "cobalt/worker/worker_consts.h"
 #include "cobalt/worker/worker_location.h"
 #include "cobalt/worker/worker_navigator.h"
 #include "net/base/mime_util.h"
@@ -169,7 +169,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
     std::string content_type;
     bool mime_type_is_javascript = false;
     if (headers->GetNormalizedHeader("Content-type", &content_type)) {
-      for (auto mime_type : ServiceWorkerConsts::kJavaScriptMimeTypes) {
+      for (auto mime_type : WorkerConsts::kJavaScriptMimeTypes) {
         if (net::MatchesMimeType(mime_type, content_type)) {
           mime_type_is_javascript = true;
           break;
@@ -177,13 +177,12 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
       }
     }
     if (content_type.empty()) {
-      error->reset(new std::string(base::StringPrintf(
-          ServiceWorkerConsts::kServiceWorkerRegisterNoMIMEError,
-          content_type.c_str())));
+      error->reset(new std::string(
+          base::StringPrintf(WorkerConsts::kServiceWorkerRegisterNoMIMEError)));
     } else if (!mime_type_is_javascript) {
-      error->reset(new std::string(base::StringPrintf(
-          ServiceWorkerConsts::kServiceWorkerRegisterBadMIMEError,
-          content_type.c_str())));
+      error->reset(new std::string(
+          base::StringPrintf(WorkerConsts::kServiceWorkerRegisterBadMIMEError,
+                             content_type.c_str())));
     }
     return true;
   }

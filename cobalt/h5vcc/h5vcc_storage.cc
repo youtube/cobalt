@@ -25,7 +25,7 @@
 #include "cobalt/cache/cache.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/storage/storage_manager.h"
-#include "cobalt/worker/service_worker_consts.h"
+#include "cobalt/worker/worker_consts.h"
 #include "net/base/completion_once_callback.h"
 #include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "net/disk_cache/cobalt/resource_type.h"
@@ -314,7 +314,10 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
 void H5vccStorage::SetAndSaveQuotaForBackend(disk_cache::ResourceType type,
                                              uint32_t bytes) {
   if (cache_backend_) {
-    cache_backend_->UpdateSizes(type, bytes);
+    if (cache_backend_->UpdateSizes(type, bytes)) {
+      auto url_request_context = network_module_->url_request_context();
+      url_request_context->UpdateCacheSizeSetting(type, bytes);
+    }
 
     if (bytes == 0) {
       network_module_->task_runner()->PostTask(
@@ -419,7 +422,7 @@ void H5vccStorage::ClearServiceWorkerCache() {
                   kSbFileMaxPath);
   base::FilePath service_worker_file_path =
       base::FilePath(storage_dir.data())
-          .Append(worker::ServiceWorkerConsts::kSettingsJson);
+          .Append(worker::WorkerConsts::kSettingsJson);
   base::DeleteFile(service_worker_file_path, /*recursive=*/false);
 }
 

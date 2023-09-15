@@ -127,7 +127,6 @@ typedef HANDLE MemoryMap;
     U_CFUNC void uprv_unmapFile(UDataMemory *pData) {
         /* nothing to do */
     }
-
 #elif MAP_IMPLEMENTATION==MAP_WIN32
     U_CFUNC UBool
     uprv_mapFile(

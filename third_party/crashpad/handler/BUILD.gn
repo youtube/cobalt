@@ -15,8 +15,6 @@
 import("../build/crashpad_buildconfig.gni")
 
 static_library("handler") {
-  check_includes = false
-
   sources = [
     "crash_report_upload_thread.cc",
     "crash_report_upload_thread.h",

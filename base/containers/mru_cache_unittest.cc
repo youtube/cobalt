@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <memory>
 
-#include "base/memory/ptr_util.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -200,8 +199,8 @@ TEST(MRUCacheTest, Owning) {
 
   // First insert and item and then overwrite it.
   static const int kItem1Key = 1;
-  cache.Put(kItem1Key, WrapUnique(new CachedItem(20)));
-  cache.Put(kItem1Key, WrapUnique(new CachedItem(22)));
+  cache.Put(kItem1Key, std::make_unique<CachedItem>(20));
+  cache.Put(kItem1Key, std::make_unique<CachedItem>(22));
 
   // There should still be one item, and one extra live item.
   auto iter = cache.Get(kItem1Key);
@@ -217,8 +216,8 @@ TEST(MRUCacheTest, Owning) {
   // go away.
   {
     Cache cache2(Cache::NO_AUTO_EVICT);
-    cache2.Put(1, WrapUnique(new CachedItem(20)));
-    cache2.Put(2, WrapUnique(new CachedItem(20)));
+    cache2.Put(1, std::make_unique<CachedItem>(20));
+    cache2.Put(2, std::make_unique<CachedItem>(20));
   }
 
   // There should be no objects leaked.
@@ -227,8 +226,8 @@ TEST(MRUCacheTest, Owning) {
   // Check that Clear() also frees things correctly.
   {
     Cache cache2(Cache::NO_AUTO_EVICT);
-    cache2.Put(1, WrapUnique(new CachedItem(20)));
-    cache2.Put(2, WrapUnique(new CachedItem(20)));
+    cache2.Put(1, std::make_unique<CachedItem>(20));
+    cache2.Put(2, std::make_unique<CachedItem>(20));
     EXPECT_EQ(initial_count + 2, cached_item_live_count);
     cache2.Clear();
     EXPECT_EQ(initial_count, cached_item_live_count);

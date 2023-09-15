@@ -4,7 +4,7 @@
 
 import("//build/config/chrome_build.gni")
 if (!is_starboard) {
-  import("//build/config/gclient_args.gni")
+import("//build/config/gclient_args.gni")
 }
 import("//build/config/mac/mac_sdk_overrides.gni")
 import("//build/toolchain/goma.gni")

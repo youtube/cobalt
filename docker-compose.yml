@@ -29,8 +29,9 @@ x-build-volumes: &build-volumes
     - ${CCACHE_DIR:-container-ccache}:/root/ccache
 
 x-build-common-definitions: &build-common-definitions
-  <<: *common-definitions
-  <<: *build-volumes
+  <<:
+    - *common-definitions
+    - *build-volumes
   depends_on:
     - build-base
 
@@ -39,18 +40,6 @@ x-shared-build-env: &shared-build-env
   IS_CI: ${IS_CI:-0}
   IS_DOCKER: 1
   PYTHONPATH: /code
-
-x-shared-docsite-definitions: &shared-docsite-definitions
-  <<: *build-common-definitions
-  build:
-    context: ./docker/docsite
-    dockerfile: Dockerfile
-    args:
-      - USER=root
-      - UID=2000
-      - GID=2000
-  environment:
-    <<: *shared-build-env
 
 x-shared-unittest-definitions: &shared-unittest-definitions
   stdin_open: true
@@ -142,18 +131,6 @@ services:
       - base-bionic
     scale: 0
 
-  docsite:
-    <<: *shared-docsite-definitions
-    image: cobalt-build-docsite
-    ports:
-      # The docsite webapp runs on port 4000.
-      - "4000:4000"
-
-  docsite-deploy:
-    <<: *shared-docsite-definitions
-    image: cobalt-build-docsite-deploy
-    entrypoint: ["/code/third_party/internal/repo-publishing-toolkit-local/preview-site.sh", "deploy"]
-
   build-linux-stub:
     <<: *build-common-definitions
     build:
@@ -175,6 +152,7 @@ services:
       <<: *shared-build-env
       PLATFORM: stub
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   build-linux:
     <<: *build-common-definitions
@@ -198,10 +176,12 @@ services:
       PLATFORM: linux-x64x11
       CONFIG: ${CONFIG:-debug}
       TARGET: ${TARGET:-cobalt_install}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   linux-x64x11-bionic:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
@@ -213,8 +193,9 @@ services:
     scale: 0
 
   linux-x64x11-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
@@ -223,12 +204,14 @@ services:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-gcc-6-3
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
     depends_on:
       - linux-x64x11-bionic
 
   build-linux-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
@@ -237,8 +220,9 @@ services:
       - linux-x64x11-bionic
 
   linux-x64x11-clang-3-9:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
@@ -247,12 +231,14 @@ services:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-clang-3-9
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
     depends_on:
       - linux-x64x11-bionic
 
   build-linux-clang-3-9:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
@@ -278,6 +264,7 @@ services:
       PLATFORM: android-x86
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-x86}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   android-arm:
     <<: *build-common-definitions
@@ -288,6 +275,7 @@ services:
       PLATFORM: android-arm
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   android-arm64:
     <<: *build-common-definitions
@@ -298,6 +286,7 @@ services:
       PLATFORM: android-arm64
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm64}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   build-raspi:
     <<: *build-common-definitions
@@ -318,6 +307,7 @@ services:
       <<: *shared-build-env
       PLATFORM: ${PLATFORM:-raspi-2}
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   # Define common build container for Evergreen
   build-evergreen:
@@ -338,16 +328,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-x64
       TARGET_CPU: ${TARGET_CPU:-x64}
-
-  evergreen-x64-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-x64-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-x64}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   evergreen-x86:
     <<: *build-common-definitions
@@ -357,16 +338,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-x86
       TARGET_CPU: ${TARGET_CPU:-x86}
-
-  evergreen-x86-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-x86-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-x86}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   evergreen-arm64:
     <<: *build-common-definitions
@@ -376,16 +348,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-arm64
       TARGET_CPU: ${TARGET_CPU:-arm64}
-
-  evergreen-arm64-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-arm64-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-arm64}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   evergreen-arm-hardfp:
     <<: *build-common-definitions
@@ -395,16 +358,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-hardfp
       TARGET_CPU: ${TARGET_CPU:-arm}
-
-  evergreen-arm-hardfp-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-arm-hardfp-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-arm}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   evergreen-arm-softfp:
     <<: *build-common-definitions
@@ -414,16 +368,7 @@ services:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-softfp
       TARGET_CPU: ${TARGET_CPU:-arm}
-
-  evergreen-arm-softfp-sbversion-12:
-    <<: *build-common-definitions
-    image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: evergreen-arm-softfp-sbversion-12
-      TARGET_CPU: ${TARGET_CPU:-arm}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   # Defined common build image for linux-evergreen
   build-linux-evergreen:
@@ -438,7 +383,7 @@ services:
     environment:
       <<: *shared-build-env
 
-  linux-x64x11-sbversion12-evergreen:
+  linux-x64x11-evergreen:
     <<: *build-common-definitions
     build:
       context: ./docker/linux
@@ -449,17 +394,17 @@ services:
     depends_on: [ build-evergreen ]
     environment:
       <<: *shared-build-env
-      PLATFORM: linux-x64x11-sbversion-12
+      PLATFORM: linux-x64x11
       CONFIG: ${CONFIG:-debug}
-      SB_API_VERSION: 12
+      SB_API_VERSION: ${SB_API_VERSION}
 
   # Example usage of unittest:
   # 1. Build the containers for which you want to unittest
-  # docker-compose up --build --no-start linux-x64x11-unittest
+  # docker compose up --build --no-start linux-x64x11-unittest
   # 2. Build the 'all' target for the platform you want to test
-  # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker-compose run linux-x64x11
+  # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker compose run linux-x64x11
   # 3. Run the unittests for that target.
-  # PLATFORM=linux-x64x11 CONFIG=devel docker-compose run linux-x64x11-unittest
+  # PLATFORM=linux-x64x11 CONFIG=devel docker compose run linux-x64x11-unittest
   linux-x64x11-unittest:
     <<: *shared-unittest-definitions
 
@@ -490,10 +435,9 @@ services:
     entrypoint: ["python3", "/unittest_docker_launcher.py", "3"]
 
   xvfb:
-    image: xvfb
+    image: cobalt-xvfb
     ports:
       - "99:99"
-    image: cobalt-xvfb
     build:
       context: ./docker/linux/
       dockerfile: xvfb/Dockerfile

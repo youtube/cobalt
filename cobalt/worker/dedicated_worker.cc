@@ -28,10 +28,6 @@
 namespace cobalt {
 namespace worker {
 
-namespace {
-const char kDedicatedWorkerName[] = "DedicatedWorker";
-}  // namespace
-
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL,
                                  script::ExceptionState* exception_state)
@@ -111,7 +107,7 @@ void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
     options.construction_location.file_path =
         environment_settings()->creation_url().spec();
   }
-  worker_.reset(new Worker(kDedicatedWorkerName, options));
+  worker_.reset(new Worker(WorkerConsts::kDedicatedWorkerName, options));
   // 10. Return worker.
 }
 

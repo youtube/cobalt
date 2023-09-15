@@ -280,7 +280,6 @@ if (crashpad_is_linux) {
 
 static_library("test_support") {
   testonly = true
-  check_includes = false
 
   sources = [
     "test/test_cpu_context.cc",

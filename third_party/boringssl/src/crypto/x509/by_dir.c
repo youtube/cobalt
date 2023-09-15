@@ -55,11 +55,14 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-
 #include <openssl/opensslconf.h>
 #if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
+
+#ifndef OPENSSL_NO_POSIX_IO
+#include <sys/stat.h>
+#endif
 
 #ifdef OPENSSL_SYS_STARBOARD
 #include "e_os.h"
@@ -71,9 +74,6 @@
 
 #ifndef NO_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-#ifndef OPENSSL_NO_POSIX_IO
-#include <sys/stat.h>
 #endif
 
 #include <openssl/buf.h>
@@ -385,12 +385,12 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
                 }
 #ifndef OPENSSL_NO_POSIX_IO
 #if defined(_WIN32) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
-#define stat _stat
-#endif
+#  define stat _stat
+# endif
                 {
                     struct stat st;
                     if (stat(b->data, &st) < 0)
-                      break;
+                        break;
                 }
 #endif
                 /* found one. */

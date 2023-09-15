@@ -15,7 +15,6 @@
 #include "starboard/common/storage.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/nplb/storage_helpers.h"
-#include "starboard/user.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

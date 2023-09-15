@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "url/url_util.h"
 #include "base/macros.h"
 #include "starboard/common/string.h"
 #include "starboard/types.h"
@@ -11,6 +10,7 @@
 #include "url/url_canon.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_test_utils.h"
+#include "url/url_util.h"
 
 namespace url {
 
@@ -33,22 +33,19 @@ TEST_F(URLUtilTest, FindAndCompareScheme) {
   const char kStr1[] = "http://www.com/";
   EXPECT_TRUE(FindAndCompareScheme(
       kStr1, static_cast<int>(strlen(kStr1)), "http", NULL));
-  EXPECT_TRUE(FindAndCompareScheme(kStr1,
-                                   static_cast<int>(strlen(kStr1)),
-                                   "http", &found_scheme));
+  EXPECT_TRUE(FindAndCompareScheme(
+      kStr1, static_cast<int>(strlen(kStr1)), "http", &found_scheme));
   EXPECT_TRUE(found_scheme == Component(0, 4));
 
   // A case where the scheme is found and doesn't match.
-  EXPECT_FALSE(FindAndCompareScheme(kStr1,
-                                    static_cast<int>(strlen(kStr1)),
-                                    "https", &found_scheme));
+  EXPECT_FALSE(FindAndCompareScheme(
+      kStr1, static_cast<int>(strlen(kStr1)), "https", &found_scheme));
   EXPECT_TRUE(found_scheme == Component(0, 4));
 
   // A case where there is no scheme.
   const char kStr2[] = "httpfoobar";
-  EXPECT_FALSE(FindAndCompareScheme(kStr2,
-                                    static_cast<int>(strlen(kStr2)),
-                                    "http", &found_scheme));
+  EXPECT_FALSE(FindAndCompareScheme(
+      kStr2, static_cast<int>(strlen(kStr2)), "http", &found_scheme));
   EXPECT_TRUE(found_scheme == Component());
 
   // When there is an empty scheme, it should match the empty scheme.
@@ -64,47 +61,41 @@ TEST_F(URLUtilTest, FindAndCompareScheme) {
   // When there is a whitespace char in scheme, it should canonicalize the URL
   // before comparison.
   const char whtspc_str[] = " \r\n\tjav\ra\nscri\tpt:alert(1)";
-  EXPECT_TRUE(FindAndCompareScheme(
-      whtspc_str, static_cast<int>(strlen(whtspc_str)), "javascript",
-      &found_scheme));
+  EXPECT_TRUE(FindAndCompareScheme(whtspc_str,
+                                   static_cast<int>(strlen(whtspc_str)),
+                                   "javascript", &found_scheme));
   EXPECT_TRUE(found_scheme == Component(1, 10));
 
   // Control characters should be stripped out on the ends, and kept in the
   // middle.
   const char ctrl_str[] = "\02jav\02scr\03ipt:alert(1)";
-  EXPECT_FALSE(FindAndCompareScheme(
-      ctrl_str, static_cast<int>(strlen(ctrl_str)), "javascript",
-      &found_scheme));
+  EXPECT_FALSE(FindAndCompareScheme(ctrl_str,
+                                    static_cast<int>(strlen(ctrl_str)),
+                                    "javascript", &found_scheme));
   EXPECT_TRUE(found_scheme == Component(1, 11));
 }
 
 TEST_F(URLUtilTest, IsStandard) {
   const char kHTTPScheme[] = "http";
-  EXPECT_TRUE(
-      IsStandard(kHTTPScheme, Component(0, strlen(kHTTPScheme))));
+  EXPECT_TRUE(IsStandard(kHTTPScheme, Component(0, strlen(kHTTPScheme))));
 
   const char kFooScheme[] = "foo";
-  EXPECT_FALSE(
-      IsStandard(kFooScheme, Component(0, strlen(kFooScheme))));
+  EXPECT_FALSE(IsStandard(kFooScheme, Component(0, strlen(kFooScheme))));
 }
 
 TEST_F(URLUtilTest, IsReferrerScheme) {
   const char kHTTPScheme[] = "http";
-  EXPECT_TRUE(IsReferrerScheme(kHTTPScheme,
-                               Component(0, strlen(kHTTPScheme))));
+  EXPECT_TRUE(IsReferrerScheme(kHTTPScheme, Component(0, strlen(kHTTPScheme))));
 
   const char kFooScheme[] = "foo";
-  EXPECT_FALSE(IsReferrerScheme(kFooScheme,
-                                Component(0, strlen(kFooScheme))));
+  EXPECT_FALSE(IsReferrerScheme(kFooScheme, Component(0, strlen(kFooScheme))));
 }
 
 TEST_F(URLUtilTest, AddReferrerScheme) {
   const char kFooScheme[] = "foo";
-  EXPECT_FALSE(IsReferrerScheme(kFooScheme,
-                                Component(0, strlen(kFooScheme))));
+  EXPECT_FALSE(IsReferrerScheme(kFooScheme, Component(0, strlen(kFooScheme))));
   AddReferrerScheme(kFooScheme, url::SCHEME_WITH_HOST);
-  EXPECT_TRUE(IsReferrerScheme(kFooScheme,
-                               Component(0, strlen(kFooScheme))));
+  EXPECT_TRUE(IsReferrerScheme(kFooScheme, Component(0, strlen(kFooScheme))));
 }
 
 TEST_F(URLUtilTest, GetStandardSchemeType) {
@@ -112,21 +103,23 @@ TEST_F(URLUtilTest, GetStandardSchemeType) {
 
   const char kHTTPScheme[] = "http";
   scheme_type = url::SCHEME_WITHOUT_AUTHORITY;
-  EXPECT_TRUE(GetStandardSchemeType(
-      kHTTPScheme, Component(0, strlen(kHTTPScheme)), &scheme_type));
+  EXPECT_TRUE(GetStandardSchemeType(kHTTPScheme,
+                                    Component(0, strlen(kHTTPScheme)),
+                                    &scheme_type));
   EXPECT_EQ(url::SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION, scheme_type);
 
   const char kFilesystemScheme[] = "filesystem";
   scheme_type = url::SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION;
-  EXPECT_TRUE(GetStandardSchemeType(
-      kFilesystemScheme, Component(0, strlen(kFilesystemScheme)),
-      &scheme_type));
+  EXPECT_TRUE(GetStandardSchemeType(kFilesystemScheme,
+                                    Component(0, strlen(kFilesystemScheme)),
+                                    &scheme_type));
   EXPECT_EQ(url::SCHEME_WITHOUT_AUTHORITY, scheme_type);
 
   const char kFooScheme[] = "foo";
   scheme_type = url::SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION;
-  EXPECT_FALSE(GetStandardSchemeType(
-      kFooScheme, Component(0, strlen(kFooScheme)), &scheme_type));
+  EXPECT_FALSE(GetStandardSchemeType(kFooScheme,
+                                     Component(0, strlen(kFooScheme)),
+                                     &scheme_type));
 }
 
 TEST_F(URLUtilTest, ReplaceComponents) {
@@ -235,9 +228,8 @@ TEST_F(URLUtilTest, DecodeURLEscapeSequences) {
   for (size_t i = 0; i < arraysize(decode_cases); i++) {
     const char* input = decode_cases[i].input;
     RawCanonOutputT<base::char16> output;
-    EXPECT_EQ(
-        decode_cases[i].result,
-        DecodeURLEscapeSequences(input, strlen(input), &output));
+    EXPECT_EQ(decode_cases[i].result,
+              DecodeURLEscapeSequences(input, strlen(input), &output));
     EXPECT_EQ(decode_cases[i].output,
               base::UTF16ToUTF8(base::string16(output.data(),
                                                output.length())));
@@ -246,8 +238,7 @@ TEST_F(URLUtilTest, DecodeURLEscapeSequences) {
   // Our decode should decode %00
   const char zero_input[] = "%00";
   RawCanonOutputT<base::char16> zero_output;
-  DecodeURLEscapeSequences(zero_input, strlen(zero_input),
-                           &zero_output);
+  DecodeURLEscapeSequences(zero_input, strlen(zero_input), &zero_output);
   EXPECT_NE("%00", base::UTF16ToUTF8(
       base::string16(zero_output.data(), zero_output.length())));
 
@@ -257,10 +248,9 @@ TEST_F(URLUtilTest, DecodeURLEscapeSequences) {
     const base::char16 invalid_expected[6] = {0x00e4, 0x00a0, 0x00e5,
                                               0x00a5, 0x00bd, 0};
     RawCanonOutputT<base::char16> invalid_output;
-    EXPECT_EQ(
-        DecodeURLResult::kIsomorphic,
-        DecodeURLEscapeSequences(
-            invalid_input, strlen(invalid_input), &invalid_output));
+    EXPECT_EQ(DecodeURLResult::kIsomorphic,
+              DecodeURLEscapeSequences(invalid_input, strlen(invalid_input),
+                                       &invalid_output));
     EXPECT_EQ(base::string16(invalid_expected),
               base::string16(invalid_output.data(), invalid_output.length()));
   }
@@ -269,10 +259,9 @@ TEST_F(URLUtilTest, DecodeURLEscapeSequences) {
     const base::char16 invalid_expected[5] = {0x00e4, 0x00a0, 0x00e5, 0x00bd,
                                               0};
     RawCanonOutputT<base::char16> invalid_output;
-    EXPECT_EQ(
-        DecodeURLResult::kIsomorphic,
-        DecodeURLEscapeSequences(
-            invalid_input, strlen(invalid_input), &invalid_output));
+    EXPECT_EQ(DecodeURLResult::kIsomorphic,
+              DecodeURLEscapeSequences(invalid_input, strlen(invalid_input),
+                                       &invalid_output));
     EXPECT_EQ(base::string16(invalid_expected),
               base::string16(invalid_output.data(), invalid_output.length()));
   }
@@ -382,16 +371,15 @@ TEST_F(URLUtilTest, TestResolveRelativeWithNonStandardBase) {
   for (size_t i = 0; i < arraysize(resolve_non_standard_cases); i++) {
     const ResolveRelativeCase& test_data = resolve_non_standard_cases[i];
     Parsed base_parsed;
-    ParsePathURL(test_data.base, strlen(test_data.base), false,
-                 &base_parsed);
+    ParsePathURL(test_data.base, strlen(test_data.base), false, &base_parsed);
 
     std::string resolved;
     StdStringCanonOutput output(&resolved);
     Parsed resolved_parsed;
-    bool valid = ResolveRelative(
-        test_data.base, strlen(test_data.base), base_parsed,
-        test_data.rel, strlen(test_data.rel), NULL, &output,
-        &resolved_parsed);
+    bool valid = ResolveRelative(test_data.base, strlen(test_data.base),
+                                 base_parsed, test_data.rel,
+                                 strlen(test_data.rel), NULL, &output,
+                                 &resolved_parsed);
     output.Complete();
 
     EXPECT_EQ(test_data.is_valid, valid) << i;
@@ -413,9 +401,10 @@ TEST_F(URLUtilTest, TestNoRefComponent) {
   StdStringCanonOutput output(&resolved);
   Parsed resolved_parsed;
 
-  bool valid =
-      ResolveRelative(base, strlen(base), base_parsed, rel,
-                      strlen(rel), NULL, &output, &resolved_parsed);
+  bool valid = ResolveRelative(base, strlen(base),
+                               base_parsed, rel,
+                               strlen(rel), NULL, &output,
+                               &resolved_parsed);
   EXPECT_TRUE(valid);
   EXPECT_FALSE(resolved_parsed.ref.is_valid());
 }
@@ -456,9 +445,9 @@ TEST_F(URLUtilTest, PotentiallyDanglingMarkup) {
     std::string resolved;
     StdStringCanonOutput output(&resolved);
     Parsed resolved_parsed;
-    bool valid = ResolveRelative(
-        test.base, strlen(test.base), base_parsed, test.rel,
-        strlen(test.rel), NULL, &output, &resolved_parsed);
+    bool valid =
+        ResolveRelative(test.base, strlen(test.base), base_parsed, test.rel,
+                        strlen(test.rel), NULL, &output, &resolved_parsed);
     ASSERT_TRUE(valid);
     output.Complete();
 

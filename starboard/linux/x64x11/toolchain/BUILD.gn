@@ -13,10 +13,17 @@
 # limitations under the License.
 
 import("//build/config/clang/clang.gni")
+import("//starboard/build/toolchain/cobalt_toolchains.gni")
 import("//starboard/shared/toolchain/overridable_gcc_toolchain.gni")
 
 overridable_clang_toolchain("starboard") {
   clang_base_path = clang_base_path
+}
+
+cobalt_clang_toolchain("cobalt") {
+  variables = {
+    native_linker_path = "$clang_base_path/bin/clang++"
+  }
 }
 
 overridable_clang_toolchain("target") {

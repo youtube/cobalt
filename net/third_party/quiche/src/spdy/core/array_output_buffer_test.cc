@@ -8,8 +8,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "starboard/memory.h"
 
-#include <cstring>
-
 namespace spdy {
 namespace test {
 

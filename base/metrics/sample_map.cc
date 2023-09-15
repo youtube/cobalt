@@ -5,7 +5,6 @@
 #include "base/metrics/sample_map.h"
 
 #include "base/logging.h"
-#include "base/memory/ptr_util.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/stl_util.h"
 
@@ -106,7 +105,7 @@ Count SampleMap::TotalCount() const {
 }
 
 std::unique_ptr<SampleCountIterator> SampleMap::Iterator() const {
-  return WrapUnique(new SampleMapIterator(sample_counts_));
+  return std::make_unique<SampleMapIterator>(sample_counts_);
 }
 
 bool SampleMap::AddSubtractImpl(SampleCountIterator* iter, Operator op) {

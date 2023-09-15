@@ -31,8 +31,6 @@ STATUS_CHANGE_TIMEOUT = 15
 # This file is still executed with Python2 in CI.
 # pylint:disable=consider-using-f-string,super-with-arguments
 
-IS_MODULAR_BUILD = os.getenv("MODULAR_BUILD", "0") == "1"
-
 
 def GetProcessStatus(pid):
   """Returns process running status given its pid, or empty string if not found.
@@ -63,7 +61,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self.device_ip = socket.gethostbyname(socket.gethostname())
 
     self.executable = self.GetTargetPath()
-    if IS_MODULAR_BUILD:
+    if abstract_launcher.IS_MODULAR_BUILD:
       self.executable += "_loader"
       if not os.path.exists(self.executable):
         self.executable = os.path.abspath(

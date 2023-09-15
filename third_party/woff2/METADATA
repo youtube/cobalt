@@ -12,6 +12,7 @@ third_party {
     value: "https://github.com/google/woff2.git"
   }
   version: "1bccf208bca986e53a647dfe4811322adb06ecf8"
+  # from https://chromium.googlesource.com/chromium/src/+/87.0.4280.142/third_party/woff2/README.chromium#3
   last_upgrade_date {
     year: 2017
     month: 11

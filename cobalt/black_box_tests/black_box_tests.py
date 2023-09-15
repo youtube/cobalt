@@ -35,7 +35,6 @@ from starboard.tools import command_line
 from starboard.tools import log_level
 
 _DISABLED_BLACKBOXTEST_CONFIGS = [
-    'android-arm/devel',
     'android-arm64/devel',
     'android-x86/devel',
     'evergreen-arm/devel',
@@ -180,6 +179,9 @@ def LoadTests(launcher_params, test_set):
       loader_out_directory=launcher_params.loader_out_directory)
 
   test_targets = []
+  test_filters = build.GetPlatformConfig(
+      _launcher_params.platform).GetApplicationConfiguration(
+          'cobalt').GetTestFilters()
 
   if test_set in ['all', 'blackbox']:
     test_targets = _TESTS_NO_SIGNAL
@@ -195,8 +197,14 @@ def LoadTests(launcher_params, test_set):
 
   test_suite = unittest.TestSuite()
   for test in test_targets:
-    test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
-        importlib.import_module(_TEST_DIR_PATH + test)))
+    filter_hit = 0
+    for filtered_test in test_filters:
+      if test == filtered_test.test_name:
+        filter_hit = 1
+        continue
+    if filter_hit == 0:
+      test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
+          importlib.import_module(_TEST_DIR_PATH + test)))
   return test_suite
 
 
@@ -257,12 +265,13 @@ class BlackBoxTests(object):
 
     # TODO: Remove generation of --dev_servers_listen_ip once executable will
     # be able to bind correctly with incomplete support of IPv6
-    if args.device_id and IsValidIpAddress(args.device_id):
-      _launcher_params.target_params.append(
-          f'--dev_servers_listen_ip={args.device_id}')
-    elif IsValidIpAddress(_server_binding_address):
-      _launcher_params.target_params.append(
-          f'--dev_servers_listen_ip={_server_binding_address}')
+    if _launcher_params.platform not in ['android-arm', 'android-arm64']:
+      if args.device_id and IsValidIpAddress(args.device_id):
+        _launcher_params.target_params.append(
+            f'--dev_servers_listen_ip={args.device_id}')
+      elif IsValidIpAddress(_server_binding_address):
+        _launcher_params.target_params.append(
+            f'--dev_servers_listen_ip={_server_binding_address}')
     _launcher_params.target_params.append(
         f'--web-platform-test-server=http://web-platform.test:{_wpt_http_port}')
 

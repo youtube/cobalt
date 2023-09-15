@@ -162,7 +162,7 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoder {
     }
     return false;
   }
-  
+
   // Returns true if the listener wants the decoding to continue, and
   // false otherwise, in which case status set.
   template <class Listener>

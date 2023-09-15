@@ -23,5 +23,5 @@ RUN apt update -qqy \
         g++-multilib \
     && /opt/clean-after-apt.sh
 
-CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG:-debug} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG:-debug}\" target_cpu=\"${TARGET_CPU}\" sb_api_version=${SB_API_VERSION:-14}" && \
-    ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG:-debug} ${TARGET:-cobalt_install}
+CMD gn gen ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG:-debug}\" target_cpu=\"${TARGET_CPU}\" ${SB_API_VERSION:+sb_api_version=$SB_API_VERSION}" && \
+    ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} ${TARGET:-cobalt_install}

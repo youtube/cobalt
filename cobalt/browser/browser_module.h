@@ -25,6 +25,7 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/application_state.h"
@@ -139,6 +140,7 @@ class BrowserModule {
   // |pending_navigate_url_| to the specified url, which will trigger a
   // navigation when Cobalt resumes.
   void Navigate(const GURL& url_reference);
+
   // Reloads web module.
   void Reload();
 
@@ -334,9 +336,28 @@ class BrowserModule {
   bool FilterKeyEventForHotkeys(base::Token type,
                                 const dom::KeyboardEventInit& event);
 
+  void NavigateResetErrorHandling();
+
+  bool NavigateHandleStateFrozen(const GURL& url);
+
+  void NavigateResetWebModule();
+
+  bool NavigateServiceWorkerSetups(
+      const GURL& url, base::WaitableEvent* service_worker_started_event);
+
+  void NavigateSetupSplashScreen(const GURL& url,
+                                 const cssom::ViewportSize viewport_size);
+
+  void NavigateSetupScrollEngine();
+
+  void NavigateCreateWebModule(
+      const GURL& url, bool can_start_service_worker,
+      base::WaitableEvent* service_worker_started_event,
+      const cssom::ViewportSize viewport_size);
+
   // Tries all registered URL handlers for a URL. Returns true if one of the
   // handlers handled the URL, false if otherwise.
-  bool TryURLHandlers(const GURL& url);
+  bool NavigateTryURLHandlers(const GURL& url);
 
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen(base::TimeDelta close_time = base::TimeDelta());
@@ -363,6 +384,8 @@ class BrowserModule {
       const browser::WebModule::LayoutResults& layout_results);
   void OnDebugConsoleRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
+
+  void OnNavigateTimedTrace(const std::string& time);
 #endif  // defined(ENABLE_DEBUGGER)
 
 #if defined(ENABLE_WEBDRIVER)
@@ -638,6 +661,12 @@ class BrowserModule {
 
   // Saves the previous debugger state to be restored in the new WebModule.
   std::unique_ptr<debug::backend::DebuggerState> debugger_state_;
+
+  // Amount of time to run a Timed Trace after Navigate
+  base::TimeDelta navigate_timed_trace_duration_;
+
+  debug::console::ConsoleCommandManager::CommandHandler
+      navigate_timed_trace_command_handler_;
 #endif  // defined(ENABLE_DEBUGGER)
 
   // The splash screen. The pointer wrapped here should be non-NULL iff

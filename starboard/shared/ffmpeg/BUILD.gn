@@ -30,6 +30,7 @@ static_library("ffmpeg_dynamic_load") {
     "ffmpeg_dynamic_load_dispatch_impl.cc",
     "ffmpeg_dynamic_load_video_decoder_impl.cc",
   ]
+
   public_deps = [
     ":ffmpeg.57.107.100",
     ":ffmpeg.58.35.100",

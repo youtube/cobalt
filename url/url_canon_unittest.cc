@@ -695,8 +695,7 @@ TEST(URLCanonTest, IPv4) {
 
   for (size_t i = 0; i < arraysize(cases); i++) {
     // 8-bit version.
-    Component component(0,
-                        static_cast<int>(strlen(cases[i].input8)));
+    Component component(0, static_cast<int>(strlen(cases[i].input8)));
 
     std::string out_str1;
     StdStringCanonOutput output1(&out_str1);
@@ -850,8 +849,7 @@ TEST(URLCanonTest, IPv6) {
 
   for (size_t i = 0; i < arraysize(cases); i++) {
     // 8-bit version.
-    Component component(0,
-                        static_cast<int>(strlen(cases[i].input8)));
+    Component component(0, static_cast<int>(strlen(cases[i].input8)));
 
     std::string out_str1;
     StdStringCanonOutput output1(&out_str1);
@@ -2348,8 +2346,7 @@ TEST(URLCanonTest, DefaultPortForScheme) {
   for (auto& test_case : cases) {
     SCOPED_TRACE(test_case.scheme);
     EXPECT_EQ(test_case.expected_port,
-              DefaultPortForScheme(test_case.scheme,
-                                   strlen(test_case.scheme)));
+              DefaultPortForScheme(test_case.scheme, strlen(test_case.scheme)));
   }
 }
 

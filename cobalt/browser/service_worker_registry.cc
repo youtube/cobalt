@@ -31,8 +31,6 @@ namespace {
 // Signals the given WaitableEvent.
 void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
 
-// The watchdog client name used to represent service worker registry thread.
-const char kWatchdogName[] = "service worker registry";
 // The watchdog time interval in microseconds allowed between pings before
 // triggering violations.
 const int64_t kWatchdogTimeInterval = 15000000;
@@ -51,7 +49,7 @@ void ServiceWorkerRegistry::WillDestroyCurrentMessageLoop() {
 
 ServiceWorkerRegistry::ServiceWorkerRegistry(
     web::WebSettings* web_settings, network::NetworkModule* network_module,
-    web::UserAgentPlatformInfo* platform_info, const GURL& url)
+    web::UserAgentPlatformInfo* platform_info)
     : thread_("ServiceWorkerRegistry") {
   if (!thread_.Start()) return;
   DCHECK(message_loop());
@@ -61,7 +59,8 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
   // Registers service worker thread as a watchdog client.
   if (watchdog) {
     watchdog_registered_ = true;
-    watchdog->Register(kWatchdogName, kWatchdogName,
+    watchdog->Register(worker::WorkerConsts::kServiceWorkerRegistryName,
+                       worker::WorkerConsts::kServiceWorkerRegistryName,
                        base::kApplicationStateStarted, kWatchdogTimeInterval,
                        kWatchdogTimeWait, watchdog::PING);
     message_loop()->task_runner()->PostDelayedTask(
@@ -74,7 +73,7 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
   message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&ServiceWorkerRegistry::Initialize, base::Unretained(this),
-                 web_settings, network_module, platform_info, url));
+                 web_settings, network_module, platform_info));
 
   // Register as a destruction observer to shut down the Web Agent once all
   // pending tasks have been executed and the message loop is about to be
@@ -101,7 +100,7 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) {
     watchdog_registered_ = false;
-    watchdog->Unregister(kWatchdogName);
+    watchdog->Unregister(worker::WorkerConsts::kServiceWorkerRegistryName);
   }
 
   // Ensure that the destruction observer got added before stopping the thread.
@@ -120,7 +119,7 @@ void ServiceWorkerRegistry::PingWatchdog() {
   // If watchdog is already unregistered or shut down, stop ping watchdog.
   if (!watchdog_registered_ || !watchdog) return;
 
-  watchdog->Ping(kWatchdogName);
+  watchdog->Ping(worker::WorkerConsts::kServiceWorkerRegistryName);
   message_loop()->task_runner()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this)),
@@ -134,6 +133,10 @@ void ServiceWorkerRegistry::EnsureServiceWorkerStarted(
                                                        done_event);
 }
 
+void ServiceWorkerRegistry::EraseRegistrationMap() {
+  service_worker_context()->EraseRegistrationMap();
+}
+
 worker::ServiceWorkerContext* ServiceWorkerRegistry::service_worker_context() {
   // Ensure that the thread had a chance to allocate the object.
   destruction_observer_added_.Wait();
@@ -142,11 +145,11 @@ worker::ServiceWorkerContext* ServiceWorkerRegistry::service_worker_context() {
 
 void ServiceWorkerRegistry::Initialize(
     web::WebSettings* web_settings, network::NetworkModule* network_module,
-    web::UserAgentPlatformInfo* platform_info, const GURL& url) {
+    web::UserAgentPlatformInfo* platform_info) {
   TRACE_EVENT0("cobalt::browser", "ServiceWorkerRegistry::Initialize()");
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   service_worker_context_.reset(new worker::ServiceWorkerContext(
-      web_settings, network_module, platform_info, message_loop(), url));
+      web_settings, network_module, platform_info, message_loop()));
 }
 
 }  // namespace browser

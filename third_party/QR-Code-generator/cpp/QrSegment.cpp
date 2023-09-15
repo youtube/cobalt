@@ -1,23 +1,24 @@
-/*
+/* 
  * QR Code generator library (C++)
- *
+ * 
  * Copyright (c) Project Nayuki. (MIT License)
  * https://www.nayuki.io/page/qr-code-generator-library
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions: - The above
- * copyright notice and this permission notice shall be included in all copies
- * or substantial portions of the Software. - The Software is provided "as
- * is", without warranty of any kind, express or implied, including but not
- * limited to the warranties of merchantability, fitness for a particular
- * purpose and noninfringement. In no event shall the authors or copyright
- * holders be liable for any claim, damages or other liability, whether in an
- * action of contract, tort or otherwise, arising from, out of or in
- * connection with the Software or the use or other dealings in the Software.
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ * - The above copyright notice and this permission notice shall be included in
+ *   all copies or substantial portions of the Software.
+ * - The Software is provided "as is", without warranty of any kind, express or
+ *   implied, including but not limited to the warranties of merchantability,
+ *   fitness for a particular purpose and noninfringement. In no event shall the
+ *   authors or copyright holders be liable for any claim, damages or other
+ *   liability, whether in an action of contract, tort or otherwise, arising from,
+ *   out of or in connection with the Software or the use or other dealings in the
+ *   Software.
  */
 
 #include <climits>
@@ -112,17 +113,17 @@ QrSegment QrSegment::makeAlphanumeric(const char *text) {
 	int charCount = 0;
 	for (; *text != '\0'; text++, charCount++) {
           const char* temp = STRCHR_QR(ALPHANUMERIC_CHARSET, *text);
-          if (temp == nullptr)
-            throw "String contains unencodable characters in alphanumeric mode";
-          accumData = accumData * 45 + (temp - ALPHANUMERIC_CHARSET);
-          accumCount++;
-          if (accumCount == 2) {
-            bb.appendBits(accumData, 11);
-            accumData = 0;
-            accumCount = 0;
-          }
-        }
-        if (accumCount > 0)  // 1 character remaining
+		if (temp == nullptr)
+			throw "String contains unencodable characters in alphanumeric mode";
+		accumData = accumData * 45 + (temp - ALPHANUMERIC_CHARSET);
+		accumCount++;
+		if (accumCount == 2) {
+			bb.appendBits(accumData, 11);
+			accumData = 0;
+			accumCount = 0;
+		}
+	}
+	if (accumCount > 0)  // 1 character remaining
 		bb.appendBits(accumData, 6);
 	return QrSegment(Mode::ALPHANUMERIC, charCount, std::move(bb));
 }
@@ -203,9 +204,9 @@ int QrSegment::getTotalBits(const vector<QrSegment> &segs, int version) {
 bool QrSegment::isAlphanumeric(const char *text) {
 	for (; *text != '\0'; text++) {
           if (STRCHR_QR(ALPHANUMERIC_CHARSET, *text) == nullptr)
-            return false;
-        }
-        return true;
+			return false;
+	}
+	return true;
 }
 
 

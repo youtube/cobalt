@@ -252,9 +252,9 @@ static int SSL_SESSION_to_bytes_full(const SSL_SESSION *in, CBB *cbb,
 
   if (in->psk_identity) {
     if (!CBB_add_asn1(&session, &child, kPSKIdentityTag) ||
-        !CBB_add_asn1_octet_string(
-            &child, (const uint8_t *)in->psk_identity.get(),
-            strlen(in->psk_identity.get()))) {
+        !CBB_add_asn1_octet_string(&child,
+                                   (const uint8_t *)in->psk_identity.get(),
+                                   strlen(in->psk_identity.get()))) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
       return 0;
     }
