@@ -9,10 +9,9 @@ third_party {
   }
   url {
     type: GIT
-    value: "https://github.com/chromium/chromium"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  # Closest commit hash to m70.
-  version: "73162fc55e079d35b6f8c02a6ceee6298f0b3b7e"
+  version: "70.0.3538.110"
   last_upgrade_date {
     year: 2018
     month: 08
