@@ -65,7 +65,6 @@ enum FourCC {
 #endif
 #if defined(STARBOARD)
   FOURCC_IAMF = 0x69616d66,
-  FOURCC_IAMD = 0x69616d64,
 #endif
   FOURCC_ID32 = 0x49443332,
   FOURCC_IODS = 0x696f6473,

@@ -415,7 +415,7 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   FlacSpecificBox dfla;
   OpusSpecificBox dops;
 #if defined(STARBOARD)
-  IamfSpecificBox iamd;
+  IamfSpecificBox iamf;
 #endif
 };
 
