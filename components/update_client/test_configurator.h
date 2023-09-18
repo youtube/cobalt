@@ -16,14 +16,13 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "components/update_client/configurator.h"
-#include "url/gurl.h"
-
 #if defined(STARBOARD)
 #include "cobalt/network/network_module.h"
 #include "components/update_client/net/network_cobalt.h"
 #else
 #include "services/network/test/test_url_loader_factory.h"
 #endif
+#include "url/gurl.h"
 
 class PrefService;
 
@@ -85,7 +84,7 @@ class TestConfigurator : public Configurator {
  public:
   TestConfigurator();
 
-  // Overrides for Configurator.
+  // Overrrides for Configurator.
   int InitialDelay() const override;
   int NextCheckDelay() const override;
   int OnDemandDelay() const override;
