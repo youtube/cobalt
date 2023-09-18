@@ -110,7 +110,7 @@ TEST_F(ComponentUnpackerTest, UnpackFullCrx) {
           test_file("jebgalgnebhfojomionfpkfelancnnkf.crx"), nullptr,
           config->GetUnzipperFactory()->Create(),
           config->GetPatcherFactory()->Create(),
-          crx_file::VerifierFormat::CRX2_OR_CRX3);
+          crx_file::VerifierFormat::CRX3);
   component_unpacker->Unpack(base::BindOnce(
       &ComponentUnpackerTest::UnpackComplete, base::Unretained(this)));
   RunThreads();
@@ -128,11 +128,8 @@ TEST_F(ComponentUnpackerTest, UnpackFullCrx) {
       base::GetFileSize(unpack_path.AppendASCII("component1.dll"), &file_size));
   EXPECT_EQ(1024, file_size);
   EXPECT_TRUE(
-      base::GetFileSize(unpack_path.AppendASCII("flashtest.pem"), &file_size));
-  EXPECT_EQ(911, file_size);
-  EXPECT_TRUE(
       base::GetFileSize(unpack_path.AppendASCII("manifest.json"), &file_size));
-  EXPECT_EQ(144, file_size);
+  EXPECT_EQ(169, file_size);
 
   EXPECT_TRUE(base::DeleteFile(unpack_path, true));
 }
@@ -142,7 +139,7 @@ TEST_F(ComponentUnpackerTest, UnpackFileNotFound) {
       base::MakeRefCounted<ComponentUnpacker>(
           std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
           test_file("file-not-found.crx"), nullptr, nullptr, nullptr,
-          crx_file::VerifierFormat::CRX2_OR_CRX3);
+          crx_file::VerifierFormat::CRX3);
   component_unpacker->Unpack(base::BindOnce(
       &ComponentUnpackerTest::UnpackComplete, base::Unretained(this)));
   RunThreads();
@@ -160,7 +157,7 @@ TEST_F(ComponentUnpackerTest, UnpackFileHashMismatch) {
       base::MakeRefCounted<ComponentUnpacker>(
           std::vector<uint8_t>(std::begin(abag_hash), std::end(abag_hash)),
           test_file("jebgalgnebhfojomionfpkfelancnnkf.crx"), nullptr, nullptr,
-          nullptr, crx_file::VerifierFormat::CRX2_OR_CRX3);
+          nullptr, crx_file::VerifierFormat::CRX3);
   component_unpacker->Unpack(base::BindOnce(
       &ComponentUnpackerTest::UnpackComplete, base::Unretained(this)));
   RunThreads();

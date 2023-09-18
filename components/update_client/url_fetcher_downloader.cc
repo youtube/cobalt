@@ -5,10 +5,7 @@
 #include "components/update_client/url_fetcher_downloader.h"
 
 #include <stdint.h>
-#include <stack>
-#include <string>
 #include <utility>
-#include <vector>
 
 #include "base/bind.h"
 #include "base/files/file_enumerator.h"
@@ -18,8 +15,6 @@
 #include "base/sequenced_task_runner.h"
 #include "base/task/post_task.h"
 #include "base/task/task_traits.h"
-#include "base/threading/sequenced_task_runner_handle.h"
-#include "base/values.h"
 #if defined(STARBOARD)
 #include "cobalt/updater/updater_module.h"
 #endif
@@ -160,7 +155,6 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url, std::string* dst) {
 void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 #endif  // defined(IN_MEMORY_UPDATES)
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
 #if defined(STARBOARD)
   LOG(INFO) << "UrlFetcherDownloader::DoStartDownload";
   if (is_cancelled_) {
