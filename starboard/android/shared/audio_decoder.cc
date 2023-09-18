@@ -94,9 +94,10 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
 
   output_cb_ = output_cb;
   error_cb_ = error_cb;
-
-  media_decoder_->Initialize(
-      std::bind(&AudioDecoder::ReportError, this, _1, _2));
+  if (media_decoder_) {
+    media_decoder_->Initialize(
+        std::bind(&AudioDecoder::ReportError, this, _1, _2));
+  }
 }
 
 void AudioDecoder::Decode(const InputBuffers& input_buffers,
@@ -108,15 +109,20 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
 
   audio_frame_discarder_.OnInputBuffers(input_buffers);
 
+#if STARBOARD_ANDROID_SHARED_AUDIO_DECODER_VERBOSE
   for (const auto& input_buffer : input_buffers) {
     VERBOSE_MEDIA_LOG() << "T1: timestamp " << input_buffer->timestamp();
   }
+#endif
 
-  media_decoder_->WriteInputBuffers(input_buffers);
+  if (media_decoder_) {
+    media_decoder_->WriteInputBuffers(input_buffers);
+  }
 
   ScopedLock lock(decoded_audios_mutex_);
-  if (media_decoder_->GetNumberOfPendingTasks() + decoded_audios_.size() <=
-      kMaxPendingWorkSize) {
+  if (media_decoder_ &&
+      (media_decoder_->GetNumberOfPendingTasks() + decoded_audios_.size() <=
+       kMaxPendingWorkSize)) {
     Schedule(consumed_cb);
   } else {
     consumed_cb_ = consumed_cb;
@@ -128,7 +134,9 @@ void AudioDecoder::WriteEndOfStream() {
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
-  media_decoder_->WriteEndOfStream();
+  if (media_decoder_) {
+    media_decoder_->WriteEndOfStream();
+  }
 }
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
