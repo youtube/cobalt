@@ -367,7 +367,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     try:
       exe_path = os.path.join(packager.GetWinToolsPath(), 'WinAppDeployCmd.exe')
       command_str = f'{exe_path} {command} -ip {self.GetDeviceIp()}'
-      self._Log('Running: ' + command_str)
+      self._LogLn('Running: ' + command_str)
       out = subprocess.check_output(command_str).decode()
     except subprocess.CalledProcessError as e:
       self._LogLn(e.output)
