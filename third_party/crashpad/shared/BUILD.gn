@@ -1,0 +1,24 @@
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../build/crashpad_buildconfig.gni")
+
+if (crashpad_is_in_native_target_build) {
+  config("native_target_executable_config") {
+    # This is to undo the "main=StarboardMain" define added for all targets
+    # when final_executable_type == "shared_library", in
+    # starboard/build/config/BUILD.gn, which itself is admittedly a hack.
+    defines = [ "StarboardMain=main" ]
+  }
+}

@@ -30,15 +30,6 @@ source_set("tool_support") {
 }
 
 if (!crashpad_is_ios) {
-  if (crashpad_is_in_native_target_build) {
-    config("crashpad_database_util_config") {
-      # This is to undo the "main=StarboardMain" define added for all targets
-      # when final_executable_type == "shared_library", in
-      # starboard/build/config/BUILD.gn, which itself is admittedly a hack.
-      defines = [ "StarboardMain=main" ]
-    }
-  }
-
   crashpad_executable("crashpad_database_util") {
     check_includes = !crashpad_is_in_starboard && !crashpad_is_in_native_target_build
 
@@ -60,7 +51,7 @@ if (!crashpad_is_ios) {
     }
 
     if (crashpad_is_in_native_target_build) {
-      configs = [ ":crashpad_database_util_config" ]
+      configs = [ "../shared:native_target_executable_config" ]
     }
   }
 
