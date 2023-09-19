@@ -67,7 +67,11 @@ void __cxa_finalize(void *dso)
 }
 #endif  // !defined(ADDRESS_SANITIZER)
 
+#if defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
+int __musl_cxa_atexit(void (*func)(void *), void *arg, void *dso)
+#else  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 int __cxa_atexit(void (*func)(void *), void *arg, void *dso)
+#endif  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 {
 	LOCK(lock);
 
