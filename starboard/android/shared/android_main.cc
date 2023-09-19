@@ -408,6 +408,10 @@ extern "C" int SbRunStarboardMain(int argc,
   CommandLine command_line(GetArgs());
   LogInit(command_line);
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  InstallCrashpadHandler(command_line);
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+
   // Mark the app running before signaling app created so there's no race to
   // allow sending the first AndroidCommand after onCreate() returns.
   g_app_running.store(true);
