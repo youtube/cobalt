@@ -55,7 +55,11 @@ void __funcs_on_exit()
 }
 
 #if !defined(ADDRESS_SANITIZER)
+#if defined(USE_CUSTOM_MUSL_FINALIZE_SIGNATURE)
+void __musl_cxa_finalize(void *dso)
+#else  // defined(USE_CUSTOM_MUSL_FINALIZE_SIGNATURE)
 void __cxa_finalize(void *dso)
+#endif  // defined(USE_CUSTOM_MUSL_FINALIZE_SIGNATURE)
 {
 #ifdef STARBOARD
   __funcs_on_exit();
