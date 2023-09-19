@@ -55,11 +55,7 @@ void __funcs_on_exit()
 }
 
 #if !defined(ADDRESS_SANITIZER)
-#if defined(USE_CUSTOM_CXA_FINALIZE_SIGNATURE)
-void __musl_cxa_finalize(void *dso)
-#else  // defined(USE_CUSTOM_CXA_FINALIZE_SIGNATURE)
 void __cxa_finalize(void *dso)
-#endif  // defined(USE_CUSTOM_CXA_FINALIZE_SIGNATURE)
 {
 #ifdef STARBOARD
   __funcs_on_exit();
@@ -67,11 +63,7 @@ void __cxa_finalize(void *dso)
 }
 #endif  // !defined(ADDRESS_SANITIZER)
 
-#if defined(USE_CUSTOM_CXA_ATEXIT_SIGNATURE)
-int __musl_cxa_atexit(void (*func)(void *), void *arg, void *dso)
-#else  // defined(USE_CUSTOM_CXA_ATEXIT_SIGNATURE)
 int __cxa_atexit(void (*func)(void *), void *arg, void *dso)
-#endif  // defined(USE_CUSTOM_CXA_ATEXIT_SIGNATURE)
 {
 	LOCK(lock);
 
