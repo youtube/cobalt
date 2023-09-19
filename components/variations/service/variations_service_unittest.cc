@@ -70,6 +70,7 @@ class TestVariationsServiceClient : public VariationsServiceClient {
   ~TestVariationsServiceClient() override {}
 
   // VariationsServiceClient:
+  std::string GetApplicationLocale() override { return std::string(); }
   base::Callback<base::Version(void)> GetVersionForSimulationCallback()
       override {
     return base::Bind(&StubGetVersionForSimulation);
