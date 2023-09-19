@@ -76,6 +76,7 @@ group("gn_all") {
       data_deps = [
         "//starboard/loader_app($starboard_toolchain)",
         "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+        "//third_party/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
       ]
     }
   }

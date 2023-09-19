@@ -66,3 +66,12 @@ if (crashpad_is_ios) {
     }
   }
 }
+
+if (crashpad_is_in_native_target_build) {
+  config("native_target_executable_config") {
+    # This is to undo the "main=StarboardMain" define added for all targets
+    # when final_executable_type == "shared_library", in
+    # starboard/build/config/BUILD.gn, which itself is admittedly a hack.
+    defines = [ "StarboardMain=main" ]
+  }
+}
