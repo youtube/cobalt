@@ -51,7 +51,7 @@ if (!crashpad_is_ios) {
     }
 
     if (crashpad_is_in_native_target_build) {
-      configs = [ "../shared:native_target_executable_config" ]
+      configs = [ "../build:native_target_executable_config" ]
     }
   }
 
