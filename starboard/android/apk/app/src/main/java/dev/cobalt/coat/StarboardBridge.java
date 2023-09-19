@@ -305,7 +305,10 @@ public class StarboardBridge {
   }
 
   public boolean onSearchRequested() {
-    return nativeOnSearchRequested();
+    if (!starboardStopped) {
+      return nativeOnSearchRequested();
+    }
+    return false;
   }
 
   private native boolean nativeOnSearchRequested();
@@ -349,7 +352,9 @@ public class StarboardBridge {
 
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    nativeHandleDeepLink(url);
+    if (!starboardStopped) {
+      nativeHandleDeepLink(url);
+    }
   }
 
   private native void nativeHandleDeepLink(String url);

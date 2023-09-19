@@ -161,6 +161,7 @@ ApplicationAndroid::~ApplicationAndroid() {
   {
     // Signal for any potentially waiting window creation or destroy commands.
     ScopedLock lock(android_command_mutex_);
+    application_destroying_.store(true);
     android_command_condition_.Signal();
   }
 }
@@ -412,7 +413,7 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
   switch (type) {
     case AndroidCommand::kNativeWindowCreated:
     case AndroidCommand::kNativeWindowDestroyed:
-      while (native_window_ != data) {
+      while ((native_window_ != data) && !application_destroying_.load()) {
         android_command_condition_.Wait();
       }
       break;
