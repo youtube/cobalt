@@ -140,14 +140,17 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(output_cb_);
   SB_CHECK(codec_context_ != NULL);
 
-  const auto& input_buffer = input_buffers[0];
-
   Schedule(consumed_cb);
 
+  if (input_buffers.empty() || !input_buffers[0]) {
+    SB_LOG(ERROR) << "No input buffer to decode.";
+    return;
+  }
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
   }
+  const auto& input_buffer = input_buffers[0];
 
   AVPacket packet;
   ffmpeg_->av_init_packet(&packet);

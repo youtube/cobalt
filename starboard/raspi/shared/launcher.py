@@ -29,6 +29,12 @@ import pexpect
 from starboard.tools import abstract_launcher
 from starboard.raspi.shared import retry
 
+IS_MODULAR_BUILD = os.getenv('MODULAR_BUILD', '0') == '1'
+
+
+class TargetPathError(ValueError):
+  pass
+
 
 # pylint: disable=unused-argument
 def _sigint_or_sigterm_handler(signum, frame):
@@ -83,8 +89,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
   _PROMPT_WAIT_MAX_RETRIES = 5
   # Wait up to 10 seconds for the password prompt from the raspi
   _PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES = 10
-  # Wait up to 900 seconds for new output from the raspi
-  _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 900
+  # Wait up to 600 seconds for new output from the raspi
+  _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 600
   # Delay between subsequent SSH commands
   _INTER_COMMAND_DELAY_SECONDS = 1.5
 
@@ -126,31 +132,43 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     self.last_run_pexpect_cmd = ''
 
+  def _GetAndCheckTestFile(self, target_name):
+    # TODO(b/218889313): This should reference the bin/ subdir when that's
+    # used.
+    test_dir = os.path.join(self.out_directory, 'install', target_name)
+    test_file = target_name
+    test_path = os.path.join(test_dir, test_file)
+
+    if not os.path.isfile(test_path):
+      raise TargetPathError(f'TargetPath ({test_path}) must be a file.')
+    return test_file
+
+  def _GetAndCheckTestFileWithFallback(self):
+    try:
+      return self._GetAndCheckTestFile(self.target_name + '_loader')
+    except TargetPathError as e:
+      if IS_MODULAR_BUILD:
+        raise e
+      return self._GetAndCheckTestFile(self.target_name)
+
   def _InitPexpectCommands(self):
     """Initializes all of the pexpect commands needed for running the test."""
 
     # Ensure no trailing slashes
     self.out_directory = self.out_directory.rstrip('/')
 
-    # TODO(b/218889313): This should reference the bin/ subdir when that's
-    # used.
-    test_dir = os.path.join(self.out_directory, 'install', self.target_name)
-    test_file = self.target_name
-
-    test_path = os.path.join(test_dir, test_file)
-    if not os.path.isfile(test_path):
-      raise ValueError(f'TargetPath ({test_path}) must be a file.')
+    test_file = self._GetAndCheckTestFileWithFallback()
 
     raspi_user_hostname = Launcher._RASPI_USERNAME + '@' + self.device_id
 
     # Use the basename of the out directory as a common directory on the device
     # so content can be reused for several targets w/o re-syncing for each one.
     raspi_test_dir = os.path.basename(self.out_directory)
-    raspi_test_path = os.path.join(raspi_test_dir, test_file)
+    raspi_test_path = os.path.join(raspi_test_dir, test_file, test_file)
 
     # rsync command setup
-    options = '-avzLhc'
-    source = test_dir + '/'
+    options = '-avzLh'
+    source = os.path.join(self.out_directory, 'install') + '/'
     destination = f'{raspi_user_hostname}:~/{raspi_test_dir}/'
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
 
@@ -242,28 +260,25 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _PexpectReadLines(self):
     """Reads all lines from the pexpect process."""
-    # pylint: disable=unnecessary-lambda
-    @retry.retry(
-        exceptions=Launcher._RETRY_EXCEPTIONS,
-        retries=Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES,
-        backoff=lambda: self.shutdown_initiated.is_set(),
-        wrap_exceptions=False)
-    def _readloop():
-      while True:
-        # Sanitize the line to remove ansi color codes.
-        line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub(
-            '', self.pexpect_process.readline())
-        self.output_file.flush()
-        if not line:
-          return
-        # Check for the test complete tag. It will be followed by either a
-        # success or failure tag.
-        if line.startswith(self.test_complete_tag):
-          if line.find(self.test_success_tag) != -1:
-            self.return_value = 0
-          return
-
-    _readloop()
+    while True:
+      # pylint: disable=unnecessary-lambda
+      line = retry.with_retry(
+          self.pexpect_process.readline,
+          exceptions=Launcher._RETRY_EXCEPTIONS,
+          retries=Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES,
+          backoff=lambda: self.shutdown_initiated.is_set(),
+          wrap_exceptions=False)
+      # Sanitize the line to remove ansi color codes.
+      line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub('', line)
+      self.output_file.flush()
+      if not line:
+        return
+      # Check for the test complete tag. It will be followed by either a
+      # success or failure tag.
+      if line.startswith(self.test_complete_tag):
+        if line.find(self.test_success_tag) != -1:
+          self.return_value = 0
+        return
 
   def _Sleep(self, val):
     self._PexpectSendLine(f'sleep {val};echo {Launcher._SSH_SLEEP_SIGNAL}')

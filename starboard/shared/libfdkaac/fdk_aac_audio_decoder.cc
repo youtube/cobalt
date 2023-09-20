@@ -52,6 +52,10 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(output_cb_);
   SB_DCHECK(decoder_ != NULL);
 
+  if (input_buffers.empty() || !input_buffers[0]) {
+    SB_LOG(ERROR) << "No input buffer to decode.";
+    return;
+  }
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;

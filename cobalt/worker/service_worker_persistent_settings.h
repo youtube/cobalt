@@ -48,17 +48,15 @@ class ServiceWorkerPersistentSettings {
     Options(web::WebSettings* web_settings,
             network::NetworkModule* network_module,
             web::UserAgentPlatformInfo* platform_info,
-            ServiceWorkerContext* service_worker_context, const GURL& url)
+            ServiceWorkerContext* service_worker_context)
         : web_settings(web_settings),
           network_module(network_module),
           platform_info(platform_info),
-          service_worker_context(service_worker_context),
-          url(url) {}
+          service_worker_context(service_worker_context) {}
     web::WebSettings* web_settings;
     network::NetworkModule* network_module;
     web::UserAgentPlatformInfo* platform_info;
     ServiceWorkerContext* service_worker_context;
-    const GURL& url;
   };
 
   explicit ServiceWorkerPersistentSettings(const Options& options);

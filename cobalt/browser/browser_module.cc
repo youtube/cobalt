@@ -52,6 +52,7 @@
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
+#include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "cobalt/ui_navigation/scroll_engine/scroll_engine.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
@@ -161,6 +162,13 @@ const char kDisableMediaCodecsCommandLongHelp[] =
     "is useful when trying to target testing to certain codecs, since other "
     "codecs will get picked as a fallback as a result.";
 
+const char kNavigateTimedTrace[] = "navigate_timed_trace";
+const char kNavigateTimedTraceShortHelp[] =
+    "Request a timed trace from the next navigation.";
+const char kNavigateTimedTraceLongHelp[] =
+    "When this is called, a timed trace will start at the next navigation "
+    "and run for the given number of seconds.";
+
 void ScreenshotCompleteCallback(const base::FilePath& output_path) {
   DLOG(INFO) << "Screenshot written to " << output_path.value();
 }
@@ -268,6 +276,11 @@ BrowserModule::BrowserModule(const GURL& url,
                      base::Unretained(this)),
           kDisableMediaCodecsCommandShortHelp,
           kDisableMediaCodecsCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(navigate_timed_trace_command_handler_(
+          kNavigateTimedTrace,
+          base::Bind(&BrowserModule::OnNavigateTimedTrace,
+                     base::Unretained(this)),
+          kNavigateTimedTraceShortHelp, kNavigateTimedTraceLongHelp)),
 #endif  // defined(ENABLE_DEBUGGER)
       has_resumed_(base::WaitableEvent::ResetPolicy::MANUAL,
                    base::WaitableEvent::InitialState::NOT_SIGNALED),
@@ -289,7 +302,7 @@ BrowserModule::BrowserModule(const GURL& url,
 
   platform_info_.reset(new browser::UserAgentPlatformInfo());
   service_worker_registry_.reset(new ServiceWorkerRegistry(
-      &web_settings_, network_module, platform_info_.get(), url));
+      &web_settings_, network_module, platform_info_.get()));
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
@@ -462,7 +475,9 @@ BrowserModule::~BrowserModule() {
   }
   debug_console_.reset();
 #endif
+
   DestroySplashScreen();
+  DestroyScrollEngine();
   // Make sure the WebModule is destroyed before the ServiceWorkerRegistry
   if (web_module_) {
     lifecycle_observers_.RemoveObserver(web_module_.get());
@@ -478,6 +493,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   DLOG(INFO) << "In BrowserModule::Navigate " << url;
   TRACE_EVENT1("cobalt::browser", "BrowserModule::Navigate()", "url",
                url.spec());
+
   // Reset the waitable event regardless of the thread. This ensures that the
   // webdriver won't incorrectly believe that the webmodule has finished loading
   // when it calls Navigate() and waits for the |web_module_loaded_| signal.
@@ -552,6 +568,17 @@ void BrowserModule::NavigateResetWebModule() {
   current_main_web_module_timeline_id_ = next_timeline_id_++;
 
   main_web_module_layer_->Reset();
+
+#if defined(ENABLE_DEBUGGER)
+  // Check to see if a timed_trace has been set, indicating that we should
+  // begin a timed trace upon startup.
+  if (navigate_timed_trace_duration_ != base::TimeDelta()) {
+    trace_event::TraceToFileForDuration(
+        base::FilePath(FILE_PATH_LITERAL("timed_trace.json")),
+        navigate_timed_trace_duration_);
+    navigate_timed_trace_duration_ = base::TimeDelta();
+  }
+#endif  // defined(ENABLE_DEBUGGER)
 }
 
 void BrowserModule::NavigateResetErrorHandling() {
@@ -625,7 +652,9 @@ void BrowserModule::NavigateSetupSplashScreen(
 }
 
 void BrowserModule::NavigateSetupScrollEngine() {
+  DestroyScrollEngine();
   scroll_engine_.reset(new ui_navigation::scroll_engine::ScrollEngine());
+  lifecycle_observers_.AddObserver(scroll_engine_.get());
   scroll_engine_->thread()->Start();
 }
 
@@ -1137,6 +1166,13 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   SubmitCurrentRenderTreeToRenderer();
 }
 
+void BrowserModule::OnNavigateTimedTrace(const std::string& time) {
+  double duration_in_seconds = 0;
+  base::StringToDouble(time, &duration_in_seconds);
+  navigate_timed_trace_duration_ =
+      base::TimeDelta::FromMilliseconds(static_cast<int64_t>(
+          duration_in_seconds * base::Time::kMillisecondsPerSecond));
+}
 #endif  // defined(ENABLE_DEBUGGER)
 
 void BrowserModule::OnOnScreenKeyboardInputEventProduced(
@@ -1435,6 +1471,20 @@ void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
     SubmitCurrentRenderTreeToRenderer();
     splash_screen_.reset();
   }
+}
+
+void BrowserModule::DestroyScrollEngine() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::DestroyScrollEngine()");
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::DestroyScrollEngine, weak_this_));
+    return;
+  }
+  if (scroll_engine_ &&
+      lifecycle_observers_.HasObserver(scroll_engine_.get())) {
+    lifecycle_observers_.RemoveObserver(scroll_engine_.get());
+  }
+  scroll_engine_.reset();
 }
 
 #if defined(ENABLE_WEBDRIVER)

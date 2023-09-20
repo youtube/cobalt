@@ -35,8 +35,7 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
  public:
   ServiceWorkerRegistry(web::WebSettings* web_settings,
                         network::NetworkModule* network_module,
-                        web::UserAgentPlatformInfo* platform_info,
-                        const GURL& url);
+                        web::UserAgentPlatformInfo* platform_info);
   ~ServiceWorkerRegistry();
 
   // The message loop this object is running on.
@@ -58,7 +57,7 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
   // the dedicated thread.
   void Initialize(web::WebSettings* web_settings,
                   network::NetworkModule* network_module,
-                  web::UserAgentPlatformInfo* platform_info, const GURL& url);
+                  web::UserAgentPlatformInfo* platform_info);
 
   void PingWatchdog();
 

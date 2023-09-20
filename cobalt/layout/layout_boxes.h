@@ -67,6 +67,11 @@ class LayoutBoxes : public dom::LayoutBoxes {
   //
   const Boxes& boxes() { return boxes_; }
 
+  base::Optional<std::pair<dom::Directionality, math::RectF>>&
+  scroll_area_cache() override {
+    return scroll_area_cache_;
+  }
+
  private:
   // Returns the bounding rectangle of the border edges of the boxes.
   math::RectF GetBoundingBorderRectangle() const;

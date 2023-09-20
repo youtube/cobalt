@@ -52,7 +52,6 @@ action("game_activity_sources") {
 
 static_library("starboard_platform") {
   sources = [
-    "//starboard/shared/egl/system_egl.cc",
     "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/gles/gl_call.h",
     "//starboard/shared/gles/system_gles2.cc",
@@ -365,6 +364,7 @@ static_library("starboard_platform") {
     "speech_synthesis_internal.cc",
     "speech_synthesis_is_supported.cc",
     "speech_synthesis_speak.cc",
+    "system_egl.cc",
     "system_get_connection_type.cc",
     "system_get_device_type.cc",
     "system_get_extensions.cc",
