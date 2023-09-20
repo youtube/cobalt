@@ -691,6 +691,15 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
+  public void clearVideoSurface() {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      ((CobaltActivity) activity).clearVideoSurface();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
   public void resetVideoSurface() {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {

@@ -53,6 +53,11 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
   void SetOnUploadHandler(
       const CobaltMetricsUploaderCallback* uploader_callback);
 
+  // Remove reference to the passed uploader callback, if it's the current
+  // reference. Otherwise, does nothing.
+  void RemoveOnUploadHandler(
+      const CobaltMetricsUploaderCallback* uploader_callback);
+
   // Returns the MetricsService instance that this client is associated with.
   // With the exception of testing contexts, the returned instance must be valid
   // for the lifetime of this object (typically, the embedder's client

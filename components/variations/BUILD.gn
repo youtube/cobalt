@@ -128,7 +128,6 @@ if (is_android && !use_cobalt_customizations) {
   }
 }
 
-# TODO(b/283258321): Re-enable as many tests as posible.
 if (!use_cobalt_customizations) {
   static_library("test_support") {
     testonly = true

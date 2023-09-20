@@ -88,9 +88,19 @@ class Watchdog : public Singleton<Watchdog> {
                 base::ApplicationState monitor_state,
                 int64_t time_interval_microseconds,
                 int64_t time_wait_microseconds = 0, Replace replace = NONE);
+  std::shared_ptr<Client> RegisterByClient(std::string name,
+                                           std::string description,
+                                           base::ApplicationState monitor_state,
+                                           int64_t time_interval_microseconds,
+                                           int64_t time_wait_microseconds = 0);
   bool Unregister(const std::string& name, bool lock = true);
+  bool UnregisterByClient(std::shared_ptr<Client> client);
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
+  bool PingByClient(std::shared_ptr<Client> client);
+  bool PingByClient(std::shared_ptr<Client> client, const std::string& info);
+  bool PingHelper(Client* client, const std::string& name,
+                  const std::string& info);
   std::string GetWatchdogViolations(
       const std::vector<std::string>& clients = {}, bool clear = true);
   bool GetPersistentSettingWatchdogEnable();
@@ -104,12 +114,21 @@ class Watchdog : public Singleton<Watchdog> {
 #endif  // defined(_DEBUG)
 
  private:
+  std::shared_ptr<base::Value> GetViolationsMap();
   void WriteWatchdogViolations();
-  std::string ReadViolationFile(const char* file_path);
+  void EvictOldWatchdogViolations();
+  std::unique_ptr<Client> CreateClient(std::string name,
+                                       std::string description,
+                                       base::ApplicationState monitor_state,
+                                       int64_t time_interval_microseconds,
+                                       int64_t time_wait_microseconds,
+                                       int64_t current_time,
+                                       SbTimeMonotonic current_monotonic_time);
   static void* Monitor(void* context);
+  static bool MonitorClient(void* context, Client* client,
+                            SbTimeMonotonic current_monotonic_time);
   static void UpdateViolationsMap(void* context, Client* client,
                                   SbTimeMonotonic time_delta);
-  static void InitializeViolationsMap(void* context);
   static void EvictWatchdogViolation(void* context);
   static void MaybeWriteWatchdogViolations(void* context);
   static void MaybeTriggerCrash(void* context);
@@ -139,12 +158,13 @@ class Watchdog : public Singleton<Watchdog> {
   SbTimeMonotonic time_last_written_microseconds_ = 0;
   // Number of microseconds between writes.
   int64_t write_wait_time_microseconds_;
-  // Dictionary of registered Watchdog clients.
+  // Dictionary of name registered Watchdog clients.
   std::unordered_map<std::string, std::unique_ptr<Client>> client_map_;
+  // List of client registered Watchdog clients, parallel data structure to
+  // client_map_.
+  std::vector<std::shared_ptr<Client>> client_list_;
   // Dictionary of lists of Watchdog violations represented as dictionaries.
-  std::unique_ptr<base::Value> violations_map_;
-  // Number of violations in violations_map_;
-  int violations_count_;
+  std::shared_ptr<base::Value> violations_map_;
   // Monitor thread.
   SbThread watchdog_thread_;
   // Flag to stop monitor thread.

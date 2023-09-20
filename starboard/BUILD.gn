@@ -51,6 +51,7 @@ group("gn_all") {
   if (sb_filter_based_player) {
     deps += [
       "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
+      "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
       "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
     ]
   }
@@ -71,6 +72,7 @@ group("gn_all") {
       data_deps = [
         "//starboard/loader_app($starboard_toolchain)",
         "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+        "//third_party/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
       ]
     }
   }
@@ -109,7 +111,7 @@ group("starboard") {
     }
   } else {
     public_deps += [
-      ":starboard_platform_group($starboard_toolchain)",
+      ":starboard_platform_group_static($starboard_toolchain)",
       "//starboard/common",
     ]
 
@@ -182,6 +184,10 @@ source_set("starboard_headers_only") {
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
   starboard_platform_target("starboard_platform_group") {
+  }
+
+  starboard_platform_target("starboard_platform_group_static") {
+    target_type = "group"
   }
 
   if (platform_tests_path == "") {

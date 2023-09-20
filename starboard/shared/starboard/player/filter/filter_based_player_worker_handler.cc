@@ -355,13 +355,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   } else {
     media_time_provider_->Play();
   }
-<<<<<<< HEAD
-
-  return true;
-=======
   Update();
   return {true};
->>>>>>> ab9776a7fba ([media] Pass PlayerWorker::Handler error messages (#1468))
 }
 
 HandlerResult FilterBasedPlayerWorkerHandler::SetPlaybackRate(
@@ -379,12 +374,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::SetPlaybackRate(
   }
 
   media_time_provider_->SetPlaybackRate(playback_rate_);
-<<<<<<< HEAD
-  return true;
-=======
   Update();
   return {true};
->>>>>>> ab9776a7fba ([media] Pass PlayerWorker::Handler error messages (#1468))
 }
 
 void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
@@ -515,6 +506,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
     update_media_info_cb_(media_time, dropped_frames, !is_underflow);
   }
 
+  RemoveJobByToken(update_job_token_);
   update_job_token_ = Schedule(update_job_, kUpdateInterval);
 }
 
