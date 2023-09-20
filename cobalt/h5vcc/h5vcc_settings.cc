@@ -18,17 +18,10 @@
 
 #include <memory>
 
-#include "base/strings/string_split.h"
-#include "base/strings/string_util.h"
 #include "cobalt/network/network_module.h"
 
 namespace cobalt {
 namespace h5vcc {
-
-namespace {
-constexpr std::array<const char*, 8> kCodecList{
-    {"av01", "avc1", "avc3", "hev1", "hvc1", "vp09", "vp8", "vp9"}};
-};  // namespace
 
 H5vccSettings::H5vccSettings(
     const SetSettingFunc& set_web_setting_func,
@@ -55,7 +48,7 @@ H5vccSettings::H5vccSettings(
 
 bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaPrefix[] = "Media.";
-  const char kMediaCodecAllowList[] = "MediaCodecAllowList";
+  const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kClientHintHeaders[] = "ClientHintHeaders";
   const char kQUIC[] = "QUIC";
@@ -64,34 +57,9 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
 #endif
 
-  if (name == kMediaCodecAllowList && value.IsType<std::string>()) {
-    std::vector<std::string> allowed_media_codecs =
-        base::SplitString(value.AsType<std::string>(), ";",
-                          base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-    // Allow only the codecs in the list.
-    // If it is emtpy string, it allows all codecs.
-    // Examples: input string seperated by semicolon
-    // "vp09;vp9": allow only vp9 codec
-    // "": allow all codecs
-    if (allowed_media_codecs.size() > 0) {
-      std::unordered_set<std::string> allowed_media_codecs_set(
-          allowed_media_codecs.begin(), allowed_media_codecs.end());
-      std::vector<std::string> blocked_media_codecs;
-      for (auto& codec : kCodecList) {
-        if (allowed_media_codecs_set.count(codec) <= 0) {
-          blocked_media_codecs.push_back(codec);
-        }
-      }
-      std::string blocked_media_codec_combinations =
-          base::JoinString(blocked_media_codecs, ";");
-      LOG(INFO) << "Codec (" << blocked_media_codec_combinations
-                << ") is blocked via console/command line.";
-      can_play_type_handler_->SetDisabledMediaCodecs(
-          blocked_media_codec_combinations);
-    } else {
-      LOG(INFO) << "Allowed All Codec via console/command line.";
-      can_play_type_handler_->SetDisabledMediaCodecs({});
-    }
+  if (name == kMediaCodecBlockList && value.IsType<std::string>() &&
+      value.AsType<std::string>().size() < 256) {
+    can_play_type_handler_->SetDisabledMediaCodecs(value.AsType<std::string>());
     return true;
   }
 
