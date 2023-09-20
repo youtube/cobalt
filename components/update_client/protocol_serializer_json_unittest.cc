@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/update_client/protocol_serializer_json.h"
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -17,6 +15,7 @@
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_definition.h"
 #include "components/update_client/protocol_serializer.h"
+#include "components/update_client/protocol_serializer_json.h"
 #include "components/update_client/updater_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #if !defined(STARBOARD)

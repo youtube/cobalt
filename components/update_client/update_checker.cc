@@ -278,11 +278,12 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
         MakeProtocolUpdateCheck(is_update_disabled),
         MakeProtocolPing(app_id, metadata_)));
   }
+  std::string updater_channel = config_->GetChannel();
 
   const auto request = MakeProtocolRequest(
       session_id, config_->GetProdId(),
       config_->GetBrowserVersion().GetString(), config_->GetLang(),
-      config_->GetChannel(), config_->GetOSLongName(),
+      updater_channel, config_->GetOSLongName(),
       config_->GetDownloadPreference(), additional_attributes,
       updater_state_attributes_.get(), std::move(apps));
 
@@ -330,10 +331,9 @@ bool UpdateCheckerImpl::SkipUpdate(
 }
 #endif
 
-void UpdateCheckerImpl::OnRequestSenderComplete(
-    int error,
-    const std::string& response,
-    int retry_after_sec) {
+void UpdateCheckerImpl::OnRequestSenderComplete(int error,
+                                                const std::string& response,
+                                                int retry_after_sec) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (error) {

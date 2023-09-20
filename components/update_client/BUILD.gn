@@ -105,6 +105,7 @@ static_library("update_client") {
 
 static_library("test_support") {
   testonly = true
+
   sources = [
     "net/network_cobalt.h",
     "net/network_impl_cobalt.cc",
@@ -175,11 +176,13 @@ copy("update_client_test_files") {
     "//components/test/data/update_client/updatecheck_reply_parse_error.json",
     "//components/test/data/update_client/updatecheck_reply_unknownapp.json",
   ]
+
   outputs = [ "$sb_static_contents_output_data_dir/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
 }
 
 target(gtest_target_type, "update_client_test") {
   testonly = true
+
   sources = [
     "component_unpacker_unittest.cc",
 

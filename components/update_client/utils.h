@@ -19,7 +19,7 @@ class GURL;
 namespace base {
 class DictionaryValue;
 class FilePath;
-}
+}  // namespace base
 
 namespace update_client {
 

@@ -20,7 +20,7 @@ class PrefService;
 namespace base {
 class FilePath;
 class Version;
-}
+}  // namespace base
 
 namespace update_client {
 
