@@ -53,8 +53,7 @@ ComponentPatcher::ComponentPatcher(const base::FilePath& input_dir,
       installer_(installer),
       patcher_(patcher) {}
 
-ComponentPatcher::~ComponentPatcher() {
-}
+ComponentPatcher::~ComponentPatcher() {}
 
 void ComponentPatcher::Start(Callback callback) {
   callback_ = std::move(callback);

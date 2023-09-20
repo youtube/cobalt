@@ -36,8 +36,8 @@ void ActionRunner::RunCommand(const base::CommandLine& cmdline) {
 
   base::PostTaskWithTraits(
       FROM_HERE, kTaskTraitsRunCommand,
-                 base::BindOnce(&ActionRunner::WaitForCommand,
-                                base::Unretained(this), std::move(process)));
+      base::BindOnce(&ActionRunner::WaitForCommand, base::Unretained(this),
+                     std::move(process)));
 }
 
 void ActionRunner::WaitForCommand(base::Process process) {

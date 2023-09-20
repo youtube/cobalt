@@ -30,8 +30,7 @@ CrxDownloader::DownloadMetrics::DownloadMetrics()
       error(0),
       downloaded_bytes(-1),
       total_bytes(-1),
-      download_time_ms(0) {
-}
+      download_time_ms(0) {}
 
 // On Windows, the first downloader in the chain is a background downloader,
 // which uses the BITS service.
@@ -258,19 +257,19 @@ void CrxDownloader::HandleDownloadError(
   if (result.error != static_cast<int>(CrxDownloaderError::SLOT_UNAVAILABLE)) {
 #endif
 
-  // If an error has occured, try the next url if there is any,
-  // or try the successor in the chain if there is any successor.
-  // If this downloader has received a 5xx error for the current url,
-  // as indicated by the |is_handled| flag, remove that url from the list of
-  // urls so the url is never tried again down the chain.
-  if (is_handled) {
-    current_url_ = urls_.erase(current_url_);
-  } else {
-    ++current_url_;
-  }
+    // If an error has occured, try the next url if there is any,
+    // or try the successor in the chain if there is any successor.
+    // If this downloader has received a 5xx error for the current url,
+    // as indicated by the |is_handled| flag, remove that url from the list of
+    // urls so the url is never tried again down the chain.
+    if (is_handled) {
+      current_url_ = urls_.erase(current_url_);
+    } else {
+      ++current_url_;
+    }
 
-  // Try downloading from another url from the list.
-  if (current_url_ != urls_.end()) {
+    // Try downloading from another url from the list.
+    if (current_url_ != urls_.end()) {
 #if defined(IN_MEMORY_UPDATES)
       // TODO(b/158043520): manually test that Cobalt can update using a
       // successor URL when an error occurs on the first URL, and/or consider
@@ -278,22 +277,22 @@ void CrxDownloader::HandleDownloadError(
       // important since the unit tests are currently disabled (b/290410288).
       DoStartDownload(*current_url_, dst_str_);
 #else
-    DoStartDownload(*current_url_);
+      DoStartDownload(*current_url_);
 #endif
-    return;
-  }
+      return;
+    }
 
-  // Try downloading using the next downloader.
-  if (successor_ && !urls_.empty()) {
+    // Try downloading using the next downloader.
+    if (successor_ && !urls_.empty()) {
 #if defined(IN_MEMORY_UPDATES)
       successor_->StartDownload(urls_, expected_hash_, dst_str_,
                                 std::move(download_callback_));
 #else
-    successor_->StartDownload(urls_, expected_hash_,
-                              std::move(download_callback_));
+      successor_->StartDownload(urls_, expected_hash_,
+                                std::move(download_callback_));
 #endif
-    return;
-  }
+      return;
+    }
 
 #if defined(STARBOARD)
   }

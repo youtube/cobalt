@@ -129,6 +129,7 @@ void PingSender::Cancel() {
 void PingSender::SendPingComplete(int error,
                                   const std::string& response,
                                   int retry_after_sec) {
+  LOG(INFO) << "PingSender::SendPingComplete";
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback_).Run(error, response);
 }

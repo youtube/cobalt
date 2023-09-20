@@ -393,7 +393,7 @@ void UpdateEngine::HandleComponent(
     LOG(WARNING) << "UpdateEngine::HandleComponent skip NotifyObservers";
   }
 #else
-    notify_observers_callback_.Run(
+  notify_observers_callback_.Run(
         UpdateClient::Observer::Events::COMPONENT_WAIT, id);
 #endif
     return;

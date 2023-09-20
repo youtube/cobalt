@@ -249,15 +249,15 @@ void UnpackCompleteOnBlockingTaskRunner(
 
   base::PostTaskWithTraits(
       FROM_HERE, kTaskTraits,
-                 base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
-                                result.unpack_path, result.public_key,
+      base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
+                     result.unpack_path, result.public_key,
 #if defined(STARBOARD)
                      installation_index,
                      metadata,
                      id,
                      version,
 #endif
-                                fingerprint, installer, std::move(callback)));
+                     fingerprint, installer, std::move(callback)));
 }
 
 void StartInstallOnBlockingTaskRunner(
@@ -1114,7 +1114,6 @@ void Component::StateUpdating::DoHandle() {
   const auto& update_context = component.update_context_;
 
   DCHECK(component.crx_component());
-
   component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
 
   base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
@@ -1140,6 +1139,7 @@ void Component::StateUpdating::DoHandle() {
                      component.crx_component()->crx_format_requirement,
                      base::BindOnce(&Component::StateUpdating::InstallComplete,
                                     base::Unretained(this))));
+
 }
 
 void Component::StateUpdating::InstallComplete(ErrorCategory error_category,
