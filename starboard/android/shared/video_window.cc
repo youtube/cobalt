@@ -47,11 +47,10 @@ bool g_reset_surface_on_clear_window = false;
 }  // namespace
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
+Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChangedLocked(
     JNIEnv* env,
     jobject unused_this,
     jobject surface) {
-  ScopedLock lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder) {
     g_video_surface_holder->OnSurfaceDestroyed();
     g_video_surface_holder = NULL;
@@ -68,6 +67,16 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
     g_j_video_surface = env->NewGlobalRef(surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface);
   }
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
+    JNIEnv* env,
+    jobject j_this,
+    jobject surface) {
+  ScopedLock lock(*GetViewSurfaceMutex());
+  Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChangedLocked(
+      env, j_this, surface);
 }
 
 extern "C" SB_EXPORT_PLATFORM void
@@ -119,26 +128,24 @@ bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
 void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
-  {
-    ScopedLock lock(*GetViewSurfaceMutex());
+  ScopedLock lock(*GetViewSurfaceMutex());
 
-    if (!g_native_video_window) {
-      SB_LOG(INFO) << "Tried to clear video window when it was null.";
-      return;
-    }
+  if (!g_native_video_window) {
+    SB_LOG(INFO) << "Tried to clear video window when it was null.";
+    return;
+  }
 
-    if (force_reset_surface) {
+  if (force_reset_surface) {
+    JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("resetVideoSurface",
+                                                     "()V");
+    return;
+  } else if (g_reset_surface_on_clear_window) {
+    int width = ANativeWindow_getWidth(g_native_video_window);
+    int height = ANativeWindow_getHeight(g_native_video_window);
+    if (width <= height) {
       JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("resetVideoSurface",
                                                        "()V");
       return;
-    } else if (g_reset_surface_on_clear_window) {
-      int width = ANativeWindow_getWidth(g_native_video_window);
-      int height = ANativeWindow_getHeight(g_native_video_window);
-      if (width <= height) {
-        JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("resetVideoSurface",
-                                                         "()V");
-        return;
-      }
     }
   }
   JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("clearVideoSurface", "()V");
