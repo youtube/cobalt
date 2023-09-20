@@ -428,7 +428,7 @@ void Watchdog::MaybeTriggerCrash(void* context) {
     if (static_cast<Watchdog*>(context)->pending_write_)
       static_cast<Watchdog*>(context)->WriteWatchdogViolations();
     SB_LOG(ERROR) << "[Watchdog] Triggering violation Crash!";
-    CHECK(false);
+    *(reinterpret_cast<volatile char*>(0)) = 0;
   }
 }
 
