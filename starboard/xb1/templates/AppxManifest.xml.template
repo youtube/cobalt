@@ -24,10 +24,10 @@
   </Properties>
   <Dependencies>
           <TargetDeviceFamily
-                  {% if __CONFIG__ == 'gold' %}
-                  Name="Windows.Xbox"
-                  {% else %}
+                  {% if __CONFIG__ == 'debug' or __CONFIG__ == 'devel' %}
                   Name="Windows.Universal"
+                  {% else %}
+                  Name="Windows.Xbox"
                   {% endif %}
                   MinVersion="10.0.22000.0"
                   MaxVersionTested="10.0.22000.0" />
