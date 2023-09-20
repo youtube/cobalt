@@ -363,18 +363,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._network_api.SetXboxLiveSignedInUserState(users[0]['EmailAddress'],
                                                    True)
 
-  def WinAppDeployCmd(self, command: str):
-    try:
-      exe_path = os.path.join(packager.GetWinToolsPath(), 'WinAppDeployCmd.exe')
-      command_str = f'{exe_path} {command} -ip {self.GetDeviceIp()}'
-      self._LogLn('Running: ' + command_str)
-      out = subprocess.check_output(command_str).decode()
-    except subprocess.CalledProcessError as e:
-      self._LogLn(e.output)
-      raise e
-
-    return out
-
   def PackageCobalt(self):
     # Package all targets into an appx.
     package_parameters = {
@@ -399,7 +387,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
             self._LogLn('Existing YouTube app found on device. Uninstalling: ' +
                         package_full_name)
             uninstalled_packages.append(package_full_name)
-            self.WinAppDeployCmd('uninstall -package ' + package_full_name)
+            self._network_api.Uninstall(package_full_name)
       except KeyError:
         # Some packages don't include all fields. Ignore those.
         pass
@@ -417,24 +405,25 @@ class Launcher(abstract_launcher.AbstractLauncher):
       raise IOError('Packaged appx not found in package directory. Perhaps '
                     'package_cobalt script did not complete successfully.')
 
-    existing_package = self.CheckPackageIsDeployed()
+    existing_package = self._network_api.ResolvePackageFullName(
+        _DEFAULT_PACKAGE_NAME)
     if existing_package:
       self._LogLn('Existing YouTube app found on device. Uninstalling.')
-      self.WinAppDeployCmd('uninstall -package ' + existing_package)
+      self._network_api.Uninstall(existing_package)
 
     self._LogLn('Deleting temporary files')
     self._network_api.ClearTempFiles()
 
     try:
       self._LogLn('Installing appx file ' + appx_package_file)
-      self.WinAppDeployCmd('install -file ' + appx_package_file)
+      self._network_api.Install(appx_package_file)
     except subprocess.CalledProcessError:
       # Install exited with non-zero status code, clear everything out, restart,
       # and attempt another install.
       self._LogLn('Error installing appx. Attempting a clean install...')
       self.UninstallSubPackages()
       self.RestartDevkit()
-      self.WinAppDeployCmd('install -file ' + appx_package_file)
+      self._network_api.Install(appx_package_file)
 
     # Cleanup starboard arguments file.
     self.InstallStarboardArgument(None)
@@ -442,11 +431,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
   # Validate that app was installed correctly by checking to make sure
   # that the full package name can now be found.
   def CheckPackageIsDeployed(self):
-    package_list = self.WinAppDeployCmd('list')
-    package_index = package_list.find(_DEFAULT_PACKAGE_NAME)
-    if package_index == -1:
-      return False
-    return package_list[package_index:].split('\n')[0].strip()
+    return self._network_api.FindPackage(_DEFAULT_PACKAGE_NAME) is not None
 
   def Run(self):
     # Only upload and install Appx on the first run.

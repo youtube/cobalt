@@ -54,7 +54,7 @@ _TEMP_FILE_FOLDERNAME = r'\\WdpTempWebFolder'
 _DEFAULT_STAGING_APP_NAME = 'appx'
 
 _APP_INSTALLATION_STATUS_ENDPOINT = '/api/app/packagemanager/state'
-_DELETE_APP_ENDPOINT = '/api/app/packagemanager/package'
+_PACKAGE_MANAGER_ENDPOINT = '/api/app/packagemanager/package'
 _DELETE_FILE_ENDPOINT = '/api/filesystem/apps/file'
 _DEVICE_INFO_ENDPOINT = '/ext/xbox/info'
 _EXT_USER_ENDPOINT = '/ext/user'
@@ -78,8 +78,10 @@ _DEVELOPER_FOLDER_ENDPOINT = '/ext/smb/developerfolder'
 # This header is required for all non-GET requests for windows
 # dev portal.  It must be populated with the value of a specific cookie.
 _CSRF_TOKEN_HEADER = 'X-CSRF-Token'
+_ERROR_MASK = (1 << 32) - 1
 
 _INSTALL_FINISH_TIMEOUT_SECONDS = 90.0
+_PACKAGE_UPLOAD_TIMEOUT_SECONDS = 300.0
 _PROCESS_RUN_TIMEOUT_SECONDS = 300.0
 _PROCESS_KILL_TIMEOUT_SECONDS = 20.0
 
@@ -326,6 +328,43 @@ class Xb1NetworkApi:
 
   def KillProcess(self, pid):
     self._DoJsonRequest('DELETE', _KILL_PROCESS_ENDPOINT, params={'pid': pid})
+
+  def GetInstallationStatus(self):
+    return self._DoJsonRequest(
+        'GET', _APP_INSTALLATION_STATUS_ENDPOINT, raise_on_failure=False)
+
+  def Install(self, package_file_path):
+    with open(package_file_path, 'rb') as package:
+      file_name = os.path.basename(package_file_path)
+      response = self._DoJsonRequest(
+          'POST',
+          _PACKAGE_MANAGER_ENDPOINT,
+          params={'package': file_name},
+          files={file_name: package},
+          timeout=_PACKAGE_UPLOAD_TIMEOUT_SECONDS)
+      if 'Reason' in response:
+        self.LogLn(response['Reason'])
+
+    timeout = _INSTALL_FINISH_TIMEOUT_SECONDS
+    time_sample = 2
+    while self.GetInstallationStatus() == {}:
+      if timeout <= 0:
+        raise IOError(f'Timeout to install "{package_file_path}"')
+      time.sleep(time_sample)
+      timeout -= time_sample
+
+    status = self.GetInstallationStatus()
+
+    if 'Success' in status and not status['Success']:
+      raise IOError(f'0x{(_ERROR_MASK+1+status["Code"])&_ERROR_MASK:X}: ' +
+                    f'{status["CodeText"]}'
+                    f'Description: {status["Reason"]}')
+
+  def Uninstall(self, package_full_name):
+    return self._DoJsonRequest(
+        'DELETE',
+        _PACKAGE_MANAGER_ENDPOINT,
+        params={'package': package_full_name})
 
   def WaitForBinaryToFinishRunning(self, target_name, timeout_seconds):
     """Waits up to |timeout_seconds| for |self.target_name| to finish running.
@@ -614,6 +653,7 @@ class Xb1NetworkApi:
     url_to_request = urljoin(self.web_portal_url, endpoint)
     headers = {}
     raise_on_failure = True
+    timeout = (60, 60)
 
     if 'headers' in kwargs:
       headers = kwargs['headers']
@@ -622,6 +662,10 @@ class Xb1NetworkApi:
     if 'raise_on_failure' in kwargs:
       raise_on_failure = kwargs['raise_on_failure']
       del kwargs['raise_on_failure']
+
+    if 'timeout' in kwargs:
+      timeout = kwargs['timeout']
+      del kwargs['timeout']
 
     cookie_jar = None
     if method != 'GET':
@@ -634,7 +678,7 @@ class Xb1NetworkApi:
         method,
         url_to_request,
         verify=False,
-        timeout=(60, 60),
+        timeout=timeout,
         cookies=cookie_jar,
         headers=headers,
         **kwargs)
