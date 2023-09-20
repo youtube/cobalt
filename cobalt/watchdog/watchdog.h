@@ -106,6 +106,7 @@ class Watchdog : public Singleton<Watchdog> {
  private:
   void WriteWatchdogViolations();
   std::string ReadViolationFile(const char* file_path);
+  void EvictOldWatchdogViolations();
   static void* Monitor(void* context);
   static void UpdateViolationsMap(void* context, Client* client,
                                   SbTimeMonotonic time_delta);
