@@ -32,6 +32,7 @@ copy("demos_testdata") {
     "deviceorientation-demo/deviceorientation-demo.html",
     "disable-jit/index.html",
     "dom-gc-demo/dom-gc-demo.html",
+    "draw/index.html",
     "dual-playback-demo/bear.mp4",
     "dual-playback-demo/dual-playback-demo.html",
     "eme-demo/eme-demo.html",

@@ -49,7 +49,6 @@ int main(int argc, char** argv) {
           : starboard::common::GetCACertificatesPath(evergreen_content_path);
   if (ca_certificates_path.empty()) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
-    return 1;
   }
 
   bool start_handler_at_crash =
@@ -72,11 +71,3 @@ int main(int argc, char** argv) {
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }
-
-#if SB_API_VERSION >= 15
-int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
-  starboard::raspi::shared::ApplicationDispmanx application(callback);
-  int result = application.Run(argc, argv);
-  return result;
-}
-#endif  // SB_API_VERSION >= 15

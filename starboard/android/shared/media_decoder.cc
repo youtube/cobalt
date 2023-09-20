@@ -146,9 +146,11 @@ MediaDecoder::MediaDecoder(Host* host,
 
 MediaDecoder::~MediaDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   destroying_.store(true);
-  condition_variable_.Signal();
+  {
+    ScopedLock scoped_lock(mutex_);
+    condition_variable_.Signal();
+  }
 
   if (SbThreadIsValid(decoder_thread_)) {
     SbThreadJoin(decoder_thread_, NULL);
@@ -184,9 +186,13 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
 
 void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(!input_buffers.empty());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
+    return;
+  }
+  if (input_buffers.empty()) {
+    SB_LOG(ERROR) << "No input buffer to decode.";
+    SB_DCHECK(!input_buffers.empty());
     return;
   }
 

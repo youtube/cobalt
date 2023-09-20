@@ -16,6 +16,7 @@ config("platform_configuration") {
   if (current_toolchain == default_toolchain && sb_is_modular &&
       !sb_is_evergreen) {
     configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+    ldflags = [ "-Wl,--gc-sections" ]
   } else {
     configs = [
       ":libraries",

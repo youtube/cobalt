@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_TESTING_MOCK_LAYOUT_BOXES_H_
 #define COBALT_DOM_TESTING_MOCK_LAYOUT_BOXES_H_
 
+#include <utility>
+
 #include "cobalt/dom/layout_boxes.h"
 
 namespace cobalt {
@@ -57,6 +59,8 @@ class MockLayoutBoxes : public LayoutBoxes {
   MOCK_METHOD0(InvalidateSizes, void());
   MOCK_METHOD0(InvalidateCrossReferences, void());
   MOCK_METHOD0(InvalidateRenderTreeNodes, void());
+  MOCK_METHOD0(scroll_area_cache,
+               base::Optional<std::pair<dom::Directionality, math::RectF>>&());
   MOCK_METHOD1(SetUiNavItem,
                void(const scoped_refptr<ui_navigation::NavItem>& item));
 };
