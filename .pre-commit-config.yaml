@@ -149,14 +149,6 @@ repos:
         stages: [push]
         always_run: true
         pass_filenames: false
-    -   id: run-py2-tests
-        name: Run Python 2 Tests
-        description: Run Python 2 unittests
-        entry: python precommit_hooks/run_python2_unittests.py
-        language: python
-        language_version: python2.7
-        additional_dependencies: ['mock']
-        types: [python]
     -   id: osslint
         name: osslint
         entry: python precommit_hooks/osslint_wrapper.py
