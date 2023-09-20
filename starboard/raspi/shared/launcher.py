@@ -89,8 +89,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
   _PROMPT_WAIT_MAX_RETRIES = 5
   # Wait up to 10 seconds for the password prompt from the raspi
   _PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES = 10
-  # Wait up to 900 seconds for new output from the raspi
-  _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 900
+  # Wait up to 600 seconds for new output from the raspi
+  _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 600
   # Delay between subsequent SSH commands
   _INTER_COMMAND_DELAY_SECONDS = 1.5
 
@@ -260,28 +260,25 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _PexpectReadLines(self):
     """Reads all lines from the pexpect process."""
-    # pylint: disable=unnecessary-lambda
-    @retry.retry(
-        exceptions=Launcher._RETRY_EXCEPTIONS,
-        retries=Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES,
-        backoff=lambda: self.shutdown_initiated.is_set(),
-        wrap_exceptions=False)
-    def _readloop():
-      while True:
-        # Sanitize the line to remove ansi color codes.
-        line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub(
-            '', self.pexpect_process.readline())
-        self.output_file.flush()
-        if not line:
-          return
-        # Check for the test complete tag. It will be followed by either a
-        # success or failure tag.
-        if line.startswith(self.test_complete_tag):
-          if line.find(self.test_success_tag) != -1:
-            self.return_value = 0
-          return
-
-    _readloop()
+    while True:
+      # pylint: disable=unnecessary-lambda
+      line = retry.with_retry(
+          self.pexpect_process.readline,
+          exceptions=Launcher._RETRY_EXCEPTIONS,
+          retries=Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES,
+          backoff=lambda: self.shutdown_initiated.is_set(),
+          wrap_exceptions=False)
+      # Sanitize the line to remove ansi color codes.
+      line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub('', line)
+      self.output_file.flush()
+      if not line:
+        return
+      # Check for the test complete tag. It will be followed by either a
+      # success or failure tag.
+      if line.startswith(self.test_complete_tag):
+        if line.find(self.test_success_tag) != -1:
+          self.return_value = 0
+        return
 
   def _Sleep(self, val):
     self._PexpectSendLine(f'sleep {val};echo {Launcher._SSH_SLEEP_SIGNAL}')
