@@ -15,4 +15,3 @@ proto_library("proto") {
     generate_python = false
   }
 }
-
