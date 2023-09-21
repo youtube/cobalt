@@ -23,7 +23,6 @@ template("cobalt_clang_toolchain") {
                              "executable_extension",
                              "tail_lib_dependencies",
                              "shlib_extension",
-                             "extra_cflags",
                            ])
     assert(defined(native_linker_path),
            "native_linker_path has to be defined by the platform")

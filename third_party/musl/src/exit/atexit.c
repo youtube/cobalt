@@ -106,5 +106,9 @@ static void call(void *p)
 
 int atexit(void (*func)(void))
 {
+#if defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
+	return __musl_cxa_atexit(call, (void *)(uintptr_t)func, 0);
+#else  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 	return __cxa_atexit(call, (void *)(uintptr_t)func, 0);
+#endif  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 }
