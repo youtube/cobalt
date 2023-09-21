@@ -144,20 +144,13 @@ class Package(package.PackageBase):
     shutil.copy(src_splash_screen_file, splash_screen_dir)
 
   def _CopyAppxData(self):
-    appx_data_output_dir = os.path.join(self.appx_folder_location(), 'content',
+    appx_data_output_dir = os.path.join(self.appx_folder_location, 'content',
                                         'data')
-    # Create the data directory if necessary.
-    if not os.path.exists(appx_data_output_dir):
-      try:
-        os.makedirs(appx_data_output_dir)
-      except OSError as e:
-        raise RuntimeError(
-            f'Failed to create {appx_data_output_dir}: {e}') from e
     source_dir = os.path.join(self.source_dir, 'appx', 'content', 'data')
     if not os.path.exists(source_dir):
       logging.error('Failed to find source content in: %s', source_dir)
       return
-    shutil.copytree(source_dir, appx_data_output_dir)
+    shutil.copytree(source_dir, appx_data_output_dir, dirs_exist_ok=True)
 
   @classmethod
   def SupportedPlatforms(cls):
