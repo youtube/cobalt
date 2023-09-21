@@ -143,6 +143,22 @@ class Package(package.PackageBase):
       return
     shutil.copy(src_splash_screen_file, splash_screen_dir)
 
+  def _CopyAppxData(self):
+    appx_data_output_dir = os.path.join(self.appx_folder_location(), 'content',
+                                        'data')
+    # Create the data directory if necessary.
+    if not os.path.exists(appx_data_output_dir):
+      try:
+        os.makedirs(appx_data_output_dir)
+      except OSError as e:
+        raise RuntimeError(
+            f'Failed to create {appx_data_output_dir}: {e}') from e
+    source_dir = os.path.join(self.output_dir, 'appx')
+    if not os.path.exists(source_dir):
+      logging.error('Failed to find source content in: %s', source_dir)
+      return
+    shutil.copytree(source_dir, appx_data_output_dir)
+
   @classmethod
   def SupportedPlatforms(cls):
     if platform.system() == 'Windows':
@@ -163,6 +179,11 @@ class Package(package.PackageBase):
     logging.debug('Building package')
     if self.publisher:
       self._UpdateAppxManifestPublisher(publisher)
+
+    # For YouTubeTV and MainAppBeta move the appx data content to the correct
+    # appx directory.
+    if (self.product in ['youtubetv', 'mainappbeta']):
+      self._CopyAppxData()
 
     # Remove any previous splash screen from content.
     self._CleanSplashScreenDir()
