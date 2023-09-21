@@ -36,6 +36,7 @@
   TestRunner.addResult(
       'Running the axe-core linter on the DOM breakpoints pane.');
 
+  //TODO(crbug.com/1004940): expected.txt file has 'label' exceptions
   await AxeCoreTestRunner.runValidation(domBreakpointContainer.element);
   TestRunner.completeTest();
 })();

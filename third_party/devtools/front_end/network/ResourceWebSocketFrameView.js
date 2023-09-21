@@ -19,7 +19,7 @@
 /**
  * @unrestricted
  */
-export class ResourceWebSocketFrameView extends UI.VBox {
+Network.ResourceWebSocketFrameView = class extends UI.VBox {
   /**
    * @param {!SDK.NetworkRequest} request
    */
@@ -48,7 +48,7 @@ export class ResourceWebSocketFrameView extends UI.VBox {
     this._dataGrid.setStickToBottom(true);
     this._dataGrid.setCellClass('websocket-frame-view-td');
     this._timeComparator =
-        /** @type {function(!ResourceWebSocketFrameNode, !ResourceWebSocketFrameNode):number} */ (
+        /** @type {function(!Network.ResourceWebSocketFrameNode, !Network.ResourceWebSocketFrameNode):number} */ (
             Network.ResourceWebSocketFrameNodeTimeComparator);
     this._dataGrid.sortNodes(this._timeComparator, false);
     this._dataGrid.markColumnAsSortedBy('time', DataGrid.DataGrid.Order.Ascending);
@@ -65,7 +65,7 @@ export class ResourceWebSocketFrameView extends UI.VBox {
     this._mainToolbar.appendToolbarItem(this._clearAllButton);
 
     this._filterTypeCombobox = new UI.ToolbarComboBox(this._updateFilterSetting.bind(this), ls`Filter`);
-    for (const filterItem of _filterTypes) {
+    for (const filterItem of Network.ResourceWebSocketFrameView._filterTypes) {
       const option = this._filterTypeCombobox.createOption(filterItem.label, filterItem.name);
       this._filterTypeCombobox.addOption(option);
     }
@@ -87,16 +87,16 @@ export class ResourceWebSocketFrameView extends UI.VBox {
     this._frameEmptyWidget = new UI.EmptyWidget(Common.UIString('Select message to browse its content.'));
     this._splitWidget.setSidebarWidget(this._frameEmptyWidget);
 
-    /** @type {?ResourceWebSocketFrameNode} */
+    /** @type {?Network.ResourceWebSocketFrameNode} */
     this._selectedNode = null;
 
     /**
      * @param {!UI.ContextMenu} contextMenu
      * @param {!DataGrid.DataGridNode} genericNode
-     * @this {ResourceWebSocketFrameView}
+     * @this {Network.ResourceWebSocketFrameView}
      */
     function onRowContextMenu(contextMenu, genericNode) {
-      const node = /** @type {!ResourceWebSocketFrameNode} */ (genericNode);
+      const node = /** @type {!Network.ResourceWebSocketFrameNode} */ (genericNode);
       const binaryView = node.binaryView();
       if (binaryView) {
         binaryView.addCopyToContextMenu(contextMenu, ls`Copy message...`);
@@ -115,7 +115,7 @@ export class ResourceWebSocketFrameView extends UI.VBox {
    * @return {string}
    */
   static opCodeDescription(opCode, mask) {
-    const localizedDescription = opCodeDescriptions[opCode] || '';
+    const localizedDescription = Network.ResourceWebSocketFrameView.opCodeDescriptions[opCode] || '';
     if (mask) {
       return ls`${localizedDescription} (Opcode ${opCode}, mask)`;
     }
@@ -145,7 +145,7 @@ export class ResourceWebSocketFrameView extends UI.VBox {
     if (!this._frameFilter(frame)) {
       return;
     }
-    this._dataGrid.insertChild(new ResourceWebSocketFrameNode(this._request.url(), frame));
+    this._dataGrid.insertChild(new Network.ResourceWebSocketFrameNode(this._request.url(), frame));
   }
 
   /**
@@ -161,7 +161,7 @@ export class ResourceWebSocketFrameView extends UI.VBox {
 
   _clearFrames() {
     // TODO(allada): actially remove frames from request.
-    this._request[_clearFrameOffsetSymbol] = this._request.frames().length;
+    this._request[Network.ResourceWebSocketFrameView._clearFrameOffsetSymbol] = this._request.frames().length;
     this.refresh();
   }
 
@@ -177,7 +177,7 @@ export class ResourceWebSocketFrameView extends UI.VBox {
   * @param {!Common.Event} event
    */
   async _onFrameSelected(event) {
-    this._currentSelectedNode = /** @type {!ResourceWebSocketFrameNode} */ (event.data);
+    this._currentSelectedNode = /** @type {!Network.ResourceWebSocketFrameNode} */ (event.data);
     const content = this._currentSelectedNode.dataText();
 
     const binaryView = this._currentSelectedNode.binaryView();
@@ -209,19 +209,19 @@ export class ResourceWebSocketFrameView extends UI.VBox {
 
     const url = this._request.url();
     let frames = this._request.frames();
-    const offset = this._request[_clearFrameOffsetSymbol] || 0;
+    const offset = this._request[Network.ResourceWebSocketFrameView._clearFrameOffsetSymbol] || 0;
     frames = frames.slice(offset);
     frames = frames.filter(this._frameFilter.bind(this));
-    frames.forEach(frame => this._dataGrid.insertChild(new ResourceWebSocketFrameNode(url, frame)));
+    frames.forEach(frame => this._dataGrid.insertChild(new Network.ResourceWebSocketFrameNode(url, frame)));
   }
 
   _sortItems() {
     this._dataGrid.sortNodes(this._timeComparator, !this._dataGrid.isSortOrderAscending());
   }
-}
+};
 
 /** @enum {number} */
-export const OpCodes = {
+Network.ResourceWebSocketFrameView.OpCodes = {
   ContinuationFrame: 0,
   TextFrame: 1,
   BinaryFrame: 2,
@@ -231,8 +231,8 @@ export const OpCodes = {
 };
 
 /** @type {!Array.<string> } */
-export const opCodeDescriptions = (function() {
-  const opCodes = OpCodes;
+Network.ResourceWebSocketFrameView.opCodeDescriptions = (function() {
+  const opCodes = Network.ResourceWebSocketFrameView.OpCodes;
   const map = [];
   map[opCodes.ContinuationFrame] = ls`Continuation Frame`;
   map[opCodes.TextFrame] = ls`Text Message`;
@@ -244,7 +244,7 @@ export const opCodeDescriptions = (function() {
 })();
 
 /** @type {!Array<!UI.NamedBitSetFilterUI.Item>} */
-export const _filterTypes = [
+Network.ResourceWebSocketFrameView._filterTypes = [
   {name: 'all', label: Common.UIString('All')},
   {name: 'send', label: Common.UIString('Send')},
   {name: 'receive', label: Common.UIString('Receive')},
@@ -253,7 +253,7 @@ export const _filterTypes = [
 /**
  * @unrestricted
  */
-export class ResourceWebSocketFrameNode extends DataGrid.SortableDataGridNode {
+Network.ResourceWebSocketFrameNode = class extends DataGrid.SortableDataGridNode {
   /**
    * @param {string} url
    * @param {!SDK.NetworkRequest.WebSocketFrame} frame
@@ -268,8 +268,8 @@ export class ResourceWebSocketFrameNode extends DataGrid.SortableDataGridNode {
     timeNode.title = time.toLocaleString();
 
     let dataText = frame.text;
-    let description = ResourceWebSocketFrameView.opCodeDescription(frame.opCode, frame.mask);
-    const isTextFrame = frame.opCode === OpCodes.TextFrame;
+    let description = Network.ResourceWebSocketFrameView.opCodeDescription(frame.opCode, frame.mask);
+    const isTextFrame = frame.opCode === Network.ResourceWebSocketFrameView.OpCodes.TextFrame;
 
     if (frame.type === SDK.NetworkRequest.WebSocketFrameType.Error) {
       description = dataText;
@@ -278,9 +278,9 @@ export class ResourceWebSocketFrameNode extends DataGrid.SortableDataGridNode {
     } else if (isTextFrame) {
       description = dataText;
 
-    } else if (frame.opCode === OpCodes.BinaryFrame) {
+    } else if (frame.opCode === Network.ResourceWebSocketFrameView.OpCodes.BinaryFrame) {
       length = Number.bytesToString(base64ToSize(frame.text));
-      description = opCodeDescriptions[frame.opCode];
+      description = Network.ResourceWebSocketFrameView.opCodeDescriptions[frame.opCode];
 
     } else {
       dataText = description;
@@ -324,10 +324,10 @@ export class ResourceWebSocketFrameNode extends DataGrid.SortableDataGridNode {
   }
 
   /**
-   * @return {!OpCodes}
+   * @return {!Network.ResourceWebSocketFrameView.OpCodes}
    */
   opCode() {
-    return /** @type {!OpCodes} */ (this._frame.opCode);
+    return /** @type {!Network.ResourceWebSocketFrameView.OpCodes} */ (this._frame.opCode);
   }
 
   /**
@@ -343,37 +343,15 @@ export class ResourceWebSocketFrameNode extends DataGrid.SortableDataGridNode {
     }
     return this._binaryView;
   }
-}
+};
 
 /**
- * @param {!ResourceWebSocketFrameNode} a
- * @param {!ResourceWebSocketFrameNode} b
+ * @param {!Network.ResourceWebSocketFrameNode} a
+ * @param {!Network.ResourceWebSocketFrameNode} b
  * @return {number}
  */
-export function ResourceWebSocketFrameNodeTimeComparator(a, b) {
+Network.ResourceWebSocketFrameNodeTimeComparator = function(a, b) {
   return a._frame.time - b._frame.time;
-}
+};
 
-export const _clearFrameOffsetSymbol = Symbol('ClearFrameOffset');
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.ResourceWebSocketFrameView = ResourceWebSocketFrameView;
-
-/** @enum {number} */
-Network.ResourceWebSocketFrameView.OpCodes = OpCodes;
-
-/** @type {!Array.<string> } */
-Network.ResourceWebSocketFrameView.opCodeDescriptions = opCodeDescriptions;
-
-/** @type {!Array<!UI.NamedBitSetFilterUI.Item>} */
-Network.ResourceWebSocketFrameView._filterTypes = _filterTypes;
-Network.ResourceWebSocketFrameView._clearFrameOffsetSymbol = _clearFrameOffsetSymbol;
-Network.ResourceWebSocketFrameNode = ResourceWebSocketFrameNode;
+Network.ResourceWebSocketFrameView._clearFrameOffsetSymbol = Symbol('ClearFrameOffset');

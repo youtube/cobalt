@@ -347,3 +347,23 @@ export class Step {
     return this.value;
   }
 }
+
+/* Legacy exported object */
+self.Elements = self.Elements || {};
+
+/* Legacy exported object */
+Elements = Elements || {};
+
+Elements.DOMPath = {};
+
+Elements.DOMPath.fullQualifiedSelector = fullQualifiedSelector;
+Elements.DOMPath.cssPath = cssPath;
+Elements.DOMPath.canGetJSPath = canGetJSPath;
+Elements.DOMPath.jsPath = jsPath;
+Elements.DOMPath._cssPathStep = _cssPathStep;
+Elements.DOMPath.xPath = xPath;
+Elements.DOMPath._xPathValue = _xPathValue;
+Elements.DOMPath._xPathIndex = _xPathIndex;
+
+/** @constructor */
+Elements.DOMPath.Step = Step;

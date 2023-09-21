@@ -38,14 +38,6 @@ export class ListDelegate {
    */
   selectedItemChanged(from, to, fromElement, toElement) {
   }
-
-  /**
-   * @param {?Element} fromElement
-   * @param {?Element} toElement
-   * @return {boolean}
-   */
-  updateSelectedItemARIA(fromElement, toElement) {
-  }
 }
 
 /** @enum {symbol} */
@@ -86,7 +78,6 @@ export default class ListControl {
     this.element.tabIndex = -1;
     this.element.addEventListener('click', this._onClick.bind(this), false);
     this.element.addEventListener('keydown', this._onKeyDown.bind(this), false);
-    UI.ARIAUtils.markAsListBox(this.element);
 
     this._delegate = delegate;
     this._mode = mode || UI.ListMode.EqualHeightItems;
@@ -396,7 +387,7 @@ export default class ListControl {
         break;
     }
     if (selected) {
-      event.consume(true);
+      event.consume();
     }
   }
 
@@ -437,9 +428,6 @@ export default class ListControl {
     let element = this._itemToElement.get(item);
     if (!element) {
       element = this._delegate.createElementForItem(item);
-      if (!UI.ARIAUtils.hasRole(element)) {
-        UI.ARIAUtils.markAsOption(element);
-      }
       this._itemToElement.set(item, element);
     }
     return element;
@@ -451,7 +439,7 @@ export default class ListControl {
    */
   _offsetAtIndex(index) {
     if (this._mode === UI.ListMode.NonViewport) {
-      throw new Error('There should be no offset conversions in non-viewport mode');
+      throw 'There should be no offset conversions in non-viewport mode';
     }
     if (!this._model.length) {
       return 0;
@@ -488,17 +476,14 @@ export default class ListControl {
     this._selectedItem = index === -1 ? null : this._model.at(index);
     const newItem = this._selectedItem;
     const newElement = this._selectedIndex !== -1 ? this._elementAtIndex(index) : null;
-
-    this._delegate.selectedItemChanged(oldItem, newItem, /** @type {?Element} */ (oldElement), newElement);
-    if (!this._delegate.updateSelectedItemARIA(/** @type {?Element} */ (oldElement), newElement)) {
-      if (oldElement) {
-        UI.ARIAUtils.setSelected(oldElement, false);
-      }
-      if (newElement) {
-        UI.ARIAUtils.setSelected(newElement, true);
-      }
-      UI.ARIAUtils.setActiveDescendant(this.element, newElement);
+    if (oldElement) {
+      UI.ARIAUtils.setSelected(oldElement, false);
     }
+    if (newElement) {
+      UI.ARIAUtils.setSelected(newElement, true);
+    }
+    UI.ARIAUtils.setActiveDescendant(this.element, newElement);
+    this._delegate.selectedItemChanged(oldItem, newItem, /** @type {?Element} */ (oldElement), newElement);
   }
 
   /**

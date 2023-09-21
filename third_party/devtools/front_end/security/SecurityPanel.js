@@ -51,7 +51,7 @@ export default class SecurityPanel extends UI.PanelWithSidebar {
         Host.InspectorFrontendHost.showCertificateViewer(names);
       }
     }, 'origin-button');
-    UI.ARIAUtils.markAsButton(certificateButton);
+    UI.ARIAUtils.markAsMenuButton(certificateButton);
     return certificateButton;
   }
 
@@ -64,8 +64,8 @@ export default class SecurityPanel extends UI.PanelWithSidebar {
     const certificateButton = UI.createTextButton(text, e => {
       e.consume();
       Host.InspectorFrontendHost.showCertificateViewer(names);
-    }, 'origin-button');
-    UI.ARIAUtils.markAsButton(certificateButton);
+    }, 'security-certificate-button');
+    UI.ARIAUtils.markAsMenuButton(certificateButton);
     return certificateButton;
   }
 
@@ -315,8 +315,6 @@ export default class SecurityPanel extends UI.PanelWithSidebar {
     const resourceTreeModel = securityModel.resourceTreeModel();
     const networkManager = securityModel.networkManager();
     this._eventListeners = [
-      securityModel.addEventListener(
-          Security.SecurityModel.Events.VisibleSecurityStateChanged, this._onVisibleSecurityStateChanged, this),
       resourceTreeModel.addEventListener(
           SDK.ResourceTreeModel.Events.MainFrameNavigated, this._onMainFrameNavigated, this),
       resourceTreeModel.addEventListener(
@@ -326,6 +324,13 @@ export default class SecurityPanel extends UI.PanelWithSidebar {
       networkManager.addEventListener(SDK.NetworkManager.Events.ResponseReceived, this._onResponseReceived, this),
       networkManager.addEventListener(SDK.NetworkManager.Events.RequestFinished, this._onRequestFinished, this),
     ];
+    if (Root.Runtime.experiments.isEnabled('handleVisibleSecurityStateChanged')) {
+      this._eventListeners.push(securityModel.addEventListener(
+          Security.SecurityModel.Events.VisibleSecurityStateChanged, this._onVisibleSecurityStateChanged, this));
+    } else {
+      this._eventListeners.push(securityModel.addEventListener(
+          Security.SecurityModel.Events.SecurityStateChanged, this._onSecurityStateChanged, this));
+    }
 
     if (resourceTreeModel.isInterstitialShowing()) {
       this._onInterstitialShown();
@@ -442,7 +447,6 @@ export class SecurityPanelSidebarTree extends UI.TreeOutlineInShadow {
     originGroup.setCollapsible(false);
     originGroup.expand();
     originGroup.listItemElement.classList.add('security-sidebar-origins');
-    UI.ARIAUtils.setAccessibleName(originGroup.childrenListElement, originGroupTitle);
     return originGroup;
   }
 
@@ -492,7 +496,6 @@ export class SecurityPanelSidebarTree extends UI.TreeOutlineInShadow {
       } else {
         newParent.title = ls`Main origin (non-secure)`;
       }
-      UI.ARIAUtils.setAccessibleName(newParent.childrenListElement, newParent.title);
     } else {
       switch (securityState) {
         case Protocol.Security.SecurityState.Secure:

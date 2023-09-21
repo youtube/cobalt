@@ -58,7 +58,7 @@
  .blackbox-list-item .blackbox-pattern {
     white-space: nowrap;
     text-overflow: ellipsis;
-    user-select: none;
+    -webkit-user-select: none;
     color: #222;
     overflow: hidden;
 }

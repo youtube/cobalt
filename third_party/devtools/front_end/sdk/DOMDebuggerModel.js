@@ -648,7 +648,7 @@ export class DOMDebuggerManager {
         Common.UIString('Pointer'),
         [
           'pointerover', 'pointerout', 'pointerenter', 'pointerleave', 'pointerdown', 'pointerup', 'pointermove',
-          'pointercancel', 'gotpointercapture', 'lostpointercapture', 'pointerrawupdate'
+          'pointercancel', 'gotpointercapture', 'lostpointercapture'
         ],
         ['*']);
     this._createEventListenerBreakpoints(

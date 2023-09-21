@@ -5,7 +5,7 @@
 /**
  * @unrestricted
  */
-export default class InspectedPagePlaceholder extends UI.Widget {
+Emulation.InspectedPagePlaceholder = class extends UI.Widget {
   constructor() {
     super(true);
     this.registerRequiredCSS('emulation/inspectedPagePlaceholder.css');
@@ -59,40 +59,21 @@ export default class InspectedPagePlaceholder extends UI.Widget {
     if (force) {
       // Short term fix for Lighthouse interop.
       --bounds.height;
-      this.dispatchEventToListeners(Events.Update, bounds);
+      this.dispatchEventToListeners(Emulation.InspectedPagePlaceholder.Events.Update, bounds);
       ++bounds.height;
     }
-    this.dispatchEventToListeners(Events.Update, bounds);
+    this.dispatchEventToListeners(Emulation.InspectedPagePlaceholder.Events.Update, bounds);
   }
-}
+};
 
 /**
- * @return {!InspectedPagePlaceholder}
+ * @return {!Emulation.InspectedPagePlaceholder}
  */
-export const instance = function() {
-  return self.singleton(InspectedPagePlaceholder);
+Emulation.InspectedPagePlaceholder.instance = function() {
+  return self.singleton(Emulation.InspectedPagePlaceholder);
 };
 
 /** @enum {symbol} */
-export const Events = {
+Emulation.InspectedPagePlaceholder.Events = {
   Update: Symbol('Update')
 };
-
-/* Legacy exported object */
-self.Emulation = self.Emulation || {};
-
-/* Legacy exported object */
-Emulation = Emulation || {};
-
-/**
- * @constructor
- */
-Emulation.InspectedPagePlaceholder = InspectedPagePlaceholder;
-
-/**
- * @return {!InspectedPagePlaceholder}
- */
-Emulation.InspectedPagePlaceholder.instance = instance;
-
-/** @enum {symbol} */
-Emulation.InspectedPagePlaceholder.Events = Events;

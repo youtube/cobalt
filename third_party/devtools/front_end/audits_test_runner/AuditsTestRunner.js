@@ -109,7 +109,6 @@ AuditsTestRunner.dumpStartAuditState = function() {
 
   const containerElement = AuditsTestRunner.getContainerElement();
   const checkboxes = [...containerElement.querySelectorAll('.checkbox')];
-
   checkboxes.forEach(element => {
     TestRunner.addResult(AuditsTestRunner._checkboxStateLabel(element));
   });

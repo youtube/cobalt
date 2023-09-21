@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-export default class RequestResponseView extends UI.VBox {
+Network.RequestResponseView = class extends UI.VBox {
   /**
    * @param {!SDK.NetworkRequest} request
    */
@@ -73,20 +73,20 @@ export default class RequestResponseView extends UI.VBox {
    * @return {!Promise<?UI.Widget>}
    */
   static async sourceViewForRequest(request) {
-    let sourceView = request[_sourceViewSymbol];
+    let sourceView = request[Network.RequestResponseView._sourceViewSymbol];
     if (sourceView !== undefined) {
       return sourceView;
     }
 
     const contentData = await request.contentData();
-    if (!RequestResponseView._hasTextContent(request, contentData)) {
-      request[_sourceViewSymbol] = null;
+    if (!Network.RequestResponseView._hasTextContent(request, contentData)) {
+      request[Network.RequestResponseView._sourceViewSymbol] = null;
       return null;
     }
 
     const highlighterType = request.resourceType().canonicalMimeType() || request.mimeType;
     sourceView = SourceFrame.ResourceSourceFrame.createSearchableView(request, highlighterType);
-    request[_sourceViewSymbol] = sourceView;
+    request[Network.RequestResponseView._sourceViewSymbol] = sourceView;
     return sourceView;
   }
 
@@ -124,7 +124,7 @@ export default class RequestResponseView extends UI.VBox {
    */
   async createPreview() {
     const contentData = await this.request.contentData();
-    const sourceView = await RequestResponseView.sourceViewForRequest(this.request);
+    const sourceView = await Network.RequestResponseView.sourceViewForRequest(this.request);
     if ((!contentData.content || !sourceView) && !contentData.error) {
       return new UI.EmptyWidget(Common.UIString('This request has no response data available.'));
     }
@@ -143,19 +143,6 @@ export default class RequestResponseView extends UI.VBox {
       view.revealPosition(line);
     }
   }
-}
+};
 
-export const _sourceViewSymbol = Symbol('RequestResponseSourceView');
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.RequestResponseView = RequestResponseView;
-
-Network.RequestResponseView._sourceViewSymbol = _sourceViewSymbol;
+Network.RequestResponseView._sourceViewSymbol = Symbol('RequestResponseSourceView');

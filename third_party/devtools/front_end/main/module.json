@@ -387,11 +387,9 @@
         "sdk",
         "persistence"
     ],
-    "scripts": [],
-    "modules": [
-        "main.js",
+    "scripts": [
         "SimpleApp.js",
         "ExecutionContextSelector.js",
-        "MainImpl.js"
+        "Main.js"
     ]
 }

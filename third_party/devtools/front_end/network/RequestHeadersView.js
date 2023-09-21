@@ -28,7 +28,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-export class RequestHeadersView extends UI.VBox {
+Network.RequestHeadersView = class extends UI.VBox {
   /**
    * @param {!SDK.NetworkRequest} request
    */
@@ -53,7 +53,7 @@ export class RequestHeadersView extends UI.VBox {
     root.makeDense();
     this.element.appendChild(root.element);
 
-    const generalCategory = new Category(root, 'general', Common.UIString('General'));
+    const generalCategory = new Network.RequestHeadersView.Category(root, 'general', Common.UIString('General'));
     generalCategory.hidden = false;
     this._root = generalCategory;
     this._urlItem = generalCategory.createLeaf();
@@ -64,11 +64,12 @@ export class RequestHeadersView extends UI.VBox {
     this._referrerPolicyItem = generalCategory.createLeaf();
     this._referrerPolicyItem.hidden = true;
 
-    this._responseHeadersCategory = new Category(root, 'responseHeaders', '');
-    this._requestHeadersCategory = new Category(root, 'requestHeaders', '');
-    this._queryStringCategory = new Category(root, 'queryString', '');
-    this._formDataCategory = new Category(root, 'formData', '');
-    this._requestPayloadCategory = new Category(root, 'requestPayload', Common.UIString('Request Payload'));
+    this._responseHeadersCategory = new Network.RequestHeadersView.Category(root, 'responseHeaders', '');
+    this._requestHeadersCategory = new Network.RequestHeadersView.Category(root, 'requestHeaders', '');
+    this._queryStringCategory = new Network.RequestHeadersView.Category(root, 'queryString', '');
+    this._formDataCategory = new Network.RequestHeadersView.Category(root, 'formData', '');
+    this._requestPayloadCategory =
+        new Network.RequestHeadersView.Category(root, 'requestPayload', Common.UIString('Request Payload'));
   }
 
   /**
@@ -246,7 +247,7 @@ export class RequestHeadersView extends UI.VBox {
     headerCount.textContent = Common.UIString('\xA0(%d)', params.length);
     paramsTreeElement.listItemElement.appendChild(headerCount);
 
-    const shouldViewSource = paramsTreeElement[_viewSourceSymbol];
+    const shouldViewSource = paramsTreeElement[Network.RequestHeadersView._viewSourceSymbol];
     if (shouldViewSource) {
       this._appendParamsSource(title, params, sourceText, paramsTreeElement);
     } else {
@@ -267,19 +268,19 @@ export class RequestHeadersView extends UI.VBox {
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const viewParsed = function(event) {
       listItemElement.removeEventListener('contextmenu', viewParsedContextMenu);
 
-      paramsTreeElement[_viewSourceSymbol] = false;
+      paramsTreeElement[Network.RequestHeadersView._viewSourceSymbol] = false;
       this._refreshParams(title, params, sourceText, paramsTreeElement);
       event.consume();
     };
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const viewParsedContextMenu = function(event) {
       if (!paramsTreeElement.expanded) {
@@ -324,19 +325,19 @@ export class RequestHeadersView extends UI.VBox {
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const viewSource = function(event) {
       listItemElement.removeEventListener('contextmenu', viewSourceContextMenu);
 
-      paramsTreeElement[_viewSourceSymbol] = true;
+      paramsTreeElement[Network.RequestHeadersView._viewSourceSymbol] = true;
       this._refreshParams(title, params, sourceText, paramsTreeElement);
       event.consume();
     };
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const toggleURLDecoding = function(event) {
       listItemElement.removeEventListener('contextmenu', viewSourceContextMenu);
@@ -345,7 +346,7 @@ export class RequestHeadersView extends UI.VBox {
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const viewSourceContextMenu = function(event) {
       if (!paramsTreeElement.expanded) {
@@ -383,7 +384,7 @@ export class RequestHeadersView extends UI.VBox {
     rootListItemElement.createChild('div', 'selection fill');
     rootListItemElement.createTextChild(this._requestPayloadCategory.title);
 
-    const shouldViewSource = rootListItem[_viewSourceSymbol];
+    const shouldViewSource = rootListItem[Network.RequestHeadersView._viewSourceSymbol];
     if (shouldViewSource) {
       this._appendJSONPayloadSource(rootListItem, parsedObject, sourceText);
     } else {
@@ -392,7 +393,7 @@ export class RequestHeadersView extends UI.VBox {
   }
 
   /**
-   * @param {!Category} rootListItem
+   * @param {!Network.RequestHeadersView.Category} rootListItem
    * @param {*} parsedObject
    * @param {string} sourceText
    */
@@ -402,11 +403,11 @@ export class RequestHeadersView extends UI.VBox {
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const viewParsed = function(event) {
       rootListItemElement.removeEventListener('contextmenu', viewParsedContextMenu);
-      rootListItem[_viewSourceSymbol] = false;
+      rootListItem[Network.RequestHeadersView._viewSourceSymbol] = false;
       this._refreshRequestJSONPayload(parsedObject, sourceText);
       event.consume();
     };
@@ -416,7 +417,7 @@ export class RequestHeadersView extends UI.VBox {
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const viewParsedContextMenu = function(event) {
       if (!rootListItem.expanded) {
@@ -431,7 +432,7 @@ export class RequestHeadersView extends UI.VBox {
   }
 
   /**
-   * @param {!Category} rootListItem
+   * @param {!Network.RequestHeadersView.Category} rootListItem
    * @param {*} parsedObject
    * @param {string} sourceText
    */
@@ -448,19 +449,19 @@ export class RequestHeadersView extends UI.VBox {
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const viewSource = function(event) {
       rootListItemElement.removeEventListener('contextmenu', viewSourceContextMenu);
 
-      rootListItem[_viewSourceSymbol] = true;
+      rootListItem[Network.RequestHeadersView._viewSourceSymbol] = true;
       this._refreshRequestJSONPayload(parsedObject, sourceText);
       event.consume();
     };
 
     /**
      * @param {!Event} event
-     * @this {RequestHeadersView}
+     * @this {Network.RequestHeadersView}
      */
     const viewSourceContextMenu = function(event) {
       if (!rootListItem.expanded) {
@@ -640,7 +641,7 @@ export class RequestHeadersView extends UI.VBox {
     headersTreeElement.hidden = !length && !provisionalHeaders;
     for (let i = 0; i < length; ++i) {
       const headerTreeElement = new UI.TreeElement(this._formatHeader(headers[i].name, headers[i].value));
-      headerTreeElement[_headerNameSymbol] = headers[i].name;
+      headerTreeElement[Network.RequestHeadersView._headerNameSymbol] = headers[i].name;
 
       if (headers[i].name.toLowerCase() === 'set-cookie') {
         const matchingBlockedReasons = blockedCookieLineToReasons.get(headers[i].value);
@@ -744,7 +745,7 @@ export class RequestHeadersView extends UI.VBox {
   _revealAndHighlight(category, name) {
     this._clearHighlight();
     for (const element of category.children()) {
-      if (element[_headerNameSymbol] !== name) {
+      if (element[Network.RequestHeadersView._headerNameSymbol] !== name) {
         continue;
       }
       this._highlightedElement = element;
@@ -767,15 +768,15 @@ export class RequestHeadersView extends UI.VBox {
   revealResponseHeader(header) {
     this._revealAndHighlight(this._responseHeadersCategory, header);
   }
-}
+};
 
-export const _headerNameSymbol = Symbol('HeaderName');
-export const _viewSourceSymbol = Symbol('ViewSource');
+Network.RequestHeadersView._headerNameSymbol = Symbol('HeaderName');
+Network.RequestHeadersView._viewSourceSymbol = Symbol('ViewSource');
 
 /**
  * @unrestricted
  */
-export class Category extends UI.TreeElement {
+Network.RequestHeadersView.Category = class extends UI.TreeElement {
   /**
    * @param {!UI.TreeOutline} root
    * @param {string} name
@@ -812,23 +813,4 @@ export class Category extends UI.TreeElement {
   oncollapse() {
     this._expandedSetting.set(false);
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.RequestHeadersView = RequestHeadersView;
-
-Network.RequestHeadersView._headerNameSymbol = _headerNameSymbol;
-Network.RequestHeadersView._viewSourceSymbol = _viewSourceSymbol;
-
-/**
- * @constructor
- */
-Network.RequestHeadersView.Category = Category;
+};

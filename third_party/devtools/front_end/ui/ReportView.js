@@ -101,6 +101,7 @@ export default class ReportView extends UI.VBox {
     this._headerElement.classList.toggle('hidden', !visible);
   }
 
+
   /**
    * @param {boolean} scrollable
    */
@@ -250,13 +251,6 @@ export class Section extends UI.VBox {
   markFieldListAsGroup() {
     UI.ARIAUtils.markAsGroup(this._fieldList);
     UI.ARIAUtils.setAccessibleName(this._fieldList, this.title());
-  }
-
-  /**
-   * @param {boolean} masked
-   */
-  setIconMasked(masked) {
-    this.element.classList.toggle('show-mask', masked);
   }
 }
 
