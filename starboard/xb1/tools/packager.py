@@ -153,7 +153,7 @@ class Package(package.PackageBase):
       except OSError as e:
         raise RuntimeError(
             f'Failed to create {appx_data_output_dir}: {e}') from e
-    source_dir = os.path.join(self.output_dir, 'appx')
+    source_dir = os.path.join(self.source_dir, 'appx', 'content', 'data')
     if not os.path.exists(source_dir):
       logging.error('Failed to find source content in: %s', source_dir)
       return
