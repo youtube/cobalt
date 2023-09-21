@@ -97,11 +97,11 @@ class CrxDownloader {
                                          scoped_refptr<NetworkFetcherFactory>);
 #endif
 
-// Factory method to create an instance of this class and build the
-// chain of responsibility. |is_background_download| specifies that a
-// background downloader be used, if the platform supports it.
-// |task_runner| should be a task runner able to run blocking
-// code such as file IO operations.
+  // Factory method to create an instance of this class and build the
+  // chain of responsibility. |is_background_download| specifies that a
+  // background downloader be used, if the platform supports it.
+  // |task_runner| should be a task runner able to run blocking
+  // code such as file IO operations.
 #if defined(STARBOARD)
   static std::unique_ptr<CrxDownloader> Create(
       bool is_background_download,

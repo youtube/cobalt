@@ -6,8 +6,10 @@
 
 namespace update_client {
 
-UpdateQueryParamsDelegate::UpdateQueryParamsDelegate() {}
+UpdateQueryParamsDelegate::UpdateQueryParamsDelegate() {
+}
 
-UpdateQueryParamsDelegate::~UpdateQueryParamsDelegate() {}
+UpdateQueryParamsDelegate::~UpdateQueryParamsDelegate() {
+}
 
 }  // namespace update_client

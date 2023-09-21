@@ -11,7 +11,6 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "build/build_config.h"
-
 #include "components/update_client/updater_state.h"
 
 namespace update_client {

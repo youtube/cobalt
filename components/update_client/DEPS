@@ -1,0 +1,22 @@
+include_rules = [
+  "+components/client_update_protocol",
+  "+components/crx_file",
+  "+components/services/patch",
+  "+components/prefs",
+  "+components/services/unzip",
+  "+components/version_info",
+  "+courgette",
+  "+crypto",
+  "+mojo/public",
+  "+third_party/re2",
+  "+third_party/zlib",
+]
+
+# Allow the unit tests to depend on the network for testing purposes.
+specific_include_rules = {
+  "(test_configurator|.*_unittest\.(cc|h))" : [
+    "+net",
+    "+services/network/public/cpp",
+    "+services/network/test",
+  ]
+}
