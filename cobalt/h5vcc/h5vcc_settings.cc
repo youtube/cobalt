@@ -23,16 +23,6 @@
 namespace cobalt {
 namespace h5vcc {
 
-namespace {
-// Only including needed video combinations for the moment.
-// option 0 disables all video codecs except h264
-// option 1 disables all video codecs except av1
-// option 2 disables all video codecs except vp9
-constexpr std::array<const char*, 3> kDisableCodecCombinations{
-    {"av01;hev1;hvc1;vp09;vp8.vp9", "avc1;avc3;hev1;hvc1;vp09;vp8;vp9",
-     "av01;avc1;avc3;hev1;hvc1;vp8"}};
-};  // namespace
-
 H5vccSettings::H5vccSettings(
     const SetSettingFunc& set_web_setting_func,
     cobalt::media::MediaModule* media_module,
@@ -56,9 +46,9 @@ H5vccSettings::H5vccSettings(
       persistent_settings_(persistent_settings) {
 }
 
-bool H5vccSettings::Set(const std::string& name, int32 value) const {
+bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaPrefix[] = "Media.";
-  const char kDisableMediaCodec[] = "DisableMediaCodec";
+  const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kClientHintHeaders[] = "ClientHintHeaders";
   const char kQUIC[] = "QUIC";
@@ -67,35 +57,37 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
 #endif
 
-  if (name == kDisableMediaCodec &&
-      value < static_cast<int32>(kDisableCodecCombinations.size())) {
-    can_play_type_handler_->SetDisabledMediaCodecs(
-        kDisableCodecCombinations[value]);
+  if (name == kMediaCodecBlockList && value.IsType<std::string>() &&
+      value.AsType<std::string>().size() < 256) {
+    can_play_type_handler_->SetDisabledMediaCodecs(value.AsType<std::string>());
     return true;
   }
 
-  if (set_web_setting_func_ && set_web_setting_func_.Run(name, value)) {
+  if (set_web_setting_func_ && value.IsType<int32>() &&
+      set_web_setting_func_.Run(name, value.AsType<int32>())) {
     return true;
   }
 
-  if (name.rfind(kMediaPrefix, 0) == 0) {
-    return media_module_ ? media_module_->SetConfiguration(
-                               name.substr(strlen(kMediaPrefix)), value)
-                         : false;
+  if (name.rfind(kMediaPrefix, 0) == 0 && value.IsType<int32>()) {
+    return media_module_
+               ? media_module_->SetConfiguration(
+                     name.substr(strlen(kMediaPrefix)), value.AsType<int32>())
+               : false;
   }
 
-  if (name.compare(kNavigatorUAData) == 0 && value == 1) {
+  if (name.compare(kNavigatorUAData) == 0 && value.IsType<int32>() &&
+      value.AsType<int32>() == 1) {
     global_environment_->BindTo("userAgentData", user_agent_data_, "navigator");
     return true;
   }
 
-  if (name.compare(kClientHintHeaders) == 0) {
+  if (name.compare(kClientHintHeaders) == 0 && value.IsType<int32>()) {
     if (!persistent_settings_) {
       return false;
     } else {
       persistent_settings_->SetPersistentSetting(
           network::kClientHintHeadersEnabledPersistentSettingsKey,
-          std::make_unique<base::Value>(value));
+          std::make_unique<base::Value>(value.AsType<int32>()));
       // Tell NetworkModule (if exists) to re-query persistent settings.
       if (network_module_) {
         network_module_
@@ -105,13 +97,13 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
     }
   }
 
-  if (name.compare(kQUIC) == 0) {
+  if (name.compare(kQUIC) == 0 && value.IsType<int32>()) {
     if (!persistent_settings_) {
       return false;
     } else {
       persistent_settings_->SetPersistentSetting(
           network::kQuicEnabledPersistentSettingsKey,
-          std::make_unique<base::Value>(value != 0));
+          std::make_unique<base::Value>(value.AsType<int32>() != 0));
       // Tell NetworkModule (if exists) to re-query persistent settings.
       if (network_module_) {
         network_module_->SetEnableQuicFromPersistentSettings();
@@ -121,8 +113,8 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   }
 
 #if SB_IS(EVERGREEN)
-  if (name.compare(kUpdaterMinFreeSpaceBytes) == 0) {
-    updater_module_->SetMinFreeSpaceBytes(value);
+  if (name.compare(kUpdaterMinFreeSpaceBytes) == 0 && value.IsType<int32>()) {
+    updater_module_->SetMinFreeSpaceBytes(value.AsType<int32>());
     return true;
   }
 #endif
