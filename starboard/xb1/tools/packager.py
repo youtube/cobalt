@@ -53,6 +53,7 @@ _PRODUCT_CERT_PATH = {
 }
 _DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
 _DEFAULT_WIN_SDK_VERSION = '10.0.22621.0'
+_BACKUP_WIN_SDK_VERSION = '10.0.22000.0'
 _SOURCE_SPLASH_SCREEN_SUB_PATH = os.path.join('internal', 'cobalt', 'browser',
                                               'splash_screen')
 # The splash screen file referenced in starboard/xb1/shared/configuration.cc
@@ -89,7 +90,13 @@ def _GetSourceSplashScreenDir():
 def GetWinToolsPath() -> str:
   windows_sdk_bin_dir = _SelectBestPath('WindowsSdkBinPath',
                                         _DEFAULT_SDK_BIN_DIR)
-  return os.path.join(windows_sdk_bin_dir, _DEFAULT_WIN_SDK_VERSION, 'x64')
+
+  # This check can be removed once it's confirmed our builders are using the new
+  # version of the win sdk.
+  path = os.path.join(windows_sdk_bin_dir, _DEFAULT_WIN_SDK_VERSION, 'x64')
+  if os.path.exists(path):
+    return path
+  return os.path.join(windows_sdk_bin_dir, _BACKUP_WIN_SDK_VERSION, 'x64')
 
 
 class Package(package.PackageBase):
