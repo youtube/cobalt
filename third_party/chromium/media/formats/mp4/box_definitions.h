@@ -382,22 +382,38 @@ struct MEDIA_EXPORT OpusSpecificBox : Box {
 struct MEDIA_EXPORT IamfSpecificBox : Box {
   DECLARE_BOX_METHODS(IamfSpecificBox);
 
+  enum IamfObuType {
+    // The following 3 OBUs must be placed in the IA Sequence in the following
+    // order. https://aomediacodec.github.io/iamf/#standalone-descriptor-obus
+    kIamfObuTypeCodecConfig = 0,
+    kIamfObuTypeAudioElement = 1,
+    kIamfObuTypeMixPresentation = 2,
 
-  // Magic box OBU fields.
+    kIamfObuTypeParameterBlock = 3,
+    kIamfObuTypeTemporalDelimiter = 4,
+    kIamfObuTypeAudioFrame = 5,
+    kIamfObuTypeSequenceHeader = 31,
+    kIamfObuTypeMax = kIamfObuTypeSequenceHeader,
+  };
+
   uint32_t ia_code;
-  uint8_t version;
-  uint8_t profile_version;
+  uint8_t primary_profile;
+  uint8_t additional_profile;
 
   // Codec config OBU fields.
   uint32_t channel_count;
   uint32_t sample_rate;
   std::vector<uint8_t> extra_data;
 
-  // Audio element OBU fields.
+  std::vector<uint8_t> sequence_header;
+  std::vector<uint8_t> codec_configs;
+  std::vector<uint8_t> audio_elements;
+  std::vector<uint8_t> mix_presentations;
 
-  // Mix presentation OBU fields.
+  bool read_first_sequence_header = false;
 
-  // Sync OBU fields.
+  bool ReadSequenceHeader(BoxReader* reader);
+  bool ReadOBU(BoxReader* reader);
 };
 #endif
 

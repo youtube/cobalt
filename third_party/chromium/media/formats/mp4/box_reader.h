@@ -81,6 +81,24 @@ class MEDIA_EXPORT BufferReader {
   // Advance the stream by this many bytes.
   bool SkipBytes(uint64_t nbytes) WARN_UNUSED_RESULT;
 
+#if defined(STARBOARD)
+  // Algorithm from the AV1 spec https://aomediacodec.github.io/av1-spec/#leb128.
+  bool ReadLeb128(uint32_t* value) {
+    *value = 0;
+    int num_leb_128_bytes = 0;
+    for (int i = 0; i < 8; ++i) {
+      uint8_t byte;
+      RCHECK(Read1(&byte));
+      *value |= ((byte & 0x7f) << (i * 7));
+      num_leb_128_bytes += 1;
+      if (!(byte & 0x80)) {
+        break;
+      }
+    }
+    return true;
+  }
+#endif // defined(STARBOARD)
+
   const uint8_t* buffer() const { return buf_; }
 
   // Returns the size of the buffer. This may not match the size specified

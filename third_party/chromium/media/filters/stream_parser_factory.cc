@@ -244,7 +244,7 @@ static const CodecInfo kMPEG4FLACCodecInfo = {"flac", CodecInfo::AUDIO, nullptr,
                                               CodecInfo::HISTOGRAM_FLAC};
 
 #if defined(STARBOARD)
-static const CodecInfo kIamfCodecInfo = {"flac", CodecInfo::AUDIO, nullptr,
+static const CodecInfo kIamfCodecInfo = {"iamf", CodecInfo::AUDIO, nullptr,
                                               CodecInfo::HISTOGRAM_IAMF};
 #endif
 
@@ -275,6 +275,9 @@ static const CodecInfo* const kVideoMP4Codecs[] = {&kMPEG4FLACCodecInfo,
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 #if BUILDFLAG(ENABLE_AV1_DECODER)
                                                    &kAV1CodecInfo,
+#endif
+#if defined(STARBOARD)
+                                                   &kIamfCodecInfo,
 #endif
                                                    nullptr};
 

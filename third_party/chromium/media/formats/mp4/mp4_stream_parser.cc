@@ -393,11 +393,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       } else if (audio_format == FOURCC_IAMF) {
         MEDIA_LOG(INFO, media_log_) << "FORMAT IS IAMF";
         codec = AudioCodec::kIamf;
-        // Storing fake info
+        // Storing fake info.
         channel_layout = CHANNEL_LAYOUT_STEREO;
         sample_per_second = 48000;
-        std::vector<uint8_t> arr = {0xde, 0xad, 0xbe, 0xef};
-        extra_data = arr;
+        // Storing real info.
+        extra_data = entry.iamf.extra_data;
 #endif
       } else {
         uint8_t audio_type = entry.esds.object_type;
