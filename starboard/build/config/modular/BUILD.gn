@@ -68,9 +68,9 @@ config("modular") {
       "-O0",
       "-frtti",
     ]
-    if (!(is_host_win && using_old_compiler)) {
+    if (!cobalt_fastbuild) {
       cflags += [
-        # This flag causes significant increase in shared library binary size on certain windows platforms. Refer b/297357707
+        # This flag causes an increase in binary size on certain platforms. Refer b/297357707
         "-g",
       ]
     }
@@ -79,20 +79,17 @@ config("modular") {
       "-O2",
       "-frtti",
     ]
-    if (!(is_host_win && using_old_compiler)) {
+    if (!cobalt_fastbuild) {
       cflags += [
-        # This flag causes significant increase in shared library binary size on certain windows platforms. Refer b/297357707
+        # This flag causes an increase in binary size on certain platforms. Refer b/297357707
         "-g",
       ]
     }
   } else {
-    cflags += [ "-fno-rtti" ]
-    if (!(is_host_win && using_old_compiler)) {
-      cflags += [
-        # This flag causes significant increase in shared library binary size on certain windows platforms. Refer b/297357707
-        "-gline-tables-only",
-      ]
-    }
+    cflags += [
+      "-fno-rtti",
+      "-gline-tables-only",
+    ]
   }
 
   if (is_clang) {
