@@ -99,7 +99,7 @@ if (target_cpu == "x86" || target_cpu == "arm") {
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
 
 if (build_with_separate_cobalt_toolchain) {
-  cobalt_toolchain = "//starboard/build/toolchain:clang"
+  cobalt_toolchain = "//$starboard_path/toolchain:cobalt"
   starboard_toolchain = "//$starboard_path/toolchain:starboard"
 } else {
   cobalt_toolchain = "//$starboard_path/toolchain:target"

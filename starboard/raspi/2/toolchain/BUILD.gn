@@ -13,7 +13,14 @@
 # limitations under the License.
 
 import("//build/toolchain/gcc_toolchain.gni")
+import("//starboard/build/toolchain/cobalt_toolchains.gni")
 import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
+
+cobalt_clang_toolchain("cobalt") {
+  variables = {
+    native_linker_path = gcc_toolchain_cxx
+  }
+}
 
 gcc_toolchain("starboard") {
   cc = gcc_toolchain_cc
