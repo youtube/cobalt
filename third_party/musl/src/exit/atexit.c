@@ -55,7 +55,11 @@ void __funcs_on_exit()
 }
 
 #if !defined(ADDRESS_SANITIZER)
+#if defined(USE_CUSTOM_MUSL_FINALIZE_SIGNATURE)
+void __musl_cxa_finalize(void *dso)
+#else  // defined(USE_CUSTOM_MUSL_FINALIZE_SIGNATURE)
 void __cxa_finalize(void *dso)
+#endif  // defined(USE_CUSTOM_MUSL_FINALIZE_SIGNATURE)
 {
 #ifdef STARBOARD
   __funcs_on_exit();
@@ -63,7 +67,11 @@ void __cxa_finalize(void *dso)
 }
 #endif  // !defined(ADDRESS_SANITIZER)
 
+#if defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
+int __musl_cxa_atexit(void (*func)(void *), void *arg, void *dso)
+#else  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 int __cxa_atexit(void (*func)(void *), void *arg, void *dso)
+#endif  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 {
 	LOCK(lock);
 
@@ -98,5 +106,9 @@ static void call(void *p)
 
 int atexit(void (*func)(void))
 {
+#if defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
+	return __musl_cxa_atexit(call, (void *)(uintptr_t)func, 0);
+#else  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 	return __cxa_atexit(call, (void *)(uintptr_t)func, 0);
+#endif  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 }
