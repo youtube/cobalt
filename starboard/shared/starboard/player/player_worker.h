@@ -63,6 +63,13 @@ class PlayerWorker {
   // All functions of this class will be called from the JobQueue thread.
   class Handler {
    public:
+    // Stores the success status of Handler operations. If |success| is false,
+    // |error_message| may be set with details of the error.
+    struct HandlerResult {
+      bool success;
+      std::string error_message;
+    };
+
     typedef PlayerWorker::Bounds Bounds;
     typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
     typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
@@ -75,13 +82,6 @@ class PlayerWorker {
     typedef std::function<void(SbPlayerError error,
                                const std::string& error_message)>
         UpdatePlayerErrorCB;
-
-    // Stores the success status of Handler operations. If |success| is false,
-    // |error_message| may be set with details of the error.
-    typedef struct HandlerResult {
-      bool success;
-      std::string error_message;
-    } HandlerResult;
 
     Handler() = default;
     virtual ~Handler() {}
@@ -195,7 +195,9 @@ class PlayerWorker {
 
   SbPlayerState player_state() const { return player_state_; }
   void UpdatePlayerState(SbPlayerState player_state);
-  void UpdatePlayerError(SbPlayerError error, const std::string& message);
+  void UpdatePlayerError(SbPlayerError error,
+                         Handler::HandlerResult result,
+                         const std::string& message);
 
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
