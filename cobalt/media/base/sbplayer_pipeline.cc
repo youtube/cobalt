@@ -111,7 +111,8 @@ SbPlayerPipeline::SbPlayerPipeline(
 #if SB_API_VERSION >= 15
     SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
-    MediaLog* media_log, DecodeTargetProvider* decode_target_provider)
+    MediaLog* media_log, MediaMetricsProvider* media_metrics_provider,
+    DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
           base::StringPrintf("%X", g_pipeline_identifier_counter++)),
       sbplayer_interface_(interface),
@@ -156,6 +157,7 @@ SbPlayerPipeline::SbPlayerPipeline(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
 #endif  // SB_API_VERSION >= 15
+      media_metrics_provider_(media_metrics_provider),
       last_media_time_(base::StringPrintf("Media.Pipeline.%s.LastMediaTime",
                                           pipeline_identifier_.c_str()),
                        0, "Last media time reported by the underlying player."),
@@ -1244,10 +1246,12 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
+    media_metrics_provider_->SetHasAudio(decoder_config.codec());
     player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
+    media_metrics_provider_->SetHasVideo(decoder_config.codec());
     base::AutoLock auto_lock(lock_);
     bool natural_size_changed =
         (decoder_config.natural_size().width() != natural_size_.width() ||
