@@ -47,6 +47,29 @@ using ::starboard::xb1::shared::VpxVideoDecoder;
 
 const SbTime kReleaseTimeout = kSbTimeSecond;
 
+// kFrameBuffersPoolMemorySize is the size of gpu memory heap for common use
+// by vpx & av1 sw decoders.
+// This value must be greater then max(av1_min_value, vpx_min_value), where
+// av1_min_value & vpx_min_value are minimal required memory size for sw av1 &
+// vpx decoders.
+//
+// Vpx sw decoder needs 13 internal frame buffers for work and at least
+// 8 buffers for preroll.
+// The size of fb is 13762560 for 4K SDR and 12976128 for 2K HDR
+// So, vpx decoder needs minimum  13762560 * (13 + preroll_size) = 289013760
+// bytes.
+//
+// Av1 sw decoder needs 13 internal buffers and 8 buffers for preroll.
+// The size of fb is 5996544 for 2K SDR and 11993088 for 2K HDR
+// av1 decoder needs minimum  11993088 * (13 + preroll_size) = 251854848 bytes.
+//
+// So, the value 289013760 is minimal for reliable decoders working.
+//
+// To make playback more smooth it is better to increase the output queue size
+// up to 30-50 frames, but it should not exceed memory budgetd.
+// So, the value of 440 Mb looks as compromise.
+const uint64_t kFrameBuffersPoolMemorySize = 440 * 1024 * 1024;
+
 bool IsExtendedResourceModeRequired() {
   if (!::starboard::xb1::shared::CanAcquire()) {
     return false;
@@ -150,6 +173,7 @@ void ExtendedResourcesManager::Quit() {
 
 bool ExtendedResourcesManager::GetD3D12Objects(
     Microsoft::WRL::ComPtr<ID3D12Device>* device,
+    Microsoft::WRL::ComPtr<ID3D12Heap>* buffer_heap,
     void** command_queue) {
   if (HasNonrecoverableFailure()) {
     SB_LOG(WARNING) << "The D3D12 device has encountered a nonrecoverable "
@@ -184,8 +208,8 @@ bool ExtendedResourcesManager::GetD3D12Objects(
   D3D12_HEAP_PROPERTIES prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
   D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(1024 * 1024);
   HRESULT result = d3d12device_->CreateCommittedResource(
-      &prop, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST,
-      nullptr, IID_PPV_ARGS(&res));
+      &prop, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON, nullptr,
+      IID_PPV_ARGS(&res));
   if (result != S_OK) {
     SB_LOG(WARNING) << "The D3D12 device is not in a good state, can not use "
                        "GPU based decoders.";
@@ -196,11 +220,25 @@ bool ExtendedResourcesManager::GetD3D12Objects(
 
   *device = d3d12device_;
   *command_queue = d3d12queue_.Get();
+  *buffer_heap = d3d12FrameBuffersHeap_.Get();
   return true;
 }
 
 bool ExtendedResourcesManager::GetD3D12ObjectsInternal() {
   if (!d3d12device_) {
+    UINT dxgiFactoryFlags = 0;
+#if defined(_DEBUG)
+    {
+      // This can help to debug DX issues. If something goes wrong in DX,
+      // Debug Layer outputs detailed log
+      ComPtr<ID3D12Debug> debugController;
+      HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+      if (SUCCEEDED(hr)) {
+        debugController->EnableDebugLayer();
+      }
+    }
+#endif
+
     if (FAILED(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0,
                                  IID_PPV_ARGS(&d3d12device_)))) {
       // GPU based vp9 decoding will be temporarily disabled.
@@ -221,8 +259,26 @@ bool ExtendedResourcesManager::GetD3D12ObjectsInternal() {
     }
     SB_DCHECK(d3d12queue_);
   }
+  if (!d3d12FrameBuffersHeap_) {
+    D3D12_HEAP_DESC heap_desc;
+    heap_desc.SizeInBytes = kFrameBuffersPoolMemorySize;
+    heap_desc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heap_desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heap_desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heap_desc.Properties.CreationNodeMask = 0;
+    heap_desc.Properties.VisibleNodeMask = 0;
+    heap_desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    heap_desc.Flags = D3D12_HEAP_FLAG_NONE;
 
-  return d3d12device_ && d3d12queue_;
+    if (FAILED(d3d12device_->CreateHeap(
+            &heap_desc, IID_PPV_ARGS(&d3d12FrameBuffersHeap_)))) {
+      SB_LOG(WARNING) << "Failed to create d3d12 buffer.";
+      return false;
+    }
+    SB_DCHECK(d3d12FrameBuffersHeap_);
+  }
+
+  return d3d12device_ && d3d12queue_ && d3d12FrameBuffersHeap_;
 }
 
 bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
@@ -335,7 +391,8 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
                          "shader compile.";
       return;
     }
-    if (Av1VideoDecoder::CompileShaders(d3d12device_, d3d12queue_.Get())) {
+    if (Av1VideoDecoder::CompileShaders(d3d12device_, d3d12FrameBuffersHeap_,
+                                        d3d12queue_.Get())) {
       is_av1_shader_compiled_ = true;
       SB_LOG(INFO) << "Gpu based AV1 decoder finished compiling its shaders.";
     } else {
@@ -352,7 +409,8 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
       return;
     }
 
-    if (VpxVideoDecoder::CompileShaders(d3d12device_, d3d12queue_.Get())) {
+    if (VpxVideoDecoder::CompileShaders(d3d12device_, d3d12FrameBuffersHeap_,
+                                        d3d12queue_.Get())) {
       is_vp9_shader_compiled_ = true;
       SB_LOG(INFO) << "Gpu based VP9 decoder finished compiling its shaders.";
     } else {
@@ -372,10 +430,6 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
 
 void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-#if defined(INTERNAL_BUILD)
-  Av1VideoDecoder::ClearFrameBufferPool();
-#endif  // defined(INTERNAL_BUILD)
-
   ScopedLock scoped_lock(mutex_);
   if (!is_extended_resources_acquired_.load()) {
     SB_LOG(INFO) << "Extended resources hasn't been acquired,"
@@ -424,8 +478,7 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
       d3d12queue_->AddRef();
       ULONG reference_count = d3d12queue_->Release();
-      SB_DLOG(INFO) << "Reference count of |d3d12queue_| is "
-                    << reference_count;
+      SB_LOG(INFO) << "Reference count of |d3d12queue_| is " << reference_count;
 #endif
       d3d12queue_.Reset();
     }
@@ -434,11 +487,21 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
       d3d12device_->AddRef();
       ULONG reference_count = d3d12device_->Release();
-      SB_DLOG(INFO) << "Reference count of |d3d12device_| is "
-                    << reference_count;
+      SB_LOG(INFO) << "Reference count of |d3d12device_| is "
+                   << reference_count;
 #endif
       d3d12device_.Reset();
     }
+    if (d3d12FrameBuffersHeap_) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+      d3d12FrameBuffersHeap_->AddRef();
+      ULONG reference_count = d3d12FrameBuffersHeap_->Release();
+      SB_LOG(INFO) << "Reference count of |d3d12FrameBuffersHeap_| is "
+                   << reference_count;
+#endif
+      d3d12FrameBuffersHeap_.Reset();
+    }
+
   } catch (const std::exception& e) {
     SB_LOG(ERROR) << "Exception on releasing extended resources: " << e.what();
     OnNonrecoverableFailure();

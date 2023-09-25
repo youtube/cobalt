@@ -88,7 +88,8 @@ ukm::UkmService* CobaltMetricsServiceClient::GetUkmService() {
 
 void CobaltMetricsServiceClient::SetMetricsClientId(
     const std::string& client_id) {
-  // TODO(b/286066035): What to do with client id here?
+  // ClientId is unnecessary within Cobalt. We expect the web client responsible
+  // for uploading these to have its own concept of device/client identifiers.
 }
 
 // TODO(b/286884542): Audit all stub implementations in this class and reaffirm

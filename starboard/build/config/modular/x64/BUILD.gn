@@ -12,6 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
+config("sabi_flags") {
+  cflags = [
+    "-march=x86-64",
+    "-target",
+    "x86_64-unknown-linux-elf",
+  ]
+}
 
-native_linker_path = gcc_toolchain_cxx
+config("x64") {
+  configs = [
+    "//starboard/build/config/sabi",
+    ":sabi_flags",
+  ]
+
+  cflags = [ "-isystem" +
+             rebase_path("//third_party/musl/arch/x86_64", root_build_dir) ]
+}

@@ -52,7 +52,7 @@ _PRODUCT_CERT_PATH = {
     'youtubetv': _INTERNAL_CERT_PATH,
 }
 _DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
-_DEFAULT_WIN_SDK_VERSION = '10.0.22000.0'
+_DEFAULT_WIN_SDK_VERSION = '10.0.22621.0'
 _SOURCE_SPLASH_SCREEN_SUB_PATH = os.path.join('internal', 'cobalt', 'browser',
                                               'splash_screen')
 # The splash screen file referenced in starboard/xb1/shared/configuration.cc
@@ -67,7 +67,7 @@ _SPLASH_SCREEN_FILE = {
 }
 
 
-def _SelectBestPath(os_var_name, path):
+def _SelectBestPath(os_var_name: str, path: str) -> str:
   if os_var_name in os.environ:
     return os.environ[os_var_name]
   if os.path.exists(path):
@@ -84,6 +84,12 @@ def _GetSourceSplashScreenDir():
   src_dir = os.path.join(
       os.path.dirname(__file__), os.pardir, os.pardir, os.pardir)
   return os.path.join(src_dir, _SOURCE_SPLASH_SCREEN_SUB_PATH)
+
+
+def GetWinToolsPath() -> str:
+  windows_sdk_bin_dir = _SelectBestPath('WindowsSdkBinPath',
+                                        _DEFAULT_SDK_BIN_DIR)
+  return os.path.join(windows_sdk_bin_dir, _DEFAULT_WIN_SDK_VERSION, 'x64')
 
 
 class Package(package.PackageBase):
@@ -145,10 +151,7 @@ class Package(package.PackageBase):
       return []
 
   def __init__(self, publisher, product, **kwargs):
-    windows_sdk_bin_dir = _SelectBestPath('WindowsSdkBinPath',
-                                          _DEFAULT_SDK_BIN_DIR)
-    self.windows_sdk_host_tools = os.path.join(windows_sdk_bin_dir,
-                                               _DEFAULT_WIN_SDK_VERSION, 'x64')
+    self.windows_sdk_host_tools = GetWinToolsPath()
     self.publisher = publisher
     self.product = product
     super().__init__(**kwargs)

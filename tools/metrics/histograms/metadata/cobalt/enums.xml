@@ -37,6 +37,7 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="True"/>
 </enum>
 
+
 <enum name="PipelineStatus">
   <summary>
    Possible status values reported by the Media Pipeline
@@ -66,6 +67,7 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="23" label="PIPELINE_ERROR_HARDWARE_CONTEXT_RESET"/>
   <int value="24" label="PLAYBACK_CAPABILITY_CHANGED"/>
 </enum>
+
 
 </enums>
 

@@ -99,7 +99,7 @@ if (target_cpu == "x86" || target_cpu == "arm") {
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
 
 if (build_with_separate_cobalt_toolchain) {
-  cobalt_toolchain = "//starboard/build/toolchain:clang"
+  cobalt_toolchain = "//$starboard_path/toolchain:cobalt"
   starboard_toolchain = "//$starboard_path/toolchain:starboard"
 } else {
   cobalt_toolchain = "//$starboard_path/toolchain:target"
@@ -409,9 +409,11 @@ template("shared_library") {
       forward_variables_from(invoker, [ "testonly" ])
       deps = [
         ":${actual_target_name}_loader($starboard_toolchain)",
-        ":${actual_target_name}_loader_copy($starboard_toolchain)",
         ":${actual_target_name}_loader_install($starboard_toolchain)",
       ]
+      if (!is_host_win) {
+        deps += [ ":${actual_target_name}_loader_copy($starboard_toolchain)" ]
+      }
     }
     if (current_toolchain == starboard_toolchain) {
       executable("${actual_target_name}_loader") {
@@ -440,14 +442,18 @@ template("shared_library") {
         deps = [
           ":$original_target_name($cobalt_toolchain)",
           "//starboard:starboard_platform_group($starboard_toolchain)",
-          "//starboard:starboard_platform_group_install($starboard_toolchain)",
         ]
+        if (!separate_install_targets_for_bundling) {
+          deps += [ "//starboard:starboard_platform_group_install($starboard_toolchain)" ]
+        }
       }
-      copy("${actual_target_name}_loader_copy") {
-        forward_variables_from(invoker, [ "testonly" ])
-        sources = [ "$root_out_dir/${actual_target_name}_loader" ]
-        outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
-        deps = [ ":${actual_target_name}_loader" ]
+      if (!is_host_win) {
+        copy("${actual_target_name}_loader_copy") {
+          forward_variables_from(invoker, [ "testonly" ])
+          sources = [ "$root_out_dir/${actual_target_name}_loader" ]
+          outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
+          deps = [ ":${actual_target_name}_loader" ]
+        }
       }
     }
   }

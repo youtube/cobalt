@@ -271,7 +271,7 @@ target(gtest_target_type, "nplb") {
     cflags = [ "-Wno-enum-constexpr-conversion" ]
   }
 
-  #  TODO b/296238576 Add these tests for windows based platform modular builds
+  #  TODO: b/297808555 - Add these tests for windows based platform modular builds.
   if (sb_is_modular && !sb_is_evergreen && is_host_win) {
     sources -= [
       "maximum_player_configuration_explorer.cc",
@@ -279,6 +279,7 @@ target(gtest_target_type, "nplb") {
       "maximum_player_configuration_explorer_test.cc",
       "media_buffer_test.cc",
       "media_set_audio_write_duration_test.cc",
+      "multiple_player_test.cc",
       "player_create_test.cc",
       "player_creation_param_helpers.cc",
       "player_creation_param_helpers.h",
