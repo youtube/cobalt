@@ -74,6 +74,7 @@ constexpr int TYPE_USB_HEADSET = 22;
 constexpr int TYPE_WIRED_HEADPHONES = 4;
 constexpr int TYPE_WIRED_HEADSET = 3;
 
+#if SB_API_VERSION >= 15
 SbMediaAudioConnector GetConnectorFromAndroidOutputType(
     int android_output_device_type) {
   switch (android_output_device_type) {
@@ -145,6 +146,7 @@ SbMediaAudioConnector GetConnectorFromAndroidOutputType(
                   << android_output_device_type;
   return kSbMediaAudioConnectorUnknown;
 }
+#endif  // SB_API_VERSION >= 15
 
 bool EndsWith(const std::string& str, const std::string& suffix) {
   if (str.size() < suffix.size()) {
@@ -267,8 +269,12 @@ bool GetAudioConfiguration(int index,
     return env->CallIntMethodOrAbort(j_output_device_info.Get(), name, "()I");
   };
 
+#if SB_API_VERSION >= 15
   configuration->connector =
       GetConnectorFromAndroidOutputType(call_int_method("getType"));
+#else   // SB_API_VERSION >= 15
+  configuration->connector = kSbMediaAudioConnectorHdmi;
+#endif  // SB_API_VERSION >= 15
   configuration->latency = 0;
   configuration->coding_type = kSbMediaAudioCodingTypePcm;
   configuration->number_of_channels = call_int_method("getChannels");
