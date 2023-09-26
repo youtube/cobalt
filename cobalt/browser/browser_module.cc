@@ -691,8 +691,8 @@ void BrowserModule::NavigateCreateWebModule(
   }
 
   options.provide_screenshot_function =
-      base::Bind(&ScreenShotWriter::RequestScreenshotToMemoryUnencoded,
-                 base::Unretained(screen_shot_writer_.get()));
+      base::Bind(&BrowserModule::RequestScreenshotToMemoryUnencoded,
+                 base::Unretained(this));
 
 #if defined(ENABLE_DEBUGGER)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -806,6 +806,14 @@ bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
   return web_module_loaded_.TimedWait(timeout);
 }
 
+void BrowserModule::EnsureScreenShotWriter() {
+  if (!screen_shot_writer_ && renderer_module_) {
+    screen_shot_writer_.reset(
+        new ScreenShotWriter(renderer_module_->pipeline()));
+  }
+}
+
+#if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
 void BrowserModule::RequestScreenshotToFile(
     const base::FilePath& path,
     loader::image::EncodedStaticImage::ImageFormat image_format,
@@ -813,7 +821,9 @@ void BrowserModule::RequestScreenshotToFile(
     const base::Closure& done_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+  EnsureScreenShotWriter();
   DCHECK(screen_shot_writer_);
+  if (!screen_shot_writer_) return;
 
   scoped_refptr<render_tree::Node> render_tree;
   web_module_->DoSynchronousLayoutAndGetRenderTree(&render_tree);
@@ -831,7 +841,9 @@ void BrowserModule::RequestScreenshotToMemory(
     const base::Optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
+  EnsureScreenShotWriter();
   DCHECK(screen_shot_writer_);
+  if (!screen_shot_writer_) return;
   // Note: This does not have to be called from self_message_loop_.
 
   scoped_refptr<render_tree::Node> render_tree;
@@ -843,6 +855,19 @@ void BrowserModule::RequestScreenshotToMemory(
 
   screen_shot_writer_->RequestScreenshotToMemory(image_format, render_tree,
                                                  clip_rect, screenshot_ready);
+}
+#endif  // defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
+
+// Request a screenshot to memory without compressing the image.
+void BrowserModule::RequestScreenshotToMemoryUnencoded(
+    const scoped_refptr<render_tree::Node>& render_tree_root,
+    const base::Optional<math::Rect>& clip_rect,
+    const renderer::Pipeline::RasterizationCompleteCallback& callback) {
+  EnsureScreenShotWriter();
+  DCHECK(screen_shot_writer_);
+  if (!screen_shot_writer_) return;
+  screen_shot_writer_->RequestScreenshotToMemoryUnencoded(render_tree_root,
+                                                          clip_rect, callback);
 }
 
 void BrowserModule::ProcessRenderTreeSubmissionQueue() {
@@ -1794,7 +1819,7 @@ void BrowserModule::InstantiateRendererModule() {
       system_window_.get(),
       RendererModuleWithCameraOptions(options_.renderer_module_options,
                                       input_device_manager_->camera_3d())));
-  screen_shot_writer_.reset(new ScreenShotWriter(renderer_module_->pipeline()));
+  screen_shot_writer_.reset();
 }
 
 void BrowserModule::DestroyRendererModule() {
