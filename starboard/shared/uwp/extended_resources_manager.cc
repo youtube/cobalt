@@ -44,6 +44,7 @@ using Windows::Foundation::Metadata::ApiInformation;
 using ::starboard::xb1::shared::Av1VideoDecoder;
 using ::starboard::xb1::shared::VpxVideoDecoder;
 #endif  // defined(INTERNAL_BUILD)
+using ::starboard::xb1::shared::GpuVideoDecoderBase;
 
 const SbTime kReleaseTimeout = kSbTimeSecond;
 
@@ -472,6 +473,8 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
       } else {
         SB_LOG(INFO) << "CreateFence() failed with " << hr;
       }
+      // Clear frame buffers used for rendering queue
+      GpuVideoDecoderBase::ClearFrameBuffersPool();
     }
 
     if (d3d12queue_) {
@@ -483,15 +486,6 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
       d3d12queue_.Reset();
     }
 
-    if (d3d12device_) {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-      d3d12device_->AddRef();
-      ULONG reference_count = d3d12device_->Release();
-      SB_LOG(INFO) << "Reference count of |d3d12device_| is "
-                   << reference_count;
-#endif
-      d3d12device_.Reset();
-    }
     if (d3d12FrameBuffersHeap_) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
       d3d12FrameBuffersHeap_->AddRef();
@@ -500,6 +494,16 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
                    << reference_count;
 #endif
       d3d12FrameBuffersHeap_.Reset();
+    }
+
+    if (d3d12device_) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+      d3d12device_->AddRef();
+      ULONG reference_count = d3d12device_->Release();
+      SB_LOG(INFO) << "Reference count of |d3d12device_| is "
+                   << reference_count;
+#endif
+      d3d12device_.Reset();
     }
 
   } catch (const std::exception& e) {
