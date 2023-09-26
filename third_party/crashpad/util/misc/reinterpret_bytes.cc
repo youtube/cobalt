@@ -14,6 +14,7 @@
 
 #include "util/misc/reinterpret_bytes.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include <algorithm>

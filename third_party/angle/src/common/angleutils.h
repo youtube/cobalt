@@ -11,6 +11,8 @@
 
 #include "common/platform.h"
 
+#include <stdint.h>
+
 #include <climits>
 #include <cstdarg>
 #include <cstddef>
