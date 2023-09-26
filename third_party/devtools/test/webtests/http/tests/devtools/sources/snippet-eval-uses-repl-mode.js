@@ -7,9 +7,9 @@
 
     await TestRunner.showPanel('sources');
 
-    TestRunner.addSniffer(TestRunner.RuntimeAgent, "invoke_evaluate", function(args) {
+    TestRunner.addSniffer(TestRunner.RuntimeAgent, "invoke_evaluate", function(arguments) {
       TestRunner.addResult("Called RuntimeAgent.invoke_evaluate");
-      TestRunner.addResult("Value of 'replMode': " + args.replMode);
+      TestRunner.addResult("Value of 'replMode': " + arguments.replMode);
     });
 
     const uiSourceCode = await Snippets.project.createFile('', null, '');

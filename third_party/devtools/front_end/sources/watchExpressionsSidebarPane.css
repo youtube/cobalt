@@ -79,7 +79,7 @@
     padding-left: 4px;
     min-height: 18px;
     line-height: 18px;
-    user-select: text;
+    -webkit-user-select: text;
 }
 
 .watch-expression-text-prompt-proxy {

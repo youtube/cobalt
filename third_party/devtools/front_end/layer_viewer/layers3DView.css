@@ -6,7 +6,7 @@
 
 .layers-3d-view {
     overflow: hidden;
-    user-select: none;
+    -webkit-user-select: none;
 }
 
 .toolbar {

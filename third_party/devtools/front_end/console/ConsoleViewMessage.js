@@ -376,12 +376,9 @@ export default class ConsoleViewMessage {
       this._selectableChildren.push({element: linkElement, forceSelect: () => linkElement.focus()});
     }
     stackTraceElement.classList.add('hidden');
-    UI.ARIAUtils.markAsTreeitem(this.element());
-    UI.ARIAUtils.setExpanded(this.element(), false);
     this._expandTrace = expand => {
       icon.setIconType(expand ? 'smallicon-triangle-down' : 'smallicon-triangle-right');
       stackTraceElement.classList.toggle('hidden', !expand);
-      UI.ARIAUtils.setExpanded(this.element(), expand);
       this._traceExpanded = expand;
     };
 
@@ -1558,7 +1555,7 @@ export default class ConsoleViewMessage {
       if (!url) {
         return null;
       }
-      const parsedURL = Common.ParsedURL.fromString(url);
+      const parsedURL = url.asParsedURL();
       if (parsedURL) {
         return parsedURL.url;
       }

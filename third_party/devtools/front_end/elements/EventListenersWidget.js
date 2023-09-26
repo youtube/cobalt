@@ -31,7 +31,7 @@
  * @implements {UI.ToolbarItem.ItemsProvider}
  * @unrestricted
  */
-export class EventListenersWidget extends UI.ThrottledWidget {
+export default class EventListenersWidget extends UI.ThrottledWidget {
   constructor() {
     super();
     this._toolbarItems = [];
@@ -180,3 +180,15 @@ export const DispatchFilterBy = {
 };
 
 export const _objectGroupName = 'event-listeners-panel';
+
+/* Legacy exported object */
+self.Elements = self.Elements || {};
+
+/* Legacy exported object */
+Elements = Elements || {};
+
+/** @constructor */
+Elements.EventListenersWidget = EventListenersWidget;
+
+Elements.EventListenersWidget.DispatchFilterBy = DispatchFilterBy;
+Elements.EventListenersWidget._objectGroupName = _objectGroupName;

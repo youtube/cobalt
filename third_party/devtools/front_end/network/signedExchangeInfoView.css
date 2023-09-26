@@ -5,7 +5,7 @@
  */
 
 .signed-exchange-info-view {
-    user-select: text;
+    -webkit-user-select: text;
     overflow: auto;
 }
 

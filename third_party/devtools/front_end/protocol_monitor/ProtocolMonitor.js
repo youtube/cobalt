@@ -100,7 +100,7 @@ export default class ProtocolMonitorImpl extends UI.VBox {
   }
 
   /**
-   * @param {!UI.ContextSubMenu} contextMenu
+   * @param {!UI.ContextMenu} contextMenu
    */
   _innerHeaderContextMenu(contextMenu) {
     const columnConfigs = this._columns.filter(columnConfig => columnConfig.hideable);
@@ -108,6 +108,7 @@ export default class ProtocolMonitorImpl extends UI.VBox {
       contextMenu.headerSection().appendCheckboxItem(
           columnConfig.title, this._toggleColumnVisibility.bind(this, columnConfig), columnConfig.visible);
     }
+    contextMenu.show();
   }
 
   /**

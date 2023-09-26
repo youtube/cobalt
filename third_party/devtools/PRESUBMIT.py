@@ -32,8 +32,6 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into gcl.
 """
 
-# pylint: skip-file
-
 import sys
 
 EXCLUSIVE_CHANGE_DIRECTORIES = [
@@ -216,33 +214,23 @@ def _CheckCSSViolations(input_api, output_api):
 def _CommonChecks(input_api, output_api):
     """Checks common to both upload and commit."""
     results = []
-    # Cobalt changes don't need DevTools owners to be involved
-    # results.extend(input_api.canned_checks.CheckOwnersFormat(input_api,
-    #                                                          output_api))
-    # results.extend(input_api.canned_checks.CheckOwners(input_api, output_api))
+    results.extend(input_api.canned_checks.CheckOwnersFormat(input_api, output_api))
+    results.extend(input_api.canned_checks.CheckOwners(input_api, output_api))
     results.extend(input_api.canned_checks.CheckChangeHasNoCrAndHasOnlyOneEol(input_api, output_api))
     results.extend(input_api.canned_checks.CheckChangeHasNoStrayWhitespace(input_api, output_api))
-    # Cobalt's depot_tools doesn't include CheckGenderNeutral
-    # results.extend(input_api.canned_checks.CheckGenderNeutral(input_api,
-    #                                                           output_api))
+    results.extend(input_api.canned_checks.CheckGenderNeutral(input_api, output_api))
     return results
 
 
 def CheckChangeOnUpload(input_api, output_api):
     results = []
     results.extend(_CommonChecks(input_api, output_api))
-
-    # Cobalt doesn't use GN to build.
-    # results.extend(_CheckBuildGN(input_api, output_api))
-
-    # Formatting & style checks use eslint from a Node install, which isn't
-    # part of the Cobalt dev environment.
-    # results.extend(_CheckFormat(input_api, output_api))
-    # results.extend(_CheckDevtoolsStyle(input_api, output_api))
-
+    results.extend(_CheckBuildGN(input_api, output_api))
+    results.extend(_CheckFormat(input_api, output_api))
+    results.extend(_CheckDevtoolsStyle(input_api, output_api))
     results.extend(_CheckOptimizeSVGHashes(input_api, output_api))
     results.extend(_CheckCSSViolations(input_api, output_api))
-    #results.extend(_CheckDevtoolsLocalization(input_api, output_api))
+    results.extend(_CheckDevtoolsLocalization(input_api, output_api))
     results.extend(_CheckChangesAreExclusiveToDirectory(input_api, output_api))
     return results
 
@@ -250,7 +238,7 @@ def CheckChangeOnUpload(input_api, output_api):
 def CheckChangeOnCommit(input_api, output_api):
     results = []
     results.extend(_CommonChecks(input_api, output_api))
-    #results.extend(_CheckDevtoolsLocalization(input_api, output_api, True))
+    results.extend(_CheckDevtoolsLocalization(input_api, output_api, True))
     results.extend(_CheckChangesAreExclusiveToDirectory(input_api, output_api))
     results.extend(input_api.canned_checks.CheckChangeHasDescription(input_api, output_api))
     return results

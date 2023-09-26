@@ -10,6 +10,6 @@
     box-shadow: var(--drop-shadow);
     border-radius: 2px;
     overflow: auto;
-    user-select: text;
+    -webkit-user-select: text;
     line-height: 11px;
 }

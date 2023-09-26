@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-export default class SignedExchangeInfoView extends UI.VBox {
+Network.SignedExchangeInfoView = class extends UI.VBox {
   /**
    * @param {!SDK.NetworkRequest} request
    */
@@ -163,12 +163,13 @@ export default class SignedExchangeInfoView extends UI.VBox {
     }
     return fragment;
   }
-}
+};
+
 
 /**
  * @unrestricted
  */
-export class Category extends UI.TreeElement {
+Network.SignedExchangeInfoView.Category = class extends UI.TreeElement {
   /**
    * @param {!UI.TreeOutline} root
    * @param {(string|!Node)=} title
@@ -190,20 +191,4 @@ export class Category extends UI.TreeElement {
     this.appendChild(leaf);
     return leaf;
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.SignedExchangeInfoView = SignedExchangeInfoView;
-
-/**
- * @constructor
- */
-Network.SignedExchangeInfoView.Category = Category;
+};

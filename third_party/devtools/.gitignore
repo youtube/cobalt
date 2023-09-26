@@ -4,7 +4,6 @@
 *.Makefile
 *.mk
 *.pyc
-*.rsp
 *.rules
 *.sln
 *.stamp

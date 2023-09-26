@@ -31,7 +31,7 @@
  * @implements {UI.ContextMenu.Provider}
  * @implements {UI.ViewLocationResolver}
  */
-export default class NetworkPanel extends UI.Panel {
+Network.NetworkPanel = class extends UI.Panel {
   constructor() {
     super('network');
     this.registerRequiredCSS('network/networkPanel.css');
@@ -47,7 +47,7 @@ export default class NetworkPanel extends UI.Panel {
     this._networkItemView = null;
     /** @type {?PerfUI.FilmStripView} */
     this._filmStripView = null;
-    /** @type {?FilmStripRecorder} */
+    /** @type {?Network.NetworkPanel.FilmStripRecorder} */
     this._filmStripRecorder = null;
     /** @type {?SDK.NetworkRequest} */
     this._currentRequest = null;
@@ -164,7 +164,7 @@ export default class NetworkPanel extends UI.Panel {
    * @param {!Array<{filterType: !Network.NetworkLogView.FilterType, filterValue: string}>} filters
    */
   static revealAndFilter(filters) {
-    const panel = NetworkPanel._instance();
+    const panel = Network.NetworkPanel._instance();
     let filterString = '';
     for (const filter of filters) {
       filterString += `${filter.filterType}:${filter.filterValue} `;
@@ -174,10 +174,10 @@ export default class NetworkPanel extends UI.Panel {
   }
 
   /**
-   * @return {!NetworkPanel}
+   * @return {!Network.NetworkPanel}
    */
   static _instance() {
-    return /** @type {!NetworkPanel} */ (self.runtime.sharedInstance(NetworkPanel));
+    return /** @type {!Network.NetworkPanel} */ (self.runtime.sharedInstance(Network.NetworkPanel));
   }
 
   /**
@@ -352,7 +352,8 @@ export default class NetworkPanel extends UI.Panel {
    */
   _load(event) {
     if (this._filmStripRecorder && this._filmStripRecorder.isRecording()) {
-      this._pendingStopTimer = setTimeout(this._stopFilmStripRecording.bind(this), displayScreenshotDelay);
+      this._pendingStopTimer =
+          setTimeout(this._stopFilmStripRecording.bind(this), Network.NetworkPanel.displayScreenshotDelay);
     }
   }
 
@@ -381,7 +382,8 @@ export default class NetworkPanel extends UI.Panel {
       this._filmStripView = new PerfUI.FilmStripView();
       this._filmStripView.setMode(PerfUI.FilmStripView.Modes.FrameBased);
       this._filmStripView.element.classList.add('network-film-strip');
-      this._filmStripRecorder = new FilmStripRecorder(this._networkLogView.timeCalculator(), this._filmStripView);
+      this._filmStripRecorder =
+          new Network.NetworkPanel.FilmStripRecorder(this._networkLogView.timeCalculator(), this._filmStripView);
       this._filmStripView.show(this._filmStripPlaceholderElement);
       this._filmStripView.addEventListener(PerfUI.FilmStripView.Events.FrameSelected, this._onFilmFrameSelected, this);
       this._filmStripView.addEventListener(PerfUI.FilmStripView.Events.FrameEnter, this._onFilmFrameEnter, this);
@@ -418,7 +420,7 @@ export default class NetworkPanel extends UI.Panel {
    * @override
    */
   wasShown() {
-    UI.context.setFlavor(NetworkPanel, this);
+    UI.context.setFlavor(Network.NetworkPanel, this);
 
     // Record the network tool load time after the panel has loaded.
     Host.userMetrics.panelLoaded('network', 'DevTools.Launch.Network');
@@ -428,7 +430,7 @@ export default class NetworkPanel extends UI.Panel {
    * @override
    */
   willHide() {
-    UI.context.setFlavor(NetworkPanel, null);
+    UI.context.setFlavor(Network.NetworkPanel, null);
   }
 
   /**
@@ -530,18 +532,18 @@ export default class NetworkPanel extends UI.Panel {
    * @param {!Event} event
    * @param {!UI.ContextMenu} contextMenu
    * @param {!Object} target
-   * @this {NetworkPanel}
+   * @this {Network.NetworkPanel}
    */
   appendApplicableItems(event, contextMenu, target) {
     /**
-     * @this {NetworkPanel}
+     * @this {Network.NetworkPanel}
      */
     function reveal(request) {
       UI.viewManager.showView('network').then(this.revealAndHighlightRequest.bind(this, request));
     }
 
     /**
-     * @this {NetworkPanel}
+     * @this {Network.NetworkPanel}
      */
     function appendRevealItem(request) {
       contextMenu.revealSection().appendItem(Common.UIString('Reveal in Network panel'), reveal.bind(this, request));
@@ -626,15 +628,15 @@ export default class NetworkPanel extends UI.Panel {
     }
     return null;
   }
-}
+};
 
-export const displayScreenshotDelay = 1000;
+Network.NetworkPanel.displayScreenshotDelay = 1000;
 
 /**
  * @implements {UI.ContextMenu.Provider}
  * @unrestricted
  */
-export class ContextMenuProvider {
+Network.NetworkPanel.ContextMenuProvider = class {
   /**
    * @override
    * @param {!Event} event
@@ -642,15 +644,15 @@ export class ContextMenuProvider {
    * @param {!Object} target
    */
   appendApplicableItems(event, contextMenu, target) {
-    NetworkPanel._instance().appendApplicableItems(event, contextMenu, target);
+    Network.NetworkPanel._instance().appendApplicableItems(event, contextMenu, target);
   }
-}
+};
 
 /**
  * @implements {Common.Revealer}
  * @unrestricted
  */
-export class RequestRevealer {
+Network.NetworkPanel.RequestRevealer = class {
   /**
    * @override
    * @param {!Object} request
@@ -660,15 +662,16 @@ export class RequestRevealer {
     if (!(request instanceof SDK.NetworkRequest)) {
       return Promise.reject(new Error('Internal error: not a network request'));
     }
-    const panel = NetworkPanel._instance();
+    const panel = Network.NetworkPanel._instance();
     return UI.viewManager.showView('network').then(panel.revealAndHighlightRequest.bind(panel, request));
   }
-}
+};
+
 
 /**
  * @implements {SDK.TracingManagerClient}
  */
-export class FilmStripRecorder {
+Network.NetworkPanel.FilmStripRecorder = class {
   /**
    * @param {!Network.NetworkTimeCalculator} timeCalculator
    * @param {!PerfUI.FilmStripView} filmStripView
@@ -767,12 +770,12 @@ export class FilmStripRecorder {
     this._callback = callback;
     this._filmStripView.setStatusText(Common.UIString('Fetching frames...'));
   }
-}
+};
 
 /**
  * @implements {UI.ActionDelegate}
  */
-export class ActionDelegate {
+Network.NetworkPanel.ActionDelegate = class {
   /**
    * @override
    * @param {!UI.Context} context
@@ -780,8 +783,8 @@ export class ActionDelegate {
    * @return {boolean}
    */
   handleAction(context, actionId) {
-    const panel = UI.context.flavor(NetworkPanel);
-    console.assert(panel && panel instanceof NetworkPanel);
+    const panel = UI.context.flavor(Network.NetworkPanel);
+    console.assert(panel && panel instanceof Network.NetworkPanel);
     switch (actionId) {
       case 'network.toggle-recording':
         panel._toggleRecording();
@@ -804,12 +807,12 @@ export class ActionDelegate {
     }
     return false;
   }
-}
+};
 
 /**
  * @implements {Common.Revealer}
  */
-export class RequestLocationRevealer {
+Network.NetworkPanel.RequestLocationRevealer = class {
   /**
    * @override
    * @param {!Object} match
@@ -817,7 +820,7 @@ export class RequestLocationRevealer {
    */
   async reveal(match) {
     const location = /** @type {!Network.UIRequestLocation} */ (match);
-    const view = await NetworkPanel._instance().selectRequest(location.request);
+    const view = await Network.NetworkPanel._instance().selectRequest(location.request);
     if (!view) {
       return;
     }
@@ -831,9 +834,9 @@ export class RequestLocationRevealer {
       view.revealResponseHeader(location.responseHeader.name);
     }
   }
-}
+};
 
-export class SearchNetworkView extends Search.SearchView {
+Network.SearchNetworkView = class extends Search.SearchView {
   constructor() {
     super('network');
   }
@@ -858,46 +861,4 @@ export class SearchNetworkView extends Search.SearchView {
   createScope() {
     return new Network.NetworkSearchScope();
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.NetworkPanel = NetworkPanel;
-Network.NetworkPanel.displayScreenshotDelay = displayScreenshotDelay;
-
-/**
- * @constructor
- */
-Network.SearchNetworkView = SearchNetworkView;
-
-/**
- * @constructor
- */
-Network.NetworkPanel.ContextMenuProvider = ContextMenuProvider;
-
-/**
- * @constructor
- */
-Network.NetworkPanel.RequestRevealer = RequestRevealer;
-
-/**
- * @constructor
- */
-Network.NetworkPanel.FilmStripRecorder = FilmStripRecorder;
-
-/**
- * @constructor
- */
-Network.NetworkPanel.ActionDelegate = ActionDelegate;
-
-/**
- * @constructor
- */
-Network.NetworkPanel.RequestLocationRevealer = RequestLocationRevealer;
+};

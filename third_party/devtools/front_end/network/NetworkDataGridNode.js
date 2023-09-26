@@ -31,7 +31,7 @@
 /**
  * @unrestricted
  */
-export class NetworkNode extends DataGrid.SortableDataGridNode {
+Network.NetworkNode = class extends DataGrid.SortableDataGridNode {
   /**
    * @param {!Network.NetworkLogView} parentView
    */
@@ -82,7 +82,7 @@ export class NetworkNode extends DataGrid.SortableDataGridNode {
    * @suppressGlobalPropertiesCheck
    */
   backgroundColor() {
-    const bgColors = _backgroundColors;
+    const bgColors = Network.NetworkNode._backgroundColors;
     const hasFocus = document.hasFocus();
     const isSelected = this.dataGrid.element === document.activeElement;
     const isFailed = this._isFailed();
@@ -262,10 +262,10 @@ export class NetworkNode extends DataGrid.SortableDataGridNode {
     this._requestOrFirstKnownChildRequest = firstChildRequest;
     return this._requestOrFirstKnownChildRequest;
   }
-}
+};
 
 /** @type {!Object<string, string>} */
-export const _backgroundColors = {
+Network.NetworkNode._backgroundColors = {
   Default: '--network-grid-default-color',
   Stripe: '--network-grid-stripe-color',
   Navigation: '--network-grid-navigation-color',
@@ -278,10 +278,22 @@ export const _backgroundColors = {
   FromFrame: '--network-grid-from-frame-color',
 };
 
+/** @typedef {!{
+  Default: string,
+  Stripe: string,
+  Navigation: string,
+  Hovered: string,
+  InitiatorPath: string,
+  InitiatedPath: string,
+  Selected: string,
+  FromFrame: string
+}} */
+Network.NetworkNode._SupportedBackgroundColors;
+
 /**
  * @unrestricted
  */
-export class NetworkRequestNode extends NetworkNode {
+Network.NetworkRequestNode = class extends Network.NetworkNode {
   /**
    * @param {!Network.NetworkLogView} parentView
    * @param {!SDK.NetworkRequest} request
@@ -1041,9 +1053,9 @@ export class NetworkRequestNode extends NetworkNode {
     subtitleElement.textContent = subtitleText;
     cellElement.appendChild(subtitleElement);
   }
-}
+};
 
-export class NetworkGroupNode extends NetworkNode {
+Network.NetworkGroupNode = class extends Network.NetworkNode {
   /**
    * @override
    * @param {!Element} cell
@@ -1070,40 +1082,4 @@ export class NetworkGroupNode extends NetworkNode {
           Network.NetworkLogView.Events.RequestSelected, firstChildNode.request());
     }
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.NetworkNode = NetworkNode;
-
-/** @type {!Object<string, string>} */
-Network.NetworkNode._backgroundColors = _backgroundColors;
-
-/** @typedef {!{
- Default: string,
- Stripe: string,
- Navigation: string,
- Hovered: string,
- InitiatorPath: string,
- InitiatedPath: string,
- Selected: string,
- FromFrame: string
-}} */
-Network.NetworkNode._SupportedBackgroundColors;
-
-/**
- * @constructor
- */
-Network.NetworkRequestNode = NetworkRequestNode;
-
-/**
- * @constructor
- */
-Network.NetworkGroupNode = NetworkGroupNode;
+};
