@@ -163,17 +163,51 @@ std::string VideoDmpReader::video_mime_type() {
   if (dmp_info_.video_codec == kSbMediaVideoCodecNone) {
     return "";
   }
-  // TODO: Support HDR
+
   std::stringstream ss;
   switch (dmp_info_.video_codec) {
     case kSbMediaVideoCodecH264:
-      ss << "video/mp4; codecs=\"avc1.4d402a\";";
+      ss << "video/mp4; codecs=\"avc1.4d402a\"; ";
       break;
     case kSbMediaVideoCodecVp9:
-      ss << "video/webm; codecs=\"vp9\";";
+      SB_DCHECK(dmp_info_.frame_width < 4320);
+      ss << "video/webm; codecs=\"";
+      if (dmp_info_.video_is_hdr) {
+        if (dmp_info_.frame_width < 1440) {
+          ss << "vp09.02.41.10.01.09.16.09.00";
+        } else {
+          ss << "vp09.02.51.10.01.09.16.09.00";
+        }
+        ss << "\" ";
+        break;
+      }
+      ss << "vp9\"; ";
       break;
     case kSbMediaVideoCodecAv1:
-      ss << "video/mp4; codecs=\"av01.0.08M.08\";";
+      SB_DCHECK(dmp_info_.frame_width <= 4320);
+      ss << "video/mp4; codecs=\"";
+      if (dmp_info_.video_is_hdr) {
+        if (dmp_info_.frame_width < 1440) {
+          ss << "av01.0.09M.10.0.110.09.16.09.0";
+        } else if (dmp_info_.frame_width < 2160) {
+          ss << "av01.0.12M.10.0.110.09.16.09.0";
+        } else if (dmp_info_.frame_width < 4320) {
+          ss << "av01.0.13M.10.0.110.09.16.09.0";
+        } else {
+          ss << "av01.0.17M.10.0.110.09.16.09.0";
+        }
+      } else {
+        if (dmp_info_.frame_width < 1440) {
+          ss << "av01.0.09M.08";
+        } else if (dmp_info_.frame_width < 2160) {
+          ss << "av01.0.12M.08";
+        } else if (dmp_info_.frame_width < 4320) {
+          ss << "av01.0.13M.08";
+        } else {
+          ss << "av01.0.17M.08";
+        }
+      }
+      ss << "\"; ";
       break;
     default:
       SB_NOTREACHED();
@@ -181,9 +215,10 @@ std::string VideoDmpReader::video_mime_type() {
   if (number_of_video_buffers() > 0) {
     const auto& video_stream_info = this->video_stream_info();
     ss << "width=" << video_stream_info.frame_width
-       << "; height=" << video_stream_info.frame_height << ";";
+       << "; height=" << video_stream_info.frame_height
+       << "; bitrate=" << dmp_info_.video_bitrate << "; ";
   }
-  ss << " framerate=" << dmp_info_.video_fps;
+  ss << "framerate=" << dmp_info_.video_fps;
   return ss.str();
 }
 
@@ -294,6 +329,16 @@ void VideoDmpReader::Parse() {
   dmp_info_.audio_bitrate = CalculateAverageBitrate(audio_access_units_);
   dmp_info_.video_access_units_size = video_access_units_.size();
   dmp_info_.video_bitrate = CalculateAverageBitrate(video_access_units_);
+  if (!video_access_units_.empty()) {
+    dmp_info_.video_is_hdr =
+        video_access_units_[0]
+            .video_sample_info()
+            .stream_info.color_metadata.bits_per_channel > 8;
+    dmp_info_.frame_width =
+        video_access_units_[0].video_sample_info().stream_info.frame_width;
+    dmp_info_.frame_height =
+        video_access_units_[0].video_sample_info().stream_info.frame_height;
+  }
 
   // Guestimate the audio duration.
   if (audio_access_units_.size() > 1) {

@@ -58,6 +58,8 @@ target(gtest_target_type, "nplb") {
     "directory_create_test.cc",
     "directory_get_next_test.cc",
     "directory_open_test.cc",
+    "dmp_file_selector.cc",
+    "dmp_file_selector.h",
     "drm_get_metrics_test.cc",
     "drm_helpers.h",
     "drm_is_server_certificate_updatable_test.cc",
