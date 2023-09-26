@@ -24,6 +24,8 @@ namespace {
 
 TEST(SbTimeZoneGetCurrentTest, IsKindOfSane) {
   SbTimeZone zone = SbTimeZoneGetCurrent();
+  EXPECT_EQ(zone, 420);
+  EXPECT_GE(zone, 0);
 
   // This should always be a multiple of 15 minutes. Sadly, there are some
   // quarter-hour timezones, so our assertions can't be that strict.
@@ -45,6 +47,10 @@ TEST(SbTimeZoneGetCurrentTest, IsKindOfSane) {
     time_zone_extension->SetTimeZone("UTC");
     zone = SbTimeZoneGetCurrent();
     EXPECT_EQ(zone, 0);
+
+    time_zone_extension->SetTimeZone("PST");
+    zone = SbTimeZoneGetCurrent();
+    EXPECT_EQ(zone, 420);
 
     // Atlantic time zone, UTC−04:00
     time_zone_extension->SetTimeZone("America/Puerto_Rico");
