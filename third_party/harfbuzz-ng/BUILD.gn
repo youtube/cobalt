@@ -6,13 +6,26 @@ import("//build/config/chrome_build.gni")
 import("//build/config/linux/pkg_config.gni")
 import("//build/config/ui.gni")
 
+# The GYP build supports system harfbuzz for non-official builds when using
+# pangoft2 1.31.0 or greater (which pulls it in).
+# TODO(brettw) we can consider doing this as well, although the benefit is
+# unclear and requires shelling out to a script to check the version.
+#
+# ChromeOS uses an up-to-date system one that we have control over, so we
+# don't want to bloat the binary more by including another copy.
+
 declare_args() {
-  # Blink uses a cutting-edge version of Harfbuzz; most Linux distros do not
-  # contain a new enough version of the code to work correctly. However,
-  # ChromeOS chroots (i.e, real ChromeOS builds for devices) do contain a
-  # new enough version of the library, and so this variable exists so that
-  # ChromeOS can build against the system lib and keep binary sizes smaller.
-  use_system_harfbuzz = false
+  # Since version 1.31.0, pangoft2 which we depend on pulls in harfbuzz
+  # anyways. However, we want to have control of the version of harfbuzz
+  # we use, so don't use system harfbuzz unless we are building for
+  # chrome os, where we have the system harfbuzz under control.
+  use_system_harfbuzz =
+      is_linux && is_chromeos && exec_script(pkg_config_script,
+                                             pkg_config_args + [
+                                                   "--atleast-version=1.31.0",
+                                                   "pangoft2",
+                                                 ],
+                                             "value")
 }
 
 if (use_system_harfbuzz) {
@@ -53,15 +66,15 @@ if (use_system_harfbuzz) {
   }
 
   if (!is_starboard) {
-    # See also chrome/browser/ui/libgtk2ui/BUILD.gn which pulls this.
-    config("pangoft2_link_hack") {
-        if (is_linux && use_pango && !is_chromeos && !is_official_build &&
-            current_cpu != "arm" && current_cpu != "mipsel" && !is_component_build) {
-        # These symbols are referenced from libpangoft2, which will be
-        # dynamically linked later.
-        ldflags = [ "-Wl,-uhb_ft_face_create_cached,-uhb_glib_get_unicode_funcs" ]
-        }
+  # See also chrome/browser/ui/libgtk2ui/BUILD.gn which pulls this.
+  config("pangoft2_link_hack") {
+    if (is_linux && use_pango && !is_chromeos && !is_official_build &&
+        current_cpu != "arm" && current_cpu != "mipsel" && !is_component_build) {
+      # These symbols are referenced from libpangoft2, which will be
+      # dynamically linked later.
+      ldflags = [ "-Wl,-uhb_ft_face_create_cached,-uhb_glib_get_unicode_funcs" ]
     }
+  }
   }
 
   static_library("harfbuzz-ng") {
@@ -188,31 +201,32 @@ if (use_system_harfbuzz) {
     ]
 
     if (!is_starboard) {
-      if (is_mac) {
-        sources += [
-          "src/hb-coretext.cc",
-          "src/hb-coretext.h",
-        ]
-        defines += [ "HAVE_CORETEXT" ]
-      }
+    if (is_mac) {
+      sources += [
+        "src/hb-coretext.cc",
+        "src/hb-coretext.h",
+      ]
+      defines += [ "HAVE_CORETEXT" ]
+    }
 
-
-      # When without -fvisibility=hidden for pango to use the harfbuzz
-      # in the tree, all symbols pango needs must be included, or
-      # pango uses mixed versions of harfbuzz and leads to crash.
-      # See crbug.com/462689.
-      if (is_linux && use_pango && !is_chromeos && !is_official_build &&
-          current_cpu != "arm" && current_cpu != "mipsel") {
-        deps += [ "//build/linux:freetype2" ]
-        configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
-        configs += [ "//build/config/linux:glib" ]
-        sources += [
-          "src/hb-ft.cc",
-          "src/hb-ft.h",
-          "src/hb-glib.cc",
-          "src/hb-glib.h",
-        ]
-      }
+    # When without -fvisibility=hidden for pango to use the harfbuzz
+    # in the tree, all symbols pango needs must be included, or
+    # pango uses mixed versions of harfbuzz and leads to crash.
+    # See crbug.com/462689.
+    if (is_linux && use_pango && !is_chromeos && !is_official_build &&
+        current_cpu != "arm" && current_cpu != "mipsel") {
+      deps += [ "//build/linux:freetype2" ]
+      configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
+      configs += [
+        "//build/config/linux:glib",
+      ]
+      sources += [
+        "src/hb-ft.cc",
+        "src/hb-ft.h",
+        "src/hb-glib.cc",
+        "src/hb-glib.h",
+      ]
+    }
     }
   }
 }

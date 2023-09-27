@@ -6,9 +6,9 @@ description:
 third_party {
   url {
     type: GIT
-    value: "https://github.com/harfbuzz/harfbuzz"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "b24e93e3a4d98111c4684fa08e9080b471881d5c"
+  version: "48.0.2564.116"
   last_upgrade_date {
     year: 2015
     month: 11
