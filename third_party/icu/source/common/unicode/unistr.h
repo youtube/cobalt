@@ -3153,7 +3153,7 @@ public:
    */
   inline UnicodeString(std::nullptr_t buffer, int32_t buffLength, int32_t buffCapacity);
 
-#if U_CHARSET_IS_UTF8 || !UCONFIG_NO_CONVERSION
+#if U_CHARSET_IS_UTF8 || !UCONFIG_NO_CONVERSION || 1
 
   /**
    * char* constructor.

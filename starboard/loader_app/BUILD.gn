@@ -78,7 +78,7 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
 
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
-    build_loader = false
+    # build_loader = false
     if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
         target_cpu == "arm64") {
       data_deps = [ "//third_party/icu:icudata" ]

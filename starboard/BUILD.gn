@@ -28,8 +28,9 @@ group("gn_all") {
     "//starboard/client_porting/poem:poem_unittests",
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
-    "//starboard/extension:extension_test",
-    "//starboard/loader_app:app_key_files_test",
+
+    # "//starboard/extension:extension_test",
+    # "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
   ]

@@ -102,6 +102,7 @@ static_library("crypto") {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
 
+    # sources += boringssl_linux_x86_64_files
     if (sb_is_modular) {
       calling_convention = sabi_variables.calling_convention
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
@@ -175,4 +176,11 @@ static_library("crypto_full") {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
   }
+}
+
+group("boringssl") {
+  all_dependent_configs = [ ":external_config" ]
+  public_deps = [
+  ":crypto"
+  ]
 }

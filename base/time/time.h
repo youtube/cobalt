@@ -77,6 +77,9 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
+#if defined(STARBOARD)
+#include "starboard/time.h"
+#else
 #if BUILDFLAG(IS_APPLE)
 #include "base/time/buildflags/buildflags.h"
 #endif
@@ -114,6 +117,7 @@ struct TimeSpan;
 }  // namespace Windows
 }  // namespace ABI
 #endif
+#endif
 
 namespace base {
 
@@ -129,7 +133,8 @@ class BASE_EXPORT TimeDelta {
  public:
   constexpr TimeDelta() = default;
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_WIN)
   static TimeDelta FromQPCValue(LONGLONG qpc_value);
   // TODO(crbug.com/989694): Avoid base::TimeDelta factory functions
   // based on absolute time
@@ -201,6 +206,9 @@ class BASE_EXPORT TimeDelta {
   constexpr bool is_min() const { return *this == Min(); }
   constexpr bool is_inf() const { return is_min() || is_max(); }
 
+#if defined(STARBOARD)
+  SbTime ToSbTime() const;
+#else
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   struct timespec ToTimeSpec() const;
 #endif
@@ -210,6 +218,7 @@ class BASE_EXPORT TimeDelta {
 #if BUILDFLAG(IS_WIN)
   ABI::Windows::Foundation::DateTime ToWinrtDateTime() const;
   ABI::Windows::Foundation::TimeSpan ToWinrtTimeSpan() const;
+#endif
 #endif
 
   // Returns the frequency in Hertz (cycles per second) that has a period of
@@ -662,7 +671,8 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static Time FromDoubleT(double dt);
   double ToDoubleT() const;
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // Converts the timespec structure to time. MacOS X 10.8.3 (and tentatively,
   // earlier versions) will have the |ts|'s tv_nsec component zeroed out,
   // having a 1 second resolution, which agrees with
@@ -688,6 +698,10 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static Time FromJavaTime(int64_t ms_since_epoch);
   int64_t ToJavaTime() const;
 
+#if defined(STARBOARD)
+  static Time FromSbTime(SbTime t);
+  SbTime ToSbTime() const;
+#else
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
@@ -745,6 +759,7 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static void ResetHighResolutionTimerUsage();
   static double GetHighResolutionTimerUsage();
 #endif  // BUILDFLAG(IS_WIN)
+#endif
 
   // Converts an exploded structure representing either the local time or UTC
   // into a Time class. Returns false on a failure when, for example, a day of
@@ -1165,7 +1180,9 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
 
   // Returns true if ThreadTicks::Now() is supported on this system.
   [[nodiscard]] static bool IsSupported() {
-#if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+#if defined(STARBOARD)
+    return SbTimeIsTimeThreadNowSupported();
+#elif (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
     return true;
 #elif BUILDFLAG(IS_WIN)

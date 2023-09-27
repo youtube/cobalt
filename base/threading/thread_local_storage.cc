@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"

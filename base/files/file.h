@@ -410,6 +410,10 @@ class BASE_EXPORT File {
   Error error_details_ = FILE_ERROR_FAILED;
   bool created_ = false;
   bool async_ = false;
+
+#if defined(STARBOARD)
+  bool append_;
+#endif
 };
 
 }  // namespace base

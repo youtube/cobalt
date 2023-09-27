@@ -66,15 +66,19 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 
+#include "base/base_export.h"
+#include "base/synchronization/lock.h"
+
+#if defined(STARBOARD)
+#include "starboard/condition_variable.h"
+#else
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <pthread.h>
 #endif
 
-#include "base/base_export.h"
-#include "base/synchronization/lock.h"
-
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
+#endif
 #endif
 
 namespace base {
@@ -113,7 +117,10 @@ class BASE_EXPORT ConditionVariable {
   void declare_only_used_while_idle() { waiting_is_blocking_ = false; }
 
  private:
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  SbConditionVariable condition_;
+  SbMutex* user_mutex_;
+#elif BUILDFLAG(IS_WIN)
   CHROME_CONDITION_VARIABLE cv_;
   const raw_ptr<CHROME_SRWLOCK> srwlock_;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)

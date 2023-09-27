@@ -1,0 +1,140 @@
+# Copyright 2014 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+if (target_os == "") {
+  target_os = host_os
+}
+if (target_cpu == "") {
+  target_cpu = host_cpu
+}
+if (current_cpu == "") {
+  current_cpu = target_cpu
+}
+if (current_os == "") {
+  current_os = target_os
+}
+# is_linux = host_os == "linux" && current_os == "linux" && target_os == "linux"
+is_linux = true
+# is_mac = host_os == "mac" && current_os == "mac" && target_os == "mac"
+is_mac = false
+
+sb_api_version = 15
+sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+
+# All binary targets will get this list of configs by default.
+_shared_binary_target_configs = [
+    "//starboard/build/config/sabi",
+    "//build/config/compiler:compiler_defaults",
+    "//build/config/compiler:default_include_dirs",
+    "//build/config/compiler:default_optimization",
+    "//build/config/sanitizers:default_sanitizer_flags",
+    "//build/config/compiler:chromium_code",
+    "//starboard/build/config:size"
+    ]
+# Apply that default list to the binary target types.
+set_defaults("executable") {
+  configs = _shared_binary_target_configs
+  # Executables get this additional configuration.
+  # configs += [ "//build:executable_ldconfig" ]
+}
+set_defaults("static_library") {
+  configs = _shared_binary_target_configs
+}
+set_defaults("shared_library") {
+  configs = _shared_binary_target_configs
+  # configs += [ "//build:shared_library_config" ]
+}
+set_defaults("source_set") {
+  configs = _shared_binary_target_configs
+}
+set_default_toolchain("//build/toolchain:gcc")
+TESTONLY_AND_VISIBILITY = [
+  "testonly",
+  "visibility",
+]
+template("component") {
+  #print(target_name)
+  not_needed(["target_name"])
+  not_needed(invoker, ["deps" , "public_deps" , "defines" , "sources" , "output_name"] )
+  target("static_library", target_name) {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
+    if (defined(configs)) {
+      _shared_binary_target_configs_copy = _shared_binary_target_configs
+      foreach (i, configs) {
+        found = false
+        foreach (j, _shared_binary_target_configs) {
+          if (i == j) {
+            found = true
+          }
+        }
+        if (found) {
+          _shared_binary_target_configs_copy -= [i]
+        }
+      }
+      configs += _shared_binary_target_configs_copy
+    } else {
+      configs = _shared_binary_target_configs
+    }
+  }
+}
+set_defaults("component") {
+  configs = [
+      "//build/config/compiler:default_optimization",
+      "//build/config/compiler:chromium_code"
+  ]
+}
+is_nacl = false
+is_android = false
+is_chromeos = false
+is_fuchsia = false
+is_ios = false
+# is_linux = false
+is_mac = false
+is_nacl = false
+is_win = false
+is_robolectric = false
+
+is_apple = false
+is_posix = true
+is_starboard = true
+
+is_debug = false
+is_official_build = false
+host_toolchain = "//build/toolchain:gcc"
+is_clang = false
+
+gtest_target_type = "executable"
+sb_libevent_method = "epoll"
+is_component_build = false
+gl_type = "system_gles2"
+has_platform_targets = false
+use_cobalt_customizations = true
+platform_tests_path = ""
+starboard_toolchain = "//build/toolchain:gcc"
+sb_filter_based_player = false
+sb_enable_benchmark = false
+build_with_separate_cobalt_toolchain = false
+sb_is_evergreen_compatible = false
+final_executable_type = "executable"
+is_internal_build = false
+import("//starboard/build/platform_path.gni")
+starboard_level_gtest_target_type = "executable"
+starboard_level_final_executable_type = "executable"
+sb_is_modular = false
+sb_is_evergreen = false
+cobalt_platform_dependencies = []
+sb_enable_cpp17_audit = false
+is_clang_16 = false
+
+is_devel = true
+is_qa = false
+is_gold = false
+is_debug = false
+
+enable_in_app_dial = false
+is_starboardized_toolchain = true
+abort_on_allocation_failure = false
+sb_enable_lib = false
+sb_evergreen_compatible_use_libunwind = false
+import("//build/variables.gni")

@@ -22,3 +22,7 @@ declare_args() {
 }
 
 enable_java_templates = false
+
+use_perfetto_client_library = false
+use_blink = false
+enable_base_tracing = false

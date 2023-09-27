@@ -2727,3 +2727,11 @@ config("cet_shadow_stack") {
     ldflags = [ "/CETCOMPAT" ]
   }
 }
+
+config("compiler_defaults") {
+  defines = [
+    "STARBOARD",
+    "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
+    "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
+  ]
+}

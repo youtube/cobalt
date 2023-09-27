@@ -22,6 +22,12 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#include "starboard/system.h"
+#include "starboard/types.h"
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
 #include <cstdio>
 #endif
@@ -207,7 +213,9 @@ enum : uint32_t {
 // On POSIX platforms, where it may not even be possible to locate the
 // executable on disk, use stderr.
 // On Fuchsia, use the Fuchsia logging service.
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_NACL)
+#if defined(STARBOARD)
+  LOG_DEFAULT = LOG_TO_SYSTEM_DEBUG_LOG,
+#elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_NACL)
   LOG_DEFAULT = LOG_TO_SYSTEM_DEBUG_LOG,
 #elif BUILDFLAG(IS_WIN)
   LOG_DEFAULT = LOG_TO_FILE,
@@ -520,7 +528,11 @@ BASE_EXPORT int GetDisableAllVLogLevel();
   LAZY_STREAM(VLOG_STREAM(verbose_level), \
       VLOG_IS_ON(verbose_level) && (condition))
 
-#if BUILDFLAG(IS_WIN)
+#if defined (STARBOARD)
+#define VPLOG_STREAM(verbose_level) \
+  ::logging::StarboardErrorLogMessage(__FILE__, __LINE__, -verbose_level, \
+    ::logging::GetLastSystemErrorCode()).stream()
+#elif BUILDFLAG(IS_WIN)
 #define VPLOG_STREAM(verbose_level) \
   ::logging::Win32ErrorLogMessage(__FILE__, __LINE__, -(verbose_level), \
     ::logging::GetLastSystemErrorCode()).stream()
@@ -543,7 +555,11 @@ BASE_EXPORT int GetDisableAllVLogLevel();
   LOG_IF(FATAL, !(ANALYZER_ASSUME_TRUE(condition))) \
       << "Assert failed: " #condition ". "
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#define PLOG_STREAM(severity) \
+  COMPACT_GOOGLE_LOG_EX_ ## severity(StarboardErrorLogMessage, \
+      ::logging::GetLastSystemErrorCode()).stream()
+#elif BUILDFLAG(IS_WIN)
 #define PLOG_STREAM(severity) \
   COMPACT_GOOGLE_LOG_EX_ ## severity(Win32ErrorLogMessage, \
       ::logging::GetLastSystemErrorCode()).stream()
@@ -694,7 +710,9 @@ class LogMessageVoidify {
   void operator&(std::ostream&) { }
 };
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+typedef SbSystemError SystemErrorCode;
+#elif BUILDFLAG(IS_WIN)
 typedef unsigned long SystemErrorCode;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 typedef int SystemErrorCode;
@@ -705,7 +723,29 @@ typedef int SystemErrorCode;
 BASE_EXPORT SystemErrorCode GetLastSystemErrorCode();
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code);
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+// Appends a formatted system message of the GetLastError() type.
+class BASE_EXPORT StarboardErrorLogMessage : public LogMessage {
+ public:
+  StarboardErrorLogMessage(const char* file,
+                           int line,
+                           LogSeverity severity,
+                           SystemErrorCode err);
+
+  StarboardErrorLogMessage(const StarboardErrorLogMessage&) = delete;
+  StarboardErrorLogMessage& operator=(const StarboardErrorLogMessage&) = delete;
+  // Appends the error message before destructing the encapsulated class.
+  ~StarboardErrorLogMessage() override;
+
+  // std::ostream& stream() { return log_message_.stream(); }
+
+ private:
+  SystemErrorCode err_;
+  // StarboardErrorLogMessage log_message_;
+
+  // DISALLOW_COPY_AND_ASSIGN(StarboardErrorLogMessage);
+};
+#elif BUILDFLAG(IS_WIN)
 // Appends a formatted system message of the GetLastError() type.
 class BASE_EXPORT Win32ErrorLogMessage : public LogMessage {
  public:

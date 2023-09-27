@@ -22,7 +22,8 @@
 
 namespace base::subtle {
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_ANDROID)
 // Helper structs to keep two descriptors on POSIX. It's needed to support
 // ConvertToReadOnly().
 struct BASE_EXPORT FDPair {
@@ -62,8 +63,8 @@ using ScopedPlatformSharedMemoryHandle = win::ScopedHandle;
 using PlatformSharedMemoryHandle = int;
 using ScopedPlatformSharedMemoryHandle = ScopedFD;
 #else
-using PlatformSharedMemoryHandle = FDPair;
-using ScopedPlatformSharedMemoryHandle = ScopedFDPair;
+using PlatformSharedMemoryHandle = int;
+using ScopedPlatformSharedMemoryHandle = ScopedFD;
 #endif
 
 }  // namespace base::subtle

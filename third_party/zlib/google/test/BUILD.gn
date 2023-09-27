@@ -14,7 +14,7 @@
 
 copy("zip_unittest_files") {
   if (is_starboard) {
-    install_content = true
+    # install_content = true
   }
 
   sources = [
