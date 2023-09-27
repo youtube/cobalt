@@ -21,11 +21,14 @@ import("//starboard/shared/starboard/player/player_tests.gni")
 # Configuration to extract GameActivity native files.
 ##########################################################
 
-game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-1.2.2.aar"
+game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-2.0.2.aar"
 
 game_activity_source_files = [
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.cpp",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.cpp",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityLog.h",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gamecommon.h",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.cpp",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.h",
