@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cstdint>
 
 #include "base/logging.h"
 
