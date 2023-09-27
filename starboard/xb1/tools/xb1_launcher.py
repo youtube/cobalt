@@ -95,6 +95,14 @@ _XB1_PORT = 11443
 _XB1_NET_LOG_PORT = 49353
 _XB1_NET_ARG_PORT = 49355
 
+# Number of times a test will try or retry.
+_TEST_MAX_TRIES = 1
+# Seconds to wait between retries (scales with backoff factor).
+_TEST_RETRY_WAIT = 8
+# Amount to multiply retry time with each failed attempt (i.e. 2 doubles the
+# amount of time to wait between retries).
+_TEST_RETRY_BACKOFF_FACTOR = 2
+
 _PROCESS_TIMEOUT = 60 * 5.0
 _PROCESS_KILL_TIMEOUT_SECONDS = 5.0
 
@@ -448,6 +456,27 @@ class Launcher(abstract_launcher.AbstractLauncher):
       return False
     return package_list[package_index:].split('\n')[0].strip()
 
+  def RunTest(self, appx_name: str):
+    self.net_args_thread = None
+    attempt_num = 0
+    retry_wait_s = _TEST_RETRY_WAIT
+    while attempt_num < _TEST_MAX_TRIES:
+      if not self.net_args_thread or not self.net_args_thread.is_alive():
+        # This thread must start before the app executes or else it is possible
+        # the app will hang at _network_api.ExecuteBinary()
+        self.net_args_thread = net_args.NetArgsThread(self.device_id,
+                                                      _XB1_NET_ARG_PORT,
+                                                      self._target_args)
+      if self._network_api.ExecuteBinary(_DEFAULT_PACKAGE_NAME, appx_name):
+        break
+
+      attempt_num += 1
+      self._LogLn(f'Retry attempt {attempt_num}.')
+      time.sleep(retry_wait_s)
+      retry_wait_s *= _TEST_RETRY_BACKOFF_FACTOR
+      if hasattr(self, 'net_args_thread'):
+        self.net_args_thread.join()
+
   def Run(self):
     # Only upload and install Appx on the first run.
     if FirstRun():
@@ -474,12 +503,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     try:
       self.Kill()  # Kill existing running app.
-
-      # These threads must start before the app executes or else it is possible
-      # the app will hang at _network_api.ExecuteBinary()
-      self.net_args_thread = net_args.NetArgsThread(self.device_id,
-                                                    _XB1_NET_ARG_PORT,
-                                                    self._target_args)
       # While binary is running, extract the net log and stream it to
       # the output.
       self.net_log_thread = net_log.NetLogThread(self.device_id,
@@ -487,7 +510,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       appx_name = ToAppxFriendlyName(self.target_name)
 
-      self._network_api.ExecuteBinary(_DEFAULT_PACKAGE_NAME, appx_name)
+      self.RunTest(appx_name)
 
       while self._network_api.IsBinaryRunning(self.target_name):
         self._Log(self.net_log_thread.GetLog())
