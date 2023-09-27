@@ -96,7 +96,7 @@ _XB1_NET_LOG_PORT = 49353
 _XB1_NET_ARG_PORT = 49355
 
 # Number of times a test will try or retry.
-_TEST_MAX_TRIES = 1
+_TEST_MAX_TRIES = 4
 # Seconds to wait between retries (scales with backoff factor).
 _TEST_RETRY_WAIT = 8
 # Amount to multiply retry time with each failed attempt (i.e. 2 doubles the
@@ -470,6 +470,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if self._network_api.ExecuteBinary(_DEFAULT_PACKAGE_NAME, appx_name):
         break
 
+      if not self.net_args_thread.ArgsSent():
+        self._LogLn(
+            'Net Args were not sent to the test! This will likely cause '
+            'the test to fail!')
       attempt_num += 1
       self._LogLn(f'Retry attempt {attempt_num}.')
       time.sleep(retry_wait_s)
