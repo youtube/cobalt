@@ -118,6 +118,8 @@ class GpuFrameBufferPool {
     return true;
   }
 
+  void Clear() { frame_buffers_.clear(); }
+
  private:
   std::vector<scoped_refptr<GpuVideoDecoderBase::GpuFrameBuffer>>
       frame_buffers_;
@@ -752,6 +754,10 @@ void GpuVideoDecoderBase::ReleaseFrameBuffer(GpuFrameBuffer* frame_buffer) {
   frame_buffer->Release();
   SB_DCHECK(frame_buffer->HasOneRef());
   frame_buffers_condition_.Signal();
+}
+
+void GpuVideoDecoderBase::ClearFrameBuffersPool() {
+  GetGpuFrameBufferPool()->Clear();
 }
 
 GpuVideoDecoderBase::GpuFrameBuffer*
