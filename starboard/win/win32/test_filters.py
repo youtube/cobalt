@@ -53,6 +53,10 @@ _FILTERED_TESTS = {
 
         # Enable once verified on the platform.
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+
+        # Windows uses a special time zone format that ICU accepts, so we don't enforce IANA.
+        # TODO(b/304335954): Re-enable the test after fixing Windows implementation.
+        'SbTimeZoneGetNameTest.IsIANAFormat',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing
