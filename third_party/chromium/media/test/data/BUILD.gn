@@ -16,7 +16,7 @@
 # as needed.
 copy("media_testdata") {
   testonly = true
-  install_content = true
+  # install_content = true
   sources = [ "bear-320x240.webm" ]
   subdir = "third_party/chromium/media/test/data"
   outputs = [

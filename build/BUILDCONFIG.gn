@@ -18,34 +18,43 @@ is_linux = true
 # is_mac = host_os == "mac" && current_os == "mac" && target_os == "mac"
 is_mac = false
 
-sb_api_version = 15
-sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+# sb_api_version = 15
+# sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+
+build_with_separate_cobalt_toolchain = false
+host_toolchain = "//build/toolchain:gcc"
+starboard_toolchain = "//build/toolchain:gcc"
+import("//starboard/build/platform_path.gni")
+import("//$starboard_path/platform_configuration/configuration.gni")
 
 # All binary targets will get this list of configs by default.
 _shared_binary_target_configs = [
     "//starboard/build/config/sabi",
     "//build/config/compiler:compiler_defaults",
     "//build/config/compiler:default_include_dirs",
-    "//build/config/compiler:default_optimization",
     "//build/config/sanitizers:default_sanitizer_flags",
-    "//build/config/compiler:chromium_code",
-    "//starboard/build/config:size"
+    "//starboard/build/config:size",
+    "//$starboard_path/platform_configuration",
     ]
+_shared_configs = [
+    "//build/config/compiler:default_optimization",
+    "//build/config/compiler:chromium_code",
+]
 # Apply that default list to the binary target types.
 set_defaults("executable") {
-  configs = _shared_binary_target_configs
+  configs = _shared_binary_target_configs + _shared_configs
   # Executables get this additional configuration.
   # configs += [ "//build:executable_ldconfig" ]
 }
 set_defaults("static_library") {
-  configs = _shared_binary_target_configs
+  configs = _shared_binary_target_configs + _shared_configs
 }
 set_defaults("shared_library") {
-  configs = _shared_binary_target_configs
+  configs = _shared_binary_target_configs + _shared_configs
   # configs += [ "//build:shared_library_config" ]
 }
 set_defaults("source_set") {
-  configs = _shared_binary_target_configs
+  configs = _shared_binary_target_configs + _shared_configs
 }
 set_default_toolchain("//build/toolchain:gcc")
 TESTONLY_AND_VISIBILITY = [
@@ -59,30 +68,11 @@ template("component") {
   target("static_library", target_name) {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
-    if (defined(configs)) {
-      _shared_binary_target_configs_copy = _shared_binary_target_configs
-      foreach (i, configs) {
-        found = false
-        foreach (j, _shared_binary_target_configs) {
-          if (i == j) {
-            found = true
-          }
-        }
-        if (found) {
-          _shared_binary_target_configs_copy -= [i]
-        }
-      }
-      configs += _shared_binary_target_configs_copy
-    } else {
-      configs = _shared_binary_target_configs
-    }
+    configs += _shared_binary_target_configs
   }
 }
 set_defaults("component") {
-  configs = [
-      "//build/config/compiler:default_optimization",
-      "//build/config/compiler:chromium_code"
-  ]
+  configs = _shared_configs
 }
 is_nacl = false
 is_android = false
@@ -101,28 +91,17 @@ is_starboard = true
 
 is_debug = false
 is_official_build = false
-host_toolchain = "//build/toolchain:gcc"
 is_clang = false
 
 gtest_target_type = "executable"
 sb_libevent_method = "epoll"
 is_component_build = false
-gl_type = "system_gles2"
 has_platform_targets = false
 use_cobalt_customizations = true
-platform_tests_path = ""
-starboard_toolchain = "//build/toolchain:gcc"
-sb_filter_based_player = false
-sb_enable_benchmark = false
-build_with_separate_cobalt_toolchain = false
-sb_is_evergreen_compatible = false
-final_executable_type = "executable"
 is_internal_build = false
-import("//starboard/build/platform_path.gni")
 starboard_level_gtest_target_type = "executable"
 starboard_level_final_executable_type = "executable"
 sb_is_modular = false
-sb_is_evergreen = false
 cobalt_platform_dependencies = []
 sb_enable_cpp17_audit = false
 is_clang_16 = false
@@ -138,3 +117,12 @@ abort_on_allocation_failure = false
 sb_enable_lib = false
 sb_evergreen_compatible_use_libunwind = false
 import("//build/variables.gni")
+cobalt_fastbuild = false
+use_asan = false
+use_tsan = false
+using_old_compiler = false
+use_x11 = is_linux
+is_chromecast = false
+is_docker_build = false
+is_host_win = false
+default_compiler_configs = []

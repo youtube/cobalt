@@ -13,8 +13,19 @@
 # limitations under the License.
 
 config("platform_configuration") {
+  libs = [
+    "X11",
+    "Xcomposite",
+    "Xrender",
+  ]
+  libs += [
+    "asound",
+    "dl",
+    "pthread",
+    "rt",
+  ]
   configs = [
-    "//starboard/build/config/sabi",
-    "//starboard/linux/x64x11/shared/platform_configuration",
+    # "//starboard/build/config/sabi",
+    # "//starboard/linux/x64x11/shared/platform_configuration",
   ]
 }

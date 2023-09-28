@@ -2654,6 +2654,10 @@ static_library("base_static") {
 
   deps = [ "//build:chromeos_buildflags" ]
 
+  if (is_starboard) {
+    deps += ["//starboard"]
+  }
+
   if (is_win) {
     sources += [
       "win/static_constants.cc",

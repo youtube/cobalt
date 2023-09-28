@@ -39,9 +39,9 @@ if (angle_has_build) {
 if (build_with_chromium) {
   import("//ui/ozone/ozone.gni")
 } else {
-  declare_args() {
-    ozone_platform_gbm = false
-  }
+  # declare_args() {
+  #   ozone_platform_gbm = false
+  # }
 }
 
 # Subdirectory to place data files (e.g. layer JSON files).
