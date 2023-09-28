@@ -507,10 +507,6 @@ template("shared_library") {
         forward_variables_from(invoker, [ "testonly" ])
         sources = [ "//$starboard_path/starboard_loader.cc" ]
 
-        if (defined(extra_platform_loader_sources)) {
-          sources += extra_platform_loader_sources
-        }
-
         if (use_asan) {
           sources += [ "//$starboard_path/sanitizer_options.cc" ]
         }
