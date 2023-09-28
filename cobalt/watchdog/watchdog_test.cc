@@ -199,11 +199,7 @@ TEST_F(WatchdogTest, PingOnlyAcceptsValidParameters) {
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
   ASSERT_TRUE(watchdog_->Ping("test-name", "42"));
-  ASSERT_FALSE(
-      watchdog_->Ping("test-name",
-                      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                      "xxxxxxxxxxxxxxxxxxxxxxxxxxx"));
+  ASSERT_FALSE(watchdog_->Ping("test-name", std::string(1025, 'x')));
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
 }
 
@@ -213,11 +209,7 @@ TEST_F(WatchdogTest, PingByClientOnlyAcceptsValidParameters) {
       kWatchdogMonitorFrequency);
   ASSERT_NE(client, nullptr);
   ASSERT_TRUE(watchdog_->PingByClient(client, "42"));
-  ASSERT_FALSE(watchdog_->PingByClient(
-      client,
-      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-      "xxxxxxxxxxxxxxxxxxxxxxxxxxx"));
+  ASSERT_FALSE(watchdog_->PingByClient(client, std::string(1025, 'x')));
   ASSERT_TRUE(watchdog_->UnregisterByClient(client));
 }
 
@@ -358,7 +350,7 @@ TEST_F(WatchdogTest, PingInfosAreEvictedAfterMax) {
   ASSERT_TRUE(watchdog_->Register("test-name", "test_desc",
                                   base::kApplicationStateStarted,
                                   kWatchdogMonitorFrequency));
-  for (int i = 0; i < 21; i++) {
+  for (int i = 0; i < 61; i++) {
     ASSERT_TRUE(watchdog_->Ping("test-name", std::to_string(i)));
   }
   SbThreadSleep(kWatchdogSleepDuration);
@@ -369,7 +361,7 @@ TEST_F(WatchdogTest, PingInfosAreEvictedAfterMax) {
   base::Value* violation_dict = violations_map->FindKey("test-name");
   base::Value* violations = violation_dict->FindKey("violations");
   base::Value* pingInfos = violations->GetList()[0].FindKey("pingInfos");
-  ASSERT_EQ(pingInfos->GetList().size(), 20);
+  ASSERT_EQ(pingInfos->GetList().size(), 60);
   ASSERT_EQ(pingInfos->GetList()[0].FindKey("info")->GetString(), "1");
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
 }

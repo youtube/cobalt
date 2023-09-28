@@ -43,9 +43,9 @@ const int kWatchdogMaxViolations = 200;
 // The minimum number of microseconds between writes.
 const int64_t kWatchdogWriteWaitTime = 300000000;
 // The maximum number of most recent ping infos.
-const int kWatchdogMaxPingInfos = 20;
+const int kWatchdogMaxPingInfos = 60;
 // The maximum length of each ping info.
-const int kWatchdogMaxPingInfoLength = 128;
+const int kWatchdogMaxPingInfoLength = 1024;
 // The maximum number of milliseconds old of an unfetched Watchdog violation.
 const int64_t kWatchdogMaxViolationsAge = 86400000;
 
