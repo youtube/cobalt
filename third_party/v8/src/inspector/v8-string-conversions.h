@@ -5,6 +5,7 @@
 #ifndef V8_INSPECTOR_V8_STRING_CONVERSIONS_H_
 #define V8_INSPECTOR_V8_STRING_CONVERSIONS_H_
 
+#include <cstdint>
 #include <string>
 
 // The v8config.h above is needed to turn on V8_OS_STARBOARD
