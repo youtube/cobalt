@@ -42,6 +42,16 @@ class FetcherCache : public base::RefCountedThreadSafe<FetcherCache> {
   Loader::FetcherCreator GetFetcherCreator(
       const GURL& url, const Loader::FetcherCreator& real_fetcher_creator);
   void NotifyResourceRequested(const std::string& url);
+  size_t size() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    CHECK_EQ(thread_id_, SbThreadGetId());
+    return total_size_;
+  }
+  size_t capacity() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    CHECK_EQ(thread_id_, SbThreadGetId());
+    return capacity_;
+  }
 
   // To signal the imminent destruction of this object.  If everything is
   // working as expected, there shouldn't be any other reference of this object,
