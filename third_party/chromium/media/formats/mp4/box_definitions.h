@@ -385,30 +385,36 @@ struct MEDIA_EXPORT IamfSpecificBox : Box {
   enum IamfObuType {
     // The following 3 OBUs must be placed in the IA Sequence in the following
     // order. https://aomediacodec.github.io/iamf/#standalone-descriptor-obus
-    kIamfObuTypeCodecConfig = 0,
-    kIamfObuTypeAudioElement = 1,
-    kIamfObuTypeMixPresentation = 2,
+    kIAMFObuTypeCodecConfig = 0,
+    kIAMFObuTypeAudioElement = 1,
+    kIAMFObuTypeMixPresentation = 2,
 
-    kIamfObuTypeParameterBlock = 3,
-    kIamfObuTypeTemporalDelimiter = 4,
-    kIamfObuTypeAudioFrame = 5,
-    kIamfObuTypeSequenceHeader = 31,
-    kIamfObuTypeMax = kIamfObuTypeSequenceHeader,
+    kIAMFObuTypeParameterBlock = 3,
+    kIAMFObuTypeTemporalDelimiter = 4,
+    kIAMFObuTypeAudioFrame = 5,
+    kIAMFObuTypeSequenceHeader = 31,
+    kIAMFObuTypeMax = kIAMFObuTypeSequenceHeader,
   };
 
   uint32_t ia_code;
   uint8_t primary_profile;
   uint8_t additional_profile;
 
-  // Codec config OBU fields.
   uint32_t channel_count;
   uint32_t sample_rate;
-  std::vector<uint8_t> extra_data;
+  std::vector<uint8_t> config_obus;
+  // Points to the next location in |config_obus| to be read into.
+  int buffer_pos = 0;
 
   std::vector<uint8_t> sequence_header;
   std::vector<uint8_t> codec_configs;
   std::vector<uint8_t> audio_elements;
   std::vector<uint8_t> mix_presentations;
+
+  // When false, all config OBUs must be appended to the data OBU.
+  // TODO: The first config OBUs in the sequence may be labeled redundant, but
+  // they must be appended to the data OBUs anyway. Handle this case.
+  bool redundant_copy = false;
 
   bool read_first_sequence_header = false;
 

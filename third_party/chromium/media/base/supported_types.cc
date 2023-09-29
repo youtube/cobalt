@@ -235,7 +235,7 @@ bool IsAudioCodecProprietary(AudioCodec codec) {
     case AudioCodec::kOpus:
     case AudioCodec::kVorbis:
 #if defined (STARBOARD)
-    case AudioCodec::kIamf:
+    case AudioCodec::kIAMF:
 #endif
     case AudioCodec::kPCM:
     case AudioCodec::kPCM_MULAW:
@@ -274,7 +274,7 @@ bool IsDefaultSupportedAudioType(const AudioType& type) {
     case AudioCodec::kMP3:
     case AudioCodec::kOpus:
 #if defined (STARBOARD)
-    case AudioCodec::kIamf:
+    case AudioCodec::kIAMF:
 #endif
     case AudioCodec::kPCM:
     case AudioCodec::kPCM_MULAW:

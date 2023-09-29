@@ -38,7 +38,7 @@ std::string GetCodecName(AudioCodec codec) {
     case AudioCodec::kOpus:
       return "opus";
 #if defined (STARBOARD)
-    case AudioCodec::kIamf:
+    case AudioCodec::kIAMF:
       return "iamf";
 #endif
     case AudioCodec::kPCM_ALAW:
@@ -60,6 +60,12 @@ std::string GetProfileName(AudioCodecProfile profile) {
       return "unknown";
     case AudioCodecProfile::kXHE_AAC:
       return "xhe-aac";
+#if defined(STARBOARD)
+  case AudioCodecProfile::kIAMF_SIMPLE:
+      return "iamf-simple";
+    case AudioCodecProfile::kIAMF_BASE:
+      return "iamf-base";
+#endif
   }
 }
 
@@ -88,7 +94,7 @@ AudioCodec StringToAudioCodec(const std::string& codec_id) {
     return AudioCodec::kAAC;
 #if defined(STARBOARD)
   if (codec_id == "iamf")
-    return AudioCodec::kIamf;
+    return AudioCodec::kIAMF;
 #endif
   return AudioCodec::kUnknown;
 }

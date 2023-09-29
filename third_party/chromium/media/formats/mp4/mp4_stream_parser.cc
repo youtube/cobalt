@@ -391,13 +391,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 #endif
 #if defined (STARBOARD)
       } else if (audio_format == FOURCC_IAMF) {
-        MEDIA_LOG(INFO, media_log_) << "FORMAT IS IAMF";
-        codec = AudioCodec::kIamf;
-        // Storing fake info.
+        codec = AudioCodec::kIAMF;
+        profile = entry.iamf.primary_profile == 0 ? AudioCodecProfile::kIAMF_SIMPLE : AudioCodecProfile::kIAMF_BASE;
+        // Default values.
         channel_layout = CHANNEL_LAYOUT_STEREO;
         sample_per_second = 48000;
-        // Storing real info.
-        extra_data = entry.iamf.extra_data;
 #endif
       } else {
         uint8_t audio_type = entry.esds.object_type;
@@ -731,6 +729,23 @@ bool MP4StreamParser::PrepareAACBuffer(
 }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
+#if defined(STARBOARD)
+// TODO: Revist to ensure this is appended correctly.
+bool MP4StreamParser::AppendIAMFConfigOBUs(const IamfSpecificBox& iamf_box,
+    std::vector<uint8_t>* frame_buf,
+    std::vector<SubsampleEntry>* subsamples) const {
+  frame_buf->resize(frame_buf->size() + iamf_box.config_obus.size());
+  frame_buf->insert(frame_buf->begin(), iamf_box.config_obus.begin(), iamf_box.config_obus.end());
+  if (subsamples->empty()) {
+    subsamples->push_back(SubsampleEntry(
+        iamf_box.config_obus.size(), frame_buf->size() - iamf_box.config_obus.size()));
+  } else {
+    (*subsamples)[0].clear_bytes += iamf_box.config_obus.size();
+  }
+  return true;
+}
+#endif  // defined(STARBOARD)
+
 ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   DCHECK_EQ(state_, kEmittingSamples);
 
@@ -895,6 +910,17 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       return ParseResult::kError;
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
     }
+#if defined(STARBOARD)
+  if (runs_->audio_description().format == FOURCC_IAMF) {
+    if (!runs_->audio_description().iamf.redundant_copy) {
+      if (!AppendIAMFConfigOBUs(runs_->audio_description().iamf, &frame_buf, &subsamples)) {
+        MEDIA_LOG(ERROR, media_log_)
+            << "Failed to prepare IAMF sample for decode";
+        return ParseResult::kError;
+      }
+    }
+  }
+#endif  // defined(STARBOARD)
   }
 
   if (decrypt_config) {

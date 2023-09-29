@@ -93,6 +93,11 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
                         std::vector<uint8_t>* frame_buf,
                         std::vector<SubsampleEntry>* subsamples) const;
 #endif
+#if defined(STARBOARD)
+  bool AppendIAMFConfigOBUs(const IamfSpecificBox& iamf_box,
+                        std::vector<uint8_t>* frame_buf,
+                        std::vector<SubsampleEntry>* subsamples) const;
+#endif
   ParseResult EnqueueSample(BufferQueueMap* buffers);
   bool SendAndFlushSamples(BufferQueueMap* buffers);
 

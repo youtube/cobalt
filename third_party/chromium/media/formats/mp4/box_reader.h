@@ -83,15 +83,18 @@ class MEDIA_EXPORT BufferReader {
 
 #if defined(STARBOARD)
   // Algorithm from the AV1 spec https://aomediacodec.github.io/av1-spec/#leb128.
-  bool ReadLeb128(uint32_t* value) {
+  // TODO: Examine if the loop should change to "while(true)".
+  bool ReadLeb128(uint8_t* buffer, uint32_t* value, int* bytes_read) {
+    CHECK(value);
+    CHECK(buffer);
     *value = 0;
-    int num_leb_128_bytes = 0;
+    *bytes_read = 0;
     for (int i = 0; i < 8; ++i) {
-      uint8_t byte;
-      RCHECK(Read1(&byte));
-      *value |= ((byte & 0x7f) << (i * 7));
-      num_leb_128_bytes += 1;
-      if (!(byte & 0x80)) {
+      uint8_t* byte = &buffer[i];
+      RCHECK(Read1(byte));
+      *value |= ((*byte & 0x7f) << (i * 7));
+      *bytes_read += 1;
+      if (!(*byte & 0x80)) {
         break;
       }
     }

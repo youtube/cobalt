@@ -1446,164 +1446,106 @@ IamfSpecificBox::IamfSpecificBox(const IamfSpecificBox& other) = default;
 IamfSpecificBox::~IamfSpecificBox() = default;
 
 FourCC IamfSpecificBox::BoxType() const {
-  // TODO: Revisit.
   return FOURCC_IAMF;
 }
 
 bool IamfSpecificBox::Parse(BoxReader* reader) {
-  MEDIA_LOG(INFO, reader->media_log()) << "PARSING CONFIG OBUS";
-
-  size_t stop_position = reader->pos() + reader->box_size();
+  config_obus.resize(reader->box_size() - reader->pos());
   while (reader->pos() < reader->box_size()) {
     RCHECK(ReadOBU(reader));
   }
-  RCHECK(sequence_header.size() > 0);
-  RCHECK(codec_configs.size() > 0);
-  RCHECK(audio_elements.size() > 0);
-  RCHECK(mix_presentations.size() > 0);
-
-  MEDIA_LOG(INFO, reader->media_log()) << "CONCATENATING CONFIG OBUS";
-  extra_data.resize(sequence_header.size() + codec_configs.size() + audio_elements.size() + mix_presentations.size());
-  int pos = 0;
-
-  // TODO: Minimize total copies.
-  memcpy(&extra_data[pos], &sequence_header[0], sequence_header.size());
-  pos += sequence_header.size();
-
-  memcpy(&extra_data[pos], &codec_configs[0], codec_configs.size());
-  pos += codec_configs.size();
-
-  memcpy(&extra_data[pos], &audio_elements[0], audio_elements.size());
-  pos += audio_elements.size();
-
-  memcpy(&extra_data[pos], &mix_presentations[0], mix_presentations.size());
-
   return true;
 }
 
 bool IamfSpecificBox::ReadOBU(BoxReader* reader) {
-  const int kHeaderFieldsSize = 1;
   uint8_t header;
   RCHECK(reader->Read1(&header));
   uint8_t obu_type = (header >> 3) & 0b11111;
   bool obu_redundant_copy = (header >> 2) & 1;
   bool obu_trimming_status_flag = (header >> 1) & 1;
   bool obu_extension_flag = header & 1;
+
+  redundant_copy |= obu_redundant_copy;
+
   uint32_t obu_size;
-  size_t current_reader_pos = reader->pos();
-  RCHECK(reader->ReadLeb128(&obu_size));
-  // TODO: Rename.
-  size_t size_field_size = reader->pos() - current_reader_pos;
-  MEDIA_LOG(INFO, reader->media_log()) << "check OBU type " << static_cast<int>(obu_type);
-    MEDIA_LOG(INFO, reader->media_log()) << "red cppy "
-    << obu_redundant_copy << ", trim status flag: " << obu_trimming_status_flag << ", extension flag: " << obu_extension_flag
-    << ", size: " << obu_size;
+  int num_leb_128_bytes;
+  RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &obu_size, &num_leb_128_bytes));
+  buffer_pos += num_leb_128_bytes;
 
-  // TODO: Handle trim and extension flags.
+  size_t obu_stop_pos = reader->pos() + obu_size;
 
-  int buffer_pos = 0;
-  // Save the read start position after the header, to determine how many
-  // bytes are left to copy after the fields are extracted.
-  size_t start_pos = reader->pos();
+  if (obu_trimming_status_flag) {
+    uint32_t leb_128_value;
+    // num_samples_to_trim_at_end.
+    RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &leb_128_value, &num_leb_128_bytes));
+    buffer_pos += num_leb_128_bytes;
+    // num_samples_to_trim_at_start.
+    RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &leb_128_value, &num_leb_128_bytes));
+    buffer_pos += num_leb_128_bytes;
+  }
+
+  if (obu_extension_flag) {
+    uint32_t extension_header_size;
+    RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &extension_header_size, &num_leb_128_bytes));
+    buffer_pos += num_leb_128_bytes;
+    for (int i = 0; i < extension_header_size; ++i) {
+      RCHECK(reader->Read1(&config_obus[buffer_pos]));
+      buffer_pos++;
+    }
+  }
+
   switch(static_cast<int>(obu_type)) {
-    case kIamfObuTypeCodecConfig:
+    case kIAMFObuTypeCodecConfig:
       MEDIA_LOG(INFO, reader->media_log()) << "OBU type Codec Config.";
-      RCHECK(read_first_sequence_header);
-
-      // Copy header
-      codec_configs.resize(kHeaderFieldsSize + obu_size + size_field_size);
-      memcpy(&codec_configs[buffer_pos], &header, sizeof(header));
-      buffer_pos += sizeof(header);
-
-      // Read the rest of the OBU byte by byte.
-      for (int i = reader->pos() - start_pos; i < static_cast<size_t>(obu_size); i++) {
-        RCHECK(buffer_pos < codec_configs.size());
-        RCHECK(reader->Read1(&codec_configs[buffer_pos]));
-        buffer_pos++;
-      }
-
       break;
-    case kIamfObuTypeAudioElement: {
+    case kIAMFObuTypeAudioElement: {
       MEDIA_LOG(INFO, reader->media_log()) << "OBU type Audio Element.";
-      RCHECK(read_first_sequence_header);
-
-      size_t current_buffer_size = audio_elements.size();
-      // Copy header
-      audio_elements.resize(kHeaderFieldsSize + obu_size + size_field_size + current_buffer_size);
-      buffer_pos = current_buffer_size;
-      memcpy(&audio_elements[buffer_pos], &header, sizeof(header));
-      buffer_pos += sizeof(header);
-
-      // Read the rest of the OBU byte by byte.
-      for (int i = reader->pos() - start_pos; i < static_cast<size_t>(obu_size); i++) {
-        RCHECK(buffer_pos < audio_elements.size());
-        RCHECK(reader->Read1(&audio_elements[buffer_pos]));
-        buffer_pos++;
-      }
       break;
     }
-    case kIamfObuTypeMixPresentation: {
+    case kIAMFObuTypeMixPresentation: {
       MEDIA_LOG(INFO, reader->media_log()) << "OBU type Mix Presentation.";
-      RCHECK(read_first_sequence_header);
-
-      size_t current_buffer_size = mix_presentations.size();
-      // Copy header
-      mix_presentations.resize(kHeaderFieldsSize + obu_size + size_field_size + current_buffer_size);
-      buffer_pos = current_buffer_size;
-      memcpy(&mix_presentations[buffer_pos], &header, sizeof(header));
-      buffer_pos += sizeof(header);
-
-      // Read the rest of the OBU byte by byte.
-      for (int i = reader->pos() - start_pos; i < static_cast<size_t>(obu_size); i++) {
-        RCHECK(buffer_pos < mix_presentations.size());
-        RCHECK(reader->Read1(&mix_presentations[buffer_pos]));
-        buffer_pos++;
-      }
       break;
     }
-    case kIamfObuTypeSequenceHeader: {
+    case kIAMFObuTypeSequenceHeader: {
       MEDIA_LOG(INFO, reader->media_log()) << "OBU type Sequence Header.";
-      RCHECK(!read_first_sequence_header);
-      read_first_sequence_header = true;
+      // RCHECK(!read_first_sequence_header);
+      // read_first_sequence_header = true;
 
-      // Copy header
-      sequence_header.resize(kHeaderFieldsSize + obu_size + size_field_size);
-      memcpy(&sequence_header[buffer_pos], &header, sizeof(header));
-      buffer_pos += sizeof(header);
-
-      // Read and copy IA code.
       uint32_t ia_code;
       RCHECK(reader->Read4(&ia_code));
       RCHECK(ia_code == FOURCC_IAMF);
-      memcpy(&sequence_header[buffer_pos], &ia_code, sizeof(ia_code));
+      memcpy(&config_obus[buffer_pos], &ia_code, sizeof(ia_code));
       buffer_pos += sizeof(ia_code);
 
       // Read primary and additional profiles.
       RCHECK(reader->Read1(&primary_profile));
       RCHECK(reader->Read1(&additional_profile));
-      memcpy(&sequence_header[buffer_pos], &primary_profile, sizeof(primary_profile));
+      memcpy(&config_obus[buffer_pos], &primary_profile, sizeof(primary_profile));
       buffer_pos += sizeof(primary_profile);
-      memcpy(&sequence_header[buffer_pos], &additional_profile, sizeof(additional_profile));
+      memcpy(&config_obus[buffer_pos], &additional_profile, sizeof(additional_profile));
       buffer_pos += sizeof(additional_profile);
 
-      MEDIA_LOG(INFO, reader->media_log()) << "Primary profile "
-                                           << static_cast<int>(primary_profile)
-                                           << ", additional profile "
-                                           << static_cast<int>(additional_profile)
-                                           << ", IA code " << std::hex << ia_code;
-
-      for (int i = reader->pos() - start_pos; i < static_cast<size_t>(obu_size); i++) {
-        RCHECK(buffer_pos < sequence_header.size());
-        RCHECK(reader->Read1(&sequence_header[buffer_pos]));
-        buffer_pos++;
-      }
+      // MEDIA_LOG(INFO, reader->media_log()) << "Primary profile "
+      //                                      << static_cast<int>(primary_profile)
+      //                                      << ", additional profile "
+      //                                      << static_cast<int>(additional_profile)
+      //                                      << ", IA code " << std::hex << ia_code;
       break;
     }
     // We don't handle Data OBUs here.
     default: {
-      RCHECK(static_cast<int>(obu_type) < kIamfObuTypeMax);
+      RCHECK(static_cast<int>(obu_type) < kIAMFObuTypeMax);
       MEDIA_LOG(INFO, reader->media_log()) << "Unhandled OBU type " << static_cast<int>(obu_type);
+      return true;
     }
+  }
+
+  // Copy the rest of the OBU.
+  // TODO: Minimize read operations.
+  while (reader->pos() < obu_stop_pos) {
+        RCHECK(buffer_pos < config_obus.size());
+        RCHECK(reader->Read1(&config_obus[buffer_pos]));
+        buffer_pos++;
   }
   return true;
 }
@@ -1630,37 +1572,23 @@ FourCC AudioSampleEntry::BoxType() const {
 bool AudioSampleEntry::Parse(BoxReader* reader) {
   format = reader->type();
   RCHECK(reader->SkipBytes(6) &&
-         reader->Read2(&data_reference_index));
-
-#if defined(STARBOARD)
-  if(format == FOURCC_IAMF) {
-    RCHECK(reader->SkipBytes(8) &&
-         reader->Read2(&channelcount) &&
-         reader->Read2(&samplesize) &&
-         reader->SkipBytes(4) && // pre_defined and reserved.
-         reader->Read4(&samplerate));
-  // Convert from 16.16 fixed point to integer
-  samplerate >>= 16;
-
-          MEDIA_LOG(INFO, reader->media_log())
-          << "samplerate is " << samplerate
-          << " and channel count is " << channelcount;
-  // RCHECK(reader->ScanChildren());
-    // Initiate config OBU reading.
-    MEDIA_LOG(INFO, reader->media_log()) << "Begin to parse IAMF...";
-    RCHECK_MEDIA_LOGGED(iamf.Parse(reader), reader->media_log(),
-                        "Failure parsing IamfSpecificBox (iamf)");
-    return true;
-  }
-#endif
-
-  RCHECK(reader->SkipBytes(8) &&
+         reader->Read2(&data_reference_index) &&
+         reader->SkipBytes(8) &&
          reader->Read2(&channelcount) &&
          reader->Read2(&samplesize) &&
          reader->SkipBytes(4) &&
          reader->Read4(&samplerate));
   // Convert from 16.16 fixed point to integer
   samplerate >>= 16;
+
+#if defined(STARBOARD)
+  if(format == FOURCC_IAMF) {
+    // Initiate config OBU reading.
+    RCHECK_MEDIA_LOGGED(iamf.Parse(reader), reader->media_log(),
+                        "Failure parsing IamfSpecificBox (iamf)");
+    return true;
+  }
+#endif
 
   RCHECK(reader->ScanChildren());
   if (format == FOURCC_ENCA) {
@@ -1671,16 +1599,6 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
         return false;
     }
   }
-
-// #if defined(STARBOARD)
-//   if(format == FOURCC_IAMF) {
-//     // Initiate config OBU reading.
-//     MEDIA_LOG(INFO, reader->media_log()) << "Begin to parse IAMF...";
-//     RCHECK_MEDIA_LOGGED(iamf.Parse(reader), reader->media_log(),
-//                         "Failure parsing IamfSpecificBox (iamf)");
-//     return true;
-//   }
-// #endif
 
   if (format == FOURCC_OPUS ||
       (format == FOURCC_ENCA && sinf.format.format == FOURCC_OPUS)) {

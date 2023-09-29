@@ -894,7 +894,6 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                                          const std::string& mime_type) {
   std::string type, codecs;
   if (!ParseMimeType(mime_type, &type, &codecs)) {
-    LOG(INFO) << "Not supported.";
     return kNotSupported;
   }
 
