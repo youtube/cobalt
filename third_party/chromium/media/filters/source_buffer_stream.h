@@ -188,6 +188,12 @@ class MEDIA_EXPORT SourceBufferStream {
     memory_limit_ = memory_limit;
   }
 
+#if defined(STARBOARD)
+  size_t GetMemoryLimit() {
+    return memory_limit_;
+  }
+#endif  // defined (STARBOARD)
+
  private:
   friend class SourceBufferStreamTest;
 

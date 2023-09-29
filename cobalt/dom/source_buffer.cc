@@ -521,6 +521,21 @@ void SourceBuffer::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(video_tracks_);
 }
 
+size_t SourceBuffer::memory_limit(
+    script::ExceptionState* exception_state) const {
+  if (memory_limit_ == 0) {
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
+  }
+  return memory_limit_;
+}
+
+void SourceBuffer::set_memory_limit(size_t memory_limit,
+                                    script::ExceptionState* exception_state) {
+  memory_limit_ = memory_limit;
+  chunk_demuxer_->SetSourceBufferStreamMemoryLimit(id_, memory_limit);
+}
+
 void SourceBuffer::OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
   if (!first_initialization_segment_received_) {
     media_source_->SetSourceBufferActive(this, true);

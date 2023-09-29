@@ -712,6 +712,12 @@ bool SourceBufferState::OnNewConfigs(
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
                                            media_log_);
+#if defined(STARBOARD)
+      if (!stream_memory_limit_override_) {
+        on_memory_limit_change_.Run(stream->GetStreamMemoryLimit());
+      }
+#endif // defined(STARBOARD)
+
     } else if (track->type() == MediaTrack::Video) {
       VideoDecoderConfig video_config = tracks->getVideoConfig(track_id);
       DVLOG(1) << "Video track_id=" << track_id
@@ -799,6 +805,11 @@ bool SourceBufferState::OnNewConfigs(
       track->set_id(stream->media_track_id());
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);
+#if defined(STARBOARD)
+      if (!stream_memory_limit_override_) {
+        on_memory_limit_change_.Run(stream->GetStreamMemoryLimit());
+      }
+#endif // defined(STARBOARD)
     } else {
       MEDIA_LOG(ERROR, media_log_) << "Error: unsupported media track type "
                                    << track->type();
@@ -915,9 +926,27 @@ bool SourceBufferState::OnNewConfigs(
   return success;
 }
 
+#if defined(STARBOARD)
+void SourceBufferState::SetSourceBufferStreamMemoryLimit(size_t limit) {
+  for (const auto& it : audio_streams_)
+    it.second->SetStreamMemoryLimit(limit);
+  for (const auto& it : video_streams_)
+    it.second->SetStreamMemoryLimit(limit);
+
+  stream_memory_limit_override_ = limit;
+}
+#endif  // defined(STARBOARD)
+
 void SourceBufferState::SetStreamMemoryLimits() {
 #if defined(STARBOARD)
-  // Cobalt doesn't get stream memory limits from the command line.
+  LOG(INFO) << "Custom SourceBuffer size limit="
+            << stream_memory_limit_override_;
+  if (stream_memory_limit_override_) {
+    for (const auto& it : audio_streams_)
+      it.second->SetStreamMemoryLimit(stream_memory_limit_override_);
+    for (const auto& it : video_streams_)
+      it.second->SetStreamMemoryLimit(stream_memory_limit_override_);
+  }
 #else  // defined(STARBOARD)
   size_t audio_buf_size_limit =
       GetMSEBufferSizeLimitIfExists(switches::kMSEAudioBufferSizeLimitMb);
