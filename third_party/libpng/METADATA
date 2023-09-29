@@ -6,9 +6,9 @@ description:
 third_party {
   url {
     type: GIT
-    value: "git://git.code.sf.net/p/libpng/code"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "3341f519f40bc1309367e3c543303a0a518f5c5d"
+  version: "25.0.1364.173"
   last_upgrade_date {
     year: 2011
     month: 7
