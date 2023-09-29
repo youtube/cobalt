@@ -1543,7 +1543,7 @@ bool IamfSpecificBox::ReadOBU(BoxReader* reader) {
   // Copy the rest of the OBU.
   // TODO: Minimize read operations.
   while (reader->pos() < obu_stop_pos) {
-        RCHECK(buffer_pos < config_obus.size());
+        CHECK(buffer_pos < config_obus.size());
         RCHECK(reader->Read1(&config_obus[buffer_pos]));
         buffer_pos++;
   }
@@ -1583,13 +1583,13 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
 
 #if defined(STARBOARD)
   if(format == FOURCC_IAMF) {
-    // Initiate config OBU reading.
     RCHECK_MEDIA_LOGGED(iamf.Parse(reader), reader->media_log(),
                         "Failure parsing IamfSpecificBox (iamf)");
     return true;
   }
 #endif
 
+  // TODO: Determine if ScanChildren() should also be called for IAMF.
   RCHECK(reader->ScanChildren());
   if (format == FOURCC_ENCA) {
     // Continue scanning until a recognized protection scheme is found, or until
