@@ -61,7 +61,8 @@ config("base") {
 }
 
 config("host") {
-  if (current_toolchain == host_toolchain) {
+  if (current_toolchain == host_toolchain &&
+      current_toolchain != default_toolchain) {
     if (is_linux) {
       ldflags = [ "-pthread" ]
       cflags_cc = [ "-std=gnu++14" ]

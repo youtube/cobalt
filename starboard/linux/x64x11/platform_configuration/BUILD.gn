@@ -25,7 +25,7 @@ config("platform_configuration") {
     "rt",
   ]
   configs = [
-    # "//starboard/build/config/sabi",
-    # "//starboard/linux/x64x11/shared/platform_configuration",
+    "//starboard/build/config/sabi",
+    "//starboard/linux/x64x11/shared/platform_configuration",
   ]
 }

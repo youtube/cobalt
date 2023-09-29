@@ -22,9 +22,12 @@ is_mac = false
 # sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
 build_with_separate_cobalt_toolchain = false
-host_toolchain = "//build/toolchain:gcc"
-starboard_toolchain = "//build/toolchain:gcc"
 import("//starboard/build/platform_path.gni")
+# host_toolchain = "//build/toolchain:gcc"
+# starboard_toolchain = "//build/toolchain:gcc"
+host_toolchain = "//starboard/build/toolchain/$host_os:$host_cpu"
+cobalt_toolchain = "//$starboard_path/toolchain:cobalt"
+starboard_toolchain = "//$starboard_path/toolchain:starboard"
 import("//$starboard_path/platform_configuration/configuration.gni")
 
 # All binary targets will get this list of configs by default.
@@ -34,29 +37,39 @@ _shared_binary_target_configs = [
     "//build/config/compiler:default_include_dirs",
     "//build/config/sanitizers:default_sanitizer_flags",
     "//starboard/build/config:size",
-    "//$starboard_path/platform_configuration",
     ]
+_shared_binary_target_configs += [
+  "//build/config/coverage:default_coverage",
+  "//build/config/compiler:no_exceptions",
+  "//starboard/build/config:base",
+  "//starboard/build/config:host",
+  "//starboard/build/config:target",
+  "//starboard/build/config:warnings_as_errors",
+  "//starboard/build/config:default_compiler_flags",
+  "//starboard/build/config:starboard",
+  "//$starboard_path/platform_configuration",
+]
 _shared_configs = [
     "//build/config/compiler:default_optimization",
     "//build/config/compiler:chromium_code",
 ]
 # Apply that default list to the binary target types.
 set_defaults("executable") {
-  configs = _shared_binary_target_configs + _shared_configs
+  configs = _shared_configs + _shared_binary_target_configs
   # Executables get this additional configuration.
   # configs += [ "//build:executable_ldconfig" ]
 }
 set_defaults("static_library") {
-  configs = _shared_binary_target_configs + _shared_configs
+  configs = _shared_configs + _shared_binary_target_configs
 }
 set_defaults("shared_library") {
-  configs = _shared_binary_target_configs + _shared_configs
+  configs = _shared_configs + _shared_binary_target_configs
   # configs += [ "//build:shared_library_config" ]
 }
 set_defaults("source_set") {
-  configs = _shared_binary_target_configs + _shared_configs
+  configs = _shared_configs + _shared_binary_target_configs
 }
-set_default_toolchain("//build/toolchain:gcc")
+set_default_toolchain(cobalt_toolchain)
 TESTONLY_AND_VISIBILITY = [
   "testonly",
   "visibility",
@@ -91,7 +104,9 @@ is_starboard = true
 
 is_debug = false
 is_official_build = false
-is_clang = false
+declare_args() {
+  is_clang = true
+}
 
 gtest_target_type = "executable"
 sb_libevent_method = "epoll"
@@ -104,7 +119,6 @@ starboard_level_final_executable_type = "executable"
 sb_is_modular = false
 cobalt_platform_dependencies = []
 sb_enable_cpp17_audit = false
-is_clang_16 = false
 
 is_devel = true
 is_qa = false
@@ -118,7 +132,9 @@ sb_enable_lib = false
 sb_evergreen_compatible_use_libunwind = false
 import("//build/variables.gni")
 cobalt_fastbuild = false
-use_asan = false
+declare_args() {
+  use_asan = false
+}
 use_tsan = false
 using_old_compiler = false
 use_x11 = is_linux
@@ -126,3 +142,4 @@ is_chromecast = false
 is_docker_build = false
 is_host_win = false
 default_compiler_configs = []
+use_xcode_clang = false
