@@ -571,6 +571,8 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   if (demuxer_) {
     stop_cb_ = stop_cb;
     demuxer_->Stop();
+    video_stream_ = nullptr;
+    audio_stream_ = nullptr;
     OnDemuxerStopped();
   } else {
     stop_cb.Run();
@@ -1535,6 +1537,8 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
 
 std::string SbPlayerPipeline::AppendStatisticsString(
     const std::string& message) const {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+
   if (nullptr == video_stream_) {
     return message + ", playback statistics: n/a.";
   } else {
