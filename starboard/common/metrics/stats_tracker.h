@@ -52,8 +52,6 @@ class StatsTrackerContainer {
 
   StatsTracker& stats_tracker() {
     if (!stats_tracker_) {
-      SB_DLOG_IF(ERROR, !undefined_logged_)
-          << "[once] StatsTracker is not defined.";
       undefined_logged_ = true;
       return undefined_stats_tracker_;
     }
