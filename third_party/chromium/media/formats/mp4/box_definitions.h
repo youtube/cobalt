@@ -400,16 +400,9 @@ struct MEDIA_EXPORT IamfSpecificBox : Box {
   uint8_t primary_profile;
   uint8_t additional_profile;
 
-  uint32_t channel_count;
-  uint32_t sample_rate;
   std::vector<uint8_t> config_obus;
   // Points to the next location in |config_obus| to be read into.
   int buffer_pos = 0;
-
-  std::vector<uint8_t> sequence_header;
-  std::vector<uint8_t> codec_configs;
-  std::vector<uint8_t> audio_elements;
-  std::vector<uint8_t> mix_presentations;
 
   // When false, all config OBUs must be appended to the data OBU.
   // TODO: The first config OBUs in the sequence may be labeled redundant, but
