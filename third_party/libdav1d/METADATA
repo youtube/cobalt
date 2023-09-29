@@ -12,6 +12,10 @@ third_party {
     type: ARCHIVE
     value: "https://code.videolan.org/videolan/dav1d/-/archive/1.1.0/dav1d-1.1.0.tar.gz"
   }
+  url {
+    type: GIT
+    value: "https://code.videolan.org/videolan/dav1d"
+  }
   version: "1.1.0"
   last_upgrade_date { year: 2023 month: 4 day: 6 }
   license_type: NOTICE
