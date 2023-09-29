@@ -18,9 +18,6 @@ FROM ${FROM_IMAGE}
 
 SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
 
-# Helper script for quick delete operations in windows
-COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
-
 # Pin Choco to 1.4.0 to avoid required reboot in 2.0.0
 ENV chocolateyVersion '1.4.0'
 # Install deps via chocolatey.

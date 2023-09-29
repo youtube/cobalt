@@ -16,11 +16,9 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE}
 
-# Dockerfile for image used to install Visual Studio.
-# WARNING: Changes to this file will result in an extremely long image rebuild.
-
 SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
 
+COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
 COPY ./install_vs_2022.ps1 C:/TEMP/install_vs_2022.ps1
 
 RUN powershell C:/TEMP/install_vs_2022.ps1
