@@ -21,9 +21,9 @@ if ($LASTEXITCODE -eq 3010) {
 }
 
 Write-Host ('Cleaning up vs_buildtools.exe')
-C:\fast-win-rmdir.cmd '${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer'
+C:\fast-win-rmdir.cmd ${env:ProgramFiles(x86)}\'Microsoft Visual Studio\Installer'
 C:\fast-win-rmdir.cmd $env:TEMP
-C:\fast-win-rmdir.cmd '$env:ProgramData\Package Cache'
+C:\fast-win-rmdir.cmd $env:ProgramData\'Package Cache'
 C:\fast-win-rmdir.cmd C:\BuildTools\VC\Tools\Llvm\ARM64
 C:\fast-win-rmdir.cmd C:\BuildTools\Common7\IDE
 C:\fast-win-rmdir.cmd C:\TEMP
