@@ -65,6 +65,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if not self.loader_config:
       raise ValueError('|loader_config| cannot be |None|.')
 
+    # RDK doesn't use our loader, therefore the test files are stored
+    # in the folder named after the target
+    if 'rdk' in self.loader_platform:
+      kwargs['loader_target'] = self.target_name
+
     self.loader_target = kwargs.get('loader_target')
     if not self.loader_target:
       self.loader_target = _DEFAULT_LOADER_TARGET
@@ -280,12 +285,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     content_subdir = os.path.join('usr', 'share', 'cobalt')
 
     # The rdk loader always loads libcobalt.so. Hard code target_name to match.
-    target_name = 'cobalt'
+    rdk_target_name = 'cobalt'
 
     # Copy target content and binary.
     target_install_path = os.path.join(self.out_directory, 'install')
     target_staging_dir = os.path.join(self.staging_directory, 'content', 'app',
-                                      target_name)
+                                      self.target_name)
     os.makedirs(target_staging_dir)
 
     # TODO(b/218889313): Reset the content path for the evergreen artifacts.
@@ -293,10 +298,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     target_content_src = os.path.join(target_install_path, content_subdir)
     target_content_dst = os.path.join(target_staging_dir, 'content')
     shutil.copytree(target_content_src, target_content_dst)
-    shlib_name = f'lib{self.target_name}.so'
 
+    shlib_name = f'lib{self.target_name}.so'
     target_binary_src = os.path.join(self.out_directory, shlib_name)
-    target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
+    target_binary_dst = os.path.join(target_staging_dir, 'lib',
+                                     f'lib{rdk_target_name}.so')
 
     os.makedirs(os.path.join(target_staging_dir, 'lib'))
     shutil.copy(target_binary_src, target_binary_dst)
