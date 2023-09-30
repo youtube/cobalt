@@ -18,24 +18,9 @@ FROM ${FROM_IMAGE}
 
 SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
 
-# Pin Choco to 1.4.0 to avoid required reboot in 2.0.0
-ENV chocolateyVersion '1.4.0'
 # Install deps via chocolatey.
-RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
-    mkdir C:\choco-cache;`
-    # Note: We pinned python 3.11.0 version here because 3.11.2 has a regression
-    # where the install arguments like TargetDir were being ignored.
-    choco install -y -c C:\choco-cache python3 --version 3.11.0 -ia '/quiet InstallAllUsers=1 PrependPath=1 TargetDir="C:\Python3"';`
-    choco install -y -c C:\choco-cache winflexbison3 --params '/InstallDir:C:\bison';`
-    choco install -y -c C:\choco-cache ninja;`
-    choco install -y -c C:\choco-cache nodejs-lts;`
-    choco install -y -c C:\choco-cache git;`
-    choco install -y -c C:\choco-cache cmake --installargs 'ADD_CMAKE_TO_PATH=System';`
-    Write-Host ('Deleting the chocolately download cache');`
-    Remove-Item -Force -Recurse $env:TEMP\*;`
-    C:\fast-win-rmdir.cmd C:\choco-cache;`
-    # Create version specific copy of each python executable.
-    Copy-Item C:\Python3\python.exe C:\Python3\python3.exe
+COPY ./install_win_deps_choco.ps1 C:/install_win_deps_choco.ps1
+RUN C:/install_win_deps_choco.ps1
 
 # Install python3 packages via PIP and set various configurations.
 COPY ./requirements.txt /requirements.txt
