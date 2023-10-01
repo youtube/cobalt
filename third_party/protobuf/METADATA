@@ -5,13 +5,11 @@ description:
   "required for Widevine, which is required for EME implementation in Cobalt."
 
 third_party {
-  # Note: This library was added to Cobalt from Chromium, but the information
-  # below reflects that of the original source code.
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/protobuf"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "3470b6895aa659b7559ed678e029a5338e535f14"
+  version: "58.0.3029.140"
   last_upgrade_date {
     year: 2016
     month: 5

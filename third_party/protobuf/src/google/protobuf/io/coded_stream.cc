@@ -44,7 +44,6 @@
 
 #include <google/protobuf/io/coded_stream_inl.h>
 #include <algorithm>
-#include <cstring>
 #include <utility>
 #include <limits.h>
 #include <google/protobuf/io/zero_copy_stream.h>
