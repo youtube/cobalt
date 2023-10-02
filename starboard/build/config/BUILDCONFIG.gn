@@ -178,6 +178,16 @@ if (is_win) {
   default_compiler_configs += [ "//build/config/win:lean_and_mean" ]
 }
 
+declare_args() {
+  toolchain_config_path = "//$starboard_path/platform_configuration"
+}
+
+default_compiler_configs += [
+  "//starboard/build/config:pedantic_warnings",
+  toolchain_config_path,
+  "//starboard/build/config:no_pedantic_warnings"
+]
+
 set_defaults("static_library") {
   configs = default_compiler_configs + static_library_configs
   has_pedantic_warnings = false
@@ -204,20 +214,15 @@ set_defaults("shared_library") {
 # of the platform_configuration) come after -Wfoo flags (including -Wall and
 # -Wextra which are set in pedantic_warnings). It is only certain that the "foo"
 # error will be ignored if -Wfoo precedes -Wno-foo in the compilation line.
-declare_args() {
-  toolchain_config_path = "//$starboard_path/platform_configuration"
-}
 
 template("target_with_platform_configs") {
   target(invoker.target_type, target_name) {
     forward_variables_from(invoker, "*", [ "target_type" ])
 
     if (has_pedantic_warnings) {
-      configs += [ "//starboard/build/config:pedantic_warnings" ]
-    }
-    configs += [ toolchain_config_path ]
-    if (!has_pedantic_warnings) {
-      configs += [ "//starboard/build/config:no_pedantic_warnings" ]
+      configs -= [ "//starboard/build/config:no_pedantic_warnings" ]
+    } else {
+      configs -= [ "//starboard/build/config:pedantic_warnings" ]
     }
   }
 }
