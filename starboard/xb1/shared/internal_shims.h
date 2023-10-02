@@ -31,7 +31,7 @@ void Release();
 
 Platform::String ^ GetCertScope();
 
-void GetSignature(Windows::Storage::Streams::IBuffer ^ message_buffer,
+bool GetSignature(Windows::Storage::Streams::IBuffer ^ message_buffer,
                   Windows::Storage::Streams::IBuffer ^ *signature);
 
 }  // namespace shared

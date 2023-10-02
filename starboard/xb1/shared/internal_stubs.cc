@@ -33,8 +33,10 @@ void Release() {}
 
 Platform::String ^ GetCertScope() { return ""; }
 
-void GetSignature(Windows::Storage::Streams::IBuffer ^ message_buffer,
-                  Windows::Storage::Streams::IBuffer ^ *signature) {}
+bool GetSignature(Windows::Storage::Streams::IBuffer ^ message_buffer,
+                  Windows::Storage::Streams::IBuffer ^ *signature) {
+  return false;
+}
 // clang-format on
 
 }  // namespace shared
