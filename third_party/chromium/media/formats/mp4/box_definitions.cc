@@ -1478,6 +1478,7 @@ bool IamfSpecificBox::ReadOBU(BoxReader* reader, int& buffer_pos) {
 
       RCHECK(reader->Read1(&config_obus[buffer_pos]));
       profile = config_obus[buffer_pos];
+      RCHECK(profile <= 1);
       buffer_pos++;
       RCHECK(reader->Read1(&config_obus[buffer_pos]));
       buffer_pos++;
@@ -1507,12 +1508,13 @@ bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
   redundant_copy |= obu_redundant_copy;
   buffer_pos++;
 
-  const int kMaxEncodedLeb128bytes = 4;
+  const int kMaxEncodedLeb128bytes = sizeof(uint32_t);
 
   int num_bytes_read;
   RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], obu_size, &num_bytes_read,
                             kMaxEncodedLeb128bytes));
   buffer_pos += num_bytes_read;
+  RCHECK(reader->HasBytes(*obu_size));
 
   RCHECK(!obu_trimming_status_flag);
   if (obu_extension_flag) {
@@ -1521,6 +1523,7 @@ bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
     RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &extension_header_size,
                               &num_bytes_read, kMaxEncodedLeb128bytes));
     buffer_pos += num_bytes_read;
+    RCHECK(*obu_size > extension_header_size + num_bytes_read);
     memcpy(&config_obus[buffer_pos], reader->buffer() + reader->pos(),
          extension_header_size);
     buffer_pos += extension_header_size;
@@ -1529,8 +1532,7 @@ bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
   }
   return true;
 }
-
-#endif
+#endif  // defined(STARBOARD)
 
 AudioSampleEntry::AudioSampleEntry()
     : format(FOURCC_NULL),
@@ -1567,7 +1569,7 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
                         "Failure parsing IamfSpecificBox (iamf)");
     return true;
   }
-#endif
+#endif  // defined(STARBOARD)
 
   RCHECK(reader->ScanChildren());
   if (format == FOURCC_ENCA) {

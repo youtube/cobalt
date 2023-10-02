@@ -400,7 +400,7 @@ struct MEDIA_EXPORT IamfSpecificBox : Box {
 
   std::vector<uint8_t> config_obus;
 };
-#endif
+#endif  // defined(STARBOARD)
 
 struct MEDIA_EXPORT AudioSampleEntry : Box {
   DECLARE_BOX_METHODS(AudioSampleEntry);
@@ -417,7 +417,7 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   OpusSpecificBox dops;
 #if defined(STARBOARD)
   IamfSpecificBox iamf;
-#endif
+#endif  // defined(STARBOARD)
 };
 
 struct MEDIA_EXPORT SampleDescription : Box {

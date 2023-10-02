@@ -134,7 +134,7 @@ void MP4StreamParser::Reset() {
   mdat_tail_ = 0;
 #if defined(STARBOARD)
   prepended_first_config_obus_ = false;
-#endif
+#endif  // defined(STARBOARD)
 }
 
 void MP4StreamParser::Flush() {
@@ -343,7 +343,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 #endif
 #if defined(STARBOARD)
           audio_format != FOURCC_IAMF &&
-#endif
+#endif  // defined(STARBOARD)
           audio_format != FOURCC_MP4A) {
         MEDIA_LOG(ERROR, media_log_)
             << "Unsupported audio format 0x" << std::hex << entry.format
@@ -399,7 +399,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
                                           : AudioCodecProfile::kIAMF_BASE;
         channel_layout = CHANNEL_LAYOUT_STEREO;
         sample_per_second = 48000;
-#endif
+#endif  // defined(STARBOARD)
       } else {
         uint8_t audio_type = entry.esds.object_type;
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)

@@ -279,7 +279,7 @@ static const CodecInfo* const kVideoMP4Codecs[] = {&kMPEG4FLACCodecInfo,
 #endif
 #if defined(STARBOARD)
                                                    &kIAMFCodecInfo,
-#endif
+#endif  // defined(STARBOARD)
                                                    nullptr};
 
 static const CodecInfo* const kAudioMP4Codecs[] = {&kMPEG4FLACCodecInfo,
@@ -302,7 +302,7 @@ static const CodecInfo* const kAudioMP4Codecs[] = {&kMPEG4FLACCodecInfo,
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 #if defined(STARBOARD)
                                                    &kIAMFCodecInfo,
-#endif
+#endif  // defined(STARBOARD)
                                                    nullptr};
 
 static StreamParser* BuildMP4Parser(base::span<const std::string> codecs,
