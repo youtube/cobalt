@@ -18,7 +18,7 @@ static_library("cobalt_platform") {
     "android_user_authorizer.h",
   ]
   deps = [
-    "//cobalt/base",
+    # "//cobalt/base",
     "//starboard/android/shared:starboard_platform",
     "//starboard/common",
   ]

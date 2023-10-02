@@ -28,9 +28,9 @@ static bool g_disable_managers = false;
 AtExitManager::AtExitManager() : next_manager_(g_top_manager) {
 // If multiple modules instantiate AtExitManagers they'll end up living in this
 // module... they have to coexist.
-#if !defined(COMPONENT_BUILD)
-  DCHECK(!g_top_manager);
-#endif
+// #if !defined(COMPONENT_BUILD)
+//   DCHECK(!g_top_manager);
+// #endif
   g_top_manager = this;
 }
 

@@ -34,9 +34,9 @@ group("starboard_platform") {
 
   if (sb_is_evergreen_compatible) {
     public_deps += [
-      "//starboard/elf_loader:constants",
-      "//starboard/elf_loader:evergreen_config",
-      "//starboard/loader_app:pending_restart",
+      # "//starboard/elf_loader:constants",
+      # "//starboard/elf_loader:evergreen_config",
+      # "//starboard/loader_app:pending_restart",
     ]
   }
 
@@ -50,7 +50,7 @@ static_library("starboard_base_symbolize") {
     "//third_party/symbolize/demangle.cc",
     "//third_party/symbolize/symbolize.cc",
   ]
-  public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+  # public_deps = [ "//starboard/elf_loader:evergreen_info" ]
 }
 
 static_library("starboard_platform_sources") {
@@ -425,7 +425,7 @@ static_library("starboard_platform_sources") {
 
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_gtest_target_type, "starboard_platform_tests") {
-    build_loader = false
+    # build_loader = false
     testonly = true
 
     sources = media_tests_sources + player_tests_sources + [

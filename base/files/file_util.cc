@@ -327,20 +327,21 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
     return absl::nullopt;
   }
 
-  ScopedFILE file_stream(OpenFile(path, "rb"));
-  if (!file_stream) {
-    return absl::nullopt;
-  }
+  // TODO(b/298237462): Implement ScopedFILE for Starboard.
+  // ScopedFILE file_stream(OpenFile(path, "rb"));
+  // if (!file_stream) {
+  //   return absl::nullopt;
+  // }
 
   std::vector<uint8_t> bytes;
-  if (!ReadStreamToSpanWithMaxSize(file_stream.get(),
-                                   std::numeric_limits<size_t>::max(),
-                                   [&bytes](size_t size) {
-                                     bytes.resize(size);
-                                     return make_span(bytes);
-                                   })) {
-    return absl::nullopt;
-  }
+  // if (!ReadStreamToSpanWithMaxSize(file_stream.get(),
+  //                                  std::numeric_limits<size_t>::max(),
+  //                                  [&bytes](size_t size) {
+  //                                    bytes.resize(size);
+  //                                    return make_span(bytes);
+  //                                  })) {
+  //   return absl::nullopt;
+  // }
   return bytes;
 }
 
@@ -356,10 +357,11 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
-  ScopedFILE file_stream(OpenFile(path, "rb"));
-  if (!file_stream)
-    return false;
-  return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
+  // ScopedFILE file_stream(OpenFile(path, "rb"));
+  // if (!file_stream)
+  //   return false;
+  // return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
+  return false;
 }
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {

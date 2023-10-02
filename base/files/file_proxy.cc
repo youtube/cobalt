@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <utility>
+#include <cstring>
 
 #include "base/files/file.h"
 #include "base/files/file_util.h"

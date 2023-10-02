@@ -29,6 +29,7 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
+#if !defined(STARBOARD)
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
 #include "base/files/file_descriptor_watcher_posix.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -36,6 +37,7 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_com_initializer.h"
+#endif
 #endif
 
 namespace base {
@@ -380,6 +382,7 @@ void Thread::ThreadMain() {
   delegate_->BindToCurrentThread(timer_slack_);
   DCHECK(CurrentThread::Get());
   DCHECK(SingleThreadTaskRunner::HasCurrentDefault());
+#if !defined(STARBOARD)
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
   // Allow threads running a MessageLoopForIO to use FileDescriptorWatcher API.
   std::unique_ptr<FileDescriptorWatcher> file_descriptor_watcher;
@@ -397,6 +400,7 @@ void Thread::ThreadMain() {
             ? new win::ScopedCOMInitializer()
             : new win::ScopedCOMInitializer(win::ScopedCOMInitializer::kMTA));
   }
+#endif
 #endif
 
   // Let the thread do extra initialization.

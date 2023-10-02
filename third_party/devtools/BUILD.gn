@@ -2179,7 +2179,7 @@ copy("copy_htaccess") {
 
 copy("copy_inspector_images") {
   if (is_starboard) {
-    install_content = true
+    # install_content = true
   }
 
   sources = devtools_image_files
@@ -2265,7 +2265,7 @@ action("devtools_extension_api") {
 
 action("supported_css_properties") {
   if (is_starboard) {
-    install_content = true
+    # install_content = true
   }
 
   script = "scripts/build/generate_supported_css.py"
@@ -2311,7 +2311,7 @@ action("aria_properties") {
 
 action("frontend_protocol_sources") {
   if (is_starboard) {
-    install_content = true
+    # install_content = true
   }
 
   script = "scripts/build/code_generator_frontend.py"
@@ -2339,7 +2339,7 @@ action("frontend_protocol_sources") {
 
 action("build_release_devtools") {
   if (is_starboard) {
-    install_content = true
+    # install_content = true
   }
 
   script = "scripts/build/build_release_applications.py"
@@ -2387,7 +2387,7 @@ action("build_release_devtools") {
 
 action("copy_devtools_modules") {
   if (is_starboard) {
-    install_content = true
+    # install_content = true
   }
 
   script = "scripts/build/copy_devtools_modules.py"

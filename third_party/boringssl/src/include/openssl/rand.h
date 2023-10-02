@@ -28,6 +28,8 @@ extern "C" {
 // RAND_bytes writes |len| bytes of random data to |buf| and returns one.
 OPENSSL_EXPORT int RAND_bytes(uint8_t *buf, size_t len);
 
+OPENSSL_EXPORT void RAND_get_system_entropy_for_custom_prng(uint8_t *, size_t);
+
 // RAND_cleanup frees any resources used by the RNG. This is not safe if other
 // threads might still be calling |RAND_bytes|.
 OPENSSL_EXPORT void RAND_cleanup(void);

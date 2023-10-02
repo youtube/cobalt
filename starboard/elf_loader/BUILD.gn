@@ -116,7 +116,7 @@ if (current_toolchain == starboard_toolchain) {
       deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
     }
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
-      deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
+      # deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
     }
   }
 }
@@ -184,7 +184,7 @@ target(gtest_target_type, "elf_loader_test") {
 }
 
 copy("copy_elf_loader_testdata") {
-  install_content = true
+  # install_content = true
   sources = [
     "testdata/compressed.lz4",
     "testdata/compressed_no_content_size.lz4",

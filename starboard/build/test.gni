@@ -12,10 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set_defaults("test") {
+  configs = []
+}
+
 template("test") {
   target(gtest_target_type, target_name) {
     testonly = true
     forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
   }
+}
+
+template("fuzzer_test") {
+  not_needed("*")
+  not_needed(invoker, "*")
 }

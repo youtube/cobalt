@@ -6,6 +6,7 @@
 
 #if defined(ADDRESS_SANITIZER)
 #include <sanitizer/asan_interface.h>
+#include <string.h>
 
 #include "base/debug/task_trace.h"
 #include "base/no_destructor.h"

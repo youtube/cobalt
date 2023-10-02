@@ -15,7 +15,7 @@
 import("//starboard/build/convert_i18n_data.gni")
 
 convert_i18n_data("i18n") {
-  install_content = true
+  # install_content = true
   xlb_files = [
     "da.xlb",
     "de-AT.xlb",

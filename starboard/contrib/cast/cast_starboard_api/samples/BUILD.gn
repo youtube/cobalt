@@ -30,7 +30,7 @@ if (current_toolchain == starboard_toolchain) {
   }
 
   copy("cast_starboard_api_test_data") {
-    install_content = true
+    # install_content = true
     sources = [ "$root_out_dir/libcast_starboard_api.so" ]
 
     # This artifact is consumed by a test built outside of the

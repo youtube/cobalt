@@ -1,4 +1,4 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -15,6 +15,10 @@ declare_args() {
   clang_use_chrome_plugins =
       is_clang && !is_nacl && !use_xcode_clang &&
       default_toolchain != "//build/toolchain/cros:target"
+
+  enable_check_raw_ptr_fields =
+      build_with_chromium && !is_official_build &&
+      ((is_linux && !is_castos) || (is_android && !is_cast_android))
 
 if (!use_cobalt_customizations) {
   clang_base_path = default_clang_base_path

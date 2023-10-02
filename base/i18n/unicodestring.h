@@ -17,6 +17,10 @@
 namespace base {
 namespace i18n {
 
+// typedef std::basic_string<char16,
+//                           base::string16_internals::string16_char_traits>
+//     string16;
+
 inline std::u16string UnicodeStringToString16(
     const icu::UnicodeString& unistr) {
 #if U_ICU_VERSION_MAJOR_NUM >= 59

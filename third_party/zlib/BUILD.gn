@@ -384,7 +384,7 @@ component("zlib_hidden") {
   } else {
     sources += [
       "arm_stub.c",
-      "inflate.c",
+      # "inflate.c",
     ]
   }
 

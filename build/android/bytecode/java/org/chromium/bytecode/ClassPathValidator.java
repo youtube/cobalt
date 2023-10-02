@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -69,6 +69,11 @@ public class ClassPathValidator {
         if (className.matches("^libcore\\b.*")) {
             // libcore exists on devices, but is not included in the Android sdk as it is a private
             // API.
+            return;
+        }
+        if (className.matches("^android\\b.*")) {
+            // OS APIs sometime pop up in prebuilts. Rather than force prebuilt targets to set a
+            // proper alternative_android_sdk_dep, just ignore android.*
             return;
         }
         try {

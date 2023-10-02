@@ -782,7 +782,7 @@ int FieldTrialList::GetFieldTrialDescriptor() {
   if (!global_ || !global_->readonly_allocator_region_.IsValid())
     return -1;
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
   return global_->readonly_allocator_region_.GetPlatformHandle();
 #else
   return global_->readonly_allocator_region_.GetPlatformHandle().fd;
@@ -1046,8 +1046,9 @@ FieldTrialList* FieldTrialList::BackupInstanceForTesting() {
 void FieldTrialList::RestoreInstanceForTesting(FieldTrialList* instance) {
   global_ = instance;
 }
-
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if defined(STARBOARD)
+// TODO(b/298237462): Try to enable the below code.
+#elif !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
 
 // static
 std::string FieldTrialList::SerializeSharedMemoryRegionMetadata(
