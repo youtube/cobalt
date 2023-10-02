@@ -48,7 +48,7 @@ if (is_apple) {
   # By appending .cr, we prevent name collisions with libraries already
   # loaded by the Android zygote.
   shlib_extension = ".cr.so"
-} else if (is_posix || is_fuchsia) {
+} else if (is_posix || is_fuchsia || is_starboard) {
   shlib_extension = ".so"
 } else if (is_win) {
   shlib_extension = ".dll"

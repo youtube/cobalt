@@ -956,6 +956,8 @@ component("base") {
 
   if (use_cobalt_customizations) {
     sources += [
+      "memory/platform_shared_memory_mapper_starboard.cc",
+      "memory/page_size_starboard.cc",
       "files/memory_mapped_file_starboard.cc",
       "base_paths_starboard.cc",
       "base_paths_starboard.h",
@@ -3549,7 +3551,7 @@ test("base_unittests") {
   defines = [ "U_COMMON_IMPLEMENTATION" ]
 
   data_deps = [
-    "//base/test:immediate_crash_test_helper",
+    # "//base/test:immediate_crash_test_helper",
     "//base/test:test_child_process",
 
     # "//base/test:test_shared_library",

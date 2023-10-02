@@ -13,18 +13,9 @@ if (current_cpu == "") {
 if (current_os == "") {
   current_os = target_os
 }
-# is_linux = host_os == "linux" && current_os == "linux" && target_os == "linux"
-is_linux = true
-# is_mac = host_os == "mac" && current_os == "mac" && target_os == "mac"
-is_mac = false
-
-# sb_api_version = 15
-# sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
 build_with_separate_cobalt_toolchain = false
 import("//starboard/build/platform_path.gni")
-# host_toolchain = "//build/toolchain:gcc"
-# starboard_toolchain = "//build/toolchain:gcc"
 host_toolchain = "//starboard/build/toolchain/$host_os:$host_cpu"
 cobalt_toolchain = "//$starboard_path/toolchain:cobalt"
 starboard_toolchain = "//$starboard_path/toolchain:starboard"
@@ -56,15 +47,12 @@ _shared_configs = [
 # Apply that default list to the binary target types.
 set_defaults("executable") {
   configs = _shared_configs + _shared_binary_target_configs
-  # Executables get this additional configuration.
-  # configs += [ "//build:executable_ldconfig" ]
 }
 set_defaults("static_library") {
   configs = _shared_configs + _shared_binary_target_configs
 }
 set_defaults("shared_library") {
   configs = _shared_configs + _shared_binary_target_configs
-  # configs += [ "//build:shared_library_config" ]
 }
 set_defaults("source_set") {
   configs = _shared_configs + _shared_binary_target_configs
@@ -75,7 +63,6 @@ TESTONLY_AND_VISIBILITY = [
   "visibility",
 ]
 template("component") {
-  #print(target_name)
   not_needed(["target_name"])
   not_needed(invoker, ["deps" , "public_deps" , "defines" , "sources" , "output_name"] )
   target("static_library", target_name) {
@@ -87,53 +74,31 @@ template("component") {
 set_defaults("component") {
   configs = _shared_configs
 }
-is_nacl = false
-is_android = false
-is_chromeos = false
-is_fuchsia = false
-is_ios = false
-# is_linux = false
-is_mac = false
-is_nacl = false
-is_win = false
+import("//starboard/build/config/os_definitions.gni")
 is_robolectric = false
-
-is_apple = false
-is_posix = true
 is_starboard = true
 
-is_debug = false
 is_official_build = false
 declare_args() {
   is_clang = true
 }
 
-gtest_target_type = "executable"
-sb_libevent_method = "epoll"
 is_component_build = false
-has_platform_targets = false
 use_cobalt_customizations = true
 is_internal_build = false
-starboard_level_gtest_target_type = "executable"
-starboard_level_final_executable_type = "executable"
 sb_is_modular = false
-cobalt_platform_dependencies = []
-sb_enable_cpp17_audit = false
 
 is_devel = true
 is_qa = false
 is_gold = false
 is_debug = false
 
-enable_in_app_dial = false
 is_starboardized_toolchain = true
-abort_on_allocation_failure = false
-sb_enable_lib = false
 sb_evergreen_compatible_use_libunwind = false
 import("//build/variables.gni")
 cobalt_fastbuild = false
 declare_args() {
-  use_asan = false
+  use_asan = true
 }
 use_tsan = false
 using_old_compiler = false
