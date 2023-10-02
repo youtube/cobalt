@@ -14,11 +14,8 @@
 #include <climits>
 #include <cstdarg>
 #include <cstddef>
-<<<<<<< HEAD
-#include <string>
-=======
 #include <cstdint>
->>>>>>> 00102040267 (Add missing cstdint includes (#1643))
+#include <string>
 #include <set>
 #include <sstream>
 #include <vector>
