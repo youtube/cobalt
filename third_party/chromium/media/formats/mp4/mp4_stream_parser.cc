@@ -399,6 +399,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
                                           : AudioCodecProfile::kIAMF_BASE;
         channel_layout = CHANNEL_LAYOUT_STEREO;
         sample_per_second = 48000;
+        extra_data = entry.iamf.config_obus;
 #endif  // defined(STARBOARD)
       } else {
         uint8_t audio_type = entry.esds.object_type;
