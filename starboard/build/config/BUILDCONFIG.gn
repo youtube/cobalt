@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-_is_python2 = exec_script("//build/util/is_python2.py", [], "json")
-assert(!_is_python2, "`python` must resolve to Python 3 when building with GN.")
+# _is_python2 = exec_script("//build/util/is_python2.py", [], "json")
+# assert(!_is_python2, "`python` must resolve to Python 3 when building with GN.")
 
 declare_args() {
   is_clang = true
@@ -35,6 +35,8 @@ declare_args() {
   using_old_compiler = false
 
   build_with_separate_cobalt_toolchain = false
+
+  use_xcode_clang = false
 }
 
 assert(!(is_starboard && is_native_target_build),
@@ -81,6 +83,9 @@ if (is_mac) {
   declare_args() {
     use_system_xcode = true
   }
+}
+declare_args() {
+  use_x11 = is_linux
 }
 
 # Get the path to the starboard implementation and include its GN
@@ -156,6 +161,9 @@ default_compiler_configs = [
   "//starboard/build/config:target",
   "//starboard/build/config:warnings_as_errors",
   "//starboard/build/config:default_compiler_flags",
+  "//build/config/compiler:default_optimization",
+  "//build/config/compiler:chromium_code",
+  "//build/config/sanitizers:default_sanitizer_flags",
 ]
 
 if (use_thin_archive) {

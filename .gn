@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # The location of the build configuration file.
-buildconfig = "//build/BUILDCONFIG.gn"
+buildconfig = "//starboard/build/config/BUILDCONFIG.gn"
 
 # We have `python3` if we're in a container or on buildbot, so use that.
 if (getenv("IS_DOCKER") == "1" || getenv("BUILDBOT_PROJECT") != "") {

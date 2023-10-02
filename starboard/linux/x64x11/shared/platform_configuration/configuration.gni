@@ -22,7 +22,7 @@ if (current_toolchain == default_toolchain &&
   import("//starboard/linux/shared/platform_configuration/configuration.gni")
 
   sb_is_evergreen_compatible = false
-  sb_evergreen_compatible_use_libunwind = true
+  sb_evergreen_compatible_use_libunwind = false
 
   sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 }

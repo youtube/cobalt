@@ -30,7 +30,10 @@ template("install_target") {
 
   copy("copy_" + target_name) {
     forward_variables_from(invoker, [ "testonly" ])
-    deps = invoker.deps
+    deps = []
+    not_needed(invoker, [ "deps" ])
+
+    # deps = invoker.deps
     deps += [ installable_target_dep ]
     sources = [ "$root_out_dir/$source_name" ]
     outputs = [ "$root_out_dir/install/$install_subdir/{{source_file_part}}" ]
