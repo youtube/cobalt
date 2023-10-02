@@ -1472,9 +1472,9 @@ bool IamfSpecificBox::ReadOBU(BoxReader* reader, int& buffer_pos) {
           reader->Read4(reinterpret_cast<uint32_t*>(&config_obus[buffer_pos])));
 
       uint32_t ia_code;
-      memcpy(&ia_code, &config_obus[buffer_pos], sizeof(ia_code));
+      memcpy(&ia_code, &config_obus[buffer_pos], sizeof(uint32_t));
       RCHECK(ia_code == FOURCC_IAMF);
-      buffer_pos += sizeof(ia_code);
+      buffer_pos += sizeof(uint32_t);
 
       RCHECK(reader->Read1(&config_obus[buffer_pos]));
       profile = config_obus[buffer_pos];
@@ -1516,14 +1516,16 @@ bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
 
   RCHECK(!obu_trimming_status_flag);
   if (obu_extension_flag) {
+    size_t current_reader_pos = reader->pos();
     uint32_t extension_header_size;
     RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &extension_header_size,
                               &num_bytes_read, kMaxEncodedLeb128bytes));
     buffer_pos += num_bytes_read;
-    for (int i = 0; i < extension_header_size; ++i) {
-      RCHECK(reader->Read1(&config_obus[buffer_pos]));
-      buffer_pos++;
-    }
+    memcpy(&config_obus[buffer_pos], reader->buffer() + reader->pos(),
+         extension_header_size);
+    buffer_pos += extension_header_size;
+    RCHECK(reader->SkipBytes(extension_header_size));
+    obu_size -= (reader->pos() - current_reader_pos);
   }
   return true;
 }
