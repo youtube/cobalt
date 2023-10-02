@@ -35,14 +35,6 @@ Start-Process C:\TEMP\vs_buildtools.exe -Wait -NoNewWindow -ArgumentList      `
   --remove Microsoft.VisualStudio.Component.Windows10SDK.14393                `
   --remove Microsoft.VisualStudio.Component.Windows81SDK'
 
-$main_exit_code = $LASTEXITCODE
-if ($main_exit_code -eq 3010) {
-  Write-Host('Exit Code 3010 (Requires Restart) is suppressed.')
-} elseif ($main_exit_code -ne 0) {
-  Write-Host('Received nonzero exit code ($main_exit_code)')
-  Exit $main_exit_code
-}
-
 Write-Host 'Cleaning up vs_buildtools.exe'
 C:\fast-win-rmdir.cmd ${env:ProgramFiles(x86)}\'Microsoft Visual Studio\Installer'
 C:\fast-win-rmdir.cmd $env:TEMP
