@@ -132,6 +132,9 @@ void MP4StreamParser::Reset() {
   runs_.reset();
   moof_head_ = 0;
   mdat_tail_ = 0;
+#if defined(STARBOARD)
+  prepended_first_config_obus_ = false;
+#endif
 }
 
 void MP4StreamParser::Flush() {
@@ -389,11 +392,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         sample_per_second = entry.samplerate;
         extra_data = entry.dfla.stream_info;
 #endif
-#if defined (STARBOARD)
+#if defined(STARBOARD)
       } else if (audio_format == FOURCC_IAMF) {
         codec = AudioCodec::kIAMF;
-        profile = entry.iamf.primary_profile == 0 ? AudioCodecProfile::kIAMF_SIMPLE : AudioCodecProfile::kIAMF_BASE;
-        // Default values.
+        profile = entry.iamf.profile == 0 ? AudioCodecProfile::kIAMF_SIMPLE
+                                          : AudioCodecProfile::kIAMF_BASE;
         channel_layout = CHANNEL_LAYOUT_STEREO;
         sample_per_second = 48000;
 #endif
@@ -489,6 +492,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         audio_config.set_profile(profile);
         audio_config.set_aac_extra_data(std::move(aac_extra_data));
       }
+#if defined(STARBOARD)
+      if (codec == AudioCodec::kIAMF) {
+        audio_config.set_profile(profile);
+      }
+#endif  // defined(STARBOARD)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
       DVLOG(1) << "audio_track_id=" << audio_track_id
@@ -730,19 +738,18 @@ bool MP4StreamParser::PrepareAACBuffer(
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
 #if defined(STARBOARD)
-// TODO: Revist to ensure this is appended correctly.
-bool MP4StreamParser::AppendIAMFConfigOBUs(const IamfSpecificBox& iamf_box,
-    std::vector<uint8_t>* frame_buf,
+void MP4StreamParser::PrependIAMFConfigOBUs(
+    const IamfSpecificBox& iamf_box, std::vector<uint8_t>* frame_buf,
     std::vector<SubsampleEntry>* subsamples) const {
-  frame_buf->resize(frame_buf->size() + iamf_box.config_obus.size());
-  frame_buf->insert(frame_buf->begin(), iamf_box.config_obus.begin(), iamf_box.config_obus.end());
+  frame_buf->insert(frame_buf->begin(), iamf_box.config_obus.begin(),
+                    iamf_box.config_obus.end());
   if (subsamples->empty()) {
-    subsamples->push_back(SubsampleEntry(
-        iamf_box.config_obus.size(), frame_buf->size() - iamf_box.config_obus.size()));
+    subsamples->push_back(
+        SubsampleEntry(iamf_box.config_obus.size(),
+                       frame_buf->size() - iamf_box.config_obus.size()));
   } else {
     (*subsamples)[0].clear_bytes += iamf_box.config_obus.size();
   }
-  return true;
 }
 #endif  // defined(STARBOARD)
 
@@ -911,15 +918,14 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
     }
 #if defined(STARBOARD)
-  if (runs_->audio_description().format == FOURCC_IAMF) {
-    if (!runs_->audio_description().iamf.redundant_copy) {
-      if (!AppendIAMFConfigOBUs(runs_->audio_description().iamf, &frame_buf, &subsamples)) {
-        MEDIA_LOG(ERROR, media_log_)
-            << "Failed to prepare IAMF sample for decode";
-        return ParseResult::kError;
+    if (runs_->audio_description().format == FOURCC_IAMF) {
+      if (!runs_->audio_description().iamf.redundant_copy ||
+          !prepended_first_config_obus_) {
+        PrependIAMFConfigOBUs(runs_->audio_description().iamf, &frame_buf,
+                              &subsamples);
+        prepended_first_config_obus_ = true;
       }
     }
-  }
 #endif  // defined(STARBOARD)
   }
 

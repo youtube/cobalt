@@ -35,7 +35,7 @@ enum class AudioCodec {
   kMpegHAudio = 17,
 #if defined (STARBOARD)
   kIAMF = 18,
-#endif
+#endif  // defined(STARBOARD)
   // DO NOT ADD RANDOM AUDIO CODECS!
   //
   // The only acceptable time to add a new codec is if there is production code
@@ -46,7 +46,7 @@ enum class AudioCodec {
   kMaxValue = kIAMF,
 #else
   kMaxValue = kMpegHAudio,
-#endif
+#endif  // defined(STARBOARD)
 };
 
 enum class AudioCodecProfile {
@@ -62,7 +62,7 @@ enum class AudioCodecProfile {
   kMaxValue = kIAMF_BASE,
 #else
   kMaxValue = kXHE_AAC,
-#endif
+#endif  // defined(STARBOARD)
 };
 
 std::string MEDIA_EXPORT GetCodecName(AudioCodec codec);

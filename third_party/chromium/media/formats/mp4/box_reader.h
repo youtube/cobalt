@@ -82,17 +82,21 @@ class MEDIA_EXPORT BufferReader {
   bool SkipBytes(uint64_t nbytes) WARN_UNUSED_RESULT;
 
 #if defined(STARBOARD)
-  // Algorithm from the AV1 spec https://aomediacodec.github.io/av1-spec/#leb128.
-  // TODO: Examine if the loop should change to "while(true)".
-  bool ReadLeb128(uint8_t* buffer, uint32_t* value, int* bytes_read) {
-    CHECK(value);
+  // Algorithm from the AV1 specification.
+  // https://aomediacodec.github.io/av1-spec/#leb128.
+  template <typename T>
+  bool ReadLeb128(uint8_t* buffer, T* encoded_value, int* bytes_read,
+                  const int max_encoded_bytes = sizeof(uint64_t)) {
     CHECK(buffer);
-    *value = 0;
+    CHECK(encoded_value);
+    CHECK(bytes_read);
+    RCHECK(sizeof(encoded_value) >= max_encoded_bytes);
+    *encoded_value = 0;
     *bytes_read = 0;
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < max_encoded_bytes; ++i) {
       uint8_t* byte = &buffer[i];
       RCHECK(Read1(byte));
-      *value |= ((*byte & 0x7f) << (i * 7));
+      *encoded_value |= ((*byte & 0x7f) << (i * 7));
       *bytes_read += 1;
       if (!(*byte & 0x80)) {
         break;
@@ -100,7 +104,7 @@ class MEDIA_EXPORT BufferReader {
     }
     return true;
   }
-#endif // defined(STARBOARD)
+#endif  // defined(STARBOARD)
 
   const uint8_t* buffer() const { return buf_; }
 

@@ -380,39 +380,25 @@ struct MEDIA_EXPORT OpusSpecificBox : Box {
 
 #if defined(STARBOARD)
 struct MEDIA_EXPORT IamfSpecificBox : Box {
-  DECLARE_BOX_METHODS(IamfSpecificBox);
-
-  enum IamfObuType {
-    // The following 3 OBUs must be placed in the IA Sequence in the following
-    // order. https://aomediacodec.github.io/iamf/#standalone-descriptor-obus
-    kIAMFObuTypeCodecConfig = 0,
-    kIAMFObuTypeAudioElement = 1,
-    kIAMFObuTypeMixPresentation = 2,
-
-    kIAMFObuTypeParameterBlock = 3,
-    kIAMFObuTypeTemporalDelimiter = 4,
-    kIAMFObuTypeAudioFrame = 5,
-    kIAMFObuTypeSequenceHeader = 31,
-    kIAMFObuTypeMax = kIAMFObuTypeSequenceHeader,
+  enum IamfConfigObuType {
+    // The following enum values are mapped to their respective Config OBU
+    // values in the IAMF specification.
+    // https://aomediacodec.github.io/iamf/#obu-header-syntax.
+    kIamfConfigObuTypeCodecConfig = 0,
+    kIamfConfigObuTypeAudioElement = 1,
+    kIamfConfigObuTypeMixPresentation = 2,
+    kIamfConfigObuTypeSequenceHeader = 31,
   };
 
-  uint32_t ia_code;
-  uint8_t primary_profile;
-  uint8_t additional_profile;
+  DECLARE_BOX_METHODS(IamfSpecificBox);
+  bool ReadOBU(BoxReader* reader, int& buffer_pos);
+  bool ReadOBUHeader(BoxReader* reader, int& buffer_pos, uint8_t* obu_type,
+                     uint32_t* obu_size);
 
-  std::vector<uint8_t> config_obus;
-  // Points to the next location in |config_obus| to be read into.
-  int buffer_pos = 0;
-
-  // When false, all config OBUs must be appended to the data OBU.
-  // TODO: The first config OBUs in the sequence may be labeled redundant, but
-  // they must be appended to the data OBUs anyway. Handle this case.
+  uint8_t profile;
   bool redundant_copy = false;
 
-  bool read_first_sequence_header = false;
-
-  bool ReadSequenceHeader(BoxReader* reader);
-  bool ReadOBU(BoxReader* reader);
+  std::vector<uint8_t> config_obus;
 };
 #endif
 

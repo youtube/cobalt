@@ -66,14 +66,14 @@ struct CodecInfo {
     HISTOGRAM_AV1,
     HISTOGRAM_MPEG_H_AUDIO,
 #if defined(STARBOARD)
-    // TODO: Update enums.xml.
+    // TODO: Add IAMF to enums.xml.
     HISTOGRAM_IAMF,
     HISTOGRAM_MAX =
         HISTOGRAM_IAMF  // Must be equal to largest logged entry.
 #else
     HISTOGRAM_MAX =
         HISTOGRAM_MPEG_H_AUDIO  // Must be equal to largest logged entry.
-#endif
+#endif  // defined(STARBOARD)
   };
 
   const char* pattern;
@@ -247,7 +247,7 @@ static const CodecInfo kMPEG4FLACCodecInfo = {"flac", CodecInfo::AUDIO, nullptr,
 #if defined(STARBOARD)
 static const CodecInfo kIAMFCodecInfo = {"iamf", CodecInfo::AUDIO, nullptr,
                                               CodecInfo::HISTOGRAM_IAMF};
-#endif
+#endif  // defined(STARBOARD)
 
 static const CodecInfo* const kVideoMP4Codecs[] = {&kMPEG4FLACCodecInfo,
                                                    &kOpusCodecInfo,

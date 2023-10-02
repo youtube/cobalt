@@ -621,6 +621,8 @@ bool SourceBufferState::OnNewConfigs(
     std::unique_ptr<MediaTracks> tracks,
     const StreamParser::TextTrackConfigMap& text_configs) {
   DCHECK(tracks.get());
+  LOG(INFO) << __func__ << " expected_codecs=" << expected_codecs
+           << " tracks=" << tracks->tracks().size();
   DVLOG(1) << __func__ << " expected_codecs=" << expected_codecs
            << " tracks=" << tracks->tracks().size();
   DCHECK_GE(state_, PENDING_PARSER_CONFIG);

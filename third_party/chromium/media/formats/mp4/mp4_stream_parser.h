@@ -94,10 +94,10 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
                         std::vector<SubsampleEntry>* subsamples) const;
 #endif
 #if defined(STARBOARD)
-  bool AppendIAMFConfigOBUs(const IamfSpecificBox& iamf_box,
-                        std::vector<uint8_t>* frame_buf,
-                        std::vector<SubsampleEntry>* subsamples) const;
-#endif
+  void PrependIAMFConfigOBUs(const IamfSpecificBox& iamf_box,
+                             std::vector<uint8_t>* frame_buf,
+                             std::vector<SubsampleEntry>* subsamples) const;
+#endif  // defined(STARBOARD)
   ParseResult EnqueueSample(BufferQueueMap* buffers);
   bool SendAndFlushSamples(BufferQueueMap* buffers);
 
@@ -159,6 +159,12 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
 
   // Tracks the number of MEDIA_LOGS for video keyframe MP4<->frame mismatch.
   int num_video_keyframe_mismatches_;
+
+#if defined(STARBOARD)
+  // Used for IAMF streams only. Tracks whether the first config OBUs have been
+  // prepended to an IA Sample for the streamed IA Sequence.
+  bool prepended_first_config_obus_ = false;
+#endif  // defined(STARBOARD)
 };
 
 }  // namespace mp4
