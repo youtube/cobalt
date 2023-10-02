@@ -1518,7 +1518,6 @@ bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
 
   RCHECK(!obu_trimming_status_flag);
   if (obu_extension_flag) {
-    size_t current_reader_pos = reader->pos();
     uint32_t extension_header_size;
     RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &extension_header_size,
                               &num_bytes_read, kMaxEncodedLeb128bytes));
@@ -1528,7 +1527,7 @@ bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
          extension_header_size);
     buffer_pos += extension_header_size;
     RCHECK(reader->SkipBytes(extension_header_size));
-    obu_size -= (reader->pos() - current_reader_pos);
+    obu_size -= (num_bytes_read + extension_header_size);
   }
   return true;
 }
