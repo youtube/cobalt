@@ -11,11 +11,7 @@
 #define GLSLANG_SHADERVARS_H_
 
 #include <algorithm>
-<<<<<<< HEAD
-=======
-#include <array>
 #include <cstdint>
->>>>>>> 00102040267 (Add missing cstdint includes (#1643))
 #include <string>
 #include <vector>
 
