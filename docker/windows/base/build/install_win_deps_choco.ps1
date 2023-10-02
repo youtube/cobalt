@@ -1,7 +1,25 @@
-# Pin Choco to 1.4.0 to avoid required reboot in 2.0.0
-$env:chocolateyVersion='1.4.0'
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+<#
+.DESCRIPTION
+  Install required Cobalt build dependencies from chocolatey.
+#>
 
-iex ((New-Object System.Net.WebClient).DownloadString(
+# Pin Choco to 1.4.0 to avoid required reboot in 2.0.0
+$env:chocolateyVersioni = '1.4.0'
+
+iex ((New-Object System.Net.WebClient).DownloadString( `
       'https://chocolatey.org/install.ps1'))`
 
 mkdir C:\choco-cache
@@ -14,7 +32,7 @@ choco install -y -c C:\choco-cache winflexbison3 --params '/InstallDir:C:\bison'
 choco install -y -c C:\choco-cache ninja
 choco install -y -c C:\choco-cache nodejs-lts
 choco install -y -c C:\choco-cache git
-choco install -y -c C:\choco-cache cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+choco install -y -c C:\choco-cache cmake -ia 'ADD_CMAKE_TO_PATH=System'
 
 Write-Host ('Deleting the chocolately download cache')
 C:\fast-win-rmdir.cmd $env:TEMP
