@@ -388,18 +388,21 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
       } else if (audio_format == FOURCC_MHM1 || audio_format == FOURCC_MHA1) {
         codec = AudioCodec::kMpegHAudio;
+        extra_data = entry.dfla.stream_info;
         channel_layout = CHANNEL_LAYOUT_BITSTREAM;
         sample_per_second = entry.samplerate;
-        extra_data = entry.dfla.stream_info;
 #endif
 #if defined(STARBOARD)
       } else if (audio_format == FOURCC_IAMF) {
         codec = AudioCodec::kIAMF;
         profile = entry.iamf.profile == 0 ? AudioCodecProfile::kIAMF_SIMPLE
                                           : AudioCodecProfile::kIAMF_BASE;
+        extra_data = entry.iamf.config_obus;
+        // The true values for the channel layout and samples per second must
+        // be parsed from the config OBUs in |extra_data|. They are set to
+        // default values here to create a valid AudioDecoderConfig.
         channel_layout = CHANNEL_LAYOUT_STEREO;
         sample_per_second = 48000;
-        extra_data = entry.iamf.config_obus;
 #endif  // defined(STARBOARD)
       } else {
         uint8_t audio_type = entry.esds.object_type;
