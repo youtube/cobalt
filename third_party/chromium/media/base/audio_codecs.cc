@@ -61,7 +61,7 @@ std::string GetProfileName(AudioCodecProfile profile) {
     case AudioCodecProfile::kXHE_AAC:
       return "xhe-aac";
 #if defined(STARBOARD)
-  case AudioCodecProfile::kIAMF_SIMPLE:
+    case AudioCodecProfile::kIAMF_SIMPLE:
       return "iamf-simple";
     case AudioCodecProfile::kIAMF_BASE:
       return "iamf-base";
