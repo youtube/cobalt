@@ -5,6 +5,7 @@
 <head>
   <title>Cobalt scroll test</title>
   <script src='black_box_js_test_utils.js'></script>
+  <script src='pointer_event_test_utils.js'></script>
   <style>
     .app {
       position: absolute;
@@ -39,75 +40,22 @@
   </div>
 </body>
 <script>
-  // Fail if the test is not finished within 30 seconds.
-  var kTimeout = 30 * 1000;
-  var failTimer = setTimeout(fail, kTimeout);
+  const expected_events = [
+    // actions.move_to_element(row).pause(_SLEEP_AFTER_MOVE_TIME)
+    { name: 'pointermove', id: 'tile', phase: Event.AT_TARGET },
+    { name: 'pointermove', id: 'row', phase: Event.BUBBLING_PHASE },
 
-  function fail() {
-    console.log("Failing due to timeout!");
-    assertTrue(false);
-  }
+    // actions.click_and_hold(row).pause(_SLEEP_AFTER_MOVE_TIME)
+    { name: 'pointermove', id: 'tile', phase: Event.AT_TARGET },
+    { name: 'pointermove', id: 'row', phase: Event.BUBBLING_PHASE },
 
-  function phaseName(phase) {
-    switch (phase) {
-      case 0: return 'none';
-      case 1: return 'capturing';
-      case 2: return 'at target';
-      case 3: return 'bubbling';
-    }
-    return ' [unknown: ' + phase + ']';
-  }
-
-    const expected_events = [
-      // actions.move_to_element(row).pause(_SLEEP_AFTER_MOVE_TIME)
-      { name: 'pointermove', id: 'tile', phase: Event.AT_TARGET },
-      { name: 'pointermove', id: 'row', phase: Event.BUBBLING_PHASE },
-
-      // actions.click_and_hold(row).pause(_SLEEP_AFTER_MOVE_TIME)
-      { name: 'pointermove', id: 'tile', phase: Event.AT_TARGET },
-      { name: 'pointermove', id: 'row', phase: Event.BUBBLING_PHASE },
-
-      // actions.move_by_offset(-500, 0).pause(_SLEEP_AFTER_MOVE_TIME)
-      { name: 'pointerdown', id: 'tile', phase: Event.AT_TARGET },
-      { name: 'pointerdown', id: 'row', phase: Event.BUBBLING_PHASE },
-      { name: 'pointercancel', id: 'tile', phase: Event.AT_TARGET },
-      { name: 'pointercancel', id: 'row', phase: Event.BUBBLING_PHASE },
-      { name: 'scroll', id: 'row', phase: Event.AT_TARGET },
-    ]
-
-  let current_event_number = 0
-  let failure_count = 0;
-
-  function checkEvent(event) {
-    while (current_event_number < expected_events.length &&
-    !(expected_events[current_event_number].name === event.name &&
-      expected_events[current_event_number].id === event.id &&
-      expected_events[current_event_number].phase === event.phase)) {
-      const {name, id, phase} = expected_events[current_event_number];
-      console.log('ERROR: Missing Event [\'' + name + '\', \'' +
-        id + '\', \'' + phase + '\'],');
-      failure_count += 1;
-      current_event_number += 1;
-    }
-    if (current_event_number < expected_events.length) {
-      current_event_number += 1;
-    } else {
-      failure_count += 1;
-      const {name, id, phase} = event;
-      console.log('ERROR: Unexpected Event [\'' + name + '\', \'' +
-        id + '\', \'' + phase + '\'],');
-    }
-  }
-
-  function logEvent(e) {
-    const pointertype = e.pointerType ? e.pointerType + ' ' : '';
-    const id = this.getAttribute('id');
-    checkEvent({name: e.type, id: id, phase: e.eventPhase});
-    console.log(e.type + ' ' + pointertype + id +
-      ' (' + this.getAttribute('class') + ')' +
-      ' [' + phaseName(e.eventPhase) + ']' +
-      ' (' + e.screenX + ',' + e.screenY + ')');
-  }
+    // actions.move_by_offset(-500, 0).pause(_SLEEP_AFTER_MOVE_TIME)
+    { name: 'pointerdown', id: 'tile', phase: Event.AT_TARGET },
+    { name: 'pointerdown', id: 'row', phase: Event.BUBBLING_PHASE },
+    { name: 'pointercancel', id: 'tile', phase: Event.AT_TARGET },
+    { name: 'pointercancel', id: 'row', phase: Event.BUBBLING_PHASE },
+    { name: 'scroll', id: 'row', phase: Event.AT_TARGET },
+  ]
 
   function checkEndState() {
     const scroll_container = document.getElementById("row");
@@ -116,19 +64,12 @@
     onEndTest();
   }
 
-  function setHandlers(event, selector, callback) {
-    var elements = document.querySelectorAll(selector);
-    for (var i = 0; i < elements.length; ++i) {
-      elements[i].addEventListener(event, callback);
-    }
-  }
-
   function setAllHandlers(prefix, selector, callback) {
     setHandlers(prefix + 'down', selector, callback);
     setHandlers(prefix + 'up', selector, callback);
     setHandlers(prefix + 'move', selector, callback);
     setHandlers(prefix + 'cancel', selector, callback);
-  }
+}
 
   window.onload = () => {
     setAllHandlers('pointer', '#row', logEvent);
