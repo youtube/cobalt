@@ -140,9 +140,15 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
   jobject local_ref = env->CallStarboardObjectMethodOrAbort(
       "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
   resource_overlay_ = env->ConvertLocalRefToGlobalRef(local_ref);
+
+  env->CallStarboardVoidMethodOrAbort("starboardApplicationStarted", "()V");
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
+  // Inform StarboardBridge that
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("starboardApplicationStopping", "()V");
+
   // The application is exiting.
   // Release the global reference.
   if (resource_overlay_) {

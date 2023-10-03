@@ -72,7 +72,7 @@ void JniEnvExt::OnThreadShutdown() {
 }
 
 JniEnvExt* JniEnvExt::Get() {
-  JNIEnv* env;
+  JNIEnv* env = nullptr;
   if (JNI_OK != g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6)) {
     // Tell the JVM our thread name so it doesn't change it.
     char thread_name[16];
