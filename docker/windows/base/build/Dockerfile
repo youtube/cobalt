@@ -19,8 +19,8 @@ FROM ${FROM_IMAGE}
 SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
 
 # Install deps via chocolatey.
-COPY ./install_win_deps_choco.ps1 C:/install_win_deps_choco.ps1
-RUN C:/install_win_deps_choco.ps1
+COPY ./install_win_deps_choco.ps1 C:/TEMP/install_win_deps_choco.ps1
+RUN C:/TEMP/install_win_deps_choco.ps1
 
 # Install python3 packages via PIP and set various configurations.
 COPY ./requirements.txt /requirements.txt
