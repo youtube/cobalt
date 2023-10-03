@@ -10,10 +10,9 @@ third_party {
   }
   url {
     type: GIT
-    value: "https://github.com/google/glog"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  # Approximate version from upstream is m70
-  version: "2fb7110f70453ccb8951428611330d95c496f3cd"
+  version: "114.0.5735.334"
   last_upgrade_date {
     year: 2018
     month: 10
