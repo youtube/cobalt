@@ -5,9 +5,9 @@ description:
 third_party {
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/components/metrics"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "734293972a4b3f6d949e489ac02145538fb59c70"
+  version: "70.0.3538.110"
   last_upgrade_date {
     year: 2018
     month: 08
