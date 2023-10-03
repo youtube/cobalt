@@ -17,7 +17,7 @@
 #>
 
 # Pin Choco to 1.4.0 to avoid required reboot in 2.0.0
-$env:chocolateyVersioni = '1.4.0'
+$env:chocolateyVersion = '1.4.0'
 
 iex ((New-Object System.Net.WebClient).DownloadString( `
       'https://chocolatey.org/install.ps1'))`
