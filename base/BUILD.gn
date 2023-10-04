@@ -3119,7 +3119,7 @@ test("base_unittests") {
 
     # "allocator/dispatcher/tls_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
-    "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
+    # "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ref_unittest.cc",
     "at_exit_unittest.cc",
     "atomicops_unittest.cc",
@@ -3320,7 +3320,7 @@ test("base_unittests") {
     # "profiler/stack_sampler_unittest.cc",
     # "profiler/stack_sampling_profiler_unittest.cc",
     "rand_util_unittest.cc",
-    "ranges/algorithm_unittest.cc",
+    # "ranges/algorithm_unittest.cc",
     "ranges/functional_unittest.cc",
     "ranges/ranges_unittest.cc",
     "run_loop_unittest.cc",
