@@ -6,7 +6,6 @@ ciopfs
 /android/binary_size/apks/**/*.apk
 /args/chromeos/*.gni
 /args/chromeos/rewrapper*
-/config/gclient_args.gni
 /cros_cache/
 /Debug
 /Debug_x64
