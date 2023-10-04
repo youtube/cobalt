@@ -12,6 +12,7 @@ third_party {
     value: "https://boringssl.googlesource.com/boringssl"
   }
   version: "7f4f41fa81c03e0f8ef1ab5b3d1d566b5968f107"
+  # from https://chromium.googlesource.com/chromium/src/+/70.0.3538.110/DEPS#141
   last_upgrade_date {
     year: 2018
     month: 8
