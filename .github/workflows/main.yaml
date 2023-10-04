@@ -252,7 +252,10 @@ jobs:
       - name: Set bootloader config
         if: ${{ needs.initialize.outputs.bootloader != 'null' }}
         shell: bash
-        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
+        run: |
+           set -u
+           COBALT_BOOTLOADER="${{needs.initialize.outputs.bootloader}}"
+           echo "COBALT_BOOTLOADER=${COBALT_BOOTLOADER}" >> $GITHUB_ENV
       # Build bootloader for on-host tests if necessary.
       - name: Bootloader GN
         if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
