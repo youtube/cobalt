@@ -15,6 +15,7 @@
 #include "cobalt/network/url_request_context.h"
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -53,39 +54,43 @@ namespace {
 
 const char kPersistentSettingsJson[] = "cache_settings.json";
 
-
-void ReadDiskCacheSize(cobalt::persistent_storage::PersistentSettings* settings,
-                       int64_t max_bytes) {
+void LoadDiskCacheQuotaSettings(
+    cobalt::persistent_storage::PersistentSettings* settings,
+    int64_t max_bytes) {
   auto total_size = 0;
-  disk_cache::ResourceTypeMetadata kTypeMetadataNew[disk_cache::kTypeCount];
-
+  std::map<disk_cache::ResourceType, uint32_t> quotas;
   for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = disk_cache::kTypeMetadata[i];
+    disk_cache::ResourceType resource_type = (disk_cache::ResourceType)i;
+    std::string directory =
+        disk_cache::defaults::GetSubdirectory(resource_type);
     uint32_t bucket_size =
         static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
-            metadata.directory, metadata.max_size_bytes));
-    kTypeMetadataNew[i] = {metadata.directory, bucket_size};
-
+            directory, disk_cache::defaults::GetQuota(resource_type)));
+    quotas[resource_type] = bucket_size;
     total_size += bucket_size;
   }
 
-  // Check if PersistentSettings values are valid and can replace the
-  // disk_cache::kTypeMetadata.
   if (total_size <= max_bytes) {
-    std::copy(std::begin(kTypeMetadataNew), std::end(kTypeMetadataNew),
-              std::begin(disk_cache::kTypeMetadata));
+    for (int i = 0; i < disk_cache::kTypeCount; i++) {
+      disk_cache::ResourceType resource_type = (disk_cache::ResourceType)i;
+      disk_cache::settings::SetQuota(resource_type, quotas[resource_type]);
+    }
     return;
   }
 
-  // PersistentSettings values are invalid and will be replaced by the default
-  // values in disk_cache::kTypeMetadata.
+  // Sum of quotas exceeds |max_bytes|. Set quotas to default values.
   for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = disk_cache::kTypeMetadata[i];
+    disk_cache::ResourceType resource_type = (disk_cache::ResourceType)i;
+    uint32_t default_quota = disk_cache::defaults::GetQuota(resource_type);
+    disk_cache::settings::SetQuota(resource_type, default_quota);
+    std::string directory =
+        disk_cache::defaults::GetSubdirectory(resource_type);
     settings->SetPersistentSetting(
-        metadata.directory, std::make_unique<base::Value>(
-                                static_cast<double>(metadata.max_size_bytes)));
+        directory,
+        std::make_unique<base::Value>(static_cast<double>(default_quota)));
   }
 }
+
 }  // namespace
 
 namespace cobalt {
@@ -233,7 +238,8 @@ URLRequestContext::URLRequestContext(
     cache_persistent_settings_ =
         std::make_unique<cobalt::persistent_storage::PersistentSettings>(
             kPersistentSettingsJson);
-    ReadDiskCacheSize(cache_persistent_settings_.get(), max_cache_bytes);
+    LoadDiskCacheQuotaSettings(cache_persistent_settings_.get(),
+                               max_cache_bytes);
 
     auto http_cache = std::make_unique<net::HttpCache>(
         storage_.http_network_session(),
@@ -245,7 +251,7 @@ URLRequestContext::URLRequestContext(
     if (persistent_settings != nullptr) {
       auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(
           disk_cache::kCacheEnabledPersistentSettingsKey, true);
-
+      disk_cache::settings::SetCacheEnabled(cache_enabled);
       if (!cache_enabled) {
         http_cache->set_mode(net::HttpCache::Mode::DISABLE);
       }
@@ -293,7 +299,7 @@ void URLRequestContext::UpdateCacheSizeSetting(disk_cache::ResourceType type,
                                                uint32_t bytes) {
   CHECK(cache_persistent_settings_);
   cache_persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[type].directory,
+      disk_cache::defaults::GetSubdirectory(type),
       std::make_unique<base::Value>(static_cast<double>(bytes)));
 }
 
