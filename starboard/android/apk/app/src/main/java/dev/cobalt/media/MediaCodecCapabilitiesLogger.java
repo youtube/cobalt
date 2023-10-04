@@ -16,12 +16,10 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
-import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
-import android.os.Build;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -171,31 +169,6 @@ public class MediaCodecCapabilitiesLogger {
         (name, codecCapabilities) -> {
           return codecCapabilities.isFeatureSupported(
               MediaCodecInfo.CodecCapabilities.FEATURE_PartialFrame);
-        });
-    featureMap.put(
-        "LinearBlockCopyFree",
-        (name, codecCapabilities) -> {
-          if (Build.VERSION.SDK_INT < 30) {
-            // MediaCodec.LinearBlock is introduced in api level 30.
-            return false;
-          }
-          VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
-          if (videoCapabilities == null) {
-            return false;
-          }
-          try {
-            String canonicalName = MediaCodec.createByCodecName(name).getName();
-            String[] codecNames = new String[] {canonicalName};
-            return MediaCodec.LinearBlock.isCodecCopyFreeCompatible(codecNames);
-          } catch (Exception e) {
-            Log.e(
-                TAG,
-                "Failed to create MediaCodec or call isCodecCopyFreeCompatible() on codec name"
-                    + " \"%s\" with error %s",
-                name,
-                e);
-            return false;
-          }
         });
     featureMap.put(
         "SecurePlayback",

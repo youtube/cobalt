@@ -155,7 +155,7 @@ If you prefer to use the IDE:
 And wait for the compilation to finish.
 
 Testing
-======
+=======
 
 To run unit-tests, first you must compile protobuf as described above.
 Then run:

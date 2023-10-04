@@ -161,7 +161,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
                         f'TERM=dumb bash -l')
 
     # test file preparation
-    # The very last 'cobalt' is hard coded in RDK loader
+    # The very last 'cobalt' in the path is to meet the hard coded path
+    # used in RDK's loader
     rdk_tmp = '/var/lib/persistent/rdkservices/Cobalt/Cobalt/.cobalt_storage'
     self.test_prep_command = (f'rm -rf {rdk_tmp}; '
                               f'rm -rf {rdk_test_dir}/cobalt; '
@@ -360,6 +361,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       # ssh into the RDK and run the test
       if not self.shutdown_initiated.is_set():
+        self._PexpectSpawnAndConnect(self.test_prep_command)
+        self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
         self._PexpectSpawnAndConnect(self.ssh_command)
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
 

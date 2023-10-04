@@ -71,25 +71,26 @@ jobs:
           git config --global user.email "github@google.com"
 
       - name: Cherry pick merge commit
+        id: cherry-pick
+        continue-on-error: true
         run: |
           git fetch origin ${{ matrix.target_branch }}
           set +e
           git cherry-pick -x $MERGE_COMMIT_SHA
           RES=$?
           set -e
-          if [ $RES -eq 0 ]; then
-            echo "CREATE_PR_AS_DRAFT=false" >> $GITHUB_ENV
-          else
-            echo "CREATE_PR_AS_DRAFT=true" >> $GITHUB_ENV
+          if [ $RES -ne 0 ]; then
             git add .
             git cherry-pick --continue
           fi
+          exit $RES
 
       - name: Create Pull Request
+        id: create-pr
         uses: peter-evans/create-pull-request@2b011faafdcbc9ceb11414d64d0573f37c774b04 # v4.2.3
         with:
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
-          draft: ${{ env.CREATE_PR_AS_DRAFT }}
+          draft: ${{ steps.cherry-pick.outcome == 'failure' }}
           base: ${{ matrix.target_branch }}
           branch: "${{ matrix.target_branch }}-${{ github.event.pull_request.number }}"
           committer: GitHub Release Automation <github@google.com>
@@ -99,3 +100,15 @@ jobs:
             Refer to the original PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}
 
             ${{ github.event.pull_request.body }}
+      - name: PR Comment
+        if: ${{ success() && steps.cherry-pick.outcome == 'failure' }}
+        uses: actions/github-script@v2
+        with:
+          github-token: ${{ secrets.CHERRY_PICK_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: ${{ steps.create-pr.outputs.pull-request-number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '> [!IMPORTANT]\n> The cherry-pick failed! Check out the PR branch (${{ matrix.target_branch }}-${{ github.event.pull_request.number }}) and fix the conflicts before proceeding.'
+            })

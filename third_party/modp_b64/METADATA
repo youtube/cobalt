@@ -7,7 +7,8 @@ description:
 third_party {
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/modp_b64"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
+  version: "87.0.4280.142"
   license_type: NOTICE
 }

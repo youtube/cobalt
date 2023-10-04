@@ -30,6 +30,9 @@
 
 // from google3/strings/strutil.cc
 
+#include <google/protobuf/stubs/strutil.h>
+#include <google/protobuf/stubs/mathlimits.h>
+
 #ifndef STARBOARD
 
 #include <stdio.h>
@@ -57,9 +60,6 @@
 #include <limits.h>
 #include <iterator>
 
-#include <google/protobuf/stubs/strutil.h>
-#include <google/protobuf/stubs/mathlimits.h>
-
 #include <google/protobuf/stubs/stl_util.h>
 
 #if !defined(STARBOARD)
@@ -75,7 +75,7 @@
 // occurs with some input values, not all.  In any case, _snprintf does the
 // right thing, so we use it.
 #define snprintf _snprintf
-#endif  // _WIN32
+#endif
 #endif  // !defined(STARBOARD)
 
 namespace google {
@@ -1293,7 +1293,7 @@ char* DoubleToBuffer(double value, char* buffer) {
   int snprintf_result =
     SbStringFormatF(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG, value);
 
-  // The SbStringFormatF should never overflow because the buffer is significantly
+  // The snprintf should never overflow because the buffer is significantly
   // larger than the precision we asked for.
   GOOGLE_DCHECK(snprintf_result > 0 && snprintf_result < kDoubleToBufferSize);
 
@@ -1354,7 +1354,7 @@ bool safe_strtob(StringPiece str, bool* value) {
 bool safe_strtof(const char* str, float* value) {
   char* endptr;
   errno = 0;  // errno only gets set on errors
-#if defined(_WIN32) || defined (__hpux)
+#if defined(_WIN32) || defined (__hpux)  // has no strtof()
   *value = strtod(str, &endptr);
 #else
   *value = strtof(str, &endptr);
@@ -1411,8 +1411,8 @@ char* FloatToBuffer(float value, char* buffer) {
   int snprintf_result =
     SbStringFormatF(buffer, kFloatToBufferSize, "%.*g", FLT_DIG, value);
 
-  // The SbStringFormatF should never overflow because the buffer is
-  // significantly larger than the precision we asked for.
+  // The snprintf should never overflow because the buffer is significantly
+  // larger than the precision we asked for.
   GOOGLE_DCHECK(snprintf_result > 0 && snprintf_result < kFloatToBufferSize);
 
   float parsed_value;

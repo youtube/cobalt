@@ -4,13 +4,11 @@ description:
   "a dependency for Cobalt's IDL parser."
 
 third_party {
-  # Note: This library was added to Cobalt from Chromium, but the information
-  # below reflects that of the original source code.
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/markupsafe"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "cbac3a73c628aed66800e993e3931fcb43f76dd0"
+  version: "108.0.5359.243"
   last_upgrade_date {
     year: 2013
     month: 5
