@@ -78,19 +78,40 @@ jobs:
             ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
         shell: bash
       - id: set-platforms
-        run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
+          echo "platforms=${platforms}" >> $GITHUB_ENV
       - id: set-includes
-        run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
+          echo "includes=${includes}" >> $GITHUB_ENV
       - id: set-on-device-test
-        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.enabled')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.enabled')
+          echo "on_device_test=${on_device_test}" >> $GITHUB_ENV
       - id: set-on-host-test
-        run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')
+          echo "on_host_test=${on_host_test}" >> $GITHUB_ENV
       - id: set-on-host-test-shards
-        run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')
+          echo "on_host_test_shards=${on_host_test_shards}" >> $GITHUB_ENV
       - id: set-docker-service
-        run: echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')
+          echo "docker_service=${docker_service}" >> $GITHUB_ENV
       - id: set-docker-runner-service
-        run: echo "docker_runner_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          docker_runner_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')
+          echo "docker_runner_service=${docker_runner_service}" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
