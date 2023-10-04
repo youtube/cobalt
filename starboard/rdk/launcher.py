@@ -104,7 +104,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
     env.update(self.env_variables)
     self.full_env = env
     self.platform = platform
-    self.device_id = device_id
 
     if not self.device_id:
       self.device_id = self.full_env.get('RDK_ADDR')
@@ -140,16 +139,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
     rdk_user_hostname = f'{Launcher._RDK_USERNAME}@{self.device_id}'
     rdk_test_dir = '/usr/share/content/data/app'
 
-    # RDK has limited storage space left on the partition /usr and may
-    # not be able to fit the entire test target with content folder.
-    # Therefore the test data will be uploaded to /data partition and create
-    # symlink under /usr/share/content/data/app for loader to use.
-    rdk_storage_dir = '/data'  #/data has much more free space than /usr on RDK
+    # scp command setup
+    options = '-rOCq'
+    source = os.path.join(self.out_directory, 'content', 'app', 'cobalt')
+    destination = f'{rdk_user_hostname}:{rdk_test_dir}/'
 
     # rsync command setup
     options = '-avzLhc'
-    source = os.path.join(self.out_directory, 'content', 'app', 'cobalt')
-    destination = f'{rdk_user_hostname}:{rdk_storage_dir}/'
+    destination = f'{rdk_user_hostname}:{rdk_test_dir}/'
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
 
     # ssh command setup
@@ -158,13 +155,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
         '-o \"UserKnownHostsFile=/dev/null\" -o \"StrictHostKeyChecking=no\"')
     self.ssh_command = (f'ssh -t {rsa_options} {rdk_user_hostname} '
                         f'TERM=dumb bash -l')
-
-    # test file preparation
-    rdk_tmp = '/var/lib/persistent/rdkservices/Cobalt/Cobalt/.cobalt_storage'
-    self.test_prep_command = (f'rm -rf {rdk_tmp}; '
-                              f'rm -rf {rdk_test_dir}/cobalt; '
-                              f'ln -s {rdk_storage_dir}/cobalt '
-                              f'{rdk_test_dir}/cobalt')
 
     # test output tags
     self.test_complete_tag = 'test suites ran.'
@@ -351,6 +341,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       # copy the test files to the RDK
       if not self.shutdown_initiated.is_set():
+        #self._PexpectSpawnAndConnect(self.scp_command)
         self._PexpectSpawnAndConnect(self.rsync_command)
 
       if not self.shutdown_initiated.is_set():
@@ -358,8 +349,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       # ssh into the RDK and run the test
       if not self.shutdown_initiated.is_set():
-        self._PexpectSpawnAndConnect(self.test_prep_command)
-        self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
         self._PexpectSpawnAndConnect(self.ssh_command)
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
