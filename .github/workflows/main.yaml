@@ -89,42 +89,42 @@ jobs:
         shell: bash
         run: |
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
-          echo "${platforms}" >> $GITHUB_ENV
+          echo "platforms=${platforms}" >> $GITHUB_ENV
       - id: set-includes
         shell: bash
         run: |
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
-          echo "${includes}" >> $GITHUB_ENV
+          echo "includes=${includes}" >> $GITHUB_ENV
       - id: set-on-device-test
         shell: bash
         run: |
           on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')
-          echo "${on_device_test}" >> $GITHUB_ENV
+          echo "on_device_test=${on_device_test}" >> $GITHUB_ENV
       - id: set-on-device-test-attempts
         shell: bash
         run: |
           on_device_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.test_attempts // empty')
-          echo "${on_device_test_attempts}" >> $GITHUB_ENV
+          echo "on_device_test_attempts=${on_device_test_attempts}" >> $GITHUB_ENV
       - id: set-on-host-test
         shell: bash
         run: |
           on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')
-          echo "${on_host_test}" >> $GITHUB_ENV
+          echo "on_host_test=${on_host_test}" >> $GITHUB_ENV
       - id: set-on-host-test-shards
         shell: bash
         run: |
           on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')
-          echo "${on_host_test_shards}" >> $GITHUB_ENV
+          echo "on_host_test_shards=${on_host_test_shards}" >> $GITHUB_ENV
       - id: set-on-host-test-bootloader
         shell: bash
         run: |
           bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')
-          echo "${bootloader}" >> $GITHUB_ENV
+          echo "bootloader=${bootloader}" >> $GITHUB_ENV
       - id: set-docker-service
         shell: bash
         run: |
           docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
-          echo "${docker_service}" >> $GITHUB_ENV
+          echo "docker_service=${docker_service}" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
