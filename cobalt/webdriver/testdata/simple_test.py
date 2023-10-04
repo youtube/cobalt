@@ -176,7 +176,7 @@ def GetElementScreenShot(session_id, element_id, filename):
   """
   request = ElementRequest(session_id, element_id, GET, 'screenshot')
   if request:
-    with open(filename, 'w', encoding='utf-8') as f:
+    with open(filename, 'wb') as f:
       f.write(binascii.a2b_base64(request['value']))
       f.close()
 
