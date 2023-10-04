@@ -86,23 +86,45 @@ jobs:
             ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
         shell: bash
       - id: set-platforms
-        run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
-      - id: set-includes
-        run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
-      - id: set-on-device-test
-        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
-      - id: set-on-device-test-attempts
-        run: echo "on_device_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.test_attempts // empty')" >> $GITHUB_ENV
-      - id: set-on-host-test
-        run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
-      - id: set-on-host-test-shards
-        run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
-      - id: set-on-host-test-bootloader
-        run: echo "bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')" >> $GITHUB_ENV
-      - id: set-docker-service
+        shell: bash
         run: |
-          echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
-          echo $platforms
+          platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
+          echo "platforms=${platforms}" >> $GITHUB_ENV
+      - id: set-includes
+        shell: bash
+        run: |
+          includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
+          echo "includes=${includes}" >> $GITHUB_ENV
+      - id: set-on-device-test
+        shell: bash
+        run: |
+          on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')
+          echo "on_device_test=${on_device_test}" >> $GITHUB_ENV
+      - id: set-on-device-test-attempts
+        shell: bash
+        run: |
+          on_device_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.test_attempts // empty')
+          echo "on_device_test_attempts=${on_device_test_attempts}" >> $GITHUB_ENV
+      - id: set-on-host-test
+        shell: bash
+        run: |
+          on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')
+          echo "on_host_test=${on_host_test}" >> $GITHUB_ENV
+      - id: set-on-host-test-shards
+        shell: bash
+        run: |
+          on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')
+          echo "on_host_test_shards=${on_host_test_shards}" >> $GITHUB_ENV
+      - id: set-on-host-test-bootloader
+        shell: bash
+        run: |
+          bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')
+          echo "bootloader=${bootloader}" >> $GITHUB_ENV
+      - id: set-docker-service
+        shell: bash
+        run: |
+          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
+          echo "docker_service=${docker_service}" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
@@ -139,7 +161,9 @@ jobs:
           docker_image: cobalt-${{ needs.initialize.outputs.docker_service }}
       - name: Set Docker Tag Output
         id: set-docker-tag-output
+        shell: bash
         run: |
+          set -u
           echo $DOCKER_TAG
           echo "docker_tag=$DOCKER_TAG"  >> $GITHUB_ENV
     outputs:
@@ -172,7 +196,9 @@ jobs:
           docker_image: cobalt-linux-x64x11-unittest
       - name: Set Docker Tag Output
         id: set-docker-unittest-tag-output
+        shell: bash
         run: |
+          set -u
           echo $DOCKER_TAG
           echo "docker_unittest_tag=$DOCKER_TAG" >> $GITHUB_ENV
     outputs:
@@ -225,7 +251,11 @@ jobs:
       # action didn't work, so instead we set an env var.
       - name: Set bootloader config
         if: ${{ needs.initialize.outputs.bootloader != 'null' }}
-        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
+        shell: bash
+        run: |
+           set -u
+           COBALT_BOOTLOADER="${{needs.initialize.outputs.bootloader}}"
+           echo "COBALT_BOOTLOADER=${COBALT_BOOTLOADER}" >> $GITHUB_ENV
       # Build bootloader for on-host tests if necessary.
       - name: Bootloader GN
         if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
