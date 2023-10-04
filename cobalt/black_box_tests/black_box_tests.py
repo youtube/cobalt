@@ -79,6 +79,7 @@ _TESTS_NO_SIGNAL = [
     'http_cache',
     'persistent_cookie',
     'pointer_event_on_fixed_element_test',
+    'pointer_event_on_cropped_element_test',
     'scroll',
     'scroll_with_none_pointer_events',
     'service_worker_add_to_cache_test',
