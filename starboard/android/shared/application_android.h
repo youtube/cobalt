@@ -25,6 +25,7 @@
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
@@ -153,6 +154,9 @@ class ApplicationAndroid
   // Track queued "stop" commands to avoid starting the app when Android has
   // already requested it be stopped.
   SbAtomic32 android_stop_count_ = 0;
+
+  // Set to true in the destructor to ensure other threads stop waiting.
+  atomic_bool application_destroying_;
 
   // The last Activity lifecycle state command received.
   AndroidCommand::CommandType activity_state_;
