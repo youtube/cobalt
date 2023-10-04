@@ -4,7 +4,7 @@
     "evergreen-arm-softfp",
     "evergreen-arm-softfp-sbversion-15",
 		"evergreen-arm-softfp-sbversion-14",
-    "evergreen-arm-softfp-sbversion-13"
+    "evergreen-arm-softfp-sbversion-13",
   ],
   "includes": [
     {
@@ -12,7 +12,7 @@
       "platform":"evergreen-arm-softfp",
       "target_platform":"evergreen-arm-softfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false"
+      "extra_gn_arguments":"use_asan=false",
     },
     {
       "name":"sbversion-15",
