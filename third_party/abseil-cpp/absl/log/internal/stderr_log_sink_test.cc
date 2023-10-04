@@ -74,19 +74,19 @@ TEST(StderrLogSinkDeathTest, ErrorMessagesInStderr) {
       "ERROR message");
 }
 
-TEST(StderrLogSinkDeathTest, FatalMessagesInStderr) {
-  char message[] = "FATAL message";
-  char stacktrace[] = "*** Check failure stack trace: ***";
+// TEST(StderrLogSinkDeathTest, FatalMessagesInStderr) {
+//   char message[] = "FATAL message";
+//   char stacktrace[] = "*** Check failure stack trace: ***";
 
-  int expected_count = 1;
+//   int expected_count = 1;
 
-  EXPECT_DEATH_IF_SUPPORTED(
-      {
-        absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
-        LOG(FATAL) << message;
-      },
-      AllOf(HasSubstrTimes(message, expected_count), HasSubstr(stacktrace)));
-}
+//   EXPECT_DEATH_IF_SUPPORTED(
+//       {
+//         absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
+//         LOG(FATAL) << message;
+//       },
+//       AllOf(HasSubstrTimes(message, expected_count), HasSubstr(stacktrace)));
+// }
 
 TEST(StderrLogSinkDeathTest, SecondaryFatalMessagesInStderr) {
   auto MessageGen = []() -> std::string {

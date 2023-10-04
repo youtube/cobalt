@@ -269,6 +269,10 @@ config("no_pedantic_warnings") {
     "-Wno-mismatched-tags",
     "-Wno-bitwise-instead-of-logical",
     "-Wno-unused-but-set-parameter",
+    "-Wno-self-assign-overloaded",
+    "-Wno-pessimizing-move",
+    "-Wno-ignored-qualifiers",
+    "-Wno-unreachable-code-loop-increment",
   ]
   cflags += extra_should_be_removed
 }

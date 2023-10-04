@@ -352,6 +352,7 @@ source_set("native_library_test_utils") {
   ]
 }
 
+if (!use_cobalt_customizations) {
 # This shared library is dynamically loaded by ImmediateCrash unittests.
 shared_library("immediate_crash_test_helper") {
   sources = [ "immediate_crash_test_helper.cc" ]
@@ -374,6 +375,7 @@ shared_library("immediate_crash_test_helper") {
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   }
 }
+}
 
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
@@ -383,12 +385,14 @@ shared_library("test_shared_library") {
   deps = [ ":native_library_test_utils" ]
 }
 
+if (!use_cobalt_customizations) {
 if (is_fuchsia || is_linux || is_chromeos) {
   shared_library("malloc_wrapper") {
     testonly = true
     sources = [ "malloc_wrapper.cc" ]
     deps = [ "//base" ]
   }
+}
 }
 
 if (is_android) {

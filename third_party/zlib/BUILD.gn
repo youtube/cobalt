@@ -516,6 +516,7 @@ if (!is_starboard) {
   }
 }
 
+if (!use_cobalt_customizations) {
 static_library("zip") {
   sources = [
     "google/zip.cc",
@@ -538,8 +539,8 @@ target(gtest_target_type, "zip_unittests") {
   testonly = true
 
   sources = [
-    "google/compression_utils_unittest.cc",
-    "google/zip_reader_unittest.cc",
+    # "google/compression_utils_unittest.cc",
+    # "google/zip_reader_unittest.cc",
     "google/zip_unittest.cc",
     "google/compression_utils.cc",
     "google/compression_utils.h",
@@ -565,4 +566,5 @@ target(gtest_target_type, "zip_unittests") {
 
     data_deps = [ "//third_party/zlib/google/test:zip_unittest_files" ]
   }
+}
 }

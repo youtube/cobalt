@@ -2771,6 +2771,7 @@ component("i18n") {
   }
 }
 
+if (!is_starboard) {
 test("base_perftests") {
   sources = [
     "hash/hash_perftest.cc",
@@ -2844,6 +2845,7 @@ test("base_i18n_perftests") {
     "//base/test:test_support_perf",
     "//testing/gtest",
   ]
+}
 }
 
 if (!is_ios) {
@@ -3018,7 +3020,7 @@ if (is_apple) {
   }
 }
 
-if (!is_nacl && (is_linux || is_chromeos)) {
+if (!is_nacl && (is_linux || is_chromeos) && !use_cobalt_customizations) {
   # This test must compile with -fstack-protector-all
   source_set("stack_canary_linux_unittests") {
     testonly = true

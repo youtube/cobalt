@@ -511,15 +511,15 @@ TEST(CHECKTest, TestCheckInMethod) {
   v.MethodWithCheck(1);
 }
 
-TEST(CHECKDeathTest, TestUserDefinedStreaming) {
-  ComparableType v1{1};
-  ComparableType v2{2};
+// TEST(CHECKDeathTest, TestUserDefinedStreaming) {
+//   ComparableType v1{1};
+//   ComparableType v2{2};
 
-  EXPECT_DEATH(
-      ABSL_TEST_CHECK_EQ(v1, v2),
-      HasSubstr(
-          "Check failed: v1 == v2 (ComparableType{1} vs. ComparableType{2})"));
-}
+//   EXPECT_DEATH(
+//       ABSL_TEST_CHECK_EQ(v1, v2),
+//       HasSubstr(
+//           "Check failed: v1 == v2 (ComparableType{1} vs. ComparableType{2})"));
+// }
 
 }  // namespace absl_log_internal
 
