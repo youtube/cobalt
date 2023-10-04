@@ -86,20 +86,28 @@ jobs:
             ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
         shell: bash
       - id: set-platforms
+        shell: bash
         run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
       - id: set-includes
+        shell: bash
         run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
       - id: set-on-device-test
+        shell: bash
         run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
       - id: set-on-device-test-attempts
+        shell: bash
         run: echo "on_device_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.test_attempts // empty')" >> $GITHUB_ENV
       - id: set-on-host-test
+        shell: bash
         run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
+        shell: bash
         run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
       - id: set-on-host-test-bootloader
+        shell: bash
         run: echo "bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')" >> $GITHUB_ENV
       - id: set-docker-service
+        shell: bash
         run: |
           echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
           echo $platforms
