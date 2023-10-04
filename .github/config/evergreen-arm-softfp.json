@@ -25,7 +25,7 @@
       "target_platform":"evergreen-arm-softfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "bootloader_extra_gn_arguments": "sb_is_evergreen_compatible=true",
+      "bootloader_extra_gn_arguments": "sb_is_evergreen_compatible=true"
     },
     {
       "name":"sbversion-15",
@@ -34,7 +34,7 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "sb_api_version":"sb_api_version=15",
-      "bootloader_extra_gn_arguments": "sb_is_evergreen_compatible=true",
+      "bootloader_extra_gn_arguments": "sb_is_evergreen_compatible=true"
     },
     {
       "name":"sbversion-14",
@@ -43,7 +43,7 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "sb_api_version":"sb_api_version=14",
-      "bootloader_extra_gn_arguments": "sb_is_evergreen_compatible=true",
+      "bootloader_extra_gn_arguments": "sb_is_evergreen_compatible=true"
     },
     {
       "name":"sbversion-13",
