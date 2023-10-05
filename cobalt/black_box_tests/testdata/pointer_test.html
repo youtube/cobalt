@@ -1,547 +1,500 @@
 <!DOCTYPE html>
 
 <html>
-  <head>
-    <title>Cobalt pointer test</title>
-    <script src='black_box_js_test_utils.js'></script>
-    <style>
-      .size10 {
-        padding: 10px;
-      }
-      .size20 {
-        padding: 20px;
-      }
-      .size40 {
-        padding: 40px;
-      }
-      .black {
-        background-color: #FFF;
-      }
-      .grey {
-        background-color: #888;
-      }
-      .green {
-        background-color: #0F0;
-      }
-      .blue {
-        background-color: #00F;
-      }
-      .cyan {
-        background-color: #0FF;
-      }
-      .purple {
-        background-color: #F0F;
-      }
-      .yellow {
-        background-color: #FF0;
-      }
-    </style>
-  </head>
-  <body class="black">
-    <script>
-      // Fail if the test is not finished within 15 seconds.
-      var kTimeout = 30 * 1000;
-      var failTimer = setTimeout(fail, kTimeout);
 
-      function fail() {
-          console.log("Failing due to timeout!");
-          assertTrue(false);
-      }
+<head>
+  <title>Cobalt pointer test</title>
+  <script src='black_box_js_test_utils.js'></script>
+  <script src='pointer_event_test_utils.js'></script>
+  <style>
+    .size10 {
+      padding: 10px;
+    }
 
-      function phasename(phase) {
-        switch(phase) {
-          case 0: return 'none';
-          case 1: return 'capturing';
-          case 2: return 'at target';
-          case 3: return 'bubbling';
+    .size20 {
+      padding: 20px;
+    }
+
+    .size40 {
+      padding: 40px;
+    }
+
+    .black {
+      background-color: #FFF;
+    }
+
+    .grey {
+      background-color: #888;
+    }
+
+    .green {
+      background-color: #0F0;
+    }
+
+    .blue {
+      background-color: #00F;
+    }
+
+    .cyan {
+      background-color: #0FF;
+    }
+
+    .purple {
+      background-color: #F0F;
+    }
+
+    .yellow {
+      background-color: #FF0;
+    }
+  </style>
+</head>
+
+<body class="black">
+  <script>
+    const expected_events = [
+      // name, id, phase
+      // actions.move_to_element(top_one).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointermove', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointerenter', id: 'top', phase: Event.AT_TARGET },
+      { name: 'pointerenter', id: 'outer', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mouseenter', id: 'top', phase: Event.AT_TARGET },
+      { name: 'mouseenter', id: 'outer', phase: Event.AT_TARGET },
+      // actions.move_to_element(top_two).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointerout', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE }, ,
+      { name: 'mousemove', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'top_two', phase: Event.AT_TARGET },
+      // actions.move_to_element_with_offset(top_two, 10, 10).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointermove', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      // actions.move_to_element_with_offset(top_two, 0, 0).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointermove', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE }, ,
+      { name: 'mousemove', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      // actions.move_to_element_with_offset(top_two, -10, 0).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointerout', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'top_two', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'top_one', phase: Event.AT_TARGET },
+      // actions.click(top_three)
+      { name: 'pointerout', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'top_one', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerdown', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousedown', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'mousedown', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousedown', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'pointerup', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseup', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'mouseup', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseup', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'click', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'outer', phase: Event.BUBBLING_PHASE },
+      // actions.click_and_hold(top_four)
+      { name: 'pointerout', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'top_three', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE }, ,
+      { name: 'mousemove', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerdown', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousedown', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'mousedown', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousedown', id: 'outer', phase: Event.BUBBLING_PHASE },
+      // actions.release(top_five)
+      { name: 'pointermove', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'pointerup', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseup', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'mouseup', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseup', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'click', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'outer', phase: Event.BUBBLING_PHASE },
+      // actions.move_to_element(top_six).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointerout', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'top_four', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'top_six', phase: Event.AT_TARGET },
+      // actions.move_to_element(bottom_six).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointerout', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'pointerleave', id: 'top', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'top', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'top_six', phase: Event.AT_TARGET },
+      { name: 'mouseleave', id: 'top', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'pointerenter', id: 'bottom', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'mouseenter', id: 'bottom', phase: Event.AT_TARGET },
+      // actions.click(bottom_five)
+      { name: 'pointerout', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'bottom_six', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerdown', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'pointerup', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'click', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'outer', phase: Event.BUBBLING_PHASE },
+      // actions.click_and_hold(bottom_four)
+      { name: 'pointerout', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'bottom_five', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerdown', id: 'outer', phase: Event.BUBBLING_PHASE },
+      // actions.release(bottom_three)
+      { name: 'pointermove', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'pointerup', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'click', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'outer', phase: Event.BUBBLING_PHASE },
+      // actions.move_to_element(bottom_two).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointerout', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'pointerout', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerleave', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'bottom', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseout', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseleave', id: 'bottom_four', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'pointerenter', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'mouseenter', id: 'bottom_two', phase: Event.AT_TARGET },
+      // actions.move_to_element(bottom_one).pause(_SLEEP_AFTER_MOVE_TIME)
+      { name: 'pointerout', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'pointerleave', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'mouseleave', id: 'bottom_two', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'pointerenter', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'mouseenter', id: 'bottom_one', phase: Event.AT_TARGET },
+      // find_element_by_id(runner, 'end').click()
+      { name: 'pointerout', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'pointerleave', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'pointerleave', id: 'bottom', phase: Event.AT_TARGET },
+      { name: 'mouseout', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'mouseleave', id: 'bottom_one', phase: Event.AT_TARGET },
+      { name: 'mouseleave', id: 'bottom', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'end', phase: Event.AT_TARGET },
+      { name: 'pointermove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousemove', id: 'end', phase: Event.AT_TARGET },
+      { name: 'mousemove', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerover', id: 'end', phase: Event.AT_TARGET },
+      { name: 'pointerover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerenter', id: 'end', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'end', phase: Event.AT_TARGET },
+      { name: 'mouseover', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseenter', id: 'end', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'end', phase: Event.AT_TARGET },
+      { name: 'pointerdown', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mousedown', id: 'end', phase: Event.AT_TARGET },
+      { name: 'mousedown', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'pointerup', id: 'end', phase: Event.AT_TARGET },
+      { name: 'pointerup', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'mouseup', id: 'end', phase: Event.AT_TARGET },
+      { name: 'mouseup', id: 'outer', phase: Event.BUBBLING_PHASE },
+      { name: 'click', id: 'end', phase: Event.AT_TARGET },
+      { name: 'click', id: 'outer', phase: Event.BUBBLING_PHASE }]
+
+    function endTest(e) {
+      console.log('Ending test.')
+      assertTrue(failure_count == 0);
+      onEndTest();
+    }
+
+    function cancel(e) {
+      console.log('cancel');
+      e.preventDefault();
+    }
+
+    function stop(e) {
+      console.log('stop');
+      e.stopPropagation();
+    }
+
+    function capture(e) {
+      console.log('capture');
+      e.target.setPointerCapture(e.pointerId);
+    }
+
+    // If the event type has value 'type', then report an error if the
+    // 'name' property on the event target already has 'value'. Otherwise,
+    // set it to the 'value'. This is used to detect erroneous boundary
+    // events (enter/leave, over/out), and up/down event sequences on an
+    // element.
+    function trackAndVerifyTargetState(event, type, name, value) {
+      if (event.type == type) {
+        if (event.target[name] == value) {
+          console.log('ERROR: ' + type + 'event received while ' +
+            name + ' == ' + event.target[name]);
+          assertTrue(event.target[name] != value);
         }
-        return ' [unknown: ' + phase + ']';
+        event.target[name] = value;
       }
+    }
 
-      var expected_events = [
-        // name, id, phase
-        // actions.move_to_element(top_one).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointermove', 'top_one', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_one', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'top_one', 'at target'],
-        ['pointerover', 'top', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'top_one', 'at target'],
-        ['pointerenter', 'top', 'at target'],
-        ['pointerenter', 'outer', 'at target'],
-        ['mouseover', 'top_one', 'at target'],
-        ['mouseover', 'top', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'top_one', 'at target'],
-        ['mouseenter', 'top', 'at target'],
-        ['mouseenter', 'outer', 'at target'],
-        // actions.move_to_element(top_two).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointerout', 'top_one', 'at target'],
-        ['pointerout', 'top', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'top_one', 'at target'],
-        ['mouseout', 'top_one', 'at target'],
-        ['mouseout', 'top', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'top_one', 'at target'],
-        ['pointermove', 'top_two', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_two', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'top_two', 'at target'],
-        ['pointerover', 'top', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'top_two', 'at target'],
-        ['mouseover', 'top_two', 'at target'],
-        ['mouseover', 'top', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'top_two', 'at target'],
-        // actions.move_to_element_with_offset(top_two, 10, 10).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointermove', 'top_two', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_two', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        // actions.move_to_element_with_offset(top_two, 0, 0).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointermove', 'top_two', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_two', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        // actions.move_to_element_with_offset(top_two, -10, 0).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointerout', 'top_two', 'at target'],
-        ['pointerout', 'top', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'top_two', 'at target'],
-        ['mouseout', 'top_two', 'at target'],
-        ['mouseout', 'top', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'top_two', 'at target'],
-        ['pointermove', 'top_one', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_one', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'top_one', 'at target'],
-        ['pointerover', 'top', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'top_one', 'at target'],
-        ['mouseover', 'top_one', 'at target'],
-        ['mouseover', 'top', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'top_one', 'at target'],
-        // actions.click(top_three)
-        ['pointerout', 'top_one', 'at target'],
-        ['pointerout', 'top', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'top_one', 'at target'],
-        ['mouseout', 'top_one', 'at target'],
-        ['mouseout', 'top', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'top_one', 'at target'],
-        ['pointermove', 'top_three', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_three', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'top_three', 'at target'],
-        ['pointerover', 'top', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'top_three', 'at target'],
-        ['mouseover', 'top_three', 'at target'],
-        ['mouseover', 'top', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'top_three', 'at target'],
-        ['pointerdown', 'top_three', 'at target'],
-        ['pointerdown', 'top', 'bubbling'],
-        ['pointerdown', 'outer', 'bubbling'],
-        ['mousedown', 'top_three', 'at target'],
-        ['mousedown', 'top', 'bubbling'],
-        ['mousedown', 'outer', 'bubbling'],
-        ['pointerup', 'top_three', 'at target'],
-        ['pointerup', 'top', 'bubbling'],
-        ['pointerup', 'outer', 'bubbling'],
-        ['mouseup', 'top_three', 'at target'],
-        ['mouseup', 'top', 'bubbling'],
-        ['mouseup', 'outer', 'bubbling'],
-        ['click', 'top_three', 'at target'],
-        ['click', 'top', 'bubbling'],
-        ['click', 'outer', 'bubbling'],
-        // actions.click_and_hold(top_four)
-        ['pointerout', 'top_three', 'at target'],
-        ['pointerout', 'top', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'top_three', 'at target'],
-        ['mouseout', 'top_three', 'at target'],
-        ['mouseout', 'top', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'top_three', 'at target'],
-        ['pointermove', 'top_four', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_four', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'top_four', 'at target'],
-        ['pointerover', 'top', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'top_four', 'at target'],
-        ['mouseover', 'top_four', 'at target'],
-        ['mouseover', 'top', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'top_four', 'at target'],
-        ['pointerdown', 'top_four', 'at target'],
-        ['pointerdown', 'top', 'bubbling'],
-        ['pointerdown', 'outer', 'bubbling'],
-        ['mousedown', 'top_four', 'at target'],
-        ['mousedown', 'top', 'bubbling'],
-        ['mousedown', 'outer', 'bubbling'],
-        // actions.release(top_five)
-        ['pointermove', 'top_four', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_four', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerup', 'top_four', 'at target'],
-        ['pointerup', 'top', 'bubbling'],
-        ['pointerup', 'outer', 'bubbling'],
-        ['mouseup', 'top_four', 'at target'],
-        ['mouseup', 'top', 'bubbling'],
-        ['mouseup', 'outer', 'bubbling'],
-        ['click', 'top_four', 'at target'],
-        ['click', 'top', 'bubbling'],
-        ['click', 'outer', 'bubbling'],
-        // actions.move_to_element(top_six).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointerout', 'top_four', 'at target'],
-        ['pointerout', 'top', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'top_four', 'at target'],
-        ['mouseout', 'top_four', 'at target'],
-        ['mouseout', 'top', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'top_four', 'at target'],
-        ['pointermove', 'top_six', 'at target'],
-        ['pointermove', 'top', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'top_six', 'at target'],
-        ['mousemove', 'top', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'top_six', 'at target'],
-        ['pointerover', 'top', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'top_six', 'at target'],
-        ['mouseover', 'top_six', 'at target'],
-        ['mouseover', 'top', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'top_six', 'at target'],
-        // actions.move_to_element(bottom_six).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointerout', 'top_six', 'at target'],
-        ['pointerout', 'top', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'top_six', 'at target'],
-        ['pointerleave', 'top', 'at target'],
-        ['mouseout', 'top_six', 'at target'],
-        ['mouseout', 'top', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'top_six', 'at target'],
-        ['mouseleave', 'top', 'at target'],
-        ['pointermove', 'bottom_six', 'at target'],
-        ['pointermove', 'bottom', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'bottom_six', 'at target'],
-        ['mousemove', 'bottom', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'bottom_six', 'at target'],
-        ['pointerover', 'bottom', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'bottom_six', 'at target'],
-        ['pointerenter', 'bottom', 'at target'],
-        ['mouseover', 'bottom_six', 'at target'],
-        ['mouseover', 'bottom', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'bottom_six', 'at target'],
-        ['mouseenter', 'bottom', 'at target'],
-        // actions.click(bottom_five)
-        ['pointerout', 'bottom_six', 'at target'],
-        ['pointerout', 'bottom', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'bottom_six', 'at target'],
-        ['mouseout', 'bottom_six', 'at target'],
-        ['mouseout', 'bottom', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'bottom_six', 'at target'],
-        ['pointermove', 'bottom_five', 'at target'],
-        ['pointermove', 'bottom', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'bottom_five', 'at target'],
-        ['mousemove', 'bottom', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'bottom_five', 'at target'],
-        ['pointerover', 'bottom', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'bottom_five', 'at target'],
-        ['mouseover', 'bottom_five', 'at target'],
-        ['mouseover', 'bottom', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'bottom_five', 'at target'],
-        ['pointerdown', 'bottom_five', 'at target'],
-        ['pointerdown', 'bottom', 'bubbling'],
-        ['pointerdown', 'outer', 'bubbling'],
-        ['pointerup', 'bottom_five', 'at target'],
-        ['pointerup', 'bottom', 'bubbling'],
-        ['pointerup', 'outer', 'bubbling'],
-        ['click', 'bottom_five', 'at target'],
-        ['click', 'bottom', 'bubbling'],
-        ['click', 'outer', 'bubbling'],
-        // actions.click_and_hold(bottom_four)
-        ['pointerout', 'bottom_five', 'at target'],
-        ['pointerout', 'bottom', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'bottom_five', 'at target'],
-        ['mouseout', 'bottom_five', 'at target'],
-        ['mouseout', 'bottom', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'bottom_five', 'at target'],
-        ['pointermove', 'bottom_four', 'at target'],
-        ['pointermove', 'bottom', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'bottom_four', 'at target'],
-        ['mousemove', 'bottom', 'bubbling'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'bottom_four', 'at target'],
-        ['pointerover', 'bottom', 'bubbling'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'bottom_four', 'at target'],
-        ['mouseover', 'bottom_four', 'at target'],
-        ['mouseover', 'bottom', 'bubbling'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'bottom_four', 'at target'],
-        ['pointerdown', 'bottom_four', 'at target'],
-        ['pointerdown', 'bottom', 'bubbling'],
-        ['pointerdown', 'outer', 'bubbling'],
-        // actions.release(bottom_three)
-        ['pointermove', 'bottom_four', 'at target'],
-        ['pointermove', 'bottom', 'bubbling'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['pointerup', 'bottom_four', 'at target'],
-        ['pointerup', 'bottom', 'bubbling'],
-        ['pointerup', 'outer', 'bubbling'],
-        ['click', 'bottom_four', 'at target'],
-        ['click', 'bottom', 'bubbling'],
-        ['click', 'outer', 'bubbling'],
-        // actions.move_to_element(bottom_two).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointerout', 'bottom_four', 'at target'],
-        ['pointerout', 'bottom', 'bubbling'],
-        ['pointerout', 'outer', 'bubbling'],
-        ['pointerleave', 'bottom_four', 'at target'],
-        ['mouseout', 'bottom_four', 'at target'],
-        ['mouseout', 'bottom', 'bubbling'],
-        ['mouseout', 'outer', 'bubbling'],
-        ['mouseleave', 'bottom_four', 'at target'],
-        ['pointermove', 'bottom_two', 'at target'],
-        ['mousemove', 'bottom_two', 'at target'],
-        ['pointerover', 'bottom_two', 'at target'],
-        ['pointerenter', 'bottom_two', 'at target'],
-        ['mouseover', 'bottom_two', 'at target'],
-        ['mouseenter', 'bottom_two', 'at target'],
-        // actions.move_to_element(bottom_one).pause(_SLEEP_AFTER_MOVE_TIME)
-        ['pointerout', 'bottom_two', 'at target'],
-        ['pointerleave', 'bottom_two', 'at target'],
-        ['mouseout', 'bottom_two', 'at target'],
-        ['mouseleave', 'bottom_two', 'at target'],
-        ['pointermove', 'bottom_one', 'at target'],
-        ['mousemove', 'bottom_one', 'at target'],
-        ['pointerover', 'bottom_one', 'at target'],
-        ['pointerenter', 'bottom_one', 'at target'],
-        ['mouseover', 'bottom_one', 'at target'],
-        ['mouseenter', 'bottom_one', 'at target'],
-        // find_element_by_id(runner, 'end').click()
-        ['pointerout', 'bottom_one', 'at target'],
-        ['pointerleave', 'bottom_one', 'at target'],
-        ['pointerleave', 'bottom', 'at target'],
-        ['mouseout', 'bottom_one', 'at target'],
-        ['mouseleave', 'bottom_one', 'at target'],
-        ['mouseleave', 'bottom', 'at target'],
-        ['pointermove', 'end', 'at target'],
-        ['pointermove', 'outer', 'bubbling'],
-        ['mousemove', 'end', 'at target'],
-        ['mousemove', 'outer', 'bubbling'],
-        ['pointerover', 'end', 'at target'],
-        ['pointerover', 'outer', 'bubbling'],
-        ['pointerenter', 'end', 'at target'],
-        ['mouseover', 'end', 'at target'],
-        ['mouseover', 'outer', 'bubbling'],
-        ['mouseenter', 'end', 'at target'],
-        ['pointerdown', 'end', 'at target'],
-        ['pointerdown', 'outer', 'bubbling'],
-        ['mousedown', 'end', 'at target'],
-        ['mousedown', 'outer', 'bubbling'],
-        ['pointerup', 'end', 'at target'],
-        ['pointerup', 'outer', 'bubbling'],
-        ['mouseup', 'end', 'at target'],
-        ['mouseup', 'outer', 'bubbling'],
-        ['click', 'end', 'at target'],
-        ['click', 'outer', 'bubbling']];
+    function checkState(e) {
+      // Check the target element state when the event is 'at target'.
+      if (e.eventPhase == 2) {
+        // Verify that there is not a duplicated or missing event for enter,
+        // leave, over, out, up, or down.
+        trackAndVerifyTargetState(e, 'mouseenter', 'mouseenter', true);
+        trackAndVerifyTargetState(e, 'mouseleave', 'mouseenter', false);
+        trackAndVerifyTargetState(e, 'mouseover', 'mouseover', true);
+        trackAndVerifyTargetState(e, 'mouseout', 'mouseover', false);
+        trackAndVerifyTargetState(e, 'mousedown', 'mousedown', true);
+        trackAndVerifyTargetState(e, 'mouseup', 'mousedown', false);
 
-      var current_event_number = 0
-      var failure_count = 0;
-
-      function CheckEvent(name, id, phase) {
-        while ((current_event_number < expected_events.length) &&
-               ((expected_events[current_event_number][0] != name) ||
-               (expected_events[current_event_number][1] != id) ||
-               (expected_events[current_event_number][2] != phase))) {
-          console.log('ERROR: Missing Event [\'' +
-                      expected_events[current_event_number][0] + '\', \'' +
-                      expected_events[current_event_number][1] + '\', \'' +
-                      expected_events[current_event_number][2] + '\'],');
-          failure_count += 1;
-          current_event_number += 1;
-        }
-        if (current_event_number < expected_events.length) {
-          current_event_number += 1;
-        } else {
-          failure_count += 1;
-          console.log('ERROR: Unexpected Event [\'' + name + '\', \'' +
-                      id + '\', \'' + phase + '\'],');
-        }
+        trackAndVerifyTargetState(e, 'pointerenter', 'pointerenter', true);
+        trackAndVerifyTargetState(e, 'pointerleave', 'pointerenter', false);
+        trackAndVerifyTargetState(e, 'pointerover', 'pointerover', true);
+        trackAndVerifyTargetState(e, 'pointerout', 'pointerover', false);
+        trackAndVerifyTargetState(e, 'pointerdown', 'pointerdown', true);
+        trackAndVerifyTargetState(e, 'pointerup', 'pointerdown', false);
       }
+    }
 
-      function LogEvent(e) {
-        var pointertype = e.pointerType ? e.pointerType + ' ' : '';
-        var id = this.getAttribute('id')
-        CheckEvent(e.type, id, phasename(e.eventPhase))
-        console.log(e.type + ' ' + pointertype + id +
-                    ' (' + this.getAttribute('class') + ')' +
-                    ' [' + phasename(e.eventPhase) + ']' +
-                    ' (' + e.screenX + ',' + e.screenY + ')');
-      }
+    function setAllHandlers(prefix, selector, callback) {
+      setHandlers(prefix + 'enter', selector, callback);
+      setHandlers(prefix + 'leave', selector, callback);
+      setHandlers(prefix + 'over', selector, callback);
+      setHandlers(prefix + 'out', selector, callback);
+      setHandlers(prefix + 'down', selector, callback);
+      setHandlers(prefix + 'up', selector, callback);
+      setHandlers(prefix + 'move', selector, callback);
+    }
 
-      function EndTest(e) {
-        console.log('Ending test.')
-        assertTrue(failure_count == 0);
-        onEndTest();
-      }
+    window.onload = function () {
+      setAllHandlers('mouse', '.track', logEvent);
+      setAllHandlers('pointer', '.track', logEvent);
+      setHandlers('click', '.track', logEvent);
+      setAllHandlers('mouse', '.cancel', cancel);
+      setAllHandlers('pointer', '.cancel', cancel);
+      setAllHandlers('mouse', '.stop', stop);
+      setAllHandlers('pointer', '.stop', stop);
+      setHandlers('pointerdown', '.capture', capture);
+      setHandlers('click', '.end', endTest);
+      setAllHandlers('mouse', '*', checkState);
+      setAllHandlers('pointer', '*', checkState);
+      console.log("Setup finished");
+      setupFinished();
+    }
 
-      function Cancel(e) {
-        console.log('cancel');
-        e.preventDefault();
-      }
+  </script>
+  <div id="outer" class="track size40 grey">
+    <div id="top" class="track size20 blue">
+      <span id="top_one" class="track size10 cyan"></span>
+      <span id="top_two" class="track size10 purple"></span>
+      *A*
+      <span id="top_three" class="track size10 yellow"></span>
+      *B*
+      <span id="top_four" class="track capture size10 grey"></span>
+      <span id="top_five" class="track size10 green"></span>
+      <span id="top_six" class="track size10 cyan"></span>
+    </div>
+    <div id="bottom" class="track size20 green">
+      <span id="bottom_one" class="track stop size10 cyan"></span>
+      <span id="bottom_two" class="track stop size10 purple"></span>
+      *A*
+      <span id="bottom_three" class="track cancel size10 yellow"></span>
+      *B*
+      <span id="bottom_four" class="track cancel capture size10 grey"></span>
+      <span id="bottom_five" class="track cancel size10 blue"></span>
+      <span id="bottom_six" class="track size10 cyan"></span>
+    </div>
+    <div id="end" class="end track size10 blue">
+    </div>
+</body>
 
-      function Stop(e) {
-        console.log('stop');
-        e.stopPropagation();
-      }
-
-      function Capture(e) {
-        console.log('capture');
-        e.target.setPointerCapture(e.pointerId);
-      }
-
-      // If the event type has value 'type', then report an error if the
-      // 'name' property on the event target already has 'value'. Otherwise,
-      // set it to the 'value'. This is used to detect erroneous boundary
-      // events (enter/leave, over/out), and up/down event sequences on an
-      // element.
-      function TrackAndVerifyTargetState(event, type, name, value) {
-        if (event.type == type) {
-          if (event.target[name] == value) {
-            console.log('ERROR: ' + type + 'event received while ' +
-                        name + ' == ' + event.target[name]);
-            assertTrue(event.target[name] != value);
-          }
-          event.target[name] = value;
-        }
-      }
-
-      function CheckState(e) {
-        // Check the target element state when the event is 'at target'.
-        if (e.eventPhase == 2)  {
-          // Verify that there is not a duplicated or missing event for enter,
-          // leave, over, out, up, or down.
-          TrackAndVerifyTargetState(e, 'mouseenter', 'mouseenter', true);
-          TrackAndVerifyTargetState(e, 'mouseleave', 'mouseenter', false);
-          TrackAndVerifyTargetState(e, 'mouseover', 'mouseover', true);
-          TrackAndVerifyTargetState(e, 'mouseout', 'mouseover', false);
-          TrackAndVerifyTargetState(e, 'mousedown', 'mousedown', true);
-          TrackAndVerifyTargetState(e, 'mouseup', 'mousedown', false);
-
-          TrackAndVerifyTargetState(e, 'pointerenter', 'pointerenter', true);
-          TrackAndVerifyTargetState(e, 'pointerleave', 'pointerenter', false);
-          TrackAndVerifyTargetState(e, 'pointerover', 'pointerover', true);
-          TrackAndVerifyTargetState(e, 'pointerout', 'pointerover', false);
-          TrackAndVerifyTargetState(e, 'pointerdown', 'pointerdown', true);
-          TrackAndVerifyTargetState(e, 'pointerup', 'pointerdown', false);
-        }
-      }
-
-      function SetHandlers(event, selector, callback) {
-        var elements = document.querySelectorAll(selector);
-        for (var i = 0; i < elements.length; ++i) {
-          elements[i].addEventListener(event, callback);
-        }
-      }
-
-      function SetAllHandlers(prefix, selector, callback) {
-        SetHandlers(prefix + 'enter', selector, callback);
-        SetHandlers(prefix + 'leave', selector, callback);
-        SetHandlers(prefix + 'over', selector, callback);
-        SetHandlers(prefix + 'out', selector, callback);
-        SetHandlers(prefix + 'down', selector, callback);
-        SetHandlers(prefix + 'up', selector, callback);
-        SetHandlers(prefix + 'move', selector, callback);
-      }
-
-      window.onload = function() {
-        SetAllHandlers('mouse', '.track', LogEvent);
-        SetAllHandlers('pointer', '.track', LogEvent);
-        SetHandlers('click', '.track', LogEvent);
-        SetAllHandlers('mouse', '.cancel', Cancel);
-        SetAllHandlers('pointer', '.cancel', Cancel);
-        SetAllHandlers('mouse', '.stop', Stop);
-        SetAllHandlers('pointer', '.stop', Stop);
-        SetHandlers('pointerdown', '.capture', Capture);
-        SetHandlers('click', '.end', EndTest);
-        SetAllHandlers('mouse', '*', CheckState);
-        SetAllHandlers('pointer', '*', CheckState);
-        console.log("Setup finished");
-        setupFinished();
-      }
-
-    </script>
-    <div id="outer" class="track size40 grey">
-      <div id="top" class="track size20 blue">
-        <span id="top_one" class="track size10 cyan"></span>
-        <span id="top_two" class="track size10 purple"></span>
-        *A*
-        <span id="top_three" class="track size10 yellow"></span>
-        *B*
-        <span id="top_four" class="track capture size10 grey"></span>
-        <span id="top_five" class="track size10 green"></span>
-        <span id="top_six" class="track size10 cyan"></span>
-      </div>
-      <div id="bottom" class="track size20 green">
-        <span id="bottom_one" class="track stop size10 cyan"></span>
-        <span id="bottom_two" class="track stop size10 purple"></span>
-        *A*
-        <span id="bottom_three" class="track cancel size10 yellow"></span>
-        *B*
-        <span id="bottom_four" class="track cancel capture size10 grey"></span>
-        <span id="bottom_five" class="track cancel size10 blue"></span>
-        <span id="bottom_six" class="track size10 cyan"></span>
-      </div>
-      <div id="end" class="end track size10 blue">
-      </div>
-  </body>
 </html>
