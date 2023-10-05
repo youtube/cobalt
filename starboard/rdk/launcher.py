@@ -148,7 +148,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # rsync command setup
     options = '-avzLhc'
-    source = os.path.join(self.out_directory, 'content', 'app', 'cobalt')
+    source = os.path.join(self.out_directory, 'content', 'app',
+                          self.target_name)
     destination = f'{rdk_user_hostname}:{rdk_storage_dir}/'
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
 
@@ -160,10 +161,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
                         f'TERM=dumb bash -l')
 
     # test file preparation
+    # The very last 'cobalt' in the path is to meet the hard coded path
+    # used in RDK's loader
     rdk_tmp = '/var/lib/persistent/rdkservices/Cobalt/Cobalt/.cobalt_storage'
     self.test_prep_command = (f'rm -rf {rdk_tmp}; '
                               f'rm -rf {rdk_test_dir}/cobalt; '
-                              f'ln -s {rdk_storage_dir}/cobalt '
+                              f'ln -s {rdk_storage_dir}/{self.target_name} '
                               f'{rdk_test_dir}/cobalt')
 
     # test output tags
@@ -389,6 +392,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
       if not self.shutdown_initiated.is_set():
+        self._PexpectSendLine(self.test_prep_command)
+        self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
+        self._WaitForPrompt()
         self._PexpectSendLine(self.test_command)
         self._PexpectReadLines()
 
