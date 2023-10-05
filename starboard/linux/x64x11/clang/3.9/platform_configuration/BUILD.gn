@@ -16,9 +16,12 @@ config("compiler_flags") {
   cflags = []
   cflags_c = []
   cflags_cc = []
-  ldflags = []
   defines = []
 
+  ldflags = [
+    # Cleanup unused sections
+    "-Wl,-gc-sections",
+  ]
   cflags += [
     "-Werror",
     "-fcolor-diagnostics",
@@ -180,10 +183,15 @@ config("no_pedantic_warnings") {
 }
 
 config("platform_configuration") {
-  configs = [
-    "//starboard/linux/shared/platform_configuration",
-    "//starboard/linux/x64x11/shared/platform_configuration:libraries",
-    "//starboard/build/config/sabi",
-    ":compiler_flags",
-  ]
+  if (current_toolchain == default_toolchain &&
+      build_with_separate_cobalt_toolchain) {
+    configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+  } else {
+    configs = [
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/x64x11/shared/platform_configuration:libraries",
+      "//starboard/build/config/sabi",
+      ":compiler_flags",
+    ]
+  }
 }

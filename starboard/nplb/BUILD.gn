@@ -265,8 +265,8 @@ target(gtest_target_type, "nplb") {
     cflags = [ "-Wno-enum-constexpr-conversion" ]
   }
 
-  #  TODO: b/297808555 - Add these tests for windows based platform modular builds.
-  if (sb_is_modular && !sb_is_evergreen && is_host_win) {
+  #  TODO: b/297808555 - Add these tests for all  modular builds.
+  if (sb_has_unused_symbol_issue) {
     sources -= [
       "maximum_player_configuration_explorer.cc",
       "maximum_player_configuration_explorer.h",
