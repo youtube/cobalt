@@ -147,12 +147,6 @@ class SourceBuffer : public web::EventTarget {
   size_t memory_limit(script::ExceptionState* exception_state) const;
   void set_memory_limit(size_t limit, script::ExceptionState* exception_state);
 
-  // this is registered with SourceBufferState and is called upon creation of
-  // backng SourceBufferStream.
-  void OnMemoryLimitChange(size_t memory_limit) {
-    memory_limit_ = memory_limit;
-  }
-
  private:
   typedef ::media::MediaTracks MediaTracks;
   typedef script::ArrayBuffer ArrayBuffer;
@@ -232,8 +226,6 @@ class SourceBuffer : public web::EventTarget {
   size_t pending_append_data_capacity_ = 0;
 
   SourceBufferMetrics metrics_;
-
-  size_t memory_limit_ = 0;
 };
 
 }  // namespace dom

@@ -160,12 +160,8 @@ class MEDIA_EXPORT SourceBufferState {
   void SetParseWarningCallback(SourceBufferParseWarningCB parse_warning_cb);
 
 #if defined(STARBOARD)
-  using MemoryObserverCB = base::RepeatingCallback<void(size_t memory_size)>;
-  MemoryObserverCB on_memory_limit_change_;
-  void RegisterOnMemoryLimitChangeCallback(MemoryObserverCB memory_change_cb) {
-    on_memory_limit_change_ = std::move(memory_change_cb);
-  }
   void SetSourceBufferStreamMemoryLimit(size_t limit);
+  size_t GetSourceBufferStreamMemoryLimit();
   size_t stream_memory_limit_override_ = 0;
 #endif // defined(STARBOARD)
 
@@ -282,7 +278,6 @@ class MEDIA_EXPORT SourceBufferState {
 
   std::vector<AudioCodec> expected_audio_codecs_;
   std::vector<VideoCodec> expected_video_codecs_;
-
 };
 
 }  // namespace media

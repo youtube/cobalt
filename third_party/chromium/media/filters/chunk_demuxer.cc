@@ -238,8 +238,15 @@ base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
 size_t ChunkDemuxerStream::GetStreamMemoryLimit() {
   DCHECK(stream_);
   base::AutoLock auto_lock(lock_);
-  return stream_->GetMemoryLimit();
+  return stream_->memory_limit();
 }
+
+void ChunkDemuxerStream::SetStreamMemoryOverride() {
+  DCHECK(stream_);
+  base::AutoLock auto_lock(lock_);
+  stream_->SetMemoryOverride();
+}
+
 
 #endif  // defined(STARBOARD)
 
@@ -895,12 +902,6 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   return AddId(id, type, codecs);
 }
 
-void ChunkDemuxer::RegisterOnMemoryLimitChangeCallback(const std::string & guid,
-    MemoryObserverCB memory_cb) {
-  DCHECK(source_state_map_.find(guid) != source_state_map_.end());
-  source_state_map_[guid]->RegisterOnMemoryLimitChangeCallback(memory_cb);
-}
-
 #endif  // defined (STARBOARD)
 
 ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
@@ -1122,10 +1123,18 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
   return iter->second[0]->GetWriteHead();
 }
 
-void ChunkDemuxer::SetSourceBufferStreamMemoryLimit(const std::string & id,
+void ChunkDemuxer::SetSourceBufferStreamMemoryLimit(const std::string& id,
                                                     size_t limit) {
   DCHECK(source_state_map_.find(id) != source_state_map_.end());
   source_state_map_[id]->SetSourceBufferStreamMemoryLimit(limit);
+}
+
+size_t ChunkDemuxer::GetSourceBufferStreamMemoryLimit(const std::string& id) {
+
+  if (source_state_map_.find(id) == source_state_map_.end()) {
+    return 0;
+  }
+  return source_state_map_[id]->GetSourceBufferStreamMemoryLimit();
 }
 
 #endif  // defined(STARBOARD)

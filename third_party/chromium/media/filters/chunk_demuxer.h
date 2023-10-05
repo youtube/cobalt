@@ -133,6 +133,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 #if defined(STARBOARD)
   std::string mime_type() const override { return mime_type_; }
   size_t GetStreamMemoryLimit();
+  void SetStreamMemoryOverride();
 #endif  // defined (STARBOARD)
 
 #if defined(STARBOARD)
@@ -395,9 +396,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   base::TimeDelta GetWriteHead(const std::string& id) const;
 
   void SetSourceBufferStreamMemoryLimit(const std::string &guid , size_t limit);
-  using MemoryObserverCB = base::RepeatingCallback<void(size_t memory_size)>;
-  void RegisterOnMemoryLimitChangeCallback(const std::string& id,
-                                           MemoryObserverCB memory_change_cb);
+  size_t GetSourceBufferStreamMemoryLimit(const std::string &guid );
 #endif  // defined(STARBOARD)
 
   void OnMemoryPressure(

@@ -272,9 +272,6 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
   }
 
   DCHECK(source_buffer);
-  chunk_demuxer_->RegisterOnMemoryLimitChangeCallback(
-      guid,
-      base::BindRepeating(&SourceBuffer::OnMemoryLimitChange, source_buffer));
   source_buffers_->Add(source_buffer);
   return source_buffer;
 }

@@ -189,8 +189,11 @@ class MEDIA_EXPORT SourceBufferStream {
   }
 
 #if defined(STARBOARD)
-  size_t GetMemoryLimit() {
+  size_t memory_limit() const {
     return memory_limit_;
+  }
+  void SetMemoryOverride() {
+    memory_override_ = true;
   }
 #endif  // defined (STARBOARD)
 
@@ -411,6 +414,7 @@ class MEDIA_EXPORT SourceBufferStream {
   base::TimeDelta GetBufferedDurationForGarbageCollection() const;
 
   const std::string mime_type_;
+  bool memory_override_ = false;
 #endif  // defined (STARBOARD)
 
   // Used to report log messages that can help the web developer figure out what

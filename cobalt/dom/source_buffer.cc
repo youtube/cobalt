@@ -523,16 +523,34 @@ void SourceBuffer::TraceMembers(script::Tracer* tracer) {
 
 size_t SourceBuffer::memory_limit(
     script::ExceptionState* exception_state) const {
-  if (memory_limit_ == 0) {
+  if (!chunk_demuxer_) {
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
+    return 0;
+  }
+
+  size_t memory_limit = chunk_demuxer_->GetSourceBufferStreamMemoryLimit(id_);
+
+  if (memory_limit == 0) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
   }
-  return memory_limit_;
+  return memory_limit;
 }
 
 void SourceBuffer::set_memory_limit(size_t memory_limit,
                                     script::ExceptionState* exception_state) {
-  memory_limit_ = memory_limit;
+  if (!chunk_demuxer_) {
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
+
+  if (memory_limit == 0) {
+    web::DOMException::Raise(web::DOMException::kNotSupportedErr,
+                             exception_state);
+    return;
+  }
   chunk_demuxer_->SetSourceBufferStreamMemoryLimit(id_, memory_limit);
 }
 

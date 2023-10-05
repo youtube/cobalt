@@ -712,12 +712,6 @@ bool SourceBufferState::OnNewConfigs(
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
                                            media_log_);
-#if defined(STARBOARD)
-      if (!stream_memory_limit_override_) {
-        on_memory_limit_change_.Run(stream->GetStreamMemoryLimit());
-      }
-#endif // defined(STARBOARD)
-
     } else if (track->type() == MediaTrack::Video) {
       VideoDecoderConfig video_config = tracks->getVideoConfig(track_id);
       DVLOG(1) << "Video track_id=" << track_id
@@ -805,11 +799,6 @@ bool SourceBufferState::OnNewConfigs(
       track->set_id(stream->media_track_id());
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);
-#if defined(STARBOARD)
-      if (!stream_memory_limit_override_) {
-        on_memory_limit_change_.Run(stream->GetStreamMemoryLimit());
-      }
-#endif // defined(STARBOARD)
     } else {
       MEDIA_LOG(ERROR, media_log_) << "Error: unsupported media track type "
                                    << track->type();
@@ -928,12 +917,27 @@ bool SourceBufferState::OnNewConfigs(
 
 #if defined(STARBOARD)
 void SourceBufferState::SetSourceBufferStreamMemoryLimit(size_t limit) {
-  for (const auto& it : audio_streams_)
-    it.second->SetStreamMemoryLimit(limit);
-  for (const auto& it : video_streams_)
-    it.second->SetStreamMemoryLimit(limit);
-
   stream_memory_limit_override_ = limit;
+  SetStreamMemoryLimits();
+}
+
+size_t SourceBufferState::GetSourceBufferStreamMemoryLimit() {
+  // a source buffer can be backed my multiple Demuxer streams, although at
+  // YouTube we usually only have a single one. If we've set an override then
+  // all values will be the same, but we shouldn't assume that, so instead we'll
+  // return the largest here if there are multiple.
+  std::vector<size_t> memory_limits;
+  for (const auto& it : audio_streams_) {
+    memory_limits.push_back(it.second->GetStreamMemoryLimit());
+  }
+  for (const auto& it : video_streams_) {
+    memory_limits.push_back(it.second->GetStreamMemoryLimit());
+  }
+
+  if (memory_limits.empty()) return 0;
+
+  return *std::max_element(memory_limits.begin(), memory_limits.end());
+
 }
 #endif  // defined(STARBOARD)
 
@@ -942,10 +946,14 @@ void SourceBufferState::SetStreamMemoryLimits() {
   LOG(INFO) << "Custom SourceBuffer size limit="
             << stream_memory_limit_override_;
   if (stream_memory_limit_override_) {
-    for (const auto& it : audio_streams_)
+    for (const auto& it : audio_streams_) {
       it.second->SetStreamMemoryLimit(stream_memory_limit_override_);
-    for (const auto& it : video_streams_)
+      it.second->SetStreamMemoryOverride();
+    }
+    for (const auto& it : video_streams_) {
       it.second->SetStreamMemoryLimit(stream_memory_limit_override_);
+      it.second->SetStreamMemoryOverride();
+    }
   }
 #else  // defined(STARBOARD)
   size_t audio_buf_size_limit =
