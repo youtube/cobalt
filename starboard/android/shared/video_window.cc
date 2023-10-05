@@ -135,20 +135,24 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
     return;
   }
 
+  JniEnvExt* env = JniEnvExt::Get();
+  if (!env) {
+    SB_LOG(INFO) << "Tried to clear video window when JniEnvExt was null.";
+    return;
+  }
+
   if (force_reset_surface) {
-    JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("resetVideoSurface",
-                                                     "()V");
+    env->CallStarboardVoidMethodOrAbort("resetVideoSurface", "()V");
     return;
   } else if (g_reset_surface_on_clear_window) {
     int width = ANativeWindow_getWidth(g_native_video_window);
     int height = ANativeWindow_getHeight(g_native_video_window);
     if (width <= height) {
-      JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("resetVideoSurface",
-                                                       "()V");
+      env->CallStarboardVoidMethodOrAbort("resetVideoSurface", "()V");
       return;
     }
   }
-  JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("clearVideoSurface", "()V");
+  env->CallStarboardVoidMethodOrAbort("clearVideoSurface", "()V");
 }
 
 }  // namespace shared
