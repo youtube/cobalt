@@ -2383,6 +2383,8 @@ v8_source_set("v8_base_without_compiler") {
   # Split static libraries on windows into two.
   split_count = 2
 
+  cflags = []
+
   sources = [
     "//base/trace_event/common/trace_event_common.h",
 
@@ -3938,7 +3940,7 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (is_clang_16 && use_cobalt_customizations) {
-    cflags = [ "-Wno-implicit-const-int-float-conversion"]
+    cflags += [ "-Wno-implicit-const-int-float-conversion"]
   }
 
   configs = [
@@ -3947,7 +3949,7 @@ v8_source_set("v8_base_without_compiler") {
   ]
 
   if (is_starboard && is_win) {
-    cflags = [
+    cflags += [
       "/wd4267",
       "/wd4312",
       "/wd4351",
