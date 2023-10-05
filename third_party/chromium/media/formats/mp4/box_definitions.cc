@@ -1457,6 +1457,10 @@ bool IamfSpecificBox::Parse(BoxReader* reader) {
 }
 
 bool IamfSpecificBox::ReadOBU(BoxReader* reader, int& buffer_pos) {
+#if !defined(ARCH_CPU_LITTLE_ENDIAN)
+#error The code below assumes little-endianness.
+#endif
+
   uint8_t obu_type;
   uint32_t obu_size;
   RCHECK(ReadOBUHeader(reader, buffer_pos, &obu_type, &obu_size));
@@ -1508,11 +1512,9 @@ bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
   redundant_copy |= obu_redundant_copy;
   buffer_pos++;
 
-  const int kMaxEncodedLeb128bytes = sizeof(uint32_t);
-
   int num_bytes_read;
-  RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], obu_size, &num_bytes_read,
-                            kMaxEncodedLeb128bytes));
+  RCHECK(
+      reader->ReadLeb128(&config_obus[buffer_pos], obu_size, &num_bytes_read));
   buffer_pos += num_bytes_read;
   RCHECK(reader->HasBytes(*obu_size));
 
@@ -1520,11 +1522,11 @@ bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
   if (obu_extension_flag) {
     uint32_t extension_header_size;
     RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &extension_header_size,
-                              &num_bytes_read, kMaxEncodedLeb128bytes));
+                              &num_bytes_read));
     buffer_pos += num_bytes_read;
     RCHECK(*obu_size > extension_header_size + num_bytes_read);
     memcpy(&config_obus[buffer_pos], reader->buffer() + reader->pos(),
-         extension_header_size);
+           extension_header_size);
     buffer_pos += extension_header_size;
     RCHECK(reader->SkipBytes(extension_header_size));
     obu_size -= (num_bytes_read + extension_header_size);
