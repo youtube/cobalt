@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM cobalt-build-base
+ARG FROM_IMAGE
+FROM ${FROM_IMAGE:-cobalt-build-base}
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
