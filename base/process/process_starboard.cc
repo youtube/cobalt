@@ -23,6 +23,14 @@ base::ProcessId kStarboardFakeProcessId = 1;
 
 namespace base {
 
+ProcessId GetProcId(ProcessHandle) {
+  return kStarboardFakeProcessId;
+}
+
+ProcessId GetParentProcessId(ProcessHandle) {
+  return kStarboardFakeProcessId;
+}
+
 ProcessId GetCurrentProcId() {
   return kStarboardFakeProcessId;
 }
@@ -45,5 +53,14 @@ void Process::TerminateCurrentProcessImmediately(int exit_code) {
   std::_Exit(exit_code);
 }
 #endif  // !STARBOARD
+
+Process Process::Current() {
+  return Process();
+}
+
+Process::Process(ProcessHandle handle) {}
+Process::~Process() {}
+
+void Process::TerminateCurrentProcessImmediately(int) {}
 
 }  // namespace base

@@ -694,7 +694,7 @@ void FieldTrialList::CreateTrialsFromCommandLine(const CommandLine& cmd_line,
                                                  uint32_t fd_key) {
   global_->create_trials_from_command_line_called_ = true;
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if 0//!BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
   if (cmd_line.HasSwitch(switches::kFieldTrialHandle)) {
     std::string switch_value =
         cmd_line.GetSwitchValueASCII(switches::kFieldTrialHandle);
@@ -748,7 +748,7 @@ void FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(
     return;
   }
 
-#if !BUILDFLAG(IS_NACL)
+#if 0//!BUILDFLAG(IS_NACL)
   global_->field_trial_allocator_->UpdateTrackingHistograms();
   std::string switch_value = SerializeSharedMemoryRegionMetadata(
       global_->readonly_allocator_region_, launch_options);

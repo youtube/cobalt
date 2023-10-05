@@ -13,6 +13,10 @@ import("//build/toolchain/goma.gni")
 import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
 
+if (use_cobalt_customizations) {
+  import("//starboard/build/config/clang.gni")
+}
+
 if (is_nacl) {
   # To keep NaCl variables out of builds that don't include NaCl, all
   # variables defined in nacl/config.gni referenced here should be protected by

@@ -52,7 +52,9 @@ bool PlatformSharedMemoryRegion::CheckPlatformHandlePermissionsCorrespondToMode(
 //     const UnguessableToken& guid)
 //     : handle_(std::move(handle)), mode_(mode), size_(size), guid_(guid) {}
 
-
+PlatformSharedMemoryHandle PlatformSharedMemoryRegion::GetPlatformHandle() const {
+  return 0;
+}
 
 }
 }

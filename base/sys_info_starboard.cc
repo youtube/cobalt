@@ -78,4 +78,9 @@ std::string SysInfo::OperatingSystemVersion() {
   return SysInfo::OperatingSystemName();
 }
 
+SysInfo::HardwareInfo SysInfo::GetHardwareInfoSync() {
+  HardwareInfo info;
+  return info;
+}
+
 }  // namespace base

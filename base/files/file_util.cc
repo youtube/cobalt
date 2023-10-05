@@ -70,7 +70,8 @@ bool ReadStreamToSpanWithMaxSize(
   constexpr size_t kDefaultChunkSize = 1 << 16;
   size_t chunk_size = kDefaultChunkSize - 1;
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_WIN)
   BY_HANDLE_FILE_INFORMATION file_info = {};
   if (::GetFileInformationByHandle(
           reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(stream))),
@@ -172,7 +173,7 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if 0//BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
       internal::CopyFileContentsWithSendfile(infile, outfile, retry_slow);
