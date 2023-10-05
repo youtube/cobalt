@@ -95,6 +95,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   // The minimum frames required to avoid underruns of different frequencies.
   std::map<int, int> min_required_frames_map_;
   MinRequiredFramesTester min_required_frames_tester_;
+  bool has_remote_audio_output_ = false;
 };
 
 class AudioTrackAudioSink : public SbAudioSinkPrivate {
