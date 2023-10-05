@@ -36,6 +36,7 @@ jobs:
     with:
       platform: linux-clang-3-9
       nightly: ${{ github.event.inputs.nightly }}
+      modular: true
   linux-gcc-6-3:
     uses: ./.github/workflows/main.yaml
     permissions:
