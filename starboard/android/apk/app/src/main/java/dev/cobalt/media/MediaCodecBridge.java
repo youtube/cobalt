@@ -279,15 +279,15 @@ class MediaCodecBridge {
     }
 
     private boolean formatHasCropValues() {
-      if (!mFormatHasCropValues.isPresent()) {
+      if (!mFormatHasCropValues.isPresent() && mFormat != null) {
         boolean hasCropValues =
             mFormat.containsKey(KEY_CROP_RIGHT)
                 && mFormat.containsKey(KEY_CROP_LEFT)
                 && mFormat.containsKey(KEY_CROP_BOTTOM)
                 && mFormat.containsKey(KEY_CROP_TOP);
-        mFormatHasCropValues = Optional.of(hasCropValues);
+        mFormatHasCropValues = Optional.ofNullable(hasCropValues);
       }
-      return mFormatHasCropValues.get();
+      return mFormatHasCropValues.orElse(false);
     }
 
     @SuppressWarnings("unused")
