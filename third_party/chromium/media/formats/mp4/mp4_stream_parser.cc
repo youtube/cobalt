@@ -400,6 +400,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         // The correct values for the channel layout and sample rate can
         // be parsed from the bitstream in |extra_data|. They are set to
         // the following values here to create a valid AudioDecoderConfig.
+        // TODO: Parse the bitstream to set the correct values here.
         channel_layout = CHANNEL_LAYOUT_STEREO;
         sample_per_second = 48000;
 #endif  // defined(STARBOARD)
