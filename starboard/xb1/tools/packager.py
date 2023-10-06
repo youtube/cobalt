@@ -157,7 +157,7 @@ class Package(package.PackageBase):
     if not os.path.exists(source_dir):
       logging.error('Failed to find source content in: %s', source_dir)
       return
-    shutil.copytree(source_dir, appx_data_output_dir, dirs_exist_ok=True)
+    shutil.copytree(source_dir, appx_data_output_dir)
 
   @classmethod
   def SupportedPlatforms(cls):
