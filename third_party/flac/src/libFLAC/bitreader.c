@@ -33,7 +33,6 @@
 #  include <config.h>
 #endif
 
-#ifndef STARBOARD
 #include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memcpy(), memset() */
 #if defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
@@ -45,11 +44,6 @@
 #else
 #include <netinet/in.h> /* for ntohl() */
 #endif
-#endif  // STARBOARD
-
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-
 #include "private/bitmath.h"
 #include "private/bitreader.h"
 #include "private/crc.h"
@@ -67,11 +61,8 @@ typedef FLAC__uint32 brword;
 #if WORDS_BIGENDIAN
 #define SWAP_BE_WORD_TO_HOST(x) (x)
 #else
-#if defined(_MSC_VER) && !defined(COBALT)
+#ifdef _MSC_VER
 #define SWAP_BE_WORD_TO_HOST(x) local_swap32_(x)
-#elif defined(STARBOARD)
-#include "starboard/common/byte_swap.h"
-#define SWAP_BE_WORD_TO_HOST(x) SB_NET_TO_HOST_U32(x)
 #else
 #define SWAP_BE_WORD_TO_HOST(x) ntohl(x)
 #endif
@@ -132,7 +123,7 @@ static const unsigned char byte_to_unary_table[] = {
 
 /* adjust for compilers that can't understand using LLU suffix for uint64_t literals */
 #ifdef _MSC_VER
-#define FLAC__U64L(x) x
+#define FLAC__U64L(x) x##ULL
 #else
 #define FLAC__U64L(x) x##LLU
 #endif
@@ -158,28 +149,18 @@ struct FLAC__BitReader {
 	FLAC__CPUInfo cpu_info;
 };
 
-#if defined(_MSC_VER) && defined(HAVE_WINSOCK_H) && !defined(COBALT)
+#if defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
 /* OPT: an MSVC built-in would be better */
 static _inline FLAC__uint32 local_swap32_(FLAC__uint32 x)
 {
-	x = ((x<<8)&0xFF00FF00) | ((x>>8)&0x00FF00FF);
-	return (x>>16) | (x<<16);
+	return _byteswap_ulong(x);
 }
+
 static void local_swap32_block_(FLAC__uint32 *start, FLAC__uint32 len)
 {
-	__asm {
-		mov edx, start
-		mov ecx, len
-		test ecx, ecx
-loop1:
-		jz done1
-		mov eax, [edx]
-		bswap eax
-		mov [edx], eax
-		add edx, 4
-		dec ecx
-		jmp short loop1
-done1:
+	FLAC__uint32 *end;
+	for(end = start + len; start < end; ++start) {
+		*start = local_swap32_(*start);
 	}
 }
 #endif
@@ -271,8 +252,8 @@ FLAC__bool bitreader_read_from_client_(FLAC__BitReader *br)
 	 */
 #if WORDS_BIGENDIAN
 #else
-	end = (br->words*FLAC__BYTES_PER_WORD + br->bytes + bytes + (FLAC__BYTES_PER_WORD-1)) / FLAC__BYTES_PER_WORD;
-# if defined(_MSC_VER) && (FLAC__BYTES_PER_WORD == 4) && !defined(COBALT)
+	end = (br->words*FLAC__BYTES_PER_WORD + br->bytes + (unsigned)bytes + (FLAC__BYTES_PER_WORD-1)) / FLAC__BYTES_PER_WORD;
+# if defined(_MSC_VER) && (FLAC__BYTES_PER_WORD == 4)
 	if(br->cpu_info.type == FLAC__CPUINFO_TYPE_IA32 && br->cpu_info.data.ia32.bswap) {
 		start = br->words;
 		local_swap32_block_(br->buffer + start, end - start);
@@ -289,7 +270,7 @@ FLAC__bool bitreader_read_from_client_(FLAC__BitReader *br)
 	 *   buffer[LE]:  44 33 22 11 88 77 66 55 CC BB AA 99 ?? FF EE DD
 	 * finally we'll update the reader values:
 	 */
-	end = br->words*FLAC__BYTES_PER_WORD + br->bytes + bytes;
+	end = br->words*FLAC__BYTES_PER_WORD + br->bytes + (unsigned)bytes;
 	br->words = end / FLAC__BYTES_PER_WORD;
 	br->bytes = end % FLAC__BYTES_PER_WORD;
 
@@ -370,7 +351,6 @@ FLAC__bool FLAC__bitreader_clear(FLAC__BitReader *br)
 	return true;
 }
 
-#ifndef COBALT
 void FLAC__bitreader_dump(const FLAC__BitReader *br, FILE *out)
 {
 	unsigned i, j;
@@ -400,7 +380,6 @@ void FLAC__bitreader_dump(const FLAC__BitReader *br, FILE *out)
 		}
 	}
 }
-#endif  // COBALT
 
 void FLAC__bitreader_reset_read_crc16(FLAC__BitReader *br, FLAC__uint16 seed)
 {

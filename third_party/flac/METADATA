@@ -7,7 +7,8 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/chromium/deps/flac"
   }
-  version: "2ebf90f8beccb0fdbbf1cf3c39eac02280730d6d"
+  version: "0635a091379d9677f1ddde5f2eec85d0f096f219"
+  # from https://chromium.googlesource.com/chromium/src/+/39.0.2171.99/DEPS#278
   last_upgrade_date {
     year: 2012
     month: 10

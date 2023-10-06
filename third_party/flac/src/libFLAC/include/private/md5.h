@@ -28,10 +28,6 @@
 
 #include "FLAC/ordinals.h"
 
-#ifdef STARBOARD
-#include "starboard/types.h"
-#endif  // STARBOARD
-
 typedef struct {
 	FLAC__uint32 in[16];
 	FLAC__uint32 buf[4];
