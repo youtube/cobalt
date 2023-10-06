@@ -1,5 +1,7 @@
 {
   "docker_service": "build-linux-gcc",
+  "on_host_test": true,
+  "on_host_test_shards": ["0", "1", "2", "3", "blackbox", "wpt"],
   "platforms": [
     "linux-x64x11-gcc-6-3"
   ],
@@ -8,7 +10,7 @@
       "name":"gcc-6-3",
       "platform":"linux-x64x11-gcc-6-3",
       "target_platform":"linux-x64x11-gcc-6-3",
-      "extra_gn_arguments":"is_clang=false using_old_compiler=true"
+      "extra_gn_arguments":"using_old_compiler=true build_with_separate_cobalt_toolchain=true"
     }
   ]
 }
