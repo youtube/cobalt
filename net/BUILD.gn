@@ -1711,8 +1711,8 @@ component("net") {
   defines = [ "NET_IMPLEMENTATION" ]
 
   include_dirs = [
-    "//third_party/brotli/c/dec",
-    "//third_party/brotli/c/include",
+    "//third_party/brotli/dec",
+    "//third_party/brotli/include",
   ]
 
   deps = [

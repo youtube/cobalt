@@ -20,6 +20,7 @@ import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
+import android.os.Build;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -146,30 +147,38 @@ public class MediaCodecCapabilitiesLogger {
           return codecCapabilities.isFeatureSupported(
               MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
         });
-    featureMap.put(
-        "FrameParsing",
-        (name, codecCapabilities) -> {
-          return codecCapabilities.isFeatureSupported(
-              MediaCodecInfo.CodecCapabilities.FEATURE_FrameParsing);
-        });
-    featureMap.put(
-        "LowLatency",
-        (name, codecCapabilities) -> {
-          return codecCapabilities.isFeatureSupported(
-              MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency);
-        });
-    featureMap.put(
-        "MultipleFrames",
-        (name, codecCapabilities) -> {
-          return codecCapabilities.isFeatureSupported(
-              MediaCodecInfo.CodecCapabilities.FEATURE_MultipleFrames);
-        });
-    featureMap.put(
-        "PartialFrame",
-        (name, codecCapabilities) -> {
-          return codecCapabilities.isFeatureSupported(
-              MediaCodecInfo.CodecCapabilities.FEATURE_PartialFrame);
-        });
+    if (Build.VERSION.SDK_INT >= 29) {
+      featureMap.put(
+          "FrameParsing",
+          (name, codecCapabilities) -> {
+            return codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_FrameParsing);
+          });
+    }
+    if (Build.VERSION.SDK_INT >= 30) {
+      featureMap.put(
+          "LowLatency",
+          (name, codecCapabilities) -> {
+            return codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency);
+          });
+    }
+    if (Build.VERSION.SDK_INT >= 29) {
+      featureMap.put(
+          "MultipleFrames",
+          (name, codecCapabilities) -> {
+            return codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_MultipleFrames);
+          });
+    }
+    if (Build.VERSION.SDK_INT >= 26) {
+      featureMap.put(
+          "PartialFrame",
+          (name, codecCapabilities) -> {
+            return codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_PartialFrame);
+          });
+    }
     featureMap.put(
         "SecurePlayback",
         (name, codecCapabilities) -> {
