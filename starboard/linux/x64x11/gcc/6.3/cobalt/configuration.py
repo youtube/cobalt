@@ -13,6 +13,8 @@
 # limitations under the License.
 """Starboard Linux x64x11 GCC 6.3 Cobalt configuration."""
 
+import os
+
 from starboard.linux.shared.cobalt import configuration as shared_configuration
 from starboard.tools.testing import test_filter
 
@@ -33,3 +35,8 @@ class CobaltLinuxX64X11Gcc63Configuration(
           'ZipReaderTest.ExtractToFileAsync_RegularFile',
       ],
   }
+  if os.getenv('MODULAR_BUILD', '0') == '1':
+    # TODO: b/303845477 Re-enable.
+    __FILTERED_TESTS['blackbox'] = [
+        'wasm_basic_test',
+    ]
