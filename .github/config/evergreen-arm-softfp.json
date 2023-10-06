@@ -15,8 +15,7 @@
   "platforms": [
     "evergreen-arm-softfp",
     "evergreen-arm-softfp-sbversion-15",
-		"evergreen-arm-softfp-sbversion-14",
-    "evergreen-arm-softfp-sbversion-13"
+		"evergreen-arm-softfp-sbversion-14"
   ],
   "includes": [
     {
@@ -44,14 +43,6 @@
       "extra_gn_arguments":"use_asan=false",
       "sb_api_version":"sb_api_version=14",
       "bootloader_extra_gn_arguments": "target_os=\\\"android\\\" sb_is_evergreen_compatible=true"
-    },
-    {
-      "name":"sbversion-13",
-      "platform":"evergreen-arm-softfp-sbversion-13",
-      "target_platform":"evergreen-arm-softfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=13"
     }
   ]
 }
