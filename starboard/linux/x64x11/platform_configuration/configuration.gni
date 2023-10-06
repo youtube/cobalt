@@ -17,4 +17,3 @@ import(
 
 gl_type = "angle"
 sb_angle_enable_gl = true
-is_clang_16 = true

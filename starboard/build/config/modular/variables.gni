@@ -14,7 +14,3 @@
 
 assert(current_toolchain == default_toolchain,
        "Cannot access variables for non-default toolchains")
-
-if (!is_host_win) {
-  is_clang_16 = true
-}

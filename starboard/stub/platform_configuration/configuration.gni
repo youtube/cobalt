@@ -29,6 +29,4 @@ pedantic_warnings_config_path =
 no_pedantic_warnings_config_path =
     "//starboard/stub/platform_configuration:no_pedantic_warnings"
 
-is_clang_16 = true
-
 v8_enable_webassembly = true
