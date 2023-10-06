@@ -166,7 +166,7 @@ declare_args() {
   use_skia_next = false
 
   # Enable when using clang 16.
-  is_clang_16 = true
+  is_clang_16 = is_clang
 
   # Enable WASM and install WebAssembly global.
   v8_enable_webassembly = false

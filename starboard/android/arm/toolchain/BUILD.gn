@@ -26,6 +26,7 @@ gcc_toolchain("target") {
 
   toolchain_args = {
     is_clang = true
+    is_clang_16 = false
   }
 }
 
@@ -41,5 +42,6 @@ gcc_toolchain("native_target") {
     is_starboard = false
     is_native_target_build = true
     is_clang = true
+    is_clang_16 = false
   }
 }

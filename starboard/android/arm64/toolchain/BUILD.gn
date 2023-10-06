@@ -27,5 +27,6 @@ gcc_toolchain("target") {
 
   toolchain_args = {
     is_clang = true
+    is_clang_16 = false
   }
 }
