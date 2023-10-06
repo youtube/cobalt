@@ -25,17 +25,6 @@ cobalt_clang_toolchain("cobalt") {
   }
 }
 
-overridable_gcc_toolchain("target") {
-  cc = "${_target_llvm_3_9_bin_dir}/clang"
-  cxx = "${_target_llvm_3_9_bin_dir}/clang++"
-  ld = cxx
-  ar = "ar"
-
-  toolchain_args = {
-    is_clang = true
-  }
-}
-
 overridable_gcc_toolchain("starboard") {
   cc = "${_target_llvm_3_9_bin_dir}/clang"
   cxx = "${_target_llvm_3_9_bin_dir}/clang++"
