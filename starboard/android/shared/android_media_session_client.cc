@@ -135,6 +135,9 @@ void OnceInit() {
 }
 
 void NativeInvokeAction(jlong action, jlong seek_ms) {
+  // Follow the behavior of key events to define the seek forward/backward
+  // offset as 10 seconds.
+  const int kMediaSessionSeekOffset = 10;
   SbOnce(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
@@ -145,6 +148,11 @@ void NativeInvokeAction(jlong action, jlong seek_ms) {
     // CobaltMediaSession.java only sets seek_ms for SeekTo (not ff/rew).
     if (details.action == kCobaltExtensionMediaSessionActionSeekto) {
       details.seek_time = seek_ms / 1000.0;
+    } else if (details.action ==
+                   kCobaltExtensionMediaSessionActionSeekbackward ||
+               details.action ==
+                   kCobaltExtensionMediaSessionActionSeekforward) {
+      details.seek_offset = kMediaSessionSeekOffset;
     }
     g_invoke_action_callback(details, g_callback_context);
   }
