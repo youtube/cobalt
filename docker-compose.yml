@@ -398,6 +398,19 @@ services:
       CONFIG: ${CONFIG:-debug}
       SB_API_VERSION: ${SB_API_VERSION}
 
+  # Defined common build image for android-evergreen
+  build-android-evergreen:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: android/Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-evergreen
+    image: cobalt-build-android-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      <<: *shared-build-env
+
   # Example usage of unittest:
   # 1. Build the containers for which you want to unittest
   # docker compose up --build --no-start linux-x64x11-unittest

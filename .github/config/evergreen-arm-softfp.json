@@ -1,10 +1,21 @@
 {
-  "docker_service": "build-evergreen",
+  "docker_service": "build-android-evergreen",
+  "bootloader": "android-arm",
+  "on_device_test": {
+    "enabled": false,
+    "tests": [
+      "evergreen_test",
+      "0",
+      "1",
+      "2",
+      "3"
+    ],
+    "test_attempts": 2
+  },
   "platforms": [
     "evergreen-arm-softfp",
     "evergreen-arm-softfp-sbversion-15",
-		"evergreen-arm-softfp-sbversion-14",
-    "evergreen-arm-softfp-sbversion-13"
+		"evergreen-arm-softfp-sbversion-14"
   ],
   "includes": [
     {
@@ -12,7 +23,8 @@
       "platform":"evergreen-arm-softfp",
       "target_platform":"evergreen-arm-softfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false"
+      "extra_gn_arguments":"use_asan=false",
+      "bootloader_extra_gn_arguments": "target_os=\\\"android\\\" sb_is_evergreen_compatible=true"
     },
     {
       "name":"sbversion-15",
@@ -20,7 +32,8 @@
       "target_platform":"evergreen-arm-softfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=15"
+      "sb_api_version":"sb_api_version=15",
+      "bootloader_extra_gn_arguments": "target_os=\\\"android\\\" sb_is_evergreen_compatible=true"
     },
     {
       "name":"sbversion-14",
@@ -28,15 +41,8 @@
       "target_platform":"evergreen-arm-softfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=14"
-    },
-    {
-      "name":"sbversion-13",
-      "platform":"evergreen-arm-softfp-sbversion-13",
-      "target_platform":"evergreen-arm-softfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=13"
+      "sb_api_version":"sb_api_version=14",
+      "bootloader_extra_gn_arguments": "target_os=\\\"android\\\" sb_is_evergreen_compatible=true"
     }
   ]
 }
