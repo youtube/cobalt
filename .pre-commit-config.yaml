@@ -11,7 +11,7 @@ exclude: |
             base|
             build|
             buildtools|
-            cobalt/updater/win|
+            cobalt/updater|
             components/crash/core/common|
             components/metrics_services_manager|
             components/metrics|
