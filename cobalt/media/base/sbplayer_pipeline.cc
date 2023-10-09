@@ -1010,12 +1010,17 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     return;
   }
 
+  if (stopped_) {
+    return;
+  }
+
+  DCHECK(player_bridge_);
+
   DemuxerStream* stream =
       type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_;
   DCHECK(stream);
 
-  // In case if Stop() has been called.
-  if (!player_bridge_) {
+  if (!player_bridge_ || !stream) {
     return;
   }
 
