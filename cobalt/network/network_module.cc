@@ -112,10 +112,11 @@ void NetworkModule::SetEnableQuicFromPersistentSettings() {
 
 void NetworkModule::SetEnableClientHintHeadersFlagsFromPersistentSettings() {
   // Called on initialization and when the persistent setting is changed.
+  // If persistent setting is not set, will default to kCallTypeLoader.
   if (options_.persistent_settings != nullptr) {
     enable_client_hint_headers_flags_.store(
         options_.persistent_settings->GetPersistentSettingAsInt(
-            kClientHintHeadersEnabledPersistentSettingsKey, 0));
+            kClientHintHeadersEnabledPersistentSettingsKey, kCallTypeLoader));
   }
 }
 
