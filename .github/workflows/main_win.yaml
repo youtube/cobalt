@@ -130,7 +130,7 @@ jobs:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: false
       - name: Login to Docker Registry ${{env.REGISTRY}}
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
