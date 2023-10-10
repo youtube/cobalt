@@ -9,9 +9,9 @@ third_party {
   }
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/url"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "dd8c8657d7804caaad779e87c76f293802b2dbf5"
+  version: "70.0.3538.110"
   last_upgrade_date {
     year: 2018
     month: 8
