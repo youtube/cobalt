@@ -937,7 +937,6 @@ size_t SourceBufferState::GetSourceBufferStreamMemoryLimit() {
   if (memory_limits.empty()) return 0;
 
   return *std::max_element(memory_limits.begin(), memory_limits.end());
-
 }
 #endif  // defined(STARBOARD)
 
