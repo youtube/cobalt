@@ -1025,6 +1025,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+  AddCrashLogApplicationState(base::kApplicationStateStarted);
 }
 
 Application::~Application() {
