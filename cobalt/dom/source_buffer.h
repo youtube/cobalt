@@ -223,6 +223,8 @@ class SourceBuffer : public web::EventTarget {
   size_t pending_append_data_capacity_ = 0;
 
   SourceBufferMetrics metrics_;
+
+  int file_index = 0;
 };
 
 }  // namespace dom

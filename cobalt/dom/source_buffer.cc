@@ -61,6 +61,7 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/web_settings.h"
+#include "starboard/file.h"
 #include "third_party/chromium/media/base/ranges.h"
 #include "third_party/chromium/media/base/timestamp_constants.h"
 
@@ -580,6 +581,24 @@ void SourceBuffer::AppendBufferInternal(
     script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBufferInternal()", "size",
                size);
+  LOG(INFO) << "Append buffer of " << size << " bytes to SourceBuffer (0x"
+            << this << "), id " << id_;
+
+  std::string file_name = id_ + "___" + std::to_string(file_index) + ".dmp";
+  ++file_index;
+
+  bool created = false;
+  SbFileError error = kSbFileOk;
+  SbFile file = SbFileOpen(file_name.c_str(), kSbFileCreateOnly | kSbFileWrite,
+                           &created, &error);
+  CHECK_NE(file, kSbFileInvalid);
+
+  CHECK_EQ(SbFileWriteAll(file, reinterpret_cast<const char*>(data), size),
+           static_cast<int>(size));
+  LOG(INFO) << "XMSHI: written " << size << " to file " << file_name;
+
+  SbFileClose(file);
+
   if (!PrepareAppend(size, exception_state)) {
     return;
   }
