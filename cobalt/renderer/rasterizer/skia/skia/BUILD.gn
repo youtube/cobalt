@@ -42,21 +42,15 @@ config("skia_opts") {
 skia_common("skia_library_no_asan") {
   check_includes = false
   sources = skia_effects_imagefilter_sources_no_asan
-  if (use_skia_next) {
-    include_dirs = [ skia_include_dir ]
-    defines = [
-      "USE_SKIA_NEXT",
-      "SKIA_STRUCTURED_BINDINGS_BACKPORT",
-    ]
-    if (is_clang) {
-      if (using_old_compiler) {
-        cflags_cc = [ "-Wno-c++1z-extensions" ]
-      } else {
-        cflags_cc = [
-          "-Wno-c++17-extensions",
-          "-Wno-invalid-offsetof",
-        ]
-      }
+  if (is_clang) {
+    if (using_old_compiler) {
+      cflags_cc = [ "-Wno-c++1z-extensions" ]
+    } else {
+      cflags_cc = [
+        "-Wno-c++17-extensions",
+        "-Wno-invalid-offsetof",
+        "-Wno-psabi",
+      ]
     }
   }
 
@@ -92,20 +86,15 @@ config("skia_library_config_public") {
 
   defines = [ "SK_BUILD_NO_OPTS" ]
 
-  if (use_skia_next) {
-    defines += [
-      "USE_SKIA_NEXT",
-      "SKIA_STRUCTURED_BINDINGS_BACKPORT",
-    ]
-    if (is_clang) {
-      if (using_old_compiler) {
-        cflags_cc = [ "-Wno-c++1z-extensions" ]
-      } else {
-        cflags_cc = [
-          "-Wno-c++17-extensions",
-          "-Wno-invalid-offsetof",
-        ]
-      }
+  if (is_clang) {
+    if (using_old_compiler) {
+      cflags_cc = [ "-Wno-c++1z-extensions" ]
+    } else {
+      cflags_cc = [
+        "-Wno-c++17-extensions",
+        "-Wno-invalid-offsetof",
+        "-Wno-psabi",
+      ]
     }
   }
 }
