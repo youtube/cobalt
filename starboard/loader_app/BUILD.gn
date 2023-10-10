@@ -42,7 +42,7 @@ group("common_loader_app_dependencies") {
 
 if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
   copy("copy_loader_app_content") {
-    # install_content = true
+    install_content = true
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
       sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/content" ]
     } else if (target_cpu == "arm64") {
@@ -53,7 +53,7 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
     outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/content" ]
   }
   copy("copy_loader_app_manifest") {
-    # install_content = true
+    install_content = true
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
       sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/manifest.json" ]
     } else if (target_cpu == "arm64") {
@@ -69,7 +69,7 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
   # that the Package Manager extracts it to the file system on install, is
   # borrowed from Chrome on Android.
   copy("copy_crashpad_handler_named_as_so") {
-    # install_content = true
+    install_content = true
     sources = [ "$root_out_dir/native_target/crashpad_handler" ]
     outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
     deps = [ "//third_party/crashpad/handler:crashpad_handler(//starboard/android/arm/toolchain:native_target)" ]

@@ -184,7 +184,7 @@ target(gtest_target_type, "elf_loader_test") {
 }
 
 copy("copy_elf_loader_testdata") {
-  # install_content = true
+  install_content = true
   sources = [
     "testdata/compressed.lz4",
     "testdata/compressed_no_content_size.lz4",

@@ -395,7 +395,7 @@ if (icu_use_data_file) {
   if (is_starboard) {
     not_needed([ "data_bundle", "data_dir" ])
     copy("icudata") {
-      # install_content = true
+      install_content = true
       filename = "icudt68l.dat"
       sources = [ "$static_contents_source_dir/icu/$filename"]
       output = "$sb_static_contents_output_data_dir/icu/$filename"
