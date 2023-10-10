@@ -300,6 +300,13 @@ class TestRunner(object):
     else:
       self.test_targets = self._GetTestTargets(platform_tests_only)
     logging.info("Got test targets")
+
+    if "android-arm" in self.loader_platform and \
+       "evergreen-arm-softfp" in self.platform:
+      for target in self.test_targets:
+        target += "_evergreen_loader"
+        logging.info("AOSP test target: %s", target)
+
     self.test_env_vars = self._GetAllTestEnvVariables()
 
     # Read the sharding configuration from deployed sharding configuration json.

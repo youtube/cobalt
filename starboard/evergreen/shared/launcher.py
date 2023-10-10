@@ -94,7 +94,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # TODO: Figure out a place for the launcher to do this prep work that is not
     # part of the constructor.
-    self._StageTargetsAndContents()
+    if 'android-arm' not in self.loader_platform:
+      self._StageTargetsAndContents()
 
     # Ensure the path, relative to the content of the ELF Loader, to the
     # Evergreen target and its content are passed as command line switches.
