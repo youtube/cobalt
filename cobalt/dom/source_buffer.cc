@@ -580,6 +580,9 @@ void SourceBuffer::AppendBufferInternal(
     script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBufferInternal()", "size",
                size);
+  LOG(INFO) << "Append buffer of " << size << " bytes to SourceBuffer (0x"
+            << this << "), id " << id_;
+
   if (!PrepareAppend(size, exception_state)) {
     return;
   }

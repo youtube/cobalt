@@ -68,6 +68,8 @@ void SourceBufferAppendAlgorithm::Process(bool* finished) {
                "append_size", append_size);
 
   metrics_->StartTracking();
+  LOG(INFO) << "Appending " << append_size << " bytes to SourceBuffer id "
+            << id_;
   succeeded_ = chunk_demuxer_->AppendData(
       id_, buffer_, append_size, append_window_start_, append_window_end_,
       &timestamp_offset_);
