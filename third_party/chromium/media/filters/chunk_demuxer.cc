@@ -241,10 +241,10 @@ size_t ChunkDemuxerStream::GetStreamMemoryLimit() {
   return stream_->memory_limit();
 }
 
-void ChunkDemuxerStream::SetStreamMemoryLimitOverride() {
+void ChunkDemuxerStream::SetStreamMemoryLimitOverride(size_t memory_limit) {
   DCHECK(stream_);
   base::AutoLock auto_lock(lock_);
-  stream_->SetMemoryOverride();
+  stream_->set_memory_limit_override(memory_limit);
 }
 
 

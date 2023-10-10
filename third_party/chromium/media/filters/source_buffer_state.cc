@@ -946,12 +946,10 @@ void SourceBufferState::SetStreamMemoryLimits() {
             << stream_memory_limit_override_;
   if (stream_memory_limit_override_) {
     for (const auto& it : audio_streams_) {
-      it.second->SetStreamMemoryLimit(stream_memory_limit_override_);
-      it.second->SetStreamMemoryOverride();
+      it.second->SetStreamMemoryLimitOverride(stream_memory_limit_override_);
     }
     for (const auto& it : video_streams_) {
-      it.second->SetStreamMemoryLimit(stream_memory_limit_override_);
-      it.second->SetStreamMemoryOverride();
+      it.second->SetStreamMemoryLimitOverride(stream_memory_limit_override_);
     }
   }
 #else  // defined(STARBOARD)

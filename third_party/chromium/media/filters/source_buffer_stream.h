@@ -192,7 +192,8 @@ class MEDIA_EXPORT SourceBufferStream {
   size_t memory_limit() const {
     return memory_limit_;
   }
-  void SetMemoryOverride() {
+  void set_memory_limit_override(size_t memory_limit) {
+    memory_limit_ = memory_limit;
     memory_override_ = true;
   }
 #endif  // defined (STARBOARD)

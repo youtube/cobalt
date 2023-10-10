@@ -133,7 +133,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 #if defined(STARBOARD)
   std::string mime_type() const override { return mime_type_; }
   size_t GetStreamMemoryLimit();
-  void SetStreamMemoryLimitOverride();
+  void SetStreamMemoryLimitOverride(size_t memory_limit);
 #endif  // defined (STARBOARD)
 
 #if defined(STARBOARD)
