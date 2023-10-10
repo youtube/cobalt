@@ -30,6 +30,7 @@ RUN apt update -qqy \
         libxi-dev \
         libxrender1 \
         procps \
+        systemd \
         unzip \
         xauth \
         xvfb \
