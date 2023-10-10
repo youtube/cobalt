@@ -69,6 +69,10 @@ jobs:
         github.event.label.name == 'on_device'
       )
     steps:
+      - id: set-timezone
+        uses: szenius/set-timezone@ce9c440bc3af4f51b28d7ef7e5c47ee8f26c8dcb # v1.2
+        with:
+          timezoneLinux: "America/Los_Angeles"
       - id: checkout
         uses: kaidokert/checkout@v3.5.999
         with:
@@ -142,6 +146,10 @@ jobs:
     permissions:
       packages: write
     steps:
+      - id: set-timezone
+        uses: szenius/set-timezone@ce9c440bc3af4f51b28d7ef7e5c47ee8f26c8dcb # v1.2
+        with:
+          timezoneLinux: "America/Los_Angeles"
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
         with:
@@ -177,6 +185,10 @@ jobs:
       packages: write
     runs-on: [self-hosted, linux, X64]
     steps:
+      - id: set-timezone
+        uses: szenius/set-timezone@ce9c440bc3af4f51b28d7ef7e5c47ee8f26c8dcb # v1.2
+        with:
+          timezoneLinux: "America/Los_Angeles"
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
         with:
@@ -223,6 +235,10 @@ jobs:
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
+      - id: set-timezone
+        uses: szenius/set-timezone@ce9c440bc3af4f51b28d7ef7e5c47ee8f26c8dcb # v1.2
+        with:
+          timezoneLinux: "America/Los_Angeles"
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
         with:
@@ -310,6 +326,10 @@ jobs:
       ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
+      - id: set-timezone
+        uses: szenius/set-timezone@ce9c440bc3af4f51b28d7ef7e5c47ee8f26c8dcb # v1.2
+        with:
+          timezoneLinux: "America/Los_Angeles"
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
         with:
@@ -341,6 +361,10 @@ jobs:
       COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
       MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
     steps:
+      - id: set-timezone
+        uses: szenius/set-timezone@ce9c440bc3af4f51b28d7ef7e5c47ee8f26c8dcb # v1.2
+        with:
+          timezoneLinux: "America/Los_Angeles"
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
         with:
