@@ -327,7 +327,8 @@ GpuVideoDecoderBase::GpuVideoDecoderBase(
       d3d12_device_(d3d12_device),
       d3d12_queue_(d3d12_queue),
       d3d12FrameBuffersHeap_(d3d12OutputPoolBufferHeap),
-      frame_buffers_condition_(frame_buffers_mutex_) {
+      frame_buffers_condition_(frame_buffers_mutex_),
+      drained_condition_(drained_mutex_) {
   SB_DCHECK(d3d12_device_);
   SB_DCHECK(d3d12_queue_);
   SB_DCHECK(d3d12FrameBuffersHeap_);
@@ -475,6 +476,16 @@ void GpuVideoDecoderBase::Reset() {
     decoder_status_cb_(kReleaseAllFrames, nullptr);
     decoder_thread_->job_queue()->Schedule(
         std::bind(&GpuVideoDecoderBase::DrainDecoder, this));
+    {
+      // Before calling decoder_thread_.reset() wait until
+      // OnDecoderDrained is put into job queue.
+      ScopedLock lock(drained_mutex_);
+      if (!drained_condition_.WaitTimed(3 * kSbTimeSecond)) {
+        SB_NOTREACHED();
+        ReportError(kSbPlayerErrorDecode,
+                    "Timed out on waiting for drain finish.");
+      }
+    }
     decoder_thread_.reset();
   }
   pending_inputs_.clear();
@@ -592,9 +603,6 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
             decoder_behavior_.load() == kResettingDecoder);
 
   is_waiting_frame_after_drain_ = true;
-  if (decoder_behavior_.load() == kResettingDecoder || error_occured_) {
-    return;
-  }
 
   if (!BelongsToDecoderThread()) {
     decoder_thread_->job_queue()->Schedule(
@@ -602,11 +610,12 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
     return;
   }
 
-  SB_DCHECK(written_inputs_.empty());
   if (decoder_behavior_.load() == kEndingStream) {
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
   }
   decoder_behavior_.store(kDecodingStopped);
+  ScopedLock lock(drained_mutex_);
+  drained_condition_.Signal();
 }
 
 void GpuVideoDecoderBase::ClearCachedImages() {
