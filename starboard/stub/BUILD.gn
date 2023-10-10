@@ -118,7 +118,7 @@ static_library("stub_sources") {
     "//starboard/shared/stub/media_is_audio_supported.cc",
     "//starboard/shared/stub/media_is_buffer_pool_allocate_on_demand.cc",
     "//starboard/shared/stub/media_is_buffer_using_memory_pool.cc",
-    "//starboard/shared/stub/media_is_supported.cc",
+    "//starboard/shared/stub/media_is_key_system_supported.cc",
     "//starboard/shared/stub/media_is_video_supported.cc",
     "//starboard/shared/stub/media_set_audio_write_duration.cc",
     "//starboard/shared/stub/memory_allocate_aligned_unchecked.cc",

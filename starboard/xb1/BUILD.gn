@@ -217,7 +217,7 @@ static_library("starboard_platform") {
       "//internal/starboard/xb1/av1_video_decoder.h",
       "//internal/starboard/xb1/drm_create_system.cc",
       "//internal/starboard/xb1/internal_shims.cc",
-      "//internal/starboard/xb1/media_is_supported.cc",
+      "//internal/starboard/xb1/media_is_key_system_supported.cc",
       "//internal/starboard/xb1/oemcrypto_engine_device_properties_xb1.cc",
       "//internal/starboard/xb1/system_sign_with_certification_secret_key.cc",
       "//internal/starboard/xb1/vpx_video_decoder.cc",
@@ -240,7 +240,7 @@ static_library("starboard_platform") {
   } else {
     sources += [
       "//starboard/shared/stub/drm_create_system.cc",
-      "//starboard/shared/stub/media_is_supported.cc",
+      "//starboard/shared/stub/media_is_key_system_supported.cc",
       "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
       "//starboard/shared/uwp/keys.cc",
       "//starboard/xb1/public_system_properties.cc",

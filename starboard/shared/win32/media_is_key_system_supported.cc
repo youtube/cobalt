@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,17 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/media.h"
+#include "starboard/shared/win32/drm_system_playready.h"
 
-bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        const char* key_system) {
-  return false;
+bool SbMediaIsKeySystemSupported(
+    SbMediaVideoCodec video_codec,
+    SbMediaAudioCodec audio_codec,
+    const starboard::shared::starboard::media::MimeType* mime_type,
+    const char* key_system) {
+  using ::starboard::shared::win32::DrmSystemPlayready;
+
+  return DrmSystemPlayready::IsKeySystemSupported(key_system);
 }
