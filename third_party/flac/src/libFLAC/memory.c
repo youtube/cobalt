@@ -36,7 +36,6 @@
 #include "private/memory.h"
 #include "FLAC/assert.h"
 #include "share/alloc.h"
-
 #include "starboard/client_porting/poem/stdio_poem.h"
 
 void *FLAC__memory_alloc_aligned(size_t bytes, void **aligned_address)

@@ -48,7 +48,6 @@
 #else  // STARBOARD
 #include "starboard/client_porting/poem/stdio_poem.h"
 #endif  // STARBOARD
-
 #if 0 /* UNUSED */
 #include "private/bitmath.h"
 #endif
