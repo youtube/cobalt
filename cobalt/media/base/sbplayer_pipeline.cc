@@ -693,6 +693,8 @@ void SbPlayerPipeline::SetDuration(TimeDelta duration) {
 }
 
 void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
+  LOG(INFO) << "SbPlayerPipeline::OnDemuxerError() called with error " << error;
+
   if (!task_runner_->BelongsToCurrentThread()) {
     task_runner_->PostTask(
         FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerError, this, error));
