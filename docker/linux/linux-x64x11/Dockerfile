@@ -25,7 +25,6 @@ RUN apt update -qqy \
         libxrender-dev \
         libxcomposite-dev \
         libxi-dev \
-        sudo \
     && /opt/clean-after-apt.sh
 
 COPY ./linux-x64x11/requirements.txt /opt/requirements.txt
