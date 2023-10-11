@@ -1279,6 +1279,14 @@ class CoreApplicationThread : public ::starboard::Thread {
     ExtendedResourcesManager::GetInstance()->Quit();
   }
 
+  // starboard::Thread can be destroyed only after Join() call. In other case in
+  // devel build this invokes SbSystemBreakIntoDebugger().
+  // But CoreApplication::Run never reterns in UWP apps.
+  // To avoid hang in starboard::Thread::Join() and SbSystemBreakIntoDebugger()
+  // in starboard::Thread::~Thread() override Join() in CoreApplicationThread
+  // It does nothing but prevents SbSystemBreakIntoDebugger()
+  void Join() override { joined_bool()->store(true); }
+
  private:
   SbTimeMonotonic application_start_time_;
 };
@@ -1336,6 +1344,8 @@ int InternalMain() {
 
   MFShutdown();
   WSACleanup();
+
+  thread.Join();
 
   return main_return_value;
 }
