@@ -7,7 +7,8 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/webm/libvpx"
   }
-  version: "f9ab864199a7a4d94df8c3ba3492d4feb3cfa90d"
+  version: "53747dfe65eaf670a7192f55117f3bf1e0280743"
+  # from https://chromium.googlesource.com/chromium/src/+/86.0.4240.199/DEPS#1152
   last_upgrade_date {
     year: 2020
     month: 7
