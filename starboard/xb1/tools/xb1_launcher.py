@@ -92,7 +92,7 @@ _STUB_PACKAGE_NAME = 'Microsoft.Title.StubApp'
 _DEBUG_VC_LIBS_PACKAGE_NAME = 'Microsoft.VCLibs.140.00.Debug'
 _DEFAULT_APPX_NAME = 'cobalt.appx'
 _DEFAULT_STAGING_APP_NAME = 'appx'
-_EXTENSION_SDK_DIR = os.path.normpath(
+_EXTENSION_SDK_DIR = os.path.realpath(
     os.path.expandvars('%ProgramFiles(x86)%\\Microsoft SDKs'
                        '\\Windows Kits\\10\\ExtensionSDKs'))
 _DEBUG_VC_LIBS_PATH = os.path.join(_EXTENSION_SDK_DIR, 'Microsoft.VCLibs',
