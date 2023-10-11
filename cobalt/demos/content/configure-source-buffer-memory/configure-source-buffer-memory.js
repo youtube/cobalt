@@ -14,8 +14,16 @@
 
 "use strict";
 
-const mimeCodec = 'audio/mp4; codecs="mp4a.40.2"';
-const assetURL = 'fmp4-aac-44100-tiny.mp4';
+const QUOTA_EXCEEDED_ERROR_CODE = 22;
+// const mimeCodec = 'audio/mp4; codecs="mp4a.40.2"';
+// const assetURL = 'fmp4-aac-44100-tiny.mp4';
+const mimeCodec = 'video/webm; codecs="vp9"';
+const assetURL = 'vp9-720p.webm';
+//  var videoBuffer = ms.addSourceBuffer('video/webm; codecs="vp9"; decode-to-texture=true');
+//  vp9-720p.webm
+
+const assetDuration = 15;
+const assetSize = 344064;
 
 function fetchAB(url, cb) {
   console.log("Fetching.. ", url);
@@ -34,36 +42,72 @@ function onSourceOpen() {
   console.log("Source Open. This state:", this.readyState); // open
   const mediaSource = this;
   const sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
-  sourceBuffer.memoryLimit = 1024;
+  sourceBuffer.memoryLimit = 300 * 1024 * 1024;
+  // mem is 31,457,280 // appendCount 85
+
+  let MIN_SIZE = 12 * 1024 * 1024;
+  let ESTIMATED_MIN_TIME = 12;
+
   fetchAB(assetURL, (buf) => {
-    sourceBuffer.addEventListener("updateend", () => {
-      console.log("Update end..");
-      console.log("MEMORY IS:", sourceBuffer);
-      console.log("MEMORY IS:", sourceBuffer.memoryLimit);
-      mediaSource.endOfStream();
-      video.play();
-      console.log(mediaSource.readyState); // ended
+    let expectedTime = 0;
+    let expectedSize = 0;
+    let appendCount = 0;
+
+
+    let onBufferFull = function() {
+      console.log("ON BUFFER FULL! appendCount:" + appendCount + " expectedTime:" + expectedTime);
+      //if (expectedTime - sourceBuffer.buffer.start(0) < ESTIMATED_MIN_TIME) {
+      //}
+    }
+
+    sourceBuffer.addEventListener("updateend", function onupdateend() {
+      console.log("Update end. State is " + sourceBuffer.updating);
+      appendCount++;
+      console.log("Append Count" + appendCount);
+      console.log("BUFFERD START:" + sourceBuffer.buffered.start(0) + " END:" + sourceBuffer.buffered.end(0));
+      if (sourceBuffer.buffered.start(0) > 0 || expectedTime > sourceBuffer.buffered.end(0)) {
+         console.log("OK< WE GOOD, LETS END!");
+         sourceBuffer.removeEventListener('updatedend', onupdateend);
+         onBufferFull();
+      } else {
+        console.log("OK< WE ELSE!");
+        expectedTime +=  assetDuration;
+        expectedSize += assetSize;
+        console.log("SIZE:" + expectedSize + " TIME:" +  expectedTime);
+        if (expectedSize > (10 * MIN_SIZE)) {
+          console.log("EXPECTED SIZE IS > 10 * MIN SIZ!!");
+          sourceBuffer.removeEventListener('updateend', onupdateend);
+          onBufferFull();
+          return;
+        }
+        console.log("aIIGHT, SOURCEBUG:", sourceBuffer);
+        console.log("aIIGHT, OFFSET:", sourceBuffer.timestampOffset);
+        try {
+          console.log("Updating is " + sourceBuffer.updating);
+          sourceBuffer.timestampOffset = expectedTime;
+        } catch(e) {
+          console.log("OUCH! = " + e);
+          console.log(sourceBuffer);
+        }
+        console.log("aIIGHT, SB tsOffset is now " , expectedTime);
+        try {
+          console.log("AIIIGHT< LETS TRY TO APPEND AGAIN!");
+          console.log("MEMORY SIZE:" + sourceBuffer.memoryLimit);
+          sourceBuffer.appendBuffer(buf);
+        } catch(e) {
+          console.log("WUFF!");
+          if (e.code == QUOTA_EXCEEDED_ERROR_CODE) {
+            sourceBuffer.removeEventListener('updateend', onupdateend);
+            onBufferFull();
+          } else {
+            console.log("DIFFERENTE RRRO! " + e);
+          }
+        }
+      }
     });
-    console.log("APPENDING..");
+
+    console.log("FIRST APPEND!");
     sourceBuffer.appendBuffer(buf);
-    // console.log("APPENDED..");
-    // console.log("post APPEND MEMORY IS:", sourceBuffer.memoryLimit);
-  });
-  const sourceBuffer2 = mediaSource.addSourceBuffer(mimeCodec);
-  sourceBuffer2.memoryLimit = 50 * 1024 * 1024;
-  fetchAB(assetURL, (buf) => {
-    sourceBuffer2.addEventListener("updateend", () => {
-      console.log("Update end..");
-      console.log("MEMORY IS:", sourceBuffer2);
-      console.log("MEMORY IS:", sourceBuffer2.memoryLimit);
-      mediaSource.endOfStream();
-      video.play();
-      console.log(mediaSource.readyState); // ended
-    });
-    console.log("APPENDING..");
-    sourceBuffer2.appendBuffer(buf);
-    // console.log("APPENDED..");
-    // console.log("post APPEND MEMORY IS:", sourceBuffer.memoryLimit);
   });
 }
 
