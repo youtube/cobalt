@@ -2848,7 +2848,7 @@ test("base_i18n_perftests") {
 }
 }
 
-if (!is_ios) {
+if (!is_ios && !use_cobalt_customizations) {
   executable("build_utf8_validator_tables") {
     sources = [ "i18n/build_utf8_validator_tables.cc" ]
     deps = [
