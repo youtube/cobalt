@@ -18,7 +18,10 @@
 
 #include "base/base64url.h"
 #include "base/test/mock_callback.h"
-#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
+#include "cobalt/base/event.h"
+#include "cobalt/base/event_dispatcher.h"
+#include "cobalt/base/on_metric_upload_event.h"
+#include "cobalt/h5vcc/h5vcc_metric_type.h"
 #include "cobalt/h5vcc/h5vcc_metrics.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,7 +29,6 @@
 #include "third_party/metrics_proto/cobalt_uma_event.pb.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
 #include "third_party/zlib/google/compression_utils.h"
-
 namespace cobalt {
 namespace browser {
 namespace metrics {
@@ -43,6 +45,12 @@ using ::testing::StrictMock;
 class CobaltMetricsLogUploaderTest : public ::testing::Test {
  public:
   void SetUp() override {
+    dispatcher_ = std::make_unique<base::EventDispatcher>();
+    dispatcher_->AddEventCallback(
+        base::OnMetricUploadEvent::TypeId(),
+        base::Bind(&CobaltMetricsLogUploaderTest::OnMetricUploadEventHandler,
+                   base::Unretained(this)));
+
     uploader_ = std::make_unique<CobaltMetricsLogUploader>(
         ::metrics::MetricsLogUploader::MetricServiceType::UMA,
         base::Bind(&CobaltMetricsLogUploaderTest::UploadCompleteCallback,
@@ -51,6 +59,13 @@ class CobaltMetricsLogUploaderTest : public ::testing::Test {
 
   void TearDown() override {}
 
+  void OnMetricUploadEventHandler(const base::Event* event) {
+    std::unique_ptr<base::OnMetricUploadEvent> on_metric_upload_event(
+        new base::OnMetricUploadEvent(event));
+    last_metric_type_ = on_metric_upload_event->metric_type();
+    last_serialized_proto_ = on_metric_upload_event->serialized_proto();
+  }
+
   void UploadCompleteCallback(int response_code, int error_code,
                               bool was_https) {
     callback_count_++;
@@ -58,13 +73,14 @@ class CobaltMetricsLogUploaderTest : public ::testing::Test {
 
  protected:
   std::unique_ptr<CobaltMetricsLogUploader> uploader_;
+  std::unique_ptr<base::EventDispatcher> dispatcher_;
   int callback_count_ = 0;
+  cobalt::h5vcc::H5vccMetricType last_metric_type_;
+  std::string last_serialized_proto_ = "";
 };
 
 TEST_F(CobaltMetricsLogUploaderTest, TriggersUploadHandler) {
-  base::MockCallback<CobaltMetricsUploaderCallback> mock_upload_handler;
-  const auto cb = mock_upload_handler.Get();
-  uploader_->SetOnUploadHandler(&cb);
+  uploader_->SetEventDispatcher(dispatcher_.get());
   ::metrics::ReportingInfo dummy_reporting_info;
   dummy_reporting_info.set_attempt_count(33);
   ::metrics::ChromeUserMetricsExtension uma_log;
@@ -87,12 +103,11 @@ TEST_F(CobaltMetricsLogUploaderTest, TriggersUploadHandler) {
   base::Base64UrlEncode(cobalt_event.SerializeAsString(),
                         base::Base64UrlEncodePolicy::INCLUDE_PADDING,
                         &base64_encoded_proto);
-  EXPECT_CALL(mock_upload_handler,
-              Run(Eq(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma),
-                  StrEq(base64_encoded_proto)))
-      .Times(1);
   uploader_->UploadLog(compressed_message, "fake_hash", dummy_reporting_info);
   ASSERT_EQ(callback_count_, 1);
+  ASSERT_EQ(last_metric_type_,
+            cobalt::h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma);
+  ASSERT_EQ(last_serialized_proto_, base64_encoded_proto);
 
   ::metrics::ChromeUserMetricsExtension uma_log2;
   uma_log2.set_session_id(456);
@@ -108,11 +123,10 @@ TEST_F(CobaltMetricsLogUploaderTest, TriggersUploadHandler) {
   base::Base64UrlEncode(cobalt_event2.SerializeAsString(),
                         base::Base64UrlEncodePolicy::INCLUDE_PADDING,
                         &base64_encoded_proto2);
-  EXPECT_CALL(mock_upload_handler,
-              Run(Eq(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma),
-                  StrEq(base64_encoded_proto2)))
-      .Times(1);
   uploader_->UploadLog(compressed_message2, "fake_hash", dummy_reporting_info);
+  ASSERT_EQ(last_metric_type_,
+            cobalt::h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma);
+  ASSERT_EQ(last_serialized_proto_, base64_encoded_proto2);
   ASSERT_EQ(callback_count_, 2);
 }
 
@@ -121,17 +135,15 @@ TEST_F(CobaltMetricsLogUploaderTest, UnknownMetricTypeDoesntTriggerUpload) {
       ::metrics::MetricsLogUploader::MetricServiceType::UKM,
       base::Bind(&CobaltMetricsLogUploaderTest::UploadCompleteCallback,
                  base::Unretained(this))));
-  base::MockCallback<CobaltMetricsUploaderCallback> mock_upload_handler;
-  const auto cb = mock_upload_handler.Get();
-  uploader_->SetOnUploadHandler(&cb);
+  uploader_->SetEventDispatcher(dispatcher_.get());
   ::metrics::ReportingInfo dummy_reporting_info;
   ::metrics::ChromeUserMetricsExtension uma_log;
   uma_log.set_session_id(1234);
   uma_log.set_client_id(1234);
   std::string compressed_message;
   compression::GzipCompress(uma_log.SerializeAsString(), &compressed_message);
-  EXPECT_CALL(mock_upload_handler, Run(_, _)).Times(0);
   uploader_->UploadLog(compressed_message, "fake_hash", dummy_reporting_info);
+  ASSERT_EQ(last_serialized_proto_, "");
   // Even though we don't upload this log, we still need to trigger the complete
   // callback so the metric code can keep running.
   ASSERT_EQ(callback_count_, 1);

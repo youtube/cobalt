@@ -17,6 +17,9 @@
 #include <string>
 
 #include "base/values.h"
+#include "cobalt/base/event.h"
+#include "cobalt/base/event_dispatcher.h"
+#include "cobalt/base/on_metric_upload_event.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
@@ -25,28 +28,34 @@
 namespace cobalt {
 namespace h5vcc {
 
+
+H5vccMetrics::H5vccMetrics(
+    persistent_storage::PersistentSettings* persistent_settings,
+    base::EventDispatcher* event_dispatcher)
+    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      persistent_settings_(persistent_settings),
+      event_dispatcher_(event_dispatcher) {
+  DCHECK(event_dispatcher_);
+  on_metric_upload_event_callback_ =
+      base::Bind(&H5vccMetrics::OnMetricUploadEvent, base::Unretained(this));
+  event_dispatcher_->AddEventCallback(base::OnMetricUploadEvent::TypeId(),
+                                      on_metric_upload_event_callback_);
+}
+
 H5vccMetrics::~H5vccMetrics() {
-  if (browser::metrics::CobaltMetricsServicesManager::GetInstance() !=
-          nullptr &&
-      run_event_handler_callback_) {
-    // We need to let the metrics manager know not to call the upload callback
-    // any longer, otherwise it could crash.
-    browser::metrics::CobaltMetricsServicesManager::GetInstance()
-        ->RemoveOnUploadHandler(run_event_handler_callback_.get());
-  }
+  event_dispatcher_->RemoveEventCallback(base::OnMetricUploadEvent::TypeId(),
+                                         on_metric_upload_event_callback_);
+}
+
+void H5vccMetrics::OnMetricUploadEvent(const base::Event* event) {
+  std::unique_ptr<base::OnMetricUploadEvent> on_metric_upload_event(
+      new base::OnMetricUploadEvent(event));
+  RunEventHandler(on_metric_upload_event->metric_type(),
+                  on_metric_upload_event->serialized_proto());
 }
 
 void H5vccMetrics::OnMetricEvent(
     const h5vcc::MetricEventHandlerWrapper::ScriptValue& event_handler) {
-  if (!uploader_callback_) {
-    run_event_handler_callback_ = std::make_unique<
-        cobalt::browser::metrics::CobaltMetricsUploaderCallback>(
-        base::BindRepeating(&H5vccMetrics::RunEventHandler,
-                            base::Unretained(this)));
-    browser::metrics::CobaltMetricsServicesManager::GetInstance()
-        ->SetOnUploadHandler(run_event_handler_callback_.get());
-  }
-
   uploader_callback_ =
       new h5vcc::MetricEventHandlerWrapper(this, event_handler);
 }

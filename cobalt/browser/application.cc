@@ -1522,6 +1522,7 @@ void Application::InitMetrics() {
       metrics::kMetricEnabledSettingName, false);
   auto metric_event_interval = persistent_settings_->GetPersistentSettingAsInt(
       metrics::kMetricEventIntervalSettingName, 300);
+  metrics_services_manager_->SetEventDispatcher(&event_dispatcher_);
   metrics_services_manager_->SetUploadInterval(metric_event_interval);
   metrics_services_manager_->ToggleMetricsEnabled(is_metrics_enabled);
   // Metric recording state initialization _must_ happen before we bootstrap
