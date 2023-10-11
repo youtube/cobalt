@@ -14,9 +14,12 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 
+#include <memory>
+
 #include "base/base64url.h"
 #include "base/logging.h"
-#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
+#include "cobalt/base/event_dispatcher.h"
+#include "cobalt/base/on_metric_upload_event.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
 #include "components/metrics/log_decoder.h"
 #include "components/metrics/metrics_log_uploader.h"
@@ -49,7 +52,7 @@ void CobaltMetricsLogUploader::UploadLog(
     const std::string& compressed_log_data, const std::string& log_hash,
     const ::metrics::ReportingInfo& reporting_info) {
   if (service_type_ == ::metrics::MetricsLogUploader::UMA) {
-    if (upload_handler_ != nullptr) {
+    if (event_dispatcher_ != nullptr) {
       std::string uncompressed_serialized_proto;
       ::metrics::DecodeLogData(compressed_log_data,
                                &uncompressed_serialized_proto);
@@ -67,13 +70,11 @@ void CobaltMetricsLogUploader::UploadLog(
       base::Base64UrlEncode(cobalt_uma_event.SerializeAsString(),
                             base::Base64UrlEncodePolicy::INCLUDE_PADDING,
                             &base64_encoded_proto);
-      // Check again that the upload handler is still valid. Was seeing race
-      // conditions where it was being destroyed while the proto encoding was
-      // happening above.
-      if (upload_handler_ != nullptr) {
-        upload_handler_->Run(h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma,
-                             base64_encoded_proto);
-      }
+
+      event_dispatcher_->DispatchEvent(
+          std::unique_ptr<base::Event>(new base::OnMetricUploadEvent(
+              h5vcc::H5vccMetricType::kH5vccMetricTypeCobaltUma,
+              base64_encoded_proto)));
     }
   }
 
@@ -84,9 +85,9 @@ void CobaltMetricsLogUploader::UploadLog(
                           /*was_https*/ true);
 }
 
-void CobaltMetricsLogUploader::SetOnUploadHandler(
-    const CobaltMetricsUploaderCallback* upload_handler) {
-  upload_handler_ = upload_handler;
+void CobaltMetricsLogUploader::SetEventDispatcher(
+    const base::EventDispatcher* event_dispatcher) {
+  event_dispatcher_ = event_dispatcher;
 }
 
 }  // namespace metrics
