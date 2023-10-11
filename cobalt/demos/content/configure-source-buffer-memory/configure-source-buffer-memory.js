@@ -15,15 +15,15 @@
 "use strict";
 
 const QUOTA_EXCEEDED_ERROR_CODE = 22;
-// const mimeCodec = 'audio/mp4; codecs="mp4a.40.2"';
-// const assetURL = 'fmp4-aac-44100-tiny.mp4';
 const mimeCodec = 'video/webm; codecs="vp9"';
 const assetURL = 'vp9-720p.webm';
-//  var videoBuffer = ms.addSourceBuffer('video/webm; codecs="vp9"; decode-to-texture=true');
-//  vp9-720p.webm
 
 const assetDuration = 15;
 const assetSize = 344064;
+
+let status_div;
+let video;
+
 
 function fetchAB(url, cb) {
   console.log("Fetching.. ", url);
@@ -31,19 +31,22 @@ function fetchAB(url, cb) {
   xhr.open("get", url);
   xhr.responseType = "arraybuffer";
   xhr.onload = () => {
-    console.log("ONLOAD - calling CALLBACK");
+    console.log("onLoad - calling Callback");
     cb(xhr.response);
   };
   console.log('Sending request for media segment ...');
   xhr.send();
 }
 
-function onSourceOpen() {
-  console.log("Source Open. This state:", this.readyState); // open
-  const mediaSource = this;
+function testAppendToBuffer(media_source, mem_limit) {
+  const mediaSource = media_source;
   const sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
-  sourceBuffer.memoryLimit = 300 * 1024 * 1024;
-  // mem is 31,457,280 // appendCount 85
+  if (mem_limit > 0) {
+    status_div.innerHTML += "Test SourceBuffer, setting memoryLimit to " + mem_limit + "<br>";
+    sourceBuffer.memoryLimit = mem_limit;
+  } else {
+    status_div.innerHTML += "Test SourceBuffer, leaving memoryLimit at default<br>";
+  }
 
   let MIN_SIZE = 12 * 1024 * 1024;
   let ESTIMATED_MIN_TIME = 12;
@@ -54,76 +57,84 @@ function onSourceOpen() {
     let appendCount = 0;
 
 
-    let onBufferFull = function() {
-      console.log("ON BUFFER FULL! appendCount:" + appendCount + " expectedTime:" + expectedTime);
-      //if (expectedTime - sourceBuffer.buffer.start(0) < ESTIMATED_MIN_TIME) {
-      //}
+    let onBufferFull = function(buffer_was_full) {
+      console.log("OnBufferFull! Quota exceeded? " + buffer_was_full + " appendCount:" + appendCount + " expectedTime:" + expectedTime);
+      status_div.innerHTML += "Finished! Quota exceeded? " + buffer_was_full + " appendCount:" + appendCount + " appended " + appendCount * assetSize + "<br>";
     }
 
     sourceBuffer.addEventListener("updateend", function onupdateend() {
       console.log("Update end. State is " + sourceBuffer.updating);
       appendCount++;
       console.log("Append Count" + appendCount);
-      console.log("BUFFERD START:" + sourceBuffer.buffered.start(0) + " END:" + sourceBuffer.buffered.end(0));
       if (sourceBuffer.buffered.start(0) > 0 || expectedTime > sourceBuffer.buffered.end(0)) {
-         console.log("OK< WE GOOD, LETS END!");
          sourceBuffer.removeEventListener('updatedend', onupdateend);
-         onBufferFull();
+         onBufferFull(false);
       } else {
-        console.log("OK< WE ELSE!");
         expectedTime +=  assetDuration;
         expectedSize += assetSize;
-        console.log("SIZE:" + expectedSize + " TIME:" +  expectedTime);
         if (expectedSize > (10 * MIN_SIZE)) {
-          console.log("EXPECTED SIZE IS > 10 * MIN SIZ!!");
           sourceBuffer.removeEventListener('updateend', onupdateend);
-          onBufferFull();
+          onBufferFull(false);
           return;
         }
-        console.log("aIIGHT, SOURCEBUG:", sourceBuffer);
-        console.log("aIIGHT, OFFSET:", sourceBuffer.timestampOffset);
+
         try {
-          console.log("Updating is " + sourceBuffer.updating);
           sourceBuffer.timestampOffset = expectedTime;
         } catch(e) {
-          console.log("OUCH! = " + e);
-          console.log(sourceBuffer);
+          console.log("Unexpected error: " + e);
         }
-        console.log("aIIGHT, SB tsOffset is now " , expectedTime);
+
         try {
-          console.log("AIIIGHT< LETS TRY TO APPEND AGAIN!");
-          console.log("MEMORY SIZE:" + sourceBuffer.memoryLimit);
           sourceBuffer.appendBuffer(buf);
         } catch(e) {
-          console.log("WUFF!");
+          console.log("Wuff! QUOTA_EXCEEDED_ERROR!");
+          status_div.innerHTML += "Wuff! QUOTA_EXCEEDED<br>";
           if (e.code == QUOTA_EXCEEDED_ERROR_CODE) {
             sourceBuffer.removeEventListener('updateend', onupdateend);
-            onBufferFull();
+            onBufferFull(true);
           } else {
-            console.log("DIFFERENTE RRRO! " + e);
+            console.log("Unexpected error: " + e);
           }
         }
       }
     });
 
-    console.log("FIRST APPEND!");
+    console.log("First Append!");
     sourceBuffer.appendBuffer(buf);
+    status_div.innerHTML += "First append. MemoryLimit is:" + sourceBuffer.memoryLimit + ".<br>";
   });
+}
+
+function onSourceOpen() {
+  console.log("Source Open. This state:", this.readyState); // open
+  status_div.innerHTML += "Source Open. This state:" + this.readyState + "<br>";
+  status_div.innerHTML += "Lets test first source_buffer, defaults..<br>";
+  testAppendToBuffer(this, 0);
+  video.play();
+
+  let new_mem_limit = 300 * 1024 * 1024;
+  status_div.innerHTML += "<br><br>Lets test second source_buffer, setting memory to:" + new_mem_limit + "<br>";
+  testAppendToBuffer(this, new_mem_limit);
 }
 
 
 function createMediaSource() {
 
   console.log('Video Get Element By Id...');
-  var video = document.getElementById('video');
+  video = document.getElementById('video');
+  status_div = document.getElementById('status');
+  status_div.innerHTML += 'Video Get Element By Id...<br>';
 
   console.log('Create Media Source...');
+  status_div.innerHTML += 'Create Media Source...<br>';
   var mediaSource = new MediaSource;
 
   console.log('Attaching MediaSource to video element ...');
+  status_div.innerHTML += 'Attaching MediaSource to video element ...<br>';
   video.src = window.URL.createObjectURL(mediaSource);
 
   console.log('Add event listener..');
+  status_div.innerHTML += 'Add event listener..<br>';
   mediaSource.addEventListener('sourceopen', onSourceOpen);
 
 }
