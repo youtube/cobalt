@@ -970,10 +970,9 @@ config("toolchain") {
   }
 
   if (is_clang) {
-    cflags += [
-     "-Wmissing-field-initializers",
-    ]
-    if (is_clang_16 && use_cobalt_customizations) {
+    cflags += [ "-Wmissing-field-initializers" ]
+    if ((is_clang_16 || current_toolchain == host_toolchain) &&
+        use_cobalt_customizations) {
       cflags += [
         # bit-field.h integer value is outside the valid range of values
         "-Wno-enum-constexpr-conversion",
