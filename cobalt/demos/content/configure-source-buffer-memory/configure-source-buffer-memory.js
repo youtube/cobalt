@@ -110,11 +110,11 @@ function onSourceOpen() {
   status_div.innerHTML += "Source Open. This state:" + this.readyState + "<br>";
   status_div.innerHTML += "Lets test first source_buffer, defaults..<br>";
   testAppendToBuffer(this, 0);
-  video.play();
 
-  let new_mem_limit = 300 * 1024 * 1024;
+  let new_mem_limit = 400 * 1024 * 1024;
   status_div.innerHTML += "<br><br>Lets test second source_buffer, setting memory to:" + new_mem_limit + "<br>";
   testAppendToBuffer(this, new_mem_limit);
+  video.play();
 }
 
 

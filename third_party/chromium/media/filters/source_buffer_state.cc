@@ -917,6 +917,7 @@ bool SourceBufferState::OnNewConfigs(
 
 #if defined(STARBOARD)
 void SourceBufferState::SetSourceBufferStreamMemoryLimit(size_t limit) {
+  LOG(INFO) << "Setting SourceBuffferStream MemoryLimit Override: " << limit;
   stream_memory_limit_override_ = limit;
   SetStreamMemoryLimits();
 }
@@ -926,23 +927,20 @@ size_t SourceBufferState::GetSourceBufferStreamMemoryLimit() {
   // YouTube we usually only have a single one. If we've set an override then
   // all values will be the same, but we shouldn't assume that, so instead we'll
   // return the largest here if there are multiple.
-  std::vector<size_t> memory_limits;
+  size_t memory_limit = 0;
   for (const auto& it : audio_streams_) {
-    memory_limits.push_back(it.second->GetStreamMemoryLimit());
+    memory_limit = std::max(memory_limit, it.second->GetStreamMemoryLimit());
   }
   for (const auto& it : video_streams_) {
-    memory_limits.push_back(it.second->GetStreamMemoryLimit());
+    memory_limit = std::max(memory_limit, it.second->GetStreamMemoryLimit());
   }
-
-  if (memory_limits.empty()) return 0;
-
-  return *std::max_element(memory_limits.begin(), memory_limits.end());
+  return memory_limit;
 }
 #endif  // defined(STARBOARD)
 
 void SourceBufferState::SetStreamMemoryLimits() {
 #if defined(STARBOARD)
-  LOG(INFO) << "Custom SourceBuffer size limit="
+  LOG(INFO) << "Custom SourceBuffer memory limit="
             << stream_memory_limit_override_;
   if (stream_memory_limit_override_) {
     for (const auto& it : audio_streams_) {

@@ -1125,12 +1125,14 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
 
 void ChunkDemuxer::SetSourceBufferStreamMemoryLimit(const std::string& id,
                                                     size_t limit) {
+  base::AutoLock auto_lock(lock_);
   DCHECK(source_state_map_.find(id) != source_state_map_.end());
   source_state_map_[id]->SetSourceBufferStreamMemoryLimit(limit);
 }
 
 size_t ChunkDemuxer::GetSourceBufferStreamMemoryLimit(const std::string& id) {
 
+  base::AutoLock auto_lock(lock_);
   if (source_state_map_.find(id) == source_state_map_.end()) {
     return 0;
   }
