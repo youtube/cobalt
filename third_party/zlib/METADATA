@@ -5,9 +5,9 @@ description:
 third_party {
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/zlib"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "d6d7cb80b8f35d0ff7478468fc75d87e0e2eda28"
+  version: "80.0.3987.162"
   last_upgrade_date {
     year: 2019
     month: 10

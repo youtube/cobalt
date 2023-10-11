@@ -183,7 +183,6 @@ bool Unzip(const std::string& src_str, const base::FilePath& dest_dir) {
 }
 #endif
 
-
 bool UnzipWithFilterCallback(const base::FilePath& src_file,
                              const base::FilePath& dest_dir,
                              const FilterCallback& filter_cb,

@@ -1311,9 +1311,9 @@ typedef struct gzFile_s *gzFile;    /* semi-opaque gzip file descriptor */
 #if !defined(STARBOARD)
 /* NOTE: Disabled in Starboard because Cobalt doesn't use it, and I don't
    want to port it. */
-
-ZEXTERN gzFile ZEXPORT gzopen OF((const char *path, const char *mode));
 /*
+ZEXTERN gzFile ZEXPORT gzopen OF((const char *path, const char *mode));
+
      Opens a gzip (.gz) file for reading or writing.  The mode parameter is as
    in fopen ("rb" or "wb") but can also include a compression level ("wb9") or
    a strategy: 'f' for filtered data as in "wb6f", 'h' for Huffman-only
