@@ -20,7 +20,7 @@
 #include "base/callback.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
-#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/h5vcc/metric_event_handler_wrapper.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
@@ -43,6 +43,9 @@ class CobaltMetricsLogUploader : public ::metrics::MetricsLogUploader {
 
   virtual ~CobaltMetricsLogUploader() {}
 
+  // Set event dispatcher to be used to publish any metrics events (eg upload).
+  void SetEventDispatcher(const base::EventDispatcher* event_dispatcher);
+
   // Uploads a log with the specified |compressed_log_data| and |log_hash|.
   // |log_hash| is expected to be the hex-encoded SHA1 hash of the log data
   // before compression.
@@ -50,15 +53,10 @@ class CobaltMetricsLogUploader : public ::metrics::MetricsLogUploader {
                  const std::string& log_hash,
                  const ::metrics::ReportingInfo& reporting_info);
 
-  // Sets the event handler wrapper to be called when metrics are ready for
-  // upload. This should be the JavaScript H5vcc callback implementation.
-  void SetOnUploadHandler(
-      const CobaltMetricsUploaderCallback* metric_event_handler);
-
  private:
   const ::metrics::MetricsLogUploader::MetricServiceType service_type_;
   const ::metrics::MetricsLogUploader::UploadCallback on_upload_complete_;
-  const CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
+  const base::EventDispatcher* event_dispatcher_ = nullptr;
 };
 
 }  // namespace metrics
