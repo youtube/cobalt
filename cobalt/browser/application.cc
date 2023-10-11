@@ -460,7 +460,12 @@ std::string GetMinLogLevelString() {
 }
 
 int StringToLogLevel(const std::string& log_level) {
-  if (log_level == "info") {
+  if (log_level == "verbose") {
+    // The lower the verbose level is, the more messages are logged.  Set it to
+    // a lower enough value to ensure that all known verbose messages are
+    // logged.
+    return logging::LOG_VERBOSE - 15;
+  } else if (log_level == "info") {
     return logging::LOG_INFO;
   } else if (log_level == "warning") {
     return logging::LOG_WARNING;
