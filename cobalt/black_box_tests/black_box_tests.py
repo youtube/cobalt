@@ -137,7 +137,7 @@ class BlackBoxTestCase(unittest.TestCase):
     super(BlackBoxTestCase, cls).tearDownClass()
     logging.info('Done %s', cls.__name__)
 
-  def CreateCobaltRunner(self, url=None, target_params=None):
+  def CreateCobaltRunner(self, url=None, target_params=None, **kwargs):
     all_target_params = list(target_params) if target_params else []
     if _launcher_params.target_params is not None:
       all_target_params += _launcher_params.target_params
@@ -146,7 +146,8 @@ class BlackBoxTestCase(unittest.TestCase):
         launcher_params=_launcher_params,
         url=url,
         target_params=all_target_params,
-        web_server_port=bbt_settings.default_web_server_port)
+        web_server_port=bbt_settings.default_web_server_port,
+        **kwargs)
 
   def GetBindingAddress(self):
     return _server_binding_address
