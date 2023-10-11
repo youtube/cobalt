@@ -42,13 +42,6 @@ _DISABLED_BLACKBOXTEST_CONFIGS = [
     'raspi-0/devel',
 ]
 
-_EVERGREEN_COMPATIBLE_CONFIGS = [
-    # TODO(b/283788059): enable when there are GitHub jobs to run integration
-    # and Black Box Tests on evergreen-arm-hardfp.
-    #'evergreen-arm/devel',
-    'evergreen-x64/devel',
-]
-
 _PORT_SELECTION_RETRY_LIMIT = 10
 _PORT_SELECTION_RANGE = [5000, 7000]
 # List of blocked ports.
@@ -110,10 +103,6 @@ _WPT_TESTS = [
 _TESTS_NEEDING_DEEP_LINK = [
     'deep_links',
 ]
-# These tests can only run on Evergreen-compatible platforms.
-_TESTS_EVERGREEN_END_TO_END = [
-    'evergreen_verify_qa_channel_update_test',
-]
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
 
@@ -148,7 +137,7 @@ class BlackBoxTestCase(unittest.TestCase):
     super(BlackBoxTestCase, cls).tearDownClass()
     logging.info('Done %s', cls.__name__)
 
-  def CreateCobaltRunner(self, url=None, target_params=None, **kwargs):
+  def CreateCobaltRunner(self, url=None, target_params=None):
     all_target_params = list(target_params) if target_params else []
     if _launcher_params.target_params is not None:
       all_target_params += _launcher_params.target_params
@@ -157,8 +146,7 @@ class BlackBoxTestCase(unittest.TestCase):
         launcher_params=_launcher_params,
         url=url,
         target_params=all_target_params,
-        web_server_port=bbt_settings.default_web_server_port,
-        **kwargs)
+        web_server_port=bbt_settings.default_web_server_port)
 
   def GetBindingAddress(self):
     return _server_binding_address
@@ -207,31 +195,6 @@ def LoadTests(launcher_params, test_set):
     if filter_hit == 0:
       test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
           importlib.import_module(_TEST_DIR_PATH + test)))
-  return test_suite
-
-
-def LoadEvergreenEndToEndTests(launcher_params):
-  launcher = abstract_launcher.LauncherFactory(  # pylint: disable=unused-variable
-      launcher_params.platform,
-      _LAUNCH_TARGET,
-      launcher_params.config,
-      device_id=launcher_params.device_id,
-      target_params=None,
-      output_file=None,
-      out_directory=launcher_params.out_directory,
-      loader_platform=launcher_params.loader_platform,
-      loader_config=launcher_params.loader_config,
-      loader_out_directory=launcher_params.loader_out_directory,
-      # The more lightweight elf_loader_sandbox can't be used since it has no
-      # knowledge of updates or installations.
-      loader_target='loader_app')
-
-  test_targets = _TESTS_EVERGREEN_END_TO_END
-
-  test_suite = unittest.TestSuite()
-  for test in test_targets:
-    test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
-        importlib.import_module(_TEST_DIR_PATH + test)))
   return test_suite
 
 
@@ -301,45 +264,24 @@ class BlackBoxTests(object):
     if self.use_proxy and self.proxy_port == '-1':
       return 1
 
-    run_cobalt_tests = True
-    run_evergreen_tests = False
     launch_config = f'{_launcher_params.platform}/{_launcher_params.config}'
     # TODO(b/135549281): Configuring this in Python is superfluous, the on/off
     # flags can be in Github Actions code
     if launch_config in _DISABLED_BLACKBOXTEST_CONFIGS:
-      run_cobalt_tests = False
-      logging.warning(
-          'Cobalt blackbox tests disabled for platform:%s config:%s',
-          _launcher_params.platform, _launcher_params.config)
-
-    if launch_config in _EVERGREEN_COMPATIBLE_CONFIGS:
-      run_evergreen_tests = self.args.test_set in ['all', 'evergreen']
-
-    if not (run_cobalt_tests or run_evergreen_tests):
+      logging.warning('Blackbox tests disabled for platform:%s config:%s',
+                      _launcher_params.platform, _launcher_params.config)
       return 0
 
     def LoadAndRunTests():
       if self.args.test_name:
         suite = unittest.TestLoader().loadTestsFromName(_TEST_DIR_PATH +
                                                         self.args.test_name)
-        return_code = not unittest.TextTestRunner(
-            verbosity=2, stream=sys.stdout).run(suite).wasSuccessful()
-        return return_code
       else:
-        cobalt_tests_return_code = 0
-        if run_cobalt_tests:
-          suite = LoadTests(_launcher_params, self.args.test_set)
-          # Using verbosity=2 to log individual test function names and results.
-          cobalt_tests_return_code = not unittest.TextTestRunner(
-              verbosity=2, stream=sys.stdout).run(suite).wasSuccessful()
-
-        evergreen_tests_return_code = 0
-        if run_evergreen_tests:
-          suite = LoadEvergreenEndToEndTests(_launcher_params)
-          evergreen_tests_return_code = not unittest.TextTestRunner(
-              verbosity=2, stream=sys.stdout).run(suite).wasSuccessful()
-
-        return cobalt_tests_return_code or evergreen_tests_return_code
+        suite = LoadTests(_launcher_params, self.args.test_set)
+      # Using verbosity=2 to log individual test function names and results.
+      return_code = not unittest.TextTestRunner(
+          verbosity=2, stream=sys.stdout).run(suite).wasSuccessful()
+      return return_code
 
     if self.use_proxy:
       logging.info('Using proxy port: %s', self.proxy_port)
@@ -448,9 +390,7 @@ def main():
       help=('IPs of test devices that will be allowed to connect. If not '
             'specified, all IPs will be allowed to connect.'))
   parser.add_argument(
-      '--test_set',
-      choices=['all', 'wpt', 'blackbox', 'evergreen'],
-      default='all')
+      '--test_set', choices=['all', 'wpt', 'blackbox'], default='all')
   args, _ = parser.parse_known_args()
 
   log_level.InitializeLogging(args)
