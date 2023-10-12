@@ -1,46 +1,36 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/filter/brotli_source_stream.h"
 
-#include "base/bind.h"
 #include "base/bit_cast.h"
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "net/base/io_buffer.h"
-#include "starboard/memory.h"
-#if defined(STARBOARD)
-#include <brotli/decode.h>
-#else
-#include "starboard/types.h"
 #include "third_party/brotli/include/brotli/decode.h"
-#endif
 
 namespace net {
 
 namespace {
 
 const char kBrotli[] = "BROTLI";
-const uint8_t kGzipHeader[] = {0x1f, 0x8b, 0x08};
 
 // BrotliSourceStream applies Brotli content decoding to a data stream.
 // Brotli format specification: http://www.ietf.org/id/draft-alakuijala-brotli.
 class BrotliSourceStream : public FilterSourceStream {
  public:
   explicit BrotliSourceStream(std::unique_ptr<SourceStream> upstream)
-      : FilterSourceStream(SourceStream::TYPE_BROTLI, std::move(upstream)),
-        decoding_status_(DecodingStatus::DECODING_IN_PROGRESS),
-        used_memory_(0),
-        used_memory_maximum_(0),
-        consumed_bytes_(0),
-        produced_bytes_(0),
-        gzip_header_detected_(true) {
+      : FilterSourceStream(SourceStream::TYPE_BROTLI, std::move(upstream)) {
     brotli_state_ =
         BrotliDecoderCreateInstance(AllocateMemory, FreeMemory, this);
     CHECK(brotli_state_);
   }
+
+  BrotliSourceStream(const BrotliSourceStream&) = delete;
+  BrotliSourceStream& operator=(const BrotliSourceStream&) = delete;
 
   ~BrotliSourceStream() override {
     BrotliDecoderErrorCode error_code =
@@ -49,14 +39,10 @@ class BrotliSourceStream : public FilterSourceStream {
     brotli_state_ = nullptr;
     DCHECK_EQ(0u, used_memory_);
 
-    // Don't report that gzip header was detected in case of lack of input.
-    gzip_header_detected_ &= (consumed_bytes_ >= sizeof(kGzipHeader));
 
     UMA_HISTOGRAM_ENUMERATION(
         "BrotliFilter.Status", static_cast<int>(decoding_status_),
         static_cast<int>(DecodingStatus::DECODING_STATUS_COUNT));
-    UMA_HISTOGRAM_BOOLEAN("BrotliFilter.GzipHeaderDetected",
-                          gzip_header_detected_);
     if (decoding_status_ == DecodingStatus::DECODING_DONE) {
       // CompressionPercent is undefined when there is no output produced.
       if (produced_bytes_ != 0) {
@@ -94,32 +80,25 @@ class BrotliSourceStream : public FilterSourceStream {
   // SourceStream implementation
   std::string GetTypeAsString() const override { return kBrotli; }
 
-  int FilterData(IOBuffer* output_buffer,
-                 int output_buffer_size,
-                 IOBuffer* input_buffer,
-                 int input_buffer_size,
-                 int* consumed_bytes,
-                 bool /*upstream_eof_reached*/) override {
+  base::expected<size_t, Error> FilterData(
+      IOBuffer* output_buffer,
+      size_t output_buffer_size,
+      IOBuffer* input_buffer,
+      size_t input_buffer_size,
+      size_t* consumed_bytes,
+      bool /*upstream_eof_reached*/) override {
     if (decoding_status_ == DecodingStatus::DECODING_DONE) {
       *consumed_bytes = input_buffer_size;
-      return OK;
+      return 0;
     }
 
     if (decoding_status_ != DecodingStatus::DECODING_IN_PROGRESS)
-      return ERR_CONTENT_DECODING_FAILED;
+      return base::unexpected(ERR_CONTENT_DECODING_FAILED);
 
-    const uint8_t* next_in = bit_cast<uint8_t*>(input_buffer->data());
+    const uint8_t* next_in = base::bit_cast<uint8_t*>(input_buffer->data());
     size_t available_in = input_buffer_size;
-    uint8_t* next_out = bit_cast<uint8_t*>(output_buffer->data());
+    uint8_t* next_out = base::bit_cast<uint8_t*>(output_buffer->data());
     size_t available_out = output_buffer_size;
-    // Check if start of the input stream looks like gzip stream.
-    for (size_t i = consumed_bytes_; i < sizeof(kGzipHeader); ++i) {
-      if (!gzip_header_detected_)
-        break;
-      size_t j = i - consumed_bytes_;
-      if (j < available_in && kGzipHeader[i] != next_in[j])
-        gzip_header_detected_ = false;
-    }
 
     BrotliDecoderResult result =
         BrotliDecoderDecompressStream(brotli_state_, &available_in, &next_in,
@@ -127,8 +106,8 @@ class BrotliSourceStream : public FilterSourceStream {
 
     size_t bytes_used = input_buffer_size - available_in;
     size_t bytes_written = output_buffer_size - available_out;
-    CHECK_GE(bytes_used, 0u);
-    CHECK_GE(bytes_written, 0u);
+    CHECK_GE(input_buffer_size, available_in);
+    CHECK_GE(output_buffer_size, available_out);
     produced_bytes_ += bytes_written;
     consumed_bytes_ += bytes_used;
 
@@ -151,7 +130,7 @@ class BrotliSourceStream : public FilterSourceStream {
       // If the decompressor threw an error, fail synchronously.
       default:
         decoding_status_ = DecodingStatus::DECODING_ERROR;
-        return ERR_CONTENT_DECODING_FAILED;
+        return base::unexpected(ERR_CONTENT_DECODING_FAILED);
     }
   }
 
@@ -166,8 +145,7 @@ class BrotliSourceStream : public FilterSourceStream {
   }
 
   void* AllocateMemoryInternal(size_t size) {
-    size_t* array =
-        reinterpret_cast<size_t*>(SbMemoryAllocate(size + sizeof(size_t)));
+    size_t* array = reinterpret_cast<size_t*>(malloc(size + sizeof(size_t)));
     if (!array)
       return nullptr;
     used_memory_ += size;
@@ -182,21 +160,17 @@ class BrotliSourceStream : public FilterSourceStream {
       return;
     size_t* array = reinterpret_cast<size_t*>(address);
     used_memory_ -= array[-1];
-    SbMemoryDeallocate(&array[-1]);
+    free(&array[-1]);
   }
 
-  BrotliDecoderState* brotli_state_;
+  raw_ptr<BrotliDecoderState, DanglingUntriaged> brotli_state_;
 
-  DecodingStatus decoding_status_;
+  DecodingStatus decoding_status_ = DecodingStatus::DECODING_IN_PROGRESS;
 
-  size_t used_memory_;
-  size_t used_memory_maximum_;
-  size_t consumed_bytes_;
-  size_t produced_bytes_;
-
-  bool gzip_header_detected_;
-
-  DISALLOW_COPY_AND_ASSIGN(BrotliSourceStream);
+  size_t used_memory_ = 0;
+  size_t used_memory_maximum_ = 0;
+  size_t consumed_bytes_ = 0;
+  size_t produced_bytes_ = 0;
 };
 
 }  // namespace

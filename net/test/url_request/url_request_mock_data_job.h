@@ -1,16 +1,17 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_TEST_URL_REQUEST_URL_REQUEST_MOCK_DATA_JOB_H_
 #define NET_TEST_URL_REQUEST_URL_REQUEST_MOCK_DATA_JOB_H_
 
+#include <stddef.h>
+
 #include <string>
 
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "net/url_request/url_request_job.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -22,10 +23,10 @@ class URLRequest;
 class URLRequestMockDataJob : public URLRequestJob {
  public:
   URLRequestMockDataJob(URLRequest* request,
-                        NetworkDelegate* network_delegate,
                         const std::string& data,
                         int data_repeat_count,
                         bool request_client_certificate);
+  ~URLRequestMockDataJob() override;
 
   void Start() override;
   int ReadRawData(IOBuffer* buf, int buf_size) override;
@@ -60,19 +61,16 @@ class URLRequestMockDataJob : public URLRequestJob {
   // Overrides response headers in the mocked response.
   void OverrideResponseHeaders(const std::string& headers);
 
- protected:
-  ~URLRequestMockDataJob() override;
-
  private:
   void GetResponseInfoConst(HttpResponseInfo* info) const;
 
   void StartAsync();
 
-  base::Optional<std::string> headers_;
+  absl::optional<std::string> headers_;
   std::string data_;
-  size_t data_offset_;
+  size_t data_offset_ = 0;
   bool request_client_certificate_;
-  base::WeakPtrFactory<URLRequestMockDataJob> weak_factory_;
+  base::WeakPtrFactory<URLRequestMockDataJob> weak_factory_{this};
 };
 
 }  // namespace net

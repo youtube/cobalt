@@ -1,25 +1,71 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/test/cert_test_util.h"
 
+#include <certdb.h>
 #include <pk11pub.h>
+#include <secmod.h>
 #include <secmodt.h>
+#include <string.h>
+
+#include <memory>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/logging.h"
 #include "crypto/nss_key_util.h"
-#include "crypto/nss_util.h"
+#include "crypto/nss_util_internal.h"
 #include "crypto/scoped_nss_types.h"
 #include "net/cert/cert_type.h"
+#include "net/cert/known_roots_nss.h"
 #include "net/cert/x509_util_nss.h"
-#include "starboard/types.h"
 
 namespace net {
 
+namespace {
+
+// Returns true if the provided slot looks like it contains built-in root.
+bool IsNssBuiltInRootSlot(PK11SlotInfo* slot) {
+  if (!PK11_IsPresent(slot) || !PK11_HasRootCerts(slot)) {
+    return false;
+  }
+  crypto::ScopedCERTCertList cert_list(PK11_ListCertsInSlot(slot));
+  if (!cert_list) {
+    return false;
+  }
+  bool built_in_cert_found = false;
+  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+       !CERT_LIST_END(node, cert_list); node = CERT_LIST_NEXT(node)) {
+    if (IsKnownRoot(node->cert)) {
+      built_in_cert_found = true;
+      break;
+    }
+  }
+  return built_in_cert_found;
+}
+
+// Returns the slot which holds the built-in root certificates.
+crypto::ScopedPK11Slot GetNssBuiltInRootCertsSlot() {
+  crypto::AutoSECMODListReadLock auto_lock;
+  SECMODModuleList* head = SECMOD_GetDefaultModuleList();
+  for (SECMODModuleList* item = head; item != nullptr; item = item->next) {
+    int slot_count = item->module->loaded ? item->module->slotCount : 0;
+    for (int i = 0; i < slot_count; i++) {
+      PK11SlotInfo* slot = item->module->slots[i];
+      if (IsNssBuiltInRootSlot(slot)) {
+        return crypto::ScopedPK11Slot(PK11_ReferenceSlot(slot));
+      }
+    }
+  }
+  return crypto::ScopedPK11Slot();
+}
+
+}  // namespace
+
 bool ImportSensitiveKeyFromFile(const base::FilePath& dir,
-                                const std::string& key_filename,
+                                base::StringPiece key_filename,
                                 PK11SlotInfo* slot) {
   base::FilePath key_path = dir.AppendASCII(key_filename);
   std::string key_pkcs8;
@@ -29,16 +75,12 @@ bool ImportSensitiveKeyFromFile(const base::FilePath& dir,
     return false;
   }
 
-  const uint8_t* key_pkcs8_begin =
-      reinterpret_cast<const uint8_t*>(key_pkcs8.data());
-  std::vector<uint8_t> key_vector(key_pkcs8_begin,
-                                  key_pkcs8_begin + key_pkcs8.length());
-
   crypto::ScopedSECKEYPrivateKey private_key(
-      crypto::ImportNSSKeyFromPrivateKeyInfo(slot, key_vector,
-                                             true /* permanent */));
-  LOG_IF(ERROR, !private_key) << "Could not create key from file "
-                              << key_path.value();
+      crypto::ImportNSSKeyFromPrivateKeyInfo(
+          slot, base::as_bytes(base::make_span(key_pkcs8)),
+          /*permanent=*/true));
+  LOG_IF(ERROR, !private_key)
+      << "Could not create key from file " << key_path.value();
   return !!private_key;
 }
 
@@ -70,25 +112,25 @@ ScopedCERTCertificate ImportClientCertToSlot(
 
 scoped_refptr<X509Certificate> ImportClientCertAndKeyFromFile(
     const base::FilePath& dir,
-    const std::string& cert_filename,
-    const std::string& key_filename,
+    base::StringPiece cert_filename,
+    base::StringPiece key_filename,
     PK11SlotInfo* slot,
     ScopedCERTCertificate* nss_cert) {
   if (!ImportSensitiveKeyFromFile(dir, key_filename, slot)) {
     LOG(ERROR) << "Could not import private key from file " << key_filename;
-    return NULL;
+    return nullptr;
   }
 
   scoped_refptr<X509Certificate> cert(ImportCertFromFile(dir, cert_filename));
 
   if (!cert.get()) {
     LOG(ERROR) << "Failed to parse cert from file " << cert_filename;
-    return NULL;
+    return nullptr;
   }
 
   *nss_cert = ImportClientCertToSlot(cert, slot);
   if (!*nss_cert)
-    return NULL;
+    return nullptr;
 
   // |cert| continues to point to the original X509Certificate before the
   // import to |slot|. However this should not make a difference as NSS handles
@@ -98,8 +140,8 @@ scoped_refptr<X509Certificate> ImportClientCertAndKeyFromFile(
 
 scoped_refptr<X509Certificate> ImportClientCertAndKeyFromFile(
     const base::FilePath& dir,
-    const std::string& cert_filename,
-    const std::string& key_filename,
+    base::StringPiece cert_filename,
+    base::StringPiece key_filename,
     PK11SlotInfo* slot) {
   ScopedCERTCertificate nss_cert;
   return ImportClientCertAndKeyFromFile(dir, cert_filename, key_filename, slot,
@@ -108,7 +150,7 @@ scoped_refptr<X509Certificate> ImportClientCertAndKeyFromFile(
 
 ScopedCERTCertificate ImportCERTCertificateFromFile(
     const base::FilePath& certs_dir,
-    const std::string& cert_file) {
+    base::StringPiece cert_file) {
   scoped_refptr<X509Certificate> cert =
       ImportCertFromFile(certs_dir, cert_file);
   if (!cert)
@@ -118,7 +160,7 @@ ScopedCERTCertificate ImportCERTCertificateFromFile(
 
 ScopedCERTCertificateList CreateCERTCertificateListFromFile(
     const base::FilePath& certs_dir,
-    const std::string& cert_file,
+    base::StringPiece cert_file,
     int format) {
   CertificateList certs =
       CreateCertificateListFromFile(certs_dir, cert_file, format);
@@ -131,6 +173,34 @@ ScopedCERTCertificateList CreateCERTCertificateListFromFile(
     nss_certs.push_back(std::move(nss_cert));
   }
   return nss_certs;
+}
+
+ScopedCERTCertificate GetAnNssBuiltinSslTrustedRoot() {
+  crypto::ScopedPK11Slot root_certs_slot = GetNssBuiltInRootCertsSlot();
+  if (!root_certs_slot) {
+    return nullptr;
+  }
+
+  scoped_refptr<X509Certificate> ssl_trusted_root;
+
+  crypto::ScopedCERTCertList cert_list(
+      PK11_ListCertsInSlot(root_certs_slot.get()));
+  if (!cert_list) {
+    return nullptr;
+  }
+  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+       !CERT_LIST_END(node, cert_list); node = CERT_LIST_NEXT(node)) {
+    CERTCertTrust trust;
+    if (CERT_GetCertTrust(node->cert, &trust) != SECSuccess) {
+      continue;
+    }
+    int trust_flags = SEC_GET_TRUST_FLAGS(&trust, trustSSL);
+    if ((trust_flags & CERTDB_TRUSTED_CA) == CERTDB_TRUSTED_CA) {
+      return x509_util::DupCERTCertificate(node->cert);
+    }
+  }
+
+  return nullptr;
 }
 
 }  // namespace net

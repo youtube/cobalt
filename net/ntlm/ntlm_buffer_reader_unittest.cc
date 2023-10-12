@@ -1,22 +1,19 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/ntlm/ntlm_buffer_reader.h"
 
-#include "base/stl_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-namespace ntlm {
+namespace net::ntlm {
 
 TEST(NtlmBufferReaderTest, Initialization) {
   const uint8_t buf[1] = {0};
   NtlmBufferReader reader(buf);
 
-  ASSERT_EQ(base::size(buf), reader.GetLength());
+  ASSERT_EQ(std::size(buf), reader.GetLength());
   ASSERT_EQ(0u, reader.GetCursor());
   ASSERT_FALSE(reader.IsEndOfBuffer());
   ASSERT_TRUE(reader.CanRead(1));
@@ -35,11 +32,7 @@ TEST(NtlmBufferReaderTest, Initialization) {
 
 TEST(NtlmBufferReaderTest, EmptyBuffer) {
   std::vector<uint8_t> b;
-#ifdef STARBOARD
-  NtlmBufferReader reader(base::span<const uint8_t>(b.data(), b.size()));
-#else
   NtlmBufferReader reader(b);
-#endif
 
   ASSERT_EQ(0u, reader.GetCursor());
   ASSERT_EQ(0u, reader.GetLength());
@@ -50,29 +43,17 @@ TEST(NtlmBufferReaderTest, EmptyBuffer) {
   // A read from an empty (zero-byte) source into an empty (zero-byte)
   // destination buffer should succeed as a no-op.
   std::vector<uint8_t> dest;
-#ifdef STARBOARD
-  ASSERT_TRUE(reader.ReadBytes(base::span<uint8_t>(dest.data(), dest.size())));
-#else
   ASSERT_TRUE(reader.ReadBytes(dest));
-#endif
 
   // A read from a non-empty source into an empty (zero-byte) destination
   // buffer should succeed as a no-op.
   std::vector<uint8_t> b2{0x01};
-#ifdef STARBOARD
-  NtlmBufferReader reader2(base::span<const uint8_t>(b2.data(), b2.size()));
-#else
   NtlmBufferReader reader2(b2);
-#endif
   ASSERT_EQ(0u, reader2.GetCursor());
   ASSERT_EQ(1u, reader2.GetLength());
 
   ASSERT_TRUE(reader2.CanRead(0));
-#ifdef STARBOARD
-  ASSERT_TRUE(reader2.ReadBytes(base::span<uint8_t>(dest.data(), dest.size())));
-#else
   ASSERT_TRUE(reader2.ReadBytes(dest));
-#endif
 
   ASSERT_EQ(0u, reader2.GetCursor());
   ASSERT_EQ(1u, reader2.GetLength());
@@ -90,11 +71,7 @@ TEST(NtlmBufferReaderTest, NullBuffer) {
   // A read from a null source into an empty (zero-byte) destination buffer
   // should succeed as a no-op.
   std::vector<uint8_t> dest;
-#ifdef STARBOARD
-  ASSERT_TRUE(reader.ReadBytes(base::span<uint8_t>(dest.data(), dest.size())));
-#else
   ASSERT_TRUE(reader.ReadBytes(dest));
-#endif
 }
 
 TEST(NtlmBufferReaderTest, Read16) {
@@ -142,18 +119,10 @@ TEST(NtlmBufferReaderTest, ReadBytes) {
 
   NtlmBufferReader reader(expected);
 
-#ifdef STARBOARD
-  ASSERT_TRUE(reader.ReadBytes(base::span<uint8_t>(actual, sizeof(actual))));
-#else
   ASSERT_TRUE(reader.ReadBytes(actual));
-#endif
-  ASSERT_EQ(0, memcmp(actual, expected, base::size(actual)));
+  ASSERT_EQ(0, memcmp(actual, expected, std::size(actual)));
   ASSERT_TRUE(reader.IsEndOfBuffer());
-#ifdef STARBOARD
-  ASSERT_FALSE(reader.ReadBytes(base::span<uint8_t>(actual, 1)));
-#else
-  ASSERT_FALSE(reader.ReadBytes(base::make_span(actual, 1)));
-#endif
+  ASSERT_FALSE(reader.ReadBytes(base::make_span(actual, 1u)));
 }
 
 TEST(NtlmBufferReaderTest, ReadSecurityBuffer) {
@@ -298,9 +267,9 @@ TEST(NtlmBufferReaderTest, SkipBytes) {
 
   NtlmBufferReader reader(buf);
 
-  ASSERT_TRUE(reader.SkipBytes(base::size(buf)));
+  ASSERT_TRUE(reader.SkipBytes(std::size(buf)));
   ASSERT_TRUE(reader.IsEndOfBuffer());
-  ASSERT_FALSE(reader.SkipBytes(base::size(buf)));
+  ASSERT_FALSE(reader.SkipBytes(std::size(buf)));
 }
 
 TEST(NtlmBufferReaderTest, SkipBytesPastEob) {
@@ -308,7 +277,7 @@ TEST(NtlmBufferReaderTest, SkipBytesPastEob) {
 
   NtlmBufferReader reader(buf);
 
-  ASSERT_FALSE(reader.SkipBytes(base::size(buf) + 1));
+  ASSERT_FALSE(reader.SkipBytes(std::size(buf) + 1));
 }
 
 TEST(NtlmBufferReaderTest, MatchSignatureTooShort) {
@@ -375,7 +344,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoEolOnly) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_TRUE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_TRUE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
   ASSERT_TRUE(reader.IsEndOfBuffer());
   ASSERT_TRUE(av_pairs.empty());
 }
@@ -398,7 +367,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoTimestampAndEolOnly) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_TRUE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_TRUE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
   ASSERT_TRUE(reader.IsEndOfBuffer());
   ASSERT_EQ(1u, av_pairs.size());
 
@@ -416,7 +385,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoFlagsAndEolOnly) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_TRUE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_TRUE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
   ASSERT_TRUE(reader.IsEndOfBuffer());
   ASSERT_EQ(1u, av_pairs.size());
 
@@ -433,7 +402,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoTooSmall) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_FALSE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_FALSE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
 }
 
 TEST(NtlmBufferReaderTest, ReadTargetInfoInvalidTimestampSize) {
@@ -445,7 +414,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoInvalidTimestampSize) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_FALSE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_FALSE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
 }
 
 TEST(NtlmBufferReaderTest, ReadTargetInfoInvalidTimestampPastEob) {
@@ -456,7 +425,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoInvalidTimestampPastEob) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_FALSE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_FALSE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
 }
 
 TEST(NtlmBufferReaderTest, ReadTargetInfoOtherField) {
@@ -468,7 +437,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoOtherField) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_TRUE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_TRUE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
   ASSERT_TRUE(reader.IsEndOfBuffer());
   ASSERT_EQ(1u, av_pairs.size());
 
@@ -486,7 +455,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoNoTerminator) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_FALSE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_FALSE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
 }
 
 TEST(NtlmBufferReaderTest, ReadTargetInfoTerminatorAtLocationOtherThanEnd) {
@@ -499,7 +468,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoTerminatorAtLocationOtherThanEnd) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_FALSE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_FALSE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
 }
 
 TEST(NtlmBufferReaderTest, ReadTargetInfoTerminatorNonZeroLength) {
@@ -509,7 +478,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoTerminatorNonZeroLength) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_FALSE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_FALSE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
 }
 
 TEST(NtlmBufferReaderTest, ReadTargetInfoTerminatorNonZeroLength2) {
@@ -522,7 +491,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoTerminatorNonZeroLength2) {
   NtlmBufferReader reader(buf);
 
   std::vector<AvPair> av_pairs;
-  ASSERT_FALSE(reader.ReadTargetInfo(base::size(buf), &av_pairs));
+  ASSERT_FALSE(reader.ReadTargetInfo(std::size(buf), &av_pairs));
 }
 
 TEST(NtlmBufferReaderTest, ReadTargetInfoEmptyPayload) {
@@ -671,7 +640,7 @@ TEST(NtlmBufferReaderTest, MatchZeros) {
 
   NtlmBufferReader reader(buf);
 
-  ASSERT_TRUE(reader.MatchZeros(base::size(buf)));
+  ASSERT_TRUE(reader.MatchZeros(std::size(buf)));
   ASSERT_TRUE(reader.IsEndOfBuffer());
   ASSERT_FALSE(reader.MatchZeros(1));
 }
@@ -681,7 +650,7 @@ TEST(NtlmBufferReaderTest, MatchZerosFail) {
 
   NtlmBufferReader reader(buf);
 
-  ASSERT_FALSE(reader.MatchZeros(base::size(buf)));
+  ASSERT_FALSE(reader.MatchZeros(std::size(buf)));
 }
 
 TEST(NtlmBufferReaderTest, MatchEmptySecurityBuffer) {
@@ -744,5 +713,4 @@ TEST(NtlmBufferReaderTest, ReadAvPairHeaderPastEob) {
   ASSERT_FALSE(reader.ReadAvPairHeader(&avid, &avlen));
 }
 
-}  // namespace ntlm
-}  // namespace net
+}  // namespace net::ntlm

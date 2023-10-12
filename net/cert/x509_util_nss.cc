@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,11 @@
 #include <cert.h>  // Must be included before certdb.h
 #include <certdb.h>
 #include <cryptohi.h>
+#include <dlfcn.h>
 #include <nss.h>
 #include <pk11pub.h>
 #include <prerror.h>
+#include <seccomon.h>
 #include <secder.h>
 #include <sechash.h>
 #include <secmod.h>
@@ -20,13 +22,11 @@
 #include "base/strings/stringprintf.h"
 #include "crypto/nss_util.h"
 #include "crypto/scoped_nss_types.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "net/cert/x509_util.h"
+#include "net/third_party/mozilla_security_manager/nsNSSCertificateDB.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 
-namespace net {
-
-namespace x509_util {
+namespace net::x509_util {
 
 namespace {
 
@@ -87,8 +87,8 @@ std::string GetDefaultNickname(CERTCertificate* nss_cert, CertType type) {
     // Find the private key for this certificate and see if it has a
     // nickname.  If there is a private key, and it has a nickname, then
     // return that nickname.
-    SECKEYPrivateKey* private_key =
-        PK11_FindPrivateKeyFromCert(nss_cert->slot, nss_cert, NULL /*wincx*/);
+    SECKEYPrivateKey* private_key = PK11_FindPrivateKeyFromCert(
+        nss_cert->slot, nss_cert, nullptr /*wincx*/);
     if (private_key) {
       char* private_key_nickname = PK11_GetPrivateKeyNickname(private_key);
       if (private_key_nickname) {
@@ -144,11 +144,17 @@ bool IsSameCertificate(CERTCertificate* a, CERTCertificate* b) {
 }
 
 bool IsSameCertificate(CERTCertificate* a, const X509Certificate* b) {
-  return a->derCert.len == CRYPTO_BUFFER_len(b->cert_buffer()) &&
-         memcmp(a->derCert.data, CRYPTO_BUFFER_data(b->cert_buffer()),
-                a->derCert.len) == 0;
+  return IsSameCertificate(a, b->cert_buffer());
 }
 bool IsSameCertificate(const X509Certificate* a, CERTCertificate* b) {
+  return IsSameCertificate(b, a->cert_buffer());
+}
+
+bool IsSameCertificate(CERTCertificate* a, const CRYPTO_BUFFER* b) {
+  return a->derCert.len == CRYPTO_BUFFER_len(b) &&
+         memcmp(a->derCert.data, CRYPTO_BUFFER_data(b), a->derCert.len) == 0;
+}
+bool IsSameCertificate(const CRYPTO_BUFFER* a, CERTCertificate* b) {
   return IsSameCertificate(b, a);
 }
 
@@ -157,7 +163,7 @@ ScopedCERTCertificate CreateCERTCertificateFromBytes(const uint8_t* data,
   crypto::EnsureNSSInit();
 
   if (!NSS_IsInitialized())
-    return NULL;
+    return nullptr;
 
   SECItem der_cert;
   der_cert.data = const_cast<uint8_t*>(data);
@@ -210,8 +216,8 @@ ScopedCERTCertificateList CreateCERTCertificateListFromX509Certificate(
 ScopedCERTCertificateList CreateCERTCertificateListFromBytes(const char* data,
                                                              size_t length,
                                                              int format) {
-  CertificateList certs =
-      X509Certificate::CreateCertificateListFromBytes(data, length, format);
+  CertificateList certs = X509Certificate::CreateCertificateListFromBytes(
+      base::as_bytes(base::make_span(data, length)), format);
   ScopedCERTCertificateList nss_chain;
   nss_chain.reserve(certs.size());
   for (const scoped_refptr<X509Certificate>& cert : certs) {
@@ -247,32 +253,24 @@ scoped_refptr<X509Certificate> CreateX509CertificateFromCERTCertificate(
     CERTCertificate* nss_cert,
     const std::vector<CERTCertificate*>& nss_chain,
     X509Certificate::UnsafeCreateOptions options) {
-  if (!nss_cert || !nss_cert->derCert.len)
+  if (!nss_cert || !nss_cert->derCert.len) {
     return nullptr;
-  bssl::UniquePtr<CRYPTO_BUFFER> cert_handle(
-      X509Certificate::CreateCertBufferFromBytes(
-          reinterpret_cast<const char*>(nss_cert->derCert.data),
-          nss_cert->derCert.len));
-  if (!cert_handle)
-    return nullptr;
+  }
+  bssl::UniquePtr<CRYPTO_BUFFER> cert_handle(x509_util::CreateCryptoBuffer(
+      base::make_span(nss_cert->derCert.data, nss_cert->derCert.len)));
 
   std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates;
   intermediates.reserve(nss_chain.size());
   for (const CERTCertificate* nss_intermediate : nss_chain) {
-    if (!nss_intermediate || !nss_intermediate->derCert.len)
+    if (!nss_intermediate || !nss_intermediate->derCert.len) {
       return nullptr;
-    bssl::UniquePtr<CRYPTO_BUFFER> intermediate_cert_handle(
-        X509Certificate::CreateCertBufferFromBytes(
-            reinterpret_cast<const char*>(nss_intermediate->derCert.data),
-            nss_intermediate->derCert.len));
-    if (!intermediate_cert_handle)
-      return nullptr;
-    intermediates.push_back(std::move(intermediate_cert_handle));
+    }
+    intermediates.push_back(x509_util::CreateCryptoBuffer(base::make_span(
+        nss_intermediate->derCert.data, nss_intermediate->derCert.len)));
   }
-  scoped_refptr<X509Certificate> result(
-      X509Certificate::CreateFromBufferUnsafeOptions(
-          std::move(cert_handle), std::move(intermediates), options));
-  return result;
+
+  return X509Certificate::CreateFromBufferUnsafeOptions(
+      std::move(cert_handle), std::move(intermediates), options);
 }
 
 scoped_refptr<X509Certificate> CreateX509CertificateFromCERTCertificate(
@@ -313,7 +311,7 @@ bool GetPEMEncoded(CERTCertificate* cert, std::string* pem_encoded) {
 
 void GetRFC822SubjectAltNames(CERTCertificate* cert_handle,
                               std::vector<std::string>* names) {
-  crypto::ScopedSECItem alt_name(SECITEM_AllocItem(NULL, NULL, 0));
+  crypto::ScopedSECItem alt_name(SECITEM_AllocItem(nullptr, nullptr, 0));
   DCHECK(alt_name.get());
 
   names->clear();
@@ -343,7 +341,7 @@ void GetRFC822SubjectAltNames(CERTCertificate* cert_handle,
 
 void GetUPNSubjectAltNames(CERTCertificate* cert_handle,
                            std::vector<std::string>* names) {
-  crypto::ScopedSECItem alt_name(SECITEM_AllocItem(NULL, NULL, 0));
+  crypto::ScopedSECItem alt_name(SECITEM_AllocItem(nullptr, nullptr, 0));
   DCHECK(alt_name.get());
 
   names->clear();
@@ -393,7 +391,7 @@ std::string GetCERTNameDisplayName(CERTName* name) {
   CERTRDN** rdns = name->rdns;
   for (size_t rdn = 0; rdns[rdn]; ++rdn) {
     CERTAVA** avas = rdns[rdn]->avas;
-    for (size_t pair = 0; avas[pair] != 0; ++pair) {
+    for (size_t pair = 0; avas[pair] != nullptr; ++pair) {
       SECOidTag tag = CERT_GetAVATag(avas[pair]);
       if (tag == SEC_OID_AVA_COMMON_NAME) {
         // If CN is found, return immediately.
@@ -442,6 +440,8 @@ SHA256HashValue CalculateFingerprint256(CERTCertificate* cert) {
   return sha256;
 }
 
-}  // namespace x509_util
+int ImportUserCert(CERTCertificate* cert) {
+  return mozilla_security_manager::ImportUserCert(cert);
+}
 
-}  // namespace net
+}  // namespace net::x509_util

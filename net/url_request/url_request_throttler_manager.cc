@@ -1,10 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/url_request/url_request_throttler_manager.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/strings/string_util.h"
 #include "net/base/url_util.h"
 #include "net/log/net_log.h"
@@ -16,10 +16,7 @@ namespace net {
 const unsigned int URLRequestThrottlerManager::kMaximumNumberOfEntries = 1500;
 const unsigned int URLRequestThrottlerManager::kRequestsBetweenCollecting = 200;
 
-URLRequestThrottlerManager::URLRequestThrottlerManager()
-    : requests_since_last_gc_(0),
-      logged_for_localhost_disabled_(false),
-      registered_from_thread_(base::kInvalidThreadId) {
+URLRequestThrottlerManager::URLRequestThrottlerManager() {
   url_id_replacements_.ClearPassword();
   url_id_replacements_.ClearUsername();
   url_id_replacements_.ClearQuery();
@@ -38,7 +35,7 @@ URLRequestThrottlerManager::~URLRequestThrottlerManager() {
   // entries, detach the entries' back-pointer to the manager.
   auto i = url_entries_.begin();
   while (i != url_entries_.end()) {
-    if (i->second.get() != NULL) {
+    if (i->second.get() != nullptr) {
       i->second->DetachManager();
     }
     ++i;
@@ -66,22 +63,21 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
   // aggressively (i.e. this resets the error count when the entry's URL
   // hasn't been requested in long enough).
   if (entry.get() && entry->IsEntryOutdated()) {
-    entry = NULL;
+    entry = nullptr;
   }
 
   // Create the entry if needed.
-  if (entry.get() == NULL) {
-    entry = new URLRequestThrottlerEntry(this, url_id);
+  if (entry.get() == nullptr) {
+    entry = base::MakeRefCounted<URLRequestThrottlerEntry>(this, url_id);
 
     // We only disable back-off throttling on an entry that we have
     // just constructed.  This is to allow unit tests to explicitly override
     // the entry for localhost URLs.
     if (IsLocalhost(url)) {
       if (!logged_for_localhost_disabled_ && IsLocalhost(url)) {
-        std::string host = url.host();
         logged_for_localhost_disabled_ = true;
-        net_log_.AddEvent(NetLogEventType::THROTTLING_DISABLED_FOR_HOST,
-                          NetLog::StringCallback("host", &host));
+        net_log_.AddEventWithStringParams(
+            NetLogEventType::THROTTLING_DISABLED_FOR_HOST, "host", url.host());
       }
 
       // TODO(joi): Once sliding window is separate from back-off throttling,
@@ -96,14 +92,14 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
 
 void URLRequestThrottlerManager::OverrideEntryForTests(
     const GURL& url,
-    URLRequestThrottlerEntry* entry) {
+    scoped_refptr<URLRequestThrottlerEntry> entry) {
   // Normalize the url.
   std::string url_id = GetIdFromUrl(url);
 
   // Periodically garbage collect old entries.
   GarbageCollectEntriesIfNecessary();
 
-  url_entries_[url_id] = entry;
+  url_entries_[url_id] = std::move(entry);
 }
 
 void URLRequestThrottlerManager::EraseEntryForTests(const GURL& url) {

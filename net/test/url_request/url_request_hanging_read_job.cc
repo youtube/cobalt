@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,10 @@
 #include <memory>
 #include <string>
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/strings/stringprintf.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_runner.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request.h"
@@ -28,37 +28,33 @@ GURL GetMockUrl(const std::string& scheme, const std::string& hostname) {
 class MockJobInterceptor : public URLRequestInterceptor {
  public:
   MockJobInterceptor() = default;
+
+  MockJobInterceptor(const MockJobInterceptor&) = delete;
+  MockJobInterceptor& operator=(const MockJobInterceptor&) = delete;
+
   ~MockJobInterceptor() override = default;
 
   // URLRequestInterceptor implementation
-  URLRequestJob* MaybeInterceptRequest(
-      URLRequest* request,
-      NetworkDelegate* network_delegate) const override {
-    return new URLRequestHangingReadJob(request, network_delegate);
+  std::unique_ptr<URLRequestJob> MaybeInterceptRequest(
+      URLRequest* request) const override {
+    return std::make_unique<URLRequestHangingReadJob>(request);
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockJobInterceptor);
 };
 
 }  // namespace
 
-URLRequestHangingReadJob::URLRequestHangingReadJob(
-    URLRequest* request,
-    NetworkDelegate* network_delegate)
-    : URLRequestJob(request, network_delegate),
-      content_length_(10),  // non-zero content-length
-      weak_factory_(this) {}
+URLRequestHangingReadJob::URLRequestHangingReadJob(URLRequest* request)
+    : URLRequestJob(request) {}
+
+URLRequestHangingReadJob::~URLRequestHangingReadJob() = default;
 
 void URLRequestHangingReadJob::Start() {
   // Start reading asynchronously so that all error reporting and data
   // callbacks happen as they would for network requests.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE, base::Bind(&URLRequestHangingReadJob::StartAsync,
-                            weak_factory_.GetWeakPtr()));
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&URLRequestHangingReadJob::StartAsync,
+                                weak_factory_.GetWeakPtr()));
 }
-
-URLRequestHangingReadJob::~URLRequestHangingReadJob() = default;
 
 int URLRequestHangingReadJob::ReadRawData(IOBuffer* buf, int buf_size) {
   // Make read hang. It never completes.
@@ -81,8 +77,8 @@ void URLRequestHangingReadJob::GetResponseInfoConst(
       "Content-type: text/plain\n");
   raw_headers.append(
       base::StringPrintf("Content-Length: %1d\n", content_length_));
-  info->headers = new HttpResponseHeaders(HttpUtil::AssembleRawHeaders(
-      raw_headers.c_str(), static_cast<int>(raw_headers.length())));
+  info->headers = base::MakeRefCounted<HttpResponseHeaders>(
+      HttpUtil::AssembleRawHeaders(raw_headers));
 }
 
 void URLRequestHangingReadJob::StartAsync() {

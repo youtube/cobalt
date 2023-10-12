@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,18 +6,6 @@
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_HISTOGRAM_ENUMS_H_
 
 namespace disk_cache {
-
-// Used in histograms, please only add entries at the end.
-enum SimpleReadResult {
-  READ_RESULT_SUCCESS = 0,
-  READ_RESULT_INVALID_ARGUMENT = 1,
-  READ_RESULT_NONBLOCK_EMPTY_RETURN = 2,
-  READ_RESULT_BAD_STATE = 3,
-  READ_RESULT_FAST_EMPTY_RETURN = 4,
-  READ_RESULT_SYNC_READ_FAILURE = 5,
-  READ_RESULT_SYNC_CHECKSUM_FAILURE = 6,
-  READ_RESULT_MAX = 7,
-};
 
 // Used in histograms, please only add entries at the end.
 enum OpenEntryResult {
@@ -32,6 +20,14 @@ enum OpenEntryResult {
   OPEN_ENTRY_SPARSE_OPEN_FAILED = 8,
   OPEN_ENTRY_INVALID_FILE_LENGTH = 9,
   OPEN_ENTRY_MAX = 10,
+};
+
+// Used in histograms, please only add entries at the end.
+enum OpenPrefetchMode {
+  OPEN_PREFETCH_NONE = 0,
+  OPEN_PREFETCH_FULL = 1,
+  OPEN_PREFETCH_TRAILER = 2,
+  OPEN_PREFETCH_MAX = 3,
 };
 
 // Used in histograms, please only add entries at the end.
@@ -64,19 +60,19 @@ enum CloseResult {
 };
 
 // Used in histograms, please only add entries at the end.
-enum class KeySHA256Result {
-  NOT_PRESENT = 0,
-  MATCHED = 1,
-  NO_MATCH = 2,
-  MAX = 3
-};
-
-// Used in histograms, please only add entries at the end.
 enum FileDescriptorLimiterOp {
   FD_LIMIT_CLOSE_FILE = 0,
   FD_LIMIT_REOPEN_FILE = 1,
   FD_LIMIT_FAIL_REOPEN_FILE = 2,
   FD_LIMIT_OP_MAX = 3
+};
+
+// This enumeration is used in histograms, add entries only at end.
+enum OpenEntryIndexEnum {
+  INDEX_NOEXIST = 0,
+  INDEX_MISS = 1,
+  INDEX_HIT = 2,
+  INDEX_MAX = 3,
 };
 
 }  // namespace disk_cache

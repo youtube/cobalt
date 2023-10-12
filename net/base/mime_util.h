@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,12 +17,16 @@
 // All constants in mime_util.cc must be written in lower case, except parameter
 // values, which can be any case.
 
+#include <stddef.h>
+
 #include <string>
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_split.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -51,14 +55,22 @@ NET_EXPORT bool GetPreferredExtensionForMimeType(
     const std::string& mime_type,
     base::FilePath::StringType* extension);
 
-#if defined(STARBOARD)
-NET_EXPORT bool IsSupportedImageMimeType(const std::string& mime_type);
-#endif
-
 // Returns true if this the mime_type_pattern matches a given mime-type.
 // Checks for absolute matching and wildcards. MIME types are case insensitive.
 NET_EXPORT bool MatchesMimeType(const std::string& mime_type_pattern,
                                 const std::string& mime_type);
+
+// Parses |type_str| for |mime_type| and any |params|. Returns false if mime
+// cannot be parsed, and does not modify |mime_type| or |params|.
+//
+// Returns true when mime can be parsed and:
+// If |mime_type| is non-NULL, sets it to parsed mime string.
+// If |params| is non-NULL, clears it and sets it with name-value pairs of
+// parsed parameters. Parsing of parameters is lenient, and invalid params are
+// ignored.
+NET_EXPORT bool ParseMimeType(const std::string& type_str,
+                              std::string* mime_type,
+                              base::StringPairs* params);
 
 // Returns true if the |type_string| is a correctly-formed mime type specifier
 // with no parameter, i.e. string that matches the following ABNF (see the
@@ -69,9 +81,30 @@ NET_EXPORT bool MatchesMimeType(const std::string& mime_type_pattern,
 //
 // If |top_level_type| is non-NULL, sets it to parsed top-level type string.
 // If |subtype| is non-NULL, sets it to parsed subtype string.
-NET_EXPORT bool ParseMimeTypeWithoutParameter(const std::string& type_string,
+//
+// This function strips leading and trailing whitespace from the MIME type.
+// TODO: investigate if we should strip strictly HTTP whitespace.
+NET_EXPORT bool ParseMimeTypeWithoutParameter(base::StringPiece type_string,
                                               std::string* top_level_type,
                                               std::string* subtype);
+
+// Returns `absl::optional` with value containing the extracted `type/sub_type`
+// if `type_string` is a correctly-formed mime type specifier. Returns optional
+// with empty otherwise.
+// Set `accept_comma_separated` to accept a type_string like "text/html,
+// text/xml". This behavior was inherited from Blink's
+// platform/network/http_parsers. A string such as "text/html, text/xml" is
+// possible when the response has multiple Content-Type headers. For instance:
+// Content-Type: text/html
+// Content-Type: text/xml
+// becomes: text/html, text/xml
+//
+// While RFC 2616 does not allow it, other browsers allow multiple values in
+// the HTTP media type header field, Content-Type. In such cases, the media
+// type passed here may contain the multiple values separated by commas.
+NET_EXPORT absl::optional<std::string> ExtractMimeTypeFromMediaType(
+    const std::string& type_string,
+    bool accept_comma_separated);
 
 // Returns true if the |type_string| is a top-level type of any media type
 // registered with IANA media types registry at
@@ -83,11 +116,12 @@ NET_EXPORT bool ParseMimeTypeWithoutParameter(const std::string& type_string,
 // this method.
 NET_EXPORT bool IsValidTopLevelMimeType(const std::string& type_string);
 
-// Get the extensions associated with the given mime type. There could be
-// multiple extensions for a given mime type, like "html,htm" for "text/html",
-// or "txt,text,html,..." for "text/*".
-// Note that we do not erase the existing elements in the the provided vector.
-// Instead, we append the result to it.
+// Get the extensions associated with the given mime type.
+//
+// There could be multiple extensions for a given mime type, like "html,htm" for
+// "text/html", or "txt,text,html,..." for "text/*".  Note that we do not erase
+// the existing elements in the the provided vector.  Instead, we append the
+// result to it.  The new extensions are returned in no particular order.
 NET_EXPORT void GetExtensionsForMimeType(
     const std::string& mime_type,
     std::vector<base::FilePath::StringType>* extensions);
@@ -102,6 +136,16 @@ NET_EXPORT void AddMultipartValueForUpload(const std::string& value_name,
                                            const std::string& mime_boundary,
                                            const std::string& content_type,
                                            std::string* post_data);
+
+// Prepares one value as part of a multi-part upload request, with file name as
+// an additional parameter.
+NET_EXPORT void AddMultipartValueForUploadWithFileName(
+    const std::string& value_name,
+    const std::string& file_name,
+    const std::string& value,
+    const std::string& mime_boundary,
+    const std::string& content_type,
+    std::string* post_data);
 
 // Adds the final delimiter to a multi-part upload request.
 NET_EXPORT void AddMultipartFinalDelimiterForUpload(

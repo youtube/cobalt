@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,85 +6,133 @@
 
 #include <stdio.h>
 
-#include "base/bind.h"
+#include <algorithm>
+#include <utility>
+
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/macros.h"
+#include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
-#include "base/sequenced_task_runner.h"
-#include "base/task/post_task.h"
+#include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
-#if defined(STARBOARD)
-#include "starboard/common/file.h"
-#include "starboard/types.h"
-#endif
+#include "base/task/thread_pool.h"
+#include "base/thread_annotations.h"
 
 namespace net {
 
-// An object which lives on the background SequencedTaskRunner and performs the
-// blocking file operations.
-class SSLKeyLoggerImpl::Core {
+namespace {
+// Bound the number of outstanding writes to bound memory usage. Some
+// antiviruses point this at a pipe and then read too slowly. See
+// https://crbug.com/566951 and https://crbug.com/914880.
+static constexpr size_t kMaxOutstandingLines = 512;
+}  // namespace
+
+// An object which performs the blocking file operations on a background
+// SequencedTaskRunner.
+class SSLKeyLoggerImpl::Core
+    : public base::RefCountedThreadSafe<SSLKeyLoggerImpl::Core> {
  public:
-  Core() { DETACH_FROM_SEQUENCE(sequence_checker_); }
-  ~Core() { DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_); }
+  Core() {
+    DETACH_FROM_SEQUENCE(sequence_checker_);
+    // That the user explicitly asked for debugging information would suggest
+    // waiting to flush these to disk, but some buggy antiviruses point this at
+    // a pipe and hang, so we avoid blocking shutdown. If writing to a real
+    // file, writes should complete quickly enough that this does not matter.
+    task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
+  }
+
+  Core(const Core&) = delete;
+  Core& operator=(const Core&) = delete;
+
+  void SetFile(base::File file) {
+    file_.reset(base::FileToFILE(std::move(file), "a"));
+    if (!file_)
+      DVLOG(1) << "Could not adopt file";
+  }
 
   void OpenFile(const base::FilePath& path) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    DCHECK(!file_);
-#if defined(STARBOARD)
-    file_.reset(
-        new starboard::ScopedFile(path.value().c_str(), kSbFileCreateAlways));
-#else
-    file_.reset(base::OpenFile(path, "a"));
-#endif
-    if (!file_)
-      LOG(WARNING) << "Could not open " << path.value();
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(&Core::OpenFileImpl, this, path));
   }
 
   void WriteLine(const std::string& line) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    if (!file_)
-      return;
-#if defined(STARBOARD)
-    file_->WriteAll(line.c_str(), line.length());
-#else
-    fprintf(file_.get(), "%s\n", line.c_str());
-    fflush(file_.get());
-#endif
+    bool was_empty;
+    {
+      base::AutoLock lock(lock_);
+      was_empty = buffer_.empty();
+      if (buffer_.size() < kMaxOutstandingLines) {
+        buffer_.push_back(line);
+      } else {
+        lines_dropped_ = true;
+      }
+    }
+    if (was_empty) {
+      task_runner_->PostTask(FROM_HERE, base::BindOnce(&Core::Flush, this));
+    }
   }
 
  private:
-#if defined(STARBOARD)
-  std::unique_ptr<starboard::ScopedFile> file_;
-#else
+  friend class base::RefCountedThreadSafe<Core>;
+  ~Core() = default;
+
+  void OpenFileImpl(const base::FilePath& path) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    DCHECK(!file_);
+    file_.reset(base::OpenFile(path, "a"));
+    if (!file_)
+      DVLOG(1) << "Could not open " << path.value();
+  }
+
+  void Flush() {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+    bool lines_dropped = false;
+    std::vector<std::string> buffer;
+    {
+      base::AutoLock lock(lock_);
+      std::swap(lines_dropped, lines_dropped_);
+      std::swap(buffer, buffer_);
+    }
+
+    if (file_) {
+      for (const auto& line : buffer) {
+        fprintf(file_.get(), "%s\n", line.c_str());
+      }
+      if (lines_dropped) {
+        fprintf(file_.get(), "# Some lines were dropped due to slow writes.\n");
+      }
+      fflush(file_.get());
+    }
+  }
+
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   base::ScopedFILE file_;
-#endif
   SEQUENCE_CHECKER(sequence_checker_);
 
-  DISALLOW_COPY_AND_ASSIGN(Core);
+  base::Lock lock_;
+  bool lines_dropped_ GUARDED_BY(lock_) = false;
+  std::vector<std::string> buffer_ GUARDED_BY(lock_);
 };
 
 SSLKeyLoggerImpl::SSLKeyLoggerImpl(const base::FilePath& path)
-    : core_(new Core) {
-  // The user explicitly asked for debugging information, so these tasks block
-  // shutdown to avoid dropping some log entries.
-  task_runner_ = base::CreateSequencedTaskRunnerWithTraits(
-      {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
-  task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&Core::OpenFile, base::Unretained(core_.get()), path));
+    : core_(base::MakeRefCounted<Core>()) {
+  core_->OpenFile(path);
 }
 
-SSLKeyLoggerImpl::~SSLKeyLoggerImpl() {
-  task_runner_->DeleteSoon(FROM_HERE, core_.release());
+SSLKeyLoggerImpl::SSLKeyLoggerImpl(base::File file)
+    : core_(base::MakeRefCounted<Core>()) {
+  core_->SetFile(std::move(file));
 }
+
+SSLKeyLoggerImpl::~SSLKeyLoggerImpl() = default;
 
 void SSLKeyLoggerImpl::WriteLine(const std::string& line) {
-  task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&Core::WriteLine, base::Unretained(core_.get()), line));
+  core_->WriteLine(line);
 }
 
 }  // namespace net

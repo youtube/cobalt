@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,14 +12,20 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/message_loop/message_loop.h"
+#include "base/json/json_writer.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "net/base/features.h"
+#include "net/base/network_anonymization_key.h"
+#include "net/base/schemeful_site.h"
 #include "net/http/transport_security_state.h"
-#include "net/test/test_with_scoped_task_environment.h"
-#include "starboard/memory.h"
+#include "net/test/test_with_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace net {
 
@@ -27,381 +33,245 @@ namespace {
 
 const char kReportUri[] = "http://www.example.test/report";
 
-class TransportSecurityPersisterTest : public TestWithScopedTaskEnvironment {
+class TransportSecurityPersisterTest : public ::testing::Test,
+                                       public WithTaskEnvironment {
  public:
-  TransportSecurityPersisterTest() = default;
+  TransportSecurityPersisterTest()
+      : WithTaskEnvironment(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+    // Mock out time so that entries with hard-coded json data can be
+    // successfully loaded. Use a large enough value that dynamically created
+    // entries have at least somewhat interesting expiration times.
+    FastForwardBy(base::Days(3660));
+  }
 
   ~TransportSecurityPersisterTest() override {
-    EXPECT_TRUE(base::MessageLoopForIO::IsCurrent());
+    EXPECT_TRUE(base::CurrentIOThread::IsSet());
     base::RunLoop().RunUntilIdle();
   }
 
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-    ASSERT_TRUE(base::MessageLoopForIO::IsCurrent());
+    transport_security_file_path_ =
+        temp_dir_.GetPath().AppendASCII("TransportSecurity");
+    ASSERT_TRUE(base::CurrentIOThread::IsSet());
+    scoped_refptr<base::SequencedTaskRunner> background_runner(
+        base::ThreadPool::CreateSequencedTaskRunner(
+            {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+             base::TaskShutdownBehavior::BLOCK_SHUTDOWN}));
+    state_ = std::make_unique<TransportSecurityState>();
     persister_ = std::make_unique<TransportSecurityPersister>(
-        &state_, temp_dir_.GetPath(), base::ThreadTaskRunnerHandle::Get());
+        state_.get(), std::move(background_runner),
+        transport_security_file_path_);
   }
 
  protected:
+  base::FilePath transport_security_file_path_;
   base::ScopedTempDir temp_dir_;
-  TransportSecurityState state_;
+  std::unique_ptr<TransportSecurityState> state_;
   std::unique_ptr<TransportSecurityPersister> persister_;
 };
 
 // Tests that LoadEntries() clears existing non-static entries.
 TEST_F(TransportSecurityPersisterTest, LoadEntriesClearsExistingState) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      TransportSecurityState::kDynamicExpectCTFeature);
-  std::string output;
-  bool dirty;
-
   TransportSecurityState::STSState sts_state;
-  TransportSecurityState::PKPState pkp_state;
-  TransportSecurityState::ExpectCTState expect_ct_state;
   const base::Time current_time(base::Time::Now());
-  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
+  const base::Time expiry = current_time + base::Seconds(1000);
   static const char kYahooDomain[] = "yahoo.com";
 
-  EXPECT_FALSE(state_.GetDynamicSTSState(kYahooDomain, &sts_state));
-  EXPECT_FALSE(state_.GetDynamicPKPState(kYahooDomain, &pkp_state));
+  EXPECT_FALSE(state_->GetDynamicSTSState(kYahooDomain, &sts_state));
 
-  state_.AddHSTS(kYahooDomain, expiry, false /* include subdomains */);
-  HashValue spki(HASH_VALUE_SHA256);
-  memset(spki.data(), 0, spki.size());
-  HashValueVector dynamic_spki_hashes;
-  dynamic_spki_hashes.push_back(spki);
-  state_.AddHPKP(kYahooDomain, expiry, false, dynamic_spki_hashes, GURL());
-  state_.AddExpectCT(kYahooDomain, expiry, true /* enforce */, GURL());
+  state_->AddHSTS(kYahooDomain, expiry, false /* include subdomains */);
+  EXPECT_TRUE(state_->GetDynamicSTSState(kYahooDomain, &sts_state));
 
-  EXPECT_TRUE(state_.GetDynamicSTSState(kYahooDomain, &sts_state));
-  EXPECT_TRUE(state_.GetDynamicPKPState(kYahooDomain, &pkp_state));
-  EXPECT_TRUE(state_.GetDynamicExpectCTState(kYahooDomain, &expect_ct_state));
+  persister_->LoadEntries("{\"version\":2}");
 
-  EXPECT_TRUE(persister_->LoadEntries("{}", &dirty));
-  EXPECT_FALSE(dirty);
-
-  EXPECT_FALSE(state_.GetDynamicSTSState(kYahooDomain, &sts_state));
-  EXPECT_FALSE(state_.GetDynamicPKPState(kYahooDomain, &pkp_state));
-  EXPECT_FALSE(state_.GetDynamicExpectCTState(kYahooDomain, &expect_ct_state));
+  EXPECT_FALSE(state_->GetDynamicSTSState(kYahooDomain, &sts_state));
 }
 
+// Tests that serializing -> deserializing -> reserializing results in the same
+// output.
 TEST_F(TransportSecurityPersisterTest, SerializeData1) {
-  std::string output;
-  bool dirty;
+  absl::optional<std::string> output = persister_->SerializeData();
 
-  EXPECT_TRUE(persister_->SerializeData(&output));
-  EXPECT_TRUE(persister_->LoadEntries(output, &dirty));
-  EXPECT_FALSE(dirty);
+  ASSERT_TRUE(output);
+  persister_->LoadEntries(*output);
+
+  absl::optional<std::string> output2 = persister_->SerializeData();
+  ASSERT_TRUE(output2);
+  EXPECT_EQ(output, output2);
 }
 
 TEST_F(TransportSecurityPersisterTest, SerializeData2) {
   TransportSecurityState::STSState sts_state;
-  TransportSecurityState::PKPState pkp_state;
   const base::Time current_time(base::Time::Now());
-  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
+  const base::Time expiry = current_time + base::Seconds(1000);
   static const char kYahooDomain[] = "yahoo.com";
 
-  EXPECT_FALSE(
-      state_.GetStaticDomainState(kYahooDomain, &sts_state, &pkp_state));
-  EXPECT_FALSE(state_.GetDynamicSTSState(kYahooDomain, &sts_state));
-  EXPECT_FALSE(state_.GetDynamicPKPState(kYahooDomain, &pkp_state));
+  EXPECT_FALSE(state_->GetDynamicSTSState(kYahooDomain, &sts_state));
 
   bool include_subdomains = true;
-  state_.AddHSTS(kYahooDomain, expiry, include_subdomains);
+  state_->AddHSTS(kYahooDomain, expiry, include_subdomains);
 
-  std::string output;
-  bool dirty;
-  EXPECT_TRUE(persister_->SerializeData(&output));
-  EXPECT_TRUE(persister_->LoadEntries(output, &dirty));
+  absl::optional<std::string> output = persister_->SerializeData();
+  ASSERT_TRUE(output);
+  persister_->LoadEntries(*output);
 
-  EXPECT_TRUE(state_.GetDynamicSTSState(kYahooDomain, &sts_state));
+  EXPECT_TRUE(state_->GetDynamicSTSState(kYahooDomain, &sts_state));
   EXPECT_EQ(sts_state.upgrade_mode,
             TransportSecurityState::STSState::MODE_FORCE_HTTPS);
-  EXPECT_TRUE(state_.GetDynamicSTSState("foo.yahoo.com", &sts_state));
+  EXPECT_TRUE(state_->GetDynamicSTSState("foo.yahoo.com", &sts_state));
   EXPECT_EQ(sts_state.upgrade_mode,
             TransportSecurityState::STSState::MODE_FORCE_HTTPS);
-  EXPECT_TRUE(state_.GetDynamicSTSState("foo.bar.yahoo.com", &sts_state));
+  EXPECT_TRUE(state_->GetDynamicSTSState("foo.bar.yahoo.com", &sts_state));
   EXPECT_EQ(sts_state.upgrade_mode,
             TransportSecurityState::STSState::MODE_FORCE_HTTPS);
-  EXPECT_TRUE(state_.GetDynamicSTSState("foo.bar.baz.yahoo.com", &sts_state));
+  EXPECT_TRUE(state_->GetDynamicSTSState("foo.bar.baz.yahoo.com", &sts_state));
   EXPECT_EQ(sts_state.upgrade_mode,
             TransportSecurityState::STSState::MODE_FORCE_HTTPS);
-  EXPECT_FALSE(state_.GetStaticDomainState("com", &sts_state, &pkp_state));
 }
 
 TEST_F(TransportSecurityPersisterTest, SerializeData3) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      TransportSecurityState::kDynamicExpectCTFeature);
   const GURL report_uri(kReportUri);
   // Add an entry.
-  HashValue fp1(HASH_VALUE_SHA256);
-  memset(fp1.data(), 0, fp1.size());
-  HashValue fp2(HASH_VALUE_SHA256);
-  memset(fp2.data(), 1, fp2.size());
-  base::Time expiry =
-      base::Time::Now() + base::TimeDelta::FromSeconds(1000);
-  HashValueVector dynamic_spki_hashes;
-  dynamic_spki_hashes.push_back(fp1);
-  dynamic_spki_hashes.push_back(fp2);
+  base::Time expiry = base::Time::Now() + base::Seconds(1000);
   bool include_subdomains = false;
-  state_.AddHSTS("www.example.com", expiry, include_subdomains);
-  state_.AddHPKP("www.example.com", expiry, include_subdomains,
-                 dynamic_spki_hashes, report_uri);
-  state_.AddExpectCT("www.example.com", expiry, true /* enforce */, GURL());
+  state_->AddHSTS("www.example.com", expiry, include_subdomains);
 
   // Add another entry.
-  memset(fp1.data(), 2, fp1.size());
-  memset(fp2.data(), 3, fp2.size());
-  expiry =
-      base::Time::Now() + base::TimeDelta::FromSeconds(3000);
-  dynamic_spki_hashes.push_back(fp1);
-  dynamic_spki_hashes.push_back(fp2);
-  state_.AddHSTS("www.example.net", expiry, include_subdomains);
-  state_.AddHPKP("www.example.net", expiry, include_subdomains,
-                 dynamic_spki_hashes, report_uri);
-  state_.AddExpectCT("www.example.net", expiry, false /* enforce */,
-                     report_uri);
+  expiry = base::Time::Now() + base::Seconds(3000);
+  state_->AddHSTS("www.example.net", expiry, include_subdomains);
 
   // Save a copy of everything.
-  std::set<std::string> sts_saved;
-  TransportSecurityState::STSStateIterator sts_iter(state_);
+  std::set<TransportSecurityState::HashedHost> sts_saved;
+  TransportSecurityState::STSStateIterator sts_iter(*state_);
   while (sts_iter.HasNext()) {
     sts_saved.insert(sts_iter.hostname());
     sts_iter.Advance();
   }
 
-  std::set<std::string> pkp_saved;
-  TransportSecurityState::PKPStateIterator pkp_iter(state_);
-  while (pkp_iter.HasNext()) {
-    pkp_saved.insert(pkp_iter.hostname());
-    pkp_iter.Advance();
-  }
+  absl::optional<std::string> serialized = persister_->SerializeData();
+  ASSERT_TRUE(serialized);
 
-  std::set<std::string> expect_ct_saved;
-  TransportSecurityState::ExpectCTStateIterator expect_ct_iter(state_);
-  while (expect_ct_iter.HasNext()) {
-    expect_ct_saved.insert(expect_ct_iter.hostname());
-    expect_ct_iter.Advance();
-  }
-
-  std::string serialized;
-  EXPECT_TRUE(persister_->SerializeData(&serialized));
-
-  // Persist the data to the file. For the test to be fast and not flaky, we
-  // just do it directly rather than call persister_->StateIsDirty. (That uses
-  // ImportantFileWriter, which has an asynchronous commit interval rather
-  // than block.) Use a different basename just for cleanliness.
-  base::FilePath path =
-      temp_dir_.GetPath().AppendASCII("TransportSecurityPersisterTest");
-  EXPECT_EQ(static_cast<int>(serialized.size()),
-            base::WriteFile(path, serialized.c_str(), serialized.size()));
+  // Persist the data to the file.
+  base::RunLoop run_loop;
+  persister_->WriteNow(state_.get(), run_loop.QuitClosure());
+  run_loop.Run();
 
   // Read the data back.
   std::string persisted;
-  EXPECT_TRUE(base::ReadFileToString(path, &persisted));
+  EXPECT_TRUE(
+      base::ReadFileToString(transport_security_file_path_, &persisted));
   EXPECT_EQ(persisted, serialized);
-  bool dirty;
-  EXPECT_TRUE(persister_->LoadEntries(persisted, &dirty));
-  EXPECT_FALSE(dirty);
+  persister_->LoadEntries(persisted);
 
   // Check that states are the same as saved.
   size_t count = 0;
-  TransportSecurityState::STSStateIterator sts_iter2(state_);
+  TransportSecurityState::STSStateIterator sts_iter2(*state_);
   while (sts_iter2.HasNext()) {
     count++;
     sts_iter2.Advance();
   }
   EXPECT_EQ(count, sts_saved.size());
-
-  count = 0;
-  TransportSecurityState::PKPStateIterator pkp_iter2(state_);
-  while (pkp_iter2.HasNext()) {
-    count++;
-    pkp_iter2.Advance();
-  }
-  EXPECT_EQ(count, pkp_saved.size());
-
-  count = 0;
-  TransportSecurityState::ExpectCTStateIterator expect_ct_iter2(state_);
-  while (expect_ct_iter2.HasNext()) {
-    count++;
-    expect_ct_iter2.Advance();
-  }
-  EXPECT_EQ(count, expect_ct_saved.size());
 }
 
-TEST_F(TransportSecurityPersisterTest, SerializeDataOld) {
+// Tests that deserializing bad data shouldn't result in any STS entries being
+// added to the transport security state.
+TEST_F(TransportSecurityPersisterTest, DeserializeBadData) {
+  persister_->LoadEntries("");
+  EXPECT_EQ(0u, state_->num_sts_entries());
+
+  persister_->LoadEntries("Foopy");
+  EXPECT_EQ(0u, state_->num_sts_entries());
+
+  persister_->LoadEntries("15");
+  EXPECT_EQ(0u, state_->num_sts_entries());
+
+  persister_->LoadEntries("[15]");
+  EXPECT_EQ(0u, state_->num_sts_entries());
+
+  persister_->LoadEntries("{\"version\":1}");
+  EXPECT_EQ(0u, state_->num_sts_entries());
+}
+
+TEST_F(TransportSecurityPersisterTest, DeserializeDataOldWithoutCreationDate) {
   // This is an old-style piece of transport state JSON, which has no creation
   // date.
-  std::string output =
+  const std::string kInput =
       "{ "
-      "\"NiyD+3J1r6z1wjl2n1ALBu94Zj9OsEAMo0kCN8js0Uk=\": {"
+      "\"G0EywIek2XnIhLrUjaK4TrHBT1+2TcixDVRXwM3/CCo=\": {"
       "\"expiry\": 1266815027.983453, "
       "\"include_subdomains\": false, "
       "\"mode\": \"strict\" "
       "}"
       "}";
-  bool dirty;
-  EXPECT_TRUE(persister_->LoadEntries(output, &dirty));
-  EXPECT_TRUE(dirty);
+  persister_->LoadEntries(kInput);
+  EXPECT_EQ(0u, state_->num_sts_entries());
 }
 
-TEST_F(TransportSecurityPersisterTest, PublicKeyPins) {
-  const GURL report_uri(kReportUri);
-  TransportSecurityState::PKPState pkp_state;
-  static const char kTestDomain[] = "example.com";
+TEST_F(TransportSecurityPersisterTest, DeserializeDataOldMergedDictionary) {
+  // This is an old-style piece of transport state JSON, which uses a single
+  // unversioned host-keyed dictionary of merged ExpectCT and HSTS data.
+  const std::string kInput =
+      "{"
+      "   \"CxLbri+JPdi5pZ8/a/2rjyzq+IYs07WJJ1yxjB4Lpw0=\": {"
+      "      \"expect_ct\": {"
+      "         \"expect_ct_enforce\": true,"
+      "         \"expect_ct_expiry\": 1590512843.283966,"
+      "         \"expect_ct_observed\": 1590511843.284064,"
+      "         \"expect_ct_report_uri\": \"https://expect_ct.test/report_uri\""
+      "      },"
+      "      \"expiry\": 0.0,"
+      "      \"mode\": \"default\","
+      "      \"sts_include_subdomains\": false,"
+      "      \"sts_observed\": 0.0"
+      "   },"
+      "   \"DkgjGShIBmYtgJcJf5lfX3rTr2S6dqyF+O8IAgjuleE=\": {"
+      "      \"expiry\": 1590512843.283966,"
+      "      \"mode\": \"force-https\","
+      "      \"sts_include_subdomains\": false,"
+      "      \"sts_observed\": 1590511843.284025"
+      "   },"
+      "   \"M5lkNV3JBeoPMlKrTOKRYT+mrUsZCS5eoQWsc9/r1MU=\": {"
+      "      \"expect_ct\": {"
+      "         \"expect_ct_enforce\": true,"
+      "         \"expect_ct_expiry\": 1590512843.283966,"
+      "         \"expect_ct_observed\": 1590511843.284098,"
+      "         \"expect_ct_report_uri\": \"\""
+      "      },"
+      "      \"expiry\": 1590512843.283966,"
+      "      \"mode\": \"force-https\","
+      "      \"sts_include_subdomains\": true,"
+      "      \"sts_observed\": 1590511843.284091"
+      "   }"
+      "}";
 
-  EXPECT_FALSE(state_.GetDynamicPKPState(kTestDomain, &pkp_state));
-  HashValueVector hashes;
-  std::string failure_log;
-  EXPECT_FALSE(pkp_state.CheckPublicKeyPins(hashes, &failure_log));
-
-  HashValue sha256(HASH_VALUE_SHA256);
-  memset(sha256.data(), '1', sha256.size());
-  pkp_state.spki_hashes.push_back(sha256);
-
-  EXPECT_FALSE(pkp_state.CheckPublicKeyPins(hashes, &failure_log));
-
-  hashes.push_back(sha256);
-  EXPECT_TRUE(pkp_state.CheckPublicKeyPins(hashes, &failure_log));
-
-  hashes[0].data()[0] = '2';
-  EXPECT_FALSE(pkp_state.CheckPublicKeyPins(hashes, &failure_log));
-
-  const base::Time current_time(base::Time::Now());
-  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
-  bool include_subdomains = false;
-  state_.AddHSTS(kTestDomain, expiry, include_subdomains);
-  state_.AddHPKP(kTestDomain, expiry, include_subdomains, pkp_state.spki_hashes,
-                 report_uri);
-  std::string serialized;
-  EXPECT_TRUE(persister_->SerializeData(&serialized));
-  bool dirty;
-  EXPECT_TRUE(persister_->LoadEntries(serialized, &dirty));
-
-  TransportSecurityState::PKPState new_pkp_state;
-  EXPECT_TRUE(state_.GetDynamicPKPState(kTestDomain, &new_pkp_state));
-  EXPECT_EQ(1u, new_pkp_state.spki_hashes.size());
-  EXPECT_EQ(sha256.tag(), new_pkp_state.spki_hashes[0].tag());
-  EXPECT_EQ(0, memcmp(new_pkp_state.spki_hashes[0].data(),
-                      sha256.data(), sha256.size()));
-  EXPECT_EQ(report_uri, new_pkp_state.report_uri);
+  persister_->LoadEntries(kInput);
+  EXPECT_EQ(0u, state_->num_sts_entries());
 }
 
-// Tests that dynamic Expect-CT state is serialized and deserialized correctly.
-TEST_F(TransportSecurityPersisterTest, ExpectCT) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      TransportSecurityState::kDynamicExpectCTFeature);
-  const GURL report_uri(kReportUri);
-  TransportSecurityState::ExpectCTState expect_ct_state;
-  static const char kTestDomain[] = "example.test";
-
-  EXPECT_FALSE(state_.GetDynamicExpectCTState(kTestDomain, &expect_ct_state));
-
-  const base::Time current_time(base::Time::Now());
-  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
-  state_.AddExpectCT(kTestDomain, expiry, true /* enforce */, GURL());
-  std::string serialized;
-  EXPECT_TRUE(persister_->SerializeData(&serialized));
-  bool dirty;
-  // LoadEntries() clears existing dynamic data before loading entries from
-  // |serialized|.
-  EXPECT_TRUE(persister_->LoadEntries(serialized, &dirty));
-
-  TransportSecurityState::ExpectCTState new_expect_ct_state;
-  EXPECT_TRUE(
-      state_.GetDynamicExpectCTState(kTestDomain, &new_expect_ct_state));
-  EXPECT_TRUE(new_expect_ct_state.enforce);
-  EXPECT_TRUE(new_expect_ct_state.report_uri.is_empty());
-  EXPECT_EQ(expiry, new_expect_ct_state.expiry);
-
-  // Update the state for the domain and check that it is
-  // serialized/deserialized correctly.
-  state_.AddExpectCT(kTestDomain, expiry, false /* enforce */, report_uri);
-  EXPECT_TRUE(persister_->SerializeData(&serialized));
-  EXPECT_TRUE(persister_->LoadEntries(serialized, &dirty));
-  EXPECT_TRUE(
-      state_.GetDynamicExpectCTState(kTestDomain, &new_expect_ct_state));
-  EXPECT_FALSE(new_expect_ct_state.enforce);
-  EXPECT_EQ(report_uri, new_expect_ct_state.report_uri);
-  EXPECT_EQ(expiry, new_expect_ct_state.expiry);
-}
-
-// Tests that dynamic Expect-CT state is serialized and deserialized correctly
-// when there is also PKP and STS data present.
-TEST_F(TransportSecurityPersisterTest, ExpectCTWithSTSAndPKPDataPresent) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      TransportSecurityState::kDynamicExpectCTFeature);
-  const GURL report_uri(kReportUri);
-  TransportSecurityState::ExpectCTState expect_ct_state;
-  static const char kTestDomain[] = "example.test";
-
-  EXPECT_FALSE(state_.GetDynamicExpectCTState(kTestDomain, &expect_ct_state));
-
-  const base::Time current_time(base::Time::Now());
-  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
-  state_.AddHSTS(kTestDomain, expiry, false /* include subdomains */);
-  state_.AddExpectCT(kTestDomain, expiry, true /* enforce */, GURL());
-  HashValue spki_hash(HASH_VALUE_SHA256);
-  memset(spki_hash.data(), 0, spki_hash.size());
-  HashValueVector dynamic_spki_hashes;
-  dynamic_spki_hashes.push_back(spki_hash);
-  state_.AddHPKP(kTestDomain, expiry, false /* include subdomains */,
-                 dynamic_spki_hashes, GURL());
-
-  std::string serialized;
-  EXPECT_TRUE(persister_->SerializeData(&serialized));
-  bool dirty;
-  // LoadEntries() clears existing dynamic data before loading entries from
-  // |serialized|.
-  EXPECT_TRUE(persister_->LoadEntries(serialized, &dirty));
-
-  TransportSecurityState::ExpectCTState new_expect_ct_state;
-  EXPECT_TRUE(
-      state_.GetDynamicExpectCTState(kTestDomain, &new_expect_ct_state));
-  EXPECT_TRUE(new_expect_ct_state.enforce);
-  EXPECT_TRUE(new_expect_ct_state.report_uri.is_empty());
-  EXPECT_EQ(expiry, new_expect_ct_state.expiry);
-  // Check that STS and PKP state are loaded properly as well.
-  TransportSecurityState::STSState sts_state;
-  EXPECT_TRUE(state_.GetDynamicSTSState(kTestDomain, &sts_state));
-  EXPECT_EQ(sts_state.upgrade_mode,
-            TransportSecurityState::STSState::MODE_FORCE_HTTPS);
-  TransportSecurityState::PKPState pkp_state;
-  EXPECT_TRUE(state_.GetDynamicPKPState(kTestDomain, &pkp_state));
-  EXPECT_EQ(1u, pkp_state.spki_hashes.size());
-  EXPECT_EQ(0, memcmp(pkp_state.spki_hashes[0].data(),
-                      spki_hash.data(), spki_hash.size()));
-}
-
-// Tests that Expect-CT state is not serialized and persisted when the feature
-// is disabled.
-TEST_F(TransportSecurityPersisterTest, ExpectCTDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      TransportSecurityState::kDynamicExpectCTFeature);
-  const GURL report_uri(kReportUri);
-  TransportSecurityState::ExpectCTState expect_ct_state;
-  static const char kTestDomain[] = "example.test";
-
-  EXPECT_FALSE(state_.GetDynamicExpectCTState(kTestDomain, &expect_ct_state));
-
-  const base::Time current_time(base::Time::Now());
-  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
-  state_.AddExpectCT(kTestDomain, expiry, true /* enforce */, GURL());
-  std::string serialized;
-  EXPECT_TRUE(persister_->SerializeData(&serialized));
-  bool dirty;
-  EXPECT_TRUE(persister_->LoadEntries(serialized, &dirty));
-
-  TransportSecurityState::ExpectCTState new_expect_ct_state;
-  EXPECT_FALSE(
-      state_.GetDynamicExpectCTState(kTestDomain, &new_expect_ct_state));
+TEST_F(TransportSecurityPersisterTest, DeserializeLegacyExpectCTData) {
+  const std::string kHost = "CxLbri+JPdi5pZ8/a/2rjyzq+IYs07WJJ1yxjB4Lpw0=";
+  const std::string kInput =
+      R"({"version":2, "sts": [{ "host": ")" + kHost +
+      R"(", "mode": "force-https", "sts_include_subdomains": false, )"
+      R"("sts_observed": 0.0, "expiry": 4825336765.0}], "expect_ct": [{"host":)"
+      R"("CxLbri+JPdi5pZ8/a/2rjyzq+IYs07WJJ1yxjB4Lpw0=", "nak": "test", )"
+      R"("expect_ct_observed": 0.0, "expect_ct_expiry": 4825336765.0, )"
+      R"("expect_ct_enforce": true, "expect_ct_report_uri": ""}]})";
+  LOG(ERROR) << kInput;
+  constexpr auto kDefaultFileWriterCommitInterval = base::Seconds(10);
+  persister_->LoadEntries(kInput);
+  FastForwardBy(kDefaultFileWriterCommitInterval + base::Seconds(1));
+  EXPECT_EQ(1u, state_->num_sts_entries());
+  // Now read the data and check that there are no Expect-CT entries.
+  std::string persisted;
+  ASSERT_TRUE(
+      base::ReadFileToString(transport_security_file_path_, &persisted));
+  // Smoke test that the file contains some data as expected...
+  ASSERT_NE(std::string::npos, persisted.find(kHost));
+  // But it shouldn't contain any Expect-CT data.
+  EXPECT_EQ(std::string::npos, persisted.find("expect_ct"));
 }
 
 }  // namespace

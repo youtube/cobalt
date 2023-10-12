@@ -1,15 +1,14 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/cert/merkle_audit_proof.h"
 
-#include "base/logging.h"
+#include "base/check.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-namespace ct {
+namespace net::ct {
 namespace {
 
 TEST(MerkleAuditProofTest, CalculatesAuditPathLengthCorrectly) {
@@ -49,5 +48,4 @@ TEST(MerkleAuditProofDeathTest, DiesIfLeafIndexIsGreaterThanOrEqualToTreeSize) {
 }
 
 }  // namespace
-}  // namespace ct
-}  // namespace net
+}  // namespace net::ct

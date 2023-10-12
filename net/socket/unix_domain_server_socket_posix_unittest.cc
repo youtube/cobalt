@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,14 @@
 #include <memory>
 #include <vector>
 
-#include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
-#include "base/stl_util.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "net/base/io_buffer.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/unix_domain_client_socket_posix.h"
@@ -33,7 +34,7 @@ const char kInvalidSocketPath[] = "/invalid/path";
 bool UserCanConnectCallback(bool allow_user,
     const UnixDomainServerSocket::Credentials& credentials) {
   // Here peers are running in same process.
-#if defined(OS_LINUX) || defined(OS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   EXPECT_EQ(getpid(), credentials.process_id);
 #endif
   EXPECT_EQ(getuid(), credentials.user_id);
@@ -42,7 +43,7 @@ bool UserCanConnectCallback(bool allow_user,
 }
 
 UnixDomainServerSocket::AuthCallback CreateAuthCallback(bool allow_user) {
-  return base::Bind(&UserCanConnectCallback, allow_user);
+  return base::BindRepeating(&UserCanConnectCallback, allow_user);
 }
 
 class UnixDomainServerSocketTest : public testing::Test {
@@ -68,7 +69,7 @@ TEST_F(UnixDomainServerSocketTest, ListenWithInvalidPathWithAbstractNamespace) {
   const bool kUseAbstractNamespace = true;
   UnixDomainServerSocket server_socket(CreateAuthCallback(true),
                                        kUseAbstractNamespace);
-#if defined(OS_ANDROID) || defined(OS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   EXPECT_THAT(server_socket.BindAndListen(kInvalidSocketPath, /*backlog=*/1),
               IsOk());
 #else
@@ -87,8 +88,8 @@ TEST_F(UnixDomainServerSocketTest, ListenAgainAfterFailureWithInvalidPath) {
 }
 
 TEST_F(UnixDomainServerSocketTest, AcceptWithForbiddenUser) {
-  base::test::ScopedTaskEnvironment scoped_task_environment(
-      base::test::ScopedTaskEnvironment::MainThreadType::IO);
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::MainThreadType::IO);
 
   const bool kUseAbstractNamespace = false;
 
@@ -135,7 +136,8 @@ TEST_F(UnixDomainServerSocketTest, UnimplementedMethodsFail) {
                                        kUseAbstractNamespace);
 
   IPEndPoint ep;
-  EXPECT_THAT(server_socket.Listen(ep, 0), IsError(ERR_NOT_IMPLEMENTED));
+  EXPECT_THAT(server_socket.Listen(ep, 0, /*ipv6_only=*/absl::nullopt),
+              IsError(ERR_NOT_IMPLEMENTED));
   EXPECT_EQ(ERR_NOT_IMPLEMENTED,
       server_socket.ListenWithAddressAndPort(kInvalidSocketPath,
                                              0,

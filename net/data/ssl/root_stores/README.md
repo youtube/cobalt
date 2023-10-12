@@ -68,7 +68,7 @@ had changed were included for consideration.
 
 Additional restrictions upon trusted CAs are maintained both within the code
 of Security.framework and through additional plist expressions, such as for
-whitelisted certificates. However, these were not consulted, as they're not
+allowlisted certificates. However, these were not consulted, as they're not
 applicable to this use case.
 
 ### Mozilla NSS
@@ -96,3 +96,8 @@ less exhaustively, on [MSDN](https://msdn.microsoft.com/en-us/library/windows/de
 Additional restrictions upon trusted CAs are maintained as properties within
 the STL; however, these were not consulted, as they're not applicable to this
 use case.
+
+Tools that can help get this data:
+
+* https://github.com/robstradling/authroot.stl
+* https://github.com/zmap/rootfetch

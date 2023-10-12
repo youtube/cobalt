@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,11 +15,11 @@ namespace net {
 WebSocketHandshakeResponseInfo::WebSocketHandshakeResponseInfo(
     const GURL& url,
     scoped_refptr<HttpResponseHeaders> headers,
-    const HostPortPair& socket_address,
+    const IPEndPoint& remote_endpoint,
     base::Time response_time)
     : url(url),
       headers(std::move(headers)),
-      socket_address(socket_address),
+      remote_endpoint(remote_endpoint),
       response_time(response_time) {}
 
 WebSocketHandshakeResponseInfo::~WebSocketHandshakeResponseInfo() = default;

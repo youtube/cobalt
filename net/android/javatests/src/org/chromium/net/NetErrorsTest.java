@@ -1,4 +1,4 @@
-// Copyright 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,16 +8,18 @@
 
 package org.chromium.net;
 
-import android.support.test.filters.SmallTest;
+import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.test.BaseJUnit4ClassRunner;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 
 @RunWith(BaseJUnit4ClassRunner.class)
+@Batch(Batch.UNIT_TESTS)
 public class NetErrorsTest {
     // These are manually copied and should be kept in sync with net_error_list.h.
     private static final int IO_PENDING_ERROR = -1;
@@ -26,12 +28,11 @@ public class NetErrorsTest {
     /**
      * Test whether we can include NetError.java and call to static integers defined in the file.
      *
-     * @throws Exception
      */
     @Test
     @SmallTest
     @Feature({"Android-AppBase"})
-    public void testExampleErrorDefined() throws Exception {
+    public void testExampleErrorDefined() {
         Assert.assertEquals(IO_PENDING_ERROR, NetError.ERR_IO_PENDING);
         Assert.assertEquals(FAILED_ERROR, NetError.ERR_FAILED);
     }

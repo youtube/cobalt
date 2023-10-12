@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define NET_ANDROID_KEYSTORE_H_
 
 #include <jni.h>
+#include <stdint.h>
 
 #include <string>
 #include <vector>
@@ -14,14 +15,10 @@
 #include "base/containers/span.h"
 #include "base/strings/string_piece.h"
 #include "net/ssl/ssl_client_cert_type.h"
-#include "starboard/types.h"
 
 // Misc functions to access the Android platform KeyStore.
 
-namespace net {
-namespace android {
-
-struct AndroidEVP_PKEY;
+namespace net::android {
 
 // Define a list of constants describing private key types. The
 // values are shared with Java through org.chromium.net.PrivateKeyType.
@@ -35,6 +32,17 @@ enum PrivateKeyType {
   PRIVATE_KEY_TYPE_ECDSA = 2,
   PRIVATE_KEY_TYPE_INVALID = 255,
 };
+
+// Returns the name of the class which implements the private key.
+std::string GetPrivateKeyClassName(const base::android::JavaRef<jobject>& key);
+
+// Returns whether |key| supports the signature algorithm |algorithm|.
+bool PrivateKeySupportsSignature(const base::android::JavaRef<jobject>& key,
+                                 base::StringPiece algorithm);
+
+// Returns whether |key| supports the encryption algorithm |algorithm|.
+bool PrivateKeySupportsCipher(const base::android::JavaRef<jobject>& key,
+                              base::StringPiece algorithm);
 
 // Compute the signature of a given input using a private key. For more
 // details, please read the comments for the signWithPrivateKey method in
@@ -50,31 +58,19 @@ bool SignWithPrivateKey(const base::android::JavaRef<jobject>& private_key,
                         base::span<const uint8_t> input,
                         std::vector<uint8_t>* signature);
 
-// Returns a handle to the system AndroidEVP_PKEY object used to back a given
-// private_key object. This must *only* be used for RSA private keys on Android
-// < 4.2. Technically, this is only guaranteed to work if the system image
-// contains a vanilla implementation of the Java API frameworks based on Harmony
-// + OpenSSL.
+// Encrypts a given input using a private key. For more details, please read the
+// comments for the encryptWithPrivateKey method in AndroidKeyStore.java.
 //
 // |private_key| is a JNI reference for the private key.
-// Returns an AndroidEVP_PKEY* handle, or NULL in case of error.
-//
-// Note: Despite its name and return type, this function doesn't know
-//       anything about OpenSSL, it just type-casts a system pointer that
-//       is passed as an int through JNI. As such, it never increments
-//       the returned key's reference count.
-AndroidEVP_PKEY* GetOpenSSLSystemHandleForPrivateKey(
-    const base::android::JavaRef<jobject>& private_key);
+// |algorithm| is the name of the algorithm to use.
+// |input| is the input to encrypt.
+// |ciphertext| will receive the ciphertext on success.
+// Returns true on success, false on failure.
+bool EncryptWithPrivateKey(const base::android::JavaRef<jobject>& private_key,
+                           base::StringPiece algorithm,
+                           base::span<const uint8_t> input,
+                           std::vector<uint8_t>* ciphertext);
 
-// Returns a JNI reference to the OpenSSLEngine object which is used to back a
-// given private_key object. This must *only* be used for RSA private keys on
-// Android < 4.2. Technically, this is only guaranteed to work if the system
-// image contains a vanilla implementation of the Java API frameworks based on
-// Harmony + OpenSSL.
-base::android::ScopedJavaLocalRef<jobject> GetOpenSSLEngineForPrivateKey(
-    const base::android::JavaRef<jobject>& private_key);
-
-}  // namespace android
-}  // namespace net
+}  // namespace net::android
 
 #endif  // NET_ANDROID_KEYSTORE_H_

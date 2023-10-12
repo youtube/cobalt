@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,9 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "net/base/completion_once_callback.h"
-#include "net/base/load_timing_info.h"
+#include "net/base/proxy_server.h"
 #include "net/http/proxy_client_socket.h"
 #include "net/quic/quic_chromium_client_session.h"
 #include "net/quic/quic_chromium_client_stream.h"
@@ -20,8 +21,9 @@
 namespace net {
 
 class HttpAuthController;
+class ProxyDelegate;
 
-// QuicProxyClientSocket provides a socket interface to an underlying
+// QuicProxyClientSocket tunnels a stream socket over an underlying
 // QuicChromiumClientStream. Bytes written to/read from a QuicProxyClientSocket
 // are sent/received via STREAM frames in the underlying QUIC stream.
 class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
@@ -32,22 +34,23 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
   QuicProxyClientSocket(
       std::unique_ptr<QuicChromiumClientStream::Handle> stream,
       std::unique_ptr<QuicChromiumClientSession::Handle> session,
+      const ProxyServer& proxy_server,
       const std::string& user_agent,
       const HostPortPair& endpoint,
       const NetLogWithSource& net_log,
-      HttpAuthController* auth_controller);
+      scoped_refptr<HttpAuthController> auth_controller,
+      ProxyDelegate* proxy_delegate);
+
+  QuicProxyClientSocket(const QuicProxyClientSocket&) = delete;
+  QuicProxyClientSocket& operator=(const QuicProxyClientSocket&) = delete;
 
   // On destruction Disconnect() is called.
   ~QuicProxyClientSocket() override;
 
   // ProxyClientSocket methods:
   const HttpResponseInfo* GetConnectResponseInfo() const override;
-  // QUIC46
-  std::unique_ptr<HttpStream> CreateConnectResponseStream() override;
   const scoped_refptr<HttpAuthController>& GetAuthController() const override;
   int RestartWithAuth(CompletionOnceCallback callback) override;
-  bool IsUsingSpdy() const override;
-  NextProto GetProxyNegotiatedProtocol() const override;
   void SetStreamPriority(RequestPriority priority) override;
 
   // StreamSocket implementation.
@@ -60,9 +63,6 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
   bool WasAlpnNegotiated() const override;
   NextProto GetNegotiatedProtocol() const override;
   bool GetSSLInfo(SSLInfo* ssl_info) override;
-  void GetConnectionAttempts(ConnectionAttempts* out) const override;
-  void ClearConnectionAttempts() override {}
-  void AddConnectionAttempts(const ConnectionAttempts& attempts) override {}
   int64_t GetTotalReceivedBytes() const override;
   void ApplySocketTag(const SocketTag& tag) override;
 
@@ -97,7 +97,7 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
 
   // Callback for stream_->ReadInitialHeaders()
   void OnReadResponseHeadersComplete(int result);
-  int ProcessResponseHeaders(const spdy::SpdyHeaderBlock& headers);
+  int ProcessResponseHeaders(const spdy::Http2HeaderBlock& headers);
 
   int DoLoop(int last_io_result);
   int DoGenerateAuthToken();
@@ -107,9 +107,7 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
   int DoReadReply();
   int DoReadReplyComplete(int result);
 
-  bool GetLoadTimingInfo(LoadTimingInfo* load_timing_info) const;
-
-  State next_state_;
+  State next_state_ = STATE_DISCONNECTED;
 
   // Handle to the QUIC Stream that this sits on top of.
   std::unique_ptr<QuicChromiumClientStream::Handle> stream_;
@@ -122,34 +120,34 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
   // Stores the callback for Read().
   CompletionOnceCallback read_callback_;
   // Stores the read buffer pointer for Read().
-  IOBuffer* read_buf_;
+  raw_ptr<IOBuffer> read_buf_ = nullptr;
   // Stores the callback for Write().
   CompletionOnceCallback write_callback_;
   // Stores the write buffer length for Write().
-  int write_buf_len_;
+  int write_buf_len_ = 0;
 
   // CONNECT request and response.
   HttpRequestInfo request_;
   HttpResponseInfo response_;
 
-  spdy::SpdyHeaderBlock response_header_block_;
+  spdy::Http2HeaderBlock response_header_block_;
 
   // The hostname and port of the endpoint.  This is not necessarily the one
   // specified by the URL, due to Alternate-Protocol or fixed testing ports.
   const HostPortPair endpoint_;
   scoped_refptr<HttpAuthController> auth_;
 
-  std::string user_agent_;
+  const ProxyServer proxy_server_;
 
-  // Session connect timing info.
-  LoadTimingInfo::ConnectTiming connect_timing_;
+  // This delegate must outlive this proxy client socket.
+  const raw_ptr<ProxyDelegate> proxy_delegate_;
+
+  std::string user_agent_;
 
   const NetLogWithSource net_log_;
 
   // The default weak pointer factory.
-  base::WeakPtrFactory<QuicProxyClientSocket> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(QuicProxyClientSocket);
+  base::WeakPtrFactory<QuicProxyClientSocket> weak_factory_{this};
 };
 
 }  // namespace net

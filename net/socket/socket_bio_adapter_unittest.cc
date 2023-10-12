@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,12 +8,11 @@
 
 #include <memory>
 
+#include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/location.h"
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
-#include "base/test/scoped_feature_list.h"
 #include "crypto/openssl_util.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_once_callback.h"
@@ -22,9 +21,7 @@
 #include "net/socket/socket_test_util.h"
 #include "net/socket/stream_socket.h"
 #include "net/ssl/openssl_ssl_util.h"
-#include "net/test/test_with_scoped_task_environment.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "net/test/test_with_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/bio.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
@@ -33,23 +30,18 @@
 namespace net {
 
 enum ReadIfReadySupport {
-  // ReadIfReady() field trial is enabled, and ReadyIfReady() is implemented.
-  READ_IF_READY_ENABLED_SUPPORTED,
-  // ReadIfReady() field trial is enabled, but ReadyIfReady() is unimplemented.
-  READ_IF_READY_ENABLED_NOT_SUPPORTED,
-  // ReadIfReady() field trial is disabled.
-  READ_IF_READY_DISABLED,
+  // ReadyIfReady() is implemented.
+  READ_IF_READY_SUPPORTED,
+  // ReadyIfReady() is unimplemented.
+  READ_IF_READY_NOT_SUPPORTED,
 };
 
 class SocketBIOAdapterTest : public testing::TestWithParam<ReadIfReadySupport>,
                              public SocketBIOAdapter::Delegate,
-                             public WithScopedTaskEnvironment {
+                             public WithTaskEnvironment {
  protected:
   void SetUp() override {
-    if (GetParam() == READ_IF_READY_DISABLED) {
-      scoped_feature_list_.InitAndDisableFeature(
-          Socket::kReadIfReadyExperiment);
-    } else if (GetParam() == READ_IF_READY_ENABLED_SUPPORTED) {
+    if (GetParam() == READ_IF_READY_SUPPORTED) {
       factory_.set_enable_read_if_ready(true);
     }
   }
@@ -58,7 +50,7 @@ class SocketBIOAdapterTest : public testing::TestWithParam<ReadIfReadySupport>,
     data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     factory_.AddSocketDataProvider(data);
     std::unique_ptr<StreamSocket> socket = factory_.CreateTransportClientSocket(
-        AddressList(), nullptr, nullptr, NetLogSource());
+        AddressList(), nullptr, nullptr, nullptr, NetLogSource());
     CHECK_EQ(OK, socket->Connect(CompletionOnceCallback()));
     return socket;
   }
@@ -162,15 +154,13 @@ class SocketBIOAdapterTest : public testing::TestWithParam<ReadIfReadySupport>,
   bool expect_read_ready_ = false;
   bool expect_write_ready_ = false;
   MockClientSocketFactory factory_;
-  std::unique_ptr<SocketBIOAdapter>* reset_on_write_ready_ = nullptr;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  raw_ptr<std::unique_ptr<SocketBIOAdapter>> reset_on_write_ready_ = nullptr;
 };
 
-INSTANTIATE_TEST_CASE_P(/* no prefix */,
-                        SocketBIOAdapterTest,
-                        testing::Values(READ_IF_READY_ENABLED_SUPPORTED,
-                                        READ_IF_READY_ENABLED_NOT_SUPPORTED,
-                                        READ_IF_READY_DISABLED));
+INSTANTIATE_TEST_SUITE_P(All,
+                         SocketBIOAdapterTest,
+                         testing::Values(READ_IF_READY_SUPPORTED,
+                                         READ_IF_READY_NOT_SUPPORTED));
 
 // Test that data can be read synchronously.
 TEST_P(SocketBIOAdapterTest, ReadSync) {
@@ -236,7 +226,7 @@ TEST_P(SocketBIOAdapterTest, ReadAsync) {
 
   // After waiting, the data is available if Read() is used.
   WaitForReadReady();
-  if (GetParam() == READ_IF_READY_ENABLED_SUPPORTED) {
+  if (GetParam() == READ_IF_READY_SUPPORTED) {
     EXPECT_FALSE(adapter->HasPendingReadData());
   } else {
     EXPECT_TRUE(adapter->HasPendingReadData());
@@ -258,7 +248,7 @@ TEST_P(SocketBIOAdapterTest, ReadAsync) {
 
   // After waiting, the data is available if Read() is used.
   WaitForReadReady();
-  if (GetParam() == READ_IF_READY_ENABLED_SUPPORTED) {
+  if (GetParam() == READ_IF_READY_SUPPORTED) {
     EXPECT_FALSE(adapter->HasPendingReadData());
   } else {
     EXPECT_TRUE(adapter->HasPendingReadData());

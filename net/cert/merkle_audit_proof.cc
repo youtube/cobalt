@@ -1,13 +1,12 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/cert/merkle_audit_proof.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 
-namespace net {
-namespace ct {
+namespace net::ct {
 
 uint64_t CalculateAuditPathLength(uint64_t leaf_index, uint64_t tree_size) {
   // RFC6962, section 2.1.1, describes audit paths.
@@ -39,5 +38,4 @@ MerkleAuditProof::MerkleAuditProof(uint64_t leaf_index,
 
 MerkleAuditProof::~MerkleAuditProof() = default;
 
-}  // namespace ct
-}  // namespace net
+}  // namespace net::ct

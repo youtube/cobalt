@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,11 +7,13 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_BLOCKFILE_BACKEND_IMPL_H_
 
+#include <stdint.h>
+
 #include <unordered_map>
 
 #include "base/files/file_path.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/timer/timer.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/blockfile/block_files.h"
@@ -20,9 +22,7 @@
 #include "net/disk_cache/blockfile/rankings.h"
 #include "net/disk_cache/blockfile/stats.h"
 #include "net/disk_cache/blockfile/stress_support.h"
-#include "net/disk_cache/blockfile/trace.h"
 #include "net/disk_cache/disk_cache.h"
-#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -57,18 +57,24 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   BackendImpl(const base::FilePath& path,
               scoped_refptr<BackendCleanupTracker> cleanup_tracker,
               const scoped_refptr<base::SingleThreadTaskRunner>& cache_thread,
+              net::CacheType cache_type,
               net::NetLog* net_log);
 
   // mask can be used to limit the usable size of the hash table, for testing.
   BackendImpl(const base::FilePath& path,
               uint32_t mask,
               const scoped_refptr<base::SingleThreadTaskRunner>& cache_thread,
+              net::CacheType cache_type,
               net::NetLog* net_log);
+
+  BackendImpl(const BackendImpl&) = delete;
+  BackendImpl& operator=(const BackendImpl&) = delete;
 
   ~BackendImpl() override;
 
   // Performs general initialization for this current instance of the cache.
-  net::Error Init(CompletionOnceCallback callback);
+  // `callback` is always invoked asynchronously.
+  void Init(CompletionOnceCallback callback);
 
   // Performs the actual initialization and final cleanup on destruction.
   int SyncInit();
@@ -98,9 +104,6 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
 
   // Sets the maximum size for the total amount of data stored by this instance.
   bool SetMaxSize(int64_t max_bytes);
-
-  // Sets the cache type for this backend.
-  void SetType(net::CacheType type);
 
   // Returns the full name for an external storage file.
   base::FilePath GetFileName(Addr address) const;
@@ -164,7 +167,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   int32_t GetCurrentEntryId() const;
 
   // Returns the maximum size for a file to reside on the cache.
-  int MaxFileSize() const;
+  int64_t MaxFileSize() const override;
 
   // A user data block is being created, extended or truncated.
   void ModifyStorageSize(int32_t old_size, int32_t new_size);
@@ -190,10 +193,6 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // and the current cache type. The name will be "DiskCache.t.name_e" where n
   // is the cache type and e the provided |experiment|.
   std::string HistogramName(const char* name, int experiment) const;
-
-  net::CacheType cache_type() const {
-    return cache_type_;
-  }
 
   bool read_only() const {
     return read_only_;
@@ -273,17 +272,20 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Ensures that the private cache thread completes work.
   static void FlushForTesting();
 
+  // Ensures that the private cache thread completes work.
+  static void FlushAsynchronouslyForTesting(base::OnceClosure callback);
+
   // Backend implementation.
-  net::CacheType GetCacheType() const override;
   int32_t GetEntryCount() const override;
-  net::Error OpenEntry(const std::string& key,
-                       net::RequestPriority request_priority,
-                       Entry** entry,
-                       CompletionOnceCallback callback) override;
-  net::Error CreateEntry(const std::string& key,
-                         net::RequestPriority request_priority,
-                         Entry** entry,
-                         CompletionOnceCallback callback) override;
+  EntryResult OpenOrCreateEntry(const std::string& key,
+                                net::RequestPriority request_priority,
+                                EntryResultCallback callback) override;
+  EntryResult OpenEntry(const std::string& key,
+                        net::RequestPriority request_priority,
+                        EntryResultCallback callback) override;
+  EntryResult CreateEntry(const std::string& key,
+                          net::RequestPriority request_priority,
+                          EntryResultCallback callback) override;
   net::Error DoomEntry(const std::string& key,
                        net::RequestPriority priority,
                        CompletionOnceCallback callback) override;
@@ -306,9 +308,6 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   std::unique_ptr<Iterator> CreateIterator() override;
   void GetStats(StatsItems* stats) override;
   void OnExternalCacheHit(const std::string& key) override;
-  size_t DumpMemoryStats(
-      base::trace_event::ProcessMemoryDump* pmd,
-      const std::string& parent_absolute_name) const override;
 
  private:
   using EntriesMap = std::unordered_map<CacheAddr, EntryImpl*>;
@@ -376,8 +375,12 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Send UMA stats.
   void ReportStats();
 
-  // Upgrades the index file to version 2.1.
+  // Upgrades the index file to version 2.1 (from 2.0)
   void UpgradeTo2_1();
+
+  // Upgrades the index file to version 3.0
+  // (from 2.1/2.0 depending on eviction algorithm)
+  void UpgradeTo3_0();
 
   // Performs basic checks on the index file. Returns false on failure.
   bool CheckIndex();
@@ -397,11 +400,15 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   InFlightBackendIO background_queue_;  // The controller of pending operations.
   scoped_refptr<MappedFile> index_;  // The main cache index.
   base::FilePath path_;  // Path to the folder used as backing storage.
-  Index* data_;  // Pointer to the index data.
+
+  // Pointer to the index data.
+  // May point to a mapped file's unmapped memory at destruction time.
+  raw_ptr<Index, DisableDanglingPtrDetection> data_;
+
   BlockFiles block_files_;  // Set of files used to store all data.
   Rankings rankings_;  // Rankings to be able to trim the cache.
-  uint32_t mask_;            // Binary mask to map a hash to the hash table.
-  int32_t max_size_;         // Maximum data size for this instance.
+  uint32_t mask_ = 0;  // Binary mask to map a hash to the hash table.
+  int32_t max_size_ = 0;  // Maximum data size for this instance.
   Eviction eviction_;  // Handler of the eviction algorithm.
   EntriesMap open_entries_;  // Map of open entries.
   int num_refs_;  // Number of referenced cache entries.
@@ -410,31 +417,28 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   int entry_count_;  // Number of entries accessed lately.
   int byte_count_;  // Number of bytes read/written lately.
   int buffer_bytes_;  // Total size of the temporary entries' buffers.
-  int up_ticks_;  // The number of timer ticks received (OnStatsTimer).
-  net::CacheType cache_type_;
-  int uma_report_;  // Controls transmission of UMA data.
+  int up_ticks_ = 0;  // The number of timer ticks received (OnStatsTimer).
+  int uma_report_ = 0;   // Controls transmission of UMA data.
   uint32_t user_flags_;  // Flags set by the user.
-  bool init_;  // controls the initialization of the system.
-  bool restarted_;
-  bool unit_test_;
-  bool read_only_;  // Prevents updates of the rankings data (used by tools).
-  bool disabled_;
-  bool new_eviction_;  // What eviction algorithm should be used.
-  bool first_timer_;  // True if the timer has not been called.
-  bool user_load_;  // True if we see a high load coming from the caller.
+  bool init_ = false;    // controls the initialization of the system.
+  bool restarted_ = false;
+  bool unit_test_ = false;
+  bool read_only_ =
+      false;  // Prevents updates of the rankings data (used by tools).
+  bool disabled_ = false;
+  bool new_eviction_ = false;  // What eviction algorithm should be used.
+  bool first_timer_ = true;    // True if the timer has not been called.
+  bool user_load_ =
+      false;  // True if we see a high load coming from the caller.
 
   // True if we should consider doing eviction at end of current operation.
-  bool consider_evicting_at_op_end_;
+  bool consider_evicting_at_op_end_ = false;
 
-  net::NetLog* net_log_;
+  raw_ptr<net::NetLog> net_log_;
 
   Stats stats_;  // Usage statistics.
   std::unique_ptr<base::RepeatingTimer> timer_;  // Usage timer.
-  base::WaitableEvent done_;  // Signals the end of background work.
-  scoped_refptr<TraceObject> trace_object_;  // Initializes internal tracing.
-  base::WeakPtrFactory<BackendImpl> ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(BackendImpl);
+  base::WeakPtrFactory<BackendImpl> ptr_factory_{this};
 };
 
 }  // namespace disk_cache

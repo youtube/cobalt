@@ -1,4 +1,4 @@
-// Copyright (c) 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,10 +15,8 @@
 #include "base/win/scoped_handle.h"
 #include "net/base/net_export.h"
 #include "net/base/network_interfaces.h"
-#include "starboard/types.h"
 
-namespace net {
-namespace internal {
+namespace net::internal {
 
 struct NET_EXPORT WlanApi {
   typedef DWORD (WINAPI *WlanOpenHandleFunc)(
@@ -39,15 +37,14 @@ struct NET_EXPORT WlanApi {
   template <typename T>
   DWORD OpenHandle(DWORD client_version, DWORD* cur_version, T* handle) const {
     HANDLE temp_handle;
-    DWORD result = open_handle_func(client_version, NULL, cur_version,
-                                    &temp_handle);
+    DWORD result =
+        open_handle_func(client_version, nullptr, cur_version, &temp_handle);
     if (result != ERROR_SUCCESS)
       return result;
     handle->Set(temp_handle);
     return ERROR_SUCCESS;
   }
 
-  HMODULE module;
   WlanOpenHandleFunc open_handle_func;
   WlanEnumInterfacesFunc enum_interfaces_func;
   WlanQueryInterfaceFunc query_interface_func;
@@ -61,8 +58,8 @@ struct WlanApiHandleTraits {
   typedef HANDLE Handle;
 
   static bool CloseHandle(HANDLE handle) {
-    return WlanApi::GetInstance().close_handle_func(handle, NULL) ==
-        ERROR_SUCCESS;
+    return WlanApi::GetInstance().close_handle_func(handle, nullptr) ==
+           ERROR_SUCCESS;
   }
   static bool IsHandleValid(HANDLE handle) {
     return base::win::HandleTraits::IsHandleValid(handle);
@@ -87,8 +84,6 @@ NET_EXPORT bool GetNetworkListImpl(
     int policy,
     const IP_ADAPTER_ADDRESSES* ip_adapter_addresses);
 
-}  // namespace internal
-
-}  // namespace net
+}  // namespace net::internal
 
 #endif   // NET_BASE_NETWORK_INTERFACES_WIN_H_

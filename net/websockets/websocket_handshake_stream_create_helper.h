@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,11 @@
 #define NET_WEBSOCKETS_WEBSOCKET_HANDSHAKE_STREAM_CREATE_HELPER_H_
 
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "net/base/net_export.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
 #include "net/websockets/websocket_stream.h"
@@ -30,10 +31,16 @@ class WebSocketEndpointLockManager;
 class NET_EXPORT_PRIVATE WebSocketHandshakeStreamCreateHelper
     : public WebSocketHandshakeStreamBase::CreateHelper {
  public:
-  // |connect_delegate| must out-live this object.
-  explicit WebSocketHandshakeStreamCreateHelper(
+  // |*connect_delegate| and |*request| must out-live this object.
+  WebSocketHandshakeStreamCreateHelper(
       WebSocketStream::ConnectDelegate* connect_delegate,
-      const std::vector<std::string>& requested_subprotocols);
+      const std::vector<std::string>& requested_subprotocols,
+      WebSocketStreamRequestAPI* request);
+
+  WebSocketHandshakeStreamCreateHelper(
+      const WebSocketHandshakeStreamCreateHelper&) = delete;
+  WebSocketHandshakeStreamCreateHelper& operator=(
+      const WebSocketHandshakeStreamCreateHelper&) = delete;
 
   ~WebSocketHandshakeStreamCreateHelper() override;
 
@@ -47,25 +54,18 @@ class NET_EXPORT_PRIVATE WebSocketHandshakeStreamCreateHelper
 
   // Creates a WebSocketHttp2HandshakeStream over an HTTP/2 connection.
   std::unique_ptr<WebSocketHandshakeStreamBase> CreateHttp2Stream(
-      base::WeakPtr<SpdySession> session) override;
+      base::WeakPtr<SpdySession> session,
+      std::set<std::string> dns_aliases) override;
 
-  // WebSocketHandshakeStreamCreateHelper methods
-
-  // This method must be called before calling CreateBasicStream()
-  // or CreateHttp2Stream().
-  // The |request| pointer must remain valid as long as this object exists.
-  void set_stream_request(WebSocketStreamRequestAPI* request) {
-    request_ = request;
-  }
+  std::unique_ptr<WebSocketHandshakeStreamBase> CreateHttp3Stream(
+      std::unique_ptr<QuicChromiumClientSession::Handle> session,
+      std::set<std::string> dns_aliases) override;
 
  private:
+  const raw_ptr<WebSocketStream::ConnectDelegate, DanglingUntriaged>
+      connect_delegate_;
   const std::vector<std::string> requested_subprotocols_;
-
-  WebSocketStream::ConnectDelegate* connect_delegate_;
-
-  WebSocketStreamRequestAPI* request_;
-
-  DISALLOW_COPY_AND_ASSIGN(WebSocketHandshakeStreamCreateHelper);
+  const raw_ptr<WebSocketStreamRequestAPI, DanglingUntriaged> request_;
 };
 
 }  // namespace net

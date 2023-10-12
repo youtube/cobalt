@@ -1,24 +1,23 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SOCKET_FUZZED_SOCKET_H_
 #define NET_SOCKET_FUZZED_SOCKET_H_
 
-#include "base/macros.h"
+#include <stdint.h>
+
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
-#include "net/base/completion_callback.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/log/net_log_with_source.h"
 #include "net/socket/transport_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/types.h"
 
-namespace base {
 class FuzzedDataProvider;
-}
 
 namespace net {
 
@@ -42,7 +41,11 @@ class FuzzedSocket : public TransportClientSocket {
  public:
   // |data_provider| is used as to determine behavior of the FuzzedSocket. It
   // must remain valid until after the FuzzedSocket is destroyed.
-  FuzzedSocket(base::FuzzedDataProvider* data_provider, net::NetLog* net_log);
+  FuzzedSocket(FuzzedDataProvider* data_provider, net::NetLog* net_log);
+
+  FuzzedSocket(const FuzzedSocket&) = delete;
+  FuzzedSocket& operator=(const FuzzedSocket&) = delete;
+
   ~FuzzedSocket() override;
 
   // If set to true, the socket will fuzz the result of the Connect() call.
@@ -79,13 +82,9 @@ class FuzzedSocket : public TransportClientSocket {
   int GetLocalAddress(IPEndPoint* address) const override;
   const NetLogWithSource& NetLog() const override;
   bool WasEverUsed() const override;
-  void EnableTCPFastOpenIfSupported() override;
   bool WasAlpnNegotiated() const override;
   NextProto GetNegotiatedProtocol() const override;
   bool GetSSLInfo(SSLInfo* ssl_info) override;
-  void GetConnectionAttempts(ConnectionAttempts* out) const override;
-  void ClearConnectionAttempts() override;
-  void AddConnectionAttempts(const ConnectionAttempts& attempts) override;
   int64_t GetTotalReceivedBytes() const override;
   void ApplySocketTag(const net::SocketTag& tag) override;
 
@@ -104,7 +103,7 @@ class FuzzedSocket : public TransportClientSocket {
   // See https://crbug.com/823012
   bool ForceSync() const;
 
-  base::FuzzedDataProvider* data_provider_;
+  raw_ptr<FuzzedDataProvider> data_provider_;
 
   // If true, the result of the Connect() call is fuzzed - it can succeed or
   // fail with a variety of connection errors, and it can complete synchronously
@@ -133,9 +132,7 @@ class FuzzedSocket : public TransportClientSocket {
 
   IPEndPoint remote_address_;
 
-  base::WeakPtrFactory<FuzzedSocket> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(FuzzedSocket);
+  base::WeakPtrFactory<FuzzedSocket> weak_factory_{this};
 };
 
 }  // namespace net

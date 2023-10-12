@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include "base/callback.h"
+#include "base/functional/callback.h"
 #include "net/base/net_export.h"
 
 class GURL;
@@ -19,7 +19,7 @@ class Origin;
 
 namespace net {
 
-class URLRequest;
+class IsolationInfo;
 class URLRequestContext;
 
 // Uploads already-serialized reports and converts responses to one of the
@@ -35,20 +35,25 @@ class NET_EXPORT ReportingUploader {
   // Starts to upload the reports in |json| (properly tagged as JSON data) to
   // |url|, and calls |callback| when complete (whether successful or not).
   // All of the reports in |json| must describe requests to the same origin;
-  // |report_origin| must be that origin.
+  // |report_origin| must be that origin. Credentials may be sent with the
+  // upload if |eligible_for_credentials| is true.
   virtual void StartUpload(const url::Origin& report_origin,
                            const GURL& url,
+                           const IsolationInfo& isolation_info,
                            const std::string& json,
                            int max_depth,
+                           bool eligible_for_credentials,
                            UploadCallback callback) = 0;
 
-  // Returns whether |request| is an upload request sent by this uploader.
-  virtual int GetUploadDepth(const URLRequest& request) = 0;
+  // Cancels pending uploads.
+  virtual void OnShutdown() = 0;
 
   // Creates a real implementation of |ReportingUploader| that uploads reports
   // using |context|.
   static std::unique_ptr<ReportingUploader> Create(
       const URLRequestContext* context);
+
+  virtual int GetPendingUploadCountForTesting() const = 0;
 };
 
 }  // namespace net

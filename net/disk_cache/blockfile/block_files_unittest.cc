@@ -1,14 +1,14 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/disk_cache/blockfile/block_files.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
+#include "build/chromeos_buildflags.h"
+#include "net/disk_cache/blockfile/block_files.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::Time;
@@ -30,21 +30,34 @@ int NumberOfFiles(const base::FilePath& path) {
 
 namespace disk_cache {
 
-TEST_F(DiskCacheTest, BlockFiles_Grow) {
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+// Flaky on ChromeOS: https://crbug.com/1156795
+#define MAYBE_BlockFiles_Grow DISABLED_BlockFiles_Grow
+#else
+#define MAYBE_BlockFiles_Grow BlockFiles_Grow
+#endif
+TEST_F(DiskCacheTest, MAYBE_BlockFiles_Grow) {
   ASSERT_TRUE(CleanupCacheDir());
   ASSERT_TRUE(base::CreateDirectory(cache_path_));
 
   BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
 
+#if BUILDFLAG(IS_FUCHSIA)
+  // Too slow on Fuchsia: https://crbug.com/1354793
+  const int kMaxSize = 3500;
+  const int kNumberOfFiles = 4;
+#else
   const int kMaxSize = 35000;
+  const int kNumberOfFiles = 6;
+#endif
   Addr address[kMaxSize];
 
   // Fill up the 32-byte block file (use three files).
-  for (int i = 0; i < kMaxSize; i++) {
-    EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &address[i]));
+  for (auto& addr : address) {
+    EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &addr));
   }
-  EXPECT_EQ(6, NumberOfFiles(cache_path_));
+  EXPECT_EQ(kNumberOfFiles, NumberOfFiles(cache_path_));
 
   // Make sure we don't keep adding files.
   for (int i = 0; i < kMaxSize * 4; i += 2) {
@@ -52,7 +65,7 @@ TEST_F(DiskCacheTest, BlockFiles_Grow) {
     files.DeleteBlock(address[target], false);
     EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &address[target]));
   }
-  EXPECT_EQ(6, NumberOfFiles(cache_path_));
+  EXPECT_EQ(kNumberOfFiles, NumberOfFiles(cache_path_));
 }
 
 // We should be able to delete empty block files.
@@ -67,13 +80,13 @@ TEST_F(DiskCacheTest, BlockFiles_Shrink) {
   Addr address[kMaxSize];
 
   // Fill up the 32-byte block file (use three files).
-  for (int i = 0; i < kMaxSize; i++) {
-    EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &address[i]));
+  for (auto& addr : address) {
+    EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &addr));
   }
 
   // Now delete all the blocks, so that we can delete the two extra files.
-  for (int i = 0; i < kMaxSize; i++) {
-    files.DeleteBlock(address[i], false);
+  for (const auto& addr : address) {
+    files.DeleteBlock(addr, false);
   }
   EXPECT_EQ(4, NumberOfFiles(cache_path_));
 }
@@ -91,11 +104,11 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
 
   int seed = static_cast<int>(Time::Now().ToInternalValue());
   srand(seed);
-  for (int i = 0; i < kNumEntries; i++) {
+  for (auto& entry : entries) {
     Addr address(0);
     int size = (rand() % 4) + 1;
     EXPECT_TRUE(files.CreateBlock(RANKINGS, size, &address));
-    entries[i] = address.value();
+    entry = address.value();
   }
 
   for (int i = 0; i < kNumEntries; i++) {
@@ -116,11 +129,11 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
 
   Addr address(entries[kNumEntries / 2]);
   MappedFile* file = files.GetFile(address);
-  ASSERT_TRUE(NULL != file);
+  ASSERT_TRUE(nullptr != file);
 
   BlockFileHeader* header =
       reinterpret_cast<BlockFileHeader*>(file->buffer());
-  ASSERT_TRUE(NULL != header);
+  ASSERT_TRUE(nullptr != header);
 
   ASSERT_EQ(0, header->updating);
 
@@ -141,10 +154,10 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
 
   // The file must have been fixed.
   file = files.GetFile(address);
-  ASSERT_TRUE(NULL != file);
+  ASSERT_TRUE(nullptr != file);
 
   header = reinterpret_cast<BlockFileHeader*>(file->buffer());
-  ASSERT_TRUE(NULL != header);
+  ASSERT_TRUE(nullptr != header);
 
   ASSERT_EQ(0, header->updating);
 
@@ -167,7 +180,7 @@ TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
   files.CloseFiles();
   // Truncate one of the files.
   {
-    scoped_refptr<File> file(new File);
+    auto file = base::MakeRefCounted<File>();
     ASSERT_TRUE(file->Init(filename));
     EXPECT_TRUE(file->SetLength(0));
   }
@@ -190,7 +203,7 @@ TEST_F(DiskCacheTest, BlockFiles_TruncatedFile) {
   files.CloseFiles();
   // Truncate one of the files.
   {
-    scoped_refptr<File> file(new File);
+    auto file = base::MakeRefCounted<File>();
     ASSERT_TRUE(file->Init(filename));
     EXPECT_TRUE(file->SetLength(15000));
   }
@@ -212,10 +225,10 @@ TEST_F(DiskCacheTest, BlockFiles_Counters) {
   EXPECT_TRUE(files.CreateBlock(RANKINGS, 2, &address));
 
   MappedFile* file = files.GetFile(address);
-  ASSERT_TRUE(NULL != file);
+  ASSERT_TRUE(nullptr != file);
 
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
-  ASSERT_TRUE(NULL != header);
+  ASSERT_TRUE(nullptr != header);
   ASSERT_EQ(0, header->updating);
 
   // Alter the counters so that the free space doesn't add up.
@@ -224,9 +237,9 @@ TEST_F(DiskCacheTest, BlockFiles_Counters) {
 
   ASSERT_TRUE(files.Init(false));
   file = files.GetFile(address);
-  ASSERT_TRUE(NULL != file);
+  ASSERT_TRUE(nullptr != file);
   header = reinterpret_cast<BlockFileHeader*>(file->buffer());
-  ASSERT_TRUE(NULL != header);
+  ASSERT_TRUE(nullptr != header);
 
   // The file must have been fixed.
   ASSERT_EQ(0, header->empty[2]);
@@ -238,9 +251,9 @@ TEST_F(DiskCacheTest, BlockFiles_Counters) {
 
   ASSERT_TRUE(files.Init(false));
   file = files.GetFile(address);
-  ASSERT_TRUE(NULL != file);
+  ASSERT_TRUE(nullptr != file);
   header = reinterpret_cast<BlockFileHeader*>(file->buffer());
-  ASSERT_TRUE(NULL != header);
+  ASSERT_TRUE(nullptr != header);
 
   // The file must have been "fixed".
   ASSERT_EQ(2, header->num_entries);
@@ -264,40 +277,18 @@ TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
 
   // Let's access block 10 of file 5. (There is no file).
   Addr addr(BLOCK_256, 1, 5, 10);
-  EXPECT_TRUE(NULL == files.GetFile(addr));
+  EXPECT_TRUE(nullptr == files.GetFile(addr));
 
   // Let's create an invalid file.
   base::FilePath filename(files.Name(5));
   char header[kBlockHeaderSize];
   memset(header, 'a', kBlockHeaderSize);
-  EXPECT_EQ(kBlockHeaderSize,
-            base::WriteFile(filename, header, kBlockHeaderSize));
+  EXPECT_TRUE(base::WriteFile(filename, {header, kBlockHeaderSize}));
 
-  EXPECT_TRUE(NULL == files.GetFile(addr));
+  EXPECT_TRUE(nullptr == files.GetFile(addr));
 
   // The file should not have been changed (it is still invalid).
-  EXPECT_TRUE(NULL == files.GetFile(addr));
-}
-
-// Tests that we generate the correct file stats.
-TEST_F(DiskCacheTest, BlockFiles_Stats) {
-  ASSERT_TRUE(CopyTestCache("remove_load1"));
-
-  BlockFiles files(cache_path_);
-  ASSERT_TRUE(files.Init(false));
-  int used, load;
-
-  files.GetFileStats(0, &used, &load);
-  EXPECT_EQ(101, used);
-  EXPECT_EQ(9, load);
-
-  files.GetFileStats(1, &used, &load);
-  EXPECT_EQ(203, used);
-  EXPECT_EQ(19, load);
-
-  files.GetFileStats(2, &used, &load);
-  EXPECT_EQ(0, used);
-  EXPECT_EQ(0, load);
+  EXPECT_TRUE(nullptr == files.GetFile(addr));
 }
 
 // Tests that we add and remove blocks correctly.

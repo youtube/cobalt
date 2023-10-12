@@ -1,9 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SPDY_SPDY_SESSION_H_
 #define NET_SPDY_SPDY_SESSION_H_
+
+#include <stddef.h>
+#include <stdint.h>
 
 #include <map>
 #include <memory>
@@ -13,22 +16,24 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
+#include "base/values.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
+#include "net/base/load_timing_info.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
+#include "net/base/network_change_notifier.h"
 #include "net/base/request_priority.h"
 #include "net/log/net_log_source.h"
-#include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool.h"
 #include "net/socket/next_proto.h"
 #include "net/socket/ssl_client_socket.h"
@@ -43,18 +48,15 @@
 #include "net/spdy/spdy_stream.h"
 #include "net/spdy/spdy_write_queue.h"
 #include "net/ssl/ssl_config_service.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/spdy_alt_svc_wire_format.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/spdy_protocol.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 #include "url/scheme_host_port.h"
-
-#if defined(QUIC_DISABLED_FOR_STARBOARD)
-#include "net/third_party/quic/core/quic_versions.h"
-#endif
 
 namespace net {
 
@@ -62,13 +64,14 @@ namespace test {
 class SpdyStreamTest;
 }
 
-// This is somewhat arbitrary and not really fixed, but it will always work
-// reasonably with ethernet. Chop the world into 2-packet chunks.  This is
-// somewhat arbitrary, but is reasonably small and ensures that we elicit
-// ACKs quickly from TCP (because TCP tries to only ACK every other packet).
-const int kMss = 1430;
-// The 8 is the size of the SPDY frame header.
-const int kMaxSpdyFrameChunkSize = (2 * kMss) - 8;
+// TLS and other layers will chunk data at 16KB. Making the max frame size too
+// small will lead to increased CPU/byte cost and overhead on both client/server
+// due to excessive frames to process. Making this larger has diminishing
+// returns as the data will be chunked elsewhere. We also want to ensure we are
+// >= 2860B (~2* MSS => 2 packets) to avoid delayed ACKs. We will also account
+// for the frame header size of 9B to prevent fragmentation when this is added.
+// As a result we will use a 16KB - 9B max data frame size.
+const int kMaxSpdyFrameChunkSize = (16 * 1024) - 9;
 
 // Default value of spdy::SETTINGS_INITIAL_WINDOW_SIZE per protocol
 // specification. A session is always created with this initial window size.
@@ -88,8 +91,27 @@ const int kYieldAfterDurationMilliseconds = 20;
 const spdy::SpdyStreamId kFirstStreamId = 1;
 const spdy::SpdyStreamId kLastStreamId = 0x7fffffff;
 
-struct LoadTimingInfo;
+// Maximum number of capped frames that can be queued at any time.
+// We measured how many queued capped frames were ever in the
+// SpdyWriteQueue at one given time between 2019-08 and 2020-02.
+// The numbers showed that in 99.94% of cases it would always
+// stay below 10, and that it would exceed 1000 only in
+// 10^-8 of cases. Therefore we picked 10000 as a number that will
+// virtually never be hit in practice, while still preventing an
+// attacker from growing this queue unboundedly.
+const int kSpdySessionMaxQueuedCappedFrames = 10000;
+
+// Default time to delay sending small receive window updates (can be
+// configured through SetTimeToBufferSmallWindowUpdates()). Usually window
+// updates are sent when half of the receive window has been processed by
+// the client but in the case of a client that consumes the data slowly,
+// this strategy alone would make servers consider the connection or stream
+// idle.
+constexpr base::TimeDelta kDefaultTimeToBufferSmallWindowUpdates =
+    base::Seconds(5);
+
 class NetLog;
+class NetworkQualityEstimator;
 class SpdyStream;
 class SSLInfo;
 class TransportSecurityState;
@@ -103,19 +125,33 @@ enum SpdyProtocolErrorDetails {
   SPDY_ERROR_INVALID_STREAM_ID = 38,
   SPDY_ERROR_INVALID_CONTROL_FRAME = 1,
   SPDY_ERROR_CONTROL_PAYLOAD_TOO_LARGE = 2,
-  SPDY_ERROR_ZLIB_INIT_FAILURE = 3,
-  SPDY_ERROR_UNSUPPORTED_VERSION = 4,
   SPDY_ERROR_DECOMPRESS_FAILURE = 5,
-  SPDY_ERROR_COMPRESS_FAILURE = 6,
-  SPDY_ERROR_GOAWAY_FRAME_CORRUPT = 29,
-  SPDY_ERROR_RST_STREAM_FRAME_CORRUPT = 30,
   SPDY_ERROR_INVALID_PADDING = 39,
   SPDY_ERROR_INVALID_DATA_FRAME_FLAGS = 8,
-  SPDY_ERROR_INVALID_CONTROL_FRAME_FLAGS = 9,
   SPDY_ERROR_UNEXPECTED_FRAME = 31,
   SPDY_ERROR_INTERNAL_FRAMER_ERROR = 41,
   SPDY_ERROR_INVALID_CONTROL_FRAME_SIZE = 37,
   SPDY_ERROR_OVERSIZED_PAYLOAD = 40,
+
+  // HttpDecoder or HttpDecoderAdapter error.
+  SPDY_ERROR_HPACK_INDEX_VARINT_ERROR = 43,
+  SPDY_ERROR_HPACK_NAME_LENGTH_VARINT_ERROR = 44,
+  SPDY_ERROR_HPACK_VALUE_LENGTH_VARINT_ERROR = 45,
+  SPDY_ERROR_HPACK_NAME_TOO_LONG = 46,
+  SPDY_ERROR_HPACK_VALUE_TOO_LONG = 47,
+  SPDY_ERROR_HPACK_NAME_HUFFMAN_ERROR = 48,
+  SPDY_ERROR_HPACK_VALUE_HUFFMAN_ERROR = 49,
+  SPDY_ERROR_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE = 50,
+  SPDY_ERROR_HPACK_INVALID_INDEX = 51,
+  SPDY_ERROR_HPACK_INVALID_NAME_INDEX = 52,
+  SPDY_ERROR_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED = 53,
+  SPDY_ERROR_HPACK_INITIAL_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK =
+      54,
+  SPDY_ERROR_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING = 55,
+  SPDY_ERROR_HPACK_TRUNCATED_BLOCK = 56,
+  SPDY_ERROR_HPACK_FRAGMENT_TOO_LONG = 57,
+  SPDY_ERROR_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 58,
+  SPDY_ERROR_STOP_PROCESSING = 59,
   // spdy::SpdyErrorCode mappings.
   STATUS_CODE_NO_ERROR = 41,
   STATUS_CODE_PROTOCOL_ERROR = 11,
@@ -146,7 +182,7 @@ enum SpdyProtocolErrorDetails {
   PROTOCOL_ERROR_RECEIVE_WINDOW_VIOLATION = 28,
 
   // Next free value.
-  NUM_SPDY_PROTOCOL_ERROR_DETAILS = 43,
+  NUM_SPDY_PROTOCOL_ERROR_DETAILS = 60,
 };
 SpdyProtocolErrorDetails NET_EXPORT_PRIVATE MapFramerErrorToProtocolError(
     http2::Http2DecoderAdapter::SpdyFramerError error);
@@ -180,12 +216,13 @@ enum class SpdyPushedStreamFate {
   kAcceptedMatchingVary = 18,
   kPushDisabled = 19,
   kAlreadyInCache = 20,
-  kMaxValue = kAlreadyInCache
+  kUnsupportedStatusCode = 21,
+  kMaxValue = kUnsupportedStatusCode
 };
 
 // If these compile asserts fail then SpdyProtocolErrorDetails needs
 // to be updated with new values, as do the mapping functions above.
-static_assert(17 == http2::Http2DecoderAdapter::LAST_ERROR,
+static_assert(28 == http2::Http2DecoderAdapter::LAST_ERROR,
               "SpdyProtocolErrorDetails / Spdy Errors mismatch");
 static_assert(13 == spdy::SpdyErrorCode::ERROR_CODE_MAX,
               "SpdyProtocolErrorDetails / spdy::SpdyErrorCode mismatch");
@@ -194,8 +231,18 @@ static_assert(13 == spdy::SpdyErrorCode::ERROR_CODE_MAX,
 class NET_EXPORT_PRIVATE SpdyStreamRequest {
  public:
   SpdyStreamRequest();
+
+  SpdyStreamRequest(const SpdyStreamRequest&) = delete;
+  SpdyStreamRequest& operator=(const SpdyStreamRequest&) = delete;
+
   // Calls CancelRequest().
   ~SpdyStreamRequest();
+
+  // Returns the time when ConfirmHandshake() completed, if this request had to
+  // wait for ConfirmHandshake().
+  base::TimeTicks confirm_handshake_end() const {
+    return confirm_handshake_end_;
+  }
 
   // Starts the request to create a stream. If OK is returned, then
   // ReleaseStream() may be called. If ERR_IO_PENDING is returned,
@@ -203,6 +250,9 @@ class NET_EXPORT_PRIVATE SpdyStreamRequest {
   // which point ReleaseStream() may be called. Otherwise, the stream
   // is not created, an error is returned, and ReleaseStream() may not
   // be called.
+  //
+  // If |can_send_early| is true, this request is allowed to be sent over
+  // TLS 1.3 0RTT without confirming the handshake.
   //
   // If OK is returned, must not be called again without
   // ReleaseStream() being called first. If ERR_IO_PENDING is
@@ -212,11 +262,14 @@ class NET_EXPORT_PRIVATE SpdyStreamRequest {
   int StartRequest(SpdyStreamType type,
                    const base::WeakPtr<SpdySession>& session,
                    const GURL& url,
+                   bool can_send_early,
                    RequestPriority priority,
                    const SocketTag& socket_tag,
                    const NetLogWithSource& net_log,
                    CompletionOnceCallback callback,
-                   const NetworkTrafficAnnotationTag& traffic_annotation);
+                   const NetworkTrafficAnnotationTag& traffic_annotation,
+                   bool detect_broken_connection = false,
+                   base::TimeDelta heartbeat_interval = base::Seconds(0));
 
   // Cancels any pending stream creation request. May be called
   // repeatedly.
@@ -228,8 +281,9 @@ class NET_EXPORT_PRIVATE SpdyStreamRequest {
   // set a delegate for the returned stream (except for test code).
   base::WeakPtr<SpdyStream> ReleaseStream();
 
-  // Returns the estimate of dynamically allocated memory in bytes.
-  size_t EstimateMemoryUsage() const;
+  // Changes the priority of the stream, or changes the priority of the queued
+  // request in the session.
+  void SetPriority(RequestPriority priority);
 
   const NetworkTrafficAnnotationTag traffic_annotation() const {
     return NetworkTrafficAnnotationTag(traffic_annotation_);
@@ -237,6 +291,8 @@ class NET_EXPORT_PRIVATE SpdyStreamRequest {
 
  private:
   friend class SpdySession;
+
+  void OnConfirmHandshakeComplete(int rv);
 
   // Called by |session_| when the stream attempt has finished
   // successfully.
@@ -264,28 +320,33 @@ class NET_EXPORT_PRIVATE SpdyStreamRequest {
   NetLogWithSource net_log_;
   CompletionOnceCallback callback_;
   MutableNetworkTrafficAnnotationTag traffic_annotation_;
+  base::TimeTicks confirm_handshake_end_;
+  bool detect_broken_connection_;
+  base::TimeDelta heartbeat_interval_;
 
-  base::WeakPtrFactory<SpdyStreamRequest> weak_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(SpdyStreamRequest);
+  base::WeakPtrFactory<SpdyStreamRequest> weak_ptr_factory_{this};
 };
 
-class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
-                               public spdy::SpdyFramerDebugVisitorInterface,
-                               public MultiplexedSession,
-                               public HigherLayeredPool,
-                               public Http2PushPromiseIndex::Delegate {
+class NET_EXPORT SpdySession
+    : public BufferedSpdyFramerVisitorInterface,
+      public spdy::SpdyFramerDebugVisitorInterface,
+      public MultiplexedSession,
+      public HigherLayeredPool,
+      public NetworkChangeNotifier::DefaultNetworkActiveObserver,
+      public Http2PushPromiseIndex::Delegate {
  public:
   // TODO(akalin): Use base::TickClock when it becomes available.
-  typedef base::TimeTicks (*TimeFunc)(void);
+  typedef base::TimeTicks (*TimeFunc)();
 
   // Returns true if |new_hostname| can be pooled into an existing connection to
   // |old_hostname| associated with |ssl_info|.
-  static bool CanPool(TransportSecurityState* transport_security_state,
-                      const SSLInfo& ssl_info,
-                      const SSLConfigService& ssl_config_service,
-                      const std::string& old_hostname,
-                      const std::string& new_hostname);
+  static bool CanPool(
+      TransportSecurityState* transport_security_state,
+      const SSLInfo& ssl_info,
+      const SSLConfigService& ssl_config_service,
+      const std::string& old_hostname,
+      const std::string& new_hostname,
+      const net::NetworkAnonymizationKey& network_anonymization_key);
 
   // Create a new SpdySession.
   // |spdy_session_key| is the host/port that this session connects to, privacy
@@ -295,17 +356,22 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
               HttpServerProperties* http_server_properties,
               TransportSecurityState* transport_security_state,
               SSLConfigService* ssl_config_service,
-              const quic::QuicTransportVersionVector& quic_supported_versions,
+              const quic::ParsedQuicVersionVector& quic_supported_versions,
               bool enable_sending_initial_data,
               bool enable_ping_based_connection_checking,
-              bool support_ietf_format_quic_altsvc,
-              bool is_trusted_proxy,
+              bool is_http_enabled,
+              bool is_quic_enabled,
               size_t session_max_recv_window_size,
+              int session_max_queued_capped_frames,
               const spdy::SettingsMap& initial_settings,
-              const base::Optional<SpdySessionPool::GreasedHttp2Frame>&
+              bool enable_http2_settings_grease,
+              const absl::optional<SpdySessionPool::GreasedHttp2Frame>&
                   greased_http2_frame,
+              bool http2_end_stream_with_data_frame,
+              bool enable_priority_update,
               TimeFunc time_func,
               ServerPushDelegate* push_delegate,
+              NetworkQualityEstimator* network_quality_estimator,
               NetLog* net_log);
 
   ~SpdySession() override;
@@ -316,16 +382,14 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   const HostPortProxyPair& host_port_proxy_pair() const {
     return spdy_session_key_.host_port_proxy_pair();
   }
-  const SpdySessionKey& spdy_session_key() const {
-    return spdy_session_key_;
-  }
+  const SpdySessionKey& spdy_session_key() const { return spdy_session_key_; }
 
   // Get a pushed stream for a given |url| with stream ID |pushed_stream_id|.
   // The caller must have already claimed the stream from Http2PushPromiseIndex.
   // |pushed_stream_id| must not be kNoPushedStreamFound.
   //
   // Returns ERR_CONNECTION_CLOSED if the connection is being closed.
-  // Returns ERR_SPDY_PUSHED_STREAM_NOT_AVAILABLE if the pushed stream is not
+  // Returns ERR_HTTP2_PUSHED_STREAM_NOT_AVAILABLE if the pushed stream is not
   //   available any longer, for example, if the server has reset it.
   // Returns OK if the stream is still available, and returns the stream in
   //   |*spdy_stream|.  If the stream is still open, updates its priority to
@@ -333,7 +397,7 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   int GetPushedStream(const GURL& url,
                       spdy::SpdyStreamId pushed_stream_id,
                       RequestPriority priority,
-                      SpdyStream** spdy_stream);
+                      raw_ptr<SpdyStream>* spdy_stream);
 
   // Called when the pushed stream should be cancelled. If the pushed stream is
   // not claimed and active, sends RST to the server to cancel the stream.
@@ -344,11 +408,25 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // |pool| is the SpdySessionPool that owns us.  Its lifetime must
   // strictly be greater than |this|.
   //
-  // The session begins reading from |connection| on a subsequent event loop
-  // iteration, so the SpdySession may close immediately afterwards if the first
-  // read of |connection| fails.
-  void InitializeWithSocket(std::unique_ptr<ClientSocketHandle> connection,
+  // The session begins reading from |client_socket_handle| on a subsequent
+  // event loop iteration, so the SpdySession may close immediately afterwards
+  // if the first read of |client_socket_handle| fails.
+  void InitializeWithSocketHandle(
+      std::unique_ptr<ClientSocketHandle> client_socket_handle,
+      SpdySessionPool* pool);
+
+  // Just like InitializeWithSocketHandle(), but for use when the session is not
+  // on top of a socket pool, but instead directly on top of a socket, which the
+  // session has sole ownership of, and is responsible for deleting directly
+  // itself.
+  void InitializeWithSocket(std::unique_ptr<StreamSocket> stream_socket,
+                            const LoadTimingInfo::ConnectTiming& connect_timing,
                             SpdySessionPool* pool);
+
+  // Parse ALPS application_data from TLS handshake.
+  // Returns OK on success.  Return a net error code on failure, and closes the
+  // connection with the same error code.
+  int ParseAlps();
 
   // Check to see if this SPDY session can support an additional domain.
   // If the session is un-authenticated, then this call always returns true.
@@ -369,20 +447,60 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
                           spdy::SpdyFrameType frame_type,
                           std::unique_ptr<SpdyBufferProducer> producer);
 
+  // Returns true if this session is configured to send greased HTTP/2 frames.
+  // For more details on greased frames, see
+  // https://tools.ietf.org/html/draft-bishop-httpbis-grease-00.
+  bool GreasedFramesEnabled() const;
+
+  // Returns true if HEADERS frames on request streams should not have the
+  // END_STREAM flag set, but instead an empty DATA frame with END_STREAM should
+  // be sent afterwards to close the stream.  Does not apply to bidirectional or
+  // proxy streams.
+  bool EndStreamWithDataFrame() const {
+    return http2_end_stream_with_data_frame_;
+  }
+
+  // Send greased frame, that is, a frame of reserved type.
+  void EnqueueGreasedFrame(const base::WeakPtr<SpdyStream>& stream);
+
+  // Returns whether HTTP/2 style priority information (stream dependency and
+  // weight fields in HEADERS frames, and PRIORITY frames) should be sent.  True
+  // unless |enable_priority_update_| is true and
+  // SETTINGS_DEPRECATE_HTTP2_PRIORITIES with value 1 has been received from
+  // server.  In particular, if it returns false, it will always return false
+  // afterwards.
+  bool ShouldSendHttp2Priority() const;
+
+  // Returns whether PRIORITY_UPDATE frames should be sent.  False if
+  // |enable_priority_update_| is false.  Otherwise, true before SETTINGS frame
+  // is received from server, and true after SETTINGS frame is received if it
+  // contained SETTINGS_DEPRECATE_HTTP2_PRIORITIES with value 1.  In particular,
+  // if it returns false, it will always return false afterwards.
+  bool ShouldSendPriorityUpdate() const;
+
+  // Runs the handshake to completion to confirm the handshake with the server.
+  // If ERR_IO_PENDING is returned, then when the handshake is confirmed,
+  // |callback| will be called.
+  int ConfirmHandshake(CompletionOnceCallback callback);
+
   // Creates and returns a HEADERS frame for |stream_id|.
   std::unique_ptr<spdy::SpdySerializedFrame> CreateHeaders(
       spdy::SpdyStreamId stream_id,
       RequestPriority priority,
       spdy::SpdyControlFlags flags,
-      spdy::SpdyHeaderBlock headers,
+      spdy::Http2HeaderBlock headers,
       NetLogSource source_dependency);
 
-  // Creates and returns a SpdyBuffer holding a data frame with the
-  // given data. May return NULL if stalled by flow control.
+  // Creates and returns a SpdyBuffer holding a data frame with the given data.
+  // Sets |*effective_len| to number of bytes sent, and |*end_stream| to the
+  // value of the END_STREAM (also known as fin) flag.  Returns nullptr if
+  // session is draining or if session or stream is stalled by flow control.
   std::unique_ptr<SpdyBuffer> CreateDataBuffer(spdy::SpdyStreamId stream_id,
                                                IOBuffer* data,
                                                int len,
-                                               spdy::SpdyDataFlags flags);
+                                               spdy::SpdyDataFlags flags,
+                                               int* effective_len,
+                                               bool* end_stream);
 
   // Send PRIORITY frames according to the new priority of an existing stream.
   void UpdateStreamPriority(SpdyStream* stream,
@@ -414,8 +532,10 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   LoadState GetLoadState() const;
 
   // MultiplexedSession methods:
-  bool GetRemoteEndpoint(IPEndPoint* endpoint) override;
+  int GetRemoteEndpoint(IPEndPoint* endpoint) override;
   bool GetSSLInfo(SSLInfo* ssl_info) const override;
+  base::StringPiece GetAcceptChViaAlps(
+      const url::SchemeHostPort& scheme_host_port) const override;
 
   // Returns true if ALPN was negotiated for the underlying socket.
   bool WasAlpnNegotiated() const;
@@ -427,6 +547,18 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // whenever receive window size is increased.
   void SendStreamWindowUpdate(spdy::SpdyStreamId stream_id,
                               uint32_t delta_window_size);
+
+  // Configure the amount of time that small receive window updates should
+  // be accumulated over (defaults to kDefaultTimeToBufferSmallWindowUpdates).
+  void SetTimeToBufferSmallWindowUpdates(const base::TimeDelta buffer_time) {
+    time_to_buffer_small_window_updates_ = buffer_time;
+  }
+
+  // Returns the configured time that small receive window updates should
+  // be accumulated over.
+  base::TimeDelta TimeToBufferSmallWindowUpdates() const {
+    return time_to_buffer_small_window_updates_;
+  }
 
   // Accessors for the session's availability state.
   bool IsAvailable() const { return availability_state_ == STATE_AVAILABLE; }
@@ -463,7 +595,7 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
 
   // Retrieves information on the current state of the SPDY session as a
   // Value.
-  std::unique_ptr<base::Value> GetInfoAsValue() const;
+  base::Value::Dict GetInfoAsValue() const;
 
   // Indicates whether the session is being reused after having successfully
   // used to send/receive data in the past or if the underlying socket was idle
@@ -472,9 +604,7 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
 
   // Returns true if the underlying transport socket ever had any reads or
   // writes.
-  bool WasEverUsed() const {
-    return connection_->socket()->WasEverUsed();
-  }
+  bool WasEverUsed() const { return socket_->WasEverUsed(); }
 
   // Returns the load timing information from the perspective of the given
   // stream.  If it's not the first stream, the connection is considered reused
@@ -532,17 +662,11 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
                             const SpdySessionKey& key) const override;
   base::WeakPtr<SpdySession> GetWeakPtrToSession() override;
 
-  // Dumps memory allocation stats to |stats|. Sets |*is_session_active| to
-  // indicate whether session is active.
-  // |stats| can be assumed as being default initialized upon entry.
-  // Implementation overrides fields in |stats|.
-  // Returns the estimate of dynamically allocated memory in bytes, which
-  // includes the size attributed to the underlying socket.
-  size_t DumpMemoryStats(StreamSocket::SocketMemoryStats* stats,
-                         bool* is_session_active) const;
-
   // Change this session's socket tag to |new_tag|. Returns true on success.
   bool ChangeSocketTag(const SocketTag& new_tag);
+
+  // Whether connection status monitoring is active or not.
+  bool IsBrokenConnectionDetectionEnabled() const;
 
   static void RecordSpdyPushedStreamFateHistogram(SpdyPushedStreamFate value);
 
@@ -591,6 +715,9 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
     WRITE_STATE_DO_WRITE_COMPLETE,
   };
 
+  // Has the shared logic for the other two Initialize methods that call it.
+  void InitializeInternal(SpdySessionPool* pool);
+
   // Called by SpdyStreamRequest to start a request to create a
   // stream. If OK is returned, then |stream| will be filled in with a
   // valid stream. If ERR_IO_PENDING is returned, then
@@ -606,8 +733,14 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
                    base::WeakPtr<SpdyStream>* stream);
 
   // Called by SpdyStreamRequest to remove |request| from the stream
-  // creation queue.
-  void CancelStreamRequest(const base::WeakPtr<SpdyStreamRequest>& request);
+  // creation queue. Returns whether a request was removed from the queue.
+  bool CancelStreamRequest(const base::WeakPtr<SpdyStreamRequest>& request);
+
+  // Removes |request| from the stream creation queue and reinserts it into the
+  // queue at the new |priority|.
+  void ChangeStreamRequestPriority(
+      const base::WeakPtr<SpdyStreamRequest>& request,
+      RequestPriority priority);
 
   // Returns the next pending stream request to process, or NULL if
   // there is none.
@@ -620,7 +753,7 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
 
   void TryCreatePushStream(spdy::SpdyStreamId stream_id,
                            spdy::SpdyStreamId associated_stream_id,
-                           spdy::SpdyHeaderBlock headers);
+                           spdy::Http2HeaderBlock headers);
 
   // Close the stream pointed to by the given iterator. Note that that
   // stream may hold the last reference to the session.
@@ -684,6 +817,8 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   int DoWrite();
   int DoWriteComplete(int result);
 
+  void NotifyRequestsOfConfirmation(int rv);
+
   // TODO(akalin): Rename the Send* and Write* functions below to
   // Enqueue*.
 
@@ -699,6 +834,16 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // Adjust the send window size of all ActiveStreams and PendingStreamRequests.
   void UpdateStreamsSendWindowSize(int32_t delta_window_size);
 
+  // Checks the connection status in an energy efficient manner:
+  // * If the radio is in full power mode, send the PING immediately
+  // * If the radio is in standby, record the event and send the PING once the
+  //   radio wakes up
+  // The radio status check is currently only implemented for Android devices,
+  // on all other platforms the radio is assumed to be always active (i.e., no
+  // batching happens).
+  void MaybeCheckConnectionStatus();
+  // Always checks the connection status and schedules the next check.
+  void CheckConnectionStatus();
   // Send PING frame if all previous PING frames have been ACKed,
   // all posted CheckPingStatus() tasks have been executed,
   // and too long time has passed since last read from server.
@@ -752,11 +897,10 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // that |stream| may hold the last reference to the session.
   void DeleteStream(std::unique_ptr<SpdyStream> stream, int status);
 
-  void RecordPingRTTHistogram(base::TimeDelta duration);
   void RecordHistograms();
   void RecordProtocolErrorHistogram(SpdyProtocolErrorDetails details);
   static void RecordPushedStreamVaryResponseHeaderHistogram(
-      const spdy::SpdyHeaderBlock& headers);
+      const spdy::Http2HeaderBlock& headers);
 
   // DCHECKs that |availability_state_| >= STATE_GOING_AWAY, that
   // there are no pending stream creation requests, and that there are
@@ -814,19 +958,20 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   void OnSettings() override;
   void OnSettingsAck() override;
   void OnSetting(spdy::SpdySettingsId id, uint32_t value) override;
-  void OnSettingsEnd() override {}
+  void OnSettingsEnd() override;
   void OnWindowUpdate(spdy::SpdyStreamId stream_id,
                       int delta_window_size) override;
   void OnPushPromise(spdy::SpdyStreamId stream_id,
                      spdy::SpdyStreamId promised_stream_id,
-                     spdy::SpdyHeaderBlock headers) override;
+                     spdy::Http2HeaderBlock headers) override;
   void OnHeaders(spdy::SpdyStreamId stream_id,
                  bool has_priority,
                  int weight,
                  spdy::SpdyStreamId parent_stream_id,
                  bool exclusive,
                  bool fin,
-                 spdy::SpdyHeaderBlock headers) override;
+                 spdy::Http2HeaderBlock headers,
+                 base::TimeTicks recv_first_byte_time) override;
   void OnAltSvc(spdy::SpdyStreamId stream_id,
                 base::StringPiece origin,
                 const spdy::SpdyAltSvcWireFormat::AlternativeServiceVector&
@@ -852,6 +997,10 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   void OnWriteBufferConsumed(size_t frame_payload_size,
                              size_t consume_size,
                              SpdyBuffer::ConsumeSource consume_source);
+
+  // Called when the radio goes into full power mode. Currently implemented only
+  // for Android devices.
+  void OnDefaultNetworkActive() override;
 
   // Called by OnWindowUpdate() (which is in turn called by the
   // framer) to increase this session's send window size by
@@ -908,9 +1057,28 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // empty.
   spdy::SpdyStreamId PopStreamToPossiblyResume();
 
+  // Enables connection status monitoring, causing the session to periodically
+  // send a PING frame.
+  // This must be called at most once for each stream requiring it. If called,
+  // MaybeDisableBrokenConnectionDetection() will need to be called before
+  // closing the requesting stream.
+  // Note: `heartbeat_interval` should be considered a suggestion. The
+  // implementation, for example, could either:
+  // * Avoid sending a PING, if one has recently been transmitted or is
+  //   already in flight
+  // * Delay sending a PING, to avoid waking up the radio on mobile platforms
+  // Only the first value of `heartbeat_interval` is taken into account.
+  void EnableBrokenConnectionDetection(base::TimeDelta heartbeat_interval);
+
+  // Requests to disable connection status monitoring. The service is disabled
+  // only if no other active stream also requires it (an internal counter keeps
+  // track of that).
+  // This must be called once for each stream that requested it previously.
+  void MaybeDisableBrokenConnectionDetection();
+
   // Whether Do{Read,Write}Loop() is in the call stack. Useful for
   // making sure we don't destroy ourselves prematurely in that case.
-  bool in_io_loop_;
+  bool in_io_loop_ = false;
 
   // The key used to identify this session.
   SpdySessionKey spdy_session_key_;
@@ -920,14 +1088,24 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   std::set<SpdySessionKey> pooled_aliases_;
 
   // |pool_| owns us, therefore its lifetime must exceed ours.
-  SpdySessionPool* pool_;
-  HttpServerProperties* http_server_properties_;
+  raw_ptr<SpdySessionPool> pool_ = nullptr;
+  raw_ptr<HttpServerProperties> http_server_properties_;
 
-  TransportSecurityState* transport_security_state_;
-  SSLConfigService* ssl_config_service_;
+  raw_ptr<TransportSecurityState> transport_security_state_;
+  raw_ptr<SSLConfigService> ssl_config_service_;
 
-  // The socket handle for this session.
-  std::unique_ptr<ClientSocketHandle> connection_;
+  // One of these two owns the socket for this session, which is stored in
+  // |socket_|. If |client_socket_handle_| is non-null, this session is on top
+  // of a socket in a socket pool. If |owned_stream_socket_| is non-null, this
+  // session is directly on top of a socket, which is not in a socket pool.
+  std::unique_ptr<ClientSocketHandle> client_socket_handle_;
+  std::unique_ptr<StreamSocket> owned_stream_socket_;
+
+  // This is non-null only if |owned_stream_socket_| is non-null.
+  std::unique_ptr<LoadTimingInfo::ConnectTiming> connect_timing_;
+
+  // The socket for this session.
+  raw_ptr<StreamSocket> socket_ = nullptr;
 
   // The read buffer used to read data from the socket.
   // Non-null if there is a Read() pending.
@@ -936,7 +1114,7 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   spdy::SpdyStreamId stream_hi_water_mark_;  // The next stream id to use.
 
   // Used to ensure the server increments push stream ids correctly.
-  spdy::SpdyStreamId last_accepted_push_stream_id_;
+  spdy::SpdyStreamId last_accepted_push_stream_id_ = 0;
 
   // Queue, for each priority, of pending stream requests that have
   // not yet been satisfied.
@@ -957,7 +1135,7 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
 
   // Not owned. |push_delegate_| outlives the session and handles server pushes
   // received by session.
-  ServerPushDelegate* push_delegate_;
+  raw_ptr<ServerPushDelegate> push_delegate_;
 
   // Set of all created streams but that have not yet sent any frames.
   //
@@ -967,18 +1145,18 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // Number of pushed streams. All active streams are stored in
   // |active_streams_|, but it's better to know the number of push streams
   // without traversing the whole collection.
-  size_t num_pushed_streams_;
+  size_t num_pushed_streams_ = 0u;
 
   // Number of active pushed streams in |active_streams_|, i.e. not in reserved
   // remote state. Streams in reserved state are not counted towards any
   // concurrency limits.
-  size_t num_active_pushed_streams_;
+  size_t num_active_pushed_streams_ = 0u;
 
   // Number of bytes that has been pushed by the server.
-  uint64_t bytes_pushed_count_;
+  uint64_t bytes_pushed_count_ = 0u;
 
   // Number of bytes that has been pushed by the server but never claimed.
-  uint64_t bytes_pushed_and_unclaimed_count_;
+  uint64_t bytes_pushed_and_unclaimed_count_ = 0u;
 
   // The write queue.
   SpdyWriteQueue write_queue_;
@@ -988,29 +1166,29 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // The buffer we're currently writing.
   std::unique_ptr<SpdyBuffer> in_flight_write_;
   // The type of the frame in |in_flight_write_|.
-  spdy::SpdyFrameType in_flight_write_frame_type_;
+  spdy::SpdyFrameType in_flight_write_frame_type_ = spdy::SpdyFrameType::DATA;
   // The size of the frame in |in_flight_write_|.
-  size_t in_flight_write_frame_size_;
+  size_t in_flight_write_frame_size_ = 0;
   // The stream to notify when |in_flight_write_| has been written to
   // the socket completely.
   base::WeakPtr<SpdyStream> in_flight_write_stream_;
 
   // Traffic annotation for the write in progress.
-  MutableNetworkTrafficAnnotationTag in_flight_write_traffic_annotation;
+  MutableNetworkTrafficAnnotationTag in_flight_write_traffic_annotation_;
 
   // Spdy Frame state.
   std::unique_ptr<BufferedSpdyFramer> buffered_spdy_framer_;
 
   // The state variables.
-  AvailabilityState availability_state_;
-  ReadState read_state_;
-  WriteState write_state_;
+  AvailabilityState availability_state_ = STATE_AVAILABLE;
+  ReadState read_state_ = READ_STATE_DO_READ;
+  WriteState write_state_ = WRITE_STATE_IDLE;
 
   // If the session is closing (i.e., |availability_state_| is STATE_DRAINING),
   // then |error_on_close_| holds the error with which it was closed, which
   // may be OK (upon a polite GOAWAY) or an error < ERR_IO_PENDING otherwise.
   // Initialized to OK.
-  Error error_on_close_;
+  Error error_on_close_ = OK;
 
   // Settings that are sent in the initial SETTINGS frame
   // (if |enable_sending_initial_data_| is true),
@@ -1018,27 +1196,76 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // and maximum HPACK dynamic table size.
   const spdy::SettingsMap initial_settings_;
 
-  // If set, an HTTP/2 frame with a reserved frame type will be sent after every
-  // valid HTTP/2 frame.  See
+  // If true, a setting parameter with reserved identifier will be sent in every
+  // initial SETTINGS frame, see
   // https://tools.ietf.org/html/draft-bishop-httpbis-grease-00.
-  const base::Optional<SpdySessionPool::GreasedHttp2Frame> greased_http2_frame_;
+  // The setting identifier and value will be drawn independently for each
+  // connection to prevent tracking of the client.
+  const bool enable_http2_settings_grease_;
+
+  // If set, an HTTP/2 frame with a reserved frame type will be sent after
+  // every HTTP/2 SETTINGS frame and before every HTTP/2 DATA frame. See
+  // https://tools.ietf.org/html/draft-bishop-httpbis-grease-00.
+  const absl::optional<SpdySessionPool::GreasedHttp2Frame> greased_http2_frame_;
+
+  // If set, the HEADERS frame carrying a request without body will not have the
+  // END_STREAM flag set.  The stream will be closed by a subsequent empty DATA
+  // frame with END_STREAM.  Does not affect bidirectional or proxy streams.
+  // If unset, the HEADERS frame will have the END_STREAM flag set on.
+  // This is useful in conjuction with |greased_http2_frame_| so that a frame
+  // of reserved type can be sent out even on requests without a body.
+  const bool http2_end_stream_with_data_frame_;
+
+  // If true, enable sending PRIORITY_UPDATE frames until SETTINGS frame
+  // arrives.  After SETTINGS frame arrives, do not send PRIORITY_UPDATE frames
+  // any longer if SETTINGS_DEPRECATE_HTTP2_PRIORITIES is missing or has zero 0,
+  // but continue and also stop sending HTTP/2-style priority information in
+  // HEADERS frames and PRIORITY frames if it has value 1.
+  const bool enable_priority_update_;
+
+  // The value of the last received SETTINGS_DEPRECATE_HTTP2_PRIORITIES, with 0
+  // mapping to false and 1 to true.  Initial value is false.
+  bool deprecate_http2_priorities_ = false;
+
+  // True if at least one SETTINGS frame has been received.
+  bool settings_frame_received_ = false;
+
+  // The callbacks to notify a request that the handshake has been confirmed.
+  std::vector<CompletionOnceCallback> waiting_for_confirmation_callbacks_;
+
+  // True if there is an ongoing handshake confirmation with outstanding
+  // requests.
+  bool in_confirm_handshake_ = false;
 
   // Limits
   size_t max_concurrent_streams_;
+  // TODO(https://crbug.com/1426477): Remove.
   size_t max_concurrent_pushed_streams_;
 
   // Some statistics counters for the session.
-  int streams_initiated_count_;
-  int streams_pushed_count_;
-  int streams_pushed_and_claimed_count_;
-  int streams_abandoned_count_;
+  int streams_initiated_count_ = 0;
+
+  // TODO(https://crbug.com/1426477): Remove.
+  int streams_pushed_count_ = 0;
+  int streams_pushed_and_claimed_count_ = 0;
+
+  int streams_abandoned_count_ = 0;
 
   // True if there has been a ping sent for which we have not received a
   // response yet.  There is always at most one ping in flight.
-  bool ping_in_flight_;
+  bool ping_in_flight_ = false;
+
+  // Triggers periodic connection status checks.
+  base::OneShotTimer heartbeat_timer_;
+
+  // Period used by the connection status monitoring mechanism.
+  base::TimeDelta heartbeat_interval_;
+
+  // True if the connection status should be checked once the radio wakes up.
+  bool check_connection_on_radio_wakeup_ = false;
 
   // This is the next ping_id (unique_id) to be sent in PING frame.
-  spdy::SpdyPingId next_ping_id_;
+  spdy::SpdyPingId next_ping_id_ = 1;
 
   // This is the last time we have sent a PING.
   base::TimeTicks last_ping_sent_time_;
@@ -1047,29 +1274,43 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   base::TimeTicks last_read_time_;
 
   // This is the length of the last compressed frame.
-  size_t last_compressed_frame_len_;
+  size_t last_compressed_frame_len_ = 0;
 
   // True if there is a CheckPingStatus() task posted on the message loop.
-  bool check_ping_status_pending_;
+  bool check_ping_status_pending_ = false;
 
   // Current send window size.  Zero unless session flow control is turned on.
-  int32_t session_send_window_size_;
+  int32_t session_send_window_size_ = 0;
 
   // Maximum receive window size.  Each time a WINDOW_UPDATE is sent, it
   // restores the receive window size to this value.  Zero unless session flow
   // control is turned on.
   int32_t session_max_recv_window_size_;
 
+  // Maximum number of capped frames that can be queued at any time.
+  // Every time we try to enqueue a capped frame, we check that there aren't
+  // more than this amount already queued, and close the connection if so.
+  int session_max_queued_capped_frames_;
+
+  // Number of active requests which asked for connection status monitoring.
+  int broken_connection_detection_requests_ = 0;
+
   // Sum of |session_unacked_recv_window_bytes_| and current receive window
   // size.  Zero unless session flow control is turned on.
   // TODO(bnc): Rename or change semantics so that |window_size_| is actual
   // window size.
-  int32_t session_recv_window_size_;
+  int32_t session_recv_window_size_ = 0;
 
   // When bytes are consumed, SpdyIOBuffer destructor calls back to SpdySession,
   // and this member keeps count of them until the corresponding WINDOW_UPDATEs
   // are sent.  Zero unless session flow control is turned on.
-  int32_t session_unacked_recv_window_bytes_;
+  int32_t session_unacked_recv_window_bytes_ = 0;
+
+  // Time of the last WINDOW_UPDATE for the receive window.
+  base::TimeTicks last_recv_window_update_;
+
+  // Time to accumilate small receive window updates for.
+  base::TimeDelta time_to_buffer_small_window_updates_;
 
   // Initial send window size for this session's streams. Can be
   // changed by an arriving SETTINGS frame. Newly created streams use
@@ -1094,19 +1335,16 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   NetLogWithSource net_log_;
 
   // Versions of QUIC which may be used.
-  const quic::QuicTransportVersionVector quic_supported_versions_;
+  const quic::ParsedQuicVersionVector quic_supported_versions_;
 
   // Outside of tests, these should always be true.
   const bool enable_sending_initial_data_;
   const bool enable_ping_based_connection_checking_;
 
-  // If true, alt-svc headers advertising QUIC in IETF format will be supported.
-  const bool support_ietf_format_quic_altsvc_;
+  const bool is_http2_enabled_;
+  const bool is_quic_enabled_;
 
-  // If true, this session is being made to a trusted SPDY/HTTP2 proxy that is
-  // allowed to push cross-origin resources.
-  const bool is_trusted_proxy_;
-
+  // TODO(https://crbug.com/1426477): Remove.
   // If true, accept pushed streams from server.
   // If false, reset pushed streams immediately.
   const bool enable_push_;
@@ -1114,7 +1352,7 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
   // True if the server has advertised WebSocket support via
   // spdy::SETTINGS_ENABLE_CONNECT_PROTOCOL, see
   // https://tools.ietf.org/html/draft-ietf-httpbis-h2-websockets-00.
-  bool support_websocket_;
+  bool support_websocket_ = false;
 
   // |connection_at_risk_of_loss_time_| is an optimization to avoid sending
   // wasteful preface pings (when we just got some data).
@@ -1142,11 +1380,18 @@ class NET_EXPORT SpdySession : public BufferedSpdyFramerVisitorInterface,
 
   Http2PriorityDependencies priority_dependency_state_;
 
-  // Used for posting asynchronous IO tasks.  We use this even though
-  // SpdySession is refcounted because we don't need to keep the SpdySession
-  // alive if the last reference is within a RunnableMethod.  Just revoke the
-  // method.
-  base::WeakPtrFactory<SpdySession> weak_factory_;
+  // Map of origin to Accept-CH header field values received via ALPS.
+  base::flat_map<url::SchemeHostPort, std::string>
+      accept_ch_entries_received_via_alps_;
+
+  // Network quality estimator to which the ping RTTs should be reported. May be
+  // nullptr.
+  raw_ptr<NetworkQualityEstimator> network_quality_estimator_;
+
+  // Used for accessing the SpdySession from asynchronous tasks. An asynchronous
+  // must check if its WeakPtr<SpdySession> is valid before accessing it, to
+  // correctly handle the case where it became unavailable and was deleted.
+  base::WeakPtrFactory<SpdySession> weak_factory_{this};
 };
 
 }  // namespace net

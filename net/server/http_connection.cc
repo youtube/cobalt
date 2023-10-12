@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,18 +9,16 @@
 #include "base/logging.h"
 #include "net/server/web_socket.h"
 #include "net/socket/stream_socket.h"
-#include "starboard/memory.h"
 
 namespace net {
 
 HttpConnection::ReadIOBuffer::ReadIOBuffer()
-    : base_(base::MakeRefCounted<GrowableIOBuffer>()),
-      max_buffer_size_(kDefaultMaxBufferSize) {
+    : base_(base::MakeRefCounted<GrowableIOBuffer>()) {
   SetCapacity(kInitialBufSize);
 }
 
 HttpConnection::ReadIOBuffer::~ReadIOBuffer() {
-  data_ = NULL;  // base_ owns data_.
+  data_ = nullptr;  // base_ owns data_.
 }
 
 int HttpConnection::ReadIOBuffer::GetCapacity() const {
@@ -29,6 +27,7 @@ int HttpConnection::ReadIOBuffer::GetCapacity() const {
 
 void HttpConnection::ReadIOBuffer::SetCapacity(int capacity) {
   DCHECK_LE(GetSize(), capacity);
+  data_ = nullptr;
   base_->SetCapacity(capacity);
   data_ = base_->data();
 }
@@ -83,6 +82,8 @@ void HttpConnection::ReadIOBuffer::DidConsume(int bytes) {
     int new_capacity = GetCapacity() / kCapacityIncreaseFactor;
     if (new_capacity < kMinimumBufSize)
       new_capacity = kMinimumBufSize;
+    // this avoids the pointer to dangle until `SetCapacity` gets called.
+    data_ = nullptr;
     // realloc() within GrowableIOBuffer::SetCapacity() could move data even
     // when size is reduced. If unconsumed_size == 0, i.e. no data exists in
     // the buffer, free internal buffer first to guarantee no data move.
@@ -92,13 +93,10 @@ void HttpConnection::ReadIOBuffer::DidConsume(int bytes) {
   }
 }
 
-HttpConnection::QueuedWriteIOBuffer::QueuedWriteIOBuffer()
-    : total_size_(0),
-      max_buffer_size_(kDefaultMaxBufferSize) {
-}
+HttpConnection::QueuedWriteIOBuffer::QueuedWriteIOBuffer() = default;
 
 HttpConnection::QueuedWriteIOBuffer::~QueuedWriteIOBuffer() {
-  data_ = NULL;  // pending_data_ owns data_.
+  data_ = nullptr;  // pending_data_ owns data_.
 }
 
 bool HttpConnection::QueuedWriteIOBuffer::IsEmpty() const {
@@ -134,8 +132,10 @@ void HttpConnection::QueuedWriteIOBuffer::DidConsume(int size) {
   if (size < GetSizeToWrite()) {
     data_ += size;
   } else {  // size == GetSizeToWrite(). Updates data_ to next pending data.
+    data_ = nullptr;
     pending_data_.pop();
-    data_ = IsEmpty() ? NULL : const_cast<char*>(pending_data_.front()->data());
+    data_ =
+        IsEmpty() ? nullptr : const_cast<char*>(pending_data_.front()->data());
   }
   total_size_ -= size;
 }

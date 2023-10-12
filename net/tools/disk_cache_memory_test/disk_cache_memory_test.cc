@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,20 +10,21 @@
 #include <vector>
 
 #include "base/at_exit.h"
-#include "base/bind.h"
-#include "base/callback.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/memory/ptr_util.h"
+#include "base/message_loop/message_pump_type.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/task/task_scheduler/task_scheduler.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/single_thread_task_executor.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "net/base/cache_type.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
@@ -50,12 +51,12 @@ struct CacheSpec {
     std::vector<std::string> tokens = base::SplitString(
         spec_string, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     if (tokens.size() != 3)
-      return std::unique_ptr<CacheSpec>();
+      return nullptr;
     if (tokens[0] != kBlockFileBackendType && tokens[0] != kSimpleBackendType)
-      return std::unique_ptr<CacheSpec>();
+      return nullptr;
     if (tokens[1] != kDiskCacheType && tokens[1] != kAppCacheType)
-      return std::unique_ptr<CacheSpec>();
-    return std::unique_ptr<CacheSpec>(new CacheSpec(
+      return nullptr;
+    return base::WrapUnique(new CacheSpec(
         tokens[0] == kBlockFileBackendType ? net::CACHE_BACKEND_BLOCKFILE
                                            : net::CACHE_BACKEND_SIMPLE,
         tokens[1] == kDiskCacheType ? net::DISK_CACHE : net::APP_CACHE,
@@ -88,46 +89,43 @@ void SetSuccessCodeOnCompletion(base::RunLoop* run_loop,
 }
 
 std::unique_ptr<Backend> CreateAndInitBackend(const CacheSpec& spec) {
-  std::unique_ptr<Backend> result;
-  std::unique_ptr<Backend> backend;
-  bool succeeded = false;
   base::RunLoop run_loop;
-  net::CompletionOnceCallback callback =
-      base::BindOnce(&SetSuccessCodeOnCompletion, &run_loop, &succeeded);
-  const int net_error =
-      CreateCacheBackend(spec.cache_type, spec.backend_type, spec.path, 0,
-                         false, nullptr, &backend, std::move(callback));
-  if (net_error == net::OK)
-    SetSuccessCodeOnCompletion(&run_loop, &succeeded, net::OK);
-  else
+  BackendResult result;
+  result = CreateCacheBackend(
+      spec.cache_type, spec.backend_type, /*file_operations=*/nullptr,
+      spec.path, 0, disk_cache::ResetHandling::kNeverReset, /*net_log=*/nullptr,
+      base::BindOnce(
+          [](BackendResult* out, base::RunLoop* run_loop,
+             BackendResult async_result) {
+            *out = std::move(async_result);
+            run_loop->Quit();
+          },
+          &result, &run_loop));
+  if (result.net_error == net::ERR_IO_PENDING)
     run_loop.Run();
-  if (!succeeded) {
+  if (result.net_error != net::OK) {
     LOG(ERROR) << "Could not initialize backend in "
                << spec.path.LossyDisplayName();
-    return result;
+    return nullptr;
   }
   // For the simple cache, the index may not be initialized yet.
+  bool succeeded = false;
   if (spec.backend_type == net::CACHE_BACKEND_SIMPLE) {
     base::RunLoop index_run_loop;
     net::CompletionOnceCallback index_callback = base::BindOnce(
         &SetSuccessCodeOnCompletion, &index_run_loop, &succeeded);
     SimpleBackendImpl* simple_backend =
-        static_cast<SimpleBackendImpl*>(backend.get());
-    const int index_net_error =
-        simple_backend->index()->ExecuteWhenReady(std::move(index_callback));
-    if (index_net_error == net::OK)
-      SetSuccessCodeOnCompletion(&index_run_loop, &succeeded, net::OK);
-    else
-      index_run_loop.Run();
+        static_cast<SimpleBackendImpl*>(result.backend.get());
+    simple_backend->index()->ExecuteWhenReady(std::move(index_callback));
+    index_run_loop.Run();
     if (!succeeded) {
       LOG(ERROR) << "Could not initialize Simple Cache in "
                  << spec.path.LossyDisplayName();
-      return result;
+      return nullptr;
     }
   }
-  DCHECK(backend);
-  result.swap(backend);
-  return result;
+  DCHECK(result.backend);
+  return std::move(result.backend);
 }
 
 // Parses range lines from /proc/<PID>/smaps, e.g. (anonymous read write):
@@ -218,7 +216,6 @@ uint64_t GetMemoryConsumption() {
         return total_size;
     }
   }
-  return total_size;
 }
 
 bool CacheMemTest(const std::vector<std::unique_ptr<CacheSpec>>& specs) {
@@ -262,8 +259,8 @@ bool ParseAndStoreSpec(const std::string& spec_str,
 
 bool Main(int argc, char** argv) {
   base::AtExitManager at_exit_manager;
-  base::MessageLoopForIO message_loop;
-  base::TaskScheduler::CreateAndStartWithDefaultParams(
+  base::SingleThreadTaskExecutor executor(base::MessagePumpType::IO);
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
       "disk_cache_memory_test");
   base::CommandLine::Init(argc, argv);
   const base::CommandLine& command_line =

@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include <utility>
 
-#include "base/stl_util.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
 #include "net/http/http_auth_filter.h"
 #include "net/http/url_security_manager.h"
 
@@ -27,41 +27,67 @@ bool HttpAuthPreferences::NegotiateEnablePort() const {
   return negotiate_enable_port_;
 }
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 bool HttpAuthPreferences::NtlmV2Enabled() const {
   return ntlm_v2_enabled_;
 }
-#endif
+#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 std::string HttpAuthPreferences::AuthAndroidNegotiateAccountType() const {
   return auth_android_negotiate_account_type_;
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+bool HttpAuthPreferences::AllowGssapiLibraryLoad() const {
+  return allow_gssapi_library_load_;
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 bool HttpAuthPreferences::CanUseDefaultCredentials(
-    const GURL& auth_origin) const {
-  return security_manager_->CanUseDefaultCredentials(auth_origin);
+    const url::SchemeHostPort& auth_scheme_host_port) const {
+  return allow_default_credentials_ == ALLOW_DEFAULT_CREDENTIALS &&
+         security_manager_->CanUseDefaultCredentials(auth_scheme_host_port);
 }
 
-bool HttpAuthPreferences::CanDelegate(const GURL& auth_origin) const {
-  return security_manager_->CanDelegate(auth_origin);
+using DelegationType = HttpAuth::DelegationType;
+
+DelegationType HttpAuthPreferences::GetDelegationType(
+    const url::SchemeHostPort& auth_scheme_host_port) const {
+  if (!security_manager_->CanDelegate(auth_scheme_host_port))
+    return DelegationType::kNone;
+
+  if (delegate_by_kdc_policy())
+    return DelegationType::kByKdcPolicy;
+
+  return DelegationType::kUnconstrained;
 }
 
-void HttpAuthPreferences::SetServerWhitelist(
-    const std::string& server_whitelist) {
-  std::unique_ptr<HttpAuthFilter> whitelist;
-  if (!server_whitelist.empty())
-    whitelist = std::make_unique<HttpAuthFilterWhitelist>(server_whitelist);
-  security_manager_->SetDefaultWhitelist(std::move(whitelist));
+void HttpAuthPreferences::SetAllowDefaultCredentials(DefaultCredentials creds) {
+  allow_default_credentials_ = creds;
 }
 
-void HttpAuthPreferences::SetDelegateWhitelist(
-    const std::string& delegate_whitelist) {
-  std::unique_ptr<HttpAuthFilter> whitelist;
-  if (!delegate_whitelist.empty())
-    whitelist = std::make_unique<HttpAuthFilterWhitelist>(delegate_whitelist);
-  security_manager_->SetDelegateWhitelist(std::move(whitelist));
+bool HttpAuthPreferences::IsAllowedToUseAllHttpAuthSchemes(
+    const url::SchemeHostPort& scheme_host_port) const {
+  return !http_auth_scheme_filter_ ||
+         http_auth_scheme_filter_.Run(scheme_host_port);
+}
+
+void HttpAuthPreferences::SetServerAllowlist(
+    const std::string& server_allowlist) {
+  std::unique_ptr<HttpAuthFilter> allowlist;
+  if (!server_allowlist.empty())
+    allowlist = std::make_unique<HttpAuthFilterAllowlist>(server_allowlist);
+  security_manager_->SetDefaultAllowlist(std::move(allowlist));
+}
+
+void HttpAuthPreferences::SetDelegateAllowlist(
+    const std::string& delegate_allowlist) {
+  std::unique_ptr<HttpAuthFilter> allowlist;
+  if (!delegate_allowlist.empty())
+    allowlist = std::make_unique<HttpAuthFilterAllowlist>(delegate_allowlist);
+  security_manager_->SetDelegateAllowlist(std::move(allowlist));
 }
 
 }  // namespace net

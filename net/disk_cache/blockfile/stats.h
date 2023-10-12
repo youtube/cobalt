@@ -1,17 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DISK_CACHE_BLOCKFILE_STATS_H_
 #define NET_DISK_CACHE_BLOCKFILE_STATS_H_
 
-#include <string>
+#include <stddef.h>
+#include <stdint.h>
 
-#include "base/macros.h"
 #include "base/strings/string_split.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/blockfile/addr.h"
-#include "starboard/types.h"
 
 namespace disk_cache {
 
@@ -49,6 +48,10 @@ class NET_EXPORT_PRIVATE Stats {
   };
 
   Stats();
+
+  Stats(const Stats&) = delete;
+  Stats& operator=(const Stats&) = delete;
+
   ~Stats();
 
   // Initializes this object with |data| from disk.
@@ -89,8 +92,6 @@ class NET_EXPORT_PRIVATE Stats {
   Addr storage_addr_;
   int data_sizes_[kDataSizesLength];
   int64_t counters_[MAX_COUNTER];
-
-  DISALLOW_COPY_AND_ASSIGN(Stats);
 };
 
 }  // namespace disk_cache

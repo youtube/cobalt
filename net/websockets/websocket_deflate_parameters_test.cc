@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/websockets/websocket_extension_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -218,7 +217,7 @@ std::vector<InitializeTestParameter> InitializeTestParameters() {
       {"; hogefuga", kUnknownParameter},
   };
   return std::vector<InitializeTestParameter>(
-      parameters, parameters + arraysize(parameters));
+      parameters, parameters + std::size(parameters));
 }
 
 const CompatibilityTestParameter kCompatibilityTestParameters[] = {
@@ -247,13 +246,13 @@ const CompatibilityTestParameter kCompatibilityTestParameters[] = {
     {"; client_max_window_bits=12", "; client_max_window_bits=13", true},
 };
 
-INSTANTIATE_TEST_CASE_P(WebSocketDeflateParametersInitializeTest,
-                        WebSocketDeflateParametersInitializeTest,
-                        ::testing::ValuesIn(InitializeTestParameters()));
+INSTANTIATE_TEST_SUITE_P(WebSocketDeflateParametersInitializeTest,
+                         WebSocketDeflateParametersInitializeTest,
+                         ::testing::ValuesIn(InitializeTestParameters()));
 
-INSTANTIATE_TEST_CASE_P(WebSocketDeflateParametersCompatibilityTest,
-                        WebSocketDeflateParametersCompatibilityTest,
-                        ::testing::ValuesIn(kCompatibilityTestParameters));
+INSTANTIATE_TEST_SUITE_P(WebSocketDeflateParametersCompatibilityTest,
+                         WebSocketDeflateParametersCompatibilityTest,
+                         ::testing::ValuesIn(kCompatibilityTestParameters));
 
 }  // namespace
 

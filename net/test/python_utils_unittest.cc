@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,56 +13,34 @@
 #include "base/process/launch.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-TEST(PythonUtils, Clear) {
-  std::unique_ptr<base::Environment> env(base::Environment::Create());
-  env->SetVar(kPythonPathEnv, "foo");
-  EXPECT_TRUE(env->HasVar(kPythonPathEnv));
-
-  ClearPythonPath();
-  EXPECT_FALSE(env->HasVar(kPythonPathEnv));
-}
-
-TEST(PythonUtils, Append) {
-  const base::FilePath::CharType kAppendDir1[] =
-      FILE_PATH_LITERAL("test/path_append1");
-  const base::FilePath::CharType kAppendDir2[] =
-      FILE_PATH_LITERAL("test/path_append2");
-
-  std::unique_ptr<base::Environment> env(base::Environment::Create());
-
-  std::string python_path;
-  base::FilePath append_path1(kAppendDir1);
-  base::FilePath append_path2(kAppendDir2);
-
-  // Get a clean start
-  env->UnSetVar(kPythonPathEnv);
-
-  // Append the path
-  AppendToPythonPath(append_path1);
-  env->GetVar(kPythonPathEnv, &python_path);
-  ASSERT_EQ(python_path, "test/path_append1");
-
-  // Append the safe path again, nothing changes
-  AppendToPythonPath(append_path2);
-  env->GetVar(kPythonPathEnv, &python_path);
-#if defined(OS_WIN)
-  ASSERT_EQ(std::string("test/path_append1;test/path_append2"), python_path);
-#elif defined(OS_POSIX)
-  ASSERT_EQ(std::string("test/path_append1:test/path_append2"), python_path);
+TEST(PythonUtils, SetPythonPathInEnvironment) {
+  base::EnvironmentMap env;
+  SetPythonPathInEnvironment({base::FilePath(FILE_PATH_LITERAL("test/path1")),
+                              base::FilePath(FILE_PATH_LITERAL("test/path2"))},
+                             &env);
+#if BUILDFLAG(IS_WIN)
+  EXPECT_EQ(FILE_PATH_LITERAL("test/path1;test/path2"),
+            env[FILE_PATH_LITERAL("PYTHONPATH")]);
+#else
+  EXPECT_EQ("test/path1:test/path2", env["PYTHONPATH"]);
 #endif
+  EXPECT_NE(env.end(), env.find(FILE_PATH_LITERAL("VPYTHON_CLEAR_PYTHONPATH")));
+  EXPECT_EQ(base::NativeEnvironmentString(),
+            env[FILE_PATH_LITERAL("VPYTHON_CLEAR_PYTHONPATH")]);
 }
 
-TEST(PythonUtils, PythonRunTime) {
+TEST(PythonUtils, Python3RunTime) {
   base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
-  EXPECT_TRUE(GetPythonCommand(&cmd_line));
+  EXPECT_TRUE(GetPython3Command(&cmd_line));
 
   // Run a python command to print a string and make sure the output is what
   // we want.
   cmd_line.AppendArg("-c");
   std::string input("PythonUtilsTest");
-  std::string python_cmd = base::StringPrintf("print '%s';", input.c_str());
+  std::string python_cmd = base::StringPrintf("print('%s');", input.c_str());
   cmd_line.AppendArg(python_cmd);
   std::string output;
   EXPECT_TRUE(base::GetAppOutput(cmd_line, &output));

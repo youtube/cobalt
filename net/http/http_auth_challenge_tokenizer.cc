@@ -1,10 +1,12 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_auth_challenge_tokenizer.h"
 
+#include "base/strings/string_piece.h"
 #include "base/strings/string_tokenizer.h"
+#include "base/strings/string_util.h"
 
 namespace net {
 
@@ -13,8 +15,6 @@ HttpAuthChallengeTokenizer::HttpAuthChallengeTokenizer(
     std::string::const_iterator end)
     : begin_(begin),
       end_(end),
-      scheme_begin_(begin),
-      scheme_end_(begin),
       params_begin_(end),
       params_end_(end) {
   Init(begin, end);
@@ -32,7 +32,7 @@ std::string HttpAuthChallengeTokenizer::base64_param() const {
   // (See https://bugzilla.mozilla.org/show_bug.cgi?id=230351.)
   //
   // Our base64 decoder requires that the length be a multiple of 4.
-  int encoded_length = params_end_ - params_begin_;
+  auto encoded_length = params_end_ - params_begin_;
   while (encoded_length > 0 && encoded_length % 4 != 0 &&
          params_begin_[encoded_length - 1] == '=') {
     --encoded_length;
@@ -52,10 +52,10 @@ void HttpAuthChallengeTokenizer::Init(std::string::const_iterator begin,
   }
 
   // Save the scheme's position.
-  scheme_begin_ = tok.token_begin();
-  scheme_end_ = tok.token_end();
+  lower_case_scheme_ = base::ToLowerASCII(
+      base::MakeStringPiece(tok.token_begin(), tok.token_end()));
 
-  params_begin_ = scheme_end_;
+  params_begin_ = tok.token_end();
   params_end_ = end;
   HttpUtil::TrimLWS(&params_begin_, &params_end_);
 }

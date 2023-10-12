@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,20 +27,20 @@
 #ifndef NET_BASE_FILE_STREAM_CONTEXT_H_
 #define NET_BASE_FILE_STREAM_CONTEXT_H_
 
+#include <stdint.h>
+
 #include "base/files/file.h"
-#include "base/macros.h"
+#include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_pump_for_io.h"
-#include "base/single_thread_task_runner.h"
-#include "base/task_runner.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/task_runner.h"
 #include "build/build_config.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/file_stream.h"
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
-
-#include "starboard/types.h"
 #endif
 
 namespace base {
@@ -51,22 +51,25 @@ namespace net {
 
 class IOBuffer;
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 class FileStream::Context : public base::MessagePumpForIO::IOHandler {
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 class FileStream::Context {
 #endif
+
  public:
   ////////////////////////////////////////////////////////////////////////////
   // Platform-dependent methods implemented in
   // file_stream_context_{win,posix}.cc.
   ////////////////////////////////////////////////////////////////////////////
 
-  explicit Context(const scoped_refptr<base::TaskRunner>& task_runner);
-  Context(base::File file, const scoped_refptr<base::TaskRunner>& task_runner);
-#if defined(OS_WIN)
+  explicit Context(scoped_refptr<base::TaskRunner> task_runner);
+  Context(base::File file, scoped_refptr<base::TaskRunner> task_runner);
+  Context(const Context&) = delete;
+  Context& operator=(const Context&) = delete;
+#if BUILDFLAG(IS_WIN)
   ~Context() override;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   ~Context();
 #endif
 
@@ -106,10 +109,6 @@ class FileStream::Context {
     IOResult();
     IOResult(int64_t result, logging::SystemErrorCode os_error);
     static IOResult FromOSError(logging::SystemErrorCode os_error);
-#if defined(STARBOARD)
-    static IOResult FromFileError(
-        base::File::Error file_error, logging::SystemErrorCode os_error);
-#endif
 
     int64_t result;
     logging::SystemErrorCode os_error;  // Set only when result < 0.
@@ -121,12 +120,11 @@ class FileStream::Context {
     OpenResult(base::File file, IOResult error_code);
     OpenResult(OpenResult&& other);
     OpenResult& operator=(OpenResult&& other);
+    OpenResult(const OpenResult&) = delete;
+    OpenResult& operator=(const OpenResult&) = delete;
 
     base::File file;
     IOResult error_code;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(OpenResult);
   };
 
   ////////////////////////////////////////////////////////////////////////////
@@ -162,7 +160,7 @@ class FileStream::Context {
 
   void OnFileOpened();
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   void IOCompletionIsPending(CompletionOnceCallback callback, IOBuffer* buf);
 
   // Implementation of MessagePumpForIO::IOHandler.
@@ -176,7 +174,7 @@ class FileStream::Context {
   // Deletes an orphaned context.
   void DeleteOrphanedContext();
 
-  // The ReadFile call on Windows can execute synchonously at times.
+  // The ReadFile call on Windows can execute synchronously at times.
   // http://support.microsoft.com/kb/156932. This ends up blocking the calling
   // thread which is undesirable. To avoid this we execute the ReadFile call
   // on a worker thread.
@@ -209,7 +207,7 @@ class FileStream::Context {
   // the ReadFile API.
   void ReadAsyncResult(BOOL read_file_ret, DWORD bytes_read, DWORD os_error);
 
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // ReadFileImpl() is a simple wrapper around read() that handles EINTR
   // signals and calls RecordAndMapError() to map errno to net error codes.
   IOResult ReadFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);
@@ -218,33 +216,31 @@ class FileStream::Context {
   // signals and calls MapSystemError() to map errno to net error codes.
   // It tries to write to completion.
   IOResult WriteFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
   base::File file_;
-  bool async_in_progress_;
+  bool async_in_progress_ = false;
 
-  bool orphaned_;
-  scoped_refptr<base::TaskRunner> task_runner_;
+  bool orphaned_ = false;
+  const scoped_refptr<base::TaskRunner> task_runner_;
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
   base::MessagePumpForIO::IOContext io_context_;
   CompletionOnceCallback callback_;
   scoped_refptr<IOBuffer> in_flight_buf_;
   // This flag is set to true when we receive a Read request which is queued to
   // the thread pool.
-  bool async_read_initiated_;
+  bool async_read_initiated_ = false;
   // This flag is set to true when we receive a notification ReadAsyncResult()
   // on the calling thread which indicates that the asynchronous Read
   // operation is complete.
-  bool async_read_completed_;
+  bool async_read_completed_ = false;
   // This flag is set to true when we receive an IO completion notification for
-  // an asynchonously initiated Read operaton. OnIOComplete().
-  bool io_complete_for_read_received_;
+  // an asynchronously initiated Read operation. OnIOComplete().
+  bool io_complete_for_read_received_ = false;
   // Tracks the result of the IO completion operation. Set in OnIOComplete.
-  int result_;
+  int result_ = 0;
 #endif
-
-  DISALLOW_COPY_AND_ASSIGN(Context);
 };
 
 }  // namespace net

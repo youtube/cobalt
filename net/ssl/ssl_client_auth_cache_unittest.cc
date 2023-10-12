@@ -1,40 +1,29 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright 2009 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/ssl/ssl_client_auth_cache.h"
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include <utility>
+
+#include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "net/cert/x509_certificate.h"
 #include "net/ssl/ssl_private_key.h"
+#include "net/ssl/test_ssl_private_key.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/boringssl/src/include/openssl/evp.h"
 
 namespace net {
 
-class MockSSLPrivateKey : public SSLPrivateKey {
- public:
-  MockSSLPrivateKey() = default;
-
-  std::vector<uint16_t> GetAlgorithmPreferences() override {
-    NOTIMPLEMENTED();
-    return {};
-  }
-
-  void Sign(uint16_t algorithm,
-            base::span<const uint8_t> input,
-            SignCallback callback) override {
-    NOTIMPLEMENTED();
-  }
-
- private:
-  ~MockSSLPrivateKey() override = default;
-
-  DISALLOW_COPY_AND_ASSIGN(MockSSLPrivateKey);
-};
+namespace {
+scoped_refptr<SSLPrivateKey> MakeMockKey() {
+  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
+  return WrapOpenSSLPrivateKey(std::move(pkey));
+}
+}  // namespace
 
 TEST(SSLClientAuthCacheTest, LookupAddRemove) {
   SSLClientAuthCache cache;
@@ -61,13 +50,13 @@ TEST(SSLClientAuthCacheTest, LookupAddRemove) {
   EXPECT_FALSE(cache.Lookup(server1, &cached_cert, &cached_pkey));
 
   // Add client certificate for server1.
-  cache.Add(server1, cert1.get(), new MockSSLPrivateKey);
+  cache.Add(server1, cert1.get(), MakeMockKey());
   cached_cert = nullptr;
   EXPECT_TRUE(cache.Lookup(server1, &cached_cert, &cached_pkey));
   EXPECT_EQ(cert1, cached_cert);
 
   // Add client certificate for server2.
-  cache.Add(server2, cert2.get(), new MockSSLPrivateKey);
+  cache.Add(server2, cert2.get(), MakeMockKey());
   cached_cert = nullptr;
   EXPECT_TRUE(cache.Lookup(server1, &cached_cert, &cached_pkey));
   EXPECT_EQ(cert1.get(), cached_cert.get());
@@ -76,7 +65,7 @@ TEST(SSLClientAuthCacheTest, LookupAddRemove) {
   EXPECT_EQ(cert2, cached_cert);
 
   // Overwrite the client certificate for server1.
-  cache.Add(server1, cert3.get(), new MockSSLPrivateKey);
+  cache.Add(server1, cert3.get(), MakeMockKey());
   cached_cert = nullptr;
   EXPECT_TRUE(cache.Lookup(server1, &cached_cert, &cached_pkey));
   EXPECT_EQ(cert3, cached_cert);
@@ -116,8 +105,8 @@ TEST(SSLClientAuthCacheTest, LookupWithPort) {
       ImportCertFromFile(GetTestCertsDirectory(), "expired_cert.pem"));
   ASSERT_TRUE(cert2);
 
-  cache.Add(server1, cert1.get(), new MockSSLPrivateKey);
-  cache.Add(server2, cert2.get(), new MockSSLPrivateKey);
+  cache.Add(server1, cert1.get(), MakeMockKey());
+  cache.Add(server2, cert2.get(), MakeMockKey());
 
   scoped_refptr<X509Certificate> cached_cert;
   scoped_refptr<SSLPrivateKey> cached_pkey;
@@ -137,7 +126,7 @@ TEST(SSLClientAuthCacheTest, LookupNullPreference) {
       ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem"));
   ASSERT_TRUE(cert1);
 
-  cache.Add(server1, nullptr, new MockSSLPrivateKey);
+  cache.Add(server1, nullptr, MakeMockKey());
 
   scoped_refptr<X509Certificate> cached_cert(cert1);
   scoped_refptr<SSLPrivateKey> cached_pkey;
@@ -152,20 +141,20 @@ TEST(SSLClientAuthCacheTest, LookupNullPreference) {
   EXPECT_FALSE(cache.Lookup(server1, &cached_cert, &cached_pkey));
 
   // Add a new preference for a specific certificate.
-  cache.Add(server1, cert1.get(), new MockSSLPrivateKey);
+  cache.Add(server1, cert1.get(), MakeMockKey());
   cached_cert = nullptr;
   EXPECT_TRUE(cache.Lookup(server1, &cached_cert, &cached_pkey));
   EXPECT_EQ(cert1, cached_cert);
 
   // Replace the specific preference with a nullptr certificate.
-  cache.Add(server1, nullptr, new MockSSLPrivateKey);
+  cache.Add(server1, nullptr, MakeMockKey());
   cached_cert = nullptr;
   EXPECT_TRUE(cache.Lookup(server1, &cached_cert, &cached_pkey));
   EXPECT_EQ(nullptr, cached_cert.get());
 }
 
-// Check that the OnCertDBChanged() method removes all cache entries.
-TEST(SSLClientAuthCacheTest, OnCertDBChanged) {
+// Check that the Clear() method removes all cache entries.
+TEST(SSLClientAuthCacheTest, Clear) {
   SSLClientAuthCache cache;
 
   HostPortPair server1("foo", 443);
@@ -173,10 +162,10 @@ TEST(SSLClientAuthCacheTest, OnCertDBChanged) {
       ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem"));
   ASSERT_TRUE(cert1);
 
-  cache.Add(server1, cert1.get(), new MockSSLPrivateKey);
+  cache.Add(server1, cert1.get(), MakeMockKey());
 
   HostPortPair server2("foo2", 443);
-  cache.Add(server2, nullptr, new MockSSLPrivateKey);
+  cache.Add(server2, nullptr, MakeMockKey());
 
   scoped_refptr<X509Certificate> cached_cert;
   scoped_refptr<SSLPrivateKey> cached_pkey;
@@ -188,7 +177,7 @@ TEST(SSLClientAuthCacheTest, OnCertDBChanged) {
   EXPECT_TRUE(cache.Lookup(server2, &cached_cert, &cached_pkey));
   EXPECT_EQ(nullptr, cached_cert.get());
 
-  cache.OnCertDBChanged();
+  cache.Clear();
 
   // Check that we no longer have entries for either server.
   EXPECT_FALSE(cache.Lookup(server1, &cached_cert, &cached_pkey));

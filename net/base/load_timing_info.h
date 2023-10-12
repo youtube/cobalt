@@ -1,13 +1,14 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_LOAD_TIMING_INFO_H_
 #define NET_BASE_LOAD_TIMING_INFO_H_
 
+#include <stdint.h>
+
 #include "base/time/time.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace net {
 
@@ -25,16 +26,23 @@ namespace net {
 //
 // The general order for events is:
 // request_start
+// service_worker_start_time
 // proxy_start
 // proxy_end
-// dns_start
-// dns_end
+// domain_lookup_start
+// domain_lookup_end
 // connect_start
 // ssl_start
 // ssl_end
 // connect_end
 // send_start
 // send_end
+// service_worker_ready_time
+// service_worker_fetch_start
+// service_worker_respond_with_settled
+// first_early_hints_time
+// receive_headers_start
+// receive_non_informational_headers_start
 // receive_headers_end
 //
 // Times represent when a request starts/stops blocking on an event(*), not the
@@ -53,12 +61,7 @@ namespace net {
 //
 // DNS and SSL times are both times for the host, not the proxy, so DNS times
 // when using proxies are null, and only requests to HTTPS hosts (Not proxies)
-// have SSL times.  One exception to this is when a proxy server itself returns
-// a redirect response.  In this case, the connect times treat the proxy as the
-// host.  The send and receive times will all be null, however.
-// See HttpNetworkTransaction::OnHttpsProxyTunnelResponse.
-// TODO(mmenke):  Is this worth fixing?
-//
+// have SSL times.
 struct NET_EXPORT LoadTimingInfo {
   // Contains the LoadTimingInfo events related to establishing a connection.
   // These are all set by ConnectJobs.
@@ -75,8 +78,8 @@ struct NET_EXPORT LoadTimingInfo {
     // Corresponds to |domainLookupStart| and |domainLookupEnd| in
     // ResourceTiming (http://www.w3.org/TR/resource-timing/) for Web-surfacing
     // requests.
-    base::TimeTicks dns_start;
-    base::TimeTicks dns_end;
+    base::TimeTicks domain_lookup_start;
+    base::TimeTicks domain_lookup_end;
 
     // The time spent establishing the connection. Connect time includes proxy
     // connect times (though not proxy_resolve or DNS lookup times), time spent
@@ -116,7 +119,7 @@ struct NET_EXPORT LoadTimingInfo {
   // Responding to a proxy AUTH challenge is never considered to be reusing a
   // socket, since a connection to the host wasn't established when the
   // challenge was received.
-  bool socket_reused;
+  bool socket_reused = false;
 
   // Unique socket ID, can be used to identify requests served by the same
   // socket.  For connections tunnelled over SPDY proxies, this is the ID of
@@ -137,7 +140,29 @@ struct NET_EXPORT LoadTimingInfo {
   // (http://www.w3.org/TR/resource-timing/) for Web-surfacing requests.
   base::TimeTicks request_start;
 
-  // The time spent determing which proxy to use.  Null when there is no PAC.
+  // The time immediately before starting ServiceWorker. If the response is not
+  // provided by the ServiceWorker, kept empty.
+  // Corresponds to |workerStart| in
+  // ResourceTiming (http://www.w3.org/TR/resource-timing/) for Web-surfacing
+  base::TimeTicks service_worker_start_time;
+
+  // The time immediately before dispatching fetch event in ServiceWorker.
+  // If the response is not provided by the ServiceWorker, kept empty.
+  // This value will be used for |fetchStart| (or |redirectStart|) in
+  // ResourceTiming (http://www.w3.org/TR/resource-timing/) for Web-surfacing
+  // if this is greater than |request_start|.
+  base::TimeTicks service_worker_ready_time;
+
+  // The time when serviceworker fetch event was popped off the event queue
+  // and fetch event handler started running.
+  // If the response is not provided by the ServiceWorker, kept empty.
+  base::TimeTicks service_worker_fetch_start;
+
+  // The time when serviceworker's fetch event's respondWith promise was
+  // settled. If the response is not provided by the ServiceWorker, kept empty.
+  base::TimeTicks service_worker_respond_with_settled;
+
+  // The time spent determining which proxy to use.  Null when there is no PAC.
   base::TimeTicks proxy_resolve_start;
   base::TimeTicks proxy_resolve_end;
 
@@ -149,10 +174,23 @@ struct NET_EXPORT LoadTimingInfo {
   base::TimeTicks send_start;
   base::TimeTicks send_end;
 
-  // The time at which the end of the HTTP headers were received.
-  // Corresponds to |responseStart| in ResourceTiming
-  // (http://www.w3.org/TR/resource-timing/) for Web-surfacing requests.
+  // The time at which the first / last byte of the HTTP headers were received.
+  //
+  // |receive_headers_start| corresponds to |responseStart| in ResourceTiming
+  // (http://www.w3.org/TR/resource-timing/) for Web-surfacing requests. This
+  // can be the time at which the first byte of the HTTP headers for
+  // informational responses (1xx) as per the ResourceTiming spec (see note at
+  // https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-responsestart).
+  base::TimeTicks receive_headers_start;
   base::TimeTicks receive_headers_end;
+
+  // The time at which the first byte of the HTTP headers for the
+  // non-informational response (non-1xx). See also comments on
+  // |receive_headers_start|.
+  base::TimeTicks receive_non_informational_headers_start;
+
+  // The time that the first 103 Early Hints response is received.
+  base::TimeTicks first_early_hints_time;
 
   // In case the resource was proactively pushed by the server, these are
   // the times that push started and ended. Note that push_end will be null
@@ -160,11 +198,6 @@ struct NET_EXPORT LoadTimingInfo {
   // is not closed by the server.
   base::TimeTicks push_start;
   base::TimeTicks push_end;
-
-#if defined(STARBOARD)
-  uint64_t encoded_body_size;
-  base::TimeTicks service_worker_start_time;
-#endif  // defined(STARBOARD)
 };
 
 }  // namespace net

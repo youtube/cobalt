@@ -1,17 +1,17 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/fuzzed_socket_factory.h"
 
-#include "base/logging.h"
-#include "base/test/fuzzed_data_provider.h"
+#include <fuzzer/FuzzedDataProvider.h>
+
+#include "base/notreached.h"
 #include "net/base/address_list.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
 #include "net/log/net_log_with_source.h"
-#include "net/socket/client_socket_handle.h"
 #include "net/socket/connection_attempts.h"
 #include "net/socket/fuzzed_datagram_client_socket.h"
 #include "net/socket/fuzzed_socket.h"
@@ -28,6 +28,10 @@ namespace {
 class FailingSSLClientSocket : public SSLClientSocket {
  public:
   FailingSSLClientSocket() = default;
+
+  FailingSSLClientSocket(const FailingSSLClientSocket&) = delete;
+  FailingSSLClientSocket& operator=(const FailingSSLClientSocket&) = delete;
+
   ~FailingSSLClientSocket() override = default;
 
   // Socket implementation:
@@ -67,60 +71,43 @@ class FailingSSLClientSocket : public SSLClientSocket {
 
   bool WasEverUsed() const override { return false; }
 
-  void EnableTCPFastOpenIfSupported() override {}
-
   bool WasAlpnNegotiated() const override { return false; }
 
   NextProto GetNegotiatedProtocol() const override { return kProtoUnknown; }
 
   bool GetSSLInfo(SSLInfo* ssl_info) override { return false; }
 
-  void GetConnectionAttempts(ConnectionAttempts* out) const override {
-    out->clear();
-  }
-
-  void ClearConnectionAttempts() override {}
-
-  void AddConnectionAttempts(const ConnectionAttempts& attempts) override {}
-
   int64_t GetTotalReceivedBytes() const override { return 0; }
 
   void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) const override {}
 
-  ChannelIDService* GetChannelIDService() const override {
-    NOTREACHED();
-    return nullptr;
-  }
-
-  crypto::ECPrivateKey* GetChannelIDKey() const override {
-    NOTREACHED();
-    return nullptr;
-  }
-
   void ApplySocketTag(const net::SocketTag& tag) override {}
 
   // SSLSocket implementation:
-  int ExportKeyingMaterial(const base::StringPiece& label,
+  int ExportKeyingMaterial(base::StringPiece label,
                            bool has_context,
-                           const base::StringPiece& context,
+                           base::StringPiece context,
                            unsigned char* out,
                            unsigned int outlen) override {
     NOTREACHED();
     return 0;
   }
 
+  // SSLClientSocket implementation:
+  std::vector<uint8_t> GetECHRetryConfigs() override {
+    NOTREACHED();
+    return {};
+  }
+
  private:
   NetLogWithSource net_log_;
-
-  DISALLOW_COPY_AND_ASSIGN(FailingSSLClientSocket);
 };
 
 }  // namespace
 
-FuzzedSocketFactory::FuzzedSocketFactory(
-    base::FuzzedDataProvider* data_provider)
-    : data_provider_(data_provider), fuzz_connect_result_(true) {}
+FuzzedSocketFactory::FuzzedSocketFactory(FuzzedDataProvider* data_provider)
+    : data_provider_(data_provider) {}
 
 FuzzedSocketFactory::~FuzzedSocketFactory() = default;
 
@@ -136,10 +123,10 @@ std::unique_ptr<TransportClientSocket>
 FuzzedSocketFactory::CreateTransportClientSocket(
     const AddressList& addresses,
     std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
+    NetworkQualityEstimator* network_quality_estimator,
     NetLog* net_log,
     const NetLogSource& source) {
-  std::unique_ptr<FuzzedSocket> socket(
-      new FuzzedSocket(data_provider_, net_log));
+  auto socket = std::make_unique<FuzzedSocket>(data_provider_, net_log);
   socket->set_fuzz_connect_result(fuzz_connect_result_);
   // Just use the first address.
   socket->set_remote_address(*addresses.begin());
@@ -147,27 +134,11 @@ FuzzedSocketFactory::CreateTransportClientSocket(
 }
 
 std::unique_ptr<SSLClientSocket> FuzzedSocketFactory::CreateSSLClientSocket(
-    std::unique_ptr<ClientSocketHandle> transport_socket,
+    SSLClientContext* context,
+    std::unique_ptr<StreamSocket> stream_socket,
     const HostPortPair& host_and_port,
-    const SSLConfig& ssl_config,
-    const SSLClientSocketContext& context) {
+    const SSLConfig& ssl_config) {
   return std::make_unique<FailingSSLClientSocket>();
 }
-
-std::unique_ptr<ProxyClientSocket> FuzzedSocketFactory::CreateProxyClientSocket(
-    std::unique_ptr<ClientSocketHandle> transport_socket,
-    const std::string& user_agent,
-    const HostPortPair& endpoint,
-    HttpAuthController* http_auth_controller,
-    bool tunnel,
-    bool using_spdy,
-    NextProto negotiated_protocol,
-    bool is_https_proxy,
-    const NetworkTrafficAnnotationTag& traffic_annotation) {
-  NOTIMPLEMENTED();
-  return nullptr;
-}
-
-void FuzzedSocketFactory::ClearSSLSessionCache() {}
 
 }  // namespace net

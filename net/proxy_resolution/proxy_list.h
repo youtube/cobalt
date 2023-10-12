@@ -1,9 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_PROXY_RESOLUTION_PROXY_LIST_H_
 #define NET_PROXY_RESOLUTION_PROXY_LIST_H_
+
+#include <stddef.h>
 
 #include <memory>
 #include <string>
@@ -11,11 +13,10 @@
 
 #include "net/base/net_export.h"
 #include "net/proxy_resolution/proxy_retry_info.h"
-#include "starboard/types.h"
 
 namespace base {
-class ListValue;
 class TimeDelta;
+class Value;
 }
 
 namespace net {
@@ -30,6 +31,9 @@ class NET_EXPORT_PRIVATE ProxyList {
  public:
   ProxyList();
   ProxyList(const ProxyList& other);
+  ProxyList(ProxyList&& other);
+  ProxyList& operator=(const ProxyList& other);
+  ProxyList& operator=(ProxyList&& other);
   ~ProxyList();
 
   // Initializes the proxy list to a string containing one or more proxy servers
@@ -82,7 +86,7 @@ class NET_EXPORT_PRIVATE ProxyList {
   std::string ToPacString() const;
 
   // Returns a serialized value for the list.
-  std::unique_ptr<base::ListValue> ToValue() const;
+  base::Value ToValue() const;
 
   // Marks the current proxy server as bad and deletes it from the list. The
   // list of known bad proxies is given by |proxy_retry_info|. |net_error|

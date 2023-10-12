@@ -1,10 +1,12 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/ssl/ssl_cipher_suite_names.h"
 
-#include "base/logging.h"
+#include <ostream>
+
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "net/ssl/ssl_connection_status_flags.h"
@@ -41,6 +43,17 @@ int ObsoleteSSLStatusForCipherSuite(uint16_t cipher_suite) {
   }
 
   return obsolete_ssl;
+}
+
+int ObsoleteSSLStatusForSignature(uint16_t signature_algorithm) {
+  switch (signature_algorithm) {
+    case SSL_SIGN_ECDSA_SHA1:
+    case SSL_SIGN_RSA_PKCS1_MD5_SHA1:
+    case SSL_SIGN_RSA_PKCS1_SHA1:
+      return OBSOLETE_SSL_MASK_SIGNATURE;
+    default:
+      return OBSOLETE_SSL_NONE;
+  }
 }
 
 }  // namespace
@@ -161,7 +174,7 @@ bool ParseSSLCipherString(const std::string& cipher_string,
   return false;
 }
 
-int ObsoleteSSLStatus(int connection_status) {
+int ObsoleteSSLStatus(int connection_status, uint16_t signature_algorithm) {
   int obsolete_ssl = OBSOLETE_SSL_NONE;
 
   int ssl_version = SSLConnectionStatusToVersion(connection_status);
@@ -169,6 +182,8 @@ int ObsoleteSSLStatus(int connection_status) {
 
   uint16_t cipher_suite = SSLConnectionStatusToCipherSuite(connection_status);
   obsolete_ssl |= ObsoleteSSLStatusForCipherSuite(cipher_suite);
+
+  obsolete_ssl |= ObsoleteSSLStatusForSignature(signature_algorithm);
 
   return obsolete_ssl;
 }

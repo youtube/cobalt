@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include <algorithm>
 
-#include "base/bind.h"
-#include "base/task_runner.h"
-#include "base/task_runner_util.h"
+#include "base/functional/bind.h"
+#include "base/task/task_runner.h"
+#include "base/task/thread_pool.h"
 
 namespace net {
 
@@ -23,7 +23,7 @@ PrioritizedTaskRunner::Job::Job(const base::Location& from_here,
       priority(priority),
       task_count(task_count) {}
 
-PrioritizedTaskRunner::Job::Job() {}
+PrioritizedTaskRunner::Job::Job() = default;
 
 PrioritizedTaskRunner::Job::~Job() = default;
 PrioritizedTaskRunner::Job::Job(Job&& other) = default;
@@ -31,8 +31,8 @@ PrioritizedTaskRunner::Job& PrioritizedTaskRunner::Job::operator=(Job&& other) =
     default;
 
 PrioritizedTaskRunner::PrioritizedTaskRunner(
-    scoped_refptr<base::TaskRunner> task_runner)
-    : task_runner_(std::move(task_runner)) {}
+    const base::TaskTraits& task_traits)
+    : task_traits_(task_traits) {}
 
 void PrioritizedTaskRunner::PostTaskAndReply(const base::Location& from_here,
                                              base::OnceClosure task,
@@ -46,17 +46,22 @@ void PrioritizedTaskRunner::PostTaskAndReply(const base::Location& from_here,
     std::push_heap(task_job_heap_.begin(), task_job_heap_.end(), JobComparer());
   }
 
-  task_runner_->PostTaskAndReply(
+  scoped_refptr<base::TaskRunner> task_runner;
+  if (task_runner_for_testing_) {
+    task_runner = task_runner_for_testing_;
+  } else {
+    task_runner = base::ThreadPool::CreateSequencedTaskRunner(task_traits_);
+  }
+
+  task_runner->PostTaskAndReply(
       from_here,
-      base::BindOnce(&PrioritizedTaskRunner::RunPostTaskAndReply, this),
+      base::BindOnce(&PrioritizedTaskRunner::RunTaskAndPostReply, this),
       base::BindOnce(&PrioritizedTaskRunner::RunReply, this));
 }
 
 PrioritizedTaskRunner::~PrioritizedTaskRunner() = default;
 
-void PrioritizedTaskRunner::RunPostTaskAndReply() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
+void PrioritizedTaskRunner::RunTaskAndPostReply() {
   // Find the next job to run.
   Job job;
   {

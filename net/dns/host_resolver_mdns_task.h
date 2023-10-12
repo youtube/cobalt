@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,14 +10,18 @@
 #include <vector>
 
 #include "base/containers/unique_ptr_adapters.h"
-#include "base/macros.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
-#include "net/base/completion_once_callback.h"
+#include "net/dns/host_cache.h"
 #include "net/dns/host_resolver.h"
 #include "net/dns/mdns_client.h"
+#include "net/dns/public/dns_query_type.h"
 
 namespace net {
+
+class RecordParsed;
 
 // Representation of a single HostResolverImpl::Job task to resolve the hostname
 // using multicast DNS transactions.  Destruction cancels the task and prevents
@@ -25,40 +29,45 @@ namespace net {
 class HostResolverMdnsTask {
  public:
   // |mdns_client| must outlive |this|.
-  HostResolverMdnsTask(
-      MDnsClient* mdns_client,
-      const std::string& hostname,
-      const std::vector<HostResolver::DnsQueryType>& query_types);
+  HostResolverMdnsTask(MDnsClient* mdns_client,
+                       std::string hostname,
+                       DnsQueryTypeSet query_types);
+
+  HostResolverMdnsTask(const HostResolverMdnsTask&) = delete;
+  HostResolverMdnsTask& operator=(const HostResolverMdnsTask&) = delete;
+
   ~HostResolverMdnsTask();
 
-  // Starts the task. |completion_callback| will be called asynchronously with
-  // results.
+  // Starts the task. |completion_closure| will be called asynchronously.
   //
   // Should only be called once.
-  void Start(CompletionOnceCallback completion_callback);
+  void Start(base::OnceClosure completion_closure);
 
-  const AddressList& result_addresses() { return result_addresses_; }
+  // Results only available after invocation of the completion closure.
+  HostCache::Entry GetResults() const;
+
+  static HostCache::Entry ParseResult(int error,
+                                      DnsQueryType query_type,
+                                      const RecordParsed* parsed,
+                                      const std::string& expected_hostname);
 
  private:
   class Transaction;
 
   void CheckCompletion(bool post_needed);
-  void CompleteWithResult(int result, bool post_needed);
+  void Complete(bool post_needed);
 
-  MDnsClient* const mdns_client_;
+  const raw_ptr<MDnsClient> mdns_client_;
 
   const std::string hostname_;
 
-  AddressList result_addresses_;
   std::vector<Transaction> transactions_;
 
-  CompletionOnceCallback completion_callback_;
+  base::OnceClosure completion_closure_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 
-  base::WeakPtrFactory<HostResolverMdnsTask> weak_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(HostResolverMdnsTask);
+  base::WeakPtrFactory<HostResolverMdnsTask> weak_ptr_factory_{this};
 };
 
 }  // namespace net

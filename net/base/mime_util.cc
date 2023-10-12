@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,14 +9,12 @@
 #include <unordered_set>
 
 #include "base/base64.h"
-#include "base/containers/hash_tables.h"
+#include "base/check_op.h"
 #include "base/containers/span.h"
-#include "base/files/file_path.h"
 #include "base/lazy_instance.h"
-#include "base/logging.h"
 #include "base/rand_util.h"
-#include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -24,11 +22,6 @@
 #include "net/base/mime_util.h"
 #include "net/base/platform_mime_util.h"
 #include "net/http/http_util.h"
-#include "starboard/common/string.h"
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
 
 using std::string;
 
@@ -50,14 +43,10 @@ class MimeUtil : public PlatformMimeUtil {
       const std::string& mime_type,
       base::FilePath::StringType* extension) const;
 
-#if defined(STARBOARD)
-  bool IsSupportedImageMimeType(const std::string& mime_type) const;
-#endif
+  bool MatchesMimeType(const std::string& mime_type_pattern,
+                       const std::string& mime_type) const;
 
-  bool MatchesMimeType(const std::string &mime_type_pattern,
-                       const std::string &mime_type) const;
-
-  bool ParseMimeTypeWithoutParameter(const std::string& type_string,
+  bool ParseMimeTypeWithoutParameter(base::StringPiece type_string,
                                      std::string* top_level_type,
                                      std::string* subtype) const;
 
@@ -66,14 +55,7 @@ class MimeUtil : public PlatformMimeUtil {
  private:
   friend struct base::LazyInstanceTraitsBase<MimeUtil>;
 
-#if defined(STARBOARD)
-  MimeUtil() { InitializeMimeTypesMaps(); }
-  void InitializeMimeTypesMaps();
-  typedef std::unordered_set<std::string> MimeMappings;
-  MimeMappings image_map_;
-#else
-  MimeUtil() = default;
-#endif
+  MimeUtil();
 
   bool GetMimeTypeFromExtensionHelper(const base::FilePath::StringType& ext,
                                       bool include_platform_types,
@@ -92,11 +74,82 @@ struct MimeInfo {
   const char* const extensions;
 };
 
-// Order of entries in the following mapping lists matters only when the same
-// extension is shared between multiple MIME types.
+// How to use the MIME maps
+// ------------------------
+// READ THIS BEFORE MODIFYING THE MIME MAPPINGS BELOW.
+//
+// There are two hardcoded mappings from MIME types: kPrimaryMappings and
+// kSecondaryMappings.
+//
+// kPrimaryMappings:
+//
+//   Use this for mappings that are critical to the web platform.  Mappings you
+//   add to this list take priority over the underlying platform when converting
+//   from file extension -> MIME type.  Thus file extensions listed here will
+//   work consistently across platforms.
+//
+// kSecondaryMappings:
+//
+//   Use this for mappings that must exist, but can be overridden by user
+//   preferences.
+//
+// The following applies to both lists:
+//
+// * The same extension can appear multiple times in the same list under
+//   different MIME types.  Extensions that appear earlier take precedence over
+//   those that appear later.
+//
+// * A MIME type must not appear more than once in a single list.  It is valid
+//   for the same MIME type to appear in kPrimaryMappings and
+//   kSecondaryMappings.
+//
+// The MIME maps are used for three types of lookups:
+//
+// 1) MIME type -> file extension.  Implemented as
+//    GetPreferredExtensionForMimeType().
+//
+//    Sources are consulted in the following order:
+//
+//    a) As a special case application/octet-stream is mapped to nothing.  Web
+//       sites are supposed to use this MIME type to indicate that the content
+//       is opaque and shouldn't be parsed as any specific type of content.  It
+//       doesn't make sense to map this to anything.
+//
+//    b) The underlying platform.  If the operating system has a mapping from
+//       the MIME type to a file extension, then that takes priority.  The
+//       platform is assumed to represent the user's preference.
+//
+//    c) kPrimaryMappings.  Order doesn't matter since there should only be at
+//       most one entry per MIME type.
+//
+//    d) kSecondaryMappings.  Again, order doesn't matter.
+//
+// 2) File extension -> MIME type.  Implemented in GetMimeTypeFromExtension().
+//
+//    Sources are considered in the following order:
+//
+//    a) kPrimaryMappings.  Order matters here since file extensions can appear
+//       multiple times on these lists.  The first mapping in order of
+//       appearance in the list wins.
+//
+//    b) Underlying platform.
+//
+//    c) kSecondaryMappings.  Again, the order matters.
+//
+// 3) File extension -> Well known MIME type.  Implemented as
+//    GetWellKnownMimeTypeFromExtension().
+//
+//    This is similar to 2), with the exception that b) is skipped.  I.e.  Only
+//    considers the hardcoded mappings in kPrimaryMappings and
+//    kSecondaryMappings.
+
+// See comments above for details on how this list is used.
 static const MimeInfo kPrimaryMappings[] = {
     // Must precede audio/webm .
     {"video/webm", "webm"},
+
+    // Must precede audio/mp3
+    {"audio/mpeg", "mp3"},
 
     {"application/wasm", "wasm"},
     {"application/x-chrome-extension", "crx"},
@@ -107,10 +160,12 @@ static const MimeInfo kPrimaryMappings[] = {
     {"audio/wav", "wav"},
     {"audio/webm", "webm"},
     {"audio/x-m4a", "m4a"},
+    {"image/avif", "avif"},
     {"image/gif", "gif"},
     {"image/jpeg", "jpeg,jpg"},
     {"image/png", "png"},
-    {"image/apng", "png"},
+    {"image/apng", "png,apng"},
+    {"image/svg+xml", "svg,svgz"},
     {"image/webp", "webp"},
     {"multipart/related", "mht,mhtml"},
     {"text/css", "css"},
@@ -119,8 +174,15 @@ static const MimeInfo kPrimaryMappings[] = {
     {"text/xml", "xml"},
     {"video/mp4", "mp4,m4v"},
     {"video/ogg", "ogv,ogm"},
+
+    // This is a primary mapping (overrides the platform) rather than secondary
+    // to work around an issue when Excel is installed on Windows. Excel
+    // registers csv as application/vnd.ms-excel instead of text/csv from RFC
+    // 4180. See https://crbug.com/139105.
+    {"text/csv", "csv"},
 };
 
+// See comments above for details on how this list is used.
 static const MimeInfo kSecondaryMappings[] = {
     // Must precede image/vnd.microsoft.icon .
     {"image/x-icon", "ico"},
@@ -130,6 +192,7 @@ static const MimeInfo kSecondaryMappings[] = {
     {"application/gzip", "gz,tgz"},
     {"application/javascript", "js"},
     {"application/json", "json"},  // Per http://www.ietf.org/rfc/rfc4627.txt.
+    {"application/msword", "doc,dot"},
     {"application/octet-stream", "bin,exe,com"},
     {"application/pdf", "pdf"},
     {"application/pkcs7-mime", "p7m,p7c,p7z"},
@@ -137,17 +200,28 @@ static const MimeInfo kSecondaryMappings[] = {
     {"application/postscript", "ps,eps,ai"},
     {"application/rdf+xml", "rdf"},
     {"application/rss+xml", "rss"},
+    {"application/rtf", "rtf"},
     {"application/vnd.android.package-archive", "apk"},
     {"application/vnd.mozilla.xul+xml", "xul"},
+    {"application/vnd.ms-excel", "xls"},
+    {"application/vnd.ms-powerpoint", "ppt"},
+    {"application/"
+     "vnd.openxmlformats-officedocument.presentationml.presentation",
+     "pptx"},
+    {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+     "xlsx"},
+    {"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+     "docx"},
     {"application/x-gzip", "gz,tgz"},
     {"application/x-mpegurl", "m3u8"},
     {"application/x-shockwave-flash", "swf,swl"},
     {"application/x-tar", "tar"},
+    {"application/x-x509-ca-cert", "cer,crt"},
     {"application/zip", "zip"},
-    {"audio/mpeg", "mp3"},
+    // This is the platform mapping on recent versions of Windows 10.
+    {"audio/webm", "weba"},
     {"image/bmp", "bmp"},
     {"image/jpeg", "jfif,pjpeg,pjp"},
-    {"image/svg+xml", "svg,svgz"},
     {"image/tiff", "tiff,tif"},
     {"image/vnd.microsoft.icon", "ico"},
     {"image/x-png", "png"},
@@ -160,27 +234,6 @@ static const MimeInfo kSecondaryMappings[] = {
     {"text/xml", "xsl,xbl,xslt"},
     {"video/mpeg", "mpeg,mpg"},
 };
-
-#if defined(STARBOARD)
-// The following functions are copied from old Chromium libs.
-// From WebKit's WebCore/platform/MIMETypeRegistry.cpp:
-static const char* const supported_image_types[] = {
-    "image/jpeg",      "image/pjpeg", "image/jpg", "image/webp",
-    "image/png",       "image/gif",   "image/bmp",
-    "image/x-icon",     // ico
-    "image/x-xbitmap",  // xbm
-    "application/json"  //  Lottie animations
-};
-
-void MimeUtil::InitializeMimeTypesMaps() {
-  for (size_t i = 0; i < arraysize(supported_image_types); ++i)
-    image_map_.insert(supported_image_types[i]);
-}
-
-bool MimeUtil::IsSupportedImageMimeType(const std::string& mime_type) const {
-  return image_map_.find(mime_type) != image_map_.end();
-}
-#endif
 
 // Finds mime type of |ext| from |mappings|.
 template <size_t num_mappings>
@@ -203,15 +256,15 @@ static const char* FindMimeType(const MimeInfo (&mappings)[num_mappings],
       extensions += 1;  // skip over comma
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 static base::FilePath::StringType StringToFilePathStringType(
-    const base::StringPiece& string_piece) {
-#if defined(OS_WIN)
-  return base::UTF8ToUTF16(string_piece);
+    base::StringPiece string_piece) {
+#if BUILDFLAG(IS_WIN)
+  return base::UTF8ToWide(string_piece);
 #else
-  return string_piece.as_string();
+  return std::string(string_piece);
 #endif
 }
 
@@ -229,8 +282,8 @@ static bool FindPreferredExtension(const MimeInfo (&mappings)[num_mappings],
     if (mapping.mime_type == mime_type) {
       const char* extensions = mapping.extensions;
       const char* extension_end = strchr(extensions, ',');
-      int len = extension_end ? extension_end - extensions
-                              : strlen(extensions);
+      size_t len =
+          extension_end ? extension_end - extensions : strlen(extensions);
       *result = StringToFilePathStringType(base::StringPiece(extensions, len));
       return true;
     }
@@ -271,6 +324,9 @@ bool MimeUtil::GetMimeTypeFromExtensionHelper(
     const base::FilePath::StringType& ext,
     bool include_platform_types,
     string* result) const {
+  DCHECK(ext.empty() || ext[0] != '.')
+      << "extension passed in must not include leading dot";
+
   // Avoids crash when unable to handle a long file path. See crbug.com/48733.
   const unsigned kMaxFilePathSize = 65536;
   if (ext.length() > kMaxFilePathSize)
@@ -307,6 +363,8 @@ bool MimeUtil::GetMimeTypeFromExtensionHelper(
 
   return false;
 }
+
+MimeUtil::MimeUtil() = default;
 
 // Tests for MIME parameter equality. Each parameter in the |mime_type_pattern|
 // must be matched by a parameter in the |mime_type|. If there are no
@@ -407,29 +465,143 @@ bool MimeUtil::MatchesMimeType(const std::string& mime_type_pattern,
   return MatchesMimeTypeParameters(mime_type_pattern, mime_type);
 }
 
-// See http://www.iana.org/assignments/media-types/media-types.xhtml
-static const char* const kLegalTopLevelTypes[] = {
-    "application", "audio",     "example", "image", "message",
-    "model",       "multipart", "text",    "video",
-};
+bool ParseMimeType(const std::string& type_str,
+                   std::string* mime_type,
+                   base::StringPairs* params) {
+  // Trim leading and trailing whitespace from type.  We include '(' in
+  // the trailing trim set to catch media-type comments, which are not at all
+  // standard, but may occur in rare cases.
+  size_t type_val = type_str.find_first_not_of(HTTP_LWS);
+  type_val = std::min(type_val, type_str.length());
+  size_t type_end = type_str.find_first_of(HTTP_LWS ";(", type_val);
+  if (type_end == std::string::npos)
+    type_end = type_str.length();
 
-bool MimeUtil::ParseMimeTypeWithoutParameter(
-    const std::string& type_string,
-    std::string* top_level_type,
-    std::string* subtype) const {
-  std::vector<std::string> components = base::SplitString(
-      type_string, "/", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  if (components.size() != 2 ||
-      !HttpUtil::IsToken(components[0]) ||
-      !HttpUtil::IsToken(components[1]))
+  // Reject a mime-type if it does not include a slash.
+  size_t slash_pos = type_str.find_first_of('/');
+  if (slash_pos == std::string::npos || slash_pos > type_end)
+    return false;
+  if (mime_type)
+    *mime_type = type_str.substr(type_val, type_end - type_val);
+
+  // Iterate over parameters. Can't split the string around semicolons
+  // preemptively because quoted strings may include semicolons. Mostly matches
+  // logic in https://mimesniff.spec.whatwg.org/. Main differences: Does not
+  // validate characters are HTTP token code points / HTTP quoted-string token
+  // code points, and ignores spaces after "=" in parameters.
+  if (params)
+    params->clear();
+  std::string::size_type offset = type_str.find_first_of(';', type_end);
+  while (offset < type_str.size()) {
+    DCHECK_EQ(';', type_str[offset]);
+    // Trim off the semicolon.
+    ++offset;
+
+    // Trim off any following spaces.
+    offset = type_str.find_first_not_of(HTTP_LWS, offset);
+    std::string::size_type param_name_start = offset;
+
+    // Extend parameter name until run into a semicolon or equals sign.  Per
+    // spec, trailing spaces are not removed.
+    offset = type_str.find_first_of(";=", offset);
+
+    // Nothing more to do if at end of string, or if there's no parameter
+    // value, since names without values aren't allowed.
+    if (offset == std::string::npos || type_str[offset] == ';')
+      continue;
+
+    auto param_name = base::MakeStringPiece(type_str.begin() + param_name_start,
+                                            type_str.begin() + offset);
+
+    // Now parse the value.
+    DCHECK_EQ('=', type_str[offset]);
+    // Trim off the '='.
+    offset++;
+
+    // Remove leading spaces. This violates the spec, though it matches
+    // pre-existing behavior.
+    //
+    // TODO(mmenke): Consider doing this (only?) after parsing quotes, which
+    // seems to align more with the spec - not the content-type spec, but the
+    // GET spec's way of getting an encoding, and the spec for handling
+    // boundary values as well.
+    // See https://encoding.spec.whatwg.org/#names-and-labels.
+    offset = type_str.find_first_not_of(HTTP_LWS, offset);
+
+    std::string param_value;
+    if (offset == std::string::npos || type_str[offset] == ';') {
+      // Nothing to do here - an unquoted string of only whitespace should be
+      // skipped.
+      continue;
+    } else if (type_str[offset] != '"') {
+      // If the first character is not a quotation mark, copy data directly.
+      std::string::size_type value_start = offset;
+      offset = type_str.find_first_of(';', offset);
+      std::string::size_type value_end = offset;
+
+      // Remove terminal whitespace. If ran off the end of the string, have to
+      // update |value_end| first.
+      if (value_end == std::string::npos)
+        value_end = type_str.size();
+      while (value_end > value_start &&
+             HttpUtil::IsLWS(type_str[value_end - 1])) {
+        --value_end;
+      }
+
+      param_value = type_str.substr(value_start, value_end - value_start);
+    } else {
+      // Otherwise, append data, with special handling for backslashes, until
+      // a close quote.  Do not trim whitespace for quoted-string.
+
+      // Skip open quote.
+      DCHECK_EQ('"', type_str[offset]);
+      ++offset;
+
+      while (offset < type_str.size() && type_str[offset] != '"') {
+        // Skip over backslash and append the next character, when not at
+        // the end of the string. Otherwise, copy the next character (Which may
+        // be a backslash).
+        if (type_str[offset] == '\\' && offset + 1 < type_str.size()) {
+          ++offset;
+        }
+        param_value += type_str[offset];
+        ++offset;
+      }
+
+      offset = type_str.find_first_of(';', offset);
+    }
+    if (params)
+      params->emplace_back(param_name, param_value);
+  }
+  return true;
+}
+
+bool MimeUtil::ParseMimeTypeWithoutParameter(base::StringPiece type_string,
+                                             std::string* top_level_type,
+                                             std::string* subtype) const {
+  std::vector<base::StringPiece> components = base::SplitStringPiece(
+      type_string, "/", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  if (components.size() != 2)
+    return false;
+  components[0] = TrimWhitespaceASCII(components[0], base::TRIM_LEADING);
+  components[1] = TrimWhitespaceASCII(components[1], base::TRIM_TRAILING);
+  if (!HttpUtil::IsToken(components[0]) || !HttpUtil::IsToken(components[1]))
     return false;
 
   if (top_level_type)
-    *top_level_type = components[0];
+    top_level_type->assign(std::string(components[0]));
+
   if (subtype)
-    *subtype = components[1];
+    subtype->assign(std::string(components[1]));
+
   return true;
 }
+
+// See https://www.iana.org/assignments/media-types/media-types.xhtml
+static const char* const kLegalTopLevelTypes[] = {
+    "application", "audio", "example",   "font", "image",
+    "message",     "model", "multipart", "text", "video",
+};
 
 bool MimeUtil::IsValidTopLevelMimeType(const std::string& type_string) const {
   std::string lower_type = base::ToLowerASCII(type_string);
@@ -446,12 +618,6 @@ bool MimeUtil::IsValidTopLevelMimeType(const std::string& type_string) const {
 //----------------------------------------------------------------------------
 // Wrappers for the singleton
 //----------------------------------------------------------------------------
-
-#if defined(STARBOARD)
-bool IsSupportedImageMimeType(const std::string& mime_type) {
-  return g_mime_util.Get().IsSupportedImageMimeType(mime_type);
-}
-#endif
 
 bool GetMimeTypeFromExtension(const base::FilePath::StringType& ext,
                               std::string* mime_type) {
@@ -479,7 +645,7 @@ bool MatchesMimeType(const std::string& mime_type_pattern,
   return g_mime_util.Get().MatchesMimeType(mime_type_pattern, mime_type);
 }
 
-bool ParseMimeTypeWithoutParameter(const std::string& type_string,
+bool ParseMimeTypeWithoutParameter(base::StringPiece type_string,
                                    std::string* top_level_type,
                                    std::string* subtype) {
   return g_mime_util.Get().ParseMimeTypeWithoutParameter(
@@ -494,31 +660,30 @@ namespace {
 
 // From http://www.w3schools.com/media/media_mimeref.asp and
 // http://plugindoc.mozdev.org/winmime.php
-static const char* const kStandardImageTypes[] = {
-  "image/bmp",
-  "image/cis-cod",
-  "image/gif",
-  "image/ief",
-  "image/jpeg",
-  "image/webp",
-  "image/pict",
-  "image/pipeg",
-  "image/png",
-  "image/svg+xml",
-  "image/tiff",
-  "image/vnd.microsoft.icon",
-  "image/x-cmu-raster",
-  "image/x-cmx",
-  "image/x-icon",
-  "image/x-portable-anymap",
-  "image/x-portable-bitmap",
-  "image/x-portable-graymap",
-  "image/x-portable-pixmap",
-  "image/x-rgb",
-  "image/x-xbitmap",
-  "image/x-xpixmap",
-  "image/x-xwindowdump"
-};
+static const char* const kStandardImageTypes[] = {"image/avif",
+                                                  "image/bmp",
+                                                  "image/cis-cod",
+                                                  "image/gif",
+                                                  "image/ief",
+                                                  "image/jpeg",
+                                                  "image/webp",
+                                                  "image/pict",
+                                                  "image/pipeg",
+                                                  "image/png",
+                                                  "image/svg+xml",
+                                                  "image/tiff",
+                                                  "image/vnd.microsoft.icon",
+                                                  "image/x-cmu-raster",
+                                                  "image/x-cmx",
+                                                  "image/x-icon",
+                                                  "image/x-portable-anymap",
+                                                  "image/x-portable-bitmap",
+                                                  "image/x-portable-graymap",
+                                                  "image/x-portable-pixmap",
+                                                  "image/x-rgb",
+                                                  "image/x-xbitmap",
+                                                  "image/x-xpixmap",
+                                                  "image/x-xwindowdump"};
 static const char* const kStandardAudioTypes[] = {
   "audio/aac",
   "audio/aiff",
@@ -539,6 +704,11 @@ static const char* const kStandardAudioTypes[] = {
   "audio/vnd.rn-realaudio",
   "audio/vnd.wave"
 };
+// https://tools.ietf.org/html/rfc8081
+static const char* const kStandardFontTypes[] = {
+    "font/collection", "font/otf",  "font/sfnt",
+    "font/ttf",        "font/woff", "font/woff2",
+};
 static const char* const kStandardVideoTypes[] = {
   "video/avi",
   "video/divx",
@@ -558,15 +728,13 @@ static const char* const kStandardVideoTypes[] = {
 
 struct StandardType {
   const char* const leading_mime_type;
-  const char* const* standard_types;
-  size_t standard_types_len;
+  base::span<const char* const> standard_types;
 };
-static const StandardType kStandardTypes[] = {
-  { "image/", kStandardImageTypes, arraysize(kStandardImageTypes) },
-  { "audio/", kStandardAudioTypes, arraysize(kStandardAudioTypes) },
-  { "video/", kStandardVideoTypes, arraysize(kStandardVideoTypes) },
-  { NULL, NULL, 0 }
-};
+static const StandardType kStandardTypes[] = {{"image/", kStandardImageTypes},
+                                              {"audio/", kStandardAudioTypes},
+                                              {"font/", kStandardFontTypes},
+                                              {"video/", kStandardVideoTypes},
+                                              {nullptr, {}}};
 
 // GetExtensionsFromHardCodedMappings() adds file extensions (without a leading
 // dot) to the set |extensions|, for all MIME types matching |mime_type|.
@@ -589,7 +757,7 @@ void GetExtensionsFromHardCodedMappings(
     if (base::StartsWith(cur_mime_type, mime_type,
                          base::CompareCase::INSENSITIVE_ASCII) &&
         (prefix_match || (cur_mime_type.length() == mime_type.length()))) {
-      for (const base::StringPiece& this_extension : base::SplitStringPiece(
+      for (base::StringPiece this_extension : base::SplitStringPiece(
                mapping.extensions, ",", base::TRIM_WHITESPACE,
                base::SPLIT_WANT_ALL)) {
         extensions->insert(StringToFilePathStringType(this_extension));
@@ -598,12 +766,12 @@ void GetExtensionsFromHardCodedMappings(
   }
 }
 
-void GetExtensionsHelper(const char* const* standard_types,
-                         size_t standard_types_len,
-                         const std::string& leading_mime_type,
-                         std::unordered_set<base::FilePath::StringType>* extensions) {
-  for (size_t i = 0; i < standard_types_len; ++i) {
-    g_mime_util.Get().GetPlatformExtensionsForMimeType(standard_types[i],
+void GetExtensionsHelper(
+    base::span<const char* const> standard_types,
+    const std::string& leading_mime_type,
+    std::unordered_set<base::FilePath::StringType>* extensions) {
+  for (auto* standard_type : standard_types) {
+    g_mime_util.Get().GetPlatformExtensionsForMimeType(standard_type,
                                                        extensions);
   }
 
@@ -667,7 +835,6 @@ void GetExtensionsForMimeType(
     }
     DCHECK(type);
     GetExtensionsHelper(type->standard_types,
-                        type->standard_types_len,
                         leading_mime_type,
                         &unique_extensions);
   } else {
@@ -739,10 +906,48 @@ void AddMultipartValueForUpload(const std::string& value_name,
   post_data->append("\r\n" + value + "\r\n");
 }
 
+void AddMultipartValueForUploadWithFileName(const std::string& value_name,
+                                            const std::string& file_name,
+                                            const std::string& value,
+                                            const std::string& mime_boundary,
+                                            const std::string& content_type,
+                                            std::string* post_data) {
+  DCHECK(post_data);
+  // First line is the boundary.
+  post_data->append("--" + mime_boundary + "\r\n");
+  // Next line is the Content-disposition.
+  post_data->append("Content-Disposition: form-data; name=\"" + value_name +
+                    "\"; filename=\"" + file_name + "\"\r\n");
+  if (!content_type.empty()) {
+    // If Content-type is specified, the next line is that.
+    post_data->append("Content-Type: " + content_type + "\r\n");
+  }
+  // Leave an empty line and append the value.
+  post_data->append("\r\n" + value + "\r\n");
+}
+
 void AddMultipartFinalDelimiterForUpload(const std::string& mime_boundary,
                                          std::string* post_data) {
   DCHECK(post_data);
   post_data->append("--" + mime_boundary + "--\r\n");
+}
+
+// TODO(toyoshim): We may prefer to implement a strict RFC2616 media-type
+// (https://tools.ietf.org/html/rfc2616#section-3.7) parser.
+absl::optional<std::string> ExtractMimeTypeFromMediaType(
+    const std::string& type_string,
+    bool accept_comma_separated) {
+  std::string::size_type end = type_string.find(';');
+  if (accept_comma_separated) {
+    end = std::min(end, type_string.find(','));
+  }
+  std::string top_level_type;
+  std::string subtype;
+  if (ParseMimeTypeWithoutParameter(type_string.substr(0, end), &top_level_type,
+                                    &subtype)) {
+    return top_level_type + "/" + subtype;
+  }
+  return absl::nullopt;
 }
 
 }  // namespace net

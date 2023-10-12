@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,15 +9,18 @@
 // Backend on disk. Assumes no backend operations are running simultaneously.
 // Hence must be run at cache initialization step.
 
+#include <stdint.h>
+
 #include "net/base/cache_type.h"
 #include "net/base/net_export.h"
-#include "starboard/types.h"
 
 namespace base {
 class FilePath;
 }
 
 namespace disk_cache {
+
+class BackendFileOperations;
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -32,7 +35,8 @@ enum class SimpleCacheConsistencyResult {
   kUpgradeIndexV5V6Failed = 7,
   kWriteFakeIndexFileFailed = 8,
   kReplaceFileFailed = 9,
-  kMaxValue = kReplaceFileFailed,
+  kBadFakeIndexReadSize = 10,
+  kMaxValue = kBadFakeIndexReadSize,
 };
 
 // Performs all necessary disk IO to upgrade the cache structure if it is
@@ -42,7 +46,14 @@ enum class SimpleCacheConsistencyResult {
 // necessary transitions succeeded. If this function fails, there is nothing
 // left to do other than dropping the whole cache directory.
 NET_EXPORT_PRIVATE SimpleCacheConsistencyResult
-UpgradeSimpleCacheOnDisk(const base::FilePath& path);
+UpgradeSimpleCacheOnDisk(BackendFileOperations* file_operations,
+                         const base::FilePath& path);
+
+// Check if the cache structure at the given path is empty except for index
+// files.  If so, then delete the index files.  Returns true if any files
+// were deleted.
+NET_EXPORT_PRIVATE bool DeleteIndexFilesIfCacheIsEmpty(
+    const base::FilePath& path);
 
 struct NET_EXPORT_PRIVATE FakeIndexData {
   FakeIndexData();
@@ -60,7 +71,8 @@ struct NET_EXPORT_PRIVATE FakeIndexData {
 };
 
 // Exposed for testing.
-NET_EXPORT_PRIVATE bool UpgradeIndexV5V6(const base::FilePath& cache_directory);
+NET_EXPORT_PRIVATE bool UpgradeIndexV5V6(BackendFileOperations* file_operations,
+                                         const base::FilePath& cache_directory);
 
 }  // namespace disk_cache
 

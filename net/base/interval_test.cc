@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,14 +11,12 @@
 
 #include "net/base/interval.h"
 
-#include "base/logging.h"
 #include "net/test/gtest_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using std::string;
 
-namespace net {
-namespace test {
+namespace net::test {
 namespace {
 
 class IntervalTest : public ::testing::Test {
@@ -157,15 +155,15 @@ TEST_F(IntervalTest, CoveringOps) {
 
   Interval<int64_t> i;
   EXPECT_TRUE(d.Intersects(d, &i) && d.Equals(i));
-  EXPECT_TRUE(!empty.Intersects(d, NULL) && !d.Intersects(empty, NULL));
-  EXPECT_TRUE(!d.Intersects(d1, NULL) && !d1.Intersects(d, NULL));
+  EXPECT_TRUE(!empty.Intersects(d, nullptr) && !d.Intersects(empty, nullptr));
+  EXPECT_TRUE(!d.Intersects(d1, nullptr) && !d1.Intersects(d, nullptr));
   EXPECT_TRUE(d.Intersects(d2, &i) && i.Equals(Interval<int64_t>(100, 110)));
   EXPECT_TRUE(d2.Intersects(d, &i) && i.Equals(Interval<int64_t>(100, 110)));
   EXPECT_TRUE(d.Intersects(d3, &i) && i.Equals(d3));
   EXPECT_TRUE(d3.Intersects(d, &i) && i.Equals(d3));
   EXPECT_TRUE(d.Intersects(d4, &i) && i.Equals(Interval<int64_t>(180, 200)));
   EXPECT_TRUE(d4.Intersects(d, &i) && i.Equals(Interval<int64_t>(180, 200)));
-  EXPECT_TRUE(!d.Intersects(d5, NULL) && !d5.Intersects(d, NULL));
+  EXPECT_TRUE(!d.Intersects(d5, nullptr) && !d5.Intersects(d, nullptr));
   EXPECT_TRUE(d.Intersects(d6, &i) && i.Equals(d6));
   EXPECT_TRUE(d6.Intersects(d, &i) && i.Equals(d6));
   EXPECT_TRUE(d.Intersects(d7, &i) && i.Equals(d7));
@@ -245,15 +243,14 @@ TEST_F(IntervalTest, Length) {
   const Interval<int> empty1;
   const Interval<int> empty2(1, 1);
   const Interval<int> empty3(1, 0);
-  const Interval<base::TimeDelta> empty4(
-      base::TimeDelta() + base::TimeDelta::FromSeconds(1), base::TimeDelta());
+  const Interval<base::TimeDelta> empty4(base::TimeDelta() + base::Seconds(1),
+                                         base::TimeDelta());
   const Interval<int> d1(1, 2);
   const Interval<int> d2(0, 50);
-  const Interval<base::TimeDelta> d3(
-      base::TimeDelta(), base::TimeDelta() + base::TimeDelta::FromSeconds(1));
-  const Interval<base::TimeDelta> d4(
-      base::TimeDelta() + base::TimeDelta::FromHours(1),
-      base::TimeDelta() + base::TimeDelta::FromMinutes(90));
+  const Interval<base::TimeDelta> d3(base::TimeDelta(),
+                                     base::TimeDelta() + base::Seconds(1));
+  const Interval<base::TimeDelta> d4(base::TimeDelta() + base::Hours(1),
+                                     base::TimeDelta() + base::Minutes(90));
 
   EXPECT_EQ(0, empty1.Length());
   EXPECT_EQ(0, empty2.Length());
@@ -261,8 +258,8 @@ TEST_F(IntervalTest, Length) {
   EXPECT_EQ(base::TimeDelta(), empty4.Length());
   EXPECT_EQ(1, d1.Length());
   EXPECT_EQ(50, d2.Length());
-  EXPECT_EQ(base::TimeDelta::FromSeconds(1), d3.Length());
-  EXPECT_EQ(base::TimeDelta::FromMinutes(30), d4.Length());
+  EXPECT_EQ(base::Seconds(1), d3.Length());
+  EXPECT_EQ(base::Minutes(30), d4.Length());
 }
 
 TEST_F(IntervalTest, IntervalOfTypeWithNoOperatorMinus) {
@@ -277,5 +274,4 @@ TEST_F(IntervalTest, IntervalOfTypeWithNoOperatorMinus) {
 }
 
 }  // unnamed namespace
-}  // namespace test
-}  // namespace net
+}  // namespace net::test

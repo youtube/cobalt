@@ -1,3 +1,2 @@
-file://net/third_party/quiche/src/http2/OWNERS
-
-# COMPONENT: Internals>Network>HTTP2
+bnc@chromium.org
+rch@chromium.org

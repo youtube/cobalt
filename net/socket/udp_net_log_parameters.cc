@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,55 +6,54 @@
 
 #include <utility>
 
-#include "base/bind.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "net/base/ip_endpoint.h"
+#include "net/log/net_log_values.h"
+#include "net/log/net_log_with_source.h"
 
 namespace net {
 
 namespace {
 
-std::unique_ptr<base::Value> NetLogUDPDataTranferCallback(
-    int byte_count,
-    const char* bytes,
-    const IPEndPoint* address,
-    NetLogCaptureMode capture_mode) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetInteger("byte_count", byte_count);
-  if (capture_mode.include_socket_bytes())
-    dict->SetString("hex_encoded_bytes", base::HexEncode(bytes, byte_count));
+base::Value::Dict NetLogUDPDataTransferParams(int byte_count,
+                                              const char* bytes,
+                                              const IPEndPoint* address,
+                                              NetLogCaptureMode capture_mode) {
+  base::Value::Dict dict;
+  dict.Set("byte_count", byte_count);
+  if (NetLogCaptureIncludesSocketBytes(capture_mode))
+    dict.Set("bytes", NetLogBinaryValue(bytes, byte_count));
   if (address)
-    dict->SetString("address", address->ToString());
-  return std::move(dict);
+    dict.Set("address", address->ToString());
+  return dict;
 }
 
-std::unique_ptr<base::Value> NetLogUDPConnectCallback(
-    const IPEndPoint* address,
-    NetworkChangeNotifier::NetworkHandle network,
-    NetLogCaptureMode /* capture_mode */) {
-  std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
-  dict->SetString("address", address->ToString());
-  if (network != NetworkChangeNotifier::kInvalidNetworkHandle)
-    dict->SetInteger("bound_to_network", network);
-  return std::move(dict);
+base::Value::Dict NetLogUDPConnectParams(const IPEndPoint& address,
+                                         handles::NetworkHandle network) {
+  base::Value::Dict dict;
+  dict.Set("address", address.ToString());
+  if (network != handles::kInvalidNetworkHandle)
+    dict.Set("bound_to_network", static_cast<int>(network));
+  return dict;
 }
 
 }  // namespace
 
-NetLogParametersCallback CreateNetLogUDPDataTranferCallback(
-    int byte_count,
-    const char* bytes,
-    const IPEndPoint* address) {
+void NetLogUDPDataTransfer(const NetLogWithSource& net_log,
+                           NetLogEventType type,
+                           int byte_count,
+                           const char* bytes,
+                           const IPEndPoint* address) {
   DCHECK(bytes);
-  return base::Bind(&NetLogUDPDataTranferCallback, byte_count, bytes, address);
+  net_log.AddEvent(type, [&](NetLogCaptureMode capture_mode) {
+    return NetLogUDPDataTransferParams(byte_count, bytes, address,
+                                       capture_mode);
+  });
 }
 
-NetLogParametersCallback CreateNetLogUDPConnectCallback(
-    const IPEndPoint* address,
-    NetworkChangeNotifier::NetworkHandle network) {
-  DCHECK(address);
-  return base::Bind(&NetLogUDPConnectCallback, address, network);
+base::Value::Dict CreateNetLogUDPConnectParams(const IPEndPoint& address,
+                                               handles::NetworkHandle network) {
+  return NetLogUDPConnectParams(address, network);
 }
 
 }  // namespace net

@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 #include <utility>
 
 #include "base/run_loop.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_factory_job.h"
 #include "net/http/http_stream_factory_job_controller.h"
 #include "net/http/http_stream_factory_test_util.h"
-#include "net/proxy_resolution/proxy_resolution_service.h"
+#include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/spdy/spdy_test_util_common.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -22,12 +22,13 @@ namespace net {
 
 // Make sure that Request passes on its priority updates to its jobs.
 TEST(HttpStreamRequestTest, SetPriority) {
-  base::test::ScopedTaskEnvironment scoped_task_environment;
+  base::test::TaskEnvironment task_environment;
 
   SequencedSocketData data;
   data.set_connect_data(MockConnect(ASYNC, OK));
   auto ssl_data = std::make_unique<SSLSocketDataProvider>(ASYNC, OK);
-  SpdySessionDependencies session_deps(ProxyResolutionService::CreateDirect());
+  SpdySessionDependencies session_deps(
+      ConfiguredProxyResolutionService::CreateDirect());
   session_deps.socket_factory->AddSocketDataProvider(&data);
   session_deps.socket_factory->AddSSLSocketDataProvider(ssl_data.get());
 
@@ -43,7 +44,9 @@ TEST(HttpStreamRequestTest, SetPriority) {
       /* is_preconnect = */ false,
       /* is_websocket = */ false,
       /* enable_ip_based_pooling = */ true,
-      /* enable_alternative_services = */ true, SSLConfig(), SSLConfig());
+      /* enable_alternative_services = */ true,
+      /* delay_main_job_with_available_spdy_session = */ true, SSLConfig(),
+      SSLConfig());
   HttpStreamFactory::JobController* job_controller_raw_ptr =
       job_controller.get();
   factory->job_controller_set_.insert(std::move(job_controller));
@@ -57,7 +60,7 @@ TEST(HttpStreamRequestTest, SetPriority) {
   request->SetPriority(MEDIUM);
   EXPECT_EQ(MEDIUM, job_controller_raw_ptr->main_job()->priority());
 
-  EXPECT_CALL(request_delegate, OnStreamFailed(_, _, _)).Times(1);
+  EXPECT_CALL(request_delegate, OnStreamFailed(_, _, _, _, _)).Times(1);
   job_controller_raw_ptr->OnStreamFailed(job_factory.main_job(), ERR_FAILED,
                                          SSLConfig());
 
