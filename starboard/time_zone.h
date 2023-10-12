@@ -29,7 +29,7 @@ extern "C" {
 // The number of minutes west of the Greenwich Prime Meridian, NOT including
 // Daylight Savings Time adjustments.
 //
-// For example: PST/PDT is 480 minutes (28800 seconds, 8 hours).
+// For example: America/Los_Angeles is 480 minutes (28800 seconds, 8 hours).
 typedef int SbTimeZone;
 
 // Gets the system's current SbTimeZone in minutes.
