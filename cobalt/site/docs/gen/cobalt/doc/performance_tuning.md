@@ -324,22 +324,6 @@ enable printing of the framerate in gold builds.
 **Tags:** *framerate, startup, browse-to-watch, input latency,*
 
 
-### Implement hardware image decoding
-
-The Starboard header file [`starboard/image.h`](../../starboard/image.h) defines
-functions that allow platforms to implement hardware-accelerated image
-decoding, if available.  In particular, if `SbImageIsDecodeSupported()` returns
-true for the specified mime type and output format, then instead of using the
-software-based libpng or libjpeg libraries, Cobalt will instead call
-`SbImageDecode()`.  `SbImageDecode()` is expected to return a decoded image as
-a `SbDecodeTarget` option, from which Cobalt will extract a GL texture or
-Blitter API surface object when rendering.  If non-CPU hardware is used to
-decode images, it would alleviate the load on the CPU, and possibly also
-increase the speed at which images can be decoded.
-
-**Tags:** *startup, browse-to-watch, input latency.*
-
-
 ### Use Chromium's about:tracing tool to debug Cobalt performance
 
 Cobalt has support for generating profiling data that is viewable through

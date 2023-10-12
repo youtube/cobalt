@@ -31,7 +31,9 @@
 #include "starboard/export.h"
 #include "starboard/file.h"
 #include "starboard/gles.h"
+#if SB_API_VERSION < 16
 #include "starboard/image.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/log.h"
