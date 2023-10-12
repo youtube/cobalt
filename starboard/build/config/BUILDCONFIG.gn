@@ -416,7 +416,17 @@ template("evergreen_loader") {
 }
 
 template("executable") {
-  not_needed(invoker, [ "build_loader" ])
+  not_needed(invoker,
+             [
+               "build_loader",
+
+               # TODO(b/305091479): Investigate when this variable is unneeded
+               # so that we can refactor this to avoid the not_needed
+               # declaration.
+               "shared_library_target_name",
+             ])
+
+  print(target_name, build_loader, shared_library_target_name)
 
   target_with_platform_configs(target_name) {
     target_type = "executable"
@@ -446,7 +456,16 @@ template("executable") {
     }
 
     install_target(target_name + "_install") {
-      forward_variables_from(invoker, [ "testonly" ])
+      # "shared_library_target_name" is used when this executable install_target
+      # is invoked from within a shared_library target that is building a loader
+      # In this case, it allows the install_target to determine the inputs/deps
+      # for the corresponding shared_library install_target.
+      forward_variables_from(invoker,
+                             [
+                               "testonly",
+                               "shared_library_target_name",
+                             ])
+
       installable_target_name = executable_target_name
       installable_target_dep = ":$executable_target_name"
       not_needed([ "installable_target_dep" ])
@@ -506,6 +525,10 @@ template("shared_library") {
         output_name = "${actual_target_name}_loader"
         forward_variables_from(invoker, [ "testonly" ])
         sources = [ "//$starboard_path/starboard_loader.cc" ]
+
+        # Forwards the "actual_target_name" to allow this loader_install target
+        # to depend the corresponding shared_library install_target outputs.
+        shared_library_target_name = actual_target_name
 
         if (defined(extra_platform_loader_sources)) {
           sources += extra_platform_loader_sources
