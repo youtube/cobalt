@@ -416,10 +416,7 @@ template("evergreen_loader") {
 }
 
 template("executable") {
-  not_needed(invoker,
-             [
-               "build_loader",
-             ])
+  not_needed(invoker, [ "build_loader" ])
 
   target_with_platform_configs(target_name) {
     target_type = "executable"
