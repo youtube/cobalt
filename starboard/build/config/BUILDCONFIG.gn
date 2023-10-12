@@ -426,8 +426,6 @@ template("executable") {
                "shared_library_target_name",
              ])
 
-  print(target_name, build_loader, shared_library_target_name)
-
   target_with_platform_configs(target_name) {
     target_type = "executable"
     forward_variables_from(invoker, "*", [ "install_target" ])
