@@ -299,13 +299,17 @@ class MediaCodecBridge {
     @SuppressWarnings("unused")
     @UsedByNative
     private int textureWidth() {
-      return mFormat.getInteger(MediaFormat.KEY_WIDTH);
+      return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_WIDTH))
+          ? mFormat.getInteger(MediaFormat.KEY_WIDTH)
+          : 0;
     }
 
     @SuppressWarnings("unused")
     @UsedByNative
     private int textureHeight() {
-      return mFormat.getInteger(MediaFormat.KEY_HEIGHT);
+      return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_HEIGHT))
+          ? mFormat.getInteger(MediaFormat.KEY_HEIGHT)
+          : 0;
     }
 
     @SuppressWarnings("unused")
