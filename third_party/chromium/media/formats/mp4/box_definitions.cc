@@ -1527,6 +1527,7 @@ bool IamfSpecificBox::ReadOBUHeader(BufferReader* reader, uint8_t* obu_type,
 // https://aomediacodec.github.io/av1-spec/#leb128.
 bool IamfSpecificBox::ReadLeb128Value(BufferReader* reader,
                                       uint32_t* encoded_value) const {
+  CHECK(reader);
   CHECK(encoded_value);
   *encoded_value = 0;
   bool error = true;
