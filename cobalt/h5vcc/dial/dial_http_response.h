@@ -19,8 +19,9 @@
 #include <string>
 #include <vector>
 
+#include "cobalt/network/dial/dial_service_handler.h"
 #include "cobalt/script/wrappable.h"
-#include "net/dial/dial_service_handler.h"
+#include "net/server/http_server_response_info.h"
 
 namespace cobalt {
 namespace h5vcc {

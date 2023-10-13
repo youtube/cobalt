@@ -23,10 +23,10 @@
 
 #include "base/strings/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/network/dial/dial_service_handler.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
-#include "net/dial/dial_service_handler.h"
 #include "net/server/http_server_request_info.h"
 
 namespace cobalt {
@@ -48,7 +48,7 @@ DialServer::Method StringToMethod(const std::string& method) {
 
 }  // namespace
 
-class DialServer::ServiceHandler : public net::DialServiceHandler {
+class DialServer::ServiceHandler : public cobalt::network::DialServiceHandler {
  public:
   ServiceHandler(const base::WeakPtr<DialServer>& dial_server,
                  const std::string& service_name);

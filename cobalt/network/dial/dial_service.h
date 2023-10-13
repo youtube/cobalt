@@ -1,23 +1,22 @@
-/*
- * Copyright 2012 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#ifndef SRC_DIAL_SERVICE_H_
-#define SRC_DIAL_SERVICE_H_
+#ifndef COBALT_NETWORK_DIAL_DIAL_SERVICE_H_
+#define COBALT_NETWORK_DIAL_DIAL_SERVICE_H_
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include "base/gtest_prod_util.h"
@@ -26,11 +25,12 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
-#include "net/dial/dial_http_server.h"
-#include "net/dial/dial_service_handler.h"
-#include "net/dial/dial_udp_server.h"
+#include "cobalt/network/dial/dial_http_server.h"
+#include "cobalt/network/dial/dial_service_handler.h"
+#include "cobalt/network/dial/dial_udp_server.h"
 
-namespace net {
+namespace cobalt {
+namespace network {
 
 // DialService is part of an implementation of in-app DIAL.
 // It starts up a UDP server to be used to respond to SSDP discovery requests,
@@ -52,7 +52,7 @@ class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
   const std::string& http_host_address() const;
 
   // Expose the DialHttpServer for unit tests.
-  net::DialHttpServer* http_server() const { return http_server_.get(); }
+  network::DialHttpServer* http_server() const { return http_server_.get(); }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);
@@ -61,8 +61,8 @@ class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
   // Called in DialService destructor.
   void Terminate();
 
-  scoped_refptr<net::DialHttpServer> http_server_;
-  std::unique_ptr<net::DialUdpServer> udp_server_;
+  scoped_refptr<network::DialHttpServer> http_server_;
+  std::unique_ptr<network::DialUdpServer> udp_server_;
   typedef std::map<std::string, scoped_refptr<DialServiceHandler> >
       ServiceHandlerMap;
   ServiceHandlerMap handlers_;
@@ -79,7 +79,7 @@ class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
 class NET_EXPORT DialServiceProxy
     : public base::RefCountedThreadSafe<DialServiceProxy> {
  public:
-  DialServiceProxy(const base::WeakPtr<DialService>& dial_service);
+  explicit DialServiceProxy(const base::WeakPtr<DialService>& dial_service);
   void Register(const scoped_refptr<DialServiceHandler>& handler);
   void Deregister(const scoped_refptr<DialServiceHandler>& handler);
   std::string host_address() const { return host_address_; }
@@ -99,6 +99,7 @@ class NET_EXPORT DialServiceProxy
   DISALLOW_COPY_AND_ASSIGN(DialServiceProxy);
 };
 
-}  // namespace net
+}  // namespace network
+}  // namespace cobalt
 
-#endif  // SRC_DIAL_SERVICE_H_
+#endif  // COBALT_NETWORK_DIAL_DIAL_SERVICE_H_
