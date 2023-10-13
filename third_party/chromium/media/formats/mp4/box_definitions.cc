@@ -1448,22 +1448,28 @@ IamfSpecificBox::~IamfSpecificBox() = default;
 FourCC IamfSpecificBox::BoxType() const { return FOURCC_IAMF; }
 
 bool IamfSpecificBox::Parse(BoxReader* reader) {
-  config_obus.resize(reader->box_size() - reader->pos());
-  int buffer_pos = 0;
-  while (reader->pos() < reader->box_size()) {
-    RCHECK(ReadOBU(reader, buffer_pos));
+  int obu_bitstream_size = reader->box_size() - reader->pos();
+  config_obus.resize(obu_bitstream_size);
+  memcpy(&config_obus[0], reader->buffer() + reader->pos(), obu_bitstream_size);
+  RCHECK(reader->SkipBytes(obu_bitstream_size));
+
+  BufferReader config_reader(config_obus.data(), config_obus.size());
+
+  while (config_reader.pos() < config_reader.buffer_size()) {
+    RCHECK(ReadOBU(&config_reader));
   }
+
   return true;
 }
 
-bool IamfSpecificBox::ReadOBU(BoxReader* reader, int& buffer_pos) {
+bool IamfSpecificBox::ReadOBU(BufferReader* reader) {
 #if !defined(ARCH_CPU_LITTLE_ENDIAN)
 #error The code below assumes little-endianness.
 #endif
 
   uint8_t obu_type;
   uint32_t obu_size;
-  RCHECK(ReadOBUHeader(reader, buffer_pos, &obu_type, &obu_size));
+  RCHECK(ReadOBUHeader(reader, &obu_type, &obu_size));
   size_t read_stop_pos = reader->pos() + obu_size;
 
   switch (static_cast<int>(obu_type)) {
@@ -1472,20 +1478,14 @@ bool IamfSpecificBox::ReadOBU(BoxReader* reader, int& buffer_pos) {
     case kIamfConfigObuTypeMixPresentation:
       break;
     case kIamfConfigObuTypeSequenceHeader:
-      RCHECK(
-          reader->Read4(reinterpret_cast<uint32_t*>(&config_obus[buffer_pos])));
-
       uint32_t ia_code;
-      memcpy(&ia_code, &config_obus[buffer_pos], sizeof(uint32_t));
+      RCHECK(reader->Read4(&ia_code));
       RCHECK(ia_code == FOURCC_IAMF);
-      buffer_pos += sizeof(uint32_t);
 
-      RCHECK(reader->Read1(&config_obus[buffer_pos]));
-      profile = config_obus[buffer_pos];
+      RCHECK(reader->Read1(&profile));
       RCHECK(profile <= 1);
-      buffer_pos++;
-      RCHECK(reader->Read1(&config_obus[buffer_pos]));
-      buffer_pos++;
+
+      RCHECK(reader->SkipBytes(sizeof(uint8_t)));
       break;
     default:
       MEDIA_LOG(INFO, reader->media_log())
@@ -1494,44 +1494,53 @@ bool IamfSpecificBox::ReadOBU(BoxReader* reader, int& buffer_pos) {
   }
 
   size_t remaining_size = read_stop_pos - reader->pos();
-  RCHECK(reader->HasBytes(remaining_size));
-  memcpy(&config_obus[buffer_pos], reader->buffer() + reader->pos(),
-         remaining_size);
-  buffer_pos += remaining_size;
   RCHECK(reader->SkipBytes(remaining_size));
   return true;
 }
 
-bool IamfSpecificBox::ReadOBUHeader(BoxReader* reader, int& buffer_pos,
-                                    uint8_t* obu_type, uint32_t* obu_size) {
-  RCHECK(reader->Read1(&config_obus[buffer_pos]));
-  *obu_type = (config_obus[buffer_pos] >> 3) & 0x1f;
-  bool obu_redundant_copy = (config_obus[buffer_pos] >> 2) & 1;
-  bool obu_trimming_status_flag = (config_obus[buffer_pos] >> 1) & 1;
-  bool obu_extension_flag = config_obus[buffer_pos] & 1;
+bool IamfSpecificBox::ReadOBUHeader(BufferReader* reader, uint8_t* obu_type,
+                                    uint32_t* obu_size) {
+  uint8_t header_flags;
+  RCHECK(reader->Read1(&header_flags));
+  *obu_type = (header_flags >> 3) & 0x1f;
+  bool obu_redundant_copy = (header_flags >> 2) & 1;
+  bool obu_trimming_status_flag = (header_flags >> 1) & 1;
+  bool obu_extension_flag = header_flags & 1;
   redundant_copy |= obu_redundant_copy;
-  buffer_pos++;
 
-  int num_bytes_read;
-  RCHECK(
-      reader->ReadLeb128(&config_obus[buffer_pos], obu_size, &num_bytes_read));
-  buffer_pos += num_bytes_read;
+  RCHECK(ReadLeb128Value(reader, obu_size));
   RCHECK(reader->HasBytes(*obu_size));
 
   RCHECK(!obu_trimming_status_flag);
   if (obu_extension_flag) {
     uint32_t extension_header_size;
-    RCHECK(reader->ReadLeb128(&config_obus[buffer_pos], &extension_header_size,
-                              &num_bytes_read));
-    buffer_pos += num_bytes_read;
-    RCHECK(*obu_size > extension_header_size + num_bytes_read);
-    memcpy(&config_obus[buffer_pos], reader->buffer() + reader->pos(),
-           extension_header_size);
-    buffer_pos += extension_header_size;
+    int last_reader_pos = reader->pos();
+    RCHECK(ReadLeb128Value(reader, &extension_header_size));
+    int num_leb128_bytes_read = reader->pos() - last_reader_pos;
     RCHECK(reader->SkipBytes(extension_header_size));
-    obu_size -= (num_bytes_read + extension_header_size);
+    obu_size -= (num_leb128_bytes_read + extension_header_size);
   }
   return true;
+}
+
+// Algorithm from the AV1 specification.
+// https://aomediacodec.github.io/av1-spec/#leb128.
+bool IamfSpecificBox::ReadLeb128Value(BufferReader* reader,
+                                      uint32_t* encoded_value) const {
+  CHECK(encoded_value);
+  *encoded_value = 0;
+  bool error = true;
+  for (int i = 0; i < sizeof(uint32_t); ++i) {
+    uint8_t byte;
+    RCHECK(reader->Read1(&byte));
+    *encoded_value |= ((byte & 0x7f) << (i * 7));
+    if (!(byte & 0x80)) {
+      error = false;
+      break;
+    }
+  }
+
+  return !error;
 }
 #endif  // defined(STARBOARD)
 

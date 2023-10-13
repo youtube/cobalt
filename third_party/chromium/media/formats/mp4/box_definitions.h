@@ -391,9 +391,10 @@ struct MEDIA_EXPORT IamfSpecificBox : Box {
   };
 
   DECLARE_BOX_METHODS(IamfSpecificBox);
-  bool ReadOBU(BoxReader* reader, int& buffer_pos);
-  bool ReadOBUHeader(BoxReader* reader, int& buffer_pos, uint8_t* obu_type,
+  bool ReadOBU(BufferReader* reader);
+  bool ReadOBUHeader(BufferReader* reader, uint8_t* obu_type,
                      uint32_t* obu_size);
+  bool ReadLeb128Value(BufferReader* reader, uint32_t* encoded_value) const ;
 
   uint8_t profile;
   bool redundant_copy = false;
