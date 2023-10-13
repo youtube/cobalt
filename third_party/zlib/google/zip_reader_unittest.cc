@@ -670,7 +670,6 @@ TEST_F(ZipReaderTest, ExtractCurrentEntrySuccess) {
   EXPECT_CALL(mock_writer, WriteBytes(_, _))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(mock_writer, SetTimeModified(_));
-
   EXPECT_CALL(mock_writer, Flush()).WillOnce(Return(true));
 
   base::FilePath target_path(FILE_PATH_LITERAL("foo/bar/quux.txt"));

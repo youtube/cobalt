@@ -34,7 +34,7 @@
 #  endif
 #  include <string.h>
 #  include <stdlib.h>
-#endif  // defined(STARBOARD)
+#endif
 #ifdef NO_ERRNO_H
 #   ifdef _WIN32_WCE
       /* The Microsoft C Run-Time Library for Windows CE doesn't have

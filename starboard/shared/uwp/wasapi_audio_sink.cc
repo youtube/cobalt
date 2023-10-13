@@ -97,9 +97,9 @@ bool WASAPIAudioSink::Initialize(int channels,
     return false;
   }
 
-  hr = device_->Activate(
-      IID_IAudioEndpointVolume, CLSCTX_ALL, NULL,
-      reinterpret_cast<void**>(audio_endpoint_volume_.GetAddressOf()));
+  hr = audio_client_->GetService(
+      IID_ISimpleAudioVolume,
+      reinterpret_cast<void**>(audio_volume_.GetAddressOf()));
   if (hr != S_OK) {
     SB_LOG(ERROR) << "Failed to initialize volume handler, error code: "
                   << std::hex << hr;
@@ -294,7 +294,7 @@ void WASAPIAudioSink::UpdatePlaybackState() {
   }
   double volume = volume_.load();
   if (current_volume_ != volume) {
-    hr = audio_endpoint_volume_->SetMasterVolumeLevelScalar(volume, NULL);
+    hr = audio_volume_->SetMasterVolume(volume, NULL);
     CHECK_HRESULT_OK(hr);
     current_volume_ = volume;
   }

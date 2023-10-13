@@ -16,11 +16,9 @@
 #define STARBOARD_SHARED_UWP_WASAPI_AUDIO_SINK_H_
 
 #include <Audioclient.h>
-#include <endpointvolume.h>
 #include <mmdeviceapi.h>
 #include <wrl\client.h>
 
-#include <atomic>
 #include <functional>
 #include <queue>
 
@@ -119,7 +117,6 @@ IMMDeviceEnumerator : public IUnknown {
 };
 
 const IID IID_IAudioClock = __uuidof(IAudioClock);
-const IID IID_IAudioEndpointVolume = __uuidof(IAudioEndpointVolume);
 const IID IID_IAudioRenderClient = __uuidof(IAudioRenderClient);
 const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
 const IID IID_ISimpleAudioVolume = __uuidof(ISimpleAudioVolume);
@@ -168,7 +165,7 @@ class WASAPIAudioSink {
   Microsoft::WRL::ComPtr<IMMDevice> device_;
   Microsoft::WRL::ComPtr<IAudioClient3> audio_client_;
   Microsoft::WRL::ComPtr<IAudioRenderClient> render_client_;
-  Microsoft::WRL::ComPtr<IAudioEndpointVolume> audio_endpoint_volume_;
+  Microsoft::WRL::ComPtr<ISimpleAudioVolume> audio_volume_;
 
   Mutex audio_clock_mutex_;
   Microsoft::WRL::ComPtr<IAudioClock> audio_clock_;

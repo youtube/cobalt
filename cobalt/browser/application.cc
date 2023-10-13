@@ -458,7 +458,12 @@ std::string GetMinLogLevelString() {
 }
 
 int StringToLogLevel(const std::string& log_level) {
-  if (log_level == "info") {
+  if (log_level == "verbose") {
+    // The lower the verbose level is, the more messages are logged.  Set it to
+    // a lower enough value to ensure that all known verbose messages are
+    // logged.
+    return logging::LOG_VERBOSE - 15;
+  } else if (log_level == "info") {
     return logging::LOG_INFO;
   } else if (log_level == "warning") {
     return logging::LOG_WARNING;
@@ -1522,6 +1527,7 @@ void Application::InitMetrics() {
       metrics::kMetricEnabledSettingName, false);
   auto metric_event_interval = persistent_settings_->GetPersistentSettingAsInt(
       metrics::kMetricEventIntervalSettingName, 300);
+  metrics_services_manager_->SetEventDispatcher(&event_dispatcher_);
   metrics_services_manager_->SetUploadInterval(metric_event_interval);
   metrics_services_manager_->ToggleMetricsEnabled(is_metrics_enabled);
   // Metric recording state initialization _must_ happen before we bootstrap

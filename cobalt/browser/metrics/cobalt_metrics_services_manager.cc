@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -46,44 +47,22 @@ void CobaltMetricsServicesManager::DeleteInstance() {
   instance_ = nullptr;
 }
 
-void CobaltMetricsServicesManager::RemoveOnUploadHandler(
-    const CobaltMetricsUploaderCallback* uploader_callback) {
+void CobaltMetricsServicesManager::SetEventDispatcher(
+    base::EventDispatcher* event_dispatcher) {
   if (instance_ != nullptr) {
     instance_->task_runner_->PostTask(
         FROM_HERE,
-        base::Bind(&CobaltMetricsServicesManager::RemoveOnUploadHandlerInternal,
-                   base::Unretained(instance_), uploader_callback));
+        base::Bind(&CobaltMetricsServicesManager::SetEventDispatcherInternal,
+                   base::Unretained(instance_), event_dispatcher));
   }
 }
 
-void CobaltMetricsServicesManager::RemoveOnUploadHandlerInternal(
-    const CobaltMetricsUploaderCallback* uploader_callback) {
+void CobaltMetricsServicesManager::SetEventDispatcherInternal(
+    base::EventDispatcher* event_dispatcher) {
   CobaltMetricsServiceClient* client =
       static_cast<CobaltMetricsServiceClient*>(GetMetricsServiceClient());
   DCHECK(client);
-  client->RemoveOnUploadHandler(uploader_callback);
-}
-
-void CobaltMetricsServicesManager::SetOnUploadHandler(
-    const CobaltMetricsUploaderCallback* uploader_callback) {
-  // H5vccMetrics calls this on destruction when the WebModule is torn down. On
-  // shutdown, CobaltMetricsServicesManager can be destructed before
-  // H5vccMetrics, so we make sure we have a valid instance here.
-  if (instance_ != nullptr) {
-    instance_->task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(&CobaltMetricsServicesManager::SetOnUploadHandlerInternal,
-                   base::Unretained(instance_), uploader_callback));
-  }
-}
-
-void CobaltMetricsServicesManager::SetOnUploadHandlerInternal(
-    const CobaltMetricsUploaderCallback* uploader_callback) {
-  CobaltMetricsServiceClient* client =
-      static_cast<CobaltMetricsServiceClient*>(GetMetricsServiceClient());
-  DCHECK(client);
-  client->SetOnUploadHandler(uploader_callback);
-  LOG(INFO) << "New Cobalt Telemetry metric upload handler bound.";
+  client->SetEventDispatcher(event_dispatcher);
 }
 
 void CobaltMetricsServicesManager::ToggleMetricsEnabled(bool is_enabled) {

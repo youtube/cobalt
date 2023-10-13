@@ -167,7 +167,8 @@ static RefFrameType mv_ref_frame_to_ref_frame_type(
 
 static void update_motion_vector_info(
     const MOTION_VECTOR_INFO *input_motion_vector_info, const int num_rows_4x4,
-    const int num_cols_4x4, MotionVectorInfo *output_motion_vector_info) {
+    const int num_cols_4x4, MotionVectorInfo *output_motion_vector_info,
+    int motion_vector_scale) {
   const int num_units_4x4 = num_rows_4x4 * num_cols_4x4;
   for (int i = 0; i < num_units_4x4; ++i) {
     const MV_REFERENCE_FRAME *in_ref_frame =
@@ -185,16 +186,16 @@ static void update_motion_vector_info(
         mv_ref_frame_to_ref_frame_type(in_ref_frame[1]);
     output_motion_vector_info[i].mv_row[0] =
         (double)input_motion_vector_info[i].mv[0].as_mv.row /
-        kMotionVectorPrecision;
+        motion_vector_scale;
     output_motion_vector_info[i].mv_column[0] =
         (double)input_motion_vector_info[i].mv[0].as_mv.col /
-        kMotionVectorPrecision;
+        motion_vector_scale;
     output_motion_vector_info[i].mv_row[1] =
         (double)input_motion_vector_info[i].mv[1].as_mv.row /
-        kMotionVectorPrecision;
+        motion_vector_scale;
     output_motion_vector_info[i].mv_column[1] =
         (double)input_motion_vector_info[i].mv[1].as_mv.col /
-        kMotionVectorPrecision;
+        motion_vector_scale;
   }
 }
 
@@ -485,6 +486,18 @@ static bool init_encode_frame_result(EncodeFrameResult *encode_frame_result,
                            frame_height, img_fmt);
 }
 
+static void encode_frame_result_update_rq_history(
+    const RATE_QINDEX_HISTORY *rq_history,
+    EncodeFrameResult *encode_frame_result) {
+  encode_frame_result->recode_count = rq_history->recode_count;
+  for (int i = 0; i < encode_frame_result->recode_count; ++i) {
+    const int q_index = rq_history->q_index_history[i];
+    const int rate = rq_history->rate_history[i];
+    encode_frame_result->q_index_history.push_back(q_index);
+    encode_frame_result->rate_history.push_back(rate);
+  }
+}
+
 static void update_encode_frame_result(
     EncodeFrameResult *encode_frame_result,
     const ENCODE_FRAME_RESULT *encode_frame_info) {
@@ -511,9 +524,12 @@ static void update_encode_frame_result(
   update_motion_vector_info(encode_frame_info->motion_vector_info,
                             encode_frame_result->num_rows_4x4,
                             encode_frame_result->num_cols_4x4,
-                            &encode_frame_result->motion_vector_info[0]);
+                            &encode_frame_result->motion_vector_info[0],
+                            kMotionVectorSubPixelPrecision);
   update_frame_counts(&encode_frame_info->frame_counts,
                       &encode_frame_result->frame_counts);
+  encode_frame_result_update_rq_history(&encode_frame_info->rq_history,
+                                        encode_frame_result);
 }
 
 static void IncreaseGroupOfPictureIndex(GroupOfPicture *group_of_picture) {
@@ -778,9 +794,9 @@ void SimpleEncode::ComputeFirstPassStats() {
         assert(size == 0);
         // Get vp9 first pass motion vector info.
         std::vector<MotionVectorInfo> mv_info(num_rows_16x16 * num_cols_16x16);
-        update_motion_vector_info(&encode_frame_info.fp_motion_vector_info[0],
-                                  num_rows_16x16, num_cols_16x16,
-                                  mv_info.data());
+        update_motion_vector_info(cpi->fp_motion_vector_info, num_rows_16x16,
+                                  num_cols_16x16, mv_info.data(),
+                                  kMotionVectorFullPixelPrecision);
         fp_motion_vector_info_.push_back(mv_info);
       }
       impl_ptr_->first_pass_stats.push_back(vp9_get_frame_stats(&cpi->twopass));
@@ -1085,9 +1101,10 @@ void SimpleEncode::EncodeFrameWithQuantizeIndex(
 }
 
 void SimpleEncode::EncodeFrameWithTargetFrameBits(
-    EncodeFrameResult *encode_frame_result, int target_frame_bits) {
+    EncodeFrameResult *encode_frame_result, int target_frame_bits,
+    double percent_diff) {
   encode_command_set_target_frame_bits(&impl_ptr_->cpi->encode_command,
-                                       target_frame_bits);
+                                       target_frame_bits, percent_diff);
   EncodeFrame(encode_frame_result);
   encode_command_reset_target_frame_bits(&impl_ptr_->cpi->encode_command);
 }

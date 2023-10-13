@@ -48,6 +48,7 @@ _DEFAULT_URL_FORMAT = 'https://{}:{}}/'
 
 _APPX_RELATIVE_PATH = 'appx'
 _DEVELOPMENT_FILES = 'DevelopmentFiles'
+_LOOSE_APPS = 'LooseApps'
 _LOCAL_APP_DATA = 'LocalAppData'
 _LOCAL_CACHE_FOLDERNAME = r'\\LocalCache'
 _TEMP_FILE_FOLDERNAME = r'\\WdpTempWebFolder'
@@ -561,16 +562,22 @@ class Xb1NetworkApi:
             'path': path
         })
 
-  def ClearTempFiles(self):
+  def ClearDevFiles(self, path):
     file_listing = self._DoJsonRequest(
         'GET',
         _GET_FILES_ENDPOINT,
         params={
             'knownfolderid': _DEVELOPMENT_FILES,
-            'path': _TEMP_FILE_FOLDERNAME
+            'path': path
         })
     for file in file_listing['Items']:
       self.DeleteFile(_DEVELOPMENT_FILES, _TEMP_FILE_FOLDERNAME, file['Name'])
+
+  def ClearTempFiles(self):
+    self.ClearDevFiles(_TEMP_FILE_FOLDERNAME)
+
+  def ClearLooseAppFiles(self):
+    self.ClearDevFiles(_LOOSE_APPS)
 
   def FindPackage(self, package_name):
     all_packages = self.GetInstalledPackages()

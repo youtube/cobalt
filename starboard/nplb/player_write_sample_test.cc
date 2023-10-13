@@ -263,11 +263,15 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
   SbTime current_time_offset = 0;
   int num_of_buffers_per_write =
       player_fixture.ConvertDurationToAudioBufferCount(kDurationPerWrite);
+  int count = 0;
   while (current_time_offset < kDurationToPlay) {
+    const SbTime kDurationToDiscard =
+        count % 2 == 0 ? kSbTimeSecond : kSbTimeMax;
+    count++;
     // Discard from front.
     for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {
       samples.AddAudioSamples(written_buffer_index, 1, current_time_offset,
-                              kSbTimeSecond, 0);
+                              kDurationToDiscard, 0);
     }
 
     samples.AddAudioSamples(written_buffer_index, num_of_buffers_per_write);
@@ -277,7 +281,7 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
     // Discard from back.
     for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {
       samples.AddAudioSamples(written_buffer_index, 1, current_time_offset, 0,
-                              kSbTimeSecond);
+                              kDurationToDiscard);
     }
   }
   samples.AddAudioEOS();
