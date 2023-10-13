@@ -74,8 +74,9 @@ TEST_F(SimpleEncodeTest, ObserveFirstPassMotionVectors) {
     EXPECT_EQ(num_blocks, fps_motion_vectors[i].size());
     for (size_t j = 0; j < num_blocks; ++j) {
       const int mv_count = fps_motion_vectors[i][j].mv_count;
-      const int ref_count = (fps_motion_vectors[i][j].ref_frame[0] > 0) +
-                            (fps_motion_vectors[i][j].ref_frame[1] > 0);
+      const int ref_count =
+          (fps_motion_vectors[i][j].ref_frame[0] != kRefFrameTypeNone) +
+          (fps_motion_vectors[i][j].ref_frame[1] != kRefFrameTypeNone);
       EXPECT_EQ(mv_count, ref_count);
     }
   }
@@ -158,6 +159,44 @@ TEST_F(SimpleEncodeTest, ObserveKeyFrameMap) {
       }
     }
     coded_show_frame_count += group_of_picture.show_frame_count;
+  }
+  simple_encode.EndEncode();
+}
+
+TEST_F(SimpleEncodeTest, EncodeFrameWithTargetFrameBits) {
+  SimpleEncode simple_encode(width_, height_, frame_rate_num_, frame_rate_den_,
+                             target_bitrate_, num_frames_,
+                             in_file_path_str_.c_str());
+  simple_encode.ComputeFirstPassStats();
+  const int num_coding_frames = simple_encode.GetCodingFrameNum();
+  simple_encode.StartEncode();
+  for (int i = 0; i < num_coding_frames; ++i) {
+    EncodeFrameInfo encode_frame_info = simple_encode.GetNextEncodeFrameInfo();
+    int target_frame_bits;
+    switch (encode_frame_info.frame_type) {
+      case kFrameTypeInter: target_frame_bits = 20000; break;
+      case kFrameTypeKey:
+      case kFrameTypeAltRef:
+      case kFrameTypeGolden: target_frame_bits = 100000; break;
+      case kFrameTypeOverlay: target_frame_bits = 2000; break;
+      default: target_frame_bits = 20000;
+    }
+
+    double percent_diff = 15;
+    if (encode_frame_info.frame_type == kFrameTypeOverlay) {
+      percent_diff = 100;
+    }
+    EncodeFrameResult encode_frame_result;
+    simple_encode.EncodeFrameWithTargetFrameBits(
+        &encode_frame_result, target_frame_bits, percent_diff);
+    const int recode_count = encode_frame_result.recode_count;
+    // TODO(angiebird): Replace 7 by RATE_CTRL_MAX_RECODE_NUM
+    EXPECT_LE(recode_count, 7);
+    EXPECT_GE(recode_count, 1);
+
+    const double diff = fabs((double)encode_frame_result.coding_data_bit_size -
+                             target_frame_bits);
+    EXPECT_LE(diff * 100 / target_frame_bits, percent_diff);
   }
   simple_encode.EndEncode();
 }

@@ -58,7 +58,8 @@ struct PartitionInfo {
   int height;        // prediction block height
 };
 
-constexpr int kMotionVectorPrecision = 8;
+constexpr int kMotionVectorSubPixelPrecision = 8;
+constexpr int kMotionVectorFullPixelPrecision = 1;
 
 // In the first pass. The frame is split to 16x16 blocks.
 // This structure contains the information of each 16x16 block.
@@ -256,6 +257,12 @@ struct EncodeFrameResult {
   // share the same motion vector information.
   std::vector<MotionVectorInfo> motion_vector_info;
   ImageBuffer coded_frame;
+
+  // recode_count, q_index_history and rate_history are only available when
+  // EncodeFrameWithTargetFrameBits() is used.
+  int recode_count;
+  std::vector<int> q_index_history;
+  std::vector<int> rate_history;
 };
 
 struct GroupOfPicture {
@@ -392,9 +399,14 @@ class SimpleEncode {
 
   // Encode a frame with target frame bits usage.
   // The encoder will find a quantize index to make the actual frame bits usage
-  // match the target.
+  // match the target. EncodeFrameWithTargetFrameBits() will recode the frame
+  // up to 7 times to find a q_index to make the actual_frame_bits satisfy the
+  // following inequality. |actual_frame_bits - target_frame_bits| * 100 /
+  // target_frame_bits
+  // <= percent_diff.
   void EncodeFrameWithTargetFrameBits(EncodeFrameResult *encode_frame_result,
-                                      int target_frame_bits);
+                                      int target_frame_bits,
+                                      double percent_diff);
 
   // Gets the number of coding frames for the video. The coding frames include
   // show frame and no show frame.

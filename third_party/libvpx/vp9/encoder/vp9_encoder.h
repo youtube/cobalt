@@ -588,7 +588,7 @@ get_encode_frame_type(FRAME_UPDATE_TYPE update_type) {
 }
 
 typedef struct RATE_QSTEP_MODEL {
-  // The rq model predict the bit usage as follows.
+  // The rq model predicts the bit usage as follows.
   // rate = bias - ratio * log2(q_step)
   int ready;
   double bias;
@@ -598,8 +598,11 @@ typedef struct RATE_QSTEP_MODEL {
 typedef struct ENCODE_COMMAND {
   int use_external_quantize_index;
   int external_quantize_index;
+
   int use_external_target_frame_bits;
   int target_frame_bits;
+  double target_frame_bits_error_percent;
+
   GOP_COMMAND gop_command;
 } ENCODE_COMMAND;
 
@@ -621,15 +624,19 @@ static INLINE void encode_command_reset_external_quantize_index(
 }
 
 static INLINE void encode_command_set_target_frame_bits(
-    ENCODE_COMMAND *encode_command, int target_frame_bits) {
+    ENCODE_COMMAND *encode_command, int target_frame_bits,
+    double target_frame_bits_error_percent) {
   encode_command->use_external_target_frame_bits = 1;
   encode_command->target_frame_bits = target_frame_bits;
+  encode_command->target_frame_bits_error_percent =
+      target_frame_bits_error_percent;
 }
 
 static INLINE void encode_command_reset_target_frame_bits(
     ENCODE_COMMAND *encode_command) {
   encode_command->use_external_target_frame_bits = 0;
   encode_command->target_frame_bits = -1;
+  encode_command->target_frame_bits_error_percent = 0;
 }
 
 static INLINE void encode_command_init(ENCODE_COMMAND *encode_command) {
@@ -983,6 +990,13 @@ static INLINE void free_partition_info(struct VP9_COMP *cpi) {
   cpi->partition_info = NULL;
 }
 
+static INLINE void reset_mv_info(MOTION_VECTOR_INFO *mv_info) {
+  mv_info->ref_frame[0] = NONE;
+  mv_info->ref_frame[1] = NONE;
+  mv_info->mv[0].as_int = INVALID_MV;
+  mv_info->mv[1].as_int = INVALID_MV;
+}
+
 // Allocates memory for the motion vector information.
 // The unit size is each 4x4 block.
 // Only called once in vp9_create_compressor().
@@ -1014,8 +1028,17 @@ static INLINE void fp_motion_vector_info_init(struct VP9_COMP *cpi) {
   CHECK_MEM_ERROR(cm, cpi->fp_motion_vector_info,
                   (MOTION_VECTOR_INFO *)vpx_calloc(unit_width * unit_height,
                                                    sizeof(MOTION_VECTOR_INFO)));
-  memset(cpi->fp_motion_vector_info, 0,
-         unit_width * unit_height * sizeof(MOTION_VECTOR_INFO));
+}
+
+static INLINE void fp_motion_vector_info_reset(
+    int frame_width, int frame_height,
+    MOTION_VECTOR_INFO *fp_motion_vector_info) {
+  const int unit_width = get_num_unit_16x16(frame_width);
+  const int unit_height = get_num_unit_16x16(frame_height);
+  int i;
+  for (i = 0; i < unit_width * unit_height; ++i) {
+    reset_mv_info(fp_motion_vector_info + i);
+  }
 }
 
 // Frees memory of the first pass motion vector information.
@@ -1032,6 +1055,17 @@ typedef struct IMAGE_BUFFER {
   int plane_height[3];
   uint8_t *plane_buffer[3];
 } IMAGE_BUFFER;
+
+#define RATE_CTRL_MAX_RECODE_NUM 7
+
+typedef struct RATE_QINDEX_HISTORY {
+  int recode_count;
+  int q_index_history[RATE_CTRL_MAX_RECODE_NUM];
+  int rate_history[RATE_CTRL_MAX_RECODE_NUM];
+  int q_index_high;
+  int q_index_low;
+} RATE_QINDEX_HISTORY;
+
 #endif  // CONFIG_RATE_CTRL
 
 typedef struct ENCODE_FRAME_RESULT {
@@ -1046,8 +1080,8 @@ typedef struct ENCODE_FRAME_RESULT {
   FRAME_COUNTS frame_counts;
   const PARTITION_INFO *partition_info;
   const MOTION_VECTOR_INFO *motion_vector_info;
-  const MOTION_VECTOR_INFO *fp_motion_vector_info;
   IMAGE_BUFFER coded_frame;
+  RATE_QINDEX_HISTORY rq_history;
 #endif  // CONFIG_RATE_CTRL
   int quantize_index;
 } ENCODE_FRAME_RESULT;
