@@ -27,11 +27,14 @@ CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
                            net::NetLogCaptureMode capture_mode)
     : net_log_logger_(
           net::FileNetLogObserver::CreateUnbounded(log_path, nullptr)) {
+  LOG(INFO) << "YO THOR! COBALT NETLOG IN OBSERVANCE";
+  LOG(INFO) << "YO THOR - IM LOGGING TO:" << log_path.value();
   net_log_logger_->StartObserving(this, capture_mode);
 }
 
 CobaltNetLog::~CobaltNetLog() {
   // Remove the observers we own before we're destroyed.
+  LOG(INFO) << "YO THOR! COBALT NETLOG DSTOR";
   net_log_logger_->StopObserving(nullptr, base::OnceClosure());
 }
 
