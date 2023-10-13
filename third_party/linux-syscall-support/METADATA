@@ -8,7 +8,8 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/linux-syscall-support"
   }
-  version: "fd00dbbd0c06a309c657d89e9430143b179ff6db"
+  version: "29f7c7e018f4ce706a709f0b0afbf8bacf869480"
+  # from https://chromium.googlesource.com/chromium/src/+/86.0.4240.199/DEPS#242
   last_upgrade_date {
     year: 2020
     month: 3
