@@ -4172,17 +4172,6 @@ target(gtest_target_type, "net_unittests") {
     ]
   }
 
-  if (enable_in_app_dial) {
-    sources += [
-    # DIAL server is Cobalt custom implementation. This is the wrong place for
-    # it and it should be moved to cobalt/network in the future.
-    "dial/dial_http_server_unittest.cc",
-    "dial/dial_service_unittest.cc",
-    "dial/dial_test_helpers.h",
-    "dial/dial_udp_server_unittests.cc",
-    ]
-  }
-
   # Avoid compiler errors due to conversion from "0x00" to char.
   if (is_win) {
     if (!is_starboard) {
@@ -4200,7 +4189,6 @@ target(gtest_target_type, "net_unittests") {
   configs -= [ "//starboard/build/config:size" ]
 
   deps = [
-    # This is needed by dial_http_server in net
     ":http_server",
     ":net",
     ":net_generated_registry_controlled_domains",
@@ -4222,9 +4210,6 @@ target(gtest_target_type, "net_unittests") {
     "//url",
     "//url:url_features",
   ]
-  if (enable_in_app_dial) {
-    deps += [ ":cobalt_dial_server" ]
-  }
 
   if (is_starboard) {
     data_deps = [
@@ -4688,27 +4673,3 @@ static_library("http_server") {
   ]
 }
 
-if (enable_in_app_dial) {
-static_library("cobalt_dial_server") {
-  sources = [
-    "dial/dial_http_server.cc",
-    "dial/dial_http_server.h",
-    "dial/dial_service.cc",
-    "dial/dial_service.h",
-    "dial/dial_service_handler.h",
-    "dial/dial_system_config.cc",
-    "dial/dial_system_config.h",
-    "dial/dial_system_config_starboard.cc",
-    "dial/dial_udp_server.cc",
-    "dial/dial_udp_server.h",
-    "dial/dial_udp_socket_factory.cc",
-    "dial/dial_udp_socket_factory.h",
-  ]
-  deps = [
-      ":http_server",
-      ":net",
-      "//base:base",
-      "//starboard/common",
-    ]
-  }
-}
