@@ -1,8 +1,18 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include "net/dial/dial_udp_server.h"
+#include "cobalt/network/dial/dial_udp_server.h"
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/inet_poem.h"
@@ -19,15 +29,17 @@
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "cobalt/network/dial/dial_system_config.h"
+#include "cobalt/network/dial/dial_udp_socket_factory.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_string_util.h"
-#include "net/dial/dial_system_config.h"
-#include "net/dial/dial_udp_socket_factory.h"
 #include "net/server/http_server.h"
 #include "net/server/http_server_request_info.h"
 #include "starboard/types.h"
 
-namespace net {
+namespace cobalt {
+namespace network {
 
 namespace {  // anonymous
 
@@ -35,9 +47,9 @@ const char* kDialStRequest = "urn:dial-multiscreen-org:service:dial:1";
 const int kReadBufferSize = 50 * 1024;
 
 // Get the INADDR_ANY address.
-IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
+net::IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
 #if defined(STARBOARD)
-  return IPEndPoint::GetForAllInterfaces(port);
+  return net::IPEndPoint::GetForAllInterfaces(port);
 #else
   SockaddrStorage any_addr;
   struct sockaddr_in* in = (struct sockaddr_in*)any_addr.addr;
@@ -45,7 +57,7 @@ IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
   in->sin_port = htons(port);
   in->sin_addr.s_addr = INADDR_ANY;
 
-  IPEndPoint addr;
+  net::IPEndPoint addr;
   ignore_result(addr.FromSockAddr(any_addr.addr, any_addr.addr_len));
   return addr;
 #endif  // !defined(STARBOARD)
@@ -60,7 +72,7 @@ DialUdpServer::DialUdpServer(const std::string& location_url,
       server_agent_(server_agent),
       thread_("dial_udp_server"),
       is_running_(false),
-      read_buf_(new IOBuffer(kReadBufferSize)) {
+      read_buf_(new net::IOBuffer(kReadBufferSize)) {
   DCHECK(!location_url_.empty());
   DETACH_FROM_THREAD(thread_checker_);
   thread_.StartWithOptions(
@@ -68,9 +80,7 @@ DialUdpServer::DialUdpServer(const std::string& location_url,
   Start();
 }
 
-DialUdpServer::~DialUdpServer() {
-  Stop();
-}
+DialUdpServer::~DialUdpServer() { Stop(); }
 
 void DialUdpServer::CreateAndBind() {
   DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
@@ -119,14 +129,15 @@ void DialUdpServer::AcceptAndProcessConnection() {
   if (err_code > 0) {
     // RecvFrom can also return the number of received bytes right away as well.
     DidRead(err_code);
-  } else if (err_code != ERR_IO_PENDING) {
-    DCHECK(err_code == OK) << "RecvFrom returned bad error code: " << err_code;
+  } else if (err_code != net::ERR_IO_PENDING) {
+    DCHECK(err_code == net::OK)
+        << "RecvFrom returned bad error code: " << err_code;
   }
   // otherwise, RecvFrom returned -1 and will execute DidRead when any data is
   // received.
 }
 
-void DialUdpServer::DidClose(UDPSocket* server) {}
+void DialUdpServer::DidClose(net::UDPSocket* server) {}
 
 void DialUdpServer::DidRead(int bytes_read) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -142,8 +153,8 @@ void DialUdpServer::DidRead(int bytes_read) {
     auto response = std::make_unique<std::string>();
     *response = std::move(ConstructSearchResponse());
     // Using the fake IOBuffer to avoid another copy.
-    scoped_refptr<WrappedIOBuffer> fake_buffer =
-        new WrappedIOBuffer(response->data());
+    scoped_refptr<net::WrappedIOBuffer> fake_buffer =
+        new net::WrappedIOBuffer(response->data());
     // After optimization, some compiler will dereference and get response size
     // later than passing response.
     auto response_size = response->size();
@@ -151,7 +162,7 @@ void DialUdpServer::DidRead(int bytes_read) {
         fake_buffer.get(), response_size, client_address_,
         base::Bind(&DialUdpServer::WriteComplete, base::Unretained(this),
                    fake_buffer, base::Passed(&response)));
-    if (result == ERR_IO_PENDING) {
+    if (result == net::ERR_IO_PENDING) {
       // WriteComplete is responsible for posting the next callback to accept
       // connection.
       return;
@@ -169,9 +180,8 @@ void DialUdpServer::DidRead(int bytes_read) {
                             base::Unretained(this)));
 }
 
-void DialUdpServer::WriteComplete(scoped_refptr<WrappedIOBuffer>,
-                                  std::unique_ptr<std::string>,
-                                  int rv) {
+void DialUdpServer::WriteComplete(scoped_refptr<net::WrappedIOBuffer>,
+                                  std::unique_ptr<std::string>, int rv) {
   if (rv < 0) {
     LOG(ERROR) << "UDPSocket completion callback error: " << rv;
   }
@@ -182,8 +192,8 @@ void DialUdpServer::WriteComplete(scoped_refptr<WrappedIOBuffer>,
 
 // Parse a request to make sure it is a M-Search.
 bool DialUdpServer::ParseSearchRequest(const std::string& request) {
-  HttpServerRequestInfo info;
-  if (!HttpServer::ParseHeaders(request, &info)) {
+  net::HttpServerRequestInfo info;
+  if (!net::HttpServer::ParseHeaders(request, &info)) {
     DVLOG(1) << "Failed parsing SSDP headers: " << request;
     return false;
   }
@@ -207,7 +217,8 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) {
   return true;
 }
 
-bool DialUdpServer::IsValidMSearchRequest(const HttpServerRequestInfo& info) {
+bool DialUdpServer::IsValidMSearchRequest(
+    const net::HttpServerRequestInfo& info) {
   if (info.method != "M-SEARCH") {
     DVLOG(1) << "Invalid M-Search: SSDP method incorrect. Received method: "
              << info.method;
@@ -255,4 +266,5 @@ std::string DialUdpServer::ConstructSearchResponse() const {
   return std::move(ret);
 }
 
-}  // namespace net
+}  // namespace network
+}  // namespace cobalt

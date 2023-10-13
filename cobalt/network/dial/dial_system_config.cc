@@ -1,12 +1,22 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Dial requires some system information exposed to the world, for example
 // the device name, etc. This class lets it be configurable, but throw default
 // values from implementation.
 
-#include "net/dial/dial_system_config.h"
+#include "cobalt/network/dial/dial_system_config.h"
 
 #include <openssl/evp.h>
 
@@ -20,7 +30,8 @@
 #include "starboard/types.h"
 #endif
 
-namespace net {
+namespace cobalt {
+namespace network {
 
 namespace {
 const char* kSecret = "v=8FpigqfcvlM";
@@ -77,4 +88,5 @@ void DialSystemConfig::CreateDialUuid() {
   DCHECK_EQ(22, strlen(s_dial_uuid));
 }
 
-}  // namespace net
+}  // namespace network
+}  // namespace cobalt
