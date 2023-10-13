@@ -193,10 +193,12 @@ void DialUdpServer::WriteComplete(scoped_refptr<net::WrappedIOBuffer>,
 // Parse a request to make sure it is a M-Search.
 bool DialUdpServer::ParseSearchRequest(const std::string& request) {
   net::HttpServerRequestInfo info;
-  // if (!net::HttpServer::ParseHeaders(request, &info)) {
-  //   DVLOG(1) << "Failed parsing SSDP headers: " << request;
-  //   return false;
-  // }
+#ifndef USE_HACKY_COBALT_CHANGES
+  if (!net::HttpServer::ParseHeaders(request, &info)) {
+    DVLOG(1) << "Failed parsing SSDP headers: " << request;
+    return false;
+  }
+#endif
 
   if (!IsValidMSearchRequest(info)) {
     return false;
