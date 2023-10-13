@@ -58,7 +58,6 @@ base::File OpenFileForWrite(const base::FilePath& path) {
   base::File result(path,
                     base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
   LOG_IF(ERROR, !result.IsValid()) << "Failed opening: " << path.value();
-  LOG(INFO) << "YO THOR - OPEN FILE 4 WRITE " << path.value();
   return result;
 }
 

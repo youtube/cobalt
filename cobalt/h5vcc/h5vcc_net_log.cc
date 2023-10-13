@@ -28,7 +28,6 @@ base::FilePath filepath_to_absolute(
     const base::FilePath& output_path_relative_to_logs) {
   base::FilePath result;
   base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
-  LOG(INFO) << "YO THOR! DEBUG OUT is:" << result.value();
   return result.Append(output_path_relative_to_logs);
 }
 
@@ -37,13 +36,11 @@ base::FilePath filepath_to_absolute(
 H5vccNetLog::H5vccNetLog() {}
 
 void H5vccNetLog::Start(const std::string& output_filename) {
-  LOG(INFO) << "YO THOR - NET LGO START!";
   if (net_log_) {
     DLOG(WARNING) << "H5vccNetLog is already started.";
   } else {
     base::FilePath net_log_path(output_filename.empty() ? kOutputNetLogFilename
                                                         : output_filename);
-    LOG(INFO) << "YO THOR! FILENAME IS:" << output_filename;
     net::NetLogCaptureMode capture_mode;  // default
     last_absolute_path_ = filepath_to_absolute(base::FilePath(output_filename));
     net_log_.reset(
@@ -52,7 +49,6 @@ void H5vccNetLog::Start(const std::string& output_filename) {
 }
 
 void H5vccNetLog::Stop() {
-  LOG(INFO) << "YO THOR - NET LGO STOP!";
   if (net_log_) {
     net_log_.reset();
   } else {
@@ -61,26 +57,17 @@ void H5vccNetLog::Stop() {
 }
 
 std::string H5vccNetLog::Read(const std::string& read_filename) {
-  LOG(INFO) << "YO THOR - NET LGO READ :" << read_filename << "!";
   if (net_log_) {
     Stop();
   }
   std::string netlog_output;
   if (!read_filename.empty()) {
-    LOG(INFO) << "YO THOR - GOT A FILENAME: " << read_filename;
     auto file_path = filepath_to_absolute(base::FilePath(read_filename));
-    auto succeed = ReadFileToString(file_path, &netlog_output);
-    LOG(INFO) << "YO THOR - did ya read OK?? " << (succeed ? "TRUE" : "fALSE");
+    ReadFileToString(file_path, &netlog_output);
   } else if (!last_absolute_path_.empty()) {
-    LOG(INFO) << "YO THOR - ELSE - GOT A ABS PATH";
-    auto succeed = ReadFileToString(last_absolute_path_, &netlog_output);
-    LOG(INFO) << "YO THOR - did ya read OK? " << (succeed ? "TRUE" : "fALSE");
+    ReadFileToString(last_absolute_path_, &netlog_output);
   }
-  if (!last_absolute_path_.empty()) {
-    LOG(INFO) << "YO THOR - VERIFY - GOT A ABS PATH";
-    auto succeed = ReadFileToString(last_absolute_path_, &netlog_output);
-    LOG(INFO) << "YO THOR - did ya read OK? " << (succeed ? "TRUE" : "fALSE");
-  }
+
   return netlog_output;
 }
 
