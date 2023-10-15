@@ -1,4 +1,4 @@
-/* Copyright 2018, Google Inc.  All rights reserved.
+/* Copyright 2020, Google Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,46 +27,33 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Make sure it's defined before including anything else.  A number of syscalls
- * are GNU extensions and rely on being exported by glibc.
- */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
+#include "test_skel.h"
 
-/*
- * Make sure the assert checks aren't removed as all the unittests are based
- * on them.
- */
-#undef NDEBUG
+#define BUFFER_SIZE 256
 
-#include <assert.h>
-#include <fcntl.h>
-#include <sched.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/prctl.h>
-#include <sys/stat.h>
-#include <sys/vfs.h>
-#include <sys/wait.h>
+int main(int argc, char *argv[]) {
+  char buffer[BUFFER_SIZE];
+  // Zero it out so we can check later that it's at least not all 0s.
+  memset(buffer, 0, BUFFER_SIZE);
+  bool buffer_contains_all_zeros = true;
 
-#include <linux/capability.h>
+  // Don't bother passing any flags. (If we're using lss, we might not have the
+  // right header files with the flags defined anyway, and we'd have to copy
+  // this in here too, and risk getting out of sync in yet another way.)
+  const ssize_t r = sys_getrandom(buffer, BUFFER_SIZE, 0);
 
-#include "linux_syscall_support.h"
+  // Make sure it either worked, or that it's just not supported.
+  assert(r == BUFFER_SIZE || errno == ENOSYS);
 
-void assert_buffers_eq_len(const void *buf1, const void *buf2, size_t len) {
-  const uint8_t *u8_1 = (const uint8_t *)buf1;
-  const uint8_t *u8_2 = (const uint8_t *)buf2;
-  size_t i;
-
-  for (i = 0; i < len; ++i) {
-    if (u8_1[i] != u8_2[i])
-      printf("offset %zu: %02x != %02x\n", i, u8_1[i], u8_2[i]);
+  if (r == BUFFER_SIZE) {
+    // If all the bytes are 0, it didn't really work.
+    for (size_t i = 0; i < BUFFER_SIZE; ++i) {
+      if (buffer[i] != 0) {
+        buffer_contains_all_zeros = false;
+      }
+    }
+    assert(!buffer_contains_all_zeros);
   }
+
+  return 0;
 }
-#define assert_buffers_eq(obj1, obj2) assert_buffers_eq_len(obj1, obj2, sizeof(*obj1))

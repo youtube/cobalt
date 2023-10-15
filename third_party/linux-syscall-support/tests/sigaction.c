@@ -1,4 +1,4 @@
-/* Copyright 2018, Google Inc.  All rights reserved.
+/* Copyright 2020, Google Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,46 +27,28 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Make sure it's defined before including anything else.  A number of syscalls
- * are GNU extensions and rely on being exported by glibc.
- */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
+#include "test_skel.h"
 
-/*
- * Make sure the assert checks aren't removed as all the unittests are based
- * on them.
- */
-#undef NDEBUG
+void test_handler(int sig) {}
 
-#include <assert.h>
-#include <fcntl.h>
-#include <sched.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/prctl.h>
-#include <sys/stat.h>
-#include <sys/vfs.h>
-#include <sys/wait.h>
+int main(int argc, char *argv[]) {
+  const size_t kSigsetSize = sizeof(struct kernel_sigset_t);
+  struct kernel_sigaction action = {};
+  // Invalid signal returns EINVAL.
+  assert(sys_rt_sigaction(SIGKILL, &action, NULL, kSigsetSize) == -1);
+  assert(errno == EINVAL);
 
-#include <linux/capability.h>
+  // Set an action.
+  action.sa_handler_ = test_handler;
+  action.sa_flags = SA_SIGINFO;
+  assert(sys_sigemptyset(&action.sa_mask) == 0);
+  assert(sys_sigaddset(&action.sa_mask, SIGPIPE) == 0);
+  assert(sys_rt_sigaction(SIGSEGV, &action, NULL, kSigsetSize) == 0);
 
-#include "linux_syscall_support.h"
+  // Retrieve the action.
+  struct kernel_sigaction old_action = {};
+  assert(sys_rt_sigaction(SIGSEGV, NULL, &old_action, kSigsetSize) == 0);
+  assert(memcmp(&action, &old_action, sizeof(action)) == 0);
 
-void assert_buffers_eq_len(const void *buf1, const void *buf2, size_t len) {
-  const uint8_t *u8_1 = (const uint8_t *)buf1;
-  const uint8_t *u8_2 = (const uint8_t *)buf2;
-  size_t i;
-
-  for (i = 0; i < len; ++i) {
-    if (u8_1[i] != u8_2[i])
-      printf("offset %zu: %02x != %02x\n", i, u8_1[i], u8_2[i]);
-  }
+  return 0;
 }
-#define assert_buffers_eq(obj1, obj2) assert_buffers_eq_len(obj1, obj2, sizeof(*obj1))
