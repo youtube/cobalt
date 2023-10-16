@@ -42,9 +42,9 @@ using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 using Windows::Foundation::Metadata::ApiInformation;
 #if defined(INTERNAL_BUILD)
 using ::starboard::xb1::shared::Av1VideoDecoder;
+using ::starboard::xb1::shared::GpuVideoDecoderBase;
 using ::starboard::xb1::shared::VpxVideoDecoder;
 #endif  // defined(INTERNAL_BUILD)
-using ::starboard::xb1::shared::GpuVideoDecoderBase;
 
 const SbTime kReleaseTimeout = kSbTimeSecond;
 
@@ -473,8 +473,10 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
       } else {
         SB_LOG(INFO) << "CreateFence() failed with " << hr;
       }
+#if defined(INTERNAL_BUILD)
       // Clear frame buffers used for rendering queue
       GpuVideoDecoderBase::ClearFrameBuffersPool();
+#endif  // #if defined(INTERNAL_BUILD)
     }
 
     if (d3d12queue_) {
